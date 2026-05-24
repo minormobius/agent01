@@ -54,6 +54,7 @@ jobs:
           mkdir -p dist/problems/spend-report/data
           mkdir -p dist/problems/decision-point
           mkdir -p dist/getting-started/windows
+          mkdir -p dist/getting-started/shipping
           mkdir -p dist/wasm/beam-solver/src
           cp index.html dist/
           cp PROBLEM_TEMPLATE.md dist/
@@ -64,6 +65,7 @@ jobs:
           cp problems/spend-report/data/purchase-orders.csv dist/problems/spend-report/data/
           cp problems/decision-point/index.html dist/problems/decision-point/
           cp getting-started/windows/index.html dist/getting-started/windows/
+          cp getting-started/shipping/index.html dist/getting-started/shipping/
           # Ship the Rust source so the "worked solution" links resolve.
           cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
           ls -la dist/

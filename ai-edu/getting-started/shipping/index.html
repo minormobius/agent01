@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipping the work &mdash; explore in HTML, deliver in PDF</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.6rem; margin: 0.4rem 0 0.2rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.2rem; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+  h3 { font-size: 1.02rem; margin-top: 1.6rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  p { margin: 0.6rem 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .codeblock { position: relative; margin: 1rem 0; background: #1d2329; color: #e6edf3; border-radius: 6px; padding: 0.85rem 1rem; overflow-x: auto; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.5; border: 1px solid #2a3138; }
+  @media (prefers-color-scheme: dark) { .codeblock { background: #0e1419; border-color: #2a3138; } }
+  .codeblock pre { margin: 0; padding: 0; padding-right: 5rem; white-space: pre-wrap; word-break: break-word; }
+  .codeblock .copy { position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.08); color: #cdd9e5; border: 1px solid rgba(255,255,255,0.15); padding: 0.25rem 0.6rem; border-radius: 4px; font: inherit; font-size: 0.78rem; cursor: pointer; }
+  .codeblock .copy:hover { background: rgba(255,255,255,0.16); }
+  .codeblock .copy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  .codeblock .lang { position: absolute; bottom: 0.25rem; right: 0.6rem; font-size: 0.7rem; color: rgba(230,237,243,0.4); font-style: italic; pointer-events: none; }
+  .aside { margin: 0.7rem 0; padding: 0.6rem 0.9rem; background: #f4f8fc; border-left: 3px solid #2c7da0; border-radius: 0 4px 4px 0; font-size: 0.92rem; color: #455; }
+  @media (prefers-color-scheme: dark) { .aside { background: #18222a; border-left-color: #5fa8c8; color: #bbd; } }
+  .aside strong { color: #1a1a1a; } @media (prefers-color-scheme: dark) { .aside strong { color: #eee; } }
+  .warn { background: #fff8e8; border-left-color: #c89200; }
+  @media (prefers-color-scheme: dark) { .warn { background: #2a2310; border-left-color: #d4a020; color: #ddc; } }
+  table.cmp { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+  table.cmp th, table.cmp td { border: 1px solid #ddd; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }
+  table.cmp th { background: #f4f6f8; }
+  @media (prefers-color-scheme: dark) { table.cmp th, table.cmp td { border-color: #333; } table.cmp th { background: #1c2027; } }
+  .tabs { display: flex; gap: 0.3rem; margin: 1rem 0 0; }
+  .tabs button { font: inherit; font-size: 0.85rem; padding: 0.35rem 0.9rem; border: 1px solid #bbb; border-bottom: none; border-radius: 6px 6px 0 0; background: #eef1f4; cursor: pointer; color: #445; }
+  .tabs button.active { background: #1d2329; color: #fff; border-color: #1d2329; }
+  @media (prefers-color-scheme: dark) { .tabs button { background: #20242c; border-color: #333; color: #aab; } .tabs button.active { background: #0e1419; color: #fff; border-color: #0e1419; } }
+  .tab-body .codeblock { margin-top: 0; border-top-left-radius: 0; }
+  kbd { display: inline-block; padding: 0.05rem 0.4rem; border: 1px solid #ccc; border-bottom-width: 2px; border-radius: 3px; background: #f8f9fa; font: 0.85em ui-monospace, Menlo, monospace; color: #333; }
+  @media (prefers-color-scheme: dark) { kbd { background: #2a2e36; border-color: #444; color: #ccc; } }
+  .prompt { background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { color: #4a7a2a; font-style: normal; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Shipping the work: explore in HTML, deliver in PDF</h1>
+<p class="lede">
+  Once Claude has done the analysis, you need to do one of two things
+  with it: <em>explore</em> it, or <em>deliver</em> it. Each has a
+  format that's almost embarrassingly good at the job &mdash; and Claude
+  produces both for free.
+</p>
+
+<div class="aside">
+  <strong>The whole idea in one line:</strong> a self-contained
+  <strong>HTML file</strong> is the best thing ever invented for poking
+  at data; <strong>Markdown&nbsp;&rarr;&nbsp;Pandoc&nbsp;&rarr;&nbsp;PDF</strong>
+  is the best cheap way to hand someone a document that looks like it
+  came from a design team. This page sets up both. It's a reference for
+  the report problems &mdash; do it once, reuse it everywhere.
+</div>
+
+<h2>Two outputs, two jobs</h2>
+<table class="cmp">
+  <tr><th></th><th>HTML explorer</th><th>Pandoc PDF</th></tr>
+  <tr><th>For</th><td>Thinking. Slicing, filtering, zooming, toggling assumptions.</td><td>Delivering. The frozen artifact for the boss, the customer, the design history file.</td></tr>
+  <tr><th>Audience</th><td>You and a colleague or two.</td><td>People who will print it, sign it, or file it.</td></tr>
+  <tr><th>Interactive</th><td>Yes &mdash; live charts, sortable tables, sliders.</td><td>No &mdash; static, paginated, permanent.</td></tr>
+  <tr><th>Dependencies</th><td><strong>None.</strong> Any browser opens it.</td><td><code>pandoc</code> + one PDF engine (below).</td></tr>
+  <tr><th>Shareable as</th><td>One <code>.html</code> file you can email.</td><td>One <code>.pdf</code> file you can email.</td></tr>
+</table>
+<p>
+  The interactive panels on the <a href="../../problems/spend-report/">spend
+  report</a> and <a href="../../problems/decision-point/">decision point</a>
+  problems <em>are</em> HTML explorers &mdash; single files, no install,
+  live charts. That's path one. This page mostly exists to set up path two.
+</p>
+
+<h2>Path 1 &mdash; the HTML explorer (zero install)</h2>
+<p>
+  This one needs no setup at all, so the entire skill is knowing to ask
+  for it. The magic words are <em>&ldquo;single self-contained HTML
+  file, no external dependencies&rdquo;</em> &mdash; that tells Claude to
+  inline the data, the styling, and any chart code into one file that
+  works offline, forever, on any machine.
+</p>
+<div class="prompt">
+  <em>Prompt:</em> &ldquo;Build me a single self-contained HTML file that
+  loads this CSV (embed the data directly), shows a sortable table, lets
+  me filter by category and vendor, and renders spend-by-category as a
+  bar chart. No external libraries or CDN links &mdash; everything
+  inline so it works offline.&rdquo;
+</div>
+<p>
+  Double-click the result. It opens in your browser. Nothing to install,
+  nothing to host, no build step. When you want a different cut of the
+  data, you ask Claude to change it and re-open the file. This is the
+  fastest data-exploration loop there is, and it costs nothing to run or
+  share.
+</p>
+<div class="aside">
+  <strong>Why inline matters:</strong> a file that pulls a charting
+  library from a CDN breaks the day you open it on a plane, or in two
+  years when that CDN URL rots. &ldquo;Self-contained&rdquo; means the
+  file is the whole program. Keep one around and it keeps working.
+</div>
+
+<h2>Path 2 &mdash; Markdown &rarr; Pandoc &rarr; PDF</h2>
+<p>
+  You write (or Claude writes) the report in <strong>Markdown</strong>
+  &mdash; plain text with <code>#</code> headings and <code>|</code>
+  tables. <strong>Pandoc</strong> is the universal document converter
+  that turns it into a typeset PDF. Pandoc needs one helper to actually
+  draw the PDF; we use <strong>Typst</strong>, a small modern
+  typesetting engine, because it's tiny, fast, and has readable error
+  messages.
+</p>
+<p>Two tools to install. Pick your OS:</p>
+
+<div class="tabs" id="tabs">
+  <button data-os="mac" class="active">macOS</button>
+  <button data-os="win">Windows</button>
+  <button data-os="linux">Linux</button>
+</div>
+<div class="tab-body" data-os="mac">
+  <div class="codeblock"><button class="copy">Copy</button><pre>brew install pandoc typst</pre><span class="lang">Terminal (Homebrew)</span></div>
+  <p style="font-size:0.9rem;color:#778;">No Homebrew? Install it first from <code>brew.sh</code>, or download the pandoc and typst installers from their release pages.</p>
+</div>
+<div class="tab-body" data-os="win" hidden>
+  <div class="codeblock"><button class="copy">Copy</button><pre>winget install --id JohnMacFarlane.Pandoc
+winget install --id Typst.Typst</pre><span class="lang">PowerShell</span></div>
+  <p style="font-size:0.9rem;color:#778;">Close and reopen PowerShell afterward so both land on your PATH.</p>
+</div>
+<div class="tab-body" data-os="linux" hidden>
+  <div class="codeblock"><button class="copy">Copy</button><pre># Debian/Ubuntu — but check the version (see note)
+sudo apt install pandoc
+# Typst: download the release binary, or:
+cargo install typst-cli</pre><span class="lang">bash</span></div>
+  <div class="aside warn" style="font-size:0.88rem;">
+    Distro <code>pandoc</code> is often <strong>too old</strong> for the
+    Typst engine (you need pandoc&nbsp;&ge;&nbsp;3.1). Check with
+    <code>pandoc -v</code>. If it's older, grab the current <code>.deb</code>
+    from pandoc's GitHub releases instead of <code>apt</code>.
+  </div>
+</div>
+
+<h3>Render it &mdash; one command</h3>
+<p>With a <code>report.md</code> in hand:</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>pandoc report.md -o report.pdf --pdf-engine=typst</pre><span class="lang">Terminal</span></div>
+<p>
+  That's the whole workflow. Edit the Markdown, re-run the command, get
+  an updated PDF. Better still, don't memorize the flags &mdash; let
+  Claude write the report <em>and</em> hand you the exact command:
+</p>
+<div class="prompt">
+  <em>Prompt:</em> &ldquo;Write a one-page Markdown report of these
+  findings: a two-sentence summary, a findings table, and an embedded
+  bar-chart image. Add a YAML title block. Then give me the exact pandoc
+  command to render it to a nicely-typeset PDF using the Typst
+  engine.&rdquo;
+</div>
+
+<h3>Making it look good</h3>
+<p>
+  Pandoc + Typst already produces a clean document. A YAML block at the
+  top of the Markdown adds a title page and metadata; a couple of flags
+  add a table of contents and section numbers:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>---
+title: "Q1 Purchase-Order Spend"
+author: "Reliability Engineering"
+date: "2026-04-15"
+---
+
+# Summary
+
+Total spend was **$67,414** across 49 line items...
+
+![Spend by category](spend_by_category.svg)
+
+| Category | Spend | Share |
+|----------|------:|------:|
+| Machined Parts | $12,908 | 30% |</pre><span class="lang">report.md</span></div>
+<div class="codeblock"><button class="copy">Copy</button><pre>pandoc report.md -o report.pdf --pdf-engine=typst --toc --number-sections</pre><span class="lang">Terminal</span></div>
+
+<div class="aside">
+  <strong>Charts in a PDF are images.</strong> The PDF is static, so a
+  figure is a file you reference &mdash; <code>![caption](chart.svg)</code>.
+  Have Claude emit the chart as an <code>.svg</code> (crisp at any size)
+  or a small Python/matplotlib script that writes one. The live,
+  draggable charts are the HTML path's superpower; the PDF gets a sharp
+  snapshot.
+</div>
+
+<div class="aside">
+  <strong>Prefer LaTeX?</strong> If you want LaTeX-grade typography or
+  already have a TeX install, swap one tool: install
+  <strong>TinyTeX</strong> (a minimal, self-managing LaTeX &mdash; the
+  installer lives at <code>yihui.org/tinytex</code>) and change the flag
+  to <code>--pdf-engine=xelatex</code>. Everything else &mdash; the
+  Markdown, the YAML block, the workflow &mdash; is identical. Full TeX
+  Live works too but it's ~4&nbsp;GB; TinyTeX is a few hundred MB and
+  installs missing packages on demand.
+</div>
+
+<h2>Where this runs</h2>
+<p>
+  Both paths run <strong>on your own machine, with your own Claude</strong>
+  &mdash; same as everything else on this site. The HTML file opens in
+  your browser; the <code>pandoc</code> command runs in your terminal.
+  Nothing is uploaded, nothing is hosted, and the artifacts are yours.
+  Claude can even write a one-line <code>Makefile</code> or shell script
+  so &ldquo;rebuild the report&rdquo; becomes a single command you never
+  have to think about again.
+</p>
+
+<h2>Take it back to the datasets</h2>
+<p>
+  Both report problems ship a downloadable dataset and end with a
+  &ldquo;Ship it&rdquo; section. Generate the data, do the analysis with
+  Claude, then practice both deliveries:
+</p>
+<ul>
+  <li><a href="../../problems/spend-report/">Spend report</a> &mdash; turn the cleaned analysis into a filterable HTML explorer, then a one-page PDF brief.</li>
+  <li><a href="../../problems/decision-point/">Decision point</a> &mdash; an HTML explorer for slicing the 50 runs by unit and gain, then a PDF test report with the pass/fail verdict.</li>
+</ul>
+
+<p style="font-size: 0.85rem; color: #888; margin-top: 3rem;">
+  Pandoc: <a href="https://pandoc.org">pandoc.org</a> &middot;
+  Typst: <a href="https://typst.app">typst.app</a>
+</p>
+
+<script>
+document.querySelectorAll('.codeblock').forEach(block => {
+  const btn = block.querySelector('.copy'), pre = block.querySelector('pre');
+  if (!btn || !pre) return;
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(pre.textContent);
+      btn.textContent = 'Copied!'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    } catch (e) {
+      const range = document.createRange(); range.selectNodeContents(pre);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = 'Select+Ctrl+C'; setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+    }
+  });
+});
+const tabs = document.getElementById('tabs');
+tabs.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  const os = b.dataset.os;
+  tabs.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.tab-body').forEach(body => { body.hidden = body.dataset.os !== os; });
+}));
+</script>
+
+</body>
+</html>
