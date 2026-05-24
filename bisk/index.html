@@ -93,6 +93,18 @@ body { max-width: 820px; margin: 0 auto; padding: 1.5rem 1.2rem 4rem; line-heigh
 .delver .openlink { font-family: var(--mono); font-size: 0.66rem; margin-top: 0.5rem; }
 .delver .openlink a { color: var(--accent); text-decoration: none; }
 
+/* Scenes — are.na-style masonry */
+.scenes { columns: 4 180px; column-gap: 8px; }
+@media (max-width: 600px) { .scenes { column-gap: 6px; } }
+.scenes a { display: block; position: relative; margin: 0 0 8px; break-inside: avoid; border-radius: 3px; overflow: hidden; background: var(--rule); line-height: 0; }
+.scenes img { width: 100%; display: block; }
+.scenes .cap {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 0.5rem 0.5rem 0.35rem;
+  font-family: var(--mono); font-size: 0.6rem; color: #fff; line-height: 1.3;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7)); opacity: 0; transition: opacity 0.15s;
+}
+.scenes a:hover .cap { opacity: 1; }
+
 .empty { font-style: italic; color: var(--muted); padding: 0.6rem 0; }
 
 /* Archive */
@@ -135,6 +147,11 @@ footer a:hover { color: var(--accent); }
 <div class="section" id="sec-chickens">
   <h2>Top Chickens <span class="note">most-liked, last 24h</span></h2>
   <div id="chickens"></div>
+</div>
+
+<div class="section" id="sec-scenes">
+  <h2>Scenes from the Cluster <span class="note">every image in a top post today</span></h2>
+  <div class="scenes" id="scenes"></div>
 </div>
 
 <div class="section">
@@ -251,6 +268,17 @@ function renderDelver(d) {
     <div class="openlink"><a href="${esc(d.url)}" target="_blank" rel="noopener">open thread on bluesky →</a> &nbsp;·&nbsp; <a href="${beast}" target="_blank" rel="noopener">full threadbeast →</a></div>`;
 }
 
+function renderScenes(list) {
+  const sec = $('sec-scenes'), el = $('scenes');
+  if (!list || !list.length) { sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  el.innerHTML = list.map(s => `
+    <a href="${esc(s.url)}" target="_blank" rel="noopener" title="${esc(s.alt || '@' + s.handle)}">
+      <img src="${esc(s.thumb)}" alt="${esc(s.alt)}" loading="lazy">
+      <span class="cap">@${esc(s.handle)}</span>
+    </a>`).join('');
+}
+
 async function renderArchive(currentDate) {
   let idx = [];
   try { const r = await fetch('./data/index.json'); if (r.ok) idx = await r.json(); } catch {}
@@ -284,6 +312,7 @@ async function load() {
   renderWeather(digest.weather);
   renderChickens(digest.chickens);
   renderDelver(digest.delver);
+  renderScenes(digest.scenes);
   renderArchive(digest.date);
 }
 

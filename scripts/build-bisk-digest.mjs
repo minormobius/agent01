@@ -41,6 +41,22 @@ const STOP = new Set(('the a an and or but if then so of to in on at for with fr
 function rkeyOf(uri) { return uri.split('/').pop(); }
 function postUrl(handleOrDid, uri) { return `https://bsky.app/profile/${handleOrDid}/post/${rkeyOf(uri)}`; }
 
+// Pull image views out of a post's embed (direct images or record-with-media).
+function extractImages(post) {
+  const e = post.embed;
+  if (!e) return [];
+  let view = null;
+  if (typeof e.$type === 'string' && e.$type.startsWith('app.bsky.embed.images')) view = e;
+  else if (e.media && typeof e.media.$type === 'string' && e.media.$type.startsWith('app.bsky.embed.images')) view = e.media;
+  if (!view || !Array.isArray(view.images)) return [];
+  return view.images.map(im => ({
+    thumb: im.thumb,
+    fullsize: im.fullsize,
+    alt: im.alt || '',
+    ratio: im.aspectRatio && im.aspectRatio.height ? +(im.aspectRatio.width / im.aspectRatio.height).toFixed(4) : null,
+  })).filter(im => im.thumb);
+}
+
 // Rich author feed (bsky.js strips text/author, so fetch the full view here).
 async function authorPosts(did, limit = 30) {
   const params = new URLSearchParams({ actor: did, limit: String(limit), filter: 'posts_no_replies' });
@@ -64,6 +80,7 @@ async function authorPosts(did, limit = 30) {
           displayName: it.post.author.displayName || it.post.author.handle,
           avatar: it.post.author.avatar || '',
         },
+        images: extractImages(it.post),
       }));
   } catch { return []; }
 }
@@ -222,6 +239,21 @@ async function main() {
   }
   if (delver) { delete delver._depth; delete delver._voices; }
 
+  // Scenes — every image in a top-level post today, best-liked first,
+  // capped so the page stays light. An are.na-style wall of the day's art.
+  const SCENES_CAP = 60;
+  const scenes = [];
+  for (const p of [...all].sort((a, b) => b.likeCount - a.likeCount)) {
+    for (const im of p.images || []) {
+      scenes.push({
+        thumb: im.thumb, fullsize: im.fullsize, alt: im.alt, ratio: im.ratio,
+        handle: p.author.handle, url: postUrl(p.author.handle, p.uri),
+      });
+      if (scenes.length >= SCENES_CAP) break;
+    }
+    if (scenes.length >= SCENES_CAP) break;
+  }
+
   // Weather — sentiment/emotion/distinctiveness over everything the list
   // members said today, top-level posts AND their deep-thread replies.
   const corpusTexts = [...corpus.values()].filter(v => memberSet.has(v.did) && v.text).map(v => v.text);
@@ -238,6 +270,7 @@ async function main() {
     chickens,
     delver,
     weather,
+    scenes,
   };
 
   if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
@@ -253,7 +286,7 @@ async function main() {
   idx.sort((a, b) => b.date.localeCompare(a.date));
   writeFileSync(idxPath, JSON.stringify(idx, null, 2));
 
-  console.log(`Wrote ${date}.json — ${chickens.length} chickens, delver depth ${delver?.maxDepth ?? '—'}, weather ${weather.label}.`);
+  console.log(`Wrote ${date}.json — ${chickens.length} chickens, delver depth ${delver?.maxDepth ?? '—'}, weather ${weather.label}, ${scenes.length} scenes.`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
