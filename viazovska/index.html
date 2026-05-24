@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>viazovska — sphere packing in dimension 8 and 24</title>
+<meta name="description" content="Maryna Viazovska's 2016 sphere-packing proof. The E₈ lattice is the densest packing in dimension 8, the Leech lattice in dimension 24 — proven exactly via magic functions built from modular forms. Scrub the E₈ Coxeter projection and watch the rings form.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #97781a;
+  --accent-faint: rgba(151, 120, 26, 0.10);
+  --accent-tint: rgba(151, 120, 26, 0.06);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #efe9d6;
+  --tag-text: #5a4710;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --space-0: #0d0d12;
+  --space-1: #05050a;
+  --proven: #97781a;
+  --known: #8a8a8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #d4b454;
+    --accent-faint: rgba(212, 180, 84, 0.13);
+    --accent-tint: rgba(212, 180, 84, 0.06);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #2a2410;
+    --tag-text: #d4b454;
+    --proven: #d4b454;
+    --known: #999;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.16em;
+  text-transform: uppercase; background: transparent; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.9rem; margin-bottom: -1px; cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.work-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 1.4rem; align-items: start; }
+@media (max-width: 720px) { .work-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas.viz {
+  width: 100%; aspect-ratio: 1; display: block; background: var(--canvas-bg);
+  border: 1px solid var(--rule); border-radius: 2px; touch-action: none;
+}
+canvas.dark { background: #07070c; }
+canvas.chart {
+  width: 100%; aspect-ratio: 5 / 3; display: block; background: var(--canvas-bg);
+  border: 1px solid var(--rule); border-radius: 2px; margin-bottom: 1rem;
+}
+
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 1rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono); font-size: 0.65rem; background: transparent;
+  border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem;
+  border-radius: 2px; cursor: pointer; transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; background: var(--rule); border-radius: 2px; outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; background: var(--accent); border-radius: 50%; cursor: pointer; border: none; }
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row .val { font-size: 0.7rem; color: var(--accent); min-width: 3em; text-align: right; }
+
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+
+.verdict { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; min-height: 1.5em; color: var(--muted); }
+.verdict.win { color: var(--accent); font-weight: 600; }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.4rem; }
+
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>viazovska</h1>
+  <p class="subtitle">sphere packing · dim 8 &amp; 24 · 2016</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://mino.mobi/heilbronn/">heilbronn</a> · <a href="https://mino.mobi/borsuk/">borsuk</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="e8" role="tab">E₈ projection</button>
+  <button class="tab" data-tab="pack" role="tab">2D packing</button>
+  <button class="tab" data-tab="dims" role="tab">by dimension</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- E8 TAB ────────────────────────────────────────────────────────── -->
+<div class="pane active" id="pane-e8">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  The 240 shortest vectors of the E₈ lattice, projected to 2D. In its Coxeter plane they
+  fall into 8 rings of 30 — the most symmetric 2D shadow of the densest packing in
+  dimension 8. Scrub the projection plane away from the Coxeter plane and the order
+  dissolves into a generic blur; scrub back and it snaps into the flower.
+</p>
+
+<div class="work-wrap">
+  <canvas id="e8" class="viz dark" width="600" height="600"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">projection plane</span>
+      <div class="slider-row">
+        <input type="range" id="scrub" min="0" max="100" step="1" value="0">
+        <span class="val" id="scrub-val">Coxeter</span>
+      </div>
+      <div class="stat-note">0 = Coxeter plane (8 rings of 30). Drag toward a generic 8D plane and the symmetry breaks.</div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">display</span>
+      <div class="btn-row">
+        <button class="btn active" id="edges-btn">edges</button>
+        <button class="btn active" id="spin-btn">spin</button>
+      </div>
+    </div>
+    <div class="stats" id="e8-stats"></div>
+    <div class="verdict" id="e8-verdict"></div>
+  </div>
+</div>
+</div>
+
+<!-- PACKING TAB ───────────────────────────────────────────────────── -->
+<div class="pane" id="pane-pack">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  The 2D case, to build intuition. Pack equal circles on a lattice; the densest is the
+  hexagonal one (Thue 1910), filling π/√12 ≈ 90.7% of the plane. Tilt the lattice and
+  watch the density fall away from the 60° optimum.
+</p>
+
+<div class="work-wrap">
+  <canvas id="pack" class="viz" width="600" height="600"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">lattice angle · θ</span>
+      <div class="slider-row">
+        <input type="range" id="theta" min="45" max="90" step="0.5" value="60">
+        <span class="val" id="theta-val">60°</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn" data-pack="60">hexagonal</button>
+        <button class="btn" data-pack="90">square</button>
+      </div>
+    </div>
+    <div class="stats" id="pack-stats"></div>
+    <div class="verdict" id="pack-verdict"></div>
+  </div>
+</div>
+</div>
+
+<!-- DIMENSIONS TAB ────────────────────────────────────────────────── -->
+<div class="pane" id="pane-dims">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  Best sphere-packing density by dimension. It plummets as dimension grows — yet the exact
+  optimum is known in only five dimensions: 1, 2, 3, 8, and 24. Dimensions 8 (E₈) and 24
+  (Leech) are Viazovska's; they sit visibly above the trend of best-known records.
+</p>
+<canvas id="dims" class="chart" width="700" height="420"></canvas>
+<div class="stats" id="dims-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
+</div>
+
+<!-- DOCS TAB ──────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="meta-stamp">Maryna Viazovska · 2016 · Fields Medal 2022</p>
+
+<p>
+  How much of space can you fill with equal, non-overlapping balls? In the plane the
+  answer is the honeycomb, π/√12 ≈ 90.7%, settled by Thue and Fejes Tóth. In three
+  dimensions it's the greengrocer's orange stack, π/√18 ≈ 74.0% — the Kepler conjecture,
+  not proven until Hales's 1998 computer-assisted tour de force.
+</p>
+
+<blockquote>
+  In dimensions 8 and 24, the answer is exact and beautiful — and the proof is two pages.
+</blockquote>
+
+<h2>The Cohn–Elkies bound</h2>
+<p>
+  In 2003 Cohn and Elkies turned packing into an optimization. If you can find a function
+  f on ℝⁿ that is non-positive outside a ball of radius r, whose Fourier transform f̂ is
+  non-negative everywhere, and with f(0) = f̂(0) &gt; 0, then the packing density is bounded
+  by a formula in f. Find the <em>right</em> f and the bound becomes tight.
+</p>
+<p>
+  For dimensions 8 and 24 the numerics screamed that an exact magic function existed — the
+  Cohn–Elkies bound matched the E₈ and Leech densities to dozens of digits — but nobody
+  could write it down. The function had to vanish to the right orders at every lattice
+  distance, simultaneously for f and f̂. That's a brutal interpolation problem.
+</p>
+
+<h2>Viazovska's magic functions</h2>
+<p>
+  In 2016 Viazovska built the dimension-8 magic function explicitly out of
+  <em>modular forms</em>. The idea: an eigenfunction of the Fourier transform with
+  prescribed roots can be assembled from quasimodular forms whose transformation laws
+  encode exactly the sign and vanishing conditions Cohn–Elkies demands. The construction
+  is short, exact, and — to specialists — startling.
+</p>
+<p>
+  Within weeks, Cohn, Kumar, Miller, Radchenko, and Viazovska extended the method to
+  dimension 24 and the Leech lattice. Viazovska received the Fields Medal in 2022. The two
+  proofs remain the only dimensions above 3 where sphere packing is solved exactly.
+</p>
+
+<h2>Why 8 and 24?</h2>
+<p>
+  E₈ and the Leech lattice are extraordinarily symmetric and self-dual; their theta series
+  <em>are</em> modular forms, which is exactly what lets a modular magic function lock onto
+  their distances. Nearby dimensions have no such miraculous lattice, and the method gives
+  nothing. The
+  <a href="https://mino.mobi/erdos/">erdős</a>-style moral applies in reverse: here a
+  hidden structure makes the impossible-looking exactly solvable.
+</p>
+
+<h2>Connections in the pack</h2>
+<ul>
+  <li>Like <a href="https://mino.mobi/borsuk/">borsuk</a>, the action is in high dimension
+  and resists direct visualization — but a 2D shadow (the E₈ Coxeter projection here) still
+  carries the symmetry.</li>
+  <li>The linear-programming bound is a cousin of the
+  <a href="https://mino.mobi/capset/">capset</a> Croot–Lev–Pach polynomial bound: both
+  squeeze a combinatorial optimum with a cleverly chosen auxiliary function.</li>
+  <li>E₈'s 240 roots are the same object whose Coxeter number (30) sets the rotation of the
+  projection you can scrub in the first tab.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/capset/">capset</a>
+  <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  <a href="https://mino.mobi/borsuk/">borsuk</a>
+</footer>
+
+<script>
+'use strict';
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+// ─────────────────────────────────────────────────────────────────────
+// E₈ roots + Coxeter-plane projection
+// ─────────────────────────────────────────────────────────────────────
+function e8Roots() {
+  const roots = [];
+  // 112 of form ±e_i ± e_j
+  for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++)
+    for (const si of [1, -1]) for (const sj of [1, -1]) {
+      const r = [0,0,0,0,0,0,0,0]; r[i] = si; r[j] = sj; roots.push(r);
+    }
+  // 128 of form (±½)^8 with an even number of minus signs
+  for (let m = 0; m < 256; m++) {
+    let bits = 0; const r = [];
+    for (let i = 0; i < 8; i++) { const b = (m >> i) & 1; bits += b; r.push(b ? -0.5 : 0.5); }
+    if (bits % 2 === 0) roots.push(r);
+  }
+  return roots;
+}
+const ROOTS = e8Roots();
+
+// Coxeter-plane basis (computed offline as the top-2 eigenspace of C + Cᵀ).
+const U0 = [-0.084471,-0.46242,-0.300977,-0.106637,0.112105,0.345691,0.58391,-0.451723];
+const V0 = [-0.047478,-0.123266,0.051926,0.189724,0.284105,0.330945,0.328196,0.803683];
+// A generic target plane to scrub toward (deterministic pseudo-random, orthonormalized).
+function dot8(a, b) { let s = 0; for (let i = 0; i < 8; i++) s += a[i] * b[i]; return s; }
+function norm8(a) { return Math.sqrt(dot8(a, a)); }
+function unit8(a) { const n = norm8(a); return a.map(x => x / n); }
+let U1 = unit8([0.31,-0.12,0.55,-0.4,0.18,0.62,-0.05,0.22]);
+let V1 = (function() {
+  let v = [-0.5,0.33,0.1,0.27,-0.6,0.15,0.42,-0.18];
+  const c = dot8(v, U1); v = v.map((x,i) => x - c*U1[i]); return unit8(v);
+})();
+
+// Precompute minimal-distance edges (root·root = 1 → distance √2, the minimum).
+const EDGES = [];
+for (let i = 0; i < ROOTS.length; i++)
+  for (let j = i + 1; j < ROOTS.length; j++)
+    if (Math.abs(dot8(ROOTS[i], ROOTS[j]) - 1) < 1e-9) EDGES.push([i, j]);
+
+const e8Canvas = document.getElementById('e8');
+const e8ctx = e8Canvas.getContext('2d');
+let scrub = 0, showEdges = true, spin = true, e8spin = 0, e8last = performance.now();
+
+// 8 ring colours, gold→amber gradient
+const RING_COLS = ['#fff4d0','#f3dd9a','#e8c46a','#d4a94a','#c89234','#b67d22','#a06616','#8a520e'];
+
+function projectPlane() {
+  // Interpolate from Coxeter plane (t=0) toward generic plane (t=1).
+  const t = scrub / 100;
+  let u = U0.map((x, i) => (1 - t) * x + t * U1[i]);
+  u = unit8(u);
+  let v = V0.map((x, i) => (1 - t) * x + t * V1[i]);
+  const c = dot8(v, u); v = unit8(v.map((x, i) => x - c * u[i]));
+  return { u, v };
+}
+
+function drawE8() {
+  const W = e8Canvas.width, H = e8Canvas.height, cx = W / 2, cy = H / 2;
+  e8ctx.fillStyle = '#07070c';
+  e8ctx.fillRect(0, 0, W, H);
+
+  const { u, v } = projectPlane();
+  const cosS = Math.cos(e8spin), sinS = Math.sin(e8spin);
+  const scale = Math.min(W, H) * 0.40 / 1.14;  // outer ring radius ≈ 1.14
+  const pts = ROOTS.map(r => {
+    let x = dot8(r, u), y = dot8(r, v);
+    const rx = x * cosS - y * sinS, ry = x * sinS + y * cosS;
+    return { x: cx + rx * scale, y: cy + ry * scale, R: Math.hypot(x, y) };
+  });
+
+  // ring index by radius (for colour) — only meaningful near Coxeter plane
+  const maxR = 1.1402;
+  function ringColor(R) {
+    const idx = Math.min(7, Math.round((R / maxR) * 7.5));
+    return RING_COLS[idx] || RING_COLS[7];
+  }
+
+  // edges
+  if (showEdges) {
+    const t = scrub / 100;
+    e8ctx.lineWidth = 0.5;
+    e8ctx.strokeStyle = 'rgba(212,180,84,' + (0.16 * (1 - t * 0.85)).toFixed(3) + ')';
+    e8ctx.beginPath();
+    for (const [a, b] of EDGES) {
+      e8ctx.moveTo(pts[a].x, pts[a].y);
+      e8ctx.lineTo(pts[b].x, pts[b].y);
+    }
+    e8ctx.stroke();
+  }
+
+  // nodes
+  for (const p of pts) {
+    const col = ringColor(p.R);
+    e8ctx.beginPath();
+    e8ctx.arc(p.x, p.y, 3.4, 0, Math.PI * 2);
+    e8ctx.fillStyle = col;
+    e8ctx.globalAlpha = 0.95;
+    e8ctx.fill();
+  }
+  e8ctx.globalAlpha = 1;
+}
+
+function e8Frame() {
+  if (!document.getElementById('pane-e8').classList.contains('active')) { e8anim = null; return; }
+  const now = performance.now();
+  if (spin) e8spin += Math.min((now - e8last) / 1000, 0.05) * 0.12;
+  e8last = now;
+  drawE8();
+  e8anim = requestAnimationFrame(e8Frame);
+}
+let e8anim = null;
+
+function updateE8Stats() {
+  const t = scrub / 100;
+  document.getElementById('e8-stats').innerHTML = `
+    <div class="stat-row"><span class="k">roots</span><span class="v">240</span></div>
+    <div class="stat-row"><span class="k">min-dist edges</span><span class="v">${EDGES.length}</span></div>
+    <div class="stat-row"><span class="k">Coxeter number</span><span class="v">30</span></div>
+    <div class="stat-row"><span class="k">rings × points</span><span class="v hot">8 × 30</span></div>
+  `;
+  const vd = document.getElementById('e8-verdict');
+  if (scrub === 0) { vd.className = 'verdict win'; vd.textContent = 'Coxeter plane — maximal symmetry'; }
+  else if (scrub < 30) { vd.className = 'verdict'; vd.textContent = 'tilting off the Coxeter plane…'; }
+  else { vd.className = 'verdict'; vd.textContent = 'generic projection — the order is hidden'; }
+}
+
+document.getElementById('scrub').addEventListener('input', e => {
+  scrub = parseInt(e.target.value, 10);
+  document.getElementById('scrub-val').textContent = scrub === 0 ? 'Coxeter' : (scrub + '%');
+  updateE8Stats();
+});
+document.getElementById('edges-btn').addEventListener('click', function() {
+  showEdges = !showEdges; this.classList.toggle('active', showEdges);
+});
+document.getElementById('spin-btn').addEventListener('click', function() {
+  spin = !spin; this.classList.toggle('active', spin);
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 2D packing
+// ─────────────────────────────────────────────────────────────────────
+const packCanvas = document.getElementById('pack');
+const pctx = packCanvas.getContext('2d');
+let theta = 60;
+
+function packDensity(thDeg) {
+  const th = thDeg * Math.PI / 180;
+  // unit basis vectors v1=(1,0), v2=(cosθ, sinθ); nearest distance and cell area
+  const diff = Math.sqrt(2 - 2 * Math.cos(th));      // |v1 - v2|
+  const d = Math.min(1, diff);                        // nearest lattice distance
+  const r = d / 2;
+  const cellArea = Math.sin(th);                      // |v1 × v2|
+  return { density: Math.PI * r * r / cellArea, r, th };
+}
+
+function drawPack() {
+  const W = packCanvas.width, H = packCanvas.height;
+  pctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  pctx.fillRect(0, 0, W, H);
+  const th = theta * Math.PI / 180;
+  const { density, r } = packDensity(theta);
+
+  const unit = 84;                       // px per lattice unit
+  const rad = r * unit;
+  const v1 = { x: unit, y: 0 };
+  const v2 = { x: Math.cos(th) * unit, y: -Math.sin(th) * unit };
+  const cx = W / 2, cy = H / 2;
+  const accent = cssVar('--accent') || '#97781a';
+
+  for (let i = -6; i <= 6; i++) for (let j = -6; j <= 6; j++) {
+    const x = cx + i * v1.x + j * v2.x;
+    const y = cy + i * v1.y + j * v2.y;
+    if (x < -rad || x > W + rad || y < -rad || y > H + rad) continue;
+    pctx.beginPath();
+    pctx.arc(x, y, rad, 0, Math.PI * 2);
+    pctx.fillStyle = cssVar('--accent-faint') || 'rgba(151,120,26,0.1)';
+    pctx.fill();
+    pctx.lineWidth = 1.2;
+    pctx.strokeStyle = accent;
+    pctx.stroke();
+    pctx.beginPath();
+    pctx.arc(x, y, 2, 0, Math.PI * 2);
+    pctx.fillStyle = accent;
+    pctx.fill();
+  }
+
+  const opt = (Math.PI / Math.sqrt(12));
+  document.getElementById('pack-stats').innerHTML = `
+    <div class="stat-row"><span class="k">angle θ</span><span class="v">${theta.toFixed(1)}°</span></div>
+    <div class="stat-row"><span class="k">density</span><span class="v hot">${(density * 100).toFixed(2)}%</span></div>
+    <div class="stat-row"><span class="k">hex optimum</span><span class="v">${(opt * 100).toFixed(2)}%</span></div>
+    <div class="stat-row"><span class="k">of optimum</span><span class="v win">${(density / opt * 100).toFixed(1)}%</span></div>
+  `;
+  const vd = document.getElementById('pack-verdict');
+  if (Math.abs(theta - 60) < 0.6) { vd.className = 'verdict win'; vd.textContent = 'hexagonal — the planar optimum (Thue 1910)'; }
+  else if (Math.abs(theta - 90) < 0.6) { vd.className = 'verdict'; vd.textContent = 'square lattice — π/4 ≈ 78.5%'; }
+  else { vd.className = 'verdict'; vd.textContent = 'tilt to 60° to maximise'; }
+}
+
+document.getElementById('theta').addEventListener('input', e => {
+  theta = parseFloat(e.target.value);
+  document.getElementById('theta-val').textContent = theta.toFixed(1) + '°';
+  drawPack();
+});
+document.querySelectorAll('.btn[data-pack]').forEach(b => b.addEventListener('click', () => {
+  theta = parseFloat(b.dataset.pack);
+  document.getElementById('theta').value = theta;
+  document.getElementById('theta-val').textContent = theta.toFixed(1) + '°';
+  drawPack();
+}));
+
+// ─────────────────────────────────────────────────────────────────────
+// Density by dimension
+// ─────────────────────────────────────────────────────────────────────
+const DIMS = [
+  { d: 1,  D: 1.0,       name: 'ℤ',    proven: true },
+  { d: 2,  D: 0.9069,    name: 'A₂',   proven: true },
+  { d: 3,  D: 0.7405,    name: 'A₃',   proven: true },
+  { d: 4,  D: 0.6169,    name: 'D₄',   proven: false },
+  { d: 5,  D: 0.4653,    name: 'D₅',   proven: false },
+  { d: 6,  D: 0.3729,    name: 'E₆',   proven: false },
+  { d: 7,  D: 0.2953,    name: 'E₇',   proven: false },
+  { d: 8,  D: 0.2537,    name: 'E₈',   proven: true },
+  { d: 9,  D: 0.1458,    name: 'Λ₉',   proven: false },
+  { d: 10, D: 0.0997,    name: 'Λ₁₀',  proven: false },
+  { d: 11, D: 0.0604,    name: 'K₁₁',  proven: false },
+  { d: 12, D: 0.0494,    name: 'K₁₂',  proven: false },
+  { d: 13, D: 0.0345,    name: 'K₁₃',  proven: false },
+  { d: 14, D: 0.0276,    name: 'Λ₁₄',  proven: false },
+  { d: 15, D: 0.0168,    name: 'Λ₁₅',  proven: false },
+  { d: 16, D: 0.0147,    name: 'Λ₁₆',  proven: false },
+  { d: 17, D: 0.0088,    name: 'Λ₁₇',  proven: false },
+  { d: 18, D: 0.0075,    name: 'Λ₁₈',  proven: false },
+  { d: 19, D: 0.0050,    name: 'Λ₁₉',  proven: false },
+  { d: 20, D: 0.0039,    name: 'Λ₂₀',  proven: false },
+  { d: 21, D: 0.0025,    name: 'Λ₂₁',  proven: false },
+  { d: 22, D: 0.0019,    name: 'Λ₂₂',  proven: false },
+  { d: 23, D: 0.0014,    name: 'Λ₂₃',  proven: false },
+  { d: 24, D: 0.001930,  name: 'Leech', proven: true },
+];
+const dimsCanvas = document.getElementById('dims');
+const dctx = dimsCanvas.getContext('2d');
+
+function drawDims() {
+  const W = dimsCanvas.width, H = dimsCanvas.height;
+  dctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  dctx.fillRect(0, 0, W, H);
+  const PAD = { l: 58, r: 24, t: 24, b: 44 };
+  const xmin = 1, xmax = 24;
+  const ymin = -3, ymax = 0.1;   // log10(density): 10^-3 .. ~1
+  const tx = d => PAD.l + (d - xmin) / (xmax - xmin) * (W - PAD.l - PAD.r);
+  const ty = ly => H - PAD.b - (ly - ymin) / (ymax - ymin) * (H - PAD.t - PAD.b);
+
+  dctx.strokeStyle = cssVar('--rule') || '#aaa';
+  dctx.lineWidth = 1;
+  dctx.beginPath();
+  dctx.moveTo(PAD.l, PAD.t); dctx.lineTo(PAD.l, H - PAD.b); dctx.lineTo(W - PAD.r, H - PAD.b); dctx.stroke();
+
+  dctx.fillStyle = cssVar('--muted') || '#777';
+  dctx.font = '10px ui-monospace, monospace';
+  dctx.textAlign = 'center';
+  for (const d of [1, 4, 8, 12, 16, 20, 24]) {
+    const x = tx(d);
+    dctx.beginPath(); dctx.moveTo(x, H - PAD.b); dctx.lineTo(x, H - PAD.b + 4); dctx.stroke();
+    dctx.fillText(String(d), x, H - PAD.b + 16);
+  }
+  dctx.textAlign = 'right';
+  const sup = n => String(n).split('').map(c => ({'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³'}[c]||c)).join('');
+  for (let v = -3; v <= 0; v++) {
+    const y = ty(v);
+    dctx.beginPath(); dctx.moveTo(PAD.l - 4, y); dctx.lineTo(PAD.l, y); dctx.stroke();
+    dctx.fillText('10' + sup(v), PAD.l - 8, y + 3);
+  }
+  dctx.textAlign = 'center';
+  dctx.font = '11px ui-monospace, monospace';
+  dctx.fillText('dimension', (PAD.l + W - PAD.r) / 2, H - 12);
+  dctx.save(); dctx.translate(16, (PAD.t + H - PAD.b) / 2); dctx.rotate(-Math.PI / 2);
+  dctx.fillText('packing density', 0, 0); dctx.restore();
+
+  // best-known curve
+  dctx.strokeStyle = cssVar('--known') || '#888';
+  dctx.lineWidth = 1.4;
+  dctx.beginPath();
+  DIMS.forEach((p, i) => {
+    const x = tx(p.d), y = ty(Math.log10(p.D));
+    if (i === 0) dctx.moveTo(x, y); else dctx.lineTo(x, y);
+  });
+  dctx.stroke();
+
+  // dots
+  for (const p of DIMS) {
+    const x = tx(p.d), y = ty(Math.log10(p.D));
+    dctx.beginPath();
+    dctx.arc(x, y, p.proven ? 5 : 3, 0, Math.PI * 2);
+    dctx.fillStyle = p.proven ? (cssVar('--proven') || '#97781a') : (cssVar('--known') || '#888');
+    dctx.fill();
+    if (p.proven) {
+      dctx.fillStyle = cssVar('--fg') || '#222';
+      dctx.font = 'bold 10px ui-monospace, monospace';
+      dctx.textAlign = (p.d >= 22 ? 'right' : 'center');
+      const off = p.d >= 22 ? -8 : 0;
+      dctx.fillText(p.name + ' · d=' + p.d, x + off, y - 9);
+    }
+  }
+
+  // legend
+  dctx.font = '10px ui-monospace, monospace';
+  dctx.textAlign = 'left';
+  dctx.fillStyle = cssVar('--proven') || '#97781a';
+  dctx.beginPath(); dctx.arc(W - 180, PAD.t + 6, 5, 0, Math.PI * 2); dctx.fill();
+  dctx.fillStyle = cssVar('--fg') || '#222';
+  dctx.fillText('proven optimal (1,2,3,8,24)', W - 168, PAD.t + 10);
+  dctx.fillStyle = cssVar('--known') || '#888';
+  dctx.beginPath(); dctx.arc(W - 180, PAD.t + 24, 3, 0, Math.PI * 2); dctx.fill();
+  dctx.fillStyle = cssVar('--fg') || '#222';
+  dctx.fillText('best known lattice', W - 168, PAD.t + 28);
+
+  let html = '<div class="stat-row"><span class="k">dim</span><span class="v">lattice · density · status</span></div>';
+  for (const p of DIMS) {
+    if (!p.proven && ![4,16].includes(p.d)) continue;
+    html += `<div class="stat-row"><span class="k">${p.d}</span><span class="v">${p.name} · ${(p.D*100).toFixed(p.D<0.01?3:2)}% · ${p.proven?'optimal':'best known'}</span></div>`;
+  }
+  document.getElementById('dims-stats').innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('nav.tabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs .tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('pane-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'e8' && !e8anim) { e8last = performance.now(); e8Frame(); }
+    if (tab.dataset.tab === 'pack') drawPack();
+    if (tab.dataset.tab === 'dims') drawDims();
+  });
+});
+
+// Boot
+updateE8Stats();
+e8Frame();
+drawPack();
+</script>
+
+</body>
+</html>

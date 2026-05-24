@@ -16,20 +16,22 @@ Interactive sites on extremal-geometry conjectures: each follows the same shape 
 | `/szemeredi-trotter/` | Point-line incidences in ℝ² | Szemerédi–Trotter 1983 — I ≤ C(mn)^(2/3) + m + n. The Erdős tight construction (K × 2K² grid + K³ lines) matches the bound at I/(mn)^(2/3) = 2^(−2/3) ≈ 0.63 for every K. The seed crystal that the polynomial-method trilogy grew out of. | wine `#5a1a3a` |
 | `/heilbronn/` | Maximize the smallest triangle | Heilbronn ~1950, open. Place n points in unit square; score is min over C(n, 3) triangles. Heilbronn conjectured Θ(1/n²); KPS 1981 disproved with c·log(n)/n². Drag + in-page annealer + localStorage personal-best tracker. Bounds plot includes Cohen–Pohoata–Zakharov 2024 upper bound. | moss `#2a6a4a` |
 | `/borsuk/` | Partition into smaller pieces | Borsuk 1933 conjectured ℝᵈ subsets need only d+1 pieces. True in dim ≤ 3; Kahn–Kalai 1993 disproved at d=1325 via Frankl–Wilson. 2D demo (drag polygon, rotate radial 3-cut) + dimension-race timeline 1325 → 65 → 64. The "open band 4..63" is the still-unknown zone. | midnight `#3a3060` |
+| `/viazovska/` | Sphere packing in dim 8 & 24 | Viazovska 2016 (E₈) + CKMRV 2017 (Leech) — densest packings, proven exactly via modular-form magic functions (Cohn–Elkies LP bound). Hero is the E₈ Coxeter projection (240 roots → 8 rings of 30, projection plane computed offline as top-2 eigenspace of C+Cᵀ) with a scrub slider that morphs Coxeter↔generic. Plus a 2D circle-packing tab and a density-by-dimension chart marking the 5 solved dims. | gold `#97781a` |
 | `/elements/` | Periodic table as mandala | Concentric rings = shells (n=1..7); angular sectors = s/f/d/p blocks sized by capacity, ordered to follow atomic number; chemistry-view toggle aligns nobles with helium and straddles hydrogen across alkali + halogen columns. Each of 118 element nodes deeplinks to Wikipedia. Branch from the main pack — chem-not-geometry, but same scaffold | indigo `#3d4a72` |
 
 ## Next priorities
 
 (Top of list when extending the pack. Keep this ordered.)
 
-1. **`/viazovska/`** — Sphere packing in dim 8 (E_8) and dim 24 (Leech). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D projections of the lattice + density argument.
+1. **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983 (same year as ST, sister problem with shared machinery); progress over decades; current bound ~|A|^{4/3 - ε}.
 
-2. **`/elekes/`** — Sum-product bound. Erdős–Szemerédi 1983 (same year as ST, sister problem with shared machinery); progress over decades; current bound ~|A|^{4/3 - ε}.
+2. **`/orchard/`** — Orchard visibility / ordinary lines. Green–Tao 2013 resolved the asymptotic.
 
-3. **`/orchard/`** — Orchard visibility / ordinary lines. Green–Tao 2013 resolved the asymptotic.
+3. **`/kepler/`** — Dimension-3 sphere packing (Hales 1998, Flyspeck 2014). Natural prequel to `/viazovska/`; computer-assisted-proof angle pairs with hadwiger's SAT story.
 
 ## Other candidates
 
+- **`/cohn-elkies/`** — the LP bound behind `/viazovska/`. Interactive "magic function" explorer: drag the auxiliary function, watch the bound move; the modular-form construction is the punchline.
 - **`/cohen-pohoata-zakharov/`** — explicit 2024 improvement on Heilbronn's upper bound, via polynomial method. Could spin off from `/heilbronn/` as a technique-focused explainer.
 - **`/frankl-wilson/`** — the rank-of-incidence-matrix theorem that drove the original Kahn–Kalai counterexample on `/borsuk/`. Adjacent to capset; could anchor a "finite-field linear-algebra toolkit" page.
 - **Leaderboard for `/heilbronn/`** — the current version stores personal bests in localStorage; future iteration could wire it to the poll/draw backend for a global leaderboard with submission verification.

@@ -31,6 +31,7 @@
   --c-st:       #5a1a3a;
   --c-heilbronn:#2a6a4a;
   --c-borsuk:   #3a3060;
+  --c-viazovska:#97781a;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -60,6 +61,7 @@
     --c-st:       #d870a8;
     --c-heilbronn:#6abf8f;
     --c-borsuk:   #9080d4;
+    --c-viazovska:#d4b454;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -350,7 +352,8 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
     <a href="https://mino.mobi/heilbronn/">heilbronn</a> ·
-    <a href="https://mino.mobi/borsuk/">borsuk</a>
+    <a href="https://mino.mobi/borsuk/">borsuk</a> ·
+    <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
   </p>
 </header>
@@ -402,12 +405,6 @@ footer a:hover { color: var(--accent); }
 <h3 style="margin-top:0.6rem">Next</h3>
 <ol class="roadmap">
   <li>
-    <span class="item-name">/viazovska/</span> — sphere packing in dim 8 (E₈) and dim 24
-    (Leech lattice). 2016 Fields Medal. The modular-form trick is gorgeous; viz via 2D
-    projections of the lattice + a density argument that updates as you scrub through
-    projections.
-  </li>
-  <li>
     <span class="item-name">/elekes/</span> — sum-product bound. Erdős–Szemerédi 1983
     (same year as ST, sister problem with shared machinery); progress over decades;
     current bound around |A|^{4/3 − ε}.
@@ -415,6 +412,12 @@ footer a:hover { color: var(--accent); }
   <li>
     <span class="item-name">/orchard/</span> — orchard visibility / ordinary lines.
     Green–Tao 2013 resolved the asymptotic.
+  </li>
+  <li>
+    <span class="item-name">/kepler/</span> — the dimension-3 sphere packing optimum
+    (Hales 1998, formalised by Flyspeck 2014). Natural prequel to
+    <a href="https://mino.mobi/viazovska/">viazovska</a>; the computer-assisted-proof
+    angle pairs with hadwiger's SAT story.
   </li>
 </ol>
 
@@ -431,6 +434,12 @@ footer a:hover { color: var(--accent); }
     theorem that drove the original Kahn–Kalai counterexample on
     <a href="https://mino.mobi/borsuk/">borsuk</a>. Adjacent to capset; could anchor
     a "finite-field linear-algebra toolkit" page.
+  </li>
+  <li>
+    <span class="item-name">/cohn-elkies/</span> — the linear-programming bound behind
+    <a href="https://mino.mobi/viazovska/">viazovska</a>. An interactive "magic function"
+    explorer (drag the auxiliary function, watch the LP bound move) would make the
+    modular-form punchline land.
   </li>
 </ul>
 
@@ -493,6 +502,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
   <a href="https://mino.mobi/heilbronn/">heilbronn</a>
   <a href="https://mino.mobi/borsuk/">borsuk</a>
+  <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
 
@@ -560,6 +570,18 @@ const PACK = [
     status: 'tight',
     statusRank: 1,
     statusText: 'tight (2.756ⁿ)',
+  },
+  {
+    name: 'viazovska',
+    url:  'https://mino.mobi/viazovska/',
+    accent: 'var(--c-viazovska)',
+    problem: 'Sphere packing in dim 8 & 24',
+    era: 2016,
+    eraText: 'Viazovska 2016',
+    tech: 'modular forms',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'optimal (E₈, Leech)',
   },
   {
     name: 'hadwiger',
