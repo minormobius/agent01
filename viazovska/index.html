@@ -144,6 +144,8 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; background: var
 .docs .meta-stamp { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.4rem; }
 
 footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+.formula-banner { font-family: var(--mono); font-size: 0.92rem; text-align: center; background: var(--accent-tint); border: 1px solid var(--rule); border-radius: 3px; padding: 0.6rem 0.5rem; margin: 0 0 1rem; overflow-x: auto; }
+.theta-cap { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); min-height: 1.4em; margin-bottom: 0.5rem; }
 footer a { color: var(--muted); text-decoration: none; }
 footer a:hover { color: var(--accent); }
 </style>
@@ -161,6 +163,7 @@ footer a:hover { color: var(--accent); }
   <button class="tab active" data-tab="e8" role="tab">E₈ projection</button>
   <button class="tab" data-tab="pack" role="tab">2D packing</button>
   <button class="tab" data-tab="dims" role="tab">by dimension</button>
+  <button class="tab" data-tab="theta" role="tab">theta series</button>
   <button class="tab" data-tab="magic" role="tab">magic function</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
@@ -235,6 +238,24 @@ footer a:hover { color: var(--accent); }
 </p>
 <canvas id="dims" class="chart" width="700" height="420"></canvas>
 <div class="stats" id="dims-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
+</div>
+
+<!-- THETA SERIES TAB ──────────────────────────────────────────────── -->
+<div class="pane" id="pane-theta">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  Count the E₈ vectors shell by shell — 240 of squared length 2, then 2160, 6720, 17520, …
+  — and you are reading off the q-expansion of the modular form E₄. The lattice's <em>theta
+  series</em> literally <em>is</em> E₄(τ): the coefficient of qⁿ is 240·σ₃(n), where
+  σ₃(n) = Σ<sub>d|n</sub> d³. That identity is the reason a magic function for E₈ can be
+  built from modular forms at all — and E₄ is the very same weight-4 form that feeds the
+  construction. Hover a shell.
+</p>
+
+<div class="formula-banner">θ<sub>E₈</sub>(τ) = E₄(τ) = 1 + 240q + 2160q² + 6720q³ + 17520q⁴ + 30240q⁵ + …</div>
+
+<canvas id="theta" class="chart" width="700" height="420"></canvas>
+<div class="theta-cap" id="theta-cap">shell 1: the 240 roots drawn in the E₈ projection tab.</div>
+<div class="stats" id="theta-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
 </div>
 
 <!-- MAGIC FUNCTION TAB ────────────────────────────────────────────── -->
@@ -780,8 +801,123 @@ document.querySelectorAll('nav.tabs .tab').forEach(tab => {
     if (tab.dataset.tab === 'e8' && !e8anim) { e8last = performance.now(); e8Frame(); }
     if (tab.dataset.tab === 'pack') drawPack();
     if (tab.dataset.tab === 'dims') drawDims();
+    if (tab.dataset.tab === 'theta') drawTheta();
     if (tab.dataset.tab === 'magic') drawMagic();
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Theta-series tab — E₈ shell counts = q-expansion of E₄
+// ─────────────────────────────────────────────────────────────────────
+function sigma3(n) {            // Σ_{d|n} d³, with the divisor list
+  const divs = [], cubes = [];
+  let s = 0;
+  for (let d = 1; d <= n; d++) if (n % d === 0) { divs.push(d); cubes.push(d * d * d); s += d * d * d; }
+  return { s, divs, cubes };
+}
+const SHELLS = [];
+for (let n = 1; n <= 8; n++) {
+  const { s, divs, cubes } = sigma3(n);
+  SHELLS.push({ n, norm2: 2 * n, sigma: s, count: 240 * s, divs, cubes });
+}
+
+const thetaCanvas = document.getElementById('theta');
+const thctx = thetaCanvas.getContext('2d');
+let thetaBars = [];
+let thetaHover = -1;
+
+function drawTheta() {
+  const W = thetaCanvas.width, H = thetaCanvas.height;
+  thctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  thctx.fillRect(0, 0, W, H);
+  const PAD = { l: 52, r: 20, t: 28, b: 52 };
+  const plotW = W - PAD.l - PAD.r, plotH = H - PAD.t - PAD.b;
+
+  // log scale for counts
+  const logMin = Math.log10(150), logMax = Math.log10(160000);
+  const barH = c => (Math.log10(c) - logMin) / (logMax - logMin) * plotH;
+
+  // y axis ticks (powers of 10)
+  thctx.strokeStyle = cssVar('--rule') || '#aaa';
+  thctx.lineWidth = 1;
+  thctx.beginPath(); thctx.moveTo(PAD.l, PAD.t); thctx.lineTo(PAD.l, H - PAD.b); thctx.lineTo(W - PAD.r, H - PAD.b); thctx.stroke();
+  thctx.fillStyle = cssVar('--muted') || '#777';
+  thctx.font = '10px ui-monospace, monospace';
+  thctx.textAlign = 'right';
+  const sup = n => String(n).split('').map(c => ({ '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵' }[c] || c)).join('');
+  for (let e = 3; e <= 5; e++) {
+    const y = H - PAD.b - (e - logMin) / (logMax - logMin) * plotH;
+    thctx.strokeStyle = 'rgba(128,128,128,0.18)';
+    thctx.beginPath(); thctx.moveTo(PAD.l, y); thctx.lineTo(W - PAD.r, y); thctx.stroke();
+    thctx.fillStyle = cssVar('--muted') || '#777';
+    thctx.fillText('10' + sup(e), PAD.l - 6, y + 3);
+  }
+
+  // bars
+  const slot = plotW / SHELLS.length;
+  const bw = slot * 0.58;
+  thetaBars = [];
+  const accent = cssVar('--accent') || '#97781a';
+  SHELLS.forEach((sh, i) => {
+    const h = barH(sh.count);
+    const x = PAD.l + i * slot + (slot - bw) / 2;
+    const y = H - PAD.b - h;
+    thetaBars.push({ x, y, w: bw, h, sh });
+    const isHover = thetaHover === i;
+    const isRoots = sh.n === 1;
+    thctx.fillStyle = isRoots ? accent : (isHover ? accent : (cssVar('--accent-faint') || 'rgba(151,120,26,0.1)'));
+    thctx.globalAlpha = isRoots || isHover ? 0.9 : 1;
+    thctx.fillRect(x, y, bw, h);
+    thctx.globalAlpha = 1;
+    thctx.strokeStyle = accent; thctx.lineWidth = 1.2;
+    thctx.strokeRect(x, y, bw, h);
+    // count label on top
+    thctx.fillStyle = cssVar('--fg') || '#222';
+    thctx.font = 'bold 11px ui-monospace, monospace';
+    thctx.textAlign = 'center';
+    thctx.fillText(sh.count.toLocaleString(), x + bw / 2, y - 6);
+    // n / q-power labels
+    thctx.fillStyle = cssVar('--muted') || '#777';
+    thctx.font = '10px ui-monospace, monospace';
+    thctx.fillText('q' + (sh.n === 1 ? '' : sup(sh.n)), x + bw / 2, H - PAD.b + 15);
+    thctx.fillText('|x|²=' + sh.norm2, x + bw / 2, H - PAD.b + 29);
+  });
+
+  // axis labels
+  thctx.fillStyle = cssVar('--muted') || '#777';
+  thctx.font = '11px ui-monospace, monospace';
+  thctx.textAlign = 'center';
+  thctx.fillText('vectors per shell  =  [qⁿ] E₄  =  240·σ₃(n)', (PAD.l + W - PAD.r) / 2, H - 6);
+
+  // table
+  let html = '<div class="stat-row"><span class="k">n</span><span class="v">|x|² · σ₃(n) · count 240·σ₃(n)</span></div>';
+  for (const sh of SHELLS) {
+    html += `<div class="stat-row"><span class="k">${sh.n}</span><span class="v">${sh.norm2} · ${sh.sigma} · ${sh.count.toLocaleString()}</span></div>`;
+  }
+  document.getElementById('theta-stats').innerHTML = html;
+}
+
+thetaCanvas.addEventListener('mousemove', e => {
+  const rect = thetaCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (thetaCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (thetaCanvas.height / rect.height);
+  let found = -1;
+  thetaBars.forEach((b, i) => { if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h + 20) found = i; });
+  if (found !== thetaHover) {
+    thetaHover = found;
+    const cap = document.getElementById('theta-cap');
+    if (found >= 0) {
+      const sh = SHELLS[found];
+      const expr = sh.divs.map(d => d + '³').join(' + ');
+      cap.textContent = `shell ${sh.n}: ${sh.count.toLocaleString()} vectors of |x|²=${sh.norm2}  =  240·σ₃(${sh.n})  =  240·(${expr}) = 240·${sh.sigma}`;
+    } else {
+      cap.textContent = 'shell 1: the 240 roots drawn in the E₈ projection tab.';
+    }
+    drawTheta();
+  }
+});
+thetaCanvas.addEventListener('mouseleave', () => {
+  if (thetaHover !== -1) { thetaHover = -1; document.getElementById('theta-cap').textContent = 'shell 1: the 240 roots drawn in the E₈ projection tab.'; drawTheta(); }
 });
 
 // ─────────────────────────────────────────────────────────────────────
