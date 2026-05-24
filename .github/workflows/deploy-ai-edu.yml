@@ -58,6 +58,7 @@ jobs:
           mkdir -p dist/getting-started/shipping
           mkdir -p dist/wasm/beam-solver/src
           cp index.html dist/
+          cp tree.html dist/
           cp PROBLEM_TEMPLATE.md dist/
           cp problems/beam-vibration/index.html dist/problems/beam-vibration/
           cp problems/beam-deflection/index.html dist/problems/beam-deflection/
