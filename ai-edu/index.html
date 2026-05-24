@@ -146,6 +146,11 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 <p class="section-note">Turn a requirement into a parts list; the datasheet is the oracle.</p>
 <ul class="problems">
   <li>
+    <a href="./problems/bearing-life/">Bearing life: the rating is not the load</a>
+    <span class="tag">starter &middot; L10 life &middot; datasheet check</span>
+    <div class="desc">A confidence-builder. Pick a ball bearing for a radial load and speed; the catalog load rating looks huge, but real life runs on a cube law you can check by hand in one line. The gentle first rung on this branch.</div>
+  </li>
+  <li>
     <a href="./problems/motion-system/">Motion system: from a brief to a parts list</a>
     <span class="tag">mechatronics &middot; sizing &middot; Pugh matrix</span>
     <div class="desc">&ldquo;Move 5&nbsp;kg, 0.5&nbsp;m, in 1&nbsp;s.&rdquo; A live seven-segment profile sizes a motor and a transmission &mdash; and the inertia-match optimum turns out to be a pulley you can't buy. Ends in a Pugh matrix of real, in-stock parts with links you can click.</div>
@@ -179,6 +184,7 @@ const TREE = {
       ]},
     {key:'design', x:690, name:'Design & selection', oracle:'oracle: the datasheet', side:'left',
       nodes:[
+        {label:'Bearing life',  href:'./problems/bearing-life/'},
         {label:'Motion system', href:'./problems/motion-system/'},
       ]},
   ],
