@@ -18,7 +18,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { getListMembers, getProfiles, getPostThreadDepth } from '../packages/atproto/bsky.js';
+import { getListMembers, getProfiles } from '../packages/atproto/bsky.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = join(root, 'bisk', 'data');
@@ -31,6 +31,11 @@ if (!listUri) { console.error('No list URI (argv / BISK_LIST / config.listUri).'
 
 const afinn = JSON.parse(readFileSync(join(root, 'rite', 'lexicon', 'data', 'afinn.json'), 'utf8'));
 const nrc = JSON.parse(readFileSync(join(root, 'rite', 'lexicon', 'data', 'nrc.json'), 'utf8'));
+const baseline = JSON.parse(readFileSync(join(root, 'rite', 'lexicon', 'data', 'baseline.json'), 'utf8'));
+const baselineTotal = Object.values(baseline).reduce((a, b) => a + b, 0);
+
+const EMO8 = ['anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust'];
+const STOP = new Set(('the a an and or but if then so of to in on at for with from by as is are was were be been being it its this that these those i you he she we they them him her his our your their me my mine no not just like got get really very much many more most some any all out up down over into than too can will would could should may might must have has had do does did was http https com www bsky social thing things kinda sorta gonna wanna yeah yep nah lol about what when where who why how there here also been being because there their what your you you re ve ll don doesn isn wasn didn couldn wouldn shouldn haven hasn hadn aren weren werent dont cant wont ain theyre youre were one two way back time day people good bad new now know think going want see say said going make made even still well right thats whats').split(/\s+/));
 
 // ── helpers ──────────────────────────────────────────────────────────
 function rkeyOf(uri) { return uri.split('/').pop(); }
@@ -63,20 +68,73 @@ async function authorPosts(did, limit = 30) {
   } catch { return []; }
 }
 
-// ── sentiment / mood ─────────────────────────────────────────────────
+// Fully hydrate a thread: walk the entire reply tree, recording the true
+// nesting depth of the deepest comment AND the text of every post (so the
+// same fetch feeds both the delver ranking and the weather corpus — the
+// neighbourhood does its real talking down in the threads).
+const DEAD = new Set(['app.bsky.feed.defs#blockedPost', 'app.bsky.feed.defs#notFoundPost']);
+async function hydrateThread(postUri, depth = 50) {
+  const params = new URLSearchParams({ uri: postUri, depth: String(depth), parentHeight: '0' });
+  try {
+    const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.feed.getPostThread?${params}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const root = data.thread;
+    if (!root || DEAD.has(root.$type)) return null;
+    const interactors = new Set();
+    const posts = [];
+    let maxDepth = 0, topLevelReplies = 0;
+    function walk(node, d) {
+      if (!node || DEAD.has(node.$type)) return;
+      const p = node.post;
+      if (p?.author?.did) {
+        interactors.add(p.author.did);
+        posts.push({ uri: p.uri, text: p.record?.text || '', did: p.author.did, depth: d });
+      }
+      if (d > maxDepth) maxDepth = d;          // depth of the deepest comment
+      if (d === 1) topLevelReplies++;
+      for (const r of node.replies || []) walk(r, d + 1);
+    }
+    walk(root, 0);                              // root at depth 0, replies at 1, 2, …
+    return { maxDepth, topLevelReplies, interactorDids: [...interactors], posts };
+  } catch { return null; }
+}
+
+// ── sentiment / mood / distinctiveness ───────────────────────────────
 function tokenize(text) {
-  return (text.toLowerCase().match(/[a-z']+/g) || []);
+  // Drop apostrophes so contractions split into fragments that fall out via
+  // the length/stop filters, rather than surviving as bogus "novel" tokens.
+  return (text.toLowerCase().replace(/['’]/g, ' ').match(/[a-z]+/g) || []);
+}
+
+// Top-k words over-represented vs a general-English baseline (TF-IDF-ish).
+function distinctiveWords(texts, k = 3) {
+  const counts = {};
+  let total = 0;
+  for (const t of texts) for (const w of tokenize(t)) {
+    if (w.length < 3 || STOP.has(w)) continue;
+    counts[w] = (counts[w] || 0) + 1; total++;
+  }
+  if (!total) return [];
+  const FLOOR = 0.15;  // per-million floor so a genuinely novel word scores high but needs repeats
+  return Object.entries(counts)
+    .filter(([, c]) => c >= 3)
+    .map(([w, c]) => ({ word: w, count: c, score: (c / total) / ((baseline[w] ?? FLOOR) / baselineTotal) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k)
+    .map(({ word, count }) => ({ word, count }));
 }
 function weatherReport(texts) {
   let scoreSum = 0, scored = 0, words = 0;
   const emo = {};
+  for (const e of EMO8) emo[e] = 0;
   for (const t of texts) {
     const toks = tokenize(t);
     words += toks.length;
     for (const w of toks) {
       if (w in afinn) { scoreSum += afinn[w]; scored++; }
       const tags = nrc[w];
-      if (tags) for (const tag of tags) if (tag !== 'positive' && tag !== 'negative') emo[tag] = (emo[tag] || 0) + 1;
+      if (tags) for (const tag of tags) if (tag in emo) emo[tag]++;
     }
   }
   const avg = scored ? scoreSum / scored : 0;          // ~[-5, 5]
@@ -89,7 +147,13 @@ function weatherReport(texts) {
   else if (index > -0.10) { label = 'Overcast'; glyph = '☁'; }
   else if (index > -0.30) { label = 'Drizzle';  glyph = '🌧'; }
   else                    { label = 'Stormy';   glyph = '⛈'; }
-  return { index: +index.toFixed(3), label, glyph, mood, verbosity, scoredWords: scored };
+  return {
+    index: +index.toFixed(3), label, glyph, mood, verbosity,
+    scoredWords: scored,
+    corpusPosts: texts.length,
+    emotions: emo,
+    distinctive: distinctiveWords(texts, 3),
+  };
 }
 
 // ── main ─────────────────────────────────────────────────────────────
@@ -122,27 +186,39 @@ async function main() {
     url: postUrl(p.author.handle, p.uri),
   }));
 
-  // Delvers — deepest thread. Probe the most-replied candidates (cap calls).
-  const candidates = [...all].filter(p => p.replyCount >= 2).sort((a, b) => b.replyCount - a.replyCount).slice(0, 25);
+  // Delvers — hydrate EVERY thread that has any reply and rank by the actual
+  // nesting depth of its deepest comment (not by reply count — a narrow,
+  // two-person chain can run far deeper than a wide-but-shallow thread).
+  // The same hydration harvests text for the weather corpus.
+  const memberSet = new Set(dids);
+  const corpus = new Map();                       // uri -> { text, did }
+  for (const p of all) corpus.set(p.uri, { text: p.text, did: p.author.did });
+
+  const probe = all.filter(p => p.replyCount >= 1).sort((a, b) => b.replyCount - a.replyCount).slice(0, 160);
+  console.log(`  hydrating ${probe.length} threads for depth + sentiment…`);
   let delver = null;
-  for (const p of candidates) {
-    const d = await getPostThreadDepth(p.uri, 12);
-    if (!d) continue;
-    if (!delver || d.maxDepth > delver._depth || (d.maxDepth === delver._depth && d.topLevelReplies > delver._top)) {
+  for (const p of probe) {
+    const h = await hydrateThread(p.uri, 50);
+    if (!h) continue;
+    for (const node of h.posts) corpus.set(node.uri, { text: node.text, did: node.did });
+    if (!delver || h.maxDepth > delver._depth ||
+        (h.maxDepth === delver._depth && h.interactorDids.length > delver._voices)) {
       delver = {
-        _depth: d.maxDepth, _top: d.topLevelReplies,
+        _depth: h.maxDepth, _voices: h.interactorDids.length,
         handle: p.author.handle, displayName: p.author.displayName, avatar: p.author.avatar,
-        text: p.text, maxDepth: d.maxDepth, topLevelReplies: d.topLevelReplies,
-        interactorCount: d.interactorDids.length, replyCount: p.replyCount,
+        text: p.text, maxDepth: h.maxDepth, topLevelReplies: h.topLevelReplies,
+        interactorCount: h.interactorDids.length, replyCount: p.replyCount,
         url: postUrl(p.author.handle, p.uri),
         atUri: p.uri,
       };
     }
   }
-  if (delver) { delete delver._depth; delete delver._top; }
+  if (delver) { delete delver._depth; delete delver._voices; }
 
-  // Weather
-  const weather = weatherReport(all.map(p => p.text));
+  // Weather — sentiment/emotion/distinctiveness over everything the list
+  // members said today, top-level posts AND their deep-thread replies.
+  const corpusTexts = [...corpus.values()].filter(v => memberSet.has(v.did) && v.text).map(v => v.text);
+  const weather = weatherReport(corpusTexts);
 
   const date = new Date().toISOString().slice(0, 10);
   const digest = {
