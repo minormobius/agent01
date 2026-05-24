@@ -253,7 +253,7 @@ footer a:hover { color: var(--accent); }
 
 <div class="formula-banner">θ<sub>E₈</sub>(τ) = E₄(τ) = 1 + 240q + 2160q² + 6720q³ + 17520q⁴ + 30240q⁵ + …</div>
 
-<canvas id="theta" class="chart" width="700" height="420"></canvas>
+<canvas id="theta-series" class="chart" width="700" height="420"></canvas>
 <div class="theta-cap" id="theta-cap">shell 1: the 240 roots drawn in the E₈ projection tab.</div>
 <div class="stats" id="theta-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
 </div>
@@ -821,7 +821,7 @@ for (let n = 1; n <= 8; n++) {
   SHELLS.push({ n, norm2: 2 * n, sigma: s, count: 240 * s, divs, cubes });
 }
 
-const thetaCanvas = document.getElementById('theta');
+const thetaCanvas = document.getElementById('theta-series');
 const thctx = thetaCanvas.getContext('2d');
 let thetaBars = [];
 let thetaHover = -1;
