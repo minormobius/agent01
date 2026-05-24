@@ -1,0 +1,83 @@
+name: Mirror to Tangled
+
+# Keeps a self-contained site published as a standalone repo on tangled, so
+# it stays forkable ("remixable") and its tngl.sh page stays current. This
+# automates the *sync*; the template repo is created once on tangled (UI or,
+# later, programmatically) and a deploy SSH key authorizes the push.
+#
+# One-time setup:
+#   1. Create the repo on tangled (e.g. `erdos`), choosing a tangled-hosted knot.
+#   2. Generate an ed25519 key; add the PUBLIC key under Settings → Keys on
+#      tangled; store the PRIVATE key as the GH secret TANGLED_SSH_KEY.
+#   3. Set repo variables: TANGLED_HANDLE (e.g. you.tngl.sh) and, if needed,
+#      TANGLED_KNOT (default knot1.tangled.sh).
+#   4. In the repo's tangled settings, set the deploy directory to the root.
+# After that every push to a mirrored site re-publishes it automatically.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/prepare-merge-candidates-*'
+    paths:
+      - 'erdos/**'
+      - '.github/workflows/mirror-tangled.yml'
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site directory to mirror (must be a self-contained index.html)'
+        required: true
+        default: 'erdos'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      SITE: ${{ github.event.inputs.site || 'erdos' }}
+      TANGLED_HANDLE: ${{ vars.TANGLED_HANDLE }}
+      TANGLED_KNOT: ${{ vars.TANGLED_KNOT || 'knot1.tangled.sh' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — site must be self-contained
+        run: |
+          test -f "$SITE/index.html" || { echo "✗ $SITE/index.html missing"; exit 1; }
+          if grep -qE '\.\./|<script[^>]+src=|<link[^>]+href=' "$SITE/index.html"; then
+            echo "✗ $SITE/index.html has external/relative deps — a fork would break."
+            grep -nE '\.\./|<script[^>]+src=|<link[^>]+href=' "$SITE/index.html" || true
+            exit 1
+          fi
+          echo "✓ $SITE is self-contained"
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "✗ secret TANGLED_SSH_KEY not set"; exit 1; }
+          test -n "$TANGLED_HANDLE" || { echo "✗ variable TANGLED_HANDLE not set (e.g. you.tngl.sh)"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Build standalone repo and force-push to tangled
+        run: |
+          TMP="$(mktemp -d)"
+          cp -R "$SITE/." "$TMP/"
+          cat > "$TMP/README.md" <<EOF
+          # $SITE
+
+          A remixable [mino.mobi](https://mino.mobi/$SITE/) site — one self-contained \`index.html\`.
+          Fork to make it yours; tangled serves your copy at \`<your-handle>.tngl.sh/$SITE\`
+          with the deploy directory set to the repo root.
+
+          Auto-mirrored from minormobius/agent01 — edits to the template happen there.
+          EOF
+          cd "$TMP"
+          git init -q
+          git add -A
+          git -c user.name='tangled-mirror' -c user.email='mirror@minomobi.com' \
+            commit -qm "mirror $SITE — $(date -u +%Y-%m-%d)"
+          git branch -M main
+          git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${SITE}"
+          GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+            git push -f origin main
+          echo "✓ mirrored $SITE → ${TANGLED_HANDLE}/${SITE} on ${TANGLED_KNOT}"
