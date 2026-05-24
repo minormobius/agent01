@@ -55,6 +55,9 @@ jobs:
           mkdir -p dist/problems/decision-point
           mkdir -p dist/problems/motion-system
           mkdir -p dist/problems/bearing-life
+          mkdir -p dist/problems/tolerance-stack
+          mkdir -p dist/problems/reconcile-total
+          mkdir -p dist/problems/rope-tension
           mkdir -p dist/getting-started/windows
           mkdir -p dist/getting-started/shipping
           mkdir -p dist/wasm/beam-solver/src
@@ -68,6 +71,9 @@ jobs:
           cp problems/decision-point/index.html dist/problems/decision-point/
           cp problems/motion-system/index.html dist/problems/motion-system/
           cp problems/bearing-life/index.html dist/problems/bearing-life/
+          cp problems/tolerance-stack/index.html dist/problems/tolerance-stack/
+          cp problems/reconcile-total/index.html dist/problems/reconcile-total/
+          cp problems/rope-tension/index.html dist/problems/rope-tension/
           cp getting-started/windows/index.html dist/getting-started/windows/
           cp getting-started/shipping/index.html dist/getting-started/shipping/
           # Ship the Rust source so the "worked solution" links resolve.

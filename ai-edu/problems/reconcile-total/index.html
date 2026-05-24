@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reconcile a total &mdash; the column that won't add up</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  table.led { border-collapse: collapse; width: 100%; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; }
+  table.led th, table.led td { border: 1px solid #dde; padding: 0.3rem 0.55rem; text-align: right; }
+  table.led th:first-child, table.led td:first-child { text-align: left; }
+  table.led th { background: #eef1f4; font-size: 0.76rem; }
+  @media (prefers-color-scheme: dark) { table.led th, table.led td { border-color: #333; } table.led th { background: #1c2027; } }
+  table.led tr.bad td { background: #fbecec; }
+  @media (prefers-color-scheme: dark) { table.led tr.bad td { background: #2a1a1a; } }
+  table.led tr.tot td { font-weight: 700; border-top: 2px solid #bbc; }
+  .num { font-variant-numeric: tabular-nums; }
+  .delta { color: #c33; } @media (prefers-color-scheme: dark) { .delta { color: #f88; } }
+  .recon { font-family: ui-monospace, monospace; font-size: 0.88rem; padding: 0.6rem 0.8rem; border-radius: 4px; margin-top: 0.75rem; }
+  .recon.ok { background: rgba(60,160,60,0.14); } .recon.no { background: rgba(200,60,60,0.13); }
+  .recon b.pass { color: #2a8a2a; } .recon b.fail { color: #c33; }
+  @media (prefers-color-scheme: dark) { .recon b.pass { color: #8f6; } .recon b.fail { color: #f88; } }
+  .controls { margin: 0.6rem 0; font-family: ui-monospace, monospace; font-size: 0.82rem; }
+  .controls button { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.8rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
+  .controls button.active { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .controls button { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Reconcile a total: the column that won't add up</h1>
+<p class="lede">
+  Twelve numbers in a column and one control total. Summing them is trivial
+  &mdash; until you notice the machine read four of the cells wrong. The
+  fix isn't a better formula; it's a second, independent count that has to
+  agree.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  You're handed a column of dollar amounts exported from some other
+  system, and a <strong>control total</strong> from the document's footer:
+  <strong>$5,653.25</strong>. Your job is the simplest task in data work
+  &mdash; add the column &mdash; and the only acceptance test that matters:
+  your sum must equal the control total. If it doesn't, something is wrong,
+  and the discrepancy itself tells you where to look.
+</p>
+
+<h2>2. Why this is ten minutes</h2>
+<p>
+  Ask Claude to parse and sum the column and it will &mdash; but a naive
+  parse silently mangles anything with a comma, a currency symbol, or
+  accounting-style parentheses. <code>"1,250.00"</code> becomes
+  <code>1</code>. <code>"(120.00)"</code> becomes nothing. The sum runs
+  without error and is badly wrong. The skill isn't summing; it's
+  <em>refusing to trust a total that doesn't reconcile.</em>
+</p>
+
+<h2>3. The reconciliation</h2>
+<p>
+  Below: the raw cells, what a naive <code>parseFloat</code> makes of each,
+  and the correctly cleaned value. Rows where the two disagree are flagged.
+  Two totals at the bottom &mdash; only one ties to the control.
+</p>
+
+<div class="viz">
+  <div class="controls">
+    <button id="hl" class="active">highlight mismatches</button>
+  </div>
+  <table class="led" id="tbl"><tbody></tbody></table>
+  <div class="recon" id="recon"></div>
+</div>
+
+<p>
+  The naive total is off by thousands &mdash; and crucially, it
+  <em>didn't complain</em>. No error, no warning, just a confident wrong
+  number. Reconciliation against the control total is the only thing that
+  catches it, and the per-row mismatch column points straight at the four
+  cells the parser fumbled.
+</p>
+
+<h2>4. Verification &mdash; reconciliation is the oracle</h2>
+<p>
+  A second, independent path to the same number is the whole game. Here the
+  control total is that second path; the cleaned sum must hit it exactly.
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; tie to the control.</strong> Cleaned sum equals the stated control total, to the cent.
+  <div class="pass">Pass: two independent counts agree &mdash; the total is trustworthy.</div>
+  <div class="fail">Fail here: the naive sum is off by $3,427 and announced nothing. A total with no second source is a guess.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; localize the gap.</strong> When sums disagree, the per-row delta isolates which cells caused it.
+  <div class="pass">Pass: the four flagged rows (two commas, one parenthesis, one currency symbol) account for exactly the $3,427 gap.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; spot-check a parse.</strong> Pick one flagged cell and read its cleaned value by eye against the raw string.
+  <div class="pass">Pass: <code>"1,250.00"</code> &rarr; 1250.00, not 1. If you can't explain a cell's value, don't sum it.</div>
+</div>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; a clean run is not a correct run</summary>
+  <p>Parsing errors here are silent: no exception, no NaN in the total if NaNs get coerced to zero. The code &ldquo;works.&rdquo; Only the reconciliation reveals it lied. Never accept a total that has no independent check.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; know your locale and your accounting conventions</summary>
+  <p>Thousands separators, currency symbols, trailing spaces, and parentheses-for-negative are the usual suspects. Strip <code>$ , and whitespace</code>; treat <code>(x)</code> as <code>-x</code>; decide what <code>N/A</code> means (skip, or zero) <em>before</em> you sum.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; what to ask for</summary>
+  <p>&ldquo;Parse this column treating commas as thousands separators, <code>$</code> as currency, parentheses as negative, and <code>N/A</code> as excluded. Sum it, and tell me whether it ties to a control total of 5653.25 &mdash; if not, list each row where your parsed value differs from a naive parseFloat and the resulting delta.&rdquo;</p>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude do the parsing, the cleaning rules, and the row-by-row delta
+  &mdash; it's fast and tireless at exactly the cell-wrangling that hides
+  errors. But you own the reconciliation: <em>insist</em> on a control
+  total, decide what counts as a match (to the cent? within rounding?), and
+  decide what <code>N/A</code> means for your books. The machine will hand
+  you a number; only you can refuse to trust one that doesn't tie out.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    Cleaned correctly, the column sums to <strong>$5,653.25</strong> &mdash;
+    exactly the control total. The naive parse gives
+    <strong>$2,226.25</strong>, short by <strong>$3,427.00</strong>. That
+    gap is fully explained by four cells: <code>"1,250.00"</code> read as 1
+    (&minus;1,249), <code>"2,000"</code> read as 2 (&minus;1,998),
+    <code>"(120.00)"</code> dropped to 0 (the +$120 we actually owe back
+    flips the sign, costing 120 against the clean figure), and
+    <code>"$300"</code> dropped to 0 (&minus;300). 1,249 + 1,998 + 120 +
+    300 = 3,427. The reconciliation didn't just say &ldquo;wrong&rdquo; &mdash;
+    it handed us the exact list of cells to fix.
+  </p>
+</details>
+
+<h2>Ship it</h2>
+<p>Same two moves &mdash; see <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>.</p>
+
+<script>
+const RAW = ["1,250.00","340","  85.50 ","(120.00)","1200","75.25","2,000","N/A","450.00","12.5","$300","60.00"];
+const CONTROL = 5653.25;
+
+function naive(s){ const v=parseFloat(s); return isNaN(v)?0:v; }     // what a careless parse does
+function clean(s){
+  let t=s.trim();
+  if(t==='' || /^(n\/?a|-)$/i.test(t)) return null;                  // excluded
+  const neg=/^\(.*\)$/.test(t); t=t.replace(/[()]/g,'');
+  t=t.replace(/[$,\s]/g,'');
+  const v=parseFloat(t); if(isNaN(v)) return null;
+  return neg ? -v : v;
+}
+function money(v){ return (v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+let highlight=true;
+function render(){
+  const tb=document.querySelector('#tbl tbody');
+  let rows='<tr><th>raw cell</th><th>naïve parseFloat</th><th>cleaned</th><th>Δ</th></tr>';
+  let nSum=0, cSum=0;
+  RAW.forEach(s=>{
+    const nv=naive(s), cv=clean(s); const cAdd=(cv===null?0:cv);
+    nSum+=nv; cSum+=cAdd;
+    const d=cAdd-nv, bad=Math.abs(d)>1e-9;
+    rows+=`<tr class="${bad&&highlight?'bad':''}"><td>${s.replace(/ /g,'&middot;')}</td>`
+        + `<td class="num">${nv.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>`
+        + `<td class="num">${cv===null?'<i>excluded</i>':cv.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>`
+        + `<td class="num ${bad?'delta':''}">${bad?(d>0?'+':'')+d.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):''}</td></tr>`;
+  });
+  rows+=`<tr class="tot"><td>TOTAL</td><td class="num">${nSum.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="num">${cSum.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td></td></tr>`;
+  tb.innerHTML=rows;
+  const ok=Math.abs(cSum-CONTROL)<0.005;
+  const rec=document.getElementById('recon');
+  rec.className='recon '+(ok?'ok':'no');
+  rec.innerHTML=`control total: <b>${money(CONTROL)}</b><br>`
+    + `naïve sum ${money(nSum)} &mdash; vs control: <b class="fail">off by ${money(CONTROL-nSum)}</b><br>`
+    + `cleaned sum ${money(cSum)} &mdash; vs control: <b class="${ok?'pass':'fail'}">${ok?'ties out ✓':'off by '+money(CONTROL-cSum)}</b>`;
+}
+document.getElementById('hl').addEventListener('click',e=>{highlight=!highlight;e.target.classList.toggle('active',highlight);render();});
+render();
+</script>
+
+</body>
+</html>

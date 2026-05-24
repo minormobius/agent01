@@ -111,6 +111,11 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 <p class="section-note">Stand up a solver for a half-remembered physics problem; the physics is the oracle.</p>
 <ul class="problems">
   <li>
+    <a href="./problems/rope-tension/">Two ropes and a weight</a>
+    <span class="tag">starter &middot; statics &middot; equilibrium check</span>
+    <div class="desc">A confidence-builder. Solve the tensions in two ropes holding a weight; the answer proves itself when the three forces sum to zero. The gentle first rung before beams and trusses.</div>
+  </li>
+  <li>
     <a href="./problems/beam-deflection/">Beam deflection</a>
     <span class="tag">statics &middot; linear solve &middot; algebra check</span>
     <div class="desc">Cycle through mountings and loadings. For each combo, find the max deflection. Check it against algebra. Confidence builder before eigenproblems.</div>
@@ -131,6 +136,11 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 <p class="section-note">Process real data to a report; reconciliation is the oracle.</p>
 <ul class="problems">
   <li>
+    <a href="./problems/reconcile-total/">Reconcile a total</a>
+    <span class="tag">starter &middot; data hygiene &middot; control total</span>
+    <div class="desc">A confidence-builder. Sum one messy column where the parser silently mangles four cells; the only thing that catches it is a second, independent total that has to agree. The gentle first rung before the full spend report.</div>
+  </li>
+  <li>
     <a href="./problems/spend-report/">Spend report from a messy export</a>
     <span class="tag">data &middot; reconciliation &middot; Office replacement</span>
     <div class="desc">A real-feeling purchase-order CSV with planted defects. Clean it, total it, chart it &mdash; then watch the headline finding flip when reconciliation catches a typo every other check missed.</div>
@@ -149,6 +159,11 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
     <a href="./problems/bearing-life/">Bearing life: the rating is not the load</a>
     <span class="tag">starter &middot; L10 life &middot; datasheet check</span>
     <div class="desc">A confidence-builder. Pick a ball bearing for a radial load and speed; the catalog load rating looks huge, but real life runs on a cube law you can check by hand in one line. The gentle first rung on this branch.</div>
+  </li>
+  <li>
+    <a href="./problems/tolerance-stack/">Tolerance stack: worst case vs. statistics</a>
+    <span class="tag">GD&amp;T &middot; RSS + Monte Carlo &middot; yield</span>
+    <div class="desc">A board in an enclosure: every part is in spec, but does the stack assemble? Worst-case says it might not; RSS and a Monte Carlo say 99.96% will. The oracle is three methods that must bracket and confirm each other &mdash; and the call on which to ship is yours.</div>
   </li>
   <li>
     <a href="./problems/motion-system/">Motion system: from a brief to a parts list</a>
@@ -173,23 +188,26 @@ const TREE = {
   branches: [
     {key:'solv',   x:150, name:'Numerical solvers', oracle:'oracle: physics', side:'left',
       nodes:[
+        {label:'Two ropes',       href:'./problems/rope-tension/'},
         {label:'Beam deflection', href:'./problems/beam-deflection/'},
         {label:'Truss bridges',   href:'./problems/truss-bridges/'},
         {label:'Beam vibration',  href:'./problems/beam-vibration/'},
       ]},
     {key:'data',   x:420, name:'Data & analysis', oracle:'oracle: reconciliation', side:'right',
       nodes:[
-        {label:'Spend report',   href:'./problems/spend-report/'},
-        {label:'Decision point', href:'./problems/decision-point/'},
+        {label:'Reconcile total', href:'./problems/reconcile-total/'},
+        {label:'Spend report',    href:'./problems/spend-report/'},
+        {label:'Decision point',  href:'./problems/decision-point/'},
       ]},
     {key:'design', x:690, name:'Design & selection', oracle:'oracle: the datasheet', side:'left',
       nodes:[
-        {label:'Bearing life',  href:'./problems/bearing-life/'},
-        {label:'Motion system', href:'./problems/motion-system/'},
+        {label:'Bearing life',    href:'./problems/bearing-life/'},
+        {label:'Tolerance stack', href:'./problems/tolerance-stack/'},
+        {label:'Motion system',   href:'./problems/motion-system/'},
       ]},
   ],
 };
-const NODE0Y = 362, DY = 92, LABEL_Y = 64, SPINE_TOP = 96;
+const NODE0Y = 384, DY = 82, LABEL_Y = 66, SPINE_TOP = 112;
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function line(x1,y1,x2,y2,cls){return `<line class="edge ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;}

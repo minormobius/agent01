@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tolerance stack &mdash; worst case says no, statistics say ship</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  .eq { display: block; text-align: center; font-style: italic; margin: 0.6rem 0; font-size: 1.0rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .viz canvas { display: block; width: 100%; background: transparent; }
+  #hist { height: 210px; }
+  .viz-title { font-family: ui-monospace, monospace; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: #778; margin: 0.2rem 0; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .viz-title { color: #99a; } }
+  table.stack { border-collapse: collapse; width: 100%; font-family: ui-monospace, monospace; font-size: 0.8rem; margin-bottom: 0.3rem; }
+  table.stack th, table.stack td { border: 1px solid #dde; padding: 0.3rem 0.5rem; text-align: right; }
+  table.stack th:first-child, table.stack td:first-child { text-align: left; }
+  table.stack th { background: #eef1f4; font-size: 0.74rem; }
+  @media (prefers-color-scheme: dark) { table.stack th, table.stack td { border-color: #333; } table.stack th { background: #1c2027; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: center; margin: 0.6rem 0; font-family: ui-monospace, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.5rem; }
+  .controls input[type=range] { width: 9rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 4rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .methods { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.6rem; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  @media (max-width: 32rem) { .methods { grid-template-columns: 1fr; } }
+  .method { padding: 0.5rem 0.6rem; border-radius: 5px; background: rgba(255,255,255,0.55); }
+  @media (prefers-color-scheme: dark) { .method { background: rgba(40,44,52,0.45); } }
+  .method h4 { margin: 0 0 0.25rem; font-size: 0.82rem; }
+  .method .v { font-size: 1.0rem; font-weight: 700; }
+  .pass { color: #2a8a2a; } .fail { color: #c33; }
+  @media (prefers-color-scheme: dark) { .pass { color: #8f6; } .fail { color: #f88; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Tolerance stack: worst case says no, statistics say ship</h1>
+<p class="lede">
+  A board, some standoffs, and a tall capacitor inside an enclosure. Each
+  part is in spec; the question is whether the stack <em>assembles</em>.
+  Worst-case says it might not. Statistics say 99.96% will. Both are right
+  &mdash; and knowing which to believe is the job.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A PCB sits on standoffs inside an enclosure, and the tallest component
+  &mdash; an electrolytic cap &mdash; has to clear the lid. The
+  <strong>gap</strong> is the enclosure's inner height minus everything
+  stacked under the lid:
+</p>
+<span class="eq">gap = H<sub>enclosure</sub> &minus; (standoff + PCB + component)</span>
+<p>
+  Every part carries a tolerance. The requirement is simple &mdash;
+  <strong>gap &ge; 0</strong>, or the lid won't close &mdash; but each
+  dimension's &plusmn; means the gap is a distribution, not a number. The
+  question isn't &ldquo;what's the gap&rdquo;; it's &ldquo;what fraction of
+  built units assemble.&rdquo;
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  Three standard methods, three lines of math, and Claude runs all three:
+  <strong>worst-case</strong> (add every tolerance the wrong way),
+  <strong>RSS</strong> (root-sum-square the tolerances, assuming each is
+  3&sigma;), and a <strong>Monte&nbsp;Carlo</strong> (sample thousands of
+  virtual assemblies). The trap is picking one method and trusting it
+  blindly &mdash; worst-case over-builds, pure RSS can flatter a sloppy
+  process. The skill is making them <em>agree</em>, and reading the gap
+  between them.
+</p>
+
+<h2>3. The stack</h2>
+<p>
+  Slide the enclosure height and a global tolerance scale. Watch worst-case,
+  RSS, and the Monte&nbsp;Carlo histogram move together. Red is the
+  interference region (gap&nbsp;&lt;&nbsp;0).
+</p>
+
+<div class="viz">
+  <table class="stack" id="stk"><tbody></tbody></table>
+  <div class="controls">
+    <label>enclosure H <input type="range" id="hh" min="19.4" max="21.0" step="0.05" value="20.0"><span class="val" id="hh-val">20.00 mm</span></label>
+    <label>tolerance × <input type="range" id="ts" min="0.4" max="1.6" step="0.05" value="1.0"><span class="val" id="ts-val">1.00×</span></label>
+  </div>
+  <div class="methods" id="methods"></div>
+  <div class="viz-title" style="margin-top:0.8rem">Monte Carlo &mdash; 20,000 virtual assemblies</div>
+  <canvas id="hist" aria-label="Monte Carlo histogram of the assembly gap"></canvas>
+</div>
+
+<p>
+  At the defaults the worst-case minimum gap is <strong>&minus;0.20&nbsp;mm</strong>
+  &mdash; technically, a build could interfere. Yet RSS and Monte&nbsp;Carlo
+  both put the failure rate near <strong>0.04%</strong>: about 1 in 2,700
+  units. Worst-case isn't wrong; it's <em>improbable</em>. It assumes every
+  one of four parts hits its worst limit in the same direction at the same
+  time &mdash; which a real process almost never does.
+</p>
+
+<h2>4. The three methods</h2>
+<p>
+  <strong>Worst-case</strong> sums the tolerances linearly:
+  gap = nominal &plusmn; &Sigma;|tol|. Guarantees assembly if the min stays
+  &ge; 0, at the cost of demanding tight (expensive) tolerances.
+  <strong>RSS</strong> sums them in quadrature:
+  &plusmn;&radic;(&Sigma; tol&sup2;) at 3&sigma; &mdash; far less pessimistic,
+  valid when contributors are independent and roughly normal.
+  <strong>Monte&nbsp;Carlo</strong> samples each dimension and counts
+  failures directly &mdash; the referee that confirms RSS, and the only one
+  that copes with skewed or shifted distributions.
+</p>
+
+<h2>5. Verification &mdash; the methods must agree</h2>
+<p>
+  No external answer key. The oracle is internal consistency: three
+  independent methods that have to bracket and confirm one another. When
+  they don't, an assumption broke.
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; worst-case bounds everything.</strong> The WC range must contain the RSS range, which must contain the Monte Carlo spread.
+  <div class="pass">Pass: WC &supe; RSS &supe; MC. If Monte Carlo ever exceeds worst-case, the WC sum is wrong.</div>
+  <div class="fail">Fail here: an MC sample outside the worst-case band means a dropped contributor or a sign error in the stack.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; RSS and Monte Carlo agree on yield.</strong> The RSS normal estimate and the MC failure count should match within sampling noise.
+  <div class="pass">Pass: both land near 0.04% interference. Agreement validates the &ldquo;independent and normal&rdquo; assumption.</div>
+  <div class="fail">Fail here: if they diverge, your tolerances aren't 3&sigma;, aren't independent, or aren't centered &mdash; and pure RSS is lying to you.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; the limits behave.</strong> Drive the tolerance scale to zero and all three collapse to the nominal gap; widen it and worst-case fails first.
+  <div class="pass">Pass: methods converge as tolerances shrink and fan out as they grow, in the right order.</div>
+</div>
+
+<h2>6. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; worst-case is a guarantee, not a prediction</summary>
+  <p>A negative worst-case gap doesn't mean &ldquo;it won't fit&rdquo; &mdash; it means &ldquo;there exists a combination that won't.&rdquo; Whether you care depends on volume and the cost of a reject. For one-off aerospace hardware, honor worst-case. For a million consumer units at 0.04% scrap, RSS is the economic answer.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; RSS assumes a lot; check it</summary>
+  <p>RSS treats each tolerance as 3&sigma; of an independent, centered, normal distribution. If a vendor runs to one side of tolerance (mean shift), or two dimensions come off the same mold (correlated), RSS is optimistic. That's exactly why you run Monte Carlo with realistic distributions as the check.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; find the dominant contributor</summary>
+  <p>In RSS, the term that dominates &radic;(&Sigma;tol&sup2;) is the largest tolerance, squared. Here the &plusmn;0.50 cap height swamps everything: 0.50&sup2; = 0.25 out of a 0.285 total. Tightening anything else is wasted money; the cap is the lever.</p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; what to ask for</summary>
+  <p>&ldquo;For this 1-D stack, compute the gap by worst-case, by RSS (tol = 3&sigma;), and by a 20,000-run Monte Carlo with normal dimensions. Report the WC min/max, the RSS &plusmn;3&sigma; and predicted yield, and the MC yield, and confirm WC &supe; RSS and that RSS&asymp;MC. Then tell me which single tolerance dominates.&rdquo;</p>
+</details>
+
+<h2>7. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude run the three methods, the histogram, and the contributor
+  ranking &mdash; the arithmetic is mechanical and the cross-checks scale.
+  But you own the judgment that no formula contains: is 0.04% scrap
+  acceptable for this product, are the vendor's parts really centered and
+  normal, is gap&nbsp;&ge;&nbsp;0 the true requirement or do you need a
+  service margin? The methods agree on the math; only you decide what risk
+  the business will ship.
+</div>
+
+<h2>8. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    Nominal gap = 20.00 &minus; (5.00 + 1.60 + 12.80) = <strong>0.60&nbsp;mm</strong>.
+    Worst-case half-range = &Sigma;tol = 0.15 + 0.05 + 0.10 + 0.50 =
+    0.80&nbsp;mm, so WC gap &isin; [&minus;0.20, +1.40]: a possible
+    interference. RSS half-range = &radic;(0.15&sup2;+0.05&sup2;+0.10&sup2;+0.50&sup2;)
+    = &radic;0.285 = 0.534&nbsp;mm (3&sigma;), so RSS gap &isin; [0.07, 1.13],
+    all positive &mdash; &sigma;<sub>gap</sub>=0.178, and the nominal sits
+    3.37&sigma; above zero, i.e. ~0.04% interference. A 20,000-run Monte
+    Carlo lands on the same ~0.04%.
+  </p>
+  <p style="font-size:0.88rem;color:#888;">
+    The decision: worst-case would push you to a taller enclosure or a
+    tighter cap spec (the &plusmn;0.50 dominates, contributing 0.25 of the
+    0.285 sum). RSS/MC say a 0.04% reject rate may be cheaper to live with.
+    The analysis can't make that call &mdash; but it tells you the cap, not
+    the standoff or the PCB, is the only tolerance worth paying to tighten.
+  </p>
+</details>
+
+<h2>9. Going further</h2>
+<ul>
+  <li>Add a <strong>mean shift</strong>: bias the cap height +1&sigma; (vendor runs tall) and watch MC diverge from centered RSS &mdash; the yield falls even though the tolerance didn't change.</li>
+  <li>Introduce <strong>correlation</strong>: two parts from the same tool move together; RSS's independence assumption breaks and worst-case creeps closer to reality.</li>
+  <li>Switch a contributor to a <strong>uniform</strong> distribution (machined-to-limits) and see how the histogram shape &mdash; not just its width &mdash; changes the yield.</li>
+  <li>Set a <strong>process capability</strong> target (Cpk) instead of gap&ge;0 and back-solve the tolerances each contributor is allowed.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>Same two moves &mdash; see <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>.</p>
+
+<script>
+// 1-D stack. sign +1 adds to gap (available space), -1 consumes it.
+const STACK=[
+  {name:'Enclosure inner height', nom:20.00, tol:0.15, sign:+1, slider:true},
+  {name:'Standoff',               nom:5.00,  tol:0.05, sign:-1},
+  {name:'PCB (FR4)',              nom:1.60,  tol:0.10, sign:-1},
+  {name:'Tallest component (cap)',nom:12.80, tol:0.50, sign:-1},
+];
+let H=20.0, TS=1.0;            // enclosure height override, tolerance scale
+
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y;}
+function Phi(z){return 0.5*(1+erf(z/Math.SQRT2));}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(rng){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+function dims(){ return STACK.map((d,i)=>({...d, nom: (i===0?H:d.nom), tol: d.tol*TS})); }
+function compute(){
+  const D=dims();
+  const gNom=D.reduce((s,d)=>s+d.sign*d.nom,0);
+  const sumTol=D.reduce((s,d)=>s+d.tol,0);                  // worst-case half-range
+  const rss3=Math.sqrt(D.reduce((s,d)=>s+d.tol*d.tol,0));   // RSS half-range at 3sigma
+  const sigma=rss3/3;
+  const wc=[gNom-sumTol, gNom+sumTol];
+  const rss=[gNom-rss3, gNom+rss3];
+  const rssYield=Phi(gNom/sigma);                           // P(gap>=0)
+  // Monte Carlo
+  const N=20000, rng=mulberry32(12345); let fail=0; const samples=new Float64Array(N);
+  for(let i=0;i<N;i++){ let g=0; D.forEach(d=>{ g+=d.sign*(d.nom+gauss(rng)*(d.tol/3)); }); samples[i]=g; if(g<0)fail++; }
+  return {D,gNom,sumTol,rss3,sigma,wc,rss,rssYield,mcYield:1-fail/N,mcFail:fail/N,samples,N};
+}
+
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fitCanvas(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return {ctx,w,h};}
+
+function drawHist(R){
+  const cv=document.getElementById('hist'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), axis=dark?'#889':'#556', txt=dark?'#cdd':'#334';
+  const L=10,Rr=10,T=10,B=22, pw=w-L-Rr, ph=h-T-B;
+  const lo=Math.min(R.wc[0]-0.1, -0.3), hi=R.wc[1]+0.1;
+  const X=g=>L+(g-lo)/(hi-lo)*pw;
+  const nb=46, bins=new Array(nb).fill(0);
+  for(let i=0;i<R.samples.length;i++){ let b=Math.floor((R.samples[i]-lo)/(hi-lo)*nb); if(b>=0&&b<nb)bins[b]++; }
+  const mx=Math.max(...bins);
+  bins.forEach((c,i)=>{
+    const g0=lo+(i/nb)*(hi-lo), g1=lo+((i+1)/nb)*(hi-lo), bh=c/mx*ph;
+    const interfere=(g0+g1)/2<0;
+    ctx.fillStyle = interfere ? (dark?'#9a4a3a':'#c0705a') : (dark?'#4a7aa0':'#7aa6c4');
+    ctx.fillRect(X(g0)+0.5, T+ph-bh, Math.max(1,X(g1)-X(g0)-1), bh);
+  });
+  // zero line (requirement)
+  ctx.strokeStyle=dark?'#f88':'#c33'; ctx.lineWidth=1.8; ctx.beginPath();ctx.moveTo(X(0),T);ctx.lineTo(X(0),T+ph);ctx.stroke();
+  ctx.fillStyle=dark?'#f88':'#c33';ctx.font='10px ui-monospace,monospace';ctx.textAlign='center';ctx.fillText('gap = 0',X(0),T+ph+14);
+  // RSS +/-3sigma ticks
+  ctx.strokeStyle=dark?'#e8b84b':'#c89200';ctx.setLineDash([4,3]);
+  R.rss.forEach(g=>{ctx.beginPath();ctx.moveTo(X(g),T);ctx.lineTo(X(g),T+ph);ctx.stroke();});
+  ctx.setLineDash([]);
+  ctx.fillStyle=dark?'#e8b84b':'#b08200';ctx.textAlign='center';ctx.fillText('RSS ±3σ',X(R.rss[1]),T+8);
+  // axis ticks
+  ctx.fillStyle=axis;ctx.textAlign='center';ctx.font='10px ui-monospace,monospace';
+  [Math.ceil(lo*2)/2,0,0.5,1.0,1.5].filter(v=>v>lo&&v<hi).forEach(v=>ctx.fillText(v.toFixed(1),X(v),T+ph+14));
+}
+
+function pct(x){ if(x<=0)return '0%'; if(x<0.01)return (x*100).toFixed(3)+'%'; return (x*100).toFixed(2)+'%'; }
+function render(){
+  H=+document.getElementById('hh').value; TS=+document.getElementById('ts').value;
+  document.getElementById('hh-val').textContent=H.toFixed(2)+' mm';
+  document.getElementById('ts-val').textContent=TS.toFixed(2)+'×';
+  const R=compute();
+  // table
+  let rows='<tr><th>contributor</th><th>nominal</th><th>± tol</th><th>±3σ²&nbsp;share</th></tr>';
+  const totTol2=R.D.reduce((s,d)=>s+d.tol*d.tol,0);
+  R.D.forEach(d=>{ rows+=`<tr><td>${d.name}${d.sign<0?' (&minus;)':' (+)'}</td><td>${d.nom.toFixed(2)}</td><td>±${d.tol.toFixed(3)}</td><td>${(100*d.tol*d.tol/totTol2).toFixed(0)}%</td></tr>`; });
+  document.querySelector('#stk tbody').innerHTML=rows;
+  // method cards
+  const wcOK=R.wc[0]>=0;
+  document.getElementById('methods').innerHTML=
+    `<div class="method"><h4>Worst case</h4>gap ∈ [${R.wc[0].toFixed(2)}, ${R.wc[1].toFixed(2)}]<br><span class="v ${wcOK?'pass':'fail'}">${wcOK?'always fits':'can interfere'}</span></div>`
+   +`<div class="method"><h4>RSS (3σ)</h4>gap ${R.gNom.toFixed(2)} ± ${R.rss3.toFixed(2)}<br>yield <span class="v ${R.rssYield>=0.999?'pass':'fail'}">${pct(R.rssYield)}</span></div>`
+   +`<div class="method"><h4>Monte Carlo</h4>${R.N.toLocaleString()} runs<br>yield <span class="v ${R.mcYield>=0.999?'pass':'fail'}">${pct(R.mcYield)}</span></div>`;
+  drawHist(R);
+}
+['hh','ts'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+window.addEventListener('resize',render);
+render();
+</script>
+
+</body>
+</html>
