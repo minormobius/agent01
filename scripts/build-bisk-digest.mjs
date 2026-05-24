@@ -107,7 +107,11 @@ function tokenize(text) {
   return (text.toLowerCase().replace(/['’]/g, ' ').match(/[a-z]+/g) || []);
 }
 
-// Top-k words over-represented vs a general-English baseline (TF-IDF-ish).
+// Top-k words by represented × overrepresented: raw occurrences in the
+// corpus times how much more often they appear than in general English
+// (baseline.json, the same baseline rite/atlas uses). The product rewards
+// words that are both frequently said AND unusual — neither a rare one-off
+// nor a common stopword wins.
 function distinctiveWords(texts, k = 3) {
   const counts = {};
   let total = 0;
@@ -116,13 +120,16 @@ function distinctiveWords(texts, k = 3) {
     counts[w] = (counts[w] || 0) + 1; total++;
   }
   if (!total) return [];
-  const FLOOR = 0.15;  // per-million floor so a genuinely novel word scores high but needs repeats
+  const FLOOR = 0.15;  // per-million floor for words absent from the baseline
   return Object.entries(counts)
-    .filter(([, c]) => c >= 3)
-    .map(([w, c]) => ({ word: w, count: c, score: (c / total) / ((baseline[w] ?? FLOOR) / baselineTotal) }))
+    .filter(([, c]) => c >= 2)
+    .map(([w, c]) => {
+      const over = (c / total) / ((baseline[w] ?? FLOOR) / baselineTotal);  // overrepresentation
+      return { word: w, count: c, over: +over.toFixed(1), score: c * over };  // represented × overrepresented
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, k)
-    .map(({ word, count }) => ({ word, count }));
+    .map(({ word, count, over }) => ({ word, count, over }));
 }
 function weatherReport(texts) {
   let scoreSum = 0, scored = 0, words = 0;
