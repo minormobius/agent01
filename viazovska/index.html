@@ -135,6 +135,11 @@ input[type=range]::-moz-range-thumb { width: 14px; height: 14px; background: var
 .docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
 .docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
 .docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs .eq { font-family: var(--mono); font-size: 0.9rem; text-align: center; margin: 0.9rem 0; color: var(--fg); overflow-x: auto; line-height: 1.7; }
+.docs .eq.boxed { background: var(--accent-tint); border: 1px solid var(--rule); border-radius: 3px; padding: 0.6rem 0.5rem; }
+.docs ol.spine { counter-reset: step; padding-left: 0; list-style: none; }
+.docs ol.spine > li { position: relative; padding-left: 2.2rem; margin-bottom: 0.7rem; }
+.docs ol.spine > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0.05rem; width: 1.5rem; height: 1.5rem; line-height: 1.5rem; text-align: center; font-family: var(--mono); font-size: 0.72rem; color: #fff; background: var(--accent); border-radius: 50%; }
 .docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
 .docs .meta-stamp { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.4rem; }
 
@@ -156,6 +161,7 @@ footer a:hover { color: var(--accent); }
   <button class="tab active" data-tab="e8" role="tab">E₈ projection</button>
   <button class="tab" data-tab="pack" role="tab">2D packing</button>
   <button class="tab" data-tab="dims" role="tab">by dimension</button>
+  <button class="tab" data-tab="magic" role="tab">magic function</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
 
@@ -231,6 +237,21 @@ footer a:hover { color: var(--accent); }
 <div class="stats" id="dims-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
 </div>
 
+<!-- MAGIC FUNCTION TAB ────────────────────────────────────────────── -->
+<div class="pane" id="pane-magic">
+<p style="font-size:0.92rem;color:var(--muted);margin:0 0 1rem">
+  The magic function must vanish to <em>second order</em> at every E₈ shell — radii
+  √(2n). Viazovska gets every one of those double zeros from a single exact factor,
+  <strong>sin²(π r²/2)</strong>, drawn below (solid). It touches zero, tangentially, exactly
+  at the shell radii (markers). The dashed curve is a schematic admissible f: it starts at
+  f(0)=1, dives non-positive past √2, and kisses zero at each shell — the qualitative shape
+  the modular-form construction produces. f̂ is its mirror: non-negative everywhere, same
+  double zeros.
+</p>
+<canvas id="magic" class="chart" width="700" height="420"></canvas>
+<div class="stats" id="magic-stats" style="font-family:var(--mono);font-size:0.7rem;line-height:1.8;border-top:1px solid var(--rule);padding-top:0.9rem"></div>
+</div>
+
 <!-- DOCS TAB ──────────────────────────────────────────────────────── -->
 <div class="pane" id="pane-docs">
 <div class="docs">
@@ -244,45 +265,150 @@ footer a:hover { color: var(--accent); }
 </p>
 
 <blockquote>
-  In dimensions 8 and 24, the answer is exact and beautiful — and the proof is two pages.
+  In dimensions 8 and 24 the answer is exact — and the proof, <em>once you have the magic
+  function</em>, is half a page. Building the magic function is the other twenty.
 </blockquote>
 
 <h2>The Cohn–Elkies bound</h2>
 <p>
-  In 2003 Cohn and Elkies turned packing into an optimization. If you can find a function
-  f on ℝⁿ that is non-positive outside a ball of radius r, whose Fourier transform f̂ is
-  non-negative everywhere, and with f(0) = f̂(0) &gt; 0, then the packing density is bounded
-  by a formula in f. Find the <em>right</em> f and the bound becomes tight.
+  In 2003 Cohn and Elkies turned packing into a single inequality. Call a function
+  <code>f : ℝⁿ → ℝ</code> <em>admissible</em> if it and its Fourier transform decay fast
+  enough (Schwartz class is plenty). Their theorem:
 </p>
+<div class="eq boxed">
+  if &nbsp; f(0) = f̂(0) &gt; 0, &nbsp; f̂(ξ) ≥ 0 ∀ξ, &nbsp; and &nbsp; f(x) ≤ 0 for |x| ≥ r,<br>
+  then every packing in ℝⁿ has density &nbsp; Δ ≤ ω<sub>n</sub> · (r/2)<sup>n</sup>,
+</div>
 <p>
-  For dimensions 8 and 24 the numerics screamed that an exact magic function existed — the
-  Cohn–Elkies bound matched the E₈ and Leech densities to dozens of digits — but nobody
-  could write it down. The function had to vanish to the right orders at every lattice
-  distance, simultaneously for f and f̂. That's a brutal interpolation problem.
+  where <code>ω<sub>n</sub> = π<sup>n/2</sup> / Γ(n/2 + 1)</code> is the volume of the unit
+  ball (so <code>ω₈ = π⁴/24</code>). The proof is one page: average f over the points of
+  any packing and apply Poisson summation; the three sign conditions make every term you
+  can't control land on the correct side.
 </p>
 
-<h2>Viazovska's magic functions</h2>
+<h2>Why E₈ saturates it</h2>
 <p>
-  In 2016 Viazovska built the dimension-8 magic function explicitly out of
-  <em>modular forms</em>. The idea: an eigenfunction of the Fourier transform with
-  prescribed roots can be assembled from quasimodular forms whose transformation laws
-  encode exactly the sign and vanishing conditions Cohn–Elkies demands. The construction
-  is short, exact, and — to specialists — startling.
+  The E₈ lattice is <code>{ x ∈ ℤ⁸ ∪ (ℤ+½)⁸ : Σxᵢ ∈ 2ℤ }</code>. It is unimodular
+  (covolume 1), its minimal vectors have length √2, and its squared lengths are exactly the
+  positive even integers, so its <em>shell radii</em> are √2, 2, √6, √8, √10, … = √(2n).
+  Packing balls of radius √2⁄2:
+</p>
+<div class="eq">
+  Δ(E₈) = ω₈ · (√2⁄2)<sup>8</sup> = (π⁴/24)·(1/16) = π⁴/384 ≈ 0.25367.
+</div>
+<p>
+  Take <code>r = √2</code> in Cohn–Elkies and the upper bound is <em>ω₈·(√2/2)⁸ = π⁴/384</em>
+  — exactly E₈'s density. So <strong>if</strong> an admissible f exists with the sign
+  conditions at r = √2, E₈ is optimal. Here is the half-page that shows the bound is met,
+  given a "magic" f that also <em>vanishes</em> at every shell. By Poisson summation on the
+  self-dual E₈ (E₈* = E₈):
+</p>
+<div class="eq">
+  Σ<sub>x∈E₈</sub> f(x) = Σ<sub>ξ∈E₈</sub> f̂(ξ).
+</div>
+<p>
+  The left side is <code>f(0) + Σ<sub>x≠0</sub> f(x) ≤ f(0)</code>, since every nonzero
+  vector has |x| ≥ √2 and there f ≤ 0. The right side is
+  <code>f̂(0) + Σ<sub>ξ≠0</sub> f̂(ξ) ≥ f̂(0)</code>, since f̂ ≥ 0. With f(0) = f̂(0) the two
+  ends pinch together, forcing equality and making the LP bound tight at E₈. ∎
+</p>
+
+<h2>The magic function, precisely</h2>
+<p>
+  So the whole problem collapses to building one radial function on ℝ⁸ with these
+  (wildly over-determined) properties:
+</p>
+<ul>
+  <li>f(0) = f̂(0) = 1;</li>
+  <li>f̂(ξ) ≥ 0 for all ξ;</li>
+  <li>f(x) ≤ 0 for |x| ≥ √2;</li>
+  <li>f has a <em>double</em> zero at every shell |x| = √(2n), n ≥ 1;</li>
+  <li>f̂ likewise vanishes to second order at every √(2n), n ≥ 1.</li>
+</ul>
+<p>
+  Double zeros at infinitely many radii, for <em>both</em> f and f̂ at once — that is what
+  made it look hopeless for thirteen years after Cohn–Elkies.
+</p>
+
+<h2>Viazovska's construction</h2>
+<p>
+  <strong>Step 1 — split by Fourier parity.</strong> On radial Schwartz functions in even
+  dimension the Fourier transform satisfies <code>F² = id</code>, so its eigenvalues are
+  ±1. The Gaussian is the archetype: <code>F[e^{−π|x|²}] = e^{−π|ξ|²}</code> (eigenvalue
+  +1). Write <code>f = a + b</code> with <code>Fa = +a</code> and <code>Fb = −b</code>;
+  then <code>f̂ = a − b</code>. Now the condition "f ≤ 0 outside √2" constrains a+b and
+  "f̂ ≥ 0" constrains a−b, and the two eigenfunctions can be engineered separately.
 </p>
 <p>
-  Within weeks, Cohn, Kumar, Miller, Radchenko, and Viazovska extended the method to
-  dimension 24 and the Leech lattice. Viazovska received the Fields Medal in 2022. The two
-  proofs remain the only dimensions above 3 where sphere packing is solved exactly.
+  <strong>Step 2 — the double-zero factor.</strong> The function
+  <code>sin²(π|x|²/2)</code> vanishes to exactly second order precisely when
+  <code>|x|² ∈ 2ℤ</code>, i.e. at every shell |x| = √(2n). Pulling this factor out builds
+  all the required double zeros in for free. (The <strong>magic function</strong> tab plots
+  it against the E₈ shells.)
 </p>
+<p>
+  <strong>Step 3 — manufacture the eigenfunctions from modular forms.</strong> Take the
+  Gaussian <code>g<sub>τ</sub>(x) = e^{π i τ |x|²}</code> with Im τ &gt; 0. In dimension 8
+  its Fourier transform is <code>ĝ<sub>τ</sub> = (τ/i)^{−4} · g<sub>−1/τ</sub></code>. So if
+  you integrate g<sub>τ</sub> against a function ψ(τ) along a vertical contour,
+</p>
+<div class="eq">
+  b(x) = ∫<sub>0</sub><sup>i∞</sup> ψ(τ) · sin²(π|x|²/2) · e^{π i τ |x|²} dτ ,
+</div>
+<p>
+  the eigenfunction equation <code>Fb = −b</code> turns into a <em>modular transformation
+  law</em> for ψ under <code>τ ↦ −1/τ</code> — the <code>(τ/i)^{−4}</code> from the Gaussian
+  is absorbed exactly when ψ is (quasi)modular of weight <code>2 − n/2 = −2</code>. The sign
+  conditions f ≤ 0 and f̂ ≥ 0 become positivity statements about the q-expansion of ψ, which
+  one checks term by term.
+</p>
+<p>
+  <strong>Step 4 — name the forms.</strong> ψ is a <em>weakly holomorphic</em> form (a pole
+  allowed at the cusp, i.e. a leading <code>q⁻¹</code>) built from the classical generators
+</p>
+<div class="eq">
+  E₂ = 1 − 24Σσ₁(n)qⁿ, &nbsp; E₄ = 1 + 240Σσ₃(n)qⁿ, &nbsp; E₆ = 1 − 504Σσ₅(n)qⁿ,<br>
+  Δ = (E₄³ − E₆²)/1728 = q∏(1−qⁿ)<sup>24</sup>, &nbsp; q = e<sup>2πiτ</sup>.
+</div>
+<p>
+  The −1 eigenfunction's ingredient is an honest weight −2 weakly holomorphic modular form;
+  the canonical one is
+</p>
+<div class="eq">
+  E₄E₆ / Δ = q⁻¹ − 240 − 141444 q − … &nbsp; (weight 4 + 6 − 12 = −2).
+</div>
+<p>
+  The +1 eigenfunction uses a weight −2 weakly holomorphic <em>quasi</em>modular form — the
+  same generators but now involving E₂, whose near-modularity supplies the missing parity.
+  Viazovska's exact linear combinations (and the contour/normalization constants) are two
+  short displayed formulas in
+  <a href="https://arxiv.org/abs/1603.04246">arXiv:1603.04246</a>; the structure above is
+  the whole idea. Within weeks Cohn, Kumar, Miller, Radchenko, and Viazovska ran the
+  identical playbook one weight up for dimension 24 and the Leech lattice
+  (<a href="https://arxiv.org/abs/1603.06518">arXiv:1603.06518</a>). Fields Medal, 2022.
+</p>
+
+<h2>The proof in one page</h2>
+<ol class="spine">
+  <li>Cohn–Elkies: an admissible f with f(0)=f̂(0), f̂ ≥ 0, f ≤ 0 outside r caps every
+  packing at ω<sub>n</sub>(r/2)<sup>n</sup>. <span style="color:var(--muted)">[~1 page, 2003]</span></li>
+  <li>At r = √2 that cap equals π⁴/384 = Δ(E₈). So a magic f makes E₈ optimal.</li>
+  <li>Build f = a + b from Fourier eigenfunctions; pull out sin²(π|x|²/2) for the double
+  zeros at the shells √(2n).</li>
+  <li>Realize a, b as contour integrals of weakly holomorphic (quasi)modular forms of
+  weight −2; modularity ⇔ the ±1 eigenfunction property, and the q-expansions give the
+  sign conditions. <span style="color:var(--muted)">[the ~20 pages]</span></li>
+  <li>Poisson summation on self-dual E₈ pinches the bound to equality. ∎</li>
+</ol>
 
 <h2>Why 8 and 24?</h2>
 <p>
   E₈ and the Leech lattice are extraordinarily symmetric and self-dual; their theta series
   <em>are</em> modular forms, which is exactly what lets a modular magic function lock onto
-  their distances. Nearby dimensions have no such miraculous lattice, and the method gives
-  nothing. The
-  <a href="https://mino.mobi/erdos/">erdős</a>-style moral applies in reverse: here a
-  hidden structure makes the impossible-looking exactly solvable.
+  their shells. Nearby dimensions have no such miraculous lattice and the method gives
+  nothing — the Cohn–Elkies bound there is strictly above the best packing, and the gap is
+  still open. The <a href="https://mino.mobi/erdos/">erdős</a>-style moral runs in reverse:
+  here a hidden structure makes the impossible-looking exactly solvable.
 </p>
 
 <h2>Connections in the pack</h2>
@@ -654,8 +780,115 @@ document.querySelectorAll('nav.tabs .tab').forEach(tab => {
     if (tab.dataset.tab === 'e8' && !e8anim) { e8last = performance.now(); e8Frame(); }
     if (tab.dataset.tab === 'pack') drawPack();
     if (tab.dataset.tab === 'dims') drawDims();
+    if (tab.dataset.tab === 'magic') drawMagic();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Magic-function tab — exact sin²(πr²/2) double-zero comb + schematic f
+// ─────────────────────────────────────────────────────────────────────
+const magicCanvas = document.getElementById('magic');
+const mctx = magicCanvas.getContext('2d');
+
+function drawMagic() {
+  const W = magicCanvas.width, H = magicCanvas.height;
+  mctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  mctx.fillRect(0, 0, W, H);
+  const PAD = { l: 48, r: 20, t: 24, b: 40 };
+  const rmax = 4.2, ymin = -0.6, ymax = 1.05;
+  const tx = r => PAD.l + (r / rmax) * (W - PAD.l - PAD.r);
+  const ty = y => H - PAD.b - (y - ymin) / (ymax - ymin) * (H - PAD.t - PAD.b);
+
+  // zero axis + frame
+  mctx.strokeStyle = cssVar('--rule') || '#aaa';
+  mctx.lineWidth = 1;
+  mctx.beginPath(); mctx.moveTo(PAD.l, PAD.t); mctx.lineTo(PAD.l, H - PAD.b); mctx.lineTo(W - PAD.r, H - PAD.b); mctx.stroke();
+  mctx.strokeStyle = 'rgba(128,128,128,0.4)';
+  mctx.beginPath(); mctx.moveTo(PAD.l, ty(0)); mctx.lineTo(W - PAD.r, ty(0)); mctx.stroke();
+
+  // shell markers at r = √(2n)
+  mctx.font = '10px ui-monospace, monospace';
+  mctx.textAlign = 'center';
+  const labels = { 2:'√2', 4:'2', 6:'√6', 8:'√8', 10:'√10', 12:'√12', 14:'√14', 16:'4' };
+  for (let n = 1; n <= 8; n++) {
+    const r = Math.sqrt(2 * n);
+    if (r > rmax) break;
+    const x = tx(r);
+    mctx.strokeStyle = 'rgba(151,120,26,0.30)';
+    mctx.setLineDash([3, 3]);
+    mctx.beginPath(); mctx.moveTo(x, PAD.t); mctx.lineTo(x, H - PAD.b); mctx.stroke();
+    mctx.setLineDash([]);
+    mctx.fillStyle = cssVar('--muted') || '#777';
+    mctx.fillText(labels[2 * n] || ('√' + 2 * n), x, H - PAD.b + 14);
+    // tangency dot on the axis
+    mctx.fillStyle = cssVar('--accent') || '#97781a';
+    mctx.beginPath(); mctx.arc(x, ty(0), 2.6, 0, Math.PI * 2); mctx.fill();
+  }
+
+  // exact sin²(π r²/2)
+  mctx.strokeStyle = cssVar('--accent') || '#97781a';
+  mctx.lineWidth = 1.8;
+  mctx.beginPath();
+  for (let px = 0; px <= W - PAD.l - PAD.r; px++) {
+    const r = (px / (W - PAD.l - PAD.r)) * rmax;
+    const y = Math.sin(Math.PI * r * r / 2); const v = y * y;
+    const X = PAD.l + px, Y = ty(v);
+    if (px === 0) mctx.moveTo(X, Y); else mctx.lineTo(X, Y);
+  }
+  mctx.stroke();
+
+  // schematic admissible f (dashed): +1 lobe to √2, then ≤0 kissing zero at shells
+  mctx.strokeStyle = cssVar('--fg') || '#222';
+  mctx.lineWidth = 1.3;
+  mctx.setLineDash([5, 4]);
+  mctx.beginPath();
+  let started = false;
+  for (let px = 0; px <= W - PAD.l - PAD.r; px++) {
+    const r = (px / (W - PAD.l - PAD.r)) * rmax;
+    const r2 = r * r;
+    let v;
+    if (r2 <= 2) {
+      v = (1 - r2 / 2) * Math.exp(-0.35 * r2);          // positive lobe, →0 at √2
+    } else {
+      const s = Math.sin(Math.PI * r2 / 2);
+      v = -0.55 * s * s * Math.exp(-0.32 * (r2 - 2));    // ≤0, double zeros at shells
+    }
+    const X = PAD.l + px, Y = ty(v);
+    if (!started) { mctx.moveTo(X, Y); started = true; } else mctx.lineTo(X, Y);
+  }
+  mctx.stroke();
+  mctx.setLineDash([]);
+
+  // y ticks
+  mctx.fillStyle = cssVar('--muted') || '#777';
+  mctx.textAlign = 'right';
+  for (const yv of [1, 0.5, 0, -0.5]) {
+    mctx.fillText(yv.toFixed(1), PAD.l - 6, ty(yv) + 3);
+  }
+  // axis label
+  mctx.textAlign = 'center';
+  mctx.font = '11px ui-monospace, monospace';
+  mctx.fillText('r = |x|', (PAD.l + W - PAD.r) / 2, H - 4);
+
+  // inline legend
+  mctx.textAlign = 'left';
+  mctx.font = '10px ui-monospace, monospace';
+  mctx.strokeStyle = cssVar('--accent') || '#97781a'; mctx.lineWidth = 1.8;
+  mctx.beginPath(); mctx.moveTo(W - 232, PAD.t + 8); mctx.lineTo(W - 210, PAD.t + 8); mctx.stroke();
+  mctx.fillStyle = cssVar('--fg') || '#222';
+  mctx.fillText('sin²(π r²/2)  — exact double-zero comb', W - 204, PAD.t + 11);
+  mctx.strokeStyle = cssVar('--fg') || '#222'; mctx.setLineDash([5, 4]);
+  mctx.beginPath(); mctx.moveTo(W - 232, PAD.t + 24); mctx.lineTo(W - 210, PAD.t + 24); mctx.stroke();
+  mctx.setLineDash([]);
+  mctx.fillText('schematic f  (f(0)=1, ≤0 past √2)', W - 204, PAD.t + 27);
+
+  let html = '<div class="stat-row"><span class="k">shell n</span><span class="v">radius √(2n) · squared length</span></div>';
+  for (let n = 1; n <= 6; n++) {
+    html += `<div class="stat-row"><span class="k">${n}</span><span class="v">${Math.sqrt(2*n).toFixed(4)} · ${2*n}</span></div>`;
+  }
+  html += '<div class="stat-row" style="margin-top:0.4rem"><span class="k">double zeros</span><span class="v win">f and f̂ at every √(2n)</span></div>';
+  document.getElementById('magic-stats').innerHTML = html;
+}
 
 // Boot
 updateE8Stats();
