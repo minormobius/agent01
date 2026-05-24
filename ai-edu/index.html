@@ -8,53 +8,58 @@
   :root { color-scheme: light dark; }
   body {
     font: 16px/1.55 ui-serif, Georgia, "Times New Roman", serif;
-    max-width: 38rem;
-    margin: 3rem auto;
-    padding: 0 1.25rem;
-    color: #1a1a1a;
+    max-width: 42rem; margin: 3rem auto; padding: 0 1.25rem; color: #1a1a1a;
   }
-  @media (prefers-color-scheme: dark) {
-    body { background: #15151a; color: #eee; }
-    a { color: #9cf; }
-  }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
   h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
   .lede { color: #666; font-style: italic; margin-top: 0; }
   @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
   h2 { font-size: 1.05rem; margin-top: 2.5rem; }
   ul.problems { list-style: none; padding: 0; }
-  ul.problems li {
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #ddd;
-  }
-  @media (prefers-color-scheme: dark) {
-    ul.problems li { border-bottom-color: #333; }
-  }
+  ul.problems li { padding: 0.75rem 0; border-bottom: 1px solid #ddd; }
+  @media (prefers-color-scheme: dark) { ul.problems li { border-bottom-color: #333; } }
   ul.problems a { font-weight: 600; text-decoration: none; }
   ul.problems a:hover { text-decoration: underline; }
-  .section-note {
-    font-size: 0.9rem;
-    color: #888;
-    font-style: italic;
-    margin: -0.25rem 0 0.5rem;
-  }
+  .section-note { font-size: 0.9rem; color: #888; font-style: italic; margin: -0.25rem 0 0.5rem; }
   @media (prefers-color-scheme: dark) { .section-note { color: #999; } }
-  ul.problems .tag {
-    font-size: 0.8rem;
-    color: #888;
-    margin-left: 0.5rem;
-    font-weight: normal;
-  }
-  ul.problems .desc {
-    font-size: 0.92rem;
-    color: #555;
-    margin-top: 0.25rem;
-  }
+  ul.problems .tag { font-size: 0.8rem; color: #888; margin-left: 0.5rem; font-weight: normal; }
+  ul.problems .desc { font-size: 0.92rem; color: #555; margin-top: 0.25rem; }
   @media (prefers-color-scheme: dark) { ul.problems .desc { color: #bbb; } }
-  footer {
-    margin-top: 4rem;
-    font-size: 0.85rem;
-    color: #888;
+  footer { margin-top: 4rem; font-size: 0.85rem; color: #888; }
+
+  .treewrap { margin: 1.75rem -0.5rem 0.5rem; background: linear-gradient(180deg, #fafbfc 0%, #f3f5f8 100%); border: 1px solid #e0e4ea; border-radius: 8px; padding: 0.5rem; }
+  @media (prefers-color-scheme: dark) { .treewrap { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  svg#tree { display: block; width: 100%; height: auto; }
+  .map-cap { font-size: 0.9rem; color: #666; margin: 0.25rem 0 0; }
+  @media (prefers-color-scheme: dark) { .map-cap { color: #aaa; } }
+
+  .edge { fill: none; stroke-width: 2.4; }
+  .edge.trunk { stroke: #9aa0aa; }
+  .edge.solv   { stroke: #5a9a3a; }
+  .edge.data   { stroke: #2c7da0; }
+  .edge.design { stroke: #c89200; }
+  .dot.solv   { fill: #5a9a3a; } .dot.data { fill: #2c7da0; } .dot.design { fill: #c89200; }
+  .found rect { fill: #eef0f3; stroke: #9aa0aa; stroke-width: 1.5; }
+  .found text { fill: #555; }
+  .lbl { fill: #333; font: 600 14px ui-serif, Georgia, serif; }
+  .lbl.sm { font: italic 11px ui-monospace, monospace; fill: #888; font-weight: 400; }
+  .branchname { font: 700 14.5px ui-monospace, monospace; letter-spacing: 0.02em; }
+  .branchname.solv { fill: #4a8a2a; } .branchname.data { fill: #2c7da0; } .branchname.design { fill: #b08200; }
+  .oracle { font: italic 11.5px ui-serif, Georgia, serif; fill: #888; }
+  @media (prefers-color-scheme: dark) {
+    .edge.trunk { stroke: #6a7078; }
+    .edge.solv { stroke: #8fbf5a; } .edge.data { stroke: #6cc; } .edge.design { stroke: #e8b84b; }
+    .dot.solv { fill: #8fbf5a; } .dot.data { fill: #6cc; } .dot.design { fill: #e8b84b; }
+    .found rect { fill: #20242c; stroke: #556; } .found text { fill: #bbc; }
+    .lbl { fill: #ddd; } .lbl.sm { fill: #99a; }
+    .branchname.solv { fill: #aef087; } .branchname.data { fill: #7dd; } .branchname.design { fill: #e8c860; }
+    .oracle { fill: #99a; }
   }
+  a.node { cursor: pointer; }
+  a.node:hover .dot { stroke: #1a1a1a; stroke-width: 2; }
+  @media (prefers-color-scheme: dark) { a.node:hover .dot { stroke: #fff; } }
+  a.node:hover .lbl { text-decoration: underline; }
+  a.found-link:hover rect { stroke-width: 2.5; }
 </style>
 </head>
 <body>
@@ -74,11 +79,18 @@ The skill being grown isn't <em>know finite elements</em>. It's
 <em>direct and audit a collaborator that supplies them</em>. Every problem
 here is open-ended, with staged hints, and ends with one example solution
 shown as calibration &mdash; not as an answer key. Validation never comes
-from a grader; it comes from an oracle you can check yourself. For a
-physics solver that's the physics &mdash; energy must conserve, the
-uniform case must match the closed form. For a data analysis it's
-reconciliation &mdash; the totals must tie out, the headline must survive
-a robustness check. A wrong answer announces itself either way.
+from a grader; it comes from an oracle you can check yourself &mdash; the
+physics, a reconciliation, a datasheet. A wrong answer announces itself.
+</p>
+
+<div class="treewrap">
+  <svg id="tree" viewBox="0 0 840 600" role="img" aria-label="Tech tree: foundations branching into three problem tracks"></svg>
+</div>
+<p class="map-cap">
+  <em>Read it bottom-up:</em> start on the trunk &mdash; set up the tools, learn
+  to ship &mdash; then climb whichever prong fits the problem in front of you.
+  Each branch is defined by how you know you're right: its oracle. (Full index
+  below.)
 </p>
 
 <h2>Getting started</h2>
@@ -86,100 +98,57 @@ a robustness check. A wrong answer announces itself either way.
   <li>
     <a href="./getting-started/windows/">Getting started on Windows</a>
     <span class="tag">setup &middot; PowerShell &middot; ~10 min</span>
-    <div class="desc">
-      Six copy-paste steps from never-opened-a-terminal to Claude
-      running in a folder on your machine.
-    </div>
+    <div class="desc">Six copy-paste steps from never-opened-a-terminal to Claude running in a folder on your machine.</div>
   </li>
   <li>
     <a href="./getting-started/shipping/">Shipping the work: explore in HTML, deliver in PDF</a>
     <span class="tag">output &middot; pandoc + typst &middot; zero-dep HTML</span>
-    <div class="desc">
-      The two things to do with a finished analysis &mdash; a
-      self-contained HTML explorer (no install) and a typeset PDF via
-      Markdown &rarr; Pandoc &rarr; Typst. The minimum toolchain, set up
-      once.
-    </div>
+    <div class="desc">The two things to do with a finished analysis &mdash; a self-contained HTML explorer (no install) and a typeset PDF via Markdown &rarr; Pandoc &rarr; Typst. The minimum toolchain, set up once.</div>
   </li>
 </ul>
 
 <h2>Numerical solvers</h2>
-<p class="section-note">
-  Stand up a solver for a half-remembered physics problem; the physics
-  is the oracle.
-</p>
+<p class="section-note">Stand up a solver for a half-remembered physics problem; the physics is the oracle.</p>
 <ul class="problems">
   <li>
     <a href="./problems/beam-deflection/">Beam deflection</a>
     <span class="tag">statics &middot; linear solve &middot; algebra check</span>
-    <div class="desc">
-      Cycle through mountings and loadings. For each combo, find the
-      max deflection. Check it against algebra. Confidence builder
-      before eigenproblems.
-    </div>
+    <div class="desc">Cycle through mountings and loadings. For each combo, find the max deflection. Check it against algebra. Confidence builder before eigenproblems.</div>
   </li>
   <li>
     <a href="./problems/truss-bridges/">Truss bridges</a>
     <span class="tag">statics &middot; direct stiffness &middot; procedural</span>
-    <div class="desc">
-      Procedurally generated Pratt / Howe / Warren / K bridges,
-      tunable span and loading. The solver propagates forces through
-      every member &mdash; tension blue, compression red. Hours by
-      hand, instant here.
-    </div>
+    <div class="desc">Procedurally generated Pratt / Howe / Warren / K bridges, tunable span and loading. The solver propagates forces through every member &mdash; tension blue, compression red. Hours by hand, instant here.</div>
   </li>
   <li>
     <a href="./problems/beam-vibration/">Beam vibration</a>
     <span class="tag">FEM &middot; eigenproblem &middot; vibrations</span>
-    <div class="desc">
-      Euler&ndash;Bernoulli beam, natural frequencies and mode shapes.
-      Verify against the closed-form &beta;L roots; perturb until the
-      closed form is gone.
-    </div>
+    <div class="desc">Euler&ndash;Bernoulli beam, natural frequencies and mode shapes. Verify against the closed-form &beta;L roots; perturb until the closed form is gone.</div>
   </li>
 </ul>
 
 <h2>Data &amp; analysis</h2>
-<p class="section-note">
-  Process real data to a report; reconciliation is the oracle.
-</p>
+<p class="section-note">Process real data to a report; reconciliation is the oracle.</p>
 <ul class="problems">
   <li>
     <a href="./problems/spend-report/">Spend report from a messy export</a>
     <span class="tag">data &middot; reconciliation &middot; Office replacement</span>
-    <div class="desc">
-      A real-feeling purchase-order CSV with planted defects. Clean it,
-      total it, chart it &mdash; then watch the headline finding flip
-      when reconciliation catches a typo every other check missed.
-    </div>
+    <div class="desc">A real-feeling purchase-order CSV with planted defects. Clean it, total it, chart it &mdash; then watch the headline finding flip when reconciliation catches a typo every other check missed.</div>
   </li>
   <li>
     <a href="./problems/decision-point/">Decision point: the OFAT that fingered the wrong knob</a>
     <span class="tag">DoE &middot; experimental validity &middot; measurement</span>
-    <div class="desc">
-      Fifty incubator runs, a clean one-factor experiment, and a
-      pass/fail call that's wrong until you ask what the test was
-      actually measuring. The oracle here is experimental validity:
-      right gauge, real effect, holds across units.
-    </div>
+    <div class="desc">Fifty incubator runs, a clean one-factor experiment, and a pass/fail call that's wrong until you ask what the test was actually measuring. The oracle here is experimental validity: right gauge, real effect, holds across units.</div>
   </li>
 </ul>
 
 <h2>Design &amp; selection</h2>
-<p class="section-note">
-  Turn a requirement into a parts list; the datasheet is the oracle.
-</p>
+<p class="section-note">Turn a requirement into a parts list; the datasheet is the oracle.</p>
 <ul class="problems">
   <li>
     <a href="./problems/motion-system/">Motion system: from a brief to a parts list</a>
     <span class="tag">mechatronics &middot; sizing &middot; Pugh matrix</span>
-    <div class="desc">
-      &ldquo;Move 5&nbsp;kg, 0.5&nbsp;m, in 1&nbsp;s.&rdquo; A live
-      seven-segment profile sizes a motor and a transmission &mdash; and
-      the inertia-match optimum turns out to be a pulley you can't buy.
-      Ends in a Pugh matrix of real, in-stock parts with links you can
-      click.
-    </div>
+    <div class="desc">&ldquo;Move 5&nbsp;kg, 0.5&nbsp;m, in 1&nbsp;s.&rdquo; A live seven-segment profile sizes a motor and a transmission &mdash; and the inertia-match optimum turns out to be a pulley you can't buy. Ends in a Pugh matrix of real, in-stock parts with links you can click.</div>
   </li>
 </ul>
 
@@ -187,6 +156,76 @@ a robustness check. A wrong answer announces itself either way.
   Template: <a href="./PROBLEM_TEMPLATE.md">PROBLEM_TEMPLATE.md</a>.
   Draft zone &mdash; expect rough edges.
 </footer>
+
+<script>
+const TREE = {
+  hub: {x:420, y:430},
+  junction: {x:420, y:500},
+  found: [
+    {label:'Windows setup', href:'./getting-started/windows/', x:300, y:556, w:150},
+    {label:'Explore HTML / Deliver PDF', href:'./getting-started/shipping/', x:470, y:556, w:230},
+  ],
+  branches: [
+    {key:'solv',   x:150, name:'Numerical solvers', oracle:'oracle: physics', side:'left',
+      nodes:[
+        {label:'Beam deflection', href:'./problems/beam-deflection/'},
+        {label:'Truss bridges',   href:'./problems/truss-bridges/'},
+        {label:'Beam vibration',  href:'./problems/beam-vibration/'},
+      ]},
+    {key:'data',   x:420, name:'Data & analysis', oracle:'oracle: reconciliation', side:'right',
+      nodes:[
+        {label:'Spend report',   href:'./problems/spend-report/'},
+        {label:'Decision point', href:'./problems/decision-point/'},
+      ]},
+    {key:'design', x:690, name:'Design & selection', oracle:'oracle: the datasheet', side:'left',
+      nodes:[
+        {label:'Motion system', href:'./problems/motion-system/'},
+      ]},
+  ],
+};
+const NODE0Y = 362, DY = 92, LABEL_Y = 64, SPINE_TOP = 96;
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function line(x1,y1,x2,y2,cls){return `<line class="edge ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;}
+function nodeY(i){return NODE0Y - i*DY;}
+
+function buildTree(){
+  const T=TREE; let s='';
+  s += line(T.found[0].x, T.found[0].y-14, T.junction.x, T.junction.y, 'trunk');
+  s += line(T.found[1].x, T.found[1].y-14, T.junction.x, T.junction.y, 'trunk');
+  s += line(T.junction.x, T.junction.y, T.hub.x, T.hub.y, 'trunk');
+
+  T.branches.forEach(b=>{
+    const top = nodeY(b.nodes.length-1);
+    s += line(T.hub.x, T.hub.y, b.x, nodeY(0), b.key);
+    for(let i=0;i<b.nodes.length-1;i++) s += line(b.x, nodeY(i), b.x, nodeY(i+1), b.key);
+    s += line(b.x, top, b.x, SPINE_TOP, b.key);
+    s += `<text class="branchname ${b.key}" x="${b.x}" y="${LABEL_Y}" text-anchor="middle">${esc(b.name)}</text>`;
+    s += `<text class="oracle" x="${b.x}" y="${LABEL_Y+16}" text-anchor="middle">${esc(b.oracle)}</text>`;
+    b.nodes.forEach((n,i)=>{
+      const y=nodeY(i);
+      const anchor = b.side==='left' ? 'end' : 'start';
+      const tx = b.side==='left' ? b.x-15 : b.x+15;
+      s += `<a class="node" href="${n.href}">`
+         + `<circle class="dot ${b.key}" cx="${b.x}" cy="${y}" r="8.5"/>`
+         + `<text class="lbl" x="${tx}" y="${y}" text-anchor="${anchor}" dominant-baseline="central">${esc(n.label)}</text>`
+         + `</a>`;
+    });
+  });
+
+  T.found.forEach(f=>{
+    const h=30, x=f.x-f.w/2, y=f.y-h/2;
+    s += `<a class="found-link" href="${f.href}"><g class="found">`
+       + `<rect x="${x}" y="${y}" width="${f.w}" height="${h}" rx="7"/>`
+       + `<text x="${f.x}" y="${f.y}" text-anchor="middle" dominant-baseline="central" style="font:600 12.5px ui-serif,Georgia,serif">${esc(f.label)}</text>`
+       + `</g></a>`;
+  });
+  s += `<text class="lbl sm" x="${T.hub.x}" y="${T.found[0].y+32}" text-anchor="middle">foundations &middot; the known-good tools</text>`;
+
+  document.getElementById('tree').innerHTML = s;
+}
+buildTree();
+</script>
 
 </body>
 </html>
