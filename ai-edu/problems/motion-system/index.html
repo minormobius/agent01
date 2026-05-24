@@ -74,6 +74,12 @@
   @media (prefers-color-scheme: dark) { .score-pos { color: #8f6; } .score-neg { color: #f88; } }
   .verified { font-size: 0.75rem; color: #888; }
   .partlink { font-family: ui-monospace, monospace; font-size: 0.78rem; }
+  table.pugh input.wt { width: 2.4rem; font: inherit; font-size: 0.78rem; text-align: center; padding: 0.1rem 0.15rem; border: 1px solid #bbc; border-radius: 3px; background: #fff; color: #234; }
+  @media (prefers-color-scheme: dark) { table.pugh input.wt { background: #1b1f27; border-color: #456; color: #cde; } }
+  table.pugh th.wt, table.pugh td.wt { text-align: center; }
+  .pugh-mount { overflow-x: auto; }
+  .weights-hint { font-size: 0.82rem; color: #778; margin: 0.4rem 0 0.2rem; }
+  @media (prefers-color-scheme: dark) { .weights-hint { color: #99a; } }
 </style>
 </head>
 <body>
@@ -214,95 +220,63 @@
 </p>
 
 <p style="font-size:0.85rem;color:#888;">
-  Scores below are for a <em>general-purpose, cost-aware, ~1&nbsp;m/s,
-  moderate-precision</em> axis. Change the weighting &mdash; chase
-  micron repeatability, or minimum lead time &mdash; and columns flip;
-  each table notes its tipping point. <code>+1 / 0 / &minus;1</code> are
-  relative to the datum column. <sup>&dagger;</sup>&nbsp;= supplier page
-  blocks automated fetching; link + specs confirmed via search and a
-  distributor &mdash; re-open in a browser before ordering.
+  Default scores are for a <em>general-purpose, cost-aware, ~1&nbsp;m/s,
+  moderate-precision</em> axis, all criteria weighted equally.
+  <code>+1 / 0 / &minus;1</code> are relative to the datum column;
+  <strong>the weighted total = &Sigma;&nbsp;(weight&nbsp;&times;&nbsp;score)</strong>,
+  and the highlighted column is whichever currently leads.
+  <sup>&dagger;</sup>&nbsp;= supplier page blocks automated fetching;
+  link + specs confirmed via search and a distributor &mdash; re-open in a
+  browser before ordering.
+</p>
+<p class="weights-hint">
+  &#9881; The <strong>weight</strong> cells are editable &mdash; raise the
+  criteria your axis actually lives or dies on (set the rest to 0) and the
+  totals and the winning column recompute live. That is the whole point of
+  a Pugh matrix: argue about the weights, not the answer.
 </p>
 
-<h3>Motor &mdash; datum: NEMA 23 closed-loop stepper</h3>
-<table class="pugh">
-  <tr><th>criterion</th><th>NEMA 17<sup>&dagger;</sup></th><th class="datum">NEMA 23 closed-loop<sup>&dagger;</sup> &middot; datum</th><th class="win">ClearPath servo</th></tr>
-  <tr><td>accel headroom (peak torque)</td><td class="s score-neg">&minus;1</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><td>speed ceiling (max RPM)</td><td class="s score-neg">&minus;1</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><td>smoothness / closed-loop control</td><td class="s score-neg">&minus;1</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><td>integration (drive + encoder onboard)</td><td class="s">0</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><td>unit cost</td><td class="s score-pos">+1</td><td class="s datum">0</td><td class="s win score-neg">&minus;1</td></tr>
-  <tr><th>total</th><th class="s score-neg">&minus;2</th><th class="s datum">0</th><th class="s win score-pos">+3</th></tr>
-</table>
+<h3>Motor &mdash; datum: NEMA 23 integrated closed-loop stepper</h3>
+<div class="pugh-mount" id="pm-motor"></div>
 <p class="partlink">
-  &middot; <a href="https://www.omc-stepperonline.com/nema-17-stepper-0-59nm-84oz-in-w-brake-friction-torque-0-25nm-35-4oz-in-17hs19-2004d-b025">StepperOnline 17HS19-2004D-B025</a><sup>&dagger;</sup> &mdash; 0.59&nbsp;N&middot;m, w/ brake<br>
-  &middot; <a href="https://www.omc-stepperonline.com/p-series-nema-23-closed-loop-stepper-motor-2nm-283-28oz-in-with-encoder-1000ppr-4000cpr-23e1k-20">StepperOnline 23E1K-20</a><sup>&dagger;</sup> &mdash; 2.0&nbsp;N&middot;m holding, 1000&nbsp;PPR encoder<br>
+  &middot; <a href="https://www.linengineering.com/products/stepper-motors/hybrid-stepper-motors/4118-series">Lin Engineering 4118M-06P</a> &mdash; NEMA 17, 62.3&nbsp;oz-in (0.44&nbsp;N&middot;m), rotor inertia 0.28&nbsp;oz-in&sup2;<br>
+  &middot; <a href="https://www.linengineering.com/products/stepper-motors/integrated-stepper-motors/silverpak-23ce-series/CE-5718M-02P">Lin Engineering SilverPak 23CE (CE-5718M-02P)</a> &mdash; NEMA 23, motor+driver+controller+encoder, 1.22&nbsp;N&middot;m holding, closed-loop, 12&ndash;40&nbsp;VDC<br>
   &middot; <a href="https://teknic.com/model-info/CPM-SDSK-2321S-RLN/">Teknic ClearPath CPM-SDSK-2321S-RLN</a> &mdash; 0.7&nbsp;N&middot;m cont / 3.5&nbsp;peak, 3170&nbsp;RPM, integrated drive+encoder, ~$315
 </p>
-<p style="font-size:0.85rem;color:#778;">The servo's margin, top speed, and onboard drive carry it for a serious axis. The NEMA 17 is left in to show it's only <em>marginal</em> for 8&nbsp;kg &mdash; little acceleration headroom. <strong>Tips to the closed-loop stepper</strong> if budget is the dominant criterion.</p>
+<p style="font-size:0.85rem;color:#778;">The SilverPak 23CE and the ClearPath are <em>both</em> integrated closed-loop drives, so the servo's edge narrows to torque, top speed, and smoothness &mdash; it still wins for a demanding axis, but by less than against a bare stepper. The NEMA 17 is left in to show it's only <em>marginal</em> for 8&nbsp;kg. <strong>Push the cost weight up</strong> and the integrated stepper takes it.</p>
 
 <h3>Coupling &mdash; datum: zero-backlash jaw (spider)</h3>
-<table class="pugh">
-  <tr><th>criterion</th><th class="datum">Ruland jaw<sup>&dagger;</sup> &middot; datum</th><th>Ruland bellows<sup>&dagger;</sup></th></tr>
-  <tr><td>torsional stiffness</td><td class="s datum">0</td><td class="s score-pos">+1</td></tr>
-  <tr><td>vibration damping</td><td class="s datum">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><td>misalignment tolerance</td><td class="s datum">0</td><td class="s">0</td></tr>
-  <tr><td>cost</td><td class="s datum">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><th>total</th><th class="s datum">0</th><th class="s score-neg">&minus;1</th></tr>
-</table>
+<div class="pugh-mount" id="pm-coupling"></div>
 <p class="partlink">
   &middot; <a href="https://www.ruland.com/servo-couplings/jaw-couplings.html">Ruland zero-backlash jaw couplings</a><sup>&dagger;</sup> &mdash; press-fit spider, damps, 3&ndash;45&nbsp;mm bore<br>
   &middot; <a href="https://www.ruland.com/servo-couplings/bellows-couplings/high-stiffness-bellows-coupling/metric-dimensions/mbc-clamp.html">Ruland MBC bellows (metric, clamp)</a><sup>&dagger;</sup> &mdash; zero-backlash, high stiffness, 3&ndash;25&nbsp;mm bore
 </p>
-<p style="font-size:0.85rem;color:#778;">Both are zero-backlash and wildly over-rated for ~0.3&nbsp;N&middot;m; pick the smallest bore-matched size. The jaw's damping and price win <em>on a belt drive</em>. <strong>Flips to the bellows</strong> the moment you go to a ballscrew, where torsional stiffness sets positioning accuracy.</p>
+<p style="font-size:0.85rem;color:#778;">Both are zero-backlash and wildly over-rated for ~0.3&nbsp;N&middot;m; pick the smallest bore-matched size. The jaw's damping and price win <em>on a belt drive</em>. <strong>Raise the stiffness weight</strong> (i.e. go to a ballscrew) and the bellows takes it.</p>
 
 <h3>Drive / transmission &mdash; datum: GT2/GT3 timing belt</h3>
-<table class="pugh">
-  <tr><th>criterion</th><th class="datum win">timing belt &middot; datum</th><th>Ø16 ballscrew, 10&ndash;20&nbsp;mm lead</th></tr>
-  <tr><td>top-speed fit (RPM demand)</td><td class="s datum win">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><td>stiffness / repeatability</td><td class="s datum">0</td><td class="s score-pos">+1</td></tr>
-  <tr><td>inertia ratio (small effective r)</td><td class="s datum">0</td><td class="s score-pos">+1</td></tr>
-  <tr><td>cost &amp; simplicity</td><td class="s datum win">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><td>maintenance (no lube / critical speed)</td><td class="s datum win">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><th>total</th><th class="s datum win score-pos">0</th><th class="s score-neg">&minus;1</th></tr>
-</table>
+<div class="pugh-mount" id="pm-drive"></div>
 <p class="partlink">
   &middot; <a href="https://www.servocity.com/2mm-pitch-gt2-pinion-timing-pulley-5mm-bore-20-tooth/">ServoCity GT2 20T pulley</a> &mdash; 2&nbsp;mm pitch, &Oslash;12.7&nbsp;mm PD, ~$8<br>
   &middot; <a href="https://shop.sdp-si.com/a-6a51-020df0608.html">SDP/SI GT2 20-groove pulley</a> &amp; <a href="https://shop.sdp-si.com/a36r53m067090.html">GT3 belt</a> &mdash; industrial-grade<br>
   &middot; <a href="https://www.damencnc.com/en/mechanical-components/hiwin-ballscrews/hiwin-ballscrews-16mm">HIWIN R16 ballscrew (10/20&nbsp;mm lead)</a> &mdash; ~&euro;177, cut + end-machined to length
 </p>
-<p style="font-size:0.85rem;color:#778;">A small belt pulley wins for ~1&nbsp;m/s: cheap, no critical-speed worry, low RPM demand &mdash; you accept a ~16&ndash;40:1 inertia ratio. <strong>Flips to the ballscrew</strong> for a precision axis, where its stiffness <em>and</em> single-digit inertia ratio outweigh cost and the higher motor RPM.</p>
+<p style="font-size:0.85rem;color:#778;">A small belt pulley wins for ~1&nbsp;m/s: cheap, no critical-speed worry, low RPM demand &mdash; you accept a ~16&ndash;40:1 inertia ratio. <strong>Raise the stiffness / repeatability weights</strong> (a precision axis) and the ballscrew takes it.</p>
 
 <h3>Linear guide &mdash; datum: recirculating-ball profile rail</h3>
-<table class="pugh">
-  <tr><th>criterion</th><th class="datum">HIWIN MGN12 &middot; datum</th><th class="win">igus drylin&nbsp;W polymer</th></tr>
-  <tr><td>stiffness &amp; load life</td><td class="s datum">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><td>repeatability</td><td class="s datum">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><td>maintenance (grease-free)</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><td>cost</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><td>noise / particle-free</td><td class="s datum">0</td><td class="s win score-pos">+1</td></tr>
-  <tr><th>total</th><th class="s datum">0</th><th class="s win score-pos">+1</th></tr>
-</table>
+<div class="pugh-mount" id="pm-rail"></div>
 <p class="partlink">
   &middot; <a href="https://www.nextdayautomation.com/products/new-hiwin-mgn12h-linear-guide-block-13-x-32-4-x-27mm-3-72kn-m3x8-mounting">HIWIN MGN12H block</a> &mdash; dynamic load C&nbsp;=&nbsp;3.72&nbsp;kN (vast margin on ~80&nbsp;N) + 600&nbsp;mm rail<br>
   &middot; <a href="https://www.igus.com/product/732">igus drylin W WS-10-80</a> &mdash; dry-running polymer, maintenance-free, cut to length
 </p>
-<p style="font-size:0.85rem;color:#778;">For a general, cost- and maintenance-sensitive axis the polymer rail edges it. <strong>Flips hard to the profile rail</strong> the instant stiffness, load life, or micron repeatability lead the requirements &mdash; the MGN12's 3.72&nbsp;kN rating is enormous headroom.</p>
+<p style="font-size:0.85rem;color:#778;">For a general, cost- and maintenance-sensitive axis the polymer rail edges it. <strong>Raise the stiffness or repeatability weight</strong> and it flips hard to the profile rail &mdash; the MGN12's 3.72&nbsp;kN rating is enormous headroom.</p>
 
 <h3>Make vs. buy &mdash; datum: assemble from the parts above</h3>
-<table class="pugh">
-  <tr><th>criterion</th><th class="datum">assemble &middot; datum</th><th class="win">igus drylin ZLW (buy)</th><th>OpenBuilds kit (buy)</th></tr>
-  <tr><td>upfront part cost</td><td class="s datum">0</td><td class="s score-neg">&minus;1</td><td class="s score-pos">+1</td></tr>
-  <tr><td>integration time / effort</td><td class="s datum">0</td><td class="s win score-pos">+1</td><td class="s">0</td></tr>
-  <tr><td>performance ceiling</td><td class="s datum">0</td><td class="s">0</td><td class="s score-neg">&minus;1</td></tr>
-  <tr><td>support / serviceability</td><td class="s datum">0</td><td class="s win score-pos">+1</td><td class="s">0</td></tr>
-  <tr><td>lead time / build risk</td><td class="s datum">0</td><td class="s win score-pos">+1</td><td class="s">0</td></tr>
-  <tr><th>total</th><th class="s datum">0</th><th class="s win score-pos">+2</th><th class="s">0</th></tr>
-</table>
+<div class="pugh-mount" id="pm-makebuy"></div>
 <p class="partlink">
   &middot; <a href="https://www.igus.com/linear-actuators/belt-driven-linear-actuator">igus drylin ZLW belt actuator</a> &mdash; stroke to 3000&nbsp;mm, to 5&nbsp;m/s, turnkey<br>
   &middot; <a href="https://builds.openbuilds.com/builds/v-slot%E2%84%A2-nema-23-linear-actuator-belt-driven.7821/">OpenBuilds V-Slot NEMA 23 belt actuator</a> &mdash; GT3 belt, 250&ndash;1500&nbsp;mm, budget DIY
 </p>
-<p style="font-size:0.85rem;color:#778;">Buying the turnkey actuator wins when time-to-deploy and support matter more than the last bit of cost or stiffness &mdash; you still bolt on the ClearPath servo. <strong>Assemble-from-parts wins</strong> at volume, or when you need a stiffness/precision ceiling no catalog actuator hits.</p>
+<p style="font-size:0.85rem;color:#778;">Buying the turnkey actuator wins when time-to-deploy and support matter more than the last bit of cost or stiffness &mdash; you still bolt on the servo. <strong>Raise the cost or performance-ceiling weight</strong> and assemble-from-parts comes back.</p>
 
 <h2>5. Verification &mdash; the datasheet is the oracle</h2>
 <p>
@@ -471,8 +445,8 @@ const NPTS=240, DT=T/NPTS;
 
 // ===== motor presets (rotor inertia kg m^2, torque N m, max rpm) =====
 const MOTORS=[
-  {key:'s17', name:'NEMA 17 (17HS19+brake)',     J:6.8e-6,  Tpk:0.59, Tcont:0.35, rpm:1000},
-  {key:'s23', name:'NEMA 23 closed-loop (23E1K)',J:3.8e-5,  Tpk:2.00, Tcont:1.20, rpm:2000},
+  {key:'s17', name:'NEMA 17 (Lin 4118M-06P)',    J:5.1e-6,  Tpk:0.44, Tcont:0.30, rpm:1000},
+  {key:'s23', name:'NEMA 23 stepper (Lin 23CE)', J:2.7e-5,  Tpk:1.22, Tcont:0.80, rpm:2000},
   {key:'srv', name:'NEMA 23 servo (ClearPath)',  J:2.0e-5,  Tpk:3.50, Tcont:0.70, rpm:3170},
 ];
 let motor = MOTORS[2];
@@ -657,12 +631,94 @@ inertia ratio    : ${c.ratio.toFixed(1)} : 1
 inertia-match r* : ${(rStar()*1000).toFixed(2)} mm
 `;}
 
+// ===== editable Pugh matrices =====
+// score arrays align to candidate order; datum candidate is all-zero by construction.
+const MATRICES={
+  motor:{cands:[{n:'NEMA 17 · Lin 4118M-06P'},{n:'NEMA 23 closed-loop · Lin 23CE',datum:true},{n:'ClearPath servo'}],
+    crit:[
+      ['accel headroom (peak torque)',[-1,0,1]],
+      ['speed ceiling (max RPM)',[-1,0,1]],
+      ['smoothness / closed-loop control',[-1,0,1]],
+      ['integration (drive + encoder onboard)',[-1,0,0]],
+      ['unit cost',[1,0,-1]],
+    ]},
+  coupling:{cands:[{n:'Ruland jaw (spider)',datum:true},{n:'Ruland MBC bellows'}],
+    crit:[
+      ['torsional stiffness',[0,1]],
+      ['vibration damping',[0,-1]],
+      ['misalignment tolerance',[0,0]],
+      ['cost',[0,-1]],
+    ]},
+  drive:{cands:[{n:'GT2/GT3 timing belt',datum:true},{n:'Ø16 ballscrew, 10–20 mm lead'}],
+    crit:[
+      ['top-speed fit (RPM demand)',[0,-1]],
+      ['stiffness / repeatability',[0,1]],
+      ['inertia ratio (small effective r)',[0,1]],
+      ['cost & simplicity',[0,-1]],
+      ['maintenance (no lube / critical speed)',[0,-1]],
+    ]},
+  rail:{cands:[{n:'HIWIN MGN12 profile rail',datum:true},{n:'igus drylin W polymer'}],
+    crit:[
+      ['stiffness & load life',[0,-1]],
+      ['repeatability',[0,-1]],
+      ['maintenance (grease-free)',[0,1]],
+      ['cost',[0,1]],
+      ['noise / particle-free',[0,1]],
+    ]},
+  makebuy:{cands:[{n:'assemble from parts',datum:true},{n:'igus drylin ZLW (buy)'},{n:'OpenBuilds kit (buy)'}],
+    crit:[
+      ['upfront part cost',[0,-1,1]],
+      ['integration time / effort',[0,1,0]],
+      ['performance ceiling',[0,0,-1]],
+      ['support / serviceability',[0,1,0]],
+      ['lead time / build risk',[0,1,0]],
+    ]},
+};
+function totalsOf(m){return m.cands.map((_,j)=>m.crit.reduce((s,c)=>s+c.w*c.scores[j],0));}
+function fmtT(t){return (t>0?'+':'')+t;}
+function recompute(id){
+  const m=MATRICES[id], tot=totalsOf(m), max=Math.max(...tot);
+  m.cands.forEach((c,j)=>{
+    const t=tot[j], cls=t>0?'score-pos':t<0?'score-neg':'';
+    const tc=document.getElementById(`tot-${id}-${j}`);
+    tc.textContent=fmtT(t); tc.className='s'+(c.datum?' datum':'')+(t===max?' win':'')+(cls?' '+cls:'');
+    document.getElementById(`hd-${id}-${j}`).className=(c.datum?'datum':'')+(t===max?' win':'');
+  });
+}
+function renderMatrix(id){
+  const m=MATRICES[id], mount=document.getElementById('pm-'+id);
+  let h='<table class="pugh"><tr><th>criterion</th><th class="wt">weight</th>';
+  m.cands.forEach((c,j)=>h+=`<th id="hd-${id}-${j}" class="${c.datum?'datum':''}">${c.n}${c.datum?' · datum':''}</th>`);
+  h+='</tr>';
+  m.crit.forEach((c,i)=>{
+    h+=`<tr><td>${c.name}</td><td class="wt"><input type="number" class="wt" min="0" max="9" step="1" value="${c.w}" data-m="${id}" data-i="${i}" aria-label="weight for ${c.name}"></td>`;
+    c.scores.forEach((s,j)=>{const cls=s>0?'score-pos':s<0?'score-neg':'';h+=`<td class="s${m.cands[j].datum?' datum':''}${cls?' '+cls:''}">${fmtT(s)}</td>`;});
+    h+='</tr>';
+  });
+  h+='<tr><th>weighted total</th><th class="wt"></th>';
+  m.cands.forEach((c,j)=>h+=`<th id="tot-${id}-${j}" class="s${c.datum?' datum':''}"></th>`);
+  h+='</tr></table>';
+  mount.innerHTML=h;
+  mount.querySelectorAll('input.wt').forEach(inp=>inp.addEventListener('input',e=>{
+    let v=parseInt(e.target.value,10); if(isNaN(v)||v<0)v=0;
+    MATRICES[e.target.dataset.m].crit[+e.target.dataset.i].w=v;
+    recompute(e.target.dataset.m);
+  }));
+  recompute(id);
+}
+function pughInit(){
+  // attach criterion names + default weight, then render
+  Object.values(MATRICES).forEach(m=>m.crit=m.crit.map(c=>({name:c[0],scores:c[1],w:1})));
+  Object.keys(MATRICES).forEach(renderMatrix);
+}
+
 function main(){
   buildMotorButtons();
   ['alpha','beta','rad'].forEach(id=>document.getElementById(id).addEventListener('input',refresh));
   document.getElementById('dl-profile').addEventListener('click',()=>download('motion_profile.csv',profileCSV(),'text/csv'));
   document.getElementById('dl-spec').addEventListener('click',()=>download('sizing_summary.txt',specTXT()));
   window.addEventListener('resize',()=>{if(lastProf){drawProfile(lastProf);drawMatch(lastProf,lastChosen);}});
+  pughInit();
   refresh();
 }
 main();
