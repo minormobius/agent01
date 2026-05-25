@@ -432,9 +432,15 @@ function onRenderProgress(ev) {
     renderFill.style.width = `${Math.round(ev.progress * 60)}%`;
     if (ev.frame) renderMsg.textContent = `frame ${ev.frame} / ${ev.totalFrames}`;
   } else if (ev.stage === 'encoding') {
-    renderTitle.textContent = 'Encoding…';
-    renderFill.style.width = `${60 + Math.round((ev.progress || 0) * 38)}%`;
-    renderMsg.textContent = 'muxing h.264…';
+    renderTitle.textContent = 'Encoding video…';
+    // libx264 on an image sequence often doesn't emit a clean ratio, so the
+    // bar may sit; the live log line below proves it's still working.
+    if (typeof ev.progress === 'number' && ev.progress > 0)
+      renderFill.style.width = `${60 + Math.round(ev.progress * 38)}%`;
+  } else if (ev.stage === 'ffmpeg-log') {
+    // Show frame=/time= lines while encoding so it doesn't look frozen.
+    const m = ev.message || '';
+    if (/frame=|time=|fps=/.test(m)) renderMsg.textContent = m.trim().slice(0, 64);
   } else if (ev.stage === 'done') {
     renderFill.style.width = '100%';
   }

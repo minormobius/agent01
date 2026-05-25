@@ -86,11 +86,15 @@ export async function encodeVideo({ getFrame, totalFrames, fps, crf = 18, onProg
   }
 
   onProgress?.({ stage: 'encoding', progress: 0 });
+  // Single-threaded core: force x264 to one thread (it can otherwise stall
+  // waiting on pthreads that don't exist) and use the ultrafast preset, which
+  // is dramatically faster in wasm. tune=fastdecode/zerolatency not needed.
   await ff.exec([
     '-framerate', String(fps),
     '-i', 'f_%05d.png',
+    '-threads', '1',
     '-c:v', 'libx264',
-    '-preset', 'medium',
+    '-preset', 'ultrafast',
     '-crf', String(crf),
     '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
