@@ -59,8 +59,8 @@
   <strong>The whole idea in one line:</strong> raw PDFs are big, noisy, and
   re-read on every message. Spend one cheap pass converting the parts you
   need into a small text file in <code>data/</code>, then point Claude at
-  that. Lend a fast <strong>Sonnet</strong> subagent to do the transcription
-  so the heavy read never touches your main context.
+  that. Run the transcription in a <strong>second terminal on the cheaper
+  Sonnet model</strong>, so the heavy read never touches your main session.
 </p>
 
 <h2>Why not just hand Claude the PDF</h2>
@@ -73,23 +73,71 @@
   for the other 39 pages, repeatedly, is the waste.
 </p>
 
-<h2>Lend a Sonnet subagent</h2>
+<h2>Open a second worker on Sonnet</h2>
 <p>
-  The move: have your main agent spin up a <strong>subagent on Sonnet</strong>
-  whose only job is to read the whole document and write a faithful
-  transcription into <code>data/</code>. Two wins at once:
+  The cleanest way to keep that heavy read out of your main session isn't a
+  clever prompt &mdash; it's a <strong>second window</strong>. Open another
+  terminal, start Claude there on the cheaper <strong>Sonnet</strong> model,
+  and give it one job: read the document and write a faithful transcription
+  into <code>data/</code>. Your engineering session &mdash; on Opus &mdash;
+  never sees the raw PDF.
 </p>
+<p>
+  This is where Claude Code's <strong>slash commands</strong> and model
+  selection earn their keep. Launch the worker straight onto Sonnet:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>claude --model sonnet</pre><span class="lang">a second terminal</span></div>
+<p>&mdash; or switch a session that's already open with the <code>/model</code> command:</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>/model sonnet</pre><span class="lang">in Claude Code</span></div>
+<p>
+  Then turn the <strong>reasoning effort down</strong>. Transcription is a
+  fidelity task, not a thinking task &mdash; you want the model copying
+  digits, not pondering them, and cranking up effort just spends tokens and
+  time for no extra accuracy:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>/effort low</pre><span class="lang">in the Sonnet worker</span></div>
+<p>Two wins, and they're the whole point:</p>
 <ul>
-  <li><strong>Context stays clean.</strong> The giant, messy read happens
-  <em>inside</em> the subagent. It hands back only the tidy file (or just a
-  path), so your main agent &mdash; the one doing the engineering &mdash;
-  never carries the raw PDF in its window.</li>
-  <li><strong>The cheap model does the grunt work.</strong> Faithful
-  transcription is a transcription task, not a reasoning task. Sonnet is fast
-  and inexpensive and very good at it; save the expensive model for the
-  analysis that follows.</li>
+  <li><strong>Context stays clean.</strong> The giant, messy read lives in
+  the second window's session, which is fully independent &mdash; its own
+  transcript, no shared memory. Your engineering session only ever opens the
+  tidy file it produced.</li>
+  <li><strong>The cheap model, at low effort, does the grunt work.</strong>
+  Sonnet is fast, inexpensive, and faithful at transcription; Opus stays free
+  for the analysis that actually needs it.</li>
 </ul>
-<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Spin up a Sonnet subagent to transcribe <code>data/bearing-6004.pdf</code> into <code>data/bearing-6004.yaml</code>. Capture every dimension, load rating, and limiting speed as structured key/value fields with units. Transcribe faithfully &mdash; do not summarize or round &mdash; and flag anything illegible rather than guessing.</span></div>
+<p>
+  You don't need a programmatic multi-agent system for this &mdash; two
+  terminals <em>is</em> the technique, and it's the right amount of machinery
+  for a one-off read. Hand the worker its instructions:
+</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Transcribe <code>data/bearing-6004.pdf</code> into <code>data/bearing-6004.yaml</code>. Capture every dimension, load rating, and limiting speed as structured key/value fields with units. Transcribe faithfully &mdash; do not summarize or round &mdash; and flag anything illegible rather than guessing.</span></div>
+
+<h3>Make it a one-word command</h3>
+<p>
+  Once you've done this a couple of times, save the instructions as a project
+  <strong>skill</strong> &mdash; a custom slash command &mdash; so the worker
+  pins the right model and effort for you. Drop a file at
+  <code>.claude/skills/transcribe-pdf/SKILL.md</code>:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>---
+name: transcribe-pdf
+description: Transcribe a PDF into faithful Markdown or YAML
+model: sonnet
+effort: low
+disable-model-invocation: true
+allowed-tools: Read, Write
+---
+
+Transcribe the document at $ARGUMENTS into data/.
+Use YAML for specs and tables (named fields + units), Markdown for prose.
+Transcribe faithfully — do not summarize or round. Carry a `source:`
+reference (file + page). Flag anything illegible rather than guessing.</pre><span class="lang">.claude/skills/transcribe-pdf/SKILL.md</span></div>
+<p>
+  Now the whole job is one line in the Sonnet window &mdash; model and effort
+  already set, every time:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>/transcribe-pdf data/bearing-6004.pdf</pre><span class="lang">in the Sonnet worker</span></div>
 
 <h2>Markdown or YAML?</h2>
 <p>Pick the target format by what the document <em>is</em>:</p>
