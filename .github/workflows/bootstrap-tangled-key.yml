@@ -23,8 +23,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SECRETS_PAT }}
         run: |
+          echo "SECRETS_PAT visible to this run: length=${#GH_TOKEN} (0 means not visible)"
           if [ -z "$GH_TOKEN" ]; then
-            echo "::error::Add a fine-grained PAT (this repo, Secrets: write) as the secret SECRETS_PAT, then re-run."
+            echo "::error::SECRETS_PAT is empty for this run. Checklist:"
+            echo "  1. It must live under Settings → Secrets and variables → ACTIONS"
+            echo "     → 'Repository secrets' — NOT the Dependabot or Codespaces tabs,"
+            echo "     and NOT the 'Variables' tab."
+            echo "  2. Named exactly SECRETS_PAT (case-sensitive)."
+            echo "  3. If you added it as an ENVIRONMENT secret, that's the only case"
+            echo "     where branch matters: the env may restrict to main and this job"
+            echo "     would also need an 'environment:' key. Simplest fix: make it a"
+            echo "     plain repository secret instead."
             exit 1
           fi
           tmp="$(mktemp -u)"
