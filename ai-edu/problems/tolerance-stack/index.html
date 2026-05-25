@@ -178,6 +178,19 @@
   <summary>Hint 4 &mdash; what to ask for</summary>
   <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">For this 1-D stack, compute the gap by worst-case, by RSS (tol = 3&sigma;), and by a 20,000-run Monte Carlo with normal dimensions. Report the WC min/max, the RSS &plusmn;3&sigma; and predicted yield, and the MC yield, and confirm WC &supe; RSS and that RSS&asymp;MC. Then tell me which single tolerance dominates.</span></div>
 </details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, confirm worst-case bounds RSS and that RSS matches the Monte Carlo yield&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt.
+  </p>
+</details>
 
 <h2>7. Where to draw the line</h2>
 <div class="draw-line">

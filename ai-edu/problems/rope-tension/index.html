@@ -139,6 +139,19 @@
   <summary>Hint 3 &mdash; what to ask for</summary>
   <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Solve for the two rope tensions from the equilibrium equations, then substitute them back and report the residual &Sigma;F<sub>x</sub> and &Sigma;F<sub>y</sub>. Also give the symmetric-angle closed form so I can sanity-check.</span></div>
 </details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, substitute the tensions back and confirm &Sigma;F<sub>x</sub> and &Sigma;F<sub>y</sub> are zero&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt.
+  </p>
+</details>
 
 <h2>6. Where to draw the line</h2>
 <div class="draw-line">

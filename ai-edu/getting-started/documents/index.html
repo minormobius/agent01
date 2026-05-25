@@ -177,6 +177,34 @@ bearing housing per ISO 10816-3 for rigid mounting...</pre><span class="lang">da
   document is the oracle; the transcription is a convenience.
 </div>
 
+<h2>Keep the context lean</h2>
+<p>
+  Transcribing is half the job; feeding the lean copy well is the other half.
+  Three habits keep a long session sharp:
+</p>
+<ul>
+  <li><strong>Long inputs go at the top.</strong> Put the document (or its
+  transcription) near the start of the prompt and your question at the end
+  &mdash; models attend better to a query that comes <em>after</em> the
+  material it's about.</li>
+  <li><strong>Make it quote before it reasons.</strong> Ask Claude to first
+  quote the exact lines it's relying on (&ldquo;quote the spec clauses you'll
+  use, then answer&rdquo;). Grounding the answer in copied text is a cheap
+  hallucination guard &mdash; and it hands you the citations for your
+  spot-check.</li>
+  <li><strong>Write findings down, don't re-derive them.</strong> Keep a
+  running <code>NOTES.md</code> in the
+  <a href="../project-setup/"><code>notes/</code> folder</a> with the numbers
+  and decisions pulled so far. The next session reads the note instead of
+  re-reading the source &mdash; persistent memory for a few hundred tokens.</li>
+</ul>
+<p>
+  And the effort knob cuts both ways: transcription wants
+  <code>/effort low</code>, but the analysis it feeds usually wants it
+  <em>high</em>. Turn it up when the reasoning &mdash; not the reading &mdash;
+  is the hard part.
+</p>
+
 <h2>What it saves</h2>
 <p>
   Rough arithmetic: a datasheet page is ~500&ndash;800 tokens of usable
