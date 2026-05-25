@@ -1,6 +1,6 @@
 name: Mirror to Tangled
 
-# manual re-run marker: 2026-05-25a  (handle path: minomobi.bsky.social)
+# manual re-run marker: 2026-05-25f  (refresh erdos content)
 #
 # Keeps a self-contained site published as a standalone repo on tangled, so
 # it stays forkable ("remixable") and its page stays current. Automates the
