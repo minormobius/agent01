@@ -1,5 +1,7 @@
 name: Remixify on Tangled
 
+# manual re-run marker: 2026-05-25a  (bump to re-trigger via push)
+
 # One-shot "make this site remixable": create the sh.tangled.repo record
 # (the thing the tangled UI's "create repository" does — just a putRecord)
 # and push the site's content. After this, the ongoing Mirror to Tangled
@@ -18,6 +20,12 @@ name: Remixify on Tangled
 # explicit XRPC init we'll add next.
 
 on:
+  push:
+    branches:
+      - main
+      - 'claude/prepare-merge-candidates-*'
+    paths:
+      - '.github/workflows/remixify.yml'   # bump the marker above to fire
   workflow_dispatch:
     inputs:
       site:
@@ -33,7 +41,7 @@ jobs:
   remixify:
     runs-on: ubuntu-latest
     env:
-      SITE: ${{ github.event.inputs.site }}
+      SITE: ${{ github.event.inputs.site || 'guthkatz' }}
       TANGLED_HANDLE: ${{ vars.TANGLED_HANDLE }}
       TANGLED_KNOT: ${{ vars.TANGLED_KNOT || 'tangled.org' }}
     steps:
@@ -53,7 +61,7 @@ jobs:
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
-          DESC: ${{ github.event.inputs.description || format('Remixable mino.mobi/{0}', github.event.inputs.site) }}
+          DESC: ${{ github.event.inputs.description }}
         run: node scripts/tangled-ensure-repo.mjs
 
       - name: Set up SSH deploy key
