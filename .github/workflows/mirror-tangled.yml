@@ -1,6 +1,6 @@
 name: Mirror to Tangled
 
-# manual re-run marker: 2026-05-24b  (bump to re-trigger via push)
+# manual re-run marker: 2026-05-24c  (probe run)
 #
 # Keeps a self-contained site published as a standalone repo on tangled, so
 # it stays forkable ("remixable") and its tngl.sh page stays current. This
@@ -61,6 +61,23 @@ jobs:
           # Force IPv4: knot hosts sit behind Cloudflare (AAAA present), and
           # GitHub runners usually have no IPv6 route → ENETUNREACH otherwise.
           ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Probe knot reachability (diagnostic)
+        run: |
+          echo "knot=$TANGLED_KNOT  handle=$TANGLED_HANDLE"
+          for port in 22 443; do
+            if timeout 12 bash -c "exec 3<>/dev/tcp/$TANGLED_KNOT/$port" 2>/dev/null; then
+              echo "TCP $TANGLED_KNOT:$port — OPEN"
+            else
+              echo "TCP $TANGLED_KNOT:$port — closed/timeout"
+            fi
+          done
+          echo "--- ssh handshake :22 ---"
+          timeout 20 ssh -4 -p 22 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=12 \
+            -i ~/.ssh/id_ed25519 git@"$TANGLED_KNOT" 2>&1 | head -20 || true
+          echo "--- ssh handshake :443 ---"
+          timeout 20 ssh -4 -p 443 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=12 \
+            -i ~/.ssh/id_ed25519 git@"$TANGLED_KNOT" 2>&1 | head -20 || true
 
       - name: Build standalone repo and force-push to tangled
         run: |
