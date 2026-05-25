@@ -58,6 +58,15 @@
   .dl button { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.8rem; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
   @media (prefers-color-scheme: dark) { .dl button { background: #20242c; border-color: #456; color: #cde; } }
   .status { margin-top: 0.4rem; font-size: 0.78rem; color: #888; font-style: italic; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
 </style>
 </head>
 <body>
@@ -217,13 +226,13 @@
 </details>
 <details>
   <summary>Hint 4 &mdash; what to ask for</summary>
-<pre>"Join raw_data.csv to experiment_index.csv on run_id.
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Join raw_data.csv to experiment_index.csv on run_id.
  For each run compute time for the COLDEST thermocouple
  to enter and stay in [34,36] C, and separately for the
  RTD. Plot both against P gain, one series per incubator.
  Tell me: (a) does P move the plate time? (b) does the
  RTD verdict agree with the plate verdict? (c) is the
- failure consistent across all five units?"</pre>
+ failure consistent across all five units?</span></div>
 </details>
 
 <h2>6. Where to draw the line</h2>
@@ -276,10 +285,8 @@
   <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>
   for the one-time setup. For this campaign, the two prompts:
 </p>
-<ul>
-  <li><strong>Explore:</strong> &ldquo;Build a single self-contained HTML file (data inlined, no CDN links) to slice the 50 runs by incubator and P gain, overlay plate vs RTD time-to-spec, and toggle the 60-second deadline line.&rdquo;</li>
-  <li><strong>Deliver:</strong> &ldquo;Draft a Markdown test report &mdash; requirement, method, the OFAT result, the validity findings, and a pass/fail verdict with the recommended fix &mdash; and give me the pandoc command for a PDF via the Typst engine.&rdquo;</li>
-</ul>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (data inlined, no CDN links) to slice the 50 runs by incubator and P gain, overlay plate vs RTD time-to-spec, and toggle the 60-second deadline line.</span></div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a Markdown test report &mdash; requirement, method, the OFAT result, the validity findings, and a pass/fail verdict with the recommended fix &mdash; and give me the pandoc command for a PDF via the Typst engine.</span></div>
 
 <script>
 // ---- deterministic RNG ----
@@ -461,6 +468,7 @@ function main(){
   refreshAll();
 }
 main();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
 </body>

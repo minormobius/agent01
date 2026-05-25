@@ -80,6 +80,15 @@
   .pugh-mount { overflow-x: auto; }
   .weights-hint { font-size: 0.82rem; color: #778; margin: 0.4rem 0 0.2rem; }
   @media (prefers-color-scheme: dark) { .weights-hint { color: #99a; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
 </style>
 </head>
 <body>
@@ -356,7 +365,7 @@
 </details>
 <details>
   <summary>Hint 4 &mdash; what to ask for</summary>
-<pre>"For a horizontal axis moving 8 kg total, 0.5 m in 1.0 s on a
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">For a horizontal axis moving 8 kg total, 0.5 m in 1.0 s on a
  7-segment S-curve: compute peak velocity, peak & RMS acceleration,
  peak force. Then for a belt drive, sweep pulley pitch diameter from
  20-80 mm and for each give motor RPM at top speed, peak & RMS torque
@@ -364,7 +373,7 @@
  (rotor inertia ~1.5e-5 kg m^2, 3000 rpm, 0.64 N m cont / 1.9 peak).
  Flag which diameters pass all of: RPM ceiling, peak torque x1.5,
  RMS torque, inertia ratio < 10. Then build a Pugh matrix of motor,
- coupling, drive, and rail candidates with verified supplier links."</pre>
+ coupling, drive, and rail candidates with verified supplier links.</span></div>
 </details>
 
 <h2>7. Where to draw the line</h2>
@@ -432,10 +441,8 @@
   <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>
   for the one-time setup. For this axis, the two prompts:
 </p>
-<ul>
-  <li><strong>Explore:</strong> &ldquo;Build a single self-contained HTML file (no CDN links) that lets me sweep pulley diameter and payload and see peak/RMS torque, motor RPM, and inertia ratio update live against a NEMA 23 servo's limits.&rdquo;</li>
-  <li><strong>Deliver:</strong> &ldquo;Draft a Markdown selection report &mdash; the brief, the motion profile, the sizing calc, the Pugh matrix with links, and the recommended bill of materials with a make-vs-buy verdict &mdash; and give me the pandoc command for a PDF via the Typst engine.&rdquo;</li>
-</ul>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (no CDN links) that lets me sweep pulley diameter and payload and see peak/RMS torque, motor RPM, and inertia ratio update live against a NEMA 23 servo's limits.</span></div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a Markdown selection report &mdash; the brief, the motion profile, the sizing calc, the Pugh matrix with links, and the recommended bill of materials with a make-vs-buy verdict &mdash; and give me the pandoc command for a PDF via the Typst engine.</span></div>
 
 <script>
 // ===== fixed brief =====
@@ -722,6 +729,7 @@ function main(){
   refresh();
 }
 main();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
 </body>

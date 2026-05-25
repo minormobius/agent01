@@ -50,6 +50,15 @@
   .method .v { font-size: 1.0rem; font-weight: 700; }
   .pass { color: #2a8a2a; } .fail { color: #c33; }
   @media (prefers-color-scheme: dark) { .pass { color: #8f6; } .fail { color: #f88; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
 </style>
 </head>
 <body>
@@ -167,7 +176,7 @@
 </details>
 <details>
   <summary>Hint 4 &mdash; what to ask for</summary>
-  <p>&ldquo;For this 1-D stack, compute the gap by worst-case, by RSS (tol = 3&sigma;), and by a 20,000-run Monte Carlo with normal dimensions. Report the WC min/max, the RSS &plusmn;3&sigma; and predicted yield, and the MC yield, and confirm WC &supe; RSS and that RSS&asymp;MC. Then tell me which single tolerance dominates.&rdquo;</p>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">For this 1-D stack, compute the gap by worst-case, by RSS (tol = 3&sigma;), and by a 20,000-run Monte Carlo with normal dimensions. Report the WC min/max, the RSS &plusmn;3&sigma; and predicted yield, and the MC yield, and confirm WC &supe; RSS and that RSS&asymp;MC. Then tell me which single tolerance dominates.</span></div>
 </details>
 
 <h2>7. Where to draw the line</h2>
@@ -298,6 +307,7 @@ function render(){
 ['hh','ts'].forEach(id=>document.getElementById(id).addEventListener('input',render));
 window.addEventListener('resize',render);
 render();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
 </body>
