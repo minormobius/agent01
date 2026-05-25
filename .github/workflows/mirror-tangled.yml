@@ -3,18 +3,20 @@ name: Mirror to Tangled
 # manual re-run marker: 2026-05-25a  (handle path: minomobi.bsky.social)
 #
 # Keeps a self-contained site published as a standalone repo on tangled, so
-# it stays forkable ("remixable") and its tngl.sh page stays current. This
-# automates the *sync*; the template repo is created once on tangled (UI or,
-# later, programmatically) and a deploy SSH key authorizes the push.
+# it stays forkable ("remixable") and its page stays current. Automates the
+# *sync* (the template repo is created once on tangled; a deploy SSH key
+# authorizes the push).
 #
-# One-time setup:
-#   1. Create the repo on tangled (e.g. `erdos`), choosing a tangled-hosted knot.
-#   2. Generate an ed25519 key; add the PUBLIC key under Settings → Keys on
-#      tangled; store the PRIVATE key as the GH secret TANGLED_SSH_KEY.
-#   3. Set repo variables: TANGLED_HANDLE (e.g. you.tngl.sh) and, if needed,
-#      TANGLED_KNOT (default knot1.tangled.sh).
-#   4. In the repo's tangled settings, set the deploy directory to the root.
-# After that every push to a mirrored site re-publishes it automatically.
+# Working config (proven on erdos):
+#   • TANGLED_KNOT  = tangled.org   — the real git/SSH host (knot1.tangled.sh
+#                     is Cloudflare-fronted and drops SSH:22; tangled.org is
+#                     the direct server). Runner forces IPv4 (-4) since it has
+#                     no IPv6 route.
+#   • TANGLED_HANDLE= the repo owner, e.g. minomobi.bsky.social (handle) or
+#                     did:plc:… (DID — rename-stable). Path = <owner>/<repo>.
+#   • secret TANGLED_SSH_KEY = deploy private key; its public half is under
+#     Settings → Keys on the owning tangled account.
+#   • Set the repo's deploy directory to root so it serves at <owner>.tngl.sh.
 
 on:
   push:
@@ -37,7 +39,7 @@ jobs:
     env:
       SITE: ${{ github.event.inputs.site || 'erdos' }}
       TANGLED_HANDLE: ${{ vars.TANGLED_HANDLE }}
-      TANGLED_KNOT: ${{ vars.TANGLED_KNOT || 'knot1.tangled.sh' }}
+      TANGLED_KNOT: ${{ vars.TANGLED_KNOT || 'tangled.org' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,23 +63,6 @@ jobs:
           # Force IPv4: knot hosts sit behind Cloudflare (AAAA present), and
           # GitHub runners usually have no IPv6 route → ENETUNREACH otherwise.
           ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Probe knot reachability (diagnostic)
-        run: |
-          echo "knot=$TANGLED_KNOT  handle=$TANGLED_HANDLE"
-          for port in 22 443; do
-            if timeout 12 bash -c "exec 3<>/dev/tcp/$TANGLED_KNOT/$port" 2>/dev/null; then
-              echo "TCP $TANGLED_KNOT:$port — OPEN"
-            else
-              echo "TCP $TANGLED_KNOT:$port — closed/timeout"
-            fi
-          done
-          echo "--- ssh handshake :22 ---"
-          timeout 20 ssh -4 -p 22 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=12 \
-            -i ~/.ssh/id_ed25519 git@"$TANGLED_KNOT" 2>&1 | head -20 || true
-          echo "--- ssh handshake :443 ---"
-          timeout 20 ssh -4 -p 443 -o StrictHostKeyChecking=accept-new -o ConnectTimeout=12 \
-            -i ~/.ssh/id_ed25519 git@"$TANGLED_KNOT" 2>&1 | head -20 || true
 
       - name: Build standalone repo and force-push to tangled
         run: |
