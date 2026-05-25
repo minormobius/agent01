@@ -1,6 +1,6 @@
 name: Mirror to Tangled
 
-# manual re-run marker: 2026-05-24a  (bump to re-trigger via push)
+# manual re-run marker: 2026-05-24b  (bump to re-trigger via push)
 #
 # Keeps a self-contained site published as a standalone repo on tangled, so
 # it stays forkable ("remixable") and its tngl.sh page stays current. This
@@ -58,7 +58,9 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Force IPv4: knot hosts sit behind Cloudflare (AAAA present), and
+          # GitHub runners usually have no IPv6 route → ENETUNREACH otherwise.
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Build standalone repo and force-push to tangled
         run: |
@@ -80,6 +82,6 @@ jobs:
             commit -qm "mirror $SITE — $(date -u +%Y-%m-%d)"
           git branch -M main
           git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${SITE}"
-          GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+          GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
             git push -f origin main
           echo "✓ mirrored $SITE → ${TANGLED_HANDLE}/${SITE} on ${TANGLED_KNOT}"
