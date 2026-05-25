@@ -44,6 +44,15 @@
   .controls button { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.8rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
   .controls button.active { background: #2c7da0; color: #fff; border-color: #2c7da0; }
   @media (prefers-color-scheme: dark) { .controls button { background: #243038; border-color: #467; color: #bdf; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
 </style>
 </head>
 <body>
@@ -130,7 +139,7 @@
 </details>
 <details>
   <summary>Hint 3 &mdash; what to ask for</summary>
-  <p>&ldquo;Parse this column treating commas as thousands separators, <code>$</code> as currency, parentheses as negative, and <code>N/A</code> as excluded. Sum it, and tell me whether it ties to a control total of 5653.25 &mdash; if not, list each row where your parsed value differs from a naive parseFloat and the resulting delta.&rdquo;</p>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Parse this column treating commas as thousands separators, <code>$</code> as currency, parentheses as negative, and <code>N/A</code> as excluded. Sum it, and tell me whether it ties to a control total of 5653.25 &mdash; if not, list each row where your parsed value differs from a naive parseFloat and the resulting delta.</span></div>
 </details>
 
 <h2>6. Where to draw the line</h2>
@@ -203,6 +212,7 @@ function render(){
 }
 document.getElementById('hl').addEventListener('click',e=>{highlight=!highlight;e.target.classList.toggle('active',highlight);render();});
 render();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
 </body>

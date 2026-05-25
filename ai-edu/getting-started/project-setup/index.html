@@ -34,10 +34,15 @@
   .tabs button.active { background: #1d2329; color: #fff; border-color: #1d2329; }
   @media (prefers-color-scheme: dark) { .tabs button { background: #20242c; border-color: #333; color: #aab; } .tabs button.active { background: #0e1419; color: #fff; border-color: #0e1419; } }
   .tab-body .codeblock { margin-top: 0; border-top-left-radius: 0; }
-  .prompt { background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
   @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
-  .prompt em { color: #4a7a2a; font-style: normal; font-weight: 600; }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
   @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
 </style>
 </head>
 <body>
@@ -150,14 +155,7 @@ git commit -m "Initial project scaffold"</pre><span class="lang">bash / PowerShe
 
 <h2>Or just ask Claude to scaffold it</h2>
 <p>You can hand the whole thing to Claude in one prompt:</p>
-<div class="prompt">
-  <em>Prompt:</em> &ldquo;Scaffold a new project in this folder: create
-  <code>data/ src/ out/ notes/</code>, write a <code>CLAUDE.md</code>
-  describing &lsquo;pump skid sizing&rsquo; with the conventions above, add a
-  sensible <code>.gitignore</code> that ignores <code>out/</code> and
-  secrets, then <code>git init</code> and make the first commit. Show me the
-  <code>git status</code> and the diff before committing.&rdquo;
-</div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Scaffold a new project in this folder: create <code>data/ src/ out/ notes/</code>, write a <code>CLAUDE.md</code> describing &lsquo;pump skid sizing&rsquo; with the conventions above, add a sensible <code>.gitignore</code> that ignores <code>out/</code> and secrets, then <code>git init</code> and make the first commit. Show me the <code>git status</code> and the diff before committing.</span></div>
 <p>
   Asking it to show <code>status</code> and the diff <em>before</em>
   committing is the habit worth keeping: you review, then it commits. Never
@@ -196,6 +194,7 @@ tabs.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   tabs.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
   document.querySelectorAll('.tab-body').forEach(body => { body.hidden = body.dataset.os !== os; });
 }));
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
 </body>

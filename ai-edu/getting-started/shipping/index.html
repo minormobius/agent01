@@ -40,10 +40,15 @@
   .tab-body .codeblock { margin-top: 0; border-top-left-radius: 0; }
   kbd { display: inline-block; padding: 0.05rem 0.4rem; border: 1px solid #ccc; border-bottom-width: 2px; border-radius: 3px; background: #f8f9fa; font: 0.85em ui-monospace, Menlo, monospace; color: #333; }
   @media (prefers-color-scheme: dark) { kbd { background: #2a2e36; border-color: #444; color: #ccc; } }
-  .prompt { background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
   @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
-  .prompt em { color: #4a7a2a; font-style: normal; font-weight: 600; }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
   @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
 </style>
 </head>
 <body>
@@ -90,13 +95,7 @@
   inline the data, the styling, and any chart code into one file that
   works offline, forever, on any machine.
 </p>
-<div class="prompt">
-  <em>Prompt:</em> &ldquo;Build me a single self-contained HTML file that
-  loads this CSV (embed the data directly), shows a sortable table, lets
-  me filter by category and vendor, and renders spend-by-category as a
-  bar chart. No external libraries or CDN links &mdash; everything
-  inline so it works offline.&rdquo;
-</div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Build me a single self-contained HTML file that loads this CSV (embed the data directly), shows a sortable table, lets me filter by category and vendor, and renders spend-by-category as a bar chart. No external libraries or CDN links &mdash; everything inline so it works offline.</span></div>
 <p>
   Double-click the result. It opens in your browser. Nothing to install,
   nothing to host, no build step. When you want a different cut of the
@@ -158,13 +157,7 @@ cargo install typst-cli</pre><span class="lang">bash</span></div>
   an updated PDF. Better still, don't memorize the flags &mdash; let
   Claude write the report <em>and</em> hand you the exact command:
 </p>
-<div class="prompt">
-  <em>Prompt:</em> &ldquo;Write a one-page Markdown report of these
-  findings: a two-sentence summary, a findings table, and an embedded
-  bar-chart image. Add a YAML title block. Then give me the exact pandoc
-  command to render it to a nicely-typeset PDF using the Typst
-  engine.&rdquo;
-</div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Write a one-page Markdown report of these findings: a two-sentence summary, a findings table, and an embedded bar-chart image. Add a YAML title block. Then give me the exact pandoc command to render it to a nicely-typeset PDF using the Typst engine.</span></div>
 
 <h3>Making it look good</h3>
 <p>
@@ -258,6 +251,7 @@ tabs.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   tabs.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
   document.querySelectorAll('.tab-body').forEach(body => { body.hidden = body.dataset.os !== os; });
 }));
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
 </body>
