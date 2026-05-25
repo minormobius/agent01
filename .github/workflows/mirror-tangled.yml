@@ -1,5 +1,7 @@
 name: Mirror to Tangled
 
+# manual re-run marker: 2026-05-24a  (bump to re-trigger via push)
+#
 # Keeps a self-contained site published as a standalone repo on tangled, so
 # it stays forkable ("remixable") and its tngl.sh page stays current. This
 # automates the *sync*; the template repo is created once on tangled (UI or,
