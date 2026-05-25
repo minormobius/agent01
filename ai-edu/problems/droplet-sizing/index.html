@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Droplet sizing &mdash; a distribution from a slide, and why to doubt it</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  .eq { display: block; text-align: center; font-style: italic; margin: 0.6rem 0; font-size: 1.0rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+
+  /* deck */
+  .deck { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 0.85rem 1rem 1rem; }
+  @media (prefers-color-scheme: dark) { .deck { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .deck-head { display: flex; justify-content: space-between; align-items: baseline; font-family: ui-monospace, monospace; font-size: 0.8rem; color: #778; margin-bottom: 0.4rem; }
+  @media (prefers-color-scheme: dark) { .deck-head { color: #99a; } }
+  .deck-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .deck-title { color: #6cc; } }
+  .stage-wrap { width: 100%; aspect-ratio: 16 / 10; background: #0c0e12; border-radius: 5px; overflow: hidden; }
+  #stage { display: block; width: 100%; height: 100%; }
+  .cap { font-size: 0.9rem; color: #556; margin: 0.5rem 0.1rem; min-height: 2.4em; }
+  @media (prefers-color-scheme: dark) { .cap { color: #bbc; } }
+  .stats { font-family: ui-monospace, monospace; font-size: 0.82rem; padding: 0.5rem 0.7rem; background: rgba(255,255,255,0.55); border-radius: 4px; line-height: 1.7; }
+  @media (prefers-color-scheme: dark) { .stats { background: rgba(40,44,52,0.45); } }
+  .stats .pass { color: #2a8a2a; font-weight: 700; } .stats .fail { color: #c33; font-weight: 700; } .stats .warn { color: #c89200; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .stats .pass { color: #8f6; } .stats .fail { color: #f88; } .stats .warn { color: #e8b84b; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; align-items: center; margin: 0.6rem 0 0.2rem; font-family: ui-monospace, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.5rem; }
+  .controls input[type=range] { width: 9rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 3.2rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .nav { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; }
+  .nav button { font: inherit; font-size: 0.8rem; padding: 0.25rem 0.7rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
+  @media (prefers-color-scheme: dark) { .nav button { background: #243038; border-color: #467; color: #bdf; } }
+  .dots { display: flex; gap: 0.35rem; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #ccd; cursor: pointer; }
+  .dot.on { background: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .dot { background: #456; } .dot.on { background: #6cc; } }
+  .cbtn { font: inherit; font-size: 0.78rem; padding: 0.2rem 0.6rem; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .cbtn { background: #20242c; border-color: #456; color: #cde; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Droplet sizing: a distribution from a slide, and why to doubt it</h1>
+<p class="lede">
+  Spray a slide, photograph it under a scope, and count the droplets &mdash;
+  a size distribution falls out. The catch: every number depends on one
+  threshold you picked by eye. This explorer is an HTML slide deck of live
+  widgets, and its last slide is the one that tells you whether to believe
+  the rest.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A microscope image of droplets deposited on a slide. You want the
+  <strong>drop-size distribution</strong> &mdash; the percentiles
+  D<sub>10</sub>/D<sub>50</sub>/D<sub>90</sub> and the Sauter mean
+  D<sub>32</sub> that spray engineers live by. The pipeline is short:
+  calibrate pixels to microns, threshold the image to separate droplets from
+  background, label the blobs, and turn each blob's area into an equivalent
+  diameter. Simple &mdash; until you notice the whole distribution slides
+  when you nudge the threshold.
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  Hand Claude the image and it writes the computer-vision pipeline &mdash;
+  threshold, connected-components labelling, area&rarr;diameter, percentiles
+  &mdash; in one pass, and renders it as an explorable deck. What it can't do
+  for you is decide whether the measurement is <em>trustworthy</em>: whether
+  the threshold is in a stable band, whether overlapping droplets merged into
+  one fat blob, whether the deposited volume reconciles. That judgment is the
+  whole point, and the deck is built to make it.
+</p>
+
+<h2>3. Explore it &mdash; the deck</h2>
+<p>
+  Four slides, one shared dataset. Drive the <strong>threshold</strong> and
+  step through with the arrows (or &larr;/&rarr; keys). The image is
+  synthetic, so the <em>true</em> diameters are known &mdash; which is what
+  lets the later slides grade the measurement.
+</p>
+
+<div class="deck">
+  <div class="deck-head">
+    <span class="deck-title" id="deck-title">1 / 4 &middot; the slide</span>
+    <span id="deck-meta">synthetic &middot; 1600 &times; 1000 &micro;m</span>
+  </div>
+  <div class="stage-wrap"><canvas id="stage" aria-label="droplet sizing slide"></canvas></div>
+  <div class="cap" id="cap"></div>
+  <div class="stats" id="stats"></div>
+  <div class="controls">
+    <label>threshold <input type="range" id="thr" min="45" max="195" step="1" value="75"><span class="val" id="thr-val">75</span></label>
+    <label><input type="checkbox" id="truth"> overlay ground truth</label>
+    <button class="cbtn" id="resample">new sample</button>
+  </div>
+  <div class="nav">
+    <button id="prev">&larr; prev</button>
+    <button id="next">next &rarr;</button>
+    <div class="dots" id="dots"></div>
+  </div>
+</div>
+
+<p>
+  Slide&nbsp;4 is the one that matters. A measurement you can only get with
+  one magic threshold isn't a measurement &mdash; it's a coincidence. Drag
+  the threshold across its range and watch D<sub>50</sub>: there's a band
+  near the true value where the answer barely moves (trust it there), then it
+  drifts low as a rising threshold shaves every droplet smaller &mdash; while
+  at the very low end neighbours start to merge into one fat blob.
+</p>
+
+<h2>4. Verification &mdash; the measurement is the oracle</h2>
+<p>
+  Image measurements lie quietly: the code runs, a tidy histogram appears,
+  and it can be off by half. Four independent checks keep it honest &mdash;
+  and the synthetic slide lets you actually run them.
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; calibration.</strong> Pixels mean nothing until a
+  known length fixes the scale (a stage micrometer, or a feature of known
+  size). Every diameter rides on that &micro;m-per-pixel number.
+  <div class="pass">Pass: the scale bar is set from a known reference; diameters are in microns, not pixels.</div>
+  <div class="fail">Fail here: a wrong calibration scales every result by the same factor &mdash; and nothing in the histogram looks wrong.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; ground truth.</strong> On the synthetic slide the
+  true diameters are known. Overlay them (the checkbox) and the measured
+  distribution should track the truth.
+  <div class="pass">Pass: measured D<sub>50</sub> sits within a few percent of true D<sub>50</sub> at a sensible threshold.</div>
+  <div class="fail">Fail here: a systematic gap means the threshold is biasing every diameter &mdash; the soft droplet edge is being cut too tight or too loose.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; conservation.</strong> The droplet volumes must add
+  up to the volume deposited. Sum &pi;d&sup3;/6 over the blobs and compare to
+  the dosed total.
+  <div class="pass">Pass: measured volume reconciles with the dosed volume within tolerance.</div>
+  <div class="fail">Fail here: too-low threshold merges neighbours and <em>inflates</em> volume; too-high shrinks every blob and loses it. The reconciliation catches both.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 4 &mdash; robustness.</strong> Sweep the threshold and watch
+  D<sub>50</sub>. A trustworthy reading lives on a plateau, not a slope.
+  <div class="pass">Pass: D<sub>50</sub> is flat across a band of thresholds &mdash; the result doesn't depend on your exact pick.</div>
+  <div class="fail">Fail here: if D<sub>50</sub> rides a slope everywhere, there's no objective answer; report a range, or fix the segmentation (watershed the overlaps).</div>
+</div>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; the threshold is the whole ballgame</summary>
+  <p>Droplet edges are soft, so the threshold decides where each droplet &ldquo;ends&rdquo; &mdash; it sets every diameter and whether neighbours merge. Don't pick it by eye and move on; sweep it and find the band where the answer is stable. That band, not a single value, is your operating point.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; overlaps are the silent error</summary>
+  <p>Two touching droplets label as one blob with a big combined area &mdash; and since volume goes as d&sup3;, one merged blob reads as far more volume than the two it replaced. That's why conservation breaks before the histogram looks obviously wrong. Watershed segmentation (going further) splits them.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; report the right average</summary>
+  <p>There isn't one &ldquo;mean diameter.&rdquo; D<sub>50</sub> is the median by count; the Sauter mean D<sub>32</sub> = &Sigma;d&sup3;/&Sigma;d&sup2; weights by volume-to-surface and is what governs evaporation and combustion. Quote the statistic your physics cares about, and say which one it is.</p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; what to ask for</summary>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">From this slide image: calibrate px&rarr;&micro;m from the scale bar, threshold to segment droplets, label connected components, and report the diameter distribution (D10/D50/D90 and Sauter D32). Then sweep the threshold and plot D50 vs threshold so I can see the stable band, and sum the droplet volumes to check against a dosed volume of X. Flag blobs touching the image border and any suspiciously large merged blobs.</span></div>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude write the vision pipeline and the deck &mdash; thresholding,
+  labelling, percentiles, the live histogram, all of it is exactly the
+  tireless plumbing it's good at. But you own the calls that decide whether
+  the number is real: is the scale calibrated, is the threshold on a plateau,
+  did overlaps merge, does the volume reconcile. A clean histogram from an
+  uncalibrated, single-threshold, overlap-ridden image is a confident wrong
+  answer &mdash; and only those checks catch it.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    Park the threshold in the low-middle (around 70&ndash;80) where slide&nbsp;4
+    shows D<sub>50</sub> flat and sitting on the true line, flip on the
+    ground-truth overlay, and confirm the measured median tracks the true one
+    within a few percent. Read D<sub>10</sub>/D<sub>50</sub>/D<sub>90</sub> and
+    the Sauter D<sub>32</sub> off slide&nbsp;3, and confirm the summed droplet
+    volume reconciles with the dosed total. Then state the result <em>with</em>
+    its operating band: &ldquo;D<sub>50</sub> &asymp; 52&nbsp;&micro;m, stable
+    across threshold ~55&ndash;95.&rdquo;
+  </p>
+  <p style="font-size:0.88rem;color:#888;">
+    The honest footnote: push the threshold up and every blob is shaved
+    smaller &mdash; D<sub>50</sub>, D<sub>90</sub>, and especially the summed
+    volume all bias downward, because volume goes as d&sup3;. Push it too low
+    and neighbours merge into single fat blobs. Neither extreme is the answer.
+    The plateau near the true line is &mdash; and reporting the band instead
+    of a single decimal is what separates a measurement from a number.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li><strong>Watershed the overlaps:</strong> split touching droplets by distance-transform watershed and watch conservation tighten.</li>
+  <li><strong>Exclude border objects:</strong> droplets clipped by the frame are measured short &mdash; drop any blob touching the edge and see how D<sub>90</sub> shifts.</li>
+  <li><strong>Volume-weighted percentiles (D<sub>v</sub>50):</strong> the diameter below which half the <em>volume</em> lives &mdash; often what a spray spec is written against, and very different from the count median.</li>
+  <li><strong>Bring a real photo:</strong> swap the synthetic slide for your own micrograph; the only new work is the calibration and a non-uniform-illumination correction.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>
+  This explorer <em>is</em> the deliverable &mdash; a self-contained HTML deck
+  of live widgets, no install, e-mailable. See
+  <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>
+  for the pattern, and <a href="../../getting-started/documents/">feed it
+  documents</a> for getting your micrograph in efficiently.
+</p>
+<ul>
+  <li>
+    <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML slide deck (no CDN links) from my droplet micrograph: slide 1 the image with detected droplets outlined and a threshold slider, slide 2 the diameter histogram with D10/D50/D90, slide 3 the percentile + Sauter D32 + volume-conservation readout, slide 4 a D50-vs-threshold robustness plot. Arrow-key navigation, all data inlined.</span></div>
+  </li>
+  <li>
+    <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a one-page Markdown report — method (calibration, threshold band), the distribution table (D10/D50/D90, D32), the volume reconciliation, and the chosen operating threshold with its stable range — and give me the pandoc command to render it to PDF via the Typst engine.</span></div>
+  </li>
+</ul>
+
+<script>
+// ---- deterministic RNG ----
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(rng){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+const FW=320, FH=200, UM=5;   // field px and microns/px -> 1600 x 1000 um
+
+function genSample(seed){
+  const rng=mulberry32(seed);
+  const N=110, drops=[];
+  for(let k=0;k<N;k++){
+    let d=Math.exp(Math.log(55)+0.42*gauss(rng)); d=Math.min(200,Math.max(15,d));
+    drops.push({x:rng()*FW, y:rng()*FH, d, R:(d/UM)/2});
+  }
+  const field=new Float32Array(FW*FH);
+  for(let i=0;i<FW*FH;i++) field[i]=Math.max(0,Math.min(42, 12+gauss(rng)*9)); // background noise
+  drops.forEach(dp=>{
+    const R=dp.R, x0=Math.max(0,(dp.x-1.1*R)|0), x1=Math.min(FW-1,(dp.x+1.1*R+1)|0),
+          y0=Math.max(0,(dp.y-1.1*R)|0), y1=Math.min(FH-1,(dp.y+1.1*R+1)|0);
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+      const t=Math.hypot(x-dp.x,y-dp.y)/R; let v=0;
+      if(t<0.75) v=215; else if(t<1.05) v=215*(1.05-t)/0.30;
+      if(v>0){ const i=y*FW+x; if(v>field[i]) field[i]=v; }
+    }
+  });
+  // cache grayscale base image
+  const base=document.createElement('canvas'); base.width=FW; base.height=FH;
+  const bctx=base.getContext('2d'), img=bctx.createImageData(FW,FH);
+  for(let i=0;i<FW*FH;i++){ const g=Math.min(255,field[i])|0; img.data[i*4]=g; img.data[i*4+1]=g; img.data[i*4+2]=g; img.data[i*4+3]=255; }
+  bctx.putImageData(img,0,0);
+  const trueD=drops.map(d=>d.d);
+  return {drops, field, base, trueD, trueVol: volOf(trueD)};
+}
+function volOf(ds){ let v=0; for(const d of ds) v+=Math.PI/6*d*d*d; return v; } // um^3
+function pct(sorted,p){ if(!sorted.length) return 0; const i=(sorted.length-1)*p, lo=Math.floor(i), hi=Math.ceil(i); return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo); }
+
+// connected components on field >= T ; returns measured diameters (um) and blob list
+function detect(field,T){
+  const lab=new Int32Array(FW*FH), blobs=[], stack=[];
+  for(let s=0;s<FW*FH;s++){
+    if(field[s]>=T && lab[s]===0){
+      let area=0, sx=0, sy=0, touch=false; const id=blobs.length+1; stack.length=0; stack.push(s); lab[s]=id;
+      while(stack.length){
+        const p=stack.pop(), x=p%FW, y=(p/FW)|0; area++; sx+=x; sy+=y;
+        if(x===0||y===0||x===FW-1||y===FH-1) touch=true;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0) continue;
+          const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=FW||ny>=FH) continue;
+          const np=ny*FW+nx; if(field[np]>=T && lab[np]===0){ lab[np]=id; stack.push(np); }
+        }
+      }
+      if(area>=3) blobs.push({area, cx:sx/area, cy:sy/area, d:2*Math.sqrt(area/Math.PI)*UM, touch});
+    }
+  }
+  return blobs;
+}
+function measure(sample,T){
+  const blobs=detect(sample.field,T);
+  const ds=blobs.map(b=>b.d).sort((a,b)=>a-b);
+  let s2=0,s3=0; for(const d of ds){ s2+=d*d; s3+=d*d*d; }
+  return { blobs, ds, count:ds.length,
+    D10:pct(ds,0.1), D50:pct(ds,0.5), D90:pct(ds,0.9),
+    D32: s2>0? s3/s2 : 0, vol: volOf(ds) };
+}
+
+// ---- state ----
+let ST={ seed:7, slide:0, T:75, truth:false, sample:null, sweep:null };
+const SLIDES=['the slide','the distribution','the numbers','is it real?'];
+
+function buildSweep(sample){
+  const out=[]; for(let T=50;T<=190;T+=7){ out.push({T, D50:measure(sample,T).D50}); } return out;
+}
+
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fit(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+
+function trueSortedD(){ return ST.sample.trueD.slice().sort((a,b)=>a-b); }
+const DMAX=210; // um axis cap for histograms
+
+function drawSlide(){
+  const cv=document.getElementById('stage'); const {c,w,h}=fit(cv);
+  const dark=isDark(), axis=dark?'#99a':'#667', grid=dark?'#2a2e36':'#dde', txt=dark?'#cde':'#334';
+  const m=measure(ST.sample,ST.T);
+  if(ST.slide===0){
+    // image + detected outlines + scale bar
+    c.imageSmoothingEnabled=false; c.drawImage(ST.sample.base,0,0,w,h);
+    const sx=w/FW, sy=h/FH;
+    m.blobs.forEach(b=>{ c.strokeStyle=b.touch?'#e8a020':'#3fd0e0'; c.lineWidth=1.2;
+      c.beginPath(); c.arc(b.cx*sx, b.cy*sy, (b.d/UM/2)*sx, 0, 7); c.stroke(); });
+    if(ST.truth) { c.strokeStyle='rgba(255,90,90,0.9)'; c.lineWidth=1;
+      ST.sample.drops.forEach(d=>{ c.beginPath(); c.arc(d.x*sx,d.y*sy,d.R*sx,0,7); c.stroke(); }); }
+    // scale bar: 500 um
+    const barPx=(500/UM)*sx; c.fillStyle='#fff'; c.fillRect(12,h-20,barPx,4);
+    c.font='11px ui-monospace,monospace'; c.fillText('500 µm',12,h-26);
+  } else if(ST.slide===1){
+    // histogram of measured diameters, with D-lines and optional truth overlay
+    const L=40,R=12,T=14,B=26, pw=w-L-R, ph=h-T-B, nb=24, bins=new Array(nb).fill(0);
+    m.ds.forEach(d=>{ let b=Math.min(nb-1,Math.floor(d/DMAX*nb)); bins[b]++; });
+    let mx=Math.max(1,...bins);
+    let tb=null; if(ST.truth){ tb=new Array(nb).fill(0); trueSortedD().forEach(d=>{ let b=Math.min(nb-1,Math.floor(d/DMAX*nb)); tb[b]++; }); mx=Math.max(mx,...tb); }
+    const X=d=>L+(d/DMAX)*pw, Y=v=>T+ph-(v/mx)*ph;
+    c.font='10px ui-monospace,monospace'; c.textBaseline='middle';
+    [0,50,100,150,200].forEach(d=>{ c.strokeStyle=grid; c.beginPath(); c.moveTo(X(d),T); c.lineTo(X(d),T+ph); c.stroke(); c.fillStyle=axis; c.textAlign='center'; c.fillText(d,X(d),h-B+12); });
+    for(let i=0;i<nb;i++){ if(!bins[i])continue; const x0=X(i/nb*DMAX), x1=X((i+1)/nb*DMAX); c.fillStyle=dark?'#4a7aa0':'#7aa6c4'; c.fillRect(x0+1,Y(bins[i]),Math.max(1,x1-x0-2),T+ph-Y(bins[i])); }
+    if(tb){ c.strokeStyle=dark?'#f88':'#c33'; c.lineWidth=1.6; c.beginPath(); for(let i=0;i<nb;i++){ const x=X((i+0.5)/nb*DMAX), y=Y(tb[i]); i?c.lineTo(x,y):c.moveTo(x,y);} c.stroke(); }
+    [['D10',m.D10],['D50',m.D50],['D90',m.D90]].forEach(([lab,d])=>{ c.strokeStyle=dark?'#e8b84b':'#c89200'; c.setLineDash([4,3]); c.beginPath(); c.moveTo(X(d),T); c.lineTo(X(d),T+ph); c.stroke(); c.setLineDash([]); c.fillStyle=dark?'#e8b84b':'#b08200'; c.textAlign='center'; c.fillText(lab,X(d),T+6); });
+    c.fillStyle=txt; c.textAlign='right'; c.fillText('count',L-6,T+6);
+    c.textAlign='center'; c.fillText('diameter (µm)',L+pw/2,h-2);
+  } else if(ST.slide===2){
+    // two volume bars: measured vs dosed(true)
+    const L=70,R=20,T=24,B=20, pw=w-L-R, ph=h-T-B;
+    const vm=m.vol/1e6, vt=ST.sample.trueVol/1e6; // nL
+    const mx=Math.max(vm,vt)*1.15, bw=Math.min(90,pw/3);
+    const Y=v=>T+ph-(v/mx)*ph;
+    c.font='11px ui-monospace,monospace'; c.textAlign='center'; c.textBaseline='alphabetic';
+    [['dosed',vt,dark?'#889':'#99a',L+pw*0.30],['measured',vm,(Math.abs(vm/vt-1)<=0.15?(dark?'#8f6':'#5a9a3a'):(dark?'#f88':'#c0705a')),L+pw*0.70]].forEach(([lab,v,col,cx])=>{
+      c.fillStyle=col; c.fillRect(cx-bw/2,Y(v),bw,T+ph-Y(v));
+      c.fillStyle=txt; c.fillText(v.toFixed(2)+' nL',cx,Y(v)-6); c.fillText(lab,cx,h-4);
+    });
+    c.fillStyle=axis; c.textAlign='left'; c.fillText('droplet volume (sum of πd³/6)',L-58,14);
+  } else {
+    // D50 vs threshold sweep, with current T and true D50
+    const L=44,R=14,T=16,B=28, pw=w-L-R, ph=h-T-B;
+    const sw=ST.sweep, tmin=sw[0].T, tmax=sw[sw.length-1].T;
+    const d50s=sw.map(s=>s.D50), ymax=Math.max(DMAX*0.6, ...d50s)*1.1;
+    const X=t=>L+(t-tmin)/(tmax-tmin)*pw, Y=v=>T+ph-(v/ymax)*ph;
+    c.font='10px ui-monospace,monospace'; c.textBaseline='middle';
+    [0,25,50,75,100,125].filter(v=>v<ymax).forEach(v=>{ c.strokeStyle=grid; c.beginPath(); c.moveTo(L,Y(v)); c.lineTo(w-R,Y(v)); c.stroke(); c.fillStyle=axis; c.textAlign='right'; c.fillText(v,L-5,Y(v)); });
+    // true D50 line
+    const trueD50=pct(trueSortedD(),0.5);
+    c.strokeStyle=dark?'#f88':'#c33'; c.setLineDash([5,4]); c.beginPath(); c.moveTo(L,Y(trueD50)); c.lineTo(w-R,Y(trueD50)); c.stroke(); c.setLineDash([]);
+    c.fillStyle=dark?'#f88':'#c33'; c.textAlign='left'; c.fillText('true D50',L+4,Y(trueD50)-7);
+    // sweep curve
+    c.strokeStyle=dark?'#6cc':'#2c7da0'; c.lineWidth=2; c.beginPath(); sw.forEach((s,i)=>{ const x=X(s.T),y=Y(s.D50); i?c.lineTo(x,y):c.moveTo(x,y); }); c.stroke();
+    // current threshold marker
+    c.strokeStyle=dark?'#e8b84b':'#c89200'; c.setLineDash([3,3]); c.beginPath(); c.moveTo(X(ST.T),T); c.lineTo(X(ST.T),T+ph); c.stroke(); c.setLineDash([]);
+    c.fillStyle=dark?'#6cc':'#2c7da0'; c.beginPath(); c.arc(X(ST.T),Y(m.D50),3.5,0,7); c.fill();
+    c.fillStyle=axis; c.textAlign='center'; [tmin,90,130,170].forEach(t=>c.fillText(t,X(t),h-B+12));
+    c.fillText('threshold',L+pw/2,h-4);
+    c.textAlign='right'; c.fillStyle=txt; c.fillText('D50 (µm)',L+30,T+4);
+  }
+  // captions + stats
+  const caps=[
+    'Each detected droplet is outlined in cyan; orange = touching the border (measured short). Drag the threshold and watch the outlines breathe — too low and neighbours fuse, too high and small drops vanish.',
+    'The measured size distribution. Dashed lines are D10/D50/D90. Tick &ldquo;overlay ground truth&rdquo; to see the true distribution (red) the measurement is trying to recover.',
+    'Conservation check: the summed droplet volume vs the volume actually dosed onto the slide. Green means it reconciles within 10%. Merged blobs inflate it; a high threshold starves it.',
+    'The robustness oracle: D50 as the threshold sweeps. Trust the reading only where the curve is flat and near the true line — report that band, not a single number.'
+  ];
+  document.getElementById('cap').innerHTML=caps[ST.slide];
+  let s='';
+  const trueD50=pct(trueSortedD(),0.5);
+  if(ST.slide===0){
+    s=`threshold <b>${ST.T}</b> · droplets detected <b>${m.count}</b> (of ${ST.sample.drops.length} dosed) · calibration ${UM} µm/px`;
+  } else if(ST.slide===1){
+    s=`D10 <b>${m.D10.toFixed(0)}</b> · D50 <b>${m.D50.toFixed(0)}</b> · D90 <b>${m.D90.toFixed(0)}</b> µm` + (ST.truth?` · true D50 ${trueD50.toFixed(0)} µm`:'');
+  } else if(ST.slide===2){
+    const r=m.vol/ST.sample.trueVol, ok=Math.abs(r-1)<=0.15;
+    s=`measured ${(m.vol/1e6).toFixed(2)} nL vs dosed ${(ST.sample.trueVol/1e6).toFixed(2)} nL — `+
+      `<span class="${ok?'pass':'fail'}">${(r*100).toFixed(0)}% of dosed ${ok?'✓ reconciles':'✗'}</span> · Sauter D32 <b>${m.D32.toFixed(0)} µm</b>`;
+  } else {
+    const err=(m.D50-trueD50)/trueD50*100, near=Math.abs(err)<=8;
+    s=`at threshold ${ST.T}: D50 <b>${m.D50.toFixed(0)} µm</b> vs true ${trueD50.toFixed(0)} — `+
+      `<span class="${near?'pass':'warn'}">${err>=0?'+':''}${err.toFixed(0)}%</span>. Slide the threshold: the flat band is the trustworthy zone.`;
+  }
+  document.getElementById('stats').innerHTML=s;
+  document.getElementById('deck-title').innerHTML=`${ST.slide+1} / 4 &middot; ${SLIDES[ST.slide]}`;
+  document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('on',i===ST.slide));
+}
+
+function resample(){ ST.sample=genSample(ST.seed); ST.sweep=buildSweep(ST.sample); drawSlide(); }
+function go(n){ ST.slide=(n+4)%4; drawSlide(); }
+
+function main(){
+  // dots
+  const dd=document.getElementById('dots');
+  SLIDES.forEach((_,i)=>{ const e=document.createElement('div'); e.className='dot'+(i===0?' on':''); e.addEventListener('click',()=>go(i)); dd.appendChild(e); });
+  document.getElementById('prev').addEventListener('click',()=>go(ST.slide-1));
+  document.getElementById('next').addEventListener('click',()=>go(ST.slide+1));
+  document.getElementById('thr').addEventListener('input',e=>{ ST.T=+e.target.value; document.getElementById('thr-val').textContent=ST.T; drawSlide(); });
+  document.getElementById('truth').addEventListener('change',e=>{ ST.truth=e.target.checked; drawSlide(); });
+  document.getElementById('resample').addEventListener('click',()=>{ ST.seed=(ST.seed*1664525+1013904223)>>>0; resample(); });
+  window.addEventListener('keydown',e=>{ if(e.key==='ArrowLeft')go(ST.slide-1); else if(e.key==='ArrowRight')go(ST.slide+1); });
+  window.addEventListener('resize',drawSlide);
+  // prompt copy
+  document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+  resample();
+}
+main();
+</script>
+
+</body>
+</html>

@@ -53,6 +53,7 @@ jobs:
           mkdir -p dist/problems/truss-bridges
           mkdir -p dist/problems/spend-report/data
           mkdir -p dist/problems/decision-point
+          mkdir -p dist/problems/droplet-sizing
           mkdir -p dist/problems/motion-system
           mkdir -p dist/problems/bearing-life
           mkdir -p dist/problems/tolerance-stack
@@ -71,6 +72,7 @@ jobs:
           cp problems/spend-report/index.html dist/problems/spend-report/
           cp problems/spend-report/data/purchase-orders.csv dist/problems/spend-report/data/
           cp problems/decision-point/index.html dist/problems/decision-point/
+          cp problems/droplet-sizing/index.html dist/problems/droplet-sizing/
           cp problems/motion-system/index.html dist/problems/motion-system/
           cp problems/bearing-life/index.html dist/problems/bearing-life/
           cp problems/tolerance-stack/index.html dist/problems/tolerance-stack/
