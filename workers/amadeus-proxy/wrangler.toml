@@ -1,0 +1,21 @@
+name = "amadeus-proxy"
+main = "src/index.js"
+compatibility_date = "2026-02-20"
+
+[[routes]]
+pattern = "air.mino.mobi"
+custom_domain = true
+
+[vars]
+# Amadeus Self-Service environment. Test has cached/limited data but is free
+# and generous; flip to "https://api.amadeus.com" once the app is promoted to
+# the production tier in the Amadeus dashboard.
+AMADEUS_BASE = "https://test.api.amadeus.com"
+
+[observability]
+enabled = true
+
+# Secrets (set once, not committed):
+#   npx wrangler secret put AMADEUS_CLIENT_ID    --config workers/amadeus-proxy/wrangler.toml
+#   npx wrangler secret put AMADEUS_CLIENT_SECRET --config workers/amadeus-proxy/wrangler.toml
+# Get them free at developers.amadeus.com (register app -> Self-Service).
