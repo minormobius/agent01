@@ -1,6 +1,6 @@
 name: Mirror to Tangled
 
-# manual re-run marker: 2026-05-24c  (probe run)
+# manual re-run marker: 2026-05-24d  (host=tangled.org, did path)
 #
 # Keeps a self-contained site published as a standalone repo on tangled, so
 # it stays forkable ("remixable") and its tngl.sh page stays current. This
