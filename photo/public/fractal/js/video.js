@@ -46,7 +46,11 @@ export async function getFFmpeg(onProgress) {
           onProgress?.({ stage: 'encoding', progress });
       });
       onProgress?.({ stage: 'loading-ffmpeg', message: 'fetching core (~30 MB, first time only)…' });
-      const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/umd`;
+      // The @ffmpeg/ffmpeg worker is spawned as `type: "module"`, so it loads
+      // the core via dynamic import() (not importScripts) — which requires the
+      // ESM core build (it has `export default createFFmpegCore`). The UMD core
+      // has no default export and fails with "failed to import ffmpeg-core.js".
+      const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${CORE_VERSION}/dist/esm`;
       const [coreURL, wasmURL] = await Promise.all([
         withTimeout(utilMod.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'), 60_000, 'core.js download'),
         withTimeout(utilMod.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'), 60_000, 'core.wasm download'),
