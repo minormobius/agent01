@@ -60,6 +60,8 @@ jobs:
           mkdir -p dist/problems/rope-tension
           mkdir -p dist/getting-started/windows
           mkdir -p dist/getting-started/shipping
+          mkdir -p dist/getting-started/project-setup
+          mkdir -p dist/getting-started/documents
           mkdir -p dist/wasm/beam-solver/src
           cp index.html dist/
           cp PROBLEM_TEMPLATE.md dist/
@@ -76,6 +78,8 @@ jobs:
           cp problems/rope-tension/index.html dist/problems/rope-tension/
           cp getting-started/windows/index.html dist/getting-started/windows/
           cp getting-started/shipping/index.html dist/getting-started/shipping/
+          cp getting-started/project-setup/index.html dist/getting-started/project-setup/
+          cp getting-started/documents/index.html dist/getting-started/documents/
           # Ship the Rust source so the "worked solution" links resolve.
           cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
           ls -la dist/

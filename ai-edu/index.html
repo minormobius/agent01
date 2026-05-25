@@ -38,7 +38,7 @@
   .edge.solv   { stroke: #5a9a3a; }
   .edge.data   { stroke: #2c7da0; }
   .edge.design { stroke: #c89200; }
-  .dot.solv   { fill: #5a9a3a; } .dot.data { fill: #2c7da0; } .dot.design { fill: #c89200; }
+  .dot.solv   { fill: #5a9a3a; } .dot.data { fill: #2c7da0; } .dot.design { fill: #c89200; } .dot.trunk { fill: #9aa0aa; }
   .found rect { fill: #eef0f3; stroke: #9aa0aa; stroke-width: 1.5; }
   .found text { fill: #555; }
   .lbl { fill: #333; font: 600 14px ui-serif, Georgia, serif; }
@@ -49,7 +49,7 @@
   @media (prefers-color-scheme: dark) {
     .edge.trunk { stroke: #6a7078; }
     .edge.solv { stroke: #8fbf5a; } .edge.data { stroke: #6cc; } .edge.design { stroke: #e8b84b; }
-    .dot.solv { fill: #8fbf5a; } .dot.data { fill: #6cc; } .dot.design { fill: #e8b84b; }
+    .dot.solv { fill: #8fbf5a; } .dot.data { fill: #6cc; } .dot.design { fill: #e8b84b; } .dot.trunk { fill: #6a7078; }
     .found rect { fill: #20242c; stroke: #556; } .found text { fill: #bbc; }
     .lbl { fill: #ddd; } .lbl.sm { fill: #99a; }
     .branchname.solv { fill: #aef087; } .branchname.data { fill: #7dd; } .branchname.design { fill: #e8c860; }
@@ -84,7 +84,7 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 </p>
 
 <div class="treewrap">
-  <svg id="tree" viewBox="0 0 840 600" role="img" aria-label="Tech tree: foundations branching into three problem tracks"></svg>
+  <svg id="tree" viewBox="0 0 840 700" role="img" aria-label="Tech tree: foundations branching into three problem tracks"></svg>
 </div>
 <p class="map-cap">
   <em>Read it bottom-up:</em> start on the trunk &mdash; set up the tools, learn
@@ -99,6 +99,16 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
     <a href="./getting-started/windows/">Getting started on Windows</a>
     <span class="tag">setup &middot; PowerShell &middot; ~10 min</span>
     <div class="desc">Six copy-paste steps from never-opened-a-terminal to Claude running in a folder on your machine.</div>
+  </li>
+  <li>
+    <a href="./getting-started/project-setup/">Set up the project: a folder and a first commit</a>
+    <span class="tag">scaffold &middot; CLAUDE.md &middot; local git</span>
+    <div class="desc">A template project folder and an initial commit, so Claude has context and you have an undo button. Two minutes; reuse the shape everywhere.</div>
+  </li>
+  <li>
+    <a href="./getting-started/documents/">Feed it documents: transcribe once, for tokens</a>
+    <span class="tag">PDF &rarr; Markdown / YAML &middot; Sonnet subagent</span>
+    <div class="desc">Stop re-reading PDFs every turn. Lend a Sonnet subagent to transcribe a document once into clean Markdown or YAML, then work from the lean, diffable copy.</div>
   </li>
   <li>
     <a href="./getting-started/shipping/">Shipping the work: explore in HTML, deliver in PDF</a>
@@ -179,11 +189,12 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 
 <script>
 const TREE = {
-  hub: {x:420, y:430},
-  junction: {x:420, y:500},
-  found: [
-    {label:'Windows setup', href:'./getting-started/windows/', x:300, y:556, w:150},
-    {label:'Explore HTML / Deliver PDF', href:'./getting-started/shipping/', x:470, y:556, w:230},
+  hub: {x:420, y:362},
+  trunk: [   // top (nearest the fork) -> bottom (base); read bottom-up
+    {label:'Ship it: HTML & PDF', href:'./getting-started/shipping/'},
+    {label:'Feed it documents',   href:'./getting-started/documents/'},
+    {label:'Project + git',       href:'./getting-started/project-setup/'},
+    {label:'Install Claude',      href:'./getting-started/windows/'},
   ],
   branches: [
     {key:'solv',   x:150, name:'Numerical solvers', oracle:'oracle: physics', side:'left',
@@ -207,18 +218,22 @@ const TREE = {
       ]},
   ],
 };
-const NODE0Y = 384, DY = 82, LABEL_Y = 66, SPINE_TOP = 112;
+const NODE0Y = 300, DY = 68, LABEL_Y = 46, SPINE_TOP = 86;
+const TRUNK_Y0 = 426, TDY = 66;
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function line(x1,y1,x2,y2,cls){return `<line class="edge ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;}
 function nodeY(i){return NODE0Y - i*DY;}
 
+function trunkY(i){ return TRUNK_Y0 + i*TDY; }
+
 function buildTree(){
   const T=TREE; let s='';
-  s += line(T.found[0].x, T.found[0].y-14, T.junction.x, T.junction.y, 'trunk');
-  s += line(T.found[1].x, T.found[1].y-14, T.junction.x, T.junction.y, 'trunk');
-  s += line(T.junction.x, T.junction.y, T.hub.x, T.hub.y, 'trunk');
+  // trunk spine: down from the fork through each foundation node
+  let prevY = T.hub.y;
+  T.trunk.forEach((t,i)=>{ const y=trunkY(i); s += line(T.hub.x, prevY, T.hub.x, y, 'trunk'); prevY=y; });
 
+  // branches: up from the fork
   T.branches.forEach(b=>{
     const top = nodeY(b.nodes.length-1);
     s += line(T.hub.x, T.hub.y, b.x, nodeY(0), b.key);
@@ -237,14 +252,16 @@ function buildTree(){
     });
   });
 
-  T.found.forEach(f=>{
-    const h=30, x=f.x-f.w/2, y=f.y-h/2;
-    s += `<a class="found-link" href="${f.href}"><g class="found">`
-       + `<rect x="${x}" y="${y}" width="${f.w}" height="${h}" rx="7"/>`
-       + `<text x="${f.x}" y="${f.y}" text-anchor="middle" dominant-baseline="central" style="font:600 12.5px ui-serif,Georgia,serif">${esc(f.label)}</text>`
-       + `</g></a>`;
+  // trunk nodes: circles on the spine, labels to the right, neutral
+  T.trunk.forEach((t,i)=>{
+    const y=trunkY(i);
+    s += `<a class="node" href="${t.href}">`
+       + `<circle class="dot trunk" cx="${T.hub.x}" cy="${y}" r="8.5"/>`
+       + `<text class="lbl" x="${T.hub.x+15}" y="${y}" text-anchor="start" dominant-baseline="central">${esc(t.label)}</text>`
+       + `</a>`;
   });
-  s += `<text class="lbl sm" x="${T.hub.x}" y="${T.found[0].y+32}" text-anchor="middle">foundations &middot; the known-good tools</text>`;
+  // foundations caption under the base
+  s += `<text class="lbl sm" x="${T.hub.x}" y="${trunkY(T.trunk.length-1)+30}" text-anchor="middle">foundations &middot; the known-good tools</text>`;
 
   document.getElementById('tree').innerHTML = s;
 }
