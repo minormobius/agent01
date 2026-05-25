@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fractalize — turn a photo into a fractal</title>
+  <meta name="description" content="Drop a photograph and grow a fractal out of it. Escape-time fractals woven with your image via orbit-trap sampling — palette extraction, histogram, crop, and dozens of controls." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <canvas id="fractal"></canvas>
+
+  <div id="hud" class="hud">
+    <span id="hud-coords"></span>
+    <span id="hud-zoom"></span>
+  </div>
+
+  <button id="panel-toggle" class="panel-toggle" title="hide/show panel">⮜</button>
+
+  <aside id="panel" class="panel">
+    <h1 class="brand"><span class="g">🌀</span> Fractalize</h1>
+
+    <section class="grp">
+      <h2>Photograph</h2>
+      <input type="file" id="file-input" accept="image/*" hidden />
+      <button class="wide-btn" id="browse-btn">choose a photo…</button>
+      <div class="preview-wrap">
+        <canvas id="preview" width="240" height="180"></canvas>
+        <div class="preview-hint">drag to select a section</div>
+      </div>
+      <label class="row"><span>crop</span>
+        <button class="mini-btn" id="reset-crop">full image</button>
+      </label>
+      <div class="palette-strip" id="palette"></div>
+      <label class="row"><span>histogram</span>
+        <select id="hist-mode">
+          <option value="l">luminance</option>
+          <option value="rgb">RGB</option>
+          <option value="r">red</option>
+          <option value="g">green</option>
+          <option value="b">blue</option>
+        </select>
+      </label>
+      <canvas id="hist" width="240" height="70" class="hist"></canvas>
+    </section>
+
+    <section class="grp">
+      <h2>Fractal</h2>
+      <label class="row"><span>type</span>
+        <select id="type">
+          <option value="0">Mandelbrot</option>
+          <option value="1">Julia</option>
+          <option value="2">Burning Ship</option>
+          <option value="3">Tricorn</option>
+          <option value="4">Multibrot</option>
+        </select>
+      </label>
+      <label class="slider"><span>power <b id="power-v">2.0</b></span>
+        <input type="range" id="power" min="2" max="8" step="0.05" value="2" /></label>
+      <label class="slider"><span>iterations <b id="iter-v">220</b></span>
+        <input type="range" id="iter" min="20" max="1200" step="10" value="220" /></label>
+      <label class="slider"><span>escape radius <b id="escape-v">16</b></span>
+        <input type="range" id="escape" min="2" max="200" step="1" value="16" /></label>
+    </section>
+
+    <section class="grp" id="julia-grp">
+      <h2>Julia seed</h2>
+      <label class="slider"><span>c.re <b id="juliaRe-v">-0.70</b></span>
+        <input type="range" id="juliaRe" min="-2" max="2" step="0.001" value="-0.7" /></label>
+      <label class="slider"><span>c.im <b id="juliaIm-v">0.270</b></span>
+        <input type="range" id="juliaIm" min="-2" max="2" step="0.001" value="0.27" /></label>
+      <button class="mini-btn" id="pick-julia">pick seed by clicking the canvas</button>
+    </section>
+
+    <section class="grp">
+      <h2>View</h2>
+      <label class="slider"><span>rotation <b id="rot-v">0°</b></span>
+        <input type="range" id="rot" min="-180" max="180" step="1" value="0" /></label>
+      <button class="mini-btn" id="reset-view">reset view</button>
+      <p class="tip">scroll to zoom · drag to pan</p>
+    </section>
+
+    <section class="grp">
+      <h2>Coloring</h2>
+      <label class="row"><span>mode</span>
+        <select id="colorMode">
+          <option value="0">Photo · orbit trap</option>
+          <option value="3">Photo + palette hybrid</option>
+          <option value="1">Photo · final z</option>
+          <option value="2">Iteration palette</option>
+        </select>
+      </label>
+      <label class="row"><span>orbit trap</span>
+        <select id="trapType">
+          <option value="0">point</option>
+          <option value="1">line (horizontal)</option>
+          <option value="2">line (vertical)</option>
+          <option value="3">cross</option>
+          <option value="4">circle</option>
+        </select>
+      </label>
+      <label class="slider"><span>trap.x <b id="trapX-v">0.00</b></span>
+        <input type="range" id="trapX" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>trap.y <b id="trapY-v">0.00</b></span>
+        <input type="range" id="trapY" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>image scale <b id="imgScale-v">0.50</b></span>
+        <input type="range" id="imgScale" min="0.05" max="3" step="0.01" value="0.5" /></label>
+      <label class="slider"><span>image rotate <b id="imgRot-v">0°</b></span>
+        <input type="range" id="imgRot" min="-180" max="180" step="1" value="0" /></label>
+      <label class="slider"><span>image off.x <b id="imgOffX-v">0.00</b></span>
+        <input type="range" id="imgOffX" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>image off.y <b id="imgOffY-v">0.00</b></span>
+        <input type="range" id="imgOffY" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>palette shift <b id="paletteShift-v">0.00</b></span>
+        <input type="range" id="paletteShift" min="0" max="1" step="0.005" value="0" /></label>
+      <label class="slider"><span>palette density <b id="paletteScale-v">1.0</b></span>
+        <input type="range" id="paletteScale" min="0.1" max="6" step="0.1" value="1" /></label>
+      <label class="slider"><span>photo / palette mix <b id="mix-v">0.50</b></span>
+        <input type="range" id="mix" min="0" max="1" step="0.01" value="0.5" /></label>
+      <label class="row"><span>interior</span>
+        <input type="color" id="interior" value="#0a0a14" /></label>
+    </section>
+
+    <section class="grp">
+      <h2>Post</h2>
+      <label class="slider"><span>brightness <b id="brightness-v">0.00</b></span>
+        <input type="range" id="brightness" min="-0.5" max="0.5" step="0.01" value="0" /></label>
+      <label class="slider"><span>contrast <b id="contrast-v">1.00</b></span>
+        <input type="range" id="contrast" min="0.2" max="2.5" step="0.01" value="1" /></label>
+      <label class="slider"><span>saturation <b id="saturation-v">1.10</b></span>
+        <input type="range" id="saturation" min="0" max="2.5" step="0.01" value="1.1" /></label>
+      <label class="slider"><span>gamma <b id="gamma-v">1.00</b></span>
+        <input type="range" id="gamma" min="0.3" max="3" step="0.01" value="1" /></label>
+    </section>
+
+    <section class="grp">
+      <h2>Export</h2>
+      <label class="row"><span>multiplier</span>
+        <select id="exportScale">
+          <option value="1">1× (screen)</option>
+          <option value="2" selected>2×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <button class="wide-btn" id="export-btn">⤓ export PNG</button>
+      <button class="mini-btn" id="randomize-btn">🎲 randomize look</button>
+    </section>
+  </aside>
+
+  <div class="overlay" id="overlay">
+    <h1>🌀 Fractalize</h1>
+    <p>Drop a photograph and grow a fractal out of it. Your image is woven into the structure through orbit-trap sampling — the colors and forms of the photo reappear along the fractal's filaments. Everything runs in your browser; nothing is uploaded.</p>
+    <button class="start" id="start-btn">choose a photo</button>
+    <p class="sub">or drag an image anywhere</p>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
