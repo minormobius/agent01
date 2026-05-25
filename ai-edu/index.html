@@ -84,7 +84,7 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 </p>
 
 <div class="treewrap">
-  <svg id="tree" viewBox="0 0 840 700" role="img" aria-label="Tech tree: foundations branching into three problem tracks"></svg>
+  <svg id="tree" viewBox="0 0 840 730" role="img" aria-label="Tech tree: foundations branching into three problem tracks"></svg>
 </div>
 <p class="map-cap">
   <em>Read it bottom-up:</em> start on the trunk &mdash; set up the tools, learn
@@ -114,6 +114,11 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
     <a href="./getting-started/shipping/">Shipping the work: explore in HTML, deliver in PDF</a>
     <span class="tag">output &middot; pandoc + typst &middot; zero-dep HTML</span>
     <div class="desc">The two things to do with a finished analysis &mdash; a self-contained HTML explorer (no install) and a typeset PDF via Markdown &rarr; Pandoc &rarr; Typst. The minimum toolchain, set up once.</div>
+  </li>
+  <li>
+    <a href="./getting-started/token-economy/">Spend tokens well: cheap for mechanics, expensive for judgment</a>
+    <span class="tag">token economy &middot; model routing &middot; light context</span>
+    <div class="desc">The principle the whole trunk is really about: hand mechanical work &mdash; transcription in, formatting out, cleaning, boilerplate &mdash; to cheaper models or deterministic tools, and save the expensive model for the judgment only it should do.</div>
   </li>
 </ul>
 
@@ -196,6 +201,7 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 const TREE = {
   hub: {x:420, y:362},
   trunk: [   // top (nearest the fork) -> bottom (base); read bottom-up
+    {label:'Spend tokens well',   href:'./getting-started/token-economy/'},
     {label:'Ship it: HTML & PDF', href:'./getting-started/shipping/'},
     {label:'Feed it documents',   href:'./getting-started/documents/'},
     {label:'Project + git',       href:'./getting-started/project-setup/'},
@@ -225,7 +231,7 @@ const TREE = {
   ],
 };
 const NODE0Y = 300, DY = 68, LABEL_Y = 46, SPINE_TOP = 86;
-const TRUNK_Y0 = 426, TDY = 66;
+const TRUNK_Y0 = 418, TDY = 60;
 
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function line(x1,y1,x2,y2,cls){return `<line class="edge ${cls}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;}

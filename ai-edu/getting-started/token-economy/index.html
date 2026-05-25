@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spend tokens well &mdash; cheap for mechanics, expensive for judgment</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.6rem; margin: 0.4rem 0 0.2rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.2rem; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  p { margin: 0.6rem 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .aside { margin: 0.7rem 0; padding: 0.6rem 0.9rem; background: #f4f8fc; border-left: 3px solid #2c7da0; border-radius: 0 4px 4px 0; font-size: 0.92rem; color: #455; }
+  @media (prefers-color-scheme: dark) { .aside { background: #18222a; border-left-color: #5fa8c8; color: #bbd; } }
+  .aside strong { color: #1a1a1a; } @media (prefers-color-scheme: dark) { .aside strong { color: #eee; } }
+  table.cmp { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+  table.cmp th, table.cmp td { border: 1px solid #ddd; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }
+  table.cmp th { background: #f4f6f8; }
+  table.cmp tr.judge td { background: #eef6ee; }
+  @media (prefers-color-scheme: dark) { table.cmp th, table.cmp td { border-color: #333; } table.cmp th { background: #1c2027; } table.cmp tr.judge td { background: #18241a; } }
+  .who { font-family: ui-monospace, monospace; font-size: 0.85rem; font-weight: 700; color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .who { color: #6cc; } }
+  .who.opus { color: #b06a00; } @media (prefers-color-scheme: dark) { .who.opus { color: #e8b84b; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Spend tokens well: cheap for mechanics, expensive for judgment</h1>
+<p class="lede">
+  The future is unbounded inference. Today you work to a budget &mdash; so
+  spend it on judgment, not on mechanical reformatting. Everything else on
+  this trunk is really one idea wearing different hats: tee up the expensive
+  model with as little in its context as you can get away with.
+</p>
+
+<div class="aside">
+  <strong>The whole idea in one line:</strong> the costly model's attention
+  is the scarce resource. Hand every mechanical job &mdash; reading documents
+  in, formatting documents out, cleaning data, boilerplate &mdash; to a
+  cheaper model or a deterministic tool, and save the expensive model for the
+  reasoning and the verification only it should do.
+</div>
+
+<h2>The one rule</h2>
+<p>
+  Sort every task into two piles: <strong>mechanical</strong> (a faithful
+  transform with a right answer &mdash; transcribe, reformat, parse, rename)
+  and <strong>judgment</strong> (a call that needs reasoning &mdash; is this
+  right, which option wins, what does the physics say). Mechanical work is
+  cheap work; it does not need your best model. Judgment is what you're
+  actually paying the premium for.
+</p>
+<p>
+  The cleanest example is a PDF. <strong>Formatting a report to PDF should
+  never touch Opus</strong> &mdash; that's <code>pandoc</code> + Typst, a
+  deterministic typesetter that costs zero tokens. Reading a datasheet PDF
+  <em>in</em> shouldn't either &mdash; that's a Sonnet worker transcribing to
+  text. Opus's only job in the whole loop is the engineering call in the
+  middle.
+</p>
+
+<h2>Who should do what</h2>
+<table class="cmp">
+  <tr><th>Task</th><th>Hand it to</th><th>Why</th></tr>
+  <tr><td>Transcribe a PDF / drawing to text</td><td><span class="who">Sonnet worker</span></td><td>Mechanical reading; isolates the heavy read from your main context. <a href="../documents/">how</a></td></tr>
+  <tr><td>Typeset Markdown &rarr; PDF</td><td><span class="who">pandoc + Typst</span></td><td>Deterministic; costs <em>zero</em> tokens. <a href="../shipping/">how</a></td></tr>
+  <tr><td>Clean / parse a CSV</td><td><span class="who">Sonnet, or a script</span></td><td>Mechanical; once Opus writes the script, reruns are free.</td></tr>
+  <tr><td>Bulk rename, boilerplate, reformat</td><td><span class="who">a script</span></td><td>Repeatable transforms shouldn't spend tokens at all.</td></tr>
+  <tr class="judge"><td>Judge whether the answer is right (the oracle)</td><td><span class="who opus">Opus</span></td><td>Judgment &mdash; the thing you're paying the premium for.</td></tr>
+  <tr class="judge"><td>Weigh tradeoffs, set weights, pick the design</td><td><span class="who opus">Opus</span></td><td>Judgment.</td></tr>
+</table>
+
+<h2>Keep the expensive model's context light</h2>
+<p>
+  The trunk you climbed to get here is, read another way, a token-economy
+  checklist:
+</p>
+<ul>
+  <li><strong>Transcribe documents once</strong> to lean text, then work from
+  that &mdash; don't re-read a PDF every turn. <a href="../documents/">Feed it documents</a>.</li>
+  <li><strong>Run the big read in a second Sonnet worker</strong> so the raw
+  document never enters Opus's window at all. <a href="../documents/">Feed it documents</a>.</li>
+  <li><strong>Match the effort to the task:</strong> <code>/effort low</code>
+  for transcription and formatting, high only where the reasoning is hard.</li>
+  <li><strong>Write findings to <code>NOTES.md</code></strong> so the next
+  session reads a note instead of re-deriving &mdash; persistent memory for a
+  few hundred tokens. <a href="../project-setup/">notes/ folder</a>.</li>
+  <li><strong>Ship with deterministic tools</strong> &mdash; pandoc/Typst for
+  PDF, a self-contained HTML file for exploring &mdash; not by asking the
+  model to hand-format. <a href="../shipping/">Shipping the work</a>.</li>
+  <li><strong>Commit early and often</strong> so you can prune context and
+  restart a session cheaply without losing work. <a href="../project-setup/">Project + git</a>.</li>
+</ul>
+
+<p>You can also just tell the expensive model to economize up front:</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Before we start: transcribe the datasheets with a Sonnet worker and keep only the extracted YAML in context, render any PDF output with pandoc + Typst (not by hand), and write running findings to NOTES.md. Spend your reasoning on the sizing decision and its verification, not on reading or formatting.</span></div>
+
+<h2>Why bother &mdash; for now</h2>
+<p>
+  Honestly? Because today there's a budget. A lighter context is a longer
+  effective session, a cheaper run, and &mdash; the part people miss &mdash;
+  a <em>sharper</em> model: the expensive one reasons better when its window
+  isn't clogged with page furniture and stale output it has to read past
+  every turn. The day inference is unbounded, some of this stops mattering.
+  Until then, routing the mechanical work elsewhere is free leverage, and
+  it's most of what the other foundation pages are quietly teaching.
+</p>
+
+<h2>Where this fits</h2>
+<p>
+  This is the capstone of the trunk and the habit every problem branch
+  inherits: do the cheap things cheaply so the expensive model has room to do
+  the one thing only it can. From here, pick a branch &mdash; the
+  <a href="../../">tech tree</a> is back home.
+</p>
+
+<script>
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

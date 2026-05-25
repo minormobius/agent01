@@ -191,6 +191,23 @@
   <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">From this slide image: calibrate px&rarr;&micro;m from the scale bar, threshold to segment droplets, label connected components, and report the diameter distribution (D10/D50/D90 and Sauter D32). Then sweep the threshold and plot D50 vs threshold so I can see the stable band, and sum the droplet volumes to check against a dosed volume of X. Flag blobs touching the image border and any suspiciously large merged blobs.</span></div>
 </details>
 
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, confirm D50 sits on
+    the true line across a band of thresholds, not just one&rdquo; &mdash;
+    which is exactly why the prompt above asks Claude to verify itself. Naming
+    the oracle is the highest-value line in the prompt. And keep the expensive
+    model's context light &mdash; route transcription and formatting to cheaper
+    tools (see <a href="../../getting-started/token-economy/">Spend tokens well</a>).
+  </p>
+</details>
+
 <h2>6. Where to draw the line</h2>
 <div class="draw-line">
   Let Claude write the vision pipeline and the deck &mdash; thresholding,
