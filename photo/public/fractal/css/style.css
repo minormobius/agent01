@@ -51,6 +51,46 @@ body.panel-hidden .panel-toggle { left: 0.75rem; }
   display: flex; align-items: center; gap: 0.4rem;
 }
 .brand .g { font-size: 1.4rem; }
+.docs-btn {
+  margin-left: auto; width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--line); color: var(--ink-dim);
+  cursor: pointer; font-size: 0.85rem; line-height: 1; font-family: inherit;
+}
+.docs-btn:hover { border-color: var(--accent); color: var(--gold); }
+
+.docs-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 2rem 1rem;
+  background: rgba(5,4,12,0.8); backdrop-filter: blur(6px);
+}
+.docs-overlay[hidden] { display: none; }
+.docs-card {
+  position: relative; max-width: 720px; width: 100%; max-height: 86vh; overflow-y: auto;
+  background: #0d0c1c; border: 1px solid var(--line); border-radius: 14px;
+  padding: 2rem 2.2rem; box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.docs-close {
+  position: sticky; float: right; top: 0; width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--line); color: var(--ink);
+  cursor: pointer; font-size: 0.9rem; margin: -0.5rem -0.7rem 0 0.5rem;
+}
+.docs-close:hover { border-color: var(--accent); color: var(--gold); }
+
+.docs h1 { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 2rem; font-weight: 500; margin: 0 0 0.8rem; }
+.docs h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--accent); margin: 1.6rem 0 0.5rem; font-weight: 600; }
+.docs p, .docs li { color: #cfcbe2; font-size: 0.92rem; line-height: 1.65; }
+.docs .lede { font-size: 1.02rem; color: var(--ink); }
+.docs ul { padding-left: 1.1rem; margin: 0.4rem 0; }
+.docs li { margin-bottom: 0.3rem; }
+.docs b { color: var(--ink); font-weight: 600; }
+.docs code { background: rgba(255,255,255,0.08); padding: 0.05rem 0.35rem; border-radius: 4px;
+  font-size: 0.85em; color: var(--gold); }
+.docs em { color: var(--gold); font-style: italic; }
+.docs .siblings { margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--line);
+  font-size: 0.85rem; color: var(--ink-dim); }
+.docs .siblings a { color: var(--accent); }
 
 .grp { border-top: 1px solid var(--line); padding: 0.7rem 0 0.3rem; }
 .grp h2 {

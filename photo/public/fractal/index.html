@@ -19,7 +19,9 @@
   <button id="panel-toggle" class="panel-toggle" title="hide/show panel">⮜</button>
 
   <aside id="panel" class="panel">
-    <h1 class="brand"><span class="g">🌀</span> Fractalize</h1>
+    <h1 class="brand"><span class="g">🌀</span> Fractalize
+      <button id="docs-btn" class="docs-btn" title="how it works">?</button>
+    </h1>
 
     <section class="grp">
       <h2>Photograph</h2>
@@ -154,6 +156,90 @@
     <p>Drop a photograph and grow a fractal out of it. Your image is woven into the structure through orbit-trap sampling — the colors and forms of the photo reappear along the fractal's filaments. Everything runs in your browser; nothing is uploaded.</p>
     <button class="start" id="start-btn">choose a photo</button>
     <p class="sub">or drag an image anywhere</p>
+  </div>
+
+  <div class="docs-overlay" id="docs-overlay" hidden>
+    <div class="docs-card">
+      <button class="docs-close" id="docs-close" title="close">✕</button>
+      <article class="docs">
+        <h1>🌀 Fractalize — what is this?</h1>
+        <p class="lede">Fractalize grows a fractal <em>out of your photograph</em>. The
+        photo isn't pasted on top — it's woven into the fractal's structure, so its
+        colours and shapes reappear along the filaments and spirals.</p>
+
+        <h2>How a fractal is made here</h2>
+        <p>Every pixel on screen is a point <b>c</b> on the complex plane. We repeat a
+        simple rule — for the Mandelbrot set, <code>z → z² + c</code> — over and over and
+        watch what the running value <b>z</b> does:</p>
+        <ul>
+          <li>If <b>z</b> stays bounded forever, the pixel is <em>inside</em> the set.</li>
+          <li>If <b>z</b> flies off to infinity, the pixel <em>escapes</em> — and how
+          quickly it escapes is what classic fractal colouring is built on.</li>
+        </ul>
+        <p>The other types change the rule slightly: <b>Julia</b> fixes <b>c</b> and lets
+        the starting point vary; <b>Burning Ship</b> takes the absolute value of <b>z</b>
+        each step; <b>Tricorn</b> conjugates it; <b>Multibrot</b> raises <b>z</b> to a
+        higher power. The <b>power</b> slider even allows fractional exponents.</p>
+
+        <h2>Where your photo comes in: orbit traps</h2>
+        <p>As <b>z</b> bounces around during the iteration, it traces a path — an
+        <em>orbit</em>. We watch how close that orbit comes to a chosen shape (a point, a
+        line, a cross, a circle) and remember the spot of closest approach. That spot is
+        then used as a coordinate to <b>look up a colour in your photograph</b>.</p>
+        <p>Because nearby pixels have orbits that graze the trap at slightly different
+        places, the photo gets stretched and folded along the fractal's natural contours.
+        This is what makes the image <em>become</em> the fractal rather than sit behind it.</p>
+
+        <h2>Colour modes</h2>
+        <ul>
+          <li><b>Photo · orbit trap</b> — sample the photo at the orbit's closest approach
+          to the trap. The most "painterly" mode.</li>
+          <li><b>Photo + palette hybrid</b> — blend the orbit-trap photo with a gradient
+          built from the photo's own dominant colours.</li>
+          <li><b>Photo · final z</b> — sample the photo at the orbit's final position
+          instead of its closest approach. Wilder, more scattered.</li>
+          <li><b>Iteration palette</b> — classic escape-time colouring, but the gradient is
+          extracted from your photo by median-cut.</li>
+        </ul>
+
+        <h2>The controls, group by group</h2>
+        <p><b>Photograph</b> — load an image, then optionally <em>drag a rectangle on the
+        preview</em> to feed only a section of it into the fractal. The swatch strip shows
+        the extracted palette; the histogram shows tone distribution.</p>
+        <p><b>Fractal</b> — type, power, iteration count (higher = more detail in thin
+        filaments, but slower), and escape radius (larger radii smooth the colour bands).</p>
+        <p><b>Julia seed</b> — only matters for Julia type. Nudge <code>c.re/c.im</code> or
+        click <em>pick seed</em> and then click anywhere on the canvas to lift a seed
+        straight off the plane.</p>
+        <p><b>View</b> — drag to pan, scroll to zoom toward the cursor, rotate, reset.</p>
+        <p><b>Coloring</b> — the heart of the look. Trap shape and position decide which
+        part of the orbit drives the image; <em>image scale / rotate / offset</em> control
+        how the photo maps onto the orbit space; <em>palette shift &amp; density</em> cycle
+        the gradient; <em>mix</em> balances photo against palette / interior.</p>
+        <p><b>Post</b> — brightness, contrast, saturation, gamma, applied after everything.</p>
+        <p><b>Export</b> — render at up to 4× screen resolution to a PNG. <em>Randomize
+        look</em> reshuffles the colouring controls for happy accidents.</p>
+
+        <h2>Tips</h2>
+        <ul>
+          <li>Zoom into the boundary of the set — the busy edges are where orbit traps put
+          the most photo detail.</li>
+          <li>High-contrast photos with a few bold colours read best.</li>
+          <li>Crop to a face or a single object, then set a <em>point</em> trap and small
+          image scale for a kaleidoscopic portrait.</li>
+          <li>Low iterations + large escape radius gives soft, smoky colour; high iterations
+          gives crisp, threadlike structure.</li>
+        </ul>
+
+        <h2>Privacy &amp; tech</h2>
+        <p>Everything runs in your browser on the GPU (WebGL). Your photo never leaves the
+        device — there's no upload and no server.</p>
+
+        <p class="siblings">Part of a small series of photo experiments:
+          <a href="/astro">/astro</a> (read a photo's sky by its timestamp) ·
+          <a href="/prism">/prism</a> (the camera through a prismatic cornea).</p>
+      </article>
+    </div>
   </div>
 
   <script type="module" src="./js/app.js"></script>

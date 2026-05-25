@@ -371,6 +371,15 @@ document.getElementById('panel-toggle').addEventListener('click', () => {
   document.body.classList.toggle('panel-hidden');
 });
 
+// ---------- docs overlay ----------
+const docsOverlay = document.getElementById('docs-overlay');
+const openDocs = () => { docsOverlay.hidden = false; };
+const closeDocs = () => { docsOverlay.hidden = true; };
+document.getElementById('docs-btn').addEventListener('click', openDocs);
+document.getElementById('docs-close').addEventListener('click', closeDocs);
+docsOverlay.addEventListener('click', (e) => { if (e.target === docsOverlay) closeDocs(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDocs(); });
+
 window.addEventListener('resize', requestRender);
 syncJuliaVisibility();
 requestRender();
