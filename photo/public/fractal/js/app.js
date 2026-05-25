@@ -1,5 +1,6 @@
 import { FractalGL } from './fractal-gl.js';
 import { extractPalette, paletteToGradient, computeHistogram, drawHistogram, rgbToHex } from './palette.js';
+import { encodeVideo } from './video.js';
 
 const canvas = document.getElementById('fractal');
 const overlay = document.getElementById('overlay');
@@ -24,6 +25,8 @@ const p = {
 let hasPhoto = false;
 let dirty = true, raf = 0, interacting = false, idleTimer = 0;
 let histData = null;
+let exporting = false;
+let lastPrecision = 0;
 
 // ---------- render loop (on-demand) ----------
 function requestRender() {
@@ -37,10 +40,11 @@ function loop() {
   doRender();
 }
 function doRender() {
+  if (exporting) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
   gl.resize(dpr);
   const iter = interacting ? Math.min(p.maxIter, 150) : p.maxIter;
-  gl.render({ ...p, maxIter: iter });
+  lastPrecision = gl.render({ ...p, maxIter: iter });
   updateHud();
 }
 function markInteracting() {
@@ -67,10 +71,11 @@ function screenToComplex(cx, cy) {
 
 function updateHud() {
   document.getElementById('hud-coords').textContent =
-    `${p.centerX.toFixed(5)}, ${p.centerY.toFixed(5)}`;
+    `${p.centerX.toFixed(6)}, ${p.centerY.toFixed(6)}`;
   const z = 1.35 / p.scale;
+  const zoomStr = `zoom ${z >= 1000 ? z.toExponential(1) : z.toFixed(1)}×`;
   document.getElementById('hud-zoom').textContent =
-    `zoom ${z >= 1000 ? z.toExponential(1) : z.toFixed(1)}×`;
+    lastPrecision === 1 ? `${zoomStr} · hi-precision` : zoomStr;
 }
 
 // ---------- canvas interaction ----------
@@ -110,7 +115,7 @@ canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const before = screenToComplex(e.clientX, e.clientY);
   const factor = e.deltaY > 0 ? 1.12 : 1 / 1.12;
-  p.scale = Math.min(4, Math.max(1e-7, p.scale * factor));
+  p.scale = Math.min(4, Math.max(1e-11, p.scale * factor));
   const after = screenToComplex(e.clientX, e.clientY);
   p.centerX += before.x - after.x;
   p.centerY += before.y - after.y;
@@ -364,6 +369,136 @@ document.getElementById('randomize-btn').addEventListener('click', () => {
   setVal('mix', (p.mix = rnd(0.2, 0.8)).toFixed(2));
   setVal('saturation', (p.saturation = rnd(0.8, 1.8)).toFixed(2));
   requestRender();
+});
+
+// ---------- video: keyframes + render ----------
+const keyframes = [];
+const kfCount = document.getElementById('kf-count');
+const ANIM_KEYS = ['centerX', 'centerY', 'scale', 'rot', 'juliaRe', 'juliaIm',
+  'paletteShift', 'imgRot', 'imgScale', 'trapX', 'trapY'];
+
+function snapshot() {
+  const s = {};
+  for (const k of ANIM_KEYS) s[k] = p[k];
+  return s;
+}
+function refreshKfCount() {
+  kfCount.textContent = `${keyframes.length} keyframe${keyframes.length === 1 ? '' : 's'}`;
+}
+document.getElementById('kf-add').addEventListener('click', () => {
+  keyframes.push(snapshot()); refreshKfCount();
+});
+document.getElementById('kf-clear').addEventListener('click', () => {
+  keyframes.length = 0; refreshKfCount();
+});
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const geo = (a, b, t) => a * Math.pow(b / a, t);
+const ease = (t) => t * t * (3 - 2 * t);
+
+function diveStart(target) {
+  return {
+    ...target,
+    scale: Math.min(4, target.scale * 300),
+    rot: target.rot - 0.35,
+    paletteShift: target.paletteShift - 0.4,
+  };
+}
+function frameParamsAt(global, kfs, eased) {
+  const n = kfs.length;
+  const seg = Math.min(n - 2, Math.floor(global * (n - 1)));
+  let lt = global * (n - 1) - seg;
+  if (eased) lt = ease(lt);
+  const A = kfs[seg], B = kfs[seg + 1];
+  const out = {};
+  for (const k of ANIM_KEYS) out[k] = (k === 'scale') ? geo(A[k], B[k], lt) : lerp(A[k], B[k], lt);
+  return out;
+}
+
+let cancelRender = false;
+const renderOverlay = document.getElementById('render-overlay');
+const renderFill = document.getElementById('render-fill');
+const renderMsg = document.getElementById('render-msg');
+const renderTitle = document.getElementById('render-title');
+document.getElementById('render-cancel').addEventListener('click', () => {
+  cancelRender = true;
+  if (!exporting) renderOverlay.hidden = true;
+});
+
+function onRenderProgress(ev) {
+  if (ev.stage === 'loading-ffmpeg') { renderTitle.textContent = 'Loading encoder…'; renderMsg.textContent = ev.message || ''; }
+  else if (ev.stage === 'rendering') {
+    renderTitle.textContent = 'Rendering frames…';
+    renderFill.style.width = `${Math.round(ev.progress * 60)}%`;
+    if (ev.frame) renderMsg.textContent = `frame ${ev.frame} / ${ev.totalFrames}`;
+  } else if (ev.stage === 'encoding') {
+    renderTitle.textContent = 'Encoding…';
+    renderFill.style.width = `${60 + Math.round((ev.progress || 0) * 38)}%`;
+    renderMsg.textContent = 'muxing h.264…';
+  } else if (ev.stage === 'done') {
+    renderFill.style.width = '100%';
+  }
+}
+
+async function renderVideoFrame(i, totalFrames, kfs, W, H, eased) {
+  if (cancelRender) throw new Error('cancelled');
+  const t = totalFrames <= 1 ? 0 : i / (totalFrames - 1);
+  const fp = frameParamsAt(t, kfs, eased);
+  const full = { ...p, ...fp };
+  if (canvas.width !== W || canvas.height !== H) {
+    canvas.width = W; canvas.height = H;
+    gl.gl.viewport(0, 0, W, H);
+  }
+  gl.render(full);
+  return await new Promise((res) => canvas.toBlob(res, 'image/png'));
+}
+
+document.getElementById('vid-dur').addEventListener('input', (e) => {
+  document.getElementById('vid-dur-v').textContent = e.target.value + 's';
+});
+
+document.getElementById('vid-render').addEventListener('click', async () => {
+  if (!hasPhoto) { fileInput.click(); return; }
+  const dur = parseInt(document.getElementById('vid-dur').value, 10);
+  const fps = parseInt(document.getElementById('vid-fps').value, 10);
+  const [W, H] = document.getElementById('vid-size').value.split('x').map(Number);
+  const crf = parseInt(document.getElementById('vid-crf').value, 10);
+  const eased = document.getElementById('vid-ease').checked;
+  const totalFrames = Math.max(2, Math.round(dur * fps));
+
+  let kfs;
+  if (keyframes.length >= 2) kfs = keyframes.slice();
+  else { const target = keyframes[0] || snapshot(); kfs = [diveStart(target), target]; }
+
+  const ow = canvas.width, oh = canvas.height;
+  exporting = true;
+  cancelRender = false;
+  renderOverlay.hidden = false;
+  renderFill.style.width = '0%';
+  renderTitle.textContent = 'Preparing…';
+  renderMsg.textContent = '';
+
+  try {
+    const blob = await encodeVideo({
+      totalFrames, fps, crf,
+      getFrame: (i) => renderVideoFrame(i, totalFrames, kfs, W, H, eased),
+      onProgress: onRenderProgress,
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `fractalize-${Date.now()}.mp4`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    renderMsg.textContent = `done · ${(blob.size / 1e6).toFixed(1)} MB`;
+    setTimeout(() => { renderOverlay.hidden = true; }, 1200);
+  } catch (e) {
+    if (e.message === 'cancelled') { renderOverlay.hidden = true; }
+    else { renderTitle.textContent = 'Render failed'; renderMsg.textContent = e.message || String(e); }
+  } finally {
+    exporting = false;
+    canvas.width = ow; canvas.height = oh;
+    gl.gl.viewport(0, 0, ow, oh);
+    requestRender();
+  }
 });
 
 // ---------- panel toggle ----------

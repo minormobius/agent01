@@ -137,6 +137,36 @@
     </section>
 
     <section class="grp">
+      <h2>Video</h2>
+      <div class="kf-row">
+        <button class="mini-btn" id="kf-add">＋ keyframe</button>
+        <button class="mini-btn" id="kf-clear">clear</button>
+        <span id="kf-count" class="kf-count">0 keyframes</span>
+      </div>
+      <p class="tip">With 0–1 keyframes it renders a <b>zoom dive</b> into the current
+        view. Add 2+ keyframes (pan/zoom/recolor between each) for a custom path.</p>
+      <label class="slider"><span>duration <b id="vid-dur-v">8s</b></span>
+        <input type="range" id="vid-dur" min="2" max="30" step="1" value="8" /></label>
+      <label class="row"><span>fps</span>
+        <select id="vid-fps"><option>24</option><option selected>30</option><option>60</option></select></label>
+      <label class="row"><span>size</span>
+        <select id="vid-size">
+          <option value="1280x720">720p landscape</option>
+          <option value="1920x1080" selected>1080p landscape</option>
+          <option value="1080x1080">1080² square</option>
+          <option value="1080x1920">1080×1920 vertical</option>
+        </select></label>
+      <label class="row"><span>quality</span>
+        <select id="vid-crf">
+          <option value="14">high</option>
+          <option value="18" selected>balanced</option>
+          <option value="24">small file</option>
+        </select></label>
+      <label class="row"><span>ease in/out</span><input type="checkbox" id="vid-ease" checked /></label>
+      <button class="wide-btn" id="vid-render">▶ render video (mp4)</button>
+    </section>
+
+    <section class="grp">
       <h2>Export</h2>
       <label class="row"><span>multiplier</span>
         <select id="exportScale">
@@ -156,6 +186,15 @@
     <p>Drop a photograph and grow a fractal out of it. Your image is woven into the structure through orbit-trap sampling — the colors and forms of the photo reappear along the fractal's filaments. Everything runs in your browser; nothing is uploaded.</p>
     <button class="start" id="start-btn">choose a photo</button>
     <p class="sub">or drag an image anywhere</p>
+  </div>
+
+  <div class="render-overlay" id="render-overlay" hidden>
+    <div class="render-box">
+      <h3 id="render-title">Rendering video…</h3>
+      <div class="render-bar"><div id="render-fill"></div></div>
+      <p id="render-msg" class="render-msg"></p>
+      <button class="mini-btn" id="render-cancel">cancel</button>
+    </div>
   </div>
 
   <div class="docs-overlay" id="docs-overlay" hidden>
@@ -219,6 +258,28 @@
         <p><b>Post</b> — brightness, contrast, saturation, gamma, applied after everything.</p>
         <p><b>Export</b> — render at up to 4× screen resolution to a PNG. <em>Randomize
         look</em> reshuffles the colouring controls for happy accidents.</p>
+
+        <h2>Deep zoom</h2>
+        <p>Plain 32-bit GPU maths goes blocky after a few thousand × zoom. Past that point
+        Fractalize automatically switches the power-2 fractals (Mandelbrot, Julia, Burning
+        Ship, Tricorn) to an emulated <em>double-float</em> path — two float32s acting as one
+        higher-precision number — which keeps detail crisp out to roughly a billion ×. The
+        HUD shows <code>hi-precision</code> when it's active. (Fractional powers stay in
+        single precision, so zoom is shallower there.)</p>
+
+        <h2>Video</h2>
+        <p>The <b>Video</b> panel renders an animation entirely in your browser and encodes
+        it to an mp4 with ffmpeg (WebAssembly). Two ways to use it:</p>
+        <ul>
+          <li><b>Zoom dive (default).</b> With no keyframes, it pulls back from your current
+          view and dives smoothly into it — palette gently cycling on the way.</li>
+          <li><b>Keyframe path.</b> Set up a view, hit <em>＋ keyframe</em>, change anything
+          (pan, zoom, recolor, rotate, move the Julia seed), add another keyframe, and so on.
+          Render tweens through them — zoom is interpolated geometrically so it feels even.</li>
+        </ul>
+        <p>Pick duration, fps, size (incl. square &amp; vertical for social), and quality.
+        Frames are rendered one at a time at full quality — slower than realtime but perfectly
+        smooth on playback. The first render downloads the ~30&nbsp;MB encoder core once.</p>
 
         <h2>Tips</h2>
         <ul>
