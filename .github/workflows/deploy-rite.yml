@@ -123,10 +123,7 @@ jobs:
               echo "  curl returned $CURL_RC — skipping rest of seed"
               break
             fi
-            INSERTED=$(echo "$RESP" | python3 -c 'import sys,json
-try:
-  d=json.load(sys.stdin); m=d.get("mined",d); print(m.get("inserted",0) if isinstance(m,dict) else 0)
-except: print(0)' 2>/dev/null)
+            INSERTED=$(echo "$RESP" | python3 -c 'import sys,json; d=json.load(sys.stdin); m=d.get("mined",d); print(m.get("inserted",0) if isinstance(m,dict) else 0)' 2>/dev/null || echo 0)
             TOTAL=$((TOTAL + ${INSERTED:-0}))
             sleep 3
           done
