@@ -1,0 +1,92 @@
+name: Remixify on Tangled
+
+# One-shot "make this site remixable": create the sh.tangled.repo record
+# (the thing the tangled UI's "create repository" does — just a putRecord)
+# and push the site's content. After this, the ongoing Mirror to Tangled
+# workflow keeps it synced.
+#
+# Needs:
+#   • secrets BLUESKY_HANDLE + BLUESKY_APP_PASSWORD — the repo owner
+#     (minomobi); same creds post-to-bluesky.yml uses.
+#   • secret TANGLED_SSH_KEY — deploy key (public half on the tangled account).
+#   • vars TANGLED_HANDLE (owner, e.g. minomobi.bsky.social) + TANGLED_KNOT
+#     (tangled.org).
+#
+# This is the experiment that proves whether writing the record alone makes
+# the knot provision the bare repo (the push retries to absorb async
+# provisioning). If the push still 404s after retries, the knot needs an
+# explicit XRPC init we'll add next.
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site dir to remixify (self-contained index.html)'
+        required: true
+        default: 'guthkatz'
+      description:
+        description: 'Repo description'
+        required: false
+        default: ''
+
+jobs:
+  remixify:
+    runs-on: ubuntu-latest
+    env:
+      SITE: ${{ github.event.inputs.site }}
+      TANGLED_HANDLE: ${{ vars.TANGLED_HANDLE }}
+      TANGLED_KNOT: ${{ vars.TANGLED_KNOT || 'tangled.org' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Guard — site must be self-contained
+        run: |
+          test -f "$SITE/index.html" || { echo "✗ $SITE/index.html missing"; exit 1; }
+          if grep -qE '\.\./|<script[^>]+src=|<link[^>]+href=' "$SITE/index.html"; then
+            echo "✗ $SITE/index.html has external/relative deps — a fork would break."; exit 1
+          fi
+
+      - name: Create the sh.tangled.repo record
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          DESC: ${{ github.event.inputs.description || format('Remixable mino.mobi/{0}', github.event.inputs.site) }}
+        run: node scripts/tangled-ensure-repo.mjs
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "✗ TANGLED_SSH_KEY not set"; exit 1; }
+          test -n "$TANGLED_HANDLE" || { echo "✗ TANGLED_HANDLE not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Build standalone repo and push (retry while the knot provisions)
+        run: |
+          TMP="$(mktemp -d)"
+          cp -R "$SITE/." "$TMP/"
+          cat > "$TMP/README.md" <<EOF
+          # $SITE
+
+          A remixable [mino.mobi](https://mino.mobi/$SITE/) site — one self-contained \`index.html\`.
+          Fork to make it yours; tangled serves your copy with the deploy directory set to root.
+
+          Auto-mirrored from minormobius/agent01.
+          EOF
+          cd "$TMP"
+          git init -q && git add -A
+          git -c user.name='tangled-mirror' -c user.email='mirror@minomobi.com' commit -qm "remixify $SITE"
+          git branch -M main
+          git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${SITE}"
+          export GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519"
+          for attempt in 1 2 3 4 5 6; do
+            if git push -f origin main; then echo "✓ remixified $SITE"; exit 0; fi
+            echo "  push attempt $attempt failed (knot may still be provisioning) — sleeping…"
+            sleep $((attempt * 10))
+          done
+          echo "::error::push still failing after retries — record was written, but the knot didn't provision the bare repo. Likely needs an explicit knot XRPC init."
+          exit 1
