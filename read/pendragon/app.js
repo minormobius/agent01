@@ -1,7 +1,7 @@
 /* Pendragon — renderers + interactions. Vanilla JS, no build. */
 (function () {
   "use strict";
-  const P = window.PENDRAGON;
+  const P = window.PENDRAGON || PENDRAGON;
   const $ = (s, r) => (r || document).querySelector(s);
   const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
   const NS = "http://www.w3.org/2000/svg";

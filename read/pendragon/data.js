@@ -533,3 +533,6 @@ const PENDRAGON = {
     ]},
   ],
 };
+
+// Classic-script `const` does not attach to window; export explicitly so app.js sees it.
+window.PENDRAGON = PENDRAGON;
