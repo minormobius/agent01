@@ -20,6 +20,7 @@
       <span class="brand"><span class="sigil">⚔</span>Pendragon</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="timeline">Timeline</button>
+        <button class="tab" data-view="inworld">In-world</button>
         <button class="tab" data-view="tree">Evolutionary tree</button>
         <button class="tab" data-view="wiki">Wiki</button>
         <button class="tab" data-view="fae">The fae angle</button>
@@ -42,6 +43,16 @@
       <div class="timeline" id="timeline"></div>
     </section>
 
+    <!-- IN-WORLD TIMELINE -->
+    <section class="view" id="view-inworld">
+      <div class="hero"><h1>In-world timeline</h1><p>When the story is set — the legendary post-Roman chronology, c. 400–550 AD — with error bands for how little of it is really datable.</p></div>
+      <p class="lead" id="inworld-intro"></p>
+      <div class="tree-legend" id="inworld-legend"></div>
+      <div class="zoom-host" id="inworld-host"></div>
+      <p class="tree-hint">Drag to pan, scroll or pinch to zoom, ⤢ to refit. The diamond is the conventional date; the bar is the uncertainty. Badon and Camlann carry the widest bands — they are the legend's two load-bearing dates, and the sources still argue over both.</p>
+      <div class="iw-notes" id="inworld-notes"></div>
+    </section>
+
     <!-- TREE -->
     <section class="view" id="view-tree">
       <div class="hero"><h1>Evolutionary tree</h1><p>A phylogeny of texts and the matter they carry — which work descends from which, and where the marvellous Celtic strain runs through it.</p></div>
@@ -53,8 +64,8 @@
         <span>···· background</span>
         <span style="color:var(--accent)">⟡ carries the fae strain</span>
       </div>
-      <div class="tree-scroll"><div id="tree-host"></div></div>
-      <p class="tree-hint">Scroll sideways on narrow screens. The single fattest bundle of solid lines converges on Malory — the confluence of the whole medieval tradition into the canonical English text.</p>
+      <div class="zoom-host" id="tree-host"></div>
+      <p class="tree-hint">Drag to pan, scroll or pinch to zoom, ⤢ to refit. The single fattest bundle of solid lines converges on Malory — the confluence of the whole medieval tradition into the canonical English text.</p>
     </section>
 
     <!-- WIKI -->

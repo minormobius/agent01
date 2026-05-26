@@ -502,6 +502,61 @@ const PENDRAGON = {
     ],
   },
 
+  /* ── IN-WORLD CHRONOLOGY ──────────────────────────────────────────────
+     When the *story* is set, not when the texts were written. The whole
+     thing is legendary; the bands show how far the date wanders between
+     sources (Gildas, the Annales Cambriae, Geoffrey) or, for narrative
+     plateaus, that there is no datable event at all — only a span.
+     kind → colour: context | prelude | arthur | battle | quest | shadow   */
+  inworld: {
+    intro: "These are the events of the legend placed on a real calendar — the way tradition reconstructs them, mostly into the two generations after Rome left Britain. Almost none of it is anchored: the bars are <strong>error bands</strong>, wide where the sources disagree (Badon, Camlann) or where there is no datable event at all, only a span of story-time (Camelot's golden age). The diamond is the conventional “best” date; the band is the honest uncertainty around it. This is <em>when the story happens</em> — for <em>when the texts were written</em>, see the Timeline tab.",
+    axis: { min: 395, max: 555, tick: 20 },
+    events: [
+      { id: "roman-exit", label: "Rome abandons Britain", kind: "context", best: 410, lo: 406, hi: 411,
+        note: "The historical backdrop. The Rescript of Honorius (410) tells the Britons to see to their own defence; sub-Roman Britain begins.",
+        links: ["wp:End_of_Roman_rule_in_Britain|the withdrawal"] },
+      { id: "vortigern", label: "Vortigern hires Saxon foederati", kind: "context", best: 440, lo: 425, hi: 455,
+        note: "Gildas and the Historia Brittonum: the “proud tyrant” invites Saxon mercenaries who later revolt — the war Arthur is later said to have turned.",
+        links: ["wp:Vortigern|Vortigern"] },
+      { id: "ambrosius", label: "Ambrosius Aurelianus rallies the Britons", kind: "prelude", best: 470, lo: 458, hi: 485,
+        note: "The one resistance-leader Gildas actually names. Later tradition folds him into the Pendragon family as Arthur's uncle or forerunner.",
+        links: ["wp:Ambrosius_Aurelianus|Ambrosius"] },
+      { id: "uther", label: "Reign of Uther Pendragon", kind: "prelude", best: 468, lo: 458, hi: 482,
+        note: "Geoffrey of Monmouth only — no independent record, hence a broad band. Uther is the bridge that makes Arthur dynastic.",
+        links: ["wp:Uther_Pendragon|Uther Pendragon"] },
+      { id: "conception", label: "Arthur conceived at Tintagel", kind: "arthur", best: 475, lo: 465, hi: 490,
+        note: "Geoffrey: Merlin disguises Uther as Gorlois to lie with Igerna. Arthur's birth follows within the year.",
+        links: ["wp:Tintagel_Castle|Tintagel"] },
+      { id: "crowned", label: "The sword is drawn — Arthur is crowned", kind: "arthur", best: 490, lo: 480, hi: 500,
+        note: "Robert de Boron's Sword-in-the-Stone motif: a boy-king proven by miracle. The date is purely traditional.",
+        links: ["wp:Sword_in_the_Stone|the sword"] },
+      { id: "mordred-born", label: "Mordred begotten", kind: "shadow", best: 497, lo: 487, hi: 512,
+        note: "The Vulgate's incest motif. He must be grown by Camlann, so the narrative forces him early in the reign — the doom is planted at the start.",
+        links: ["wp:Mordred|Mordred"] },
+      { id: "roundtable", label: "Camelot & the Round Table at their height", kind: "arthur", best: 505, lo: 493, hi: 528,
+        note: "Not an event but a plateau — the “golden age.” The band is deliberately broad because story-time, not calendar-time, governs it.",
+        links: ["wp:Camelot|Camelot"] },
+      { id: "badon", label: "Battle of Mount Badon", kind: "battle", best: 500, lo: 490, hi: 518,
+        note: "The only semi-anchored date — and the sources still split. Gildas implies c.500 (writing ~44 years after); the Annales Cambriae log it at 516. The band spans the dispute.",
+        links: ["wp:Battle_of_Badon|Badon"] },
+      { id: "grail", label: "The Quest for the Holy Grail", kind: "quest", best: 516, lo: 502, hi: 532,
+        note: "Vulgate Queste: Galahad takes the Siege Perilous, the fellowship scatters and many never return. Undatable; placed late, as the beginning of the end.",
+        links: ["wp:Holy_Grail|the Grail"] },
+      { id: "affair", label: "The affair exposed; war with Lancelot", kind: "shadow", best: 530, lo: 520, hi: 538,
+        note: "Mort Artu: Lancelot and Guinevere are caught, the fellowship splits, Arthur besieges Lancelot in Gaul — leaving Britain to Mordred.",
+        links: ["wp:Lancelot|Lancelot"] },
+      { id: "rebellion", label: "Mordred's usurpation", kind: "shadow", best: 536, lo: 526, hi: 539,
+        note: "With Arthur abroad, Mordred seizes the throne and claims the queen. The recall and the reckoning follow at once.",
+        links: ["wp:Mordred|Mordred"] },
+      { id: "camlann", label: "The Battle of Camlann", kind: "battle", best: 537, lo: 510, hi: 542,
+        note: "The death-anchor. The Annales Cambriae give 537 (some manuscripts 539); other reckonings drift earlier. “Arthur and Medraut fell.”",
+        links: ["wp:Battle_of_Camlann|Camlann"] },
+      { id: "avalon", label: "Arthur borne away to Avalon", kind: "arthur", best: 538, lo: 537, hi: 545,
+        note: "Mortally wounded, taken across the water by Morgen's barge to be healed — or to wait. The legend lets go of the calendar here.",
+        links: ["wp:Avalon|Avalon"] },
+    ],
+  },
+
   /* ── BIBLIOGRAPHY ─────────────────────────────────────────────────────  */
   papers: [
     { group: "Primary sources (translations online)", items: [

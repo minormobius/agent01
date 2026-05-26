@@ -34,6 +34,65 @@
   }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
+  /* ---- pan/zoom for an SVG whose content lives in a single <g> layer ----
+     The svg fills its host (100%); coordinates are CSS px, so pointer math
+     is direct. Returns { fit, zoom } and wires +/−/⤢ buttons in the host. */
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function attachZoom(svg, layer, contentW, host) {
+    let k = 1, tx = 0, ty = 0;
+    const MIN = 0.2, MAX = 9;
+    const apply = () => layer.setAttribute("transform", `translate(${tx} ${ty}) scale(${k})`);
+    function fit() {
+      const cw = host.clientWidth || contentW;
+      k = Math.min(1.4, cw / contentW);
+      tx = Math.max(0, (cw - contentW * k) / 2);
+      ty = 6; apply();
+    }
+    function zoomAt(mx, my, factor) {
+      const nk = clamp(k * factor, MIN, MAX);
+      tx = mx - (mx - tx) * (nk / k);
+      ty = my - (my - ty) * (nk / k);
+      k = nk; apply();
+    }
+    svg.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const r = svg.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+    }, { passive: false });
+    const pts = new Map();
+    let pinch = null;
+    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+    svg.addEventListener("pointermove", (e) => {
+      if (!pts.has(e.pointerId)) return;
+      const prev = pts.get(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const arr = [...pts.values()];
+      if (arr.length === 1) { tx += e.clientX - prev.x; ty += e.clientY - prev.y; apply(); }
+      else if (arr.length >= 2) {
+        const r = svg.getBoundingClientRect();
+        const [a, b] = arr;
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const midx = (a.x + b.x) / 2 - r.left, midy = (a.y + b.y) / 2 - r.top;
+        if (pinch) { zoomAt(midx, midy, dist / pinch.dist); tx += midx - pinch.midx; ty += midy - pinch.midy; apply(); }
+        pinch = { dist, midx, midy };
+      }
+    });
+    const release = (e) => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+    svg.addEventListener("pointerup", release);
+    svg.addEventListener("pointercancel", release);
+    // controls
+    const ctr = el("div", "zoom-controls");
+    const mk = (txt, fn) => { const b = el("button", "zbtn", txt); b.type = "button"; b.onclick = fn; ctr.appendChild(b); return b; };
+    const center = (f) => zoomAt(host.clientWidth / 2, host.clientHeight / 2, f);
+    mk("+", () => center(1.35));
+    mk("−", () => center(1 / 1.35));
+    mk("⤢", () => fit());
+    host.appendChild(ctr);
+    fit();
+    return { fit };
+  }
+  const zoomers = {}; // view id → zoom controller, for resize refit
+
   /* ---- kinds → colour for timeline dots & tree fallback ---- */
   const KIND = {
     source:        { c: "#7fb37f", label: "Source / chronicle" },
@@ -130,14 +189,16 @@
     });
     const maxY = Math.max(...Object.values(pos).map(p=>p.y)) + NH;
 
-    const svg = svgEl("svg", { class: "tree", width: W, height: Math.max(H, maxY+20), viewBox: `0 0 ${W} ${Math.max(H, maxY+20)}` });
+    const svg = svgEl("svg", { class: "tree" });
+    const layer = svgEl("g", { class: "zl" });
+    svg.appendChild(layer);
 
     // strand headers
     strands.forEach((s) => {
       const t = svgEl("text", { class: "strand-head", x: colX[s.id], y: 24, "text-anchor": "middle" });
       t.textContent = s.label.split(" — ")[0];
-      svg.appendChild(t);
-      svg.appendChild(svgEl("line", { x1: colX[s.id], y1: 32, x2: colX[s.id], y2: maxY, stroke: s.color, "stroke-opacity": 0.12, "stroke-width": 1 }));
+      layer.appendChild(t);
+      layer.appendChild(svgEl("line", { x1: colX[s.id], y1: 32, x2: colX[s.id], y2: maxY, stroke: s.color, "stroke-opacity": 0.12, "stroke-width": 1 }));
     });
 
     // edges
@@ -149,7 +210,7 @@
       const sy = a.y + NH/2, ty = b.y - NH/2;
       const midY = (sy + ty) / 2;
       const path = svgEl("path", { class: "edge " + kind, d: `M ${a.x} ${sy} C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${ty}` });
-      svg.appendChild(path);
+      layer.appendChild(path);
       edgeEls.push({ path, from, to });
       (adj[from] ||= []).push(idx); (adj[to] ||= []).push(idx);
     });
@@ -177,7 +238,7 @@
       g.addEventListener("mouseenter", () => highlight(n.id, true));
       g.addEventListener("mouseleave", () => highlight(n.id, false));
       g.addEventListener("click", () => { const w = NODE2WIKI[n.id]; if (w) openWiki(w); });
-      svg.appendChild(g);
+      layer.appendChild(g);
       nodeEls[n.id] = g;
     });
 
@@ -197,6 +258,78 @@
     }
 
     const hostDiv = $("#tree-host"); hostDiv.innerHTML = ""; hostDiv.appendChild(svg);
+    zoomers.tree = attachZoom(svg, layer, W, hostDiv);
+  }
+
+  /* ====================== IN-WORLD TIMELINE ====================== */
+  const IW_KIND = {
+    context: { c: "#8a7f6b", label: "Historical backdrop" },
+    prelude: { c: "#7fb37f", label: "Before Arthur" },
+    arthur:  { c: "#c9a24a", label: "Arthur's reign" },
+    battle:  { c: "#cf6a6a", label: "Battle" },
+    quest:   { c: "#c97f9a", label: "The Grail quest" },
+    shadow:  { c: "#9a8fd0", label: "The fall" },
+  };
+  function renderInworld() {
+    const iw = P.inworld;
+    $("#inworld-intro").innerHTML = iw.intro;
+    const leg = $("#inworld-legend"); leg.innerHTML = "";
+    Object.values(IW_KIND).forEach((kd) => leg.appendChild(el("span", "li", `<span class="dot" style="background:${kd.c}"></span>${kd.label}`)));
+
+    const padL = 18, padR = 24, padTop = 46, laneH = 42, bandH = 13;
+    const plotW = 1080, W = padL + plotW + padR;
+    const x = (yr) => padL + (yr - iw.axis.min) / (iw.axis.max - iw.axis.min) * plotW;
+    const H = padTop + iw.events.length * laneH + 16;
+
+    const svg = svgEl("svg", { class: "iw" });
+    const layer = svgEl("g", { class: "zl" });
+    svg.appendChild(layer);
+
+    // axis + gridlines
+    layer.appendChild(svgEl("line", { class: "iw-axisline", x1: padL, y1: padTop - 14, x2: padL + plotW, y2: padTop - 14 }));
+    for (let yr = Math.ceil(iw.axis.min / iw.axis.tick) * iw.axis.tick; yr <= iw.axis.max; yr += iw.axis.tick) {
+      const gx = x(yr);
+      layer.appendChild(svgEl("line", { class: "iw-tick", x1: gx, y1: padTop - 18, x2: gx, y2: padTop - 10 }));
+      layer.appendChild(svgEl("line", { class: "iw-grid", x1: gx, y1: padTop - 10, x2: gx, y2: H - 8 }));
+      const tl = svgEl("text", { class: "iw-ticklabel", x: gx, y: padTop - 22, "text-anchor": "middle" });
+      tl.textContent = yr + " AD"; layer.appendChild(tl);
+    }
+
+    iw.events.forEach((ev, i) => {
+      const cy = padTop + i * laneH + laneH / 2 + 6;
+      const kd = IW_KIND[ev.kind] || IW_KIND.arthur;
+      const g = svgEl("g", { class: "iw-row" });
+      // label + range, above the band
+      const lab = svgEl("text", { class: "iw-label", x: x(ev.lo), y: cy - 11 });
+      lab.textContent = ev.label; g.appendChild(lab);
+      const rng = svgEl("text", { class: "iw-range", x: x(ev.hi) + 8, y: cy - 11 });
+      rng.textContent = `c.${ev.best} (${ev.lo}–${ev.hi})`; g.appendChild(rng);
+      // error band
+      const bx = x(ev.lo), bw = Math.max(2, x(ev.hi) - x(ev.lo));
+      const band = svgEl("rect", { class: "iw-band", x: bx, y: cy - bandH / 2, width: bw, height: bandH, rx: 7, fill: kd.c, "fill-opacity": 0.28, stroke: kd.c, "stroke-opacity": 0.55 });
+      g.appendChild(band);
+      // whisker caps
+      g.appendChild(svgEl("line", { class: "iw-cap", x1: bx, y1: cy - bandH / 2 - 3, x2: bx, y2: cy + bandH / 2 + 3, stroke: kd.c }));
+      g.appendChild(svgEl("line", { class: "iw-cap", x1: bx + bw, y1: cy - bandH / 2 - 3, x2: bx + bw, y2: cy + bandH / 2 + 3, stroke: kd.c }));
+      // best-estimate diamond
+      const dx = x(ev.best), ds = 6;
+      g.appendChild(svgEl("path", { class: "iw-best", d: `M ${dx} ${cy - ds} L ${dx + ds} ${cy} L ${dx} ${cy + ds} L ${dx - ds} ${cy} Z`, fill: kd.c }));
+      const ttl = svgEl("title"); ttl.textContent = `${ev.label} — best c.${ev.best}, range ${ev.lo}–${ev.hi} AD\n${ev.note}`; g.appendChild(ttl);
+      layer.appendChild(g);
+    });
+
+    const host = $("#inworld-host"); host.innerHTML = ""; host.appendChild(svg);
+    zoomers.inworld = attachZoom(svg, layer, W, host);
+
+    // notes + sources below the diagram (touch has no hover tooltips)
+    const notes = $("#inworld-notes"); notes.innerHTML = "";
+    iw.events.forEach((ev) => {
+      const kd = IW_KIND[ev.kind] || IW_KIND.arthur;
+      const row = el("div", "iw-note");
+      row.innerHTML = `<span class="dot" style="background:${kd.c}"></span><strong>${escapeHtml(ev.label)}</strong> <span class="iw-when">c.${ev.best} · band ${ev.lo}–${ev.hi}</span><br><span class="iw-text">${escapeHtml(ev.note)}</span> `;
+      const lr = linkRow(ev.links); if (lr) row.appendChild(lr);
+      notes.appendChild(row);
+    });
   }
 
   /* ====================== WIKI ====================== */
@@ -294,20 +427,24 @@
   }
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["timeline", "tree", "wiki", "fae", "papers"];
-  let treeDrawn = false;
+  const VIEWS = ["timeline", "inworld", "tree", "wiki", "fae", "papers"];
+  let treeDrawn = false, inworldDrawn = false, current = "timeline";
   function switchView(v) {
+    current = v;
     VIEWS.forEach((x) => {
       $("#view-" + x).classList.toggle("active", x === v);
     });
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     if (v === "tree" && !treeDrawn) { renderTree(); treeDrawn = true; }
+    if (v === "inworld" && !inworldDrawn) { renderInworld(); inworldDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
   }
   $("#tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (b) switchView(b.dataset.view); });
   // in-body anchors like href="#fae" should switch views
   window.addEventListener("hashchange", () => { const v = location.hash.slice(1).split("/")[0]; if (VIEWS.includes(v)) switchView(v); });
+  // refit the visible diagram on resize (debounced)
+  let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
   /* ====================== INIT ====================== */
   renderTimeline();
