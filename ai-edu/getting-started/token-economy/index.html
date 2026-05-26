@@ -36,6 +36,29 @@
   .prompt .pcopy:hover { background: #e2edf4; }
   .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
   @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+  /* routing minigame */
+  .game { margin: 1rem 0; padding: 0.9rem 1rem; background: #fafbfc; border: 1px solid #e0e4ea; border-radius: 8px; }
+  @media (prefers-color-scheme: dark) { .game { background: #16181d; border-color: #2a2e36; } }
+  .task { font-size: 1.0rem; font-weight: 600; min-height: 2.8em; margin-bottom: 0.6rem; }
+  .grid { display: grid; grid-template-columns: 4rem 1fr 1fr 1fr; gap: 5px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  .grid .hd, .grid .rl { color: #778; font-weight: 700; align-self: center; text-align: center; }
+  .grid .rl { text-align: right; padding-right: 0.4rem; }
+  @media (prefers-color-scheme: dark) { .grid .hd, .grid .rl { color: #99a; } }
+  .cell { border: 1px solid #ccd; border-radius: 5px; min-height: 3rem; cursor: pointer; background: #eef1f4; display: flex; align-items: center; justify-content: center; color: #556; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .cell { background: #20242c; border-color: #345; color: #9ab; } }
+  .cell:hover { border-color: #2c7da0; }
+  .cell.picked { outline: 3px solid #1a1a1a; outline-offset: -1px; }
+  @media (prefers-color-scheme: dark) { .cell.picked { outline-color: #fff; } }
+  .cell.revealed { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.55); border-color: rgba(0,0,0,0.2); cursor: default; }
+  .legend { font-size: 0.76rem; color: #778; margin-top: 0.55rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+  @media (prefers-color-scheme: dark) { .legend { color: #99a; } }
+  .legend i { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; vertical-align: -1px; margin-right: 0.3rem; }
+  .verdict { font-size: 0.92rem; margin-top: 0.6rem; min-height: 2.6em; }
+  .gctrl { margin-top: 0.5rem; display: flex; gap: 0.8rem; align-items: center; }
+  .gctrl button { font: inherit; font-size: 0.8rem; padding: 0.25rem 0.75rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
+  @media (prefers-color-scheme: dark) { .gctrl button { background: #243038; border-color: #467; color: #bdf; } }
+  .score { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #667; }
+  @media (prefers-color-scheme: dark) { .score { color: #99a; } }
 </style>
 </head>
 <body>
@@ -86,6 +109,25 @@
   <tr class="judge"><td>Weigh tradeoffs, set weights, pick the design</td><td><span class="who opus">Opus</span></td><td>Judgment.</td></tr>
 </table>
 
+<h2>Try it: route the task</h2>
+<p>
+  A task lands. Pick the <em>cheapest</em> model &times; effort that can
+  actually do it &mdash; then reveal the suitability heatmap. The goal isn't
+  &ldquo;use the best model,&rdquo; it's &ldquo;use the smallest one that
+  still clears the bar.&rdquo;
+</p>
+<div class="game">
+  <div class="task" id="task"></div>
+  <div class="grid" id="grid"></div>
+  <div class="legend">
+    <span><i style="background:#2f9e44"></i>right-sized</span>
+    <span><i style="background:#4a86c8"></i>overpaying</span>
+    <span><i style="background:#b83a26"></i>underpowered (fails)</span>
+  </div>
+  <div class="verdict" id="verdict">Pick a cell.</div>
+  <div class="gctrl"><button id="nexttask">next task &rarr;</button><span class="score" id="score">right-sized 0 / 0</span></div>
+</div>
+
 <h2>Keep the expensive model's context light</h2>
 <p>
   The trunk you climbed to get here is, read another way, a token-economy
@@ -131,6 +173,70 @@
 </p>
 
 <script>
+// ---- routing minigame ----
+(function(){
+  const MODELS=['Opus','Sonnet','Haiku'], EFFORTS=['low','med','high'];
+  const mTier={Opus:3,Sonnet:2,Haiku:1}, eLvl={low:1,med:2,high:3};
+  const mCost={Opus:5,Sonnet:1.5,Haiku:0.5}, eMult={low:1,med:2.5,high:5};
+  const TASKS=[
+    {t:'Summarize a two-paragraph email into one line.', mM:'Haiku', mE:'low'},
+    {t:'Reformat a finished Markdown report into a typeset PDF.', mM:'Haiku', mE:'low', tool:'This is really a deterministic-tool job — pandoc + Typst, zero tokens. No model needed at all.'},
+    {t:'Flag which of 500 log lines are errors (simple keyword match).', mM:'Haiku', mE:'low', tool:'That’s grep. A model is overkill at any setting.'},
+    {t:'Transcribe a 30-page datasheet into structured YAML, faithfully.', mM:'Sonnet', mE:'low', note:'Mechanical, but a tiny model drops digits — floor at Sonnet, keep effort low.'},
+    {t:'Clean and reconcile a messy CSV column (commas, parens, currency).', mM:'Sonnet', mE:'low'},
+    {t:'Write a regex to parse a non-trivial log format.', mM:'Sonnet', mE:'med'},
+    {t:'Decide whether to ship a tolerance stack at 99.96% yield — cost vs. risk.', mM:'Opus', mE:'med', note:'A judgment call with consequences — the model you pay the premium for.'},
+    {t:'Size a motor + transmission and justify the tradeoffs in a Pugh matrix.', mM:'Opus', mE:'med'},
+    {t:'Derive a beam’s natural frequencies and verify against the closed-form βL roots.', mM:'Opus', mE:'high', note:'Hard reasoning plus a self-check — the top corner earns its keep here.'},
+  ];
+  const cost=(m,e)=>mCost[m]*eMult[e];
+  const capable=(t,m,e)=>mTier[m]>=mTier[t.mM] && eLvl[e]>=eLvl[t.mE];
+  const deficit=(t,m,e)=>Math.max(0,mTier[t.mM]-mTier[m])+Math.max(0,eLvl[t.mE]-eLvl[e]);
+  function classify(t,m,e){
+    if(!capable(t,m,e)) return {k:'under', def:deficit(t,m,e)};
+    const r=cost(m,e)/cost(t.mM,t.mE);
+    return {k: r<=1.35?'ideal':(r<=3?'ok':(r<=8?'over':'waste')), r};
+  }
+  function color(c){
+    if(c.k==='under') return ['#d98b7d','#cf6a52','#b83a26','#8e2a1d'][Math.min(c.def-1,3)];
+    return {ideal:'#2f9e44', ok:'#3f9e86', over:'#4a86c8', waste:'#37618e'}[c.k];
+  }
+  let gi=Math.floor(Math.random()*TASKS.length), picks=0, hits=0, done=false;
+  const cells={};
+  function buildGrid(){
+    const g=document.getElementById('grid'); let h='<div class="hd"></div>'+EFFORTS.map(e=>`<div class="hd">${e}</div>`).join('');
+    MODELS.forEach(m=>{ h+=`<div class="rl">${m}</div>`+EFFORTS.map(e=>`<div class="cell" data-m="${m}" data-e="${e}">·</div>`).join(''); });
+    g.innerHTML=h;
+    g.querySelectorAll('.cell').forEach(c=>{ cells[c.dataset.m+'|'+c.dataset.e]=c; c.addEventListener('click',()=>pick(c.dataset.m,c.dataset.e)); });
+  }
+  function loadTask(){
+    const t=TASKS[gi]; done=false;
+    document.getElementById('task').textContent=t.t;
+    document.getElementById('verdict').textContent='Pick the cheapest model × effort that can do it.';
+    Object.values(cells).forEach(c=>{ c.className='cell'; c.style.background=''; c.textContent='·'; });
+  }
+  function pick(m,e){
+    if(done) return; done=true; picks++;
+    const t=TASKS[gi];
+    MODELS.forEach(M=>EFFORTS.forEach(E=>{
+      const c=cells[M+'|'+E], info=classify(t,M,E);
+      c.classList.add('revealed'); c.style.background=color(info);
+      c.textContent = info.k==='under' ? 'fails' : info.k==='ideal' ? 'best' : (info.r<2?info.r.toFixed(1):Math.round(info.r))+'×';
+    }));
+    cells[m+'|'+e].classList.add('picked');
+    const pickInfo=classify(t,m,e); let v;
+    if(pickInfo.k==='under') v=`<b style="color:#c0392b">Underpowered.</b> ${m} at ${e} effort will likely fail or fabricate here — move up and to the right.`;
+    else if(pickInfo.k==='ideal'){ hits++; v=`<b style="color:#2a8a2a">Right-sized 🎯</b> — clears the task at the lowest token cost. This is the pick.`; }
+    else v=`<b style="color:#3a6ea0">Overpaying.</b> Capable, but ~${pickInfo.r<2?pickInfo.r.toFixed(1):Math.round(pickInfo.r)}× the tokens of the green cell — same answer, bigger bill.`;
+    if(t.tool) v+=` <em>Trick: ${t.tool}</em>`;
+    else if(t.note) v+=` <span style="color:#778">${t.note}</span>`;
+    document.getElementById('verdict').innerHTML=v;
+    document.getElementById('score').textContent=`right-sized ${hits} / ${picks}`;
+  }
+  document.getElementById('nexttask').addEventListener('click',()=>{ gi=(gi+1)%TASKS.length; loadTask(); });
+  buildGrid(); loadTask();
+})();
+
 document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
 </script>
 
