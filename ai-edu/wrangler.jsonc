@@ -5,6 +5,10 @@
   "assets": {
     "directory": "./dist"
   },
+  // Both are live Cloudflare custom domains for this worker. wrangler
+  // reconciles routes to this list on every deploy, so KEEP BOTH lines —
+  // ai.ascential.work was also added in the dashboard, and deleting it here
+  // would de-register it on the next deploy.
   "routes": [
     { "pattern": "ai.mino.mobi", "custom_domain": true },
     { "pattern": "ai.ascential.work", "custom_domain": true }
