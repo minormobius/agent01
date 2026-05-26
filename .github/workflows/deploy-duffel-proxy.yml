@@ -1,11 +1,11 @@
-name: Deploy Amadeus Proxy
+name: Deploy Duffel Proxy
 
 on:
   push:
     branches: [main, 'claude/mortgage-calculator-rP4lK']
     paths:
-      - 'workers/amadeus-proxy/**'
-      - '.github/workflows/deploy-amadeus-proxy.yml'
+      - 'workers/duffel-proxy/**'
+      - '.github/workflows/deploy-duffel-proxy.yml'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workers/amadeus-proxy
+        working-directory: workers/duffel-proxy
     steps:
       - uses: actions/checkout@v4
 
