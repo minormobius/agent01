@@ -40,7 +40,7 @@
   .game { margin: 1rem 0; padding: 0.9rem 1rem; background: #fafbfc; border: 1px solid #e0e4ea; border-radius: 8px; }
   @media (prefers-color-scheme: dark) { .game { background: #16181d; border-color: #2a2e36; } }
   .task { font-size: 1.0rem; font-weight: 600; min-height: 2.8em; margin-bottom: 0.6rem; }
-  .grid { display: grid; grid-template-columns: 4rem 1fr 1fr 1fr; gap: 5px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  .grid { display: grid; grid-template-columns: 3.4rem repeat(5, 1fr); gap: 4px; font-family: ui-monospace, monospace; font-size: 0.72rem; }
   .grid .hd, .grid .rl { color: #778; font-weight: 700; align-self: center; text-align: center; }
   .grid .rl { text-align: right; padding-right: 0.4rem; }
   @media (prefers-color-scheme: dark) { .grid .hd, .grid .rl { color: #99a; } }
@@ -175,19 +175,19 @@
 <script>
 // ---- routing minigame ----
 (function(){
-  const MODELS=['Opus','Sonnet','Haiku'], EFFORTS=['low','med','high'];
-  const mTier={Opus:3,Sonnet:2,Haiku:1}, eLvl={low:1,med:2,high:3};
-  const mCost={Opus:5,Sonnet:1.5,Haiku:0.5}, eMult={low:1,med:2.5,high:5};
+  const MODELS=['Opus','Sonnet','Haiku'], EFFORTS=['low','medium','high','xhigh','max'];
+  const mTier={Opus:3,Sonnet:2,Haiku:1}, eLvl={low:1,medium:2,high:3,xhigh:4,max:5};
+  const mCost={Opus:5,Sonnet:1.5,Haiku:0.5}, eMult={low:1,medium:2.5,high:5,xhigh:8,max:12};
   const TASKS=[
     {t:'Summarize a two-paragraph email into one line.', mM:'Haiku', mE:'low'},
     {t:'Reformat a finished Markdown report into a typeset PDF.', mM:'Haiku', mE:'low', tool:'This is really a deterministic-tool job — pandoc + Typst, zero tokens. No model needed at all.'},
     {t:'Flag which of 500 log lines are errors (simple keyword match).', mM:'Haiku', mE:'low', tool:'That’s grep. A model is overkill at any setting.'},
     {t:'Transcribe a 30-page datasheet into structured YAML, faithfully.', mM:'Sonnet', mE:'low', note:'Mechanical, but a tiny model drops digits — floor at Sonnet, keep effort low.'},
     {t:'Clean and reconcile a messy CSV column (commas, parens, currency).', mM:'Sonnet', mE:'low'},
-    {t:'Write a regex to parse a non-trivial log format.', mM:'Sonnet', mE:'med'},
-    {t:'Decide whether to ship a tolerance stack at 99.96% yield — cost vs. risk.', mM:'Opus', mE:'med', note:'A judgment call with consequences — the model you pay the premium for.'},
-    {t:'Size a motor + transmission and justify the tradeoffs in a Pugh matrix.', mM:'Opus', mE:'med'},
-    {t:'Derive a beam’s natural frequencies and verify against the closed-form βL roots.', mM:'Opus', mE:'high', note:'Hard reasoning plus a self-check — the top corner earns its keep here.'},
+    {t:'Write a regex to parse a non-trivial log format.', mM:'Sonnet', mE:'medium'},
+    {t:'Decide whether to ship a tolerance stack at 99.96% yield — cost vs. risk.', mM:'Opus', mE:'xhigh', note:'A judgment call with consequences, weighed carefully — the model and effort you pay the premium for.'},
+    {t:'Size a motor + transmission and justify the tradeoffs in a Pugh matrix.', mM:'Opus', mE:'high'},
+    {t:'Derive a beam’s natural frequencies and verify against the closed-form βL roots.', mM:'Opus', mE:'max', note:'Hard reasoning plus a self-check — the top corner earns its keep here.'},
   ];
   const cost=(m,e)=>mCost[m]*eMult[e];
   const capable=(t,m,e)=>mTier[m]>=mTier[t.mM] && eLvl[e]>=eLvl[t.mE];
