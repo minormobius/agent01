@@ -6,6 +6,7 @@
     "directory": "./dist"
   },
   "routes": [
-    { "pattern": "ai.mino.mobi", "custom_domain": true }
+    { "pattern": "ai.mino.mobi", "custom_domain": true },
+    { "pattern": "ai.ascential.work", "custom_domain": true }
   ]
 }
