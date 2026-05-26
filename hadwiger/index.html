@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>hadwiger — chromatic number of the plane</title>
+<meta name="description" content="Interactive visualization of the Hadwiger–Nelson problem: how many colors are needed to color the plane so no two points at unit distance share a color? Still open, 5 ≤ χ ≤ 7.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #5e3b8b;
+  --accent-faint: rgba(94, 59, 139, 0.08);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* Coloring palette — vertices/hex cells use these. Chosen for max
+     perceptual distinctness; all 7 should remain unambiguous side by side. */
+  --c1: #e63946;
+  --c2: #f4a261;
+  --c3: #ffd166;
+  --c4: #2a9d8f;
+  --c5: #1d4e89;
+  --c6: #7b2cbf;
+  --c7: #e2538f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #a87ad6;
+    --accent-faint: rgba(168, 122, 214, 0.12);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+#spindle-canvas { cursor: pointer; }
+#tiling-canvas { cursor: crosshair; aspect-ratio: 5 / 4; }
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; }
+.ctrl-row .ctrl-val {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  min-width: 2.4em;
+  text-align: right;
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+.swatch-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.swatch {
+  width: 28px; height: 24px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: default;
+  position: relative;
+}
+.swatch[data-disabled="true"] {
+  opacity: 0.18;
+}
+.swatch .swatch-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: #fff;
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: #2a9d8f; }
+.stat-row .v.fail { color: #e63946; }
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+.verdict.win { color: #2a9d8f; }
+.verdict.fail { color: #e63946; }
+.verdict.partial { color: var(--muted); }
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>hadwiger</h1>
+  <p class="subtitle">chromatic number of the plane · 5 ≤ χ ≤ 7 · 1950–open</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://mino.mobi/heilbronn/">heilbronn</a> · <a href="https://mino.mobi/borsuk/">borsuk</a> · <a href="https://mino.mobi/viazovska/">viazovska</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="spindle" role="tab">spindle</button>
+  <button class="tab" data-tab="degrey" role="tab">de grey</button>
+  <button class="tab" data-tab="play" role="tab">play</button>
+  <button class="tab" data-tab="tiling" role="tab">tiling</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── SPINDLE PANE ─────────── -->
+<section class="pane active" data-pane="spindle">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="spindle-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">max colors allowed</span>
+        <div class="btn-row" id="max-colors-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">click a vertex to cycle</span>
+        <div class="swatch-row" id="swatch-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="solve-btn">show solution</button>
+          <button class="btn" id="clear-btn">clear</button>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="stat-note">
+        The Moser spindle: 7 vertices, 11 edges. Every edge connects two
+        points exactly 1 unit apart in the plane. <strong>Try 3 colors first</strong>
+        — find a coloring with no edge between same-coloured vertices.
+        You won't be able to. That impossibility is the proof that the
+        chromatic number of the plane is at least 4.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DE GREY PANE ─────────── -->
+<section class="pane" data-pane="degrey">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="degrey-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">max colors allowed</span>
+        <div class="btn-row" id="dg-max-colors-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">click a vertex to cycle</span>
+        <div class="swatch-row" id="dg-swatch-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="dg-reveal-btn">reveal coloring</button>
+          <button class="btn" id="dg-clear-btn">clear</button>
+        </div>
+      </div>
+      <div class="stats" id="dg-stats"></div>
+      <div class="verdict" id="dg-verdict"></div>
+      <div class="stat-note">
+        Six Moser spindles rotated 60° around a shared centre. All edges
+        below are genuine unit-distance pairs — some inside a single
+        spindle, others crossing between adjacent ones (the 60° rotation
+        forces extra unit-distance constraints). De Grey's actual graph
+        is 1,581 vertices of the same shape: spindles glued through a
+        carefully chosen scheme until even 4 colours can't satisfy
+        every edge. Use <em>reveal coloring</em> to backtrack to a
+        proper colouring at the chosen palette size.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── PLAY PANE ─────────── -->
+<section class="pane" data-pane="play">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="play-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">difficulty</span>
+        <div class="btn-row" id="play-difficulty-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">click a vertex to cycle</span>
+        <div class="swatch-row" id="play-swatch-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="play-new-btn">new puzzle</button>
+          <button class="btn" id="play-reveal-btn">reveal</button>
+          <button class="btn" id="play-clear-btn">clear</button>
+        </div>
+      </div>
+      <div class="stats" id="play-stats"></div>
+      <div class="verdict" id="play-verdict"></div>
+      <div class="stat-note">
+        A procedurally generated unit-distance graph. Each one is anchored
+        by either a triangle (χ=3) or a Moser spindle (χ=4), then grown
+        by equilateral-triangle completions on random existing edges. A
+        backtracking solver verifies the chromatic number before the
+        puzzle ships, so the colour target is always honest. Try to
+        finish using <em>exactly</em> the target palette — every vertex
+        coloured, no edge with matching endpoints.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── TILING PANE ─────────── -->
+<section class="pane" data-pane="tiling">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="tiling-canvas" width="750" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">hex side length · s</span>
+        <div class="ctrl-row">
+          <input id="hex-slider" type="range" min="0.30" max="0.49" value="0.42" step="0.01">
+          <span class="ctrl-val" id="hex-val">0.42</span>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn active" id="circle-toggle">unit circle</button>
+        </div>
+      </div>
+      <div class="stats" id="tiling-stats"></div>
+      <div class="stat-note">
+        Isbell's 1950 upper bound: the plane tiles with regular hexagons
+        of side <em>s</em>, 7-coloured in a repeating pattern. If
+        <em>s</em> &lt; ½, no two points in one hex are at distance 1;
+        if same-coloured hexes sit ≥ √7&nbsp;·&nbsp;<em>s</em>√3 ≈ 4.58<em>s</em> apart,
+        no unit-distance pair shares a colour. Drag a point to draw a
+        unit circle and see for yourself — its colours never collide.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The problem</h2>
+<p>Colour every point in the Euclidean plane. How few colours suffice if you forbid any two points at distance exactly 1 from sharing a colour? This number is the <strong>chromatic number of the plane</strong>, χ(ℝ²). Hugo Hadwiger and Edward Nelson asked the question independently around 1950; it's been called <em>the chromatic number of the plane problem</em> ever since.</p>
+
+<p>By 1950 the answer was bracketed: <strong>4 ≤ χ(ℝ²) ≤ 7</strong>. Then nothing moved for 68 years.</p>
+
+<h2>The lower bound — 4 (Moser brothers, 1961)</h2>
+<p>The <strong>spindle</strong> tab shows the Moser spindle: 7 points in the plane, 11 unit-distance pairs, requiring 4 colours. The proof that 3 don't suffice is purely combinatorial — you try every assignment and fail. The proof that the configuration is geometrically realisable comes from a single calculation: two unit rhombi share a vertex, rotated by θ = arccos(5/6) so their far vertices land exactly 1 apart. χ(ℝ²) ≥ 4 follows.</p>
+
+<h2>The upper bound — 7 (Isbell, 1950)</h2>
+<p>Tile the plane with regular hexagons of side <em>s</em> &lt; ½, and 7-colour them in a repeating pattern (visible in the <strong>tiling</strong> tab) such that same-coloured hexes sit further than 1 unit apart. Then any unit-distance pair either lives in one hex (impossible, since the hex's diameter is &lt; 1) or crosses into a hex of a different colour. χ(ℝ²) ≤ 7.</p>
+
+<h2>The 68-year gap</h2>
+<p>From 1950 to 2018, the bounds 4 ≤ χ(ℝ²) ≤ 7 didn't budge. Some people pushed for χ = 7, some for χ = 4, but nobody could improve either inequality. The problem became a fixture in popular-math books — Martin Gardner wrote about it; it appears in <em>Open Problems in Combinatorial Geometry</em>; it was the kind of problem you'd mention at a party.</p>
+
+<h2>Why bigger constructions are needed</h2>
+<p>The <strong>de grey</strong> tab shows a Moser flower — six Moser spindles rotated 60° around a shared centre, giving 37 vertices and 126 unit-distance edges (the spindles share more edges than you'd think, because the rotation puts vertices at unit distance across spindle boundaries). It's richer than the basic spindle, but a backtracking solver finds a proper 4-colouring. So the flower itself doesn't push χ(ℝ²) past 4.</p>
+
+<p>That's the lesson: to force the chromatic number above 4, you need many more vertices, and the identifications between copies have to be just right. De Grey's 2018 graph has 1,581 vertices for exactly this reason.</p>
+
+<h2>April 2018 — Aubrey de Grey publishes</h2>
+<p><strong>Aubrey de Grey</strong> is a biogerontologist. He runs a foundation researching longevity. He is not a research mathematician. In April 2018, after years of amateur work, he posted "<em>The chromatic number of the plane is at least 5</em>" to the arXiv with a construction: a unit-distance graph on <strong>1,581 vertices</strong> that requires 5 colours.</p>
+
+<p>The graph was constructed by combining many copies of the Moser spindle in a carefully chosen pattern, building up enough simultaneous constraints to force any 4-colouring to fail somewhere. Verification was done by SAT solver — the graph is far too large to 4-colour by hand.</p>
+
+<blockquote>
+  "I had a sneaking suspicion that 4 wasn't enough… I'd been thinking about this on and off for years, but never quite got there. Then one day the construction clicked."
+</blockquote>
+
+<p>Within weeks of de Grey's announcement, <strong>Marijn Heule</strong> (Carnegie Mellon, SAT-solver specialist) and the open collaborative <strong>Polymath16</strong> project shrank the graph dramatically — first to 826 vertices, then 553, eventually 510. The fastest reductions came from running SAT solvers to find smaller graphs with the same chromatic-number property.</p>
+
+<p>The 4 in the lower bound became a 5, and it held.</p>
+
+<h2>Still open</h2>
+<p>5 ≤ χ(ℝ²) ≤ 7. The remaining question — is it 5, 6, or 7? — is what we don't know.</p>
+
+<p>A few measurable facts:</p>
+<ul>
+  <li>Lower-bound improvements would require even larger unit-distance graphs that need 6 colours. None has been found.</li>
+  <li>The upper bound of 7 has stood since 1950. Improvement would require a more clever colouring than Isbell's hexagonal tiling — perhaps using shapes other than hexagons.</li>
+  <li>Variants of the problem are settled or partially settled: for example, if colour classes are restricted to be <em>measurable</em>, the answer is at least 5 (Falconer 1981); for ℝ³, similar bounds exist but at different magnitudes.</li>
+</ul>
+
+<h2>What's in this site</h2>
+<ul>
+  <li><strong>spindle</strong> — the Moser spindle (7 vertices, 11 edges). Click a vertex to cycle its colour. Cap the palette at 3 and try to find a valid colouring — you can't. Cap at 4 and many work. The conflict count and verdict update live.</li>
+  <li><strong>de grey</strong> — a Moser flower (six rotated spindles around a shared centre), with the same colour-cycling interaction at a richer scale. A backtracking solver finds a proper colouring on demand.</li>
+  <li><strong>play</strong> — procedurally generated unit-distance graph puzzles. Pick a difficulty (3 or 4 colour target); the page generates a fresh graph, anchors it with a structure that forces the target chromatic number, grows it by equilateral-triangle completions, then verifies χ(G) with the solver before letting you near it. The colour target on each puzzle is always honest — the solver has confirmed both that the graph needs the target and that it doesn't need more.</li>
+  <li><strong>tiling</strong> — Isbell's 7-colour hexagonal tiling. The hex-side slider shows the constraint: hexes too small leave gaps in the unit-distance argument; too large and same-colour hexes get within 1 of each other. The unit-circle overlay drags around and demonstrates no colour collision.</li>
+  <li><strong>docs</strong> — this page.</li>
+</ul>
+
+<h2>Why this story</h2>
+<p>The Hadwiger–Nelson problem is part of the same genre as <a href="https://mino.mobi/erdos/">erdős</a> and <a href="https://mino.mobi/guthkatz/">guthkatz</a> — extremal questions about point configurations in the plane, with a small integer answer that's been stuck for decades. The shape of the breakthrough is different from both:</p>
+<ul>
+  <li><strong>erdős</strong>: an AI built a configuration that beats the conjectured optimum.</li>
+  <li><strong>guthkatz</strong>: a polynomial-method proof matched the conjectured optimum from below.</li>
+  <li><strong>hadwiger</strong>: an amateur outside the mathematical establishment found a small-but-large hand-designed graph that improved a 68-year-old bound by one.</li>
+</ul>
+
+<p>One construction; one proof; one piece of patient amateur work. The genre keeps surprising in different directions.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li><a href="https://arxiv.org/abs/1804.02385">de Grey, A. D. N. J. (2018). <em>The chromatic number of the plane is at least 5.</em></a></li>
+  <li><a href="https://arxiv.org/abs/1805.12181">Heule, M. (2018). <em>Computing small unit-distance graphs with chromatic number 5.</em></a></li>
+  <li><a href="https://polymathprojects.org/2018/04/10/polymath-proposal-finding-simpler-unit-distance-graphs-of-chromatic-number-5/">Polymath16 project page</a></li>
+  <li><a href="https://www.quantamagazine.org/decades-old-graph-problem-yields-to-amateur-mathematician-20180417/">Quanta — Decades-Old Graph Problem Yields to Amateur Mathematician</a></li>
+  <li>Soifer, A. (2009). <em>The Mathematical Coloring Book.</em> Springer — the standard reference for χ(ℝ²) history.</li>
+  <li>Isbell, J. R. — the 1950 upper-bound proof appeared in problem sessions; first written record is in Hadwiger's papers.</li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <span>·</span>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  if (name === 'spindle') renderSpindle();
+  if (name === 'degrey')  renderDegrey();
+  if (name === 'play')    renderPlay();
+  if (name === 'tiling')  renderTiling();
+  try { history.replaceState(null, '', '#' + name); } catch {}
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (['spindle', 'degrey', 'play', 'tiling', 'docs'].includes(initialHash) && initialHash !== 'spindle') {
+  setTimeout(() => showTab(initialHash), 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Palette
+// ─────────────────────────────────────────────────────────────────────
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+const PALETTE = [
+  cssVar('--c1') || '#e63946',
+  cssVar('--c2') || '#4361ee',
+  cssVar('--c3') || '#2a9d8f',
+  cssVar('--c4') || '#f4a261',
+  cssVar('--c5') || '#6a4c93',
+  cssVar('--c6') || '#d496a7',
+  cssVar('--c7') || '#999',
+];
+
+// ─────────────────────────────────────────────────────────────────────
+// Moser spindle: precise unit-distance graph
+// ─────────────────────────────────────────────────────────────────────
+// Two unit rhombi share vertex A. The second is rotated by θ = arccos(5/6),
+// chosen so the "far" vertices C and C' of each rhombus land exactly 1 unit
+// apart — making CC' the spanning edge that pushes the chromatic number to 4.
+const SQRT3 = Math.sqrt(3);
+const SQRT11 = Math.sqrt(11);
+const SQRT33 = Math.sqrt(33);
+const SPINDLE = {
+  vertices: [
+    { id: 'A',  x: 0,                       y: 0 },
+    { id: 'B',  x: 1,                       y: 0 },
+    { id: 'D',  x: 0.5,                     y: SQRT3 / 2 },
+    { id: 'C',  x: 1.5,                     y: SQRT3 / 2 },
+    { id: "B'", x: 5/6,                     y: SQRT11 / 6 },
+    { id: "D'", x: (5 - SQRT33) / 12,       y: (SQRT11 + 5 * SQRT3) / 12 },
+    { id: "C'", x: (15 - SQRT33) / 12,      y: (3 * SQRT11 + 5 * SQRT3) / 12 },
+  ],
+  // Edges as index pairs into vertices[]
+  edges: [
+    [0,1], [0,2], [1,3], [3,2], [1,2],   // rhombus 1: A-B, A-D, B-C, C-D, B-D
+    [0,4], [0,5], [4,6], [6,5], [4,5],   // rhombus 2: A-B', A-D', B'-C', C'-D', B'-D'
+    [3,6],                                // spanning: C-C'
+  ],
+};
+
+// A canonical valid 4-colouring (one of several): solve helper.
+// Indices: A=0, B=1, D=2, C=3, B'=4, D'=5, C'=6
+const SOLUTION_4 = [1, 2, 3, 4, 3, 4, 1];
+
+// ─────────────────────────────────────────────────────────────────────
+// Spindle renderer + interaction
+// ─────────────────────────────────────────────────────────────────────
+const spindleCanvas = document.getElementById('spindle-canvas');
+const spindleCtx = spindleCanvas.getContext('2d');
+const maxColorsRow = document.getElementById('max-colors-row');
+const swatchRow = document.getElementById('swatch-row');
+const statsEl = document.getElementById('stats');
+const verdictEl = document.getElementById('verdict');
+
+let spindleState = {
+  colors: new Array(SPINDLE.vertices.length).fill(0),  // 0 = uncoloured
+  maxColors: 3,                                         // start with the impossible challenge
+  vertexPx: null,
+};
+
+function buildMaxColorsRow() {
+  maxColorsRow.innerHTML = '';
+  for (const n of [3, 4, 5]) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (n === spindleState.maxColors ? ' active' : '');
+    b.dataset.n = n;
+    b.textContent = n;
+    b.addEventListener('click', () => {
+      spindleState.maxColors = n;
+      // Trim any over-bright colours back to 0
+      spindleState.colors = spindleState.colors.map(c => c > n ? 0 : c);
+      maxColorsRow.querySelectorAll('.btn').forEach(x =>
+        x.classList.toggle('active', parseInt(x.dataset.n, 10) === n)
+      );
+      buildSwatchRow();
+      renderSpindle();
+    });
+    maxColorsRow.appendChild(b);
+  }
+}
+
+function buildSwatchRow() {
+  swatchRow.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.style.background = PALETTE[i - 1];
+    s.dataset.disabled = i > spindleState.maxColors;
+    const lbl = document.createElement('span');
+    lbl.className = 'swatch-label';
+    lbl.textContent = i;
+    s.appendChild(lbl);
+    swatchRow.appendChild(s);
+  }
+}
+
+document.getElementById('solve-btn').addEventListener('click', () => {
+  if (spindleState.maxColors < 4) {
+    // 3-colouring is impossible — flash a deliberate failure
+    spindleState.colors = SOLUTION_4.slice();
+    spindleState.maxColors = 4;
+    maxColorsRow.querySelectorAll('.btn').forEach(x =>
+      x.classList.toggle('active', parseInt(x.dataset.n, 10) === 4)
+    );
+    buildSwatchRow();
+  } else {
+    spindleState.colors = SOLUTION_4.slice();
+  }
+  renderSpindle();
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  spindleState.colors = new Array(SPINDLE.vertices.length).fill(0);
+  renderSpindle();
+});
+
+spindleCanvas.addEventListener('click', onSpindleClick);
+
+function onSpindleClick(e) {
+  if (!spindleState.vertexPx) return;
+  const rect = spindleCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (spindleCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (spindleCanvas.height / rect.height);
+  let best = -1, bestD = 36 * 36;
+  for (let i = 0; i < spindleState.vertexPx.length; i++) {
+    const v = spindleState.vertexPx[i];
+    const d2 = (v.x - x) * (v.x - x) + (v.y - y) * (v.y - y);
+    if (d2 < bestD) { bestD = d2; best = i; }
+  }
+  if (best >= 0) {
+    spindleState.colors[best] = (spindleState.colors[best] + 1) % (spindleState.maxColors + 1);
+    renderSpindle();
+  }
+}
+
+function renderSpindle() {
+  const ctx = spindleCtx;
+  const W = spindleCanvas.width;
+  const H = spindleCanvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  // Layout: scale & translate spindle to fit canvas with margin
+  const verts = SPINDLE.vertices;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const v of verts) {
+    if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+    if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y;
+  }
+  const pad = 80;
+  const usableW = W - 2 * pad;
+  const usableH = H - 2 * pad;
+  const scale = Math.min(usableW / (maxX - minX), usableH / (maxY - minY));
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  // Flip y for screen coords; center on canvas
+  function px(x) { return W / 2 + (x - cx) * scale; }
+  function py(y) { return H / 2 - (y - cy) * scale; }
+
+  const vertexPx = verts.map(v => ({ x: px(v.x), y: py(v.y), id: v.id }));
+  spindleState.vertexPx = vertexPx;
+
+  // Edges
+  const conflicts = new Set();
+  let conflictCount = 0;
+  for (const [a, b] of SPINDLE.edges) {
+    const ca = spindleState.colors[a];
+    const cb = spindleState.colors[b];
+    let color = '#bbb';
+    let lw = 1.5;
+    if (ca !== 0 && cb !== 0) {
+      if (ca === cb) {
+        color = '#e63946';
+        lw = 3;
+        conflicts.add(a); conflicts.add(b);
+        conflictCount++;
+      } else {
+        color = '#aaa';
+        lw = 1.5;
+      }
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(vertexPx[a].x, vertexPx[a].y);
+    ctx.lineTo(vertexPx[b].x, vertexPx[b].y);
+    ctx.stroke();
+  }
+
+  // Vertices
+  const r = 20;
+  for (let i = 0; i < verts.length; i++) {
+    const v = vertexPx[i];
+    const c = spindleState.colors[i];
+    ctx.lineWidth = conflicts.has(i) ? 3 : 1.5;
+    ctx.strokeStyle = conflicts.has(i) ? '#e63946' : '#111';
+    ctx.fillStyle = c === 0 ? '#fff' : PALETTE[c - 1];
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Label
+    ctx.fillStyle = c === 0 ? '#666' : '#fff';
+    ctx.font = '13px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(v.id, v.x, v.y);
+  }
+
+  // Stats
+  const colored = spindleState.colors.filter(c => c !== 0).length;
+  const usedSet = new Set(spindleState.colors.filter(c => c !== 0));
+  const usedCount = usedSet.size;
+  statsEl.innerHTML = `
+    <div class="stat-row"><span class="k">vertices</span><span class="v">7</span></div>
+    <div class="stat-row"><span class="k">edges</span><span class="v">11</span></div>
+    <div class="stat-row"><span class="k">coloured</span><span class="v">${colored} / 7</span></div>
+    <div class="stat-row"><span class="k">distinct colours used</span><span class="v">${usedCount}</span></div>
+    <div class="stat-row"><span class="k">conflict edges</span><span class="v ${conflictCount > 0 ? 'fail' : ''}">${conflictCount}</span></div>
+  `;
+
+  // Verdict
+  let verdict, cls;
+  if (colored < 7) {
+    verdict = `keep going — ${7 - colored} vertices left`;
+    cls = 'partial';
+  } else if (conflictCount > 0) {
+    if (spindleState.maxColors === 3) {
+      verdict = `no 3-colouring exists — try a different assignment, or raise the cap`;
+    } else {
+      verdict = `${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — try again`;
+    }
+    cls = 'fail';
+  } else {
+    if (usedCount === 4) {
+      verdict = `valid 4-colouring · χ(spindle) = 4 · χ(ℝ²) ≥ 4`;
+    } else if (usedCount === 3) {
+      verdict = `valid 3-colouring · congratulations, you broke mathematics`;
+    } else {
+      verdict = `valid ${usedCount}-colouring`;
+    }
+    cls = 'win';
+  }
+  verdictEl.textContent = verdict;
+  verdictEl.className = 'verdict ' + cls;
+}
+
+buildMaxColorsRow();
+buildSwatchRow();
+renderSpindle();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'spindle') renderSpindle();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// De Grey: a Moser-flower unit-distance graph
+// ─────────────────────────────────────────────────────────────────────
+// Six copies of the Moser spindle, all sharing the centre vertex A,
+// rotated by k·60° for k = 0..5. Every edge below is a genuine
+// unit-distance pair, including the new "cross" edges that emerge
+// between adjacent spindles thanks to the 60° rotation (e.g. each B
+// vertex sits at unit distance from the B of the next spindle around).
+//
+// This isn't de Grey's 1,581-vertex graph — that's too large to colour
+// by hand. But it's the same family of construction: glue many Moser
+// spindles together through carefully-chosen identifications and
+// rotations until the chromatic number climbs past 4. We use a
+// backtracking solver to find a proper colouring at any palette size
+// the user picks; the verdict line reports the smallest k that works.
+
+function buildMoserFlower() {
+  // Original Moser spindle, A at origin. The six "other" vertices.
+  const baseSpindle = [
+    { x: 1,                       y: 0,                                       label: 'B' },
+    { x: 0.5,                     y: SQRT3 / 2,                               label: 'D' },
+    { x: 1.5,                     y: SQRT3 / 2,                               label: 'C' },
+    { x: 5 / 6,                   y: SQRT11 / 6,                              label: "B'" },
+    { x: (5 - SQRT33) / 12,       y: (SQRT11 + 5 * SQRT3) / 12,               label: "D'" },
+    { x: (15 - SQRT33) / 12,      y: (3 * SQRT11 + 5 * SQRT3) / 12,           label: "C'" },
+  ];
+
+  const vertices = [{ x: 0, y: 0, label: 'A' }];
+  for (let i = 0; i < 6; i++) {
+    const t = i * Math.PI / 3;
+    const ct = Math.cos(t), st = Math.sin(t);
+    for (const v of baseSpindle) {
+      vertices.push({
+        x: v.x * ct - v.y * st,
+        y: v.x * st + v.y * ct,
+        label: v.label + i,
+      });
+    }
+  }
+
+  // Every pair at distance exactly 1 (with FP tolerance) becomes an edge.
+  const edges = [];
+  const TOL = 1e-6;
+  for (let a = 0; a < vertices.length; a++) {
+    for (let b = a + 1; b < vertices.length; b++) {
+      const dx = vertices[a].x - vertices[b].x;
+      const dy = vertices[a].y - vertices[b].y;
+      if (Math.abs(dx * dx + dy * dy - 1) < TOL) edges.push([a, b]);
+    }
+  }
+  return { vertices, edges };
+}
+
+// Find a k-colouring via backtracking, ordering vertices by descending
+// degree for branching efficiency. Returns the colour array (1..k per
+// vertex) on success, or null if no k-colouring exists.
+function solveColoring(graph, k) {
+  const n = graph.vertices.length;
+  const adj = graph.vertices.map(() => []);
+  for (const [a, b] of graph.edges) {
+    adj[a].push(b);
+    adj[b].push(a);
+  }
+  const order = graph.vertices.map((_, i) => i)
+    .sort((a, b) => adj[b].length - adj[a].length);
+  const colors = new Array(n).fill(0);
+  let steps = 0;
+  function bt(step) {
+    if (++steps > 1_000_000) return false;  // safety: shouldn't be needed
+    if (step === n) return true;
+    const i = order[step];
+    const forbidden = new Set();
+    for (const j of adj[i]) if (colors[j] !== 0) forbidden.add(colors[j]);
+    for (let c = 1; c <= k; c++) {
+      if (forbidden.has(c)) continue;
+      colors[i] = c;
+      if (bt(step + 1)) return true;
+      colors[i] = 0;
+    }
+    return false;
+  }
+  return bt(0) ? colors : null;
+}
+
+const degreyCanvas = document.getElementById('degrey-canvas');
+const degreyCtx = degreyCanvas.getContext('2d');
+const dgMaxColorsRow = document.getElementById('dg-max-colors-row');
+const dgSwatchRow = document.getElementById('dg-swatch-row');
+const dgStatsEl = document.getElementById('dg-stats');
+const dgVerdictEl = document.getElementById('dg-verdict');
+
+let degreyState = {
+  graph: buildMoserFlower(),
+  colors: null,         // initialised below
+  maxColors: 4,
+  vertexPx: null,
+  chromaticNumber: null,  // discovered on first reveal
+};
+degreyState.colors = new Array(degreyState.graph.vertices.length).fill(0);
+
+function buildDgMaxColorsRow() {
+  dgMaxColorsRow.innerHTML = '';
+  for (const n of [3, 4, 5]) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (n === degreyState.maxColors ? ' active' : '');
+    b.dataset.n = n;
+    b.textContent = n;
+    b.addEventListener('click', () => {
+      degreyState.maxColors = n;
+      degreyState.colors = degreyState.colors.map(c => c > n ? 0 : c);
+      dgMaxColorsRow.querySelectorAll('.btn').forEach(x =>
+        x.classList.toggle('active', parseInt(x.dataset.n, 10) === n)
+      );
+      buildDgSwatchRow();
+      renderDegrey();
+    });
+    dgMaxColorsRow.appendChild(b);
+  }
+}
+function buildDgSwatchRow() {
+  dgSwatchRow.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.style.background = PALETTE[i - 1];
+    s.dataset.disabled = i > degreyState.maxColors;
+    const lbl = document.createElement('span');
+    lbl.className = 'swatch-label';
+    lbl.textContent = i;
+    s.appendChild(lbl);
+    dgSwatchRow.appendChild(s);
+  }
+}
+
+document.getElementById('dg-reveal-btn').addEventListener('click', () => {
+  const sol = solveColoring(degreyState.graph, degreyState.maxColors);
+  if (sol) {
+    degreyState.colors = sol;
+  } else {
+    // No colouring at the current cap. Try k+1 until we find one.
+    let k = degreyState.maxColors;
+    while (k < 7) {
+      k++;
+      const s2 = solveColoring(degreyState.graph, k);
+      if (s2) {
+        degreyState.maxColors = k;
+        degreyState.colors = s2;
+        dgMaxColorsRow.querySelectorAll('.btn').forEach(x =>
+          x.classList.toggle('active', parseInt(x.dataset.n, 10) === k)
+        );
+        buildDgSwatchRow();
+        break;
+      }
+    }
+  }
+  renderDegrey();
+});
+document.getElementById('dg-clear-btn').addEventListener('click', () => {
+  degreyState.colors = new Array(degreyState.graph.vertices.length).fill(0);
+  renderDegrey();
+});
+
+degreyCanvas.addEventListener('click', e => {
+  if (!degreyState.vertexPx) return;
+  const rect = degreyCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (degreyCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (degreyCanvas.height / rect.height);
+  let best = -1, bestD = 22 * 22;
+  for (let i = 0; i < degreyState.vertexPx.length; i++) {
+    const v = degreyState.vertexPx[i];
+    const d2 = (v.x - x) * (v.x - x) + (v.y - y) * (v.y - y);
+    if (d2 < bestD) { bestD = d2; best = i; }
+  }
+  if (best >= 0) {
+    degreyState.colors[best] = (degreyState.colors[best] + 1) % (degreyState.maxColors + 1);
+    renderDegrey();
+  }
+});
+
+function renderDegrey() {
+  const ctx = degreyCtx;
+  const W = degreyCanvas.width;
+  const H = degreyCanvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const { graph, colors } = degreyState;
+  const verts = graph.vertices;
+
+  // Layout
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const v of verts) {
+    if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+    if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y;
+  }
+  const pad = 50;
+  const scale = Math.min((W - 2 * pad) / (maxX - minX), (H - 2 * pad) / (maxY - minY));
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  function px(x) { return W / 2 + (x - cx) * scale; }
+  function py(y) { return H / 2 - (y - cy) * scale; }
+
+  const vertexPx = verts.map(v => ({ x: px(v.x), y: py(v.y), label: v.label }));
+  degreyState.vertexPx = vertexPx;
+
+  // Edges
+  const conflicts = new Set();
+  let conflictCount = 0;
+  for (const [a, b] of graph.edges) {
+    const ca = colors[a], cb = colors[b];
+    let color = '#ccc', lw = 1;
+    if (ca !== 0 && cb !== 0) {
+      if (ca === cb) {
+        color = '#e63946'; lw = 2.4;
+        conflicts.add(a); conflicts.add(b);
+        conflictCount++;
+      } else {
+        color = '#aaa'; lw = 1;
+      }
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(vertexPx[a].x, vertexPx[a].y);
+    ctx.lineTo(vertexPx[b].x, vertexPx[b].y);
+    ctx.stroke();
+  }
+
+  // Vertices
+  const r = 11;
+  for (let i = 0; i < verts.length; i++) {
+    const v = vertexPx[i];
+    const c = colors[i];
+    ctx.lineWidth = conflicts.has(i) ? 2.4 : 1;
+    ctx.strokeStyle = conflicts.has(i) ? '#e63946' : '#111';
+    ctx.fillStyle = c === 0 ? '#fff' : PALETTE[c - 1];
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // Highlight centre vertex A with a slightly bigger ring
+  const A = vertexPx[0];
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(A.x, A.y, r + 4, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Stats
+  const coloredCount = colors.filter(c => c !== 0).length;
+  const usedColors = new Set(colors.filter(c => c !== 0)).size;
+  dgStatsEl.innerHTML = `
+    <div class="stat-row"><span class="k">vertices</span><span class="v">${verts.length}</span></div>
+    <div class="stat-row"><span class="k">edges</span><span class="v">${graph.edges.length}</span></div>
+    <div class="stat-row"><span class="k">coloured</span><span class="v">${coloredCount} / ${verts.length}</span></div>
+    <div class="stat-row"><span class="k">distinct colours used</span><span class="v">${usedColors}</span></div>
+    <div class="stat-row"><span class="k">conflict edges</span><span class="v ${conflictCount > 0 ? 'fail' : ''}">${conflictCount}</span></div>
+  `;
+
+  let verdict, cls;
+  if (coloredCount === 0) {
+    verdict = `${verts.length} vertices, ${graph.edges.length} edges · pick a palette and start clicking`;
+    cls = 'partial';
+  } else if (coloredCount < verts.length) {
+    verdict = `${verts.length - coloredCount} vertices left`;
+    cls = 'partial';
+  } else if (conflictCount > 0) {
+    verdict = `${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — try again or hit reveal`;
+    cls = 'fail';
+  } else {
+    verdict = `valid ${usedColors}-colouring of a ${verts.length}-vertex unit-distance graph`;
+    cls = 'win';
+  }
+  dgVerdictEl.textContent = verdict;
+  dgVerdictEl.className = 'verdict ' + cls;
+}
+
+buildDgMaxColorsRow();
+buildDgSwatchRow();
+renderDegrey();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'degrey') renderDegrey();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Play: procedural unit-distance graph puzzles
+// ─────────────────────────────────────────────────────────────────────
+// Generate a random unit-distance graph by:
+//   1. Seeding with an anchor structure whose chromatic number forces
+//      the target (triangle → χ=3, Moser spindle → χ=4).
+//   2. Growing by repeated equilateral-triangle completions on random
+//      existing edges. Each new vertex lies at the apex of an equilateral
+//      triangle on one of the existing unit-distance edges, automatically
+//      adding two unit-distance edges to it, plus any extra edges where
+//      the new vertex happens to be at unit distance from another vertex.
+//   3. Verifying χ via the backtracking solver: find the smallest k
+//      with a valid k-colouring. Reject and regenerate if it doesn't
+//      match the target.
+// This keeps the colour target honest — the puzzle is guaranteed to
+// need exactly that many colours, no more and no fewer.
+
+function genUnitDistanceGraph(targetChi, targetSize) {
+  const TOL = 1e-6;
+  let vertices, edges;
+
+  if (targetChi === 3) {
+    // Equilateral triangle: χ = 3, edges all unit
+    vertices = [
+      { x: 0,   y: 0 },
+      { x: 1,   y: 0 },
+      { x: 0.5, y: SQRT3 / 2 },
+    ];
+    edges = [[0, 1], [1, 2], [0, 2]];
+  } else {
+    // Moser spindle: χ = 4
+    vertices = SPINDLE.vertices.map(v => ({ x: v.x, y: v.y }));
+    edges = SPINDLE.edges.map(e => [e[0], e[1]]);
+  }
+
+  // Grow by equilateral-triangle completion on random edges
+  let attempts = 0;
+  while (vertices.length < targetSize && attempts++ < targetSize * 30) {
+    if (edges.length === 0) break;
+    const [a, b] = edges[Math.floor(Math.random() * edges.length)];
+    const A = vertices[a], B = vertices[b];
+    // Two equilateral-triangle apexes on the perpendicular bisector of AB
+    const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+    const dx = B.x - A.x, dy = B.y - A.y;
+    const perpX = -dy * SQRT3 / 2;
+    const perpY =  dx * SQRT3 / 2;
+    const cand = Math.random() < 0.5
+      ? { x: mx + perpX, y: my + perpY }
+      : { x: mx - perpX, y: my - perpY };
+    // Skip if this point coincides with an existing vertex
+    let dupe = false;
+    for (const v of vertices) {
+      const ddx = v.x - cand.x, ddy = v.y - cand.y;
+      if (ddx * ddx + ddy * ddy < TOL) { dupe = true; break; }
+    }
+    if (dupe) continue;
+    // Accept the new vertex and find all unit-distance edges to it
+    vertices.push(cand);
+    const nIdx = vertices.length - 1;
+    for (let i = 0; i < nIdx; i++) {
+      const ddx = vertices[i].x - cand.x;
+      const ddy = vertices[i].y - cand.y;
+      if (Math.abs(ddx * ddx + ddy * ddy - 1) < TOL) edges.push([i, nIdx]);
+    }
+  }
+  return { vertices, edges };
+}
+
+function computeChi(graph) {
+  for (let k = 1; k <= 5; k++) {
+    if (solveColoring(graph, k)) return k;
+  }
+  return null;
+}
+
+const playCanvas = document.getElementById('play-canvas');
+const playCtx = playCanvas.getContext('2d');
+const playDifficultyRow = document.getElementById('play-difficulty-row');
+const playSwatchRow = document.getElementById('play-swatch-row');
+const playStatsEl = document.getElementById('play-stats');
+const playVerdictEl = document.getElementById('play-verdict');
+
+let playState = {
+  difficulty: 4,        // current target χ
+  graph: null,
+  colors: null,
+  chromaticNumber: null,
+  vertexPx: null,
+};
+
+function buildPlayDifficultyRow() {
+  playDifficultyRow.innerHTML = '';
+  for (const n of [3, 4]) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (n === playState.difficulty ? ' active' : '');
+    b.dataset.n = n;
+    b.textContent = n + ' colours';
+    b.addEventListener('click', () => {
+      playState.difficulty = n;
+      playDifficultyRow.querySelectorAll('.btn').forEach(x =>
+        x.classList.toggle('active', parseInt(x.dataset.n, 10) === n)
+      );
+      generateNewPuzzle();
+    });
+    playDifficultyRow.appendChild(b);
+  }
+}
+
+function buildPlaySwatchRow() {
+  playSwatchRow.innerHTML = '';
+  const k = playState.chromaticNumber || playState.difficulty;
+  for (let i = 1; i <= 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'swatch';
+    s.style.background = PALETTE[i - 1];
+    s.dataset.disabled = i > k;
+    const lbl = document.createElement('span');
+    lbl.className = 'swatch-label';
+    lbl.textContent = i;
+    s.appendChild(lbl);
+    playSwatchRow.appendChild(s);
+  }
+}
+
+function generateNewPuzzle() {
+  const target = playState.difficulty;
+  const sizeRange = target === 3 ? [10, 16] : [12, 22];
+  let best = null;
+  // Try up to 30 generations; pick the first whose χ matches target.
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const targetSize = sizeRange[0] + Math.floor(Math.random() * (sizeRange[1] - sizeRange[0] + 1));
+    const g = genUnitDistanceGraph(target, targetSize);
+    if (g.vertices.length < sizeRange[0]) continue;
+    const chi = computeChi(g);
+    if (chi === target) {
+      best = { graph: g, chi };
+      break;
+    }
+    // Keep a backup in case nothing hits exactly
+    if (!best && chi !== null) best = { graph: g, chi };
+  }
+  if (!best) {
+    // Last-resort fallback
+    const g = genUnitDistanceGraph(target, sizeRange[0]);
+    best = { graph: g, chi: computeChi(g) || target };
+  }
+  playState.graph = best.graph;
+  playState.colors = new Array(best.graph.vertices.length).fill(0);
+  playState.chromaticNumber = best.chi;
+  buildPlaySwatchRow();
+  renderPlay();
+}
+
+document.getElementById('play-new-btn').addEventListener('click', generateNewPuzzle);
+document.getElementById('play-reveal-btn').addEventListener('click', () => {
+  if (!playState.graph) return;
+  const sol = solveColoring(playState.graph, playState.chromaticNumber);
+  if (sol) {
+    playState.colors = sol;
+    renderPlay();
+  }
+});
+document.getElementById('play-clear-btn').addEventListener('click', () => {
+  if (!playState.graph) return;
+  playState.colors = new Array(playState.graph.vertices.length).fill(0);
+  renderPlay();
+});
+
+playCanvas.addEventListener('click', e => {
+  if (!playState.vertexPx) return;
+  const rect = playCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (playCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (playCanvas.height / rect.height);
+  let best = -1, bestD = 22 * 22;
+  for (let i = 0; i < playState.vertexPx.length; i++) {
+    const v = playState.vertexPx[i];
+    const d2 = (v.x - x) * (v.x - x) + (v.y - y) * (v.y - y);
+    if (d2 < bestD) { bestD = d2; best = i; }
+  }
+  if (best >= 0) {
+    const k = playState.chromaticNumber;
+    playState.colors[best] = (playState.colors[best] + 1) % (k + 1);
+    renderPlay();
+  }
+});
+
+function renderPlay() {
+  if (!playState.graph) { generateNewPuzzle(); return; }
+  const ctx = playCtx;
+  const W = playCanvas.width;
+  const H = playCanvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const { graph, colors, chromaticNumber } = playState;
+  const verts = graph.vertices;
+  if (verts.length === 0) return;
+
+  // Layout
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const v of verts) {
+    if (v.x < minX) minX = v.x; if (v.x > maxX) maxX = v.x;
+    if (v.y < minY) minY = v.y; if (v.y > maxY) maxY = v.y;
+  }
+  const pad = 60;
+  const spanX = maxX - minX || 1;
+  const spanY = maxY - minY || 1;
+  const scale = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  function px(x) { return W / 2 + (x - cx) * scale; }
+  function py(y) { return H / 2 - (y - cy) * scale; }
+
+  const vertexPx = verts.map(v => ({ x: px(v.x), y: py(v.y) }));
+  playState.vertexPx = vertexPx;
+
+  // Edges
+  const conflicts = new Set();
+  let conflictCount = 0;
+  for (const [a, b] of graph.edges) {
+    const ca = colors[a], cb = colors[b];
+    let color = '#ccc', lw = 1.3;
+    if (ca !== 0 && cb !== 0) {
+      if (ca === cb) {
+        color = '#e63946'; lw = 2.6;
+        conflicts.add(a); conflicts.add(b);
+        conflictCount++;
+      } else {
+        color = '#999'; lw = 1.3;
+      }
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(vertexPx[a].x, vertexPx[a].y);
+    ctx.lineTo(vertexPx[b].x, vertexPx[b].y);
+    ctx.stroke();
+  }
+
+  // Vertices
+  const r = Math.min(16, Math.max(10, 200 / Math.sqrt(verts.length)));
+  for (let i = 0; i < verts.length; i++) {
+    const v = vertexPx[i];
+    const c = colors[i];
+    ctx.lineWidth = conflicts.has(i) ? 2.6 : 1.2;
+    ctx.strokeStyle = conflicts.has(i) ? '#e63946' : '#111';
+    ctx.fillStyle = c === 0 ? '#fff' : PALETTE[c - 1];
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Stats
+  const coloredCount = colors.filter(c => c !== 0).length;
+  const usedColors = new Set(colors.filter(c => c !== 0)).size;
+  playStatsEl.innerHTML = `
+    <div class="stat-row"><span class="k">vertices</span><span class="v">${verts.length}</span></div>
+    <div class="stat-row"><span class="k">edges</span><span class="v">${graph.edges.length}</span></div>
+    <div class="stat-row"><span class="k">target · χ(G)</span><span class="v hot">${chromaticNumber}</span></div>
+    <div class="stat-row"><span class="k">coloured</span><span class="v">${coloredCount} / ${verts.length}</span></div>
+    <div class="stat-row"><span class="k">colours used</span><span class="v">${usedColors}</span></div>
+    <div class="stat-row"><span class="k">conflict edges</span><span class="v ${conflictCount > 0 ? 'fail' : ''}">${conflictCount}</span></div>
+  `;
+
+  let verdict, cls;
+  if (coloredCount === 0) {
+    verdict = `colour all ${verts.length} vertices using ${chromaticNumber} colours · no conflicting edges`;
+    cls = 'partial';
+  } else if (coloredCount < verts.length) {
+    verdict = `${verts.length - coloredCount} left`;
+    cls = 'partial';
+  } else if (conflictCount > 0) {
+    verdict = `${conflictCount} conflict${conflictCount === 1 ? '' : 's'} — try again`;
+    cls = 'fail';
+  } else if (usedColors > chromaticNumber) {
+    verdict = `valid, but using more colours than needed`;
+    cls = 'partial';
+  } else {
+    verdict = `solved · χ(G) = ${chromaticNumber}`;
+    cls = 'win';
+  }
+  playVerdictEl.textContent = verdict;
+  playVerdictEl.className = 'verdict ' + cls;
+}
+
+buildPlayDifficultyRow();
+buildPlaySwatchRow();
+// Don't auto-generate at module load; do it lazily on first render to
+// keep the initial page-load cost down (the solver can take ~100ms).
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'play') renderPlay();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Tiling: Isbell-style 7-colour hexagonal tiling
+// ─────────────────────────────────────────────────────────────────────
+const tilingCanvas = document.getElementById('tiling-canvas');
+const tilingCtx = tilingCanvas.getContext('2d');
+const hexSlider = document.getElementById('hex-slider');
+const hexVal = document.getElementById('hex-val');
+const tilingStatsEl = document.getElementById('tiling-stats');
+const circleToggleBtn = document.getElementById('circle-toggle');
+
+let tilingState = {
+  hexS: 0.42,      // hex side length (in world units, unit = 1)
+  showCircle: true,
+  circleC: { x: 0, y: 0 },  // world-coord centre of the unit circle
+};
+
+hexSlider.addEventListener('input', e => {
+  tilingState.hexS = parseFloat(e.target.value);
+  hexVal.textContent = tilingState.hexS.toFixed(2);
+  renderTiling();
+});
+circleToggleBtn.addEventListener('click', () => {
+  tilingState.showCircle = !tilingState.showCircle;
+  circleToggleBtn.classList.toggle('active', tilingState.showCircle);
+  renderTiling();
+});
+tilingCanvas.addEventListener('mousemove', e => {
+  if (!tilingState.showCircle) return;
+  const rect = tilingCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (tilingCanvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (tilingCanvas.height / rect.height);
+  const w = worldFromCanvas(x, y);
+  tilingState.circleC = w;
+  renderTiling();
+});
+
+// World <-> canvas. World units are such that 1 = unit distance for the problem.
+// We scale the canvas so a chosen "world-width" fits.
+function tilingScale() {
+  return tilingCanvas.width / 10;  // 10 unit distances wide
+}
+function canvasFromWorld(wx, wy) {
+  const s = tilingScale();
+  return {
+    x: tilingCanvas.width / 2 + wx * s,
+    y: tilingCanvas.height / 2 - wy * s,
+  };
+}
+function worldFromCanvas(cx, cy) {
+  const s = tilingScale();
+  return {
+    x: (cx - tilingCanvas.width / 2) / s,
+    y: (tilingCanvas.height / 2 - cy) / s,
+  };
+}
+
+/** Flat-top hexagon: centre (cx, cy), side s.
+ *  Centres in axial coordinates (q, r) map to:
+ *    x = 1.5 · s · q
+ *    y = √3 · s · (r + q/2)
+ */
+function hexCenter(q, r, s) {
+  return {
+    x: 1.5 * s * q,
+    y: SQRT3 * s * (r + q / 2),
+  };
+}
+
+/** Isbell-style 7-colour function on axial coordinates.
+ *  This is the standard "(q + 3r) mod 7" pattern. Same-colour hexes form a
+ *  sublattice generated by (3, 1) and (1, -2) in axial coords, which keeps
+ *  same-colour centres at distance ≥ √7 · s · √3 ≈ 4.58s apart. With s in
+ *  the legal range (1/√21, 1/2), this exceeds 1 + 2s (= centre-distance
+ *  needed to keep all points more than 1 apart).
+ */
+function hexColor(q, r) {
+  return ((q + 3 * r) % 7 + 7) % 7;
+}
+
+function renderTiling() {
+  const ctx = tilingCtx;
+  const W = tilingCanvas.width;
+  const H = tilingCanvas.height;
+  const s = tilingState.hexS;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  // Render hex grid. Iterate q, r over a range big enough to cover the canvas.
+  const sc = tilingScale();
+  const halfW = W / 2 / sc;  // world half-width
+  const halfH = H / 2 / sc;
+  const qRange = Math.ceil(halfW / (1.5 * s)) + 2;
+  const rRange = Math.ceil(halfH / (SQRT3 * s)) + 2 + Math.ceil(qRange / 2);
+  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  for (let q = -qRange; q <= qRange; q++) {
+    for (let r = -rRange; r <= rRange; r++) {
+      const c = hexCenter(q, r, s);
+      if (Math.abs(c.x) > halfW + 1.2 * s) continue;
+      if (Math.abs(c.y) > halfH + 1.2 * s) continue;
+      const cp = canvasFromWorld(c.x, c.y);
+      // Hex path (flat-top): vertices at angles 0, 60, 120, ...
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const ang = Math.PI / 3 * k;
+        const hx = cp.x + s * sc * Math.cos(ang);
+        const hy = cp.y + s * sc * Math.sin(ang);
+        if (k === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+      }
+      ctx.closePath();
+      const col = hexColor(q, r);
+      ctx.fillStyle = PALETTE[col];
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  }
+
+  // Unit-distance circle overlay
+  if (tilingState.showCircle) {
+    const w = tilingState.circleC;
+    const cp = canvasFromWorld(w.x, w.y);
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, 1.0 * sc, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Centre dot
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Stats
+  const hexDiameter = 2 * s;
+  const sameColorDistance = Math.sqrt(7) * SQRT3 * s;
+  const inRange = s > 1 / Math.sqrt(21) && s < 0.5;
+  tilingStatsEl.innerHTML = `
+    <div class="stat-row"><span class="k">hex side · s</span><span class="v">${s.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">hex diameter · 2s</span><span class="v ${hexDiameter < 1 ? 'win' : 'fail'}">${hexDiameter.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">same-colour centre dist</span><span class="v ${sameColorDistance > 1 ? 'win' : 'fail'}">${sameColorDistance.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">valid 7-colouring?</span><span class="v ${inRange ? 'win' : 'fail'}">${inRange ? 'yes' : 'no'}</span></div>
+  `;
+}
+
+renderTiling();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'tiling') renderTiling();
+});
+</script>
+</body>
+</html>

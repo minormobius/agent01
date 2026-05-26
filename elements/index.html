@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>elements — periodic mandala</title>
+<meta name="description" content="The 118 elements arranged as a mandala: concentric rings for electron shells, angular sectors for orbital blocks in fill order (s, f, d, p), so going clockwise follows atomic number. Click any element to open its Wikipedia page.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #3d4a72;
+  --accent-faint: rgba(61, 74, 114, 0.10);
+  --canvas-bg: #fafafa;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* Block backgrounds (very faint, behind nodes) */
+  --s-tint: rgba(255, 209, 102, 0.18);
+  --p-tint: rgba(116, 158, 220, 0.18);
+  --d-tint: rgba(106, 191, 111, 0.18);
+  --f-tint: rgba(168, 122, 214, 0.18);
+  /* Category colours for element nodes */
+  --c-alkali:        #ef6f6f;
+  --c-alkaline:      #efb56f;
+  --c-transition:    #6b9ed4;
+  --c-post:          #9aa6b3;
+  --c-metalloid:     #73c187;
+  --c-nonmetal:      #ddca6e;
+  --c-halogen:       #a8d96b;
+  --c-noble:         #c787d4;
+  --c-lanthanide:    #e6a8a8;
+  --c-actinide:      #d870a8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #8fa3d8;
+    --accent-faint: rgba(143, 163, 216, 0.12);
+    --canvas-bg: #f5f1e8;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.intro {
+  font-size: 1rem;
+  color: var(--muted);
+  max-width: 60ch;
+  margin: 1.2rem 0 0;
+}
+
+.mandala-wrap {
+  position: relative;
+  margin: 2rem auto;
+  width: 100%;
+  max-width: 720px;
+}
+canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  cursor: default;
+}
+
+.tip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15, 15, 15, 0.94);
+  color: #eee;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: none;
+  z-index: 5;
+  max-width: 240px;
+  line-height: 1.45;
+}
+
+.view-toggle {
+  display: flex;
+  margin: 0.5rem auto 1rem;
+  width: fit-content;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.view-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  font: inherit;
+}
+.view-btn + .view-btn { border-left: 1px solid var(--rule); }
+.view-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.view-btn:not(.active):hover {
+  background: var(--accent-faint);
+  color: var(--accent);
+}
+.tip .tip-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.15rem;
+}
+.tip .tip-meta {
+  color: #aaa;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tip .tip-config {
+  margin-top: 0.4rem;
+  color: #ccc;
+}
+.tip .tip-link {
+  margin-top: 0.4rem;
+  color: #9bb1d8;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.4rem 1.4rem;
+  margin-top: 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+.legend-item { display: flex; align-items: center; gap: 0.4rem; }
+.legend-swatch {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>elements</h1>
+  <p class="subtitle">118 elements as electron shells</p>
+  <p class="intro">
+    Concentric rings are electron shells (period 1 to 7, inner to outer). Angular sectors
+    are orbital blocks in fill order — s, f, d, p — sized to their capacities of 2, 14, 10,
+    and 6 electrons, so going clockwise around any ring follows atomic number. Hover for
+    details, click to open Wikipedia.
+  </p>
+  <p class="intro" id="intro-chemistry" style="display:none">
+    <strong>Chemistry view.</strong> Nobles rotated straight up. Helium joins them at the
+    centre by closed-shell logic. Hydrogen straddles both columns adjacent to the nobles —
+    alkali on one side, halogen on the other — making its perennial dual citizenship visible.
+    Period 1 is drawn as a tight inner ring so the H/He/H trio reads as a single small motif.
+  </p>
+</header>
+
+<div class="view-toggle" role="group" aria-label="View mode">
+  <button class="view-btn active" data-view="fill" type="button">fill order</button>
+  <button class="view-btn" data-view="chemistry" type="button">chemistry</button>
+</div>
+
+<div class="mandala-wrap">
+  <canvas id="mandala" width="720" height="720"></canvas>
+  <div class="tip" id="tip"></div>
+</div>
+
+<div class="legend" id="legend">
+  <!-- Filled in by JS -->
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://en.wikipedia.org/wiki/Periodic_table">wikipedia · periodic table</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Element data: 118 entries.
+// Fields:
+//   z = atomic number
+//   s = symbol
+//   n = name
+//   p = period (1..7)
+//   b = block ('s' | 'p' | 'd' | 'f')
+//   i = position within block (1-indexed)
+//   c = category key (used for colour + tooltip)
+// La and Ac kept in f-block (positions 1..14 for La-Yb / Ac-No);
+// Lu and Lr live in d-block at position 1 (chemists' convention).
+// ─────────────────────────────────────────────────────────────────────
+const ELEMENTS = [
+  // Period 1
+  { z:1,   s:'H',  n:'Hydrogen',     p:1, b:'s', i:1, c:'nonmetal' },
+  { z:2,   s:'He', n:'Helium',       p:1, b:'s', i:2, c:'noble' },
+  // Period 2
+  { z:3,   s:'Li', n:'Lithium',      p:2, b:'s', i:1, c:'alkali' },
+  { z:4,   s:'Be', n:'Beryllium',    p:2, b:'s', i:2, c:'alkaline' },
+  { z:5,   s:'B',  n:'Boron',        p:2, b:'p', i:1, c:'metalloid' },
+  { z:6,   s:'C',  n:'Carbon',       p:2, b:'p', i:2, c:'nonmetal' },
+  { z:7,   s:'N',  n:'Nitrogen',     p:2, b:'p', i:3, c:'nonmetal' },
+  { z:8,   s:'O',  n:'Oxygen',       p:2, b:'p', i:4, c:'nonmetal' },
+  { z:9,   s:'F',  n:'Fluorine',     p:2, b:'p', i:5, c:'halogen' },
+  { z:10,  s:'Ne', n:'Neon',         p:2, b:'p', i:6, c:'noble' },
+  // Period 3
+  { z:11,  s:'Na', n:'Sodium',       p:3, b:'s', i:1, c:'alkali' },
+  { z:12,  s:'Mg', n:'Magnesium',    p:3, b:'s', i:2, c:'alkaline' },
+  { z:13,  s:'Al', n:'Aluminium',    p:3, b:'p', i:1, c:'post' },
+  { z:14,  s:'Si', n:'Silicon',      p:3, b:'p', i:2, c:'metalloid' },
+  { z:15,  s:'P',  n:'Phosphorus',   p:3, b:'p', i:3, c:'nonmetal' },
+  { z:16,  s:'S',  n:'Sulfur',       p:3, b:'p', i:4, c:'nonmetal' },
+  { z:17,  s:'Cl', n:'Chlorine',     p:3, b:'p', i:5, c:'halogen' },
+  { z:18,  s:'Ar', n:'Argon',        p:3, b:'p', i:6, c:'noble' },
+  // Period 4
+  { z:19,  s:'K',  n:'Potassium',    p:4, b:'s', i:1, c:'alkali' },
+  { z:20,  s:'Ca', n:'Calcium',      p:4, b:'s', i:2, c:'alkaline' },
+  { z:21,  s:'Sc', n:'Scandium',     p:4, b:'d', i:1, c:'transition' },
+  { z:22,  s:'Ti', n:'Titanium',     p:4, b:'d', i:2, c:'transition' },
+  { z:23,  s:'V',  n:'Vanadium',     p:4, b:'d', i:3, c:'transition' },
+  { z:24,  s:'Cr', n:'Chromium',     p:4, b:'d', i:4, c:'transition' },
+  { z:25,  s:'Mn', n:'Manganese',    p:4, b:'d', i:5, c:'transition' },
+  { z:26,  s:'Fe', n:'Iron',         p:4, b:'d', i:6, c:'transition' },
+  { z:27,  s:'Co', n:'Cobalt',       p:4, b:'d', i:7, c:'transition' },
+  { z:28,  s:'Ni', n:'Nickel',       p:4, b:'d', i:8, c:'transition' },
+  { z:29,  s:'Cu', n:'Copper',       p:4, b:'d', i:9, c:'transition' },
+  { z:30,  s:'Zn', n:'Zinc',         p:4, b:'d', i:10, c:'transition' },
+  { z:31,  s:'Ga', n:'Gallium',      p:4, b:'p', i:1, c:'post' },
+  { z:32,  s:'Ge', n:'Germanium',    p:4, b:'p', i:2, c:'metalloid' },
+  { z:33,  s:'As', n:'Arsenic',      p:4, b:'p', i:3, c:'metalloid' },
+  { z:34,  s:'Se', n:'Selenium',     p:4, b:'p', i:4, c:'nonmetal' },
+  { z:35,  s:'Br', n:'Bromine',      p:4, b:'p', i:5, c:'halogen' },
+  { z:36,  s:'Kr', n:'Krypton',      p:4, b:'p', i:6, c:'noble' },
+  // Period 5
+  { z:37,  s:'Rb', n:'Rubidium',     p:5, b:'s', i:1, c:'alkali' },
+  { z:38,  s:'Sr', n:'Strontium',    p:5, b:'s', i:2, c:'alkaline' },
+  { z:39,  s:'Y',  n:'Yttrium',      p:5, b:'d', i:1, c:'transition' },
+  { z:40,  s:'Zr', n:'Zirconium',    p:5, b:'d', i:2, c:'transition' },
+  { z:41,  s:'Nb', n:'Niobium',      p:5, b:'d', i:3, c:'transition' },
+  { z:42,  s:'Mo', n:'Molybdenum',   p:5, b:'d', i:4, c:'transition' },
+  { z:43,  s:'Tc', n:'Technetium',   p:5, b:'d', i:5, c:'transition' },
+  { z:44,  s:'Ru', n:'Ruthenium',    p:5, b:'d', i:6, c:'transition' },
+  { z:45,  s:'Rh', n:'Rhodium',      p:5, b:'d', i:7, c:'transition' },
+  { z:46,  s:'Pd', n:'Palladium',    p:5, b:'d', i:8, c:'transition' },
+  { z:47,  s:'Ag', n:'Silver',       p:5, b:'d', i:9, c:'transition' },
+  { z:48,  s:'Cd', n:'Cadmium',      p:5, b:'d', i:10, c:'transition' },
+  { z:49,  s:'In', n:'Indium',       p:5, b:'p', i:1, c:'post' },
+  { z:50,  s:'Sn', n:'Tin',          p:5, b:'p', i:2, c:'post' },
+  { z:51,  s:'Sb', n:'Antimony',     p:5, b:'p', i:3, c:'metalloid' },
+  { z:52,  s:'Te', n:'Tellurium',    p:5, b:'p', i:4, c:'metalloid' },
+  { z:53,  s:'I',  n:'Iodine',       p:5, b:'p', i:5, c:'halogen' },
+  { z:54,  s:'Xe', n:'Xenon',        p:5, b:'p', i:6, c:'noble' },
+  // Period 6
+  { z:55,  s:'Cs', n:'Caesium',      p:6, b:'s', i:1, c:'alkali' },
+  { z:56,  s:'Ba', n:'Barium',       p:6, b:'s', i:2, c:'alkaline' },
+  { z:57,  s:'La', n:'Lanthanum',    p:6, b:'f', i:1, c:'lanthanide' },
+  { z:58,  s:'Ce', n:'Cerium',       p:6, b:'f', i:2, c:'lanthanide' },
+  { z:59,  s:'Pr', n:'Praseodymium', p:6, b:'f', i:3, c:'lanthanide' },
+  { z:60,  s:'Nd', n:'Neodymium',    p:6, b:'f', i:4, c:'lanthanide' },
+  { z:61,  s:'Pm', n:'Promethium',   p:6, b:'f', i:5, c:'lanthanide' },
+  { z:62,  s:'Sm', n:'Samarium',     p:6, b:'f', i:6, c:'lanthanide' },
+  { z:63,  s:'Eu', n:'Europium',     p:6, b:'f', i:7, c:'lanthanide' },
+  { z:64,  s:'Gd', n:'Gadolinium',   p:6, b:'f', i:8, c:'lanthanide' },
+  { z:65,  s:'Tb', n:'Terbium',      p:6, b:'f', i:9, c:'lanthanide' },
+  { z:66,  s:'Dy', n:'Dysprosium',   p:6, b:'f', i:10, c:'lanthanide' },
+  { z:67,  s:'Ho', n:'Holmium',      p:6, b:'f', i:11, c:'lanthanide' },
+  { z:68,  s:'Er', n:'Erbium',       p:6, b:'f', i:12, c:'lanthanide' },
+  { z:69,  s:'Tm', n:'Thulium',      p:6, b:'f', i:13, c:'lanthanide' },
+  { z:70,  s:'Yb', n:'Ytterbium',    p:6, b:'f', i:14, c:'lanthanide' },
+  { z:71,  s:'Lu', n:'Lutetium',     p:6, b:'d', i:1, c:'lanthanide' },
+  { z:72,  s:'Hf', n:'Hafnium',      p:6, b:'d', i:2, c:'transition' },
+  { z:73,  s:'Ta', n:'Tantalum',     p:6, b:'d', i:3, c:'transition' },
+  { z:74,  s:'W',  n:'Tungsten',     p:6, b:'d', i:4, c:'transition' },
+  { z:75,  s:'Re', n:'Rhenium',      p:6, b:'d', i:5, c:'transition' },
+  { z:76,  s:'Os', n:'Osmium',       p:6, b:'d', i:6, c:'transition' },
+  { z:77,  s:'Ir', n:'Iridium',      p:6, b:'d', i:7, c:'transition' },
+  { z:78,  s:'Pt', n:'Platinum',     p:6, b:'d', i:8, c:'transition' },
+  { z:79,  s:'Au', n:'Gold',         p:6, b:'d', i:9, c:'transition' },
+  { z:80,  s:'Hg', n:'Mercury',      p:6, b:'d', i:10, c:'transition' },
+  { z:81,  s:'Tl', n:'Thallium',     p:6, b:'p', i:1, c:'post' },
+  { z:82,  s:'Pb', n:'Lead',         p:6, b:'p', i:2, c:'post' },
+  { z:83,  s:'Bi', n:'Bismuth',      p:6, b:'p', i:3, c:'post' },
+  { z:84,  s:'Po', n:'Polonium',     p:6, b:'p', i:4, c:'post' },
+  { z:85,  s:'At', n:'Astatine',     p:6, b:'p', i:5, c:'halogen' },
+  { z:86,  s:'Rn', n:'Radon',        p:6, b:'p', i:6, c:'noble' },
+  // Period 7
+  { z:87,  s:'Fr', n:'Francium',     p:7, b:'s', i:1, c:'alkali' },
+  { z:88,  s:'Ra', n:'Radium',       p:7, b:'s', i:2, c:'alkaline' },
+  { z:89,  s:'Ac', n:'Actinium',     p:7, b:'f', i:1, c:'actinide' },
+  { z:90,  s:'Th', n:'Thorium',      p:7, b:'f', i:2, c:'actinide' },
+  { z:91,  s:'Pa', n:'Protactinium', p:7, b:'f', i:3, c:'actinide' },
+  { z:92,  s:'U',  n:'Uranium',      p:7, b:'f', i:4, c:'actinide' },
+  { z:93,  s:'Np', n:'Neptunium',    p:7, b:'f', i:5, c:'actinide' },
+  { z:94,  s:'Pu', n:'Plutonium',    p:7, b:'f', i:6, c:'actinide' },
+  { z:95,  s:'Am', n:'Americium',    p:7, b:'f', i:7, c:'actinide' },
+  { z:96,  s:'Cm', n:'Curium',       p:7, b:'f', i:8, c:'actinide' },
+  { z:97,  s:'Bk', n:'Berkelium',    p:7, b:'f', i:9, c:'actinide' },
+  { z:98,  s:'Cf', n:'Californium',  p:7, b:'f', i:10, c:'actinide' },
+  { z:99,  s:'Es', n:'Einsteinium',  p:7, b:'f', i:11, c:'actinide' },
+  { z:100, s:'Fm', n:'Fermium',      p:7, b:'f', i:12, c:'actinide' },
+  { z:101, s:'Md', n:'Mendelevium',  p:7, b:'f', i:13, c:'actinide' },
+  { z:102, s:'No', n:'Nobelium',     p:7, b:'f', i:14, c:'actinide' },
+  { z:103, s:'Lr', n:'Lawrencium',   p:7, b:'d', i:1, c:'actinide' },
+  { z:104, s:'Rf', n:'Rutherfordium', p:7, b:'d', i:2, c:'transition' },
+  { z:105, s:'Db', n:'Dubnium',      p:7, b:'d', i:3, c:'transition' },
+  { z:106, s:'Sg', n:'Seaborgium',   p:7, b:'d', i:4, c:'transition' },
+  { z:107, s:'Bh', n:'Bohrium',      p:7, b:'d', i:5, c:'transition' },
+  { z:108, s:'Hs', n:'Hassium',      p:7, b:'d', i:6, c:'transition' },
+  { z:109, s:'Mt', n:'Meitnerium',   p:7, b:'d', i:7, c:'transition' },
+  { z:110, s:'Ds', n:'Darmstadtium', p:7, b:'d', i:8, c:'transition' },
+  { z:111, s:'Rg', n:'Roentgenium',  p:7, b:'d', i:9, c:'transition' },
+  { z:112, s:'Cn', n:'Copernicium',  p:7, b:'d', i:10, c:'transition' },
+  { z:113, s:'Nh', n:'Nihonium',     p:7, b:'p', i:1, c:'post' },
+  { z:114, s:'Fl', n:'Flerovium',    p:7, b:'p', i:2, c:'post' },
+  { z:115, s:'Mc', n:'Moscovium',    p:7, b:'p', i:3, c:'post' },
+  { z:116, s:'Lv', n:'Livermorium',  p:7, b:'p', i:4, c:'post' },
+  { z:117, s:'Ts', n:'Tennessine',   p:7, b:'p', i:5, c:'halogen' },
+  { z:118, s:'Og', n:'Oganesson',    p:7, b:'p', i:6, c:'noble' },
+];
+
+const CATEGORIES = {
+  alkali:      { label: 'alkali metal',          cssVar: '--c-alkali' },
+  alkaline:    { label: 'alkaline earth',        cssVar: '--c-alkaline' },
+  transition:  { label: 'transition metal',      cssVar: '--c-transition' },
+  post:        { label: 'post-transition',       cssVar: '--c-post' },
+  metalloid:   { label: 'metalloid',             cssVar: '--c-metalloid' },
+  nonmetal:    { label: 'reactive nonmetal',     cssVar: '--c-nonmetal' },
+  halogen:     { label: 'halogen',               cssVar: '--c-halogen' },
+  noble:       { label: 'noble gas',             cssVar: '--c-noble' },
+  lanthanide:  { label: 'lanthanide',            cssVar: '--c-lanthanide' },
+  actinide:    { label: 'actinide',              cssVar: '--c-actinide' },
+};
+
+const BLOCK_INFO = {
+  s: { capacity: 2,  tint: '--s-tint' },
+  p: { capacity: 6,  tint: '--p-tint' },
+  d: { capacity: 10, tint: '--d-tint' },
+  f: { capacity: 14, tint: '--f-tint' },
+};
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Angular layout: each "slot" gets 360°/32 = 11.25°, since the fullest
+// periods have 32 elements. Blocks occupy consecutive arcs.
+const TOTAL_SLOTS = 32;
+const SLOT_DEG = 360 / TOTAL_SLOTS;
+// Block start positions in slot units, going clockwise from 12 o'clock.
+// Order is s → f → d → p — the order electrons actually fill across a
+// period (Cs Ba → lanthanides → Hf..Hg → Tl..Rn), so going around any
+// ring follows atomic number.
+const BLOCK_START_SLOT = { s: 0, f: 2, d: 16, p: 26 };
+// → s: slots 0..1, f: 2..15, d: 16..25, p: 26..31
+
+// View state. 'fill' is the default protonic-order layout. 'chemistry'
+// rotates so the noble column points straight up and moves He/H to their
+// chemically meaningful positions (He → noble; H → alkali + halogen).
+let viewMode = 'fill';
+
+// Rotation applied to all angles in chemistry view, so noble (p position
+// 6, slot 31.5) lands at exactly -90° (straight up). 270 - 264.375 = 5.625°.
+function viewRotationDeg() {
+  return viewMode === 'chemistry' ? 5.625 : 0;
+}
+
+function slotAngleDeg(b, i) {
+  const slotStart = BLOCK_START_SLOT[b];
+  const slotCentre = slotStart + (i - 0.5);
+  return -90 + slotCentre * SLOT_DEG + viewRotationDeg();
+}
+
+// Period → radius. Inner periods need extra spacing per element since
+// the slot arc-length shrinks at small radii. Chemistry view tightens
+// P1 so the H/He/H trio reads as a compact inner motif.
+const RADII_FILL = [115, 156, 192, 222, 250, 275, 298];
+const RADII_CHEM = [ 95, 156, 192, 222, 250, 275, 298];
+function radiusFor(period) {
+  return (viewMode === 'chemistry' ? RADII_CHEM : RADII_FILL)[period - 1];
+}
+
+// Per-view display placements. In chemistry view, He moves to the noble
+// column and H duplicates into alkali + halogen. Each entry is a render
+// position; the source element stays the data record we link to.
+function displayList() {
+  const list = [];
+  for (const el of ELEMENTS) {
+    if (viewMode === 'chemistry') {
+      if (el.z === 1) {
+        // Hydrogen: shown twice, once on each side of helium.
+        list.push({ el, b: 's', i: 1, p: 1, role: 'h-alkali' });
+        list.push({ el, b: 'p', i: 5, p: 1, role: 'h-halogen' });
+        continue;
+      }
+      if (el.z === 2) {
+        // Helium: placed with the nobles (1s² closed shell).
+        list.push({ el, b: 'p', i: 6, p: 1, role: 'he-noble' });
+        continue;
+      }
+    }
+    list.push({ el, b: el.b, i: el.i, p: el.p, role: null });
+  }
+  return list;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('mandala');
+const ctx = canvas.getContext('2d');
+const tip = document.getElementById('tip');
+
+let layoutPx = null;
+let hovered = null;
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H / 2;
+
+  const rot = viewRotationDeg();
+
+  // Block tints — wedge sectors, full radial extent
+  for (const block of ['s', 'p', 'd', 'f']) {
+    const cap = BLOCK_INFO[block].capacity;
+    const start = BLOCK_START_SLOT[block];
+    const a0 = (-90 + start * SLOT_DEG + rot) * Math.PI / 180;
+    const a1 = (-90 + (start + cap) * SLOT_DEG + rot) * Math.PI / 180;
+    const rMax = RADII_FILL[6] + 20;
+    ctx.fillStyle = cssVar(BLOCK_INFO[block].tint);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, rMax, a0, a1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Block labels around the outside
+  ctx.fillStyle = cssVar('--muted') || '#777';
+  ctx.font = 'bold 11px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const block of ['s', 'p', 'd', 'f']) {
+    const cap = BLOCK_INFO[block].capacity;
+    const start = BLOCK_START_SLOT[block];
+    const midSlot = start + cap / 2;
+    const midA = (-90 + midSlot * SLOT_DEG + rot) * Math.PI / 180;
+    const lr = RADII_FILL[6] + 28;
+    const lx = cx + lr * Math.cos(midA);
+    const ly = cy + lr * Math.sin(midA);
+    ctx.fillText(block + '-block', lx, ly);
+  }
+
+  // Faint ring guides
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.10)';
+  ctx.lineWidth = 0.6;
+  for (let p = 1; p <= 7; p++) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radiusFor(p), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Period labels — placed in an empty radial channel for the current view.
+  // Fill view: alongside the s-block sector (top, slightly off-axis).
+  // Chemistry view: along the f-block sector at its outer edge, where P1
+  // would otherwise have no neighbour to anchor the label against.
+  ctx.fillStyle = cssVar('--muted') || '#999';
+  ctx.font = '9px ui-monospace, monospace';
+  ctx.textAlign = 'left';
+  const labelAngleRad = (-Math.PI / 2) + 0.6 + (rot * Math.PI / 180);
+  for (let p = 1; p <= 7; p++) {
+    const r = radiusFor(p);
+    const lx = cx + r * Math.cos(labelAngleRad);
+    const ly = cy + r * Math.sin(labelAngleRad);
+    ctx.fillText('n=' + p, lx + 4, ly - 4);
+  }
+
+  // Element nodes — caches layout for hit-test
+  layoutPx = [];
+  // Node radius shrinks for inner periods so H/He don't crowd. In
+  // chemistry view P1 holds three nodes within a 22.5° arc, so shrink
+  // them further to keep the trio clear.
+  function nodeRadius(p) {
+    if (p === 1) return viewMode === 'chemistry' ? 9 : 12;
+    if (p <= 3) return 13;
+    return 14;
+  }
+  for (const pos of displayList()) {
+    const r = radiusFor(pos.p);
+    const a = slotAngleDeg(pos.b, pos.i) * Math.PI / 180;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    const nr = nodeRadius(pos.p);
+    layoutPx.push({ el: pos.el, role: pos.role, x, y, r: nr });
+  }
+  // Two-pass draw: non-hovered first, then hovered on top
+  function drawNode(p, isHover) {
+    const colour = cssVar(CATEGORIES[p.el.c].cssVar);
+    ctx.fillStyle = colour;
+    ctx.strokeStyle = isHover ? '#000' : 'rgba(0, 0, 0, 0.35)';
+    ctx.lineWidth = isHover ? 2.2 : 1;
+    const rr = isHover ? p.r + 2 : p.r;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Symbol — black on light fill, scaled with node size
+    ctx.fillStyle = '#111';
+    ctx.font = `bold ${Math.round(rr * 0.85)}px ui-monospace, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.el.s, p.x, p.y);
+    // Atomic number — small, just below the symbol
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.font = `${Math.round(rr * 0.45)}px ui-monospace, monospace`;
+    ctx.fillText(p.el.z, p.x, p.y + rr * 0.72);
+  }
+  for (const p of layoutPx) if (p !== hovered) drawNode(p, false);
+  if (hovered) drawNode(hovered, true);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Interaction
+// ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  if (!layoutPx) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  let found = null;
+  for (const p of layoutPx) {
+    const dx = p.x - x, dy = p.y - y;
+    if (dx * dx + dy * dy <= (p.r + 1) * (p.r + 1)) { found = p; break; }
+  }
+  if (found !== hovered) {
+    hovered = found;
+    render();
+  }
+  if (hovered) {
+    canvas.style.cursor = 'pointer';
+    const el = hovered.el;
+    const role = hovered.role;
+    let noteHtml = '';
+    if (role === 'he-noble') {
+      noteHtml = '<div class="tip-config" style="margin-top:0.25rem">drawn with the nobles (1s² closed shell)</div>';
+    } else if (role === 'h-alkali') {
+      noteHtml = '<div class="tip-config" style="margin-top:0.25rem">as alkali (1s¹ valence electron) — also drawn opposite as halogen</div>';
+    } else if (role === 'h-halogen') {
+      noteHtml = '<div class="tip-config" style="margin-top:0.25rem">as halogen (one short of 1s²) — also drawn opposite as alkali</div>';
+    }
+    tip.innerHTML = `
+      <div class="tip-name">${el.s} · ${el.n}</div>
+      <div class="tip-meta">Z = ${el.z} · period ${el.p} · ${el.b}-block · pos ${el.i}</div>
+      <div class="tip-config">${CATEGORIES[el.c].label}</div>
+      ${noteHtml}
+      <div class="tip-link">click to open wikipedia →</div>
+    `;
+    tip.style.display = 'block';
+    // Position: prefer right of cursor, fall back to left/above if it would clip
+    const wrap = canvas.parentElement.getBoundingClientRect();
+    const tipW = 220, tipH = 92;
+    let tx = e.clientX - wrap.left + 14;
+    let ty = e.clientY - wrap.top + 14;
+    if (tx + tipW > wrap.width) tx = e.clientX - wrap.left - tipW - 14;
+    if (ty + tipH > wrap.height) ty = e.clientY - wrap.top - tipH - 14;
+    tip.style.left = tx + 'px';
+    tip.style.top = ty + 'px';
+  } else {
+    canvas.style.cursor = 'default';
+    tip.style.display = 'none';
+  }
+});
+canvas.addEventListener('mouseleave', () => {
+  hovered = null;
+  tip.style.display = 'none';
+  render();
+});
+canvas.addEventListener('click', () => {
+  if (!hovered) return;
+  const wikiUrl = 'https://en.wikipedia.org/wiki/' + encodeURIComponent(hovered.el.n);
+  window.open(wikiUrl, '_blank', 'noopener');
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Legend
+// ─────────────────────────────────────────────────────────────────────
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  for (const key of Object.keys(CATEGORIES)) {
+    const cat = CATEGORIES[key];
+    const div = document.createElement('div');
+    div.className = 'legend-item';
+    div.innerHTML = `
+      <span class="legend-swatch" style="background: ${cssVar(cat.cssVar)}"></span>
+      <span>${cat.label}</span>
+    `;
+    legend.appendChild(div);
+  }
+}
+
+buildLegend();
+render();
+window.addEventListener('resize', render);
+
+// View toggle
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    viewMode = btn.dataset.view;
+    document.getElementById('intro-chemistry').style.display = (viewMode === 'chemistry') ? '' : 'none';
+    hovered = null;
+    tip.style.display = 'none';
+    render();
+  });
+});
+</script>
+</body>
+</html>

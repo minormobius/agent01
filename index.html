@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="70+ surfaces built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="90+ surfaces built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 70+ surfaces built in conversation &mdash; one human, one model, the open web.">
-<meta property="og:image" content="https://mino.mobi/og.png">
+<meta property="og:description" content="Personal tooling for the open web. 90+ surfaces built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 70+ surfaces built in conversation.">
-<meta name="twitter:image" content="https://mino.mobi/og.png">
+<meta name="twitter:description" content="Personal tooling for the open web. 90+ surfaces built in conversation.">
+<meta name="twitter:image" content="https://mino.mobi/og.png?v=2">
 <style>
 :root {
   --bg: #faf9f6;
@@ -307,6 +307,149 @@ hr {
   margin-top: 0.2rem;
 }
 
+/* ── Visualization tabs + stage ── */
+.vis-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.5rem auto 1.1rem;
+  flex-wrap: wrap;
+  max-width: min(92vw, 720px);
+}
+.vis-tab {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.7rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.vis-tab:hover {
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.vis-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+#vis-stage {
+  position: relative;
+  width: min(92vw, 720px);
+  margin: 0 auto 1rem;
+}
+.vis-mode {
+  display: none;
+  position: relative;
+  width: 100%;
+}
+.vis-mode.active { display: block; }
+
+/* canvas / svg in modes */
+.vis-mode[data-mode="constellation"] canvas,
+.vis-mode[data-mode="force"] canvas {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  background: #0a0a14;
+  border-radius: 4px;
+}
+.vis-mode[data-mode="subway"] svg {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  display: block;
+  background: #0c0c12;
+  border-radius: 4px;
+}
+
+.vis-tip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(10, 10, 20, 0.95);
+  border: 1px solid var(--accent);
+  padding: 0.25rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: #ddd;
+  border-radius: 2px;
+  z-index: 5;
+  display: none;
+  white-space: nowrap;
+  transform: translate(0, -50%);
+}
+
+/* Periodic table */
+#periodic-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  padding: 0.4rem;
+}
+.periodic-section {
+  margin-bottom: 0.9rem;
+}
+.periodic-cat-label {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+  opacity: 0.7;
+}
+.periodic-cells {
+  display: grid;
+  gap: 0.3rem;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+.periodic-cell {
+  padding: 0.5rem 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--link);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.02em;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+.periodic-cell:hover {
+  border-color: var(--accent);
+  background: var(--accent-faint);
+  transform: translateY(-1px);
+}
+.periodic-cell .pc-commits {
+  display: block;
+  font-size: 0.5rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+  opacity: 0.65;
+}
+.periodic-scanner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent-faint) 50%, transparent);
+  animation: periodic-sweep 11s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+@keyframes periodic-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(400%); }
+}
+
 /* Claude's section — feature-branch inheritance log */
 .claude-lede {
   font-size: 0.95rem;
@@ -550,22 +693,181 @@ footer a:hover {
   border-radius: 50%;
   font-style: normal;
 }
+
+/* ─── Ask: landing-page semantic search widget ─── */
+#ask-fab {
+  position: fixed;
+  right: 18px; bottom: 18px;
+  z-index: 60;
+  display: flex; align-items: center; gap: 0.45rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 22px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+#ask-fab:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.28); }
+#ask-fab .ask-spark { font-size: 0.85rem; }
+#ask-panel {
+  position: fixed;
+  right: 18px; bottom: 18px;
+  z-index: 61;
+  width: min(380px, calc(100vw - 36px));
+  height: min(540px, calc(100vh - 36px));
+  display: none;
+  flex-direction: column;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.30);
+  overflow: hidden;
+}
+#ask-panel.open { display: flex; }
+.ask-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ask-head .ask-title { color: var(--accent); }
+.ask-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0 0.2rem;
+}
+.ask-close:hover { color: var(--text); }
+.ask-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.9rem;
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+.ask-msg { font-family: var(--serif); font-size: 0.92rem; line-height: 1.5; }
+.ask-msg.user {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--accent-faint);
+  border: 1px solid var(--rule);
+  border-radius: 10px 10px 2px 10px;
+  padding: 0.45rem 0.7rem;
+}
+.ask-msg.bot {
+  align-self: flex-start;
+  max-width: 96%;
+}
+.ask-msg.bot a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ask-msg.bot a:hover { text-decoration-color: var(--accent); }
+.ask-msg.bot .ask-cursor { opacity: 0.5; }
+.ask-intro {
+  font-family: var(--serif);
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.ask-examples { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.6rem; }
+.ask-eg {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border: none;
+  border-radius: 12px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.ask-eg:hover { background: var(--accent); color: #fff; }
+.ask-form {
+  display: flex; gap: 0.4rem;
+  padding: 0.7rem;
+  border-top: 1px solid var(--rule);
+}
+.ask-input {
+  flex: 1;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  outline: none;
+}
+.ask-input:focus { border-color: var(--accent); }
+.ask-send {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  padding: 0 0.9rem;
+  cursor: pointer;
+}
+.ask-send:disabled { opacity: 0.5; cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  #ask-fab { transition: none; }
+}
 </style>
 </head>
 <body>
 
 <h1>minomobi</h1>
 
+<div class="vis-tabs" role="tablist">
+  <button class="vis-tab active" data-mode="constellation" role="tab">constellation</button>
+  <button class="vis-tab" data-mode="subway" role="tab">subway</button>
+  <button class="vis-tab" data-mode="periodic" role="tab">periodic</button>
+  <button class="vis-tab" data-mode="force" role="tab">force</button>
+  <button class="vis-tab" data-mode="orrery" role="tab">orrery</button>
+</div>
+
+<div id="vis-stage">
+  <div class="vis-mode active" data-mode="constellation">
+    <canvas id="constellation-canvas"></canvas>
+    <div id="constellation-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="subway">
+    <svg id="subway-svg" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="subway-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="periodic">
+    <div id="periodic-stage"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="force">
+    <canvas id="force-canvas"></canvas>
+    <div id="force-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="orrery">
 <div class="orrery" id="orrery">
   <div class="orrery-center"></div>
 
   <!-- Inner ring: naked planets -->
   <div class="orbit" data-ring="1" data-dir="cw" style="--speed:80s">
     <a href="https://poll.mino.mobi" data-age="warm" data-commits="75">poll</a>
-    <a href="https://rite.mino.mobi" data-age="hot" data-commits="42">rite</a>
     <a href="https://airchat.mino.mobi" data-age="hot" data-commits="25">airchat</a>
     <a href="https://zoom.mino.mobi" data-age="warm" data-commits="23">zoom</a>
     <a href="https://mino.mobi/weft/" data-age="hot" data-commits="19">weft</a>
+    <a href="https://bisk.mino.mobi" data-age="hot" data-commits="1">bisk</a>
     <a href="https://mino.mobi/time/" data-age="cold" data-commits="15">time</a>
     <a href="https://mino.mobi/labglass/" data-age="cold" data-commits="25">labglass</a>
     <a href="https://os.mino.mobi" data-age="warm" data-commits="16">os</a>
@@ -606,9 +908,30 @@ footer a:hover {
       </div>
     </div>
     <div class="planet">
+      <a href="https://mino.mobi/geometry/" data-age="hot" data-commits="11">geometry</a>
+      <div class="moon-ring" style="--mr:80px;--moon-speed:13s">
+        <a href="https://mino.mobi/erdos/" data-age="hot" data-commits="1">erdős</a>
+        <a href="https://mino.mobi/guthkatz/" data-age="hot" data-commits="1">guthkatz</a>
+        <a href="https://mino.mobi/hadwiger/" data-age="hot" data-commits="1">hadwiger</a>
+        <a href="https://mino.mobi/runner/" data-age="hot" data-commits="1">runner</a>
+        <a href="https://mino.mobi/kakeya/" data-age="hot" data-commits="1">kakeya</a>
+        <a href="https://mino.mobi/capset/" data-age="hot" data-commits="1">capset</a>
+        <a href="https://mino.mobi/szemeredi-trotter/" data-age="hot" data-commits="1">szemerédi–trotter</a>
+        <a href="https://mino.mobi/heilbronn/" data-age="hot" data-commits="1">heilbronn</a>
+        <a href="https://mino.mobi/borsuk/" data-age="hot" data-commits="1">borsuk</a>
+        <a href="https://mino.mobi/viazovska/" data-age="hot" data-commits="1">viazovska</a>
+      </div>
+    </div>
+    <div class="planet">
+      <a href="https://mino.mobi/elements/" data-age="hot" data-commits="1">elements</a>
+    </div>
+    <div class="planet">
       <a href="https://mino.mobi/cards/" data-age="hot" data-commits="122">cards</a>
-      <div class="moon-ring" style="--mr:84px;--moon-speed:9s">
-        <a href="https://mino.mobi/cards/yum.html" data-age="hot" data-commits="6">yum</a>
+      <div class="moon-ring" style="--mr:96px;--moon-speed:11s">
+        <a href="https://mino.mobi/cards/collection/techtree.html" data-age="warm" data-commits="15">techtree</a>
+        <a href="https://mino.mobi/cards/collection/grow.html" data-age="warm" data-commits="10">grow</a>
+        <a href="https://mino.mobi/cards/games/recipe.html" data-age="warm" data-commits="3">recipe</a>
+        <a href="https://mino.mobi/cards/games/yum.html" data-age="hot" data-commits="6">yum</a>
         <a href="https://mino.mobi/answers/" data-age="hot" data-commits="30">answers</a>
       </div>
     </div>
@@ -649,14 +972,8 @@ footer a:hover {
     </div>
     <div class="planet">
       <a href="https://mino.mobi/clock/" data-age="hot" data-commits="119">clock</a>
-      <div class="moon-ring" style="--mr:144px;--moon-speed:20s">
-        <a href="https://mino.mobi/clock/pac/" data-age="hot" data-commits="18">pac</a>
-        <a href="https://mino.mobi/clock/torpac/" data-age="warm" data-commits="1">torpac</a>
-        <a href="https://mino.mobi/clock/knotpac/" data-age="warm" data-commits="11">knotpac</a>
-        <a href="https://mino.mobi/clock/inpac/" data-age="warm" data-commits="9">inpac</a>
-        <a href="https://mino.mobi/clock/toruschess/" data-age="warm" data-commits="2">chess</a>
+      <div class="moon-ring" style="--mr:108px;--moon-speed:14s">
         <a href="https://mino.mobi/clock/emsim/" data-age="warm" data-commits="17">emsim</a>
-        <a href="https://mino.mobi/clock/scape/" data-age="warm" data-commits="24">scape</a>
         <a href="https://mino.mobi/clock/stretch/" data-age="warm" data-commits="4">stretch</a>
         <a href="https://mino.mobi/clock/globe/" data-age="hot" data-commits="11">globe</a>
         <a href="https://mino.mobi/clock/hand/" data-age="warm" data-commits="6">hand</a>
@@ -666,6 +983,29 @@ footer a:hover {
         <a href="https://mino.mobi/clock/helix/" data-age="warm" data-commits="2">helix</a>
         <a href="https://mino.mobi/clock/corn/" data-age="warm" data-commits="2">corn</a>
         <a href="https://mino.mobi/clock/mol/" data-age="warm" data-commits="2">mol</a>
+      </div>
+    </div>
+    <div class="planet">
+      <a href="https://mino.mobi/clock/scape/" data-age="warm" data-commits="24">torusworld</a>
+      <div class="moon-ring" style="--mr:84px;--moon-speed:11s">
+        <a href="https://mino.mobi/clock/pac/" data-age="hot" data-commits="18">pac</a>
+        <a href="https://mino.mobi/clock/torpac/" data-age="warm" data-commits="1">torpac</a>
+        <a href="https://mino.mobi/clock/knotpac/" data-age="warm" data-commits="11">knotpac</a>
+        <a href="https://mino.mobi/clock/inpac/" data-age="warm" data-commits="9">inpac</a>
+        <a href="https://mino.mobi/clock/toruschess/" data-age="warm" data-commits="2">chess</a>
+      </div>
+    </div>
+    <div class="planet">
+      <a href="https://rite.mino.mobi" data-age="hot" data-commits="42">rite</a>
+      <div class="moon-ring" style="--mr:108px;--moon-speed:14s">
+        <a href="https://rite.mino.mobi/fodder/" data-age="hot" data-commits="8">fodder</a>
+        <a href="https://rite.mino.mobi/redact/" data-age="hot" data-commits="4">redact</a>
+        <a href="https://rite.mino.mobi/ask/" data-age="hot" data-commits="6">ask</a>
+        <a href="https://rite.mino.mobi/atlas/" data-age="hot" data-commits="3">atlas</a>
+        <a href="https://rite.mino.mobi/lexicon/" data-age="hot" data-commits="3">lexicon</a>
+        <a href="https://rite.mino.mobi/list/" data-age="hot" data-commits="3">list</a>
+        <a href="https://rite.mino.mobi/web/" data-age="hot" data-commits="3">web</a>
+        <a href="https://rite.mino.mobi/signal/" data-age="hot" data-commits="4">signal</a>
       </div>
     </div>
     <div class="planet">
@@ -693,9 +1033,11 @@ footer a:hover {
 
 <!-- Mobile fallback -->
 <nav class="orrery-fallback">
-  <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://rite.mino.mobi">rite</a><a href="https://airchat.mino.mobi">airchat</a><a href="https://zoom.mino.mobi">zoom</a><a href="https://mino.mobi/weft/">weft</a><a href="https://mino.mobi/time/">time</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://os.mino.mobi">os</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/bounty/">bounty</a></div></div>
-  <div class="ofb-group"><div class="ofb-links"><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/yum.html">yum</a><a href="https://mino.mobi/answers/">answers</a><a href="https://bake.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/music/">music</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/wild/">wild</a><a href="https://mino.mobi/disk/">disk</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/scape/">scape</a><a href="https://mino.mobi/clock/stretch/">stretch</a><a href="https://mino.mobi/clock/globe/">globe</a><a href="https://mino.mobi/clock/hand/">hand</a><a href="https://mino.mobi/clock/scope/">scope</a><a href="https://mino.mobi/clock/mole/">mole</a><a href="https://mino.mobi/clock/ship/">ship</a><a href="https://mino.mobi/clock/helix/">helix</a><a href="https://mino.mobi/clock/corn/">corn</a><a href="https://mino.mobi/clock/mol/">mol</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://airchat.mino.mobi">airchat</a><a href="https://zoom.mino.mobi">zoom</a><a href="https://mino.mobi/weft/">weft</a><a href="https://bisk.mino.mobi">bisk</a><a href="https://mino.mobi/time/">time</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://os.mino.mobi">os</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/bounty/">bounty</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/geometry/">geometry</a><a href="https://mino.mobi/erdos/">erdős</a><a href="https://mino.mobi/guthkatz/">guthkatz</a><a href="https://mino.mobi/hadwiger/">hadwiger</a><a href="https://mino.mobi/runner/">runner</a><a href="https://mino.mobi/kakeya/">kakeya</a><a href="https://mino.mobi/capset/">capset</a><a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a><a href="https://mino.mobi/heilbronn/">heilbronn</a><a href="https://mino.mobi/borsuk/">borsuk</a><a href="https://mino.mobi/viazovska/">viazovska</a><a href="https://mino.mobi/elements/">elements</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/collection/techtree.html">techtree</a><a href="https://mino.mobi/cards/collection/grow.html">grow</a><a href="https://mino.mobi/cards/games/recipe.html">recipe</a><a href="https://mino.mobi/cards/games/yum.html">yum</a><a href="https://mino.mobi/answers/">answers</a><a href="https://bake.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/music/">music</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/wild/">wild</a><a href="https://mino.mobi/disk/">disk</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://rite.mino.mobi">rite</a><a href="https://rite.mino.mobi/fodder/">fodder</a><a href="https://rite.mino.mobi/redact/">redact</a><a href="https://rite.mino.mobi/ask/">ask</a><a href="https://rite.mino.mobi/atlas/">atlas</a><a href="https://rite.mino.mobi/lexicon/">lexicon</a><a href="https://rite.mino.mobi/list/">list</a><a href="https://rite.mino.mobi/web/">web</a><a href="https://rite.mino.mobi/signal/">signal</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/stretch/">stretch</a><a href="https://mino.mobi/clock/globe/">globe</a><a href="https://mino.mobi/clock/hand/">hand</a><a href="https://mino.mobi/clock/scope/">scope</a><a href="https://mino.mobi/clock/mole/">mole</a><a href="https://mino.mobi/clock/ship/">ship</a><a href="https://mino.mobi/clock/helix/">helix</a><a href="https://mino.mobi/clock/corn/">corn</a><a href="https://mino.mobi/clock/mol/">mol</a><a href="https://mino.mobi/clock/scape/">torusworld</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a></div></div>
 </nav>
+  </div>
+</div>
 
 <div class="site-count">70+ surfaces</div>
 
@@ -807,6 +1149,14 @@ footer a:hover {
       <span class="tag">atproto</span>
     </div>
     <div class="desc">Thread analysis. Tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://bisk.mino.mobi">bisk</a>
+      <span class="tag">worker</span>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">The SimCluster Daily. A deterministic digest of a Bluesky neighborhood, recomputed each morning: top chickens (most-liked posts), delvers (deepest thread, rendered with weft's threadbeast), and a sentiment weather report. A fork of the mino times; morphyx and modulo will edit once the personas wake up.</div>
   </li>
   <li>
     <div class="name-row">
@@ -955,6 +1305,102 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
+      <a href="https://mino.mobi/geometry/">geometry</a>
+      <span class="tag">index</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status — and an explicit roadmap of next entries (szemerédi–trotter, heilbronn, borsuk, viazovska, ...). Read this first if you want the lay of the series.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/erdos/">erdős</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Unit distance, disproven. Interactive visualization of Erdős's 1946 construction, in light of OpenAI's May 2026 disproof of the unit-distance conjecture.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Distinct distances, almost-resolved. Sister page to erdős — the 1946 dual problem, climbed slowly from √n to n/log n by the polynomial method (Guth–Katz, 2015).</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Chromatic number of the plane. Interactive Moser-spindle 4-colouring puzzle plus Isbell's 7-colour hexagonal tiling. The 1950 question whose lower bound an amateur biogerontologist nudged from 4 to 5 in 2018.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/runner/">runner</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Lonely runner conjecture. k runners on a circular track at distinct integer speeds; at some moment each is at distance ≥ 1/k from every other. Proven for k ≤ 7, open since 1967. Animation-native.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/kakeya/">kakeya</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Finite-field Kakeya conjecture (Dvir 2008). Build a Besicovitch set in 𝔽<sub>q</sub><sup>2</sup> by clicking cells; watch q+1 directions get covered. Five-page polynomial-method proof that birthed the technique behind guthkatz.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/capset/">capset</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Cap-set problem in 𝔽<sub>3</sub><sup>n</sup>. Find the largest subset with no three-term arithmetic progression — the game SET writ small. Ellenberg–Gijswijt 2016 crushed the bound from 3<sup>n</sup>/n to 2.756<sup>n</sup>. Closes the polynomial-method trilogy.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Point-line incidence bound (1983): m points + n lines in the plane share at most O((mn)<sup>2/3</sup> + m + n) incidences. Build the Erdős tight construction — a thin K × 2K<sup>2</sup> grid plus K<sup>3</sup> lines — and watch the ratio I/(mn)<sup>2/3</sup> sit flat at 2<sup>−2/3</sup>. The seed crystal that the polynomial-method trilogy grew out of.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Heilbronn's triangle problem (~1950, open). Place n points in the unit square; your score is the smallest of the C(n, 3) triangles they form. Heilbronn conjectured the optimum is Θ(1/n<sup>2</sup>); Komlós–Pintz–Szemerédi disproved him in 1981 with c·log(n)/n<sup>2</sup>. Drag points, run the in-page annealer, beat your own record (saved per n in localStorage).</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/borsuk/">borsuk</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Borsuk's 1933 partition conjecture. Every bounded subset of ℝ<sup>d</sup> splits into d+1 pieces of strictly smaller diameter — easy in 2D and 3D, false in dim 1325 (Kahn–Kalai 1993), and still false in dim 64 (Jenrich 2014). 2D demo + the dimension-race timeline showing the threshold shrinking over 21 years.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/viazovska/">viazovska</a>
+      <span class="tag">canvas</span>
+      <span class="tag">math</span>
+    </div>
+    <div class="desc">Sphere packing in dimension 8 and 24. The E<sub>8</sub> and Leech lattices are the densest possible — proven exactly by Viazovska (2016) and CKMRV (2017) with magic functions built from modular forms. Scrub the iconic E<sub>8</sub> Coxeter projection (240 roots → 8 rings of 30), pack circles in 2D, and watch density crater with dimension.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/elements/">elements</a>
+      <span class="tag">canvas</span>
+      <span class="tag">chem</span>
+    </div>
+    <div class="desc">Periodic table as a mandala. Concentric rings for the seven electron shells, angular sectors for the s/p/d/f orbital blocks sized by capacity. 118 element nodes coloured by category; hover for details, click out to the Wikipedia article.</div>
+  </li>
+  <li>
+    <div class="name-row">
       <a href="https://mino.mobi/flows/">flows</a>
       <span class="tag">maplibre</span>
     </div>
@@ -977,10 +1423,31 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/cards/yum.html">yum</a>
+      <a href="https://mino.mobi/cards/games/yum.html">yum</a>
       <span class="tag">atproto</span>
     </div>
     <div class="desc">Flavor pairing explorer. Neural embeddings of food compounds, complementarity scores, and recipe builder.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/collection/techtree.html">techtree</a>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Tech tree. 179 technologies from stone tools to agentic LLMs, laid out as an infinite-canvas polar fan with sector-bound layout.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/collection/grow.html">grow</a>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Grow. Generative plant simulation&mdash;children inherit grain lattice rotation; a stand-alone visual independent of the cards game.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/cards/games/recipe.html">recipe</a>
+      <span class="tag">embeddings</span>
+    </div>
+    <div class="desc">Recipe builder. Combine cards into recipes scored against the yum complementarity model.</div>
   </li>
 </ul>
 
@@ -1295,8 +1762,652 @@ footer a:hover {
 
 <footer>
   <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a> &middot;
-  <a href="mailto:tips@mino.mobi">tips@mino.mobi</a>
+  <a href="mailto:tips@mino.mobi">tips@mino.mobi</a> &middot;
+  <span class="build-stamp">shipped 2026-05-21</span>
 </footer>
+
+<script>
+// ─── Visualization stage: shared data + tab switcher + four renderers ───
+(function() {
+  // Project taxonomy. Each entry: { n: name, u: url, c: category, k: commits, a: age, p?: parent }.
+  // Short keys keep the inline data compact.
+  var P = [
+    // bluesky
+    { n:'poll',     u:'https://poll.mino.mobi',                  c:'bluesky', k:75, a:'warm' },
+    { n:'airchat',  u:'https://airchat.mino.mobi',               c:'bluesky', k:25, a:'hot' },
+    { n:'zoom',     u:'https://zoom.mino.mobi',                  c:'bluesky', k:23, a:'warm' },
+    { n:'weft',     u:'https://mino.mobi/weft/',                 c:'bluesky', k:19, a:'hot' },
+    { n:'bisk',     u:'https://bisk.mino.mobi',                  c:'bluesky', k:1,  a:'hot' },
+    { n:'photo',    u:'https://photo.mino.mobi',                 c:'bluesky', k:39, a:'hot' },
+    { n:'thread',   u:'https://photo.mino.mobi/#/thread',        c:'bluesky', k:3,  a:'hot',  p:'photo' },
+    { n:'astro',    u:'https://photo.mino.mobi/astro/',          c:'bluesky', k:4,  a:'hot',  p:'photo' },
+    { n:'prism',    u:'https://photo.mino.mobi/prism/',          c:'bluesky', k:3,  a:'hot',  p:'photo' },
+    { n:'ternary',  u:'https://mino.mobi/ternary/',              c:'bluesky', k:7,  a:'warm' },
+    { n:'judge',    u:'https://mino.mobi/judge/',                c:'bluesky', k:9,  a:'cold' },
+    { n:'novelty',  u:'https://mino.mobi/novelty/',              c:'bluesky', k:12, a:'cold' },
+    { n:'echo',     u:'https://mino.mobi/echo/',                 c:'bluesky', k:1,  a:'cold' },
+    { n:'density',  u:'https://mino.mobi/density/',              c:'bluesky', k:5,  a:'cold' },
+    { n:'seek',     u:'https://mino.mobi/seek/',                 c:'bluesky', k:3,  a:'cold' },
+    { n:'cluster',  u:'https://mino.mobi/cluster/',              c:'bluesky', k:10, a:'cold' },
+    { n:'wild',     u:'https://mino.mobi/wild/',                 c:'bluesky', k:3,  a:'warm' },
+    { n:'disk',     u:'https://mino.mobi/disk/',                 c:'bluesky', k:2,  a:'warm' },
+    { n:'answers',  u:'https://mino.mobi/answers/',              c:'bluesky', k:30, a:'hot' },
+    { n:'rite',     u:'https://rite.mino.mobi',                  c:'bluesky', k:42, a:'hot' },
+    { n:'fodder',   u:'https://rite.mino.mobi/fodder/',          c:'bluesky', k:8,  a:'hot',  p:'rite' },
+    { n:'redact',   u:'https://rite.mino.mobi/redact/',          c:'bluesky', k:4,  a:'hot',  p:'rite' },
+    { n:'ask',      u:'https://rite.mino.mobi/ask/',             c:'bluesky', k:6,  a:'hot',  p:'rite' },
+    { n:'atlas',    u:'https://rite.mino.mobi/atlas/',           c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'lexicon',  u:'https://rite.mino.mobi/lexicon/',         c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'list',     u:'https://rite.mino.mobi/list/',            c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'web',      u:'https://rite.mino.mobi/web/',             c:'bluesky', k:3,  a:'hot',  p:'rite' },
+    { n:'signal',   u:'https://rite.mino.mobi/signal/',          c:'bluesky', k:4,  a:'hot',  p:'rite' },
+    // work
+    { n:'org',      u:'https://org.mino.mobi',                   c:'work',    k:40, a:'hot' },
+    { n:'pm',       u:'https://mino.mobi/pm/',                   c:'work',    k:17, a:'warm', p:'org' },
+    { n:'wave',     u:'https://wave.mino.mobi',                  c:'work',    k:10, a:'cold', p:'org' },
+    { n:'wiki',     u:'https://mino.mobi/wiki/',                 c:'work',    k:15, a:'warm', p:'org' },
+    { n:'crm',      u:'https://mino.mobi/crm/',                  c:'work',    k:14, a:'warm', p:'org' },
+    { n:'bounty',   u:'https://mino.mobi/bounty/',               c:'work',    k:5,  a:'cold' },
+    // data
+    { n:'time',     u:'https://mino.mobi/time/',                 c:'data',    k:15, a:'cold' },
+    { n:'mega',     u:'https://mino.mobi/mega/',                 c:'data',    k:11, a:'cold' },
+    { n:'finance',  u:'https://mino.mobi/finance/',              c:'data',    k:28, a:'hot' },
+    { n:'bogo',     u:'https://mino.mobi/finance/bogo/',         c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'agimet',   u:'https://mino.mobi/finance/agimet/',       c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'stocks',   u:'https://mino.mobi/finance/stocks/',       c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'wars',     u:'https://mino.mobi/wars/',                 c:'data',    k:7,  a:'hot' },
+    { n:'cult',     u:'https://mino.mobi/wars/cult/',            c:'data',    k:5,  a:'hot',  p:'wars' },
+    { n:'flows',    u:'https://mino.mobi/flows/',                c:'data',    k:5,  a:'cold' },
+    { n:'phylo',    u:'https://mino.mobi/phylo/',                c:'data',    k:28, a:'cold' },
+    { n:'cards',    u:'https://mino.mobi/cards/',                c:'data',    k:122,a:'hot' },
+    { n:'geometry', u:'https://mino.mobi/geometry/',             c:'data',    k:1,  a:'hot' },
+    { n:'erdos',    u:'https://mino.mobi/erdos/',                c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'guthkatz', u:'https://mino.mobi/guthkatz/',             c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'hadwiger', u:'https://mino.mobi/hadwiger/',             c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'runner',   u:'https://mino.mobi/runner/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'kakeya',   u:'https://mino.mobi/kakeya/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'capset',   u:'https://mino.mobi/capset/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'szemeredi-trotter', u:'https://mino.mobi/szemeredi-trotter/', c:'data', k:1, a:'hot', p:'geometry' },
+    { n:'heilbronn', u:'https://mino.mobi/heilbronn/',           c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'borsuk',   u:'https://mino.mobi/borsuk/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'viazovska',u:'https://mino.mobi/viazovska/',            c:'data',    k:1,  a:'hot',  p:'geometry' },
+    { n:'elements', u:'https://mino.mobi/elements/',             c:'data',    k:1,  a:'hot' },
+    { n:'techtree', u:'https://mino.mobi/cards/collection/techtree.html', c:'data', k:15, a:'warm', p:'cards' },
+    { n:'grow',     u:'https://mino.mobi/cards/collection/grow.html',     c:'data', k:10, a:'warm', p:'cards' },
+    { n:'recipe',   u:'https://mino.mobi/cards/games/recipe.html',        c:'data', k:3,  a:'warm', p:'cards' },
+    { n:'yum',      u:'https://mino.mobi/cards/games/yum.html',           c:'data', k:6,  a:'hot',  p:'cards' },
+    // tools
+    { n:'labglass', u:'https://mino.mobi/labglass/',             c:'tools',   k:25, a:'cold' },
+    { n:'os',       u:'https://os.mino.mobi',                    c:'tools',   k:16, a:'warm' },
+    { n:'read',     u:'https://mino.mobi/read/',                 c:'tools',   k:37, a:'hot' },
+    { n:'flow',     u:'https://mino.mobi/read/flow/',            c:'tools',   k:1,  a:'warm', p:'read' },
+    { n:'post01',   u:'https://mino.mobi/read/post01/',          c:'tools',   k:13, a:'hot',  p:'read' },
+    { n:'noise',    u:'https://mino.mobi/noise/',                c:'tools',   k:6,  a:'cold' },
+    { n:'music',    u:'https://mino.mobi/music/',                c:'tools',   k:17, a:'cold' },
+    { n:'bakery',   u:'https://bake.mino.mobi',                  c:'tools',   k:25, a:'cold' },
+    { n:'sweat',    u:'https://mino.mobi/sweat/',                c:'tools',   k:4,  a:'cold' },
+    // games
+    { n:'clock',     u:'https://mino.mobi/clock/',               c:'games',   k:119,a:'hot' },
+    { n:'emsim',     u:'https://mino.mobi/clock/emsim/',         c:'games',   k:17, a:'warm', p:'clock' },
+    { n:'stretch',   u:'https://mino.mobi/clock/stretch/',       c:'games',   k:4,  a:'warm', p:'clock' },
+    { n:'globe',     u:'https://mino.mobi/clock/globe/',         c:'games',   k:11, a:'hot',  p:'clock' },
+    { n:'hand',      u:'https://mino.mobi/clock/hand/',          c:'games',   k:6,  a:'warm', p:'clock' },
+    { n:'scope',     u:'https://mino.mobi/clock/scope/',         c:'games',   k:6,  a:'warm', p:'clock' },
+    { n:'mole',      u:'https://mino.mobi/clock/mole/',          c:'games',   k:3,  a:'hot',  p:'clock' },
+    { n:'ship',      u:'https://mino.mobi/clock/ship/',          c:'games',   k:6,  a:'hot',  p:'clock' },
+    { n:'helix',     u:'https://mino.mobi/clock/helix/',         c:'games',   k:2,  a:'warm', p:'clock' },
+    { n:'corn',      u:'https://mino.mobi/clock/corn/',          c:'games',   k:2,  a:'warm', p:'clock' },
+    { n:'mol',       u:'https://mino.mobi/clock/mol/',           c:'games',   k:2,  a:'warm', p:'clock' },
+    { n:'torusworld',u:'https://mino.mobi/clock/scape/',         c:'games',   k:24, a:'warm' },
+    { n:'pac',       u:'https://mino.mobi/clock/pac/',           c:'games',   k:18, a:'hot',  p:'torusworld' },
+    { n:'torpac',    u:'https://mino.mobi/clock/torpac/',        c:'games',   k:1,  a:'warm', p:'torusworld' },
+    { n:'knotpac',   u:'https://mino.mobi/clock/knotpac/',       c:'games',   k:11, a:'warm', p:'torusworld' },
+    { n:'inpac',     u:'https://mino.mobi/clock/inpac/',         c:'games',   k:9,  a:'warm', p:'torusworld' },
+    { n:'chess',     u:'https://mino.mobi/clock/toruschess/',    c:'games',   k:2,  a:'warm', p:'torusworld' },
+    { n:'pokemon',   u:'https://mino.mobi/pokemon/',             c:'games',   k:22, a:'warm' },
+    { n:'proteus',   u:'https://mino.mobi/pokemon/proteus/',     c:'games',   k:15, a:'hot',  p:'pokemon' },
+    { n:'mmo',       u:'https://mino.mobi/mmo/',                 c:'games',   k:18, a:'hot' },
+    { n:'draw',      u:'https://mino.mobi/draw/',                c:'games',   k:6,  a:'hot',  p:'mmo' },
+    { n:'paint',     u:'https://mino.mobi/paint/',               c:'games',   k:5,  a:'hot',  p:'mmo' },
+    { n:'range',     u:'https://mino.mobi/range/',               c:'games',   k:3,  a:'hot',  p:'mmo' },
+  ];
+
+  var CATS = {
+    bluesky: { label:'bluesky', color:'#6ec1e4' },
+    work:    { label:'work',    color:'#e6a23c' },
+    data:    { label:'data',    color:'#67c23a' },
+    tools:   { label:'tools',   color:'#a880ff' },
+    games:   { label:'games',   color:'#f56991' },
+  };
+
+  // ── Tab switcher ──
+  var mode = 'constellation';
+  var animator = null;
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.vis-tab').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.mode === m);
+    });
+    document.querySelectorAll('.vis-mode').forEach(function(d) {
+      d.classList.toggle('active', d.dataset.mode === m);
+    });
+    if (animator) { cancelAnimationFrame(animator); animator = null; }
+    if (m === 'constellation') startConstellation();
+    else if (m === 'subway') startSubway();
+    else if (m === 'periodic') startPeriodic();
+    else if (m === 'force') startForce();
+    else if (m === 'orrery') {
+      // existing orrery script listens to resize for layout
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
+  document.querySelectorAll('.vis-tab').forEach(function(b) {
+    b.addEventListener('click', function() { setMode(b.dataset.mode); });
+  });
+
+  // ─────────── Constellation ───────────
+  // Stars grouped into category regions, slow rotational drift, twinkling.
+  function startConstellation() {
+    var cvs = document.getElementById('constellation-canvas');
+    var tip = document.getElementById('constellation-tip');
+    var ctx = cvs.getContext('2d');
+    var stars = [];
+    var rotation = 0;
+    var mx = -999, my = -999;
+    var hovered = null;
+    var last = performance.now();
+    var dpr = 1;
+
+    function layout() {
+      var rect = cvs.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      cvs.width = rect.width * dpr;
+      cvs.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var W = rect.width, H = rect.height;
+      var cx = W / 2, cy = H / 2;
+      var catKeys = Object.keys(CATS);
+      stars = [];
+      catKeys.forEach(function(cat, ci) {
+        var projs = P.filter(function(p) { return p.c === cat; });
+        if (!projs.length) return;
+        var catAngle = ci * Math.PI * 2 / catKeys.length - Math.PI / 2;
+        var catCx = cx + Math.cos(catAngle) * Math.min(W, H) * 0.28;
+        var catCy = cy + Math.sin(catAngle) * Math.min(W, H) * 0.28;
+        projs.forEach(function(p, i) {
+          // arrange in concentric rings within the cluster
+          var ring = Math.floor(i / 8);
+          var slot = i % 8;
+          var a = slot * Math.PI / 4 + (ring * 0.31) + ci * 0.7;
+          var r = 18 + ring * 22;
+          stars.push({
+            p: p,
+            bx: catCx + Math.cos(a) * r,
+            by: catCy + Math.sin(a) * r,
+            ph: Math.random() * Math.PI * 2,
+            cat: cat,
+          });
+        });
+      });
+    }
+
+    function draw() {
+      if (mode !== 'constellation') { animator = null; return; }
+      var now = performance.now();
+      var dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      rotation += dt * 0.04;
+
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      var cx = W / 2, cy = H / 2;
+
+      // background
+      var bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H));
+      bg.addColorStop(0, '#0d0d18');
+      bg.addColorStop(1, '#040408');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // far stars (decorative)
+      for (var i = 0; i < 90; i++) {
+        var fx = (i * 37 + (now * 0.005) % W) % W;
+        var fy = (i * 71 + Math.sin(i) * 30) % H;
+        var ft = Math.sin(now * 0.0015 + i) * 0.4 + 0.5;
+        ctx.fillStyle = 'rgba(255,255,255,' + (ft * 0.18).toFixed(3) + ')';
+        ctx.fillRect(fx, fy, 1, 1);
+      }
+
+      // rotate projected positions around center
+      var cosR = Math.cos(rotation), sinR = Math.sin(rotation);
+      stars.forEach(function(s) {
+        var dx = s.bx - cx, dy = s.by - cy;
+        s.x = cx + dx * cosR - dy * sinR;
+        s.y = cy + dx * sinR + dy * cosR;
+      });
+
+      // constellation lines: 2 nearest same-cat neighbors
+      ctx.lineWidth = 0.6;
+      stars.forEach(function(s) {
+        var others = stars.filter(function(o) { return o.cat === s.cat && o !== s; });
+        others.sort(function(a, b) {
+          return Math.hypot(a.x - s.x, a.y - s.y) - Math.hypot(b.x - s.x, b.y - s.y);
+        });
+        var color = CATS[s.cat].color;
+        for (var k = 0; k < Math.min(2, others.length); k++) {
+          var o = others[k];
+          ctx.strokeStyle = color + '28';
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(o.x, o.y);
+          ctx.stroke();
+        }
+      });
+
+      // stars
+      hovered = null;
+      var bestD = 18;
+      stars.forEach(function(s) {
+        var tw = Math.sin(now * 0.0022 + s.ph) * 0.3 + 0.7;
+        var color = CATS[s.cat].color;
+        var size = 1.8 + Math.sqrt(s.p.k) * 0.35;
+        var op = (s.p.a === 'hot' ? 1 : s.p.a === 'warm' ? 0.82 : 0.6) * tw;
+
+        // glow halo
+        var grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, size * 4);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.5, color + '40');
+        grad.addColorStop(1, color + '00');
+        ctx.globalAlpha = op * 0.55;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size * 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // bright core
+        ctx.globalAlpha = op;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // label for hot or large projects
+        if (s.p.a === 'hot' || s.p.k > 35) {
+          ctx.globalAlpha = op * 0.85;
+          ctx.fillStyle = '#cdd';
+          ctx.font = '9px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.p.n, s.x, s.y + size + 11);
+        }
+
+        var d = Math.hypot(s.x - mx, s.y - my);
+        if (d < bestD) { bestD = d; hovered = s; }
+      });
+      ctx.globalAlpha = 1;
+
+      if (hovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(hovered.x, hovered.y, 13, 0, Math.PI * 2);
+        ctx.stroke();
+        tip.textContent = hovered.p.n + ' · ' + hovered.cat + ' · ' + hovered.p.k + ' commits';
+        tip.style.display = 'block';
+        tip.style.left = (hovered.x + 16) + 'px';
+        tip.style.top = (hovered.y) + 'px';
+        cvs.style.cursor = 'pointer';
+      } else {
+        tip.style.display = 'none';
+        cvs.style.cursor = 'default';
+      }
+
+      animator = requestAnimationFrame(draw);
+    }
+
+    cvs.onmousemove = function(e) {
+      var r = cvs.getBoundingClientRect();
+      mx = e.clientX - r.left; my = e.clientY - r.top;
+    };
+    cvs.onmouseleave = function() { mx = -999; my = -999; };
+    cvs.onclick = function() { if (hovered) window.open(hovered.p.u, '_blank'); };
+
+    layout();
+    last = performance.now();
+    if (!animator) draw();
+    if (!cvs._resized) {
+      cvs._resized = true;
+      window.addEventListener('resize', function() { if (mode === 'constellation') layout(); });
+    }
+  }
+
+  // ─────────── Subway ───────────
+  // One horizontal line per category, stations along it, an animated dot per line.
+  var subwayAnimator = null;
+  function startSubway() {
+    var svg = document.getElementById('subway-svg');
+    var tip = document.getElementById('subway-tip');
+    svg.innerHTML = '';
+    var W = 1000, H = 600;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+    var catKeys = Object.keys(CATS);
+    var trains = [];
+
+    function el(name, attrs) {
+      var n = document.createElementNS('http://www.w3.org/2000/svg', name);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      return n;
+    }
+
+    catKeys.forEach(function(cat, ci) {
+      var projs = P.filter(function(p) { return p.c === cat; });
+      if (!projs.length) return;
+      // Sort: parents first then their children adjacent
+      projs.sort(function(a, b) {
+        var ap = a.p || a.n, bp = b.p || b.n;
+        if (ap === bp) return (a.p ? 1 : 0) - (b.p ? 1 : 0);
+        return ap.localeCompare(bp);
+      });
+      var color = CATS[cat].color;
+      var y = 60 + ci * (H - 120) / (catKeys.length - 1);
+      var x0 = 110, x1 = W - 40;
+
+      // line
+      svg.appendChild(el('path', {
+        d: 'M ' + x0 + ' ' + y + ' L ' + x1 + ' ' + y,
+        stroke: color, 'stroke-width': 5, opacity: 0.45, 'stroke-linecap': 'round', fill: 'none'
+      }));
+
+      // category label at left
+      var lbl = el('text', {
+        x: x0 - 12, y: y + 4, 'text-anchor': 'end',
+        'font-size': 12, 'font-family': 'ui-monospace, monospace',
+        fill: color, opacity: 0.85
+      });
+      lbl.textContent = cat;
+      svg.appendChild(lbl);
+
+      // stations
+      projs.forEach(function(p, i) {
+        var x = x0 + (x1 - x0) * i / Math.max(1, projs.length - 1);
+        var r = 4 + Math.sqrt(p.k) * 0.45;
+        var g = el('g', { 'data-name': p.n });
+        g.setAttribute('cursor', 'pointer');
+        g.appendChild(el('circle', {
+          cx: x, cy: y, r: r,
+          fill: p.a === 'hot' ? color : '#1a1a1a',
+          stroke: color, 'stroke-width': 2.2
+        }));
+        var lblY = (i % 2 === 0) ? y - r - 6 : y + r + 12;
+        var nm = el('text', {
+          x: x, y: lblY, 'text-anchor': 'middle',
+          'font-size': 10, 'font-family': 'ui-monospace, monospace',
+          fill: '#aaa', opacity: 0.85
+        });
+        nm.textContent = p.n;
+        g.appendChild(nm);
+        g.addEventListener('click', function() { window.open(p.u, '_blank'); });
+        g.addEventListener('mouseenter', function(e) {
+          tip.textContent = p.n + ' · ' + p.k + ' commits';
+          tip.style.display = 'block';
+          var sr = svg.getBoundingClientRect();
+          tip.style.left = (e.clientX - sr.left + 14) + 'px';
+          tip.style.top = (e.clientY - sr.top) + 'px';
+        });
+        g.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+        svg.appendChild(g);
+      });
+
+      // train
+      var train = el('circle', {
+        r: 5.5, fill: color, opacity: 0.95,
+        'data-y': y
+      });
+      trains.push({ el: train, y: y, x0: x0, x1: x1, period: 18 + ci * 2.5, offset: ci * 3 });
+      svg.appendChild(train);
+    });
+
+    var start = performance.now();
+    function tick(now) {
+      if (mode !== 'subway') { subwayAnimator = null; return; }
+      var elapsed = (now - start) / 1000;
+      trains.forEach(function(t) {
+        var prog = ((elapsed + t.offset) % t.period) / t.period;
+        var x = t.x0 + (t.x1 - t.x0) * prog;
+        t.el.setAttribute('cx', x);
+        t.el.setAttribute('cy', t.y);
+      });
+      subwayAnimator = requestAnimationFrame(tick);
+    }
+    subwayAnimator = requestAnimationFrame(tick);
+  }
+
+  // ─────────── Periodic table ───────────
+  function startPeriodic() {
+    var stage = document.getElementById('periodic-stage');
+    stage.innerHTML = '';
+    var scan = document.createElement('div');
+    scan.className = 'periodic-scanner';
+    stage.appendChild(scan);
+    Object.keys(CATS).forEach(function(cat) {
+      var projs = P.filter(function(p) { return p.c === cat; });
+      if (!projs.length) return;
+      // sort: parents first, then by commit count desc
+      projs.sort(function(a, b) {
+        if (!a.p && b.p) return -1;
+        if (a.p && !b.p) return 1;
+        return b.k - a.k;
+      });
+      var sec = document.createElement('div');
+      sec.className = 'periodic-section';
+      var hdr = document.createElement('div');
+      hdr.className = 'periodic-cat-label';
+      hdr.textContent = cat + ' · ' + projs.length;
+      hdr.style.color = CATS[cat].color;
+      sec.appendChild(hdr);
+      var grid = document.createElement('div');
+      grid.className = 'periodic-cells';
+      projs.forEach(function(p) {
+        var cell = document.createElement('a');
+        cell.className = 'periodic-cell';
+        cell.href = p.u;
+        cell.dataset.age = p.a;
+        if (p.a === 'hot') {
+          cell.style.borderColor = CATS[cat].color;
+        }
+        cell.innerHTML = '<span>' + p.n + '</span><span class="pc-commits">' + p.k + '</span>';
+        grid.appendChild(cell);
+      });
+      sec.appendChild(grid);
+      stage.appendChild(sec);
+    });
+  }
+
+  // ─────────── Force graph ───────────
+  function startForce() {
+    var cvs = document.getElementById('force-canvas');
+    var tip = document.getElementById('force-tip');
+    var ctx = cvs.getContext('2d');
+    var dpr = 1;
+    var nodes = [];
+    var edges = [];
+    var mx = -999, my = -999, mdown = false;
+    var dragNode = null;
+    var hovered = null;
+    var last = performance.now();
+    var pressTime = 0;
+
+    function layout() {
+      var rect = cvs.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      cvs.width = rect.width * dpr;
+      cvs.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var W = rect.width, H = rect.height;
+      nodes = P.map(function(p) {
+        return {
+          p: p,
+          x: W / 2 + (Math.random() - 0.5) * W * 0.6,
+          y: H / 2 + (Math.random() - 0.5) * H * 0.6,
+          vx: 0, vy: 0,
+          r: 3 + Math.sqrt(p.k) * 0.4,
+        };
+      });
+      edges = [];
+      nodes.forEach(function(n) {
+        if (n.p.p) {
+          var parent = nodes.find(function(o) { return o.p.n === n.p.p; });
+          if (parent) edges.push({ a: n, b: parent, kind: 'parent' });
+        }
+      });
+      // Light same-cat connections
+      Object.keys(CATS).forEach(function(cat) {
+        var cn = nodes.filter(function(n) { return n.p.c === cat; });
+        for (var i = 0; i < cn.length - 1; i++) {
+          if (Math.random() < 0.25) edges.push({ a: cn[i], b: cn[i + 1], kind: 'cat' });
+        }
+      });
+    }
+
+    function step() {
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      var cx = W / 2, cy = H / 2;
+      // Repulsion (n^2 — fine for ~70 nodes)
+      for (var i = 0; i < nodes.length; i++) {
+        for (var j = i + 1; j < nodes.length; j++) {
+          var a = nodes[i], b = nodes[j];
+          var dx = b.x - a.x, dy = b.y - a.y;
+          var d2 = dx * dx + dy * dy + 1;
+          var d = Math.sqrt(d2);
+          var f = 130 / d2;
+          a.vx -= (dx / d) * f; a.vy -= (dy / d) * f;
+          b.vx += (dx / d) * f; b.vy += (dy / d) * f;
+        }
+      }
+      // Springs
+      edges.forEach(function(e) {
+        var dx = e.b.x - e.a.x, dy = e.b.y - e.a.y;
+        var d = Math.hypot(dx, dy) || 1;
+        var rest = e.kind === 'parent' ? 36 : 64;
+        var f = (d - rest) * 0.04;
+        e.a.vx += (dx / d) * f; e.a.vy += (dy / d) * f;
+        e.b.vx -= (dx / d) * f; e.b.vy -= (dy / d) * f;
+      });
+      // Centering
+      nodes.forEach(function(n) {
+        n.vx += (cx - n.x) * 0.0009;
+        n.vy += (cy - n.y) * 0.0009;
+      });
+      // Integrate
+      nodes.forEach(function(n) {
+        n.vx *= 0.87; n.vy *= 0.87;
+        if (n === dragNode) {
+          n.x = mx; n.y = my; n.vx = 0; n.vy = 0;
+        } else {
+          n.x += n.vx; n.y += n.vy;
+          n.x = Math.max(12, Math.min(W - 12, n.x));
+          n.y = Math.max(12, Math.min(H - 12, n.y));
+        }
+      });
+    }
+
+    function draw() {
+      if (mode !== 'force') { animator = null; return; }
+      step();
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height;
+      ctx.fillStyle = '#0a0a14';
+      ctx.fillRect(0, 0, W, H);
+
+      // edges
+      ctx.lineWidth = 0.7;
+      edges.forEach(function(e) {
+        var color = CATS[e.a.p.c].color;
+        ctx.strokeStyle = color + (e.kind === 'parent' ? '90' : '30');
+        ctx.beginPath();
+        ctx.moveTo(e.a.x, e.a.y);
+        ctx.lineTo(e.b.x, e.b.y);
+        ctx.stroke();
+      });
+
+      // nodes
+      hovered = null;
+      var bestD = 16;
+      nodes.forEach(function(n) {
+        var color = CATS[n.p.c].color;
+        if (n.p.a === 'hot') {
+          var grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 4);
+          grad.addColorStop(0, color);
+          grad.addColorStop(0.5, color + '40');
+          grad.addColorStop(1, color + '00');
+          ctx.globalAlpha = 0.45;
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r * 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fill();
+        if (n.r > 4) {
+          ctx.fillStyle = '#ccd';
+          ctx.font = '9px ui-monospace, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.p.n, n.x, n.y + n.r + 10);
+        }
+        var d = Math.hypot(n.x - mx, n.y - my);
+        if (d < bestD) { bestD = d; hovered = n; }
+      });
+
+      if (hovered) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(hovered.x, hovered.y, hovered.r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        tip.textContent = hovered.p.n + ' · ' + hovered.p.c;
+        tip.style.display = 'block';
+        tip.style.left = (hovered.x + 14) + 'px';
+        tip.style.top = (hovered.y + 8) + 'px';
+        cvs.style.cursor = dragNode ? 'grabbing' : 'grab';
+      } else {
+        tip.style.display = 'none';
+        cvs.style.cursor = 'default';
+      }
+
+      animator = requestAnimationFrame(draw);
+    }
+
+    cvs.onmousemove = function(e) {
+      var r = cvs.getBoundingClientRect();
+      mx = e.clientX - r.left; my = e.clientY - r.top;
+    };
+    cvs.onmouseleave = function() { mx = -999; my = -999; dragNode = null; mdown = false; };
+    cvs.onmousedown = function() { mdown = true; pressTime = performance.now(); if (hovered) dragNode = hovered; };
+    cvs.onmouseup = function() {
+      var elapsed = performance.now() - pressTime;
+      if (dragNode && elapsed < 220 && Math.hypot(dragNode.vx, dragNode.vy) < 4) {
+        window.open(dragNode.p.u, '_blank');
+      }
+      dragNode = null; mdown = false;
+    };
+
+    layout();
+    last = performance.now();
+    if (!animator) draw();
+    if (!cvs._resized) {
+      cvs._resized = true;
+      window.addEventListener('resize', function() { if (mode === 'force') layout(); });
+    }
+  }
+
+  // Start in default mode
+  setMode('constellation');
+})();
+</script>
 
 <script>
 (function() {
@@ -1872,6 +2983,167 @@ footer a:hover {
     buildLegend(commits);
   }).catch(function(e) {
     console.error('git-graph load failed:', e);
+  });
+})();
+</script>
+
+<!-- ─── Ask: landing-page semantic search ─── -->
+<button id="ask-fab" aria-label="Search the projects">
+  <span class="ask-spark">✦</span> ask
+</button>
+<div id="ask-panel" role="dialog" aria-label="Project search">
+  <div class="ask-head">
+    <span><span class="ask-title">ask</span> · find a project</span>
+    <button class="ask-close" id="ask-close" aria-label="Close">×</button>
+  </div>
+  <div class="ask-log" id="ask-log">
+    <div class="ask-intro" id="ask-intro">
+      Describe what you're looking for and I'll point you to the right site — by topic,
+      tech, or a half-remembered feature.
+      <div class="ask-examples">
+        <button class="ask-eg">the site with thread viewing</button>
+        <button class="ask-eg">anything on physical modeling?</button>
+        <button class="ask-eg">tools that use my Bluesky data</button>
+      </div>
+    </div>
+  </div>
+  <form class="ask-form" id="ask-form">
+    <input class="ask-input" id="ask-input" type="text" autocomplete="off"
+           placeholder="what are you looking for?" maxlength="800">
+    <button class="ask-send" id="ask-send" type="submit">go</button>
+  </form>
+</div>
+
+<script>
+(function() {
+  var fab    = document.getElementById('ask-fab');
+  var panel  = document.getElementById('ask-panel');
+  var closeB = document.getElementById('ask-close');
+  var log    = document.getElementById('ask-log');
+  var form   = document.getElementById('ask-form');
+  var input  = document.getElementById('ask-input');
+  var sendB  = document.getElementById('ask-send');
+  var intro  = document.getElementById('ask-intro');
+
+  var history = [];      // [{role, content}] for multi-turn context
+  var busy = false;
+
+  function openPanel() {
+    panel.classList.add('open');
+    fab.style.display = 'none';
+    setTimeout(function() { input.focus(); }, 50);
+  }
+  function closePanel() {
+    panel.classList.remove('open');
+    fab.style.display = '';
+  }
+  fab.addEventListener('click', openPanel);
+  closeB.addEventListener('click', closePanel);
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
+  });
+
+  // Minimal, safe markdown: escape, then linkify [text](url), **bold**, newlines.
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function renderMarkdown(s) {
+    var out = escapeHtml(s);
+    out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function(_, text, url) {
+      // Only allow http(s) links; open in a new tab.
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+    });
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/\n/g, '<br>');
+    return out;
+  }
+
+  function addMsg(role, text) {
+    var div = document.createElement('div');
+    div.className = 'ask-msg ' + role;
+    div.innerHTML = role === 'bot' ? renderMarkdown(text) : escapeHtml(text);
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+    return div;
+  }
+
+  function ask(query) {
+    if (busy || !query.trim()) return;
+    busy = true;
+    sendB.disabled = true;
+    if (intro) { intro.remove(); intro = null; }
+
+    addMsg('user', query);
+    history.push({ role: 'user', content: query });
+
+    var bot = addMsg('bot', '');
+    bot.innerHTML = '<span class="ask-cursor">…</span>';
+    var acc = '';
+
+    fetch('/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query, history: history.slice(0, -1) })
+    }).then(function(res) {
+      if (!res.ok || !res.body) {
+        return res.json().then(function(j) { throw new Error(j.error || 'request failed'); })
+                          .catch(function() { throw new Error('request failed (' + res.status + ')'); });
+      }
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buf = '';
+      function pump() {
+        return reader.read().then(function(r) {
+          if (r.done) { finish(); return; }
+          buf += decoder.decode(r.value, { stream: true });
+          var parts = buf.split('\n\n');
+          buf = parts.pop();
+          for (var i = 0; i < parts.length; i++) {
+            var line = parts[i].trim();
+            if (line.indexOf('data:') !== 0) continue;
+            var payload = line.slice(5).trim();
+            if (payload === '[DONE]') continue;
+            try {
+              var obj = JSON.parse(payload);
+              if (obj.response) {
+                acc += obj.response;
+                bot.innerHTML = renderMarkdown(acc) + '<span class="ask-cursor">▌</span>';
+                log.scrollTop = log.scrollHeight;
+              }
+            } catch (e) { /* ignore partial frames */ }
+          }
+          return pump();
+        });
+      }
+      function finish() {
+        bot.innerHTML = renderMarkdown(acc || 'No response.');
+        history.push({ role: 'assistant', content: acc });
+        log.scrollTop = log.scrollHeight;
+        done();
+      }
+      return pump();
+    }).catch(function(err) {
+      bot.innerHTML = '<span style="color:var(--muted)">Search is unavailable right now (' +
+        escapeHtml(err.message) + '). Try the orrery or the list below.</span>';
+      done();
+    });
+  }
+
+  function done() { busy = false; sendB.disabled = false; input.focus(); }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    ask(q);
+  });
+
+  // Example chips
+  log.addEventListener('click', function(e) {
+    if (e.target.classList.contains('ask-eg')) {
+      ask(e.target.textContent.trim());
+    }
   });
 })();
 </script>

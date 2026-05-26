@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>capset — cap-set problem in 𝔽₃ⁿ</title>
+<meta name="description" content="Interactive cap-set explorer. Find the largest subset of 𝔽₃ⁿ with no three-term arithmetic progression. Croot–Lev–Pach + Ellenberg–Gijswijt 2016 broke the bound from 3ⁿ/n to 2.756ⁿ.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #3a8a40;
+  --accent-faint: rgba(58, 138, 64, 0.10);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --conflict: #c43838;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #6abf6f;
+    --accent-faint: rgba(106, 191, 111, 0.13);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+}
+#growth-canvas { aspect-ratio: 5 / 4; cursor: default; }
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+.stat-row .v.fail { color: var(--conflict); }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+}
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.partial { color: var(--muted); }
+.verdict.fail { color: var(--conflict); }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.growth-legend {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.4rem 1.4rem;
+  margin-top: 1rem;
+}
+.legend-item { display: flex; align-items: baseline; gap: 0.5rem; }
+.legend-swatch {
+  display: inline-block;
+  width: 16px; height: 3px;
+  flex-shrink: 0;
+  position: relative;
+  top: -2px;
+}
+.legend-name { color: var(--fg); font-weight: 600; }
+.legend-formula { color: var(--muted); margin-left: 0.3rem; }
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>capset</h1>
+  <p class="subtitle">cap-set problem in 𝔽₃ⁿ · Ellenberg–Gijswijt 2016</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://mino.mobi/heilbronn/">heilbronn</a> · <a href="https://mino.mobi/borsuk/">borsuk</a> · <a href="https://mino.mobi/viazovska/">viazovska</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="cap" role="tab">cap</button>
+  <button class="tab" data-tab="growth" role="tab">growth</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── CAP PANE ─────────── -->
+<section class="pane active" data-pane="cap">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="cap-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">dimension · n</span>
+        <div class="btn-row" id="n-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="reveal-btn">reveal max</button>
+          <button class="btn" id="clear-btn">clear</button>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="stat-note">
+        Cells live in 𝔽₃ⁿ — coordinate triples (or pairs) with entries in {0, 1, 2}.
+        Three cells form a <em>line</em> when they sum to (0, 0, …) modulo 3.
+        A <strong>cap set</strong> contains no such line. Try to build a maximum
+        cap set; any line in your set is highlighted in red and marks a
+        forbidden three-term arithmetic progression.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── GROWTH PANE ─────────── -->
+<section class="pane" data-pane="growth">
+  <div>
+    <canvas id="growth-canvas" width="900" height="720"></canvas>
+    <div class="growth-legend" id="growth-legend"></div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The cap-set problem</h2>
+<p>Take 𝔽₃ⁿ, the <em>n</em>-dimensional vector space over the field with three elements. A subset <em>S</em> ⊆ 𝔽₃ⁿ is a <strong>cap set</strong> if it contains no three-term arithmetic progression — equivalently, no three distinct elements that sum to zero. The cap-set problem asks: how large can a cap set be?</p>
+
+<p>The cardinality of the largest cap set is denoted <em>r</em>₃(<em>n</em>) (or sometimes <em>f</em>(<em>n</em>) in the literature). The trivial upper bound is |𝔽₃ⁿ| = 3ⁿ. The question is how much less.</p>
+
+<h2>The SET game</h2>
+<p>Cap sets in 𝔽₃⁴ are exactly collections of cards from the game <strong>SET</strong> with no valid SET. A SET card has four attributes (colour, shape, shading, number), each in three values — a vector in 𝔽₃⁴. A SET is three cards that, in each attribute, are either all the same or all different — i.e. three cards summing to (0, 0, 0, 0) in 𝔽₃⁴. The famous result <em>r</em>₃(4) = 20 says you can lay out 20 cards on the table with no valid SET (and 21 is impossible). Players sometimes hit this configuration in real games and stare in dismay.</p>
+
+<p>Small known values:</p>
+<ul>
+  <li><em>r</em>₃(1) = 2 (any two of three)</li>
+  <li><em>r</em>₃(2) = 4 (the page's <em>n</em> = 2 mode)</li>
+  <li><em>r</em>₃(3) = 9 (the <em>n</em> = 3 mode)</li>
+  <li><em>r</em>₃(4) = 20 (the SET game)</li>
+  <li><em>r</em>₃(5) = 45</li>
+  <li><em>r</em>₃(6) = 112</li>
+</ul>
+<p>For larger <em>n</em> the exact value is unknown.</p>
+
+<h2>The long climb</h2>
+<p>Upper bounds on <em>r</em>₃(<em>n</em>) drifted down over decades:</p>
+<ul>
+  <li><strong>Brown–Buhler 1982</strong>, then <strong>Frankl–Graham–Rödl 1987</strong>, then <strong>Meshulam 1995</strong>: <em>r</em>₃(<em>n</em>) ≤ <em>O</em>(3ⁿ / <em>n</em>) — only a polynomial improvement over the trivial bound, but enough to prove the set has density tending to zero.</li>
+  <li><strong>Bateman–Katz 2012</strong>: <em>r</em>₃(<em>n</em>) ≤ <em>O</em>(3ⁿ / <em>n</em><sup>1+ε</sup>) for a tiny ε — squeezed further.</li>
+</ul>
+
+<p>Then <strong>May 2016</strong> happened. Croot, Lev, and Pach posted an arXiv preprint proving an analogous bound for 𝔽₄ⁿ using a clever polynomial argument. Within ten days, Ellenberg and Gijswijt adapted the technique to 𝔽₃ⁿ and proved:</p>
+
+<blockquote>
+  <em>r</em>₃(<em>n</em>) ≤ <em>O</em>(2.756ⁿ).
+</blockquote>
+
+<p>This is <em>exponentially</em> better than the 3ⁿ / poly bound — the base of the exponent dropped from 3 to a number strictly less than 3 — and constituted one of the largest single-step improvements in combinatorics in a generation. The exact constant is</p>
+
+<blockquote>
+  Γ ≈ 2.7551 = 3 · (the unique root of a specific cubic in (1, 3)),
+</blockquote>
+
+<p>and the proof, in the original Ellenberg–Gijswijt version, fits in three pages.</p>
+
+<h2>The polynomial method, again</h2>
+<p>The strategy is the same one we saw in Dvir's <a href="https://mino.mobi/kakeya/">kakeya</a> proof and Guth–Katz's <a href="https://mino.mobi/guthkatz/">distinct-distances</a> proof: count polynomials, restrict to lines, force a contradiction.</p>
+
+<ol>
+  <li>For a cap set <em>S</em> ⊆ 𝔽₃ⁿ, consider polynomials in <em>n</em> variables over 𝔽₃ of bounded degree.</li>
+  <li>If |<em>S</em>| is too large, there's a non-zero polynomial <em>P</em> of low degree vanishing on <em>S</em>. Linear algebra: a polynomial space of dimension &gt; |<em>S</em>| can hit a non-zero solution to the |<em>S</em>| linear conditions "<em>P</em>(<em>x</em>) = 0 for each <em>x</em> ∈ <em>S</em>."</li>
+  <li>The trick is to construct <em>P</em> from a tensor-rank computation that's specific to 𝔽₃ and to the three-term-progression structure. The "slice rank" of a matrix factorisation drives the exponent down from 3 to 2.756.</li>
+  <li>The bound follows from comparing slice rank to dimension.</li>
+</ol>
+
+<p>The slice-rank technique introduced here has since proliferated through additive combinatorics — Naslund's bounds on Hales–Jewett, Kleinberg's tight bound on the four-term variant, and others all use it.</p>
+
+<h2>What's still open</h2>
+<p>Is the new bound tight? Probably not. The largest known cap sets (Edel 2004, Calderbank–Fishburn 1994) achieve only ~2.217ⁿ asymptotically, leaving a gap with 2.756ⁿ. Closing this gap — finding the true exponent of <em>r</em>₃(<em>n</em>) — is the cap-set problem's current frontier.</p>
+
+<h2>What's in this site</h2>
+<ul>
+  <li><strong>cap</strong> — interactive 𝔽₃ⁿ explorer for <em>n</em> ∈ {2, 3}. Click cells to toggle membership; any three cells of your set that sum to zero get highlighted in red. The stats panel tracks size, violation count, and the known optimum (4 for <em>n</em> = 2, 9 for <em>n</em> = 3). The <strong>reveal max</strong> button runs a randomised greedy search to find a maximum cap set in real time.</li>
+  <li><strong>growth</strong> — log-scale plot of cap-set bounds versus <em>n</em>: trivial 3ⁿ, Meshulam's 1995 3ⁿ/<em>n</em>, Ellenberg–Gijswijt's 2016 2.756ⁿ, and Edel's 2004 lower bound 2.21ⁿ, with the known small-<em>n</em> exact values plotted on top. The 2016 line is drawn extra-thick to show where the big drop happened.</li>
+  <li><strong>docs</strong> — this page.</li>
+</ul>
+
+<h2>Polynomial-method trilogy, closed</h2>
+<p><a href="https://mino.mobi/kakeya/">kakeya</a> (2008, Dvir, 𝔽<em>q</em>ⁿ) → <a href="https://mino.mobi/guthkatz/">guthkatz</a> (2015, ℝ²) → <strong>capset</strong> (2016, 𝔽₃ⁿ). Eight years, three theorems, one method. The pattern is now textbook: count low-degree polynomials, exploit their vanishing on a sparse set, restrict to algebraic curves, force contradiction. The method continues to surprise — every few years, a long-standing problem in extremal combinatorics or harmonic analysis falls to a clever application of it.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li><a href="https://arxiv.org/abs/1605.01506">Croot, E., Lev, V. &amp; Pach, P. (2016). <em>Progression-free sets in ℤ₄ⁿ are exponentially small.</em></a></li>
+  <li><a href="https://arxiv.org/abs/1605.09223">Ellenberg, J. &amp; Gijswijt, D. (2016). <em>On large subsets of 𝔽<sub>q</sub>ⁿ with no three-term arithmetic progression.</em></a> Annals of Mathematics 185 (2017), 339–343.</li>
+  <li><a href="https://terrytao.wordpress.com/2016/05/18/a-symmetric-formulation-of-the-croot-lev-pach-ellenberg-gijswijt-capset-bound/">Terry Tao — symmetric formulation of the bound on his blog.</a></li>
+  <li>Edel, Y. (2004). <em>Extensions of generalized product caps.</em> Designs, Codes and Cryptography 31, 5–14. — the best lower bound construction.</li>
+  <li>Meshulam, R. (1995). <em>On subsets of finite abelian groups with no 3-term arithmetic progressions.</em> Journal of Combinatorial Theory A 71, 168–172.</li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <span>·</span>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <span>·</span>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <span>·</span>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <span>·</span>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  if (name === 'cap') renderCap();
+  if (name === 'growth') renderGrowth();
+  try { history.replaceState(null, '', '#' + name); } catch {}
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (['cap', 'growth', 'docs'].includes(initialHash) && initialHash !== 'cap') {
+  setTimeout(() => showTab(initialHash), 0);
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// 𝔽₃ⁿ arithmetic
+// ─────────────────────────────────────────────────────────────────────
+const KNOWN_OPTIMUM = { 1: 2, 2: 4, 3: 9, 4: 20, 5: 45, 6: 112 };
+
+function idxToVec(idx, n) {
+  const v = new Array(n);
+  for (let i = 0; i < n; i++) { v[i] = idx % 3; idx = Math.floor(idx / 3); }
+  return v;
+}
+function vecToIdx(v) {
+  let idx = 0;
+  for (let i = v.length - 1; i >= 0; i--) idx = idx * 3 + v[i];
+  return idx;
+}
+function thirdPoint(a, b) {
+  const c = new Array(a.length);
+  for (let i = 0; i < a.length; i++) c[i] = (3 - ((a[i] + b[i]) % 3)) % 3;
+  return c;
+}
+
+function findViolations(S, n) {
+  // Returns array of [i, j, k] (sorted vec-indices) for every line (3-term AP)
+  // inside S. Iterate unordered pairs; the third point is determined.
+  const inS = new Set(S);
+  const arr = [...S];
+  const out = [];
+  const seen = new Set();
+  for (let i = 0; i < arr.length; i++) {
+    const va = idxToVec(arr[i], n);
+    for (let j = i + 1; j < arr.length; j++) {
+      const vb = idxToVec(arr[j], n);
+      const vc = thirdPoint(va, vb);
+      const ic = vecToIdx(vc);
+      if (ic === arr[i] || ic === arr[j]) continue;  // need distinct triple
+      if (!inS.has(ic)) continue;
+      const triple = [arr[i], arr[j], ic].sort((x, y) => x - y);
+      const key = triple.join(',');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(triple);
+    }
+  }
+  return out;
+}
+
+// Greedy max-cap search with random orderings + multiple trials
+function findMaxCapSet(n, trials = 800) {
+  const N = Math.pow(3, n);
+  const all = [];
+  for (let i = 0; i < N; i++) all.push(i);
+  let best = [];
+  const target = KNOWN_OPTIMUM[n] || N;
+  for (let t = 0; t < trials; t++) {
+    // Fisher-Yates shuffle
+    const order = all.slice();
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const cap = [];
+    const capSet = new Set();
+    for (const cand of order) {
+      const vc = idxToVec(cand, n);
+      let ok = true;
+      for (const c of cap) {
+        const va = idxToVec(c, n);
+        const tIdx = vecToIdx(thirdPoint(va, vc));
+        if (capSet.has(tIdx)) { ok = false; break; }
+      }
+      if (ok) { cap.push(cand); capSet.add(cand); }
+    }
+    if (cap.length > best.length) best = cap;
+    if (best.length >= target) break;
+  }
+  return best;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Interactive cap state
+// ─────────────────────────────────────────────────────────────────────
+const state = {
+  n: 2,
+  S: new Set(),
+  hover: null,
+};
+
+const nRow = document.getElementById('n-row');
+const statsEl = document.getElementById('stats');
+const verdictEl = document.getElementById('verdict');
+
+function buildNRow() {
+  nRow.innerHTML = '';
+  for (const n of [2, 3]) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (n === state.n ? ' active' : '');
+    b.textContent = `n = ${n} · |𝔽₃${n === 2 ? '²' : '³'}| = ${Math.pow(3, n)}`;
+    b.addEventListener('click', () => {
+      state.n = n;
+      state.S = new Set();
+      state.hover = null;
+      nRow.querySelectorAll('.btn').forEach((x, i) => x.classList.toggle('active', x.textContent.startsWith(`n = ${n}`)));
+      renderCap();
+    });
+    nRow.appendChild(b);
+  }
+}
+
+document.getElementById('reveal-btn').addEventListener('click', () => {
+  const cap = findMaxCapSet(state.n);
+  state.S = new Set(cap);
+  renderCap();
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  state.S = new Set();
+  renderCap();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Layout & rendering
+// ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('cap-canvas');
+const ctx = canvas.getContext('2d');
+
+// Compute cell layout for the current n. Returns:
+//   { cells: [{x, y, w, h, vec, idx}], layerLabels: [{x, y, text}] }
+function computeLayout() {
+  const W = canvas.width, H = canvas.height;
+  const n = state.n;
+  const cells = [];
+  const labels = [];
+  if (n === 2) {
+    // Single 3x3 grid centered
+    const pad = 40;
+    const size = Math.min(W, H) - 2 * pad;
+    const cell = size / 3;
+    const x0 = (W - 3 * cell) / 2;
+    const y0 = (H - 3 * cell) / 2;
+    for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) {
+      const v = [x, y];
+      cells.push({
+        cx: x0 + x * cell + cell / 2,
+        cy: y0 + (2 - y) * cell + cell / 2,
+        w: cell, h: cell, vec: v, idx: vecToIdx(v),
+      });
+    }
+  } else {
+    // Three 3x3 layers side-by-side
+    const layerPad = 16;
+    const layerGap = 18;
+    const labelH = 26;
+    const totalW = W - 2 * layerPad;
+    const cell = (totalW - 2 * layerGap) / 9;
+    const layerW = 3 * cell;
+    const y0 = (H - 3 * cell) / 2 + labelH / 2;
+    for (let z = 0; z < 3; z++) {
+      const xOff = layerPad + z * (layerW + layerGap);
+      labels.push({ x: xOff + layerW / 2, y: y0 - 12, text: `z = ${z}` });
+      for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) {
+        const v = [x, y, z];
+        cells.push({
+          cx: xOff + x * cell + cell / 2,
+          cy: y0 + (2 - y) * cell + cell / 2,
+          w: cell, h: cell, vec: v, idx: vecToIdx(v),
+        });
+      }
+    }
+  }
+  return { cells, labels };
+}
+
+let layout = null;
+
+function cellAt(cx, cy) {
+  if (!layout) return null;
+  for (const c of layout.cells) {
+    if (Math.abs(cx - c.cx) <= c.w / 2 && Math.abs(cy - c.cy) <= c.h / 2) return c;
+  }
+  return null;
+}
+
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  const c = cellAt((e.clientX - r.left) * (canvas.width / r.width),
+                   (e.clientY - r.top)  * (canvas.height / r.height));
+  if (c) {
+    if (state.S.has(c.idx)) state.S.delete(c.idx); else state.S.add(c.idx);
+    renderCap();
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const c = cellAt((e.clientX - r.left) * (canvas.width / r.width),
+                   (e.clientY - r.top)  * (canvas.height / r.height));
+  const newH = c ? c.idx : null;
+  if (newH !== state.hover) { state.hover = newH; renderCap(); }
+});
+canvas.addEventListener('mouseleave', () => { state.hover = null; renderCap(); });
+
+function renderCap() {
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  layout = computeLayout();
+  const violations = findViolations([...state.S], state.n);
+  const inViolation = new Set();
+  for (const tr of violations) for (const idx of tr) inViolation.add(idx);
+
+  // Draw violation polylines (lines through the three cells of each violating triple)
+  ctx.lineWidth = Math.max(2, layout.cells[0].w * 0.05);
+  ctx.strokeStyle = cssVar('--conflict') || '#c43838';
+  ctx.globalAlpha = 0.55;
+  const cellByIdx = new Map(layout.cells.map(c => [c.idx, c]));
+  for (const tr of violations) {
+    const a = cellByIdx.get(tr[0]);
+    const b = cellByIdx.get(tr[1]);
+    const c = cellByIdx.get(tr[2]);
+    if (!a || !b || !c) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.cx, a.cy);
+    ctx.lineTo(b.cx, b.cy);
+    ctx.lineTo(c.cx, c.cy);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Layer labels (for n=3)
+  ctx.fillStyle = cssVar('--muted') || '#777';
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const lbl of layout.labels) ctx.fillText(lbl.text, lbl.x, lbl.y);
+
+  // Cells
+  for (const c of layout.cells) {
+    const inS = state.S.has(c.idx);
+    const isHover = state.hover === c.idx;
+    const conflict = inViolation.has(c.idx);
+    ctx.fillStyle = inS
+      ? (conflict ? cssVar('--conflict') || '#c43838' : cssVar('--accent') || '#3a8a40')
+      : (isHover ? cssVar('--accent-faint') || 'rgba(58,138,64,0.10)' : '#fff');
+    ctx.fillRect(c.cx - c.w / 2 + 1, c.cy - c.h / 2 + 1, c.w - 2, c.h - 2);
+    ctx.strokeStyle = isHover ? cssVar('--accent') : (conflict ? cssVar('--conflict') : '#bbb');
+    ctx.lineWidth = isHover ? 2 : (conflict ? 2 : 0.6);
+    ctx.strokeRect(c.cx - c.w / 2 + 1, c.cy - c.h / 2 + 1, c.w - 2, c.h - 2);
+    // Coordinate label
+    if (c.w > 36) {
+      ctx.fillStyle = inS ? '#fff' : cssVar('--muted') || '#777';
+      ctx.font = `${Math.min(11, c.w * 0.18)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('(' + c.vec.join(',') + ')', c.cx, c.cy);
+    }
+  }
+
+  // Stats
+  const total = Math.pow(3, state.n);
+  const opt = KNOWN_OPTIMUM[state.n];
+  const sz = state.S.size;
+  const vio = violations.length;
+  const isCap = vio === 0 && sz > 0;
+  statsEl.innerHTML = `
+    <div class="stat-row"><span class="k">space</span><span class="v">𝔽₃${state.n === 2 ? '²' : '³'} · ${total} cells</span></div>
+    <div class="stat-row"><span class="k">|S|</span><span class="v hot">${sz}</span></div>
+    <div class="stat-row"><span class="k">lines in S</span><span class="v ${vio > 0 ? 'fail' : ''}">${vio}</span></div>
+    <div class="stat-row"><span class="k">r₃(${state.n}) · max known</span><span class="v">${opt}</span></div>
+    <div class="stat-row"><span class="k">|S| / r₃(${state.n})</span><span class="v">${(sz / opt * 100).toFixed(0)}%</span></div>
+  `;
+
+  if (sz === 0) {
+    verdictEl.textContent = `click cells to begin · target: ${opt} cells, zero 3-APs`;
+    verdictEl.className = 'verdict partial';
+  } else if (vio > 0) {
+    verdictEl.textContent = `${vio} line${vio === 1 ? '' : 's'} in S — not a cap set yet`;
+    verdictEl.className = 'verdict fail';
+  } else if (sz < opt) {
+    verdictEl.textContent = `valid cap set · ${opt - sz} more to reach r₃(${state.n}) = ${opt}`;
+    verdictEl.className = 'verdict partial';
+  } else if (sz === opt) {
+    verdictEl.textContent = `maximum cap set · |S| = r₃(${state.n}) = ${opt}`;
+    verdictEl.className = 'verdict win';
+  } else {
+    verdictEl.textContent = `|S| = ${sz} exceeds the known maximum ${opt} — this shouldn't be possible. file a bug.`;
+    verdictEl.className = 'verdict fail';
+  }
+}
+
+buildNRow();
+renderCap();
+window.addEventListener('resize', renderCap);
+
+// ─────────────────────────────────────────────────────────────────────
+// Growth chart
+// ─────────────────────────────────────────────────────────────────────
+const growthCanvas = document.getElementById('growth-canvas');
+const growthCtx = growthCanvas.getContext('2d');
+const growthLegend = document.getElementById('growth-legend');
+
+const EXACT_VALUES = [[1, 2], [2, 4], [3, 9], [4, 20], [5, 45], [6, 112]];
+
+const BOUNDS = [
+  {
+    name: 'trivial upper · 3ⁿ',
+    formula: '|𝔽₃ⁿ|',
+    fn: n => Math.pow(3, n),
+    color: '#888',
+    dash: [6, 4],
+    width: 1.4,
+  },
+  {
+    name: 'Meshulam (1995)',
+    formula: 'O(3ⁿ / n)',
+    fn: n => Math.pow(3, n) / Math.max(1, n),
+    color: '#a880ff',
+    dash: [],
+    width: 1.6,
+  },
+  {
+    name: 'Ellenberg–Gijswijt (2016)',
+    formula: 'O(2.756ⁿ)',
+    fn: n => Math.pow(2.7551, n),
+    color: '#3a8a40',
+    dash: [],
+    width: 2.8,
+  },
+  {
+    name: 'Edel lower (2004)',
+    formula: 'Ω(2.217ⁿ)',
+    fn: n => Math.pow(2.217, n),
+    color: '#c45',
+    dash: [],
+    width: 1.6,
+  },
+  {
+    name: 'trivial lower · linear',
+    formula: 'Ω(n)',
+    fn: n => n + 1,
+    color: '#aaa',
+    dash: [2, 4],
+    width: 1.2,
+  },
+];
+
+function renderGrowth() {
+  const ctx = growthCtx;
+  const W = growthCanvas.width;
+  const H = growthCanvas.height;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
+
+  const xMin = 1, xMax = 20;
+  const yMin = 0, yMax = 10;  // log10
+  const padL = 70, padR = 30, padT = 30, padB = 60;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const px = x => padL + (x - xMin) / (xMax - xMin) * plotW;
+  const py = ly => padT + (1 - (ly - yMin) / (yMax - yMin)) * plotH;
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(padL, padT, plotW, plotH);
+
+  // Shade the gap between the new bound and the lower bound
+  ctx.fillStyle = 'rgba(58, 138, 64, 0.08)';
+  ctx.beginPath();
+  let first = true;
+  for (let n = xMin; n <= xMax; n += 0.2) {
+    const y = Math.pow(2.7551, n);
+    const X = px(n), Y = py(Math.log10(y));
+    if (first) { ctx.moveTo(X, Y); first = false; } else ctx.lineTo(X, Y);
+  }
+  for (let n = xMax; n >= xMin; n -= 0.2) {
+    const y = Math.pow(2.217, n);
+    ctx.lineTo(px(n), py(Math.log10(y)));
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Grid lines
+  ctx.strokeStyle = '#e5e5e5';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let n = Math.ceil(xMin); n <= xMax; n++) {
+    ctx.moveTo(px(n), padT); ctx.lineTo(px(n), padT + plotH);
+  }
+  for (let ly = yMin; ly <= yMax; ly++) {
+    ctx.moveTo(padL, py(ly)); ctx.lineTo(padL + plotW, py(ly));
+  }
+  ctx.stroke();
+
+  // Plot curves
+  for (const b of BOUNDS) {
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = b.width;
+    ctx.setLineDash(b.dash);
+    ctx.beginPath();
+    let firstPt = true;
+    for (let n = xMin; n <= xMax; n += 0.1) {
+      const y = b.fn(n);
+      if (y <= 0) { firstPt = true; continue; }
+      const ly = Math.log10(y);
+      if (ly < yMin || ly > yMax) { firstPt = true; continue; }
+      const X = px(n), Y = py(ly);
+      if (firstPt) { ctx.moveTo(X, Y); firstPt = false; } else ctx.lineTo(X, Y);
+    }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Plot known exact values as dots
+  ctx.fillStyle = '#111';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  for (const [n, v] of EXACT_VALUES) {
+    if (v <= 0) continue;
+    const ly = Math.log10(v);
+    if (ly < yMin || ly > yMax) continue;
+    const X = px(n), Y = py(ly);
+    ctx.beginPath();
+    ctx.arc(X, Y, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + plotH);
+  ctx.lineTo(padL + plotW, padT + plotH);
+  ctx.stroke();
+
+  // Tick labels
+  ctx.fillStyle = '#444';
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let n = Math.ceil(xMin); n <= xMax; n += 2) {
+    ctx.fillText(n, px(n), padT + plotH + 6);
+  }
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let ly = yMin; ly <= yMax; ly++) {
+    ctx.fillText('10' + sup(ly), padL - 8, py(ly));
+  }
+
+  // Axis titles
+  ctx.fillStyle = '#222';
+  ctx.font = '12px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('n · dimension', padL + plotW / 2, padT + plotH + 28);
+  ctx.save();
+  ctx.translate(18, padT + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top';
+  ctx.fillText('cap-set size r₃(n)', 0, 0);
+  ctx.restore();
+
+  // Legend
+  let html = '';
+  for (const b of BOUNDS) {
+    const dashStyle = b.dash.length
+      ? `background: repeating-linear-gradient(90deg, ${b.color}, ${b.color} ${b.dash[0]}px, transparent ${b.dash[0]}px, transparent ${b.dash[0] + b.dash[1]}px)`
+      : `background: ${b.color}`;
+    html += `<div class="legend-item">
+      <span class="legend-swatch" style="${dashStyle}"></span>
+      <span><span class="legend-name">${b.name}</span><span class="legend-formula">${b.formula}</span></span>
+    </div>`;
+  }
+  html += `<div class="legend-item">
+    <span class="legend-swatch" style="background: #111; border-radius: 50%; width: 8px; height: 8px; top: 0"></span>
+    <span><span class="legend-name">known exact r₃(n)</span><span class="legend-formula">n = 1..6</span></span>
+  </div>`;
+  html += `<div class="legend-item">
+    <span class="legend-swatch" style="background: rgba(58,138,64,0.25)"></span>
+    <span><span class="legend-name">remaining gap</span><span class="legend-formula">between 2.756ⁿ and 2.217ⁿ — still open</span></span>
+  </div>`;
+  growthLegend.innerHTML = html;
+}
+
+function sup(n) {
+  const m = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+  return String(n).split('').map(c => m[c] || c).join('');
+}
+
+renderGrowth();
+window.addEventListener('resize', () => {
+  if (document.querySelector('.pane.active').dataset.pane === 'growth') renderGrowth();
+});
+</script>
+</body>
+</html>

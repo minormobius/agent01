@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kakeya — finite-field Kakeya conjecture</title>
+<meta name="description" content="Interactive visualization of the finite-field Kakeya conjecture (Dvir 2008). A Besicovitch set in 𝔽_q² contains a line in every direction; build one by clicking cells and watch the directions get covered.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #a35a00;
+  --accent-faint: rgba(163, 90, 0, 0.10);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --line-glow: rgba(163, 90, 0, 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #e0a060;
+    --accent-faint: rgba(224, 160, 96, 0.12);
+    --canvas-bg: #f5f1e8;
+    --canvas-ink: #111;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+.stat-row .v.fail { color: #e63946; }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+}
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.partial { color: var(--muted); }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>kakeya</h1>
+  <p class="subtitle">finite-field Kakeya conjecture · Dvir 2008</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/capset/">capset</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://mino.mobi/heilbronn/">heilbronn</a> · <a href="https://mino.mobi/borsuk/">borsuk</a> · <a href="https://mino.mobi/viazovska/">viazovska</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="plane" role="tab">plane</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── PLANE PANE ─────────── -->
+<section class="pane active" data-pane="plane">
+  <div class="grid-wrap">
+    <div>
+      <canvas id="plane-canvas" width="600" height="600"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">field size · q</span>
+        <div class="btn-row" id="q-row"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="reveal-btn">reveal Besicovitch</button>
+          <button class="btn" id="clear-btn">clear</button>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="verdict" id="verdict"></div>
+
+      <div class="stat-note">
+        Click cells to add or remove them from a candidate set <em>K</em>&nbsp;⊂&nbsp;𝔽<sub>q</sub><sup>2</sup>.
+        The compass below tracks <em>q+1</em> directions: each one is "covered"
+        when some line in that direction lies entirely in <em>K</em>. A
+        <strong>Besicovitch set</strong> covers every direction. Dvir's
+        2008 theorem says any such <em>K</em> has at least <em>q</em>(<em>q</em>+1)/2 points.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The Kakeya question</h2>
+<p>A <strong>Besicovitch set</strong> in the plane is a set of points containing a unit line segment in every direction — a rotation of a needle through every angle, with the needle's track left behind. In the 1920s Abram Besicovitch shocked the mathematical community by constructing such a set with arbitrarily small Lebesgue measure (a "Besicovitch set of measure zero"). The Kakeya question that grew out of this: how small can such a set be in higher dimensions?</p>
+
+<p>The <strong>Kakeya conjecture</strong>, sharpened by Tom Wolff in the 1990s, asks: every Besicovitch set in ℝ<em>ⁿ</em> has Hausdorff dimension <em>n</em>. Wolff proved (5<em>n</em>+3)/4 in 1995. Improvements have crawled forward via the polynomial method, decoupling, and elaborate inductive arguments. Open in ℝ³ until very recently; ℝ<em>ⁿ</em> for <em>n</em> ≥ 4 still partially open.</p>
+
+<h2>The finite-field version</h2>
+<p>Wolff (1999) posed the discrete analogue: let 𝔽<sub><em>q</em></sub> be the finite field with <em>q</em> elements. A set <em>K</em>&nbsp;⊂&nbsp;𝔽<sub><em>q</em></sub><sup><em>n</em></sup> is <strong>Besicovitch</strong> if it contains a line in every direction (a line in 𝔽<sub><em>q</em></sub><sup><em>n</em></sup> is a set of <em>q</em> points {<em>a</em>&nbsp;+&nbsp;<em>tb</em>&nbsp;:&nbsp;<em>t</em>&nbsp;∈&nbsp;𝔽<sub><em>q</em></sub>} for some direction vector <em>b</em>). The finite-field Kakeya conjecture says every Besicovitch set has at least <em>c</em><sub><em>n</em></sub>&nbsp;·&nbsp;<em>q</em><em>ⁿ</em> points for an absolute constant.</p>
+
+<p>This stood as a hard combinatorial problem for a decade. Then:</p>
+
+<h2>Dvir's 2008 proof</h2>
+<p>Zeev Dvir, then a graduate student, settled it in <strong>five pages</strong>. The argument is breathtakingly short:</p>
+
+<ol>
+  <li>Suppose <em>K</em> has fewer than ⌈<em>q</em><sup><em>n</em></sup>/<em>n</em>!⌉ points.</li>
+  <li>The space of polynomials in <em>n</em> variables of total degree &lt; <em>q</em> has dimension binomial(<em>q</em>+<em>n</em>−1,&nbsp;<em>n</em>) ≈ <em>q</em><sup><em>n</em></sup>/<em>n</em>!. That's strictly larger than |<em>K</em>|.</li>
+  <li>Linear algebra: the constraint "<em>P</em>(<em>x</em>)&nbsp;=&nbsp;0 for every <em>x</em>&nbsp;∈&nbsp;<em>K</em>" is |<em>K</em>| linear conditions on the coefficients. With more variables than conditions, a non-zero polynomial <em>P</em> exists that vanishes on <em>K</em>.</li>
+  <li>Restrict <em>P</em> to any line <em>L</em>&nbsp;⊂&nbsp;<em>K</em>: this gives a polynomial of one variable, of degree &lt; <em>q</em>, vanishing at all <em>q</em> points of the line. The fundamental theorem of algebra (finite-field version) forces it to be identically zero.</li>
+  <li>So <em>P</em> vanishes identically on every line in every direction. Looking at the highest-degree homogeneous part of <em>P</em>, this means <em>P</em>'s leading term vanishes on every direction in 𝔽<sub><em>q</em></sub><sup><em>n</em></sup> — i.e. everywhere — so <em>P</em> is zero. Contradiction.</li>
+</ol>
+
+<p>Therefore |<em>K</em>| ≥ <em>q</em><sup><em>n</em></sup>/<em>n</em>!, up to lower-order terms. In the plane (<em>n</em> = 2) this gives |<em>K</em>| ≥ <em>q</em>(<em>q</em>+1)/2, the bound shown in the stats panel.</p>
+
+<h2>The polynomial method</h2>
+<p>Dvir's argument is the prototype of what's now called the <strong>polynomial method</strong>. Three ingredients keep recurring:</p>
+<ul>
+  <li><em>Counting</em>: dimension of a polynomial space exceeds the number of constraints, so a non-zero polynomial exists with the desired vanishing.</li>
+  <li><em>Algebraic restriction</em>: the polynomial, restricted to a line, curve, or low-degree variety, becomes one-variable and is forced to be zero by degree count.</li>
+  <li><em>Global propagation</em>: many local "this polynomial is zero" facts force the polynomial to be globally zero, contradicting non-zeroness.</li>
+</ul>
+
+<p>The technique has since resolved or made progress on a long list of problems:</p>
+<ul>
+  <li><strong>2010–2015</strong>: Guth–Katz solve the Erdős distinct-distances problem (see <a href="https://mino.mobi/guthkatz/">guthkatz</a>).</li>
+  <li><strong>2016</strong>: Croot–Lev–Pach + Ellenberg–Gijswijt bound the cap-set problem.</li>
+  <li><strong>2017</strong>: Naslund's improvement on the Hales–Jewett theorem in low dimensions.</li>
+  <li><strong>2018+</strong>: Maynard, Tao, and others apply variants in additive combinatorics and harmonic analysis.</li>
+</ul>
+
+<p>It now sits in nearly every combinatorial-geometer's toolbox. Dvir's five pages started a movement.</p>
+
+<h2>What's still open</h2>
+<p>The real-Euclidean Kakeya conjecture — the one Besicovitch's measure-zero set provoked, almost a century ago — is <em>not</em> resolved. The polynomial method gave the finite-field analogue, but real ℝ<em>ⁿ</em> is harder: the field has infinite cardinality, you don't get to substitute the fundamental theorem of algebra, and Hausdorff dimension is a more delicate quantity than cardinality. As of 2024 the dimension of Besicovitch sets in ℝ³ was nailed down to 3 by Wang–Zahl (a deep paper using the polynomial method <em>and</em> incidence geometry <em>and</em> decoupling); ℝ<em>ⁿ</em> for <em>n</em> ≥ 4 remains the open frontier.</p>
+
+<h2>What's in this site</h2>
+<ul>
+  <li><strong>plane</strong> — interactive 𝔽<sub><em>q</em></sub><sup>2</sup> for <em>q</em>&nbsp;∈&nbsp;{3,&nbsp;5,&nbsp;7,&nbsp;11}. Click cells to toggle membership in your candidate set <em>K</em>. A compass tracks the <em>q</em>+1 directions; each direction's tick fills in when some line in that direction lies inside <em>K</em>. Stats show |<em>K</em>|, directions covered, and Dvir's lower bound <em>q</em>(<em>q</em>+1)/2. The <strong>reveal Besicovitch</strong> button drops in a known construction (<em>q</em>+1 parabola tangents plus the vertical line at infinity) — a Besicovitch set of size near the bound.</li>
+  <li><strong>docs</strong> — this page.</li>
+</ul>
+
+<h2>Why this sits next to guthkatz</h2>
+<p>The polynomial method that proves <a href="https://mino.mobi/guthkatz/">guthkatz</a>'s distinct-distances lower bound is, in retrospect, a direct descendant of Dvir's argument here. The shape is the same: assume the set is small, build a polynomial of bounded degree that vanishes on it, restrict to a line, force the polynomial to be zero, contradict. Six years apart. One in a discrete plane over a tiny field; one in real geometry's hardest open problem.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li><a href="https://arxiv.org/abs/0803.2336">Dvir, Z. (2008). <em>On the size of Kakeya sets in finite fields.</em></a> Journal of the American Mathematical Society 22(4): 1093–1097.</li>
+  <li>Wolff, T. (1999). <em>Recent work connected with the Kakeya problem.</em> Prospects in mathematics. American Mathematical Society. — the paper that posed the finite-field reformulation.</li>
+  <li>Guth, L. (2016). <em>Polynomial methods in combinatorics.</em> AMS University Lecture Series. — the canonical exposition of the technique.</li>
+  <li><a href="https://terrytao.wordpress.com/2008/03/24/dvirs-proof-of-the-finite-field-kakeya-conjecture/">Terry Tao — exposition of Dvir's proof on his blog.</a></li>
+  <li><a href="https://arxiv.org/abs/2401.12230">Wang &amp; Zahl (2024). <em>Volume estimates for unions of convex sets, and the Kakeya set conjecture in three dimensions.</em></a> The ℝ³ resolution.</li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <span>·</span>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <span>·</span>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <span>·</span>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  try { history.replaceState(null, '', '#' + name); } catch {}
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (['plane', 'docs'].includes(initialHash) && initialHash !== 'plane') {
+  setTimeout(() => showTab(initialHash), 0);
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Finite-field arithmetic + Besicovitch logic
+// ─────────────────────────────────────────────────────────────────────
+const Q_OPTIONS = [3, 5, 7, 11];
+
+const state = {
+  q: 5,
+  K: new Set(),   // members encoded as x*q + y
+  hover: null,
+};
+
+function mod(a, q) { return ((a % q) + q) % q; }
+function modInverse(a, q) {
+  // Fermat's little theorem: a^(q-2) ≡ a^(-1) (mod q), for prime q
+  let r = 1, base = mod(a, q), exp = q - 2;
+  while (exp > 0) {
+    if (exp & 1) r = mod(r * base, q);
+    base = mod(base * base, q);
+    exp >>= 1;
+  }
+  return r;
+}
+
+/** All q+1 directions in 𝔽_q²: slopes 0..q-1 plus "infinity" (vertical). */
+function directionLabels(q) {
+  const labels = [];
+  for (let m = 0; m < q; m++) labels.push({ kind: 'slope', m });
+  labels.push({ kind: 'vertical' });
+  return labels;
+}
+
+/** Iterate the q points of a line in given direction with chosen offset. */
+function linePoints(q, dir, off) {
+  const pts = [];
+  if (dir.kind === 'vertical') {
+    for (let y = 0; y < q; y++) pts.push([off, y]);
+  } else {
+    for (let x = 0; x < q; x++) pts.push([x, mod(dir.m * x + off, q)]);
+  }
+  return pts;
+}
+
+/** Check whether K contains a full line in given direction (any offset). */
+function directionCovered(K, q, dir) {
+  for (let off = 0; off < q; off++) {
+    let ok = true;
+    for (const [x, y] of linePoints(q, dir, off)) {
+      if (!K.has(x * q + y)) { ok = false; break; }
+    }
+    if (ok) return off;
+  }
+  return -1;
+}
+
+/** Parabola-tangent Besicovitch construction. The tangent to y = x²
+ *  at point (a, a²) has slope 2a (in 𝔽_q) and equation y = 2a·x − a².
+ *  Adding the vertical line x = 0 covers the remaining direction at infinity.
+ *  For q odd prime this gives a valid Besicovitch set near the Dvir bound. */
+function parabolaBesicovitch(q) {
+  const set = new Set();
+  for (let a = 0; a < q; a++) {
+    const m = mod(2 * a, q);
+    const c = mod(-(a * a), q);
+    for (const [x, y] of linePoints(q, { kind: 'slope', m }, c)) {
+      set.add(x * q + y);
+    }
+  }
+  for (const [x, y] of linePoints(q, { kind: 'vertical' }, 0)) {
+    set.add(x * q + y);
+  }
+  return set;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Controls
+// ─────────────────────────────────────────────────────────────────────
+const qRow = document.getElementById('q-row');
+const statsEl = document.getElementById('stats');
+const verdictEl = document.getElementById('verdict');
+
+function buildQRow() {
+  qRow.innerHTML = '';
+  for (const q of Q_OPTIONS) {
+    const b = document.createElement('button');
+    b.className = 'btn' + (q === state.q ? ' active' : '');
+    b.textContent = '𝔽' + q;
+    b.addEventListener('click', () => {
+      state.q = q;
+      state.K = new Set();
+      qRow.querySelectorAll('.btn').forEach(x =>
+        x.classList.toggle('active', x.textContent === '𝔽' + q)
+      );
+      render();
+    });
+    qRow.appendChild(b);
+  }
+}
+
+document.getElementById('reveal-btn').addEventListener('click', () => {
+  state.K = parabolaBesicovitch(state.q);
+  render();
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  state.K = new Set();
+  render();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Render: cells + compass
+// ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('plane-canvas');
+const ctx = canvas.getContext('2d');
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const cell = cellAt(cx, cy);
+  if (cell) {
+    const k = cell.x * state.q + cell.y;
+    if (state.K.has(k)) state.K.delete(k); else state.K.add(k);
+    render();
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const cell = cellAt(cx, cy);
+  const key = cell ? cell.x * state.q + cell.y : null;
+  if (key !== state.hover) {
+    state.hover = key;
+    render();
+  }
+});
+canvas.addEventListener('mouseleave', () => {
+  state.hover = null;
+  render();
+});
+
+// Layout cache for hit-testing
+let layout = null;
+
+function cellAt(cx, cy) {
+  if (!layout) return null;
+  const { x0, y0, cellSize, q } = layout;
+  const ix = Math.floor((cx - x0) / cellSize);
+  const iy = q - 1 - Math.floor((cy - y0) / cellSize);  // flip y
+  if (ix < 0 || ix >= q || iy < 0 || iy >= q) return null;
+  return { x: ix, y: iy };
+}
+
+function render() {
+  const W = canvas.width;
+  const H = canvas.height;
+  const q = state.q;
+  ctx.fillStyle = cssVar('--canvas-bg') || '#fafafa';
+  ctx.fillRect(0, 0, W, H);
+
+  // Reserve compass area at bottom
+  const compassH = 60;
+  const gridArea = Math.min(W, H - compassH);
+  const pad = 16;
+  const cellSize = (gridArea - 2 * pad) / q;
+  const x0 = (W - q * cellSize) / 2;
+  const y0 = pad;
+  layout = { x0, y0, cellSize, q };
+
+  // Compute coverage
+  const dirs = directionLabels(q);
+  const covered = dirs.map(d => directionCovered(state.K, q, d));
+  const coveredCount = covered.filter(c => c >= 0).length;
+
+  // Grid + cells
+  for (let i = 0; i < q; i++) {
+    for (let j = 0; j < q; j++) {
+      const cx = x0 + i * cellSize;
+      const cy = y0 + (q - 1 - j) * cellSize;
+      const key = i * q + j;
+      const inK = state.K.has(key);
+      const isHover = state.hover === key;
+      ctx.fillStyle = inK ? cssVar('--accent') || '#a35a00' : '#fff';
+      if (isHover && !inK) ctx.fillStyle = cssVar('--accent-faint') || 'rgba(163,90,0,0.10)';
+      ctx.fillRect(cx + 1, cy + 1, cellSize - 2, cellSize - 2);
+      ctx.strokeStyle = isHover ? cssVar('--accent') : '#bbb';
+      ctx.lineWidth = isHover ? 2 : 0.6;
+      ctx.strokeRect(cx + 1, cy + 1, cellSize - 2, cellSize - 2);
+    }
+  }
+
+  // Draw covered lines OVER the cells, with wrap-aware segments.
+  // For each consecutive cell pair in a line, check whether stepping by
+  // the canonical direction (dxs, dys) lands on the next cell (no wrap)
+  // or off-grid (wrap). For wraps, draw an "exit stub" from one cell
+  // toward the boundary and an "entry stub" arriving from the opposite
+  // boundary — so you can read "this line wraps around" off the page
+  // without the polyline streaking across the whole grid.
+  //
+  // Lines are drawn in white over the accent-filled K cells so the line
+  // contrasts the cell — easier to see which cells of K form which line
+  // when several covered lines overlap.
+  const lineW = Math.max(2.4, cellSize * 0.055);
+  ctx.lineWidth = lineW;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#fff';
+  ctx.globalAlpha = 0.9;
+  const stubLen = 0.8;  // fraction of cell-step length; clearly crosses boundary
+
+  function centerOf(ix, iy) {
+    return [x0 + ix * cellSize + cellSize / 2,
+            y0 + (q - 1 - iy) * cellSize + cellSize / 2];
+  }
+
+  for (let di = 0; di < dirs.length; di++) {
+    const off = covered[di];
+    if (off < 0) continue;
+    const dir = dirs[di];
+    // Canonical small step in 𝔽_q — reduce slopes m > q/2 to negative to
+    // get the geometric step rather than a wrap-around one.
+    let dxs, dys;
+    if (dir.kind === 'vertical') { dxs = 0; dys = 1; }
+    else                          { dxs = 1; dys = dir.m > q / 2 ? dir.m - q : dir.m; }
+    const dxC =  dxs * cellSize;
+    const dyC = -dys * cellSize;  // canvas y is flipped
+
+    const pts = linePoints(q, dir, off);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x1, y1] = pts[i];
+      const [x2, y2] = pts[i + 1];
+      const expX = x1 + dxs;
+      const expY = y1 + dys;
+      const [px1, py1] = centerOf(x1, y1);
+      const [px2, py2] = centerOf(x2, y2);
+      if (expX === x2 && expY === y2) {
+        // No wrap: direct segment between cell centres
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px2, py2);
+        ctx.stroke();
+      } else {
+        // Wrap: exit stub from p1, entry stub to p2 (each extends past the
+        // grid boundary so the wraparound reads visually)
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px1 + dxC * stubLen, py1 + dyC * stubLen);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px2 - dxC * stubLen, py2 - dyC * stubLen);
+        ctx.lineTo(px2, py2);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Axis labels (small)
+  ctx.fillStyle = '#888';
+  ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < q; i++) {
+    ctx.fillText(i, x0 + i * cellSize + cellSize / 2, y0 + q * cellSize + 8);  // x-axis at bottom of grid
+  }
+  ctx.textAlign = 'right';
+  for (let j = 0; j < q; j++) {
+    ctx.fillText(j, x0 - 5, y0 + (q - 1 - j) * cellSize + cellSize / 2);
+  }
+
+  // Compass: q+1 direction arrows below
+  const compY = y0 + q * cellSize + 22;
+  const compH = compassH - 22;
+  const arrowSize = 14;
+  const arrowSpacing = (q + 1 > 0) ? Math.min(60, (W - 60) / (q + 1)) : 60;
+  const compW = arrowSpacing * (q + 1);
+  const compX0 = (W - compW) / 2;
+  ctx.lineWidth = 1.6;
+  for (let di = 0; di < dirs.length; di++) {
+    const d = dirs[di];
+    const cx = compX0 + di * arrowSpacing + arrowSpacing / 2;
+    const cy = compY + compH / 2;
+    const isCovered = covered[di] >= 0;
+    // Background circle
+    ctx.fillStyle = isCovered ? cssVar('--accent') : 'transparent';
+    ctx.strokeStyle = isCovered ? cssVar('--accent') : '#bbb';
+    ctx.beginPath();
+    ctx.arc(cx, cy, arrowSize, 0, Math.PI * 2);
+    if (isCovered) ctx.fill();
+    ctx.stroke();
+    // Arrow inside
+    const angle = d.kind === 'vertical' ? Math.PI / 2 : Math.atan2(d.m, 1);
+    const ax = Math.cos(angle) * (arrowSize - 4);
+    const ay = -Math.sin(angle) * (arrowSize - 4);  // screen y flipped
+    ctx.strokeStyle = isCovered ? '#fff' : '#777';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - ax, cy - ay);
+    ctx.lineTo(cx + ax, cy + ay);
+    ctx.stroke();
+    // Slope label
+    ctx.fillStyle = isCovered ? '#fff' : '#888';
+    ctx.font = '8px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(d.kind === 'vertical' ? '∞' : d.m, cx, cy + arrowSize + 2);
+  }
+
+  // Stats
+  const k = state.K.size;
+  const lowerBound = q * (q + 1) / 2;
+  const isBesicovitch = coveredCount === q + 1;
+  statsEl.innerHTML = `
+    <div class="stat-row"><span class="k">field</span><span class="v">𝔽<sub>${q}</sub><sup>2</sup></span></div>
+    <div class="stat-row"><span class="k">total cells</span><span class="v">${q * q}</span></div>
+    <div class="stat-row"><span class="k">|K|</span><span class="v hot">${k}</span></div>
+    <div class="stat-row"><span class="k">directions covered</span><span class="v ${isBesicovitch ? 'win' : 'hot'}">${coveredCount} / ${q + 1}</span></div>
+    <div class="stat-row"><span class="k">Dvir bound · q(q+1)/2</span><span class="v">${lowerBound}</span></div>
+    <div class="stat-row"><span class="k">|K| − Dvir bound</span><span class="v ${isBesicovitch ? (k - lowerBound === 0 ? 'win' : '') : ''}">${isBesicovitch ? (k - lowerBound >= 0 ? '+' : '') + (k - lowerBound) : '—'}</span></div>
+  `;
+
+  if (k === 0) {
+    verdictEl.textContent = `click cells to begin · need lines in all ${q + 1} directions`;
+    verdictEl.className = 'verdict partial';
+  } else if (!isBesicovitch) {
+    verdictEl.textContent = `${q + 1 - coveredCount} direction${(q + 1 - coveredCount) === 1 ? '' : 's'} still uncovered`;
+    verdictEl.className = 'verdict partial';
+  } else {
+    const excess = k - lowerBound;
+    if (excess === 0) {
+      verdictEl.textContent = `Besicovitch · |K| = ${k} = q(q+1)/2 — Dvir bound met exactly`;
+    } else {
+      verdictEl.textContent = `Besicovitch · |K| = ${k} (${excess} above the Dvir bound)`;
+    }
+    verdictEl.className = 'verdict win';
+  }
+}
+
+buildQRow();
+render();
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>

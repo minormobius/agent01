@@ -1,0 +1,89 @@
+name: Mirror to Tangled
+
+# manual re-run marker: 2026-05-25f  (refresh erdos content)
+#
+# Keeps a self-contained site published as a standalone repo on tangled, so
+# it stays forkable ("remixable") and its page stays current. Automates the
+# *sync* (the template repo is created once on tangled; a deploy SSH key
+# authorizes the push).
+#
+# Working config (proven on erdos):
+#   • TANGLED_KNOT  = tangled.org   — the real git/SSH host (knot1.tangled.sh
+#                     is Cloudflare-fronted and drops SSH:22; tangled.org is
+#                     the direct server). Runner forces IPv4 (-4) since it has
+#                     no IPv6 route.
+#   • TANGLED_HANDLE= the repo owner, e.g. minomobi.bsky.social (handle) or
+#                     did:plc:… (DID — rename-stable). Path = <owner>/<repo>.
+#   • secret TANGLED_SSH_KEY = deploy private key; its public half is under
+#     Settings → Keys on the owning tangled account.
+#   • Set the repo's deploy directory to root so it serves at <owner>.tngl.sh.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/prepare-merge-candidates-*'
+    paths:
+      - 'erdos/**'
+      - '.github/workflows/mirror-tangled.yml'
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site directory to mirror (must be a self-contained index.html)'
+        required: true
+        default: 'erdos'
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      SITE: ${{ github.event.inputs.site || 'erdos' }}
+      TANGLED_HANDLE: ${{ vars.TANGLED_HANDLE }}
+      TANGLED_KNOT: ${{ vars.TANGLED_KNOT || 'tangled.org' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — site must be self-contained
+        run: |
+          test -f "$SITE/index.html" || { echo "✗ $SITE/index.html missing"; exit 1; }
+          if grep -qE '\.\./|<script[^>]+src=|<link[^>]+href=' "$SITE/index.html"; then
+            echo "✗ $SITE/index.html has external/relative deps — a fork would break."
+            grep -nE '\.\./|<script[^>]+src=|<link[^>]+href=' "$SITE/index.html" || true
+            exit 1
+          fi
+          echo "✓ $SITE is self-contained"
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "✗ secret TANGLED_SSH_KEY not set"; exit 1; }
+          test -n "$TANGLED_HANDLE" || { echo "✗ variable TANGLED_HANDLE not set (e.g. you.tngl.sh)"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Force IPv4: knot hosts sit behind Cloudflare (AAAA present), and
+          # GitHub runners usually have no IPv6 route → ENETUNREACH otherwise.
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Build standalone repo and force-push to tangled
+        run: |
+          TMP="$(mktemp -d)"
+          cp -R "$SITE/." "$TMP/"
+          cat > "$TMP/README.md" <<EOF
+          # $SITE
+
+          A remixable [mino.mobi](https://mino.mobi/$SITE/) site — one self-contained \`index.html\`.
+          Fork to make it yours; tangled serves your copy at \`<your-handle>.tngl.sh/$SITE\`
+          with the deploy directory set to the repo root.
+
+          Auto-mirrored from minormobius/agent01 — edits to the template happen there.
+          EOF
+          cd "$TMP"
+          git init -q
+          git add -A
+          git -c user.name='tangled-mirror' -c user.email='mirror@minomobi.com' \
+            commit -qm "mirror $SITE — $(date -u +%Y-%m-%d)"
+          git branch -M main
+          git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${SITE}"
+          GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+            git push -f origin main
+          echo "✓ mirrored $SITE → ${TANGLED_HANDLE}/${SITE} on ${TANGLED_KNOT}"

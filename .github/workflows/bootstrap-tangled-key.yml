@@ -1,0 +1,52 @@
+name: Bootstrap Tangled Key
+
+# Generates the tangled deploy keypair entirely on GitHub's servers:
+#   • private half  → stored as the TANGLED_SSH_KEY secret (via gh, encrypted,
+#                      never printed)
+#   • public half   → printed to this run's log for you to paste into
+#                      tangled → Settings → Keys
+#
+# One-time bootstrap (web UI, no local machine needed): GitHub forbids the
+# built-in GITHUB_TOKEN from writing Actions secrets, so add a fine-grained
+# Personal Access Token — scoped to THIS repo, permission "Secrets: write"
+# (nothing else) — as the secret SECRETS_PAT. You can revoke that PAT after
+# this workflow has run once.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  keygen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate key, store private half as a secret, print public half
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_PAT }}
+        run: |
+          echo "SECRETS_PAT visible to this run: length=${#GH_TOKEN} (0 means not visible)"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SECRETS_PAT is empty for this run. Checklist:"
+            echo "  1. It must live under Settings → Secrets and variables → ACTIONS"
+            echo "     → 'Repository secrets' — NOT the Dependabot or Codespaces tabs,"
+            echo "     and NOT the 'Variables' tab."
+            echo "  2. Named exactly SECRETS_PAT (case-sensitive)."
+            echo "  3. If you added it as an ENVIRONMENT secret, that's the only case"
+            echo "     where branch matters: the env may restrict to main and this job"
+            echo "     would also need an 'environment:' key. Simplest fix: make it a"
+            echo "     plain repository secret instead."
+            exit 1
+          fi
+          tmp="$(mktemp -u)"
+          ssh-keygen -t ed25519 -N "" -C "tangled-deploy@minomobi" -f "$tmp" -q
+          # gh encrypts and uploads; the private key only ever passes over stdin.
+          gh secret set TANGLED_SSH_KEY -R "$GITHUB_REPOSITORY" < "$tmp"
+          echo "::notice::TANGLED_SSH_KEY secret set on $GITHUB_REPOSITORY."
+          echo ""
+          echo "──────── PUBLIC KEY — paste into tangled → Settings → Keys ────────"
+          cat "$tmp.pub"
+          echo "───────────────────────────────────────────────────────────────────"
+          rm -f "$tmp" "$tmp.pub"
+          echo ""
+          echo "Next: set repo variables TANGLED_HANDLE + TANGLED_KNOT, create the"
+          echo "erdos repo on tangled, then run 'Mirror to Tangled'. You may now"
+          echo "revoke the SECRETS_PAT if you like — it's only needed for bootstrap."

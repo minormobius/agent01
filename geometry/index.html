@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>geometry — interactive sites on extremal-geometry conjectures</title>
+<meta name="description" content="A series of single-file interactive pages on long-standing extremal-geometry conjectures: Erdős unit distances, Guth–Katz distinct distances, Hadwiger–Nelson, lonely runner, finite-field Kakeya, cap sets. With a roadmap.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #5a4a14;
+  --accent-faint: rgba(90, 74, 20, 0.10);
+  --accent-tint: rgba(90, 74, 20, 0.05);
+  --tag-bg: #ece6d6;
+  --tag-text: #4a3e1c;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* Sister-pack accents — used as row markers in the resemblance table */
+  --c-erdos:    #8b0000;
+  --c-guthkatz: #1a5e7a;
+  --c-hadwiger: #5e3b8b;
+  --c-runner:   #0aa19c;
+  --c-kakeya:   #a35a00;
+  --c-capset:   #3a8a40;
+  --c-elements: #3d4a72;
+  --c-st:       #5a1a3a;
+  --c-heilbronn:#2a6a4a;
+  --c-borsuk:   #3a3060;
+  --c-viazovska:#97781a;
+  /* Status colours */
+  --st-proved:    #3a8a40;
+  --st-tight:     #1a7a5e;
+  --st-partial:   #b07a14;
+  --st-open:      #7a6a3a;
+  --st-disproved: #8b3a3a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #c8a850;
+    --accent-faint: rgba(200, 168, 80, 0.13);
+    --accent-tint: rgba(200, 168, 80, 0.06);
+    --tag-bg: #2a2620;
+    --tag-text: #c8b078;
+    --c-erdos:    #d36a6a;
+    --c-guthkatz: #6abad8;
+    --c-hadwiger: #b08adc;
+    --c-runner:   #4ed4cf;
+    --c-kakeya:   #d99450;
+    --c-capset:   #6abf6f;
+    --c-elements: #8aa0d4;
+    --c-st:       #d870a8;
+    --c-heilbronn:#6abf8f;
+    --c-borsuk:   #9080d4;
+    --c-viazovska:#d4b454;
+    --st-proved:    #6abf6f;
+    --st-tight:     #4ec0a0;
+    --st-partial:   #d4a850;
+    --st-open:      #c8b478;
+    --st-disproved: #d36a6a;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 2rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+h2 {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 2.6rem 0 0.9rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--rule);
+}
+h3 {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  margin: 1.6rem 0 0.4rem;
+  font-weight: 600;
+}
+p, li { font-size: 0.96rem; }
+p.lede {
+  font-size: 1.05rem;
+  margin-top: 0;
+}
+
+a { color: var(--link); }
+a:hover { color: var(--accent); }
+
+/* ───── Table ───── */
+.table-wrap {
+  overflow-x: auto;
+  margin: 0.6rem -0.4rem;
+  padding: 0.4rem;
+}
+table.pack {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+table.pack th, table.pack td {
+  padding: 0.65rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--rule);
+}
+table.pack th {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  white-space: nowrap;
+}
+table.pack th:hover { color: var(--accent); }
+table.pack th .sort-mark {
+  display: inline-block;
+  width: 0.6em;
+  opacity: 0.45;
+  margin-left: 0.15em;
+}
+table.pack th.sort-active { color: var(--accent); }
+table.pack th.sort-active .sort-mark { opacity: 1; }
+table.pack tr.row {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+table.pack tr.row:hover {
+  background: var(--accent-tint);
+}
+.name-cell {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.name-cell .swatch {
+  display: inline-block;
+  width: 0.55em; height: 0.55em;
+  border-radius: 50%;
+  margin-right: 0.45em;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.15);
+}
+.name-cell a {
+  color: var(--fg);
+  text-decoration: none;
+}
+.name-cell a:hover { color: var(--accent); }
+.era-cell {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.problem-cell {
+  font-family: var(--serif);
+}
+.tech-cell {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.tech-tag {
+  display: inline-block;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+.status-cell {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.status-dot {
+  display: inline-block;
+  width: 0.5em; height: 0.5em;
+  border-radius: 50%;
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+.status-proved    .status-dot { background: var(--st-proved); }
+.status-tight     .status-dot { background: var(--st-tight); }
+.status-partial   .status-dot { background: var(--st-partial); }
+.status-open      .status-dot { background: var(--st-open); }
+.status-disproved .status-dot { background: var(--st-disproved); }
+
+/* ───── Roadmap ───── */
+ol.roadmap { padding-left: 1.2rem; }
+ol.roadmap > li { margin-bottom: 1.1rem; }
+ol.roadmap > li::marker {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-weight: 600;
+}
+ol.roadmap .item-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+ul.candidates {
+  padding-left: 1.2rem;
+  list-style: none;
+}
+ul.candidates > li {
+  margin-bottom: 0.6rem;
+  position: relative;
+}
+ul.candidates > li::before {
+  content: "·";
+  position: absolute;
+  left: -1rem;
+  color: var(--accent);
+  font-weight: bold;
+}
+ul.candidates .item-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ───── House rules ───── */
+.rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem 2rem;
+  margin-top: 0.5rem;
+}
+@media (max-width: 620px) {
+  .rules-grid { grid-template-columns: 1fr; }
+}
+.rule-col h3 { margin-top: 0; }
+.rule-col ul {
+  padding-left: 1.1rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.rule-col li { margin-bottom: 0.5rem; }
+.rule-col strong { color: var(--accent); }
+
+/* ───── Adjacent ───── */
+.adjacent {
+  background: var(--accent-tint);
+  border-left: 2px solid var(--accent);
+  padding: 0.8rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.92rem;
+}
+.adjacent strong {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--accent);
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>geometry</h1>
+  <p class="subtitle">interactive sites on extremal-geometry conjectures</p>
+  <p class="crossref">
+    pack:
+    <a href="https://mino.mobi/erdos/">erdős</a> ·
+    <a href="https://mino.mobi/guthkatz/">guthkatz</a> ·
+    <a href="https://mino.mobi/hadwiger/">hadwiger</a> ·
+    <a href="https://mino.mobi/runner/">runner</a> ·
+    <a href="https://mino.mobi/kakeya/">kakeya</a> ·
+    <a href="https://mino.mobi/capset/">capset</a> ·
+    <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a> ·
+    <a href="https://mino.mobi/borsuk/">borsuk</a> ·
+    <a href="https://mino.mobi/viazovska/">viazovska</a>
+    · adjacent: <a href="https://mino.mobi/elements/">elements</a>
+  </p>
+</header>
+
+<p class="lede">
+  Each entry is a single-file interactive page on a long-standing problem of the form
+  <em>what's the extremal configuration that…</em> — the largest set of points whose
+  pairwise distances obey some rule, the smallest chromatic number that colours a metric
+  graph, the sparsest line cover of a plane, the largest cap inside 𝔽₃ⁿ. They share a
+  scaffold and a sensibility, and each one frames its problem in whatever visual language
+  the underlying math actually rewards.
+</p>
+
+<p>
+  This page is the hub: a family-resemblance table of what's built, and an explicit
+  roadmap of what's next.
+</p>
+
+<h2>Built</h2>
+
+<div class="table-wrap">
+<table class="pack" id="pack-table">
+<thead>
+<tr>
+  <th data-sort="name" data-type="str">name<span class="sort-mark"></span></th>
+  <th data-sort="problem" data-type="str">problem<span class="sort-mark"></span></th>
+  <th data-sort="era" data-type="num">era<span class="sort-mark"></span></th>
+  <th data-sort="tech" data-type="str">technique<span class="sort-mark"></span></th>
+  <th data-sort="statusRank" data-type="num">status<span class="sort-mark"></span></th>
+</tr>
+</thead>
+<tbody id="pack-body"></tbody>
+</table>
+</div>
+
+<p style="font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 0.4rem">
+  Click a column header to sort. Click a row to open the entry. <em>Era</em> is the year
+  of the most recent resolution or breakthrough.
+</p>
+
+<div class="adjacent">
+  <strong>adjacent</strong> · <a href="https://mino.mobi/elements/">elements</a> — a
+  periodic-table mandala. Strictly chemistry, not extremal geometry, but it borrows the
+  same single-file canvas scaffold and rounds out the visual family.
+</div>
+
+<h2>Roadmap</h2>
+
+<h3 style="margin-top:0.6rem">Next</h3>
+<ol class="roadmap">
+  <li>
+    <span class="item-name">/elekes/</span> — sum-product bound. Erdős–Szemerédi 1983
+    (same year as ST, sister problem with shared machinery); progress over decades;
+    current bound around |A|^{4/3 − ε}.
+  </li>
+  <li>
+    <span class="item-name">/orchard/</span> — orchard visibility / ordinary lines.
+    Green–Tao 2013 resolved the asymptotic.
+  </li>
+  <li>
+    <span class="item-name">/kepler/</span> — the dimension-3 sphere packing optimum
+    (Hales 1998, formalised by Flyspeck 2014). Natural prequel to
+    <a href="https://mino.mobi/viazovska/">viazovska</a>; the computer-assisted-proof
+    angle pairs with hadwiger's SAT story.
+  </li>
+</ol>
+
+<h3>Other candidates</h3>
+<ul class="candidates">
+  <li>
+    <span class="item-name">/cohen-pohoata-zakharov/</span> — explicit 2024 improvement
+    on Heilbronn's upper bound, via polynomial method. Could spin off from
+    <a href="https://mino.mobi/heilbronn/">heilbronn</a> as a technique-focused
+    explainer.
+  </li>
+  <li>
+    <span class="item-name">/frankl-wilson/</span> — the rank-of-incidence-matrix
+    theorem that drove the original Kahn–Kalai counterexample on
+    <a href="https://mino.mobi/borsuk/">borsuk</a>. Adjacent to capset; could anchor
+    a "finite-field linear-algebra toolkit" page.
+  </li>
+  <li>
+    <span class="item-name">/cohn-elkies/</span> — the linear-programming bound behind
+    <a href="https://mino.mobi/viazovska/">viazovska</a>. An interactive "magic function"
+    explorer (drag the auxiliary function, watch the LP bound move) would make the
+    modular-form punchline land.
+  </li>
+</ul>
+
+<h3>Branching ideas (adjacent to the main pack)</h3>
+<ul class="candidates">
+  <li>
+    <span class="item-name">/dvir/</span> — a dedicated explainer for the
+    polynomial-method, walking Dvir's five-page Kakeya proof in interactive steps.
+    Shares material with <a href="https://mino.mobi/kakeya/">kakeya</a>; would be the
+    technique's "from scratch" lecture-hall page.
+  </li>
+  <li>
+    <span class="item-name">/polymath/</span> — the Polymath collaborative projects.
+    Polymath16 (the de Grey graph reduction) is the most natural entry; tells the
+    "math by github" story.
+  </li>
+  <li>
+    <span class="item-name">/erdos-problems/</span> — an interactive index of all the
+    Erdős open problems with progress trackers. Linked from
+    <a href="https://mino.mobi/erdos/">erdős</a> and
+    <a href="https://mino.mobi/guthkatz/">guthkatz</a>; mirrors the
+    erdosproblems.com taxonomy.
+  </li>
+</ul>
+
+<h2>House rules</h2>
+
+<div class="rules-grid">
+  <div class="rule-col">
+    <h3>Every entry has</h3>
+    <ul>
+      <li>One single-file static HTML page in its own top-level directory (<code>/&lt;name&gt;/index.html</code>).</li>
+      <li>Header with crumb to mino.mobi, h1, subtitle, sister-site crossref strip.</li>
+      <li>Format bar (theme + reveal-all) where colour or hover-driven viz benefits from it.</li>
+      <li>At least one interactive viz tab; optional growth, history, play, and docs tabs.</li>
+      <li>A distinct accent colour from its siblings.</li>
+      <li>An entry on the root landing page in the <code>data</code> category, age <code>hot</code>.</li>
+      <li>Math validated by a smoke test inside the deploy commit body.</li>
+    </ul>
+  </div>
+  <div class="rule-col">
+    <h3>What we avoid</h3>
+    <ul>
+      <li><strong>No server-side compute.</strong> Everything static HTML + canvas JS. The polynomial-method demos tempt one toward server-side SAT solvers; resist.</li>
+      <li><strong>No problems that need &gt; 500 vertices to demonstrate.</strong> The page becomes click-uncolourable. Reveal-only static rendering is fine — see hadwiger's de Grey graph.</li>
+      <li><strong>No log-log growth charts</strong> for problems with two data points. A prose timeline reads better.</li>
+      <li><strong>No overclaiming.</strong> Be honest when a procedural construction doesn't quite reach the claimed bound — the page is still educational.</li>
+    </ul>
+  </div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/erdos/">erdős</a>
+  <a href="https://mino.mobi/guthkatz/">guthkatz</a>
+  <a href="https://mino.mobi/hadwiger/">hadwiger</a>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/capset/">capset</a>
+  <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  <a href="https://mino.mobi/borsuk/">borsuk</a>
+  <a href="https://mino.mobi/viazovska/">viazovska</a>
+  <a href="https://mino.mobi/elements/">elements</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Family-resemblance table — data, render, sort
+// ─────────────────────────────────────────────────────────────────────
+const PACK = [
+  {
+    name: 'szemerédi–trotter',
+    url:  'https://mino.mobi/szemeredi-trotter/',
+    accent: 'var(--c-st)',
+    problem: 'Point-line incidences in ℝ²',
+    era: 1983,
+    eraText: 'Szemerédi–Trotter 1983',
+    tech: 'cell decomposition',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'proved (tight)',
+  },
+  {
+    name: 'borsuk',
+    url:  'https://mino.mobi/borsuk/',
+    accent: 'var(--c-borsuk)',
+    problem: 'Borsuk partition conjecture',
+    era: 1993,
+    eraText: 'Kahn–Kalai 1993',
+    tech: 'Frankl–Wilson',
+    status: 'disproved',
+    statusRank: 4,
+    statusText: 'false above dim 63',
+  },
+  {
+    name: 'kakeya',
+    url:  'https://mino.mobi/kakeya/',
+    accent: 'var(--c-kakeya)',
+    problem: 'Finite-field Kakeya conjecture',
+    era: 2008,
+    eraText: 'Dvir 2008',
+    tech: 'polynomial method',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'proved',
+  },
+  {
+    name: 'guthkatz',
+    url:  'https://mino.mobi/guthkatz/',
+    accent: 'var(--c-guthkatz)',
+    problem: 'Erdős distinct-distances',
+    era: 2015,
+    eraText: 'Guth–Katz 2015',
+    tech: 'polynomial method',
+    status: 'tight',
+    statusRank: 1,
+    statusText: 'tight up to √log n',
+  },
+  {
+    name: 'capset',
+    url:  'https://mino.mobi/capset/',
+    accent: 'var(--c-capset)',
+    problem: 'Cap-set in 𝔽₃ⁿ',
+    era: 2016,
+    eraText: 'Ellenberg–Gijswijt 2016',
+    tech: 'polynomial method',
+    status: 'tight',
+    statusRank: 1,
+    statusText: 'tight (2.756ⁿ)',
+  },
+  {
+    name: 'viazovska',
+    url:  'https://mino.mobi/viazovska/',
+    accent: 'var(--c-viazovska)',
+    problem: 'Sphere packing in dim 8 & 24',
+    era: 2016,
+    eraText: 'Viazovska 2016',
+    tech: 'modular forms',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'optimal (E₈, Leech)',
+  },
+  {
+    name: 'hadwiger',
+    url:  'https://mino.mobi/hadwiger/',
+    accent: 'var(--c-hadwiger)',
+    problem: 'Chromatic number of the plane',
+    era: 2018,
+    eraText: 'de Grey 2018',
+    tech: 'amateur SAT search',
+    status: 'partial',
+    statusRank: 2,
+    statusText: '5 ≤ χ ≤ 7',
+  },
+  {
+    name: 'runner',
+    url:  'https://mino.mobi/runner/',
+    accent: 'var(--c-runner)',
+    problem: 'Lonely runner conjecture',
+    era: 1967,
+    eraText: 'Wills 1967, open',
+    tech: 'dynamics / Fourier',
+    status: 'open',
+    statusRank: 3,
+    statusText: 'k ≤ 7 proven',
+  },
+  {
+    name: 'erdős',
+    url:  'https://mino.mobi/erdos/',
+    accent: 'var(--c-erdos)',
+    problem: 'Erdős unit-distance problem',
+    era: 2026,
+    eraText: 'OpenAI 2026',
+    tech: 'AI-built construction',
+    status: 'disproved',
+    statusRank: 4,
+    statusText: 'upper bound broken',
+  },
+  {
+    name: 'heilbronn',
+    url:  'https://mino.mobi/heilbronn/',
+    accent: 'var(--c-heilbronn)',
+    problem: 'Heilbronn triangle problem',
+    era: 1950,
+    eraText: 'Heilbronn ~1950, open',
+    tech: 'heuristic search',
+    status: 'open',
+    statusRank: 3,
+    statusText: 'log n / n² known, gap open',
+  },
+];
+
+const body = document.getElementById('pack-body');
+
+function render(rows) {
+  body.innerHTML = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    tr.className = 'row';
+    tr.addEventListener('click', () => { window.location.href = r.url; });
+    tr.innerHTML = `
+      <td class="name-cell">
+        <span class="swatch" style="background:${r.accent}"></span>
+        <a href="${r.url}">${r.name}</a>
+      </td>
+      <td class="problem-cell">${r.problem}</td>
+      <td class="era-cell">${r.eraText}</td>
+      <td class="tech-cell"><span class="tech-tag">${r.tech}</span></td>
+      <td class="status-cell status-${r.status}">
+        <span class="status-dot"></span>${r.statusText}
+      </td>
+    `;
+    body.appendChild(tr);
+  }
+}
+
+// Sort state
+let sortKey = 'era';
+let sortAsc = true;
+
+function applySort() {
+  const sorted = [...PACK].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (typeof av === 'number') return sortAsc ? av - bv : bv - av;
+    const cmp = String(av).localeCompare(String(bv));
+    return sortAsc ? cmp : -cmp;
+  });
+  render(sorted);
+  // Mark active header
+  document.querySelectorAll('#pack-table th').forEach(th => {
+    th.classList.remove('sort-active');
+    th.querySelector('.sort-mark').textContent = '';
+  });
+  const active = document.querySelector(`#pack-table th[data-sort="${sortKey}"]`);
+  if (active) {
+    active.classList.add('sort-active');
+    active.querySelector('.sort-mark').textContent = sortAsc ? '▲' : '▼';
+  }
+}
+
+document.querySelectorAll('#pack-table th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) {
+      sortAsc = !sortAsc;
+    } else {
+      sortKey = key;
+      sortAsc = true;
+    }
+    applySort();
+  });
+});
+
+applySort();
+</script>
+
+</body>
+</html>
