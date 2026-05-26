@@ -38,21 +38,22 @@
   .edge.solv   { stroke: #5a9a3a; }
   .edge.data   { stroke: #2c7da0; }
   .edge.design { stroke: #c89200; }
-  .dot.solv   { fill: #5a9a3a; } .dot.data { fill: #2c7da0; } .dot.design { fill: #c89200; } .dot.trunk { fill: #9aa0aa; }
+  .edge.plan   { stroke: #8a5cc0; }
+  .dot.solv   { fill: #5a9a3a; } .dot.data { fill: #2c7da0; } .dot.design { fill: #c89200; } .dot.plan { fill: #8a5cc0; } .dot.trunk { fill: #9aa0aa; }
   .found rect { fill: #eef0f3; stroke: #9aa0aa; stroke-width: 1.5; }
   .found text { fill: #555; }
   .lbl { fill: #333; font: 600 14px ui-serif, Georgia, serif; }
   .lbl.sm { font: italic 11px ui-monospace, monospace; fill: #888; font-weight: 400; }
   .branchname { font: 700 14.5px ui-monospace, monospace; letter-spacing: 0.02em; }
-  .branchname.solv { fill: #4a8a2a; } .branchname.data { fill: #2c7da0; } .branchname.design { fill: #b08200; }
+  .branchname.solv { fill: #4a8a2a; } .branchname.data { fill: #2c7da0; } .branchname.design { fill: #b08200; } .branchname.plan { fill: #7a4fb0; }
   .oracle { font: italic 11.5px ui-serif, Georgia, serif; fill: #888; }
   @media (prefers-color-scheme: dark) {
     .edge.trunk { stroke: #6a7078; }
-    .edge.solv { stroke: #8fbf5a; } .edge.data { stroke: #6cc; } .edge.design { stroke: #e8b84b; }
-    .dot.solv { fill: #8fbf5a; } .dot.data { fill: #6cc; } .dot.design { fill: #e8b84b; } .dot.trunk { fill: #6a7078; }
+    .edge.solv { stroke: #8fbf5a; } .edge.data { stroke: #6cc; } .edge.design { stroke: #e8b84b; } .edge.plan { stroke: #b98fe0; }
+    .dot.solv { fill: #8fbf5a; } .dot.data { fill: #6cc; } .dot.design { fill: #e8b84b; } .dot.plan { fill: #b98fe0; } .dot.trunk { fill: #6a7078; }
     .found rect { fill: #20242c; stroke: #556; } .found text { fill: #bbc; }
     .lbl { fill: #ddd; } .lbl.sm { fill: #99a; }
-    .branchname.solv { fill: #aef087; } .branchname.data { fill: #7dd; } .branchname.design { fill: #e8c860; }
+    .branchname.solv { fill: #aef087; } .branchname.data { fill: #7dd; } .branchname.design { fill: #e8c860; } .branchname.plan { fill: #c4a3ec; }
     .oracle { fill: #99a; }
   }
   a.node { cursor: pointer; }
@@ -84,7 +85,7 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 </p>
 
 <div class="treewrap">
-  <svg id="tree" viewBox="0 0 840 730" role="img" aria-label="Tech tree: foundations branching into three problem tracks"></svg>
+  <svg id="tree" viewBox="0 0 900 730" role="img" aria-label="Tech tree: foundations branching into four problem tracks"></svg>
 </div>
 <p class="map-cap">
   <em>Read it bottom-up:</em> start on the trunk &mdash; set up the tools, learn
@@ -192,6 +193,16 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
   </li>
 </ul>
 
+<h2>Plans &amp; schedules</h2>
+<p class="section-note">Turn a project into a schedule; the schedule reconciles is the oracle.</p>
+<ul class="problems">
+  <li>
+    <a href="./problems/gantt-cpm/">Gantt &amp; critical path</a>
+    <span class="tag">management &middot; CPM &middot; live Gantt</span>
+    <div class="desc">Ten tasks, a web of dependencies, a deadline. Drag a duration and watch the critical path re-route and the finish date move &mdash; with the lesson that crashing a task only helps until a parallel path takes over. The first node of a management-training branch (schedule risk, resource leveling, and earned value to come).</div>
+  </li>
+</ul>
+
 <footer>
   Template: <a href="./PROBLEM_TEMPLATE.md">PROBLEM_TEMPLATE.md</a>.
   Draft zone &mdash; expect rough edges.
@@ -199,7 +210,7 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
 
 <script>
 const TREE = {
-  hub: {x:420, y:362},
+  hub: {x:445, y:362},
   trunk: [   // top (nearest the fork) -> bottom (base); read bottom-up
     {label:'Spend tokens well',   href:'./getting-started/token-economy/'},
     {label:'Ship it: HTML & PDF', href:'./getting-started/shipping/'},
@@ -215,18 +226,22 @@ const TREE = {
         {label:'Truss bridges',   href:'./problems/truss-bridges/'},
         {label:'Beam vibration',  href:'./problems/beam-vibration/'},
       ]},
-    {key:'data',   x:420, name:'Data & analysis', oracle:'oracle: reconciliation', side:'right',
+    {key:'data',   x:350, name:'Data & analysis', oracle:'oracle: reconciliation', side:'left',
       nodes:[
         {label:'Reconcile total', href:'./problems/reconcile-total/'},
         {label:'Spend report',    href:'./problems/spend-report/'},
         {label:'Decision point',  href:'./problems/decision-point/'},
         {label:'Droplet sizing',  href:'./problems/droplet-sizing/'},
       ]},
-    {key:'design', x:690, name:'Design & selection', oracle:'oracle: the datasheet', side:'left',
+    {key:'design', x:540, name:'Design & selection', oracle:'oracle: the datasheet', side:'right',
       nodes:[
         {label:'Bearing life',    href:'./problems/bearing-life/'},
         {label:'Tolerance stack', href:'./problems/tolerance-stack/'},
         {label:'Motion system',   href:'./problems/motion-system/'},
+      ]},
+    {key:'plan',   x:740, name:'Plans & schedules', oracle:'oracle: the schedule reconciles', side:'right',
+      nodes:[
+        {label:'Gantt + critical path', href:'./problems/gantt-cpm/'},
       ]},
   ],
 };
