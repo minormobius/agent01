@@ -1,6 +1,6 @@
 name: Bisk Daily Digest
 
-# manual re-run marker: 2026-05-25a  (bump to fire on a feature branch)
+# manual re-run marker: 2026-05-26b  (now self-deploys)
 #
 # NOTE: the schedule: cron only fires from the repo's DEFAULT branch (main).
 # This file must be merged to main for the daily 13:00 UTC run to happen.
@@ -54,3 +54,15 @@ jobs:
               git push && break || { echo "push failed, retrying…"; git pull --rebase --autostash; sleep $((attempt*2)); }
             done
           fi
+
+      - name: Deploy bisk
+        # The commit above is pushed with GITHUB_TOKEN, and GitHub does NOT
+        # trigger other workflows (deploy-bisk) from a GITHUB_TOKEN push — so
+        # the digest must deploy the freshly-built assets itself.
+        working-directory: bisk
+        run: |
+          npm install wrangler
+          npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
