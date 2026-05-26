@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Pendragon — a historiography of the Arthurian legend</title>
+  <meta name="description" content="When the Arthur legends appeared, what forms they took, and a phylogeny of how the memes evolved across fifteen centuries — timeline, evolutionary tree, wiki, the fae angle, and the scholarship. From read.mino.mobi.">
+  <meta property="og:title" content="Pendragon — a historiography of the Arthurian legend">
+  <meta property="og:description" content="Timeline, evolutionary tree, a cross-linked wiki, the fae angle, and the papers — fifteen centuries of King Arthur, mapped.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/pendragon/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">⚔</span>Pendragon</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="timeline">Timeline</button>
+        <button class="tab" data-view="tree">Evolutionary tree</button>
+        <button class="tab" data-view="wiki">Wiki</button>
+        <button class="tab" data-view="fae">The fae angle</button>
+        <button class="tab" data-view="papers">Papers</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- TIMELINE -->
+    <section class="view active" id="view-timeline">
+      <div class="hero">
+        <h1>Pendragon</h1>
+        <p id="tagline"></p>
+      </div>
+      <h2 class="section">When did the legends appear, and in what form?</h2>
+      <p class="lead">Fifteen centuries from a leader who may never have lived to a meme that will not die. Filter by the kind of artefact; the larger haloed dots mark the pivot points where the whole tradition changed shape.</p>
+      <div class="tl-filters" id="tl-filters"></div>
+      <div class="timeline" id="timeline"></div>
+    </section>
+
+    <!-- TREE -->
+    <section class="view" id="view-tree">
+      <div class="hero"><h1>Evolutionary tree</h1><p>A phylogeny of texts and the matter they carry — which work descends from which, and where the marvellous Celtic strain runs through it.</p></div>
+      <p class="tree-intro lead">Columns are <strong>strands</strong> of the tradition; vertical position is time (oldest at top). Solid lines are direct textual descent, dashed lines looser influence, dotted lines mere background. Hover a work to light up its ancestry; click the haloed pivots and ⟡-marked nodes to open the wiki.</p>
+      <div class="tree-legend" id="tree-legend"></div>
+      <div class="edge-key">
+        <span>── descent</span>
+        <span>– – influence</span>
+        <span>···· background</span>
+        <span style="color:var(--accent)">⟡ carries the fae strain</span>
+      </div>
+      <div class="tree-scroll"><div id="tree-host"></div></div>
+      <p class="tree-hint">Scroll sideways on narrow screens. The single fattest bundle of solid lines converges on Malory — the confluence of the whole medieval tradition into the canonical English text.</p>
+    </section>
+
+    <!-- WIKI -->
+    <section class="view" id="view-wiki">
+      <div class="hero"><h1>Wiki</h1><p>The people, texts, motifs and places — cross-linked. Search, filter by kind, or follow the “see also” trails.</p></div>
+      <div class="wiki-controls">
+        <input class="wiki-search" id="wiki-search" type="text" placeholder="Search the wiki — Grail, Avalon, Morgan, Malory…" autocomplete="off">
+      </div>
+      <div class="cat-filters" id="cat-filters"></div>
+      <div class="wiki-grid" id="wiki-grid"></div>
+      <div class="no-results" id="wiki-none" style="display:none">No entries match.</div>
+    </section>
+
+    <!-- FAE -->
+    <section class="view" id="view-fae">
+      <div class="hero"><h1>The fae angle</h1><p>How important is the fairy element? It is the legend's oldest layer — and its most persistent.</p></div>
+      <div class="fae-intro" id="fae-intro"></div>
+      <div id="fae-sections"></div>
+    </section>
+
+    <!-- PAPERS -->
+    <section class="view" id="view-papers">
+      <div class="hero"><h1>Papers &amp; primary sources</h1><p>Where to read the texts themselves, and the scholarship that argues over them. Links go to stable archives and reference gateways.</p></div>
+      <div id="papers"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Pendragon</span><br>
+    A historiography, not a romance. Dates are scholarly consensus where one exists and best-estimate ranges where it does not; the historical-Arthur question is genuinely open and presented as such. Built on the <a href="https://d.lib.rochester.edu/camelot">Camelot Project</a>, Wikipedia/Wikisource, Project Gutenberg and the Internet Archive.
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
