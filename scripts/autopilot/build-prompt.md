@@ -19,6 +19,26 @@ loop during a run, so this prompt is the whole brief — be decisive.
   `auto/**` paths are what `deploy-autopilot.yml` watches; it handles the
   `wrangler deploy` and the Bluesky announce. Do not deploy or post yourself.
 
+## Today's brief
+
+The block below is regenerated every morning by `scripts/autopilot/build-brief.mjs`
+(a bisk offshoot) from the live catalog + bisk's latest digest. Treat it as
+current ground truth — the taken-slug list prevents collisions and the
+neighborhood spark is your fresh inspiration seed.
+
+<!-- BRIEF_START -->
+_Regenerated 2026-05-26 by build-brief.mjs — do not edit by hand._
+
+**Already taken** (never reuse these slugs/sites): agimet, airchat, answers, ask, astro, atlas, atproto-data, audio, auto, bakery, bisk, bogo, borsuk, bounty, capset, cards, chess, clock, cluster, corn, crm, cult, data, density, disk, docs, draw, echo, elements, emsim, erdos, finance, flow, flows, fodder, functions, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, inpac, js, judge, kakeya, knotpac, labglass, lexicon, list, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, org, os, pac, packages, paint, pds, photo, phylo, pm, pokemon, poll, post01, prism, proteus, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, thread, time, torpac, torusworld, track, vault, viazovska, wars, wave, web, weft, wiki, wild, workers, yum, zoom
+
+**Catalog saturation** (sites per category): bluesky 28, data 27, games 23, tools 9, work 6.
+
+**Neighborhood spark** (bisk 2026-05-26, 99 members / 249 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: bluesky, noumena, encyclical
+- Top post: "americans are on holiday u know what that means" — @samuel.fm
+<!-- BRIEF_END -->
+
 ## Step 1 — Load context
 
 Read, in order:
@@ -28,23 +48,25 @@ Read, in order:
 - `geometry/IDEAS.md` (site scaffold conventions + anti-patterns)
 - `NEXT-STEPS.md` (the standing roadmap)
 
-The catalog tells you what NOT to rebuild. The "begging to be built" gaps as
-of this writing: network-level (multi-account) Bluesky analytics, an
-idea/quote-provenance graph, a longitudinal writing tracker. You are not
-limited to these — but do not ship the 26th single-account "embed a profile,
-draw a chart" page. Novelty matters.
+The **Today's brief** block above lists what NOT to rebuild (taken slugs) and
+where the catalog is saturated. Evergreen gaps worth mining: network-level
+(multi-account) Bluesky analytics, an idea/quote-provenance graph, a
+longitudinal writing tracker. You are not limited to these — but do not ship
+the 26th single-account "embed a profile, draw a chart" page. Novelty matters.
 
-## Step 2 — Pull a spark from live signal
+## Step 2 — Take a spark
 
-Fetch something real to ground the idea (the routine environment must allow
-these hosts — Custom network access):
+Today's brief above carries a fresh spark from bisk's latest digest — the
+neighborhood's mood and distinctive words. Let one of those threads of
+attention nudge the theme. Optionally pull more live signal (the routine
+environment must allow these hosts — Custom network access):
 - `https://feed.mino.mobi/xrpc/com.minomobi.feed.getCommunities` — current
   SimCluster community graph.
 - `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=<handle>`
   — recent posts for theme inspiration.
 
-Let the signal nudge the theme. Don't force it; if nothing fits, build the
-strongest idea from Step 1 instead.
+Don't force the spark; if nothing fits, build the strongest evergreen idea
+instead.
 
 ## Step 3 — Decide
 
