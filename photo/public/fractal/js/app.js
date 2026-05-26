@@ -82,39 +82,83 @@ function updateHud() {
     lastPrecision === 1 ? `${zoomStr} · hi-precision` : zoomStr;
 }
 
-// ---------- canvas interaction ----------
-let dragging = false, downPx = null, downCenter = null;
+// ---------- canvas interaction (pan / wheel-zoom / pinch-zoom) ----------
 let pickJulia = false;
+const pointers = new Map();        // active pointerId -> {x, y}
+let panBaseline = null;            // 1-finger pan anchor
+let pinch = null;                  // 2-finger pinch anchor
+
+const ptArray = () => [...pointers.values()];
+const midOf = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+const distOf = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function beginPan() {
+  const [pt] = ptArray();
+  panBaseline = { downPx: [pt.x, pt.y], center: [p.centerX, p.centerY] };
+}
+function beginPinch() {
+  const [a, b] = ptArray();
+  const m = midOf(a, b);
+  pinch = { startDist: Math.max(1e-3, distOf(a, b)), startScale: p.scale, anchor: screenToComplex(m.x, m.y) };
+}
+// Re-establish the gesture baseline whenever the finger count changes, so the
+// remaining finger doesn't cause a jump when one is lifted.
+function syncGesture() {
+  pinch = null; panBaseline = null;
+  if (pointers.size === 1) beginPan();
+  else if (pointers.size >= 2) beginPinch();
+}
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (pickJulia) {
+  if (pickJulia && pointers.size === 0) {
     const c = screenToComplex(e.clientX, e.clientY);
     setVal('juliaRe', c.x); setVal('juliaIm', c.y);
     p.juliaRe = c.x; p.juliaIm = c.y;
     pickJulia = false;
     document.getElementById('pick-julia').textContent = 'pick seed by clicking the canvas';
-    if (p.type !== 1) { p.type = 1; document.getElementById('type').value = '1'; syncJuliaVisibility(); }
+    if (p.type !== 1 && !p.shapeMode) { p.type = 1; document.getElementById('type').value = '1'; syncJuliaVisibility(); }
     requestRender();
     return;
   }
-  dragging = true;
   canvas.setPointerCapture(e.pointerId);
-  downPx = [e.clientX, e.clientY];
-  downCenter = [p.centerX, p.centerY];
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  syncGesture();
 });
+
 canvas.addEventListener('pointermove', (e) => {
-  if (!dragging) return;
-  const now = relComplex(e.clientX, e.clientY);
-  const down = relComplex(downPx[0], downPx[1]);
-  p.centerX = downCenter[0] - (now.x - down.x);
-  p.centerY = downCenter[1] - (now.y - down.y);
-  markInteracting();
-  requestRender();
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size >= 2 && pinch) {
+    const [a, b] = ptArray();
+    const curDist = Math.max(1e-3, distOf(a, b));
+    const m = midOf(a, b);
+    // Fingers apart -> curDist grows -> scale shrinks -> zoom in.
+    p.scale = Math.min(4, Math.max(1e-11, pinch.startScale * pinch.startDist / curDist));
+    // Keep the world point under the midpoint pinned, which also pans.
+    const relMid = relComplex(m.x, m.y);
+    p.centerX = pinch.anchor.x - relMid.x;
+    p.centerY = pinch.anchor.y - relMid.y;
+    markInteracting();
+    requestRender();
+  } else if (pointers.size === 1 && panBaseline) {
+    const now = relComplex(e.clientX, e.clientY);
+    const down = relComplex(panBaseline.downPx[0], panBaseline.downPx[1]);
+    p.centerX = panBaseline.center[0] - (now.x - down.x);
+    p.centerY = panBaseline.center[1] - (now.y - down.y);
+    markInteracting();
+    requestRender();
+  }
 });
-canvas.addEventListener('pointerup', (e) => {
-  dragging = false;
+
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
   try { canvas.releasePointerCapture(e.pointerId); } catch {}
-});
+  syncGesture();
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const before = screenToComplex(e.clientX, e.clientY);
@@ -209,26 +253,40 @@ document.getElementById('hist-mode').addEventListener('change', (e) => {
 });
 
 // ---------- photo loading ----------
+function useImage(img) {
+  currentImage = img;
+  gl.setPhoto(img);
+  const sw = extractPalette(img, 8);
+  gl.setPalette(paletteToGradient(sw));
+  renderPaletteStrip(sw);
+  histData = computeHistogram(img);
+  drawHistogram(histCanvas, histData, document.getElementById('hist-mode').value);
+  drawPreview(img);
+  p.crop = [0, 0, 1, 1];
+  rebuildSDF();
+  hasPhoto = true;
+  overlay.style.display = 'none';
+  requestRender();
+}
+
 function loadImageFile(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const img = new Image();
-  img.onload = () => {
-    currentImage = img;
-    gl.setPhoto(img);
-    const sw = extractPalette(img, 8);
-    gl.setPalette(paletteToGradient(sw));
-    renderPaletteStrip(sw);
-    histData = computeHistogram(img);
-    drawHistogram(histCanvas, histData, document.getElementById('hist-mode').value);
-    drawPreview(img);
-    p.crop = [0, 0, 1, 1];
-    rebuildSDF();
-    hasPhoto = true;
-    overlay.style.display = 'none';
-    URL.revokeObjectURL(img.src);
-    requestRender();
-  };
-  img.src = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
+  img.onload = () => { useImage(img); URL.revokeObjectURL(url); };
+  img.onerror = () => { URL.revokeObjectURL(url); };
+  img.src = url;
+}
+
+// Load an image dragged from another page/tab (a URL, not a File).
+// crossOrigin='anonymous' keeps the canvas untainted so palette/SDF/export
+// still work; if the host doesn't allow CORS the load errors out cleanly.
+function loadImageURL(url) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => useImage(img);
+  img.onerror = () => alert("Couldn't load that image — the source may block cross-origin use. Save it and drop the file instead.");
+  img.src = url;
 }
 
 function renderPaletteStrip(swatches) {
@@ -246,16 +304,39 @@ fileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadImageFi
 document.getElementById('browse-btn').addEventListener('click', () => fileInput.click());
 document.getElementById('start-btn').addEventListener('click', () => fileInput.click());
 
-// drag & drop anywhere
+// drag & drop anywhere — accepts a dropped file OR an image dragged from
+// another page/tab (which arrives as a URL in dataTransfer, not a File).
+function handleDrop(dt) {
+  if (!dt) return;
+  // 1) a real image file (files list, or items for some browsers)
+  let file = [...(dt.files || [])].find(f => f.type.startsWith('image/'));
+  if (!file && dt.items) {
+    for (const it of dt.items) {
+      if (it.kind === 'file' && it.type.startsWith('image/')) { file = it.getAsFile(); break; }
+    }
+  }
+  if (file) { loadImageFile(file); return; }
+  // 2) an image dragged from a web page -> a URL
+  let url = '';
+  const uriList = dt.getData('text/uri-list') || dt.getData('text/plain') || '';
+  url = uriList.split(/\s+/).map(s => s.trim()).find(s => /^https?:\/\//i.test(s)) || '';
+  if (!url) {
+    const html = dt.getData('text/html') || '';
+    const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (m) url = m[1];
+  }
+  if (url) loadImageURL(url);
+}
+
 ['dragenter', 'dragover'].forEach(ev => window.addEventListener(ev, (e) => {
-  e.preventDefault(); overlay.classList.add('dragover');
-}));
-['dragleave', 'drop'].forEach(ev => window.addEventListener(ev, (e) => {
-  e.preventDefault(); overlay.classList.remove('dragover');
-}));
+  e.preventDefault();
+  if (overlay.style.display !== 'none') overlay.classList.add('dragover');
+}, false));
+window.addEventListener('dragleave', (e) => { e.preventDefault(); overlay.classList.remove('dragover'); });
 window.addEventListener('drop', (e) => {
-  const f = [...(e.dataTransfer?.files || [])].find(f => f.type.startsWith('image/'));
-  if (f) loadImageFile(f);
+  e.preventDefault();
+  overlay.classList.remove('dragover');
+  handleDrop(e.dataTransfer);
 });
 
 // ---------- preview + crop selection ----------
