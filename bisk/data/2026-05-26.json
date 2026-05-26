@@ -1,17 +1,17 @@
 {
   "date": "2026-05-26",
-  "generatedAt": "2026-05-26T05:02:50.744Z",
+  "generatedAt": "2026-05-26T05:20:25.253Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 247,
+  "postCount": 249,
   "chickens": [
     {
       "handle": "samuel.fm",
       "displayName": "Samuel",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:p2cp5gopk7mgjegy6wadk3ep/bafkreihrdgva6ebn3vmjb4qww3yqozf4eoq26mmraouegpawhr5mo5pnxu",
       "text": "americans are on holiday u know what that means",
-      "likeCount": 288,
+      "likeCount": 289,
       "replyCount": 15,
       "repostCount": 21,
       "url": "https://bsky.app/profile/samuel.fm/post/3mmogbsyjxc2n"
@@ -21,7 +21,7 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "da pope mentioned transhumanism and posthumanism and did not call either thing idolatry or heresy so i'm calling it a W",
-      "likeCount": 281,
+      "likeCount": 283,
       "replyCount": 12,
       "repostCount": 15,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmp7j3hdec2k"
@@ -31,9 +31,9 @@
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "when i need to justify my anti-IP position in the future i will tell people it is because i am catholic",
-      "likeCount": 272,
+      "likeCount": 273,
       "replyCount": 10,
-      "repostCount": 36,
+      "repostCount": 37,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mmpbmd2yc227"
     }
   ],
@@ -50,38 +50,38 @@
     "atUri": "at://did:plc:565ebob5f6hw33hjdkxty6qj/app.bsky.feed.post/3mmpapbd4ps2o"
   },
   "weather": {
-    "index": 0.173,
+    "index": 0.175,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
     "verbosity": 23,
     "scoredWords": 976,
-    "corpusPosts": 590,
+    "corpusPosts": 598,
     "emotions": {
-      "anger": 169,
-      "anticipation": 306,
-      "disgust": 114,
-      "fear": 198,
-      "joy": 264,
-      "sadness": 157,
-      "surprise": 128,
-      "trust": 444
+      "anger": 167,
+      "anticipation": 312,
+      "disgust": 113,
+      "fear": 196,
+      "joy": 270,
+      "sadness": 155,
+      "surprise": 132,
+      "trust": 453
     },
     "distinctive": [
       {
         "word": "bluesky",
         "count": 8,
-        "over": 8657.9
+        "over": 8559.1
       },
       {
         "word": "noumena",
         "count": 8,
-        "over": 8657.9
+        "over": 8559.1
       },
       {
         "word": "encyclical",
         "count": 8,
-        "over": 8657.9
+        "over": 8559.1
       }
     ]
   },
@@ -303,12 +303,12 @@
       "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mmnrtx6naz2u"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreicbtzzeps6b3fr32rzwadjnz4jj3ikx76mibb6s3n37twbd4xsqpy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreicbtzzeps6b3fr32rzwadjnz4jj3ikx76mibb6s3n37twbd4xsqpy",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiextqlfpbn3zqycwhfr3tf4ghat2foozs6bw2yyyh6iw5ejiez354",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiextqlfpbn3zqycwhfr3tf4ghat2foozs6bw2yyyh6iw5ejiez354",
       "alt": "",
-      "ratio": 0.7208,
-      "handle": "vibe-coded.com",
-      "url": "https://bsky.app/profile/vibe-coded.com/post/3mmptqqyfnk2s"
+      "ratio": 1.0172,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mmq5sgtk222e"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreiaveahgyar2xlpc3iqbv3d6y45jxeiuuu6c5ecrrfumpmuspi3vdq",
@@ -319,12 +319,12 @@
       "url": "https://bsky.app/profile/thebadcode.com/post/3mmovpbqsbs2r"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreidxuhvpot2v4s4krc2spw3b34q2o45fdzcf4nzkcgak5bgnfzb5si",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreidxuhvpot2v4s4krc2spw3b34q2o45fdzcf4nzkcgak5bgnfzb5si",
-      "alt": "AI will never fully replace human musicians, even if it can reproduce any possible sound, because it can’t get addicted to heroin and kill itself.",
-      "ratio": 6.7228,
-      "handle": "carbonadoks.com",
-      "url": "https://bsky.app/profile/carbonadoks.com/post/3mmnx7s7zyk2a"
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreicbtzzeps6b3fr32rzwadjnz4jj3ikx76mibb6s3n37twbd4xsqpy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreicbtzzeps6b3fr32rzwadjnz4jj3ikx76mibb6s3n37twbd4xsqpy",
+      "alt": "",
+      "ratio": 0.7208,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3mmptqqyfnk2s"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreieizldfogvgddjilbfev2qcjdoafhskd3tsy63qyn7cnzp42zopeq",
@@ -333,6 +333,14 @@
       "ratio": 0.5075,
       "handle": "vibe-coded.com",
       "url": "https://bsky.app/profile/vibe-coded.com/post/3mmpzoob3ms2y"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreidxuhvpot2v4s4krc2spw3b34q2o45fdzcf4nzkcgak5bgnfzb5si",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:27u6urclrgh6uijeiqb2wcts/bafkreidxuhvpot2v4s4krc2spw3b34q2o45fdzcf4nzkcgak5bgnfzb5si",
+      "alt": "AI will never fully replace human musicians, even if it can reproduce any possible sound, because it can’t get addicted to heroin and kill itself.",
+      "ratio": 6.7228,
+      "handle": "carbonadoks.com",
+      "url": "https://bsky.app/profile/carbonadoks.com/post/3mmnx7s7zyk2a"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreibp2jevovaubqupsqvrx674hati4kxtkwgrgjh45eomy3xg226qau",
@@ -349,14 +357,6 @@
       "ratio": 0.8628,
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mmpv4f2fz22s"
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiextqlfpbn3zqycwhfr3tf4ghat2foozs6bw2yyyh6iw5ejiez354",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreiextqlfpbn3zqycwhfr3tf4ghat2foozs6bw2yyyh6iw5ejiez354",
-      "alt": "",
-      "ratio": 1.0172,
-      "handle": "sneptech.bsky.social",
-      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mmq5sgtk222e"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreicxe727c4mzqfa5jk5eiznrvtcbnhubidp5oj2jxkydcepk2m7uye",
@@ -399,12 +399,12 @@
       "url": "https://bsky.app/profile/lastnpcalex.agency/post/3mmor6ai55k2u"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:avmom3x7xo4ii6tte7rlre5h/bafkreihxm4hymm26djwmge2varxjbuelvxwnpeiu5va2zzaw3qb3l7ydya",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:avmom3x7xo4ii6tte7rlre5h/bafkreihxm4hymm26djwmge2varxjbuelvxwnpeiu5va2zzaw3qb3l7ydya",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiefkh6aesqp2xcpsf6et4qjaog7rwmdwphzhrt6uda3j3xnzdeuxq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiefkh6aesqp2xcpsf6et4qjaog7rwmdwphzhrt6uda3j3xnzdeuxq",
       "alt": "",
-      "ratio": 17.9565,
-      "handle": "eternalism-when.bsky.social",
-      "url": "https://bsky.app/profile/eternalism-when.bsky.social/post/3mmnpcupeek2e"
+      "ratio": 1,
+      "handle": "fleetingbits.bsky.social",
+      "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mmq2lwlaos2y"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicug3zo5yz3k4ovabq42dioxicidj4otstc5vimqhrqwuao2zxyge",
@@ -423,14 +423,6 @@
       "url": "https://bsky.app/profile/isolyth.dev/post/3mmpgu4wz7s2b"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreic5rpa4ezoyprawp7r3t355op3xzr3lj4sw5b322ugqip6oyiy5e4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreic5rpa4ezoyprawp7r3t355op3xzr3lj4sw5b322ugqip6oyiy5e4",
-      "alt": "",
-      "ratio": 1.6,
-      "handle": "abeliansoup.bsky.social",
-      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3mmq2og3wes24"
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreih4ovc6m45anbpzkx7geubkepda6t7bzt3kqkx2kfmjm7rles6hfe",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreih4ovc6m45anbpzkx7geubkepda6t7bzt3kqkx2kfmjm7rles6hfe",
       "alt": "",
@@ -439,12 +431,12 @@
       "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3mmpzmydoqc2t"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiefkh6aesqp2xcpsf6et4qjaog7rwmdwphzhrt6uda3j3xnzdeuxq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiefkh6aesqp2xcpsf6et4qjaog7rwmdwphzhrt6uda3j3xnzdeuxq",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreic5rpa4ezoyprawp7r3t355op3xzr3lj4sw5b322ugqip6oyiy5e4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreic5rpa4ezoyprawp7r3t355op3xzr3lj4sw5b322ugqip6oyiy5e4",
       "alt": "",
-      "ratio": 1,
-      "handle": "fleetingbits.bsky.social",
-      "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mmq2lwlaos2y"
+      "ratio": 1.6,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3mmq2og3wes24"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiaxd5y6vsimrtix2kvqp6hcbsqhetwiecnkg2362ofglm46zwh2gq",
@@ -461,6 +453,30 @@
       "ratio": 1.5444,
       "handle": "sneptech.bsky.social",
       "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mmpgzzzw4s2f"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreih2kiiswgosmljtcco5kbcdsqri7asj5ab5idz3szhqvrre3ubxz4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreih2kiiswgosmljtcco5kbcdsqri7asj5ab5idz3szhqvrre3ubxz4",
+      "alt": "",
+      "ratio": 1.8217,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3mmq6gywtis22"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreie52pq6ybccxnt3stojcefzgj4ggcxlk3sw7ihzgnrvzcee5s3pzi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:kbdtfnqrqpwwf62f6eekr7m2/bafkreie52pq6ybccxnt3stojcefzgj4ggcxlk3sw7ihzgnrvzcee5s3pzi",
+      "alt": "",
+      "ratio": 1.1871,
+      "handle": "abeliansoup.bsky.social",
+      "url": "https://bsky.app/profile/abeliansoup.bsky.social/post/3mmq6gywtis22"
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5clan7z4wsuvaffihedjv6fu/bafkreibmovebwnc2rh2uzij3u2bdspziy54rp73mcmpmzynd25u4kysj5y",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5clan7z4wsuvaffihedjv6fu/bafkreibmovebwnc2rh2uzij3u2bdspziy54rp73mcmpmzynd25u4kysj5y",
+      "alt": "a julia mandelbrotified version of my profile picture, \"the soul of the rose\", by john waterhouse",
+      "ratio": 1.9835,
+      "handle": "heartpunk.bsky.social",
+      "url": "https://bsky.app/profile/heartpunk.bsky.social/post/3mmpvcod4kc2e"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreic5t5eefrds47gm2ktfvxqgvpioom6ev2wfhk2qfhhomla4wq5otm",
@@ -503,12 +519,12 @@
       "url": "https://bsky.app/profile/words.bsky.social/post/3mmpy3mc3zs2h"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5clan7z4wsuvaffihedjv6fu/bafkreibmovebwnc2rh2uzij3u2bdspziy54rp73mcmpmzynd25u4kysj5y",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:5clan7z4wsuvaffihedjv6fu/bafkreibmovebwnc2rh2uzij3u2bdspziy54rp73mcmpmzynd25u4kysj5y",
-      "alt": "a julia mandelbrotified version of my profile picture, \"the soul of the rose\", by john waterhouse",
-      "ratio": 1.9835,
-      "handle": "heartpunk.bsky.social",
-      "url": "https://bsky.app/profile/heartpunk.bsky.social/post/3mmpvcod4kc2e"
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreied6pm3fbujvrjtrddi2x6zuufuwb6gbb36it4k4o36jjt5saw5ki",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreied6pm3fbujvrjtrddi2x6zuufuwb6gbb36it4k4o36jjt5saw5ki",
+      "alt": "",
+      "ratio": 1,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mmqaaonr6c2o"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:pjlhgjhb34k4zufrtbh2jyms/bafkreibcrrurm6jvq6vqwtzycwulm7hrjnchh43tr5pc7izidwg4rhdjfe",
@@ -517,22 +533,6 @@
       "ratio": 2.5457,
       "handle": "croissanthology.com",
       "url": "https://bsky.app/profile/croissanthology.com/post/3mmpeampbak2h"
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreihobrfjrgtd4nqr5oxpqdmqc6scsdw4sztnnptzi37lprvnbrh4h4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreihobrfjrgtd4nqr5oxpqdmqc6scsdw4sztnnptzi37lprvnbrh4h4",
-      "alt": "Don't forget to tip your electronics provider!",
-      "ratio": 1.7946,
-      "handle": "dave.9000ish.uk",
-      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mmo7sh36bc2g"
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreifsqebctvzecja5ztdpi4giprayvsukhtwxehcjllhecrgsaw5upm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreifsqebctvzecja5ztdpi4giprayvsukhtwxehcjllhecrgsaw5upm",
-      "alt": "Read 2 files >\n\nThe harness is well-designed:",
-      "ratio": 3.1023,
-      "handle": "jefferyharrell.bsky.social",
-      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mmpdzm3ihc2x"
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreiaviswmazcxb6qargwf22tsewplxssvvc5m75tfmrbshrp7h3ymk4",
@@ -551,20 +551,20 @@
       "url": "https://bsky.app/profile/keytryer.net/post/3mmpen2xqic2t"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreihhsccqcjztpohgwzcdmgtdlpd4iekjxassd264bzhurqgpmq6eo4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hsqwcidfez66lwm3gxhfv5in/bafkreihhsccqcjztpohgwzcdmgtdlpd4iekjxassd264bzhurqgpmq6eo4",
-      "alt": "screenshot of 3d modeling software showing a man and woman 3d model in a kitchen-like room with many beige and orange walls visible ",
-      "ratio": 1.5163,
-      "handle": "goose.art",
-      "url": "https://bsky.app/profile/goose.art/post/3mmpuojlwck2t"
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreihobrfjrgtd4nqr5oxpqdmqc6scsdw4sztnnptzi37lprvnbrh4h4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreihobrfjrgtd4nqr5oxpqdmqc6scsdw4sztnnptzi37lprvnbrh4h4",
+      "alt": "Don't forget to tip your electronics provider!",
+      "ratio": 1.7946,
+      "handle": "dave.9000ish.uk",
+      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mmo7sh36bc2g"
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreiaj5xmij3k7dc75vokcejdkjxjhkas3fckfw7orae3pv5lcxwe2ee",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreiaj5xmij3k7dc75vokcejdkjxjhkas3fckfw7orae3pv5lcxwe2ee",
-      "alt": "Acceleration\n\nAccelerationism, a recent form of historic determinism, is a notion whose basic core should not be confused with its different versions and aspects (neofeudalism against egalitarian democracy, abundancy communism, and so on). The impulse at the heart of accelerationism is clearly articulated by Nick Land in the title of his book on Georges Bataille, The Thirst for Annihilation.' Land's message is this: capitalism equals deterritorialization, a permanent intensification of development, a once-and-for-all overcoming of all stable forms of social life. In defiance of Gilles Deleuze and Félix Guattari, Land insists that there is no other effective deterritorialization: all attempts in this direction (especially the Leftist ones) got stuck and were consumed by capitalism. However, this accelerating process doesn't go on endlessly: a final moment is inscribed into its logic, the moment of the self-abolition or self-overcoming of humanity, when we will no longer be mortal humans confined to our bodies but realize our fantasies of becoming directly connected as one collective mind. As the title of Land's collected writings - Fanged Noumena - indicates, the idea is that at this point, the Kantian distinction between phenomena (ordinary reality we experience) and noumena (the way things are in themselves) will break down and we will directly experience the noumenal Real. How is this to be achieved? One of the key foundations of this acceleration is the explosive development of Artificial Intelligence which will inevitably lead to the rise of the Singularity, a nightmarish/blissful Godlike collective self-awareness Which will engulf individuals, depriving them of their singular selves, absorbing us into one glorious whole.\nIn the face of overwhelming humanist pessimism about what will become of us in the new world permeated by Al, accelerationism",
-      "ratio": 0.7502,
-      "handle": "shibbi.bsky.social",
-      "url": "https://bsky.app/profile/shibbi.bsky.social/post/3mmp2q3dnc224"
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreifsqebctvzecja5ztdpi4giprayvsukhtwxehcjllhecrgsaw5upm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreifsqebctvzecja5ztdpi4giprayvsukhtwxehcjllhecrgsaw5upm",
+      "alt": "Read 2 files >\n\nThe harness is well-designed:",
+      "ratio": 3.1023,
+      "handle": "jefferyharrell.bsky.social",
+      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mmpdzm3ihc2x"
     }
   ]
 }
