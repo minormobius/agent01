@@ -1,5 +1,11 @@
 name: Bisk Daily Digest
 
+# manual re-run marker: 2026-05-25a  (bump to fire on a feature branch)
+#
+# NOTE: the schedule: cron only fires from the repo's DEFAULT branch (main).
+# This file must be merged to main for the daily 13:00 UTC run to happen.
+# On a feature branch, the push trigger below (marker bump) runs it manually.
+
 on:
   schedule:
     # 13:00 UTC daily — recompute the SimCluster superlatives for the last 24h.
@@ -10,6 +16,11 @@ on:
         description: 'Override list AT-URI (defaults to bisk/config.json)'
         required: false
         type: string
+  push:
+    branches:
+      - 'claude/prepare-merge-candidates-*'
+    paths:
+      - '.github/workflows/bisk-digest.yml'   # bump the marker above to fire
 
 # Commit the freshly computed data back; the push to bisk/data/** trips
 # deploy-bisk.yml, which ships it to bisk.mino.mobi.
