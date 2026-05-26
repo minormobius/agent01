@@ -13,9 +13,9 @@ catch (e) { alert('WebGL is required: ' + e.message); throw e; }
 
 const p = {
   centerX: -0.5, centerY: 0, scale: 1.35, rot: 0,
-  type: 0, power: 2, maxIter: 220, escape: 16,
+  type: 0, power: 2, phoenixP: 0, maxIter: 220, escape: 16,
   juliaRe: -0.7, juliaIm: 0.27,
-  colorMode: 0, trapType: 0, trapX: 0, trapY: 0,
+  colorMode: 0, trapType: 0, trapX: 0, trapY: 0, voronoiScale: 5,
   imgScale: 0.5, imgRot: 0, imgOffX: 0, imgOffY: 0,
   paletteShift: 0, paletteScale: 1, mix: 0.5,
   interior: [0.04, 0.04, 0.08],
@@ -182,6 +182,7 @@ const fmts = {
   brightness: v => v.toFixed(2), contrast: v => v.toFixed(2),
   saturation: v => v.toFixed(2), gamma: v => v.toFixed(2),
   alpha: v => v.toFixed(0), beta: v => v.toFixed(2), sdfThreshold: v => v.toFixed(2),
+  phoenixP: v => v.toFixed(2), voronoiScale: v => v.toFixed(1),
 };
 // slider id -> [state key, transform from slider value to state value]
 const sliderMap = {
@@ -194,6 +195,7 @@ const sliderMap = {
   brightness: ['brightness', v => v], contrast: ['contrast', v => v],
   saturation: ['saturation', v => v], gamma: ['gamma', v => v],
   alpha: ['alpha', v => v], beta: ['beta', v => v],
+  phoenixP: ['phoenixP', v => v], voronoiScale: ['voronoiScale', v => v],
 };
 
 for (const id of Object.keys(sliderMap)) {
@@ -226,14 +228,18 @@ document.getElementById('colorMode').addEventListener('change', (e) => {
   p.colorMode = parseInt(e.target.value, 10); requestRender();
 });
 document.getElementById('trapType').addEventListener('change', (e) => {
-  p.trapType = parseInt(e.target.value, 10); requestRender();
+  p.trapType = parseInt(e.target.value, 10);
+  document.getElementById('voronoi-row').hidden = (p.trapType !== 5);
+  requestRender();
 });
 document.getElementById('interior').addEventListener('input', (e) => {
   p.interior = hexToRgb01(e.target.value); requestRender();
 });
 
 function syncJuliaVisibility() {
-  document.getElementById('julia-grp').hidden = (p.type !== 1);
+  // Julia and Phoenix both use the seed (the fixed c).
+  document.getElementById('julia-grp').hidden = !(p.type === 1 || p.type === 8);
+  document.getElementById('phoenix-row').hidden = (p.type !== 8);
 }
 
 document.getElementById('reset-view').addEventListener('click', () => {

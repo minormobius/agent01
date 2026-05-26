@@ -55,11 +55,16 @@
           <option value="1">Julia</option>
           <option value="2">Burning Ship</option>
           <option value="3">Tricorn</option>
-          <option value="4">Multibrot</option>
+          <option value="5">Celtic</option>
+          <option value="6">Buffalo</option>
+          <option value="7">Heart</option>
+          <option value="8">Phoenix</option>
         </select>
       </label>
       <label class="slider"><span>power <b id="power-v">2.0</b></span>
         <input type="range" id="power" min="2" max="8" step="0.05" value="2" /></label>
+      <label class="slider" id="phoenix-row" hidden><span>phoenix p <b id="phoenixP-v">0.00</b></span>
+        <input type="range" id="phoenixP" min="-1" max="1" step="0.01" value="0" /></label>
       <label class="slider"><span>iterations <b id="iter-v">220</b></span>
         <input type="range" id="iter" min="20" max="1200" step="10" value="220" /></label>
       <label class="slider"><span>escape radius <b id="escape-v">16</b></span>
@@ -114,8 +119,11 @@
           <option value="2">line (vertical)</option>
           <option value="3">cross</option>
           <option value="4">circle</option>
+          <option value="5">Voronoi (cellular)</option>
         </select>
       </label>
+      <label class="slider" id="voronoi-row" hidden><span>voronoi density <b id="voronoiScale-v">5.0</b></span>
+        <input type="range" id="voronoiScale" min="0.5" max="30" step="0.5" value="5" /></label>
       <label class="slider"><span>trap.x <b id="trapX-v">0.00</b></span>
         <input type="range" id="trapX" min="-2" max="2" step="0.01" value="0" /></label>
       <label class="slider"><span>trap.y <b id="trapY-v">0.00</b></span>
@@ -229,10 +237,17 @@
           <li>If <b>z</b> flies off to infinity, the pixel <em>escapes</em> — and how
           quickly it escapes is what classic fractal colouring is built on.</li>
         </ul>
-        <p>The other types change the rule slightly: <b>Julia</b> fixes <b>c</b> and lets
-        the starting point vary; <b>Burning Ship</b> takes the absolute value of <b>z</b>
-        each step; <b>Tricorn</b> conjugates it; <b>Multibrot</b> raises <b>z</b> to a
-        higher power. The <b>power</b> slider even allows fractional exponents.</p>
+        <p>Each family bends the rule a little: <b>Julia</b> fixes <b>c</b> and varies the
+        start point; <b>Burning Ship</b> takes <code>|z|</code> each step; <b>Tricorn</b>
+        conjugates it; <b>Celtic</b>, <b>Buffalo</b> and <b>Heart</b> fold the squared term
+        with absolute values for spikier, mirror-symmetric forms; <b>Phoenix</b> mixes in the
+        <em>previous</em> z (its <em>phoenix p</em> slider) for woven, feather-like sets. The
+        <b>power</b> slider raises z to higher (even fractional) exponents on any family — set
+        it above 2 on Mandelbrot for the classic Multibrot lobes.</p>
+        <p>The <b>orbit trap</b> can also be a <b>Voronoi</b> (cellular) field: instead of
+        measuring the orbit against a point or line, it measures distance to a lattice of
+        scattered cell sites, scattering your photo through a crystalline, stained-glass
+        structure. The <em>voronoi density</em> slider sets the cell size.</p>
 
         <h2>Where your photo comes in: orbit traps</h2>
         <p>As <b>z</b> bounces around during the iteration, it traces a path — an

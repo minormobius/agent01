@@ -33,15 +33,17 @@ uniform float u_alpha;     // thinness of the fractal-detail shell
 uniform float u_beta;      // offset of the shell from the surface
 uniform float u_sdfR;      // half-size of the SDF domain (complex units)
 
-uniform int u_type;        // 0 mandel,1 julia,2 burningship,3 tricorn,4 multibrot
+uniform int u_type;        // 0 mandel,1 julia,2 burningship,3 tricorn,4 multibrot,5 celtic,6 buffalo,7 heart,8 phoenix
 uniform float u_power;
+uniform float u_phoenixP;  // phoenix previous-z coefficient
 uniform int u_maxIter;
 uniform float u_escape2;
 uniform vec2 u_juliaC;
 
 uniform int u_colorMode;   // 0 trap-image,1 finalz-image,2 iter-palette,3 hybrid
-uniform int u_trapType;    // 0 point,1 lineX,2 lineY,3 cross,4 circle
+uniform int u_trapType;    // 0 point,1 lineX,2 lineY,3 cross,4 circle,5 voronoi
 uniform vec2 u_trapCenter;
+uniform float u_voronoiScale;
 uniform float u_imgScale;
 uniform float u_imgRot;
 uniform vec2 u_imgOffset;
@@ -110,6 +112,48 @@ float sampleSDF(vec2 zc){
   return (s * 2.0 - 1.0) * u_sdfR;
 }
 
+vec2 vhash(vec2 p){
+  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
+}
+// Distance to the nearest Voronoi feature point (cellular / F1).
+float voronoi(vec2 x){
+  vec2 n = floor(x);
+  vec2 f = fract(x);
+  float md = 8.0;
+  for (int j = -1; j <= 1; j++){
+    for (int i = -1; i <= 1; i++){
+      vec2 g = vec2(float(i), float(j));
+      vec2 o = vhash(n + g);
+      vec2 r = g + o - f;
+      md = min(md, dot(r, r));
+    }
+  }
+  return sqrt(md);
+}
+
+// Orbit-trap distance from point z to the active trap shape.
+float trapDist(vec2 z){
+  vec2 q = z - u_trapCenter;
+  if (u_trapType == 0) return length(q);
+  else if (u_trapType == 1) return abs(q.y);
+  else if (u_trapType == 2) return abs(q.x);
+  else if (u_trapType == 3) return min(abs(q.x), abs(q.y));
+  else if (u_trapType == 4) return abs(length(q) - 0.5);
+  return voronoi(q * u_voronoiScale);
+}
+
+// One escape-time step z -> formula(z) + c, selected by u_type.
+vec2 fractalStep(vec2 z, vec2 c){
+  if (u_type == 2) z = abs(z);                 // burning ship
+  if (u_type == 3) z.y = -z.y;                 // tricorn
+  if (u_type == 7) z.x = abs(z.x);             // heart (|x| + iy)^p
+  vec2 w = (abs(u_power - 2.0) < 0.001) ? cmul(z, z) : cpow(z, u_power);
+  if (u_type == 5) w.x = abs(w.x);             // celtic
+  if (u_type == 6) w = abs(w);                 // buffalo
+  return w + c;
+}
+
 void main(){
   vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
   vec2 off = (v_uv - 0.5) * 2.0 * aspect * u_scale;
@@ -141,13 +185,7 @@ void main(){
       float e = clamp(u_alpha * (phi + u_beta), -50.0, 50.0);
       z = exp(e) * dvec;
 
-      vec2 q = z - u_trapCenter;
-      float d;
-      if (u_trapType == 0) d = length(q);
-      else if (u_trapType == 1) d = abs(q.y);
-      else if (u_trapType == 2) d = abs(q.x);
-      else if (u_trapType == 3) d = min(abs(q.x), abs(q.y));
-      else d = abs(length(q) - 0.5);
+      float d = trapDist(z);
       if (d < trap){ trap = d; trapZ = z; }
 
       iterDone = i + 1;
@@ -173,14 +211,9 @@ void main(){
       vec2 nzi = dfAdd(dfAdd(prod, prod), cci);
       zr = nzr; zi = nzi;
 
-      vec2 q = vec2(zr.x, zi.x) - u_trapCenter;
-      float d;
-      if (u_trapType == 0) d = length(q);
-      else if (u_trapType == 1) d = abs(q.y);
-      else if (u_trapType == 2) d = abs(q.x);
-      else if (u_trapType == 3) d = min(abs(q.x), abs(q.y));
-      else d = abs(length(q) - 0.5);
-      if (d < trap){ trap = d; trapZ = vec2(zr.x, zi.x); }
+      vec2 zf = vec2(zr.x, zi.x);
+      float d = trapDist(zf);
+      if (d < trap){ trap = d; trapZ = zf; }
 
       iterDone = i + 1;
       mag2 = zr.x * zr.x + zi.x * zi.x;
@@ -188,27 +221,22 @@ void main(){
     }
     if (!escaped) z = vec2(zr.x, zi.x);
   } else {
-    // ---- plain float path (handles fractional power) ----
+    // ---- plain float path (all formula families, fractional power) ----
     vec2 c = u_centerHi + off;
     vec2 cc;
-    if (u_type == 1) { z = c; cc = u_juliaC; }
+    bool juliaLike = (u_type == 1) || (u_type == 8);   // julia, phoenix
+    if (juliaLike) { z = c; cc = u_juliaC; }
     else { z = vec2(0.0); cc = c; }
+    vec2 zprev = vec2(0.0);
 
     for (int i = 0; i < MAX_ITER; i++){
       if (i >= u_maxIter) break;
-      if (u_type == 2) z = abs(z);
-      if (u_type == 3) z.y = -z.y;
-      if (abs(u_power - 2.0) < 0.001) z = cmul(z, z);
-      else z = cpow(z, u_power);
-      z += cc;
+      vec2 zo = z;
+      z = fractalStep(z, cc);
+      if (u_type == 8) z += u_phoenixP * zprev;   // phoenix: + p * z_{n-1}
+      zprev = zo;
 
-      vec2 q = z - u_trapCenter;
-      float d;
-      if (u_trapType == 0) d = length(q);
-      else if (u_trapType == 1) d = abs(q.y);
-      else if (u_trapType == 2) d = abs(q.x);
-      else if (u_trapType == 3) d = min(abs(q.x), abs(q.y));
-      else d = abs(length(q) - 0.5);
+      float d = trapDist(z);
       if (d < trap){ trap = d; trapZ = z; }
 
       iterDone = i + 1;
@@ -307,8 +335,8 @@ export class FractalGL {
     const names = [
       'u_resolution','u_photo','u_palette','u_sdf','u_centerHi','u_centerLo','u_scale','u_rot','u_precision',
       'u_shapeMode','u_alpha','u_beta','u_sdfR',
-      'u_type','u_power','u_maxIter','u_escape2','u_juliaC','u_colorMode',
-      'u_trapType','u_trapCenter','u_imgScale','u_imgRot','u_imgOffset',
+      'u_type','u_power','u_phoenixP','u_maxIter','u_escape2','u_juliaC','u_colorMode',
+      'u_trapType','u_trapCenter','u_voronoiScale','u_imgScale','u_imgRot','u_imgOffset',
       'u_paletteShift','u_paletteScale','u_interior','u_mix','u_crop',
       'u_brightness','u_contrast','u_saturation','u_gamma',
     ];
@@ -371,9 +399,10 @@ export class FractalGL {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  // Does this view need (and support) the high-precision path?
+  // Does this view need (and support) the high-precision path? The df64 path
+  // only implements the power-2 families with type <= 4.
   static needsDeep(p) {
-    return p.scale < 6e-4 && Math.abs(p.power - 2) < 0.001;
+    return p.scale < 6e-4 && Math.abs(p.power - 2) < 0.001 && p.type <= 4;
   }
 
   render(p) {
@@ -407,12 +436,14 @@ export class FractalGL {
     gl.uniform1f(u.u_sdfR, p.sdfR);
     gl.uniform1i(u.u_type, p.type);
     gl.uniform1f(u.u_power, p.power);
+    gl.uniform1f(u.u_phoenixP, p.phoenixP);
     gl.uniform1i(u.u_maxIter, p.maxIter);
     gl.uniform1f(u.u_escape2, p.escape * p.escape);
     gl.uniform2f(u.u_juliaC, p.juliaRe, p.juliaIm);
     gl.uniform1i(u.u_colorMode, p.colorMode);
     gl.uniform1i(u.u_trapType, p.trapType);
     gl.uniform2f(u.u_trapCenter, p.trapX, p.trapY);
+    gl.uniform1f(u.u_voronoiScale, p.voronoiScale);
     gl.uniform1f(u.u_imgScale, p.imgScale);
     gl.uniform1f(u.u_imgRot, p.imgRot);
     gl.uniform2f(u.u_imgOffset, p.imgOffX, p.imgOffY);
