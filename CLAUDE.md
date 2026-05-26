@@ -198,6 +198,7 @@ What this means for you:
 | Auth worker | `.github/workflows/deploy-auth.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `workers/auth/**` |
 | Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
 | Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
+| Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
 
 When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
 
@@ -628,6 +629,39 @@ Migrations: `poll/apps/api/migrations/0018_airchat.sql` + `0019_airchat_oauth.sq
 
 ---
 
+## Project 6: Bisk (`bisk/`) — SimCluster Daily Digest
+
+**Live at**: `bisk.mino.mobi`
+**Stack**: Cloudflare Worker (assets binding) + a daily GitHub-Action cron
+**Deploy**: `.github/workflows/deploy-bisk.yml` (wrangler deploy on push to `bisk/**`)
+
+A fork of `/time`'s newspaper aesthetic that publishes a **deterministic** daily digest of a Bluesky SimCluster list. No inference, no auth — a read-only public-API pipeline.
+
+- **`scripts/build-bisk-digest.mjs`** — the engine. Reads the list from `bisk/config.json` (`listUri`), uses `packages/atproto/bsky.js` (`getListMembers`, `getProfiles`) + a rich author-feed fetch, hydrates every replied thread, and writes `bisk/data/<date>.json` + `latest.json` + `index.json`. Sections: **Top Chickens** (top-3 by likes, 24h), **Delvers** (deepest thread by true nesting depth, embedded via weft's threadbeast), **Weather** (AFINN sentiment + 8-axis NRC emotion radar + represented×overrepresented distinctive words, over member posts incl. deep-thread replies), **Scenes** (are.na-style image wall).
+- **`.github/workflows/bisk-digest.yml`** — cron `0 13 * * *` → build → commit `bisk/data` → **self-deploy via wrangler**. Two gotchas baked in: (1) `schedule:` only fires from the **default branch**, so this must be on `main`; (2) the digest deploys itself because a `GITHUB_TOKEN` push doesn't trigger `deploy-bisk`.
+- Editorial voices (Modulo/Morphyx) are a planned phase-2 layer on top of the deterministic base.
+
+---
+
+## Geometry pack (`/geometry/` + siblings) — interactive math explainers
+
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+
+## ask — landing-page semantic search
+
+`functions/search.js` (Pages Function, `POST /search`) answers fuzzy "which site does X" queries by stuffing the **whole** ~90-site catalogue into a Workers AI Llama 3.3 70B prompt (no vector DB — the corpus is ~4k tokens). Catalogue is generated from the PROJECTS array by `scripts/generate-search-catalog.mjs`. Frontend widget is inline in `index.html`. Uses the root project's existing `AI` binding (same as `functions/novelty.js`).
+
+## Tangled remix pipeline (`/<site>/` → forkable repos)
+
+Publishes self-contained sites as forkable ("remixable") repos on [tangled](https://tangled.org) (git-on-ATProto). Proven on erdos; the live knot host is `tangled.org` (not the Cloudflare-fronted `knot1.tangled.sh`), repo path is `<owner>/<repo>`, push over SSH forcing IPv4.
+
+- **`bootstrap-tangled-key.yml`** — generates the deploy keypair on a runner, stores the private half as the `TANGLED_SSH_KEY` secret via `gh` (needs a one-time fine-grained PAT `SECRETS_PAT` with Secrets:write), prints the public half to paste into tangled Settings → Keys.
+- **`mirror-tangled.yml`** — *works*: force-pushes a self-contained site to its tangled template repo on every change. Vars `TANGLED_HANDLE` (owner) + `TANGLED_KNOT` (`tangled.org`).
+- **`remixify.yml` + `scripts/tangled-ensure-repo.mjs`** — **WIP, do not rely on**: `putRecord`s a `sh.tangled.repo` record then pushes. Incomplete — it copies `repoDid` and skips the knot's real XRPC registration, so repos get conflated. Needs the create XRPC the tangled UI fires (capture via DevTools). Dormant on `main` (push trigger scoped to the feature branch).
+- `scripts/publish-to-tangled.sh`, `scripts/setup-tangled-key.sh` — local-machine equivalents of the workflows.
+
+---
+
 ## Other Workers (Reference)
 
 Not actively managed but documented for context:
@@ -706,7 +740,7 @@ The full set of workflows lives under `.github/workflows/`. Deploy workflows are
 
 ### Deploy workflows (see deploy map above)
 
-`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`
+`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`, `deploy-bisk.yml`
 
 ### Provisioning / one-shots
 
@@ -740,6 +774,10 @@ The full set of workflows lives under `.github/workflows/`. Deploy workflows are
 | `query-otol.yml` | Manual | Queries Open Tree of Life. |
 | `mine-fodder.yml` | Cron (every 6h) | Mines Project Gutenberg for rite/fodder candidates. |
 | `write-test-recipe.yml` | Manual / test | Recipe-writing smoke test. |
+| `bisk-digest.yml` | Cron (daily 13:00 UTC, **default branch only**) + dispatch | Builds the SimCluster digest, commits `bisk/data`, self-deploys bisk.mino.mobi. |
+| `mirror-tangled.yml` | Push to `erdos/**` / dispatch | Force-pushes a self-contained site to its forkable tangled repo over SSH. |
+| `bootstrap-tangled-key.yml` | Manual | Generates the tangled deploy keypair on a runner; stores private half as `TANGLED_SSH_KEY` (needs one-time `SECRETS_PAT`). |
+| `remixify.yml` | Manual / marker push | **WIP** — writes a `sh.tangled.repo` record + pushes; incomplete (skips knot XRPC registration). |
 
 ### Key secrets (GitHub Actions environment)
 
