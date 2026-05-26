@@ -162,6 +162,69 @@ git commit -m "Initial project scaffold"</pre><span class="lang">bash / PowerShe
   a black box.
 </p>
 
+<h2>Profiles: a launcher script per job</h2>
+<p>
+  <code>CLAUDE.md</code> gives standing instructions <em>per project</em>.
+  The other half of setup is standing instructions <em>per role</em> &mdash;
+  and the cheap way to get them is a tiny shell script that launches
+  <code>claude</code> preconfigured. Put a few on your <code>PATH</code> and
+  you start exactly the right Claude with one word: a fast, cheap document
+  worker; a careful reviewer; a heavyweight solver.
+</p>
+<p>
+  A profile script bakes in four things &mdash; <strong>system prompt</strong>,
+  <strong>model</strong>, <strong>effort</strong>, and <strong>which
+  credentials</strong> to use &mdash; then hands the session to you:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# claude-transcribe — cheap, faithful document worker (the Sonnet worker)
+export ANTHROPIC_API_KEY="$(cat ~/.secrets/anthropic.key)"
+exec claude --model sonnet --effort low \
+  --append-system-prompt "Transcribe faithfully; never summarize or round. \
+YAML for tables and specs, Markdown for prose. Flag anything illegible." "$@"</pre><span class="lang">~/bin/claude-transcribe</span></div>
+<div class="codeblock"><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# claude-review — meticulous reviewer on the heavy model
+export ANTHROPIC_API_KEY="$(cat ~/.secrets/anthropic.key)"
+exec claude --model opus --effort high \
+  --append-system-prompt "You are a meticulous reviewer. Surface correctness \
+bugs only, cite file:line, and skip style nits." "$@"</pre><span class="lang">~/bin/claude-review</span></div>
+<div class="codeblock"><button class="copy">Copy</button><pre>chmod +x ~/bin/claude-transcribe ~/bin/claude-review
+# then: claude-transcribe data/datasheet.pdf   |   claude-review</pre><span class="lang">make them runnable</span></div>
+<p>
+  The flags are real: <code>--append-system-prompt</code> (or
+  <code>--system-prompt-file</code> for a longer one), <code>--model</code>,
+  and <code>--effort</code> all apply to that launch. <code>exec</code> hands
+  your terminal straight to Claude. <code>"$@"</code> passes through anything
+  you add &mdash; a file, a <code>-p</code> prompt &mdash; so the profile
+  composes with normal use.
+</p>
+<div class="aside">
+  <strong>Auth, the honest version.</strong> Pick the credential per profile
+  by exporting it: <code>ANTHROPIC_API_KEY</code> (read from a
+  <code>chmod 600</code> secrets file, never hard-coded), a
+  <code>CLAUDE_CODE_OAUTH_TOKEN</code> from <code>claude setup-token</code>,
+  or an <code>apiKeyHelper</code> setting that fetches a rotating key from a
+  vault. One trap to skip: <code>CLAUDE_CONFIG_DIR</code> does <em>not</em>
+  isolate accounts &mdash; it only moves where credentials are stored, not
+  which identity you are. Set the key or token explicitly.
+</div>
+<div class="aside">
+  <strong>Built-in alternative for the prompt half.</strong> Output styles
+  (<code>.claude/output-styles/&lt;name&gt;.md</code>) give committable,
+  shareable system-prompt personas you switch with <code>/config</code>
+  &mdash; but they don't set model, effort, or auth. So: output styles for
+  tone, a wrapper script when you also want the right model, effort, and
+  account in one word.
+</div>
+<p>
+  This is also where the
+  <a href="../token-economy/">token-economy</a> routing stops being a
+  decision you make each time and becomes a default you launched into:
+  <code>claude-transcribe</code> <em>is</em> the Sonnet worker from
+  <a href="../documents/">feed it documents</a> &mdash; right model, low
+  effort, transcription prompt, baked in.
+</p>
+
 <h2>Why this is the foundation</h2>
 <p>
   Every problem on this site assumes you have somewhere to put the inputs,
