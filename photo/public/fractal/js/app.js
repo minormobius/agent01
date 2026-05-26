@@ -1,6 +1,7 @@
 import { FractalGL } from './fractal-gl.js';
 import { extractPalette, paletteToGradient, computeHistogram, drawHistogram, rgbToHex } from './palette.js';
 import { encodeVideo } from './video.js';
+import { buildSDF } from './sdf.js';
 
 const canvas = document.getElementById('fractal');
 const overlay = document.getElementById('overlay');
@@ -20,7 +21,10 @@ const p = {
   interior: [0.04, 0.04, 0.08],
   crop: [0, 0, 1, 1],
   brightness: 0, contrast: 1, saturation: 1.1, gamma: 1,
+  shapeMode: false, alpha: 12, beta: 0, sdfThreshold: 0.5, sdfInvert: false, sdfR: 1.6,
 };
+
+let currentImage = null;
 
 let hasPhoto = false;
 let dirty = true, raf = 0, interacting = false, idleTimer = 0;
@@ -133,6 +137,7 @@ const fmts = {
   paletteShift: v => v.toFixed(2), paletteScale: v => v.toFixed(1), mix: v => v.toFixed(2),
   brightness: v => v.toFixed(2), contrast: v => v.toFixed(2),
   saturation: v => v.toFixed(2), gamma: v => v.toFixed(2),
+  alpha: v => v.toFixed(0), beta: v => v.toFixed(2), sdfThreshold: v => v.toFixed(2),
 };
 // slider id -> [state key, transform from slider value to state value]
 const sliderMap = {
@@ -144,6 +149,7 @@ const sliderMap = {
   paletteShift: ['paletteShift', v => v], paletteScale: ['paletteScale', v => v], mix: ['mix', v => v],
   brightness: ['brightness', v => v], contrast: ['contrast', v => v],
   saturation: ['saturation', v => v], gamma: ['gamma', v => v],
+  alpha: ['alpha', v => v], beta: ['beta', v => v],
 };
 
 for (const id of Object.keys(sliderMap)) {
@@ -207,6 +213,7 @@ function loadImageFile(file) {
   if (!file || !file.type.startsWith('image/')) return;
   const img = new Image();
   img.onload = () => {
+    currentImage = img;
     gl.setPhoto(img);
     const sw = extractPalette(img, 8);
     gl.setPalette(paletteToGradient(sw));
@@ -215,6 +222,7 @@ function loadImageFile(file) {
     drawHistogram(histCanvas, histData, document.getElementById('hist-mode').value);
     drawPreview(img);
     p.crop = [0, 0, 1, 1];
+    rebuildSDF();
     hasPhoto = true;
     overlay.style.display = 'none';
     URL.revokeObjectURL(img.src);
@@ -505,6 +513,37 @@ document.getElementById('vid-render').addEventListener('click', async () => {
     gl.gl.viewport(0, 0, ow, oh);
     requestRender();
   }
+});
+
+// ---------- shape-conform (SDF) ----------
+function rebuildSDF() {
+  if (!currentImage) return;
+  const { rgba, size } = buildSDF(currentImage, {
+    threshold: p.sdfThreshold, invert: p.sdfInvert, size: 256, R: p.sdfR,
+  });
+  gl.setSDF(rgba, size);
+}
+document.getElementById('shape-enable').addEventListener('change', (e) => {
+  p.shapeMode = e.target.checked;
+  if (p.shapeMode) {
+    // Frame the shape: it lives in [-R,R] centered on origin.
+    p.centerX = 0; p.centerY = 0; p.scale = 1.8; p.rot = 0;
+    setVal('rot', 0);
+    if (p.colorMode === 2) { p.colorMode = 0; document.getElementById('colorMode').value = '0'; }
+    rebuildSDF();
+  }
+  requestRender();
+});
+document.getElementById('sdfThreshold').addEventListener('input', (e) => {
+  p.sdfThreshold = parseFloat(e.target.value);
+  document.getElementById('sdfThreshold-v').textContent = p.sdfThreshold.toFixed(2);
+  rebuildSDF();
+  requestRender();
+});
+document.getElementById('sdfInvert').addEventListener('change', (e) => {
+  p.sdfInvert = e.target.checked;
+  rebuildSDF();
+  requestRender();
 });
 
 // ---------- panel toggle ----------

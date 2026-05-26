@@ -66,6 +66,20 @@
         <input type="range" id="escape" min="2" max="200" step="1" value="16" /></label>
     </section>
 
+    <section class="grp">
+      <h2>Shape-conform</h2>
+      <label class="row"><span>fit Julia set to photo</span><input type="checkbox" id="shape-enable" /></label>
+      <p class="tip">Grows the fractal in the <b>silhouette of the photo</b>, with detail
+        fringing the edges (Schor &amp; Kim 2023). Uses the Julia seed below as its texture.</p>
+      <label class="slider"><span>thinness α <b id="alpha-v">12</b></span>
+        <input type="range" id="alpha" min="2" max="120" step="1" value="12" /></label>
+      <label class="slider"><span>offset β <b id="beta-v">0.00</b></span>
+        <input type="range" id="beta" min="-1" max="1" step="0.01" value="0" /></label>
+      <label class="slider"><span>mask threshold <b id="sdfThreshold-v">0.50</b></span>
+        <input type="range" id="sdfThreshold" min="0.02" max="0.98" step="0.01" value="0.5" /></label>
+      <label class="row"><span>invert mask</span><input type="checkbox" id="sdfInvert" /></label>
+    </section>
+
     <section class="grp" id="julia-grp">
       <h2>Julia seed</h2>
       <label class="slider"><span>c.re <b id="juliaRe-v">-0.70</b></span>
@@ -258,6 +272,26 @@
         <p><b>Post</b> — brightness, contrast, saturation, gamma, applied after everything.</p>
         <p><b>Export</b> — render at up to 4× screen resolution to a PNG. <em>Randomize
         look</em> reshuffles the colouring controls for happy accidents.</p>
+
+        <h2>Shape-conform mode</h2>
+        <p>Normally a Julia set makes an abstract blob. This mode bends it into the
+        <em>silhouette of your photo</em> while keeping fractal detail fringing the edges —
+        a 2D take on Schor &amp; Kim's <em>shape modulus</em> (SGP 2023).</p>
+        <p>It works by splitting the fractal map into a <b>modulus</b> (magnitude, which
+        controls the coarse shape) and a <b>versor</b> (direction, which controls the fine
+        texture). We threshold the photo into a silhouette, compute its signed distance
+        field <code>φ</code>, and replace the modulus with <code>e^(α·(φ+β))</code>. Points
+        deep inside the shape collapse into the set; points outside escape; fractal detail
+        survives in the shell straddling the surface.</p>
+        <ul>
+          <li><b>thinness α</b> — how tightly detail hugs the silhouette (higher = thinner).</li>
+          <li><b>offset β</b> — pushes the detail shell in or out from the edge.</li>
+          <li><b>mask threshold / invert</b> — choose which part of the photo is the
+          "shape" (bright subject vs dark, etc.).</li>
+          <li>The <b>Julia seed</b> sliders now pick the <em>texture</em> of the fringe.</li>
+        </ul>
+        <p>Coloring still comes from your photo via the orbit traps. (This mode uses a
+        custom map, so it's about shape-fitting rather than the infinite zoom below.)</p>
 
         <h2>Deep zoom</h2>
         <p>Plain 32-bit GPU maths goes blocky after a few thousand × zoom. Past that point

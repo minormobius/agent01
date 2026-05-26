@@ -20,12 +20,18 @@ varying vec2 v_uv;
 uniform vec2 u_resolution;
 uniform sampler2D u_photo;
 uniform sampler2D u_palette;
+uniform sampler2D u_sdf;       // signed distance field of target shape
 
 uniform vec2 u_centerHi;   // double-split center (hi parts)
 uniform vec2 u_centerLo;   // double-split center (lo parts)
 uniform float u_scale;
 uniform float u_rot;
 uniform int u_precision;   // 0 = float, 1 = double-float (df64)
+
+uniform int u_shapeMode;   // 0 = classic escape-time, 1 = shape-modulus
+uniform float u_alpha;     // thinness of the fractal-detail shell
+uniform float u_beta;      // offset of the shell from the surface
+uniform float u_sdfR;      // half-size of the SDF domain (complex units)
 
 uniform int u_type;        // 0 mandel,1 julia,2 burningship,3 tricorn,4 multibrot
 uniform float u_power;
@@ -95,6 +101,15 @@ vec3 samplePhoto(vec2 p){
   return texture2D(u_photo, uv).rgb;
 }
 
+// Signed distance to the target shape at complex point zc, in complex units
+// (negative inside, positive outside). Outside the SDF domain it's "far out".
+float sampleSDF(vec2 zc){
+  vec2 uv = vec2(0.5 + zc.x / (2.0 * u_sdfR), 0.5 - zc.y / (2.0 * u_sdfR));
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return u_sdfR;
+  float s = texture2D(u_sdf, uv).r;
+  return (s * 2.0 - 1.0) * u_sdfR;
+}
+
 void main(){
   vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
   vec2 off = (v_uv - 0.5) * 2.0 * aspect * u_scale;
@@ -108,7 +123,38 @@ void main(){
   float trap = 1e20;
   float mag2 = 0.0;
 
-  if (u_precision == 1) {
+  if (u_shapeMode == 1) {
+    // ---- shape-modulus path (Schor & Kim 2023) ----
+    // f(z) = exp(alpha*(phi(z)+beta)) * normalize(z^2 + c). The SDF-driven
+    // modulus forces points inside the shape into the 0-basin (in the set)
+    // and points outside toward infinity (escaped); fractal detail (from the
+    // versor of z^2+c) survives in the shell around the surface.
+    vec2 zc = u_centerHi + off;     // start point (Julia-style)
+    vec2 cc = u_juliaC;             // versor polynomial constant
+    z = zc;
+    for (int i = 0; i < MAX_ITER; i++){
+      if (i >= u_maxIter) break;
+      vec2 pz = cmul(z, z) + cc;
+      float pl = length(pz);
+      vec2 dvec = pl > 1e-12 ? pz / pl : vec2(1.0, 0.0);
+      float phi = sampleSDF(z);
+      float e = clamp(u_alpha * (phi + u_beta), -50.0, 50.0);
+      z = exp(e) * dvec;
+
+      vec2 q = z - u_trapCenter;
+      float d;
+      if (u_trapType == 0) d = length(q);
+      else if (u_trapType == 1) d = abs(q.y);
+      else if (u_trapType == 2) d = abs(q.x);
+      else if (u_trapType == 3) d = min(abs(q.x), abs(q.y));
+      else d = abs(length(q) - 0.5);
+      if (d < trap){ trap = d; trapZ = z; }
+
+      iterDone = i + 1;
+      mag2 = dot(z, z);
+      if (mag2 > u_escape2){ escaped = true; break; }
+    }
+  } else if (u_precision == 1) {
     // ---- df64 path (power-2 family only) ----
     vec2 cr = dfAdd(vec2(u_centerHi.x, u_centerLo.x), dfSet(off.x));
     vec2 ci = dfAdd(vec2(u_centerHi.y, u_centerLo.y), dfSet(off.y));
@@ -172,7 +218,9 @@ void main(){
   }
 
   float sm = float(iterDone);
-  if (escaped) sm = float(iterDone) - log2(max(log2(mag2) * 0.5, 1e-6)) + 4.0;
+  // Clamp mag2 to a finite range: shape mode can overflow it to +Inf, which
+  // would NaN the smooth iteration count and the palette color modes.
+  if (escaped) sm = float(iterDone) - log2(max(log2(clamp(mag2, u_escape2, 1e12)) * 0.5, 1e-6)) + 4.0;
 
   vec3 col;
   if (u_colorMode == 0){
@@ -221,6 +269,8 @@ export class FractalGL {
     this._build();
     this._photoTex = this._emptyTex();
     this._paletteTex = this._emptyTex();
+    this._sdfTex = this._emptyTex();
+    this._sdfSize = 1;
   }
 
   _compile(type, src) {
@@ -255,7 +305,8 @@ export class FractalGL {
 
     this.u = {};
     const names = [
-      'u_resolution','u_photo','u_palette','u_centerHi','u_centerLo','u_scale','u_rot','u_precision',
+      'u_resolution','u_photo','u_palette','u_sdf','u_centerHi','u_centerLo','u_scale','u_rot','u_precision',
+      'u_shapeMode','u_alpha','u_beta','u_sdfR',
       'u_type','u_power','u_maxIter','u_escape2','u_juliaC','u_colorMode',
       'u_trapType','u_trapCenter','u_imgScale','u_imgRot','u_imgOffset',
       'u_paletteShift','u_paletteScale','u_interior','u_mix','u_crop',
@@ -287,6 +338,17 @@ export class FractalGL {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  }
+
+  setSDF(rgba, size) {
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this._sdfTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    this._sdfSize = size;
   }
 
   setPalette(rgba256) {
@@ -324,10 +386,14 @@ export class FractalGL {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this._paletteTex);
     gl.uniform1i(u.u_palette, 1);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this._sdfTex);
+    gl.uniform1i(u.u_sdf, 2);
 
     const [cxHi, cxLo] = splitDouble(p.centerX);
     const [cyHi, cyLo] = splitDouble(p.centerY);
-    const precision = FractalGL.needsDeep(p) ? 1 : 0;
+    // Shape mode uses its own non-standard map; the df deep-zoom path doesn't apply.
+    const precision = (!p.shapeMode && FractalGL.needsDeep(p)) ? 1 : 0;
 
     gl.uniform2f(u.u_resolution, this.canvas.width, this.canvas.height);
     gl.uniform2f(u.u_centerHi, cxHi, cyHi);
@@ -335,6 +401,10 @@ export class FractalGL {
     gl.uniform1f(u.u_scale, p.scale);
     gl.uniform1f(u.u_rot, p.rot);
     gl.uniform1i(u.u_precision, precision);
+    gl.uniform1i(u.u_shapeMode, p.shapeMode ? 1 : 0);
+    gl.uniform1f(u.u_alpha, p.alpha);
+    gl.uniform1f(u.u_beta, p.beta);
+    gl.uniform1f(u.u_sdfR, p.sdfR);
     gl.uniform1i(u.u_type, p.type);
     gl.uniform1f(u.u_power, p.power);
     gl.uniform1i(u.u_maxIter, p.maxIter);
