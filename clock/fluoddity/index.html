@@ -1246,7 +1246,9 @@ if (auth) {
         $type: COLLECTION,
         name: (nameInput.value || '').trim() || 'untitled organism',
         schemaVersion: 1,
-        config: cfg,
+        // JSON string, not an object: the atproto data model disallows floats,
+        // and the config is nearly all floats.
+        config: JSON.stringify(cfg),
         createdAt: new Date().toISOString(),
       };
       const res = await auth.pds.createRecord(COLLECTION, record);
@@ -1304,8 +1306,10 @@ async function loadShared(){
     const r = await fetch(url);
     if (!r.ok) throw new Error('organism not found');
     const { value } = await r.json();
-    if (value && value.config && window.Fluoddity) {
-      window.Fluoddity.applyConfig(value.config);
+    let conf = value && value.config;
+    if (typeof conf === 'string') { try { conf = JSON.parse(conf); } catch { conf = null; } }
+    if (conf && window.Fluoddity) {
+      window.Fluoddity.applyConfig(conf);
       status(`loaded "${value.name || 'organism'}". make it your own and re-save.`, 'ok');
     }
   } catch (e) {
@@ -1399,36 +1403,42 @@ function buildText(link){
   };
 }
 
-// Full Bluesky video-service flow. Returns an embed.video, or null on any
-// failure (e.g. the auth worker hasn't shipped the getServiceAuth route yet),
-// so the caller can fall back to a still image.
+// Full Bluesky video-service flow. Throws with a specific reason on failure
+// (so the caller can show why it fell back to a still). The video service
+// `name` must be a bare record-key token — no spaces — so we keep it
+// alphanumeric.
 async function tryVideoEmbed(user, blob){
   const exp = Math.floor(Date.now()/1000) + 30*60;
   const sa = await auth.request(`/pds/server/getServiceAuth?aud=${encodeURIComponent('did:web:video.bsky.app')}&lxm=app.bsky.video.uploadVideo&exp=${exp}`);
-  if (!sa.ok) return null;
+  if (!sa.ok) throw new Error(`getServiceAuth ${sa.status}: ${(await sa.text().catch(()=>'')).slice(0,140)}`);
   const { token } = await sa.json();
-  if (!token) return null;
+  if (!token) throw new Error('no service token returned');
 
   cstatus('uploading video…');
-  const name = `fluoddity-${Date.now()}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
-  const up = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.uploadVideo?did=${encodeURIComponent(user.did)}&name=${encodeURIComponent(name)}`, {
-    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'video/mp4' }, body: blob,
-  });
-  if (!up.ok) return null;
-  let j = await up.json();
-  let st = j.jobStatus || j;
-  let blobRef = st.blob, jobId = st.jobId || j.jobId;
+  const name = `fluoddity${Date.now()}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+  let up;
+  try {
+    up = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.uploadVideo?did=${encodeURIComponent(user.did)}&name=${encodeURIComponent(name)}`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'video/mp4' }, body: blob,
+    });
+  } catch (e) { throw new Error(`uploadVideo blocked (CORS/network): ${e.message}`); }
+  if (!up.ok) throw new Error(`uploadVideo ${up.status}: ${(await up.text().catch(()=>'')).slice(0,160)}`);
+  let st = (await up.json());
+  st = st.jobStatus || st;
+  let blobRef = st.blob, jobId = st.jobId;
   const deadline = Date.now() + 120000;
   while (!blobRef && jobId && Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 2000));
-    const js = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.getJobStatus?jobId=${encodeURIComponent(jobId)}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!js.ok) break;
+    let js;
+    try { js = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.getJobStatus?jobId=${encodeURIComponent(jobId)}`, { headers: { Authorization: `Bearer ${token}` } }); }
+    catch (e) { throw new Error(`getJobStatus blocked (CORS/network): ${e.message}`); }
+    if (!js.ok) throw new Error(`getJobStatus ${js.status}`);
     st = (await js.json()).jobStatus || {};
-    if (st.state === 'JOB_STATE_FAILED') return null;
+    if (st.state === 'JOB_STATE_FAILED') throw new Error(`processing failed: ${st.error || st.message || 'unknown'}`);
     if (st.blob) blobRef = st.blob;
     else cstatus(`processing video… ${st.progress || 0}%`);
   }
-  if (!blobRef) return null;
+  if (!blobRef) throw new Error('processing timed out');
   return { $type: 'app.bsky.embed.video', video: blobRef, aspectRatio: aspectOf() };
 }
 
@@ -1438,7 +1448,7 @@ async function ensureOrgLink(cfg){
     const sr = await auth.pds.createRecord(COLLECTION, {
       $type: COLLECTION,
       name: (nameInput.value || '').trim() || 'untitled organism',
-      schemaVersion: 1, config: cfg, createdAt: new Date().toISOString(),
+      schemaVersion: 1, config: JSON.stringify(cfg), createdAt: new Date().toISOString(),
     });
     const p = parseAtUri(sr.uri);
     const link = `${location.origin}${location.pathname}?o=${p.did}/${p.rkey}`;
@@ -1463,10 +1473,10 @@ postBtn?.addEventListener('click', async () => {
     const cfg = window.Fluoddity.getConfig();
     const link = await ensureOrgLink(cfg);
 
-    let embed = null;
-    if (clipBlob) { try { embed = await tryVideoEmbed(user, clipBlob); } catch (e) { console.warn('video embed failed:', e); } }
+    let embed = null, vidErr = '';
+    if (clipBlob) { try { embed = await tryVideoEmbed(user, clipBlob); } catch (e) { vidErr = e.message || String(e); console.warn('video embed failed:', e); } }
     if (!embed) {
-      cstatus(clipBlob ? 'video service unavailable — posting a still frame instead…' : 'capturing still frame…');
+      cstatus(clipBlob ? `posting still (video failed: ${vidErr})` : 'capturing still frame…');
       const still = await window.Fluoddity.grabFrame();
       const img = await auth.pds.uploadBlob(await still.arrayBuffer(), still.type || 'image/jpeg');
       embed = { $type: 'app.bsky.embed.images', images: [{ alt: 'A Fluoddity organism: ' + ((nameInput.value || '').trim() || 'vector-trail slime'), image: img, aspectRatio: aspectOf() }] };
@@ -1487,8 +1497,10 @@ postBtn?.addEventListener('click', async () => {
   }
 });
 
-// ── live config value readout ────────────────────────────────────────────────
+// ── live config value readout + persistence ──────────────────────────────────
 const cfgValsEl = $('config-values');
+const CFG_KEY = 'fluoddity_cfg';
+let _lastPersisted = '';
 function fmtVal(v){
   if (typeof v !== 'number') return String(v);
   if (!isFinite(v)) return String(v);
@@ -1497,9 +1509,16 @@ function fmtVal(v){
 }
 function refreshValues(){
   const c = window.Fluoddity?.getConfig?.();
-  if (!c || !cfgValsEl) return;
-  cfgValsEl.innerHTML = Object.keys(c)
-    .map(k => `<span class="k">${k}</span><span class="v">${fmtVal(c[k])}</span>`).join('');
+  if (!c) return;
+  if (cfgValsEl) {
+    cfgValsEl.innerHTML = Object.keys(c)
+      .map(k => `<span class="k">${k}</span><span class="v">${fmtVal(c[k])}</span>`).join('');
+  }
+  // Persist current organism so it survives reloads and the OAuth redirect.
+  try {
+    const j = JSON.stringify(c);
+    if (j !== _lastPersisted) { localStorage.setItem(CFG_KEY, j); _lastPersisted = j; }
+  } catch { /* storage blocked */ }
 }
 setInterval(refreshValues, 250);
 refreshValues();
@@ -1509,6 +1528,16 @@ $('btn-copy-cfg')?.addEventListener('click', async () => {
     const b = $('btn-copy-cfg'); b.textContent = 'copied'; setTimeout(() => b.textContent = 'copy JSON', 1200);
   } catch { /* clipboard blocked */ }
 });
+
+// Restore the last organism (survives reload + the OAuth round-trip). A
+// ?o= shared link wins, so only restore when there isn't one.
+const hasSharedLink = new URLSearchParams(location.search).has('o');
+if (!hasSharedLink) {
+  try {
+    const saved = localStorage.getItem(CFG_KEY);
+    if (saved) { window.Fluoddity?.applyConfig(JSON.parse(saved)); _lastPersisted = saved; }
+  } catch { /* ignore */ }
+}
 
 if (auth) await auth.init();   // consumes ?__auth_session after OAuth redirect
 await loadShared();            // ?o=did/rkey loads a shared organism
