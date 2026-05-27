@@ -310,12 +310,13 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
 
 <div id="fps"></div>
 
-<div id="vitals" title="Machine-read liveness of the current organism: fill = how much of the field is lit, motion = how much it's changing frame-to-frame.">
+<div id="vitals" title="Machine-read liveness of the current organism. Bars: fill = how much of the field is lit · motion = how much it's changing · structure = spatial coherence (low = hot/boiling noise, high = structured filaments).">
   <span class="dot"></span>
   <span class="word">settling…</span>
   <span class="vbars">
     <span class="vbar" data-k="fill"><i></i></span>
     <span class="vbar" data-k="motion"><i></i></span>
+    <span class="vbar" data-k="struct"><i></i></span>
   </span>
 </div>
 
@@ -955,6 +956,7 @@ let _grab = null;
 //   fill    — fraction of lit, non-saturated pixels (occupancy)
 //   blowout — fraction near-white (over-saturated)
 //   motion  — mean |ΔL| vs the previous probe (alive vs frozen)
+//   struct  — lag-1 spatial autocorrelation (coherent filaments vs hot speckle)
 // These also feed future work (garden "hide the dead" filter, phase maps).
 const PROBE = 64;
 const _probe = document.createElement('canvas'); _probe.width = _probe.height = PROBE;
@@ -964,7 +966,8 @@ const dotEl = document.querySelector('#vitals .dot');
 const wordEl = document.querySelector('#vitals .word');
 const fillBar = document.querySelector('#vitals .vbar[data-k=fill] i');
 const motBar = document.querySelector('#vitals .vbar[data-k=motion] i');
-const VIT_COLOR = { 'settling…':'#8b909c', 'dead':'#e0556b', 'blown out':'#e08a3c', 'frozen':'#e0c23c', 'sparse':'#c7d23c', 'alive':'#38e1c0' };
+const structBar = document.querySelector('#vitals .vbar[data-k=struct] i');
+const VIT_COLOR = { 'settling…':'#8b909c', 'dead':'#e0556b', 'blown out':'#e08a3c', 'frozen':'#e0c23c', 'sparse':'#c7d23c', 'boiling':'#ff6b3d', 'alive':'#38e1c0' };
 const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
 
 let lastVitals = { fill: 0, blowout: 0, motion: 0, verdict: 'settling…' };
@@ -983,6 +986,19 @@ function readVitals(){
     if (_prevLum) motion += Math.abs(L - _prevLum[p]);
   }
   const fill = lit / N, blowout = blown / N, mot = _prevLum ? motion / N : 0;
+
+  // Lag-1 spatial coherence: Pearson correlation between each pixel and its
+  // right + down neighbors. High = smooth/structured; low = hot speckle noise.
+  let np = 0, sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0;
+  for (let y = 0; y < PROBE; y++){
+    for (let x = 0; x < PROBE; x++){
+      const i = y*PROBE + x, a = lum[i];
+      if (x + 1 < PROBE){ const b = lum[i+1]; np++; sa += a; sb += b; saa += a*a; sbb += b*b; sab += a*b; }
+      if (y + 1 < PROBE){ const b = lum[i+PROBE]; np++; sa += a; sb += b; saa += a*a; sbb += b*b; sab += a*b; }
+    }
+  }
+  const denom = Math.sqrt((np*saa - sa*sa) * (np*sbb - sb*sb));
+  const struct = denom > 1e-6 ? clamp01((np*sab - sa*sb) / denom) : 1;
   _prevLum = lum;
 
   let verdict;
@@ -991,9 +1007,10 @@ function readVitals(){
   else if (blowout > 0.4) verdict = 'blown out';
   else if (mot < 0.0015 && fill > 0.03) verdict = 'frozen';
   else if (fill < 0.05) verdict = 'sparse';
+  else if (struct < 0.5) verdict = 'boiling';
   else verdict = 'alive';
 
-  lastVitals = { fill, blowout, motion: mot, verdict };
+  lastVitals = { fill, blowout, motion: mot, struct, verdict };
   const col = VIT_COLOR[verdict];
   dotEl.style.background = col;
   wordEl.textContent = verdict; wordEl.style.color = col;
@@ -1001,6 +1018,8 @@ function readVitals(){
   fillBar.style.background = col;
   motBar.style.width = (clamp01(mot / 0.02) * 100).toFixed(0) + '%';
   motBar.style.background = col;
+  structBar.style.width = (struct * 100).toFixed(0) + '%';
+  structBar.style.background = col;
 }
 
 function frame(){
