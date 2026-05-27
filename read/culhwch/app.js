@@ -12,10 +12,20 @@
   /* ---- pan/zoom (shared by SVG diagrams) ---- */
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const zoomers = {};
-  function attachZoom(svg, layer, contentW, host) {
+  function attachZoom(svg, layer, content, host) {
     let k = 1, tx = 0, ty = 0; const MIN = 0.2, MAX = 9;
     const apply = () => layer.setAttribute("transform", `translate(${tx} ${ty}) scale(${k})`);
-    function fit() { const cw = host.clientWidth || contentW; k = Math.min(1.4, cw / contentW); tx = Math.max(0, (cw - contentW * k) / 2); ty = 6; apply(); }
+    function fit() {
+      const cw = host.clientWidth || 800, ch = host.clientHeight || 600;
+      if (typeof content === "function") {
+        const b = content(), m = 50;
+        k = clamp(Math.min(cw / (b.w + m * 2), ch / (b.h + m * 2)), MIN, 1.4);
+        tx = (cw - b.w * k) / 2 - b.x * k; ty = (ch - b.h * k) / 2 - b.y * k;
+      } else {
+        k = Math.min(1.4, cw / content); tx = Math.max(0, (cw - content * k) / 2); ty = 6;
+      }
+      apply();
+    }
     function zoomAt(mx, my, f) { const nk = clamp(k * f, MIN, MAX); tx = mx - (mx - tx) * (nk / k); ty = my - (my - ty) * (nk / k); k = nk; apply(); }
     svg.addEventListener("wheel", (e) => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     const pts = new Map(); let pinch = null;
@@ -323,72 +333,59 @@
   function renderMythograph() {
     const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
     const active = { movement: true, character: true, motif: true, propp: true };
+    const mobile = (window.innerWidth || 900) < 640;
+    const R = (n) => MYTH_TYPE[n.type].r;
     let selected = null, selGroup = null, grown = [];
+    let alpha = 1, running = false, simReady = false;
+    const sim = { L: 90, charge: -1000 };
 
+    // ---- controls: layer toggles + simulation sliders ----
     const fhost = $("#myth-filters"); fhost.innerHTML = "";
     Object.keys(MYTH_TYPE).forEach((t) => {
       const b = el("button", "myth-filter active", `<span class="dot" style="background:${MYTH_TYPE[t].color}"></span>${MYTH_TYPE[t].label}`);
       b.onclick = () => { active[t] = !active[t]; b.classList.toggle("active", active[t]); applyVis(); };
       fhost.appendChild(b);
     });
+    const sliders = el("div", "myth-sliders");
+    function addSlider(labelTxt, min, max, val, onIn) {
+      const wrap = el("div", "myth-slider");
+      wrap.appendChild(el("label", null, labelTxt));
+      const inp = document.createElement("input"); inp.type = "range"; inp.min = min; inp.max = max; inp.value = val;
+      const out = el("span", "myth-slval", "");
+      inp.addEventListener("input", () => { onIn(+inp.value, out); reheat(); });
+      wrap.appendChild(inp); wrap.appendChild(out); onIn(+inp.value, out); sliders.appendChild(wrap);
+    }
+    addSlider("Link length", 0, 100, 30, (v, out) => { sim.L = 24 + v * 2.4; out.textContent = Math.round(sim.L); });
+    addSlider("Repulsion", 0, 100, 42, (v, out) => { sim.charge = -(60 + v * 26); out.textContent = v; });
+    fhost.appendChild(sliders);
+
     const leg = $("#myth-legend"); leg.innerHTML = "";
     [["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
       .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
 
-    // layout — fully force-directed (Fruchterman–Reingold) + a collision pass
-    const mobile = (window.innerWidth || 900) < 640;
-    const W = mobile ? 720 : 1500, H = mobile ? 1380 : 840, pad = 70;
-    const R = (n) => MYTH_TYPE[n.type].r;
-    nodes.forEach((n, i) => { const a = 2 * Math.PI * i / nodes.length; n.x = W / 2 + Math.cos(a) * W * 0.30; n.y = H / 2 + Math.sin(a) * H * 0.30; });
-    const k = Math.sqrt((W * H) / nodes.length) * (mobile ? 0.78 : 0.95);
-    let temp = Math.max(W, H) * 0.09;
-    for (let it = 0; it < 480; it++) {
-      nodes.forEach((n) => { n.dx = 0; n.dy = 0; });
-      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        const f = k * k / d, ux = dx / d, uy = dy / d;
-        nodes[i].dx += ux * f; nodes[i].dy += uy * f; nodes[j].dx -= ux * f; nodes[j].dy -= uy * f;
-      }
-      edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = A.x - B.x, dy = A.y - B.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const f = d * d / k, ux = dx / d, uy = dy / d; A.dx -= ux * f; A.dy -= uy * f; B.dx += ux * f; B.dy += uy * f; });
-      if (mobile) nodes.forEach((n) => { n.dx += (W / 2 - n.x) * 0.06; }); // squeeze into a vertical column
-      nodes.forEach((n) => { const d = Math.sqrt(n.dx * n.dx + n.dy * n.dy) || 0.01, m = Math.min(d, temp); n.x += n.dx / d * m; n.y += n.dy / d * m; });
-      temp *= 0.98;
-    }
-    // collision resolution — push apart any nodes whose circles overlap
-    for (let pass = 0; pass < 90; pass++) {
-      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
-        const min = R(nodes[i]) + R(nodes[j]) + 14;
-        if (d < min) { const p = (min - d) / 2, ux = dx / d, uy = dy / d; nodes[i].x += ux * p; nodes[i].y += uy * p; nodes[j].x -= ux * p; nodes[j].y -= uy * p; }
-      }
-    }
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
-    nodes.forEach((n) => { minx = Math.min(minx, n.x); miny = Math.min(miny, n.y); maxx = Math.max(maxx, n.x); maxy = Math.max(maxy, n.y); });
-    nodes.forEach((n) => { n.x = n.x - minx + pad; n.y = n.y - miny + pad; });
-    const contentW = maxx - minx + pad * 2;
-
+    // ---- build the svg (positions driven by the live simulation) ----
+    nodes.forEach((n, i) => { const a = 2 * Math.PI * i / nodes.length; n.x = Math.cos(a) * 130; n.y = Math.sin(a) * 130; n.vx = 0; n.vy = 0; });
     const svg = svgEl("svg", { class: "myth" }); const layer = svgEl("g", { class: "zl" }); svg.appendChild(layer);
     const edgeObjs = [], adj = {};
     edges.forEach((e, ei) => {
-      const A = nodes[e.a], B = nodes[e.b];
-      const line = svgEl("line", { x1: A.x, y1: A.y, x2: B.x, y2: B.y, stroke: MYTH_EDGE[e.type], "stroke-opacity": 0.22, "stroke-width": 1 });
+      const line = svgEl("line", { stroke: MYTH_EDGE[e.type], "stroke-opacity": 0.22, "stroke-width": 1 });
       layer.appendChild(line); edgeObjs.push(line);
       (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
     });
     const nodeObjs = [], shapes = [];
     nodes.forEach((n, i) => {
       const T = MYTH_TYPE[n.type];
-      const grp = svgEl("g", { class: "myth-node" });
+      const grp = svgEl("g", { class: "myth-node", transform: `translate(${n.x} ${n.y})` });
       let shapeEl, tag;
       if (n.type === "movement") {
-        shapeEl = svgEl("rect", { x: n.x - T.r, y: n.y - T.r, width: T.r * 2, height: T.r * 2, rx: 5, fill: T.color, "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1.5 });
+        shapeEl = svgEl("rect", { x: -T.r, y: -T.r, width: T.r * 2, height: T.r * 2, rx: 5, fill: T.color, "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1.5 });
         grp.appendChild(shapeEl); tag = "rect";
-        const lab = svgEl("text", { x: n.x, y: n.y + 4, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": "700" }); lab.textContent = n.label; grp.appendChild(lab);
+        const lab = svgEl("text", { x: 0, y: 4, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": "700" }); lab.textContent = n.label; grp.appendChild(lab);
       } else {
-        shapeEl = svgEl("circle", { cx: n.x, cy: n.y, r: T.r, fill: T.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.2 });
+        shapeEl = svgEl("circle", { cx: 0, cy: 0, r: T.r, fill: T.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.2 });
         grp.appendChild(shapeEl); tag = "circle";
       }
-      shapes.push({ el: shapeEl, tag: tag, r: T.r, x: n.x, y: n.y });
+      shapes.push({ el: shapeEl, tag: tag, r: T.r });
       const ttl = svgEl("title"); ttl.textContent = n.full; grp.appendChild(ttl);
       grp.addEventListener("mouseenter", () => highlight(i));
       grp.addEventListener("mouseleave", () => { selected != null ? highlight(selected) : clearHi(); });
@@ -410,8 +407,8 @@
     const stripTags = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&mdash;/g, "—").replace(/&[a-z]+;/g, " ").trim();
     const truncate = (s, n) => s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s;
     function wrapText(s, max) { const w = s.split(/\s+/), lines = []; let cur = ""; w.forEach((word) => { if ((cur + " " + word).trim().length > max) { if (cur) lines.push(cur); cur = word; } else cur = (cur + " " + word).trim(); }); if (cur) lines.push(cur); return lines; }
-    function growNode(i) { const s = shapes[i], f = 1.8; if (s.tag === "circle") s.el.setAttribute("r", s.r * f); else { s.el.setAttribute("x", s.x - s.r * f); s.el.setAttribute("y", s.y - s.r * f); s.el.setAttribute("width", s.r * 2 * f); s.el.setAttribute("height", s.r * 2 * f); } grown.push(i); }
-    function resetGrown() { grown.forEach((i) => { const s = shapes[i]; if (s.tag === "circle") s.el.setAttribute("r", s.r); else { s.el.setAttribute("x", s.x - s.r); s.el.setAttribute("y", s.y - s.r); s.el.setAttribute("width", s.r * 2); s.el.setAttribute("height", s.r * 2); } }); grown = []; }
+    function growNode(i) { const s = shapes[i], f = 1.8; if (s.tag === "circle") s.el.setAttribute("r", s.r * f); else { s.el.setAttribute("x", -s.r * f); s.el.setAttribute("y", -s.r * f); s.el.setAttribute("width", s.r * 2 * f); s.el.setAttribute("height", s.r * 2 * f); } grown.push(i); }
+    function resetGrown() { grown.forEach((i) => { const s = shapes[i]; if (s.tag === "circle") s.el.setAttribute("r", s.r); else { s.el.setAttribute("x", -s.r); s.el.setAttribute("y", -s.r); s.el.setAttribute("width", s.r * 2); s.el.setAttribute("height", s.r * 2); } }); grown = []; }
     function neighborLabel(n) { const t = svgEl("text", { class: "myth-label", x: n.x, y: n.y - R(n) * 1.8 - 6, "text-anchor": "middle", "font-size": 11 }); t.textContent = truncate(stripTags(n.full), 26); return t; }
     function previewCard(n) {
       const g2 = svgEl("g"), lh = 15, padc = 9, cw = 214;
@@ -429,7 +426,7 @@
     }
     function clearSel() { if (selGroup) { selGroup.remove(); selGroup = null; } resetGrown(); }
     function select(i) {
-      clearSel(); selected = i; highlight(i); fillDetail(i);
+      running = false; alpha = 0; clearSel(); selected = i; highlight(i); fillDetail(i);
       selGroup = svgEl("g", { class: "myth-sel" }); layer.appendChild(selGroup);
       const nb = []; (adj[i] || []).forEach((ei) => { const e = edges[ei], o = e.a === i ? e.b : e.a; if (active[nodes[o].type] && nb.indexOf(o) < 0) nb.push(o); });
       nb.forEach((o) => { growNode(o); selGroup.appendChild(neighborLabel(nodes[o])); });
@@ -467,9 +464,40 @@
       });
     }
 
-    const host = $("#myth-host"); host.innerHTML = ""; host.appendChild(svg);
-    zoomers.myth = attachZoom(svg, layer, contentW, host);
-    $("#myth-detail").innerHTML = '<div class="md-hint">Hover a node to light its threads. Click any node — a movement, a character, a motif, a story-function — to see everything it touches.</div>';
+    // ---- live force simulation ----
+    const stiffness = 0.34, velDecay = 0.62, alphaDecay = 0.028, alphaMin = 0.004;
+    const cstrX = mobile ? 0.13 : 0.04, cstrY = 0.04;
+    const clampv = (v) => v > 40 ? 40 : (v < -40 ? -40 : v);
+    const raf = (window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : (fn) => setTimeout(fn, 16));
+    function step() {
+      const a = alpha;
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y, d2 = dx * dx + dy * dy; if (d2 < 25) d2 = 25;
+        const w = sim.charge * a / d2, fx = dx * w, fy = dy * w;
+        nodes[i].vx += fx; nodes[i].vy += fy; nodes[j].vx -= fx; nodes[j].vy -= fy;
+      }
+      edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const l = (d - sim.L) / d * a * stiffness, fx = dx * l * 0.5, fy = dy * l * 0.5; A.vx += fx; A.vy += fy; B.vx -= fx; B.vy -= fy; });
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const min = R(nodes[i]) + R(nodes[j]) + 6;
+        if (d < min) { const p = (min - d) / d * a, fx = dx * p, fy = dy * p; nodes[i].vx += fx; nodes[i].vy += fy; nodes[j].vx -= fx; nodes[j].vy -= fy; }
+      }
+      nodes.forEach((n) => { n.vx += (-n.x) * cstrX * a; n.vy += (-n.y) * cstrY * a; n.x += clampv(n.vx); n.y += clampv(n.vy); n.vx *= velDecay; n.vy *= velDecay; });
+      alpha += (0 - alpha) * alphaDecay;
+    }
+    function paint() {
+      for (let i = 0; i < nodeObjs.length; i++) nodeObjs[i].setAttribute("transform", `translate(${nodes[i].x.toFixed(1)} ${nodes[i].y.toFixed(1)})`);
+      for (let ei = 0; ei < edgeObjs.length; ei++) { const e = edges[ei], l = edgeObjs[ei]; l.setAttribute("x1", nodes[e.a].x.toFixed(1)); l.setAttribute("y1", nodes[e.a].y.toFixed(1)); l.setAttribute("x2", nodes[e.b].x.toFixed(1)); l.setAttribute("y2", nodes[e.b].y.toFixed(1)); }
+    }
+    function bounds() { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; nodes.forEach((n) => { if (n.x < a) a = n.x; if (n.y < b) b = n.y; if (n.x > c) c = n.x; if (n.y > d) d = n.y; }); return { x: a, y: b, w: (c - a) || 1, h: (d - b) || 1 }; }
+    function frame() { step(); paint(); if (alpha > 0.12 && zoomers.myth) zoomers.myth.fit(); if (alpha > alphaMin && running) raf(frame); else running = false; }
+    function reheat() { if (!simReady) return; if (selected != null) { clearSel(); selected = null; clearHi(); } alpha = Math.max(alpha, 0.7); if (!running) { running = true; raf(frame); } }
+
+    for (let w = 0; w < 30; w++) step();             // warm start (instant), then settle live
+    const host = $("#myth-host"); host.innerHTML = ""; host.appendChild(svg); paint();
+    zoomers.myth = attachZoom(svg, layer, bounds, host);
+    $("#myth-detail").innerHTML = '<div class="md-hint">A live force simulation — tune <em>link length</em> and <em>repulsion</em> above. Hover a node to light its threads; click any node to freeze the layout and preview what it touches.</div>';
+    simReady = true; running = true; raf(frame);
   }
 
   /* ====================== VIEW SWITCHING ====================== */

@@ -329,6 +329,11 @@ svg.myth { display: block; }
 .myth-filter { font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px; }
 .myth-filter.active { color: var(--ink); border-color: var(--gold); }
 .myth-filter:not(.active) { opacity: 0.4; }
+.myth-sliders { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; width: 100%; margin-top: 4px; }
+.myth-slider { display: inline-flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 12px; color: var(--ink-dim); }
+.myth-slider label { white-space: nowrap; }
+.myth-slider input[type="range"] { width: 130px; accent-color: var(--gold); }
+.myth-slval { min-width: 2.2em; text-align: right; color: var(--gold-soft); font-variant-numeric: tabular-nums; }
 .edgekey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; }
 .myth-detail { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-height: 64px; }
 .md-hint { color: var(--ink-faint); font-family: var(--sans); font-size: 14px; }
