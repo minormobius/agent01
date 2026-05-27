@@ -15,6 +15,28 @@ export function defaultConfig() {
   };
 }
 
+// Empirically viable parameter box — the same bounds the breeder lab forages
+// inside. These exclude the obviously-dead corners of the genome (no ink, no
+// drag, runaway force), so a uniform draw from here lands near the alive region
+// far more often than sampling the full unbounded space. The rule_seed (a 10-
+// term Fourier black box) still dominates whether a given draw is alive, so
+// callers should reject-sample on fitness on top of this.
+export const PARAM_RANGES = {
+  sensor_gain: [0, 12], sensor_angle: [-1, 1], sensor_distance: [0.05, 4],
+  global_force_mult: [0, 3], drag: [0.5, 0.999], strafe_power: [0, 1],
+  axial_force: [-0.6, 0.6], lateral_force: [-1, 1],
+  trail_persistence: [0.5, 0.999], trail_diffusion: [0, 2], ink: [0.3, 8], hue: [0, 1],
+};
+
+export function randomConfig() {
+  const c = defaultConfig();
+  for (const k in PARAM_RANGES) { const [lo, hi] = PARAM_RANGES[k]; c[k] = lo + Math.random() * (hi - lo); }
+  c.rule_seed = Math.random();
+  c.cohorts = 8 + (Math.random() * 24 | 0);
+  return c;
+}
+
+
 const VERT_FULLSCREEN = `#version 300 es
 in vec2 a_pos; out vec2 v_uv;
 void main(){ v_uv = a_pos*0.5+0.5; gl_Position = vec4(a_pos,0.0,1.0); }`;

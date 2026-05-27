@@ -31,7 +31,18 @@ a { color: var(--accent); text-decoration: none; }
 .card .d { font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 7px; }
 .card .verb { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); }
 
-footer { max-width: 1100px; margin: 0 auto; padding: 8px 22px 40px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+#book { max-width: 720px; margin: 26px auto 0; padding: 0 24px; }
+#book h2 { font-size: 22px; letter-spacing: -0.01em; margin: 38px 0 4px; }
+#book h2 b { color: var(--accent); }
+#book h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); font-weight: 600; margin: 30px 0 8px; }
+#book .lede { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+#book p { color: #c8ccd4; font-size: 14px; line-height: 1.72; margin: 14px 0; }
+#book .step { font-weight: 700; color: var(--accent); }
+#book code { background: #000; padding: 1px 5px; border-radius: 4px; color: var(--accent); font-size: 12.5px; }
+#book .credit { border-top: 1px solid var(--rule); padding-top: 16px; margin-top: 26px; font-size: 12px; color: var(--muted); }
+#book .credit a { color: var(--accent); }
+
+footer { max-width: 720px; margin: 0 auto; padding: 18px 24px 48px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 footer a { color: var(--muted); text-decoration: underline; }
 footer a:hover { color: var(--accent); }
 </style>
@@ -70,6 +81,35 @@ footer a:hover { color: var(--accent); }
   </a>
 </div>
 
+<section id="book">
+  <h2><b>Fluoddity</b>, briefly</h2>
+  <p class="lede">a vector-trail generalization of slime-mold transport</p>
+  <p>Classic <em>Physarum</em> sims have agents drop a scalar pheromone, sniff a couple of points ahead, and turn toward the brighter side; the trail blurs and fades. Fluoddity — created by <a href="https://bsky.app/profile/all-paperclips.bsky.social" target="_blank" rel="noopener">aphid91</a> — generalizes that on three axes:</p>
+  <p><span class="step">① Vector trails.</span> Each cell of the field stores a 2D <em>flow vector</em>, not just an intensity. Hue is flow direction; brightness is speed.<br>
+     <span class="step">② An evolvable black box.</span> There is no hard-coded "steer toward bright." Each agent feeds its left/right sensor readings into a small Fourier-feature function — the <em>rule</em> — that outputs a push and a sideways hop. Left/right symmetry is enforced so nothing spins by bias alone.<br>
+     <span class="step">③ Cohorts &amp; selection.</span> The population is split into cohorts, each a mutation of the base rule, so you can hunt for shapes you like.</p>
+
+  <h3>Under the hood</h3>
+  <p>Each physics step is three GPU passes over a few hundred thousand agents and a trail field:</p>
+  <p><span class="step">① Move.</span> Every agent reads the field at two sensors, splayed by <code>sensor angle</code> at <code>sensor distance</code> ahead of its heading. The two readings are rotated into the agent's own frame and fed to its <b>rule</b> (a 10-term Fourier function, 4 inputs → 4 outputs), evaluated twice with left/right mirrored and averaged so handedness cancels. Out come a <b>force</b> (added to velocity, then <code>drag</code> bleeds it off) and a <b>strafe</b> (added straight to position). Then it moves and wraps at the edges.</p>
+  <p><span class="step">② Deposit.</span> Each agent stamps a small Gaussian of its <em>velocity vector</em> into a brush texture. The trail therefore records the direction and speed of flow at every point — the "vector trail" that sets Fluoddity apart from scalar pheromone.</p>
+  <p><span class="step">③ Diffuse.</span> The field is blurred (by <code>diffusion</code>) and blended with the fresh deposits as a <em>mix</em>: <code>field = field·persistence + deposits·(1−persistence)</code>, which keeps equilibrium brightness independent of the persistence value.</p>
+
+  <h3>The genome</h3>
+  <p>A single <code>rule seed</code> deterministically generates those 10 Fourier centers; each cohort then applies a small mutation, so adjacent cohorts are smooth variations of one creature. "New organism" rerolls the seed; "mutate" nudges it. That space of rules is what you forage in. aphid91's <em>temperature</em> intuition is the compass: too hot and it's structureless brownian gas; too cold and it freezes or dies; the good stuff lives on the edge.</p>
+  <p>When you save an organism, its full parameter snapshot plus the seed is written as a <code>com.minomobi.fluoddity.organism</code> record on <em>your own</em> Bluesky PDS — you own it, and anyone can fork it. A constant backlink lets <a href="https://constellation.microcosm.blue/" target="_blank" rel="noopener">Constellation</a> enumerate every organism across all authors, which is how the gallery, the phase-space map, and the lineage trees are built.</p>
+
+  <h3>Family tree</h3>
+  <p><b>Conway's Game of Life (1970)</b> — the great-grandparent. Dead-simple local rules, unbounded emergent structure: the founding proof that complexity can be grown, not designed.</p>
+  <p><b>Physarum transport models</b> — the direct parent. Jeff Jones (2010) formalized agent-based slime-mould networks; Sage Jenson (mxsage) made them famous as living-looking art. Fluoddity <em>is</em> this model generalized: scalar trail → vector flow field, hand-coded steering → an evolvable Fourier black box, one species → cohorts under artificial selection.</p>
+  <p><b>Cousins:</b> reaction–diffusion / Turing patterns (Gray–Scott), Lenia and SmoothLife (Conway made continuous), and Boids (Reynolds, 1986). Fluoddity sits exactly where agent-based steering, a diffusing field, and evolutionary search overlap.</p>
+
+  <p class="credit"><b>About this build.</b> An independent, clean-room reimplementation of the published algorithm so you can play in the browser — <em>not</em> aphid91's code. The original is far richer:
+     <a href="https://github.com/aphid91/Fluoddity" target="_blank" rel="noopener">source</a> ·
+     <a href="https://aphid91.github.io/Fluoddity-Core/" target="_blank" rel="noopener">core engine + WebGL demo</a> ·
+     <a href="https://bsky.app/profile/all-paperclips.bsky.social" target="_blank" rel="noopener">@all-paperclips.bsky.social</a>.</p>
+</section>
+
 <footer>
   Organisms live as <code>com.minomobi.fluoddity.organism</code> records on each author's PDS · discovery via
   <a href="https://constellation.microcosm.blue/">Constellation</a> · part of
@@ -78,7 +118,7 @@ footer a:hover { color: var(--accent); }
 
 <script type="module">
 "use strict";
-import { FluoddityEngine, defaultConfig } from './engine.js';
+import { FluoddityEngine, randomConfig } from './engine.js';
 import { readDescriptors, fitness } from './descriptors.js';
 
 const cv = document.getElementById('herocv');
@@ -87,21 +127,12 @@ let engine = null;
 try { engine = new FluoddityEngine(480, 55000); }
 catch { document.getElementById('hero').style.background = 'linear-gradient(135deg,#0a1f1b,#06121a)'; document.getElementById('shuffle').style.display = 'none'; }
 
-function randomConfig() {
-  const c = defaultConfig();
-  c.rule_seed = Math.random();
-  c.hue = Math.random();
-  c.sensor_angle = -0.4 + Math.random() * 0.8;
-  c.global_force_mult = 0.4 + Math.random() * 0.6;
-  c.lateral_force = -0.5 + Math.random() * 0.6;
-  c.cohorts = 8 + (Math.random() * 16 | 0);
-  return c;
-}
-
-// Pick the most "alive" of a few random organisms so the hero is never blank.
+// Pick the most "alive" of several organisms drawn from the viable parameter
+// box (engine.randomConfig). The box winnows out the dead corners of the genome;
+// reject-sampling on fitness handles the rest (the rule_seed lottery).
 async function pickLively() {
   let best = null, bestFit = -1;
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 10; i++) {
     const c = randomConfig();
     engine.load(c, i);
     engine.step(260); engine.render();
