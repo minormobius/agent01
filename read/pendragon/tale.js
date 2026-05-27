@@ -24,7 +24,7 @@ window.PENDRAGON.tale = {
     { t: "VI · Olwen", done: true },
     { t: "VII · Ysbaddaden's hall & the spears", done: true },
     { t: "VIII · The impossible tasks (anoethau)", done: true },
-    { t: "IX · The great helpers & first quests", done: false },
+    { t: "IX · The great helpers & first quests", done: true },
     { t: "X · The hunt for Twrch Trwyth", done: false },
     { t: "XI · The Black Witch's blood", done: false },
     { t: "XII · Ysbaddaden slain; Olwen won", done: false },
@@ -390,6 +390,45 @@ window.PENDRAGON.tale = {
       { w: "“Anhawdderau a gei, a nosweithiau heb gysgu, yn ceisaw hyn; ac nis ceffy, ac ni cheffy fy merch.” “Meirch a gaf i, a marchogaeth; a'm harglwydd a'm car, Arthur, a gaiff i mi yr holl bethau hyn. Ac mi a gaf dy ferch, a thithau a golli dy einioes.”",
         e: "(40) “Hardships you shall meet, and nights without sleep, in seeking these things; and you will not get them, and you will not get my daughter.” “Horses I shall have, and horsemanship; and my lord and kinsman Arthur will win me all these things. And I shall have your daughter — and you shall lose your life.”",
         n: "Culhwch answers every impossibility the same way: <em>Arthur will get it for me.</em> The whole back half of the tale is the making-good on that boast — exactly the movements still unfilled on the progress bar." },
+    ],
+   },
+   {
+    title: "IX. The oldest animals, and the freeing of Mabon",
+    segments: [
+      { w: "Drachefn at Arthur y doethant, a managu iddo'r anoethau. Heb Arthur: “Pa un o'r rhain a fydd hawsaf ei gael yn gyntaf?” “Hawsaf fydd ceisaw Mabon mab Modron; ac ni cheffir ef hyd pan gaffer Eidoel mab Aer, ei gar, yn gyntaf.”",
+        e: "They came back to Arthur and told him the tasks. Said Arthur: “Which of these will be easiest to win first?” “It will be best to seek Mabon son of Modron; and he will not be found until we first find his kinsman, Eidoel son of Aer.”" },
+
+      { w: "Kychwyn a oruc Arthur a'i niferoedd hyd at gaer Glini, lle yd oedd Eidoel yng ngharchar. Rhyddhau Eidoel a wnaethant, ac ymuno a oruc ef â'r cais.",
+        e: "Arthur and his hosts set out as far as the fort of Glini, where Eidoel lay in prison. They freed Eidoel, and he joined the search.",
+        n: "The hunt for the lost god begins, fittingly, by freeing one prisoner in order to find another." },
+
+      { w: "Yna yd aeth Gwrhyr Gwalstawd Ieithoedd a'r cwmni i geisaw Mabon; a dyfod a wnaethant yn gyntaf at Fwyalch Cilgwri.",
+        e: "Then Gwrhyr Interpreter of Tongues and the company set out to seek Mabon; and first they came to the Blackbird of Cilgwri.",
+        n: "What follows is the council of the oldest animals — among the most beloved passages in Welsh, and a version of a folk-motif found the world over: a chain of ever-older creatures, each measuring time by the slow wearing-away of something vast." },
+
+      { w: "“Dywed i ni, a wyddost ti ddim am Fabon mab Modron, a ddygwyd yn dair nos oed oddi rhwng ei fam a'r pared?” “Pan ddeuthum i yma gyntaf, yd oedd einion gof yma, a minnau'n aderyn ieuanc; ni wnaethpwyd gwaith arni namyn tra fûm i'n ei churo â'm gylfin bob hwyr; heddiw nid oes ohoni gymaint â chneuen heb dreulaw. Eithr ni chigleu ddim am y gŵr a ofynnwch. Er hynny, mi a'ch tywysaf at genedl hŷn no mi.”",
+        e: "“Tell us — do you know anything of Mabon son of Modron, taken when three nights old from between his mother and the wall?” “When I first came here, there was a smith's anvil here, and I was a young bird; no work has been done upon it but my striking it with my beak each evening — and today there is not so much of it left as a nut, all worn away. Yet in all that time I have heard nothing of the man you ask after. Even so, I will guide you to a kindred older than I.”" },
+
+      { w: "At Garw Rhedynfre y doethant. “Garw Rhedynfre, a wyddost ti ddim am Fabon?” “Pan ddeuthum i yma gyntaf, nid oedd namyn un fonllost i mi, ac nid oedd yma o bren namyn un mesen. Tyfodd honno yn dderwen ganghennog, a syrthiodd wedy hynny yn fonyn crin. O'r dydd hwnnw hyd heddiw yr wyf yma, ac ni chigleu ddim am y gŵr. Mi a'ch tywysaf at rai hŷn.”",
+        e: "They came to the Stag of Rhedynfre. “Stag of Rhedynfre, do you know anything of Mabon?” “When I first came here, I had but a single tine, and there was no tree here save one oak sapling. It grew into a branching oak, and afterwards fell into a withered stump. From that day to this I have been here, and have heard nothing of the man. But I will guide you to ones older still.”" },
+
+      { w: "At Dylluan Cwm Cawlwyd y doethant. “Tylluan Cwm Cawlwyd, a wyddost ti ddim am Fabon?” “Pan ddeuthum i yma gyntaf, glyn coediog oedd y cwm mawr. Daeth cenedl o ddynion a'i ddiwreiddiaw; tyfodd ail goed, a hwn yw'r trydydd. A'm hadenydd, nid ydynt namyn bonion. O'r dydd hwnnw ni chigleu ddim am y gŵr. Eithr mi a'ch tywysaf at hynaf anifail y byd, Eryr Gwernabwy.”",
+        e: "They came to the Owl of Cwm Cawlwyd. “Owl of Cwm Cawlwyd, do you know anything of Mabon?” “When I first came here, the great valley was a wooded glen. A race of men came and rooted it out; a second wood grew; and this is the third. As for my wings, they are mere stumps. From that day I have heard nothing of the man. But I will guide you to the oldest creature in the world — the Eagle of Gwernabwy.”" },
+
+      { w: "At Eryr Gwernabwy y doethant. “Eryr Gwernabwy, a wyddost ti ddim am Fabon?” “Pan ddeuthum i yma gyntaf, yd oedd maen gennyf, ac o'i ben y pigwn y sêr bob hwyr; bellach nid yw namyn dyrnfedd o uchder. Ni chigleu ddim am y gŵr, eithr un tro yr euthum i geisaw bwyd hyd Lyn Llyw; gwân a wneuthum â'm crafanc yn eog, a'm tynnu a wnaeth ef i'r dwfn. Mi a'ch tywysaf ato; ef yw hynaf creadur y byd.”",
+        e: "They came to the Eagle of Gwernabwy. “Eagle of Gwernabwy, do you know anything of Mabon?” “When I first came here, I had a stone, and from its top I would peck at the stars each evening; now it is no more than a span high. I have heard nothing of the man — except that once I went to seek food at Llyn Llyw, and struck a salmon with my talon, and he dragged me down into the deep. I will guide you to him; he is the oldest creature in the world.”" },
+
+      { w: "At Eog Llyn Llyw y doethant. “Eog Llyn Llyw, a wyddost ti ddim am Fabon mab Modron?” “Cymaint ag a wn, mi a'i dywedaf. Â phob llanw yd af i fyny'r afon hyd at fur Caer Loyw; ac yno y kefais gymaint o ddrygedd ag ni chefais eirioed. Ac fal y credoch, deled dau ohonoch ar fy ysgwyddau.” A Chai a Gwrhyr a aeth ar ddwy ysgwydd yr eog.",
+        e: "They came to the Salmon of Llyn Llyw. “Salmon of Llyn Llyw, do you know anything of Mabon son of Modron?” “As much as I know, I will tell. With every tide I swim up the river to the wall of Caer Loyw; and there I found such wickedness as I never found before. So that you may believe it, let two of you come upon my shoulders.” And Cei and Gwrhyr went upon the salmon's two shoulders.",
+        n: "Caer Loyw is Gloucester. Riding the oldest animal in the world to a prison-wall is the tale at its most dreamlike." },
+
+      { w: "Hyd at fur y gaer y nofiasant, ac yno y clywsant gwynfan ac achwyn dirfawr o'r tu arall i'r mur. Heb Gwrhyr: “Pwy yssydd yn cwynfan yn y tŷ maen hwn?” “Och! Mabon mab Modron yssydd yma yng ngharchar; ni charcharwyd neb eirioed mor dost â mi.”",
+        e: "They swam to the wall of the fort, and there they heard a grievous wailing and lament from the far side of the wall. Said Gwrhyr: “Who is it that laments in this house of stone?” “Alas! It is Mabon son of Modron who is held here in prison; no one was ever so cruelly imprisoned as I.”",
+        n: "Mabon — from Maponos, a youthful god worshipped in Roman Britain — is the divine youth shut out of the world; his freeing reads as a small myth of the return of light." },
+
+      { w: "Drachefn at Arthur y doethant, a managu lle yd oedd Mabon yng ngharchar. Galw a oruc Arthur ei ryfelwyr, a chyrchu Caer Loyw. Tra fu Arthur yn ymladd y gaer, yd aeth Cai a Bedwyr ar ysgwyddau'r eog; a thra fu'r ymladd yn torri'r mur, dug Cai Mabon ar ei gefn allan. A rhydd fu Mabon.",
+        e: "They went back to Arthur and told him where Mabon lay imprisoned. Arthur summoned his warriors and fell upon Caer Loyw. While Arthur stormed the fort, Cei and Bedwyr went on the salmon's shoulders; and while the assault broke the wall, Cei bore Mabon out upon his back. And Mabon was free.",
+        n: "With Mabon won, the company has the one huntsman who can handle Drudwyn — and the road now runs to the boar Twrch Trwyth himself." },
     ],
    },
   ],
