@@ -1218,6 +1218,7 @@ if (auth) {
     status('saving to your PDS…');
     try {
       const record = {
+        $type: COLLECTION,
         name: (nameInput.value || '').trim() || 'untitled organism',
         schemaVersion: 1,
         config: cfg,
@@ -1415,6 +1416,7 @@ async function ensureOrgLink(cfg){
   if (linkInput.value) return linkInput.value;
   try {
     const sr = await auth.pds.createRecord(COLLECTION, {
+      $type: COLLECTION,
       name: (nameInput.value || '').trim() || 'untitled organism',
       schemaVersion: 1, config: cfg, createdAt: new Date().toISOString(),
     });
