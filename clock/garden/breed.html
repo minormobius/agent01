@@ -1,7 +1,318 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>moved → fluoddity.mino.mobi</title>
-<link rel="canonical" href="https://fluoddity.mino.mobi/breed.html">
-<script>location.replace("https://fluoddity.mino.mobi/breed.html" + location.search + location.hash);</script>
-<style>body{background:#050608;color:#8b909c;font-family:ui-monospace,monospace;display:grid;place-items:center;height:100vh;margin:0;text-align:center}a{color:#38e1c0}</style>
-</head><body><p>Fluoddity moved to its own home.<br><a href="https://fluoddity.mino.mobi/breed.html">Continue to fluoddity.mino.mobi →</a></p></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity garden — breeder lab</title>
+<meta name="description" content="An automated interactive-evolution loop over Fluoddity organisms. Deterministic fitness selects; exploratory noise, behavioral diversity, and narrative momentum shape the search. Runs entirely in your browser.">
+<style>
+:root {
+  --bg: #050608; --panel-solid: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --accent-dim: rgba(56,225,192,0.16);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--mono); height: 100%; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+#topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: rgba(5,6,8,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule); }
+.crumb { color: var(--muted); font-size: 13px; } .crumb:hover { color: var(--accent); }
+.title { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { background: var(--panel-solid); border: 1px solid var(--rule); border-radius: 7px; padding: 6px 10px; font-size: 12px; color: var(--fg); }
+.pill:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+#wrap { display: flex; height: calc(100vh - 49px); }
+#side { width: 280px; flex: none; border-right: 1px solid var(--rule); padding: 14px; overflow-y: auto; }
+#main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#popwrap { flex: 1 1 56%; overflow-y: auto; padding: 14px; min-height: 0; }
+#mapwrap { flex: 1 1 44%; border-top: 1px solid var(--rule); position: relative; min-height: 0; }
+#map { display: block; width: 100%; height: 100%; }
+#maplabel { position: absolute; top: 8px; left: 12px; font-size: 10px; color: var(--muted); pointer-events: none; }
+h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 16px 0 8px; }
+h3:first-child { margin-top: 0; }
+.btnrow { display: flex; gap: 6px; margin: 6px 0; }
+.btn { flex: 1; background: var(--panel-solid); color: var(--fg); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.ctl { margin: 12px 0; }
+.ctl label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.ctl label b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+.ctl .desc { font-size: 9.5px; color: var(--muted); line-height: 1.4; margin-top: 3px; opacity: 0.8; }
+.stat { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+.stat .k { color: var(--muted); } .stat .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+#pop { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.pcard { border: 2px solid #333; border-radius: 10px; overflow: hidden; cursor: pointer; background: #000; transition: transform 0.1s; }
+.pcard:hover { transform: translateY(-2px); }
+.pcard canvas { display: block; width: 100%; aspect-ratio: 1; }
+.pmeta { display: flex; justify-content: space-between; padding: 4px 6px; font-size: 10px; background: var(--panel-solid); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.legend .li { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
+.legend .sw { width: 9px; height: 9px; border-radius: 50%; }
+.note { font-size: 9.5px; color: var(--muted); line-height: 1.5; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← garden</a>
+  <span class="title"><b>fluoddity</b> breeder lab</span>
+  <span class="spacer"></span>
+  <a class="pill" href="./metrics.html">phylogeny ↗</a>
+  <a class="pill" href="../fluoddity/">+ new organism</a>
+</div>
+<div id="wrap">
+  <div id="side">
+    <h3>run</h3>
+    <div class="btnrow">
+      <button class="btn primary" id="btn-run">run</button>
+      <button class="btn" id="btn-step">step</button>
+    </div>
+    <div class="btnrow"><button class="btn" id="btn-seed">↻ new seed population</button></div>
+    <div class="stat"><span class="k">generation</span><span class="v" id="s-gen">—</span></div>
+    <div class="stat"><span class="k">best fitness</span><span class="v" id="s-best">—</span></div>
+    <div class="stat"><span class="k">lineage size</span><span class="v" id="s-size">—</span></div>
+
+    <h3>ingredients</h3>
+    <div class="ctl">
+      <label>exploratory noise <b id="v-tau">0.25</b></label>
+      <input type="range" id="k-tau" min="0.02" max="1" step="0.01" value="0.25">
+      <div class="desc">softmax temperature — high = pick parents almost at random (explore); low = greedily breed the fittest.</div>
+    </div>
+    <div class="ctl">
+      <label>behavioral diversity <b id="v-lambda">0.4</b></label>
+      <input type="range" id="k-lambda" min="0" max="1.5" step="0.05" value="0.4">
+      <div class="desc">novelty bonus — reward organisms far from the rest in phenotype space (novelty search).</div>
+    </div>
+    <div class="ctl">
+      <label>narrative momentum <b id="v-mu">0.3</b></label>
+      <input type="range" id="k-mu" min="0" max="1.5" step="0.05" value="0.3">
+      <div class="desc">memory — bias toward continuing the recent direction of travel through phenotype space.</div>
+    </div>
+    <div class="ctl">
+      <label>mutation rate <b id="v-mut">1.0</b></label>
+      <input type="range" id="k-mut" min="0.1" max="3" step="0.1" value="1.0">
+      <div class="desc">size of parameter jitter per generation (plus rare rule-seed jumps = bifurcations).</div>
+    </div>
+    <div class="ctl">
+      <label>population <b id="v-pop">12</b></label>
+      <input type="range" id="k-pop" min="6" max="24" step="1" value="12">
+    </div>
+
+    <h3>legend</h3>
+    <div class="legend" id="legend"></div>
+    <div class="note" id="who">Everything here runs in this tab — your GPU renders each candidate, JS scores it. Nothing is saved until you click an organism to open it in the playground.</div>
+  </div>
+  <div id="main">
+    <div id="popwrap"><div id="pop"></div></div>
+    <div id="mapwrap"><canvas id="map"></canvas><div id="maplabel">phenotype phase space · parent → child lineage</div></div>
+  </div>
+</div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig } from './engine.js';
+import { readDescriptors, fitness, verdict, vec, dist, VIT_COLOR } from './descriptors.js';
+
+const $ = (s) => document.querySelector(s);
+const raf = () => new Promise(r => requestAnimationFrame(r));
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const clamp = (x, lo, hi) => x < lo ? lo : x > hi ? hi : x;
+function randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+let engine = null;
+try { engine = new FluoddityEngine(256, 28000); }
+catch (e) { $('#who').textContent = 'This needs WebGL2 with float render targets — ' + e.message; }
+
+// mutable parameters: [min, max, mutation step]
+const PARAMS = {
+  sensor_gain: [0, 12, 1.2], sensor_angle: [-1, 1, 0.12], sensor_distance: [0.05, 4, 0.4],
+  mutation_scale: [0, 0.2, 0.02], global_force_mult: [0, 3, 0.3], drag: [0.5, 0.999, 0.04],
+  strafe_power: [0, 1, 0.12], axial_force: [-0.6, 0.6, 0.08], lateral_force: [-1, 1, 0.12],
+  trail_persistence: [0.5, 0.999, 0.04], trail_diffusion: [0, 2, 0.2], ink: [0.3, 8, 0.6], hue: [0, 1, 0.1],
+};
+function mutate(cfg, rate) {
+  const c = Object.assign({}, cfg);
+  for (const k in PARAMS) {
+    const [lo, hi, step] = PARAMS[k];
+    if (Math.random() < 0.7) {
+      let x = c[k] + randn() * rate * step;
+      c[k] = (k === 'hue') ? ((x % 1) + 1) % 1 : clamp(x, lo, hi);
+    }
+  }
+  if (Math.random() < 0.12) c.rule_seed = Math.random();
+  if (Math.random() < 0.10) c.cohorts = clamp((c.cohorts | 0) + (Math.random() < 0.5 ? -1 : 1) * (1 + (Math.random() * 2 | 0)), 1, 48) | 0;
+  if (Math.random() < 0.06) c.initial_conditions = (Math.random() * 3) | 0;
+  return c;
+}
+function seedConfig() { const c = defaultConfig(); c.rule_seed = Math.random(); return c; }
+
+// ── state ─────────────────────────────────────────────────────────────────────
+const knobs = { tau: 0.25, lambda: 0.4, mu: 0.3, mutRate: 1.0, popSize: 12 };
+let pop = [], allNodes = [], nodeById = new Map(), archive = [];
+let momentum = [0, 0, 0, 0], momMag = 0, prevGenMean = null, generation = 0, nextId = 1;
+let running = false, busy = false;
+
+async function evalInd(ind) {
+  if (!engine) { ind.fit = 0; ind.verdict = 'dead'; ind.vv = [0, 0, 0, 0]; return; }
+  engine.load(ind.config, ind.id);
+  engine.step(280); engine.render();
+  const a = readDescriptors(engine.cv, null);
+  engine.step(8); engine.render();
+  ind.v = readDescriptors(engine.cv, a.lum);
+  ind.fit = fitness(ind.v); ind.verdict = verdict(ind.v, false); ind.vv = vec(ind.v);
+  if (!ind.thumb) { ind.thumb = document.createElement('canvas'); ind.thumb.width = ind.thumb.height = 96; }
+  ind.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
+  archive.push(ind.vv); if (archive.length > 500) archive.shift();
+}
+function noveltyOf(vv) {
+  if (!archive.length) return 0;
+  const ds = archive.map(a => dist(vv, a)).sort((x, y) => x - y);
+  const k = Math.min(6, ds.length); let s = 0; for (let i = 0; i < k; i++) s += ds[i]; return s / k;
+}
+function meanVec(vs) { const m = [0, 0, 0, 0]; for (const v of vs) for (let j = 0; j < 4; j++) m[j] += v[j]; return m.map(x => x / Math.max(1, vs.length)); }
+function cos(a, b) { let d = 0, na = 0, nb = 0; for (let j = 0; j < a.length; j++) { d += a[j] * b[j]; na += a[j] * a[j]; nb += b[j] * b[j]; } return (na && nb) ? d / Math.sqrt(na * nb) : 0; }
+
+function selectParents(n) {
+  const tau = Math.max(0.02, knobs.tau);
+  const scores = pop.map(ind => {
+    const nov = noveltyOf(ind.vv);
+    let align = 0;
+    if (prevGenMean && momMag > 1e-6) align = cos(ind.vv.map((x, j) => x - prevGenMean[j]), momentum);
+    return (ind.fit || 0) + knobs.lambda * nov + knobs.mu * align;
+  });
+  const mx = Math.max(...scores);
+  const ex = scores.map(s => Math.exp((s - mx) / tau));
+  const sum = ex.reduce((a, b) => a + b, 0) || 1;
+  const probs = ex.map(e => e / sum);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let r = Math.random(), acc = 0, pick = pop[pop.length - 1];
+    for (let j = 0; j < pop.length; j++) { acc += probs[j]; if (r <= acc) { pick = pop[j]; break; } }
+    out.push(pick);
+  }
+  return out;
+}
+
+async function seed() {
+  pop = []; allNodes = []; nodeById.clear(); archive = []; momentum = [0, 0, 0, 0]; momMag = 0; prevGenMean = null; generation = 0; nextId = 1;
+  const N = knobs.popSize;
+  for (let i = 0; i < N; i++) pop.push({ id: nextId++, config: mutate(seedConfig(), 1.5), parent: null, gen: 0 });
+  for (const ind of pop) { await evalInd(ind); allNodes.push(ind); nodeById.set(ind.id, ind); await raf(); }
+  drawPop(); drawMap(); updateHud();
+}
+
+async function nextGen() {
+  if (!pop.length) return;
+  const parents = selectParents(knobs.popSize);
+  const genMean = meanVec(pop.map(p => p.vv));
+  if (prevGenMean) momentum = momentum.map((m, j) => m * 0.5 + (genMean[j] - prevGenMean[j]) * 0.5);
+  prevGenMean = genMean; momMag = Math.hypot(...momentum);
+  generation++;
+  const children = parents.map(p => ({ id: nextId++, config: mutate(p.config, knobs.mutRate), parent: p.id, gen: generation }));
+  pop = children;
+  for (const ind of pop) {
+    await evalInd(ind); allNodes.push(ind); nodeById.set(ind.id, ind);
+    if (allNodes.length > 600) { const old = allNodes.shift(); nodeById.delete(old.id); }
+    await raf();
+  }
+  drawPop(); drawMap(); updateHud();
+}
+
+// ── views ─────────────────────────────────────────────────────────────────────
+const popEl = $('#pop');
+function drawPop() {
+  const sorted = [...pop].sort((a, b) => (b.fit || 0) - (a.fit || 0));
+  popEl.innerHTML = '';
+  for (const ind of sorted) {
+    const card = document.createElement('div'); card.className = 'pcard';
+    card.style.borderColor = VIT_COLOR[ind.verdict] || '#333';
+    const c = document.createElement('canvas'); c.width = c.height = 96;
+    if (ind.thumb) c.getContext('2d').drawImage(ind.thumb, 0, 0);
+    const meta = document.createElement('div'); meta.className = 'pmeta';
+    meta.innerHTML = `<span style="color:${VIT_COLOR[ind.verdict]}">${ind.verdict}</span><span>${(ind.fit || 0).toFixed(2)}</span>`;
+    card.append(c, meta);
+    card.title = 'open in playground (to save it)';
+    card.onclick = () => openInPlayground(ind.config);
+    popEl.append(card);
+  }
+}
+function openInPlayground(config) {
+  const json = JSON.stringify(config);
+  const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  window.open(`../fluoddity/#c=${b64}`, '_blank', 'noopener');
+}
+
+const mapEl = $('#map'), mctx = mapEl.getContext('2d');
+function pca2(rows) {
+  const dim = 4, n = rows.length;
+  const mean = new Array(dim).fill(0);
+  for (const r of rows) for (let j = 0; j < dim; j++) mean[j] += r[j];
+  for (let j = 0; j < dim; j++) mean[j] /= n;
+  const cov = Array.from({ length: dim }, () => new Array(dim).fill(0));
+  for (const r of rows) { const c = r.map((v, j) => v - mean[j]); for (let a = 0; a < dim; a++) for (let b = 0; b < dim; b++) cov[a][b] += c[a] * c[b]; }
+  for (let a = 0; a < dim; a++) for (let b = 0; b < dim; b++) cov[a][b] /= Math.max(1, n - 1);
+  const mul = (M, v) => M.map(row => row.reduce((s, x, j) => s + x * v[j], 0));
+  const norm = (v) => { const m = Math.hypot(...v) || 1; return v.map(x => x / m); };
+  const power = (M) => { let v = norm([Math.random(), Math.random(), Math.random(), Math.random()]); for (let i = 0; i < 80; i++) v = norm(mul(M, v)); const lam = mul(M, v).reduce((s, x, j) => s + x * v[j], 0); return { v, lam }; };
+  const e1 = power(cov);
+  const cov2 = cov.map((row, a) => row.map((x, b) => x - e1.lam * e1.v[a] * e1.v[b]));
+  const e2 = power(cov2);
+  const dot = (a, b) => a.reduce((s, x, j) => s + x * b[j], 0);
+  return rows.map(r => { const c = r.map((v, j) => v - mean[j]); return [dot(c, e1.v), dot(c, e2.v)]; });
+}
+function drawMap() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = mapEl.clientWidth, H = mapEl.clientHeight;
+  mapEl.width = W * dpr; mapEl.height = H * dpr; mctx.setTransform(dpr, 0, 0, dpr, 0, 0); mctx.clearRect(0, 0, W, H);
+  const ns = allNodes.filter(n => n.vv);
+  if (ns.length < 2) return;
+  const coords = ns.length >= 3 ? pca2(ns.map(n => n.vv)) : ns.map(n => [n.vv[2], n.vv[0]]);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of coords) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+  const pad = 26;
+  const sx = (x) => pad + (maxX - minX < 1e-9 ? 0.5 : (x - minX) / (maxX - minX)) * (W - 2 * pad);
+  const sy = (y) => H - pad - (maxY - minY < 1e-9 ? 0.5 : (y - minY) / (maxY - minY)) * (H - 2 * pad);
+  const pos = new Map(); ns.forEach((n, i) => pos.set(n.id, [sx(coords[i][0]), sy(coords[i][1])]));
+  mctx.strokeStyle = 'rgba(56,225,192,0.22)'; mctx.lineWidth = 1;
+  for (const n of ns) { if (n.parent != null && pos.has(n.parent)) { const p = pos.get(n.parent), q = pos.get(n.id); mctx.beginPath(); mctx.moveTo(p[0], p[1]); mctx.lineTo(q[0], q[1]); mctx.stroke(); } }
+  for (const n of ns) {
+    const [x, y] = pos.get(n.id);
+    mctx.beginPath(); mctx.arc(x, y, 2 + (n.fit || 0) * 6, 0, 7);
+    mctx.fillStyle = VIT_COLOR[n.verdict] || '#888';
+    mctx.globalAlpha = (n.gen === generation) ? 1 : 0.55; mctx.fill(); mctx.globalAlpha = 1;
+    if (n.gen === generation) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 1; mctx.stroke(); }
+  }
+}
+window.addEventListener('resize', drawMap);
+
+function updateHud() {
+  $('#s-gen').textContent = generation;
+  $('#s-best').textContent = pop.length ? Math.max(...pop.map(p => p.fit || 0)).toFixed(2) : '—';
+  $('#s-size').textContent = allNodes.length;
+}
+$('#legend').innerHTML = ['alive', 'boiling', 'frozen', 'sparse', 'dead', 'blown out']
+  .map(k => `<div class="li"><span class="sw" style="background:${VIT_COLOR[k]}"></span>${k}</div>`).join('');
+
+// ── controls ──────────────────────────────────────────────────────────────────
+function bindSlider(id, key, label, fmt = (x) => x) {
+  const el = $(id), out = $(label);
+  el.addEventListener('input', () => { knobs[key] = parseFloat(el.value); out.textContent = fmt(knobs[key]); });
+}
+bindSlider('#k-tau', 'tau', '#v-tau', x => x.toFixed(2));
+bindSlider('#k-lambda', 'lambda', '#v-lambda', x => x.toFixed(2));
+bindSlider('#k-mu', 'mu', '#v-mu', x => x.toFixed(2));
+bindSlider('#k-mut', 'mutRate', '#v-mut', x => x.toFixed(1));
+$('#k-pop').addEventListener('input', () => { knobs.popSize = parseInt($('#k-pop').value, 10); $('#v-pop').textContent = knobs.popSize; });
+
+const runBtn = $('#btn-run');
+async function runLoop() {
+  running = true; runBtn.textContent = 'pause'; runBtn.classList.remove('primary');
+  while (running) { if (!pop.length) await seed(); await nextGen(); await sleep(100); }
+}
+runBtn.addEventListener('click', () => { if (running) { running = false; runBtn.textContent = 'run'; runBtn.classList.add('primary'); } else runLoop(); });
+$('#btn-step').addEventListener('click', async () => { if (running || busy) return; busy = true; if (!pop.length) await seed(); else await nextGen(); busy = false; });
+$('#btn-seed').addEventListener('click', async () => { running = false; runBtn.textContent = 'run'; runBtn.classList.add('primary'); if (busy) return; busy = true; await seed(); busy = false; });
+
+(async function main() { busy = true; await seed(); busy = false; })();
+</script>
+</body>
+</html>
