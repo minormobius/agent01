@@ -206,6 +206,40 @@
     zoomers.web = attachZoom(svg, layer, contentW, host);
   }
 
+  /* ====================== MOTIF INDEX ====================== */
+  function confLabel(c) { return c === "high" ? "well-attested" : c === "med" ? "interpretive" : "speculative"; }
+  function renderMotifs() {
+    const M = C.motifs; if (!M) return;
+    $("#motif-intro").innerHTML = M.intro;
+    const tt = $("#motif-taletypes"); tt.innerHTML = "";
+    M.taletypes.forEach((t) => {
+      const card = el("div", "tt-card");
+      card.innerHTML = `<div class="tt-head"><span class="tt-code">${escapeHtml(t.code)}</span><span class="conf conf-${t.conf}">${confLabel(t.conf)}</span></div><div class="tt-name">${escapeHtml(t.name)}</div><div class="tt-gloss">${t.gloss}</div>`;
+      tt.appendChild(card);
+    });
+    const host = $("#motif-groups"); host.innerHTML = "";
+    M.classOrder.forEach((cl) => {
+      const items = M.list.filter((m) => m.cls === cl); if (!items.length) return;
+      host.appendChild(el("div", "motif-classhead", `<span class="motif-clsletter">${cl}</span> ${escapeHtml(M.classes[cl] || "")}`));
+      items.forEach((m) => {
+        const row = el("div", "motif-row");
+        row.appendChild(el("div", "motif-badge", escapeHtml(m.code || m.cls)));
+        const main = el("div");
+        main.appendChild(el("div", "motif-name", `${escapeHtml(m.name)} <span class="conf conf-${m.conf}">${confLabel(m.conf)}</span>`));
+        main.appendChild(el("div", "motif-gloss", m.gloss));
+        if (m.passages && m.passages.length) {
+          const ap = el("div", "motif-ex", "Exhibited in: ");
+          m.passages.forEach((n, i) => {
+            const a = el("a", null, toRoman(n)); a.setAttribute("data-passage", n); a.title = (C.tale.passages[n - 1] || {}).title || "";
+            ap.appendChild(a); if (i < m.passages.length - 1) ap.appendChild(document.createTextNode(" · "));
+          });
+          main.appendChild(ap);
+        }
+        row.appendChild(main); host.appendChild(row);
+      });
+    });
+  }
+
   /* ====================== STORY GRAPH (Propp) ====================== */
   function renderPropp() {
     const P2 = C.propp; if (!P2) return;
@@ -258,7 +292,7 @@
   }
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "characters", "web", "propp"];
+  const VIEWS = ["read", "characters", "web", "propp", "motifs"];
   let proppDrawn = false, webDrawn = false, current = "read";
   function switchView(v) {
     current = v;
@@ -292,6 +326,7 @@
   /* ====================== INIT ====================== */
   renderTale();
   renderCharacters();
+  renderMotifs();
   const h = location.hash.slice(1).split("/")[0];
   if (VIEWS.includes(h)) switchView(h);
 })();
