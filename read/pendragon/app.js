@@ -461,8 +461,8 @@
       ctr.appendChild(b);
     });
     body.innerHTML = "";
-    t.passages.forEach((pass) => {
-      body.appendChild(el("h2", "section tale-pass-title", pass.title));
+    t.passages.forEach((pass, pi) => {
+      const head = el("h2", "section tale-pass-title", pass.title); head.id = "tale-p-" + (pi + 1); body.appendChild(head);
       pass.segments.forEach((seg) => {
         const row = el("div", "tale-seg");
         row.appendChild(el("div", "seg-w", seg.w));
@@ -473,9 +473,74 @@
     });
   }
 
+  /* ====================== STORY GRAPH (Propp) ====================== */
+  function renderPropp() {
+    const P2 = P.propp; if (!P2) return;
+    $("#propp-intro").innerHTML = P2.intro;
+    const actColor = {}; P2.acts.forEach((a) => actColor[a.id] = a.color);
+    const leg = $("#propp-legend"); leg.innerHTML = "";
+    P2.acts.forEach((a) => leg.appendChild(el("span", "li", `<span class="dot" style="background:${a.color}"></span>${a.label}`)));
+
+    // --- spine (zoomable SVG, single row) ---
+    const moves = P2.moves, n = moves.length;
+    const NW = 98, NH = 40, SX = 118, padX = 20, padTop = 38;
+    const contentW = padX * 2 + (n - 1) * SX + NW;
+    const cx = (i) => padX + NW / 2 + i * SX, cy = padTop + NH / 2;
+    const svg = svgEl("svg", { class: "propp" });
+    const layer = svgEl("g", { class: "zl" });
+    svg.appendChild(layer);
+    for (let i = 0; i < n - 1; i++) {
+      layer.appendChild(svgEl("path", { class: "propp-arrow", d: `M ${cx(i) + NW / 2} ${cy} L ${cx(i + 1) - NW / 2} ${cy}`, "marker-end": "url(#parr)" }));
+    }
+    const defs = svgEl("defs"); const mk = svgEl("marker", { id: "parr", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+    mk.appendChild(svgEl("path", { d: "M0 0 L10 5 L0 10 z", fill: "#8a7f6b" })); defs.appendChild(mk); layer.appendChild(defs);
+    moves.forEach((m, i) => {
+      const col = actColor[m.act] || "#c9a24a";
+      const g = svgEl("g", { class: "propp-node" });
+      g.appendChild(svgEl("rect", { x: cx(i) - NW / 2, y: cy - NH / 2, width: NW, height: NH, rx: 8, fill: col, "fill-opacity": 0.16, stroke: col }));
+      const sym = svgEl("text", { x: cx(i) - NW / 2 + 17, y: cy + 6, "text-anchor": "middle", "font-size": 17, fill: col, "font-style": "italic" }); sym.textContent = m.sym; g.appendChild(sym);
+      const lbl = svgEl("text", { x: cx(i) + 8, y: cy + 5, "text-anchor": "middle", "font-size": 11.5, fill: "#e8e0d2" }); lbl.textContent = m.node; g.appendChild(lbl);
+      const ttl = svgEl("title"); ttl.textContent = `${m.sym} — ${m.name}`; g.appendChild(ttl);
+      g.addEventListener("click", () => { const c = $("#propp-move-" + i); if (c) { c.scrollIntoView({ behavior: "smooth", block: "center" }); c.classList.remove("flash"); void c.offsetWidth; c.classList.add("flash"); } });
+      layer.appendChild(g);
+    });
+    const host = $("#propp-spine"); host.innerHTML = ""; host.appendChild(svg);
+    zoomers.propp = attachZoom(svg, layer, contentW, host);
+
+    // --- detail cards (grouped by act) ---
+    const cards = $("#propp-cards"); cards.innerHTML = "";
+    let lastAct = null;
+    moves.forEach((m, i) => {
+      if (m.act !== lastAct) { const a = P.propp.acts.find((x) => x.id === m.act); cards.appendChild(el("div", "propp-act", a ? a.label : m.act)); lastAct = m.act; }
+      const col = actColor[m.act] || "#c9a24a";
+      const card = el("div", "propp-move"); card.id = "propp-move-" + i;
+      const badge = el("div", "propp-badge", m.sym); badge.style.color = col; badge.style.borderColor = col;
+      card.appendChild(badge);
+      const main = el("div");
+      main.appendChild(el("div", "propp-name", `${escapeHtml(m.name)} <span class="propp-sym">${escapeHtml(m.sym)}</span>`));
+      main.appendChild(el("div", "propp-gloss", m.gloss));
+      main.appendChild(el("div", "propp-realized", m.realized));
+      const pass = P.tale && P.tale.passages[m.passage - 1];
+      if (pass) { const j = el("div", "propp-jump"); const a = el("a", null, `→ Movement ${m.passage}: ${escapeHtml(pass.title.replace(/^[IVX]+\.\s*/, ""))}`); a.setAttribute("data-passage", m.passage); j.appendChild(a); main.appendChild(j); }
+      card.appendChild(main);
+      cards.appendChild(card);
+    });
+
+    // --- what the tale skips ---
+    const ab = $("#propp-absent"); ab.innerHTML = "";
+    ab.appendChild(el("h3", null, "What the tale skips"));
+    ab.appendChild(el("p", "propp-abnote", P2.absent.note));
+    P2.absent.groups.forEach((gp) => {
+      const row = el("div", "propp-abgroup");
+      row.innerHTML = `<span class="propp-absyms">${escapeHtml(gp.syms)}</span> <strong>${escapeHtml(gp.label)}</strong> — ${gp.text}`;
+      ab.appendChild(row);
+    });
+    ab.appendChild(el("p", "propp-verdict", P2.absent.verdict));
+  }
+
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["timeline", "inworld", "constantine", "tree", "wiki", "fae", "culhwch", "papers"];
-  let treeDrawn = false, inworldDrawn = false, current = "timeline";
+  const VIEWS = ["timeline", "inworld", "constantine", "tree", "wiki", "fae", "culhwch", "propp", "papers"];
+  let treeDrawn = false, inworldDrawn = false, proppDrawn = false, current = "timeline";
   function switchView(v) {
     current = v;
     VIEWS.forEach((x) => {
@@ -484,6 +549,7 @@
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     if (v === "tree" && !treeDrawn) { renderTree(); treeDrawn = true; }
     if (v === "inworld" && !inworldDrawn) { renderInworld(); inworldDrawn = true; }
+    if (v === "propp" && !proppDrawn) { renderPropp(); proppDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
   }
@@ -503,6 +569,16 @@
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("a[data-wiki]");
     if (a) { ev.preventDefault(); openWiki(a.getAttribute("data-wiki")); }
+  });
+  // anchors with data-passage jump to that movement in the Culhwch reading
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest && ev.target.closest("a[data-passage]");
+    if (a) {
+      ev.preventDefault();
+      switchView("culhwch");
+      const head = document.getElementById("tale-p-" + a.getAttribute("data-passage"));
+      if (head) setTimeout(() => head.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+    }
   });
 
   // hash routing: #view  or  #wiki/<entryId>
