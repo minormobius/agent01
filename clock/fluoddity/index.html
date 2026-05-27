@@ -163,6 +163,17 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
   color: var(--muted); font-size: 11px; pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
+#vitals {
+  position: fixed; bottom: 10px; left: 12px; z-index: 15;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--muted); pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+#vitals .dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex: none; transition: background 0.2s; }
+#vitals .word { min-width: 56px; }
+#vitals .vbars { display: flex; flex-direction: column; gap: 2px; width: 54px; }
+#vitals .vbar { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+#vitals .vbar i { display: block; height: 100%; width: 0; background: var(--muted); transition: width 0.2s, background 0.2s; }
 @media (max-width: 560px) {
   #panel { width: calc(100vw - 28px); max-height: 46vh; }
 }
@@ -298,6 +309,15 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
 </div>
 
 <div id="fps"></div>
+
+<div id="vitals" title="Machine-read liveness of the current organism: fill = how much of the field is lit, motion = how much it's changing frame-to-frame.">
+  <span class="dot"></span>
+  <span class="word">settling…</span>
+  <span class="vbars">
+    <span class="vbar" data-k="fill"><i></i></span>
+    <span class="vbar" data-k="motion"><i></i></span>
+  </span>
+</div>
 
 <div id="about">
   <div class="card">
@@ -928,6 +948,61 @@ const fpsEl = document.getElementById('fps');
 // without preserveDrawingBuffer).
 let _grab = null;
 
+// ─── Liveness readout ────────────────────────────────────────────────────────
+// Deterministic, machine-friendly grade of the rendered field. We GPU-downsample
+// the field region into a 64² probe (drawImage off the gl canvas — valid right
+// after display(), same trick as _grab), then read a few descriptors:
+//   fill    — fraction of lit, non-saturated pixels (occupancy)
+//   blowout — fraction near-white (over-saturated)
+//   motion  — mean |ΔL| vs the previous probe (alive vs frozen)
+// These also feed future work (garden "hide the dead" filter, phase maps).
+const PROBE = 64;
+const _probe = document.createElement('canvas'); _probe.width = _probe.height = PROBE;
+const _pctx = _probe.getContext('2d', { willReadFrequently: true });
+let _prevLum = null, _vitalTick = 0;
+const dotEl = document.querySelector('#vitals .dot');
+const wordEl = document.querySelector('#vitals .word');
+const fillBar = document.querySelector('#vitals .vbar[data-k=fill] i');
+const motBar = document.querySelector('#vitals .vbar[data-k=motion] i');
+const VIT_COLOR = { 'settling…':'#8b909c', 'dead':'#e0556b', 'blown out':'#e08a3c', 'frozen':'#e0c23c', 'sparse':'#c7d23c', 'alive':'#38e1c0' };
+const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+
+let lastVitals = { fill: 0, blowout: 0, motion: 0, verdict: 'settling…' };
+function readVitals(){
+  // Source rect = the square field region (skip the black letterbox bars).
+  _pctx.drawImage(canvas, viewport.x, viewport.y, viewport.s, viewport.s, 0, 0, PROBE, PROBE);
+  const d = _pctx.getImageData(0, 0, PROBE, PROBE).data;
+  const N = PROBE * PROBE;
+  const lum = new Float32Array(N);
+  let lit = 0, blown = 0, motion = 0;
+  for (let i = 0, p = 0; p < N; i += 4, p++){
+    const L = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+    lum[p] = L;
+    if (L > 0.06) lit++;
+    if (L > 0.92) blown++;
+    if (_prevLum) motion += Math.abs(L - _prevLum[p]);
+  }
+  const fill = lit / N, blowout = blown / N, mot = _prevLum ? motion / N : 0;
+  _prevLum = lum;
+
+  let verdict;
+  if (sim.frame < 20) verdict = 'settling…';
+  else if (fill < 0.012) verdict = 'dead';
+  else if (blowout > 0.4) verdict = 'blown out';
+  else if (mot < 0.0015 && fill > 0.03) verdict = 'frozen';
+  else if (fill < 0.05) verdict = 'sparse';
+  else verdict = 'alive';
+
+  lastVitals = { fill, blowout, motion: mot, verdict };
+  const col = VIT_COLOR[verdict];
+  dotEl.style.background = col;
+  wordEl.textContent = verdict; wordEl.style.color = col;
+  fillBar.style.width = (clamp01(fill / 0.4) * 100).toFixed(0) + '%';
+  fillBar.style.background = col;
+  motBar.style.width = (clamp01(mot / 0.02) * 100).toFixed(0) + '%';
+  motBar.style.background = col;
+}
+
 function frame(){
   if(!paused && sim){
     for(let i=0;i<cfg.substeps;i++) step();
@@ -937,6 +1012,12 @@ function frame(){
   if(_grab){
     const done = _grab; _grab = null;
     canvas.toBlob((b) => done(b), 'image/jpeg', 0.92);
+  }
+
+  // Liveness probe — every 5th rendered frame, while running (drawImage off the
+  // gl canvas must happen here, before the backbuffer is composited away).
+  if(sim && !paused && (++_vitalTick % 5 === 0)){
+    try { readVitals(); } catch(e) { /* readback can fail mid-resize; ignore */ }
   }
 
   fpsFrames++;
@@ -949,7 +1030,7 @@ function frame(){
   requestAnimationFrame(frame);
 }
 
-function resetField(){ if(sim) sim.frame = 0; }
+function resetField(){ if(sim) sim.frame = 0; _prevLum = null; }
 function rebuild(qualityKey){
   destroySim(sim);
   sim = makeSim(qualityKey);
@@ -1088,6 +1169,8 @@ window.Fluoddity = {
   canvas,
   getConfig(){ const o = {}; for(const k of CONFIG_KEYS) o[k] = cfg[k]; return o; },
   reset(){ resetField(); },
+  // Latest machine-read liveness descriptors of the field.
+  get vitals(){ return lastVitals; },
   // Grab the next rendered frame as a JPEG Blob.
   grabFrame(){ return new Promise((res) => { _grab = res; }); },
   applyConfig(saved){
