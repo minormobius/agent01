@@ -21,6 +21,7 @@
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="read">Read</button>
         <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
         <button class="tab" data-view="propp">Story graph</button>
       </nav>
     </div>
@@ -46,6 +47,14 @@
       <p class="lead" id="char-intro"></p>
       <div class="char-legend" id="char-legend"></div>
       <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the tale, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals and antagonists; colour marks role. Built straight from the relationship edges in the character cards.</p>
     </section>
 
     <!-- STORY GRAPH (Propp) -->

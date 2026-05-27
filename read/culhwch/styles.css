@@ -305,6 +305,17 @@ svg.propp { display: block; }
 .propp-verdict { color: var(--ink-dim); margin: 6px 0 0; border-top: 1px solid var(--line); padding-top: 12px; }
 .propp-verdict strong { color: var(--gold-soft); }
 
+/* ── Character web ── */
+svg.web { display: block; }
+.web-edge { stroke: var(--ink-faint); stroke-opacity: 0.32; stroke-width: 1.2; }
+.web-edge.hot { stroke: var(--gold); stroke-opacity: 0.92; stroke-width: 2.2; }
+.web-node { cursor: pointer; }
+.web-node circle { transition: opacity .15s; }
+.web-node:hover circle { stroke: var(--gold-soft); stroke-width: 2; }
+.web-label { fill: var(--ink-dim); font-family: var(--sans); pointer-events: none; }
+.web-node:hover .web-label { fill: var(--ink); }
+.web-node.dim { opacity: 0.18; }
+
 /* ── Character cards ── */
 .char-legend { display: flex; flex-wrap: wrap; gap: 14px; font-family: var(--sans); font-size: 12px; color: var(--ink-dim); margin: 14px 0 6px; }
 .char-legend .li { display: inline-flex; align-items: center; gap: 6px; }
