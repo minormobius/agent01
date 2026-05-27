@@ -158,5 +158,36 @@ window.PENDRAGON.tale = {
         n: "The road now runs toward the giant's daughter — and, before her, to Custennin the herdsman and the first sight of Ysbaddaden's stronghold." },
     ],
    },
+   {
+    title: "IV. The unreachable fort and the giant herdsman",
+    segments: [
+      { w: "Kerdded a wnaethant hyd pan ddoethant i faes mawr eang, ac yno y gwelynt gaer, mwyaf o geyrydd y byd. Kerdded a wnaethant tu a hi y dydd hwnnw; a phan dybyent eu bod yn agos i'r gaer, nid oedd hi nes no chynt.",
+        e: "They travelled on until they came to a great wide plain, and there they saw a fort — the greatest of the forts of the world. They journeyed toward it all that day; and when they thought themselves close to the fort, it was no nearer than before.",
+        n: "The stronghold that never comes closer as you walk toward it is pure folktale dream-logic — the Otherworld keeping its distance." },
+
+      { w: "Yr ail a'r trydydd dydd y kerddasant, ac o'r braidd y doethant hyd ati. A phan ddoethant gyfewin â hi, gwelynt ddiadell o ddefaid diderfyn diderfysg, a bugail yn cadw'r defaid ar ben gorsedd.",
+        e: "The second day and the third they travelled, and only with great toil did they reach it. And when they came level with it, they saw a flock of sheep boundless and without number, and a herdsman keeping the sheep on the top of a mound." },
+
+      { w: "Llen o grwyn amdano, ac wrth ei ystlys gi gefllwyd, mwy nag amws naw gaeaf. Defod oedd iddo na chollasai eirioed nac oen nac anifail, namyn eu cadw yn ddianaf.",
+        e: "He wore a mantle of skins, and at his side a shaggy grey mastiff, bigger than a stallion nine winters old. It was his way that he had never lost even a lamb, let alone a full-grown beast, but kept them all unharmed." },
+
+      { w: "Ni cherddasai gydymaith heibio iddo heb ei archolli neu ei ladd; a chymaint o brennau crinion a phrysgwydd a fyddai ar y maes, ei anadl ef a'u llosgasai hyd y llawr.",
+        e: "No traveller had ever passed him unhurt or unkilled; and every dead tree and bush upon the plain, his breath had burned them down to the bare ground.",
+        n: "The fiery-breathed giant herdsman with his monstrous hound is a guardian-of-the-threshold figure straight out of native Welsh myth." },
+
+      { w: "Heb Cai: “Gwrhyr Gwalstawd Ieithoedd, dos i ymddiddan â'r gŵr accw.” “Cai,” heb ef, “nid addewais i fynd ddim pellach nag y delych dithau.” Yna yd aethant ynghyd; a Menw mab Teirgwaedd a ddyge ledrith ar y ci, fal na allai wneuthur niwed iddunt.",
+        e: "Said Cei: “Gwrhyr Interpreter of Tongues, go and speak with that man yonder.” “Cei,” said he, “I promised to go no further than you go yourself.” So they went together; and Menw son of Teirgwaedd cast an enchantment over the dog, so that it could do them no harm." },
+
+      { w: "Gofyn a wnaethant iddo pieu y defaid a gadwai, a phieu y gaer. “Wŷr ynfyd! Hyspys yw drwy'r byd mai caer Ysbaddaden Bencawr yw hon.”",
+        e: "They asked him whose sheep he kept, and whose was the fort. “You witless men! It is known through all the world that this is the fort of Ysbaddaden Bencawr.”" },
+
+      { w: "“A thi, pwy wyt ti?” “Custennin mab Mynwiedig wyf i; ac o achos fy ngwraig y'm hanrheithiodd fy mrawd, Ysbaddaden Bencawr. A chwithau, pwy ydych?” “Cenhadau Arthur yssydd yma, yn ceisaw Olwen.”",
+        e: "“And you — who are you?” “I am Custennin son of Mynwiedig; and it is for my wife's sake that my own brother, Ysbaddaden Bencawr, has stripped me of everything I had. And you — who are you?” “We are Arthur's messengers, come to seek Olwen.”" },
+
+      { w: "“Och, wŷr! Nawdd Duw arnoch. Er a fo'r byd, na wnewch hynny. Ni ddoeth neb eirioed i ofyn hynny a ddihangawd yn fyw.” Ac yna y kyfodes y bugail i fynd ymaith.",
+        e: "“Alas, men! God's protection be on you. For all the world, do not do this. No one ever came to ask that, and went away alive.” And with that the herdsman rose to go home.",
+        n: "Custennin is the giant's own wronged brother — and, as the company will soon learn, Culhwch's uncle by marriage. His warning marks the threshold: from here the tale turns from court-comedy to ordeal." },
+    ],
+   },
   ],
 };
