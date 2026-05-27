@@ -202,7 +202,8 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
     <h3>capture · video</h3>
     <div class="row"><label>clip length</label><input type="range" id="clip-secs" min="2" max="20" step="1" value="6"><span class="val" id="clip-secs-v">6s</span></div>
     <div class="btnrow">
-      <button class="btn" id="btn-record">● record clip</button>
+      <button class="btn" id="btn-record">● record</button>
+      <button class="btn" id="btn-reset-record">⟲ reset &amp; record</button>
     </div>
     <video id="clip-preview" style="display:none; width:100%; border-radius:8px; margin:6px 0; background:#000;" controls loop muted playsinline></video>
     <div class="btnrow" id="clip-actions" style="display:none;">
@@ -1035,6 +1036,7 @@ const CONFIG_KEYS = Object.keys(defaultConfig());
 window.Fluoddity = {
   canvas,
   getConfig(){ const o = {}; for(const k of CONFIG_KEYS) o[k] = cfg[k]; return o; },
+  reset(){ resetField(); },
   // Grab the next rendered frame as a JPEG Blob.
   grabFrame(){ return new Promise((res) => { _grab = res; }); },
   applyConfig(saved){
@@ -1062,9 +1064,12 @@ requestAnimationFrame(frame);
 // Reading a shared organism is public (no auth).
 
 const COLLECTION = 'com.minomobi.fluoddity.organism';
-// Narrow scope: write ONLY our lexicon. Avoids transition:generic's blanket
-// write access, so the Bluesky consent screen shows exactly what we touch.
-const SCOPE = 'atproto repo:' + COLLECTION;
+// The shared auth worker's client-metadata only DECLARES `atproto
+// transition:generic`, and the auth server rejects any requested scope that
+// isn't declared — so granular repo:/rpc: scopes 400 with invalid_scope. To
+// narrow this, declare those scopes in workers/auth client-metadata and
+// redeploy the auth worker, then tighten SCOPE here.
+const SCOPE = 'atproto transition:generic';
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
 
 const $ = (id) => document.getElementById(id);
@@ -1236,7 +1241,9 @@ function pickMime(){
   return '';
 }
 
-function recordClip(){
+const resetRecBtn = $('btn-reset-record');
+
+function recordClip(fromReset){
   if (recording) return;
   const glCanvas = window.Fluoddity?.canvas;
   if (!glCanvas || !glCanvas.captureStream) { cstatus('recording not supported in this browser', 'err'); return; }
@@ -1249,21 +1256,27 @@ function recordClip(){
   const chunks = [];
   rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   rec.onstop = () => {
-    recording = false; recBtn.disabled = false; recBtn.textContent = '● record clip';
+    recording = false; recBtn.disabled = false; resetRecBtn.disabled = false;
+    recBtn.textContent = '● record'; resetRecBtn.textContent = '⟲ reset & record';
     clipBlob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
     const url = URL.createObjectURL(clipBlob);
     preview.src = url; preview.style.display = ''; preview.play().catch(() => {});
     clipActions.style.display = ''; postText.style.display = '';
     cstatus(`clip ready · ${(clipBlob.size/1e6).toFixed(1)} MB · ${clipBlob.type}`, 'ok');
   };
-  recording = true; recBtn.disabled = true;
+  // Start the clip from a freshly reset field to capture the formative
+  // moments (the blank field seeding into structure).
+  if (fromReset) window.Fluoddity?.reset();
+  recording = true; recBtn.disabled = true; resetRecBtn.disabled = true;
   rec.start();
+  const activeBtn = fromReset ? resetRecBtn : recBtn;
   let left = secs;
-  recBtn.textContent = `● recording ${left}s`;
-  const iv = setInterval(() => { left--; if (left > 0) recBtn.textContent = `● recording ${left}s`; }, 1000);
+  activeBtn.textContent = `● recording ${left}s`;
+  const iv = setInterval(() => { left--; if (left > 0) activeBtn.textContent = `● recording ${left}s`; }, 1000);
   setTimeout(() => { clearInterval(iv); try { rec.stop(); } catch {} }, secs * 1000);
 }
-recBtn?.addEventListener('click', recordClip);
+recBtn?.addEventListener('click', () => recordClip(false));
+resetRecBtn?.addEventListener('click', () => recordClip(true));
 
 $('btn-download')?.addEventListener('click', () => {
   if (!clipBlob) return;
@@ -1274,15 +1287,10 @@ $('btn-download')?.addEventListener('click', () => {
 });
 
 // ── post to Bluesky ──────────────────────────────────────────────────────────
-// Narrow-as-the-granular-system-allows posting scope. Posting genuinely needs
-// to create feed posts + upload media + drive the video service, so it's
-// broader than the save scope — but still enumerated, not transition:generic.
-const POST_SCOPE = [
-  'atproto', 'repo:' + COLLECTION, 'repo:app.bsky.feed.post',
-  'blob:image/*', 'blob:video/*',
-  'rpc:app.bsky.video.getUploadLimits', 'rpc:app.bsky.video.uploadVideo',
-  'rpc:app.bsky.video.getJobStatus', 'rpc:com.atproto.server.getServiceAuth',
-].join(' ');
+// Posting (feed.post + blob upload + video service) needs the same declared
+// scope as sign-in. Once workers/auth declares granular scopes, swap this for
+// an enumerated set (repo:app.bsky.feed.post blob:* rpc:app.bsky.video.*).
+const POST_SCOPE = SCOPE;
 
 function canPost(u){ const s = (u && u.scope) || ''; return s.includes('transition:generic') || s.includes('app.bsky.feed.post'); }
 
