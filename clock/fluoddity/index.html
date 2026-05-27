@@ -112,6 +112,11 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
 .typeahead-item .info { flex: 1; min-width: 0; }
 .typeahead-item .dname { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
 .typeahead-item .ahandle { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* live config value readout */
+.cfgvals { display: grid; grid-template-columns: auto 1fr; gap: 1px 12px; font-size: 10px; line-height: 1.7; }
+.cfgvals .k { color: var(--muted); }
+.cfgvals .v { color: var(--fg); text-align: right; font-variant-numeric: tabular-nums; }
 .seg { display: flex; gap: 4px; padding: 4px; }
 .seg button {
   flex: 1; background: transparent; border: none; color: var(--muted);
@@ -235,6 +240,12 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
     </div>
     <textarea id="post-text" placeholder="say something about this organism…" spellcheck="true" style="display:none;"></textarea>
     <div id="capture-out" class="hint"></div>
+  </div>
+
+  <div class="group" id="values-group">
+    <h3>values</h3>
+    <div id="config-values" class="cfgvals"></div>
+    <div class="btnrow"><button class="btn" id="btn-copy-cfg">copy JSON</button></div>
   </div>
 
   <div class="group">
@@ -1087,12 +1098,26 @@ requestAnimationFrame(frame);
 // Reading a shared organism is public (no auth).
 
 const COLLECTION = 'com.minomobi.fluoddity.organism';
-// The shared auth worker's client-metadata only DECLARES `atproto
-// transition:generic`, and the auth server rejects any requested scope that
-// isn't declared — so granular repo:/rpc: scopes 400 with invalid_scope. To
-// narrow this, declare those scopes in workers/auth client-metadata and
-// redeploy the auth worker, then tighten SCOPE here.
-const SCOPE = 'atproto transition:generic';
+// Narrow scopes — the auth server grants exactly what's requested, as long as
+// workers/auth declares them in client-metadata. Sign-in needs only to write
+// our organism records; posting additionally needs feed.post + media + the
+// video service auth.
+const SAVE_SCOPE = 'atproto repo:' + COLLECTION;
+const POST_SCOPE = 'atproto repo:' + COLLECTION + ' repo:app.bsky.feed.post blob:image/* blob:video/* rpc:com.atproto.server.getServiceAuth';
+const FALLBACK_SCOPE = 'atproto transition:generic';
+// If the worker hasn't declared the granular scopes yet, the auth server 400s
+// with invalid_scope; fall back to transition:generic so login still works.
+// Once workers/auth ships the declarations this silently tightens.
+let scopeFellBack = false;
+async function startLogin(handle, scope){
+  if (scopeFellBack) { await auth.login(handle, { scope: FALLBACK_SCOPE }); return; }
+  try {
+    await auth.login(handle, { scope });
+  } catch (e) {
+    if (/scope/i.test(e.message || '')) { scopeFellBack = true; await auth.login(handle, { scope: FALLBACK_SCOPE }); }
+    else throw e;
+  }
+}
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
 
 const $ = (id) => document.getElementById(id);
@@ -1200,7 +1225,7 @@ if (auth) {
     if (!handle) { status('Enter your Bluesky handle first.', 'err'); handleInput.focus(); return; }
     status('redirecting to Bluesky…');
     try {
-      await auth.login(handle, { scope: SCOPE });
+      await startLogin(handle, SAVE_SCOPE);
     } catch (e) {
       status(e.message || 'sign-in failed', 'err');
     }
@@ -1354,11 +1379,6 @@ $('btn-download')?.addEventListener('click', () => {
 });
 
 // ── post to Bluesky ──────────────────────────────────────────────────────────
-// Posting (feed.post + blob upload + video service) needs the same declared
-// scope as sign-in. Once workers/auth declares granular scopes, swap this for
-// an enumerated set (repo:app.bsky.feed.post blob:* rpc:app.bsky.video.*).
-const POST_SCOPE = SCOPE;
-
 function canPost(u){ const s = (u && u.scope) || ''; return s.includes('transition:generic') || s.includes('app.bsky.feed.post'); }
 
 function aspectOf(){
@@ -1434,7 +1454,7 @@ postBtn?.addEventListener('click', async () => {
   if (!user) { cstatus('sign in above first, then post', 'err'); return; }
   if (!canPost(user)) {
     cstatus('authorizing posting permission…');
-    try { await auth.login(user.handle, { scope: POST_SCOPE }); }
+    try { await startLogin(user.handle, POST_SCOPE); }
     catch (e) { cstatus(e.message || 'authorization failed', 'err'); }
     return;
   }
@@ -1465,6 +1485,29 @@ postBtn?.addEventListener('click', async () => {
   } finally {
     postBtn.disabled = false;
   }
+});
+
+// ── live config value readout ────────────────────────────────────────────────
+const cfgValsEl = $('config-values');
+function fmtVal(v){
+  if (typeof v !== 'number') return String(v);
+  if (!isFinite(v)) return String(v);
+  if (Number.isInteger(v)) return String(v);
+  return Math.abs(v) >= 1 ? v.toFixed(3) : v.toFixed(4);
+}
+function refreshValues(){
+  const c = window.Fluoddity?.getConfig?.();
+  if (!c || !cfgValsEl) return;
+  cfgValsEl.innerHTML = Object.keys(c)
+    .map(k => `<span class="k">${k}</span><span class="v">${fmtVal(c[k])}</span>`).join('');
+}
+setInterval(refreshValues, 250);
+refreshValues();
+$('btn-copy-cfg')?.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(window.Fluoddity.getConfig(), null, 2));
+    const b = $('btn-copy-cfg'); b.textContent = 'copied'; setTimeout(() => b.textContent = 'copy JSON', 1200);
+  } catch { /* clipboard blocked */ }
 });
 
 if (auth) await auth.init();   // consumes ?__auth_session after OAuth redirect

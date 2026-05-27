@@ -190,7 +190,11 @@ async function handleClientMetadata(env: Env): Promise<Response> {
     client_name: 'mino.mobi',
     client_uri: 'https://auth.mino.mobi',
     redirect_uris: ['https://auth.mino.mobi/oauth/callback'],
-    scope: 'atproto transition:generic',
+    // transition:generic is kept for the grandfathered sites that request it.
+    // The granular scopes let sites ask for exactly what they touch (tight
+    // consent screen) instead of blanket write. Add new granular scopes here
+    // as sites need them; the auth server only grants what's declared.
+    scope: 'atproto transition:generic repo:com.minomobi.fluoddity.organism repo:app.bsky.feed.post blob:image/* blob:video/* rpc:com.atproto.server.getServiceAuth',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'private_key_jwt',
