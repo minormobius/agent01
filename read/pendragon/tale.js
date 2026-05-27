@@ -224,5 +224,40 @@ window.PENDRAGON.tale = {
         n: "Olwen, the woman tells them, comes to this very house every Saturday to wash her hair — the opening the questers have been waiting for." },
     ],
    },
+   {
+    title: "VI. Olwen of the white track",
+    segments: [
+      { w: "“Ni a wnawn hynny yn llawen,” heb y wraig, “os addewwch na wnewch ddrwg iddi.” “Ni addawn,” heb wynt. Ac yna yd anfonwyd amdani.",
+        e: "“I will do that gladly,” said the woman, “if you promise to do her no harm.” “We promise,” they said. And so word was sent for her." },
+
+      { w: "A dyfod a oruc y forwyn: gwisg sidan fflamgoch amdani, a gordorch rhudd-aur am ei mynwgl, a pherlau gwerthfawr a gemau rhudd ynddi.",
+        e: "And the maiden came: a robe of flame-red silk about her, and a torque of red gold around her neck, set with precious pearls and red gemstones." },
+
+      { w: "Melynach oedd ei phen no blodau y banadl. Gwynnach oedd ei chnawd no distrych y don. Gwynnach oedd ei dwylo a'i bysedd no chanawon y godrwyth o blith man-raean ffynnon ffrydiog.",
+        e: "Yellower was her head than the flowers of the broom. Whiter was her flesh than the foam of the wave. Whiter were her hands and her fingers than the young shoots of the marsh-trefoil among the fine gravel of a welling spring." },
+
+      { w: "Ni bu lygad hebog mufedig na gwalch teirmufedig deccach no'i llygad hi. No bron alarch gwyn, gwynnach oedd ei dwy fron. Cochach oedd ei deurudd no'r ffion.",
+        e: "Neither the eye of the mewed hawk nor of the thrice-mewed falcon was fairer than her eye. Than the breast of the white swan, whiter were her two breasts. Redder were her cheeks than the foxglove." },
+
+      { w: "Y neb a'i gwelai, kyflawn fyddai o'i serch. Pedair meillionen wen a dyfai yn ei hôl pa fan bynnag y kerddai; ac am hynny y gelwid hi Olwen.",
+        e: "Whoever looked on her was filled with love of her. Four white trefoils would spring up in her track wherever she walked; and for that reason she was called Olwen — “White-track.”",
+        n: "Her name is <em>ol</em> (track, footprint) + <em>(g)wen</em> (white, fair): the maiden in whose every footstep white clover blooms. The portrait is the single most famous passage of description in medieval Welsh." },
+
+      { w: "I mewn y doeth, ac eistedd ar y fainc gerllaw Culhwch. Ac fal y'i gwelas ef, ei hadnabod a oruc. “A forwyn,” heb ef, “tydi yw'r hon a gerais. Tyred gyd â mi.”",
+        e: "She came in and sat on the bench beside Culhwch. And the moment he saw her, he knew her. “Maiden,” he said, “it is you I have loved. Come away with me.”" },
+
+      { w: "“Ni allaf hynny,” heb hi, “rhag y bai a gawn i a thithau. Tynghedwyd i'm tad nad êl ei einioes namyn hyd pan elwyf i at ŵr. Eithr mi a rof gyngor it, os kymeri.”",
+        e: "“I cannot do that,” she said, “for the blame it would bring on you and me. A destiny is laid on my father: that his life lasts only until I am given to a husband. But I will give you counsel, if you will take it.”",
+        n: "Ysbaddaden is fated to die when Olwen weds — so every obstacle he raises is a giant fighting for his own life." },
+
+      { w: "“Dos at fy nhad i'm gofyn; a pha beth bynnag a archo ef it, addaw ei gaffel, a thi a'm keffy innau. Ac os bydd amheuaeth ganddo, ni'm keffy; a da fydd it o ddianghi â'th einioes.”",
+        e: "“Go to my father and ask for me; and whatever he demands of you, promise to get it, and you shall have me. But if he finds any cause to doubt you, you will not have me — and you will be fortunate to escape with your life.”",
+        n: "And so the trap is set: the giant will pile up impossible tasks — the <em>anoethau</em> — certain that no man can meet them. Culhwch will agree to every one." },
+
+      { w: "“Mi a addawaf hynny oll, ac a'i caffaf,” heb ef. A mynd a oruc hi tu a'r gaer; a chyfodi a wnaethant hwythau i'w chanlyn.",
+        e: "“I promise all of it, and I will get it,” he said. And she went back toward the fort; and they too rose and followed after her.",
+        n: "Next: the hall of Ysbaddaden Bencawr — the poisoned stone-spears flung back and forth, and the giant's roll-call of impossible demands." },
+    ],
+   },
   ],
 };
