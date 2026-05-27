@@ -319,6 +319,7 @@
     const seen = {}; C.characters.cast.forEach((c) => (c.rel || []).forEach((r) => { const k = [c.id, r.to].sort().join("|"); if (seen[k]) return; seen[k] = 1; edge("ch-" + c.id, "ch-" + r.to, "relates"); }));
     C.motifs.list.forEach((m, i) => (m.passages || []).forEach((n) => edge("mo-" + i, "mv-" + n, "exhibits")));
     C.propp.moves.forEach((mv, i) => edge("pp-" + i, "mv-" + mv.passage, "realizes"));
+    for (let i = 1; i < C.tale.passages.length; i++) edge("mv-" + i, "mv-" + (i + 1), "spine"); // the narrative backbone
     return { nodes, edges };
   }
 
@@ -328,7 +329,7 @@
     motif: { color: "#c97f9a", label: "Motifs", r: 6 },
     propp: { color: "#7fb37f", label: "Functions", r: 6 },
   };
-  const MYTH_EDGE = { appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f" };
+  const MYTH_EDGE = { spine: "#d8b24a", appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f" };
 
   function renderMythograph() {
     const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
@@ -360,15 +361,16 @@
     fhost.appendChild(sliders);
 
     const leg = $("#myth-legend"); leg.innerHTML = "";
-    [["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
-      .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
+    [["spine", "narrative spine (I → XII)"], ["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
+      .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey${k === "spine" ? " edgekey-spine" : ""}" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
 
     // ---- build the svg (positions driven by the live simulation) ----
     nodes.forEach((n, i) => { const a = 2 * Math.PI * i / nodes.length; n.x = Math.cos(a) * 130; n.y = Math.sin(a) * 130; n.vx = 0; n.vy = 0; });
     const svg = svgEl("svg", { class: "myth" }); const layer = svgEl("g", { class: "zl" }); svg.appendChild(layer);
     const edgeObjs = [], adj = {};
     edges.forEach((e, ei) => {
-      const line = svgEl("line", { stroke: MYTH_EDGE[e.type], "stroke-opacity": 0.22, "stroke-width": 1 });
+      const sp = e.type === "spine";
+      const line = svgEl("line", { class: sp ? "myth-spine" : "", stroke: MYTH_EDGE[e.type], "stroke-opacity": sp ? 0.72 : 0.22, "stroke-width": sp ? 2.6 : 1 });
       layer.appendChild(line); edgeObjs.push(line);
       (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
     });
@@ -448,8 +450,8 @@
       // neighbours grouped by edge type
       const groups = {};
       (adj[i] || []).forEach((ei) => { const e = edges[ei]; const other = e.a === i ? e.b : e.a; (groups[e.type] = groups[e.type] || []).push(other); });
-      const GLAB = { appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes" };
-      const order = n.type === "movement" ? ["appears", "exhibits", "realizes", "relates"] : ["appears", "relates", "exhibits", "realizes"];
+      const GLAB = { spine: "In sequence", appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes" };
+      const order = n.type === "movement" ? ["spine", "appears", "exhibits", "realizes", "relates"] : ["appears", "relates", "exhibits", "realizes", "spine"];
       order.forEach((t) => {
         if (!groups[t]) return;
         const sec = el("div", "md-group");
@@ -476,7 +478,7 @@
         const w = sim.charge * a / d2, fx = dx * w, fy = dy * w;
         nodes[i].vx += fx; nodes[i].vy += fy; nodes[j].vx -= fx; nodes[j].vy -= fy;
       }
-      edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const l = (d - sim.L) / d * a * stiffness, fx = dx * l * 0.5, fy = dy * l * 0.5; A.vx += fx; A.vy += fy; B.vx -= fx; B.vy -= fy; });
+      edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const sp = e.type === "spine"; const L = sp ? Math.max(sim.L * 1.3, 104) : sim.L, st = sp ? 0.62 : stiffness; const l = (d - L) / d * a * st, fx = dx * l * 0.5, fy = dy * l * 0.5; A.vx += fx; A.vy += fy; B.vx -= fx; B.vy -= fy; });
       for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
         let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
         const min = R(nodes[i]) + R(nodes[j]) + 6;

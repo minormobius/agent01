@@ -335,6 +335,7 @@ svg.myth { display: block; }
 .myth-slider input[type="range"] { width: 130px; accent-color: var(--gold); }
 .myth-slval { min-width: 2.2em; text-align: right; color: var(--gold-soft); font-variant-numeric: tabular-nums; }
 .edgekey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; }
+.edgekey-spine { height: 5px; width: 18px; }
 .myth-detail { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-height: 64px; }
 .md-hint { color: var(--ink-faint); font-family: var(--sans); font-size: 14px; }
 .md-type { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 11px; color: var(--ink-faint); }
