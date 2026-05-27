@@ -82,11 +82,14 @@ canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
 .btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-select, .seg {
+select, .seg, input[type=text] {
   background: var(--panel-solid); color: var(--fg); border: 1px solid var(--rule);
   border-radius: 7px; padding: 6px 8px; font-family: var(--mono); font-size: 11px;
   width: 100%;
 }
+input[type=text] { min-width: 0; }
+input[type=text]:focus { outline: none; border-color: var(--accent); }
+input[type=text][readonly] { color: var(--accent); }
 .seg { display: flex; gap: 4px; padding: 4px; }
 .seg button {
   flex: 1; background: transparent; border: none; color: var(--muted);
@@ -164,6 +167,34 @@ select, .seg {
     </div>
     <h3>presets</h3>
     <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="group" id="share-group">
+    <h3>share · atproto</h3>
+    <div id="share-out" class="hint">Save this organism to your Bluesky account as an at:// record, then share the link.</div>
+    <div id="share-loggedout">
+      <div class="row" style="gap:6px;">
+        <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="off" spellcheck="false" list="handle-dl" style="flex:1;">
+        <datalist id="handle-dl"></datalist>
+      </div>
+      <div class="btnrow"><button class="btn" id="btn-signin">sign in with bluesky</button></div>
+    </div>
+    <div id="share-loggedin" style="display:none;">
+      <div class="hint" id="whoami"></div>
+      <div class="row" style="gap:6px;">
+        <input type="text" id="name-input" placeholder="name this organism" spellcheck="false" style="flex:1;">
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="btn-save">save organism →</button>
+        <button class="btn" id="btn-signout">sign out</button>
+      </div>
+    </div>
+    <div id="share-link" style="display:none;">
+      <div class="row" style="gap:6px;">
+        <input type="text" id="link-input" readonly style="flex:1;">
+        <button class="btn" id="btn-copy" style="flex:0 0 auto;">copy</button>
+      </div>
+    </div>
   </div>
 
   <div class="group">
@@ -973,9 +1004,191 @@ window.addEventListener('pointerup', () => { draw.active = false; });
 
 // ─── Go ──────────────────────────────────────────────────────────────────────
 
+// Public API for the ATProto share layer (separate module script below).
+const CONFIG_KEYS = Object.keys(defaultConfig());
+window.Fluoddity = {
+  getConfig(){ const o = {}; for(const k of CONFIG_KEYS) o[k] = cfg[k]; return o; },
+  applyConfig(saved){
+    if(!saved || typeof saved !== 'object') return;
+    const next = defaultConfig();
+    for(const k of CONFIG_KEYS){
+      if(typeof saved[k] === 'number' && isFinite(saved[k])) next[k] = saved[k];
+    }
+    next.cohorts |= 0;
+    next.initial_conditions |= 0;
+    cfg = next; syncAll(); resetField();
+  },
+};
+
 rebuild('med');
 syncAll();
 requestAnimationFrame(frame);
+</script>
+
+<script type="module">
+"use strict";
+// ── ATProto share layer ─────────────────────────────────────────────────────
+// Save the current organism to the signed-in user's own PDS as a
+// com.minomobi.fluoddity.organism record; produce a link that loads it back.
+// Reading a shared organism is public (no auth).
+
+const COLLECTION = 'com.minomobi.fluoddity.organism';
+// Narrow scope: write ONLY our lexicon. Avoids transition:generic's blanket
+// write access, so the Bluesky consent screen shows exactly what we touch.
+const SCOPE = 'atproto repo:' + COLLECTION;
+const BSKY_PUBLIC = 'https://public.api.bsky.app';
+
+const $ = (id) => document.getElementById(id);
+const out = $('share-out');
+const loggedOut = $('share-loggedout');
+const loggedIn = $('share-loggedin');
+const linkBox = $('share-link');
+const handleInput = $('handle-input');
+const handleDL = $('handle-dl');
+const nameInput = $('name-input');
+const linkInput = $('link-input');
+
+function status(msg, kind){
+  out.textContent = msg;
+  out.style.color = kind === 'err' ? '#ff6b6b' : kind === 'ok' ? 'var(--accent)' : 'var(--muted)';
+}
+
+let AuthClient, auth = null;
+try {
+  ({ AuthClient } = await import('./auth.js'));
+  auth = new AuthClient();
+} catch (e) {
+  console.warn('OAuth lib unavailable (saving disabled):', e);
+  status('Sharing needs the deployed site (auth.mino.mobi). Local play still works.');
+}
+
+// ── handle typeahead (Bluesky searchActorsTypeahead → <datalist>) ────────────
+let typeTimer = 0;
+handleInput?.addEventListener('input', () => {
+  clearTimeout(typeTimer);
+  const q = handleInput.value.replace(/^@/, '').trim();
+  if (q.length < 2) { handleDL.innerHTML = ''; return; }
+  typeTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`);
+      if (!r.ok) return;
+      const { actors = [] } = await r.json();
+      handleDL.innerHTML = actors.map(a => {
+        const label = a.displayName ? `${a.displayName} · @${a.handle}` : `@${a.handle}`;
+        return `<option value="${a.handle}">${label.replace(/"/g, '&quot;')}</option>`;
+      }).join('');
+    } catch { /* offline / blocked — silent */ }
+  }, 160);
+});
+
+// ── auth UI ──────────────────────────────────────────────────────────────────
+function renderAuth(user){
+  const on = !!user;
+  loggedOut.style.display = on ? 'none' : '';
+  loggedIn.style.display = on ? '' : 'none';
+  if (on) {
+    $('whoami').textContent = `signed in as @${user.handle}`;
+    status('Save this organism to your account, then share the link.');
+  }
+}
+
+if (auth) {
+  auth.onAuthChange(renderAuth);
+
+  $('btn-signin').addEventListener('click', async () => {
+    const handle = handleInput.value.trim();
+    if (!handle) { status('Enter your Bluesky handle first.', 'err'); handleInput.focus(); return; }
+    status('redirecting to Bluesky…');
+    try {
+      await auth.login(handle, { scope: SCOPE });
+    } catch (e) {
+      status(e.message || 'sign-in failed', 'err');
+    }
+  });
+
+  $('btn-signout').addEventListener('click', async () => {
+    await auth.logout();
+    linkBox.style.display = 'none';
+    status('signed out.');
+  });
+
+  $('btn-save').addEventListener('click', async () => {
+    const cfg = window.Fluoddity?.getConfig();
+    if (!cfg) { status('engine not ready', 'err'); return; }
+    status('saving to your PDS…');
+    try {
+      const record = {
+        name: (nameInput.value || '').trim() || 'untitled organism',
+        schemaVersion: 1,
+        config: cfg,
+        createdAt: new Date().toISOString(),
+      };
+      const res = await auth.pds.createRecord(COLLECTION, record);
+      const { did, rkey } = parseAtUri(res.uri);
+      const link = `${location.origin}${location.pathname}?o=${did}/${rkey}`;
+      linkInput.value = link;
+      linkBox.style.display = '';
+      status('saved! share the link below.', 'ok');
+      history.replaceState({}, '', link);
+    } catch (e) {
+      status(e.message || 'save failed', 'err');
+    }
+  });
+
+  $('btn-copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(linkInput.value); $('btn-copy').textContent = 'copied'; setTimeout(() => $('btn-copy').textContent = 'copy', 1200); }
+    catch { linkInput.select(); }
+  });
+}
+
+// ── shared-organism loading (public, no auth) ────────────────────────────────
+function parseAtUri(uri){
+  // at://did/collection/rkey
+  const parts = uri.replace(/^at:\/\//, '').split('/');
+  return { did: parts[0], collection: parts[1], rkey: parts[2] };
+}
+
+function pdsEndpoint(doc){
+  const svc = (doc.service || []).find(s => s.id.endsWith('atproto_pds') || s.type === 'AtprotoPersonalDataServer');
+  return svc && svc.serviceEndpoint;
+}
+
+async function resolvePds(did){
+  if (did.startsWith('did:web:')){
+    const host = decodeURIComponent(did.slice('did:web:'.length)).split(':')[0];
+    const doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+    return pdsEndpoint(doc);
+  }
+  const doc = await (await fetch(`https://plc.directory/${encodeURIComponent(did)}`)).json();
+  return pdsEndpoint(doc);
+}
+
+async function loadShared(){
+  const o = new URLSearchParams(location.search).get('o');
+  if (!o) return;
+  const slash = o.indexOf('/');
+  if (slash < 0) return;
+  const did = o.slice(0, slash);
+  const rkey = o.slice(slash + 1);
+  status('loading shared organism…');
+  try {
+    const pds = await resolvePds(did);
+    if (!pds) throw new Error('could not resolve PDS');
+    const url = `${pds}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=${COLLECTION}&rkey=${encodeURIComponent(rkey)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('organism not found');
+    const { value } = await r.json();
+    if (value && value.config && window.Fluoddity) {
+      window.Fluoddity.applyConfig(value.config);
+      status(`loaded "${value.name || 'organism'}". make it your own and re-save.`, 'ok');
+    }
+  } catch (e) {
+    status(e.message || 'could not load shared organism', 'err');
+  }
+}
+
+if (auth) await auth.init();   // consumes ?__auth_session after OAuth redirect
+await loadShared();            // ?o=did/rkey loads a shared organism
 </script>
 </body>
 </html>

@@ -27,6 +27,7 @@ const ALLOWED_ORIGINS = [
   'https://photo.mino.mobi',
   'https://labglass.minomobi.com',
   'https://zoom.mino.mobi',
+  'https://g.mino.mobi',
   'https://read.mino.mobi',
   'https://cards.mino.mobi',
   'https://wave.mino.mobi',

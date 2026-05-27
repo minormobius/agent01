@@ -1,0 +1,60 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.fluoddity.organism",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A saved Fluoddity organism: the full parameter set plus the rule seed needed to reproduce a vector-trail slime configuration. Lives on the author's own PDS; readable publicly, written by the author.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["config", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 600,
+            "maxGraphemes": 120,
+            "description": "Human label for the organism."
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "description": "Config schema version, so future engine changes can migrate old saves."
+          },
+          "config": {
+            "type": "ref",
+            "ref": "#config",
+            "description": "Flat parameter snapshot consumed by the playground."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "The playground's full configuration. rule_seed plus these parameters deterministically reproduce the organism.",
+      "required": ["rule_seed", "cohorts"],
+      "properties": {
+        "rule_seed": { "type": "number", "description": "Seed for the Fourier behavior rule." },
+        "cohorts": { "type": "integer" },
+        "sensor_gain": { "type": "number" },
+        "sensor_angle": { "type": "number" },
+        "sensor_distance": { "type": "number" },
+        "mutation_scale": { "type": "number" },
+        "global_force_mult": { "type": "number" },
+        "drag": { "type": "number" },
+        "strafe_power": { "type": "number" },
+        "axial_force": { "type": "number" },
+        "lateral_force": { "type": "number" },
+        "hazard_rate": { "type": "number" },
+        "trail_persistence": { "type": "number" },
+        "trail_diffusion": { "type": "number" },
+        "initial_conditions": { "type": "integer", "description": "0 grid, 1 scatter, 2 ring." },
+        "ink": { "type": "number", "description": "Render gain." },
+        "hue": { "type": "number", "description": "Render hue shift." }
+      }
+    }
+  }
+}
