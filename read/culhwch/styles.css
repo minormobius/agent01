@@ -320,7 +320,10 @@ svg.web { display: block; }
 svg.myth { display: block; }
 .myth-node { cursor: pointer; }
 .myth-node:hover circle, .myth-node:hover rect { stroke: var(--gold-soft); stroke-width: 2; }
-.myth-node.dim { opacity: 0.12; }
+.myth-node.dim { opacity: 0.1; }
+.myth-label { fill: var(--ink); font-family: var(--sans); paint-order: stroke; stroke: #14110d; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.myth-pvbody { font-family: var(--sans); }
+.myth-sel rect { fill-opacity: 0.98; }
 .myth .hot, svg.myth line.hot { stroke-opacity: 0.95 !important; stroke-width: 2.4 !important; }
 .myth-controls { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 8px; font-family: var(--sans); }
 .myth-filter { font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px; }
@@ -389,6 +392,7 @@ footer.foot a { color: var(--ink-dim); }
   .brand { font-size: 19px; }
   .wiki-grid { grid-template-columns: 1fr; }
   .zoom-host { height: 460px; }
+  #myth-host { height: 76vh; max-height: none; }
   .iw-notes { grid-template-columns: 1fr; }
   .char-grid { grid-template-columns: 1fr; }
 }

@@ -299,11 +299,11 @@
      force-laid, so cross-cutting elements pull toward the centre. */
   function buildMythograph() {
     const nodes = [], edges = [], id2i = {};
-    const add = (id, full, label, type, link) => { id2i[id] = nodes.length; nodes.push({ id, full, label, type, link }); };
-    C.tale.passages.forEach((p, i) => { const n = i + 1; add("mv-" + n, p.title, toRoman(n), "movement", { passage: n }); });
-    C.characters.cast.forEach((c) => add("ch-" + c.id, c.name, c.name, "character", { char: c.id }));
-    C.motifs.list.forEach((m, i) => add("mo-" + i, (m.code || m.cls) + " — " + m.name, m.code || m.cls, "motif", { tab: "motifs" }));
-    C.propp.moves.forEach((mv, i) => add("pp-" + i, mv.sym + " · " + mv.name, mv.sym, "propp", { tab: "propp", anchor: "propp-move-" + i }));
+    const add = (id, full, label, type, link, preview) => { id2i[id] = nodes.length; nodes.push({ id, full, label, type, link, preview }); };
+    C.tale.passages.forEach((p, i) => { const n = i + 1; add("mv-" + n, p.title, toRoman(n), "movement", { passage: n }, (p.segments[0] || {}).e || ""); });
+    C.characters.cast.forEach((c) => add("ch-" + c.id, c.name, c.name, "character", { char: c.id }, c.blurb || ""));
+    C.motifs.list.forEach((m, i) => add("mo-" + i, (m.code || m.cls) + " — " + m.name, m.code || m.cls, "motif", { tab: "motifs" }, m.gloss || ""));
+    C.propp.moves.forEach((mv, i) => add("pp-" + i, mv.sym + " · " + mv.name, mv.sym, "propp", { tab: "propp", anchor: "propp-move-" + i }, mv.realized || ""));
     const edge = (a, b, type) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type }); };
     C.characters.cast.forEach((c) => (c.appears || []).forEach((n) => edge("ch-" + c.id, "mv-" + n, "appears")));
     const seen = {}; C.characters.cast.forEach((c) => (c.rel || []).forEach((r) => { const k = [c.id, r.to].sort().join("|"); if (seen[k]) return; seen[k] = 1; edge("ch-" + c.id, "ch-" + r.to, "relates"); }));
@@ -323,7 +323,7 @@
   function renderMythograph() {
     const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
     const active = { movement: true, character: true, motif: true, propp: true };
-    let selected = null;
+    let selected = null, selGroup = null, grown = [];
 
     const fhost = $("#myth-filters"); fhost.innerHTML = "";
     Object.keys(MYTH_TYPE).forEach((t) => {
@@ -335,14 +335,14 @@
     [["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
       .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
 
-    // layout — pinned movement spine + force for the rest
-    const W = 1460, H = 780, pad = 70;
-    const mv = nodes.filter((n) => n.type === "movement");
-    nodes.forEach((n) => { n.x = W / 2 + (Math.random() - 0.5) * 240; n.y = H / 2 + (Math.random() - 0.5) * 300; });
-    mv.forEach((n, i) => { n.pinned = true; n.x = pad + i * (W - 2 * pad) / (mv.length - 1); n.y = H / 2; });
-    const k = Math.sqrt((W * H) / nodes.length) * 0.62;
-    let temp = W * 0.08;
-    for (let it = 0; it < 380; it++) {
+    // layout — fully force-directed (Fruchterman–Reingold) + a collision pass
+    const mobile = (window.innerWidth || 900) < 640;
+    const W = mobile ? 720 : 1500, H = mobile ? 1380 : 840, pad = 70;
+    const R = (n) => MYTH_TYPE[n.type].r;
+    nodes.forEach((n, i) => { const a = 2 * Math.PI * i / nodes.length; n.x = W / 2 + Math.cos(a) * W * 0.30; n.y = H / 2 + Math.sin(a) * H * 0.30; });
+    const k = Math.sqrt((W * H) / nodes.length) * (mobile ? 0.78 : 0.95);
+    let temp = Math.max(W, H) * 0.09;
+    for (let it = 0; it < 480; it++) {
       nodes.forEach((n) => { n.dx = 0; n.dy = 0; });
       for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
         let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
@@ -350,8 +350,17 @@
         nodes[i].dx += ux * f; nodes[i].dy += uy * f; nodes[j].dx -= ux * f; nodes[j].dy -= uy * f;
       }
       edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = A.x - B.x, dy = A.y - B.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const f = d * d / k, ux = dx / d, uy = dy / d; A.dx -= ux * f; A.dy -= uy * f; B.dx += ux * f; B.dy += uy * f; });
-      nodes.forEach((n) => { if (n.pinned) return; const d = Math.sqrt(n.dx * n.dx + n.dy * n.dy) || 0.01, m = Math.min(d, temp); n.x += n.dx / d * m; n.y += n.dy / d * m; });
-      temp *= 0.976;
+      if (mobile) nodes.forEach((n) => { n.dx += (W / 2 - n.x) * 0.06; }); // squeeze into a vertical column
+      nodes.forEach((n) => { const d = Math.sqrt(n.dx * n.dx + n.dy * n.dy) || 0.01, m = Math.min(d, temp); n.x += n.dx / d * m; n.y += n.dy / d * m; });
+      temp *= 0.98;
+    }
+    // collision resolution — push apart any nodes whose circles overlap
+    for (let pass = 0; pass < 90; pass++) {
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const min = R(nodes[i]) + R(nodes[j]) + 14;
+        if (d < min) { const p = (min - d) / 2, ux = dx / d, uy = dy / d; nodes[i].x += ux * p; nodes[i].y += uy * p; nodes[j].x -= ux * p; nodes[j].y -= uy * p; }
+      }
     }
     let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
     nodes.forEach((n) => { minx = Math.min(minx, n.x); miny = Math.min(miny, n.y); maxx = Math.max(maxx, n.x); maxy = Math.max(maxy, n.y); });
@@ -366,16 +375,20 @@
       layer.appendChild(line); edgeObjs.push(line);
       (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
     });
-    const nodeObjs = [];
+    const nodeObjs = [], shapes = [];
     nodes.forEach((n, i) => {
       const T = MYTH_TYPE[n.type];
       const grp = svgEl("g", { class: "myth-node" });
+      let shapeEl, tag;
       if (n.type === "movement") {
-        grp.appendChild(svgEl("rect", { x: n.x - T.r, y: n.y - T.r, width: T.r * 2, height: T.r * 2, rx: 5, fill: T.color, "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1.5 }));
+        shapeEl = svgEl("rect", { x: n.x - T.r, y: n.y - T.r, width: T.r * 2, height: T.r * 2, rx: 5, fill: T.color, "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1.5 });
+        grp.appendChild(shapeEl); tag = "rect";
         const lab = svgEl("text", { x: n.x, y: n.y + 4, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": "700" }); lab.textContent = n.label; grp.appendChild(lab);
       } else {
-        grp.appendChild(svgEl("circle", { cx: n.x, cy: n.y, r: T.r, fill: T.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.2 }));
+        shapeEl = svgEl("circle", { cx: n.x, cy: n.y, r: T.r, fill: T.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.2 });
+        grp.appendChild(shapeEl); tag = "circle";
       }
+      shapes.push({ el: shapeEl, tag: tag, r: T.r, x: n.x, y: n.y });
       const ttl = svgEl("title"); ttl.textContent = n.full; grp.appendChild(ttl);
       grp.addEventListener("mouseenter", () => highlight(i));
       grp.addEventListener("mouseleave", () => { selected != null ? highlight(selected) : clearHi(); });
@@ -394,7 +407,35 @@
       nodeObjs.forEach((gp, ni) => gp.style.display = active[nodes[ni].type] ? "" : "none");
       edgeObjs.forEach((l, ei) => l.style.display = (active[nodes[edges[ei].a].type] && active[nodes[edges[ei].b].type]) ? "" : "none");
     }
-    function select(i) { selected = i; highlight(i); fillDetail(i); }
+    const stripTags = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&mdash;/g, "—").replace(/&[a-z]+;/g, " ").trim();
+    const truncate = (s, n) => s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s;
+    function wrapText(s, max) { const w = s.split(/\s+/), lines = []; let cur = ""; w.forEach((word) => { if ((cur + " " + word).trim().length > max) { if (cur) lines.push(cur); cur = word; } else cur = (cur + " " + word).trim(); }); if (cur) lines.push(cur); return lines; }
+    function growNode(i) { const s = shapes[i], f = 1.8; if (s.tag === "circle") s.el.setAttribute("r", s.r * f); else { s.el.setAttribute("x", s.x - s.r * f); s.el.setAttribute("y", s.y - s.r * f); s.el.setAttribute("width", s.r * 2 * f); s.el.setAttribute("height", s.r * 2 * f); } grown.push(i); }
+    function resetGrown() { grown.forEach((i) => { const s = shapes[i]; if (s.tag === "circle") s.el.setAttribute("r", s.r); else { s.el.setAttribute("x", s.x - s.r); s.el.setAttribute("y", s.y - s.r); s.el.setAttribute("width", s.r * 2); s.el.setAttribute("height", s.r * 2); } }); grown = []; }
+    function neighborLabel(n) { const t = svgEl("text", { class: "myth-label", x: n.x, y: n.y - R(n) * 1.8 - 6, "text-anchor": "middle", "font-size": 11 }); t.textContent = truncate(stripTags(n.full), 26); return t; }
+    function previewCard(n) {
+      const g2 = svgEl("g"), lh = 15, padc = 9, cw = 214;
+      const titleLines = wrapText(stripTags(n.full), 30), bodyLines = wrapText(truncate(stripTags(n.preview), 190), 33);
+      const th = titleLines.length * 15, h = padc * 2 + th + 6 + bodyLines.length * lh;
+      const bx = n.x + R(n) * 1.8 + 12, by = n.y - h / 2;
+      g2.appendChild(svgEl("rect", { x: bx, y: by, width: cw, height: h, rx: 8, fill: "#1c1813", stroke: "#c9a24a", "stroke-width": 1.2 }));
+      const tt = svgEl("text", { "font-size": 12.5, fill: "#e0c178", "font-weight": "700" });
+      titleLines.forEach((ln, idx) => { const ts = svgEl("tspan", { x: bx + padc, y: by + padc + 12 + idx * 15 }); ts.textContent = ln; tt.appendChild(ts); });
+      g2.appendChild(tt);
+      const bt = svgEl("text", { class: "myth-pvbody", "font-size": 11.5, fill: "#b3a892" });
+      bodyLines.forEach((ln, idx) => { const ts = svgEl("tspan", { x: bx + padc, y: by + padc + th + 18 + idx * lh }); ts.textContent = ln; bt.appendChild(ts); });
+      g2.appendChild(bt);
+      return g2;
+    }
+    function clearSel() { if (selGroup) { selGroup.remove(); selGroup = null; } resetGrown(); }
+    function select(i) {
+      clearSel(); selected = i; highlight(i); fillDetail(i);
+      selGroup = svgEl("g", { class: "myth-sel" }); layer.appendChild(selGroup);
+      const nb = []; (adj[i] || []).forEach((ei) => { const e = edges[ei], o = e.a === i ? e.b : e.a; if (active[nodes[o].type] && nb.indexOf(o) < 0) nb.push(o); });
+      nb.forEach((o) => { growNode(o); selGroup.appendChild(neighborLabel(nodes[o])); });
+      growNode(i);
+      selGroup.appendChild(previewCard(nodes[i]));
+    }
 
     function fillDetail(i) {
       const n = nodes[i], d = $("#myth-detail"); d.innerHTML = "";
