@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — living organisms on atproto</title>
+<meta name="description" content="Fluoddity: breed, browse, and map emergent vector-trail organisms. Each is a deterministic genome saved as an ATProto record on your own Bluesky account; fork one and it grows a new branch of the tree.">
+<style>
+:root {
+  --bg: #050608; --panel-solid: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --accent-dim: rgba(56,225,192,0.14);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--mono); }
+a { color: var(--accent); text-decoration: none; }
+#hero { position: relative; height: 46vh; min-height: 300px; overflow: hidden; border-bottom: 1px solid var(--rule); background: #000; cursor: pointer; }
+#hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#hero .veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(5,6,8,0) 30%, rgba(5,6,8,0.78) 100%); pointer-events: none; }
+#hero .head { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 28px; pointer-events: none; }
+#hero h1 { margin: 0; font-size: clamp(34px, 7vw, 72px); letter-spacing: -0.02em; font-weight: 700; }
+#hero h1 b { color: var(--accent); font-weight: 700; }
+#hero p { margin: 8px 0 0; color: var(--muted); font-size: 13px; max-width: 60ch; line-height: 1.6; }
+#hero .shuffle { position: absolute; top: 14px; right: 16px; font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px; pointer-events: none; }
+
+#cards { display: grid; gap: 14px; padding: 22px; max-width: 1100px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card { display: block; background: var(--panel-solid); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; transition: border-color 0.15s, transform 0.1s; }
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card .n { font-size: 16px; font-weight: 700; color: var(--fg); }
+.card .n .arrow { color: var(--accent); }
+.card .d { font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 7px; }
+.card .verb { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); }
+
+footer { max-width: 1100px; margin: 0 auto; padding: 8px 22px 40px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+footer a { color: var(--muted); text-decoration: underline; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="hero">
+  <canvas id="herocv"></canvas>
+  <div class="veil"></div>
+  <div class="shuffle" id="shuffle">click for another organism</div>
+  <div class="head">
+    <h1><b>fluoddity</b></h1>
+    <p>Emergent vector-trail organisms. Each one is a deterministic genome saved as an ATProto record on your own Bluesky account — fork it and it grows a new branch of the tree.</p>
+  </div>
+</div>
+
+<div id="cards">
+  <a class="card" href="./play/">
+    <div class="verb">create</div>
+    <div class="n">Playground <span class="arrow">→</span></div>
+    <div class="d">Tune a living organism in real time — sensing, forces, trails. A liveness readout grades it as you go. Save it to your PDS to plant it in the garden.</div>
+  </a>
+  <a class="card" href="./gallery.html">
+    <div class="verb">browse</div>
+    <div class="n">Gallery <span class="arrow">→</span></div>
+    <div class="d">Every organism anyone has saved, discovered through Constellation. Hover to bring one to life; click for its lineage; open any author's collection.</div>
+  </a>
+  <a class="card" href="./map.html">
+    <div class="verb">map</div>
+    <div class="n">Phase space <span class="arrow">→</span></div>
+    <div class="d">Phylogenetic metrics and an interactive phenotype map — every organism as a point, lineage edges drawn through the space. Pan, zoom, and dive in.</div>
+  </a>
+  <a class="card" href="./breed.html">
+    <div class="verb">breed</div>
+    <div class="n">Breeder lab <span class="arrow">→</span></div>
+    <div class="d">An automated interactive-evolution loop. Exploratory noise, behavioral diversity, and narrative momentum shape the search as a lineage grows generation by generation.</div>
+  </a>
+</div>
+
+<footer>
+  Organisms live as <code>com.minomobi.fluoddity.organism</code> records on each author's PDS · discovery via
+  <a href="https://constellation.microcosm.blue/">Constellation</a> · part of
+  <a href="https://mino.mobi/">mino.mobi</a>.
+</footer>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig } from './engine.js';
+import { readDescriptors, fitness } from './descriptors.js';
+
+const cv = document.getElementById('herocv');
+const ctx = cv.getContext('2d');
+let engine = null;
+try { engine = new FluoddityEngine(480, 55000); }
+catch { document.getElementById('hero').style.background = 'linear-gradient(135deg,#0a1f1b,#06121a)'; document.getElementById('shuffle').style.display = 'none'; }
+
+function randomConfig() {
+  const c = defaultConfig();
+  c.rule_seed = Math.random();
+  c.hue = Math.random();
+  c.sensor_angle = -0.4 + Math.random() * 0.8;
+  c.global_force_mult = 0.4 + Math.random() * 0.6;
+  c.lateral_force = -0.5 + Math.random() * 0.6;
+  c.cohorts = 8 + (Math.random() * 16 | 0);
+  return c;
+}
+
+// Pick the most "alive" of a few random organisms so the hero is never blank.
+async function pickLively() {
+  let best = null, bestFit = -1;
+  for (let i = 0; i < 7; i++) {
+    const c = randomConfig();
+    engine.load(c, i);
+    engine.step(260); engine.render();
+    const a = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const f = fitness(readDescriptors(engine.cv, a.lum));
+    if (f > bestFit) { bestFit = f; best = c; }
+  }
+  return best;
+}
+
+let current = null;
+function blit() {
+  const W = cv.clientWidth, H = cv.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const src = engine.cv, s = src.width;
+  const scale = Math.max(cv.width / s, cv.height / s); // cover
+  const dw = s * scale, dh = s * scale;
+  ctx.drawImage(src, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
+}
+async function loop() {
+  if (!engine) return;
+  if (!current) { current = await pickLively(); engine.load(current, 'hero'); }
+  engine.step(6); engine.render(); blit();
+  requestAnimationFrame(loop);
+}
+document.getElementById('hero').addEventListener('click', async () => { if (engine) { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
+if (engine) requestAnimationFrame(loop);
+</script>
+</body>
+</html>
