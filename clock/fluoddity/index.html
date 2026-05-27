@@ -1032,7 +1032,8 @@ about.addEventListener('click', (e) => { if(e.target === about) about.classList.
 
 // keyboard
 window.addEventListener('keydown', (e) => {
-  if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const t = e.target;
+  if(t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return;
   switch(e.key.toLowerCase()){
     case ' ': e.preventDefault(); btnPause.click(); break;
     case 'r': resetField(); break;
