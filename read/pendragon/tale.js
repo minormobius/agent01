@@ -26,8 +26,8 @@ window.PENDRAGON.tale = {
     { t: "VIII · The impossible tasks (anoethau)", done: true },
     { t: "IX · The great helpers & first quests", done: true },
     { t: "X · The hunt for Twrch Trwyth", done: true },
-    { t: "XI · The Black Witch's blood", done: false },
-    { t: "XII · Ysbaddaden slain; Olwen won", done: false },
+    { t: "XI · The Black Witch's blood", done: true },
+    { t: "XII · Ysbaddaden slain; Olwen won", done: true },
   ],
   passages: [
    {
@@ -475,6 +475,52 @@ window.PENDRAGON.tale = {
       { w: "A'r tlysau a ddygwyd at Ysbaddaden Bencawr, fal y gellid ei eillaw erbyn rhoddi Olwen i Gulhwch.",
         e: "And the treasures were carried back to Ysbaddaden Bencawr, so that he might be shaved before Olwen was given to Culhwch.",
         n: "Last of all: the shaving of the giant, the death of Ysbaddaden, and Olwen won at last." },
+    ],
+   },
+   {
+    title: "XI. The blood of the Black Witch",
+    segments: [
+      { w: "Un ac un y kawsid yr anoethau eraill — cleddyf Wrnach, a phair Diwrnach Wyddel, ac ysgithr Ysgithyrwyn — hyd nad oedd weddill namyn gwaed y Widon Ddu, merch y Widon Wen, o Bennant Gofid yng nghyffiniau Uffern.",
+        e: "One by one the other wonders had been won — the sword of Wrnach, the cauldron of Diwrnach the Irishman, the tusk of Ysgithyrwyn — until nothing remained but the blood of the Black Witch, daughter of the White Witch, from Pennant Gofid, the Valley of Grief, on the borders of Hell.",
+        n: "The tale tells several more winning-episodes — Cei outwitting the giant Wrnach for his sword, the raid on Ireland for Diwrnach's cauldron — which this reading passes over in summary; here we rejoin it at the very last task." },
+
+      { w: "Kychwyn a oruc Arthur tu a'r Gogledd, hyd pan ddoeth i ogof y widon. Mynnu mynd i mewn a oruc Arthur; eithr ei wŷr a'i kynghorasant nad gweddus oedd iddo ymgiprys â gwrach. Anfon a wnaethant Hygwydd a Chacamwri i'r ogof.",
+        e: "Arthur set out toward the North, until he came to the witch's cave. Arthur wished to go in himself; but his men counselled him that it was unseemly for him to grapple with a hag. So they sent Hygwydd and Cacamwri into the cave." },
+
+      { w: "Pan ddoethant i mewn, ymafael a oruc y widon ynddunt; gafael yng ngwallt Hygwydd a'i lawr-ladd hyd y llawr. Cacamwri a'i daliodd hi, ond ei churo a oruc hithau ill dau hyd nad oedd un asgwrn cyfan ynddunt, a'u gyrru allan dan ddolef ac ubain.",
+        e: "When they came inside, the witch fell upon them; she caught Hygwydd by the hair and dashed him to the ground. Cacamwri laid hold of her, but she beat the two of them until there was not a whole bone left in them, and drove them out howling and shrieking." },
+
+      { w: "Llidiaw a oruc Arthur a mynnu cyrchu drws yr ogof; eithr ei wŷr a'i lluddiasant, a'i anfon ill dau, Amren ac Eidil. Os drwg fu i'r ddau gyntaf, gwaeth fu i'r ddau hyn; ac ni allasai un o'r pedwar fynd oddi yno oni bai eu dodi ill pedwar ar Lamrei, caseg Arthur.",
+        e: "Arthur grew angry and made to rush the door of the cave; but his men held him back, and sent in two more, Amren and Eidil. If it had gone badly for the first two, it went worse for these; and not one of the four could have got away from there had they not all four been heaved onto Llamrei, Arthur's mare." },
+
+      { w: "Ac yna y kymerth Arthur ddrws yr ogof, ac o'r drws yd anelodd â Charnwennan, ei gyllell, a tharo y widon ar ei thraws, hyd pan fu yn ddwy gerwyn. A Chadw o Brydyn a gymerth waed y widon, a'i gadw.",
+        e: "And then Arthur came to the mouth of the cave, and from the door he took aim with Carnwennan, his knife, and struck the witch across the middle, so that she fell in two halves, like two tubs. And Cadw of Pictland took the witch's blood, and kept it.",
+        n: "Arthur kills the hag himself, from the threshold, with his own dagger — and the last of the <em>anoethau</em> is won. Nothing now stands between Culhwch and the shaving of the giant." },
+    ],
+   },
+   {
+    title: "XII. The shaving of Ysbaddaden, and Olwen won",
+    segments: [
+      { w: "Yna y doeth y nifer i lys Ysbaddaden Bencawr, a'r holl anoethau gantunt. A Chadw o Brydyn a ddoeth i eillaw ei farf, kig a chroen hyd yr asgwrn, a'i ddwy glust yn llwyr.",
+        e: "Then the company came to the court of Ysbaddaden Bencawr, with all the wonders in their hands. And Cadw of Pictland came to shave his beard — flesh and skin down to the bone — and his two ears outright.",
+        n: "The grooming Ysbaddaden demanded is delivered as a flaying: the giant is shaved to the bone, ears and all." },
+
+      { w: "“A eilliwyd di, ŵr?” heb Culhwch. “Eilliwyd,” heb yntau. “Ai eiddof i bellach dy ferch?” “Eiddot. Ac nid rhaid it ddiolch hynny i mi, eithr diolch i Arthur a'i kafas it. O'm bodd fy hun ni chawsit hi byth.”",
+        e: "“Are you shaved, man?” said Culhwch. “I am shaved,” said he. “And is your daughter mine now?” “She is. And you need not thank me for it, but thank Arthur, who has won her for you. Of my own will, you would never have had her.”" },
+
+      { w: "“Ac yn awr,” heb Ysbaddaden, “mae'n hen bryd dwyn fy einioes oddi arnaf.” Ac yna y kymerth Goreu mab Custennin ef erfyn y gwallt, a'i lusgo ar ei ôl hyd y domen.",
+        e: "“And now,” said Ysbaddaden, “it is high time to take my life from me.” And then Goreu son of Custennin seized him by the hair, and dragged him behind him to the mound." },
+
+      { w: "A thorri ei ben a oruc, a'i ddodi ar bawl y gadlas. A goresgyn a oruc Goreu y gaer a'i holl gyfoeth. Ac felly y dialodd ar Ysbaddaden gam ei dri brawd ar hugain a laddasid.",
+        e: "And he cut off his head, and set it on the stake of the bailey. And Goreu took possession of the fort and all its wealth. And so he avenged on Ysbaddaden the wrong of his three-and-twenty brothers whom the giant had killed.",
+        n: "Goreu — the one son hidden in the stone chest back in movement V — is the blade the tale kept in reserve. The giant's own nephew takes his head." },
+
+      { w: "A'r nos honno y kysgodd Culhwch gydag Olwen, a hi a fu wraig iddo tra fu fyw. A gwasgaru a oruc niferoedd Arthur, pawb tu a'i wlad ei hun.",
+        e: "And that night Culhwch slept with Olwen, and she was his wife as long as he lived. And Arthur's hosts scattered, each man toward his own land." },
+
+      { w: "Ac fal hyn y kafas Culhwch Olwen, merch Ysbaddaden Bencawr. A dyma ddiwedd y chwedl hon.",
+        e: "And in this way did Culhwch win Olwen, daughter of Ysbaddaden the Chief Giant. And here ends this tale.",
+        n: "So closes <em>Culhwch ac Olwen</em> — the oldest Arthurian story we have — complete, from the pig-run birth to the giant's stake. Twelve movements; the whole tale." },
     ],
    },
   ],

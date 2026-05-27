@@ -445,7 +445,9 @@
       const done = t.roadmap.filter((r) => r.done).length, total = t.roadmap.length;
       const pct = Math.round((done / total) * 100);
       prog.innerHTML = "";
-      prog.appendChild(el("div", "prog-head", `Translation progress — <strong>${done} of ${total}</strong> movements · ~${pct}% of the tale`));
+      prog.appendChild(el("div", "prog-head", done === total
+        ? `Translation <strong>complete</strong> — all ${total} movements ✦ the whole tale`
+        : `Translation progress — <strong>${done} of ${total}</strong> movements · ~${pct}% of the tale`));
       const bar = el("div", "prog-bar"); const fill = el("div", "prog-fill"); fill.style.width = pct + "%"; bar.appendChild(fill); prog.appendChild(bar);
       const road = el("div", "prog-road");
       t.roadmap.forEach((r) => road.appendChild(el("span", "prog-chip" + (r.done ? " done" : ""), r.t)));
