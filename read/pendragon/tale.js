@@ -23,7 +23,7 @@ window.PENDRAGON.tale = {
     { t: "V · The herdsman's house & Goreu", done: true },
     { t: "VI · Olwen", done: true },
     { t: "VII · Ysbaddaden's hall & the spears", done: true },
-    { t: "VIII · The impossible tasks (anoethau)", done: false },
+    { t: "VIII · The impossible tasks (anoethau)", done: true },
     { t: "IX · The great helpers & first quests", done: false },
     { t: "X · The hunt for Twrch Trwyth", done: false },
     { t: "XI · The Black Witch's blood", done: false },
@@ -304,6 +304,92 @@ window.PENDRAGON.tale = {
       { w: "“Y mab-yng-nghyfraith melltigedig anwar! Tra fwyf byw, gwaeth fydd fy ngolwg. Pan gerddwyf yn erbyn y gwynt, dyfrllyd fydd fy llygaid; cur pen a gaf, a phendro bob lleuad newydd. Mal brath ci cynddeiriog yw'r dur gwenwynig.” Yna yd aethant i fwyta; ac o'r diwedd yd eisteddodd y cawr i ymgyngori â hwynt am amodau.",
         e: "“Cursed, savage son-in-law! As long as I live, my sight will be the worse for it. When I walk against the wind my eyes will water; I shall have headaches, and a dizziness at every new moon. Like the bite of a mad dog is this poisoned iron.” Then they went to meat; and at last the giant sat down to bargain terms with them.",
         n: "Thrice wounded and still alive, Ysbaddaden finally sits to terms — which means the <em>anoethau</em>: the long roll of impossible things Culhwch must fetch before he can have Olwen. That list is next." },
+    ],
+   },
+   {
+    title: "VIII. The impossible tasks (the anoethau)",
+    segments: [
+      { w: "“A wyt ti yr hwn a gais fy merch?” “Mi yw.” “Rhaid i mi gael dy gred na wnei i mi ond cyfiawnder; a phan gaffwyf yr hyn a enwaf, ti a gei fy merch.” “Mi a'i caf yn llawen. Enwa'r hyn a fynnych.”",
+        e: "“Are you the one who seeks my daughter?” “I am.” “I must have your pledge that you will do me nothing but right; and when I have what I name, you shall have my daughter.” “You shall have it gladly. Name what you will.”",
+        n: "What follows is the full roll of the <em>anoethau</em> — the “impossible things.” The count varies across manuscripts (around forty); here they are complete, grouped where the tale itself nests them. The drumbeat formula — <em>“though you get that, you will not get this”</em> — runs beneath the whole list." },
+
+      { w: "“Gweli di y prysglwyn mawr accw? Rhaid yw ei ddiwreiddiaw a'i losgi i'r llawr, a'r lludw yn wrtaith i'r tir; a'i aredig a'i hau a'i fedi mewn un dydd, fal y bo'r bwyd yn barod erbyn dy neithior.”",
+        e: "(1) “Do you see that great thicket yonder? It must be torn up by the roots and burned to the ground, the ashes worked into the soil, and the land ploughed, sown, and reaped — all in a single day — so the food may be ready for your wedding feast.”" },
+
+      { w: "“Ni all neb drin y tir hwnnw eithr Amaethon mab Dôn; ni ddaw ef gyd â thi o'i fodd, ac ni elli ei orfod. A Gofannon mab Dôn i ddyfod i'r pen-tir i lanhau'r heyrn; ni wna ef waith ond i frenin cyfiawn.”",
+        e: "(2) “No one can work that land but Amaethon son of Dôn — and he will not come with you willingly, nor can you force him. (3) And Gofannon son of Dôn must come to the headland to set the iron; he does no work save for a rightful king.”" },
+
+      { w: "“Deu ychen Gwlwlydd Wineu, ynghyd dan un iau, i drin y tir garw. A'r Melyn Gwanwyn a'r Ych Brych yn gyfartal dan iau. A'r ddau ychen gorniog: Nynniaw a Pheibaw, a wnaeth Duw yn ychen am eu pechod, dan un aradr.”",
+        e: "(4) “The two oxen of Gwlwlydd Wineu, yoked together, to break the rough ground. (5) And the Yellow-of-Spring and the Speckled Ox, matched under one yoke. (6) And the two horned oxen — Nynniaw and Peibaw, whom God made into oxen for their sins — set under one plough.”",
+        n: "Nynniaw and Peibaw were kings turned to oxen as a penance — one of the tale's many tossed-off marvels." },
+
+      { w: "“Llin gwyn i'w hau yn y tir newydd, i wneuthur gwisg-ben gwyn i'm merch erbyn dy neithior; ni thyf y llin namyn o'r had a fo yn y ddaear honno, ac nid oes ohonaw yno. A mêl naw gwaith melysach no mêl haid gyntaf, heb wenyn heb wybed ynddo, i wneuthur bragod i'r wledd.”",
+        e: "(7) “White flax to sow in the new-broken ground, to make a white veil for my daughter's head at your wedding — and it will grow from no seed but that which is in that very soil, of which none is left. (8) And honey nine times sweeter than the honey of a first swarm, with no bees and no drones in it, to brew the bragget for the feast.”" },
+
+      { w: "“Cwpan Llwyr mab Llwyryon, kanys nid eil llestr a ddeil y llyn hwnnw. Mwys Gwyddneu Garanhir: pei delai'r byd ato, dair naw gŵr, y caffai bawb y bwyd a fynnai; ohonaw y bwytâf y nos y kysco fy merch gennyt. Ni'i rydd i neb o'i fodd.”",
+        e: "(9) “The cup of Llwyr son of Llwyryon, for no other vessel will hold that drink. (10) The hamper of Gwyddneu Garanhir: were the whole world to come to it, thrice nine men at a time, each would find in it the food he wished; from it I must eat the night your daughter lies with you. He will give it to no one willingly.”" },
+
+      { w: "“Corn Gwlgawd Gododdin i dywallt i ni y nos honno. Telyn Teirtu i'm diddanu: pan fynner, y can ohoni ei hun; pan fynner, y tau. Ni'i rydd ef o'i fodd.”",
+        e: "(11) “The horn of Gwlgawd Gododdin to pour for us that night. (12) The harp of Teirtu to entertain me: when one wishes, it plays of itself; when one wishes, it falls silent. He will not give it willingly.”" },
+
+      { w: "“Adar Rhiannon, y rhai a ddihuna'r marw ac a huna'r byw, i'm diddanu y nos honno. Pair Diwrnach Wyddel, distain Odgar mab Aedd brenin Iwerddon, i ferwi bwyd dy neithior.”",
+        e: "(13) “The Birds of Rhiannon, those that wake the dead and lull the living to sleep, to entertain me that night. (14) The cauldron of Diwrnach the Irishman, steward of Odgar son of Aedd, king of Ireland, to boil the meat for your wedding guests.”" },
+
+      { w: "“Ysgithr Ysgithyrwyn Ben Baedd, i'm heillaw; ni thycia onid ei dynnu o'i ben ac yntau'n fyw. Ac ni'i tyn neb namyn Odgar mab Aedd, brenin Iwerddon. Ac ni rof ei gadw i neb namyn Cadw o Brydyn; trigain cantref Prydyn yssydd dano; ni ddaw ef o'i deyrnas o'i fodd.”",
+        e: "(15) “The tusk of Ysgithyrwyn Chief Boar, to shave myself with — it is no use unless drawn from his head while he lives. (16) And none can draw it but Odgar son of Aedd, king of Ireland. (17) And I will trust its keeping to none but Cadw of Pictland; the sixty cantrefs of Pictland are under him, and he will not leave his kingdom willingly.”" },
+
+      { w: "“Rhaid yw trin fy marf cyn fy eillaw. Ni lonydda fyth onis iro â gwaed y Widon Ddu, merch y Widon Wen, o ben Pant Gofid yng nghyffiniau Uffern.”",
+        e: "(18) “My beard must be dressed before I can be shaved. It will never lie still unless it is anointed with the blood of the Black Witch, daughter of the White Witch, from the head of the Valley of Grief on the borders of Hell.”" },
+
+      { w: "“Ni thycia'r gwaed onis ceidw'n wresog; ac ni cheidw llestr ei wres namyn costrelau Gwyddolwyn Gorr, y rhai a geidw'r gwres yn y dwyrain pan dywaller yn y gorllewin. Ac ni cheidw llaeth namyn costrelau Rhynnon Rhin-farf, na thry llaeth byth yn sur ynddunt.”",
+        e: "(19) “The blood is useless unless kept warm; and no vessel keeps its heat save the bottles of Gwyddolwyn the Dwarf, which keep warmth in the east though the liquid is poured in the west. (20) And no vessel keeps milk save the bottles of Rhynnon Stiff-Beard, in which no liquor ever turns sour.”" },
+
+      { w: "“Nid oes grib na gwellau yn y byd a dycia i drin fy ngwallt, mor arw yw, namyn y grib a'r gwellau yssydd rhwng dwy glust Twrch Trwyth mab Taredd Wledig. Ni'i rydd ef o'i fodd, ac ni elli ei orfod.”",
+        e: "(21) “There is no comb and shears in the world that will serve to dress my hair, so stiff it is, save the comb and shears that lie between the two ears of Twrch Trwyth, son of Taredd Wledig. He will not give them up willingly, nor can you force him.”",
+        n: "Here the list folds in on itself: the comb and shears require hunting the great boar Twrch Trwyth — and that single hunt demands a whole nested cascade of further <em>anoethau</em>, the apparatus of dog, leash, collar, chain, huntsman and horse that follows." },
+
+      { w: "“Ni ellir hela Twrch Trwyth onis ceffir Drudwyn, cenau Greid mab Eri.”",
+        e: "(22) “Twrch Trwyth cannot be hunted unless you get Drudwyn, the whelp of Greid son of Eri.”" },
+
+      { w: "“Ni ddeil tennyn yn y byd ef namyn tennyn Cors Cant Ewin. Ac ni ddeil torch y tennyn namyn torch Canhastyr Can Llaw. A chadwyn Cilydd Canhastyr i ddal y dorch ynghyd â'r tennyn.”",
+        e: "(23) “No leash in the world will hold him but the leash of Cors Hundred-Claws. (24) And no collar will hold the leash but the collar of Canhastyr Hundred-Hands. (25) And the chain of Cilydd Hundred-Holds to hold the collar together with the leash.”" },
+
+      { w: "“Nid oes heliwr yn y byd a allo hela â'r ci hwnnw namyn Mabon mab Modron, a ddygwyd yn dair nos oed oddi wrth ei fam; ni wŷs pa le y mae, na pha un ai byw ai marw ef.”",
+        e: "(26) “There is no huntsman in the world who can hunt with that hound save Mabon son of Modron, who was taken from his mother when three nights old; it is not known where he is, nor whether he is alive or dead.”",
+        n: "Mabon (“Divine Son”) son of Modron (“Divine Mother”) is an old Celtic god in disguise; rescuing him is the tale's most mythic sub-quest, and ends with a council of the world's oldest animals." },
+
+      { w: "“Gwyn Mygdwn, march Gweddw, cyn gyflymed â'r don, i ddwyn Mabon i hela Twrch Trwyth; ni'i rydd o'i fodd, ac ni elli ei orfod.”",
+        e: "(27) “Gwyn Dun-Mane, the horse of Gweddw, swift as the wave, to carry Mabon in the hunt of Twrch Trwyth; he will not give it willingly, nor can you compel him.”" },
+
+      { w: "“Ni cheffir Mabon byth, ny wys pa le y mae, onis ceffir Eidoel mab Aer, ei gar, yn gyntaf; o hwnnw y dechreuir y cais.”",
+        e: "(28) “Mabon will never be found, for no one knows where he is, unless his kinsman Eidoel son of Aer is found first; the search must begin from him.”" },
+
+      { w: "“Garselit Wyddel yssydd ben heliwr yn Iwerddon; ni heliir Twrch Trwyth byth hebddo.”",
+        e: "(29) “Garselit the Irishman is the chief huntsman of Ireland; Twrch Trwyth can never be hunted without him.”" },
+
+      { w: "“Tennyn o farf Dillus Farfawg, kanys ni ddeil dim arall y ddau genau, Aned ac Aethlem. Ac ni thycia onis tynnir â gefel bren ac yntau'n fyw; ac ni edy ei ddal yn fyw, a marw ni thycia, kanys breu fydd.”",
+        e: "(30) “A leash made from the beard of Dillus the Bearded, for nothing else will hold the two whelps Aned and Aethlem. And it is no use unless plucked out with wooden tweezers while he is alive; and he will not let himself be taken alive, and dead it is brittle and worthless.”" },
+
+      { w: "“Nid oes heliwr a ddeil y ddau genau hynny namyn Cynedyr Wyllt mab Hetwn Glaif; naw gwaith gwylltach yw ef no'r bwystfil gwylltaf yn y mynydd.”",
+        e: "(31) “There is no huntsman who can hold those two whelps save Cynedyr the Wild, son of Hetwn the Leper; he is nine times wilder than the wildest beast on the mountain.”" },
+
+      { w: "“Ni heliir Twrch Trwyth heb Wyn mab Nudd, y rhoes Duw ynddo ynni ellyllon Annwn rhag difa'r byd; ni'i harbedir oddi yno. Ac nid oes farch a'i dyco i hela Twrch Trwyth namyn Du, march Mor o Oerfeddawg.”",
+        e: "(32) “Twrch Trwyth cannot be hunted without Gwyn son of Nudd, into whom God put the fury of the demons of Annwn, lest the world be destroyed; he cannot be spared from there. (33) And there is no horse to carry Gwyn to that hunt save Du, the horse of Mor of Oerfeddawg.”",
+        n: "Gwyn ap Nudd is the lord of Annwn, the Welsh Otherworld, and king of the fair folk — the deepest this tale reaches into the <a data-wiki=\"fae-thread\">fae</a> world." },
+
+      { w: "“Hyd pan ddêl Gilennhin, brenin Ffrainc, ni heliir Twrch Trwyth fyth. A heb fab Alun Dyfed ni heliir ef, kanys gollyngwr da yw. A heb Aned ac Aethlem, dau gi cyn gyflymed â'r gwynt, ni ollyngwyd eirioed ar fwystfil nas lladdent, ni heliir Twrch Trwyth byth.”",
+        e: "(34) “Until Gilennhin king of France comes, Twrch Trwyth will never be hunted. (35) And without the son of Alun Dyfed it cannot be done, for he is a good unleasher of hounds. (36) And without Aned and Aethlem — two dogs as swift as the wind, never loosed on a beast they did not kill — Twrch Trwyth will never be hunted.”" },
+
+      { w: "“Arthur a'i helwyr i hela Twrch Trwyth; gŵr nerthol yw ef, ac ni ddaw gyd â thi o'i fodd, ac ni elli ei orfod. A Bwlch a Chyfwlch a Sefwlch, wyrion Cleddyf Cyfwlch, ni heliir Twrch Trwyth hebddunt.”",
+        e: "(37) “Arthur and his huntsmen to hunt Twrch Trwyth; he is a mighty man, and he will not come at your bidding, nor can you force him. (38) And Bwlch, Cyfwlch and Sefwlch, the grandsons of Cleddyf Cyfwlch, without whom Twrch Trwyth cannot be hunted.”",
+        n: "The grandsons of Cleddyf Cyfwlch arrive, in the full Welsh, with a dizzying alliterative cascade of three-of-everything — three shields, three spears, three hounds, three wives — a comic verbal aria the storyteller plainly relished." },
+
+      { w: "“Cleddyf Wrnach Gawr; ni ellir ei ladd ef byth namyn ag ef. Ni'i rydd ef i neb, na thros werth na thros gymwynas, ac ni elli ei orfod.”",
+        e: "(39) “The sword of Wrnach the Giant — for he can be slain by no weapon but his own. He will give it to no one, neither for price nor for favour, and you cannot force him.”" },
+
+      { w: "“Anhawdderau a gei, a nosweithiau heb gysgu, yn ceisaw hyn; ac nis ceffy, ac ni cheffy fy merch.” “Meirch a gaf i, a marchogaeth; a'm harglwydd a'm car, Arthur, a gaiff i mi yr holl bethau hyn. Ac mi a gaf dy ferch, a thithau a golli dy einioes.”",
+        e: "(40) “Hardships you shall meet, and nights without sleep, in seeking these things; and you will not get them, and you will not get my daughter.” “Horses I shall have, and horsemanship; and my lord and kinsman Arthur will win me all these things. And I shall have your daughter — and you shall lose your life.”",
+        n: "Culhwch answers every impossibility the same way: <em>Arthur will get it for me.</em> The whole back half of the tale is the making-good on that boast — exactly the movements still unfilled on the progress bar." },
     ],
    },
   ],
