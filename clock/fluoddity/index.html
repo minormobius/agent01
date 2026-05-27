@@ -1417,8 +1417,15 @@ function buildText(link){
 // `name` must be a bare record-key token — no spaces — so we keep it
 // alphanumeric.
 async function tryVideoEmbed(user, blob){
+  // getServiceAuth's aud must be the user's OWN PDS DID, and lxm must be
+  // com.atproto.repo.uploadBlob — the video service uses this token to upload
+  // the blob to the user's PDS on their behalf. (aud=did:web:video.bsky.app +
+  // lxm=uploadVideo gets rejected as an invalid token.)
+  const pdsUrl = await resolvePds(user.did);
+  if (!pdsUrl) throw new Error('could not resolve your PDS');
+  const aud = 'did:web:' + new URL(pdsUrl).host;
   const exp = Math.floor(Date.now()/1000) + 30*60;
-  const sa = await auth.request(`/pds/server/getServiceAuth?aud=${encodeURIComponent('did:web:video.bsky.app')}&lxm=app.bsky.video.uploadVideo&exp=${exp}`);
+  const sa = await auth.request(`/pds/server/getServiceAuth?aud=${encodeURIComponent(aud)}&lxm=com.atproto.repo.uploadBlob&exp=${exp}`);
   if (!sa.ok) throw new Error(`getServiceAuth ${sa.status}: ${(await sa.text().catch(()=>'')).slice(0,140)}`);
   const { token } = await sa.json();
   if (!token) throw new Error('no service token returned');
