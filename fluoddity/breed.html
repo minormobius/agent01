@@ -144,7 +144,17 @@ function mutate(cfg, rate) {
   if (Math.random() < 0.06) c.initial_conditions = (Math.random() * 3) | 0;
   return c;
 }
-function seedConfig() { const c = defaultConfig(); c.rule_seed = Math.random(); return c; }
+// An organism handed in from the playground / gallery as #c=<base64url(JSON)>:
+// gen 0 is seeded from it (one exact copy + gentle mutations) so you breed its
+// lineage rather than starting from random noise.
+function incomingSeed() {
+  const m = location.hash.match(/(?:^#|&)c=([^&]+)/);
+  if (!m) return null;
+  try { return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); }
+  catch { return null; }
+}
+const SEED = incomingSeed();
+function seedConfig(from) { const c = from ? Object.assign(defaultConfig(), from) : defaultConfig(); if (!from) c.rule_seed = Math.random(); return c; }
 
 // ── state ─────────────────────────────────────────────────────────────────────
 const knobs = { tau: 0.25, lambda: 0.4, mu: 0.3, mutRate: 1.0, popSize: 12 };
@@ -193,10 +203,13 @@ function selectParents(n) {
   return out;
 }
 
-async function seed() {
+async function seed(from = null) {
   pop = []; allNodes = []; nodeById.clear(); archive = []; momentum = [0, 0, 0, 0]; momMag = 0; prevGenMean = null; generation = 0; nextId = 1;
   const N = knobs.popSize;
-  for (let i = 0; i < N; i++) pop.push({ id: nextId++, config: mutate(seedConfig(), 1.5), parent: null, gen: 0 });
+  for (let i = 0; i < N; i++) {
+    const cfg = (from && i === 0) ? seedConfig(from) : mutate(seedConfig(from), from ? 0.6 : 1.5);
+    pop.push({ id: nextId++, config: cfg, parent: null, gen: 0 });
+  }
   for (const ind of pop) { await evalInd(ind); allNodes.push(ind); nodeById.set(ind.id, ind); await raf(); }
   drawPop(); drawMap(); updateHud();
 }
@@ -281,7 +294,10 @@ runBtn.addEventListener('click', () => { if (running) { running = false; runBtn.
 $('#btn-step').addEventListener('click', async () => { if (running || busy) return; busy = true; if (!pop.length) await seed(); else await nextGen(); busy = false; });
 $('#btn-seed').addEventListener('click', async () => { running = false; runBtn.textContent = 'run'; runBtn.classList.add('primary'); if (busy) return; busy = true; await seed(); busy = false; });
 
-(async function main() { busy = true; await seed(); busy = false; })();
+(async function main() {
+  if (SEED) { const ml = $('#maplabel'); if (ml) ml.textContent = 'phenotype phase space · seeded from your organism'; }
+  busy = true; await seed(SEED); busy = false;
+})();
 </script>
 </body>
 </html>

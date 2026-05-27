@@ -189,6 +189,7 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
   <span class="title"><b>fluoddity</b> · playground</span>
   <span class="spacer"></span>
   <a class="iconbtn" href="../gallery.html" style="text-decoration:none;">gallery →</a>
+  <a class="iconbtn" id="btn-breed" href="../breed.html" style="text-decoration:none;">breed →</a>
   <button class="iconbtn" id="btn-draw" title="Toggle trail-draw mode">draw: off</button>
   <button class="iconbtn" id="btn-toggle">hide panel</button>
   <button class="iconbtn" id="btn-about">?</button>
@@ -1684,6 +1685,15 @@ function refreshValues(){
 }
 setInterval(refreshValues, 250);
 refreshValues();
+// Carry the current organism into the breeder as #c=<base64url(JSON)> so gen 0
+// is seeded from it. Falls back to the plain href if there's no live config.
+$('btn-breed')?.addEventListener('click', (e) => {
+  const c = window.Fluoddity?.getConfig?.();
+  if (!c) return;
+  e.preventDefault();
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  location.href = '../breed.html#c=' + b64;
+});
 $('btn-copy-cfg')?.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(JSON.stringify(window.Fluoddity.getConfig(), null, 2));

@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>fluoddity — living organisms on atproto</title>
 <meta name="description" content="Fluoddity: breed, browse, and map emergent vector-trail organisms. Each is a deterministic genome saved as an ATProto record on your own Bluesky account; fork one and it grows a new branch of the tree.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/">
+<meta property="og:title" content="fluoddity — living organisms on atproto">
+<meta property="og:description" content="Breed, browse, and map emergent vector-trail organisms. Each is a deterministic genome saved as an ATProto record on your own Bluesky account; fork one and it grows a new branch of the tree.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="fluoddity — living organisms on atproto">
+<meta name="twitter:description" content="Breed, browse, and map emergent vector-trail organisms on ATProto.">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
 <style>
 :root {
   --bg: #050608; --panel-solid: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
@@ -21,7 +32,11 @@ a { color: var(--accent); text-decoration: none; }
 #hero h1 { margin: 0; font-size: clamp(34px, 7vw, 72px); letter-spacing: -0.02em; font-weight: 700; }
 #hero h1 b { color: var(--accent); font-weight: 700; }
 #hero p { margin: 8px 0 0; color: var(--muted); font-size: 13px; max-width: 60ch; line-height: 1.6; }
-#hero .shuffle { position: absolute; top: 14px; right: 16px; font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px; pointer-events: none; }
+#hero .herobar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; pointer-events: none; }
+#hero .shuffle { font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px; }
+#hero .openbtn { pointer-events: auto; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; color: #04110e; background: var(--accent); border: 0; border-radius: 8px; padding: 7px 13px; transition: transform 0.1s, box-shadow 0.15s; box-shadow: 0 2px 14px rgba(56,225,192,0.35); }
+#hero .openbtn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(56,225,192,0.5); }
+#hero .openbtn:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
 
 #cards { display: grid; gap: 14px; padding: 22px; max-width: 1100px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .card { display: block; background: var(--panel-solid); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; transition: border-color 0.15s, transform 0.1s; }
@@ -51,7 +66,10 @@ footer a:hover { color: var(--accent); }
 <div id="hero">
   <canvas id="herocv"></canvas>
   <div class="veil"></div>
-  <div class="shuffle" id="shuffle">click for another organism</div>
+  <div class="herobar">
+    <span class="shuffle" id="shuffle">click anywhere for another organism</span>
+    <button class="openbtn" id="open-play" type="button">open this in playground →</button>
+  </div>
   <div class="head">
     <h1><b>fluoddity</b></h1>
     <p>Emergent vector-trail organisms. Each one is a deterministic genome saved as an ATProto record on your own Bluesky account — fork it and it grows a new branch of the tree.</p>
@@ -154,14 +172,25 @@ function blit() {
   const dw = s * scale, dh = s * scale;
   ctx.drawImage(src, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
 }
+// Same base64url(JSON) format the playground decodes from #c= and the breeder emits.
+function encodeConfig(c) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+const openBtn = document.getElementById('open-play');
+openBtn.disabled = true;
+openBtn.addEventListener('click', (e) => {
+  e.stopPropagation(); // don't also reshuffle the hero
+  if (current) location.href = './play/#c=' + encodeConfig(current);
+});
+
 async function loop() {
   if (!engine) return;
-  if (!current) { current = await pickLively(); engine.load(current, 'hero'); }
+  if (!current) { current = await pickLively(); engine.load(current, 'hero'); openBtn.disabled = false; }
   engine.step(6); engine.render(); blit();
   requestAnimationFrame(loop);
 }
-document.getElementById('hero').addEventListener('click', async () => { if (engine) { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
-if (engine) requestAnimationFrame(loop);
+document.getElementById('hero').addEventListener('click', async () => { if (engine) { openBtn.disabled = true; current = await pickLively(); engine.load(current, 'hero' + Math.random()); openBtn.disabled = false; } });
+if (engine) { requestAnimationFrame(loop); } else { openBtn.style.display = 'none'; }
 </script>
 </body>
 </html>
