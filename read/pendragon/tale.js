@@ -189,5 +189,40 @@ window.PENDRAGON.tale = {
         n: "Custennin is the giant's own wronged brother — and, as the company will soon learn, Culhwch's uncle by marriage. His warning marks the threshold: from here the tale turns from court-comedy to ordeal." },
     ],
    },
+   {
+    title: "V. The herdsman's house, and the hidden son",
+    segments: [
+      { w: "Rhoi a oruc Culhwch iddo fodrwy eur. Ceisaw a wnaeth y bugail ei gwisgo, ac ni mynnai am ei fys. A'i dodi a oruc yng nghymal ei faneg, a mynd adref, a rhoi y faneg i'w wraig i'w chadw.",
+        e: "Culhwch gave him a gold ring. The herdsman tried to put it on, but it would not go onto his finger. So he set it in the finger of his glove, went home, and gave the glove to his wife to keep." },
+
+      { w: "Tynnu y fodrwy o'r faneg a oruc hi. “Y ŵr,” heb hi, “o ble y daeth y fodrwy hon it? Nid hawdd it gaffel tlws.” “Mi a euthum,” heb ef, “i lan y môr i geisaw bwyd môr; ac wele, gwelais gorff yn dyfod gyd â'r llanw.”",
+        e: "She drew the ring out of the glove. “Husband,” she said, “where did this ring come to you from? It is not often you come by a jewel.” “I went,” said he, “to the shore to look for sea-food; and behold, I saw a body come in on the tide.”" },
+
+      { w: "“Ni welais eirioed gorff degach; ac ar ei fys y kefais y fodrwy hon.” “Y ŵr, gan nad yw'r môr yn goddef tlws gŵr marw ynddo, dangos i mi y corff hwnnw.” “Y wraig, yr hwn bieu y corff hwnnw, ti a'i gwely yma yn ebrwydd.”",
+        e: "“I never saw a fairer body; and on its finger I found this ring.” “Husband — since the sea will not suffer a dead man's jewel to stay in it, show me that body.” “Wife, the man whose body that is, you shall see him here before long.”" },
+
+      { w: "“Pwy yw hwnnw?” “Culhwch mab Cilydd mab Celyddon Wledig, o Oleuddydd ferch Anlawdd Wledig, a ddoeth i geisaw Olwen.” Deuddryd fu arni: llawen am ddyfod ei nai, mab ei chwaer, atti; a thrist, kanys ni welsai hi neb a ddêl i ofyn hynny a ddianghai â'i einioes.",
+        e: "“Who is that?” “Culhwch son of Cilydd son of Celyddon Wledig, by Goleuddydd daughter of Anlawdd Wledig — come to seek Olwen.” She was of two minds: glad that her nephew, her sister's son, was coming to her; and grieved, for she had never seen anyone come on that errand who escaped with his life.",
+        n: "So Custennin's wife is Culhwch's aunt — his dead mother's sister. The questers have walked, all unknowing, straight into kin." },
+
+      { w: "Tu a drws llys y bugail y kerddasant. Clywed eu dyfod a oruc hi, a rhedeg o lawenydd i'w cyfarfod. Cipiaw a oruc Cai esgyrnbren o'r pentwr; a phan ddoeth hi i'w cyfarfod i'w cofleidio, dodi a oruc Cai y pren rhwng ei dwy law.",
+        e: "They went toward the door of the herdsman's house. She heard them coming, and ran out for joy to meet them. Cei snatched a billet of wood from the pile; and when she came to embrace them, Cei thrust the log between her two hands." },
+
+      { w: "Gwasgu a oruc hi y pren hyd nad oedd namyn gwden droellog. “Y wraig,” heb Cai, “pei myfi a wasgesit fal hyn, ni byddai raid i neb fyth fy ngharu mwy. Cas serch fu hwnnw.”",
+        e: "She squeezed the log until it was nothing but a twisted withe. “Woman,” said Cei, “had you squeezed me like that, there would be no need for anyone ever to love me again. That was an ill sort of love.”",
+        n: "The bone-crushing welcome is played for comedy — and as a hint of the giant's blood running in the family." },
+
+      { w: "I'r tŷ y doethant, a chael gwasanaeth. Ymhen ennyd, agori a oruc y wraig gist faen yn ymyl yr aelwyd, ac o honi y kyfodes mab a gwallt melyn crych iddo.",
+        e: "They came into the house and were served. After a while the woman opened a stone chest beside the hearth, and out of it rose a youth with curling yellow hair." },
+
+      { w: "Heb Gwrhyr: “Tru yw cuddiaw mab fal hwn. Mi a wn nad ei fai ei hun a ddielir arno.” “Hwn yw'r unig fab a erys i mi,” heb hi. “Lladdes Ysbaddaden Bencawr dri ar hugain o'm meibion, ac nid mwy fy ngobaith am hwn nag am y rhai eraill.” Heb Cai: “Caffed ef fy nghydymdeithas i, ac ni'n lleddir namyn ynghyd.”",
+        e: "Said Gwrhyr: “It is a pity to hide a lad like this away. I am sure it is no fault of his own that is being avenged on him.” “This is the one son left to me,” she said. “Ysbaddaden Bencawr has killed twenty-three of my sons, and I have no more hope for this one than for the rest.” Said Cei: “Let him keep company with me, and we shall not be killed except together.”",
+        n: "The hidden boy is Goreu son of Custennin — kept safe here because, the tale will reveal, he is the one destined to take Ysbaddaden's head at the very end." },
+
+      { w: "Bwyta ac yfed a wnaethant. Gofyn a oruc y wraig pa neges oedd eu dyfod. “Ceisaw Olwen yd ŷm.” “Yr Duw, gan nad ymddangosodd neb o'r gaer i chwi etwa, trowch yn ôl.” “Na wnawn; ni a fynnwn ei gweled.”",
+        e: "They ate and drank. The woman asked what errand had brought them. “We are seeking Olwen.” “For God's sake — since no one from the fort has seen you yet, turn back.” “We will not; we mean to see her.”",
+        n: "Olwen, the woman tells them, comes to this very house every Saturday to wash her hair — the opening the questers have been waiting for." },
+    ],
+   },
   ],
 };
