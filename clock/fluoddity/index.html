@@ -1389,7 +1389,10 @@ $('btn-download')?.addEventListener('click', () => {
 });
 
 // ── post to Bluesky ──────────────────────────────────────────────────────────
-function canPost(u){ const s = (u && u.scope) || ''; return s.includes('transition:generic') || s.includes('app.bsky.feed.post'); }
+// Require transition:generic specifically — it's the scope that actually
+// authorizes getServiceAuth for the video service. A stale granular session
+// (feed.post but no transition:generic) re-auths instead of 403-ing.
+function canPost(u){ return (((u && u.scope) || '').includes('transition:generic')); }
 
 function aspectOf(){
   const c = window.Fluoddity.canvas;
