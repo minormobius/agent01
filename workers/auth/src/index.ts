@@ -334,6 +334,9 @@ async function handlePdsProxy(
     '/pds/repo/listRecords':   { xrpc: 'com.atproto.repo.listRecords', method: 'GET', needsAuth: true },
     '/pds/repo/uploadBlob':    { xrpc: 'com.atproto.repo.uploadBlob', method: 'POST', needsAuth: true },
     '/pds/sync/getBlob':       { xrpc: 'com.atproto.sync.getBlob', method: 'GET', needsAuth: true },
+    // Mints a short-lived service-auth JWT (e.g. aud=did:web:video.bsky.app)
+    // so the browser can talk to the Bluesky video service for video posts.
+    '/pds/server/getServiceAuth': { xrpc: 'com.atproto.server.getServiceAuth', method: 'GET', needsAuth: true },
   };
 
   const route = proxyRoutes[path];

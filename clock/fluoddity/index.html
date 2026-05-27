@@ -82,14 +82,15 @@ canvas#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
 .btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-select, .seg, input[type=text] {
+select, .seg, input[type=text], textarea {
   background: var(--panel-solid); color: var(--fg); border: 1px solid var(--rule);
   border-radius: 7px; padding: 6px 8px; font-family: var(--mono); font-size: 11px;
   width: 100%;
 }
 input[type=text] { min-width: 0; }
-input[type=text]:focus { outline: none; border-color: var(--accent); }
+input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
 input[type=text][readonly] { color: var(--accent); }
+textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; }
 .seg { display: flex; gap: 4px; padding: 4px; }
 .seg button {
   flex: 1; background: transparent; border: none; color: var(--muted);
@@ -195,6 +196,21 @@ input[type=text][readonly] { color: var(--accent); }
         <button class="btn" id="btn-copy" style="flex:0 0 auto;">copy</button>
       </div>
     </div>
+  </div>
+
+  <div class="group" id="capture-group">
+    <h3>capture · video</h3>
+    <div class="row"><label>clip length</label><input type="range" id="clip-secs" min="2" max="20" step="1" value="6"><span class="val" id="clip-secs-v">6s</span></div>
+    <div class="btnrow">
+      <button class="btn" id="btn-record">● record clip</button>
+    </div>
+    <video id="clip-preview" style="display:none; width:100%; border-radius:8px; margin:6px 0; background:#000;" controls loop muted playsinline></video>
+    <div class="btnrow" id="clip-actions" style="display:none;">
+      <button class="btn" id="btn-download">download</button>
+      <button class="btn primary" id="btn-post">post to bluesky →</button>
+    </div>
+    <textarea id="post-text" placeholder="say something about this organism…" spellcheck="true" style="display:none;"></textarea>
+    <div id="capture-out" class="hint"></div>
   </div>
 
   <div class="group">
@@ -856,11 +872,21 @@ let paused = false;
 let lastFpsT = performance.now(), fpsFrames = 0;
 const fpsEl = document.getElementById('fps');
 
+// Pending still-frame grab: resolved with a Blob from inside the render loop,
+// right after display() while the backbuffer still holds the frame (works
+// without preserveDrawingBuffer).
+let _grab = null;
+
 function frame(){
   if(!paused && sim){
     for(let i=0;i<cfg.substeps;i++) step();
   }
   if(sim){ clearScreen(); display(); }
+
+  if(_grab){
+    const done = _grab; _grab = null;
+    canvas.toBlob((b) => done(b), 'image/jpeg', 0.92);
+  }
 
   fpsFrames++;
   const now = performance.now();
@@ -1007,7 +1033,10 @@ window.addEventListener('pointerup', () => { draw.active = false; });
 // Public API for the ATProto share layer (separate module script below).
 const CONFIG_KEYS = Object.keys(defaultConfig());
 window.Fluoddity = {
+  canvas,
   getConfig(){ const o = {}; for(const k of CONFIG_KEYS) o[k] = cfg[k]; return o; },
+  // Grab the next rendered frame as a JPEG Blob.
+  grabFrame(){ return new Promise((res) => { _grab = res; }); },
   applyConfig(saved){
     if(!saved || typeof saved !== 'object') return;
     const next = defaultConfig();
@@ -1186,6 +1215,181 @@ async function loadShared(){
     status(e.message || 'could not load shared organism', 'err');
   }
 }
+
+// ── video capture (MediaRecorder, realtime) ─────────────────────────────────
+const recBtn = $('btn-record');
+const clipSecs = $('clip-secs'), clipSecsV = $('clip-secs-v');
+const preview = $('clip-preview'), clipActions = $('clip-actions'), postText = $('post-text');
+const cout = $('capture-out');
+let clipBlob = null, recording = false;
+
+function cstatus(msg, kind){
+  cout.innerHTML = msg;
+  cout.style.color = kind === 'err' ? '#ff6b6b' : kind === 'ok' ? 'var(--accent)' : 'var(--muted)';
+}
+
+clipSecs?.addEventListener('input', () => { clipSecsV.textContent = clipSecs.value + 's'; clipSecs.blur(); });
+
+function pickMime(){
+  const opts = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  for (const m of opts) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+
+function recordClip(){
+  if (recording) return;
+  const glCanvas = window.Fluoddity?.canvas;
+  if (!glCanvas || !glCanvas.captureStream) { cstatus('recording not supported in this browser', 'err'); return; }
+  const secs = parseInt(clipSecs.value, 10);
+  const mime = pickMime();
+  let rec;
+  try {
+    rec = new MediaRecorder(glCanvas.captureStream(30), mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : {});
+  } catch { cstatus('recording not supported in this browser', 'err'); return; }
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    recording = false; recBtn.disabled = false; recBtn.textContent = '● record clip';
+    clipBlob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+    const url = URL.createObjectURL(clipBlob);
+    preview.src = url; preview.style.display = ''; preview.play().catch(() => {});
+    clipActions.style.display = ''; postText.style.display = '';
+    cstatus(`clip ready · ${(clipBlob.size/1e6).toFixed(1)} MB · ${clipBlob.type}`, 'ok');
+  };
+  recording = true; recBtn.disabled = true;
+  rec.start();
+  let left = secs;
+  recBtn.textContent = `● recording ${left}s`;
+  const iv = setInterval(() => { left--; if (left > 0) recBtn.textContent = `● recording ${left}s`; }, 1000);
+  setTimeout(() => { clearInterval(iv); try { rec.stop(); } catch {} }, secs * 1000);
+}
+recBtn?.addEventListener('click', recordClip);
+
+$('btn-download')?.addEventListener('click', () => {
+  if (!clipBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(clipBlob);
+  a.download = `fluoddity-${Date.now()}.${clipBlob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+// ── post to Bluesky ──────────────────────────────────────────────────────────
+// Narrow-as-the-granular-system-allows posting scope. Posting genuinely needs
+// to create feed posts + upload media + drive the video service, so it's
+// broader than the save scope — but still enumerated, not transition:generic.
+const POST_SCOPE = [
+  'atproto', 'repo:' + COLLECTION, 'repo:app.bsky.feed.post',
+  'blob:image/*', 'blob:video/*',
+  'rpc:app.bsky.video.getUploadLimits', 'rpc:app.bsky.video.uploadVideo',
+  'rpc:app.bsky.video.getJobStatus', 'rpc:com.atproto.server.getServiceAuth',
+].join(' ');
+
+function canPost(u){ const s = (u && u.scope) || ''; return s.includes('transition:generic') || s.includes('app.bsky.feed.post'); }
+
+function aspectOf(){
+  const c = window.Fluoddity.canvas;
+  return { width: c.width || 1, height: c.height || 1 };
+}
+
+function buildText(link){
+  const enc = new TextEncoder();
+  let body = (postText.value || '').trim() || 'A living Fluoddity organism — vector-trail slime, tuned by hand.';
+  const label = '▶ open in fluoddity';
+  const text = body + '\n\n' + label;
+  const byteStart = enc.encode(body + '\n\n').length;
+  const byteEnd = enc.encode(text).length;
+  return {
+    text,
+    facets: [{ index: { byteStart, byteEnd }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: link }] }],
+  };
+}
+
+// Full Bluesky video-service flow. Returns an embed.video, or null on any
+// failure (e.g. the auth worker hasn't shipped the getServiceAuth route yet),
+// so the caller can fall back to a still image.
+async function tryVideoEmbed(user, blob){
+  const exp = Math.floor(Date.now()/1000) + 30*60;
+  const sa = await auth.request(`/pds/server/getServiceAuth?aud=${encodeURIComponent('did:web:video.bsky.app')}&lxm=app.bsky.video.uploadVideo&exp=${exp}`);
+  if (!sa.ok) return null;
+  const { token } = await sa.json();
+  if (!token) return null;
+
+  cstatus('uploading video…');
+  const name = `fluoddity-${Date.now()}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+  const up = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.uploadVideo?did=${encodeURIComponent(user.did)}&name=${encodeURIComponent(name)}`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'video/mp4' }, body: blob,
+  });
+  if (!up.ok) return null;
+  let j = await up.json();
+  let st = j.jobStatus || j;
+  let blobRef = st.blob, jobId = st.jobId || j.jobId;
+  const deadline = Date.now() + 120000;
+  while (!blobRef && jobId && Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 2000));
+    const js = await fetch(`https://video.bsky.app/xrpc/app.bsky.video.getJobStatus?jobId=${encodeURIComponent(jobId)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!js.ok) break;
+    st = (await js.json()).jobStatus || {};
+    if (st.state === 'JOB_STATE_FAILED') return null;
+    if (st.blob) blobRef = st.blob;
+    else cstatus(`processing video… ${st.progress || 0}%`);
+  }
+  if (!blobRef) return null;
+  return { $type: 'app.bsky.embed.video', video: blobRef, aspectRatio: aspectOf() };
+}
+
+async function ensureOrgLink(cfg){
+  if (linkInput.value) return linkInput.value;
+  try {
+    const sr = await auth.pds.createRecord(COLLECTION, {
+      name: (nameInput.value || '').trim() || 'untitled organism',
+      schemaVersion: 1, config: cfg, createdAt: new Date().toISOString(),
+    });
+    const p = parseAtUri(sr.uri);
+    const link = `${location.origin}${location.pathname}?o=${p.did}/${p.rkey}`;
+    linkInput.value = link; linkBox.style.display = '';
+    return link;
+  } catch { return 'https://g.mino.mobi/fluoddity'; }
+}
+
+const postBtn = $('btn-post');
+postBtn?.addEventListener('click', async () => {
+  if (!auth) { cstatus('posting needs the deployed site', 'err'); return; }
+  const user = auth.getUser();
+  if (!user) { cstatus('sign in above first, then post', 'err'); return; }
+  if (!canPost(user)) {
+    cstatus('authorizing posting permission…');
+    try { await auth.login(user.handle, { scope: POST_SCOPE }); }
+    catch (e) { cstatus(e.message || 'authorization failed', 'err'); }
+    return;
+  }
+  postBtn.disabled = true;
+  try {
+    const cfg = window.Fluoddity.getConfig();
+    const link = await ensureOrgLink(cfg);
+
+    let embed = null;
+    if (clipBlob) { try { embed = await tryVideoEmbed(user, clipBlob); } catch (e) { console.warn('video embed failed:', e); } }
+    if (!embed) {
+      cstatus(clipBlob ? 'video service unavailable — posting a still frame instead…' : 'capturing still frame…');
+      const still = await window.Fluoddity.grabFrame();
+      const img = await auth.pds.uploadBlob(await still.arrayBuffer(), still.type || 'image/jpeg');
+      embed = { $type: 'app.bsky.embed.images', images: [{ alt: 'A Fluoddity organism: ' + ((nameInput.value || '').trim() || 'vector-trail slime'), image: img, aspectRatio: aspectOf() }] };
+    }
+
+    const t = buildText(link);
+    const res = await auth.pds.createRecord('app.bsky.feed.post', {
+      $type: 'app.bsky.feed.post', text: t.text, facets: t.facets, embed, langs: ['en'], createdAt: new Date().toISOString(),
+    });
+    const { rkey } = parseAtUri(res.uri);
+    const purl = `https://bsky.app/profile/${user.handle}/post/${rkey}`;
+    const kind = embed.$type === 'app.bsky.embed.video' ? 'video' : 'still';
+    cstatus(`posted (${kind})! <a href="${purl}" target="_blank" rel="noopener" style="color:var(--accent)">view on bluesky →</a>`, 'ok');
+  } catch (e) {
+    cstatus(e.message || 'post failed', 'err');
+  } finally {
+    postBtn.disabled = false;
+  }
+});
 
 if (auth) await auth.init();   // consumes ?__auth_session after OAuth redirect
 await loadShared();            // ?o=did/rkey loads a shared organism
