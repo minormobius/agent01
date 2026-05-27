@@ -426,8 +426,45 @@
     });
   }
 
+  /* ====================== CULHWCH (reading text) ====================== */
+  function renderTale() {
+    const t = P.tale; if (!t) return;
+    const meta = $("#tale-meta"); meta.innerHTML = "";
+    meta.appendChild(el("div", "tale-blurb", t.meta.blurb));
+    if (t.meta.sources) {
+      const sr = el("div", "srclinks");
+      t.meta.sources.forEach((s) => {
+        const a = el("a", "srclink"); a.href = s.url; a.target = "_blank"; a.rel = "noopener";
+        a.innerHTML = `${escapeHtml(s.label)} <span class="host">${escapeHtml(s.host)}</span>`;
+        sr.appendChild(a);
+      });
+      meta.appendChild(sr);
+    }
+    const body = $("#tale-body");
+    const ctr = $("#tale-controls"); ctr.innerHTML = "";
+    [["parallel", "Parallel"], ["english", "English only"], ["welsh", "Welsh only"]].forEach(([m, label], i) => {
+      const b = el("button", "tale-mode" + (i === 0 ? " active" : ""), label);
+      b.onclick = () => { body.className = "tale-body " + m; [...ctr.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); };
+      ctr.appendChild(b);
+    });
+    $("#tale-passage-title").textContent = t.passage.title;
+    body.innerHTML = "";
+    t.passage.segments.forEach((seg) => {
+      const row = el("div", "tale-seg");
+      row.appendChild(el("div", "seg-w", seg.w));
+      row.appendChild(el("div", "seg-e", seg.e));
+      if (seg.n) row.appendChild(el("div", "seg-n", seg.n));
+      body.appendChild(row);
+    });
+    // notes/blurb cross-links into the wiki
+    $("#view-culhwch").addEventListener("click", (ev) => {
+      const a = ev.target.closest("a[data-wiki]");
+      if (a) { ev.preventDefault(); openWiki(a.getAttribute("data-wiki")); }
+    });
+  }
+
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["timeline", "inworld", "tree", "wiki", "fae", "papers"];
+  const VIEWS = ["timeline", "inworld", "tree", "wiki", "fae", "culhwch", "papers"];
   let treeDrawn = false, inworldDrawn = false, current = "timeline";
   function switchView(v) {
     current = v;
@@ -451,6 +488,7 @@
   renderWiki();
   renderFae();
   renderPapers();
+  renderTale();
 
   // hash routing: #view  or  #wiki/<entryId>
   const h = location.hash.slice(1);

@@ -24,6 +24,7 @@
         <button class="tab" data-view="tree">Evolutionary tree</button>
         <button class="tab" data-view="wiki">Wiki</button>
         <button class="tab" data-view="fae">The fae angle</button>
+        <button class="tab" data-view="culhwch">Culhwch</button>
         <button class="tab" data-view="papers">Papers</button>
       </nav>
     </div>
@@ -86,6 +87,15 @@
       <div id="fae-sections"></div>
     </section>
 
+    <!-- CULHWCH AC OLWEN (reading text) -->
+    <section class="view" id="view-culhwch">
+      <div class="hero"><h1>Culhwch ac Olwen</h1><p>The oldest Arthurian tale — an original translation, side-by-side with the Middle Welsh. Pilot: the opening passage.</p></div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <h2 class="section" id="tale-passage-title"></h2>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
     <!-- PAPERS -->
     <section class="view" id="view-papers">
       <div class="hero"><h1>Papers &amp; primary sources</h1><p>Where to read the texts themselves, and the scholarship that argues over them. Links go to stable archives and reference gateways.</p></div>
@@ -100,6 +110,7 @@
   </footer>
 
   <script src="data.js"></script>
+  <script src="tale.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

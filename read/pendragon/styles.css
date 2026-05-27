@@ -216,6 +216,42 @@ svg.tree { display: block; }
 .paper .note { font-family: var(--sans); font-size: 13.5px; color: var(--ink-faint); margin-top: 3px; }
 .paper .note a { color: var(--gold-soft); }
 
+/* ── Culhwch reading text ── */
+.tale-meta { margin: 16px 0 4px; }
+.tale-blurb {
+  color: var(--ink-dim); max-width: 80ch; font-size: 15px; line-height: 1.55;
+  background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold);
+  border-radius: 8px; padding: 13px 16px; margin-bottom: 10px;
+}
+.tale-blurb strong { color: var(--gold-soft); }
+.tale-controls { display: flex; gap: 6px; margin: 16px 0 4px; font-family: var(--sans); flex-wrap: wrap; }
+.tale-mode {
+  font-size: 12px; padding: 5px 13px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim);
+}
+.tale-mode.active { background: var(--gold); color: var(--bg); border-color: var(--gold); font-weight: 600; }
+.tale-body { margin-top: 10px; }
+.tale-seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px 30px;
+  padding: 16px 0; border-bottom: 1px solid var(--line); align-items: start;
+}
+.seg-w { font-family: var(--serif); color: var(--ink-dim); font-style: italic; line-height: 1.75; }
+.seg-e { font-family: var(--serif); color: var(--ink); line-height: 1.75; }
+.seg-n {
+  grid-column: 1 / -1; font-family: var(--sans); font-size: 13px; color: var(--ink-faint);
+  border-left: 2px solid var(--line); padding-left: 13px; margin-top: 2px; line-height: 1.5;
+}
+.seg-n a, .tale-blurb a { color: var(--gold-soft); cursor: pointer; }
+.tale-body.english .seg-w { display: none; }
+.tale-body.english .tale-seg { grid-template-columns: 1fr; }
+.tale-body.welsh .seg-e { display: none; }
+.tale-body.welsh .tale-seg { grid-template-columns: 1fr; }
+.tale-body.welsh .seg-w { font-style: normal; color: var(--ink); }
+@media (max-width: 640px) {
+  .tale-body.parallel .tale-seg { grid-template-columns: 1fr; gap: 8px; }
+  .tale-body.parallel .seg-w { padding-bottom: 8px; border-bottom: 1px dotted var(--line); }
+}
+
 footer.foot {
   max-width: var(--maxw); margin: 0 auto; padding: 30px 18px 50px;
   border-top: 1px solid var(--line); font-family: var(--sans);
