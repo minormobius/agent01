@@ -45,6 +45,7 @@ h3:first-child { margin-top: 0; }
   <a class="crumb" href="./gallery.html">← gallery</a>
   <span class="title"><b>fluoddity</b> phylogeny &amp; phase space</span>
   <span class="spacer"></span>
+  <span id="auth"></span>
   <a class="pill" href="./play/">+ new organism</a>
 </div>
 <div id="status">measuring the menagerie…</div>
@@ -170,5 +171,6 @@ function renderSide(ph, scored) {
   statusEl.textContent = `${ph.N} organisms · ${ph.roots} lineage${ph.roots === 1 ? '' : 's'} · deepest ${ph.maxDepth} · ${scored.length} mapped in phenotype space`;
 })();
 </script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>
 </html>

@@ -1,8 +1,10 @@
 /**
  * VENDORED COPY of packages/oauth-client/auth.js.
- * g.mino.mobi serves only the clock/ directory as assets, so the shared lib
- * isn't reachable at ../../packages/ from here. Keep in sync with the
- * canonical copy; do not diverge the API.
+ * The fluoddity worker serves only the fluoddity/ directory as assets, so the
+ * shared lib isn't reachable at ../../packages/ from here. Keep in sync with the
+ * canonical copy; do not diverge the API. Shared by every fluoddity surface
+ * (landing, playground, gallery, selection, arena, …) — same origin, so the
+ * session token in localStorage persists across all of them.
  *
  * Shared OAuth client for mino.mobi sites.
  * Talks to auth.mino.mobi for ATProto OAuth.

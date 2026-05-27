@@ -56,6 +56,7 @@ h3:first-child { margin-top: 0; }
   <a class="crumb" href="./gallery.html">← gallery</a>
   <span class="title"><b>fluoddity</b> breeder lab</span>
   <span class="spacer"></span>
+  <span id="auth"></span>
   <a class="pill" href="./select.html">selection ↗</a>
   <a class="pill" href="./map.html">phylogeny ↗</a>
   <a class="pill" href="./play/">+ new organism</a>
@@ -277,5 +278,6 @@ $('#btn-seed').addEventListener('click', async () => { running = false; runBtn.t
   busy = true; await seed(SEED); busy = false;
 })();
 </script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>
 </html>

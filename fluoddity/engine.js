@@ -227,10 +227,10 @@ void main(){
 const FRAG_ENTITY_ARENA = FRAG_ENTITY
   .replace(
     'vec4 base = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(Ll,Rl));',
-    'float __rs = u_rule_seed + floor(cohort)*(0.08 + u_mutation_scale*2.0);\n  vec4 base = evalRule(__rs, 0.0, floor(cohort), vec4(Ll,Rl));')
+    'float arSeed = u_rule_seed + floor(cohort)*(0.08 + u_mutation_scale*2.0);\n  vec4 base = evalRule(arSeed, 0.0, floor(cohort), vec4(Ll,Rl));')
   .replace(
     'vec4 mirr = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(yref(Rl),yref(Ll)));',
-    'vec4 mirr = evalRule(__rs, 0.0, floor(cohort), vec4(yref(Rl),yref(Ll)));');
+    'vec4 mirr = evalRule(arSeed, 0.0, floor(cohort), vec4(yref(Rl),yref(Ll)));');
 
 const VERT_BRUSH_ARENA = `#version 300 es
 precision highp float;

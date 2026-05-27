@@ -88,6 +88,7 @@ a:hover { text-decoration: underline; }
   <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
   <span class="title"><b>fluoddity</b> garden</span>
   <span class="spacer"></span>
+  <span id="auth"></span>
   <a class="pill" href="./select.html">selection ↗</a>
   <a class="pill" href="./arena.html">arena ↗</a>
   <a class="pill" href="./breed.html">breeder ↗</a>
@@ -324,5 +325,6 @@ if (_author) {
   loadGallery();
 }
 </script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>
 </html>

@@ -69,6 +69,7 @@ a { color: var(--accent); text-decoration: none; }
   <a class="crumb" href="./">← fluoddity</a>
   <span class="title"><b>fluoddity</b> · arena</span>
   <span class="spacer"></span>
+  <span id="auth"></span>
   <span class="lineage" id="lineage">generation 0</span>
   <a class="pill" href="./select.html">selection ↗</a>
   <a class="pill" href="./play/">playground ↗</a>
@@ -209,5 +210,6 @@ if (engine) {
   requestAnimationFrame(loop);
 }
 </script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>
 </html>

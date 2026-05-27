@@ -1271,7 +1271,7 @@ function status(msg, kind){
 
 let AuthClient, auth = null;
 try {
-  ({ AuthClient } = await import('./auth.js'));
+  ({ AuthClient } = await import('../auth.js'));
   auth = new AuthClient();
 } catch (e) {
   console.warn('OAuth lib unavailable (saving disabled):', e);
