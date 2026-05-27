@@ -91,6 +91,27 @@ input[type=text] { min-width: 0; }
 input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
 input[type=text][readonly] { color: var(--accent); }
 textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; }
+
+/* handle typeahead (same flavor as rite/ask, rite/redact) */
+.typeahead-wrap { position: relative; min-width: 0; }
+.typeahead-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--panel-solid); border: 1px solid var(--rule); border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.55); z-index: 30;
+  max-height: 280px; overflow-y: auto; display: none;
+  scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
+}
+.typeahead-results.show { display: block; }
+.typeahead-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; cursor: pointer; border-bottom: 1px solid var(--rule);
+}
+.typeahead-item:last-child { border-bottom: none; }
+.typeahead-item:hover, .typeahead-item.active { background: var(--accent-dim); }
+.typeahead-item .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--rule); flex-shrink: 0; object-fit: cover; }
+.typeahead-item .info { flex: 1; min-width: 0; }
+.typeahead-item .dname { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+.typeahead-item .ahandle { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seg { display: flex; gap: 4px; padding: 4px; }
 .seg button {
   flex: 1; background: transparent; border: none; color: var(--muted);
@@ -175,8 +196,10 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
     <div id="share-out" class="hint">Save this organism to your Bluesky account as an at:// record, then share the link.</div>
     <div id="share-loggedout">
       <div class="row" style="gap:6px;">
-        <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="off" spellcheck="false" list="handle-dl" style="flex:1;">
-        <datalist id="handle-dl"></datalist>
+        <div class="typeahead-wrap" style="flex:1;">
+          <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="off" autocapitalize="none" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="handle-results" style="width:100%;">
+          <div id="handle-results" class="typeahead-results" role="listbox"></div>
+        </div>
       </div>
       <div class="btnrow"><button class="btn" id="btn-signin">sign in with bluesky</button></div>
     </div>
@@ -1078,7 +1101,8 @@ const loggedOut = $('share-loggedout');
 const loggedIn = $('share-loggedin');
 const linkBox = $('share-link');
 const handleInput = $('handle-input');
-const handleDL = $('handle-dl');
+const handleResults = $('handle-results');
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const nameInput = $('name-input');
 const linkInput = $('link-input');
 
@@ -1096,24 +1120,66 @@ try {
   status('Sharing needs the deployed site (auth.mino.mobi). Local play still works.');
 }
 
-// ── handle typeahead (Bluesky searchActorsTypeahead → <datalist>) ────────────
-let typeTimer = 0;
+// ── handle typeahead (custom dropdown — same flavor as rite/ask) ─────────────
+const ta = { results: [], active: -1, timer: null, abort: null };
+
+async function fetchTypeahead(query){
+  const q = query.replace(/^@/, '').trim();
+  if (q.length < 1) { hideTypeahead(); return; }
+  if (ta.abort) ta.abort.abort();
+  ta.abort = new AbortController();
+  try {
+    const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: ta.abort.signal });
+    if (!res.ok) return;
+    const data = await res.json();
+    ta.results = data.actors || [];
+    ta.active = -1;
+    renderTypeahead();
+  } catch (e) { if (e.name !== 'AbortError') console.warn(e); }
+}
+function renderTypeahead(){
+  if (!ta.results.length) { hideTypeahead(); return; }
+  handleResults.innerHTML = ta.results.map((a, i) => `
+    <div class="typeahead-item${i === ta.active ? ' active' : ''}" data-handle="${escapeHtml(a.handle)}" role="option" aria-selected="${i === ta.active}">
+      ${a.avatar ? `<img class="avatar" src="${escapeHtml(a.avatar)}" alt="" referrerpolicy="no-referrer">` : '<div class="avatar"></div>'}
+      <div class="info">
+        <div class="dname">${escapeHtml(a.displayName || a.handle)}</div>
+        <div class="ahandle">@${escapeHtml(a.handle)}</div>
+      </div>
+    </div>`).join('');
+  handleResults.classList.add('show');
+  handleInput.setAttribute('aria-expanded', 'true');
+  if (ta.active >= 0) { const item = handleResults.children[ta.active]; if (item) item.scrollIntoView({ block: 'nearest' }); }
+}
+function hideTypeahead(){
+  handleResults.classList.remove('show');
+  handleResults.innerHTML = '';
+  ta.results = []; ta.active = -1;
+  handleInput.setAttribute('aria-expanded', 'false');
+}
+function pickHandle(h){ handleInput.value = h; hideTypeahead(); }
+
 handleInput?.addEventListener('input', () => {
-  clearTimeout(typeTimer);
-  const q = handleInput.value.replace(/^@/, '').trim();
-  if (q.length < 2) { handleDL.innerHTML = ''; return; }
-  typeTimer = setTimeout(async () => {
-    try {
-      const r = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`);
-      if (!r.ok) return;
-      const { actors = [] } = await r.json();
-      handleDL.innerHTML = actors.map(a => {
-        const label = a.displayName ? `${a.displayName} · @${a.handle}` : `@${a.handle}`;
-        return `<option value="${a.handle}">${label.replace(/"/g, '&quot;')}</option>`;
-      }).join('');
-    } catch { /* offline / blocked — silent */ }
-  }, 160);
+  clearTimeout(ta.timer);
+  const v = handleInput.value;
+  ta.timer = setTimeout(() => fetchTypeahead(v), 180);
 });
+handleInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && ta.active < 0) { e.preventDefault(); $('btn-signin')?.click(); return; }
+  if (!ta.results.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); ta.active = (ta.active + 1) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); ta.active = (ta.active - 1 + ta.results.length) % ta.results.length; renderTypeahead(); }
+  else if (e.key === 'Enter') { e.preventDefault(); pickHandle(ta.results[ta.active].handle); }
+  else if (e.key === 'Escape') { hideTypeahead(); }
+  else if (e.key === 'Tab' && ta.active >= 0) { e.preventDefault(); pickHandle(ta.results[ta.active].handle); }
+});
+handleResults?.addEventListener('mousedown', (e) => {
+  const item = e.target.closest('.typeahead-item');
+  if (!item) return;
+  e.preventDefault();
+  pickHandle(item.dataset.handle);
+});
+handleInput?.addEventListener('blur', () => { setTimeout(hideTypeahead, 120); });
 
 // ── auth UI ──────────────────────────────────────────────────────────────────
 function renderAuth(user){
