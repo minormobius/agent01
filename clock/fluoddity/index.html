@@ -140,6 +140,7 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
 }
 #about h2 { margin: 0 0 4px; font-size: 18px; }
 #about h2 b { color: var(--accent); }
+#about h3 { margin: 22px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; }
 #about .sub { color: var(--muted); margin: 0 0 18px; font-size: 12px; }
 #about p { color: #c8ccd4; margin: 12px 0; }
 #about a { color: var(--accent); text-decoration: none; }
@@ -306,6 +307,20 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
        ② <b>An evolvable black box.</b> There is no hard-coded “steer toward bright.” Each agent feeds its left/right sensor readings into a small Fourier-feature function — the <em>rule</em> — that outputs a push and a sideways hop. Left/right symmetry is enforced so nothing spins by bias alone.<br>
        ③ <b>Cohorts &amp; selection.</b> The population is split into cohorts, each a mutation of the base rule, so you can hunt for shapes you like.</p>
     <p>It runs entirely on the GPU: a particle buffer, a trail texture, and three passes per step — <em>move → deposit → diffuse</em>.</p>
+
+    <h3>Under the hood</h3>
+    <p>Each physics step is three GPU passes over a few hundred thousand agents and a trail field:</p>
+    <p>① <b>Move.</b> Every agent reads the field at <em>two sensors</em>, splayed by <code>sensor angle</code> at <code>sensor distance</code> ahead of its heading. The two flow readings are rotated into the agent's own frame (forward / left) and fed to its <b>rule</b>: a 10-term Fourier-feature function, 4 inputs → 4 outputs. The rule is evaluated twice — once with left/right mirrored — and averaged, which cancels handedness so nothing spins by bias alone. Out come a <b>force</b> (added to velocity, then <code>drag</code> bleeds it off) and a <b>strafe</b> (added to position, no momentum). Then it moves and wraps at the edges.</p>
+    <p>② <b>Deposit.</b> Each agent stamps a small Gaussian of its <em>velocity vector</em> into a brush texture, added on top of its neighbours. The trail therefore records the <em>direction and speed</em> of flow at every point — this is the “vector trail” that sets Fluoddity apart from scalar pheromone.</p>
+    <p>③ <b>Diffuse.</b> The field is blurred (4-neighbour, by <code>diffusion</code>) and blended with the fresh deposits: <code>field = field·persistence + deposits·(1−persistence)</code>. Writing the fade as a <em>mix</em> keeps the equilibrium brightness independent of the persistence value.</p>
+    <p><b>The genome.</b> A single <code>rule seed</code> deterministically generates those 10 Fourier centers; each <em>cohort</em> then applies a small <code>mutation</code>, so adjacent cohorts are smooth variations of one creature. “New organism” rerolls the seed; “mutate” nudges it. That space of rules is what you're foraging in. <b>Render:</b> flow direction → hue, speed → brightness, with a gamma pull and an asinh tone-map.</p>
+    <p>aphid91's “temperature” intuition is the compass: too <b>hot</b> and it's structureless brownian gas; too <b>cold</b> and it freezes or dies; the good stuff lives on the edge, and the sliders + selection are how you steer toward it.</p>
+
+    <h3>Family tree</h3>
+    <p><b>Conway's Game of Life (1970)</b> — the great-grandparent. Dead-simple local rules on a discrete grid, yet unbounded emergent structure. The founding proof that complexity can be grown, not designed.</p>
+    <p><b>Physarum transport models</b> — the direct parent. Jeff Jones (2010) formalized agent-based <em>Physarum polycephalum</em> (slime mould) networks; Sage Jenson (mxsage) made them famous as living-looking art. Agents drop a <em>scalar</em> pheromone, sniff three points ahead, turn toward the strongest, and the trail diffuses and decays. Fluoddity <em>is</em> this model, generalized: scalar trail → <b>vector flow field</b>; the hand-coded “steer toward bright” → an <b>evolvable Fourier black box</b> with enforced mirror symmetry; one species → <b>cohorts under artificial selection</b>.</p>
+    <p><b>Cousins, same neighbourhood:</b> <em>Reaction–diffusion / Turing patterns</em> (Gray–Scott) — continuous chemical fields making coral, spots and stripes; <em>Lenia</em> (Bert Chan) and <em>SmoothLife</em> — Conway made fully continuous, blooming into smooth lifelike “creatures”; <em>Boids</em> (Reynolds, 1986) — agents steering from local neighbours. Fluoddity sits exactly where agent-based steering, a diffusing field, and evolutionary search overlap.</p>
+
     <p style="border-top:1px solid var(--rule); padding-top:14px;"><b>About this page.</b> This is an independent, clean-room reimplementation of the published algorithm, built so you can play in the browser. It is <em>not</em> aphid91's code. The real thing — desktop engine, the polished web port, and the configs behind the videos — is the original and is far richer:</p>
     <p>→ original &amp; source: <a href="https://github.com/aphid91/Fluoddity" target="_blank" rel="noopener">github.com/aphid91/Fluoddity</a><br>
        → core engine + WebGL demo: <a href="https://aphid91.github.io/Fluoddity-Core/" target="_blank" rel="noopener">aphid91.github.io/Fluoddity-Core</a><br>
