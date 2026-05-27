@@ -14,6 +14,21 @@ window.PENDRAGON.tale = {
       { label: "Culhwch and Olwen — background", url: "https://en.wikipedia.org/wiki/Culhwch_and_Olwen", host: "Wikipedia" },
     ],
   },
+  // The tale's movements, for the progress bar. Flip `done` as passages land.
+  roadmap: [
+    { t: "I · Birth & the curse", done: true },
+    { t: "II · Arthur's gate & the invocation", done: true },
+    { t: "III · The boon & six companions", done: true },
+    { t: "IV · The fort & the giant herdsman", done: true },
+    { t: "V · The herdsman's house & Goreu", done: true },
+    { t: "VI · Olwen", done: true },
+    { t: "VII · Ysbaddaden's hall & the spears", done: true },
+    { t: "VIII · The impossible tasks (anoethau)", done: false },
+    { t: "IX · The great helpers & first quests", done: false },
+    { t: "X · The hunt for Twrch Trwyth", done: false },
+    { t: "XI · The Black Witch's blood", done: false },
+    { t: "XII · Ysbaddaden slain; Olwen won", done: false },
+  ],
   passages: [
    {
     title: "I. How Culhwch was born, and the destiny laid upon him",
@@ -257,6 +272,38 @@ window.PENDRAGON.tale = {
       { w: "“Mi a addawaf hynny oll, ac a'i caffaf,” heb ef. A mynd a oruc hi tu a'r gaer; a chyfodi a wnaethant hwythau i'w chanlyn.",
         e: "“I promise all of it, and I will get it,” he said. And she went back toward the fort; and they too rose and followed after her.",
         n: "Next: the hall of Ysbaddaden Bencawr — the poisoned stone-spears flung back and forth, and the giant's roll-call of impossible demands." },
+    ],
+   },
+   {
+    title: "VII. The hall of Ysbaddaden, and the three spears",
+    segments: [
+      { w: "Tu a'r gaer y kerddasant. Lladd a wnaethant y naw porthawr oedd ar y naw porth heb i un ohonunt waeddi, a'r naw gellgi heb i un gyfarth. Ac yna i mewn i'r neuadd y doethant.",
+        e: "They went on to the fort. They slew the nine porters who were at the nine gates without one of them crying out, and the nine mastiffs without one of them barking. And then they came into the hall.",
+        n: "Entering Ysbaddaden's fort means cutting silently through nine gates — a folktale threshold-count, and a grim mirror of the comic gate at Arthur's court." },
+
+      { w: "“Henpych gwell, Ysbaddaden Bencawr, gan Dduw a dyn.” “A chwithau, i ba beth y deuthoch?” “Dyfod i ofyn Olwen, dy ferch, i Gulhwch mab Cilydd.” “Mae fy ngweision drwg a'm hangraff? Dyrchefwch y ffyrch dan fy aeliau a syrthiasai dros fy llygaid, fal y gwelwyf furf fy nâb.”",
+        e: "“Greetings, Ysbaddaden Bencawr, from God and man.” “And you — what have you come for?” “We come to ask for Olwen your daughter, for Culhwch son of Cilydd.” “Where are my worthless servants and my rogues? Raise up the forks beneath my eyebrows that have fallen over my eyes, so that I may see the look of my would-be son-in-law.”",
+        n: "Ysbaddaden's brows are so vast they must be propped on forks before he can see — one of the great grotesque-giant images in the literature." },
+
+      { w: "“Dewch yma yfory; chwi a gewch ateb.” Fal yd oeddynt yn kyfodi, kymerth Ysbaddaden un o'r tri llechwaywffon gwenwynig oedd yn ei ymyl, a'i fwrw ar eu hôl. A'i ddal a oruc Bedwyr, a'i fwrw drachefn, nes treiddiaw trwy ben-glin Ysbaddaden.",
+        e: "“Come here tomorrow; you shall have your answer.” As they were rising to leave, Ysbaddaden took one of the three poisoned stone-spears that lay beside him and hurled it after them. Bedwyr caught it and flung it back, so that it passed clean through Ysbaddaden's kneecap." },
+
+      { w: "“Y mab-yng-nghyfraith melltigedig anwar! Gwaeth y cerddaf i fyny rhiw o hyn allan. Mal brathiad cleren y gwân y dur gwenwynig hwn fi. Melltith ar y gof a'i gwnaeth, a'r einion — mor llem yw!”",
+        e: "“Cursed, savage son-in-law! I shall walk the worse up a hill from now on. This poisoned iron stings me like the bite of a gadfly. A curse on the smith who made it, and on the anvil — so sharp it is!”",
+        n: "The giant takes a seemingly mortal wound and answers only with a grumbling, comic curse — the tale's signature mix of horror and farce." },
+
+      { w: "Y nos honno y buant yn llety. A'r ail ddydd y doethant drachefn, ac y gofynnasant Olwen. Fal yd oeddynt yn mynd ymaith, kymerth yntau yr ail waywffon a'i fwrw ar eu hôl. A'i ddal a oruc Menw mab Teirgwaedd, a'i fwrw drachefn, nes treiddiaw trwy ganol ei ddwyfron ac allan trwy ei gefn.",
+        e: "That night they lodged there. On the second day they came back and asked again for Olwen. As they were leaving, the giant took the second spear and hurled it after them. Menw son of Teirgwaedd caught it and flung it back, so that it passed through the middle of his breast and out through his back." },
+
+      { w: "“Y mab-yng-nghyfraith melltigedig! Mal brathiad gele y gwân y dur caled hwn fi. Melltith ar y ffwrnais y twymwyd ynddi. Pan elwyf i fyny rhiw, bydd cyfyngder anadl arnaf, a chnoad cylla, a chyfog mynych.”",
+        e: "“Cursed son-in-law! This hard iron stings me like the bite of a leech. A curse on the furnace it was heated in. When I go up a hill now, I shall be short of breath, with cramps in my belly and frequent sickness.”" },
+
+      { w: "Y trydydd dydd y doethant drachefn. “Na fwrw waywffon arnaf mwy,” heb Culhwch. Bwrw a oruc yntau y trydydd waywffon; a'i ddal a oruc Culhwch, a'i fwrw drachefn ag anel, nes treiddiaw trwy gannwyll ei lygad ac allan trwy gefn ei wegil.",
+        e: "On the third day they came back again. “Throw no more spears at me,” said Culhwch. But the giant hurled the third spear; and Culhwch caught it and flung it back with true aim, so that it passed through the pupil of his eye and out through the nape of his neck." },
+
+      { w: "“Y mab-yng-nghyfraith melltigedig anwar! Tra fwyf byw, gwaeth fydd fy ngolwg. Pan gerddwyf yn erbyn y gwynt, dyfrllyd fydd fy llygaid; cur pen a gaf, a phendro bob lleuad newydd. Mal brath ci cynddeiriog yw'r dur gwenwynig.” Yna yd aethant i fwyta; ac o'r diwedd yd eisteddodd y cawr i ymgyngori â hwynt am amodau.",
+        e: "“Cursed, savage son-in-law! As long as I live, my sight will be the worse for it. When I walk against the wind my eyes will water; I shall have headaches, and a dizziness at every new moon. Like the bite of a mad dog is this poisoned iron.” Then they went to meat; and at last the giant sat down to bargain terms with them.",
+        n: "Thrice wounded and still alive, Ysbaddaden finally sits to terms — which means the <em>anoethau</em>: the long roll of impossible things Culhwch must fetch before he can have Olwen. That list is next." },
     ],
    },
   ],
