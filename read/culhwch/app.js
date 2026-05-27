@@ -95,6 +95,46 @@
     });
   }
 
+  /* ====================== STORYBOOK (paged reader) ====================== */
+  function renderBook() {
+    const B = C.book; if (!B) return;
+    const spreads = B.spreads, page = $("#book-page"), nav = $("#book-nav");
+    let idx = 0;
+    function dropCap(t) { return String(t).replace(/^(\s*[“"'(]?\s*)(\S)/, (m, a, b) => a + '<span class="bk-dropcap">' + b + '</span>'); }
+    function show() {
+      idx = Math.max(0, Math.min(spreads.length - 1, idx));
+      const s = spreads[idx];
+      page.innerHTML = "";
+      page.className = "book-page" + (idx === 0 ? " book-title" : "");
+      if (idx === 0) {
+        page.appendChild(el("div", "bk-kicker", B.meta.kicker));
+        page.appendChild(el("h1", "bk-bigtitle", s.title));
+        if (s.sub) page.appendChild(el("div", "bk-sub", s.sub));
+        if (s.text) page.appendChild(el("p", "bk-lead", s.text));
+      } else {
+        if (s.title) page.appendChild(el("h2", "bk-spreadtitle", s.title));
+        const p = el("p", "bk-text"); p.innerHTML = dropCap(s.text); page.appendChild(p);
+        page.appendChild(el("div", "bk-orn", idx === spreads.length - 1 ? "❦" : "❧"));
+      }
+      $("#book-prev").disabled = idx === 0;
+      $("#book-next").disabled = idx === spreads.length - 1;
+      $("#book-count").textContent = (idx + 1) + " / " + spreads.length;
+    }
+    nav.innerHTML = "";
+    const prev = el("button", "bk-btn", "‹ Back"); prev.id = "book-prev"; prev.onclick = () => { idx--; show(); };
+    const count = el("span", "bk-count"); count.id = "book-count";
+    const next = el("button", "bk-btn", "Next ›"); next.id = "book-next"; next.onclick = () => { idx++; show(); };
+    nav.appendChild(prev); nav.appendChild(count); nav.appendChild(next);
+    if (!renderBook._kb) {
+      renderBook._kb = true;
+      window.addEventListener("keydown", (e) => {
+        if (current !== "book") return;
+        if (e.key === "ArrowRight") { idx++; show(); } else if (e.key === "ArrowLeft") { idx--; show(); }
+      });
+    }
+    show();
+  }
+
   /* ====================== CHARACTERS ====================== */
   function renderCharacters() {
     const ch = C.characters; if (!ch) return;
@@ -503,7 +543,7 @@
   }
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "characters", "web", "propp", "motifs", "myth"];
+  const VIEWS = ["read", "book", "characters", "web", "propp", "motifs", "myth"];
   let proppDrawn = false, webDrawn = false, mythDrawn = false, current = "read";
   function switchView(v) {
     current = v;
@@ -537,6 +577,7 @@
 
   /* ====================== INIT ====================== */
   renderTale();
+  renderBook();
   renderCharacters();
   renderMotifs();
   const h = location.hash.slice(1).split("/")[0];
