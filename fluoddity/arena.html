@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — arena</title>
+<meta name="description" content="One shared field, 16 Fluoddity species with different rulesets all intermingling — competing for territory in the same trail. Pick the species you like and it seeds the next ecosystem. You are the selection pressure.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/arena.html">
+<meta property="og:title" content="fluoddity — arena">
+<meta property="og:description" content="16 species, one shared field, different rulesets intermingling. Pick one and it seeds the next ecosystem.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --chrome: 184px; /* topbar + legend + dock budget, so the field stays square */
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--bg); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
+.pill:hover { color: var(--accent); border-color: var(--accent); }
+.lineage { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+#stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+#stage canvas { width: min(100%, calc(100vh - var(--chrome))); width: min(100%, calc(100dvh - var(--chrome))); height: auto; aspect-ratio: 1; display: block; border: 1px solid var(--rule); border-radius: 12px; background: #000; cursor: crosshair; }
+
+#legend { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 14px; justify-content: center; border-top: 1px solid var(--rule); }
+.sw { width: 22px; height: 16px; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: transform 0.08s; }
+.sw:hover { transform: scale(1.15); }
+.sw.sel { border-color: #fff; transform: scale(1.2); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+
+#dock { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 14px; border-top: 1px solid var(--rule); background: var(--bg); }
+#dock .left, #dock .right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.btn { font-family: var(--mono); font-size: 12px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 13px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.primary:disabled { background: #1c3a34; color: #6b8f88; border-color: #1c3a34; }
+.spread { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+.spread input { width: 96px; accent-color: var(--accent); }
+.spread b { color: var(--fg); min-width: 26px; }
+#hint { font-size: 12px; color: var(--muted); }
+#fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; }
+
+@media (max-width: 600px) {
+  :root { --chrome: 250px; }
+  #dock { justify-content: stretch; }
+  #dock .left, #dock .right { width: 100%; justify-content: space-between; }
+  #btn-save, #btn-prop { flex: 1 1 auto; text-align: center; }
+  #hint { width: 100%; order: -1; }
+}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · arena</span>
+  <span class="spacer"></span>
+  <span class="lineage" id="lineage">generation 0</span>
+  <a class="pill" href="./select.html">selection ↗</a>
+  <a class="pill" href="./play/">playground ↗</a>
+  <a class="pill" href="./gallery.html">gallery ↗</a>
+</div>
+
+<div id="stage"></div>
+<div id="legend"></div>
+
+<div id="dock">
+  <div class="left">
+    <button class="btn" id="btn-back" disabled>← back</button>
+    <button class="btn" id="btn-reroll">↻ new field</button>
+    <label class="spread">spread <input type="range" id="spread" min="0" max="0.3" step="0.01" value="0.06"><b id="spreadv">0.06</b></label>
+  </div>
+  <div class="right">
+    <span id="hint">16 species, one field — pick the one you like</span>
+    <button class="btn" id="btn-save" disabled>save → playground</button>
+    <button class="btn primary" id="btn-prop" disabled>propagate ⇒ seed next field</button>
+  </div>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, randomConfig, mutate } from './engine.js';
+
+const $ = (s) => document.querySelector(s);
+const SPECIES = 16;
+const STEPS_PER_FRAME = 3;
+
+let engine = null;
+try { engine = new FluoddityEngine(512, 70000, { arena: true }); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'The arena needs WebGL2 with float render targets — ' + e.message; }
+
+if (engine) {
+  $('#stage').appendChild(engine.cv);
+
+  // ── state ──────────────────────────────────────────────────────────────────
+  let cfg = null;        // current field config (cfg.rule_seed is the base seed)
+  let spread = parseFloat($('#spread').value);
+  let selected = -1, gen = 0;
+  let history = [];       // [{cfg, gen}]
+
+  // Must mirror FRAG_ENTITY_ARENA: species k's rule seed is the base spread out
+  // by cohort index. Keep these two in lockstep.
+  const seedOf = (k) => cfg.rule_seed + k * (0.08 + cfg.mutation_scale * 2.0);
+  const encodeCfg = (c) => btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  // ── legend (clickable species swatches) ──────────────────────────────────────
+  const legend = $('#legend');
+  const swatches = [];
+  for (let i = 0; i < SPECIES; i++) {
+    const sw = document.createElement('div');
+    sw.className = 'sw';
+    sw.style.background = `hsl(${(i / SPECIES * 360).toFixed(0)} 70% 55%)`;
+    sw.title = 'species ' + (i + 1);
+    sw.addEventListener('click', () => select(i));
+    legend.appendChild(sw);
+    swatches.push(sw);
+  }
+
+  function select(k) {
+    selected = k;
+    swatches.forEach((s, j) => s.classList.toggle('sel', j === k));
+    $('#hint').textContent = `species ${k + 1} selected`;
+    $('#btn-save').disabled = false; $('#btn-prop').disabled = false;
+  }
+
+  function loadCfg(next) {
+    cfg = next; cfg.cohorts = SPECIES; cfg.mutation_scale = spread;
+    selected = -1; swatches.forEach(s => s.classList.remove('sel'));
+    $('#btn-save').disabled = true; $('#btn-prop').disabled = true;
+    $('#btn-back').disabled = history.length === 0;
+    $('#lineage').textContent = 'generation ' + gen;
+    engine.load(cfg, 'arena' + gen + '_' + Math.random());
+  }
+
+  function reroll() {
+    history = []; gen = 0;
+    $('#hint').textContent = '16 species, one field — pick the one you like';
+    const c = randomConfig(); c.ink = Math.max(c.ink, 2.0);
+    loadCfg(c);
+  }
+
+  function propagate() {
+    if (selected < 0) return;
+    const seed = seedOf(selected);
+    history.push({ cfg: { ...cfg }, gen });
+    gen++;
+    // drift the shared physics a little; re-center the rule space on the pick.
+    const next = mutate(cfg, 0.5);
+    next.rule_seed = seed;
+    $('#hint').textContent = 'seeded from species ' + (selected + 1) + ' — pick again to keep evolving';
+    loadCfg(next);
+  }
+
+  function back() {
+    if (!history.length) return;
+    const prev = history.pop();
+    gen = prev.gen;
+    $('#hint').textContent = 'pick the one you like';
+    loadCfg(prev.cfg);
+  }
+
+  // Click the field to select the species whose territory you clicked, by
+  // reading the species-hue (z,w) at that pixel straight from the float field.
+  engine.cv.addEventListener('click', (e) => {
+    try {
+      const gl = engine.gl, r = engine.cv.getBoundingClientRect();
+      const gx = Math.min(engine.dim - 1, Math.max(0, Math.floor((e.clientX - r.left) / r.width * engine.dim)));
+      const gy = Math.min(engine.dim - 1, Math.max(0, Math.floor((1 - (e.clientY - r.top) / r.height) * engine.dim)));
+      gl.bindFramebuffer(gl.FRAMEBUFFER, engine.cFBO[engine.cPing]);
+      const buf = new Float32Array(4);
+      gl.readPixels(gx, gy, 1, 1, gl.RGBA, gl.FLOAT, buf);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (buf[2] === 0 && buf[3] === 0) return; // nothing deposited there
+      let hue = Math.atan2(buf[3], buf[2]) / (2 * Math.PI); hue = ((hue % 1) + 1) % 1;
+      select(Math.round(hue * SPECIES) % SPECIES);
+    } catch { /* readback unsupported — use the legend */ }
+  });
+
+  $('#btn-reroll').addEventListener('click', reroll);
+  $('#btn-back').addEventListener('click', back);
+  $('#btn-prop').addEventListener('click', propagate);
+  $('#btn-save').addEventListener('click', () => {
+    if (selected < 0) return;
+    location.href = './play/#c=' + encodeCfg({ ...cfg, rule_seed: seedOf(selected), cohorts: 16, mutation_scale: 0.02 });
+  });
+  $('#spread').addEventListener('input', () => {
+    spread = parseFloat($('#spread').value); $('#spreadv').textContent = spread.toFixed(2);
+    if (cfg) cfg.mutation_scale = spread; // morphs the species set live
+  });
+
+  function loop() { engine.step(STEPS_PER_FRAME); engine.render(); requestAnimationFrame(loop); }
+  reroll();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

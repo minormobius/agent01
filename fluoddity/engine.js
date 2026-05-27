@@ -213,8 +213,75 @@ void main(){
   outColor = vec4(col, 1.0);
 }`;
 
+// ── Arena variant shaders (multi-species shared field) ──────────────────────
+// Compiled ONLY when the engine is constructed with { arena: true }; every other
+// surface keeps compiling the originals above, untouched. Each cohort becomes an
+// independent species: its rule seed is spread from the base by cohort index
+// (so one "field config" expands into N distinct rules), all species deposit
+// into ONE shared trail, and the display tints by species hue while keeping
+// brightness from flow speed. Species identity rides in the otherwise-unused
+// z,w channels as a weighted (cos,sin) hue vector, so it diffuses and blends at
+// territory boundaries like the velocity field does. The two long shaders are
+// derived by targeted string-replacement, so if a target ever stops matching the
+// arena simply falls back toward default behavior instead of failing to compile.
+const FRAG_ENTITY_ARENA = FRAG_ENTITY
+  .replace(
+    'vec4 base = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(Ll,Rl));',
+    'float __rs = u_rule_seed + floor(cohort)*(0.08 + u_mutation_scale*2.0);\n  vec4 base = evalRule(__rs, 0.0, floor(cohort), vec4(Ll,Rl));')
+  .replace(
+    'vec4 mirr = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(yref(Rl),yref(Ll)));',
+    'vec4 mirr = evalRule(__rs, 0.0, floor(cohort), vec4(yref(Rl),yref(Ll)));');
+
+const VERT_BRUSH_ARENA = `#version 300 es
+precision highp float;
+in vec2 a_offset; in vec2 a_uv;
+uniform sampler2D u_entity; uniform int u_texW, u_count, u_cohorts; uniform float u_size;
+out vec2 v_uv; out vec2 v_vel; out float v_hue;
+void main(){
+  ivec2 tc = ivec2(gl_InstanceID % u_texW, gl_InstanceID / u_texW);
+  vec4 e = texelFetch(u_entity, tc, 0);
+  v_vel = e.zw; v_uv = a_uv;
+  float ci = floor(float(u_cohorts)*float(gl_InstanceID)/float(u_count));
+  v_hue = ci/float(max(u_cohorts,1));
+  gl_Position = vec4(e.xy + a_offset*u_size, 0.0, 1.0);
+}`;
+
+const FRAG_BRUSH_ARENA = `#version 300 es
+precision highp float;
+in vec2 v_uv; in vec2 v_vel; in float v_hue; out vec4 o;
+void main(){
+  vec2 d = v_uv - 0.5;
+  if(dot(d,d) > 0.25) discard;
+  float k = exp(-dot(d,d)/(2.0*0.163*0.163));
+  float a = v_hue*6.28318530718;
+  o = vec4(v_vel*k, cos(a)*k, sin(a)*k);
+}`;
+
+const FRAG_CANVAS_ARENA = FRAG_CANVAS
+  .replace(
+    'vec2 brush = texture(u_brush, v_uv).xy;\n  outColor = vec4(canvas.xy*u_persistence + (1.0-u_persistence)*brush, 0.0, 1.0);',
+    'vec4 brush = texture(u_brush, v_uv);\n  outColor = vec4(canvas.xy*u_persistence + (1.0-u_persistence)*brush.xy, canvas.zw*u_persistence + (1.0-u_persistence)*brush.zw);');
+
+const FRAG_DISPLAY_ARENA = `#version 300 es
+precision highp float;
+out vec4 outColor; in vec2 v_uv;
+uniform sampler2D u_canvas; uniform float u_ink, u_hue;
+#define SOFT 3.9
+#define BRIGHT 2.0
+vec3 hsv2rgb(vec3 c){ vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz)*6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }
+void main(){
+  vec4 f = texture(u_canvas, v_uv);
+  float mag = length(f.xy);
+  float hue = fract(atan(f.w, f.z)/(2.0*3.14159265) + u_hue);
+  vec3 col = hsv2rgb(vec3(hue, 0.82, mag)) * u_ink * 8.0;
+  float len = length(col); if(len > 0.0) col /= pow(len, 0.575);
+  float Ll = length(col); if(Ll > 0.0) col *= BRIGHT*asinh(Ll*SOFT)/(Ll*SOFT);
+  outColor = vec4(col, 1.0);
+}`;
+
 export class FluoddityEngine {
-  constructor(dim = 384, count = 40000) {
+  constructor(dim = 384, count = 40000, opts = {}) {
+    this.arena = !!opts.arena;
     const cv = document.createElement('canvas');
     cv.width = cv.height = dim;
     const gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: false, preserveDrawingBuffer: true });
@@ -245,10 +312,10 @@ export class FluoddityEngine {
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
       return p;
     };
-    this.pEntity = prog(VERT_FULLSCREEN, FRAG_ENTITY);
-    this.pBrush = prog(VERT_BRUSH, FRAG_BRUSH);
-    this.pCanvas = prog(VERT_FULLSCREEN, FRAG_CANVAS);
-    this.pDisplay = prog(VERT_FULLSCREEN, FRAG_DISPLAY);
+    this.pEntity = prog(VERT_FULLSCREEN, this.arena ? FRAG_ENTITY_ARENA : FRAG_ENTITY);
+    this.pBrush = prog(this.arena ? VERT_BRUSH_ARENA : VERT_BRUSH, this.arena ? FRAG_BRUSH_ARENA : FRAG_BRUSH);
+    this.pCanvas = prog(VERT_FULLSCREEN, this.arena ? FRAG_CANVAS_ARENA : FRAG_CANVAS);
+    this.pDisplay = prog(VERT_FULLSCREEN, this.arena ? FRAG_DISPLAY_ARENA : FRAG_DISPLAY);
 
     const floatTex = (w, h, filt) => {
       const t = gl.createTexture();
@@ -352,6 +419,8 @@ export class FluoddityEngine {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.eTex[this.ePing]); gl.uniform1i(gl.getUniformLocation(this.pBrush, 'u_entity'), 0);
       gl.uniform1i(gl.getUniformLocation(this.pBrush, 'u_texW'), this.texW);
       gl.uniform1f(gl.getUniformLocation(this.pBrush, 'u_size'), this.brushSize);
+      gl.uniform1i(gl.getUniformLocation(this.pBrush, 'u_cohorts'), this.cfg.cohorts | 0); // arena only; no-op otherwise
+      gl.uniform1i(gl.getUniformLocation(this.pBrush, 'u_count'), this.count);
       gl.bindVertexArray(this.brushVAO);
       gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, this.count);
       gl.bindVertexArray(null);
