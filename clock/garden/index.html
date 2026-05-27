@@ -71,6 +71,16 @@ a:hover { text-decoration: underline; }
 #modal .close { position: absolute; top: 26px; right: 26px; background: rgba(0,0,0,0.5); border: 1px solid var(--rule); color: var(--fg); border-radius: 8px; padding: 4px 9px; cursor: pointer; font-family: var(--mono); }
 .muted { color: var(--muted); }
 .fatal { padding: 40px 16px; text-align: center; color: var(--muted); line-height: 1.6; }
+
+#profile { display: flex; gap: 16px; align-items: center; padding: 20px 16px; border-bottom: 1px solid var(--rule); }
+#profile .pfp { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: #1a1d22; flex: none; }
+#profile .pinfo h1 { margin: 4px 0 0; font-size: 20px; }
+#profile .pinfo .h { color: var(--muted); font-size: 13px; margin: 2px 0; }
+#profile .pinfo .d { font-size: 12px; color: var(--fg); margin-top: 6px; max-width: 60ch; line-height: 1.5; opacity: 0.9; }
+.card .arow { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.card .av { width: 14px; height: 14px; border-radius: 50%; object-fit: cover; background: #2a2e36; flex: none; }
+.card .au { pointer-events: auto; }
+.card .au:hover { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -81,6 +91,7 @@ a:hover { text-decoration: underline; }
   <a class="pill" href="../fluoddity/">+ new organism</a>
 </div>
 
+<div id="profile" style="display:none;"></div>
 <div id="status">loading the menagerie…</div>
 <div id="grid"></div>
 <button class="btn" id="loadmore" style="display:none;">load more</button>
@@ -212,8 +223,11 @@ function makeCard(rec) {
   const ctx = canvas.getContext('2d');
   const cap = document.createElement('div'); cap.className = 'cap';
   const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = (rec.value && rec.value.name) || 'untitled';
-  const au = document.createElement('div'); au.className = 'au'; au.textContent = did.slice(0, 16) + '…';
-  cap.append(nm, au); el.append(canvas, cap);
+  const arow = document.createElement('div'); arow.className = 'arow';
+  const av = document.createElement('img'); av.className = 'av'; av.alt = '';
+  const au = document.createElement('span'); au.className = 'au'; au.textContent = did.slice(0, 16) + '…'; au.title = "see this author's garden";
+  au.addEventListener('click', (e) => { e.stopPropagation(); location.href = '?author=' + encodeURIComponent(did); });
+  arow.append(av, au); cap.append(nm, arow); el.append(canvas, cap);
   const card = { uri: rec.uri, did, rkey, config, value: rec.value, el, canvas, ctx, settled: false, steps: 0, nmEl: nm, auEl: au };
   el.__card = card;
 
@@ -230,8 +244,8 @@ function makeCard(rec) {
   if (config) { canvas.__placeholder = true; }
   else { ctx.fillStyle = '#1a1d22'; ctx.fillRect(0, 0, 300, 300); nm.textContent += ' (unreadable)'; }
 
-  // fill author handle lazily
-  getProfile(did).then(p => { if (p) au.textContent = '@' + p.handle; });
+  // fill author handle + avatar lazily
+  getProfile(did).then(p => { if (p) { au.textContent = '@' + p.handle; if (p.avatar) av.src = p.avatar; } });
   return card;
 }
 
@@ -241,6 +255,8 @@ function openModal(card) {
   modalCard = card ? { uri: card.uri, config: card.config, canvas: modalPv, ctx: modalPvCtx } : null;
   $('modal-name').textContent = (card.value && card.value.name) || 'untitled';
   getProfile(card.did).then(p => { $('modal-author').textContent = p ? 'by @' + p.handle : 'by ' + card.did.slice(0, 24) + '…'; });
+  const ma = $('modal-author'); ma.style.cursor = 'pointer'; ma.title = "see this author's garden";
+  ma.onclick = () => { location.href = '?author=' + encodeURIComponent(card.did); };
   $('modal-open').href = `${PLAYGROUND}?o=${card.did}/${card.rkey}`;
   modalPvCtx.clearRect(0, 0, modalPv.width, modalPv.height);
   modal.classList.add('show');
@@ -276,8 +292,21 @@ $('modal-close').addEventListener('click', closeModal);
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
 // ── load ─────────────────────────────────────────────────────────────────────
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+async function listRecords(did, cur) {
+  const pds = await resolvePds(did);
+  if (!pds) throw new Error('no PDS');
+  const u = new URL(pds + '/xrpc/com.atproto.repo.listRecords');
+  u.searchParams.set('repo', did); u.searchParams.set('collection', COLLECTION); u.searchParams.set('limit', '100');
+  if (cur) u.searchParams.set('cursor', cur);
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('listRecords ' + r.status);
+  return r.json();
+}
+
 let cursor = null, loading = false, total = 0;
-async function loadMore() {
+async function loadGallery() {
   if (loading) return;
   loading = true; moreBtn.disabled = true;
   try {
@@ -307,8 +336,40 @@ async function loadMore() {
     loading = false; moreBtn.disabled = false;
   }
 }
-moreBtn.addEventListener('click', loadMore);
-loadMore();
+
+// Profile mode: one author's organisms, read straight from their PDS
+// (immediate — no Constellation index lag, and catches pre-anchor records).
+async function initProfile(actor) {
+  document.getElementById('topbar').querySelector('.pill').setAttribute('href', '../fluoddity/');
+  const prof = await getProfile(actor);
+  if (!prof || !prof.did) { statusEl.textContent = `Couldn't find "${actor}".`; return; }
+  const did = prof.did;
+  const pf = $('profile'); pf.style.display = '';
+  pf.innerHTML =
+    (prof.avatar ? `<img class="pfp" src="${escapeHtml(prof.avatar)}" alt="">` : '<div class="pfp"></div>') +
+    `<div class="pinfo"><a class="crumb" href="./">← all organisms</a>` +
+    `<h1>${escapeHtml(prof.displayName || prof.handle)}</h1>` +
+    `<div class="h">@${escapeHtml(prof.handle)}</div>` +
+    (prof.description ? `<div class="d">${escapeHtml(prof.description)}</div>` : '') + `</div>`;
+  document.title = `@${prof.handle} — fluoddity garden`;
+  let cur = null; const recs = [];
+  try {
+    do { const page = await listRecords(did, cur); recs.push(...(page.records || [])); cur = page.cursor; } while (cur && recs.length < 300);
+  } catch (e) { statusEl.textContent = 'Could not read that PDS: ' + (e.message || e); return; }
+  recs.sort((a, b) => (parseAtUri(b.uri).rkey).localeCompare(parseAtUri(a.uri).rkey));
+  for (const r of recs) makeCard(r);
+  statusEl.textContent = recs.length
+    ? `${recs.length} organism${recs.length === 1 ? '' : 's'} by @${prof.handle} · hover to animate, click for lineage`
+    : `@${prof.handle} hasn't grown any organisms yet.`;
+}
+
+const _author = new URLSearchParams(location.search).get('author');
+if (_author) {
+  initProfile(_author);
+} else {
+  moreBtn.addEventListener('click', loadGallery);
+  loadGallery();
+}
 </script>
 </body>
 </html>
