@@ -126,5 +126,37 @@ window.PENDRAGON.tale = {
         n: "Menw is the warband's magician. The full invocation runs on through warriors, women and frank absurdities; the tale's sheer delight in the catalogue is the point — Arthur's court summoned as a whole mythic world in a single breath." },
     ],
    },
+   {
+    title: "III. The boon granted, and the six companions",
+    segments: [
+      { w: "Heb Arthur: “A unben, ni chigleu i eirioed son am y forwyn a ddywedy di, nac am ei rhieni. Mi a anfonaf genhadau i'w cheisaw yn llawen. Dyro i mi amser i hynny.” “Yn llawen,” heb y mab; “o'r nos heno hyd ymhen y flwyddyn.”",
+        e: "Said Arthur: “Chieftain, I have never heard tell of the maiden you name, nor of her parents. I will gladly send messengers to seek her. Give me time for that.” “Gladly,” said the youth; “from tonight to a year from tonight.”" },
+
+      { w: "Yna yd anfones Arthur genhadau i bob gwlad o'i gyfoeth i geisaw y forwyn; ac ymhen y flwyddyn y doeth cenhadau Arthur drachefn heb na chwedl na chyfarwyddyd am Olwen, mwy nag y dydd cyntaf.",
+        e: "So Arthur sent messengers into every land of his realm to seek the maiden; and at the year's end Arthur's messengers came back with no word or trace of Olwen, no more than on the first day." },
+
+      { w: "Ac yna y dywawt Culhwch: “Pawb a gafas ei gyfarws, a minnau etwa heb fy un. Mi a af ymaith, a'th anrhydedd gennyf.” Heb Cai: “A unben, rhy amharch a wney di ar Arthur. Dyred gyd â ni.”",
+        e: "Then Culhwch said: “Everyone has had his boon, and I am still without mine. I will go my way — and carry your honour off with me.” Said Cei: “Chieftain, you do Arthur too much dishonour. Come with us.”",
+        n: "Cei the prickly turns champion: the man who argued against letting Culhwch in is now the one who swears to see the quest through." },
+
+      { w: "“Ni'th ymadawn hyd pan gyffesych nad oes y forwyn yn y byd, neu hyd pan ei caffom.” Yna y dewisawd Arthur ei wŷr i fynd gyd â'r mab.",
+        e: "“We will not part from you until you either own that the maiden is nowhere in the world, or until we win her.” Then Arthur chose his men to go with the youth." },
+
+      { w: "Galw a oruc ef ar Cai a Bedwyr; ar Gynddylig Gyfarwydd; ar Wrhyr Gwalstawd Ieithoedd; ar Walchmai mab Gwyar; ac ar Menw mab Teirgwaedd.",
+        e: "He called on Cei and Bedwyr; on Cynddylig the Guide; on Gwrhyr Interpreter of Tongues; on Gwalchmai son of Gwyar; and on Menw son of Teirgwaedd." },
+
+      { w: "Cynddylig Gyfarwydd: kyn hawsed iddo gyfarwyddaw mewn gwlad nas gwelsai eirioed ag yn ei wlad ei hun.",
+        e: "Cynddylig the Guide — for it was as easy for him to find the way in a land he had never seen as in his own country.",
+        n: "The ideal quest-companion: the man who is never lost." },
+
+      { w: "Gwrhyr Gwalstawd Ieithoedd: ef a wyddiad bob ieithoedd, ie, ieithoedd yr adar a'r anifeiliaid.",
+        e: "Gwrhyr Interpreter of Tongues — he knew every language, yes, even the languages of the birds and the beasts.",
+        n: "Gwrhyr's gift drives the tale's climax, when the heroes must question the oldest animals in the world — the Blackbird, the Stag, the Owl, the Eagle, the Salmon — to find a man lost since the dawn of time." },
+
+      { w: "A'r gwŷr hyn oll a gymerth Culhwch yn gydymdeithion, a chychwyn a wnaethant.",
+        e: "All these men Culhwch took as his companions, and they set out.",
+        n: "The road now runs toward the giant's daughter — and, before her, to Custennin the herdsman and the first sight of Ysbaddaden's stronghold." },
+    ],
+   },
   ],
 };
