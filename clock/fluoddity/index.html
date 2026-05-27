@@ -1104,7 +1104,12 @@ const COLLECTION = 'com.minomobi.fluoddity.organism';
 // our organism records; posting additionally needs feed.post + media + the
 // video service auth.
 const SAVE_SCOPE = 'atproto repo:' + COLLECTION;
-const POST_SCOPE = 'atproto repo:' + COLLECTION + ' repo:app.bsky.feed.post blob:image/* blob:video/* rpc:com.atproto.server.getServiceAuth';
+// Posting video needs com.atproto.server.getServiceAuth, and the granular
+// rpc: scope for it isn't honored by the PDS (403 "scope missing"). The
+// reliable scope for minting service auth + feed.post + media is the
+// transitional one. Save stays narrow; this broad scope is only requested
+// when the user opts to post.
+const POST_SCOPE = 'atproto transition:generic';
 const FALLBACK_SCOPE = 'atproto transition:generic';
 // If the worker hasn't declared the granular scopes yet, the auth server 400s
 // with invalid_scope; fall back to transition:generic so login still works.
@@ -1490,7 +1495,8 @@ postBtn?.addEventListener('click', async () => {
     const { rkey } = parseAtUri(res.uri);
     const purl = `https://bsky.app/profile/${user.handle}/post/${rkey}`;
     const kind = embed.$type === 'app.bsky.embed.video' ? 'video' : 'still';
-    cstatus(`posted (${kind})! <a href="${purl}" target="_blank" rel="noopener" style="color:var(--accent)">view on bluesky →</a>`, 'ok');
+    const why = (kind === 'still' && vidErr) ? ` — video fell back: ${vidErr}` : '';
+    cstatus(`posted (${kind})${why} <a href="${purl}" target="_blank" rel="noopener" style="color:var(--accent)">view on bluesky →</a>`, kind === 'video' ? 'ok' : '');
   } catch (e) {
     cstatus(e.message || 'post failed', 'err');
   } finally {
