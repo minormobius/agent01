@@ -25,6 +25,15 @@
             "maxLength": 8000,
             "description": "JSON-serialized parameter snapshot. Stored as a string because the atproto data model disallows floating-point numbers, and the config is nearly all floats. rule_seed plus these parameters deterministically reproduce the organism."
           },
+          "gallery": {
+            "type": "string",
+            "description": "Constant link target (a DID) so the global backlink index (Constellation) can enumerate every organism across users. Always did:web:g.mino.mobi."
+          },
+          "parent": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Optional at-uri of the organism this was branched/forked from, forming a lineage tree."
+          },
           "createdAt": {
             "type": "string",
             "format": "datetime"

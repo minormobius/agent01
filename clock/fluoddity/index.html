@@ -177,6 +177,7 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
   <a class="crumb" href="../">← gallery</a>
   <span class="title"><b>fluoddity</b> · playground</span>
   <span class="spacer"></span>
+  <a class="iconbtn" href="../garden/" style="text-decoration:none;">garden →</a>
   <button class="iconbtn" id="btn-draw" title="Toggle trail-draw mode">draw: off</button>
   <button class="iconbtn" id="btn-toggle">hide panel</button>
   <button class="iconbtn" id="btn-about">?</button>
@@ -1114,6 +1115,12 @@ requestAnimationFrame(frame);
 // Reading a shared organism is public (no auth).
 
 const COLLECTION = 'com.minomobi.fluoddity.organism';
+// Constant link target so Constellation (the global backlink index) can
+// enumerate every organism across all users via /links?target=…&path=.gallery.
+const GALLERY_ANCHOR = 'did:web:g.mino.mobi';
+// at-uri of the organism opened via ?o= — recorded as `parent` on save so
+// forks form a Picbreeder-style lineage tree.
+let branchedFrom = null;
 // Narrow scopes — the auth server grants exactly what's requested, as long as
 // workers/auth declares them in client-metadata. Sign-in needs only to write
 // our organism records; posting additionally needs feed.post + media + the
@@ -1270,6 +1277,8 @@ if (auth) {
         // JSON string, not an object: the atproto data model disallows floats,
         // and the config is nearly all floats.
         config: JSON.stringify(cfg),
+        gallery: GALLERY_ANCHOR,
+        ...(branchedFrom ? { parent: branchedFrom } : {}),
         createdAt: new Date().toISOString(),
       };
       const res = await auth.pds.createRecord(COLLECTION, record);
@@ -1331,7 +1340,8 @@ async function loadShared(){
     if (typeof conf === 'string') { try { conf = JSON.parse(conf); } catch { conf = null; } }
     if (conf && window.Fluoddity) {
       window.Fluoddity.applyConfig(conf);
-      status(`loaded "${value.name || 'organism'}". make it your own and re-save.`, 'ok');
+      branchedFrom = `at://${did}/${COLLECTION}/${rkey}`;
+      status(`loaded "${value.name || 'organism'}". tweak it and save to branch from it.`, 'ok');
     }
   } catch (e) {
     status(e.message || 'could not load shared organism', 'err');
@@ -1479,7 +1489,9 @@ async function ensureOrgLink(cfg){
     const sr = await auth.pds.createRecord(COLLECTION, {
       $type: COLLECTION,
       name: (nameInput.value || '').trim() || 'untitled organism',
-      schemaVersion: 1, config: JSON.stringify(cfg), createdAt: new Date().toISOString(),
+      schemaVersion: 1, config: JSON.stringify(cfg), gallery: GALLERY_ANCHOR,
+      ...(branchedFrom ? { parent: branchedFrom } : {}),
+      createdAt: new Date().toISOString(),
     });
     const p = parseAtUri(sr.uri);
     const link = `${location.origin}${location.pathname}?o=${p.did}/${p.rkey}`;
