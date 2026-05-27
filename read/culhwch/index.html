@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Culhwch ac Olwen — the oldest Arthurian tale, translated & mapped</title>
+  <meta name="description" content="An original English translation of Culhwch ac Olwen, the oldest Arthurian tale, side-by-side with the Middle Welsh — with character cards and a Propp story-graph. From read.mino.mobi.">
+  <meta property="og:title" content="Culhwch ac Olwen">
+  <meta property="og:description" content="The oldest Arthurian tale, translated side-by-side with the Middle Welsh, with character cards and a story graph.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/culhwch/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐗</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🐗</span>Culhwch ac Olwen</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="propp">Story graph</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- READ -->
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>Culhwch ac Olwen</h1>
+        <p>The oldest Arthurian tale — an original translation, side-by-side with the Middle Welsh.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- STORY GRAPH (Propp) -->
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The tale laid against Propp's 31 narrative functions — each beat linking to the passage that realizes it.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Culhwch ac Olwen</span><br>
+    A working translation and analysis of the oldest Arthurian tale. The Welsh is a normalized reading text after the public-domain Red Book of Hergest (Rhys &amp; Evans, 1887); the English is an original translation; the Propp mapping is interpretive. This tale grew out of the wider Arthurian historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>, where character and motif cross-references point.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

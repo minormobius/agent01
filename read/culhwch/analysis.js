@@ -4,8 +4,9 @@
    scheme on Russian fairy tales, and fitting a medieval Welsh tale to it is
    a reading, not a measurement. `passage` points at the tale's movements
    (1-12) so each function links to the text that realizes it.
-   Loaded after tale.js; attaches to window.PENDRAGON. */
-window.PENDRAGON.propp = {
+   Loaded after tale.js; attaches to window.CULHWCH. */
+window.CULHWCH = window.CULHWCH || {};
+window.CULHWCH.propp = {
   intro: "Vladimir Propp found that Russian wonder-tales, however different on the surface, drew their events from one fixed sequence of <strong>31 functions</strong> — Absentation, Interdiction, Violation, Lack, Departure, the Donor, Struggle, Victory, Return, Wedding. Culhwch ac Olwen turns out to be an almost textbook specimen of the <em>quest</em> branch: a Lack created by a curse, a hero dispatched, magical helpers acquired, an impossible Task, a Struggle, and the Lack liquidated in marriage. Below, the tale's twelve movements are laid against Propp's spine. It is an interpretation — and what the tale <em>skips</em> is as telling as what it keeps.",
   acts: [
     { id: "prep",     label: "Preparation",          color: "#7fb37f" },

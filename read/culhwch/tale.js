@@ -4,10 +4,11 @@
    public-domain Red Book of Hergest edition of Rhys & Evans (1887, p.100).
    It is a reading text, not a strict diplomatic transcription; the facsimile
    is linked for the manuscript's own spelling. Welsh-reader corrections welcome.
-   Loaded after data.js, which defines window.PENDRAGON. */
-window.PENDRAGON.tale = {
+   Attaches to the standalone window.CULHWCH namespace. */
+window.CULHWCH = window.CULHWCH || {};
+window.CULHWCH.tale = {
   meta: {
-    blurb: "<strong>Culhwch ac Olwen</strong> is the oldest surviving Arthurian tale (c. 1100), preserved complete in the Red Book of Hergest and in part in the White Book of Rhydderch. This is a <strong>pilot</strong> — the opening passages only. The English is an <strong>original translation</strong>. The Welsh beside it is a <em>normalized reading text</em>: the medieval wording rendered in modern Welsh orthography (dd, f, w…), after the public-domain Red Book edition of Rhys &amp; Evans (1887, from p.100). It is a reading text, <em>not</em> a strict diplomatic transcription — see the linked facsimile for the manuscript's own letterforms, and Lady Guest's public-domain version for comparison. Long catalogues like the court-list are <strong>abridged</strong>, and marked where they are. Corrections from Welsh-readers are welcome.",
+    blurb: "<strong>Culhwch ac Olwen</strong> is the oldest surviving Arthurian tale (c. 1100), preserved complete in the Red Book of Hergest and in part in the White Book of Rhydderch. This is the <strong>complete tale</strong>, in twelve movements. The English is an <strong>original translation</strong>. The Welsh beside it is a <em>normalized reading text</em>: the medieval wording rendered in modern Welsh orthography (dd, f, w…), after the public-domain Red Book edition of Rhys &amp; Evans (1887, from p.100). It is a reading text, <em>not</em> a strict diplomatic transcription — see the linked facsimile for the manuscript's own letterforms, and Lady Guest's public-domain version for comparison. The hunt's long place-name catalogue is the one stretch condensed (and flagged); everything else is in full. Corrections from Welsh-readers are welcome.",
     sources: [
       { label: "Red Book Welsh text — Rhys & Evans, 1887 (facsimile, from p.100)", url: "https://archive.org/details/textofmabinogion00rhysiala", host: "Internet Archive" },
       { label: "Lady Guest's translation (public domain)", url: "https://www.gutenberg.org/ebooks/search/?query=Mabinogion+Guest", host: "Project Gutenberg" },

@@ -25,8 +25,6 @@
         <button class="tab" data-view="tree">Evolutionary tree</button>
         <button class="tab" data-view="wiki">Wiki</button>
         <button class="tab" data-view="fae">The fae angle</button>
-        <button class="tab" data-view="culhwch">Culhwch</button>
-        <button class="tab" data-view="propp">Story graph</button>
         <button class="tab" data-view="papers">Papers</button>
       </nav>
     </div>
@@ -161,26 +159,6 @@
       <div id="fae-sections"></div>
     </section>
 
-    <!-- CULHWCH AC OLWEN (reading text) -->
-    <section class="view" id="view-culhwch">
-      <div class="hero"><h1>Culhwch ac Olwen</h1><p>The oldest Arthurian tale — an original translation, side-by-side with the Middle Welsh. Pilot: the opening passage.</p></div>
-      <div class="tale-meta" id="tale-meta"></div>
-      <div class="tale-progress" id="tale-progress"></div>
-      <div class="tale-controls" id="tale-controls"></div>
-      <div class="tale-body parallel" id="tale-body"></div>
-    </section>
-
-    <!-- STORY GRAPH (Propp) -->
-    <section class="view" id="view-propp">
-      <div class="hero"><h1>Story graph</h1><p>Culhwch ac Olwen laid against Propp's 31 narrative functions — the structural skeleton of the wonder-tale, each beat linking to the passage that realizes it.</p></div>
-      <p class="lead" id="propp-intro"></p>
-      <div class="tree-legend" id="propp-legend"></div>
-      <div class="zoom-host" id="propp-spine"></div>
-      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below. The spine runs left to right through Propp's spheres.</p>
-      <div id="propp-cards"></div>
-      <div class="propp-absent" id="propp-absent"></div>
-    </section>
-
     <!-- PAPERS -->
     <section class="view" id="view-papers">
       <div class="hero"><h1>Papers &amp; primary sources</h1><p>Where to read the texts themselves, and the scholarship that argues over them. Links go to stable archives and reference gateways.</p></div>
@@ -191,12 +169,11 @@
 
   <footer class="foot">
     <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Pendragon</span><br>
-    A historiography, not a romance. Dates are scholarly consensus where one exists and best-estimate ranges where it does not; the historical-Arthur question is genuinely open and presented as such. Built on the <a href="https://d.lib.rochester.edu/camelot">Camelot Project</a>, Wikipedia/Wikisource, Project Gutenberg and the Internet Archive.
+    A historiography, not a romance. Dates are scholarly consensus where one exists and best-estimate ranges where it does not; the historical-Arthur question is genuinely open and presented as such. Built on the <a href="https://d.lib.rochester.edu/camelot">Camelot Project</a>, Wikipedia/Wikisource, Project Gutenberg and the Internet Archive.<br><br>
+    The full translation of <em>Culhwch ac Olwen</em> — the oldest Arthurian tale — now lives at its own site, with character cards and a story graph: <a href="/culhwch/">read.mino.mobi/culhwch</a>.
   </footer>
 
   <script src="data.js"></script>
-  <script src="tale.js"></script>
-  <script src="analysis.js"></script>
   <script src="app.js"></script>
   <script async src="https://embed.bsky.app/static/embed.js" charset="utf-8"></script>
 </body>
