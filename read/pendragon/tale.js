@@ -25,7 +25,7 @@ window.PENDRAGON.tale = {
     { t: "VII · Ysbaddaden's hall & the spears", done: true },
     { t: "VIII · The impossible tasks (anoethau)", done: true },
     { t: "IX · The great helpers & first quests", done: true },
-    { t: "X · The hunt for Twrch Trwyth", done: false },
+    { t: "X · The hunt for Twrch Trwyth", done: true },
     { t: "XI · The Black Witch's blood", done: false },
     { t: "XII · Ysbaddaden slain; Olwen won", done: false },
   ],
@@ -429,6 +429,52 @@ window.PENDRAGON.tale = {
       { w: "Drachefn at Arthur y doethant, a managu lle yd oedd Mabon yng ngharchar. Galw a oruc Arthur ei ryfelwyr, a chyrchu Caer Loyw. Tra fu Arthur yn ymladd y gaer, yd aeth Cai a Bedwyr ar ysgwyddau'r eog; a thra fu'r ymladd yn torri'r mur, dug Cai Mabon ar ei gefn allan. A rhydd fu Mabon.",
         e: "They went back to Arthur and told him where Mabon lay imprisoned. Arthur summoned his warriors and fell upon Caer Loyw. While Arthur stormed the fort, Cei and Bedwyr went on the salmon's shoulders; and while the assault broke the wall, Cei bore Mabon out upon his back. And Mabon was free.",
         n: "With Mabon won, the company has the one huntsman who can handle Drudwyn — and the road now runs to the boar Twrch Trwyth himself." },
+    ],
+   },
+   {
+    title: "X. The hunt for Twrch Trwyth",
+    segments: [
+      { w: "Yna y clybu Arthur fod Twrch Trwyth yn Iwerddon. Anfon a oruc Menw mab Teirgwaedd i edrych a oedd y tlysau rhwng dwy glust y baedd, megis y dywedasid.",
+        e: "Then Arthur learned that Twrch Trwyth was in Ireland. He sent Menw son of Teirgwaedd to see whether the treasures were truly between the boar's two ears, as had been told." },
+
+      { w: "Yn rhith aderyn yd aeth Menw, a disgyn uwchben ei wâl; a cheisaw cipiaw un o'r tlysau a oruc, ac ni chafas namyn un o'i wrych. Cyfodi a oruc y baedd yn ffroenuchel ac ymysgwyd, hyd pan dasgodd ei wenwyn ar Fenw; ac ni bu Menw byth wedy hynny yn gwbl iach.",
+        e: "In the shape of a bird Menw went, and alighted above the boar's lair; he tried to snatch one of the treasures, and got nothing but a single bristle. The boar rose up bristling and shook himself, until his venom spattered Menw; and Menw was never wholly well again after that.",
+        n: "Twrch Trwyth, the tale tells us, was a king whom God turned into a swine for his sins — venomous, vast, and with seven young pigs at his side." },
+
+      { w: "Galw a oruc Arthur niferoedd y byd, a mynd i Iwerddon. Naw nos a naw dydd yd ymladdasant â'r Twrch Trwyth a'i seith banw; ac ni laddasant namyn un o'i foch. Difa a oruc y Twrch bumed ran Iwerddon.",
+        e: "Arthur called together the hosts of the world and went to Ireland. Nine nights and nine days they fought with Twrch Trwyth and his seven pigs; and they killed but one of his swine. The boar laid waste a fifth part of Ireland." },
+
+      { w: "Anfon a oruc Arthur Wrhyr Gwalstawd Ieithoedd i ymddiddan ag ef yn rhith aderyn. Heb Grugyn Gwrych Eraint, un o'r moch: “Yr Duw a'n gwnaeth ni yn y rhith hwn, ni a awn i wlad Arthur i wneuthur y mwyaf a allom o ddrwg yno.” A mynd dros y môr a wnaethant tu a Chymru.",
+        e: "Arthur sent Gwrhyr Interpreter of Tongues to parley with them in the shape of a bird. Said Grugyn Silver-bristle, one of the pigs: “By God who made us into this shape, we will go to Arthur's own land and do there the greatest harm we can.” And they went over the sea toward Wales.",
+        n: "The boar and his pigs were transformed kings, and they speak — choosing, out of pure spite, to carry the war into Arthur's own country." },
+
+      { w: "I Borth Cleis yn Nyfed y daeth y Twrch Trwyth i'r tir. A'r nos honno y doeth Arthur hyd Fynyw. A thrannoeth y dywedwyd i Arthur ei fod wedy mynd heibio; a chyrchu a oruc Arthur ar ei ôl â'i nifer a'i gŵn.",
+        e: "It was at Porth Cleis in Dyfed that Twrch Trwyth came to land. That night Arthur came as far as Mynyw; and the next day Arthur was told the boar had already passed by, and he set off after him with his host and his hounds." },
+
+      { w: "Yng Nghwm Cerwyn y trodd y Twrch i'w herbyn, ac yno y lladdodd lawer o wŷr Arthur: y cyntaf a laddwyd oedd Gwarthegydd; ac yna y lladdwyd Gwydre, mab Arthur, ac eraill lawer o'i ryfelwyr. Deirgwaith yr ymladdasant ag ef, a llawer a las o bob tu.",
+        e: "At Cwm Cerwyn the boar turned to face them, and there he killed many of Arthur's men: the first slain was Gwarthegydd; and there too fell Gwydre, Arthur's son, and many another of his warriors. Three times they joined battle with him, and many were killed on either side." },
+
+      { w: "Oddi yno y gyrrwyd ef o le i le drwy holl Ddyfed a Morgannwg: trwy Fynydd Amanw, a Dyffryn Amanw, a Llwch Ewin, ac Ystrad Yw. Ac ymhob lle yd ymladdwyd ag ef, ac y lladdwyd ei foch un ac un — Twrch Llawin, a Gwys, a Banw, a Benwig — ac y rhoed enw i bob man o'r weithred a wnaethpwyd yno.",
+        e: "From there he was driven from place to place across all Dyfed and Glamorgan: through Mynydd Amanw and Dyffryn Amanw, Llwch Ewin and Ystrad Yw. And in every place there was a fight with him, and his pigs were slain one by one — Twrch Llawin, Gwys, Banw and Benwig — and each spot was given its name from the deed done there.",
+        n: "Here the tale becomes a place-name litany: much of the hunt is aetiological, explaining how a dozen Welsh hills, valleys and fords came by their names through this one chase. I've kept its shape and a representative handful of the places rather than the full topographic roll — the one stretch I've condensed in the whole tale, and only because it is a catalogue of names, not story." },
+
+      { w: "O'r diwedd y gyrrwyd y Twrch Trwyth tu a Hafren. Heb Arthur: “Yma y caf i ymdaro ag ef, am fy einioes ac am eiddo eraill.”",
+        e: "At last Twrch Trwyth was driven toward the Severn. Said Arthur: “Here I shall close with him — for my own life and for the lives of others.”" },
+
+      { w: "Yn nŵr Hafren y kyrchwyd ef. Mabon mab Modron, ar Wyn Mygdwn march Gweddw, a gipiodd yr ellyn oddi rhwng ei ddwy glust; a Chyledyr Wyllt a gipiodd y gwellau. Eithr cyn caffel y grib, y cafas y Twrch y tir â'i draed; ac ni bu na chi na gŵr a allai nesáu ato hyd nes ymysgwyd ohonaw.",
+        e: "In the waters of the Severn they fell upon him. Mabon son of Modron, upon Gwyn Dun-Mane, the horse of Gweddw, snatched the razor from between his two ears; and Cyledyr the Wild snatched the shears. But before the comb could be won, the boar got his feet onto dry land, and from that moment neither hound nor man could come near him until he had shaken himself free." },
+
+      { w: "Tu a Chernyw y gyrrwyd ef wedy hynny. A pha gymaint bynnag o ddrwg a gafwyd yn ei geisaw cyn hynny, gwaeth a gafwyd yn ceisaw y grib. Ac o'r diwedd, o anhawster i anhawster, y cafwyd y grib.",
+        e: "After that he was driven on into Cornwall. And however much trouble had been met in winning the razor and the shears before, worse was met in winning the comb. But at the last, from one hardship to the next, the comb was taken.",
+        n: "Comb, shears and razor — the three treasures from between the boar's ears — are now all won: the chief of Ysbaddaden's tasks is done." },
+
+      { w: "Ac yna y gyrrwyd y Twrch Trwyth o Gernyw, ac yn union i'r môr. Ac o'r dydd hwnnw hyd heddiw ni wybu neb i ba le yd aeth.",
+        e: "And then Twrch Trwyth was driven out of Cornwall and straight into the sea. And from that day to this, no one has known where he went.",
+        n: "The great boar vanishes into the ocean, undefeated and never seen again — the hunt's wild, unresolved close." },
+
+      { w: "A'r tlysau a ddygwyd at Ysbaddaden Bencawr, fal y gellid ei eillaw erbyn rhoddi Olwen i Gulhwch.",
+        e: "And the treasures were carried back to Ysbaddaden Bencawr, so that he might be shaved before Olwen was given to Culhwch.",
+        n: "Last of all: the shaving of the giant, the death of Ysbaddaden, and Olwen won at last." },
     ],
    },
   ],
