@@ -1423,6 +1423,22 @@ async function resolvePds(did){
   return pdsEndpoint(doc);
 }
 
+// Load an unsaved organism passed by the breeder lab as #c=<base64url(JSON)>.
+function loadHashConfig(){
+  const m = location.hash.match(/(?:^#|&)c=([^&]+)/);
+  if (!m) return;
+  try {
+    let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const conf = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    if (conf && window.Fluoddity) {
+      window.Fluoddity.applyConfig(conf);
+      branchedFrom = null;
+      status('loaded a bred organism. save it to plant it in the garden.', 'ok');
+    }
+  } catch { status('could not read the organism in this link', 'err'); }
+}
+
 async function loadShared(){
   const o = new URLSearchParams(location.search).get('o');
   if (!o) return;
@@ -1676,9 +1692,10 @@ $('btn-copy-cfg')?.addEventListener('click', async () => {
 });
 
 // Restore the last organism (survives reload + the OAuth round-trip). A
-// ?o= shared link wins, so only restore when there isn't one.
+// ?o= shared link or a #c= bred-config link wins, so only restore otherwise.
 const hasSharedLink = new URLSearchParams(location.search).has('o');
-if (!hasSharedLink) {
+const hasHashConfig = /(?:^#|&)c=/.test(location.hash);
+if (!hasSharedLink && !hasHashConfig) {
   try {
     const saved = localStorage.getItem(CFG_KEY);
     if (saved) { window.Fluoddity?.applyConfig(JSON.parse(saved)); _lastPersisted = saved; }
@@ -1687,6 +1704,7 @@ if (!hasSharedLink) {
 
 if (auth) await auth.init();   // consumes ?__auth_session after OAuth redirect
 await loadShared();            // ?o=did/rkey loads a shared organism
+loadHashConfig();              // #c=<base64> loads an unsaved organism from the breeder
 </script>
 </body>
 </html>
