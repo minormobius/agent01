@@ -56,6 +56,7 @@ h3:first-child { margin-top: 0; }
   <a class="crumb" href="./gallery.html">← gallery</a>
   <span class="title"><b>fluoddity</b> breeder lab</span>
   <span class="spacer"></span>
+  <a class="pill" href="./select.html">selection ↗</a>
   <a class="pill" href="./map.html">phylogeny ↗</a>
   <a class="pill" href="./play/">+ new organism</a>
 </div>
@@ -109,41 +110,18 @@ h3:first-child { margin-top: 0; }
 
 <script type="module">
 "use strict";
-import { FluoddityEngine, defaultConfig } from './engine.js';
+import { FluoddityEngine, defaultConfig, mutate } from './engine.js';
 import { readDescriptors, fitness, verdict, vec, dist, VIT_COLOR } from './descriptors.js';
 import { PhaseMap } from './phasemap.js';
 
 const $ = (s) => document.querySelector(s);
 const raf = () => new Promise(r => requestAnimationFrame(r));
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const clamp = (x, lo, hi) => x < lo ? lo : x > hi ? hi : x;
-function randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 
 let engine = null;
 try { engine = new FluoddityEngine(256, 28000); }
 catch (e) { $('#who').textContent = 'This needs WebGL2 with float render targets — ' + e.message; }
 
-// mutable parameters: [min, max, mutation step]
-const PARAMS = {
-  sensor_gain: [0, 12, 1.2], sensor_angle: [-1, 1, 0.12], sensor_distance: [0.05, 4, 0.4],
-  mutation_scale: [0, 0.2, 0.02], global_force_mult: [0, 3, 0.3], drag: [0.5, 0.999, 0.04],
-  strafe_power: [0, 1, 0.12], axial_force: [-0.6, 0.6, 0.08], lateral_force: [-1, 1, 0.12],
-  trail_persistence: [0.5, 0.999, 0.04], trail_diffusion: [0, 2, 0.2], ink: [0.3, 8, 0.6], hue: [0, 1, 0.1],
-};
-function mutate(cfg, rate) {
-  const c = Object.assign({}, cfg);
-  for (const k in PARAMS) {
-    const [lo, hi, step] = PARAMS[k];
-    if (Math.random() < 0.7) {
-      let x = c[k] + randn() * rate * step;
-      c[k] = (k === 'hue') ? ((x % 1) + 1) % 1 : clamp(x, lo, hi);
-    }
-  }
-  if (Math.random() < 0.12) c.rule_seed = Math.random();
-  if (Math.random() < 0.10) c.cohorts = clamp((c.cohorts | 0) + (Math.random() < 0.5 ? -1 : 1) * (1 + (Math.random() * 2 | 0)), 1, 48) | 0;
-  if (Math.random() < 0.06) c.initial_conditions = (Math.random() * 3) | 0;
-  return c;
-}
 // An organism handed in from the playground / gallery as #c=<base64url(JSON)>:
 // gen 0 is seeded from it (one exact copy + gentle mutations) so you breed its
 // lineage rather than starting from random noise.

@@ -15,24 +15,47 @@ export function defaultConfig() {
   };
 }
 
-// Empirically viable parameter box — the same bounds the breeder lab forages
-// inside. These exclude the obviously-dead corners of the genome (no ink, no
-// drag, runaway force), so a uniform draw from here lands near the alive region
-// far more often than sampling the full unbounded space. The rule_seed (a 10-
-// term Fourier black box) still dominates whether a given draw is alive, so
-// callers should reject-sample on fitness on top of this.
-export const PARAM_RANGES = {
-  sensor_gain: [0, 12], sensor_angle: [-1, 1], sensor_distance: [0.05, 4],
-  global_force_mult: [0, 3], drag: [0.5, 0.999], strafe_power: [0, 1],
-  axial_force: [-0.6, 0.6], lateral_force: [-1, 1],
-  trail_persistence: [0.5, 0.999], trail_diffusion: [0, 2], ink: [0.3, 8], hue: [0, 1],
+// Canonical genome operators, shared by every breeding surface (breeder lab,
+// selection, the landing hero). PARAMS maps each evolvable parameter to
+// [lo, hi, mutation-sigma]. The lo/hi box is the empirically viable region —
+// it excludes the obviously-dead corners of the genome (no ink, no drag,
+// runaway force) so a uniform draw lands near the alive region far more often
+// than sampling the full unbounded space. The rule_seed (a 10-term Fourier
+// black box) still dominates whether a given draw is alive, so callers that
+// want a guaranteed-lively organism should reject-sample on fitness on top.
+export const PARAMS = {
+  sensor_gain: [0, 12, 1.2], sensor_angle: [-1, 1, 0.12], sensor_distance: [0.05, 4, 0.4],
+  mutation_scale: [0, 0.2, 0.02], global_force_mult: [0, 3, 0.3], drag: [0.5, 0.999, 0.04],
+  strafe_power: [0, 1, 0.12], axial_force: [-0.6, 0.6, 0.08], lateral_force: [-1, 1, 0.12],
+  trail_persistence: [0.5, 0.999, 0.04], trail_diffusion: [0, 2, 0.2], ink: [0.3, 8, 0.6], hue: [0, 1, 0.1],
 };
+
+const _clamp = (x, lo, hi) => x < lo ? lo : x > hi ? hi : x;
+function _randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 
 export function randomConfig() {
   const c = defaultConfig();
-  for (const k in PARAM_RANGES) { const [lo, hi] = PARAM_RANGES[k]; c[k] = lo + Math.random() * (hi - lo); }
+  for (const k in PARAMS) { const [lo, hi] = PARAMS[k]; c[k] = lo + Math.random() * (hi - lo); }
   c.rule_seed = Math.random();
   c.cohorts = 8 + (Math.random() * 24 | 0);
+  return c;
+}
+
+// Gaussian nudge per parameter (70% chance each), plus rare structural jumps:
+// a fresh rule_seed (a bifurcation), a cohort-count change, or a new spawn
+// pattern. rate scales the per-parameter sigma.
+export function mutate(cfg, rate = 1) {
+  const c = { ...cfg };
+  for (const k in PARAMS) {
+    const [lo, hi, step] = PARAMS[k];
+    if (Math.random() < 0.7) {
+      const x = c[k] + _randn() * rate * step;
+      c[k] = (k === 'hue') ? ((x % 1) + 1) % 1 : _clamp(x, lo, hi);
+    }
+  }
+  if (Math.random() < 0.12) c.rule_seed = Math.random();
+  if (Math.random() < 0.10) c.cohorts = _clamp((c.cohorts | 0) + (Math.random() < 0.5 ? -1 : 1) * (1 + (Math.random() * 2 | 0)), 1, 48) | 0;
+  if (Math.random() < 0.06) c.initial_conditions = (Math.random() * 3) | 0;
   return c;
 }
 

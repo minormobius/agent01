@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — selection</title>
+<meta name="description" content="Guided breeding for Fluoddity organisms: a 4x4 of living variations. Pick the one you like and propagate it — its children fill the next grid. You are the fitness function.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/select.html">
+<meta property="og:title" content="fluoddity — selection">
+<meta property="og:description" content="Guided breeding: pick the organism you like, propagate it, and its children fill the next 4x4. You are the fitness function.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+a { color: var(--accent); text-decoration: none; }
+
+#topbar { position: absolute; top: 0; left: 0; right: 0; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--bg); z-index: 5; }
+.crumb { color: var(--muted); font-size: 13px; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; }
+.pill:hover { color: var(--accent); border-color: var(--accent); }
+.lineage { font-size: 11px; color: var(--muted); }
+
+#stage { position: absolute; top: 48px; bottom: 64px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; padding: 14px; }
+#grid { width: min(92vw, 82vh); height: min(92vw, 82vh); display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); gap: 8px; }
+.cell { position: relative; background: #000; border: 2px solid var(--rule); border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color 0.12s, transform 0.08s; }
+.cell:hover { border-color: #4a5160; }
+.cell.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56,225,192,0.35), 0 6px 24px rgba(56,225,192,0.25); transform: scale(1.012); }
+.cell canvas { width: 100%; height: 100%; display: block; }
+.cell.busy::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 8px, rgba(255,255,255,0.05) 8px 16px); animation: pulse 1s linear infinite; }
+@keyframes pulse { to { opacity: 0.4; } }
+.badge { position: absolute; top: 6px; left: 6px; display: flex; align-items: center; gap: 5px; font-size: 9.5px; color: #cfd3da; background: rgba(0,0,0,0.55); border-radius: 6px; padding: 2px 6px; pointer-events: none; }
+.badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.cell.parent .seed { position: absolute; top: 6px; right: 6px; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: #04110e; background: var(--accent); border-radius: 5px; padding: 2px 5px; pointer-events: none; }
+
+#dock { position: absolute; bottom: 0; left: 0; right: 0; height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px; border-top: 1px solid var(--rule); background: var(--bg); z-index: 5; }
+#dock .left, #dock .right { display: flex; align-items: center; gap: 10px; }
+.btn { font-family: var(--mono); font-size: 12px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 13px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.primary:disabled { background: #1c3a34; color: #6b8f88; border-color: #1c3a34; }
+.mut { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+.mut input { width: 90px; accent-color: var(--accent); }
+.mut b { color: var(--fg); min-width: 26px; }
+#hint { font-size: 12px; color: var(--muted); }
+#fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · selection</span>
+  <span class="spacer"></span>
+  <span class="lineage" id="lineage">generation 0</span>
+  <a class="pill" href="./play/">playground ↗</a>
+  <a class="pill" href="./breed.html">auto-breed ↗</a>
+  <a class="pill" href="./gallery.html">gallery ↗</a>
+</div>
+
+<div id="stage"><div id="grid"></div></div>
+
+<div id="dock">
+  <div class="left">
+    <button class="btn" id="btn-back" disabled>← back</button>
+    <button class="btn" id="btn-reroll">↻ new 16</button>
+    <label class="mut">mutation <input type="range" id="mut" min="0.3" max="2.5" step="0.1" value="1"><b id="mutv">1.0</b></label>
+  </div>
+  <div class="right">
+    <span id="hint">pick the one you like</span>
+    <button class="btn" id="btn-save" disabled>save → playground</button>
+    <button class="btn primary" id="btn-prop" disabled>propagate ⇒ next 16</button>
+  </div>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, randomConfig, mutate } from './engine.js';
+import { readDescriptors, verdict, VIT_COLOR } from './descriptors.js';
+
+const $ = (s) => document.querySelector(s);
+const raf = () => new Promise(r => requestAnimationFrame(r));
+const GRID = 16;
+
+let engine = null;
+try { engine = new FluoddityEngine(256, 30000); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'Selection needs WebGL2 with float render targets — ' + e.message; }
+
+// ── grid DOM ──────────────────────────────────────────────────────────────
+const gridEl = $('#grid');
+const cells = [];
+for (let i = 0; i < GRID; i++) {
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  cell.innerHTML = '<canvas></canvas><span class="badge"><span class="dot"></span><span class="vt"></span></span><span class="seed">seed</span>';
+  cell.addEventListener('click', () => select(i));
+  cell.addEventListener('dblclick', () => { if (!busy) propagate(); });
+  gridEl.appendChild(cell);
+  cells.push({ el: cell, cv: cell.querySelector('canvas'), ctx: cell.querySelector('canvas').getContext('2d') });
+}
+
+// ── state ───────────────────────────────────────────────────────────────────
+let configs = [];        // 16 current organism configs
+let history = [];         // stack of previous config arrays (for "back")
+let selected = -1, gen = 0, busy = false, parentIdx = -1;
+
+const encodeCfg = (c) => btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+function blit(cell) {
+  const W = cell.cv.clientWidth, H = cell.cv.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cell.cv.width = W * dpr; cell.cv.height = H * dpr;
+  const s = engine.cv.width, scale = Math.max(cell.cv.width / s, cell.cv.height / s);
+  const dw = s * scale, dh = s * scale;
+  cell.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  cell.ctx.drawImage(engine.cv, (cell.cv.width - dw) / 2, (cell.cv.height - dh) / 2, dw, dh);
+}
+
+// Render one cell; if rerollDead, replace fully-dead draws with a fresh random
+// organism (up to a few tries) so the initial grid is never half-blank.
+async function renderCell(i, rerollDead) {
+  const cell = cells[i];
+  cell.el.classList.add('busy');
+  let tries = 0, v;
+  while (true) {
+    engine.load(configs[i], 'sel' + gen + '_' + i + '_' + tries);
+    engine.step(220); engine.render();
+    const a = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    v = readDescriptors(engine.cv, a.lum);
+    if (!(rerollDead && v.fill < 0.012) || tries >= 3) break;
+    configs[i] = randomConfig(); tries++;
+  }
+  blit(cell);
+  const vt = verdict(v, false);
+  cell.el.querySelector('.badge .dot').style.background = VIT_COLOR[vt] || '#888';
+  cell.el.querySelector('.badge .vt').textContent = vt;
+  cell.el.classList.remove('busy');
+  await raf();
+}
+
+async function renderAll(rerollDead) {
+  if (!engine) return;
+  busy = true; updateButtons();
+  for (let i = 0; i < GRID; i++) await renderCell(i, rerollDead);
+  busy = false; updateButtons();
+}
+
+function select(i) {
+  selected = i;
+  cells.forEach((c, j) => c.el.classList.toggle('sel', j === i));
+  const vt = cells[i].el.querySelector('.badge .vt').textContent;
+  $('#hint').textContent = `cell ${i + 1} selected · ${vt}`;
+  updateButtons();
+}
+
+function updateButtons() {
+  $('#btn-save').disabled = busy || selected < 0;
+  $('#btn-prop').disabled = busy || selected < 0;
+  $('#btn-reroll').disabled = busy;
+  $('#btn-back').disabled = busy || history.length === 0;
+}
+
+function markParent() {
+  cells.forEach((c, j) => c.el.classList.toggle('parent', j === parentIdx));
+}
+
+async function reroll() {
+  if (busy) return;
+  history = []; gen = 0; parentIdx = -1; selected = -1;
+  cells.forEach(c => c.el.classList.remove('sel', 'parent'));
+  configs = Array.from({ length: GRID }, () => randomConfig());
+  $('#lineage').textContent = 'generation 0';
+  $('#hint').textContent = 'pick the one you like';
+  markParent();
+  await renderAll(true);
+}
+
+async function propagate() {
+  if (busy || selected < 0) return;
+  const parent = configs[selected];
+  const rate = parseFloat($('#mut').value);
+  history.push(configs.slice());
+  // cell 0 keeps the exact parent so you never lose it; the rest are children.
+  configs = [parent, ...Array.from({ length: GRID - 1 }, () => mutate(parent, rate))];
+  gen++; parentIdx = 0; selected = -1;
+  cells.forEach(c => c.el.classList.remove('sel'));
+  $('#lineage').textContent = 'generation ' + gen;
+  $('#hint').textContent = 'cell 1 is the parent · pick a child to keep going';
+  markParent();
+  await renderAll(false);
+}
+
+async function back() {
+  if (busy || !history.length) return;
+  configs = history.pop();
+  gen = Math.max(0, gen - 1);
+  parentIdx = gen > 0 ? 0 : -1; selected = -1;
+  cells.forEach(c => c.el.classList.remove('sel'));
+  $('#lineage').textContent = 'generation ' + gen;
+  $('#hint').textContent = 'pick the one you like';
+  markParent();
+  await renderAll(false);
+}
+
+$('#btn-reroll').addEventListener('click', reroll);
+$('#btn-back').addEventListener('click', back);
+$('#btn-prop').addEventListener('click', propagate);
+$('#btn-save').addEventListener('click', () => { if (selected >= 0) location.href = './play/#c=' + encodeCfg(configs[selected]); });
+$('#mut').addEventListener('input', () => { $('#mutv').textContent = parseFloat($('#mut').value).toFixed(1); });
+
+if (engine) reroll();
+</script>
+</body>
+</html>
