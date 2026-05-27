@@ -291,15 +291,156 @@
     ab.appendChild(el("p", "propp-verdict", P2.absent.verdict));
   }
 
+  /* ====================== THE MYTHOGRAPH (synergistic graph) ======================
+     One typed multigraph over the whole annotation layer. Nodes: movement,
+     character, motif, propp-function. Edges: APPEARS_IN (char->movement),
+     RELATES_TO (char<->char), EXHIBITS (motif->movement), REALIZES (fn->movement).
+     The 12 movements are pinned along a horizontal spine; everything else is
+     force-laid, so cross-cutting elements pull toward the centre. */
+  function buildMythograph() {
+    const nodes = [], edges = [], id2i = {};
+    const add = (id, full, label, type, link) => { id2i[id] = nodes.length; nodes.push({ id, full, label, type, link }); };
+    C.tale.passages.forEach((p, i) => { const n = i + 1; add("mv-" + n, p.title, toRoman(n), "movement", { passage: n }); });
+    C.characters.cast.forEach((c) => add("ch-" + c.id, c.name, c.name, "character", { char: c.id }));
+    C.motifs.list.forEach((m, i) => add("mo-" + i, (m.code || m.cls) + " — " + m.name, m.code || m.cls, "motif", { tab: "motifs" }));
+    C.propp.moves.forEach((mv, i) => add("pp-" + i, mv.sym + " · " + mv.name, mv.sym, "propp", { tab: "propp", anchor: "propp-move-" + i }));
+    const edge = (a, b, type) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type }); };
+    C.characters.cast.forEach((c) => (c.appears || []).forEach((n) => edge("ch-" + c.id, "mv-" + n, "appears")));
+    const seen = {}; C.characters.cast.forEach((c) => (c.rel || []).forEach((r) => { const k = [c.id, r.to].sort().join("|"); if (seen[k]) return; seen[k] = 1; edge("ch-" + c.id, "ch-" + r.to, "relates"); }));
+    C.motifs.list.forEach((m, i) => (m.passages || []).forEach((n) => edge("mo-" + i, "mv-" + n, "exhibits")));
+    C.propp.moves.forEach((mv, i) => edge("pp-" + i, "mv-" + mv.passage, "realizes"));
+    return { nodes, edges };
+  }
+
+  const MYTH_TYPE = {
+    movement: { color: "#c9a24a", label: "Movements", r: 15 },
+    character: { color: "#6fa8c9", label: "Characters", r: 9 },
+    motif: { color: "#c97f9a", label: "Motifs", r: 6 },
+    propp: { color: "#7fb37f", label: "Functions", r: 6 },
+  };
+  const MYTH_EDGE = { appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f" };
+
+  function renderMythograph() {
+    const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
+    const active = { movement: true, character: true, motif: true, propp: true };
+    let selected = null;
+
+    const fhost = $("#myth-filters"); fhost.innerHTML = "";
+    Object.keys(MYTH_TYPE).forEach((t) => {
+      const b = el("button", "myth-filter active", `<span class="dot" style="background:${MYTH_TYPE[t].color}"></span>${MYTH_TYPE[t].label}`);
+      b.onclick = () => { active[t] = !active[t]; b.classList.toggle("active", active[t]); applyVis(); };
+      fhost.appendChild(b);
+    });
+    const leg = $("#myth-legend"); leg.innerHTML = "";
+    [["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
+      .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
+
+    // layout — pinned movement spine + force for the rest
+    const W = 1460, H = 780, pad = 70;
+    const mv = nodes.filter((n) => n.type === "movement");
+    nodes.forEach((n) => { n.x = W / 2 + (Math.random() - 0.5) * 240; n.y = H / 2 + (Math.random() - 0.5) * 300; });
+    mv.forEach((n, i) => { n.pinned = true; n.x = pad + i * (W - 2 * pad) / (mv.length - 1); n.y = H / 2; });
+    const k = Math.sqrt((W * H) / nodes.length) * 0.62;
+    let temp = W * 0.08;
+    for (let it = 0; it < 380; it++) {
+      nodes.forEach((n) => { n.dx = 0; n.dy = 0; });
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const f = k * k / d, ux = dx / d, uy = dy / d;
+        nodes[i].dx += ux * f; nodes[i].dy += uy * f; nodes[j].dx -= ux * f; nodes[j].dy -= uy * f;
+      }
+      edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = A.x - B.x, dy = A.y - B.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const f = d * d / k, ux = dx / d, uy = dy / d; A.dx -= ux * f; A.dy -= uy * f; B.dx += ux * f; B.dy += uy * f; });
+      nodes.forEach((n) => { if (n.pinned) return; const d = Math.sqrt(n.dx * n.dx + n.dy * n.dy) || 0.01, m = Math.min(d, temp); n.x += n.dx / d * m; n.y += n.dy / d * m; });
+      temp *= 0.976;
+    }
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    nodes.forEach((n) => { minx = Math.min(minx, n.x); miny = Math.min(miny, n.y); maxx = Math.max(maxx, n.x); maxy = Math.max(maxy, n.y); });
+    nodes.forEach((n) => { n.x = n.x - minx + pad; n.y = n.y - miny + pad; });
+    const contentW = maxx - minx + pad * 2;
+
+    const svg = svgEl("svg", { class: "myth" }); const layer = svgEl("g", { class: "zl" }); svg.appendChild(layer);
+    const edgeObjs = [], adj = {};
+    edges.forEach((e, ei) => {
+      const A = nodes[e.a], B = nodes[e.b];
+      const line = svgEl("line", { x1: A.x, y1: A.y, x2: B.x, y2: B.y, stroke: MYTH_EDGE[e.type], "stroke-opacity": 0.22, "stroke-width": 1 });
+      layer.appendChild(line); edgeObjs.push(line);
+      (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
+    });
+    const nodeObjs = [];
+    nodes.forEach((n, i) => {
+      const T = MYTH_TYPE[n.type];
+      const grp = svgEl("g", { class: "myth-node" });
+      if (n.type === "movement") {
+        grp.appendChild(svgEl("rect", { x: n.x - T.r, y: n.y - T.r, width: T.r * 2, height: T.r * 2, rx: 5, fill: T.color, "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1.5 }));
+        const lab = svgEl("text", { x: n.x, y: n.y + 4, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": "700" }); lab.textContent = n.label; grp.appendChild(lab);
+      } else {
+        grp.appendChild(svgEl("circle", { cx: n.x, cy: n.y, r: T.r, fill: T.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.2 }));
+      }
+      const ttl = svgEl("title"); ttl.textContent = n.full; grp.appendChild(ttl);
+      grp.addEventListener("mouseenter", () => highlight(i));
+      grp.addEventListener("mouseleave", () => { selected != null ? highlight(selected) : clearHi(); });
+      grp.addEventListener("click", () => select(i));
+      layer.appendChild(grp); nodeObjs.push(grp);
+    });
+
+    function highlight(i) {
+      const keep = new Set([i]); const inc = new Set();
+      (adj[i] || []).forEach((ei) => { inc.add(ei); keep.add(edges[ei].a); keep.add(edges[ei].b); });
+      edgeObjs.forEach((l, ei) => l.classList.toggle("hot", inc.has(ei)));
+      nodeObjs.forEach((gp, ni) => gp.classList.toggle("dim", active[nodes[ni].type] && !keep.has(ni)));
+    }
+    function clearHi() { edgeObjs.forEach((l) => l.classList.remove("hot")); nodeObjs.forEach((gp) => gp.classList.remove("dim")); }
+    function applyVis() {
+      nodeObjs.forEach((gp, ni) => gp.style.display = active[nodes[ni].type] ? "" : "none");
+      edgeObjs.forEach((l, ei) => l.style.display = (active[nodes[edges[ei].a].type] && active[nodes[edges[ei].b].type]) ? "" : "none");
+    }
+    function select(i) { selected = i; highlight(i); fillDetail(i); }
+
+    function fillDetail(i) {
+      const n = nodes[i], d = $("#myth-detail"); d.innerHTML = "";
+      d.appendChild(el("div", "md-type", MYTH_TYPE[n.type].label.replace(/s$/, "")));
+      d.appendChild(el("h3", "md-title", escapeHtml(n.full)));
+      // primary open action
+      const open = el("div", "md-open");
+      if (n.link.passage) { const a = el("a", null, "→ Read this movement"); a.setAttribute("data-passage", n.link.passage); open.appendChild(a); }
+      else if (n.link.char) { const a = el("a", null, "→ Character card"); a.setAttribute("data-char", n.link.char); open.appendChild(a); }
+      else if (n.link.tab === "motifs") { const a = el("a", null, "→ In the motif index"); a.onclick = () => switchView("motifs"); open.appendChild(a); }
+      else if (n.link.tab === "propp") { const a = el("a", null, "→ In the story graph"); a.onclick = () => { switchView("propp"); if (n.link.anchor) setTimeout(() => { const c = $("#" + n.link.anchor); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 40); }; open.appendChild(a); }
+      d.appendChild(open);
+      // neighbours grouped by edge type
+      const groups = {};
+      (adj[i] || []).forEach((ei) => { const e = edges[ei]; const other = e.a === i ? e.b : e.a; (groups[e.type] = groups[e.type] || []).push(other); });
+      const GLAB = { appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes" };
+      const order = n.type === "movement" ? ["appears", "exhibits", "realizes", "relates"] : ["appears", "relates", "exhibits", "realizes"];
+      order.forEach((t) => {
+        if (!groups[t]) return;
+        const sec = el("div", "md-group");
+        sec.appendChild(el("span", "md-glabel", GLAB[t] + ": "));
+        groups[t].forEach((oi, idx) => {
+          const chip = el("a", "md-chip"); chip.innerHTML = escapeHtml(nodes[oi].full);
+          chip.onclick = () => select(oi);
+          sec.appendChild(chip);
+          if (idx < groups[t].length - 1) sec.appendChild(document.createTextNode(" "));
+        });
+        d.appendChild(sec);
+      });
+    }
+
+    const host = $("#myth-host"); host.innerHTML = ""; host.appendChild(svg);
+    zoomers.myth = attachZoom(svg, layer, contentW, host);
+    $("#myth-detail").innerHTML = '<div class="md-hint">Hover a node to light its threads. Click any node — a movement, a character, a motif, a story-function — to see everything it touches.</div>';
+  }
+
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "characters", "web", "propp", "motifs"];
-  let proppDrawn = false, webDrawn = false, current = "read";
+  const VIEWS = ["read", "characters", "web", "propp", "motifs", "myth"];
+  let proppDrawn = false, webDrawn = false, mythDrawn = false, current = "read";
   function switchView(v) {
     current = v;
     VIEWS.forEach((x) => $("#view-" + x).classList.toggle("active", x === v));
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     if (v === "web" && !webDrawn) { renderWeb(); webDrawn = true; }
     if (v === "propp" && !proppDrawn) { renderPropp(); proppDrawn = true; }
+    if (v === "myth" && !mythDrawn) { renderMythograph(); mythDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
   }

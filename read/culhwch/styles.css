@@ -316,6 +316,28 @@ svg.web { display: block; }
 .web-node:hover .web-label { fill: var(--ink); }
 .web-node.dim { opacity: 0.18; }
 
+/* ── The mythograph ── */
+svg.myth { display: block; }
+.myth-node { cursor: pointer; }
+.myth-node:hover circle, .myth-node:hover rect { stroke: var(--gold-soft); stroke-width: 2; }
+.myth-node.dim { opacity: 0.12; }
+.myth .hot, svg.myth line.hot { stroke-opacity: 0.95 !important; stroke-width: 2.4 !important; }
+.myth-controls { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 8px; font-family: var(--sans); }
+.myth-filter { font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px; }
+.myth-filter.active { color: var(--ink); border-color: var(--gold); }
+.myth-filter:not(.active) { opacity: 0.4; }
+.edgekey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; }
+.myth-detail { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-height: 64px; }
+.md-hint { color: var(--ink-faint); font-family: var(--sans); font-size: 14px; }
+.md-type { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 11px; color: var(--ink-faint); }
+.md-title { margin: 3px 0 8px; color: var(--gold-soft); font-size: 20px; }
+.md-open { font-family: var(--sans); font-size: 13px; margin-bottom: 10px; }
+.md-open a { color: var(--gold-soft); cursor: pointer; }
+.md-group { font-family: var(--sans); font-size: 13px; color: var(--ink-dim); margin-bottom: 7px; line-height: 1.7; }
+.md-glabel { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+.md-chip { display: inline-block; padding: 2px 9px; margin: 1px 0; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-dim); cursor: pointer; background: rgba(201,162,74,0.05); }
+.md-chip:hover { background: rgba(201,162,74,0.14); text-decoration: none; }
+
 /* ── Motif index ── */
 .tt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 16px 0 8px; }
 .tt-card { background: var(--panel); border: 1px solid var(--gold); border-radius: 10px; padding: 14px 16px; }
