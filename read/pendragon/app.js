@@ -458,15 +458,10 @@
         body.appendChild(row);
       });
     });
-    // notes/blurb cross-links into the wiki
-    $("#view-culhwch").addEventListener("click", (ev) => {
-      const a = ev.target.closest("a[data-wiki]");
-      if (a) { ev.preventDefault(); openWiki(a.getAttribute("data-wiki")); }
-    });
   }
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["timeline", "inworld", "tree", "wiki", "fae", "culhwch", "papers"];
+  const VIEWS = ["timeline", "inworld", "constantine", "tree", "wiki", "fae", "culhwch", "papers"];
   let treeDrawn = false, inworldDrawn = false, current = "timeline";
   function switchView(v) {
     current = v;
@@ -491,6 +486,11 @@
   renderFae();
   renderPapers();
   renderTale();
+  // any anchor with data-wiki="<id>" opens that wiki entry (works in static sections too)
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest && ev.target.closest("a[data-wiki]");
+    if (a) { ev.preventDefault(); openWiki(a.getAttribute("data-wiki")); }
+  });
 
   // hash routing: #view  or  #wiki/<entryId>
   const h = location.hash.slice(1);
