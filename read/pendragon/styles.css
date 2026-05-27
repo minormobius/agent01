@@ -231,6 +231,8 @@ svg.tree { display: block; }
 }
 .tale-mode.active { background: var(--gold); color: var(--bg); border-color: var(--gold); font-weight: 600; }
 .tale-body { margin-top: 10px; }
+.tale-pass-title { margin: 32px 0 2px; font-size: 23px; }
+.tale-body > .tale-pass-title:first-child { margin-top: 14px; }
 .tale-seg {
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px 30px;
   padding: 16px 0; border-bottom: 1px solid var(--line); align-items: start;

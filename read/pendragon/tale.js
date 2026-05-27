@@ -7,15 +7,16 @@
    Loaded after data.js, which defines window.PENDRAGON. */
 window.PENDRAGON.tale = {
   meta: {
-    blurb: "<strong>Culhwch ac Olwen</strong> is the oldest surviving Arthurian tale (c. 1100), preserved complete in the Red Book of Hergest and in part in the White Book of Rhydderch. This is a <strong>pilot</strong> — the opening passage only. The English is an <strong>original translation</strong>. The Welsh beside it is a <em>normalized reading text</em>: the medieval wording rendered in modern Welsh orthography (dd, f, w…), after the public-domain Red Book edition of Rhys &amp; Evans (1887, p.100). It is a reading text, <em>not</em> a strict diplomatic transcription — see the linked facsimile for the manuscript's own letterforms, and Lady Guest's public-domain version for comparison. Corrections from Welsh-readers are welcome.",
+    blurb: "<strong>Culhwch ac Olwen</strong> is the oldest surviving Arthurian tale (c. 1100), preserved complete in the Red Book of Hergest and in part in the White Book of Rhydderch. This is a <strong>pilot</strong> — the opening passages only. The English is an <strong>original translation</strong>. The Welsh beside it is a <em>normalized reading text</em>: the medieval wording rendered in modern Welsh orthography (dd, f, w…), after the public-domain Red Book edition of Rhys &amp; Evans (1887, from p.100). It is a reading text, <em>not</em> a strict diplomatic transcription — see the linked facsimile for the manuscript's own letterforms, and Lady Guest's public-domain version for comparison. Long catalogues like the court-list are <strong>abridged</strong>, and marked where they are. Corrections from Welsh-readers are welcome.",
     sources: [
       { label: "Red Book Welsh text — Rhys & Evans, 1887 (facsimile, from p.100)", url: "https://archive.org/details/textofmabinogion00rhysiala", host: "Internet Archive" },
       { label: "Lady Guest's translation (public domain)", url: "https://www.gutenberg.org/ebooks/search/?query=Mabinogion+Guest", host: "Project Gutenberg" },
       { label: "Culhwch and Olwen — background", url: "https://en.wikipedia.org/wiki/Culhwch_and_Olwen", host: "Wikipedia" },
     ],
   },
-  passage: {
-    title: "How Culhwch was born, and the destiny laid upon him",
+  passages: [
+   {
+    title: "I. How Culhwch was born, and the destiny laid upon him",
     segments: [
       { w: "Kilydd fab Celyddon Wledig a fynnai wraig kyn gyfurdd ag ef ei hun. Sef gwraig a fynnwys, Goleuddydd ferch Anlawdd Wledig.",
         e: "Cilydd son of Celyddon Wledig wanted a wife as well-born as himself. The wife he chose was Goleuddydd, daughter of Anlawdd Wledig.",
@@ -60,7 +61,70 @@ window.PENDRAGON.tale = {
 
       { w: "Ac yna y kyrchwys y mab borth llys Arthur.",
         e: "And so the youth came to the gate of Arthur's court.",
-        n: "Here the pilot stops. What follows is the famous porter-scene and then the roll-call of <a data-wiki='culhwch-note'>Arthur's warband</a> — the longest such list in early Welsh, and the natural next passage to translate." },
+        n: "What follows is the famous porter-scene and then the roll-call of <a data-wiki='culhwch-note'>Arthur's warband</a> — the longest such list in early Welsh." },
     ],
-  },
+   },
+   {
+    title: "II. At Arthur's gate: the porter, and the invocation of the host",
+    segments: [
+      { w: "“A oes borthawr yma?” “Oes; a thithau, na bo it dy ben am ei ofyn. Glewlwyd Gafaelfawr wyf i, sef porthawr i Arthur bob calan gaeaf.” “Agor y porth.” “Nac agoraf.” “Paham nas egyr?”",
+        e: "“Is there a porter here?” “There is — and as for you, may you keep your head for the asking. I am Glewlwyd Mighty-Grasp, Arthur's porter on every New Year's Day.” “Open the gate.” “I will not.” “Why will you not open it?”",
+        n: "Glewlwyd Gafaelfawr (“Mighty-Grasp”) is Arthur's gatekeeper; the brusque exchange at the door is a stock opening of Welsh heroic tale." },
+
+      { w: "“Kyllell a aeth ym mwyd, a llyn yng nghorn, ac ymgynnull yn neuadd Arthur. Eithr mab brenin gwlad gyfreithawl, neu gerddawr a ddyco ei gerdd, nid agorir iddo. Bwyd i'th gŵn a cheirch i'th feirch, a golwython poeth i tithau, a gwin goferadwy, a cherddau y'th ddiddanu. Bwyd deugain marchawg a ddyger it i'r llety.”",
+        e: "“The knife has gone into the meat and the drink into the horn, and the throng is gathered in Arthur's hall. None is let in now but the son of a king of a rightful land, or a craftsman who brings his craft. But food shall be brought for your dogs and oats for your horses, and hot peppered chops for yourself, and flowing wine, and songs to entertain you; and food for fifty men shall be brought to your lodging.”" },
+
+      { w: "“Nid ystyriaf i hynny. Onis egyr y porth, mi a ddodaf deir diaspad ar drws y porth hwn, na bo uwch o ben Pengwaedd yng Nghernyw hyd ym Mhen Blathaon ym Mhrydyn, ac yn Esgair Oerfel yn Iwerddon. A chynifer beichiog yssydd yn y llys hon, eu beichiogi a ddatodir; a'r rhai ni byddant feichiog, amhlantadwy fyddant o'r dydd hwn allan.”",
+        e: "“I will not stand for that. If you do not open the gate, I will raise three shouts at the mouth of it, so loud they will carry from the headland of Pengwaedd in Cornwall to Pen Blathaon in the north of Britain, and to Esgair Oerfel in Ireland. And every pregnant woman in this court shall lose her burden; and those not with child shall be barren from this day forth.”",
+        n: "The three points name the far corners of the Brythonic world — the tip of Cornwall, the north of Pictland, and a place in Ireland. The deadly shout that blights wombs is a flourish of the tale's older, magical register." },
+
+      { w: "“Pa gymaint bynnag a waeddych, yn erbyn cyfraith Arthur ni ddoi di i mewn hyd pan elwyf i yn gyntaf i ymddiddan ag Arthur.”",
+        e: "“However much you shout, you shall not come in against Arthur's law until I have first gone to speak with Arthur.”" },
+
+      { w: "Glewlwyd a ddoeth i'r neuadd. “A oes gennyt chwedlau o'r porth?” heb Arthur. “Oes,” heb yntau. “Y mab tecaf a welais erioed yssydd wrth y porth.”",
+        e: "Glewlwyd came into the hall. “Have you news from the gate?” said Arthur. “I have,” said he. “At the gate is the fairest youth I ever set eyes on.”" },
+
+      { w: "“Os ar gerdded y doeth, gadewch ef i mewn,” heb Arthur. “Mwyaf y rhoddwn, mwyaf fydd ein bonedd a'n clod.” Ebe Cai: “Myn llaw fy nghyfaill, pei gwrandewid fy nghyngor, ni thorrid cyfreithiau'r llys erddo.” “Nac wir, Gai deg,” heb Arthur. “Gwŷr bonheddig ym ni hyd tra yn dygyrcher.”",
+        e: "“If he came on foot, let him be brought in,” said Arthur. “The more we give, the greater our nobility and our fame.” Said Cei: “By the hand of my friend, were my counsel taken, the laws of the court would not be broken for his sake.” “Not so, fair Cei,” said Arthur. “We are noble men so long as others come to us; the greater our bounty, the greater our renown.”",
+        n: "Cei (Sir Kay) is already the prickly one; Arthur's reply is a small manifesto of heroic largesse." },
+
+      { w: "Y mab a ddoeth i mewn ar ei farch hyd y neuadd. “Henpych gwell, pen teyrnedd yr ynys hon!” heb ef.",
+        e: "The youth rode in on his horse, right into the hall. “Hail to you, chief of the kings of this island!” he said.",
+        n: "Riding a horse into the hall is a breach of courtesy the tale lets us notice — Culhwch arrives as a force, not a supplicant." },
+
+      { w: "“Eistedd rhwng dau o'r gwŷr, a gwledd a chyfeddach it.” “Ni ddeuthum i yma am fwyd na llyn, eithr am gyfarws.” “Kany doethost am fwyd, kymer dy gyfarws: a enwo dy dafawd a'i caffy, hyd y sych y gwynt, hyd y gwlych y glaw, hyd y try haul, hyd yd ymgyrhaedd môr, hyd yd estyn daear—",
+        e: "“Sit between two of the men, with feasting and good cheer.” “I came here not for food or drink, but for a boon.” “Since you did not come for food, take your boon: whatever your tongue shall name, you shall have it — as far as the wind dries, as far as the rain wets, as far as the sun runs, as far as the sea reaches, as far as the earth extends—" },
+
+      { w: "—eithr fy llong a'm llen, a Chaledfwlch fy nghleddyf, a Rhongomyniad fy ngwayw, a Wynebgwrthucher fy nharian, a Charnwennan fy nghyllell, a Gwenhwyfar fy ngwraig.”",
+        e: "—save only my ship and my mantle, and Caledfwlch my sword, and Rhongomyniad my spear, and Wynebgwrthucher my shield, and Carnwennan my dagger, and Gwenhwyfar my wife.”",
+        n: "<em>Caledfwlch</em> is the Welsh name that becomes <a data-wiki='excalibur'>Excalibur</a>; <a data-wiki='guinevere'>Gwenhwyfar</a> is Guinevere. This is among the oldest naming of Arthur's treasures anywhere." },
+
+      { w: "“Yr hyn a fynnaf: ennill ohonot fy ngwallt.” “Hynny a gaffy.” Kymerth Arthur grib eur a gwellau ariannaid, ac a eilliodd ei ben.",
+        e: "“What I want is this: that you trim my hair for me.” “That you shall have.” Arthur took a comb of gold and shears looped with silver, and dressed his hair." },
+
+      { w: "“Dywed i mi pwy wyt.” “Mi a'i dywedaf: Culhwch mab Cilydd mab Celyddon Wledig, o Oleuddydd ferch Anlawdd Wledig fy mam.” “Gwir yw hynny: kefnder wyt ti i mi. Pa beth bynnag a fynnych, ti a'i ceffy.”",
+        e: "“Tell me who you are.” “I will: Culhwch son of Cilydd son of Celyddon Wledig — and my mother was Goleuddydd, daughter of Anlawdd Wledig.” “That is true: you are my cousin. Whatever you may ask, you shall have it.”" },
+
+      { w: "“Mynnaf gennyt Olwen ferch Ysbaddaden Bencawr; ac yn enw dy wŷr y'th archaf di.” Ac archu a oruc ei gyfarws yn eu henwau hwy oll:",
+        e: "“I ask of you Olwen, daughter of Ysbaddaden Bencawr; and I claim her of you in the name of your warriors.” And he asked his boon in the name of them all:",
+        n: "What follows is the famous invocation: Culhwch names Arthur's men one after another, each with his marvel. The Red Book lists well over two hundred; here is a representative handful — the ones whose epithets are finest, and who outlast this tale in the later legend. The list is <strong>abridged</strong>." },
+
+      { w: "Cai, yr hwn a allai naw nos a naw dydd dan ddwfr heb anadlu, ac a fyddai naw nos a naw dydd heb gysgu. Ni allai meddyg iachau dyfn-glwyf cleddyf Cai. Pan fynnai, kyfuwch fyddai â'r pren uchaf yn y koed; a chymaint fyddai ei wres, pan fyddai oeraf ei gymdeithion, hynny a fyddai gynnud iddunt i gynnau tân.",
+        e: "Cei — who could go nine nights and nine days underwater without breathing, and nine nights and nine days without sleep. No physician could heal a wound from Cei's sword. When he pleased, he could make himself as tall as the tallest tree in the wood; and so great was his heat that, when his companions were coldest, it served them as kindling to light a fire.",
+        n: "Cei — Sir Kay — is here a hero of outright superpowers, long before the French romances cut him down into Arthur's surly steward." },
+
+      { w: "A Bedwyr, yr hwn ni waharddai neb mewn rhuthr, kanys kyn gyflymed oedd â'r gwynt; ac er nad oedd ond unllaw, tri ymladdwr ni waedent gynt nag ef mewn cad. Gwayw arall a wnâi un briw wrth fynd i mewn a naw wrth ei dynnu allan.",
+        e: "And Bedwyr — whom none could withstand in the charge, for he was as swift as the wind; and though he was one-handed, three warriors could not draw blood faster than he in battle. His spear would make one wound going in and nine as it was drawn out.",
+        n: "Bedwyr is the Welsh Bedivere — here a one-handed champion, not yet the knight who returns Excalibur to the lake." },
+
+      { w: "A Gwalchmai mab Gwyar, kanys ni ddoeth eirioed adref heb y neges yd aethai i'w cheisaw. Gorau troediawg ydoedd a gorau marchawg; nai i Arthur oedd ef, mab ei chwaer, a'i gefnder.",
+        e: "And Gwalchmai son of Gwyar — for he never once came home without the errand he had gone to seek. He was the best of walkers and the best of riders; he was Arthur's nephew, his sister's son, and his cousin.",
+        n: "Gwalchmai is <a data-wiki='gawain'>Gawain</a> — already, in the oldest tale, the unfailing nephew who never abandons a quest." },
+
+      { w: "A Menw mab Teirgwaedd, kanys pei delent i wlad anghred, ef a allai ddwyn lledrith arnunt fal nas gwelai neb wynt, ac wynt a welent bawb. Ac yn enw'r rhai hyn oll, ac yn enw cant cyfeillt a mwy, yd archawd Culhwch ei gyfarws.",
+        e: "And Menw son of Teirgwaedd — for if they came into a heathen land, he could cast an enchantment over them so that none could see them, while they could see everyone. And in the name of all these, and of a hundred companions and more, Culhwch claimed his boon.",
+        n: "Menw is the warband's magician. The full invocation runs on through warriors, women and frank absurdities; the tale's sheer delight in the catalogue is the point — Arthur's court summoned as a whole mythic world in a single breath." },
+    ],
+   },
+  ],
 };

@@ -447,14 +447,16 @@
       b.onclick = () => { body.className = "tale-body " + m; [...ctr.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); };
       ctr.appendChild(b);
     });
-    $("#tale-passage-title").textContent = t.passage.title;
     body.innerHTML = "";
-    t.passage.segments.forEach((seg) => {
-      const row = el("div", "tale-seg");
-      row.appendChild(el("div", "seg-w", seg.w));
-      row.appendChild(el("div", "seg-e", seg.e));
-      if (seg.n) row.appendChild(el("div", "seg-n", seg.n));
-      body.appendChild(row);
+    t.passages.forEach((pass) => {
+      body.appendChild(el("h2", "section tale-pass-title", pass.title));
+      pass.segments.forEach((seg) => {
+        const row = el("div", "tale-seg");
+        row.appendChild(el("div", "seg-w", seg.w));
+        row.appendChild(el("div", "seg-e", seg.e));
+        if (seg.n) row.appendChild(el("div", "seg-n", seg.n));
+        body.appendChild(row);
+      });
     });
     // notes/blurb cross-links into the wiki
     $("#view-culhwch").addEventListener("click", (ev) => {
