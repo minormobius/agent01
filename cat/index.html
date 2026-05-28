@@ -80,6 +80,8 @@
       transition: transform 200ms ease, box-shadow 200ms ease;
     }
     .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.07); }
+    @keyframes fresh-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+    .card.fresh { animation: fresh-in 380ms ease-out; }
     .card img {
       width: 100%; height: auto; display: block;
       background: #f0ecdf;
@@ -233,6 +235,34 @@
       }
     }
 
+    // Poll for newer items and prepend them to the grid. Cache-bust the URL
+    // so the browser doesn't serve a 20-second-stale response.
+    async function pollNew() {
+      const u = new URL('/api/cat/feed', location.href);
+      u.searchParams.set('limit', '20');
+      u.searchParams.set('t', String(Date.now()));
+      if (state.tag) u.searchParams.set('tag', state.tag);
+      try {
+        const r = await fetch(u, { cache: 'no-store' });
+        const data = await r.json();
+        const fresh = [];
+        for (const item of data.items) {
+          if (state.seen.has(item.uri)) continue;
+          state.seen.add(item.uri);
+          fresh.push(item);
+        }
+        if (!fresh.length) return;
+        // Items are already newest-first; prepend in reverse so the chronological
+        // order at the top of the grid stays right.
+        for (let i = fresh.length - 1; i >= 0; i--) {
+          const el = card(fresh[i]);
+          el.classList.add('fresh');
+          grid.insertBefore(el, grid.firstChild);
+        }
+        empty.hidden = true;
+      } catch {}
+    }
+
     async function refreshTags() {
       try {
         const r = await fetch('/api/cat/tags');
@@ -291,6 +321,8 @@
     refreshStatus();
     loadPage();
     setInterval(refreshStatus, 30_000);
+    // Pull new cats and prepend them so the feed feels live.
+    setInterval(pollNew, 20_000);
     // Refresh tags occasionally so the bar tracks the growing index.
     setInterval(refreshTags, 5 * 60_000);
   </script>

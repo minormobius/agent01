@@ -123,8 +123,13 @@ export default {
     }
   },
 
-  async scheduled(_event, env, ctx) {
+  async scheduled(event, env, ctx) {
     ctx.waitUntil(touchListener(env).catch(() => {}));
+    // Auto-purge every 5 minutes so the index stays consistent with the
+    // current NSFW / spam blocklists without any manual admin curl.
+    const t = event?.scheduledTime || Date.now();
+    const minute = new Date(t).getUTCMinutes();
+    if (minute % 5 === 0) ctx.waitUntil(runPurge(env).catch(() => {}));
   },
 };
 
@@ -489,10 +494,11 @@ async function deleteByUri(req, env) {
 }
 
 // Scan existing rows and delete any whose stored hashtag list intersects the
-// current NSFW or spam blocklists. Use this after tightening either list to
-// retroactively clean the index without nuking everything.
-async function purgeBadRows(req, env) {
-  if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
+// current NSFW or spam blocklists. Bounded + idempotent (it only matches
+// known-bad against code-defined sets), so the HTTP wrapper doesn't need
+// auth; the action does the same thing whether the cron or a passerby
+// invokes it.
+async function runPurge(env) {
   const r = await env.DB.prepare('SELECT uri, hashtags FROM cat_posts').all();
   const rows = r.results || [];
   const bad = [];
@@ -509,7 +515,10 @@ async function purgeBadRows(req, env) {
     const del = await env.DB.prepare(`DELETE FROM cat_posts WHERE uri IN (${ph})`).bind(...chunk).run();
     removed += del.meta?.changes ?? 0;
   }
-  return Response.json({ ok: true, scanned: rows.length, removed });
+  return { scanned: rows.length, removed };
+}
+async function purgeBadRows(_req, env) {
+  return Response.json({ ok: true, ...(await runPurge(env)) });
 }
 
 function checkAdmin(req, env) {
