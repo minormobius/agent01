@@ -279,6 +279,94 @@ void main(){
   outColor = vec4(col, 1.0);
 }`;
 
+// ── Particle render shaders (aphid91's note: "render the particles
+// themselves, rather than the trail map"). Each agent becomes a single point
+// colored by the RAW (no-mirror) brain output — hue from force-vector
+// direction, brightness from magnitude. Diagnostic value, per aphid91: all
+// one color means sensor_gain is so low the brain says the same thing for
+// everything; all white means sensor_gain is so high tiny inputs explode into
+// noise. Helpers below are copied verbatim from FRAG_ENTITY so a typo can't
+// leak into the working trail pipeline.
+const VERT_PARTICLES = `#version 300 es
+precision highp float; precision highp int;
+uniform sampler2D u_entity, u_canvas;
+uniform int u_texW, u_count, u_cohorts;
+uniform float u_rule_seed, u_sensor_gain, u_sensor_angle, u_sensor_distance,
+  u_mutation_scale, u_point_size;
+out vec3 v_color;
+#define PI 3.14159265
+uint pcg(uint v){ uint s=v*747796405u+2891336453u; uint w=((s>>((s>>28u)+4u))^s)*277803737u; return (w>>22u)^w; }
+float h1(vec2 c){ uvec2 u=uvec2(floatBitsToUint(c.x),floatBitsToUint(c.y)); return float(pcg(u.x^pcg(u.y)))/4294967295.0; }
+vec4 h4(vec2 c){ return vec4(h1(c), h1(c*-1.0+5.0), h1(c.yx-100.0), h1(c.yx*-1.0+25.0)); }
+struct Center { vec4 f; vec4 a; };
+Center genCenter(float seed, int i){
+  Center c;
+  float fs = 1.0 + 2.0*pow(h1(vec2(seed, float(i*8+0))), 2.0);
+  c.f = vec4(
+    (h1(vec2(seed,float(i*8+0)))*2.0-1.0)*fs, (h1(vec2(seed,float(i*8+1)))*2.0-1.0)*fs,
+    (h1(vec2(seed,float(i*8+2)))*2.0-1.0)*fs, (h1(vec2(seed,float(i*8+3)))*2.0-1.0)*fs);
+  c.a = vec4(
+    h1(vec2(seed,float(i*8+4)))*2.0-1.0, h1(vec2(seed,float(i*8+5)))*2.0-1.0,
+    h1(vec2(seed,float(i*8+6)))*2.0-1.0, h1(vec2(seed,float(i*8+7)))*2.0-1.0);
+  return c;
+}
+vec4 evalRule(float seed, float mut, float cohort, vec4 sig){
+  float ms = h1(vec2(seed*1.7+3.1, cohort*2.3+0.7)) + cohort;
+  vec4 res = vec4(0.0);
+  for(int i=0;i<10;i++){
+    Center c = genCenter(seed, i);
+    c.a += mut * (-1.0 + 2.0*h4(-0.5 + vec2(-float(i)+ms, float(i))));
+    c.f *= 1.0 + mut*0.5*(h1(vec2(ms,float(i)))-0.5);
+    float phase = dot(sig, c.f);
+    float off = 2.0*float(i)*0.6283 + c.a.w*3.14159;
+    vec4 basis = vec4(sin(phase + off), cos(phase + off*0.7), sin(phase*2.0 + off*1.3), cos(phase*2.0 + off*0.5));
+    res += c.a*basis;
+  }
+  return res;
+}
+void rot(inout vec2 p, float a){ p = cos(a)*p + sin(a)*vec2(p.y,-p.x); }
+vec2 snorm(vec2 p){ return length(p)==0.0 ? vec2(0.0) : normalize(p); }
+vec4 sampleField(vec2 p){ return texture(u_canvas, p*0.5 + 0.5); }
+float cohortOf(int idx){ return float(u_cohorts)*float(idx)/float(max(u_count,1)); }
+vec3 hsv2rgb(vec3 c){ vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz)*6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }
+void main(){
+  int idx = gl_VertexID;
+  if(idx >= u_count){ gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }
+  ivec2 tc = ivec2(idx % u_texW, idx / u_texW);
+  vec4 e = texelFetch(u_entity, tc, 0);
+  vec2 pos = e.xy, vel = e.zw;
+  float cohort = cohortOf(idx);
+  float sd = 0.005 * u_sensor_distance;
+  vec2 head = snorm(vel);
+  vec2 lo = head*sd, ro = head*sd;
+  rot(lo,  u_sensor_angle*PI); rot(ro, -u_sensor_angle*PI);
+  float gain = 38.855 * u_sensor_gain;
+  vec2 L = sampleField(pos+lo).xy * gain;
+  vec2 R = sampleField(pos+ro).xy * gain;
+  vec2 fwd = snorm(vel);
+  vec2 lft = vec2(fwd.y, -fwd.x);
+  vec2 Ll = vec2(dot(L,fwd), dot(L,lft));
+  vec2 Rl = vec2(dot(R,fwd), dot(R,lft));
+  vec4 raw = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(Ll, Rl));
+  float hue = fract(atan(raw.y, raw.x)/(2.0*PI) + 0.5);
+  float mag = clamp(length(raw.xy)*0.55, 0.06, 1.1);
+  v_color = hsv2rgb(vec3(hue, 0.85, mag));
+  gl_Position = vec4(pos, 0.0, 1.0);
+  gl_PointSize = u_point_size;
+}`;
+
+const FRAG_PARTICLES = `#version 300 es
+precision highp float;
+in vec3 v_color;
+out vec4 outColor;
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  float r2 = dot(d, d);
+  if(r2 > 0.25) discard;
+  float a = exp(-r2 * 14.0);
+  outColor = vec4(v_color * a, a);
+}`;
+
 export class FluoddityEngine {
   constructor(dim = 384, count = 40000, opts = {}) {
     this.arena = !!opts.arena;
@@ -298,6 +386,7 @@ export class FluoddityEngine {
     this.cfg = defaultConfig();
     this.frame = 0;
     this.currentKey = null;
+    this.displayMode = 'trail'; // 'trail' (default) or 'particles' (aphid91-style raw-brain render)
 
     const compile = (type, src) => {
       const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -316,6 +405,11 @@ export class FluoddityEngine {
     this.pBrush = prog(this.arena ? VERT_BRUSH_ARENA : VERT_BRUSH, this.arena ? FRAG_BRUSH_ARENA : FRAG_BRUSH);
     this.pCanvas = prog(VERT_FULLSCREEN, this.arena ? FRAG_CANVAS_ARENA : FRAG_CANVAS);
     this.pDisplay = prog(VERT_FULLSCREEN, this.arena ? FRAG_DISPLAY_ARENA : FRAG_DISPLAY);
+    // Particle program is opt-in (engine.displayMode='particles'). If compilation
+    // fails, we silently leave it unavailable so the engine still constructs and
+    // the trail render keeps working for every existing surface.
+    try { this.pParticles = prog(VERT_PARTICLES, FRAG_PARTICLES); }
+    catch (e) { this.pParticles = null; this._particleError = e.message || String(e); }
 
     const floatTex = (w, h, filt) => {
       const t = gl.createTexture();
@@ -443,6 +537,7 @@ export class FluoddityEngine {
   }
 
   render() {
+    if (this.displayMode === 'particles' && this.pParticles) return this._renderParticles();
     const gl = this.gl;
     gl.useProgram(this.pDisplay);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -452,5 +547,28 @@ export class FluoddityEngine {
     gl.uniform1f(gl.getUniformLocation(this.pDisplay, 'u_hue'), this.cfg.hue);
     this._tri(this.pDisplay);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  _renderParticles() {
+    const gl = this.gl, p = this.pParticles, c = this.cfg;
+    gl.useProgram(p);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, this.cv.width, this.cv.height);
+    gl.disable(gl.DEPTH_TEST);
+    gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.eTex[this.ePing]); gl.uniform1i(gl.getUniformLocation(p, 'u_entity'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.cTex[this.cPing]); gl.uniform1i(gl.getUniformLocation(p, 'u_canvas'), 1);
+    gl.uniform1i(gl.getUniformLocation(p, 'u_texW'), this.texW);
+    gl.uniform1i(gl.getUniformLocation(p, 'u_count'), this.count);
+    gl.uniform1i(gl.getUniformLocation(p, 'u_cohorts'), c.cohorts | 0);
+    gl.uniform1f(gl.getUniformLocation(p, 'u_rule_seed'), c.rule_seed);
+    gl.uniform1f(gl.getUniformLocation(p, 'u_sensor_gain'), c.sensor_gain);
+    gl.uniform1f(gl.getUniformLocation(p, 'u_sensor_angle'), c.sensor_angle);
+    gl.uniform1f(gl.getUniformLocation(p, 'u_sensor_distance'), c.sensor_distance);
+    gl.uniform1f(gl.getUniformLocation(p, 'u_mutation_scale'), c.mutation_scale);
+    gl.uniform1f(gl.getUniformLocation(p, 'u_point_size'), Math.max(1.5, 1.8 * (this.cv.width / 480)));
+    gl.drawArrays(gl.POINTS, 0, this.count);
+    gl.disable(gl.BLEND);
   }
 }

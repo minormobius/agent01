@@ -193,6 +193,7 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
   <a class="iconbtn" href="../arena.html" style="text-decoration:none;">arena →</a>
   <a class="iconbtn" href="../torus.html" style="text-decoration:none;">torus →</a>
   <a class="iconbtn" id="btn-breed" href="../breed.html" style="text-decoration:none;">breed →</a>
+  <button class="iconbtn" id="btn-view" title="Render the trail (default) or the raw particles (per aphid91)">view: trail</button>
   <button class="iconbtn" id="btn-draw" title="Toggle trail-draw mode">draw: off</button>
   <button class="iconbtn" id="btn-toggle">hide panel</button>
   <button class="iconbtn" id="btn-about">?</button>
@@ -674,6 +675,90 @@ void main(){
   outColor = vec4(col, 1.0);
 }`;
 
+// Particle render mode (aphid91's note: render the particles themselves rather
+// than the trail map; hue from RAW brain output without symmetry, so it doubles
+// as a sensor_gain/forces diagnostic). Duplicated from engine.js because this
+// script is non-module; keep the two in sync if either evolves.
+const VERT_PARTICLES = `#version 300 es
+precision highp float; precision highp int;
+uniform sampler2D u_entity, u_canvas;
+uniform int u_texW, u_count, u_cohorts;
+uniform float u_rule_seed, u_sensor_gain, u_sensor_angle, u_sensor_distance,
+  u_mutation_scale, u_point_size;
+out vec3 v_color;
+#define PI 3.14159265
+uint pcg(uint v){ uint s=v*747796405u+2891336453u; uint w=((s>>((s>>28u)+4u))^s)*277803737u; return (w>>22u)^w; }
+float h1(vec2 c){ uvec2 u=uvec2(floatBitsToUint(c.x),floatBitsToUint(c.y)); return float(pcg(u.x^pcg(u.y)))/4294967295.0; }
+vec4 h4(vec2 c){ return vec4(h1(c), h1(c*-1.0+5.0), h1(c.yx-100.0), h1(c.yx*-1.0+25.0)); }
+struct Center { vec4 f; vec4 a; };
+Center genCenter(float seed, int i){
+  Center c;
+  float fs = 1.0 + 2.0*pow(h1(vec2(seed, float(i*8+0))), 2.0);
+  c.f = vec4(
+    (h1(vec2(seed,float(i*8+0)))*2.0-1.0)*fs, (h1(vec2(seed,float(i*8+1)))*2.0-1.0)*fs,
+    (h1(vec2(seed,float(i*8+2)))*2.0-1.0)*fs, (h1(vec2(seed,float(i*8+3)))*2.0-1.0)*fs);
+  c.a = vec4(
+    h1(vec2(seed,float(i*8+4)))*2.0-1.0, h1(vec2(seed,float(i*8+5)))*2.0-1.0,
+    h1(vec2(seed,float(i*8+6)))*2.0-1.0, h1(vec2(seed,float(i*8+7)))*2.0-1.0);
+  return c;
+}
+vec4 evalRule(float seed, float mut, float cohort, vec4 sig){
+  float ms = h1(vec2(seed*1.7+3.1, cohort*2.3+0.7)) + cohort;
+  vec4 res = vec4(0.0);
+  for(int i=0;i<10;i++){
+    Center c = genCenter(seed, i);
+    c.a += mut * (-1.0 + 2.0*h4(-0.5 + vec2(-float(i)+ms, float(i))));
+    c.f *= 1.0 + mut*0.5*(h1(vec2(ms,float(i)))-0.5);
+    float phase = dot(sig, c.f);
+    float off = 2.0*float(i)*0.6283 + c.a.w*3.14159;
+    vec4 basis = vec4(sin(phase + off), cos(phase + off*0.7), sin(phase*2.0 + off*1.3), cos(phase*2.0 + off*0.5));
+    res += c.a*basis;
+  }
+  return res;
+}
+void rot(inout vec2 p, float a){ p = cos(a)*p + sin(a)*vec2(p.y,-p.x); }
+vec2 snorm(vec2 p){ return length(p)==0.0 ? vec2(0.0) : normalize(p); }
+vec4 sampleField(vec2 p){ return texture(u_canvas, p*0.5 + 0.5); }
+float cohortOf(int idx){ return float(u_cohorts)*float(idx)/float(max(u_count,1)); }
+vec3 hsv2rgb(vec3 c){ vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz)*6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }
+void main(){
+  int idx = gl_VertexID;
+  if(idx >= u_count){ gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }
+  ivec2 tc = ivec2(idx % u_texW, idx / u_texW);
+  vec4 e = texelFetch(u_entity, tc, 0);
+  vec2 pos = e.xy, vel = e.zw;
+  float cohort = cohortOf(idx);
+  float sd = 0.005 * u_sensor_distance;
+  vec2 head = snorm(vel);
+  vec2 lo = head*sd, ro = head*sd;
+  rot(lo,  u_sensor_angle*PI); rot(ro, -u_sensor_angle*PI);
+  float gain = 38.855 * u_sensor_gain;
+  vec2 L = sampleField(pos+lo).xy * gain;
+  vec2 R = sampleField(pos+ro).xy * gain;
+  vec2 fwd = snorm(vel);
+  vec2 lft = vec2(fwd.y, -fwd.x);
+  vec2 Ll = vec2(dot(L,fwd), dot(L,lft));
+  vec2 Rl = vec2(dot(R,fwd), dot(R,lft));
+  vec4 raw = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(Ll, Rl));
+  float hue = fract(atan(raw.y, raw.x)/(2.0*PI) + 0.5);
+  float mag = clamp(length(raw.xy)*0.55, 0.06, 1.1);
+  v_color = hsv2rgb(vec3(hue, 0.85, mag));
+  gl_Position = vec4(pos, 0.0, 1.0);
+  gl_PointSize = u_point_size;
+}`;
+
+const FRAG_PARTICLES = `#version 300 es
+precision highp float;
+in vec3 v_color;
+out vec4 outColor;
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  float r2 = dot(d, d);
+  if(r2 > 0.25) discard;
+  float a = exp(-r2 * 14.0);
+  outColor = vec4(v_color * a, a);
+}`;
+
 // ─── GL helpers ─────────────────────────────────────────────────────────────
 
 function fail(msg){
@@ -742,6 +827,11 @@ const progEntity  = program(VERT_FULLSCREEN, FRAG_ENTITY);
 const progBrush   = program(VERT_BRUSH, FRAG_BRUSH);
 const progCanvas  = program(VERT_FULLSCREEN, FRAG_CANVAS);
 const progDisplay = program(VERT_FULLSCREEN, FRAG_DISPLAY);
+// Particle program is optional — if it fails to compile, the trail render
+// stays the only option and the toggle button is hidden.
+let progParticles = null;
+try { progParticles = program(VERT_PARTICLES, FRAG_PARTICLES); }
+catch (e) { console.warn('particle render unavailable:', e.message || e); }
 
 // uniform location cache
 function locs(p, names){ const o={}; for(const n of names) o[n]=gl.getUniformLocation(p,n); return o; }
@@ -908,7 +998,10 @@ function step(){
   sim.frame++;
 }
 
+let displayMode = 'trail'; // 'trail' (default) or 'particles' (aphid91-style)
+
 function display(){
+  if (displayMode === 'particles' && progParticles) return displayParticles();
   gl.useProgram(progDisplay);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(viewport.x, viewport.y, viewport.s, viewport.s);
@@ -917,6 +1010,32 @@ function display(){
   gl.uniform1f(uDisplay.u_hue, cfg.hue);
   bindFsTri(progDisplay);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+// Raw-brain particle render: every agent is a point colored by the direction
+// of the force the brain wants to apply this step (no mirror symmetry, so the
+// asymmetry is visible). Doubles as a diagnostic — uniform color = brain
+// saying one thing, white-out = chaos at the input/gain frontier.
+function displayParticles(){
+  const p = progParticles;
+  gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(viewport.x, viewport.y, viewport.s, viewport.s);
+  gl.disable(gl.DEPTH_TEST);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, sim.entityTex[sim.ePing]); gl.uniform1i(gl.getUniformLocation(p, 'u_entity'), 0);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, sim.canvasTex[sim.cPing]); gl.uniform1i(gl.getUniformLocation(p, 'u_canvas'), 1);
+  gl.uniform1i(gl.getUniformLocation(p, 'u_texW'), sim.texW);
+  gl.uniform1i(gl.getUniformLocation(p, 'u_count'), sim.count);
+  gl.uniform1i(gl.getUniformLocation(p, 'u_cohorts'), cfg.cohorts | 0);
+  gl.uniform1f(gl.getUniformLocation(p, 'u_rule_seed'), cfg.rule_seed);
+  gl.uniform1f(gl.getUniformLocation(p, 'u_sensor_gain'), cfg.sensor_gain);
+  gl.uniform1f(gl.getUniformLocation(p, 'u_sensor_angle'), cfg.sensor_angle);
+  gl.uniform1f(gl.getUniformLocation(p, 'u_sensor_distance'), cfg.sensor_distance);
+  gl.uniform1f(gl.getUniformLocation(p, 'u_mutation_scale'), cfg.mutation_scale);
+  gl.uniform1f(gl.getUniformLocation(p, 'u_point_size'), Math.max(1.5, 1.8 * (viewport.s / 480)));
+  gl.drawArrays(gl.POINTS, 0, sim.count);
+  gl.disable(gl.BLEND);
 }
 
 // ─── Sizing (letterbox the square field) ─────────────────────────────────────
@@ -1138,6 +1257,18 @@ const btnDraw = document.getElementById('btn-draw');
 let drawMode = false;
 function setDrawMode(on){ drawMode = on; btnDraw.textContent = 'draw: ' + (on?'on':'off'); btnDraw.classList.toggle('active', on); }
 btnDraw.addEventListener('click', () => setDrawMode(!drawMode));
+
+const btnView = document.getElementById('btn-view');
+const VIEW_KEY = 'fluoddity_display_mode';
+function setDisplayMode(mode){
+  displayMode = (mode === 'particles' && progParticles) ? 'particles' : 'trail';
+  btnView.textContent = 'view: ' + displayMode;
+  btnView.classList.toggle('active', displayMode === 'particles');
+  try { localStorage.setItem(VIEW_KEY, displayMode); } catch {}
+}
+if (!progParticles) btnView.style.display = 'none';
+else { try { setDisplayMode(localStorage.getItem(VIEW_KEY) || 'trail'); } catch { setDisplayMode('trail'); } }
+btnView.addEventListener('click', () => setDisplayMode(displayMode === 'trail' ? 'particles' : 'trail'));
 
 // quality
 document.getElementById('quality').addEventListener('change', (e) => {
