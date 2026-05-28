@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — the forest</title>
+<meta name="description" content="The aggregated atlas of every published Fluoddity breeder run: each expedition is a tree of organisms through the canonical phase space, colored by the scoring lens that drove it. The emergent shape of where people search and what their criteria pull them toward.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/forest.html">
+<meta property="og:title" content="fluoddity — the forest">
+<meta property="og:description" content="Every published breeder run as a tree through phase space. The emergent atlas of exploration.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--bg); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
+.pill:hover { color: var(--accent); border-color: var(--accent); }
+
+#main { flex: 1 1 auto; min-height: 0; display: flex; }
+#side { width: 320px; flex: none; border-right: 1px solid var(--rule); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+#side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; margin: 0; }
+#status { color: var(--muted); font-size: 11px; line-height: 1.5; }
+#status a { color: var(--accent); }
+.exp-list { display: flex; flex-direction: column; gap: 6px; }
+.exp { display: flex; gap: 9px; padding: 9px 10px; border: 1px solid var(--rule); border-radius: 8px; cursor: pointer; background: rgba(255,255,255,0.01); transition: border-color 0.12s; }
+.exp:hover { border-color: #4a5160; }
+.exp.sel { border-color: var(--accent); background: rgba(56,225,192,0.07); }
+.exp .col { width: 10px; flex: none; border-radius: 4px; align-self: stretch; }
+.exp .meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.exp .who { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exp .sub { font-size: 9.5px; color: var(--muted); }
+.exp .sc { font-size: 9px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); }
+.exp .sc.byo { color: var(--accent); }
+
+#scorer-panel { border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 4px; }
+#scorer-panel h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); margin: 0 0 6px; font-weight: 600; }
+#scorer-code { background: #000; border: 1px solid var(--rule); border-radius: 6px; padding: 8px; margin: 0; font-size: 10.5px; line-height: 1.45; color: #c8ccd4; white-space: pre-wrap; word-wrap: break-word; max-height: 220px; overflow-y: auto; }
+#start-cfg { font-size: 10px; color: var(--muted); }
+#start-cfg a { color: var(--accent); }
+
+#mapwrap { flex: 1 1 auto; position: relative; min-width: 0; }
+#map { display: block; width: 100%; height: 100%; cursor: grab; }
+#hint { position: absolute; bottom: 8px; right: 12px; font-size: 10px; color: var(--muted); pointer-events: none; }
+
+.empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.empty a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · the forest</span>
+  <span class="spacer"></span>
+  <span id="auth"></span>
+  <a class="pill" href="./breed.html">breeder ↗</a>
+  <a class="pill" href="./gallery.html">gallery ↗</a>
+  <a class="pill" href="./map.html">phylogeny ↗</a>
+</div>
+
+<div id="main">
+  <div id="side">
+    <h2>expeditions</h2>
+    <div id="status">enumerating…</div>
+    <div class="exp-list" id="exp-list"></div>
+    <div id="scorer-panel" hidden>
+      <h3>scorer</h3>
+      <pre id="scorer-code"></pre>
+      <div id="start-cfg"></div>
+    </div>
+  </div>
+  <div id="mapwrap">
+    <canvas id="map"></canvas>
+    <div id="hint">scroll to zoom · drag to pan · double-click to reset · click a tree</div>
+  </div>
+</div>
+
+<script type="module">
+"use strict";
+import { PhaseMap } from './phasemap.js';
+import { EXPEDITION_COLLECTION, EXPEDITION_PATH, enumerateAll, getProfile, parseAtUri, parseConfig } from './data.js';
+
+const $ = (s) => document.querySelector(s);
+const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+// Mirror descriptors.vec(): canonical phase-space coordinates the breeder also
+// uses internally, so points are comparable across runs.
+const vecOf = (fill, motion, struct, blow) => [clamp01(fill / 0.5), clamp01(motion / 0.02), struct, clamp01(blow)];
+
+// Stable hue per scorer hash — runs that used the same scorer share a color
+// (across users, across days), so the forest groups by lens.
+function colorFromHash(h) {
+  let n = 0; for (let i = 0; i < (h || '').length; i++) n = (n * 31 + h.charCodeAt(i)) >>> 0;
+  if (!h || h === 'default' || h === 'd41d8cd98f00') return 'hsl(168 65% 55%)'; // accent for the default scorer
+  return `hsl(${n % 360} 72% 60%)`;
+}
+
+const expeditions = [];   // [{uri, did, rkey, handle, value, color, scorerSummary, points:[{id, parent, vv, fit, gen}]}]
+let focused = -1;
+
+function pickHandle(prof, did) { return (prof && prof.handle) ? '@' + prof.handle : did.slice(0, 16) + '…'; }
+function scorerSummary(scorer) {
+  if (!scorer || scorer === 'default') return { kind: 'default', preview: 'default composite (fit + λ·nov + μ·align)' };
+  const oneLine = scorer.replace(/\s+/g, ' ').trim();
+  return { kind: 'byo', preview: oneLine.length > 80 ? oneLine.slice(0, 80) + '…' : oneLine };
+}
+
+function renderList() {
+  const list = $('#exp-list'); list.innerHTML = '';
+  if (!expeditions.length) {
+    list.innerHTML = `<div class="empty">No expeditions published yet.<br><br>Run the <a href="./breed.html">breeder</a>, then click <b>publish run → forest</b> to plant the first one.</div>`;
+    return;
+  }
+  expeditions.forEach((e, i) => {
+    const el = document.createElement('div');
+    el.className = 'exp' + (i === focused ? ' sel' : '');
+    el.innerHTML = `<div class="col" style="background:${e.color};"></div>
+      <div class="meta">
+        <div class="who">${e.handle}</div>
+        <div class="sub">${e.gens} gen${e.gens === 1 ? '' : 's'} · ${e.points.length} ind${e.points.length === 1 ? '' : 's'}</div>
+        <div class="sc ${e.scorer.kind === 'byo' ? 'byo' : ''}">${e.scorer.preview}</div>
+      </div>`;
+    el.addEventListener('click', () => focus(i === focused ? -1 : i));
+    list.appendChild(el);
+  });
+}
+
+function focus(i) {
+  focused = i;
+  if (i < 0) {
+    $('#scorer-panel').hidden = true;
+  } else {
+    const e = expeditions[i];
+    $('#scorer-panel').hidden = false;
+    $('#scorer-code').textContent = e.value.scorer || 'default';
+    const start = parseConfigSafe(e.value.start);
+    const startBits = start ? ` · seed ${(+start.rule_seed || 0).toFixed(3)} · cohorts ${start.cohorts | 0}` : '';
+    $('#start-cfg').innerHTML = `started ${new Date(e.value.createdAt || 0).toLocaleString()}${startBits}`;
+  }
+  renderList(); phaseRefresh();
+}
+
+function parseConfigSafe(s) { try { return typeof s === 'string' ? JSON.parse(s) : s; } catch { return null; } }
+
+const phase = new PhaseMap($('#map'), {
+  colorOf: (n) => n.expColor,
+  thumbOf: () => null,
+  labelOf: (n) => ({ name: n.handle, sub: `gen ${n.gen} · fit ${(n.fit || 0).toFixed(3)}` }),
+  isCurrent: (n) => focused < 0 || n.expIdx === focused,
+  onClick: (n) => focus(n.expIdx === focused ? -1 : n.expIdx),
+});
+function phaseRefresh() { phase.draw(); }
+
+(async function main() {
+  let records;
+  try { records = await enumerateAll((n, t) => { $('#status').textContent = `enumerating expeditions… ${n}${t ? ' / ' + t : ''}`; }, { collection: EXPEDITION_COLLECTION, path: EXPEDITION_PATH }); }
+  catch (e) { $('#status').textContent = 'Could not reach the index: ' + (e.message || e); return; }
+
+  // Hydrate profiles in parallel, parse trajectories.
+  const nodes = [];
+  await Promise.all(records.map(async (r, i) => {
+    const v = r.value || {}; let traj;
+    try { traj = JSON.parse(v.trajectory || '[]'); } catch { traj = []; }
+    const { did, rkey } = parseAtUri(r.uri);
+    const prof = await getProfile(did).catch(() => null);
+    const handle = pickHandle(prof, did);
+    const color = colorFromHash(v.scorerHash || 'default');
+    const scorer = scorerSummary(v.scorer);
+    const points = [];
+    for (const t of traj) {
+      // [id, parent, gen, fit, fill, motion, struct, blowout]
+      const id = `${i}_${t[0]}`, parent = (t[1] == null) ? null : `${i}_${t[1]}`;
+      points.push({ id, parent, gen: t[2] | 0, fit: +t[3] || 0, vv: vecOf(t[4], t[5], t[6], t[7]), expIdx: i, expColor: color, handle });
+    }
+    const gens = points.reduce((m, p) => Math.max(m, p.gen), 0) + 1;
+    expeditions[i] = { uri: r.uri, did, rkey, handle, value: v, color, scorer, gens, points };
+  }));
+  // Order by createdAt desc, but keep expIdx aligned to current array order so
+  // colors/IDs stay stable.
+  expeditions.sort((a, b) => (b.value.createdAt || '').localeCompare(a.value.createdAt || ''));
+  expeditions.forEach((e, j) => { e.points.forEach(p => { p.expIdx = j; }); nodes.push(...e.points); });
+
+  const totalAuthors = new Set(records.map(r => parseAtUri(r.uri).did)).size;
+  $('#status').innerHTML = expeditions.length
+    ? `${expeditions.length} expedition${expeditions.length === 1 ? '' : 's'} · ${nodes.length} individuals · ${totalAuthors} author${totalAuthors === 1 ? '' : 's'} · <a href="./breed.html">add yours</a>`
+    : '';
+  renderList();
+  phase.setNodes(nodes);
+})();
+</script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
+</body>
+</html>

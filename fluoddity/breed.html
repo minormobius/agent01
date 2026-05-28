@@ -67,6 +67,7 @@ h3:first-child { margin-top: 0; }
   <span id="auth"></span>
   <a class="pill" href="./select.html">selection ↗</a>
   <a class="pill" href="./map.html">phylogeny ↗</a>
+  <a class="pill" href="./forest.html">forest ↗</a>
   <a class="pill" href="./play/">+ new organism</a>
 </div>
 <div id="wrap">
@@ -77,6 +78,8 @@ h3:first-child { margin-top: 0; }
       <button class="btn" id="btn-step">step</button>
     </div>
     <div class="btnrow"><button class="btn" id="btn-seed">↻ new seed population</button></div>
+    <div class="btnrow"><button class="btn" id="btn-publish" disabled>publish run → forest</button></div>
+    <div class="note" id="publish-status"></div>
     <div class="stat"><span class="k">generation</span><span class="v" id="s-gen">—</span></div>
     <div class="stat"><span class="k">best fitness</span><span class="v" id="s-best">—</span></div>
     <div class="stat"><span class="k">lineage size</span><span class="v" id="s-size">—</span></div>
@@ -134,6 +137,8 @@ return v.struct * 2 - v.blowout * 3 + 0.3 * nov;"></textarea>
 import { FluoddityEngine, defaultConfig, mutate } from './engine.js';
 import { readDescriptors, fitness, verdict, vec, dist, VIT_COLOR } from './descriptors.js';
 import { PhaseMap } from './phasemap.js';
+import { EXPEDITION_COLLECTION, ANCHOR } from './data.js';
+import { auth } from './authchip.js';
 
 const $ = (s) => document.querySelector(s);
 const raf = () => new Promise(r => requestAnimationFrame(r));
@@ -161,6 +166,14 @@ let pop = [], allNodes = [], nodeById = new Map(), archive = [];
 let momentum = [0, 0, 0, 0], momMag = 0, prevGenMean = null, generation = 0, nextId = 1;
 let running = false, busy = false;
 
+// Expedition recording — every individual evaluated this run accumulates here
+// as a compact trajectory tuple. Reset on each seed(). Published as one record
+// per run via the "publish run" button. The trajectory is in canonical
+// descriptor coordinates (fill/motion/struct/blowout) so the forest can overlay
+// runs from different scorers on one map.
+let runTrajectory = [], runStartConfig = null, runStartedAt = null;
+const round4 = (x) => Math.round((+x || 0) * 10000) / 10000;
+
 async function evalInd(ind) {
   if (!engine) { ind.fit = 0; ind.verdict = 'dead'; ind.vv = [0, 0, 0, 0]; return; }
   engine.load(ind.config, ind.id);
@@ -172,6 +185,8 @@ async function evalInd(ind) {
   if (!ind.thumb) { ind.thumb = document.createElement('canvas'); ind.thumb.width = ind.thumb.height = 96; }
   ind.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
   archive.push(ind.vv); if (archive.length > 500) archive.shift();
+  if (runTrajectory.length < 4000) runTrajectory.push([ind.id, ind.parent, ind.gen | 0, round4(ind.fit), round4(ind.v.fill), round4(ind.v.motion), round4(ind.v.struct), round4(ind.v.blowout)]);
+  updatePublishUI();
 }
 function noveltyOf(vv) {
   if (!archive.length) return 0;
@@ -214,11 +229,13 @@ function selectParents(n) {
 
 async function seed(from = null) {
   pop = []; allNodes = []; nodeById.clear(); archive = []; momentum = [0, 0, 0, 0]; momMag = 0; prevGenMean = null; generation = 0; nextId = 1;
+  runTrajectory = []; runStartedAt = new Date().toISOString();
   const N = knobs.popSize;
   for (let i = 0; i < N; i++) {
     const cfg = (from && i === 0) ? seedConfig(from) : mutate(seedConfig(from), from ? 0.6 : 1.5);
     pop.push({ id: nextId++, config: cfg, parent: null, gen: 0 });
   }
+  runStartConfig = pop[0].config; // representative starting point of this run
   for (const ind of pop) { await evalInd(ind); allNodes.push(ind); nodeById.set(ind.id, ind); await raf(); }
   drawPop(); drawMap(); updateHud();
 }
@@ -327,6 +344,54 @@ function applyCustomScore(code) {
     csStatus.textContent = 'error: ' + (e.message || e); csStatus.className = 'desc err'; return false;
   }
 }
+// ── Publish run → forest ───────────────────────────────────────────────────
+// Anyone with a session can write one expedition record per run to their own
+// PDS. We re-read the textarea at publish time so the scorer string captured
+// is whatever they have applied (or "default" if they never applied any).
+const publishBtn = $('#btn-publish'), publishStatus = $('#publish-status');
+function updatePublishUI() {
+  if (!publishBtn) return;
+  const ready = !!auth.isLoggedIn() && runTrajectory.length > 0 && !busy;
+  publishBtn.disabled = !ready;
+  if (!auth.isLoggedIn()) publishStatus.textContent = 'sign in (top right) to publish';
+  else if (!runTrajectory.length) publishStatus.textContent = 'run the breeder, then publish';
+  else publishStatus.textContent = `ready · ${runTrajectory.length} individuals across ${generation + 1} gen${generation ? 's' : ''}`;
+}
+async function sha12(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).slice(0, 6).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+publishBtn.addEventListener('click', async () => {
+  if (publishBtn.disabled) return;
+  publishBtn.disabled = true; publishStatus.textContent = 'publishing…';
+  try {
+    const scorerSrc = customScore ? (csCode.value.trim() || 'default') : 'default';
+    const hash = await sha12(scorerSrc);
+    const record = {
+      $type: 'com.minomobi.fluoddity.expedition',
+      schemaVersion: 1,
+      start: JSON.stringify(runStartConfig || defaultConfig()),
+      scorer: scorerSrc,
+      scorerHash: hash,
+      trajectory: JSON.stringify(runTrajectory),
+      knobs: JSON.stringify(knobs),
+      generations: generation + 1,
+      forest: ANCHOR,
+      createdAt: runStartedAt || new Date().toISOString(),
+    };
+    const res = await auth.pds.createRecord(EXPEDITION_COLLECTION, record);
+    const uri = res && (res.uri || (res.data && res.data.uri));
+    publishStatus.innerHTML = uri
+      ? `published · <a href="./forest.html" style="color:var(--accent);">see it in the forest</a>`
+      : 'published';
+  } catch (e) {
+    publishStatus.textContent = 'error: ' + (e.message || e);
+    updatePublishUI();
+  }
+});
+auth.onAuthChange(updatePublishUI);
+updatePublishUI();
+
 $('#cs-apply').addEventListener('click', () => applyCustomScore(csCode.value));
 $('#cs-reset').addEventListener('click', () => { csCode.value = ''; applyCustomScore(''); try { localStorage.removeItem(CS_KEY); } catch {} });
 try { const saved = localStorage.getItem(CS_KEY); if (saved) { csCode.value = saved; $('#cs-wrap').open = true; applyCustomScore(saved); } } catch { /* ignore */ }
