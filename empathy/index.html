@@ -62,6 +62,24 @@
   .tab { padding: 8px 12px; border: 0; background: none; cursor: pointer;
     color: var(--dim); font: inherit; border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .tab.locked { opacity: 0.45; cursor: not-allowed; }
+  .tab .spark { color: var(--dim); font-size: 11px; margin-left: 4px; }
+
+  /* typeahead */
+  .ta-wrap { position: relative; flex: 1; }
+  .ta-wrap input { width: 100%; }
+  .ta-drop { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    z-index: 100; display: none; max-height: 320px; overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .ta-drop.open { display: block; }
+  .ta-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+    cursor: pointer; font-size: 14px; }
+  .ta-item:hover, .ta-item.active { background: var(--accent-soft); }
+  .ta-av { width: 24px; height: 24px; border-radius: 12px; background: var(--line); flex-shrink: 0; }
+  .ta-info { min-width: 0; overflow: hidden; }
+  .ta-name { color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ta-handle { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .panel { display: none; }
   .panel.active { display: block; }
@@ -104,8 +122,11 @@
   <p class="sub">Type any Bluesky handle. See the world they see — the timeline reconstructed from who they follow, their public network, the blocks they've made public, the feeds they've built. No login.</p>
 
   <form class="input-row" id="form">
-    <input id="handle" type="text" autocomplete="off" autocapitalize="none" autocorrect="off"
-           placeholder="alice.bsky.social or alice" required>
+    <div class="ta-wrap">
+      <input id="handle" type="text" autocomplete="off" autocapitalize="none" autocorrect="off"
+             placeholder="alice.bsky.social or alice" required>
+      <div class="ta-drop" id="ta-drop"></div>
+    </div>
     <button type="submit" id="go">Look</button>
   </form>
 
@@ -119,6 +140,7 @@
 
   <div class="tabs" id="tabs">
     <button class="tab active" data-tab="timeline">Timeline</button>
+    <button class="tab locked" data-tab="gold" id="gold-tab">Gold ✦<span class="spark" id="gold-spark"></span></button>
     <button class="tab" data-tab="network">Network</button>
     <button class="tab" data-tab="blocks">Blocks</button>
     <button class="tab" data-tab="feeds">Feeds</button>
@@ -127,6 +149,11 @@
   <section class="panel active" id="panel-timeline">
     <div class="status" id="timeline-status">Type a handle to begin.</div>
     <div id="timeline-list"></div>
+  </section>
+
+  <section class="panel" id="panel-gold">
+    <div class="status" id="gold-status">—</div>
+    <div id="gold-list"></div>
   </section>
 
   <section class="panel" id="panel-network">
@@ -185,10 +212,10 @@ async function resolvePds(did) {
   return svc.serviceEndpoint;
 }
 
-async function getFollows(did, maxPages = 4) {
+async function getFollows(did, onPage) {
   const out = [];
   let cursor;
-  for (let i = 0; i < maxPages; i++) {
+  do {
     const params = new URLSearchParams({ actor: did, limit: '100' });
     if (cursor) params.set('cursor', cursor);
     const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.graph.getFollows?${params}`);
@@ -196,8 +223,8 @@ async function getFollows(did, maxPages = 4) {
     const data = await res.json();
     for (const f of data.follows || []) out.push(f.did);
     cursor = data.cursor;
-    if (!cursor) break;
-  }
+    if (onPage) onPage(out.length, cursor);
+  } while (cursor);
   return out;
 }
 
@@ -225,10 +252,11 @@ async function fetchAuthorFeedFull(did, limit = 5) {
 // Tab routing
 const tabs = document.querySelectorAll('.tab');
 const panels = document.querySelectorAll('.panel');
-const loaded = { timeline: false, network: false, blocks: false, feeds: false };
-let currentSubject = null; // { did, handle, displayName, avatar, pds }
+const loaded = { timeline: false, gold: false, network: false, blocks: false, feeds: false };
+let currentSubject = null; // { did, handle, pds, follows, gold, ... }
 
 tabs.forEach(t => t.addEventListener('click', () => {
+  if (t.classList.contains('locked')) return;
   tabs.forEach(x => x.classList.toggle('active', x === t));
   const tab = t.dataset.tab;
   panels.forEach(p => p.classList.toggle('active', p.id === `panel-${tab}`));
@@ -255,10 +283,12 @@ document.getElementById('form').addEventListener('submit', async (e) => {
 async function load(handle) {
   // Reset
   for (const k of Object.keys(loaded)) loaded[k] = false;
-  ['timeline', 'network', 'blocks', 'feeds'].forEach(t =>
+  ['timeline', 'gold', 'network', 'blocks', 'feeds'].forEach(t =>
     setStatus(t, 'Loading…', false));
-  ['timeline-list', 'network-body', 'blocks-body', 'feeds-body'].forEach(id =>
+  ['timeline-list', 'gold-list', 'network-body', 'blocks-body', 'feeds-body'].forEach(id =>
     document.getElementById(id).innerHTML = '');
+  document.getElementById('gold-tab').classList.add('locked');
+  document.getElementById('gold-spark').textContent = '';
 
   setStatus('timeline', `Resolving ${handle}…`, false);
   const did = await resolveHandle(handle);
@@ -278,9 +308,21 @@ async function load(handle) {
     `${p.followsCount ?? '?'} following · ${p.followersCount ?? '?'} followers · ${p.postsCount ?? '?'} posts`;
   document.getElementById('who').classList.add('on');
 
-  // Render the active tab first; others lazy-load when clicked.
+  // Fetch ALL follows once — Timeline and Gold compute share them.
+  setStatus('timeline', `Fetching all follows of @${currentSubject.handle}…`, false);
+  currentSubject.follows = await getFollows(did, (n) => {
+    setStatus('timeline', `Fetched ${n} follows…`, false);
+  });
+
+  // Render active tab.
   const active = document.querySelector('.tab.active').dataset.tab;
   renderTab(active);
+
+  // Background: build the gold cluster while the user reads the timeline.
+  computeGoldCluster(currentSubject).catch(err => {
+    setStatus('gold', `Couldn't build gold cluster: ${err.message}`, true);
+    document.getElementById('gold-spark').textContent = '✗';
+  });
 }
 
 async function renderTab(tab) {
@@ -288,6 +330,7 @@ async function renderTab(tab) {
   loaded[tab] = true;
   try {
     if (tab === 'timeline') await renderTimeline();
+    else if (tab === 'gold') await renderGold();
     else if (tab === 'network') await renderNetwork();
     else if (tab === 'blocks') await renderBlocks();
     else if (tab === 'feeds') await renderFeeds();
@@ -299,28 +342,26 @@ async function renderTab(tab) {
 
 // --- Timeline (the reconstruction) ---------------------------------------
 async function renderTimeline() {
-  const { did } = currentSubject;
-  setStatus('timeline', 'Fetching follows…', false);
-  const follows = await getFollows(did, 4); // up to ~400
+  const follows = currentSubject.follows || [];
   if (!follows.length) {
     setStatus('timeline', 'No follows to merge — empty timeline.', false);
     return;
   }
-  const sample = follows.slice(0, 100); // DID strings
   setStatus('timeline',
-    `Pulling recent posts from ${sample.length} of ${follows.length} follows…`,
-    false);
+    `Pulling 5 recent posts from each of ${follows.length} follows…`, false);
 
-  const feeds = await pool(sample, 10, async (did) => {
+  const feeds = await pool(follows, 20, async (did) => {
     try { return await fetchAuthorFeedFull(did, 5); }
     catch { return []; }
+  }, (done, total) => {
+    setStatus('timeline', `Pulling posts… ${done}/${total}`, false);
   });
 
   const merged = feeds.flat()
     .filter(it => it && it.post && it.post.record && it.post.record.createdAt)
     .sort((a, b) =>
       new Date(b.post.record.createdAt) - new Date(a.post.record.createdAt))
-    .slice(0, 50);
+    .slice(0, 80);
 
   const list = document.getElementById('timeline-list');
   if (!merged.length) {
@@ -329,10 +370,165 @@ async function renderTimeline() {
   }
   list.innerHTML = merged.map(postHtml).join('');
   setStatus('timeline',
-    `Reconstructed from ${sample.length} follows × 5 recent posts, merged by time.`
-    + (follows.length > sample.length
-      ? ` (Sampling first ${sample.length} of ${follows.length} follows.)` : ''),
+    `${follows.length} follows × 5 recent posts → top 80 most recent.`, false);
+}
+
+// --- Gold (maximal mutual-follow clique, reverse chron) ------------------
+async function renderGold() {
+  const gold = currentSubject.gold;
+  if (!gold || !gold.length) {
+    setStatus('gold', `Gold cluster not ready yet.`, false);
+    return;
+  }
+  setStatus('gold',
+    `Pulling recent posts from ${gold.length} gold cluster members…`, false);
+
+  const feeds = await pool(gold, Math.min(gold.length, 15), async (did) => {
+    try { return await fetchAuthorFeedFull(did, 15); }
+    catch { return []; }
+  }, (done, total) => {
+    setStatus('gold', `Pulling posts… ${done}/${total}`, false);
+  });
+
+  const merged = feeds.flat()
+    .filter(it => it && it.post && it.post.record && it.post.record.createdAt)
+    .sort((a, b) =>
+      new Date(b.post.record.createdAt) - new Date(a.post.record.createdAt))
+    .slice(0, 120);
+
+  const list = document.getElementById('gold-list');
+  if (!merged.length) {
+    setStatus('gold', 'No recent posts from the gold cluster.', false);
+    return;
+  }
+  list.innerHTML = merged.map(postHtml).join('');
+  setStatus('gold',
+    `${gold.length} mutual-clique members · ${merged.length} posts · reverse-chron, no scoring.`,
     false);
+}
+
+// --- Gold cluster compute (background) -----------------------------------
+const CLUSTER_BATCH_URL = 'https://mino.mobi/cluster-batch';
+const MIN_CLIQUE = 4;
+
+async function computeGoldCluster(subject) {
+  const { follows } = subject;
+  const spark = document.getElementById('gold-spark');
+  if (follows.length < MIN_CLIQUE) {
+    spark.textContent = '(too few follows)';
+    return;
+  }
+  spark.textContent = `0/${follows.length}`;
+  setStatus('gold', `Building mutual graph from ${follows.length} follows…`, false);
+
+  const followSet = new Set(follows);
+  const adj = new Map(); // did → Set<did> of follows they follow
+
+  const BATCH = 10;
+  const batches = [];
+  for (let i = 0; i < follows.length; i += BATCH) batches.push(follows.slice(i, i + BATCH));
+
+  await pool(batches, 4, async (slice) => {
+    try {
+      const res = await fetch(CLUSTER_BATCH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dids: slice }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fmap = data.follows || {};
+      for (const did of slice) {
+        const theirFollows = fmap[did] || [];
+        const m = new Set();
+        for (const other of theirFollows) if (followSet.has(other)) m.add(other);
+        if (m.size) adj.set(did, m);
+      }
+    } catch {}
+  }, (doneBatches) => {
+    spark.textContent = `${Math.min(doneBatches * BATCH, follows.length)}/${follows.length}`;
+  });
+
+  // Build symmetric mutual-follow adjacency: edge iff a→b AND b→a.
+  setStatus('gold', `Finding the maximal mutual-follow clique…`, false);
+  const mutual = new Map();
+  for (const [a, neighbors] of adj) {
+    const m = new Set();
+    for (const b of neighbors) {
+      if (adj.get(b)?.has(a)) m.add(b);
+    }
+    if (m.size) mutual.set(a, m);
+  }
+
+  const nodes = [...mutual.keys()];
+  const { clique, exhaustive } = findMaxClique(mutual, nodes);
+  subject.gold = clique;
+
+  const tab = document.getElementById('gold-tab');
+  if (clique.length >= MIN_CLIQUE) {
+    tab.classList.remove('locked');
+    spark.textContent = `${clique.length}${exhaustive ? '' : '+'}`;
+    setStatus('gold',
+      `Ready: ${clique.length} mutual-follow clique${exhaustive ? '' : ' (approx — search budget hit)'}. Click the tab.`,
+      false);
+  } else {
+    spark.textContent = '(no clique)';
+    setStatus('gold',
+      `Couldn't find a clique of ≥${MIN_CLIQUE} mutually-following accounts.`, true);
+  }
+}
+
+// Bron-Kerbosch with pivot + pruning + 5M-op budget. Ported from /cluster/.
+function findMaxClique(adj, nodeList) {
+  let best = [];
+  let ops = 0;
+  const LIMIT = 5_000_000;
+
+  function neighborsInSet(v, s) {
+    let c = 0;
+    const n = adj.get(v);
+    if (!n) return 0;
+    for (const u of n) if (s.has(u)) c++;
+    return c;
+  }
+
+  function bk(clique, P, X) {
+    if (ops++ > LIMIT) return;
+    if (P.size === 0 && X.size === 0) {
+      if (clique.length > best.length) best = [...clique];
+      return;
+    }
+    if (clique.length + P.size <= best.length) return;
+
+    let pivot = null, maxN = -1;
+    for (const v of P) {
+      const n = neighborsInSet(v, P);
+      if (n > maxN) { pivot = v; maxN = n; }
+    }
+    for (const v of X) {
+      const n = neighborsInSet(v, P);
+      if (n > maxN) { pivot = v; maxN = n; }
+    }
+    const pivotN = adj.get(pivot) || new Set();
+    const candidates = [];
+    for (const v of P) if (!pivotN.has(v)) candidates.push(v);
+
+    for (const v of candidates) {
+      if (ops > LIMIT) return;
+      const vN = adj.get(v) || new Set();
+      const newP = new Set();
+      const newX = new Set();
+      for (const u of P) if (vN.has(u)) newP.add(u);
+      for (const u of X) if (vN.has(u)) newX.add(u);
+      clique.push(v);
+      bk(clique, newP, newX);
+      clique.pop();
+      P.delete(v);
+      X.add(v);
+    }
+  }
+  bk([], new Set(nodeList), new Set());
+  return { clique: best, exhaustive: ops <= LIMIT };
 }
 
 function postHtml(it) {
@@ -358,8 +554,8 @@ async function renderNetwork() {
   const { did, pds } = currentSubject;
   setStatus('network', 'Loading follows, followers, lists…', false);
 
-  const [follows, followers, lists] = await Promise.all([
-    getFollows(did, 2).catch(() => []),
+  const follows = currentSubject.follows || [];
+  const [followers, lists] = await Promise.all([
     fetchFollowers(did, 100).catch(() => []),
     listPublicRecords(pds, did, 'app.bsky.graph.list', 100).catch(() => []),
   ]);
@@ -469,15 +665,19 @@ async function listPublicRecords(pds, did, collection, limit) {
   return j.records || [];
 }
 
-async function pool(items, n, fn) {
+async function pool(items, n, fn, onProgress) {
   const queue = items.slice();
   const results = [];
+  let done = 0;
   await Promise.all(Array(Math.min(n, queue.length)).fill(0).map(async () => {
     while (queue.length) {
       const item = queue.shift();
       results.push(await fn(item));
+      done++;
+      if (onProgress && done % 10 === 0) onProgress(done, items.length);
     }
   }));
+  if (onProgress) onProgress(done, items.length);
   return results;
 }
 
@@ -501,6 +701,86 @@ function relTime(d) {
   if (s < 604800) return `${Math.floor(s / 86400)}d`;
   return d.toISOString().slice(0, 10);
 }
+
+// --- typeahead (Bluesky searchActorsTypeahead) ---------------------------
+(function () {
+  const TA_API = `${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead`;
+  const DEBOUNCE = 200;
+  const LIMIT = 6;
+  const input = document.getElementById('handle');
+  const drop = document.getElementById('ta-drop');
+  let timer = null;
+  let activeIdx = -1;
+  let actors = [];
+
+  function render() {
+    drop.innerHTML = actors.map((a, i) => `
+      <div class="ta-item${i === activeIdx ? ' active' : ''}" data-idx="${i}">
+        ${a.avatar ? `<img class="ta-av" src="${esc(a.avatar)}" alt="">` : `<div class="ta-av"></div>`}
+        <div class="ta-info">
+          ${a.displayName ? `<div class="ta-name">${esc(a.displayName)}</div>` : ''}
+          <div class="ta-handle">@${esc(a.handle)}</div>
+        </div>
+      </div>`).join('');
+    drop.classList.toggle('open', actors.length > 0);
+    drop.querySelectorAll('.ta-item').forEach(el => {
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        selectActor(actors[+el.dataset.idx]);
+      });
+    });
+  }
+
+  function selectActor(actor) {
+    input.value = actor.handle;
+    close();
+    document.getElementById('form').dispatchEvent(new Event('submit', { cancelable: true }));
+  }
+
+  function close() {
+    actors = [];
+    activeIdx = -1;
+    drop.classList.remove('open');
+  }
+
+  async function search(q) {
+    if (q.length < 2) { close(); return; }
+    try {
+      const r = await fetch(`${TA_API}?q=${encodeURIComponent(q)}&limit=${LIMIT}`);
+      const data = await r.json();
+      actors = data.actors || [];
+      activeIdx = -1;
+      render();
+    } catch {}
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim().replace(/^@/, '');
+    timer = setTimeout(() => search(q), DEBOUNCE);
+  });
+
+  input.addEventListener('keydown', e => {
+    if (!drop.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, actors.length - 1);
+      render();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+      render();
+    } else if (e.key === 'Enter' && activeIdx >= 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      selectActor(actors[activeIdx]);
+    } else if (e.key === 'Escape') {
+      close();
+    }
+  });
+
+  input.addEventListener('blur', () => setTimeout(close, 150));
+})();
 
 // Allow ?handle= deeplink
 const params = new URLSearchParams(location.search);
