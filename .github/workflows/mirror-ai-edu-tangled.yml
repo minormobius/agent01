@@ -74,6 +74,27 @@ jobs:
           done
           cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
 
+      - name: Scrub provenance markers from the build
+        working-directory: ai-edu/dist
+        run: |
+          # Defensive: today the audit finds nothing in the staged content,
+          # but rewrite any future stray references before the push so the
+          # mirrored repo stays segregated. URLs are remapped to the tangled
+          # host; brand/handle/repo strings drop to empty.
+          find . -type f \( -name '*.html' -o -name '*.md' -o -name '*.svg' -o -name '*.csv' -o -name '*.js' -o -name '*.rs' \) -print0 \
+            | xargs -0 sed -i \
+                -e 's|https\?://ai\.mino\.mobi|https://aamaa.tngl.sh/ai-edu|g' \
+                -e 's|ai\.mino\.mobi|aamaa.tngl.sh/ai-edu|g' \
+                -e 's|minomobi\.bsky\.social||g' \
+                -e 's|minormobius/agent01||g' \
+                -e 's|minomobi\.com||g' \
+                -e 's|minomobi||g'
+          # Loud failure if any survived a future change to the patterns.
+          if grep -RIlE 'mino\.mobi|minomobi|minormobius' . >/dev/null; then
+            echo "✗ provenance markers survived scrub:"; grep -RInE 'mino\.mobi|minomobi|minormobius' .; exit 1
+          fi
+          echo "✓ no provenance markers in dist"
+
       - name: Set up SSH deploy key
         run: |
           test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "missing TANGLED_SSH_KEY"; exit 1; }
