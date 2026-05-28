@@ -8,6 +8,7 @@ on:
     paths:
       - 'cat/**'
       - 'poll/apps/api/migrations/0024_cat.sql'
+      - 'poll/apps/api/migrations/0025_cat_reset_initial.sql'
       - '.github/workflows/deploy-cat.yml'
   workflow_dispatch:
     inputs:
@@ -38,7 +39,8 @@ jobs:
         if: ${{ inputs.skip_migrations != true }}
         run: |
           for f in \
-            ../poll/apps/api/migrations/0024_cat.sql; do
+            ../poll/apps/api/migrations/0024_cat.sql \
+            ../poll/apps/api/migrations/0025_cat_reset_initial.sql; do
             echo "Applying $f to atpolls-db…"
             npx wrangler d1 execute atpolls-db --file="$f" --remote \
               || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"

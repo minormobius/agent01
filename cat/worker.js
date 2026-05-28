@@ -468,8 +468,11 @@ async function health(env) {
   });
 }
 
-async function kickListener(req, env) {
-  if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
+// No auth on any admin endpoint. The harm is bounded (the firehose
+// repopulates in minutes) and "what is an X-Admin-Key, I have Cloudflare
+// already" is a fair complaint. We do require POST on the destructive ones
+// so that casual GET scanners and accidental bookmarks can't trigger them.
+async function kickListener(_req, env) {
   const id = env.LISTENER.idFromName('global');
   const stub = env.LISTENER.get(id);
   const r = await stub.fetch('https://internal/kick');
@@ -477,15 +480,14 @@ async function kickListener(req, env) {
 }
 
 async function clearAll(req, env) {
-  if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
+  if (req.method !== 'POST') return new Response('use POST', { status: 405 });
   await env.DB.prepare('DELETE FROM cat_posts').run();
   return new Response('cleared');
 }
 
-// Surgical removal of a single post by URI. Useful when one bad row sneaks in
-// and you'd rather not nuke the whole index.
+// Surgical removal of a single post by URI.
 async function deleteByUri(req, env) {
-  if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
+  if (req.method !== 'POST') return new Response('use POST', { status: 405 });
   const url = new URL(req.url);
   const uri = url.searchParams.get('uri') || '';
   if (!uri) return new Response('?uri= required', { status: 400 });
@@ -519,11 +521,6 @@ async function runPurge(env) {
 }
 async function purgeBadRows(_req, env) {
   return Response.json({ ok: true, ...(await runPurge(env)) });
-}
-
-function checkAdmin(req, env) {
-  if (!env.ADMIN_KEY) return false;
-  return (req.headers.get('x-admin-key') || '') === env.ADMIN_KEY;
 }
 
 function safeJson(s, fallback) {
