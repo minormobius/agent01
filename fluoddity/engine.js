@@ -284,7 +284,7 @@ export class FluoddityEngine {
     this.arena = !!opts.arena;
     const cv = document.createElement('canvas');
     cv.width = cv.height = dim;
-    const gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: false, preserveDrawingBuffer: true });
+    const gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: true, preserveDrawingBuffer: true });
     if (!gl) throw new Error('WebGL2 unavailable');
     if (!gl.getExtension('EXT_color_buffer_float')) throw new Error('EXT_color_buffer_float unavailable');
     gl.getExtension('EXT_float_blend');
