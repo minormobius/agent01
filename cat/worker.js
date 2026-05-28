@@ -26,7 +26,7 @@ const CAT_HASHTAGS = new Set([
   'catsofbluesky', 'catsofbsky', 'catsofatproto', 'catsky',
   'caturday', 'catpic', 'catpics', 'catstagram', 'catsoftwitter',
   'catmeme', 'catmemes', 'cursedcats', 'cursedcat',
-  'tortie', 'calico', 'tabby', 'tuxedo', 'blackcat', 'orangecat', 'ginger',
+  'tortie', 'calico', 'tabby', 'tuxedo', 'blackcat', 'orangecat',
   'mainecoon', 'ragdoll', 'siamese', 'persian', 'bengal',
   'catlover', 'catlovers', 'catlife', 'catsofig',
   // ATProto-native cat tags people have organically used
@@ -43,16 +43,61 @@ const NSFW_LABELS = new Set([
 // Hashtag blocklist. If a post tags #cats *and* anything in here, it's not
 // the cats we're looking for. Smut-and-cat posters tend to lard their posts
 // with obvious tags; this catches the ones that don't bother self-labeling.
+// NB: "pussy" IS on this list. It is a real cat term, but on Bluesky people
+// almost never use #pussy to tag a cat (they use #cat, #cats, #kitty); when
+// it does appear as a hashtag it's overwhelmingly the other thing.
 const NSFW_HASHTAGS = new Set([
+  // direct labels
   'nsfw', 'nsfwart', 'porn', 'porno', 'pornography', 'xxx', 'hentai', 'rule34',
-  'onlyfans', 'fansly', 'manyvids', 'pornhub',
-  'lewd', 'lewds', 'nude', 'nudes', 'naked', 'nudeart',
-  'sex', 'sexy', 'sexybody', 'erotic', 'erotica',
-  'bdsm', 'kink', 'kinky', 'fetish', 'femdom', 'maledom', 'submissive', 'dominatrix',
-  'thirsttrap', 'thirsty', 'horny', 'milf', 'dilf', 'gilf',
-  'cock', 'pussy', 'tits', 'boobs', 'titties', 'booty', 'ass',
-  'cumshot', 'creampie', 'anal', 'blowjob', 'handjob',
-  'adultcontent', 'adultsonly', 'over18', '18plus',
+  'smut', 'lewd', 'lewds', 'nude', 'nudes', 'naked', 'nudeart',
+  'sex', 'sexy', 'sexybody', 'erotic', 'erotica', 'erotism',
+  'adultcontent', 'adultsonly', 'over18', '18plus', '21plus', 'mdni',
+  // platforms
+  'onlyfans', 'fansly', 'manyvids', 'pornhub', 'cam4', 'chaturbate', 'fancentro',
+  // kink umbrella
+  'bdsm', 'kink', 'kinky', 'fetish', 'fetishplay',
+  'femdom', 'maledom', 'submissive', 'dominatrix', 'master', 'mistress',
+  'daddykink', 'mommykink', 'ddlg', 'mdlb', 'mdlg', 'ddlb', 'abdl', 'ageplay', 'age-play',
+  'petplay', 'pet-play', 'puppyplay', 'pupplay', 'puppy-play', 'pup-play',
+  'kittenplay', 'kitten-play', 'ponyplay', 'pony-play',
+  'breedingkink', 'cnc', 'consensualnonconsent', 'somnophilia', 'voyeur', 'exhibitionist',
+  // thirst / suggestive
+  'thirsttrap', 'thirstrap', 'thirsty', 'horny', 'milf', 'dilf', 'gilf',
+  'cougar', 'sugardaddy', 'sugarbaby',
+  // anatomy / acts (omitting ambiguous terms like "pussy")
+  'cock', 'dick', 'dickpic', 'tits', 'boobs', 'titties', 'booty', 'breasts',
+  'nipple', 'nipples', 'clit', 'clitoris', 'vulva', 'cumdump',
+  'cumshot', 'creampie', 'cumslut', 'cumeater',
+  'anal', 'analsex', 'blowjob', 'bj', 'handjob', 'footjob', 'rimjob', 'fingering',
+  'deepthroat', 'throatfuck', 'throatpie', 'throatwhore', 'facefuck',
+  'fucking', 'fucked', 'fuckme', 'breedme', 'breedingme', 'ruinme', 'wreckme',
+  'useme', 'usemyholes', 'usemybody', 'masterme', 'ownme',
+  'cumtribute', 'femboyporn',
+  // slurs / dehumanization used as fetish markers
+  'whore', 'whore4you', 'slut', 'slutty', 'cumwhore', 'sissyslut', 'painslut',
+  'cunt', 'cuntboy', 'boypussy', 'boyclit', 'tcock', 'tdick', 'girldick', 'girlcock',
+  'sissy', 'sissification', 'sissyhypno', 'bimbo', 'bimbofication',
+  // virginity/age play markers that on Bluesky are almost always fetish
+  'virgin', 'firsttime', 'losingit',
+  // adjacent / leak fixes
+  'pussy', 'ass', 'thicc', 'goon', 'gooning', 'goonoverse', 'gameoverse',
+  'yiff', 'yiffy', 'furryporn', 'furrynsfw', 'furryart-nsfw',
+]);
+
+// Spam / cross-poster signals. Bluesky-native cat posts don't redirect to
+// Facebook or Instagram; engagement farmers do. Combined with the spam
+// hashtag list this catches the "viral pet content" autoposters.
+const SPAM_LINK_DOMAINS = new Set([
+  'facebook.com', 'fb.com', 'fb.watch', 'm.facebook.com',
+  'instagram.com', 'instagr.am',
+  'tiktok.com', 'vm.tiktok.com',
+  'threads.net',
+]);
+const SPAM_HASHTAGS = new Set([
+  'viralpetcontent', 'viralcat', 'viralcats', 'viralpets', 'viralcontent',
+  'risingcreator', 'risingstars', 'risingstar', 'topfan', 'topcontent',
+  'trendingcat', 'trendingnow', 'cinematicmagic', 'cinematicpets',
+  'petinfluencer', 'catinfluencer',
 ]);
 
 // ───────────────────────────── Worker entry ──────────────────────────────
@@ -67,6 +112,8 @@ export default {
       if (p === '/api/cat/tags')         return await tagCounts(env);
       if (p === '/api/cat/admin/kick')   return await kickListener(req, env);
       if (p === '/api/cat/admin/clear')  return await clearAll(req, env);
+      if (p === '/api/cat/admin/delete') return await deleteByUri(req, env);
+      if (p === '/api/cat/admin/purge')  return await purgeBadRows(req, env);
       // Touch the DO opportunistically so the WS stays alive even between
       // crons. waitUntil keeps it off the response critical path.
       ctx.waitUntil(touchListener(env).catch(() => {}));
@@ -199,6 +246,9 @@ export class CatListener {
     // NSFW filter: self-applied labels on the record/image, or any tag in our
     // NSFW blocklist. Drop without indexing.
     if (isNSFW(rec, all)) return;
+    // Spam filter: cross-posters and engagement-farm bots almost always link
+    // off-platform or use viral-content hashtags. Drop those too.
+    if (isSpam(rec, all)) return;
 
     const img0 = images[0];
     const cid = blobCid(img0?.image);
@@ -222,7 +272,10 @@ export class CatListener {
         truncate(img0.alt || '', 512),
         Number(aspect.width || 0) | 0,
         Number(aspect.height || 0) | 0,
-        JSON.stringify(matched),
+        // Store the FULL tag list (not just the cat ones) so retroactive
+        // audits — e.g. /admin/purge — can match against new blocklist entries
+        // without needing to refetch the original record.
+        JSON.stringify(all),
         createdAt, Date.now(),
       ).run();
       this.inserts++;
@@ -254,6 +307,28 @@ function isNSFW(rec, hashtags) {
   }
   // Co-tagged NSFW hashtag (alongside #cats).
   for (const t of hashtags) if (NSFW_HASHTAGS.has(t)) return true;
+  return false;
+}
+
+function isSpam(rec, hashtags) {
+  // External-platform link in any facet → spam/cross-poster.
+  if (Array.isArray(rec.facets)) {
+    for (const f of rec.facets) {
+      if (!Array.isArray(f.features)) continue;
+      for (const feat of f.features) {
+        if (feat.$type === 'app.bsky.richtext.facet#link' && typeof feat.uri === 'string') {
+          try {
+            const host = new URL(feat.uri).hostname.replace(/^www\./, '').toLowerCase();
+            for (const d of SPAM_LINK_DOMAINS) {
+              if (host === d || host.endsWith('.' + d)) return true;
+            }
+          } catch {}
+        }
+      }
+    }
+  }
+  // Engagement-farm hashtag jargon (viralpetcontent, risingcreator, …).
+  for (const t of hashtags) if (SPAM_HASHTAGS.has(t)) return true;
   return false;
 }
 
@@ -400,6 +475,41 @@ async function clearAll(req, env) {
   if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
   await env.DB.prepare('DELETE FROM cat_posts').run();
   return new Response('cleared');
+}
+
+// Surgical removal of a single post by URI. Useful when one bad row sneaks in
+// and you'd rather not nuke the whole index.
+async function deleteByUri(req, env) {
+  if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
+  const url = new URL(req.url);
+  const uri = url.searchParams.get('uri') || '';
+  if (!uri) return new Response('?uri= required', { status: 400 });
+  const r = await env.DB.prepare('DELETE FROM cat_posts WHERE uri = ?').bind(uri).run();
+  return Response.json({ ok: true, removed: r.meta?.changes ?? 0 });
+}
+
+// Scan existing rows and delete any whose stored hashtag list intersects the
+// current NSFW or spam blocklists. Use this after tightening either list to
+// retroactively clean the index without nuking everything.
+async function purgeBadRows(req, env) {
+  if (!checkAdmin(req, env)) return new Response('forbidden', { status: 403 });
+  const r = await env.DB.prepare('SELECT uri, hashtags FROM cat_posts').all();
+  const rows = r.results || [];
+  const bad = [];
+  for (const row of rows) {
+    const tags = safeJson(row.hashtags, []);
+    for (const t of tags) {
+      if (NSFW_HASHTAGS.has(t) || SPAM_HASHTAGS.has(t)) { bad.push(row.uri); break; }
+    }
+  }
+  let removed = 0;
+  for (let i = 0; i < bad.length; i += 200) {
+    const chunk = bad.slice(i, i + 200);
+    const ph = chunk.map(() => '?').join(',');
+    const del = await env.DB.prepare(`DELETE FROM cat_posts WHERE uri IN (${ph})`).bind(...chunk).run();
+    removed += del.meta?.changes ?? 0;
+  }
+  return Response.json({ ok: true, scanned: rows.length, removed });
 }
 
 function checkAdmin(req, env) {
