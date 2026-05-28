@@ -79,6 +79,7 @@ h3:first-child { margin-top: 0; }
     </div>
     <div class="btnrow"><button class="btn" id="btn-seed">↻ new seed population</button></div>
     <div class="btnrow"><button class="btn" id="btn-publish" disabled>publish run → forest</button></div>
+    <div class="btnrow"><button class="btn" id="btn-hotornot" disabled>judge in hot or not →</button></div>
     <div class="note" id="publish-status"></div>
     <div class="stat"><span class="k">generation</span><span class="v" id="s-gen">—</span></div>
     <div class="stat"><span class="k">best fitness</span><span class="v" id="s-best">—</span></div>
@@ -186,7 +187,7 @@ async function evalInd(ind) {
   ind.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
   archive.push(ind.vv); if (archive.length > 500) archive.shift();
   if (runTrajectory.length < 4000) runTrajectory.push([ind.id, ind.parent, ind.gen | 0, round4(ind.fit), round4(ind.v.fill), round4(ind.v.motion), round4(ind.v.struct), round4(ind.v.blowout)]);
-  updatePublishUI();
+  updatePublishUI(); updateHotUI();
 }
 function noveltyOf(vv) {
   if (!archive.length) return 0;
@@ -391,6 +392,30 @@ publishBtn.addEventListener('click', async () => {
 });
 auth.onAuthChange(updatePublishUI);
 updatePublishUI();
+
+// ── Hot-or-not handoff: stash the current population's configs and navigate.
+const hotBtn = $('#btn-hotornot');
+function updateHotUI() { hotBtn.disabled = !allNodes.length; }
+hotBtn.addEventListener('click', () => {
+  if (!allNodes.length) return;
+  const configs = allNodes.slice(-80).map(n => n.config); // most recent N
+  try { sessionStorage.setItem('fluoddity_hot_queue', JSON.stringify(configs)); } catch {}
+  location.href = './hot.html';
+});
+
+// ── #rubric= URL: auto-populate the BYO scorer + apply ─────────────────────
+(function pickUpRubricFromUrl() {
+  const m = location.hash.match(/(?:^#|&)rubric=([^&]+)/);
+  if (!m) return;
+  try {
+    let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (b64.length % 4) b64 += '=';
+    const code = decodeURIComponent(escape(atob(b64)));
+    csCode.value = code;
+    $('#cs-wrap').open = true;
+    applyCustomScore(code);
+    csStatus.textContent = 'rubric loaded from hot or not · ' + csStatus.textContent;
+  } catch { /* ignore — leave breeder default */ }
+})();
 
 $('#cs-apply').addEventListener('click', () => applyCustomScore(csCode.value));
 $('#cs-reset').addEventListener('click', () => { csCode.value = ''; applyCustomScore(''); try { localStorage.removeItem(CS_KEY); } catch {} });
