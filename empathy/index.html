@@ -146,19 +146,74 @@
 
   <footer>
     <p>Sister tools: <a href="https://mino.mobi/cluster/">cluster</a> · <a href="https://mino.mobi/seek/">seek</a> · <a href="https://mino.mobi/judge/">judge</a> · <a href="https://mino.mobi/weft/">weft</a> · <a href="https://photo.mino.mobi">photo</a> · <a href="https://bisk.mino.mobi">bisk</a></p>
-    <p>Reconstructed from public ATProto records. The Timeline samples the first 100 follows and merges their five most recent posts by time, so for high-follow accounts it's a representative sample, not the literal feed. Built on the <a href="https://github.com/minormobius/agent01">agent01</a> shared atproto layer.</p>
+    <p>Reconstructed from public ATProto records. The Timeline samples the first 100 follows and merges their five most recent posts by time, so for high-follow accounts it's a representative sample, not the literal feed. Source on <a href="https://github.com/minormobius/agent01">agent01</a>.</p>
   </footer>
 
 </div>
 
 <script type="module">
-import { getFollows, getProfiles } from '../packages/atproto/bsky.js';
-import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
+// Inlined ATProto helpers — this site ships as its own Worker, so the
+// shared packages/atproto/ lib isn't in the served tree. Keep them small.
 
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
+const PLC_DIRECTORY = 'https://plc.directory';
 
-// Inlined: the shared getAuthorFeed strips the feed down to engagement counts
-// (built for the feed-worker scoring path). We need the full post bodies.
+async function resolveHandle(handle) {
+  handle = handle.replace(/^@/, '').trim();
+  const res = await fetch(
+    `${BSKY_PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+  if (!res.ok) throw new Error(`Could not resolve @${handle}`);
+  const { did } = await res.json();
+  return did;
+}
+
+async function resolvePds(did) {
+  let doc;
+  if (did.startsWith('did:plc:')) {
+    const res = await fetch(`${PLC_DIRECTORY}/${did}`);
+    if (!res.ok) throw new Error(`Could not resolve ${did}`);
+    doc = await res.json();
+  } else if (did.startsWith('did:web:')) {
+    const res = await fetch(`https://${did.slice(8)}/.well-known/did.json`);
+    if (!res.ok) throw new Error(`Could not resolve ${did}`);
+    doc = await res.json();
+  } else {
+    throw new Error(`Unsupported DID method: ${did}`);
+  }
+  const svc = doc.service?.find((s) => s.id === '#atproto_pds');
+  if (!svc) throw new Error(`No PDS for ${did}`);
+  return svc.serviceEndpoint;
+}
+
+async function getFollows(did, maxPages = 4) {
+  const out = [];
+  let cursor;
+  for (let i = 0; i < maxPages; i++) {
+    const params = new URLSearchParams({ actor: did, limit: '100' });
+    if (cursor) params.set('cursor', cursor);
+    const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.graph.getFollows?${params}`);
+    if (!res.ok) break;
+    const data = await res.json();
+    for (const f of data.follows || []) out.push(f.did);
+    cursor = data.cursor;
+    if (!cursor) break;
+  }
+  return out;
+}
+
+async function getProfiles(dids) {
+  const result = new Map();
+  for (let i = 0; i < dids.length; i += 25) {
+    const batch = dids.slice(i, i + 25);
+    const params = batch.map(d => `actors=${encodeURIComponent(d)}`).join('&');
+    const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.getProfiles?${params}`);
+    if (!res.ok) continue;
+    const data = await res.json();
+    for (const p of data.profiles || []) result.set(p.did, p);
+  }
+  return result;
+}
+
 async function fetchAuthorFeedFull(did, limit = 5) {
   const url = `${BSKY_PUBLIC}/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(did)}&limit=${limit}&filter=posts_no_replies`;
   const res = await fetch(url);
