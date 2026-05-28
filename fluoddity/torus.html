@@ -173,13 +173,41 @@ void main(){
 
   // ── orbit camera ────────────────────────────────────────────────────────────
   let yaw = 0.6, pitch = 0.45, dist = 6.2;
-  let drag = null, lastInteract = performance.now();
+  // One pointer orbits; two pointers pinch-zoom (their distance ratio drives the
+  // camera dist). Switching between modes preserves orientation by re-anchoring
+  // the drag to whichever finger is left when the second one lifts.
   const cv = engine.cv;
-  cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; cv.setPointerCapture(e.pointerId); lastInteract = performance.now(); });
-  cv.addEventListener('pointermove', (e) => { if (!drag) return; yaw = drag.yaw - (e.clientX - drag.x) * 0.008; pitch = Math.max(-1.4, Math.min(1.4, drag.pitch - (e.clientY - drag.y) * 0.008)); lastInteract = performance.now(); });
-  cv.addEventListener('pointerup', () => { drag = null; });
-  cv.addEventListener('pointercancel', () => { drag = null; });
-  cv.addEventListener('wheel', (e) => { e.preventDefault(); dist = Math.max(3.5, Math.min(14, dist * Math.exp(e.deltaY * 0.0012))); lastInteract = performance.now(); }, { passive: false });
+  const pointers = new Map(); // pointerId -> {x, y}
+  let drag = null, pinch = null, lastInteract = performance.now();
+  const distOf = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const clampDist = (d) => Math.max(3.5, Math.min(14, d));
+  cv.addEventListener('pointerdown', (e) => {
+    cv.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastInteract = performance.now();
+    if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; pinch = null; }
+    else if (pointers.size === 2) { pinch = { startDist: distOf() || 1, startCamDist: dist }; drag = null; }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastInteract = performance.now();
+    if (pointers.size >= 2 && pinch) {
+      const d = distOf(); if (d > 0) dist = clampDist(pinch.startCamDist * pinch.startDist / d);
+    } else if (pointers.size === 1 && drag) {
+      yaw = drag.yaw - (e.clientX - drag.x) * 0.008;
+      pitch = Math.max(-1.4, Math.min(1.4, drag.pitch - (e.clientY - drag.y) * 0.008));
+    }
+  });
+  const release = (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1) { const [p] = [...pointers.values()]; drag = { x: p.x, y: p.y, yaw, pitch }; } // re-anchor remaining finger
+    else if (pointers.size === 0) drag = null;
+  };
+  cv.addEventListener('pointerup', release);
+  cv.addEventListener('pointercancel', release);
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); dist = clampDist(dist * Math.exp(e.deltaY * 0.0012)); lastInteract = performance.now(); }, { passive: false });
 
   // ── lively organism picker (best of N by fitness) ───────────────────────────
   let cfg = null, source = null; // source = {kind:'random'} | {kind:'shared', did, rkey} | {kind:'hash'}
