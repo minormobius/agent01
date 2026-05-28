@@ -213,16 +213,29 @@ void main(){
   let cfg = null, source = null; // source = {kind:'random'} | {kind:'shared', did, rkey} | {kind:'hash'}
   const encodeCfg = (c) => btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
+  // Filtered phase space: viable-range randomConfig + best-of-N by fitness, with
+  // a quality floor and a couple of retry rounds. A single round of N is the
+  // common case; if everything in this batch is still meh (bestFit < FLOOR), we
+  // draw another N and keep the better. Caps the worst-case wait while pushing
+  // the typical result well past "least-bad" into "actually interesting."
   async function pickLively() {
+    const N = 12, FLOOR = 0.15, ROUNDS = 3;
     let best = null, bestFit = -1;
-    for (let i = 0; i < 8; i++) {
-      const c = randomConfig();
-      engine.load(c, 'pick' + i + '_' + Math.random()); engine.step(220); engine.render();
-      const a = readDescriptors(engine.cv, null);
-      engine.step(8); engine.render();
-      const f = fitness(readDescriptors(engine.cv, a.lum));
-      if (f > bestFit) { bestFit = f; best = c; }
+    const hint = $('#hint'), origHint = hint.textContent;
+    hint.textContent = 'finding an interesting one…';
+    for (let round = 0; round < ROUNDS; round++) {
+      for (let i = 0; i < N; i++) {
+        const c = randomConfig();
+        engine.load(c, 'pick' + round + '_' + i + '_' + Math.random());
+        engine.step(220); engine.render();
+        const a = readDescriptors(engine.cv, null);
+        engine.step(8); engine.render();
+        const f = fitness(readDescriptors(engine.cv, a.lum));
+        if (f > bestFit) { bestFit = f; best = c; }
+      }
+      if (bestFit >= FLOOR) break;
     }
+    hint.textContent = origHint;
     return best;
   }
 
