@@ -33,6 +33,28 @@ const CAT_HASHTAGS = new Set([
   'catprotocol', 'catproto', 'catsfromthefirehose',
 ]);
 
+// Self-applied Bluesky content labels we drop on sight. The user pretty much
+// always sets one of these when posting adult content (and we'd rather over-
+// filter than greet a visitor with porn tagged #cats).
+const NSFW_LABELS = new Set([
+  'porn', 'sexual', 'nudity', 'graphic-media', 'gore', 'sexual-figurative',
+]);
+
+// Hashtag blocklist. If a post tags #cats *and* anything in here, it's not
+// the cats we're looking for. Smut-and-cat posters tend to lard their posts
+// with obvious tags; this catches the ones that don't bother self-labeling.
+const NSFW_HASHTAGS = new Set([
+  'nsfw', 'nsfwart', 'porn', 'porno', 'pornography', 'xxx', 'hentai', 'rule34',
+  'onlyfans', 'fansly', 'manyvids', 'pornhub',
+  'lewd', 'lewds', 'nude', 'nudes', 'naked', 'nudeart',
+  'sex', 'sexy', 'sexybody', 'erotic', 'erotica',
+  'bdsm', 'kink', 'kinky', 'fetish', 'femdom', 'maledom', 'submissive', 'dominatrix',
+  'thirsttrap', 'thirsty', 'horny', 'milf', 'dilf', 'gilf',
+  'cock', 'pussy', 'tits', 'boobs', 'titties', 'booty', 'ass',
+  'cumshot', 'creampie', 'anal', 'blowjob', 'handjob',
+  'adultcontent', 'adultsonly', 'over18', '18plus',
+]);
+
 // ───────────────────────────── Worker entry ──────────────────────────────
 
 export default {
@@ -174,6 +196,10 @@ export class CatListener {
     const matched = all.filter(t => CAT_HASHTAGS.has(t));
     if (matched.length === 0) return;
 
+    // NSFW filter: self-applied labels on the record/image, or any tag in our
+    // NSFW blocklist. Drop without indexing.
+    if (isNSFW(rec, all)) return;
+
     const img0 = images[0];
     const cid = blobCid(img0?.image);
     if (!cid) return;
@@ -205,6 +231,30 @@ export class CatListener {
       this.lastError = 'insert: ' + (e?.message || String(e));
     }
   }
+}
+
+function isNSFW(rec, hashtags) {
+  // Self-labels on the post record itself.
+  const recLabels = rec.labels?.values;
+  if (Array.isArray(recLabels)) {
+    for (const l of recLabels) {
+      if (l && NSFW_LABELS.has(String(l.val || '').toLowerCase())) return true;
+    }
+  }
+  // Self-labels on individual images.
+  const imgs = extractImages(rec.embed);
+  if (Array.isArray(imgs)) {
+    for (const im of imgs) {
+      const ils = im?.labels?.values;
+      if (!Array.isArray(ils)) continue;
+      for (const l of ils) {
+        if (l && NSFW_LABELS.has(String(l.val || '').toLowerCase())) return true;
+      }
+    }
+  }
+  // Co-tagged NSFW hashtag (alongside #cats).
+  for (const t of hashtags) if (NSFW_HASHTAGS.has(t)) return true;
+  return false;
 }
 
 function extractImages(embed) {
