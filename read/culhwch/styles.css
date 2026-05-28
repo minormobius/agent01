@@ -374,6 +374,11 @@ svg.myth { display: block; }
   padding: 46px 44px; min-height: 360px; display: flex; flex-direction: column;
   justify-content: center; box-shadow: 0 2px 24px rgba(0,0,0,0.25);
 }
+.bk-plate {
+  display: block; width: 100%; height: auto; border-radius: 10px;
+  margin: 0 0 22px; aspect-ratio: 3 / 2; object-fit: cover;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.32); background: #14110d;
+}
 .bk-spreadtitle { font-family: var(--serif); color: var(--gold-soft); font-size: 25px; margin: 0 0 16px; letter-spacing: 0.01em; }
 .bk-text { font-family: var(--serif); font-size: 21px; line-height: 1.72; color: var(--ink); margin: 0; }
 .bk-dropcap { float: left; font-size: 64px; line-height: 0.78; padding: 6px 10px 0 0; color: var(--gold); font-family: Georgia, serif; }

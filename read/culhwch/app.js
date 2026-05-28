@@ -106,6 +106,12 @@
       const s = spreads[idx];
       page.innerHTML = "";
       page.className = "book-page" + (idx === 0 ? " book-title" : "");
+      // image plate (silently removed if the PNG hasn't been generated yet)
+      const img = document.createElement("img");
+      img.className = "bk-plate"; img.loading = "lazy"; img.alt = s.illus || s.title || "";
+      img.onerror = () => img.remove();
+      img.src = "img/spread-" + String(idx).padStart(2, "0") + ".png";
+      page.appendChild(img);
       if (idx === 0) {
         page.appendChild(el("div", "bk-kicker", B.meta.kicker));
         page.appendChild(el("h1", "bk-bigtitle", s.title));
