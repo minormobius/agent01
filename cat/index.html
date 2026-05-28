@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cATProto — cats from the firehose</title>
+  <meta name="description" content="Cat pictures and memes streaming from the Bluesky firehose. Are.na for cats. Filtered by hashtag and embedded image." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐈</text></svg>" />
+  <style>
+    :root {
+      --bg: #faf8f3;
+      --ink: #1a1611;
+      --ink-dim: #7a716a;
+      --line: #e6e1d6;
+      --accent: #c25b3b;
+      --gold: #b58a3d;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+      font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+      -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--gold); }
+
+    header {
+      padding: 2.5rem 1.25rem 1.25rem;
+      text-align: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--bg);
+    }
+    h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 500; margin: 0;
+      letter-spacing: -0.01em; }
+    h1 .cat { color: var(--accent); }
+    h1 .proto { color: var(--ink-dim); font-style: italic; }
+    .tag {
+      color: var(--ink-dim); font-style: italic; margin: 0.35rem 0 0;
+      font-size: 1.02rem;
+    }
+    .status {
+      margin-top: 0.6rem; font-size: 0.82rem; color: var(--ink-dim);
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+    .status .live::before { content: '● '; color: #56b06a; }
+    .status .stale::before { content: '○ '; color: #b08056; }
+
+    nav.tags {
+      display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center;
+      padding: 0.8rem 1rem 0.5rem;
+      max-width: 980px; margin: 0 auto;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 0.78rem;
+    }
+    nav.tags a {
+      padding: 0.18rem 0.5rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink);
+      background: #fff;
+    }
+    nav.tags a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    nav.tags a:hover { border-color: var(--accent); }
+
+    main { padding: 1rem 0.75rem 4rem; }
+    .grid {
+      column-count: 4; column-gap: 0.75rem;
+      max-width: 1500px; margin: 0 auto;
+    }
+    @media (max-width: 1200px) { .grid { column-count: 3; } }
+    @media (max-width: 760px)  { .grid { column-count: 2; } }
+    @media (max-width: 440px)  { .grid { column-count: 1; } }
+
+    .card {
+      break-inside: avoid;
+      margin: 0 0 0.75rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      transition: transform 200ms ease, box-shadow 200ms ease;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.07); }
+    .card img {
+      width: 100%; height: auto; display: block;
+      background: #f0ecdf;
+    }
+    .card .meta {
+      padding: 0.5rem 0.7rem 0.6rem;
+      font-size: 0.83rem; line-height: 1.4;
+    }
+    .card .text {
+      color: var(--ink); margin: 0 0 0.4rem;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card .row {
+      display: flex; align-items: center; gap: 0.4rem;
+      color: var(--ink-dim); font-size: 0.74rem;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+    .card .row .when { margin-left: auto; }
+    .card .chips { margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.25rem; }
+    .card .chip {
+      font-size: 0.65rem; padding: 0.05rem 0.35rem; border-radius: 999px;
+      background: #f3eedd; color: var(--ink-dim);
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    }
+
+    .empty {
+      text-align: center; padding: 4rem 1rem; color: var(--ink-dim);
+      font-style: italic;
+    }
+    .sentinel { height: 2px; }
+    footer {
+      text-align: center; padding: 1.5rem 1rem; color: var(--ink-dim);
+      font-size: 0.78rem; border-top: 1px solid var(--line);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span class="cat">cAT</span><span class="proto">Proto</span></h1>
+    <p class="tag">are.na for cat pictures, plucked from the Bluesky firehose</p>
+    <div class="status" id="status">connecting…</div>
+  </header>
+
+  <nav class="tags" id="tagbar"></nav>
+
+  <main>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" hidden>No cats yet. Give it a minute, or come back when more get posted.</div>
+    <div class="sentinel" id="sentinel"></div>
+  </main>
+
+  <footer>
+    listening to <code>jetstream*.bsky.network</code> ·
+    images via <a href="https://bsky.app">bsky.app</a> ·
+    <a href="https://github.com/minormobius/agent01/tree/main/cat">source</a>
+  </footer>
+
+  <script type="module">
+    const grid = document.getElementById('grid');
+    const empty = document.getElementById('empty');
+    const status = document.getElementById('status');
+    const tagbar = document.getElementById('tagbar');
+    const sentinel = document.getElementById('sentinel');
+
+    const state = {
+      cursor: null,
+      tag: new URLSearchParams(location.search).get('tag') || '',
+      loading: false,
+      done: false,
+      seen: new Set(),
+    };
+
+    function fmtAge(ms) {
+      const d = (Date.now() - ms) / 1000;
+      if (d < 60) return `${Math.round(d)}s`;
+      if (d < 3600) return `${Math.round(d / 60)}m`;
+      if (d < 86400) return `${Math.round(d / 3600)}h`;
+      return `${Math.round(d / 86400)}d`;
+    }
+
+    function card(item) {
+      const a = document.createElement('a');
+      a.className = 'card';
+      a.href = item.bskyUrl;
+      a.target = '_blank'; a.rel = 'noopener';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = item.image.thumb;
+      img.alt = item.image.alt || 'cat';
+      // Reserve aspect ratio so masonry doesn't reflow as images load
+      const w = item.image.aspect.width, h = item.image.aspect.height;
+      if (w > 0 && h > 0) img.style.aspectRatio = `${w} / ${h}`;
+      a.appendChild(img);
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      if (item.text) {
+        const t = document.createElement('p');
+        t.className = 'text';
+        t.textContent = item.text;
+        meta.appendChild(t);
+      }
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<span>@${shortDid(item.did)}</span><span class="when">${fmtAge(item.createdAt)}</span>`;
+      meta.appendChild(row);
+      if (item.hashtags?.length) {
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+        for (const t of item.hashtags.slice(0, 4)) {
+          const c = document.createElement('span');
+          c.className = 'chip';
+          c.textContent = '#' + t;
+          chips.appendChild(c);
+        }
+        meta.appendChild(chips);
+      }
+      a.appendChild(meta);
+      return a;
+    }
+
+    function shortDid(did) {
+      // did:plc:abc... -> abc…   ; user can click through for the real handle
+      const m = did.match(/^did:[a-z]+:([a-z0-9]+)/i);
+      return m ? m[1].slice(0, 8) + '…' : did;
+    }
+
+    async function loadPage() {
+      if (state.loading || state.done) return;
+      state.loading = true;
+      const u = new URL('/api/cat/feed', location.href);
+      u.searchParams.set('limit', '40');
+      if (state.cursor) u.searchParams.set('cursor', String(state.cursor));
+      if (state.tag) u.searchParams.set('tag', state.tag);
+      try {
+        const r = await fetch(u);
+        const data = await r.json();
+        for (const item of data.items) {
+          if (state.seen.has(item.uri)) continue;
+          state.seen.add(item.uri);
+          grid.appendChild(card(item));
+        }
+        if (data.cursor) state.cursor = data.cursor;
+        else state.done = true;
+        if (grid.children.length === 0) empty.hidden = false;
+        else empty.hidden = true;
+      } catch (e) {
+        console.error(e);
+      } finally {
+        state.loading = false;
+      }
+    }
+
+    async function refreshTags() {
+      try {
+        const r = await fetch('/api/cat/tags');
+        const data = await r.json();
+        tagbar.innerHTML = '';
+        const all = document.createElement('a');
+        all.href = '#'; all.textContent = 'all';
+        all.className = state.tag ? '' : 'active';
+        all.addEventListener('click', (e) => { e.preventDefault(); setTag(''); });
+        tagbar.appendChild(all);
+        for (const { tag, n } of data.tags.slice(0, 16)) {
+          const a = document.createElement('a');
+          a.href = `?tag=${encodeURIComponent(tag)}`;
+          a.textContent = `#${tag} ${n}`;
+          if (state.tag === tag) a.classList.add('active');
+          a.addEventListener('click', (e) => { e.preventDefault(); setTag(tag); });
+          tagbar.appendChild(a);
+        }
+      } catch {}
+    }
+
+    function setTag(tag) {
+      state.tag = tag;
+      state.cursor = null; state.done = false; state.seen.clear();
+      grid.innerHTML = '';
+      const url = new URL(location.href);
+      if (tag) url.searchParams.set('tag', tag); else url.searchParams.delete('tag');
+      history.replaceState(null, '', url);
+      refreshTags();
+      loadPage();
+    }
+
+    async function refreshStatus() {
+      try {
+        const r = await fetch('/api/cat/health');
+        const data = await r.json();
+        const last = data.last_indexed_at || 0;
+        const ageMin = last ? (Date.now() - last) / 60000 : Infinity;
+        const live = ageMin < 5;
+        const total = data.total || 0;
+        const cls = live ? 'live' : 'stale';
+        const lastTxt = last ? fmtAge(last) + ' ago' : 'never';
+        status.innerHTML = `<span class="${cls}">${live ? 'live' : 'idle'}</span> · ${total.toLocaleString()} cats indexed · last ${lastTxt}`;
+      } catch {
+        status.textContent = '— offline';
+      }
+    }
+
+    // Infinite scroll
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) loadPage();
+    }, { rootMargin: '600px' });
+    io.observe(sentinel);
+
+    refreshTags();
+    refreshStatus();
+    loadPage();
+    setInterval(refreshStatus, 30_000);
+    // Refresh tags occasionally so the bar tracks the growing index.
+    setInterval(refreshTags, 5 * 60_000);
+  </script>
+</body>
+</html>
