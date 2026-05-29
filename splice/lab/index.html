@@ -55,6 +55,8 @@
   .bignum{font-family:var(--mono);font-size:13px;color:var(--ink)}
   select{background:#0a0d12;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:13px}
   .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .tm{font-family:var(--mono);font-size:11.5px;color:var(--accent);margin-left:2px;display:inline-block;margin-top:4px}
+  .tm.warn{color:var(--warn)}
   .err{color:var(--bad)}
 </style>
 </head>
@@ -114,11 +116,13 @@
     <div class="panel">
       <h2>In-silico PCR <span class="timing" id="tPcr"></span></h2>
       <label class="row" style="display:block">forward primer (5'→3')
-        <input type="text" id="fwd" value="GTAAAACGACGGCCAGT" spellcheck="false"></label>
+        <input type="text" id="fwd" value="GTAAAACGACGGCCAGT" spellcheck="false">
+        <span class="tm" id="fwdTm"></span></label>
       <label class="row" style="display:block">reverse primer (5'→3')
-        <input type="text" id="rev" value="CAGGAAACAGCTATGAC" spellcheck="false"></label>
+        <input type="text" id="rev" value="CAGGAAACAGCTATGAC" spellcheck="false">
+        <span class="tm" id="revTm"></span></label>
       <div class="btnrow"><button class="primary" id="runPcr">Amplify</button></div>
-      <div class="note">Defaults are the M13 fwd/rev priming sites in pUC19.</div>
+      <div class="note">Defaults are the M13 fwd/rev priming sites in pUC19. Tm: SantaLucia nearest-neighbor (50 nM oligo, 50 mM Na⁺) — clean-room of primer3's <code>oligotm</code>.</div>
       <div id="pcrOut" class="stats"></div>
     </div>
 
@@ -242,6 +246,31 @@ $('runDigest').onclick = () => {
     `${enz.join(' + ')} → <b>${value.fragments.length}</b> fragments: <span class="mono">${value.fragments.join(', ')}</span> bp`;
   drawGel(value.fragments);
 };
+
+// ---- primer Tm (live) ----
+function primerTm(inputId, spanId){
+  const seq = $(inputId).value.replace(/[^A-Za-z]/g,'').toUpperCase();
+  const el = $(spanId);
+  if(seq.length < 2){ el.textContent=''; return null; }
+  const { value } = Engine.tm(seq);
+  if(value.tm == null){ el.textContent = 'Tm —'; el.className='tm warn'; return null; }
+  el.textContent = `Tm ${value.tm.toFixed(1)} °C · ${seq.length} nt`;
+  el.className = 'tm';
+  return value.tm;
+}
+function updateTms(){
+  const f = primerTm('fwd','fwdTm');
+  const r = primerTm('rev','revTm');
+  // flag a mismatched pair (>5 °C apart won't co-amplify well)
+  if(f!=null && r!=null){
+    const d = Math.abs(f-r);
+    const warn = d > 5;
+    [$('fwdTm'),$('revTm')].forEach(e=>e.classList.toggle('warn', warn));
+    if(warn){ $('fwdTm').textContent += ` · ΔTm ${d.toFixed(1)} °C ⚠`; }
+  }
+}
+$('fwd').addEventListener('input', updateTms);
+$('rev').addEventListener('input', updateTms);
 
 // ---- pcr ----
 $('runPcr').onclick = () => {
@@ -394,6 +423,7 @@ $('runBench').onclick = () => {
     $('engineBadge').style.color = 'var(--accent)';
     const p = window.SAMPLES.pUC19; seqEl.value = p.seq; circEl.checked = p.circular; updateStats();
     $('runRestriction').click();
+    updateTms();
   } catch (e) {
     $('engineBadge').textContent = 'engine: failed';
     $('engineBadge').style.color = 'var(--bad)';

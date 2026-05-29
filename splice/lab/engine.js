@@ -53,6 +53,8 @@ export const Engine = {
   pcr:         (seq, fwd, rev, circ) => timed('pcr_w', `${c(circ)}|${fwd}|${rev}|${seq}`, true),
   clone:       (vector, insert, enzymes, vCirc, iCirc) =>
                  timed('clone_w', `${c(vCirc)}|${c(iCirc)}|${enzymes.join(',')}|${vector}|${insert}`, true),
+  // melting temperature (°C), SantaLucia NN. dnaNm=strand conc, naMm=monovalent salt.
+  tm:          (seq, dnaNm = 50, naMm = 50) => timed('tm_w', `${dnaNm}|${naMm}|${seq}`, true),
 
   // raw single call without timing wrapper, for tight benchmark loops
   _raw: call,

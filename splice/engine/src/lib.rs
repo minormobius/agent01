@@ -131,6 +131,127 @@ pub fn translate(seq: &str, frame: i32) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// melting temperature (Tm) — clean-room SantaLucia nearest-neighbor
+// ---------------------------------------------------------------------------
+//
+// Independent reimplementation of the published SantaLucia (1998) unified
+// nearest-neighbor method with the SantaLucia salt correction, the same
+// method primer3 selects for `santalucia_auto` + `santalucia`. The ΔH/ΔS
+// constants are scientific measurements from the paper [SantaLucia JR (1998),
+// PNAS 95:1460–65] — facts, not code — so this engine carries no GPL text and
+// stays MIT. Validated to match primer3's oligotm to <0.01 °C in tests.
+//
+// Tables are indexed [first base][second base] with A,C,G,T = 0..3.
+// dH units: -100 cal/mol.   dS units: -0.1 cal/(K·mol).
+
+const SL98_DH: [[i32; 4]; 4] = [
+    [79, 84, 78, 72], // AA AC AG AT
+    [85, 80, 106, 78], // CA CC CG CT
+    [82, 98, 80, 84], // GA GC GG GT
+    [72, 82, 85, 79], // TA TC TG TT
+];
+const SL98_DS: [[i32; 4]; 4] = [
+    [222, 224, 210, 204],
+    [227, 199, 272, 210],
+    [222, 244, 199, 224],
+    [213, 222, 227, 222],
+];
+
+fn base_idx(b: u8) -> Option<usize> {
+    match b {
+        b'A' => Some(0),
+        b'C' => Some(1),
+        b'G' => Some(2),
+        b'T' => Some(3),
+        _ => None,
+    }
+}
+
+/// Is the duplex self-complementary (palindromic)? Adds a symmetry correction.
+fn is_symmetric(s: &[u8]) -> bool {
+    let n = s.len();
+    if n == 0 || n % 2 == 1 {
+        return false;
+    }
+    for i in 0..n / 2 {
+        if complement(s[i]) != s[n - 1 - i] {
+            return false;
+        }
+    }
+    true
+}
+
+/// Melting temperature (°C) by SantaLucia 1998 NN + SantaLucia salt correction.
+/// `dna_nm` = strand concentration (nM), `na_mm` = monovalent salt (mM).
+/// Returns None for sequences with non-ACGT bases or length < 2.
+pub fn tm_santalucia(seq: &str, dna_nm: f64, na_mm: f64) -> Option<f64> {
+    let s = clean(seq);
+    let n = s.len();
+    if n < 2 {
+        return None;
+    }
+    // integer accumulators in the same fixed-point units primer3 uses
+    let mut dh: i32 = 0; // -100 cal/mol
+    let mut ds: i32 = 0; // -0.1 cal/(K·mol)
+    let mut gc = 0usize;
+
+    let sym = is_symmetric(&s);
+    if sym {
+        ds += 14;
+    }
+    // 5' terminal penalty
+    match s[0] {
+        b'A' | b'T' => {
+            ds += -41;
+            dh += -23;
+        }
+        b'C' | b'G' => {
+            ds += 28;
+            dh += -1;
+        }
+        _ => return None,
+    }
+    // nearest-neighbor stack sum
+    for w in s.windows(2) {
+        let a = base_idx(w[0])?;
+        let b = base_idx(w[1])?;
+        ds += SL98_DS[a][b];
+        dh += SL98_DH[a][b];
+    }
+    // 3' terminal penalty
+    match s[n - 1] {
+        b'A' | b'T' => {
+            ds += -41;
+            dh += -23;
+        }
+        b'C' | b'G' => {
+            ds += 28;
+            dh += -1;
+        }
+        _ => return None,
+    }
+    for &b in &s {
+        if b == b'C' || b == b'G' {
+            gc += 1;
+        }
+    }
+
+    let delta_h = dh as f64 * -100.0; // cal/mol
+    let mut delta_s = ds as f64 * -0.1; // cal/(K·mol)
+    const R: f64 = 1.987; // cal/(K·mol)
+    const T_KELVIN: f64 = 273.15;
+
+    // SantaLucia salt correction folds into ΔS
+    delta_s += 0.368 * (n as f64 - 1.0) * (na_mm / 1000.0).ln();
+
+    // symmetric duplexes use total strand conc; asymmetric divide by 4
+    let denom_div = if sym { 1.0e9 } else { 4.0e9 };
+    let tm = delta_h / (delta_s + R * (dna_nm / denom_div).ln()) - T_KELVIN;
+    let _ = gc; // reserved for future formamide/DMSO terms
+    Some(tm)
+}
+
+// ---------------------------------------------------------------------------
 // restriction enzymes (classic palindromic Type-II set)
 // ---------------------------------------------------------------------------
 
@@ -733,6 +854,22 @@ pub extern "C" fn clone_w(ptr: *const u8, len: usize) -> u64 {
     out(op_clone(vector, insert, enz, vc.trim() == "1", ic.trim() == "1"))
 }
 
+#[no_mangle]
+pub extern "C" fn tm_w(ptr: *const u8, len: usize) -> u64 {
+    // "DNA_nM|NA_mM|SEQ"
+    let s = read!(ptr, len);
+    let mut it = s.splitn(3, '|');
+    let dna = it.next().unwrap_or("50").trim().parse().unwrap_or(50.0);
+    let na = it.next().unwrap_or("50").trim().parse().unwrap_or(50.0);
+    let seq = it.next().unwrap_or("");
+    let tm = tm_santalucia(seq, dna, na);
+    // JSON so JS gets a clean null for invalid input
+    out(match tm {
+        Some(t) => format!("{{\"tm\":{:.4},\"len\":{}}}", t, clean(seq).len()),
+        None => "{\"tm\":null}".to_string(),
+    })
+}
+
 // ---------------------------------------------------------------------------
 // host-side tests
 // ---------------------------------------------------------------------------
@@ -801,6 +938,35 @@ mod tests {
         let o = op_orfs("CCCATGAAAGGGTAACCC", 1);
         assert!(o.contains("\"orfs\":[{"));
         assert!(o.contains("\"aa\":3"));
+    }
+
+    #[test]
+    fn tm_matches_primer3_oligotm() {
+        // Reference values from primer3's oligotm() (santalucia_auto +
+        // santalucia salt), Na+=50 mM, DNA=50 nM, divalent=0, dNTP=0.
+        // Our clean-room implementation must match to <0.01 °C.
+        let cases = [
+            ("GTAAAACGACGGCCAGT", 49.1681), // M13-F
+            ("CAGGAAACAGCTATGAC", 43.6040), // M13-R
+            ("ATGCGTACGTTAGCTAGCTAG", 51.7666),
+            ("GGGGCCCCGGGGCCCC", 65.7962),
+            ("GAATTC", -20.4360), // symmetric (palindrome)
+            ("AAAAAAAAAAAAAAAA", 28.5759),
+            ("ATGCGTACG", 21.6558),
+        ];
+        for (seq, expect) in cases {
+            let got = tm_santalucia(seq, 50.0, 50.0).unwrap();
+            assert!(
+                (got - expect).abs() < 0.01,
+                "{seq}: got {got:.4}, expected {expect:.4}"
+            );
+        }
+    }
+
+    #[test]
+    fn tm_rejects_bad_input() {
+        assert!(tm_santalucia("A", 50.0, 50.0).is_none()); // too short
+        assert!(tm_santalucia("ATGCN", 50.0, 50.0).is_none()); // non-ACGT
     }
 
     #[test]

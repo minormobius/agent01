@@ -60,8 +60,8 @@
     <tr>
       <td><a href="https://github.com/primer3-org/primer3">primer3</a><br><span class="muted">via <a href="https://github.com/libnano/primer3-py">primer3-py</a></span></td>
       <td>Nearest-neighbor (SantaLucia) Tm, salt/Mg/dNTP correction, hairpin/dimer ΔG, primer picking with weighted penalties</td>
-      <td class="mid">A tuned thermodynamics model — nasty to reimplement correctly</td>
-      <td class="ok"><strong>It's C</strong> → don't reimplement, bind/compile it. ~10k LOC, minimal I/O. SpliceCraft treats it as <em>optional</em> with a crude Tm fallback.</td>
+      <td class="mid">A tuned thermodynamics model. Trivial to port (pure double math, params compiled in) — but primer3 is <strong>GPL-2.0</strong>, which collides with MIT.</td>
+      <td class="ok"><strong>Tm: clean-room.</strong> The SantaLucia formula + ΔH/ΔS tables are <em>published science</em>, not code — so Tm is reimplemented in Rust (MIT), <span class="ok">matching primer3's <code>oligotm</code> to &lt;0.01&nbsp;°C</span> and <a href="/lab/">live in the lab</a>. A real (GPL) primer3 module is reserved only for <code>thal</code>-grade hairpin/dimer ΔG.</td>
     </tr>
     <tr>
       <td><a href="http://hmmer.org/">HMMER3</a><br><span class="muted">via <a href="https://github.com/althonos/pyhmmer">pyhmmer</a></span></td>
