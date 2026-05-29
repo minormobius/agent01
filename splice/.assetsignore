@@ -1,0 +1,3 @@
+# Dev sources — not web assets. The built wasm lives in lab/ and ships.
+engine/
+spike/
