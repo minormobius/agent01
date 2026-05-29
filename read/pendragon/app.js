@@ -447,9 +447,116 @@
   // refit the visible diagram on resize (debounced)
   let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
+  /* ====================== CROSSWALK (three tales side by side) ====================== */
+  function renderCrosswalk() {
+    const C = window.PENDRAGON && window.PENDRAGON.crosswalk;
+    const host = $("#cw-host"); if (!C || !host) return;
+    host.innerHTML = "";
+
+    host.appendChild(el("p", "cw-intro", C.intro));
+
+    const tales = C.tales;
+    const taleMap = {}; tales.forEach((t) => taleMap[t.id] = t);
+    const passLabel = { culhwch: (n) => "M" + n, gawain: (n) => "F" + ["", "I", "II", "III", "IV"][n], orfeo: (n) => "M" + ["", "I", "II", "III", "IV", "V", "VI"][n] };
+
+    function header() {
+      const row = el("div", "cw-row cw-head");
+      row.appendChild(el("div", "cw-code", "Code"));
+      row.appendChild(el("div", "cw-name", "Name"));
+      tales.forEach((t) => {
+        const c = el("div", "cw-tale-head");
+        c.innerHTML = `<a href="${t.href}" style="color: inherit;">${t.sigil} ${escapeHtml(t.short)}</a>`;
+        row.appendChild(c);
+      });
+      return row;
+    }
+
+    function taleCell(taleId, entry) {
+      const div = el("div", "cw-tale cw-" + taleId);
+      if (!entry) {
+        div.classList.add("cw-absent");
+        div.innerHTML = '<span class="cw-no">—</span>';
+        return div;
+      }
+      if (entry === "absent") { div.classList.add("cw-absent"); div.innerHTML = '<span class="cw-no">absent</span>'; return div; }
+      if (entry === "present") { div.innerHTML = '<span class="cw-yes">✓</span>'; return div; }
+      if (entry === "inverted") { div.innerHTML = '<span class="cw-yes">inverted</span>'; return div; }
+      if (entry === "minimal")  { div.innerHTML = '<span class="cw-yes">minimal</span>'; return div; }
+      if (typeof entry === "object" && entry !== null) {
+        let html = '<span class="cw-yes">✓</span>';
+        if (entry.passages && entry.passages.length) {
+          const fn = passLabel[taleId] || ((n) => "" + n);
+          html += '<span class="cw-pass">' + entry.passages.map(fn).join(" · ") + '</span>';
+        } else if (entry.who) {
+          html = '<span class="cw-yes">' + escapeHtml(entry.who) + '</span>';
+        }
+        if (entry.note) html += '<span class="cw-tnote">' + entry.note + '</span>';
+        div.innerHTML = html;
+        return div;
+      }
+      // any other truthy value
+      div.innerHTML = '<span class="cw-yes">✓</span>';
+      return div;
+    }
+
+    function countLabel(motif) {
+      const n = ["culhwch","gawain","orfeo"].filter((id) => motif[id]).length;
+      return '<span class="cw-count cw-c' + n + '">in ' + n + (n === 1 ? " tale" : " tales") + '</span>';
+    }
+
+    // ─ Motifs ─
+    host.appendChild(el("h3", "cw-grouphead", "Shared motifs · Thompson codes"));
+    host.appendChild(el("p", "cw-subnote", C.motifIntro));
+    host.appendChild(header());
+    // Sort: in 3 first, then 2, then 1; within each, stable
+    const motifsSorted = C.motifs.slice().sort((a, b) => {
+      const ca = ["culhwch","gawain","orfeo"].filter((id) => a[id]).length;
+      const cb = ["culhwch","gawain","orfeo"].filter((id) => b[id]).length;
+      return cb - ca;
+    });
+    motifsSorted.forEach((m) => {
+      const row = el("div", "cw-row");
+      row.appendChild(el("div", "cw-code", escapeHtml(m.code)));
+      const nm = el("div", "cw-name", escapeHtml(m.name) + " " + countLabel(m));
+      row.appendChild(nm);
+      tales.forEach((t) => row.appendChild(taleCell(t.id, m[t.id])));
+      if (m.gloss) {
+        const g = el("div", "cw-gloss"); g.innerHTML = m.gloss; row.appendChild(g);
+      }
+      host.appendChild(row);
+    });
+
+    // ─ Propp ─
+    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the three"));
+    host.appendChild(el("p", "cw-subnote", C.proppIntro));
+    host.appendChild(header());
+    C.propp.forEach((p) => {
+      const row = el("div", "cw-row");
+      row.appendChild(el("div", "cw-code", `<em style="font-family: var(--serif); font-style: italic; color: var(--gold);">${escapeHtml(p.sym)}</em>`));
+      row.appendChild(el("div", "cw-name", escapeHtml(p.name)));
+      tales.forEach((t) => row.appendChild(taleCell(t.id, p[t.id])));
+      if (p.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = p.gloss; row.appendChild(g); }
+      host.appendChild(row);
+    });
+
+    // ─ Archetypes ─
+    host.appendChild(el("h3", "cw-grouphead", "Character archetypes"));
+    host.appendChild(el("p", "cw-subnote", C.archetypeIntro));
+    host.appendChild(header());
+    C.archetypes.forEach((a) => {
+      const row = el("div", "cw-row");
+      row.appendChild(el("div", "cw-code", "—"));
+      row.appendChild(el("div", "cw-name", escapeHtml(a.role)));
+      tales.forEach((t) => row.appendChild(taleCell(t.id, a[t.id])));
+      if (a.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = a.gloss; row.appendChild(g); }
+      host.appendChild(row);
+    });
+  }
+
   /* ====================== INIT ====================== */
   renderTimeline();
   renderWiki();
+  renderCrosswalk();
   renderFae();
   renderPapers();
   // any anchor with data-wiki="<id>" opens that wiki entry (works in static sections too)
