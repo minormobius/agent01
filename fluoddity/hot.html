@@ -49,6 +49,12 @@ a { color: var(--accent); text-decoration: none; }
 .jb.skip { font-weight: 400; color: var(--muted); }
 .jb .k { font-size: 10px; opacity: 0.7; margin-left: 4px; }
 #status-overlay { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.45); border-radius: 7px; padding: 4px 9px; pointer-events: none; }
+#save-fab { position: absolute; top: 60px; right: 16px; z-index: 5; font-family: var(--mono); font-size: 12px; font-weight: 600; background: rgba(14,16,20,0.85); backdrop-filter: blur(10px); border: 1px solid var(--rule); border-radius: 22px; padding: 8px 14px; color: #ffd96b; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.08s, border-color 0.12s, color 0.12s; }
+#save-fab:hover:not(:disabled) { border-color: #ffd96b; transform: translateY(-1px); }
+#save-fab:disabled { opacity: 0.4; cursor: default; color: var(--muted); }
+#save-fab.saved { color: var(--accent); border-color: var(--accent); }
+.jb.back { font-weight: 400; color: var(--muted); padding: 10px 14px; }
+.jb.back:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 
 #dock { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 14px; border-top: 1px solid var(--rule); background: var(--bg); }
 .btn { font-family: var(--mono); font-size: 12px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
@@ -98,7 +104,9 @@ a { color: var(--accent); text-decoration: none; }
 <div id="stage">
   <canvas id="cv"></canvas>
   <div id="status-overlay" hidden></div>
+  <button id="save-fab" type="button" title="Save this organism to your PDS (S)" disabled>★ save<span style="opacity:0.6;font-weight:400;">S</span></button>
   <div class="judge-buttons">
+    <button class="jb back" id="btn-back" title="Back to the previous organism (B)" disabled>↶<span class="k">B</span></button>
     <button class="jb not" id="btn-not" disabled>NOT<span class="k">J</span></button>
     <button class="jb skip" id="btn-skip" disabled>skip<span class="k">␣</span></button>
     <button class="jb hot" id="btn-hot" disabled>HOT<span class="k">K</span></button>
@@ -142,7 +150,7 @@ a { color: var(--accent); text-decoration: none; }
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
 import { readDescriptors, fitness, fitness2, merge, FEATURES8 } from './descriptors.js';
-import { RUBRIC_COLLECTION, ANCHOR } from './data.js';
+import { COLLECTION, RUBRIC_COLLECTION, ANCHOR } from './data.js';
 import { auth } from './authchip.js';
 
 const $ = (s) => document.querySelector(s);
@@ -159,6 +167,10 @@ if (engine) {
   // ── queue + judgments ───────────────────────────────────────────────────────
   let queue = [], idx = 0, judgments = []; // {config, features, label} label 0|1
   let busy = false;
+  // Track which configs the user has already saved this session — keyed by the
+  // config object identity (queue holds the same references on back/forward,
+  // so the ✓ state survives revisiting an organism).
+  const savedSet = new Set();
 
   async function settleAndShow(cfg) {
     engine.load(cfg, 'hot' + Math.random()); engine.step(220); engine.render();
@@ -222,6 +234,14 @@ if (engine) {
     $('#counter2').textContent = '';
     const ready = !busy && idx < total;
     $('#btn-hot').disabled = $('#btn-not').disabled = $('#btn-skip').disabled = !ready;
+    $('#btn-back').disabled = busy || idx === 0;
+    $('#save-fab').disabled = busy || idx >= total || !auth.isLoggedIn();
+    // Reflect whether this organism has already been saved this session, so
+    // the user doesn't double-save by accident and can see what they've kept.
+    const cur = queue[idx];
+    $('#save-fab').classList.toggle('saved', !!(cur && savedSet.has(cur)));
+    if (cur && savedSet.has(cur)) $('#save-fab').innerHTML = 'saved ✓';
+    else $('#save-fab').innerHTML = '★ save<span style="opacity:0.6;font-weight:400;">S</span>';
     const trainable = hot >= 4 && not >= 4;
     $('#btn-train').disabled = !trainable;
     $('#btn-train').textContent = trainable ? `train rubric (${hot}+${not})` : `train rubric · need ≥4 of each`;
@@ -284,6 +304,64 @@ if (engine) {
   $('#btn-not').addEventListener('click', () => record(0));
   $('#btn-skip').addEventListener('click', () => record(null));
   $('#btn-train').addEventListener('click', trainRubric);
+
+  // ── Save the currently-displayed organism to the signed-in user's PDS as a
+  // standard com.minomobi.fluoddity.organism record — same lexicon the gallery
+  // enumerates. Independent of hot/not labeling: you can keep one regardless
+  // of how you voted, or save without voting at all.
+  async function saveCurrent() {
+    if (busy || idx >= queue.length) return;
+    const cfg = queue[idx];
+    if (!cfg) return;
+    if (!auth.isLoggedIn()) {
+      $('#status-overlay').hidden = false;
+      $('#status-overlay').textContent = 'sign in (top right) to save to your PDS';
+      setTimeout(() => { $('#status-overlay').hidden = true; }, 2400);
+      return;
+    }
+    if (savedSet.has(cfg)) return; // already saved this session
+    const fab = $('#save-fab');
+    const name = prompt('Name this organism (optional):') ?? '';
+    if (name === null) return; // user cancelled
+    const wasText = fab.innerHTML;
+    fab.disabled = true; fab.innerHTML = 'saving…';
+    try {
+      const record = {
+        $type: 'com.minomobi.fluoddity.organism',
+        name: name.trim() || `from hot or not · ${new Date().toLocaleDateString()}`,
+        schemaVersion: 1,
+        config: JSON.stringify(cfg),
+        gallery: ANCHOR,
+        createdAt: new Date().toISOString(),
+      };
+      await auth.pds.createRecord(COLLECTION, record);
+      savedSet.add(cfg);
+      fab.classList.add('saved'); fab.innerHTML = 'saved ✓';
+    } catch (e) {
+      fab.innerHTML = wasText;
+      $('#status-overlay').hidden = false;
+      $('#status-overlay').textContent = 'save failed: ' + (e.message || e);
+      setTimeout(() => { $('#status-overlay').hidden = true; }, 3000);
+    } finally {
+      updateUI();
+    }
+  }
+
+  // ── Step back one organism in the queue so a spectacular one you just blew
+  // past isn't lost. Pops the matching judgment if the previous step recorded
+  // a HOT or NOT (skips are never recorded), so you can re-judge or save fresh.
+  function back() {
+    if (busy || idx === 0) return;
+    idx--;
+    const last = judgments[judgments.length - 1];
+    if (last && last.config === queue[idx]) judgments.pop();
+    $('#status-overlay').hidden = true;
+    updateUI();
+    advance(); // re-show queue[idx]
+  }
+
+  $('#save-fab').addEventListener('click', saveCurrent);
+  $('#btn-back').addEventListener('click', back);
   $('#btn-fresh').addEventListener('click', async () => { judgments = []; idx = 0; updateUI(); await fillQueueRandom(parseInt($('#queue-size').value, 10) || 40); advance(); });
   $('#btn-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#code').value); $('#btn-copy').textContent = 'copied'; setTimeout(() => $('#btn-copy').textContent = 'copy code', 1200); } catch {} });
   $('#btn-to-breed').addEventListener('click', () => {
@@ -339,7 +417,7 @@ if (engine) {
     $('#btn-publish').disabled = !ready || !signed;
     if (ready && !signed) $('#publish-status').textContent = 'sign in (top right) to publish';
   }
-  auth.onAuthChange(refreshRubricActions);
+  auth.onAuthChange(() => { refreshRubricActions(); updateUI(); }); // also re-enable the save button on sign-in
   $('#btn-judge-more').addEventListener('click', () => { $('#results').classList.remove('show'); $('#status-overlay').hidden = true; });
 
   document.addEventListener('keydown', (e) => {
@@ -347,6 +425,8 @@ if (engine) {
     if (e.key === 'k' || e.key === 'K' || e.key === 'ArrowRight') { e.preventDefault(); record(1); }
     else if (e.key === 'j' || e.key === 'J' || e.key === 'ArrowLeft') { e.preventDefault(); record(0); }
     else if (e.key === ' ') { e.preventDefault(); record(null); }
+    else if (e.key === 's' || e.key === 'S') { e.preventDefault(); saveCurrent(); }
+    else if (e.key === 'b' || e.key === 'B') { e.preventDefault(); back(); }
   });
 
   // ── boot: queue from sessionStorage (set by the breeder) or random ─────────
