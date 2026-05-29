@@ -16,11 +16,11 @@
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
 const APPVIEW = 'https://public.api.bsky.app';
-const MAX_IMAGES = 320;
+const MAX_IMAGES   = 128;   // was 320 — keeps the atlas comfortably small
 const TILE_PER_ROW = 4;
-const MAX_TEX_AXIS = 8192;
-const MAX_TILE = 512;
-const MIN_TILE = 80;
+const MAX_TEX_AXIS = 4096;  // was 8192 — iOS Safari sometimes caps low
+const MAX_TILE     = 384;
+const MIN_TILE     = 64;
 
 const canvas = document.getElementById('orb');
 const statusEl = document.getElementById('status');
@@ -46,7 +46,9 @@ if (!navigator.gpu) {
 }
 
 function resizeCanvas() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // Cap DPR conservatively — iPhones report 3, which means 9x the fragment
+  // shader cost vs CSS pixels. 1.5 is the sweet spot for an orb at any size.
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const w = Math.max(1, Math.floor(window.innerWidth * dpr));
   const h = Math.max(1, Math.floor(window.innerHeight * dpr));
   if (canvas.width !== w || canvas.height !== h) {
@@ -187,7 +189,7 @@ async function buildAtlasProgressively(images, onChunk) {
   ctx.fillStyle = '#0a0410';
   ctx.fillRect(0, 0, W, H);
 
-  const BATCH = 8;
+  const BATCH = 24;   // was 8 — fewer texture re-uploads during load
   let drawn = 0;
   for (let i = 0; i < images.length; i += BATCH) {
     const slice = images.slice(i, i + BATCH);
@@ -391,7 +393,10 @@ async function initWebGPU() {
       module: mod, entryPoint: 'fs',
       targets: [{ format }],
     },
-    primitive: { topology: 'triangle-list', cullMode: 'back', frontFace: 'ccw' },
+    // cullMode 'none' so neither winding flips nor Metal coordinate-system
+    // quirks can make the sphere disappear. The overdraw is trivial at this
+    // sphere density and the user gets to see *something* unambiguously.
+    primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
     depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
   });
 
@@ -400,7 +405,7 @@ async function initWebGPU() {
     addressModeU: 'repeat', addressModeV: 'repeat',
   });
 
-  const sphere = buildSphere(80, 128);
+  const sphere = buildSphere(48, 64);   // was 80x128 — still plenty smooth
   sphere.vertexBuffer = device.createBuffer({
     size: sphere.verts.byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -418,15 +423,21 @@ async function initWebGPU() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Placeholder texture: a soft amber gradient so the orb isn't black on first paint.
+  // Placeholder texture: vertical bands so it's *unambiguous* that the sphere
+  // is rendering — a uniform fill could be mistaken for the clear color.
   const placeholder = document.createElement('canvas');
-  placeholder.width = 64; placeholder.height = 64;
+  placeholder.width = 64; placeholder.height = 256;
   const pctx = placeholder.getContext('2d');
-  const grad = pctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, '#d4b86a');
-  grad.addColorStop(1, '#1a0d04');
+  const grad = pctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0.00, '#3a1248');
+  grad.addColorStop(0.25, '#7a2d4f');
+  grad.addColorStop(0.50, '#d4b86a');
+  grad.addColorStop(0.75, '#7a2d4f');
+  grad.addColorStop(1.00, '#3a1248');
   pctx.fillStyle = grad;
-  pctx.fillRect(0, 0, 64, 64);
+  pctx.fillRect(0, 0, 64, 256);
+  pctx.fillStyle = 'rgba(255, 220, 180, 0.18)';
+  for (let y = 0; y < 256; y += 16) pctx.fillRect(0, y, 64, 1);
 
   state.device = device;
   state.context = context;
