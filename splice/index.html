@@ -213,8 +213,20 @@ let tm = unsafe { ffi::oligotm(seq.as_ptr(), /* salt, conc, … */) };</code></p
     <li><b>Phase 3 — Assembly-puzzle game.</b> Procedurally generate target constructs + parts libraries; auto-grade validity against the Phase-2 engine; add cost/step optimization + leaderboard histograms. Reuse Fluoddity's score/leaderboard/atlas shell.</li>
     <li><b>Phase 4 — Directed-evolution game (the Fluoddity bridge).</b> Swap Fluoddity's Fourier genome for real DNA; objective fitness functions (codon-optimize, strip sites, GC/Tm); fork + publish constructs as ATProto records; phylogeny + cross-user atlas. Reuses the existing breed→select→fork→gallery loop.</li>
     <li><b>Phase 5 — tier the ramp + real-construct export.</b> Wire the casual puzzle front-end to graduate into the workbench surface; GenBank export you could take to a bench. <code>splice.mino.mobi</code> already deploys "like rite" (Worker + ASSETS, <code>deploy-splice.yml</code>), ready to grow into.</li>
-    <li><b>Phase 6 — HMMER decision (deferred, pro-tool only).</b> Either Emscripten-compile HMMER+Easel for the browser (heavy) or host it server-side behind JSON (container/DO). Only needed if "guess-the-gene" or pro-grade search becomes a priority.</li>
+    <li><b>Phase 6 — HMMER (pro-tool only; <span class="ok">viability proven</span>).</b> The hardest dependency — its hot loops are hand-written SSE intrinsics that don't exist in WASM — has been spiked and <b>passes</b>. In-browser is viable; server-side is now a choice, not a necessity. See the panel below.</li>
   </ol>
+
+  <div class="panel">
+    <h3 style="margin-top:0">⚑ Spike result: HMMER → WASM is viable <span class="muted">(run 2026-05-29)</span></h3>
+    <p>Before committing to the plan I de-risked the single project-killing unknown — does HMMER's SIMD core survive the trip to WebAssembly? I cloned and built HMMER here, ran its own test suite, and ported its hottest kernel. Result, with code you can re-run (<a href="https://github.com/minormobius/agent01/tree/claude/splicecraft-website-integration-WM8ke/splice/spike"><code>splice/spike/</code></a>):</p>
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>HMMER's own SIMD-vs-reference unit tests (MSV, Viterbi, Fwd/Back, Decoding, OptAcc), run in-sandbox</td><td class="ok">all PASS</td></tr>
+      <tr><td>Real MSV kernel compiled to WASM SIMD128 (via <a href="https://github.com/simd-everywhere/simde">SIMDe</a>) vs native x86 SSE2</td><td class="ok">bit-identical</td></tr>
+      <tr><td>WASM-SIMD speed vs native SSE2 (V8 lowers it straight to hardware SSE)</td><td class="ok">~6% slower</td></tr>
+    </table>
+    <p>So the faithful, in-browser pro-tool tier is real: <b>SIMDe + clang <code>-msimd128</code></b> is the porting path, and <b>HMMER's own test suite</b> is the acceptance gate. The only remaining browser cost is profile-DB download size / memory — a data-distribution question, not a feasibility one. Full write-up: <a href="https://github.com/minormobius/agent01/blob/claude/splicecraft-website-integration-WM8ke/splice/spike/VIABILITY.md"><code>spike/VIABILITY.md</code></a>.</p>
+  </div>
   <div class="panel">
     <h3>Deployment note</h3>
     <p>This page ships exactly like <code>/rite</code>: a Cloudflare Worker with an <code>ASSETS</code> binding, custom domain <code>splice.mino.mobi</code>, deployed by <code>.github/workflows/deploy-splice.yml</code> on push to this branch. No D1, no AI, no cron — just static for now. <a href="/api/health">/api/health</a> confirms the worker is live.</p>
@@ -225,7 +237,7 @@ let tm = unsafe { ffi::oligotm(seq.as_ptr(), /* salt, conc, … */) };</code></p
   <div class="q" style="border-color:var(--muted)"><b class="ok">Game directions:</b> both <b>assembly puzzle</b> and <b>directed evolution</b> on the roadmap (Phases 3 &amp; 4). Both run on the cheap Phase-2 engine.</div>
   <div class="q" style="border-color:var(--muted)"><b class="ok">Audience:</b> <b>tiered</b> — a casual puzzle front-end that graduates into the real workbench (Phase 5).</div>
   <h3 style="color:var(--warn)">Still open</h3>
-  <div class="q">How central is <b>HMM search</b> (the <code>/hmmscan</code> surface)? Decides whether Phase 6 ever happens, and browser-heavy vs server-side if so. Default: deferred.</div>
+  <div class="q">How central is <b>HMM search</b> (the <code>/hmmscan</code> surface) to the audience? <span class="muted">(Technical viability is now settled — see the spike panel; this is purely a product-priority call: build it, and if so, in-browser or server-side for the profile DB.)</span></div>
   <div class="q">Comfortable that this is a <b>derivative reimplementation</b> of someone else's MIT tool? I'd want a courtesy heads-up + clear attribution to <a href="https://github.com/Binomica-Labs">Binomica Labs</a> before anything user-facing ships.</div>
   <div class="q">Green light to start building — <b>Phase 2 (the engine)</b> as the critical path, with the <b>Phase 1 primer3 spike</b> alongside to prove the C-reuse thesis?</div>
 
