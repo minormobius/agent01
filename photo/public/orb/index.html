@@ -102,6 +102,10 @@
       flex-direction: column; gap: 0.8rem; text-align: center;
       background: var(--bg); z-index: 50; padding: 2rem;
     }
+    /* The above `display: flex` outranks the [hidden] attribute via ID
+       specificity, so we have to opt the attribute back in explicitly —
+       otherwise the overlay is visible from first paint regardless of JS. */
+    #fallback[hidden] { display: none; }
     #fallback h2 { font-family: 'Cormorant Garamond', Georgia, serif;
       font-size: 2rem; font-weight: 500; margin: 0; color: var(--ink); }
     #fallback p { color: var(--ink-dim); max-width: 32rem; }
