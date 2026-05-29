@@ -20,13 +20,14 @@
       <span class="brand"><span class="sigil">🐎</span>Pwyll Pendefig Dyfed</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="propp">Story graph</button>
       </nav>
     </div>
   </div>
 
   <div class="wrap">
 
-    <!-- READ (source in place, translation pending) -->
+    <!-- READ (source + parallel translation) -->
     <section class="view active" id="view-read">
       <div class="hero">
         <h1>Pwyll Pendefig Dyfed</h1>
@@ -38,6 +39,17 @@
       <div class="tale-body parallel" id="tale-body"></div>
     </section>
 
+    <!-- STORY GRAPH (Propp) -->
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The First Branch laid against Propp's 31 narrative functions — each beat linking to the movement that realises it.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
   </div>
 
   <footer class="foot">
@@ -46,6 +58,7 @@
   </footer>
 
   <script src="tale.js"></script>
+  <script src="analysis.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
