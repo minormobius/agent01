@@ -459,6 +459,7 @@ async function initWebGPU() {
   state.sampler = sampler;
   state.uniformBuffer = uniformBuffer;
   state.sphere = sphere;
+  state.atlasCanvas = placeholder;       // single source of truth for the texture
   setStripFromCanvas(placeholder);
 }
 
@@ -562,25 +563,63 @@ function frame() {
 }
 
 // ─────────────────────────────── Interaction ────────────────────────────
+// 1 finger / mouse drag = orbit (yaw + pitch)
+// 2 fingers              = pinch zoom (camera distance)
+// wheel                  = zoom
 
+const pointers = new Map();
 let dragState = null;
+let pinchState = null;
+
+function pickPan() {
+  const [p] = [...pointers.values()];
+  dragState = { x: p.x, y: p.y, yaw: state.yaw, pitch: state.pitch };
+  pinchState = null;
+}
+function pickPinch() {
+  const [a, b] = [...pointers.values()];
+  pinchState = {
+    dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+    distance: state.distance,
+  };
+  dragState = null;
+}
+function refreshGesture() {
+  dragState = null; pinchState = null;
+  if (pointers.size === 1) pickPan();
+  else if (pointers.size >= 2) pickPinch();
+}
 
 canvas.addEventListener('pointerdown', (e) => {
-  dragState = { x: e.clientX, y: e.clientY, yaw: state.yaw, pitch: state.pitch };
-  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { canvas.setPointerCapture(e.pointerId); } catch {}
+  refreshGesture();
 });
 canvas.addEventListener('pointermove', (e) => {
-  if (!dragState) return;
-  const dx = e.clientX - dragState.x;
-  const dy = e.clientY - dragState.y;
-  state.yaw   = dragState.yaw   - dx * 0.005;
-  state.pitch = Math.max(-1.5, Math.min(1.5, dragState.pitch + dy * 0.005));
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size >= 2 && pinchState) {
+    const [a, b] = [...pointers.values()];
+    const curDist = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    // Fingers apart -> curDist grows -> distance shrinks -> zoom in.
+    state.distance = Math.max(1.3, Math.min(8, pinchState.distance * pinchState.dist / curDist));
+  } else if (pointers.size === 1 && dragState) {
+    const dx = e.clientX - dragState.x;
+    const dy = e.clientY - dragState.y;
+    state.yaw   = dragState.yaw   - dx * 0.005;
+    state.pitch = Math.max(-1.5, Math.min(1.5, dragState.pitch + dy * 0.005));
+  }
 });
-canvas.addEventListener('pointerup', (e) => {
-  dragState = null;
+function endPointer(e) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
   try { canvas.releasePointerCapture(e.pointerId); } catch {}
-});
-canvas.addEventListener('pointercancel', () => { dragState = null; });
+  // Re-baseline so lifting one finger of a pinch doesn't snap the view.
+  refreshGesture();
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const f = e.deltaY > 0 ? 1.08 : 1 / 1.08;
@@ -589,23 +628,64 @@ canvas.addEventListener('wheel', (e) => {
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
+// Minimal one-at-a-time stamping. First click fetches the thread and stores
+// the image list; each click stamps the next image onto the placeholder
+// canvas (so the celestial backdrop stays put — failed loads or weird sizes
+// won't black-hole the orb). Re-uploads the texture after each stamp.
+let imageQueue = [];
+let stampedCount = 0;
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (loadBtn.disabled) return;
   loadBtn.disabled = true;
   try {
-    const { images, root } = await loadThread(urlInput.value.trim());
-    if (images.length === 0) {
-      setStatus(`no images found in this thread (root by @${root.author.handle})`);
+    if (imageQueue.length === 0) {
+      setStatus('fetching thread…');
+      const { images, root } = await loadThread(urlInput.value.trim());
+      if (images.length === 0) {
+        setStatus(`no images in thread (root @${root.author.handle})`, true);
+        return;
+      }
+      imageQueue = images;
+      stampedCount = 0;
+      setStatus(`thread has ${images.length} images · click load again to stamp one`);
+      loadBtn.textContent = 'stamp +1';
       return;
     }
-    const tile = chooseTileSize(images.length);
-    setStatus(`${images.length} images · root by @${root.author.handle} · ${tile}px tiles · loading…`);
-    await buildAtlasProgressively(images, (c, drawn, total) => {
-      setStripFromCanvas(c);
-      setStatus(`${drawn} / ${total} images loaded · root by @${root.author.handle}`);
-    });
-    setStatus(`${images.length} images · root by @${root.author.handle}`);
+
+    if (stampedCount >= imageQueue.length) {
+      setStatus(`done · ${stampedCount} stamped`);
+      return;
+    }
+
+    const entry = imageQueue[stampedCount];
+    setStatus(`loading image ${stampedCount + 1} / ${imageQueue.length}…`);
+    const img = await loadImage(entry.thumb);
+    if (!img) {
+      stampedCount++;
+      setStatus(`image ${stampedCount} failed (CORS/404?) · ${stampedCount}/${imageQueue.length}`, true);
+      return;
+    }
+
+    // Stamp onto the placeholder canvas. Cycle through a small grid of
+    // positions so successive stamps spread out over the sphere.
+    const c = state.atlasCanvas;
+    const ctx = c.getContext('2d');
+    const cols = 2, rows = 8;
+    const cellW = c.width / cols;
+    const cellH = c.height / rows;
+    const tile = Math.floor(Math.min(cellW, cellH) * 0.86);
+    const i = stampedCount;
+    const col = i % cols;
+    const row = Math.floor(i / cols) % rows;
+    const x = col * cellW + (cellW - tile) / 2;
+    const y = row * cellH + (cellH - tile) / 2;
+    drawTile(ctx, img, x, y, tile);
+    setStripFromCanvas(c);
+
+    stampedCount++;
+    setStatus(`stamped ${stampedCount} / ${imageQueue.length} · @${entry.authorHandle}`);
   } catch (err) {
     console.error(err);
     setStatus('error: ' + (err?.message || String(err)), true);
