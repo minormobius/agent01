@@ -69,7 +69,7 @@
 
 <div class="wrap">
   <h1>Clone the construct</h1>
-  <p class="sub">Cut the vector and the insert with restriction enzymes, ligate the compatible ends, and build the target plasmid. Every move is graded by the real engine — no hand-waving.</p>
+  <p class="sub">Cut the vector and the insert with restriction enzymes, ligate the compatible ends, and build the target plasmid. Every move is graded by the real engine — and when you nail it, watch the splice happen.</p>
 
   <div class="levels" id="levelTabs"></div>
 
@@ -101,12 +101,23 @@
     </div>
     <div class="verdict idle" id="verdict">Select enzymes, then digest &amp; ligate.</div>
   </div>
+
+  <div class="panel" id="theater" style="display:none">
+    <h2>The splice</h2>
+    <canvas id="stage" width="820" height="380"></canvas>
+    <div class="btnrow">
+      <button id="replay">↻ Replay</button>
+      <button id="slowmo">Slow-mo</button>
+      <span class="small muted">schematic — strands, sticky-end teeth, and docking enzymes (≈2 steps from molecular dynamics)</span>
+    </div>
+  </div>
 </div>
 
 <script src="../lab/samples.js"></script>
 <script src="./levels.js"></script>
 <script type="module">
 import { loadEngine, Engine } from '../lab/engine.js';
+import { playSplice } from '../lab/splice-anim.js';
 
 const $ = (id)=>document.getElementById(id);
 const COMP = {A:'T',T:'A',G:'C',C:'G',N:'N'};
@@ -123,6 +134,15 @@ function circEqual(a, b, allowRC){
 let cur = 0;                 // current level index
 const selected = new Set();  // selected enzyme names
 const progress = JSON.parse(localStorage.getItem('splice_game')||'{}'); // id -> stars
+let anim = null, lastSpec = null, slow = false;
+
+// enzyme overhang/type metadata, from a restriction scan of the current vector
+function enzMeta(name){
+  const vr = Engine.restriction(level().vector, true).value;
+  const m = vr.enzymes.find(e=>e.name===name);
+  return m ? { name, overhang:m.overhang, type:m.overhangType } : { name, overhang:'NN', type:"5'" };
+}
+function hideTheater(){ anim&&anim.stop(); anim=null; $('theater').style.display='none'; }
 
 function level(){ return window.LEVELS[cur]; }
 
@@ -227,7 +247,7 @@ function afterSelect(){
 function setVerdict(cls, html){ const v=$('verdict'); v.className='verdict '+cls; v.innerHTML=html; }
 
 function loadLevel(i){
-  cur=i; selected.clear();
+  cur=i; selected.clear(); hideTheater();
   const L=level();
   $('brief').innerHTML = `<b>${L.id} — ${L.title}.</b> ${L.brief}`;
   $('vecLen').textContent = L.vector.length+' bp · circular';
@@ -236,8 +256,11 @@ function loadLevel(i){
   setVerdict('idle','Select enzymes, then digest &amp; ligate.');
 }
 
-$('reset').onclick = ()=>{ selected.clear(); renderPalette(); afterSelect(); setVerdict('idle','Cleared. Pick enzymes again.'); };
+$('reset').onclick = ()=>{ selected.clear(); renderPalette(); afterSelect(); hideTheater(); setVerdict('idle','Cleared. Pick enzymes again.'); };
 $('hintBtn').onclick = ()=> setVerdict('idle', '💡 '+level().hint);
+$('replay').onclick = ()=>{ if(lastSpec){ anim && anim.stop(); anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 }); } };
+$('slowmo').onclick = ()=>{ slow=!slow; $('slowmo').textContent = slow?'Normal speed':'Slow-mo';
+  if(lastSpec){ anim && anim.stop(); anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 }); } };
 
 $('run').onclick = ()=>{
   const L=level();
@@ -257,6 +280,18 @@ $('run').onclick = ()=>{
     progress[L.id]=Math.max(progress[L.id]||0, stars);
     localStorage.setItem('splice_game', JSON.stringify(progress));
     renderTabs();
+    // build the splice-theater spec from the two junction enzymes
+    const pair = enz.slice(0,2);
+    lastSpec = {
+      leftEnz:  enzMeta(pair[0]),
+      rightEnz: enzMeta(pair[1] || pair[0]),
+      recombinantLen: winProd.length,
+      insertLen: L.insert.length,
+    };
+    $('theater').style.display='';
+    anim && anim.stop();
+    anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 });
+    $('theater').scrollIntoView({behavior:'smooth', block:'center'});
     const next = cur+1 < window.LEVELS.length;
     setVerdict('win',
       `<div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
