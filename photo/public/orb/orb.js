@@ -1,21 +1,21 @@
 // orb — a thread's images wrapped onto a glowing WebGPU sphere.
 //
-// Pipeline:
-//   1. Parse a bsky.app post URL, resolve the handle, fetch the thread.
-//      Climb to the root, re-fetch with depth=1000, collect all embedded
-//      images BFS-style.
-//   2. Pack the images into a single offscreen 2D canvas as square cover-fit
-//      tiles arranged 4-per-row — that's the "Cartesian map".
-//   3. Upload that canvas as a GPU texture. Wrap it onto a UV sphere with
-//      equirectangular UVs (U = longitude, V = latitude). The fragment
-//      shader samples with V offset by a scroll uniform, modulo 1.0,
-//      producing the auto-scroll behaviour. Wraparound happens at the pole,
-//      which is a degenerate point on the sphere so there's no seam.
-//   4. Glow: emissive shader with `1 - exp(-c*k)` soft saturation, plus a
-//      CSS warm radial halo behind the canvas.
+// Thread fetching + media extraction is delegated to ./thread.js (a copy of
+// photo/src/lib/thread.js — the same library the /thread route uses, which
+// chases the OP's reply chain across multiple API calls and handles every
+// embed shape including nested quote posts). Images are fetched through
+// /api/img (a Pages Function image proxy) because cdn.bsky.app Origin-checks
+// cross-origin requests; <img src> works without CORS but canvas/WebGPU
+// requires it.
+import {
+  parsePostInput,
+  resolvePostUri,
+  fetchThread as fetchBskyThread,
+  flattenThread,
+  extractMedia,
+} from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const APPVIEW = 'https://public.api.bsky.app';
 const MAX_IMAGES   = 96;    // smaller default — easier first paint
 const TILE_PER_ROW = 4;
 const MAX_TEX_AXIS = 4096;
@@ -58,115 +58,51 @@ function resizeCanvas() {
 }
 
 // ─────────────────────────────── Bluesky ────────────────────────────────
+// Delegated to ./thread.js (same code as the /thread route).
 
-function parseBskyUrl(url) {
-  const m = url.match(/bsky\.app\/profile\/([^/]+)\/post\/([^/?#]+)/);
-  if (!m) throw new Error('Not a bsky.app post URL');
-  return { handle: decodeURIComponent(m[1]), rkey: m[2] };
+async function loadThread(rawInput) {
+  setStatus('parsing URL…');
+  const parsed = parsePostInput(rawInput);
+  if (!parsed) throw new Error('Could not parse URL. Paste a bsky.app post URL or AT-URI.');
+  setStatus('resolving post URI…');
+  const uri = await resolvePostUri(parsed);
+  setStatus('fetching thread…');
+  const tree = await fetchBskyThread(uri, {
+    onProgress: ({ fetched }) => setStatus(`fetching thread (${fetched} chunks)…`),
+  });
+  const posts = flattenThread(tree);
+  const images = collectImagesFromPosts(posts);
+  return { images, posts };
 }
 
-async function resolveHandle(handle) {
-  if (handle.startsWith('did:')) return handle;
-  const r = await fetch(`${APPVIEW}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
-  if (!r.ok) throw new Error(`resolveHandle: HTTP ${r.status}`);
-  return (await r.json()).did;
-}
-
-async function getPostThread(uri, depth = 1000, parentHeight = 1000) {
-  const u = new URL(`${APPVIEW}/xrpc/app.bsky.feed.getPostThread`);
-  u.searchParams.set('uri', uri);
-  u.searchParams.set('depth', String(depth));
-  u.searchParams.set('parentHeight', String(parentHeight));
-  const r = await fetch(u);
-  if (!r.ok) throw new Error(`getPostThread: HTTP ${r.status}`);
-  const j = await r.json();
-  if (!j.thread || j.thread.$type !== 'app.bsky.feed.defs#threadViewPost')
-    throw new Error('Thread not viewable (blocked or private?)');
-  return j.thread;
-}
-
-function climbToRoot(thread) {
-  let cur = thread;
-  while (cur.parent && cur.parent.$type === 'app.bsky.feed.defs#threadViewPost') {
-    cur = cur.parent;
-  }
-  return cur;
-}
-
-// Recursively walks an embed tree, collecting image refs. Handles three view
-// types:
-//   - app.bsky.embed.images#view           — direct images on this post
-//   - app.bsky.embed.recordWithMedia#view  — text + media + quote
-//   - app.bsky.embed.record#view           — a pure quote-post; walk into the
-//                                            quoted record's own `embeds`
-// Each collected image is attributed to the post (or quoted post) it lives on,
-// so quote-archive threads display the original authors, not the OP.
-function collectFromEmbed(out, embed, attributedAuthor) {
-  if (!embed || out.length >= MAX_IMAGES) return;
-  const t = embed.$type;
-  if (t === 'app.bsky.embed.images#view') {
-    for (const im of embed.images) {
-      if (out.length >= MAX_IMAGES) break;
-      out.push({
-        thumb: im.thumb,
-        fullsize: im.fullsize,
-        alt: im.alt || '',
-        authorHandle: attributedAuthor?.handle || '',
-      });
-    }
-    return;
-  }
-  if (t === 'app.bsky.embed.recordWithMedia#view') {
-    if (embed.media)  collectFromEmbed(out, embed.media, attributedAuthor);
-    if (embed.record) collectFromEmbed(out, embed.record, attributedAuthor);
-    return;
-  }
-  if (t === 'app.bsky.embed.record#view') {
-    const inner = embed.record;
-    if (inner && inner.$type === 'app.bsky.embed.record#viewRecord') {
-      const quotedAuthor = inner.author || attributedAuthor;
-      if (Array.isArray(inner.embeds)) {
-        for (const e of inner.embeds) collectFromEmbed(out, e, quotedAuthor);
-      }
-    }
-    return;
-  }
-}
-
-// BFS through the thread tree so the visible scroll order roughly tracks
-// thread time (or at least the breadth-first walk of replies).
-function collectImages(rootThread) {
+// Walk every post's embed via extractMedia (which recurses into quote
+// embeds), then flatten the result into a plain list of image refs. Image
+// authorship is attributed to the post the image lives on — for a quoted
+// image that's the quoted author, not the OP.
+function collectImagesFromPosts(posts) {
   const out = [];
-  const queue = [rootThread];
-  while (queue.length && out.length < MAX_IMAGES) {
-    const node = queue.shift();
-    if (!node?.post) continue;
-    collectFromEmbed(out, node.post.embed, node.post.author);
-    if (Array.isArray(node.replies)) {
-      for (const r of node.replies) {
-        if (r?.$type === 'app.bsky.feed.defs#threadViewPost') queue.push(r);
-      }
-    }
+  for (const p of posts) {
+    if (out.length >= MAX_IMAGES) break;
+    if (!p.embed) continue;
+    addImagesFromMedia(out, extractMedia(p.embed), p.author);
   }
   return out;
 }
 
-async function loadThread(url) {
-  setStatus('parsing URL…');
-  const { handle, rkey } = parseBskyUrl(url);
-  setStatus(`resolving @${handle}…`);
-  const did = await resolveHandle(handle);
-  const uri = `at://${did}/app.bsky.feed.post/${rkey}`;
-  setStatus('fetching thread…');
-  const initial = await getPostThread(uri);
-  const root = climbToRoot(initial);
-  let rootThread = root;
-  if (root.post.uri !== uri) {
-    setStatus('found root — fetching full subtree…');
-    rootThread = await getPostThread(root.post.uri);
+function addImagesFromMedia(out, items, fallbackAuthor) {
+  for (const item of items) {
+    if (out.length >= MAX_IMAGES) break;
+    if (item.type === 'image') {
+      out.push({
+        thumb: item.thumb,
+        fullsize: item.fullsize,
+        alt: item.alt,
+        authorHandle: fallbackAuthor?.handle || '',
+      });
+    } else if (item.type === 'quote' && Array.isArray(item.embeds)) {
+      addImagesFromMedia(out, item.embeds, item.author || fallbackAuthor);
+    }
   }
-  const images = collectImages(rootThread);
-  return { images, root: rootThread.post };
 }
 
 // ───────────────────────────── Atlas (strip) ────────────────────────────
@@ -182,12 +118,12 @@ function chooseTileSize(count) {
 // fails — Safari's onerror gives no detail, but a real HTTP status + a
 // TypeError (network/CORS) are distinguishable here.
 //
-// NOTE: cdn.bsky.app doesn't send Access-Control-Allow-Origin, so cross-
-// origin fetch fails with TypeError. The right long-term fix is a route on
-// our own worker (e.g. /api/imgproxy?url=…) that re-sends the bytes with
-// CORS headers. For now we fall back to corsproxy.io after a direct CORS
-// failure so we can verify the rest of the pipeline works end-to-end.
-const CORS_PROXY = 'https://corsproxy.io/?';
+// All image fetches go through /api/img (a Pages Function on this same
+// origin) which proxies to cdn.bsky.app server-side. cdn.bsky.app Origin-
+// checks cross-origin browser fetches and returns 403; server-side fetch
+// doesn't send a browser Origin header so it returns 200, and we re-emit
+// the bytes with Access-Control-Allow-Origin so canvas/WebGPU can read them.
+const IMG_PROXY = '/api/img?u=';
 let lastImageError = '';
 
 async function tryFetchAsBitmap(url) {
@@ -204,18 +140,7 @@ async function tryFetchAsBitmap(url) {
 
 async function loadImage(url) {
   if (!url) { lastImageError = 'empty url'; return null; }
-  // Direct.
-  let bm = await tryFetchAsBitmap(url);
-  if (bm) return bm;
-  // If that was a CORS failure (the common case for cdn.bsky.app), retry
-  // through a public proxy. HTTP errors aren't retried — a 404 on direct is
-  // still a 404 through the proxy.
-  if (lastImageError === 'network/CORS') {
-    bm = await tryFetchAsBitmap(CORS_PROXY + encodeURIComponent(url));
-    if (bm) { lastImageError = ''; return bm; }
-    // proxy itself failed — keep the proxy's error as lastImageError
-  }
-  return null;
+  return await tryFetchAsBitmap(IMG_PROXY + encodeURIComponent(url));
 }
 
 function drawTile(ctx, img, dx, dy, size) {
@@ -719,10 +644,10 @@ form.addEventListener('submit', async (e) => {
     const needFetch = imageQueue.length === 0 || wantedUrl !== lastFetchedUrl;
 
     if (needFetch) {
-      setStatus('fetching thread…');
-      const { images, root } = await loadThread(wantedUrl);
+      const { images, posts } = await loadThread(wantedUrl);
+      const rootHandle = posts[0]?.author?.handle || 'unknown';
       if (images.length === 0) {
-        setStatus(`no images in thread (root @${root.author.handle}) — quote embeds also walked`, true);
+        setStatus(`no images in thread (${posts.length} posts walked, root @${rootHandle})`, true);
         imageQueue = [];
         return;
       }
@@ -730,7 +655,7 @@ form.addEventListener('submit', async (e) => {
       queueIndex = 0;
       successCount = 0;
       lastFetchedUrl = wantedUrl;
-      setStatus(`thread has ${images.length} images · click load to stamp one`);
+      setStatus(`${posts.length} posts · ${images.length} images · click load to stamp one`);
       loadBtn.textContent = 'stamp +1';
       return;
     }
