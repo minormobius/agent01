@@ -278,9 +278,43 @@
     ab.appendChild(el("p", "propp-verdict", PR.absent.verdict));
   }
 
+  /* ====================== MOTIF INDEX ====================== */
+  function confLabel(c) { return c === "high" ? "well-attested" : c === "med" ? "interpretive" : "speculative"; }
+  function renderMotifs() {
+    const M = P.motifs; if (!M) return;
+    $("#motif-intro").innerHTML = M.intro;
+    const tt = $("#motif-taletypes"); tt.innerHTML = "";
+    M.taletypes.forEach((t) => {
+      const card = el("div", "tt-card");
+      card.innerHTML = `<div class="tt-head"><span class="tt-code">${escapeHtml(t.code)}</span><span class="conf conf-${t.conf}">${confLabel(t.conf)}</span></div><div class="tt-name">${escapeHtml(t.name)}</div><div class="tt-gloss">${t.gloss}</div>`;
+      tt.appendChild(card);
+    });
+    const host = $("#motif-groups"); host.innerHTML = "";
+    M.classOrder.forEach((cl) => {
+      const items = M.list.filter((m) => m.cls === cl); if (!items.length) return;
+      host.appendChild(el("div", "motif-classhead", `<span class="motif-clsletter">${cl}</span> ${M.classes[cl] || ""}`));
+      items.forEach((m) => {
+        const row = el("div", "motif-row");
+        row.appendChild(el("div", "motif-badge", escapeHtml(m.code || m.cls)));
+        const main = el("div");
+        main.appendChild(el("div", "motif-name", `${escapeHtml(m.name)} <span class="conf conf-${m.conf}">${confLabel(m.conf)}</span>`));
+        main.appendChild(el("div", "motif-gloss", m.gloss));
+        if (m.passages && m.passages.length) {
+          const ap = el("div", "motif-ex", "Exhibited in: ");
+          m.passages.forEach((n, i) => {
+            const a = el("a", null, "Mvt " + toRoman(n)); a.setAttribute("data-passage", n); a.title = (P.tale.passages[n - 1] || {}).title || "";
+            ap.appendChild(a); if (i < m.passages.length - 1) ap.appendChild(document.createTextNode(" · "));
+          });
+          main.appendChild(ap);
+        }
+        row.appendChild(main); host.appendChild(row);
+      });
+    });
+  }
+
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "characters", "web", "propp"];
-  let webDrawn = false, proppDrawn = false, current = "read";
+  const VIEWS = ["read", "characters", "web", "propp", "motifs"];
+  let webDrawn = false, proppDrawn = false, motifsDrawn = false, current = "read";
   function switchView(v) {
     if (!VIEWS.includes(v)) v = "read";
     current = v;
@@ -288,6 +322,7 @@
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     if (v === "web" && !webDrawn) { renderWeb(); webDrawn = true; }
     if (v === "propp" && !proppDrawn) { renderPropp(); proppDrawn = true; }
+    if (v === "motifs" && !motifsDrawn) { renderMotifs(); motifsDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
   }
