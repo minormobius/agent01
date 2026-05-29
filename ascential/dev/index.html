@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascential · Design as diffusion</title>
+<meta name="description" content="An AI-native design process modeled on image diffusion: every facet at once, refining together, coming into focus.">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #07090e;
+    color: #e6e9f0;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 1.1rem 1.75rem;
+    border-bottom: 1px solid #14181f;
+    display: flex; align-items: center; gap: 0.65rem;
+    background: rgba(7,9,14,0.85);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header .logo { font-weight: 800; letter-spacing: 0.14em; color: #e6e9f0; font-size: 0.95rem; }
+  header .dot { width: 6px; height: 6px; border-radius: 50%; background: #6ad9c8; box-shadow: 0 0 10px #6ad9c8; }
+  header .crumb { color: #6b7180; font-size: 0.85rem; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  header .badge { margin-left: auto; font-size: 0.7rem; padding: 0.18rem 0.55rem; background: #14202a; color: #6ad9c8; border: 1px solid #1e3a44; border-radius: 999px; font-family: ui-monospace, monospace; letter-spacing: 0.08em; }
+  main { max-width: 1180px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.78rem; letter-spacing: 0.18em;
+    color: #6ad9c8; text-transform: uppercase;
+    margin-bottom: 0.85rem;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.2vw, 3.2rem);
+    line-height: 1.05; letter-spacing: -0.02em;
+    margin: 0 0 0.65rem; font-weight: 800;
+  }
+  h1 .acc { color: #6ad9c8; }
+  .lede {
+    color: #99a1b3; font-size: clamp(1rem, 1.6vw, 1.15rem);
+    margin: 0 0 2.25rem; max-width: 48rem; line-height: 1.55;
+  }
+  .lede b { color: #cdd3df; font-weight: 600; }
+
+  .stage {
+    position: relative;
+    background: linear-gradient(180deg, #0c1018 0%, #060810 100%);
+    border: 1px solid #1a2030;
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 20px 60px -30px rgba(106, 217, 200, 0.18);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16/10;
+    background: #04060a;
+    border-radius: 9px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .controls {
+    display: flex; flex-wrap: wrap;
+    gap: 0.7rem 1.2rem; align-items: center;
+    margin-top: 0.95rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.82rem; color: #8a90a3;
+  }
+  .controls button {
+    font: inherit; font-size: 0.78rem;
+    padding: 0.42rem 0.95rem;
+    border: 1px solid #2a3344;
+    border-radius: 6px;
+    background: #131825;
+    color: #cdd3df;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .controls button:hover { background: #1a2130; border-color: #3a4356; }
+  .controls .stat { display: flex; align-items: center; gap: 0.4rem; }
+  .controls .stat .v { color: #6ad9c8; font-weight: 700; min-width: 3rem; display: inline-block; }
+  .controls .hint { color: #5b6072; font-size: 0.76rem; margin-left: auto; }
+  @media (max-width: 640px) { .controls .hint { width: 100%; margin-left: 0; } }
+
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.1rem;
+    margin-top: 2.75rem;
+  }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .col {
+    background: #0d1119;
+    border: 1px solid #1a2030;
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .col h3 {
+    margin: 0 0 0.45rem;
+    font-size: 0.78rem; color: #6ad9c8;
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+  }
+  .col p { margin: 0; color: #b4bac8; font-size: 0.94rem; line-height: 1.6; }
+  .col p b { color: #e6e9f0; font-weight: 600; }
+
+  .pitch {
+    margin-top: 3rem;
+    padding: 1.75rem 1.75rem;
+    background: linear-gradient(180deg, rgba(106, 217, 200, 0.04) 0%, rgba(106, 217, 200, 0.01) 100%);
+    border: 1px solid #1e3a44;
+    border-radius: 12px;
+  }
+  .pitch h2 {
+    margin: 0 0 0.85rem;
+    font-size: 1.15rem; color: #e6e9f0; letter-spacing: -0.005em;
+  }
+  .pitch p { margin: 0 0 0.6rem; color: #b4bac8; }
+  .pitch p:last-child { margin-bottom: 0; }
+
+  footer {
+    text-align: center;
+    color: #4a4f5e;
+    font-size: 0.76rem;
+    padding: 2rem 1rem 3rem;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="dot"></span>
+  <span class="logo">ASCENTIAL</span>
+  <span class="crumb">/ dev / diffusion</span>
+  <span class="badge">PROTOTYPE</span>
+</header>
+
+<main>
+  <div class="eyebrow">An AI-native design process</div>
+  <h1>Design isn't a checklist. <span class="acc">It's a field.</span></h1>
+  <p class="lede">
+    Like image diffusion &mdash; every facet starts as noise, every iteration refines them
+    <b>all together</b>, and the product comes into focus. <b>AI is the engine</b> that keeps every
+    facet coherent with every other, so a late discovery <b>ripples instead of resetting</b>.
+  </p>
+
+  <div class="stage">
+    <canvas id="field" aria-label="Design diffusion field"></canvas>
+    <div class="controls">
+      <button id="play">⏸ pause</button>
+      <button id="reset">⟲ re-noise</button>
+      <span class="stat">clarity <span class="v" id="clarity">0%</span></span>
+      <span class="stat">iteration <span class="v" id="iter">0</span></span>
+      <span class="hint">click any tile to perturb &mdash; watch the field re-converge</span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <h3>The old way (serial)</h3>
+      <p>Requirements <b>→</b> Architecture <b>→</b> BOM <b>→</b> Schedule <b>→</b> Test. Each gate hands to the next. Information flows one way. A surprise late in test rewinds weeks of work to architecture.</p>
+    </div>
+    <div class="col">
+      <h3>Diffusion</h3>
+      <p>All facets exist at once, each at some level of resolution. Every iteration refines every facet using every other facet's current state. Constraints propagate the moment they appear.</p>
+    </div>
+    <div class="col">
+      <h3>What AI does</h3>
+      <p>AI keeps the field coherent &mdash; perturb requirements and architecture, BOM, schedule update together. Late discoveries ripple and dampen instead of resetting. Faster cycles, fewer surprises, a design you can navigate as a whole.</p>
+    </div>
+  </div>
+
+  <div class="pitch">
+    <h2>Why this matters for the global process</h2>
+    <p>
+      Today's design hand-offs are lossy on purpose &mdash; each stage freezes its inputs so the next can plan against something stable. That stability has a cost: discoveries late in the chain mean tearing up something settled. The serial process is built around <i>protecting</i> upstream decisions.
+    </p>
+    <p>
+      Diffusion inverts it. Every facet is always in motion, just at different temperatures. Late information is cheap because nothing was frozen; it's just one more constraint added to the field. The team's job stops being "guard your stage" and starts being "shape the field's convergence."
+    </p>
+  </div>
+</main>
+
+<footer>ai.ascential.work / dev &mdash; design as diffusion</footer>
+
+<script>
+// ===== tile grid ======================================================
+const ROWS = 4, COLS = 4;
+const TILES = [
+  {label:'Requirements',  kind:'list',   accent:'#6ad9c8'},
+  {label:'Use cases',     kind:'icon',   accent:'#6ad9c8'},
+  {label:'Constraints',   kind:'gauge',  accent:'#6ad9c8'},
+  {label:'Risk',          kind:'badge',  accent:'#6ad9c8', badge:'LOW'},
+  {label:'Architecture',  kind:'graph',  accent:'#9bb8ff'},
+  {label:'Interfaces',    kind:'list',   accent:'#9bb8ff'},
+  {label:'Data model',    kind:'graph',  accent:'#9bb8ff'},
+  {label:'Algorithms',    kind:'chart',  accent:'#9bb8ff'},
+  {label:'Components',    kind:'icon',   accent:'#f6a472'},
+  {label:'BOM',           kind:'chart',  accent:'#f6a472'},
+  {label:'Schedule',      kind:'bars',   accent:'#f6a472'},
+  {label:'Cost',          kind:'badge',  accent:'#f6a472', badge:'$4.2k'},
+  {label:'Test plan',     kind:'list',   accent:'#e9c46a'},
+  {label:'Manufacturing', kind:'gauge',  accent:'#e9c46a'},
+  {label:'Compliance',    kind:'icon',   accent:'#e9c46a'},
+  {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3'},
+];
+TILES.forEach(t => t.clarity = 0);
+
+const EDGES = [];
+for (let r=0; r<ROWS; r++) {
+  for (let c=0; c<COLS; c++) {
+    const i = r*COLS + c;
+    if (r < ROWS-1) EDGES.push([i, i+COLS]);                              // down
+    if (c < COLS-1 && r%2===0) EDGES.push([i, i+1]);                      // right (alt rows)
+    if (r < ROWS-1 && c < COLS-1 && (r+c)%2===0) EDGES.push([i, i+COLS+1]); // diag
+    if (r < ROWS-1 && c > 0 && (r+c)%3===0) EDGES.push([i, i+COLS-1]);    // anti-diag
+  }
+}
+const NBRS = TILES.map(()=>[]);
+EDGES.forEach(([a,b])=>{ NBRS[a].push(b); NBRS[b].push(a); });
+
+const ST = {
+  time: 0, iter: 0,
+  playing: true,
+  hover: -1,
+  pulses: [],          // {edgeIdx, startTime, intensity}
+  lastAuto: 0,
+  noisePattern: null,
+  noiseDirty: 0,
+};
+
+// ===== diffusion step =================================================
+function step(dt) {
+  ST.time += dt;
+  ST.iter += dt * 12;
+  // Move toward target=1, faster when neighbors are clear (information flows in).
+  TILES.forEach((t, i) => {
+    const nb = NBRS[i];
+    const nbAvg = nb.length ? nb.reduce((s,j)=>s+TILES[j].clarity, 0)/nb.length : 0;
+    const rate = (0.012 + 0.055 * (0.25 + 0.75 * nbAvg)) * dt;
+    t.clarity = Math.min(1, t.clarity + rate);
+  });
+  // Aging pulses
+  ST.pulses = ST.pulses.filter(p => ST.time - p.startTime < 1.8);
+}
+
+function perturb(i) {
+  TILES[i].clarity = 0;
+  // Ring 1: direct neighbors degrade + pulse
+  const ring1 = new Set();
+  EDGES.forEach((e, ei) => {
+    if (e[0] === i || e[1] === i) {
+      ST.pulses.push({edgeIdx: ei, startTime: ST.time, intensity: 1.0});
+      const other = e[0]===i ? e[1] : e[0];
+      ring1.add(other);
+      TILES[other].clarity = Math.max(0, TILES[other].clarity - 0.42);
+    }
+  });
+  // Ring 2: delayed pulse, small clarity drop
+  ring1.forEach(j => {
+    EDGES.forEach((e, ei) => {
+      if ((e[0]===j || e[1]===j) && e[0]!==i && e[1]!==i) {
+        const other = e[0]===j ? e[1] : e[0];
+        if (other === i || ring1.has(other)) return;
+        ST.pulses.push({edgeIdx: ei, startTime: ST.time + 0.28, intensity: 0.55});
+        TILES[other].clarity = Math.max(0, TILES[other].clarity - 0.16);
+      }
+    });
+  });
+}
+
+function resetAll() {
+  TILES.forEach(t => t.clarity = 0);
+  ST.iter = 0;
+  ST.pulses = [];
+}
+
+function maybeAutoPerturb() {
+  if (!ST.playing) return;
+  const avg = TILES.reduce((s,t)=>s+t.clarity, 0) / TILES.length;
+  if (avg > 0.94 && ST.time - ST.lastAuto > 3.5) {
+    perturb(Math.floor(Math.random() * TILES.length));
+    ST.lastAuto = ST.time;
+  }
+}
+
+// ===== rendering =======================================================
+function tileRect(i, W, H) {
+  const M = 22, GX = 14, GY = 16;
+  const r = Math.floor(i / COLS), c = i % COLS;
+  const innerW = W - 2*M, innerH = H - 2*M;
+  const tw = (innerW - (COLS-1)*GX) / COLS;
+  const th = (innerH - (ROWS-1)*GY) / ROWS;
+  return { x: M + c*(tw+GX), y: M + r*(th+GY), w: tw, h: th };
+}
+
+function buildNoisePattern(c) {
+  const N = 128;
+  const off = document.createElement('canvas');
+  off.width = off.height = N;
+  const oc = off.getContext('2d');
+  const id = oc.createImageData(N, N);
+  for (let i=0; i<id.data.length; i+=4) {
+    const v = (Math.random()*255)|0;
+    id.data[i] = v; id.data[i+1] = v; id.data[i+2] = v;
+    id.data[i+3] = 255;
+  }
+  oc.putImageData(id, 0, 0);
+  return c.createPattern(off, 'repeat');
+}
+
+function drawTileResolved(c, tile, rect) {
+  const {x,y,w,h} = rect;
+  c.save();
+  c.beginPath(); c.rect(x, y, w, h); c.clip();
+  // panel
+  c.fillStyle = '#0e131c';
+  c.fillRect(x, y, w, h);
+  // top accent bar
+  c.fillStyle = tile.accent + '1e';
+  c.fillRect(x, y, w, 22);
+  c.fillStyle = tile.accent;
+  c.font = '700 10.5px ui-monospace, "SF Mono", Menlo, monospace';
+  c.textBaseline = 'middle';
+  c.fillText(tile.label.toUpperCase(), x+10, y+11);
+  // tiny status dot
+  c.fillStyle = tile.accent;
+  c.beginPath(); c.arc(x + w - 12, y + 11, 2, 0, Math.PI*2); c.fill();
+  // content
+  const cx = x + 12, cy = y + 30, cw = w - 24, ch = h - 42;
+  switch (tile.kind) {
+    case 'list':  drawList(c, cx, cy, cw, ch, tile.accent); break;
+    case 'icon':  drawIcon(c, cx, cy, cw, ch, tile.accent); break;
+    case 'gauge': drawGauge(c, cx, cy, cw, ch, tile.accent); break;
+    case 'badge': drawBadge(c, cx, cy, cw, ch, tile.accent, tile.badge); break;
+    case 'graph': drawGraph(c, cx, cy, cw, ch, tile.accent); break;
+    case 'chart': drawChart(c, cx, cy, cw, ch, tile.accent); break;
+    case 'bars':  drawBars(c, cx, cy, cw, ch, tile.accent); break;
+  }
+  // border
+  c.strokeStyle = tile.accent + '33';
+  c.lineWidth = 1;
+  c.strokeRect(x+0.5, y+0.5, w-1, h-1);
+  c.restore();
+}
+
+function drawList(c, x, y, w, h, accent) {
+  const lines = 4, lineH = Math.min(h/lines, 18);
+  const startY = y + (h - lines*lineH)/2;
+  for (let i=0; i<lines; i++) {
+    c.fillStyle = accent + 'aa';
+    c.fillRect(x, startY + i*lineH + lineH*0.35, 3, 3);
+    c.fillStyle = '#2a3142';
+    const lineW = w*0.78 - ((i*13)%18);
+    c.fillRect(x + 9, startY + i*lineH + lineH*0.45, lineW, 2);
+  }
+}
+function drawIcon(c, x, y, w, h, accent) {
+  const cx = x + w/2, cy = y + h/2, R = Math.min(w,h)*0.32;
+  c.strokeStyle = accent + 'cc'; c.lineWidth = 1.5;
+  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.stroke();
+  c.beginPath(); c.arc(cx, cy, R*0.55, 0, Math.PI*2); c.stroke();
+  c.fillStyle = accent;
+  c.beginPath(); c.arc(cx, cy, R*0.22, 0, Math.PI*2); c.fill();
+}
+function drawGauge(c, x, y, w, h, accent) {
+  const cx = x + w/2, cy = y + h*0.72, R = Math.min(w*0.42, h*0.6);
+  c.strokeStyle = '#1a2030'; c.lineWidth = 5; c.lineCap = 'round';
+  c.beginPath(); c.arc(cx, cy, R, Math.PI, 0); c.stroke();
+  c.strokeStyle = accent; c.lineWidth = 5;
+  c.beginPath(); c.arc(cx, cy, R, Math.PI, Math.PI*1.72); c.stroke();
+  c.fillStyle = accent;
+  c.font = '700 13px ui-monospace, monospace';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('72%', cx, cy - R*0.25);
+  c.textAlign = 'start';
+}
+function drawBadge(c, x, y, w, h, accent, text) {
+  c.fillStyle = accent;
+  const fs = Math.min(Math.floor(h*0.55), 28);
+  c.font = `800 ${fs}px ui-monospace, monospace`;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(text, x + w/2, y + h*0.5);
+  c.textAlign = 'start';
+}
+function drawGraph(c, x, y, w, h, accent) {
+  const pts = [
+    {x:x+w*0.22, y:y+h*0.28},
+    {x:x+w*0.72, y:y+h*0.22},
+    {x:x+w*0.32, y:y+h*0.78},
+    {x:x+w*0.78, y:y+h*0.72},
+  ];
+  c.strokeStyle = accent + '55'; c.lineWidth = 1.2;
+  [[0,1],[0,2],[1,3],[2,3],[1,2]].forEach(([a,b])=>{
+    c.beginPath(); c.moveTo(pts[a].x,pts[a].y); c.lineTo(pts[b].x,pts[b].y); c.stroke();
+  });
+  pts.forEach(p => { c.fillStyle = accent; c.beginPath(); c.arc(p.x,p.y,3,0,Math.PI*2); c.fill(); });
+}
+function drawChart(c, x, y, w, h, accent) {
+  const N = 18;
+  c.strokeStyle = '#1a2030'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(x, y+h); c.lineTo(x+w, y+h); c.stroke();
+  c.strokeStyle = accent; c.lineWidth = 1.5;
+  c.beginPath();
+  for (let i=0; i<N; i++) {
+    const v = 0.45 + 0.42*Math.sin(i*0.55 + 0.6) * (1 - i/N*0.3);
+    const px = x + (i/(N-1))*w;
+    const py = y + h - v*h*0.82;
+    if (i===0) c.moveTo(px,py); else c.lineTo(px,py);
+  }
+  c.stroke();
+  // area fill
+  c.lineTo(x+w, y+h); c.lineTo(x, y+h); c.closePath();
+  c.fillStyle = accent + '15';
+  c.fill();
+}
+function drawBars(c, x, y, w, h, accent) {
+  const N = 6;
+  const totalGap = w * 0.35;
+  const bw = (w - totalGap) / N;
+  const gap = totalGap / (N - 1);
+  const vals = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8];
+  for (let i=0;i<N;i++) {
+    const bh = vals[i]*h*0.82;
+    c.fillStyle = i===3 ? accent : accent + '7a';
+    c.fillRect(x + i*(bw+gap), y+h-bh, bw, bh);
+  }
+}
+
+function drawEdge(c, ei, W, H) {
+  const [a, b] = EDGES[ei];
+  const ra = tileRect(a, W, H), rb = tileRect(b, W, H);
+  const ax = ra.x + ra.w/2, ay = ra.y + ra.h/2;
+  const bx = rb.x + rb.w/2, by = rb.y + rb.h/2;
+  const clarA = TILES[a].clarity, clarB = TILES[b].clarity;
+  const baseAlpha = Math.min(0.6, (clarA + clarB) * 0.32);
+  c.strokeStyle = `rgba(120, 200, 220, ${baseAlpha})`;
+  c.lineWidth = 1;
+  c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
+  // pulses
+  ST.pulses.forEach(p => {
+    if (p.edgeIdx !== ei) return;
+    const t = ST.time - p.startTime;
+    if (t < 0 || t > 1.8) return;
+    const fade = Math.max(0, 1 - t/1.8) * p.intensity;
+    c.strokeStyle = `rgba(180, 240, 255, ${fade * 0.6})`;
+    c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
+    const f = Math.min(1, t / 0.55);
+    const px = ax + (bx - ax) * f;
+    const py = ay + (by - ay) * f;
+    c.fillStyle = `rgba(200, 255, 240, ${fade})`;
+    c.beginPath(); c.arc(px, py, 3.2, 0, Math.PI*2); c.fill();
+    // glow
+    c.fillStyle = `rgba(200, 255, 240, ${fade * 0.25})`;
+    c.beginPath(); c.arc(px, py, 7, 0, Math.PI*2); c.fill();
+  });
+}
+
+function draw(c, W, H) {
+  // background subtle vignette
+  const grad = c.createRadialGradient(W/2, H*0.45, 0, W/2, H/2, Math.max(W,H)*0.75);
+  grad.addColorStop(0, '#0a0f18');
+  grad.addColorStop(1, '#04060a');
+  c.fillStyle = grad;
+  c.fillRect(0, 0, W, H);
+
+  // edges (under tiles)
+  EDGES.forEach((_, ei) => drawEdge(c, ei, W, H));
+
+  // tiles
+  TILES.forEach((tile, i) => {
+    const r = tileRect(i, W, H);
+    drawTileResolved(c, tile, r);
+    const cl = tile.clarity;
+    if (cl < 0.985 && ST.noisePattern) {
+      c.save();
+      c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+      c.globalAlpha = (1 - cl) * 0.94;
+      c.fillStyle = ST.noisePattern;
+      // shift per tile + per frame for animated grain
+      const ox = ((i * 53) + Math.floor(ST.time * 90)) % 128;
+      const oy = ((i * 89) + Math.floor(ST.time * 60)) % 128;
+      c.translate(-ox, -oy);
+      c.fillRect(r.x + ox, r.y + oy, r.w, r.h);
+      c.globalAlpha = 1;
+      c.restore();
+    }
+    // hover ring
+    if (ST.hover === i) {
+      c.strokeStyle = 'rgba(200, 240, 255, 0.55)';
+      c.lineWidth = 2;
+      c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+    }
+  });
+}
+
+// ===== loop ===========================================================
+let lastT = 0;
+function loop(t) {
+  const dt = Math.min(0.06, (t - lastT) / 1000);
+  lastT = t;
+  if (ST.playing) {
+    step(dt);
+    maybeAutoPerturb();
+  }
+  const cv = document.getElementById('field');
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W*dpr || cv.height !== H*dpr) {
+    cv.width = W*dpr; cv.height = H*dpr;
+    const c0 = cv.getContext('2d');
+    c0.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ST.noisePattern = buildNoisePattern(c0);
+  }
+  // refresh noise occasionally (animated grain)
+  ST.noiseDirty += dt;
+  if (ST.noiseDirty > 0.08) {
+    const c0 = cv.getContext('2d');
+    ST.noisePattern = buildNoisePattern(c0);
+    ST.noiseDirty = 0;
+  }
+  const c = cv.getContext('2d');
+  draw(c, W, H);
+  // hud
+  const avg = TILES.reduce((s,t)=>s+t.clarity, 0) / TILES.length;
+  document.getElementById('clarity').textContent = Math.round(avg * 100) + '%';
+  document.getElementById('iter').textContent = Math.floor(ST.iter);
+  requestAnimationFrame(loop);
+}
+
+// ===== interaction =====================================================
+function tileAt(mx, my) {
+  const cv = document.getElementById('field');
+  const W = cv.clientWidth, H = cv.clientHeight;
+  for (let i=0; i<TILES.length; i++) {
+    const r = tileRect(i, W, H);
+    if (mx>=r.x && mx<=r.x+r.w && my>=r.y && my<=r.y+r.h) return i;
+  }
+  return -1;
+}
+
+function init() {
+  const cv = document.getElementById('field');
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    ST.hover = tileAt(e.clientX - r.left, e.clientY - r.top);
+    cv.style.cursor = ST.hover >= 0 ? 'pointer' : 'default';
+  });
+  cv.addEventListener('mouseleave', () => { ST.hover = -1; });
+  cv.addEventListener('click', e => {
+    const r = cv.getBoundingClientRect();
+    const i = tileAt(e.clientX - r.left, e.clientY - r.top);
+    if (i >= 0) { perturb(i); ST.lastAuto = ST.time; }
+  });
+  cv.addEventListener('touchstart', e => {
+    const r = cv.getBoundingClientRect();
+    const t = e.touches[0];
+    const i = tileAt(t.clientX - r.left, t.clientY - r.top);
+    if (i >= 0) { perturb(i); ST.lastAuto = ST.time; e.preventDefault(); }
+  }, {passive: false});
+  document.getElementById('play').addEventListener('click', e => {
+    ST.playing = !ST.playing;
+    e.target.textContent = ST.playing ? '⏸ pause' : '⏵ play';
+  });
+  document.getElementById('reset').addEventListener('click', () => resetAll());
+  requestAnimationFrame(loop);
+}
+init();
+</script>
+
+</body>
+</html>
