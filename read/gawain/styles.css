@@ -267,9 +267,10 @@ svg.tree { display: block; }
 .seg-n a, .tale-blurb a { color: var(--gold-soft); cursor: pointer; }
 .tale-body.english .seg-w { display: none; }
 .tale-body.english .tale-seg { grid-template-columns: 1fr; }
-.tale-body.welsh .seg-e { display: none; }
-.tale-body.welsh .tale-seg { grid-template-columns: 1fr; }
-.tale-body.welsh .seg-w { font-style: normal; color: var(--ink); }
+.tale-body.middle .seg-e { display: none; }
+.tale-body.middle .tale-seg { grid-template-columns: 1fr; }
+.tale-body.middle .seg-w { font-style: normal; color: var(--ink); }
+.seg-no { color: var(--ink-faint); font-family: var(--sans); font-size: 12px; margin-right: 4px; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) {
   .tale-body.parallel .tale-seg { grid-template-columns: 1fr; gap: 8px; }
   .tale-body.parallel .seg-w { padding-bottom: 8px; border-bottom: 1px dotted var(--line); }
