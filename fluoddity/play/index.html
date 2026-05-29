@@ -158,13 +158,16 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
 #fatal b { color: var(--fg); }
 
 /* fps */
+/* fps and vitals overlay the sim, anchored to the bottom of #stage so they
+   stay over the canvas on mobile (where #stage is half-height) instead of
+   colliding with the panel below. */
 #fps {
-  position: fixed; bottom: 10px; right: 12px; z-index: 15;
+  position: absolute; bottom: 10px; right: 12px; z-index: 15;
   color: var(--muted); font-size: 11px; pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
 #vitals {
-  position: fixed; bottom: 10px; left: 12px; z-index: 15;
+  position: absolute; bottom: 10px; left: 12px; z-index: 15;
   display: flex; align-items: center; gap: 8px;
   font-size: 11px; color: var(--muted); pointer-events: none;
   font-variant-numeric: tabular-nums;
@@ -174,14 +177,49 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
 #vitals .vbars { display: flex; flex-direction: column; gap: 2px; width: 54px; }
 #vitals .vbar { height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
 #vitals .vbar i { display: block; height: 100%; width: 0; background: var(--muted); transition: width 0.2s, background 0.2s; }
-@media (max-width: 560px) {
-  #panel { width: calc(100vw - 28px); max-height: 46vh; }
+@media (max-width: 720px) {
+  /* Mobile: top half is the sim, bottom half is a scrollable panel with
+     controls + sitemap nav. Topbar stays fixed but loses its sibling-page
+     links (those move into the sitemap at the bottom of the panel so they
+     stop crowding the top). */
+  body { display: flex; flex-direction: column; }
+  #stage { position: relative; inset: auto; flex: 1 1 50vh; min-height: 0; }
+  canvas#gl { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #topbar { padding: 8px 10px; gap: 6px; background: linear-gradient(180deg, rgba(5,6,8,0.88), rgba(5,6,8,0)); flex-wrap: nowrap; overflow-x: auto; }
+  #topbar .title { font-size: 12px; white-space: nowrap; }
+  #topbar .crumb { font-size: 12px; }
+  /* Hide the sibling-page nav iconbtns; they live in #sitemap at the bottom now */
+  #topbar a.iconbtn { display: none; }
+  #topbar .iconbtn { padding: 6px 8px; font-size: 11px; white-space: nowrap; }
+  #panel { position: relative; left: auto; right: auto; top: auto; width: 100%; flex: 1 1 50vh; max-height: none; height: auto; min-height: 0; border-radius: 0; border: 0; border-top: 1px solid var(--rule); backdrop-filter: none; padding: 12px 14px 28px; }
+  #panel.hidden { /* keep display:none; stage flex-grows to fill */ }
+  #sitemap { display: block; }
 }
+@media (min-width: 721px) {
+  #sitemap { display: none; }
+}
+#sitemap { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--rule); }
+#sitemap h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+#sitemap .sm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#sitemap a.smlink { display: flex; flex-direction: column; padding: 9px 10px; border: 1px solid var(--rule); border-radius: 8px; text-decoration: none; color: var(--fg); font-size: 12px; }
+#sitemap a.smlink:hover { border-color: var(--accent); color: var(--accent); }
+#sitemap a.smlink .arr { color: var(--accent); }
+#sitemap a.smlink .sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="gl"></canvas>
+  <div id="fps"></div>
+  <div id="vitals" title="Machine-read liveness of the current organism. Bars: fill = how much of the field is lit · motion = how much it's changing · structure = spatial coherence (low = hot/boiling noise, high = structured filaments).">
+    <span class="dot"></span>
+    <span class="word">settling…</span>
+    <span class="vbars">
+      <span class="vbar" data-k="fill"><i></i></span>
+      <span class="vbar" data-k="motion"><i></i></span>
+      <span class="vbar" data-k="struct"><i></i></span>
+    </span>
+  </div>
 </div>
 
 <div id="topbar">
@@ -311,19 +349,22 @@ textarea { resize: vertical; min-height: 52px; margin: 6px 0; line-height: 1.4; 
     </select>
     <div class="hint">Lower this if the frame rate drops. Changing it reseeds the field.</div>
   </div>
+
+  <div id="sitemap">
+    <h3>elsewhere on fluoddity</h3>
+    <div class="sm-grid">
+      <a class="smlink" href="../gallery.html"><span>gallery <span class="arr">→</span></span><span class="sub">saved organisms</span></a>
+      <a class="smlink" href="../select.html"><span>selection <span class="arr">→</span></span><span class="sub">4×4 guided breeding</span></a>
+      <a class="smlink" href="../arena.html"><span>arena <span class="arr">→</span></span><span class="sub">16 species, one field</span></a>
+      <a class="smlink" href="../torus.html"><span>torus <span class="arr">→</span></span><span class="sub">on a real donut</span></a>
+      <a class="smlink" href="../breed.html"><span>breeder <span class="arr">→</span></span><span class="sub">autopilot evolution</span></a>
+      <a class="smlink" href="../hot.html"><span>hot or not <span class="arr">→</span></span><span class="sub">train a rubric</span></a>
+      <a class="smlink" href="../forest.html"><span>forest <span class="arr">→</span></span><span class="sub">cross-user atlas</span></a>
+      <a class="smlink" href="../"><span>fluoddity <span class="arr">←</span></span><span class="sub">landing</span></a>
+    </div>
+  </div>
 </div>
 
-<div id="fps"></div>
-
-<div id="vitals" title="Machine-read liveness of the current organism. Bars: fill = how much of the field is lit · motion = how much it's changing · structure = spatial coherence (low = hot/boiling noise, high = structured filaments).">
-  <span class="dot"></span>
-  <span class="word">settling…</span>
-  <span class="vbars">
-    <span class="vbar" data-k="fill"><i></i></span>
-    <span class="vbar" data-k="motion"><i></i></span>
-    <span class="vbar" data-k="struct"><i></i></span>
-  </span>
-</div>
 
 <div id="about">
   <div class="card">
@@ -1042,9 +1083,12 @@ function displayParticles(){
 
 const viewport = { x:0, y:0, s:0 };
 function resize(){
+  // Use the canvas's CSS-pixel size (not window.innerWidth) so the drawing
+  // buffer matches its on-screen footprint on mobile too — where the canvas
+  // only spans the top half of the viewport instead of the whole thing.
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = Math.floor(window.innerWidth * dpr);
-  const h = Math.floor(window.innerHeight * dpr);
+  const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
   canvas.width = w; canvas.height = h;
   const s = Math.min(w, h);
   viewport.s = s;
@@ -1251,6 +1295,9 @@ const btnToggle = document.getElementById('btn-toggle');
 btnToggle.addEventListener('click', () => {
   panel.classList.toggle('hidden');
   btnToggle.textContent = panel.classList.contains('hidden') ? 'show panel' : 'hide panel';
+  // On mobile, hiding the panel lets #stage flex-grow to fill the viewport —
+  // rerun resize so the drawing buffer follows the new CSS footprint.
+  resize();
 });
 
 const btnDraw = document.getElementById('btn-draw');
