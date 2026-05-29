@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>orb — thread gallery on a glowing sphere</title>
+  <meta name="description" content="A Bluesky thread's images wrapped onto a glowing WebGPU sphere, auto-scrolling." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌕</text></svg>" />
+  <style>
+    :root {
+      --bg: #060312;
+      --ink: #efeaff;
+      --ink-dim: #8c87a8;
+      --line: #2a2545;
+      --accent: #b69dff;
+      --gold: #d4b86a;
+      --warm: rgba(255, 180, 100, 0.18);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+      overflow: hidden; }
+    body {
+      background:
+        radial-gradient(ellipse at 50% 55%, var(--warm) 0%, rgba(0,0,0,0) 45%),
+        radial-gradient(ellipse at 20% 100%, rgba(120,80,200,0.12) 0%, rgba(0,0,0,0) 50%),
+        var(--bg);
+    }
+
+    canvas#orb {
+      position: fixed; inset: 0; width: 100vw; height: 100vh;
+      display: block; cursor: grab; touch-action: none;
+    }
+    canvas#orb:active { cursor: grabbing; }
+
+    header.panel {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 0.6rem; padding: 0.9rem 1.1rem;
+      background: linear-gradient(to bottom, rgba(6,3,18,0.85), rgba(6,3,18,0));
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.6rem; font-weight: 500; margin: 0;
+      letter-spacing: 0.02em;
+    }
+    h1 .o { color: var(--gold); }
+    form {
+      display: flex; align-items: center; gap: 0.4rem;
+      flex: 1 1 460px; min-width: 0;
+    }
+    input[type="url"] {
+      flex: 1; min-width: 0;
+      background: rgba(10,5,22,0.7); border: 1px solid var(--line);
+      color: var(--ink); padding: 0.5rem 0.7rem; border-radius: 6px;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.85rem;
+    }
+    input[type="url"]:focus { outline: none; border-color: var(--accent); }
+    button {
+      background: var(--accent); color: #15102a; border: none;
+      padding: 0.5rem 0.95rem; border-radius: 6px;
+      font-family: inherit; font-weight: 500; font-size: 0.88rem; cursor: pointer;
+    }
+    button:hover { background: var(--gold); }
+    button:disabled { opacity: 0.5; cursor: default; }
+
+    .status {
+      width: 100%; padding-top: 0.25rem;
+      font-size: 0.75rem; color: var(--ink-dim);
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      min-height: 1.2em;
+    }
+    .status.err { color: #ff8e7a; }
+
+    footer.controls {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem;
+      padding: 0.7rem 1.2rem 1rem;
+      background: linear-gradient(to top, rgba(6,3,18,0.78), rgba(6,3,18,0));
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      font-size: 0.78rem; color: var(--ink-dim);
+    }
+    footer.controls label {
+      display: inline-flex; align-items: center; gap: 0.45rem;
+    }
+    footer.controls input[type="range"] {
+      width: 130px;
+      accent-color: var(--accent);
+    }
+    footer.controls .hint {
+      margin-left: auto; font-style: italic;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 0.95rem; color: var(--ink-dim);
+    }
+
+    #fallback {
+      position: fixed; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 0.8rem; text-align: center;
+      background: var(--bg); z-index: 50; padding: 2rem;
+    }
+    #fallback h2 { font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 2rem; font-weight: 500; margin: 0; color: var(--ink); }
+    #fallback p { color: var(--ink-dim); max-width: 32rem; }
+
+    @media (max-width: 640px) {
+      header.panel { padding: 0.6rem 0.7rem; }
+      h1 { font-size: 1.2rem; }
+      footer.controls input[type="range"] { width: 96px; }
+      footer.controls .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="orb"></canvas>
+
+  <header class="panel">
+    <h1>🌕 <span class="o">orb</span></h1>
+    <form id="thread-form">
+      <input id="thread-url" type="url" placeholder="paste a bsky.app/profile/.../post/... URL" />
+      <button type="submit" id="load-btn">load</button>
+    </form>
+    <div class="status" id="status">initializing…</div>
+  </header>
+
+  <footer class="controls">
+    <label>scroll <input id="scroll-speed" type="range" min="0" max="200" value="40" /></label>
+    <label>spin   <input id="spin-speed"   type="range" min="-100" max="100" value="14" /></label>
+    <label>glow   <input id="brightness"   type="range" min="60" max="320" value="170" /></label>
+    <span class="hint">drag to orbit · wheel to zoom</span>
+  </footer>
+
+  <div id="fallback" hidden>
+    <h2>WebGPU required</h2>
+    <p>This page needs a browser with WebGPU enabled. Try the latest Chrome, Edge, or Safari 26+ on a desktop or recent phone.</p>
+  </div>
+
+  <script type="module" src="./orb.js"></script>
+</body>
+</html>
