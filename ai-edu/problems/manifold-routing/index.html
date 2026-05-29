@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manifold routing &mdash; a Steiner tree with components attached</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  h3 { font-size: 0.95rem; margin: 1.3rem 0 0.3rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  .eq { display: block; text-align: center; font-style: italic; margin: 0.6rem 0; font-size: 1.02rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .viz canvas { display: block; width: 100%; aspect-ratio: 5/3; background: #f4f0e4; border-radius: 6px; cursor: crosshair; touch-action: none; }
+  @media (prefers-color-scheme: dark) { .viz canvas { background: #1a1814; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; align-items: center; margin: 0.6rem 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.4rem; }
+  .controls select { font: inherit; font-size: 0.78rem; padding: 0.15rem 0.3rem; border: 1px solid #aac; border-radius: 4px; background: #fff; color: #245; }
+  @media (prefers-color-scheme: dark) { .controls select { background: #20242c; border-color: #456; color: #cde; } }
+  .controls input[type=range] { width: 7rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 3rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .tools { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; font-family: ui-monospace, monospace; font-size: 0.78rem; }
+  .tools button { font: inherit; font-size: 0.78rem; padding: 0.25rem 0.7rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
+  .tools button.active { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .tools button { background: #243038; border-color: #467; color: #bdf; } }
+  .readout { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.55); border-radius: 4px; margin-top: 0.5rem; line-height: 1.75; }
+  @media (prefers-color-scheme: dark) { .readout { background: rgba(40,44,52,0.45); } }
+  .readout .pass { color: #2a8a2a; font-weight: 700; } .readout .fail { color: #c33; font-weight: 700; } .readout .warn { color: #c89200; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .readout .pass { color: #8f6; } .readout .fail { color: #f88; } .readout .warn { color: #e8b84b; } }
+  table.parts { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-size: 0.82rem; }
+  table.parts th, table.parts td { border: 1px solid #ddd; padding: 0.4rem 0.55rem; text-align: left; vertical-align: top; }
+  table.parts th { background: #f4f6f8; font-size: 0.78rem; }
+  @media (prefers-color-scheme: dark) { table.parts th, table.parts td { border-color: #333; } table.parts th { background: #1c2027; } }
+  .partlink { font-family: ui-monospace, monospace; font-size: 0.78rem; }
+  .verified { font-size: 0.78rem; color: #888; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Manifold routing: a Steiner tree with components attached</h1>
+<p class="lede">
+  One inlet, a handful of outlets, a bonded plate. The shortest channel
+  network that wires them all together is a <strong>rectilinear Steiner
+  tree</strong> &mdash; and the wye junctions are its Steiner points. Drop a
+  valve onto a leg and the pressure budget responds; pick a pump and you
+  find out which leg busts it.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A bonded plate manifold has to connect one supply <strong>inlet</strong>
+  to <strong>N&nbsp;outlets</strong> through internal channels, with a few
+  <strong>valves</strong> on the legs you need to switch and
+  <strong>sensors</strong> where you actually need to measure. The pump is
+  fixed; the manifold has to fit on the plate; every outlet has to receive
+  its share of flow; the worst-case path's pressure drop has to stay under
+  the pump's head with margin. Two coupled problems: a <em>topology</em>
+  (where do the channels run, where do they branch) and a
+  <em>sizing</em> (which components, on which legs, in what order).
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  The topology is a classic rectilinear Steiner tree &mdash; one inlet, N
+  sinks, minimise total channel length &mdash; and a small heuristic
+  (Hanan&nbsp;grid + 1-Steiner) solves it in milliseconds for a handful of
+  ports. The sizing is conservation plus Darcy&ndash;Weisbach plus the
+  catalog's K-factors and Cv values. Claude can wire all of that into a
+  live board for you. What it can't do is name the right pump curve, the
+  right valve Cv at duty, and whether the deepest leg actually carries the
+  flow it's spec'd for &mdash; those decisions are yours.
+</p>
+
+<h2>3. The board</h2>
+<p>
+  Drag ports along the edges. Click <strong>Add outlet</strong> to grow the
+  manifold; click an outlet to remove it. Pick a tool and click a channel
+  segment to drop a valve or a sensor on it; click again to remove. The
+  router re-solves on every change. The critical leg lights up red.
+</p>
+
+<div class="viz">
+  <canvas id="plate" aria-label="Manifold routing board"></canvas>
+  <div class="controls">
+    <label>pump <select id="pump"></select></label>
+    <label>Q<sub>total</sub> <input type="range" id="q" min="20" max="200" step="5" value="80"><span class="val" id="q-val">80 mL/min</span></label>
+    <label>channel &Oslash; <input type="range" id="dia" min="1.0" max="3.0" step="0.1" value="2.0"><span class="val" id="dia-val">2.0 mm</span></label>
+    <label>valve <select id="vsel"></select></label>
+  </div>
+  <div class="tools" id="tools">
+    <button data-tool="select" class="active">select / drag</button>
+    <button data-tool="addvalve">+ valve</button>
+    <button data-tool="addsensor">+ sensor</button>
+    <button data-tool="addoutlet">+ outlet</button>
+    <button data-tool="reset">reset</button>
+  </div>
+  <div class="readout" id="readout"></div>
+</div>
+
+<p>
+  The router is doing two things at once. The skeleton is a
+  Hanan&ndash;grid Steiner heuristic: candidate junction points sit at every
+  (x<sub>i</sub>,&nbsp;y<sub>j</sub>) of the terminals, and one gets added if
+  it shortens the spanning tree. The cost on each leg is the
+  Darcy&ndash;Weisbach friction integrated along its length plus the minor
+  losses you've placed: one K&nbsp;= 1 per elbow, one K&nbsp;= 0.5 at every
+  wye it crosses, and <code>(Q/Cv)<sup>2</sup></code> for every valve on it.
+  The worst-of-N&nbsp;outlet sums is the budget the pump has to clear.
+</p>
+
+<h2>4. Verification &mdash; the budget reconciles</h2>
+<p>
+  No deadline like a CPM, but the same family of oracle. The schedule has
+  the critical path; the manifold has the critical <em>leg</em>, and the
+  pump must clear it.
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; continuity at every wye.</strong> Flow in equals
+  sum of flows out at every Steiner point. (With equal-share outlets this is
+  automatic; with metered branches you balance restrictors against it.)
+  <div class="pass">Pass: every junction reconciles. If it doesn't, you've added a leak or miscounted a branch.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; connectivity.</strong> Every outlet reaches the inlet.
+  <div class="pass">Pass: the Steiner tree spans all terminals. A disconnected outlet is the router telling you the topology is wrong.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; the pump clears the worst leg.</strong>
+  &Sigma;&Delta;P along the critical path &le; pump head, with margin.
+  <div class="pass">Pass: the worst-leg total is comfortably under the selected pump's head. The leg is highlighted red on the board so you know which one to fix.</div>
+  <div class="fail">Fail here: you can't move the answer with the chart; either shrink restrictions on the worst leg (bigger Cv valves, fewer bends) or step up the pump.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 4 &mdash; manufacturability.</strong> Min bend radius, valve
+  footprint clearance, plate envelope &mdash; all hard yes/no.
+  <div class="pass">Pass: bend count and component clearances are within the plate's geometry budget; the topology is shipable as drawn.</div>
+</div>
+
+<h2>5. Components &mdash; verified parts shortlist</h2>
+<p>
+  Three categories, all fetch-verified on supplier or distributor pages.
+  <strong>Verified 2026-05-30</strong> &mdash; specs and links drift; re-open
+  before you spec a build.
+</p>
+
+<h3>Miniature solenoid valves</h3>
+<table class="parts">
+  <tr><th>part</th><th>type / orifice</th><th>Cv</th><th>pressure / voltage</th></tr>
+  <tr><td><a href="https://www.clippard.com/part/EV-2M-12">Clippard EV-2M-12</a></td><td>2/2 NC, manifold-mount</td><td>~0.45 (17 L/min @ 100 psig)</td><td>0&ndash;105 psig / 12&nbsp;VDC, 0.67&nbsp;W</td></tr>
+  <tr><td><a href="https://www.theleeco.com/product/lhd-series-2-way-control-solenoid-valve/">Lee LHD series</a></td><td>2/2 NC, 7&nbsp;mm body, plug-in</td><td>0.013&ndash;0.044 (1500/450 Lohm)</td><td>vac&ndash;45 psig / 12 or 24&nbsp;VDC spike-hold</td></tr>
+  <tr><td><a href="https://www.lfprinterparts.com/product/parker-x-valve-miniature-pneumatic-solenoid-valve/">Parker X-Valve 912</a><sup>&dagger;</sup></td><td>2/2 NC, 8&nbsp;mm, 0.045&Prime; orifice</td><td>~0.06</td><td>0&ndash;25 psig / 12&nbsp;VDC, EPDM</td></tr>
+</table>
+<p class="partlink">Big-Cv valves (Clippard) move flow; tiny-Cv valves (Lee) shape it. The duty point picks which.</p>
+
+<h3>Pumps</h3>
+<table class="parts">
+  <tr><th>part</th><th>type</th><th>flow / head</th><th>voltage</th></tr>
+  <tr><td><a href="https://knf.com/en/us/solutions/pumps/series/diaphragm-liquid-pump-nf-15">KNF NF&nbsp;1.5</a></td><td>micro diaphragm, liquid</td><td>60&nbsp;mL/min · 6&nbsp;bar (~87&nbsp;psi)</td><td>10&ndash;26.4&nbsp;VDC, self-priming, runs dry</td></tr>
+  <tr><td><a href="https://www.schwarzer.com/en/liquid-pumps/eccentric-diaphragm-pumps-l/sp-270-ec-lc-l">Schwarzer SP&nbsp;270 EC-LC-L</a></td><td>eccentric diaphragm</td><td>100&nbsp;mL/min · 1&nbsp;bar (~15&nbsp;psi)</td><td>12&nbsp;VDC, 25&nbsp;g</td></tr>
+  <tr><td><a href="https://micropumps.co.uk/product/m200s-v/">TCS M200S-V</a></td><td>centrifugal impeller</td><td>700&nbsp;mL/min · 0.23&nbsp;bar (~3.3&nbsp;psi)</td><td>1.5&ndash;3&nbsp;V (needs PWM/buck)</td></tr>
+</table>
+<p class="partlink">The TCS is here on purpose: it shows what &ldquo;wrong pump&rdquo; looks like &mdash; lots of flow but no head, so the budget rung fails immediately.</p>
+
+<h3>Sensors</h3>
+<table class="parts">
+  <tr><th>part</th><th>measurement</th><th>interface</th><th>accuracy</th></tr>
+  <tr><td><a href="https://www.digikey.com/en/products/detail/honeywell-sensing-and-productivity-solutions/ABPMANN030PG2A3/5322840">Honeywell ABPMANN030PG2A3</a></td><td>0&ndash;30 psi gauge</td><td>I²C 12-bit, 3.3&nbsp;V</td><td>±0.25% FS · $33.82@100</td></tr>
+  <tr><td><a href="https://www.digikey.com/en/products/detail/honeywell/ABPDANV030PGAA5/5277495">TE 4515-DS5B002DP</a></td><td>0&ndash;0.07 psi differential</td><td>analog 0.25&ndash;4.75&nbsp;V</td><td>±0.25% FS · for flow-restrictor Δp</td></tr>
+  <tr><td><a href="https://sensirion.com/products/catalog/SLF3S-1300F">Sensirion SLF3S-1300F</a></td><td>liquid flow 0&ndash;40&nbsp;mL/min</td><td>I²C, 3.3&nbsp;V</td><td>±5% · H₂O / IPA</td></tr>
+  <tr><td><a href="https://www.digikey.com/en/products/detail/sensirion-ag/SFM3000-200C/5872282">Sensirion SFM3000-200C</a><sup>&Dagger;</sup></td><td>gas flow 0&ndash;200&nbsp;SLM</td><td>I²C, 5&nbsp;V</td><td>±1.5% · <em>NRND</em>, replace with SFM3003/3013</td></tr>
+</table>
+<p class="verified">
+  &dagger; supplier page blocks automated fetching; specs &amp; link confirmed via the listed distributor.
+  &Dagger; Not Recommended for New Designs &mdash; page still resolves, but design-in should target the successor.
+</p>
+
+<h2>6. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; pick the pump first</summary>
+  <p>The pump's pressure&ndash;flow curve is the budget the whole board lives inside. Sizing valves and channels before knowing the head you have to work with is how you end up routing a manifold the pump can't actually drive.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; the worst leg isn't always the longest</summary>
+  <p>It's the highest <em>sum</em>: length × friction + bends + valve Cv terms. A short leg with a tight valve will eat more head than a long leg with a wide one. Watch the readout, not the picture.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; wyes have a cost too</summary>
+  <p>Every Steiner junction adds a small minor loss to each branch passing through it (K_wye&nbsp;≈&nbsp;0.5). A tree that minimises <em>length</em> isn't necessarily the one that minimises <em>worst-case ΔP</em>; some manifolds are better off with one extra meter of channel and one fewer junction.</p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; what to ask for</summary>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Given an inlet, N outlets, a plate envelope, and a pump curve (Q_max, ΔP_max): solve a rectilinear Steiner tree for the topology, compute Darcy–Weisbach + minor losses (one K=1 elbow per L-bend, K=0.5 per wye, (Q/Cv)² per valve) along each inlet→outlet leg, return the worst-leg ΔP and flag whether the pump head clears it with 20% margin. Recommend which leg to widen, which valve to swap up in Cv, or whether the pump itself is the wrong tool.</span></div>
+</details>
+
+<h2>7. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude run the Steiner heuristic, the friction integrals, the K-sum
+  on every leg &mdash; tireless arithmetic on a network is exactly what it's
+  good at. But you pick the pump curve, the valve at duty, and whether
+  &ldquo;within margin&rdquo; means 20% or 50% for this fluid and this
+  application. The math tells you which leg busts. Only you can tell it the
+  budget is honest in the first place.
+</div>
+
+<h2>8. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    On the defaults &mdash; KNF NF&nbsp;1.5 (60&nbsp;mL/min, ~87&nbsp;psi),
+    4 outlets, 80&nbsp;mL/min total (clamped to pump max), 2&nbsp;mm
+    channels &mdash; the Steiner topology runs a single trunk across the
+    plate and branches at the outlet edge (the wye sits on one of the
+    outlets, which is what an honest Steiner heuristic does when terminals
+    are collinear). Total channel length is in the dozens of mm; the
+    worst-leg ΔP sits well under the pump head with margin. Drop a Lee LHD
+    on one branch (tiny Cv) and that leg's ΔP jumps several psi &mdash; on
+    the chart you can see why people use big-Cv Clippards for switching and
+    Lee restrictors for shaping flow, not the other way around. Switch the
+    pump to the TCS M200S-V and the budget rung fails immediately: lots of
+    flow, no head &mdash; the wrong tool for a head-loss-dominated plate.
+  </p>
+</details>
+
+<h2>9. Going further</h2>
+<ul>
+  <li><strong>Multi-layer plate (vias):</strong> add a second routing layer with vertical connections, and turn the router loose &mdash; crossings stop being a constraint, total length usually drops.</li>
+  <li><strong>Mass-flow control:</strong> add a per-branch metered restrictor (a Lee Lohm restrictor or an MFC) and balance the network so the outlets receive their <em>specified</em> shares, not equal shares.</li>
+  <li><strong>Compressible flow:</strong> swap the working fluid to a gas and the friction equation switches to the compressible form &mdash; valves with their published Kv/Cv for air at standard conditions.</li>
+  <li><strong>Cost as a co-objective:</strong> length × $/m + Σ component price; the cheapest manifold isn't the shortest one.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>Same two moves &mdash; see <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>.</p>
+<ul>
+  <li>
+    <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (no CDN links) from this port/component list: a draggable Steiner manifold board with live critical-leg highlighting and a Δp-vs-pump-head readout that updates as I move ports and components.</span></div>
+  </li>
+  <li>
+    <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a one-page Markdown design memo — manifold layout, the Steiner tree, the worst-leg pressure-drop calc, and the BOM (pump, valves, sensors with part numbers) — and give me the pandoc command to render it to PDF via the Typst engine.</span></div>
+  </li>
+</ul>
+
+<script>
+// ===== verified parts (catalog used by the widget controls) =====
+const PUMPS = [
+  {key:'knf', name:'KNF NF 1.5',         qMax: 60,  pMax_psi: 87},
+  {key:'sch', name:'Schwarzer SP 270',   qMax:100,  pMax_psi: 15},
+  {key:'tcs', name:'TCS M200S-V',        qMax:700,  pMax_psi: 3.3},
+];
+const VALVES = [
+  {key:'clp', name:'Clippard EV-2M-12 (Cv 0.45)', Cv:0.45},
+  {key:'lhd', name:'Lee LHD (Cv 0.030)',          Cv:0.030},
+  {key:'prk', name:'Parker X-Valve 912 (Cv 0.06)',Cv:0.06},
+];
+const SENSOR_K = 0.3;  // small minor loss for an inline sensor tap
+
+// ===== state =====
+const ST = {
+  terms: [],          // [{id, role:'inlet'|'outlet', x, y, edge:'L'|'R'}]
+  steinerPts: [],     // computed Steiner points (subset of Hanan candidates)
+  edges: [],          // MST/Steiner edges (i,j) into terms+steinerPts indexed
+  segments: [],       // rendered segments [{ei, axis:'h'|'v', a:{x,y}, b:{x,y}}]
+  valves: [],         // [{segIdx, valveKey}]
+  sensors: [],        // [{segIdx}]
+  pumpKey: 'knf',
+  valveSelKey: 'clp',
+  qTotal: 80,         // mL/min
+  D_mm: 2.0,          // channel diameter
+  tool: 'select',
+  dragging: null,
+};
+
+// Plate geometry (logical units = mm equivalents for display & friction calcs)
+const PLATE = {W: 120, H: 72};  // 120 × 72 mm — display logical
+function init(){
+  ST.terms = [
+    {id:0, role:'inlet',  x:0,        y:36, edge:'L'},
+    {id:1, role:'outlet', x:PLATE.W,  y:10, edge:'R'},
+    {id:2, role:'outlet', x:PLATE.W,  y:28, edge:'R'},
+    {id:3, role:'outlet', x:PLATE.W,  y:46, edge:'R'},
+    {id:4, role:'outlet', x:PLATE.W,  y:64, edge:'R'},
+  ];
+  ST.valves=[]; ST.sensors=[]; ST.tool='select';
+}
+
+// ===== Steiner: Hanan grid + 1-Steiner heuristic =====
+const man = (a,b) => Math.abs(a.x-b.x) + Math.abs(a.y-b.y);
+function mst(pts){
+  const E=[];
+  for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++) E.push({i,j,d:man(pts[i],pts[j])});
+  E.sort((a,b)=>a.d-b.d);
+  const par = pts.map((_,i)=>i);
+  const find = x => { while(par[x]!==x) x=par[x]=par[par[x]]; return x; };
+  let total=0, used=[];
+  for(const e of E){ const ri=find(e.i), rj=find(e.j); if(ri!==rj){ par[ri]=rj; total+=e.d; used.push(e); } }
+  return {total, edges:used};
+}
+function solveSteiner(){
+  const T = ST.terms.map(t=>({x:t.x, y:t.y}));
+  let pts = T.slice();
+  let m = mst(pts);
+  // Hanan candidates: (xi, yj) crosses
+  const xs = Array.from(new Set(T.map(t=>t.x)));
+  const ys = Array.from(new Set(T.map(t=>t.y)));
+  let candidates=[]; for(const x of xs) for(const y of ys) candidates.push({x,y});
+  for(let iter=0; iter<8; iter++){
+    let bestGain=0.0001, bestC=null;
+    for(const c of candidates){
+      if(pts.some(p=>p.x===c.x && p.y===c.y)) continue;
+      const m2 = mst([...pts, c]);
+      const gain = m.total - m2.total;
+      if(gain > bestGain){ bestGain=gain; bestC=c; }
+    }
+    if(!bestC) break;
+    pts.push(bestC);
+    m = mst(pts);
+  }
+  ST.steinerPts = pts.slice(T.length);
+  ST.edges = m.edges;
+  // build segments for each edge as an L-shape; pick orientation that shares with existing edges
+  ST.segments=[];
+  const segs=[];
+  function addSeg(ei, axis, ax, ay, bx, by){ segs.push({ei, axis, a:{x:ax,y:ay}, b:{x:bx,y:by}}); }
+  m.edges.forEach((e,ei)=>{
+    const A=pts[e.i], B=pts[e.j];
+    if(A.x===B.x){ addSeg(ei,'v',A.x,A.y,B.x,B.y); }
+    else if(A.y===B.y){ addSeg(ei,'h',A.x,A.y,B.x,B.y); }
+    else {
+      // two L-shapes; pick one (horizontal-first by default)
+      addSeg(ei,'h',A.x,A.y,B.x,A.y);
+      addSeg(ei,'v',B.x,A.y,B.x,B.y);
+    }
+  });
+  ST.segments = segs;
+  ST.pts = pts;   // include for path-finding
+}
+
+// adjacency for path-finding inlet→outlet
+function pathEdges(outletIdx){
+  // BFS in the tree (edges are MST), return ordered list of edge indices on inlet→outlet path
+  const adj = ST.pts.map(()=>[]);
+  ST.edges.forEach((e,ei)=>{ adj[e.i].push({to:e.j, ei}); adj[e.j].push({to:e.i, ei}); });
+  const start=0, goal=outletIdx;
+  const prev = new Array(ST.pts.length).fill(null);
+  const q=[start]; const seen=new Set([start]);
+  while(q.length){ const u=q.shift(); if(u===goal) break;
+    for(const nb of adj[u]) if(!seen.has(nb.to)){ seen.add(nb.to); prev[nb.to]={from:u, ei:nb.ei}; q.push(nb.to); } }
+  const eList=[]; let cur=goal; while(prev[cur]){ eList.unshift(prev[cur].ei); cur=prev[cur].from; }
+  return eList;
+}
+
+// ===== flow / pressure-drop along a path =====
+function pressureDrop(outletIdx){
+  const D_m = ST.D_mm/1000, A = Math.PI*D_m*D_m/4;
+  const rho=1000, mu=1e-3;          // water
+  const Nout = ST.terms.filter(t=>t.role==='outlet').length;
+  const Q_total_m3s = ST.qTotal/60 * 1e-6;             // mL/min → m³/s
+  const Q_branch_m3s = Nout>0 ? Q_total_m3s/Nout : 0;  // equal-share outlets
+  const v = Q_branch_m3s / A;
+  const Re = rho*v*D_m/mu;
+  const f = Re<2000 ? 64/Math.max(Re,1) : 0.316*Math.pow(Re,-0.25);
+  const dynP = 0.5*rho*v*v;
+  const eList = pathEdges(outletIdx);
+  let dp_Pa = 0, length_mm = 0, bends = 0, wyes = 0, valves_psi = 0;
+  // pump head: dynamic head at branch
+  // friction per segment
+  ST.segments.forEach(s=>{
+    if(!eList.includes(s.ei)) return;
+    const L_mm = Math.abs(s.b.x-s.a.x)+Math.abs(s.b.y-s.a.y);
+    length_mm += L_mm;
+    dp_Pa += f * (L_mm/1000/D_m) * dynP;
+  });
+  // L-bends: each edge that has both an H and V seg has one elbow
+  eList.forEach(ei=>{ const segs=ST.segments.filter(s=>s.ei===ei); if(segs.length>=2) bends++; });
+  dp_Pa += bends * 1.0 * dynP;
+  // wyes: count Steiner points (junctions of degree ≥ 3) traversed on this path
+  // approximation: each interior node visited that has degree>2 contributes K=0.5
+  const adj = ST.pts.map(()=>[]);
+  ST.edges.forEach((e,ei)=>{ adj[e.i].push({to:e.j, ei}); adj[e.j].push({to:e.i, ei}); });
+  let cur=0, traversed=[0];
+  for(const ei of eList){ const next = ST.edges[ei].i===cur ? ST.edges[ei].j : ST.edges[ei].i; traversed.push(next); cur=next; }
+  traversed.slice(1,-1).forEach(n=>{ if(adj[n].length>=3) wyes++; });
+  dp_Pa += wyes * 0.5 * dynP;
+  // sensors (small K each)
+  ST.sensors.forEach(s=>{ if(eList.includes(ST.segments[s.segIdx].ei)) dp_Pa += SENSOR_K * dynP; });
+  // valves: Cv-based, psi = (Q_gpm/Cv)²
+  const Q_gpm = Q_branch_m3s * 15850;
+  ST.valves.forEach(v=>{ if(eList.includes(ST.segments[v.segIdx].ei)){
+    const Cv = (VALVES.find(x=>x.key===v.valveKey)||{Cv:0.05}).Cv;
+    valves_psi += Math.pow(Q_gpm/Cv, 2);
+  }});
+  const dp_psi = dp_Pa/6895 + valves_psi;
+  return {dp_psi, length_mm, bends, wyes, valves_psi, Re};
+}
+
+// ===== rendering =====
+function fit(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+
+let CRIT_OUTLET = -1; // index in ST.pts of critical outlet
+function draw(){
+  const cv=document.getElementById('plate'); const {c,w,h}=fit(cv);
+  const dark=isDark();
+  const M=14, pw=w-2*M, ph=h-2*M;
+  const X=mx=>M+(mx/PLATE.W)*pw, Y=my=>M+(my/PLATE.H)*ph;
+  // figure critical outlet by max ΔP
+  const outIdx = ST.terms.map((t,i)=>t.role==='outlet'?i:null).filter(i=>i!=null);
+  let critIdx=-1, critDP=-1;
+  outIdx.forEach(i=>{ const {dp_psi}=pressureDrop(i); if(dp_psi>critDP){critDP=dp_psi; critIdx=i;} });
+  CRIT_OUTLET = critIdx;
+  const critEdges = critIdx>=0 ? pathEdges(critIdx) : [];
+  // segments
+  ST.segments.forEach(s=>{
+    const onCrit = critEdges.includes(s.ei);
+    c.strokeStyle = onCrit ? (dark?'#e0584a':'#c0392b') : (dark?'#5a8fb5':'#2c5d8a');
+    c.lineWidth = onCrit ? 5 : 4; c.lineCap='round';
+    c.beginPath(); c.moveTo(X(s.a.x),Y(s.a.y)); c.lineTo(X(s.b.x),Y(s.b.y)); c.stroke();
+  });
+  // Steiner points
+  ST.steinerPts.forEach(p=>{ c.fillStyle=dark?'#bcd':'#445'; c.beginPath(); c.arc(X(p.x),Y(p.y),3,0,7); c.fill(); });
+  // valves & sensors on segments
+  ST.valves.forEach(v=>{ const s=ST.segments[v.segIdx]; if(!s)return;
+    const mx=(s.a.x+s.b.x)/2, my=(s.a.y+s.b.y)/2; const onCrit=critEdges.includes(s.ei);
+    c.fillStyle=onCrit?(dark?'#e0a020':'#c89200'):(dark?'#88a0c0':'#456'); c.strokeStyle=dark?'#fff':'#1a1a1a'; c.lineWidth=1.2;
+    c.beginPath(); c.rect(X(mx)-6,Y(my)-6,12,12); c.fill(); c.stroke();
+  });
+  ST.sensors.forEach(s=>{ const seg=ST.segments[s.segIdx]; if(!seg)return;
+    const mx=(seg.a.x+seg.b.x)/2, my=(seg.a.y+seg.b.y)/2;
+    c.fillStyle=dark?'#aef087':'#5a9a3a'; c.strokeStyle=dark?'#fff':'#1a1a1a';
+    c.beginPath(); c.arc(X(mx),Y(my),5,0,7); c.fill(); c.stroke();
+  });
+  // terminals
+  ST.terms.forEach((t,i)=>{
+    c.fillStyle = t.role==='inlet' ? (dark?'#5a8fb5':'#2c7da0') : (dark?'#8fbf5a':'#5a9a3a');
+    c.beginPath(); c.arc(X(t.x),Y(t.y),7,0,7); c.fill();
+    c.fillStyle=dark?'#fff':'#fff'; c.font='10px ui-monospace,monospace'; c.textAlign='center'; c.textBaseline='middle';
+    c.fillText(t.role==='inlet'?'IN':String(i), X(t.x), Y(t.y));
+  });
+  // readout
+  let html='';
+  if(!outIdx.length){ html='no outlets — click + outlet'; }
+  else{
+    const pump = PUMPS.find(p=>p.key===ST.pumpKey);
+    const Qcap = Math.min(ST.qTotal, pump.qMax);
+    const each = (Qcap/outIdx.length).toFixed(1);
+    const totalLen = ST.segments.reduce((s,seg)=>s+Math.abs(seg.b.x-seg.a.x)+Math.abs(seg.b.y-seg.a.y),0);
+    const pumpHead = pump.pMax_psi, marg = critDP <= 0.8*pumpHead;
+    // junctions = any node of degree >= 3 in the tree (Steiner pts or terminals acting as wyes)
+    const deg=new Array(ST.pts.length).fill(0); ST.edges.forEach(e=>{deg[e.i]++; deg[e.j]++;});
+    const junctions = deg.filter(d=>d>=3).length;
+    html=`pump <b>${pump.name}</b> · head <b>${pumpHead.toFixed(1)} psi</b> · supply <b>${Qcap.toFixed(0)} mL/min</b> → ${each} mL/min × ${outIdx.length} outlets<br>`+
+      `Steiner length <b>${totalLen.toFixed(0)} mm</b> · wyes <b>${junctions}</b> · valves <b>${ST.valves.length}</b> · sensors <b>${ST.sensors.length}</b><br>`+
+      `critical leg (outlet ${critIdx}): ΔP <b>${critDP.toFixed(2)} psi</b> vs head ${pumpHead.toFixed(1)} (20% margin → ${(0.8*pumpHead).toFixed(1)}): `+
+      `<span class="${marg?'pass':'fail'}">${marg?'PASS — budget holds':'FAIL — over budget'}</span>`;
+  }
+  document.getElementById('readout').innerHTML=html;
+}
+
+// ===== interaction =====
+function nearestSegment(mx, my){
+  let best=-1, bd=1e9;
+  ST.segments.forEach((s,i)=>{
+    // distance from (mx,my) to segment s
+    const x1=s.a.x,y1=s.a.y,x2=s.b.x,y2=s.b.y;
+    const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+    if(len<0.001) return;
+    let t=((mx-x1)*dx+(my-y1)*dy)/(len*len); t=Math.max(0,Math.min(1,t));
+    const px=x1+t*dx, py=y1+t*dy, d=Math.hypot(mx-px,my-py);
+    if(d<bd){bd=d; best=i;}
+  });
+  return {idx:best, dist:bd};
+}
+function nearestTerm(mx,my){
+  let best=-1, bd=1e9;
+  ST.terms.forEach((t,i)=>{ const d=Math.hypot(mx-t.x,my-t.y); if(d<bd){bd=d; best=i;} });
+  return {idx:best, dist:bd};
+}
+function onClick(mx,my){
+  if(ST.tool==='addvalve'){ const ns=nearestSegment(mx,my); if(ns.dist<8){ ST.valves.push({segIdx:ns.idx, valveKey:ST.valveSelKey}); recompute(); } return; }
+  if(ST.tool==='addsensor'){ const ns=nearestSegment(mx,my); if(ns.dist<8){ ST.sensors.push({segIdx:ns.idx}); recompute(); } return; }
+  if(ST.tool==='addoutlet'){
+    if(ST.terms.filter(t=>t.role==='outlet').length>=8) return;
+    const newId = Math.max(...ST.terms.map(t=>t.id))+1;
+    ST.terms.push({id:newId, role:'outlet', x:PLATE.W, y:Math.max(6,Math.min(PLATE.H-6,my)), edge:'R'});
+    recompute(); return;
+  }
+  if(ST.tool==='reset'){ init(); recompute(); return; }
+  // select tool: click-to-remove valve or outlet (closest)
+  const nv = (()=>{let best=-1,bd=1e9; ST.valves.forEach((v,i)=>{ const s=ST.segments[v.segIdx]; if(!s)return; const cx=(s.a.x+s.b.x)/2, cy=(s.a.y+s.b.y)/2; const d=Math.hypot(mx-cx,my-cy); if(d<bd){bd=d;best=i;} }); return {idx:best,dist:bd};})();
+  if(nv.dist<5){ ST.valves.splice(nv.idx,1); recompute(); return; }
+  const ns = (()=>{let best=-1,bd=1e9; ST.sensors.forEach((s,i)=>{ const seg=ST.segments[s.segIdx]; if(!seg)return; const cx=(seg.a.x+seg.b.x)/2, cy=(seg.a.y+seg.b.y)/2; const d=Math.hypot(mx-cx,my-cy); if(d<bd){bd=d;best=i;} }); return {idx:best,dist:bd};})();
+  if(ns.dist<5){ ST.sensors.splice(ns.idx,1); recompute(); return; }
+  const nt=nearestTerm(mx,my);
+  if(nt.dist<6 && ST.terms[nt.idx].role==='outlet' && ST.terms.filter(t=>t.role==='outlet').length>1){ ST.terms.splice(nt.idx,1); recompute(); return; }
+}
+function onDragStart(mx,my){ const nt=nearestTerm(mx,my); if(nt.dist<10){ ST.dragging=nt.idx; } }
+function onDragMove(mx,my){
+  if(ST.dragging==null) return; const t=ST.terms[ST.dragging];
+  if(t.edge==='L'){ t.x=0; t.y=Math.max(6,Math.min(PLATE.H-6,my)); }
+  else if(t.edge==='R'){ t.x=PLATE.W; t.y=Math.max(6,Math.min(PLATE.H-6,my)); }
+  recompute();
+}
+function onDragEnd(){ ST.dragging=null; }
+function canvasXY(ev){
+  const cv=document.getElementById('plate'); const r=cv.getBoundingClientRect();
+  const px=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, py=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+  const M=14, pw=r.width-2*M, ph=r.height-2*M;
+  return {x:(px-M)/pw*PLATE.W, y:(py-M)/ph*PLATE.H};
+}
+
+function recompute(){ solveSteiner(); draw(); }
+function refreshControls(){
+  const ps=document.getElementById('pump'); ps.innerHTML=PUMPS.map(p=>`<option value="${p.key}" ${p.key===ST.pumpKey?'selected':''}>${p.name}</option>`).join('');
+  const vs=document.getElementById('vsel'); vs.innerHTML=VALVES.map(v=>`<option value="${v.key}" ${v.key===ST.valveSelKey?'selected':''}>${v.name}</option>`).join('');
+}
+function main(){
+  init(); refreshControls(); recompute();
+  const cv=document.getElementById('plate');
+  cv.addEventListener('mousedown',e=>{ const {x,y}=canvasXY(e); if(ST.tool==='select') onDragStart(x,y); });
+  cv.addEventListener('mousemove',e=>{ if(ST.dragging!=null){ const {x,y}=canvasXY(e); onDragMove(x,y); } });
+  cv.addEventListener('mouseup',e=>{ if(ST.dragging!=null) onDragEnd(); else { const {x,y}=canvasXY(e); onClick(x,y); } });
+  cv.addEventListener('touchstart',e=>{ const {x,y}=canvasXY(e); if(ST.tool==='select') onDragStart(x,y); else onClick(x,y); e.preventDefault(); },{passive:false});
+  cv.addEventListener('touchmove',e=>{ if(ST.dragging!=null){ const {x,y}=canvasXY(e); onDragMove(x,y); e.preventDefault(); } },{passive:false});
+  cv.addEventListener('touchend',()=>{ if(ST.dragging!=null) onDragEnd(); });
+  document.querySelectorAll('#tools button').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.tool==='reset'){ init(); recompute(); return; } ST.tool=b.dataset.tool; document.querySelectorAll('#tools button').forEach(x=>x.classList.toggle('active',x===b)); }));
+  document.getElementById('pump').addEventListener('change',e=>{ ST.pumpKey=e.target.value; draw(); });
+  document.getElementById('vsel').addEventListener('change',e=>{ ST.valveSelKey=e.target.value; });
+  document.getElementById('q').addEventListener('input',e=>{ ST.qTotal=+e.target.value; document.getElementById('q-val').textContent=ST.qTotal+' mL/min'; draw(); });
+  document.getElementById('dia').addEventListener('input',e=>{ ST.D_mm=+e.target.value; document.getElementById('dia-val').textContent=ST.D_mm.toFixed(1)+' mm'; draw(); });
+  window.addEventListener('resize',draw);
+  document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+}
+main();
+</script>
+
+</body>
+</html>

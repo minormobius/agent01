@@ -61,11 +61,11 @@ jobs:
       - name: Stage standalone build
         working-directory: ai-edu
         run: |
-          mkdir -p dist/problems/{beam-vibration,beam-deflection,truss-bridges,spend-report/data,decision-point,motion-system,bearing-life,tolerance-stack,reconcile-total,rope-tension,droplet-sizing,gantt-cpm}
+          mkdir -p dist/problems/{beam-vibration,beam-deflection,truss-bridges,spend-report/data,decision-point,motion-system,bearing-life,tolerance-stack,reconcile-total,rope-tension,droplet-sizing,gantt-cpm,manifold-routing}
           mkdir -p dist/getting-started/{windows,shipping,project-setup,documents,token-economy}
           mkdir -p dist/wasm/beam-solver/src
           cp index.html dist/
-          for p in beam-vibration beam-deflection truss-bridges spend-report decision-point motion-system bearing-life tolerance-stack reconcile-total rope-tension droplet-sizing gantt-cpm; do
+          for p in beam-vibration beam-deflection truss-bridges spend-report decision-point motion-system bearing-life tolerance-stack reconcile-total rope-tension droplet-sizing gantt-cpm manifold-routing; do
             cp problems/$p/index.html dist/problems/$p/
           done
           cp problems/spend-report/data/purchase-orders.csv dist/problems/spend-report/data/

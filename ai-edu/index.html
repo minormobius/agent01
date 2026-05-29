@@ -191,6 +191,11 @@ physics, a reconciliation, a datasheet. A wrong answer announces itself.
     <span class="tag">mechatronics &middot; sizing &middot; Pugh matrix</span>
     <div class="desc">&ldquo;Move 5&nbsp;kg, 0.5&nbsp;m, in 1&nbsp;s.&rdquo; A live seven-segment profile sizes a motor and a transmission &mdash; and the inertia-match optimum turns out to be a pulley you can't buy. Ends in a Pugh matrix of real, in-stock parts with links you can click.</div>
   </li>
+  <li>
+    <a href="./problems/manifold-routing/">Manifold routing: a Steiner tree with components attached</a>
+    <span class="tag">fluidics &middot; Steiner heuristic &middot; verified BOM</span>
+    <div class="desc">One inlet, N outlets, a bonded plate. Drag terminals and the router re-solves a rectilinear Steiner tree live; drop verified valves and sensors onto legs and watch the critical-path pressure drop respond against the pump's head budget.</div>
+  </li>
 </ul>
 
 <h2>Plans &amp; schedules</h2>
@@ -235,9 +240,10 @@ const TREE = {
       ]},
     {key:'design', x:540, name:'Design & selection', oracle:'oracle: the datasheet', side:'right',
       nodes:[
-        {label:'Bearing life',    href:'./problems/bearing-life/'},
-        {label:'Tolerance stack', href:'./problems/tolerance-stack/'},
-        {label:'Motion system',   href:'./problems/motion-system/'},
+        {label:'Bearing life',     href:'./problems/bearing-life/'},
+        {label:'Tolerance stack',  href:'./problems/tolerance-stack/'},
+        {label:'Motion system',    href:'./problems/motion-system/'},
+        {label:'Manifold routing', href:'./problems/manifold-routing/'},
       ]},
     {key:'plan',   x:740, name:'Plans & schedules', oracle:'oracle: the schedule reconciles', side:'right',
       nodes:[
