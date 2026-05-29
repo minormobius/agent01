@@ -61,6 +61,7 @@ jobs:
           mkdir -p dist/problems/rope-tension
           mkdir -p dist/problems/gantt-cpm
           mkdir -p dist/problems/manifold-routing
+          mkdir -p dist/dev
           mkdir -p dist/getting-started/windows
           mkdir -p dist/getting-started/shipping
           mkdir -p dist/getting-started/project-setup
@@ -83,6 +84,7 @@ jobs:
           cp problems/rope-tension/index.html dist/problems/rope-tension/
           cp problems/gantt-cpm/index.html dist/problems/gantt-cpm/
           cp problems/manifold-routing/index.html dist/problems/manifold-routing/
+          cp dev/index.html dist/dev/
           cp getting-started/windows/index.html dist/getting-started/windows/
           cp getting-started/shipping/index.html dist/getting-started/shipping/
           cp getting-started/project-setup/index.html dist/getting-started/project-setup/
