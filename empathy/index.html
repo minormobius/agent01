@@ -141,6 +141,7 @@
   <div class="tabs" id="tabs">
     <button class="tab active" data-tab="timeline">Timeline</button>
     <button class="tab locked" data-tab="gold" id="gold-tab">Gold ✦<span class="spark" id="gold-spark"></span></button>
+    <button class="tab locked" data-tab="goldplus" id="goldplus-tab">Gold+ ✧<span class="spark" id="goldplus-spark"></span></button>
     <button class="tab" data-tab="network">Network</button>
     <button class="tab" data-tab="blocks">Blocks</button>
     <button class="tab" data-tab="feeds">Feeds</button>
@@ -154,6 +155,11 @@
   <section class="panel" id="panel-gold">
     <div class="status" id="gold-status">—</div>
     <div id="gold-list"></div>
+  </section>
+
+  <section class="panel" id="panel-goldplus">
+    <div class="status" id="goldplus-status">—</div>
+    <div id="goldplus-list"></div>
   </section>
 
   <section class="panel" id="panel-network">
@@ -252,7 +258,7 @@ async function fetchAuthorFeedFull(did, limit = 5) {
 // Tab routing
 const tabs = document.querySelectorAll('.tab');
 const panels = document.querySelectorAll('.panel');
-const loaded = { timeline: false, gold: false, network: false, blocks: false, feeds: false };
+const loaded = { timeline: false, gold: false, goldplus: false, network: false, blocks: false, feeds: false };
 let currentSubject = null; // { did, handle, pds, follows, gold, ... }
 
 tabs.forEach(t => t.addEventListener('click', () => {
@@ -283,15 +289,16 @@ document.getElementById('form').addEventListener('submit', async (e) => {
 async function load(handle) {
   // Reset
   for (const k of Object.keys(loaded)) loaded[k] = false;
-  ['timeline', 'gold', 'network', 'blocks', 'feeds'].forEach(t =>
+  ['timeline', 'gold', 'goldplus', 'network', 'blocks', 'feeds'].forEach(t =>
     setStatus(t, 'Loading…', false));
-  ['timeline-list', 'gold-list', 'network-body', 'blocks-body', 'feeds-body'].forEach(id =>
+  ['timeline-list', 'gold-list', 'goldplus-list', 'network-body', 'blocks-body', 'feeds-body'].forEach(id =>
     document.getElementById(id).innerHTML = '');
-  document.getElementById('gold-tab').classList.add('locked');
-  document.getElementById('gold-spark').textContent = '';
+  for (const id of ['gold-tab', 'goldplus-tab']) document.getElementById(id).classList.add('locked');
+  for (const id of ['gold-spark', 'goldplus-spark']) document.getElementById(id).textContent = '';
 
   setStatus('timeline', `Resolving ${handle}…`, false);
-  const did = await resolveHandle(handle);
+  // Accept either a handle or a bare did:plc:… / did:web:… in the input.
+  const did = handle.startsWith('did:') ? handle : await resolveHandle(handle);
   const pds = await resolvePds(did);
   const profiles = await getProfiles([did]);
   const p = profiles.get(did) || {};
@@ -299,6 +306,12 @@ async function load(handle) {
     displayName: p.displayName || p.handle || handle,
     avatar: p.avatar, followersCount: p.followersCount,
     followsCount: p.followsCount, postsCount: p.postsCount };
+
+  // Canonical URL: prefer the resolved handle (prettier than the DID).
+  const canonical = '/' + (p.handle || handle);
+  if (location.pathname !== canonical) {
+    history.replaceState(null, '', canonical + location.search);
+  }
 
   // Header card
   document.getElementById('who-avatar').src = p.avatar || '';
@@ -331,6 +344,7 @@ async function renderTab(tab) {
   try {
     if (tab === 'timeline') await renderTimeline();
     else if (tab === 'gold') await renderGold();
+    else if (tab === 'goldplus') await renderGoldPlus();
     else if (tab === 'network') await renderNetwork();
     else if (tab === 'blocks') await renderBlocks();
     else if (tab === 'feeds') await renderFeeds();
@@ -407,6 +421,43 @@ async function renderGold() {
     false);
 }
 
+// --- Gold+ (core + shells, reverse chron) --------------------------------
+async function renderGoldPlus() {
+  const plus = currentSubject.goldPlus;
+  const core = currentSubject.gold || [];
+  const shells = currentSubject.shells || [];
+  if (!plus || !plus.length) {
+    setStatus('goldplus', 'Gold+ cluster not ready yet.', false);
+    return;
+  }
+  setStatus('goldplus',
+    `Pulling recent posts from ${plus.length} core+shell members…`, false);
+
+  const feeds = await pool(plus, Math.min(plus.length, 15), async (did) => {
+    try { return await fetchAuthorFeedFull(did, 10); }
+    catch { return []; }
+  }, (done, total) => {
+    setStatus('goldplus', `Pulling posts… ${done}/${total}`, false);
+  });
+
+  const merged = feeds.flat()
+    .filter(it => it && it.post && it.post.record && it.post.record.createdAt)
+    .sort((a, b) =>
+      new Date(b.post.record.createdAt) - new Date(a.post.record.createdAt))
+    .slice(0, 150);
+
+  const list = document.getElementById('goldplus-list');
+  if (!merged.length) {
+    setStatus('goldplus', 'No recent posts from the gold+ cluster.', false);
+    return;
+  }
+  list.innerHTML = merged.map(postHtml).join('');
+  const shellDesc = shells.map(s => `t≥${s.threshold}:${s.members.length}`).join(' · ');
+  setStatus('goldplus',
+    `${core.length} core + ${plus.length - core.length} shell (${shellDesc || 'no shells'}) · ${merged.length} posts · reverse-chron, no scoring.`,
+    false);
+}
+
 // --- Gold cluster compute (background) -----------------------------------
 const CLUSTER_BATCH_URL = 'https://mino.mobi/cluster-batch';
 const MIN_CLIQUE = 4;
@@ -464,18 +515,60 @@ async function computeGoldCluster(subject) {
   const { clique, exhaustive } = findMaxClique(mutual, nodes);
   subject.gold = clique;
 
-  const tab = document.getElementById('gold-tab');
-  if (clique.length >= MIN_CLIQUE) {
-    tab.classList.remove('locked');
-    spark.textContent = `${clique.length}${exhaustive ? '' : '+'}`;
-    setStatus('gold',
-      `Ready: ${clique.length} mutual-follow clique${exhaustive ? '' : ' (approx — search budget hit)'}. Click the tab.`,
-      false);
-  } else {
+  const goldTab = document.getElementById('gold-tab');
+  const plusTab = document.getElementById('goldplus-tab');
+  const plusSpark = document.getElementById('goldplus-spark');
+
+  if (clique.length < MIN_CLIQUE) {
     spark.textContent = '(no clique)';
+    plusSpark.textContent = '';
     setStatus('gold',
       `Couldn't find a clique of ≥${MIN_CLIQUE} mutually-following accounts.`, true);
+    setStatus('goldplus', `(needs a gold cluster first)`, true);
+    return;
   }
+
+  // Shell-peel concentric rings of nodes mutually following most of the core.
+  const shells = shellPeel(clique, mutual, MIN_CLIQUE);
+  const shellMembers = [];
+  for (const s of shells) for (const m of s.members) shellMembers.push(m.did);
+  subject.goldPlus = [...clique, ...shellMembers];
+  subject.shells = shells;
+
+  goldTab.classList.remove('locked');
+  plusTab.classList.remove('locked');
+  spark.textContent = `${clique.length}${exhaustive ? '' : '+'}`;
+  plusSpark.textContent = `${subject.goldPlus.length}`;
+  setStatus('gold',
+    `Ready: ${clique.length} mutual-follow core${exhaustive ? '' : ' (approx — search budget hit)'}. Click the tab.`,
+    false);
+  setStatus('goldplus',
+    `Ready: ${clique.length} core + ${shellMembers.length} shell across ${shells.length} ring${shells.length === 1 ? '' : 's'}. Click the tab.`,
+    false);
+}
+
+// Shell peeling — ported from /cluster/. Finds nodes mutually following at
+// least t of the core, for decreasing thresholds, until floor.
+function shellPeel(coreDids, mutual, minThreshold) {
+  const coreSize = coreDids.length;
+  const shells = [];
+  const assigned = new Set(coreDids);
+  const floor = Math.max(2, Math.min(minThreshold, Math.ceil(coreSize / 2)));
+
+  for (let t = coreSize - 1; t >= floor; t--) {
+    const layer = [];
+    for (const [node, neighbors] of mutual) {
+      if (assigned.has(node)) continue;
+      let count = 0;
+      for (const c of coreDids) if (neighbors.has(c)) count++;
+      if (count >= t) layer.push({ did: node, count });
+    }
+    if (!layer.length) continue;
+    layer.sort((a, b) => b.count - a.count);
+    for (const m of layer) assigned.add(m.did);
+    shells.push({ threshold: t, members: layer });
+  }
+  return shells;
 }
 
 // Bron-Kerbosch with pivot + pruning + 5M-op budget. Ported from /cluster/.
@@ -782,13 +875,29 @@ function relTime(d) {
   input.addEventListener('blur', () => setTimeout(close, 150));
 })();
 
-// Allow ?handle= deeplink
-const params = new URLSearchParams(location.search);
-const initial = params.get('handle');
+// Quasipermalinks: empath.mino.mobi/<handle> or /<did:plc:…>.
+// The Worker's assets are configured with not_found_handling: single-page-
+// application, so any path serves this file. Parse on load.
+function subjectFromUrl() {
+  const path = decodeURIComponent(location.pathname.replace(/^\/+/, '').replace(/\/+$/, ''));
+  if (path) return path;
+  return new URLSearchParams(location.search).get('handle') || '';
+}
+
+const initial = subjectFromUrl();
 if (initial) {
   document.getElementById('handle').value = initial;
   document.getElementById('form').dispatchEvent(new Event('submit', { cancelable: true }));
 }
+
+// Browser navigation (back/forward) re-loads the new subject.
+window.addEventListener('popstate', () => {
+  const s = subjectFromUrl();
+  if (s && s !== currentSubject?.handle && s !== currentSubject?.did) {
+    document.getElementById('handle').value = s;
+    document.getElementById('form').dispatchEvent(new Event('submit', { cancelable: true }));
+  }
+});
 </script>
 
 </body>
