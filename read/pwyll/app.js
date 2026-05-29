@@ -312,9 +312,205 @@
     });
   }
 
+  /* ====================== THE MYTHOGRAPH (synergistic graph) ======================
+     One typed multigraph over the whole annotation layer. Nodes: movement,
+     character, motif, propp-function. Edges: APPEARS_IN (char->movement),
+     RELATES_TO (char<->char), EXHIBITS (motif->movement), REALIZES (fn->movement).
+     The six movements are pinned along a horizontal spine; everything else is
+     force-laid, so cross-cutting elements pull toward the centre. */
+  function buildMythograph() {
+    const nodes = [], edges = [], id2i = {};
+    const add = (id, full, label, type, link, preview) => { id2i[id] = nodes.length; nodes.push({ id, full, label, type, link, preview }); };
+    P.tale.passages.forEach((p, i) => { const n = i + 1; add("mv-" + n, p.title, toRoman(n), "movement", { passage: n }, (p.segments[0] || {}).e || ""); });
+    P.characters.cast.forEach((c) => add("ch-" + c.id, c.name, c.name, "character", { char: c.id }, c.blurb || ""));
+    P.motifs.list.forEach((m, i) => add("mo-" + i, (m.code || m.cls) + " — " + m.name, m.code || m.cls, "motif", { tab: "motifs" }, m.gloss || ""));
+    P.propp.moves.forEach((mv, i) => add("pp-" + i, mv.sym + " · " + mv.name, mv.sym, "propp", { tab: "propp", anchor: "propp-move-" + i }, mv.realized || ""));
+    const edge = (a, b, type) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type }); };
+    P.characters.cast.forEach((c) => (c.appears || []).forEach((n) => edge("ch-" + c.id, "mv-" + n, "appears")));
+    const seen = {}; P.characters.cast.forEach((c) => (c.rel || []).forEach((r) => { const k = [c.id, r.to].sort().join("|"); if (seen[k]) return; seen[k] = 1; edge("ch-" + c.id, "ch-" + r.to, "relates"); }));
+    P.motifs.list.forEach((m, i) => (m.passages || []).forEach((n) => edge("mo-" + i, "mv-" + n, "exhibits")));
+    P.propp.moves.forEach((mv, i) => edge("pp-" + i, "mv-" + mv.passage, "realizes"));
+    for (let i = 1; i < P.tale.passages.length; i++) edge("mv-" + i, "mv-" + (i + 1), "spine");
+    return { nodes, edges };
+  }
+
+  const MYTH_TYPE = {
+    movement: { color: "#c9a24a", label: "Movements", r: 17 },
+    character: { color: "#6fa8c9", label: "Characters", r: 9 },
+    motif: { color: "#c97f9a", label: "Motifs", r: 6 },
+    propp: { color: "#7fb37f", label: "Functions", r: 6 },
+  };
+  const MYTH_EDGE = { spine: "#d8b24a", appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f" };
+
+  function renderMythograph() {
+    const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
+    const active = { movement: true, character: true, motif: true, propp: true };
+    const mobile = (window.innerWidth || 900) < 640;
+    const R = (n) => MYTH_TYPE[n.type].r;
+    let selected = null, selGroup = null, grown = [];
+    let alpha = 1, running = false, simReady = false;
+    const sim = { L: 90, charge: -1000 };
+
+    const fhost = $("#myth-filters"); fhost.innerHTML = "";
+    Object.keys(MYTH_TYPE).forEach((t) => {
+      const b = el("button", "myth-filter active", `<span class="dot" style="background:${MYTH_TYPE[t].color}"></span>${MYTH_TYPE[t].label}`);
+      b.onclick = () => { active[t] = !active[t]; b.classList.toggle("active", active[t]); applyVis(); };
+      fhost.appendChild(b);
+    });
+    const sliders = el("div", "myth-sliders");
+    function addSlider(labelTxt, min, max, val, onIn) {
+      const wrap = el("div", "myth-slider");
+      wrap.appendChild(el("label", null, labelTxt));
+      const inp = document.createElement("input"); inp.type = "range"; inp.min = min; inp.max = max; inp.value = val;
+      const out = el("span", "myth-slval", "");
+      inp.addEventListener("input", () => { onIn(+inp.value, out); reheat(); });
+      wrap.appendChild(inp); wrap.appendChild(out); onIn(+inp.value, out); sliders.appendChild(wrap);
+    }
+    addSlider("Link length", 0, 100, 32, (v, out) => { sim.L = 24 + v * 2.4; out.textContent = Math.round(sim.L); });
+    addSlider("Repulsion", 0, 100, 46, (v, out) => { sim.charge = -(60 + v * 26); out.textContent = v; });
+    fhost.appendChild(sliders);
+
+    const leg = $("#myth-legend"); leg.innerHTML = "";
+    [["spine", "narrative spine (I → VI)"], ["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
+      .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey${k === "spine" ? " edgekey-spine" : ""}" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
+
+    nodes.forEach((n, i) => { const a = 2 * Math.PI * i / nodes.length; n.x = Math.cos(a) * 160; n.y = Math.sin(a) * 160; n.vx = 0; n.vy = 0; });
+    const svg = svgEl("svg", { class: "myth" }); const layer = svgEl("g", { class: "zl" }); svg.appendChild(layer);
+    const edgeObjs = [], adj = {};
+    edges.forEach((e, ei) => {
+      const sp = e.type === "spine";
+      const line = svgEl("line", { class: sp ? "myth-spine" : "", stroke: MYTH_EDGE[e.type], "stroke-opacity": sp ? 0.72 : 0.22, "stroke-width": sp ? 2.6 : 1 });
+      layer.appendChild(line); edgeObjs.push(line);
+      (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
+    });
+    const nodeObjs = [], shapes = [];
+    nodes.forEach((n, i) => {
+      const T = MYTH_TYPE[n.type];
+      const grp = svgEl("g", { class: "myth-node", transform: `translate(${n.x} ${n.y})` });
+      let shapeEl, tag;
+      if (n.type === "movement") {
+        shapeEl = svgEl("rect", { x: -T.r, y: -T.r, width: T.r * 2, height: T.r * 2, rx: 5, fill: T.color, "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1.5 });
+        grp.appendChild(shapeEl); tag = "rect";
+        const lab = svgEl("text", { x: 0, y: 5, "text-anchor": "middle", "font-size": 13, fill: "#14110d", "font-weight": "700" }); lab.textContent = n.label; grp.appendChild(lab);
+      } else {
+        shapeEl = svgEl("circle", { cx: 0, cy: 0, r: T.r, fill: T.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.2 });
+        grp.appendChild(shapeEl); tag = "circle";
+      }
+      shapes.push({ el: shapeEl, tag: tag, r: T.r });
+      const ttl = svgEl("title"); ttl.textContent = n.full; grp.appendChild(ttl);
+      grp.addEventListener("mouseenter", () => highlight(i));
+      grp.addEventListener("mouseleave", () => { selected != null ? highlight(selected) : clearHi(); });
+      grp.addEventListener("click", () => select(i));
+      layer.appendChild(grp); nodeObjs.push(grp);
+    });
+
+    function highlight(i) {
+      const keep = new Set([i]); const inc = new Set();
+      (adj[i] || []).forEach((ei) => { inc.add(ei); keep.add(edges[ei].a); keep.add(edges[ei].b); });
+      edgeObjs.forEach((l, ei) => l.classList.toggle("hot", inc.has(ei)));
+      nodeObjs.forEach((gp, ni) => gp.classList.toggle("dim", active[nodes[ni].type] && !keep.has(ni)));
+    }
+    function clearHi() { edgeObjs.forEach((l) => l.classList.remove("hot")); nodeObjs.forEach((gp) => gp.classList.remove("dim")); }
+    function applyVis() {
+      nodeObjs.forEach((gp, ni) => gp.style.display = active[nodes[ni].type] ? "" : "none");
+      edgeObjs.forEach((l, ei) => l.style.display = (active[nodes[edges[ei].a].type] && active[nodes[edges[ei].b].type]) ? "" : "none");
+    }
+    const stripTags = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&mdash;/g, "—").replace(/&[a-z]+;/g, " ").trim();
+    const truncate = (s, n) => s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s;
+    function wrapText(s, max) { const w = s.split(/\s+/), lines = []; let cur = ""; w.forEach((word) => { if ((cur + " " + word).trim().length > max) { if (cur) lines.push(cur); cur = word; } else cur = (cur + " " + word).trim(); }); if (cur) lines.push(cur); return lines; }
+    function growNode(i) { const s = shapes[i], f = 1.8; if (s.tag === "circle") s.el.setAttribute("r", s.r * f); else { s.el.setAttribute("x", -s.r * f); s.el.setAttribute("y", -s.r * f); s.el.setAttribute("width", s.r * 2 * f); s.el.setAttribute("height", s.r * 2 * f); } grown.push(i); }
+    function resetGrown() { grown.forEach((i) => { const s = shapes[i]; if (s.tag === "circle") s.el.setAttribute("r", s.r); else { s.el.setAttribute("x", -s.r); s.el.setAttribute("y", -s.r); s.el.setAttribute("width", s.r * 2); s.el.setAttribute("height", s.r * 2); } }); grown = []; }
+    function neighborLabel(n) { const t = svgEl("text", { class: "myth-label", x: n.x, y: n.y - R(n) * 1.8 - 6, "text-anchor": "middle", "font-size": 11 }); t.textContent = truncate(stripTags(n.full), 26); return t; }
+    function previewCard(n) {
+      const g2 = svgEl("g"), lh = 15, padc = 9, cw = 214;
+      const titleLines = wrapText(stripTags(n.full), 30), bodyLines = wrapText(truncate(stripTags(n.preview), 190), 33);
+      const th = titleLines.length * 15, h = padc * 2 + th + 6 + bodyLines.length * lh;
+      const bx = n.x + R(n) * 1.8 + 12, by = n.y - h / 2;
+      g2.appendChild(svgEl("rect", { x: bx, y: by, width: cw, height: h, rx: 8, fill: "#1c1813", stroke: "#c9a24a", "stroke-width": 1.2 }));
+      const tt = svgEl("text", { "font-size": 12.5, fill: "#e0c178", "font-weight": "700" });
+      titleLines.forEach((ln, idx) => { const ts = svgEl("tspan", { x: bx + padc, y: by + padc + 12 + idx * 15 }); ts.textContent = ln; tt.appendChild(ts); });
+      g2.appendChild(tt);
+      const bt = svgEl("text", { class: "myth-pvbody", "font-size": 11.5, fill: "#b3a892" });
+      bodyLines.forEach((ln, idx) => { const ts = svgEl("tspan", { x: bx + padc, y: by + padc + th + 18 + idx * lh }); ts.textContent = ln; bt.appendChild(ts); });
+      g2.appendChild(bt);
+      return g2;
+    }
+    function clearSel() { if (selGroup) { selGroup.remove(); selGroup = null; } resetGrown(); }
+    function select(i) {
+      running = false; alpha = 0; clearSel(); selected = i; highlight(i); fillDetail(i);
+      selGroup = svgEl("g", { class: "myth-sel" }); layer.appendChild(selGroup);
+      const nb = []; (adj[i] || []).forEach((ei) => { const e = edges[ei], o = e.a === i ? e.b : e.a; if (active[nodes[o].type] && nb.indexOf(o) < 0) nb.push(o); });
+      nb.forEach((o) => { growNode(o); selGroup.appendChild(neighborLabel(nodes[o])); });
+      growNode(i);
+      selGroup.appendChild(previewCard(nodes[i]));
+    }
+
+    function fillDetail(i) {
+      const n = nodes[i], d = $("#myth-detail"); d.innerHTML = "";
+      d.appendChild(el("div", "md-type", MYTH_TYPE[n.type].label.replace(/s$/, "")));
+      d.appendChild(el("h3", "md-title", escapeHtml(n.full)));
+      const open = el("div", "md-open");
+      if (n.link.passage) { const a = el("a", null, "→ Read this movement"); a.setAttribute("data-passage", n.link.passage); open.appendChild(a); }
+      else if (n.link.char) { const a = el("a", null, "→ Character card"); a.setAttribute("data-char", n.link.char); open.appendChild(a); }
+      else if (n.link.tab === "motifs") { const a = el("a", null, "→ In the motif index"); a.onclick = () => switchView("motifs"); open.appendChild(a); }
+      else if (n.link.tab === "propp") { const a = el("a", null, "→ In the story graph"); a.onclick = () => { switchView("propp"); if (n.link.anchor) setTimeout(() => { const c = $("#" + n.link.anchor); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 40); }; open.appendChild(a); }
+      d.appendChild(open);
+      const groups = {};
+      (adj[i] || []).forEach((ei) => { const e = edges[ei]; const other = e.a === i ? e.b : e.a; (groups[e.type] = groups[e.type] || []).push(other); });
+      const GLAB = { spine: "In sequence", appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes" };
+      const order = n.type === "movement" ? ["spine", "appears", "exhibits", "realizes", "relates"] : ["appears", "relates", "exhibits", "realizes", "spine"];
+      order.forEach((t) => {
+        if (!groups[t]) return;
+        const sec = el("div", "md-group");
+        sec.appendChild(el("span", "md-glabel", GLAB[t] + ": "));
+        groups[t].forEach((oi, idx) => {
+          const chip = el("a", "md-chip"); chip.innerHTML = escapeHtml(nodes[oi].full);
+          chip.onclick = () => select(oi);
+          sec.appendChild(chip);
+          if (idx < groups[t].length - 1) sec.appendChild(document.createTextNode(" "));
+        });
+        d.appendChild(sec);
+      });
+    }
+
+    const stiffness = 0.34, velDecay = 0.62, alphaDecay = 0.028, alphaMin = 0.004;
+    const cstrX = mobile ? 0.13 : 0.04, cstrY = 0.04;
+    const clampv = (v) => v > 40 ? 40 : (v < -40 ? -40 : v);
+    const raf = (window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : (fn) => setTimeout(fn, 16));
+    function step() {
+      const a = alpha;
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y, d2 = dx * dx + dy * dy; if (d2 < 25) d2 = 25;
+        const w = sim.charge * a / d2, fx = dx * w, fy = dy * w;
+        nodes[i].vx += fx; nodes[i].vy += fy; nodes[j].vx -= fx; nodes[j].vy -= fy;
+      }
+      edges.forEach((e) => { const A = nodes[e.a], B = nodes[e.b]; let dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01; const sp = e.type === "spine"; const L = sp ? Math.max(sim.L * 1.5, 130) : sim.L, st = sp ? 0.62 : stiffness; const l = (d - L) / d * a * st, fx = dx * l * 0.5, fy = dy * l * 0.5; A.vx += fx; A.vy += fy; B.vx -= fx; B.vy -= fy; });
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const min = R(nodes[i]) + R(nodes[j]) + 6;
+        if (d < min) { const p = (min - d) / d * a, fx = dx * p, fy = dy * p; nodes[i].vx += fx; nodes[i].vy += fy; nodes[j].vx -= fx; nodes[j].vy -= fy; }
+      }
+      nodes.forEach((n) => { n.vx += (-n.x) * cstrX * a; n.vy += (-n.y) * cstrY * a; n.x += clampv(n.vx); n.y += clampv(n.vy); n.vx *= velDecay; n.vy *= velDecay; });
+      alpha += (0 - alpha) * alphaDecay;
+    }
+    function paint() {
+      for (let i = 0; i < nodeObjs.length; i++) nodeObjs[i].setAttribute("transform", `translate(${nodes[i].x.toFixed(1)} ${nodes[i].y.toFixed(1)})`);
+      for (let ei = 0; ei < edgeObjs.length; ei++) { const e = edges[ei], l = edgeObjs[ei]; l.setAttribute("x1", nodes[e.a].x.toFixed(1)); l.setAttribute("y1", nodes[e.a].y.toFixed(1)); l.setAttribute("x2", nodes[e.b].x.toFixed(1)); l.setAttribute("y2", nodes[e.b].y.toFixed(1)); }
+    }
+    function bounds() { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; nodes.forEach((n) => { if (n.x < a) a = n.x; if (n.y < b) b = n.y; if (n.x > c) c = n.x; if (n.y > d) d = n.y; }); return { x: a, y: b, w: (c - a) || 1, h: (d - b) || 1 }; }
+    function frame() { step(); paint(); if (alpha > 0.12 && zoomers.myth) zoomers.myth.fit(); if (alpha > alphaMin && running) raf(frame); else running = false; }
+    function reheat() { if (!simReady) return; if (selected != null) { clearSel(); selected = null; clearHi(); } alpha = Math.max(alpha, 0.7); if (!running) { running = true; raf(frame); } }
+
+    for (let w = 0; w < 30; w++) step();
+    const host = $("#myth-host"); host.innerHTML = ""; host.appendChild(svg); paint();
+    zoomers.myth = attachZoom(svg, layer, bounds, host);
+    $("#myth-detail").innerHTML = '<div class="md-hint">A live force simulation — tune <em>link length</em> and <em>repulsion</em> above. Hover a node to light its threads; click any node to freeze the layout and preview what it touches.</div>';
+    simReady = true; running = true; raf(frame);
+  }
+
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "characters", "web", "propp", "motifs"];
-  let webDrawn = false, proppDrawn = false, motifsDrawn = false, current = "read";
+  const VIEWS = ["read", "characters", "web", "propp", "motifs", "myth"];
+  let webDrawn = false, proppDrawn = false, motifsDrawn = false, mythDrawn = false, current = "read";
   function switchView(v) {
     if (!VIEWS.includes(v)) v = "read";
     current = v;
@@ -323,6 +519,7 @@
     if (v === "web" && !webDrawn) { renderWeb(); webDrawn = true; }
     if (v === "propp" && !proppDrawn) { renderPropp(); proppDrawn = true; }
     if (v === "motifs" && !motifsDrawn) { renderMotifs(); motifsDrawn = true; }
+    if (v === "myth" && !mythDrawn) { renderMythograph(); mythDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
   }
