@@ -181,9 +181,16 @@ function chooseTileSize(count) {
 // fetch+createImageBitmap rather than <img>.onerror so we know *why* a load
 // fails — Safari's onerror gives no detail, but a real HTTP status + a
 // TypeError (network/CORS) are distinguishable here.
+//
+// NOTE: cdn.bsky.app doesn't send Access-Control-Allow-Origin, so cross-
+// origin fetch fails with TypeError. The right long-term fix is a route on
+// our own worker (e.g. /api/imgproxy?url=…) that re-sends the bytes with
+// CORS headers. For now we fall back to corsproxy.io after a direct CORS
+// failure so we can verify the rest of the pipeline works end-to-end.
+const CORS_PROXY = 'https://corsproxy.io/?';
 let lastImageError = '';
-async function loadImage(url) {
-  if (!url) { lastImageError = 'empty url'; return null; }
+
+async function tryFetchAsBitmap(url) {
   try {
     const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
     if (!r.ok) { lastImageError = `HTTP ${r.status}`; return null; }
@@ -193,6 +200,22 @@ async function loadImage(url) {
     lastImageError = (e && e.name === 'TypeError') ? 'network/CORS' : (e?.message || 'fetch error');
     return null;
   }
+}
+
+async function loadImage(url) {
+  if (!url) { lastImageError = 'empty url'; return null; }
+  // Direct.
+  let bm = await tryFetchAsBitmap(url);
+  if (bm) return bm;
+  // If that was a CORS failure (the common case for cdn.bsky.app), retry
+  // through a public proxy. HTTP errors aren't retried — a 404 on direct is
+  // still a 404 through the proxy.
+  if (lastImageError === 'network/CORS') {
+    bm = await tryFetchAsBitmap(CORS_PROXY + encodeURIComponent(url));
+    if (bm) { lastImageError = ''; return bm; }
+    // proxy itself failed — keep the proxy's error as lastImageError
+  }
+  return null;
 }
 
 function drawTile(ctx, img, dx, dy, size) {
