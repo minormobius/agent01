@@ -93,33 +93,55 @@ function climbToRoot(thread) {
   return cur;
 }
 
-function imagesFromEmbed(embed) {
-  if (!embed) return null;
-  if (embed.$type === 'app.bsky.embed.images#view') return embed.images;
-  if (embed.$type === 'app.bsky.embed.recordWithMedia#view' &&
-      embed.media?.$type === 'app.bsky.embed.images#view') return embed.media.images;
-  return null;
+// Recursively walks an embed tree, collecting image refs. Handles three view
+// types:
+//   - app.bsky.embed.images#view           — direct images on this post
+//   - app.bsky.embed.recordWithMedia#view  — text + media + quote
+//   - app.bsky.embed.record#view           — a pure quote-post; walk into the
+//                                            quoted record's own `embeds`
+// Each collected image is attributed to the post (or quoted post) it lives on,
+// so quote-archive threads display the original authors, not the OP.
+function collectFromEmbed(out, embed, attributedAuthor) {
+  if (!embed || out.length >= MAX_IMAGES) return;
+  const t = embed.$type;
+  if (t === 'app.bsky.embed.images#view') {
+    for (const im of embed.images) {
+      if (out.length >= MAX_IMAGES) break;
+      out.push({
+        thumb: im.thumb,
+        fullsize: im.fullsize,
+        alt: im.alt || '',
+        authorHandle: attributedAuthor?.handle || '',
+      });
+    }
+    return;
+  }
+  if (t === 'app.bsky.embed.recordWithMedia#view') {
+    if (embed.media)  collectFromEmbed(out, embed.media, attributedAuthor);
+    if (embed.record) collectFromEmbed(out, embed.record, attributedAuthor);
+    return;
+  }
+  if (t === 'app.bsky.embed.record#view') {
+    const inner = embed.record;
+    if (inner && inner.$type === 'app.bsky.embed.record#viewRecord') {
+      const quotedAuthor = inner.author || attributedAuthor;
+      if (Array.isArray(inner.embeds)) {
+        for (const e of inner.embeds) collectFromEmbed(out, e, quotedAuthor);
+      }
+    }
+    return;
+  }
 }
 
-// BFS so the visible scroll order roughly tracks thread time.
+// BFS through the thread tree so the visible scroll order roughly tracks
+// thread time (or at least the breadth-first walk of replies).
 function collectImages(rootThread) {
   const out = [];
   const queue = [rootThread];
   while (queue.length && out.length < MAX_IMAGES) {
     const node = queue.shift();
     if (!node?.post) continue;
-    const imgs = imagesFromEmbed(node.post.embed);
-    if (imgs) {
-      for (const im of imgs) {
-        out.push({
-          thumb: im.thumb,
-          fullsize: im.fullsize,
-          alt: im.alt || '',
-          authorHandle: node.post.author?.handle || '',
-        });
-        if (out.length >= MAX_IMAGES) break;
-      }
-    }
+    collectFromEmbed(out, node.post.embed, node.post.author);
     if (Array.isArray(node.replies)) {
       for (const r of node.replies) {
         if (r?.$type === 'app.bsky.feed.defs#threadViewPost') queue.push(r);
@@ -628,28 +650,41 @@ canvas.addEventListener('wheel', (e) => {
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
-// Minimal one-at-a-time stamping. First click fetches the thread and stores
-// the image list; each click stamps the next image onto the placeholder
-// canvas (so the celestial backdrop stays put — failed loads or weird sizes
-// won't black-hole the orb). Re-uploads the texture after each stamp.
+// Minimal one-at-a-time stamping. First click (or URL change) fetches the
+// thread and stores the image list; each click stamps the next image onto
+// the placeholder canvas (so the celestial backdrop stays put — failed loads
+// or weird sizes won't black-hole the orb). Re-uploads the texture after
+// each stamp.
 let imageQueue = [];
 let stampedCount = 0;
+let lastFetchedUrl = '';
+
+function urlTail(u) {
+  if (!u) return '(none)';
+  const idx = u.lastIndexOf('/');
+  return u.slice(idx + 1).slice(0, 48);
+}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (loadBtn.disabled) return;
   loadBtn.disabled = true;
   try {
-    if (imageQueue.length === 0) {
+    const wantedUrl = urlInput.value.trim();
+    const needFetch = imageQueue.length === 0 || wantedUrl !== lastFetchedUrl;
+
+    if (needFetch) {
       setStatus('fetching thread…');
-      const { images, root } = await loadThread(urlInput.value.trim());
+      const { images, root } = await loadThread(wantedUrl);
       if (images.length === 0) {
-        setStatus(`no images in thread (root @${root.author.handle})`, true);
+        setStatus(`no images in thread (root @${root.author.handle}) — even after walking quote embeds`, true);
+        imageQueue = [];
         return;
       }
       imageQueue = images;
       stampedCount = 0;
-      setStatus(`thread has ${images.length} images · click load again to stamp one`);
+      lastFetchedUrl = wantedUrl;
+      setStatus(`thread has ${images.length} images (incl. quote embeds) · click load to stamp one`);
       loadBtn.textContent = 'stamp +1';
       return;
     }
@@ -664,7 +699,10 @@ form.addEventListener('submit', async (e) => {
     const img = await loadImage(entry.thumb);
     if (!img) {
       stampedCount++;
-      setStatus(`image ${stampedCount} failed (CORS/404?) · ${stampedCount}/${imageQueue.length}`, true);
+      // Surface the URL tail so we can tell apart "CORS blocked", "404",
+      // and "I extracted garbage" by inspection.
+      setStatus(`image ${stampedCount} failed · …/${urlTail(entry.thumb)}`, true);
+      console.warn('orb: image failed to load:', entry.thumb);
       return;
     }
 
