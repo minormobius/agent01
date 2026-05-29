@@ -136,7 +136,7 @@ return v.struct * 2 - v.blowout * 3 + 0.3 * nov;"></textarea>
 <script type="module">
 "use strict";
 import { FluoddityEngine, defaultConfig, mutate } from './engine.js';
-import { readDescriptors, fitness, verdict, vec, dist, VIT_COLOR } from './descriptors.js';
+import { readDescriptors, fitness, fitness2, merge, vec, dist, verdict, VIT_COLOR } from './descriptors.js';
 import { PhaseMap } from './phasemap.js';
 import { EXPEDITION_COLLECTION, ANCHOR } from './data.js';
 import { auth } from './authchip.js';
@@ -178,15 +178,31 @@ const round4 = (x) => Math.round((+x || 0) * 10000) / 10000;
 async function evalInd(ind) {
   if (!engine) { ind.fit = 0; ind.verdict = 'dead'; ind.vv = [0, 0, 0, 0]; return; }
   engine.load(ind.config, ind.id);
+  // T1 snapshot: settle 280 + 8 for the small-window motion read.
   engine.step(280); engine.render();
-  const a = readDescriptors(engine.cv, null);
+  const a1 = readDescriptors(engine.cv, null);
   engine.step(8); engine.render();
-  ind.v = readDescriptors(engine.cv, a.lum);
-  ind.fit = fitness(ind.v); ind.verdict = verdict(ind.v, false); ind.vv = vec(ind.v);
+  const v1 = readDescriptors(engine.cv, a1.lum);
+  // T2 snapshot: another ~200 steps. Catches organisms that look alive at T1
+  // but die or collapse soon after.
+  engine.step(192); engine.render();
+  const a2 = readDescriptors(engine.cv, null);
+  engine.step(8); engine.render();
+  const v2 = readDescriptors(engine.cv, a2.lum);
+  ind.v = merge(v1, v2);                  // back-compat (v.fill etc.) + deltas
+  ind.fit = fitness2(v1, v2);
+  ind.verdict = verdict(v2, false);
+  ind.vv = vec(v2);                       // late snapshot is the honest one
   if (!ind.thumb) { ind.thumb = document.createElement('canvas'); ind.thumb.width = ind.thumb.height = 96; }
   ind.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
   archive.push(ind.vv); if (archive.length > 500) archive.shift();
-  if (runTrajectory.length < 4000) runTrajectory.push([ind.id, ind.parent, ind.gen | 0, round4(ind.fit), round4(ind.v.fill), round4(ind.v.motion), round4(ind.v.struct), round4(ind.v.blowout)]);
+  // Trajectory tuple grows from 8 → 12 fields: 4 static + 4 deltas. Forest
+  // viewers that only read indices 4..7 (the static descriptors) keep working.
+  if (runTrajectory.length < 4000) runTrajectory.push([
+    ind.id, ind.parent, ind.gen | 0, round4(ind.fit),
+    round4(v1.fill), round4(v1.motion), round4(v1.struct), round4(v1.blowout),
+    round4(ind.v.dfill), round4(ind.v.dmotion), round4(ind.v.dstruct), round4(ind.v.dblowout),
+  ]);
   updatePublishUI(); updateHotUI();
 }
 function noveltyOf(vv) {
@@ -370,7 +386,7 @@ publishBtn.addEventListener('click', async () => {
     const hash = await sha12(scorerSrc);
     const record = {
       $type: 'com.minomobi.fluoddity.expedition',
-      schemaVersion: 1,
+      schemaVersion: 2, // tier-0 two-snapshot: trajectory tuples carry 4 deltas after the 4 static descriptors
       start: JSON.stringify(runStartConfig || defaultConfig()),
       scorer: scorerSrc,
       scorerHash: hash,

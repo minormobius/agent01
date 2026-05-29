@@ -38,7 +38,7 @@
           "trajectory": {
             "type": "string",
             "maxLength": 200000,
-            "description": "JSON array of every evaluated individual, each as [id, parentId|null, gen, fit, fill, motion, struct, blowout]. The four descriptor scalars are the canonical phase-space coordinates — same axes for every expedition regardless of scorer — which is what lets the forest overlay runs from different lenses on one map."
+            "description": "JSON array of every evaluated individual. SchemaVersion 1: [id, parentId|null, gen, fit, fill, motion, struct, blowout]. SchemaVersion 2 (tier-0 two-snapshot): [id, parentId|null, gen, fit, fill, motion, struct, blowout, dfill, dmotion, dstruct, dblowout] — the four static descriptors are at T1 (settle 280), the four deltas are (T2 - T1) measured after another ~200 steps. The eight axes (4 static + 4 delta) form the canonical phase-space coordinates for rubric scoring; viewers that only need the static slice (indices 4..7) keep working unchanged."
           },
           "knobs": {
             "type": "string",

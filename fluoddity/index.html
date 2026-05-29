@@ -188,7 +188,7 @@ footer a:hover { color: var(--accent); }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
-import { readDescriptors, fitness } from './descriptors.js';
+import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
 
 const cv = document.getElementById('herocv');
 const ctx = cv.getContext('2d');
@@ -241,11 +241,18 @@ async function pickLively() {
     const c = randomConfig();
     c.initial_conditions = selectedInit;
     engine.load(c, i);
+    // T1
     engine.step(260); engine.render();
-    const a = readDescriptors(engine.cv, null);
+    const a1 = readDescriptors(engine.cv, null);
     engine.step(8); engine.render();
-    const v = readDescriptors(engine.cv, a.lum);
-    const fitBase = fitness(v);
+    const v1 = readDescriptors(engine.cv, a1.lum);
+    // T2
+    engine.step(192); engine.render();
+    const a2 = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const v2 = readDescriptors(engine.cv, a2.lum);
+    const v = merge(v1, v2);
+    const fitBase = fitness2(v1, v2);
     let s = fitBase;
     if (rubric) { try { const x = rubric(v, fitBase, 0, 0, '', 0, c); if (Number.isFinite(x)) s = x; } catch {} }
     if (s > bestScore) { bestScore = s; best = c; }

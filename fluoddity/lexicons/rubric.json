@@ -40,7 +40,7 @@
             "type": "array",
             "maxLength": 32,
             "items": { "type": "string", "maxLength": 64 },
-            "description": "Names of the input features the scorer reads from `v` (or elsewhere). Lets viewers display a per-feature bar chart even without re-training."
+            "description": "Names of the input features the scorer reads from `v` (or elsewhere). Lets viewers display a per-feature bar chart even without re-training. Tier-0 default is the 8-axis ['fill','motion','struct','blowout','dfill','dmotion','dstruct','dblowout'] — four static descriptors at T1 plus four deltas (T2 - T1). The four delta axes catch what a single-frame readout misses (decaying organisms, sustained dynamics, transients) and let a linear hyperplane separate hot/not on richer ground."
           },
           "weights": {
             "type": "string",

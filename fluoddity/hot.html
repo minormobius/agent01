@@ -141,12 +141,12 @@ a { color: var(--accent); text-decoration: none; }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
-import { readDescriptors, fitness } from './descriptors.js';
+import { readDescriptors, fitness, fitness2, merge, FEATURES8 } from './descriptors.js';
 import { RUBRIC_COLLECTION, ANCHOR } from './data.js';
 import { auth } from './authchip.js';
 
 const $ = (s) => document.querySelector(s);
-const FEATURES = ['fill', 'motion', 'struct', 'blowout'];
+const FEATURES = FEATURES8; // ['fill','motion','struct','blowout','dfill','dmotion','dstruct','dblowout']
 
 let engine = null;
 try { engine = new FluoddityEngine(320, 32000); }
@@ -162,11 +162,17 @@ if (engine) {
 
   async function settleAndShow(cfg) {
     engine.load(cfg, 'hot' + Math.random()); engine.step(220); engine.render();
-    const a = readDescriptors(engine.cv, null);
+    const a1 = readDescriptors(engine.cv, null);
     engine.step(8); engine.render();
-    const v = readDescriptors(engine.cv, a.lum);
-    // keep rolling animation alive while user thinks
-    return v;
+    const v1 = readDescriptors(engine.cv, a1.lum);
+    // T2 snapshot ~200 steps later, then merge so the user is rating a config
+    // we've actually seen for two timepoints — and the rubric we fit gets the
+    // 4 deltas as additional axes.
+    engine.step(192); engine.render();
+    const a2 = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const v2 = readDescriptors(engine.cv, a2.lum);
+    return merge(v1, v2);
   }
 
   // Filter most-obviously-dead organisms so the user isn't wasting clicks on

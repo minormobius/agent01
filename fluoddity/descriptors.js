@@ -66,3 +66,56 @@ export function fitness(v) {
 // Normalized phenotype vector for novelty / phase-space distance.
 export function vec(v) { return [clamp01(v.fill / 0.5), clamp01(v.motion / 0.02), v.struct, clamp01(v.blowout)]; }
 export function dist(a, b) { let s = 0; for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; s += d * d; } return Math.sqrt(s); }
+
+// Two-snapshot helpers (tier 0): a single frame of a Fluoddity organism is
+// often misrepresentative — it can catch a transient mid-collapse, or hide
+// internal dynamics. Take descriptors at T1 and T2 (further along), and the
+// *deltas* become first-class features alongside the static measurements.
+// This doubles the dimensionality of the rubric feature space without needing
+// image embeddings, and immediately separates "settled alive" from "looked
+// alive once then died" — the most common single-image lie.
+//
+//   const v1 = readDescriptors(eng.cv, prevLum);
+//   // engine.step(200); engine.render();
+//   const v2 = readDescriptors(eng.cv, prevLum2);
+//   const v  = merge(v1, v2);
+//   // v.fill, v.motion, ... = T1 values (back-compat with old rubrics)
+//   // v.fill2, ...           = T2 values
+//   // v.dfill, ...           = T2 - T1 (signed; negative = decaying)
+//
+// Old rubrics that read v.fill / v.motion keep working unchanged; new rubrics
+// can also reach for v.dfill / v.fill2 / etc.
+export function merge(v1, v2) {
+  return {
+    fill: v1.fill, motion: v1.motion, blowout: v1.blowout, struct: v1.struct,
+    fill2: v2.fill, motion2: v2.motion, blowout2: v2.blowout, struct2: v2.struct,
+    dfill: v2.fill - v1.fill,
+    dmotion: v2.motion - v1.motion,
+    dblowout: v2.blowout - v1.blowout,
+    dstruct: v2.struct - v1.struct,
+    lum: v2.lum,
+  };
+}
+
+// Eight-element feature vector for hot/not rubric fitting and expedition
+// trajectory recording. Deltas are intentionally NOT clamped to [0,1] — a
+// rapidly decaying organism shows up as strongly negative dfill, which is
+// distinguishing information.
+export const FEATURES8 = ['fill', 'motion', 'struct', 'blowout', 'dfill', 'dmotion', 'dstruct', 'dblowout'];
+export function vec8(v1, v2) {
+  return [
+    +v1.fill || 0, +v1.motion || 0, +v1.struct || 0, +v1.blowout || 0,
+    (v2.fill - v1.fill) || 0, (v2.motion - v1.motion) || 0, (v2.struct - v1.struct) || 0, (v2.blowout - v1.blowout) || 0,
+  ];
+}
+
+// Tier-0 fitness: a single late snapshot is more honest than an early one,
+// because organisms that "look alive then die" get caught. Use fitness(v2),
+// gently lifted when motion is sustained from T1 to T2 (a sign of real
+// dynamics rather than a transient that decayed into stillness).
+export function fitness2(v1, v2) {
+  const base = fitness(v2);
+  if (!isFinite(base) || base <= 0) return base;
+  const sustained = clamp01(v1.motion / 0.003) * clamp01(v2.motion / 0.003);
+  return base * (0.85 + 0.15 * sustained);
+}
