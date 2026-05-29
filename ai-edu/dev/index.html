@@ -60,11 +60,15 @@
   canvas {
     display: block;
     width: 100%;
+    height: 500px;        /* JS overrides per-viewport; this is the fallback if JS hasn't run yet */
     aspect-ratio: 16/10;
     background: #04060a;
     border-radius: 9px;
     cursor: pointer;
     touch-action: manipulation;
+  }
+  @media (max-width: 640px) {
+    canvas { height: 420px; }
   }
   .controls {
     display: flex; flex-wrap: wrap;
@@ -240,12 +244,13 @@ const ST = {
 // ===== diffusion step =================================================
 function step(dt) {
   ST.time += dt;
-  ST.iter += dt * 12;
+  ST.iter += dt * 18;
   // Move toward target=1, faster when neighbors are clear (information flows in).
+  // Tuned so the field converges in ~4-5 seconds from pure noise.
   TILES.forEach((t, i) => {
     const nb = NBRS[i];
     const nbAvg = nb.length ? nb.reduce((s,j)=>s+TILES[j].clarity, 0)/nb.length : 0;
-    const rate = (0.012 + 0.055 * (0.25 + 0.75 * nbAvg)) * dt;
+    const rate = (0.09 + 0.32 * (0.25 + 0.75 * nbAvg)) * dt;
     t.clarity = Math.min(1, t.clarity + rate);
   });
   // Aging pulses
@@ -308,9 +313,11 @@ function buildNoisePattern(c) {
   off.width = off.height = N;
   const oc = off.getContext('2d');
   const id = oc.createImageData(N, N);
+  // RGB Gaussian-ish noise — closer to real diffusion-model latent noise than grayscale.
   for (let i=0; i<id.data.length; i+=4) {
-    const v = (Math.random()*255)|0;
-    id.data[i] = v; id.data[i+1] = v; id.data[i+2] = v;
+    id.data[i]   = (Math.random()*255) | 0;
+    id.data[i+1] = (Math.random()*255) | 0;
+    id.data[i+2] = (Math.random()*255) | 0;
     id.data[i+3] = 255;
   }
   oc.putImageData(id, 0, 0);
@@ -484,9 +491,9 @@ function draw(c, W, H) {
     if (cl < 0.985 && ST.noisePattern) {
       c.save();
       c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
-      c.globalAlpha = (1 - cl) * 0.94;
+      // Noise opacity falls off smoothly so partial-clarity tiles are readable.
+      c.globalAlpha = Math.pow(1 - cl, 1.4) * 0.86;
       c.fillStyle = ST.noisePattern;
-      // shift per tile + per frame for animated grain
       const ox = ((i * 53) + Math.floor(ST.time * 90)) % 128;
       const oy = ((i * 89) + Math.floor(ST.time * 60)) % 128;
       c.translate(-ox, -oy);
@@ -504,6 +511,16 @@ function draw(c, W, H) {
 }
 
 // ===== loop ===========================================================
+function sizeCanvas() {
+  const cv = document.getElementById('field');
+  const W = cv.clientWidth;
+  if (W <= 0) return;
+  // Portrait-ish on narrow viewports, 16:10 landscape on wide. Belt-and-suspenders
+  // for browsers where the CSS `aspect-ratio` rule doesn't give the canvas a height.
+  const h = W < 640 ? Math.min(W * 1.05, 460) : W * 0.625;
+  cv.style.height = h + 'px';
+}
+
 let lastT = 0;
 function loop(t) {
   const dt = Math.min(0.06, (t - lastT) / 1000);
@@ -515,6 +532,7 @@ function loop(t) {
   const cv = document.getElementById('field');
   const dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight;
+  if (W < 100 || H < 100) { requestAnimationFrame(loop); return; }
   if (cv.width !== W*dpr || cv.height !== H*dpr) {
     cv.width = W*dpr; cv.height = H*dpr;
     const c0 = cv.getContext('2d');
@@ -572,6 +590,8 @@ function init() {
     e.target.textContent = ST.playing ? '⏸ pause' : '⏵ play';
   });
   document.getElementById('reset').addEventListener('click', () => resetAll());
+  sizeCanvas();
+  window.addEventListener('resize', sizeCanvas);
   requestAnimationFrame(loop);
 }
 init();
