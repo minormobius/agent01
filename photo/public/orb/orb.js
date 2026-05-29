@@ -178,21 +178,30 @@ function chooseTileSize(count) {
   return Math.max(MIN_TILE, Math.min(MAX_TILE, fromHeight, fromWidth));
 }
 
-function loadImage(url) {
-  return new Promise((resolve) => {
-    const el = new Image();
-    el.crossOrigin = 'anonymous';
-    el.onload = () => resolve(el);
-    el.onerror = () => resolve(null);
-    el.src = url;
-  });
+// fetch+createImageBitmap rather than <img>.onerror so we know *why* a load
+// fails — Safari's onerror gives no detail, but a real HTTP status + a
+// TypeError (network/CORS) are distinguishable here.
+let lastImageError = '';
+async function loadImage(url) {
+  if (!url) { lastImageError = 'empty url'; return null; }
+  try {
+    const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
+    if (!r.ok) { lastImageError = `HTTP ${r.status}`; return null; }
+    const blob = await r.blob();
+    return await createImageBitmap(blob);
+  } catch (e) {
+    lastImageError = (e && e.name === 'TypeError') ? 'network/CORS' : (e?.message || 'fetch error');
+    return null;
+  }
 }
 
 function drawTile(ctx, img, dx, dy, size) {
-  // cover-fit (square crop)
-  const sw = Math.min(img.naturalWidth, img.naturalHeight);
-  const sx = (img.naturalWidth - sw) / 2;
-  const sy = (img.naturalHeight - sw) / 2;
+  // Works for both HTMLImageElement and ImageBitmap.
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const sw = Math.min(w, h);
+  const sx = (w - sw) / 2;
+  const sy = (h - sw) / 2;
   ctx.drawImage(img, sx, sy, sw, sw, dx, dy, size, size);
 }
 
@@ -696,13 +705,18 @@ form.addEventListener('submit', async (e) => {
 
     const entry = imageQueue[stampedCount];
     setStatus(`loading image ${stampedCount + 1} / ${imageQueue.length}…`);
-    const img = await loadImage(entry.thumb);
+    let img = await loadImage(entry.thumb);
+    const firstErr = lastImageError;
+    // CDN sometimes evicts the cached thumb while the fullsize is still there;
+    // try the fullsize URL as a fallback.
+    if (!img && entry.fullsize && entry.fullsize !== entry.thumb) {
+      img = await loadImage(entry.fullsize);
+    }
     if (!img) {
       stampedCount++;
-      // Surface the URL tail so we can tell apart "CORS blocked", "404",
-      // and "I extracted garbage" by inspection.
-      setStatus(`image ${stampedCount} failed · …/${urlTail(entry.thumb)}`, true);
-      console.warn('orb: image failed to load:', entry.thumb);
+      const reason = lastImageError || firstErr || 'unknown';
+      setStatus(`image ${stampedCount} failed (${reason}) · …/${urlTail(entry.thumb)}`, true);
+      console.warn('orb: image failed to load:', { thumb: entry.thumb, fullsize: entry.fullsize, reason });
       return;
     }
 
