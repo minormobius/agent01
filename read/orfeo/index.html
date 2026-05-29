@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Sir Orfeo — source text, translation pending</title>
-  <meta name="description" content="Sir Orfeo, the c.1300 Middle English Breton lay — the classical Orpheus retold as a king of Winchester whose queen is taken not into Hades but into Faerie. Canonical Middle English source from Shackford 1913 / Auchinleck c.1330. Original translation underway; character cards, story graph, motif index, mythograph and storybook to follow.">
+  <title>Sir Orfeo — translation, characters, and storybook</title>
+  <meta name="description" content="Sir Orfeo, the c.1300 Middle English Breton lay — the classical Orpheus retold as a king of Winchester whose queen is taken not into Hades but into Faerie. Original English translation alongside the Middle English source from the Auchinleck Manuscript (via Shackford 1913); with character cards, a character web, and a kid-faithful storybook.">
   <meta property="og:title" content="Sir Orfeo">
-  <meta property="og:description" content="The medieval English Orpheus — taken not into Hades but into Faerie. Middle English source in place, original translation underway.">
+  <meta property="og:description" content="The medieval English Orpheus — original translation, character cards, and a storybook.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://read.mino.mobi/orfeo/">
   <meta property="og:site_name" content="Read">
@@ -20,13 +20,16 @@
       <span class="brand"><span class="sigil">🎵</span>Sir Orfeo</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
       </nav>
     </div>
   </div>
 
   <div class="wrap">
 
-    <!-- READ (source in place, translation pending) -->
+    <!-- READ -->
     <section class="view active" id="view-read">
       <div class="hero">
         <h1>Sir Orfeo</h1>
@@ -38,14 +41,41 @@
       <div class="tale-body parallel" id="tale-body"></div>
     </section>
 
+    <!-- STORYBOOK (kid-faithful retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers 8 and up — the whole poem, page by page. Illustrations to come.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the poem, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
+    </section>
+
   </div>
 
   <footer class="foot">
     <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Sir Orfeo</span><br>
-    Working scaffold for a deep read of the medieval English Orpheus. The Middle English source (Martha Hale Shackford's 1913 edition, after David Laing 1884, ultimately from the Auchinleck Manuscript NLS Advocates 19.2.1, c. 1330) is in place; an original English translation will be written alongside it in subsequent passes — character cards, story graph, motif index, mythograph and storybook to follow, mirroring the apparatus built for <em>Sir Gawain and the Green Knight</em> and <em>Culhwch ac Olwen</em>. This site sits alongside the broader Arthurian and post-classical historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>.
+    A working translation and analysis of the medieval English Orpheus. The English is an original translation; the Middle English beside it is a lightly normalised reading text after Martha Hale Shackford's 1913 anthology (Boston: Ginn and Company), itself printing David Laing's 1884 edition of the Auchinleck Manuscript text (NLS Advocates 19.2.1, c. 1330). Story graph, motif index, and mythograph to follow, mirroring the apparatus built for <em>Sir Gawain and the Green Knight</em> and <em>Culhwch ac Olwen</em>. This site sits alongside the broader Arthurian and post-classical historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>.
   </footer>
 
   <script src="tale.js"></script>
+  <script src="characters.js"></script>
+  <script src="storybook.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
