@@ -3,292 +3,63 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>splice — SpliceCraft on the web: refactor plan</title>
-<meta name="description" content="Refactor plan for bringing Binomica Labs' SpliceCraft (a terminal molecular-biology workbench) to the web as a tiered game — assembly puzzle + directed evolution — by reusing its C scientific libraries from Rust and compiling to WASM.">
-<meta property="og:title" content="splice — SpliceCraft on the web">
-<meta property="og:description" content="How we'd bring SpliceCraft to the browser: reuse the C libs from Rust, compile to WASM, and pick the right deployment target on Cloudflare.">
-<style>
-  :root{
-    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
-    --line:#283039; --accent:#5ad1b0; --accent2:#7aa2ff; --warn:#e3b341; --bad:#f0776a;
-    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-  a{color:var(--accent2);text-decoration:none}
-  a:hover{text-decoration:underline}
-  .wrap{max-width:820px;margin:0 auto;padding:0 20px 120px}
-  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(14,17,22,.85);
-    backdrop-filter:blur(8px);z-index:5}
-  header.top .wrap{padding-top:14px;padding-bottom:14px;display:flex;align-items:center;gap:14px}
-  .crumb{font-size:13px;color:var(--muted)}
-  .crumb a{color:var(--muted)}
-  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);
-    border:1px solid var(--line);border-radius:999px;padding:3px 10px}
-  h1{font-size:34px;line-height:1.15;margin:48px 0 6px;letter-spacing:-.5px}
-  .sub{color:var(--muted);font-size:18px;margin:0 0 8px}
-  .status{display:inline-block;margin:18px 0 0;font-family:var(--mono);font-size:13px;
-    color:var(--warn);border:1px solid var(--warn);border-radius:6px;padding:6px 12px}
-  h2{font-size:23px;margin:54px 0 12px;padding-top:10px;border-top:1px solid var(--line);letter-spacing:-.3px}
-  h3{font-size:17px;margin:28px 0 6px;color:var(--accent)}
-  p{margin:12px 0}
-  ul,ol{margin:12px 0;padding-left:22px}
-  li{margin:7px 0}
-  code{font-family:var(--mono);font-size:.88em;background:#0a0d12;border:1px solid var(--line);
-    border-radius:4px;padding:1px 5px}
-  pre{background:#0a0d12;border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow:auto;
-    font-family:var(--mono);font-size:13px;line-height:1.55}
-  pre code{background:none;border:none;padding:0}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:18px 0}
-  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
-  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em}
-  .ok{color:var(--accent)} .mid{color:var(--warn)} .no{color:var(--bad)}
-  .lead{font-size:18px;color:var(--ink)}
-  .muted{color:var(--muted)}
-  .refs{font-size:14px}
-  .refs a{display:inline-block;margin:0 4px 0 0}
-  .pill{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--muted)}
-  nav.toc{font-size:14px;margin:24px 0 0}
-  nav.toc a{color:var(--muted);margin-right:14px;white-space:nowrap}
-  footer{border-top:1px solid var(--line);margin-top:60px;padding-top:24px;color:var(--muted);font-size:13px}
-  .src{margin-top:8px;font-size:13.5px;color:var(--muted)}
-  .src b{color:var(--ink);font-weight:600}
-  .q{border-left:3px solid var(--accent);padding:4px 0 4px 16px;margin:14px 0;color:var(--ink)}
-</style>
+<title>splice — molecular biology, in the browser</title>
+<meta name="description" content="splice brings a real molecular-biology workbench to the browser as Rust→WebAssembly, wrapped in an assembly-puzzle game. Restriction mapping, digest + gel, in-silico PCR, ORFs, and cloning — all client-side. Inspired by Binomica Labs' SpliceCraft.">
+<meta property="og:title" content="splice — molecular biology, in the browser">
+<meta property="og:description" content="A real cloning workbench compiled to WASM, wrapped in a puzzle game. Cut, ligate, and build plasmids — auto-graded by the engine.">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header class="top"><div class="wrap">
   <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / splice</span>
-  <span class="badge">BUILDING · Phase 2 engine is live</span>
+  <nav class="top-links">
+    <a href="/lab/">Lab</a><a href="/game/">Game</a><a href="/docs/">Docs</a><a href="/roadmap/">Roadmap</a>
+  </nav>
 </div></header>
 
 <div class="wrap">
-  <h1>SpliceCraft on the web</h1>
-  <p class="sub">A refactor plan: wrap a real molecular-biology tool in a tiered game — by reusing its C scientific libraries from Rust, compiling to WASM, and picking the right home on Cloudflare.</p>
-  <div class="status">▶ Three pieces are built &amp; live: the <a href="#plan">HMMER→WASM viability spike</a> (the hardest risk — passes), the <b>Phase-2 engine</b> (<b><a href="/lab/">the lab →</a></b> — restriction map, digest+gel, in-silico PCR, ORFs, cloning, with a benchmark), and the first <b>assembly-puzzle game</b> (<b><a href="/game/">play it →</a></b> — cut + ligate to build the target plasmid, auto-graded by the engine).</div>
+  <h1>Molecular biology, in the browser</h1>
+  <p class="sub">A real cloning workbench compiled to WebAssembly, wrapped in a puzzle game. Cut DNA with restriction enzymes, ligate compatible ends, build plasmids — everything runs client-side, with no server round-trips.</p>
 
-  <nav class="toc">
-    <a href="#what">① What SpliceCraft is</a>
-    <a href="#tension">② The tension</a>
-    <a href="#split">③ Easy vs hard</a>
-    <a href="#cdeps">④ The three C deps</a>
-    <a href="#ffi">⑤ Using C from Rust</a>
-    <a href="#targets">⑥ Where it runs</a>
-    <a href="#game">⑦ The game layer</a>
-    <a href="#plan">⑧ Phased plan</a>
-    <a href="#questions">⑨ Decisions for you</a>
-    <a href="#sources">Sources</a>
-  </nav>
-
-  <h2 id="what">① What SpliceCraft is</h2>
-  <p><a href="https://github.com/Binomica-Labs/SpliceCraft">SpliceCraft</a> (by <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed) is <em>"your whole cloning workflow, in the terminal"</em> — a molecular-biology workbench built as a <a href="https://textual.textualize.io/">Textual</a> TUI in 100% Python on top of <a href="https://biopython.org/">BioPython</a>. It does plasmid maps, restriction analysis, primer design, assembly planning (Golden Gate / MoClo / Gibson), local BLAST + HMM search, Sanger verification, in-silico PCR, gel simulation, and a lab notebook.</p>
-  <p>Crucially for a web port, it already ships a headless mode: a <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/docs/agent-api.md">~130-endpoint localhost JSON HTTP API</a> (<code>splicecraft --agent</code>, bearer-token, <code>127.0.0.1</code>-only, <em>"single-tenant by design"</em>) plus a stdlib-only CLI sidecar. So there is a clean machine surface to build a frontend against — it just isn't multi-tenant or networked today.</p>
-  <p class="src">Sources: <a href="https://github.com/Binomica-Labs/SpliceCraft">repo</a> · <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/docs/agent-api.md">agent-api.md</a> · <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/pyproject.toml">pyproject.toml</a></p>
-
-  <h2 id="tension">② The core tension</h2>
-  <p>minomobi ships on <strong>Cloudflare Pages + Workers</strong> — JS/WASM, no persistent Python compute. SpliceCraft is a <strong>stateful, single-tenant, native-dependency Python desktop app</strong>. There is no drop-in. Worse, the most valuable features lean on <strong>compiled C libraries that Pyodide cannot load</strong> (<a href="https://pyodide.org/">Pyodide</a> has no wheels for <code>pyhmmer</code> or <code>primer3-py</code>), so "Python in the browser" loses exactly the hard parts.</p>
-  <p class="lead">The insight that unlocks everything: <strong>two of the three hard dependencies are already C.</strong> A Rust port can <em>reuse</em> them — bind them natively, or compile them to WASM via Emscripten — instead of reimplementing the science. That makes Rust→WASM a strictly better web target than Python→Pyodide.</p>
-
-  <h2 id="split">③ Easy 90% vs hard 10%</h2>
-  <p>Python the <em>language</em> is the easy thing to replace. From reading the source, most of SpliceCraft is ordinary application code with nothing language-specific:</p>
-  <ul>
-    <li><b>Ports cleanly to Rust:</b> the four-layer data-safety system (atomic writes, backups, shrink guard), JSON schema migration, the assembly planners, in-silico PCR, the gel migration model, the lab notebook, the <code>--agent</code> HTTP/JSON server, the string-level biology in <code>splicecraft_biology.py</code> (IUPAC regex, reverse-complement, circular slicing, wrap-aware feature lengths).</li>
-    <li><b>The TUI</b> → <a href="https://ratatui.rs/">ratatui</a>. Labor, not difficulty.</li>
-  </ul>
-  <p>The hard 10% is three scientific dependencies — but each is hard for a <em>different</em> reason, which changes the strategy:</p>
-
-  <h2 id="cdeps">④ The three hard dependencies</h2>
-  <table>
-    <tr><th>Dependency</th><th>What it provides</th><th>Why it's hard</th><th>Reuse path</th></tr>
-    <tr>
-      <td><a href="https://biopython.org/">BioPython</a></td>
-      <td>GenBank/FASTA/GFF3/<a href="https://en.wikipedia.org/wiki/AB1">AB1</a> parsers, translation across NCBI codon tables, <a href="https://biopython.org/docs/latest/api/Bio.Restriction.html">Bio.Restriction</a> over the <a href="http://rebase.neb.com/">REBASE</a> enzyme DB (~700 enzymes), <a href="https://biopython.org/docs/latest/api/Bio.Align.html">Bio.Align</a></td>
-      <td class="mid">Breadth + curated data, and <strong>it's pure Python</strong> — no C core to lean on</td>
-      <td>Re-author in Rust using <a href="https://github.com/rust-bio/rust-bio">rust-bio</a> / <a href="https://github.com/zaeleus/noodles">noodles</a> / <a href="https://github.com/dlesl/gb-io">gb-io</a>; port the REBASE + codon-table <em>data</em>. Tedious, tractable.</td>
-    </tr>
-    <tr>
-      <td><a href="https://github.com/primer3-org/primer3">primer3</a><br><span class="muted">via <a href="https://github.com/libnano/primer3-py">primer3-py</a></span></td>
-      <td>Nearest-neighbor (SantaLucia) Tm, salt/Mg/dNTP correction, hairpin/dimer ΔG, primer picking with weighted penalties</td>
-      <td class="mid">A tuned thermodynamics model — nasty to reimplement correctly</td>
-      <td class="ok"><strong>It's C</strong> → don't reimplement, bind/compile it. ~10k LOC, minimal I/O. SpliceCraft treats it as <em>optional</em> with a crude Tm fallback.</td>
-    </tr>
-    <tr>
-      <td><a href="http://hmmer.org/">HMMER3</a><br><span class="muted">via <a href="https://github.com/althonos/pyhmmer">pyhmmer</a></span></td>
-      <td>Profile-HMM search: Plan7, Viterbi/Forward-Backward, SIMD MSV/SSV filters, Gumbel E-value statistics</td>
-      <td class="no">~100k LOC of 20-years-tuned C + the <a href="https://github.com/EddyRivasLab/easel">Easel</a> support lib. No production-grade Rust pHMM exists.</td>
-      <td class="ok"><strong>It's C</strong> → bind/compile, never rewrite. <code>pyhmmer</code> is itself Cython over this same C.</td>
-    </tr>
-  </table>
-  <p>And the real moat, independent of language: SpliceCraft's <strong>4,000+ tests asserting biological accuracy</strong>. Any reimplementation has to reproduce identical outputs across circular wrap-around features, frame handling, star activity, overhang/ligation rules, gel curves. That accumulated correctness is the expensive thing to match.</p>
-  <p class="src">Sources: <a href="https://biopython.org/">BioPython</a> · <a href="http://rebase.neb.com/">REBASE</a> · <a href="https://github.com/primer3-org/primer3">primer3</a> · <a href="https://github.com/libnano/primer3-py">primer3-py</a> · <a href="http://hmmer.org/">HMMER</a> · <a href="https://github.com/althonos/pyhmmer">pyhmmer</a> · <a href="https://github.com/EddyRivasLab/easel">Easel</a></p>
-
-  <h2 id="ffi">⑤ Using the C libs from Rust — the mechanics</h2>
-  <p>Rust isn't allergic to C. Reusing <code>libprimer3</code> and <code>libhmmer</code> "as-is" is a solved problem; the only question is the build target. Both libraries expose a real C API (SpliceCraft links them via <code>primer3-py</code>/<code>pyhmmer</code> rather than shelling out to <code>primer3_core</code>/<code>hmmscan</code> binaries), so there's an API to bind, not a CLI to fork.</p>
-  <pre><code>// build.rs — compile the vendored C and link it
-fn main() {
-    cc::Build::new()                // the `cc` crate drives the C compiler
-        .files(glob_primer3_sources())
-        .include("vendor/primer3/src")
-        .compile("primer3");        // -> libprimer3.a, linked into the Rust binary
-}
-
-// bindgen turns primer3.h into `extern "C"` Rust declarations,
-// which we wrap in a safe module. Then:
-let tm = unsafe { ffi::oligotm(seq.as_ptr(), /* salt, conc, … */) };</code></pre>
-  <p>Toolchain pieces: <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a> (header → bindings), the <a href="https://docs.rs/cc">cc crate</a> (compile the C in <code>build.rs</code>), and the <a href="https://doc.rust-lang.org/nomicon/ffi.html">Rustonomicon FFI chapter</a> for the unsafe boundary. For HMMER you'd instead drive its autotools/CMake build from <code>build.rs</code> and link <code>libhmmer</code> + Easel.</p>
-
-  <h2 id="targets">⑥ Where it runs changes everything</h2>
-  <p>"Use the C as-is" is free for one target and progressively harder for the others:</p>
-  <table>
-    <tr><th>Target</th><th>primer3</th><th>HMMER</th><th>What it takes</th></tr>
-    <tr>
-      <td><b>Native Rust server</b><br><span class="muted">(off-Cloudflare container)</span></td>
-      <td class="ok">trivial</td>
-      <td class="ok">standard</td>
-      <td>Normal FFI: <code>bindgen</code> + <code>cc</code>/<code>build.rs</code> + safe wrapper. Run like the <code>--agent</code> API. A weekend of plumbing per lib.</td>
-    </tr>
-    <tr>
-      <td><b>Browser WASM</b><br><span class="muted">(static site on Pages)</span></td>
-      <td class="ok">routine</td>
-      <td class="no">real project</td>
-      <td>Compile the <em>C</em> to WASM via <a href="https://emscripten.org/">Emscripten</a> (target <code>wasm32-unknown-emscripten</code>), preload DB/param files into <a href="https://emscripten.org/docs/api_reference/Filesystem-API.html">MEMFS</a>, recompile SIMD paths to <a href="https://github.com/WebAssembly/simd">WASM SIMD</a>, and gate threads behind <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer">SharedArrayBuffer</a> + <a href="https://web.dev/articles/coop-coep/">COOP/COEP</a> headers. Multi-MB payload. <a href="https://rustwasm.github.io/wasm-bindgen/">wasm-bindgen</a> glues it to JS.</td>
-    </tr>
-    <tr>
-      <td><b>Cloudflare Worker WASM</b><br><span class="muted">(server-side at the edge)</span></td>
-      <td class="ok">great</td>
-      <td class="mid">marginal</td>
-      <td>Compile C→<a href="https://developers.cloudflare.com/workers/runtime-apis/webassembly/">WASM in a Worker</a>, expose JSON. primer3 fits easily; HMMER risks the <a href="https://developers.cloudflare.com/workers/platform/limits/">CPU-time / ~128MB</a> ceiling and has no threads — push it to a container or Durable Object.</td>
-    </tr>
-  </table>
-  <p>Two browser-WASM caveats worth flagging up front: <strong>COOP/COEP</strong> is the same cross-origin-isolation requirement <code>labglass</code> already lives with on this infra (<code>labglass/_headers</code>), so it's a known quantity on Pages; and <strong>nothing can shell out to a subprocess</strong> in WASM — fine here, because the lib-linking path is what we'd use.</p>
-
-  <h2 id="game">⑦ The game layer</h2>
-  <p class="lead">This may be the most important question: can we put a game over the useful tool? Yes — and it fits better than most "gamified tool" ideas, for one structural reason.</p>
-
-  <h3>The tool is its own scoring oracle</h3>
-  <p>Most science/edutainment games have to hand-author both the levels <em>and</em> the answer-checking. SpliceCraft hands you an <strong>objective correctness scorer for free</strong>: BioPython plus those 4,000 accuracy tests can deterministically judge any player move — <em>is this a valid Golden Gate assembly? does this primer pair amplify the target? is the frame intact? are there internal cutters?</em> The thing that normally kills these projects is solved before we start, which means levels can be <strong>procedurally generated</strong> and solutions <strong>auto-graded</strong>. That's what makes a game layer both cheap and deep. Precedent: <a href="https://fold.it/">Foldit</a>, <a href="https://eternagame.org/">EteRNA</a>, and <a href="https://phylo.cs.mcgill.ca/">Phylo</a> all turned a scored biological problem into play.</p>
-
-  <h3>Cloning is already a constraint-satisfaction puzzle</h3>
-  <p>The wet-lab loop maps onto game mechanics almost 1:1. Constraints (restriction-site uniqueness, primer Tm windows, MoClo/Golden Gate overhang compatibility, reading frame, no internal cutters) <em>are</em> the puzzle rules; a valid plasmid is the win. <a href="https://en.wikipedia.org/wiki/In_silico_PCR">In-silico PCR</a> + gel sim give instant verifiable feedback — design → simulate → see the band → iterate. And optimization (fewest enzymes, fewest steps, lowest cost) gives <a href="https://www.zachtronics.com/">Zachtronics</a>-style replay value with leaderboard histograms.</p>
-
-  <div class="panel">
-    <h3 style="margin-top:0">The strategic kicker</h3>
-    <p>Both modes we're putting on the roadmap run on the <strong>cheap Phase-2 deterministic engine</strong> (restriction, assembly, in-silico PCR, gel) — <strong>no primer3, no HMMER</strong>. So <strong>the game layer ships before the expensive C-lib port.</strong> The hard C dependencies (HMMER especially) are for the pro-tool, not the game. Genre choice <em>is</em> an engineering-cost choice, and we've picked the two cheapest-to-power, highest-synergy ones.</p>
+  <div class="cards">
+    <a class="card live" href="/game/">
+      <div class="k">▶ Game · live</div>
+      <h3>Clone the construct</h3>
+      <p>An assembly puzzle: pick enzymes to cut a vector and an insert, ligate the matching ends, and build the target plasmid. Every move is auto-graded by the engine.</p>
+      <span class="go">Play →</span>
+    </a>
+    <a class="card live" href="/lab/">
+      <div class="k">▶ Lab · live</div>
+      <h3>The workbench</h3>
+      <p>Restriction mapping, digest → agarose gel, in-silico PCR, 6-frame ORFs, and cloning — over any sequence, with live per-op timings and a benchmark.</p>
+      <span class="go">Open the lab →</span>
+    </a>
+    <a class="card" href="/docs/">
+      <div class="k">Docs</div>
+      <h3>How it works</h3>
+      <p>The architecture: why Rust→WASM beats Python-in-the-browser, how we reuse the original C libraries, where it runs, and why a game fits on top.</p>
+      <span class="go">Read the docs →</span>
+    </a>
+    <a class="card" href="/roadmap/">
+      <div class="k">Roadmap</div>
+      <h3>What's built &amp; next</h3>
+      <p>The phased plan from deterministic engine to directed-evolution game, what's live today, and the open product decisions.</p>
+      <span class="go">See the roadmap →</span>
+    </a>
   </div>
 
-  <h3>On the roadmap: two modes</h3>
-  <table>
-    <tr><th>Mode</th><th>Loop</th><th>Engine</th><th>Reuse</th></tr>
-    <tr>
-      <td><b>Assembly puzzle</b><br><span class="muted">Zachtronics-style</span></td>
-      <td>Given a target construct + a parts library, assemble a valid plasmid under real constraints. Scored on validity, then optimized for cost / steps / elegance with leaderboard histograms.</td>
-      <td class="ok">Phase 2</td>
-      <td>Fluoddity's score / leaderboard / atlas shell</td>
-    </tr>
-    <tr>
-      <td><b>Directed evolution</b><br><span class="muted">the Fluoddity bridge</span></td>
-      <td>Mutate real DNA toward an <em>objective</em> fitness target (codon-optimize, strip restriction sites, tune GC / Tm). Fork and publish constructs as ATProto records; grow a phylogeny; climb a cross-user atlas.</td>
-      <td class="ok">Phase 2<span class="muted"> (+primer3 later for Tm-fitness)</span></td>
-      <td><b>Fluoddity's breed→select→fork→gallery loop, almost verbatim</b></td>
-    </tr>
-  </table>
-  <p>The directed-evolution mode is the tightest tie to existing work: it's Fluoddity's exact <em>breed a genome → select by fitness → fork → publish as an ATProto record → phylogeny/atlas</em> loop, but over <strong>real DNA with an objective fitness function</strong> instead of a Fourier black box. We reuse the whole shell — breeding UI, fork/phylogeny, ATProto persistence, the cross-user atlas (<a href="https://fluoddity.mino.mobi">fluoddity.mino.mobi</a>) — and swap the genome. (The "guess-the-gene" redact mode, à la <a href="https://rite.mino.mobi/redact/">rite's /redact</a>, stays parked: it needs the expensive Phase-3 BLAST/HMM engine.)</p>
-
-  <h3>Audience: tiered</h3>
-  <p>A casual puzzle front-end that <strong>graduates into the real workbench</strong>. New players get an abstracted assembly puzzle that hides bookkeeping; as they level up, more of the real tool's surface (and real-construct export — GenBank you could actually take to a bench) is revealed. The game is the onboarding ramp to the tool, not a walled-off toy.</p>
-
-  <h3>The one real design risk</h3>
-  <p>Real cloning carries a lot of bookkeeping. The game layer's entire job is to <strong>hide the spreadsheet and surface the decisions</strong> — that's Zachtronics' actual craft. If a level exposes a parts-inventory table, it's a tool; if it exposes <em>one interesting choice with consequences</em>, it's a game. We make that a hard design constraint from level one.</p>
-  <p class="src">Sources: <a href="https://fold.it/">Foldit</a> · <a href="https://eternagame.org/">EteRNA</a> · <a href="https://phylo.cs.mcgill.ca/">Phylo</a> · <a href="https://www.zachtronics.com/">Zachtronics</a> · <a href="https://fluoddity.mino.mobi">Fluoddity</a> · <a href="https://rite.mino.mobi/redact/">rite /redact</a></p>
-
-  <h2 id="plan">⑧ Proposed phased plan</h2>
-  <p>Re-sequenced now that the deliverable is a <strong>tiered game over the tool</strong>. The critical path to a playable game is Phase&nbsp;2 — the cheap deterministic engine — not the C-lib work. The primer3 spike stays in, but as a thesis-validator and a later Tm-fitness unlock, off the game's critical path.</p>
-  <ol>
-    <li><b>Phase 0 — this page.</b> Publish the plan, get a green light. ← you are here.</li>
-    <li><b>Phase 1 — primer3 spike (off critical path, proves the thesis).</b> A Rust crate that vendors primer3, FFIs <code>oligotm</code>/primer-picking via <code>bindgen</code>+<code>cc</code>, compiled to WASM and called from a static page. Validates "reuse C from Rust → WASM" on the easy lib; later powers Tm-based fitness in directed-evolution and a primer-design mode.</li>
-    <li><b>Phase 2 — the engine that powers both games (critical path). <span class="ok">▶ live now</span>.</b> The deterministic subset in Rust → WASM: restriction mapping (30-enzyme table with sticky/blunt overhangs), translation/codon tables + 6-frame ORFs, circular/linear maps, in-silico PCR, digest → gel, and <b>cloning</b> (cut vector + insert, ligate compatible overhangs → recombinant plasmid; directional or both orientations). Pure compute, no C deps. Built dependency-free (~85 KB wasm), validated against pUC19 (finds its canonical single-cutters; ORF scan recovers the 286-aa β-lactamase; a directional EcoRI/HindIII clone regenerates clean junctions). This is the scoring oracle <em>and</em> the workbench core. <b><a href="/lab/">Try it →</a></b> · source in <a href="https://github.com/minormobius/agent01/tree/claude/splicecraft-website-integration-WM8ke/splice/engine"><code>splice/engine/</code></a></li>
-    <li><b>Phase 3 — Assembly-puzzle game. <span class="ok">▶ vertical slice live</span>.</b> <b><a href="/game/">Clone the construct →</a></b>: pick restriction enzymes to cut a vector + insert, ligate compatible ends, build the target plasmid — every move auto-graded by the Phase-2 engine. Three levels (directional clone → internal-cutter trap → find-the-pair), star scoring vs enzyme par, engine-verified solvability. Next: procedural level generation, cost/step optimization + leaderboard histograms, Fluoddity's score/atlas shell.</li>
-    <li><b>Phase 4 — Directed-evolution game (the Fluoddity bridge).</b> Swap Fluoddity's Fourier genome for real DNA; objective fitness functions (codon-optimize, strip sites, GC/Tm); fork + publish constructs as ATProto records; phylogeny + cross-user atlas. Reuses the existing breed→select→fork→gallery loop.</li>
-    <li><b>Phase 5 — tier the ramp + real-construct export.</b> Wire the casual puzzle front-end to graduate into the workbench surface; GenBank export you could take to a bench. <code>splice.mino.mobi</code> already deploys "like rite" (Worker + ASSETS, <code>deploy-splice.yml</code>), ready to grow into.</li>
-    <li><b>Phase 6 — HMMER (pro-tool only; <span class="ok">viability proven</span>).</b> The hardest dependency — its hot loops are hand-written SSE intrinsics that don't exist in WASM — has been spiked and <b>passes</b>. In-browser is viable; server-side is now a choice, not a necessity. See the panel below.</li>
-  </ol>
-
-  <div class="panel">
-    <h3 style="margin-top:0">⚑ Spike result: HMMER → WASM is viable <span class="muted">(run 2026-05-29)</span></h3>
-    <p>Before committing to the plan I de-risked the single project-killing unknown — does HMMER's SIMD core survive the trip to WebAssembly? I cloned and built HMMER here, ran its own test suite, and ported its hottest kernel. Result, with code you can re-run (<a href="https://github.com/minormobius/agent01/tree/claude/splicecraft-website-integration-WM8ke/splice/spike"><code>splice/spike/</code></a>):</p>
-    <table>
-      <tr><th>Check</th><th>Result</th></tr>
-      <tr><td>HMMER's own SIMD-vs-reference unit tests (MSV, Viterbi, Fwd/Back, Decoding, OptAcc), run in-sandbox</td><td class="ok">all PASS</td></tr>
-      <tr><td>Real MSV kernel compiled to WASM SIMD128 (via <a href="https://github.com/simd-everywhere/simde">SIMDe</a>) vs native x86 SSE2</td><td class="ok">bit-identical</td></tr>
-      <tr><td>WASM-SIMD speed vs native SSE2 (V8 lowers it straight to hardware SSE)</td><td class="ok">~6% slower</td></tr>
-    </table>
-    <p>So the faithful, in-browser pro-tool tier is real: <b>SIMDe + clang <code>-msimd128</code></b> is the porting path, and <b>HMMER's own test suite</b> is the acceptance gate. The only remaining browser cost is profile-DB download size / memory — a data-distribution question, not a feasibility one. Full write-up: <a href="https://github.com/minormobius/agent01/blob/claude/splicecraft-website-integration-WM8ke/splice/spike/VIABILITY.md"><code>spike/VIABILITY.md</code></a>.</p>
-  </div>
-  <div class="panel">
-    <h3>Deployment note</h3>
-    <p>This page ships exactly like <code>/rite</code>: a Cloudflare Worker with an <code>ASSETS</code> binding, custom domain <code>splice.mino.mobi</code>, deployed by <code>.github/workflows/deploy-splice.yml</code> on push to this branch. No D1, no AI, no cron — just static for now. <a href="/api/health">/api/health</a> confirms the worker is live.</p>
+  <div class="tagrow">
+    <span class="tag"><b>✓</b> deterministic engine (Rust→WASM)</span>
+    <span class="tag"><b>✓</b> assembly-puzzle game</span>
+    <span class="tag"><b>✓</b> HMMER→WASM viability proven</span>
   </div>
 
-  <h2 id="questions">⑨ Decisions</h2>
-  <h3 style="color:var(--accent)">Settled</h3>
-  <div class="q" style="border-color:var(--muted)"><b class="ok">Game directions:</b> both <b>assembly puzzle</b> and <b>directed evolution</b> on the roadmap (Phases 3 &amp; 4). Both run on the cheap Phase-2 engine.</div>
-  <div class="q" style="border-color:var(--muted)"><b class="ok">Audience:</b> <b>tiered</b> — a casual puzzle front-end that graduates into the real workbench (Phase 5).</div>
-  <h3 style="color:var(--warn)">Still open</h3>
-  <div class="q">How central is <b>HMM search</b> (the <code>/hmmscan</code> surface) to the audience? <span class="muted">(Technical viability is now settled — see the spike panel; this is purely a product-priority call: build it, and if so, in-browser or server-side for the profile DB.)</span></div>
-  <div class="q">Comfortable that this is a <b>derivative reimplementation</b> of someone else's MIT tool? I'd want a courtesy heads-up + clear attribution to <a href="https://github.com/Binomica-Labs">Binomica Labs</a> before anything user-facing ships.</div>
-  <div class="q">Green light to start building — <b>Phase 2 (the engine)</b> as the critical path, with the <b>Phase 1 primer3 spike</b> alongside to prove the C-reuse thesis?</div>
-
-  <h2 id="sources">Sources &amp; references</h2>
-  <p class="refs">
-    <b>SpliceCraft:</b>
-    <a href="https://github.com/Binomica-Labs/SpliceCraft">repo</a> ·
-    <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/docs/agent-api.md">agent API docs</a> ·
-    <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/pyproject.toml">pyproject.toml</a> ·
-    <a href="https://github.com/Binomica-Labs">Binomica Labs</a>
-  </p>
-  <p class="refs">
-    <b>Biology libs:</b>
-    <a href="https://biopython.org/">BioPython</a> ·
-    <a href="https://biopython.org/docs/latest/api/Bio.Restriction.html">Bio.Restriction</a> ·
-    <a href="http://rebase.neb.com/">REBASE</a> ·
-    <a href="https://github.com/primer3-org/primer3">primer3</a> ·
-    <a href="https://github.com/libnano/primer3-py">primer3-py</a> ·
-    <a href="http://hmmer.org/">HMMER</a> ·
-    <a href="https://github.com/althonos/pyhmmer">pyhmmer</a> ·
-    <a href="https://github.com/EddyRivasLab/easel">Easel</a>
-  </p>
-  <p class="refs">
-    <b>Rust ↔ C / WASM:</b>
-    <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a> ·
-    <a href="https://docs.rs/cc">cc crate</a> ·
-    <a href="https://doc.rust-lang.org/nomicon/ffi.html">Rustonomicon FFI</a> ·
-    <a href="https://emscripten.org/">Emscripten</a> ·
-    <a href="https://rustwasm.github.io/wasm-bindgen/">wasm-bindgen</a> ·
-    <a href="https://github.com/WebAssembly/simd">WASM SIMD</a> ·
-    <a href="https://web.dev/articles/coop-coep/">COOP/COEP</a> ·
-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer">SharedArrayBuffer</a>
-  </p>
-  <p class="refs">
-    <b>Rust biology crates:</b>
-    <a href="https://github.com/rust-bio/rust-bio">rust-bio</a> ·
-    <a href="https://github.com/zaeleus/noodles">noodles</a> ·
-    <a href="https://github.com/dlesl/gb-io">gb-io</a>
-  </p>
-  <p class="refs">
-    <b>Cloudflare / misc:</b>
-    <a href="https://developers.cloudflare.com/workers/runtime-apis/webassembly/">Workers WASM</a> ·
-    <a href="https://developers.cloudflare.com/workers/platform/limits/">Workers limits</a> ·
-    <a href="https://pyodide.org/">Pyodide</a> ·
-    <a href="https://textual.textualize.io/">Textual</a> ·
-    <a href="https://ratatui.rs/">ratatui</a>
-  </p>
+  <h2>What this is</h2>
+  <p><a href="https://github.com/Binomica-Labs/SpliceCraft">SpliceCraft</a> (by <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed) is a terminal molecular-biology workbench — your whole cloning workflow in one tool. <b>splice</b> is an independent effort to bring that capability to the open web: re-author the deterministic core in <b>Rust</b>, compile it to <b>WebAssembly</b>, and reuse the original's hard C libraries (primer3, HMMER) rather than reinvent the science. On top of the tool sits a <b>tiered game</b> — because cloning is already a constraint-satisfaction puzzle, and the engine can grade any move objectively.</p>
+  <p>Today the deterministic engine and the first puzzle game are <b>live and playable above</b>. The <a href="/docs/">docs</a> explain the approach; the <a href="/roadmap/">roadmap</a> shows where it goes next. The hardest technical risk — getting HMMER's hand-written SIMD core into WASM — has been <a href="/docs/#spike">spiked and proven</a>.</p>
 
   <footer>
-    <p>splice.mino.mobi · planning surface for a SpliceCraft web port · draft for review.
-    SpliceCraft is © Binomica Labs, MIT-licensed; this is an independent evaluation, not affiliated.</p>
+    <p>splice.mino.mobi · an independent web port inspired by SpliceCraft (© <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed). Not affiliated. · <a href="/docs/">docs</a> · <a href="/roadmap/">roadmap</a> · <a href="/api/health">status</a></p>
   </footer>
 </div>
 </body>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>splice roadmap — phases &amp; status</title>
+<meta name="description" content="The splice roadmap: from the deterministic Rust→WASM engine to the assembly-puzzle and directed-evolution games. What's live, what's next, and the open product decisions.">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / roadmap</span>
+  <nav class="top-links">
+    <a href="/lab/">Lab</a><a href="/game/">Game</a><a href="/docs/">Docs</a><a href="/roadmap/" class="here">Roadmap</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <h1>Roadmap</h1>
+  <p class="sub">The path from a deterministic cloning engine to a tiered game over the tool. For the <em>why</em> behind these choices, see the <a href="/docs/">docs</a>.</p>
+
+  <div class="tagrow">
+    <span class="tag"><b>✓ live</b> Phase 2 — engine</span>
+    <span class="tag"><b>✓ live</b> Phase 3 — assembly game</span>
+    <span class="tag"><b>✓ proven</b> Phase 6 — HMMER spike</span>
+  </div>
+
+  <h2 id="plan">Phased plan</h2>
+  <p>The deliverable is a <strong>tiered game over the tool</strong>. The critical path to a playable game is the cheap deterministic engine (Phase 2), not the C-library work — so the game ships first, and the expensive HMMER port is deferred to the pro-tool tier.</p>
+  <ol>
+    <li><b>Phase 1 — primer3 spike (off critical path).</b> A Rust crate that vendors primer3 and FFIs <code>oligotm</code>/primer-picking via <code>bindgen</code>+<code>cc</code>, compiled to WASM. Validates "reuse C from Rust → WASM" on the easy lib; later powers Tm-based fitness in directed-evolution and a primer-design mode.</li>
+    <li><b>Phase 2 — the deterministic engine. <span class="ok">▶ live</span>.</b> The deterministic subset in Rust → WASM: restriction mapping (30-enzyme table with sticky/blunt overhangs), translation + 6-frame ORFs, circular/linear maps, in-silico PCR, digest → gel, and <b>cloning</b> (cut vector + insert, ligate compatible overhangs → recombinant plasmid). Dependency-free (~85&nbsp;KB wasm), validated against pUC19. The scoring oracle <em>and</em> the workbench core. <b><a href="/lab/">Open the lab →</a></b></li>
+    <li><b>Phase 3 — Assembly-puzzle game. <span class="ok">▶ vertical slice live</span>.</b> Pick restriction enzymes to cut a vector + insert, ligate compatible ends, build the target plasmid — every move auto-graded by the engine. Three levels (directional clone → internal-cutter trap → find-the-pair), star scoring vs enzyme par. <b><a href="/game/">Clone the construct →</a></b><br>
+      <span class="muted">Next: procedural level generation, cost/step optimization + leaderboard histograms, Fluoddity's score/atlas shell.</span></li>
+    <li><b>Phase 4 — Directed-evolution game (the Fluoddity bridge).</b> Swap <a href="https://fluoddity.mino.mobi">Fluoddity</a>'s Fourier genome for real DNA; objective fitness functions (codon-optimize, strip sites, GC/Tm); fork + publish constructs as ATProto records; phylogeny + cross-user atlas. Reuses the existing breed→select→fork→gallery loop almost verbatim.</li>
+    <li><b>Phase 5 — tier the ramp + real-construct export.</b> Wire the casual puzzle front-end to graduate into the workbench surface; GenBank export you could take to a bench.</li>
+    <li><b>Phase 6 — HMMER (pro-tool only; <span class="ok">viability proven</span>).</b> The hardest dependency — hot loops are hand-written SSE intrinsics with no WASM equivalent — has been spiked and <b>passes</b> (bit-identical to native, ~6% slower). In-browser is viable; server-side is now a choice, not a necessity. <a href="/docs/#spike">See the spike →</a></li>
+  </ol>
+
+  <h2 id="games">The two game modes</h2>
+  <p>Both run on the cheap Phase-2 engine — no primer3, no HMMER — which is why the game ships before the expensive C-library work.</p>
+  <table>
+    <tr><th>Mode</th><th>Loop</th><th>Engine</th><th>Reuse</th></tr>
+    <tr>
+      <td><b>Assembly puzzle</b><br><span class="muted">Zachtronics-style</span></td>
+      <td>Given a target construct + a parts library, assemble a valid plasmid under real constraints. Scored on validity, then optimized for cost / steps / elegance.</td>
+      <td class="ok">Phase 2 · <b>live</b></td>
+      <td>Fluoddity's score / leaderboard / atlas shell</td>
+    </tr>
+    <tr>
+      <td><b>Directed evolution</b><br><span class="muted">the Fluoddity bridge</span></td>
+      <td>Mutate real DNA toward an <em>objective</em> fitness target (codon-optimize, strip restriction sites, tune GC / Tm). Fork and publish constructs as ATProto records; grow a phylogeny; climb a cross-user atlas.</td>
+      <td class="ok">Phase 2<span class="muted"> (+primer3 later)</span></td>
+      <td><b>Fluoddity's breed→select→fork→gallery loop, almost verbatim</b></td>
+    </tr>
+  </table>
+  <p><b>Audience: tiered.</b> A casual puzzle front-end that graduates into the real workbench. New players get an abstracted puzzle that hides bookkeeping; as they level up, more of the real tool's surface (and real-construct export) is revealed. The game is the onboarding ramp to the tool, not a walled-off toy.</p>
+
+  <h2 id="decisions">Decisions</h2>
+  <h3 style="color:var(--accent)">Settled</h3>
+  <div class="q" style="border-color:var(--muted)"><b class="ok">Game directions:</b> both <b>assembly puzzle</b> and <b>directed evolution</b> (Phases 3 &amp; 4). Both run on the cheap Phase-2 engine.</div>
+  <div class="q" style="border-color:var(--muted)"><b class="ok">Audience:</b> <b>tiered</b> — a casual puzzle front-end that graduates into the real workbench (Phase 5).</div>
+  <div class="q" style="border-color:var(--muted)"><b class="ok">Build path:</b> Phase 2 engine first (done), assembly game on top (done), HMMER deferred to the pro tier (spiked, proven).</div>
+  <h3 style="color:var(--warn)">Still open</h3>
+  <div class="q">How central is <b>HMM search</b> (the <code>/hmmscan</code> surface) to the audience? <span class="muted">(Technical viability is settled — see the <a href="/docs/#spike">spike</a>; this is purely a product-priority call, and if built, in-browser vs server-side for the profile DB.)</span></div>
+  <div class="q">Attribution: this is a <b>derivative reimplementation</b> of an MIT-licensed tool. A courtesy heads-up + clear attribution to <a href="https://github.com/Binomica-Labs">Binomica Labs</a> before anything reaches a wider audience.</div>
+  <div class="q">Next thickening pass for the game: <b>procedural level generation + cost-scoring</b> (recommended — turns 3 hand-made levels into an endlessly replayable scored game), richer mechanics (Golden Gate / Gibson multi-fragment), or the ATProto sharing bridge?</div>
+
+  <footer>
+    <p><a href="/">← splice home</a> · <a href="/docs/">docs</a> · SpliceCraft is © <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed; this is an independent evaluation, not affiliated.</p>
+  </footer>
+</div>
+</body>
+</html>
