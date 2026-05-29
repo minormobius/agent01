@@ -41,8 +41,18 @@ function setStatus(msg, err = false) {
 
 if (!navigator.gpu) {
   fallbackEl.hidden = false;
-  setStatus('WebGPU not available', true);
+  setStatus('WebGPU not available in this browser', true);
   throw new Error('WebGPU not available in this browser');
+}
+
+function resizeCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(window.innerWidth * dpr));
+  const h = Math.max(1, Math.floor(window.innerHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
 }
 
 // ─────────────────────────────── Bluesky ────────────────────────────────
@@ -331,17 +341,40 @@ const state = {
 };
 
 async function initWebGPU() {
-  setStatus('requesting GPU…');
+  setStatus('requesting GPU adapter…');
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) throw new Error('No GPU adapter');
+  if (!adapter) throw new Error('navigator.gpu present but requestAdapter() returned null');
+  setStatus('requesting GPU device…');
   const device = await adapter.requestDevice();
   device.lost.then(info => setStatus('GPU lost: ' + info.message, true));
 
-  const context = canvas.getContext('webgpu');
-  const format = navigator.gpu.getPreferredCanvasFormat();
-  context.configure({ device, format, alphaMode: 'premultiplied' });
+  // Size the canvas backing store BEFORE configuring the context. The default
+  // 300x150 drawing buffer trips Safari's WebGPU swapchain on some builds.
+  resizeCanvas();
 
+  setStatus('configuring canvas context…');
+  const context = canvas.getContext('webgpu');
+  if (!context) throw new Error('canvas.getContext("webgpu") returned null');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  // 'opaque' is universally supported; 'premultiplied' is optional and some
+  // iOS Safari builds reject it. The CSS halo behind the canvas won't show
+  // through with opaque, but the emissive shader still does the heavy lifting.
+  context.configure({ device, format, alphaMode: 'opaque' });
+
+  setStatus('compiling shaders…');
   const mod = device.createShaderModule({ code: WGSL });
+  // Surface WGSL compile errors verbatim (instead of letting pipeline creation
+  // hide them behind a generic message).
+  try {
+    const info = await mod.getCompilationInfo();
+    const errs = info.messages.filter(m => m.type === 'error');
+    if (errs.length) throw new Error('WGSL: ' + errs.map(e => e.message).join(' | '));
+  } catch (e) {
+    if (/WGSL:/.test(e.message)) throw e;
+    // getCompilationInfo not implemented on some builds — non-fatal.
+  }
+
+  setStatus('building render pipeline…');
   const pipeline = device.createRenderPipeline({
     layout: 'auto',
     vertex: {
@@ -358,7 +391,7 @@ async function initWebGPU() {
       module: mod, entryPoint: 'fs',
       targets: [{ format }],
     },
-    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    primitive: { topology: 'triangle-list', cullMode: 'back', frontFace: 'ccw' },
     depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
   });
 
@@ -452,13 +485,7 @@ function frame() {
   const dt = Math.min(0.1, (t - lastT) / 1000);
   lastT = t;
 
-  // resize
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-  const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w; canvas.height = h;
-  }
+  resizeCanvas();
   ensureDepth();
 
   // auto scroll / spin (slider units → reasonable per-second rates)
@@ -571,8 +598,10 @@ form.addEventListener('submit', async (e) => {
     // Auto-load the default URL.
     form.dispatchEvent(new Event('submit', { cancelable: true }));
   } catch (err) {
-    console.error(err);
+    // Don't show the "WebGPU required" overlay here — WebGPU IS available
+    // (navigator.gpu existed), init just blew up for some other reason.
+    // Surface the actual message so the user (and we) can see what failed.
+    console.error('orb init failed:', err);
     setStatus('init failed: ' + (err?.message || String(err)), true);
-    fallbackEl.hidden = false;
   }
 })();
