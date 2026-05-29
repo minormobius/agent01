@@ -16,7 +16,7 @@
 window.ORFEO = window.ORFEO || {};
 window.ORFEO.tale = {
   meta: {
-    blurb: "<strong>Sir Orfeo</strong> — an anonymous Middle English Breton lay of about 600 lines, preserved earliest in the Auchinleck Manuscript (c. 1330). One of the strangest acts of cultural translation in the medieval canon: the classical Orpheus and Eurydice retold as a king of Winchester and his queen taken not into Hades but into Faerie — and brought back. Below are <strong>Movements I–IV</strong>: the king and queen; the vision and the abduction; ten years in the wilderness and the wordless meeting; the rock-cleft passage, the bright-as-paradise Otherworld castle, and the chilling yard of the half-taken — where the abducted are held in the posture they were taken in. The English is an <strong>original translation</strong>. The Middle English beside it is a <em>lightly normalised reading text</em> after Martha Hale Shackford's 1913 anthology (Ginn and Company, Boston), which prints David Laing's 1884 edition of the Auchinleck text — thorns and yoghs modernised for readability. The full diplomatic source is preserved verbatim at <a href=\"source/orfeo-shackford-1913.txt\">source/orfeo-shackford-1913.txt</a>.",
+    blurb: "<strong>Sir Orfeo</strong> — an anonymous Middle English Breton lay of about 600 lines, preserved earliest in the Auchinleck Manuscript (c. 1330). One of the strangest acts of cultural translation in the medieval canon: the classical Orpheus and Eurydice retold as a king of Winchester and his queen taken not into Hades but into Faerie — and brought back. Below are <strong>Movements I–V</strong>: the king and queen; the vision and the abduction; ten years in the wilderness and the wordless meeting; the rock-cleft and the chilling yard of the half-taken; and the harping at the Fairy King's hall, the rash boon, and the walking-out. The English is an <strong>original translation</strong>. The Middle English beside it is a <em>lightly normalised reading text</em> after Martha Hale Shackford's 1913 anthology (Ginn and Company, Boston), which prints David Laing's 1884 edition of the Auchinleck text — thorns and yoghs modernised for readability. The full diplomatic source is preserved verbatim at <a href=\"source/orfeo-shackford-1913.txt\">source/orfeo-shackford-1913.txt</a>.",
     sources: [
       { label: "Sir Orfeo in the Auchinleck Manuscript — National Library of Scotland", url: "https://auchinleck.nls.uk/mss/orfeo.html", host: "NLS" },
       { label: "Sir Orfeo (TEAMS edition) — Laskaya & Salisbury 1995", url: "https://metseditions.org/read/kx0QpvAhal5RCWAMT63kWFj90aee895", host: "Middle English Texts Series" },
@@ -30,7 +30,7 @@ window.ORFEO.tale = {
     { t: "II · The vision, the abduction at the ympe-tree, the abdication", done: true },
     { t: "III · Ten years in the wilderness", done: true },
     { t: "IV · The rock-cleft, the Otherworld castle, the yard of the half-taken", done: true },
-    { t: "V · The harping, the rash boon, the walking-out", done: false },
+    { t: "V · The harping, the rash boon, the walking-out", done: true },
     { t: "VI · Return, the steward's test, recognition", done: false },
   ],
   passages: [
@@ -169,6 +169,39 @@ window.ORFEO.tale = {
         { w: "Ther he seighe his owhen wiif, dame Heurodis his liif liif, slepe under an ympe tre; bi her clothes he knewe that it was he.",
           e: "There he saw his own wife, Lady Heurodis, his life of his life, asleep under an ympe-tree. By her clothes he knew that it was she.",
           n: "The recognition. She is held in the moment of her own taking — asleep, under an ympe-tree, just as she was that May noon a decade ago. He knows her not by her face, not by her hands, but by the dress she was wearing the day she was taken. The Otherworld has preserved the very afternoon, intact." },
+      ],
+    },
+
+    {
+      title: "V. The harping, the rash boon, the walking-out",
+      segments: [
+        { w: "And when he hadde bihold this mervails alle, he went in to the kinges halle. Then seighe he ther a semly sight: a tabernacle blisseful and bright; ther in her maister king sete, and her quen fair and swete. Her crounes, her clothes, schine so bright, that unnethe bihold he hem might. When he hadde biholden al that thing, he kneled adoun bifor the king. “O Lord,” he seyd, “yif it thi wille were, mi menstraci thou schust y here.”",
+          e: "And when he had beheld all those marvels he went into the king's hall. Then he saw a comely sight — a <em>tabernacle</em>, blissful and bright; therein their master king sat, and his queen, fair and sweet. Their crowns, their clothes, shone so bright that scarcely could he look on them. When he had beheld all this, he kneeled down before the king. “O Lord,” he said, “if it be thy will, my minstrelsy thou shalt hear.”",
+          n: "The single-jewel crown from Movement II is consummated here — both king and queen shining beyond the bearable. The poet's word for the throne-canopy is <em>tabernacle</em>, the ecclesiastical word for the housing of the consecrated host. The vocabulary of the sacred is being laid right next to the Otherworld throne — and the poem will not say whether the substitution is sacrilege or syncretism. Orfeo offers minstrelsy: not as king, not as husband; as a poor entertainer. The disguise is total." },
+
+        { w: "The king answerd, “What man artow, that art hider y comen now? Ich, no non that is with me, no sent never after the. Seththen that ich here regni gan, y no fond never so fole hardi man that hider to ous durst wende, bot that Ichim walde of sende.” “Lord,” quath he, “trowe ful wel, y nam bot a pover menstrel; and, sir, it is the maner of us to seche mani a lordes hous, thei we nought welcom no be, yete we mot proferi forth our gle.”",
+          e: "The king answered: “What man art thou, that art come hither now? I, and none that is with me, never sent for thee. Since I began to reign here, I never found man so foolhardy that he dared come hither to us, but that I myself would send for him.” “Lord,” he said, “trust me well — I am but a poor minstrel; and, sir, it is the manner of our kind to seek many a lord's house. Though we be not welcome, yet must we offer forth our glee.”",
+          n: "A king who admits no uninvited visitors — but a minstrel is no fool-hardy intruder; he is a wandering trade. Orfeo's defence is generic and the Fairy King accepts it, because the category exists in his world too. The fae court runs on protocol; protocol grants the harper passage where force would not." },
+
+        { w: "Bifor the king he sat adoun, and tok his harp so miri of soun, and tempreth his harp as he wel can, and blisseful notes he ther gan, that al that in the paleys were com to him for to here, and liggeth adoun to his fete, hem thenketh his melody so swete. The king herkneth, and sitt ful stille; to here his gle he hath gode wille. Gode bourde he hadde of his gle; the riche quen al so hadde he.",
+          e: "Before the king he sat down, and took his harp, so merry of sound, and tunes it as he well can, and began blissful notes upon it — so that all that were in the palace came to him to hear, and lay down at his feet; so sweet to them his melody seemed. The king listens, and sits stock-still; to hear his glee he has good will. Good pleasure he had in his glee; the rich queen also had he.",
+          n: "Compare the wild-beast scene in Movement III: there the wild beasts came for the music and left the moment it stopped. Here, in the Otherworld, the Fairy King's good will <em>continues</em> after the music ends. The fae listen with the same animal attention — laying at his feet — but the king has the capacity for after-effect that the wild beasts didn't. Promise can follow song here." },
+
+        { w: "When he hadde stint his harping, than seyd to him the king, “Menstrel, me liketh wele thi gle; now aske of me what it be, largelich Ichil the pay; now speke, and tow might asay.”",
+          e: "When he had ceased his harping, then the king said to him: “Minstrel, well I like thy glee. Now ask of me whatever it be — largely will I pay thee. Now speak, and thou mayest try.”",
+          n: "M223 — the rash promise. Asked here in the fairest possible form: ask anything, <em>now speke, and tow might asay</em> — speak, and you may put it to the proof. The king does not know what he is committing to. The classical Orpheus charmed Hades into the looking-back deal; the medieval Orfeo gets a clean rash boon and uses it like a Welsh hero." },
+
+        { w: "“Sir,” he seyd, “Ich beseche the, thatow woldest give me, that ich levedi bright on ble, that slepeth under the ympe tre.” “Nay,” quath the king, “that nought nere — a sori couple of you it were, for thou art lene, rowe, and blac, and sche is lovesome with outen lac; a lothlich thing it were forthi, to sen hir in thi compayni.”",
+          e: "“Sir,” he said, “I beseech thee that thou wouldst give me that same lady, bright of countenance, that sleepeth under the ympe-tree.” “Nay,” quoth the king, “that may not be — a sorry couple of you would be. For thou art lean and rough and black, and she is lovesome without lack; a loathly thing it would be therefore, to see her in thy company.”",
+          n: "The king's grounds for refusing are pure aesthetic snobbery — the harper looks too rough to be worthy of the queen. This is a brilliantly chosen ground: appearance is not the point of the contract, and so the refusal cannot stand against a binding word. The Fairy King knows the form of the promise he made; he is testing whether Orfeo knows it." },
+
+        { w: "“O sir,” he seyd, “gentil king, yete were it a wele fouler thing to here a lesing of thy mouthe! So, sir, as ye seyd nouthe, what Ich wold aski have Y schold; and nedes thou most thi word hold.” The king seyd, “Seththen it is so, take hir bi the hand, and go; of hir Ichil thatow be blithe.” He kneled adoun, and thonked him swithe.",
+          e: "“O sir,” he said, “gentle king — yet were it a far <em>fouler</em> thing to hear a lying from thy mouth. So, sir, as ye said just now — what I would ask, I should have; and needs thou must hold thy word.” The king said, “Since it is so, take her by the hand and go; in her I would have thee be blithe.” He kneeled down, and thanked him swiftly.",
+          n: "The hinge of the whole poem. <em>Yete were it a wele fouler thing / to here a lesing of thy mouthe</em> — yet were it a far fouler thing to hear a lying from your mouth. Orfeo binds the Fairy King with his own word: a lie from the king's mouth would be a worse loathliness than any couple. The Otherworld's order is upheld — by Orfeo, against the king. Music charmed the door open; honour walked them out." },
+
+        { w: "His wiif he tok bi the hond, and dede him swithe out of that lond, and went him out of that thede, right as he came the way he yede.",
+          e: "His wife he took by the hand, and went swiftly out of that land, and out of that country — just as he came, the way he went.",
+          n: "The walking-out. No looking back. The classical Orpheus's whole loss was in the backward look; the medieval Orfeo simply does not look back. The poem will not let the looking-back motif in the door. He came one way, he goes back the same way — no test, no condition, no warning. The Fairy King's word has bound the bargain, and the bargain holds." },
       ],
     },
   ],
