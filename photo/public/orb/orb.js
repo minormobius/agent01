@@ -683,18 +683,31 @@ canvas.addEventListener('wheel', (e) => {
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
 // Minimal one-at-a-time stamping. First click (or URL change) fetches the
-// thread and stores the image list; each click stamps the next image onto
-// the placeholder canvas (so the celestial backdrop stays put — failed loads
-// or weird sizes won't black-hole the orb). Re-uploads the texture after
-// each stamp.
+// thread and stores the image list; each subsequent click walks DOWN the
+// queue, auto-skipping HTTP errors (403 on takedown'd blobs, 404 on deleted
+// posts) and only stops when it lands a real image. The celestial backdrop
+// stays put behind any holes, so failures never black out the orb.
 let imageQueue = [];
-let stampedCount = 0;
+let queueIndex = 0;     // how many entries we've consumed (success or skip)
+let successCount = 0;   // how many actually drew onto the canvas
 let lastFetchedUrl = '';
+
+const MAX_TRIES_PER_CLICK = 30;
 
 function urlTail(u) {
   if (!u) return '(none)';
   const idx = u.lastIndexOf('/');
   return u.slice(idx + 1).slice(0, 48);
+}
+
+async function tryLoadEntry(entry) {
+  let img = await loadImage(entry.thumb);
+  if (img) return img;
+  if (entry.fullsize && entry.fullsize !== entry.thumb) {
+    img = await loadImage(entry.fullsize);
+    if (img) return img;
+  }
+  return null;
 }
 
 form.addEventListener('submit', async (e) => {
@@ -709,58 +722,74 @@ form.addEventListener('submit', async (e) => {
       setStatus('fetching thread…');
       const { images, root } = await loadThread(wantedUrl);
       if (images.length === 0) {
-        setStatus(`no images in thread (root @${root.author.handle}) — even after walking quote embeds`, true);
+        setStatus(`no images in thread (root @${root.author.handle}) — quote embeds also walked`, true);
         imageQueue = [];
         return;
       }
       imageQueue = images;
-      stampedCount = 0;
+      queueIndex = 0;
+      successCount = 0;
       lastFetchedUrl = wantedUrl;
-      setStatus(`thread has ${images.length} images (incl. quote embeds) · click load to stamp one`);
+      setStatus(`thread has ${images.length} images · click load to stamp one`);
       loadBtn.textContent = 'stamp +1';
       return;
     }
 
-    if (stampedCount >= imageQueue.length) {
-      setStatus(`done · ${stampedCount} stamped`);
+    if (queueIndex >= imageQueue.length) {
+      setStatus(`exhausted queue · ${successCount} stamped`);
       return;
     }
 
-    const entry = imageQueue[stampedCount];
-    setStatus(`loading image ${stampedCount + 1} / ${imageQueue.length}…`);
-    let img = await loadImage(entry.thumb);
-    const firstErr = lastImageError;
-    // CDN sometimes evicts the cached thumb while the fullsize is still there;
-    // try the fullsize URL as a fallback.
-    if (!img && entry.fullsize && entry.fullsize !== entry.thumb) {
-      img = await loadImage(entry.fullsize);
+    // Walk forward until something loads or we've burned a click's worth of
+    // attempts. Many quote-archive entries point at dead blobs (403/404);
+    // skip past them silently rather than making the user click for each.
+    let landed = null;
+    let landedEntry = null;
+    let lastReason = '';
+    let tried = 0;
+    while (queueIndex < imageQueue.length && tried < MAX_TRIES_PER_CLICK) {
+      const candidate = imageQueue[queueIndex];
+      setStatus(`trying ${queueIndex + 1} / ${imageQueue.length}…`);
+      const img = await tryLoadEntry(candidate);
+      if (img) { landed = img; landedEntry = candidate; break; }
+      lastReason = lastImageError;
+      console.warn(`orb: skipped ${queueIndex + 1}: ${lastReason} · ${candidate.thumb}`);
+      queueIndex++;
+      tried++;
     }
-    if (!img) {
-      stampedCount++;
-      const reason = lastImageError || firstErr || 'unknown';
-      setStatus(`image ${stampedCount} failed (${reason}) · …/${urlTail(entry.thumb)}`, true);
-      console.warn('orb: image failed to load:', { thumb: entry.thumb, fullsize: entry.fullsize, reason });
+
+    if (!landed) {
+      if (queueIndex >= imageQueue.length) {
+        setStatus(`exhausted queue · ${successCount} stamped · last error ${lastReason}`, true);
+      } else {
+        setStatus(`${tried} dead in a row (last: ${lastReason}) · click again to keep going`, true);
+      }
       return;
     }
 
-    // Stamp onto the placeholder canvas. Cycle through a small grid of
-    // positions so successive stamps spread out over the sphere.
+    // Stamp it. Position is based on stamps that actually succeeded so the
+    // grid doesn't leave gaps for the skipped entries.
     const c = state.atlasCanvas;
     const ctx = c.getContext('2d');
     const cols = 2, rows = 8;
     const cellW = c.width / cols;
     const cellH = c.height / rows;
     const tile = Math.floor(Math.min(cellW, cellH) * 0.86);
-    const i = stampedCount;
+    const i = successCount;
     const col = i % cols;
     const row = Math.floor(i / cols) % rows;
     const x = col * cellW + (cellW - tile) / 2;
     const y = row * cellH + (cellH - tile) / 2;
-    drawTile(ctx, img, x, y, tile);
+    drawTile(ctx, landed, x, y, tile);
     setStripFromCanvas(c);
 
-    stampedCount++;
-    setStatus(`stamped ${stampedCount} / ${imageQueue.length} · @${entry.authorHandle}`);
+    queueIndex++;
+    successCount++;
+    const skipped = tried;   // entries skipped this click before landing
+    setStatus(
+      `stamped ${successCount} · skipped ${queueIndex - successCount} total · @${landedEntry.authorHandle}` +
+      (skipped > 0 ? ` (skipped ${skipped} this click)` : ''),
+    );
   } catch (err) {
     console.error(err);
     setStatus('error: ' + (err?.message || String(err)), true);
