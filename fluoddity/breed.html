@@ -350,8 +350,20 @@ function applyCustomScore(code) {
   if (!src) { customScore = null; csStatus.textContent = 'using default fitness'; csStatus.className = 'desc'; return true; }
   try {
     const fn = new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', src);
-    const r = fn({ fill: 0.1, motion: 0.001, blowout: 0, struct: 0.7, lum: null }, 0.3, 0.05, 0, 'alive', 0, defaultConfig());
-    if (typeof r !== 'number' || !Number.isFinite(r)) throw new Error('must return a finite number (got ' + typeof r + ')');
+    // Smoke-test v: include all 8 tier-0 features (4 static + 4 deltas) plus
+    // the T2 mirrors. Tier-0 rubrics emitted by hot or not reference v.dfill /
+    // v.dmotion / v.dstruct / v.dblowout — without those the rubric returns
+    // NaN here and silently gets rejected, leaving the breeder on default
+    // fitness while the UI looks loaded.
+    const testV = {
+      fill: 0.1, motion: 0.001, blowout: 0, struct: 0.7,
+      fill2: 0.12, motion2: 0.0012, blowout2: 0, struct2: 0.72,
+      dfill: 0.02, dmotion: 0.0002, dstruct: 0.02, dblowout: 0,
+      lum: null,
+    };
+    const r = fn(testV, 0.3, 0.05, 0, 'alive', 0, defaultConfig());
+    if (typeof r !== 'number') throw new Error('must return a number (got ' + typeof r + ')');
+    if (!Number.isFinite(r)) throw new Error('must return a finite number (got ' + r + ') — check that every variable the formula uses is defined');
     customScore = fn;
     csStatus.textContent = 'active · score = ' + r.toFixed(3) + ' on a test ind';
     csStatus.className = 'desc ok';
