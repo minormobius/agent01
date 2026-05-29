@@ -104,8 +104,129 @@
     });
   }
 
-  /* ====================== STORY GRAPH (Propp) ====================== */
+  /* ====================== CHARACTERS ====================== */
   function toRoman(n) { const m = ["", "I", "II", "III", "IV", "V", "VI"]; return m[n] || ("" + n); }
+
+  function renderCharacters() {
+    const ch = P.characters; if (!ch) return;
+    $("#char-intro").innerHTML = ch.intro;
+    const roleColor = {}, roleLabel = {};
+    ch.roles.forEach((r) => { roleColor[r.id] = r.color; roleLabel[r.id] = r.label; });
+    const leg = $("#char-legend"); leg.innerHTML = "";
+    ch.roles.forEach((r) => leg.appendChild(el("span", "li", `<span class="dot" style="background:${r.color}"></span>${r.label}`)));
+    const byId = {}; ch.cast.forEach((c) => byId[c.id] = c);
+    const host = $("#char-groups"); host.innerHTML = "";
+    ch.roles.forEach((role) => {
+      const members = ch.cast.filter((c) => c.role === role.id);
+      if (!members.length) return;
+      host.appendChild(el("div", "char-rolehead", role.label));
+      const grid = el("div", "char-grid");
+      members.forEach((c) => {
+        const col = roleColor[c.role] || "#c9a24a";
+        const card = el("div", "char-card"); card.id = "char-" + c.id;
+        card.style.borderLeftColor = col;
+        let head = `<h3>${escapeHtml(c.name)}</h3>`;
+        const sub = [c.alt && c.alt !== c.name ? c.alt : null, c.epithet].filter(Boolean).join(" · ");
+        if (sub) head += `<div class="char-sub">${escapeHtml(sub)}</div>`;
+        card.innerHTML = head + `<div class="char-blurb">${c.blurb}</div>`;
+        if (c.appears && c.appears.length) {
+          const ap = el("div", "char-appears", "Appears in: ");
+          c.appears.forEach((n, i) => {
+            const a = el("a", null, "Mvt " + toRoman(n)); a.setAttribute("data-passage", n); a.title = (P.tale.passages[n - 1] || {}).title || "";
+            ap.appendChild(a); if (i < c.appears.length - 1) ap.appendChild(document.createTextNode(" · "));
+          });
+          card.appendChild(ap);
+        }
+        if (c.rel && c.rel.length) {
+          const rl = el("div", "char-rels");
+          c.rel.forEach((r) => {
+            const target = byId[r.to]; if (!target) return;
+            const chip = el("a", "char-rel"); chip.setAttribute("data-char", r.to);
+            chip.innerHTML = `<span class="rel-label">${escapeHtml(r.label)}</span> ${escapeHtml(target.name)}`;
+            rl.appendChild(chip);
+          });
+          card.appendChild(rl);
+        }
+        grid.appendChild(card);
+      });
+      host.appendChild(grid);
+    });
+  }
+
+  /* ====================== CHARACTER WEB ====================== */
+  function renderWeb() {
+    const ch = P.characters; if (!ch) return;
+    const roleColor = {}; ch.roles.forEach((r) => roleColor[r.id] = r.color);
+    const leg = $("#web-legend"); leg.innerHTML = "";
+    ch.roles.forEach((r) => leg.appendChild(el("span", "li", `<span class="dot" style="background:${r.color}"></span>${r.label}`)));
+
+    const nodes = ch.cast.map((c) => ({ id: c.id, name: c.name, role: c.role, color: roleColor[c.role] || "#c9a24a" }));
+    const idx = {}; nodes.forEach((n, i) => idx[n.id] = i);
+    const seen = {}, edges = [];
+    ch.cast.forEach((c) => (c.rel || []).forEach((r) => {
+      if (idx[r.to] == null) return;
+      const key = [c.id, r.to].sort().join("|"); if (seen[key]) return; seen[key] = 1;
+      edges.push({ a: idx[c.id], b: idx[r.to], label: r.label });
+    }));
+
+    // Fruchterman–Reingold layout (deterministic seed → stable each load)
+    const W = 1000, H = 720, k = Math.sqrt((W * H) / nodes.length) * 0.72;
+    nodes.forEach((n, i) => { const a = 2 * Math.PI * i / nodes.length; n.x = W / 2 + Math.cos(a) * W * 0.32; n.y = H / 2 + Math.sin(a) * H * 0.32; });
+    let temp = W * 0.1;
+    for (let it = 0; it < 320; it++) {
+      nodes.forEach((n) => { n.dx = 0; n.dy = 0; });
+      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const f = k * k / d, ux = dx / d, uy = dy / d;
+        nodes[i].dx += ux * f; nodes[i].dy += uy * f; nodes[j].dx -= ux * f; nodes[j].dy -= uy * f;
+      }
+      edges.forEach((e) => {
+        const A = nodes[e.a], B = nodes[e.b];
+        let dx = A.x - B.x, dy = A.y - B.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        const f = d * d / k, ux = dx / d, uy = dy / d;
+        A.dx -= ux * f; A.dy -= uy * f; B.dx += ux * f; B.dy += uy * f;
+      });
+      nodes.forEach((n) => { n.dx += (W / 2 - n.x) * 0.02; n.dy += (H / 2 - n.y) * 0.02; });
+      nodes.forEach((n) => { const d = Math.sqrt(n.dx * n.dx + n.dy * n.dy) || 0.01, m = Math.min(d, temp); n.x += n.dx / d * m; n.y += n.dy / d * m; });
+      temp *= 0.97;
+    }
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+    nodes.forEach((n) => { minx = Math.min(minx, n.x); miny = Math.min(miny, n.y); maxx = Math.max(maxx, n.x); maxy = Math.max(maxy, n.y); });
+    const pad = 46; nodes.forEach((n) => { n.x = n.x - minx + pad; n.y = n.y - miny + pad; });
+    const contentW = maxx - minx + pad * 2;
+
+    const svg = svgEl("svg", { class: "web" }); const layer = svgEl("g", { class: "zl" }); svg.appendChild(layer);
+    const edgeEls = [], adj = {};
+    edges.forEach((e, ei) => {
+      const A = nodes[e.a], B = nodes[e.b];
+      const line = svgEl("line", { class: "web-edge", x1: A.x, y1: A.y, x2: B.x, y2: B.y });
+      const t = svgEl("title"); t.textContent = `${A.name} — ${e.label} — ${B.name}`; line.appendChild(t);
+      layer.appendChild(line); edgeEls.push(line);
+      (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
+    });
+    const nodeEls = [];
+    nodes.forEach((n, i) => {
+      const r = (n.role === "principal") ? 13 : (n.role === "annwn" || n.role === "hyfaidd" ? 10 : 9);
+      const g = svgEl("g", { class: "web-node" });
+      g.appendChild(svgEl("circle", { cx: n.x, cy: n.y, r: r, fill: n.color, "fill-opacity": 0.85, stroke: "#14110d", "stroke-width": 1.5 }));
+      const label = svgEl("text", { class: "web-label", x: n.x, y: n.y + r + 12, "text-anchor": "middle", "font-size": 11 }); label.textContent = n.name; g.appendChild(label);
+      const ttl = svgEl("title"); ttl.textContent = n.name + " — click for card"; g.appendChild(ttl);
+      g.addEventListener("mouseenter", () => hi(i, true));
+      g.addEventListener("mouseleave", () => hi(i, false));
+      g.addEventListener("click", () => { switchView("characters"); const c = $("#char-" + n.id); if (c) setTimeout(() => { c.scrollIntoView({ behavior: "smooth", block: "center" }); c.classList.remove("flash"); void c.offsetWidth; c.classList.add("flash"); }, 30); });
+      layer.appendChild(g); nodeEls.push(g);
+    });
+    function hi(i, on) {
+      if (!on) { edgeEls.forEach((l) => l.classList.remove("hot")); nodeEls.forEach((g) => g.classList.remove("dim")); return; }
+      const keep = new Set([i]); (adj[i] || []).forEach((ei) => { keep.add(edges[ei].a); keep.add(edges[ei].b); });
+      edgeEls.forEach((l, ei) => { if (edges[ei].a === i || edges[ei].b === i) l.classList.add("hot"); });
+      nodeEls.forEach((g, gi) => { if (!keep.has(gi)) g.classList.add("dim"); });
+    }
+    const host = $("#web-host"); host.innerHTML = ""; host.appendChild(svg);
+    zoomers.web = attachZoom(svg, layer, contentW, host);
+  }
+
+  /* ====================== STORY GRAPH (Propp) ====================== */
 
   function renderPropp() {
     const PR = P.propp; if (!PR) return;
@@ -158,13 +279,14 @@
   }
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "propp"];
-  let proppDrawn = false, current = "read";
+  const VIEWS = ["read", "characters", "web", "propp"];
+  let webDrawn = false, proppDrawn = false, current = "read";
   function switchView(v) {
     if (!VIEWS.includes(v)) v = "read";
     current = v;
     VIEWS.forEach((x) => { const n = $("#view-" + x); if (n) n.classList.toggle("active", x === v); });
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
+    if (v === "web" && !webDrawn) { renderWeb(); webDrawn = true; }
     if (v === "propp" && !proppDrawn) { renderPropp(); proppDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
@@ -173,14 +295,20 @@
   window.addEventListener("hashchange", () => { const v = location.hash.slice(1).split("/")[0]; if (VIEWS.includes(v)) switchView(v); });
   let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
-  // jump from a Propp card to the matching movement in Read
+  // jump from a Propp card or character chip to the matching movement in Read
   document.addEventListener("click", (ev) => {
     const a = ev.target.closest && ev.target.closest("a[data-passage]");
     if (a) { ev.preventDefault(); switchView("read"); const h = document.getElementById("tale-p-" + a.getAttribute("data-passage")); if (h) setTimeout(() => h.scrollIntoView({ behavior: "smooth", block: "start" }), 30); }
   });
+  // jump from a chip to the matching character card
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest && ev.target.closest("a[data-char]");
+    if (a) { ev.preventDefault(); switchView("characters"); const c = document.getElementById("char-" + a.getAttribute("data-char")); if (c) setTimeout(() => { c.scrollIntoView({ behavior: "smooth", block: "center" }); c.classList.remove("flash"); void c.offsetWidth; c.classList.add("flash"); }, 30); }
+  });
 
   /* ====================== INIT ====================== */
   renderTale();
+  renderCharacters();
   const h = location.hash.slice(1).split("/")[0];
   if (VIEWS.includes(h)) switchView(h);
 })();

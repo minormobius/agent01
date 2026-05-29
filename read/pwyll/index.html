@@ -20,6 +20,8 @@
       <span class="brand"><span class="sigil">🐎</span>Pwyll Pendefig Dyfed</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
         <button class="tab" data-view="propp">Story graph</button>
       </nav>
     </div>
@@ -37,6 +39,22 @@
       <div class="tale-progress" id="tale-progress"></div>
       <div class="tale-controls" id="tale-controls"></div>
       <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the tale, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
     </section>
 
     <!-- STORY GRAPH (Propp) -->
@@ -59,6 +77,7 @@
 
   <script src="tale.js"></script>
   <script src="analysis.js"></script>
+  <script src="characters.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
