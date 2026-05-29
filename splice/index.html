@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>splice — SpliceCraft on the web: refactor plan</title>
-<meta name="description" content="Evaluation + refactor plan for bringing Binomica Labs' SpliceCraft (a terminal molecular-biology workbench) to the web by reusing its C scientific libraries from Rust and compiling to WASM.">
+<meta name="description" content="Refactor plan for bringing Binomica Labs' SpliceCraft (a terminal molecular-biology workbench) to the web as a tiered game — assembly puzzle + directed evolution — by reusing its C scientific libraries from Rust and compiling to WASM.">
 <meta property="og:title" content="splice — SpliceCraft on the web">
 <meta property="og:description" content="How we'd bring SpliceCraft to the browser: reuse the C libs from Rust, compile to WASM, and pick the right deployment target on Cloudflare.">
 <style>
@@ -67,7 +67,7 @@
 
 <div class="wrap">
   <h1>SpliceCraft on the web</h1>
-  <p class="sub">A refactor plan: reuse the C scientific libraries from Rust, compile to WASM, and pick the right home on Cloudflare.</p>
+  <p class="sub">A refactor plan: wrap a real molecular-biology tool in a tiered game — by reusing its C scientific libraries from Rust, compiling to WASM, and picking the right home on Cloudflare.</p>
   <div class="status">⏳ This is a plan for review. No code has been written against SpliceCraft. Read it, then give a green light (or redirect).</div>
 
   <nav class="toc">
@@ -77,8 +77,9 @@
     <a href="#cdeps">④ The three C deps</a>
     <a href="#ffi">⑤ Using C from Rust</a>
     <a href="#targets">⑥ Where it runs</a>
-    <a href="#plan">⑦ Phased plan</a>
-    <a href="#questions">⑧ Decisions for you</a>
+    <a href="#game">⑦ The game layer</a>
+    <a href="#plan">⑧ Phased plan</a>
+    <a href="#questions">⑨ Decisions for you</a>
     <a href="#sources">Sources</a>
   </nav>
 
@@ -164,24 +165,69 @@ let tm = unsafe { ffi::oligotm(seq.as_ptr(), /* salt, conc, … */) };</code></p
   </table>
   <p>Two browser-WASM caveats worth flagging up front: <strong>COOP/COEP</strong> is the same cross-origin-isolation requirement <code>labglass</code> already lives with on this infra (<code>labglass/_headers</code>), so it's a known quantity on Pages; and <strong>nothing can shell out to a subprocess</strong> in WASM — fine here, because the lib-linking path is what we'd use.</p>
 
-  <h2 id="plan">⑦ Proposed phased plan</h2>
+  <h2 id="game">⑦ The game layer</h2>
+  <p class="lead">This may be the most important question: can we put a game over the useful tool? Yes — and it fits better than most "gamified tool" ideas, for one structural reason.</p>
+
+  <h3>The tool is its own scoring oracle</h3>
+  <p>Most science/edutainment games have to hand-author both the levels <em>and</em> the answer-checking. SpliceCraft hands you an <strong>objective correctness scorer for free</strong>: BioPython plus those 4,000 accuracy tests can deterministically judge any player move — <em>is this a valid Golden Gate assembly? does this primer pair amplify the target? is the frame intact? are there internal cutters?</em> The thing that normally kills these projects is solved before we start, which means levels can be <strong>procedurally generated</strong> and solutions <strong>auto-graded</strong>. That's what makes a game layer both cheap and deep. Precedent: <a href="https://fold.it/">Foldit</a>, <a href="https://eternagame.org/">EteRNA</a>, and <a href="https://phylo.cs.mcgill.ca/">Phylo</a> all turned a scored biological problem into play.</p>
+
+  <h3>Cloning is already a constraint-satisfaction puzzle</h3>
+  <p>The wet-lab loop maps onto game mechanics almost 1:1. Constraints (restriction-site uniqueness, primer Tm windows, MoClo/Golden Gate overhang compatibility, reading frame, no internal cutters) <em>are</em> the puzzle rules; a valid plasmid is the win. <a href="https://en.wikipedia.org/wiki/In_silico_PCR">In-silico PCR</a> + gel sim give instant verifiable feedback — design → simulate → see the band → iterate. And optimization (fewest enzymes, fewest steps, lowest cost) gives <a href="https://www.zachtronics.com/">Zachtronics</a>-style replay value with leaderboard histograms.</p>
+
+  <div class="panel">
+    <h3 style="margin-top:0">The strategic kicker</h3>
+    <p>Both modes we're putting on the roadmap run on the <strong>cheap Phase-2 deterministic engine</strong> (restriction, assembly, in-silico PCR, gel) — <strong>no primer3, no HMMER</strong>. So <strong>the game layer ships before the expensive C-lib port.</strong> The hard C dependencies (HMMER especially) are for the pro-tool, not the game. Genre choice <em>is</em> an engineering-cost choice, and we've picked the two cheapest-to-power, highest-synergy ones.</p>
+  </div>
+
+  <h3>On the roadmap: two modes</h3>
+  <table>
+    <tr><th>Mode</th><th>Loop</th><th>Engine</th><th>Reuse</th></tr>
+    <tr>
+      <td><b>Assembly puzzle</b><br><span class="muted">Zachtronics-style</span></td>
+      <td>Given a target construct + a parts library, assemble a valid plasmid under real constraints. Scored on validity, then optimized for cost / steps / elegance with leaderboard histograms.</td>
+      <td class="ok">Phase 2</td>
+      <td>Fluoddity's score / leaderboard / atlas shell</td>
+    </tr>
+    <tr>
+      <td><b>Directed evolution</b><br><span class="muted">the Fluoddity bridge</span></td>
+      <td>Mutate real DNA toward an <em>objective</em> fitness target (codon-optimize, strip restriction sites, tune GC / Tm). Fork and publish constructs as ATProto records; grow a phylogeny; climb a cross-user atlas.</td>
+      <td class="ok">Phase 2<span class="muted"> (+primer3 later for Tm-fitness)</span></td>
+      <td><b>Fluoddity's breed→select→fork→gallery loop, almost verbatim</b></td>
+    </tr>
+  </table>
+  <p>The directed-evolution mode is the tightest tie to existing work: it's Fluoddity's exact <em>breed a genome → select by fitness → fork → publish as an ATProto record → phylogeny/atlas</em> loop, but over <strong>real DNA with an objective fitness function</strong> instead of a Fourier black box. We reuse the whole shell — breeding UI, fork/phylogeny, ATProto persistence, the cross-user atlas (<a href="https://fluoddity.mino.mobi">fluoddity.mino.mobi</a>) — and swap the genome. (The "guess-the-gene" redact mode, à la <a href="https://rite.mino.mobi/redact/">rite's /redact</a>, stays parked: it needs the expensive Phase-3 BLAST/HMM engine.)</p>
+
+  <h3>Audience: tiered</h3>
+  <p>A casual puzzle front-end that <strong>graduates into the real workbench</strong>. New players get an abstracted assembly puzzle that hides bookkeeping; as they level up, more of the real tool's surface (and real-construct export — GenBank you could actually take to a bench) is revealed. The game is the onboarding ramp to the tool, not a walled-off toy.</p>
+
+  <h3>The one real design risk</h3>
+  <p>Real cloning carries a lot of bookkeeping. The game layer's entire job is to <strong>hide the spreadsheet and surface the decisions</strong> — that's Zachtronics' actual craft. If a level exposes a parts-inventory table, it's a tool; if it exposes <em>one interesting choice with consequences</em>, it's a game. We make that a hard design constraint from level one.</p>
+  <p class="src">Sources: <a href="https://fold.it/">Foldit</a> · <a href="https://eternagame.org/">EteRNA</a> · <a href="https://phylo.cs.mcgill.ca/">Phylo</a> · <a href="https://www.zachtronics.com/">Zachtronics</a> · <a href="https://fluoddity.mino.mobi">Fluoddity</a> · <a href="https://rite.mino.mobi/redact/">rite /redact</a></p>
+
+  <h2 id="plan">⑧ Proposed phased plan</h2>
+  <p>Re-sequenced now that the deliverable is a <strong>tiered game over the tool</strong>. The critical path to a playable game is Phase&nbsp;2 — the cheap deterministic engine — not the C-lib work. The primer3 spike stays in, but as a thesis-validator and a later Tm-fitness unlock, off the game's critical path.</p>
   <ol>
     <li><b>Phase 0 — this page.</b> Publish the plan, get a green light. ← you are here.</li>
-    <li><b>Phase 1 — primer3 spike (highest value/lowest risk).</b> Stand up a Rust crate that vendors primer3, FFIs <code>oligotm</code>/primer-picking via <code>bindgen</code>+<code>cc</code>, and exposes a tiny API. Prove it twice: native, then compiled to WASM and called from a static page. This validates the whole "reuse C from Rust → WASM" thesis on the easy lib.</li>
-    <li><b>Phase 2 — the deterministic BioPython subset in Rust.</b> Restriction mapping (port REBASE data), translation/codon tables, circular plasmid rendering, in-silico PCR, gel sim. Pure compute, no C deps → clean WASM. This is the bulk of an interactive browser workbench.</li>
-    <li><b>Phase 3 — HMMER decision.</b> Either (a) Emscripten-compile HMMER+Easel for the browser (heavy), or (b) host it server-side behind a JSON endpoint (container/DO) and call it from the frontend. Decide based on how central HMM search is to the target audience.</li>
-    <li><b>Phase 4 — frontend + deploy.</b> Wrap it as a real site. <code>splice.mino.mobi</code> already deploys "like rite" (Worker + ASSETS, <code>deploy-splice.yml</code>), so the surface is ready to grow into.</li>
+    <li><b>Phase 1 — primer3 spike (off critical path, proves the thesis).</b> A Rust crate that vendors primer3, FFIs <code>oligotm</code>/primer-picking via <code>bindgen</code>+<code>cc</code>, compiled to WASM and called from a static page. Validates "reuse C from Rust → WASM" on the easy lib; later powers Tm-based fitness in directed-evolution and a primer-design mode.</li>
+    <li><b>Phase 2 — the engine that powers both games (critical path).</b> The deterministic BioPython subset in Rust: restriction mapping (port REBASE data), translation/codon tables, circular plasmid rendering, in-silico PCR, gel sim. Pure compute, no C deps → clean WASM. This is the scoring oracle <em>and</em> the workbench core.</li>
+    <li><b>Phase 3 — Assembly-puzzle game.</b> Procedurally generate target constructs + parts libraries; auto-grade validity against the Phase-2 engine; add cost/step optimization + leaderboard histograms. Reuse Fluoddity's score/leaderboard/atlas shell.</li>
+    <li><b>Phase 4 — Directed-evolution game (the Fluoddity bridge).</b> Swap Fluoddity's Fourier genome for real DNA; objective fitness functions (codon-optimize, strip sites, GC/Tm); fork + publish constructs as ATProto records; phylogeny + cross-user atlas. Reuses the existing breed→select→fork→gallery loop.</li>
+    <li><b>Phase 5 — tier the ramp + real-construct export.</b> Wire the casual puzzle front-end to graduate into the workbench surface; GenBank export you could take to a bench. <code>splice.mino.mobi</code> already deploys "like rite" (Worker + ASSETS, <code>deploy-splice.yml</code>), ready to grow into.</li>
+    <li><b>Phase 6 — HMMER decision (deferred, pro-tool only).</b> Either Emscripten-compile HMMER+Easel for the browser (heavy) or host it server-side behind JSON (container/DO). Only needed if "guess-the-gene" or pro-grade search becomes a priority.</li>
   </ol>
   <div class="panel">
     <h3>Deployment note</h3>
     <p>This page ships exactly like <code>/rite</code>: a Cloudflare Worker with an <code>ASSETS</code> binding, custom domain <code>splice.mino.mobi</code>, deployed by <code>.github/workflows/deploy-splice.yml</code> on push to this branch. No D1, no AI, no cron — just static for now. <a href="/api/health">/api/health</a> confirms the worker is live.</p>
   </div>
 
-  <h2 id="questions">⑧ Decisions I need from you</h2>
-  <div class="q">Is the goal an <b>interactive browser workbench</b> (favor Rust→WASM, accept feature subset for now), or a <b>faithful full bench tool</b> (favor a hosted native server, more infra)?</div>
-  <div class="q">How central is <b>HMM search</b> (the <code>/hmmscan</code> surface)? Its answer decides Phase 3 — browser-heavy vs server-side.</div>
-  <div class="q">Are we comfortable that Phases 1–2 are a <b>derivative reimplementation</b> of someone else's MIT tool? I'd want a courtesy heads-up + clear attribution to <a href="https://github.com/Binomica-Labs">Binomica Labs</a> before shipping anything user-facing.</div>
-  <div class="q">Green light to start <b>Phase 1 (the primer3 spike)</b> once the above are settled?</div>
+  <h2 id="questions">⑨ Decisions</h2>
+  <h3 style="color:var(--accent)">Settled</h3>
+  <div class="q" style="border-color:var(--muted)"><b class="ok">Game directions:</b> both <b>assembly puzzle</b> and <b>directed evolution</b> on the roadmap (Phases 3 &amp; 4). Both run on the cheap Phase-2 engine.</div>
+  <div class="q" style="border-color:var(--muted)"><b class="ok">Audience:</b> <b>tiered</b> — a casual puzzle front-end that graduates into the real workbench (Phase 5).</div>
+  <h3 style="color:var(--warn)">Still open</h3>
+  <div class="q">How central is <b>HMM search</b> (the <code>/hmmscan</code> surface)? Decides whether Phase 6 ever happens, and browser-heavy vs server-side if so. Default: deferred.</div>
+  <div class="q">Comfortable that this is a <b>derivative reimplementation</b> of someone else's MIT tool? I'd want a courtesy heads-up + clear attribution to <a href="https://github.com/Binomica-Labs">Binomica Labs</a> before anything user-facing ships.</div>
+  <div class="q">Green light to start building — <b>Phase 2 (the engine)</b> as the critical path, with the <b>Phase 1 primer3 spike</b> alongside to prove the C-reuse thesis?</div>
 
   <h2 id="sources">Sources &amp; references</h2>
   <p class="refs">
