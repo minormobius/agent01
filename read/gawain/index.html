@@ -20,6 +20,7 @@
       <span class="brand"><span class="sigil">🪓</span>Sir Gawain &amp; the Green Knight</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
         <button class="tab" data-view="characters">Characters</button>
         <button class="tab" data-view="web">Character web</button>
         <button class="tab" data-view="propp">Story graph</button>
@@ -41,6 +42,15 @@
       <div class="tale-progress" id="tale-progress"></div>
       <div class="tale-controls" id="tale-controls"></div>
       <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- STORYBOOK (kid-faithful retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers 8 and up — the whole poem, page by page. Illustrations to come.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
     </section>
 
     <!-- CHARACTERS -->
@@ -99,6 +109,7 @@
   <script src="analysis.js"></script>
   <script src="characters.js"></script>
   <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

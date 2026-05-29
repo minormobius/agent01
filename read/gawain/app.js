@@ -104,6 +104,52 @@
     });
   }
 
+  /* ====================== STORYBOOK ====================== */
+  function renderBook() {
+    const B = G.book; if (!B) return;
+    const spreads = B.spreads, page = $("#book-page"), nav = $("#book-nav");
+    let idx = 0;
+    function dropCap(t) { return String(t).replace(/^(\s*["'(]?\s*)(\S)/, (m, a, b) => a + '<span class="bk-dropcap">' + b + '</span>'); }
+    function show() {
+      idx = Math.max(0, Math.min(spreads.length - 1, idx));
+      const s = spreads[idx];
+      page.innerHTML = "";
+      page.className = "book-page" + (idx === 0 ? " book-title" : "");
+      // image plate (silently removed if the PNG hasn't been generated yet)
+      const img = document.createElement("img");
+      img.className = "bk-plate"; img.loading = "lazy"; img.alt = s.illus || s.title || "";
+      img.onerror = () => img.remove();
+      img.src = "img/spread-" + String(idx).padStart(2, "0") + ".png";
+      page.appendChild(img);
+      if (idx === 0) {
+        page.appendChild(el("div", "bk-kicker", B.meta.kicker));
+        page.appendChild(el("h1", "bk-bigtitle", s.title));
+        if (s.sub) page.appendChild(el("div", "bk-sub", s.sub));
+        if (s.text) page.appendChild(el("p", "bk-lead", s.text));
+      } else {
+        if (s.title) page.appendChild(el("h2", "bk-spreadtitle", s.title));
+        const p = el("p", "bk-text"); p.innerHTML = dropCap(s.text); page.appendChild(p);
+        page.appendChild(el("div", "bk-orn", idx === spreads.length - 1 ? "❦" : "❧"));
+      }
+      $("#book-prev").disabled = idx === 0;
+      $("#book-next").disabled = idx === spreads.length - 1;
+      $("#book-count").textContent = (idx + 1) + " / " + spreads.length;
+    }
+    nav.innerHTML = "";
+    const prev = el("button", "bk-btn", "‹ Back"); prev.id = "book-prev"; prev.onclick = () => { idx--; show(); };
+    const count = el("span", "bk-count"); count.id = "book-count";
+    const next = el("button", "bk-btn", "Next ›"); next.id = "book-next"; next.onclick = () => { idx++; show(); };
+    nav.appendChild(prev); nav.appendChild(count); nav.appendChild(next);
+    if (!renderBook._kb) {
+      renderBook._kb = true;
+      window.addEventListener("keydown", (e) => {
+        if (current !== "book") return;
+        if (e.key === "ArrowRight") { idx++; show(); } else if (e.key === "ArrowLeft") { idx--; show(); }
+      });
+    }
+    show();
+  }
+
   /* ====================== CHARACTERS ====================== */
   function toRoman(n) { const m = ["", "I", "II", "III", "IV"]; return m[n] || ("" + n); }
 
@@ -513,7 +559,7 @@
   }
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "characters", "web", "propp", "motifs", "myth"];
+  const VIEWS = ["read", "book", "characters", "web", "propp", "motifs", "myth"];
   let proppDrawn = false, webDrawn = false, motifsDrawn = false, mythDrawn = false, current = "read";
   function switchView(v) {
     if (!VIEWS.includes(v)) v = "read";
@@ -544,6 +590,7 @@
 
   /* ====================== INIT ====================== */
   renderTale();
+  renderBook();
   renderCharacters();
   const h = location.hash.slice(1).split("/")[0];
   if (VIEWS.includes(h)) switchView(h);
