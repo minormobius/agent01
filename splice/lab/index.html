@@ -57,6 +57,20 @@
   .note{font-size:12px;color:var(--muted);margin-top:8px}
   .tm{font-family:var(--mono);font-size:11.5px;color:var(--accent);margin-left:2px;display:inline-block;margin-top:4px}
   .tm.warn{color:var(--warn)}
+  .designrow{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin:10px 0}
+  .designrow label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+  .designrow input[type=number]{background:#0a0d12;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-family:var(--mono);font-size:13px;width:90px}
+  .designgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+  @media(max-width:700px){.designgrid{grid-template-columns:1fr}}
+  .pcard{background:#0a0d12;border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+  .pcard .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .pcard .seq{font-family:var(--mono);font-size:13px;word-break:break-all;margin:6px 0;color:var(--ink)}
+  .pcard .seq .clamp{color:var(--accent);font-weight:700}
+  .pcard .met{font-family:var(--mono);font-size:11.5px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+  .pcard .warns{font-size:11px;color:var(--warn);margin-top:5px}
+  .scorebar{height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+  .scorebar i{display:block;height:100%;background:var(--accent)}
+  .pairline{grid-column:1/-1;font-family:var(--mono);font-size:12.5px;color:var(--ink);display:flex;gap:18px;align-items:center;flex-wrap:wrap}
   .err{color:var(--bad)}
 </style>
 </head>
@@ -110,6 +124,20 @@
       <h2>Agarose gel</h2>
       <canvas id="gelCanvas" width="520" height="300"></canvas>
       <div class="note">Ladder (bp) on the left; your digest in the next lane. Migration ∝ log(size).</div>
+    </div>
+
+    <!-- PRIMER DESIGN -->
+    <div class="panel full">
+      <h2>Primer design <span class="timing" id="tDesign"></span></h2>
+      <div class="note">Pick a region of the sequence above and a target Tm; the engine sweeps primer lengths and returns the best-scoring forward + reverse pair. Then send them straight to the PCR panel to amplify.</div>
+      <div class="designrow">
+        <label>region start <input type="number" id="dStart" value="400" min="0"></label>
+        <label>end <input type="number" id="dEnd" value="900" min="1"></label>
+        <label>target Tm °C <input type="number" id="dTm" value="60" min="40" max="80"></label>
+        <button class="primary" id="runDesign">Design primers</button>
+        <button id="randomRegion">Random region</button>
+      </div>
+      <div id="designOut" class="designgrid"></div>
     </div>
 
     <!-- PCR -->
@@ -271,6 +299,50 @@ function updateTms(){
 }
 $('fwd').addEventListener('input', updateTms);
 $('rev').addEventListener('input', updateTms);
+
+// ---- primer design ----
+function primerCard(p, role){
+  const seq = p.seq.length>1
+    ? p.seq.slice(0,-1) + `<span class="clamp">${p.seq.slice(-1)}</span>`
+    : p.seq;
+  const warns = p.warn.length ? `<div class="warns">⚠ ${p.warn.join(' · ')}</div>` : '';
+  return `<div class="pcard">
+    <div class="lbl">${role} · 5'→3'</div>
+    <div class="seq">${seq}</div>
+    <div class="met"><span>Tm ${p.tm.toFixed(1)} °C</span><span>GC ${p.gc.toFixed(0)}%</span>
+      <span>${p.len} nt</span><span>${p.gcClamp?'GC clamp ✓':'no clamp'}</span></div>
+    <div class="scorebar"><i style="width:${p.score}%;background:${p.score>70?'var(--accent)':p.score>45?'var(--warn)':'var(--bad)'}"></i></div>
+    ${warns}</div>`;
+}
+$('randomRegion').onclick = () => {
+  const s = getSeq(); if(s.length<120) return;
+  const len = 120 + Math.floor(Math.random()*380);
+  const start = Math.floor(Math.random()*(s.length-len-1));
+  $('dStart').value = start; $('dEnd').value = start+len;
+};
+$('runDesign').onclick = () => {
+  const s = getSeq(); if(!s){ $('designOut').innerHTML='<div class="note err">load a sequence first</div>'; return; }
+  const start = parseInt($('dStart').value)||0, end = parseInt($('dEnd').value)||0;
+  const ttm = parseFloat($('dTm').value)||60;
+  if(end<=start || end>s.length){ $('designOut').innerHTML=`<div class="note err">region must be within 0..${s.length} and end &gt; start</div>`; return; }
+  const { value, ms } = Engine.design(s, start, end, ttm);
+  $('tDesign').textContent = fmt(ms)+' · wasm';
+  if(value.error){ $('designOut').innerHTML=`<div class="note err">${value.error}</div>`; return; }
+  window._design = value;
+  $('designOut').innerHTML =
+    primerCard(value.fwd,'forward') + primerCard(value.rev,'reverse') +
+    `<div class="pairline">
+       <b>amplicon ${value.region.len} bp</b>
+       <span>ΔTm ${value.deltaTm.toFixed(1)} °C${value.deltaTm>5?' ⚠':''}</span>
+       <span>pair score ${value.pairScore}</span>
+       <button id="toPcr">Send to PCR ↓</button>
+     </div>`;
+  $('toPcr').onclick = () => {
+    $('fwd').value = value.fwd.seq; $('rev').value = value.rev.seq;
+    updateTms(); $('runPcr').click();
+    $('runPcr').scrollIntoView({behavior:'smooth', block:'center'});
+  };
+};
 
 // ---- pcr ----
 $('runPcr').onclick = () => {

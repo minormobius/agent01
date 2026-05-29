@@ -55,6 +55,9 @@ export const Engine = {
                  timed('clone_w', `${c(vCirc)}|${c(iCirc)}|${enzymes.join(',')}|${vector}|${insert}`, true),
   // melting temperature (°C), SantaLucia NN. dnaNm=strand conc, naMm=monovalent salt.
   tm:          (seq, dnaNm = 50, naMm = 50) => timed('tm_w', `${dnaNm}|${naMm}|${seq}`, true),
+  // design fwd/rev primers to amplify template[start..end] near targetTm.
+  design:      (template, start, end, targetTm = 60, { naMm = 50, dnaNm = 50, minLen = 18, maxLen = 28 } = {}) =>
+                 timed('design_w', `${start}|${end}|${targetTm}|${naMm}|${dnaNm}|${minLen}|${maxLen}|${template}`, true),
 
   // raw single call without timing wrapper, for tight benchmark loops
   _raw: call,

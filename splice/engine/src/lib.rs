@@ -252,6 +252,211 @@ pub fn tm_santalucia(seq: &str, dna_nm: f64, na_mm: f64) -> Option<f64> {
 }
 
 // ---------------------------------------------------------------------------
+// primer design — pick fwd/rev primers to amplify a target region
+// ---------------------------------------------------------------------------
+
+fn gc_percent(s: &[u8]) -> f64 {
+    if s.is_empty() {
+        return 0.0;
+    }
+    let gc = s.iter().filter(|&&b| b == b'G' || b == b'C').count();
+    100.0 * gc as f64 / s.len() as f64
+}
+
+/// Longest run of a single base (4+ is a synthesis/specificity smell).
+fn max_run(s: &[u8]) -> usize {
+    let mut best = 0;
+    let mut cur = 0;
+    let mut prev = 0u8;
+    for &b in s {
+        if b == prev {
+            cur += 1;
+        } else {
+            cur = 1;
+            prev = b;
+        }
+        best = best.max(cur);
+    }
+    best
+}
+
+/// Count complementary base pairs in the 3' tail of a primer against its own
+/// reverse complement (a crude self-dimer / 3'-hairpin proxy). Higher = worse.
+fn three_prime_self_comp(s: &[u8]) -> usize {
+    let n = s.len();
+    if n < 4 {
+        return 0;
+    }
+    let tail = &s[n.saturating_sub(5)..]; // last 5 bases
+    let rc: Vec<u8> = s.iter().rev().map(|&b| complement(b)).collect();
+    // best contiguous match of the 3' tail anywhere in the revcomp
+    let mut best = 0;
+    if rc.len() >= tail.len() {
+        for w in rc.windows(tail.len()) {
+            let m = w.iter().zip(tail).filter(|(a, b)| a == b).count();
+            best = best.max(m);
+        }
+    }
+    best
+}
+
+/// One primer's metrics. `score` in [0,100], higher is better.
+struct Primer {
+    seq: String,
+    tm: f64,
+    gc: f64,
+    len: usize,
+    gc_clamp: bool,
+    score: f64,
+    warn: Vec<&'static str>,
+}
+
+fn score_primer(seq: &[u8], target_tm: f64, na_mm: f64, dna_nm: f64) -> Option<Primer> {
+    let tm = tm_santalucia(&String::from_utf8_lossy(seq), dna_nm, na_mm)?;
+    let gc = gc_percent(seq);
+    let n = seq.len();
+    let last = *seq.last()?;
+    let gc_clamp = last == b'G' || last == b'C';
+    let run = max_run(seq);
+    let dimer = three_prime_self_comp(seq);
+
+    let mut warn = Vec::new();
+    let mut score = 100.0;
+    // Tm deviation: 4 pts per °C off target
+    score -= (tm - target_tm).abs() * 4.0;
+    // GC% ideally 40–60
+    if gc < 40.0 {
+        score -= (40.0 - gc) * 1.5;
+        warn.push("low GC");
+    } else if gc > 60.0 {
+        score -= (gc - 60.0) * 1.5;
+        warn.push("high GC");
+    }
+    // 3' GC clamp is desirable
+    if !gc_clamp {
+        score -= 6.0;
+        warn.push("no 3' GC clamp");
+    }
+    // homopolymer runs
+    if run >= 4 {
+        score -= (run as f64 - 3.0) * 5.0;
+        warn.push("homopolymer run");
+    }
+    // length sweet spot 18–25
+    if n < 18 {
+        score -= (18 - n) as f64 * 3.0;
+    } else if n > 25 {
+        score -= (n - 25) as f64 * 2.0;
+    }
+    // 3' self-complementarity (dimer risk)
+    if dimer >= 4 {
+        score -= (dimer as f64 - 3.0) * 6.0;
+        warn.push("3' self-dimer");
+    }
+    if score < 0.0 {
+        score = 0.0;
+    }
+    Some(Primer {
+        seq: String::from_utf8_lossy(seq).into_owned(),
+        tm,
+        gc,
+        len: n,
+        gc_clamp,
+        score,
+        warn,
+    })
+}
+
+fn primer_json(p: &Primer) -> String {
+    let warns = p
+        .warn
+        .iter()
+        .map(|w| jstr(w))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"seq\":{},\"tm\":{:.1},\"gc\":{:.1},\"len\":{},\"gcClamp\":{},\"score\":{:.0},\"warn\":[{}]}}",
+        jstr(&p.seq),
+        p.tm,
+        p.gc,
+        p.len,
+        p.gc_clamp,
+        p.score,
+        warns
+    )
+}
+
+/// Design a forward + reverse primer pair to amplify template[start..end].
+/// For each side we sweep primer length [min_len..=max_len] and keep the
+/// highest-scoring candidate; the reverse primer is the reverse-complement of
+/// the template's 3' end of the amplicon.
+pub fn op_design(
+    template: &str,
+    start: usize,
+    end: usize,
+    target_tm: f64,
+    na_mm: f64,
+    dna_nm: f64,
+    min_len: usize,
+    max_len: usize,
+) -> String {
+    let t = clean(template);
+    let n = t.len();
+    if start >= end || end > n || end - start < min_len {
+        return "{\"error\":\"invalid region\"}".to_string();
+    }
+    let lo = min_len.max(8);
+    let hi = max_len.min(36).min(end - start);
+
+    // forward: top strand starting at `start`, extending right
+    let mut best_fwd: Option<Primer> = None;
+    for l in lo..=hi {
+        if start + l > n {
+            break;
+        }
+        if let Some(p) = score_primer(&t[start..start + l], target_tm, na_mm, dna_nm) {
+            if best_fwd.as_ref().map_or(true, |b| p.score > b.score) {
+                best_fwd = Some(p);
+            }
+        }
+    }
+    // reverse: revcomp of the top strand ending at `end`
+    let mut best_rev: Option<Primer> = None;
+    for l in lo..=hi {
+        if end < l {
+            break;
+        }
+        let region = &t[end - l..end];
+        let rc: Vec<u8> = region.iter().rev().map(|&b| complement(b)).collect();
+        if let Some(p) = score_primer(&rc, target_tm, na_mm, dna_nm) {
+            if best_rev.as_ref().map_or(true, |b| p.score > b.score) {
+                best_rev = Some(p);
+            }
+        }
+    }
+
+    match (best_fwd, best_rev) {
+        (Some(f), Some(r)) => {
+            let dtm = (f.tm - r.tm).abs();
+            let pair_score = ((f.score + r.score) / 2.0 - dtm * 3.0).max(0.0);
+            format!(
+                "{{\"region\":{{\"start\":{},\"end\":{},\"len\":{}}},\"targetTm\":{:.1},\
+                 \"fwd\":{},\"rev\":{},\"deltaTm\":{:.1},\"pairScore\":{:.0}}}",
+                start,
+                end,
+                end - start,
+                target_tm,
+                primer_json(&f),
+                primer_json(&r),
+                dtm,
+                pair_score
+            )
+        }
+        _ => "{\"error\":\"no valid primers\"}".to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // restriction enzymes (classic palindromic Type-II set)
 // ---------------------------------------------------------------------------
 
@@ -870,6 +1075,22 @@ pub extern "C" fn tm_w(ptr: *const u8, len: usize) -> u64 {
     })
 }
 
+#[no_mangle]
+pub extern "C" fn design_w(ptr: *const u8, len: usize) -> u64 {
+    // "START|END|TARGET_TM|NA_mM|DNA_nM|MIN_LEN|MAX_LEN|TEMPLATE"
+    let s = read!(ptr, len);
+    let mut it = s.splitn(8, '|');
+    let start = it.next().unwrap_or("0").trim().parse().unwrap_or(0);
+    let end = it.next().unwrap_or("0").trim().parse().unwrap_or(0);
+    let ttm = it.next().unwrap_or("60").trim().parse().unwrap_or(60.0);
+    let na = it.next().unwrap_or("50").trim().parse().unwrap_or(50.0);
+    let dna = it.next().unwrap_or("50").trim().parse().unwrap_or(50.0);
+    let minl = it.next().unwrap_or("18").trim().parse().unwrap_or(18);
+    let maxl = it.next().unwrap_or("28").trim().parse().unwrap_or(28);
+    let template = it.next().unwrap_or("");
+    out(op_design(template, start, end, ttm, na, dna, minl, maxl))
+}
+
 // ---------------------------------------------------------------------------
 // host-side tests
 // ---------------------------------------------------------------------------
@@ -967,6 +1188,33 @@ mod tests {
     fn tm_rejects_bad_input() {
         assert!(tm_santalucia("A", 50.0, 50.0).is_none()); // too short
         assert!(tm_santalucia("ATGCN", 50.0, 50.0).is_none()); // non-ACGT
+    }
+
+    #[test]
+    fn design_primers_amplify_region() {
+        // a GC-balanced template; design to amplify [40..160], target Tm 60
+        let mut t = String::new();
+        let units = ["ATGCGTACGT", "GCTAGCATGC", "TTGGCCAATG", "ACGTACGTGC"];
+        for i in 0..30 {
+            t.push_str(units[i % units.len()]);
+        }
+        let r = op_design(&t, 40, 160, 60.0, 50.0, 50.0, 18, 28);
+        assert!(r.contains("\"fwd\""), "got {r}");
+        assert!(!r.contains("\"error\""), "got {r}");
+        // extract the two primer seqs and confirm they amplify via op_pcr
+        let fwd = extract_seq(&r, "\"fwd\":{\"seq\":\"");
+        let rev = extract_seq(&r, "\"rev\":{\"seq\":\"");
+        assert!(fwd.len() >= 18 && rev.len() >= 18);
+        let pcr = op_pcr(&t, &fwd, &rev, false);
+        assert!(pcr.contains("\"products\":[{"), "primers must amplify: {pcr}");
+    }
+
+    // tiny helper: pull the string after a marker up to the next quote
+    fn extract_seq(json: &str, marker: &str) -> String {
+        let i = json.find(marker).unwrap() + marker.len();
+        let rest = &json[i..];
+        let j = rest.find('"').unwrap();
+        rest[..j].to_string()
     }
 
     #[test]
