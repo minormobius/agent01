@@ -83,6 +83,18 @@ window.CULHWCH.book = {
       text: "For one of the oddest tasks they needed a special leash — and the only thing that would do was a rope plaited from the beard of a giant called Dillus the Bearded, plucked out hair by hair while he slept. Cei and Bedwyr stalked him over a hill, watched him eat a whole roast boar for his dinner, and waited until he was snoring on the heather. Then, with wooden tweezers and not the smallest sound, they pulled out his great red beard and slipped away before dawn.",
       illus: "Two warriors crouched in moonlit heather beside a shaggy red-bearded giant snoring on a hillside, one warrior delicately plucking hair with wooden tweezers; comic-tense, low warm moonlight." },
 
+    { title: "The Oxen Who Were Once Kings",
+      text: "One task was to clear a whole great hill of its wild thicket, and plough it, and sow it, and reap a harvest from it, all in a single day. Only one team of oxen could pull such a plough: Nynniaw and Peibaw, two brother kings who had once been so proud and quarrelsome that they had been turned into oxen for their sins. Yoked together at last, they bent their patient heads, and before the sun set the whole hill was cleared and sown and harvested for the wedding feast.",
+      illus: "Two enormous shaggy oxen with mournful, almost kingly faces, yoked together pulling a great wooden plough across a steep wild hillside at golden hour; behind them a strip of fresh dark furrow, ahead bristly thicket; magical-realist, Celtic-medieval storybook art." },
+
+    { title: "The Harp That Played Itself",
+      text: "Another task was to bring back a wonderful harp — the Harp of Teirtu, which played a tune of itself when one wished to hear it and fell silent at a wish for silence. Some of the companions went looking for it in the hall of a stingy old lord, and after a long evening of clever bargaining they came away with the harp tucked under their arms. It sang a soft road-song all the way back, and not one of the company felt tired on the long walk home.",
+      illus: "A small ornate Celtic gold-and-bone harp playing in midair on a green road at dusk, no hands touching the strings, soft golden notes drifting like fireflies; two cloaked travellers walking beside it smiling; gentle, magical, dreamlike." },
+
+    { title: "The Hamper That Fed an Army",
+      text: "And yet another task was to fetch the hamper of Gwyddneu Garanhir — a great wicker basket which, however many came hungry to it, gave each of them whatever food they best loved. The companions had to win it from its proud owner with a riddle and a smile; and once it was theirs, they could feed an army of nine times nine men and still have room for more. The wedding feast, at least, would not lack for honey-bread or roasted fowl.",
+      illus: "A large woven Celtic wicker hamper open in a torchlit clearing under tall oak trees, an extraordinary feast tumbling from it — roast fowl, honeycombs, golden loaves, fruit, mead-jugs — a circle of grateful travellers and a pair of warm-eyed dogs around it; abundant, warm, magical." },
+
     { title: "The Oldest Animals",
       text: "One task was to find Mabon, a boy stolen from his mother when he was only three nights old, lost so long that nobody knew where he was. So Gwrhyr asked the oldest creatures in the world, one after another — the Blackbird, then the older Stag, then the older Owl, then the older Eagle — each pointing the way to one older still.",
       illus: "A sequence of ancient animals — blackbird on a worn anvil, great antlered stag, huge owl, vast eagle on a tiny worn stone — a council of elders." },

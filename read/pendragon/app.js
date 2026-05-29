@@ -428,8 +428,8 @@
 
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["timeline", "inworld", "constantine", "tree", "wiki", "fae", "papers"];
-  let treeDrawn = false, inworldDrawn = false, current = "timeline";
+  const VIEWS = ["home", "timeline", "inworld", "constantine", "tree", "wiki", "fae", "papers"];
+  let treeDrawn = false, inworldDrawn = false, current = "home";
   function switchView(v) {
     current = v;
     VIEWS.forEach((x) => {

@@ -19,7 +19,8 @@
     <div class="topbar-inner">
       <span class="brand"><span class="sigil">⚔</span>Pendragon</span>
       <nav class="tabs" id="tabs">
-        <button class="tab active" data-view="timeline">Timeline</button>
+        <button class="tab active" data-view="home">Home</button>
+        <button class="tab" data-view="timeline">Timeline</button>
         <button class="tab" data-view="inworld">In-world</button>
         <button class="tab" data-view="constantine">Constantine III</button>
         <button class="tab" data-view="tree">Evolutionary tree</button>
@@ -32,8 +33,44 @@
 
   <div class="wrap">
 
+    <!-- HOME (the hub) -->
+    <section class="view active" id="view-home">
+      <div class="hero">
+        <h1>Pendragon</h1>
+        <p class="lead">A historiography of the matter of Britain — where the Arthurian legends came from, what shapes they took, and how the memes mutated across fifteen centuries.</p>
+      </div>
+
+      <h2 class="section">Tales explored in depth</h2>
+      <p class="lead">Each tale below is a full sub-site of its own — original translation, character cards, story graph, motif index, a unifying mythograph, and a kid-faithful storybook.</p>
+      <div class="tale-cards">
+        <a class="tale-card" href="/culhwch/">
+          <div class="tc-kicker">The oldest tale</div>
+          <h3>Culhwch ac Olwen</h3>
+          <p>The earliest Arthurian story we have (c. 1100), preserved in the Welsh <em>Mabinogion</em>. The boy born in a pig-run, the giant whose eyebrows are propped on forks, the council of the world's oldest animals, and the hunt for the great boar Twrch Trwyth.</p>
+          <span class="tc-go">read.mino.mobi/culhwch →</span>
+        </a>
+        <div class="tale-card tc-soon">
+          <div class="tc-kicker">Next up</div>
+          <h3>To come…</h3>
+          <p>Another myth deserves the same treatment — the whole stack from primary text to mythograph. Stay tuned.</p>
+        </div>
+      </div>
+
+      <h2 class="section">Explore the historiography</h2>
+      <p class="lead">Fifteen hundred years of the legend, on this site.</p>
+      <div class="explore-cards">
+        <a class="explore-card" href="#timeline"><h3>Timeline</h3><p>Forty entries, Gildas to <em>The Green Knight</em>.</p></a>
+        <a class="explore-card" href="#inworld"><h3>In-world</h3><p>The legendary 5th-c. chronology with error bands.</p></a>
+        <a class="explore-card" href="#tree"><h3>Evolutionary tree</h3><p>SVG phylogeny of texts and influences.</p></a>
+        <a class="explore-card" href="#wiki"><h3>Wiki</h3><p>People, texts, motifs, places, scholarship.</p></a>
+        <a class="explore-card" href="#fae"><h3>The fae angle</h3><p>Avalon, Morgan, the Otherworld.</p></a>
+        <a class="explore-card" href="#constantine"><h3>Constantine III</h3><p>A reader's fun-not-rigor theory.</p></a>
+        <a class="explore-card" href="#papers"><h3>Papers</h3><p>Primary sources and scholarship.</p></a>
+      </div>
+    </section>
+
     <!-- TIMELINE -->
-    <section class="view active" id="view-timeline">
+    <section class="view" id="view-timeline">
       <div class="hero">
         <h1>Pendragon</h1>
         <p id="tagline"></p>
