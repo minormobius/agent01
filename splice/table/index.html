@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>splice — the restriction enzyme table</title>
+<meta name="description" content="A periodic table of restriction enzymes: ~60 molecular scissors arranged by cut chemistry — 5′ overhang, blunt, 3′ overhang — and related by compatible ends (isocaudomers), shared sites (isoschizomers), and neoschizomers. Click any enzyme for its cut diagram and references.">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#283039; --accent:#5ad1b0; --p5:#7aa2ff; --blunt:#e3b341; --p3:#c98bdb; --bad:#f0776a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--p5);text-decoration:none} a:hover{text-decoration:underline}
+  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;
+    background:rgba(14,17,22,.92);backdrop-filter:blur(6px);padding:11px 20px;display:flex;align-items:center;gap:12px}
+  .crumb{font-size:13px;color:var(--muted)} .crumb a{color:var(--muted)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+  h1{font-size:26px;margin:8px 0 2px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 16px;font-size:14.5px;max-width:760px}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 6px}
+  input[type=search]{background:#0a0d12;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:8px 12px;font-size:13.5px;min-width:200px;font-family:var(--mono)}
+  .chip{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:999px;
+    padding:5px 12px;cursor:pointer;color:var(--muted);user-select:none}
+  .chip.on{color:#0a0d12;font-weight:700}
+  .chip.t5.on{background:var(--p5);border-color:var(--p5)}
+  .chip.tb.on{background:var(--blunt);border-color:var(--blunt)}
+  .chip.t3.on{background:var(--p3);border-color:var(--p3)}
+  .chip.len.on{background:var(--accent);border-color:var(--accent)}
+  .layout{display:grid;grid-template-columns:1fr 320px;gap:20px;margin-top:14px}
+  @media(max-width:880px){.layout{grid-template-columns:1fr}}
+  .section{margin-bottom:22px}
+  .section h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;
+    display:flex;align-items:center;gap:8px}
+  .swatch{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:8px}
+  .tile{background:#10141a;border:1px solid var(--line);border-top-width:3px;border-radius:9px;
+    padding:9px 10px 8px;cursor:pointer;transition:transform .08s,box-shadow .12s,border-color .12s;position:relative}
+  .tile:hover{transform:translateY(-2px)}
+  .tile .nm{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:-.2px}
+  .tile .st{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px;letter-spacing:.5px}
+  .tile .ov{font-family:var(--mono);font-size:10.5px;margin-top:5px}
+  .tile .len{position:absolute;top:6px;right:8px;font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+  .tile.dim{opacity:.18}
+  .tile.fam{box-shadow:0 0 0 2px var(--accent), 0 0 14px rgba(90,209,176,.4)}
+  .tile.sel{box-shadow:0 0 0 2px #fff}
+  .tile.iso{box-shadow:0 0 0 2px var(--blunt)}
+  /* detail panel */
+  .detail{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    position:sticky;top:64px;align-self:start}
+  .detail .dn{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:-.3px}
+  .detail .org{color:var(--muted);font-size:12.5px;font-style:italic;margin:2px 0 12px}
+  .duplex{background:#0a0d12;border:1px solid var(--line);border-radius:8px;padding:12px;
+    font-family:var(--mono);font-size:14px;line-height:1.5;white-space:pre;overflow-x:auto;letter-spacing:1px}
+  .kv{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}
+  .kv b{font-family:var(--mono);font-weight:600}
+  .rel{margin-top:12px}
+  .rel h3{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:10px 0 5px}
+  .rellist{display:flex;flex-wrap:wrap;gap:5px}
+  .rellist .r{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:6px;
+    padding:3px 8px;cursor:pointer;color:var(--ink)}
+  .rellist .r:hover{border-color:var(--accent);color:var(--accent)}
+  .links{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
+  .links a{font-size:12.5px;border:1px solid var(--line);border-radius:7px;padding:6px 11px;color:var(--ink)}
+  .links a:hover{border-color:var(--p5);text-decoration:none}
+  .muted{color:var(--muted)} .mono{font-family:var(--mono)}
+  .t5c{color:var(--p5)} .tbc{color:var(--blunt)} .t3c{color:var(--p3)}
+  .empty{color:var(--muted);font-size:13px}
+  footer{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / table</span>
+  <span class="badge" id="count">— enzymes</span>
+</header>
+
+<div class="wrap">
+  <h1>The restriction enzyme table</h1>
+  <p class="sub">~60 molecular scissors, arranged by what they leave behind — a <b class="t5c">5′ overhang</b>, a <b class="tbc">blunt</b> end, or a <b class="t3c">3′ overhang</b> — and wired up by the relationships that matter for cloning: enzymes whose ends <b>ligate together</b>, enzymes that read the <b>same site</b>, and the same engine that powers the <a href="/lab/">lab</a> and <a href="/game/">game</a>. Click any tile.</p>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="search enzyme or site…">
+    <span class="chip t5 on" data-type="5'">5′ overhang</span>
+    <span class="chip tb on" data-type="blunt">blunt</span>
+    <span class="chip t3 on" data-type="3'">3′ overhang</span>
+    <span style="width:1px;height:18px;background:var(--line)"></span>
+    <span class="chip len on" data-len="4">4-cutter</span>
+    <span class="chip len on" data-len="6">6-cutter</span>
+    <span class="chip len on" data-len="8">8-cutter</span>
+  </div>
+
+  <div class="layout">
+    <div id="board"></div>
+    <div class="detail" id="detail"><span class="empty">Select an enzyme to see its cut, overhangs, and relatives.</span></div>
+  </div>
+
+  <footer>
+    Cut coordinates follow standard REBASE/textbook definitions; all sites shown are palindromic.
+    Hover a tile to glow its <span class="t5c">compatible-end family</span>; the <span class="tbc">amber ring</span> marks same-site enzymes (iso/neoschizomers).
+  </footer>
+</div>
+
+<script src="./enzymes.js"></script>
+<script>
+const COMP={A:'T',T:'A',G:'C',C:'G'};
+const comp = s => s.split('').map(b=>COMP[b]||'N').join('');
+
+// enrich
+const E = window.ENZYME_DATA.map(([name,site,c5,c3,org])=>{
+  const lo=Math.min(c5,c3), hi=Math.max(c5,c3);
+  const type = c5<c3?"5'":c5>c3?"3'":"blunt";
+  const ov = site.slice(lo,hi);
+  return { name, site, c5, c3, org, type, ov, len:site.length,
+           fam: type+':'+ov, key:name };
+});
+const byName = Object.fromEntries(E.map(e=>[e.name,e]));
+document.getElementById('count').textContent = E.length+' enzymes';
+
+const TYPE_COL = {"5'":'var(--p5)', "blunt":'var(--blunt)', "3'":'var(--p3)'};
+const TYPE_CLASS = {"5'":'t5c', "blunt":'tbc', "3'":'t3c'};
+
+// family hue (stable hash) so compatible groups share a tint
+function famHue(fam){ let h=0; for(const c of fam) h=(h*31+c.charCodeAt(0))%360; return h; }
+
+// filter state
+const types = new Set(["5'","blunt","3'"]);
+const lens  = new Set([4,6,8]);
+let query='';
+
+function passes(e){
+  if(!types.has(e.type)) return false;
+  if(!lens.has(e.len)) return false;
+  if(query){ const q=query.toUpperCase();
+    if(!e.name.toUpperCase().includes(q) && !e.site.includes(q)) return false; }
+  return true;
+}
+
+// build the duplex cut diagram (monospace). The two strand cuts land at
+// different columns on purpose — that stagger *is* the overhang.
+function duplex(e){
+  const top = e.site.split('');
+  const bot = comp(e.site).split('');
+  const t = top.slice(0,e.c5).join(' ') + ' | ' + top.slice(e.c5).join(' ');
+  const b = bot.slice(0,e.c3).join(' ') + ' | ' + bot.slice(e.c3).join(' ');
+  return "5'  "+t+"  3'\n3'  "+b+"  5'";
+}
+
+const board = document.getElementById('board');
+const SECTIONS = [["5'","5′ overhangs (sticky)"],["blunt","blunt ends"],["3'","3′ overhangs (sticky)"]];
+
+function render(){
+  board.innerHTML='';
+  for(const [type,label] of SECTIONS){
+    if(!types.has(type)) continue;
+    const items = E.filter(e=>e.type===type && passes(e))
+                   .sort((a,b)=> a.fam<b.fam?-1:a.fam>b.fam?1: a.len-b.len || (a.name<b.name?-1:1));
+    if(!items.length) continue;
+    const sec=document.createElement('div'); sec.className='section';
+    sec.innerHTML=`<h2><span class="swatch" style="background:${TYPE_COL[type]}"></span>${label} <span class="muted" style="font-weight:400">· ${items.length}</span></h2>`;
+    const grid=document.createElement('div'); grid.className='grid';
+    for(const e of items){
+      const hue=famHue(e.fam);
+      const t=document.createElement('div');
+      t.className='tile'; t.dataset.name=e.name;
+      t.style.borderTopColor=TYPE_COL[type];
+      const cutSite = e.site.slice(0,e.c5)+'▾'+e.site.slice(e.c5);
+      t.innerHTML=`<div class="len">${e.len}</div>
+        <div class="nm">${e.name}</div>
+        <div class="st">${cutSite}</div>
+        <div class="ov" style="color:hsl(${hue} 60% 70%)">${e.type==='blunt'?'blunt':e.type+' '+e.ov}</div>`;
+      t.onmouseenter=()=>highlight(e);
+      t.onmouseleave=()=>{ if(!selected) clearHi(); else highlight(selected); };
+      t.onclick=()=>select(e);
+      grid.appendChild(t);
+    }
+    sec.appendChild(grid); board.appendChild(sec);
+  }
+  if(!board.children.length) board.innerHTML='<p class="empty">No enzymes match those filters.</p>';
+  if(selected) highlight(selected);
+}
+
+function tiles(){ return [...board.querySelectorAll('.tile')]; }
+function clearHi(){ tiles().forEach(t=>t.classList.remove('dim','fam','iso','sel')); }
+function highlight(e){
+  const famSet = new Set(E.filter(x=>x.fam===e.fam).map(x=>x.name));
+  const isoSet = new Set(E.filter(x=>x.site===e.site && x.name!==e.name).map(x=>x.name));
+  tiles().forEach(t=>{
+    const n=t.dataset.name; t.classList.remove('dim','fam','iso','sel');
+    if(n===e.name){ t.classList.add('sel'); return; }
+    if(isoSet.has(n)) t.classList.add('iso');
+    else if(famSet.has(n)) t.classList.add('fam');
+    else t.classList.add('dim');
+  });
+}
+
+let selected=null;
+function select(e){
+  selected=e; highlight(e); renderDetail(e);
+  document.getElementById('detail').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function relChip(name){ return `<span class="r" data-go="${name}">${name}</span>`; }
+
+function renderDetail(e){
+  const fam = E.filter(x=>x.fam===e.fam && x.name!==e.name);
+  const same = E.filter(x=>x.site===e.site && x.name!==e.name)
+    .map(x=> x.c5===e.c5 && x.c3===e.c3 ? {x,kind:'isoschizomer'} : {x,kind:'neoschizomer'});
+  const wiki = `https://en.wikipedia.org/w/index.php?title=Special:Search&search=${encodeURIComponent(e.name)}&go=Go`;
+  const rebase = `http://rebase.neb.com/rebase/enz/${e.name}.html`;
+  const d=document.getElementById('detail');
+  d.innerHTML = `
+    <div class="dn ${TYPE_CLASS[e.type]}">${e.name}</div>
+    <div class="org">${e.org||''}</div>
+    <div class="duplex">${duplex(e)}</div>
+    <div style="margin-top:12px">
+      <div class="kv"><span>recognition</span><b>${e.site}</b></div>
+      <div class="kv"><span>end</span><b class="${TYPE_CLASS[e.type]}">${e.type==='blunt'?'blunt':e.type+' overhang · '+e.ov}</b></div>
+      <div class="kv"><span>cutter</span><b>${e.len}-base · palindromic</b></div>
+      <div class="kv"><span>cut (top / bottom)</span><b>${e.c5} / ${e.c3}</b></div>
+    </div>
+    <div class="rel">
+      <h3>Compatible ends — ligates with ${fam.length?`(${fam.length})`:''}</h3>
+      <div class="rellist">${fam.length? fam.map(x=>relChip(x.name)).join('') : '<span class="empty">unique overhang — no partners here</span>'}</div>
+      <h3>Same recognition site</h3>
+      <div class="rellist">${same.length? same.map(s=>`<span class="r" data-go="${s.x.name}" title="${s.kind}">${s.x.name} · ${s.kind[0]}</span>`).join('') : '<span class="empty">none in this set</span>'}</div>
+    </div>
+    <div class="links">
+      <a href="${wiki}" target="_blank" rel="noopener">Wikipedia ↗</a>
+      <a href="${rebase}" target="_blank" rel="noopener">REBASE ↗</a>
+    </div>`;
+  d.querySelectorAll('.r').forEach(r=> r.onclick=()=>{ const e2=byName[r.dataset.go]; if(e2) select(e2); });
+}
+
+// controls
+document.getElementById('q').addEventListener('input', ev=>{ query=ev.target.value.trim(); render(); });
+document.querySelectorAll('.chip[data-type]').forEach(c=> c.onclick=()=>{
+  const t=c.dataset.type; c.classList.toggle('on');
+  if(types.has(t)) types.delete(t); else types.add(t); render();
+});
+document.querySelectorAll('.chip[data-len]').forEach(c=> c.onclick=()=>{
+  const l=+c.dataset.len; c.classList.toggle('on');
+  if(lens.has(l)) lens.delete(l); else lens.add(l); render();
+});
+
+render();
+// open EcoRI by default — the canonical one
+select(byName['EcoRI']);
+</script>
+</body>
+</html>
