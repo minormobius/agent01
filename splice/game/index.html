@@ -23,7 +23,10 @@
   .wrap{max-width:1000px;margin:0 auto;padding:22px 20px 80px}
   h1{font-size:25px;margin:8px 0 2px;letter-spacing:-.4px}
   .sub{color:var(--muted);margin:0 0 16px;font-size:14.5px}
-  .levels{display:flex;gap:8px;margin:14px 0 18px;flex-wrap:wrap}
+  .levels{display:flex;gap:8px;margin:14px 0 10px;flex-wrap:wrap}
+  .genbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 18px}
+  .genbar select{background:#10141a;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:7px 10px;font-size:13px;font-family:var(--mono)}
   .lvl{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:8px;
     padding:6px 12px;cursor:pointer;color:var(--muted);background:#10141a}
   .lvl.active{border-color:var(--accent);color:var(--accent)}
@@ -72,6 +75,16 @@
   <p class="sub">Cut the vector and the insert with restriction enzymes, ligate the compatible ends, and build the target plasmid. Every move is graded by the real engine — and when you nail it, watch the splice happen.</p>
 
   <div class="levels" id="levelTabs"></div>
+  <div class="genbar">
+    <span class="small muted">∞ endless:</span>
+    <select id="diff" title="difficulty">
+      <option value="1">easy · 4 enzymes</option>
+      <option value="2" selected>medium · 6, one trap</option>
+      <option value="3">hard · 8, more traps</option>
+    </select>
+    <button id="gen" class="primary">🎲 New random level</button>
+    <span class="small" id="streak"></span>
+  </div>
 
   <div class="panel">
     <div class="brief" id="brief">—</div>
@@ -118,6 +131,7 @@
 <script type="module">
 import { loadEngine, Engine } from '../lab/engine.js';
 import { playSplice } from '../lab/splice-anim.js';
+import { generateLevel } from '../lab/levelgen.js';
 
 const $ = (id)=>document.getElementById(id);
 const COMP = {A:'T',T:'A',G:'C',C:'G',N:'N'};
@@ -144,7 +158,24 @@ function enzMeta(name){
 }
 function hideTheater(){ anim&&anim.stop(); anim=null; $('theater').style.display='none'; }
 
-function level(){ return window.LEVELS[cur]; }
+let activeLevel = null;
+function level(){ return activeLevel; }
+
+// engine wrappers for the procedural generator (unwrap the {value,ms} shape)
+const genApi = {
+  clone:(v,i,e,vc,ic)=>Engine.clone(v,i,e,vc,ic).value,
+  restriction:(s,c)=>Engine.restriction(s,c).value,
+};
+let streak = +(localStorage.getItem('splice_streak')||0);
+function showStreak(){ $('streak').textContent = streak>0 ? `streak ${streak} 🔥` : ''; }
+function genAndLoad(){
+  const d = +$('diff').value;
+  setVerdict('idle','Generating a fresh construct…');
+  setTimeout(()=>{
+    try{ loadLevelObj(generateLevel(genApi,{difficulty:d})); }
+    catch(e){ setVerdict('fail','generation hiccup — hit New random again'); }
+  }, 20);
+}
 
 function renderTabs(){
   $('levelTabs').innerHTML = window.LEVELS.map((L,i)=>{
@@ -246,18 +277,22 @@ function afterSelect(){
 
 function setVerdict(cls, html){ const v=$('verdict'); v.className='verdict '+cls; v.innerHTML=html; }
 
-function loadLevel(i){
-  cur=i; selected.clear(); hideTheater();
+function showLevel(){
+  selected.clear(); hideTheater();
   const L=level();
-  $('brief').innerHTML = `<b>${L.id} — ${L.title}.</b> ${L.brief}`;
+  const head = L.generated ? `<b>${L.title}.</b>` : `<b>${L.id} — ${L.title}.</b>`;
+  $('brief').innerHTML = `${head} ${L.brief}`;
   $('vecLen').textContent = L.vector.length+' bp · circular';
   $('insLen').textContent = L.insert.length+' bp · linear';
   renderTabs(); renderPalette(); afterSelect();
   setVerdict('idle','Select enzymes, then digest &amp; ligate.');
 }
+function loadLevel(i){ cur=i; activeLevel=window.LEVELS[i]; showLevel(); }
+function loadLevelObj(L){ cur=-1; activeLevel=L; showLevel(); }
 
 $('reset').onclick = ()=>{ selected.clear(); renderPalette(); afterSelect(); hideTheater(); setVerdict('idle','Cleared. Pick enzymes again.'); };
 $('hintBtn').onclick = ()=> setVerdict('idle', '💡 '+level().hint);
+$('gen').onclick = ()=> genAndLoad();
 $('replay').onclick = ()=>{ if(lastSpec){ anim && anim.stop(); anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 }); } };
 $('slowmo').onclick = ()=>{ slow=!slow; $('slowmo').textContent = slow?'Normal speed':'Slow-mo';
   if(lastSpec){ anim && anim.stop(); anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 }); } };
@@ -277,8 +312,8 @@ $('run').onclick = ()=>{
 
   if(winProd && directionalOK){
     const stars = enz.length<=L.par ? 3 : 2;
-    progress[L.id]=Math.max(progress[L.id]||0, stars);
-    localStorage.setItem('splice_game', JSON.stringify(progress));
+    if(L.generated){ streak++; localStorage.setItem('splice_streak', streak); showStreak(); }
+    else { progress[L.id]=Math.max(progress[L.id]||0, stars); localStorage.setItem('splice_game', JSON.stringify(progress)); }
     renderTabs();
     // build the splice-theater spec from the two junction enzymes
     const pair = enz.slice(0,2);
@@ -292,13 +327,19 @@ $('run').onclick = ()=>{
     anim && anim.stop();
     anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 });
     $('theater').scrollIntoView({behavior:'smooth', block:'center'});
-    const next = cur+1 < window.LEVELS.length;
+    const next = !L.generated && cur+1 < window.LEVELS.length;
+    const btn = L.generated
+      ? '<button class="primary" id="genNext">🎲 Next random →</button>'
+      : next ? '<button class="primary" id="nextBtn">Next level →</button>'
+             : '<button class="primary" id="genNext">🎲 Try a random one →</button>';
     setVerdict('win',
       `<div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
        <b>Solved!</b> Built the ${winProd.length} bp target with ${enz.join(' + ')} (par ${L.par}).
+       ${L.generated && streak>1 ? `<span class="small"> streak ${streak} 🔥</span>`:''}
        ${enz.length>L.par?'<span class="small"> Fewer enzymes = 3 stars.</span>':''}
-       <div class="btnrow">${next?'<button class="primary" id="nextBtn">Next level →</button>':'<b>That’s the slice — more levels soon.</b>'}</div>`);
+       <div class="btnrow">${btn}</div>`);
     if(next) $('nextBtn').onclick=()=>loadLevel(cur+1);
+    else $('genNext').onclick=()=>genAndLoad();
     return;
   }
 
@@ -322,6 +363,7 @@ $('run').onclick = ()=>{
     await loadEngine('../lab/splice_engine.wasm');
     $('badge').textContent='engine: ready'; $('badge').style.color='var(--accent)';
     if(!window.LEVELS||!window.LEVELS.length){ setVerdict('fail','levels failed to load'); return; }
+    showStreak();
     loadLevel(0);
   }catch(e){ $('badge').textContent='engine: failed'; $('badge').style.color='var(--bad)'; console.error(e); }
 })();
