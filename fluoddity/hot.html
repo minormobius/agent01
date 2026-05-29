@@ -127,8 +127,11 @@ a { color: var(--accent); text-decoration: none; }
     <div class="actions">
       <button class="btn" id="btn-copy">copy code</button>
       <button class="btn primary" id="btn-to-breed">open breeder with this rubric →</button>
+      <button class="btn" id="btn-active">use as active rubric</button>
+      <button class="btn" id="btn-publish" disabled>publish to forest</button>
       <button class="btn" id="btn-judge-more">judge more</button>
     </div>
+    <div id="publish-status" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>
     <p class="fade">A linear classifier on the four canonical descriptor axes — the same ones the breeder and forest already use. If accuracy is much above 50%, your taste lives in the temperature plane and the breeder can chase it; if it hovers near 50%, your aesthetic lives somewhere richer than these four dimensions can capture (probable — start adding axes, or judge more to see the boundary).</p>
   </div>
 </div>
@@ -139,6 +142,8 @@ a { color: var(--accent); text-decoration: none; }
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
 import { readDescriptors, fitness } from './descriptors.js';
+import { RUBRIC_COLLECTION, ANCHOR } from './data.js';
+import { auth } from './authchip.js';
 
 const $ = (s) => document.querySelector(s);
 const FEATURES = ['fill', 'motion', 'struct', 'blowout'];
@@ -234,7 +239,12 @@ if (engine) {
     return { w, b };
   }
 
-  function trainRubric() {
+  let lastTrained = null;
+  async function sha12(s) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).slice(0, 6).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function trainRubric() {
     const labeled = judgments.filter(j => j.features && j.label != null);
     const F = labeled.map(j => j.features), y = labeled.map(j => j.label);
     const { w, b } = trainLogistic(F, y);
@@ -246,7 +256,9 @@ if (engine) {
     const acc = correct / Math.max(1, y.length);
     const terms = w.map((wi, j) => `${wi.toFixed(4)} * v.${FEATURES[j]}`);
     const code = `// ${y.length} judgments · ${(acc * 100).toFixed(1)}% training accuracy · hot/not hyperplane in descriptor space\nreturn ${terms.join(' + ')} + (${b.toFixed(4)});`;
-    showResults({ w, b, acc, n: y.length, code });
+    lastTrained = { w, b, acc, n: y.length, code, scorerHash: await sha12(code), judgments: labeled };
+    showResults(lastTrained);
+    refreshRubricActions();
   }
 
   function showResults({ w, b, acc, n, code }) {
@@ -272,6 +284,56 @@ if (engine) {
     const b64 = btoa(unescape(encodeURIComponent($('#code').value))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     location.href = './breed.html#rubric=' + b64;
   });
+  $('#btn-active').addEventListener('click', () => {
+    if (!lastTrained) return;
+    try {
+      localStorage.setItem('fluoddity_active_rubric', JSON.stringify({
+        code: lastTrained.code, scorerHash: lastTrained.scorerHash,
+        savedAt: new Date().toISOString(), source: 'hot-or-not'
+      }));
+      $('#btn-active').textContent = 'active ✓';
+      $('#publish-status').textContent = 'set as active — landing hero and torus will sample by it';
+      setTimeout(() => { $('#btn-active').textContent = 'use as active rubric'; }, 2000);
+    } catch (e) { $('#publish-status').textContent = 'could not save: ' + e.message; }
+  });
+  $('#btn-publish').addEventListener('click', async () => {
+    if (!lastTrained || !auth.isLoggedIn()) return;
+    const btn = $('#btn-publish'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'publishing…';
+    try {
+      const record = {
+        $type: 'com.minomobi.fluoddity.rubric',
+        schemaVersion: 1,
+        scorer: lastTrained.code,
+        scorerHash: lastTrained.scorerHash,
+        features: FEATURES.slice(),
+        weights: JSON.stringify(lastTrained.w),
+        bias: JSON.stringify(lastTrained.b),
+        trainingSize: lastTrained.n,
+        accuracy: JSON.stringify(lastTrained.acc),
+        // The judgments themselves enable re-fitting in richer spaces; ~30 bytes each.
+        judgments: JSON.stringify(lastTrained.judgments.map(j => [j.label, ...j.features])),
+        rubricForest: ANCHOR,
+        createdAt: new Date().toISOString(),
+      };
+      const res = await auth.pds.createRecord(RUBRIC_COLLECTION, record);
+      const uri = res && (res.uri || (res.data && res.data.uri));
+      $('#publish-status').innerHTML = uri
+        ? `published · <a href="./forest.html?tab=rubrics" style="color:var(--accent);">see it in the forest</a>`
+        : 'published';
+      btn.textContent = 'published ✓';
+    } catch (e) {
+      $('#publish-status').textContent = 'error: ' + (e.message || e);
+      btn.disabled = false; btn.textContent = orig;
+    }
+  });
+  function refreshRubricActions() {
+    const signed = !!auth.isLoggedIn();
+    const ready = !!lastTrained;
+    $('#btn-active').disabled = !ready;
+    $('#btn-publish').disabled = !ready || !signed;
+    if (ready && !signed) $('#publish-status').textContent = 'sign in (top right) to publish';
+  }
+  auth.onAuthChange(refreshRubricActions);
   $('#btn-judge-more').addEventListener('click', () => { $('#results').classList.remove('show'); $('#status-overlay').hidden = true; });
 
   document.addEventListener('keydown', (e) => {

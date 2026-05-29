@@ -42,6 +42,11 @@ a { color: var(--accent); text-decoration: none; }
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
 .btn.primary:hover { color: #04110e; }
+.initpick { display: inline-flex; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.4); }
+.initpick button { font: inherit; font-family: var(--mono); font-size: 11px; cursor: pointer; color: var(--muted); background: transparent; border: 0; padding: 6px 10px; }
+.initpick button + button { border-left: 1px solid var(--rule); }
+.initpick button:hover { color: var(--accent); }
+.initpick button.on { color: #04110e; background: var(--accent); font-weight: 600; }
 
 #hint { position: absolute; top: 60px; left: 16px; font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border-radius: 6px; padding: 4px 8px; pointer-events: none; }
 #fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; z-index: 6; background: var(--bg); }
@@ -60,6 +65,7 @@ a { color: var(--accent); text-decoration: none; }
 <div id="stage">
   <div id="hint">drag to orbit · scroll to zoom · trails wrap across the seam</div>
   <div id="dock">
+    <span class="initpick" id="initpick"></span>
     <button class="btn" id="btn-another">↻ another</button>
     <button class="btn primary" id="btn-open">open in playground →</button>
   </div>
@@ -218,22 +224,55 @@ void main(){
   // common case; if everything in this batch is still meh (bestFit < FLOOR), we
   // draw another N and keep the better. Caps the worst-case wait while pushing
   // the typical result well past "least-bad" into "actually interesting."
+  // If an active rubric is set (from hot or not / forest), score candidates by
+  // it instead of the default temperature fitness. The floor + retry rounds
+  // still apply, on the rubric's scale.
+  function activeRubric() {
+    try { const s = localStorage.getItem('fluoddity_active_rubric'); if (!s) return null;
+      const r = JSON.parse(s); if (!r || !r.code) return null;
+      return new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', r.code);
+    } catch { return null; }
+  }
+
+  // Init distribution picker (0 grid, 1 scatter, 2 ring) — independent of the
+  // organism's law. Persists per origin; reload current organism on change.
+  let selectedInit = 0;
+  try { const s = +localStorage.getItem('fluoddity_init'); if (s === 0 || s === 1 || s === 2) selectedInit = s; } catch {}
+  (function buildInitPicker() {
+    const pick = $('#initpick');
+    ['grid', 'scatter', 'ring'].forEach((label, i) => {
+      const b = document.createElement('button');
+      b.textContent = label; b.dataset.i = i; b.className = (i === selectedInit ? 'on' : '');
+      b.addEventListener('click', () => {
+        selectedInit = i;
+        pick.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
+        try { localStorage.setItem('fluoddity_init', String(i)); } catch {}
+        if (cfg) { cfg.initial_conditions = i; engine.load(cfg, 'init' + Math.random()); }
+      });
+      pick.appendChild(b);
+    });
+  })();
   async function pickLively() {
-    const N = 12, FLOOR = 0.15, ROUNDS = 3;
-    let best = null, bestFit = -1;
+    const rubric = activeRubric();
+    const N = 12, FLOOR = rubric ? -Infinity : 0.15, ROUNDS = 3; // rubric scale unknown; don't gate by absolute floor
+    let best = null, bestScore = -Infinity;
     const hint = $('#hint'), origHint = hint.textContent;
-    hint.textContent = 'finding an interesting one…';
+    hint.textContent = rubric ? 'finding one your rubric likes…' : 'finding an interesting one…';
     for (let round = 0; round < ROUNDS; round++) {
       for (let i = 0; i < N; i++) {
         const c = randomConfig();
+        c.initial_conditions = selectedInit;
         engine.load(c, 'pick' + round + '_' + i + '_' + Math.random());
         engine.step(220); engine.render();
         const a = readDescriptors(engine.cv, null);
         engine.step(8); engine.render();
-        const f = fitness(readDescriptors(engine.cv, a.lum));
-        if (f > bestFit) { bestFit = f; best = c; }
+        const v = readDescriptors(engine.cv, a.lum);
+        const fitBase = fitness(v);
+        let s = fitBase;
+        if (rubric) { try { const x = rubric(v, fitBase, 0, 0, '', 0, c); if (Number.isFinite(x)) s = x; } catch {} }
+        if (s > bestScore) { bestScore = s; best = c; }
       }
-      if (bestFit >= FLOOR) break;
+      if (bestScore >= FLOOR) break;
     }
     hint.textContent = origHint;
     return best;

@@ -35,6 +35,11 @@ a { color: var(--accent); text-decoration: none; }
 #hero .herobar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; pointer-events: none; }
 #hero .herobar-right { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
 #hero .shuffle { font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px; }
+#hero .initpick { display: inline-flex; gap: 0; pointer-events: auto; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: rgba(0,0,0,0.4); }
+#hero .initpick button { font: inherit; font-family: var(--mono); font-size: 11px; cursor: pointer; color: var(--muted); background: transparent; border: 0; padding: 5px 9px; }
+#hero .initpick button + button { border-left: 1px solid var(--rule); }
+#hero .initpick button:hover { color: var(--accent); }
+#hero .initpick button.on { color: #04110e; background: var(--accent); font-weight: 600; }
 #hero .openbtn { pointer-events: auto; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; color: #04110e; background: var(--accent); border: 0; border-radius: 8px; padding: 7px 13px; transition: transform 0.1s, box-shadow 0.15s; box-shadow: 0 2px 14px rgba(56,225,192,0.35); }
 #hero .openbtn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(56,225,192,0.5); }
 #hero .openbtn:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
@@ -70,6 +75,7 @@ footer a:hover { color: var(--accent); }
   <div class="herobar">
     <span class="shuffle" id="shuffle">click anywhere for another organism</span>
     <span class="herobar-right">
+      <span class="initpick" id="initpick"></span>
       <span id="auth"></span>
       <button class="openbtn" id="open-play" type="button">open this in playground →</button>
     </span>
@@ -177,16 +183,56 @@ catch { document.getElementById('hero').style.background = 'linear-gradient(135d
 // Pick the most "alive" of several organisms drawn from the viable parameter
 // box (engine.randomConfig). The box winnows out the dead corners of the genome;
 // reject-sampling on fitness handles the rest (the rule_seed lottery).
+// Initial particle distribution: 0=grid, 1=scatter, 2=ring. Independent of the
+// organism's "law" (rule_seed + physics params) — selecting a different init
+// reshuffles where the agents start while keeping the brain identical.
+let selectedInit = 0;
+try { const s = +localStorage.getItem('fluoddity_init'); if (s === 0 || s === 1 || s === 2) selectedInit = s; } catch {}
+(function buildInitPicker() {
+  const pick = document.getElementById('initpick');
+  if (!pick) return;
+  ['grid', 'scatter', 'ring'].forEach((label, i) => {
+    const b = document.createElement('button');
+    b.textContent = label; b.dataset.i = i; b.className = (i === selectedInit ? 'on' : '');
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      selectedInit = i;
+      pick.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
+      try { localStorage.setItem('fluoddity_init', String(i)); } catch {}
+      // Reload current organism with the new init so the change is immediate.
+      if (current) { current.initial_conditions = i; engine.load(current, 'init' + Math.random()); }
+    });
+    pick.appendChild(b);
+  });
+})();
+
+// Active rubric: if the user trained / picked one in hot or not, we score
+// candidates by it instead of the default temperature fitness. Falls back if
+// the rubric is missing, throws, or returns non-finite.
+function activeRubric() {
+  try {
+    const stash = localStorage.getItem('fluoddity_active_rubric');
+    if (!stash) return null;
+    const r = JSON.parse(stash);
+    if (!r || !r.code) return null;
+    return new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', r.code);
+  } catch { return null; }
+}
 async function pickLively() {
-  let best = null, bestFit = -1;
+  const rubric = activeRubric();
+  let best = null, bestScore = -Infinity;
   for (let i = 0; i < 10; i++) {
     const c = randomConfig();
+    c.initial_conditions = selectedInit;
     engine.load(c, i);
     engine.step(260); engine.render();
     const a = readDescriptors(engine.cv, null);
     engine.step(8); engine.render();
-    const f = fitness(readDescriptors(engine.cv, a.lum));
-    if (f > bestFit) { bestFit = f; best = c; }
+    const v = readDescriptors(engine.cv, a.lum);
+    const fitBase = fitness(v);
+    let s = fitBase;
+    if (rubric) { try { const x = rubric(v, fitBase, 0, 0, '', 0, c); if (Number.isFinite(x)) s = x; } catch {} }
+    if (s > bestScore) { bestScore = s; best = c; }
   }
   return best;
 }

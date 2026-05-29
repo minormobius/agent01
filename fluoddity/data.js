@@ -8,6 +8,12 @@ export const ANCHOR = 'did:web:g.mino.mobi';
 // them independently from organisms even though they share the anchor DID.
 export const EXPEDITION_COLLECTION = 'com.minomobi.fluoddity.expedition';
 export const EXPEDITION_PATH = '.forest';
+// Rubrics — one record per trained scoring lens (from hot or not, or hand-
+// crafted). The scoring code is a JS function body in the same shape the
+// breeder's BYO scoring textarea accepts. Lives alongside expeditions in the
+// forest, under a separate field path.
+export const RUBRIC_COLLECTION = 'com.minomobi.fluoddity.rubric';
+export const RUBRIC_PATH = '.rubricForest';
 const CONSTELLATION = 'https://constellation.microcosm.blue';
 const BSKY = 'https://public.api.bsky.app';
 

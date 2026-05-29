@@ -35,6 +35,10 @@ a { color: var(--accent); text-decoration: none; }
 #main { flex: 1 1 auto; min-height: 0; display: flex; }
 #side { width: 320px; flex: none; border-right: 1px solid var(--rule); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 #side h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 600; margin: 0; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+.tab { background: transparent; border: 0; color: var(--muted); font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; padding: 6px 8px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab:hover { color: var(--fg); }
+.tab.on { color: var(--accent); border-bottom-color: var(--accent); }
 #status { color: var(--muted); font-size: 11px; line-height: 1.5; }
 #status a { color: var(--accent); }
 .exp-list { display: flex; flex-direction: column; gap: 6px; }
@@ -76,13 +80,18 @@ a { color: var(--accent); text-decoration: none; }
 
 <div id="main">
   <div id="side">
-    <h2>expeditions</h2>
+    <div class="tabs">
+      <button class="tab on" data-tab="expeditions">expeditions</button>
+      <button class="tab" data-tab="rubrics">rubrics</button>
+    </div>
     <div id="status">enumerating…</div>
     <div class="exp-list" id="exp-list"></div>
+    <div class="exp-list" id="rubric-list" hidden></div>
     <div id="scorer-panel" hidden>
       <h3>scorer</h3>
       <pre id="scorer-code"></pre>
       <div id="start-cfg"></div>
+      <button class="btn" id="btn-use-this" style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--fg);background:var(--panel);border:1px solid var(--rule);border-radius:7px;padding:6px 10px;cursor:pointer;">use as active rubric</button>
     </div>
   </div>
   <div id="mapwrap">
@@ -94,7 +103,7 @@ a { color: var(--accent); text-decoration: none; }
 <script type="module">
 "use strict";
 import { PhaseMap } from './phasemap.js';
-import { EXPEDITION_COLLECTION, EXPEDITION_PATH, enumerateAll, getProfile, parseAtUri, parseConfig } from './data.js';
+import { EXPEDITION_COLLECTION, EXPEDITION_PATH, RUBRIC_COLLECTION, RUBRIC_PATH, enumerateAll, getProfile, parseAtUri, parseConfig } from './data.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
@@ -201,7 +210,76 @@ function phaseRefresh() { phase.draw(); }
     : '';
   renderList();
   phase.setNodes(nodes);
+
+  // Enumerate rubrics in the background; the tab switcher below reveals them.
+  loadRubrics();
+  if (new URLSearchParams(location.search).get('tab') === 'rubrics') switchTab('rubrics');
 })();
+
+// ── Rubrics tab ────────────────────────────────────────────────────────────
+const rubrics = [];
+async function loadRubrics() {
+  let records = [];
+  try { records = await enumerateAll(null, { collection: RUBRIC_COLLECTION, path: RUBRIC_PATH }); } catch { /* show empty */ }
+  for (const r of records) {
+    const v = r.value || {};
+    const { did, rkey } = parseAtUri(r.uri);
+    const prof = await getProfile(did).catch(() => null);
+    rubrics.push({ uri: r.uri, did, rkey, handle: pickHandle(prof, did), value: v });
+  }
+  rubrics.sort((a, b) => (b.value.createdAt || '').localeCompare(a.value.createdAt || ''));
+  renderRubricList();
+}
+
+function renderRubricList() {
+  const list = $('#rubric-list'); list.innerHTML = '';
+  if (!rubrics.length) {
+    list.innerHTML = `<div class="empty">No rubrics published yet.<br><br>Train one in <a href="./hot.html">hot or not</a>, then click <b>publish to forest</b>.</div>`;
+    return;
+  }
+  for (const r of rubrics) {
+    const v = r.value;
+    const acc = v.accuracy ? (JSON.parse(v.accuracy) * 100).toFixed(0) + '%' : '—';
+    const summary = (v.scorer || '').replace(/\s+/g, ' ').trim();
+    const preview = summary.length > 70 ? summary.slice(0, 70) + '…' : summary;
+    const el = document.createElement('div');
+    el.className = 'exp';
+    el.innerHTML = `<div class="col" style="background:hsl(${(parseInt((v.scorerHash || '0').slice(0, 4), 16) % 360)} 65% 60%);"></div>
+      <div class="meta">
+        <div class="who">${v.name || r.handle}</div>
+        <div class="sub">${r.handle} · ${v.trainingSize || 0} judgments · ${acc} acc</div>
+        <div class="sc byo">${preview || 'scorer'}</div>
+      </div>`;
+    el.addEventListener('click', () => showRubricDetail(r));
+    list.appendChild(el);
+  }
+}
+
+function showRubricDetail(r) {
+  $('#scorer-panel').hidden = false;
+  $('#scorer-code').textContent = r.value.scorer || '';
+  $('#start-cfg').innerHTML = `${r.value.trainingSize || 0} judgments · published ${new Date(r.value.createdAt || 0).toLocaleString()}`;
+  $('#btn-use-this').onclick = () => {
+    try {
+      localStorage.setItem('fluoddity_active_rubric', JSON.stringify({
+        code: r.value.scorer, scorerHash: r.value.scorerHash,
+        savedAt: new Date().toISOString(), source: r.uri, name: r.value.name || r.handle,
+      }));
+      $('#btn-use-this').textContent = 'active ✓';
+      setTimeout(() => { $('#btn-use-this').textContent = 'use as active rubric'; }, 1800);
+    } catch {}
+  };
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+  $('#exp-list').hidden = tab !== 'expeditions';
+  $('#rubric-list').hidden = tab !== 'rubrics';
+  $('#scorer-panel').hidden = true;
+  // PhaseMap tooltip only makes sense when expeditions are visible
+  if (tab === 'rubrics' && rubrics.length === 0 && $('#rubric-list').children.length === 0) renderRubricList();
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 </script>
 <script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>
