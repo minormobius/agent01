@@ -1,0 +1,6 @@
+#ifndef _SHIM_LIMITS_H
+#define _SHIM_LIMITS_H
+#define INT_MAX 2147483647
+#define INT_MIN (-2147483647-1)
+#define LONG_MAX 9223372036854775807L
+#endif
