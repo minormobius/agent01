@@ -16,7 +16,7 @@ import {
 } from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const MAX_IMAGES   = 96;    // smaller default — easier first paint
+const MAX_TILES    = 96;    // queue cap (posts + quoted posts)
 const TILE_PER_ROW = 4;
 const MAX_TEX_AXIS = 4096;
 const MAX_TILE     = 384;
@@ -75,34 +75,68 @@ async function loadThread(rawInput) {
   return { images, posts };
 }
 
-// Walk every post's embed via extractMedia (which recurses into quote
-// embeds), then flatten the result into a plain list of image refs. Image
-// authorship is attributed to the post the image lives on — for a quoted
-// image that's the quoted author, not the OP.
-function collectImagesFromPosts(posts) {
+// Build a queue of *post units* — each post itself (if it has text) AND any
+// quoted posts it contains. Quoted posts are the actual content of archive-
+// style threads; posts give us the OP commentary. We render each unit as a
+// canvas tile (author + text + best-effort image) so the orb populates with
+// real content even when the CDN's image cache is empty.
+function buildPostQueue(posts) {
   const out = [];
   for (const p of posts) {
-    if (out.length >= MAX_IMAGES) break;
-    if (!p.embed) continue;
-    addImagesFromMedia(out, extractMedia(p.embed), p.author);
+    if (out.length >= MAX_TILES) break;
+    const text = (p.text || '').trim();
+    const image = firstImageInEmbed(p.embed);
+    if (text || image) {
+      out.push({
+        kind: 'post',
+        uri: p.uri,
+        author: p.author,
+        text,
+        image,
+        createdAt: p.createdAt,
+      });
+    }
+    // Recurse into quoted posts (extractMedia flattens nested quotes' embeds).
+    if (p.embed) {
+      for (const m of extractMedia(p.embed)) addQuotedTo(out, m);
+    }
   }
   return out;
 }
 
-function addImagesFromMedia(out, items, fallbackAuthor) {
-  for (const item of items) {
-    if (out.length >= MAX_IMAGES) break;
-    if (item.type === 'image') {
-      out.push({
-        thumb: item.thumb,
-        fullsize: item.fullsize,
-        alt: item.alt,
-        authorHandle: fallbackAuthor?.handle || '',
-      });
-    } else if (item.type === 'quote' && Array.isArray(item.embeds)) {
-      addImagesFromMedia(out, item.embeds, item.author || fallbackAuthor);
+function addQuotedTo(out, m) {
+  if (out.length >= MAX_TILES) return;
+  if (m.type !== 'quote' || !m.author) return;
+  const text = (m.text || '').trim();
+  const image = firstImageInMediaList(m.embeds);
+  if (text || image) {
+    out.push({
+      kind: 'quote',
+      uri: m.uri,
+      author: m.author,
+      text,
+      image,
+      createdAt: m.createdAt,
+    });
+  }
+  // A quote can itself contain quotes — flatten those too.
+  if (Array.isArray(m.embeds)) for (const inner of m.embeds) addQuotedTo(out, inner);
+}
+
+function firstImageInEmbed(embed) {
+  if (!embed) return null;
+  return firstImageInMediaList(extractMedia(embed));
+}
+function firstImageInMediaList(items) {
+  if (!Array.isArray(items)) return null;
+  for (const m of items) {
+    if (m.type === 'image' && m.thumb) return { thumb: m.thumb, fullsize: m.fullsize, alt: m.alt || '' };
+    if (m.type === 'quote' && Array.isArray(m.embeds)) {
+      const inner = firstImageInMediaList(m.embeds);
+      if (inner) return inner;
     }
   }
+  return null;
 }
 
 // ───────────────────────────── Atlas (strip) ────────────────────────────
@@ -143,14 +177,102 @@ async function loadImage(url) {
   return await tryFetchAsBitmap(IMG_PROXY + encodeURIComponent(url));
 }
 
-function drawTile(ctx, img, dx, dy, size) {
+function drawCoverImage(ctx, img, dx, dy, dw, dh) {
   // Works for both HTMLImageElement and ImageBitmap.
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
-  const sw = Math.min(w, h);
-  const sx = (w - sw) / 2;
-  const sy = (h - sw) / 2;
-  ctx.drawImage(img, sx, sy, sw, sw, dx, dy, size, size);
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const ir = iw / ih, dr = dw / dh;
+  let sw, sh, sx, sy;
+  if (ir > dr) { sh = ih; sw = ih * dr; sx = (iw - sw) / 2; sy = 0; }
+  else         { sw = iw; sh = iw / dr; sx = 0;             sy = (ih - sh) / 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+
+// Simple word-wrap into an array of lines that fit `maxWidth`.
+function wrapText(ctx, text, maxWidth) {
+  const out = [];
+  for (const para of String(text || '').split('\n')) {
+    const words = para.split(/\s+/).filter(Boolean);
+    let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (ctx.measureText(test).width <= maxWidth) line = test;
+      else { if (line) out.push(line); line = w; }
+    }
+    if (line) out.push(line);
+    if (out[out.length - 1] !== '') out.push('');
+  }
+  while (out.length && out[out.length - 1] === '') out.pop();
+  return out;
+}
+
+// Stable per-author color (HSL) so each author has a recognisable hue.
+function hashHue(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h) % 360;
+}
+
+// Render a single post unit as a square canvas tile. Text always succeeds;
+// image is best-effort (failed image just leaves a text-only card).
+async function renderPostTile(entry, size) {
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+
+  const hue = hashHue(entry.author?.handle || entry.uri || 'x');
+  ctx.fillStyle = `hsl(${hue}, 50%, 20%)`;
+  ctx.fillRect(0, 0, size, size);
+
+  // Try the image — proxy through /api/img, ignore failure.
+  let imgArea = 0;
+  if (entry.image?.thumb) {
+    const img = await loadImage(entry.image.thumb);
+    if (img) {
+      imgArea = Math.floor(size * 0.58);
+      drawCoverImage(ctx, img, 0, 0, size, imgArea);
+      // soft fade at the bottom into the text area
+      const fade = ctx.createLinearGradient(0, imgArea - 40, 0, imgArea);
+      fade.addColorStop(0, 'rgba(0,0,0,0)');
+      fade.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = fade;
+      ctx.fillRect(0, imgArea - 40, size, 40);
+    }
+  }
+
+  const textY = imgArea;
+  const textH = size - imgArea;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, textY, size, textH);
+
+  const pad = Math.floor(size * 0.05);
+  // Author handle.
+  ctx.fillStyle = 'rgba(255,215,140,0.95)';
+  const handleSize = Math.floor(size * 0.055);
+  ctx.font = `600 ${handleSize}px -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.fillText('@' + (entry.author?.handle || 'unknown'), pad, textY + pad);
+
+  // Body text.
+  const bodySize = Math.floor(size * 0.055);
+  ctx.fillStyle = 'rgba(248,242,228,0.96)';
+  ctx.font = `400 ${bodySize}px Georgia, "Iowan Old Style", "Palatino Linotype", serif`;
+  const bodyTop = textY + pad + handleSize + Math.floor(size * 0.025);
+  const lineH = Math.floor(bodySize * 1.25);
+  const maxLines = Math.max(1, Math.floor((textY + size - bodyTop - pad) / lineH));
+  const lines = wrapText(ctx, entry.text, size - pad * 2);
+  for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+    let line = lines[i];
+    if (i === maxLines - 1 && lines.length > maxLines) {
+      // Truncate with an ellipsis when there's more.
+      while (line && ctx.measureText(line + '…').width > size - pad * 2) line = line.slice(0, -1);
+      line = line.replace(/[\s,;:.!?]+$/, '') + '…';
+    }
+    ctx.fillText(line, pad, bodyTop + i * lineH);
+  }
+
+  return c;
 }
 
 // Builds the atlas progressively; calls onChunk(canvas) every BATCH images
@@ -404,12 +526,14 @@ async function initWebGPU() {
 
   // Placeholder texture: a procedural "celestial body" pattern. This is what
   // the orb shows when no thread has been loaded — meant to be pretty in its
-  // own right, not just a debug fill. Tall (1:4) so it wraps the sphere from
-  // pole to pole with full vertical resolution.
+  // own right, not just a debug fill. Tall so it wraps the sphere from
+  // pole to pole with full vertical resolution. Doubles as the atlas we
+  // composite post tiles onto, so it's sized large enough that 256-px tiles
+  // hold legible text.
   const placeholder = document.createElement('canvas');
-  placeholder.width = 256; placeholder.height = 1024;
+  placeholder.width = 512; placeholder.height = 2048;
   const pctx = placeholder.getContext('2d');
-  const grad = pctx.createLinearGradient(0, 0, 0, 1024);
+  const grad = pctx.createLinearGradient(0, 0, 0, 2048);
   grad.addColorStop(0.00, '#1a0d36');
   grad.addColorStop(0.18, '#7a2d4f');
   grad.addColorStop(0.35, '#d4b86a');
@@ -418,14 +542,14 @@ async function initWebGPU() {
   grad.addColorStop(0.82, '#5c3d96');
   grad.addColorStop(1.00, '#1a0d36');
   pctx.fillStyle = grad;
-  pctx.fillRect(0, 0, 256, 1024);
-  pctx.fillStyle = 'rgba(255, 200, 140, 0.14)';
-  for (let y = 0; y < 1024; y += 16) pctx.fillRect(0, y, 256, 1);
+  pctx.fillRect(0, 0, 512, 2048);
+  pctx.fillStyle = 'rgba(255, 200, 140, 0.12)';
+  for (let y = 0; y < 2048; y += 32) pctx.fillRect(0, y, 512, 2);
   pctx.fillStyle = 'rgba(255, 240, 220, 0.55)';
-  for (let i = 0; i < 60; i++) {
-    const x = Math.random() * 256;
-    const y = Math.random() * 1024;
-    const r = 0.8 + Math.random() * 2.2;
+  for (let i = 0; i < 120; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 2048;
+    const r = 0.8 + Math.random() * 2.6;
     pctx.beginPath();
     pctx.arc(x, y, r, 0, Math.PI * 2);
     pctx.fill();
@@ -607,33 +731,15 @@ canvas.addEventListener('wheel', (e) => {
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
-// Minimal one-at-a-time stamping. First click (or URL change) fetches the
-// thread and stores the image list; each subsequent click walks DOWN the
-// queue, auto-skipping HTTP errors (403 on takedown'd blobs, 404 on deleted
-// posts) and only stops when it lands a real image. The celestial backdrop
-// stays put behind any holes, so failures never black out the orb.
-let imageQueue = [];
-let queueIndex = 0;     // how many entries we've consumed (success or skip)
-let successCount = 0;   // how many actually drew onto the canvas
+// Each click stamps one post-tile onto the orb's atlas. Text always renders
+// (it's drawn straight from thread.js's flattened post data), and the image
+// inside the tile is best-effort — a 404 on the thumbnail just leaves a
+// text-only card with the post's author + body. The orb populates regardless
+// of CDN health.
+let tileQueue = [];
+let queueIndex = 0;
+let successCount = 0;
 let lastFetchedUrl = '';
-
-const MAX_TRIES_PER_CLICK = 30;
-
-function urlTail(u) {
-  if (!u) return '(none)';
-  const idx = u.lastIndexOf('/');
-  return u.slice(idx + 1).slice(0, 48);
-}
-
-async function tryLoadEntry(entry) {
-  let img = await loadImage(entry.thumb);
-  if (img) return img;
-  if (entry.fullsize && entry.fullsize !== entry.thumb) {
-    img = await loadImage(entry.fullsize);
-    if (img) return img;
-  }
-  return null;
-}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -641,80 +747,57 @@ form.addEventListener('submit', async (e) => {
   loadBtn.disabled = true;
   try {
     const wantedUrl = urlInput.value.trim();
-    const needFetch = imageQueue.length === 0 || wantedUrl !== lastFetchedUrl;
+    const needFetch = tileQueue.length === 0 || wantedUrl !== lastFetchedUrl;
 
     if (needFetch) {
-      const { images, posts } = await loadThread(wantedUrl);
+      const { posts } = await loadThread(wantedUrl);
       const rootHandle = posts[0]?.author?.handle || 'unknown';
-      if (images.length === 0) {
-        setStatus(`no images in thread (${posts.length} posts walked, root @${rootHandle})`, true);
-        imageQueue = [];
+      tileQueue = buildPostQueue(posts);
+      if (tileQueue.length === 0) {
+        setStatus(`thread has no postable content (root @${rootHandle})`, true);
         return;
       }
-      imageQueue = images;
       queueIndex = 0;
       successCount = 0;
       lastFetchedUrl = wantedUrl;
-      setStatus(`${posts.length} posts · ${images.length} images · click load to stamp one`);
+      const imgCount = tileQueue.filter(t => t.image).length;
+      setStatus(
+        `${posts.length} posts → ${tileQueue.length} tiles (${imgCount} with images) · click load to stamp one`,
+      );
       loadBtn.textContent = 'stamp +1';
       return;
     }
 
-    if (queueIndex >= imageQueue.length) {
+    if (queueIndex >= tileQueue.length) {
       setStatus(`exhausted queue · ${successCount} stamped`);
       return;
     }
 
-    // Walk forward until something loads or we've burned a click's worth of
-    // attempts. Many quote-archive entries point at dead blobs (403/404);
-    // skip past them silently rather than making the user click for each.
-    let landed = null;
-    let landedEntry = null;
-    let lastReason = '';
-    let tried = 0;
-    while (queueIndex < imageQueue.length && tried < MAX_TRIES_PER_CLICK) {
-      const candidate = imageQueue[queueIndex];
-      setStatus(`trying ${queueIndex + 1} / ${imageQueue.length}…`);
-      const img = await tryLoadEntry(candidate);
-      if (img) { landed = img; landedEntry = candidate; break; }
-      lastReason = lastImageError;
-      console.warn(`orb: skipped ${queueIndex + 1}: ${lastReason} · ${candidate.thumb}`);
-      queueIndex++;
-      tried++;
-    }
+    const entry = tileQueue[queueIndex];
+    setStatus(`rendering tile ${queueIndex + 1} / ${tileQueue.length} · @${entry.author?.handle || ''}…`);
 
-    if (!landed) {
-      if (queueIndex >= imageQueue.length) {
-        setStatus(`exhausted queue · ${successCount} stamped · last error ${lastReason}`, true);
-      } else {
-        setStatus(`${tried} dead in a row (last: ${lastReason}) · click again to keep going`, true);
-      }
-      return;
-    }
+    // Render the tile at its natural size, then composite into the atlas grid.
+    const TILE_PX = 256;
+    const tileCanvas = await renderPostTile(entry, TILE_PX);
 
-    // Stamp it. Position is based on stamps that actually succeeded so the
-    // grid doesn't leave gaps for the skipped entries.
     const c = state.atlasCanvas;
     const ctx = c.getContext('2d');
     const cols = 2, rows = 8;
     const cellW = c.width / cols;
     const cellH = c.height / rows;
-    const tile = Math.floor(Math.min(cellW, cellH) * 0.86);
+    const placement = Math.floor(Math.min(cellW, cellH) * 0.92);
     const i = successCount;
     const col = i % cols;
     const row = Math.floor(i / cols) % rows;
-    const x = col * cellW + (cellW - tile) / 2;
-    const y = row * cellH + (cellH - tile) / 2;
-    drawTile(ctx, landed, x, y, tile);
+    const x = col * cellW + (cellW - placement) / 2;
+    const y = row * cellH + (cellH - placement) / 2;
+    ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, placement, placement);
     setStripFromCanvas(c);
 
     queueIndex++;
     successCount++;
-    const skipped = tried;   // entries skipped this click before landing
-    setStatus(
-      `stamped ${successCount} · skipped ${queueIndex - successCount} total · @${landedEntry.authorHandle}` +
-      (skipped > 0 ? ` (skipped ${skipped} this click)` : ''),
-    );
+    const k = entry.kind === 'quote' ? '↪' : '';
+    setStatus(`stamped ${successCount} / ${tileQueue.length} ${k} @${entry.author?.handle || ''}`);
   } catch (err) {
     console.error(err);
     setStatus('error: ' + (err?.message || String(err)), true);
