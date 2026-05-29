@@ -947,17 +947,26 @@ function renderSpectrometer(seed) {
 // waste). Same seed -> same platform.
 
 const PLAT_MOD = {
-  pipettor:    {color:'#ff7e6b', dark:'#7a3020'},
-  gripper:     {color:'#9bb8ff', dark:'#3a4d80'},
-  tip:         {color:'#f0e8d4', dark:'#8a7d5a'},
-  plate:       {color:'#cfd6e0', dark:'#5a6275'},
-  reagent:     {color:'#8ac9b8', dark:'#3a6a5a'},
-  microscope:  {color:'#6ad9c8', dark:'#1f4a44'},
-  spectrometer:{color:'#9bb8ff', dark:'#3a4d80'},
-  centrifuge:  {color:'#f6a472', dark:'#7d4426'},
-  mixer:       {color:'#e9c46a', dark:'#7a6020'},
-  heater:      {color:'#d66a3a', dark:'#5a1f10'},
-  waste:       {color:'#5b6275', dark:'#1f242e'},
+  pipettor:     {color:'#ff7e6b', dark:'#7a3020'},
+  gripper:      {color:'#9bb8ff', dark:'#3a4d80'},
+  tip:          {color:'#f0e8d4', dark:'#8a7d5a'},
+  plate:        {color:'#cfd6e0', dark:'#5a6275'},
+  tube:         {color:'#e6dcc4', dark:'#7d6f4a'},
+  tube15:       {color:'#dcd0b0', dark:'#6b5d3a'},
+  reagent:      {color:'#8ac9b8', dark:'#3a6a5a'},
+  microscope:   {color:'#6ad9c8', dark:'#1f4a44'},
+  spectrometer: {color:'#9bb8ff', dark:'#3a4d80'},
+  reader:       {color:'#b89aff', dark:'#4a3a78'},
+  centrifuge:   {color:'#f6a472', dark:'#7d4426'},
+  mixer:        {color:'#e9c46a', dark:'#7a6020'},
+  heater:       {color:'#d66a3a', dark:'#5a1f10'},
+  chiller:      {color:'#a6d4f0', dark:'#3a6a80'},
+  incubator:    {color:'#c4dfa8', dark:'#4a6a30'},
+  bulk_disp:    {color:'#f0b893', dark:'#7a4426'},
+  mag_block:    {color:'#5b6275', dark:'#1f242e'},
+  sealer:       {color:'#8a8fa3', dark:'#3a4050'},
+  stacker:      {color:'#b8bfd0', dark:'#3a4050'},
+  waste:        {color:'#5b6275', dark:'#1f242e'},
 };
 
 function renderModuleIcon(type, x, y, w, h) {
@@ -1060,6 +1069,116 @@ function renderModuleIcon(type, x, y, w, h) {
       s += `<text x="${cx}" y="${cy + dim*0.13}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.32}" text-anchor="middle" font-weight="700">W</text>`;
       break;
     }
+    case 'tube': {
+      // 1.5 mL tube rack: 4x4 grid of medium round tubes (top-down circles)
+      const rows = 4, cols = 4;
+      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
+        const tx = x + 3 + (c+0.5) * (w-6)/cols;
+        const ty = y + 3 + (r+0.5) * (h-6)/rows;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.07}" fill="${p.dark}" opacity="0.65"/>`;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.035}" fill="${p.color}"/>`;
+      }
+      break;
+    }
+    case 'tube15': {
+      // 15/50 mL conical rack: 2x3 grid of big circles
+      for (let r=0; r<3; r++) for (let c=0; c<2; c++) {
+        const tx = x + 4 + (c+0.5) * (w-8)/2;
+        const ty = y + 3 + (r+0.5) * (h-6)/3;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.13}" fill="${p.dark}" opacity="0.65"/>`;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.06}" fill="${p.color}"/>`;
+      }
+      break;
+    }
+    case 'incubator': {
+      // enclosed chamber with door + temp display
+      s += `<rect x="${x+2.5}" y="${y+2.5}" width="${w-5}" height="${h-5}" fill="${p.dark}" opacity="0.4" rx="2.5"/>`;
+      // door window
+      s += `<rect x="${x+w*0.12}" y="${y+h*0.14}" width="${w*0.5}" height="${h*0.55}" fill="${p.color}" stroke="${p.dark}" stroke-width="0.7" rx="1"/>`;
+      // viewing grid hint
+      s += `<line x1="${x+w*0.12}" y1="${y+h*0.4}" x2="${x+w*0.62}" y2="${y+h*0.4}" stroke="${p.dark}" stroke-width="0.5" opacity="0.5"/>`;
+      // temp display
+      s += `<rect x="${x+w*0.68}" y="${y+h*0.14}" width="${w*0.22}" height="${h*0.22}" fill="#06090f" rx="1"/>`;
+      s += `<text x="${x+w*0.79}" y="${y+h*0.3}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.15}" font-weight="700" text-anchor="middle">37°</text>`;
+      // door handle
+      s += `<circle cx="${x+w*0.82}" cy="${y+h*0.75}" r="${dim*0.04}" fill="${p.dark}"/>`;
+      // vent on right
+      for (let i=0; i<3; i++) s += `<rect x="${x+w*0.7}" y="${y+h*0.45 + i*h*0.08}" width="${w*0.18}" height="${h*0.025}" fill="${p.dark}" opacity="0.4"/>`;
+      break;
+    }
+    case 'bulk_disp': {
+      // wide head with nozzle row + reservoir
+      s += `<rect x="${x+2}" y="${y+h*0.08}" width="${w-4}" height="${h*0.5}" fill="${p.dark}" opacity="0.55" rx="1.5"/>`;
+      const nozzles = 8;
+      for (let i=0; i<nozzles; i++) {
+        const nx = x + 4 + (i+0.5) * (w-8)/nozzles;
+        s += `<rect x="${nx-0.6}" y="${y+h*0.58}" width="1.2" height="${h*0.32}" fill="${p.dark}"/>`;
+      }
+      // reservoir bottle on top right
+      s += `<rect x="${x+w-9}" y="${y+1}" width="6" height="${h*0.18}" fill="${p.color}" stroke="${p.dark}" stroke-width="0.7" rx="1"/>`;
+      // tubing connection
+      s += `<line x1="${x+w-6}" y1="${y+h*0.18}" x2="${x+w-6}" y2="${y+h*0.4}" stroke="${p.dark}" stroke-width="0.8"/>`;
+      break;
+    }
+    case 'mag_block': {
+      // dark block; plate-shaped slot on top + magnet positions underneath
+      s += `<rect x="${x+2}" y="${y+2}" width="${w-4}" height="${h-4}" fill="${p.dark}" rx="2"/>`;
+      // plate position
+      s += `<rect x="${x+3.5}" y="${y+3}" width="${w-7}" height="${h*0.45}" fill="${p.color}" opacity="0.25" rx="1"/>`;
+      // 4x2 magnet rows
+      for (let r=0; r<2; r++) for (let c=0; c<8; c++) {
+        const tx = x + 4 + (c+0.5) * (w-8)/8;
+        const ty = y + h*0.58 + (r+0.5) * (h*0.35)/2;
+        s += `<rect x="${tx-0.8}" y="${ty-1.5}" width="1.6" height="3" fill="${p.color}" opacity="0.55"/>`;
+      }
+      break;
+    }
+    case 'sealer': {
+      // press head above a plate position
+      s += `<rect x="${x+2}" y="${y+h*0.5}" width="${w-4}" height="${h*0.45}" fill="${p.dark}" opacity="0.5" rx="1.5"/>`;
+      s += `<rect x="${x+w*0.2}" y="${y+h*0.1}" width="${w*0.6}" height="${h*0.3}" fill="${p.dark}" rx="1.5"/>`;
+      s += `<rect x="${x+w*0.45}" y="${y+2}" width="${w*0.1}" height="${h*0.1}" fill="${p.dark}"/>`;
+      s += `<rect x="${x+4}" y="${y+h*0.6}" width="${w-8}" height="${h*0.28}" fill="${p.color}" opacity="0.6"/>`;
+      break;
+    }
+    case 'chiller': {
+      // cold block with tube positions + snowflake mark
+      s += `<rect x="${x+2}" y="${y+2}" width="${w-4}" height="${h-4}" fill="${p.dark}" opacity="0.55" rx="2"/>`;
+      // tube wells
+      for (let r=0; r<2; r++) for (let c=0; c<2; c++) {
+        const tx = x + 5 + c * (w-12)/2 + (w-12)/4;
+        const ty = y + 4 + r * (h-10)/2 + (h-10)/4;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.09}" fill="${p.color}" opacity="0.6"/>`;
+      }
+      // snowflake mark (top-right corner)
+      s += `<text x="${x+w-5}" y="${y+8}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.22}" text-anchor="end" font-weight="700">❄</text>`;
+      break;
+    }
+    case 'reader': {
+      // plate-reader: display + plate slot
+      s += `<rect x="${x+3}" y="${y+3}" width="${w-6}" height="${h-6}" fill="${p.dark}" opacity="0.45" rx="3"/>`;
+      // display
+      s += `<rect x="${x+w*0.18}" y="${y+h*0.12}" width="${w*0.4}" height="${h*0.25}" fill="#06090f" rx="1"/>`;
+      s += `<text x="${x+w*0.38}" y="${y+h*0.3}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.13}" font-weight="700" text-anchor="middle">ABS</text>`;
+      // 3 small buttons next to display
+      for (let i=0; i<3; i++) s += `<rect x="${x+w*0.65}" y="${y+h*0.15 + i*h*0.08}" width="${w*0.2}" height="${h*0.05}" fill="${p.color}" rx="0.8"/>`;
+      // plate insertion slot
+      s += `<rect x="${x+w*0.12}" y="${y+h*0.5}" width="${w*0.76}" height="${h*0.2}" fill="${p.color}"/>`;
+      s += `<rect x="${x+w*0.14}" y="${y+h*0.55}" width="${w*0.72}" height="${h*0.1}" fill="${p.dark}" opacity="0.4"/>`;
+      break;
+    }
+    case 'stacker': {
+      // vertical plate hotel — column of stacked plates
+      s += `<rect x="${x+w*0.18}" y="${y+2}" width="${w*0.64}" height="${h-4}" fill="${p.dark}" opacity="0.55" rx="1.5"/>`;
+      const platesNum = 14;
+      for (let i=0; i<platesNum; i++) {
+        const py = y + 4 + i * (h-8)/platesNum;
+        s += `<rect x="${x+w*0.22}" y="${py}" width="${w*0.56}" height="1.2" fill="${p.color}"/>`;
+      }
+      // base
+      s += `<rect x="${x+w*0.1}" y="${y+h-3.5}" width="${w*0.8}" height="2" fill="${p.dark}"/>`;
+      break;
+    }
   }
   return s;
 }
@@ -1068,12 +1187,16 @@ function platformKind(opts) {
   // Score each kind on the FEATURE THAT DEFINES IT, so the name follows the
   // headline module rather than always landing on the highest plate count.
   const score = {
-    'High-throughput screening': (opts.hasCentri ? 0.7 : 0) + opts.plates*0.08 + opts.tipRacks*0.06,
-    'Imaging workflow':          (opts.hasMicro  ? 1.0 : 0) + (opts.hasReagent ? 0.1 : 0),
-    'Analytical assay':          (opts.hasSpec   ? 0.95 : 0) + (opts.hasReagent ? 0.2 : 0),
-    'Sample prep + assay':       (opts.hasMixer  ? 0.55 : 0) + (opts.hasHeater ? 0.55 : 0),
-    'Cell biology workstation':  (opts.hasMicro && opts.hasCentri ? 1.1 : 0) + (opts.hasReagent ? 0.15 : 0),
-    'Compact bench station':     (!opts.hasCentri && !opts.hasMicro && !opts.hasSpec && opts.plates<3) ? 0.85 : 0,
+    'High-throughput screening': (opts.hasCentri ? 0.55 : 0) + (opts.hasReader ? 0.35 : 0) + (opts.hasStacker ? 0.4 : 0) + opts.plates*0.06 + opts.tipRacks*0.05,
+    'Imaging workflow':          (opts.hasMicro  ? 1.0  : 0) + (opts.hasReagent ? 0.1  : 0),
+    'Analytical assay':          (opts.hasSpec   ? 0.9  : 0) + (opts.hasReagent ? 0.2  : 0),
+    'Plate-based ELISA':         (opts.hasReader ? 0.55 : 0) + (opts.hasSealer  ? 0.4  : 0) + (opts.hasIncub ? 0.35 : 0) + (opts.hasBulkDisp ? 0.25 : 0),
+    'Cell biology workstation':  (opts.hasMicro && opts.hasCentri ? 1.05 : 0) + (opts.hasIncub  ? 0.3 : 0),
+    'Sample prep + assay':       (opts.hasMixer  ? 0.45 : 0) + (opts.hasHeater  ? 0.45 : 0),
+    'Molecular biology prep':    (opts.hasMagBlock ? 0.7 : 0) + (opts.tubeRacks > 0 ? 0.35 : 0) + (opts.hasChiller ? 0.35 : 0),
+    'Bulk reagent prep':         (opts.hasBulkDisp ? 0.7 : 0) + (opts.tube15Racks > 0 ? 0.35 : 0) + opts.plates*0.04,
+    'Long-incubation assay':     (opts.hasIncub  ? 0.7 : 0) + (opts.hasSealer  ? 0.3 : 0) + (opts.hasMixer ? 0.15 : 0),
+    'Compact bench station':     (!opts.hasCentri && !opts.hasMicro && !opts.hasSpec && !opts.hasReader && !opts.hasIncub && opts.plates < 3) ? 0.85 : 0,
   };
   const entries = Object.entries(score).sort((a, b) => b[1] - a[1]);
   return entries[0][1] > 0.3 ? entries[0][0] : 'Custom configuration';
@@ -1083,28 +1206,57 @@ function renderPlatform(seed) {
   const rng = mulberry32(seed);
   const choice = arr => arr[Math.floor(rng() * arr.length)];
   const opts = {
-    hasGripper: rng() > 0.4,
-    hasMicro:   rng() > 0.45,
-    hasSpec:    rng() > 0.5,
-    hasCentri:  rng() > 0.5,
-    hasMixer:   rng() > 0.55,
-    hasHeater:  rng() > 0.6,
-    hasReagent: rng() > 0.45,
-    dualArm:    rng() > 0.72,
+    // Arm config
+    dualArm:    rng() > 0.7,
+    hasGripper: rng() > 0.45,
+    // Pipettor head: per-carriage channels + tip volume. For dual-arm,
+    // we pick complementary heads (one single, one 8-channel) because
+    // that's the most common reason to spec a dual-arm robot.
+    channels0:  rng() > 0.5 ? 1 : 8,
+    volume0:    choice([10, 50, 200, 1000]),
+    volume1:    choice([10, 50, 200, 1000]),
+    // Always-present consumables
     tipRacks:   1 + Math.floor(rng() * 3),
     plates:     2 + Math.floor(rng() * 4),
+    tubeRacks:  Math.floor(rng() * 3),        // 0–2
+    tube15Racks:Math.floor(rng() * 2),        // 0–1
+    // Optional modules — looser thresholds so the catalog gets exercised
+    hasReagent: rng() > 0.5,
+    hasMicro:   rng() > 0.6,
+    hasSpec:    rng() > 0.6,
+    hasReader:  rng() > 0.55,
+    hasCentri:  rng() > 0.55,
+    hasMixer:   rng() > 0.55,
+    hasHeater:  rng() > 0.6,
+    hasChiller: rng() > 0.6,
+    hasIncub:   rng() > 0.55,
+    hasBulkDisp:rng() > 0.65,
+    hasMagBlock:rng() > 0.6,
+    hasSealer:  rng() > 0.65,
+    hasStacker: rng() > 0.6,
   };
+  // Complementary second arm
+  opts.channels1 = opts.channels0 === 1 ? 8 : 1;
 
   // Build module list with footprints
   const mods = [];
-  for (let i=0; i<opts.tipRacks; i++) mods.push({type:'tip', w:1, h:1});
-  for (let i=0; i<opts.plates;   i++) mods.push({type:'plate', w:1, h:1});
-  if (opts.hasReagent) mods.push({type:'reagent', w:1, h:1});
-  if (opts.hasMicro)   mods.push({type:'microscope', w:2, h:2});
-  if (opts.hasSpec)    mods.push({type:'spectrometer', w:2, h:1});
-  if (opts.hasCentri)  mods.push({type:'centrifuge', w:2, h:2});
-  if (opts.hasMixer)   mods.push({type:'mixer', w:1, h:1});
-  if (opts.hasHeater)  mods.push({type:'heater', w:1, h:1});
+  for (let i=0; i<opts.tipRacks;    i++) mods.push({type:'tip', w:1, h:1});
+  for (let i=0; i<opts.plates;      i++) mods.push({type:'plate', w:1, h:1});
+  for (let i=0; i<opts.tubeRacks;   i++) mods.push({type:'tube', w:1, h:1});
+  for (let i=0; i<opts.tube15Racks; i++) mods.push({type:'tube15', w:1, h:1});
+  if (opts.hasReagent)  mods.push({type:'reagent', w:1, h:1});
+  if (opts.hasMicro)    mods.push({type:'microscope', w:2, h:2});
+  if (opts.hasSpec)     mods.push({type:'spectrometer', w:2, h:1});
+  if (opts.hasReader)   mods.push({type:'reader', w:2, h:2});
+  if (opts.hasCentri)   mods.push({type:'centrifuge', w:2, h:2});
+  if (opts.hasIncub)    mods.push({type:'incubator', w:2, h:2});
+  if (opts.hasBulkDisp) mods.push({type:'bulk_disp', w:2, h:1});
+  if (opts.hasMagBlock) mods.push({type:'mag_block', w:1, h:1});
+  if (opts.hasMixer)    mods.push({type:'mixer', w:1, h:1});
+  if (opts.hasHeater)   mods.push({type:'heater', w:1, h:1});
+  if (opts.hasChiller)  mods.push({type:'chiller', w:1, h:1});
+  if (opts.hasSealer)   mods.push({type:'sealer', w:1, h:1});
+  if (opts.hasStacker)  mods.push({type:'stacker', w:1, h:2});
   mods.push({type:'waste', w:1, h:1});
 
   // Pack into a grid that's W slots wide; deck height grows as needed.
@@ -1163,22 +1315,39 @@ function renderPlatform(seed) {
   s += `<line x1="${pad+3}" y1="${railY+2}" x2="${SW-pad-3}" y2="${railY+2}" stroke="#6ad9c8" stroke-width="0.8"/>`;
   s += `<line x1="${pad+3}" y1="${railY + railH - 9}" x2="${SW-pad-3}" y2="${railY + railH - 9}" stroke="#6ad9c8" stroke-width="0.8"/>`;
 
-  // pipettor carriage(s)
+  // pipettor carriage(s) — explicit channels + tip size, hanging visibly below the rail
   const carriages = opts.dualArm ? 2 : 1;
   for (let c=0; c<carriages; c++) {
-    const range = SW - pad*2 - 40;
-    const carCx = pad + 20 + (carriages === 1 ? rng() * range : (c === 0 ? 15 : range - 5));
-    const carW = 22;
+    const range = SW - pad*2 - 60;
+    const carCx = pad + 26 + (carriages === 1 ? rng() * range : (c === 0 ? 12 : range - 10));
+    const channels = c === 0 ? opts.channels0 : opts.channels1;
+    const tipVol = c === 0 ? opts.volume0 : opts.volume1;
+    // Carriage width grows if it carries an 8-channel head.
+    const carW = channels === 8 ? 30 : 22;
     s += `<rect x="${carCx - carW/2}" y="${railY - 3}" width="${carW}" height="${railH + 3}" rx="2.5" fill="${PLAT_MOD.pipettor.color}" stroke="${PLAT_MOD.pipettor.dark}" stroke-width="1.3"/>`;
-    // multichannel head hint (small dots under carriage)
-    for (let k=0; k<4; k++) {
-      s += `<circle cx="${carCx - 6 + k*4}" cy="${railY + railH + 3}" r="1.1" fill="${PLAT_MOD.pipettor.dark}"/>`;
+    // tiny channel-count badge on the carriage
+    s += `<text x="${carCx}" y="${railY + 6}" fill="#fff" font-family="ui-monospace, monospace" font-size="6" font-weight="700" text-anchor="middle">${channels === 1 ? '1' : '8'}ch</text>`;
+    // pipettor head plate
+    const headW = channels === 8 ? carW - 4 : 7;
+    const headY = railY + railH - 1;
+    s += `<rect x="${carCx - headW/2}" y="${headY}" width="${headW}" height="3" fill="${PLAT_MOD.pipettor.dark}" rx="0.6"/>`;
+    // tips — length and width keyed to volume
+    const tipLen = 4 + Math.log2(tipVol / 10) * 1.8;        // 10→4, 50→8, 200→11, 1000→14
+    const tipW   = 0.7 + Math.log2(tipVol / 10) * 0.22;     // narrow → wider
+    const tipY0  = headY + 3;
+    if (channels === 1) {
+      s += `<path d="M ${carCx-tipW} ${tipY0} L ${carCx} ${tipY0 + tipLen} L ${carCx+tipW} ${tipY0} Z" fill="${PLAT_MOD.tip.dark}"/>`;
+    } else {
+      for (let i=0; i<8; i++) {
+        const tx = carCx - headW/2 + 2 + i * (headW - 4)/7;
+        s += `<path d="M ${tx - tipW*0.55} ${tipY0} L ${tx} ${tipY0 + tipLen*0.92} L ${tx + tipW*0.55} ${tipY0} Z" fill="${PLAT_MOD.tip.dark}"/>`;
+      }
     }
     // gripper attached to first carriage if present
     if (opts.hasGripper && c === 0) {
       const gx = carCx + carW/2 + 3;
       s += `<rect x="${gx}" y="${railY - 2}" width="13" height="${railH + 2}" rx="2" fill="${PLAT_MOD.gripper.color}" stroke="${PLAT_MOD.gripper.dark}" stroke-width="1.3"/>`;
-      // claw fingers
+      // claw fingers (open)
       s += `<path d="M ${gx+2.5} ${railY + railH} L ${gx+5} ${railY + railH + 5} M ${gx+10.5} ${railY + railH} L ${gx+8} ${railY + railH + 5}" stroke="${PLAT_MOD.gripper.dark}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
     }
   }
@@ -1196,19 +1365,34 @@ function renderPlatform(seed) {
 
   // human spec line
   const kind = platformKind(opts);
-  const armStr = opts.dualArm ? 'dual-arm' : 'single-arm';
+  const headStr = opts.dualArm
+    ? `dual-arm (${opts.channels0}-ch ${opts.volume0} µL + ${opts.channels1}-ch ${opts.volume1} µL)`
+    : `${opts.channels0}-ch ${opts.volume0} µL pipettor`;
   const gripperStr = opts.hasGripper ? ' + gripper' : '';
+  // Feature list — modules first, then consumables fallback
   const features = [];
-  if (opts.hasMicro)   features.push('microscope');
-  if (opts.hasSpec)    features.push('spectrometer');
-  if (opts.hasCentri)  features.push('centrifuge');
-  if (opts.hasMixer)   features.push('mixer');
-  if (opts.hasHeater)  features.push('heater');
-  const baseFeatures = `${opts.tipRacks} tip · ${opts.plates} plate` + (opts.hasReagent ? ' · reagent' : '');
+  if (opts.hasMicro)    features.push('microscope');
+  if (opts.hasSpec)     features.push('spectrometer');
+  if (opts.hasReader)   features.push('plate reader');
+  if (opts.hasCentri)   features.push('centrifuge');
+  if (opts.hasIncub)    features.push('incubator');
+  if (opts.hasBulkDisp) features.push('bulk dispenser');
+  if (opts.hasMagBlock) features.push('mag separator');
+  if (opts.hasMixer)    features.push('mixer');
+  if (opts.hasHeater)   features.push('heater');
+  if (opts.hasChiller)  features.push('chiller');
+  if (opts.hasSealer)   features.push('sealer');
+  if (opts.hasStacker)  features.push('plate stacker');
+  const consumables = [];
+  consumables.push(`${opts.tipRacks} tip`);
+  consumables.push(`${opts.plates} plate`);
+  if (opts.tubeRacks)   consumables.push(`${opts.tubeRacks} tube`);
+  if (opts.tube15Racks) consumables.push(`${opts.tube15Racks}× 15 mL`);
+  const featLine = features.length > 4 ? features.slice(0, 4).join(' · ') + ` +${features.length-4}` : features.join(' · ');
   return {
     svg: s,
     kind,
-    spec: `${W}×${H} deck · ${armStr}${gripperStr}\n${features.length ? features.join(' · ') : baseFeatures}`,
+    spec: `${W}×${H} deck · ${headStr}${gripperStr}\n${featLine || consumables.join(' · ')}`,
   };
 }
 
