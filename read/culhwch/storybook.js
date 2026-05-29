@@ -67,6 +67,22 @@ window.CULHWCH.book = {
       text: "“You may marry Olwen,” said the giant with a sly smile, “once you have done a few small things for me.” Then he named nearly forty impossible tasks: to clear a whole hill and grow a wedding feast upon it in a single day, to gather marvelous treasures, and — hardest of all — to fetch the comb and shears that lay hidden between the ears of the most terrible boar in the world. “I will get them all,” said Culhwch, “and Arthur will help me.”",
       illus: "The giant ticking off an endless scroll of demands on his fingers; tiny heroes below looking up, undaunted." },
 
+    { title: "Cei and the Giant's Sword",
+      text: "One of the tasks was to win a wonderful sword from a fierce giant called Wrnach, who would never give it to anyone. So clever Cei went to Wrnach's great door and said he was the finest sword-polisher in all the world. The giant, thinking of his blade made bright as a new moon, let him in — and that was a mistake. As soon as the gleaming sword was in Cei's hand, the giant's own weapon was theirs, and Wrnach troubled no one ever again.",
+      illus: "Cei in a giant's torchlit hall holding a huge gleaming sword aloft, the colossal red-bearded giant Wrnach watching greedily; warm warm-glow, witty trickster mood, not gruesome." },
+
+    { title: "The Cauldron Across the Sea",
+      text: "Another task was to bring back a great magic cauldron, in which a whole army's meat could be boiled in a single moment. It lay across the sea in Ireland, guarded by a steward called Diwrnach the Irishman, who refused to give it up. So Arthur and his men sailed there in his ship Prydwen, took the cauldron by force, fought their way clear, and bore it home over the waves — full to the brim with treasure won in the fight.",
+      illus: "Arthur's small wooden ship Prydwen riding rough sea-waves homeward, a great bronze cauldron lashed on the deck overflowing with gold and silver and ancient coins; storm-blue sea, Celtic-medieval, cinematic and triumphant." },
+
+    { title: "The Birds of Rhiannon",
+      text: "Among the strangest demands were the three Birds of Rhiannon — small birds whose singing is said to wake the dead and lull the living to sleep, and which no one had heard for many an age. Some of the companions searched far away, into a wild apple grove at the very edge of the world, until they came upon the three small birds singing in a flowering tree. They listened until the song had filled them, and then, very carefully, they carried the birds away in their hands.",
+      illus: "A wild apple grove at the world's edge at twilight, in full pale-pink blossom; three small luminous singing birds in a flowering branch; two cloaked travellers listening with hands gently cupped; magical, gentle, dreamlike." },
+
+    { title: "The Beard of the Sleeping Giant",
+      text: "For one of the oddest tasks they needed a special leash — and the only thing that would do was a rope plaited from the beard of a giant called Dillus the Bearded, plucked out hair by hair while he slept. Cei and Bedwyr stalked him over a hill, watched him eat a whole roast boar for his dinner, and waited until he was snoring on the heather. Then, with wooden tweezers and not the smallest sound, they pulled out his great red beard and slipped away before dawn.",
+      illus: "Two warriors crouched in moonlit heather beside a shaggy red-bearded giant snoring on a hillside, one warrior delicately plucking hair with wooden tweezers; comic-tense, low warm moonlight." },
+
     { title: "The Oldest Animals",
       text: "One task was to find Mabon, a boy stolen from his mother when he was only three nights old, lost so long that nobody knew where he was. So Gwrhyr asked the oldest creatures in the world, one after another — the Blackbird, then the older Stag, then the older Owl, then the older Eagle — each pointing the way to one older still.",
       illus: "A sequence of ancient animals — blackbird on a worn anvil, great antlered stag, huge owl, vast eagle on a tiny worn stone — a council of elders." },
