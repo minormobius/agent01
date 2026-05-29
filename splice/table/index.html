@@ -73,6 +73,13 @@
   .t5c{color:var(--p5)} .tbc{color:var(--blunt)} .t3c{color:var(--p3)}
   .empty{color:var(--muted);font-size:13px}
   footer{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:var(--muted);font-size:12.5px}
+  .graphpanel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px 8px;margin:10px 0 4px}
+  .graphpanel canvas{width:100%;height:360px;display:block;cursor:grab;border-radius:8px;
+    background:radial-gradient(circle at 50% 42%, #11161d, #0a0d12)}
+  .graphpanel canvas:active{cursor:grabbing}
+  .graphcap{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:7px}
+  .graphcap .muted{font-size:11.5px}
+  #shake{cursor:pointer}
 </style>
 </head>
 <body>
@@ -84,6 +91,14 @@
 <div class="wrap">
   <h1>The restriction enzyme table</h1>
   <p class="sub">~60 molecular scissors, arranged by what they leave behind — a <b class="t5c">5′ overhang</b>, a <b class="tbc">blunt</b> end, or a <b class="t3c">3′ overhang</b> — and wired up by the relationships that matter for cloning: enzymes whose ends <b>ligate together</b>, enzymes that read the <b>same site</b>, and the same engine that powers the <a href="/lab/">lab</a> and <a href="/game/">game</a>. Click any tile.</p>
+
+  <div class="graphpanel">
+    <canvas id="graph"></canvas>
+    <div class="graphcap">
+      <span class="muted">Force graph — each enzyme is pulled toward <b>the end it leaves</b> (its overhang target), so enzymes whose fragments ligate together cluster. Hover a cluster · drag a node · click to inspect.</span>
+      <button id="shake" class="chip">shuffle</button>
+    </div>
+  </div>
 
   <div class="controls">
     <input type="search" id="q" placeholder="search enzyme or site…">
@@ -248,6 +263,124 @@ document.querySelectorAll('.chip[data-len]').forEach(c=> c.onclick=()=>{
   const l=+c.dataset.len; c.classList.toggle('on');
   if(lens.has(l)) lens.delete(l); else lens.add(l); render();
 });
+
+// ---------------- force-directed compatibility graph ----------------
+const TYPE_HEX = {"5'":'#7aa2ff', "blunt":'#e3b341', "3'":'#c98bdb'};
+function hexA(h,a){ const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+
+const gcv = document.getElementById('graph');
+const gg  = gcv.getContext('2d');
+let GW=0, GH=360, DPR=Math.min(2, window.devicePixelRatio||1);
+function sizeGraph(){
+  const w = gcv.getBoundingClientRect().width || 800;
+  GW=w; gcv.width=w*DPR; gcv.height=GH*DPR; gg.setTransform(DPR,0,0,DPR,0,0);
+}
+
+// build nodes (enzymes + family hubs) and edges (enzyme → its overhang hub)
+const fams={}; E.forEach(e=>{ (fams[e.fam]=fams[e.fam]||[]).push(e); });
+const enzNode={}, nodes=[], edges=[];
+function buildGraph(){
+  nodes.length=0; edges.length=0;
+  E.forEach(e=>{
+    const deg = (fams[e.fam].length-1);
+    const n={ t:'e', e, name:e.name, fam:e.fam, type:e.type, col:TYPE_HEX[e.type],
+      r:4+Math.min(6,deg), x:GW/2+(Math.random()-.5)*GW*0.7, y:GH/2+(Math.random()-.5)*GH*0.7, vx:0,vy:0 };
+    enzNode[e.name]=n; nodes.push(n);
+  });
+  Object.entries(fams).forEach(([fam,members])=>{
+    if(members.length<2) return;
+    const [type,ov]=fam.split(':');
+    const hub={ t:'h', fam, type, col:TYPE_HEX[type], label: ov||'blunt',
+      r:6+Math.min(11,members.length), x:GW/2+(Math.random()-.5)*GW*0.5, y:GH/2+(Math.random()-.5)*GH*0.5, vx:0,vy:0 };
+    nodes.push(hub);
+    members.forEach(m=> edges.push([enzNode[m.name], hub]));
+  });
+}
+
+let hoverNode=null, dragNode=null, downAt=null;
+function effFam(){ return hoverNode ? (hoverNode.t==='h'?hoverNode.fam:hoverNode.e.fam)
+                                    : (selected? selected.fam : null); }
+
+function step(){
+  for(let i=0;i<nodes.length;i++){ const a=nodes[i];
+    for(let j=i+1;j<nodes.length;j++){ const b=nodes[j];
+      let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<36) d2=36;
+      const d=Math.sqrt(d2);
+      const rep=((a.t==='h'&&b.t==='h')?5200:1700)/d2;
+      const fx=dx/d*rep, fy=dy/d*rep;
+      a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+    }
+  }
+  for(const [a,b] of edges){
+    let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||0.01;
+    const f=(d-42)*0.025, fx=dx/d*f, fy=dy/d*f;
+    a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+  }
+  for(const n of nodes){
+    n.vx += (GW/2-n.x)*0.0016; n.vy += (GH/2-n.y)*0.0016;
+    n.vx*=0.86; n.vy*=0.86;
+    const sp=Math.hypot(n.vx,n.vy); if(sp>34){ n.vx*=34/sp; n.vy*=34/sp; }
+    if(n!==dragNode){ n.x+=n.vx; n.y+=n.vy; }
+    n.x=Math.max(n.r+4,Math.min(GW-n.r-4,n.x));
+    n.y=Math.max(n.r+4,Math.min(GH-n.r-4,n.y));
+  }
+}
+function draw(){
+  gg.clearRect(0,0,GW,GH);
+  const ef=effFam();
+  for(const [a,b] of edges){
+    const on = ef && b.fam===ef;
+    gg.strokeStyle = on? hexA(b.col,0.7) : 'rgba(255,255,255,0.05)';
+    gg.lineWidth = on?1.5:0.7;
+    gg.beginPath(); gg.moveTo(a.x,a.y); gg.lineTo(b.x,b.y); gg.stroke();
+  }
+  for(const n of nodes){
+    const fam = n.t==='h'?n.fam:n.e.fam;
+    const isSel = selected && n.t==='e' && n.e===selected;
+    const dim = ef && fam!==ef && !isSel;
+    gg.globalAlpha = dim?0.2:1;
+    gg.beginPath(); gg.arc(n.x,n.y,n.r,0,7);
+    gg.fillStyle = n.t==='h'? hexA(n.col,0.20) : n.col; gg.fill();
+    if(n.t==='h'){ gg.lineWidth=1.2; gg.strokeStyle=n.col; gg.stroke(); }
+    if(isSel){ gg.lineWidth=2.5; gg.strokeStyle='#fff'; gg.stroke(); }
+    gg.globalAlpha=1;
+  }
+  gg.textAlign='center'; gg.textBaseline='middle';
+  for(const n of nodes) if(n.t==='h'){
+    gg.fillStyle=n.col; gg.font='bold 10px ui-monospace,monospace'; gg.fillText(n.label, n.x, n.y);
+  }
+  for(const n of nodes) if(n.t==='e'){
+    const show = (ef && n.e.fam===ef) || (selected&&n.e===selected) || hoverNode===n;
+    if(show){ gg.fillStyle='#e6edf3'; gg.font='9px ui-monospace,monospace'; gg.fillText(n.name, n.x, n.y-n.r-6); }
+  }
+}
+let frames=0;
+function loop(){ step(); draw(); if(frames++<100000) requestAnimationFrame(loop); }
+
+function nodeAt(mx,my){
+  let best=null,bd=1e9;
+  for(const n of nodes){ const d=Math.hypot(n.x-mx,n.y-my); if(d<n.r+7 && d<bd){bd=d;best=n;} }
+  return best;
+}
+function mpos(ev){ const r=gcv.getBoundingClientRect(); return [ev.clientX-r.left, ev.clientY-r.top]; }
+gcv.addEventListener('mousemove', ev=>{ const [x,y]=mpos(ev);
+  if(dragNode){ dragNode.x=x; dragNode.y=y; dragNode.vx=dragNode.vy=0; }
+  else hoverNode=nodeAt(x,y);
+});
+gcv.addEventListener('mousedown', ev=>{ const [x,y]=mpos(ev); const n=nodeAt(x,y); dragNode=n; downAt=[x,y]; });
+window.addEventListener('mouseup', ev=>{
+  if(dragNode && downAt){ const [x,y]=mpos(ev); const moved=Math.hypot(x-downAt[0],y-downAt[1]);
+    if(moved<5 && dragNode.t==='e') select(dragNode.e); }
+  dragNode=null; downAt=null;
+});
+gcv.addEventListener('mouseleave', ()=>{ hoverNode=null; });
+// touch: tap to select nearest
+gcv.addEventListener('touchstart', ev=>{ const t=ev.touches[0]; const r=gcv.getBoundingClientRect();
+  const n=nodeAt(t.clientX-r.left, t.clientY-r.top); if(n&&n.t==='e'){ select(n.e); } }, {passive:true});
+document.getElementById('shake').onclick = ()=>{ for(const n of nodes){ n.vx+=(Math.random()-.5)*40; n.vy+=(Math.random()-.5)*40; } };
+window.addEventListener('resize', ()=>{ const old=GW||1; sizeGraph(); const k=GW/old; for(const n of nodes){ n.x*=k; } });
+
+sizeGraph(); buildGraph(); loop();
 
 render();
 // open EcoRI by default — the canonical one
