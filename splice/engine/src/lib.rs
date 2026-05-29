@@ -134,40 +134,58 @@ pub fn translate(seq: &str, frame: i32) -> String {
 // restriction enzymes (classic palindromic Type-II set)
 // ---------------------------------------------------------------------------
 
-/// (name, recognition site, top-strand cut offset from site start, blunt?)
-/// All sites here are palindromic, so searching the forward strand suffices.
-const ENZYMES: &[(&str, &str, usize, bool)] = &[
-    ("EcoRI", "GAATTC", 1, false),
-    ("BamHI", "GGATCC", 1, false),
-    ("HindIII", "AAGCTT", 1, false),
-    ("NotI", "GCGGCCGC", 2, false),
-    ("XhoI", "CTCGAG", 1, false),
-    ("SalI", "GTCGAC", 1, false),
-    ("PstI", "CTGCAG", 5, false),
-    ("SmaI", "CCCGGG", 3, true),
-    ("KpnI", "GGTACC", 5, false),
-    ("SacI", "GAGCTC", 5, false),
-    ("XbaI", "TCTAGA", 1, false),
-    ("SpeI", "ACTAGT", 1, false),
-    ("NcoI", "CCATGG", 1, false),
-    ("NdeI", "CATATG", 2, false),
-    ("EcoRV", "GATATC", 3, true),
-    ("HpaI", "GTTAAC", 3, true),
-    ("NheI", "GCTAGC", 1, false),
-    ("BglII", "AGATCT", 1, false),
-    ("ClaI", "ATCGAT", 2, false),
-    ("AvrII", "CCTAGG", 1, false),
-    ("AflII", "CTTAAG", 1, false),
-    ("BspEI", "TCCGGA", 1, false),
-    ("AgeI", "ACCGGT", 1, false),
-    ("MluI", "ACGCGT", 1, false),
-    ("SphI", "GCATGC", 5, false),
-    ("ApaI", "GGGCCC", 5, false),
-    ("DraI", "TTTAAA", 3, true),
-    ("ScaI", "AGTACT", 3, true),
-    ("StuI", "AGGCCT", 3, true),
-    ("PvuII", "CAGCTG", 3, true),
+/// (name, recognition site, top-strand cut offset, bottom-strand cut offset).
+/// Offsets are measured from the site start in top-strand coordinates. The
+/// overhang spans `[min(cut5,cut3) .. max]`: a 5' overhang when cut5<cut3, a
+/// 3' overhang when cut5>cut3, blunt when equal. All sites here are
+/// palindromic, so searching the forward strand suffices and every overhang
+/// is its own reverse-complement (which makes ligation matching exact).
+const ENZYMES: &[(&str, &str, usize, usize)] = &[
+    ("EcoRI", "GAATTC", 1, 5),
+    ("BamHI", "GGATCC", 1, 5),
+    ("HindIII", "AAGCTT", 1, 5),
+    ("NotI", "GCGGCCGC", 2, 6),
+    ("XhoI", "CTCGAG", 1, 5),
+    ("SalI", "GTCGAC", 1, 5),
+    ("PstI", "CTGCAG", 5, 1),
+    ("SmaI", "CCCGGG", 3, 3),
+    ("KpnI", "GGTACC", 5, 1),
+    ("SacI", "GAGCTC", 5, 1),
+    ("XbaI", "TCTAGA", 1, 5),
+    ("SpeI", "ACTAGT", 1, 5),
+    ("NcoI", "CCATGG", 1, 5),
+    ("NdeI", "CATATG", 2, 4),
+    ("EcoRV", "GATATC", 3, 3),
+    ("HpaI", "GTTAAC", 3, 3),
+    ("NheI", "GCTAGC", 1, 5),
+    ("BglII", "AGATCT", 1, 5),
+    ("ClaI", "ATCGAT", 2, 4),
+    ("AvrII", "CCTAGG", 1, 5),
+    ("AflII", "CTTAAG", 1, 5),
+    ("BspEI", "TCCGGA", 1, 5),
+    ("AgeI", "ACCGGT", 1, 5),
+    ("MluI", "ACGCGT", 1, 5),
+    ("SphI", "GCATGC", 5, 1),
+    ("ApaI", "GGGCCC", 5, 1),
+    ("DraI", "TTTAAA", 3, 3),
+    ("ScaI", "AGTACT", 3, 3),
+    ("StuI", "AGGCCT", 3, 3),
+    ("PvuII", "CAGCTG", 3, 3),
 ];
+
+/// Overhang produced by an enzyme: ("5'" | "3'" | "blunt", overhang sequence).
+fn overhang(site: &str, cut5: usize, cut3: usize) -> (&'static str, String) {
+    let (lo, hi) = (cut5.min(cut3), cut5.max(cut3));
+    let seq = site[lo..hi].to_string();
+    let t = if cut5 < cut3 {
+        "5'"
+    } else if cut5 > cut3 {
+        "3'"
+    } else {
+        "blunt"
+    };
+    (t, seq)
+}
 
 /// All occurrences of `pat` in `hay` (0-based), optionally wrapping for circular.
 fn find_all(hay: &[u8], pat: &[u8], circular: bool) -> Vec<usize> {
@@ -198,21 +216,21 @@ fn find_all(hay: &[u8], pat: &[u8], circular: bool) -> Vec<usize> {
 /// One match of an enzyme: recognition start and top-strand cut position.
 struct Site {
     enzyme: &'static str,
+    idx: usize,
     start: usize,
     cut: usize,
-    blunt: bool,
 }
 
 fn scan(seq: &[u8], circular: bool) -> Vec<Site> {
     let n = seq.len();
     let mut sites = Vec::new();
-    for &(name, site, off, blunt) in ENZYMES {
+    for (idx, &(name, site, cut5, _cut3)) in ENZYMES.iter().enumerate() {
         for start in find_all(seq, site.as_bytes(), circular) {
             sites.push(Site {
                 enzyme: name,
+                idx,
                 start,
-                cut: (start + off) % n.max(1),
-                blunt,
+                cut: (start + cut5) % n.max(1),
             });
         }
     }
@@ -241,7 +259,7 @@ pub fn op_restriction(seq: &str, circular: bool) -> String {
     out.push_str(if circular { "true" } else { "false" });
     out.push_str(",\"enzymes\":[");
     let mut first = true;
-    for &(name, site, _off, blunt) in ENZYMES {
+    for &(name, site, cut5, cut3) in ENZYMES {
         let mut cuts: Vec<usize> = sites
             .iter()
             .filter(|x| x.enzyme == name)
@@ -252,12 +270,17 @@ pub fn op_restriction(seq: &str, circular: bool) -> String {
             out.push(',');
         }
         first = false;
+        let (otype, ov) = overhang(site, cut5, cut3);
         out.push_str("{\"name\":");
         out.push_str(&jstr(name));
         out.push_str(",\"site\":");
         out.push_str(&jstr(site));
         out.push_str(",\"blunt\":");
-        out.push_str(if blunt { "true" } else { "false" });
+        out.push_str(if otype == "blunt" { "true" } else { "false" });
+        out.push_str(",\"overhangType\":");
+        out.push_str(&jstr(otype));
+        out.push_str(",\"overhang\":");
+        out.push_str(&jstr(&ov));
         out.push_str(",\"count\":");
         out.push_str(&cuts.len().to_string());
         out.push_str(",\"cuts\":[");
@@ -424,6 +447,217 @@ pub fn op_orfs(seq: &str, min_aa: usize) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// cloning: cut into fragments with typed ends, then ligate compatible ends
+// ---------------------------------------------------------------------------
+
+/// A double-stranded fragment with its two ends described by the enzyme that
+/// produced them. `left`/`right` are (overhang-type, overhang-seq); a fresh
+/// blunt molecule end (a linear input's own termini) is ("blunt","").
+#[derive(Clone)]
+struct Fragment {
+    seq: String,
+    left: (String, String),
+    right: (String, String),
+}
+
+/// Two ends are ligation-compatible when both are blunt, or both are the same
+/// protrusion type with an identical overhang. (Overhangs here are palindromic,
+/// so equal overhang ⇒ they anneal — this also unifies isocaudomers like
+/// BamHI/BglII, both 5'-GATC.)
+fn compatible(a: &(String, String), b: &(String, String)) -> bool {
+    if a.0 == "blunt" && b.0 == "blunt" {
+        return true;
+    }
+    a.0 != "blunt" && a.0 == b.0 && a.1 == b.1
+}
+
+/// Cut a molecule into fragments, each carrying typed ends.
+fn fragmentize(s: &[u8], enz_idxs: &[usize], circular: bool) -> Vec<Fragment> {
+    let n = s.len();
+    let blunt = || ("blunt".to_string(), String::new());
+    // Collect cuts as (top-strand cut position, enzyme index), deduped per pos.
+    let mut cuts: Vec<(usize, usize)> = scan(s, circular)
+        .into_iter()
+        .filter(|x| enz_idxs.contains(&x.idx))
+        .map(|x| (x.cut, x.idx))
+        .collect();
+    cuts.sort_by_key(|c| c.0);
+    cuts.dedup_by_key(|c| c.0);
+
+    let end_of = |idx: usize| -> (String, String) {
+        let (_, site, c5, c3) = ENZYMES[idx];
+        let (t, ov) = overhang(site, c5, c3);
+        (t.to_string(), ov)
+    };
+    let sub = |a: usize, b: usize| -> String {
+        // top-strand substring a..b, wrapping for circular
+        if a <= b {
+            String::from_utf8_lossy(&s[a..b]).into_owned()
+        } else {
+            let mut v = s[a..].to_vec();
+            v.extend_from_slice(&s[..b]);
+            String::from_utf8_lossy(&v).into_owned()
+        }
+    };
+
+    let mut frags = Vec::new();
+    if cuts.is_empty() {
+        frags.push(Fragment {
+            seq: String::from_utf8_lossy(s).into_owned(),
+            left: blunt(),
+            right: blunt(),
+        });
+        return frags;
+    }
+    if circular {
+        if cuts.len() == 1 {
+            // a single cut linearizes the circle into one full-length fragment
+            let (p, i) = cuts[0];
+            let mut v = s[p..].to_vec();
+            v.extend_from_slice(&s[..p]);
+            frags.push(Fragment {
+                seq: String::from_utf8_lossy(&v).into_owned(),
+                left: end_of(i),
+                right: end_of(i),
+            });
+        } else {
+            for w in 0..cuts.len() {
+                let (pa, ia) = cuts[w];
+                let (pb, ib) = cuts[(w + 1) % cuts.len()];
+                frags.push(Fragment {
+                    seq: sub(pa, pb),
+                    left: end_of(ia),
+                    right: end_of(ib),
+                });
+            }
+        }
+    } else {
+        // leading blunt piece
+        frags.push(Fragment {
+            seq: sub(0, cuts[0].0),
+            left: blunt(),
+            right: end_of(cuts[0].1),
+        });
+        for w in cuts.windows(2) {
+            frags.push(Fragment {
+                seq: sub(w[0].0, w[1].0),
+                left: end_of(w[0].1),
+                right: end_of(w[1].1),
+            });
+        }
+        // trailing blunt piece
+        let last = cuts[cuts.len() - 1];
+        frags.push(Fragment {
+            seq: sub(last.0, n),
+            left: end_of(last.1),
+            right: blunt(),
+        });
+    }
+    frags
+}
+
+fn rev_frag(f: &Fragment) -> Fragment {
+    // Reverse-complementing a fragment swaps and flips its ends. Overhang type
+    // is preserved (5' stays 5'); palindromic overhangs are their own revcomp.
+    Fragment {
+        seq: revcomp(&f.seq),
+        left: f.right.clone(),
+        right: f.left.clone(),
+    }
+}
+
+fn end_json(e: &(String, String)) -> String {
+    format!("{{\"type\":{},\"overhang\":{}}}", jstr(&e.0), jstr(&e.1))
+}
+
+/// Simulate a directional/standard clone: cut a vector and an insert with the
+/// same enzyme set, pick the backbone and the insert fragment, and report the
+/// recombinant circle(s) formed by ligating compatible ends.
+pub fn op_clone(
+    vector: &str,
+    insert: &str,
+    enzymes_csv: &str,
+    vector_circular: bool,
+    insert_circular: bool,
+) -> String {
+    let vs = clean(vector);
+    let is = clean(insert);
+    let enz_idxs: Vec<usize> = enzymes_csv
+        .split(',')
+        .map(|x| x.trim())
+        .filter(|x| !x.is_empty())
+        .filter_map(|name| ENZYMES.iter().position(|e| e.0.eq_ignore_ascii_case(name)))
+        .collect();
+
+    let vfrags = fragmentize(&vs, &enz_idxs, vector_circular);
+    let ifrags = fragmentize(&is, &enz_idxs, insert_circular);
+
+    // Backbone = largest vector fragment with at least one cut (non-blunt) end.
+    let backbone = vfrags
+        .iter()
+        .filter(|f| f.left.0 != "blunt" || f.right.0 != "blunt")
+        .max_by_key(|f| f.seq.len())
+        .or_else(|| vfrags.iter().max_by_key(|f| f.seq.len()));
+    // Insert = largest fragment whose BOTH ends are sticky (a clonable cassette),
+    // else the largest fragment.
+    let ins = ifrags
+        .iter()
+        .filter(|f| f.left.0 != "blunt" && f.right.0 != "blunt")
+        .max_by_key(|f| f.seq.len())
+        .or_else(|| ifrags.iter().max_by_key(|f| f.seq.len()));
+
+    let (bb, ins) = match (backbone, ins) {
+        (Some(b), Some(i)) => (b, i),
+        _ => return "{\"error\":\"could not isolate backbone/insert\"}".to_string(),
+    };
+
+    // Try both insert orientations; a circle forms when both junctions ligate:
+    //   backbone.right -- insert.left   AND   insert.right -- backbone.left
+    let mut products: Vec<(String, usize, bool, String)> = Vec::new(); // (orientation, len, sticky, seq)
+    for (label, cand) in [("forward", ins.clone()), ("reverse", rev_frag(ins))] {
+        let j1 = compatible(&bb.right, &cand.left);
+        let j2 = compatible(&cand.right, &bb.left);
+        if j1 && j2 {
+            let seq = format!("{}{}", bb.seq, cand.seq); // circular: starts at backbone
+            let sticky = bb.right.0 != "blunt" && bb.left.0 != "blunt";
+            products.push((label.to_string(), seq.len(), sticky, seq));
+        }
+    }
+    // de-dup identical-length blunt symmetric products
+    if products.len() == 2 && products[0].1 == products[1].1 && !products[0].2 {
+        products.truncate(1);
+    }
+
+    let prod_json = products
+        .iter()
+        .map(|(o, l, s, seq)| {
+            format!(
+                "{{\"orientation\":{},\"length\":{},\"directional\":{},\"seq\":{}}}",
+                jstr(o),
+                l,
+                s,
+                jstr(seq)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
+    format!(
+        "{{\"vectorLen\":{},\"insertLen\":{},\"backboneLen\":{},\"backboneEnds\":[{},{}],\
+         \"cassetteLen\":{},\"cassetteEnds\":[{},{}],\"products\":[{}]}}",
+        vs.len(),
+        is.len(),
+        bb.seq.len(),
+        end_json(&bb.left),
+        end_json(&bb.right),
+        ins.seq.len(),
+        end_json(&ins.left),
+        end_json(&ins.right),
+        prod_json
+    )
+}
+
+// ---------------------------------------------------------------------------
 // wasm entry points (single `|`-delimited string arg each)
 // ---------------------------------------------------------------------------
 
@@ -484,6 +718,19 @@ pub extern "C" fn orfs_w(ptr: *const u8, len: usize) -> u64 {
     let s = read!(ptr, len);
     let (m, seq) = s.split_once('|').unwrap_or(("30", s.as_str()));
     out(op_orfs(seq, m.trim().parse().unwrap_or(30)))
+}
+
+#[no_mangle]
+pub extern "C" fn clone_w(ptr: *const u8, len: usize) -> u64 {
+    // "VCIRC|ICIRC|ENZ1,ENZ2|VECTOR|INSERT"
+    let s = read!(ptr, len);
+    let mut it = s.splitn(5, '|');
+    let vc = it.next().unwrap_or("1");
+    let ic = it.next().unwrap_or("0");
+    let enz = it.next().unwrap_or("");
+    let vector = it.next().unwrap_or("");
+    let insert = it.next().unwrap_or("");
+    out(op_clone(vector, insert, enz, vc.trim() == "1", ic.trim() == "1"))
 }
 
 // ---------------------------------------------------------------------------
@@ -554,5 +801,36 @@ mod tests {
         let o = op_orfs("CCCATGAAAGGGTAACCC", 1);
         assert!(o.contains("\"orfs\":[{"));
         assert!(o.contains("\"aa\":3"));
+    }
+
+    #[test]
+    fn overhangs_are_correct() {
+        // EcoRI GAATTC -> 5' AATT ; PstI CTGCAG -> 3' TGCA ; SmaI -> blunt
+        assert_eq!(overhang("GAATTC", 1, 5), ("5'", "AATT".to_string()));
+        assert_eq!(overhang("CTGCAG", 5, 1), ("3'", "TGCA".to_string()));
+        assert_eq!(overhang("CCCGGG", 3, 3), ("blunt", "".to_string()));
+    }
+
+    #[test]
+    fn clone_directional_single_product() {
+        // vector (circular) with one EcoRI + one HindIII; insert (linear) with
+        // an EcoRI...HindIII cassette. Distinct enzymes -> one directional product.
+        let vector = "TTTTGAATTCTTTTTTTTTTTTAAGCTTTTTT"; // GAATTC@4, AAGCTT@22
+        let insert = "CCGAATTCGGGGGGGGGGAAGCTTGG"; // GAATTC@2, AAGCTT@18
+        let r = op_clone(vector, insert, "EcoRI,HindIII", true, false);
+        // backbone(18) + cassette(16) = 34, exactly one product, directional
+        assert!(r.contains("\"products\":[{"), "got {r}");
+        assert_eq!(r.matches("\"orientation\"").count(), 1, "got {r}");
+        assert!(r.contains("\"length\":34"), "got {r}");
+        assert!(r.contains("\"directional\":true"), "got {r}");
+    }
+
+    #[test]
+    fn clone_single_enzyme_two_orientations() {
+        // single enzyme on both ends -> insert can ligate in two orientations
+        let vector = "TTTTGAATTCTTTTTTTTTT"; // one EcoRI, circular -> linearized backbone
+        let insert = "CCGAATTCGGGGGGAATTCGG"; // EcoRI...EcoRI cassette
+        let r = op_clone(vector, insert, "EcoRI", true, false);
+        assert_eq!(r.matches("\"orientation\"").count(), 2, "got {r}");
     }
 }

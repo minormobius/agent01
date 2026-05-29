@@ -51,6 +51,8 @@ export const Engine = {
   restriction: (seq, circ)           => timed('restriction_w', `${c(circ)}|${seq}`, true),
   digest:      (seq, enzymes, circ)  => timed('digest_w', `${c(circ)}|${enzymes.join(',')}|${seq}`, true),
   pcr:         (seq, fwd, rev, circ) => timed('pcr_w', `${c(circ)}|${fwd}|${rev}|${seq}`, true),
+  clone:       (vector, insert, enzymes, vCirc, iCirc) =>
+                 timed('clone_w', `${c(vCirc)}|${c(iCirc)}|${enzymes.join(',')}|${vector}|${insert}`, true),
 
   // raw single call without timing wrapper, for tight benchmark loops
   _raw: call,

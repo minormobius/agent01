@@ -130,6 +130,24 @@
       <div id="orfsOut"></div>
     </div>
 
+    <!-- CLONE -->
+    <div class="panel full">
+      <h2>Clone — cut vector + insert, ligate compatible ends <span class="timing" id="tClone"></span></h2>
+      <div class="note">The sequence box above is the <b>vector</b>. Paste an <b>insert</b>, pick the cloning enzyme(s), and the engine digests both, matches overhangs, and builds the recombinant plasmid. Two distinct enzymes → one directional product; one enzyme → both orientations.</div>
+      <div class="grid" style="margin-top:10px">
+        <div>
+          <textarea id="insertSeq" spellcheck="false" placeholder="Paste insert DNA (e.g. a PCR product with restriction sites at each end)…" style="min-height:80px"></textarea>
+          <div class="btnrow">
+            <button id="demoInsert">Use demo insert (EcoRI–payload–HindIII)</button>
+          </div>
+          <label class="row" style="margin-top:8px">enzyme(s), comma-sep:
+            <input type="text" id="cloneEnz" value="EcoRI, HindIII" style="max-width:220px"></label>
+          <div class="btnrow"><button class="primary" id="runClone">Ligate</button></div>
+        </div>
+        <div id="cloneOut" class="stats">Recombinant products appear here.</div>
+      </div>
+    </div>
+
     <!-- BENCHMARK -->
     <div class="panel full">
       <h2>Benchmark — gauge performance</h2>
@@ -188,11 +206,13 @@ $('runRestriction').onclick = () => {
   lastRestriction = value;
   $('tRestriction').textContent = fmt(ms) + ' · wasm';
   const cutters = value.enzymes.filter(e => e.count > 0);
+  const endTxt = e => e.blunt ? 'blunt' : `${e.overhangType} ${e.overhang}`;
   const rows = cutters.map(e =>
     `<tr><td class="mono">${e.name}</td><td class="mono muted">${e.site}</td>
-     <td class="mono">${e.count}</td><td class="mono muted">${e.cuts.slice(0,6).join(', ')}${e.cuts.length>6?'…':''}</td></tr>`).join('');
+     <td class="mono">${e.count}</td><td class="mono" style="color:${e.blunt?'var(--warn)':'var(--accent2)'}">${endTxt(e)}</td>
+     <td class="mono muted">${e.cuts.slice(0,5).join(', ')}${e.cuts.length>5?'…':''}</td></tr>`).join('');
   $('restrictionOut').innerHTML =
-    `<table><tr><th>enzyme</th><th>site</th><th>cuts</th><th>positions</th></tr>${rows}</table>
+    `<table><tr><th>enzyme</th><th>site</th><th>cuts</th><th>end</th><th>positions</th></tr>${rows}</table>
      <div class="note">${cutters.filter(e=>e.count===1).length} single-cutter(s), ${cutters.length} of 30 enzymes cut.</div>`;
   buildEnzymeChips(cutters);
   drawMap(value);
@@ -307,6 +327,43 @@ function drawGel(frags){
   g.fillStyle='#5ad1b0'; g.fillText('digest', sx, H-3);
   if(!frags.length){ g.fillStyle='#9aa7b4'; g.textAlign='left'; g.fillText('run a digest →', 240, H/2); }
 }
+
+// ---- clone ----
+$('demoInsert').onclick = () => {
+  let pay=''; for(let i=0;i<500;i++) pay+='ACGT'[(i*7)%4];
+  $('insertSeq').value = 'CCC' + 'GAATTC' + pay + 'AAGCTT' + 'GGG';
+  $('cloneEnz').value = 'EcoRI, HindIII';
+};
+$('runClone').onclick = () => {
+  const vector = getSeq(); const insert = $('insertSeq').value.replace(/[^A-Za-z]/g,'').toUpperCase();
+  if(!vector || !insert){ $('cloneOut').innerHTML = '<span class="err">need both a vector (above) and an insert</span>'; return; }
+  const enz = $('cloneEnz').value.split(',').map(x=>x.trim()).filter(Boolean);
+  const { value, ms } = Engine.clone(vector, insert, enz, isCirc(), false);
+  $('tClone').textContent = fmt(ms) + ' · wasm';
+  if(value.error){ $('cloneOut').innerHTML = `<span class="err">${value.error}</span>`; return; }
+  const end = e => e.type==='blunt' ? 'blunt' : `${e.type} ${e.overhang}`;
+  if(!value.products.length){
+    $('cloneOut').innerHTML =
+      `<div class="err">no compatible ligation.</div>
+       <div class="note">backbone ${value.backboneLen} bp [${value.backboneEnds.map(end).join(' · ')}], `+
+      `cassette ${value.cassetteLen} bp [${value.cassetteEnds.map(end).join(' · ')}] — overhangs don't match.</div>`;
+    return;
+  }
+  window._cloneProducts = value.products;
+  $('cloneOut').innerHTML =
+    `<div>vector <b>${value.vectorLen}</b> → backbone <b>${value.backboneLen}</b> bp `+
+    `<span class="muted">[${value.backboneEnds.map(end).join(' · ')}]</span></div>`+
+    `<div>insert <b>${value.insertLen}</b> → cassette <b>${value.cassetteLen}</b> bp `+
+    `<span class="muted">[${value.cassetteEnds.map(end).join(' · ')}]</span></div>`+
+    `<div style="margin-top:8px">${value.products.map((p,i)=>
+      `<div>✔ <b>${p.length} bp</b> recombinant · ${p.orientation}${p.directional?' · directional':''}
+        <button data-i="${i}" class="mapProd" style="margin-left:6px;padding:3px 9px">map it →</button></div>`).join('')}</div>`;
+  $('cloneOut').querySelectorAll('.mapProd').forEach(b => b.onclick = () => {
+    seqEl.value = window._cloneProducts[b.dataset.i].seq; circEl.checked = true; updateStats();
+    $('runRestriction').click();
+    document.getElementById('mapCanvas').scrollIntoView({behavior:'smooth', block:'center'});
+  });
+};
 
 // ---- benchmark ----
 $('runBench').onclick = () => {
