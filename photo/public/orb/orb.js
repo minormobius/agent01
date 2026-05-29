@@ -16,9 +16,9 @@
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
 const APPVIEW = 'https://public.api.bsky.app';
-const MAX_IMAGES   = 128;   // was 320 — keeps the atlas comfortably small
+const MAX_IMAGES   = 96;    // smaller default — easier first paint
 const TILE_PER_ROW = 4;
-const MAX_TEX_AXIS = 4096;  // was 8192 — iOS Safari sometimes caps low
+const MAX_TEX_AXIS = 4096;
 const MAX_TILE     = 384;
 const MIN_TILE     = 64;
 
@@ -423,21 +423,34 @@ async function initWebGPU() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Placeholder texture: vertical bands so it's *unambiguous* that the sphere
-  // is rendering — a uniform fill could be mistaken for the clear color.
+  // Placeholder texture: a procedural "celestial body" pattern. This is what
+  // the orb shows when no thread has been loaded — meant to be pretty in its
+  // own right, not just a debug fill. Tall (1:4) so it wraps the sphere from
+  // pole to pole with full vertical resolution.
   const placeholder = document.createElement('canvas');
-  placeholder.width = 64; placeholder.height = 256;
+  placeholder.width = 256; placeholder.height = 1024;
   const pctx = placeholder.getContext('2d');
-  const grad = pctx.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0.00, '#3a1248');
-  grad.addColorStop(0.25, '#7a2d4f');
-  grad.addColorStop(0.50, '#d4b86a');
-  grad.addColorStop(0.75, '#7a2d4f');
-  grad.addColorStop(1.00, '#3a1248');
+  const grad = pctx.createLinearGradient(0, 0, 0, 1024);
+  grad.addColorStop(0.00, '#1a0d36');
+  grad.addColorStop(0.18, '#7a2d4f');
+  grad.addColorStop(0.35, '#d4b86a');
+  grad.addColorStop(0.50, '#e8a04a');
+  grad.addColorStop(0.65, '#d4b86a');
+  grad.addColorStop(0.82, '#5c3d96');
+  grad.addColorStop(1.00, '#1a0d36');
   pctx.fillStyle = grad;
-  pctx.fillRect(0, 0, 64, 256);
-  pctx.fillStyle = 'rgba(255, 220, 180, 0.18)';
-  for (let y = 0; y < 256; y += 16) pctx.fillRect(0, y, 64, 1);
+  pctx.fillRect(0, 0, 256, 1024);
+  pctx.fillStyle = 'rgba(255, 200, 140, 0.14)';
+  for (let y = 0; y < 1024; y += 16) pctx.fillRect(0, y, 256, 1);
+  pctx.fillStyle = 'rgba(255, 240, 220, 0.55)';
+  for (let i = 0; i < 60; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 1024;
+    const r = 0.8 + Math.random() * 2.2;
+    pctx.beginPath();
+    pctx.arc(x, y, r, 0, Math.PI * 2);
+    pctx.fill();
+  }
 
   state.device = device;
   state.context = context;
@@ -605,13 +618,10 @@ form.addEventListener('submit', async (e) => {
   try {
     await initWebGPU();
     requestAnimationFrame(frame);
-    setStatus('ready · loading default thread…');
-    // Auto-load the default URL.
-    form.dispatchEvent(new Event('submit', { cancelable: true }));
+    // No auto-load: the orb just sits and glows on its own. Thread loading
+    // is wired up (paste a URL + hit load) but doesn't fire until asked.
+    setStatus('ready · paste a thread URL and hit load to populate');
   } catch (err) {
-    // Don't show the "WebGPU required" overlay here — WebGPU IS available
-    // (navigator.gpu existed), init just blew up for some other reason.
-    // Surface the actual message so the user (and we) can see what failed.
     console.error('orb init failed:', err);
     setStatus('init failed: ' + (err?.message || String(err)), true);
   }

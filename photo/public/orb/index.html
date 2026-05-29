@@ -30,13 +30,16 @@
     canvas#orb {
       position: fixed; inset: 0; width: 100vw; height: 100vh;
       display: block; cursor: grab; touch-action: none;
+      z-index: 1;
     }
     canvas#orb:active { cursor: grabbing; }
 
     header.panel {
       position: fixed; top: 0; left: 0; right: 0; z-index: 10;
       display: flex; flex-wrap: wrap; align-items: center;
-      gap: 0.6rem; padding: 0.9rem 1.1rem;
+      gap: 0.6rem;
+      /* Respect iPhone notch / status bar */
+      padding: max(0.9rem, calc(env(safe-area-inset-top) + 0.4rem)) 1.1rem 0.9rem;
       background: linear-gradient(to bottom, rgba(6,3,18,0.85), rgba(6,3,18,0));
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
@@ -77,11 +80,14 @@
     footer.controls {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
       display: flex; flex-wrap: wrap; align-items: center; gap: 1.2rem;
-      padding: 0.7rem 1.2rem 1rem;
-      background: linear-gradient(to top, rgba(6,3,18,0.78), rgba(6,3,18,0));
+      /* Push controls above the iPhone home indicator. Without the safe-area
+         padding the sliders sit *under* the home bar and look like they're
+         missing entirely. */
+      padding: 0.7rem 1.2rem max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+      background: linear-gradient(to top, rgba(6,3,18,0.85), rgba(6,3,18,0));
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      font-size: 0.78rem; color: var(--ink-dim);
+      font-size: 0.82rem; color: var(--ink);
     }
     footer.controls label {
       display: inline-flex; align-items: center; gap: 0.45rem;
