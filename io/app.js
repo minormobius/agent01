@@ -35,11 +35,22 @@ export async function initAuth(onChange) {
   return user;
 }
 
+// Narrow scope (repo:com.minomobi.io.ticket) only works once workers/auth
+// declares it in client-metadata.json's umbrella; until that deploy lands, the
+// auth server PAR-rejects it with invalid_scope (400 bad scope). Fall back to
+// transition:generic so login always works — the same pattern fluoddity uses
+// (fluoddity/play/index.html). Once the umbrella ships, this silently tightens.
+const FALLBACK_SCOPE = 'atproto transition:generic';
+
 export async function login(handle) {
   if (!handle) { toast('Enter your Bluesky handle', true); return; }
   try {
     await auth.login(handle, { scope: CONFIG.scope });
   } catch (e) {
+    if (/scope/i.test(e.message || '')) {
+      try { await auth.login(handle, { scope: FALLBACK_SCOPE }); return; }
+      catch (e2) { toast(e2.message || 'Login failed', true); return; }
+    }
     toast(e.message || 'Login failed', true);
   }
 }

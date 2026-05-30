@@ -204,12 +204,18 @@ Reuse the shared OAuth worker exactly as `bakery` does
 
 - **Scope (narrow, as requested):**
   `atproto repo:com.minomobi.io.ticket`
-  — identity + write our one lexicon, nothing else. This is *within* the
-  shared worker's umbrella (`workers/auth/src/index.ts:198` already declares
-  `atproto transition:generic repo:... blob:...`), so **no umbrella bump is
-  needed** — a `repo:`-scoped collection is grantable under the existing
-  ceiling. The Bluesky consent screen will read "write com.minomobi.io.ticket
-  records" and nothing more.
+  — identity + write our one lexicon, nothing else. The Bluesky consent screen
+  reads "write com.minomobi.io.ticket records" and nothing more.
+  **CORRECTION (was wrong in the original plan):** the umbrella in
+  `workers/auth/src/index.ts:199` enumerates *specific* `repo:` collections
+  (`com.minomobi.fluoddity.organism`, `app.bsky.feed.post`) — it is **not** a
+  catch-all `repo:*`. So a new collection **does** need declaring; without it
+  the auth server PAR-rejects the scope with `invalid_scope` (the 400 "bad
+  scope" we hit). Fixed by adding `repo:com.minomobi.io.ticket` to that
+  umbrella string (ships via `deploy-auth.yml`). Until that deploy lands,
+  `io/app.js` falls back to `atproto transition:generic` on any scope error
+  (same pattern as `fluoddity/play/index.html`), so login works either way and
+  silently tightens once the umbrella is live.
 - **Allowlist origin:** add `https://io.mino.mobi` to `ALLOWED_ORIGINS`
   (`workers/auth/src/index.ts:22-41`). The `*.mino.mobi` wildcard already
   covers it, but list it explicitly per the repo convention. *This is a change
