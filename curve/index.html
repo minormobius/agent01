@@ -559,6 +559,16 @@ function renderShareImage() {
     for (const f of target.factors) { x.beginPath(); x.moveTo(px(0), py(f.a)); x.lineTo(px(1), py(f.a + f.b)); x.stroke(); }
     x.setLineDash([]);
   }
+  // the actual hand-drawn scribbles (light grey) + each stroke's fitted line
+  for (const s of strokes) {
+    x.strokeStyle = 'rgba(60,60,60,0.40)'; x.lineWidth = 2.4; x.lineJoin = 'round'; x.lineCap = 'round';
+    x.beginPath();
+    s.raw.forEach((pt, i) => { const xx = px(pt.x), yy = py(clamp(pt.y, -yMax * 0.2, yMax * 1.2)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); });
+    x.stroke();
+    x.strokeStyle = 'rgba(26,74,138,0.55)'; x.lineWidth = 1.6; x.setLineDash([4, 4]);
+    x.beginPath(); x.moveTo(px(0), py(s.fit.a)); x.lineTo(px(1), py(s.fit.a + s.fit.b)); x.stroke();
+    x.setLineDash([]);
+  }
   // your product (vermilion)
   const up = userProductSamples();
   if (up) { x.strokeStyle = '#c8542a'; x.lineWidth = 5; x.lineJoin = 'round'; trace(up); }
