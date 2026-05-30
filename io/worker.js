@@ -254,8 +254,8 @@ async function runIndex(env) {
       data = await res.json();
     } catch { break; }
 
-    // Verified shape: { total, linking_records: [{did, collection, rkey, cid}], cursor }
-    const records = (data && data.linking_records) || [];
+    // Verified live shape: { total, records: [{did, collection, rkey}], cursor }
+    const records = (data && data.records) || [];
     cursor = data && data.cursor;
     for (const rec of records) {
       if (!rec.did || !rec.rkey) continue;
