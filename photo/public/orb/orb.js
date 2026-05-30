@@ -16,11 +16,12 @@ import {
 } from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const MAX_TILES    = 240;   // queue cap (posts + quoted posts)
+const MAX_TILES    = 1000;  // queue cap for deep archive threads; cycles modulo this
 const ATLAS_W      = 2048;  // 4x atlas area vs the previous default
 const ATLAS_H      = 4096;
 const TILE_PX      = 1024;  // render each tile at this resolution before composite
 const AUTOSTAMP_DELAY_MS = 80;
+const TAP_PIXEL_THRESHOLD = 8;   // drag farther than this = orbit, not a tap
 const TILE_PER_ROW = 4;
 const MAX_TEX_AXIS = 4096;
 const MAX_TILE     = 384;
@@ -744,11 +745,20 @@ function frame() {
   resizeCanvas();
   ensureDepth();
 
-  // auto scroll / spin (slider units → reasonable per-second rates)
-  state.scroll = (state.scroll + dt * parseFloat(scrollSlider.value) * 0.0012) % 1;
-  if (!dragState) {
-    state.yaw += dt * parseFloat(spinSlider.value) * 0.004;
+  // auto scroll / spin (slider units → reasonable per-second rates). Gated by
+  // `paused` so the user can freeze the orb to read or tap a specific tile;
+  // manual drag still updates yaw/pitch directly regardless.
+  if (!paused) {
+    const scrollDelta = dt * parseFloat(scrollSlider.value) * 0.0012;
+    state.scroll = (state.scroll + scrollDelta) % 1;
+    // cycleProgress is the unbounded version of state.scroll — drives the
+    // cyclic row replacer below, which fires once per (1 / rows) of progress.
+    cycleProgress += scrollDelta;
+    if (!dragState) {
+      state.yaw += dt * parseFloat(spinSlider.value) * 0.004;
+    }
   }
+  tickCyclicReplacer();
 
   // matrices
   const aspect = canvas.width / canvas.height;
@@ -799,6 +809,7 @@ function frame() {
 // wheel                  = zoom
 
 const pointers = new Map();
+const pointerStarts = new Map();   // pointerId -> {x, y} at pointerdown, for tap detection
 let dragState = null;
 let pinchState = null;
 
@@ -823,6 +834,7 @@ function refreshGesture() {
 
 canvas.addEventListener('pointerdown', (e) => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  pointerStarts.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { canvas.setPointerCapture(e.pointerId); } catch {}
   refreshGesture();
 });
@@ -844,13 +856,103 @@ canvas.addEventListener('pointermove', (e) => {
 });
 function endPointer(e) {
   if (!pointers.has(e.pointerId)) return;
+  const start = pointerStarts.get(e.pointerId);
   pointers.delete(e.pointerId);
+  pointerStarts.delete(e.pointerId);
   try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
+  // Tap detection: single pointer, didn't drag more than a few pixels, and
+  // no other fingers are still down. If so, try picking a tile.
+  if (e.type === 'pointerup' && start && pointers.size === 0) {
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.hypot(dx, dy) < TAP_PIXEL_THRESHOLD) {
+      pickTileAt(e.clientX, e.clientY);
+    }
+  }
+
   // Re-baseline so lifting one finger of a pinch doesn't snap the view.
   refreshGesture();
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
+
+// Tap-to-open. On a non-drag tap, cast a ray from the camera through the
+// click point, intersect the unit sphere, convert the hit to the same UV
+// the shader samples (matching the 1 - u flip and the scroll offset), find
+// which grid cell that maps to, and look up the entry in stampedTiles.
+// If found, open the original post on bsky.app in a new tab.
+function pickTileAt(clientX, clientY) {
+  if (!state.atlasCanvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const ndcX = 2 * (clientX - rect.left) / rect.width - 1;
+  const ndcY = 1 - 2 * (clientY - rect.top) / rect.height;
+
+  // Camera basis — must match what frame() uses to build view.
+  const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+  const cy = Math.cos(state.yaw),   sy = Math.sin(state.yaw);
+  const eye = [
+    state.distance * cp * sy,
+    state.distance * sp,
+    state.distance * cp * cy,
+  ];
+  const fwd = normalize3([-eye[0], -eye[1], -eye[2]]);
+  const right = normalize3(cross3(fwd, [0, 1, 0]));
+  const up = cross3(right, fwd);
+
+  // Match the projection in frame() (fov ~ 0.72 rad).
+  const fovY = 0.72;
+  const aspect = canvas.width / Math.max(1, canvas.height);
+  const halfH = Math.tan(fovY / 2);
+  const halfW = halfH * aspect;
+  const dx = ndcX * halfW;
+  const dy = ndcY * halfH;
+  const dir = normalize3([
+    fwd[0] + dx * right[0] + dy * up[0],
+    fwd[1] + dx * right[1] + dy * up[1],
+    fwd[2] + dx * right[2] + dy * up[2],
+  ]);
+
+  // Sphere intersection (unit sphere at origin).
+  const ed = dot3(eye, dir);
+  const e2 = dot3(eye, eye);
+  const disc = ed * ed - (e2 - 1);
+  if (disc < 0) return;                       // missed the orb
+  const sq = Math.sqrt(disc);
+  const t = -ed - sq;
+  if (t < 0) return;                          // behind camera (shouldn't happen)
+  const hit = [eye[0] + t * dir[0], eye[1] + t * dir[1], eye[2] + t * dir[2]];
+
+  // Sphere point -> UV, matching the sphere mesh's parameterisation.
+  const theta = Math.acos(Math.max(-1, Math.min(1, hit[1])));
+  const phi = Math.atan2(hit[2], hit[0]);
+  let uRaw = phi / (2 * Math.PI);
+  if (uRaw < 0) uRaw += 1;
+  const vRaw = theta / Math.PI;
+
+  // Apply the same transforms the fragment shader applies: u flipped, v
+  // shifted by the auto-scroll and wrapped.
+  const atlasU = 1 - uRaw;
+  let atlasV = (vRaw + state.scroll) % 1;
+  if (atlasV < 0) atlasV += 1;
+
+  const { cols, rows } = gridSpec();
+  const col = Math.min(cols - 1, Math.max(0, Math.floor(atlasU * cols)));
+  const row = Math.min(rows - 1, Math.max(0, Math.floor(atlasV * rows)));
+  const slot = row * cols + col;
+
+  const entry = stampedTiles.get(slot);
+  if (!entry || !entry.uri) {
+    setStatus(`tapped slot ${col},${row} — empty`);
+    return;
+  }
+  // at://did:plc:.../app.bsky.feed.post/rkey -> https://bsky.app/profile/did/post/rkey
+  const m = entry.uri.match(/^at:\/\/(did:[^/]+)\/[^/]+\/([^/]+)/);
+  if (!m) { setStatus('tile has no bsky URL'); return; }
+  const url = `https://bsky.app/profile/${m[1]}/post/${m[2]}`;
+  setStatus(`opening @${entry.author?.handle || ''}…`);
+  window.open(url, '_blank', 'noopener');
+}
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const f = e.deltaY > 0 ? 1.08 : 1 / 1.08;
@@ -866,9 +968,17 @@ function resetGridLayout() {
   paintCelestialPattern(state.atlasCanvas);
   setStripFromCanvas(state.atlasCanvas);
   queueIndex = 0;
-  successCount = 0;
   mediaAttempted = 0;
   mediaSucceeded = 0;
+  initialFillDone = false;
+  cycleProgress = 0;
+  lastReplaceCycle = 0;
+  nextRowToReplace = 0;
+  pendingReplacements = 0;
+  tileCache.length = 0;          // pre-rendered tiles invalidated by layout change
+  cacheCursor = 0;
+  cacheFilling = false;
+  stampedTiles.clear();   // slot indexing changes with cols/rows; map invalidated
   const { cols, rows, pad } = gridSpec();
   const padTxt = Math.round(pad * 100) + '%';
   if (tileQueue.length) {
@@ -884,19 +994,113 @@ padSlider.addEventListener('change', resetGridLayout);
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
-// Queue + autostamp. Hitting load (or first paint) fetches the thread, builds
-// the post-tile queue, then auto-stamps one tile at a time until the grid is
-// full or the queue runs out. Layout sliders cancel the in-flight autostamp
-// via a generation counter, repaint the placeholder, and restart the fill so
-// the new grid populates without re-fetching.
+// Queue + cyclic stamping. The orb's atlas has a fixed C*R slots. The queue
+// (tileQueue) holds every post-unit collected from the thread. queueIndex is
+// monotonic — we read tileQueue[queueIndex % length], so over time every
+// post in the queue passes through the atlas, indefinitely.
+//
+// Flow:
+//   1. ensureThreadLoaded() fetches the thread and builds the queue.
+//   2. autoStamp() does the *initial fill* — stamps each of C*R slots once,
+//      then sets initialFillDone and kicks off fillCache() to pre-render the
+//      next batch of tile canvases in the background.
+//   3. From then on, frame() watches cycleProgress (a monotonic counter that
+//      grows with state.scroll). Each time it crosses 1/rows of a full cycle,
+//      it asks replaceRowFromCache() to atomically composite the next row's
+//      worth of pre-rendered tiles into the atlas and re-upload the texture
+//      — an instant, single-tick swap so the visual change lands exactly at
+//      the south-pole crossing, not multiple seconds later as it would if we
+//      kicked off async renderPostTile work from inside the replacer.
 let tileQueue = [];
-let queueIndex = 0;
-let successCount = 0;
+let queueIndex = 0;            // monotonic; read modulo tileQueue.length
 let lastFetchedUrl = '';
 let mediaAttempted = 0;
 let mediaSucceeded = 0;
 let lastMediaFailReason = '';
 let stampGen = 0;
+let paused = false;
+let initialFillDone = false;
+let cycleProgress = 0;         // monotonic scroll counter for replacement timing
+let lastReplaceCycle = 0;
+let nextRowToReplace = 0;
+let pendingReplacements = 0;
+const stampedTiles = new Map();   // slot -> tile entry, for tap-to-open
+
+// Pre-render cache. The slow part of putting a tile on the orb is
+// renderPostTile (image fetches + canvas draws). If we do that work
+// inside the cyclic replacer, replacements happen multiple seconds after
+// the row wraps past the pole — visibly mid-flight. Solution: keep a
+// background queue rendering the *next* tiles into canvases, and have
+// the replacer just composite from the cache instantly. The swap then
+// lands at the moment the row wraps north→south, which is the south pole.
+const tileCache = [];             // [{ canvas, entry }, ...]
+let cacheCursor = 0;              // queue position for next pre-render
+let cacheFilling = false;
+const CACHE_TARGET = 24;
+
+// Background-fill the tile cache up to CACHE_TARGET entries. Each call only
+// runs one instance at a time; subsequent calls while a fill is in flight
+// are no-ops (the in-flight fill will keep going until full).
+async function fillCache() {
+  if (cacheFilling) return;
+  if (tileQueue.length === 0) return;
+  cacheFilling = true;
+  const gen = stampGen;
+  try {
+    while (tileCache.length < CACHE_TARGET && gen === stampGen) {
+      const entry = tileQueue[cacheCursor % tileQueue.length];
+      cacheCursor++;
+      const tileCanvas = await renderPostTile(entry, TILE_PX);
+      if (gen !== stampGen) return;
+      tileCache.push({ canvas: tileCanvas, entry });
+    }
+  } finally {
+    cacheFilling = false;
+  }
+}
+
+// Synchronously composite cached tiles into the given atlas row + upload to
+// GPU. No awaits — the entire swap lands in one tick so it visually lines up
+// with the row's south-pole crossing. Returns false if the cache doesn't
+// have enough tiles yet (caller should retry next frame).
+function replaceRowFromCache(rowIdx) {
+  const c = state.atlasCanvas;
+  if (!c) return false;
+  const { cols, rows, pad } = gridSpec();
+  if (rowIdx >= rows) return false;
+  if (tileCache.length < cols) return false;   // not enough cached, defer
+
+  const ctx = c.getContext('2d');
+  const cellW = c.width / cols;
+  const cellH = c.height / rows;
+  const padX  = cellW * pad;
+  const padY  = cellH * pad;
+  const y = rowIdx * cellH + padY;
+  const h = cellH - padY * 2;
+  let lastHandle = '';
+  for (let col = 0; col < cols; col++) {
+    const cached = tileCache.shift();
+    if (!cached) break;
+    const x = col * cellW + padX;
+    const w = cellW - padX * 2;
+    ctx.clearRect(x, y, w, h);
+    ctx.drawImage(cached.canvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
+    stampedTiles.set(rowIdx * cols + col, cached.entry);
+    lastHandle = cached.entry.author?.handle || lastHandle;
+  }
+  setStripFromCanvas(c);
+  // Top up the cache for next row's worth of swaps.
+  fillCache();
+  setStatus(`row ${rowIdx + 1}/${rows} ↺ @${lastHandle} · cache ${tileCache.length}/${CACHE_TARGET}`);
+  return true;
+}
+
+function nextQueueEntry() {
+  if (tileQueue.length === 0) return null;
+  const entry = tileQueue[queueIndex % tileQueue.length];
+  queueIndex++;
+  return entry;
+}
 
 async function ensureThreadLoaded(wantedUrl) {
   if (tileQueue.length && wantedUrl === lastFetchedUrl) return true;
@@ -908,7 +1112,6 @@ async function ensureThreadLoaded(wantedUrl) {
     return false;
   }
   queueIndex = 0;
-  successCount = 0;
   mediaAttempted = 0;
   mediaSucceeded = 0;
   lastMediaFailReason = '';
@@ -922,58 +1125,101 @@ async function ensureThreadLoaded(wantedUrl) {
   return true;
 }
 
-async function stampOne() {
-  if (queueIndex >= tileQueue.length) return false;
-  const entry = tileQueue[queueIndex];
-
+// Stamp the given queue entry into a specific (rowIdx, colIdx) cell of the
+// atlas. Used both by the initial fill (slot index 0..C*R-1) and by the
+// cyclic row replacer (rowIdx = whichever row just wrapped past the pole).
+async function stampInSlot(rowIdx, colIdx, entry) {
   const tileCanvas = await renderPostTile(entry, TILE_PX);
-
   const c = state.atlasCanvas;
+  if (!c) return;
   const ctx = c.getContext('2d');
   const { cols, rows, pad } = gridSpec();
+  if (rowIdx >= rows || colIdx >= cols) return;   // slider changed mid-flight
   const cellW = c.width / cols;
   const cellH = c.height / rows;
   const padX  = cellW * pad;
   const padY  = cellH * pad;
-  const slot  = successCount % (cols * rows);
-  const col   = slot % cols;
-  const row   = Math.floor(slot / cols);
-  const x = col * cellW + padX;
-  const y = row * cellH + padY;
+  const x = colIdx * cellW + padX;
+  const y = rowIdx * cellH + padY;
   const w = cellW - padX * 2;
   const h = cellH - padY * 2;
+  // Wipe the inner tile region so previous content doesn't peek through if
+  // the new tile is letterboxed; padding ring keeps its background.
+  ctx.clearRect(x, y, w, h);
   ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
   setStripFromCanvas(c);
-
-  queueIndex++;
-  successCount++;
-  const k = entry.kind === 'quote' ? '↪' : '';
-  const mediaStat = mediaAttempted
-    ? ` · media ${mediaSucceeded}/${mediaAttempted}` + (mediaSucceeded === 0 ? ` (last: ${lastMediaFailReason || 'unknown'})` : '')
-    : '';
-  setStatus(`stamped ${successCount}/${tileQueue.length} ${k} @${entry.author?.handle || ''}${mediaStat}`);
-  return true;
+  stampedTiles.set(rowIdx * cols + colIdx, entry);
 }
 
 async function autoStamp() {
   const gen = ++stampGen;
+  initialFillDone = false;
+  cycleProgress = 0;
+  lastReplaceCycle = 0;
+  nextRowToReplace = 0;
+  pendingReplacements = 0;
+  tileCache.length = 0;
+  cacheFilling = false;
   const { cols, rows } = gridSpec();
   const cap = cols * rows;
-  while (queueIndex < tileQueue.length && successCount < cap) {
-    if (gen !== stampGen) return;     // a newer autoStamp / reset superseded us
-    const ok = await stampOne();
-    if (!ok) break;
+  let placed = 0;
+  while (placed < cap) {
     if (gen !== stampGen) return;
-    if (queueIndex < tileQueue.length && successCount < cap) {
-      await new Promise(r => setTimeout(r, AUTOSTAMP_DELAY_MS));
-    }
+    const entry = nextQueueEntry();
+    if (!entry) break;
+    const colIdx = placed % cols;
+    const rowIdx = Math.floor(placed / cols);
+    await stampInSlot(rowIdx, colIdx, entry);
+    placed++;
+    if (gen !== stampGen) return;
+    const k = entry.kind === 'quote' ? '↪' : '';
+    const mediaStat = mediaAttempted
+      ? ` · media ${mediaSucceeded}/${mediaAttempted}`
+      : '';
+    setStatus(`stamped ${placed}/${cap} initial · ${k}@${entry.author?.handle || ''}${mediaStat}`);
+    if (placed < cap) await new Promise(r => setTimeout(r, AUTOSTAMP_DELAY_MS));
   }
   if (gen !== stampGen) return;
-  // Final status line — note any remaining queue depth so the user knows
-  // there's more they could see if they bump cols/rows.
-  const remaining = tileQueue.length - queueIndex;
-  const remNote = remaining > 0 ? ` · ${remaining} more in queue (raise cols/rows to fit)` : '';
-  setStatus(`stamped ${successCount} / ${cap}-slot grid${remNote}`);
+  initialFillDone = true;
+  // Cache cursor picks up where the initial fill left off in the queue, so
+  // pre-rendered tiles slot in seamlessly after the initial batch.
+  cacheCursor = queueIndex;
+  fillCache();
+  // After the initial fill the cyclic replacer takes over (see frame()).
+  setStatus(`stamped ${placed}/${cap} · cycling through ${tileQueue.length} posts as the orb scrolls`);
+}
+
+// Run by frame() each tick. If the scroll has advanced enough to wrap another
+// row past the north pole, do an instant swap from the pre-render cache so
+// the visual change lands at the moment of the pole crossing. If the cache
+// is too small (slow network), the swap is deferred until enough tiles are
+// ready — we'd rather slip a beat than swap mid-flight.
+function tickCyclicReplacer() {
+  if (!initialFillDone || paused || tileQueue.length === 0) return;
+  const { rows } = gridSpec();
+  const threshold = 1 / Math.max(1, rows);
+  while (cycleProgress - lastReplaceCycle >= threshold) {
+    lastReplaceCycle += threshold;
+    pendingReplacements++;
+  }
+  // Cap the backlog — if we get really far behind (fast scroll + slow media
+  // loads) we'd otherwise spend forever catching up rather than showing the
+  // current cycle. Two cycles of pending feels like the right ceiling.
+  const ceiling = rows * 2;
+  if (pendingReplacements > ceiling) pendingReplacements = ceiling;
+
+  if (pendingReplacements > 0) {
+    const rowIdx = nextRowToReplace;
+    if (replaceRowFromCache(rowIdx)) {
+      pendingReplacements--;
+      nextRowToReplace = (nextRowToReplace + 1) % rows;
+    } else {
+      // Not enough cached tiles to swap atomically; kick a refill and try
+      // again next frame. We do NOT decrement pendingReplacements — we'll
+      // catch up once the cache has enough.
+      fillCache();
+    }
+  }
 }
 
 async function loadAndAutoStamp() {
@@ -994,6 +1240,14 @@ async function loadAndAutoStamp() {
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   loadAndAutoStamp();
+});
+
+const pauseBtn = document.getElementById('pause-btn');
+pauseBtn.addEventListener('click', () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? '▶' : '⏸';
+  pauseBtn.title = paused ? 'resume orb auto-motion' : 'pause orb auto-motion';
+  setStatus(paused ? 'orb paused · drag still works · tap a tile to open it' : 'orb resumed');
 });
 
 (async () => {
