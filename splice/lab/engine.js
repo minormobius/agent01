@@ -60,6 +60,11 @@ export const Engine = {
                  timed('design_w', `${start}|${end}|${targetTm}|${naMm}|${dnaNm}|${minLen}|${maxLen}|${template}`, true),
   // score a single candidate primer (same metrics the designer uses).
   score:       (seq, targetTm = 60, naMm = 50, dnaNm = 50) => timed('score_w', `${targetTm}|${naMm}|${dnaNm}|${seq}`, true),
+  // directed evolution: fitness of a genome against a goals spec, and one
+  // generation of synonymous-mutant offspring (protein preserved).
+  fitness:     (seq, goals) => timed('fitness_w', `${goals}|${seq}`, true),
+  breed:       (seq, goals, offspring = 24, mutRate = 2, seed = 1) =>
+                 timed('breed_w', `${goals}|${offspring}|${mutRate}|${seed}|${seq}`, true),
 
   // raw single call without timing wrapper, for tight benchmark loops
   _raw: call,

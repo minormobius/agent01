@@ -457,6 +457,275 @@ pub fn op_design(
 }
 
 // ---------------------------------------------------------------------------
+// directed evolution — mutate real DNA toward an objective fitness target
+// ---------------------------------------------------------------------------
+//
+// The "Fluoddity bridge": a genome is a real coding sequence; fitness is an
+// objective function over its DNA (GC%, Tm, codon optimality, absence of a
+// restriction site). Mutations are SYNONYMOUS by default — they swap a codon
+// for another encoding the same amino acid — so the protein is preserved while
+// the DNA is tuned. This is the engine half; breeding/selection/phylogeny live
+// in the browser, but every fitness number is computed here.
+
+/// Synonymous codon families: each amino acid -> its codons. Used to mutate DNA
+/// without changing the protein. (Standard genetic code.)
+fn synonymous_codons(aa: char) -> &'static [&'static [u8; 3]] {
+    match aa {
+        'F' => &[b"TTT", b"TTC"],
+        'L' => &[b"TTA", b"TTG", b"CTT", b"CTC", b"CTA", b"CTG"],
+        'I' => &[b"ATT", b"ATC", b"ATA"],
+        'M' => &[b"ATG"],
+        'V' => &[b"GTT", b"GTC", b"GTA", b"GTG"],
+        'S' => &[b"TCT", b"TCC", b"TCA", b"TCG", b"AGT", b"AGC"],
+        'P' => &[b"CCT", b"CCC", b"CCA", b"CCG"],
+        'T' => &[b"ACT", b"ACC", b"ACA", b"ACG"],
+        'A' => &[b"GCT", b"GCC", b"GCA", b"GCG"],
+        'Y' => &[b"TAT", b"TAC"],
+        '*' => &[b"TAA", b"TAG", b"TGA"],
+        'H' => &[b"CAT", b"CAC"],
+        'Q' => &[b"CAA", b"CAG"],
+        'N' => &[b"AAT", b"AAC"],
+        'K' => &[b"AAA", b"AAG"],
+        'D' => &[b"GAT", b"GAC"],
+        'E' => &[b"GAA", b"GAG"],
+        'C' => &[b"TGT", b"TGC"],
+        'W' => &[b"TGG"],
+        'R' => &[b"CGT", b"CGC", b"CGA", b"CGG", b"AGA", b"AGG"],
+        'G' => &[b"GGT", b"GGC", b"GGA", b"GGG"],
+        _ => &[],
+    }
+}
+
+/// E. coli high-expression relative codon usage (fraction within each aa's
+/// family). Just enough to give "codon optimization" an objective gradient;
+/// values are the well-known CAI-style relative adaptiveness for E. coli.
+fn codon_weight(codon: &[u8]) -> f64 {
+    match codon {
+        b"TTT" => 0.58, b"TTC" => 1.00,
+        b"TTA" => 0.14, b"TTG" => 0.13, b"CTT" => 0.12, b"CTC" => 0.10, b"CTA" => 0.04, b"CTG" => 1.00,
+        b"ATT" => 0.51, b"ATC" => 1.00, b"ATA" => 0.07,
+        b"ATG" => 1.00,
+        b"GTT" => 0.65, b"GTC" => 0.40, b"GTA" => 0.30, b"GTG" => 1.00,
+        b"TCT" => 0.47, b"TCC" => 0.46, b"TCA" => 0.20, b"TCG" => 0.18, b"AGT" => 0.22, b"AGC" => 1.00,
+        b"CCT" => 0.29, b"CCC" => 0.17, b"CCA" => 0.34, b"CCG" => 1.00,
+        b"ACT" => 0.40, b"ACC" => 1.00, b"ACA" => 0.23, b"ACG" => 0.35,
+        b"GCT" => 0.46, b"GCC" => 0.47, b"GCA" => 0.36, b"GCG" => 1.00,
+        b"TAT" => 0.65, b"TAC" => 1.00,
+        b"TAA" => 1.00, b"TAG" => 0.10, b"TGA" => 0.39,
+        b"CAT" => 0.66, b"CAC" => 1.00,
+        b"CAA" => 0.51, b"CAG" => 1.00,
+        b"AAT" => 0.65, b"AAC" => 1.00,
+        b"AAA" => 1.00, b"AAG" => 0.40,
+        b"GAT" => 0.81, b"GAC" => 1.00,
+        b"GAA" => 1.00, b"GAG" => 0.55,
+        b"TGT" => 0.69, b"TGC" => 1.00,
+        b"TGG" => 1.00,
+        b"CGT" => 1.00, b"CGC" => 0.83, b"CGA" => 0.13, b"CGG" => 0.15, b"AGA" => 0.10, b"AGG" => 0.05,
+        b"GGT" => 0.59, b"GGC" => 1.00, b"GGA" => 0.18, b"GGG" => 0.22,
+        _ => 0.5,
+    }
+}
+
+/// Mean codon adaptation weight (0..1) over a coding sequence — the "codon
+/// optimization" axis. Higher = better adapted to E. coli high expression.
+fn codon_adaptation(s: &[u8]) -> f64 {
+    let mut sum = 0.0;
+    let mut n = 0;
+    let mut i = 0;
+    while i + 3 <= s.len() {
+        sum += codon_weight(&s[i..i + 3]);
+        n += 1;
+        i += 3;
+    }
+    if n == 0 {
+        0.0
+    } else {
+        sum / n as f64
+    }
+}
+
+/// Count occurrences of a recognition site (both strands collapse since the
+/// puzzle sites are palindromic; we still scan plainly).
+fn count_site(s: &[u8], site: &[u8]) -> usize {
+    find_all(s, site, false).len()
+}
+
+/// A fitness goal. Each contributes a term in [0,1] (1 = perfectly satisfied).
+pub enum Goal {
+    TargetGc(f64),       // aim GC% at this value
+    TargetTm(f64),       // aim whole-seq Tm at this value (long-seq NN proxy)
+    CodonOptimize,       // maximize E. coli codon adaptation
+    NoSite(Vec<u8>),     // eliminate occurrences of a recognition site
+}
+
+fn goal_term(g: &Goal, s: &[u8]) -> f64 {
+    match g {
+        Goal::TargetGc(t) => {
+            let d = (gc_percent(s) - t).abs();
+            (1.0 - d / 50.0).max(0.0) // within 50% spread -> linear falloff
+        }
+        Goal::TargetTm(t) => {
+            // use the SantaLucia NN Tm (valid for our short evolved seqs)
+            match tm_santalucia(&String::from_utf8_lossy(s), 50.0, 50.0) {
+                Some(tm) => (1.0 - (tm - t).abs() / 30.0).max(0.0),
+                None => 0.0,
+            }
+        }
+        Goal::CodonOptimize => codon_adaptation(s),
+        Goal::NoSite(site) => {
+            if count_site(s, site) == 0 {
+                1.0
+            } else {
+                // partial credit shrinking with hit count
+                1.0 / (1.0 + count_site(s, site) as f64)
+            }
+        }
+    }
+}
+
+/// Overall fitness in [0,1]: mean of the goal terms.
+pub fn fitness(s: &[u8], goals: &[Goal]) -> f64 {
+    if goals.is_empty() {
+        return 0.0;
+    }
+    goals.iter().map(|g| goal_term(g, s)).sum::<f64>() / goals.len() as f64
+}
+
+/// Apply `n` synonymous point-mutations: pick a random codon, swap it for a
+/// different synonymous codon. Preserves the protein. `rng` is a simple LCG
+/// state passed by the caller for determinism.
+fn mutate_synonymous(s: &[u8], n: usize, rng: &mut u64) -> Vec<u8> {
+    let mut out = s.to_vec();
+    let ncod = out.len() / 3;
+    if ncod == 0 {
+        return out;
+    }
+    for _ in 0..n {
+        *rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let ci = ((*rng >> 33) as usize) % ncod;
+        let pos = ci * 3;
+        let aa = codon_to_aa(&out[pos..pos + 3]);
+        let fam = synonymous_codons(aa);
+        if fam.len() <= 1 {
+            continue;
+        }
+        *rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let pick = fam[((*rng >> 33) as usize) % fam.len()];
+        out[pos] = pick[0];
+        out[pos + 1] = pick[1];
+        out[pos + 2] = pick[2];
+    }
+    out
+}
+
+/// Parse a `goals` spec string like "gc:55,tm:65,codon,nosite:GAATTC".
+fn parse_goals(spec: &str) -> Vec<Goal> {
+    let mut goals = Vec::new();
+    for tok in spec.split(',') {
+        let tok = tok.trim();
+        if tok.is_empty() {
+            continue;
+        }
+        if let Some(v) = tok.strip_prefix("gc:") {
+            if let Ok(x) = v.parse() {
+                goals.push(Goal::TargetGc(x));
+            }
+        } else if let Some(v) = tok.strip_prefix("tm:") {
+            if let Ok(x) = v.parse() {
+                goals.push(Goal::TargetTm(x));
+            }
+        } else if tok == "codon" {
+            goals.push(Goal::CodonOptimize);
+        } else if let Some(v) = tok.strip_prefix("nosite:") {
+            goals.push(Goal::NoSite(clean(v)));
+        }
+    }
+    goals
+}
+
+/// One round of "breeding": from a parent, generate `offspring` synonymous
+/// mutants (each with `mut_rate` mutations), score all, return the best
+/// candidate plus the population, as JSON. Selection/forking is the caller's.
+pub fn op_breed(seq: &str, goals_spec: &str, offspring: usize, mut_rate: usize, seed: u64) -> String {
+    let parent = clean(seq);
+    let goals = parse_goals(goals_spec);
+    if parent.len() < 3 || goals.is_empty() {
+        return "{\"error\":\"need a coding seq (>=1 codon) and >=1 goal\"}".to_string();
+    }
+    let prot = translate_frame(&parent, 0);
+    let mut rng = seed ^ 0x9E3779B97F4A7C15;
+    let parent_fit = fitness(&parent, &goals);
+
+    let mut pop: Vec<(Vec<u8>, f64)> = Vec::with_capacity(offspring);
+    for _ in 0..offspring.max(1) {
+        let m = mutate_synonymous(&parent, mut_rate.max(1), &mut rng);
+        let f = fitness(&m, &goals);
+        pop.push((m, f));
+    }
+    // best first
+    pop.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    // per-goal breakdown for the best, so the UI can show what improved
+    let best = &pop[0];
+    let breakdown = goals
+        .iter()
+        .map(|g| format!("{:.3}", goal_term(g, &best.0)))
+        .collect::<Vec<_>>()
+        .join(",");
+    let parent_breakdown = goals
+        .iter()
+        .map(|g| format!("{:.3}", goal_term(g, &parent)))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let pop_json = pop
+        .iter()
+        .map(|(m, f)| {
+            format!(
+                "{{\"seq\":{},\"fitness\":{:.4},\"gc\":{:.1}}}",
+                jstr(&String::from_utf8_lossy(m)),
+                f,
+                gc_percent(m)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
+    format!(
+        "{{\"parentFitness\":{:.4},\"parentBreakdown\":[{}],\"protein\":{},\"proteinPreserved\":{},\
+         \"bestFitness\":{:.4},\"bestBreakdown\":[{}],\"population\":[{}]}}",
+        parent_fit,
+        parent_breakdown,
+        jstr(&prot),
+        translate_frame(&best.0, 0) == prot,
+        best.1,
+        breakdown,
+        pop_json
+    )
+}
+
+/// Score a single genome against goals (for displaying any sequence's fitness).
+pub fn op_fitness(seq: &str, goals_spec: &str) -> String {
+    let s = clean(seq);
+    let goals = parse_goals(goals_spec);
+    if goals.is_empty() {
+        return "{\"error\":\"no goals\"}".to_string();
+    }
+    let breakdown = goals
+        .iter()
+        .map(|g| format!("{:.3}", goal_term(g, &s)))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"fitness\":{:.4},\"breakdown\":[{}],\"gc\":{:.1},\"protein\":{}}}",
+        fitness(&s, &goals),
+        breakdown,
+        gc_percent(&s),
+        jstr(&translate_frame(&s, 0))
+    )
+}
+
+// ---------------------------------------------------------------------------
 // restriction enzymes (classic palindromic Type-II set)
 // ---------------------------------------------------------------------------
 
@@ -1106,6 +1375,27 @@ pub extern "C" fn score_w(ptr: *const u8, len: usize) -> u64 {
     })
 }
 
+#[no_mangle]
+pub extern "C" fn breed_w(ptr: *const u8, len: usize) -> u64 {
+    // "GOALS|OFFSPRING|MUTRATE|SEED|SEQ"
+    let s = read!(ptr, len);
+    let mut it = s.splitn(5, '|');
+    let goals = it.next().unwrap_or("");
+    let off = it.next().unwrap_or("12").trim().parse().unwrap_or(12);
+    let rate = it.next().unwrap_or("2").trim().parse().unwrap_or(2);
+    let seed = it.next().unwrap_or("1").trim().parse().unwrap_or(1u64);
+    let seq = it.next().unwrap_or("");
+    out(op_breed(seq, goals, off, rate, seed))
+}
+
+#[no_mangle]
+pub extern "C" fn fitness_w(ptr: *const u8, len: usize) -> u64 {
+    // "GOALS|SEQ"
+    let s = read!(ptr, len);
+    let (goals, seq) = s.split_once('|').unwrap_or(("", s.as_str()));
+    out(op_fitness(seq, goals))
+}
+
 // ---------------------------------------------------------------------------
 // host-side tests
 // ---------------------------------------------------------------------------
@@ -1261,5 +1551,47 @@ mod tests {
         let insert = "CCGAATTCGGGGGGAATTCGG"; // EcoRI...EcoRI cassette
         let r = op_clone(vector, insert, "EcoRI", true, false);
         assert_eq!(r.matches("\"orientation\"").count(), 2, "got {r}");
+    }
+
+    #[test]
+    fn evolution_preserves_protein() {
+        // synonymous mutations must never change the translated protein
+        let seq = "ATGGCTAGCAAAGGGCTGGTTACCGAACGTGAT"; // arbitrary ORF
+        let prot0 = translate_frame(&clean(seq), 0);
+        let mut rng = 12345u64;
+        let mutant = mutate_synonymous(&clean(seq), 30, &mut rng);
+        assert_eq!(translate_frame(&mutant, 0), prot0, "protein changed!");
+        // and at least some bases differed
+        assert_ne!(mutant, clean(seq));
+    }
+
+    #[test]
+    fn evolution_improves_fitness() {
+        // breeding toward a GC target should raise the best fitness vs parent
+        // over a few rounds (greedy: keep the best each round).
+        let mut seq = "ATGGCTAGCAAAGGGCTGGTTACCGAACGTGATAAACCGTTT".to_string();
+        let goals = "gc:65,codon";
+        let parsed = parse_goals(goals);
+        let f0 = fitness(&clean(&seq), &parsed);
+        let mut seed = 7u64;
+        for _ in 0..8 {
+            let r = op_breed(&seq, goals, 20, 3, seed);
+            // pull the best sequence out of the population JSON
+            let best = extract_seq(&r, "\"population\":[{\"seq\":\"");
+            seq = best;
+            seed = seed.wrapping_add(101);
+        }
+        let f1 = fitness(&clean(&seq), &parsed);
+        assert!(f1 > f0, "fitness did not improve: {f0} -> {f1}");
+    }
+
+    #[test]
+    fn evolution_nosite_goal() {
+        // a sequence containing EcoRI; the NoSite term should be < 1
+        let withsite = "ATGGAATTCAAA"; // GAATTC present
+        let g = parse_goals("nosite:GAATTC");
+        assert!(goal_term(&g[0], &clean(withsite)) < 1.0);
+        let clean_seq = "ATGAAACCCGGG"; // no GAATTC
+        assert_eq!(goal_term(&g[0], &clean(clean_seq)), 1.0);
     }
 }

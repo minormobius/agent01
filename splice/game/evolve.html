@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>splice — directed evolution</title>
+<meta name="description" content="Directed evolution over real DNA: set objective fitness goals (GC%, melting temperature, codon optimization, remove a restriction site), breed synonymous mutants, select the fittest, and watch a gene climb the fitness landscape — its protein preserved throughout. Powered by a real molecular-biology engine (Rust→WASM).">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#283039; --accent:#5ad1b0; --accent2:#7aa2ff; --warn:#e3b341; --bad:#f0776a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent2);text-decoration:none}
+  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;
+    background:rgba(14,17,22,.9);backdrop-filter:blur(6px);padding:11px 20px;display:flex;align-items:center;gap:12px}
+  .crumb{font-size:13px;color:var(--muted)} .crumb a{color:var(--muted)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .wrap{max-width:1040px;margin:0 auto;padding:22px 20px 80px}
+  h1{font-size:25px;margin:8px 0 2px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 14px;font-size:14.5px}
+  .modes{font-size:13px;margin:0 0 14px;color:var(--muted)} .modes a{color:var(--accent2)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin:0 0 10px;font-weight:700}
+  .goals{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .goal{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;color:var(--muted);user-select:none;display:flex;align-items:center;gap:6px}
+  .goal.on{border-color:var(--accent2);color:var(--ink)}
+  .goal input{width:52px;background:#0a0d12;color:var(--ink);border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:12px;padding:2px 4px}
+  .goal select{background:#0a0d12;color:var(--ink);border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:12px}
+  button{background:#1c2230;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 15px;font-size:14px;cursor:pointer;font-weight:600}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#06120e;border-color:var(--accent)}
+  button.primary:hover{filter:brightness(1.08);color:#06120e}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
+  .small{font-size:12.5px;color:var(--muted)} .muted{color:var(--muted)} .mono{font-family:var(--mono)}
+  /* current genome */
+  .genome{font-family:var(--mono);font-size:12px;word-break:break-all;line-height:1.7;background:#0a0d12;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .prot{font-family:var(--mono);font-size:12px;color:var(--accent);word-break:break-all;margin-top:6px}
+  .stat{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;margin:8px 0}
+  .stat b{color:var(--ink)}
+  /* fitness landscape */
+  canvas{display:block;width:100%;border:1px solid var(--line);border-radius:8px;background:#0a0d12}
+  /* population grid */
+  .pop{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}
+  .cand{background:#0a0d12;border:1px solid var(--line);border-radius:8px;padding:9px 10px;cursor:pointer;transition:transform .08s,border-color .1s}
+  .cand:hover{transform:translateY(-2px);border-color:var(--accent2)}
+  .cand.best{border-color:var(--accent)}
+  .cand .f{font-family:var(--mono);font-size:14px;font-weight:700}
+  .cand .bar{height:5px;border-radius:3px;background:var(--line);margin-top:5px;overflow:hidden}
+  .cand .bar i{display:block;height:100%;background:var(--accent)}
+  .cand .sub2{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:4px}
+  .breakdown{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .bd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--muted)}
+  .bd b{color:var(--ink)}
+  .err{color:var(--bad)}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / evolve</span>
+  <span class="badge" id="badge">engine: loading…</span>
+</header>
+
+<div class="wrap">
+  <h1>Directed evolution</h1>
+  <p class="sub">Set objective goals, breed a generation of <b>synonymous</b> mutants (the protein never changes), select the fittest, and climb the landscape. Every fitness number is computed by the real engine.</p>
+  <p class="modes">mode: <b>evolution</b> · <a href="/game/">cloning</a> · <a href="/game/primer.html">primer design</a></p>
+
+  <div class="panel">
+    <h2>Goals — what makes a genome "fit"</h2>
+    <div class="goals" id="goals">
+      <label class="goal on" data-goal="gc">GC% → <input type="number" id="g_gc" value="65" min="20" max="80"></label>
+      <label class="goal" data-goal="tm">Tm °C → <input type="number" id="g_tm" value="78" min="50" max="95"></label>
+      <label class="goal on" data-goal="codon">codon-optimize (E. coli)</label>
+      <label class="goal" data-goal="nosite">remove site
+        <select id="g_site"><option>GAATTC</option><option>GGATCC</option><option>AAGCTT</option><option>GTCGAC</option><option>CTGCAG</option></select></label>
+    </div>
+    <div class="btnrow">
+      <span class="small">offspring/gen</span>
+      <select id="offspring"><option>12</option><option selected>24</option><option>48</option></select>
+      <span class="small">mutations/offspring</span>
+      <select id="rate"><option>1</option><option selected>2</option><option>3</option><option>5</option></select>
+      <button id="reset">Reset gene</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Current genome — generation <span id="gen">0</span></h2>
+    <div class="genome" id="genome"></div>
+    <div class="prot" id="prot"></div>
+    <div class="stat" id="stat"></div>
+    <div class="breakdown" id="breakdown"></div>
+    <div class="btnrow">
+      <button class="primary" id="breed">⟳ Breed a generation</button>
+      <button id="auto10">Auto-evolve ×10</button>
+      <span class="small" id="genInfo"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Fitness landscape</h2>
+    <canvas id="land" width="980" height="180"></canvas>
+    <div class="small" style="margin-top:6px">Best fitness per generation. Each breed keeps a population of mutants; pick any candidate below to make it the new parent (you steer the lineage).</div>
+  </div>
+
+  <div class="panel">
+    <h2>This generation's population — click to select the parent</h2>
+    <div class="pop" id="pop"><div class="small">Breed a generation to populate.</div></div>
+  </div>
+</div>
+
+<script type="module">
+import { loadEngine, Engine } from '../lab/engine.js';
+
+const $ = id => document.getElementById(id);
+// a starter ORF (a real-ish coding sequence, multiple of 3, with a stop)
+const SEED_GENE = 'ATGGCTAGCAAAGGGCTGGTTACCGAACGTGATAAACCGTTTGCAGCAGAATTCGGTCTGTAA';
+
+let gene = SEED_GENE;
+let generation = 0;
+let history = [];   // best fitness per generation
+let proteinRef = '';
+
+function goalsSpec(){
+  const parts = [];
+  document.querySelectorAll('.goal').forEach(g=>{
+    if(!g.classList.contains('on')) return;
+    const k = g.dataset.goal;
+    if(k==='gc') parts.push('gc:'+$('g_gc').value);
+    else if(k==='tm') parts.push('tm:'+$('g_tm').value);
+    else if(k==='codon') parts.push('codon');
+    else if(k==='nosite') parts.push('nosite:'+$('g_site').value);
+  });
+  return parts.join(',');
+}
+const goalLabels = () => {
+  const m=[];
+  document.querySelectorAll('.goal.on').forEach(g=>{
+    const k=g.dataset.goal;
+    m.push(k==='gc'?`GC→${$('g_gc').value}`:k==='tm'?`Tm→${$('g_tm').value}`:k==='codon'?'codon':`-${$('g_site').value}`);
+  });
+  return m;
+};
+
+document.querySelectorAll('.goal').forEach(g=>{
+  g.addEventListener('click', e=>{
+    if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='OPTION') return;
+    g.classList.toggle('on'); refreshCurrent();
+  });
+  g.querySelectorAll('input,select').forEach(inp=> inp.addEventListener('input', refreshCurrent));
+});
+
+function refreshCurrent(){
+  const spec = goalsSpec();
+  $('gen').textContent = generation;
+  // render genome in codons
+  const codons = gene.match(/.{1,3}/g) || [];
+  $('genome').innerHTML = codons.join(' ');
+  if(!spec){ $('stat').innerHTML='<span class="err">select at least one goal</span>'; $('breakdown').innerHTML=''; $('prot').textContent=''; return; }
+  const f = Engine.fitness ? Engine.fitness(gene, spec).value : null;
+  if(!f || f.error){ $('stat').innerHTML='<span class="err">'+(f&&f.error||'error')+'</span>'; return; }
+  if(!proteinRef) proteinRef = f.protein;
+  $('prot').innerHTML = 'protein: ' + f.protein + (f.protein===proteinRef?' <span style="color:var(--accent)">✓ preserved</span>':' <span class="err">✗ changed</span>');
+  $('stat').innerHTML = `<span>fitness <b>${(f.fitness*100).toFixed(1)}%</b></span><span>GC <b>${f.gc.toFixed(1)}%</b></span><span>${gene.length} bp · ${codons.length} codons</span>`;
+  const labels = goalLabels();
+  $('breakdown').innerHTML = f.breakdown.map((v,i)=>`<span class="bd">${labels[i]||''} <b>${(v*100).toFixed(0)}%</b></span>`).join('');
+}
+
+function drawLandscape(){
+  const cv=$('land'), g=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);
+  const x0=36,x1=W-14,y0=14,y1=H-26;
+  // axes
+  g.strokeStyle='#283039'; g.lineWidth=1;
+  for(let p=0;p<=100;p+=25){ const y=y1-(p/100)*(y1-y0); g.beginPath(); g.moveTo(x0,y); g.lineTo(x1,y); g.stroke();
+    g.fillStyle='#5b6b7d'; g.font='10px ui-monospace,monospace'; g.textAlign='right'; g.fillText(p+'%', x0-5, y+3); }
+  if(history.length<1) return;
+  const n = Math.max(2, history.length);
+  const X = i => x0 + (i/(n-1))*(x1-x0);
+  const Y = f => y1 - f*(y1-y0);
+  // area under curve
+  g.beginPath(); g.moveTo(X(0), y1);
+  history.forEach((f,i)=> g.lineTo(X(i), Y(f)));
+  g.lineTo(X(history.length-1), y1); g.closePath();
+  g.fillStyle='rgba(90,209,176,.12)'; g.fill();
+  // line
+  g.strokeStyle='var(--accent)'; g.lineWidth=2; g.beginPath();
+  history.forEach((f,i)=> i?g.lineTo(X(i),Y(f)):g.moveTo(X(i),Y(f)));
+  g.stroke();
+  // points
+  history.forEach((f,i)=>{ g.fillStyle='#5ad1b0'; g.beginPath(); g.arc(X(i),Y(f),3,0,7); g.fill(); });
+  g.fillStyle='#9aa7b4'; g.textAlign='center'; g.font='10px ui-monospace,monospace';
+  g.fillText('generation →', (x0+x1)/2, H-6);
+}
+
+function renderPop(pop){
+  $('pop').innerHTML = pop.slice(0,24).map((c,i)=>
+    `<div class="cand ${i===0?'best':''}" data-seq="${c.seq}">
+       <div class="f">${(c.fitness*100).toFixed(1)}%</div>
+       <div class="bar"><i style="width:${(c.fitness*100).toFixed(0)}%"></i></div>
+       <div class="sub2">GC ${c.gc.toFixed(0)}% ${i===0?'· fittest':''}</div>
+     </div>`).join('');
+  $('pop').querySelectorAll('.cand').forEach(el=> el.onclick=()=>{
+    gene = el.dataset.seq; generation++;
+    const spec=goalsSpec();
+    const f=Engine.fitness(gene, spec).value;
+    history.push(f.fitness);
+    refreshCurrent(); drawLandscape();
+    $('genInfo').textContent = `selected a candidate at ${(f.fitness*100).toFixed(1)}%`;
+  });
+}
+
+function breedOnce(autoSelect){
+  const spec = goalsSpec();
+  if(!spec){ refreshCurrent(); return null; }
+  const off = +$('offspring').value, rate = +$('rate').value;
+  const seed = (Date.now() ^ (generation*2654435761)) >>> 0;
+  const { value:r, ms } = Engine.breed(gene, spec, off, rate, seed);
+  if(r.error){ $('genInfo').innerHTML='<span class="err">'+r.error+'</span>'; return null; }
+  renderPop(r.population);
+  $('genInfo').textContent = `bred ${r.population.length} mutants in ${ms<1?(ms*1000).toFixed(0)+' µs':ms.toFixed(1)+' ms'} · best ${(r.bestFitness*100).toFixed(1)}%`;
+  if(autoSelect){
+    // greedy: take the best only if it beats current
+    const cur = Engine.fitness(gene, spec).value.fitness;
+    if(r.bestFitness > cur){
+      gene = r.population[0].seq;
+    }
+    generation++;
+    history.push(Engine.fitness(gene, spec).value.fitness);
+    refreshCurrent(); drawLandscape();
+  }
+  return r;
+}
+
+$('breed').onclick = ()=> breedOnce(false);
+$('auto10').onclick = ()=>{
+  let i=0;
+  const step=()=>{ if(i++>=10) return; breedOnce(true); setTimeout(step, 120); };
+  step();
+};
+$('reset').onclick = ()=>{
+  gene = SEED_GENE; generation=0; history=[]; proteinRef='';
+  $('pop').innerHTML='<div class="small">Breed a generation to populate.</div>';
+  refreshCurrent(); drawLandscape();
+};
+
+(async()=>{
+  try{
+    await loadEngine('../lab/splice_engine.wasm');
+    $('badge').textContent='engine: ready'; $('badge').style.color='var(--accent)';
+    const spec=goalsSpec();
+    history=[Engine.fitness(gene, spec).value.fitness];
+    refreshCurrent(); drawLandscape();
+  }catch(e){ $('badge').textContent='engine: failed'; $('badge').style.color='var(--bad)'; console.error(e); }
+})();
+</script>
+</body>
+</html>
