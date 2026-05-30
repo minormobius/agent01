@@ -326,16 +326,16 @@ const TILES = [
   {label:'Compliance',    kind:'icon',   accent:'#e9c46a'},
   {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3'},
 ];
-TILES.forEach(t => t.clarity = 0);
+TILES.forEach(t => { /* no per-tile state — the field has one shared noise level */ });
 
 const EDGES = [];
 for (let r=0; r<ROWS; r++) {
   for (let c=0; c<COLS; c++) {
     const i = r*COLS + c;
-    if (r < ROWS-1) EDGES.push([i, i+COLS]);                              // down
-    if (c < COLS-1 && r%2===0) EDGES.push([i, i+1]);                      // right (alt rows)
+    if (r < ROWS-1) EDGES.push([i, i+COLS]);                                // down
+    if (c < COLS-1 && r%2===0) EDGES.push([i, i+1]);                        // right (alt rows)
     if (r < ROWS-1 && c < COLS-1 && (r+c)%2===0) EDGES.push([i, i+COLS+1]); // diag
-    if (r < ROWS-1 && c > 0 && (r+c)%3===0) EDGES.push([i, i+COLS-1]);    // anti-diag
+    if (r < ROWS-1 && c > 0 && (r+c)%3===0) EDGES.push([i, i+COLS-1]);      // anti-diag
   }
 }
 const NBRS = TILES.map(()=>[]);
@@ -345,65 +345,49 @@ const ST = {
   time: 0, iter: 0,
   playing: true,
   hover: -1,
-  pulses: [],          // {edgeIdx, startTime, intensity}
+  // Diffusion temperature: T=1 → full noise everywhere, T=0 → fully resolved.
+  // The whole field shares one value, so it always emerges in lockstep.
+  T: 1,
+  // Brief border glow on tiles that were just perturbed, so we can see WHICH
+  // input was bumped even though the noise itself is global.
+  highlights: [],   // {tile, startTime, duration}
   lastAuto: 0,
   noisePattern: null,
   noiseDirty: 0,
 };
 
 // ===== diffusion step =================================================
+const T_DECAY = 0.28;        // per-second rate at which T relaxes toward 0
+const PERT_BUMP_TARGET = 0.78;
+const HIGHLIGHT_DURATION = 1.8;
+
 function step(dt) {
   ST.time += dt;
   ST.iter += dt * 18;
-  // Move toward target=1, faster when neighbors are clear (information flows in).
-  // Tuned so the field converges in ~4-5 seconds from pure noise.
-  TILES.forEach((t, i) => {
-    const nb = NBRS[i];
-    const nbAvg = nb.length ? nb.reduce((s,j)=>s+TILES[j].clarity, 0)/nb.length : 0;
-    const rate = (0.09 + 0.32 * (0.25 + 0.75 * nbAvg)) * dt;
-    t.clarity = Math.min(1, t.clarity + rate);
-  });
-  // Aging pulses
-  ST.pulses = ST.pulses.filter(p => ST.time - p.startTime < 1.8);
+  // T relaxes toward 0 with first-order decay — accelerating denoise feel.
+  ST.T = Math.max(0, ST.T - T_DECAY * dt * (0.6 + 0.8 * ST.T));
 }
 
 function perturb(i) {
-  TILES[i].clarity = 0;
-  // Ring 1: direct neighbors degrade + pulse
-  const ring1 = new Set();
-  EDGES.forEach((e, ei) => {
-    if (e[0] === i || e[1] === i) {
-      ST.pulses.push({edgeIdx: ei, startTime: ST.time, intensity: 1.0});
-      const other = e[0]===i ? e[1] : e[0];
-      ring1.add(other);
-      TILES[other].clarity = Math.max(0, TILES[other].clarity - 0.42);
-    }
-  });
-  // Ring 2: delayed pulse, small clarity drop
-  ring1.forEach(j => {
-    EDGES.forEach((e, ei) => {
-      if ((e[0]===j || e[1]===j) && e[0]!==i && e[1]!==i) {
-        const other = e[0]===j ? e[1] : e[0];
-        if (other === i || ring1.has(other)) return;
-        ST.pulses.push({edgeIdx: ei, startTime: ST.time + 0.28, intensity: 0.55});
-        TILES[other].clarity = Math.max(0, TILES[other].clarity - 0.16);
-      }
-    });
-  });
+  // The whole field gets noisier together; the clicked tile shows a brief
+  // border glow so you can see where the input change came from.
+  ST.T = Math.max(ST.T, PERT_BUMP_TARGET);
+  ST.highlights.push({tile: i, startTime: ST.time, duration: HIGHLIGHT_DURATION});
   if (typeof regenerateOutputs === 'function') regenerateOutputs();
 }
 
 function resetAll() {
-  TILES.forEach(t => t.clarity = 0);
+  ST.T = 1;
   ST.iter = 0;
-  ST.pulses = [];
+  ST.highlights = [];
   if (typeof regenerateOutputs === 'function') regenerateOutputs();
 }
 
 function maybeAutoPerturb() {
   if (!ST.playing) return;
-  const avg = TILES.reduce((s,t)=>s+t.clarity, 0) / TILES.length;
-  if (avg > 0.94 && ST.time - ST.lastAuto > 3.5) {
+  // Trigger once the field has clearly resolved, with enough gap between hits
+  // that each re-converges before the next.
+  if (ST.T < 0.05 && ST.time - ST.lastAuto > 4.5) {
     perturb(Math.floor(Math.random() * TILES.length));
     ST.lastAuto = ST.time;
   }
@@ -559,67 +543,69 @@ function drawEdge(c, ei, W, H) {
   const ra = tileRect(a, W, H), rb = tileRect(b, W, H);
   const ax = ra.x + ra.w/2, ay = ra.y + ra.h/2;
   const bx = rb.x + rb.w/2, by = rb.y + rb.h/2;
-  const clarA = TILES[a].clarity, clarB = TILES[b].clarity;
-  const baseAlpha = Math.min(0.6, (clarA + clarB) * 0.32);
-  c.strokeStyle = `rgba(120, 200, 220, ${baseAlpha})`;
-  c.lineWidth = 1;
+  // Edges render at full strength; the global noise overlay covers them
+  // when T is high, so they emerge from noise alongside the tiles.
+  c.strokeStyle = 'rgba(120, 200, 220, 0.55)';
+  c.lineWidth = 1.1;
   c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
-  // pulses
-  ST.pulses.forEach(p => {
-    if (p.edgeIdx !== ei) return;
-    const t = ST.time - p.startTime;
-    if (t < 0 || t > 1.8) return;
-    const fade = Math.max(0, 1 - t/1.8) * p.intensity;
-    c.strokeStyle = `rgba(180, 240, 255, ${fade * 0.6})`;
-    c.lineWidth = 1.6;
-    c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
-    const f = Math.min(1, t / 0.55);
-    const px = ax + (bx - ax) * f;
-    const py = ay + (by - ay) * f;
-    c.fillStyle = `rgba(200, 255, 240, ${fade})`;
-    c.beginPath(); c.arc(px, py, 3.2, 0, Math.PI*2); c.fill();
-    // glow
-    c.fillStyle = `rgba(200, 255, 240, ${fade * 0.25})`;
-    c.beginPath(); c.arc(px, py, 7, 0, Math.PI*2); c.fill();
-  });
 }
 
 function draw(c, W, H) {
-  // background subtle vignette
+  // background vignette (always present underneath; noise covers it when T is high)
   const grad = c.createRadialGradient(W/2, H*0.45, 0, W/2, H/2, Math.max(W,H)*0.75);
   grad.addColorStop(0, '#0a0f18');
   grad.addColorStop(1, '#04060a');
   c.fillStyle = grad;
   c.fillRect(0, 0, W, H);
 
-  // edges (under tiles)
+  // edges at full strength (no clarity gating)
   EDGES.forEach((_, ei) => drawEdge(c, ei, W, H));
 
-  // tiles
+  // tiles at full strength
   TILES.forEach((tile, i) => {
     const r = tileRect(i, W, H);
     drawTileResolved(c, tile, r);
-    const cl = tile.clarity;
-    if (cl < 0.985 && ST.noisePattern) {
-      c.save();
-      c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
-      // Noise opacity falls off smoothly so partial-clarity tiles are readable.
-      c.globalAlpha = Math.pow(1 - cl, 1.4) * 0.86;
-      c.fillStyle = ST.noisePattern;
-      const ox = ((i * 53) + Math.floor(ST.time * 90)) % 128;
-      const oy = ((i * 89) + Math.floor(ST.time * 60)) % 128;
-      c.translate(-ox, -oy);
-      c.fillRect(r.x + ox, r.y + oy, r.w, r.h);
-      c.globalAlpha = 1;
-      c.restore();
-    }
-    // hover ring
-    if (ST.hover === i) {
-      c.strokeStyle = 'rgba(200, 240, 255, 0.55)';
-      c.lineWidth = 2;
-      c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
-    }
   });
+
+  // ONE canvas-spanning noise overlay — everything denoises in lockstep.
+  // Alpha curve: pow(T, 1.15) gives a quick initial drop then a long tail of
+  // fine grain, which reads like a real diffusion sampler converging.
+  if (ST.T > 0.01 && ST.noisePattern) {
+    c.save();
+    c.globalAlpha = Math.pow(ST.T, 1.15) * 0.93;
+    c.fillStyle = ST.noisePattern;
+    const ox = Math.floor(ST.time * 90) % 128;
+    const oy = Math.floor(ST.time * 60) % 128;
+    c.translate(-ox, -oy);
+    c.fillRect(ox, oy, W, H);
+    c.globalAlpha = 1;
+    c.restore();
+  }
+
+  // Per-tile highlight glow — drawn AFTER the noise so the user can see
+  // "this is the input that changed" while the field is still hazy.
+  ST.highlights = ST.highlights.filter(h => ST.time - h.startTime < h.duration);
+  ST.highlights.forEach(h => {
+    const t = ST.time - h.startTime;
+    const fade = Math.max(0, 1 - t / h.duration);
+    const r = tileRect(h.tile, W, H);
+    // outer soft glow
+    c.strokeStyle = `rgba(106, 217, 200, ${fade * 0.25})`;
+    c.lineWidth = 9;
+    c.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+    // sharp inner border
+    c.strokeStyle = `rgba(106, 217, 200, ${fade * 0.85})`;
+    c.lineWidth = 2;
+    c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+  });
+
+  // hover ring (always above everything)
+  if (ST.hover >= 0) {
+    const r = tileRect(ST.hover, W, H);
+    c.strokeStyle = 'rgba(200, 240, 255, 0.55)';
+    c.lineWidth = 2;
+    c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+  }
 }
 
 // ===== loop ===========================================================
@@ -661,8 +647,7 @@ function loop(t) {
   const c = cv.getContext('2d');
   draw(c, W, H);
   // hud
-  const avg = TILES.reduce((s,t)=>s+t.clarity, 0) / TILES.length;
-  document.getElementById('clarity').textContent = Math.round(avg * 100) + '%';
+  document.getElementById('clarity').textContent = Math.round((1 - ST.T) * 100) + '%';
   document.getElementById('iter').textContent = Math.floor(ST.iter);
   requestAnimationFrame(loop);
 }
