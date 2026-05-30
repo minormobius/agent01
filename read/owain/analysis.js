@@ -42,9 +42,14 @@ window.OWAIN.propp = {
       realized: "Owain's stroke goes through helm, headpiece and coif, through skin, flesh and bone, to the brain: a mortal wound. The fountain's defender turns and flees, dying. The victory is also the act that makes the widow — the prize and the problem of the rest of the tale.", passage: 3 },
     { act: "quest", sym: "(Pr↺)", node: "The trap", name: "Pursuit inverted — the hero caged", gloss: "A reversal: the victor is himself ensnared.",
       realized: "Owain chases the dying knight to the gate of a great shining castle; the portcullis drops, shears his horse in two behind the saddle and the rowels from his heels, and shuts him between the two gates. Propp's Pursuit is inverted — it is not the villain who is chased and trapped, but the victor. The Welsh romance ends the movement on the cage, and turns the rescue over to a woman (Movement IV).", passage: 3 },
-    // The bride won, the violated term, the descent into madness, the
-    // lion-helper, and the closing liquidations are seeded as the
-    // translation reaches each movement.
+    // ── Act 3: bride ─────────────────────────────────────────────
+    { act: "bride", sym: "F", node: "Magical agent", name: "The helper and the token", gloss: "The hero receives a magical agent / helper.",
+      realized: "Luned — the donor-as-rescuer — gives Owain the ring of invisibility (\"as long as you hide it, it will hide you\") and a plan; it carries him out of the cage, past the household come to kill him, into the painted chamber. In this tale the hero survives not by his own strength but by a woman's gift and a woman's wit. The lion-helper of the second half answers this first helper.", passage: 4 },
+    { act: "bride", sym: "a²", node: "The new desire", name: "Lack (love)", gloss: "A fresh lack opens the next arc.",
+      realized: "Hidden by the ring, Owain watches the Black Knight's funeral and falls in love with the chief mourner — the widow he has just made. The kindled love is a new lack that drives the rest of the ascending arc: to win the Countess. Love and killing are tied in one stroke, the knot Luned's embassy will untie.", passage: 4 },
+    // The won bride and held fountain, the violated term, the descent into
+    // madness, the lion-helper, and the closing liquidations are seeded as
+    // the translation reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the frame and the known shape of the romance, Owain's distinctive Propp profile (relative to the Welsh sister-tales) is shaping up around three features:",

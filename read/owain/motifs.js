@@ -34,8 +34,8 @@ window.OWAIN.motifs = {
       gloss: "The serpent gripping the lion's tail — the adversary Owain cuts away to earn the lion's faith. <em>Pending its movement.</em>" },
 
     // — D · Magic —
-    { cls: "D", code: "D1361.17", name: "Ring of invisibility", conf: "high", passages: [],
-      gloss: "Luned's ring: turn the stone into the palm and close the hand, and the wearer cannot be seen. It hides the trapped Owain from the dead knight's vengeful household and lets him watch the funeral — and the Countess — unseen. The classic magic-ring of romance; compare the broader D1361 magic-mist/concealment family in Insular tradition. <em>Pending its movement.</em>" },
+    { cls: "D", code: "D1361.17", name: "Ring of invisibility", conf: "high", passages: [4],
+      gloss: "Luned's ring: turn the stone into the palm and close the hand, and the wearer cannot be seen. It carries the trapped Owain out from between the castle gates, past the household come to kill him, and lets him watch the funeral — and the Countess — unseen (Mvt IV). The classic magic-ring of romance; compare the broader D1361 magic-mist/concealment family in Insular tradition. The Welsh plays on <em>kudyaw</em>, to hide: \"as long as you hide it, it will hide you.\"" },
     { cls: "D", code: "D2143.1", name: "Storm produced by magic (the fountain rite)", conf: "high", passages: [2, 3],
       gloss: "The romance's engine: pour a bowlful of the fountain's water on the great slab beside it, and a tempest of thunder, hail and lightning breaks over the wood, stripping every leaf — after which the Black Knight rides to answer. A weather-making rite tied to a place, straight from the Brittonic Otherworld stock; Chrétien's Barenton fountain in Brocéliande is its Continental cousin. First raised in Cynon's tale (Mvt II); Owain repeats the rite in Mvt III." },
 
@@ -44,6 +44,12 @@ window.OWAIN.motifs = {
       gloss: "The huge black man on the forest mound — one-eyed, one-footed, iron-clubbed — lord of the wild animals, who gather and bow at his call, and who directs the questing knight to the fountain. A threshold-guardian out of the older Insular Otherworld; the wild-herdsman type. Compare the giant Ysbaddaden's gatekeepers and the keepers of the marvels in Culhwch. Realised first in Cynon's tale (Mvt II), then again when Owain rides the same road in Mvt III — \"his size pleased Owain\" where it had only awed Cynon." },
     { cls: "F", code: "F718", name: "The marvellous fountain / spring of the Otherworld", conf: "high", passages: [2, 3],
       gloss: "The spring beneath the great tree, with its silver bowl on a slab — the bounded Otherworld threshold the whole tale orbits. The guardian who must be killed to be succeeded marks it as a place where office passes by combat, not inheritance — borne out in Mvt III, where Owain kills the defender and (the tale will show) takes both his widow and his post. First seen in Cynon's tale (Mvt II)." },
+
+    // — T · Love & marriage —
+    { cls: "T", code: "T15", name: "Love at first sight", conf: "high", passages: [4],
+      gloss: "Owain falls in love with the Countess at the sight of her in her husband's funeral procession — grief he himself caused. \"When he saw the woman, love of her kindled in him until it filled every part of him.\" The Welsh ties love and killing in a single stroke (\"the wife of the man you killed yesterday\"), the knot Luned will untie. The romance commonplace, here at its starkest; the same hinge drives Chrétien's <em>Yvain</em>." },
+    { cls: "T", code: "T231", name: "The widow wed to her husband's slayer", conf: "high", passages: [4],
+      gloss: "The Countess will be argued into marrying the very man who killed her husband — not from fickleness (the medieval misogynist reading) but from necessity: the fountain must have a defender, and the strongest defender available is the man who beat the last one. The tale frames it as Luned's cold logic of survival, not the lady's weakness. <em>Realised across Mvt IV–V.</em>" },
 
     // — Z · Formulas & symbols —
     { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [],
