@@ -1,0 +1,118 @@
+name: Illustrate Storybooks
+
+# Unified storybook illustrator: a matrix over every tale registered in
+# scripts/illustrate/tales.mjs. Auto-runs on push when any tale's storybook,
+# the script, the registry, or this workflow changes.
+#
+# The script defaults to --spreads missing, using PNG existence as a sentinel:
+# once every spread for a tale has an image on disk, that matrix leg is a
+# no-op (no generations, no commit, no deploy). New spread added → only that
+# one generates. To re-render on a prompt tweak, delete the spread's PNG or
+# workflow_dispatch with spreads=all or a comma-list.
+#
+# GITHUB_TOKEN pushes don't trigger workflows, so no recursion.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/arthurian-legend-history-*'
+    paths:
+      - 'read/*/storybook.js'
+      - 'scripts/illustrate.mjs'
+      - 'scripts/illustrate/tales.mjs'
+      - '.github/workflows/illustrate.yml'
+  workflow_dispatch:
+    inputs:
+      tale:
+        description: 'Which tale ("all" or a single slug: gawain|culhwch|orfeo|pwyll)'
+        required: false
+        default: 'all'
+        type: string
+      spreads:
+        description: 'Which spreads ("missing" | "all" | "0,5,12")'
+        required: false
+        default: 'missing'
+        type: string
+      quality:
+        description: 'Image quality (gpt-image-1)'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+
+permissions:
+  contents: write
+
+jobs:
+  illustrate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tale: [gawain, culhwch, orfeo, pwyll]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if dispatcher targeted a different tale
+        id: gate
+        run: |
+          REQ="${{ inputs.tale || 'all' }}"
+          if [ "$REQ" != "all" ] && [ "$REQ" != "${{ matrix.tale }}" ]; then
+            echo "Dispatcher asked for $REQ, skipping ${{ matrix.tale }}."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          node-version: '20'
+
+      - name: Generate images
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          SPREADS="${{ inputs.spreads || 'missing' }}"
+          QUALITY="${{ inputs.quality || 'medium' }}"
+          node scripts/illustrate.mjs --tale "${{ matrix.tale }}" --spreads "$SPREADS" --quality "$QUALITY"
+
+      - id: commit
+        if: steps.gate.outputs.skip != 'true'
+        name: Commit any new images
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "read/${{ matrix.tale }}/img/"
+          if git diff --cached --quiet; then
+            echo "No new images. Nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "Storybook: generated ${{ matrix.tale }} illustrations"
+          # Sibling matrix legs may push concurrently — pull-rebase and retry.
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "push succeeded on attempt $attempt"
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "push failed, rebasing and retrying ($attempt)..."
+            sleep $((attempt * 2))
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+          done
+          echo "push failed after retries" >&2
+          exit 1
+
+      - name: Self-deploy read
+        if: steps.gate.outputs.skip != 'true' && steps.commit.outputs.changed == 'true'
+        working-directory: read
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
