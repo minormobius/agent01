@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>splice — primer design puzzle</title>
+<meta name="description" content="A primer-design puzzle: tune two primers to amplify a target region so both melt near the target temperature and their Tms match — but the two ends have different GC, so you can't tune them the same way. Graded by a real thermodynamics engine (Rust→WASM).">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#283039; --accent:#5ad1b0; --accent2:#7aa2ff; --warn:#e3b341; --bad:#f0776a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent2);text-decoration:none}
+  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;
+    background:rgba(14,17,22,.9);backdrop-filter:blur(6px);padding:11px 20px;display:flex;align-items:center;gap:12px}
+  .crumb{font-size:13px;color:var(--muted)} .crumb a{color:var(--muted)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .wrap{max-width:1000px;margin:0 auto;padding:22px 20px 80px}
+  h1{font-size:25px;margin:8px 0 2px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 16px;font-size:14.5px}
+  .genbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 16px}
+  .genbar select{background:#10141a;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;font-family:var(--mono)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+  .brief{font-size:15px;line-height:1.55}
+  button{background:#1c2230;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;font-weight:600}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#06120e;border-color:var(--accent)}
+  button.primary:hover{color:#06120e;filter:brightness(1.08)}
+  /* template view */
+  canvas#tpl{display:block;width:100%;height:120px;background:#0a0d12;border:1px solid var(--line);border-radius:8px;margin-top:6px}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:6px}
+  /* primer controls */
+  .primers{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  @media(max-width:700px){.primers{grid-template-columns:1fr}}
+  .pc{background:#0a0d12;border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .pc h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 8px}
+  .seq{font-family:var(--mono);font-size:13px;word-break:break-all;margin:4px 0 8px;color:var(--ink);min-height:18px}
+  .seq .clamp{color:var(--accent);font-weight:700}
+  .lenrow{display:flex;align-items:center;gap:10px;margin:6px 0}
+  .lenrow input[type=range]{flex:1;accent-color:var(--accent2)}
+  .lenrow .v{font-family:var(--mono);font-size:12px;color:var(--muted);width:54px;text-align:right}
+  .met{font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .met b{color:var(--ink);font-weight:600}
+  .tmgauge{height:8px;border-radius:4px;margin-top:8px;position:relative;background:linear-gradient(90deg,#3a4658,#5ad1b0,#3a4658)}
+  .tmgauge .tick{position:absolute;top:-3px;width:2px;height:14px;background:#fff;border-radius:1px}
+  .tmgauge .target{position:absolute;top:-2px;width:2px;height:12px;background:var(--warn)}
+  .warns{font-size:11px;color:var(--warn);margin-top:6px;min-height:14px}
+  /* status */
+  .gates{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+  .gate{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:7px;padding:5px 11px;color:var(--muted)}
+  .gate.ok{border-color:var(--accent);color:var(--accent)}
+  .gate.bad{border-color:var(--bad);color:var(--bad)}
+  .verdict{margin-top:10px;padding:13px 16px;border-radius:10px;border:1px solid var(--line);font-size:14.5px}
+  .verdict.win{border-color:var(--accent);background:rgba(90,209,176,.08)}
+  .verdict.idle{color:var(--muted)}
+  .stars{font-size:20px;letter-spacing:3px}
+  .small{font-size:12.5px;color:var(--muted)} .muted{color:var(--muted)}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .modes{font-size:13px;margin:6px 0 0}
+  .modes a{color:var(--accent2)}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / primer</span>
+  <span class="badge" id="badge">engine: loading…</span>
+</header>
+
+<div class="wrap">
+  <h1>Primer design puzzle</h1>
+  <p class="sub">Tune two primers to amplify the target region so both melt near the target Tm <em>and</em> match each other — but the two ends have different GC, so you can't tune them the same way. Graded by the real thermodynamics engine.</p>
+  <p class="modes muted">mode: <b>primer design</b> · <a href="/game/">cloning puzzle →</a></p>
+
+  <div class="genbar">
+    <select id="diff">
+      <option value="1">easy · ±4 °C, equal ends</option>
+      <option value="2" selected>medium · ±3 °C, skewed ends</option>
+      <option value="3">hard · ±2 °C, strongly skewed</option>
+    </select>
+    <button class="primary" id="gen">🎲 New puzzle</button>
+    <span class="small" id="streak"></span>
+  </div>
+
+  <div class="panel">
+    <div class="brief" id="brief">—</div>
+    <canvas id="tpl" width="940" height="120"></canvas>
+    <div class="legend">
+      <span style="color:var(--accent2)">▮</span> forward primer &nbsp;
+      <span style="color:var(--bad)">▮</span> reverse primer &nbsp;
+      <span style="color:var(--accent)">▮</span> amplified region &nbsp;
+      shaded = GC-rich landing zones
+    </div>
+
+    <div class="primers">
+      <div class="pc">
+        <h3>Forward primer · 5'→3'</h3>
+        <div class="seq" id="fwdSeq"></div>
+        <div class="lenrow"><span class="small">len</span>
+          <input type="range" id="fwdLen" min="14" max="34" value="20">
+          <span class="v" id="fwdLenV">20 nt</span></div>
+        <div class="met" id="fwdMet"></div>
+        <div class="tmgauge" id="fwdGauge"><div class="target"></div><div class="tick"></div></div>
+        <div class="warns" id="fwdWarn"></div>
+      </div>
+      <div class="pc">
+        <h3>Reverse primer · 5'→3'</h3>
+        <div class="seq" id="revSeq"></div>
+        <div class="lenrow"><span class="small">len</span>
+          <input type="range" id="revLen" min="14" max="34" value="20">
+          <span class="v" id="revLenV">20 nt</span></div>
+        <div class="met" id="revMet"></div>
+        <div class="tmgauge" id="revGauge"><div class="target"></div><div class="tick"></div></div>
+        <div class="warns" id="revWarn"></div>
+      </div>
+    </div>
+
+    <div class="gates" id="gates"></div>
+    <div class="btnrow">
+      <button class="primary" id="amplify">Run PCR &amp; grade</button>
+      <button id="auto">Auto-solve (engine)</button>
+      <button id="hint">Hint</button>
+    </div>
+    <div class="verdict idle" id="verdict">Adjust the primer lengths, then run PCR.</div>
+  </div>
+</div>
+
+<script type="module">
+import { loadEngine, Engine } from '../lab/engine.js';
+import { generatePrimerLevel } from '../lab/primergen.js';
+
+const $ = id => document.getElementById(id);
+const COMP = {A:'T',T:'A',G:'C',C:'G'};
+const revcomp = s => s.split('').reverse().map(b=>COMP[b]||'N').join('');
+
+const api = {
+  design:(t,s,e,ttm,opt)=>Engine.design(t,s,e,ttm,opt),
+  score:(seq,ttm)=>Engine.tm(seq), // unused here; scoring via score_w below
+  pcr:(t,f,r,c)=>Engine.pcr(t,f,r,c).value,
+};
+// direct score_w call (richer metrics than tm)
+function scorePrimer(seq, ttm){ return Engine.score(seq, ttm).value; }
+
+let L=null;
+let streak = +(localStorage.getItem('splice_primer_streak')||0);
+function showStreak(){ $('streak').textContent = streak>0 ? `streak ${streak} 🔥`:''; }
+
+function fwdSeq(){ return L.template.slice(L.start, L.start + (+$('fwdLen').value)); }
+function revSeq(){ const len=+$('revLen').value; return revcomp(L.template.slice(L.end-len, L.end)); }
+
+function drawTemplate(){
+  const cv=$('tpl'), g=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);
+  const x0=20,x1=W-20,y=70, n=L.template.length;
+  const X = i => x0 + (i/n)*(x1-x0);
+  // backbone
+  g.strokeStyle='#3a4658'; g.lineWidth=2; g.beginPath(); g.moveTo(x0,y); g.lineTo(x1,y); g.stroke();
+  // GC shading: sample local GC in 6 bp windows
+  for(let i=0;i<n;i+=4){
+    const w=L.template.slice(i,i+8);
+    const gc=(w.match(/[GC]/g)||[]).length/Math.max(1,w.length);
+    g.fillStyle=`rgba(90,209,176,${(gc*0.22).toFixed(3)})`;
+    g.fillRect(X(i),y-22,X(i+4)-X(i)+1,44);
+  }
+  // amplified region
+  g.fillStyle='rgba(90,209,176,.16)'; g.fillRect(X(L.start),y-12,X(L.end)-X(L.start),24);
+  g.strokeStyle='var(--accent)';
+  // forward primer
+  const fL=+$('fwdLen').value;
+  g.fillStyle='#7aa2ff'; g.fillRect(X(L.start),y-12,X(L.start+fL)-X(L.start),11);
+  // reverse primer
+  const rL=+$('revLen').value;
+  g.fillStyle='#f0776a'; g.fillRect(X(L.end-rL),y+1,X(L.end)-X(L.end-rL),11);
+  // labels
+  g.font='11px ui-monospace,monospace'; g.fillStyle='#9aa7b4'; g.textAlign='center';
+  g.fillText(`region ${L.start}–${L.end} · ${L.end-L.start} bp`, (X(L.start)+X(L.end))/2, y+38);
+  g.textAlign='left'; g.fillStyle='#7aa2ff'; g.fillText('▶ fwd', X(L.start), y-16);
+  g.textAlign='right'; g.fillStyle='#f0776a'; g.fillText('rev ◀', X(L.end), y+30);
+}
+
+function gauge(el, tm){
+  // map Tm 45..75 °C onto the bar; place target tick + value tick
+  const pct = t => Math.max(0,Math.min(100,(t-45)/30*100));
+  el.querySelector('.target').style.left = pct(L.targetTm)+'%';
+  el.querySelector('.tick').style.left = pct(tm)+'%';
+}
+
+function sidePanel(seq, ttm, seqEl, metEl, gaugeEl, warnEl){
+  const m = scorePrimer(seq, ttm);
+  if(m.error){ seqEl.textContent=seq||'—'; metEl.innerHTML=''; warnEl.textContent='too short'; return null; }
+  seqEl.innerHTML = seq.slice(0,-1) + `<span class="clamp">${seq.slice(-1)}</span>`;
+  metEl.innerHTML = `<span>Tm <b>${m.tm.toFixed(1)} °C</b></span><span>GC <b>${m.gc.toFixed(0)}%</b></span>`
+                  + `<span>${m.len} nt</span><span>${m.gcClamp?'clamp ✓':'no clamp'}</span><span>score <b>${m.score}</b></span>`;
+  gauge(gaugeEl, m.tm);
+  warnEl.textContent = m.warn.length ? '⚠ '+m.warn.join(' · ') : '';
+  return m;
+}
+
+function refresh(){
+  if(!L) return;
+  $('fwdLenV').textContent = $('fwdLen').value+' nt';
+  $('revLenV').textContent = $('revLen').value+' nt';
+  drawTemplate();
+  const f = sidePanel(fwdSeq(), L.targetTm, $('fwdSeq'), $('fwdMet'), $('fwdGauge'), $('fwdWarn'));
+  const r = sidePanel(revSeq(), L.targetTm, $('revSeq'), $('revMet'), $('revGauge'), $('revWarn'));
+  renderGates(f, r);
+  return { f, r };
+}
+
+function gateState(f, r){
+  if(!f||!r) return null;
+  const dTm = Math.abs(f.tm - r.tm);
+  return {
+    fwdTm: Math.abs(f.tm-L.targetTm) <= L.tol,
+    revTm: Math.abs(r.tm-L.targetTm) <= L.tol,
+    dTm:   dTm <= L.dTmMax,
+    clean: f.warn.length===0 && r.warn.length===0,
+    dTmVal: dTm,
+  };
+}
+function renderGates(f, r){
+  const g = gateState(f, r);
+  if(!g){ $('gates').innerHTML=''; return; }
+  const chip=(ok,txt)=>`<span class="gate ${ok?'ok':'bad'}">${ok?'✓':'○'} ${txt}</span>`;
+  $('gates').innerHTML =
+    chip(g.fwdTm,`fwd Tm ±${L.tol}`) + chip(g.revTm,`rev Tm ±${L.tol}`) +
+    chip(g.dTm,`ΔTm ≤ ${L.dTmMax} (now ${g.dTmVal.toFixed(1)})`) +
+    chip(g.clean,'no warnings');
+}
+
+$('amplify').onclick = () => {
+  const { f, r } = refresh();
+  const fwd = fwdSeq(), rev = revSeq();
+  const pcr = api.pcr(L.template, fwd, rev, false);
+  if(!pcr.products || !pcr.products.length){
+    setVerdict('idle', `<b>No product.</b> The primers don't both prime the template as placed — check they sit at the region edges.`);
+    return;
+  }
+  const g = gateState(f, r);
+  const passed = g.fwdTm && g.revTm && g.dTm; // warnings cost a star, don't block
+  if(passed){
+    const stars = g.clean ? 3 : 2;
+    streak++; localStorage.setItem('splice_primer_streak', streak); showStreak();
+    setVerdict('win',
+      `<div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+       <b>Amplified!</b> ${pcr.products[0].length} bp product · fwd ${f.tm.toFixed(1)} °C / rev ${r.tm.toFixed(1)} °C, ΔTm ${g.dTmVal.toFixed(1)}.
+       ${g.clean?'':'<span class="small"> Clear all warnings for 3 stars.</span>'}
+       <div class="btnrow"><button class="primary" id="next">🎲 Next puzzle →</button></div>`);
+    $('next').onclick = newPuzzle;
+  } else {
+    const miss=[];
+    if(!g.fwdTm) miss.push(`forward Tm ${f.tm.toFixed(1)} is off target (${L.targetTm}±${L.tol})`);
+    if(!g.revTm) miss.push(`reverse Tm ${r.tm.toFixed(1)} is off target`);
+    if(!g.dTm)   miss.push(`ΔTm ${g.dTmVal.toFixed(1)} exceeds ${L.dTmMax} — the two primers don't match`);
+    setVerdict('idle', `<b>It amplifies, but it won't run well.</b> ${miss.join('; ')}. Nudge the lengths.`);
+  }
+};
+
+$('auto').onclick = () => {
+  const d = Engine.design(L.template, L.start, L.end, L.targetTm, {minLen:18,maxLen:30}).value;
+  if(d.error) return;
+  $('fwdLen').value = d.fwd.len; $('revLen').value = d.rev.len;
+  refresh();
+  setVerdict('idle', `Engine's pick: fwd ${d.fwd.len} nt / rev ${d.rev.len} nt. Press “Run PCR & grade”.`);
+};
+$('hint').onclick = () => {
+  const s = L.solution;
+  setVerdict('idle', `💡 A passing pair exists near fwd ≈ ${s.fwdLen} nt, rev ≈ ${s.revLen} nt. Watch the GC shading — the denser end needs a shorter primer.`);
+};
+
+function setVerdict(cls, html){ const v=$('verdict'); v.className='verdict '+cls; v.innerHTML=html; }
+
+function newPuzzle(){
+  const d=+$('diff').value;
+  setVerdict('idle','Generating…');
+  setTimeout(()=>{
+    try{
+      L = generatePrimerLevel(api, { difficulty:d });
+      $('brief').textContent = L.brief;
+      // start the player a bit off the solution so there's work to do
+      $('fwdLen').value = Math.max(16, (L.solution.fwdLen||20) + (Math.random()<.5?-4:5));
+      $('revLen').value = Math.max(16, (L.solution.revLen||20) + (Math.random()<.5?5:-4));
+      refresh();
+      setVerdict('idle','Adjust the primer lengths so both gates go green, then run PCR.');
+    }catch(e){ setVerdict('idle','generation hiccup — hit New puzzle again'); console.error(e); }
+  }, 15);
+}
+
+['fwdLen','revLen'].forEach(id=> $(id).addEventListener('input', refresh));
+$('gen').onclick = newPuzzle;
+
+(async()=>{
+  try{
+    await loadEngine('../lab/splice_engine.wasm');
+    $('badge').textContent='engine: ready'; $('badge').style.color='var(--accent)';
+    showStreak(); newPuzzle();
+  }catch(e){ $('badge').textContent='engine: failed'; $('badge').style.color='var(--bad)'; console.error(e); }
+})();
+</script>
+</body>
+</html>

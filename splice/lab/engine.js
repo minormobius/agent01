@@ -58,6 +58,8 @@ export const Engine = {
   // design fwd/rev primers to amplify template[start..end] near targetTm.
   design:      (template, start, end, targetTm = 60, { naMm = 50, dnaNm = 50, minLen = 18, maxLen = 28 } = {}) =>
                  timed('design_w', `${start}|${end}|${targetTm}|${naMm}|${dnaNm}|${minLen}|${maxLen}|${template}`, true),
+  // score a single candidate primer (same metrics the designer uses).
+  score:       (seq, targetTm = 60, naMm = 50, dnaNm = 50) => timed('score_w', `${targetTm}|${naMm}|${dnaNm}|${seq}`, true),
 
   // raw single call without timing wrapper, for tight benchmark loops
   _raw: call,

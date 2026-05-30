@@ -1091,6 +1091,21 @@ pub extern "C" fn design_w(ptr: *const u8, len: usize) -> u64 {
     out(op_design(template, start, end, ttm, na, dna, minl, maxl))
 }
 
+#[no_mangle]
+pub extern "C" fn score_w(ptr: *const u8, len: usize) -> u64 {
+    // "TARGET_TM|NA_mM|DNA_nM|SEQ" -> the same primer metrics op_design uses
+    let s = read!(ptr, len);
+    let mut it = s.splitn(4, '|');
+    let ttm = it.next().unwrap_or("60").trim().parse().unwrap_or(60.0);
+    let na = it.next().unwrap_or("50").trim().parse().unwrap_or(50.0);
+    let dna = it.next().unwrap_or("50").trim().parse().unwrap_or(50.0);
+    let seq = clean(it.next().unwrap_or(""));
+    out(match score_primer(&seq, ttm, na, dna) {
+        Some(p) => primer_json(&p),
+        None => "{\"error\":\"invalid\"}".to_string(),
+    })
+}
+
 // ---------------------------------------------------------------------------
 // host-side tests
 // ---------------------------------------------------------------------------
