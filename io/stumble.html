@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stumble — mino.mobi</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .sb-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 10;
+    display: flex; align-items: center; gap: 0.6rem; padding: 0 0.8rem;
+    background: var(--panel); border-bottom: 1px solid var(--rule);
+    font-family: var(--mono);
+  }
+  .sb-bar .brand { font-size: 0.95rem; }
+  .sb-bar .dest { color: var(--muted); font-size: 0.78rem; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sb-bar .spacer { flex: 1; }
+  .sb-bar .btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+  .frame-host { position: fixed; top: 52px; left: 0; right: 0; bottom: 0; }
+  .frame-host iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+  .blocked {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1rem; text-align: center; padding: 2rem;
+    background: var(--bg); color: var(--ink);
+  }
+  .blocked.show { display: flex; }
+  .blocked .mono { color: var(--muted); font-size: 0.85rem; max-width: 480px; }
+  @media (max-width: 560px) { .sb-bar .dest, .sb-bar .tagline { display: none; } }
+</style>
+</head>
+<body>
+<div class="sb-bar">
+  <a class="brand" href="/" title="io.mino.mobi">io<span class="dot">.</span></a>
+  <span class="dest" id="dest"></span>
+  <span class="spacer"></span>
+  <button class="btn" id="next">🎲 Next</button>
+  <button class="btn ghost" id="bug" title="Report a bug on this site">🐞</button>
+  <button class="btn ghost" id="feature" title="Request a feature for this site">💡</button>
+  <a class="btn ghost" id="open" target="_blank" rel="noopener" title="Open directly">↗</a>
+</div>
+
+<div class="frame-host">
+  <iframe id="frame" referrerpolicy="no-referrer"></iframe>
+  <div class="blocked" id="blocked">
+    <div class="brand" style="font-size:1.1rem;">This site blocks embedding</div>
+    <div class="mono">Some sites refuse to load inside a frame (strict CSP / X-Frame-Options).
+      Open it directly — the bar's bug & idea buttons still work for it.</div>
+    <a class="btn lg" id="blocked-open" target="_blank" rel="noopener">↗ Open the site</a>
+    <button class="btn lg ghost" id="blocked-next">🎲 Stumble somewhere else</button>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const TRACKER = 'https://io.mino.mobi/';
+
+let SITES = [];
+let current = null;
+
+async function loadSites() {
+  try {
+    const res = await fetch('/api/sites');
+    const doc = await res.json();
+    SITES = [];
+    for (const c of doc.constellations || []) for (const s of c.sites || []) SITES.push({ ...s, domain: c.domain });
+  } catch { SITES = []; }
+}
+
+function weightedPick(exclude) {
+  const pool = exclude ? SITES.filter((s) => s.url !== exclude) : SITES;
+  const list = pool.length ? pool : SITES;
+  const total = list.reduce((a, s) => a + Math.max(1, s.weight || 1), 0);
+  let r = Math.random() * total;
+  for (const s of list) { r -= Math.max(1, s.weight || 1); if (r <= 0) return s; }
+  return list[list.length - 1];
+}
+
+function siteHost(url) { try { return new URL(url).host; } catch { return ''; } }
+
+function composeUrl(kind) {
+  const p = new URLSearchParams({ compose: kind });
+  if (current) {
+    p.set('site', siteHost(current.url));
+    p.set('url', current.url);
+    if (current.repo) p.set('repo', current.repo);
+    else if (current.domain) {
+      // best-effort repo hint for mino sites
+      if (current.domain.includes('mino')) p.set('repo', 'minormobius/agent01');
+    }
+  }
+  return TRACKER + '?' + p.toString();
+}
+
+let loadTimer = null;
+function go(site) {
+  current = site;
+  $('dest').textContent = siteHost(site.url);
+  $('open').href = site.url;
+  $('blocked-open').href = site.url;
+  $('blocked').classList.remove('show');
+  // Detect embedding failure: if onload never fires within a window, assume blocked.
+  clearTimeout(loadTimer);
+  let loaded = false;
+  $('frame').onload = () => { loaded = true; };
+  $('frame').src = site.url;
+  loadTimer = setTimeout(() => { if (!loaded) $('blocked').classList.add('show'); }, 3500);
+  // keep the deep-linkable url in our own history without reloading
+  const u = new URL(location.href); u.searchParams.set('to', site.url);
+  history.replaceState({}, '', u.toString());
+}
+
+function next() { go(weightedPick(current && current.url)); }
+
+$('next').addEventListener('click', next);
+$('blocked-next').addEventListener('click', next);
+$('bug').addEventListener('click', () => window.open(composeUrl('bug'), '_blank', 'noopener'));
+$('feature').addEventListener('click', () => window.open(composeUrl('feature'), '_blank', 'noopener'));
+
+await loadSites();
+const to = new URLSearchParams(location.search).get('to');
+if (to) { const found = SITES.find((s) => s.url === to); go(found || { url: to, domain: siteHost(to) }); }
+else next();
+</script>
+</body>
+</html>

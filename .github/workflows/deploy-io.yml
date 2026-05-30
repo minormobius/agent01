@@ -1,0 +1,106 @@
+name: Deploy io
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/atproto-tracker-portal-*'
+    paths:
+      - 'io/**'
+      - 'packages/oauth-client/**'
+      - 'js/typeahead.js'
+      - 'scripts/vendor-io.sh'
+      - 'scripts/generate-sites-json.mjs'
+      - 'poll/apps/api/migrations/0030_io_tickets.sql'
+      - '.github/workflows/deploy-io.yml'
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        working-directory: io
+        run: npm install wrangler
+
+      - name: Regenerate sites.json from index.html PROJECTS
+        run: node scripts/generate-sites-json.mjs
+
+      - name: Vendor shared front-end libs into io/
+        run: bash scripts/vendor-io.sh
+
+      - name: Run D1 migrations (io tables on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        working-directory: io
+        run: |
+          for f in \
+            ../poll/apps/api/migrations/0030_io_tickets.sql; do
+            echo "Applying $f to atpolls-db…"
+            npx wrangler d1 execute atpolls-db --file="$f" --remote \
+              || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker + assets
+        working-directory: io
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify worker is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://io.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"; echo "✓ worker is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ /api/health didn't respond within 20s — edge propagation may be slow, continuing."
+
+      - name: Sync worker secrets (best-effort)
+        # Service-account creds enable the post sweeper; ADMIN_KEY gates triage +
+        # manual sweep/index. All optional — the tracker + portal work without them.
+        continue-on-error: true
+        working-directory: io
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ATPROTO_SERVICE_HANDLE: ${{ secrets.ATPROTO_SERVICE_HANDLE }}
+          ATPROTO_SERVICE_PASSWORD: ${{ secrets.ATPROTO_SERVICE_PASSWORD }}
+          ATPROTO_SERVICE_DID: ${{ secrets.ATPROTO_SERVICE_DID }}
+          ATPROTO_SERVICE_PDS: ${{ secrets.ATPROTO_SERVICE_PDS }}
+          IO_ADMIN_KEY: ${{ secrets.IO_ADMIN_KEY }}
+        run: |
+          set +e
+          push_secret() {
+            local name="$1" value="$2"
+            if [ -z "$value" ]; then echo "  ($name not set, skipping)"; return; fi
+            local f; f=$(mktemp); printf '%s' "$value" > "$f"
+            echo "Pushing $name…"
+            npx wrangler secret put "$name" --name io < "$f"
+            rm -f "$f"
+          }
+          push_secret ATPROTO_SERVICE_HANDLE   "$ATPROTO_SERVICE_HANDLE"
+          push_secret ATPROTO_SERVICE_PASSWORD "$ATPROTO_SERVICE_PASSWORD"
+          push_secret ATPROTO_SERVICE_DID      "$ATPROTO_SERVICE_DID"
+          push_secret ATPROTO_SERVICE_PDS      "$ATPROTO_SERVICE_PDS"
+          push_secret ADMIN_KEY                "$IO_ADMIN_KEY"
+          exit 0

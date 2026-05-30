@@ -1,6 +1,13 @@
 # io.mino.mobi — ATProto Ticket Tracker + StumbleUpon Portal
 
-**Status:** Design doc (no app code yet). Approved decisions captured below; build is phased.
+**Status:** Phases 1–5 built (skeleton + auth + manual submit + index + board + sweeper + portal). Phase 7 (nightly dispatch) still future. Approved decisions captured below; build is phased.
+
+**Built notes (delta from original plan):**
+- Migration shipped as `poll/apps/api/migrations/0030_io_tickets.sql` (0026 was taken; repo was at 0025 but in-flight branches claimed 0026–0029).
+- Constellation surface **verified live**: `GET blue.microcosm.links.getBacklinks?subject=<anchor URL>&source=com.minomobi.io.ticket:.board` → `{ total, linking_records:[{did,collection,rkey,cid}], cursor }`. The `board` field is a plain URL string (Constellation indexes plain web URLs as targets); the JSON path in `source` points at the field (`.board`), as confirmed against `app.bsky.feed.like:.subject`.
+- Discovery anchor URL constant: `https://io.mino.mobi/anchor/tickets/v1` (in `worker.js` + served via `/api/config`).
+- `PdsPublisher` was **vendored** (small class in `worker.js`) rather than imported, to keep the single-file worker free of a cross-package build dep.
+- Shared libs (`packages/oauth-client/auth.js`, `js/typeahead.js`) are **copied into `io/` at deploy time** by `scripts/vendor-io.sh` (gitignored copies; single source of truth unchanged).
 **Branch:** `claude/atproto-tracker-portal-CExE3`
 **Subdomain:** `io.mino.mobi` (one Worker, one front page, two surfaces).
 **Author of record:** majormobius@gmail.com
