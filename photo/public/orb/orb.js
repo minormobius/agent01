@@ -16,7 +16,7 @@ import {
 } from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const MAX_TILES    = 500;   // deep archive threads can have many quoted posts
+const MAX_TILES    = 1000;  // queue cap for deep archive threads; cycles modulo this
 const ATLAS_W      = 2048;  // 4x atlas area vs the previous default
 const ATLAS_H      = 4096;
 const TILE_PX      = 1024;  // render each tile at this resolution before composite
@@ -749,11 +749,16 @@ function frame() {
   // `paused` so the user can freeze the orb to read or tap a specific tile;
   // manual drag still updates yaw/pitch directly regardless.
   if (!paused) {
-    state.scroll = (state.scroll + dt * parseFloat(scrollSlider.value) * 0.0012) % 1;
+    const scrollDelta = dt * parseFloat(scrollSlider.value) * 0.0012;
+    state.scroll = (state.scroll + scrollDelta) % 1;
+    // cycleProgress is the unbounded version of state.scroll — drives the
+    // cyclic row replacer below, which fires once per (1 / rows) of progress.
+    cycleProgress += scrollDelta;
     if (!dragState) {
       state.yaw += dt * parseFloat(spinSlider.value) * 0.004;
     }
   }
+  tickCyclicReplacer();
 
   // matrices
   const aspect = canvas.width / canvas.height;
@@ -963,9 +968,13 @@ function resetGridLayout() {
   paintCelestialPattern(state.atlasCanvas);
   setStripFromCanvas(state.atlasCanvas);
   queueIndex = 0;
-  successCount = 0;
   mediaAttempted = 0;
   mediaSucceeded = 0;
+  initialFillDone = false;
+  cycleProgress = 0;
+  lastReplaceCycle = 0;
+  nextRowToReplace = 0;
+  pendingReplacements = 0;
   stampedTiles.clear();   // slot indexing changes with cols/rows; map invalidated
   const { cols, rows, pad } = gridSpec();
   const padTxt = Math.round(pad * 100) + '%';
@@ -982,21 +991,45 @@ padSlider.addEventListener('change', resetGridLayout);
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
-// Queue + autostamp. Hitting load (or first paint) fetches the thread, builds
-// the post-tile queue, then auto-stamps one tile at a time until the grid is
-// full or the queue runs out. Layout sliders cancel the in-flight autostamp
-// via a generation counter, repaint the placeholder, and restart the fill so
-// the new grid populates without re-fetching.
+// Queue + cyclic stamping. The orb's atlas has a fixed C*R slots. The queue
+// (tileQueue) holds every post-unit collected from the thread. queueIndex is
+// monotonic — we read tileQueue[queueIndex % length], so over time every
+// post in the queue passes through the atlas, indefinitely.
+//
+// Flow:
+//   1. ensureThreadLoaded() fetches the thread and builds the queue.
+//   2. autoStamp() does the *initial fill* — stamps each of C*R slots once,
+//      then sets initialFillDone.
+//   3. From then on, frame() watches cycleProgress (a monotonic counter that
+//      grows with state.scroll). Each time it crosses 1/rows of a full cycle,
+//      it schedules the next row for replacement. A single in-flight worker
+//      processes scheduled replacements one at a time, re-stamping each cell
+//      in the row with the next queue entries. Because content scrolls south-
+//      to-north, the row that just wrapped past the north pole is the right
+//      one to replace — its new content will then "erupt from the south pole"
+//      as the scroll continues.
 let tileQueue = [];
-let queueIndex = 0;
-let successCount = 0;
+let queueIndex = 0;            // monotonic; read modulo tileQueue.length
 let lastFetchedUrl = '';
 let mediaAttempted = 0;
 let mediaSucceeded = 0;
 let lastMediaFailReason = '';
 let stampGen = 0;
 let paused = false;
+let initialFillDone = false;
+let cycleProgress = 0;         // monotonic scroll counter for replacement timing
+let lastReplaceCycle = 0;
+let nextRowToReplace = 0;
+let pendingReplacements = 0;
+let replacementInFlight = false;
 const stampedTiles = new Map();   // slot -> tile entry, for tap-to-open
+
+function nextQueueEntry() {
+  if (tileQueue.length === 0) return null;
+  const entry = tileQueue[queueIndex % tileQueue.length];
+  queueIndex++;
+  return entry;
+}
 
 async function ensureThreadLoaded(wantedUrl) {
   if (tileQueue.length && wantedUrl === lastFetchedUrl) return true;
@@ -1008,7 +1041,6 @@ async function ensureThreadLoaded(wantedUrl) {
     return false;
   }
   queueIndex = 0;
-  successCount = 0;
   mediaAttempted = 0;
   mediaSucceeded = 0;
   lastMediaFailReason = '';
@@ -1022,59 +1054,108 @@ async function ensureThreadLoaded(wantedUrl) {
   return true;
 }
 
-async function stampOne() {
-  if (queueIndex >= tileQueue.length) return false;
-  const entry = tileQueue[queueIndex];
-
+// Stamp the given queue entry into a specific (rowIdx, colIdx) cell of the
+// atlas. Used both by the initial fill (slot index 0..C*R-1) and by the
+// cyclic row replacer (rowIdx = whichever row just wrapped past the pole).
+async function stampInSlot(rowIdx, colIdx, entry) {
   const tileCanvas = await renderPostTile(entry, TILE_PX);
-
   const c = state.atlasCanvas;
+  if (!c) return;
   const ctx = c.getContext('2d');
   const { cols, rows, pad } = gridSpec();
+  if (rowIdx >= rows || colIdx >= cols) return;   // slider changed mid-flight
   const cellW = c.width / cols;
   const cellH = c.height / rows;
   const padX  = cellW * pad;
   const padY  = cellH * pad;
-  const slot  = successCount % (cols * rows);
-  const col   = slot % cols;
-  const row   = Math.floor(slot / cols);
-  const x = col * cellW + padX;
-  const y = row * cellH + padY;
+  const x = colIdx * cellW + padX;
+  const y = rowIdx * cellH + padY;
   const w = cellW - padX * 2;
   const h = cellH - padY * 2;
+  // Wipe the inner tile region so previous content doesn't peek through if
+  // the new tile is letterboxed; padding ring keeps its background.
+  ctx.clearRect(x, y, w, h);
   ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
   setStripFromCanvas(c);
-  stampedTiles.set(slot, entry);
-
-  queueIndex++;
-  successCount++;
-  const k = entry.kind === 'quote' ? '↪' : '';
-  const mediaStat = mediaAttempted
-    ? ` · media ${mediaSucceeded}/${mediaAttempted}` + (mediaSucceeded === 0 ? ` (last: ${lastMediaFailReason || 'unknown'})` : '')
-    : '';
-  setStatus(`stamped ${successCount}/${tileQueue.length} ${k} @${entry.author?.handle || ''}${mediaStat}`);
-  return true;
+  stampedTiles.set(rowIdx * cols + colIdx, entry);
 }
 
 async function autoStamp() {
   const gen = ++stampGen;
+  initialFillDone = false;
+  cycleProgress = 0;
+  lastReplaceCycle = 0;
+  nextRowToReplace = 0;
+  pendingReplacements = 0;
   const { cols, rows } = gridSpec();
   const cap = cols * rows;
-  while (queueIndex < tileQueue.length && successCount < cap) {
-    if (gen !== stampGen) return;     // a newer autoStamp / reset superseded us
-    const ok = await stampOne();
-    if (!ok) break;
+  let placed = 0;
+  while (placed < cap) {
     if (gen !== stampGen) return;
-    if (queueIndex < tileQueue.length && successCount < cap) {
-      await new Promise(r => setTimeout(r, AUTOSTAMP_DELAY_MS));
-    }
+    const entry = nextQueueEntry();
+    if (!entry) break;
+    const colIdx = placed % cols;
+    const rowIdx = Math.floor(placed / cols);
+    await stampInSlot(rowIdx, colIdx, entry);
+    placed++;
+    if (gen !== stampGen) return;
+    const k = entry.kind === 'quote' ? '↪' : '';
+    const mediaStat = mediaAttempted
+      ? ` · media ${mediaSucceeded}/${mediaAttempted}`
+      : '';
+    setStatus(`stamped ${placed}/${cap} initial · ${k}@${entry.author?.handle || ''}${mediaStat}`);
+    if (placed < cap) await new Promise(r => setTimeout(r, AUTOSTAMP_DELAY_MS));
   }
   if (gen !== stampGen) return;
-  // Final status line — note any remaining queue depth so the user knows
-  // there's more they could see if they bump cols/rows.
-  const remaining = tileQueue.length - queueIndex;
-  const remNote = remaining > 0 ? ` · ${remaining} more in queue (raise cols/rows to fit)` : '';
-  setStatus(`stamped ${successCount} / ${cap}-slot grid${remNote}`);
+  initialFillDone = true;
+  // After the initial fill the cyclic replacer takes over (see frame()).
+  setStatus(`stamped ${placed}/${cap} · cycling through ${tileQueue.length} posts as the orb scrolls`);
+}
+
+// Run by frame() each tick. If the scroll has advanced enough to wrap another
+// row past the north pole, schedule that row for replacement. Process one
+// replacement at a time so heavy renderPostTile work doesn't pile up.
+function tickCyclicReplacer() {
+  if (!initialFillDone || paused || tileQueue.length === 0) return;
+  const { rows } = gridSpec();
+  const threshold = 1 / Math.max(1, rows);
+  while (cycleProgress - lastReplaceCycle >= threshold) {
+    lastReplaceCycle += threshold;
+    pendingReplacements++;
+  }
+  // Cap the backlog — if we get really far behind (fast scroll + slow media
+  // loads) we'd otherwise spend forever catching up rather than showing the
+  // current cycle. Two cycles of pending feels like the right ceiling.
+  const ceiling = rows * 2;
+  if (pendingReplacements > ceiling) pendingReplacements = ceiling;
+
+  if (pendingReplacements > 0 && !replacementInFlight) {
+    pendingReplacements--;
+    const rowIdx = nextRowToReplace;
+    nextRowToReplace = (nextRowToReplace + 1) % rows;
+    replaceRow(rowIdx);
+  }
+}
+
+async function replaceRow(rowIdx) {
+  const gen = stampGen;
+  replacementInFlight = true;
+  try {
+    const { cols, rows } = gridSpec();
+    if (rowIdx >= rows) return;   // slider changed
+    for (let col = 0; col < cols; col++) {
+      if (gen !== stampGen) return;
+      const entry = nextQueueEntry();
+      if (!entry) break;
+      await stampInSlot(rowIdx, col, entry);
+      if (gen !== stampGen) return;
+    }
+    const lastEntry = stampedTiles.get(rowIdx * cols + Math.max(0, cols - 1));
+    const handle = lastEntry?.author?.handle || '';
+    setStatus(`recycled row ${rowIdx + 1}/${rows} · @${handle} · queue pos ${(queueIndex - 1) % tileQueue.length + 1}/${tileQueue.length}`);
+  } finally {
+    replacementInFlight = false;
+  }
 }
 
 async function loadAndAutoStamp() {

@@ -97,7 +97,7 @@ export async function fetchThread(uri, { onProgress } = {}) {
   if (!opDid) return root;
 
   let fetches = 1;
-  const MAX_FETCHES = 300; // safety limit (~3000 posts deep — orb needs this)
+  const MAX_FETCHES = 600; // safety limit — orb wants the whole tail of long archive threads
 
   while (fetches < MAX_FETCHES) {
     // Walk the tree to find the deepest OP leaf that needs continuation
@@ -113,13 +113,16 @@ export async function fetchThread(uri, { onProgress } = {}) {
         // Graft the deeper replies onto the leaf
         leaf.replies = deeper.replies;
       } else {
-        // API returned no replies despite replyCount > 0 (deleted, blocked, etc.)
-        // Mark it so we don't try again
+        // API returned no replies despite replyCount > 0 (deleted, blocked,
+        // detached, etc.). Mark this leaf done and keep going — there may
+        // be other OP branches we haven't reached yet. (Previously we
+        // `break`ed out here, which truncated the whole chase the moment we
+        // hit one dead sub-thread.)
         leaf._chased = true;
-        break;
       }
     } catch {
-      break; // network error, keep what we have
+      // Network error — try the next leaf rather than aborting the chase.
+      leaf._chased = true;
     }
   }
 
