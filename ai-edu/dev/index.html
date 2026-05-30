@@ -311,8 +311,8 @@ const ROWS = 4, COLS = 4;
 const TILES = [
   {label:'Requirements',  kind:'list',   accent:'#6ad9c8'},
   {label:'Use cases',     kind:'icon',   accent:'#6ad9c8'},
-  {label:'Constraints',   kind:'gauge',  accent:'#6ad9c8'},
-  {label:'Risk',          kind:'badge',  accent:'#6ad9c8', badge:'LOW'},
+  {label:'Constraints',   kind:'gauge',  accent:'#6ad9c8', valueSet:[0.58, 0.65, 0.72, 0.78, 0.72]},
+  {label:'Risk',          kind:'badge',  accent:'#6ad9c8', badge:'LOW',   variants:['LOW','MED','HIGH','LOW','LOW']},
   {label:'Architecture',  kind:'graph',  accent:'#9bb8ff'},
   {label:'Interfaces',    kind:'list',   accent:'#9bb8ff'},
   {label:'Data model',    kind:'graph',  accent:'#9bb8ff'},
@@ -320,11 +320,11 @@ const TILES = [
   {label:'Components',    kind:'icon',   accent:'#f6a472'},
   {label:'BOM',           kind:'chart',  accent:'#f6a472'},
   {label:'Schedule',      kind:'bars',   accent:'#f6a472'},
-  {label:'Cost',          kind:'badge',  accent:'#f6a472', badge:'$4.2k'},
+  {label:'Cost',          kind:'badge',  accent:'#f6a472', badge:'$4.2k', variants:['$3.8k','$4.0k','$4.1k','$4.2k','$4.3k','$4.5k','$4.2k']},
   {label:'Test plan',     kind:'list',   accent:'#e9c46a'},
-  {label:'Manufacturing', kind:'gauge',  accent:'#e9c46a'},
+  {label:'Manufacturing', kind:'gauge',  accent:'#e9c46a', valueSet:[0.62, 0.70, 0.78, 0.84, 0.72]},
   {label:'Compliance',    kind:'icon',   accent:'#e9c46a'},
-  {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3'},
+  {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3',    variants:['Q2','Q3','Q4','Q3']},
 ];
 TILES.forEach(t => { t.extraNoise = 0; });
 
@@ -432,8 +432,29 @@ function buildNoisePattern(c) {
   return c.createPattern(off, 'repeat');
 }
 
-function drawTileResolved(c, tile, rect) {
+// Deterministic per-(frame, tile, slot) pseudo-random for content jitter.
+// Time-bucketed so values change ~6 Hz, not every animation frame — it should
+// read as "bouncing" rather than "static".
+function frand(seed) {
+  const s = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return s - Math.floor(s);
+}
+function wobbleBucket() { return Math.floor(ST.time * 6); }
+function pickFromSet(set, wobble, baseIdx, bucketSeed) {
+  if (wobble < 0.12 || !set || set.length <= 1) return set ? set[Math.min(baseIdx, set.length-1)] : null;
+  // Weighted: most-of-the-time pick at random, but bias lightly toward baseIdx
+  // so the "settled" value still feels like the home position even mid-wobble.
+  const r = frand(bucketSeed);
+  return set[Math.floor(r * set.length)];
+}
+
+function drawTileResolved(c, tile, rect, idx) {
   const {x,y,w,h} = rect;
+  // Wobble: how unsettled this tile's content is right now. Combines global
+  // temperature with per-tile extra noise — at peak perturb the perturbed
+  // tile wobbles hardest, ring-1 next, the rest follow the global level.
+  const wobble = Math.max(ST.T, tile.extraNoise || 0);
+  const bucket = wobbleBucket() + idx * 11;
   c.save();
   c.beginPath(); c.rect(x, y, w, h); c.clip();
   // panel
@@ -442,23 +463,31 @@ function drawTileResolved(c, tile, rect) {
   // top accent bar
   c.fillStyle = tile.accent + '1e';
   c.fillRect(x, y, w, 22);
-  c.fillStyle = tile.accent;
-  c.font = '700 10.5px ui-monospace, "SF Mono", Menlo, monospace';
-  c.textBaseline = 'middle';
-  c.fillText(tile.label.toUpperCase(), x+10, y+11);
-  // tiny status dot
+  // status dot (right edge of bar)
   c.fillStyle = tile.accent;
   c.beginPath(); c.arc(x + w - 12, y + 11, 2, 0, Math.PI*2); c.fill();
+  // label — fit to available width by shrinking the font until it fits.
+  c.fillStyle = tile.accent;
+  c.textBaseline = 'middle';
+  const labelText = tile.label.toUpperCase();
+  const labelMaxW = w - 24;  // 10px left margin + 14px for status dot zone
+  let labelFS = 10.5;
+  c.font = `700 ${labelFS}px ui-monospace, "SF Mono", Menlo, monospace`;
+  while (c.measureText(labelText).width > labelMaxW && labelFS > 7) {
+    labelFS -= 0.5;
+    c.font = `700 ${labelFS}px ui-monospace, "SF Mono", Menlo, monospace`;
+  }
+  c.fillText(labelText, x+10, y+11);
   // content
   const cx = x + 12, cy = y + 30, cw = w - 24, ch = h - 42;
   switch (tile.kind) {
-    case 'list':  drawList(c, cx, cy, cw, ch, tile.accent); break;
-    case 'icon':  drawIcon(c, cx, cy, cw, ch, tile.accent); break;
-    case 'gauge': drawGauge(c, cx, cy, cw, ch, tile.accent); break;
-    case 'badge': drawBadge(c, cx, cy, cw, ch, tile.accent, tile.badge); break;
-    case 'graph': drawGraph(c, cx, cy, cw, ch, tile.accent); break;
-    case 'chart': drawChart(c, cx, cy, cw, ch, tile.accent); break;
-    case 'bars':  drawBars(c, cx, cy, cw, ch, tile.accent); break;
+    case 'list':  drawList(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'icon':  drawIcon(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'gauge': drawGauge(c, cx, cy, cw, ch, tile.accent, wobble, bucket, tile.valueSet); break;
+    case 'badge': drawBadge(c, cx, cy, cw, ch, tile.accent, tile.badge, tile.variants, wobble, bucket); break;
+    case 'graph': drawGraph(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'chart': drawChart(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'bars':  drawBars(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
   }
   // border
   c.strokeStyle = tile.accent + '33';
@@ -467,51 +496,86 @@ function drawTileResolved(c, tile, rect) {
   c.restore();
 }
 
-function drawList(c, x, y, w, h, accent) {
+function drawList(c, x, y, w, h, accent, wobble, bucket) {
   const lines = 4, lineH = Math.min(h/lines, 18);
   const startY = y + (h - lines*lineH)/2;
   for (let i=0; i<lines; i++) {
     c.fillStyle = accent + 'aa';
     c.fillRect(x, startY + i*lineH + lineH*0.35, 3, 3);
     c.fillStyle = '#2a3142';
-    const lineW = w*0.78 - ((i*13)%18);
+    const baseW = w*0.78 - ((i*13)%18);
+    const jitter = wobble > 0.1 ? (frand(bucket + i) - 0.5) * w * 0.25 * wobble : 0;
+    const lineW = Math.max(8, Math.min(w - 12, baseW + jitter));
     c.fillRect(x + 9, startY + i*lineH + lineH*0.45, lineW, 2);
   }
 }
-function drawIcon(c, x, y, w, h, accent) {
-  const cx = x + w/2, cy = y + h/2, R = Math.min(w,h)*0.32;
+function drawIcon(c, x, y, w, h, accent, wobble, bucket) {
+  const cx = x + w/2, cy = y + h/2;
+  // Concentric rings breathe in/out a little when the tile is unsettled.
+  const breathe = wobble > 0.1 ? (frand(bucket) - 0.5) * 0.18 * wobble : 0;
+  const R = Math.min(w,h) * (0.32 + breathe);
   c.strokeStyle = accent + 'cc'; c.lineWidth = 1.5;
   c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.stroke();
   c.beginPath(); c.arc(cx, cy, R*0.55, 0, Math.PI*2); c.stroke();
   c.fillStyle = accent;
   c.beginPath(); c.arc(cx, cy, R*0.22, 0, Math.PI*2); c.fill();
 }
-function drawGauge(c, x, y, w, h, accent) {
+function drawGauge(c, x, y, w, h, accent, wobble, bucket, valueSet) {
   const cx = x + w/2, cy = y + h*0.72, R = Math.min(w*0.42, h*0.6);
+  // Pick a value from the valueSet (or default 0.72) and jitter it slightly.
+  const base = valueSet ? valueSet[valueSet.length-1] : 0.72;
+  let val = base;
+  if (wobble > 0.12 && valueSet) {
+    val = valueSet[Math.floor(frand(bucket) * valueSet.length)];
+  }
+  val += wobble > 0.1 ? (frand(bucket + 1) - 0.5) * 0.08 * wobble : 0;
+  val = Math.max(0.05, Math.min(0.98, val));
   c.strokeStyle = '#1a2030'; c.lineWidth = 5; c.lineCap = 'round';
   c.beginPath(); c.arc(cx, cy, R, Math.PI, 0); c.stroke();
   c.strokeStyle = accent; c.lineWidth = 5;
-  c.beginPath(); c.arc(cx, cy, R, Math.PI, Math.PI*1.72); c.stroke();
+  c.beginPath(); c.arc(cx, cy, R, Math.PI, Math.PI*(1 + val)); c.stroke();
   c.fillStyle = accent;
-  c.font = '700 13px ui-monospace, monospace';
+  // Number font: scale down if needed so '%' fits in tile.
+  let fs = Math.min(13, h * 0.18);
+  c.font = `700 ${fs}px ui-monospace, monospace`;
   c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText('72%', cx, cy - R*0.25);
+  const txt = Math.round(val * 100) + '%';
+  while (c.measureText(txt).width > w * 0.55 && fs > 8) {
+    fs -= 0.5;
+    c.font = `700 ${fs}px ui-monospace, monospace`;
+  }
+  c.fillText(txt, cx, cy - R*0.25);
   c.textAlign = 'start';
 }
-function drawBadge(c, x, y, w, h, accent, text) {
+function drawBadge(c, x, y, w, h, accent, text, variants, wobble, bucket) {
+  // Pick a variant when the tile is wobbling — gives the "value bouncing
+  // around as the design re-converges" feel.
+  let displayText = text;
+  if (wobble > 0.15 && variants && variants.length > 1) {
+    displayText = variants[Math.floor(frand(bucket) * variants.length)];
+  }
   c.fillStyle = accent;
-  const fs = Math.min(Math.floor(h*0.55), 28);
+  let fs = Math.min(Math.floor(h * 0.55), 28);
   c.font = `800 ${fs}px ui-monospace, monospace`;
+  // Shrink font until the text fits horizontally with a bit of padding.
+  const maxW = w - 6;
+  while (c.measureText(displayText).width > maxW && fs > 9) {
+    fs -= 0.5;
+    c.font = `800 ${fs}px ui-monospace, monospace`;
+  }
   c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.fillText(text, x + w/2, y + h*0.5);
+  c.fillText(displayText, x + w/2, y + h*0.5);
   c.textAlign = 'start';
 }
-function drawGraph(c, x, y, w, h, accent) {
+function drawGraph(c, x, y, w, h, accent, wobble, bucket) {
+  // Base node positions + small wobble (deterministic per-bucket so it
+  // settles cleanly, doesn't jitter at 60Hz).
+  const j = (i) => wobble > 0.1 ? (frand(bucket + i) - 0.5) * 6 * wobble : 0;
   const pts = [
-    {x:x+w*0.22, y:y+h*0.28},
-    {x:x+w*0.72, y:y+h*0.22},
-    {x:x+w*0.32, y:y+h*0.78},
-    {x:x+w*0.78, y:y+h*0.72},
+    {x:x+w*0.22 + j(1), y:y+h*0.28 + j(2)},
+    {x:x+w*0.72 + j(3), y:y+h*0.22 + j(4)},
+    {x:x+w*0.32 + j(5), y:y+h*0.78 + j(6)},
+    {x:x+w*0.78 + j(7), y:y+h*0.72 + j(8)},
   ];
   c.strokeStyle = accent + '55'; c.lineWidth = 1.2;
   [[0,1],[0,2],[1,3],[2,3],[1,2]].forEach(([a,b])=>{
@@ -519,14 +583,16 @@ function drawGraph(c, x, y, w, h, accent) {
   });
   pts.forEach(p => { c.fillStyle = accent; c.beginPath(); c.arc(p.x,p.y,3,0,Math.PI*2); c.fill(); });
 }
-function drawChart(c, x, y, w, h, accent) {
+function drawChart(c, x, y, w, h, accent, wobble, bucket) {
   const N = 18;
   c.strokeStyle = '#1a2030'; c.lineWidth = 1;
   c.beginPath(); c.moveTo(x, y+h); c.lineTo(x+w, y+h); c.stroke();
   c.strokeStyle = accent; c.lineWidth = 1.5;
   c.beginPath();
   for (let i=0; i<N; i++) {
-    const v = 0.45 + 0.42*Math.sin(i*0.55 + 0.6) * (1 - i/N*0.3);
+    const base = 0.45 + 0.42*Math.sin(i*0.55 + 0.6) * (1 - i/N*0.3);
+    const jitter = wobble > 0.1 ? (frand(bucket + i) - 0.5) * 0.4 * wobble : 0;
+    const v = Math.max(0.05, Math.min(0.95, base + jitter));
     const px = x + (i/(N-1))*w;
     const py = y + h - v*h*0.82;
     if (i===0) c.moveTo(px,py); else c.lineTo(px,py);
@@ -537,14 +603,16 @@ function drawChart(c, x, y, w, h, accent) {
   c.fillStyle = accent + '15';
   c.fill();
 }
-function drawBars(c, x, y, w, h, accent) {
+function drawBars(c, x, y, w, h, accent, wobble, bucket) {
   const N = 6;
   const totalGap = w * 0.35;
   const bw = (w - totalGap) / N;
   const gap = totalGap / (N - 1);
-  const vals = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8];
+  const baseVals = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8];
   for (let i=0;i<N;i++) {
-    const bh = vals[i]*h*0.82;
+    const jitter = wobble > 0.1 ? (frand(bucket + i*3) - 0.5) * 0.55 * wobble : 0;
+    const v = Math.max(0.08, Math.min(0.98, baseVals[i] + jitter));
+    const bh = v*h*0.82;
     c.fillStyle = i===3 ? accent : accent + '7a';
     c.fillRect(x + i*(bw+gap), y+h-bh, bw, bh);
   }
@@ -576,7 +644,7 @@ function draw(c, W, H) {
   // tiles at full strength
   TILES.forEach((tile, i) => {
     const r = tileRect(i, W, H);
-    drawTileResolved(c, tile, r);
+    drawTileResolved(c, tile, r, i);
   });
 
   // Layer 1 — canvas-spanning low-grade noise. The whole field always carries
