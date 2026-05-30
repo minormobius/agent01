@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — hot or not</title>
+<meta name="description" content="Judge a queue of Fluoddity configs HOT or NOT. From your labels we fit a separating hyperplane in canonical descriptor space — a learned scoring rubric you can paste into the breeder to evolve organisms by your aesthetic, not just by temperature.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/hot.html">
+<meta property="og:title" content="fluoddity — hot or not">
+<meta property="og:description" content="Judge configs HOT or NOT. Train a custom scoring rubric off your own taste, then breed by it.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --hot: #ff5b6e; --not: #6b7080;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --chrome: 184px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: var(--bg); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
+.pill:hover { color: var(--accent); border-color: var(--accent); }
+.counter { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.counter b { color: var(--accent); }
+
+#stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 14px; position: relative; }
+#stage canvas { width: min(100%, calc(100vh - var(--chrome))); width: min(100%, calc(100dvh - var(--chrome))); height: auto; aspect-ratio: 1; display: block; border: 1px solid var(--rule); border-radius: 12px; background: #000; }
+.judge-buttons { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 10px; background: rgba(14,16,20,0.85); backdrop-filter: blur(10px); border: 1px solid var(--rule); border-radius: 14px; padding: 8px; z-index: 4; }
+.jb { font-family: var(--mono); font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--rule); border-radius: 10px; padding: 10px 22px; color: var(--fg); background: var(--panel); transition: transform 0.08s, box-shadow 0.15s, border-color 0.12s; }
+.jb:hover:not(:disabled) { transform: translateY(-1px); }
+.jb:disabled { opacity: 0.4; cursor: default; }
+.jb.hot { background: var(--hot); color: #220105; border-color: var(--hot); box-shadow: 0 4px 18px rgba(255,91,110,0.25); }
+.jb.hot:hover { box-shadow: 0 6px 22px rgba(255,91,110,0.45); }
+.jb.not { color: var(--muted); }
+.jb.not:hover { border-color: var(--not); color: var(--fg); }
+.jb.skip { font-weight: 400; color: var(--muted); }
+.jb .k { font-size: 10px; opacity: 0.7; margin-left: 4px; }
+#status-overlay { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.45); border-radius: 7px; padding: 4px 9px; pointer-events: none; }
+#save-fab { position: absolute; top: 60px; right: 16px; z-index: 5; font-family: var(--mono); font-size: 12px; font-weight: 600; background: rgba(14,16,20,0.85); backdrop-filter: blur(10px); border: 1px solid var(--rule); border-radius: 22px; padding: 8px 14px; color: #ffd96b; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.08s, border-color 0.12s, color 0.12s; }
+#save-fab:hover:not(:disabled) { border-color: #ffd96b; transform: translateY(-1px); }
+#save-fab:disabled { opacity: 0.4; cursor: default; color: var(--muted); }
+#save-fab.saved { color: var(--accent); border-color: var(--accent); }
+.jb.back { font-weight: 400; color: var(--muted); padding: 10px 14px; }
+.jb.back:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+#dock { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 14px; border-top: 1px solid var(--rule); background: var(--bg); }
+.btn { font-family: var(--mono); font-size: 12px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.primary:hover { color: #04110e; }
+.btn.primary:disabled { background: #1c3a34; color: #6b8f88; border-color: #1c3a34; }
+#dock .left, #dock .right { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+
+#results { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(5,6,8,0.88); backdrop-filter: blur(6px); padding: 20px; z-index: 20; }
+#results.show { display: flex; }
+#results .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 14px; max-width: 640px; width: 100%; padding: 22px; max-height: calc(100vh - 40px); overflow-y: auto; }
+#results h2 { margin: 0 0 4px; font-size: 18px; } #results h2 b { color: var(--accent); }
+#results .sub { font-size: 12px; color: var(--muted); margin: 0 0 18px; }
+#results h3 { margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); font-weight: 600; }
+#weights { display: grid; grid-template-columns: 110px 1fr 80px; gap: 4px 10px; font-size: 11px; align-items: center; }
+#weights .k { color: var(--fg); }
+#weights .bar { background: #000; border: 1px solid var(--rule); border-radius: 5px; height: 10px; position: relative; overflow: hidden; }
+#weights .bar i { position: absolute; left: 50%; top: 0; bottom: 0; background: var(--accent); }
+#weights .bar i.neg { background: var(--hot); }
+#weights .v { font-family: var(--mono); color: var(--muted); text-align: right; }
+#code { width: 100%; min-height: 70px; box-sizing: border-box; font-family: var(--mono); font-size: 11px; line-height: 1.5; background: #000; color: var(--accent); border: 1px solid var(--rule); border-radius: 7px; padding: 9px 11px; resize: vertical; margin-top: 6px; white-space: pre; word-wrap: normal; }
+#results .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.fade { color: var(--muted); font-size: 11px; line-height: 1.6; margin-top: 14px; }
+
+#fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; z-index: 30; background: var(--bg); }
+
+@media (max-width: 600px) {
+  :root { --chrome: 220px; }
+  .judge-buttons { width: calc(100% - 28px); justify-content: center; }
+  .jb { flex: 1 1 0; padding: 10px 6px; }
+}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · hot or not</span>
+  <span class="spacer"></span>
+  <span class="counter" id="counter">&nbsp;</span>
+  <span id="auth"></span>
+  <a class="pill" href="./breed.html">breeder ↗</a>
+  <a class="pill" href="./forest.html">forest ↗</a>
+</div>
+
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="status-overlay" hidden></div>
+  <button id="save-fab" type="button" title="Save this organism to your PDS (S)" disabled>★ save<span style="opacity:0.6;font-weight:400;">S</span></button>
+  <div class="judge-buttons">
+    <button class="jb back" id="btn-back" title="Back to the previous organism (B)" disabled>↶<span class="k">B</span></button>
+    <button class="jb not" id="btn-not" disabled>NOT<span class="k">J</span></button>
+    <button class="jb skip" id="btn-skip" disabled>skip<span class="k">␣</span></button>
+    <button class="jb hot" id="btn-hot" disabled>HOT<span class="k">K</span></button>
+  </div>
+</div>
+
+<div id="dock">
+  <div class="left">
+    <button class="btn" id="btn-fresh">↻ fresh queue</button>
+    <span style="font-size:11px;color:var(--muted);">queue size <input type="number" id="queue-size" min="10" max="200" value="40" style="width:54px;background:#000;color:var(--fg);border:1px solid var(--rule);border-radius:5px;padding:3px 6px;font-family:var(--mono);font-size:11px;"></span>
+  </div>
+  <div class="right">
+    <span class="counter" id="counter2"></span>
+    <button class="btn primary" id="btn-train" disabled>train rubric</button>
+  </div>
+</div>
+
+<div id="results">
+  <div class="card">
+    <h2>your <b>rubric</b></h2>
+    <p class="sub" id="results-sub"></p>
+    <h3>separating hyperplane</h3>
+    <div id="weights"></div>
+    <h3>scoring code</h3>
+    <textarea id="code" spellcheck="false" readonly></textarea>
+    <div class="actions">
+      <button class="btn" id="btn-copy">copy code</button>
+      <button class="btn primary" id="btn-to-breed">open breeder with this rubric →</button>
+      <button class="btn" id="btn-active">use as active rubric</button>
+      <button class="btn" id="btn-publish" disabled>publish to forest</button>
+      <button class="btn" id="btn-judge-more">judge more</button>
+    </div>
+    <div id="publish-status" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>
+    <p class="fade">A linear classifier on the four canonical descriptor axes — the same ones the breeder and forest already use. If accuracy is much above 50%, your taste lives in the temperature plane and the breeder can chase it; if it hovers near 50%, your aesthetic lives somewhere richer than these four dimensions can capture (probable — start adding axes, or judge more to see the boundary).</p>
+  </div>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, randomConfig } from './engine.js';
+import { readDescriptors, fitness, fitness2, merge, FEATURES8 } from './descriptors.js';
+import { COLLECTION, RUBRIC_COLLECTION, ANCHOR } from './data.js';
+import { auth } from './authchip.js';
+
+const $ = (s) => document.querySelector(s);
+const FEATURES = FEATURES8; // ['fill','motion','struct','blowout','dfill','dmotion','dstruct','dblowout']
+
+let engine = null;
+try { engine = new FluoddityEngine(320, 32000); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'Hot or not needs WebGL2 with float render targets — ' + e.message; }
+
+if (engine) {
+  $('#stage').insertBefore(engine.cv, $('#cv'));
+  $('#cv').remove(); engine.cv.id = 'cv';
+
+  // ── queue + judgments ───────────────────────────────────────────────────────
+  let queue = [], idx = 0, judgments = []; // {config, features, label} label 0|1
+  let busy = false;
+  // Track which configs the user has already saved this session — keyed by the
+  // config object identity (queue holds the same references on back/forward,
+  // so the ✓ state survives revisiting an organism).
+  const savedSet = new Set();
+
+  async function settleAndShow(cfg) {
+    engine.load(cfg, 'hot' + Math.random()); engine.step(220); engine.render();
+    const a1 = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const v1 = readDescriptors(engine.cv, a1.lum);
+    // T2 snapshot ~200 steps later, then merge so the user is rating a config
+    // we've actually seen for two timepoints — and the rubric we fit gets the
+    // 4 deltas as additional axes.
+    engine.step(192); engine.render();
+    const a2 = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const v2 = readDescriptors(engine.cv, a2.lum);
+    return merge(v1, v2);
+  }
+
+  // Filter most-obviously-dead organisms so the user isn't wasting clicks on
+  // black squares, but let dim/sparse/boiling through — the user might find
+  // them hot, and that's the whole point.
+  async function fillQueueRandom(size) {
+    queue = [];
+    $('#status-overlay').hidden = false; $('#status-overlay').textContent = 'building queue…';
+    for (let i = 0; i < size; i++) {
+      let cfg, v, tries = 0;
+      do {
+        cfg = randomConfig();
+        engine.load(cfg, 'probe' + i + '_' + tries); engine.step(140); engine.render();
+        v = readDescriptors(engine.cv, null); tries++;
+      } while (v.fill < 0.006 && tries < 4);
+      queue.push(cfg);
+      $('#counter').innerHTML = `building queue · <b>${i + 1}/${size}</b>`;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    $('#status-overlay').hidden = true;
+  }
+
+  function loop() { if (busy || idx >= queue.length || !queue.length) return; engine.step(3); engine.render(); requestAnimationFrame(loop); }
+
+  async function advance() {
+    busy = true;
+    if (idx >= queue.length) { busy = false; updateUI(); return; }
+    const cfg = queue[idx];
+    const v = await settleAndShow(cfg);
+    queue[idx]._features = FEATURES.map(k => +v[k] || 0);
+    busy = false; updateUI(); requestAnimationFrame(loop);
+  }
+
+  function record(label) {
+    if (busy || idx >= queue.length) return;
+    if (label !== null) judgments.push({ config: queue[idx], features: queue[idx]._features, label });
+    idx++; updateUI();
+    if (idx < queue.length) advance(); else $('#status-overlay').hidden = false, $('#status-overlay').textContent = 'queue done — train your rubric';
+  }
+
+  function updateUI() {
+    const total = queue.length;
+    const hot = judgments.filter(j => j.label === 1).length;
+    const not = judgments.filter(j => j.label === 0).length;
+    const seen = idx;
+    $('#counter').innerHTML = `<b>${seen}/${total}</b> · <span style="color:var(--hot);">${hot} hot</span> · ${not} not`;
+    $('#counter2').textContent = '';
+    const ready = !busy && idx < total;
+    $('#btn-hot').disabled = $('#btn-not').disabled = $('#btn-skip').disabled = !ready;
+    $('#btn-back').disabled = busy || idx === 0;
+    $('#save-fab').disabled = busy || idx >= total || !auth.isLoggedIn();
+    // Reflect whether this organism has already been saved this session, so
+    // the user doesn't double-save by accident and can see what they've kept.
+    const cur = queue[idx];
+    $('#save-fab').classList.toggle('saved', !!(cur && savedSet.has(cur)));
+    if (cur && savedSet.has(cur)) $('#save-fab').innerHTML = 'saved ✓';
+    else $('#save-fab').innerHTML = '★ save<span style="opacity:0.6;font-weight:400;">S</span>';
+    const trainable = hot >= 4 && not >= 4;
+    $('#btn-train').disabled = !trainable;
+    $('#btn-train').textContent = trainable ? `train rubric (${hot}+${not})` : `train rubric · need ≥4 of each`;
+  }
+
+  // ── training: logistic regression on the 4 descriptor features ─────────────
+  function trainLogistic(F, y, iters = 300, lr = 0.25) {
+    const d = F[0].length, n = F.length;
+    const w = new Array(d).fill(0); let b = 0;
+    for (let it = 0; it < iters; it++) {
+      const gw = new Array(d).fill(0); let gb = 0;
+      for (let i = 0; i < n; i++) {
+        let z = b; for (let j = 0; j < d; j++) z += w[j] * F[i][j];
+        const e = 1 / (1 + Math.exp(-z)) - y[i];
+        for (let j = 0; j < d; j++) gw[j] += e * F[i][j];
+        gb += e;
+      }
+      for (let j = 0; j < d; j++) w[j] -= lr * gw[j] / n;
+      b -= lr * gb / n;
+    }
+    return { w, b };
+  }
+
+  let lastTrained = null;
+  async function sha12(s) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(buf)).slice(0, 6).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function trainRubric() {
+    const labeled = judgments.filter(j => j.features && j.label != null);
+    const F = labeled.map(j => j.features), y = labeled.map(j => j.label);
+    const { w, b } = trainLogistic(F, y);
+    let correct = 0;
+    for (let i = 0; i < y.length; i++) {
+      let z = b; for (let j = 0; j < w.length; j++) z += w[j] * F[i][j];
+      if ((z > 0 ? 1 : 0) === y[i]) correct++;
+    }
+    const acc = correct / Math.max(1, y.length);
+    const terms = w.map((wi, j) => `${wi.toFixed(4)} * v.${FEATURES[j]}`);
+    const code = `// ${y.length} judgments · ${(acc * 100).toFixed(1)}% training accuracy · hot/not hyperplane in descriptor space\nreturn ${terms.join(' + ')} + (${b.toFixed(4)});`;
+    lastTrained = { w, b, acc, n: y.length, code, scorerHash: await sha12(code), judgments: labeled };
+    showResults(lastTrained);
+    refreshRubricActions();
+  }
+
+  function showResults({ w, b, acc, n, code }) {
+    $('#results-sub').textContent = `${n} judgments · ${(acc * 100).toFixed(1)}% training accuracy`;
+    const wmax = Math.max(0.001, ...w.map(Math.abs));
+    $('#weights').innerHTML = w.map((wi, j) => {
+      const pct = (Math.abs(wi) / wmax) * 50;
+      const cls = wi < 0 ? 'neg' : '';
+      const left = wi < 0 ? (50 - pct) : 50;
+      return `<span class="k">v.${FEATURES[j]}</span><span class="bar"><i class="${cls}" style="left:${left}%;width:${pct}%;"></i></span><span class="v">${wi.toFixed(4)}</span>`;
+    }).join('') + `<span class="k">bias</span><span></span><span class="v">${b.toFixed(4)}</span>`;
+    $('#code').value = code;
+    $('#results').classList.add('show');
+  }
+
+  $('#btn-hot').addEventListener('click', () => record(1));
+  $('#btn-not').addEventListener('click', () => record(0));
+  $('#btn-skip').addEventListener('click', () => record(null));
+  $('#btn-train').addEventListener('click', trainRubric);
+
+  // ── Save the currently-displayed organism to the signed-in user's PDS as a
+  // standard com.minomobi.fluoddity.organism record — same lexicon the gallery
+  // enumerates. Independent of hot/not labeling: you can keep one regardless
+  // of how you voted, or save without voting at all.
+  async function saveCurrent() {
+    if (busy || idx >= queue.length) return;
+    const cfg = queue[idx];
+    if (!cfg) return;
+    if (!auth.isLoggedIn()) {
+      $('#status-overlay').hidden = false;
+      $('#status-overlay').textContent = 'sign in (top right) to save to your PDS';
+      setTimeout(() => { $('#status-overlay').hidden = true; }, 2400);
+      return;
+    }
+    if (savedSet.has(cfg)) return; // already saved this session
+    const fab = $('#save-fab');
+    const name = prompt('Name this organism (optional):') ?? '';
+    if (name === null) return; // user cancelled
+    const wasText = fab.innerHTML;
+    fab.disabled = true; fab.innerHTML = 'saving…';
+    try {
+      const record = {
+        $type: 'com.minomobi.fluoddity.organism',
+        name: name.trim() || `from hot or not · ${new Date().toLocaleDateString()}`,
+        schemaVersion: 1,
+        config: JSON.stringify(cfg),
+        gallery: ANCHOR,
+        createdAt: new Date().toISOString(),
+      };
+      await auth.pds.createRecord(COLLECTION, record);
+      savedSet.add(cfg);
+      fab.classList.add('saved'); fab.innerHTML = 'saved ✓';
+    } catch (e) {
+      fab.innerHTML = wasText;
+      $('#status-overlay').hidden = false;
+      $('#status-overlay').textContent = 'save failed: ' + (e.message || e);
+      setTimeout(() => { $('#status-overlay').hidden = true; }, 3000);
+    } finally {
+      updateUI();
+    }
+  }
+
+  // ── Step back one organism in the queue so a spectacular one you just blew
+  // past isn't lost. Pops the matching judgment if the previous step recorded
+  // a HOT or NOT (skips are never recorded), so you can re-judge or save fresh.
+  function back() {
+    if (busy || idx === 0) return;
+    idx--;
+    const last = judgments[judgments.length - 1];
+    if (last && last.config === queue[idx]) judgments.pop();
+    $('#status-overlay').hidden = true;
+    updateUI();
+    advance(); // re-show queue[idx]
+  }
+
+  $('#save-fab').addEventListener('click', saveCurrent);
+  $('#btn-back').addEventListener('click', back);
+  $('#btn-fresh').addEventListener('click', async () => { judgments = []; idx = 0; updateUI(); await fillQueueRandom(parseInt($('#queue-size').value, 10) || 40); advance(); });
+  $('#btn-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#code').value); $('#btn-copy').textContent = 'copied'; setTimeout(() => $('#btn-copy').textContent = 'copy code', 1200); } catch {} });
+  $('#btn-to-breed').addEventListener('click', () => {
+    const b64 = btoa(unescape(encodeURIComponent($('#code').value))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    location.href = './breed.html#rubric=' + b64;
+  });
+  $('#btn-active').addEventListener('click', () => {
+    if (!lastTrained) return;
+    try {
+      localStorage.setItem('fluoddity_active_rubric', JSON.stringify({
+        code: lastTrained.code, scorerHash: lastTrained.scorerHash,
+        savedAt: new Date().toISOString(), source: 'hot-or-not'
+      }));
+      $('#btn-active').textContent = 'active ✓';
+      $('#publish-status').textContent = 'set as active — landing hero and torus will sample by it';
+      setTimeout(() => { $('#btn-active').textContent = 'use as active rubric'; }, 2000);
+    } catch (e) { $('#publish-status').textContent = 'could not save: ' + e.message; }
+  });
+  $('#btn-publish').addEventListener('click', async () => {
+    if (!lastTrained || !auth.isLoggedIn()) return;
+    const btn = $('#btn-publish'); btn.disabled = true; const orig = btn.textContent; btn.textContent = 'publishing…';
+    try {
+      const record = {
+        $type: 'com.minomobi.fluoddity.rubric',
+        schemaVersion: 1,
+        scorer: lastTrained.code,
+        scorerHash: lastTrained.scorerHash,
+        features: FEATURES.slice(),
+        weights: JSON.stringify(lastTrained.w),
+        bias: JSON.stringify(lastTrained.b),
+        trainingSize: lastTrained.n,
+        accuracy: JSON.stringify(lastTrained.acc),
+        // The judgments themselves enable re-fitting in richer spaces; ~30 bytes each.
+        judgments: JSON.stringify(lastTrained.judgments.map(j => [j.label, ...j.features])),
+        rubricForest: ANCHOR,
+        createdAt: new Date().toISOString(),
+      };
+      const res = await auth.pds.createRecord(RUBRIC_COLLECTION, record);
+      const uri = res && (res.uri || (res.data && res.data.uri));
+      $('#publish-status').innerHTML = uri
+        ? `published · <a href="./forest.html?tab=rubrics" style="color:var(--accent);">see it in the forest</a>`
+        : 'published';
+      btn.textContent = 'published ✓';
+    } catch (e) {
+      $('#publish-status').textContent = 'error: ' + (e.message || e);
+      btn.disabled = false; btn.textContent = orig;
+    }
+  });
+  function refreshRubricActions() {
+    const signed = !!auth.isLoggedIn();
+    const ready = !!lastTrained;
+    $('#btn-active').disabled = !ready;
+    $('#btn-publish').disabled = !ready || !signed;
+    if (ready && !signed) $('#publish-status').textContent = 'sign in (top right) to publish';
+  }
+  auth.onAuthChange(() => { refreshRubricActions(); updateUI(); }); // also re-enable the save button on sign-in
+  $('#btn-judge-more').addEventListener('click', () => { $('#results').classList.remove('show'); $('#status-overlay').hidden = true; });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'k' || e.key === 'K' || e.key === 'ArrowRight') { e.preventDefault(); record(1); }
+    else if (e.key === 'j' || e.key === 'J' || e.key === 'ArrowLeft') { e.preventDefault(); record(0); }
+    else if (e.key === ' ') { e.preventDefault(); record(null); }
+    else if (e.key === 's' || e.key === 'S') { e.preventDefault(); saveCurrent(); }
+    else if (e.key === 'b' || e.key === 'B') { e.preventDefault(); back(); }
+  });
+
+  // ── boot: queue from sessionStorage (set by the breeder) or random ─────────
+  (async function boot() {
+    let initialQueue = null;
+    try {
+      const stash = sessionStorage.getItem('fluoddity_hot_queue');
+      if (stash) { const arr = JSON.parse(stash); if (Array.isArray(arr) && arr.length) initialQueue = arr; sessionStorage.removeItem('fluoddity_hot_queue'); }
+    } catch {}
+    if (initialQueue) { queue = initialQueue; updateUI(); advance(); }
+    else { await fillQueueRandom(parseInt($('#queue-size').value, 10) || 40); advance(); }
+  })();
+}
+</script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
+</body>
+</html>

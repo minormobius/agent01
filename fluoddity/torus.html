@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — on a torus</title>
+<meta name="description" content="A Fluoddity organism on its actual home: a torus. The simulation already runs with toroidal boundary conditions — this just unfurls the wrap onto a 3D donut so you can see the trails cross the seam in real time. Click for another, drag to orbit.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/torus.html">
+<meta property="og:title" content="fluoddity — on a torus">
+<meta property="og:description" content="A Fluoddity organism on its actual home: a torus. The wrap is real — trails cross the seam continuously.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); background: rgba(5,6,8,0.6); backdrop-filter: blur(8px); z-index: 5; overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
+.pill:hover { color: var(--accent); border-color: var(--accent); }
+
+#stage { flex: 1 1 auto; min-height: 0; position: relative; touch-action: none; }
+#stage canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+#stage canvas:active { cursor: grabbing; }
+
+#dock { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 8px; padding: 8px; background: rgba(14,16,20,0.8); backdrop-filter: blur(10px); border: 1px solid var(--rule); border-radius: 12px; z-index: 4; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 28px); }
+.btn { font-family: var(--mono); font-size: 12px; color: var(--fg); background: transparent; border: 1px solid var(--rule); border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.primary:hover { color: #04110e; }
+.initpick { display: inline-flex; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: rgba(0,0,0,0.4); }
+.initpick button { font: inherit; font-family: var(--mono); font-size: 11px; cursor: pointer; color: var(--muted); background: transparent; border: 0; padding: 6px 10px; }
+.initpick button + button { border-left: 1px solid var(--rule); }
+.initpick button:hover { color: var(--accent); }
+.initpick button.on { color: #04110e; background: var(--accent); font-weight: 600; }
+
+#hint { position: absolute; top: 60px; left: 16px; font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border-radius: 6px; padding: 4px 8px; pointer-events: none; }
+#fatal { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; z-index: 6; background: var(--bg); }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · on a torus</span>
+  <span class="spacer"></span>
+  <span id="auth"></span>
+  <a class="pill" href="./arena.html">arena ↗</a>
+  <a class="pill" href="./gallery.html">gallery ↗</a>
+</div>
+
+<div id="stage">
+  <div id="hint">drag to orbit · scroll to zoom · trails wrap across the seam</div>
+  <div id="dock">
+    <span class="initpick" id="initpick"></span>
+    <button class="btn" id="btn-another">↻ another</button>
+    <button class="btn primary" id="btn-open">open in playground →</button>
+  </div>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, randomConfig } from './engine.js';
+import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
+import { COLLECTION, resolvePds, getRecord, parseConfig, parseAtUri } from './data.js';
+
+const $ = (s) => document.querySelector(s);
+
+let engine = null;
+try { engine = new FluoddityEngine(384, 45000); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'The torus needs WebGL2 with float render targets — ' + e.message; }
+
+if (engine) {
+  const gl = engine.gl;
+  $('#stage').appendChild(engine.cv);
+
+  // ── mat4 (column-major, just what we need) ──────────────────────────────────
+  const mat4 = {
+    perspective: (fov, aspect, n, f) => { const t = 1 / Math.tan(fov / 2); return new Float32Array([t/aspect,0,0,0, 0,t,0,0, 0,0,(f+n)/(n-f),-1, 0,0,(2*f*n)/(n-f),0]); },
+    lookAt: (e, c, u) => {
+      const z0=e[0]-c[0],z1=e[1]-c[1],z2=e[2]-c[2]; const zl=Math.hypot(z0,z1,z2); const Z=[z0/zl,z1/zl,z2/zl];
+      const X0=u[1]*Z[2]-u[2]*Z[1], X1=u[2]*Z[0]-u[0]*Z[2], X2=u[0]*Z[1]-u[1]*Z[0]; const xl=Math.hypot(X0,X1,X2)||1; const X=[X0/xl,X1/xl,X2/xl];
+      const Y=[Z[1]*X[2]-Z[2]*X[1], Z[2]*X[0]-Z[0]*X[2], Z[0]*X[1]-Z[1]*X[0]];
+      return new Float32Array([X[0],Y[0],Z[0],0, X[1],Y[1],Z[1],0, X[2],Y[2],Z[2],0, -(X[0]*e[0]+X[1]*e[1]+X[2]*e[2]), -(Y[0]*e[0]+Y[1]*e[1]+Y[2]*e[2]), -(Z[0]*e[0]+Z[1]*e[1]+Z[2]*e[2]), 1]);
+    },
+    mul: (a, b) => { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) o[i*4+j] = a[0*4+j]*b[i*4+0] + a[1*4+j]*b[i*4+1] + a[2*4+j]*b[i*4+2] + a[3*4+j]*b[i*4+3]; return o; },
+  };
+
+  // ── torus mesh (uv only; vertex shader does the geometry) ──────────────────
+  const NU = 128, NV = 40;
+  const vs = new Float32Array((NU+1)*(NV+1)*2);
+  for (let v = 0; v <= NV; v++) for (let u = 0; u <= NU; u++) { const k = (v*(NU+1)+u)*2; vs[k] = u/NU; vs[k+1] = v/NV; }
+  const idx = new Uint32Array(NU*NV*6); { let p = 0; for (let v = 0; v < NV; v++) for (let u = 0; u < NU; u++) { const i0 = v*(NU+1)+u, i1 = i0+1, i2 = i0+(NU+1), i3 = i2+1; idx[p++]=i0; idx[p++]=i2; idx[p++]=i1; idx[p++]=i1; idx[p++]=i2; idx[p++]=i3; } }
+
+  // ── torus shader (samples cTex with TRUE periodic boundary via fract+mod) ──
+  const TVS = `#version 300 es
+precision highp float;
+in vec2 a_uv;
+uniform mat4 u_mvp; uniform float u_R, u_r;
+out vec2 v_uv; out vec3 v_normal;
+void main(){
+  float theta = a_uv.x * 6.28318530718;
+  float phi   = a_uv.y * 6.28318530718;
+  float ct = cos(theta), st = sin(theta), cp = cos(phi), sp = sin(phi);
+  vec3 pos = vec3((u_R + u_r*cp)*ct, u_r*sp, (u_R + u_r*cp)*st);
+  v_normal = vec3(cp*ct, sp, cp*st);
+  v_uv = a_uv;
+  gl_Position = u_mvp * vec4(pos, 1.0);
+}`;
+
+  const TFS = `#version 300 es
+precision highp float;
+in vec2 v_uv; in vec3 v_normal;
+uniform sampler2D u_canvas; uniform float u_ink, u_hue;
+out vec4 outColor;
+#define SOFT 3.9
+#define BRIGHT 2.0
+vec3 hsv2rgb(vec3 c){ vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz)*6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }
+// Custom bilinear sample with TRUE periodic boundary — independent of the
+// texture's GL wrap mode, so the seam is invisible even though cTex is created
+// with CLAMP_TO_EDGE.
+vec4 sampleRepeat(vec2 uv){
+  vec2 sz = vec2(textureSize(u_canvas, 0));
+  vec2 p = fract(uv) * sz - 0.5;
+  vec2 i = floor(p), f = p - i;
+  ivec2 sz1 = ivec2(sz) - ivec2(1);
+  ivec2 i0 = ivec2(i); ivec2 i1 = i0 + ivec2(1);
+  // wrap (i is non-negative because of fract, just need wrap at high end)
+  i0 = ivec2(mod(vec2(i0), sz));
+  i1 = ivec2(mod(vec2(i1), sz));
+  vec4 a = texelFetch(u_canvas, ivec2(i0.x, i0.y), 0);
+  vec4 b = texelFetch(u_canvas, ivec2(i1.x, i0.y), 0);
+  vec4 c = texelFetch(u_canvas, ivec2(i0.x, i1.y), 0);
+  vec4 d = texelFetch(u_canvas, ivec2(i1.x, i1.y), 0);
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+void main(){
+  vec4 fld = sampleRepeat(v_uv);
+  float hue = fract(atan(fld.y, fld.x)/(2.0*3.14159265) + u_hue);
+  vec3 col = hsv2rgb(vec3(hue, 0.78, length(fld.xy))) * u_ink * 8.0;
+  float len = length(col); if(len > 0.0) col /= pow(len, 0.575);
+  float Ll = length(col); if(Ll > 0.0) col *= BRIGHT*asinh(Ll*SOFT)/(Ll*SOFT);
+  // subtle shading so the 3D form reads even on dark patches
+  float lambert = clamp(dot(normalize(v_normal), normalize(vec3(0.35, 0.7, 0.45))), 0.0, 1.0);
+  col *= 0.6 + 0.6 * lambert;
+  outColor = vec4(col, 1.0);
+}`;
+
+  const compile = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, TVS));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, TFS));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+
+  const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, vs, gl.STATIC_DRAW);
+  const al = gl.getAttribLocation(prog, 'a_uv'); gl.enableVertexAttribArray(al); gl.vertexAttribPointer(al, 2, gl.FLOAT, false, 0, 0);
+  const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+  const uMVP = gl.getUniformLocation(prog, 'u_mvp');
+  const uR = gl.getUniformLocation(prog, 'u_R'), ur = gl.getUniformLocation(prog, 'u_r');
+  const uCanvas = gl.getUniformLocation(prog, 'u_canvas'), uInk = gl.getUniformLocation(prog, 'u_ink'), uHue = gl.getUniformLocation(prog, 'u_hue');
+
+  // ── orbit camera ────────────────────────────────────────────────────────────
+  let yaw = 0.6, pitch = 0.45, dist = 6.2;
+  // One pointer orbits; two pointers pinch-zoom (their distance ratio drives the
+  // camera dist). Switching between modes preserves orientation by re-anchoring
+  // the drag to whichever finger is left when the second one lifts.
+  const cv = engine.cv;
+  const pointers = new Map(); // pointerId -> {x, y}
+  let drag = null, pinch = null, lastInteract = performance.now();
+  const distOf = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const clampDist = (d) => Math.max(3.5, Math.min(14, d));
+  cv.addEventListener('pointerdown', (e) => {
+    cv.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastInteract = performance.now();
+    if (pointers.size === 1) { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; pinch = null; }
+    else if (pointers.size === 2) { pinch = { startDist: distOf() || 1, startCamDist: dist }; drag = null; }
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastInteract = performance.now();
+    if (pointers.size >= 2 && pinch) {
+      const d = distOf(); if (d > 0) dist = clampDist(pinch.startCamDist * pinch.startDist / d);
+    } else if (pointers.size === 1 && drag) {
+      yaw = drag.yaw - (e.clientX - drag.x) * 0.008;
+      pitch = Math.max(-1.4, Math.min(1.4, drag.pitch - (e.clientY - drag.y) * 0.008));
+    }
+  });
+  const release = (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 1) { const [p] = [...pointers.values()]; drag = { x: p.x, y: p.y, yaw, pitch }; } // re-anchor remaining finger
+    else if (pointers.size === 0) drag = null;
+  };
+  cv.addEventListener('pointerup', release);
+  cv.addEventListener('pointercancel', release);
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); dist = clampDist(dist * Math.exp(e.deltaY * 0.0012)); lastInteract = performance.now(); }, { passive: false });
+
+  // ── lively organism picker (best of N by fitness) ───────────────────────────
+  let cfg = null, source = null; // source = {kind:'random'} | {kind:'shared', did, rkey} | {kind:'hash'}
+  const encodeCfg = (c) => btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  // Filtered phase space: viable-range randomConfig + best-of-N by fitness, with
+  // a quality floor and a couple of retry rounds. A single round of N is the
+  // common case; if everything in this batch is still meh (bestFit < FLOOR), we
+  // draw another N and keep the better. Caps the worst-case wait while pushing
+  // the typical result well past "least-bad" into "actually interesting."
+  // If an active rubric is set (from hot or not / forest), score candidates by
+  // it instead of the default temperature fitness. The floor + retry rounds
+  // still apply, on the rubric's scale.
+  function activeRubric() {
+    try { const s = localStorage.getItem('fluoddity_active_rubric'); if (!s) return null;
+      const r = JSON.parse(s); if (!r || !r.code) return null;
+      return new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', r.code);
+    } catch { return null; }
+  }
+
+  // Init distribution picker (0 grid, 1 scatter, 2 ring) — independent of the
+  // organism's law. Persists per origin; reload current organism on change.
+  let selectedInit = 0;
+  try { const s = +localStorage.getItem('fluoddity_init'); if (s === 0 || s === 1 || s === 2) selectedInit = s; } catch {}
+  (function buildInitPicker() {
+    const pick = $('#initpick');
+    ['grid', 'scatter', 'ring'].forEach((label, i) => {
+      const b = document.createElement('button');
+      b.textContent = label; b.dataset.i = i; b.className = (i === selectedInit ? 'on' : '');
+      b.addEventListener('click', () => {
+        selectedInit = i;
+        pick.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
+        try { localStorage.setItem('fluoddity_init', String(i)); } catch {}
+        if (cfg) { cfg.initial_conditions = i; engine.load(cfg, 'init' + Math.random()); }
+      });
+      pick.appendChild(b);
+    });
+  })();
+  async function pickLively() {
+    const rubric = activeRubric();
+    const N = 12, FLOOR = rubric ? -Infinity : 0.15, ROUNDS = 3; // rubric scale unknown; don't gate by absolute floor
+    let best = null, bestScore = -Infinity;
+    const hint = $('#hint'), origHint = hint.textContent;
+    hint.textContent = rubric ? 'finding one your rubric likes…' : 'finding an interesting one…';
+    for (let round = 0; round < ROUNDS; round++) {
+      for (let i = 0; i < N; i++) {
+        const c = randomConfig();
+        c.initial_conditions = selectedInit;
+        engine.load(c, 'pick' + round + '_' + i + '_' + Math.random());
+        // T1
+        engine.step(220); engine.render();
+        const a1 = readDescriptors(engine.cv, null);
+        engine.step(8); engine.render();
+        const v1 = readDescriptors(engine.cv, a1.lum);
+        // T2
+        engine.step(192); engine.render();
+        const a2 = readDescriptors(engine.cv, null);
+        engine.step(8); engine.render();
+        const v2 = readDescriptors(engine.cv, a2.lum);
+        const v = merge(v1, v2);
+        const fitBase = fitness2(v1, v2);
+        let s = fitBase;
+        if (rubric) { try { const x = rubric(v, fitBase, 0, 0, '', 0, c); if (Number.isFinite(x)) s = x; } catch {} }
+        if (s > bestScore) { bestScore = s; best = c; }
+      }
+      if (bestScore >= FLOOR) break;
+    }
+    hint.textContent = origHint;
+    return best;
+  }
+
+  async function loadFromUrl() {
+    const m = location.hash.match(/(?:^#|&)c=([^&]+)/);
+    if (m) {
+      try {
+        let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (b64.length % 4) b64 += '=';
+        return { cfg: JSON.parse(decodeURIComponent(escape(atob(b64)))), source: { kind: 'hash' } };
+      } catch { /* fall through */ }
+    }
+    const o = new URLSearchParams(location.search).get('o');
+    if (o) {
+      const [did, rkey] = o.split('/');
+      if (did && rkey) {
+        try {
+          const r = await getRecord(did, rkey);
+          const value = r && r.value;
+          const config = parseConfig(value);
+          if (config) return { cfg: config, source: { kind: 'shared', did, rkey } };
+        } catch { /* fall through */ }
+      }
+    }
+    return null;
+  }
+
+  async function newOrganism() {
+    $('#btn-another').disabled = true;
+    cfg = await pickLively();
+    source = { kind: 'random' };
+    engine.load(cfg, 'show' + Math.random());
+    $('#btn-another').disabled = false;
+  }
+
+  // ── render loop ────────────────────────────────────────────────────────────
+  function drawTorus() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = cv.clientWidth * dpr, H = cv.clientHeight * dpr;
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    // auto-spin when idle > 1.6s
+    if (performance.now() - lastInteract > 1600) yaw += 0.0025;
+    const eye = [Math.cos(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.sin(yaw) * Math.cos(pitch) * dist];
+    const view = mat4.lookAt(eye, [0, 0, 0], [0, 1, 0]);
+    const proj = mat4.perspective(Math.PI / 4, W / Math.max(1, H), 0.1, 30);
+    const mvp = mat4.mul(proj, view);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, W, H);
+    gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE);
+    gl.clearColor(0.012, 0.014, 0.020, 1); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(uMVP, false, mvp);
+    gl.uniform1f(uR, 2.0); gl.uniform1f(ur, 0.78);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, engine.cTex[engine.cPing]); gl.uniform1i(uCanvas, 0);
+    gl.uniform1f(uInk, engine.cfg.ink); gl.uniform1f(uHue, engine.cfg.hue);
+    gl.bindVertexArray(vao);
+    gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_INT, 0);
+    gl.bindVertexArray(null);
+  }
+
+  let running = false;
+  function loop() { if (!running) return; engine.step(4); drawTorus(); requestAnimationFrame(loop); }
+
+  // ── buttons + boot ─────────────────────────────────────────────────────────
+  $('#btn-another').addEventListener('click', async () => {
+    running = false;
+    await newOrganism();
+    running = true; requestAnimationFrame(loop);
+  });
+  $('#btn-open').addEventListener('click', () => {
+    if (!cfg) return;
+    if (source && source.kind === 'shared') location.href = `./play/?o=${source.did}/${source.rkey}`;
+    else location.href = './play/#c=' + encodeCfg(cfg);
+  });
+
+  (async function boot() {
+    const loaded = await loadFromUrl();
+    if (loaded) {
+      cfg = loaded.cfg; source = loaded.source;
+      engine.load(cfg, 'show' + Math.random());
+      $('#btn-another').style.display = 'none'; // a specific organism was requested
+    } else {
+      await newOrganism();
+    }
+    running = true; requestAnimationFrame(loop);
+  })();
+}
+</script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
+</body>
+</html>

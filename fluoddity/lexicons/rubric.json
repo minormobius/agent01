@@ -1,0 +1,86 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.fluoddity.rubric",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A trained or hand-written scoring rubric for Fluoddity organisms. The scoring code is a JS function body in the same shape the breeder's BYO scoring textarea accepts (returns a number from `v`, `fit`, `nov`, `align`, `verdict`, `gen`, `config`). Most rubrics are linear hyperplanes fit by hot-or-not on the canonical descriptor 4-vec, but the schema lets you publish anything that returns a number. Other surfaces can subscribe to a rubric as their active scoring lens — the playground, landing hero, torus, and arena will then sample from it instead of the default temperature fitness.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["scorer", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 600,
+            "maxGraphemes": 120,
+            "description": "Human label for the rubric — e.g. 'reward structure, punish blowout' or 'alice's hot/not, 2026-05-29'."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "maxGraphemes": 400,
+            "description": "Optional longer-form explanation of what this rubric rewards or how it was made."
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "description": "Rubric schema version, so future feature-space changes can migrate old rubrics."
+          },
+          "scorer": {
+            "type": "string",
+            "maxLength": 8000,
+            "description": "JS function body. Variables in scope: v (descriptors: fill motion blowout struct), fit (default fitness), nov (novelty), align (momentum cos), verdict, gen, config. Must return a number."
+          },
+          "scorerHash": {
+            "type": "string",
+            "maxLength": 16,
+            "description": "First 12 hex chars of sha-256(scorer). Lets the forest group rubrics that are byte-identical across users, and lets expeditions cross-reference the rubric they used."
+          },
+          "features": {
+            "type": "array",
+            "maxLength": 32,
+            "items": { "type": "string", "maxLength": 64 },
+            "description": "Names of the input features the scorer reads from `v` (or elsewhere). Lets viewers display a per-feature bar chart even without re-training. Tier-0 default is the 8-axis ['fill','motion','struct','blowout','dfill','dmotion','dstruct','dblowout'] — four static descriptors at T1 plus four deltas (T2 - T1). The four delta axes catch what a single-frame readout misses (decaying organisms, sustained dynamics, transients) and let a linear hyperplane separate hot/not on richer ground."
+          },
+          "weights": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "Optional JSON-stringified array of per-feature weights (for linear rubrics — same order as `features`)."
+          },
+          "bias": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Optional JSON-stringified scalar bias for linear rubrics."
+          },
+          "trainingSize": {
+            "type": "integer",
+            "description": "Number of judgments the rubric was fit on (0 for hand-written)."
+          },
+          "judgments": {
+            "type": "string",
+            "maxLength": 80000,
+            "description": "Optional JSON array of the raw judgments: [[label, fill, motion, struct, blowout], ...]. Lets others re-fit the rubric in a richer feature space or audit your training set."
+          },
+          "accuracy": {
+            "type": "string",
+            "maxLength": 30,
+            "description": "Optional JSON-stringified accuracy (0..1) on training data."
+          },
+          "parent": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Optional at-uri of a previous rubric this one was derived from (e.g. retrained on more judgments)."
+          },
+          "rubricForest": {
+            "type": "string",
+            "description": "Constant link target (a DID) so Constellation can enumerate every rubric across users. Always did:web:g.mino.mobi — the same anchor the gallery and expeditions use, but under a different field path so the three collections enumerate independently."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

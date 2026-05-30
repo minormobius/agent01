@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity garden — breeder lab</title>
+<meta name="description" content="An automated interactive-evolution loop over Fluoddity organisms. Deterministic fitness selects; exploratory noise, behavioral diversity, and narrative momentum shape the search. Runs entirely in your browser.">
+<style>
+:root {
+  --bg: #050608; --panel-solid: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --accent-dim: rgba(56,225,192,0.16);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--mono); height: 100%; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+#topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: rgba(5,6,8,0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule); }
+.crumb { color: var(--muted); font-size: 13px; } .crumb:hover { color: var(--accent); }
+.title { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { background: var(--panel-solid); border: 1px solid var(--rule); border-radius: 7px; padding: 6px 10px; font-size: 12px; color: var(--fg); }
+.pill:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+#wrap { display: flex; height: calc(100vh - 49px); }
+#side { width: 280px; flex: none; border-right: 1px solid var(--rule); padding: 14px; overflow-y: auto; }
+#main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#popwrap { flex: 1 1 56%; overflow-y: auto; padding: 14px; min-height: 0; }
+#mapwrap { flex: 1 1 44%; border-top: 1px solid var(--rule); position: relative; min-height: 0; }
+#map { display: block; width: 100%; height: 100%; }
+#maplabel { position: absolute; top: 8px; left: 12px; font-size: 10px; color: var(--muted); pointer-events: none; }
+h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 16px 0 8px; }
+h3:first-child { margin-top: 0; }
+.btnrow { display: flex; gap: 6px; margin: 6px 0; }
+.btn { flex: 1; background: var(--panel-solid); color: var(--fg); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 8px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.ctl { margin: 12px 0; }
+.ctl label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.ctl label b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+.ctl .desc { font-size: 9.5px; color: var(--muted); line-height: 1.4; margin-top: 3px; opacity: 0.8; }
+.stat { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+.stat .k { color: var(--muted); } .stat .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+#pop { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.pcard { border: 2px solid #333; border-radius: 10px; overflow: hidden; cursor: pointer; background: #000; transition: transform 0.1s; }
+.pcard:hover { transform: translateY(-2px); }
+.pcard canvas { display: block; width: 100%; aspect-ratio: 1; }
+.pmeta { display: flex; justify-content: space-between; padding: 4px 6px; font-size: 10px; background: var(--panel-solid); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.legend .li { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); }
+.legend .sw { width: 9px; height: 9px; border-radius: 50%; }
+.note { font-size: 9.5px; color: var(--muted); line-height: 1.5; margin-top: 10px; }
+#cs-wrap { margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 10px; }
+#cs-wrap > summary { cursor: pointer; font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); font-weight: 600; }
+#cs-wrap[open] > summary { margin-bottom: 4px; }
+#cs-wrap .desc code { background: rgba(56,225,192,0.10); color: var(--accent); padding: 0 3px; border-radius: 3px; font-family: var(--mono); font-size: 9.5px; }
+#cs-code { width: 100%; min-height: 110px; box-sizing: border-box; font-family: var(--mono); font-size: 11px; line-height: 1.4; background: #000; color: #c8ccd4; border: 1px solid var(--rule); border-radius: 6px; padding: 6px 8px; resize: vertical; }
+#cs-code:focus { outline: 0; border-color: var(--accent); }
+#cs-status.ok { color: var(--accent); }
+#cs-status.err { color: #e0556b; }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="./gallery.html">← gallery</a>
+  <span class="title"><b>fluoddity</b> breeder lab</span>
+  <span class="spacer"></span>
+  <span id="auth"></span>
+  <a class="pill" href="./select.html">selection ↗</a>
+  <a class="pill" href="./map.html">phylogeny ↗</a>
+  <a class="pill" href="./forest.html">forest ↗</a>
+  <a class="pill" href="./play/">+ new organism</a>
+</div>
+<div id="wrap">
+  <div id="side">
+    <h3>run</h3>
+    <div class="btnrow">
+      <button class="btn primary" id="btn-run">run</button>
+      <button class="btn" id="btn-step">step</button>
+    </div>
+    <div class="btnrow"><button class="btn" id="btn-seed">↻ new seed population</button></div>
+    <div class="btnrow"><button class="btn" id="btn-publish" disabled>publish run → forest</button></div>
+    <div class="btnrow"><button class="btn" id="btn-hotornot" disabled>judge in hot or not →</button></div>
+    <div class="note" id="publish-status"></div>
+    <div class="stat"><span class="k">generation</span><span class="v" id="s-gen">—</span></div>
+    <div class="stat"><span class="k">best fitness</span><span class="v" id="s-best">—</span></div>
+    <div class="stat"><span class="k">lineage size</span><span class="v" id="s-size">—</span></div>
+
+    <h3>ingredients</h3>
+    <div class="ctl">
+      <label>exploratory noise <b id="v-tau">0.25</b></label>
+      <input type="range" id="k-tau" min="0.02" max="1" step="0.01" value="0.25">
+      <div class="desc">softmax temperature — high = pick parents almost at random (explore); low = greedily breed the fittest.</div>
+    </div>
+    <div class="ctl">
+      <label>behavioral diversity <b id="v-lambda">0.4</b></label>
+      <input type="range" id="k-lambda" min="0" max="1.5" step="0.05" value="0.4">
+      <div class="desc">novelty bonus — reward organisms far from the rest in phenotype space (novelty search).</div>
+    </div>
+    <div class="ctl">
+      <label>narrative momentum <b id="v-mu">0.3</b></label>
+      <input type="range" id="k-mu" min="0" max="1.5" step="0.05" value="0.3">
+      <div class="desc">memory — bias toward continuing the recent direction of travel through phenotype space.</div>
+    </div>
+    <div class="ctl">
+      <label>mutation rate <b id="v-mut">1.0</b></label>
+      <input type="range" id="k-mut" min="0.1" max="3" step="0.1" value="1.0">
+      <div class="desc">size of parameter jitter per generation (plus rare rule-seed jumps = bifurcations).</div>
+    </div>
+    <div class="ctl">
+      <label>population <b id="v-pop">12</b></label>
+      <input type="range" id="k-pop" min="6" max="24" step="1" value="12">
+    </div>
+
+    <details id="cs-wrap">
+      <summary>custom scoring</summary>
+      <div class="desc" style="margin:6px 0 4px;">Bring your own fitness. Function body — write <code>return &lt;number&gt;;</code> using any of: <code>v</code> (descriptors: <code>fill motion blowout struct</code>), <code>fit</code> (default fitness), <code>nov</code> (novelty), <code>align</code> (momentum cos), <code>verdict</code>, <code>gen</code>, <code>config</code>.</div>
+      <textarea id="cs-code" spellcheck="false" placeholder="// example — reward structure, punish blowout, nudge novelty
+return v.struct * 2 - v.blowout * 3 + 0.3 * nov;"></textarea>
+      <div class="btnrow" style="gap:6px;">
+        <button class="btn" id="cs-apply">apply</button>
+        <button class="btn" id="cs-reset">reset</button>
+        <span id="cs-status" class="desc" style="flex:1;align-self:center;margin:0;"></span>
+      </div>
+    </details>
+
+    <h3>legend</h3>
+    <div class="legend" id="legend"></div>
+    <div class="note" id="who">Everything here runs in this tab — your GPU renders each candidate, JS scores it. Nothing is saved until you click an organism to open it in the playground.</div>
+  </div>
+  <div id="main">
+    <div id="popwrap"><div id="pop"></div></div>
+    <div id="mapwrap"><canvas id="map"></canvas><div id="maplabel">phenotype phase space · parent → child lineage</div></div>
+  </div>
+</div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig, mutate } from './engine.js';
+import { readDescriptors, fitness, fitness2, merge, vec, dist, verdict, VIT_COLOR } from './descriptors.js';
+import { PhaseMap } from './phasemap.js';
+import { EXPEDITION_COLLECTION, ANCHOR } from './data.js';
+import { auth } from './authchip.js';
+
+const $ = (s) => document.querySelector(s);
+const raf = () => new Promise(r => requestAnimationFrame(r));
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+let engine = null;
+try { engine = new FluoddityEngine(256, 28000); }
+catch (e) { $('#who').textContent = 'This needs WebGL2 with float render targets — ' + e.message; }
+
+// An organism handed in from the playground / gallery as #c=<base64url(JSON)>:
+// gen 0 is seeded from it (one exact copy + gentle mutations) so you breed its
+// lineage rather than starting from random noise.
+function incomingSeed() {
+  const m = location.hash.match(/(?:^#|&)c=([^&]+)/);
+  if (!m) return null;
+  try { return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); }
+  catch { return null; }
+}
+const SEED = incomingSeed();
+function seedConfig(from) { const c = from ? Object.assign(defaultConfig(), from) : defaultConfig(); if (!from) c.rule_seed = Math.random(); return c; }
+
+// ── state ─────────────────────────────────────────────────────────────────────
+const knobs = { tau: 0.25, lambda: 0.4, mu: 0.3, mutRate: 1.0, popSize: 12 };
+let pop = [], allNodes = [], nodeById = new Map(), archive = [];
+let momentum = [0, 0, 0, 0], momMag = 0, prevGenMean = null, generation = 0, nextId = 1;
+let running = false, busy = false;
+
+// Expedition recording — every individual evaluated this run accumulates here
+// as a compact trajectory tuple. Reset on each seed(). Published as one record
+// per run via the "publish run" button. The trajectory is in canonical
+// descriptor coordinates (fill/motion/struct/blowout) so the forest can overlay
+// runs from different scorers on one map.
+let runTrajectory = [], runStartConfig = null, runStartedAt = null;
+const round4 = (x) => Math.round((+x || 0) * 10000) / 10000;
+
+async function evalInd(ind) {
+  if (!engine) { ind.fit = 0; ind.verdict = 'dead'; ind.vv = [0, 0, 0, 0]; return; }
+  engine.load(ind.config, ind.id);
+  // T1 snapshot: settle 280 + 8 for the small-window motion read.
+  engine.step(280); engine.render();
+  const a1 = readDescriptors(engine.cv, null);
+  engine.step(8); engine.render();
+  const v1 = readDescriptors(engine.cv, a1.lum);
+  // T2 snapshot: another ~200 steps. Catches organisms that look alive at T1
+  // but die or collapse soon after.
+  engine.step(192); engine.render();
+  const a2 = readDescriptors(engine.cv, null);
+  engine.step(8); engine.render();
+  const v2 = readDescriptors(engine.cv, a2.lum);
+  ind.v = merge(v1, v2);                  // back-compat (v.fill etc.) + deltas
+  ind.fit = fitness2(v1, v2);
+  ind.verdict = verdict(v2, false);
+  ind.vv = vec(v2);                       // late snapshot is the honest one
+  if (!ind.thumb) { ind.thumb = document.createElement('canvas'); ind.thumb.width = ind.thumb.height = 96; }
+  ind.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
+  archive.push(ind.vv); if (archive.length > 500) archive.shift();
+  // Trajectory tuple grows from 8 → 12 fields: 4 static + 4 deltas. Forest
+  // viewers that only read indices 4..7 (the static descriptors) keep working.
+  if (runTrajectory.length < 4000) runTrajectory.push([
+    ind.id, ind.parent, ind.gen | 0, round4(ind.fit),
+    round4(v1.fill), round4(v1.motion), round4(v1.struct), round4(v1.blowout),
+    round4(ind.v.dfill), round4(ind.v.dmotion), round4(ind.v.dstruct), round4(ind.v.dblowout),
+  ]);
+  updatePublishUI(); updateHotUI();
+}
+function noveltyOf(vv) {
+  if (!archive.length) return 0;
+  const ds = archive.map(a => dist(vv, a)).sort((x, y) => x - y);
+  const k = Math.min(6, ds.length); let s = 0; for (let i = 0; i < k; i++) s += ds[i]; return s / k;
+}
+function meanVec(vs) { const m = [0, 0, 0, 0]; for (const v of vs) for (let j = 0; j < 4; j++) m[j] += v[j]; return m.map(x => x / Math.max(1, vs.length)); }
+function cos(a, b) { let d = 0, na = 0, nb = 0; for (let j = 0; j < a.length; j++) { d += a[j] * b[j]; na += a[j] * a[j]; nb += b[j] * b[j]; } return (na && nb) ? d / Math.sqrt(na * nb) : 0; }
+
+// Optional user-supplied scoring. Compiled from the textarea below; called per
+// individual at parent-selection time. If it throws or returns a non-finite
+// number, we silently fall back to the default composite for that ind.
+let customScore = null;
+
+function selectParents(n) {
+  const tau = Math.max(0.02, knobs.tau);
+  const scores = pop.map(ind => {
+    const nov = noveltyOf(ind.vv);
+    let align = 0;
+    if (prevGenMean && momMag > 1e-6) align = cos(ind.vv.map((x, j) => x - prevGenMean[j]), momentum);
+    const def = (ind.fit || 0) + knobs.lambda * nov + knobs.mu * align;
+    if (!customScore) return def;
+    try {
+      const r = customScore(ind.v || {}, ind.fit || 0, nov, align, ind.verdict || '', ind.gen | 0, ind.config || {});
+      return Number.isFinite(r) ? r : def;
+    } catch { return def; }
+  });
+  const mx = Math.max(...scores);
+  const ex = scores.map(s => Math.exp((s - mx) / tau));
+  const sum = ex.reduce((a, b) => a + b, 0) || 1;
+  const probs = ex.map(e => e / sum);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let r = Math.random(), acc = 0, pick = pop[pop.length - 1];
+    for (let j = 0; j < pop.length; j++) { acc += probs[j]; if (r <= acc) { pick = pop[j]; break; } }
+    out.push(pick);
+  }
+  return out;
+}
+
+async function seed(from = null) {
+  pop = []; allNodes = []; nodeById.clear(); archive = []; momentum = [0, 0, 0, 0]; momMag = 0; prevGenMean = null; generation = 0; nextId = 1;
+  runTrajectory = []; runStartedAt = new Date().toISOString();
+  const N = knobs.popSize;
+  for (let i = 0; i < N; i++) {
+    const cfg = (from && i === 0) ? seedConfig(from) : mutate(seedConfig(from), from ? 0.6 : 1.5);
+    pop.push({ id: nextId++, config: cfg, parent: null, gen: 0 });
+  }
+  runStartConfig = pop[0].config; // representative starting point of this run
+  for (const ind of pop) { await evalInd(ind); allNodes.push(ind); nodeById.set(ind.id, ind); await raf(); }
+  drawPop(); drawMap(); updateHud();
+}
+
+async function nextGen() {
+  if (!pop.length) return;
+  const parents = selectParents(knobs.popSize);
+  const genMean = meanVec(pop.map(p => p.vv));
+  if (prevGenMean) momentum = momentum.map((m, j) => m * 0.5 + (genMean[j] - prevGenMean[j]) * 0.5);
+  prevGenMean = genMean; momMag = Math.hypot(...momentum);
+  generation++;
+  const children = parents.map(p => ({ id: nextId++, config: mutate(p.config, knobs.mutRate), parent: p.id, gen: generation }));
+  pop = children;
+  for (const ind of pop) {
+    await evalInd(ind); allNodes.push(ind); nodeById.set(ind.id, ind);
+    if (allNodes.length > 600) { const old = allNodes.shift(); nodeById.delete(old.id); }
+    await raf();
+  }
+  drawPop(); drawMap(); updateHud();
+}
+
+// ── views ─────────────────────────────────────────────────────────────────────
+const popEl = $('#pop');
+function drawPop() {
+  const sorted = [...pop].sort((a, b) => (b.fit || 0) - (a.fit || 0));
+  popEl.innerHTML = '';
+  for (const ind of sorted) {
+    const card = document.createElement('div'); card.className = 'pcard';
+    card.style.borderColor = VIT_COLOR[ind.verdict] || '#333';
+    const c = document.createElement('canvas'); c.width = c.height = 96;
+    if (ind.thumb) c.getContext('2d').drawImage(ind.thumb, 0, 0);
+    const meta = document.createElement('div'); meta.className = 'pmeta';
+    meta.innerHTML = `<span style="color:${VIT_COLOR[ind.verdict]}">${ind.verdict}</span><span>${(ind.fit || 0).toFixed(2)}</span>`;
+    card.append(c, meta);
+    card.title = 'open in playground (to save it)';
+    card.onclick = () => openInPlayground(ind.config);
+    popEl.append(card);
+  }
+}
+function openInPlayground(config) {
+  const json = JSON.stringify(config);
+  const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  window.open(`./play/#c=${b64}`, '_blank', 'noopener');
+}
+
+const phase = new PhaseMap($('#map'), {
+  colorOf: (n) => VIT_COLOR[n.verdict] || '#888',
+  thumbOf: (n) => n.thumb,
+  labelOf: (n) => ({ name: 'gen ' + n.gen, sub: `${n.verdict} · fit ${(n.fit || 0).toFixed(2)}` }),
+  isCurrent: (n) => n.gen === generation,
+  onClick: (n) => openInPlayground(n.config),
+});
+// Sign-stabilized PCA keeps orientation steady as the cloud grows, so we can
+// relayout every generation (new nodes appear) without the map flipping around.
+function drawMap() { phase.setNodes(allNodes); }
+
+function updateHud() {
+  $('#s-gen').textContent = generation;
+  $('#s-best').textContent = pop.length ? Math.max(...pop.map(p => p.fit || 0)).toFixed(2) : '—';
+  $('#s-size').textContent = allNodes.length;
+}
+$('#legend').innerHTML = ['alive', 'boiling', 'frozen', 'sparse', 'dead', 'blown out']
+  .map(k => `<div class="li"><span class="sw" style="background:${VIT_COLOR[k]}"></span>${k}</div>`).join('');
+
+// ── controls ──────────────────────────────────────────────────────────────────
+function bindSlider(id, key, label, fmt = (x) => x) {
+  const el = $(id), out = $(label);
+  el.addEventListener('input', () => { knobs[key] = parseFloat(el.value); out.textContent = fmt(knobs[key]); });
+}
+bindSlider('#k-tau', 'tau', '#v-tau', x => x.toFixed(2));
+bindSlider('#k-lambda', 'lambda', '#v-lambda', x => x.toFixed(2));
+bindSlider('#k-mu', 'mu', '#v-mu', x => x.toFixed(2));
+bindSlider('#k-mut', 'mutRate', '#v-mut', x => x.toFixed(1));
+$('#k-pop').addEventListener('input', () => { knobs.popSize = parseInt($('#k-pop').value, 10); $('#v-pop').textContent = knobs.popSize; });
+
+const runBtn = $('#btn-run');
+async function runLoop() {
+  running = true; runBtn.textContent = 'pause'; runBtn.classList.remove('primary');
+  while (running) { if (!pop.length) await seed(); await nextGen(); await sleep(100); }
+}
+runBtn.addEventListener('click', () => { if (running) { running = false; runBtn.textContent = 'run'; runBtn.classList.add('primary'); } else runLoop(); });
+$('#btn-step').addEventListener('click', async () => { if (running || busy) return; busy = true; if (!pop.length) await seed(); else await nextGen(); busy = false; });
+$('#btn-seed').addEventListener('click', async () => { running = false; runBtn.textContent = 'run'; runBtn.classList.add('primary'); if (busy) return; busy = true; await seed(); busy = false; });
+
+// ── Custom scoring: textarea → compiled scoring function ────────────────────
+// `new Function(...)` is just a body-eval with named params, so the user can
+// write a function body like `return v.struct - v.blowout;`. We don't share
+// the breeder's closure (cleaner sandbox: they can't accidentally clobber pop
+// or archive). On apply we run a smoke-test with dummy args; if it throws or
+// returns a non-number we surface the error and keep the prior compiled fn.
+const CS_KEY = 'fluoddity_breed_custom_score';
+const csCode = $('#cs-code'), csStatus = $('#cs-status');
+function applyCustomScore(code) {
+  const src = (code || '').trim();
+  if (!src) { customScore = null; csStatus.textContent = 'using default fitness'; csStatus.className = 'desc'; return true; }
+  try {
+    const fn = new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', src);
+    // Smoke-test v: include all 8 tier-0 features (4 static + 4 deltas) plus
+    // the T2 mirrors. Tier-0 rubrics emitted by hot or not reference v.dfill /
+    // v.dmotion / v.dstruct / v.dblowout — without those the rubric returns
+    // NaN here and silently gets rejected, leaving the breeder on default
+    // fitness while the UI looks loaded.
+    const testV = {
+      fill: 0.1, motion: 0.001, blowout: 0, struct: 0.7,
+      fill2: 0.12, motion2: 0.0012, blowout2: 0, struct2: 0.72,
+      dfill: 0.02, dmotion: 0.0002, dstruct: 0.02, dblowout: 0,
+      lum: null,
+    };
+    const r = fn(testV, 0.3, 0.05, 0, 'alive', 0, defaultConfig());
+    if (typeof r !== 'number') throw new Error('must return a number (got ' + typeof r + ')');
+    if (!Number.isFinite(r)) throw new Error('must return a finite number (got ' + r + ') — check that every variable the formula uses is defined');
+    customScore = fn;
+    csStatus.textContent = 'active · score = ' + r.toFixed(3) + ' on a test ind';
+    csStatus.className = 'desc ok';
+    try { localStorage.setItem(CS_KEY, src); } catch { /* storage blocked */ }
+    return true;
+  } catch (e) {
+    csStatus.textContent = 'error: ' + (e.message || e); csStatus.className = 'desc err'; return false;
+  }
+}
+// ── Publish run → forest ───────────────────────────────────────────────────
+// Anyone with a session can write one expedition record per run to their own
+// PDS. We re-read the textarea at publish time so the scorer string captured
+// is whatever they have applied (or "default" if they never applied any).
+const publishBtn = $('#btn-publish'), publishStatus = $('#publish-status');
+function updatePublishUI() {
+  if (!publishBtn) return;
+  const ready = !!auth.isLoggedIn() && runTrajectory.length > 0 && !busy;
+  publishBtn.disabled = !ready;
+  if (!auth.isLoggedIn()) publishStatus.textContent = 'sign in (top right) to publish';
+  else if (!runTrajectory.length) publishStatus.textContent = 'run the breeder, then publish';
+  else publishStatus.textContent = `ready · ${runTrajectory.length} individuals across ${generation + 1} gen${generation ? 's' : ''}`;
+}
+async function sha12(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).slice(0, 6).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+publishBtn.addEventListener('click', async () => {
+  if (publishBtn.disabled) return;
+  publishBtn.disabled = true; publishStatus.textContent = 'publishing…';
+  try {
+    const scorerSrc = customScore ? (csCode.value.trim() || 'default') : 'default';
+    const hash = await sha12(scorerSrc);
+    const record = {
+      $type: 'com.minomobi.fluoddity.expedition',
+      schemaVersion: 2, // tier-0 two-snapshot: trajectory tuples carry 4 deltas after the 4 static descriptors
+      start: JSON.stringify(runStartConfig || defaultConfig()),
+      scorer: scorerSrc,
+      scorerHash: hash,
+      trajectory: JSON.stringify(runTrajectory),
+      knobs: JSON.stringify(knobs),
+      generations: generation + 1,
+      forest: ANCHOR,
+      createdAt: runStartedAt || new Date().toISOString(),
+    };
+    const res = await auth.pds.createRecord(EXPEDITION_COLLECTION, record);
+    const uri = res && (res.uri || (res.data && res.data.uri));
+    publishStatus.innerHTML = uri
+      ? `published · <a href="./forest.html" style="color:var(--accent);">see it in the forest</a>`
+      : 'published';
+  } catch (e) {
+    publishStatus.textContent = 'error: ' + (e.message || e);
+    updatePublishUI();
+  }
+});
+auth.onAuthChange(updatePublishUI);
+updatePublishUI();
+
+// ── Hot-or-not handoff: stash the current population's configs and navigate.
+const hotBtn = $('#btn-hotornot');
+function updateHotUI() { hotBtn.disabled = !allNodes.length; }
+hotBtn.addEventListener('click', () => {
+  if (!allNodes.length) return;
+  const configs = allNodes.slice(-80).map(n => n.config); // most recent N
+  try { sessionStorage.setItem('fluoddity_hot_queue', JSON.stringify(configs)); } catch {}
+  location.href = './hot.html';
+});
+
+// ── #rubric= URL: auto-populate the BYO scorer + apply ─────────────────────
+(function pickUpRubricFromUrl() {
+  const m = location.hash.match(/(?:^#|&)rubric=([^&]+)/);
+  if (!m) return;
+  try {
+    let b64 = m[1].replace(/-/g, '+').replace(/_/g, '/'); while (b64.length % 4) b64 += '=';
+    const code = decodeURIComponent(escape(atob(b64)));
+    csCode.value = code;
+    $('#cs-wrap').open = true;
+    applyCustomScore(code);
+    csStatus.textContent = 'rubric loaded from hot or not · ' + csStatus.textContent;
+  } catch { /* ignore — leave breeder default */ }
+})();
+
+$('#cs-apply').addEventListener('click', () => applyCustomScore(csCode.value));
+$('#cs-reset').addEventListener('click', () => { csCode.value = ''; applyCustomScore(''); try { localStorage.removeItem(CS_KEY); } catch {} });
+try { const saved = localStorage.getItem(CS_KEY); if (saved) { csCode.value = saved; $('#cs-wrap').open = true; applyCustomScore(saved); } } catch { /* ignore */ }
+
+(async function main() {
+  if (SEED) { const ml = $('#maplabel'); if (ml) ml.textContent = 'phenotype phase space · seeded from your organism'; }
+  busy = true; await seed(SEED); busy = false;
+})();
+</script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
+</body>
+</html>

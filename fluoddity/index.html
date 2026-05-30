@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — living organisms on atproto</title>
+<meta name="description" content="Fluoddity: breed, browse, and map emergent vector-trail organisms. Each is a deterministic genome saved as an ATProto record on your own Bluesky account; fork one and it grows a new branch of the tree.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/">
+<meta property="og:title" content="fluoddity — living organisms on atproto">
+<meta property="og:description" content="Breed, browse, and map emergent vector-trail organisms. Each is a deterministic genome saved as an ATProto record on your own Bluesky account; fork one and it grows a new branch of the tree.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="fluoddity — living organisms on atproto">
+<meta name="twitter:description" content="Breed, browse, and map emergent vector-trail organisms on ATProto.">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel-solid: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --accent-dim: rgba(56,225,192,0.14);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--mono); }
+a { color: var(--accent); text-decoration: none; }
+#hero { position: relative; height: 46vh; min-height: 300px; overflow: hidden; border-bottom: 1px solid var(--rule); background: #000; cursor: pointer; }
+#hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#hero .veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 40%, rgba(5,6,8,0) 30%, rgba(5,6,8,0.78) 100%); pointer-events: none; }
+#hero .head { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 28px; pointer-events: none; }
+#hero h1 { margin: 0; font-size: clamp(34px, 7vw, 72px); letter-spacing: -0.02em; font-weight: 700; }
+#hero h1 b { color: var(--accent); font-weight: 700; }
+#hero p { margin: 8px 0 0; color: var(--muted); font-size: 13px; max-width: 60ch; line-height: 1.6; }
+#hero .herobar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; pointer-events: none; }
+#hero .herobar-right { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+#hero .shuffle { font-size: 11px; color: var(--muted); background: rgba(0,0,0,0.4); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 9px; }
+#hero .initpick { display: inline-flex; gap: 0; pointer-events: auto; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; background: rgba(0,0,0,0.4); }
+#hero .initpick button { font: inherit; font-family: var(--mono); font-size: 11px; cursor: pointer; color: var(--muted); background: transparent; border: 0; padding: 5px 9px; }
+#hero .initpick button + button { border-left: 1px solid var(--rule); }
+#hero .initpick button:hover { color: var(--accent); }
+#hero .initpick button.on { color: #04110e; background: var(--accent); font-weight: 600; }
+#hero .openbtn { pointer-events: auto; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; color: #04110e; background: var(--accent); border: 0; border-radius: 8px; padding: 7px 13px; transition: transform 0.1s, box-shadow 0.15s; box-shadow: 0 2px 14px rgba(56,225,192,0.35); }
+#hero .openbtn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(56,225,192,0.5); }
+#hero .openbtn:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+
+#cards { display: grid; gap: 14px; padding: 22px; max-width: 1100px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.card { display: block; background: var(--panel-solid); border: 1px solid var(--rule); border-radius: 14px; padding: 18px; transition: border-color 0.15s, transform 0.1s; }
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card .n { font-size: 16px; font-weight: 700; color: var(--fg); }
+.card .n .arrow { color: var(--accent); }
+.card .d { font-size: 12px; color: var(--muted); line-height: 1.55; margin-top: 7px; }
+.card .verb { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); }
+
+#book { max-width: 720px; margin: 26px auto 0; padding: 0 24px; }
+#book h2 { font-size: 22px; letter-spacing: -0.01em; margin: 38px 0 4px; }
+#book h2 b { color: var(--accent); }
+#book h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); font-weight: 600; margin: 30px 0 8px; }
+#book .lede { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+#book p { color: #c8ccd4; font-size: 14px; line-height: 1.72; margin: 14px 0; }
+#book .step { font-weight: 700; color: var(--accent); }
+#book code { background: #000; padding: 1px 5px; border-radius: 4px; color: var(--accent); font-size: 12.5px; }
+#book .credit { border-top: 1px solid var(--rule); padding-top: 16px; margin-top: 26px; font-size: 12px; color: var(--muted); }
+#book .credit a { color: var(--accent); }
+
+footer { max-width: 720px; margin: 0 auto; padding: 18px 24px 48px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+footer a { color: var(--muted); text-decoration: underline; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="hero">
+  <canvas id="herocv"></canvas>
+  <div class="veil"></div>
+  <div class="herobar">
+    <span class="shuffle" id="shuffle">click anywhere for another organism</span>
+    <span class="herobar-right">
+      <span class="initpick" id="initpick"></span>
+      <span id="auth"></span>
+      <button class="openbtn" id="open-play" type="button">open this in playground →</button>
+    </span>
+  </div>
+  <div class="head">
+    <h1><b>fluoddity</b></h1>
+    <p>Emergent vector-trail organisms. Each one is a deterministic genome saved as an ATProto record on your own Bluesky account — fork it and it grows a new branch of the tree.</p>
+  </div>
+</div>
+
+<div id="cards">
+  <a class="card" href="./play/">
+    <div class="verb">create</div>
+    <div class="n">Playground <span class="arrow">→</span></div>
+    <div class="d">Tune a living organism in real time — sensing, forces, trails. A liveness readout grades it as you go. Save it to your PDS to plant it in the garden.</div>
+  </a>
+  <a class="card" href="./gallery.html">
+    <div class="verb">browse</div>
+    <div class="n">Gallery <span class="arrow">→</span></div>
+    <div class="d">Every organism anyone has saved, discovered through Constellation. Hover to bring one to life; click for its lineage; open any author's collection.</div>
+  </a>
+  <a class="card" href="./map.html">
+    <div class="verb">map</div>
+    <div class="n">Phase space <span class="arrow">→</span></div>
+    <div class="d">Phylogenetic metrics and an interactive phenotype map — every organism as a point, lineage edges drawn through the space. Pan, zoom, and dive in.</div>
+  </a>
+  <a class="card" href="./forest.html">
+    <div class="verb">atlas</div>
+    <div class="n">The forest <span class="arrow">→</span></div>
+    <div class="d">Every published breeder run as a tree through phase space, colored by the scoring lens that drove it. The emergent atlas of where exploration goes and what people's criteria pull them toward.</div>
+  </a>
+  <a class="card" href="./hot.html">
+    <div class="verb">judge</div>
+    <div class="n">Hot or not <span class="arrow">→</span></div>
+    <div class="d">Walk a queue of organisms, vote each HOT or NOT. From your judgments alone we fit a separating hyperplane — your own scoring rubric in descriptor space. Carry it to the breeder and evolve by your taste, not just by temperature.</div>
+  </a>
+  <a class="card" href="./select.html">
+    <div class="verb">select</div>
+    <div class="n">Selection <span class="arrow">→</span></div>
+    <div class="d">Guided breeding. A 4×4 of living variations — pick the one you like and its children fill the next grid. No sliders; you are the fitness function.</div>
+  </a>
+  <a class="card" href="./arena.html">
+    <div class="verb">arena</div>
+    <div class="n">Arena <span class="arrow">→</span></div>
+    <div class="d">One shared field, 16 species with different rulesets intermingling — competing for territory in the same trail. Pick one and it seeds the next ecosystem.</div>
+  </a>
+  <a class="card" href="./torus.html">
+    <div class="verb">view</div>
+    <div class="n">On a torus <span class="arrow">→</span></div>
+    <div class="d">The simulation already runs with toroidal boundary conditions — this just unfurls the wrap onto a 3D donut so you can watch trails cross the seam in real time. Drag to orbit.</div>
+  </a>
+  <a class="card" href="./breed.html">
+    <div class="verb">breed</div>
+    <div class="n">Breeder lab <span class="arrow">→</span></div>
+    <div class="d">An automated interactive-evolution loop. Exploratory noise, behavioral diversity, and narrative momentum shape the search as a lineage grows generation by generation.</div>
+  </a>
+</div>
+
+<section id="book">
+  <h2><b>Fluoddity</b>, briefly</h2>
+  <p class="lede">a vector-trail generalization of slime-mold transport</p>
+  <p>Classic <em>Physarum</em> sims have agents drop a scalar pheromone, sniff a couple of points ahead, and turn toward the brighter side; the trail blurs and fades. Fluoddity — created by <a href="https://bsky.app/profile/all-paperclips.bsky.social" target="_blank" rel="noopener">aphid91</a> — generalizes that on three axes:</p>
+  <p><span class="step">① Vector trails.</span> Each cell of the field stores a 2D <em>flow vector</em>, not just an intensity. Hue is flow direction; brightness is speed.<br>
+     <span class="step">② An evolvable black box.</span> There is no hard-coded "steer toward bright." Each agent feeds its left/right sensor readings into a small Fourier-feature function — the <em>rule</em> — that outputs a push and a sideways hop. Left/right symmetry is enforced so nothing spins by bias alone.<br>
+     <span class="step">③ Cohorts &amp; selection.</span> The population is split into cohorts, each a mutation of the base rule, so you can hunt for shapes you like.</p>
+
+  <h3>Under the hood</h3>
+  <p>Each physics step is three GPU passes over a few hundred thousand agents and a trail field:</p>
+  <p><span class="step">① Move.</span> Every agent reads the field at two sensors, splayed by <code>sensor angle</code> at <code>sensor distance</code> ahead of its heading. The two readings are rotated into the agent's own frame and fed to its <b>rule</b> (a 10-term Fourier function, 4 inputs → 4 outputs), evaluated twice with left/right mirrored and averaged so handedness cancels. Out come a <b>force</b> (added to velocity, then <code>drag</code> bleeds it off) and a <b>strafe</b> (added straight to position). Then it moves and wraps at the edges.</p>
+  <p><span class="step">② Deposit.</span> Each agent stamps a small Gaussian of its <em>velocity vector</em> into a brush texture. The trail therefore records the direction and speed of flow at every point — the "vector trail" that sets Fluoddity apart from scalar pheromone.</p>
+  <p><span class="step">③ Diffuse.</span> The field is blurred (by <code>diffusion</code>) and blended with the fresh deposits as a <em>mix</em>: <code>field = field·persistence + deposits·(1−persistence)</code>, which keeps equilibrium brightness independent of the persistence value.</p>
+
+  <h3>The genome</h3>
+  <p>A single <code>rule seed</code> deterministically generates those 10 Fourier centers; each cohort then applies a small mutation, so adjacent cohorts are smooth variations of one creature. "New organism" rerolls the seed; "mutate" nudges it. That space of rules is what you forage in. aphid91's <em>temperature</em> intuition is the compass: too hot and it's structureless brownian gas; too cold and it freezes or dies; the good stuff lives on the edge.</p>
+  <p>When you save an organism, its full parameter snapshot plus the seed is written as a <code>com.minomobi.fluoddity.organism</code> record on <em>your own</em> Bluesky PDS — you own it, and anyone can fork it. A constant backlink lets <a href="https://constellation.microcosm.blue/" target="_blank" rel="noopener">Constellation</a> enumerate every organism across all authors, which is how the gallery, the phase-space map, and the lineage trees are built.</p>
+
+  <h3>Family tree</h3>
+  <p><b>Conway's Game of Life (1970)</b> — the great-grandparent. Dead-simple local rules, unbounded emergent structure: the founding proof that complexity can be grown, not designed.</p>
+  <p><b>Physarum transport models</b> — the direct parent. Jeff Jones (2010) formalized agent-based slime-mould networks; Sage Jenson (mxsage) made them famous as living-looking art. Fluoddity <em>is</em> this model generalized: scalar trail → vector flow field, hand-coded steering → an evolvable Fourier black box, one species → cohorts under artificial selection.</p>
+  <p><b>Cousins:</b> reaction–diffusion / Turing patterns (Gray–Scott), Lenia and SmoothLife (Conway made continuous), and Boids (Reynolds, 1986). Fluoddity sits exactly where agent-based steering, a diffusing field, and evolutionary search overlap.</p>
+
+  <h2 style="margin-top:48px;"><b>The</b> hunt</h2>
+  <p class="lede">the citizen-science instrument it became</p>
+  <p>Emergence isn't designed; it's <em>found</em>. The rule space is enormous and almost entirely dead — the interesting parts live in thin filaments threaded through a void of static, boil, and gas, and nobody has a map of where the filaments run. A reasonable fitness function is a temperature gauge in a system whose dimensions that matter are aesthetic, behavioral, situational. Two people watching the same field will pick different favorites, and their <em>taste</em> is data, not noise. The whole site is an instrument for that hunt.</p>
+
+  <h3>The instruments</h3>
+  <p><span class="step">① Scopes.</span> The landing hero, the torus, and the gallery sample the viable parameter box and reject-sample on fitness, so blank fields stay out of view. The torus renders the toroidal wrap the simulation has had all along — trails really do cross the seam. The gallery is everyone's saved menagerie, indexed across PDSes via Constellation backlinks.</p>
+  <p><span class="step">② Pens.</span> <em>Selection</em> is a deliberate 4×4 of side-by-side variations — pick the one you like, its mutations fill the next grid. The <em>arena</em> is sixteen independent rulesets sharing one field, competing for territory like an ecology; pick the species you like and its lineage seeds the next ecosystem. Either way, you're the selection pressure and the engine is doing the dance.</p>
+  <p><span class="step">③ Workbench.</span> The <em>playground</em> — sliders, mouse-draw, a live readout of how alive the field looks — is for tuning a specific creature by hand, or branching off something you found in the gallery. Saving an organism plants it under your own DID; anyone can fork it into a new branch of the tree.</p>
+  <p><span class="step">④ Autopilot.</span> The <em>breeder</em> runs an evolutionary loop with a default temperature fitness, or a scoring function you wrote. Each run becomes an <em>expedition</em> — a record of the trajectory through descriptor space and the scoring lens that drove it, publishable to your PDS in one click.</p>
+  <p><span class="step">⑤ Taste, formalized.</span> <em>Hot or not</em> turns a queue of organisms into a labeled set; we fit the separating hyperplane your votes imply, and you carry the result back into the breeder as a one-line rubric. If it converges, you have a portable lens — your aesthetic as a sentence of code. If it doesn't, that's information too: your taste lives somewhere we don't yet measure, and the next round of features needs another axis. (Image embeddings are the obvious next axis; the four descriptor scalars are the cheap start.)</p>
+  <p><span class="step">⑥ Atlas.</span> The <em>forest</em> accumulates every published expedition and every published rubric, grouped by scoring lens so you can see whose criteria pulled them to which corners of phase space, and which rubrics turn out to be generative across multiple authors. Watching the forest grow is watching the collective shape of "what minds-with-taste find interesting in this corner of rule space" become a real, drawable thing.</p>
+
+  <h3>Why citizen science</h3>
+  <p>No platform owns the menagerie. Your saved organisms, your trained rubrics, your published expeditions all live as ATProto records on <em>your</em> Bluesky account; <a href="https://constellation.microcosm.blue/" target="_blank" rel="noopener">Constellation</a> makes them discoverable across the whole network without anyone running an index that everyone has to trust. Sign in once on the landing and the same session carries through every surface; sign out and it's gone — nothing here phones home, no profile is being built about you. The frame is field naturalism: open-ended phenomena, low cost per experiment, no specialized hardware, and a way for someone's careful judgment in their browser at midnight to compound into a public artifact the next person can pick up tomorrow morning.</p>
+  <p>We're not all the way there. The default fitness still has more authority than it deserves. The rubric feature space is still narrow — four scalars when a richer one is plainly needed for the harder aesthetics. The engine is still slightly split between the playground and everything else. But the remaining work is engineering, not vision. The system already supports the thing we wanted: a person, an organism that caught their eye, a way to teach a machine what caught it, and a way to hand that taste to the next person whose criterion was waiting on a name. The point of an instrument is to make a hunt that used to take a career take an evening — and the point of <em>sharing</em> an instrument is to make a hunt that used to take an evening compound, across people, into a map.</p>
+
+  <p class="credit"><b>About this build.</b> An independent, clean-room reimplementation of the published algorithm so you can play in the browser — <em>not</em> aphid91's code. The original is far richer:
+     <a href="https://github.com/aphid91/Fluoddity" target="_blank" rel="noopener">source</a> ·
+     <a href="https://aphid91.github.io/Fluoddity-Core/" target="_blank" rel="noopener">core engine + WebGL demo</a> ·
+     <a href="https://bsky.app/profile/all-paperclips.bsky.social" target="_blank" rel="noopener">@all-paperclips.bsky.social</a>.</p>
+</section>
+
+<footer>
+  Organisms live as <code>com.minomobi.fluoddity.organism</code> records on each author's PDS · discovery via
+  <a href="https://constellation.microcosm.blue/">Constellation</a> · part of
+  <a href="https://mino.mobi/">mino.mobi</a>.
+</footer>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, randomConfig } from './engine.js';
+import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
+
+const cv = document.getElementById('herocv');
+const ctx = cv.getContext('2d');
+let engine = null;
+try { engine = new FluoddityEngine(480, 55000); }
+catch { document.getElementById('hero').style.background = 'linear-gradient(135deg,#0a1f1b,#06121a)'; document.getElementById('shuffle').style.display = 'none'; }
+
+// Pick the most "alive" of several organisms drawn from the viable parameter
+// box (engine.randomConfig). The box winnows out the dead corners of the genome;
+// reject-sampling on fitness handles the rest (the rule_seed lottery).
+// Initial particle distribution: 0=grid, 1=scatter, 2=ring. Independent of the
+// organism's "law" (rule_seed + physics params) — selecting a different init
+// reshuffles where the agents start while keeping the brain identical.
+let selectedInit = 0;
+try { const s = +localStorage.getItem('fluoddity_init'); if (s === 0 || s === 1 || s === 2) selectedInit = s; } catch {}
+(function buildInitPicker() {
+  const pick = document.getElementById('initpick');
+  if (!pick) return;
+  ['grid', 'scatter', 'ring'].forEach((label, i) => {
+    const b = document.createElement('button');
+    b.textContent = label; b.dataset.i = i; b.className = (i === selectedInit ? 'on' : '');
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      selectedInit = i;
+      pick.querySelectorAll('button').forEach((x, j) => x.classList.toggle('on', j === i));
+      try { localStorage.setItem('fluoddity_init', String(i)); } catch {}
+      // Reload current organism with the new init so the change is immediate.
+      if (current) { current.initial_conditions = i; engine.load(current, 'init' + Math.random()); }
+    });
+    pick.appendChild(b);
+  });
+})();
+
+// Active rubric: if the user trained / picked one in hot or not, we score
+// candidates by it instead of the default temperature fitness. Falls back if
+// the rubric is missing, throws, or returns non-finite.
+function activeRubric() {
+  try {
+    const stash = localStorage.getItem('fluoddity_active_rubric');
+    if (!stash) return null;
+    const r = JSON.parse(stash);
+    if (!r || !r.code) return null;
+    return new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', r.code);
+  } catch { return null; }
+}
+async function pickLively() {
+  const rubric = activeRubric();
+  let best = null, bestScore = -Infinity;
+  for (let i = 0; i < 10; i++) {
+    const c = randomConfig();
+    c.initial_conditions = selectedInit;
+    engine.load(c, i);
+    // T1
+    engine.step(260); engine.render();
+    const a1 = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const v1 = readDescriptors(engine.cv, a1.lum);
+    // T2
+    engine.step(192); engine.render();
+    const a2 = readDescriptors(engine.cv, null);
+    engine.step(8); engine.render();
+    const v2 = readDescriptors(engine.cv, a2.lum);
+    const v = merge(v1, v2);
+    const fitBase = fitness2(v1, v2);
+    let s = fitBase;
+    if (rubric) { try { const x = rubric(v, fitBase, 0, 0, '', 0, c); if (Number.isFinite(x)) s = x; } catch {} }
+    if (s > bestScore) { bestScore = s; best = c; }
+  }
+  return best;
+}
+
+let current = null;
+function blit() {
+  const W = cv.clientWidth, H = cv.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const src = engine.cv, s = src.width;
+  const scale = Math.max(cv.width / s, cv.height / s); // cover
+  const dw = s * scale, dh = s * scale;
+  ctx.drawImage(src, (cv.width - dw) / 2, (cv.height - dh) / 2, dw, dh);
+}
+// Same base64url(JSON) format the playground decodes from #c= and the breeder emits.
+function encodeConfig(c) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+const openBtn = document.getElementById('open-play');
+openBtn.disabled = true;
+openBtn.addEventListener('click', (e) => {
+  e.stopPropagation(); // don't also reshuffle the hero
+  if (current) location.href = './play/#c=' + encodeConfig(current);
+});
+
+async function loop() {
+  if (!engine) return;
+  if (!current) { current = await pickLively(); engine.load(current, 'hero'); openBtn.disabled = false; }
+  engine.step(6); engine.render(); blit();
+  requestAnimationFrame(loop);
+}
+document.getElementById('hero').addEventListener('click', async () => { if (engine) { openBtn.disabled = true; current = await pickLively(); engine.load(current, 'hero' + Math.random()); openBtn.disabled = false; } });
+if (engine) { requestAnimationFrame(loop); } else { openBtn.style.display = 'none'; }
+</script>
+<script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
+</body>
+</html>
