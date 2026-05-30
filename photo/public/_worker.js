@@ -1,18 +1,17 @@
-// Image proxy for the orb (and anything else that needs canvas/WebGPU access
-// to cross-origin Bluesky images). cdn.bsky.app appears to Origin-check
-// cross-origin fetches and returns 403; loading via plain <img src> works,
-// but reading the bytes for canvas/WebGPU requires CORS, which is what this
-// route provides.
+// Single-worker entrypoint for the photo.mino.mobi deploy. Cloudflare picks
+// up `_worker.js` from the publish directory as the request handler, and
+// `env.ASSETS.fetch(request)` is the canonical fall-through to the static
+// assets the Vite build produces (dist/).
 //
-// Usage:
-//   GET /api/img                                — alive check, returns 400 JSON
-//   GET /api/img?u=<encoded original URL>       — proxied image bytes
-//
-// Locked to *.bsky.app and *.bsky.network hosts so this can't be turned
-// into an open proxy for arbitrary content. Cached at the edge for a day.
+// The only custom route is /api/img — a same-origin image proxy used by the
+// orb (and anything else that needs canvas/WebGPU access to cross-origin
+// Bluesky images). cdn.bsky.app appears to Origin-check cross-origin browser
+// fetches and returns 403; server-side fetch doesn't send a browser Origin
+// header, so the upstream returns 200, and we re-emit with permissive CORS
+// so canvas/WebGPU can read the bytes.
 
 const ALLOWED_HOST_SUFFIXES = ['.bsky.app', '.bsky.network'];
-const PROXY_VERSION = 'orb-img-proxy-v2';
+const PROXY_VERSION = 'orb-img-proxy-v3-worker';
 
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
@@ -25,8 +24,24 @@ function jsonResponse(obj, status) {
   });
 }
 
-export async function onRequestGet({ request }) {
+async function handleImgProxy(request) {
   const url = new URL(request.url);
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'GET, OPTIONS',
+        'access-control-allow-headers': 'accept',
+        'access-control-max-age': '86400',
+      },
+    });
+  }
+  if (request.method !== 'GET') {
+    return jsonResponse({ ok: false, proxy: PROXY_VERSION, error: 'GET only' }, 405);
+  }
+
   const target = url.searchParams.get('u');
   if (!target) {
     return jsonResponse({
@@ -43,8 +58,8 @@ export async function onRequestGet({ request }) {
     return jsonResponse({ ok: false, proxy: PROXY_VERSION, error: 'https only' }, 400);
   }
   const host = tgt.hostname.toLowerCase();
-  const ok = ALLOWED_HOST_SUFFIXES.some(s => host === s.slice(1) || host.endsWith(s));
-  if (!ok) {
+  const allowed = ALLOWED_HOST_SUFFIXES.some(s => host === s.slice(1) || host.endsWith(s));
+  if (!allowed) {
     return jsonResponse({ ok: false, proxy: PROXY_VERSION, error: 'host not allowed: ' + host }, 403);
   }
 
@@ -61,9 +76,16 @@ export async function onRequestGet({ request }) {
   headers.set('cache-control', 'public, max-age=86400, immutable');
   headers.set('access-control-allow-origin', '*');
   headers.set('access-control-allow-methods', 'GET');
-  // Tag every proxied response so a `curl -I` reveals whether the function
-  // is in the path — distinct from a 200/404 served by the assets handler.
   headers.set('x-orb-proxy', PROXY_VERSION);
 
   return new Response(upstream.body, { status: upstream.status, headers });
 }
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/img') return handleImgProxy(request);
+    // Everything else: serve the Vite build output as-is.
+    return env.ASSETS.fetch(request);
+  },
+};
