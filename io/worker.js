@@ -30,8 +30,11 @@ const IO_COLLECTION = 'com.minomobi.io.ticket';
 const BOARD_ANCHOR = 'https://io.mino.mobi/anchor/tickets/v1';
 
 const CONSTELLATION = 'https://constellation.microcosm.blue';
-// Constellation `source` param is "<collection>:<jsonpath-to-link>".
-const CONSTELLATION_SOURCE = `${IO_COLLECTION}:.board`;
+// Constellation `source` param is "<collection>:<json-path-to-link>" with NO
+// leading dot (verified live: app.bsky.feed.like:subject.uri → 200). Our
+// `board` field is a top-level string, so the path is just "board". A leading
+// dot ("...:.board") returns HTTP 400 and silently breaks the indexer.
+const CONSTELLATION_SOURCE = `${IO_COLLECTION}:board`;
 
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
 
