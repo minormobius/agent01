@@ -16,10 +16,11 @@ import {
 } from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const MAX_TILES    = 128;
-const ATLAS_W      = 1024;
+const MAX_TILES    = 240;   // queue cap (posts + quoted posts)
+const ATLAS_W      = 2048;  // 4x atlas area vs the previous default
 const ATLAS_H      = 4096;
-const TILE_PX      = 512;   // render each tile at this resolution before composite
+const TILE_PX      = 1024;  // render each tile at this resolution before composite
+const AUTOSTAMP_DELAY_MS = 80;
 const TILE_PER_ROW = 4;
 const MAX_TEX_AXIS = 4096;
 const MAX_TILE     = 384;
@@ -856,19 +857,23 @@ canvas.addEventListener('wheel', (e) => {
   state.distance = Math.max(1.3, Math.min(8, state.distance * f));
 }, { passive: false });
 
-// Any layout slider clears existing stamps and resets the queue cursor so the
-// user can re-fill into the new grid. The fetched tileQueue is preserved so
-// they don't have to re-fetch the thread.
+// Any layout slider cancels the in-flight autostamp (via stampGen++), clears
+// the atlas, resets the queue cursor, and kicks off a fresh autostamp into
+// the new grid. The fetched tileQueue is preserved so there's no re-fetch.
 function resetGridLayout() {
   if (!state.atlasCanvas) return;
+  stampGen++;                                     // cancel any in-progress run
   paintCelestialPattern(state.atlasCanvas);
   setStripFromCanvas(state.atlasCanvas);
   queueIndex = 0;
   successCount = 0;
+  mediaAttempted = 0;
+  mediaSucceeded = 0;
   const { cols, rows, pad } = gridSpec();
   const padTxt = Math.round(pad * 100) + '%';
   if (tileQueue.length) {
-    setStatus(`reset · ${cols}×${rows} grid, ${padTxt} pad · click load to refill`);
+    setStatus(`${cols}×${rows} grid, ${padTxt} pad · refilling…`);
+    autoStamp();
   } else {
     setStatus(`${cols}×${rows} grid, ${padTxt} pad`);
   }
@@ -879,11 +884,11 @@ padSlider.addEventListener('change', resetGridLayout);
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
-// Each click stamps one post-tile onto the orb's atlas. Text always renders
-// (it's drawn straight from thread.js's flattened post data), and the image
-// inside the tile is best-effort — a 404 on the thumbnail just leaves a
-// text-only card with the post's author + body. The orb populates regardless
-// of CDN health.
+// Queue + autostamp. Hitting load (or first paint) fetches the thread, builds
+// the post-tile queue, then auto-stamps one tile at a time until the grid is
+// full or the queue runs out. Layout sliders cancel the in-flight autostamp
+// via a generation counter, repaint the placeholder, and restart the fill so
+// the new grid populates without re-fetching.
 let tileQueue = [];
 let queueIndex = 0;
 let successCount = 0;
@@ -891,85 +896,104 @@ let lastFetchedUrl = '';
 let mediaAttempted = 0;
 let mediaSucceeded = 0;
 let lastMediaFailReason = '';
+let stampGen = 0;
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+async function ensureThreadLoaded(wantedUrl) {
+  if (tileQueue.length && wantedUrl === lastFetchedUrl) return true;
+  const { posts } = await loadThread(wantedUrl);
+  const rootHandle = posts[0]?.author?.handle || 'unknown';
+  tileQueue = buildPostQueue(posts);
+  if (tileQueue.length === 0) {
+    setStatus(`thread has no postable content (root @${rootHandle})`, true);
+    return false;
+  }
+  queueIndex = 0;
+  successCount = 0;
+  mediaAttempted = 0;
+  mediaSucceeded = 0;
+  lastMediaFailReason = '';
+  lastFetchedUrl = wantedUrl;
+  const withMedia = tileQueue.filter(t => t.media?.length).length;
+  const videos = tileQueue.reduce((n, t) => n + (t.media || []).filter(m => m.kind === 'video').length, 0);
+  const videoNote = videos ? `, ${videos} video${videos === 1 ? '' : 's'}` : '';
+  setStatus(
+    `${posts.length} posts → ${tileQueue.length} tiles (${withMedia} with media${videoNote}) · autostamping…`,
+  );
+  return true;
+}
+
+async function stampOne() {
+  if (queueIndex >= tileQueue.length) return false;
+  const entry = tileQueue[queueIndex];
+
+  const tileCanvas = await renderPostTile(entry, TILE_PX);
+
+  const c = state.atlasCanvas;
+  const ctx = c.getContext('2d');
+  const { cols, rows, pad } = gridSpec();
+  const cellW = c.width / cols;
+  const cellH = c.height / rows;
+  const padX  = cellW * pad;
+  const padY  = cellH * pad;
+  const slot  = successCount % (cols * rows);
+  const col   = slot % cols;
+  const row   = Math.floor(slot / cols);
+  const x = col * cellW + padX;
+  const y = row * cellH + padY;
+  const w = cellW - padX * 2;
+  const h = cellH - padY * 2;
+  ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
+  setStripFromCanvas(c);
+
+  queueIndex++;
+  successCount++;
+  const k = entry.kind === 'quote' ? '↪' : '';
+  const mediaStat = mediaAttempted
+    ? ` · media ${mediaSucceeded}/${mediaAttempted}` + (mediaSucceeded === 0 ? ` (last: ${lastMediaFailReason || 'unknown'})` : '')
+    : '';
+  setStatus(`stamped ${successCount}/${tileQueue.length} ${k} @${entry.author?.handle || ''}${mediaStat}`);
+  return true;
+}
+
+async function autoStamp() {
+  const gen = ++stampGen;
+  const { cols, rows } = gridSpec();
+  const cap = cols * rows;
+  while (queueIndex < tileQueue.length && successCount < cap) {
+    if (gen !== stampGen) return;     // a newer autoStamp / reset superseded us
+    const ok = await stampOne();
+    if (!ok) break;
+    if (gen !== stampGen) return;
+    if (queueIndex < tileQueue.length && successCount < cap) {
+      await new Promise(r => setTimeout(r, AUTOSTAMP_DELAY_MS));
+    }
+  }
+  if (gen !== stampGen) return;
+  // Final status line — note any remaining queue depth so the user knows
+  // there's more they could see if they bump cols/rows.
+  const remaining = tileQueue.length - queueIndex;
+  const remNote = remaining > 0 ? ` · ${remaining} more in queue (raise cols/rows to fit)` : '';
+  setStatus(`stamped ${successCount} / ${cap}-slot grid${remNote}`);
+}
+
+async function loadAndAutoStamp() {
   if (loadBtn.disabled) return;
   loadBtn.disabled = true;
   try {
     const wantedUrl = urlInput.value.trim();
-    const needFetch = tileQueue.length === 0 || wantedUrl !== lastFetchedUrl;
-
-    if (needFetch) {
-      const { posts } = await loadThread(wantedUrl);
-      const rootHandle = posts[0]?.author?.handle || 'unknown';
-      tileQueue = buildPostQueue(posts);
-      if (tileQueue.length === 0) {
-        setStatus(`thread has no postable content (root @${rootHandle})`, true);
-        return;
-      }
-      queueIndex = 0;
-      successCount = 0;
-      mediaAttempted = 0;
-      mediaSucceeded = 0;
-      lastMediaFailReason = '';
-      lastFetchedUrl = wantedUrl;
-      const withMedia = tileQueue.filter(t => t.media?.length).length;
-      const videoCount = tileQueue.reduce((n, t) => n + (t.media || []).filter(m => m.kind === 'video').length, 0);
-      const videoNote = videoCount ? `, ${videoCount} video${videoCount === 1 ? '' : 's'}` : '';
-      setStatus(
-        `${posts.length} posts → ${tileQueue.length} tiles (${withMedia} with media${videoNote}) · click load to stamp one`,
-      );
-      loadBtn.textContent = 'stamp +1';
-      return;
-    }
-
-    if (queueIndex >= tileQueue.length) {
-      setStatus(`exhausted queue · ${successCount} stamped`);
-      return;
-    }
-
-    const entry = tileQueue[queueIndex];
-    setStatus(`rendering tile ${queueIndex + 1} / ${tileQueue.length} · @${entry.author?.handle || ''}…`);
-
-    // Render the tile at its natural size, then composite into the atlas grid.
-    const TILE_PX = 256;
-    const tileCanvas = await renderPostTile(entry, TILE_PX);
-
-    const c = state.atlasCanvas;
-    const ctx = c.getContext('2d');
-    const { cols, rows, pad } = gridSpec();
-    const cellW = c.width / cols;
-    const cellH = c.height / rows;
-    const padX  = cellW * pad;
-    const padY  = cellH * pad;
-    const i = successCount;
-    const slot = i % (cols * rows);
-    const col  = slot % cols;
-    const row  = Math.floor(slot / cols);
-    const x = col * cellW + padX;
-    const y = row * cellH + padY;
-    const w = cellW - padX * 2;
-    const h = cellH - padY * 2;
-    ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
-    setStripFromCanvas(c);
-
-    queueIndex++;
-    successCount++;
-    const k = entry.kind === 'quote' ? '↪' : '';
-    const gridFull = successCount >= cols * rows ? ' (grid full · wraps)' : '';
-    // Surface media stats so it's obvious when text is fine but pictures
-    // aren't landing. Reason of the last failure is helpful when 0/X.
-    const mediaStat = mediaAttempted
-      ? ` · media ${mediaSucceeded}/${mediaAttempted}` + (mediaSucceeded === 0 ? ` (last: ${lastMediaFailReason || 'unknown'})` : '')
-      : '';
-    setStatus(`stamped ${successCount}/${tileQueue.length} ${k} @${entry.author?.handle || ''}${gridFull}${mediaStat}`);
+    const ok = await ensureThreadLoaded(wantedUrl);
+    if (ok) await autoStamp();
   } catch (err) {
     console.error(err);
     setStatus('error: ' + (err?.message || String(err)), true);
   } finally {
     loadBtn.disabled = false;
   }
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  loadAndAutoStamp();
 });
 
 (async () => {
@@ -979,15 +1003,17 @@ form.addEventListener('submit', async (e) => {
     setStatus('checking image proxy…');
     const probe = await probeImageProxy();
     if (probe.ok) {
-      setStatus(`ready · image proxy ${probe.version} · paste a thread URL and hit load`);
+      setStatus(`ready · image proxy ${probe.version} · loading default thread…`);
     } else {
       // Our same-origin proxy isn't routed; mark it down so loadImage skips
       // straight to the public-proxy fallback instead of retrying every time.
       selfProxyKnownDown = true;
       const why = probe.status ? `HTTP ${probe.status}` : (probe.error || 'no response');
-      setStatus(`ready · using public CORS proxy (our /api/img returned ${why}) · paste a URL and hit load`);
+      setStatus(`ready · public CORS proxy (our /api/img returned ${why}) · loading default thread…`);
       console.warn('orb: /api/img probe failed; using corsproxy.io fallback', probe);
     }
+    // Auto-load the default thread and autostamp it onto the orb.
+    loadAndAutoStamp();
   } catch (err) {
     console.error('orb init failed:', err);
     setStatus('init failed: ' + (err?.message || String(err)), true);
