@@ -194,22 +194,49 @@ let revealed = false;
 // is well-behaved and visually compact. Target shape determined by the K factors.
 function generateTarget() {
   const K = 2 + Math.floor(Math.random() * 4); // 2..5
-  const factors = [];
-  for (let i = 0; i < K; i++) {
-    const a = rng(0.6, 1.4);
-    // slope bounded so a + b*x stays > 0.1 over [0,1]
-    const b = rng(-Math.min(0.9, a - 0.1), Math.min(0.9, a - 0.1));
-    factors.push({ a, b });
+  let factors, y, lo, hi;
+  // A product of strictly positive lines is log-concave — at most ONE bump.
+  // To get aggressive curvature (humps, dips, S- and W-shapes) we let a
+  // minority of factors have a root inside (0,1): each root is a zero-crossing
+  // in the product, and that's where the drama lives.
+  for (let attempt = 0; attempt < 40; attempt++) {
+    factors = [];
+    // Bias toward TWO crossers: two roots in (0,1) make the product bulge
+    // between them → W/M shapes, the wiggliest targets. ~85% have ≥1 crosser.
+    const roll = Math.random();
+    const crossers = roll < 0.45 ? 2 : roll < 0.85 ? 1 : 0;
+    const crossIdx = new Set();
+    while (crossIdx.size < Math.min(crossers, K)) crossIdx.add(Math.floor(Math.random() * K));
+    for (let i = 0; i < K; i++) {
+      if (crossIdx.has(i)) {
+        const r = rng(0.15, 0.85);                          // root location in (0,1)
+        const b = rng(1.0, 2.4) * (Math.random() < 0.5 ? -1 : 1);
+        factors.push({ a: -b * r, b });                     // a + b*x = 0 at x = r
+      } else {
+        const a = rng(0.5, 1.5);
+        const b = rng(-1, 1) * (a - 0.05) * 1.3;            // wider tilt than before
+        factors.push({ a, b });
+      }
+    }
+    y = new Float64Array(SAMPLES);
+    lo = Infinity; hi = -Infinity;
+    for (let i = 0; i < SAMPLES; i++) {
+      let p = 1;
+      for (const f of factors) p *= f.a + f.b * SAMPLE_X[i];
+      y[i] = p; if (p < lo) lo = p; if (p > hi) hi = p;
+    }
+    const amp = Math.max(Math.abs(lo), Math.abs(hi));
+    // count turning points + zero-crossings; demand visible drama, bounded amplitude
+    let turns = 0, crosses = 0;
+    for (let i = 1; i < SAMPLES - 1; i++) { const d0 = y[i]-y[i-1], d1 = y[i+1]-y[i]; if (d0 && d1 && Math.sign(d1) !== Math.sign(d0)) turns++; }
+    for (let i = 1; i < SAMPLES; i++) if (Math.sign(y[i]) !== Math.sign(y[i-1])) crosses++;
+    const lively = turns >= 1 || crosses >= 1;
+    if (lively && amp > 0.25 && amp < 60 && hi - lo > 0.35 * amp) break;
   }
-  const y = new Float64Array(SAMPLES);
-  let yMax = 0;
-  for (let i = 0; i < SAMPLES; i++) {
-    let p = 1;
-    for (const f of factors) p *= f.a + f.b * SAMPLE_X[i];
-    y[i] = p;
-    if (p > yMax) yMax = p;
-  }
-  return { factors, K, y, yMax: yMax * 1.15 };
+  // View bounds always include the 0 baseline and the y=1 unit reference, padded.
+  let yMin = Math.min(lo, 0), yMax = Math.max(hi, 1);
+  const pad = (yMax - yMin) * 0.12 || 0.2;
+  return { factors, K, y, yMin: yMin - pad, yMax: yMax + pad };
 }
 
 // ─── canvases ──────────────────────────────────────────────────────────────
@@ -224,14 +251,15 @@ function setupHiDPI(canvas, ctx) {
   return { W: r.width, H: r.height };
 }
 
-// plot ↔ canvas mapping
-function mapper(W, H, padX, padY, yMax) {
+// plot ↔ canvas mapping over the full [yMin, yMax] range (targets can go negative)
+function mapper(W, H, padX, padY, yMin, yMax) {
+  const span = (yMax - yMin) || 1;
   return {
-    W, H, padX, padY, yMax,
+    W, H, padX, padY, yMin, yMax,
     tx: x => padX + ((x - X_MIN) / (X_MAX - X_MIN)) * (W - 2 * padX),
-    ty: y => (H - padY) - (y / yMax) * (H - 2 * padY),
+    ty: y => (H - padY) - ((y - yMin) / span) * (H - 2 * padY),
     ux: px => X_MIN + ((px - padX) / (W - 2 * padX)) * (X_MAX - X_MIN),
-    uy: py => ((H - padY) - py) / (H - 2 * padY) * yMax,
+    uy: py => yMin + ((H - padY) - py) / (H - 2 * padY) * span,
   };
 }
 
@@ -247,10 +275,11 @@ function drawAxes(ctx, m) {
     const y = m.padY + i / 4 * (m.H - 2 * m.padY);
     ctx.beginPath(); ctx.moveTo(m.padX, y); ctx.lineTo(m.W - m.padX, y); ctx.stroke();
   }
+  const y0 = clamp(m.ty(0), m.padY, m.H - m.padY);
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.moveTo(m.padX, m.H - m.padY); ctx.lineTo(m.W - m.padX, m.H - m.padY);
-  ctx.moveTo(m.padX, m.padY); ctx.lineTo(m.padX, m.H - m.padY);
+  ctx.moveTo(m.padX, y0); ctx.lineTo(m.W - m.padX, y0);             // zero baseline
+  ctx.moveTo(m.padX, m.padY); ctx.lineTo(m.padX, m.H - m.padY);     // y axis
   ctx.stroke();
   ctx.restore();
 }
@@ -323,7 +352,7 @@ let drawMap = null;
 function renderDraw() {
   const { W, H } = setupHiDPI(dCanvas, dCtx);
   dCtx.fillStyle = cssVar('--canvas-bg'); dCtx.fillRect(0, 0, W, H);
-  drawMap = mapper(W, H, 40, 22, target.yMax);
+  drawMap = mapper(W, H, 40, 22, target.yMin, target.yMax);
   drawAxes(dCtx, drawMap);
   drawYTicks(dCtx, drawMap);
 
@@ -382,7 +411,7 @@ function renderDraw() {
     dCtx.beginPath();
     for (let i = 0; i < SAMPLES; i++) {
       const x = drawMap.tx(SAMPLE_X[i]);
-      const y = drawMap.ty(clamp(up[i], -target.yMax * 0.2, target.yMax * 1.2));
+      const y = drawMap.ty(clamp(up[i], target.yMin, target.yMax));
       if (i === 0) dCtx.moveTo(x, y); else dCtx.lineTo(x, y);
     }
     dCtx.stroke();
@@ -529,9 +558,9 @@ function renderShareImage() {
   const PX = 64, PY = 240, PW = S - 128, PH = 560, pad = 44;
   x.fillStyle = '#fafafa'; x.fillRect(PX, PY, PW, PH);
   x.strokeStyle = '#e7e2d6'; x.lineWidth = 1; x.strokeRect(PX, PY, PW, PH);
-  const yMax = target.yMax;
+  const yMin = target.yMin, yMax = target.yMax, span = (yMax - yMin) || 1;
   const px = t => PX + pad + t * (PW - 2 * pad);
-  const py = v => (PY + PH - pad) - (v / yMax) * (PH - 2 * pad);
+  const py = v => (PY + PH - pad) - ((v - yMin) / span) * (PH - 2 * pad);
   // grid
   x.strokeStyle = 'rgba(0,0,0,0.06)'; x.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -552,7 +581,7 @@ function renderShareImage() {
     x.fillText('1', PX + pad - 8, y1 + 6);
   }
   x.textAlign = 'left';
-  const trace = ys => { x.beginPath(); for (let i = 0; i < SAMPLES; i++) { const xx = px(SAMPLE_X[i]), yy = py(clamp(ys[i], -yMax * 0.2, yMax * 1.2)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); } x.stroke(); };
+  const trace = ys => { x.beginPath(); for (let i = 0; i < SAMPLES; i++) { const xx = px(SAMPLE_X[i]), yy = py(clamp(ys[i], yMin, yMax)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); } x.stroke(); };
   // solution (revealed)
   if (revealed) {
     x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 1.5; x.setLineDash([2, 6]);
@@ -563,7 +592,7 @@ function renderShareImage() {
   for (const s of strokes) {
     x.strokeStyle = 'rgba(60,60,60,0.40)'; x.lineWidth = 2.4; x.lineJoin = 'round'; x.lineCap = 'round';
     x.beginPath();
-    s.raw.forEach((pt, i) => { const xx = px(pt.x), yy = py(clamp(pt.y, -yMax * 0.2, yMax * 1.2)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); });
+    s.raw.forEach((pt, i) => { const xx = px(pt.x), yy = py(clamp(pt.y, yMin, yMax)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); });
     x.stroke();
     x.strokeStyle = 'rgba(26,74,138,0.55)'; x.lineWidth = 1.6; x.setLineDash([4, 4]);
     x.beginPath(); x.moveTo(px(0), py(s.fit.a)); x.lineTo(px(1), py(s.fit.a + s.fit.b)); x.stroke();
