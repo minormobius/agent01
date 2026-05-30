@@ -1,0 +1,29 @@
+name: Deploy Cron Worker
+
+# External cron trigger that fires GitHub Actions workflows via workflow_dispatch.
+# See workers/cron/src/index.js — needed because GitHub's schedule: cron has
+# never fired on this repo.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/toolset-audit-roadmap-*'
+    paths:
+      - 'workers/cron/**'
+      - '.github/workflows/deploy-cron.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/cron
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
