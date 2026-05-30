@@ -21,6 +21,11 @@
   <h1>Molecular biology, in the browser</h1>
   <p class="sub">A real cloning workbench compiled to WebAssembly, wrapped in a puzzle game. Cut DNA with restriction enzymes, ligate compatible ends, build plasmids — everything runs client-side, with no server round-trips.</p>
 
+  <div class="helixwrap">
+    <canvas id="helix" width="820" height="300" role="navigation" aria-label="Double-helix navigator — each base pair links to a page"></canvas>
+    <span class="hint">↑ each base pair is a page — hover, then click. (all links are also below)</span>
+  </div>
+
   <div class="sectlabel">Play</div>
   <div class="cards">
     <a class="card live" href="/game/build.html">
