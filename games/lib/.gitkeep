@@ -1,0 +1,3 @@
+# auth.js is vendored from packages/oauth-client/ at deploy time.
+# See .github/workflows/deploy-games.yml for the cp step.
+# For local testing, run: cp ../packages/oauth-client/auth.js games/lib/auth.js

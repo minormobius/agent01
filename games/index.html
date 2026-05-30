@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>games.mino.mobi — party games on Bluesky</title>
+<style>
+  :root {
+    --bg: #0e0e14;
+    --surface: #181822;
+    --border: #262633;
+    --text: #e6e6ee;
+    --dim: #8888a0;
+    --accent: #ff6a3d;
+    --accent2: #5ee8c1;
+    --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100%; }
+  body { padding: 32px 20px 80px; max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 32px; }
+  h1 { font-family: var(--mono); font-size: 26px; margin: 0; color: var(--accent); letter-spacing: -0.02em; }
+  h1 .dim { color: var(--dim); }
+  .tag { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+  .intro { color: var(--dim); margin: 0 0 32px; line-height: 1.6; }
+  .intro b { color: var(--text); }
+
+  section { margin: 28px 0; }
+  h2 { font-family: var(--mono); font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 16px; }
+
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .game-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .game-name { font-family: var(--mono); font-size: 17px; color: var(--text); }
+  .game-blurb { color: var(--dim); font-size: 14px; margin-top: 4px; line-height: 1.5; }
+  .game-meta { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 6px; }
+  .game-text { flex: 1; }
+  .game-go { font-family: var(--mono); color: var(--accent); font-size: 13px; }
+
+  .join-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .join-box input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 18px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .join-box button {
+    background: var(--accent);
+    color: #1a0a06;
+    border: none;
+    padding: 11px 18px;
+    font-family: var(--mono);
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .join-box button:hover { background: var(--accent2); }
+  .status { margin-top: 12px; color: var(--dim); font-family: var(--mono); font-size: 12px; min-height: 1.2em; }
+
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--dim); font-family: var(--mono); font-size: 11px; line-height: 1.7; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>games<span class="dim">.mino.mobi</span></h1>
+  <span class="tag">v0 · party games on bluesky</span>
+</header>
+
+<p class="intro">
+  Pick a game. Get a 4-character room code. <b>Post the join link on Bluesky</b> —
+  friends sign in with their Bluesky handle and play from their phone. The TV
+  view shows the shared screen.
+</p>
+
+<section>
+  <h2>Join a room</h2>
+  <div class="join-box">
+    <input id="code" placeholder="XYZW" maxlength="4" autocomplete="off" />
+    <button id="join-btn">Join</button>
+  </div>
+  <div class="status" id="join-status"></div>
+</section>
+
+<section>
+  <h2>Start a new room</h2>
+  <div id="games"></div>
+  <div class="status" id="create-status"></div>
+</section>
+
+<footer>
+  Built on Cloudflare Workers + Durable Objects, with Bluesky OAuth via
+  <a href="https://auth.mino.mobi">auth.mino.mobi</a>. Games are markdown files
+  in <code>games/games/</code> — anyone can write one. See the
+  <a href="https://github.com/minormobius/agent01/tree/main/games">repo</a>.
+</footer>
+
+<script type="module">
+async function loadGames() {
+  const res = await fetch('/api/games');
+  const { games } = await res.json();
+  const root = document.getElementById('games');
+  if (!games.length) {
+    root.innerHTML = '<p style="color:var(--dim)">No games yet.</p>';
+    return;
+  }
+  root.innerHTML = '';
+  for (const g of games) {
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.innerHTML = `
+      <div class="game-text">
+        <div class="game-name">${g.name}</div>
+        <div class="game-blurb">${g.blurb || ''}</div>
+        <div class="game-meta">${g.players || ''} players · template: ${g.template}</div>
+      </div>
+      <div class="game-go">create →</div>
+    `;
+    card.addEventListener('click', () => createRoom(g.id));
+    root.appendChild(card);
+  }
+}
+
+async function createRoom(gameId) {
+  const status = document.getElementById('create-status');
+  status.textContent = 'creating room…';
+  try {
+    const res = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ gameId }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'failed');
+    status.textContent = `room ${body.code} created — opening TV view…`;
+    setTimeout(() => {
+      location.href = `/play.html?code=${body.code}&role=tv`;
+    }, 250);
+  } catch (e) {
+    status.textContent = `error: ${e.message}`;
+  }
+}
+
+document.getElementById('join-btn').addEventListener('click', () => {
+  const code = document.getElementById('code').value.toUpperCase().trim();
+  if (!/^[A-Z0-9]{4}$/.test(code)) {
+    document.getElementById('join-status').textContent = 'enter a 4-character code';
+    return;
+  }
+  location.href = `/play.html?code=${code}&role=phone`;
+});
+document.getElementById('code').addEventListener('keyup', (e) => {
+  if (e.key === 'Enter') document.getElementById('join-btn').click();
+});
+
+// Auto-jump to /play.html when arriving via a shared link like ?join=XYZW
+const join = new URLSearchParams(location.search).get('join');
+if (join && /^[A-Z0-9]{4}$/i.test(join)) {
+  location.href = `/play.html?code=${join.toUpperCase()}&role=phone`;
+} else {
+  loadGames();
+}
+</script>
+</body>
+</html>
