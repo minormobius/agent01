@@ -20,6 +20,7 @@
       <span class="brand"><span class="sigil">🐎</span>Pwyll Pendefig Dyfed</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
         <button class="tab" data-view="characters">Characters</button>
         <button class="tab" data-view="web">Character web</button>
         <button class="tab" data-view="propp">Story graph</button>
@@ -41,6 +42,15 @@
       <div class="tale-progress" id="tale-progress"></div>
       <div class="tale-controls" id="tale-controls"></div>
       <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- STORYBOOK (faithful middle-grade retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers 8 and up — the whole First Branch, page by page. Illustrations to follow.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
     </section>
 
     <!-- CHARACTERS -->
@@ -92,13 +102,14 @@
 
   <footer class="foot">
     <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Pwyll Pendefig Dyfed</span><br>
-    Working scaffold for a deep read of the foundational Welsh prose tale. The Middle Welsh source is a CC BY-SA 4.0 reading text from the Welsh Wikisource, descending from the medieval manuscripts (White Book of Rhydderch / Red Book of Hergest); an original English translation will be written alongside it movement by movement in subsequent passes — character cards, story graph, motif index, mythograph and storybook to follow, mirroring the apparatus built for <em>Sir Gawain and the Green Knight</em>, <em>Culhwch ac Olwen</em>, and <em>Sir Orfeo</em>. This site sits alongside the broader Arthurian and Brittonic historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>, where the cross-tale comparative layer (motifs, Propp functions, character archetypes across all the annotated tales) now lives.
+    A deep read of the foundational Welsh prose tale. The Middle Welsh source is a CC BY-SA 4.0 reading text from the Welsh Wikisource, descending from the medieval manuscripts (White Book of Rhydderch / Red Book of Hergest); the original English translation runs alongside it movement by movement, with character cards, character web, story graph, motif index, mythograph and a faithful middle-grade storybook retelling — the same apparatus built for <em>Sir Gawain and the Green Knight</em>, <em>Culhwch ac Olwen</em>, and <em>Sir Orfeo</em>. This site sits alongside the broader Arthurian and Brittonic historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>, where the cross-tale comparative layer (motifs, Propp functions, character archetypes across all the annotated tales) now lives.
   </footer>
 
   <script src="tale.js"></script>
   <script src="analysis.js"></script>
   <script src="characters.js"></script>
   <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
