@@ -32,13 +32,23 @@ const statusEl = document.getElementById('status');
 const fallbackEl = document.getElementById('fallback');
 const form = document.getElementById('thread-form');
 const urlInput = document.getElementById('thread-url');
+const feedSelect = document.getElementById('feed-select');
 const loadBtn = document.getElementById('load-btn');
+const modeThreadBtn = document.getElementById('mode-thread');
+const modeFeedBtn   = document.getElementById('mode-feed');
 const scrollSlider = document.getElementById('scroll-speed');
 const spinSlider = document.getElementById('spin-speed');
 const brightnessSlider = document.getElementById('brightness');
 const colsSlider = document.getElementById('cols');
 const rowsSlider = document.getElementById('rows');
 const padSlider  = document.getElementById('padding');
+
+// Source mode. 'thread' loads a single Bluesky thread (the original orb).
+// 'feed' pulls the SimCluster feed skeleton from feed.mino.mobi and hydrates
+// each post via the public AppView.
+let sourceMode = 'thread';
+const FEED_SKEL_ENDPOINT = 'https://feed.mino.mobi/xrpc/app.bsky.feed.getFeedSkeleton';
+const BSKY_GETPOSTS      = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts';
 
 // Stamp-grid layout. cols + rows are independent so the user can shape each
 // tile's angular footprint: cols sets longitude span, rows sets latitude.
@@ -113,6 +123,34 @@ async function loadThread(rawInput) {
   return { posts };
 }
 
+// Pull a SimCluster feed: ask feed.mino.mobi for the post-uri skeleton, then
+// hydrate every uri via the public AppView in batches of 25 (the getPosts
+// per-call cap). Returns a list of hydrated PostView objects.
+async function loadFeedPosts(feedUri, limit = 100) {
+  setStatus('fetching feed skeleton…');
+  const skelRes = await fetch(
+    `${FEED_SKEL_ENDPOINT}?feed=${encodeURIComponent(feedUri)}&limit=${limit}`,
+    { cache: 'no-store' },
+  );
+  if (!skelRes.ok) throw new Error(`feed skeleton: HTTP ${skelRes.status}`);
+  const skel = await skelRes.json();
+  const uris = (skel.feed || []).map(p => p.post).filter(Boolean);
+  if (uris.length === 0) return [];
+
+  const posts = [];
+  for (let i = 0; i < uris.length; i += 25) {
+    const slice = uris.slice(i, i + 25);
+    const params = new URLSearchParams();
+    for (const u of slice) params.append('uris', u);
+    setStatus(`hydrating ${posts.length}/${uris.length}…`);
+    const r = await fetch(`${BSKY_GETPOSTS}?${params}`);
+    if (!r.ok) continue;            // skip dead batches, keep going
+    const data = await r.json();
+    for (const p of data.posts || []) posts.push(p);
+  }
+  return posts;
+}
+
 // Paints the orb's idle "celestial body" pattern across a canvas of any size.
 // Used both at init and whenever the column slider resets the atlas.
 function paintCelestialPattern(canvas) {
@@ -165,6 +203,34 @@ function buildPostQueue(posts) {
     if (text || media.length) {
       out.push({ kind: 'post', uri: p.uri, author: p.author, text, media, createdAt: p.createdAt });
     }
+  }
+  return out;
+}
+
+// Build a queue from hydrated feed PostView objects. Unlike threads we don't
+// prefer quotes — every top-level feed post is a tile in its own right; media
+// from inside a quote embed still gets collected because allMediaInEmbed
+// recurses into quote.embeds.
+function buildFeedQueue(postViews) {
+  const out = [];
+  for (const p of postViews) {
+    if (out.length >= MAX_TILES) break;
+    const text = (p.record?.text || '').trim();
+    const media = allMediaInEmbed(p.embed);
+    if (!text && media.length === 0) continue;
+    out.push({
+      kind: 'feed',
+      uri: p.uri,
+      author: {
+        did: p.author?.did,
+        handle: p.author?.handle,
+        displayName: p.author?.displayName || p.author?.handle,
+        avatar: p.author?.avatar,
+      },
+      text,
+      media,
+      createdAt: p.record?.createdAt || p.indexedAt || '',
+    });
   }
   return out;
 }
@@ -1102,8 +1168,34 @@ function nextQueueEntry() {
   return entry;
 }
 
-async function ensureThreadLoaded(wantedUrl) {
-  if (tileQueue.length && wantedUrl === lastFetchedUrl) return true;
+async function ensureSourceLoaded(wantedKey) {
+  // wantedKey is `thread:<url>` or `feed:<feed-uri>` — caching key so we
+  // don't re-fetch the same source. Switching mode always re-fetches.
+  if (tileQueue.length && wantedKey === lastFetchedUrl) return true;
+
+  if (wantedKey.startsWith('feed:')) {
+    const feedUri = wantedKey.slice(5);
+    const feedLabel = feedSelect?.selectedOptions?.[0]?.textContent || 'feed';
+    const posts = await loadFeedPosts(feedUri);
+    tileQueue = buildFeedQueue(posts);
+    if (tileQueue.length === 0) {
+      setStatus(`feed returned no postable content`, true);
+      return false;
+    }
+    queueIndex = 0;
+    mediaAttempted = 0;
+    mediaSucceeded = 0;
+    lastMediaFailReason = '';
+    lastFetchedUrl = wantedKey;
+    const withMedia = tileQueue.filter(t => t.media?.length).length;
+    setStatus(
+      `${feedLabel} · ${tileQueue.length} tiles (${withMedia} with media) · autostamping…`,
+    );
+    return true;
+  }
+
+  // Thread mode (default).
+  const wantedUrl = wantedKey.slice(7);
   const { posts } = await loadThread(wantedUrl);
   const rootHandle = posts[0]?.author?.handle || 'unknown';
   tileQueue = buildPostQueue(posts);
@@ -1115,7 +1207,7 @@ async function ensureThreadLoaded(wantedUrl) {
   mediaAttempted = 0;
   mediaSucceeded = 0;
   lastMediaFailReason = '';
-  lastFetchedUrl = wantedUrl;
+  lastFetchedUrl = wantedKey;
   const withMedia = tileQueue.filter(t => t.media?.length).length;
   const videos = tileQueue.reduce((n, t) => n + (t.media || []).filter(m => m.kind === 'video').length, 0);
   const videoNote = videos ? `, ${videos} video${videos === 1 ? '' : 's'}` : '';
@@ -1222,12 +1314,16 @@ function tickCyclicReplacer() {
   }
 }
 
+function currentSourceKey() {
+  if (sourceMode === 'feed') return 'feed:' + feedSelect.value;
+  return 'thread:' + urlInput.value.trim();
+}
+
 async function loadAndAutoStamp() {
   if (loadBtn.disabled) return;
   loadBtn.disabled = true;
   try {
-    const wantedUrl = urlInput.value.trim();
-    const ok = await ensureThreadLoaded(wantedUrl);
+    const ok = await ensureSourceLoaded(currentSourceKey());
     if (ok) await autoStamp();
   } catch (err) {
     console.error(err);
@@ -1240,6 +1336,27 @@ async function loadAndAutoStamp() {
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   loadAndAutoStamp();
+});
+
+// Mode toggle: swap the visible input (URL vs feed select) and immediately
+// load the new source so the orb reflects the click. The previous queue
+// stays in tileQueue until ensureSourceLoaded() overwrites it.
+function setMode(next) {
+  if (next === sourceMode) return;
+  sourceMode = next;
+  const isThread = sourceMode === 'thread';
+  modeThreadBtn.classList.toggle('active', isThread);
+  modeFeedBtn.classList.toggle('active', !isThread);
+  modeThreadBtn.setAttribute('aria-selected', String(isThread));
+  modeFeedBtn.setAttribute('aria-selected', String(!isThread));
+  urlInput.hidden = !isThread;
+  feedSelect.hidden = isThread;
+  loadAndAutoStamp();
+}
+modeThreadBtn.addEventListener('click', () => setMode('thread'));
+modeFeedBtn.addEventListener('click', () => setMode('feed'));
+feedSelect.addEventListener('change', () => {
+  if (sourceMode === 'feed') loadAndAutoStamp();
 });
 
 const pauseBtn = document.getElementById('pause-btn');
