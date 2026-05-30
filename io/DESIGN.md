@@ -249,39 +249,55 @@ board needs a way to find them all. Three layers, cheapest first.
 
 ### 4.1 Primary: Constellation backlink index (anchor pattern)
 
-[Constellation](https://constellation.microcosm.blue) (microcosm / `at-microcosm/links`)
-is a network-wide **backlink index**: given a *target* (an at-uri / DID / URL)
-it returns the records that reference it, optionally narrowed by the linking
-**collection** and the **path** (which field in the linking record holds the
-reference). It does *not* expose a generic "list every record of collection X"
-enumerator — it's keyed by target. This repo already speaks to a Constellation
-relay in `workers/feed/src/constellation.ts` (it calls a `getBacklinks…`-style
-XRPC to find likes/reposts of a post).
+[Constellation](https://constellation.microcosm.blue) (microcosm / `at-microcosm/microcosm-rs`)
+is a network-wide **backlink index**: it walks the firehose and indexes every
+link it sees, keyed by **the target it points at**, **the collection** the
+linking record came from, and **the JSON path** to the link within that record.
+So it answers "what records link *to* this target?" — it does **not** expose a
+generic "list every record of collection X" enumerator. (Confirmed against the
+live API, 2026-05-30: the public instance has indexed ~15.4B links across ~3.3B
+targets from ~26M identities.) This repo already speaks to a Constellation relay
+in `workers/feed/src/constellation.ts` for like/repost backlinks.
 
 **The trick:** we make *every* ticket reference one well-known **anchor** —
 the `board` strongRef field (§3.1). Then "find all tickets" becomes "find all
-records in collection `com.minomobi.io.ticket` whose `board` field points at
-our anchor URI" — exactly a backlink query Constellation can answer, network-wide,
-with no firehose of our own.
+records whose `.board` link points at our anchor URI" — exactly a backlink
+query Constellation can answer, network-wide, with no firehose of our own.
+
+**Verified API surface** (XRPC, `blue.microcosm.links.*`):
 
 ```
-GET https://constellation.microcosm.blue/links
-      ?target=<at-uri of the io board anchor>
-      &collection=com.minomobi.io.ticket
-      &path=.board.uri
-      [&cursor=…&limit=…]
+# Page through every ticket that links to the anchor:
+GET https://constellation.microcosm.blue/xrpc/blue.microcosm.links.getBacklinks
+      ?subject=<url-encoded at-uri of the io board anchor>
+      &source=<linking collection + JSON path, i.e. com.minomobi.io.ticket @ .board>
+      [&did=<filter to one author>] [&limit=1..100 (default 16)] [&reverse]
+
+# Cheap board badge — count without enumerating:
+GET …/xrpc/blue.microcosm.links.getBacklinksCount?subject=…&source=…
+
+# Distinct authors who have filed (cursor-paginated):
+GET …/xrpc/blue.microcosm.links.getDistinct?subject=…&source=…&limit=…&cursor=…
 ```
 
-> ⚠️ **Verify the exact endpoint + param names against the live Constellation
-> API at build time** — the public service has used both `/links*` HTTP routes
-> and `app.bsky.unspecced.getBacklinks*` XRPC shapes (see
-> `workers/feed/src/constellation.ts:47`). Treat the above as the *pattern*;
-> confirm `target`/`collection`/`path`/`cursor` spelling before coding. Network
-> was unavailable while writing this doc, so the precise surface is marked TODO.
+The `subject` is the anchor's at-uri; `source` selects the linking collection
++ the path of the link field (our `.board` strongRef). `getBacklinks` returns
+the linking records (the tickets) so we read each ticket's fields straight from
+the index response and upsert into D1 (§4.3) — falling back to a per-DID
+`com.atproto.repo.getRecord` only if a field is missing.
+
+> One detail to confirm with a smoke test at build time: the exact encoding of
+> the `source` parameter (collection + path — whether it's one combined string
+> or the `getBacklinks…BySubject?collection=…` variant the older relay used in
+> `constellation.ts:47`). The endpoint names and `subject`/`limit`/`cursor`
+> semantics above are verified against the live service; only `source`'s string
+> format needs a one-line `curl` to pin down.
 
 The anchor itself is a singleton record on the **service PDS** (e.g.
 `com.minomobi.io.board` rkey `self`, or just a pinned post). Its at-uri is a
-build-time constant in worker config.
+build-time constant in worker config. Note Constellation respects deletions, so
+if an author deletes their ticket record it drops out of the index (and we
+should mirror that on the next index pass).
 
 ### 4.2 Fallback / upgrade: Jetstream consumer
 
@@ -633,9 +649,9 @@ workers/auth/src/index.ts         +1 line: io.mino.mobi in ALLOWED_ORIGINS (ship
 
 ## 12. Open items to confirm at build time
 
-- **Constellation API surface** — exact endpoint/param spelling (`/links`
-  vs `getBacklinks*`, `target`/`collection`/`path`). Verify live; §4.1 is the
-  pattern, not a guarantee. (Network was down while writing this doc.)
+- **Constellation `source` encoding** — endpoint names + `subject`/`limit`/
+  `cursor` are verified (§4.1); only the `source` param's exact string format
+  (collection + JSON path) needs a one-line `curl` smoke test before coding.
 - **Migration number** — `0026` assumed; re-check the highest in
   `poll/apps/api/migrations/` at build time (in-flight branches may collide;
   later merge renumbers per repo convention).
