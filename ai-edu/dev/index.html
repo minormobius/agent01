@@ -326,7 +326,7 @@ const TILES = [
   {label:'Compliance',    kind:'icon',   accent:'#e9c46a'},
   {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3'},
 ];
-TILES.forEach(t => { /* no per-tile state — the field has one shared noise level */ });
+TILES.forEach(t => { t.extraNoise = 0; });
 
 const EDGES = [];
 for (let r=0; r<ROWS; r++) {
@@ -357,22 +357,33 @@ const ST = {
 };
 
 // ===== diffusion step =================================================
-const T_DECAY = 0.28;        // per-second rate at which T relaxes toward 0
-const PERT_BUMP_TARGET = 0.78;
+// Noise function over the design space: a low-grade global noise level
+// (ST.T) lifts the whole field together; per-tile extraNoise stacks on top
+// at the perturbation point and its linked ring-1 neighbors, so noise is
+// noisiest at the perturb, still noisy at the links, low-grade elsewhere.
+const T_DECAY            = 0.28;   // global temperature relaxation per second
+const PERT_BUMP_TARGET   = 0.45;   // perturb lifts T to at least this (was 0.78)
 const HIGHLIGHT_DURATION = 1.8;
+const EXTRA_DECAY        = 0.32;   // per-tile extra noise relaxation per second
+const PERT_LOCAL         = 0.70;   // extraNoise at the perturbed tile
+const PERT_RING1         = 0.40;   // extraNoise at every ring-1 neighbor
 
 function step(dt) {
   ST.time += dt;
   ST.iter += dt * 18;
-  // T relaxes toward 0 with first-order decay — accelerating denoise feel.
   ST.T = Math.max(0, ST.T - T_DECAY * dt * (0.6 + 0.8 * ST.T));
+  TILES.forEach(t => {
+    t.extraNoise = Math.max(0, t.extraNoise - EXTRA_DECAY * dt);
+  });
 }
 
 function perturb(i) {
-  // The whole field gets noisier together; the clicked tile shows a brief
-  // border glow so you can see where the input change came from.
   ST.T = Math.max(ST.T, PERT_BUMP_TARGET);
   ST.highlights.push({tile: i, startTime: ST.time, duration: HIGHLIGHT_DURATION});
+  TILES[i].extraNoise = Math.max(TILES[i].extraNoise, PERT_LOCAL);
+  NBRS[i].forEach(j => {
+    TILES[j].extraNoise = Math.max(TILES[j].extraNoise, PERT_RING1);
+  });
   if (typeof regenerateOutputs === 'function') regenerateOutputs();
 }
 
@@ -380,6 +391,7 @@ function resetAll() {
   ST.T = 1;
   ST.iter = 0;
   ST.highlights = [];
+  TILES.forEach(t => t.extraNoise = 0);
   if (typeof regenerateOutputs === 'function') regenerateOutputs();
 }
 
@@ -567,9 +579,9 @@ function draw(c, W, H) {
     drawTileResolved(c, tile, r);
   });
 
-  // ONE canvas-spanning noise overlay — everything denoises in lockstep.
-  // Alpha curve: pow(T, 1.15) gives a quick initial drop then a long tail of
-  // fine grain, which reads like a real diffusion sampler converging.
+  // Layer 1 — canvas-spanning low-grade noise. The whole field always carries
+  // some shared noise level (ST.T), so the picture as a whole emerges in
+  // lockstep with the diffusion samplerly accelerating curve.
   if (ST.T > 0.01 && ST.noisePattern) {
     c.save();
     c.globalAlpha = Math.pow(ST.T, 1.15) * 0.93;
@@ -580,6 +592,28 @@ function draw(c, W, H) {
     c.fillRect(ox, oy, W, H);
     c.globalAlpha = 1;
     c.restore();
+  }
+
+  // Layer 2 — per-tile extra noise stacked on top, clipped to each tile.
+  // Noisier at the perturbation point, still noisy at the ring-1 links,
+  // nothing extra elsewhere. A noise function over design space.
+  if (ST.noisePattern) {
+    TILES.forEach((tile, i) => {
+      if (tile.extraNoise <= 0.02) return;
+      const r = tileRect(i, W, H);
+      c.save();
+      c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+      c.globalAlpha = tile.extraNoise * 0.78;
+      c.fillStyle = ST.noisePattern;
+      // Different offset than the global layer so the patterns interleave
+      // and the local noise visibly densifies rather than just brightens.
+      const ox = ((i * 53 + 41) + Math.floor(ST.time * 110)) % 128;
+      const oy = ((i * 89 + 23) + Math.floor(ST.time * 75)) % 128;
+      c.translate(-ox, -oy);
+      c.fillRect(r.x + ox, r.y + oy, r.w, r.h);
+      c.globalAlpha = 1;
+      c.restore();
+    });
   }
 
   // Per-tile highlight glow — drawn AFTER the noise so the user can see
