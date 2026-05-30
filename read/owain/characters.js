@@ -24,12 +24,12 @@ window.OWAIN.characters = {
     // — Principals —
     { id: "owain", name: "Owain ab Urien", role: "principal", alt: "Yvain (Chrétien); Owain mab Urien Rheged", epithet: "knight of Arthur's court; lord of the fountain; the knight of the lion",
       blurb: "The hero. A knight of Arthur's court who, stung by Cei's mockery and moved by Cynon's tale of defeat, rides alone to the magic fountain, pours the water, endures the storm, and meets and mortally wounds its Black Knight. Trapped in the dead man's castle, made invisible by Luned's ring, he falls in love with the widow he has just made and — through Luned's contrivance — weds her and takes up the fountain's defence. Then Arthur's company finds him; he returns to court for a visit, overstays the term his wife set, and loses everything: she sends a messenger to strip the ring from his finger, and he runs mad and naked into the wilderness. Healed by a noblewoman's ointment, companioned by a lion he saves from a serpent, he wins his way back through a chain of rescues to reconciliation. Historically <strong>Owain mab Urien</strong> was a real sixth-century king of Rheged in the Hen Ogledd (the Old North), praised in Taliesin's elegies — euhemerised demotion in reverse, a historical prince climbing into Arthurian romance.",
-      appears: [1], pending: true,
+      appears: [1, 2], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "luned", label: "saved by / saviour of" }, { to: "lion", label: "companion of" }, { to: "black-knight", label: "slayer of" }, { to: "cynon", label: "completes the quest of" }, { to: "arthur", label: "knight of" }, { to: "cei", label: "mocked by" }, { to: "gwalchmei", label: "fights unknowing" }] },
 
     { id: "cynon", name: "Cynon ab Clydno", role: "court", alt: "Calogrenant (Chrétien)", epithet: "the knight whose defeat opens the tale",
       blurb: "A knight of Arthur's court who, at Cei's prompting, tells the tale that frames the whole romance: how in his youth he rode out seeking adventure, was directed by a great black keeper of beasts to the magic fountain, poured the water, raised the storm, and was unhorsed and shamed by the fountain's Black Knight — riding home defeated and silent. His reported humiliation is the seed Owain takes up; the romance's deep structure is a relay, one man's defeat becoming another's quest. (In Chrétien he is Calogrenant.)",
-      appears: [1], pending: true,
+      appears: [1, 2], pending: true,
       rel: [{ to: "cei", label: "tells his tale at the prompting of" }, { to: "owain", label: "whose adventure Owain completes" }, { to: "black-knight", label: "defeated by" }, { to: "keeper", label: "directed by" }, { to: "arthur", label: "knight of" }] },
 
     { id: "countess", name: "The Countess of the Fountain", role: "fountain", alt: "Iarlles y Ffynnon; Laudine (Chrétien)", epithet: "the lady of the magic spring; the widow Owain makes and weds",
@@ -49,18 +49,18 @@ window.OWAIN.characters = {
 
     { id: "black-knight", name: "The Black Knight of the Fountain", role: "fountain", alt: "Esclados the Red (Chrétien)", epithet: "the fountain's defender",
       blurb: "The dark champion who answers the storm whenever a traveller pours water on the fountain's slab — the defender Cynon could not beat and Owain mortally wounds. Husband of the Countess. His death creates the vacancy that Owain, through Luned, fills: to win the lady Owain must first take the dead man's office. (In Chrétien he is Esclados le Ros.)",
-      appears: [], pending: true,
+      appears: [2], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "owain", label: "slain by" }, { to: "cynon", label: "vanquisher of" }, { to: "fountain", label: "defender of" }] },
 
     // — Arthur's court —
     { id: "arthur", name: "Arthur", role: "court", alt: "Yr Amherawdyr Arthur", epithet: "the emperor; lord of Caer Llion",
       blurb: "The emperor (<em>amherawdyr</em>) at whose court at Caer Llion ar Wysc the tale is told and to which it returns. He dozes while his men trade stories in the opening frame, and later leads the company that rides out to find the fountain — and Owain — bringing the hero back to court for the fateful visit that breaks his marriage-term.",
-      appears: [1], pending: true,
+      appears: [1, 2], pending: true,
       rel: [{ to: "owain", label: "lord of" }, { to: "cei", label: "lord of" }, { to: "cynon", label: "lord of" }, { to: "gwenhwyfar", label: "husband of" }] },
 
     { id: "cei", name: "Cei ab Cynyr", role: "court", alt: "Sir Kay", epithet: "the sharp-tongued steward",
       blurb: "Arthur's seneschal, already the court's caustic edge — bargaining for his tale before he will serve the mead, and quick to mock. His gibes goad both Cynon and, later, Owain; in the romance's pattern of courtesy-as-friction he is the abrasive that sets the hero in motion. (The later Sir Kay.)",
-      appears: [1], pending: true,
+      appears: [1, 2], pending: true,
       rel: [{ to: "arthur", label: "steward of" }, { to: "cynon", label: "goads" }, { to: "owain", label: "mocks" }] },
 
     { id: "gwalchmei", name: "Gwalchmei ab Gwyar", role: "court", alt: "Gwalchmai; Gawain", epithet: "the courteous champion",
@@ -70,7 +70,7 @@ window.OWAIN.characters = {
 
     { id: "gwenhwyfar", name: "Gwenhwyfar", role: "court", alt: "Guinevere", epithet: "the queen",
       blurb: "Arthur's queen, at needlework with her handmaids by the window in the opening frame. (Guinevere.)",
-      appears: [1], pending: true,
+      appears: [1, 2], pending: true,
       rel: [{ to: "arthur", label: "wife of" }] },
 
     { id: "glewlwyd", name: "Glewlwyd Gafaelfawr", role: "court", alt: "Glewlwyd Mighty-Grasp", epithet: "the porter who is not a porter",
@@ -81,7 +81,7 @@ window.OWAIN.characters = {
     // — Marvels of the road —
     { id: "keeper", name: "The keeper of beasts", role: "road", alt: "the great black man of the wood", epithet: "the one-eyed, one-footed herdsman",
       blurb: "A huge black man seated on a mound in a forest clearing, one-eyed and one-footed, with an iron club, lord over all the wild animals of the wood — who gather and bow to him at his summons. He directs the questing knight (first Cynon, then Owain) to the magic fountain. A figure straight out of the older Insular Otherworld: the monstrous herdsman as threshold-guardian and giver-of-directions. <em>Enters in Movement II.</em>",
-      appears: [], pending: true,
+      appears: [2], pending: true,
       rel: [{ to: "cynon", label: "directs" }, { to: "owain", label: "directs" }] },
   ],
 };

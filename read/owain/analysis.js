@@ -27,9 +27,13 @@ window.OWAIN.propp = {
       realized: "Arthur's court at Caer Llion ar Wysc: the emperor dozing on his dais of rushes, Owain, Cynon and Cei together, Gwenhwyfar's maids at the window, Glewlwyd keeping a gate that needs no keeping. The marvels will be reported before they are lived — the Welsh romance frames its adventure as a tale told at the hearth.", passage: 1 },
     { act: "frame", sym: "a", node: "The reported lack", name: "Lack (deferred)", gloss: "A want or wrong is named, here at one remove.",
       realized: "The hand-off from Owain to Cynon sets up the romance's engine: Cynon will tell of a defeat at the magic fountain (Movement II), and that reported humiliation becomes the lack Owain rides out to repair. The tale's deep structure is a relay — one knight's shame is the next knight's quest.", passage: 1 },
-    // Further functions (Owain's Departure, the Donor at the fountain, the
+    { act: "frame", sym: "D", node: "The reported donor", name: "Donor (embedded)", gloss: "A donor figure tests the hero and points the way.",
+      realized: "Inside Cynon's tale, the donor sequence runs twice over: the courteous yellow-clad host who lodges, feeds and re-clothes the knight and then — reluctantly — gives the directions, and the monstrous keeper of beasts who points the last stage of the road to the fountain. The Welsh romance splits Propp's donor into a courtly half and a wild half; Owain will pass the same two donors again in Movement III.", passage: 2 },
+    { act: "frame", sym: "A↓", node: "The reported defeat", name: "Villainy / the humbling", gloss: "The harm that opens (here, hardens) the tale.",
+      realized: "Cynon raises the storm, the Black Knight answers, and Cynon is unhorsed and stripped of his mount — not even thought worth capturing. The defeat is reported, not lived; but it is what gives Owain's quest its object. The lack named in the frame is now a concrete shame at a nameable place, inside Arthur's own dominion, that no one has avenged.", passage: 2 },
+    // Owain's own arc (his secret Departure, the Donors passed again, the
     // Struggle with the Black Knight, the won bride, the violated term, the
-    // descent into madness, the lion-helper, the liquidations) are seeded as
+    // descent into madness, the lion-helper, the liquidations) is seeded as
     // the translation reaches each movement.
   ],
   absent: {

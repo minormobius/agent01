@@ -36,14 +36,14 @@ window.OWAIN.motifs = {
     // — D · Magic —
     { cls: "D", code: "D1361.17", name: "Ring of invisibility", conf: "high", passages: [],
       gloss: "Luned's ring: turn the stone into the palm and close the hand, and the wearer cannot be seen. It hides the trapped Owain from the dead knight's vengeful household and lets him watch the funeral — and the Countess — unseen. The classic magic-ring of romance; compare the broader D1361 magic-mist/concealment family in Insular tradition. <em>Pending its movement.</em>" },
-    { cls: "D", code: "D2143.1", name: "Storm produced by magic (the fountain rite)", conf: "high", passages: [],
-      gloss: "The romance's engine: pour a bowlful of the fountain's water on the great slab beside it, and a tempest of thunder, hail and lightning breaks over the wood, stripping every leaf — after which the Black Knight rides to answer. A weather-making rite tied to a place, straight from the Brittonic Otherworld stock; Chrétien's Barenton fountain in Brocéliande is its Continental cousin. <em>Pending its movement.</em>" },
+    { cls: "D", code: "D2143.1", name: "Storm produced by magic (the fountain rite)", conf: "high", passages: [2],
+      gloss: "The romance's engine: pour a bowlful of the fountain's water on the great slab beside it, and a tempest of thunder, hail and lightning breaks over the wood, stripping every leaf — after which the Black Knight rides to answer. A weather-making rite tied to a place, straight from the Brittonic Otherworld stock; Chrétien's Barenton fountain in Brocéliande is its Continental cousin. First raised in Cynon's tale (Mvt II); Owain repeats the rite in Mvt III." },
 
     // — F · Marvels & the Otherworld —
-    { cls: "F", code: "F460", name: "The monstrous keeper of beasts", conf: "high", passages: [],
-      gloss: "The huge black man on the forest mound — one-eyed, one-footed, iron-clubbed — lord of the wild animals, who gather and bow at his call, and who directs the questing knight to the fountain. A threshold-guardian out of the older Insular Otherworld; the wild-herdsman type. Compare the giant Ysbaddaden's gatekeepers and the keepers of the marvels in Culhwch. <em>Pending Movement II.</em>" },
-    { cls: "F", code: "F718", name: "The marvellous fountain / spring of the Otherworld", conf: "high", passages: [],
-      gloss: "The spring beneath the great tree, with its silver bowl on a slab — the bounded Otherworld threshold the whole tale orbits. The guardian who must be killed to be succeeded marks it as a place where office passes by combat, not inheritance. <em>Pending its movement.</em>" },
+    { cls: "F", code: "F460", name: "The monstrous keeper of beasts", conf: "high", passages: [2],
+      gloss: "The huge black man on the forest mound — one-eyed, one-footed, iron-clubbed — lord of the wild animals, who gather and bow at his call, and who directs the questing knight to the fountain. A threshold-guardian out of the older Insular Otherworld; the wild-herdsman type. Compare the giant Ysbaddaden's gatekeepers and the keepers of the marvels in Culhwch. Realised in Cynon's tale (Mvt II), to recur when Owain rides the same road." },
+    { cls: "F", code: "F718", name: "The marvellous fountain / spring of the Otherworld", conf: "high", passages: [2],
+      gloss: "The spring beneath the great tree, with its silver bowl on a slab — the bounded Otherworld threshold the whole tale orbits. The guardian who must be killed to be succeeded marks it as a place where office passes by combat, not inheritance. First seen in Cynon's tale (Mvt II)." },
 
     // — Z · Formulas & symbols —
     { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [],
