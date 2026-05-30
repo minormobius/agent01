@@ -326,40 +326,91 @@ const TILES = [
   {label:'Compliance',    kind:'icon',   accent:'#e9c46a'},
   {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3'},
 ];
-TILES.forEach(t => {
-  t.clarity = 0;
-  t.pos = {x: 0, y: 0};
-  t.vel = {vx: 0, vy: 0};
-  t.restPos = {x: 0, y: 0};
-});
+TILES.forEach(t => t.clarity = 0);
 
-const EDGES = [];  // {a, b, L0, perturbTime, perturbAmt}
+const EDGES = [];
 for (let r=0; r<ROWS; r++) {
   for (let c=0; c<COLS; c++) {
     const i = r*COLS + c;
-    const add = (a, b) => EDGES.push({a, b, L0: 0, perturbTime: -10, perturbAmt: 0});
-    if (r < ROWS-1) add(i, i+COLS);                                          // down
-    if (c < COLS-1 && r%2===0) add(i, i+1);                                  // right (alt rows)
-    if (r < ROWS-1 && c < COLS-1 && (r+c)%2===0) add(i, i+COLS+1);           // diag
-    if (r < ROWS-1 && c > 0 && (r+c)%3===0) add(i, i+COLS-1);                // anti-diag
+    if (r < ROWS-1) EDGES.push([i, i+COLS]);                              // down
+    if (c < COLS-1 && r%2===0) EDGES.push([i, i+1]);                      // right (alt rows)
+    if (r < ROWS-1 && c < COLS-1 && (r+c)%2===0) EDGES.push([i, i+COLS+1]); // diag
+    if (r < ROWS-1 && c > 0 && (r+c)%3===0) EDGES.push([i, i+COLS-1]);    // anti-diag
   }
 }
 const NBRS = TILES.map(()=>[]);
-EDGES.forEach(e => { NBRS[e.a].push(e.b); NBRS[e.b].push(e.a); });
+EDGES.forEach(([a,b])=>{ NBRS[a].push(b); NBRS[b].push(a); });
 
 const ST = {
   time: 0, iter: 0,
   playing: true,
   hover: -1,
-  flows: [],            // {edgeIdx, source, dest, startTime, duration, intensity, applied, cascade, deliveredAt}
+  pulses: [],          // {edgeIdx, startTime, intensity}
   lastAuto: 0,
   noisePattern: null,
   noiseDirty: 0,
-  layoutW: 0, layoutH: 0,
 };
 
-// ===== layout =========================================================
-function tileBaseRect(i, W, H) {
+// ===== diffusion step =================================================
+function step(dt) {
+  ST.time += dt;
+  ST.iter += dt * 18;
+  // Move toward target=1, faster when neighbors are clear (information flows in).
+  // Tuned so the field converges in ~4-5 seconds from pure noise.
+  TILES.forEach((t, i) => {
+    const nb = NBRS[i];
+    const nbAvg = nb.length ? nb.reduce((s,j)=>s+TILES[j].clarity, 0)/nb.length : 0;
+    const rate = (0.09 + 0.32 * (0.25 + 0.75 * nbAvg)) * dt;
+    t.clarity = Math.min(1, t.clarity + rate);
+  });
+  // Aging pulses
+  ST.pulses = ST.pulses.filter(p => ST.time - p.startTime < 1.8);
+}
+
+function perturb(i) {
+  TILES[i].clarity = 0;
+  // Ring 1: direct neighbors degrade + pulse
+  const ring1 = new Set();
+  EDGES.forEach((e, ei) => {
+    if (e[0] === i || e[1] === i) {
+      ST.pulses.push({edgeIdx: ei, startTime: ST.time, intensity: 1.0});
+      const other = e[0]===i ? e[1] : e[0];
+      ring1.add(other);
+      TILES[other].clarity = Math.max(0, TILES[other].clarity - 0.42);
+    }
+  });
+  // Ring 2: delayed pulse, small clarity drop
+  ring1.forEach(j => {
+    EDGES.forEach((e, ei) => {
+      if ((e[0]===j || e[1]===j) && e[0]!==i && e[1]!==i) {
+        const other = e[0]===j ? e[1] : e[0];
+        if (other === i || ring1.has(other)) return;
+        ST.pulses.push({edgeIdx: ei, startTime: ST.time + 0.28, intensity: 0.55});
+        TILES[other].clarity = Math.max(0, TILES[other].clarity - 0.16);
+      }
+    });
+  });
+  if (typeof regenerateOutputs === 'function') regenerateOutputs();
+}
+
+function resetAll() {
+  TILES.forEach(t => t.clarity = 0);
+  ST.iter = 0;
+  ST.pulses = [];
+  if (typeof regenerateOutputs === 'function') regenerateOutputs();
+}
+
+function maybeAutoPerturb() {
+  if (!ST.playing) return;
+  const avg = TILES.reduce((s,t)=>s+t.clarity, 0) / TILES.length;
+  if (avg > 0.94 && ST.time - ST.lastAuto > 3.5) {
+    perturb(Math.floor(Math.random() * TILES.length));
+    ST.lastAuto = ST.time;
+  }
+}
+
+// ===== rendering =======================================================
+function tileRect(i, W, H) {
   const M = 22, GX = 14, GY = 16;
   const r = Math.floor(i / COLS), c = i % COLS;
   const innerW = W - 2*M, innerH = H - 2*M;
@@ -367,151 +418,6 @@ function tileBaseRect(i, W, H) {
   const th = (innerH - (ROWS-1)*GY) / ROWS;
   return { x: M + c*(tw+GX), y: M + r*(th+GY), w: tw, h: th };
 }
-
-function tileRectFromPos(i, W, H) {
-  const t = TILES[i];
-  const r = tileBaseRect(i, W, H);
-  return { x: t.pos.x - r.w/2, y: t.pos.y - r.h/2, w: r.w, h: r.h };
-}
-
-function layoutTiles(W, H) {
-  TILES.forEach((t, i) => {
-    const r = tileBaseRect(i, W, H);
-    const cx = r.x + r.w/2, cy = r.y + r.h/2;
-    if (ST.layoutW === 0) {
-      // first layout: snap pos to rest
-      t.pos.x = cx; t.pos.y = cy;
-    } else {
-      // subsequent: scale current pos to the new viewport
-      const sx = W / ST.layoutW, sy = H / ST.layoutH;
-      t.pos.x *= sx; t.pos.y *= sy;
-    }
-    t.restPos.x = cx; t.restPos.y = cy;
-    t.vel.vx = 0; t.vel.vy = 0;
-  });
-  EDGES.forEach(e => {
-    const ta = TILES[e.a], tb = TILES[e.b];
-    e.L0 = Math.hypot(ta.restPos.x - tb.restPos.x, ta.restPos.y - tb.restPos.y);
-  });
-  ST.layoutW = W; ST.layoutH = H;
-}
-
-// ===== diffusion + physics step =======================================
-const PERT_DURATION = 5.0;   // edge contraction relaxes over this many seconds
-const PERT_CONTRACT = 0.30;  // peak link contraction = L0 * (1 - this)
-const FLOW_TRAVEL   = 0.80;  // seconds for a static wave to cross one edge
-const FLOW_BLEED1   = 0.48;  // ring-1 clarity drop on arrival
-const FLOW_BLEED2   = 0.18;  // ring-2 clarity drop on arrival
-const SPRING_K      = 55;    // edge stiffness (per second)
-const ANCHOR_K      = 11;    // pull-back toward grid restPos
-const DAMP_PER_SEC  = 0.0035;// per-second velocity multiplier (heavy damping for visible decay over ~5s)
-
-function step(dt) {
-  ST.time += dt;
-  ST.iter += dt * 18;
-
-  // Diffusion: each tile relaxes toward clarity=1, faster when neighbors are clear.
-  TILES.forEach((t, i) => {
-    const nb = NBRS[i];
-    const nbAvg = nb.length ? nb.reduce((s,j)=>s+TILES[j].clarity, 0)/nb.length : 0;
-    const rate = (0.075 + 0.28 * (0.25 + 0.75 * nbAvg)) * dt;
-    t.clarity = Math.min(1, t.clarity + rate);
-  });
-
-  // Edge contraction relaxes linearly back to rest over PERT_DURATION.
-  EDGES.forEach(e => {
-    const since = ST.time - e.perturbTime;
-    e.perturbAmt = since < PERT_DURATION ? Math.max(0, 1 - since / PERT_DURATION) : 0;
-  });
-
-  // Physics: spring forces on each edge + soft anchor to the grid restPos + damping.
-  // Position-correction is implicit (anchor wins long-term so tiles return to rest).
-  const damp = Math.pow(DAMP_PER_SEC, dt);
-  EDGES.forEach(e => {
-    const ta = TILES[e.a], tb = TILES[e.b];
-    const dx = tb.pos.x - ta.pos.x, dy = tb.pos.y - ta.pos.y;
-    const d = Math.hypot(dx, dy);
-    if (d < 0.001) return;
-    const targetLen = e.L0 * (1 - e.perturbAmt * PERT_CONTRACT);
-    const force = SPRING_K * (d - targetLen) / d;
-    const fx = force * dx, fy = force * dy;
-    ta.vel.vx += fx * dt; ta.vel.vy += fy * dt;
-    tb.vel.vx -= fx * dt; tb.vel.vy -= fy * dt;
-  });
-  TILES.forEach(t => {
-    t.vel.vx += ANCHOR_K * (t.restPos.x - t.pos.x) * dt;
-    t.vel.vy += ANCHOR_K * (t.restPos.y - t.pos.y) * dt;
-    t.vel.vx *= damp; t.vel.vy *= damp;
-    t.pos.x += t.vel.vx * dt; t.pos.y += t.vel.vy * dt;
-  });
-
-  // Flow propagation: each flow travels its edge over FLOW_TRAVEL seconds.
-  // On arrival it drops dest clarity and, if cascading, spawns ring-2 flows.
-  const newFlows = [];
-  ST.flows.forEach(f => {
-    if (f.applied) return;
-    const elapsed = ST.time - f.startTime;
-    if (elapsed < f.duration) return;
-    TILES[f.dest].clarity = Math.max(0, TILES[f.dest].clarity - f.intensity);
-    f.applied = true;
-    f.deliveredAt = ST.time;
-    if (f.cascade) {
-      EDGES.forEach((e, ei) => {
-        if (ei === f.edgeIdx) return;
-        if (e.a !== f.dest && e.b !== f.dest) return;
-        const other = e.a === f.dest ? e.b : e.a;
-        if (other === f.source) return;
-        e.perturbTime = ST.time;
-        newFlows.push({
-          edgeIdx: ei, source: f.dest, dest: other,
-          startTime: ST.time, duration: FLOW_TRAVEL,
-          intensity: FLOW_BLEED2, applied: false, cascade: false,
-        });
-      });
-    }
-  });
-  ST.flows.push(...newFlows);
-  ST.flows = ST.flows.filter(f => !f.applied || (ST.time - f.deliveredAt) < 0.7);
-}
-
-function perturb(i) {
-  TILES[i].clarity = 0;
-  EDGES.forEach((e, ei) => {
-    if (e.a !== i && e.b !== i) return;
-    e.perturbTime = ST.time;
-    const other = e.a === i ? e.b : e.a;
-    ST.flows.push({
-      edgeIdx: ei, source: i, dest: other,
-      startTime: ST.time, duration: FLOW_TRAVEL,
-      intensity: FLOW_BLEED1, applied: false, cascade: true,
-    });
-  });
-  if (typeof regenerateOutputs === 'function') regenerateOutputs();
-}
-
-function resetAll() {
-  TILES.forEach(t => {
-    t.clarity = 0;
-    t.pos.x = t.restPos.x; t.pos.y = t.restPos.y;
-    t.vel.vx = 0; t.vel.vy = 0;
-  });
-  EDGES.forEach(e => { e.perturbTime = -10; e.perturbAmt = 0; });
-  ST.iter = 0;
-  ST.flows = [];
-  if (typeof regenerateOutputs === 'function') regenerateOutputs();
-}
-
-function maybeAutoPerturb() {
-  if (!ST.playing) return;
-  const avg = TILES.reduce((s,t)=>s+t.clarity, 0) / TILES.length;
-  // Longer cadence so each 5s ripple lands before the next one fires.
-  if (avg > 0.90 && ST.time - ST.lastAuto > 5.5) {
-    perturb(Math.floor(Math.random() * TILES.length));
-    ST.lastAuto = ST.time;
-  }
-}
-
-// ===== rendering =======================================================
 
 function buildNoisePattern(c) {
   const N = 128;
@@ -648,38 +554,33 @@ function drawBars(c, x, y, w, h, accent) {
   }
 }
 
-function drawEdge(c, ei) {
-  const e = EDGES[ei];
-  const ta = TILES[e.a], tb = TILES[e.b];
-  const ax = ta.pos.x, ay = ta.pos.y;
-  const bx = tb.pos.x, by = tb.pos.y;
-  const clarA = ta.clarity, clarB = tb.clarity;
+function drawEdge(c, ei, W, H) {
+  const [a, b] = EDGES[ei];
+  const ra = tileRect(a, W, H), rb = tileRect(b, W, H);
+  const ax = ra.x + ra.w/2, ay = ra.y + ra.h/2;
+  const bx = rb.x + rb.w/2, by = rb.y + rb.h/2;
+  const clarA = TILES[a].clarity, clarB = TILES[b].clarity;
   const baseAlpha = Math.min(0.6, (clarA + clarB) * 0.32);
-  // Contracted edges read brighter + slightly thicker — visible "tension".
-  const contracted = e.perturbAmt || 0;
-  c.strokeStyle = `rgba(120, 200, 220, ${baseAlpha + contracted * 0.22})`;
-  c.lineWidth = 1 + contracted * 0.9;
+  c.strokeStyle = `rgba(120, 200, 220, ${baseAlpha})`;
+  c.lineWidth = 1;
   c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
-  // Flows on this edge: bright trail + travelling head until it lands, then a brief afterglow.
-  ST.flows.forEach(f => {
-    if (f.edgeIdx !== ei) return;
-    const t = ST.time - f.startTime;
-    const totalLife = f.duration + 0.7;
-    if (t < 0 || t > totalLife) return;
-    const fade = Math.max(0, 1 - t/totalLife) * Math.min(1, f.intensity * 2);
-    c.strokeStyle = `rgba(180, 240, 255, ${fade * 0.55})`;
-    c.lineWidth = 1.8;
+  // pulses
+  ST.pulses.forEach(p => {
+    if (p.edgeIdx !== ei) return;
+    const t = ST.time - p.startTime;
+    if (t < 0 || t > 1.8) return;
+    const fade = Math.max(0, 1 - t/1.8) * p.intensity;
+    c.strokeStyle = `rgba(180, 240, 255, ${fade * 0.6})`;
+    c.lineWidth = 1.6;
     c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
-    if (!f.applied) {
-      const src = TILES[f.source].pos, dst = TILES[f.dest].pos;
-      const fF = t / f.duration;
-      const px = src.x + (dst.x - src.x) * fF;
-      const py = src.y + (dst.y - src.y) * fF;
-      c.fillStyle = `rgba(220, 250, 245, ${fade})`;
-      c.beginPath(); c.arc(px, py, 3.6, 0, Math.PI*2); c.fill();
-      c.fillStyle = `rgba(220, 250, 245, ${fade * 0.25})`;
-      c.beginPath(); c.arc(px, py, 8, 0, Math.PI*2); c.fill();
-    }
+    const f = Math.min(1, t / 0.55);
+    const px = ax + (bx - ax) * f;
+    const py = ay + (by - ay) * f;
+    c.fillStyle = `rgba(200, 255, 240, ${fade})`;
+    c.beginPath(); c.arc(px, py, 3.2, 0, Math.PI*2); c.fill();
+    // glow
+    c.fillStyle = `rgba(200, 255, 240, ${fade * 0.25})`;
+    c.beginPath(); c.arc(px, py, 7, 0, Math.PI*2); c.fill();
   });
 }
 
@@ -691,12 +592,12 @@ function draw(c, W, H) {
   c.fillStyle = grad;
   c.fillRect(0, 0, W, H);
 
-  // edges (under tiles) — endpoints come from physics-updated tile positions
-  EDGES.forEach((_, ei) => drawEdge(c, ei));
+  // edges (under tiles)
+  EDGES.forEach((_, ei) => drawEdge(c, ei, W, H));
 
   // tiles
   TILES.forEach((tile, i) => {
-    const r = tileRectFromPos(i, W, H);
+    const r = tileRect(i, W, H);
     drawTileResolved(c, tile, r);
     const cl = tile.clarity;
     if (cl < 0.985 && ST.noisePattern) {
@@ -749,7 +650,6 @@ function loop(t) {
     const c0 = cv.getContext('2d');
     c0.setTransform(dpr, 0, 0, dpr, 0, 0);
     ST.noisePattern = buildNoisePattern(c0);
-    layoutTiles(W, H);   // grid restPos + edge L0 follow the canvas size
   }
   // refresh noise occasionally (animated grain)
   ST.noiseDirty += dt;
@@ -772,7 +672,7 @@ function tileAt(mx, my) {
   const cv = document.getElementById('field');
   const W = cv.clientWidth, H = cv.clientHeight;
   for (let i=0; i<TILES.length; i++) {
-    const r = tileRectFromPos(i, W, H);
+    const r = tileRect(i, W, H);
     if (mx>=r.x && mx<=r.x+r.w && my>=r.y && my<=r.y+r.h) return i;
   }
   return -1;
