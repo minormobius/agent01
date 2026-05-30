@@ -71,8 +71,7 @@ async function loadThread(rawInput) {
     onProgress: ({ fetched }) => setStatus(`fetching thread (${fetched} chunks)…`),
   });
   const posts = flattenThread(tree);
-  const images = collectImagesFromPosts(posts);
-  return { images, posts };
+  return { posts };
 }
 
 // Build a queue of *post units* — each post itself (if it has text) AND any
