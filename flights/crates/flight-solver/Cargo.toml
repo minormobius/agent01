@@ -1,0 +1,9 @@
+[package]
+name = "flight-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Constraint-based ranking of flight itineraries — zero-dependency core"
+
+# Pure std, zero dependencies, so `cargo test` runs natively offline.
+# The browser glue (serde + wasm-bindgen) lives in the sibling
+# flight-solver-wasm crate, which depends on this one and is built in CI.
