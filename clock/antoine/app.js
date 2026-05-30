@@ -11,7 +11,7 @@
 // ever with no precision loss.
 
 const WGSL = /* wgsl */`
-struct U {
+struct Uniforms {
   resTimeZoom : vec4f,  // res.x, res.y, time, zoomWrapped[0,1)
   cam         : vec4f,  // yaw, pitch, dist, fovTan
   fr0         : vec4f,  // k, theta(twist), tube, steps
@@ -20,7 +20,7 @@ struct U {
   pal         : vec4f,  // bgBright, vignette, outerLevels, links
   extra       : vec4f,  // linkSize, _, _, _
 };
-@group(0) @binding(0) var<uniform> U : U;
+@group(0) @binding(0) var<uniform> U : Uniforms;
 
 var<private> gLev  : f32 = 0.0;
 var<private> gBead : f32 = 0.0;

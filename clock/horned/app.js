@@ -8,7 +8,7 @@
 // is provably identical, giving a perfectly seamless, endless zoom.
 
 const WGSL = /* wgsl */`
-struct U {
+struct Uniforms {
   resTimeZoom : vec4f,  // res.x, res.y, time, zoomWrapped[0,1)
   cam         : vec4f,  // yaw, pitch, dist, fovTan
   fr0         : vec4f,  // k, theta(twist), tube, steps
@@ -16,7 +16,7 @@ struct U {
   light       : vec4f,  // lightYaw, lightPitch, fog, exposure
   pal         : vec4f,  // bgBright, vignette, outerLevels, arms
 };
-@group(0) @binding(0) var<uniform> U : U;
+@group(0) @binding(0) var<uniform> U : Uniforms;
 
 var<private> gLev  : f32 = 0.0;
 var<private> gComp : f32 = 0.0;
