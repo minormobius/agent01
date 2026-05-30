@@ -227,13 +227,17 @@ function chooseTileSize(count) {
 // fails — Safari's onerror gives no detail, but a real HTTP status + a
 // TypeError (network/CORS) are distinguishable here.
 //
-// All image fetches go through /api/img (a Pages Function on this same
-// origin) which proxies to cdn.bsky.app server-side. cdn.bsky.app Origin-
-// checks cross-origin browser fetches and returns 403; server-side fetch
-// doesn't send a browser Origin header so it returns 200, and we re-emit
-// the bytes with Access-Control-Allow-Origin so canvas/WebGPU can read them.
-const IMG_PROXY = '/api/img?u=';
+// We try two paths in order:
+//   1. /api/img — our same-origin proxy on photo.mino.mobi. This is the
+//      preferred path: zero third-party dependency, cached at our own edge.
+//   2. https://corsproxy.io/?u=… — public CORS proxy. Used only when our own
+//      proxy isn't routed (the deploy config is finicky about it). Public
+//      proxies are flaky and rate-limited, so this is a fallback, not the
+//      main road.
+const SELF_PROXY  = '/api/img?u=';
+const PUBLIC_PROXY = 'https://corsproxy.io/?';
 let lastImageError = '';
+let selfProxyKnownDown = false;     // set true after the first /api/img 4xx
 
 async function tryFetchAsBitmap(url) {
   try {
@@ -249,7 +253,16 @@ async function tryFetchAsBitmap(url) {
 
 async function loadImage(url) {
   if (!url) { lastImageError = 'empty url'; return null; }
-  return await tryFetchAsBitmap(IMG_PROXY + encodeURIComponent(url));
+  // Same-origin first, unless we've already confirmed it isn't routed.
+  if (!selfProxyKnownDown) {
+    const bm = await tryFetchAsBitmap(SELF_PROXY + encodeURIComponent(url));
+    if (bm) return bm;
+    // 404 from our own origin means the route isn't wired; mark it down so
+    // we don't pay the round-trip on every subsequent media item.
+    if (lastImageError === 'HTTP 404') selfProxyKnownDown = true;
+  }
+  // Public proxy fallback. Records the upstream HTTP status if non-OK.
+  return await tryFetchAsBitmap(PUBLIC_PROXY + encodeURIComponent(url));
 }
 
 // Lay out up to 4 media items in a tile's media area: 1 fills it, 2 split it
@@ -968,13 +981,12 @@ form.addEventListener('submit', async (e) => {
     if (probe.ok) {
       setStatus(`ready · image proxy ${probe.version} · paste a thread URL and hit load`);
     } else {
-      // Either the Pages Function didn't deploy (so /api/img returns the
-      // assets handler's 404) or it returned an unexpected response. Either
-      // way media will fail; surface it loudly so we don't silently end up
-      // with text-only tiles.
+      // Our same-origin proxy isn't routed; mark it down so loadImage skips
+      // straight to the public-proxy fallback instead of retrying every time.
+      selfProxyKnownDown = true;
       const why = probe.status ? `HTTP ${probe.status}` : (probe.error || 'no response');
-      setStatus(`⚠ image proxy not responding (${why}) — media will fail. Text tiles will still draw.`, true);
-      console.warn('orb: /api/img probe failed', probe);
+      setStatus(`ready · using public CORS proxy (our /api/img returned ${why}) · paste a URL and hit load`);
+      console.warn('orb: /api/img probe failed; using corsproxy.io fallback', probe);
     }
   } catch (err) {
     console.error('orb init failed:', err);
