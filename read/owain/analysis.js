@@ -18,6 +18,7 @@ window.OWAIN.propp = {
     { id: "frame",    label: "The court frame; Cynon's tale",        color: "#c9a24a" },
     { id: "quest",    label: "Owain's quest to the fountain",        color: "#6f9ac9" },
     { id: "bride",    label: "The won bride; the held fountain",     color: "#c97f9a" },
+    { id: "return",   label: "Arthur's company; the recognition",   color: "#b07a4b" },
     { id: "fall",     label: "The broken term; madness",            color: "#9a6f9a" },
     { id: "lion",     label: "The lion; the chain of rescues",      color: "#7fb37f" },
   ],
@@ -51,7 +52,14 @@ window.OWAIN.propp = {
       realized: "Luned wins the bride not by the hero's deed but by her own: she argues the grieving Countess into necessity — the fountain must have a defender, only an Arthur's knight will serve, and the proof of Owain's fitness is that he killed the last defender. The donor-heroine of the Welsh tradition (cf. Rhiannon in <em>Pwyll</em>) does the structural work a male hero's quest usually does.", passage: 5 },
     { act: "bride", sym: "W*", node: "Wedding & accession", name: "Reward — marriage and kingdom", gloss: "The hero weds and ascends.",
       realized: "The magnates consent, bishops solemnise the marriage, the men of the earldom do Owain homage, and he holds the fountain for three years — unhorsing all comers, ransoming them, and sharing the takings until no lord is more beloved. The ascending arc closes at its summit: married, throned, famous. The Welsh makes plain that the lady and the office are one prize. From here the tale falls.", passage: 5 },
-    // The violated term, the descent into madness, the lion-helper, and the
+    // ── Act 4: return ────────────────────────────────────────────
+    { act: "return", sym: "↓", node: "Return (by proxy)", name: "The court seeks the lost hero", gloss: "Movement toward the hero's recovery.",
+      realized: "Three years on, Arthur is dying of <em>hiraeth</em> for the lost Owain; on Gwalchmei's counsel the household — three thousand, no national levy — rides out with Cynon as guide, retracing the now-familiar road (the yellow host, the keeper, the fountain). The Return is inverted: the hero does not come home; home comes for him.", passage: 6 },
+    { act: "return", sym: "Q", node: "Recognition", name: "The hero is recognised", gloss: "The unrecognised hero is known again.",
+      realized: "Cei raises the storm and is twice unhorsed; the whole Round Table falls one by one to the unknown black defender — who is Owain. Only Gwalchmei, in a borrowed robe that hides him too, lasts three days against his own cousin, until a blow bares his face and the two know each other. Arthur dissolves their courteous deadlock — \"give me both swords, and neither has beaten the other.\" A double recognition, each man hidden from the other.", passage: 6 },
+    { act: "return", sym: "γ", node: "Interdiction set", name: "The term granted", gloss: "A condition is laid down — the seed of the violation.",
+      realized: "The feast three years in the making is eaten in three months; then Arthur asks the Countess to lend Owain for three months, to show him to the nobles of Britain, and she grants it \"though it was hard for her.\" The term is set. Propp's interdiction (γ) is in place; the whole fall turns on Owain failing to keep it.", passage: 6 },
+    // The violated term (δ), the descent into madness, the lion-helper, and the
     // closing liquidations are seeded as the translation reaches each movement.
   ],
   absent: {
