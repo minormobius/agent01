@@ -975,6 +975,9 @@ function resetGridLayout() {
   lastReplaceCycle = 0;
   nextRowToReplace = 0;
   pendingReplacements = 0;
+  tileCache.length = 0;          // pre-rendered tiles invalidated by layout change
+  cacheCursor = 0;
+  cacheFilling = false;
   stampedTiles.clear();   // slot indexing changes with cols/rows; map invalidated
   const { cols, rows, pad } = gridSpec();
   const padTxt = Math.round(pad * 100) + '%';
@@ -999,15 +1002,15 @@ padSlider.addEventListener('change', resetGridLayout);
 // Flow:
 //   1. ensureThreadLoaded() fetches the thread and builds the queue.
 //   2. autoStamp() does the *initial fill* — stamps each of C*R slots once,
-//      then sets initialFillDone.
+//      then sets initialFillDone and kicks off fillCache() to pre-render the
+//      next batch of tile canvases in the background.
 //   3. From then on, frame() watches cycleProgress (a monotonic counter that
 //      grows with state.scroll). Each time it crosses 1/rows of a full cycle,
-//      it schedules the next row for replacement. A single in-flight worker
-//      processes scheduled replacements one at a time, re-stamping each cell
-//      in the row with the next queue entries. Because content scrolls south-
-//      to-north, the row that just wrapped past the north pole is the right
-//      one to replace — its new content will then "erupt from the south pole"
-//      as the scroll continues.
+//      it asks replaceRowFromCache() to atomically composite the next row's
+//      worth of pre-rendered tiles into the atlas and re-upload the texture
+//      — an instant, single-tick swap so the visual change lands exactly at
+//      the south-pole crossing, not multiple seconds later as it would if we
+//      kicked off async renderPostTile work from inside the replacer.
 let tileQueue = [];
 let queueIndex = 0;            // monotonic; read modulo tileQueue.length
 let lastFetchedUrl = '';
@@ -1021,8 +1024,76 @@ let cycleProgress = 0;         // monotonic scroll counter for replacement timin
 let lastReplaceCycle = 0;
 let nextRowToReplace = 0;
 let pendingReplacements = 0;
-let replacementInFlight = false;
 const stampedTiles = new Map();   // slot -> tile entry, for tap-to-open
+
+// Pre-render cache. The slow part of putting a tile on the orb is
+// renderPostTile (image fetches + canvas draws). If we do that work
+// inside the cyclic replacer, replacements happen multiple seconds after
+// the row wraps past the pole — visibly mid-flight. Solution: keep a
+// background queue rendering the *next* tiles into canvases, and have
+// the replacer just composite from the cache instantly. The swap then
+// lands at the moment the row wraps north→south, which is the south pole.
+const tileCache = [];             // [{ canvas, entry }, ...]
+let cacheCursor = 0;              // queue position for next pre-render
+let cacheFilling = false;
+const CACHE_TARGET = 24;
+
+// Background-fill the tile cache up to CACHE_TARGET entries. Each call only
+// runs one instance at a time; subsequent calls while a fill is in flight
+// are no-ops (the in-flight fill will keep going until full).
+async function fillCache() {
+  if (cacheFilling) return;
+  if (tileQueue.length === 0) return;
+  cacheFilling = true;
+  const gen = stampGen;
+  try {
+    while (tileCache.length < CACHE_TARGET && gen === stampGen) {
+      const entry = tileQueue[cacheCursor % tileQueue.length];
+      cacheCursor++;
+      const tileCanvas = await renderPostTile(entry, TILE_PX);
+      if (gen !== stampGen) return;
+      tileCache.push({ canvas: tileCanvas, entry });
+    }
+  } finally {
+    cacheFilling = false;
+  }
+}
+
+// Synchronously composite cached tiles into the given atlas row + upload to
+// GPU. No awaits — the entire swap lands in one tick so it visually lines up
+// with the row's south-pole crossing. Returns false if the cache doesn't
+// have enough tiles yet (caller should retry next frame).
+function replaceRowFromCache(rowIdx) {
+  const c = state.atlasCanvas;
+  if (!c) return false;
+  const { cols, rows, pad } = gridSpec();
+  if (rowIdx >= rows) return false;
+  if (tileCache.length < cols) return false;   // not enough cached, defer
+
+  const ctx = c.getContext('2d');
+  const cellW = c.width / cols;
+  const cellH = c.height / rows;
+  const padX  = cellW * pad;
+  const padY  = cellH * pad;
+  const y = rowIdx * cellH + padY;
+  const h = cellH - padY * 2;
+  let lastHandle = '';
+  for (let col = 0; col < cols; col++) {
+    const cached = tileCache.shift();
+    if (!cached) break;
+    const x = col * cellW + padX;
+    const w = cellW - padX * 2;
+    ctx.clearRect(x, y, w, h);
+    ctx.drawImage(cached.canvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
+    stampedTiles.set(rowIdx * cols + col, cached.entry);
+    lastHandle = cached.entry.author?.handle || lastHandle;
+  }
+  setStripFromCanvas(c);
+  // Top up the cache for next row's worth of swaps.
+  fillCache();
+  setStatus(`row ${rowIdx + 1}/${rows} ↺ @${lastHandle} · cache ${tileCache.length}/${CACHE_TARGET}`);
+  return true;
+}
 
 function nextQueueEntry() {
   if (tileQueue.length === 0) return null;
@@ -1087,6 +1158,8 @@ async function autoStamp() {
   lastReplaceCycle = 0;
   nextRowToReplace = 0;
   pendingReplacements = 0;
+  tileCache.length = 0;
+  cacheFilling = false;
   const { cols, rows } = gridSpec();
   const cap = cols * rows;
   let placed = 0;
@@ -1108,13 +1181,19 @@ async function autoStamp() {
   }
   if (gen !== stampGen) return;
   initialFillDone = true;
+  // Cache cursor picks up where the initial fill left off in the queue, so
+  // pre-rendered tiles slot in seamlessly after the initial batch.
+  cacheCursor = queueIndex;
+  fillCache();
   // After the initial fill the cyclic replacer takes over (see frame()).
   setStatus(`stamped ${placed}/${cap} · cycling through ${tileQueue.length} posts as the orb scrolls`);
 }
 
 // Run by frame() each tick. If the scroll has advanced enough to wrap another
-// row past the north pole, schedule that row for replacement. Process one
-// replacement at a time so heavy renderPostTile work doesn't pile up.
+// row past the north pole, do an instant swap from the pre-render cache so
+// the visual change lands at the moment of the pole crossing. If the cache
+// is too small (slow network), the swap is deferred until enough tiles are
+// ready — we'd rather slip a beat than swap mid-flight.
 function tickCyclicReplacer() {
   if (!initialFillDone || paused || tileQueue.length === 0) return;
   const { rows } = gridSpec();
@@ -1129,32 +1208,17 @@ function tickCyclicReplacer() {
   const ceiling = rows * 2;
   if (pendingReplacements > ceiling) pendingReplacements = ceiling;
 
-  if (pendingReplacements > 0 && !replacementInFlight) {
-    pendingReplacements--;
+  if (pendingReplacements > 0) {
     const rowIdx = nextRowToReplace;
-    nextRowToReplace = (nextRowToReplace + 1) % rows;
-    replaceRow(rowIdx);
-  }
-}
-
-async function replaceRow(rowIdx) {
-  const gen = stampGen;
-  replacementInFlight = true;
-  try {
-    const { cols, rows } = gridSpec();
-    if (rowIdx >= rows) return;   // slider changed
-    for (let col = 0; col < cols; col++) {
-      if (gen !== stampGen) return;
-      const entry = nextQueueEntry();
-      if (!entry) break;
-      await stampInSlot(rowIdx, col, entry);
-      if (gen !== stampGen) return;
+    if (replaceRowFromCache(rowIdx)) {
+      pendingReplacements--;
+      nextRowToReplace = (nextRowToReplace + 1) % rows;
+    } else {
+      // Not enough cached tiles to swap atomically; kick a refill and try
+      // again next frame. We do NOT decrement pendingReplacements — we'll
+      // catch up once the cache has enough.
+      fillCache();
     }
-    const lastEntry = stampedTiles.get(rowIdx * cols + Math.max(0, cols - 1));
-    const handle = lastEntry?.author?.handle || '';
-    setStatus(`recycled row ${rowIdx + 1}/${rows} · @${handle} · queue pos ${(queueIndex - 1) % tileQueue.length + 1}/${tileQueue.length}`);
-  } finally {
-    replacementInFlight = false;
   }
 }
 
