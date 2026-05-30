@@ -47,9 +47,12 @@ window.OWAIN.propp = {
       realized: "Luned — the donor-as-rescuer — gives Owain the ring of invisibility (\"as long as you hide it, it will hide you\") and a plan; it carries him out of the cage, past the household come to kill him, into the painted chamber. In this tale the hero survives not by his own strength but by a woman's gift and a woman's wit. The lion-helper of the second half answers this first helper.", passage: 4 },
     { act: "bride", sym: "a²", node: "The new desire", name: "Lack (love)", gloss: "A fresh lack opens the next arc.",
       realized: "Hidden by the ring, Owain watches the Black Knight's funeral and falls in love with the chief mourner — the widow he has just made. The kindled love is a new lack that drives the rest of the ascending arc: to win the Countess. Love and killing are tied in one stroke, the knot Luned's embassy will untie.", passage: 4 },
-    // The won bride and held fountain, the violated term, the descent into
-    // madness, the lion-helper, and the closing liquidations are seeded as
-    // the translation reaches each movement.
+    { act: "bride", sym: "M", node: "The mediation", name: "The task accomplished — by argument", gloss: "The lack is liquidated; here, by an advocate's wit.",
+      realized: "Luned wins the bride not by the hero's deed but by her own: she argues the grieving Countess into necessity — the fountain must have a defender, only an Arthur's knight will serve, and the proof of Owain's fitness is that he killed the last defender. The donor-heroine of the Welsh tradition (cf. Rhiannon in <em>Pwyll</em>) does the structural work a male hero's quest usually does.", passage: 5 },
+    { act: "bride", sym: "W*", node: "Wedding & accession", name: "Reward — marriage and kingdom", gloss: "The hero weds and ascends.",
+      realized: "The magnates consent, bishops solemnise the marriage, the men of the earldom do Owain homage, and he holds the fountain for three years — unhorsing all comers, ransoming them, and sharing the takings until no lord is more beloved. The ascending arc closes at its summit: married, throned, famous. The Welsh makes plain that the lady and the office are one prize. From here the tale falls.", passage: 5 },
+    // The violated term, the descent into madness, the lion-helper, and the
+    // closing liquidations are seeded as the translation reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the frame and the known shape of the romance, Owain's distinctive Propp profile (relative to the Welsh sister-tales) is shaping up around three features:",

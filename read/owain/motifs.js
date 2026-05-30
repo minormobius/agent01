@@ -42,17 +42,17 @@ window.OWAIN.motifs = {
     // — F · Marvels & the Otherworld —
     { cls: "F", code: "F460", name: "The monstrous keeper of beasts", conf: "high", passages: [2, 3],
       gloss: "The huge black man on the forest mound — one-eyed, one-footed, iron-clubbed — lord of the wild animals, who gather and bow at his call, and who directs the questing knight to the fountain. A threshold-guardian out of the older Insular Otherworld; the wild-herdsman type. Compare the giant Ysbaddaden's gatekeepers and the keepers of the marvels in Culhwch. Realised first in Cynon's tale (Mvt II), then again when Owain rides the same road in Mvt III — \"his size pleased Owain\" where it had only awed Cynon." },
-    { cls: "F", code: "F718", name: "The marvellous fountain / spring of the Otherworld", conf: "high", passages: [2, 3],
+    { cls: "F", code: "F718", name: "The marvellous fountain / spring of the Otherworld", conf: "high", passages: [2, 3, 5],
       gloss: "The spring beneath the great tree, with its silver bowl on a slab — the bounded Otherworld threshold the whole tale orbits. The guardian who must be killed to be succeeded marks it as a place where office passes by combat, not inheritance — borne out in Mvt III, where Owain kills the defender and (the tale will show) takes both his widow and his post. First seen in Cynon's tale (Mvt II)." },
 
     // — T · Love & marriage —
     { cls: "T", code: "T15", name: "Love at first sight", conf: "high", passages: [4],
       gloss: "Owain falls in love with the Countess at the sight of her in her husband's funeral procession — grief he himself caused. \"When he saw the woman, love of her kindled in him until it filled every part of him.\" The Welsh ties love and killing in a single stroke (\"the wife of the man you killed yesterday\"), the knot Luned will untie. The romance commonplace, here at its starkest; the same hinge drives Chrétien's <em>Yvain</em>." },
-    { cls: "T", code: "T231", name: "The widow wed to her husband's slayer", conf: "high", passages: [4],
+    { cls: "T", code: "T231", name: "The widow wed to her husband's slayer", conf: "high", passages: [4, 5],
       gloss: "The Countess will be argued into marrying the very man who killed her husband — not from fickleness (the medieval misogynist reading) but from necessity: the fountain must have a defender, and the strongest defender available is the man who beat the last one. The tale frames it as Luned's cold logic of survival, not the lady's weakness. <em>Realised across Mvt IV–V.</em>" },
 
     // — Z · Formulas & symbols —
-    { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [],
+    { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [5],
       gloss: "The romance's threefold rhythms (the repeated journeys to the fountain; the staged combats; the days of the marriage-term). Compare the pervasive Z71.1 across all four sister tales — the folktale's basic counting unit. <em>To be tied to specific movements.</em>" },
   ],
 };

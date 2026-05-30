@@ -24,7 +24,7 @@ window.OWAIN.characters = {
     // — Principals —
     { id: "owain", name: "Owain ab Urien", role: "principal", alt: "Yvain (Chrétien); Owain mab Urien Rheged", epithet: "knight of Arthur's court; lord of the fountain; the knight of the lion",
       blurb: "The hero. A knight of Arthur's court who, stung by Cei's mockery and moved by Cynon's tale of defeat, rides alone to the magic fountain, pours the water, endures the storm, and meets and mortally wounds its Black Knight. Trapped in the dead man's castle, made invisible by Luned's ring, he falls in love with the widow he has just made and — through Luned's contrivance — weds her and takes up the fountain's defence. Then Arthur's company finds him; he returns to court for a visit, overstays the term his wife set, and loses everything: she sends a messenger to strip the ring from his finger, and he runs mad and naked into the wilderness. Healed by a noblewoman's ointment, companioned by a lion he saves from a serpent, he wins his way back through a chain of rescues to reconciliation. Historically <strong>Owain mab Urien</strong> was a real sixth-century king of Rheged in the Hen Ogledd (the Old North), praised in Taliesin's elegies — euhemerised demotion in reverse, a historical prince climbing into Arthurian romance.",
-      appears: [1, 2, 3, 4], pending: true,
+      appears: [1, 2, 3, 4, 5], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "luned", label: "saved by / saviour of" }, { to: "lion", label: "companion of" }, { to: "black-knight", label: "slayer of" }, { to: "cynon", label: "completes the quest of" }, { to: "arthur", label: "knight of" }, { to: "cei", label: "mocked by" }, { to: "gwalchmei", label: "fights unknowing" }] },
 
     { id: "cynon", name: "Cynon ab Clydno", role: "court", alt: "Calogrenant (Chrétien)", epithet: "the knight whose defeat opens the tale",
@@ -34,12 +34,12 @@ window.OWAIN.characters = {
 
     { id: "countess", name: "The Countess of the Fountain", role: "fountain", alt: "Iarlles y Ffynnon; Laudine (Chrétien)", epithet: "the lady of the magic spring; the widow Owain makes and weds",
       blurb: "The title figure — <em>Iarlles y Ffynnon</em>, the Lady (Countess) of the Fountain. Widow of the Black Knight Owain kills, mistress of the castle and the magic spring whose defender must hold it against all comers. Persuaded by Luned's blunt logic — that she needs a champion to keep the fountain, and the man who beat her husband is the strongest available — she weds Owain and entrusts him with its defence. When Owain breaks his term and is lost, she takes back the ring she gave him; at the tale's end the two are reconciled. (In Chrétien she is Laudine.)",
-      appears: [4], pending: true,
+      appears: [4, 5], pending: true,
       rel: [{ to: "owain", label: "wife of" }, { to: "luned", label: "served and counselled by" }, { to: "black-knight", label: "widow of" }] },
 
     { id: "luned", name: "Luned", role: "fountain", alt: "Lunete (Chrétien)", epithet: "the Countess's maid; keeper of the ring of invisibility",
       blurb: "The Countess's quick-witted handmaid and the true engine of the plot. She hides the trapped Owain, gives him the ring that makes its wearer invisible, feeds and shelters him, and then — by sheer force of argument — talks her grieving mistress into marrying the very man who killed her husband. Later, having defended Owain's name at court, she is imprisoned in a stone vault by two of the Countess's pages and condemned to burn unless a champion comes; the lion-companioned Owain arrives in time to save her, closing the circle of obligation. The cleverest figure in the romance. (In Chrétien she is Lunete.)",
-      appears: [4], pending: true,
+      appears: [4, 5], pending: true,
       rel: [{ to: "countess", label: "maid and counsellor of" }, { to: "owain", label: "saviour of / saved by" }, { to: "ring", label: "keeper of" }] },
 
     { id: "lion", name: "The lion", role: "creature", alt: "the Knight of the Lion's lion", epithet: "the grateful beast; emblem of loyalty",
@@ -54,7 +54,7 @@ window.OWAIN.characters = {
 
     { id: "fountain", name: "The fountain", role: "fountain", alt: "the storm-spring; the well of the Lady", epithet: "the magic storm-making spring",
       blurb: "The spring beneath the great green tree, with its marble slab and a silver bowl on a silver chain — pour a bowlful on the slab and a tempest breaks over the wood, and then the Black Knight rides to answer. The bounded Otherworld threshold the whole tale orbits: its guardian must be killed to be succeeded, so to win the Countess Owain must first take the fountain. A place, not a person, but the gravity-well of the cast — defended in turn by the Black Knight, raised by Cynon and by Owain, and held at last by Owain himself.",
-      appears: [2, 3], pending: true,
+      appears: [2, 3, 5], pending: true,
       rel: [{ to: "black-knight", label: "guarded by" }, { to: "owain", label: "later held by" }, { to: "countess", label: "well of" }] },
 
     // — Arthur's court —
