@@ -745,10 +745,14 @@ function frame() {
   resizeCanvas();
   ensureDepth();
 
-  // auto scroll / spin (slider units → reasonable per-second rates)
-  state.scroll = (state.scroll + dt * parseFloat(scrollSlider.value) * 0.0012) % 1;
-  if (!dragState) {
-    state.yaw += dt * parseFloat(spinSlider.value) * 0.004;
+  // auto scroll / spin (slider units → reasonable per-second rates). Gated by
+  // `paused` so the user can freeze the orb to read or tap a specific tile;
+  // manual drag still updates yaw/pitch directly regardless.
+  if (!paused) {
+    state.scroll = (state.scroll + dt * parseFloat(scrollSlider.value) * 0.0012) % 1;
+    if (!dragState) {
+      state.yaw += dt * parseFloat(spinSlider.value) * 0.004;
+    }
   }
 
   // matrices
@@ -1058,12 +1062,6 @@ async function autoStamp() {
   const cap = cols * rows;
   while (queueIndex < tileQueue.length && successCount < cap) {
     if (gen !== stampGen) return;     // a newer autoStamp / reset superseded us
-    // Honor the pause flag — poll every 200ms while paused so a resume is
-    // responsive. Generation check inside the wait so reset still wins.
-    while (paused && gen === stampGen) {
-      await new Promise(r => setTimeout(r, 200));
-    }
-    if (gen !== stampGen) return;
     const ok = await stampOne();
     if (!ok) break;
     if (gen !== stampGen) return;
@@ -1103,10 +1101,8 @@ const pauseBtn = document.getElementById('pause-btn');
 pauseBtn.addEventListener('click', () => {
   paused = !paused;
   pauseBtn.textContent = paused ? '▶' : '⏸';
-  pauseBtn.title = paused ? 'resume autostamp' : 'pause autostamp';
-  setStatus(paused
-    ? `paused at ${successCount}/${tileQueue.length}${queueIndex < tileQueue.length ? ` (${tileQueue.length - queueIndex} queued)` : ''}`
-    : 'resuming…');
+  pauseBtn.title = paused ? 'resume orb auto-motion' : 'pause orb auto-motion';
+  setStatus(paused ? 'orb paused · drag still works · tap a tile to open it' : 'orb resumed');
 });
 
 (async () => {
