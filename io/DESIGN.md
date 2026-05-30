@@ -8,6 +8,13 @@
 - Discovery anchor URL constant: `https://io.mino.mobi/anchor/tickets/v1` (in `worker.js` + served via `/api/config`).
 - `PdsPublisher` was **vendored** (small class in `worker.js`) rather than imported, to keep the single-file worker free of a cross-package build dep.
 - Shared libs (`packages/oauth-client/auth.js`, `js/typeahead.js`) are **copied into `io/` at deploy time** by `scripts/vendor-io.sh` (gitignored copies; single source of truth unchanged).
+- **Portal registry now includes buried sub-pages.** Initially the generator dropped `p:`-parented entries; for a *stumble* tool that's backwards (landing on deep pages is the point), so it now includes all 95 curated entries + 6 supplemental. `sites.json` carries `parent` on sub-pages for context. Total: **99 sites** (95 curated − poll − org + 6 supplemental).
+
+**Open TODOs (tracked here, not yet done):**
+- **TODO (poll/org framing):** `poll.mino.mobi` and `org.mino.mobi` send `X-Frame-Options: DENY`, so they're excluded from the portal (by host, in `scripts/generate-sites-json.mjs`'s `FRAME_BLOCKED_HOSTS`). Re-include them once they allowlist `frame-ancestors https://io.mino.mobi` (poll worker response headers + org). Their child sites (pm, wave.mino.mobi, wiki) are on other origins and frame fine — already included.
+- **TODO (supplemental → canonical):** 6 live endpoints aren't in index.html's `var P` PROJECTS array — `ai-edu`, `cat`, `fluoddity`, `games`, `splice`, `track`. They're added via a `SUPPLEMENTAL` list in `scripts/generate-sites-json.mjs`. Fold them into the canonical `var P` array (so the search catalog + OG card pick them up too) and delete from `SUPPLEMENTAL`. (Skipped `bakery`→`bake.mino.mobi` and `empathy`→`empath.mino.mobi`: already in the array under their real subdomains.)
+- The probe found **all 40 original top-level URLs return HTTP 200** — nothing 404s; the only "doesn't work" cases are iframe-blocked (poll, org), which the stumble page already handles with an "open directly" fallback card.
+
 **Branch:** `claude/atproto-tracker-portal-CExE3`
 **Subdomain:** `io.mino.mobi` (one Worker, one front page, two surfaces).
 **Author of record:** majormobius@gmail.com

@@ -24,6 +24,35 @@ const OUT = join(ROOT, 'io', 'sites.json');
 const MINO_DOMAIN = 'mino.mobi';
 const MINO_REPO = 'minormobius/agent01';
 
+// Hosts excluded from the stumble portal because they hard-block iframe
+// embedding (X-Frame-Options: DENY), which makes them blank in the wrapper.
+// Keyed by HOST (not entry name) because the block is per-origin: org's
+// children (pm, wave.mino.mobi, wiki) live on other origins and frame fine.
+// TODO: re-include once they allowlist `frame-ancestors https://io.mino.mobi`
+// in their response headers (poll worker headers + org). Tracked in io/DESIGN.md §7.2.
+const FRAME_BLOCKED_HOSTS = new Set([
+  'poll.mino.mobi', // X-Frame-Options: DENY
+  'org.mino.mobi',  // X-Frame-Options: DENY
+]);
+
+function hostOf(url) {
+  try { return new URL(url).host; } catch { return ''; }
+}
+
+// Live endpoints that exist on disk + serve 200 but aren't (yet) in index.html's
+// PROJECTS array. Added here so the portal can reach them without a drive-by edit
+// to the landing page's curated array.
+// TODO: fold these into the canonical `var P` array in index.html (then the
+// search catalog + OG card pick them up too) and delete from this list.
+const SUPPLEMENTAL = [
+  { name: 'ai-edu',    url: 'https://mino.mobi/ai-edu/',    category: 'tools', weight: 1, heat: 'cold' },
+  { name: 'cat',       url: 'https://mino.mobi/cat/',       category: 'bluesky', weight: 1, heat: 'hot' },
+  { name: 'fluoddity', url: 'https://mino.mobi/fluoddity/', category: 'bluesky', weight: 1, heat: 'hot' },
+  { name: 'games',     url: 'https://games.mino.mobi',      category: 'games', weight: 1, heat: 'hot' },
+  { name: 'splice',    url: 'https://mino.mobi/splice/',    category: 'tools', weight: 1, heat: 'hot' },
+  { name: 'track',     url: 'https://mino.mobi/track/',     category: 'bluesky', weight: 1, heat: 'hot' },
+];
+
 function parseProjects(html) {
   const start = html.indexOf('var P = [');
   if (start === -1) throw new Error('Could not find `var P = [` in index.html');
@@ -41,16 +70,19 @@ function parseProjects(html) {
 }
 
 function buildMinoConstellation(projects) {
-  // Top-level sites only (skip `p`-having sub-entries so the portal lands on
-  // distinct destinations, not many paths under one app). Weight by commit count.
-  const sites = projects
-    .filter((p) => !p.parent)
+  // Include EVERY destination — top-level sites AND buried sub-pages. For a
+  // stumble tool, landing on deep/obscure pages is the whole point. We only
+  // drop entries whose HOST hard-blocks iframe embedding.
+  const all = [...projects, ...SUPPLEMENTAL.map((s) => ({ ...s, parent: null }))];
+  const sites = all
+    .filter((p) => !FRAME_BLOCKED_HOSTS.has(hostOf(p.url)))
     .map((p) => ({
       url: p.url,
       name: p.name,
       tags: [p.category],
       weight: p.weight,
       heat: p.heat,
+      ...(p.parent ? { parent: p.parent } : {}),
     }));
   return { domain: MINO_DOMAIN, repo: MINO_REPO, sites };
 }
