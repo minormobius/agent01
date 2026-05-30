@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mino-scores",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "vars": {
+    "AUTH_URL": "https://auth.mino.mobi"
+  },
+
+  "routes": [
+    { "pattern": "scores.mino.mobi", "custom_domain": true }
+  ],
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mino-scores-db",
+      "database_id": "TODO_CREATE_DATABASE",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

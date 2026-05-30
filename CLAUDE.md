@@ -199,6 +199,7 @@ What this means for you:
 | Auth worker | `.github/workflows/deploy-auth.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `workers/auth/**` |
 | Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
 | Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
+| Scores | `.github/workflows/deploy-scores.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `workers/scores/**` |
 | Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
 
 When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
@@ -752,6 +753,7 @@ Not actively managed but documented for context:
 | bsky-bot | `workers/bsky-bot/` | Notification listener (mention handler stub) | `*/5 * * * *` |
 | cluster-batch | `workers/cluster-batch/` | Follow graph bulk fetcher for cluster viz | HTTP only |
 | cards-mint | `workers/cards-mint/` | Ed25519 card signing for Wiki Cards game | HTTP only |
+| mino-scores | `workers/scores/` | **Shared multi-game leaderboard.** Generic `game_scores` table on its own D1 (`mino-scores-db`), keyed by game slug. Identity delegated to the shared auth worker (validates `Bearer` via `auth.mino.mobi/api/me`). Any static game submits with no worker change: `POST /api/scores/submit {game,score,meta}`, `GET /api/scores/top?game=&period=`. First consumer: `curve`. draw/paint can migrate onto it. | HTTP only |
 
 ---
 
