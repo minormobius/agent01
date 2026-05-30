@@ -191,6 +191,75 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .map-legend .legend-axes { font-style: italic; text-transform: none; letter-spacing: 0; }
 
 .cluster-panel { margin-bottom: 1rem; }
+
+/* Bridge — find the thread that sits between two others */
+.bridge-panel {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.7rem 0.9rem; margin-bottom: 1rem;
+}
+.bridge-head {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem;
+}
+.bridge-help { font-style: italic; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.bridge-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.4rem; }
+.bridge-slot {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  padding: 0.5rem 0.6rem; border-radius: 4px;
+  border: 1px solid var(--rule); background: var(--bg);
+  cursor: pointer; min-height: 3.4rem; text-align: left;
+  font-family: var(--serif); font-size: 0.85rem; color: var(--text);
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bridge-slot:hover { border-color: var(--accent); }
+.bridge-slot.picking { border-color: var(--accent); background: var(--accent-faint); animation: bridge-pulse 1.2s ease-in-out infinite; }
+.bridge-slot.empty .bridge-snippet { color: var(--muted); font-style: italic; }
+.bridge-slot .bridge-label {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.bridge-slot .bridge-snippet {
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.bridge-slot .bridge-slot-actions {
+  position: absolute; top: 4px; right: 4px;
+  display: flex; gap: 0.2rem;
+}
+.bridge-slot .bridge-mini {
+  font-family: var(--mono); font-size: 0.55rem; padding: 0.05rem 0.3rem;
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px; cursor: pointer;
+}
+.bridge-slot .bridge-mini:hover { color: var(--accent); border-color: var(--accent); }
+@keyframes bridge-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-faint); } 50% { box-shadow: 0 0 0 4px var(--accent-faint); } }
+
+.bridge-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.bridge-actions button {
+  font-size: 0.7rem; padding: 0.35rem 0.7rem;
+}
+.bridge-status {
+  font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-top: 0.4rem; min-height: 0.9em;
+}
+.bridge-hits {
+  margin-top: 0.5rem; display: none;
+  border-top: 1px dashed var(--rule); padding-top: 0.5rem;
+}
+.bridge-hits.show { display: block; }
+.bridge-hit {
+  display: flex; gap: 0.5rem; align-items: baseline;
+  padding: 0.4rem 0.2rem; border-bottom: 1px dashed var(--rule);
+  cursor: pointer; font-size: 0.88rem;
+}
+.bridge-hit:last-child { border-bottom: none; }
+.bridge-hit:hover { background: var(--accent-faint); }
+.bridge-hit .rank { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); min-width: 1.4rem; text-align: right; }
+.bridge-hit .pct  { font-family: var(--mono); font-size: 0.65rem; color: var(--accent); min-width: 3rem; text-align: right; }
+.bridge-hit .snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cluster-strip {
   font-family: var(--mono); font-size: 0.7rem; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.06em;
@@ -329,7 +398,38 @@ footer a { color: var(--muted); text-decoration: underline; }
       <span class="legend-axes"><a href="#" id="map-reset-zoom" style="color:var(--accent); text-decoration:underline; margin-right:0.7rem;">reset zoom</a>PCA-1 ↔ PCA-2 over BGE</span>
     </div>
     <div id="cluster-panel" class="cluster-panel"></div>
-    <div class="reader" id="reader">
+    <div class="bridge-panel" id="bridge-panel">
+      <div class="bridge-head">
+        <span>bridge</span>
+        <span class="bridge-help">pick two threads, scan for the one that sits between</span>
+      </div>
+      <div class="bridge-slots">
+        <button type="button" class="bridge-slot empty" id="bridge-slot-a" data-slot="A">
+          <span class="bridge-label">A · click to pick from map</span>
+          <span class="bridge-snippet">— empty —</span>
+          <span class="bridge-slot-actions">
+            <button type="button" class="bridge-mini" data-action="random" data-slot="A">random</button>
+            <button type="button" class="bridge-mini" data-action="clear"  data-slot="A">×</button>
+          </span>
+        </button>
+        <button type="button" class="bridge-slot empty" id="bridge-slot-b" data-slot="B">
+          <span class="bridge-label">B · click to pick from map</span>
+          <span class="bridge-snippet">— empty —</span>
+          <span class="bridge-slot-actions">
+            <button type="button" class="bridge-mini" data-action="random" data-slot="B">random</button>
+            <button type="button" class="bridge-mini" data-action="clear"  data-slot="B">×</button>
+          </span>
+        </button>
+      </div>
+      <div class="bridge-actions">
+        <button type="button" id="bridge-random-both">Two random</button>
+        <button type="button" id="bridge-scan">Scan bridge</button>
+        <button type="button" id="bridge-clear-all" class="ghost">Clear</button>
+      </div>
+      <div class="bridge-status" id="bridge-status"></div>
+      <div class="bridge-hits" id="bridge-hits"></div>
+    </div>
+    <div class="reader" id="reader"
       <div class="placeholder">Click any point on the map to read that thread.</div>
     </div>
     <form id="highlight-form" autocomplete="off">
@@ -371,6 +471,12 @@ const state = {
   lastQueryTerms: [],        // current highlight query terms (for <mark>)
   mapView: { xDomain: [0, 1], yDomain: [0, 1] }, // current pan/zoom window
   mapPanZoom: null,          // makePanZoom handle, lazily attached on first render
+  bridge: {
+    a: null,                 // tid in slot A
+    b: null,                 // tid in slot B
+    picking: null,           // 'A' | 'B' — which slot is in pick-from-map mode
+    hits: [],                // [{ thread_id, text, score }] from latest scan
+  },
 };
 
 // Categorical palette for cluster coloring — 8 stable HSL hues. Matches
@@ -602,6 +708,13 @@ async function loadMap() {
   renderMap();
   renderClusterPanel();
   renderReader();
+  // Reset the bridge panel on map load — different profile means different
+  // tids; the previous slot values would dangle.
+  state.bridge.a = null;
+  state.bridge.b = null;
+  state.bridge.hits = [];
+  state.bridge.picking = null;
+  renderBridgePanel();
   $('thread-count').textContent = state.mapData.length.toLocaleString();
 }
 
@@ -666,6 +779,30 @@ function renderMap() {
     );
   }
   svg.innerHTML = dots.join('');
+
+  // Bridge overlay: A/B input markers + green ring on the top scan hit.
+  // Rendered as a second pass on top of all dots so they always sit on
+  // top regardless of draw order.
+  const bridgeOverlays = [];
+  const topHit = state.bridge.hits[0]?.thread_id;
+  const overlayFor = (tid, label, color) => {
+    const d = state.mapData.find((x) => x.tid === tid);
+    if (!d) return;
+    const fx = (d.x - xMin) / xW;
+    const fy = (d.y - yMin) / yH;
+    if (fx < -0.01 || fx > 1.01 || fy < -0.01 || fy > 1.01) return;
+    const cx = PAD + fx * innerW;
+    const cy = PAD + (1 - fy) * innerH;
+    const r = 2 + 6 * Math.sqrt(d.n / maxN);
+    bridgeOverlays.push(
+      `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${(r + 5).toFixed(2)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-opacity="0.9" pointer-events="none"/>`,
+      `<text x="${cx.toFixed(2)}" y="${(cy - r - 7).toFixed(2)}" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" font-weight="700" fill="${color}" pointer-events="none">${label}</text>`
+    );
+  };
+  if (state.bridge.a) overlayFor(state.bridge.a, 'A', '#d4a04a');
+  if (state.bridge.b) overlayFor(state.bridge.b, 'B', '#d4a04a');
+  if (topHit && topHit !== state.bridge.a && topHit !== state.bridge.b) overlayFor(topHit, '★', 'var(--good)');
+  if (bridgeOverlays.length) svg.insertAdjacentHTML('beforeend', bridgeOverlays.join(''));
 }
 
 function renderClusterPanel() {
@@ -732,6 +869,146 @@ function renderReader() {
   `;
 }
 
+// ─── bridge ──────────────────────────────────────────────────────────────
+function snippetForTid(tid) {
+  if (!tid) return '';
+  const d = state.mapData.find((x) => x.tid === tid);
+  return d?.s || tid;
+}
+
+function setBridgeSlot(slot, tid) {
+  if (slot === 'A') state.bridge.a = tid;
+  else if (slot === 'B') state.bridge.b = tid;
+  // Picking a new value clears stale results — they no longer match the inputs.
+  state.bridge.hits = [];
+}
+
+function pickRandomTid(exclude = []) {
+  const pool = state.mapData.filter((d) => !exclude.includes(d.tid));
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)].tid;
+}
+
+function renderBridgePanel() {
+  const slotEl = (slot, tid) => {
+    const el = $('bridge-slot-' + slot.toLowerCase());
+    const empty = !tid;
+    const picking = state.bridge.picking === slot;
+    el.classList.toggle('empty', empty);
+    el.classList.toggle('picking', picking);
+    const label = picking ? `${slot} · click a map point` : `${slot} · ${tid ? 'click to repick' : 'click to pick from map'}`;
+    const snippet = tid ? snippetForTid(tid) : '— empty —';
+    el.querySelector('.bridge-label').textContent = label;
+    el.querySelector('.bridge-snippet').textContent = snippet;
+  };
+  slotEl('A', state.bridge.a);
+  slotEl('B', state.bridge.b);
+
+  const hits = state.bridge.hits;
+  const hitsEl = $('bridge-hits');
+  if (!hits.length) {
+    hitsEl.classList.remove('show');
+    hitsEl.innerHTML = '';
+  } else {
+    hitsEl.classList.add('show');
+    hitsEl.innerHTML = hits.map((h, i) => `
+      <div class="bridge-hit" data-tid="${escapeHtml(h.thread_id)}">
+        <span class="rank">${i + 1}</span>
+        <span class="pct">${(h.score * 100).toFixed(1)}%</span>
+        <span class="snippet">${escapeHtml((h.text || '').slice(0, 280).replace(/\s+/g, ' '))}</span>
+      </div>
+    `).join('');
+    hitsEl.querySelectorAll('.bridge-hit').forEach((row) => {
+      row.addEventListener('click', () => {
+        state.selectedTid = row.dataset.tid;
+        renderMap();
+        renderReader();
+      });
+    });
+  }
+}
+
+async function scanBridge() {
+  const { a, b } = state.bridge;
+  if (!a || !b) { $('bridge-status').textContent = 'pick two threads first'; return; }
+  if (a === b) { $('bridge-status').textContent = 'A and B are the same thread'; return; }
+  $('bridge-status').textContent = 'computing centroid + scanning…';
+  $('bridge-scan').disabled = true;
+  try {
+    const res = await fetch('/api/ask/bridge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ did: state.did, tids: [a, b], k: 5 }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`bridge failed (${res.status}) ${body}`.trim());
+    }
+    const data = await res.json();
+    state.bridge.hits = data.hits || [];
+    const top = state.bridge.hits[0];
+    $('bridge-status').textContent = top
+      ? `top match ${(top.score * 100).toFixed(1)}% · ${data.time_ms || '?'} ms · click any hit to read`
+      : 'no candidates';
+    // Auto-select the top hit in the reader and highlight it on the map.
+    if (top) state.selectedTid = top.thread_id;
+    renderBridgePanel();
+    renderMap();
+    renderReader();
+  } catch (err) {
+    $('bridge-status').textContent = 'error: ' + (err.message || err);
+  } finally {
+    $('bridge-scan').disabled = false;
+  }
+}
+
+// Wire bridge controls.
+document.querySelectorAll('.bridge-slot').forEach((el) => {
+  el.addEventListener('click', (e) => {
+    // mini-button clicks bubble up; route them via data-action.
+    const mini = e.target.closest('.bridge-mini');
+    if (mini) {
+      const slot = mini.dataset.slot;
+      if (mini.dataset.action === 'random') {
+        const exclude = [state.bridge.a, state.bridge.b].filter(Boolean);
+        const tid = pickRandomTid(exclude);
+        if (tid) setBridgeSlot(slot, tid);
+        state.bridge.picking = null;
+        renderBridgePanel();
+        renderMap();
+      } else if (mini.dataset.action === 'clear') {
+        setBridgeSlot(slot, null);
+        if (state.bridge.picking === slot) state.bridge.picking = null;
+        renderBridgePanel();
+        renderMap();
+      }
+      return;
+    }
+    // Clicking the slot itself enters pick-mode for it.
+    const slot = el.dataset.slot;
+    state.bridge.picking = state.bridge.picking === slot ? null : slot;
+    renderBridgePanel();
+  });
+});
+$('bridge-random-both').addEventListener('click', () => {
+  const a = pickRandomTid();
+  const b = pickRandomTid([a]);
+  state.bridge.a = a; state.bridge.b = b;
+  state.bridge.hits = [];
+  state.bridge.picking = null;
+  renderBridgePanel();
+  renderMap();
+});
+$('bridge-scan').addEventListener('click', scanBridge);
+$('bridge-clear-all').addEventListener('click', () => {
+  state.bridge.a = null; state.bridge.b = null;
+  state.bridge.hits = [];
+  state.bridge.picking = null;
+  $('bridge-status').textContent = '';
+  renderBridgePanel();
+  renderMap();
+});
+
 async function fetchThread(tid) {
   if (state.threadCache.has(tid)) return state.threadCache.get(tid);
   const res = await fetch(`/api/ask/thread?did=${encodeURIComponent(state.did)}&tid=${encodeURIComponent(tid)}`);
@@ -781,7 +1058,16 @@ $('map-svg').addEventListener('mouseleave', () => {
 $('map-svg').addEventListener('click', (e) => {
   const target = e.target.closest('.dot');
   if (!target) return;
-  state.selectedTid = target.dataset.tid;
+  const tid = target.dataset.tid;
+  // In bridge pick-mode, route the click to the slot instead of the reader.
+  if (state.bridge.picking) {
+    setBridgeSlot(state.bridge.picking, tid);
+    state.bridge.picking = null;
+    renderBridgePanel();
+    renderMap();
+    return;
+  }
+  state.selectedTid = tid;
   renderMap();
   renderReader();
 });
