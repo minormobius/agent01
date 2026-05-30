@@ -428,8 +428,8 @@
 
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["home", "method", "timeline", "inworld", "constantine", "tree", "wiki", "fae", "papers"];
-  let treeDrawn = false, inworldDrawn = false, current = "home";
+  const VIEWS = ["home", "method", "compare", "timeline", "inworld", "constantine", "tree", "wiki", "fae", "papers"];
+  let treeDrawn = false, inworldDrawn = false, compareDrawn = false, current = "home";
   function switchView(v) {
     current = v;
     VIEWS.forEach((x) => {
@@ -438,6 +438,7 @@
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     if (v === "tree" && !treeDrawn) { renderTree(); treeDrawn = true; }
     if (v === "inworld" && !inworldDrawn) { renderInworld(); inworldDrawn = true; }
+    if (v === "compare" && !compareDrawn) { renderCompare(); compareDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
     window.scrollTo({ top: 0 });
   }
@@ -447,7 +448,7 @@
   // refit the visible diagram on resize (debounced)
   let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
-  /* ====================== CROSSWALK (three tales side by side) ====================== */
+  /* ====================== CROSSWALK (four tales side by side) ====================== */
   function renderCrosswalk() {
     const C = window.PENDRAGON && window.PENDRAGON.crosswalk;
     const host = $("#cw-host"); if (!C || !host) return;
@@ -456,8 +457,18 @@
     host.appendChild(el("p", "cw-intro", C.intro));
 
     const tales = C.tales;
+    const taleIds = tales.map((t) => t.id);
     const taleMap = {}; tales.forEach((t) => taleMap[t.id] = t);
-    const passLabel = { culhwch: (n) => "M" + n, gawain: (n) => "F" + ["", "I", "II", "III", "IV"][n], orfeo: (n) => "M" + ["", "I", "II", "III", "IV", "V", "VI"][n] };
+    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI"];
+    const passLabel = {
+      culhwch: (n) => "M" + n,
+      pwyll:   (n) => "Mvt " + (ROMAN[n] || n),
+      orfeo:   (n) => "M" + (ROMAN[n] || n),
+      gawain:  (n) => "F" + (ROMAN[n] || n),
+    };
+
+    // dynamic grid template: code + name + one column per tale (the gloss spans full width below)
+    host.style.setProperty("--cw-tale-cols", tales.length);
 
     function header() {
       const row = el("div", "cw-row cw-head");
@@ -500,7 +511,7 @@
     }
 
     function countLabel(motif) {
-      const n = ["culhwch","gawain","orfeo"].filter((id) => motif[id]).length;
+      const n = taleIds.filter((id) => motif[id]).length;
       return '<span class="cw-count cw-c' + n + '">in ' + n + (n === 1 ? " tale" : " tales") + '</span>';
     }
 
@@ -508,10 +519,10 @@
     host.appendChild(el("h3", "cw-grouphead", "Shared motifs · Thompson codes"));
     host.appendChild(el("p", "cw-subnote", C.motifIntro));
     host.appendChild(header());
-    // Sort: in 3 first, then 2, then 1; within each, stable
+    // Sort: most-shared first, then descending; within each tier, stable
     const motifsSorted = C.motifs.slice().sort((a, b) => {
-      const ca = ["culhwch","gawain","orfeo"].filter((id) => a[id]).length;
-      const cb = ["culhwch","gawain","orfeo"].filter((id) => b[id]).length;
+      const ca = taleIds.filter((id) => a[id]).length;
+      const cb = taleIds.filter((id) => b[id]).length;
       return cb - ca;
     });
     motifsSorted.forEach((m) => {
@@ -527,7 +538,7 @@
     });
 
     // ─ Propp ─
-    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the three"));
+    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the four"));
     host.appendChild(el("p", "cw-subnote", C.proppIntro));
     host.appendChild(header());
     C.propp.forEach((p) => {
@@ -551,6 +562,247 @@
       if (a.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = a.gloss; row.appendChild(g); }
       host.appendChild(row);
     });
+  }
+
+  /* ====================== COMPARE (hypermythograph) ======================
+     Three force-laid graphs (Motifs / Functions / Archetypes), each pinning
+     the four tales at the corners and letting the structural items float
+     toward whichever tales claim them. The middle of each graph is the
+     shared backbone; the periphery is what each tale brings uniquely. */
+  function renderCompare() {
+    const C = window.PENDRAGON && window.PENDRAGON.crosswalk;
+    const host = $("#cmp-host"); if (!C || !host) return;
+
+    const W = 1100, H = 720;
+    const tales = C.tales;
+    const taleIds = tales.map((t) => t.id);
+    const cornerFor = {
+      [taleIds[0]]: { x: W * 0.13, y: H * 0.18 },
+      [taleIds[1]]: { x: W * 0.87, y: H * 0.18 },
+      [taleIds[2]]: { x: W * 0.87, y: H * 0.82 },
+      [taleIds[3]]: { x: W * 0.13, y: H * 0.82 },
+    };
+    const passLabelLocal = {
+      culhwch: (n) => "M" + n,
+      pwyll:   (n) => "Mvt " + (["", "I", "II", "III", "IV", "V", "VI"][n] || n),
+      orfeo:   (n) => "M" + (["", "I", "II", "III", "IV", "V", "VI"][n] || n),
+      gawain:  (n) => "F" + (["", "I", "II", "III", "IV"][n] || n),
+    };
+
+    const MODES = [
+      { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The seven gold nodes in the centre are the codes every tale realises — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
+      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the four tales. The function symbols (α, A, B, …) that fire in all four sit centrally; the structural absences and inversions drift to the edges." },
+      { id: "archetypes", label: "Archetypes", rows: () => C.archetypes, blurb: "Character roles each tale fills with a different figure. A corner-clinging archetype is one only that tale carries; the centre archetypes are the ones every tale instantiates somehow." },
+    ];
+
+    let mode = "motifs";
+    let multiOnly = false;
+    let selectedId = null;
+
+    function isPresent(row, taleId) {
+      const v = row[taleId];
+      if (!v) return false;
+      if (typeof v === "string") return v !== "absent";
+      if (typeof v === "object") {
+        if (v.who === "—") return false;
+        return true;
+      }
+      return false;
+    }
+    function itemsFor(modeId) {
+      const rows = MODES.find((m) => m.id === modeId).rows();
+      return rows.map((row, i) => {
+        const hits = taleIds.filter((id) => isPresent(row, id));
+        return {
+          key: modeId + "-" + i,
+          row,
+          label: modeId === "motifs" ? row.code : modeId === "propp" ? row.sym : row.role,
+          full:  modeId === "motifs" ? `${row.code} — ${row.name}` : modeId === "propp" ? `${row.sym} · ${row.name}` : row.role,
+          hits,
+        };
+      });
+    }
+
+    // Controls (modes + multi-only toggle)
+    const modesHost = $("#cmp-modes"); modesHost.innerHTML = "";
+    MODES.forEach((m) => {
+      const b = el("button", "cmp-mode" + (m.id === mode ? " active" : ""), m.label);
+      b.onclick = () => { mode = m.id; selectedId = null; [...modesHost.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); $("#cmp-blurb").textContent = m.blurb; build(); };
+      modesHost.appendChild(b);
+    });
+    const togHost = $("#cmp-toggles"); togHost.innerHTML = "";
+    const togBtn = el("button", "cmp-toggle", "Multi-tale only");
+    togBtn.onclick = () => { multiOnly = !multiOnly; togBtn.classList.toggle("active", multiOnly); build(); };
+    togHost.appendChild(togBtn);
+    $("#cmp-blurb").textContent = MODES[0].blurb;
+
+    function build() {
+      host.innerHTML = "";
+      $("#cmp-detail").innerHTML = '<div class="md-hint">Click any node above to see how each tale realises it.</div>';
+
+      const items = itemsFor(mode).filter((it) => !multiOnly || it.hits.length >= 2);
+
+      // Node list: 4 tale nodes + items
+      const nodes = tales.map((t) => ({
+        id: "tale-" + t.id, type: "tale", tale: t, pinned: true,
+        x: cornerFor[t.id].x, y: cornerFor[t.id].y, vx: 0, vy: 0,
+      }));
+      const idIdx = {}; nodes.forEach((n, i) => idIdx[n.id] = i);
+      items.forEach((it) => {
+        const cx = it.hits.length ? it.hits.reduce((s, id) => s + cornerFor[id].x, 0) / it.hits.length : W / 2;
+        const cy = it.hits.length ? it.hits.reduce((s, id) => s + cornerFor[id].y, 0) / it.hits.length : H / 2;
+        const ang = Math.random() * Math.PI * 2, rad = 50 + Math.random() * 80;
+        nodes.push({ id: it.key, type: "item", item: it,
+          x: cx + Math.cos(ang) * rad, y: cy + Math.sin(ang) * rad,
+          vx: 0, vy: 0, hits: it.hits.length, pinned: false });
+        idIdx[it.key] = nodes.length - 1;
+      });
+
+      // Edges: tale ↔ item, one per (tale, item) hit
+      const edges = [];
+      items.forEach((it) => {
+        it.hits.forEach((taleId) => {
+          edges.push({ a: idIdx["tale-" + taleId], b: idIdx[it.key], taleId });
+        });
+      });
+
+      // SVG
+      const svg = svgEl("svg", { class: "cmp-graph", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "xMidYMid meet" });
+      const layer = svgEl("g", { class: "zl" });
+      svg.appendChild(layer);
+
+      // Tale corner backdrops (faint quadrant labels)
+      tales.forEach((t) => {
+        const p = cornerFor[t.id];
+        const halo = svgEl("circle", { cx: p.x, cy: p.y, r: 90, fill: t.color, "fill-opacity": 0.06 });
+        layer.appendChild(halo);
+      });
+
+      const edgeEls = edges.map((e) => {
+        const taleC = tales.find((t) => t.id === e.taleId).color;
+        const ln = svgEl("line", { class: "cmp-edge", stroke: taleC, "stroke-opacity": 0.22, "stroke-width": 1.2 });
+        layer.appendChild(ln); return ln;
+      });
+
+      const ITEM_R = (h) => 5 + 1.7 * Math.min(h, 4);
+      const ITEM_FILL = (it) => {
+        if (it.hits.length >= 4) return "#e0c178";
+        if (it.hits.length === 3) return "#c9a24a";
+        if (it.hits.length === 2) return "#8a7f6b";
+        return tales.find((t) => t.id === it.hits[0])?.color || "#5d564a";
+      };
+
+      const adj = {}; edges.forEach((e, ei) => { (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei); });
+
+      const nodeEls = nodes.map((n, i) => {
+        if (n.type === "tale") {
+          const g = svgEl("g", { class: "cmp-tnode", transform: `translate(${n.x} ${n.y})` });
+          const r = 32;
+          g.appendChild(svgEl("rect", { x: -r, y: -r, width: 2 * r, height: 2 * r, rx: 9, fill: n.tale.color, "fill-opacity": 0.92, stroke: "#14110d", "stroke-width": 1.8 }));
+          const sigil = svgEl("text", { x: 0, y: -2, "text-anchor": "middle", "font-size": 24 }); sigil.textContent = n.tale.sigil; g.appendChild(sigil);
+          const lab = svgEl("text", { x: 0, y: 18, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": 700 }); lab.textContent = n.tale.short; g.appendChild(lab);
+          const ttl = svgEl("title"); ttl.textContent = n.tale.title; g.appendChild(ttl);
+          g.addEventListener("click", () => { window.location.href = n.tale.href; });
+          return g;
+        }
+        const g = svgEl("g", { class: "cmp-inode", transform: `translate(${n.x} ${n.y})` });
+        g.appendChild(svgEl("circle", { cx: 0, cy: 0, r: ITEM_R(n.hits), fill: ITEM_FILL(n.item), "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1 }));
+        const ttl = svgEl("title"); ttl.textContent = n.item.full; g.appendChild(ttl);
+        g.addEventListener("mouseenter", () => highlight(i));
+        g.addEventListener("mouseleave", () => { selectedId ? null : clearHi(); });
+        g.addEventListener("click", () => { selectedId = n.id; highlight(i); fillDetail(n.item); });
+        return g;
+      });
+      nodeEls.forEach((g) => layer.appendChild(g));
+
+      function highlight(i) {
+        const inc = new Set(); (adj[i] || []).forEach((ei) => inc.add(ei));
+        const keep = new Set([i]); (adj[i] || []).forEach((ei) => { keep.add(edges[ei].a); keep.add(edges[ei].b); });
+        edgeEls.forEach((l, ei) => l.setAttribute("stroke-opacity", inc.has(ei) ? 0.85 : 0.08));
+        nodeEls.forEach((gp, ni) => gp.style.opacity = keep.has(ni) ? 1 : 0.25);
+      }
+      function clearHi() {
+        edgeEls.forEach((l) => l.setAttribute("stroke-opacity", 0.22));
+        nodeEls.forEach((gp) => gp.style.opacity = 1);
+      }
+      function fillDetail(it) {
+        const d = $("#cmp-detail"); d.innerHTML = "";
+        const head = el("div", "cmp-d-head");
+        head.appendChild(el("div", "cmp-d-label", escapeHtml(it.label)));
+        head.appendChild(el("div", "cmp-d-name", escapeHtml(mode === "motifs" ? it.row.name : mode === "propp" ? it.row.name : it.row.role)));
+        d.appendChild(head);
+        if (it.row.gloss) { const g = el("div", "cmp-d-gloss"); g.innerHTML = it.row.gloss; d.appendChild(g); }
+        const tlist = el("div", "cmp-d-tales");
+        tales.forEach((t) => {
+          const v = it.row[t.id];
+          const card = el("div", "cmp-d-tcard"); card.style.borderLeftColor = t.color;
+          const head2 = el("div", "cmp-d-thead", `${t.sigil} ${escapeHtml(t.short)}`);
+          card.appendChild(head2);
+          if (!v) { card.appendChild(el("div", "cmp-d-tnote cmp-d-absent", "—")); }
+          else if (v === "absent") { card.appendChild(el("div", "cmp-d-tnote cmp-d-absent", "sharply absent")); card.classList.add("cmp-d-absent-card"); }
+          else if (v === "present" || v === "minimal" || v === "inverted") {
+            card.appendChild(el("div", "cmp-d-tnote", v));
+          } else if (typeof v === "object") {
+            if (v.passages && v.passages.length) {
+              const fn = passLabelLocal[t.id] || ((n) => "" + n);
+              card.appendChild(el("div", "cmp-d-tpass", v.passages.map(fn).join(" · ")));
+            }
+            if (v.who && v.who !== "—") card.appendChild(el("div", "cmp-d-twho", escapeHtml(v.who)));
+            if (v.note) { const n = el("div", "cmp-d-tnote"); n.innerHTML = v.note; card.appendChild(n); }
+          }
+          tlist.appendChild(card);
+        });
+        d.appendChild(tlist);
+      }
+
+      // Force simulation
+      const ITER = 320;
+      const repel = 5400, springLen = 150, springK = 0.022, centerK = 0.0006, vDecay = 0.78;
+      const wall = 36;
+      const N = nodes.length;
+      for (let it = 0; it < ITER; it++) {
+        // O(N²) repulsion, edges as springs
+        for (let i = 0; i < N; i++) {
+          for (let j = i + 1; j < N; j++) {
+            const A = nodes[i], B = nodes[j];
+            let dx = B.x - A.x, dy = B.y - A.y, d2 = dx * dx + dy * dy; if (d2 < 16) d2 = 16;
+            const f = repel / d2, d = Math.sqrt(d2), fx = (dx / d) * f, fy = (dy / d) * f;
+            if (!A.pinned) { A.vx -= fx; A.vy -= fy; }
+            if (!B.pinned) { B.vx += fx; B.vy += fy; }
+          }
+        }
+        edges.forEach((e) => {
+          const A = nodes[e.a], B = nodes[e.b];
+          let dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+          const f = (d - springLen) * springK;
+          const fx = (dx / d) * f, fy = (dy / d) * f;
+          if (!A.pinned) { A.vx += fx; A.vy += fy; }
+          if (!B.pinned) { B.vx -= fx; B.vy -= fy; }
+        });
+        nodes.forEach((n) => {
+          if (n.pinned) return;
+          n.vx += (W / 2 - n.x) * centerK;
+          n.vy += (H / 2 - n.y) * centerK;
+          n.vx *= vDecay; n.vy *= vDecay;
+          n.x += n.vx; n.y += n.vy;
+          if (n.x < wall) n.x = wall; if (n.x > W - wall) n.x = W - wall;
+          if (n.y < wall) n.y = wall; if (n.y > H - wall) n.y = H - wall;
+        });
+      }
+
+      // Paint final positions
+      nodeEls.forEach((g, i) => g.setAttribute("transform", `translate(${nodes[i].x.toFixed(1)} ${nodes[i].y.toFixed(1)})`));
+      edgeEls.forEach((l, ei) => {
+        const e = edges[ei];
+        l.setAttribute("x1", nodes[e.a].x.toFixed(1)); l.setAttribute("y1", nodes[e.a].y.toFixed(1));
+        l.setAttribute("x2", nodes[e.b].x.toFixed(1)); l.setAttribute("y2", nodes[e.b].y.toFixed(1));
+      });
+
+      host.appendChild(svg);
+      zoomers.compare = attachZoom(svg, layer, W, host);
+    }
+
+    build();
   }
 
   /* ====================== INIT ====================== */

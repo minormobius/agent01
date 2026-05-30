@@ -21,6 +21,7 @@
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="home">Home</button>
         <button class="tab" data-view="method">Method</button>
+        <button class="tab" data-view="compare">Compare</button>
         <button class="tab" data-view="timeline">Timeline</button>
         <button class="tab" data-view="inworld">In-world</button>
         <button class="tab" data-view="constantine">Constantine III</button>
@@ -176,6 +177,22 @@
         <li><strong>Add a card to the Pendragon home page</strong> and confirm the cross-tale crosswalk (motifs and Propp functions) picks up the new entries.</li>
       </ol>
       <p class="lead">Adding the fifth tale to this branch's queue would be the natural next step — a sibling of <em>Pwyll</em> from the Mabinogion: <em>Branwen ferch Llŷr</em> (the Second Branch), <em>Manawydan fab Llŷr</em> (the Third), or <em>Math fab Mathonwy</em> (the Fourth). The apparatus is ready.</p>
+    </section>
+
+    <!-- COMPARE (hypermythograph: the cross-tale graph layer) -->
+    <section class="view" id="view-compare">
+      <div class="hero">
+        <h1>Comparative graph</h1>
+        <p class="lead">The four-tale crosswalk as a graph. The four tales are pinned at the corners; the structural elements they share — motifs, story functions, character archetypes — float between them, pulled toward whichever tales claim them. The middle of the graph is where the medieval Insular tradition is densest; the outskirts are where each poem is most distinctively itself.</p>
+      </div>
+      <div class="cmp-controls">
+        <div class="cmp-modes" id="cmp-modes"></div>
+        <div class="cmp-toggles" id="cmp-toggles"></div>
+      </div>
+      <p class="lead cmp-mode-blurb" id="cmp-blurb"></p>
+      <div class="zoom-host" id="cmp-host"></div>
+      <p class="tree-hint">Tales pinned at the corners. Hover a node for its name; click for the cross-tale gloss. Toggle <em>multi-tale only</em> to hide single-tale leaves and surface the structural backbone.</p>
+      <div class="cmp-detail" id="cmp-detail"></div>
     </section>
 
     <!-- TIMELINE -->
