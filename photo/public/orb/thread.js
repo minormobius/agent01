@@ -97,7 +97,7 @@ export async function fetchThread(uri, { onProgress } = {}) {
   if (!opDid) return root;
 
   let fetches = 1;
-  const MAX_FETCHES = 100; // safety limit (~1000 posts deep)
+  const MAX_FETCHES = 300; // safety limit (~3000 posts deep — orb needs this)
 
   while (fetches < MAX_FETCHES) {
     // Walk the tree to find the deepest OP leaf that needs continuation

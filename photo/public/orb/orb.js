@@ -16,11 +16,12 @@ import {
 } from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const MAX_TILES    = 240;   // queue cap (posts + quoted posts)
+const MAX_TILES    = 500;   // deep archive threads can have many quoted posts
 const ATLAS_W      = 2048;  // 4x atlas area vs the previous default
 const ATLAS_H      = 4096;
 const TILE_PX      = 1024;  // render each tile at this resolution before composite
 const AUTOSTAMP_DELAY_MS = 80;
+const TAP_PIXEL_THRESHOLD = 8;   // drag farther than this = orbit, not a tap
 const TILE_PER_ROW = 4;
 const MAX_TEX_AXIS = 4096;
 const MAX_TILE     = 384;
@@ -799,6 +800,7 @@ function frame() {
 // wheel                  = zoom
 
 const pointers = new Map();
+const pointerStarts = new Map();   // pointerId -> {x, y} at pointerdown, for tap detection
 let dragState = null;
 let pinchState = null;
 
@@ -823,6 +825,7 @@ function refreshGesture() {
 
 canvas.addEventListener('pointerdown', (e) => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  pointerStarts.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { canvas.setPointerCapture(e.pointerId); } catch {}
   refreshGesture();
 });
@@ -844,13 +847,103 @@ canvas.addEventListener('pointermove', (e) => {
 });
 function endPointer(e) {
   if (!pointers.has(e.pointerId)) return;
+  const start = pointerStarts.get(e.pointerId);
   pointers.delete(e.pointerId);
+  pointerStarts.delete(e.pointerId);
   try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
+  // Tap detection: single pointer, didn't drag more than a few pixels, and
+  // no other fingers are still down. If so, try picking a tile.
+  if (e.type === 'pointerup' && start && pointers.size === 0) {
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.hypot(dx, dy) < TAP_PIXEL_THRESHOLD) {
+      pickTileAt(e.clientX, e.clientY);
+    }
+  }
+
   // Re-baseline so lifting one finger of a pinch doesn't snap the view.
   refreshGesture();
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
+
+// Tap-to-open. On a non-drag tap, cast a ray from the camera through the
+// click point, intersect the unit sphere, convert the hit to the same UV
+// the shader samples (matching the 1 - u flip and the scroll offset), find
+// which grid cell that maps to, and look up the entry in stampedTiles.
+// If found, open the original post on bsky.app in a new tab.
+function pickTileAt(clientX, clientY) {
+  if (!state.atlasCanvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const ndcX = 2 * (clientX - rect.left) / rect.width - 1;
+  const ndcY = 1 - 2 * (clientY - rect.top) / rect.height;
+
+  // Camera basis — must match what frame() uses to build view.
+  const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+  const cy = Math.cos(state.yaw),   sy = Math.sin(state.yaw);
+  const eye = [
+    state.distance * cp * sy,
+    state.distance * sp,
+    state.distance * cp * cy,
+  ];
+  const fwd = normalize3([-eye[0], -eye[1], -eye[2]]);
+  const right = normalize3(cross3(fwd, [0, 1, 0]));
+  const up = cross3(right, fwd);
+
+  // Match the projection in frame() (fov ~ 0.72 rad).
+  const fovY = 0.72;
+  const aspect = canvas.width / Math.max(1, canvas.height);
+  const halfH = Math.tan(fovY / 2);
+  const halfW = halfH * aspect;
+  const dx = ndcX * halfW;
+  const dy = ndcY * halfH;
+  const dir = normalize3([
+    fwd[0] + dx * right[0] + dy * up[0],
+    fwd[1] + dx * right[1] + dy * up[1],
+    fwd[2] + dx * right[2] + dy * up[2],
+  ]);
+
+  // Sphere intersection (unit sphere at origin).
+  const ed = dot3(eye, dir);
+  const e2 = dot3(eye, eye);
+  const disc = ed * ed - (e2 - 1);
+  if (disc < 0) return;                       // missed the orb
+  const sq = Math.sqrt(disc);
+  const t = -ed - sq;
+  if (t < 0) return;                          // behind camera (shouldn't happen)
+  const hit = [eye[0] + t * dir[0], eye[1] + t * dir[1], eye[2] + t * dir[2]];
+
+  // Sphere point -> UV, matching the sphere mesh's parameterisation.
+  const theta = Math.acos(Math.max(-1, Math.min(1, hit[1])));
+  const phi = Math.atan2(hit[2], hit[0]);
+  let uRaw = phi / (2 * Math.PI);
+  if (uRaw < 0) uRaw += 1;
+  const vRaw = theta / Math.PI;
+
+  // Apply the same transforms the fragment shader applies: u flipped, v
+  // shifted by the auto-scroll and wrapped.
+  const atlasU = 1 - uRaw;
+  let atlasV = (vRaw + state.scroll) % 1;
+  if (atlasV < 0) atlasV += 1;
+
+  const { cols, rows } = gridSpec();
+  const col = Math.min(cols - 1, Math.max(0, Math.floor(atlasU * cols)));
+  const row = Math.min(rows - 1, Math.max(0, Math.floor(atlasV * rows)));
+  const slot = row * cols + col;
+
+  const entry = stampedTiles.get(slot);
+  if (!entry || !entry.uri) {
+    setStatus(`tapped slot ${col},${row} — empty`);
+    return;
+  }
+  // at://did:plc:.../app.bsky.feed.post/rkey -> https://bsky.app/profile/did/post/rkey
+  const m = entry.uri.match(/^at:\/\/(did:[^/]+)\/[^/]+\/([^/]+)/);
+  if (!m) { setStatus('tile has no bsky URL'); return; }
+  const url = `https://bsky.app/profile/${m[1]}/post/${m[2]}`;
+  setStatus(`opening @${entry.author?.handle || ''}…`);
+  window.open(url, '_blank', 'noopener');
+}
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const f = e.deltaY > 0 ? 1.08 : 1 / 1.08;
@@ -869,6 +962,7 @@ function resetGridLayout() {
   successCount = 0;
   mediaAttempted = 0;
   mediaSucceeded = 0;
+  stampedTiles.clear();   // slot indexing changes with cols/rows; map invalidated
   const { cols, rows, pad } = gridSpec();
   const padTxt = Math.round(pad * 100) + '%';
   if (tileQueue.length) {
@@ -897,6 +991,8 @@ let mediaAttempted = 0;
 let mediaSucceeded = 0;
 let lastMediaFailReason = '';
 let stampGen = 0;
+let paused = false;
+const stampedTiles = new Map();   // slot -> tile entry, for tap-to-open
 
 async function ensureThreadLoaded(wantedUrl) {
   if (tileQueue.length && wantedUrl === lastFetchedUrl) return true;
@@ -944,6 +1040,7 @@ async function stampOne() {
   const h = cellH - padY * 2;
   ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
   setStripFromCanvas(c);
+  stampedTiles.set(slot, entry);
 
   queueIndex++;
   successCount++;
@@ -961,6 +1058,12 @@ async function autoStamp() {
   const cap = cols * rows;
   while (queueIndex < tileQueue.length && successCount < cap) {
     if (gen !== stampGen) return;     // a newer autoStamp / reset superseded us
+    // Honor the pause flag — poll every 200ms while paused so a resume is
+    // responsive. Generation check inside the wait so reset still wins.
+    while (paused && gen === stampGen) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+    if (gen !== stampGen) return;
     const ok = await stampOne();
     if (!ok) break;
     if (gen !== stampGen) return;
@@ -994,6 +1097,16 @@ async function loadAndAutoStamp() {
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   loadAndAutoStamp();
+});
+
+const pauseBtn = document.getElementById('pause-btn');
+pauseBtn.addEventListener('click', () => {
+  paused = !paused;
+  pauseBtn.textContent = paused ? '▶' : '⏸';
+  pauseBtn.title = paused ? 'resume autostamp' : 'pause autostamp';
+  setStatus(paused
+    ? `paused at ${successCount}/${tileQueue.length}${queueIndex < tileQueue.length ? ` (${tileQueue.length - queueIndex} queued)` : ''}`
+    : 'resuming…');
 });
 
 (async () => {
