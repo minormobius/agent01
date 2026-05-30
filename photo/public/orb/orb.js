@@ -211,13 +211,23 @@ function buildPostQueue(posts) {
 // prefer quotes — every top-level feed post is a tile in its own right; media
 // from inside a quote embed still gets collected because allMediaInEmbed
 // recurses into quote.embeds.
+//
+// Feeds bleed back in time — the SimCluster scorer happily surfaces posts
+// from weeks ago if the engagement looks fresh. The orb is meant to feel
+// like a live thing, so anything older than FEED_MAX_AGE_MS is dropped here
+// (client-side; the feed worker is unchanged).
+const FEED_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
 function buildFeedQueue(postViews) {
   const out = [];
+  const cutoff = Date.now() - FEED_MAX_AGE_MS;
+  let dropped = 0;
   for (const p of postViews) {
     if (out.length >= MAX_TILES) break;
     const text = (p.record?.text || '').trim();
     const media = allMediaInEmbed(p.embed);
     if (!text && media.length === 0) continue;
+    const when = Date.parse(p.record?.createdAt || p.indexedAt || '');
+    if (Number.isFinite(when) && when < cutoff) { dropped++; continue; }
     out.push({
       kind: 'feed',
       uri: p.uri,
@@ -232,6 +242,7 @@ function buildFeedQueue(postViews) {
       createdAt: p.record?.createdAt || p.indexedAt || '',
     });
   }
+  if (dropped) console.log(`orb feed: dropped ${dropped} posts older than 2 days`);
   return out;
 }
 
