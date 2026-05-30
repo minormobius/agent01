@@ -31,6 +31,17 @@ const loadBtn = document.getElementById('load-btn');
 const scrollSlider = document.getElementById('scroll-speed');
 const spinSlider = document.getElementById('spin-speed');
 const brightnessSlider = document.getElementById('brightness');
+const colsSlider = document.getElementById('cols');
+
+// Stamp-grid layout: derive rows from cols so cells render square on the
+// sphere. The atlas is 512x2048 (1:4 in pixels) but equirectangular wrapping
+// gives 360° longitude / 180° latitude, so a square cell needs cellH = 2*cellW
+// — hence rows = 2 * cols.
+function gridSpec() {
+  const cols = Math.max(1, parseInt(colsSlider.value, 10) || 4);
+  const rows = Math.max(1, cols * 2);
+  return { cols, rows };
+}
 
 urlInput.value = DEFAULT_URL;
 
@@ -74,30 +85,57 @@ async function loadThread(rawInput) {
   return { posts };
 }
 
-// Build a queue of *post units* — each post itself (if it has text) AND any
-// quoted posts it contains. Quoted posts are the actual content of archive-
-// style threads; posts give us the OP commentary. We render each unit as a
-// canvas tile (author + text + best-effort image) so the orb populates with
-// real content even when the CDN's image cache is empty.
+// Paints the orb's idle "celestial body" pattern across a canvas of any size.
+// Used both at init and whenever the column slider resets the atlas.
+function paintCelestialPattern(canvas) {
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0.00, '#1a0d36');
+  grad.addColorStop(0.18, '#7a2d4f');
+  grad.addColorStop(0.35, '#d4b86a');
+  grad.addColorStop(0.50, '#e8a04a');
+  grad.addColorStop(0.65, '#d4b86a');
+  grad.addColorStop(0.82, '#5c3d96');
+  grad.addColorStop(1.00, '#1a0d36');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255, 200, 140, 0.12)';
+  for (let y = 0; y < H; y += 32) ctx.fillRect(0, y, W, 2);
+  ctx.fillStyle = 'rgba(255, 240, 220, 0.55)';
+  const stars = Math.floor((W * H) / 8500);
+  for (let i = 0; i < stars; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = 0.8 + Math.random() * 2.6;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Build a queue of post units to render on the orb.
+//
+// For archive threads (which point at "cool stuff being quoted") we want the
+// QUOTED posts, not the OP's commentary. For regular discussion threads with
+// no quotes, fall back to the posts themselves.
 function buildPostQueue(posts) {
+  const quotes = [];
+  for (const p of posts) {
+    if (quotes.length >= MAX_TILES) break;
+    if (p.embed) {
+      for (const m of extractMedia(p.embed)) addQuotedTo(quotes, m);
+    }
+  }
+  if (quotes.length > 0) return quotes;
+
   const out = [];
   for (const p of posts) {
     if (out.length >= MAX_TILES) break;
     const text = (p.text || '').trim();
     const image = firstImageInEmbed(p.embed);
     if (text || image) {
-      out.push({
-        kind: 'post',
-        uri: p.uri,
-        author: p.author,
-        text,
-        image,
-        createdAt: p.createdAt,
-      });
-    }
-    // Recurse into quoted posts (extractMedia flattens nested quotes' embeds).
-    if (p.embed) {
-      for (const m of extractMedia(p.embed)) addQuotedTo(out, m);
+      out.push({ kind: 'post', uri: p.uri, author: p.author, text, image, createdAt: p.createdAt });
     }
   }
   return out;
@@ -417,7 +455,10 @@ fn vs(@location(0) p: vec3<f32>, @location(1) uv: vec2<f32>) -> VSOut {
 
 @fragment
 fn fs(in: VSOut) -> @location(0) vec4<f32> {
-  let uv = vec2<f32>(in.uv.x, fract(in.uv.y + u.scroll));
+  // Flip u so text reads correctly on the visible (outward) face: the UV
+  // sphere's winding has phi increasing west-to-east in world space, which
+  // appears as right-to-left from the default camera position.
+  let uv = vec2<f32>(1.0 - in.uv.x, fract(in.uv.y + u.scroll));
   let c  = textureSample(stripTex, stripSamp, uv).rgb;
   // Emissive soft-saturation: amplify, then roll off to 1.0 via 1 - exp(-x).
   let g  = c * u.brightness;
@@ -523,36 +564,11 @@ async function initWebGPU() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  // Placeholder texture: a procedural "celestial body" pattern. This is what
-  // the orb shows when no thread has been loaded — meant to be pretty in its
-  // own right, not just a debug fill. Tall so it wraps the sphere from
-  // pole to pole with full vertical resolution. Doubles as the atlas we
-  // composite post tiles onto, so it's sized large enough that 256-px tiles
-  // hold legible text.
+  // Placeholder texture: the celestial-body pattern, painted once here and
+  // repainted later whenever the column slider changes (which clears stamps).
   const placeholder = document.createElement('canvas');
   placeholder.width = 512; placeholder.height = 2048;
-  const pctx = placeholder.getContext('2d');
-  const grad = pctx.createLinearGradient(0, 0, 0, 2048);
-  grad.addColorStop(0.00, '#1a0d36');
-  grad.addColorStop(0.18, '#7a2d4f');
-  grad.addColorStop(0.35, '#d4b86a');
-  grad.addColorStop(0.50, '#e8a04a');
-  grad.addColorStop(0.65, '#d4b86a');
-  grad.addColorStop(0.82, '#5c3d96');
-  grad.addColorStop(1.00, '#1a0d36');
-  pctx.fillStyle = grad;
-  pctx.fillRect(0, 0, 512, 2048);
-  pctx.fillStyle = 'rgba(255, 200, 140, 0.12)';
-  for (let y = 0; y < 2048; y += 32) pctx.fillRect(0, y, 512, 2);
-  pctx.fillStyle = 'rgba(255, 240, 220, 0.55)';
-  for (let i = 0; i < 120; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 2048;
-    const r = 0.8 + Math.random() * 2.6;
-    pctx.beginPath();
-    pctx.arc(x, y, r, 0, Math.PI * 2);
-    pctx.fill();
-  }
+  paintCelestialPattern(placeholder);
 
   state.device = device;
   state.context = context;
@@ -728,6 +744,23 @@ canvas.addEventListener('wheel', (e) => {
   state.distance = Math.max(1.3, Math.min(8, state.distance * f));
 }, { passive: false });
 
+// Cols slider clears existing stamps and resets the queue cursor so the user
+// can re-fill into the new grid. We keep the fetched tileQueue so they don't
+// have to re-fetch the thread.
+colsSlider.addEventListener('change', () => {
+  if (!state.atlasCanvas) return;
+  paintCelestialPattern(state.atlasCanvas);
+  setStripFromCanvas(state.atlasCanvas);
+  queueIndex = 0;
+  successCount = 0;
+  const { cols, rows } = gridSpec();
+  if (tileQueue.length) {
+    setStatus(`reset · grid ${cols}×${rows} · click load to stamp into the new layout`);
+  } else {
+    setStatus(`grid ${cols}×${rows}`);
+  }
+});
+
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
 // Each click stamps one post-tile onto the orb's atlas. Text always renders
@@ -781,22 +814,26 @@ form.addEventListener('submit', async (e) => {
 
     const c = state.atlasCanvas;
     const ctx = c.getContext('2d');
-    const cols = 2, rows = 8;
+    const { cols, rows } = gridSpec();
     const cellW = c.width / cols;
     const cellH = c.height / rows;
-    const placement = Math.floor(Math.min(cellW, cellH) * 0.92);
+    // Fill each cell entirely (tiles are already rendered square at TILE_PX,
+    // and we map a square source to a non-square cell — the sphere geometry
+    // un-stretches it back). No padding so the orb is fully covered.
     const i = successCount;
-    const col = i % cols;
-    const row = Math.floor(i / cols) % rows;
-    const x = col * cellW + (cellW - placement) / 2;
-    const y = row * cellH + (cellH - placement) / 2;
-    ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, placement, placement);
+    const slot = i % (cols * rows);                    // wrap if user over-stamps
+    const col = slot % cols;
+    const row = Math.floor(slot / cols);
+    const x = col * cellW;
+    const y = row * cellH;
+    ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, cellW, cellH);
     setStripFromCanvas(c);
 
     queueIndex++;
     successCount++;
     const k = entry.kind === 'quote' ? '↪' : '';
-    setStatus(`stamped ${successCount} / ${tileQueue.length} ${k} @${entry.author?.handle || ''}`);
+    const gridFull = successCount >= cols * rows ? ' (grid full · next stamps wrap)' : '';
+    setStatus(`stamped ${successCount} / ${tileQueue.length} ${k} @${entry.author?.handle || ''}${gridFull}`);
   } catch (err) {
     console.error(err);
     setStatus('error: ' + (err?.message || String(err)), true);
