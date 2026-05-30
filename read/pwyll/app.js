@@ -109,7 +109,7 @@
     const B = P.book; if (!B) return;
     const spreads = B.spreads, page = $("#book-page"), nav = $("#book-nav");
     let idx = 0;
-    function dropCap(t) { return String(t).replace(/^(\s*[“"'(]?\s*)(\S)/, (m, a, b) => a + '<span class="bk-dropcap">' + b + '</span>'); }
+    function dropCap(t) { return String(t).replace(/^((?:<[^>]+>)*\s*[“"'(]?\s*)(\S)/, (m, a, b) => a + '<span class="bk-dropcap">' + b + '</span>'); }
     function show() {
       idx = Math.max(0, Math.min(spreads.length - 1, idx));
       const s = spreads[idx];

@@ -20,6 +20,7 @@
       <span class="brand"><span class="sigil">⚔</span>Pendragon</span>
       <nav class="tabs" id="tabs">
         <button class="tab active" data-view="home">Home</button>
+        <button class="tab" data-view="method">Method</button>
         <button class="tab" data-view="timeline">Timeline</button>
         <button class="tab" data-view="inworld">In-world</button>
         <button class="tab" data-view="constantine">Constantine III</button>
@@ -69,8 +70,8 @@
         </a>
       </div>
 
-      <h2 class="section">The three tales side by side</h2>
-      <p class="lead">With three full stacks in the same apparatus — Culhwch, Gawain, Orfeo — the comparative layer the motif index and the story graph open up can do its work. Below: the same Thompson Motif codes, the same Propp functions, the same character archetypes, laid against all three poems.</p>
+      <h2 class="section">The four tales side by side</h2>
+      <p class="lead">With four full stacks in the same apparatus — Culhwch, Gawain, Orfeo, Pwyll — the comparative layer the motif index and the story graph open up can do its work. Below: the same Thompson Motif codes, the same Propp functions, the same character archetypes, laid against all four poems. The shape of that apparatus — and how to add a fifth tale — is on the <a href="#method">Method</a> page.</p>
       <div id="cw-host"></div>
 
       <h2 class="section">Explore the historiography</h2>
@@ -84,6 +85,97 @@
         <a class="explore-card" href="#constantine"><h3>Constantine III</h3><p>A reader's fun-not-rigor theory.</p></a>
         <a class="explore-card" href="#papers"><h3>Papers</h3><p>Primary sources and scholarship.</p></a>
       </div>
+    </section>
+
+    <!-- METHOD (the apparatus, the vision, the process) -->
+    <section class="view" id="view-method">
+      <div class="hero">
+        <h1>Method</h1>
+        <p class="lead">What we mean by reading a tale deeply, why we mean it, and how a fifth tale would be added to the cycle.</p>
+      </div>
+
+      <h2 class="section">The apparatus</h2>
+      <p class="lead">Every tale lives at its own sub-site of <a href="/">read.mino.mobi</a> as a self-contained reader. Each one is built from the same seven layers, and each layer is data first — JavaScript objects, not narrative HTML — so the rendering, the comparisons, and the eventual port to anything else are mechanical.</p>
+
+      <div class="method-layers">
+        <div class="method-layer">
+          <span class="ml-num">1</span>
+          <div>
+            <h3>Source text</h3>
+            <p>A reading text in the tale's original language — Middle Welsh for the Mabinogion branches, Middle English for the Pearl Poet and the Breton lays. Public-domain or CC-BY-SA, with manuscript provenance noted. The source is sacred; we never paraphrase it away.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">2</span>
+          <div>
+            <h3>Original translation</h3>
+            <p>Written movement by movement (passage by passage, fitt by fitt, branch by branch), in segment-aligned parallel with the source. Tuned for readability, not for the philological journals; a footnote layer carries the choices that matter. The Read tab toggles between parallel, English-only and source-only modes.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">3</span>
+          <div>
+            <h3>Character cards &amp; web</h3>
+            <p>Every named figure as a card — role, epithet, blurb, appearances by movement, typed relationships to other characters. The same data, force-laid as a graph, becomes the Character web. Click a node, jump to a card; click an appearance, jump to the passage.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">4</span>
+          <div>
+            <h3>Story graph (Propp)</h3>
+            <p>The tale laid against Vladimir Propp's 31 narrative functions (Α, β, γ, δ, ε, ζ, …): which functions fire, which are absent, which the tale rearranges. Each function links back to the movement that realises it. The same scaffolding works for every folk-rooted narrative — that's exactly Propp's claim.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">5</span>
+          <div>
+            <h3>Motif index</h3>
+            <p>The tale by call-number — Stith Thompson's Motif-Index of Folk Literature and the Aarne-Thompson-Uther tale-type catalogue, the folklorists' Dewey decimal for mythic memes. Each motif carries a confidence (well-attested / interpretive / speculative) and the movements where it shows.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">6</span>
+          <div>
+            <h3>Mythograph</h3>
+            <p>One synergistic graph over everything above. Movements pin to a horizontal gold spine; characters, motifs and Propp functions hang off the moments they touch, force-laid so cross-cutting elements pull toward the centre. Hover any node; click any node. It's the index of indexes.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">7</span>
+          <div>
+            <h3>Storybook</h3>
+            <p>A faithful retelling for readers ~8 and up — the whole tale across paged spreads, with art briefs for each illustration. The storybook keeps the apparatus honest: if a tale doesn't fit a child-readable page-by-page retelling, the deeper layers are masking confusion. Images are generated from the briefs by a shared illustration pipeline; the artwork is data too.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section">The shape of the apparatus</h2>
+      <p class="lead">Each tale-site stands alone — you can read Culhwch without ever knowing the Pearl Poet exists. But because every layer is structured the same way, the comparative layer at <a href="#home">Pendragon</a> can read across them all without lifting a finger: the same Propp function code points at four different realisations, the same motif call-number cross-cuts every cycle, the same character archetype appears under four faces. That's the spine of this site.</p>
+      <p class="lead">The apparatus is intentionally read-only at the cross-tale level. The single source of truth for each tale is its own sub-site's data files; Pendragon picks them up and arranges them.</p>
+
+      <h2 class="section">The illustration pipeline</h2>
+      <p class="lead">One registry, four tales. Adding the illustrations for a new tale used to mean a new script. Now it's a record in <code>scripts/illustrate/tales.mjs</code> — a few sentences of house style, a dictionary of character &amp; setting "pins" with the descriptions to inject when each appears, a list of regex triggers that match those pins to a given spread's art brief. A single runner, <code>scripts/illustrate.mjs</code>, takes <code>--tale &lt;slug&gt;</code> and renders only the spreads whose PNGs are missing — safe to re-run on every push. A matrix workflow fans it out across every registered tale.</p>
+      <p class="lead">The point is that the artwork is consequential of the writing. The storybook's <code>illus</code> field is an art note — the illustrator (human or model) reads it; the pipeline assembles a prompt by selecting whichever pins the brief mentions; the picture comes out matching the prose. Change a brief, delete the PNG, push: the image is rebuilt to match.</p>
+
+      <h2 class="section">The vision</h2>
+      <p class="lead">A tale read deeply once is data forever. The annotation layer is the durable contribution — the place where attention compounds. Every motif we pin and every Propp function we mark is a tiny piece of literary infrastructure that the next tale, and the comparative layer, get to reuse.</p>
+      <p class="lead">The four tales here are the proof of concept that the same scaffolding works on a 12th-century Welsh prose tale (<em>Culhwch</em>), a 14th-century alliterative romance (<em>Gawain</em>), a c.1300 Breton lay (<em>Orfeo</em>) and a pre-Arthurian Mabinogi branch (<em>Pwyll</em>). The interesting work begins when the corpus is large enough to surface its own patterns: which motifs travel across the British Isles and which stop at the Welsh border; which Propp functions the Arthurian romances elide and which the Mabinogion branches keep; which character archetypes wear new faces in every century. The Mythograph is the inside-one-tale view of that; Pendragon is the across-tales view.</p>
+
+      <h2 class="section">How to add a fifth tale</h2>
+      <p class="lead">The pattern, in the order that has worked four times:</p>
+      <ol class="method-howto">
+        <li><strong>Pick a tale, find a public-domain reading text</strong> in the original language. Welsh Wikisource, the TEAMS Middle English series, the Camelot Project, Gutenberg — note the manuscript line in the meta block.</li>
+        <li><strong>Scaffold the sub-site</strong> at <code>read/&lt;slug&gt;/</code>: <code>index.html</code>, <code>styles.css</code>, an empty <code>tale.js</code> with the passages skeleton, and the standard <code>app.js</code> view-switching glue copied from the most recent sister.</li>
+        <li><strong>Translate movement by movement.</strong> Each push to a movement deploys; review on the live site. Pwyll took six commits.</li>
+        <li><strong>Write <code>characters.js</code></strong> — every named figure as a card, with role, blurb, appearances and typed relationships. The Character web falls out for free.</li>
+        <li><strong>Write <code>analysis.js</code></strong> — the Propp pass. Where Propp's 31 functions fire, which are absent, which the tale shifts.</li>
+        <li><strong>Write <code>motifs.js</code></strong> — Thompson motifs and ATU types, with confidence levels and cross-tale references.</li>
+        <li><strong>Add the Mythograph hookup</strong> to <code>app.js</code>; it builds itself from the four data files above.</li>
+        <li><strong>Write <code>storybook.js</code></strong> — the faithful retelling, each spread carrying a title, prose text and an <code>illus</code> art brief.</li>
+        <li><strong>Register the tale in <code>scripts/illustrate/tales.mjs</code></strong> — house style, character pins, regex triggers. Add the slug to the workflow matrix.</li>
+        <li><strong>Add a card to the Pendragon home page</strong> and confirm the cross-tale crosswalk (motifs and Propp functions) picks up the new entries.</li>
+      </ol>
+      <p class="lead">Adding the fifth tale to this branch's queue would be the natural next step — a sibling of <em>Pwyll</em> from the Mabinogion: <em>Branwen ferch Llŷr</em> (the Second Branch), <em>Manawydan fab Llŷr</em> (the Third), or <em>Math fab Mathonwy</em> (the Fourth). The apparatus is ready.</p>
     </section>
 
     <!-- TIMELINE -->

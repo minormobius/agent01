@@ -320,6 +320,30 @@ svg.propp { display: block; }
 .tale-card.tc-soon:hover { border-color: var(--line); transform: none; }
 .tale-card.tc-soon h3 { color: var(--ink-dim); }
 
+/* ── Method (the apparatus / vision / how-to) ── */
+.method-layers { display: grid; grid-template-columns: 1fr; gap: 12px; margin: 14px 0 8px; }
+@media (min-width: 720px) { .method-layers { grid-template-columns: repeat(2, 1fr); } }
+.method-layer {
+  display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start;
+  background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold);
+  border-radius: 11px; padding: 16px 18px;
+}
+.method-layer .ml-num {
+  font-family: var(--serif); font-size: 28px; color: var(--gold);
+  border: 1px solid var(--line); border-radius: 50%; width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1; background: rgba(201,162,74,0.06);
+}
+.method-layer h3 { margin: 0 0 6px; color: var(--gold-soft); font-size: 19px; }
+.method-layer p { color: var(--ink-dim); margin: 0; font-size: 15px; line-height: 1.6; }
+.method-howto { font-family: var(--serif); color: var(--ink); padding-left: 22px; margin: 8px 0 0; line-height: 1.7; }
+.method-howto li { margin-bottom: 8px; }
+.method-howto code, .lead code {
+  font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+  font-size: 0.92em; padding: 1px 6px; border-radius: 5px;
+  background: rgba(201,162,74,0.08); color: var(--gold-soft);
+}
+
 .explore-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 11px; margin-top: 12px; }
 .explore-card {
   display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 9px;

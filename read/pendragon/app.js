@@ -428,7 +428,7 @@
 
 
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["home", "timeline", "inworld", "constantine", "tree", "wiki", "fae", "papers"];
+  const VIEWS = ["home", "method", "timeline", "inworld", "constantine", "tree", "wiki", "fae", "papers"];
   let treeDrawn = false, inworldDrawn = false, current = "home";
   function switchView(v) {
     current = v;
