@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>splice — molecular biology, in the browser</title>
+<meta name="description" content="splice brings a real molecular-biology workbench to the browser as Rust→WebAssembly, wrapped in an assembly-puzzle game. Restriction mapping, digest + gel, in-silico PCR, ORFs, and cloning — all client-side. Inspired by Binomica Labs' SpliceCraft.">
+<meta property="og:title" content="splice — molecular biology, in the browser">
+<meta property="og:description" content="A real cloning workbench compiled to WASM, wrapped in a puzzle game. Cut, ligate, and build plasmids — auto-graded by the engine.">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / splice</span>
+  <nav class="top-links">
+    <a href="/lab/">Lab</a><a href="/game/">Game</a><a href="/table/">Table</a><a href="/docs/">Docs</a><a href="/roadmap/">Roadmap</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <h1>Molecular biology, in the browser</h1>
+  <p class="sub">A real cloning workbench compiled to WebAssembly, wrapped in a puzzle game. Cut DNA with restriction enzymes, ligate compatible ends, build plasmids — everything runs client-side, with no server round-trips.</p>
+
+  <div class="cards">
+    <a class="card live" href="/game/">
+      <div class="k">▶ Game · live</div>
+      <h3>Clone the construct</h3>
+      <p>Three engine-graded modes: <b>cloning</b> — ligate a vector + insert into the target plasmid; <b>primer design</b> — tune two primers to amplify a region at a matched Tm; and <b>directed evolution</b> — breed a gene toward an objective fitness target while preserving its protein.</p>
+      <span class="go">Play →</span>
+    </a>
+    <a class="card live" href="/lab/">
+      <div class="k">▶ Lab · live</div>
+      <h3>The workbench</h3>
+      <p>Restriction mapping, digest → agarose gel, in-silico PCR, 6-frame ORFs, and cloning — over any sequence, with live per-op timings and a benchmark.</p>
+      <span class="go">Open the lab →</span>
+    </a>
+    <a class="card live" href="/table/">
+      <div class="k">▶ Table · live</div>
+      <h3>The enzyme table</h3>
+      <p>A periodic table of ~60 restriction enzymes, arranged by cut chemistry and wired up by compatible ends, shared sites, and neoschizomers. Click any one for its cut diagram and relatives.</p>
+      <span class="go">Explore →</span>
+    </a>
+    <a class="card" href="/docs/">
+      <div class="k">Docs</div>
+      <h3>How it works</h3>
+      <p>The architecture: why Rust→WASM beats Python-in-the-browser, how we reuse the original C libraries, where it runs, and why a game fits on top.</p>
+      <span class="go">Read the docs →</span>
+    </a>
+    <a class="card" href="/roadmap/">
+      <div class="k">Roadmap</div>
+      <h3>What's built &amp; next</h3>
+      <p>The phased plan from deterministic engine to directed-evolution game, what's live today, and the open product decisions.</p>
+      <span class="go">See the roadmap →</span>
+    </a>
+  </div>
+
+  <div class="tagrow">
+    <span class="tag"><b>✓</b> deterministic engine (Rust→WASM)</span>
+    <span class="tag"><b>✓</b> assembly-puzzle game</span>
+    <span class="tag"><b>✓</b> HMMER→WASM viability proven</span>
+  </div>
+
+  <h2>What this is</h2>
+  <p><a href="https://github.com/Binomica-Labs/SpliceCraft">SpliceCraft</a> (by <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed) is a terminal molecular-biology workbench — your whole cloning workflow in one tool. <b>splice</b> is an independent effort to bring that capability to the open web: re-author the deterministic core in <b>Rust</b>, compile it to <b>WebAssembly</b>, and reuse the original's hard C libraries (primer3, HMMER) rather than reinvent the science. On top of the tool sits a <b>tiered game</b> — because cloning is already a constraint-satisfaction puzzle, and the engine can grade any move objectively.</p>
+  <p>Today the deterministic engine and the first puzzle game are <b>live and playable above</b>. The <a href="/docs/">docs</a> explain the approach; the <a href="/roadmap/">roadmap</a> shows where it goes next. The hardest technical risk — getting HMMER's hand-written SIMD core into WASM — has been <a href="/docs/#spike">spiked and proven</a>.</p>
+
+  <footer>
+    <p>splice.mino.mobi · an independent web port inspired by SpliceCraft (© <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed). Not affiliated. · <a href="/docs/">docs</a> · <a href="/roadmap/">roadmap</a> · <a href="/api/health">status</a></p>
+  </footer>
+</div>
+</body>
+</html>
