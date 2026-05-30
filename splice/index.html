@@ -13,7 +13,7 @@
 <header class="top"><div class="wrap">
   <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / splice</span>
   <nav class="top-links">
-    <a href="/game/build.html">Build</a><a href="/lab/">Lab</a><a href="/game/">Game</a><a href="/game/gel.html">Gel</a><a href="/table/">Table</a><a href="/docs/">Docs</a><a href="/roadmap/">Roadmap</a>
+    <a href="/game/build.html">Build</a><a href="/game/">Game</a><a href="/game/gel.html">Gel</a><a href="/table/">Table</a><a href="/lab/">Lab</a><a href="/docs/">Docs</a><a href="/roadmap/">Roadmap</a>
   </nav>
 </div></header>
 
@@ -21,41 +21,64 @@
   <h1>Molecular biology, in the browser</h1>
   <p class="sub">A real cloning workbench compiled to WebAssembly, wrapped in a puzzle game. Cut DNA with restriction enzymes, ligate compatible ends, build plasmids — everything runs client-side, with no server round-trips.</p>
 
+  <div class="sectlabel">Play</div>
   <div class="cards">
     <a class="card live" href="/game/build.html">
-      <div class="k">▶ Campaign · live</div>
+      <div class="k"><span class="ico">🧬</span> Campaign</div>
       <h3>Clone the gene</h3>
-      <p>The whole workflow as one mission: take a gene, pick restriction enzymes, run PCR to add the cloning sites, <b>verify on a gel that the insert survived</b>, then execute the splice into the vector — ready for its organism. Pick a bad enzyme and watch your gene shatter.</p>
+      <p>The whole workflow as one mission: pick enzymes, run PCR, <b>verify on a gel that the insert survived</b>, then splice into the vector. Pick a bad enzyme and watch your gene shatter.</p>
       <span class="go">Start the mission →</span>
     </a>
     <a class="card live" href="/game/">
-      <div class="k">▶ Game · live</div>
+      <div class="k"><span class="ico">✂️</span> Puzzle</div>
       <h3>Clone the construct</h3>
-      <p>Three engine-graded modes: <b>cloning</b> — ligate a vector + insert into the target plasmid; <b>primer design</b> — tune two primers to amplify a region at a matched Tm; and <b>directed evolution</b> — breed a gene toward an objective fitness target while preserving its protein.</p>
+      <p>Pick restriction enzymes to cut a vector + insert and ligate the matching ends into the target plasmid — auto-graded, with an animated splice on the win.</p>
       <span class="go">Play →</span>
     </a>
-    <a class="card live" href="/lab/">
-      <div class="k">▶ Lab · live</div>
-      <h3>The workbench</h3>
-      <p>Restriction mapping, digest → agarose gel, in-silico PCR, 6-frame ORFs, and cloning — over any sequence, with live per-op timings and a benchmark.</p>
-      <span class="go">Open the lab →</span>
+    <a class="card live" href="/game/primer.html">
+      <div class="k"><span class="ico">🌡️</span> Puzzle</div>
+      <h3>Primer design</h3>
+      <p>Tune two primers to amplify a region so both melt near the target temperature <i>and</i> match each other — but the two ends differ in GC, so you can't tune them the same way.</p>
+      <span class="go">Play →</span>
+    </a>
+    <a class="card live" href="/game/evolve.html">
+      <div class="k"><span class="ico">🧪</span> Sandbox</div>
+      <h3>Directed evolution</h3>
+      <p>Breed a gene toward an objective fitness target — GC, melting temp, codon optimization, remove a site — while its protein stays perfectly preserved. Climb the landscape.</p>
+      <span class="go">Evolve →</span>
+    </a>
+    <a class="card live" href="/game/gel.html">
+      <div class="k"><span class="ico">⚡</span> Sim</div>
+      <h3>Gel electrophoresis</h3>
+      <p>Crank the voltage, pick your agarose, power the field, and watch DNA migrate to its steady-state position — supercoiled ahead, nicked behind, linear true to a real lab gel.</p>
+      <span class="go">Run a gel →</span>
     </a>
     <a class="card live" href="/table/">
-      <div class="k">▶ Table · live</div>
-      <h3>The enzyme table</h3>
-      <p>A periodic table of ~60 restriction enzymes, arranged by cut chemistry and wired up by compatible ends, shared sites, and neoschizomers. Click any one for its cut diagram and relatives.</p>
+      <div class="k"><span class="ico">🔬</span> Explorer</div>
+      <h3>Enzyme table</h3>
+      <p>A periodic table of ~60 restriction enzymes — a force graph clustered by overhang, related by compatible ends and shared sites. Click any for its cut diagram.</p>
       <span class="go">Explore →</span>
     </a>
+  </div>
+
+  <div class="sectlabel">Build &amp; read</div>
+  <div class="cards">
+    <a class="card live" href="/lab/">
+      <div class="k"><span class="ico">🛠️</span> Workbench</div>
+      <h3>The lab</h3>
+      <p>Restriction mapping, digest → gel, in-silico PCR, primer design, 6-frame ORFs, cloning, and Tm — over any sequence, with live per-op timings and a benchmark.</p>
+      <span class="go">Open the lab →</span>
+    </a>
     <a class="card" href="/docs/">
-      <div class="k">Docs</div>
+      <div class="k"><span class="ico">📐</span> Docs</div>
       <h3>How it works</h3>
       <p>The architecture: why Rust→WASM beats Python-in-the-browser, how we reuse the original C libraries, where it runs, and why a game fits on top.</p>
       <span class="go">Read the docs →</span>
     </a>
     <a class="card" href="/roadmap/">
-      <div class="k">Roadmap</div>
+      <div class="k"><span class="ico">🗺️</span> Roadmap</div>
       <h3>What's built &amp; next</h3>
-      <p>The phased plan from deterministic engine to directed-evolution game, what's live today, and the open product decisions.</p>
+      <p>The phased plan from deterministic engine to the full cloning campaign, what's live today, and the open product decisions.</p>
       <span class="go">See the roadmap →</span>
     </a>
   </div>
