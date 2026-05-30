@@ -65,6 +65,10 @@ export const Engine = {
   fitness:     (seq, goals) => timed('fitness_w', `${goals}|${seq}`, true),
   breed:       (seq, goals, offspring = 24, mutRate = 2, seed = 1) =>
                  timed('breed_w', `${goals}|${offspring}|${mutRate}|${seed}|${seq}`, true),
+  // gel electrophoresis: migrate a CSV of fragment tokens (bp, or bp:sc/bp:nick)
+  // under the given run conditions -> per-band migration fraction + dye front.
+  gel:         (fragsCsv, voltage = 100, agarose = 1.0, minutes = 45, gelLen = 8) =>
+                 timed('gel_w', `${voltage}|${agarose}|${minutes}|${gelLen}|${fragsCsv}`, true),
 
   // raw single call without timing wrapper, for tight benchmark loops
   _raw: call,

@@ -726,6 +726,103 @@ pub fn op_fitness(seq: &str, goals_spec: &str) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// gel electrophoresis physics — migration of DNA through agarose
+// ---------------------------------------------------------------------------
+//
+// Goal: positions a bench scientist would actually see. The model:
+//   * relative mobility m(L) is a sigmoid in log-size — fast small fragments,
+//     slow large ones, with a characteristic resolving size Lc set by % agarose
+//     (more agarose -> smaller Lc -> resolves smaller fragments, compresses big).
+//   * distance = m * (field) * time, field = V / electrode_gap.
+//   * DNA TOPOLOGY shifts apparent mobility: a supercoiled plasmid is compact and
+//     runs AHEAD of its linear length; a nicked/relaxed circle runs BEHIND. This
+//     is why an uncut miniprep shows 2-3 bands and a clean cut shows the true
+//     linear sizes — the heart of "did my cloning work?".
+//
+// Calibrated so a 1% gel at ~100 V for ~45 min puts a 1 kb band mid-lane, a
+// 10 kb band near the well, and the dye front near the bottom.
+
+const GEL_ELECTRODE_GAP_CM: f64 = 15.0;
+const GEL_K: f64 = 0.0213; // distance calibration constant (1kb -> ~mid-lane @100V/45min)
+
+/// Characteristic half-mobility size (bp) for a given agarose %.
+fn gel_lc(agarose_pct: f64) -> f64 {
+    10f64.powf(4.02 - 0.62 * agarose_pct)
+}
+
+/// Topology -> effective-size multiplier for the mobility lookup.
+/// supercoiled compact (runs faster => smaller effective size); nicked slower.
+fn topo_factor(topo: &str) -> f64 {
+    match topo {
+        "sc" => 0.62,   // supercoiled
+        "nick" => 1.45, // nicked / open-circular / relaxed
+        _ => 1.0,       // linear
+    }
+}
+
+/// Fraction of the lane a fragment has migrated (0 = well, 1 = bottom).
+/// Values > 1 mean it ran off the gel.
+fn gel_fraction(bp: f64, topo: &str, agarose_pct: f64, voltage: f64, minutes: f64, gel_len_cm: f64) -> f64 {
+    if bp <= 0.0 {
+        return 0.0;
+    }
+    let eff = bp * topo_factor(topo);
+    let lc = gel_lc(agarose_pct);
+    let mut m = 1.0 / (1.0 + (eff / lc).powf(1.2));
+    if m < 0.03 {
+        m = 0.03; // huge fragments still creep (reptation orientation limit)
+    }
+    let field = voltage / GEL_ELECTRODE_GAP_CM;
+    let dist_cm = m * GEL_K * field * minutes;
+    dist_cm / gel_len_cm
+}
+
+/// Parse a fragment token: "1500" or "3000:sc" -> (bp, topo).
+fn parse_frag(tok: &str) -> Option<(f64, String)> {
+    let tok = tok.trim();
+    if tok.is_empty() {
+        return None;
+    }
+    let (size, topo) = match tok.split_once(':') {
+        Some((s, t)) => (s, t),
+        None => (tok, "lin"),
+    };
+    size.trim().parse::<f64>().ok().map(|bp| (bp, topo.to_string()))
+}
+
+/// Run a virtual gel: given run conditions and a CSV of fragment tokens, return
+/// each band's migration fraction (+ ran-off flag). The renderer turns these
+/// into a picture.
+pub fn op_gel(voltage: f64, agarose_pct: f64, minutes: f64, gel_len_cm: f64, frags_csv: &str) -> String {
+    let glen = if gel_len_cm <= 0.0 { 8.0 } else { gel_len_cm };
+    // dye front: bromophenol blue ~ migrates like a tiny (~50 bp) fragment
+    let front = gel_fraction(50.0, "lin", agarose_pct, voltage, minutes, glen);
+    let bands = frags_csv
+        .split(',')
+        .filter_map(parse_frag)
+        .map(|(bp, topo)| {
+            let f = gel_fraction(bp, &topo, agarose_pct, voltage, minutes, glen);
+            format!(
+                "{{\"bp\":{},\"topo\":{},\"frac\":{:.4},\"ranOff\":{}}}",
+                bp as u64,
+                jstr(&topo),
+                f.min(1.05),
+                f > 1.0
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        "{{\"voltage\":{},\"agarose\":{:.1},\"minutes\":{},\"dyeFront\":{:.4},\"bands\":[{}]}}",
+        voltage as u64,
+        agarose_pct,
+        minutes as u64,
+        front.min(1.05),
+        bands
+    )
+}
+
+// ---------------------------------------------------------------------------
 // restriction enzymes (classic palindromic Type-II set)
 // ---------------------------------------------------------------------------
 
@@ -1396,6 +1493,19 @@ pub extern "C" fn fitness_w(ptr: *const u8, len: usize) -> u64 {
     out(op_fitness(seq, goals))
 }
 
+#[no_mangle]
+pub extern "C" fn gel_w(ptr: *const u8, len: usize) -> u64 {
+    // "VOLTAGE|AGAROSE_PCT|MINUTES|GEL_LEN_CM|FRAGS_CSV"
+    let s = read!(ptr, len);
+    let mut it = s.splitn(5, '|');
+    let v = it.next().unwrap_or("100").trim().parse().unwrap_or(100.0);
+    let a = it.next().unwrap_or("1.0").trim().parse().unwrap_or(1.0);
+    let m = it.next().unwrap_or("45").trim().parse().unwrap_or(45.0);
+    let gl = it.next().unwrap_or("8").trim().parse().unwrap_or(8.0);
+    let frags = it.next().unwrap_or("");
+    out(op_gel(v, a, m, gl, frags))
+}
+
 // ---------------------------------------------------------------------------
 // host-side tests
 // ---------------------------------------------------------------------------
@@ -1593,5 +1703,38 @@ mod tests {
         assert!(goal_term(&g[0], &clean(withsite)) < 1.0);
         let clean_seq = "ATGAAACCCGGG"; // no GAATTC
         assert_eq!(goal_term(&g[0], &clean(clean_seq)), 1.0);
+    }
+
+    #[test]
+    fn gel_larger_runs_slower() {
+        let small = gel_fraction(500.0, "lin", 1.0, 100.0, 45.0, 8.0);
+        let big = gel_fraction(5000.0, "lin", 1.0, 100.0, 45.0, 8.0);
+        assert!(small > big, "500bp ({small}) should outrun 5000bp ({big})");
+    }
+
+    #[test]
+    fn gel_topology_order() {
+        // same plasmid size: supercoiled ahead of linear ahead of nicked
+        let sc = gel_fraction(3000.0, "sc", 1.0, 100.0, 45.0, 8.0);
+        let lin = gel_fraction(3000.0, "lin", 1.0, 100.0, 45.0, 8.0);
+        let nick = gel_fraction(3000.0, "nick", 1.0, 100.0, 45.0, 8.0);
+        assert!(sc > lin && lin > nick, "expected sc>lin>nick, got {sc}/{lin}/{nick}");
+    }
+
+    #[test]
+    fn gel_voltage_and_runoff() {
+        let lo = gel_fraction(1000.0, "lin", 1.0, 80.0, 45.0, 8.0);
+        let hi = gel_fraction(1000.0, "lin", 1.0, 160.0, 45.0, 8.0);
+        assert!(hi > lo);
+        let r = op_gel(300.0, 1.0, 90.0, 8.0, "100");
+        assert!(r.contains("\"ranOff\":true"), "tiny band should run off: {r}");
+    }
+
+    #[test]
+    fn gel_calibration_sane() {
+        let f1k = gel_fraction(1000.0, "lin", 1.0, 100.0, 45.0, 8.0);
+        let f10k = gel_fraction(10000.0, "lin", 1.0, 100.0, 45.0, 8.0);
+        assert!(f1k > 0.45 && f1k < 0.80, "1kb at {f1k}");
+        assert!(f10k < 0.25, "10kb at {f10k}");
     }
 }
