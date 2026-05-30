@@ -200,6 +200,7 @@ What this means for you:
 | Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
 | Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
 | Scores | `.github/workflows/deploy-scores.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `workers/scores/**` |
+| Atmosphere | `.github/workflows/deploy-atmosphere.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `atmosphere/**` |
 | Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
 
 When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
