@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam vibration &mdash; AI-pair numerics</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15151a; color: #eee; }
+    a { color: #9cf; }
+  }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 {
+    font-size: 1.05rem;
+    margin-top: 2.25rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code, pre {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+  }
+  pre {
+    background: #f4f4f6;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    border-radius: 4px;
+  }
+  @media (prefers-color-scheme: dark) {
+    pre { background: #1f1f25; }
+  }
+  details {
+    margin: 0.75rem 0;
+    padding: 0.5rem 0.75rem;
+    background: #f8f8fa;
+    border-left: 3px solid #ccc;
+    border-radius: 0 4px 4px 0;
+  }
+  @media (prefers-color-scheme: dark) {
+    details { background: #1c1c22; border-left-color: #444; }
+  }
+  details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  details[open] summary { margin-bottom: 0.5rem; }
+  .ladder-rung {
+    margin: 0.75rem 0;
+    padding-left: 1rem;
+    border-left: 3px solid #6a9a3a;
+  }
+  .ladder-rung .pass {
+    font-size: 0.85rem;
+    color: #4a7a2a;
+    margin-top: 0.25rem;
+  }
+  .ladder-rung .fail {
+    font-size: 0.85rem;
+    color: #a66;
+    font-style: italic;
+  }
+  @media (prefers-color-scheme: dark) {
+    .ladder-rung { border-left-color: #8fbf5a; }
+    .ladder-rung .pass { color: #aef087; }
+    .ladder-rung .fail { color: #f8a; }
+  }
+  .draw-line {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    background: #fff8e8;
+    border-left: 3px solid #c89200;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .draw-line { background: #2a2310; border-left-color: #d4a020; }
+  }
+  /* Live solver */
+  .viz {
+    margin: 1.25rem -1rem;
+    background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%);
+    border-top: 1px solid #e0e4ea;
+    border-bottom: 1px solid #e0e4ea;
+    padding: 0.5rem 0 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz {
+      background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%);
+      border-color: #2a2e36;
+    }
+  }
+  .viz canvas { display: block; width: 100%; height: 440px; }
+  .viz .caption {
+    font-size: 0.82rem;
+    color: #777;
+    padding: 0.5rem 1rem 0;
+    font-style: italic;
+    line-height: 1.45;
+  }
+  @media (prefers-color-scheme: dark) { .viz .caption { color: #9aa; } }
+  .viz .controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem 0.5rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.88rem;
+  }
+  .viz .controls input[type="range"] {
+    flex: 1;
+    accent-color: #2c7da0;
+    max-width: 16rem;
+  }
+  .viz .controls .n-label {
+    min-width: 5rem;
+    color: #555;
+  }
+  @media (prefers-color-scheme: dark) { .viz .controls .n-label { color: #aab; } }
+  .viz .status {
+    padding: 0 1rem 0.5rem;
+    font-size: 0.8rem;
+    color: #888;
+    font-style: italic;
+  }
+  table.freq {
+    margin: 1rem 0;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    width: 100%;
+  }
+  table.freq th, table.freq td {
+    padding: 0.35rem 0.75rem;
+    text-align: right;
+    border-bottom: 1px solid #ddd;
+  }
+  @media (prefers-color-scheme: dark) {
+    table.freq th, table.freq td { border-bottom-color: #333; }
+  }
+  table.freq th:first-child, table.freq td:first-child { text-align: left; }
+  table.freq th { color: #666; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { table.freq th { color: #aab; } }
+  table.freq .err-ok { color: #2a7a2a; }
+  table.freq .err-warn { color: #c80; }
+  table.freq .err-bad { color: #c33; }
+  @media (prefers-color-scheme: dark) {
+    table.freq .err-ok { color: #8f6; }
+    table.freq .err-warn { color: #fc6; }
+    table.freq .err-bad { color: #f88; }
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Beam vibration</h1>
+<p class="lede">
+  Stand up a finite-element solver for natural frequencies of a slender beam.
+  Verify against the closed-form &beta;L roots, then perturb until the
+  closed form is gone.
+</p>
+
+<h2>1. Setup</h2>
+<p>
+  An Euler&ndash;Bernoulli beam, length <em>L</em>, modulus <em>E</em>, area
+  moment <em>I</em>, density <em>&rho;</em>, cross-section <em>A</em>. Free
+  transverse vibration is governed by
+</p>
+<pre>EI &middot; &part;&#8308;w/&part;x&#8308; + &rho;A &middot; &part;&sup2;w/&part;t&sup2; = 0</pre>
+<p>
+  Pick boundary conditions from {cantilever, simply-supported,
+  clamped&ndash;clamped, free&ndash;free}. <strong>You want:</strong> the
+  first few natural frequencies <em>&omega;<sub>n</sub></em> and their
+  mode shapes.
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  Finite-element discretization with Hermite cubic elements turns the PDE
+  into a generalized matrix eigenproblem <em>K &phi; = &omega;&sup2; M
+  &phi;</em>. Your brain picks the mesh, applies the BCs, judges whether
+  the answer is believable. The numerics library does the eigensolve. The
+  closed-form &beta;L roots give you a check you can run by hand.
+</p>
+
+<h2>3. Build it</h2>
+<p>
+  Start with a uniform beam, 1D, 10&ndash;20 elements, one BC family from
+  the list. With your AI pair: derive the Hermite element K and M
+  matrices, assemble them, apply the BCs, solve the generalized
+  eigenproblem, extract the first 4&ndash;6 modes. Animate one mode if
+  you want the dopamine.
+</p>
+<p>
+  Spec this out with your AI pair &mdash; governing equation,
+  discretization scheme, BCs. Have it draft the solver. Your job is to
+  specify, audit, and verify.
+</p>
+
+<h2>4. Verification ladder</h2>
+
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; analytical anchor (uniform cantilever).</strong>
+  Compare your <em>&omega;<sub>n</sub></em> against
+  <em>&omega;<sub>n</sub> = (&beta;<sub>n</sub>L)&sup2; &middot;
+  &radic;(EI / &rho;AL&#8308;)</em>, where &beta;<sub>n</sub>L are the
+  tabulated roots of <em>cos(&beta;L) cosh(&beta;L) + 1 = 0</em>
+  (1.8751, 4.6941, 7.8548, &hellip;).
+  <div class="pass">Pass: first three modes within 0.1%.</div>
+  <div class="fail">Fail diagnosis: assembly or BC application is wrong &mdash; the eigensolver is fine.</div>
+</div>
+
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; perturbed (tip mass).</strong>
+  Add a tip mass <em>m</em> at <em>x = L</em>. Closed form is gone for
+  general <em>m</em>, but in the limit <em>m &rarr; &infin;</em> the
+  first cantilever mode &rarr; the spring&ndash;mass system with
+  stiffness <em>3EI/L&sup3;</em>.
+  <div class="pass">Pass: large-<em>m</em> first frequency matches spring&ndash;mass within 1%.</div>
+  <div class="fail">Fail diagnosis: tip mass is being added to the wrong DOF or the wrong sign.</div>
+</div>
+
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; refinement convergence.</strong>
+  Double the element count: 10 &rarr; 20 &rarr; 40.
+  <div class="pass">Pass: first three frequencies stable to &lt;0.01% under refinement.</div>
+  <div class="fail">Fail diagnosis: scheme isn't converging &mdash; check element matrix derivation, particularly the cubic shape functions.</div>
+</div>
+
+<h3 style="font-size: 0.95rem; margin-top: 1.25rem;">Rung 1, live</h3>
+<p>
+  A WASM build of one reference solver runs in your browser. Each row is
+  one mode of the cantilever, oscillating; dots are the FEM nodes,
+  dashed line is the undeformed neutral axis, hatched edge is the fixed
+  end. Vary <em>N</em> and watch the curves and the error column move.
+</p>
+
+<div class="viz">
+  <canvas id="beam-canvas" aria-label="Animated beam mode shapes"></canvas>
+  <div class="caption">
+    Mode shapes interpolated between FEM nodes using the same Hermite
+    cubic shape functions that built the element matrices. All four
+    modes animate at the same period for readability &mdash; in reality
+    &omega;<sub>4</sub> is &sim;34&times; faster than &omega;<sub>1</sub>.
+  </div>
+  <div class="controls">
+    <span class="n-label">N = <span id="n-display">20</span></span>
+    <input type="range" id="n-slider" min="3" max="80" value="20">
+  </div>
+  <div class="status" id="status">Loading WASM&hellip;</div>
+</div>
+
+<table class="freq" id="freq-table">
+  <thead>
+    <tr>
+      <th>Mode</th>
+      <th>FEM &omega;</th>
+      <th>Closed form (&beta;<sub>n</sub>L)&sup2;</th>
+      <th>Error</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<h2>5. Hints</h2>
+
+<details>
+  <summary>Hint 1 &mdash; frame it</summary>
+  <p>
+    Two unknowns per node: deflection <em>w</em> and slope <em>&theta; =
+    &part;w/&part;x</em>. The weak form of a fourth-order operator needs
+    C&sup1; continuity between elements &mdash; the slope has to be
+    continuous across nodes, not just the displacement.
+  </p>
+</details>
+
+<details>
+  <summary>Hint 2 &mdash; pick the tool</summary>
+  <p>
+    Hermite cubic shape functions are the standard choice &mdash; four
+    per element, exactly matching the four DOFs (<em>w, &theta;</em> at
+    each of the two end nodes). Closed-form 4&times;4 element K and M
+    matrices are in any structural-dynamics text (Bathe, Cook&hellip;).
+    For the generalized eigenproblem use a real library:
+    <code>scipy.linalg.eigh(K, M)</code> in Python,
+    <code>nalgebra::SymmetricEigen</code> after Cholesky reduction in
+    Rust.
+  </p>
+</details>
+
+<details>
+  <summary>Hint 3 &mdash; the gotcha</summary>
+  <p>
+    Use the <em>consistent</em> mass matrix (the integrated
+    <em>&int; &rho;A N<sup>T</sup>N dx</em>), not lumped (diagonal,
+    putting half the element mass at each end). Lumped is faster to code
+    and noticeably wrong for higher modes &mdash; you'll see the third
+    and fourth frequencies drift low under refinement.
+  </p>
+</details>
+
+<details>
+  <summary>Hint 4 &mdash; skeleton</summary>
+<pre>def element_k(le, EI): ...      # 4x4 Hermite stiffness
+def element_m(le, rhoA): ...    # 4x4 consistent mass
+def assemble(n_el): ...         # scatter into global K, M
+def apply_bcs(K, M, bc): ...    # drop fixed rows/cols
+def solve_eig(K, M, n_modes):
+    # generalized symmetric eigenproblem
+    return scipy.linalg.eigh(K, M, subset_by_index=[0, n_modes-1])
+def plot_modes(modes): ...      # optional</pre>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  You <em>can</em> write a Jacobi eigensolver for the smallest
+  cases &mdash; it's instructive once. The moment your mass matrix is
+  200&times;200, call <code>scipy.linalg.eigh</code> (Python) or
+  <code>nalgebra::SymmetricEigen</code> after Cholesky (Rust). Half a
+  century of LAPACK heuristics for handling near-degenerate eigenvalues,
+  ill-conditioning, and scaling are already in there. Knowing when to
+  stop reinventing them is part of the judgement this site is here to
+  grow.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>Reveal the reference solver</summary>
+  <p>
+    <em>The reference solver is the same Rust crate driving the live
+    panel above</em> &mdash; uniform cantilever, Hermite cubics,
+    consistent mass, Cholesky reduction onto a standard symmetric
+    eigenproblem.
+    <a href="/wasm/beam-solver/src/lib.rs">solver/src/lib.rs</a> (~80 lines).
+  </p>
+  <p>
+    Your solver probably looks different in shape &mdash; that's
+    expected. What to compare:
+  </p>
+  <ul>
+    <li>How they assembled K and M (loops vs. broadcasting).</li>
+    <li>How they applied the BCs (row/column elimination vs. penalty vs. Lagrange multipliers).</li>
+    <li>How they did the eigensolve (library call vs. hand-rolled).</li>
+    <li>The verification ladder they ran before trusting the answer.</li>
+  </ul>
+  <p style="font-size: 0.88rem; color: #888;">
+    Post-mortem from the author: shipped with consistent mass from the
+    start because lumped is the kind of shortcut that hides until rung 3
+    refinement embarrasses you. The boring choice is the right one.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li>Replace uniform cross-section with linear taper (kills rung 1; lean on rungs 2 and 3).</li>
+  <li>Add a midspan point mass and watch the symmetry break in the mode shapes.</li>
+  <li>Swap to Timoshenko theory and see where it matters (short, stubby beams).</li>
+  <li>Animate the mode shapes &mdash; just plot &phi;<sub>n</sub>(x) &middot; sin(&omega;<sub>n</sub>t).</li>
+</ul>
+
+<script type="module">
+import init, { solve_cantilever_with_modes, closed_form_cantilever }
+  from '/wasm/beam-solver/pkg/beam_solver.js';
+
+const N_MODES = 4;
+const SUBSCRIPTS = ['₁', '₂', '₃', '₄'];
+const VIZ_PERIOD_SEC = 2.6;
+
+const canvas = document.getElementById('beam-canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const nSlider = document.getElementById('n-slider');
+const nDisplay = document.getElementById('n-display');
+const tableBody = document.querySelector('#freq-table tbody');
+
+let state = null;
+let cssW = 0;
+let cssH = 0;
+
+function recompute(N) {
+  const raw = solve_cantilever_with_modes(N, N_MODES);
+  const frequencies = Array.from(raw.slice(0, N_MODES));
+  const nDof = 2 * (N + 1);
+  const modes = [];
+  for (let m = 0; m < N_MODES; m++) {
+    const start = N_MODES + m * nDof;
+    modes.push(Array.from(raw.slice(start, start + nDof)));
+  }
+  state = { N, frequencies, modes };
+  updateTable();
+}
+
+function updateTable() {
+  if (!state) return;
+  const exact = Array.from(closed_form_cantilever(N_MODES));
+  const rows = [];
+  for (let i = 0; i < N_MODES; i++) {
+    const f = state.frequencies[i];
+    const e = exact[i];
+    const pct = 100 * (f - e) / e;
+    const abs = Math.abs(pct);
+    const cls = abs < 0.01 ? 'err-ok' : abs < 0.5 ? 'err-warn' : 'err-bad';
+    const sign = pct >= 0 ? '+' : '';
+    rows.push(
+      `<tr><td>${i + 1}</td><td>${f.toFixed(5)}</td>` +
+      `<td>${e.toFixed(5)}</td>` +
+      `<td><span class="${cls}">${sign}${pct.toFixed(4)}%</span></td></tr>`
+    );
+  }
+  tableBody.innerHTML = rows.join('');
+}
+
+function hermiteEval(mode, N, x) {
+  const le = 1 / N;
+  let e = Math.min(Math.floor(x / le), N - 1);
+  const xi = (x - e * le) / le;
+  const xi2 = xi * xi;
+  const xi3 = xi2 * xi;
+  const h1 = 1 - 3 * xi2 + 2 * xi3;
+  const h2 = le * (xi - 2 * xi2 + xi3);
+  const h3 = 3 * xi2 - 2 * xi3;
+  const h4 = le * (-xi2 + xi3);
+  return h1 * mode[2 * e] + h2 * mode[2 * e + 1]
+       + h3 * mode[2 * (e + 1)] + h4 * mode[2 * (e + 1) + 1];
+}
+
+function isDark() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function palette() {
+  const dark = isDark();
+  return {
+    bg: 'transparent',
+    wall: dark ? '#7c8694' : '#8a96a5',
+    undeformed: dark ? 'rgba(180,190,210,0.30)' : 'rgba(120,130,150,0.45)',
+    deformed: dark ? '#7dc4d9' : '#2c7da0',
+    node: dark ? '#a8dfee' : '#185872',
+    nodeHalo: dark ? 'rgba(125,196,217,0.25)' : 'rgba(44,125,160,0.18)',
+    label: dark ? '#aab' : '#566',
+    labelStrong: dark ? '#dde' : '#223',
+  };
+}
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  cssW = canvas.clientWidth;
+  cssH = canvas.clientHeight;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function drawWall(x, y0, y1, col) {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y0);
+  ctx.lineTo(x, y1);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  const step = 7;
+  for (let y = y0 - 2; y < y1 + step; y += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - 7, y - 6);
+    ctx.stroke();
+  }
+}
+
+function drawModeRow(rowY, rowH, mode, modeIdx, omega, t, col) {
+  const padL = 92;
+  const padR = 24;
+  const beamX0 = padL;
+  const beamX1 = cssW - padR;
+  const beamL = beamX1 - beamX0;
+  const centerY = rowY + rowH / 2;
+  const ampMax = rowH * 0.36;
+  const phase = Math.sin(t * 2 * Math.PI / VIZ_PERIOD_SEC);
+  const scale = phase * ampMax;
+
+  drawWall(beamX0, rowY + 10, rowY + rowH - 10, col.wall);
+
+  ctx.strokeStyle = col.undeformed;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.moveTo(beamX0, centerY);
+  ctx.lineTo(beamX1, centerY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = col.deformed;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const nSamples = 140;
+  for (let s = 0; s <= nSamples; s++) {
+    const x = s / nSamples;
+    const w = hermiteEval(mode, state.N, x);
+    const px = beamX0 + x * beamL;
+    const py = centerY - w * scale;
+    if (s === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  const N = state.N;
+  const r = N <= 25 ? 3 : N <= 50 ? 2.2 : 1.6;
+  const haloR = r + 2.5;
+  for (let n = 0; n <= N; n++) {
+    const x = n / N;
+    const w = mode[2 * n];
+    const px = beamX0 + x * beamL;
+    const py = centerY - w * scale;
+    ctx.fillStyle = col.nodeHalo;
+    ctx.beginPath();
+    ctx.arc(px, py, haloR, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = col.node;
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  ctx.font = '500 13px ui-monospace, "SF Mono", Menlo, monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = col.labelStrong;
+  ctx.fillText('ω' + SUBSCRIPTS[modeIdx], beamX0 - 50, centerY);
+  ctx.fillStyle = col.label;
+  ctx.fillText('= ' + omega.toFixed(3), beamX0 - 12, centerY);
+}
+
+function draw(t) {
+  if (!state || cssW === 0) return;
+  ctx.clearRect(0, 0, cssW, cssH);
+  const col = palette();
+  const rowH = cssH / N_MODES;
+  for (let m = 0; m < N_MODES; m++) {
+    drawModeRow(m * rowH, rowH, state.modes[m], m, state.frequencies[m], t, col);
+  }
+}
+
+function animate(ts) {
+  draw(ts / 1000);
+  requestAnimationFrame(animate);
+}
+
+async function main() {
+  try {
+    await init();
+  } catch (e) {
+    status.innerHTML =
+      '<span style="color:#c33">WASM failed to load: ' + e.message + '</span>';
+    return;
+  }
+  resize();
+  recompute(parseInt(nSlider.value, 10));
+  nSlider.addEventListener('input', () => {
+    const n = parseInt(nSlider.value, 10);
+    nDisplay.textContent = n;
+    recompute(n);
+  });
+  window.addEventListener('resize', () => {
+    resize();
+  });
+  status.textContent = 'Move the slider — mesh refinement is live.';
+  requestAnimationFrame(animate);
+}
+
+main();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision point &mdash; the OFAT that fingered the wrong knob</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  pre { background: #f4f4f6; padding: 0.75rem 1rem; overflow-x: auto; border-radius: 4px; }
+  @media (prefers-color-scheme: dark) { pre { background: #1f1f25; } }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  details[open] summary { margin-bottom: 0.5rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #778; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem; }
+  @media (prefers-color-scheme: dark) { .panel-head { color: #99a; } }
+  .viz canvas { display: block; width: 100%; background: transparent; }
+  #ofat { height: 260px; }
+  #whatif { height: 250px; }
+  .viz-title { font-family: ui-monospace, monospace; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: #778; margin: 0.9rem 0 0.2rem; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .viz-title { color: #99a; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: center; margin: 0.5rem 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.5rem; }
+  .controls input[type=range] { width: 9rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 3.2rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .controls button { font: inherit; font-size: 0.8rem; padding: 0.25rem 0.7rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
+  @media (prefers-color-scheme: dark) { .controls button { background: #243038; border-color: #467; color: #bdf; } }
+  .controls button.active { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  .readout { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.84rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.55); border-radius: 4px; margin-top: 0.5rem; line-height: 1.7; }
+  @media (prefers-color-scheme: dark) { .readout { background: rgba(40,44,52,0.45); } }
+  .readout .pass { color: #2a8a2a; font-weight: 700; }
+  .readout .fail { color: #c33; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .readout .pass { color: #8f6; } .readout .fail { color: #f88; } }
+  .dl { margin-top: 0.6rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .dl button { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.8rem; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .dl button { background: #20242c; border-color: #456; color: #cde; } }
+  .status { margin-top: 0.4rem; font-size: 0.78rem; color: #888; font-style: italic; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Decision point: the OFAT that fingered the wrong knob</h1>
+<p class="lede">
+  Five incubators, fifty runs, one requirement &mdash; a textbook
+  one-factor-at-a-time experiment that points straight at the wrong fix,
+  unless you check what it was actually measuring.
+</p>
+
+<h2>1. Setup</h2>
+<p>
+  An incubator must hold its payload at 35&nbsp;&plusmn;&nbsp;1&nbsp;&deg;C.
+  The acceptance test: pre-heat to steady state, drop in a cold,
+  well-plate-sized aluminum block instrumented with ten thermocouples
+  around the rim, and the <em>plate</em> &mdash; the thing the biology
+  actually sits on &mdash; must be inside the 34&ndash;36&nbsp;&deg;C
+  band within <strong>60&nbsp;seconds</strong> of insertion.
+</p>
+<p>
+  Bench feel said the control loop was sluggish, so we ran a clean OFAT
+  on the controller's <strong>proportional gain&nbsp;P</strong> &mdash;
+  five gain levels, two replicates, across five production units
+  (50 runs total, to separate part-to-part from run-to-run). The going-in
+  hypothesis: crank&nbsp;P and we pass. <strong>Every unit failed.</strong>
+  Why &mdash; and what do we actually change?
+</p>
+
+<h2>2. Why this is twenty minutes, not a week</h2>
+<p>
+  Hand Claude the raw thermocouple logs and the run index. It joins them,
+  computes time-to-spec for every run, plots the response against the
+  factor, and renders the pass/fail call &mdash; the mechanical core of
+  a designed experiment, done in minutes. The part it can't do for you
+  is the part that matters: deciding whether the experiment was
+  <em>valid</em> in the first place.
+</p>
+
+<h2>3. Build it</h2>
+<p>
+  The panel below runs the actual test rig in your browser &mdash; a PI
+  control loop driving a fast air node coupled to a slow, heavy plate
+  &mdash; and generates the full 50-run campaign with realistic
+  part-to-part variation and measurement noise. Download the raw data
+  and the experiment index, hand them to your own Claude, and ask for
+  the OFAT analysis and a verdict. Then audit it with the ladder in
+  &sect;4.
+</p>
+
+<div class="viz">
+  <div class="panel-head">
+    <span id="ds-label">generating 50-run campaign&hellip;</span>
+    <span>5 units &times; 5 gains &times; 2 reps</span>
+  </div>
+
+  <div class="viz-title">The OFAT result &mdash; time to enter the 34&ndash;36&nbsp;&deg;C band</div>
+  <canvas id="ofat" aria-label="OFAT: time to spec versus proportional gain"></canvas>
+
+  <div class="viz-title">What-if &mdash; re-run one unit with knobs you choose</div>
+  <div class="controls">
+    <label>P&nbsp;gain <input type="range" id="kp" min="2" max="12" step="0.5" value="6"><span class="val" id="kp-val">6.0</span></label>
+    <label>setpoint <input type="range" id="sp" min="35" max="39" step="0.1" value="35"><span class="val" id="sp-val">35.0&deg;</span></label>
+    <button id="profile-btn">apply boost profile</button>
+  </div>
+  <canvas id="whatif" aria-label="What-if temperature trace"></canvas>
+  <div class="readout" id="readout"></div>
+
+  <div class="dl">
+    <button id="dl-raw">&darr; raw_data.csv</button>
+    <button id="dl-index">&darr; experiment_index.csv</button>
+  </div>
+  <div class="status" id="status">Loading&hellip;</div>
+</div>
+
+<p>
+  Two things jump out. First, the plate's time-to-spec sits stubbornly
+  around 100&nbsp;seconds <em>at every gain</em> &mdash; the OFAT curve is
+  flat. Drag the P-gain slider in the what-if and watch the plate curve
+  barely twitch. Second, the on-board RTD recovers into the band in
+  ~10&nbsp;seconds and holds; if you graded on the RTD you would have
+  shipped. The requirement is about the plate. We were watching the
+  wrong sensor and turning the wrong knob.
+</p>
+
+<h2>4. Verification &mdash; experimental validity is the oracle</h2>
+<p>
+  A solver announces a bug by leaking energy. A spend report announces
+  one when the totals don't reconcile. A designed experiment has its own
+  oracle: <strong>validity</strong>. A sound experiment doesn't just hand
+  you a number &mdash; it tells you when you measured the wrong thing or
+  varied the wrong factor. These four rungs are how this OFAT confesses.
+</p>
+
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; gauge relevance.</strong> Does your measurement
+  correspond to the requirement? The spec is on the plate; the RTD reads
+  the air near the heater.
+  <div class="pass">Pass: the gauge measures the spec'd quantity.</div>
+  <div class="fail">Fail here: RTD passes while the plate fails &mdash; the sensor you trusted does not measure the thing under requirement. Every downstream conclusion is suspect until this is fixed.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; factor causality.</strong> Did the factor you
+  varied actually move the response?
+  <div class="pass">Pass: the response slopes with the factor &mdash; you're on a real lever.</div>
+  <div class="fail">Fail here: the plate's time-to-spec is flat across all five P gains. A knob that doesn't move the needle is not the knob. The flat curve is the data telling you to look elsewhere.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; consistency across units.</strong> Is the result
+  systemic or a fluke part? This is why we ran five incubators, not one.
+  <div class="pass">Pass: all five units fail the same way &mdash; it's the design, not a bad build. (If one unit fails alone, that's a manufacturing escape, a different action entirely.)</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 4 &mdash; find the real lever.</strong> Search the actual
+  design space, not the one you walked in assuming.
+  <div class="pass">Pass: the setpoint moves the plate where P could not. Raise it and the plate clears 34&nbsp;&deg;C well inside 60&nbsp;s &mdash; though a constant boost overshoots the upper limit at steady state, which points at a setpoint <em>profile</em> (or controlling on plate temperature directly) as the production fix.</div>
+</div>
+<p>
+  The deepest point: this OFAT was executed flawlessly &mdash; balanced,
+  replicated, low-noise &mdash; and it was still about to send us to
+  retune a gain that does nothing. Clean execution is not validity.
+</p>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; grade on the requirement, not the convenient signal</summary>
+  <p>
+    The on-board RTD is right there in the data and it tells a happy
+    story. The requirement is on the plate. Before any analysis, ask:
+    which column corresponds to the quantity the spec is written
+    against? Compute time-to-spec on <em>that</em> &mdash; and on the
+    coldest thermocouple, since the spec must hold everywhere on the
+    plate, not on average.
+  </p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; read the shape of the OFAT, not just the pass/fail</summary>
+  <p>
+    A flat response curve is information, not a disappointment. It says
+    the variance in your outcome lives somewhere other than the factor
+    you swept. When P from 2 to 12 doesn't move time-to-spec, stop
+    tuning P and go hunting for what the plate's heat-up actually
+    depends on.
+  </p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; the gotcha (a perfect experiment, wrong scope)</summary>
+  <p>
+    OFAT only ever tells you about the factors you chose to vary. The
+    plate's heat-up is governed by the driving temperature and the
+    air-to-plate coupling &mdash; neither of which is the controller
+    gain. The setpoint was never in the experiment, so the experiment
+    could never find it. When the swept factor is flat, the answer is
+    usually a factor you didn't include.
+  </p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; what to ask for</summary>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Join raw_data.csv to experiment_index.csv on run_id.
+ For each run compute time for the COLDEST thermocouple
+ to enter and stay in [34,36] C, and separately for the
+ RTD. Plot both against P gain, one series per incubator.
+ Tell me: (a) does P move the plate time? (b) does the
+ RTD verdict agree with the plate verdict? (c) is the
+ failure consistent across all five units?</span></div>
+</details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, confirm the verdict reads the spec'd gauge and holds across all units&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt. And keep the
+    expensive model's context light &mdash; route transcription and formatting
+    to cheaper tools (see <a href="../../getting-started/token-economy/">Spend
+    tokens well</a>).
+  </p>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude do the joining, the per-run time-to-spec extraction, the
+  plotting, the variance bookkeeping &mdash; that's exactly the tireless,
+  error-prone clerical work it's good at, and the reconciliation-style
+  checks scale across all 50 runs. But the validity calls are yours:
+  <em>is this gauge the right gauge, is this factor causal, is the swept
+  range even where the physics lives.</em> Those are judgment, and they
+  are precisely where a confidently-wrong analysis &mdash; clean data,
+  tidy plot, decisive conclusion &mdash; will walk you off a cliff if
+  you outsource them.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    Hit <em>apply boost profile</em> in the panel. Instead of retuning P,
+    we feed-forward on the known disturbance: when the cold plate goes
+    in, briefly raise the setpoint to ~38&nbsp;&deg;C to pour heat into
+    the plate, then settle back to 35 once it's up. The coldest
+    thermocouple now clears 34&nbsp;&deg;C inside the 60-second window and
+    the plate settles mid-band &mdash; passing both the speed and the
+    steady-state halves of the spec, which no value of P could do.
+  </p>
+  <p style="font-size: 0.88rem; color: #888;">
+    The honest footnote: a fixed setpoint <em>boost</em> overshoots the
+    upper limit (slide the setpoint up and watch the warmest TC leave the
+    band), which is why the real answer is a setpoint profile or
+    plate-referenced control &mdash; not a single magic number. The OFAT's
+    job was never to hand us that answer; it was to prove P wasn't it, and
+    point us at the setpoint. It did.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li>Variance components: split the run-to-run spread from the part-to-part spread. Which dominates &mdash; and does it change the corrective action?</li>
+  <li>Measurement systems analysis: characterize the RTD-to-plate offset as a gauge bias. How big is it, and is it stable across units?</li>
+  <li>Design the experiment you should have run: a two-factor screen over setpoint &times; air-to-plate coupling (fan speed?), which actually spans the physics.</li>
+  <li>Spec the right statistic: time-to-spec on the coldest TC vs. the mean changes the verdict. Which one is the requirement, really?</li>
+  <li>Tune the profile: find the shortest boost that passes the 60-second window without ever leaving 34&ndash;36 at steady state.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>
+  Once you've drawn the conclusion, the same two moves &mdash; see
+  <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>
+  for the one-time setup. For this campaign, the two prompts:
+</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (data inlined, no CDN links) to slice the 50 runs by incubator and P gain, overlay plate vs RTD time-to-spec, and toggle the 60-second deadline line.</span></div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a Markdown test report &mdash; requirement, method, the OFAT result, the validity findings, and a pass/fail verdict with the recommended fix &mdash; and give me the pandoc command for a PDF via the Typst engine.</span></div>
+
+<script>
+// ---- deterministic RNG ----
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(rng){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+// ---- thermal simulator (PI air node coupled to slow plate) ----
+const T_AMB=22, SPEC_LO=34, SPEC_HI=36, DEADLINE=60, SP_NOM=35, KI=0.4, C_AIR=7, QMAX=140, TEND=160, DT=0.25;
+function simulate(p){
+  let T_air=p.SPfn(0), T_plate=p.T_plate0, I=0;
+  const s=[];
+  for(let i=0;i*DT<=TEND+1e-9;i++){
+    const t=i*DT, sp=p.SPfn(t), T_rtd=T_air+p.rtd_offset, err=sp-T_rtd, Qbias=p.k_loss*(sp-T_AMB);
+    let Q=p.Kp*err+KI*I+Qbias;
+    if(Q>QMAX)Q=QMAX; else if(Q<0)Q=0; else I+=err*DT;
+    if(Math.abs(t/2-Math.round(t/2))<1e-9) s.push({t:Math.round(t),air:T_air,plate:T_plate,rtd:T_rtd});
+    T_air+=(Q-p.k_loss*(T_air-T_AMB)-p.k_plate*(T_air-T_plate))/C_AIR*DT;
+    T_plate+=(p.k_plate*(T_air-T_plate))/p.C_plate*DT;
+  }
+  return s;
+}
+// last time the value enters [34,36] and stays through the end; Infinity if never holds
+function timeToSpec(arr){
+  let last=Infinity;
+  for(const v of arr){ if(v.x<SPEC_LO||v.x>SPEC_HI) last=Infinity; else if(last===Infinity) last=v.t; }
+  return last;
+}
+
+const INCUBATORS=[
+  {id:'A',k_plate:1.35,rtd_offset:0.05,k_loss:0.50,C_plate:44},
+  {id:'B',k_plate:1.22,rtd_offset:0.10,k_loss:0.52,C_plate:46},
+  {id:'C',k_plate:1.42,rtd_offset:-0.05,k_loss:0.48,C_plate:43},
+  {id:'D',k_plate:1.33,rtd_offset:0.25,k_loss:0.51,C_plate:45},
+  {id:'E',k_plate:1.30,rtd_offset:0.00,k_loss:0.55,C_plate:44},
+];
+const KP_LEVELS=[2,4,6,8,10];
+const TC_OFFSETS=[-0.6,-0.4,-0.2,-0.1,0.0,0.1,0.2,0.3,0.4,0.3];
+const INC_COL=['#c0392b','#2c7da0','#27923f','#8e44ad','#d68910'];
+
+let RUNS=[];   // {incubator, run, Kp, samples:[{t,rtd_meas,tcs[10]}], plate_t, rtd_t}
+function generate(){
+  const rng=mulberry32(20260523);
+  RUNS=[];
+  INCUBATORS.forEach((inc,ii)=>{
+    let run=0;
+    KP_LEVELS.forEach(Kp=>{
+      for(let rep=0;rep<2;rep++){
+        run++;
+        const T_plate0=22+gauss(rng)*0.4, Kp_real=Kp*(1+gauss(rng)*0.02);
+        const sim=simulate({Kp:Kp_real,SPfn:()=>SP_NOM,k_plate:inc.k_plate,k_loss:inc.k_loss,C_plate:inc.C_plate,rtd_offset:inc.rtd_offset,T_plate0});
+        const samples=sim.map(s=>{
+          const tcs=TC_OFFSETS.map(o=>+(s.plate+o+gauss(rng)*0.06).toFixed(3));
+          return {t:s.t, rtd_meas:+(s.rtd+gauss(rng)*0.04).toFixed(3), tcs};
+        });
+        const coldSeries=samples.map(s=>({t:s.t,x:Math.min(...s.tcs)}));
+        const rtdSeries=samples.map(s=>({t:s.t,x:s.rtd_meas}));
+        RUNS.push({incubator:inc.id,ii,run,Kp,samples,plate_t:timeToSpec(coldSeries),rtd_t:timeToSpec(rtdSeries)});
+      }
+    });
+  });
+}
+
+// ---- canvas helpers ----
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fitCanvas(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return {ctx,w,h};}
+
+function drawOFAT(){
+  const cv=document.getElementById('ofat'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), axis=dark?'#889':'#556', grid=dark?'#2a2e36':'#e3e6ea', txt=dark?'#cdd':'#334';
+  const L=44,R=12,T=14,B=30, pw=w-L-R, ph=h-T-B;
+  const yMax=135;
+  const X=kp=>L+((kp-1)/(11))*pw;       // gains 1..12 across
+  const Y=v=>T+ph-(Math.min(v,yMax)/yMax)*ph;
+  // grid + y ticks
+  ctx.font='10px ui-monospace,monospace'; ctx.textBaseline='middle';
+  [0,30,60,90,120].forEach(v=>{const y=Y(v);ctx.strokeStyle=grid;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();ctx.fillStyle=axis;ctx.textAlign='right';ctx.fillText(v,L-5,y);});
+  // deadline
+  ctx.strokeStyle=dark?'#c66':'#c33'; ctx.setLineDash([5,4]); ctx.beginPath();ctx.moveTo(L,Y(60));ctx.lineTo(w-R,Y(60));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=dark?'#f99':'#c33';ctx.textAlign='left';ctx.fillText('60 s requirement',L+4,Y(60)-7);
+  // x ticks
+  ctx.fillStyle=axis;ctx.textAlign='center';KP_LEVELS.forEach(k=>ctx.fillText('P='+k,X(k),h-B+12));
+  // points
+  RUNS.forEach(r=>{
+    const jx=(r.run%2?-1:1)*2.2;
+    // plate (filled, unit color)
+    ctx.fillStyle=INC_COL[r.ii];ctx.globalAlpha=0.85;
+    ctx.beginPath();ctx.arc(X(r.Kp)+jx, Y(Math.min(r.plate_t,yMax)), 3.4, 0, 7); ctx.fill();
+    // rtd (hollow)
+    ctx.globalAlpha=0.7;ctx.strokeStyle=INC_COL[r.ii];ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.arc(X(r.Kp)+jx, Y(r.rtd_t), 3.2, 0, 7); ctx.stroke();
+    ctx.globalAlpha=1;
+  });
+  // mean lines per series
+  function meanLine(getter,dashed){
+    ctx.strokeStyle=dark?'#bcd':'#445';ctx.lineWidth=1.6;ctx.setLineDash(dashed?[4,3]:[]);ctx.beginPath();
+    KP_LEVELS.forEach((k,i)=>{const vs=RUNS.filter(r=>r.Kp===k).map(getter).map(v=>Math.min(v,yMax));const m=vs.reduce((a,b)=>a+b,0)/vs.length;const x=X(k),y=Y(m);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    ctx.stroke();ctx.setLineDash([]);
+  }
+  meanLine(r=>r.plate_t,false); meanLine(r=>r.rtd_t,true);
+  // labels for the two clusters
+  ctx.font='11px ui-monospace,monospace';ctx.textAlign='right';
+  ctx.fillStyle=txt;ctx.fillText('plate (coldest TC) — fails, flat in P',w-R-2,Y(108)-2);
+  ctx.fillText('on-board RTD — "passes"',w-R-2,Y(16)-2);
+}
+
+let profileOn=false;
+function spProfile(boost){ return t=> t<50?boost:35.2; }
+function drawWhatIf(){
+  const cv=document.getElementById('whatif'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), grid=dark?'#2a2e36':'#e3e6ea', axis=dark?'#889':'#556', txt=dark?'#cdd':'#334';
+  const L=40,R=12,T=12,B=26, pw=w-L-R, ph=h-T-B;
+  const tMax=140, yLo=30.5, yHi=39.5;
+  const X=t=>L+(t/tMax)*pw, Y=v=>T+ph-((v-yLo)/(yHi-yLo))*ph;
+  // spec band
+  ctx.fillStyle=dark?'rgba(80,160,80,0.13)':'rgba(80,170,80,0.15)';ctx.fillRect(L,Y(SPEC_HI),pw,Y(SPEC_LO)-Y(SPEC_HI));
+  ctx.font='10px ui-monospace,monospace';ctx.textBaseline='middle';
+  [32,34,36,38].forEach(v=>{const y=Y(v);ctx.strokeStyle=grid;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();ctx.fillStyle=axis;ctx.textAlign='right';ctx.fillText(v,L-5,y);});
+  // deadline vertical
+  ctx.strokeStyle=dark?'#c66':'#c33';ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(X(60),T);ctx.lineTo(X(60),T+ph);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=dark?'#f99':'#c33';ctx.textAlign='center';ctx.fillText('60 s',X(60),h-B+12);
+  [0,30,90,120].forEach(t=>{ctx.fillStyle=axis;ctx.fillText(t,X(t),h-B+12);});
+
+  const Kp=+document.getElementById('kp').value;
+  const SPval=+document.getElementById('sp').value;
+  const SPfn = profileOn ? spProfile(38.0) : ()=>SPval;
+  const nom={Kp,SPfn,k_plate:1.35,k_loss:0.50,C_plate:44,rtd_offset:0.05,T_plate0:22};
+  const sim=simulate(nom);
+  const cold=sim.map(s=>({t:s.t,x:s.plate+Math.min(...TC_OFFSETS)}));
+  const warm=sim.map(s=>({t:s.t,x:s.plate+Math.max(...TC_OFFSETS)}));
+  const rtd=sim.map(s=>({t:s.t,x:s.rtd}));
+  // baseline (SP=35, same Kp) faint
+  const base=simulate({...nom,SPfn:()=>35});
+  const baseCold=base.map(s=>({t:s.t,x:s.plate+Math.min(...TC_OFFSETS)}));
+  function plot(arr,color,wd,dash,alpha){ctx.strokeStyle=color;ctx.lineWidth=wd;ctx.globalAlpha=alpha;ctx.setLineDash(dash||[]);ctx.beginPath();arr.forEach((p,i)=>{const x=X(p.t),y=Y(Math.max(yLo,Math.min(yHi,p.x)));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}
+  plot(baseCold,dark?'#667':'#bbc',1.3,[3,3],0.8);
+  plot(rtd,dark?'#5aa8d8':'#2c7da0',1.6);
+  plot(warm,dark?'#e0a050':'#d68910',1.1,[2,3],0.7);
+  plot(cold,dark?'#e07050':'#c0392b',2.2);
+  ctx.font='10px ui-monospace,monospace';ctx.textAlign='left';
+  ctx.fillStyle=dark?'#e07050':'#c0392b';ctx.fillText('plate coldest TC',L+4,T+10);
+  ctx.fillStyle=dark?'#5aa8d8':'#2c7da0';ctx.fillText('RTD',L+4,T+24);
+  ctx.fillStyle=dark?'#889':'#99a';ctx.fillText('baseline (SP 35)',L+4,T+38);
+
+  // readout
+  const ct=timeToSpec(cold), warmFinal=warm[warm.length-1].x, coldFinal=cold[cold.length-1].x;
+  const speedPass=ct<=DEADLINE, ssPass=(warmFinal<=SPEC_HI&&coldFinal>=SPEC_LO);
+  const cls=p=>p?'pass':'fail', tx=p=>p?'PASS':'FAIL';
+  document.getElementById('readout').innerHTML=
+    `mode: <b>${profileOn?'boost profile (38&rarr;35.2 @ 50s)':'constant setpoint '+SPval.toFixed(1)+'&deg;'}</b> &middot; P&nbsp;gain ${Kp.toFixed(1)}<br>`+
+    `plate enters spec at <b>${ct===Infinity?'never':ct+' s'}</b> &mdash; speed vs 60&nbsp;s: <span class="${cls(speedPass)}">${tx(speedPass)}</span><br>`+
+    `steady state: coldest ${coldFinal.toFixed(2)}&deg; / warmest ${warmFinal.toFixed(2)}&deg; in [34,36]: <span class="${cls(ssPass)}">${tx(ssPass)}</span>`;
+}
+
+// ---- CSV download ----
+function download(name,text){const b=new Blob([text],{type:'text/csv'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}
+function rawCSV(){
+  let out='run_id,incubator,run,P_gain,setpoint_C,t_s,rtd_C,'+Array.from({length:10},(_,i)=>'tc'+String(i+1).padStart(2,'0')+'_C').join(',')+'\n';
+  RUNS.forEach(r=>{const id=r.incubator+'-'+String(r.run).padStart(2,'0');r.samples.forEach(s=>{out+=`${id},${r.incubator},${r.run},${r.Kp},35,${s.t},${s.rtd_meas},${s.tcs.join(',')}\n`;});});
+  return out;
+}
+function indexCSV(){
+  let out='run_id,incubator,replicate,P_gain,setpoint_C,ambient_C,plate_inserted_s,n_thermocouples,n_samples,sample_interval_s\n';
+  RUNS.forEach(r=>{const id=r.incubator+'-'+String(r.run).padStart(2,'0');const rep=((r.run-1)%2)+1;out+=`${id},${r.incubator},${rep},${r.Kp},35,22,0,10,${r.samples.length},2\n`;});
+  return out;
+}
+
+function refreshAll(){drawOFAT();drawWhatIf();}
+function main(){
+  generate();
+  document.getElementById('ds-label').textContent=`${RUNS.length} runs generated · plate spec on coldest of 10 thermocouples`;
+  document.getElementById('status').textContent='Drag P-gain: the plate barely moves. Drag setpoint (or apply the profile): the plate moves.';
+  const kp=document.getElementById('kp'),sp=document.getElementById('sp'),pbtn=document.getElementById('profile-btn');
+  kp.addEventListener('input',()=>{document.getElementById('kp-val').textContent=(+kp.value).toFixed(1);drawWhatIf();});
+  sp.addEventListener('input',()=>{document.getElementById('sp-val').textContent=(+sp.value).toFixed(1)+'°';if(profileOn){profileOn=false;pbtn.classList.remove('active');}drawWhatIf();});
+  pbtn.addEventListener('click',()=>{profileOn=!profileOn;pbtn.classList.toggle('active',profileOn);drawWhatIf();});
+  document.getElementById('dl-raw').addEventListener('click',()=>download('raw_data.csv',rawCSV()));
+  document.getElementById('dl-index').addEventListener('click',()=>download('experiment_index.csv',indexCSV()));
+  window.addEventListener('resize',refreshAll);
+  refreshAll();
+}
+main();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

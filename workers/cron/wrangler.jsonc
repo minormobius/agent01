@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "minomobi-cron",
+  "main": "src/index.js",
+  "compatibility_date": "2026-02-20",
+  "triggers": {
+    "crons": [
+      "0 13 * * *",
+      "30 13 * * *",
+      "30 21 * * 1-5",
+      "0 6 1 * *"
+    ]
+  },
+  "vars": {
+    "REPO": "minormobius/agent01"
+  }
+}

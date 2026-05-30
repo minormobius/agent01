@@ -1,0 +1,20 @@
+name = "duffel-proxy"
+main = "src/index.js"
+compatibility_date = "2026-02-20"
+
+[[routes]]
+pattern = "air.mino.mobi"
+custom_domain = true
+
+[vars]
+# Duffel API version pin. Bump as Duffel promotes versions.
+DUFFEL_VERSION = "v2"
+DUFFEL_BASE = "https://api.duffel.com"
+
+[observability]
+enabled = true
+
+# Secret (set once, not committed):
+#   npx wrangler secret put DUFFEL_TOKEN --config workers/duffel-proxy/wrangler.toml
+# Use a test token (duffel_test_...) for canned data, or a live token
+# (duffel_live_...) for real content. Get one at app.duffel.com.

@@ -1,0 +1,60 @@
+name: Deploy Autopilot Site
+
+# Ships sites built by the autopilot routine (scripts/autopilot/build-prompt.md).
+# The routine writes auto/<slug>/{index.html,wrangler.jsonc,ANNOUNCE.md} and
+# pushes to a claude/auto-<slug> branch. This workflow deploys each changed
+# site as its own isolated Worker (auto-<slug>.workers.dev) and posts the
+# announce from the bot account. It deliberately never touches the apex front
+# page — promotion there is a separate human step.
+
+on:
+  push:
+    branches: ['claude/auto-*']
+    paths:
+      - 'auto/**'
+  workflow_dispatch:
+
+jobs:
+  ship:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed site dirs
+        id: detect
+        run: |
+          DIRS=$(git diff --name-only HEAD~1 HEAD -- 'auto/**' \
+            | awk -F/ 'NF>=3 {print $1"/"$2}' | sort -u)
+          echo "Changed site dirs:"; echo "$DIRS"
+          echo "dirs<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$DIRS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy + announce each site
+        if: steps.detect.outputs.dirs != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BLUESKY_BOT_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_BOT_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r dir; do
+            [ -z "$dir" ] && continue
+            if [ ! -f "$dir/wrangler.jsonc" ]; then
+              echo "Skip $dir (no wrangler.jsonc)"; continue
+            fi
+            echo "::group::Deploy $dir"
+            OUT=$(cd "$dir" && npx wrangler deploy 2>&1 | tee /dev/stderr)
+            echo "::endgroup::"
+            URL=$(echo "$OUT" | grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' | head -1)
+            echo "Deployed $dir -> ${URL:-(url not captured)}"
+            if [ -f "$dir/ANNOUNCE.md" ]; then
+              SITE_URL="$URL" python3 src/announce_site.py "$dir" || \
+                echo "Announce failed for $dir (continuing)"
+            fi
+          done <<< "${{ steps.detect.outputs.dirs }}"

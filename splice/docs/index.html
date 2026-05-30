@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>splice docs — architecture &amp; approach</title>
+<meta name="description" content="How splice brings a molecular-biology workbench to the browser: why Rust→WASM beats Python-in-Pyodide, how we reuse the original C libraries, deployment targets, and why a game fits on top. Includes the HMMER→WASM viability spike.">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / docs</span>
+  <nav class="top-links">
+    <a href="/lab/">Lab</a><a href="/game/">Game</a><a href="/docs/" class="here">Docs</a><a href="/roadmap/">Roadmap</a>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <h1>Docs — architecture &amp; approach</h1>
+  <p class="sub">How splice brings a real cloning workbench to the open web, and why a game fits on top of it. For what's built and what's next, see the <a href="/roadmap/">roadmap</a>.</p>
+
+  <nav class="toc">
+    <a href="#what">① What SpliceCraft is</a>
+    <a href="#tension">② The tension</a>
+    <a href="#split">③ Easy vs hard</a>
+    <a href="#cdeps">④ The three C deps</a>
+    <a href="#ffi">⑤ Using C from Rust</a>
+    <a href="#targets">⑥ Where it runs</a>
+    <a href="#game">⑦ Why a game fits</a>
+    <a href="#spike">⑧ HMMER spike</a>
+    <a href="#sources">Sources</a>
+  </nav>
+
+  <h2 id="what">① What SpliceCraft is</h2>
+  <p><a href="https://github.com/Binomica-Labs/SpliceCraft">SpliceCraft</a> (by <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed) is <em>"your whole cloning workflow, in the terminal"</em> — a molecular-biology workbench built as a <a href="https://textual.textualize.io/">Textual</a> TUI in 100% Python on top of <a href="https://biopython.org/">BioPython</a>. It does plasmid maps, restriction analysis, primer design, assembly planning (Golden Gate / MoClo / Gibson), local BLAST + HMM search, Sanger verification, in-silico PCR, gel simulation, and a lab notebook.</p>
+  <p>Crucially for a web port, it already ships a headless mode: a <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/docs/agent-api.md">~130-endpoint localhost JSON HTTP API</a> (<code>splicecraft --agent</code>, bearer-token, <code>127.0.0.1</code>-only, <em>"single-tenant by design"</em>) plus a stdlib-only CLI sidecar. So there is a clean machine surface to build a frontend against — it just isn't multi-tenant or networked today.</p>
+  <p class="src">Sources: <a href="https://github.com/Binomica-Labs/SpliceCraft">repo</a> · <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/docs/agent-api.md">agent-api.md</a> · <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/pyproject.toml">pyproject.toml</a></p>
+
+  <h2 id="tension">② The core tension</h2>
+  <p>minomobi ships on <strong>Cloudflare Pages + Workers</strong> — JS/WASM, no persistent Python compute. SpliceCraft is a <strong>stateful, single-tenant, native-dependency Python desktop app</strong>. There is no drop-in. Worse, the most valuable features lean on <strong>compiled C libraries that Pyodide cannot load</strong> (<a href="https://pyodide.org/">Pyodide</a> has no wheels for <code>pyhmmer</code> or <code>primer3-py</code>), so "Python in the browser" loses exactly the hard parts.</p>
+  <p class="lead">The insight that unlocks everything: <strong>two of the three hard dependencies are already C.</strong> A Rust port can <em>reuse</em> them — bind them natively, or compile them to WASM via Emscripten — instead of reimplementing the science. That makes Rust→WASM a strictly better web target than Python→Pyodide.</p>
+
+  <h2 id="split">③ Easy 90% vs hard 10%</h2>
+  <p>Python the <em>language</em> is the easy thing to replace. From reading the source, most of SpliceCraft is ordinary application code with nothing language-specific:</p>
+  <ul>
+    <li><b>Ports cleanly to Rust:</b> the four-layer data-safety system (atomic writes, backups, shrink guard), JSON schema migration, the assembly planners, in-silico PCR, the gel migration model, the lab notebook, the <code>--agent</code> HTTP/JSON server, the string-level biology (IUPAC regex, reverse-complement, circular slicing, wrap-aware feature lengths).</li>
+    <li><b>The TUI</b> → <a href="https://ratatui.rs/">ratatui</a>. Labor, not difficulty.</li>
+  </ul>
+  <p>The hard 10% is three scientific dependencies — but each is hard for a <em>different</em> reason, which changes the strategy.</p>
+
+  <h2 id="cdeps">④ The three hard dependencies</h2>
+  <table>
+    <tr><th>Dependency</th><th>What it provides</th><th>Why it's hard</th><th>Reuse path</th></tr>
+    <tr>
+      <td><a href="https://biopython.org/">BioPython</a></td>
+      <td>GenBank/FASTA/GFF3/<a href="https://en.wikipedia.org/wiki/AB1">AB1</a> parsers, translation across NCBI codon tables, <a href="https://biopython.org/docs/latest/api/Bio.Restriction.html">Bio.Restriction</a> over the <a href="http://rebase.neb.com/">REBASE</a> enzyme DB (~700 enzymes), <a href="https://biopython.org/docs/latest/api/Bio.Align.html">Bio.Align</a></td>
+      <td class="mid">Breadth + curated data, and <strong>it's pure Python</strong> — no C core to lean on</td>
+      <td>Re-author in Rust using <a href="https://github.com/rust-bio/rust-bio">rust-bio</a> / <a href="https://github.com/zaeleus/noodles">noodles</a> / <a href="https://github.com/dlesl/gb-io">gb-io</a>; port the REBASE + codon-table <em>data</em>. Tedious, tractable. <span class="ok">(The deterministic subset of this is what's <a href="/lab/">live in the lab</a> today.)</span></td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/primer3-org/primer3">primer3</a><br><span class="muted">via <a href="https://github.com/libnano/primer3-py">primer3-py</a></span></td>
+      <td>Nearest-neighbor (SantaLucia) Tm, salt/Mg/dNTP correction, hairpin/dimer ΔG, primer picking with weighted penalties</td>
+      <td class="mid">A tuned thermodynamics model. Trivial to port (pure double math, params compiled in) — but primer3 is <strong>GPL-2.0</strong>, which collides with MIT.</td>
+      <td class="ok"><strong>Tm: clean-room.</strong> The SantaLucia formula + ΔH/ΔS tables are <em>published science</em>, not code — so Tm is reimplemented in Rust (MIT), <span class="ok">matching primer3's <code>oligotm</code> to &lt;0.01&nbsp;°C</span> and <a href="/lab/">live in the lab</a>. A real (GPL) primer3 module is reserved only for <code>thal</code>-grade hairpin/dimer ΔG.</td>
+    </tr>
+    <tr>
+      <td><a href="http://hmmer.org/">HMMER3</a><br><span class="muted">via <a href="https://github.com/althonos/pyhmmer">pyhmmer</a></span></td>
+      <td>Profile-HMM search: Plan7, Viterbi/Forward-Backward, SIMD MSV/SSV filters, Gumbel E-value statistics</td>
+      <td class="no">~100k LOC of 20-years-tuned C + the <a href="https://github.com/EddyRivasLab/easel">Easel</a> support lib. No production-grade Rust pHMM exists.</td>
+      <td class="ok"><strong>It's C</strong> → bind/compile, never rewrite. <code>pyhmmer</code> is itself Cython over this same C. <span class="ok">(Proven portable — see <a href="#spike">the spike</a>.)</span></td>
+    </tr>
+  </table>
+  <p>And the real moat, independent of language: SpliceCraft's <strong>4,000+ tests asserting biological accuracy</strong>. Any reimplementation has to reproduce identical outputs across circular wrap-around features, frame handling, star activity, overhang/ligation rules, gel curves. That accumulated correctness is the expensive thing to match.</p>
+  <p class="src">Sources: <a href="https://biopython.org/">BioPython</a> · <a href="http://rebase.neb.com/">REBASE</a> · <a href="https://github.com/primer3-org/primer3">primer3</a> · <a href="http://hmmer.org/">HMMER</a> · <a href="https://github.com/althonos/pyhmmer">pyhmmer</a> · <a href="https://github.com/EddyRivasLab/easel">Easel</a></p>
+
+  <h2 id="ffi">⑤ Using the C libs from Rust — the mechanics</h2>
+  <p>Rust isn't allergic to C. Reusing <code>libprimer3</code> and <code>libhmmer</code> "as-is" is a solved problem; the only question is the build target. Both libraries expose a real C API (SpliceCraft links them via <code>primer3-py</code>/<code>pyhmmer</code> rather than shelling out to binaries), so there's an API to bind, not a CLI to fork.</p>
+  <pre><code>// build.rs — compile the vendored C and link it
+fn main() {
+    cc::Build::new()                // the `cc` crate drives the C compiler
+        .files(glob_primer3_sources())
+        .include("vendor/primer3/src")
+        .compile("primer3");        // -> libprimer3.a, linked into the Rust binary
+}
+
+// bindgen turns primer3.h into `extern "C"` Rust declarations,
+// which we wrap in a safe module. Then:
+let tm = unsafe { ffi::oligotm(seq.as_ptr(), /* salt, conc, … */) };</code></pre>
+  <p>Toolchain pieces: <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a> (header → bindings), the <a href="https://docs.rs/cc">cc crate</a> (compile the C in <code>build.rs</code>), and the <a href="https://doc.rust-lang.org/nomicon/ffi.html">Rustonomicon FFI chapter</a> for the unsafe boundary. For HMMER you'd instead drive its autotools/CMake build from <code>build.rs</code> and link <code>libhmmer</code> + Easel.</p>
+
+  <h2 id="targets">⑥ Where it runs changes everything</h2>
+  <p>"Use the C as-is" is free for one target and progressively harder for the others:</p>
+  <table>
+    <tr><th>Target</th><th>primer3</th><th>HMMER</th><th>What it takes</th></tr>
+    <tr>
+      <td><b>Native Rust server</b><br><span class="muted">(off-Cloudflare container)</span></td>
+      <td class="ok">trivial</td>
+      <td class="ok">standard</td>
+      <td>Normal FFI: <code>bindgen</code> + <code>cc</code>/<code>build.rs</code> + safe wrapper. Run like the <code>--agent</code> API. A weekend of plumbing per lib.</td>
+    </tr>
+    <tr>
+      <td><b>Browser WASM</b><br><span class="muted">(static site on Pages)</span></td>
+      <td class="ok">routine</td>
+      <td class="mid">spiked ✓</td>
+      <td>Compile the <em>C</em> to WASM via <a href="https://emscripten.org/">Emscripten</a>, preload DB/param files into <a href="https://emscripten.org/docs/api_reference/Filesystem-API.html">MEMFS</a>, recompile SIMD paths to <a href="https://github.com/WebAssembly/simd">WASM SIMD</a>, and gate threads behind <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer">SharedArrayBuffer</a> + <a href="https://web.dev/articles/coop-coep/">COOP/COEP</a> headers. (The SIMD part — the scary one — is <a href="#spike">proven</a>.)</td>
+    </tr>
+    <tr>
+      <td><b>Cloudflare Worker WASM</b><br><span class="muted">(server-side at the edge)</span></td>
+      <td class="ok">great</td>
+      <td class="mid">marginal</td>
+      <td>Compile C→<a href="https://developers.cloudflare.com/workers/runtime-apis/webassembly/">WASM in a Worker</a>, expose JSON. primer3 fits easily; HMMER risks the <a href="https://developers.cloudflare.com/workers/platform/limits/">CPU-time / ~128MB</a> ceiling and has no threads — push it to a container or Durable Object.</td>
+    </tr>
+  </table>
+  <p>Two browser-WASM caveats worth flagging: <strong>COOP/COEP</strong> is the same cross-origin-isolation requirement <code>labglass</code> already lives with on this infra, so it's a known quantity on Pages; and <strong>nothing can shell out to a subprocess</strong> in WASM — fine here, because the lib-linking path is what we'd use.</p>
+
+  <h2 id="game">⑦ Why a game fits on top</h2>
+  <p class="lead">Can we put a game over the useful tool? Yes — and it fits better than most "gamified tool" ideas, for one structural reason.</p>
+
+  <h3>The tool is its own scoring oracle</h3>
+  <p>Most science/edutainment games have to hand-author both the levels <em>and</em> the answer-checking. A cloning engine hands you an <strong>objective correctness scorer for free</strong>: it can deterministically judge any player move — <em>is this a valid assembly? does this primer pair amplify? is the frame intact? are there internal cutters?</em> The thing that normally kills these projects is solved before we start, which means levels can be <strong>procedurally generated</strong> and solutions <strong>auto-graded</strong>. That's exactly how the <a href="/game/">live game</a> works: your attempt wins iff the engine's recombinant equals the target plasmid. Precedent: <a href="https://fold.it/">Foldit</a>, <a href="https://eternagame.org/">EteRNA</a>, and <a href="https://phylo.cs.mcgill.ca/">Phylo</a> all turned a scored biological problem into play.</p>
+
+  <h3>Cloning is already a constraint-satisfaction puzzle</h3>
+  <p>The wet-lab loop maps onto game mechanics almost 1:1. Constraints (restriction-site uniqueness, primer Tm windows, overhang compatibility, reading frame, no internal cutters) <em>are</em> the puzzle rules; a valid plasmid is the win. <a href="https://en.wikipedia.org/wiki/In_silico_PCR">In-silico PCR</a> + gel sim give instant verifiable feedback. And optimization (fewest enzymes, fewest steps, lowest cost) gives <a href="https://www.zachtronics.com/">Zachtronics</a>-style replay value with leaderboard histograms.</p>
+
+  <h3>The one real design risk</h3>
+  <p>Real cloning carries a lot of bookkeeping. The game layer's entire job is to <strong>hide the spreadsheet and surface the decisions</strong> — that's Zachtronics' actual craft. If a level exposes a parts-inventory table, it's a tool; if it exposes <em>one interesting choice with consequences</em>, it's a game. That's a hard design constraint from level one.</p>
+  <p class="src">Sources: <a href="https://fold.it/">Foldit</a> · <a href="https://eternagame.org/">EteRNA</a> · <a href="https://phylo.cs.mcgill.ca/">Phylo</a> · <a href="https://www.zachtronics.com/">Zachtronics</a> · <a href="https://fluoddity.mino.mobi">Fluoddity</a> · <a href="https://rite.mino.mobi/redact/">rite /redact</a></p>
+
+  <h2 id="spike">⑧ Spike result: HMMER → WASM is viable</h2>
+  <p>Before committing to the plan, the single project-killing unknown was de-risked: does HMMER's SIMD core — hot loops written as hand-tuned SSE intrinsics that don't exist in WebAssembly — survive the trip to WASM? HMMER was cloned and built, its own test suite run, and its hottest kernel ported. Result, with code you can re-run (<a href="https://github.com/minormobius/agent01/tree/claude/splicecraft-website-integration-WM8ke/splice/spike"><code>splice/spike/</code></a>):</p>
+  <table>
+    <tr><th>Check</th><th>Result</th></tr>
+    <tr><td>HMMER's own SIMD-vs-reference unit tests (MSV, Viterbi, Fwd/Back, Decoding, OptAcc)</td><td class="ok">all PASS</td></tr>
+    <tr><td>Real MSV kernel compiled to WASM SIMD128 (via <a href="https://github.com/simd-everywhere/simde">SIMDe</a>) vs native x86 SSE2</td><td class="ok">bit-identical</td></tr>
+    <tr><td>WASM-SIMD speed vs native SSE2 (V8 lowers it straight to hardware SSE)</td><td class="ok">~6% slower</td></tr>
+  </table>
+  <p>So the faithful, in-browser pro-tool tier is real: <b>SIMDe + clang <code>-msimd128</code></b> is the porting path, and <b>HMMER's own test suite</b> is the acceptance gate. The only remaining browser cost is profile-DB download size / memory — a data-distribution question, not a feasibility one. Full write-up: <a href="https://github.com/minormobius/agent01/blob/claude/splicecraft-website-integration-WM8ke/splice/spike/VIABILITY.md"><code>spike/VIABILITY.md</code></a>.</p>
+
+  <div class="panel">
+    <h3 style="margin-top:0">Deployment</h3>
+    <p>splice ships like <code>/rite</code>: a Cloudflare Worker with an <code>ASSETS</code> binding, custom domain <code>splice.mino.mobi</code>, deployed by <code>.github/workflows/deploy-splice.yml</code> on push. The Rust engine compiles to a ~85&nbsp;KB <code>wasm32-unknown-unknown</code> module (dependency-free, no wasm-bindgen) committed as a static asset and shared by the lab and the game. <a href="/api/health">/api/health</a> confirms the worker is live.</p>
+  </div>
+
+  <h2 id="sources">Sources &amp; references</h2>
+  <p class="refs">
+    <b>SpliceCraft:</b>
+    <a href="https://github.com/Binomica-Labs/SpliceCraft">repo</a> ·
+    <a href="https://github.com/Binomica-Labs/SpliceCraft/blob/master/docs/agent-api.md">agent API docs</a> ·
+    <a href="https://github.com/Binomica-Labs">Binomica Labs</a>
+  </p>
+  <p class="refs">
+    <b>Biology libs:</b>
+    <a href="https://biopython.org/">BioPython</a> ·
+    <a href="http://rebase.neb.com/">REBASE</a> ·
+    <a href="https://github.com/primer3-org/primer3">primer3</a> ·
+    <a href="http://hmmer.org/">HMMER</a> ·
+    <a href="https://github.com/althonos/pyhmmer">pyhmmer</a> ·
+    <a href="https://github.com/EddyRivasLab/easel">Easel</a> ·
+    <a href="https://github.com/simd-everywhere/simde">SIMDe</a>
+  </p>
+  <p class="refs">
+    <b>Rust ↔ C / WASM:</b>
+    <a href="https://github.com/rust-lang/rust-bindgen">bindgen</a> ·
+    <a href="https://docs.rs/cc">cc crate</a> ·
+    <a href="https://doc.rust-lang.org/nomicon/ffi.html">Rustonomicon FFI</a> ·
+    <a href="https://emscripten.org/">Emscripten</a> ·
+    <a href="https://rustwasm.github.io/wasm-bindgen/">wasm-bindgen</a> ·
+    <a href="https://github.com/WebAssembly/simd">WASM SIMD</a> ·
+    <a href="https://web.dev/articles/coop-coep/">COOP/COEP</a>
+  </p>
+  <p class="refs">
+    <b>Rust biology crates:</b>
+    <a href="https://github.com/rust-bio/rust-bio">rust-bio</a> ·
+    <a href="https://github.com/zaeleus/noodles">noodles</a> ·
+    <a href="https://github.com/dlesl/gb-io">gb-io</a>
+  </p>
+
+  <footer>
+    <p><a href="/">← splice home</a> · <a href="/roadmap/">roadmap</a> · SpliceCraft is © <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed; this is an independent evaluation, not affiliated.</p>
+  </footer>
+</div>
+</body>
+</html>

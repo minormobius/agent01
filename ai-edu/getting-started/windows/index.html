@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started with Claude Code &mdash; Windows</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15151a; color: #eee; }
+    a { color: #9cf; }
+  }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.6rem; margin: 0.4rem 0 0.2rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+
+  .step {
+    margin: 2rem 0;
+    padding-left: 3rem;
+    position: relative;
+  }
+  .step-num {
+    position: absolute;
+    left: 0;
+    top: -0.15rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    line-height: 2.2rem;
+    text-align: center;
+    border-radius: 50%;
+    background: #2c7da0;
+    color: #fff;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .step-num { background: #5fa8c8; color: #001f2c; }
+  }
+  .step h2 {
+    font-size: 1.15rem;
+    margin: 0 0 0.5rem;
+  }
+  .step p { margin: 0.6rem 0; }
+
+  /* Code blocks with copy button */
+  .codeblock {
+    position: relative;
+    margin: 1rem 0;
+    background: #1d2329;
+    color: #e6edf3;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    border: 1px solid #2a3138;
+  }
+  @media (prefers-color-scheme: dark) {
+    .codeblock { background: #0e1419; border-color: #2a3138; }
+  }
+  .codeblock pre {
+    margin: 0;
+    padding: 0;
+    padding-right: 5rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .codeblock .copy {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cdd9e5;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+  .codeblock .copy:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .codeblock .copy.copied {
+    background: #2c7da0;
+    color: #fff;
+    border-color: #2c7da0;
+  }
+  .codeblock .lang {
+    position: absolute;
+    bottom: 0.25rem;
+    right: 0.6rem;
+    font-size: 0.7rem;
+    color: rgba(230, 237, 243, 0.4);
+    font-style: italic;
+    pointer-events: none;
+  }
+
+  .aside {
+    margin: 0.6rem 0;
+    padding: 0.6rem 0.9rem;
+    background: #f4f8fc;
+    border-left: 3px solid #2c7da0;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.92rem;
+    color: #455;
+  }
+  @media (prefers-color-scheme: dark) {
+    .aside { background: #18222a; border-left-color: #5fa8c8; color: #bbd; }
+  }
+  .aside strong { color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { .aside strong { color: #eee; } }
+
+  .warn {
+    background: #fff8e8;
+    border-left-color: #c89200;
+  }
+  @media (prefers-color-scheme: dark) {
+    .warn { background: #2a2310; border-left-color: #d4a020; color: #ddc; }
+  }
+
+  kbd {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid #ccc;
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    background: #f8f9fa;
+    font: 0.85em ui-monospace, "SF Mono", Menlo, monospace;
+    color: #333;
+  }
+  @media (prefers-color-scheme: dark) {
+    kbd { background: #2a2e36; border-color: #444; color: #ccc; }
+  }
+
+  h2#troubleshooting {
+    font-size: 1.15rem;
+    margin-top: 3rem;
+    border-top: 1px solid #ddd;
+    padding-top: 1.5rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    h2#troubleshooting { border-top-color: #333; }
+  }
+  details.trouble {
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
+    background: #f8f8fa;
+    border-radius: 4px;
+  }
+  @media (prefers-color-scheme: dark) {
+    details.trouble { background: #1c1c22; }
+  }
+  details.trouble summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Getting started with Claude Code on Windows</h1>
+<p class="lede">
+  Six steps from never-opened-a-terminal to Claude running in a folder
+  on your machine. Read top to bottom; copy each block; paste into
+  PowerShell.
+</p>
+
+<div class="aside">
+  <strong>Why this works:</strong> Claude Code is a command-line program
+  that talks to Anthropic's models. You'll install it, give it your
+  login, and point it at a folder. After that, you type
+  <code>claude</code>, type a request, and it edits files. That's the
+  whole loop.
+</div>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <h2>Open Windows PowerShell</h2>
+  <p>
+    Hit <kbd>Win</kbd>, type <code>powershell</code>, press <kbd>Enter</kbd>.
+    A blue or black window opens with a prompt that looks like
+    <code>PS C:\Users\YourName&gt;</code>. Feel the power.
+  </p>
+  <div class="aside">
+    PowerShell has a right-click-to-paste shortcut. After you've copied a
+    code block below, click into the PowerShell window and right-click.
+    The text appears at the prompt. Press <kbd>Enter</kbd> to run.
+  </div>
+  <div class="aside warn">
+    If your prompt shows <code>C:\Users\YourName&gt;</code> without the
+    <code>PS</code> prefix, you're in CMD, not PowerShell. Close it and
+    reopen — make sure you typed <code>powershell</code>, not <code>cmd</code>.
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <h2>Install Git</h2>
+  <p>
+    Claude Code uses Git to run shell commands on Windows. Install it
+    with one line:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>winget install --id Git.Git -e</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p>
+    Right-click into the PowerShell window, press <kbd>Enter</kbd>.
+    Windows pops a UAC permission dialog. Click <strong>Yes</strong>. If
+    your machine is managed, IT will approve this — Git is the standard
+    version-control tool, used by every developer on Earth.
+  </p>
+  <p>Wait until you see <code>Successfully installed</code>.</p>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <h2>Install Claude Code</h2>
+  <p>
+    The official PowerShell one-liner — downloads the latest installer,
+    runs it, installs the <code>claude</code> binary:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>irm https://claude.ai/install.ps1 | iex</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p>
+    When prompted, sign in with your email. Your browser opens; complete
+    the Anthropic login flow there; come back to PowerShell.
+  </p>
+  <div class="aside">
+    <strong>What <code>irm | iex</code> means:</strong>
+    <code>irm</code> (Invoke-RestMethod) downloads the install script;
+    <code>iex</code> (Invoke-Expression) executes it. Standard
+    PowerShell-installer convention. You're running a script Anthropic
+    publishes from their own domain.
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <h2>Add Claude to your PATH</h2>
+  <p>
+    The installer tries to do this, but its change to PATH doesn't
+    affect the PowerShell window you already have open. Belt and
+    suspenders: run this one-liner to make sure the
+    <code>claude</code> command can be found from any future shell:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:USERPROFILE\.local\bin", "User")</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p>
+    This appends <code>%USERPROFILE%\.local\bin</code> (where Claude
+    Code lives) to your user-level PATH in the Windows registry. No
+    visible output — that's normal. It worked.
+  </p>
+</div>
+
+<div class="step">
+  <div class="step-num">5</div>
+  <h2>Close PowerShell, open a fresh one</h2>
+  <p>
+    PATH changes only take effect in <em>new</em> terminal windows.
+    Close this one (type <code>exit</code> or click the X), then hit
+    <kbd>Win</kbd>, type <code>powershell</code>, <kbd>Enter</kbd>.
+  </p>
+  <p>
+    Confirm everything is wired up:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>claude --version</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p>
+    You should see a version number like <code>2.1.x (Claude Code)</code>.
+    If you do, you're set. If you see
+    <code>'claude' is not recognized</code>, see
+    <a href="#troubleshooting">Troubleshooting</a> below.
+  </p>
+</div>
+
+<div class="step">
+  <div class="step-num">6</div>
+  <h2>Make a workspace and launch Claude</h2>
+  <p>
+    Claude works best when it's pointed at a specific folder. Make one
+    inside Documents:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>cd Documents
+mkdir Claude
+cd Claude
+claude</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p>
+    Or &mdash; the variant I personally use, which I've found gives
+    snappier responses and fewer interruptions:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>claude --dangerously-skip-permissions --system-prompt "."</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p style="font-size: 0.9rem; color: #666;">
+    <code>--dangerously-skip-permissions</code> stops Claude from
+    pausing to ask before running shell commands or editing files
+    &mdash; the &ldquo;dangerously&rdquo; prefix is real, use it in
+    folders where you're OK with Claude acting freely.
+    <code>--system-prompt "."</code> replaces the default Claude Code
+    system prompt with a single dot; you trade some of Claude Code's
+    built-in scaffolding for a noticeably faster, less hedged feel.
+  </p>
+  <p>
+    The prompt changes. You're in. Type a request and press
+    <kbd>Enter</kbd>:
+  </p>
+  <div class="aside">
+    <em>Try first: </em><strong>&ldquo;Write me a Python script that simulates
+    a damped harmonic oscillator and plots the displacement over
+    time.&rdquo;</strong>
+    Claude will draft the script, write it to a file in your Claude
+    folder, ask permission to run it, and show you the plot. Welcome.
+  </div>
+</div>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<details class="trouble">
+  <summary><code>'claude' is not recognized as an internal or external command</code></summary>
+  <p>
+    PATH didn't take. Three things to check, in order:
+  </p>
+  <ol>
+    <li>You opened a <em>new</em> PowerShell window after Step 4? PATH only refreshes in new windows.</li>
+    <li>Re-run the Step 4 PATH command in the new window, then close and reopen again.</li>
+    <li>As a last resort, run claude with the full path: <code>&amp; "$env:USERPROFILE\.local\bin\claude.exe" --version</code></li>
+  </ol>
+</details>
+
+<details class="trouble">
+  <summary><code>winget: The term 'winget' is not recognized</code></summary>
+  <p>
+    Old Windows 10 (pre-1809). Update Windows, or install winget from
+    the Microsoft Store (search "App Installer"). Alternatively,
+    download Git directly from <a href="https://git-scm.com/downloads/win">git-scm.com</a>
+    and run the .exe installer.
+  </p>
+</details>
+
+<details class="trouble">
+  <summary>UAC prompt doesn't appear, or IT blocks winget</summary>
+  <p>
+    Managed corporate machines sometimes block winget. Ask IT to
+    whitelist <code>winget install Git.Git</code>, or have them install
+    Git for you. Once Git is installed (any way), the rest of these
+    steps work.
+  </p>
+</details>
+
+<details class="trouble">
+  <summary>Browser sign-in didn't complete during install</summary>
+  <p>
+    Run <code>claude</code> (no arguments) in PowerShell. It'll re-open
+    the browser for sign-in. If that also fails, run
+    <code>claude /login</code> for explicit login.
+  </p>
+</details>
+
+<details class="trouble">
+  <summary>I prefer winget for Claude Code itself</summary>
+  <p>
+    Anthropic also publishes a winget package. Skip Step 3 and run this
+    instead:
+  </p>
+  <div class="codeblock">
+    <button class="copy">Copy</button>
+    <pre>winget install Anthropic.ClaudeCode</pre>
+    <span class="lang">PowerShell</span>
+  </div>
+  <p>
+    Trade-off: winget installs don't auto-update by default. Run
+    <code>winget upgrade Anthropic.ClaudeCode</code> periodically. The
+    native installer (Step 3) auto-updates in the background.
+  </p>
+</details>
+
+<details class="trouble">
+  <summary>WSL vs native Windows</summary>
+  <p>
+    If you have WSL (Windows Subsystem for Linux) installed and your
+    projects live in there, install Claude Code <em>inside</em> WSL
+    using the Linux installer
+    (<code>curl -fsSL https://claude.ai/install.sh | bash</code>),
+    not via PowerShell. Native Windows install is the right pick for
+    Windows-native projects, Visual Studio work, and most engineering
+    workflows.
+  </p>
+</details>
+
+<p style="font-size: 0.85rem; color: #888; margin-top: 3rem;">
+  Official docs:
+  <a href="https://code.claude.com/docs/en/setup">code.claude.com/docs/en/setup</a>.
+</p>
+
+<script>
+document.querySelectorAll('.codeblock').forEach(block => {
+  const btn = block.querySelector('.copy');
+  const pre = block.querySelector('pre');
+  if (!btn || !pre) return;
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(pre.textContent);
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.classList.remove('copied');
+      }, 1500);
+    } catch (e) {
+      // Fallback: select the text so the user can Ctrl+C
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = 'Select+Ctrl+C';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+    }
+  });
+});
+</script>
+
+</body>
+</html>

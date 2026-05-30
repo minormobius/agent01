@@ -1,0 +1,116 @@
+name: Mirror ai-edu to Tangled
+
+# Builds ai-edu (WASM + assets) and force-pushes the standalone build to
+# git@tangled.org:aamaa.tngl.sh/ai-edu so it serves at aamaa.tngl.sh/ai-edu.
+#
+# Reuses the existing TANGLED_SSH_KEY deploy key. No README, neutral author,
+# generic commit message — the pushed repo carries no markers back to the
+# source.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/ai-edu-site-architecture-*'
+    paths:
+      - 'ai-edu/**'
+      - '.github/workflows/mirror-ai-edu-tangled.yml'
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      TANGLED_KNOT: tangled.org
+      TANGLED_HANDLE: aamaa.tngl.sh
+      TANGLED_REPO: ai-edu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ai-edu/wasm/beam-solver/target
+          key: ai-edu-cargo-${{ hashFiles('ai-edu/wasm/beam-solver/Cargo.toml') }}
+          restore-keys: |
+            ai-edu-cargo-
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
+
+      - name: Build beam-solver WASM
+        working-directory: ai-edu/wasm/beam-solver
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir ../../dist/wasm/beam-solver/pkg \
+            --out-name beam_solver
+
+      - name: Stage standalone build
+        working-directory: ai-edu
+        run: |
+          mkdir -p dist/problems/{beam-vibration,beam-deflection,truss-bridges,spend-report/data,decision-point,motion-system,bearing-life,tolerance-stack,reconcile-total,rope-tension,droplet-sizing,gantt-cpm,manifold-routing}
+          mkdir -p dist/getting-started/{windows,shipping,project-setup,documents,token-economy}
+          mkdir -p dist/wasm/beam-solver/src
+          cp index.html dist/
+          for p in beam-vibration beam-deflection truss-bridges spend-report decision-point motion-system bearing-life tolerance-stack reconcile-total rope-tension droplet-sizing gantt-cpm manifold-routing; do
+            cp problems/$p/index.html dist/problems/$p/
+          done
+          cp problems/spend-report/data/purchase-orders.csv dist/problems/spend-report/data/
+          for g in windows shipping project-setup documents token-economy; do
+            cp getting-started/$g/index.html dist/getting-started/$g/
+          done
+          cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
+
+      - name: Scrub provenance markers from the build
+        working-directory: ai-edu/dist
+        run: |
+          # Defensive: today the audit finds nothing in the staged content,
+          # but rewrite any future stray references before the push so the
+          # mirrored repo stays segregated. URLs are remapped to the tangled
+          # host; brand/handle/repo strings drop to empty.
+          find . -type f \( -name '*.html' -o -name '*.md' -o -name '*.svg' -o -name '*.csv' -o -name '*.js' -o -name '*.rs' \) -print0 \
+            | xargs -0 sed -i \
+                -e 's|https\?://ai\.mino\.mobi|https://aamaa.tngl.sh/ai-edu|g' \
+                -e 's|ai\.mino\.mobi|aamaa.tngl.sh/ai-edu|g' \
+                -e 's|minomobi\.bsky\.social||g' \
+                -e 's|minormobius/agent01||g' \
+                -e 's|minomobi\.com||g' \
+                -e 's|minomobi||g'
+          # Loud failure if any survived a future change to the patterns.
+          if grep -RIlE 'mino\.mobi|minomobi|minormobius' . >/dev/null; then
+            echo "✗ provenance markers survived scrub:"; grep -RInE 'mino\.mobi|minomobi|minormobius' .; exit 1
+          fi
+          echo "✓ no provenance markers in dist"
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "missing TANGLED_SSH_KEY"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Force IPv4 — the knot sits behind Cloudflare and the runner usually has no IPv6 route.
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Force-push clean build
+        working-directory: ai-edu/dist
+        run: |
+          git init -q -b main
+          git add -A
+          git -c user.name='ai-edu' -c user.email='noreply@aamaa.tngl.sh' \
+            commit -qm "ai-edu"
+          git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"
+          GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+            git push -f origin main

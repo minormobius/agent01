@@ -332,6 +332,8 @@
 <line x1="737.1" y1="342.1" x2="705.5" y2="326.7" stroke="#f56991" stroke-opacity="0.16" stroke-width="0.7"/>
 <line x1="685.4" y1="348.1" x2="705.5" y2="326.7" stroke="#f56991" stroke-opacity="0.16" stroke-width="0.7"/>
 <line x1="685.4" y1="348.1" x2="674.0" y2="314.8" stroke="#f56991" stroke-opacity="0.16" stroke-width="0.7"/>
+<line x1="644.7" y1="315.7" x2="674.0" y2="314.8" stroke="#f56991" stroke-opacity="0.16" stroke-width="0.7"/>
+<line x1="644.7" y1="315.7" x2="660.1" y2="284.1" stroke="#f56991" stroke-opacity="0.16" stroke-width="0.7"/>
 <circle cx="882.0" cy="168.0" r="18.0" fill="#6ec1e4" opacity="0.082"/>
 <circle cx="882.0" cy="168.0" r="9.6" fill="#6ec1e4" opacity="0.230"/>
 <circle cx="882.0" cy="168.0" r="5.6" fill="#ffffff" opacity="0.82"/>
@@ -611,6 +613,9 @@
 <circle cx="685.4" cy="348.1" r="8.7" fill="#f56991" opacity="0.100"/>
 <circle cx="685.4" cy="348.1" r="4.6" fill="#f56991" opacity="0.280"/>
 <circle cx="685.4" cy="348.1" r="2.7" fill="#ffffff" opacity="1.00"/>
+<circle cx="644.7" cy="315.7" r="7.7" fill="#f56991" opacity="0.100"/>
+<circle cx="644.7" cy="315.7" r="4.1" fill="#f56991" opacity="0.280"/>
+<circle cx="644.7" cy="315.7" r="2.4" fill="#ffffff" opacity="1.00"/>
 <text x="882.0" y="186.6" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#cdd4dd" opacity="0.74" text-anchor="middle">poll</text>
 <text x="847.9" y="171.5" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#cdd4dd" opacity="0.90" text-anchor="middle">photo</text>
 <text x="794.9" y="196.9" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#cdd4dd" opacity="0.90" text-anchor="middle">rite</text>
@@ -622,7 +627,7 @@
 <rect x="64" y="112" width="300" height="2" fill="#8b0000"/>
 <text x="62" y="186" font-family="DejaVu Sans Mono, monospace" font-weight="bold" font-size="52" fill="#f2f0ec">personal tooling</text>
 <text x="62" y="244" font-family="DejaVu Sans Mono, monospace" font-weight="bold" font-size="52" fill="#f2f0ec">for the open web</text>
-<text x="64" y="300" font-family="DejaVu Sans Mono, monospace" font-size="18" letter-spacing="1" fill="#9aa0aa">93 surfaces &#183; cloudflare pages &#183; atproto pds</text>
+<text x="64" y="300" font-family="DejaVu Sans Mono, monospace" font-size="18" letter-spacing="1" fill="#9aa0aa">94 surfaces &#183; cloudflare pages &#183; atproto pds</text>
 <text x="64" y="372" font-family="DejaVu Sans Mono, monospace" font-size="12" letter-spacing="2" fill="#6a7078">CATEGORIES</text>
 <circle cx="70" cy="394" r="5" fill="#6ec1e4"/>
 <text x="82" y="398" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#c4cad2">bluesky <tspan fill="#6a7078">28</tspan></text>
@@ -633,6 +638,6 @@
 <circle cx="70" cy="472" r="5" fill="#a880ff"/>
 <text x="82" y="476" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#c4cad2">tools <tspan fill="#6a7078">9</tspan></text>
 <circle cx="70" cy="498" r="5" fill="#f56991"/>
-<text x="82" y="502" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#c4cad2">games <tspan fill="#6a7078">23</tspan></text>
+<text x="82" y="502" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#c4cad2">games <tspan fill="#6a7078">24</tspan></text>
 <rect x="0" y="624" width="1200" height="6" fill="#8b0000"/>
 </svg>

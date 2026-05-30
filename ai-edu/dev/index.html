@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ascential · Design as diffusion</title>
+<meta name="description" content="An AI-native design process modeled on image diffusion: every facet at once, refining together, coming into focus.">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #07090e;
+    color: #e6e9f0;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 1.1rem 1.75rem;
+    border-bottom: 1px solid #14181f;
+    display: flex; align-items: center; gap: 0.65rem;
+    background: rgba(7,9,14,0.85);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header .logo { font-weight: 800; letter-spacing: 0.14em; color: #e6e9f0; font-size: 0.95rem; }
+  header .dot { width: 6px; height: 6px; border-radius: 50%; background: #6ad9c8; box-shadow: 0 0 10px #6ad9c8; }
+  header .crumb { color: #6b7180; font-size: 0.85rem; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  header .badge { margin-left: auto; font-size: 0.7rem; padding: 0.18rem 0.55rem; background: #14202a; color: #6ad9c8; border: 1px solid #1e3a44; border-radius: 999px; font-family: ui-monospace, monospace; letter-spacing: 0.08em; }
+  main { max-width: 1180px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.78rem; letter-spacing: 0.18em;
+    color: #6ad9c8; text-transform: uppercase;
+    margin-bottom: 0.85rem;
+  }
+  h1 {
+    font-size: clamp(2rem, 5.2vw, 3.2rem);
+    line-height: 1.05; letter-spacing: -0.02em;
+    margin: 0 0 0.65rem; font-weight: 800;
+  }
+  h1 .acc { color: #6ad9c8; }
+  .lede {
+    color: #99a1b3; font-size: clamp(1rem, 1.6vw, 1.15rem);
+    margin: 0 0 2.25rem; max-width: 48rem; line-height: 1.55;
+  }
+  .lede b { color: #cdd3df; font-weight: 600; }
+
+  .stage {
+    position: relative;
+    background: linear-gradient(180deg, #0c1018 0%, #060810 100%);
+    border: 1px solid #1a2030;
+    border-radius: 14px;
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 20px 60px -30px rgba(106, 217, 200, 0.18);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 500px;        /* JS overrides per-viewport; this is the fallback if JS hasn't run yet */
+    aspect-ratio: 16/10;
+    background: #04060a;
+    border-radius: 9px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  @media (max-width: 640px) {
+    canvas { height: 420px; }
+  }
+  .controls {
+    display: flex; flex-wrap: wrap;
+    gap: 0.7rem 1.2rem; align-items: center;
+    margin-top: 0.95rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.82rem; color: #8a90a3;
+  }
+  .controls button {
+    font: inherit; font-size: 0.78rem;
+    padding: 0.42rem 0.95rem;
+    border: 1px solid #2a3344;
+    border-radius: 6px;
+    background: #131825;
+    color: #cdd3df;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .controls button:hover { background: #1a2130; border-color: #3a4356; }
+  .controls .stat { display: flex; align-items: center; gap: 0.4rem; }
+  .controls .stat .v { color: #6ad9c8; font-weight: 700; min-width: 3rem; display: inline-block; }
+  .controls .hint { color: #5b6072; font-size: 0.76rem; margin-left: auto; }
+  @media (max-width: 640px) { .controls .hint { width: 100%; margin-left: 0; } }
+
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.1rem;
+    margin-top: 2.75rem;
+  }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+  .col {
+    background: #0d1119;
+    border: 1px solid #1a2030;
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+  }
+  .col h3 {
+    margin: 0 0 0.45rem;
+    font-size: 0.78rem; color: #6ad9c8;
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+  }
+  .col p { margin: 0; color: #b4bac8; font-size: 0.94rem; line-height: 1.6; }
+  .col p b { color: #e6e9f0; font-weight: 600; }
+
+  .pitch {
+    margin-top: 3rem;
+    padding: 1.75rem 1.75rem;
+    background: linear-gradient(180deg, rgba(106, 217, 200, 0.04) 0%, rgba(106, 217, 200, 0.01) 100%);
+    border: 1px solid #1e3a44;
+    border-radius: 12px;
+  }
+  .pitch h2 {
+    margin: 0 0 0.85rem;
+    font-size: 1.15rem; color: #e6e9f0; letter-spacing: -0.005em;
+  }
+  .pitch p { margin: 0 0 0.6rem; color: #b4bac8; }
+  .pitch p:last-child { margin-bottom: 0; }
+
+  .outputs {
+    margin-top: 2.5rem;
+    padding: 1.6rem 1.5rem 1.4rem;
+    background: linear-gradient(180deg, #0d1118 0%, #07090e 100%);
+    border: 1px solid #1a2030;
+    border-radius: 12px;
+  }
+  .outputs h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem; color: #e6e9f0; letter-spacing: -0.005em; font-weight: 700;
+  }
+  .outputs .ol {
+    margin: 0 0 1.25rem;
+    color: #99a1b3; font-size: 0.92rem; line-height: 1.55;
+  }
+  .outputs .ol b { color: #cdd3df; font-weight: 600; }
+  .output-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 760px) { .output-grid { grid-template-columns: 1fr; } }
+  .output-panel {
+    background: #0a0e16;
+    border: 1px solid #1c2230;
+    border-radius: 10px;
+    padding: 0.95rem 1rem 0.85rem;
+    display: flex; flex-direction: column;
+    transition: border-color 0.35s, box-shadow 0.35s;
+  }
+  .output-panel.refreshing {
+    border-color: #6ad9c8;
+    box-shadow: 0 0 22px -8px rgba(106, 217, 200, 0.5);
+  }
+  .output-svg {
+    width: 100%;
+    aspect-ratio: 1.35/1;     /* lab-deck cartoons are wider than tall */
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.18s ease-out;
+  }
+  .output-panel.refreshing .output-svg { opacity: 0.12; }
+  .output-svg svg {
+    max-width: 92%;
+    max-height: 100%;
+    display: block;
+  }
+  .output-cap {
+    text-align: center;
+    margin-top: 0.4rem;
+    transition: opacity 0.18s ease-out;
+  }
+  .output-panel.refreshing .output-cap { opacity: 0.4; }
+  .output-cap .tag {
+    margin: 0 0 0.2rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.16em;
+    color: #6ad9c8;
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+  }
+  .output-cap .kind {
+    margin: 0 0 0.15rem;
+    font-size: 0.98rem;
+    font-weight: 700; color: #e6e9f0;
+  }
+  .output-cap .spec {
+    margin: 0;
+    font-size: 0.76rem;
+    color: #99a1b3;
+    font-family: ui-monospace, monospace;
+    line-height: 1.4;
+  }
+
+  footer {
+    text-align: center;
+    color: #4a4f5e;
+    font-size: 0.76rem;
+    padding: 2rem 1rem 3rem;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="dot"></span>
+  <span class="logo">ASCENTIAL</span>
+  <span class="crumb">/ dev / diffusion</span>
+  <span class="badge">PROTOTYPE</span>
+</header>
+
+<main>
+  <div class="eyebrow">An AI-native design process</div>
+  <h1>Design isn't a checklist. <span class="acc">It's a field.</span></h1>
+  <p class="lede">
+    Like image diffusion &mdash; every facet starts as noise, every iteration refines them
+    <b>all together</b>, and the product comes into focus. <b>AI is the engine</b> that keeps every
+    facet coherent with every other, so a late discovery <b>ripples instead of resetting</b>.
+  </p>
+
+  <div class="stage">
+    <canvas id="field" aria-label="Design diffusion field"></canvas>
+    <div class="controls">
+      <button id="play">⏸ pause</button>
+      <button id="reset">⟲ re-noise</button>
+      <span class="stat">clarity <span class="v" id="clarity">0%</span></span>
+      <span class="stat">iteration <span class="v" id="iter">0</span></span>
+      <span class="hint">click any tile to perturb &mdash; watch the field re-converge</span>
+    </div>
+  </div>
+
+  <section class="outputs">
+    <h2>Three feasible platforms from the same field</h2>
+    <p class="ol">
+      <b>One set of inputs, several valid configurations.</b> Each panel is a complete
+      lab-automation deck &mdash; pipettor on a rail with an optional gripper, plus whichever
+      modules (microscope, spectrometer, centrifuge, mixer, heater, reagent bay) make the
+      workflow work. <b>The chassis itself reshapes</b> to fit. Click any tile in the field above
+      and watch all three re-roll into new valid layouts.
+    </p>
+    <div class="output-grid">
+      <div class="output-panel" id="out-0">
+        <div class="output-svg"></div>
+        <div class="output-cap">
+          <p class="tag">OPTION A</p>
+          <p class="kind">&nbsp;</p>
+          <p class="spec">&nbsp;</p>
+        </div>
+      </div>
+      <div class="output-panel" id="out-1">
+        <div class="output-svg"></div>
+        <div class="output-cap">
+          <p class="tag">OPTION B</p>
+          <p class="kind">&nbsp;</p>
+          <p class="spec">&nbsp;</p>
+        </div>
+      </div>
+      <div class="output-panel" id="out-2">
+        <div class="output-svg"></div>
+        <div class="output-cap">
+          <p class="tag">OPTION C</p>
+          <p class="kind">&nbsp;</p>
+          <p class="spec">&nbsp;</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <div class="col">
+      <h3>The old way (serial)</h3>
+      <p>Requirements <b>→</b> Architecture <b>→</b> BOM <b>→</b> Schedule <b>→</b> Test. Each gate hands to the next. Information flows one way. A surprise late in test rewinds weeks of work to architecture.</p>
+    </div>
+    <div class="col">
+      <h3>Diffusion</h3>
+      <p>All facets exist at once, each at some level of resolution. Every iteration refines every facet using every other facet's current state. Constraints propagate the moment they appear.</p>
+    </div>
+    <div class="col">
+      <h3>What AI does</h3>
+      <p>AI keeps the field coherent &mdash; perturb requirements and architecture, BOM, schedule update together. Late discoveries ripple and dampen instead of resetting. Faster cycles, fewer surprises, a design you can navigate as a whole.</p>
+    </div>
+  </div>
+
+  <div class="pitch">
+    <h2>Why this matters for the global process</h2>
+    <p>
+      Today's design hand-offs are lossy on purpose &mdash; each stage freezes its inputs so the next can plan against something stable. That stability has a cost: discoveries late in the chain mean tearing up something settled. The serial process is built around <i>protecting</i> upstream decisions.
+    </p>
+    <p>
+      Diffusion inverts it. Every facet is always in motion, just at different temperatures. Late information is cheap because nothing was frozen; it's just one more constraint added to the field. The team's job stops being "guard your stage" and starts being "shape the field's convergence."
+    </p>
+  </div>
+</main>
+
+<footer>ai.ascential.work / dev &mdash; design as diffusion</footer>
+
+<script>
+// ===== tile grid ======================================================
+const ROWS = 4, COLS = 4;
+const TILES = [
+  {label:'Requirements',  kind:'list',   accent:'#6ad9c8'},
+  {label:'Use cases',     kind:'icon',   accent:'#6ad9c8'},
+  {label:'Constraints',   kind:'gauge',  accent:'#6ad9c8', valueSet:[0.58, 0.65, 0.72, 0.78, 0.72]},
+  {label:'Risk',          kind:'badge',  accent:'#6ad9c8', badge:'LOW',   variants:['LOW','MED','HIGH','LOW','LOW']},
+  {label:'Architecture',  kind:'graph',  accent:'#9bb8ff'},
+  {label:'Interfaces',    kind:'list',   accent:'#9bb8ff'},
+  {label:'Data model',    kind:'graph',  accent:'#9bb8ff'},
+  {label:'Algorithms',    kind:'chart',  accent:'#9bb8ff'},
+  {label:'Components',    kind:'icon',   accent:'#f6a472'},
+  {label:'BOM',           kind:'chart',  accent:'#f6a472'},
+  {label:'Schedule',      kind:'bars',   accent:'#f6a472'},
+  {label:'Cost',          kind:'badge',  accent:'#f6a472', badge:'$4.2k', variants:['$3.8k','$4.0k','$4.1k','$4.2k','$4.3k','$4.5k','$4.2k']},
+  {label:'Test plan',     kind:'list',   accent:'#e9c46a'},
+  {label:'Manufacturing', kind:'gauge',  accent:'#e9c46a', valueSet:[0.62, 0.70, 0.78, 0.84, 0.72]},
+  {label:'Compliance',    kind:'icon',   accent:'#e9c46a'},
+  {label:'Launch',        kind:'badge',  accent:'#e9c46a', badge:'Q3',    variants:['Q2','Q3','Q4','Q3']},
+];
+TILES.forEach(t => { t.extraNoise = 0; });
+
+const EDGES = [];
+for (let r=0; r<ROWS; r++) {
+  for (let c=0; c<COLS; c++) {
+    const i = r*COLS + c;
+    if (r < ROWS-1) EDGES.push([i, i+COLS]);                                // down
+    if (c < COLS-1 && r%2===0) EDGES.push([i, i+1]);                        // right (alt rows)
+    if (r < ROWS-1 && c < COLS-1 && (r+c)%2===0) EDGES.push([i, i+COLS+1]); // diag
+    if (r < ROWS-1 && c > 0 && (r+c)%3===0) EDGES.push([i, i+COLS-1]);      // anti-diag
+  }
+}
+const NBRS = TILES.map(()=>[]);
+EDGES.forEach(([a,b])=>{ NBRS[a].push(b); NBRS[b].push(a); });
+
+const ST = {
+  time: 0, iter: 0,
+  playing: true,
+  hover: -1,
+  // Diffusion temperature: T=1 → full noise everywhere, T=0 → fully resolved.
+  // The whole field shares one value, so it always emerges in lockstep.
+  T: 1,
+  // Brief border glow on tiles that were just perturbed, so we can see WHICH
+  // input was bumped even though the noise itself is global.
+  highlights: [],   // {tile, startTime, duration}
+  lastAuto: 0,
+  noisePattern: null,
+  noiseDirty: 0,
+};
+
+// ===== diffusion step =================================================
+// Noise function over the design space: a low-grade global noise level
+// (ST.T) lifts the whole field together; per-tile extraNoise stacks on top
+// at the perturbation point and its linked ring-1 neighbors, so noise is
+// noisiest at the perturb, still noisy at the links, low-grade elsewhere.
+const T_DECAY            = 0.28;   // global temperature relaxation per second
+const PERT_BUMP_TARGET   = 0.45;   // perturb lifts T to at least this (was 0.78)
+const HIGHLIGHT_DURATION = 1.8;
+const EXTRA_DECAY        = 0.32;   // per-tile extra noise relaxation per second
+const PERT_LOCAL         = 0.70;   // extraNoise at the perturbed tile
+const PERT_RING1         = 0.40;   // extraNoise at every ring-1 neighbor
+
+function step(dt) {
+  ST.time += dt;
+  ST.iter += dt * 18;
+  ST.T = Math.max(0, ST.T - T_DECAY * dt * (0.6 + 0.8 * ST.T));
+  TILES.forEach(t => {
+    t.extraNoise = Math.max(0, t.extraNoise - EXTRA_DECAY * dt);
+  });
+}
+
+function perturb(i) {
+  ST.T = Math.max(ST.T, PERT_BUMP_TARGET);
+  ST.highlights.push({tile: i, startTime: ST.time, duration: HIGHLIGHT_DURATION});
+  TILES[i].extraNoise = Math.max(TILES[i].extraNoise, PERT_LOCAL);
+  NBRS[i].forEach(j => {
+    TILES[j].extraNoise = Math.max(TILES[j].extraNoise, PERT_RING1);
+  });
+  if (typeof regenerateOutputs === 'function') regenerateOutputs();
+}
+
+function resetAll() {
+  ST.T = 1;
+  ST.iter = 0;
+  ST.highlights = [];
+  TILES.forEach(t => t.extraNoise = 0);
+  if (typeof regenerateOutputs === 'function') regenerateOutputs();
+}
+
+function maybeAutoPerturb() {
+  if (!ST.playing) return;
+  // Trigger once the field has clearly resolved, with enough gap between hits
+  // that each re-converges before the next.
+  if (ST.T < 0.05 && ST.time - ST.lastAuto > 4.5) {
+    perturb(Math.floor(Math.random() * TILES.length));
+    ST.lastAuto = ST.time;
+  }
+}
+
+// ===== rendering =======================================================
+function tileRect(i, W, H) {
+  const M = 22, GX = 14, GY = 16;
+  const r = Math.floor(i / COLS), c = i % COLS;
+  const innerW = W - 2*M, innerH = H - 2*M;
+  const tw = (innerW - (COLS-1)*GX) / COLS;
+  const th = (innerH - (ROWS-1)*GY) / ROWS;
+  return { x: M + c*(tw+GX), y: M + r*(th+GY), w: tw, h: th };
+}
+
+function buildNoisePattern(c) {
+  const N = 128;
+  const off = document.createElement('canvas');
+  off.width = off.height = N;
+  const oc = off.getContext('2d');
+  const id = oc.createImageData(N, N);
+  // RGB Gaussian-ish noise — closer to real diffusion-model latent noise than grayscale.
+  for (let i=0; i<id.data.length; i+=4) {
+    id.data[i]   = (Math.random()*255) | 0;
+    id.data[i+1] = (Math.random()*255) | 0;
+    id.data[i+2] = (Math.random()*255) | 0;
+    id.data[i+3] = 255;
+  }
+  oc.putImageData(id, 0, 0);
+  return c.createPattern(off, 'repeat');
+}
+
+// Deterministic per-(frame, tile, slot) pseudo-random for content jitter.
+// Time-bucketed so values change ~6 Hz, not every animation frame — it should
+// read as "bouncing" rather than "static".
+function frand(seed) {
+  const s = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return s - Math.floor(s);
+}
+function wobbleBucket() { return Math.floor(ST.time * 6); }
+function pickFromSet(set, wobble, baseIdx, bucketSeed) {
+  if (wobble < 0.12 || !set || set.length <= 1) return set ? set[Math.min(baseIdx, set.length-1)] : null;
+  // Weighted: most-of-the-time pick at random, but bias lightly toward baseIdx
+  // so the "settled" value still feels like the home position even mid-wobble.
+  const r = frand(bucketSeed);
+  return set[Math.floor(r * set.length)];
+}
+
+function drawTileResolved(c, tile, rect, idx) {
+  const {x,y,w,h} = rect;
+  // Wobble: how unsettled this tile's content is right now. Combines global
+  // temperature with per-tile extra noise — at peak perturb the perturbed
+  // tile wobbles hardest, ring-1 next, the rest follow the global level.
+  const wobble = Math.max(ST.T, tile.extraNoise || 0);
+  const bucket = wobbleBucket() + idx * 11;
+  c.save();
+  c.beginPath(); c.rect(x, y, w, h); c.clip();
+  // panel
+  c.fillStyle = '#0e131c';
+  c.fillRect(x, y, w, h);
+  // top accent bar
+  c.fillStyle = tile.accent + '1e';
+  c.fillRect(x, y, w, 22);
+  // status dot (right edge of bar)
+  c.fillStyle = tile.accent;
+  c.beginPath(); c.arc(x + w - 12, y + 11, 2, 0, Math.PI*2); c.fill();
+  // label — fit to available width by shrinking the font until it fits.
+  c.fillStyle = tile.accent;
+  c.textBaseline = 'middle';
+  const labelText = tile.label.toUpperCase();
+  const labelMaxW = w - 24;  // 10px left margin + 14px for status dot zone
+  let labelFS = 10.5;
+  c.font = `700 ${labelFS}px ui-monospace, "SF Mono", Menlo, monospace`;
+  while (c.measureText(labelText).width > labelMaxW && labelFS > 7) {
+    labelFS -= 0.5;
+    c.font = `700 ${labelFS}px ui-monospace, "SF Mono", Menlo, monospace`;
+  }
+  c.fillText(labelText, x+10, y+11);
+  // content
+  const cx = x + 12, cy = y + 30, cw = w - 24, ch = h - 42;
+  switch (tile.kind) {
+    case 'list':  drawList(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'icon':  drawIcon(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'gauge': drawGauge(c, cx, cy, cw, ch, tile.accent, wobble, bucket, tile.valueSet); break;
+    case 'badge': drawBadge(c, cx, cy, cw, ch, tile.accent, tile.badge, tile.variants, wobble, bucket); break;
+    case 'graph': drawGraph(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'chart': drawChart(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+    case 'bars':  drawBars(c, cx, cy, cw, ch, tile.accent, wobble, bucket); break;
+  }
+  // border
+  c.strokeStyle = tile.accent + '33';
+  c.lineWidth = 1;
+  c.strokeRect(x+0.5, y+0.5, w-1, h-1);
+  c.restore();
+}
+
+function drawList(c, x, y, w, h, accent, wobble, bucket) {
+  const lines = 4, lineH = Math.min(h/lines, 18);
+  const startY = y + (h - lines*lineH)/2;
+  for (let i=0; i<lines; i++) {
+    c.fillStyle = accent + 'aa';
+    c.fillRect(x, startY + i*lineH + lineH*0.35, 3, 3);
+    c.fillStyle = '#2a3142';
+    const baseW = w*0.78 - ((i*13)%18);
+    const jitter = wobble > 0.1 ? (frand(bucket + i) - 0.5) * w * 0.25 * wobble : 0;
+    const lineW = Math.max(8, Math.min(w - 12, baseW + jitter));
+    c.fillRect(x + 9, startY + i*lineH + lineH*0.45, lineW, 2);
+  }
+}
+function drawIcon(c, x, y, w, h, accent, wobble, bucket) {
+  const cx = x + w/2, cy = y + h/2;
+  // Concentric rings breathe in/out a little when the tile is unsettled.
+  const breathe = wobble > 0.1 ? (frand(bucket) - 0.5) * 0.18 * wobble : 0;
+  const R = Math.min(w,h) * (0.32 + breathe);
+  c.strokeStyle = accent + 'cc'; c.lineWidth = 1.5;
+  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.stroke();
+  c.beginPath(); c.arc(cx, cy, R*0.55, 0, Math.PI*2); c.stroke();
+  c.fillStyle = accent;
+  c.beginPath(); c.arc(cx, cy, R*0.22, 0, Math.PI*2); c.fill();
+}
+function drawGauge(c, x, y, w, h, accent, wobble, bucket, valueSet) {
+  const cx = x + w/2, cy = y + h*0.72, R = Math.min(w*0.42, h*0.6);
+  // Pick a value from the valueSet (or default 0.72) and jitter it slightly.
+  const base = valueSet ? valueSet[valueSet.length-1] : 0.72;
+  let val = base;
+  if (wobble > 0.12 && valueSet) {
+    val = valueSet[Math.floor(frand(bucket) * valueSet.length)];
+  }
+  val += wobble > 0.1 ? (frand(bucket + 1) - 0.5) * 0.08 * wobble : 0;
+  val = Math.max(0.05, Math.min(0.98, val));
+  c.strokeStyle = '#1a2030'; c.lineWidth = 5; c.lineCap = 'round';
+  c.beginPath(); c.arc(cx, cy, R, Math.PI, 0); c.stroke();
+  c.strokeStyle = accent; c.lineWidth = 5;
+  c.beginPath(); c.arc(cx, cy, R, Math.PI, Math.PI*(1 + val)); c.stroke();
+  c.fillStyle = accent;
+  // Number font: scale down if needed so '%' fits in tile.
+  let fs = Math.min(13, h * 0.18);
+  c.font = `700 ${fs}px ui-monospace, monospace`;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  const txt = Math.round(val * 100) + '%';
+  while (c.measureText(txt).width > w * 0.55 && fs > 8) {
+    fs -= 0.5;
+    c.font = `700 ${fs}px ui-monospace, monospace`;
+  }
+  c.fillText(txt, cx, cy - R*0.25);
+  c.textAlign = 'start';
+}
+function drawBadge(c, x, y, w, h, accent, text, variants, wobble, bucket) {
+  // Pick a variant when the tile is wobbling — gives the "value bouncing
+  // around as the design re-converges" feel.
+  let displayText = text;
+  if (wobble > 0.15 && variants && variants.length > 1) {
+    displayText = variants[Math.floor(frand(bucket) * variants.length)];
+  }
+  c.fillStyle = accent;
+  let fs = Math.min(Math.floor(h * 0.55), 28);
+  c.font = `800 ${fs}px ui-monospace, monospace`;
+  // Shrink font until the text fits horizontally with a bit of padding.
+  const maxW = w - 6;
+  while (c.measureText(displayText).width > maxW && fs > 9) {
+    fs -= 0.5;
+    c.font = `800 ${fs}px ui-monospace, monospace`;
+  }
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText(displayText, x + w/2, y + h*0.5);
+  c.textAlign = 'start';
+}
+function drawGraph(c, x, y, w, h, accent, wobble, bucket) {
+  // Base node positions + small wobble (deterministic per-bucket so it
+  // settles cleanly, doesn't jitter at 60Hz).
+  const j = (i) => wobble > 0.1 ? (frand(bucket + i) - 0.5) * 6 * wobble : 0;
+  const pts = [
+    {x:x+w*0.22 + j(1), y:y+h*0.28 + j(2)},
+    {x:x+w*0.72 + j(3), y:y+h*0.22 + j(4)},
+    {x:x+w*0.32 + j(5), y:y+h*0.78 + j(6)},
+    {x:x+w*0.78 + j(7), y:y+h*0.72 + j(8)},
+  ];
+  c.strokeStyle = accent + '55'; c.lineWidth = 1.2;
+  [[0,1],[0,2],[1,3],[2,3],[1,2]].forEach(([a,b])=>{
+    c.beginPath(); c.moveTo(pts[a].x,pts[a].y); c.lineTo(pts[b].x,pts[b].y); c.stroke();
+  });
+  pts.forEach(p => { c.fillStyle = accent; c.beginPath(); c.arc(p.x,p.y,3,0,Math.PI*2); c.fill(); });
+}
+function drawChart(c, x, y, w, h, accent, wobble, bucket) {
+  const N = 18;
+  c.strokeStyle = '#1a2030'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(x, y+h); c.lineTo(x+w, y+h); c.stroke();
+  c.strokeStyle = accent; c.lineWidth = 1.5;
+  c.beginPath();
+  for (let i=0; i<N; i++) {
+    const base = 0.45 + 0.42*Math.sin(i*0.55 + 0.6) * (1 - i/N*0.3);
+    const jitter = wobble > 0.1 ? (frand(bucket + i) - 0.5) * 0.4 * wobble : 0;
+    const v = Math.max(0.05, Math.min(0.95, base + jitter));
+    const px = x + (i/(N-1))*w;
+    const py = y + h - v*h*0.82;
+    if (i===0) c.moveTo(px,py); else c.lineTo(px,py);
+  }
+  c.stroke();
+  // area fill
+  c.lineTo(x+w, y+h); c.lineTo(x, y+h); c.closePath();
+  c.fillStyle = accent + '15';
+  c.fill();
+}
+function drawBars(c, x, y, w, h, accent, wobble, bucket) {
+  const N = 6;
+  const totalGap = w * 0.35;
+  const bw = (w - totalGap) / N;
+  const gap = totalGap / (N - 1);
+  const baseVals = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8];
+  for (let i=0;i<N;i++) {
+    const jitter = wobble > 0.1 ? (frand(bucket + i*3) - 0.5) * 0.55 * wobble : 0;
+    const v = Math.max(0.08, Math.min(0.98, baseVals[i] + jitter));
+    const bh = v*h*0.82;
+    c.fillStyle = i===3 ? accent : accent + '7a';
+    c.fillRect(x + i*(bw+gap), y+h-bh, bw, bh);
+  }
+}
+
+function drawEdge(c, ei, W, H) {
+  const [a, b] = EDGES[ei];
+  const ra = tileRect(a, W, H), rb = tileRect(b, W, H);
+  const ax = ra.x + ra.w/2, ay = ra.y + ra.h/2;
+  const bx = rb.x + rb.w/2, by = rb.y + rb.h/2;
+  // Edges render at full strength; the global noise overlay covers them
+  // when T is high, so they emerge from noise alongside the tiles.
+  c.strokeStyle = 'rgba(120, 200, 220, 0.55)';
+  c.lineWidth = 1.1;
+  c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
+}
+
+function draw(c, W, H) {
+  // background vignette (always present underneath; noise covers it when T is high)
+  const grad = c.createRadialGradient(W/2, H*0.45, 0, W/2, H/2, Math.max(W,H)*0.75);
+  grad.addColorStop(0, '#0a0f18');
+  grad.addColorStop(1, '#04060a');
+  c.fillStyle = grad;
+  c.fillRect(0, 0, W, H);
+
+  // edges at full strength (no clarity gating)
+  EDGES.forEach((_, ei) => drawEdge(c, ei, W, H));
+
+  // tiles at full strength
+  TILES.forEach((tile, i) => {
+    const r = tileRect(i, W, H);
+    drawTileResolved(c, tile, r, i);
+  });
+
+  // Layer 1 — canvas-spanning low-grade noise. The whole field always carries
+  // some shared noise level (ST.T), so the picture as a whole emerges in
+  // lockstep with the diffusion samplerly accelerating curve.
+  if (ST.T > 0.01 && ST.noisePattern) {
+    c.save();
+    c.globalAlpha = Math.pow(ST.T, 1.15) * 0.93;
+    c.fillStyle = ST.noisePattern;
+    const ox = Math.floor(ST.time * 90) % 128;
+    const oy = Math.floor(ST.time * 60) % 128;
+    c.translate(-ox, -oy);
+    c.fillRect(ox, oy, W, H);
+    c.globalAlpha = 1;
+    c.restore();
+  }
+
+  // Layer 2 — per-tile extra noise stacked on top, clipped to each tile.
+  // Noisier at the perturbation point, still noisy at the ring-1 links,
+  // nothing extra elsewhere. A noise function over design space.
+  if (ST.noisePattern) {
+    TILES.forEach((tile, i) => {
+      if (tile.extraNoise <= 0.02) return;
+      const r = tileRect(i, W, H);
+      c.save();
+      c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
+      c.globalAlpha = tile.extraNoise * 0.78;
+      c.fillStyle = ST.noisePattern;
+      // Different offset than the global layer so the patterns interleave
+      // and the local noise visibly densifies rather than just brightens.
+      const ox = ((i * 53 + 41) + Math.floor(ST.time * 110)) % 128;
+      const oy = ((i * 89 + 23) + Math.floor(ST.time * 75)) % 128;
+      c.translate(-ox, -oy);
+      c.fillRect(r.x + ox, r.y + oy, r.w, r.h);
+      c.globalAlpha = 1;
+      c.restore();
+    });
+  }
+
+  // Per-tile highlight glow — drawn AFTER the noise so the user can see
+  // "this is the input that changed" while the field is still hazy.
+  ST.highlights = ST.highlights.filter(h => ST.time - h.startTime < h.duration);
+  ST.highlights.forEach(h => {
+    const t = ST.time - h.startTime;
+    const fade = Math.max(0, 1 - t / h.duration);
+    const r = tileRect(h.tile, W, H);
+    // outer soft glow
+    c.strokeStyle = `rgba(106, 217, 200, ${fade * 0.25})`;
+    c.lineWidth = 9;
+    c.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+    // sharp inner border
+    c.strokeStyle = `rgba(106, 217, 200, ${fade * 0.85})`;
+    c.lineWidth = 2;
+    c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+  });
+
+  // hover ring (always above everything)
+  if (ST.hover >= 0) {
+    const r = tileRect(ST.hover, W, H);
+    c.strokeStyle = 'rgba(200, 240, 255, 0.55)';
+    c.lineWidth = 2;
+    c.strokeRect(r.x - 1, r.y - 1, r.w + 2, r.h + 2);
+  }
+}
+
+// ===== loop ===========================================================
+function sizeCanvas() {
+  const cv = document.getElementById('field');
+  const W = cv.clientWidth;
+  if (W <= 0) return;
+  // Portrait-ish on narrow viewports, 16:10 landscape on wide. Belt-and-suspenders
+  // for browsers where the CSS `aspect-ratio` rule doesn't give the canvas a height.
+  const h = W < 640 ? Math.min(W * 1.05, 460) : W * 0.625;
+  cv.style.height = h + 'px';
+}
+
+let lastT = 0;
+function loop(t) {
+  const dt = Math.min(0.06, (t - lastT) / 1000);
+  lastT = t;
+  if (ST.playing) {
+    step(dt);
+    maybeAutoPerturb();
+  }
+  const cv = document.getElementById('field');
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (W < 100 || H < 100) { requestAnimationFrame(loop); return; }
+  if (cv.width !== W*dpr || cv.height !== H*dpr) {
+    cv.width = W*dpr; cv.height = H*dpr;
+    const c0 = cv.getContext('2d');
+    c0.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ST.noisePattern = buildNoisePattern(c0);
+  }
+  // refresh noise occasionally (animated grain)
+  ST.noiseDirty += dt;
+  if (ST.noiseDirty > 0.08) {
+    const c0 = cv.getContext('2d');
+    ST.noisePattern = buildNoisePattern(c0);
+    ST.noiseDirty = 0;
+  }
+  const c = cv.getContext('2d');
+  draw(c, W, H);
+  // hud
+  document.getElementById('clarity').textContent = Math.round((1 - ST.T) * 100) + '%';
+  document.getElementById('iter').textContent = Math.floor(ST.iter);
+  requestAnimationFrame(loop);
+}
+
+// ===== interaction =====================================================
+function tileAt(mx, my) {
+  const cv = document.getElementById('field');
+  const W = cv.clientWidth, H = cv.clientHeight;
+  for (let i=0; i<TILES.length; i++) {
+    const r = tileRect(i, W, H);
+    if (mx>=r.x && mx<=r.x+r.w && my>=r.y && my<=r.y+r.h) return i;
+  }
+  return -1;
+}
+
+// ===== procedural lab instruments ====================================
+// Seeded RNG (mulberry32). Same seed → same instrument.
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return function() {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const PIPETTE_PALETTES = [
+  {body:'#6ad9c8', edge:'#234e48', dark:'#0f2a26', plunger:'#ff7e6b'},
+  {body:'#9bb8ff', edge:'#3a4d80', dark:'#1a2440', plunger:'#e9c46a'},
+  {body:'#f6a472', edge:'#7d4426', dark:'#3a1f10', plunger:'#6ad9c8'},
+  {body:'#e9c46a', edge:'#7a6020', dark:'#3a2e0a', plunger:'#9bb8ff'},
+  {body:'#cdd3df', edge:'#5b6275', dark:'#262b3a', plunger:'#6ad9c8'},
+  {body:'#a16ad9', edge:'#4a2f78', dark:'#1f1238', plunger:'#e9c46a'},
+];
+
+function renderPipette(seed) {
+  const rng = mulberry32(seed);
+  const choice = arr => arr[Math.floor(rng() * arr.length)];
+  const p = choice(PIPETTE_PALETTES);
+  const channels = choice([1, 1, 1, 1, 4, 8, 12]);
+  const volume = choice([10, 20, 100, 200, 1000, 5000]);
+  const hasDisplay = rng() > 0.25;
+  const electronic = volume >= 1000 && rng() > 0.5;
+  const ergonomic = rng() > 0.5;
+
+  const W = 200, H = 360;
+  const cx = W / 2;
+  const bodyW = 56 + (channels > 1 ? 14 : 0) + (ergonomic ? 6 : 0);
+  const tipBarW = channels > 1 ? 32 + channels * 4 : 28;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // plunger button (knob)
+  s += `<rect x="${cx-14}" y="10" width="28" height="26" rx="7" fill="${p.plunger}" stroke="${p.dark}" stroke-width="2.5"/>`;
+  s += `<rect x="${cx-10}" y="14" width="20" height="4" rx="2" fill="#fff" opacity="0.35"/>`;
+  // plunger shaft
+  s += `<rect x="${cx-6}" y="36" width="12" height="20" fill="${p.edge}"/>`;
+  // main body — slight taper if ergonomic
+  if (ergonomic) {
+    s += `<path d="M ${cx-bodyW/2+4} 56 Q ${cx-bodyW/2-2} 100 ${cx-bodyW/2+2} 220 L ${cx+bodyW/2-2} 220 Q ${cx+bodyW/2+2} 100 ${cx+bodyW/2-4} 56 Z" fill="${p.body}" stroke="${p.dark}" stroke-width="2.5"/>`;
+  } else {
+    s += `<rect x="${cx-bodyW/2}" y="56" width="${bodyW}" height="164" rx="10" fill="${p.body}" stroke="${p.dark}" stroke-width="2.5"/>`;
+  }
+  // volume adjustment ring (thumbwheel band)
+  s += `<rect x="${cx-bodyW/2+4}" y="190" width="${bodyW-8}" height="16" rx="2" fill="${p.edge}" stroke="${p.dark}" stroke-width="1.5"/>`;
+  for (let i=0; i<5; i++) s += `<rect x="${cx-bodyW/2+10 + i*((bodyW-20)/4)}" y="194" width="1.5" height="8" fill="${p.dark}" opacity="0.6"/>`;
+  // display window
+  if (hasDisplay) {
+    s += `<rect x="${cx-22}" y="76" width="44" height="26" rx="3" fill="#0a141c" stroke="${p.dark}" stroke-width="1.8"/>`;
+    s += `<text x="${cx-4}" y="95" fill="#6ad9c8" font-family="ui-monospace, monospace" font-size="13" font-weight="700" text-anchor="end">${volume}</text>`;
+    s += `<text x="${cx-2}" y="95" fill="#99a1b3" font-family="ui-monospace, monospace" font-size="8" text-anchor="start">µL</text>`;
+  }
+  // brand strip
+  s += `<rect x="${cx-14}" y="148" width="28" height="6" fill="${p.dark}" opacity="0.45" rx="1"/>`;
+  // ejector lever (side)
+  s += `<rect x="${cx+bodyW/2-2}" y="118" width="14" height="6" rx="2" fill="${p.dark}"/>`;
+  s += `<rect x="${cx+bodyW/2+8}" y="106" width="5" height="24" rx="1.5" fill="${p.dark}"/>`;
+  // electronic indicator LED
+  if (electronic) {
+    s += `<circle cx="${cx-bodyW/2+10}" cy="68" r="3.5" fill="#8f6"/>`;
+    s += `<circle cx="${cx-bodyW/2+10}" cy="68" r="3.5" fill="#8f6" opacity="0.5"><animate attributeName="r" values="3.5;6;3.5" dur="1.8s" repeatCount="indefinite"/></circle>`;
+  }
+  // tapered lower body to tip mount
+  s += `<path d="M ${cx-bodyW/2} 220 L ${cx-tipBarW/2-2} 268 L ${cx+tipBarW/2+2} 268 L ${cx+bodyW/2} 220 Z" fill="${p.body}" stroke="${p.dark}" stroke-width="2.5"/>`;
+  // tip mount bar
+  s += `<rect x="${cx-tipBarW/2-2}" y="268" width="${tipBarW+4}" height="10" rx="2" fill="${p.dark}"/>`;
+  // tips
+  const tipY = 278;
+  if (channels === 1) {
+    s += `<path d="M ${cx-8} ${tipY} L ${cx-2} ${H-30} L ${cx+2} ${H-30} L ${cx+8} ${tipY} Z" fill="${p.edge}" stroke="${p.dark}" stroke-width="2"/>`;
+  } else {
+    const span = tipBarW - 8;
+    const step = span / (channels - 1);
+    for (let i=0; i<channels; i++) {
+      const tx = cx - span/2 + i*step;
+      s += `<path d="M ${tx-3.2} ${tipY} L ${tx-1} ${H-28} L ${tx+1} ${H-28} L ${tx+3.2} ${tipY} Z" fill="${p.edge}" stroke="${p.dark}" stroke-width="1"/>`;
+    }
+  }
+  s += `</svg>`;
+
+  const spec = (channels === 1 ? 'single-channel' : channels + '-channel')
+    + ' · ' + volume + ' µL'
+    + (electronic ? ' · electronic' : ' · manual');
+  return {svg: s, spec};
+}
+
+const SCOPE_PALETTES = [
+  {body:'#2a3040', edge:'#0f1420', accent:'#6ad9c8', knob:'#ff7e6b', stage:'#0f1420'},
+  {body:'#1f2a3a', edge:'#0a1018', accent:'#e9c46a', knob:'#9bb8ff', stage:'#0a1018'},
+  {body:'#3a2a40', edge:'#1f1424', accent:'#f6a472', knob:'#6ad9c8', stage:'#1a0f24'},
+  {body:'#cdd3df', edge:'#5b6275', accent:'#3a9a8a', knob:'#d66a3a', stage:'#7a8090'},
+  {body:'#2a4040', edge:'#0f2020', accent:'#e9c46a', knob:'#f6a472', stage:'#0f1818'},
+];
+
+function renderMicroscope(seed) {
+  const rng = mulberry32(seed);
+  const choice = arr => arr[Math.floor(rng() * arr.length)];
+  const p = choice(SCOPE_PALETTES);
+  const objectives = choice([3, 4, 4, 5]);
+  const eyepieces = choice([1, 2, 2, 2, 3]);
+  const wide = rng() > 0.5;
+  const lightStyle = choice(['LED', 'halogen', 'fluo', 'laser']);
+
+  const W = 280, H = 320;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // base (trapezoid)
+  const baseW = wide ? 220 : 180;
+  const baseY = 280;
+  s += `<path d="M ${(W-baseW)/2 + 10} ${baseY} L ${(W-baseW)/2} ${baseY+22} L ${(W+baseW)/2} ${baseY+22} L ${(W+baseW)/2 - 10} ${baseY} Z" fill="${p.body}" stroke="${p.edge}" stroke-width="2.5"/>`;
+  // base highlight
+  s += `<rect x="${(W-baseW)/2 + 14}" y="${baseY+2}" width="${baseW-28}" height="4" fill="#fff" opacity="0.08"/>`;
+  // power button on base
+  s += `<circle cx="${(W-baseW)/2 + 22}" cy="${baseY+13}" r="4" fill="${p.knob}" stroke="${p.edge}" stroke-width="1.2"/>`;
+  // stage
+  const stageW = wide ? 130 : 110, stageH = 22;
+  const stageX = W/2 - stageW/2, stageY = 250;
+  s += `<rect x="${stageX}" y="${stageY}" width="${stageW}" height="${stageH}" rx="3" fill="${p.stage}" stroke="${p.edge}" stroke-width="2"/>`;
+  // stage clips
+  s += `<rect x="${stageX+6}" y="${stageY+stageH-3}" width="14" height="6" fill="${p.body}" stroke="${p.edge}" stroke-width="1"/>`;
+  s += `<rect x="${stageX+stageW-20}" y="${stageY+stageH-3}" width="14" height="6" fill="${p.body}" stroke="${p.edge}" stroke-width="1"/>`;
+  // slide
+  s += `<rect x="${W/2-26}" y="${stageY+5}" width="52" height="12" fill="#cfd6e4" stroke="${p.edge}" stroke-width="1"/>`;
+  s += `<rect x="${W/2-8}" y="${stageY+7}" width="16" height="8" fill="${p.accent}" opacity="0.45"/>`;
+  // light source under stage
+  s += `<rect x="${stageX + stageW/2 - 12}" y="${baseY-14}" width="24" height="10" rx="2" fill="${p.accent}" opacity="0.85"/>`;
+  // arm (curved support)
+  const armBaseX = stageX + stageW + 8;
+  s += `<path d="M ${armBaseX} ${baseY-2} Q ${armBaseX+30} ${baseY-10} ${armBaseX+30} 180 Q ${armBaseX+30} 130 ${armBaseX} 122" stroke="${p.body}" stroke-width="22" fill="none" stroke-linecap="round"/>`;
+  s += `<path d="M ${armBaseX} ${baseY-2} Q ${armBaseX+30} ${baseY-10} ${armBaseX+30} 180 Q ${armBaseX+30} 130 ${armBaseX} 122" stroke="${p.edge}" stroke-width="24" fill="none" stroke-linecap="round" opacity="0.18"/>`;
+  // coarse + fine focus knobs
+  s += `<circle cx="${armBaseX+30}" cy="${baseY-8}" r="14" fill="${p.knob}" stroke="${p.edge}" stroke-width="2"/>`;
+  s += `<circle cx="${armBaseX+30}" cy="${baseY-8}" r="5" fill="${p.edge}"/>`;
+  s += `<circle cx="${armBaseX+30}" cy="${baseY-38}" r="9" fill="${p.knob}" stroke="${p.edge}" stroke-width="2"/>`;
+  // body tube
+  const tubeX = stageX + stageW/2 - 22, tubeY = 130;
+  s += `<rect x="${tubeX}" y="${tubeY}" width="44" height="90" rx="4" fill="${p.body}" stroke="${p.edge}" stroke-width="2.5"/>`;
+  // turret
+  const turretCx = tubeX + 22, turretCy = 230;
+  s += `<ellipse cx="${turretCx}" cy="${turretCy}" rx="26" ry="14" fill="${p.edge}" stroke="${p.body}" stroke-width="2.5"/>`;
+  s += `<ellipse cx="${turretCx}" cy="${turretCy}" rx="24" ry="12" fill="none" stroke="${p.body}" stroke-width="1" opacity="0.6"/>`;
+  // objectives around turret bottom arc
+  for (let i=0; i<objectives; i++) {
+    const a = -Math.PI/2 + (i - (objectives-1)/2) * Math.PI / (objectives + 1);
+    const ox = turretCx + Math.cos(a) * 20;
+    const oy = turretCy + Math.sin(a) * 9;
+    s += `<rect x="${ox-3.5}" y="${oy+3}" width="7" height="10" fill="${p.body}" stroke="${p.accent}" stroke-width="1.3"/>`;
+    s += `<circle cx="${ox}" cy="${oy+14}" r="3" fill="${p.accent}"/>`;
+  }
+  // eyepieces at top
+  if (eyepieces === 1) {
+    s += `<rect x="${tubeX+12}" y="${tubeY-44}" width="20" height="40" rx="3" fill="${p.body}" stroke="${p.edge}" stroke-width="2.5"/>`;
+    s += `<rect x="${tubeX+9}" y="${tubeY-48}" width="26" height="6" rx="1.5" fill="${p.edge}"/>`;
+  } else {
+    const eyeSpan = eyepieces === 2 ? 24 : 28;
+    for (let i=0; i<eyepieces; i++) {
+      const ex = tubeX + 22 + (i - (eyepieces-1)/2) * eyeSpan;
+      const angle = (i - (eyepieces-1)/2) * (eyepieces === 2 ? 14 : 18);
+      s += `<g transform="rotate(${angle} ${ex} ${tubeY-10})">`;
+      s += `<rect x="${ex-8}" y="${tubeY-50}" width="16" height="44" rx="3" fill="${p.body}" stroke="${p.edge}" stroke-width="2.5"/>`;
+      s += `<rect x="${ex-10}" y="${tubeY-54}" width="20" height="5" rx="1.5" fill="${p.edge}"/>`;
+      s += `</g>`;
+    }
+  }
+  s += `</svg>`;
+
+  const spec = `${objectives}× turret · ${eyepieces===1?'mono':eyepieces===2?'binocular':'trinocular'} · ${lightStyle}`;
+  return {svg: s, spec};
+}
+
+const SPEC_PALETTES = [
+  {body:'#cdd3df', edge:'#5b6275', dark:'#222730', accent:'#6ad9c8', screen:'#06090f', led:'#8f6'},
+  {body:'#2a3040', edge:'#0a0f18', dark:'#06090f', accent:'#e9c46a', screen:'#04060c', led:'#6ad9c8'},
+  {body:'#3a4250', edge:'#1a1f2e', dark:'#0a0f18', accent:'#f6a472', screen:'#0a121c', led:'#8f6'},
+  {body:'#e0e3eb', edge:'#7b8294', dark:'#3a4050', accent:'#9bb8ff', screen:'#06090f', led:'#f88'},
+  {body:'#0e2a40', edge:'#06141f', dark:'#04090e', accent:'#6ad9c8', screen:'#020608', led:'#e9c46a'},
+];
+
+function renderSpectrometer(seed) {
+  const rng = mulberry32(seed);
+  const choice = arr => arr[Math.floor(rng() * arr.length)];
+  const p = choice(SPEC_PALETTES);
+  // Mode and range are domain-coupled so we don't generate "FTIR · 900 nm" howlers.
+  const modeRanges = [
+    {mode:'UV/Vis', ranges:['200–800 nm', '190–1100 nm']},
+    {mode:'FTIR',   ranges:['4000–400 cm⁻¹', '7800–350 cm⁻¹']},
+    {mode:'Raman',  ranges:['100–3400 cm⁻¹', '200–4000 cm⁻¹']},
+    {mode:'Fluor',  ranges:['200–700 nm', '250–800 nm']},
+    {mode:'NIR',    ranges:['900–2500 nm', '1100–2200 nm']},
+  ];
+  const m = choice(modeRanges);
+  const mode = m.mode, range = choice(m.ranges);
+  const buttons = choice([4, 6, 6, 8]);
+  const cuvettes = choice([1, 2, 2, 4, 6]);
+
+  const W = 340, H = 240;
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // top bezel
+  s += `<rect x="14" y="30" width="${W-28}" height="14" rx="6" fill="${p.dark}"/>`;
+  s += `<circle cx="${W-30}" cy="37" r="4.5" fill="${p.led}"><animate attributeName="opacity" values="1;0.3;1" dur="2.4s" repeatCount="indefinite"/></circle>`;
+  // main body
+  s += `<rect x="14" y="42" width="${W-28}" height="${H-58}" rx="10" fill="${p.body}" stroke="${p.edge}" stroke-width="2.5"/>`;
+  // vents along left edge
+  for (let i=0; i<5; i++) s += `<rect x="22" y="${60 + i*24}" width="3" height="16" rx="1.2" fill="${p.dark}" opacity="0.5"/>`;
+  // display screen
+  const scrX = 38, scrY = 60, scrW = 160, scrH = 72;
+  s += `<rect x="${scrX}" y="${scrY}" width="${scrW}" height="${scrH}" rx="4" fill="${p.screen}" stroke="${p.dark}" stroke-width="2"/>`;
+  s += `<rect x="${scrX+3}" y="${scrY+3}" width="${scrW-6}" height="6" fill="#fff" opacity="0.04"/>`;
+  s += `<text x="${scrX+10}" y="${scrY+20}" fill="${p.accent}" font-family="ui-monospace, monospace" font-size="12" font-weight="700">${mode}</text>`;
+  s += `<text x="${scrX+10}" y="${scrY+36}" fill="#7d8497" font-family="ui-monospace, monospace" font-size="9">${range}</text>`;
+  // mini spectrum waveform
+  const peaks = 28;
+  let pd = `M ${scrX+12} ${scrY+scrH-10}`;
+  for (let i=1; i<peaks; i++) {
+    const x = scrX + 12 + (i / (peaks-1)) * (scrW - 24);
+    const noise = (rng() - 0.5) * 4;
+    const env = Math.max(0, Math.sin((i/peaks)*Math.PI) ** 1.4);
+    const peakBlobs = Math.abs(Math.sin(i*0.9 + rng()*2)) * 22 * env;
+    const y = scrY + scrH - 10 - peakBlobs + noise;
+    pd += ` L ${x} ${y}`;
+  }
+  s += `<path d="${pd}" stroke="${p.accent}" stroke-width="1.4" fill="none"/>`;
+  // button matrix
+  const btnX = scrX + scrW + 16, btnY = scrY;
+  const btnCols = buttons <= 4 ? 2 : (buttons <= 6 ? 3 : 4);
+  const btnRows = Math.ceil(buttons / btnCols);
+  const btnSize = 20, btnGap = 6;
+  for (let i=0; i<buttons; i++) {
+    const col = i % btnCols, row = Math.floor(i / btnCols);
+    const bx = btnX + col * (btnSize + btnGap);
+    const by = btnY + row * (btnSize + btnGap);
+    const c0 = i === 0 ? p.accent : p.dark;
+    s += `<rect x="${bx}" y="${by}" width="${btnSize}" height="${btnSize}" rx="3" fill="${c0}" stroke="${p.edge}" stroke-width="1.5"/>`;
+  }
+  // sample chamber
+  const chmY = scrY + scrH + 16;
+  s += `<rect x="${scrX}" y="${chmY}" width="${W - scrX - 30}" height="40" rx="4" fill="${p.dark}" stroke="${p.edge}" stroke-width="2"/>`;
+  s += `<rect x="${scrX+4}" y="${chmY+4}" width="${W - scrX - 38}" height="3" fill="#fff" opacity="0.05"/>`;
+  // cuvettes
+  const cuvW = 14, cuvH = 28;
+  const innerW = (W - scrX - 30) - 30;
+  for (let i=0; i<cuvettes; i++) {
+    const t = cuvettes === 1 ? 0.5 : i / (cuvettes - 1);
+    const cxp = scrX + 18 + t * (innerW - cuvW);
+    s += `<rect x="${cxp}" y="${chmY+6}" width="${cuvW}" height="${cuvH}" fill="${p.accent}" opacity="0.75" stroke="${p.edge}" stroke-width="1"/>`;
+    s += `<rect x="${cxp+1}" y="${chmY+8}" width="2" height="${cuvH-4}" fill="#fff" opacity="0.35"/>`;
+  }
+  // brand badge
+  s += `<rect x="${W-58}" y="${H-30}" width="36" height="7" rx="1.5" fill="${p.dark}" opacity="0.55"/>`;
+  s += `</svg>`;
+
+  const spec = `${mode} · ${range} · ${cuvettes}-cuvette`;
+  return {svg: s, spec};
+}
+
+// ===== platform configuration renderer ==============================
+// A lab-automation deck: outer chassis that resizes to fit its modules,
+// a robot rail across the top with one or two pipettor carriages and an
+// optional gripper, and a packed grid of slot-mounted modules (tip racks,
+// plates, reagents, microscope, spectrometer, centrifuge, mixer, heater,
+// waste). Same seed -> same platform.
+
+const PLAT_MOD = {
+  pipettor:     {color:'#ff7e6b', dark:'#7a3020'},
+  gripper:      {color:'#9bb8ff', dark:'#3a4d80'},
+  tip:          {color:'#f0e8d4', dark:'#8a7d5a'},
+  plate:        {color:'#cfd6e0', dark:'#5a6275'},
+  tube:         {color:'#e6dcc4', dark:'#7d6f4a'},
+  tube15:       {color:'#dcd0b0', dark:'#6b5d3a'},
+  reagent:      {color:'#8ac9b8', dark:'#3a6a5a'},
+  microscope:   {color:'#6ad9c8', dark:'#1f4a44'},
+  spectrometer: {color:'#9bb8ff', dark:'#3a4d80'},
+  reader:       {color:'#b89aff', dark:'#4a3a78'},
+  centrifuge:   {color:'#f6a472', dark:'#7d4426'},
+  mixer:        {color:'#e9c46a', dark:'#7a6020'},
+  heater:       {color:'#d66a3a', dark:'#5a1f10'},
+  chiller:      {color:'#a6d4f0', dark:'#3a6a80'},
+  incubator:    {color:'#c4dfa8', dark:'#4a6a30'},
+  bulk_disp:    {color:'#f0b893', dark:'#7a4426'},
+  mag_block:    {color:'#5b6275', dark:'#1f242e'},
+  sealer:       {color:'#8a8fa3', dark:'#3a4050'},
+  stacker:      {color:'#b8bfd0', dark:'#3a4050'},
+  waste:        {color:'#5b6275', dark:'#1f242e'},
+};
+
+function renderModuleIcon(type, x, y, w, h) {
+  const p = PLAT_MOD[type] || {color:'#999', dark:'#333'};
+  const cx = x + w/2, cy = y + h/2, dim = Math.min(w, h);
+  let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2.5" fill="${p.color}" stroke="${p.dark}" stroke-width="1.4"/>`;
+  switch (type) {
+    case 'tip': {
+      const rows = 5, cols = 5;
+      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
+        const tx = x + 3 + (c+0.5) * (w-6)/cols;
+        const ty = y + 3 + (r+0.5) * (h-6)/rows;
+        s += `<circle cx="${tx}" cy="${ty}" r="1.2" fill="${p.dark}"/>`;
+      }
+      break;
+    }
+    case 'plate': {
+      const rows = 6, cols = 8;
+      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
+        const tx = x + 2.5 + (c+0.5) * (w-5)/cols;
+        const ty = y + 2.5 + (r+0.5) * (h-5)/rows;
+        s += `<circle cx="${tx}" cy="${ty}" r="0.85" fill="${p.dark}" opacity="0.7"/>`;
+      }
+      break;
+    }
+    case 'reagent': {
+      s += `<circle cx="${x + w*0.3}" cy="${y + h*0.5}" r="${dim*0.18}" fill="${p.dark}" opacity="0.55"/>`;
+      s += `<circle cx="${x + w*0.7}" cy="${y + h*0.5}" r="${dim*0.18}" fill="${p.dark}" opacity="0.55"/>`;
+      s += `<circle cx="${x + w*0.3}" cy="${y + h*0.5}" r="${dim*0.08}" fill="${p.color}"/>`;
+      s += `<circle cx="${x + w*0.7}" cy="${y + h*0.5}" r="${dim*0.08}" fill="${p.color}"/>`;
+      break;
+    }
+    case 'microscope': {
+      // body block in centre
+      s += `<rect x="${cx - w*0.22}" y="${cy - h*0.32}" width="${w*0.44}" height="${h*0.6}" rx="3" fill="${p.dark}" opacity="0.3"/>`;
+      // objective lens (looking up)
+      s += `<circle cx="${cx}" cy="${cy + h*0.05}" r="${dim*0.16}" fill="${p.dark}"/>`;
+      s += `<circle cx="${cx}" cy="${cy + h*0.05}" r="${dim*0.09}" fill="${p.color}"/>`;
+      s += `<circle cx="${cx}" cy="${cy + h*0.05}" r="${dim*0.04}" fill="${p.dark}"/>`;
+      // stage strip
+      s += `<rect x="${cx - w*0.24}" y="${cy + h*0.22}" width="${w*0.48}" height="${h*0.09}" fill="${p.dark}" opacity="0.6"/>`;
+      break;
+    }
+    case 'spectrometer': {
+      // screen on left half
+      s += `<rect x="${x+3}" y="${y+3}" width="${w*0.5-3}" height="${h-6}" fill="#06090f" rx="1"/>`;
+      let pd = `M ${x+5} ${y+h-6}`;
+      for (let i=1; i<10; i++) {
+        const wx = x + 5 + i * (w*0.5-10)/10;
+        const wy = y + h - 6 - Math.abs(Math.sin(i*1.05)) * (h*0.45);
+        pd += ` L ${wx} ${wy}`;
+      }
+      s += `<path d="${pd}" stroke="${p.color}" stroke-width="0.9" fill="none"/>`;
+      // cuvette chamber on right
+      s += `<rect x="${x + w*0.55}" y="${y+4}" width="${w*0.4}" height="${h-8}" fill="${p.dark}" opacity="0.3" rx="1.5"/>`;
+      const cuvs = 3;
+      for (let i=0; i<cuvs; i++) {
+        const cxp = x + w*0.6 + i * (w*0.3)/cuvs;
+        s += `<rect x="${cxp}" y="${y+7}" width="${w*0.05}" height="${h-14}" fill="${p.color}"/>`;
+      }
+      break;
+    }
+    case 'centrifuge': {
+      // rotor disc
+      s += `<circle cx="${cx}" cy="${cy}" r="${dim*0.45}" fill="${p.dark}" opacity="0.75"/>`;
+      s += `<circle cx="${cx}" cy="${cy}" r="${dim*0.38}" fill="${p.color}"/>`;
+      // 6 buckets around the rotor
+      for (let i=0; i<6; i++) {
+        const a = i * Math.PI / 3 - Math.PI/2;
+        const rr = dim * 0.27;
+        const sx = cx + Math.cos(a) * rr;
+        const sy = cy + Math.sin(a) * rr;
+        s += `<rect x="${sx-2.5}" y="${sy-3}" width="5" height="6" rx="1" fill="${p.dark}" transform="rotate(${i*60} ${sx} ${sy})"/>`;
+      }
+      s += `<circle cx="${cx}" cy="${cy}" r="2.2" fill="${p.dark}"/>`;
+      break;
+    }
+    case 'mixer': {
+      s += `<rect x="${x+3}" y="${y+3}" width="${w-6}" height="${h-6}" fill="${p.dark}" opacity="0.25" rx="1.5"/>`;
+      const bY = cy;
+      s += `<path d="M ${x+4} ${bY} Q ${cx - w*0.18} ${bY - h*0.2} ${cx} ${bY} T ${x+w-4} ${bY}" stroke="${p.dark}" stroke-width="1.3" fill="none"/>`;
+      s += `<path d="M ${x+4} ${bY + h*0.15} Q ${cx - w*0.18} ${bY - h*0.05} ${cx} ${bY + h*0.15} T ${x+w-4} ${bY + h*0.15}" stroke="${p.dark}" stroke-width="1" fill="none" opacity="0.6"/>`;
+      break;
+    }
+    case 'heater': {
+      // heat coils
+      for (let i=0; i<3; i++) {
+        const hx = x + 3 + i * (w-6)/3;
+        s += `<rect x="${hx}" y="${y+3}" width="${(w-6)/3 - 1.5}" height="${h-6}" fill="${p.dark}" opacity="0.45" rx="1"/>`;
+      }
+      // tiny heat lines on top
+      for (let i=0; i<3; i++) {
+        const lx = x + 6 + i * (w-12)/2;
+        s += `<path d="M ${lx} ${y-3} q 1.5 -2 0 -4 q -1.5 -2 0 -4" stroke="${p.dark}" stroke-width="0.8" fill="none" opacity="0.4"/>`;
+      }
+      break;
+    }
+    case 'waste': {
+      s += `<circle cx="${cx}" cy="${cy}" r="${dim*0.32}" fill="${p.dark}"/>`;
+      s += `<text x="${cx}" y="${cy + dim*0.13}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.32}" text-anchor="middle" font-weight="700">W</text>`;
+      break;
+    }
+    case 'tube': {
+      // 1.5 mL tube rack: 4x4 grid of medium round tubes (top-down circles)
+      const rows = 4, cols = 4;
+      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
+        const tx = x + 3 + (c+0.5) * (w-6)/cols;
+        const ty = y + 3 + (r+0.5) * (h-6)/rows;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.07}" fill="${p.dark}" opacity="0.65"/>`;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.035}" fill="${p.color}"/>`;
+      }
+      break;
+    }
+    case 'tube15': {
+      // 15/50 mL conical rack: 2x3 grid of big circles
+      for (let r=0; r<3; r++) for (let c=0; c<2; c++) {
+        const tx = x + 4 + (c+0.5) * (w-8)/2;
+        const ty = y + 3 + (r+0.5) * (h-6)/3;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.13}" fill="${p.dark}" opacity="0.65"/>`;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.06}" fill="${p.color}"/>`;
+      }
+      break;
+    }
+    case 'incubator': {
+      // enclosed chamber with door + temp display
+      s += `<rect x="${x+2.5}" y="${y+2.5}" width="${w-5}" height="${h-5}" fill="${p.dark}" opacity="0.4" rx="2.5"/>`;
+      // door window
+      s += `<rect x="${x+w*0.12}" y="${y+h*0.14}" width="${w*0.5}" height="${h*0.55}" fill="${p.color}" stroke="${p.dark}" stroke-width="0.7" rx="1"/>`;
+      // viewing grid hint
+      s += `<line x1="${x+w*0.12}" y1="${y+h*0.4}" x2="${x+w*0.62}" y2="${y+h*0.4}" stroke="${p.dark}" stroke-width="0.5" opacity="0.5"/>`;
+      // temp display
+      s += `<rect x="${x+w*0.68}" y="${y+h*0.14}" width="${w*0.22}" height="${h*0.22}" fill="#06090f" rx="1"/>`;
+      s += `<text x="${x+w*0.79}" y="${y+h*0.3}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.15}" font-weight="700" text-anchor="middle">37°</text>`;
+      // door handle
+      s += `<circle cx="${x+w*0.82}" cy="${y+h*0.75}" r="${dim*0.04}" fill="${p.dark}"/>`;
+      // vent on right
+      for (let i=0; i<3; i++) s += `<rect x="${x+w*0.7}" y="${y+h*0.45 + i*h*0.08}" width="${w*0.18}" height="${h*0.025}" fill="${p.dark}" opacity="0.4"/>`;
+      break;
+    }
+    case 'bulk_disp': {
+      // wide head with nozzle row + reservoir
+      s += `<rect x="${x+2}" y="${y+h*0.08}" width="${w-4}" height="${h*0.5}" fill="${p.dark}" opacity="0.55" rx="1.5"/>`;
+      const nozzles = 8;
+      for (let i=0; i<nozzles; i++) {
+        const nx = x + 4 + (i+0.5) * (w-8)/nozzles;
+        s += `<rect x="${nx-0.6}" y="${y+h*0.58}" width="1.2" height="${h*0.32}" fill="${p.dark}"/>`;
+      }
+      // reservoir bottle on top right
+      s += `<rect x="${x+w-9}" y="${y+1}" width="6" height="${h*0.18}" fill="${p.color}" stroke="${p.dark}" stroke-width="0.7" rx="1"/>`;
+      // tubing connection
+      s += `<line x1="${x+w-6}" y1="${y+h*0.18}" x2="${x+w-6}" y2="${y+h*0.4}" stroke="${p.dark}" stroke-width="0.8"/>`;
+      break;
+    }
+    case 'mag_block': {
+      // dark block; plate-shaped slot on top + magnet positions underneath
+      s += `<rect x="${x+2}" y="${y+2}" width="${w-4}" height="${h-4}" fill="${p.dark}" rx="2"/>`;
+      // plate position
+      s += `<rect x="${x+3.5}" y="${y+3}" width="${w-7}" height="${h*0.45}" fill="${p.color}" opacity="0.25" rx="1"/>`;
+      // 4x2 magnet rows
+      for (let r=0; r<2; r++) for (let c=0; c<8; c++) {
+        const tx = x + 4 + (c+0.5) * (w-8)/8;
+        const ty = y + h*0.58 + (r+0.5) * (h*0.35)/2;
+        s += `<rect x="${tx-0.8}" y="${ty-1.5}" width="1.6" height="3" fill="${p.color}" opacity="0.55"/>`;
+      }
+      break;
+    }
+    case 'sealer': {
+      // press head above a plate position
+      s += `<rect x="${x+2}" y="${y+h*0.5}" width="${w-4}" height="${h*0.45}" fill="${p.dark}" opacity="0.5" rx="1.5"/>`;
+      s += `<rect x="${x+w*0.2}" y="${y+h*0.1}" width="${w*0.6}" height="${h*0.3}" fill="${p.dark}" rx="1.5"/>`;
+      s += `<rect x="${x+w*0.45}" y="${y+2}" width="${w*0.1}" height="${h*0.1}" fill="${p.dark}"/>`;
+      s += `<rect x="${x+4}" y="${y+h*0.6}" width="${w-8}" height="${h*0.28}" fill="${p.color}" opacity="0.6"/>`;
+      break;
+    }
+    case 'chiller': {
+      // cold block with tube positions + snowflake mark
+      s += `<rect x="${x+2}" y="${y+2}" width="${w-4}" height="${h-4}" fill="${p.dark}" opacity="0.55" rx="2"/>`;
+      // tube wells
+      for (let r=0; r<2; r++) for (let c=0; c<2; c++) {
+        const tx = x + 5 + c * (w-12)/2 + (w-12)/4;
+        const ty = y + 4 + r * (h-10)/2 + (h-10)/4;
+        s += `<circle cx="${tx}" cy="${ty}" r="${dim*0.09}" fill="${p.color}" opacity="0.6"/>`;
+      }
+      // snowflake mark (top-right corner)
+      s += `<text x="${x+w-5}" y="${y+8}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.22}" text-anchor="end" font-weight="700">❄</text>`;
+      break;
+    }
+    case 'reader': {
+      // plate-reader: display + plate slot
+      s += `<rect x="${x+3}" y="${y+3}" width="${w-6}" height="${h-6}" fill="${p.dark}" opacity="0.45" rx="3"/>`;
+      // display
+      s += `<rect x="${x+w*0.18}" y="${y+h*0.12}" width="${w*0.4}" height="${h*0.25}" fill="#06090f" rx="1"/>`;
+      s += `<text x="${x+w*0.38}" y="${y+h*0.3}" fill="${p.color}" font-family="ui-monospace, monospace" font-size="${dim*0.13}" font-weight="700" text-anchor="middle">ABS</text>`;
+      // 3 small buttons next to display
+      for (let i=0; i<3; i++) s += `<rect x="${x+w*0.65}" y="${y+h*0.15 + i*h*0.08}" width="${w*0.2}" height="${h*0.05}" fill="${p.color}" rx="0.8"/>`;
+      // plate insertion slot
+      s += `<rect x="${x+w*0.12}" y="${y+h*0.5}" width="${w*0.76}" height="${h*0.2}" fill="${p.color}"/>`;
+      s += `<rect x="${x+w*0.14}" y="${y+h*0.55}" width="${w*0.72}" height="${h*0.1}" fill="${p.dark}" opacity="0.4"/>`;
+      break;
+    }
+    case 'stacker': {
+      // vertical plate hotel — column of stacked plates
+      s += `<rect x="${x+w*0.18}" y="${y+2}" width="${w*0.64}" height="${h-4}" fill="${p.dark}" opacity="0.55" rx="1.5"/>`;
+      const platesNum = 14;
+      for (let i=0; i<platesNum; i++) {
+        const py = y + 4 + i * (h-8)/platesNum;
+        s += `<rect x="${x+w*0.22}" y="${py}" width="${w*0.56}" height="1.2" fill="${p.color}"/>`;
+      }
+      // base
+      s += `<rect x="${x+w*0.1}" y="${y+h-3.5}" width="${w*0.8}" height="2" fill="${p.dark}"/>`;
+      break;
+    }
+  }
+  return s;
+}
+
+function platformKind(opts) {
+  // Score each kind on the FEATURE THAT DEFINES IT, so the name follows the
+  // headline module rather than always landing on the highest plate count.
+  const score = {
+    'High-throughput screening': (opts.hasCentri ? 0.55 : 0) + (opts.hasReader ? 0.35 : 0) + (opts.hasStacker ? 0.4 : 0) + opts.plates*0.06 + opts.tipRacks*0.05,
+    'Imaging workflow':          (opts.hasMicro  ? 1.0  : 0) + (opts.hasReagent ? 0.1  : 0),
+    'Analytical assay':          (opts.hasSpec   ? 0.9  : 0) + (opts.hasReagent ? 0.2  : 0),
+    'Plate-based ELISA':         (opts.hasReader ? 0.55 : 0) + (opts.hasSealer  ? 0.4  : 0) + (opts.hasIncub ? 0.35 : 0) + (opts.hasBulkDisp ? 0.25 : 0),
+    'Cell biology workstation':  (opts.hasMicro && opts.hasCentri ? 1.05 : 0) + (opts.hasIncub  ? 0.3 : 0),
+    'Sample prep + assay':       (opts.hasMixer  ? 0.45 : 0) + (opts.hasHeater  ? 0.45 : 0),
+    'Molecular biology prep':    (opts.hasMagBlock ? 0.7 : 0) + (opts.tubeRacks > 0 ? 0.35 : 0) + (opts.hasChiller ? 0.35 : 0),
+    'Bulk reagent prep':         (opts.hasBulkDisp ? 0.7 : 0) + (opts.tube15Racks > 0 ? 0.35 : 0) + opts.plates*0.04,
+    'Long-incubation assay':     (opts.hasIncub  ? 0.7 : 0) + (opts.hasSealer  ? 0.3 : 0) + (opts.hasMixer ? 0.15 : 0),
+    'Compact bench station':     (!opts.hasCentri && !opts.hasMicro && !opts.hasSpec && !opts.hasReader && !opts.hasIncub && opts.plates < 3) ? 0.85 : 0,
+  };
+  const entries = Object.entries(score).sort((a, b) => b[1] - a[1]);
+  return entries[0][1] > 0.3 ? entries[0][0] : 'Custom configuration';
+}
+
+function renderPlatform(seed) {
+  const rng = mulberry32(seed);
+  const choice = arr => arr[Math.floor(rng() * arr.length)];
+  const opts = {
+    // Arm config
+    dualArm:    rng() > 0.7,
+    hasGripper: rng() > 0.45,
+    // Pipettor head: per-carriage channels + tip volume. For dual-arm,
+    // we pick complementary heads (one single, one 8-channel) because
+    // that's the most common reason to spec a dual-arm robot.
+    channels0:  rng() > 0.5 ? 1 : 8,
+    volume0:    choice([10, 50, 200, 1000]),
+    volume1:    choice([10, 50, 200, 1000]),
+    // Always-present consumables
+    tipRacks:   1 + Math.floor(rng() * 3),
+    plates:     2 + Math.floor(rng() * 4),
+    tubeRacks:  Math.floor(rng() * 3),        // 0–2
+    tube15Racks:Math.floor(rng() * 2),        // 0–1
+    // Optional modules — looser thresholds so the catalog gets exercised
+    hasReagent: rng() > 0.5,
+    hasMicro:   rng() > 0.6,
+    hasSpec:    rng() > 0.6,
+    hasReader:  rng() > 0.55,
+    hasCentri:  rng() > 0.55,
+    hasMixer:   rng() > 0.55,
+    hasHeater:  rng() > 0.6,
+    hasChiller: rng() > 0.6,
+    hasIncub:   rng() > 0.55,
+    hasBulkDisp:rng() > 0.65,
+    hasMagBlock:rng() > 0.6,
+    hasSealer:  rng() > 0.65,
+    hasStacker: rng() > 0.6,
+  };
+  // Complementary second arm
+  opts.channels1 = opts.channels0 === 1 ? 8 : 1;
+
+  // Build module list with footprints
+  const mods = [];
+  for (let i=0; i<opts.tipRacks;    i++) mods.push({type:'tip', w:1, h:1});
+  for (let i=0; i<opts.plates;      i++) mods.push({type:'plate', w:1, h:1});
+  for (let i=0; i<opts.tubeRacks;   i++) mods.push({type:'tube', w:1, h:1});
+  for (let i=0; i<opts.tube15Racks; i++) mods.push({type:'tube15', w:1, h:1});
+  if (opts.hasReagent)  mods.push({type:'reagent', w:1, h:1});
+  if (opts.hasMicro)    mods.push({type:'microscope', w:2, h:2});
+  if (opts.hasSpec)     mods.push({type:'spectrometer', w:2, h:1});
+  if (opts.hasReader)   mods.push({type:'reader', w:2, h:2});
+  if (opts.hasCentri)   mods.push({type:'centrifuge', w:2, h:2});
+  if (opts.hasIncub)    mods.push({type:'incubator', w:2, h:2});
+  if (opts.hasBulkDisp) mods.push({type:'bulk_disp', w:2, h:1});
+  if (opts.hasMagBlock) mods.push({type:'mag_block', w:1, h:1});
+  if (opts.hasMixer)    mods.push({type:'mixer', w:1, h:1});
+  if (opts.hasHeater)   mods.push({type:'heater', w:1, h:1});
+  if (opts.hasChiller)  mods.push({type:'chiller', w:1, h:1});
+  if (opts.hasSealer)   mods.push({type:'sealer', w:1, h:1});
+  if (opts.hasStacker)  mods.push({type:'stacker', w:1, h:2});
+  mods.push({type:'waste', w:1, h:1});
+
+  // Pack into a grid that's W slots wide; deck height grows as needed.
+  const W = choice([5, 5, 6, 6, 7]);
+  mods.sort((a, b) => (b.w * b.h) - (a.w * a.h));
+  const grid = [];
+  const placed = [];
+  const canPlace = (x, y, w, h) => {
+    for (let dy=0; dy<h; dy++) for (let dx=0; dx<w; dx++) {
+      const row = grid[y+dy]; if (row && row[x+dx]) return false;
+    }
+    return true;
+  };
+  const occupy = (x, y, w, h, t) => {
+    for (let dy=0; dy<h; dy++) {
+      if (!grid[y+dy]) grid[y+dy] = [];
+      for (let dx=0; dx<w; dx++) grid[y+dy][x+dx] = t;
+    }
+  };
+  for (const m of mods) {
+    outer: for (let y=0; y<12; y++) {
+      for (let x=0; x + m.w <= W; x++) {
+        if (canPlace(x, y, m.w, m.h)) {
+          occupy(x, y, m.w, m.h, m.type);
+          placed.push({...m, x, y});
+          break outer;
+        }
+      }
+    }
+  }
+  const H = Math.max(grid.length, 2);
+
+  // SVG dimensions
+  const slot = 32, pad = 12, railH = 16;
+  const SW = pad*2 + W*slot;
+  const SH = pad*2 + railH + 6 + H*slot;
+
+  let s = `<svg viewBox="0 0 ${SW} ${SH}" xmlns="http://www.w3.org/2000/svg">`;
+  // outer chassis (the "box that changes shape")
+  s += `<rect x="2" y="2" width="${SW-4}" height="${SH-4}" rx="11" fill="#ecdcb8" stroke="#7a6a4a" stroke-width="2.5"/>`;
+  s += `<rect x="2" y="2" width="${SW-4}" height="${SH-4}" rx="11" fill="none" stroke="#fff" stroke-width="1" opacity="0.25"/>`;
+  // inner deck surface
+  const deckX = pad-2, deckY = pad + railH + 5, deckW = SW - 2*deckX, deckH = H*slot + 4;
+  s += `<rect x="${deckX}" y="${deckY}" width="${deckW}" height="${deckH}" rx="4" fill="#d4c098" stroke="#a89060" stroke-width="0.8"/>`;
+  // grid markers
+  for (let i=1; i<W; i++) {
+    s += `<line x1="${pad + i*slot}" y1="${deckY+2}" x2="${pad + i*slot}" y2="${deckY + deckH - 2}" stroke="#7a6a4a" stroke-width="0.5" stroke-dasharray="2,3" opacity="0.35"/>`;
+  }
+  for (let i=1; i<H; i++) {
+    s += `<line x1="${deckX+2}" y1="${deckY + i*slot}" x2="${deckX + deckW - 2}" y2="${deckY + i*slot}" stroke="#7a6a4a" stroke-width="0.5" stroke-dasharray="2,3" opacity="0.35"/>`;
+  }
+
+  // robot rail across the top
+  const railY = pad + 4;
+  s += `<rect x="${pad}" y="${railY}" width="${SW - pad*2}" height="${railH - 6}" fill="#2a3040" rx="2.5"/>`;
+  s += `<line x1="${pad+3}" y1="${railY+2}" x2="${SW-pad-3}" y2="${railY+2}" stroke="#6ad9c8" stroke-width="0.8"/>`;
+  s += `<line x1="${pad+3}" y1="${railY + railH - 9}" x2="${SW-pad-3}" y2="${railY + railH - 9}" stroke="#6ad9c8" stroke-width="0.8"/>`;
+
+  // pipettor carriage(s) — explicit channels + tip size, hanging visibly below the rail
+  const carriages = opts.dualArm ? 2 : 1;
+  for (let c=0; c<carriages; c++) {
+    const range = SW - pad*2 - 60;
+    const carCx = pad + 26 + (carriages === 1 ? rng() * range : (c === 0 ? 12 : range - 10));
+    const channels = c === 0 ? opts.channels0 : opts.channels1;
+    const tipVol = c === 0 ? opts.volume0 : opts.volume1;
+    // Carriage width grows if it carries an 8-channel head.
+    const carW = channels === 8 ? 30 : 22;
+    s += `<rect x="${carCx - carW/2}" y="${railY - 3}" width="${carW}" height="${railH + 3}" rx="2.5" fill="${PLAT_MOD.pipettor.color}" stroke="${PLAT_MOD.pipettor.dark}" stroke-width="1.3"/>`;
+    // tiny channel-count badge on the carriage
+    s += `<text x="${carCx}" y="${railY + 6}" fill="#fff" font-family="ui-monospace, monospace" font-size="6" font-weight="700" text-anchor="middle">${channels === 1 ? '1' : '8'}ch</text>`;
+    // pipettor head plate
+    const headW = channels === 8 ? carW - 4 : 7;
+    const headY = railY + railH - 1;
+    s += `<rect x="${carCx - headW/2}" y="${headY}" width="${headW}" height="3" fill="${PLAT_MOD.pipettor.dark}" rx="0.6"/>`;
+    // tips — length and width keyed to volume
+    const tipLen = 4 + Math.log2(tipVol / 10) * 1.8;        // 10→4, 50→8, 200→11, 1000→14
+    const tipW   = 0.7 + Math.log2(tipVol / 10) * 0.22;     // narrow → wider
+    const tipY0  = headY + 3;
+    if (channels === 1) {
+      s += `<path d="M ${carCx-tipW} ${tipY0} L ${carCx} ${tipY0 + tipLen} L ${carCx+tipW} ${tipY0} Z" fill="${PLAT_MOD.tip.dark}"/>`;
+    } else {
+      for (let i=0; i<8; i++) {
+        const tx = carCx - headW/2 + 2 + i * (headW - 4)/7;
+        s += `<path d="M ${tx - tipW*0.55} ${tipY0} L ${tx} ${tipY0 + tipLen*0.92} L ${tx + tipW*0.55} ${tipY0} Z" fill="${PLAT_MOD.tip.dark}"/>`;
+      }
+    }
+    // gripper attached to first carriage if present
+    if (opts.hasGripper && c === 0) {
+      const gx = carCx + carW/2 + 3;
+      s += `<rect x="${gx}" y="${railY - 2}" width="13" height="${railH + 2}" rx="2" fill="${PLAT_MOD.gripper.color}" stroke="${PLAT_MOD.gripper.dark}" stroke-width="1.3"/>`;
+      // claw fingers (open)
+      s += `<path d="M ${gx+2.5} ${railY + railH} L ${gx+5} ${railY + railH + 5} M ${gx+10.5} ${railY + railH} L ${gx+8} ${railY + railH + 5}" stroke="${PLAT_MOD.gripper.dark}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+    }
+  }
+
+  // modules
+  placed.forEach(m => {
+    const mx = pad + m.x * slot + 2;
+    const my = deckY + m.y * slot + 2;
+    const mw = m.w * slot - 4;
+    const mh = m.h * slot - 4;
+    s += renderModuleIcon(m.type, mx, my, mw, mh);
+  });
+
+  s += `</svg>`;
+
+  // human spec line
+  const kind = platformKind(opts);
+  const headStr = opts.dualArm
+    ? `dual-arm (${opts.channels0}-ch ${opts.volume0} µL + ${opts.channels1}-ch ${opts.volume1} µL)`
+    : `${opts.channels0}-ch ${opts.volume0} µL pipettor`;
+  const gripperStr = opts.hasGripper ? ' + gripper' : '';
+  // Feature list — modules first, then consumables fallback
+  const features = [];
+  if (opts.hasMicro)    features.push('microscope');
+  if (opts.hasSpec)     features.push('spectrometer');
+  if (opts.hasReader)   features.push('plate reader');
+  if (opts.hasCentri)   features.push('centrifuge');
+  if (opts.hasIncub)    features.push('incubator');
+  if (opts.hasBulkDisp) features.push('bulk dispenser');
+  if (opts.hasMagBlock) features.push('mag separator');
+  if (opts.hasMixer)    features.push('mixer');
+  if (opts.hasHeater)   features.push('heater');
+  if (opts.hasChiller)  features.push('chiller');
+  if (opts.hasSealer)   features.push('sealer');
+  if (opts.hasStacker)  features.push('plate stacker');
+  const consumables = [];
+  consumables.push(`${opts.tipRacks} tip`);
+  consumables.push(`${opts.plates} plate`);
+  if (opts.tubeRacks)   consumables.push(`${opts.tubeRacks} tube`);
+  if (opts.tube15Racks) consumables.push(`${opts.tube15Racks}× 15 mL`);
+  const featLine = features.length > 4 ? features.slice(0, 4).join(' · ') + ` +${features.length-4}` : features.join(' · ');
+  return {
+    svg: s,
+    kind,
+    spec: `${W}×${H} deck · ${headStr}${gripperStr}\n${featLine || consumables.join(' · ')}`,
+  };
+}
+
+function regenerateOutputs() {
+  ST.regen = (ST.regen || 0) + 1;
+  const seed = ST.regen * 9973 + 17;
+  const outs = [
+    renderPlatform(seed),
+    renderPlatform(seed + 1000003),
+    renderPlatform(seed + 2000009),
+  ];
+  const panels = [0,1,2].map(i => document.getElementById('out-' + i));
+  panels.forEach(p => p && p.classList.add('refreshing'));
+  setTimeout(() => {
+    outs.forEach((out, i) => {
+      const panel = panels[i]; if (!panel) return;
+      panel.querySelector('.output-svg').innerHTML = out.svg;
+      panel.querySelector('.kind').textContent = out.kind;
+      // two-line spec, preserve linebreak with <br>
+      panel.querySelector('.spec').innerHTML = out.spec.replace(/\n/g, '<br>');
+    });
+    setTimeout(() => panels.forEach(p => p && p.classList.remove('refreshing')), 240);
+  }, 180);
+}
+
+function init() {
+  const cv = document.getElementById('field');
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    ST.hover = tileAt(e.clientX - r.left, e.clientY - r.top);
+    cv.style.cursor = ST.hover >= 0 ? 'pointer' : 'default';
+  });
+  cv.addEventListener('mouseleave', () => { ST.hover = -1; });
+  cv.addEventListener('click', e => {
+    const r = cv.getBoundingClientRect();
+    const i = tileAt(e.clientX - r.left, e.clientY - r.top);
+    if (i >= 0) { perturb(i); ST.lastAuto = ST.time; }
+  });
+  cv.addEventListener('touchstart', e => {
+    const r = cv.getBoundingClientRect();
+    const t = e.touches[0];
+    const i = tileAt(t.clientX - r.left, t.clientY - r.top);
+    if (i >= 0) { perturb(i); ST.lastAuto = ST.time; e.preventDefault(); }
+  }, {passive: false});
+  document.getElementById('play').addEventListener('click', e => {
+    ST.playing = !ST.playing;
+    e.target.textContent = ST.playing ? '⏸ pause' : '⏵ play';
+  });
+  document.getElementById('reset').addEventListener('click', () => resetAll());
+  regenerateOutputs();
+  sizeCanvas();
+  window.addEventListener('resize', sizeCanvas);
+  requestAnimationFrame(loop);
+}
+init();
+</script>
+
+</body>
+</html>

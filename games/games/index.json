@@ -1,0 +1,9 @@
+[
+  {
+    "id": "hot-takes",
+    "name": "Hot Takes",
+    "template": "prompt-submit-vote",
+    "players": "3-8",
+    "blurb": "Write the spiciest take. Vote for your favorite. Don't vote for yourself."
+  }
+]

@@ -1,0 +1,52 @@
+name: Autopilot Brief
+
+# A bisk offshoot. Each morning, after bisk recomputes the neighborhood digest
+# (deploy at 13:00 UTC), this regenerates the "Today's brief" region inside
+# scripts/autopilot/build-prompt.md from the live catalog + bisk/data/latest.json,
+# and commits it. The autopilot routine clones the default branch and reads the
+# fresh brief at run time, so its context is never stale.
+#
+# NOTE: schedule: cron only fires from the repo's DEFAULT branch (main). This
+# file must be on main for the daily run. On a feature branch, bump the marker
+# below and push to fire it via the push trigger.
+# marker: 2026-05-26a
+
+on:
+  schedule:
+    # 13:30 UTC — 30 min after bisk-digest.yml so latest.json is fresh.
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/toolset-audit-roadmap-*'
+    paths:
+      - '.github/workflows/autopilot-brief.yml'  # bump the marker above to fire
+
+permissions:
+  contents: write
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Regenerate brief
+        run: node scripts/autopilot/build-brief.mjs
+
+      - name: Commit brief
+        run: |
+          git config user.name "autopilot-bot"
+          git config user.email "autopilot@minomobi.com"
+          git add scripts/autopilot/build-prompt.md
+          if git diff --staged --quiet; then
+            echo "No brief changes."
+          else
+            git commit -m "autopilot: refresh brief $(date -u +%Y-%m-%d)"
+            for attempt in 1 2 3 4; do
+              git push && break || { echo "push failed, retrying…"; git pull --rebase --autostash; sleep $((attempt*2)); }
+            done
+          fi

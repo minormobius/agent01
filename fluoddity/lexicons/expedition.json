@@ -1,0 +1,75 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.fluoddity.expedition",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A published Fluoddity breeder run — one expedition through phase space. Captures the starting config, the scoring function used (default or user-supplied JS body), the trajectory of every individual evaluated (canonical 4-D descriptor coordinates + fitness, by generation), and the breeder knobs. Aggregated across users by 'the forest', they're the emergent atlas of where exploration goes and what scoring lenses pull it where.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["start", "trajectory", "createdAt"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 600,
+            "maxGraphemes": 120,
+            "description": "Human label for the expedition."
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "description": "Expedition schema version, so future engine changes can migrate old runs."
+          },
+          "start": {
+            "type": "string",
+            "maxLength": 8000,
+            "description": "JSON-serialized starting config (the seed organism the run was launched from, or the random gen-0 representative if unseeded). Same shape as a com.minomobi.fluoddity.organism record's config field."
+          },
+          "scorer": {
+            "type": "string",
+            "maxLength": 8000,
+            "description": "The scoring code that drove parent selection. Literal JS function body — variables in scope are v, fit, nov, align, verdict, gen, config; returns a number. The string 'default' means the built-in composite (fit + lambda*nov + mu*align) was used."
+          },
+          "scorerHash": {
+            "type": "string",
+            "maxLength": 16,
+            "description": "First 12 hex chars of sha-256(scorer). Lets the forest group expeditions that used the same scoring lens, across users."
+          },
+          "trajectory": {
+            "type": "string",
+            "maxLength": 200000,
+            "description": "JSON array of every evaluated individual. SchemaVersion 1: [id, parentId|null, gen, fit, fill, motion, struct, blowout]. SchemaVersion 2 (tier-0 two-snapshot): [id, parentId|null, gen, fit, fill, motion, struct, blowout, dfill, dmotion, dstruct, dblowout] — the four static descriptors are at T1 (settle 280), the four deltas are (T2 - T1) measured after another ~200 steps. The eight axes (4 static + 4 delta) form the canonical phase-space coordinates for rubric scoring; viewers that only need the static slice (indices 4..7) keep working unchanged."
+          },
+          "knobs": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "JSON snapshot of the breeder knobs (tau, lambda, mu, mutRate, popSize) at run time."
+          },
+          "generations": {
+            "type": "integer",
+            "description": "Number of generations completed in the published portion of the run."
+          },
+          "picks": {
+            "type": "array",
+            "maxLength": 24,
+            "items": { "type": "string", "format": "at-uri" },
+            "description": "Optional at-uris of organisms the user promoted to the garden from this run."
+          },
+          "parent": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Optional at-uri of a previous expedition this one branched from."
+          },
+          "forest": {
+            "type": "string",
+            "description": "Constant link target (a DID) so the global backlink index (Constellation) can enumerate every expedition across users. Always did:web:g.mino.mobi — the same anchor the gallery uses, but under a different field path so the two collections enumerate independently."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    }
+  }
+}

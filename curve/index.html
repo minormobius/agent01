@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>curve — factor a target into hand-drawn lines</title>
+<meta name="description" content="A drawing puzzle: a procedurally generated target curve is the product of 2–5 lines. Draw lines whose product fits the target. Three independent scores — fewer segments, straighter strokes, tighter fit.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --paper: #fffdf7;
+  --fg: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #1a4a8a;     /* cobalt — target + linear fits */
+  --accent-faint: rgba(26, 74, 138, 0.10);
+  --product: #c8542a;    /* vermilion — user's running product */
+  --canvas-bg: #fafafa;
+  --grid: rgba(0,0,0,0.06);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --paper: #18181a; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #6aa0d4; --accent-faint: rgba(106,160,212,0.13);
+    --product: #e07a4a; --canvas-bg: #f5f1e8;
+    --grid: rgba(0,0,0,0.08);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+
+header { margin-bottom: 1.4rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.lede { font-size: 0.96rem; color: var(--muted); margin: 0.8rem 0 1.4rem; }
+
+.target-strip { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.6rem; margin-bottom: 0.6rem; }
+canvas.viz { display: block; width: 100%; border: none; }
+canvas#target { aspect-ratio: 4 / 1; background: var(--canvas-bg); border-radius: 3px; }
+canvas#draw   { aspect-ratio: 4 / 3; background: var(--canvas-bg); border-radius: 3px; touch-action: none; cursor: crosshair; }
+.draw-wrap { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.6rem; margin-bottom: 0.6rem; position: relative; }
+.draw-hint { position: absolute; right: 1rem; top: 0.7rem; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--muted); pointer-events: none; }
+
+.bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: end; }
+@media (max-width: 540px) { .bottom { grid-template-columns: 1fr; } }
+.scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+.score { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.6rem 0.7rem; }
+.score .k { display: block; font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.score .v { display: block; font-family: var(--mono); font-size: 1.4rem; color: var(--accent); margin-top: 0.15rem; line-height: 1.1; }
+.score small { font-family: var(--serif); font-size: 0.7rem; font-style: italic; color: var(--muted); }
+.score .arrow { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); margin-left: 0.2rem; }
+
+.btn-row { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.btn { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.04em; background: var(--paper); border: 1px solid var(--rule); color: var(--muted); padding: 0.45rem 0.7rem; border-radius: 3px; cursor: pointer; transition: all 0.12s; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.primary { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+.note { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin: 0.7rem 0; min-height: 1.3em; }
+.note.ok { color: var(--accent); }
+.note.warn { color: var(--product); }
+
+footer { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>curve</h1>
+  <p class="subtitle">factor a target into 2–5 hand-drawn lines</p>
+  <p class="lede">A target curve appears up top — it is the <em>product</em> of some hidden lines. Draw lines on the canvas below; your product is overlaid in orange. Three scores update live: number of segments (fewer is better), how straight each stroke was (R²), and how well your product fits the target.</p>
+</header>
+
+<div class="target-strip">
+  <canvas id="target" class="viz" width="900" height="225"></canvas>
+</div>
+
+<div class="draw-wrap">
+  <div class="draw-hint" id="draw-hint">draw a line ↘</div>
+  <canvas id="draw" class="viz" width="900" height="675"></canvas>
+</div>
+
+<div class="note" id="note">drag on the canvas to draw a line · up to 5 segments</div>
+
+<div class="bottom">
+  <div class="scores">
+    <div class="score">
+      <span class="k">segments</span>
+      <span class="v" id="s-count">0 / 5</span>
+      <small>fewer better<span class="arrow">↓</span></small>
+    </div>
+    <div class="score">
+      <span class="k">linearity</span>
+      <span class="v" id="s-lin">—</span>
+      <small>mean R² of strokes<span class="arrow">↑</span></small>
+    </div>
+    <div class="score">
+      <span class="k">fit</span>
+      <span class="v" id="s-fit">—</span>
+      <small>product vs target<span class="arrow">↑</span></small>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" id="undo">undo</button>
+    <button class="btn" id="clear">clear</button>
+    <button class="btn" id="reveal">solution</button>
+    <button class="btn primary" id="new">new target</button>
+  </div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/draw/">draw</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+</footer>
+
+<script>
+'use strict';
+
+// ─── tiny utils ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const rng = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+// ─── domain ────────────────────────────────────────────────────────────────
+const X_MIN = 0, X_MAX = 1;
+const SAMPLES = 200;
+const MAX_STROKES = 5;
+const SAMPLE_X = Array.from({ length: SAMPLES }, (_, i) => X_MIN + (X_MAX - X_MIN) * i / (SAMPLES - 1));
+
+let target = null;  // { factors: [{a,b}], y: Float64Array, yMax: number }
+let strokes = [];   // [{ raw: [{x,y}], fit: {a,b,r2}, yAtSample: Float64Array }]
+let drawing = null; // {points: [{x,y}]}
+let revealed = false;
+
+// ─── target generation ─────────────────────────────────────────────────────
+// Each factor line y = a + b*x, kept strictly positive on [0,1] so the product
+// is well-behaved and visually compact. Target shape determined by the K factors.
+function generateTarget() {
+  const K = 2 + Math.floor(Math.random() * 4); // 2..5
+  const factors = [];
+  for (let i = 0; i < K; i++) {
+    const a = rng(0.6, 1.4);
+    // slope bounded so a + b*x stays > 0.1 over [0,1]
+    const b = rng(-Math.min(0.9, a - 0.1), Math.min(0.9, a - 0.1));
+    factors.push({ a, b });
+  }
+  const y = new Float64Array(SAMPLES);
+  let yMax = 0;
+  for (let i = 0; i < SAMPLES; i++) {
+    let p = 1;
+    for (const f of factors) p *= f.a + f.b * SAMPLE_X[i];
+    y[i] = p;
+    if (p > yMax) yMax = p;
+  }
+  return { factors, K, y, yMax: yMax * 1.15 };
+}
+
+// ─── canvases ──────────────────────────────────────────────────────────────
+const tCanvas = $('target'), tCtx = tCanvas.getContext('2d');
+const dCanvas = $('draw'),   dCtx = dCanvas.getContext('2d');
+
+function setupHiDPI(canvas, ctx) {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = Math.round(r.width * dpr);
+  canvas.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { W: r.width, H: r.height };
+}
+
+// plot ↔ canvas mapping
+function mapper(W, H, padX, padY, yMax) {
+  return {
+    W, H, padX, padY, yMax,
+    tx: x => padX + ((x - X_MIN) / (X_MAX - X_MIN)) * (W - 2 * padX),
+    ty: y => (H - padY) - (y / yMax) * (H - 2 * padY),
+    ux: px => X_MIN + ((px - padX) / (W - 2 * padX)) * (X_MAX - X_MIN),
+    uy: py => ((H - padY) - py) / (H - 2 * padY) * yMax,
+  };
+}
+
+function drawAxes(ctx, m) {
+  ctx.save();
+  ctx.strokeStyle = cssVar('--grid');
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const x = m.padX + i / 4 * (m.W - 2 * m.padX);
+    ctx.beginPath(); ctx.moveTo(x, m.padY); ctx.lineTo(x, m.H - m.padY); ctx.stroke();
+  }
+  for (let i = 0; i <= 4; i++) {
+    const y = m.padY + i / 4 * (m.H - 2 * m.padY);
+    ctx.beginPath(); ctx.moveTo(m.padX, y); ctx.lineTo(m.W - m.padX, y); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.moveTo(m.padX, m.H - m.padY); ctx.lineTo(m.W - m.padX, m.H - m.padY);
+  ctx.moveTo(m.padX, m.padY); ctx.lineTo(m.padX, m.H - m.padY);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ─── target render ─────────────────────────────────────────────────────────
+function renderTarget() {
+  const { W, H } = setupHiDPI(tCanvas, tCtx);
+  tCtx.fillStyle = cssVar('--canvas-bg'); tCtx.fillRect(0, 0, W, H);
+  const m = mapper(W, H, 30, 18, target.yMax);
+  drawAxes(tCtx, m);
+  tCtx.strokeStyle = cssVar('--accent');
+  tCtx.lineWidth = 2;
+  tCtx.beginPath();
+  for (let i = 0; i < SAMPLES; i++) {
+    const x = m.tx(SAMPLE_X[i]), y = m.ty(target.y[i]);
+    if (i === 0) tCtx.moveTo(x, y); else tCtx.lineTo(x, y);
+  }
+  tCtx.stroke();
+  // label
+  tCtx.fillStyle = cssVar('--muted');
+  tCtx.font = '10px ui-monospace, monospace';
+  tCtx.fillText('target · product of ' + target.K + ' line' + (target.K === 1 ? '' : 's'), 36, 16);
+}
+
+// ─── linear fit + linearity ────────────────────────────────────────────────
+function linearFit(points) {
+  const n = points.length;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const p of points) { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; }
+  const denom = n * sxx - sx * sx;
+  const b = denom !== 0 ? (n * sxy - sx * sy) / denom : 0;
+  const a = (sy - b * sx) / n;
+  // R² = 1 - SSres/SStot
+  const meanY = sy / n;
+  let ssRes = 0, ssTot = 0;
+  for (const p of points) {
+    const pred = a + b * p.x;
+    ssRes += (p.y - pred) ** 2;
+    ssTot += (p.y - meanY) ** 2;
+  }
+  const r2 = ssTot < 1e-9 ? 1 : Math.max(0, 1 - ssRes / ssTot);
+  return { a, b, r2 };
+}
+
+function evalLineAt(fit, x) { return fit.a + fit.b * x; }
+
+// product of all user lines at each SAMPLE_X
+function userProductSamples() {
+  if (!strokes.length) return null;
+  const out = new Float64Array(SAMPLES).fill(1);
+  for (const s of strokes) for (let i = 0; i < SAMPLES; i++) out[i] *= evalLineAt(s.fit, SAMPLE_X[i]);
+  return out;
+}
+
+// fit score = 1 - rmse / target_range, clipped to [0,1]
+function fitScore() {
+  const up = userProductSamples();
+  if (!up) return null;
+  let se = 0;
+  for (let i = 0; i < SAMPLES; i++) se += (up[i] - target.y[i]) ** 2;
+  const rmse = Math.sqrt(se / SAMPLES);
+  let tMin = Infinity, tMax = -Infinity;
+  for (let i = 0; i < SAMPLES; i++) { if (target.y[i] < tMin) tMin = target.y[i]; if (target.y[i] > tMax) tMax = target.y[i]; }
+  const range = Math.max(1e-6, tMax - tMin);
+  return clamp(1 - rmse / range, 0, 1);
+}
+
+// ─── drawing canvas render ─────────────────────────────────────────────────
+let drawMap = null;
+function renderDraw() {
+  const { W, H } = setupHiDPI(dCanvas, dCtx);
+  dCtx.fillStyle = cssVar('--canvas-bg'); dCtx.fillRect(0, 0, W, H);
+  drawMap = mapper(W, H, 40, 22, target.yMax);
+  drawAxes(dCtx, drawMap);
+
+  // faint target reference
+  dCtx.strokeStyle = cssVar('--accent') + '55';
+  dCtx.lineWidth = 1.5;
+  dCtx.setLineDash([4, 4]);
+  dCtx.beginPath();
+  for (let i = 0; i < SAMPLES; i++) {
+    const x = drawMap.tx(SAMPLE_X[i]), y = drawMap.ty(target.y[i]);
+    if (i === 0) dCtx.moveTo(x, y); else dCtx.lineTo(x, y);
+  }
+  dCtx.stroke();
+  dCtx.setLineDash([]);
+
+  // each stroke: raw trace (light) + fitted line (bold)
+  for (const s of strokes) {
+    dCtx.strokeStyle = 'rgba(80,80,80,0.32)';
+    dCtx.lineWidth = 1.3;
+    dCtx.beginPath();
+    s.raw.forEach((p, i) => {
+      const cx = drawMap.tx(p.x), cy = drawMap.ty(p.y);
+      i === 0 ? dCtx.moveTo(cx, cy) : dCtx.lineTo(cx, cy);
+    });
+    dCtx.stroke();
+    // fitted line across full domain
+    dCtx.strokeStyle = cssVar('--accent');
+    dCtx.lineWidth = 1.6;
+    dCtx.beginPath();
+    dCtx.moveTo(drawMap.tx(X_MIN), drawMap.ty(evalLineAt(s.fit, X_MIN)));
+    dCtx.lineTo(drawMap.tx(X_MAX), drawMap.ty(evalLineAt(s.fit, X_MAX)));
+    dCtx.stroke();
+  }
+
+  // in-progress stroke
+  if (drawing) {
+    dCtx.strokeStyle = 'rgba(80,80,80,0.55)';
+    dCtx.lineWidth = 1.6;
+    dCtx.beginPath();
+    drawing.points.forEach((p, i) => {
+      const cx = drawMap.tx(p.x), cy = drawMap.ty(p.y);
+      i === 0 ? dCtx.moveTo(cx, cy) : dCtx.lineTo(cx, cy);
+    });
+    dCtx.stroke();
+  }
+
+  // product overlay (vermilion)
+  const up = userProductSamples();
+  if (up) {
+    dCtx.strokeStyle = cssVar('--product');
+    dCtx.lineWidth = 2.4;
+    dCtx.beginPath();
+    for (let i = 0; i < SAMPLES; i++) {
+      const x = drawMap.tx(SAMPLE_X[i]);
+      const y = drawMap.ty(clamp(up[i], -target.yMax * 0.2, target.yMax * 1.2));
+      if (i === 0) dCtx.moveTo(x, y); else dCtx.lineTo(x, y);
+    }
+    dCtx.stroke();
+  }
+
+  // solution (revealed factor lines)
+  if (revealed) {
+    dCtx.strokeStyle = 'rgba(0,0,0,0.32)';
+    dCtx.lineWidth = 1;
+    dCtx.setLineDash([2, 4]);
+    for (const f of target.factors) {
+      dCtx.beginPath();
+      dCtx.moveTo(drawMap.tx(X_MIN), drawMap.ty(f.a + f.b * X_MIN));
+      dCtx.lineTo(drawMap.tx(X_MAX), drawMap.ty(f.a + f.b * X_MAX));
+      dCtx.stroke();
+    }
+    dCtx.setLineDash([]);
+  }
+}
+
+// ─── scores ────────────────────────────────────────────────────────────────
+function refreshScores() {
+  $('s-count').textContent = strokes.length + ' / ' + MAX_STROKES;
+  if (!strokes.length) {
+    $('s-lin').textContent = '—';
+    $('s-fit').textContent = '—';
+    return;
+  }
+  const meanR2 = strokes.reduce((s, x) => s + x.fit.r2, 0) / strokes.length;
+  $('s-lin').textContent = (meanR2 * 100).toFixed(1) + '%';
+  const f = fitScore();
+  $('s-fit').textContent = f === null ? '—' : (f * 100).toFixed(1) + '%';
+}
+
+// ─── pointer handling ──────────────────────────────────────────────────────
+function pointerToPlot(e) {
+  const r = dCanvas.getBoundingClientRect();
+  return { x: drawMap.ux(e.clientX - r.left), y: drawMap.uy(e.clientY - r.top) };
+}
+
+dCanvas.addEventListener('pointerdown', e => {
+  if (strokes.length >= MAX_STROKES) { setNote('5 segments is the cap — undo or clear to draw more', 'warn'); return; }
+  dCanvas.setPointerCapture(e.pointerId);
+  drawing = { points: [pointerToPlot(e)] };
+  $('draw-hint').style.display = 'none';
+  renderDraw();
+});
+dCanvas.addEventListener('pointermove', e => {
+  if (!drawing) return;
+  drawing.points.push(pointerToPlot(e));
+  renderDraw();
+});
+function finishStroke(e) {
+  if (!drawing) return;
+  try { dCanvas.releasePointerCapture(e.pointerId); } catch {}
+  // accept only meaningful strokes (≥3 points and some x span)
+  const pts = drawing.points;
+  drawing = null;
+  if (pts.length < 3) { renderDraw(); return; }
+  const xs = pts.map(p => p.x);
+  const xSpan = Math.max(...xs) - Math.min(...xs);
+  if (xSpan < 0.05) { setNote('that stroke is too short — try a longer line', 'warn'); renderDraw(); return; }
+  const fit = linearFit(pts);
+  strokes.push({ raw: pts, fit });
+  setNote(`segment ${strokes.length}: R² ${(fit.r2 * 100).toFixed(1)}% — keep going or hit "new target"`, fit.r2 > 0.85 ? 'ok' : '');
+  refreshScores();
+  renderDraw();
+}
+dCanvas.addEventListener('pointerup', finishStroke);
+dCanvas.addEventListener('pointercancel', finishStroke);
+
+// ─── buttons ───────────────────────────────────────────────────────────────
+$('undo').addEventListener('click', () => {
+  if (!strokes.length) return;
+  strokes.pop();
+  refreshScores(); renderDraw();
+  setNote(strokes.length ? `undid · ${strokes.length} segment${strokes.length===1?'':'s'} left` : 'cleared the canvas');
+});
+$('clear').addEventListener('click', () => {
+  strokes = []; revealed = false; refreshScores(); renderDraw();
+  setNote('cleared — same target, fresh attempt');
+});
+$('reveal').addEventListener('click', () => {
+  revealed = !revealed; renderDraw();
+  setNote(revealed ? `solution shown · ${target.K} factor lines (dashed)` : '');
+});
+$('new').addEventListener('click', () => { newRound(); });
+
+function setNote(msg, cls) {
+  const n = $('note');
+  n.textContent = msg;
+  n.className = 'note' + (cls ? ' ' + cls : '');
+}
+
+// ─── round lifecycle ───────────────────────────────────────────────────────
+function newRound() {
+  target = generateTarget();
+  strokes = [];
+  revealed = false;
+  $('draw-hint').style.display = '';
+  refreshScores();
+  renderTarget(); renderDraw();
+  setNote(`new target · product of ${target.K} hidden lines`);
+}
+
+newRound();
+window.addEventListener('resize', () => { renderTarget(); renderDraw(); });
+</script>
+
+</body>
+</html>

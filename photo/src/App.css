@@ -91,9 +91,10 @@ body {
 }
 
 .photo {
-  max-width: 1400px;
+  /* Fill the available width — the grid below scales by column-width target,
+     not by container cap, so there's no benefit to capping the outer wrap. */
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 16px;
 }
 
 /* Header */
@@ -445,10 +446,39 @@ body {
 }
 
 /* Grid — JS-assigned columns (stable across pagination) */
+.photo-grid-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0 4px;
+}
 .photo-grid-info {
   font-size: 12px;
   color: var(--text-faint);
-  padding: 12px 0 4px;
+}
+.photo-grid-width-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-faint);
+  user-select: none;
+}
+.photo-grid-width-icon {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+.photo-grid-width-slider input[type="range"] {
+  width: 160px;
+  accent-color: var(--text-secondary);
+}
+.photo-grid-width-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: right;
 }
 
 .photo-grid {
@@ -491,6 +521,21 @@ body {
   overflow: hidden;
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.15s;
+  /* Sweep-reveal: each card animates in with a per-card delay set by Grid.jsx.
+     `backwards` fill keeps the from-state during the delay (so cards stay
+     invisible until their turn), then releases the element to its base CSS so
+     hover transforms work normally afterwards. */
+  animation: photoCardReveal 460ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+@keyframes photoCardReveal {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-card { animation: none; }
 }
 
 .photo-card:hover {

@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>splice — clone the construct</title>
+<meta name="description" content="An assembly-puzzle game: cut a vector and an insert with restriction enzymes, ligate compatible ends, and build the target plasmid. Auto-graded by a real molecular-biology engine (Rust→WASM).">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#283039; --accent:#5ad1b0; --accent2:#7aa2ff; --warn:#e3b341; --bad:#f0776a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent2);text-decoration:none}
+  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;
+    background:rgba(14,17,22,.9);backdrop-filter:blur(6px);padding:11px 20px;display:flex;align-items:center;gap:12px}
+  .crumb{font-size:13px;color:var(--muted)} .crumb a{color:var(--muted)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);
+    border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .wrap{max-width:1000px;margin:0 auto;padding:22px 20px 80px}
+  h1{font-size:25px;margin:8px 0 2px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 16px;font-size:14.5px}
+  .levels{display:flex;gap:8px;margin:14px 0 10px;flex-wrap:wrap}
+  .genbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 18px}
+  .genbar select{background:#10141a;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:7px 10px;font-size:13px;font-family:var(--mono)}
+  .lvl{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+    padding:6px 12px;cursor:pointer;color:var(--muted);background:#10141a}
+  .lvl.active{border-color:var(--accent);color:var(--accent)}
+  .lvl .done{color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+  .brief{font-size:15.5px;line-height:1.55}
+  .brief b{color:var(--ink)}
+  .lane{display:grid;grid-template-columns:90px 1fr;gap:12px;align-items:center;margin:14px 0}
+  .lane .tag{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+  canvas{display:block;width:100%;background:#0a0d12;border:1px solid var(--line);border-radius:8px}
+  h2{font-size:12.5px;margin:0 0 12px;color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:.05em}
+  .palette{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+  .enz{font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:8px;
+    padding:7px 13px;cursor:pointer;color:var(--ink);background:#10141a;user-select:none;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:74px}
+  .enz .ov{font-size:10px;color:var(--muted)}
+  .enz.on{background:var(--accent2);color:#0a0d12;border-color:var(--accent2)}
+  .enz.on .ov{color:#0a0d12}
+  .enz.danger{border-color:var(--bad)}
+  button{background:#1c2230;color:var(--ink);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;font-size:14px;cursor:pointer;font-weight:600}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#06120e;border-color:var(--accent)}
+  button.primary:hover{color:#06120e;filter:brightness(1.08)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .btnrow{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .verdict{margin-top:14px;padding:14px 16px;border-radius:10px;border:1px solid var(--line);font-size:14.5px}
+  .verdict.win{border-color:var(--accent);background:rgba(90,209,176,.08)}
+  .verdict.fail{border-color:var(--bad);background:rgba(240,119,106,.07)}
+  .verdict.idle{color:var(--muted)}
+  .stars{font-size:20px;letter-spacing:3px}
+  .mono{font-family:var(--mono)}
+  .muted{color:var(--muted)}
+  .small{font-size:12.5px;color:var(--muted)}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .dotc{color:var(--accent2)} .dotr{color:var(--bad)} .dotb{color:var(--warn)}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / clone</span>
+  <span class="badge" id="badge">engine: loading…</span>
+</header>
+
+<div class="wrap">
+  <h1>Clone the construct</h1>
+  <p class="sub">Cut the vector and the insert with restriction enzymes, ligate the compatible ends, and build the target plasmid. Every move is graded by the real engine — and when you nail it, watch the splice happen.</p>
+  <p class="modes" style="font-size:13px;margin:-6px 0 8px;color:var(--muted)">mode: <b>cloning</b> · <a href="/game/primer.html" style="color:var(--accent2)">primer design</a> · <a href="/game/evolve.html" style="color:var(--accent2)">directed evolution</a></p>
+
+  <div class="levels" id="levelTabs"></div>
+  <div class="genbar">
+    <span class="small muted">∞ endless:</span>
+    <select id="diff" title="difficulty">
+      <option value="1">easy · 4 enzymes</option>
+      <option value="2" selected>medium · 6, one trap</option>
+      <option value="3">hard · 8, more traps</option>
+    </select>
+    <button id="gen" class="primary">🎲 New random level</button>
+    <span class="small" id="streak"></span>
+  </div>
+
+  <div class="panel">
+    <div class="brief" id="brief">—</div>
+
+    <div class="lane">
+      <div class="tag">vector<br><span class="small" id="vecLen"></span></div>
+      <canvas id="vecCanvas" width="820" height="200"></canvas>
+    </div>
+    <div class="lane">
+      <div class="tag">insert<br><span class="small" id="insLen"></span></div>
+      <canvas id="insCanvas" width="820" height="90"></canvas>
+    </div>
+    <div class="legend">
+      <span class="dotc">▮</span> selected cut &nbsp; <span class="muted">▮ available cut</span> &nbsp;
+      <span class="dotr">▮</span> cuts inside the gene (trap) &nbsp; <span class="dotb">◆</span> insert flank
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Enzymes — pick which to cut with</h2>
+    <div class="palette" id="palette"></div>
+    <div class="btnrow">
+      <button class="primary" id="run">Digest &amp; ligate</button>
+      <button id="reset">Clear</button>
+      <button id="hintBtn">Hint</button>
+      <span class="small" id="selInfo"></span>
+    </div>
+    <div class="verdict idle" id="verdict">Select enzymes, then digest &amp; ligate.</div>
+  </div>
+
+  <div class="panel" id="theater" style="display:none">
+    <h2>The splice</h2>
+    <canvas id="stage" width="820" height="380"></canvas>
+    <div class="btnrow">
+      <button id="replay">↻ Replay</button>
+      <button id="slowmo">Slow-mo</button>
+      <span class="small muted">schematic — strands, sticky-end teeth, and docking enzymes (≈2 steps from molecular dynamics)</span>
+    </div>
+  </div>
+</div>
+
+<script src="../lab/samples.js"></script>
+<script src="./levels.js"></script>
+<script type="module">
+import { loadEngine, Engine } from '../lab/engine.js';
+import { playSplice } from '../lab/splice-anim.js';
+import { generateLevel } from '../lab/levelgen.js';
+
+const $ = (id)=>document.getElementById(id);
+const COMP = {A:'T',T:'A',G:'C',C:'G',N:'N'};
+const revcomp = s => s.split('').reverse().map(b=>COMP[b]||'N').join('');
+// circular equality, optionally treating a molecule and its reverse-complement
+// (the same physical plasmid read off the other strand) as equal.
+function circEqual(a, b, allowRC){
+  if(a.length !== b.length) return false;
+  if((a+a).includes(b)) return true;
+  if(allowRC && (a+a).includes(revcomp(b))) return true;
+  return false;
+}
+
+let cur = 0;                 // current level index
+const selected = new Set();  // selected enzyme names
+const progress = JSON.parse(localStorage.getItem('splice_game')||'{}'); // id -> stars
+let anim = null, lastSpec = null, slow = false;
+
+// enzyme overhang/type metadata, from a restriction scan of the current vector
+function enzMeta(name){
+  const vr = Engine.restriction(level().vector, true).value;
+  const m = vr.enzymes.find(e=>e.name===name);
+  return m ? { name, overhang:m.overhang, type:m.overhangType } : { name, overhang:'NN', type:"5'" };
+}
+function hideTheater(){ anim&&anim.stop(); anim=null; $('theater').style.display='none'; }
+
+let activeLevel = null;
+function level(){ return activeLevel; }
+
+// engine wrappers for the procedural generator (unwrap the {value,ms} shape)
+const genApi = {
+  clone:(v,i,e,vc,ic)=>Engine.clone(v,i,e,vc,ic).value,
+  restriction:(s,c)=>Engine.restriction(s,c).value,
+};
+let streak = +(localStorage.getItem('splice_streak')||0);
+function showStreak(){ $('streak').textContent = streak>0 ? `streak ${streak} 🔥` : ''; }
+function genAndLoad(){
+  const d = +$('diff').value;
+  setVerdict('idle','Generating a fresh construct…');
+  setTimeout(()=>{
+    try{ loadLevelObj(generateLevel(genApi,{difficulty:d})); }
+    catch(e){ setVerdict('fail','generation hiccup — hit New random again'); }
+  }, 20);
+}
+
+function renderTabs(){
+  $('levelTabs').innerHTML = window.LEVELS.map((L,i)=>{
+    const st = progress[L.id]||0;
+    const mark = st>0 ? `<span class="done">${'★'.repeat(st)}</span>` : '';
+    return `<span class="lvl ${i===cur?'active':''}" data-i="${i}">${L.id} · ${L.title} ${mark}</span>`;
+  }).join('');
+  $('levelTabs').querySelectorAll('.lvl').forEach(t=>t.onclick=()=>loadLevel(+t.dataset.i));
+}
+
+// classify insert sites as flank (near an end) vs internal (in the gene)
+function insertSites(){
+  const L = level();
+  const r = Engine.restriction(L.insert, false).value;
+  const n = L.insert.length;
+  const sites = [];
+  r.enzymes.filter(e=>e.count>0).forEach(e=>e.cuts.forEach(pos=>{
+    const flank = pos < 16 || pos > n-16;
+    sites.push({ name:e.name, pos, internal:!flank });
+  }));
+  return { sites, n };
+}
+function vectorSites(){
+  const L = level();
+  const r = Engine.restriction(L.vector, true).value;
+  const sites = [];
+  r.enzymes.filter(e=>e.count>0).forEach(e=>e.cuts.forEach(pos=>sites.push({name:e.name,pos})));
+  return { sites, n:L.vector.length };
+}
+
+function drawVector(){
+  const {sites,n} = vectorSites();
+  const cv=$('vecCanvas'), g=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2, rad=H/2-46;
+  g.strokeStyle='#5ad1b0'; g.lineWidth=2.5; g.beginPath(); g.arc(cx,cy,rad,0,7); g.stroke();
+  g.font='12px ui-monospace,monospace'; g.textBaseline='middle';
+  sites.forEach(s=>{
+    const a=(s.pos/n)*2*Math.PI - Math.PI/2;
+    const on = selected.has(s.name);
+    const x1=cx+Math.cos(a)*rad, y1=cy+Math.sin(a)*rad;
+    const x2=cx+Math.cos(a)*(rad+9), y2=cy+Math.sin(a)*(rad+9);
+    g.strokeStyle = on ? '#7aa2ff' : '#5b6b7d'; g.lineWidth = on?3:1.5;
+    g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+    const lx=cx+Math.cos(a)*(rad+14), ly=cy+Math.sin(a)*(rad+14);
+    g.fillStyle = on ? '#7aa2ff' : '#9aa7b4'; g.textAlign = Math.cos(a)<0?'right':'left';
+    g.fillText(s.name, lx, ly);
+  });
+  g.fillStyle='#9aa7b4'; g.textAlign='center'; g.fillText(n+' bp', cx, cy);
+}
+
+function drawInsert(){
+  const {sites,n} = insertSites();
+  const cv=$('insCanvas'), g=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);
+  const x0=24,x1=W-24,y=H-30;
+  // gene body
+  g.fillStyle='#1c2533'; g.fillRect(x0,y-10,x1-x0,20);
+  g.strokeStyle='#3a4658'; g.strokeRect(x0,y-10,x1-x0,20);
+  g.fillStyle='#5ad1b0'; g.font='11px ui-monospace,monospace'; g.textAlign='center';
+  g.fillText('gene / payload', (x0+x1)/2, y);
+  g.textBaseline='alphabetic';
+  sites.forEach(s=>{
+    const x = x0 + (s.pos/n)*(x1-x0);
+    const on = selected.has(s.name);
+    let col = on ? '#7aa2ff' : '#5b6b7d';
+    if(s.internal) col = on ? '#f0776a' : '#7a4a45';
+    g.strokeStyle=col; g.lineWidth = on?3:1.5; g.beginPath(); g.moveTo(x,y-16); g.lineTo(x,y+16); g.stroke();
+    if(!s.internal){ g.fillStyle='#e3b341'; g.beginPath(); g.moveTo(x,y-20); g.lineTo(x-4,y-26); g.lineTo(x+4,y-26); g.closePath(); g.fill(); }
+    g.save(); g.translate(x, y-30); g.rotate(-Math.PI/4);
+    g.fillStyle=col; g.textAlign='left'; g.font='11px ui-monospace,monospace'; g.fillText(s.name,0,0); g.restore();
+  });
+}
+
+function renderPalette(){
+  const L = level();
+  const ins = insertSites();
+  // chips carry each enzyme's overhang; flag enzymes that cut inside the gene
+  const vr = Engine.restriction(L.vector, true).value;
+  $('palette').innerHTML = L.palette.map(name=>{
+    const meta = vr.enzymes.find(x=>x.name===name);
+    const ov = meta ? (meta.blunt?'blunt':`${meta.overhangType} ${meta.overhang}`) : '';
+    const cutsGene = ins.sites.some(s=>s.name===name && s.internal);
+    return `<div class="enz ${cutsGene?'danger':''}" data-enz="${name}">
+      <span>${name}</span><span class="ov">${ov}</span></div>`;
+  }).join('');
+  $('palette').querySelectorAll('.enz').forEach(c=>c.onclick=()=>{
+    const n=c.dataset.enz;
+    if(selected.has(n)){selected.delete(n);c.classList.remove('on');}
+    else{selected.add(n);c.classList.add('on');}
+    afterSelect();
+  });
+}
+
+function afterSelect(){
+  drawVector(); drawInsert();
+  $('selInfo').textContent = selected.size ? `using: ${[...selected].join(' + ')}` : '';
+}
+
+function setVerdict(cls, html){ const v=$('verdict'); v.className='verdict '+cls; v.innerHTML=html; }
+
+function showLevel(){
+  selected.clear(); hideTheater();
+  const L=level();
+  const head = L.generated ? `<b>${L.title}.</b>` : `<b>${L.id} — ${L.title}.</b>`;
+  $('brief').innerHTML = `${head} ${L.brief}`;
+  $('vecLen').textContent = L.vector.length+' bp · circular';
+  $('insLen').textContent = L.insert.length+' bp · linear';
+  renderTabs(); renderPalette(); afterSelect();
+  setVerdict('idle','Select enzymes, then digest &amp; ligate.');
+}
+function loadLevel(i){ cur=i; activeLevel=window.LEVELS[i]; showLevel(); }
+function loadLevelObj(L){ cur=-1; activeLevel=L; showLevel(); }
+
+$('reset').onclick = ()=>{ selected.clear(); renderPalette(); afterSelect(); hideTheater(); setVerdict('idle','Cleared. Pick enzymes again.'); };
+$('hintBtn').onclick = ()=> setVerdict('idle', '💡 '+level().hint);
+$('gen').onclick = ()=> genAndLoad();
+$('replay').onclick = ()=>{ if(lastSpec){ anim && anim.stop(); anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 }); } };
+$('slowmo').onclick = ()=>{ slow=!slow; $('slowmo').textContent = slow?'Normal speed':'Slow-mo';
+  if(lastSpec){ anim && anim.stop(); anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 }); } };
+
+$('run').onclick = ()=>{
+  const L=level();
+  if(selected.size===0){ setVerdict('fail','Pick at least one enzyme.'); return; }
+  const enz=[...selected];
+  // diagnostics
+  const ins = insertSites();
+  const internalHit = enz.filter(n=>ins.sites.some(s=>s.name===n && s.internal));
+  const { value:res } = Engine.clone(L.vector, L.insert, enz, true, false);
+  if(res.error){ setVerdict('fail', res.error); return; }
+
+  const winProd = res.products.find(p=>circEqual(p.seq, L.target, true));
+  const directionalOK = L.goalType!=='directional' || res.products.length===1;
+
+  if(winProd && directionalOK){
+    const stars = enz.length<=L.par ? 3 : 2;
+    if(L.generated){ streak++; localStorage.setItem('splice_streak', streak); showStreak(); }
+    else { progress[L.id]=Math.max(progress[L.id]||0, stars); localStorage.setItem('splice_game', JSON.stringify(progress)); }
+    renderTabs();
+    // build the splice-theater spec from the two junction enzymes
+    const pair = enz.slice(0,2);
+    lastSpec = {
+      leftEnz:  enzMeta(pair[0]),
+      rightEnz: enzMeta(pair[1] || pair[0]),
+      recombinantLen: winProd.length,
+      insertLen: L.insert.length,
+    };
+    $('theater').style.display='';
+    anim && anim.stop();
+    anim = playSplice($('stage'), lastSpec, { speed: slow?0.45:1 });
+    $('theater').scrollIntoView({behavior:'smooth', block:'center'});
+    const next = !L.generated && cur+1 < window.LEVELS.length;
+    const btn = L.generated
+      ? '<button class="primary" id="genNext">🎲 Next random →</button>'
+      : next ? '<button class="primary" id="nextBtn">Next level →</button>'
+             : '<button class="primary" id="genNext">🎲 Try a random one →</button>';
+    setVerdict('win',
+      `<div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+       <b>Solved!</b> Built the ${winProd.length} bp target with ${enz.join(' + ')} (par ${L.par}).
+       ${L.generated && streak>1 ? `<span class="small"> streak ${streak} 🔥</span>`:''}
+       ${enz.length>L.par?'<span class="small"> Fewer enzymes = 3 stars.</span>':''}
+       <div class="btnrow">${btn}</div>`);
+    if(next) $('nextBtn').onclick=()=>loadLevel(cur+1);
+    else $('genNext').onclick=()=>genAndLoad();
+    return;
+  }
+
+  // targeted failure feedback
+  let msg;
+  if(internalHit.length){
+    msg = `<b>The gene got shredded.</b> ${internalHit.join(', ')} cut inside the payload (red marks) — your insert no longer survives intact. Pick enzymes that only cut at the flanks.`;
+  } else if(res.products.length===0){
+    msg = `<b>No ligation.</b> The ends you made don’t fit together. Backbone ends [${res.backboneEnds.map(e=>e.type==='blunt'?'blunt':e.type+' '+e.overhang).join(', ')}] vs cassette [${res.cassetteEnds.map(e=>e.type==='blunt'?'blunt':e.type+' '+e.overhang).join(', ')}].`;
+  } else if(L.goalType==='directional' && res.products.length>1){
+    msg = `<b>Not directional.</b> The insert can go in either orientation (${res.products.length} products) — use two <i>different</i> enzymes with incompatible overhangs so it can only fit one way.`;
+  } else {
+    const got = res.products[0];
+    msg = `<b>Wrong construct.</b> You built a ${got?got.length:0} bp plasmid; the target is ${L.target.length} bp. Check that both enzymes flank the insert and cut the vector’s MCS.`;
+  }
+  setVerdict('fail', msg);
+};
+
+(async ()=>{
+  try{
+    await loadEngine('../lab/splice_engine.wasm');
+    $('badge').textContent='engine: ready'; $('badge').style.color='var(--accent)';
+    if(!window.LEVELS||!window.LEVELS.length){ setVerdict('fail','levels failed to load'); return; }
+    showStreak();
+    loadLevel(0);
+  }catch(e){ $('badge').textContent='engine: failed'; $('badge').style.color='var(--bad)'; console.error(e); }
+})();
+</script>
+</body>
+</html>

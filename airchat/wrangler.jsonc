@@ -16,8 +16,15 @@
     }
   ],
   "routes": [
-    { "pattern": "airchat.mino.mobi", "custom_domain": true }
+    { "pattern": "airchat.mino.mobi", "custom_domain": true },
+    { "pattern": "yapchat.mino.mobi", "custom_domain": true }
   ]
+  // Two custom domains:
+  //   airchat.mino.mobi — original deploy URL, kept for back-compat
+  //   yapchat.mino.mobi — user-facing rebrand; same worker, same DB,
+  //                       same OAuth client (client-metadata.json lives
+  //                       at airchat.mino.mobi only)
+  //
   // Secrets (set via `npx wrangler secret put <NAME>`):
   //   OPENAI_API_KEY     — Whisper transcription
   //   ADMIN_KEY          — gates /api/airchat/admin/* (whitelist mgmt)

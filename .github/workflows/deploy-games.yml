@@ -1,0 +1,70 @@
+name: Deploy Games
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/oauth-partykit-games-*'
+    paths:
+      - 'games/**'
+      - 'packages/oauth-client/**'
+      - '.github/workflows/deploy-games.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: games
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Vendor packages/oauth-client/auth.js into games/lib/
+        # play.html is no-build vanilla JS and imports `./lib/auth.js`.
+        # The shared auth client lives in packages/oauth-client/auth.js
+        # at the repo root; we copy it here at deploy time so the file
+        # is on-origin and the import resolves. Keeping a single source
+        # of truth (the package) avoids drift between sites.
+        run: |
+          set -euo pipefail
+          mkdir -p lib
+          cp ../packages/oauth-client/auth.js lib/auth.js
+          echo "vendored:"
+          ls -la lib/
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify worker is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://games.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "worker is live"
+              break
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"
+            sleep 4
+          done
+          echo ""
+          echo "=== verifying vendored auth.js is reachable ==="
+          STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://games.mino.mobi/lib/auth.js" || echo "fail")
+          if [ "$STATUS" = "200" ]; then
+            echo "  ok https://games.mino.mobi/lib/auth.js"
+          else
+            echo "  warn https://games.mino.mobi/lib/auth.js -> $STATUS"
+          fi

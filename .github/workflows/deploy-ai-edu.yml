@@ -1,0 +1,104 @@
+name: Deploy AI Edu
+
+on:
+  push:
+    branches: [main, 'claude/ai-edu-site-architecture-*']
+    paths:
+      - 'ai-edu/**'
+      - '.github/workflows/deploy-ai-edu.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ai-edu/wasm/beam-solver/target
+          key: ai-edu-cargo-${{ hashFiles('ai-edu/wasm/beam-solver/Cargo.toml') }}
+          restore-keys: |
+            ai-edu-cargo-
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
+
+      - name: Build shared beam-solver WASM
+        working-directory: ai-edu/wasm/beam-solver
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir ../../dist/wasm/beam-solver/pkg \
+            --out-name beam_solver
+
+      - name: Stage static assets
+        working-directory: ai-edu
+        run: |
+          mkdir -p dist/problems/beam-vibration
+          mkdir -p dist/problems/beam-deflection
+          mkdir -p dist/problems/truss-bridges
+          mkdir -p dist/problems/spend-report/data
+          mkdir -p dist/problems/decision-point
+          mkdir -p dist/problems/droplet-sizing
+          mkdir -p dist/problems/motion-system
+          mkdir -p dist/problems/bearing-life
+          mkdir -p dist/problems/tolerance-stack
+          mkdir -p dist/problems/reconcile-total
+          mkdir -p dist/problems/rope-tension
+          mkdir -p dist/problems/gantt-cpm
+          mkdir -p dist/problems/manifold-routing
+          mkdir -p dist/dev
+          mkdir -p dist/getting-started/windows
+          mkdir -p dist/getting-started/shipping
+          mkdir -p dist/getting-started/project-setup
+          mkdir -p dist/getting-started/documents
+          mkdir -p dist/getting-started/token-economy
+          mkdir -p dist/wasm/beam-solver/src
+          cp index.html dist/
+          cp PROBLEM_TEMPLATE.md dist/
+          cp problems/beam-vibration/index.html dist/problems/beam-vibration/
+          cp problems/beam-deflection/index.html dist/problems/beam-deflection/
+          cp problems/truss-bridges/index.html dist/problems/truss-bridges/
+          cp problems/spend-report/index.html dist/problems/spend-report/
+          cp problems/spend-report/data/purchase-orders.csv dist/problems/spend-report/data/
+          cp problems/decision-point/index.html dist/problems/decision-point/
+          cp problems/droplet-sizing/index.html dist/problems/droplet-sizing/
+          cp problems/motion-system/index.html dist/problems/motion-system/
+          cp problems/bearing-life/index.html dist/problems/bearing-life/
+          cp problems/tolerance-stack/index.html dist/problems/tolerance-stack/
+          cp problems/reconcile-total/index.html dist/problems/reconcile-total/
+          cp problems/rope-tension/index.html dist/problems/rope-tension/
+          cp problems/gantt-cpm/index.html dist/problems/gantt-cpm/
+          cp problems/manifold-routing/index.html dist/problems/manifold-routing/
+          cp dev/index.html dist/dev/
+          cp getting-started/windows/index.html dist/getting-started/windows/
+          cp getting-started/shipping/index.html dist/getting-started/shipping/
+          cp getting-started/project-setup/index.html dist/getting-started/project-setup/
+          cp getting-started/documents/index.html dist/getting-started/documents/
+          cp getting-started/token-economy/index.html dist/getting-started/token-economy/
+          # Ship the Rust source so the "worked solution" links resolve.
+          cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
+          ls -la dist/
+          ls -la dist/problems/
+          ls -la dist/wasm/beam-solver/pkg/
+
+      - name: Deploy to Cloudflare
+        working-directory: ai-edu
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

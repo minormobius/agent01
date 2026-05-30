@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fractalize — turn a photo into a fractal</title>
+  <meta name="description" content="Drop a photograph and grow a fractal out of it. Escape-time fractals woven with your image via orbit-trap sampling — palette extraction, histogram, crop, and dozens of controls." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <canvas id="fractal"></canvas>
+
+  <div id="hud" class="hud">
+    <span id="hud-coords"></span>
+    <span id="hud-zoom"></span>
+  </div>
+
+  <button id="panel-toggle" class="panel-toggle" title="hide/show panel">⮜</button>
+
+  <aside id="panel" class="panel">
+    <h1 class="brand"><span class="g">🌀</span> Fractalize
+      <button id="docs-btn" class="docs-btn" title="how it works">?</button>
+    </h1>
+
+    <section class="grp">
+      <h2>Photograph</h2>
+      <input type="file" id="file-input" accept="image/*" hidden />
+      <button class="wide-btn" id="browse-btn">choose a photo…</button>
+      <div class="preview-wrap">
+        <canvas id="preview" width="240" height="180"></canvas>
+        <div class="preview-hint">drag to select a section</div>
+      </div>
+      <label class="row"><span>crop</span>
+        <button class="mini-btn" id="reset-crop">full image</button>
+      </label>
+      <div class="palette-strip" id="palette"></div>
+      <label class="row"><span>histogram</span>
+        <select id="hist-mode">
+          <option value="l">luminance</option>
+          <option value="rgb">RGB</option>
+          <option value="r">red</option>
+          <option value="g">green</option>
+          <option value="b">blue</option>
+        </select>
+      </label>
+      <canvas id="hist" width="240" height="70" class="hist"></canvas>
+    </section>
+
+    <section class="grp">
+      <h2>Fractal</h2>
+      <label class="row"><span>type</span>
+        <select id="type">
+          <option value="0">Mandelbrot</option>
+          <option value="1">Julia</option>
+          <option value="2">Burning Ship</option>
+          <option value="3">Tricorn</option>
+          <option value="5">Celtic</option>
+          <option value="6">Buffalo</option>
+          <option value="7">Heart</option>
+          <option value="8">Phoenix</option>
+        </select>
+      </label>
+      <label class="slider"><span>power <b id="power-v">2.0</b></span>
+        <input type="range" id="power" min="2" max="8" step="0.05" value="2" /></label>
+      <label class="slider" id="phoenix-row" hidden><span>phoenix p <b id="phoenixP-v">0.00</b></span>
+        <input type="range" id="phoenixP" min="-1" max="1" step="0.01" value="0" /></label>
+      <label class="slider"><span>iterations <b id="iter-v">220</b></span>
+        <input type="range" id="iter" min="20" max="1200" step="10" value="220" /></label>
+      <label class="slider"><span>escape radius <b id="escape-v">16</b></span>
+        <input type="range" id="escape" min="2" max="200" step="1" value="16" /></label>
+    </section>
+
+    <section class="grp">
+      <h2>Shape-conform</h2>
+      <label class="row"><span>fit Julia set to photo</span><input type="checkbox" id="shape-enable" /></label>
+      <p class="tip">Grows the fractal in the <b>silhouette of the photo</b>, with detail
+        fringing the edges (Schor &amp; Kim 2023). Uses the Julia seed below as its texture.</p>
+      <label class="slider"><span>thinness α <b id="alpha-v">12</b></span>
+        <input type="range" id="alpha" min="2" max="120" step="1" value="12" /></label>
+      <label class="slider"><span>offset β <b id="beta-v">0.00</b></span>
+        <input type="range" id="beta" min="-1" max="1" step="0.01" value="0" /></label>
+      <label class="slider"><span>mask threshold <b id="sdfThreshold-v">0.50</b></span>
+        <input type="range" id="sdfThreshold" min="0.02" max="0.98" step="0.01" value="0.5" /></label>
+      <label class="row"><span>invert mask</span><input type="checkbox" id="sdfInvert" /></label>
+    </section>
+
+    <section class="grp" id="julia-grp">
+      <h2>Julia seed</h2>
+      <label class="slider"><span>c.re <b id="juliaRe-v">-0.70</b></span>
+        <input type="range" id="juliaRe" min="-2" max="2" step="0.001" value="-0.7" /></label>
+      <label class="slider"><span>c.im <b id="juliaIm-v">0.270</b></span>
+        <input type="range" id="juliaIm" min="-2" max="2" step="0.001" value="0.27" /></label>
+      <button class="mini-btn" id="pick-julia">pick seed by clicking the canvas</button>
+    </section>
+
+    <section class="grp">
+      <h2>View</h2>
+      <label class="slider"><span>rotation <b id="rot-v">0°</b></span>
+        <input type="range" id="rot" min="-180" max="180" step="1" value="0" /></label>
+      <button class="mini-btn" id="reset-view">reset view</button>
+      <p class="tip">scroll to zoom · drag to pan</p>
+    </section>
+
+    <section class="grp">
+      <h2>Coloring</h2>
+      <label class="row"><span>mode</span>
+        <select id="colorMode">
+          <option value="0">Photo · orbit trap</option>
+          <option value="3">Photo + palette hybrid</option>
+          <option value="1">Photo · final z</option>
+          <option value="2">Iteration palette</option>
+        </select>
+      </label>
+      <label class="row"><span>orbit trap</span>
+        <select id="trapType">
+          <option value="0">point</option>
+          <option value="1">line (horizontal)</option>
+          <option value="2">line (vertical)</option>
+          <option value="3">cross</option>
+          <option value="4">circle</option>
+          <option value="5">Voronoi (cellular)</option>
+        </select>
+      </label>
+      <label class="slider" id="voronoi-row" hidden><span>voronoi density <b id="voronoiScale-v">5.0</b></span>
+        <input type="range" id="voronoiScale" min="0.5" max="30" step="0.5" value="5" /></label>
+      <label class="slider"><span>trap.x <b id="trapX-v">0.00</b></span>
+        <input type="range" id="trapX" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>trap.y <b id="trapY-v">0.00</b></span>
+        <input type="range" id="trapY" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>image scale <b id="imgScale-v">0.50</b></span>
+        <input type="range" id="imgScale" min="0.05" max="3" step="0.01" value="0.5" /></label>
+      <label class="slider"><span>image rotate <b id="imgRot-v">0°</b></span>
+        <input type="range" id="imgRot" min="-180" max="180" step="1" value="0" /></label>
+      <label class="slider"><span>image off.x <b id="imgOffX-v">0.00</b></span>
+        <input type="range" id="imgOffX" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>image off.y <b id="imgOffY-v">0.00</b></span>
+        <input type="range" id="imgOffY" min="-2" max="2" step="0.01" value="0" /></label>
+      <label class="slider"><span>palette shift <b id="paletteShift-v">0.00</b></span>
+        <input type="range" id="paletteShift" min="0" max="1" step="0.005" value="0" /></label>
+      <label class="slider"><span>palette density <b id="paletteScale-v">1.0</b></span>
+        <input type="range" id="paletteScale" min="0.1" max="6" step="0.1" value="1" /></label>
+      <label class="slider"><span>photo / palette mix <b id="mix-v">0.50</b></span>
+        <input type="range" id="mix" min="0" max="1" step="0.01" value="0.5" /></label>
+      <label class="row"><span>interior</span>
+        <input type="color" id="interior" value="#0a0a14" /></label>
+    </section>
+
+    <section class="grp">
+      <h2>Post</h2>
+      <label class="slider"><span>brightness <b id="brightness-v">0.00</b></span>
+        <input type="range" id="brightness" min="-0.5" max="0.5" step="0.01" value="0" /></label>
+      <label class="slider"><span>contrast <b id="contrast-v">1.00</b></span>
+        <input type="range" id="contrast" min="0.2" max="2.5" step="0.01" value="1" /></label>
+      <label class="slider"><span>saturation <b id="saturation-v">1.10</b></span>
+        <input type="range" id="saturation" min="0" max="2.5" step="0.01" value="1.1" /></label>
+      <label class="slider"><span>gamma <b id="gamma-v">1.00</b></span>
+        <input type="range" id="gamma" min="0.3" max="3" step="0.01" value="1" /></label>
+    </section>
+
+    <section class="grp">
+      <h2>Video</h2>
+      <div class="kf-row">
+        <button class="mini-btn" id="kf-add">＋ keyframe</button>
+        <button class="mini-btn" id="kf-clear">clear</button>
+        <span id="kf-count" class="kf-count">0 keyframes</span>
+      </div>
+      <p class="tip">With 0–1 keyframes it renders a <b>zoom dive</b> into the current
+        view. Add 2+ keyframes (pan/zoom/recolor between each) for a custom path.</p>
+      <label class="slider"><span>duration <b id="vid-dur-v">8s</b></span>
+        <input type="range" id="vid-dur" min="2" max="30" step="1" value="8" /></label>
+      <label class="row"><span>fps</span>
+        <select id="vid-fps"><option>24</option><option selected>30</option><option>60</option></select></label>
+      <label class="row"><span>size</span>
+        <select id="vid-size">
+          <option value="1280x720" selected>720p landscape</option>
+          <option value="1920x1080">1080p landscape</option>
+          <option value="1080x1080">1080² square</option>
+          <option value="720x1280">720×1280 vertical</option>
+        </select></label>
+      <label class="row"><span>quality</span>
+        <select id="vid-crf">
+          <option value="14">high</option>
+          <option value="18" selected>balanced</option>
+          <option value="24">small file</option>
+        </select></label>
+      <label class="row"><span>ease in/out</span><input type="checkbox" id="vid-ease" checked /></label>
+      <button class="wide-btn" id="vid-render">▶ render video (mp4)</button>
+    </section>
+
+    <section class="grp">
+      <h2>Export</h2>
+      <label class="row"><span>multiplier</span>
+        <select id="exportScale">
+          <option value="1">1× (screen)</option>
+          <option value="2" selected>2×</option>
+          <option value="3">3×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <button class="wide-btn" id="export-btn">⤓ export PNG</button>
+      <button class="mini-btn" id="randomize-btn">🎲 randomize look</button>
+    </section>
+  </aside>
+
+  <div class="overlay" id="overlay">
+    <h1>🌀 Fractalize</h1>
+    <p>Drop a photograph and grow a fractal out of it. Your image is woven into the structure through orbit-trap sampling — the colors and forms of the photo reappear along the fractal's filaments. Everything runs in your browser; nothing is uploaded.</p>
+    <button class="start" id="start-btn">choose a photo</button>
+    <p class="sub">or drag an image anywhere</p>
+  </div>
+
+  <div class="render-overlay" id="render-overlay" hidden>
+    <div class="render-box">
+      <h3 id="render-title">Rendering video…</h3>
+      <div class="render-bar"><div id="render-fill"></div></div>
+      <p id="render-msg" class="render-msg"></p>
+      <button class="mini-btn" id="render-cancel">cancel</button>
+    </div>
+  </div>
+
+  <div class="docs-overlay" id="docs-overlay" hidden>
+    <div class="docs-card">
+      <button class="docs-close" id="docs-close" title="close">✕</button>
+      <article class="docs">
+        <h1>🌀 Fractalize — what is this?</h1>
+        <p class="lede">Fractalize grows a fractal <em>out of your photograph</em>. The
+        photo isn't pasted on top — it's woven into the fractal's structure, so its
+        colours and shapes reappear along the filaments and spirals.</p>
+
+        <h2>How a fractal is made here</h2>
+        <p>Every pixel on screen is a point <b>c</b> on the complex plane. We repeat a
+        simple rule — for the Mandelbrot set, <code>z → z² + c</code> — over and over and
+        watch what the running value <b>z</b> does:</p>
+        <ul>
+          <li>If <b>z</b> stays bounded forever, the pixel is <em>inside</em> the set.</li>
+          <li>If <b>z</b> flies off to infinity, the pixel <em>escapes</em> — and how
+          quickly it escapes is what classic fractal colouring is built on.</li>
+        </ul>
+        <p>Each family bends the rule a little: <b>Julia</b> fixes <b>c</b> and varies the
+        start point; <b>Burning Ship</b> takes <code>|z|</code> each step; <b>Tricorn</b>
+        conjugates it; <b>Celtic</b>, <b>Buffalo</b> and <b>Heart</b> fold the squared term
+        with absolute values for spikier, mirror-symmetric forms; <b>Phoenix</b> mixes in the
+        <em>previous</em> z (its <em>phoenix p</em> slider) for woven, feather-like sets. The
+        <b>power</b> slider raises z to higher (even fractional) exponents on any family — set
+        it above 2 on Mandelbrot for the classic Multibrot lobes.</p>
+        <p>The <b>orbit trap</b> can also be a <b>Voronoi</b> (cellular) field: instead of
+        measuring the orbit against a point or line, it measures distance to a lattice of
+        scattered cell sites, scattering your photo through a crystalline, stained-glass
+        structure. The <em>voronoi density</em> slider sets the cell size.</p>
+
+        <h2>Where your photo comes in: orbit traps</h2>
+        <p>As <b>z</b> bounces around during the iteration, it traces a path — an
+        <em>orbit</em>. We watch how close that orbit comes to a chosen shape (a point, a
+        line, a cross, a circle) and remember the spot of closest approach. That spot is
+        then used as a coordinate to <b>look up a colour in your photograph</b>.</p>
+        <p>Because nearby pixels have orbits that graze the trap at slightly different
+        places, the photo gets stretched and folded along the fractal's natural contours.
+        This is what makes the image <em>become</em> the fractal rather than sit behind it.</p>
+
+        <h2>Colour modes</h2>
+        <ul>
+          <li><b>Photo · orbit trap</b> — sample the photo at the orbit's closest approach
+          to the trap. The most "painterly" mode.</li>
+          <li><b>Photo + palette hybrid</b> — blend the orbit-trap photo with a gradient
+          built from the photo's own dominant colours.</li>
+          <li><b>Photo · final z</b> — sample the photo at the orbit's final position
+          instead of its closest approach. Wilder, more scattered.</li>
+          <li><b>Iteration palette</b> — classic escape-time colouring, but the gradient is
+          extracted from your photo by median-cut.</li>
+        </ul>
+
+        <h2>The controls, group by group</h2>
+        <p><b>Photograph</b> — load an image, then optionally <em>drag a rectangle on the
+        preview</em> to feed only a section of it into the fractal. The swatch strip shows
+        the extracted palette; the histogram shows tone distribution.</p>
+        <p><b>Fractal</b> — type, power, iteration count (higher = more detail in thin
+        filaments, but slower), and escape radius (larger radii smooth the colour bands).</p>
+        <p><b>Julia seed</b> — only matters for Julia type. Nudge <code>c.re/c.im</code> or
+        click <em>pick seed</em> and then click anywhere on the canvas to lift a seed
+        straight off the plane.</p>
+        <p><b>View</b> — drag to pan, scroll to zoom toward the cursor, rotate, reset.</p>
+        <p><b>Coloring</b> — the heart of the look. Trap shape and position decide which
+        part of the orbit drives the image; <em>image scale / rotate / offset</em> control
+        how the photo maps onto the orbit space; <em>palette shift &amp; density</em> cycle
+        the gradient; <em>mix</em> balances photo against palette / interior.</p>
+        <p><b>Post</b> — brightness, contrast, saturation, gamma, applied after everything.</p>
+        <p><b>Export</b> — render at up to 4× screen resolution to a PNG. <em>Randomize
+        look</em> reshuffles the colouring controls for happy accidents.</p>
+
+        <h2>Shape-conform mode</h2>
+        <p>Normally a Julia set makes an abstract blob. This mode bends it into the
+        <em>silhouette of your photo</em> while keeping fractal detail fringing the edges —
+        a 2D take on Schor &amp; Kim's <em>shape modulus</em> (SGP 2023).</p>
+        <p>It works by splitting the fractal map into a <b>modulus</b> (magnitude, which
+        controls the coarse shape) and a <b>versor</b> (direction, which controls the fine
+        texture). We threshold the photo into a silhouette, compute its signed distance
+        field <code>φ</code>, and replace the modulus with <code>e^(α·(φ+β))</code>. Points
+        deep inside the shape collapse into the set; points outside escape; fractal detail
+        survives in the shell straddling the surface.</p>
+        <ul>
+          <li><b>thinness α</b> — how tightly detail hugs the silhouette (higher = thinner).</li>
+          <li><b>offset β</b> — pushes the detail shell in or out from the edge.</li>
+          <li><b>mask threshold / invert</b> — choose which part of the photo is the
+          "shape" (bright subject vs dark, etc.).</li>
+          <li>The <b>Julia seed</b> sliders now pick the <em>texture</em> of the fringe.</li>
+        </ul>
+        <p>Coloring still comes from your photo via the orbit traps. (This mode uses a
+        custom map, so it's about shape-fitting rather than the infinite zoom below.)</p>
+
+        <h2>Deep zoom</h2>
+        <p>Plain 32-bit GPU maths goes blocky after a few thousand × zoom. Past that point
+        Fractalize automatically switches the power-2 fractals (Mandelbrot, Julia, Burning
+        Ship, Tricorn) to an emulated <em>double-float</em> path — two float32s acting as one
+        higher-precision number — which keeps detail crisp out to roughly a billion ×. The
+        HUD shows <code>hi-precision</code> when it's active. (Fractional powers stay in
+        single precision, so zoom is shallower there.)</p>
+
+        <h2>Video</h2>
+        <p>The <b>Video</b> panel renders an animation entirely in your browser and encodes
+        it to an mp4 with ffmpeg (WebAssembly). Two ways to use it:</p>
+        <ul>
+          <li><b>Zoom dive (default).</b> With no keyframes, it pulls back from your current
+          view and dives smoothly into it — palette gently cycling on the way.</li>
+          <li><b>Keyframe path.</b> Set up a view, hit <em>＋ keyframe</em>, change anything
+          (pan, zoom, recolor, rotate, move the Julia seed), add another keyframe, and so on.
+          Render tweens through them — zoom is interpolated geometrically so it feels even.</li>
+        </ul>
+        <p>Pick duration, fps, size (incl. square &amp; vertical for social), and quality.
+        Frames are rendered one at a time at full quality — slower than realtime but perfectly
+        smooth on playback. The first render downloads the ~30&nbsp;MB encoder core once.</p>
+
+        <h2>Tips</h2>
+        <ul>
+          <li>Zoom into the boundary of the set — the busy edges are where orbit traps put
+          the most photo detail.</li>
+          <li>High-contrast photos with a few bold colours read best.</li>
+          <li>Crop to a face or a single object, then set a <em>point</em> trap and small
+          image scale for a kaleidoscopic portrait.</li>
+          <li>Low iterations + large escape radius gives soft, smoky colour; high iterations
+          gives crisp, threadlike structure.</li>
+        </ul>
+
+        <h2>Privacy &amp; tech</h2>
+        <p>Everything runs in your browser on the GPU (WebGL). Your photo never leaves the
+        device — there's no upload and no server.</p>
+
+        <p class="siblings">Part of a small series of photo experiments:
+          <a href="/astro">/astro</a> (read a photo's sky by its timestamp) ·
+          <a href="/prism">/prism</a> (the camera through a prismatic cornea).</p>
+      </article>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
