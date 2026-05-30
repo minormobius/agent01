@@ -31,10 +31,20 @@ window.OWAIN.propp = {
       realized: "Inside Cynon's tale, the donor sequence runs twice over: the courteous yellow-clad host who lodges, feeds and re-clothes the knight and then — reluctantly — gives the directions, and the monstrous keeper of beasts who points the last stage of the road to the fountain. The Welsh romance splits Propp's donor into a courtly half and a wild half; Owain will pass the same two donors again in Movement III.", passage: 2 },
     { act: "frame", sym: "A↓", node: "The reported defeat", name: "Villainy / the humbling", gloss: "The harm that opens (here, hardens) the tale.",
       realized: "Cynon raises the storm, the Black Knight answers, and Cynon is unhorsed and stripped of his mount — not even thought worth capturing. The defeat is reported, not lived; but it is what gives Owain's quest its object. The lack named in the frame is now a concrete shame at a nameable place, inside Arthur's own dominion, that no one has avenged.", passage: 2 },
-    // Owain's own arc (his secret Departure, the Donors passed again, the
-    // Struggle with the Black Knight, the won bride, the violated term, the
-    // descent into madness, the lion-helper, the liquidations) is seeded as
-    // the translation reaches each movement.
+    // ── Act 2: quest ─────────────────────────────────────────────
+    { act: "quest", sym: "↑", node: "Departure", name: "Departure of the hero", gloss: "The hero leaves home on the quest.",
+      realized: "After the meal Owain slips away in silence, arms himself at dawn, and rides out alone across \"the ends of the earth and desert mountains\" — telling no one at court. The Welsh hero's departure is secret and solitary, the inverse of Cynon's boastful youth: he acts where Cynon only spoke.", passage: 3 },
+    { act: "quest", sym: "DEF", node: "The donors, passed again", name: "Donor sequence (lived)", gloss: "The hero meets the donor(s) and is given the means.",
+      realized: "Owain passes the same two donors Cynon described — the courteous yellow host and the monstrous keeper of beasts — but lives them rather than dreads them: the maidens are lovelier, the welcome warmer, and \"the black man's size pleased Owain\" where it had only awed Cynon. The road that humbled the first knight equips the second.", passage: 3 },
+    { act: "quest", sym: "H", node: "Struggle", name: "Struggle with the villain", gloss: "Hero and villain join in direct combat.",
+      realized: "Owain raises the storm with the bowl, and the Black Knight answers; they break both lances, draw swords, and hew. Where Cynon was unhorsed at the first onset, Owain stands and trades blows — the same encounter, told in nearly the same words, turning the opposite way.", passage: 3 },
+    { act: "quest", sym: "I", node: "Victory", name: "Victory over the villain", gloss: "The villain is defeated.",
+      realized: "Owain's stroke goes through helm, headpiece and coif, through skin, flesh and bone, to the brain: a mortal wound. The fountain's defender turns and flees, dying. The victory is also the act that makes the widow — the prize and the problem of the rest of the tale.", passage: 3 },
+    { act: "quest", sym: "(Pr↺)", node: "The trap", name: "Pursuit inverted — the hero caged", gloss: "A reversal: the victor is himself ensnared.",
+      realized: "Owain chases the dying knight to the gate of a great shining castle; the portcullis drops, shears his horse in two behind the saddle and the rowels from his heels, and shuts him between the two gates. Propp's Pursuit is inverted — it is not the villain who is chased and trapped, but the victor. The Welsh romance ends the movement on the cage, and turns the rescue over to a woman (Movement IV).", passage: 3 },
+    // The bride won, the violated term, the descent into madness, the
+    // lion-helper, and the closing liquidations are seeded as the
+    // translation reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the frame and the known shape of the romance, Owain's distinctive Propp profile (relative to the Welsh sister-tales) is shaping up around three features:",

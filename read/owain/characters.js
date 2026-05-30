@@ -24,7 +24,7 @@ window.OWAIN.characters = {
     // — Principals —
     { id: "owain", name: "Owain ab Urien", role: "principal", alt: "Yvain (Chrétien); Owain mab Urien Rheged", epithet: "knight of Arthur's court; lord of the fountain; the knight of the lion",
       blurb: "The hero. A knight of Arthur's court who, stung by Cei's mockery and moved by Cynon's tale of defeat, rides alone to the magic fountain, pours the water, endures the storm, and meets and mortally wounds its Black Knight. Trapped in the dead man's castle, made invisible by Luned's ring, he falls in love with the widow he has just made and — through Luned's contrivance — weds her and takes up the fountain's defence. Then Arthur's company finds him; he returns to court for a visit, overstays the term his wife set, and loses everything: she sends a messenger to strip the ring from his finger, and he runs mad and naked into the wilderness. Healed by a noblewoman's ointment, companioned by a lion he saves from a serpent, he wins his way back through a chain of rescues to reconciliation. Historically <strong>Owain mab Urien</strong> was a real sixth-century king of Rheged in the Hen Ogledd (the Old North), praised in Taliesin's elegies — euhemerised demotion in reverse, a historical prince climbing into Arthurian romance.",
-      appears: [1, 2], pending: true,
+      appears: [1, 2, 3], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "luned", label: "saved by / saviour of" }, { to: "lion", label: "companion of" }, { to: "black-knight", label: "slayer of" }, { to: "cynon", label: "completes the quest of" }, { to: "arthur", label: "knight of" }, { to: "cei", label: "mocked by" }, { to: "gwalchmei", label: "fights unknowing" }] },
 
     { id: "cynon", name: "Cynon ab Clydno", role: "court", alt: "Calogrenant (Chrétien)", epithet: "the knight whose defeat opens the tale",
@@ -49,7 +49,7 @@ window.OWAIN.characters = {
 
     { id: "black-knight", name: "The Black Knight of the Fountain", role: "fountain", alt: "Esclados the Red (Chrétien)", epithet: "the fountain's defender",
       blurb: "The dark champion who answers the storm whenever a traveller pours water on the fountain's slab — the defender Cynon could not beat and Owain mortally wounds. Husband of the Countess. His death creates the vacancy that Owain, through Luned, fills: to win the lady Owain must first take the dead man's office. (In Chrétien he is Esclados le Ros.)",
-      appears: [2], pending: true,
+      appears: [2, 3], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "owain", label: "slain by" }, { to: "cynon", label: "vanquisher of" }, { to: "fountain", label: "defender of" }] },
 
     // — Arthur's court —
@@ -81,7 +81,7 @@ window.OWAIN.characters = {
     // — Marvels of the road —
     { id: "keeper", name: "The keeper of beasts", role: "road", alt: "the great black man of the wood", epithet: "the one-eyed, one-footed herdsman",
       blurb: "A huge black man seated on a mound in a forest clearing, one-eyed and one-footed, with an iron club, lord over all the wild animals of the wood — who gather and bow to him at his summons. He directs the questing knight (first Cynon, then Owain) to the magic fountain. A figure straight out of the older Insular Otherworld: the monstrous herdsman as threshold-guardian and giver-of-directions. <em>Enters in Movement II.</em>",
-      appears: [2], pending: true,
+      appears: [2, 3], pending: true,
       rel: [{ to: "cynon", label: "directs" }, { to: "owain", label: "directs" }] },
   ],
 };
