@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>splice — gel electrophoresis</title>
+<meta name="description" content="An interactive agarose gel electrophoresis simulator: crank the voltage, pick your agarose percentage, power the field, and watch DNA fragments migrate to their steady-state positions — supercoiled, nicked, and linear running true to a real lab gel. Powered by a calibrated migration model (Rust→WASM).">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#283039; --accent:#5ad1b0; --accent2:#7aa2ff; --warn:#e3b341; --bad:#f0776a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent2);text-decoration:none}
+  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;
+    background:rgba(14,17,22,.9);backdrop-filter:blur(6px);padding:11px 20px;display:flex;align-items:center;gap:12px}
+  .crumb{font-size:13px;color:var(--muted)} .crumb a{color:var(--muted)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .wrap{max-width:980px;margin:0 auto;padding:22px 20px 80px}
+  h1{font-size:25px;margin:8px 0 2px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 14px;font-size:14.5px}
+  .modes{font-size:13px;margin:0 0 14px;color:var(--muted)} .modes a{color:var(--accent2)}
+  .layout{display:grid;grid-template-columns:1fr 270px;gap:18px}
+  @media(max-width:760px){.layout{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin:0 0 12px;font-weight:700}
+  canvas{display:block;width:100%;border:1px solid var(--line);border-radius:8px}
+  .ctl{margin-bottom:16px}
+  .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:4px}
+  .ctl label b{color:var(--ink);font-family:var(--mono)}
+  input[type=range]{width:100%;accent-color:var(--accent2)}
+  button{background:#1c2230;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 15px;font-size:14px;cursor:pointer;font-weight:600;width:100%}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#06120e;border-color:var(--accent)}
+  button.run{background:var(--bad);color:#fff;border-color:var(--bad)}
+  button.run.on{background:var(--accent);color:#06120e;border-color:var(--accent)}
+  .btncol{display:flex;flex-direction:column;gap:8px}
+  .small{font-size:12px;color:var(--muted)} .muted{color:var(--muted)} .mono{font-family:var(--mono)}
+  .samples{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .samp{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:7px;padding:7px 9px;cursor:pointer;color:var(--muted)}
+  .samp:hover{border-color:var(--accent2);color:var(--ink)}
+  .note{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .readout{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / gel</span>
+  <span class="badge" id="badge">engine: loading…</span>
+</header>
+
+<div class="wrap">
+  <h1>Gel electrophoresis</h1>
+  <p class="sub">Load your samples, crank the voltage, power the field, and watch the DNA migrate. Bands settle exactly where a real gel would put them — supercoiled ahead, nicked behind, linear true.</p>
+  <p class="modes">also: <a href="/game/">cloning</a> · <a href="/game/primer.html">primer design</a> · <a href="/game/evolve.html">evolution</a> · <a href="/lab/">lab</a></p>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <h2>The gel</h2>
+        <canvas id="gel" width="640" height="380"></canvas>
+        <div class="readout" id="readout"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>Run conditions</h2>
+        <div class="ctl">
+          <label>voltage <b><span id="vV">100</span> V</b></label>
+          <input type="range" id="volt" min="20" max="200" step="5" value="100">
+        </div>
+        <div class="ctl">
+          <label>agarose <b><span id="vA">1.0</span> %</b></label>
+          <input type="range" id="agar" min="0.5" max="2.0" step="0.1" value="1.0">
+        </div>
+        <div class="btncol">
+          <button class="run" id="power">⚡ Power on</button>
+          <button id="run45">Run to 45 min</button>
+          <button id="reset">Reset (re-load)</button>
+        </div>
+        <div class="note">Higher voltage → faster migration (but smears resolution if you overrun). Higher agarose % → resolves smaller fragments, compresses big ones near the well.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Load a sample</h2>
+        <div class="samples" id="samples"></div>
+        <div class="note">Lane 1 is always a 1 kb ladder. Click a sample to load it into lane 2.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { loadEngine, Engine } from '../lab/engine.js';
+import { createGel, LADDER } from '../lab/gel-sim.js';
+
+const $ = id => document.getElementById(id);
+let gel, powered = false;
+
+const SAMPLES = [
+  { label:'uncut plasmid (3 kb)', frags:['3000:sc','3000:nick'],
+    note:'A miniprep before any cut — runs as supercoiled + nicked, NOT one clean band.' },
+  { label:'single cut → linearized', frags:['3000'],
+    note:'One enzyme: the circle opens to a single linear band at true size.' },
+  { label:'good clone (vector+insert)', frags:['2635','510'],
+    note:'Double digest of a successful 3.1 kb recombinant: backbone + insert drop out.' },
+  { label:'empty vector (re-ligated)', frags:['2635'],
+    note:'Self-ligated vector with no insert — only the backbone band.' },
+  { label:'partial digest', frags:['3145','2635','510'],
+    note:'Incomplete cutting: uncut full-length PLUS the expected fragments.' },
+  { label:'PCR product (500 bp)', frags:['500'],
+    note:'A clean amplicon — one band.' },
+];
+
+function loadSample(s){
+  gel.setLanes([
+    { label:'1 kb ladder', ladder:true, frags:LADDER },
+    { label:s.label, frags:s.frags },
+  ]);
+  gel.reset();
+  powered = false; $('power').textContent='⚡ Power on'; $('power').classList.remove('on');
+  $('readout').textContent = s.note;
+}
+
+function applyCond(){
+  const v = +$('volt').value, a = +$('agar').value;
+  $('vV').textContent = v; $('vA').textContent = a.toFixed(1);
+  gel.setConditions({ voltage:v, agarose:a, gelLen:8 });
+}
+
+$('volt').addEventListener('input', applyCond);
+$('agar').addEventListener('input', applyCond);
+
+$('power').onclick = ()=>{
+  powered = !powered;
+  $('power').textContent = powered ? '⏸ Power off' : '⚡ Power on';
+  $('power').classList.toggle('on', powered);
+  gel.power(powered);
+};
+$('run45').onclick = ()=>{
+  powered=false; $('power').textContent='⚡ Power on'; $('power').classList.remove('on');
+  gel.run(45);
+};
+$('reset').onclick = ()=> { const cur = $('samples').querySelector('.samp.active'); loadSample(SAMPLES[cur? +cur.dataset.i : 0]); };
+
+(async()=>{
+  try{
+    await loadEngine('../lab/splice_engine.wasm');
+    $('badge').textContent='engine: ready'; $('badge').style.color='var(--accent)';
+    gel = createGel($('gel'), Engine);
+    gel.onState = (min)=>{ /* live minute readout handled in canvas */ };
+    // sample buttons
+    $('samples').innerHTML = SAMPLES.map((s,i)=>`<div class="samp${i===0?' active':''}" data-i="${i}">${s.label}</div>`).join('');
+    $('samples').querySelectorAll('.samp').forEach(el=> el.onclick=()=>{
+      $('samples').querySelectorAll('.samp').forEach(e=>e.classList.remove('active'));
+      el.classList.add('active');
+      loadSample(SAMPLES[+el.dataset.i]);
+    });
+    applyCond();
+    loadSample(SAMPLES[0]);
+  }catch(e){ $('badge').textContent='engine: failed'; $('badge').style.color='var(--bad)'; console.error(e); }
+})();
+</script>
+</body>
+</html>
