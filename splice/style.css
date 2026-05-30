@@ -53,16 +53,22 @@ footer{border-top:1px solid var(--line);margin-top:60px;padding-top:24px;color:v
 .src b{color:var(--ink);font-weight:600}
 .q{border-left:3px solid var(--accent);padding:4px 0 4px 16px;margin:14px 0;color:var(--ink)}
 
-/* landing cards */
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:28px 0 8px}
-@media(max-width:640px){.cards{grid-template-columns:1fr}}
-.card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:14px;
-  padding:20px 22px;transition:border-color .15s,transform .15s}
+/* landing — section labels + equal-weight cards */
+.sectlabel{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin:32px 0 12px;display:flex;align-items:center;gap:10px}
+.sectlabel::after{content:"";flex:1;height:1px;background:var(--line)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 8px}
+@media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.cards{grid-template-columns:1fr}}
+.card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:16px 17px;min-height:156px;transition:border-color .15s,transform .15s}
 .card:hover{border-color:var(--accent);text-decoration:none;transform:translateY(-2px)}
-.card .k{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:var(--mono)}
-.card h3{margin:8px 0 6px;color:var(--ink);font-size:20px}
-.card p{margin:0;color:var(--muted);font-size:14.5px}
-.card .go{display:inline-block;margin-top:12px;color:var(--accent);font-weight:600;font-size:14px}
+.card .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.card .k .ico{font-size:14px}
+.card h3{margin:7px 0 6px;color:var(--ink);font-size:17px;letter-spacing:-.2px}
+.card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.5;flex:1}
+.card .go{display:inline-block;margin-top:12px;color:var(--accent2);font-weight:600;font-size:13px;font-family:var(--mono)}
 .card.live .k{color:var(--accent)}
 .tagrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .tag{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:999px;
