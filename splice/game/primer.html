@@ -55,6 +55,9 @@
   .gate{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:7px;padding:5px 11px;color:var(--muted)}
   .gate.ok{border-color:var(--accent);color:var(--accent)}
   .gate.bad{border-color:var(--bad);color:var(--bad)}
+  .tmaxis-wrap{margin-top:16px}
+  .tmaxis-label{font-size:11.5px;color:var(--muted);margin-bottom:5px}
+  canvas#tmaxis{display:block;width:100%;height:92px;background:#0a0d12;border:1px solid var(--line);border-radius:8px}
   .verdict{margin-top:10px;padding:13px 16px;border-radius:10px;border:1px solid var(--line);font-size:14.5px}
   .verdict.win{border-color:var(--accent);background:rgba(90,209,176,.08)}
   .verdict.idle{color:var(--muted)}
@@ -90,10 +93,9 @@
     <div class="brief" id="brief">—</div>
     <canvas id="tpl" width="940" height="120"></canvas>
     <div class="legend">
-      <span style="color:var(--accent2)">▮</span> forward primer &nbsp;
-      <span style="color:var(--bad)">▮</span> reverse primer &nbsp;
-      <span style="color:var(--accent)">▮</span> amplified region &nbsp;
-      shaded = GC-rich landing zones
+      Position 5'→3' along the top strand. The lit band <span style="color:var(--accent)">▮</span> between the primers <b>is the amplicon</b> — the sequence that gets copied.
+      <span style="color:var(--accent2)">▮</span> forward primer (top strand, left end) &nbsp;
+      <span style="color:var(--bad)">▮</span> reverse primer (reverse-complement of the right end, primes the bottom strand) &nbsp;·&nbsp; greener shading = GC-richer.
     </div>
 
     <div class="primers">
@@ -117,6 +119,11 @@
         <div class="tmgauge" id="revGauge"><div class="target"></div><div class="tick"></div></div>
         <div class="warns" id="revWarn"></div>
       </div>
+    </div>
+
+    <div class="tmaxis-wrap">
+      <div class="tmaxis-label">melting temperature — where the two primers sit, and the gap you'd have to bridge with one annealing temp</div>
+      <canvas id="tmaxis" width="940" height="92"></canvas>
     </div>
 
     <div class="gates" id="gates"></div>
@@ -200,6 +207,65 @@ function sidePanel(seq, ttm, seqEl, metEl, gaugeEl, warnEl){
   return m;
 }
 
+// The shared temperature axis: shows where both primers melt, the target
+// window, and — the live suboptimality cue — the ΔTm gap as a bar that grows
+// and reddens when the two primers disagree. A single PCR uses ONE annealing
+// temperature for both primers; that compromise temp is drawn too, so a wide
+// gap visibly leaves one primer stranded.
+function drawTmAxis(f, r){
+  const cv=$('tmaxis'), g=cv.getContext('2d'); const W=cv.width,H=cv.height;
+  g.clearRect(0,0,W,H);
+  const x0=46, x1=W-46, lo=45, hi=78;            // °C range
+  const X = t => x0 + (Math.max(lo,Math.min(hi,t))-lo)/(hi-lo)*(x1-x0);
+  const axisY = 58;
+  // ticks
+  g.font='10px ui-monospace,monospace'; g.textAlign='center'; g.textBaseline='middle';
+  g.strokeStyle='#283039'; g.lineWidth=1;
+  for(let t=45;t<=75;t+=5){ const x=X(t); g.beginPath(); g.moveTo(x,axisY-4); g.lineTo(x,axisY+4); g.stroke();
+    g.fillStyle='#5b6b7d'; g.fillText(t+'°', x, axisY+16); }
+  g.strokeStyle='#3a4658'; g.beginPath(); g.moveTo(x0,axisY); g.lineTo(x1,axisY); g.stroke();
+  // target window band (targetTm ± tol)
+  const tw0=X(L.targetTm-L.tol), tw1=X(L.targetTm+L.tol);
+  g.fillStyle='rgba(227,179,65,.14)'; g.fillRect(tw0,axisY-26,tw1-tw0,52);
+  g.strokeStyle='rgba(227,179,65,.5)'; g.setLineDash([3,3]);
+  g.beginPath(); g.moveTo(X(L.targetTm),axisY-26); g.lineTo(X(L.targetTm),axisY+12); g.stroke(); g.setLineDash([]);
+  g.fillStyle='#e3b341'; g.fillText(`target ${L.targetTm}±${L.tol}`, X(L.targetTm), axisY-32);
+  if(!f||!r) return;
+
+  const dTm = Math.abs(f.tm-r.tm);
+  const over = dTm > L.dTmMax;
+  // the ΔTm gap bar connecting the two primer Tms
+  const gx0=X(Math.min(f.tm,r.tm)), gx1=X(Math.max(f.tm,r.tm));
+  g.strokeStyle = over ? '#f0776a' : '#5ad1b0'; g.lineWidth = over?3:2;
+  g.beginPath(); g.moveTo(gx0,axisY-14); g.lineTo(gx1,axisY-14); g.stroke();
+  // gap label
+  g.fillStyle = over ? '#f0776a' : '#5ad1b0'; g.textAlign='center';
+  g.fillText(`ΔTm ${dTm.toFixed(1)}°${over?' — mismatched':''}`, (gx0+gx1)/2, axisY-20);
+
+  // annealing temperature a real PCR would use: ~min(Tm) - 3, must serve both.
+  // If the gap is wide, the hotter primer is far above Ta -> mis-priming risk;
+  // the cooler one near Ta -> the binding one. We mark Ta and shade the orphan.
+  const ta = Math.min(f.tm,r.tm) - 3;
+  const tax = X(ta);
+  g.strokeStyle='#9aa7b4'; g.setLineDash([2,2]); g.lineWidth=1;
+  g.beginPath(); g.moveTo(tax,axisY-26); g.lineTo(tax,axisY+22); g.stroke(); g.setLineDash([]);
+  g.fillStyle='#9aa7b4'; g.fillText(`anneal ≈${ta.toFixed(0)}°`, tax, axisY+30);
+
+  // primer markers (lollipops)
+  const mark=(t,col,label,up)=>{
+    const x=X(t), y=up?axisY-2:axisY+2;
+    g.strokeStyle=col; g.lineWidth=2; g.beginPath(); g.moveTo(x,axisY); g.lineTo(x, up?axisY-2:axisY+2); g.stroke();
+    g.fillStyle=col; g.beginPath(); g.arc(x, up?axisY-2:axisY+2, 5, 0, 7); g.fill();
+    g.fillStyle=col; g.textAlign='center'; g.fillText(label, x, up?axisY-9:axisY+13);
+  };
+  // draw the cooler primer first (so its label doesn't overlap)
+  const cooler = f.tm<=r.tm ? ['F',f,'#7aa2ff'] : ['R',r,'#f0776a'];
+  const hotter = f.tm<=r.tm ? ['R',r,'#f0776a'] : ['F',f,'#7aa2ff'];
+  g.font='10px ui-monospace,monospace';
+  mark(cooler[1].tm, cooler[2], cooler[0], true);
+  mark(hotter[1].tm, hotter[2], hotter[0], false);
+}
+
 function refresh(){
   if(!L) return;
   $('fwdLenV').textContent = $('fwdLen').value+' nt';
@@ -207,6 +273,7 @@ function refresh(){
   drawTemplate();
   const f = sidePanel(fwdSeq(), L.targetTm, $('fwdSeq'), $('fwdMet'), $('fwdGauge'), $('fwdWarn'));
   const r = sidePanel(revSeq(), L.targetTm, $('revSeq'), $('revMet'), $('revGauge'), $('revWarn'));
+  drawTmAxis(f, r);
   renderGates(f, r);
   return { f, r };
 }
