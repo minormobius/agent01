@@ -62,6 +62,26 @@ if (!navigator.gpu) {
   throw new Error('WebGPU not available in this browser');
 }
 
+// Probe the image proxy at startup. A correctly-deployed Pages Function
+// replies 400 + JSON {ok:false, proxy:'…'} to a GET with no params; anything
+// else (404, HTML, fetch failure) means it isn't routed and media won't
+// work regardless of what's in the queue.
+async function probeImageProxy() {
+  try {
+    const r = await fetch('/api/img', { cache: 'no-store' });
+    if (r.status === 400) {
+      const ct = r.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const j = await r.json().catch(() => ({}));
+        if (j && j.proxy) return { ok: true, version: j.proxy };
+      }
+    }
+    return { ok: false, status: r.status, marker: r.headers.get('x-orb-proxy') || null };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
 function resizeCanvas() {
   // DPR cap of 2 — iPhones report 3, which would mean 9x fragment shader
   // cost vs CSS pixels. 2 hits a sharp/fast balance once tiles are rich.
@@ -335,10 +355,14 @@ async function renderPostTile(entry, size) {
   // Load all media bitmaps in parallel — each via /api/img — keeping nulls
   // so videos with failed thumbnails still draw their play overlay.
   const media = (entry.media || []).slice(0, 4);
-  const loaded = await Promise.all(media.map(async m => ({
-    media: m,
-    bitmap: m.thumb ? await loadImage(m.thumb) : null,
-  })));
+  const loaded = await Promise.all(media.map(async m => {
+    if (!m.thumb) return { media: m, bitmap: null };
+    mediaAttempted++;
+    const bm = await loadImage(m.thumb);
+    if (bm) mediaSucceeded++;
+    else lastMediaFailReason = lastImageError || lastMediaFailReason;
+    return { media: m, bitmap: bm };
+  }));
   const valid = loaded.filter(p => p.bitmap);
 
   let imgArea = 0;
@@ -851,6 +875,9 @@ let tileQueue = [];
 let queueIndex = 0;
 let successCount = 0;
 let lastFetchedUrl = '';
+let mediaAttempted = 0;
+let mediaSucceeded = 0;
+let lastMediaFailReason = '';
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -870,6 +897,9 @@ form.addEventListener('submit', async (e) => {
       }
       queueIndex = 0;
       successCount = 0;
+      mediaAttempted = 0;
+      mediaSucceeded = 0;
+      lastMediaFailReason = '';
       lastFetchedUrl = wantedUrl;
       const withMedia = tileQueue.filter(t => t.media?.length).length;
       const videoCount = tileQueue.reduce((n, t) => n + (t.media || []).filter(m => m.kind === 'video').length, 0);
@@ -914,8 +944,13 @@ form.addEventListener('submit', async (e) => {
     queueIndex++;
     successCount++;
     const k = entry.kind === 'quote' ? '↪' : '';
-    const gridFull = successCount >= cols * rows ? ' (grid full · next stamps wrap)' : '';
-    setStatus(`stamped ${successCount} / ${tileQueue.length} ${k} @${entry.author?.handle || ''}${gridFull}`);
+    const gridFull = successCount >= cols * rows ? ' (grid full · wraps)' : '';
+    // Surface media stats so it's obvious when text is fine but pictures
+    // aren't landing. Reason of the last failure is helpful when 0/X.
+    const mediaStat = mediaAttempted
+      ? ` · media ${mediaSucceeded}/${mediaAttempted}` + (mediaSucceeded === 0 ? ` (last: ${lastMediaFailReason || 'unknown'})` : '')
+      : '';
+    setStatus(`stamped ${successCount}/${tileQueue.length} ${k} @${entry.author?.handle || ''}${gridFull}${mediaStat}`);
   } catch (err) {
     console.error(err);
     setStatus('error: ' + (err?.message || String(err)), true);
@@ -928,9 +963,19 @@ form.addEventListener('submit', async (e) => {
   try {
     await initWebGPU();
     requestAnimationFrame(frame);
-    // No auto-load: the orb just sits and glows on its own. Thread loading
-    // is wired up (paste a URL + hit load) but doesn't fire until asked.
-    setStatus('ready · paste a thread URL and hit load to populate');
+    setStatus('checking image proxy…');
+    const probe = await probeImageProxy();
+    if (probe.ok) {
+      setStatus(`ready · image proxy ${probe.version} · paste a thread URL and hit load`);
+    } else {
+      // Either the Pages Function didn't deploy (so /api/img returns the
+      // assets handler's 404) or it returned an unexpected response. Either
+      // way media will fail; surface it loudly so we don't silently end up
+      // with text-only tiles.
+      const why = probe.status ? `HTTP ${probe.status}` : (probe.error || 'no response');
+      setStatus(`⚠ image proxy not responding (${why}) — media will fail. Text tiles will still draw.`, true);
+      console.warn('orb: /api/img probe failed', probe);
+    }
   } catch (err) {
     console.error('orb init failed:', err);
     setStatus('init failed: ' + (err?.message || String(err)), true);
