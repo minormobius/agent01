@@ -97,5 +97,111 @@
     <p>splice.mino.mobi · an independent web port inspired by SpliceCraft (© <a href="https://github.com/Binomica-Labs">Binomica Labs</a>, MIT-licensed). Not affiliated. · <a href="/docs/">docs</a> · <a href="/roadmap/">roadmap</a> · <a href="/api/health">status</a></p>
   </footer>
 </div>
+
+<script>
+// Clickable double-helix navigator. Each base pair is one endpoint; the whole
+// rung (both nucleotides + the bar) is a hit target. Gently rotates. The cards
+// above are the accessible fallback — this is decorative-but-functional.
+(function(){
+  const cv = document.getElementById('helix');
+  if(!cv || !cv.getContext) return;
+  const g = cv.getContext('2d');
+  const DPR = Math.min(2, window.devicePixelRatio || 1);
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+  const NODES = [
+    { href:'/game/build.html', label:'Campaign', col:'#5ad1b0' },
+    { href:'/game/',           label:'Game',     col:'#7aa2ff' },
+    { href:'/game/primer.html',label:'Primer',   col:'#e3b341' },
+    { href:'/game/evolve.html',label:'Evolve',   col:'#c08bff' },
+    { href:'/game/gel.html',   label:'Gel',      col:'#7ad1e0' },
+    { href:'/table/',          label:'Table',    col:'#5ad1b0' },
+    { href:'/lab/',            label:'Lab',      col:'#8fe39a' },
+    { href:'/docs/',           label:'Docs',     col:'#9aa7b4' },
+    { href:'/roadmap/',        label:'Roadmap',  col:'#9aa7b4' },
+  ];
+  const BASES = [['A','T'],['T','A'],['G','C'],['C','G'],['A','T'],['G','C'],['T','A'],['C','G'],['G','C']];
+  const hexA = (h,a)=>{ const n=parseInt(h.slice(1),16); return `rgba(${n>>16&255},${(n>>8)&255},${n&255},${a})`; };
+
+  let W=0, H=0, phase=0, hover=-1;
+  const rungs = [];
+
+  function resize(){
+    const cssW = cv.clientWidth || 820, cssH = cv.clientHeight || 300;
+    cv.width = cssW*DPR; cv.height = cssH*DPR;
+    g.setTransform(DPR,0,0,DPR,0,0);
+    W = cssW; H = cssH;
+  }
+  window.addEventListener('resize', resize);
+
+  function pos(e){ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return [t.clientX-r.left, t.clientY-r.top]; }
+  function distSeg(px,py,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy||1; let t=((px-ax)*dx+(py-ay)*dy)/L; t=Math.max(0,Math.min(1,t)); return Math.hypot(px-(ax+dx*t),py-(ay+dy*t)); }
+  function pick(mx,my){ let best=-1,bd=24; rungs.forEach((r,i)=>{ const d=distSeg(mx,my,r.x,r.ya,r.x,r.yb); if(d<bd){bd=d;best=i;} }); return best; }
+
+  cv.addEventListener('mousemove', e=>{ const [x,y]=pos(e); hover=pick(x,y); cv.style.cursor=hover>=0?'pointer':'default'; });
+  cv.addEventListener('mouseleave', ()=>{ hover=-1; cv.style.cursor='default'; });
+  cv.addEventListener('click', e=>{ const [x,y]=pos(e); const i=pick(x,y); if(i>=0) location.href=NODES[i].href; });
+  cv.addEventListener('touchstart', e=>{ const [x,y]=pos(e); const i=pick(x,y); if(i>=0){ e.preventDefault(); location.href=NODES[i].href; } }, {passive:false});
+
+  function drawBase(x,y,z,col,on,letter){
+    const r=(3+3.4*z)*(on?1.4:1);
+    if(on){ g.shadowColor=col; g.shadowBlur=14; }
+    g.beginPath(); g.arc(x,y,r,0,7); g.fillStyle=hexA(col,0.4+0.5*z); g.fill();
+    g.shadowBlur=0; g.lineWidth=1; g.strokeStyle=hexA(col,0.7); g.stroke();
+    if(z>0.55 && r>6){ g.fillStyle='#0a0d12'; g.font='bold 8px ui-monospace,monospace'; g.textAlign='center'; g.fillText(letter,x,y+3); }
+  }
+
+  function frame(){
+    if(!W) resize();
+    g.clearRect(0,0,W,H);
+    const n=NODES.length;
+    const padX=Math.max(40, W*0.06), padTop=26, padBot=44;
+    const x0=padX, x1=W-padX, cy=(padTop+(H-padBot))/2;
+    const amp=Math.min(60,(H-padTop-padBot)/2);
+    const turns=Math.max(1.6, Math.min(2.3, W/380));
+    const wide = W>=560;
+    rungs.length=0;
+
+    // backbones, drawn per-segment so depth (front/back) shades correctly
+    const S=170; const A=[],B=[];
+    for(let s=0;s<=S;s++){ const t=s/S, x=x0+(x1-x0)*t, a=t*turns*Math.PI*2+phase;
+      A.push([x,cy+Math.sin(a)*amp,Math.cos(a)]); B.push([x,cy-Math.sin(a)*amp,-Math.cos(a)]); }
+    // faint filler rungs
+    g.lineWidth=1;
+    for(let s=5;s<S;s+=8){ const z=(A[s][2]+1)/2; g.strokeStyle=`rgba(120,140,170,${0.05+0.10*z})`;
+      g.beginPath(); g.moveTo(A[s][0],A[s][1]); g.lineTo(B[s][0],B[s][1]); g.stroke(); }
+    g.lineCap='round';
+    function strand(P, base){ for(let s=0;s<P.length-1;s++){ const z=(P[s][2]+1)/2;
+      g.strokeStyle=hexA(base,0.22+0.6*z); g.lineWidth=1.4+2.1*z;
+      g.beginPath(); g.moveTo(P[s][0],P[s][1]); g.lineTo(P[s+1][0],P[s+1][1]); g.stroke(); } }
+    strand(A,'#5ad1b0'); strand(B,'#7aa2ff');
+
+    // endpoint base-pairs
+    g.textAlign='center';
+    NODES.forEach((nd,i)=>{
+      const t=(i+0.5)/n, x=x0+(x1-x0)*t, a=t*turns*Math.PI*2+phase;
+      const ya=cy+Math.sin(a)*amp, yb=cy-Math.sin(a)*amp;
+      const za=(Math.cos(a)+1)/2, zb=((-Math.cos(a))+1)/2;
+      const on=hover===i;
+      rungs.push({x:x,ya:ya,yb:yb});
+      if(on){ g.shadowColor=nd.col; g.shadowBlur=10; }
+      g.strokeStyle=on?nd.col:hexA(nd.col,0.5); g.lineWidth=on?3.5:2.4; g.lineCap='round';
+      g.beginPath(); g.moveTo(x,ya); g.lineTo(x,yb); g.stroke(); g.shadowBlur=0;
+      drawBase(x,ya,za,nd.col,on,BASES[i][0]);
+      drawBase(x,yb,zb,nd.col,on,BASES[i][1]);
+      if(wide || on){
+        g.font=(on?'bold ':'')+'12px ui-monospace,monospace';
+        g.fillStyle=on?'#e6edf3':'#9aa7b4';
+        g.fillText(nd.label, x, H-padBot+26);
+      }
+    });
+
+    if(!reduce) phase += 0.005;
+    requestAnimationFrame(frame);
+  }
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>
