@@ -16,7 +16,10 @@ import {
 } from './thread.js';
 
 const DEFAULT_URL = 'https://bsky.app/profile/norvid-studies.bsky.social/post/3mmwrhd6ots2a';
-const MAX_TILES    = 96;    // queue cap (posts + quoted posts)
+const MAX_TILES    = 128;
+const ATLAS_W      = 1024;
+const ATLAS_H      = 4096;
+const TILE_PX      = 512;   // render each tile at this resolution before composite
 const TILE_PER_ROW = 4;
 const MAX_TEX_AXIS = 4096;
 const MAX_TILE     = 384;
@@ -32,15 +35,18 @@ const scrollSlider = document.getElementById('scroll-speed');
 const spinSlider = document.getElementById('spin-speed');
 const brightnessSlider = document.getElementById('brightness');
 const colsSlider = document.getElementById('cols');
+const rowsSlider = document.getElementById('rows');
+const padSlider  = document.getElementById('padding');
 
-// Stamp-grid layout: derive rows from cols so cells render square on the
-// sphere. The atlas is 512x2048 (1:4 in pixels) but equirectangular wrapping
-// gives 360° longitude / 180° latitude, so a square cell needs cellH = 2*cellW
-// — hence rows = 2 * cols.
+// Stamp-grid layout. cols + rows are independent so the user can shape each
+// tile's angular footprint: cols sets longitude span, rows sets latitude.
+// pad is fractional gap between tiles. Defaults of 4/8 keep the previous
+// square-on-sphere look.
 function gridSpec() {
   const cols = Math.max(1, parseInt(colsSlider.value, 10) || 4);
-  const rows = Math.max(1, cols * 2);
-  return { cols, rows };
+  const rows = Math.max(1, parseInt(rowsSlider.value, 10) || 8);
+  const pad  = Math.max(0, Math.min(40, parseInt(padSlider.value, 10) || 0)) / 100;
+  return { cols, rows, pad };
 }
 
 urlInput.value = DEFAULT_URL;
@@ -57,9 +63,9 @@ if (!navigator.gpu) {
 }
 
 function resizeCanvas() {
-  // Cap DPR conservatively — iPhones report 3, which means 9x the fragment
-  // shader cost vs CSS pixels. 1.5 is the sweet spot for an orb at any size.
-  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  // DPR cap of 2 — iPhones report 3, which would mean 9x fragment shader
+  // cost vs CSS pixels. 2 hits a sharp/fast balance once tiles are rich.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = Math.max(1, Math.floor(window.innerWidth * dpr));
   const h = Math.max(1, Math.floor(window.innerHeight * dpr));
   if (canvas.width !== w || canvas.height !== h) {
@@ -133,9 +139,9 @@ function buildPostQueue(posts) {
   for (const p of posts) {
     if (out.length >= MAX_TILES) break;
     const text = (p.text || '').trim();
-    const image = firstImageInEmbed(p.embed);
-    if (text || image) {
-      out.push({ kind: 'post', uri: p.uri, author: p.author, text, image, createdAt: p.createdAt });
+    const media = allMediaInEmbed(p.embed);
+    if (text || media.length) {
+      out.push({ kind: 'post', uri: p.uri, author: p.author, text, media, createdAt: p.createdAt });
     }
   }
   return out;
@@ -145,14 +151,14 @@ function addQuotedTo(out, m) {
   if (out.length >= MAX_TILES) return;
   if (m.type !== 'quote' || !m.author) return;
   const text = (m.text || '').trim();
-  const image = firstImageInMediaList(m.embeds);
-  if (text || image) {
+  const media = allMediaInMediaList(m.embeds);
+  if (text || media.length) {
     out.push({
       kind: 'quote',
       uri: m.uri,
       author: m.author,
       text,
-      image,
+      media,
       createdAt: m.createdAt,
     });
   }
@@ -160,20 +166,32 @@ function addQuotedTo(out, m) {
   if (Array.isArray(m.embeds)) for (const inner of m.embeds) addQuotedTo(out, inner);
 }
 
-function firstImageInEmbed(embed) {
-  if (!embed) return null;
-  return firstImageInMediaList(extractMedia(embed));
+// Collect up to N image-or-video items from an embed (recursing through
+// quote.embeds). Videos contribute their thumbnail; we mark them so the tile
+// renderer can stamp a play overlay.
+function allMediaInEmbed(embed, cap = 4) {
+  if (!embed) return [];
+  const out = [];
+  collectMediaInto(out, extractMedia(embed), cap);
+  return out;
 }
-function firstImageInMediaList(items) {
-  if (!Array.isArray(items)) return null;
+function allMediaInMediaList(items, cap = 4) {
+  const out = [];
+  collectMediaInto(out, items, cap);
+  return out;
+}
+function collectMediaInto(out, items, cap) {
+  if (!Array.isArray(items)) return;
   for (const m of items) {
-    if (m.type === 'image' && m.thumb) return { thumb: m.thumb, fullsize: m.fullsize, alt: m.alt || '' };
-    if (m.type === 'quote' && Array.isArray(m.embeds)) {
-      const inner = firstImageInMediaList(m.embeds);
-      if (inner) return inner;
+    if (out.length >= cap) return;
+    if (m.type === 'image' && m.thumb) {
+      out.push({ kind: 'image', thumb: m.thumb, fullsize: m.fullsize, alt: m.alt || '' });
+    } else if (m.type === 'video' && m.thumbnail) {
+      out.push({ kind: 'video', thumb: m.thumbnail, alt: m.alt || '' });
+    } else if (m.type === 'quote' && Array.isArray(m.embeds)) {
+      collectMediaInto(out, m.embeds, cap);
     }
   }
-  return null;
 }
 
 // ───────────────────────────── Atlas (strip) ────────────────────────────
@@ -214,6 +232,58 @@ async function loadImage(url) {
   return await tryFetchAsBitmap(IMG_PROXY + encodeURIComponent(url));
 }
 
+// Lay out up to 4 media items in a tile's media area: 1 fills it, 2 split it
+// in half, 3-4 use a 2x2 grid. Videos get a circular play-button overlay.
+function drawMediaArea(ctx, items, x, y, w, h) {
+  if (!items.length) return;
+  const n = Math.min(items.length, 4);
+  if (n === 1) {
+    drawMediaCell(ctx, items[0], x, y, w, h);
+    return;
+  }
+  if (n === 2) {
+    const hw = w / 2;
+    drawMediaCell(ctx, items[0], x,      y, hw, h);
+    drawMediaCell(ctx, items[1], x + hw, y, hw, h);
+    return;
+  }
+  const hw = w / 2, hh = h / 2;
+  for (let i = 0; i < n; i++) {
+    const cx = i % 2, cy = (i / 2) | 0;
+    drawMediaCell(ctx, items[i], x + cx * hw, y + cy * hh, hw, hh);
+  }
+}
+
+function drawMediaCell(ctx, { media, bitmap }, x, y, w, h) {
+  if (bitmap) {
+    drawCoverImage(ctx, bitmap, x, y, w, h);
+  } else {
+    // No bitmap (load failed or no thumb at all) — placeholder rectangle
+    // so video-only embeds still get a visible play button.
+    ctx.fillStyle = 'rgba(20, 10, 35, 0.85)';
+    ctx.fillRect(x, y, w, h);
+  }
+  if (media?.kind === 'video') {
+    drawPlayOverlay(ctx, x + w / 2, y + h / 2, Math.min(w, h) * 0.18);
+  }
+}
+
+function drawPlayOverlay(ctx, cx, cy, r) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255, 248, 235, 0.95)';
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.34, cy - r * 0.5);
+  ctx.lineTo(cx + r * 0.56, cy);
+  ctx.lineTo(cx - r * 0.34, cy + r * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawCoverImage(ctx, img, dx, dy, dw, dh) {
   // Works for both HTMLImageElement and ImageBitmap.
   const iw = img.naturalWidth || img.width;
@@ -251,7 +321,8 @@ function hashHue(s) {
 }
 
 // Render a single post unit as a square canvas tile. Text always succeeds;
-// image is best-effort (failed image just leaves a text-only card).
+// media is best-effort (failed loads just leave a text-only card). Up to 4
+// images/videos mosaic into the top area; videos get a play-button overlay.
 async function renderPostTile(entry, size) {
   const c = document.createElement('canvas');
   c.width = size; c.height = size;
@@ -261,20 +332,24 @@ async function renderPostTile(entry, size) {
   ctx.fillStyle = `hsl(${hue}, 50%, 20%)`;
   ctx.fillRect(0, 0, size, size);
 
-  // Try the image — proxy through /api/img, ignore failure.
+  // Load all media bitmaps in parallel — each via /api/img — keeping nulls
+  // so videos with failed thumbnails still draw their play overlay.
+  const media = (entry.media || []).slice(0, 4);
+  const loaded = await Promise.all(media.map(async m => ({
+    media: m,
+    bitmap: m.thumb ? await loadImage(m.thumb) : null,
+  })));
+  const valid = loaded.filter(p => p.bitmap);
+
   let imgArea = 0;
-  if (entry.image?.thumb) {
-    const img = await loadImage(entry.image.thumb);
-    if (img) {
-      imgArea = Math.floor(size * 0.58);
-      drawCoverImage(ctx, img, 0, 0, size, imgArea);
-      // soft fade at the bottom into the text area
-      const fade = ctx.createLinearGradient(0, imgArea - 40, 0, imgArea);
-      fade.addColorStop(0, 'rgba(0,0,0,0)');
-      fade.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.fillStyle = fade;
-      ctx.fillRect(0, imgArea - 40, size, 40);
-    }
+  if (valid.length > 0) {
+    imgArea = Math.floor(size * 0.58);
+    drawMediaArea(ctx, loaded, 0, 0, size, imgArea);
+    const fade = ctx.createLinearGradient(0, imgArea - 56, 0, imgArea);
+    fade.addColorStop(0, 'rgba(0,0,0,0)');
+    fade.addColorStop(1, 'rgba(0,0,0,0.6)');
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, imgArea - 56, size, 56);
   }
 
   const textY = imgArea;
@@ -546,7 +621,7 @@ async function initWebGPU() {
     addressModeU: 'repeat', addressModeV: 'repeat',
   });
 
-  const sphere = buildSphere(48, 64);   // was 80x128 — still plenty smooth
+  const sphere = buildSphere(64, 96);   // denser mesh — text in tiles looks sharper
   sphere.vertexBuffer = device.createBuffer({
     size: sphere.verts.byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -567,7 +642,7 @@ async function initWebGPU() {
   // Placeholder texture: the celestial-body pattern, painted once here and
   // repainted later whenever the column slider changes (which clears stamps).
   const placeholder = document.createElement('canvas');
-  placeholder.width = 512; placeholder.height = 2048;
+  placeholder.width = ATLAS_W; placeholder.height = ATLAS_H;
   paintCelestialPattern(placeholder);
 
   state.device = device;
@@ -744,22 +819,26 @@ canvas.addEventListener('wheel', (e) => {
   state.distance = Math.max(1.3, Math.min(8, state.distance * f));
 }, { passive: false });
 
-// Cols slider clears existing stamps and resets the queue cursor so the user
-// can re-fill into the new grid. We keep the fetched tileQueue so they don't
-// have to re-fetch the thread.
-colsSlider.addEventListener('change', () => {
+// Any layout slider clears existing stamps and resets the queue cursor so the
+// user can re-fill into the new grid. The fetched tileQueue is preserved so
+// they don't have to re-fetch the thread.
+function resetGridLayout() {
   if (!state.atlasCanvas) return;
   paintCelestialPattern(state.atlasCanvas);
   setStripFromCanvas(state.atlasCanvas);
   queueIndex = 0;
   successCount = 0;
-  const { cols, rows } = gridSpec();
+  const { cols, rows, pad } = gridSpec();
+  const padTxt = Math.round(pad * 100) + '%';
   if (tileQueue.length) {
-    setStatus(`reset · grid ${cols}×${rows} · click load to stamp into the new layout`);
+    setStatus(`reset · ${cols}×${rows} grid, ${padTxt} pad · click load to refill`);
   } else {
-    setStatus(`grid ${cols}×${rows}`);
+    setStatus(`${cols}×${rows} grid, ${padTxt} pad`);
   }
-});
+}
+colsSlider.addEventListener('change', resetGridLayout);
+rowsSlider.addEventListener('change', resetGridLayout);
+padSlider.addEventListener('change', resetGridLayout);
 
 // ─────────────────────────────── Bootstrap ──────────────────────────────
 
@@ -792,9 +871,11 @@ form.addEventListener('submit', async (e) => {
       queueIndex = 0;
       successCount = 0;
       lastFetchedUrl = wantedUrl;
-      const imgCount = tileQueue.filter(t => t.image).length;
+      const withMedia = tileQueue.filter(t => t.media?.length).length;
+      const videoCount = tileQueue.reduce((n, t) => n + (t.media || []).filter(m => m.kind === 'video').length, 0);
+      const videoNote = videoCount ? `, ${videoCount} video${videoCount === 1 ? '' : 's'}` : '';
       setStatus(
-        `${posts.length} posts → ${tileQueue.length} tiles (${imgCount} with images) · click load to stamp one`,
+        `${posts.length} posts → ${tileQueue.length} tiles (${withMedia} with media${videoNote}) · click load to stamp one`,
       );
       loadBtn.textContent = 'stamp +1';
       return;
@@ -814,19 +895,20 @@ form.addEventListener('submit', async (e) => {
 
     const c = state.atlasCanvas;
     const ctx = c.getContext('2d');
-    const { cols, rows } = gridSpec();
+    const { cols, rows, pad } = gridSpec();
     const cellW = c.width / cols;
     const cellH = c.height / rows;
-    // Fill each cell entirely (tiles are already rendered square at TILE_PX,
-    // and we map a square source to a non-square cell — the sphere geometry
-    // un-stretches it back). No padding so the orb is fully covered.
+    const padX  = cellW * pad;
+    const padY  = cellH * pad;
     const i = successCount;
-    const slot = i % (cols * rows);                    // wrap if user over-stamps
-    const col = slot % cols;
-    const row = Math.floor(slot / cols);
-    const x = col * cellW;
-    const y = row * cellH;
-    ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, cellW, cellH);
+    const slot = i % (cols * rows);
+    const col  = slot % cols;
+    const row  = Math.floor(slot / cols);
+    const x = col * cellW + padX;
+    const y = row * cellH + padY;
+    const w = cellW - padX * 2;
+    const h = cellH - padY * 2;
+    ctx.drawImage(tileCanvas, 0, 0, TILE_PX, TILE_PX, x, y, w, h);
     setStripFromCanvas(c);
 
     queueIndex++;
