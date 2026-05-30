@@ -17,6 +17,7 @@ on:
     branches:
       - main
       - 'claude/arthurian-legend-history-*'
+      - 'claude/pendragon-next-source-*'
     paths:
       - 'read/*/storybook.js'
       - 'scripts/illustrate.mjs'
@@ -25,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       tale:
-        description: 'Which tale ("all" or a single slug: gawain|culhwch|orfeo|pwyll)'
+        description: 'Which tale ("all" or a single slug: gawain|culhwch|orfeo|pwyll|owain)'
         required: false
         default: 'all'
         type: string
@@ -53,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tale: [gawain, culhwch, orfeo, pwyll]
+        tale: [gawain, culhwch, orfeo, pwyll, owain]
     steps:
       - uses: actions/checkout@v4
 

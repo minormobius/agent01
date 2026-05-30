@@ -2,7 +2,7 @@ name: Deploy Read
 
 on:
   push:
-    branches: [main, 'claude/eye-tracking-exploration-*', 'claude/arthurian-legend-history-*']
+    branches: [main, 'claude/eye-tracking-exploration-*', 'claude/arthurian-legend-history-*', 'claude/pendragon-next-source-*']
     paths:
       - 'read/**'
       - '.github/workflows/deploy-read.yml'

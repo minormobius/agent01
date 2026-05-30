@@ -459,12 +459,13 @@
     const tales = C.tales;
     const taleIds = tales.map((t) => t.id);
     const taleMap = {}; tales.forEach((t) => taleMap[t.id] = t);
-    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI"];
+    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
     const passLabel = {
       culhwch: (n) => "M" + n,
       pwyll:   (n) => "Mvt " + (ROMAN[n] || n),
       orfeo:   (n) => "M" + (ROMAN[n] || n),
       gawain:  (n) => "F" + (ROMAN[n] || n),
+      owain:   (n) => "Mvt " + (ROMAN[n] || n),
     };
 
     // dynamic grid template: code + name + one column per tale (the gloss spans full width below)

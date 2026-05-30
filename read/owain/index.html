@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Owain, neu Iarlles y Ffynnon — source text, translation underway</title>
+  <meta name="description" content="Owain, or the Lady of the Fountain (Welsh: Owein, neu Chwedyl Iarlles y Ffynnawn) — one of the Three Welsh Romances from the Red Book of Hergest (c. 1382–1410) and the White Book of Rhydderch (c. 1350). Arthur's knight Owain rides to the magic fountain, defeats its Black Knight, weds the widowed Lady, forgets her, runs mad, and is redeemed with the help of a lion. The Welsh twin of Chrétien de Troyes' Yvain. Source text in hand; original translation movement by movement.">
+  <meta property="og:title" content="Owain, neu Iarlles y Ffynnon">
+  <meta property="og:description" content="The Lady of the Fountain — one of the Three Welsh Romances. Red Book source in place, original translation underway.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/owain/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦁</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🦁</span>Owain · Iarlles y Ffynnon</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
+        <button class="tab" data-view="propp">Story graph</button>
+        <button class="tab" data-view="motifs">Motifs</button>
+        <button class="tab" data-view="myth">Mythograph</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- READ (source + parallel translation) -->
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>Owain, neu Iarlles y Ffynnon</h1>
+        <p>The Lady of the Fountain — one of the Three Welsh Romances, the Brittonic twin of Chrétien de Troyes' <em>Yvain</em>: a knight of Arthur's court rides to the magic fountain, defeats its Black Knight, weds the widowed Lady he has made — then forgets her, runs mad in the wilderness, and is redeemed with the help of a grateful lion.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- STORYBOOK (faithful middle-grade retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers 8 and up — the whole romance, page by page. Illustrations to follow.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the tale, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
+    </section>
+
+    <!-- STORY GRAPH (Propp) -->
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The romance laid against Propp's 31 narrative functions — each beat linking to the movement that realises it.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
+    <!-- MOTIF INDEX -->
+    <section class="view" id="view-motifs">
+      <div class="hero"><h1>Motif index</h1><p>The romance by call-number — the Thompson Motif-Index and ATU tale-types, the folklorists' Dewey decimal for mythic memes.</p></div>
+      <p class="lead" id="motif-intro"></p>
+      <div class="tt-grid" id="motif-taletypes"></div>
+      <div id="motif-groups"></div>
+    </section>
+
+    <!-- THE MYTHOGRAPH -->
+    <section class="view" id="view-myth">
+      <div class="hero"><h1>The mythograph</h1><p>One graph, all the layers. The movements run as a spine; characters, motifs and story-functions hang from the moments they touch — and whatever cross-cuts the tale is pulled toward the centre.</p></div>
+      <div class="myth-controls" id="myth-filters"></div>
+      <div class="tree-legend" id="myth-legend"></div>
+      <div class="zoom-host" id="myth-host"></div>
+      <p class="tree-hint">Movements run as the gold spine. Hover a node to light its threads; click any node for detail. Toggle the layers above to isolate one kind of connection.</p>
+      <div class="myth-detail" id="myth-detail"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Owain, neu Iarlles y Ffynnon</span><br>
+    A deep read of <em>Owain, or the Lady of the Fountain</em> (Welsh: <em>Owein, neu Chwedyl Iarlles y Ffynnawn</em>), one of the Three Welsh Romances. The Middle Welsh source is the public-domain edition of Rhys &amp; Evans (Oxford, 1887) from the Red Book of Hergest — the same volume that supplies <em>Culhwch ac Olwen</em> on this site; the original English translation runs alongside it movement by movement, with character cards, character web, story graph, motif index, mythograph and a faithful middle-grade storybook retelling — the same apparatus built for <em>Sir Gawain and the Green Knight</em>, <em>Culhwch ac Olwen</em>, <em>Sir Orfeo</em>, and <em>Pwyll Pendefig Dyfed</em>. This site sits alongside the broader Arthurian and Brittonic historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>, where the cross-tale comparative layer (motifs, Propp functions, character archetypes across all the annotated tales) lives — and where Owain's kinship with Chrétien de Troyes' <em>Yvain</em> anchors the Welsh↔Continental branch of the evolutionary tree.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

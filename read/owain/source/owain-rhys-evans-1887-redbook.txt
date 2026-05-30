@@ -1,0 +1,1101 @@
+Owein, neu Chwedyl Iarlles y Ffynnawn — Middle Welsh text (Red Book of Hergest)
+Source: "The Text of the Mabinogion and other Welsh Tales from the Red Book
+   of Hergest," ed. John Rhys & J. Gwenogvryn Evans (Oxford, 1887),
+   pp. 163-192 (running head "Owein and Lunet"). Public domain.
+   Internet Archive: archive.org/details/textofmabinogion00rhysiala
+   The same volume supplies the Culhwch ac Olwen text on this site, and is
+   the public-domain comparison cited for Pwyll. Underlying manuscript: the
+   Red Book of Hergest (Llyfr Coch Hergest), Jesus College Oxford MS 111,
+   c. 1382-1410; the tale is also preserved in the White Book of Rhydderch
+   (Llyfr Gwyn Rhydderch), c. 1350.
+License: Public domain (edition pre-1900; OCR text via Internet Archive).
+
+NOTE ON THIS FILE — RAW OCR, TO BE NORMALISED:
+   This is the raw OCR of the 1887 edition, which sets the tale in a special
+   Welsh typeface that the OCR mis-reads systematically: medieval w/u renders
+   as capital "O" or "6", r often as "z" or "x", long-s as "f", and the
+   illuminated capitals as "J[", "J)", "9", "3", "°|f" etc. It is preserved
+   here verbatim as the diplomatic anchor, NOT as a reading text. The Welsh
+   shown in tale.js is normalised from this base movement by movement (the
+   same workflow used for Culhwch ac Olwen, whose tale.js carries a normalised
+   reading text rather than this raw transcription), cross-checked against the
+   White Book where the OCR is unrecoverable. The tale opens at p.163
+   ("Yr amherawdyr Arthur a oedd yng Nghaer Llion ar Wysg") and closes at
+   p.192 ("Ar chwedyl hwn a elwir chwedyl Iarlles y Ffynnawn").
+============================================================================
+
+T| amheraOdyz arthur oed yg kaer Hion arwyfc. 
+gef yd oed yn eifted diwarnaOt yny yftauell. 
+ac y gyt ac ef owein uab uryen. a chynon 
+uab clydno. a chei uab kyner. a gOenhwyuar 
+ae IlaOuozynyon yngOniaO Ozth ffeneft . a 
+chyt dywettit uot pozthaOz ar lys arthur. nyt 
+oed yx vn. ilewlOyt gauaelaOz oed yno hagen ar 
+ureint pozthaOz yaruoll yfp aphellennigyon. ac y 
+dechzeu euhanrydedu. acyuenegi moes yHys ae 
+deuaOt udunt. yzneb adylyei vynet yx neuad neu yx 
+yftauell oevenegi idaO. °ffz neb adylyei letty oe 
+venegi ida6. J[c ymperued IlaOz yx yftauell yd oed 
+yx amheraOdy* arth ur yn eifted. ar demyl oirvzwyn a 
+Ilenn obali melyngoch ydanaO Jlgobennyd ae dud- 
+et o bali coch dan penn y elin. J[r hynny y dy wawt 
+arthur. Ifawyz pei nam goganeOch heb ef mi a gyf- 
+kOn trauewn ynaros vy mOyt. acymdidan aeHOch 
+chOitheu. achymryt yfteneit oved agolOython ygan 
+gei. achyfcu aozuc yzamheraOdyz. J[ gofyn aozuc ky- 
+non uab klydno y gei yx hynn a adawffei arthur udunt. 
+Minneu avynnaf yx ymdidan da aedewit yminneu 
+heb y kei. |awr heb y kynon teckaf y6 itti wneuth ur 
+
+
+
+628.] ©wein anb Xunet 163 
+
+edewit arthur yngyntaf. 9c odyna yx ymdidan gozeu 
+awypom ninneu ni aedywedOn itti. §§ynet aoxuc 
+kei yxgegin. acyxvedgetf. adyuot ac yfteneit oved 
+gantaO. 9c agoxvlGch eur. ac alloneit y dOxn o vereu. 
+a golOython arnadunt. 9chymryt y golOython awnae- 
+thant adechxeu yvet y med. Weithon heb ykei 
+chwitheu bieu talu yminneu uy ymdidan. Ifjynon 
+heb yx owein tal y ymdidan y gei. JHoer heb y kynon 
+hyn g6x Oyt agwell ymdidanOx no mi. a m6y a weleiit 
+obetheu odidaOc. tal di y ymdidan y gei. J)echxeu 
+di heb yxowei * oxhynn odidockaf awypych. Mi a 
+wnaf heb y kynon. |amynvn mab mam a that 
+oedGn i. adxythyll oedOn. amaOx oed vyryvic. J[c 
+ny thybygOn yny byt aoxffei arnaf o neb ryO gamhOxi. 
+JfgOedy daruot im goxuot ar bob camhOxi ox a oed 
+yn vn wlat ami. °|fmgywera6 awneuthum a cherdet 
+eithauoed byt adiffeithwch. 9c yny diwed. J(c yn 
+y diwed dywannu aOneuthum ar yglynn teckaf yny 
+byt. agOyd gogyfuch yndaO. 9c avo regedaOc oed ar 
+hyt yglynn. a ffoxd gan yftlys yxauon. a cherdet y 
+ffoxd awneuthum hyt hanner dyd. JIV parth arall a 
+gerdeis hyt pzyt naOn. JCcyna ydeuthum yuaes 
+maOz. 9c yn nibenn y maes yd oed Kaer uaOz lyw- 
+ychedic. agOeilgi yngyuagos yxgaer. a pharth ar 
+gaer ydeuthum. 9c nachaf ygOelOn deu was pen- 
+grych velyn. a ractal eur am penn pop un o honunt. 9 
+pheis obali melyn ambopunonadunt. agOaegeu eur 
+am vynygleu eu traet yn eu traet. Jt b6a o afgOxn 
+eliphant yn Ha6 pob un o nadunt. 9c eu Hinynneu o 
+ieu hyd. ae faetheu ac eupelydyx oafgOxn moxuil. 
+
+M 2 
+
+
+
+1 64 ®wein ant) Xunet [629. 
+
+gOedy eu hafgellu ac adaned paOin. 9 phenneu eur 
+ar ypelydy*. J[ chylleill a Hafneu eur udunt. 
+J[c eu karneu o afgOm moxuil yn nodeu udunt. J[c 
+Oynteu yn faethu eukylleill. ^rynnawd yOathunt 
+ygOelOn wr penngrych melyn yny dewred. ae uaryf 
+ynnewyd eiHaO. J[ pheis amanteH opali melyn ym- 
+danaO. 9c yfnoden o eurllin ympenn y uantell. a 
+dOy wintas ogoxdwal bxith am y dxaet. adeu gnap o 
+eur yn eu kaeu. J[ phan y gOeleif i euo. dyneffau a 
+wneuthum attaO. & chyfarch gOell awneuthum idaO. 
+J[c rac dahet y wybot ef. kynt y kyuarchaOd ef well 
+ymi. nomiui idaO ef. Jtdyuot gyt ami aozuc parth 
+ar gaer. J[c nyt oed gyuanhed yny gaer. namyn a 
+oed yn vn neuad. 3c yno yd oed pedeir mozOyn ar 
+hugeint. yngOniaO pali Oath fifeneftyz. J[ hynn ady- 
+wedaf ytti gei vot * yntebic gennyf bot yntegach yx 
+hacraf onadunt hwy no* voawyn deckaf aweleift ti 
+eiryoet yn ynys paydein. °fz an hardaf o nadunt. 
+hardach oed no gOenhOyuar gOzeic arthur panuu 
+hardaf eiryoet duO nadolic. neuduO pafc Oath offer- 
+en. achyuodi aozugant ragof. achwech onadunt 
+agymerth uy march ac amdiarchenwys inneu. a 
+chwech ereilt onadunt agymerth vy arueu ac ae golch- 
+affant ymyOn rol yny yttoedynt gynwynet ardim 
+gOynnaf. J[r trydyd chwech onadunt adodaffant 
+Ilieineu ar ybyzdeu. ac a arlOy^affant vOyt. J[r ped- 
+wyzyd chwech adiodaffant vy Iludeticwifc. adodi 
+gOifc arall amdanaf. nyt amgen. crys allaOdyz ox 
+bliant. J[ pheis afOzcot amanteH obali melyn. a 
+gozffoys Ilydan yny van tell. Jt thynnu gobennydyeu 
+
+
+
+630J ©wefn anb Xunet 165 
+
+amhyl athudedeu ozbliant coch udunt. ydanam ac 
+ynkylch. J(c eifted aozugam yna. 8r chwech onad- 
+unt a gymerth vy march ae gozugant yndiwall oe holl 
+yftarn. yngyftall aryfweineit gozeu ynynys pzydein. 
+J[c ar hynny nachaf gaOgeu aryant adOfyz yymolchi 
+yndunt. athyOeleu ovliant gGyzd. arei gwynnyon. ac 
+ymolchi aozugam. amynet y eifted yzbOzd aozuc y 
+g6z gynneu. a minneu yn neffaf idaO argOzaged oil is 
+vy Ha6 inneu. eithyz y rei oedyn gwaffanaethu. J[c 
+aryant oed y bCzd. a bliant oed lieineu y bOzd. J[c 
+nyt oed un Ileftyz yn gwaffanaethu y bOzd namyn eur 
+neu aryant. neu vueli. an b6yt adeuth in. adiheu oed 
+iti gei. naweleis i eirmoet bOyt naUynn ny welOn yno 
+y gyffelyp. ^ithyz bot yn well kyweirdeb y bOyt ar 
+Hynn aweleisi yno nocynlle araH eiryoet. abOytta a 
+ozugam hyt am hanner bOyt. ac ny dywat nar gOz nac 
+vn ozmozynyon vngeir Ozthyf i hyt yna, Jtphan 
+uu debic gan y g6z bot ynwell gennyf ymdidan no 
+bGyta. amofyn aozuc ami paryO Oz oedOn. adyOedut 
+aozugum inneu bot ynda gennyf i kaffel aymdidanei 
+ami. J(c nat oed yny * Hys bei kymeint ac eu 
+dzycket ymdidan dynyon. Ifaunbenn heb ygOz. ni 
+aymdidanem athi. ony bei lefteir ardy v6yt. J[c 
+weithon ni aymdidanOn athi. J[c yna ymenegeis i 
+yz g6z p6y oedOn. ar kerdet oed arnaf. ftdywedut vy 
+mot yn keiffaO aozffei arnaf. neuvinneu aozffei ar 
+ba6p. ac yna edzych aozuc ygOz arnaf i agowenu. a 
+dywedut Ozthyf. bei nathybyckOn. dyuot gozmod o 
+ovut itt. mi auanag6n itt yzhynn ydwyt yny geiffaO. 
+JL chymryt triftit agoueileint awneuthum ynof am 
+
+
+
+1 66 ©wein anb Xunet [63t 
+
+hynny. £tc adnabot awnaeth ygOz arnaf hynny. a 
+dywedut Ozthyf. Kanys gOeH y6 gennytti heb ef. 
+menegi o honaf i ytti dy afles noth les mi ae managaf 
+itt^ KOfc yma heno heb ef. achyuot yn uoze y uynyd. 
+a chymer y ffozd ydwyt arhyt y dyffrynn uchot. yny 
+delych yzkoet ydoethoft trOydaO. J[c ynrynnaOd yn 
+ycoet ef agyferuyd gwahanffozd athi. ary tu deheu 
+itt acherda arhyt honno. yny delych ylannerch uaOz 
+ouaes. agozfed ymperved y Hannerch. Jt gGzdu 
+maOz awely ympenn yz ozfed. ny bo Hei odim no deu- 
+wr owyz ybyt hOnn. Hcuntroet yffyd ida6. ac un Hy- 
+gat ygknewiHyn y tal, affonn yffyd ida6 ohayarn. 
+a diheu y6 itti nat oes deuwr ynybyt nychaffo eu 
+Ilwyth yny ffonn. Jtcnyt gOzanhegar ef. gOz hagyz 
+yO ynteu. acwtwart y6 ar ykoethCnnO. athi awely 
+mil oanniueileit gOyHt ynpozi yny gylch. agofyn ]da6 
+ffozd y uynet oz Hannerch. ac ynteu a vyd gOzthgroch 
+Ozthyt ti. ac efavennyc ffozd itti ual y keffych yz 
+hynn ageiffy. J[ hir uu gennyfi y nos honno. ar 
+boze tranoeth kyfodi aozugum agOifgaO amdanaf. ac 
+yfcynnu ar vy march, acherdet ragof arhyt y dy- 
+ffrynn yz coet. J[c yz wahanffozd a venegis y gOz y 
+deuthum hyt y Hannerch. a phan deuthum yno. hoff- 
+ach oed gennyf awelOn yno oaniueileit gOyHt. no 
+* thzi chymeint ac ydywaOt ygOz. JIt gOz du aoed 
+yno yneifted ympenn yz ozfed. MaOz ydywaOt y gbi 
+imi y vot ef. mOy olawer oed ef no hynny. 8r ffonn 
+hayarn a dywedaffei y gOz y mi uot HGyth deuwr yndi. 
+Ifyfpys oed gennyfi gei uotHOyth pedwar milOz yndi. 
+a honno oed ynHaO ygOz du. ac nydywedei ynteu 
+
+
+
+63Z] ©wein anb Xunet 167 
+
+Ozthyfi. namyn gOzthgloched. J( gofyn a wneuthum 
+ida6. pa vedyant oed ida6. ar yz aniueileit hynny. §|i 
+aedangoffaf itti dyn bychan heb ef. JL chymryt y 
+ffonn yny laO. athara6 karO ahi dyznaOt maOz. °ffny 
+ryd ynteu vzeuarat maOz. ac Ozth y vzefarat ef y doeth 
+o aniueileit. yny yttoedynt gynamlet ar fyz ynyz awyz. 
+Jtcyny oed gyfyg ymi feuyll yny Ilannerch ygyt ac 
+Oynt. a hynny o feirff agOiberot. ac amryuael aniueil- 
+eit. J[c edzych aozuc ynteu arnadunt h6y. acerchi 
+udunt vynet ybozi. 8c eftOng eupenneu aozugant 
+Oynteu. acadoli idaO ef. val gOyz gOaredaOc y eu 
+harglOyd. J[c yna y dywaOt y g6z du Ozthyf. a wely di 
+dyn bychan y medyant yffyd ymi ar yz aniueileit 
+hynn*. Jtc yna gofyn ffozd aOneuthum ida6. agar6 uu 
+ynteu. ac eiffoes* gofyn aozuc ef ymi pale y mynnOri 
+vynet. Sdywedut aozugum idaO pyryO 6z oedOn. a 
+phy beth ageiffOn. amenegi aozuc ynteu ymi. Kymer 
+heb ynteu y ffozd y tal y Ilannerch. a cherda y erbyn 
+yz allt uchot yny delych oe phen. 3c odyna ti awely 
+yftrat megys dyffrynn maOz. J[eymperued yz yftrat 
+ti awely pzenn maOz. aglaffach y6 y vzic noz ffenytwyd 
+glaffaf. 9c y dan y pzenn hOnnO ymae ffynnaOn. JLc 
+yn ymyl y ffynnaOn y mae Ilech varmoz. ac ar y Ilech 
+y mae kaOc aryant Ozth gadOyn aryant. mal na ellir 
+eu gOahanu. A chymer y kaOc a b6z6 ga6geit oz dOfyz 
+am benn y Ilech. J[c yna ti aglyOy dOzyf ma6z. athi 
+atebygy ergrynu ynef ar dayar gan y tOzyf. J£c 
+yn * ol y t6z6f y da6 kawat adoer. ac abreid vyd itti 
+y diodef hi yn vy6. £t chenllyfc vyd y gaOat. ac ynol y 
+ga6at hinon a vyd. J[c ny byd un dalen ar ypzeii ny 
+
+
+
+1 68 ©wein anb Xunet [632. 
+
+darffo yz gawat eudOyn. ac ar hynny yda6 ka6at o 
+adar. adifgynnu ar y pzenn aOnant J(c ny chlyweift 
+eiryoet yth wlat dy hun kerd kyftal ac aganant. J[ 
+phan vo digrifaf gennyt gerd yzadar. Wi aglywy 
+duchan. a chOynuan yn dyuot ar hyt y dyffrynn tu ac 
+attat J[c ar hynny ti awely varchaOc ar varch pur- 
+du. agOifc o bali purdu ymdanaO. acyftondard o 
+vliant purdu ar y wae6. Jtthgyzchu awna yngyntaf 
+y gallo^ © ffoy di racda6. ef ath ozdiwed. ©s arhoy 
+ditheu euo. a thi yn uarchaOc. ef ath edeu yn bedeftyz. 
+ac ony cheffy di yno ofut. nyt reit itti amofyn gofut 
+travych vy6. Jtchymryt y ffozd aozugum hyt pan 
+deuthum y benn yz allt. 8c odyno y gOelOn mal y 
+managyffei y g6z du y mi. £tc y ymyl y pzen y deuthum. 
+J[r ffynnaOn awelOn dan y pzenn. ar Hech uarmoz yn 
+y hymyl. arkaOc aryant Czth y gadwyn. a chymryt y 
+ka6c awneuthum. a b6z6 kaOgeit ox dOfyz am pen y 
+Ilech. acar hynny nachaf ytOzOf yn dyuot ynvOyyn 
+da iloc y dywedaffei ygOz du im. Jtcynol ytGzyfy 
+gawat. adiheuoed gennyfi gei. na dihangei nadyn 
+naH6dyn ynvyO ozaozdiwedei ygaOat aHan. l[any 
+ozfafei vn genllyfgen ohonei. nacyzcroen nac yz kic 
+yny hatalyei yz afgOrn. ac ymchoelut pedzein uy 
+march ar ygaOat awneuthum. adodi fOch vyntaryan. 
+ar penn vy march ae vOng. 9 dodi y baryflen ar vym 
+penn vy hum. Sc ueHy pozthi y gawat. J[ phan 
+edzycheis ar y pzenn. nyt oed un dalen arnaO. ac yna 
+ydhinones. 9c ar hynny nachaf yz adar yndifgynnu 
+ar ypzenn. Ac yn kanu. JL hyfpys yO gennyfi gei. na 
+chynt na gOedy na chiglefi kerd kyftal [633] ahon- 
+
+
+
+633 J ©wetn anfc Xunet 169 
+
+no eiryoet. Jtphan oed digrifaf gennyf gwarandaO ar 
+yx adar. nachaf tuchan yn dyuot ar hyt y dyffryn yn 
+dyuot parth ac attaf. acyndywedut Oxthyf. J£ varch- 
+aOc heb ef beth ahut ti ymi. PadxOc digoneis inheu yt> 
+ti pan wnelut titheu ymi. ac ym kyf byth awnaeth- 
+oft hediO. )Fony wydut ti nat edewis ygawat hedi6 
+nadyn naUOdyn yn vy6 ymkyfoeth ozagauaf all- 
+an. Jfcarhynny nachaf uarchaOc arvarch pur- 
+du. agOifc o bali purdu ymdanaO. ac arwyd ovliant 
+purdu ymdanaO. J[c ymgyzchu aomgam. Jfchyn 
+beidzut hynny. nybu hir ynymbyzrywyt i. J[c y- 
+na dodi aozuc ymarchaOc arlloft y waeO dxOy avOyn 
+ffrOyn vy march. 3c ymdeith yd aeth ar deu varch 
+ganta6. am ada6 ynneu yno. ]|ywnaeth ygOz ym- 
+danafi ovaOzed*. kymeint am karcharu. Ifyt yf- 
+peilOys ynteu vi. J[ dyuot aozugum inneu dzachef- 
+en y ffoxd ydeuthum gynt. Jt phan deuthum yzllan- 
+nerch ydoed ygOz du yndl. Bmkyffes adygaf itti gei. 
+mae ryued na thodeis ynllynn taOd rac kewilyd. gan 
+agefeis owattwargan yg6zdu. Jlcyxgaer ybuaffOn 
+ynos gynt. ydeuthum ynos honno. Jfllawenach 
+uuwyt Ozthyf y nos hono. noz nos gynt. a gOell ym 
+pozthet. ar ymdidan a vynnOn gan wyz achan wraged 
+agaffOnn. J[c ny chaffOn i neb agyzbOyllei Ozthyf i 
+dim am vygkyzch yx ffynnaOn. ]|ys kyxbOylleis yn- 
+neu Ozth neb*. Jtc yno y bum y nos honno. Jl phan 
+gyfodeis y vynyd y boze trannoeth. ydoed balffrei 
+gOineudu. amygen burgoch idaO kyngochet arkenn 
+ynbara6t g6edy yyftarnu yngywei. agOedy g6ifga6 
+vy arueu. Jfc ada6 vy mendyth yno. a dyuot hyt vy 
+
+
+
+i;o ©wetn anb Xunet [634* 
+
+Hys vy him. J£r march hOnnO ymae gennyfi etto yn 
+yxyftaueH racko. Jfcyrof aduO gei naf rodOni euo 
+ettwa yx y palffrei goxeu ynynys* pxydein. JtduO a 
+wyx gei nac adeuaOd * dyn arnaO ehun chOedyl veth- 
+edigach nohOnn eiryoet. J[c eiffoes rac odidocket 
+gennyfi. nachiglef eirmoet nachynt. nac gOedy a 
+wypei dim yOxth y chOedyl hOnn. namyn hynny. JL 
+bot defnyd y chOedyl hOnn ygkyfoeth yx amheraO- 
+dyx arthur heb dywanu neb arnaO. 3|awyx heb 
+yx owein ponyt oed da mynet y geifaO dywanu ar 
+jlle hOnnO. ffynnllaO vygkyfeillt heb ykei. myn- 
+ych ydywedut ar dy dauaOt yx hynny peth nyf gOnelut 
+ardy weithxet. J)uO awyx heb ygwenhOyfar ys oed 
+gOell dygrogi di gei. nodywedut ymadxaOd mox 
+warthaedic a hOnnO Oxth Ox mal owein. ffyn HaO vyg 
+kyfeiHt wreicda heb y kei. nyt mOy o volyant y owein 
+adywedeift di. no minneu. Jtcar hynny deffroi a 
+oxuc arthur. agofyn agyfgaffei hayach. J)o arglOyd 
+heb yx owein dalym^ ae amfer ynni - vynet - vynet yx 
+byxdeu^ JKmfer. arglOyd heb yx owein. Jtcyna 
+kanu koxn ymolchi awnaethpOyt. amynet awnaeth 
+yx amheraOdyx ae deulu oil y vOytta. J[ gOedy daruot 
+bOytta. difflan a oxuc owein ymdeith. J[ dyuot y letty 
+a pharattoi y varch ae arueu aoxuc*. „ 
+
+H^hanwelas ef ydyd dxannoeth*. gOifgaO y 
+arueu aoxuc. Jtcyfgynnu aryuarch. Scherdet 
+racdaO aoxuc eithafoed byt. adiffeith vynyded. 
+ac yn y diwed y dy wanaOd ar y glynn a uanagaffei 
+gynon idaO. ual y gOydyat yn hyfpyf panyO hOnnO oed, 
+acherdet aoxuc ar hyt y glynn gan yftlys yx auo. 
+
+
+
+635 J ©wein anb Xunet 171 
+
+J[r parth arall yx auon y kerdaOd yny doeth yx dyff- 
+rynn. Jfrdyffrynn agerdaOd yny welei ygaer. J[ 
+pharth argaer y deuth. jlefygOelei ygOeifori yn 
+faethu eu kylleill yn y He y g6elfei gynon. &r gOx 
+melyn bieuoed ygaer ynfeuyll get eu HaO. Jfphaft 
+yttoed owein yn mynnv kyuarch gOell yx gOx melyn. 
+kyuarch gOell aomc ygOz y owein. a dyuot yny 
+vlaen parth ar gaer. acef a welei yftauell yny gaer. 
+Jfphan deuth yx yftauell ef a welei ymozynyonyn 
+gCnyaO * pali ymyOn kadeireu eureit. Jfhoffach o 
+lawer oed gan owein etecket. aceuhardet. nocy 
+dywaOt kynon idaO. Jlchyfodiawnaethant ywaffan- 
+aethu owein mal y gOaffanaethaffynt gynon. ahofifach 
+vu ga owein y boxthant. no chan gynon. ac a,m han- 
+ner bOytta amofyn aomc yg6x melyn ac owein. py 
+gerdet oed arna6. JfcydywaOt owein gObyl oe gerd- 
+et idaO. acy ymgeiffaO armarchaOc yffyd yngOar- 
+chadO yffynnaOnn y mynnOn vy mot. agowenu aomc 
+y g6r melyn. abot yn anhaOd gantaO menegi y owein 
+y kerdet hOnnO. mal y bu anhaOd gantaO y uenegi y 
+gynon. 9c eiffoes menegi aoxuc y owein gObyl yOxth 
+hynny. 3c y gyfgu ydaethant. arboxe dxannoeth y 
+bu baraOt march owein gan y moxynyon. J[ chef det 
+aoxuc owein racdaO yny deuth yx Hannerch yd oed y 
+gOx du yndi. a hoffach uu gan owein meint y g()x du 
+no chan gynon. agofyn ffoxd aoruc owein yxgOxdu. 
+Hcynteu aemenegis, £tcherdet aoxuc owein yffoxd 
+ual kynon. yny doeth yn ymyl y pxenn glas. J[c ef 
+a welei y ffynnaOn. ar Itech yn ymyl y ffynnaOn. ar 
+kaOc erni. achymryt ykaOc aoxuc owein abOxO kaO- 
+
+
+
+172 ©wein anb Xunet [636. 
+
+geit ox dGfyz ar y Ilech. J£c ar hynny nachaf y tGzyf. 
+ac yn ol y tOzyf y gaGat. ffOy olawer noc ydywedaf- 
+fei gynonoedynt. HgOedy ygaCat goleuhau a ozuc 
+yz awyz. Jtphan edzychaOd owein ar y pzenn. nyt 
+oedvndalen arnaO. Acarhyny nachafyzadar yn 
+difgynnu ar ypzen acynkanu. Jlphan oed digrifaf 
+gan owein gerd yz adar. ef awelei varcha6c y dyuot 
+arhyt y dyffryn. ae erbynnyeit a ozuc owein. acym- 
+wan ac ef yndzut. J[ thozri ydeu baladyz aozugant. 
+adifpeilaO deugledyf awnaethant. acymgyfogi. JIc 
+ar hynny owein adze wis dyznaOt ary marchaOc trOy 
+y helym. ar pennffeftin. ar penngOch pOzqOin. a thzOy 
+y kroen ar kig ar afgOzn. yny glOyfaOd ar yz emen- 
+nyd. Jfc yna adnabot a ozuc y marchaOc duaOc ry 
+gaffel dyz*naOt agheuaOl o honaO. J[c ymchoelut pen 
+yvarch a ozuc affo. Jfeymlit a ozuc owein. Ac nyt 
+ymgaffei owein ae vaedu ar cledyf. nyt oed bell idaO 
+ynteu^ Jtc ar hynny owein awelei gaer uaCz lyw- 
+ychedic. Jtcy pozth ygaer ydeuthant. acellOng y 
+marchaOc duaOc a OnaethpOyt ymyOn. ac eHOng doz 
+dyzchauat awnaethpOyt ar owein. J[ honno ae me- 
+dzaOd odis ypardOgyl y kyfrOy yny dozres ymarch 
+yn deu hanner trOydaO athzoeHeu yz yfparduneu gan 
+yfodleu owein. acyny gerda ydoz hyt yUaOz. athzo- 
+elleu yz yfparduneu a dzyll y march y maes. JIc 
+owein yrOng ydOydoz ardzyll arall yz march, ardoz 
+ymyOnagaewyt ualnaallei owein vynet odyno. JIc 
+yg kyfyg gyghoz yd oed owein. acual ydoed owein 
+uelly. fef ygOelei trOy gyffOITt ydoz heol gyfarOyneb 
+ac ef. ac yftret o tei obop tu yzheol. ^c awelei 
+
+
+
+637.] ©wein anfc Xunet 173 
+
+mozOyn benngrech uelen aractal eur am yphenn. 
+a gOifc o bali melyn ymdanei. a d6y wintaf o gozdwal 
+bzith am y thzaet. Jtcyndyuot yzpoxth. ac erchi 
+agozi aozuc. J)u6 awyz unbennes hebyz owein na 
+ellir agozi ytti o dyma. mOy noc y geHyditheu waret 
+yminneu odyna^ J)u6 awyz heb yuozOyn oed dyhed 
+maOz na ellit gOaret itti. 8c oed iaOn y wreic wneuthur 
+da ytti. J)u6 awyz na weleis i eirmoet waf well no 
+thidi Ozth wreic. d bei gares itt goxeu kar gOzeic 
+oedut. © bei ozderch itt gozeu gozderch oedut. ac 
+Ozth hynny heb hi yx hynn aallafi o waret itti mi 
+aegOnaf. l|6de di y votrOy honn a dot am dy vys. 
+a dot y maen hOnn y my6n dy la6. a chae dy dOzn 
+am y maen. 3 thza gudyych ti euo euo ath gud ditheu. 
+J[ phan hambOyllont h6y oz Ileon y deuant Oy yth 
+gyxchu di yth dihennydyaO am y g6z- J[ gOedy na 
+welont hOy dydi dz6c vyd gantunt. 3 minneu a vydaf 
+ar yx efgynuaen racko yth aros di. J[thydi amgOely 
+i. kanywelGyfi dydi. adyzet titheu adotdyla6 ar 
+penn * vy yfgCydi. Jtc yna ygOybydaf i dydyfot 
+titheu attaf fi. J[r ffozd ydelOyf i odyno dyzet titheu 
+gyt a mi. 9c ar hynny mynet a ozuc o dyno y Ozth 
+owein. He owein awnaeth aerchis y vozGyn idaO oil. 
+ac ar hynny ydeuth ygOyz ozllys y geifaO owein 
+oedihenydu. J[ phan deuthant ygeiffaO. nywelfant 
+dim namyn hanner y march. J[ dzOc ydaeth arnunt 
+hynny. a difflannu oaruc owein oc eu plith. adyuot 
+att yvozOyn. adodi ylaO aryhyfgOyd. a chychOyn 
+aozuc hitheu racdi. ac owein ygyt a hi yny deuth- 
+ant ydrOf Hofft uaGz delediG. ac agozi ylloft aozuc 
+
+
+
+i 7 4 ©wein anb Xunefc [038* 
+
+yvoxOyn. adyuot ymyOn. achaeu yllofift aoxugant. 
+Jlc edxych arhyt ylloft aoxuc owein. ac nyt oed 
+ynyllofift unhoel heb ylliwaO alliO gwerthuaOx. J£c 
+nyt oed un yftyHen heb del6 eureit arnei yn amry- 
+ual. J£chynnu tan glo aoxuc y voxOyn. achymryt 
+kaOc aryant aoxuc hi adOfyx yndaO. athOel ovliant 
+gOynn aryhyfgGyd. arodidOfyx yymolchi aoxuc y 
+owein. Jfdodi bOxd aryant goxeureit racyvxonn. 
+abliant melyn ynlliein arnaO. Hdyuot aeginyaO idaO. 
+J[ diheu oed gan owein. na welfei eiryoet neb ry6 
+vOyt. nywelei yno digaOn ohonaO. eithyx bot yn 
+well kyweirdeb ybOyt awelei yno. noc yn He arall 
+eiryoet. J[c ny welas eiryoet He kyn amlet anrec 
+odidaOc ovOyt allynn acyno. Jtcnytoedvn Hefty x 
+yn gOaffanaethu arnaO. namyn ITeftri aryant neu eur. 
+abOytta acyuet aoxuc owein yny oed pxyt naCn hir. 
+J[c ar hynny nachaf y clywynt diafpedein yn y gaer. 
+Jigofynaoxuc owein yx uoxOyn pyweidi yO h6nn. 
+J)odi oleO ary gOxda bieu bieu y gaer heb y uoxOyn. 
+acygyfgu ydaeth owein. agOiO oed yarthur dahet 
+ygOely aOnaeth yuoxOyn idaO. oyfgarlat agra a 
+phali afyndal abliant. Jtc amhanner nos y clywynt 
+diafpedein girat. JPy diafpedein y6 hOnn weithon 
+heb yx owein. °J gOxda bieu ygaer yf *fyd uarO yx 
+a6x honn heb y voxOyn. J[c am rynnawd ox dyd. 
+y clywynt diafpedein agOeidi. anueitraOl eu meint. 
+J[ gofyn a oxuc owein yx uoxOyn pa yftyr yffyd yx 
+gOeidi hOnn. ffynet a choxfif y gOxda bieu y gaer 
+ygaer yxllann. achyuodi aoxuc owein yvynyd a 
+gOifgaO ymdanaO. Scagoxi fifeneftyx ar yllofift. ac 
+
+
+
+639J ©wein anb Xunct 175 
+
+edaych parth ar gaer. ac ny welei nac ymyl nac 
+eithaf yx Huoed ynllewni yx heolyd. ahynny ynllaOn 
+aruaOc. agOzaged Hawer ygyt acwynt arueirch ac 
+artraet. achzefydwyz ydinas ollynkanu. Jtcef ate- 
+bygei oweinbot yx awyz yn edzinaO rac meint ygOei- 
+diarutkyznn. arcrefydwyz ynkanu Jfcymperued 
+ylluhOnnO^ef yx eloz. allenn o vliant gOynn arnei. 
+aphyft kOyz yn Ilofgi yn amyl yn y chylch ac nyt 
+oed vndyn dan yx eloz lai no barOn kyuoethaOc. Jf 
+diheu oed ganowein nawelfei eiryoet niuer kyhard- 
+et a hOnnO o bali a feric a fyndal. J(c ar ol y IIu 
+hOnnO y gOelei ef gOzeic velen ae gOaUt dzos y dOy 
+yfgOyd. ac agOaet briO amyl yny bzigeu. agOifc o 
+bali melyn ymdanei gOedy yr6yga6. a dOy wintas 
+ogozdwal bzith amy thraet. Jtryued oed na bei 
+yffic penneu y byffed rac dyckynet y maedei y 
+d6yla0 ygyt. ahyfpys oed gan owein nawelfei ef 
+eiryoet gOzeic kymryt a hi beytuei aryffuryf iaOn. 
+ac uch oed ydiafpat. nee aoed odyn achozn yny 
+IIiu aphannwelas ef ywreic ennynu aOnaeth oe 
+charyat yny oed gyflaOn pop He yndaO. J[ gofyn 
+aozuc owein yx uozOyn pOy oed ywreic. J)u6 awyz 
+heb y uozOyn gOzeic y gellir dywedut idi y bot yn 
+deckaf ozgwraged*. ac yn diweiraf. acynhaelaf. ac 
+yn doethaf. ac yn vonhedickaf. vy arglOydes i y6 
+honn racko. a iarlles y ffynnaOn y gelwir gOzeic y 
+gbx a * ledeift di doe. J)u6 awyz heb yx owein 
+arnaf. mae mOyhaf gOzeic agarafi y6 hi. J)u6 awyz 
+heb yuozOyn nachar hi dydi nabychydic nadim. 
+Jfcarhynny kyuodi aozucyvozOyn achynneu tan 
+
+
+
+1 76 ©wein anb Xunet [640. 
+
+glo. allanO crochan odOfyx ae dodi y d6yma6. a 
+chymryt tOel ovliant gOyn aedodi am vynOgyl owein. 
+achymryt gozflOch o afcOzn eliphant a chaOc aryant. 
+ae lan6 ozdOfyz tOym. agolchi pen owein. acodyna 
+agozi pzenuol athynnu ellyn. aecharn o afgOzn eliph- 
+ant. Jtdeu ganaOl eureit aryzellyn. J[c eiHaO y 
+uaraf aozuc afychu ybenn ae vynOgyl ar tOel. 9c 
+odyna dyzchafel aozuc y uozOyn rac bzonn owein. 
+a dyuot ae ginyaO idaO. £t diheu oed gan owein. na 
+chafas eiryoet kinyaO kyftal ahonno nadiwallach y 
+wafanaeth. J[ gOedy daruot idaO y ginyaO. kyweiryaO 
+aozuc yuozOyn y gOely. |)os yma hebhi ygyfcu a 
+minneu aaf yozderchu itti. £tmynet aozuc owein y 
+gyfgu. achaeu dzOs yllofft aozuc y vozOyn amynet 
+amynet parth argaer. 8phandeuth yno nyt oed yno 
+namyn triftyt agoual. Jlr iarlles ehun ynyzyftau- 
+ell heb diodef gOelet dyn rac triftit. a dyuot aozuc 
+lunet attei a chyuarch gOell idi. ac nyf attebaOd yz 
+iarlles^ ablyghau aozuc y uozOyn adywetut Ozthi. )fy 
+derO ytti pzyt nat attep|pych y neb hediO. Jlunet 
+heb yz iarlles pywyneb yffyd arnat ti. pzyt nadelut 
+y edzych y gofut auu arnaf i. ac a oed itti. ac yf 
+gOneuthum i dy ti y gyfoethaOc. Jfc aoed kam itti. 
+nadelut y edzych y gofut auu arnaf i. ac oed kam 
+itti hynny. jlioer heb y lunet. ny thebygOn i nabei 
+well dy fyn6yz di noc ymae. ©ed well ytti geiffaO 
+goualu am ennill y gOzda hOnnO. noc am peth arall. 
+nyeHych byth y gaffel. X 1 " ^ ac ^ heb yz iarlles. 
+nyallOn i vyth ennill vyarglOydi odyn aralL * yn 
+ybyt. iallut heb y Lunet gOzhagOz aveigyftal ac 
+
+
+
+640 J ©wein anfc Xunet 177 
+
+ef neuweH noc ef. "frofi aduO hebyz parlies pei 
+nabei Ozthmun gennyf peri dihenydyaO dyn auackOn 
+mi abarOn dy dihenydyaO. amgyffelybu Ozthyf peth 
+men aghywir ahynny. apheri dy dehol ditheu mi ae 
+gOnaf. J)a yO gennyf heb y lunet nat achaO? itt | y 
+hynny. namyn am uenegi ohonafi ytti dy les. He 
+nys metrut dyhun. amevyl idi ohonam ygyntaf 
+ayrro att ygilyd^ amiui yadolOyn gOahaOd itti. ae 
+titheu ym gOahaOd inneu. Jfcar hynny mynet a ozuc 
+lunet ymeith. achyfodi a ozuc yz iarlles hyt ardzOs 
+yz yftaueH yn ol lunet a pheffychu yn uchel. 9c 
+edzych a ozuc Lunet tu dzaechefyn. J[c emneidaO 
+a ozuc yz iarlles ar lunet. a dyuot dzachefyn a ozuc 
+Lunet att yz iarlles. ^frofi aduO hebyz iarlles Ozth 
+lunet dzOc yO dy anyan. achanys vy Hes i ydoedut 
+ti yny uenegi im. manac pa ffozd vei hynny. f|i 
+aemanagaf heb hL Wi awdoft na ellir kynnal dy 
+gyfoeth di namyn o vilOryaeth ac arueu. ac am hynny 
+keis ynebzOyd aekynhalyo. y a ffozd ygallafi hynny 
+heb yz iarlles Managaf heb y lunet. ©ny eHy di gyn- 
+nal y ffynnaOn. ny eHy gynnal dygyuoeth. Ify eiH 
+kynnal y ffynnaOn namyn vn o teulu arthur. Jf min- 
+neu aaf heb y lunet hyt ynHys arthur. 3 mefyl im 
+heb hi o deuaf o dyno heb uilOz a gattOo y ffynnaOn 
+yngyftal neu yn well noz gOz ae kedwis gynt. SnhaOd 
+yO hynny heb yz iarlles. 9c eiffoes dos ybzofi yz hynn 
+adywedy. ^ychOyn a ozuc lunet ar uedOl mynet ylys 
+arthur. J( dyuot a ozuc yzllofft att owein. Jfcyno 
+ybuhi gyt ac owein yny oedamfer idi dyuot olys 
+arth ur ^ J£c yna gOifgaO ymdanei a ozuc hi a dyuot y 
+
+N 
+
+
+
+178 ©wein anb Xunet [64t 
+
+ymwelet ar iarlles. a Hawen uu y iarlles Ozthi. chOed- 
+leu o lys arthur gennyt heb yz iarlles. dozeu chOedyl 
+gennyf arglOydes heb hi kaffel o honaf vy neges. a 
+phabzyt y mynny di dangos itt yzun*benn adoeth 
+gyt ami. JPyzet ti ac ef heb yx iarlles amhanner 
+dyd avozy- y ymwelet ami. a minneu abaraf yfgy- 
+falhau y dzef erbyn hynny. J[ dyuot awnaeth hi 
+adzef. J£c amhann er dyd trannoeth y gOifgOys owein 
+ymdanaOpeis afOzcot a mantell obali melyn. ac oz- 
+ffreis lydan yny vantell o eurllin. £t dOy wintas o 
+gozdwal bzith amydzaet. a Hun HeO oeur yneukaeu. 
+a dyuot aOnaethnt hyt yn yftauell y iarlles. J[ Hawen 
+uu y iarlles wzthunt. J[c edzych ar owein yn graff 
+aozuc y iarlles*. Jlunet heb hi nyt oes wed kerdetOz 
+ar yz unben hOnn. J*ydzOc yO hynny arglOydes. heb 
+ylunet. °|froffi aduO heb y iarlles naducdyneneit 
+vyarglwydi oegozff namyn y gOz hOnn^ pandit 
+gOell itt arglOydes. peinabei dzech noc ef nyf dygei 
+ynteu yeneit ef. l|yellir dim Ozth hynny heb hi 
+kan deryO. JlOch chOi dzachefyn atref heb yz iarlles. 
+aminneu agymeraf gyghoz. J[ pheri dyfynnu yholl 
+gyuoeth yunlle dzannoeth aozuc y iarlles. ftmenegi 
+udunt uot y hiarllaeth yn wedu. Uc na ellit y chynnal 
+onyt o uarch ac arueu amilOzyaeth^ Jfcyfef y 
+rodafinneu arawchdeOis chOi. aeun ohonaOch chOi 
+am kymero i. ae vyg kannyadu ynneu y gymrut gOz 
+ae kanhalyo olearall. jief agaOfant yneu kyghoz 
+kanhadu idi gOza olearalL Jtcyna yduc hitheu 
+efcyb ac archefcyb oe Hys y wneuthur y phziodas 
+hi ac owein. AgOzhau aozugant gOyz y iarllaeth y 
+
+
+
+642J ©wein anb Xunet 179 
+
+owein. Jtc owein a gedwis y ffynnaOn o waeO a 
+chledyf. jlef mal y kedOi? adelei ovarchaOc yno. 
+owein aebyzyei. ac aegOerthei yzylaOn werth. J[r 
+dahOnnO arannei owein y varOnyeit ae uarchogyon 
+* hyt nat oed vOy gan y gyfoeth garyat dyn ox byt 
+oil no* eidaO e£ J[ their blyned y buef ueHy*. 
+
+9@ ual ydoed walchmei diwarnaOt yngozym- 
+deith ygyt ar amheraOdyz arthur. Edzych 
+aozuc ar arthur ae welet yn trift gyftudedic, 
+adoluryaO aozuc gOalchmei yn uaOz o welet arthur 
+ynydrych hOnnO. Sgofyn aozuc idaO. arglOyd heb py 
+derO itti. °|f rof aduO walchmei heb yz arthur hir- 
+aeth yffyd arnaf am owein. agolley ygennyf meint 
+teir blyned. J[c obydaf y bedwared vlOydyn heb 
+y welet ny byd vy eneit ymkozff. amiaOn ynhyfpys 
+panyO o ymdidan kynon mab clydno y kolles owein 
+y gennym. l|yt reit itti heb y gOalchmei luydyaO 
+dy gyfoeth yzhynny. namyn ti agOyz dy ty aeill dial 
+owein ox Has. neuyrydhau ot ydiw ygkarchar. ac os 
+buO y dOyn gyt athi. 9c ar a dywaOt gOalchmei y 
+trigywyt. ac ymgyweiryaO awnaeth arthur agOyx 
+y dy gyt ac ef y geiffaO owein. jSef oed meint y nifer 
+teir mil heb amlaO dynyon. achynon mab clydno yn 
+gyfarOyd udunt Jt dyuot aozuc arthur hyt y gaer 
+y buaffei gynon yndi. Sphandeuthant yno ydoed y 
+gOeiffon yn faethu ynyzunHe. argOz melyn yn feuyll 
+ach eu HaO. J[ phan welas ygOz melyn arthur. Kyu- 
+arch gwell aozuc idaO ae wahaOd. achymryt gOahatid 
+aozuc arthur. Jtc yz gaer ydaethant. achyt bei 
+maOz euniuer. nywydit euhyftyz ynygaer. ftchyuodi 
+
+N 2 
+
+
+
+180 ©wein anb Xunet [643. 
+
+aozuc ymozynyon y eugOaffanaethu. £t bei awelfant 
+ar bop gOaffanaeth eiryoet eitltyz gOaffanaeth y 
+gOzaged. 8c nyt oed waeth gwaffanaeth gOeiffon y 
+meirch ynos * honno. noc vydei ararthur yny lys 
+ehun. Jtrboze trannoeth ykych6ynn6ys arthur. a 
+chynon yn gyfarOyd idaC odyno. ac wynt a deuthant 
+hyt He yd oed y g6z du. ahoffach olawer oed gan 
+arthur meint ygGz du noc ydywedyffit ida6. 3c hyt 
+ympenn yz allt y deuthant. ac yz dyffryn hyt ynymyl 
+ypzenn glas. ac yny welfant y ftynnaOn ar kaOc ar 
+Hech. Jtc yna ydoeth kei ar arth ur . J[ dywedut 
+arglOyd heb ef. mi a 6nn achaOs y kerdet hOnn oil. 
+Ac eruyn yGgennyf. gadu ymi b6z6 y dOfyz ar y Hech. 
+ac erbynyeit y gofut kyntaf adel. aeganhadu aozuc 
+arthur. JtbOzO kaOgeit ozdOfyz ar yUech aozuc kei. 
+Jfcynylle arol hynny ydeuth y tOzyf. acynol ytOz- 
+yf y gawat. ac ny chlywyffynt eiryoet twryf achaO- 
+at kyffelyb y rei hynny. aHawer oamlaO dynyon a 
+oed ygkyOeithas arthur aladaOd ygawat. JtgOedy 
+peidyaO y gaOat y goleuhaOys yz aOyz. J[ phan edzych- 
+affant arypzen nyt oed un dalen arnaO. adifgynnu 
+aozuc yzadar arypzenn. adiheu oed gantunt na 
+chlyOyffynt eiryoet kerd kyftal ar adar yn kanu^ J[c 
+ar hynny ygOelynt uarchaOc y ar varch purdu. agOifc 
+o bali purdu ymdanaO. a cherdet gOzd gantaO. ae 
+erbynnyeit aozuc kei. ac ymwan ac ef. Jtc ny bu hir 
+yz ymOan kei avyzywyt. J[c yna pebyHyaO aozuc 
+y marchaOc a phebyllyaO aozuc arthur ae lu y nos 
+hono~ % phan gyfodant y boze trannoeth y vynyd^ 
+ydoedarwyd ymwan ar waeO y marchaOc. 8 dyuot 
+
+
+
+644 J ©wein anfc Xunet 181 
+
+aozuc kei ar arthur adywedut OzthaO. 8rgl0yd heb 
+ef kam ymbyrywyt i doe. ac aoed da yti ymi hediO 
+vynet y ymwan ar marchaOc. §a*daf heb yz arthur. 
+amynet aozuc kei yx marchaOc. Jtcynylfe bOzO kei 
+aozuc ef. 3c edzych arnaO aewan ac arlloft ywaeO 
+yny tal yny tyz y helym ar penffeftin ar croen ar kic 
+hyt yz afgOzn kyflet aphenn ypaladyz. J£c ymchoel- 
+ut aozuc kei ar ygedymdeithon dzachefyn. J[c ohyn- 
+ny aHan yd aeth teulu arthur bop eilwerf y ymwan 
+ar marchaOc. hyt nat oedun heb y vOzO ox march- 
+aOc namyn arthur a gOalchmei. J£c arthur awifgaOd 
+ymdanaO y vynet y ymwan ar marchaOc. ©ch ar- 
+glOyd heb y gOalchmei gat y mi vynet y ymwan ar 
+marchaOc yngyntaf. He adu awnaeth arthur. £tcynteu 
+aaeth y ymwan ar marchaOc. a chOnfallt o bali ymda- 
+naO aanuonaffei uerch iarH ragyO ymdanaO acamy 
+varch. Ozth hynny nys atwaenat neb ozlluef. J[c 
+ymgyzchu awnaethant ac ymwan ydyd hOnnO hyt 
+ucher. Jtc ny bu agos yz un o nadunt abOzO ygilyd 
+yzIIaOz. athzannoeth ydaethant y ymwan apheleidyz 
+godeuaOc gantunt. ac ny ozfu yz un o nadunt ar y 
+gilyd. artrydyd dyd ydaethant y ymwan. apheleid- 
+yz kadarnuras godeuaOc ganbobun o nadunt. Jtc 
+ennynnv olit awnaethant ac ymgyzchu aOnaethant 
+amhanner dyd ehun. ahOzd arodes pob un onadunt 
+y gilyd. yny tozres holl gegleu eu meirch. J£c yny 
+vyd pob un o nadunt dzos bedzein y varch yz IlaOz. 
+ftchyuodi y vynyd aozugant yn gyflym. U thynnu 
+clefydeu ac ymffuft. J£ diheu oed gan y nifer ae gOel- 
+ei Oynt ueHy. na welfynt eiryoet deu Oz kynwych- 
+
+
+
+182 ©wein anfc Xunet [645. 
+
+et ar rei hynny. nachyngryfet. apheitywyH ynos 
+hi avydei oleu gan y tan oeharueu. Jtcar hynny dyz- 
+naOt arodes y marchaOc y walchmei hyt pantroes yx 
+helym y ar y wyneb^ * mal y hadnabu y march- 
+aOc panyO gOalchmei oed. Jtcyna ydywaOt owein. 
+arglOyd walchmei nyt atwaenOn i didi o achaOs dy 
+gOnfallt amkefynder6 Oyt HOdedi uygkledyfi am 
+harueu* Widi owein yffyd arglOyd heb y gOalchmei* 
+athi aozuu. achymerdi vygcledyfh ac ar hynny yd 
+arganuu arthur Oynt. adyuot attunt aozuc, JtrglOyd 
+arthur heb y gOalchmei Ilyma owein* gOedy goxuot 
+arnaf u ac ny mynn uy arueu y gennyf. JfrglOyd heb 
+yx owein euo aozuu arnaf u acnymynn vygcledyf. 
+MoeffOch attafi heb yx arthur aOch clefydeu. £tc ny 
+ozuu yx vn ohonaOch arygilyd gan hynny. amynet 
+dOylaO mynOgyl y arthur aozuc owein. ac ymgaru 
+aozugant adyuot aozugant y IIu attunt yna gan 
+ymfag a bays y geiffaO gOelet owein. yuynet dOylaO 
+mynOgyl idaO. j[c ef auu agos abot kalaned ynyz 
+ymfag hO"nO. J[r noshonno ydaethant yeu pebyHyeu. 
+JI thzannoeth arofyn aozuc arthur ymeith. SrglOyd 
+heb yx owein nyt iieHy y mae iaOn itU teir blyned yx 
+amfer hOnn ydeuthum i y Ozthyt ti arglOyd* ac ymae 
+y meu i y He hOnn. jtc yx hynny hyt hediO yd wyf i 
+yn darparu gOled ytti. kan gOydOn y dout ti ym keiffaO. 
+athi adeuy gyt ami yvOzO dyludet ti athwyz. ac 
+enneint a geffOch. J£ dyuot aozugant oil hyt ygkaer 
+iarlles yffynnaOn. °|f gyt arwled ybuOyt deir blyn- 
+ed yny darparu. ynuntrimis y treulOyt. J[c nybu 
+efmOythach udunt wled eiryoet na gOell nohonno. 
+
+
+
+646J ©wein anb %nnct 183 
+
+Jtc yna arofyn aoxuc arthur ymeith. agymi kennad- 
+eu aozuc arthur att yx yarlles y erchi idi eUGng 
+owein y gyt ac ef oe dangos y wyzda ynys pzydein. 
+aegfoagedda vntrimis. Hriarlles ae kanhadaOd * 
+acanhaOd uu genthi hynny. Jfdyfot aozuc owein y 
+gyt ac arthur y ynys pxydein. J| gOedy y dyuot 
+ymplith y genedyl aegyt gyfedachOyz. ef atrigywys 
+teir blyned ygkyfeir y trimis.. *, 
+
+Hi ual ydoed owein diwarnaOt yn bOyta ar y 
+bOzd ygkaerllion arwyfc. nachaf uozOyn yn 
+dyuot aruarch gCineu mynggrych. ae vyghen 
+agaffei. agOifc ymdanei o bali melyn. J(rffr6yn 
+ac awelit ox kyfrOy eur oed oil. ahyt rac bzonn 
+owein ydeuth. a chymryt y uotrOy oed ar laO owein 
+awnaeth. Tal hynn heb hi ygOneir y tOyllOz bzatGz 
+aghywir yx mefyl ar dy uaryf. Jtc ymchoelut penn 
+ymarch ac ymeith. He yna y doeth cof y owein y 
+gerdet hono~ J[ thziftau aozuc. aphandaruu bGyta 
+dyuot y letty aozuc. agofalu ynos honno. J[ thzan- 
+noeth ykyuodes. ac nytyHys agyzch6ys. namyn 
+eithafoed bydoed. adiffeith vynyded. ac ef a uu ueHy 
+yny daruu y dillat oil. ac yny daruu y gozff hayach. 
+Jfcyny tyfaOd ble6 hir trOydaO. 9 chyt gerdet a6na- 
+ei a bOyftuileit a chyt ymbozth ac 6ynt yny oedynt 
+gynefin ac eL ac yn hynny gOanhau a ozuc ef heb 
+allu eu kanhymdeith. J(c eftCng ox mynyd yx dyff- 
+rynn. a chyzchu pare teccaf ox byt. a iarlles wed6 
+bioedypanx J[diwarna6t mynet aozuc y iarll- 
+es aellaOuozynyon y ozymdeith gan yftly? Hynn a 
+oed yny pare hyt argyfeir y chanaOl. J[c Oynt a 
+
+
+
+1 84 ©wein anb Xunet [647. 
+
+welynt yno eilun dyn aedelO. Scnaldala ofyn rac- 
+daO aozugant. J[c eiffoes neffau aozugant attaO 
+ae deymlaO ae edzych. flefygOelynt gOythi yn IlaCn 
+ar na6. Ac yntev yngOywaO Ozth yz heul. Jtdyuot 
+aozuc yz iarlles dzachefyn yzkaftell. 9 chymryt 
+Iloneit gozflOch oireit gOerthuaOx. ae rodi yn 
+IIa6 unoz IIa6 uozynyon. Jpos heb hi ahOnn gen- 
+nyt a dOc y march racko ar dillat gennyt. * a dot 
+ger IlaO y dyn gynneu. ac ir ef ar ireit hOnn ar gyfeir 
+y gallon. Jfcozbyd eneityndaO ef agyfyt gan yx 
+ireit hOnn. agOylya beth awnel. ar uozOyn adeuth rac- 
+di. J[ chObyl ox ireit arodes arnaO. ac adaO y march 
+ar diHat ach y laO. J[ mynet ruthur y OzthaO. ac 
+ymgudyaO adifgOyl arnaO. Jfcympenn rynnaOd hi 
+ae gOelei ynkoffi yvzeicheu. Jlcynkyfodi yuynyd 
+ac yn edzych ar y gnaOt. & chymryt kewilyd aozuc moz 
+hagyz oed y delO aoed arnaO. ac arganfot aozuc y 
+march ardillat y OzthaO. JtcymlithzaO aozuc yny 
+gafas tynnu y dillat attaO ox kyfrOy. ac eu gOifgaO. ac 
+efgynnu ary march oabzeid aozuc. Jtcyna ym- 
+dangos aozuc y uozOyn idaO. achyuarch gOell idaO. a 
+Ha wen uu ynteu Ozth y vozOyn. agofynaozuc idi py 
+dir oed hOnnO aphyle. Jpioer heb yuozOyn iarlles 
+wed6 bieu ykaftell racko. Jtphanuu uarO y gOz ef a 
+edewis genthi dOy iarHaeth. ahediO nyt oes ar y helO 
+namyn yz unty hOnn nys ry dycko iarll ieuanc yffyd 
+gymodaOc idi. am nat aei yn wreic idaO. l>zuan yO 
+hynny heb yzowein. acherdet aozuc owein ar uozOyn 
+yz kaftell. Jtdifgynnu awnaeth owein yny caftell. 
+8r uozOyn aeduc yyftauell efmOyth. achynneu tan 
+
+
+
+648 J ©wein anb Xunct 185 
+
+idaO ae adaO yno^ JL dyuot aozuc y vozOy att yz iarll- 
+es. arodi ygorvlOchyny HaO. Ifaa vozOynheb yz 
+iarlles mae yzireit oIL neur golles oil heb hi. ]§a 
+voxOyn heb yz iarlles. nyt haOd gennyf i dy atneiryaO 
+di yz hynny. ®ed diryeit hage y minneu treulaO 
+gOerth feith ugeint punt oireit gOerthuaOz Ozth dyn 
+heb wybot pOy. J[c eiffoes uozOyn heb hi gOaffan- 
+aetha di euo*. * yny vo diwaH ogObyl. a hynny a 
+ozuc yuozOyn ywaffanaethu arvOyt adiaCt a than a 
+gOely ac enneint ynyvu iach.arbleO aaetyar owein 
+yntozuenneu kennoc. fef ybu yn hynny tri mis. a 
+gOynnach oed ygnaCt yna. noc ybuaffei gynt. J[c 
+ar hynny y clywei owein diwarnaOt kynnOzyf yny caf- 
+tell. adOyn arueu ymyOn. JEgofyn aozuc owein yx 
+uozOyn. py gynnOzyf y6 hOnn. °f iarll heb hi adywed- 
+eisi ytti yffydyn dyuot Oath ykaftell. y geifaO diua 
+y wreic honn allu maOz gantaO. dofyn aozuc owein 
+aoes uarch ac arueu yx iarlles. ©es hebyvozOyn y 
+rei gozeuozbyt. aey di yerchi ymi benffic march ac 
+arueu heb yz owel pei gallOn uynet yn edzychyat ar 
+yHu. af heb yuozOyn. a dyuot att yz iarlles aozuc. 
+Jt dywedut Oxthi y hymad ra 0d o gObyl. jief aozuc yz 
+iarlles chOerthin. °|f r °f* a( ^ u ^ hebhi mi a rodaf ida6 
+uarch ac arueu (bythl) Jtcnybu ar y helO eiryoet 
+march ac aruev kyftal acOynt. a da y6 gennyf i eu 
+kymryt o honaO. rac eu kaffel om gelynyon auozy om 
+hanuod. JtcnyOn beth avynn ac Gynt. adyfot a 
+wnaethpOyt agOafgOyn du telediwa chyfrOy offawyd 
+arnaO. acadogon o arueu gOzamarch. JCgOifgaO a 
+ozuc owein ymdanaO. ac efgynnu ar y varch. a mynet 
+
+
+
+1 86 ©wein anb Xunet [640* 
+
+ymeith adeu uackGy gyt acef yngyweiro veirch ac 
+arueu. aphan deuthant parth allii yz iarll. ny welynt 
+nac ol naceithaf idaO. Jtgofyn aozuc owein yzmac- 
+kOyeit. pa vydin yd oed yz iarll yndi. *|f vydin y mae 
+ypedeir yftondard melynyon yndi racko heb Oynt. 
+dOy yffyd yny vlaen adOy ynyol. ^eheb yz owein 
+eGchchOi dzachefyn. ac arhoOch viui ynymylpozth y 
+kaftell. *|f mchoelut aozugant h6y. a cherdet aozuc 
+ynteu racdaO yny gyferuyd ar iarll. J[e tyn*nu aozuc 
+owein oe gyfrOy. yny uyd yrydaO a chojof. ac ymchoe- 
+lut penn y uarch parth ar kaftell. Jt pha ofut bynnac 
+agafas ef a deuth ar iarll y bozth y caftelL at ymac- 
+kOyeit. Jfc y myOn ydeuthant. ac owein arodes y iarll 
+y anrec yx iarHes. adyOedut OzthL welydi yma y 
+ti bOyth yx ireit bendigedic. arllu abebyllywys yg 
+kylch y kaftell. ac yx rodi bywyt yx iarll y rodes yn- 
+teu y dOy iarllaeth idi dzachefyn. Jtc yr rydit id- 
+a6 yrodeshanner ygyfoeth ehun. achGbyl oe heur 
+aeharyant aethlyffeu aegOyftlon ar hynny. Jfc 
+ymeith ydaeth owein. ae wahaOd aOnaeth yx iartt- 
+es idaO. ef aehoHgyfoeth*. He nymynnOys owein nam- 
+yn kerdet racdaO eithafoed byt adiffeithOch. Jfc 
+ual yd oed ynkerdldet ef aglywei difgrech uaOz y 
+myOn koet ar eil ar dzyded. a dyuot yno aozuc owein. 
+J[ phan doeth yno. ef awelei clocuryn maOz ygkanaOl 
+ykoet acharrec lOyt ynyftlys ybzyn. ahollt aoed 
+ynygarrec. afarff aoed ynyzhollt. HlleO purdu aoed 
+yn ymyl y garrec. Jl phan geiffei y IleO vynet o dyno 
+y neidei y farff idaO oe vzathu. jSef aozuc owein dif- 
+peilaO cledyf a neffau att y garrec. JTc ual yd oed y 
+
+
+
+650 J ©wein anb Xunet 187 
+
+sarffyn dyuot ox garrec. y tharaO aozuc owein achled- 
+yf yny vyd yndeu hanner. a fychu y gledyf. a dyfot yz 
+ffozd ualkynt. 0efyg6elei y IIe6 ynyganlyn. J[c 
+yngOare ynygylch ual milgi auackei ehun. & 
+cherdet aozugant arhyt ydyd hyt ucher. Jfphan 
+uu amfer gan owein oxffowys^ difgynnu aozuc. a 
+geHOng y uarch ymyOn dol goedaOc waftat a Had tan 
+aozuc * aphanuu baraOt y tan gan owein. yd oed 
+gan y Hew dogon o gynnut. hyt ym penn teirnos. J( 
+difflanriu aozuc y IleO y OzthaO. J[c yny He nachaf y 
+He6 yn dyuot attaO a chaeriwrch maOz telediO gataO. 
+J[e vOzO gerbzonn owein. amynet amy tan ac ef. a 
+chymryt aozuc owein y kaeriOzch ae vlighaO. 8dodi 
+golOython ar uereu ygkylch y tan. J[ rodi y iOzch 
+namyn hynny yzllew oe yffu. ac ual yd oed owein 
+ueHy ef aglywei och uaOz ar eil ar dzyded yn gyfag- 
+os idaO. Jtgofyn aozuc owein aedynbydaOl. |£e yf 
+gOir heb y dyn. Jl6y Oyt titheu heb yz owei. |)ioer heb 
+hi LunetOyfi IlaOuozOyn iarlles yffynnaOn. Jeth 
+awney di yma heb yz owein. Tygkarcharu heb hi 
+yd ydys. o achaOs marchaOc adoeth olys arthur y 
+uynnu y iarlles yn pziaOt. ac auu rynnaOd gyt a hi. ac 
+yd aeth y dzeiglaO Hys arthur, Jfc ny doeth vyth 
+dzachefyn. achedymdeith ymi oed ef mOyaf agarOn 
+oz byt. jief aozuc deu weiffon yftauell y iarlles y 
+oganu ef ae alO yntOyllOz. jlef y dywedeis i na 
+aHei ydeu gozff hOy. amryffon ae uncozff ef. Jtc 
+am hynny vygkarcharu yny Heftyz maen. ftdywedut 
+nabydei vy eneit ym cozff onydelei ef ym amdiffyn i 
+yn oet y dyd. J[c nyt pellach yz oet no thzennyd. £tc 
+
+
+
+1 88 ©wein anb Xunet [65t 
+
+nyt oes ymi neb aekeiffaG ef. jlef y6 ynteu owein 
+uab uryen. Jtoed diheu gennyt titheu pei gOyppei 
+y marchaOc hOnnO hynny y deuei yth amdiffyn. JHheu 
+y rof i adu6 heb hi. Hphanuu dogyn poethet y go- 
+lOython. eu rannu aonic owein yn deu hanner y ryng- 
+ta6 ar uoaOyn. & bOytta aozugant. SgOedy hynny ymdi- 
+dan yny vu dyd dzannoeth. lhannoeth gofyn aozuc 
+owein yx uozOyn aoed le y gaUei ef kaffel bOyt alle- 
+wenyd y nos honno. ©es arglOyd heb hi. dos yna 
+dzOod. acherda yffozd gan yftlys yzauon. J(c ym 
+penn rynnaOd ti awely gaer ua6z. athyzeu * ynam- 
+yl arnei. J[r iarll bieu y gaer hono gozeu g6z am 
+vOyt y6 ox byt. Jfc yno y geHy di uot heno. J[c ny 
+wylOys gOylOz y arglOyd eiryoet yngyftal ac y 
+gOylOys y IleO owein y nos honno. Jfc yna y ky- 
+weiryOys owein yuarch. ac y kerdldawd racdaO 
+trOy y ryt yny welas y gaer. J[c y doeth yx gaer. 
+3e aruoII aOnaethpOyt idaO yno ynenrydedus. a 
+chyweiryaO y uarch yndiwall. adodi dogyn. o vOyt 
+rac y uronn. J( mynet aoruc y IleO y bzeffeb y march 
+y ozwed. hyt na lyfaffei neb ox gaer uynet ygkyfyl y 
+march. S diheu oed gan owein. nawela? eiryoet He 
+kyftal ywaffanaeth ahOnnO. Jtchyndziftet oed bop 
+dyn yno achyn bei agheu ympop dyn onadunt. A 
+mynet aozugant y vOyta. ac eifted aozuc yx iarH ary 
+neilllaO y owein. J[c un verch oed idaO ar y tu 
+araH y owein. J[ diheu oed gan owein na welas eir- 
+yoet vnvozOyn delediwach no honno. Jtdyuot aoz- 
+uc y Hew rOng deutroet owein dan y bOzd. J(c ow- 
+ein ae pozthes o bop bOyt ox aoed idaO ynteu. JLc 
+
+
+
+652.] ©wein anb Xunet 189 
+
+ny welas owein bei kymeint yno a thziftyt y dynyon. 
+J[c amhanner bOytta greffaGu owein aozuc y iarll. 
+§|ad6s oed itt bot ynHawen heb yz owein. J)u6 a 
+6yz yni nat Ozthyt ti ydym dxift ni. namyn dyuot 
+deunyd triftit in agofaL |>eth y6 hynny heb yz 
+owein. Jpeu uab oed im. a mynet uyn deu uab yx 
+mynyd doe y hela. jlef ymae bOyftuil yno allad 
+dynyon awna. ac eu hyffu. J£ dala vy meibon aozuc. 
+ac auozy y mae oet dyd y rof i ac ef y rodi y vozOyn 
+honno ida6. neu ynteu aladho vy meibon ymgGyd. ac 
+eiljlun dyn yffyd arnaO. J[c nyt Hei ef no chaOz. 
+|lioer heb yz owein. truan y6 hynny. a phyuh awney 
+ditheu o hynny. J)u6 awyz arnaf heb yz iarll uot yn 
+diweirach gennyf diuetha vy meibon agafas omhan- 
+uod.no rodi uymerch idaO ombod^ * oellygru. ae 
+diuetha. acymdidan awnaethant am betheu ereill. 
+Jtcyno ybu owein y nos honno*. ar boze trannoeth 
+Oynt aglywynt tOzyf anveitraOl yueint. jlef oed 
+hynny ygOz maOz yn dyuot ar deu uab gantaO. A 
+mynnukadO y gaer aozuc y iarll racdaO a dilyffu y 
+deuvab. §6ifga6 aozuc owein y arueu ymdanaO. a 
+mynet alia, ac ymbzaOf ar gCz. JfrHeG yny ol. Jt 
+phan welas ygOz owein yn aruaOc. ygyzchu aozuc. 
+J[c ymlad ac ef. agGell o laOer yd ymladei y He6 ar 
+gOz ma6z noc owein. ^rofi aduO heb ygOz Czth 
+owein. nyt oed gyfyg gennyf ymlad athidi bei nabei 
+yz anifeil gyt athi. J[c yna ybyzyaOd owein ylleG 
+yzgaer. ftchaeu ypozth arnaO. J[ dyuot y ymlad ual 
+kynt argOz maOz. adifgrech aozuc ylleO amglybot 
+gofut ar owein. 8 dzigyaO yny vyd arneuad yz iarll. 
+
+
+
+i 9 o ©wein anb Xunet [653- 
+
+8c yar y neuad hyt ar y gaer. ac yar y gaer y neid- 
+yaOd yny uu gytac owein. 8phalua6t atrewis yUeO ar 
+beii yfgOyd y g6z maOz yny uyd y balaf trOy bleth y 
+dOyclun. ual ygOelit y holl amyfgar yn HithxaO o hon- 
+a6. J[c yna y dygOydOyy y g(u maOz yn varO. Ac yna 
+y rodes owein y deu vab yx iarll. 9 gOahaOd owein a 
+ozuc yjiiarIL ac nyfmynnaOd owein. namyn dyuot 
+racdaO yx dol ydoed Jlunet yndi. J[c ef awelei yno 
+kynneu uaOz o tan. J[ deu was penngrych wineu 
+delediO yn mynet ar uozOyn oebOxO yny tan. J(go- 
+fyn aozuc owein pybeth aholynt yx uozOyn. 8dat- 
+kanu eu kyfranc aozugant idaO. mal ydatkanaffei y 
+uozOyn y * nos gynt. ac owein a paHGys idi. J[c 
+am hynny y IlofgOn ninneu hi. JHoer heb yz owein 
+marchaOc da oed hOnnO. Jtryued oed gennyfi pei 
+gOypei ef uot ar y uozOyn hynny. nadelei y hamdi- 
+ffyn. JlpheimynneOch chOi vyui dzoftaO ef. miui 
+aaOn y chOi. HynnOn heb y gweiffon mynny g6z an 
+gOnaeth. a mynet aozugant y ymdiot ac owein. ago- 
+futagafas owein gan y deu was. Jtcar hynny y He6 
+anerthOys owein. £lc aozuuant ar y gGeiffon*. Jfc 
+yna ydywedaffant Oynteu. Ha unbenn. nyt oed amot 
+ynni ymlad namyn athydi dyhun. Jfc yfanhaOs 
+ynni ymlad aranifeil racko noc athydi. Jfc ynay 
+dodes owein ylleO yny He ybuaffei yuozOyn yg 
+karchar. a gOneuthur mur maen ar y dzOs. J£ mynet 
+y ymlad ar gOyz mal kyt. ac ny dothoed owein y 
+nerth ettwa. J[ hydyz oed y deu was arnaO. At 
+Hew vyth yn difgrechu am vot gouut ar owein. a 
+rOygaO ymur aozuc yHew yny gauaf ffozdalla. Jfc 
+
+
+
+654.] ©wein anb XuneL 191 
+
+yngyflym y IladaOd y neill oz gOeiffon. Scynylle y 
+IladaOd y Hall. J[c uelly ydifferaffant h6y Lunet rac 
+y Ilofgi. Jtc yna yd aeth owein a Lunet gyt ac ef y 
+gyfoeth iarlles yffynnaOn. Sphan doeth, odyno y 
+due y iarlles gantaO y lys arthur. J[ hi a uu wreic 
+trauu vyO hi*. 
+
+Hi yna ydeuth ef ffozd ylys ydu traOs. 8c 
+ymladaOd acef. 8cnyt ymedewis ylleO ac 
+owein yny ozuu ar ydutraOs. Jtphan doeth 
+ef ffozd y lys y du traOs y neuad a gyzchOys. Jtc 
+yno y gOelas ef pedeir gOzaged ar hugeint. telediwaf 
+ox awelas neb eiryoet. Sic nyt oed diTTat ymdannunt 
+werth pedeir ar hugeint o aryant. J[ chyntriftet oed- 
+ynt ac * agheu. J[ gofyn aozuc owein udunt yf- 
+tyz eutriftit. °ffdywedaffant Oynteu panyO merchet 
+ieirll oedynt. , Jtc ny dothoedynt yno namyn ar g6z 
+mOyhaf agarei bop un onadunt gyt ahi. Jtphan 
+doetham ni yma ni agaOffam lewenyd apharch acan 
+gOneuthur yn vedO. J[ gOedy y beym ued6 y deuei 
+y kythzeul bieu yllys honn. ac y Iladei angOyz oil. 
+9c y dygei an meirch ninneu ac andiHat ac an eur ac 
+an aryant. J( chozffozoed ygOyz yffyd ynyz unty a 
+Ilawer o galaned ygyt ac Oynt. aHyna itti unben yftyz 
+an triftit ni. adxOc y6 gennym ni unben dy dyuot ti- 
+theu yma rac dzOc itt. J[ thzuan uu gan owein hyn- 
+ny^ amynet aozuc y ozymdeith aHann. Jtc efawelei 
+uarchaOc yn dyuot attaO. ac ynyaruoIT trOy lewenyd 
+acharyat ual bei bzaOt idaO. jlef oed hCnnO y dutraOs. 
+J)u6 aOyz heb yx owein nat ygyzchu dy lewenyd y 
+dodOyf i yma. |)u6 awyz heb ynteu naf keffy dith- 
+
+
+
+1 92 ®wetn anb Xunet [655. 
+
+eu. Jtcyny Heymgyxchu aGnaethant. J[c ymadoydi 
+yndzut. acymdihauarchu(^ce|aozuc owein ac ef. 8e 
+rOymaG ae dOylaO ar y gefyn. 8na6d aerchis y du traOs 
+yowein. Jtdywedut OzthaO. arglGyd owein heb ef. 
+darogan oed dydyuot ti yma ym dareftOng i. a thi- 
+theu adeuthoft. ac aozugoft hynny. J£c yfpeilOz uum 
+i yma. acyfpeilty uuuyn ty. Sdyzo im vy eneit. J( 
+mi aaf yn yfpyttyGz. ami agynhalyaf yty hOnn yn 
+yfpytty y wann acy gadarn. tra vOyf vy6 rac dy eneit 
+ti. Jtc owein agymerth hynny gantaO. 9cyno ybu 
+owein y nos honno. £t thzannoeth y kymerth ypedeir 
+gfoaged arhugeint ae meirch^ aediHat. acadathoed 
+gantunt o da athlyffeu. J[c y kerdCys ac 6ynt gyt ac 
+ef hyt yn Hys arthur. J[ Hawen uuaffei arthur OzthaO 
+gynt pan y koHaffei. 8 HaOenach yna. £tr gOzaged hyny 
+yx honn a vynnei dxigyaO yn Hys arth ur * hi ae 
+kaffei. ar honn avnneivynet ymeith elei. Jtc owein 
+a trigy wys yn Hys arthur o hynny aHann yn penn- 
+teulu. JKc yn annGyl idaO yny aeth ar y gyfoeth 
+ehun. jlef oed hynny trychant cledyf kenuerchyn 
+arvzanhes. J£c yx He yd elei owein a hynny gantaO. 
+gozuot aOnaei. J|r chwedyl hOn aelwir chwedyl. 
+iarHes yffynnaOn^ ^ *, 
