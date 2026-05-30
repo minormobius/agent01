@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed it documents &mdash; transcribe once, for tokens</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.6rem; margin: 0.4rem 0 0.2rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.2rem; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+  h3 { font-size: 1.02rem; margin-top: 1.6rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  p { margin: 0.6rem 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .codeblock { position: relative; margin: 1rem 0; background: #1d2329; color: #e6edf3; border-radius: 6px; padding: 0.85rem 1rem; overflow-x: auto; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.5; border: 1px solid #2a3138; }
+  @media (prefers-color-scheme: dark) { .codeblock { background: #0e1419; border-color: #2a3138; } }
+  .codeblock pre { margin: 0; padding: 0; padding-right: 5rem; white-space: pre-wrap; word-break: break-word; }
+  .codeblock .copy { position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.08); color: #cdd9e5; border: 1px solid rgba(255,255,255,0.15); padding: 0.25rem 0.6rem; border-radius: 4px; font: inherit; font-size: 0.78rem; cursor: pointer; }
+  .codeblock .copy:hover { background: rgba(255,255,255,0.16); }
+  .codeblock .copy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  .codeblock .lang { position: absolute; bottom: 0.25rem; right: 0.6rem; font-size: 0.7rem; color: rgba(230,237,243,0.4); font-style: italic; pointer-events: none; }
+  .aside { margin: 0.7rem 0; padding: 0.6rem 0.9rem; background: #f4f8fc; border-left: 3px solid #2c7da0; border-radius: 0 4px 4px 0; font-size: 0.92rem; color: #455; }
+  @media (prefers-color-scheme: dark) { .aside { background: #18222a; border-left-color: #5fa8c8; color: #bbd; } }
+  .aside strong { color: #1a1a1a; } @media (prefers-color-scheme: dark) { .aside strong { color: #eee; } }
+  .warn { background: #fff8e8; border-left-color: #c89200; }
+  @media (prefers-color-scheme: dark) { .warn { background: #2a2310; border-left-color: #d4a020; color: #ddc; } }
+  table.cmp { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+  table.cmp th, table.cmp td { border: 1px solid #ddd; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }
+  table.cmp th { background: #f4f6f8; }
+  @media (prefers-color-scheme: dark) { table.cmp th, table.cmp td { border-color: #333; } table.cmp th { background: #1c2027; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Feed it documents: transcribe once, for tokens</h1>
+<p class="lede">
+  A datasheet PDF dragged into every turn of a conversation is read, and
+  paid for, every turn. Transcribe it <em>once</em> into clean text &mdash;
+  Markdown for prose, YAML for structured data &mdash; and work from the
+  lean copy. Cheaper, faster, and easier to check.
+</p>
+
+<div class="aside">
+  <strong>The whole idea in one line:</strong> raw PDFs are big, noisy, and
+  re-read on every message. Spend one cheap pass converting the parts you
+  need into a small text file in <code>data/</code>, then point Claude at
+  that. Run the transcription in a <strong>second terminal on the cheaper
+  Sonnet model</strong>, so the heavy read never touches your main session.
+</p>
+
+<h2>Why not just hand Claude the PDF</h2>
+<p>
+  A PDF is a layout format, not a text format. Pulling one into context
+  drags along page furniture, repeated headers, OCR noise, and &mdash; for a
+  scanned drawing &mdash; image data. A 40-page datasheet can be tens of
+  thousands of tokens, and if it sits in the conversation it's re-read on
+  every single turn. You usually need about thirty numbers off it. Paying
+  for the other 39 pages, repeatedly, is the waste.
+</p>
+
+<h2>Open a second worker on Sonnet</h2>
+<p>
+  The cleanest way to keep that heavy read out of your main session isn't a
+  clever prompt &mdash; it's a <strong>second window</strong>. Open another
+  terminal, start Claude there on the cheaper <strong>Sonnet</strong> model,
+  and give it one job: read the document and write a faithful transcription
+  into <code>data/</code>. Your engineering session &mdash; on Opus &mdash;
+  never sees the raw PDF.
+</p>
+<p>
+  This is where Claude Code's <strong>slash commands</strong> and model
+  selection earn their keep. Launch the worker straight onto Sonnet:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>claude --model sonnet</pre><span class="lang">a second terminal</span></div>
+<p>&mdash; or switch a session that's already open with the <code>/model</code> command:</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>/model sonnet</pre><span class="lang">in Claude Code</span></div>
+<p>
+  Then turn the <strong>reasoning effort down</strong>. Transcription is a
+  fidelity task, not a thinking task &mdash; you want the model copying
+  digits, not pondering them, and cranking up effort just spends tokens and
+  time for no extra accuracy:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>/effort low</pre><span class="lang">in the Sonnet worker</span></div>
+<p>Two wins, and they're the whole point:</p>
+<ul>
+  <li><strong>Context stays clean.</strong> The giant, messy read lives in
+  the second window's session, which is fully independent &mdash; its own
+  transcript, no shared memory. Your engineering session only ever opens the
+  tidy file it produced.</li>
+  <li><strong>The cheap model, at low effort, does the grunt work.</strong>
+  Sonnet is fast, inexpensive, and faithful at transcription; Opus stays free
+  for the analysis that actually needs it.</li>
+</ul>
+<p>
+  You don't need a programmatic multi-agent system for this &mdash; two
+  terminals <em>is</em> the technique, and it's the right amount of machinery
+  for a one-off read. Hand the worker its instructions:
+</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Transcribe <code>data/bearing-6004.pdf</code> into <code>data/bearing-6004.yaml</code>. Capture every dimension, load rating, and limiting speed as structured key/value fields with units. Transcribe faithfully &mdash; do not summarize or round &mdash; and flag anything illegible rather than guessing.</span></div>
+
+<h3>Make it a one-word command</h3>
+<p>
+  Once you've done this a couple of times, save the instructions as a project
+  <strong>skill</strong> &mdash; a custom slash command &mdash; so the worker
+  pins the right model and effort for you. Drop a file at
+  <code>.claude/skills/transcribe-pdf/SKILL.md</code>:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>---
+name: transcribe-pdf
+description: Transcribe a PDF into faithful Markdown or YAML
+model: sonnet
+effort: low
+disable-model-invocation: true
+allowed-tools: Read, Write
+---
+
+Transcribe the document at $ARGUMENTS into data/.
+Use YAML for specs and tables (named fields + units), Markdown for prose.
+Transcribe faithfully — do not summarize or round. Carry a `source:`
+reference (file + page). Flag anything illegible rather than guessing.</pre><span class="lang">.claude/skills/transcribe-pdf/SKILL.md</span></div>
+<p>
+  Now the whole job is one line in the Sonnet window &mdash; model and effort
+  already set, every time:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>/transcribe-pdf data/bearing-6004.pdf</pre><span class="lang">in the Sonnet worker</span></div>
+
+<h2>Markdown or YAML?</h2>
+<p>Pick the target format by what the document <em>is</em>:</p>
+<table class="cmp">
+  <tr><th></th><th>Markdown (.md)</th><th>YAML (.yaml)</th></tr>
+  <tr><th>Best for</th><td>Prose: standards, manuals, procedures, narrative reports.</td><td>Structure: datasheet specs, BOMs, parameter tables, key/value data.</td></tr>
+  <tr><th>Keeps</th><td>Headings, paragraphs, lists, the occasional table.</td><td>Named fields, units, nesting &mdash; machine-queryable.</td></tr>
+  <tr><th>You then</th><td>Read it, quote it, cite a section.</td><td>Load it, compute on it, diff it across revisions.</td></tr>
+</table>
+<p>A datasheet becomes a handful of fields you can compute against:</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>part: 6004
+type: deep_groove_ball_bearing
+bore_mm: 20
+outer_dia_mm: 42
+width_mm: 12
+dynamic_load_C_kN: 9.36
+static_load_C0_kN: 5.00
+limiting_speed_rpm: 30000
+source: { doc: bearing-6004.pdf, page: 1 }</pre><span class="lang">data/bearing-6004.yaml</span></div>
+<p>
+  Now &ldquo;compute L10 life for this bearing&rdquo; reads three fields
+  instead of re-parsing a PDF &mdash; and the <code>source</code> line tells
+  you exactly where to go verify it. A spec manual, by contrast, stays prose:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre># Acceptance Test Procedure — CW-2 Skid
+
+## 3.2 Vibration limit
+Overall velocity shall not exceed **4.5 mm/s RMS** measured at the
+bearing housing per ISO 10816-3 for rigid mounting...</pre><span class="lang">data/atp-section3.md</span></div>
+
+<div class="aside warn">
+  <strong>The transcription is a cache, not the truth.</strong> A model can
+  drop a digit or misread a merged table cell. Keep the original PDF in
+  <code>data/</code>, carry a <code>source</code> reference in the
+  transcription, and spot-check any number you're betting the design on
+  against the page it came from. Same habit as the rest of this site: the
+  document is the oracle; the transcription is a convenience.
+</div>
+
+<h2>Keep the context lean</h2>
+<p>
+  Transcribing is half the job; feeding the lean copy well is the other half.
+  Three habits keep a long session sharp:
+</p>
+<ul>
+  <li><strong>Long inputs go at the top.</strong> Put the document (or its
+  transcription) near the start of the prompt and your question at the end
+  &mdash; models attend better to a query that comes <em>after</em> the
+  material it's about.</li>
+  <li><strong>Make it quote before it reasons.</strong> Ask Claude to first
+  quote the exact lines it's relying on (&ldquo;quote the spec clauses you'll
+  use, then answer&rdquo;). Grounding the answer in copied text is a cheap
+  hallucination guard &mdash; and it hands you the citations for your
+  spot-check.</li>
+  <li><strong>Write findings down, don't re-derive them.</strong> Keep a
+  running <code>NOTES.md</code> in the
+  <a href="../project-setup/"><code>notes/</code> folder</a> with the numbers
+  and decisions pulled so far. The next session reads the note instead of
+  re-reading the source &mdash; persistent memory for a few hundred tokens.</li>
+</ul>
+<p>
+  And the effort knob cuts both ways: transcription wants
+  <code>/effort low</code>, but the analysis it feeds usually wants it
+  <em>high</em>. Turn it up when the reasoning &mdash; not the reading &mdash;
+  is the hard part.
+</p>
+
+<h2>What it saves</h2>
+<p>
+  Rough arithmetic: a datasheet page is ~500&ndash;800 tokens of usable
+  text, more if scanned. Forty pages re-read across a dozen turns is
+  hundreds of thousands of token-reads. The YAML of the thirty numbers you
+  actually use is a few hundred tokens, read once and cached in a tiny file.
+  You're not just saving money &mdash; a lean, named dataset is something you
+  can <code>git diff</code> when the vendor issues a revision, which a PDF
+  blob never lets you do.
+</p>
+
+<h2>Where this fits</h2>
+<p>
+  This is the third rung of the trunk: after you've
+  <a href="../windows/">installed Claude</a> and
+  <a href="../project-setup/">set up a project with git</a>, getting your
+  source documents into clean, diffable text is what makes the problem
+  branches efficient. The <a href="../../problems/bearing-life/">bearing</a>
+  and <a href="../../problems/tolerance-stack/">tolerance-stack</a> problems
+  run entirely on numbers that, in real life, you'd transcribe off a
+  datasheet or a drawing exactly this way.
+</p>
+
+<script>
+document.querySelectorAll('.codeblock').forEach(block => {
+  const btn = block.querySelector('.copy'), pre = block.querySelector('pre');
+  if (!btn || !pre) return;
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(pre.textContent);
+      btn.textContent = 'Copied!'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    } catch (e) {
+      const range = document.createRange(); range.selectNodeContents(pre);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = 'Select+Ctrl+C'; setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+    }
+  });
+});
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

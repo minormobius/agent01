@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spend report &mdash; AI-pair analysis</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15151a; color: #eee; }
+    a { color: #9cf; }
+  }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 {
+    font-size: 1.05rem;
+    margin-top: 2.25rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code, pre {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+  }
+  pre {
+    background: #f4f4f6; padding: 0.75rem 1rem; overflow-x: auto; border-radius: 4px;
+  }
+  @media (prefers-color-scheme: dark) { pre { background: #1f1f25; } }
+  details {
+    margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa;
+    border-left: 3px solid #ccc; border-radius: 0 4px 4px 0;
+  }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  details[open] summary { margin-bottom: 0.5rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) {
+    .ladder-rung { border-left-color: #8fbf5a; }
+    .ladder-rung .pass { color: #aef087; }
+    .ladder-rung .fail { color: #f8a; }
+  }
+  .draw-line {
+    margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8;
+    border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem;
+  }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+
+  /* Live panel */
+  .viz {
+    margin: 1.25rem -1rem;
+    background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%);
+    border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; }
+  }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem;
+    color: #778; margin-bottom: 0.6rem; flex-wrap: wrap; gap: 0.5rem;
+  }
+  @media (prefers-color-scheme: dark) { .panel-head { color: #99a; } }
+  .panel-head a { font-size: 0.82rem; }
+  .toggles {
+    display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; margin-bottom: 0.75rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem;
+  }
+  .toggles label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: #556; }
+  @media (prefers-color-scheme: dark) { .toggles label { color: #bbc; } }
+  .toggles input { accent-color: #2c7da0; }
+  .checks { margin: 0.5rem 0 0.75rem; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.83rem; }
+  .check { display: flex; gap: 0.5rem; padding: 0.2rem 0; align-items: baseline; }
+  .check .icon { width: 1.1rem; flex-shrink: 0; font-weight: 700; }
+  .check.ok .icon { color: #2a8a2a; }
+  .check.warn .icon { color: #c89200; }
+  .check.bad .icon { color: #c33; }
+  @media (prefers-color-scheme: dark) {
+    .check.ok .icon { color: #8f6; }
+    .check.warn .icon { color: #fc6; }
+    .check.bad .icon { color: #f88; }
+  }
+  .check .body { flex: 1; }
+  .check .name { font-weight: 600; }
+  .check .detail { color: #778; }
+  @media (prefers-color-scheme: dark) { .check .detail { color: #99a; } }
+  .viz canvas { display: block; width: 100%; height: 230px; margin-top: 0.5rem; }
+  .findings {
+    margin-top: 0.75rem; padding: 0.75rem 0.9rem; background: rgba(255,255,255,0.55);
+    border-radius: 4px; font-size: 0.9rem; line-height: 1.5;
+  }
+  @media (prefers-color-scheme: dark) { .findings { background: rgba(40,44,52,0.45); } }
+  .findings .head { font-weight: 600; font-family: ui-monospace, monospace; font-size: 0.8rem; color: #778; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .findings .head { color: #99a; } }
+  .findings .dq { font-size: 0.85rem; color: #a06000; margin-top: 0.4rem; }
+  @media (prefers-color-scheme: dark) { .findings .dq { color: #e0a020; } }
+  .findings .dq.clean { color: #2a8a2a; }
+  @media (prefers-color-scheme: dark) { .findings .dq.clean { color: #8f6; } }
+  .status { margin-top: 0.4rem; font-size: 0.78rem; color: #888; font-style: italic; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Spend report from a messy export</h1>
+<p class="lede">
+  Someone drops a CSV of purchase orders on your desk and needs a spend
+  summary by Monday. The skill here isn't the chart &mdash; it's
+  knowing whether to trust it.
+</p>
+
+<h2>1. Setup</h2>
+<p>
+  You have an export of Q1 purchase orders &mdash; one row per line
+  item, with vendor, category, quantity, unit price, and line total.
+  It came out of someone's accounting system and it is, like every real
+  export, a little broken. <strong>You want:</strong> total spend,
+  spend by category, top vendors, and one or two honest findings &mdash;
+  a short report a manager can act on.
+</p>
+<p>
+  This is the daily-grind task Claude is quietly best at: parse a file,
+  clean it, aggregate it, chart it, summarize it. No physics here. The
+  twist is that the analysis has no closed-form answer to check against
+  &mdash; so we need a different oracle.
+</p>
+
+<h2>2. Why this is twenty minutes, not an afternoon</h2>
+<p>
+  Hand Claude the CSV and ask for a spend report. It parses, groups,
+  totals, charts, and drafts the prose in one pass &mdash; the work
+  that used to be an afternoon of pivot-table wrestling. Your job moves
+  up a level: not <em>making</em> the report, but <em>auditing</em> it.
+  A spreadsheet that adds up is not a correct analysis.
+</p>
+
+<h2>3. Build it</h2>
+<p>
+  Download the dataset, hand it to Claude, and ask for: total spend,
+  spend by category and by vendor, the month-over-month trend, and the
+  three biggest line items. Then &mdash; this is the actual skill
+  &mdash; demand that it reconcile the numbers before you believe them.
+</p>
+
+<h2>4. Verification &mdash; reconciliation is the oracle</h2>
+<p>
+  In the physics problems on this site, a wrong solver announces itself:
+  energy isn't conserved, the closed form doesn't match. Data analysis
+  has the same property if you set it up right. The oracle here is
+  <strong>reconciliation</strong> &mdash; numbers that <em>must</em>
+  agree, agreeing. The panel below runs the live dataset. It starts
+  raw and broken; toggle the cleaning steps and watch the checks
+  resolve.
+</p>
+
+<div class="viz">
+  <div class="panel-head">
+    <span id="dataset-label">Loading dataset&hellip;</span>
+    <a href="./data/purchase-orders.csv" download>&darr; download the CSV</a>
+  </div>
+  <div class="toggles">
+    <label><input type="checkbox" id="t-dedupe"> remove duplicate PO lines</label>
+    <label><input type="checkbox" id="t-vendor"> merge vendor name variants</label>
+    <label><input type="checkbox" id="t-blank"> recover uncategorized lines</label>
+    <label><input type="checkbox" id="t-typo"> correct suspected price typo</label>
+  </div>
+  <div class="checks" id="checks"></div>
+  <canvas id="chart" aria-label="Spend by category"></canvas>
+  <div class="findings" id="findings"></div>
+  <div class="status" id="status">Loading&hellip;</div>
+</div>
+
+<p>
+  The instructive one is the last check. The largest line in the raw
+  data &mdash; ten RF connectors at $4,500 each &mdash; is a 10&times;
+  price typo (they're $450). It passes the arithmetic check perfectly:
+  10 &times; $4,500 <em>does</em> equal $45,000. Every obvious test is
+  green. But it single-handedly makes Electronics look like your top
+  spend category, and the moment you ask <em>"does that finding survive
+  removing the one biggest line?"</em> &mdash; the robustness rung
+  &mdash; the answer flips to Machined Parts. That's the analysis
+  equivalent of a solver that conserves energy and is still wrong.
+</p>
+
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; cross-foot.</strong> Spend totalled by category
+  must equal spend totalled by vendor must equal the raw line-item sum.
+  They're the same dollars sliced two ways.
+  <div class="pass">Pass: all three breakdowns hit the same grand total.</div>
+  <div class="fail">Fail diagnosis: a grouping silently dropped rows (here, the blank-category lines vanish from the category pivot).</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; row integrity.</strong> Row count equals unique
+  key count. If they differ, you have duplicates inflating every total.
+  <div class="pass">Pass: every PO ID appears once.</div>
+  <div class="fail">Fail diagnosis: a duplicated line is double-counting (here, PO-1042 appears twice).</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; internal consistency.</strong> Derived columns
+  must agree: line_total should equal qty &times; unit_price.
+  <div class="pass">Pass / flagged: mismatches surfaced for human review &mdash; you flag, you don't silently overwrite financial data.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 4 &mdash; robustness.</strong> Does the headline finding
+  survive removing the single largest contributor? If one row changes
+  your conclusion, that row had better be real.
+  <div class="pass">Pass: top category is stable to dropping the biggest line.</div>
+  <div class="fail">Fail diagnosis: a single outlier (often a typo) is driving the result.</div>
+</div>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; clean before you count</summary>
+  <p>
+    The order matters: dedupe, normalize text keys (vendor names with
+    inconsistent spelling won't group), handle blanks explicitly
+    (decide whether they're dropped or bucketed as "Uncategorized" &mdash;
+    don't let the tool decide silently). Only then aggregate.
+  </p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; demand the cross-foot</summary>
+  <p>
+    Ask Claude to total the same money two independent ways (by
+    category and by vendor) and confirm they match the raw sum. This
+    one check catches the most common and most invisible bug: a
+    group-by that quietly excludes nulls. If the two breakdowns
+    disagree, the gap <em>is</em> the dropped rows.
+  </p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; the gotcha (consistent ≠ correct)</summary>
+  <p>
+    The arithmetic check (line_total = qty &times; price) catches sloppy
+    data entry, but it cannot catch a wrong number that's internally
+    consistent &mdash; a price with an extra zero still multiplies
+    correctly. That class of error only falls to the robustness check:
+    perturb the input (drop the biggest row, the newest month, the top
+    vendor) and see whether the conclusion holds.
+  </p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; what to ask for</summary>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Load this CSV. Before reporting anything:
+ 1. Report row count vs unique PO count.
+ 2. Total spend by category AND by vendor; confirm
+    both equal the raw line-item sum.
+ 3. List any rows where line_total != qty*unit_price.
+ 4. Show me the top category with, and without, the
+    single largest line item.
+ Then write the summary.</span></div>
+</details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, reconcile every total against an independent count&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt. And keep the
+    expensive model's context light &mdash; route transcription and formatting
+    to cheaper tools (see <a href="../../getting-started/token-economy/">Spend
+    tokens well</a>).
+  </p>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  You will not hand-audit 10,000 rows, and you shouldn't try. Build the
+  reconciliation checks once &mdash; cross-foot, row count, internal
+  consistency, robustness &mdash; and let them run on every report.
+  That's the leverage: the checks scale, your attention doesn't. But do
+  spend your scarce human attention on the robustness flag, because
+  that's the one that catches the confident, internally-consistent,
+  completely-wrong answer. The machine reconciles; you adjudicate the
+  outlier.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    The panel above is the worked solution: it parses the same CSV,
+    runs all four reconciliation rungs, and regenerates the findings
+    text live as you clean. With every toggle on, the report is honest:
+    Machined Parts leads (driven by genuine CNC work), not Electronics
+    (an artifact of one typo). Note that Rung 3 stays amber even when
+    everything else is green &mdash; that's correct. You flag the two
+    line-total mismatches for a human; you don't silently rewrite
+    accounting records.
+  </p>
+  <p style="font-size: 0.88rem; color: #888;">
+    Everything here is plain browser JavaScript &mdash; no library, no
+    backend. The point isn't the code; it's the discipline of making
+    the numbers prove themselves before you put them in front of a
+    manager.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li>Month-over-month trend: is Q1 spend accelerating, and does the trend survive removing the typo line?</li>
+  <li>Vendor consolidation: after merging name variants, which vendors are you most dependent on (Pareto / top-3 share)?</li>
+  <li>Join a second file (a parts master, a budget) and reconcile across both &mdash; now cross-foot spans tables.</li>
+  <li>Anomaly sweep: flag any unit price more than 3&times; the median for that category. Would it have caught the typo automatically?</li>
+  <li>Turn the report into a one-page PDF or slide &mdash; same numbers, presentation-ready.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>
+  You have an analysis you trust. Now you either <em>explore</em> it or
+  <em>deliver</em> it &mdash; see
+  <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>
+  for the one-time setup. For this dataset, the two prompts:
+</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (data inlined, no CDN links) that lets me filter the purchase orders by vendor and category, sort the table, and see spend-by-category as a live bar chart.</span></div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a one-page Markdown brief &mdash; two-sentence summary, findings table, embedded SVG bar chart &mdash; and give me the pandoc command to render it to PDF with the Typst engine.</span></div>
+
+<script>
+const CSV_URL = './data/purchase-orders.csv';
+
+const VENDOR_CANON = {
+  'digikey': 'Digi-Key', 'digi-key': 'Digi-Key', 'digi-key corp': 'Digi-Key',
+  'mcmaster': 'McMaster-Carr', 'mcmaster-carr': 'McMaster-Carr',
+};
+const TYPO_PO = '1031';
+const TYPO_FIX = { unit_price: 450.0, line_total: 4500.0 };
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const header = lines[0].split(',');
+  return lines.slice(1).map(line => {
+    const f = line.split(',');
+    const row = {};
+    header.forEach((h, i) => row[h] = f[i]);
+    row.qty = parseFloat(row.qty);
+    row.unit_price = parseFloat(row.unit_price);
+    row.line_total = parseFloat(row.line_total);
+    return row;
+  });
+}
+
+function applyToggles(raw, t) {
+  let rows = raw.map(r => ({ ...r }));
+  if (t.dedupe) {
+    const seen = new Set();
+    rows = rows.filter(r => { if (seen.has(r.po_id)) return false; seen.add(r.po_id); return true; });
+  }
+  if (t.vendor) {
+    rows.forEach(r => { r.vendor = VENDOR_CANON[r.vendor.trim().toLowerCase()] || r.vendor; });
+  }
+  if (t.blank) {
+    rows.forEach(r => { if (!r.category || !r.category.trim()) r.category = 'Uncategorized'; });
+  }
+  if (t.typo) {
+    rows.forEach(r => { if (r.po_id === TYPO_PO) { r.unit_price = TYPO_FIX.unit_price; r.line_total = TYPO_FIX.line_total; } });
+  }
+  return rows;
+}
+
+function sumBy(rows, key, includeBlank) {
+  const m = new Map();
+  for (const r of rows) {
+    const k = (r[key] || '').trim();
+    if (key === 'category' && !k && !includeBlank) continue; // pivot drops blanks
+    m.set(k || '(blank)', (m.get(k || '(blank)') || 0) + r.line_total);
+  }
+  return m;
+}
+
+function total(rows) { return rows.reduce((s, r) => s + r.line_total, 0); }
+function fmt(n) { return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 }); }
+
+function topCategory(rows, includeBlank) {
+  const m = sumBy(rows, 'category', includeBlank);
+  let best = null, bestV = -1;
+  for (const [k, v] of m) { if (v > bestV) { bestV = v; best = k; } }
+  return best;
+}
+
+function computeChecks(raw, rows, t) {
+  const checks = [];
+
+  // Rung 2 — row integrity
+  const ids = rows.map(r => r.po_id);
+  const uniq = new Set(ids).size;
+  checks.push(ids.length === uniq
+    ? { status: 'ok', name: 'Row integrity', detail: `${ids.length} rows, ${uniq} unique PO IDs.` }
+    : { status: 'bad', name: 'Row integrity', detail: `${ids.length} rows but ${uniq} unique PO IDs — a line is duplicated, inflating every total.` });
+
+  // Rung 1 — cross-foot
+  const catTotal = [...sumBy(rows, 'category', t.blank).values()].reduce((a, b) => a + b, 0);
+  const venTotal = [...sumBy(rows, 'vendor', true).values()].reduce((a, b) => a + b, 0);
+  const gap = venTotal - catTotal;
+  checks.push(Math.abs(gap) < 0.005
+    ? { status: 'ok', name: 'Cross-foot', detail: `category and vendor breakdowns both total ${fmt(catTotal)}.` }
+    : { status: 'bad', name: 'Cross-foot', detail: `category breakdown ${fmt(catTotal)} ≠ vendor breakdown ${fmt(venTotal)} — ${fmt(gap)} of uncategorized lines dropped from the category pivot.` });
+
+  // Rung 3 — internal consistency (always informational)
+  const bad = rows.filter(r => Math.abs(r.line_total - r.qty * r.unit_price) > 0.005);
+  checks.push(bad.length === 0
+    ? { status: 'ok', name: 'Internal consistency', detail: 'line_total = qty × unit_price for every row.' }
+    : { status: 'warn', name: 'Internal consistency', detail: `${bad.length} rows where line_total ≠ qty × price (${bad.map(r => 'PO-' + r.po_id).join(', ')}) — flag for review, don't auto-overwrite.` });
+
+  // Rung 4 — robustness
+  const incBlank = t.blank;
+  const top = topCategory(rows, incBlank);
+  const largest = rows.reduce((m, r) => r.line_total > m.line_total ? r : m, rows[0]);
+  const without = rows.filter(r => r !== largest);
+  const topWithout = topCategory(without, incBlank);
+  checks.push(top === topWithout
+    ? { status: 'ok', name: 'Robustness', detail: `top category (${top}) survives removing the largest line (PO-${largest.po_id}, ${fmt(largest.line_total)}).` }
+    : { status: 'warn', name: 'Robustness', detail: `top category flips ${top} → ${topWithout} when the largest line (PO-${largest.po_id}, ${fmt(largest.line_total)}) is removed — investigate that line.` });
+
+  return checks;
+}
+
+let RAW = null;
+const els = {
+  checks: document.getElementById('checks'),
+  chart: document.getElementById('chart'),
+  findings: document.getElementById('findings'),
+  status: document.getElementById('status'),
+  label: document.getElementById('dataset-label'),
+};
+const ctx = els.chart.getContext('2d');
+
+function toggles() {
+  return {
+    dedupe: document.getElementById('t-dedupe').checked,
+    vendor: document.getElementById('t-vendor').checked,
+    blank: document.getElementById('t-blank').checked,
+    typo: document.getElementById('t-typo').checked,
+  };
+}
+
+function isDark() { return window.matchMedia('(prefers-color-scheme: dark)').matches; }
+
+function drawChart(rows, includeBlank) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = els.chart.clientWidth, h = els.chart.clientHeight;
+  els.chart.width = Math.round(w * dpr); els.chart.height = Math.round(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const m = sumBy(rows, 'category', includeBlank);
+  const data = [...m.entries()].sort((a, b) => b[1] - a[1]);
+  const maxV = Math.max(...data.map(d => d[1]), 1);
+  const dark = isDark();
+  const barCol = dark ? '#5fa8c8' : '#2c7da0';
+  const txtCol = dark ? '#cdd' : '#334';
+  const labelW = 110, padR = 70, padV = 8;
+  const rowH = (h - 2 * padV) / data.length;
+
+  ctx.font = '12px ui-monospace, "SF Mono", Menlo, monospace';
+  ctx.textBaseline = 'middle';
+  data.forEach(([cat, val], i) => {
+    const y = padV + i * rowH + rowH / 2;
+    const barLen = (val / maxV) * (w - labelW - padR);
+    ctx.fillStyle = txtCol;
+    ctx.textAlign = 'right';
+    ctx.fillText(cat.length > 15 ? cat.slice(0, 14) + '…' : cat, labelW - 8, y);
+    ctx.fillStyle = barCol;
+    ctx.fillRect(labelW, y - rowH * 0.32, Math.max(1, barLen), rowH * 0.64);
+    ctx.fillStyle = txtCol;
+    ctx.textAlign = 'left';
+    ctx.fillText(fmt(val), labelW + barLen + 6, y);
+  });
+}
+
+function buildFindings(rows, t) {
+  const grand = total(rows);
+  const cats = [...sumBy(rows, 'category', t.blank).entries()].sort((a, b) => b[1] - a[1]);
+  const vendors = new Set(rows.map(r => (VENDOR_CANON[r.vendor.trim().toLowerCase()] || r.vendor)));
+  const topCat = cats[0];
+  const largest = rows.reduce((m, r) => r.line_total > m.line_total ? r : m, rows[0]);
+
+  let html = '<div class="head">Auto-generated findings</div>';
+  html += `Total spend <strong>${fmt(grand)}</strong> across ${rows.length} line items and ${vendors.size} vendors (Jan–Apr 2026). `;
+  html += `Top category: <strong>${topCat[0]}</strong> at ${fmt(topCat[1])} (${(100 * topCat[1] / grand).toFixed(0)}% of spend). `;
+  html += `Largest single line: PO-${largest.po_id} (${largest.vendor}, ${fmt(largest.line_total)}).`;
+
+  // data-quality footnote
+  const issues = [];
+  const ids = rows.map(r => r.po_id);
+  if (new Set(ids).size !== ids.length) issues.push('duplicate PO present');
+  if (rows.some(r => !r.category || !r.category.trim())) issues.push('uncategorized lines dropped from category totals');
+  if (!t.vendor && rows.some(r => VENDOR_CANON[r.vendor.trim().toLowerCase()] && VENDOR_CANON[r.vendor.trim().toLowerCase()] !== r.vendor)) issues.push('vendor name variants not merged');
+  const bad = rows.filter(r => Math.abs(r.line_total - r.qty * r.unit_price) > 0.005);
+  if (bad.length) issues.push(`${bad.length} line-total mismatches to review`);
+  if (!t.typo) {
+    const lg = rows.reduce((m, r) => r.line_total > m.line_total ? r : m, rows[0]);
+    const top = topCategory(rows, t.blank);
+    const topW = topCategory(rows.filter(r => r !== lg), t.blank);
+    if (top !== topW) issues.push('headline category is outlier-driven');
+  }
+
+  if (issues.length) html += `<div class="dq">⚠ Data quality: ${issues.join('; ')}.</div>`;
+  else html += `<div class="dq clean">✓ Reconciled: totals tie out, no duplicates, headline is robust. (2 line-total mismatches remain flagged for human review — correct end state.)</div>`;
+  return html;
+}
+
+function refresh() {
+  if (!RAW) return;
+  const t = toggles();
+  const rows = applyToggles(RAW, t);
+  const checks = computeChecks(RAW, rows, t);
+  els.checks.innerHTML = checks.map(c => {
+    const icon = c.status === 'ok' ? '✓' : c.status === 'warn' ? '⚠' : '✗';
+    return `<div class="check ${c.status}"><span class="icon">${icon}</span><span class="body"><span class="name">${c.name}:</span> <span class="detail">${c.detail}</span></span></div>`;
+  }).join('');
+  drawChart(rows, t.blank);
+  els.findings.innerHTML = buildFindings(rows, t);
+}
+
+async function main() {
+  let text;
+  try {
+    const resp = await fetch(CSV_URL);
+    text = await resp.text();
+  } catch (e) {
+    els.status.innerHTML = '<span style="color:#c33">Could not load dataset: ' + e.message + '</span>';
+    return;
+  }
+  RAW = parseCSV(text);
+  els.label.textContent = `${RAW.length} purchase orders, raw export`;
+  ['t-dedupe', 't-vendor', 't-blank', 't-typo'].forEach(id =>
+    document.getElementById(id).addEventListener('change', refresh));
+  window.addEventListener('resize', refresh);
+  els.status.textContent = 'Toggle the cleaning steps and watch the checks resolve. Start with everything off.';
+  refresh();
+}
+
+main();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

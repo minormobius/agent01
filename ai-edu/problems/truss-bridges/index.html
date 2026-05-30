@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truss bridges &mdash; AI-pair numerics</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15151a; color: #eee; }
+    a { color: #9cf; }
+  }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 {
+    font-size: 1.05rem;
+    margin-top: 2.25rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code, pre {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+  }
+  pre {
+    background: #f4f4f6;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    border-radius: 4px;
+  }
+  @media (prefers-color-scheme: dark) { pre { background: #1f1f25; } }
+  details {
+    margin: 0.75rem 0;
+    padding: 0.5rem 0.75rem;
+    background: #f8f8fa;
+    border-left: 3px solid #ccc;
+    border-radius: 0 4px 4px 0;
+  }
+  @media (prefers-color-scheme: dark) {
+    details { background: #1c1c22; border-left-color: #444; }
+  }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  details[open] summary { margin-bottom: 0.5rem; }
+  .ladder-rung {
+    margin: 0.75rem 0;
+    padding-left: 1rem;
+    border-left: 3px solid #6a9a3a;
+  }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) {
+    .ladder-rung { border-left-color: #8fbf5a; }
+    .ladder-rung .pass { color: #aef087; }
+    .ladder-rung .fail { color: #f8a; }
+  }
+  .draw-line {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    background: #fff8e8;
+    border-left: 3px solid #c89200;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .draw-line { background: #2a2310; border-left-color: #d4a020; }
+  }
+
+  /* Live viz */
+  .viz {
+    margin: 1.25rem -1rem;
+    background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%);
+    border-top: 1px solid #e0e4ea;
+    border-bottom: 1px solid #e0e4ea;
+    padding: 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz {
+      background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%);
+      border-color: #2a2e36;
+    }
+  }
+  .picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    align-items: baseline;
+    margin-bottom: 0.6rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.82rem;
+  }
+  .picker .group { display: flex; gap: 0.25rem; align-items: baseline; flex-wrap: wrap; }
+  .picker .group-label { color: #777; margin-right: 0.25rem; }
+  @media (prefers-color-scheme: dark) { .picker .group-label { color: #99a; } }
+  .picker button {
+    padding: 0.3rem 0.65rem;
+    font: inherit;
+    background: transparent;
+    color: #455;
+    border: 1px solid #cdd5dc;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+  @media (prefers-color-scheme: dark) {
+    .picker button { color: #bbc; border-color: #3a4048; }
+  }
+  .picker button:hover { background: #eef2f6; }
+  @media (prefers-color-scheme: dark) { .picker button:hover { background: #20242c; } }
+  .picker button.active {
+    background: #2c7da0; color: #fff; border-color: #2c7da0;
+  }
+  @media (prefers-color-scheme: dark) {
+    .picker button.active { background: #5fa8c8; color: #001f2c; border-color: #5fa8c8; }
+  }
+  .sliders {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-bottom: 0.6rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.82rem;
+  }
+  .sliders label { display: flex; align-items: center; gap: 0.5rem; color: #667; }
+  @media (prefers-color-scheme: dark) { .sliders label { color: #99a; } }
+  .sliders input[type="range"] { accent-color: #2c7da0; width: 8rem; }
+  .sliders .toggle { cursor: pointer; }
+  .viz canvas { display: block; width: 100%; height: 300px; }
+  .legend {
+    display: flex;
+    gap: 1.25rem;
+    margin-top: 0.5rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.8rem;
+    color: #778;
+    flex-wrap: wrap;
+  }
+  @media (prefers-color-scheme: dark) { .legend { color: #99a; } }
+  .legend .swatch {
+    display: inline-block;
+    width: 1.5rem;
+    height: 0.35rem;
+    vertical-align: middle;
+    margin-right: 0.35rem;
+    border-radius: 2px;
+  }
+  .readout {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.85rem;
+  }
+  .readout .val { font-weight: 600; }
+  .readout .ten { color: #2c7da0; }
+  .readout .com { color: #c14a32; }
+  @media (prefers-color-scheme: dark) {
+    .readout .ten { color: #7dc4d9; }
+    .readout .com { color: #e8806a; }
+  }
+  .status { margin-top: 0.4rem; font-size: 0.78rem; color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Truss bridges</h1>
+<p class="lede">
+  Pick a bridge style, span it, load it. The solver propagates the
+  forces through every member &mdash; tension blue, compression red.
+  Doing this by hand is an hour of method-of-joints; here it's instant.
+</p>
+
+<h2>1. Setup</h2>
+<p>
+  A truss is a frame of straight two-force members pinned at the joints.
+  Each member carries only an axial force &mdash; pure tension or pure
+  compression, no bending. Given a geometry, a set of supports, and a
+  load, you want the <strong>axial force in every member</strong> and
+  the deflected shape.
+</p>
+<p>
+  By hand, the tool is the <em>method of joints</em>: isolate a joint,
+  write &Sigma;F<sub>x</sub> = 0 and &Sigma;F<sub>y</sub> = 0, solve for
+  the two unknown member forces, march to the next joint. It works, but
+  the bookkeeping explodes &mdash; an <em>n</em>-bay bridge has roughly
+  4<em>n</em> members and you're hand-propagating dependencies across
+  all of them. Three bays and you've lost an afternoon to arithmetic.
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  The direct stiffness method turns the whole truss into one linear
+  system <em>K u = f</em>. Each member contributes a 4&times;4 element
+  stiffness (a one-liner in terms of its direction cosines); you scatter
+  them into a global matrix, fix the support DOFs, solve once, and read
+  every member force off the displacement field. The machinery is
+  identical whether the truss has 5 members or 500 &mdash; that's the
+  leverage. Your brain picks the geometry and the load; the solver
+  propagates.
+</p>
+
+<h2>3. Build it</h2>
+<p>
+  Start with a simple parallel-chord Pratt truss, 4 bays, pin support
+  at one end and roller at the other, a single point load at midspan.
+  With your AI pair: write the bar-element stiffness in global
+  coordinates, assemble, apply the supports, solve <em>K u = f</em>,
+  recover member forces from <em>F = (EA/L)(u<sub>j</sub> &minus;
+  u<sub>i</sub>)&middot;(c, s)</em>. Then let the geometry generator
+  loose &mdash; cycle styles and bay counts and watch the force
+  distribution reorganize.
+</p>
+<p>
+  Spec the node/member topology, the DOF numbering convention, and the
+  support handling with your AI pair. Have it draft. Your job is to
+  specify, audit, verify.
+</p>
+
+<h2>4. Verification</h2>
+<p>
+  Live below. Pick a style, set the span and depth, choose a load.
+  Members color by sign of axial force; thickness scales with
+  magnitude. Toggle the deflected shape to see how it sags.
+</p>
+
+<div class="viz">
+  <div class="picker">
+    <div class="group">
+      <span class="group-label">Style:</span>
+      <button data-style="pratt" class="active">Pratt</button>
+      <button data-style="howe">Howe</button>
+      <button data-style="warren">Warren</button>
+      <button data-style="k">K-truss</button>
+    </div>
+    <div class="group">
+      <span class="group-label">Load:</span>
+      <button data-load="center" class="active">center</button>
+      <button data-load="udl">uniform</button>
+      <button data-load="asym">asymmetric</button>
+    </div>
+  </div>
+  <div class="sliders">
+    <label>bays <input type="range" id="bays" min="4" max="12" step="2" value="6"> <span id="bays-val">6</span></label>
+    <label>depth <input type="range" id="depth" min="10" max="45" step="1" value="25"> <span id="depth-val">0.25</span></label>
+    <label class="toggle"><input type="checkbox" id="show-defl"> deflected shape</label>
+  </div>
+  <canvas id="truss-canvas" aria-label="Truss bridge force diagram"></canvas>
+  <div class="legend">
+    <span><span class="swatch" style="background:#2c7da0"></span>tension</span>
+    <span><span class="swatch" style="background:#c14a32"></span>compression</span>
+    <span><span class="swatch" style="background:#aab; height:2px"></span>~zero force</span>
+  </div>
+  <div class="readout">
+    <span>max tension: <span class="val ten" id="maxT">&mdash;</span></span>
+    <span>max compression: <span class="val com" id="maxC">&mdash;</span></span>
+    <span>max deflection: <span class="val" id="maxD">&mdash;</span></span>
+  </div>
+  <div class="status" id="status">Loading WASM&hellip;</div>
+</div>
+
+<p>
+  Switch Pratt &harr; Howe under the center load and watch the colors
+  flip: in a Pratt truss the diagonals run in tension (blue), in a Howe
+  truss they run in compression (red). That's the whole reason Pratt
+  trusses dominate steel construction &mdash; slender steel members are
+  happy in tension, prone to buckling in compression. The solver
+  reproduces a design rule you can find in any structures text.
+</p>
+
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; analytical anchor.</strong> For a symmetric
+  parallel-chord truss under a center load, method of joints gives the
+  end-diagonal and chord forces by hand in a couple of minutes. Check
+  one or two joints against the solver.
+  <div class="pass">Pass: hand-computed joint forces match to your arithmetic precision.</div>
+  <div class="fail">Fail diagnosis: your element stiffness direction cosines or your DOF mapping is wrong.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; global equilibrium &amp; symmetry.</strong>
+  Total upward reaction equals total downward load. A symmetric truss
+  under symmetric load gives mirror-symmetric member forces.
+  <div class="pass">Pass: reactions sum to the load; symmetric pairs match.</div>
+  <div class="fail">Fail diagnosis: assembly or load-vector error.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; the singular case is informative.</strong>
+  Remove enough members and the stiffness matrix goes singular &mdash;
+  the truss is a mechanism, it can move without straining. A good
+  solver should refuse to "solve" a mechanism rather than return
+  garbage. (Try mentally removing a diagonal: which joint floats free?)
+  <div class="pass">Pass: the solver flags the singular system instead of returning numbers.</div>
+</div>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; frame it</summary>
+  <p>
+    Two DOFs per joint (horizontal + vertical displacement). Each
+    member is a spring along its own axis with stiffness <em>EA/L</em>.
+    The trick is rotating that 1D spring into global x&ndash;y
+    coordinates using the member's direction cosines <em>c = cos&theta;</em>,
+    <em>s = sin&theta;</em>.
+  </p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; the element matrix</summary>
+  <p>
+    The 4&times;4 global-coordinate bar stiffness is
+  </p>
+<pre>k_e = (EA/L) · ⎡  c²   cs  -c²  -cs ⎤
+               ⎢  cs   s²  -cs  -s² ⎥
+               ⎢ -c²  -cs   c²   cs ⎥
+               ⎣ -cs  -s²   cs   s² ⎦</pre>
+  <p>
+    acting on [u<sub>ix</sub>, u<sub>iy</sub>, u<sub>jx</sub>,
+    u<sub>jy</sub>]. Scatter into the global matrix by the four DOF
+    indices of the member's two end nodes.
+  </p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; the gotcha (statical determinacy)</summary>
+  <p>
+    A 2D truss is stable and statically determinate when
+    <em>m + r = 2j</em> (members + support reactions = twice the
+    joints). Too few members and your stiffness matrix is singular
+    &mdash; a mechanism. Don't fight a failed solve; it's telling you
+    the structure can't carry load. Standard support set: a pin (2
+    reactions) at one end, a roller (1 reaction) at the other.
+  </p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; skeleton</summary>
+<pre>def bar_k(xi, yi, xj, yj):     # 4x4 global stiffness
+    L = hypot(xj-xi, yj-yi); c=(xj-xi)/L; s=(yj-yi)/L
+    ...
+def assemble(nodes, members): ...   # scatter into 2N x 2N
+def apply_supports(K, f, fixed): ...
+def solve(K, f): return np.linalg.solve(K, f)
+def member_force(u, member): ...    # (EA/L)(u_j - u_i)·(c,s)</pre>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  Method of joints is exact and needs no computer for a handful of
+  members &mdash; and it's the right tool for checking your solver on a
+  small case. But the moment you want to <em>sweep</em> (every bay count
+  from 4 to 12, three load patterns, four styles) the hand method is
+  hopeless and the matrix solver is trivial. The judgement: hand-verify
+  the small case, then trust the solver for the sweep. Don't hand-roll
+  the linear solver either &mdash; <code>numpy.linalg.solve</code> (or
+  the SPD-aware <code>scipy.linalg.cho_solve</code>) is the right call.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>Reveal the reference solver</summary>
+  <p>
+    The reference solver is the same Rust crate driving the panel above
+    &mdash; function <code>solve_truss</code> in
+    <a href="/wasm/beam-solver/src/lib.rs">solver/src/lib.rs</a>. The
+    bridge geometry generators (Pratt / Howe / Warren / K) live in this
+    page's JavaScript, since topology bookkeeping is easier to tweak
+    there; the Rust side is the pure linear-algebra core.
+  </p>
+  <ul>
+    <li>How you assembled the global matrix from per-member 4&times;4 blocks.</li>
+    <li>How you handled supports (row/column drop here).</li>
+    <li>How you recovered member forces from the displacement field.</li>
+    <li>What your solver does with a mechanism (this one returns NaN by failing the Cholesky factorization &mdash; an honest refusal).</li>
+  </ul>
+  <p style="font-size: 0.88rem; color: #888;">
+    Note: the reference uses EA = 1 for every member, so the deflection
+    numbers are dimensionless and the force magnitudes are relative.
+    Real design plugs in actual section areas; the machinery is
+    unchanged.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li>Moving load: sweep a point load across the deck and plot each member's force vs. load position &mdash; that's an influence line, the thing bridge engineers actually design to.</li>
+  <li>Vary member areas: thicken the heavily-loaded members, thin the lazy ones, and watch the force paths reorganize (statically indeterminate once you do).</li>
+  <li>Add a second load case and design each member for its worst case across both.</li>
+  <li>3D space truss: three DOFs per joint, direction cosines in 3D. Same machinery, bigger matrices.</li>
+  <li>Self-weight: distribute each member's weight to its end joints as a load.</li>
+</ul>
+<p>
+  For the dynamic cousin of all this:
+  <a href="../beam-vibration/">Beam vibration &rarr;</a>
+</p>
+
+<script type="module">
+import init, { solve_truss } from '/wasm/beam-solver/pkg/beam_solver.js';
+
+// ---------- Bridge geometry generators ----------
+// Each returns { nodes:[[x,y]...], members:[[i,j]...], pin, roller, deck:[bottom node idx...] }
+
+function genPrattHowe(n, L, h, howe) {
+  const dx = L / n;
+  const nodes = [];
+  for (let i = 0; i <= n; i++) nodes.push([i * dx, 0]);   // bottom 0..n
+  for (let i = 0; i <= n; i++) nodes.push([i * dx, h]);   // top  n+1..2n+1
+  const B = i => i, T = i => n + 1 + i;
+  const members = [];
+  for (let i = 0; i < n; i++) members.push([B(i), B(i + 1)]);
+  for (let i = 0; i < n; i++) members.push([T(i), T(i + 1)]);
+  for (let i = 0; i <= n; i++) members.push([B(i), T(i)]); // verticals
+  for (let i = 0; i < n; i++) {
+    const leftHalf = i < n / 2;
+    let pratt;
+    if (leftHalf) pratt = [T(i), B(i + 1)];
+    else          pratt = [B(i), T(i + 1)];
+    const howeD = leftHalf ? [B(i), T(i + 1)] : [T(i), B(i + 1)];
+    members.push(howe ? howeD : pratt);
+  }
+  return { nodes, members, pin: B(0), roller: B(n), deck: range(0, n) };
+}
+
+function genWarren(n, L, h) {
+  const dx = L / n;
+  const nodes = [];
+  for (let i = 0; i <= n; i++) nodes.push([i * dx, 0]);        // bottom 0..n
+  const topStart = n + 1;
+  for (let i = 0; i < n; i++) nodes.push([(i + 0.5) * dx, h]); // apex tops
+  const B = i => i, T = i => topStart + i;
+  const members = [];
+  for (let i = 0; i < n; i++) members.push([B(i), B(i + 1)]);
+  for (let i = 0; i < n - 1; i++) members.push([T(i), T(i + 1)]);
+  for (let i = 0; i < n; i++) { members.push([B(i), T(i)]); members.push([T(i), B(i + 1)]); }
+  return { nodes, members, pin: B(0), roller: B(n), deck: range(0, n) };
+}
+
+function genK(n, L, h) {
+  const dx = L / n;
+  const nodes = [];
+  for (let i = 0; i <= n; i++) nodes.push([i * dx, 0]);   // bottom 0..n
+  for (let i = 0; i <= n; i++) nodes.push([i * dx, h]);   // top  n+1..2n+1
+  const midBase = 2 * (n + 1);
+  const midIdx = {};
+  let mc = 0;
+  for (let i = 1; i < n; i++) { midIdx[i] = midBase + mc; nodes.push([i * dx, h / 2]); mc++; }
+  const B = i => i, T = i => n + 1 + i, M = i => midIdx[i];
+  const members = [];
+  for (let i = 0; i < n; i++) members.push([B(i), B(i + 1)]);
+  for (let i = 0; i < n; i++) members.push([T(i), T(i + 1)]);
+  members.push([B(0), T(0)]); members.push([B(n), T(n)]);  // end verticals (full)
+  for (let i = 1; i < n; i++) { members.push([T(i), M(i)]); members.push([M(i), B(i)]); }
+  for (let i = 0; i < n; i++) {
+    if (i < n / 2) {
+      if (i + 1 >= 1 && i + 1 <= n - 1) { members.push([T(i), M(i + 1)]); members.push([B(i), M(i + 1)]); }
+    } else {
+      if (i >= 1 && i <= n - 1) { members.push([T(i + 1), M(i)]); members.push([B(i + 1), M(i)]); }
+    }
+  }
+  return { nodes, members, pin: B(0), roller: B(n), deck: range(0, n) };
+}
+
+function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
+
+function buildTruss(style, n, depthRatio) {
+  const L = 1.0;
+  const h = depthRatio * L;
+  switch (style) {
+    case 'pratt':  return genPrattHowe(n, L, h, false);
+    case 'howe':   return genPrattHowe(n, L, h, true);
+    case 'warren': return genWarren(n, L, h);
+    case 'k':      return genK(n, L, h);
+  }
+}
+
+// ---------- Solve wrapper ----------
+function solve(g, loadType) {
+  const NX = Float64Array.from(g.nodes.map(p => p[0]));
+  const NY = Float64Array.from(g.nodes.map(p => p[1]));
+  const MI = Uint32Array.from(g.members.map(m => m[0]));
+  const MJ = Uint32Array.from(g.members.map(m => m[1]));
+  const fixed = Uint32Array.from([2 * g.pin, 2 * g.pin + 1, 2 * g.roller + 1]);
+
+  const interior = g.deck.filter(d => d !== g.pin && d !== g.roller);
+  const ldof = [], lval = [];
+  if (loadType === 'center') {
+    const c = g.deck[g.deck.length >> 1];
+    ldof.push(2 * c + 1); lval.push(-1);
+  } else if (loadType === 'udl') {
+    interior.forEach(d => { ldof.push(2 * d + 1); lval.push(-1 / interior.length); });
+  } else {
+    const q = Math.max(1, Math.round(g.deck.length / 4));
+    const node = g.deck[q];
+    ldof.push(2 * node + 1); lval.push(-1);
+  }
+  const r = solve_truss(NX, NY, MI, MJ, fixed,
+    Uint32Array.from(ldof), Float64Array.from(lval));
+  if (Number.isNaN(r[0])) return { singular: true, loadNodes: ldof.map(d => (d - 1) / 2) };
+  const nM = g.members.length, nN = g.nodes.length;
+  return {
+    forces: Array.from(r.slice(0, nM)),
+    disp: Array.from(r.slice(nM, nM + 2 * nN)),
+    loadNodes: ldof.map(d => (d - 1) / 2),
+  };
+}
+
+// ---------- Rendering ----------
+const canvas = document.getElementById('truss-canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const baysSlider = document.getElementById('bays');
+const baysVal = document.getElementById('bays-val');
+const depthSlider = document.getElementById('depth');
+const depthVal = document.getElementById('depth-val');
+const showDefl = document.getElementById('show-defl');
+const maxTEl = document.getElementById('maxT');
+const maxCEl = document.getElementById('maxC');
+const maxDEl = document.getElementById('maxD');
+
+let cssW = 0, cssH = 0;
+let state = { style: 'pratt', load: 'center', bays: 6, depthR: 0.25 };
+let model = null;   // { g, result }
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  cssW = canvas.clientWidth;
+  cssH = canvas.clientHeight;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function isDark() { return window.matchMedia('(prefers-color-scheme: dark)').matches; }
+function palette() {
+  const dark = isDark();
+  return {
+    tension: dark ? '#7dc4d9' : '#2c7da0',
+    compression: dark ? '#e8806a' : '#c14a32',
+    zero: dark ? 'rgba(150,160,180,0.5)' : 'rgba(150,160,180,0.7)',
+    joint: dark ? '#cdd' : '#334',
+    support: dark ? '#9aa' : '#667',
+    load: dark ? '#e8a85c' : '#c8731f',
+    ghost: dark ? 'rgba(160,200,220,0.35)' : 'rgba(60,120,150,0.30)',
+    label: dark ? '#99a' : '#778',
+  };
+}
+
+function transform() {
+  const nodes = model.g.nodes;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of nodes) {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  const padX = 36, padTop = 52, padBot = 46;
+  const spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
+  const s = Math.min((cssW - 2 * padX) / spanX, (cssH - padTop - padBot) / spanY);
+  const offX = padX + (cssW - 2 * padX - s * spanX) / 2;
+  const usedH = s * spanY;
+  const offY = padTop + (cssH - padTop - padBot - usedH) / 2;
+  return {
+    tx: x => offX + (x - minX) * s,
+    ty: y => offY + usedH - (y - minY) * s,
+    s,
+  };
+}
+
+function draw() {
+  if (!model || cssW === 0) return;
+  const col = palette();
+  ctx.clearRect(0, 0, cssW, cssH);
+  const { g, result } = model;
+  const T = transform();
+
+  if (result.singular) {
+    ctx.fillStyle = col.compression;
+    ctx.font = '600 14px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SINGULAR SYSTEM — this truss is a mechanism', cssW / 2, cssH / 2);
+    return;
+  }
+
+  const forces = result.forces;
+  const maxAbs = Math.max(1e-9, ...forces.map(Math.abs));
+
+  // Deflected-shape ghost (under the live diagram)
+  if (showDefl.checked) {
+    const disp = result.disp;
+    let maxD = 1e-9;
+    for (let k = 0; k < g.nodes.length; k++) {
+      const d = Math.hypot(disp[2 * k], disp[2 * k + 1]);
+      if (d > maxD) maxD = d;
+    }
+    // Scale so the largest displacement is ~12% of the span height on screen.
+    const targetPx = 0.13 * (cssH - 90);
+    const amp = targetPx / (maxD * T.s);
+    ctx.strokeStyle = col.ghost;
+    ctx.lineWidth = 1.2;
+    for (const [i, j] of g.members) {
+      const xi = g.nodes[i][0] + disp[2 * i] * amp;
+      const yi = g.nodes[i][1] + disp[2 * i + 1] * amp;
+      const xj = g.nodes[j][0] + disp[2 * j] * amp;
+      const yj = g.nodes[j][1] + disp[2 * j + 1] * amp;
+      ctx.beginPath();
+      ctx.moveTo(T.tx(xi), T.ty(yi));
+      ctx.lineTo(T.tx(xj), T.ty(yj));
+      ctx.stroke();
+    }
+  }
+
+  // Members, colored & weighted by force
+  forces.forEach((f, m) => {
+    const [i, j] = g.members[m];
+    const mag = Math.abs(f) / maxAbs;
+    if (mag < 0.02) {
+      ctx.strokeStyle = col.zero;
+      ctx.lineWidth = 1.2;
+    } else {
+      ctx.strokeStyle = f > 0 ? col.tension : col.compression;
+      ctx.lineWidth = 1.4 + 4.8 * mag;
+    }
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(T.tx(g.nodes[i][0]), T.ty(g.nodes[i][1]));
+    ctx.lineTo(T.tx(g.nodes[j][0]), T.ty(g.nodes[j][1]));
+    ctx.stroke();
+  });
+
+  // Joints
+  ctx.fillStyle = col.joint;
+  for (const [x, y] of g.nodes) {
+    ctx.beginPath();
+    ctx.arc(T.tx(x), T.ty(y), 2.4, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  // Supports
+  drawPin(T.tx(g.nodes[g.pin][0]), T.ty(g.nodes[g.pin][1]), col.support);
+  drawRoller(T.tx(g.nodes[g.roller][0]), T.ty(g.nodes[g.roller][1]), col.support);
+
+  // Load arrows
+  for (const nd of result.loadNodes) {
+    drawLoadArrow(T.tx(g.nodes[nd][0]), T.ty(g.nodes[nd][1]), col.load);
+  }
+}
+
+function drawPin(x, y, col) {
+  ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x - 8, y + 13); ctx.lineTo(x + 8, y + 13);
+  ctx.closePath(); ctx.fill();
+  hatchGround(x, y + 13, col);
+}
+function drawRoller(x, y, col) {
+  ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x - 8, y + 11); ctx.lineTo(x + 8, y + 11);
+  ctx.closePath(); ctx.fill();
+  // rollers
+  ctx.beginPath(); ctx.arc(x - 4, y + 14, 2.2, 0, 2 * Math.PI); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 4, y + 14, 2.2, 0, 2 * Math.PI); ctx.fill();
+  hatchGround(x, y + 16, col);
+}
+function hatchGround(x, y, col) {
+  ctx.strokeStyle = col; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x + 12, y); ctx.stroke();
+  for (let i = -9; i <= 9; i += 4) {
+    ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i - 4, y + 5); ctx.stroke();
+  }
+}
+function drawLoadArrow(x, y, col) {
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
+  const top = y - 34, tip = y - 3;
+  ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, tip); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x, y + 1); ctx.lineTo(x - 5, y - 7); ctx.lineTo(x + 5, y - 7);
+  ctx.closePath(); ctx.fill();
+}
+
+function recompute() {
+  const g = buildTruss(state.style, state.bays, state.depthR);
+  const result = solve(g, state.load);
+  model = { g, result };
+  if (result.singular) {
+    maxTEl.textContent = maxCEl.textContent = maxDEl.textContent = '—';
+  } else {
+    const f = result.forces;
+    maxTEl.textContent = Math.max(0, ...f).toFixed(3);
+    maxCEl.textContent = Math.min(0, ...f).toFixed(3);
+    const d = result.disp;
+    let maxD = 0;
+    for (let k = 0; k < g.nodes.length; k++)
+      maxD = Math.max(maxD, Math.hypot(d[2 * k], d[2 * k + 1]));
+    maxDEl.textContent = maxD.toFixed(3);
+  }
+  draw();
+}
+
+function wire() {
+  document.querySelectorAll('.picker button[data-style]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.picker button[data-style]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); state.style = b.dataset.style; recompute();
+    });
+  });
+  document.querySelectorAll('.picker button[data-load]').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.picker button[data-load]').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); state.load = b.dataset.load; recompute();
+    });
+  });
+  baysSlider.addEventListener('input', () => {
+    state.bays = parseInt(baysSlider.value, 10);
+    baysVal.textContent = state.bays; recompute();
+  });
+  depthSlider.addEventListener('input', () => {
+    state.depthR = parseInt(depthSlider.value, 10) / 100;
+    depthVal.textContent = state.depthR.toFixed(2); recompute();
+  });
+  showDefl.addEventListener('change', draw);
+  window.addEventListener('resize', () => { resize(); draw(); });
+}
+
+async function main() {
+  try { await init(); }
+  catch (e) {
+    status.innerHTML = '<span style="color:#c33">WASM failed to load: ' + e.message + '</span>';
+    return;
+  }
+  resize();
+  wire();
+  recompute();
+  status.textContent = 'Pick a style and load; drag bays/depth. Toggle the deflected shape.';
+}
+
+main();
+</script>
+
+</body>
+</html>

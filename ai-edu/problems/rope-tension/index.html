@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two ropes and a weight &mdash; statics you can check by closing the triangle</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  .eq { display: block; text-align: center; font-style: italic; margin: 0.6rem 0; font-size: 1.02rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .viz canvas { display: block; width: 100%; background: transparent; }
+  #fbd { height: 280px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: center; margin: 0.6rem 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.5rem; }
+  .controls input[type=range] { width: 8rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 3.6rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .readout { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.83rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.55); border-radius: 4px; margin-top: 0.5rem; line-height: 1.75; }
+  @media (prefers-color-scheme: dark) { .readout { background: rgba(40,44,52,0.45); } }
+  .readout .pass { color: #2a8a2a; font-weight: 700; } .readout .warn { color: #c89200; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .readout .pass { color: #8f6; } .readout .warn { color: #e8b84b; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Two ropes and a weight: statics you can check by closing the triangle</h1>
+<p class="lede">
+  Hang a weight from two ropes at angles and solve the tensions. The
+  smallest real solver &mdash; and it carries its own proof: the three
+  forces at the knot must sum to exactly zero, or it's wrong.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A weight <strong>W</strong> hangs from a knot held by two ropes &mdash;
+  one to an anchor up and to the left at angle <strong>&theta;<sub>1</sub></strong>
+  above horizontal, one up and to the right at
+  <strong>&theta;<sub>2</sub></strong>. Find the rope tensions
+  T<sub>1</sub> and T<sub>2</sub>. That's the whole problem &mdash; and it's
+  the seed of every truss, cable, and free-body diagram you'll ever draw.
+</p>
+
+<h2>2. Why this is ten minutes</h2>
+<p>
+  Two equations, two unknowns. At the knot the forces must balance:
+</p>
+<span class="eq">&Sigma;F<sub>x</sub>: &minus;T<sub>1</sub>cos&theta;<sub>1</sub> + T<sub>2</sub>cos&theta;<sub>2</sub> = 0 &nbsp;&nbsp; &Sigma;F<sub>y</sub>: T<sub>1</sub>sin&theta;<sub>1</sub> + T<sub>2</sub>sin&theta;<sub>2</sub> &minus; W = 0</span>
+<p>
+  Claude will set up and solve the linear system in a heartbeat. The point
+  isn't the algebra &mdash; it's that you don't have to take the answer on
+  faith. Statics hands you a free oracle: <strong>plug the tensions back in
+  and the residual forces must be zero.</strong>
+</p>
+
+<h2>3. Solve it</h2>
+<p>
+  Drag the angles and the weight. The blue arrows are the rope tensions, the
+  grey arrow is the weight; if the solution is right, the three arrows form a
+  closed triangle &mdash; nothing left over.
+</p>
+
+<div class="viz">
+  <canvas id="fbd" aria-label="Free body diagram of a weight on two ropes"></canvas>
+  <div class="controls">
+    <label>&theta;<sub>1</sub> (left) <input type="range" id="t1" min="10" max="85" step="1" value="40"><span class="val" id="t1-val">40°</span></label>
+    <label>&theta;<sub>2</sub> (right) <input type="range" id="t2" min="10" max="85" step="1" value="55"><span class="val" id="t2-val">55°</span></label>
+    <label>W <input type="range" id="w" min="20" max="500" step="10" value="200"><span class="val" id="w-val">200 N</span></label>
+  </div>
+  <div class="readout" id="readout"></div>
+</div>
+
+<p>
+  Slide both angles toward horizontal and watch the tensions explode: as
+  &theta;&rarr;0 the rope carries far more than the weight it holds
+  (T &asymp; W/2sin&theta; in the symmetric case). That's why a clothesline
+  pulled &ldquo;straight&rdquo; can snap under a light load &mdash; the
+  geometry, not the weight, sets the force.
+</p>
+
+<h2>4. Verification &mdash; equilibrium is the oracle</h2>
+<p>
+  A correct statics solution leaves no net force. You never have to wonder if
+  the answer is right; you compute the residual and look.
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; the residual is zero.</strong> Substitute T<sub>1</sub>, T<sub>2</sub> back into &Sigma;F<sub>x</sub> and &Sigma;F<sub>y</sub>.
+  <div class="pass">Pass: both residuals are zero to machine precision &mdash; the forces literally cancel.</div>
+  <div class="fail">Fail here: a nonzero residual means a sign slip or a dropped term. The check finds it without an answer key.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; the symmetric case matches the closed form.</strong> Set &theta;<sub>1</sub> = &theta;<sub>2</sub> = &theta;.
+  <div class="pass">Pass: both tensions equal W / (2&middot;sin&theta;), the textbook result &mdash; and they're equal to each other.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; the limits behave.</strong> Vertical ropes carry half the weight each; near-horizontal ropes blow up.
+  <div class="pass">Pass: &theta;&rarr;90° gives T&rarr;W/2; &theta;&rarr;0 gives T&rarr;&infin;. The physics is sane.</div>
+</div>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; let the residual be your grader</summary>
+  <p>Don't eyeball the tensions for plausibility &mdash; compute &Sigma;F<sub>x</sub> and &Sigma;F<sub>y</sub> with the answers plugged in. Zero means right. This residual check is the same oracle that scales up to a 30-member truss.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; mind the sign convention</summary>
+  <p>Pick a positive direction for x and y and keep it. The left rope pulls in &minus;x; the right rope in +x; both pull +y; gravity is &minus;y. Most wrong answers are a single flipped sign &mdash; which the residual catches instantly.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; what to ask for</summary>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Solve for the two rope tensions from the equilibrium equations, then substitute them back and report the residual &Sigma;F<sub>x</sub> and &Sigma;F<sub>y</sub>. Also give the symmetric-angle closed form so I can sanity-check.</span></div>
+</details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, substitute the tensions back and confirm &Sigma;F<sub>x</sub> and &Sigma;F<sub>y</sub> are zero&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt. And keep the
+    expensive model's context light &mdash; route transcription and formatting
+    to cheaper tools (see <a href="../../getting-started/token-economy/">Spend
+    tokens well</a>).
+  </p>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude assemble and solve the equilibrium equations &mdash; trivial here,
+  essential when there are forty of them. But you own the model: is the load
+  really a point weight, are the ropes really two-force members, did you set
+  the angle convention before solving? The residual proves the algebra; it
+  can't prove you drew the right free-body diagram.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    The clean result is T<sub>1</sub> = W&middot;cos&theta;<sub>2</sub> / sin(&theta;<sub>1</sub>+&theta;<sub>2</sub>)
+    and T<sub>2</sub> = W&middot;cos&theta;<sub>1</sub> / sin(&theta;<sub>1</sub>+&theta;<sub>2</sub>).
+    At &theta;<sub>1</sub>=40°, &theta;<sub>2</sub>=55°, W=200&nbsp;N:
+    T<sub>1</sub> &asymp; 115&nbsp;N, T<sub>2</sub> &asymp; 154&nbsp;N. Substitute back
+    and &Sigma;F<sub>x</sub> = &Sigma;F<sub>y</sub> = 0. Set both angles to 45°
+    and each tension becomes 200 / (2&middot;sin45°) = 141&nbsp;N &mdash; matching
+    W/(2sin&theta;). The answer proved itself; no grader required.
+  </p>
+</details>
+
+<h2>Ship it</h2>
+<p>Same two moves &mdash; see <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>.</p>
+
+<script>
+function solve(t1,t2,W){              // angles in radians, from horizontal
+  const s=Math.sin(t1+t2);
+  const T1=W*Math.cos(t2)/s, T2=W*Math.cos(t1)/s;
+  const Rx=-T1*Math.cos(t1)+T2*Math.cos(t2);
+  const Ry= T1*Math.sin(t1)+T2*Math.sin(t2)-W;
+  return {T1,T2,Rx,Ry};
+}
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fitCanvas(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return {ctx,w,h};}
+function arrow(ctx,x,y,dx,dy,color,wd){
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=wd;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx,y+dy);ctx.stroke();
+  const a=Math.atan2(dy,dx),hl=9;
+  ctx.beginPath();ctx.moveTo(x+dx,y+dy);
+  ctx.lineTo(x+dx-hl*Math.cos(a-0.4),y+dy-hl*Math.sin(a-0.4));
+  ctx.lineTo(x+dx-hl*Math.cos(a+0.4),y+dy-hl*Math.sin(a+0.4));
+  ctx.closePath();ctx.fill();
+}
+let st={t1:40,t2:55,W:200};
+function draw(){
+  const cv=document.getElementById('fbd'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), rope=dark?'#889':'#778', grav=dark?'#aab':'#889', blue=dark?'#6cc':'#2c7da0', txt=dark?'#cdd':'#334';
+  const t1=st.t1*Math.PI/180, t2=st.t2*Math.PI/180;
+  const sol=solve(t1,t2,st.W);
+  // knot position
+  const kx=w*0.5, ky=h*0.62, Lr=Math.min(w*0.32,150);
+  const aL={x:kx-Lr*Math.cos(t1), y:ky-Lr*Math.sin(t1)};
+  const aR={x:kx+Lr*Math.cos(t2), y:ky-Lr*Math.sin(t2)};
+  // ceiling line through anchors (visual)
+  ctx.strokeStyle=dark?'#3a3f48':'#ccd2da'; ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(aL.x-20,aL.y);ctx.lineTo(aL.x,aL.y);ctx.moveTo(aR.x,aR.y);ctx.lineTo(aR.x+20,aR.y);ctx.stroke();
+  // ropes
+  ctx.strokeStyle=rope;ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(kx,ky);ctx.lineTo(aL.x,aL.y);ctx.moveTo(kx,ky);ctx.lineTo(aR.x,aR.y);ctx.stroke();
+  // anchors
+  [aL,aR].forEach(a=>{ctx.fillStyle=dark?'#556':'#99a';ctx.beginPath();ctx.arc(a.x,a.y,4,0,7);ctx.fill();});
+  // weight box hanging below knot
+  ctx.strokeStyle=rope;ctx.beginPath();ctx.moveTo(kx,ky);ctx.lineTo(kx,ky+26);ctx.stroke();
+  ctx.fillStyle=dark?'#33384a':'#cfd6e2';ctx.strokeStyle=dark?'#667':'#99a';
+  ctx.fillRect(kx-16,ky+26,32,22);ctx.strokeRect(kx-16,ky+26,32,22);
+  ctx.fillStyle=txt;ctx.font='10px ui-monospace,monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('W',kx,ky+37);
+  // force vectors at knot, scaled
+  const sc=Math.min(110,Math.max(w,h))/Math.max(sol.T1,sol.T2,st.W);
+  arrow(ctx,kx,ky,-sol.T1*Math.cos(t1)*sc,-sol.T1*Math.sin(t1)*sc,blue,2.4);
+  arrow(ctx,kx,ky, sol.T2*Math.cos(t2)*sc,-sol.T2*Math.sin(t2)*sc,blue,2.4);
+  arrow(ctx,kx,ky,0, st.W*sc, grav,2.4);
+  // knot
+  ctx.fillStyle=dark?'#ddd':'#222';ctx.beginPath();ctx.arc(kx,ky,3.5,0,7);ctx.fill();
+  // labels
+  ctx.fillStyle=blue;ctx.font='11px ui-monospace,monospace';ctx.textAlign='left';
+  ctx.fillText('T₁='+sol.T1.toFixed(0)+'N', kx-sol.T1*Math.cos(t1)*sc-4, ky-sol.T1*Math.sin(t1)*sc-8);
+  ctx.fillText('T₂='+sol.T2.toFixed(0)+'N', kx+sol.T2*Math.cos(t2)*sc+4, ky-sol.T2*Math.sin(t2)*sc-8);
+
+  // readout
+  const res=Math.hypot(sol.Rx,sol.Ry);
+  const sym = st.t1===st.t2;
+  let html=`T₁ = <b>${sol.T1.toFixed(1)} N</b> &middot; T₂ = <b>${sol.T2.toFixed(1)} N</b><br>`
+    + `residual: ΣFx = ${sol.Rx.toExponential(1)}, ΣFy = ${sol.Ry.toExponential(1)} &rarr; |R| ${res<1e-9?'<span class="pass">≈ 0 ✓ (equilibrium)</span>':'<span class="warn">'+res.toFixed(3)+' N</span>'}`;
+  if(sym){
+    const cf=st.W/(2*Math.sin(st.t1*Math.PI/180));
+    html+=`<br>symmetric check: W/(2&middot;sin${st.t1}°) = <b>${cf.toFixed(1)} N</b> <span class="pass">= T₁ = T₂ ✓</span>`;
+  }
+  document.getElementById('readout').innerHTML=html;
+}
+function refresh(){
+  st.t1=+document.getElementById('t1').value; st.t2=+document.getElementById('t2').value; st.W=+document.getElementById('w').value;
+  document.getElementById('t1-val').textContent=st.t1+'°';
+  document.getElementById('t2-val').textContent=st.t2+'°';
+  document.getElementById('w-val').textContent=st.W+' N';
+  draw();
+}
+['t1','t2','w'].forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+window.addEventListener('resize',draw);
+refresh();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

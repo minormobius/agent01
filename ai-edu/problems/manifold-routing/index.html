@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manifold routing &mdash; multi-net Steiner with components attached</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  h3 { font-size: 0.95rem; margin: 1.3rem 0 0.3rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  .eq { display: block; text-align: center; font-style: italic; margin: 0.6rem 0; font-size: 1.02rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .viz canvas { display: block; width: 100%; aspect-ratio: 5/3; background: #f4f0e4; border-radius: 6px; cursor: crosshair; touch-action: none; }
+  @media (prefers-color-scheme: dark) { .viz canvas { background: #1a1814; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; align-items: center; margin: 0.6rem 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.4rem; }
+  .controls select { font: inherit; font-size: 0.78rem; padding: 0.15rem 0.3rem; border: 1px solid #aac; border-radius: 4px; background: #fff; color: #245; }
+  @media (prefers-color-scheme: dark) { .controls select { background: #20242c; border-color: #456; color: #cde; } }
+  .controls input[type=range] { width: 7rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 3rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .tools { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.4rem 0; font-family: ui-monospace, monospace; font-size: 0.78rem; }
+  .tools button { font: inherit; font-size: 0.78rem; padding: 0.25rem 0.7rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; }
+  .tools button.active { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  .tools .sep { width: 1px; background: #ccd; margin: 0 0.2rem; }
+  @media (prefers-color-scheme: dark) { .tools button { background: #243038; border-color: #467; color: #bdf; } .tools .sep { background: #345; } }
+  .readout { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.55); border-radius: 4px; margin-top: 0.5rem; line-height: 1.75; }
+  @media (prefers-color-scheme: dark) { .readout { background: rgba(40,44,52,0.45); } }
+  .readout .pass { color: #2a8a2a; font-weight: 700; } .readout .fail { color: #c33; font-weight: 700; } .readout .warn { color: #c89200; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .readout .pass { color: #8f6; } .readout .fail { color: #f88; } .readout .warn { color: #e8b84b; } }
+  table.parts { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-size: 0.82rem; }
+  table.parts th, table.parts td { border: 1px solid #ddd; padding: 0.4rem 0.55rem; text-align: left; vertical-align: top; }
+  table.parts th { background: #f4f6f8; font-size: 0.78rem; }
+  @media (prefers-color-scheme: dark) { table.parts th, table.parts td { border-color: #333; } table.parts th { background: #1c2027; } }
+  .partlink { font-family: ui-monospace, monospace; font-size: 0.78rem; }
+  .verified { font-size: 0.78rem; color: #888; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Manifold routing: multi-net Steiner with components attached</h1>
+<p class="lede">
+  Several inlets, more outlets, one bonded plate. Each inlet owns a circuit
+  &mdash; six inlets feeding twelve outlets is the case this opens on
+  &mdash; and each circuit is a <strong>rectilinear Steiner tree</strong> in
+  its own colour. Drop a valve onto a leg and that circuit's pressure
+  budget responds; cross another circuit's leg and the no-crossings rung
+  fails until you flip on multi-layer.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A bonded plate has to carry <strong>K&nbsp;supply inlets</strong> through
+  internal channels to <strong>N&nbsp;outlets</strong>, with each outlet
+  owned by exactly one inlet (six inlets feeding twelve outlets, on
+  average two per circuit, is the canonical case). On each circuit, a few
+  <strong>valves</strong> switch the legs you need to control;
+  <strong>sensors</strong> tap where you need to measure. The pumps are
+  fixed; every outlet has to receive its share of flow; the worst-case
+  path's pressure drop has to stay under the pump's head with margin; and
+  no two circuits' channels can physically share a point on the same plate
+  layer. Three coupled problems: a topology per circuit, the sizing on
+  every leg, and the geometric question of whether the circuits fit
+  side-by-side or need a second layer.
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  The per-circuit topology is a rectilinear Steiner tree &mdash; one inlet,
+  its outlets, minimise total length &mdash; and a Hanan-grid + 1-Steiner
+  heuristic solves it in milliseconds. Multi-net just means &ldquo;solve K
+  of them and check for crossings.&rdquo; The sizing on each leg is
+  conservation + Darcy&ndash;Weisbach + the catalog's K-factors and Cv
+  values. Claude can wire all of that into a live board for you. What it
+  can't pick are the pump curves, which outlet belongs to which inlet (the
+  process owns that), and whether the deepest leg actually carries the
+  flow it's spec'd for &mdash; those decisions are yours.
+</p>
+
+<h2>3. The board</h2>
+<p>
+  Each circuit is a colour. Drag any port along its edge; click
+  <strong>+&nbsp;inlet</strong> to add another circuit,
+  <strong>+&nbsp;outlet</strong> to add an outlet to the nearest inlet,
+  <strong>cycle&nbsp;group</strong> on an outlet to move it between
+  circuits. Drop valves and sensors on segments; toggle
+  <strong>layer</strong> to allow crossings via a second plate layer with
+  vias. The critical leg per circuit thickens, and the worst across all
+  circuits is the budget the pump has to clear.
+</p>
+
+<div class="viz">
+  <canvas id="plate" aria-label="Multi-net manifold routing board"></canvas>
+  <div class="controls">
+    <label>pump <select id="pump"></select></label>
+    <label>Q<sub>per circuit</sub> <input type="range" id="q" min="20" max="200" step="5" value="60"><span class="val" id="q-val">60 mL/min</span></label>
+    <label>channel &Oslash; <input type="range" id="dia" min="1.0" max="3.0" step="0.1" value="2.0"><span class="val" id="dia-val">2.0 mm</span></label>
+    <label>valve <select id="vsel"></select></label>
+  </div>
+  <div class="tools" id="tools">
+    <button data-tool="select" class="active">select / drag</button>
+    <button data-tool="addinlet">+ inlet</button>
+    <button data-tool="addoutlet">+ outlet</button>
+    <button data-tool="cyclegrp">cycle group</button>
+    <button data-tool="addvalve">+ valve</button>
+    <button data-tool="addsensor">+ sensor</button>
+    <span class="sep">&nbsp;</span>
+    <button data-tool="layer">layer: single</button>
+    <button data-tool="preset6x12">preset 6×12</button>
+    <button data-tool="preset1x4">preset 1×4</button>
+    <button data-tool="reset">reset</button>
+  </div>
+  <div class="readout" id="readout"></div>
+</div>
+
+<p>
+  The router is doing one Steiner heuristic per circuit (Hanan candidate
+  junctions, 1-Steiner improvement) plus a pairwise crossing check across
+  every segment from every <em>other</em> circuit. The cost on each leg is
+  Darcy&ndash;Weisbach friction integrated along its length plus the minor
+  losses you've placed: one K=1 per elbow, K=0.5 at every wye it crosses,
+  and <code>(Q/Cv)<sup>2</sup></code> for every valve on it. The worst-of-N
+  outlet sums per circuit is that circuit's critical leg; the worst across
+  all circuits is the budget the pump has to clear.
+</p>
+
+<h2>4. Verification &mdash; the budget &amp; the plate reconcile</h2>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; continuity at every wye.</strong> Flow in equals
+  sum of flows out at every Steiner point. (With equal-share outlets it's
+  automatic; with metered branches you balance restrictors against it.)
+  <div class="pass">Pass: every junction reconciles. A missing branch or double-count is the first thing this catches.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; connectivity per circuit.</strong> Every outlet
+  reaches its inlet through its circuit's tree.
+  <div class="pass">Pass: each circuit's tree spans its terminals. A disconnected outlet means an outlet got assigned to a circuit it can't be physically reached from &mdash; reassign it.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; the pump clears the worst leg.</strong>
+  Max over all circuits of (&Sigma;&Delta;P on the critical path) &le; pump head, with margin.
+  <div class="pass">Pass: the worst across all circuits is under the head with margin. The offending leg lights up &mdash; on the right circuit.</div>
+  <div class="fail">Fail here: you can't shrink it with the chart. Bigger-Cv valve on the worst leg, fewer bends, or step the pump up.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 4 &mdash; no crossings on a layer.</strong> Two circuits'
+  channels can't share a point on the same plate layer.
+  <div class="pass">Pass: in single-layer mode, the crossing count is zero. Or you've flipped on multi-layer/vias and accepted the manufacturing cost of cross-overs.</div>
+  <div class="fail">Fail here: the count is non-zero and you're still on single-layer &mdash; either re-route a circuit (cycle outlets so groups own contiguous Y-bands) or commit to a second layer.</div>
+</div>
+
+<h2>5. Components &mdash; verified parts shortlist</h2>
+<p>
+  Three categories, all fetch-verified on supplier or distributor pages.
+  <strong>Verified 2026-05-30</strong> &mdash; specs and links drift; re-open
+  before you spec a build.
+</p>
+
+<h3>Miniature solenoid valves</h3>
+<table class="parts">
+  <tr><th>part</th><th>type / orifice</th><th>Cv</th><th>pressure / voltage</th></tr>
+  <tr><td><a href="https://www.clippard.com/part/EV-2M-12">Clippard EV-2M-12</a></td><td>2/2 NC, manifold-mount</td><td>~0.45 (17 L/min @ 100 psig)</td><td>0&ndash;105 psig / 12&nbsp;VDC, 0.67&nbsp;W</td></tr>
+  <tr><td><a href="https://www.theleeco.com/product/lhd-series-2-way-control-solenoid-valve/">Lee LHD series</a></td><td>2/2 NC, 7&nbsp;mm body, plug-in</td><td>0.013&ndash;0.044 (1500/450 Lohm)</td><td>vac&ndash;45 psig / 12 or 24&nbsp;VDC spike-hold</td></tr>
+  <tr><td><a href="https://www.lfprinterparts.com/product/parker-x-valve-miniature-pneumatic-solenoid-valve/">Parker X-Valve 912</a><sup>&dagger;</sup></td><td>2/2 NC, 8&nbsp;mm, 0.045&Prime; orifice</td><td>~0.06</td><td>0&ndash;25 psig / 12&nbsp;VDC, EPDM</td></tr>
+</table>
+<p class="partlink">Big-Cv valves (Clippard) move flow; tiny-Cv valves (Lee) shape it. The duty point picks which.</p>
+
+<h3>Pumps</h3>
+<table class="parts">
+  <tr><th>part</th><th>type</th><th>flow / head</th><th>voltage</th></tr>
+  <tr><td><a href="https://knf.com/en/us/solutions/pumps/series/diaphragm-liquid-pump-nf-15">KNF NF&nbsp;1.5</a></td><td>micro diaphragm, liquid</td><td>60&nbsp;mL/min · 6&nbsp;bar (~87&nbsp;psi)</td><td>10&ndash;26.4&nbsp;VDC, self-priming, runs dry</td></tr>
+  <tr><td><a href="https://www.schwarzer.com/en/liquid-pumps/eccentric-diaphragm-pumps-l/sp-270-ec-lc-l">Schwarzer SP&nbsp;270 EC-LC-L</a></td><td>eccentric diaphragm</td><td>100&nbsp;mL/min · 1&nbsp;bar (~15&nbsp;psi)</td><td>12&nbsp;VDC, 25&nbsp;g</td></tr>
+  <tr><td><a href="https://micropumps.co.uk/product/m200s-v/">TCS M200S-V</a></td><td>centrifugal impeller</td><td>700&nbsp;mL/min · 0.23&nbsp;bar (~3.3&nbsp;psi)</td><td>1.5&ndash;3&nbsp;V (needs PWM/buck)</td></tr>
+</table>
+<p class="partlink">The TCS is here on purpose: it shows what &ldquo;wrong pump&rdquo; looks like &mdash; lots of flow but no head, so the budget rung fails immediately.</p>
+
+<h3>Sensors</h3>
+<table class="parts">
+  <tr><th>part</th><th>measurement</th><th>interface</th><th>accuracy</th></tr>
+  <tr><td><a href="https://www.digikey.com/en/products/detail/honeywell-sensing-and-productivity-solutions/ABPMANN030PG2A3/5322840">Honeywell ABPMANN030PG2A3</a></td><td>0&ndash;30 psi gauge</td><td>I²C 12-bit, 3.3&nbsp;V</td><td>±0.25% FS · $33.82@100</td></tr>
+  <tr><td><a href="https://www.digikey.com/en/products/detail/honeywell/ABPDANV030PGAA5/5277495">TE 4515-DS5B002DP</a></td><td>0&ndash;0.07 psi differential</td><td>analog 0.25&ndash;4.75&nbsp;V</td><td>±0.25% FS · for flow-restrictor Δp</td></tr>
+  <tr><td><a href="https://sensirion.com/products/catalog/SLF3S-1300F">Sensirion SLF3S-1300F</a></td><td>liquid flow 0&ndash;40&nbsp;mL/min</td><td>I²C, 3.3&nbsp;V</td><td>±5% · H₂O / IPA</td></tr>
+  <tr><td><a href="https://www.digikey.com/en/products/detail/sensirion-ag/SFM3000-200C/5872282">Sensirion SFM3000-200C</a><sup>&Dagger;</sup></td><td>gas flow 0&ndash;200&nbsp;SLM</td><td>I²C, 5&nbsp;V</td><td>±1.5% · <em>NRND</em>, replace with SFM3003/3013</td></tr>
+</table>
+<p class="verified">
+  &dagger; supplier page blocks automated fetching; specs &amp; link confirmed via the listed distributor.
+  &Dagger; Not Recommended for New Designs &mdash; page still resolves, but design-in should target the successor.
+</p>
+
+<h2>6. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; assign by Y, not by name</summary>
+  <p>Outlets land on a circuit by nearest inlet by default, and that's almost always right: circuits own contiguous Y-bands and don't cross. The moment you assign by &ldquo;outlet&nbsp;1 belongs to inlet&nbsp;A because the schematic says so&rdquo; you can drive crossings into the plate that didn't have to be there. If the process forces an out-of-band assignment, accept the second layer rather than fighting it.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; pick the pump first</summary>
+  <p>The pump's pressure&ndash;flow curve is the budget the whole board lives inside. Sizing valves and channels before knowing the head you have to work with is how you end up routing a manifold the pump can't actually drive.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; the worst leg isn't always the longest</summary>
+  <p>It's the highest <em>sum</em>: length × friction + bends + valve Cv terms. A short leg with a tight valve will eat more head than a long leg with a wide one. Watch the readout, not the picture.</p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; wyes have a cost too</summary>
+  <p>Every Steiner junction adds a small minor loss (K_wye&nbsp;≈&nbsp;0.5) to each branch passing through it. A tree that minimises <em>length</em> isn't necessarily the one that minimises <em>worst-case ΔP</em>; some manifolds are better with one extra mm of channel and one fewer junction.</p>
+</details>
+<details>
+  <summary>Hint 5 &mdash; what to ask for</summary>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Given K inlets, N outlets (each owned by one inlet), a plate envelope, and a pump curve (Q_max, ΔP_max): solve a rectilinear Steiner tree per circuit, compute Darcy–Weisbach + minor losses (K=1 elbow per L-bend, K=0.5 per wye, (Q/Cv)² per valve, small K per sensor tap) along every inlet→outlet leg, report each circuit's worst-leg ΔP and the worst-of-all vs the pump head with 20% margin. Then count pairwise crossings between circuits' segments on a single layer, and flag any that would force a second-layer route.</span></div>
+</details>
+
+<h2>7. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude run the Steiner heuristic per circuit, the friction integrals,
+  the K-sum on every leg, and the pairwise crossing scan &mdash; tireless
+  arithmetic on a network is exactly what it's good at. But you pick the
+  pump curve, the valve at duty, which outlet belongs to which inlet, and
+  whether &ldquo;within margin&rdquo; means 20% or 50% for this fluid and
+  this application. The math tells you which leg busts. Only you can tell
+  it the assignment and the budget are honest in the first place.
+</div>
+
+<h2>8. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    The 6&times;12 default opens with the canonical layout: six inlets evenly
+    spaced on the left edge, twelve outlets evenly spaced on the right, each
+    outlet assigned to its nearest-Y inlet (so each circuit owns two
+    outlets in a contiguous Y-band). The Steiner heuristic gives each
+    circuit a small T; the trees stack vertically and don't cross. With
+    KNF&nbsp;NF&nbsp;1.5 (~87&nbsp;psi) the worst-leg ΔP across all six
+    circuits sits well under budget, and the crossing count is zero on a
+    single layer.
+  </p>
+  <p>
+    Cycle one of the inlet&nbsp;0 outlets to inlet&nbsp;5 and the colour
+    crosses the whole plate &mdash; the crossing count jumps, and Rung&nbsp;4
+    fails. Flip <em>layer</em> to multi and it passes again (at the cost of
+    a via). Switch to the TCS pump and the budget rung fails immediately:
+    flow without head is the wrong tool for a head-loss-dominated plate.
+  </p>
+</details>
+
+<h2>9. Going further</h2>
+<ul>
+  <li><strong>Per-circuit pumps:</strong> let each circuit pick its own pump curve from the catalog, since six independent supply lines almost never share one supply. The worst-leg rung becomes per-circuit-budget rather than worst-of-all.</li>
+  <li><strong>Mass-flow control:</strong> add a per-branch metered restrictor and balance the network so outlets receive their <em>specified</em> shares, not equal shares.</li>
+  <li><strong>Compressible flow:</strong> swap the working fluid to a gas and the friction equation switches to the compressible form &mdash; valves with their published Kv/Cv for air at standard conditions.</li>
+  <li><strong>Cost as a co-objective:</strong> length × $/m + Σ component price; the cheapest manifold isn't the shortest one.</li>
+  <li><strong>Selector matrix (true any-to-any):</strong> a different topology entirely &mdash; one shared trunk and a valve at every branch &mdash; worth its own node.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>Same two moves &mdash; see <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>.</p>
+<ul>
+  <li>
+    <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (no CDN links) from this port/component list: a draggable multi-net Steiner manifold board with one tree per inlet in its own colour, live critical-leg highlighting, Δp-vs-pump-head readout per circuit, and a single-vs-multi-layer toggle that turns crossing-count into a manufacturability rung.</span></div>
+  </li>
+  <li>
+    <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a one-page Markdown design memo — per-circuit layouts, worst-leg pressure-drop calcs, the crossing report, and the BOM (pumps, valves, sensors with part numbers) — and give me the pandoc command to render it to PDF via the Typst engine.</span></div>
+  </li>
+</ul>
+
+<script>
+// ===== catalog (used by the widget controls) =====
+const PUMPS = [
+  {key:'knf', name:'KNF NF 1.5',         qMax: 60,  pMax_psi: 87},
+  {key:'sch', name:'Schwarzer SP 270',   qMax:100,  pMax_psi: 15},
+  {key:'tcs', name:'TCS M200S-V',        qMax:700,  pMax_psi: 3.3},
+];
+const VALVES = [
+  {key:'clp', name:'Clippard EV-2M-12 (Cv 0.45)', Cv:0.45},
+  {key:'lhd', name:'Lee LHD (Cv 0.030)',          Cv:0.030},
+  {key:'prk', name:'Parker X-Valve 912 (Cv 0.06)',Cv:0.06},
+];
+const SENSOR_K = 0.3;
+const PLATE = {W:120, H:72};
+const PALETTE_L = ['#2c7da0','#c0392b','#2a8a2a','#8a5cc0','#d68910','#16a085','#6e4d35','#c0399c'];
+const PALETTE_D = ['#6cc','#f88','#8f6','#b98fe0','#e8b84b','#5ccfb7','#b08866','#f08cd0'];
+const MAX_IN=8, MAX_OUT=16;
+
+const ST = {
+  terms: [], groups: [], allSegments: [], crossings: 0, critByGroup: [],
+  valves: [], sensors: [],
+  pumpKey:'knf', valveSelKey:'clp', qTotal:60, D_mm:2.0,
+  tool:'select', layerMode:'single', dragging:null,
+};
+
+function initPreset(Nin, Nout){
+  ST.terms=[]; ST.valves=[]; ST.sensors=[]; ST.tool='select'; ST.dragging=null;
+  for(let g=0; g<Nin; g++){
+    const y=(PLATE.H/(Nin+1))*(g+1);
+    ST.terms.push({id:ST.terms.length, role:'inlet', x:0, y, edge:'L', group:g});
+  }
+  for(let k=0; k<Nout; k++){
+    const y=(PLATE.H/(Nout+1))*(k+1);
+    let bestG=0, bd=1e9;
+    for(let g=0; g<Nin; g++){ const dy=Math.abs(ST.terms[g].y-y); if(dy<bd){bd=dy; bestG=g;} }
+    ST.terms.push({id:ST.terms.length, role:'outlet', x:PLATE.W, y, edge:'R', group:bestG});
+  }
+}
+function nextFreeGroup(){
+  const used=new Set(ST.terms.filter(t=>t.role==='inlet').map(t=>t.group));
+  for(let g=0; g<MAX_IN; g++) if(!used.has(g)) return g;
+  return -1;
+}
+function nearestInletGroup(y){
+  let bestG=-1, bd=1e9;
+  ST.terms.filter(t=>t.role==='inlet').forEach(t=>{ const dy=Math.abs(t.y-y); if(dy<bd){bd=dy; bestG=t.group;} });
+  return bestG;
+}
+
+// ===== Steiner per circuit =====
+const man=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+function mst(pts){
+  const E=[];
+  for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++) E.push({i,j,d:man(pts[i],pts[j])});
+  E.sort((a,b)=>a.d-b.d);
+  const par=pts.map((_,i)=>i);
+  const find=x=>{while(par[x]!==x) x=par[x]=par[par[x]]; return x;};
+  let total=0, used=[];
+  for(const e of E){ const ri=find(e.i), rj=find(e.j); if(ri!==rj){par[ri]=rj; total+=e.d; used.push(e);} }
+  return {total, edges:used};
+}
+function solveGroupSteiner(termArr){
+  const T=termArr.map(t=>({x:t.x,y:t.y}));
+  let pts=T.slice();
+  let m=mst(pts);
+  const xs=[...new Set(T.map(t=>t.x))], ys=[...new Set(T.map(t=>t.y))];
+  const cands=[]; for(const x of xs) for(const y of ys) cands.push({x,y});
+  for(let it=0; it<6; it++){
+    let bg=0.0001, bc=null;
+    for(const c of cands){
+      if(pts.some(p=>p.x===c.x && p.y===c.y)) continue;
+      const m2=mst([...pts,c]); const g=m.total-m2.total;
+      if(g>bg){ bg=g; bc=c; }
+    }
+    if(!bc) break; pts.push(bc); m=mst(pts);
+  }
+  const segments=[];
+  m.edges.forEach((e,ei)=>{
+    const A=pts[e.i], B=pts[e.j];
+    if(A.x===B.x){ segments.push({ei, axis:'v', a:{x:A.x,y:A.y}, b:{x:B.x,y:B.y}}); }
+    else if(A.y===B.y){ segments.push({ei, axis:'h', a:{x:A.x,y:A.y}, b:{x:B.x,y:B.y}}); }
+    else {
+      segments.push({ei, axis:'h', a:{x:A.x,y:A.y}, b:{x:B.x,y:A.y}});
+      segments.push({ei, axis:'v', a:{x:B.x,y:A.y}, b:{x:B.x,y:B.y}});
+    }
+  });
+  return {pts, edges:m.edges, segments};
+}
+
+function solveAll(){
+  ST.groups=[]; ST.allSegments=[];
+  const ids=[...new Set(ST.terms.filter(t=>t.role==='inlet').map(t=>t.group))].sort((a,b)=>a-b);
+  ids.forEach(g=>{
+    const inlet=ST.terms.find(t=>t.role==='inlet' && t.group===g);
+    const outlets=ST.terms.filter(t=>t.role==='outlet' && t.group===g);
+    if(!inlet || !outlets.length){
+      ST.groups.push({groupId:g, terms:inlet?[inlet]:[], pts:[], edges:[], segments:[]});
+      return;
+    }
+    const termArr=[inlet, ...outlets];
+    const sol=solveGroupSteiner(termArr);
+    const gi=ST.groups.length;
+    ST.groups.push({groupId:g, terms:termArr, pts:sol.pts, edges:sol.edges, segments:sol.segments});
+    sol.segments.forEach((s,si)=>ST.allSegments.push({groupIdx:gi, segLocalIdx:si, axis:s.axis, a:s.a, b:s.b}));
+  });
+  // crossings: pairs of H/V from different groups
+  ST.crossings=0;
+  for(let i=0;i<ST.allSegments.length;i++){
+    for(let j=i+1;j<ST.allSegments.length;j++){
+      const A=ST.allSegments[i], B=ST.allSegments[j];
+      if(A.groupIdx===B.groupIdx) continue;
+      if(A.axis===B.axis) continue;
+      const H=A.axis==='h'?A:B, V=A.axis==='v'?A:B;
+      const hx1=Math.min(H.a.x,H.b.x), hx2=Math.max(H.a.x,H.b.x), hy=H.a.y;
+      const vy1=Math.min(V.a.y,V.b.y), vy2=Math.max(V.a.y,V.b.y), vx=V.a.x;
+      if(vx>hx1 && vx<hx2 && hy>vy1 && hy<vy2) ST.crossings++;
+    }
+  }
+}
+
+function pathEdgesInGroup(gi, outletPtsIdx){
+  const grp=ST.groups[gi];
+  const adj=grp.pts.map(()=>[]);
+  grp.edges.forEach((e,ei)=>{ adj[e.i].push({to:e.j, ei}); adj[e.j].push({to:e.i, ei}); });
+  const start=0, goal=outletPtsIdx;
+  const prev=new Array(grp.pts.length).fill(null);
+  const q=[start]; const seen=new Set([start]);
+  while(q.length){
+    const u=q.shift(); if(u===goal) break;
+    for(const nb of adj[u]) if(!seen.has(nb.to)){ seen.add(nb.to); prev[nb.to]={from:u, ei:nb.ei}; q.push(nb.to); }
+  }
+  const eList=[]; let cur=goal;
+  while(prev[cur]){ eList.unshift(prev[cur].ei); cur=prev[cur].from; }
+  return eList;
+}
+
+function pressureDropGroup(gi, outletPtsIdx){
+  const grp=ST.groups[gi];
+  const D_m=ST.D_mm/1000, A=Math.PI*D_m*D_m/4;
+  const rho=1000, mu=1e-3;
+  const Nout=grp.terms.filter(t=>t.role==='outlet').length;
+  const Q_total_m3s=ST.qTotal/60*1e-6;            // per-circuit supply
+  const Q_branch_m3s=Nout>0 ? Q_total_m3s/Nout : 0;
+  const v=Q_branch_m3s/A;
+  const Re=rho*v*D_m/mu;
+  const f=Re<2000 ? 64/Math.max(Re,1) : 0.316*Math.pow(Re,-0.25);
+  const dynP=0.5*rho*v*v;
+  const eList=pathEdgesInGroup(gi, outletPtsIdx);
+  let dp_Pa=0;
+  grp.segments.forEach(s=>{
+    if(!eList.includes(s.ei)) return;
+    const L_mm=Math.abs(s.b.x-s.a.x)+Math.abs(s.b.y-s.a.y);
+    dp_Pa += f*(L_mm/1000/D_m)*dynP;
+  });
+  let bends=0;
+  eList.forEach(ei=>{ const segs=grp.segments.filter(s=>s.ei===ei); if(segs.length>=2) bends++; });
+  dp_Pa += bends*1.0*dynP;
+  const adj=grp.pts.map(()=>[]);
+  grp.edges.forEach((e,ei)=>{ adj[e.i].push({to:e.j, ei}); adj[e.j].push({to:e.i, ei}); });
+  let cur=0, traversed=[0];
+  for(const ei of eList){ const next=grp.edges[ei].i===cur ? grp.edges[ei].j : grp.edges[ei].i; traversed.push(next); cur=next; }
+  let wyes=0; traversed.slice(1,-1).forEach(n=>{ if(adj[n].length>=3) wyes++; });
+  dp_Pa += wyes*0.5*dynP;
+  ST.sensors.forEach(s=>{ if(s.groupIdx===gi && eList.includes(grp.segments[s.segLocalIdx].ei)) dp_Pa += SENSOR_K*dynP; });
+  let valves_psi=0;
+  const Q_gpm=Q_branch_m3s*15850;
+  ST.valves.forEach(v=>{ if(v.groupIdx===gi && eList.includes(grp.segments[v.segLocalIdx].ei)){
+    const Cv=(VALVES.find(x=>x.key===v.valveKey)||{Cv:0.05}).Cv;
+    valves_psi += Math.pow(Q_gpm/Cv, 2);
+  }});
+  return {dp_psi: dp_Pa/6895 + valves_psi};
+}
+
+function computeCritical(){
+  ST.critByGroup = ST.groups.map((grp,gi)=>{
+    if(grp.terms.length<2) return null;
+    let bestIdx=-1, bd=-1, bestEdges=[];
+    for(let i=1; i<grp.terms.length; i++){
+      if(grp.terms[i].role!=='outlet') continue;
+      const {dp_psi}=pressureDropGroup(gi, i);
+      if(dp_psi>bd){ bd=dp_psi; bestIdx=i; bestEdges=pathEdgesInGroup(gi, i); }
+    }
+    return {groupIdx:gi, outletPtsIdx:bestIdx, dp_psi:bd, eList:bestEdges};
+  });
+}
+
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fit(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);return {c,w,h};}
+function paletteFor(g, dark){ return (dark?PALETTE_D:PALETTE_L)[g % 8]; }
+
+function draw(){
+  const cv=document.getElementById('plate'); const {c,w,h}=fit(cv);
+  const dark=isDark();
+  const M=14, pw=w-2*M, ph=h-2*M;
+  const X=mx=>M+(mx/PLATE.W)*pw, Y=my=>M+(my/PLATE.H)*ph;
+
+  // per-circuit segments
+  ST.groups.forEach((grp, gi)=>{
+    const color=paletteFor(grp.groupId, dark);
+    const crit=ST.critByGroup[gi];
+    const critEdges=crit?crit.eList:[];
+    grp.segments.forEach(s=>{
+      const onCrit=critEdges.includes(s.ei);
+      c.strokeStyle=color; c.lineWidth=onCrit?4:2.5;
+      c.globalAlpha=onCrit?1.0:0.6; c.lineCap='round';
+      c.beginPath(); c.moveTo(X(s.a.x),Y(s.a.y)); c.lineTo(X(s.b.x),Y(s.b.y)); c.stroke();
+    });
+    c.globalAlpha=1;
+    grp.pts.slice(grp.terms.length).forEach(p=>{
+      c.fillStyle=color; c.beginPath(); c.arc(X(p.x),Y(p.y),2.5,0,7); c.fill();
+    });
+  });
+
+  // crossings: mark each intersection point with a ring
+  if(ST.crossings>0){
+    for(let i=0;i<ST.allSegments.length;i++){
+      for(let j=i+1;j<ST.allSegments.length;j++){
+        const A=ST.allSegments[i], B=ST.allSegments[j];
+        if(A.groupIdx===B.groupIdx || A.axis===B.axis) continue;
+        const H=A.axis==='h'?A:B, V=A.axis==='v'?A:B;
+        const hx1=Math.min(H.a.x,H.b.x), hx2=Math.max(H.a.x,H.b.x), hy=H.a.y;
+        const vy1=Math.min(V.a.y,V.b.y), vy2=Math.max(V.a.y,V.b.y), vx=V.a.x;
+        if(vx>hx1 && vx<hx2 && hy>vy1 && hy<vy2){
+          c.strokeStyle = ST.layerMode==='single' ? (dark?'#f88':'#c33') : (dark?'#aef087':'#5a9a3a');
+          c.lineWidth=2; c.beginPath(); c.arc(X(vx),Y(hy),6,0,7); c.stroke();
+        }
+      }
+    }
+  }
+
+  // valves & sensors
+  ST.valves.forEach(v=>{
+    const grp=ST.groups[v.groupIdx]; if(!grp) return;
+    const s=grp.segments[v.segLocalIdx]; if(!s) return;
+    const mx=(s.a.x+s.b.x)/2, my=(s.a.y+s.b.y)/2;
+    c.fillStyle=dark?'#445':'#dde'; c.strokeStyle=dark?'#fff':'#1a1a1a'; c.lineWidth=1;
+    c.beginPath(); c.rect(X(mx)-4,Y(my)-4,8,8); c.fill(); c.stroke();
+  });
+  ST.sensors.forEach(s=>{
+    const grp=ST.groups[s.groupIdx]; if(!grp) return;
+    const seg=grp.segments[s.segLocalIdx]; if(!seg) return;
+    const mx=(seg.a.x+seg.b.x)/2, my=(seg.a.y+seg.b.y)/2;
+    c.fillStyle=dark?'#aef087':'#5a9a3a'; c.strokeStyle=dark?'#fff':'#1a1a1a';
+    c.beginPath(); c.arc(X(mx),Y(my),3.5,0,7); c.fill(); c.stroke();
+  });
+
+  // terminals on top
+  ST.terms.forEach(t=>{
+    const col=paletteFor(t.group, dark);
+    c.fillStyle=col;
+    c.beginPath(); c.arc(X(t.x),Y(t.y), t.role==='inlet'?5:4, 0,7); c.fill();
+    if(t.role==='inlet'){
+      c.strokeStyle=dark?'#fff':'#1a1a1a'; c.lineWidth=1.5; c.stroke();
+    }
+  });
+
+  // readout
+  const pump=PUMPS.find(p=>p.key===ST.pumpKey);
+  const pumpHead=pump.pMax_psi;
+  const numInlets=ST.terms.filter(t=>t.role==='inlet').length;
+  const numOutlets=ST.terms.filter(t=>t.role==='outlet').length;
+  const totalLen=ST.allSegments.reduce((s,seg)=>s+Math.abs(seg.b.x-seg.a.x)+Math.abs(seg.b.y-seg.a.y),0);
+  const worstPerGroup=ST.critByGroup.filter(c=>c && c.dp_psi>=0).map(c=>c.dp_psi);
+  const worstOverall=worstPerGroup.length ? Math.max(...worstPerGroup) : 0;
+  const budgetOK=worstOverall <= 0.8*pumpHead;
+  const crossOK=ST.layerMode==='multi' || ST.crossings===0;
+  let html=`pump <b>${pump.name}</b> · head <b>${pumpHead.toFixed(1)} psi</b> · <b>${numInlets}</b> inlet${numInlets!==1?'s':''}, <b>${numOutlets}</b> outlets, <b>${ST.groups.length}</b> circuit${ST.groups.length!==1?'s':''}<br>`+
+    `total channel length <b>${totalLen.toFixed(0)} mm</b> · valves <b>${ST.valves.length}</b> · sensors <b>${ST.sensors.length}</b><br>`+
+    `worst ΔP across circuits: <b>${worstOverall.toFixed(2)} psi</b> vs 20% margin ${(0.8*pumpHead).toFixed(1)}: <span class="${budgetOK?'pass':'fail'}">${budgetOK?'budget ✓':'over budget'}</span><br>`+
+    `crossings: <b>${ST.crossings}</b> (<b>${ST.layerMode}</b>-layer mode): <span class="${crossOK?'pass':'fail'}">${crossOK?(ST.crossings>0?'allowed with vias':'no crossings ✓'):'fail — re-route or switch to multi-layer'}</span>`;
+  document.getElementById('readout').innerHTML=html;
+}
+
+// ===== interaction =====
+function nearestSegmentAny(mx,my){
+  let best={groupIdx:-1, segLocalIdx:-1, dist:1e9};
+  ST.groups.forEach((grp,gi)=>{
+    grp.segments.forEach((s,si)=>{
+      const x1=s.a.x,y1=s.a.y,x2=s.b.x,y2=s.b.y;
+      const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+      if(len<0.001) return;
+      let t=((mx-x1)*dx+(my-y1)*dy)/(len*len); t=Math.max(0,Math.min(1,t));
+      const px=x1+t*dx, py=y1+t*dy, d=Math.hypot(mx-px,my-py);
+      if(d<best.dist) best={groupIdx:gi, segLocalIdx:si, dist:d};
+    });
+  });
+  return best;
+}
+function nearestTerm(mx,my){
+  let best=-1, bd=1e9;
+  ST.terms.forEach((t,i)=>{ const d=Math.hypot(mx-t.x,my-t.y); if(d<bd){bd=d; best=i;} });
+  return {idx:best, dist:bd};
+}
+
+function onClick(mx,my){
+  if(ST.tool==='addvalve'){
+    const ns=nearestSegmentAny(mx,my);
+    if(ns.dist<8){ ST.valves.push({groupIdx:ns.groupIdx, segLocalIdx:ns.segLocalIdx, valveKey:ST.valveSelKey}); recompute(); }
+    return;
+  }
+  if(ST.tool==='addsensor'){
+    const ns=nearestSegmentAny(mx,my);
+    if(ns.dist<8){ ST.sensors.push({groupIdx:ns.groupIdx, segLocalIdx:ns.segLocalIdx}); recompute(); }
+    return;
+  }
+  if(ST.tool==='addinlet'){
+    if(ST.terms.filter(t=>t.role==='inlet').length>=MAX_IN) return;
+    const g=nextFreeGroup(); if(g<0) return;
+    ST.terms.push({id:Math.max(0,...ST.terms.map(t=>t.id))+1, role:'inlet', x:0, y:Math.max(6,Math.min(PLATE.H-6,my)), edge:'L', group:g});
+    recompute(); return;
+  }
+  if(ST.tool==='addoutlet'){
+    if(ST.terms.filter(t=>t.role==='outlet').length>=MAX_OUT) return;
+    const yC=Math.max(6,Math.min(PLATE.H-6,my));
+    const g=nearestInletGroup(yC); if(g<0) return;
+    ST.terms.push({id:Math.max(0,...ST.terms.map(t=>t.id))+1, role:'outlet', x:PLATE.W, y:yC, edge:'R', group:g});
+    recompute(); return;
+  }
+  if(ST.tool==='cyclegrp'){
+    const nt=nearestTerm(mx,my);
+    if(nt.dist<6 && ST.terms[nt.idx].role==='outlet'){
+      const inletGroups=[...new Set(ST.terms.filter(t=>t.role==='inlet').map(t=>t.group))].sort((a,b)=>a-b);
+      if(inletGroups.length<2) return;
+      const cur=ST.terms[nt.idx].group;
+      const ci=inletGroups.indexOf(cur);
+      ST.terms[nt.idx].group=inletGroups[(ci+1)%inletGroups.length];
+      recompute();
+    }
+    return;
+  }
+  // select tool: click to remove (valve > sensor > outlet > inlet)
+  const nv=(()=>{let best={idx:-1,d:1e9}; ST.valves.forEach((v,i)=>{ const grp=ST.groups[v.groupIdx]; if(!grp)return; const s=grp.segments[v.segLocalIdx]; if(!s)return; const cx=(s.a.x+s.b.x)/2, cy=(s.a.y+s.b.y)/2; const d=Math.hypot(mx-cx,my-cy); if(d<best.d) best={idx:i,d}; }); return best;})();
+  if(nv.d<5){ ST.valves.splice(nv.idx,1); recompute(); return; }
+  const nse=(()=>{let best={idx:-1,d:1e9}; ST.sensors.forEach((s,i)=>{ const grp=ST.groups[s.groupIdx]; if(!grp)return; const seg=grp.segments[s.segLocalIdx]; if(!seg)return; const cx=(seg.a.x+seg.b.x)/2, cy=(seg.a.y+seg.b.y)/2; const d=Math.hypot(mx-cx,my-cy); if(d<best.d) best={idx:i,d}; }); return best;})();
+  if(nse.d<5){ ST.sensors.splice(nse.idx,1); recompute(); return; }
+  const nt=nearestTerm(mx,my);
+  if(nt.dist<6){
+    const t=ST.terms[nt.idx];
+    if(t.role==='outlet' && ST.terms.filter(x=>x.role==='outlet').length>1){
+      ST.terms.splice(nt.idx,1); recompute(); return;
+    }
+    if(t.role==='inlet' && ST.terms.filter(x=>x.role==='inlet').length>1){
+      // reassign its outlets to another inlet's group before removing
+      const others=ST.terms.filter(x=>x.role==='inlet' && x.id!==t.id);
+      const newG=others[0].group;
+      ST.terms.filter(x=>x.role==='outlet' && x.group===t.group).forEach(x=>x.group=newG);
+      ST.terms.splice(nt.idx,1); recompute(); return;
+    }
+  }
+}
+
+function onDragStart(mx,my){
+  const nt=nearestTerm(mx,my);
+  if(nt.dist<10){ ST.dragging=nt.idx; }
+}
+function onDragMove(mx,my){
+  if(ST.dragging==null) return;
+  const t=ST.terms[ST.dragging];
+  if(t.edge==='L'){ t.x=0; t.y=Math.max(6,Math.min(PLATE.H-6,my)); }
+  else if(t.edge==='R'){ t.x=PLATE.W; t.y=Math.max(6,Math.min(PLATE.H-6,my)); }
+  recompute();
+}
+function onDragEnd(){ ST.dragging=null; }
+
+function canvasXY(ev){
+  const cv=document.getElementById('plate'); const r=cv.getBoundingClientRect();
+  const px=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left, py=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+  const M=14, pw=r.width-2*M, ph=r.height-2*M;
+  return {x:(px-M)/pw*PLATE.W, y:(py-M)/ph*PLATE.H};
+}
+
+function recompute(){ solveAll(); computeCritical(); draw(); }
+
+function refreshControls(){
+  const ps=document.getElementById('pump'); ps.innerHTML=PUMPS.map(p=>`<option value="${p.key}" ${p.key===ST.pumpKey?'selected':''}>${p.name}</option>`).join('');
+  const vs=document.getElementById('vsel'); vs.innerHTML=VALVES.map(v=>`<option value="${v.key}" ${v.key===ST.valveSelKey?'selected':''}>${v.name}</option>`).join('');
+}
+
+function main(){
+  initPreset(6, 12); refreshControls(); recompute();
+  const cv=document.getElementById('plate');
+  cv.addEventListener('mousedown',e=>{ const {x,y}=canvasXY(e); if(ST.tool==='select') onDragStart(x,y); });
+  cv.addEventListener('mousemove',e=>{ if(ST.dragging!=null){ const {x,y}=canvasXY(e); onDragMove(x,y); } });
+  cv.addEventListener('mouseup',e=>{ if(ST.dragging!=null) onDragEnd(); else { const {x,y}=canvasXY(e); onClick(x,y); } });
+  cv.addEventListener('touchstart',e=>{ const {x,y}=canvasXY(e); if(ST.tool==='select') onDragStart(x,y); else onClick(x,y); e.preventDefault(); },{passive:false});
+  cv.addEventListener('touchmove',e=>{ if(ST.dragging!=null){ const {x,y}=canvasXY(e); onDragMove(x,y); e.preventDefault(); } },{passive:false});
+  cv.addEventListener('touchend',()=>{ if(ST.dragging!=null) onDragEnd(); });
+  document.querySelectorAll('#tools button').forEach(b=>b.addEventListener('click',()=>{
+    const t=b.dataset.tool;
+    if(t==='preset6x12'){ initPreset(6,12); recompute(); return; }
+    if(t==='preset1x4'){ initPreset(1,4); recompute(); return; }
+    if(t==='reset'){ initPreset(6,12); recompute(); return; }
+    if(t==='layer'){ ST.layerMode = ST.layerMode==='single'?'multi':'single'; b.textContent = ST.layerMode==='single'?'layer: single':'layer: multi (vias)'; draw(); return; }
+    ST.tool=t;
+    document.querySelectorAll('#tools button').forEach(x=>{
+      if(['select','addvalve','addsensor','addinlet','addoutlet','cyclegrp'].includes(x.dataset.tool)){
+        x.classList.toggle('active', x===b);
+      }
+    });
+  }));
+  document.getElementById('pump').addEventListener('change',e=>{ ST.pumpKey=e.target.value; draw(); });
+  document.getElementById('vsel').addEventListener('change',e=>{ ST.valveSelKey=e.target.value; });
+  document.getElementById('q').addEventListener('input',e=>{ ST.qTotal=+e.target.value; document.getElementById('q-val').textContent=ST.qTotal+' mL/min'; draw(); });
+  document.getElementById('dia').addEventListener('input',e=>{ ST.D_mm=+e.target.value; document.getElementById('dia-val').textContent=ST.D_mm.toFixed(1)+' mm'; draw(); });
+  window.addEventListener('resize',draw);
+  document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+}
+main();
+</script>
+
+</body>
+</html>

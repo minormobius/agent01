@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam deflection &mdash; AI-pair numerics</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem;
+    margin: 2.5rem auto;
+    padding: 0 1.25rem;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #15151a; color: #eee; }
+    a { color: #9cf; }
+  }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 {
+    font-size: 1.05rem;
+    margin-top: 2.25rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code, pre {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+  }
+  pre {
+    background: #f4f4f6;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    border-radius: 4px;
+  }
+  @media (prefers-color-scheme: dark) { pre { background: #1f1f25; } }
+  details {
+    margin: 0.75rem 0;
+    padding: 0.5rem 0.75rem;
+    background: #f8f8fa;
+    border-left: 3px solid #ccc;
+    border-radius: 0 4px 4px 0;
+  }
+  @media (prefers-color-scheme: dark) {
+    details { background: #1c1c22; border-left-color: #444; }
+  }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  details[open] summary { margin-bottom: 0.5rem; }
+  .ladder-rung {
+    margin: 0.75rem 0;
+    padding-left: 1rem;
+    border-left: 3px solid #6a9a3a;
+  }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) {
+    .ladder-rung { border-left-color: #8fbf5a; }
+    .ladder-rung .pass { color: #aef087; }
+    .ladder-rung .fail { color: #f8a; }
+  }
+  .draw-line {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    background: #fff8e8;
+    border-left: 3px solid #c89200;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .draw-line { background: #2a2310; border-left-color: #d4a020; }
+  }
+
+  /* Live viz */
+  .viz {
+    margin: 1.25rem -1rem;
+    background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%);
+    border-top: 1px solid #e0e4ea;
+    border-bottom: 1px solid #e0e4ea;
+    padding: 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz {
+      background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%);
+      border-color: #2a2e36;
+    }
+  }
+  .picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.85rem;
+  }
+  .picker .group { display: flex; gap: 0.25rem; align-items: baseline; }
+  .picker .group-label {
+    color: #777;
+    margin-right: 0.25rem;
+  }
+  @media (prefers-color-scheme: dark) { .picker .group-label { color: #99a; } }
+  .picker button {
+    padding: 0.3rem 0.7rem;
+    font: inherit;
+    background: transparent;
+    color: #455;
+    border: 1px solid #cdd5dc;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.1s ease;
+  }
+  @media (prefers-color-scheme: dark) {
+    .picker button { color: #bbc; border-color: #3a4048; }
+  }
+  .picker button:hover { background: #eef2f6; }
+  @media (prefers-color-scheme: dark) {
+    .picker button:hover { background: #20242c; }
+  }
+  .picker button.active {
+    background: #2c7da0;
+    color: #fff;
+    border-color: #2c7da0;
+  }
+  @media (prefers-color-scheme: dark) {
+    .picker button.active { background: #5fa8c8; color: #001f2c; border-color: #5fa8c8; }
+  }
+  .viz canvas { display: block; width: 100%; height: 280px; }
+  .verify {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0.75rem 0 0.25rem;
+    padding: 0.65rem 0.9rem;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.88rem;
+  }
+  @media (min-width: 32rem) { .verify { grid-template-columns: auto 1fr; } }
+  @media (prefers-color-scheme: dark) {
+    .verify { background: rgba(40, 44, 52, 0.4); }
+  }
+  .verify .label { color: #778; }
+  @media (prefers-color-scheme: dark) { .verify .label { color: #99a; } }
+  .verify .formula { font-size: 0.95rem; }
+  .verify .num { font-weight: 600; }
+  .verify .match-ok { color: #2a7a2a; font-weight: 600; }
+  .verify .match-warn { color: #c80; font-weight: 600; }
+  .verify .match-bad { color: #c33; font-weight: 600; }
+  @media (prefers-color-scheme: dark) {
+    .verify .match-ok { color: #8f6; }
+    .verify .match-warn { color: #fc6; }
+    .verify .match-bad { color: #f88; }
+  }
+  .mesh-ctl {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.85rem;
+  }
+  .mesh-ctl input[type="range"] {
+    flex: 1;
+    accent-color: #2c7da0;
+    max-width: 16rem;
+  }
+  .mesh-ctl .n-label { min-width: 5rem; color: #666; }
+  @media (prefers-color-scheme: dark) { .mesh-ctl .n-label { color: #99a; } }
+  .status {
+    margin-top: 0.25rem;
+    padding: 0 0.25rem;
+    font-size: 0.78rem;
+    color: #888;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Beam deflection</h1>
+<p class="lede">
+  Cycle through mountings and loadings. For each combo, find the
+  maximum deflection. Check it against algebra. Confidence builder
+  before we get to eigenvalues.
+</p>
+
+<h2>1. Setup</h2>
+<p>
+  Same Euler&ndash;Bernoulli beam as the next problem &mdash; length
+  <em>L</em>, modulus <em>E</em>, area moment <em>I</em>, no inertia
+  yet. Apply a static load, the beam deflects, the deflection
+  <em>w(x)</em> satisfies
+</p>
+<pre>EI &middot; d&#8308;w/dx&#8308; = q(x)</pre>
+<p>
+  with whatever boundary conditions your mounting imposes.
+  <strong>You want:</strong> the maximum deflection
+  <em>&delta;<sub>max</sub></em> &mdash; how far does the beam move at
+  its worst point?
+</p>
+<p>
+  Six cases live in any beam-deflection table:
+</p>
+<pre>cantilever      + tip point load P    &rArr;  &delta; = PL&sup3; / 3EI       at the tip
+cantilever      + uniform load w      &rArr;  &delta; = wL&#8308; / 8EI       at the tip
+simply supported + center point P    &rArr;  &delta; = PL&sup3; / 48EI      at midspan
+simply supported + uniform load w    &rArr;  &delta; = 5wL&#8308; / 384EI    at midspan
+clamped-clamped + center point P     &rArr;  &delta; = PL&sup3; / 192EI     at midspan
+clamped-clamped + uniform load w     &rArr;  &delta; = wL&#8308; / 384EI     at midspan</pre>
+<p>
+  All algebra. No calculus past integration to get those formulas in
+  the first place. Roark's catalogs hundreds of variants.
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  Finite-element discretization with Hermite cubics turns
+  <em>EI w'''' = q</em> into a linear system <em>K u = f</em>. Same
+  element stiffness matrix as the vibration problem next door, no mass
+  matrix needed for statics. The unknowns are nodal deflections and
+  slopes; you assemble, apply BCs, solve once. Your brain picks the
+  mesh, applies the mounting, builds the load vector, reads the
+  answer.
+</p>
+
+<h2>3. Build it</h2>
+<p>
+  Start with the cantilever-with-tip-load case. Hermite cubic elements,
+  10&ndash;20 of them across the beam. Assemble <em>K</em>, build
+  <em>f</em> with the point load at the tip DOF, drop the fixed-end
+  rows and columns, solve <em>K u = f</em>. Pull out
+  <em>&delta;<sub>max</sub></em>. Then point your AI pair at the next
+  five cases &mdash; the differences are which DOFs you fix and how
+  you build <em>f</em>.
+</p>
+<p>
+  Spec the discretization, the BC application strategy
+  (row/column drop vs. penalty vs. Lagrange multipliers), and the
+  consistent load vector for UDL with your AI pair. Have it draft.
+  Your job is to specify, audit, verify.
+</p>
+
+<h2>4. Verification</h2>
+<p>
+  Live below: pick a mounting, pick a loading, watch the beam deform
+  to match. The closed-form formula sits next to the FEM number.
+</p>
+
+<div class="viz">
+  <div class="picker">
+    <div class="group">
+      <span class="group-label">Mount:</span>
+      <button data-bc="cantilever" class="active">cantilever</button>
+      <button data-bc="simply_supported">simply supported</button>
+      <button data-bc="clamped_clamped">clamped&ndash;clamped</button>
+    </div>
+    <div class="group">
+      <span class="group-label">Load:</span>
+      <button data-load="point" class="active">point</button>
+      <button data-load="udl">uniform</button>
+    </div>
+  </div>
+  <canvas id="beam-canvas" aria-label="Static beam deflection"></canvas>
+  <div class="verify">
+    <span class="label">Case:</span>
+    <span id="case-label">Cantilever, tip point load</span>
+    <span class="label">Algebra:</span>
+    <span class="formula" id="formula-text"><em>&delta;</em> = PL&sup3; / 3EI = <span class="num">0.33333</span></span>
+    <span class="label">FEM (Hermite):</span>
+    <span><span class="num" id="fem-text">&mdash;</span> &nbsp; (<span id="match-text">&mdash;</span>)</span>
+    <span class="label">Max at:</span>
+    <span><span id="loc-text">&mdash;</span></span>
+  </div>
+  <div class="mesh-ctl">
+    <span class="n-label">N = <span id="n-display">20</span></span>
+    <input type="range" id="n-slider" min="2" max="40" step="2" value="20">
+  </div>
+  <div class="status" id="status">Loading WASM&hellip;</div>
+</div>
+
+<p>
+  Did you spot it? FEM error is <strong>zero to machine precision</strong>
+  &mdash; even at N=2 elements. That's not the solver getting lucky;
+  it's a deep property of Hermite cubic elements known as
+  <em>superconvergence</em>. The deflection field of every classical
+  case in the table above is a polynomial of degree &le; 4, and the
+  FEM galerkin equations recover those polynomials' nodal values
+  exactly. Your shape functions happen to be the right shape.
+</p>
+<p>
+  This is why we start here. Three rungs of the verification ladder
+  all pass trivially for this problem:
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; analytical anchor.</strong> FEM matches
+  closed-form to machine precision for every classical case.
+  <div class="pass">Pass: exact agreement, all six cases.</div>
+  <div class="fail">Fail diagnosis: assembly or BC application is wrong &mdash; the algebra here doesn't leave room for "almost".</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; conservation.</strong> Sum of nodal forces
+  (including reactions) is zero. Verify by computing reactions from
+  the K matrix times the solution.
+  <div class="pass">Pass: residual &lt; 10&#8315;&#185;&#8304;.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; mesh refinement.</strong> Halve the element
+  size; for these classical cases, the answer doesn't change.
+  Confidence-building, but mostly silent.
+  <div class="pass">Pass: trivial &mdash; you're already exact.</div>
+  <div class="fail">Where this rung actually earns its keep: see "going further" below.</div>
+</div>
+
+<h2>5. Hints</h2>
+
+<details>
+  <summary>Hint 1 &mdash; frame it</summary>
+  <p>
+    Two unknowns per node: <em>w</em> and <em>&theta; = dw/dx</em>.
+    The weak form needs C&sup1; continuity, so the slope is
+    continuous across element boundaries, not just the displacement.
+    Same setup as the vibration problem, minus the mass matrix.
+  </p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; pick the tool</summary>
+  <p>
+    Hermite cubic shape functions, 4 per element. Element stiffness
+    matrix <em>K<sub>e</sub></em> is a closed-form 4&times;4 you can
+    find in any structural-dynamics text (Bathe, Cook). For the linear
+    solve once you have <em>K u = f</em>: <em>K</em> is symmetric
+    positive definite after BC application, so Cholesky is the cleanest
+    choice. <code>numpy.linalg.solve(K, f)</code> also works.
+  </p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; the gotcha (consistent load vector)</summary>
+  <p>
+    For a uniform distributed load <em>w</em> on an element of length
+    <em>l<sub>e</sub></em>, the equivalent nodal forces are <em>not</em>
+    just <em>w l<sub>e</sub> / 2</em> at each end. The correct
+    consistent load vector is
+    <code>[wl/2, wl&sup2;/12, wl/2, -wl&sup2;/12]</code>
+    (the moment terms come from integrating the shape functions
+    against the distributed load). Skipping the moment terms gives a
+    convincing-looking-but-wrong answer.
+  </p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; skeleton</summary>
+<pre>def element_k(le, EI): ...           # 4x4 Hermite stiffness
+def assemble_K(n_el): ...            # scatter into global K
+def build_f(bc, load, n_el): ...     # consistent load vector
+def apply_bcs(K, f, bc): ...         # drop fixed rows/cols
+def solve(K, f): return np.linalg.solve(K, f)
+def max_deflection(u, n_el): ...     # sample Hermite cubics, find argmax</pre>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  For these six cases you could literally hard-code the closed-form
+  table and skip the FEM entirely. That's not the point. The point is
+  to wire up a solver you can <em>trust</em> &mdash; one whose answer
+  on a trivial case you've checked by hand. Then you can push it past
+  the table into territory where no algebraic formula exists (taper,
+  asymmetric load, two point loads at once, stepped cross-section).
+  This is the pattern: build a solver, verify it on the classical
+  cases, then push.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>Reveal the reference solver</summary>
+  <p>
+    The reference solver is the same Rust crate driving the live panel
+    above. The static deflection routine is ~80 lines:
+    <a href="/wasm/beam-solver/src/lib.rs">solver/src/lib.rs</a>,
+    function <code>deflect_static</code>. Look for the
+    consistent-load assembly for UDL, the row/column elimination for
+    BC application, and the Cholesky solve.
+  </p>
+  <p>
+    Your solver probably looks different in shape &mdash; that's
+    expected. What to compare:
+  </p>
+  <ul>
+    <li>How you assembled <em>K</em>.</li>
+    <li>How you built <em>f</em> for UDL (did you put the moment terms in?).</li>
+    <li>How you applied the BCs (row/column drop vs. penalty vs. Lagrange).</li>
+    <li>How you found the max deflection (sample many points vs. just check nodes &mdash; for these cases they're the same, but for off-center loads the max isn't at a node).</li>
+  </ul>
+  <p style="font-size: 0.88rem; color: #888;">
+    Post-mortem from the author: skipped the moment terms in the UDL
+    load vector first time around and got an answer ~10% off. The
+    closed-form check caught it in 10 seconds. Wouldn't have caught it
+    on a problem without an algebraic anchor.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li>Move the point load off-center. Closed form exists in Roark's; your FEM should still match, but now the max isn't at a node &mdash; do you find it correctly?</li>
+  <li>Two point loads at once. Superposition: sum of the individual deflections. Easy check.</li>
+  <li>Linearly varying distributed load (triangular). Now you have to think harder about the consistent load vector.</li>
+  <li>Tapered cross-section: <em>I(x) = I&#8320; (1 - a x/L)</em>. Now Hermite cubics are no longer exact &mdash; rung 3 (mesh refinement) starts earning its keep, and you'll see the FEM answer converge as you refine.</li>
+  <li>Stepped beam: two segments with different <em>EI</em>. Trivial to add to your solver, trickier to find a closed-form check.</li>
+</ul>
+<p>
+  When you're ready for the dynamic version of all this:
+  <a href="../beam-vibration/">Beam vibration &rarr;</a>
+</p>
+
+<script type="module">
+import init, { deflect_static, closed_form_deflection }
+  from '/wasm/beam-solver/pkg/beam_solver.js';
+
+const CASES = {
+  cantilever_point: {
+    caseLabel: 'Cantilever, tip point load',
+    formulaHtml: '<em>&delta;</em> = PL&sup3; / 3EI',
+    simplified: '1/3',
+  },
+  cantilever_udl: {
+    caseLabel: 'Cantilever, uniform load',
+    formulaHtml: '<em>&delta;</em> = wL&#8308; / 8EI',
+    simplified: '1/8',
+  },
+  simply_supported_point: {
+    caseLabel: 'Simply supported, midspan point load',
+    formulaHtml: '<em>&delta;</em> = PL&sup3; / 48EI',
+    simplified: '1/48',
+  },
+  simply_supported_udl: {
+    caseLabel: 'Simply supported, uniform load',
+    formulaHtml: '<em>&delta;</em> = 5wL&#8308; / 384EI',
+    simplified: '5/384',
+  },
+  clamped_clamped_point: {
+    caseLabel: 'Clamped&ndash;clamped, midspan point load',
+    formulaHtml: '<em>&delta;</em> = PL&sup3; / 192EI',
+    simplified: '1/192',
+  },
+  clamped_clamped_udl: {
+    caseLabel: 'Clamped&ndash;clamped, uniform load',
+    formulaHtml: '<em>&delta;</em> = wL&#8308; / 384EI',
+    simplified: '1/384',
+  },
+};
+
+const canvas = document.getElementById('beam-canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const nSlider = document.getElementById('n-slider');
+const nDisplay = document.getElementById('n-display');
+const caseLabelEl = document.getElementById('case-label');
+const formulaEl = document.getElementById('formula-text');
+const femEl = document.getElementById('fem-text');
+const matchEl = document.getElementById('match-text');
+const locEl = document.getElementById('loc-text');
+
+let cssW = 0, cssH = 0;
+let state = {
+  bc: 'cantilever',
+  load: 'point',
+  n: 20,
+  current: null,   // displayed (lerped) nodal vector
+  target: null,    // recomputed nodal vector
+  maxW: 0,
+  xMax: 0,
+};
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  cssW = canvas.clientWidth;
+  cssH = canvas.clientHeight;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function isDark() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function palette() {
+  const dark = isDark();
+  return {
+    wall: dark ? '#7c8694' : '#8a96a5',
+    undeformed: dark ? 'rgba(180,190,210,0.30)' : 'rgba(120,130,150,0.45)',
+    deformed: dark ? '#7dc4d9' : '#2c7da0',
+    node: dark ? '#a8dfee' : '#185872',
+    nodeHalo: dark ? 'rgba(125,196,217,0.22)' : 'rgba(44,125,160,0.15)',
+    load: dark ? '#e8a85c' : '#c8731f',
+    label: dark ? '#aab' : '#566',
+    maxLine: dark ? 'rgba(232,168,92,0.5)' : 'rgba(200,115,31,0.55)',
+  };
+}
+
+function hermiteEval(u, N, x) {
+  const le = 1 / N;
+  let e = Math.min(Math.floor(x / le), N - 1);
+  const xi = (x - e * le) / le;
+  const xi2 = xi * xi, xi3 = xi2 * xi;
+  const h1 = 1 - 3 * xi2 + 2 * xi3;
+  const h2 = le * (xi - 2 * xi2 + xi3);
+  const h3 = 3 * xi2 - 2 * xi3;
+  const h4 = le * (-xi2 + xi3);
+  return h1 * u[2 * e] + h2 * u[2 * e + 1]
+       + h3 * u[2 * (e + 1)] + h4 * u[2 * (e + 1) + 1];
+}
+
+function recompute() {
+  const raw = deflect_static(state.n, state.bc, state.load);
+  state.maxW = raw[0];
+  state.xMax = raw[1];
+  const newTarget = Array.from(raw.slice(2));
+  if (!state.target || state.target.length !== newTarget.length) {
+    state.current = newTarget.slice();
+  } else if (!state.current || state.current.length !== newTarget.length) {
+    state.current = newTarget.slice();
+  }
+  state.target = newTarget;
+  updateTextPanel();
+}
+
+function updateTextPanel() {
+  const key = state.bc + '_' + state.load;
+  const c = CASES[key];
+  caseLabelEl.textContent = c.caseLabel;
+  const exact = closed_form_deflection(state.bc, state.load)[0];
+  formulaEl.innerHTML = c.formulaHtml + ' = ' + c.simplified
+    + ' &nbsp;= <span class="num">' + exact.toFixed(5) + '</span>';
+  const fem = Math.abs(state.maxW);
+  femEl.textContent = fem.toFixed(5);
+  const pct = exact > 0 ? 100 * Math.abs(fem - exact) / exact : 0;
+  const cls = pct < 0.001 ? 'match-ok' : pct < 0.1 ? 'match-warn' : 'match-bad';
+  const matchStr = pct < 0.0001 ? 'match: exact' : 'match: ' + (100 - pct).toFixed(4) + '%';
+  matchEl.innerHTML = '<span class="' + cls + '">' + matchStr + '</span>';
+  locEl.textContent = 'x/L = ' + state.xMax.toFixed(2);
+}
+
+function drawWall(x, y0, y1, side, col) {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x, y0);
+  ctx.lineTo(x, y1);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  const step = 8;
+  const dir = side === 'left' ? -1 : 1;
+  for (let y = y0; y < y1 + step; y += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + dir * 8, y - 6);
+    ctx.stroke();
+  }
+}
+
+function drawPin(x, y, col) {
+  ctx.fillStyle = col;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  // Triangle pointing up
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - 8, y + 12);
+  ctx.lineTo(x + 8, y + 12);
+  ctx.closePath();
+  ctx.fill();
+  // Ground hatch
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y + 12);
+  ctx.lineTo(x + 12, y + 12);
+  ctx.stroke();
+  for (let i = -9; i <= 9; i += 4) {
+    ctx.beginPath();
+    ctx.moveTo(x + i, y + 12);
+    ctx.lineTo(x + i - 4, y + 18);
+    ctx.stroke();
+  }
+}
+
+function drawSupport(beamX, beamY, bc, col) {
+  // beamY = undeformed neutral axis at the support location
+  switch (bc) {
+    case 'cantilever':
+      drawWall(beamX, beamY - 18, beamY + 18, 'left', col);
+      break;
+    case 'simply_supported':
+      drawPin(beamX, beamY + 1, col);
+      break;
+    case 'clamped_clamped':
+      drawWall(beamX, beamY - 18, beamY + 18, 'left', col);
+      break;
+  }
+}
+
+function drawSupportRight(beamX, beamY, bc, col) {
+  switch (bc) {
+    case 'cantilever':
+      break;
+    case 'simply_supported':
+      drawPin(beamX, beamY + 1, col);
+      break;
+    case 'clamped_clamped':
+      drawWall(beamX, beamY - 18, beamY + 18, 'right', col);
+      break;
+  }
+}
+
+function drawPointLoad(x, beamYAtLoad, col) {
+  ctx.strokeStyle = col;
+  ctx.fillStyle = col;
+  ctx.lineWidth = 2;
+  const top = beamYAtLoad - 36;
+  const bottom = beamYAtLoad - 4;
+  // shaft
+  ctx.beginPath();
+  ctx.moveTo(x, top);
+  ctx.lineTo(x, bottom);
+  ctx.stroke();
+  // arrowhead
+  ctx.beginPath();
+  ctx.moveTo(x, beamYAtLoad);
+  ctx.lineTo(x - 5, beamYAtLoad - 8);
+  ctx.lineTo(x + 5, beamYAtLoad - 8);
+  ctx.closePath();
+  ctx.fill();
+  // label
+  ctx.font = '500 13px ui-monospace, "SF Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = col;
+  ctx.fillText('P', x, top - 6);
+}
+
+function drawUDL(x0, x1, beamY, col) {
+  ctx.strokeStyle = col;
+  ctx.fillStyle = col;
+  ctx.lineWidth = 1.5;
+  const bar = beamY - 28;
+  // Top bar
+  ctx.beginPath();
+  ctx.moveTo(x0, bar);
+  ctx.lineTo(x1, bar);
+  ctx.stroke();
+  // Repeating arrows
+  const span = x1 - x0;
+  const n = Math.max(6, Math.round(span / 30));
+  const dx = span / n;
+  for (let i = 0; i <= n; i++) {
+    const xx = x0 + i * dx;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(xx, bar);
+    ctx.lineTo(xx, beamY - 5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(xx, beamY - 1);
+    ctx.lineTo(xx - 3, beamY - 6);
+    ctx.lineTo(xx + 3, beamY - 6);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // label
+  ctx.font = '500 13px ui-monospace, "SF Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = col;
+  ctx.fillText('w', x1 + 6, bar + 4);
+}
+
+function draw() {
+  if (!state.current || cssW === 0) return;
+  ctx.clearRect(0, 0, cssW, cssH);
+  const col = palette();
+  const padL = 36, padR = 36;
+  const beamX0 = padL;
+  const beamX1 = cssW - padR;
+  const beamL = beamX1 - beamX0;
+  const centerY = Math.round(cssH * 0.62);
+
+  // Per-frame normalization. The six case magnitudes span ~130x
+  // (cantilever-point = 1/3, clamped-clamped-UDL = 1/384), so a
+  // constant scale would make the stiff cases visually invisible.
+  // Find max |w| in the currently displayed nodal vector and map it
+  // to a fixed pixel amplitude. The numerical readout next to the
+  // canvas carries the absolute magnitude.
+  let curMax = 1e-9;
+  for (let i = 0; i < state.current.length; i += 2) {
+    const a = Math.abs(state.current[i]);
+    if (a > curMax) curMax = a;
+  }
+  const targetPx = 78;
+  const ampPx = targetPx / curMax;
+
+  // Undeformed reference
+  ctx.strokeStyle = col.undeformed;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 4]);
+  ctx.beginPath();
+  ctx.moveTo(beamX0, centerY);
+  ctx.lineTo(beamX1, centerY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // BC symbols at endpoints
+  drawSupport(beamX0, centerY, state.bc, col.wall);
+  drawSupportRight(beamX1, centerY, state.bc, col.wall);
+
+  // Deformed beam (Hermite-interpolated, downward is positive y)
+  ctx.strokeStyle = col.deformed;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const samples = 160;
+  for (let s = 0; s <= samples; s++) {
+    const x = s / samples;
+    const w = hermiteEval(state.current, state.n, x);
+    const px = beamX0 + x * beamL;
+    const py = centerY + w * ampPx;
+    if (s === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // FEM nodes as filled dots
+  const r = state.n <= 20 ? 3 : 2;
+  for (let n = 0; n <= state.n; n++) {
+    const x = n / state.n;
+    const w = state.current[2 * n];
+    const px = beamX0 + x * beamL;
+    const py = centerY + w * ampPx;
+    ctx.fillStyle = col.nodeHalo;
+    ctx.beginPath();
+    ctx.arc(px, py, r + 2, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = col.node;
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+
+  // Max-deflection marker
+  const xMax = state.xMax;
+  const wMax = hermiteEval(state.current, state.n, xMax);
+  const pxMax = beamX0 + xMax * beamL;
+  const pyMax = centerY + wMax * ampPx;
+  ctx.strokeStyle = col.maxLine;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 3]);
+  ctx.beginPath();
+  ctx.moveTo(pxMax, centerY);
+  ctx.lineTo(pxMax, pyMax);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = col.load;
+  ctx.beginPath();
+  ctx.arc(pxMax, pyMax, 3.5, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.font = '500 11px ui-monospace, "SF Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = col.label;
+  ctx.fillText('δ_max', pxMax + 6, pyMax + 4);
+
+  // Load (drawn on top of undeformed reference)
+  if (state.load === 'point') {
+    const xL = state.bc === 'cantilever' ? 1.0 : 0.5;
+    const pxLoad = beamX0 + xL * beamL;
+    drawPointLoad(pxLoad, centerY, col.load);
+  } else {
+    drawUDL(beamX0, beamX1, centerY, col.load);
+  }
+}
+
+function animate() {
+  // Lerp current toward target
+  if (state.current && state.target
+      && state.current.length === state.target.length) {
+    for (let i = 0; i < state.current.length; i++) {
+      state.current[i] += 0.18 * (state.target[i] - state.current[i]);
+    }
+  }
+  draw();
+  requestAnimationFrame(animate);
+}
+
+function wirePickers() {
+  document.querySelectorAll('.picker button[data-bc]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.picker button[data-bc]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.bc = btn.dataset.bc;
+      recompute();
+    });
+  });
+  document.querySelectorAll('.picker button[data-load]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.picker button[data-load]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.load = btn.dataset.load;
+      recompute();
+    });
+  });
+  nSlider.addEventListener('input', () => {
+    const n = parseInt(nSlider.value, 10);
+    nDisplay.textContent = n;
+    state.n = n;
+    recompute();
+  });
+}
+
+async function main() {
+  try {
+    await init();
+  } catch (e) {
+    status.innerHTML = '<span style="color:#c33">WASM failed to load: ' + e.message + '</span>';
+    return;
+  }
+  resize();
+  wirePickers();
+  recompute();
+  window.addEventListener('resize', resize);
+  status.textContent = 'Click a mounting or loading to cycle. Drag the slider for mesh refinement.';
+  requestAnimationFrame(animate);
+}
+
+main();
+</script>
+
+</body>
+</html>

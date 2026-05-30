@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bearing life &mdash; the rating is not the load</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  .eq { display: block; text-align: center; font-style: italic; margin: 0.6rem 0; font-size: 1.02rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .viz-title { font-family: ui-monospace, monospace; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: #778; margin: 0.2rem 0 0.2rem; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .viz-title { color: #99a; } }
+  .viz canvas { display: block; width: 100%; background: transparent; }
+  #life { height: 250px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: center; margin: 0.6rem 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.5rem; }
+  .controls input[type=range] { width: 8.5rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 4.5rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .readout { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.83rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.55); border-radius: 4px; margin-top: 0.5rem; line-height: 1.75; }
+  @media (prefers-color-scheme: dark) { .readout { background: rgba(40,44,52,0.45); } }
+  .readout .pass { color: #2a8a2a; font-weight: 700; } .readout .fail { color: #c33; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .readout .pass { color: #8f6; } .readout .fail { color: #f88; } }
+  .partlink { font-family: ui-monospace, monospace; font-size: 0.78rem; color: #778; margin-top: 0.4rem; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Bearing life: the rating is not the load</h1>
+<p class="lede">
+  A shaft carries a radial load at a speed; pick a ball bearing off the
+  catalog. The number stamped on the box &mdash; the load rating &mdash; is
+  not the answer. The <em>life equation</em> is, and you can check it by
+  hand in one line.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A shaft turns at <strong>n</strong>&nbsp;rpm carrying a steady radial load
+  <strong>F<sub>r</sub></strong>, and the machine has to run for a target
+  service life &mdash; say <strong>20,000&nbsp;hours</strong> before the
+  bearings are expected to fail. From a tray of standard
+  <strong>6000-series deep-groove ball bearings</strong>, pick the smallest
+  (cheapest, lightest, lowest-friction) one that makes the life target.
+</p>
+<p>
+  The tempting move is to read the catalog's <em>dynamic load rating C</em>,
+  see that it's many times bigger than F<sub>r</sub>, and call it done. That
+  rating is a reference number, not a survival promise &mdash; it's the load
+  at which the bearing lasts exactly one million revolutions. Real life runs
+  on a cube law, and that changes everything.
+</p>
+
+<h2>2. Why this is ten minutes</h2>
+<p>
+  One equation, one catalog column, one check. The bearing's
+  <strong>basic rating life</strong> (the L10 &mdash; the life 90% of
+  bearings exceed) is
+</p>
+<span class="eq">L<sub>10</sub> = (10<sup>6</sup> / 60n) &middot; (C / P)<sup>3</sup> &nbsp; hours</span>
+<p>
+  where <strong>C</strong> is the catalog dynamic rating, <strong>P</strong>
+  the actual load (here just F<sub>r</sub>), and <strong>n</strong> the
+  speed. Claude will pull the C values, compute the life for every candidate,
+  and rank them &mdash; but the answer lives or dies on that exponent of 3,
+  and you check it yourself.
+</p>
+
+<h2>3. Make the pick</h2>
+<p>
+  Drag the load and speed. Each bar is one bearing's L10 life (log scale);
+  the dashed line is your target. Green clears it, red doesn't. The catalog
+  C ratings are real &mdash; 6000-series, from the Emerson Bearing listing.
+</p>
+
+<div class="viz">
+  <div class="viz-title">L10 life by bearing &mdash; log scale, hours</div>
+  <canvas id="life" aria-label="L10 life per bearing versus target"></canvas>
+  <div class="controls">
+    <label>radial load F<sub>r</sub> <input type="range" id="load" min="200" max="6000" step="50" value="900"><span class="val" id="load-val">900 N</span></label>
+    <label>speed n <input type="range" id="rpm" min="100" max="4000" step="50" value="1200"><span class="val" id="rpm-val">1200 rpm</span></label>
+    <label>target life <input type="range" id="tgt" min="1000" max="60000" step="1000" value="20000"><span class="val" id="tgt-val">20,000 h</span></label>
+  </div>
+  <div class="readout" id="readout"></div>
+  <div class="partlink">catalog: <a href="https://www.emersonbearing.com/viewitems/deep-groove-radial-ball-bearings/6000-series-deep-groove-radial-ball-bearings">Emerson Bearing &mdash; 6000-series deep groove</a> &middot; C ratings verified 2026-05-24</div>
+</div>
+
+<p>
+  Two things to feel. First, the bars are <em>steep</em>: stepping up one
+  bearing size barely raises C but multiplies life, because life goes as the
+  cube of (C/P). Second, doubling the load doesn't halve life &mdash; it cuts
+  it by eight. The rating margin you need isn't 1.2&times;; it's whatever the
+  cube law demands for your hours.
+</p>
+
+<h2>4. Verification &mdash; the life equation is the oracle</h2>
+<p>
+  You don't trust the green bar; you re-derive it. Selection has a clean
+  oracle: plug your chosen bearing back into the L10 formula by hand and
+  confirm the number. Three rungs:
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; recompute the life.</strong> Take the recommended
+  bearing's C, your F<sub>r</sub> and n, and evaluate (10<sup>6</sup>/60n)(C/P)<sup>3</sup>.
+  <div class="pass">Pass: your hand number matches the bar and clears the target. The tool didn't invent it; the equation did.</div>
+  <div class="fail">Fail here: if you can't reproduce it, you don't yet know what the tool computed &mdash; don't ship a number you can't derive.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; check the one below it.</strong> Drop to the next
+  smaller bearing and confirm it falls <em>short</em>.
+  <div class="pass">Pass: the size below misses the target &mdash; proof you picked the smallest that works, not just one that works.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; sanity the exponent.</strong> Halve the load and the
+  life should jump ~8&times;; raise C one size and it should jump severalfold.
+  <div class="pass">Pass: the response scales as a cube. If it scales linearly, the formula is wrong.</div>
+</div>
+
+<h2>5. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; rating is not load</summary>
+  <p>C is defined at one million revolutions. At 1200&nbsp;rpm that's under 14&nbsp;hours. A bearing run continuously at its full C rating dies almost immediately &mdash; which is why you work back from the <em>life</em> you need, not from a multiple of the load.</p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; invert the formula to size directly</summary>
+  <p>You don't have to guess and check. Solve for the C that hits your target: <code>C = P·(60n·L10/10⁶)^(1/3)</code>, then pick the smallest catalog bearing whose C clears it. The tool's recommendation should match.</p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; what to ask for</summary>
+  <div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Given F<sub>r</sub>, n, and a 20,000&nbsp;h target, compute L10 for each 6000-series bearing using L10=(10⁶/60n)(C/P)³, list pass/fail, and recommend the smallest that clears the target with the C values you used shown so I can check one by hand.</span></div>
+</details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, recompute the L10 life for the bearing you pick and confirm it clears the target&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt. And keep the
+    expensive model's context light &mdash; route transcription and formatting
+    to cheaper tools (see <a href="../../getting-started/token-economy/">Spend
+    tokens well</a>).
+  </p>
+</details>
+
+<h2>6. Where to draw the line</h2>
+<div class="draw-line">
+  Let Claude pull the C ratings and grind the life for every candidate &mdash;
+  tedious, mechanical, and exactly where a transcription slip hides. But the
+  judgment is yours: is the load really steady and purely radial, is 20,000
+  hours the right target, do you want margin for shock loads or a service
+  factor? The equation is honest about the physics; it can't tell you whether
+  you fed it the right load.
+</div>
+
+<h2>7. One worked solution</h2>
+<details>
+  <summary>What good looks like</summary>
+  <p>
+    At the defaults (F<sub>r</sub>=900&nbsp;N, n=1200&nbsp;rpm, target
+    20,000&nbsp;h): the required C is about 10.2&nbsp;kN, so the 6004
+    (9.36&nbsp;kN) falls just short at ~15,600&nbsp;h and the
+    <strong>6006</strong> (13.3&nbsp;kN) clears it comfortably at
+    ~45,000&nbsp;h. Hand-check the winner:
+  </p>
+  <p style="font-family:ui-monospace,monospace;font-size:0.85rem;">
+    L10 = (10⁶ / (60&middot;1200)) &middot; (13300/900)³<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;= 13.9 &middot; (14.78)³ &asymp; 13.9 &middot; 3,230 &asymp; <b>44,900 h</b> &check;
+  </p>
+  <p style="font-size:0.88rem;color:#888;">
+    Note the gap between 6004 and 6006: a 42% bump in C nearly tripled the
+    life. That's the cube law, and it's why &ldquo;the rating is 10&times; my
+    load, surely it's fine&rdquo; is a trap &mdash; and why over-sizing one
+    step is often nearly free insurance.
+  </p>
+</details>
+
+<h2>8. Going further</h2>
+<ul>
+  <li>Add a <strong>service factor</strong>: multiply F<sub>r</sub> by 1.2&ndash;2.0 for shock/vibration before sizing. How many sizes does it cost you?</li>
+  <li>Combined load: with an axial component, P = X&middot;F<sub>r</sub> + Y&middot;F<sub>a</sub>. Pull X and Y from the datasheet and re-rank.</li>
+  <li>Step up to the <strong>6200 or 6300 series</strong> (same bore, heavier build, bigger C) and see how much life a heavier series buys at equal bore.</li>
+  <li>Reliability: L10 is 90% survival. Apply an a<sub>1</sub> factor for L5 or L1 and watch the required C climb.</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>
+  Same two moves &mdash; see
+  <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>.
+</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Single self-contained HTML file: sliders for radial load and speed, a bar of L10 life per 6000-series bearing against a target line, recommending the smallest that passes.</span></div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Markdown selection note &mdash; load, speed, target, the L10 table, the chosen bearing with the hand-check shown &mdash; and the pandoc command for a PDF via Typst.</span></div>
+
+<script>
+// 6000-series deep groove ball bearings — dynamic load rating C (N), bore (mm).
+// Source: Emerson Bearing 6000-series listing (verified 2026-05-24).
+const BEARINGS=[
+  {n:'6000', bore:10, C:4620},
+  {n:'6002', bore:15, C:5590},
+  {n:'6004', bore:20, C:9360},
+  {n:'6006', bore:30, C:13300},
+  {n:'6008', bore:40, C:16800},
+  {n:'6010', bore:50, C:21600},
+];
+function lifeH(C,P,n){ return (1e6/(60*n))*Math.pow(C/P,3); }   // hours
+function reqC(P,n,Lt){ return P*Math.cbrt(60*n*Lt/1e6); }       // C for target life
+
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fitCanvas(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return {ctx,w,h};}
+
+let st={P:900,n:1200,Lt:20000};
+const LMIN=1e2, LMAX=1e7;          // log domain, hours
+function fmtH(h){ if(h>=1e6) return (h/1e6).toFixed(1)+'M'; if(h>=1e3) return Math.round(h/1e3)+'k'; return Math.round(h); }
+
+function draw(){
+  const cv=document.getElementById('life'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), grid=dark?'#2a2e36':'#e3e6ea', axis=dark?'#889':'#556', txt=dark?'#cdd':'#334';
+  const L=52,R=14,T=10,B=24, pw=w-L-R, ph=h-T-B;
+  const lg=v=>Math.log10(Math.min(Math.max(v,LMIN),LMAX));
+  const X=v=>L+(lg(v)-2)/(7-2)*pw;
+  // gridlines at decades
+  ctx.font='10px ui-monospace,monospace'; ctx.textBaseline='middle';
+  [1e2,1e3,1e4,1e5,1e6,1e7].forEach(v=>{const x=X(v);ctx.strokeStyle=grid;ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,T+ph);ctx.stroke();ctx.fillStyle=axis;ctx.textAlign='center';ctx.fillText(fmtH(v),x,h-B+12);});
+  const bars=BEARINGS.length, bh=ph/bars*0.62, gap=ph/bars;
+  // smallest passing
+  let pick=-1; for(let i=0;i<bars;i++){ if(lifeH(BEARINGS[i].C,st.P,st.n)>=st.Lt){pick=i;break;} }
+  BEARINGS.forEach((b,i)=>{
+    const lh=lifeH(b.C,st.P,st.n), y=T+i*gap+gap*0.19, x2=X(lh);
+    const pass=lh>=st.Lt;
+    ctx.fillStyle = pass ? (dark?'#5a9a3a':'#6aa84a') : (dark?'#9a4a3a':'#c0705a');
+    if(i===pick){ctx.fillStyle=dark?'#8fbf5a':'#3a8a2a';}
+    ctx.globalAlpha = (pick>=0 && i!==pick && pass)?0.55:1;
+    ctx.beginPath();
+    const x0=X(LMIN);
+    ctx.rect(x0, y, Math.max(2,x2-x0), bh); ctx.fill(); ctx.globalAlpha=1;
+    // label
+    ctx.fillStyle=txt; ctx.textAlign='right'; ctx.font=(i===pick?'700 ':'')+'11px ui-monospace,monospace';
+    ctx.fillText(b.n+' ('+b.bore+'mm)', L-6, y+bh/2);
+    ctx.textAlign='left'; ctx.fillStyle=pass?(dark?'#9f8':'#3a7a2a'):(dark?'#f99':'#b34');
+    ctx.fillText(fmtH(lh)+' h'+(i===pick?'  ← smallest pass':''), Math.min(x2+5,w-R-70), y+bh/2);
+  });
+  // target line
+  const xt=X(st.Lt);
+  ctx.strokeStyle=dark?'#e8b84b':'#c89200'; ctx.setLineDash([5,4]); ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.moveTo(xt,T);ctx.lineTo(xt,T+ph);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=dark?'#e8b84b':'#b08200'; ctx.textAlign='center'; ctx.font='9px ui-monospace,monospace';
+  ctx.fillText('target', xt, T+6);
+}
+
+function refresh(){
+  st.P=+document.getElementById('load').value; st.n=+document.getElementById('rpm').value; st.Lt=+document.getElementById('tgt').value;
+  document.getElementById('load-val').textContent=st.P+' N';
+  document.getElementById('rpm-val').textContent=st.n+' rpm';
+  document.getElementById('tgt-val').textContent=st.Lt.toLocaleString()+' h';
+  draw();
+  const need=reqC(st.P,st.n,st.Lt);
+  let pick=null; for(const b of BEARINGS){ if(lifeH(b.C,st.P,st.n)>=st.Lt){pick=b;break;} }
+  let html=`required C for ${st.Lt.toLocaleString()} h at ${st.P} N: <b>${(need/1000).toFixed(2)} kN</b><br>`;
+  if(pick){
+    const lh=lifeH(pick.C,st.P,st.n), marg=lh/st.Lt;
+    html+=`smallest bearing that passes: <b>${pick.n}</b> (${pick.bore} mm bore, C=${(pick.C/1000).toFixed(2)} kN) &rarr; `
+        + `L10 <span class="pass">${fmtH(lh)} h</span>, ${marg.toFixed(1)}&times; target<br>`
+        + `hand-check: (10⁶/(60&middot;${st.n}))&middot;(${pick.C}/${st.P})³ = ${fmtH(lh)} h`;
+  } else {
+    html+=`<span class="fail">no 6000-series bearing clears this target</span> &mdash; cut the load/speed, step up to the 6200/6300 series, or relax the life target.`;
+  }
+  document.getElementById('readout').innerHTML=html;
+}
+
+['load','rpm','tgt'].forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+window.addEventListener('resize',draw);
+refresh();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

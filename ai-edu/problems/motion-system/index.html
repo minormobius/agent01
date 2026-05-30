@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion system &mdash; from a one-line brief to a parts list you can click</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 ui-serif, Georgia, "Times New Roman", serif;
+    max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.5rem; margin: 0.5rem 0 0.25rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.05rem; margin-top: 2.25rem; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem; }
+  h3 { font-size: 0.95rem; margin: 1.4rem 0 0.3rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; }
+  pre { background: #f4f4f6; padding: 0.75rem 1rem; overflow-x: auto; border-radius: 4px; }
+  @media (prefers-color-scheme: dark) { pre { background: #1f1f25; } }
+  .eq { display: block; text-align: center; font-family: ui-serif, Georgia, serif; font-style: italic; margin: 0.6rem 0; font-size: 1.02rem; }
+  details { margin: 0.75rem 0; padding: 0.5rem 0.75rem; background: #f8f8fa; border-left: 3px solid #ccc; border-radius: 0 4px 4px 0; }
+  @media (prefers-color-scheme: dark) { details { background: #1c1c22; border-left-color: #444; } }
+  details summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; }
+  details[open] summary { margin-bottom: 0.5rem; }
+  .ladder-rung { margin: 0.75rem 0; padding-left: 1rem; border-left: 3px solid #6a9a3a; }
+  .ladder-rung .pass { font-size: 0.85rem; color: #4a7a2a; margin-top: 0.25rem; }
+  .ladder-rung .fail { font-size: 0.85rem; color: #a66; font-style: italic; }
+  @media (prefers-color-scheme: dark) { .ladder-rung { border-left-color: #8fbf5a; } .ladder-rung .pass { color: #aef087; } .ladder-rung .fail { color: #f8a; } }
+  .draw-line { margin: 1rem 0; padding: 0.75rem 1rem; background: #fff8e8; border-left: 3px solid #c89200; border-radius: 0 4px 4px 0; font-size: 0.95rem; }
+  @media (prefers-color-scheme: dark) { .draw-line { background: #2a2310; border-left-color: #d4a020; } }
+
+  .viz { margin: 1.25rem -1rem; background: linear-gradient(180deg, #fafbfc 0%, #f4f6f8 100%); border-top: 1px solid #e0e4ea; border-bottom: 1px solid #e0e4ea; padding: 1rem; }
+  @media (prefers-color-scheme: dark) { .viz { background: linear-gradient(180deg, #16181d 0%, #1a1d24 100%); border-color: #2a2e36; } }
+  .panel-head { display: flex; justify-content: space-between; align-items: baseline; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #778; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem; }
+  @media (prefers-color-scheme: dark) { .panel-head { color: #99a; } }
+  .viz canvas { display: block; width: 100%; background: transparent; }
+  #profile { height: 240px; }
+  #match { height: 250px; }
+  .viz-title { font-family: ui-monospace, monospace; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: #778; margin: 0.9rem 0 0.2rem; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .viz-title { color: #99a; } }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; align-items: center; margin: 0.5rem 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; color: #556; }
+  @media (prefers-color-scheme: dark) { .controls { color: #bbc; } }
+  .controls label { display: flex; align-items: center; gap: 0.5rem; }
+  .controls input[type=range] { width: 8rem; accent-color: #2c7da0; }
+  .controls .val { font-weight: 700; color: #2c7da0; min-width: 3.4rem; display: inline-block; }
+  @media (prefers-color-scheme: dark) { .controls .val { color: #6cc; } }
+  .motorsel { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+  .motorsel button { font: inherit; font-size: 0.78rem; padding: 0.25rem 0.7rem; border: 1px solid #aac; border-radius: 4px; background: #eef4f8; cursor: pointer; color: #245; font-family: ui-monospace, monospace; }
+  @media (prefers-color-scheme: dark) { .motorsel button { background: #243038; border-color: #467; color: #bdf; } }
+  .motorsel button.active { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  .readout { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.82rem; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.55); border-radius: 4px; margin-top: 0.5rem; line-height: 1.75; }
+  @media (prefers-color-scheme: dark) { .readout { background: rgba(40,44,52,0.45); } }
+  .readout .pass { color: #2a8a2a; font-weight: 700; }
+  .readout .fail { color: #c33; font-weight: 700; }
+  .readout .warn { color: #c89200; font-weight: 700; }
+  @media (prefers-color-scheme: dark) { .readout .pass { color: #8f6; } .readout .fail { color: #f88; } .readout .warn { color: #e8b84b; } }
+  .dl { margin-top: 0.6rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .dl button { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.8rem; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .dl button { background: #20242c; border-color: #456; color: #cde; } }
+  .status { margin-top: 0.4rem; font-size: 0.78rem; color: #888; font-style: italic; }
+
+  table.pugh { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.82rem; }
+  table.pugh th, table.pugh td { border: 1px solid #ddd; padding: 0.4rem 0.5rem; text-align: left; vertical-align: top; }
+  table.pugh th { background: #f4f6f8; font-size: 0.78rem; }
+  table.pugh td.s { text-align: center; font-family: ui-monospace, monospace; font-weight: 700; }
+  table.pugh .datum { background: #eef6ee; }
+  table.pugh .win { background: #e6f3e6; }
+  @media (prefers-color-scheme: dark) { table.pugh th, table.pugh td { border-color: #333; } table.pugh th { background: #1c2027; } table.pugh .datum { background: #18241a; } table.pugh .win { background: #1b2e1b; } }
+  .score-pos { color: #2a8a2a; } .score-neg { color: #c33; }
+  @media (prefers-color-scheme: dark) { .score-pos { color: #8f6; } .score-neg { color: #f88; } }
+  .verified { font-size: 0.75rem; color: #888; }
+  .partlink { font-family: ui-monospace, monospace; font-size: 0.78rem; }
+  table.pugh input.wt { width: 2.4rem; font: inherit; font-size: 0.78rem; text-align: center; padding: 0.1rem 0.15rem; border: 1px solid #bbc; border-radius: 3px; background: #fff; color: #234; }
+  @media (prefers-color-scheme: dark) { table.pugh input.wt { background: #1b1f27; border-color: #456; color: #cde; } }
+  table.pugh th.wt, table.pugh td.wt { text-align: center; }
+  .pugh-mount { overflow-x: auto; }
+  .weights-hint { font-size: 0.82rem; color: #778; margin: 0.4rem 0 0.2rem; }
+  @media (prefers-color-scheme: dark) { .weights-hint { color: #99a; } }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Motion system: from a one-line brief to a parts list you can click</h1>
+<p class="lede">
+  &ldquo;Move 5&nbsp;kg, 0.5&nbsp;m, in 1&nbsp;second.&rdquo; That single
+  sentence sets a motion profile, which sizes a motor, which picks a
+  transmission &mdash; and the payoff is a Pugh matrix of real, in-stock
+  components with links you can actually click.
+</p>
+
+<h2>1. The brief</h2>
+<p>
+  A single horizontal axis has to move a <strong>5&nbsp;kg payload</strong>
+  a distance of <strong>0.5&nbsp;m</strong> and settle, all inside
+  <strong>1&nbsp;second</strong>, repeatedly, for years. Add a carriage and
+  tooling and call the moving mass <strong>~8&nbsp;kg</strong>. That is the
+  whole specification, and it is enough to choose a motor, a coupling, a
+  drive, and a rail &mdash; and to decide whether to assemble them or buy a
+  finished actuator off a shelf.
+</p>
+<p>
+  The trap is reaching for a parts catalog first. The right first move is
+  the <em>motion profile</em>: how the move is split into accelerate /
+  cruise / decelerate fixes the peak speed and peak acceleration, and
+  everything mechanical hangs off those two numbers.
+</p>
+
+<h2>2. Why this is an afternoon, not a week</h2>
+<p>
+  Each link in the chain &mdash; profile&nbsp;&rarr;&nbsp;force&nbsp;&rarr;&nbsp;torque&nbsp;&rarr;&nbsp;motor&nbsp;&rarr;&nbsp;transmission
+  &mdash; is a short calculation Claude will set up, plot, and sanity-check
+  in one pass. It will also do the part of selection engineers quietly
+  dread: trawling supplier catalogs for parts that hit the spec, pulling
+  the inertia and torque numbers off datasheets, and laying them in a
+  decision matrix. What it cannot do is pick the <em>weights</em> in that
+  matrix &mdash; whether this axis cares more about cost, precision, or
+  lead time. That judgment is yours; the rest is legwork.
+</p>
+
+<h2>3. Build it &mdash; the profile and the sizing</h2>
+<p>
+  The panel below is the live sizing tool. The top chart is a
+  <strong>seven-segment (jerk-limited) motion profile</strong> &mdash; the
+  profile real motion controllers run, with smooth acceleration ramps
+  instead of instant jerks. Two knobs shape it: how much of the move is
+  spent ramping (vs. cruising), and how rounded the ramps are. The bottom
+  chart is the transmission optimization. Pick a motor, drag the knobs,
+  and watch what passes.
+</p>
+
+<div class="viz">
+  <div class="panel-head">
+    <span>move 5&nbsp;kg payload (8&nbsp;kg moving) &middot; 0.5&nbsp;m &middot; 1.0&nbsp;s &middot; horizontal</span>
+    <span id="prof-tag">7-segment S-curve</span>
+  </div>
+
+  <div class="viz-title">Motion profile &mdash; velocity &amp; acceleration vs. time</div>
+  <canvas id="profile" aria-label="Seven-segment velocity and acceleration profile"></canvas>
+  <div class="controls">
+    <label>ramp&nbsp;frac&nbsp;&alpha; <input type="range" id="alpha" min="0.15" max="0.5" step="0.01" value="0.33"><span class="val" id="alpha-val">0.33</span></label>
+    <label>jerk&nbsp;smooth&nbsp;&beta; <input type="range" id="beta" min="0" max="1" step="0.05" value="0.50"><span class="val" id="beta-val">0.50</span></label>
+  </div>
+
+  <div class="viz-title">Transmission pitch &mdash; peak motor torque vs. effective radius</div>
+  <canvas id="match" aria-label="Peak torque versus transmission radius, with inertia-match optimum and RPM ceiling"></canvas>
+  <div class="controls">
+    <label>radius&nbsp;r <input type="range" id="rad" min="1" max="35" step="0.5" value="10"><span class="val" id="rad-val">10.0&nbsp;mm</span></label>
+  </div>
+  <div class="motorsel" id="motorsel"></div>
+
+  <div class="readout" id="readout"></div>
+
+  <div class="dl">
+    <button id="dl-profile">&darr; motion_profile.csv</button>
+    <button id="dl-spec">&darr; sizing_summary.txt</button>
+  </div>
+  <div class="status" id="status">Loading&hellip;</div>
+</div>
+
+<h3>What the two charts are telling you</h3>
+<p>
+  The move is fixed, so peak velocity is set the moment you choose
+  &alpha; &mdash; for a symmetric profile the velocity ramp is
+  point-symmetric, so the jerk-smoothing knob &beta; doesn't change the
+  peak speed at all, only how hard the acceleration spikes:
+</p>
+<span class="eq">v<sub>pk</sub> = d / [ T&nbsp;(1&nbsp;&minus;&nbsp;&alpha;) ] &nbsp;&nbsp;&nbsp; a<sub>pk</sub> = v<sub>pk</sub> / [ &alpha;T&nbsp;(1&nbsp;&minus;&nbsp;&beta;/2) ]</span>
+<p>
+  Smoothing the jerk (raising &beta;) is not free: it pushes the peak
+  acceleration &mdash; and therefore the peak force <em>F</em>&nbsp;=&nbsp;<em>ma</em>
+  and peak torque &mdash; up. That is the first real trade: gentler on the
+  mechanics and the payload, harder on the motor.
+</p>
+<p>
+  The bottom chart is the part people get wrong. The classic result says
+  the transmission ratio that <em>minimizes</em> required torque matches
+  the reflected load inertia to the rotor inertia, at radius
+  <em>r*</em>&nbsp;=&nbsp;&radic;(<em>J</em><sub>motor</sub>&thinsp;/&thinsp;<em>m</em>).
+  Drag the radius slider to that dip and you will find it sits at roughly
+  1.5&ndash;2&nbsp;mm &mdash; a belt pulley you cannot buy, and right inside
+  the shaded zone where the motor over-speeds. <strong>For a load this
+  light, torque is never the binding constraint; maximum RPM and what the
+  catalog actually stocks are.</strong> So you move <em>off</em> the
+  textbook optimum, to the right, until the radius is something real and
+  the speed drops under the ceiling.
+</p>
+<p>
+  But moving right has its own cost, and the readout shows it: reflected
+  load inertia grows as <em>r&sup2;</em>, so the inertia ratio climbs fast.
+  Even a small &Oslash;20&nbsp;mm belt pulley lands you around 40:1 &mdash;
+  far above the textbook 10:1. Point-to-point belt axes live with that;
+  a precision or high-bandwidth axis instead drops to a ballscrew, whose
+  tiny effective radius (lead&thinsp;/&thinsp;2&pi;) pulls the ratio back
+  to single digits, at the price of needing the motor near its RPM limit.
+  Two real constraints &mdash; over-speed pushing <em>r</em> up, inertia
+  ratio pushing it down &mdash; squeeze the answer between them. Knowing
+  which one binds, and when, is the whole skill.
+</p>
+
+<h2>4. The decision &mdash; a Pugh matrix of real parts</h2>
+<p>
+  Sizing narrows each category to a handful of survivors. A
+  <strong>Pugh matrix</strong> turns &ldquo;which one&rdquo; from an
+  argument into a table: pick a baseline, score every alternative
+  <code>+1 / 0 / &minus;1</code> against it on the criteria this axis
+  cares about, and read the column totals. The point isn't the arithmetic
+  &mdash; it's that the criteria and their weights are written down where
+  you can challenge them.
+</p>
+<p>
+  Every part below was checked against its live supplier listing while
+  this page was written. <strong>Verified 2026-05-24</strong> &mdash; specs
+  and links drift, so treat them as a starting basket and re-confirm
+  before you buy.
+</p>
+
+<p style="font-size:0.85rem;color:#888;">
+  Default scores are for a <em>general-purpose, cost-aware, ~1&nbsp;m/s,
+  moderate-precision</em> axis, all criteria weighted equally.
+  <code>+1 / 0 / &minus;1</code> are relative to the datum column;
+  <strong>the weighted total = &Sigma;&nbsp;(weight&nbsp;&times;&nbsp;score)</strong>,
+  and the highlighted column is whichever currently leads.
+  <sup>&dagger;</sup>&nbsp;= supplier page blocks automated fetching;
+  link + specs confirmed via search and a distributor &mdash; re-open in a
+  browser before ordering.
+</p>
+<p class="weights-hint">
+  &#9881; The <strong>weight</strong> cells are editable &mdash; raise the
+  criteria your axis actually lives or dies on (set the rest to 0) and the
+  totals and the winning column recompute live. That is the whole point of
+  a Pugh matrix: argue about the weights, not the answer.
+</p>
+
+<h3>Motor &mdash; datum: NEMA 23 integrated closed-loop stepper</h3>
+<div class="pugh-mount" id="pm-motor"></div>
+<p class="partlink">
+  &middot; <a href="https://www.linengineering.com/products/stepper-motors/hybrid-stepper-motors/4118-series">Lin Engineering 4118M-06P</a> &mdash; NEMA 17, 62.3&nbsp;oz-in (0.44&nbsp;N&middot;m), rotor inertia 0.28&nbsp;oz-in&sup2;<br>
+  &middot; <a href="https://www.linengineering.com/products/stepper-motors/integrated-stepper-motors/silverpak-23ce-series/CE-5718M-02P">Lin Engineering SilverPak 23CE (CE-5718M-02P)</a> &mdash; NEMA 23, motor+driver+controller+encoder, 1.22&nbsp;N&middot;m holding, closed-loop, 12&ndash;40&nbsp;VDC<br>
+  &middot; <a href="https://teknic.com/model-info/CPM-SDSK-2321S-RLN/">Teknic ClearPath CPM-SDSK-2321S-RLN</a> &mdash; 0.7&nbsp;N&middot;m cont / 3.5&nbsp;peak, 3170&nbsp;RPM, integrated drive+encoder, ~$315
+</p>
+<p style="font-size:0.85rem;color:#778;">The SilverPak 23CE and the ClearPath are <em>both</em> integrated closed-loop drives, so the servo's edge narrows to torque, top speed, and smoothness &mdash; it still wins for a demanding axis, but by less than against a bare stepper. The NEMA 17 is left in to show it's only <em>marginal</em> for 8&nbsp;kg. <strong>Push the cost weight up</strong> and the integrated stepper takes it.</p>
+
+<h3>Coupling &mdash; datum: zero-backlash jaw (spider)</h3>
+<div class="pugh-mount" id="pm-coupling"></div>
+<p class="partlink">
+  &middot; <a href="https://www.ruland.com/servo-couplings/jaw-couplings.html">Ruland zero-backlash jaw couplings</a><sup>&dagger;</sup> &mdash; press-fit spider, damps, 3&ndash;45&nbsp;mm bore<br>
+  &middot; <a href="https://www.ruland.com/servo-couplings/bellows-couplings/high-stiffness-bellows-coupling/metric-dimensions/mbc-clamp.html">Ruland MBC bellows (metric, clamp)</a><sup>&dagger;</sup> &mdash; zero-backlash, high stiffness, 3&ndash;25&nbsp;mm bore
+</p>
+<p style="font-size:0.85rem;color:#778;">Both are zero-backlash and wildly over-rated for ~0.3&nbsp;N&middot;m; pick the smallest bore-matched size. The jaw's damping and price win <em>on a belt drive</em>. <strong>Raise the stiffness weight</strong> (i.e. go to a ballscrew) and the bellows takes it.</p>
+
+<h3>Drive / transmission &mdash; datum: GT2/GT3 timing belt</h3>
+<div class="pugh-mount" id="pm-drive"></div>
+<p class="partlink">
+  &middot; <a href="https://www.servocity.com/2mm-pitch-gt2-pinion-timing-pulley-5mm-bore-20-tooth/">ServoCity GT2 20T pulley</a> &mdash; 2&nbsp;mm pitch, &Oslash;12.7&nbsp;mm PD, ~$8<br>
+  &middot; <a href="https://shop.sdp-si.com/a-6a51-020df0608.html">SDP/SI GT2 20-groove pulley</a> &amp; <a href="https://shop.sdp-si.com/a36r53m067090.html">GT3 belt</a> &mdash; industrial-grade<br>
+  &middot; <a href="https://www.damencnc.com/en/mechanical-components/hiwin-ballscrews/hiwin-ballscrews-16mm">HIWIN R16 ballscrew (10/20&nbsp;mm lead)</a> &mdash; ~&euro;177, cut + end-machined to length
+</p>
+<p style="font-size:0.85rem;color:#778;">A small belt pulley wins for ~1&nbsp;m/s: cheap, no critical-speed worry, low RPM demand &mdash; you accept a ~16&ndash;40:1 inertia ratio. <strong>Raise the stiffness / repeatability weights</strong> (a precision axis) and the ballscrew takes it.</p>
+
+<h3>Linear guide &mdash; datum: recirculating-ball profile rail</h3>
+<div class="pugh-mount" id="pm-rail"></div>
+<p class="partlink">
+  &middot; <a href="https://www.nextdayautomation.com/products/new-hiwin-mgn12h-linear-guide-block-13-x-32-4-x-27mm-3-72kn-m3x8-mounting">HIWIN MGN12H block</a> &mdash; dynamic load C&nbsp;=&nbsp;3.72&nbsp;kN (vast margin on ~80&nbsp;N) + 600&nbsp;mm rail<br>
+  &middot; <a href="https://www.igus.com/product/732">igus drylin W WS-10-80</a> &mdash; dry-running polymer, maintenance-free, cut to length
+</p>
+<p style="font-size:0.85rem;color:#778;">For a general, cost- and maintenance-sensitive axis the polymer rail edges it. <strong>Raise the stiffness or repeatability weight</strong> and it flips hard to the profile rail &mdash; the MGN12's 3.72&nbsp;kN rating is enormous headroom.</p>
+
+<h3>Make vs. buy &mdash; datum: assemble from the parts above</h3>
+<div class="pugh-mount" id="pm-makebuy"></div>
+<p class="partlink">
+  &middot; <a href="https://www.igus.com/linear-actuators/belt-driven-linear-actuator">igus drylin ZLW belt actuator</a> &mdash; stroke to 3000&nbsp;mm, to 5&nbsp;m/s, turnkey<br>
+  &middot; <a href="https://builds.openbuilds.com/builds/v-slot%E2%84%A2-nema-23-linear-actuator-belt-driven.7821/">OpenBuilds V-Slot NEMA 23 belt actuator</a> &mdash; GT3 belt, 250&ndash;1500&nbsp;mm, budget DIY
+</p>
+<p style="font-size:0.85rem;color:#778;">Buying the turnkey actuator wins when time-to-deploy and support matter more than the last bit of cost or stiffness &mdash; you still bolt on the servo. <strong>Raise the cost or performance-ceiling weight</strong> and assemble-from-parts comes back.</p>
+
+<h2>5. Verification &mdash; the datasheet is the oracle</h2>
+<p>
+  A solver proves itself by conserving energy; an experiment proves itself
+  by validity. A component selection proves itself against the
+  <strong>datasheet</strong>. A choice is only real if it clears every one
+  of these with margin &mdash; and they are exactly the checks Claude can
+  compute for each candidate in the matrix.
+</p>
+<div class="ladder-rung">
+  <strong>Rung 1 &mdash; peak torque margin.</strong> Motor peak torque must
+  exceed the worst-instant demand on the profile, with headroom (aim
+  &ge;&nbsp;1.5&times;).
+  <div class="pass">Pass: the readout's peak-torque check shows margin against the motor's peak rating.</div>
+  <div class="fail">Fail here: the move stalls at the acceleration spike, exactly where you can least afford it.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 2 &mdash; continuous (RMS) torque.</strong> The
+  root-mean-square torque over the whole cycle must stay under the motor's
+  <em>continuous</em> rating, or it cooks at duty.
+  <div class="pass">Pass: RMS torque sits below continuous rating &mdash; it can run this move all day.</div>
+  <div class="fail">Fail here: it passes a single move on the bench and overheats after twenty minutes of cycling.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 3 &mdash; speed ceiling.</strong> Motor RPM at peak linear
+  speed must stay under the motor's max &mdash; and, for a screw, under its
+  whip/DN limit.
+  <div class="pass">Pass: commanded RPM is comfortably below the motor (and screw) ceiling.</div>
+  <div class="fail">Fail here: the inertia-match optimum lands you here &mdash; lovely torque, impossible speed.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 4 &mdash; inertia ratio.</strong> Reflected load inertia /
+  rotor inertia should be modest (a common rule of thumb is &le;&nbsp;5&ndash;10:1)
+  or the loop is hard to tune.
+  <div class="pass">Pass: ratio in band &mdash; the servo can actually control the load it's dragging.</div>
+  <div class="fail">Fail here: high ratio means sluggish, oscillation-prone tuning no gain will rescue.</div>
+</div>
+<div class="ladder-rung">
+  <strong>Rung 5 &mdash; rail load &amp; life.</strong> The guide's dynamic
+  load rating, with moment loads from the payload's overhang, must give the
+  travel life you need.
+  <div class="pass">Pass: working load and moments are a fraction of the rail's dynamic rating.</div>
+</div>
+
+<h2>6. Hints</h2>
+<details>
+  <summary>Hint 1 &mdash; profile before parts</summary>
+  <p>
+    Resist opening a catalog. Nail <em>v</em><sub>pk</sub> and
+    <em>a</em><sub>pk</sub> from the move first; they are the only inputs
+    the motor sizing needs. A trapezoidal profile minimizes peak speed; a
+    triangular one minimizes time-at-speed; the seven-segment S-curve trades
+    a little extra peak acceleration for smoothness the mechanics and payload
+    will thank you for.
+  </p>
+</details>
+<details>
+  <summary>Hint 2 &mdash; reflect everything to the motor shaft</summary>
+  <p>
+    Force becomes torque and linear inertia becomes rotary inertia through
+    the transmission. For a belt, the lever arm is the pulley pitch
+    radius; for a screw it is lead&thinsp;/&thinsp;2&pi;. Reflected load
+    inertia is <em>m&thinsp;r&sup2;</em>. Size on peak torque <em>and</em>
+    RMS torque <em>and</em> the inertia ratio &mdash; not just whichever one
+    is easiest to look up.
+  </p>
+</details>
+<details>
+  <summary>Hint 3 &mdash; the gotcha (the optimum you can't buy)</summary>
+  <p>
+    The inertia-matching radius minimizes torque, but torque is cheap here.
+    At <em>r*</em> the motor screams past its RPM limit and the radius maps
+    to hardware that doesn't exist. Let the binding constraint &mdash; speed
+    and buildability &mdash; choose the radius, then confirm torque still has
+    margin (it will). Optimize the thing that's actually scarce.
+  </p>
+</details>
+<details>
+  <summary>Hint 4 &mdash; what to ask for</summary>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">For a horizontal axis moving 8 kg total, 0.5 m in 1.0 s on a
+ 7-segment S-curve: compute peak velocity, peak & RMS acceleration,
+ peak force. Then for a belt drive, sweep pulley pitch diameter from
+ 20-80 mm and for each give motor RPM at top speed, peak & RMS torque
+ reflected to the shaft, and the inertia ratio for a NEMA 23 servo
+ (rotor inertia ~1.5e-5 kg m^2, 3000 rpm, 0.64 N m cont / 1.9 peak).
+ Flag which diameters pass all of: RPM ceiling, peak torque x1.5,
+ RMS torque, inertia ratio < 10. Then build a Pugh matrix of motor,
+ coupling, drive, and rail candidates with verified supplier links.</span></div>
+</details>
+<details>
+  <summary>Hint &mdash; tune the collaborator</summary>
+  <p>
+    Two free levers worth setting. <strong>Turn the reasoning effort up</strong>
+    for the hard part &mdash; Claude Code's <code>/effort</code> (see
+    <a href="../../getting-started/documents/">Feed it documents</a> for the
+    model and effort controls); a transcription wants it low, an analysis like
+    this one wants it high. And <strong>end your prompt with an explicit
+    self-check</strong> &mdash; &ldquo;before you finish, re-check the peak-torque, RMS-torque, RPM, and inertia-ratio margins&rdquo;
+    &mdash; which is exactly why the prompt above asks Claude to verify itself.
+    Naming the oracle is the highest-value line in the prompt. And keep the
+    expensive model's context light &mdash; route transcription and formatting
+    to cheaper tools (see <a href="../../getting-started/token-economy/">Spend
+    tokens well</a>).
+  </p>
+</details>
+
+<h2>7. Where to draw the line</h2>
+<div class="draw-line">
+  Hand Claude the profile algebra, the reflect-to-shaft bookkeeping, the
+  catalog trawl, and the matrix arithmetic &mdash; it is tireless at the
+  unit-juggling and datasheet-scraping that makes manual selection
+  error-prone. But <em>you</em> own the criteria and their weights: does
+  this axis live or die on cost, on repeatability, on lead time, on
+  serviceability? And you own the make-vs-buy call, which is rarely about
+  the numbers alone. A matrix with the wrong weights is just a confident
+  way to pick the wrong part.
+</div>
+
+<h2>8. One worked solution</h2>
+<details>
+  <summary>What good looks like &mdash; the bill of materials</summary>
+  <p>
+    For the general-purpose axis, the matrices converge on a clean,
+    buildable combo. Set the panel to the <strong>NEMA 23 servo</strong>
+    and drag the radius to about <strong>6.4&nbsp;mm</strong> (a
+    &Oslash;12.7&nbsp;mm GT2 20-tooth pulley &mdash; the ServoCity / SDP-SI
+    part):
+  </p>
+  <ul>
+    <li><strong>Motor:</strong> Teknic ClearPath CPM-SDSK-2321S servo &mdash; integrated drive + encoder, 3.5&nbsp;N&middot;m peak.</li>
+    <li><strong>Drive:</strong> GT2/GT3 belt on a &Oslash;12.7&nbsp;mm pulley.</li>
+    <li><strong>Coupling:</strong> Ruland zero-backlash jaw, 8&nbsp;mm motor bore (damps the belt, cheap).</li>
+    <li><strong>Rail:</strong> HIWIN MGN12, 600&nbsp;mm &mdash; 3.72&nbsp;kN rating, orders of magnitude over the ~80&nbsp;N working load.</li>
+  </ul>
+  <p>
+    At that point the readout passes every rung: motor speed ~1100&nbsp;RPM
+    against a 3170 ceiling, peak torque ~0.17&nbsp;N&middot;m against a
+    3.5&nbsp;N&middot;m peak (over 20&times; margin), RMS torque a fraction
+    of the 0.7&nbsp;N&middot;m continuous rating. The servo is barely
+    working &mdash; which is exactly right: this is a speed-and-inertia
+    problem, not a torque problem.
+  </p>
+  <p style="font-size: 0.88rem; color: #888;">
+    The honest footnote: the inertia ratio at &Oslash;12.7&nbsp;mm is
+    ~16:1, above the textbook 10:1. That is normal for a belt drive and
+    fine for point-to-point moves; go to a &Oslash;20&nbsp;mm pulley and
+    it climbs to ~40:1. If this were a precision axis, you'd take the
+    HIWIN ballscrew (20&nbsp;mm lead &rarr; ~4:1 ratio) and a bellows
+    coupling instead, accepting the motor running near 2200&nbsp;RPM. And
+    if time-to-deploy beats everything, you skip the build entirely: bolt
+    the ClearPath onto an igus drylin&nbsp;ZLW actuator and you're moving
+    by Friday.
+  </p>
+</details>
+
+<h2>9. Going further</h2>
+<ul>
+  <li>Add the <strong>vertical</strong> case: gravity adds a constant holding torque, demands a brake (or counterbalance), and the down-move can regenerate &mdash; re-run the sizing and watch the continuous-torque check, not peak, become binding.</li>
+  <li>Put a <strong>duty cycle</strong> on it: 1&nbsp;move every 3&nbsp;s vs. back-to-back. RMS torque and motor/driver thermals shift the winner.</li>
+  <li>Price the whole <strong>bill of materials</strong> assembled vs. the finished actuator, including the hours to align and tension a belt &mdash; the make-vs-buy line moves with volume.</li>
+  <li>Swap the criteria weights for a <strong>precision</strong> axis (settle to &plusmn;20&nbsp;&micro;m) and see the matrix flip from belt to ground ballscrew.</li>
+  <li>Add <strong>resonance</strong>: belt stiffness + load mass sets a natural frequency that caps controller bandwidth. Does your settle-time budget survive it?</li>
+</ul>
+
+<h2>Ship it</h2>
+<p>
+  You've chosen the parts. Now <em>explore</em> the trade or
+  <em>deliver</em> the decision &mdash; see
+  <a href="../../getting-started/shipping/">explore in HTML, deliver in PDF</a>
+  for the one-time setup. For this axis, the two prompts:
+</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Explore</em><span class="ptext">Build a single self-contained HTML file (no CDN links) that lets me sweep pulley diameter and payload and see peak/RMS torque, motor RPM, and inertia ratio update live against a NEMA 23 servo's limits.</span></div>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Deliver</em><span class="ptext">Draft a Markdown selection report &mdash; the brief, the motion profile, the sizing calc, the Pugh matrix with links, and the recommended bill of materials with a make-vs-buy verdict &mdash; and give me the pandoc command for a PDF via the Typst engine.</span></div>
+
+<script>
+// ===== fixed brief =====
+const D=0.5, T=1.0, PAYLOAD=5, CARRIAGE=3, M=PAYLOAD+CARRIAGE, G=9.81, MU=0.005;
+const F_FRIC = MU*M*G;            // horizontal friction, ~0.39 N
+const NPTS=240, DT=T/NPTS;
+
+// ===== motor presets (rotor inertia kg m^2, torque N m, max rpm) =====
+const MOTORS=[
+  {key:'s17', name:'NEMA 17 (Lin 4118M-06P)',    J:5.1e-6,  Tpk:0.44, Tcont:0.30, rpm:1000},
+  {key:'s23', name:'NEMA 23 stepper (Lin 23CE)', J:2.7e-5,  Tpk:1.22, Tcont:0.80, rpm:2000},
+  {key:'srv', name:'NEMA 23 servo (ClearPath)',  J:2.0e-5,  Tpk:3.50, Tcont:0.70, rpm:3170},
+];
+let motor = MOTORS[2];
+
+// ===== 7-segment profile sampled on [0,T] =====
+function profile(alpha, beta){
+  const vpk = D/(T*(1-alpha));
+  const apk = vpk/(alpha*T*(1-beta/2));
+  const tau = alpha*T;            // accel ramp duration
+  const tj  = beta*tau/2;         // each jerk segment
+  const ta  = tau - 2*tj;         // const-accel segment
+  const j   = tj>0 ? apk/tj : Infinity;
+  function accel(t){
+    if(t<tj)            return j*t;                     // jerk +
+    if(t<tj+ta)         return apk;                     // const +
+    if(t<tau)           return apk - j*(t-(tj+ta));     // jerk -
+    if(t<T-tau)         return 0;                       // cruise
+    if(t<T-tau+tj)      return -j*(t-(T-tau));          // jerk -
+    if(t<T-tj)          return -apk;                    // const -
+    return -apk + j*(t-(T-tj));                         // jerk +
+  }
+  const s=[]; let v=0,x=0;
+  for(let i=0;i<=NPTS;i++){
+    const t=i*DT, a=accel(t);
+    s.push({t,a,v,x});
+    // integrate forward (semi-implicit, fine at this resolution)
+    v += a*DT; x += v*DT;
+  }
+  // RMS acceleration over the whole cycle
+  let sa=0; s.forEach(p=>sa+=p.a*p.a); const arms=Math.sqrt(sa/s.length);
+  return {vpk, apk, arms, samples:s};
+}
+
+// ===== reflect to motor shaft at effective radius r (metres) =====
+function sizeAt(r, prof){
+  const Jload = M*r*r;                       // reflected linear inertia
+  const ratio = Jload/motor.J;
+  // torque series: inertial (Jmotor+Jload)*(a/r) + friction F_fric*r opposing velocity
+  let Tpk=0, sumsq=0;
+  prof.samples.forEach(p=>{
+    const tq = (motor.J+Jload)*(p.a/r) + (p.v>1e-6 ? F_FRIC*r : 0);
+    const mag = Math.abs(tq);
+    if(mag>Tpk) Tpk=mag; sumsq += tq*tq;
+  });
+  const Trms=Math.sqrt(sumsq/prof.samples.length);
+  const rpm = (prof.vpk/r)*60/(2*Math.PI);
+  return {Jload, ratio, Tpk, Trms, rpm, r};
+}
+function rStar(){ return Math.sqrt(motor.J/M); }            // inertia-match radius (m)
+function rMinSpeed(prof){ return prof.vpk/(motor.rpm*2*Math.PI/60); } // radius below which RPM exceeds max
+
+// ===== canvas helpers =====
+function isDark(){return window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function fitCanvas(cv){const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);return {ctx,w,h};}
+
+function drawProfile(prof){
+  const cv=document.getElementById('profile'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), grid=dark?'#2a2e36':'#e3e6ea', axis=dark?'#889':'#556';
+  const L=42,R=42,Tp=14,B=26, pw=w-L-R, ph=h-Tp-B;
+  const vMax=1.25, aMax=6;        // left axis v (m/s), right axis a (m/s^2)
+  const X=t=>L+(t/T)*pw;
+  const Yv=v=>Tp+ph-(v/vMax)*ph;
+  const Ya=a=>Tp+ph/2-(a/aMax)*(ph/2);
+  // grid + left (v) ticks
+  ctx.font='10px ui-monospace,monospace'; ctx.textBaseline='middle';
+  [0,0.25,0.5,0.75,1.0].forEach(v=>{const y=Yv(v);ctx.strokeStyle=grid;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();ctx.fillStyle='#2c7da0';ctx.textAlign='right';ctx.fillText(v.toFixed(2),L-5,y);});
+  // right (a) ticks
+  [-6,-3,0,3,6].forEach(a=>{const y=Ya(a);ctx.fillStyle='#c0392b';ctx.textAlign='left';ctx.fillText((a>0?'+':'')+a,w-R+5,y);});
+  // zero-accel line
+  ctx.strokeStyle=dark?'#444':'#ccc';ctx.setLineDash([2,3]);ctx.beginPath();ctx.moveTo(L,Ya(0));ctx.lineTo(w-R,Ya(0));ctx.stroke();ctx.setLineDash([]);
+  // x ticks
+  ctx.fillStyle=axis;ctx.textAlign='center';[0,0.25,0.5,0.75,1.0].forEach(t=>ctx.fillText(t.toFixed(2)+'s',X(t),h-B+12));
+  // accel curve (red)
+  ctx.strokeStyle=dark?'#e07050':'#c0392b';ctx.lineWidth=1.6;ctx.beginPath();
+  prof.samples.forEach((p,i)=>{const x=X(p.t),y=Ya(p.a);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  // velocity curve (blue)
+  ctx.strokeStyle=dark?'#5aa8d8':'#2c7da0';ctx.lineWidth=2.2;ctx.beginPath();
+  prof.samples.forEach((p,i)=>{const x=X(p.t),y=Yv(p.v);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  // labels
+  ctx.font='10px ui-monospace,monospace';ctx.textAlign='left';
+  ctx.fillStyle=dark?'#5aa8d8':'#2c7da0';ctx.fillText('velocity (m/s) — left',L+4,Tp+10);
+  ctx.fillStyle=dark?'#e07050':'#c0392b';ctx.fillText('acceleration (m/s²) — right',L+4,Tp+24);
+}
+
+function drawMatch(prof, chosen){
+  const cv=document.getElementById('match'); const {ctx,w,h}=fitCanvas(cv);
+  const dark=isDark(), grid=dark?'#2a2e36':'#e3e6ea', axis=dark?'#889':'#556';
+  const L=44,R=12,Tp=14,B=28, pw=w-L-R, ph=h-Tp-B;
+  const rLoMM=1, rHiMM=35;
+  const tqMax=1.0;
+  const X=rmm=>L+((rmm-rLoMM)/(rHiMM-rLoMM))*pw;
+  const Y=tq=>Tp+ph-(Math.min(tq,tqMax)/tqMax)*ph;
+  // y grid (torque)
+  ctx.font='10px ui-monospace,monospace';ctx.textBaseline='middle';
+  [0,0.25,0.5,0.75,1.0].forEach(v=>{const y=Y(v);ctx.strokeStyle=grid;ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(w-R,y);ctx.stroke();ctx.fillStyle=axis;ctx.textAlign='right';ctx.fillText(v.toFixed(2),L-5,y);});
+  // RPM-ceiling shaded region (r < rMin => overspeed)
+  const rMinMM=rMinSpeed(prof)*1000;
+  if(rMinMM>rLoMM){
+    ctx.fillStyle=dark?'rgba(200,60,60,0.13)':'rgba(200,60,60,0.10)';
+    ctx.fillRect(L,Tp,X(Math.min(rMinMM,rHiMM))-L,ph);
+    ctx.fillStyle=dark?'#f88':'#c33';ctx.textAlign='center';ctx.font='9px ui-monospace,monospace';
+    ctx.fillText('motor over-speed',(L+X(Math.min(rMinMM,rHiMM)))/2, Tp+ph-8);
+    ctx.font='10px ui-monospace,monospace';
+  }
+  // motor peak-torque ceiling line
+  ctx.strokeStyle=dark?'#8f6':'#2a8a2a';ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(L,Y(motor.Tpk));ctx.lineTo(w-R,Y(motor.Tpk));ctx.stroke();ctx.setLineDash([]);
+  if(motor.Tpk<=tqMax){ctx.fillStyle=dark?'#8f6':'#2a8a2a';ctx.textAlign='right';ctx.fillText('motor peak '+motor.Tpk.toFixed(2),w-R-2,Y(motor.Tpk)-7);}
+  // torque curve
+  ctx.strokeStyle=dark?'#e8b84b':'#c89200';ctx.lineWidth=2;ctx.beginPath();
+  let started=false;
+  for(let rmm=rLoMM;rmm<=rHiMM;rmm+=0.25){const s=sizeAt(rmm/1000,prof);const x=X(rmm),y=Y(s.Tpk);started?ctx.lineTo(x,y):(ctx.moveTo(x,y),started=true);}
+  ctx.stroke();
+  // r* inertia-match marker
+  const rsMM=rStar()*1000;
+  if(rsMM>=rLoMM&&rsMM<=rHiMM){const ss=sizeAt(rStar(),prof);ctx.fillStyle=dark?'#bcd':'#445';ctx.beginPath();ctx.arc(X(rsMM),Y(ss.Tpk),3.5,0,7);ctx.fill();ctx.font='9px ui-monospace,monospace';ctx.textAlign='left';ctx.fillText('r* (inertia match)',X(rsMM)+5,Y(ss.Tpk)+2);ctx.font='10px ui-monospace,monospace';}
+  // chosen-r marker
+  ctx.strokeStyle=dark?'#6cc':'#2c7da0';ctx.lineWidth=1.4;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(X(chosen.r*1000),Tp);ctx.lineTo(X(chosen.r*1000),Tp+ph);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=dark?'#6cc':'#2c7da0';ctx.beginPath();ctx.arc(X(chosen.r*1000),Y(chosen.Tpk),4,0,7);ctx.fill();
+  // x ticks + transmission landmarks
+  ctx.fillStyle=axis;ctx.textAlign='center';ctx.font='10px ui-monospace,monospace';
+  [1,10,20,30].forEach(rmm=>ctx.fillText(rmm+'mm',X(rmm),h-B+12));
+  ctx.fillStyle=dark?'#99a':'#778';ctx.font='9px ui-monospace,monospace';
+  ctx.fillText('Ø20 belt',X(10),h-B+22); ctx.fillText('Ø40 belt',X(20),h-B+22);
+}
+
+function buildMotorButtons(){
+  const box=document.getElementById('motorsel'); box.innerHTML='';
+  MOTORS.forEach(m=>{const b=document.createElement('button');b.textContent=m.name;b.dataset.key=m.key;if(m.key===motor.key)b.classList.add('active');b.addEventListener('click',()=>{motor=m;buildMotorButtons();refresh();});box.appendChild(b);});
+}
+
+let lastProf=null, lastChosen=null;
+function refresh(){
+  const alpha=+document.getElementById('alpha').value;
+  const beta=+document.getElementById('beta').value;
+  const r=(+document.getElementById('rad').value)/1000;
+  document.getElementById('alpha-val').textContent=alpha.toFixed(2);
+  document.getElementById('beta-val').textContent=beta.toFixed(2);
+  document.getElementById('rad-val').textContent=(r*1000).toFixed(1)+' mm';
+  document.getElementById('prof-tag').textContent = beta>=0.99?'7-segment (full S)':beta<=0.01?'trapezoidal':'7-segment S-curve';
+  const prof=profile(alpha,beta);
+  const chosen=sizeAt(r,prof);
+  lastProf=prof; lastChosen=chosen;
+  drawProfile(prof); drawMatch(prof,chosen);
+
+  const Fpk=M*prof.apk+F_FRIC;
+  const cls=(ok,warnOk)=> ok?'pass':(warnOk?'warn':'fail');
+  const tx =(ok,warnOk)=> ok?'PASS':(warnOk?'TIGHT':'FAIL');
+  const peakOK=chosen.Tpk<=motor.Tpk/1.5, peakMarg=chosen.Tpk<=motor.Tpk;
+  const rmsOK =chosen.Trms<=motor.Tcont;
+  const rpmOK =chosen.rpm<=motor.rpm, rpmMarg=chosen.rpm<=motor.rpm*1.0;
+  const ratioOK=chosen.ratio<=10, ratioMarg=chosen.ratio<=50;
+  const diaMM=(2*chosen.r*1000).toFixed(0), leadMM=(2*Math.PI*chosen.r*1000).toFixed(1);
+  document.getElementById('readout').innerHTML=
+    `profile: v<sub>pk</sub> <b>${prof.vpk.toFixed(3)} m/s</b> · a<sub>pk</sub> <b>${prof.apk.toFixed(2)} m/s²</b> · a<sub>rms</sub> ${prof.arms.toFixed(2)} · F<sub>pk</sub> <b>${Fpk.toFixed(1)} N</b><br>`+
+    `transmission r=${(chosen.r*1000).toFixed(1)}mm → ≈ Ø${diaMM}mm belt pulley, or ${leadMM}mm screw lead · motor: <b>${motor.name}</b><br>`+
+    `① peak torque ${chosen.Tpk.toFixed(3)} vs ${motor.Tpk} N·m (×1.5 → ${(motor.Tpk/1.5).toFixed(2)}): <span class="${cls(peakOK,peakMarg)}">${tx(peakOK,peakMarg)}</span> · `+
+    `② RMS torque ${chosen.Trms.toFixed(3)} vs ${motor.Tcont} N·m: <span class="${cls(rmsOK,false)}">${tx(rmsOK,false)}</span><br>`+
+    `③ speed ${chosen.rpm.toFixed(0)} vs ${motor.rpm} rpm: <span class="${cls(rpmOK,false)}">${tx(rpmOK,false)}</span> · `+
+    `④ inertia ratio ${chosen.ratio.toFixed(1)}:1 (≤10): <span class="${cls(ratioOK,ratioMarg)}">${tx(ratioOK,ratioMarg)}</span>`;
+  document.getElementById('status').textContent =
+    'Drag radius left toward r*: torque dips but speed blows past the red line. The buyable window is to the right.';
+}
+
+// ===== downloads =====
+function download(name,text,type){const b=new Blob([text],{type:type||'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}
+function profileCSV(){let o='t_s,accel_mps2,vel_mps,pos_m\n';lastProf.samples.forEach(p=>o+=`${p.t.toFixed(4)},${p.a.toFixed(5)},${p.v.toFixed(5)},${p.x.toFixed(5)}\n`);return o;}
+function specTXT(){
+  const p=lastProf,c=lastChosen,Fpk=M*p.apk+F_FRIC;
+  return `MOTION SIZING SUMMARY  (horizontal axis)
+brief            : move ${PAYLOAD} kg payload (${M} kg moving) ${D} m in ${T} s
+profile          : 7-segment, ramp frac ${(+document.getElementById('alpha').value).toFixed(2)}, jerk smooth ${(+document.getElementById('beta').value).toFixed(2)}
+peak velocity    : ${p.vpk.toFixed(3)} m/s
+peak accel       : ${p.apk.toFixed(3)} m/s^2
+rms accel        : ${p.arms.toFixed(3)} m/s^2
+peak force       : ${Fpk.toFixed(2)} N
+transmission r   : ${(c.r*1000).toFixed(2)} mm  (~Ø${(2*c.r*1000).toFixed(0)} mm belt pulley / ${(2*Math.PI*c.r*1000).toFixed(1)} mm screw lead)
+motor            : ${motor.name}  (J=${motor.J} kg m^2, ${motor.Tcont} N m cont / ${motor.Tpk} peak, ${motor.rpm} rpm)
+peak torque req  : ${c.Tpk.toFixed(3)} N m
+rms torque req   : ${c.Trms.toFixed(3)} N m
+motor RPM @ vpk  : ${c.rpm.toFixed(0)} rpm
+inertia ratio    : ${c.ratio.toFixed(1)} : 1
+inertia-match r* : ${(rStar()*1000).toFixed(2)} mm
+`;}
+
+// ===== editable Pugh matrices =====
+// score arrays align to candidate order; datum candidate is all-zero by construction.
+const MATRICES={
+  motor:{cands:[{n:'NEMA 17 · Lin 4118M-06P'},{n:'NEMA 23 closed-loop · Lin 23CE',datum:true},{n:'ClearPath servo'}],
+    crit:[
+      ['accel headroom (peak torque)',[-1,0,1]],
+      ['speed ceiling (max RPM)',[-1,0,1]],
+      ['smoothness / closed-loop control',[-1,0,1]],
+      ['integration (drive + encoder onboard)',[-1,0,0]],
+      ['unit cost',[1,0,-1]],
+    ]},
+  coupling:{cands:[{n:'Ruland jaw (spider)',datum:true},{n:'Ruland MBC bellows'}],
+    crit:[
+      ['torsional stiffness',[0,1]],
+      ['vibration damping',[0,-1]],
+      ['misalignment tolerance',[0,0]],
+      ['cost',[0,-1]],
+    ]},
+  drive:{cands:[{n:'GT2/GT3 timing belt',datum:true},{n:'Ø16 ballscrew, 10–20 mm lead'}],
+    crit:[
+      ['top-speed fit (RPM demand)',[0,-1]],
+      ['stiffness / repeatability',[0,1]],
+      ['inertia ratio (small effective r)',[0,1]],
+      ['cost & simplicity',[0,-1]],
+      ['maintenance (no lube / critical speed)',[0,-1]],
+    ]},
+  rail:{cands:[{n:'HIWIN MGN12 profile rail',datum:true},{n:'igus drylin W polymer'}],
+    crit:[
+      ['stiffness & load life',[0,-1]],
+      ['repeatability',[0,-1]],
+      ['maintenance (grease-free)',[0,1]],
+      ['cost',[0,1]],
+      ['noise / particle-free',[0,1]],
+    ]},
+  makebuy:{cands:[{n:'assemble from parts',datum:true},{n:'igus drylin ZLW (buy)'},{n:'OpenBuilds kit (buy)'}],
+    crit:[
+      ['upfront part cost',[0,-1,1]],
+      ['integration time / effort',[0,1,0]],
+      ['performance ceiling',[0,0,-1]],
+      ['support / serviceability',[0,1,0]],
+      ['lead time / build risk',[0,1,0]],
+    ]},
+};
+function totalsOf(m){return m.cands.map((_,j)=>m.crit.reduce((s,c)=>s+c.w*c.scores[j],0));}
+function fmtT(t){return (t>0?'+':'')+t;}
+function recompute(id){
+  const m=MATRICES[id], tot=totalsOf(m), max=Math.max(...tot);
+  m.cands.forEach((c,j)=>{
+    const t=tot[j], cls=t>0?'score-pos':t<0?'score-neg':'';
+    const tc=document.getElementById(`tot-${id}-${j}`);
+    tc.textContent=fmtT(t); tc.className='s'+(c.datum?' datum':'')+(t===max?' win':'')+(cls?' '+cls:'');
+    document.getElementById(`hd-${id}-${j}`).className=(c.datum?'datum':'')+(t===max?' win':'');
+  });
+}
+function renderMatrix(id){
+  const m=MATRICES[id], mount=document.getElementById('pm-'+id);
+  let h='<table class="pugh"><tr><th>criterion</th><th class="wt">weight</th>';
+  m.cands.forEach((c,j)=>h+=`<th id="hd-${id}-${j}" class="${c.datum?'datum':''}">${c.n}${c.datum?' · datum':''}</th>`);
+  h+='</tr>';
+  m.crit.forEach((c,i)=>{
+    h+=`<tr><td>${c.name}</td><td class="wt"><input type="number" class="wt" min="0" max="9" step="1" value="${c.w}" data-m="${id}" data-i="${i}" aria-label="weight for ${c.name}"></td>`;
+    c.scores.forEach((s,j)=>{const cls=s>0?'score-pos':s<0?'score-neg':'';h+=`<td class="s${m.cands[j].datum?' datum':''}${cls?' '+cls:''}">${fmtT(s)}</td>`;});
+    h+='</tr>';
+  });
+  h+='<tr><th>weighted total</th><th class="wt"></th>';
+  m.cands.forEach((c,j)=>h+=`<th id="tot-${id}-${j}" class="s${c.datum?' datum':''}"></th>`);
+  h+='</tr></table>';
+  mount.innerHTML=h;
+  mount.querySelectorAll('input.wt').forEach(inp=>inp.addEventListener('input',e=>{
+    let v=parseInt(e.target.value,10); if(isNaN(v)||v<0)v=0;
+    MATRICES[e.target.dataset.m].crit[+e.target.dataset.i].w=v;
+    recompute(e.target.dataset.m);
+  }));
+  recompute(id);
+}
+function pughInit(){
+  // attach criterion names + default weight, then render
+  Object.values(MATRICES).forEach(m=>m.crit=m.crit.map(c=>({name:c[0],scores:c[1],w:1})));
+  Object.keys(MATRICES).forEach(renderMatrix);
+}
+
+function main(){
+  buildMotorButtons();
+  ['alpha','beta','rad'].forEach(id=>document.getElementById(id).addEventListener('input',refresh));
+  document.getElementById('dl-profile').addEventListener('click',()=>download('motion_profile.csv',profileCSV(),'text/csv'));
+  document.getElementById('dl-spec').addEventListener('click',()=>download('sizing_summary.txt',specTXT()));
+  window.addEventListener('resize',()=>{if(lastProf){drawProfile(lastProf);drawMatch(lastProf,lastChosen);}});
+  pughInit();
+  refresh();
+}
+main();
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>

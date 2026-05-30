@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up the project &mdash; a folder and a first commit</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.65 ui-serif, Georgia, "Times New Roman", serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #15151a; color: #eee; } a { color: #9cf; } }
+  a.back { font-size: 0.85rem; text-decoration: none; color: #888; }
+  h1 { font-size: 1.6rem; margin: 0.4rem 0 0.2rem; }
+  .lede { color: #666; font-style: italic; margin-top: 0; }
+  @media (prefers-color-scheme: dark) { .lede { color: #aaa; } }
+  h2 { font-size: 1.2rem; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+  h3 { font-size: 1.02rem; margin-top: 1.6rem; }
+  @media (prefers-color-scheme: dark) { h2 { border-bottom-color: #333; } }
+  p { margin: 0.6rem 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .codeblock { position: relative; margin: 1rem 0; background: #1d2329; color: #e6edf3; border-radius: 6px; padding: 0.85rem 1rem; overflow-x: auto; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.5; border: 1px solid #2a3138; }
+  @media (prefers-color-scheme: dark) { .codeblock { background: #0e1419; border-color: #2a3138; } }
+  .codeblock pre { margin: 0; padding: 0; padding-right: 5rem; white-space: pre-wrap; word-break: break-word; }
+  .codeblock .copy { position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.08); color: #cdd9e5; border: 1px solid rgba(255,255,255,0.15); padding: 0.25rem 0.6rem; border-radius: 4px; font: inherit; font-size: 0.78rem; cursor: pointer; }
+  .codeblock .copy:hover { background: rgba(255,255,255,0.16); }
+  .codeblock .copy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  .codeblock .lang { position: absolute; bottom: 0.25rem; right: 0.6rem; font-size: 0.7rem; color: rgba(230,237,243,0.4); font-style: italic; pointer-events: none; }
+  .aside { margin: 0.7rem 0; padding: 0.6rem 0.9rem; background: #f4f8fc; border-left: 3px solid #2c7da0; border-radius: 0 4px 4px 0; font-size: 0.92rem; color: #455; }
+  @media (prefers-color-scheme: dark) { .aside { background: #18222a; border-left-color: #5fa8c8; color: #bbd; } }
+  .aside strong { color: #1a1a1a; } @media (prefers-color-scheme: dark) { .aside strong { color: #eee; } }
+  .warn { background: #fff8e8; border-left-color: #c89200; }
+  @media (prefers-color-scheme: dark) { .warn { background: #2a2310; border-left-color: #d4a020; color: #ddc; } }
+  .tabs { display: flex; gap: 0.3rem; margin: 1rem 0 0; }
+  .tabs button { font: inherit; font-size: 0.85rem; padding: 0.35rem 0.9rem; border: 1px solid #bbb; border-bottom: none; border-radius: 6px 6px 0 0; background: #eef1f4; cursor: pointer; color: #445; }
+  .tabs button.active { background: #1d2329; color: #fff; border-color: #1d2329; }
+  @media (prefers-color-scheme: dark) { .tabs button { background: #20242c; border-color: #333; color: #aab; } .tabs button.active { background: #0e1419; color: #fff; border-color: #0e1419; } }
+  .tab-body .codeblock { margin-top: 0; border-top-left-radius: 0; }
+  .prompt { position: relative; background: #f8f8fa; border-left: 3px solid #6a9a3a; border-radius: 0 4px 4px 0; padding: 0.6rem 0.9rem; margin: 0.8rem 0; font-size: 0.93rem; }
+  @media (prefers-color-scheme: dark) { .prompt { background: #1a1f18; border-left-color: #8fbf5a; } }
+  .prompt em { display: block; color: #4a7a2a; font-style: normal; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.3rem; }
+  @media (prefers-color-scheme: dark) { .prompt em { color: #aef087; } }
+  .prompt .ptext { white-space: pre-wrap; }
+  .prompt .pcopy { position: absolute; top: 0.45rem; right: 0.45rem; background: #eef4f8; color: #245; border: 1px solid #aac; border-radius: 4px; font: inherit; font-size: 0.74rem; padding: 0.2rem 0.55rem; cursor: pointer; }
+  .prompt .pcopy:hover { background: #e2edf4; }
+  .prompt .pcopy.copied { background: #2c7da0; color: #fff; border-color: #2c7da0; }
+  @media (prefers-color-scheme: dark) { .prompt .pcopy { background: #243038; border-color: #467; color: #bdf; } }
+</style>
+</head>
+<body>
+
+<a class="back" href="../../">&larr; AI-pair numerics</a>
+<h1>Set up the project: a folder and a first commit</h1>
+<p class="lede">
+  Before you point Claude at a problem, give it a home: a small project
+  folder with standing instructions and version control from line one. Two
+  minutes of setup buys Claude context and buys you an undo button.
+</p>
+
+<div class="aside">
+  <strong>The whole idea in one line:</strong> make a tidy folder, drop in a
+  <code>CLAUDE.md</code> so Claude knows the project, and
+  <code>git init</code> + commit the whole thing locally so every change
+  after that is something you can see and undo. No GitHub account required.
+</div>
+
+<h2>The template folder</h2>
+<p>
+  A predictable layout means you and Claude always know where inputs,
+  generated code, and finished artifacts live. A good default:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>my-project/
+├─ CLAUDE.md        # standing instructions: what this project is, conventions
+├─ .gitignore       # keep junk and secrets out of version control
+├─ data/            # inputs YOU bring: CSVs, PDFs, datasheets, drawings
+├─ src/             # code Claude writes: scripts, solvers, notebooks
+├─ out/             # generated artifacts: HTML explorers, PDFs, charts
+└─ notes/           # scratch, references, decisions worth keeping</pre><span class="lang">folder layout</span></div>
+<p>
+  The split matters: <code>data/</code> is read-only source you provide,
+  <code>out/</code> is disposable and regenerable, and <code>src/</code> is
+  the reproducible recipe between them. When something looks wrong, you know
+  which drawer to open.
+</p>
+
+<h2>Build it in four moves</h2>
+
+<h3>1. Create the folders</h3>
+<div class="tabs" id="tabs">
+  <button data-os="mac" class="active">macOS / Linux</button>
+  <button data-os="win">Windows</button>
+</div>
+<div class="tab-body" data-os="mac">
+  <div class="codeblock"><button class="copy">Copy</button><pre>mkdir -p my-project/{data,src,out,notes} && cd my-project</pre><span class="lang">bash / zsh</span></div>
+</div>
+<div class="tab-body" data-os="win" hidden>
+  <div class="codeblock"><button class="copy">Copy</button><pre>New-Item -ItemType Directory my-project\data, my-project\src, my-project\out, my-project\notes -Force
+cd my-project</pre><span class="lang">PowerShell</span></div>
+</div>
+
+<h3>2. Write CLAUDE.md</h3>
+<p>
+  This is the file Claude reads first, every session. Keep it short and
+  declarative &mdash; what the project is, what conventions to follow, where
+  things go:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre># Project: Pump skid sizing
+
+What this is: calculations and reports for selecting the pump,
+motor, and bearings on the CW-2 skid.
+
+Conventions:
+- Inputs live in data/ (read-only). Never edit them in place.
+- Scripts go in src/ and must run start-to-finish unattended.
+- Reports render to out/ as both a self-contained .html and a PDF.
+- Units are SI unless a datasheet forces otherwise; state assumptions.
+- Verify every result against an independent check before I see it.</pre><span class="lang">CLAUDE.md</span></div>
+
+<h3>3. Add a .gitignore</h3>
+<p>Keep generated clutter and anything secret out of the commit:</p>
+<div class="codeblock"><button class="copy">Copy</button><pre># generated / disposable
+out/
+*.pdf
+__pycache__/
+.venv/
+node_modules/
+
+# secrets — never commit these
+.env
+*.key</pre><span class="lang">.gitignore</span></div>
+<div class="aside warn">
+  <strong>Decide what's disposable.</strong> Ignoring <code>out/</code>
+  keeps the repo lean since artifacts regenerate from <code>src/</code>. If
+  a particular PDF <em>is</em> the deliverable you want to track, commit
+  that one explicitly with <code>git add -f out/report.pdf</code>.
+</div>
+
+<h3>4. Initialize git and commit everything</h3>
+<div class="codeblock"><button class="copy">Copy</button><pre>git init
+git add -A
+git commit -m "Initial project scaffold"</pre><span class="lang">bash / PowerShell</span></div>
+<p>
+  That's the baseline. From here, commit after every meaningful step &mdash;
+  before and after you let Claude make a big change &mdash; so you can always
+  see exactly what moved and roll back if it went sideways.
+</p>
+
+<div class="aside">
+  <strong>Local git is your undo button, not a GitHub chore.</strong> You
+  don't need a remote, an account, or a network. <code>git init</code> on
+  your laptop already gives you the two superpowers that matter:
+  <code>git diff</code> shows precisely what Claude changed, and
+  <code>git restore</code> / <code>git checkout</code> rewinds a bad edit in
+  one command. Pushing to GitHub is a separate, optional step for when you
+  want a backup or collaborators.
+</div>
+
+<h2>Or just ask Claude to scaffold it</h2>
+<p>You can hand the whole thing to Claude in one prompt:</p>
+<div class="prompt"><button class="pcopy" type="button">Copy</button><em>Prompt</em><span class="ptext">Scaffold a new project in this folder: create <code>data/ src/ out/ notes/</code>, write a <code>CLAUDE.md</code> describing &lsquo;pump skid sizing&rsquo; with the conventions above, add a sensible <code>.gitignore</code> that ignores <code>out/</code> and secrets, then <code>git init</code> and make the first commit. Show me the <code>git status</code> and the diff before committing.</span></div>
+<p>
+  Asking it to show <code>status</code> and the diff <em>before</em>
+  committing is the habit worth keeping: you review, then it commits. Never
+  a black box.
+</p>
+
+<h2>Profiles: a launcher script per job</h2>
+<p>
+  <code>CLAUDE.md</code> gives standing instructions <em>per project</em>.
+  The other half of setup is standing instructions <em>per role</em> &mdash;
+  and the cheap way to get them is a tiny shell script that launches
+  <code>claude</code> preconfigured. Put a few on your <code>PATH</code> and
+  you start exactly the right Claude with one word: a fast, cheap document
+  worker; a careful reviewer; a heavyweight solver.
+</p>
+<p>
+  A profile script bakes in four things &mdash; <strong>system prompt</strong>,
+  <strong>model</strong>, <strong>effort</strong>, and <strong>which
+  credentials</strong> to use &mdash; then hands the session to you:
+</p>
+<div class="codeblock"><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# claude-transcribe — cheap, faithful document worker (the Sonnet worker)
+export ANTHROPIC_API_KEY="$(cat ~/.secrets/anthropic.key)"
+exec claude --model sonnet --effort low \
+  --append-system-prompt "Transcribe faithfully; never summarize or round. \
+YAML for tables and specs, Markdown for prose. Flag anything illegible." "$@"</pre><span class="lang">~/bin/claude-transcribe</span></div>
+<div class="codeblock"><button class="copy">Copy</button><pre>#!/usr/bin/env bash
+# claude-review — meticulous reviewer on the heavy model
+export ANTHROPIC_API_KEY="$(cat ~/.secrets/anthropic.key)"
+exec claude --model opus --effort high \
+  --append-system-prompt "You are a meticulous reviewer. Surface correctness \
+bugs only, cite file:line, and skip style nits." "$@"</pre><span class="lang">~/bin/claude-review</span></div>
+<div class="codeblock"><button class="copy">Copy</button><pre>chmod +x ~/bin/claude-transcribe ~/bin/claude-review
+# then: claude-transcribe data/datasheet.pdf   |   claude-review</pre><span class="lang">make them runnable</span></div>
+<p>
+  The flags are real: <code>--append-system-prompt</code> (or
+  <code>--system-prompt-file</code> for a longer one), <code>--model</code>,
+  and <code>--effort</code> all apply to that launch. <code>exec</code> hands
+  your terminal straight to Claude. <code>"$@"</code> passes through anything
+  you add &mdash; a file, a <code>-p</code> prompt &mdash; so the profile
+  composes with normal use.
+</p>
+<div class="aside">
+  <strong>Auth, the honest version.</strong> Pick the credential per profile
+  by exporting it: <code>ANTHROPIC_API_KEY</code> (read from a
+  <code>chmod 600</code> secrets file, never hard-coded), a
+  <code>CLAUDE_CODE_OAUTH_TOKEN</code> from <code>claude setup-token</code>,
+  or an <code>apiKeyHelper</code> setting that fetches a rotating key from a
+  vault. One trap to skip: <code>CLAUDE_CONFIG_DIR</code> does <em>not</em>
+  isolate accounts &mdash; it only moves where credentials are stored, not
+  which identity you are. Set the key or token explicitly.
+</div>
+<div class="aside">
+  <strong>Built-in alternative for the prompt half.</strong> Output styles
+  (<code>.claude/output-styles/&lt;name&gt;.md</code>) give committable,
+  shareable system-prompt personas you switch with <code>/config</code>
+  &mdash; but they don't set model, effort, or auth. So: output styles for
+  tone, a wrapper script when you also want the right model, effort, and
+  account in one word.
+</div>
+<p>
+  This is also where the
+  <a href="../token-economy/">token-economy</a> routing stops being a
+  decision you make each time and becomes a default you launched into:
+  <code>claude-transcribe</code> <em>is</em> the Sonnet worker from
+  <a href="../documents/">feed it documents</a> &mdash; right model, low
+  effort, transcription prompt, baked in.
+</p>
+
+<h2>Why this is the foundation</h2>
+<p>
+  Every problem on this site assumes you have somewhere to put the inputs,
+  somewhere for Claude to write code, and a way to undo a wrong turn. A
+  scaffolded folder under local git is that somewhere. Set it up once; reuse
+  the shape for every project. Next on the trunk:
+  <a href="../documents/">feeding it documents efficiently</a>, then
+  <a href="../shipping/">shipping the work</a>.
+</p>
+
+<script>
+document.querySelectorAll('.codeblock').forEach(block => {
+  const btn = block.querySelector('.copy'), pre = block.querySelector('pre');
+  if (!btn || !pre) return;
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(pre.textContent);
+      btn.textContent = 'Copied!'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    } catch (e) {
+      const range = document.createRange(); range.selectNodeContents(pre);
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      btn.textContent = 'Select+Ctrl+C'; setTimeout(() => { btn.textContent = 'Copy'; }, 2500);
+    }
+  });
+});
+const tabs = document.getElementById('tabs');
+tabs.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  const os = b.dataset.os;
+  tabs.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.tab-body').forEach(body => { body.hidden = body.dataset.os !== os; });
+}));
+document.querySelectorAll('.prompt .pcopy').forEach(b=>{b.addEventListener('click',async()=>{const el=b.parentElement.querySelector('.ptext');const t=(el?el.textContent:'').trim();try{await navigator.clipboard.writeText(t);b.textContent='Copied!';b.classList.add('copied');setTimeout(()=>{b.textContent='Copy';b.classList.remove('copied');},1500);}catch(e){const r=document.createRange();r.selectNodeContents(el);const s=window.getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Ctrl+C';setTimeout(()=>{b.textContent='Copy';},2000);}});});
+</script>
+
+</body>
+</html>
