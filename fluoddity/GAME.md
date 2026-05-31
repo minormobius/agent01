@@ -97,10 +97,12 @@ change.
 Three levels, each unlocking exactly one new verb. Everything else stays hidden.
 
 ```
-LEVEL 1  HEAT     tap 1 → it warms      win: anything BOILS
-LEVEL 2  TAME     tap 2 → interpolate   win: 0/16 boiling (the edge)
-LEVEL 3  BREED    swipe HOT/NOT         endless: taste drives the stream
-                                        (auto-publishes; contributes)
+LEVEL 1  HEAT      tap 1 → it warms      win: anything BOILS
+LEVEL 2  TAME      tap 2 → interpolate   win: 0/16 boiling (the edge)
+LEVEL 3  BREED     swipe HOT/NOT         endless: taste drives the stream
+                                         (auto-publishes; contributes)
+LEVEL 4  DISCOVER  tap 1 converge /      endless: LOCK IN a single phenotype →
+         (graduate) tap 2 explore        published, lineage-linked discovery
 ```
 
 The hidden axis through all of it is **temperature T** (entropy): low = frozen,
@@ -214,6 +216,32 @@ fires when the rubric's training accuracy crosses a threshold, but play
 continues.
 
 ---
+
+### Level 4 — DISCOVER (the level-2 arena as a discovery engine; lock in a phenotype)
+
+Graduation. Unlocks the first time a taste is trained in L3 (a ✦ discover button
+appears on the swipe dock; entering from the `winLevel2`→breed path is unchanged).
+It reuses the **level-2 live arena** wholesale — same 16 species, same tap-one /
+tap-two / regrow — but swaps the objective from "stop boiling" to **open-ended
+Picbreeder-style convergence**:
+
+- **Tap one → converge.** Regrowing re-centers the 16 on your pick and *tightens*
+  the spread (`× SHRINK` each time, down to `SPREAD_FLOOR`). A `lock ▓▓▓░░░` meter
+  (in the field badge) fills as the 16 close in on one phenotype.
+- **Tap two → explore between.** Same A→B interpolation as L2 — wander the space.
+- **↻ wander →** jump somewhere new (spread resets).
+- **✦ LOCK IN →** collapse the field to a **single phenotype** (`mutation_scale 0`,
+  all 16 cohorts identical), **publish it** as a `com.minomobi.fluoddity.organism`
+  with `parent` = the previous lock-in (so repeated discoveries grow a **lineage
+  tree** in phase space), then **re-expand from there** to hunt the next one. No
+  win — it's the engine that produces the map.
+
+Temperature is fixed at `T_DISCOVER` (mid, lively) so every discovery is alive;
+the only axis the player moves is *which phenotype*, by eye. This is the literal
+"engine of discovery": each lock-in is a published, lineage-linked artifact that
+feeds the gallery and the phase-space map — citizen-science output from pure
+this-one-or-that-one taps. Runs on the same `AE` arena engine as L1/L2 (the
+breed engine `BE` is left intact but idle).
 
 ## 6. Unfolding (Universal-Paperclips discipline)
 
