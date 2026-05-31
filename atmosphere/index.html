@@ -105,23 +105,40 @@ section { margin-bottom: 3rem; scroll-margin-top: 1rem; }
 .section-label .count { color: var(--sky); }
 .section-blurb { font-size: 0.9rem; color: var(--muted); margin: 0.8rem 0 1.4rem; font-style: italic; }
 
-.projects { list-style: none; }
-.projects li {
-  margin-bottom: 1.4rem; padding: 0.6rem 0.8rem;
-  border-left: 2px solid transparent; border-radius: 2px;
-  transition: border-color 0.2s ease, background 0.2s ease;
+/* card grid — one descriptive card per site */
+.projects {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 0.9rem;
 }
-.projects li:hover { border-left-color: var(--sky); background: var(--sky-faint); }
-.projects .name-row { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.projects li {
+  display: flex; flex-direction: column;
+  padding: 0.95rem 1rem 1rem;
+  border: 1px solid var(--rule); border-radius: 7px;
+  border-top: 2px solid var(--rule);
+  background: var(--bg);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.projects li:hover {
+  border-color: var(--sky); border-top-color: var(--sky);
+  background: var(--sky-faint); transform: translateY(-2px);
+}
+/* whole card is clickable via the stretched link on the name */
+.projects li { position: relative; }
+.projects .name-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
 .projects a {
-  font-family: var(--mono); font-size: 0.92rem; color: var(--link);
-  text-decoration: none; letter-spacing: 0.02em;
+  font-family: var(--mono); font-size: 0.96rem; color: var(--link);
+  text-decoration: none; letter-spacing: 0.01em; font-weight: 600;
+}
+.projects a::after {
+  content: ""; position: absolute; inset: 0; border-radius: 7px;
 }
 .projects li:hover a { color: var(--sky); }
-.projects a:hover { text-decoration: underline; }
 .parent {
-  font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.06em;
+  font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0.05rem 0.32rem;
 }
 .tag {
   font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.08em;
@@ -129,7 +146,10 @@ section { margin-bottom: 3rem; scroll-margin-top: 1rem; }
   padding: 0.15rem 0.4rem; border-radius: 3px; white-space: nowrap;
 }
 .tag.sky { color: var(--sky); background: var(--sky-faint); }
-.projects .desc { font-size: 0.95rem; color: var(--muted); margin-top: 0.2rem; }
+.projects .desc { font-size: 0.85rem; line-height: 1.5; color: var(--muted); margin-top: auto; }
+@media (max-width: 480px) {
+  .projects { grid-template-columns: 1fr; }
+}
 
 /* infra section: lighter, two-column-ish reference rows */
 .infra { list-style: none; }
@@ -261,6 +281,7 @@ footer a:hover { color: var(--sky); }
 <footer>
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+  <span>also at b.mino.mobi</span>
   <span>the ATmosphere corner</span>
 </footer>
 

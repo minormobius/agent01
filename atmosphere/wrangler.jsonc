@@ -3,8 +3,13 @@
   "name": "mino-atmosphere",
   "compatibility_date": "2026-02-20",
   "routes": [
-    { "pattern": "atmosphere.mino.mobi", "custom_domain": true }
+    { "pattern": "atmosphere.mino.mobi", "custom_domain": true },
+    { "pattern": "b.mino.mobi", "custom_domain": true }
   ],
+  // Two custom domains, one asset bundle:
+  //   atmosphere.mino.mobi — descriptive name for the Bluesky/ATProto portal
+  //   b.mino.mobi          — short alias (b = Bluesky), companion to g.mino.mobi
+  //                          (graphics). Same site, just a faster thing to type.
   "assets": {
     "directory": "."
   }
