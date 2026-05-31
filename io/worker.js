@@ -564,7 +564,10 @@ function firstLine(text) {
 }
 
 function isAdmin(request, env) {
-  if (!env.ADMIN_KEY) return false;
+  // Open when no ADMIN_KEY is configured: the admin routes are low-stakes —
+  // sweep/index are idempotent re-scans, triage only mutates D1 board state
+  // (never writes to anyone's PDS). Setting an ADMIN_KEY secret re-locks them.
+  if (!env.ADMIN_KEY) return true;
   return request.headers.get('X-Admin-Key') === env.ADMIN_KEY;
 }
 
