@@ -104,6 +104,7 @@ async function health(env) {
     tickets,
     sweeperConfigured: !!(env.ATPROTO_SERVICE_HANDLE && env.ATPROTO_SERVICE_PASSWORD),
     sweepTags: SWEEP_TAGS,
+    replyBot: env.SWEEP_REPLY !== 'off',
   });
 }
 
@@ -385,7 +386,46 @@ async function sweepPost(env, pub, post, tag) {
   // Eagerly cache so the board shows it before the next index pass.
   const parsed = parseAtUri(result.uri);
   if (parsed) await indexOne(env, parsed.did, parsed.rkey).catch(() => {});
+  // "Tracked as…" reply in the original thread (best-effort; never blocks the
+  // mint). Opt-out by setting SWEEP_REPLY=off as a worker var.
+  if (env.SWEEP_REPLY !== 'off') {
+    await replyTracked(pub, post, kind).catch((e) => console.error('replyTracked', e));
+  }
   return true;
+}
+
+// Post a reply from the service account into the swept post's thread, letting
+// the author know it's been logged and linking the board. The reply is an
+// ordinary app.bsky.feed.post with reply root/parent strongRefs + a link facet.
+async function replyTracked(pub, post, kind) {
+  if (!post.uri || !post.cid) return;
+  const boardUrl = 'https://io.mino.mobi/board';
+  const label = { bug: '🐞 bug', feature: '✨ feature request', idea: '💡 idea' }[kind] || '💡 idea';
+  const text = `Tracked as a ${label} on the mino board — thanks! See it (and everything else swept from #atprotoideasio) here:\n${boardUrl}`;
+
+  // Bluesky facets index by UTF-8 byte offset, not JS string index.
+  const enc = new TextEncoder();
+  const byteStart = enc.encode(text.slice(0, text.indexOf(boardUrl))).length;
+  const byteEnd = byteStart + enc.encode(boardUrl).length;
+
+  // Thread root: the swept post's own root if it's already a reply, else itself.
+  const parentReply = post.record && post.record.reply;
+  const root = (parentReply && parentReply.root) || { uri: post.uri, cid: post.cid };
+
+  const record = {
+    $type: 'app.bsky.feed.post',
+    text,
+    createdAt: new Date().toISOString(),
+    reply: {
+      root: { uri: root.uri, cid: root.cid },
+      parent: { uri: post.uri, cid: post.cid },
+    },
+    facets: [{
+      index: { byteStart, byteEnd },
+      features: [{ $type: 'app.bsky.richtext.facet#link', uri: boardUrl }],
+    }],
+  };
+  await pub.createRecord('app.bsky.feed.post', generateTid(), record);
 }
 
 function inferKind(text) {
