@@ -1,24 +1,23 @@
 // Alexander's Horned Sphere — infinite WebGPU fractal zoom (KIFS, real one)
 //
-// This renders the ACTUAL construction: a central body sphere from which open
-// horns grow as CIRCULAR ARCS; each horn's tip forks into two clasping horns
-// (binary branching), which fork again, forever, tightening toward the Cantor
-// limit. There are no closed loops — every horn is an open arc tube.
+// A central body sphere sprouts a CLASPING PAIR of open horns (circular arcs);
+// each horn's tip sprouts another clasping pair, forever, tightening toward the
+// Cantor limit. No closed loops — every horn is an open arc tube.
 //
-// Engine: a kaleidoscopic IFS. mapTree() walks WINDOW recursion levels and
-// takes the min of the arc distance at EVERY level, so the whole tree — all
-// generations, both children at each node — is rendered at once (that's the
-// "non-zooming branches" you wanted to see). Binary branching comes from the
-// reflection fold x = abs(x); a per-level roll tilts the two siblings into
-// interlocking planes; the tip-to-origin re-frame chains each arc onto its
-// parent's tip.
+// Engine (KIFS): mapTree() folds x.x=abs(x.x) at the TOP of every generation,
+// so even generation 0 is a mirrored pair, and min's the arc distance across
+// 'depth' generations — the whole tree (both children at every node, all
+// generations) is on screen at once. The fold gives binary branching; a
+// per-level splay fans the pair, a roll tilts them into interlocking planes,
+// and the tip->base reframe chains each arc onto its parent's tip.
 //
-// Zoom: the tree is self-similar along its primary (all-near-child) lineage,
-// which is an exact similarity D. Each frame the CPU composes total = floor+frac
-// descents of D about the tip (in double precision) into one affine map A,b plus
-// a scale S; the shader samples q = A*p + b and renders WINDOW levels from that
-// depth, scaling distance by 1/S. Integer descents slide the window deeper as
-// you zoom (revealing new generations) and the fractional part keeps it smooth.
+// Zoom: the primary (+x) lineage is an exact similarity G (shrink 1/k, rotate
+// Rg, translate to tip Pe). Zooming in by a continuous amount is the fractional
+// power G^zc applied to the world point, contracting toward G's FIXED POINT L
+// (the limit point of that lineage), with distance multiplied by k^zc to stay a
+// valid SDF. Because the tree is self-similar, G^zc and G^(zc+1) give identical
+// images, so zc is kept in [0,1): the zoom loops forever, is exactly seamless,
+// needs no precision cap, and — with the corrected sign — zooms IN.
 
 const WGSL = /* wgsl */`
 struct Uniforms {
@@ -28,17 +27,18 @@ struct Uniforms {
   fork  : vec4f,  // splay, roll, bodyR, bodyShow
   shade : vec4f,  // colorPhase, glow, paletteMode, aoStrength
   light : vec4f,  // lightYaw, lightPitch, fog, exposure
-  pal   : vec4f,  // bgBright, vignette, windowLevels, invS
+  pal   : vec4f,  // bgBright, vignette, depth, invS
   qual  : vec4f,  // steps, _, _, _
-  zr0   : vec4f,  // A col0 .xyz, b.x
-  zr1   : vec4f,  // A col1 .xyz, b.y
-  zr2   : vec4f,  // A col2 .xyz, b.z
+  zr0   : vec4f,  // A row0 .xyz, b.x
+  zr1   : vec4f,  // A row1 .xyz, b.y
+  zr2   : vec4f,  // A row2 .xyz, b.z
 };
 @group(0) @binding(0) var<uniform> U : Uniforms;
 
 var<private> gLev : f32 = 0.0;
 
 const TAU = 6.2831853;
+const PI  = 3.1415927;
 
 fn rotZ(a : f32) -> mat3x3f {
   let c = cos(a); let s = sin(a);
@@ -49,25 +49,25 @@ fn rotY(a : f32) -> mat3x3f {
   return mat3x3f(vec3f(c, 0.0, -s), vec3f(0.0, 1.0, 0.0), vec3f(s, 0.0, c));
 }
 
-// Exact-ish SDF for a circular ARC tube: centreline is a circle of radius RA,
-// centre (-RA,0,0) so the arc starts at the origin (theta=0) heading +Y and
-// curls CCW to theta=arcSpan. Endpoint caps make it a safe distance bound.
+// SDF of a circular ARC tube. Centreline: circle of radius RA centred at (RA,0),
+// swept phi in [0,span]: point(phi) = (RA - RA*cos phi, RA*sin phi). phi=0 is the
+// base at the origin heading +Y; the arc curls into the +x,+y quadrant (so it
+// lives on the same side the abs()-fold keeps). Endpoint caps keep it a bound.
 fn sdArc(p : vec3f, RA : f32, tube : f32, span : f32) -> f32 {
-  let Cc = vec2f(-RA, 0.0);
-  let v  = p.xy - Cc;
-  var a  = atan2(v.y, v.x);
-  a = clamp(a, 0.0, span);
-  let c  = Cc + RA * vec2f(cos(a), sin(a));
-  var d  = length(vec3f(p.x - c.x, p.y - c.y, p.z)) - tube;
-  // explicit endpoint caps (atan2 wrap safety in the open gap)
+  let C = vec2f(RA, 0.0);
+  let w = p.xy - C;
+  let alpha = atan2(w.y, w.x);
+  let phi = clamp(PI - alpha, 0.0, span);
+  let cp = C + RA * vec2f(-cos(phi), sin(phi));
+  var d = length(vec3f(p.x - cp.x, p.y - cp.y, p.z)) - tube;
   let e0 = vec3f(0.0, 0.0, 0.0);
-  let e1 = vec3f(Cc.x + RA * cos(span), Cc.y + RA * sin(span), 0.0);
+  let e1 = vec3f(RA - RA * cos(span), RA * sin(span), 0.0);
   d = min(d, length(p - e0) - tube);
   d = min(d, length(p - e1) - tube);
   return d;
 }
 
-// The full tree: WINDOW generations of arcs, branching via abs(x), all min'd.
+// The full tree: fold-at-top so gen 0 is already a pair; min over 'depth' gens.
 fn mapTree(q0 : vec3f) -> f32 {
   let k     = U.geo.x;
   let span  = U.geo.y;
@@ -76,37 +76,36 @@ fn mapTree(q0 : vec3f) -> f32 {
   let splay = U.fork.x;
   let roll  = U.fork.y;
   let W     = i32(U.pal.z + 0.5);
-  let Pe    = vec3f(RA * (cos(span) - 1.0), RA * sin(span), 0.0); // parent tip
-
-  let Rz1 = rotZ(-span);
-  let Rz2 = rotZ(-splay);
-  let Ry  = rotY(roll);
+  let Pe    = vec3f(RA - RA * cos(span), RA * sin(span), 0.0); // tip
 
   var x   = q0;
   var scl = 1.0;
   var d   = 1e9;
   gLev = 0.0;
   for (var i = 0; i < W; i = i + 1) {
-    let da = sdArc(x, RA, tube, span) / scl;
+    var p = x;
+    p.x = abs(p.x);                       // <-- branch: render BOTH horns
+    let da = sdArc(p, RA, tube, span) / scl;
     if (da < d) { d = da; gLev = f32(i); }
-    // descend to the child frame (chain tip -> origin, then branch + tilt)
-    x = x - Pe;
-    x = Rz1 * x;
-    x.x = abs(x.x);     // <-- binary branch: one horn becomes a clasping pair
-    x = Rz2 * x;        // splay the pair apart
-    x = Ry * x;         // roll into an interlocking plane (3D clasp)
-    x = x * k;          // child is 1/k the size -> magnify to canonical
+    // descend into the primary (+x) child = G^{-1}: tip->base, unrotate, *k
+    var y = p - Pe;
+    y = rotY(-roll) * y;
+    y = rotZ(-splay) * y;
+    y = rotZ(span) * y;
+    x = y * k;
     scl = scl * k;
   }
   return d;
 }
 
 fn mapScene(pw : vec3f) -> f32 {
-  let A = mat3x3f(U.zr0.xyz, U.zr1.xyz, U.zr2.xyz);
-  let b = vec3f(U.zr0.w, U.zr1.w, U.zr2.w);
-  let q = A * pw + b;
-  var d = mapTree(q) * U.pal.w;                 // invS -> back to world scale
-  if (U.fork.w > 0.5) {                         // body sphere, only near zoom 0
+  let q = vec3f(
+    dot(U.zr0.xyz, pw) + U.zr0.w,
+    dot(U.zr1.xyz, pw) + U.zr1.w,
+    dot(U.zr2.xyz, pw) + U.zr2.w
+  );
+  var d = mapTree(q) * U.pal.w;                 // invS -> valid world-scale SDF
+  if (U.fork.w > 0.5) {                          // body sphere, only near zoom 0
     let db = length(pw) - U.fork.z;
     if (db < d) { d = db; gLev = -1.0; }
   }
@@ -208,7 +207,7 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
     let amb  = 0.22 + 0.22 * (nrm.y * 0.5 + 0.5);
     let ao   = clamp(1.0 - U.shade.w * f32(i) / f32(steps), 0.0, 1.0);
     let fres = pow(1.0 - max(dot(nrm, -rd), 0.0), 3.0);
-    let base = palCol(gLev * 0.12 + cPhase, palM);
+    let base = palCol(gLev * 0.13 + cPhase, palM);
     var lit = base * (amb + diff * 0.95) * ao;
     lit += base * fres * 0.45;
     let fog = 1.0 - exp(-t * U.light.z * 0.14);
@@ -228,26 +227,26 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
 // ---------------------------------------------------------------------------
 // Parameters
 // ---------------------------------------------------------------------------
-const RA = 0.5;          // arc major radius (fixed; the scale knob is k)
-const ZOOM_MAX = 9;      // float32 holds ~k^9 magnification cleanly
+const RA = 0.5;          // arc major radius (fixed; 'child scale' k is the knob)
+const BODY_R = 0.40;
 const DEFAULTS = {
-  zoomSpeed: 0.10, orbitSpeed: 0.05, pitch: 0.20,
-  k: 1.90, arc: 2.30, splay: 0.45, roll: 1.25, tube: 0.055, depth: 9,
-  fov: 50, dist: 6.5, glow: 0.40, palette: 1,
-  exposure: 1.15, fog: 0.10, ao: 0.70, quality: 160,
+  zoomSpeed: 0.08, orbitSpeed: 0.05, pitch: 0.10,
+  k: 2.00, arc: 2.00, splay: 0.50, roll: 0.90, tube: 0.060, depth: 9,
+  fov: 55, dist: 4.6, glow: 0.40, palette: 1,
+  exposure: 1.15, fog: 0.08, ao: 0.70, quality: 170,
   bg: 0.65, vignette: 0.6,
 };
 const SLIDERS = [
   { key: 'zoomSpeed', label: 'zoom speed', min: -0.6, max: 0.6, step: 0.01 },
   { key: 'orbitSpeed', label: 'orbit speed', min: -0.5, max: 0.5, step: 0.01 },
   { key: 'pitch', label: 'camera pitch', min: -1.35, max: 1.35, step: 0.01 },
-  { key: 'arc', label: 'horn curl', min: 1.2, max: 2.9, step: 0.01 },
+  { key: 'arc', label: 'horn curl', min: 1.0, max: 2.9, step: 0.01 },
   { key: 'splay', label: 'fork splay', min: 0.0, max: 1.3, step: 0.01 },
   { key: 'roll', label: 'clasp roll', min: 0.0, max: 3.1, step: 0.01 },
   { key: 'k', label: 'child scale', min: 1.55, max: 2.7, step: 0.01 },
   { key: 'tube', label: 'horn thickness', min: 0.02, max: 0.14, step: 0.003 },
-  { key: 'depth', label: 'recursion depth', min: 4, max: 12, step: 1 },
-  { key: 'dist', label: 'camera distance', min: 3, max: 14, step: 0.1 },
+  { key: 'depth', label: 'recursion depth', min: 3, max: 12, step: 1 },
+  { key: 'dist', label: 'camera distance', min: 2.5, max: 12, step: 0.1 },
   { key: 'fov', label: 'field of view', min: 20, max: 95, step: 1 },
   { key: 'glow', label: 'glow', min: 0, max: 1.5, step: 0.02 },
   { key: 'fog', label: 'fog', min: 0, max: 0.6, step: 0.01 },
@@ -263,29 +262,46 @@ const params = { ...DEFAULTS };
 const rt = { yaw: 0.6, zoomLevel: 0, colorPhase: 0, paused: false, last: 0 };
 
 // ---------------------------------------------------------------------------
-// CPU-side vector helpers (double precision) for the zoom descent
+// CPU 3x3 helpers (row-major flat [9]) for the zoom framing
 // ---------------------------------------------------------------------------
-function rotZv(a, v) { const c = Math.cos(a), s = Math.sin(a); return [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]]; }
-function rotYv(a, v) { const c = Math.cos(a), s = Math.sin(a); return [c * v[0] + s * v[2], v[1], -s * v[0] + c * v[2]]; }
-function rotAxisv(ax, a, v) {
-  const c = Math.cos(a), s = Math.sin(a), t = 1 - c, x = ax[0], y = ax[1], z = ax[2];
+const mI = () => [1, 0, 0, 0, 1, 0, 0, 0, 1];
+function mMul(a, b) {
+  const c = new Array(9);
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 3; col++)
+    c[r * 3 + col] = a[r * 3] * b[col] + a[r * 3 + 1] * b[3 + col] + a[r * 3 + 2] * b[6 + col];
+  return c;
+}
+function mVec(m, v) {
   return [
-    (t*x*x + c) * v[0] + (t*x*y - s*z) * v[1] + (t*x*z + s*y) * v[2],
-    (t*x*y + s*z) * v[0] + (t*y*y + c) * v[1] + (t*y*z - s*x) * v[2],
-    (t*x*z - s*y) * v[0] + (t*y*z + s*x) * v[1] + (t*z*z + c) * v[2],
+    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+    m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+    m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
   ];
 }
-
-// Build the world->window-frame affine (columns of A + b) and scale S for the
-// current zoom, matching the shader's per-level descent (primary +x lineage).
-function buildZoom() {
-  const span = params.arc, splay = params.splay, roll = params.roll, k = params.k;
-  const Pe = [RA * (Math.cos(span) - 1.0), RA * Math.sin(span), 0.0];
-  const Rfn = (v) => rotYv(roll, rotZv(-splay, rotZv(-span, v))); // abs is identity on +x lineage
-
-  // axis-angle of R (for fractional descent R^zc)
-  const c0 = Rfn([1, 0, 0]), c1 = Rfn([0, 1, 0]), c2 = Rfn([0, 0, 1]);
-  const m = [c0[0], c1[0], c2[0], c0[1], c1[1], c2[1], c0[2], c1[2], c2[2]]; // row-major
+const mScale = (s, m) => m.map((x) => x * s);
+const mSub = (a, b) => a.map((x, i) => x - b[i]);
+function mInv3(m) {
+  const [a, b, c, d, e, f, g, h, i] = m;
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  const id = 1 / det;
+  return [
+    A * id, (c * h - b * i) * id, (b * f - c * e) * id,
+    B * id, (a * i - c * g) * id, (c * d - a * f) * id,
+    C * id, (b * g - a * h) * id, (a * e - b * d) * id,
+  ];
+}
+function rotZm(a) { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; }
+function rotYm(a) { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; }
+function rotAxism(ax, a) {
+  const c = Math.cos(a), s = Math.sin(a), t = 1 - c, [x, y, z] = ax;
+  return [
+    t*x*x + c,   t*x*y - s*z, t*x*z + s*y,
+    t*x*y + s*z, t*y*y + c,   t*y*z - s*x,
+    t*x*z - s*y, t*y*z + s*x, t*z*z + c,
+  ];
+}
+function axisAngle(m) {
   const tr = m[0] + m[4] + m[8];
   const ang = Math.acos(Math.max(-1, Math.min(1, (tr - 1) / 2)));
   let ax = [1, 0, 0];
@@ -293,27 +309,27 @@ function buildZoom() {
     const x = m[7] - m[5], y = m[2] - m[6], z = m[3] - m[1];
     const n = Math.hypot(x, y, z) || 1; ax = [x / n, y / n, z / n];
   }
+  return { ax, ang };
+}
 
-  let A = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]; // columns
-  let b = [0, 0, 0];
-  let S = 1;
-  const total = Math.max(0, Math.min(ZOOM_MAX, rt.zoomLevel));
-  const nb = Math.floor(total), zc = total - nb;
+// Build A (rows) + b and invS for G^zc, contracting toward fixed point L.
+function buildZoom() {
+  const k = params.k, span = params.arc, splay = params.splay, roll = params.roll;
+  const Pe = [RA - RA * Math.cos(span), RA * Math.sin(span), 0];
+  // Rg = Ry(roll) * Rz(splay) * Rz(-span)   (parent base -> child base)
+  const Rg = mMul(rotYm(roll), mMul(rotZm(splay), rotZm(-span)));
+  // fixed point L = (I - (1/k)Rg)^{-1} Pe
+  const L = mVec(mInv3(mSub(mI(), mScale(1 / k, Rg))), Pe);
 
-  const descend = (Lfn, sMul) => {
-    const bm = [b[0] - Pe[0], b[1] - Pe[1], b[2] - Pe[2]];
-    A = [Lfn(A[0]), Lfn(A[1]), Lfn(A[2])];
-    b = Lfn(bm);
-    S *= sMul;
-  };
-  const Lfull = (v) => { const r = Rfn(v); return [r[0] * k, r[1] * k, r[2] * k]; };
-  for (let j = 0; j < nb; j++) descend(Lfull, k);
-  if (zc > 0) {
-    const kf = Math.pow(k, zc);
-    const Lfrac = (v) => { const r = rotAxisv(ax, zc * ang, v); return [r[0] * kf, r[1] * kf, r[2] * kf]; };
-    descend(Lfrac, kf);
-  }
-  return { A, b, invS: 1 / S, bodyShow: total < 0.5 ? 1 : 0 };
+  const zc = rt.zoomLevel - Math.floor(rt.zoomLevel);    // wrap [0,1): seamless
+  const { ax, ang } = axisAngle(Rg);
+  const Rzc = rotAxism(ax, zc * ang);
+  const A = mScale(Math.pow(k, -zc), Rzc);               // contraction by k^-zc
+  const AL = mVec(A, L);
+  const b = [L[0] - AL[0], L[1] - AL[1], L[2] - AL[2]];
+  const invS = Math.pow(k, zc);
+  const bodyShow = rt.zoomLevel < 1.0 ? 1 : 0;
+  return { A, b, invS, bodyShow };
 }
 
 // ---------------------------------------------------------------------------
@@ -384,21 +400,21 @@ async function init() {
       rt.zoomLevel += params.zoomSpeed * dt;
       rt.colorPhase += (Math.abs(params.zoomSpeed) * 0.12 + 0.015) * dt;
     }
-    rt.zoomLevel = Math.max(0, Math.min(ZOOM_MAX, rt.zoomLevel));
+    if (rt.zoomLevel < 0) rt.zoomLevel = 0;
 
     const z = buildZoom();
     u[0] = W; u[1] = H; u[2] = now / 1000; u[3] = 0;
     u[4] = rt.yaw; u[5] = params.pitch; u[6] = params.dist;
     u[7] = Math.tan((params.fov * Math.PI / 180) * 0.5);
     u[8] = params.k; u[9] = params.arc; u[10] = params.tube; u[11] = RA;
-    u[12] = params.splay; u[13] = params.roll; u[14] = DEFAULTS_bodyR; u[15] = z.bodyShow;
+    u[12] = params.splay; u[13] = params.roll; u[14] = BODY_R; u[15] = z.bodyShow;
     u[16] = rt.colorPhase; u[17] = params.glow; u[18] = params.palette; u[19] = params.ao;
     u[20] = rt.yaw + 0.7; u[21] = 0.85; u[22] = params.fog; u[23] = params.exposure;
     u[24] = params.bg; u[25] = params.vignette; u[26] = params.depth; u[27] = z.invS;
     u[28] = params.quality; u[29] = 0; u[30] = 0; u[31] = 0;
-    u[32] = z.A[0][0]; u[33] = z.A[0][1]; u[34] = z.A[0][2]; u[35] = z.b[0];
-    u[36] = z.A[1][0]; u[37] = z.A[1][1]; u[38] = z.A[1][2]; u[39] = z.b[1];
-    u[40] = z.A[2][0]; u[41] = z.A[2][1]; u[42] = z.A[2][2]; u[43] = z.b[2];
+    u[32] = z.A[0]; u[33] = z.A[1]; u[34] = z.A[2]; u[35] = z.b[0];
+    u[36] = z.A[3]; u[37] = z.A[4]; u[38] = z.A[5]; u[39] = z.b[1];
+    u[40] = z.A[6]; u[41] = z.A[7]; u[42] = z.A[8]; u[43] = z.b[2];
     device.queue.writeBuffer(ubo, 0, u);
 
     const enc = device.createCommandEncoder();
@@ -424,8 +440,6 @@ async function init() {
   rt.last = performance.now();
   requestAnimationFrame(frame);
 }
-
-const DEFAULTS_bodyR = 0.42;
 
 function fail(msg) {
   const el = document.getElementById('nogpu');
@@ -506,16 +520,16 @@ function reset() {
 }
 function surprise() {
   const r = (a, b) => a + Math.random() * (b - a);
-  params.arc = r(1.7, 2.7);
+  params.arc = r(1.4, 2.7);
   params.splay = r(0.15, 1.1);
-  params.roll = r(0.4, 2.6);
+  params.roll = r(0.3, 2.6);
   params.k = r(1.7, 2.4);
   params.tube = r(0.035, 0.10);
   params.depth = Math.round(r(7, 11));
   params.palette = Math.floor(r(0, PALETTES.length));
   params.glow = r(0.1, 0.9);
   params.orbitSpeed = r(-0.18, 0.18);
-  params.zoomSpeed = r(0.05, 0.25) * (Math.random() < 0.3 ? -1 : 1);
+  params.zoomSpeed = r(0.04, 0.20) * (Math.random() < 0.3 ? -1 : 1);
   syncSliders();
 }
 
