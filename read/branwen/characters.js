@@ -2,14 +2,14 @@
    Each entry carries its role, the movements it appears in (links into the
    reading), and typed relationships (which seed the character web).
 
-   SKELETON IN PROGRESS. The principals and the House of Llŷr are seeded here
-   so the cast grid, the character web, and the mythograph render from the
-   first movement; the cast grows movement by movement as the translation
-   reaches the figures it introduces (Gwern, the cauldron, the starling, the
-   seven survivors, Caswallon). Attaches to window.BRANWEN. */
+   COMPLETE. The full cast of the six-movement branch — the House of Llŷr, the
+   court of Ireland, the seven survivors, and the tale's terrible instruments —
+   with appearance arrays keyed to the movements each is active in, and typed
+   relationships that seed the character web and the mythograph. Attaches to
+   window.BRANWEN. */
 window.BRANWEN = window.BRANWEN || {};
 window.BRANWEN.characters = {
-  intro: "<em>Branwen</em> is a family tragedy played at the scale of nations. At its centre is the House of Llŷr: the giant king <strong>Bendigeidfran</strong> (Brân the Blessed); his sister <strong>Branwen</strong>, married out to Ireland to bind the two islands; his brother <strong>Manawydan</strong>; and his two half-brothers by Penarddun — gentle <strong>Nisien</strong>, who makes peace, and <strong>Efnisien</strong>, who makes ruin. Against them stand <strong>Matholwch</strong> king of Ireland and his court, who let an insult fester into cruelty. Around them move the tale's terrible instruments — the <strong>Cauldron of Rebirth</strong>, the <strong>starling</strong> that carries Branwen's message across the sea, and the child <strong>Gwern</strong> whose death in the fire begins the end. <em>This roster grows movement by movement as the translation proceeds.</em>",
+  intro: "<em>Branwen</em> is a family tragedy played at the scale of nations. At its centre is the House of Llŷr: the giant king <strong>Bendigeidfran</strong> (Brân the Blessed); his sister <strong>Branwen</strong>, married out to Ireland to bind the two islands; his brother <strong>Manawydan</strong>; and his two half-brothers by Penarddun — gentle <strong>Nisien</strong>, who makes peace, and <strong>Efnisien</strong>, who makes ruin. Against them stand <strong>Matholwch</strong> king of Ireland and his court, who let an insult fester into cruelty. Around them move the tale's terrible instruments — the <strong>Cauldron of Rebirth</strong>, the <strong>starling</strong> that carries Branwen's message across the sea, and the child <strong>Gwern</strong> whose death in the fire begins the end — and, at the close, the seven survivors who bear home the wondrous head.",
   roles: [
     { id: "principal", label: "Principals",                     color: "#c9a24a" },
     { id: "llyr",      label: "The House of Llŷr & Britain",    color: "#6f9ac9" },
@@ -21,12 +21,12 @@ window.BRANWEN.characters = {
     // — Principals —
     { id: "bran", name: "Bendigeidfran", role: "principal", alt: "Brân the Blessed; Brân fab Llŷr", epithet: "the giant king of the Island of the Mighty",
       blurb: "\"Brân the Blessed,\" crowned king over Britain and exalted with the crown of London — a king the size of myth, a giant no house can hold. Son of Llŷr; brother of Branwen and Manawydan; half-brother of Nisien and Efnisien. He gives his sister in marriage to bind two islands, makes amends for Efnisien's outrage with the Cauldron of Rebirth, and at last leads the host of Britain over the sea to avenge her — wading the water himself, a bridge for his men. Mortally wounded by a poisoned spear, he commands his own head struck off; the head feasts and counsels the survivors, undecayed, for fourscore years before its burial at the White Hill of London, facing France, as a talisman against invasion.",
-      appears: [1, 2, 3, 4, 5], pending: true,
+      appears: [1, 2, 3, 4, 5, 6], pending: true,
       rel: [{ to: "branwen", label: "brother of" }, { to: "manawydan", label: "brother of" }, { to: "efnisien", label: "half-brother of" }, { to: "nisien", label: "half-brother of" }, { to: "matholwch", label: "father-in-law / overlord of" }, { to: "penarddun", label: "son of" }, { to: "cauldron", label: "gives the cauldron" }] },
 
     { id: "branwen", name: "Branwen", role: "principal", alt: "Branwen uerch Lyr", epithet: "daughter of Llŷr; one of the three chief ladies of Britain",
       blurb: "The title figure — \"Branwen daughter of Llŷr,\" one of the three chief matriarchs of the Island of the Mighty and the fairest maiden in the world. Married to Matholwch of Ireland to seal an alliance, she is honoured for a year and bears a son, Gwern; then, when the court's grudge over Efnisien's insult turns on her, she is driven from the king's bed to the kitchen and struck each day by the butcher. Over three years she rears a starling and teaches it to carry word of her wrong to her brother across the sea. The war her message brings lays both islands waste; she dies of a broken heart on the bank of the Alaw — <em>\"Alas that I was ever born: two good islands destroyed because of me.\"</em>",
-      appears: [1, 2, 3, 4, 5], pending: true,
+      appears: [1, 2, 3, 4, 5, 6], pending: true,
       rel: [{ to: "bran", label: "sister of" }, { to: "matholwch", label: "wife of" }, { to: "gwern", label: "mother of" }, { to: "manawydan", label: "sister of" }, { to: "starling", label: "rears and sends" }] },
 
     { id: "efnisien", name: "Efnisien", role: "principal", alt: "Efnissyen", epithet: "the strife-maker; half-brother to Brân",
@@ -37,7 +37,7 @@ window.BRANWEN.characters = {
     // — The House of Llŷr & Britain —
     { id: "manawydan", name: "Manawydan", role: "llyr", alt: "Manawydan fab Llŷr", epithet: "brother of Brân; one of the seven",
       blurb: "Brother of Brân and Branwen, son of Llŷr — the Welsh reflex of the Irish sea-god Manannán mac Lir. He counsels and follows Brân, and is one of the seven men who survive the war in Ireland to carry the head home. His own tale is the Third Branch, <em>Manawydan fab Llŷr</em>, which opens where this one ends.",
-      appears: [1, 2, 5], pending: true,
+      appears: [1, 2, 5, 6], pending: true,
       rel: [{ to: "bran", label: "brother of" }, { to: "branwen", label: "brother of" }, { to: "penarddun", label: "son of" }] },
 
     { id: "nisien", name: "Nisien", role: "llyr", alt: "Nissyen", epithet: "the peace-maker; half-brother to Brân",
@@ -84,17 +84,38 @@ window.BRANWEN.characters = {
 
     { id: "caradog", name: "Caradog son of Brân", role: "llyr", alt: "Caradawc uab Bran", epithet: "chief steward of Britain in Brân's absence",
       blurb: "Son of Bendigeidfran, left as chief of the seven stewards to govern the Island of the Mighty while Brân leads the host to Ireland. In his father's absence the realm is usurped by Caswallon son of Beli, who comes in a mantle of invisibility and cuts down the stewards by an unseen hand; Caradog, seeing his men killed and unable to strike the slayer, dies of a broken heart. A second tragedy folded inside the first. <em>Enters in Movement III.</em>",
-      appears: [3], pending: true,
+      appears: [3, 6], pending: true,
       rel: [{ to: "bran", label: "son of" }, { to: "pendaran", label: "fellow steward of" }] },
 
     { id: "pendaran", name: "Pendaran Dyfed", role: "llyr", alt: "Pendaran Dyuet", epithet: "the young page; later fosterer of Pryderi",
       blurb: "A young page among the seven stewards left to guard Britain — and a thread tying this branch to Pwyll's: Pendaran Dyfed is the fosterer of Pryderi in the First and Third Branches of the Mabinogi. One of the few of the company to escape the usurpation, fleeing to the woods. <em>Enters in Movement III.</em>",
-      appears: [3], pending: true,
+      appears: [3, 6], pending: true,
       rel: [{ to: "caradog", label: "fellow steward of" }] },
 
     { id: "morddwyd", name: "Morddwyd Tyllion", role: "llyr", alt: "Mordwyt Tyllyon", epithet: "the warrior of the lost war-cry",
       blurb: "A warrior of Britain whose obscure battle-shout — \"Gwern gwngwch fwch, Morddwyd Tyllion!\" (\"the gadflies of Morddwyd Tyllion's Cow!\") — rings out as the hall erupts after Gwern's death. A fossil war-formula whose meaning is lost; the Triads remember a Morddwyd Tyllion whose thigh-sinews were a marvel. A name the Mabinogi preserves without explaining. <em>Enters in Movement V.</em>",
       appears: [5], pending: true,
       rel: [{ to: "bran", label: "warrior of" }] },
+
+    // — The seven who return (and the usurper at home) —
+    { id: "pryderi", name: "Pryderi", role: "survivors", alt: "Pryderi fab Pwyll", epithet: "one of the seven; lord of Dyfed",
+      blurb: "Son of Pwyll and Rhiannon, lord of Dyfed — the hero carried over from the First Branch, whose presence among the seven survivors knits the Four Branches into one cycle. He bears Brân's head home and goes on into the Third Branch, <em>Manawydan</em>, as Manawydan's friend and the husband-by-arrangement of his mother's household. <em>Enters in Movement VI.</em>",
+      appears: [6], pending: true,
+      rel: [{ to: "manawydan", label: "companion of" }, { to: "bran", label: "bears the head of" }] },
+
+    { id: "taliesin", name: "Taliesin", role: "survivors", alt: "Taliesin Ben Beirdd", epithet: "the poet; one of the seven",
+      blurb: "The great poet of Welsh tradition, named among the seven who survive Ireland — the singer who remembers and recites. His presence makes the survivors not just a remnant but a memory: the tale endures because Taliesin came home from it. <em>Enters in Movement VI.</em>",
+      appears: [6], pending: true,
+      rel: [{ to: "bran", label: "survivor of the host of" }] },
+
+    { id: "heilyn", name: "Heilyn son of Gwyn", role: "survivors", alt: "Heilyn uab Gwyn Hen", epithet: "one of the seven; opener of the forbidden door",
+      blurb: "One of the seven survivors, and the man who, at Gwales, opens the forbidden door toward Cornwall — \"shame on my beard if I do not\" — ending the fourscore timeless years of the Assembly of the Wondrous Head and letting all the buried grief come crashing back. The hand that breaks the spell. <em>Enters in Movement VI.</em>",
+      appears: [6], pending: true,
+      rel: [{ to: "bran", label: "bearer of the head of" }] },
+
+    { id: "caswallon", name: "Caswallon son of Beli", role: "llyr", alt: "Caswallawn uab Beli", epithet: "the usurper under the veil of illusion",
+      blurb: "Son of Beli son of Mynogan, kin to the House of Llŷr through Penarddun. In Brân's absence he conquers the Island of the Mighty under a veil of illusion, killing the stewards by an unseen hand — only the sword visible. He spares his nephew Caradog, who dies of grief regardless. The second ruin, struck at home while Brân fought abroad. <em>Enters in Movement VI.</em>",
+      appears: [6], pending: true,
+      rel: [{ to: "caradog", label: "usurps and undoes" }] },
   ],
 };

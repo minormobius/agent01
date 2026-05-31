@@ -1,9 +1,7 @@
 /* Story graph — Branwen ferch Llŷr mapped onto Vladimir Propp's "Morphology
    of the Folktale" (1928): the 31 narrative functions of the wonder-tale.
 
-   SKELETON IN PROGRESS. The frame and the opening functions are seeded so the
-   spine, the cards, and the mythograph render from Movement I; the full
-   morphology is laid in as the translation reaches each movement. The
+   COMPLETE. The whole branch laid against Propp's spine across six acts. The
    distinctive thing about Branwen, against the rest of the corpus, is that it
    is a TRAGEDY: the wonder-tale spine that Pwyll, Owain, Culhwch and the
    English romances complete (Lack → … → Liquidation → Wedding) here runs
@@ -56,16 +54,22 @@ window.BRANWEN.propp = {
       realized: "The Irish kindle the Cauldron of Rebirth and cast in their dead, who rise each dawn mute and tireless, while the British dead stay dead. The gift Brân gave for peace in Movement II is now the engine of his host's destruction — the F→A inversion the absences below describe, played out in full.", passage: 5 },
     { act: "ruin", sym: "†(redempt)", node: "Self-sacrifice", name: "Efnisien breaks the cauldron", gloss: "The villain's one redeeming act, at the cost of his life.",
       realized: "Efnisien — who began the ruin and lit its spark — feigns death among the Irish corpses, is flung into the cauldron alive, and bursts it into four pieces, and his own heart with it. The strife-maker's single act of grace undoes his worst work, but saves only seven men. Propp has no slot for it: a villainy and a heroism in one body.", passage: 5 },
-    // The wounding, the wondrous head, and Branwen's death close the tale in
-    // the final movement.
+    // ── Act 6: head ──────────────────────────────────────────────
+    { act: "head", sym: "↓K°", node: "Pyrrhic liquidation", name: "Victory as catastrophe", gloss: "The lack is 'resolved' by mutual ruin.",
+      realized: "The field is won and the world is emptied: seven men of Britain escape, Brân mortally wounded by a poisoned spear, and Ireland left to five pregnant women in a cave. Propp's liquidation (K) here restores no order — the rescue of one woman has unmade two kingdoms. The wonder-tale spine completes only as tragedy.", passage: 6 },
+    { act: "head", sym: "T†", node: "The wondrous head", name: "Brân's head; the timeless feast", gloss: "Transfiguration — into a marvel beyond death.",
+      realized: "Brân has his own head struck off; it stays undecayed, feasting and counselling the seven through seven years at Harlech (the birds of Rhiannon) and fourscore at Gwales, until the forbidden door is opened and grief floods back. Buried at the White Hill facing France, it becomes Britain's talisman against invasion. Propp's transfiguration carried past death itself.", passage: 6 },
+    { act: "head", sym: "W̶", node: "No wedding; only graves", name: "The refused close", gloss: "Where the wonder-tale weds, this branch buries.",
+      realized: "Branwen dies of grief on the Alaw (\"two good islands laid waste because of me\"); Caradog's heart breaks at Caswallon's unseen sword; Ireland is re-peopled from a cave. There is no wedding, no restoration, no return to order — only the five provinces refounded over a battlefield, and a head in the ground. The structural negative of every other tale in the corpus.", passage: 6 },
+    // Translation complete: all six movements rendered.
   ],
   absent: {
-    note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the opening and the known shape of the branch, Branwen's distinctive Propp profile is the inversion of the wonder-tale, in three features:",
+    note: "With the whole branch rendered, Branwen's distinctive Propp profile is plain: it is the inversion of the wonder-tale, in three features.",
     groups: [
       { label: "The wedding at the wrong end", syms: "W", text: "Where Pwyll, Culhwch, Owain and Orfeo <em>close</em> on a wedding or restoration, Branwen <em>opens</em> on one — and spends the rest of the tale destroying it. The marriage is not the reward but the fuse." },
       { label: "The donor's gift as the enemy's weapon", syms: "F→A", text: "Propp's magical agent (F) is normally what wins the hero his victory. The Cauldron of Rebirth is given by Brân as <em>amends</em>, and in Ireland it is turned against his own men, reviving the Irish dead each night. The gift becomes the villainy it was meant to settle." },
       { label: "Liquidation that empties the world", syms: "K↓", text: "The rescue succeeds and ruins everything: the field is won, but Ireland is left with five pregnant women and Britain with seven men. There is no K (liquidation of lack) that restores an order — only a victory indistinguishable from catastrophe." },
     ],
-    verdict: "<em>Verdict pending the full translation.</em> The working thesis: Branwen is the corpus's structural negative. It is built from the same wonder-tale parts as its sister-branch Pwyll, but assembled to run the engine backwards — alliance into war, gift into weapon, rescue into desolation, marriage into a grave on the Alaw. Set against the restorative closes of the other five tales, it measures exactly how much the Welsh imagination could also refuse the happy ending.",
+    verdict: "Branwen is the corpus's structural negative. It is built from the same wonder-tale parts as its sister-branch Pwyll, but assembled to run the engine backwards — alliance into war, gift into weapon, rescue into desolation, marriage into a grave on the Alaw. Set against the restorative closes of the other five tales, it measures exactly how much the Welsh imagination could also refuse the happy ending.",
   },
 };

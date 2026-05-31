@@ -4,14 +4,15 @@
    folktale tact — named, not shown graphically. Each spread carries an `illus`
    brief — an art note for the illustration pass; it is not shown to the reader.
 
-   SKELETON IN PROGRESS. The cover and the marriage (Movement I) are seeded so
-   the Storybook view and the illustration pipeline run from the start; the
-   spreads grow movement by movement. Attaches to window.BRANWEN. */
+   COMPLETE. Eight paged spreads carrying the whole branch from the rock of
+   Harlech to the wondrous head, each with an `illus` art brief (not shown to
+   the reader); the tragedy's harshest beats named, not shown. Attaches to
+   window.BRANWEN. */
 window.BRANWEN = window.BRANWEN || {};
 window.BRANWEN.book = {
   meta: {
     kicker: "The Second Branch of the Mabinogi",
-    note: "A faithful retelling for readers 8 and up — Branwen daughter of Llŷr, page by page. A great old Welsh story, and a sad one, told with care. More spreads to follow; illustrations to follow.",
+    note: "A faithful retelling for readers 8 and up — Branwen daughter of Llŷr, page by page. A great old Welsh story, and a sad one, told with care across the whole branch. Illustrations follow via the pipeline.",
   },
   spreads: [
     { title: "Branwen ferch Llŷr",
@@ -42,5 +43,9 @@ window.BRANWEN.book = {
     { title: "The Feast that Turned to Fire",
       text: "In the great house the two peoples sat down to feast, and the boy Gwern was made king of Ireland, and passed from one loving uncle to the next. But when he came to Efnisien, that cruel man did a terrible thing, and the little boy was lost in the fire; and Branwen would have thrown herself in after her son had her brother Brân not held her fast. In an instant the whole hall was at war. The Irish had the magic cauldron, and cast their fallen into it, so that each dawn their dead rose to fight again, and the men of Britain could not win. Then Efnisien, sick with grief for the ruin he had made, hid among the Irish dead; and when they threw him into the cauldron, he stretched and strained with all his might until the great cauldron burst into four pieces — and his own heart broke with it. He gave his life to undo his worst deed.",
       illus: "Inside a great firelit hall in uproar, the huge ancient bronze Cauldron of Rebirth splitting apart into four pieces in a burst of sparks and cold light; the lean dark figure of Efnisien straining inside it with his last strength. Dim, armoured figures struggle in the smoky background — suggested, not graphic. Dramatic chiaroscuro, cold cauldron-gleam against fire-orange; earthy palette; sombre, painterly, child-friendly, no gore." },
+
+    { title: "The Wondrous Head",
+      text: "Only seven of Brân's men lived to come home, and Brân himself was wounded by a poisoned spear and could not be healed. So he asked them to cut off his head and carry it home — and though it was only a head, it stayed alive and merry, and talked with them just as it always had. The seven feasted seven years at Harlech, with three magical birds singing far out over the sea; and fourscore years more in a hall above the ocean at Gwales, where no sorrow could reach them — until one of them opened a door he had been warned to leave shut, and all their old grief came rushing back. Then they carried the head to London and buried it in the White Hill, facing the sea, to guard Britain from her enemies for ever. As for gentle Branwen, her heart had already broken on the way home, for the two islands ruined for her sake. And that is the tale of Branwen, daughter of Llŷr.",
+      illus: "A great hall above the sea at Gwales: the seven survivors seated at a quiet, golden feast, and at the head of the table the crowned, undecayed wondrous head of Bendigeidfran set upright among them, serene and calm as if only sleeping. Three small birds glimpsed singing far out over the ocean through a window; one heavy door in the background firmly shut. Soft candle-gold light, sombre and peaceful; earthy Welsh palette; painterly, child-friendly, a quiet wonder after sorrow." },
   ],
 };
