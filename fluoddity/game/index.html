@@ -23,40 +23,29 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); f
 body { display: flex; flex-direction: column; touch-action: manipulation; }
 a { color: var(--accent); text-decoration: none; }
 
-/* ── top chrome (minimal — appears piece by piece) ───────────────────────── */
 #bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid var(--rule); min-height: 44px; }
 #bar .home { color: var(--muted); font-size: 13px; } #bar .home:hover { color: var(--accent); }
 #bar .lvl { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.04em; opacity: 0; transition: opacity 0.4s; }
 #bar .lvl.show { opacity: 1; }
 #bar .spacer { flex: 1; }
-#bar .lab { font-size: 11px; color: var(--muted); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 8px; opacity: 0; transition: opacity 0.4s; }
-#bar .lab.show { opacity: 0.7; } #bar .lab:hover { opacity: 1; color: var(--accent); }
+#bar .lab { font-size: 11px; color: var(--muted); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 8px; opacity: 0.7; }
+#bar .lab:hover { opacity: 1; color: var(--accent); }
 
-/* ── heat gauge (unfolds after first tap) ────────────────────────────────── */
 #gauge { flex: 0 0 auto; height: 0; overflow: hidden; transition: height 0.5s; }
 #gauge.show { height: 26px; }
 #gauge .track { margin: 7px 14px; height: 6px; border-radius: 4px; background: linear-gradient(90deg, var(--cold), #2a6b4f 38%, var(--accent) 55%, #d6b54a 78%, var(--hot)); position: relative; opacity: 0.85; }
 #gauge .knob { position: absolute; top: -4px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.7); transform: translateX(-50%); transition: left 0.6s cubic-bezier(.2,.8,.2,1); }
 #gauge .tag { position: absolute; top: -22px; font-size: 10px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
 
-/* ── play area ───────────────────────────────────────────────────────────── */
 #stage { flex: 1 1 auto; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; padding: 10px; }
 
-/* grid of 16 (levels 1–2) */
-#grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(100%, calc(100dvh - 210px)); aspect-ratio: 1; }
-.cell { position: relative; border-radius: 9px; overflow: hidden; background: #000; border: 2px solid var(--rule); cursor: pointer; transition: transform 0.12s, border-color 0.15s, box-shadow 0.15s, opacity 0.4s; opacity: 0; }
-.cell.in { opacity: 1; }
-.cell canvas { width: 100%; height: 100%; display: block; }
-.cell:hover { transform: scale(1.03); border-color: #4b5560; }
-.cell.sel { border-color: #fff; transform: scale(1.05); box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(56,225,192,0.5); z-index: 2; }
-.cell.selB { border-color: #fff; box-shadow: 0 0 0 2px var(--hot), 0 0 18px rgba(255,107,61,0.5); }
-.cell .boil { position: absolute; inset: 0; border-radius: 7px; box-shadow: inset 0 0 0 2px var(--hot); animation: boilpulse 1.1s ease-in-out infinite; pointer-events: none; }
-@keyframes boilpulse { 0%,100% { opacity: 0.35; } 50% { opacity: 0.9; } }
-.cell .pick { position: absolute; top: 4px; left: 5px; font-size: 10px; font-weight: 700; color: #04110e; background: var(--accent); border-radius: 4px; padding: 1px 5px; }
-.cell .pickB { background: var(--hot); color: #fff; }
+/* the LIVE arena (levels 1–2) — one shared field, 16 species, animating */
+#arena { width: min(100%, calc(100dvh - 215px)); aspect-ratio: 1; border-radius: 14px; overflow: hidden; border: 1px solid var(--rule); background: #000; position: relative; }
+#arena canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+#vbadge { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 7px; background: rgba(0,0,0,0.55); letter-spacing: 0.04em; pointer-events: none; }
 
 /* big live organism (level 3) */
-#big { display: none; width: min(100%, calc(100dvh - 210px)); aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--rule); position: relative; touch-action: none; }
+#big { display: none; width: min(100%, calc(100dvh - 215px)); aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--rule); position: relative; touch-action: none; }
 #big canvas { width: 100%; height: 100%; display: block; }
 #big .swipehint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 6%; pointer-events: none; font-size: 30px; font-weight: 800; }
 #big .swipehint .nay { color: var(--muted); } #big .swipehint .yay { color: var(--hot); }
@@ -66,19 +55,26 @@ a { color: var(--accent); text-decoration: none; }
 #big .flash.go { animation: flash 0.45s ease-out; }
 @keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
 
-/* ── prompt / dock ───────────────────────────────────────────────────────── */
-#prompt { flex: 0 0 auto; text-align: center; font-size: 14px; color: var(--fg); padding: 4px 16px 2px; min-height: 22px; }
+/* species legend (levels 1–2) */
+#legend { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; padding: 9px 14px 0; }
+#legend.hide { display: none; }
+.sw { width: 26px; height: 18px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; transition: transform 0.08s, box-shadow 0.12s; }
+.sw:hover { transform: scale(1.18); }
+.sw.a { border-color: #fff; transform: scale(1.22); box-shadow: 0 0 10px rgba(56,225,192,0.75); }
+.sw.b { border-color: #fff; transform: scale(1.22); box-shadow: 0 0 10px rgba(255,107,61,0.75); }
+.sw.flash { animation: swflash 0.45s ease-out; }
+@keyframes swflash { 0% { transform: scale(1.5); box-shadow: 0 0 16px rgba(255,255,255,0.9); } 100% { transform: scale(1); } }
+
+#prompt { flex: 0 0 auto; text-align: center; font-size: 14px; color: var(--fg); padding: 8px 16px 2px; min-height: 22px; }
 #prompt b { color: var(--accent); }
 #dock { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 14px 16px; flex-wrap: wrap; }
 .btn { font-family: var(--mono); font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 11px 18px; cursor: pointer; min-width: 96px; }
 .btn:hover:not(:disabled) { border-color: var(--accent); }
 .btn:disabled { opacity: 0.35; cursor: default; }
 .btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
-.btn.primary:disabled { background: #1c3a34; color: #6b8f88; border-color: #1c3a34; }
 .btn.nay { color: var(--muted); } .btn.yay { color: #fff; background: var(--hot); border-color: var(--hot); font-weight: 700; }
 .ghost { background: transparent; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; } .ghost:hover { color: var(--accent); }
 
-/* ── overlays ────────────────────────────────────────────────────────────── */
 .ov { position: fixed; inset: 0; background: rgba(5,6,8,0.86); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 30px; z-index: 50; }
 .ov.show { display: flex; }
 .ov h1 { font-size: clamp(40px, 11vw, 88px); margin: 0; letter-spacing: -0.02em; }
@@ -91,8 +87,6 @@ a { color: var(--accent); text-decoration: none; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 #fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; z-index: 100; }
-
-@keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
 </style>
 </head>
 <body>
@@ -107,18 +101,18 @@ a { color: var(--accent); text-decoration: none; }
 <div id="gauge"><div class="track"><div class="knob" id="knob" style="left:8%"></div><div class="tag" id="gtag" style="left:8%">cold</div></div></div>
 
 <div id="stage">
-  <div id="grid"></div>
+  <div id="arena"><div id="vbadge">settling…</div></div>
   <div id="big">
     <canvas id="bigcv"></canvas>
     <div class="swipehint"><span class="nay">✕</span><span class="yay">♥</span></div>
     <div class="flash" id="flash"></div>
   </div>
 </div>
+<div id="legend"></div>
 
 <div id="prompt">warming up…</div>
 <div id="dock"></div>
 
-<!-- overlays -->
 <div class="ov" id="ov-level">
   <h1 id="ov-title"></h1>
   <p id="ov-body"></p>
@@ -136,8 +130,8 @@ a { color: var(--accent); text-decoration: none; }
 
 <script type="module">
 "use strict";
-import { FluoddityEngine, randomConfig, mutate, defaultConfig, PARAMS } from '../engine.js';
-import { readDescriptors, verdict, fitness, fitness2, merge, FEATURES8 } from '../descriptors.js';
+import { FluoddityEngine, randomConfig, mutate, defaultConfig } from '../engine.js';
+import { readDescriptors, verdict, fitness, fitness2, merge, FEATURES8, VIT_COLOR } from '../descriptors.js';
 import { auth, mountAuthChip } from '../authchip.js';
 
 const $ = (s) => document.querySelector(s);
@@ -146,240 +140,198 @@ const ORG = 'com.minomobi.fluoddity.organism';
 const RUB = 'com.minomobi.fluoddity.rubric';
 const EXP = 'com.minomobi.fluoddity.expedition';
 
-// ── tuning constants (see fluoddity/GAME.md §4–§8) ──────────────────────────
-const DIM = 320, COUNT = 30000;          // compact engine for the 16-cell grid
-const SETTLE = 210, MOTION = 8, T2 = 150; // settle → motion read → second snapshot
-const T_START = 0.12, T_STEP = 0.13;      // level-1 heat ladder
-const SPREAD_L1 = 0.03, SPREAD_L2 = 0.06; // how far the 16 seeds fan out
-const REFIT_EVERY = 3, MIN_EACH = 4;      // rubric fit cadence / minimum votes
-const ORG_MIN_MS = 1500, ORG_CAP = 60;    // PDS write hygiene (level 3)
+// ── tuning (see fluoddity/GAME.md §4–§8) ─────────────────────────────────────
+const ADIM = 512, ACOUNT = 70000;          // the live arena (levels 1–2)
+const SETTLE = 200, MOTION = 8, T2 = 150;   // used by evaluate() for hero search
+const T_START = 0.12, T_STEP = 0.13, L2_COOL = 0.075; // heat ladder / level-2 cooling
+const SPREAD_L1 = 0.03, SPREAD_L2 = 0.06;   // how far the 16 species' seeds fan out
+const SETTLE_FRAMES = 150;                  // ignore win-checks until the field settles
+const REFIT_EVERY = 3, MIN_EACH = 4;        // rubric fit cadence (level 3)
+const ORG_MIN_MS = 1500, ORG_CAP = 60;      // PDS write hygiene (level 3)
 
 mountAuthChip($('#auth'));
 
-let engine = null;
-try { engine = new FluoddityEngine(DIM, COUNT); }
+let AE = null;  // arena engine (L1/L2)
+let BE = null;  // breed engine (L3)
+try { AE = new FluoddityEngine(ADIM, ACOUNT, { arena: true }); }
 catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This game needs WebGL2 with float render targets — ' + (e.message || e); }
 
-// ── tiny helpers ─────────────────────────────────────────────────────────────
+// ── helpers ──────────────────────────────────────────────────────────────────
 const lerp = (a, b, t) => a + (b - a) * t;
-const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
-const sleep = () => new Promise(r => requestAnimationFrame(r));
+const clampN = (x, lo, hi) => x < lo ? lo : x > hi ? hi : x;
+const clamp01 = (x) => clampN(x, 0, 1);
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1600); }
 async function sha12(s) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].slice(0, 6).map(x => x.toString(16).padStart(2, '0')).join(''); }
-const encodeCfg = (c) => btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-// "too hot" folds boiling + blown-out together so the win/lose test is robust to
-// exactly where the chaotic edge lands for a given seed.
 const tooHot = (vd) => vd === 'boiling' || vd === 'blown out';
 
-// A base genome's shape knobs are fixed; the energy knobs ride temperature T.
-function hero() {
-  const g = defaultConfig();
-  g.cohorts = 16; g.mutation_scale = 0.02; g.trail_diffusion = 0.6; g.ink = 2.6;
-  return g;
-}
-function genomeAt(base, T, seed) {
-  const g = { ...base };
+// A base genome's shape is fixed; the energy knobs ride temperature T. One arena
+// config expands into 16 species via seedOf() (mirrors FRAG_ENTITY_ARENA).
+function hero() { const g = defaultConfig(); g.cohorts = 16; g.trail_diffusion = 0.6; g.ink = 2.6; return g; }
+function arenaCfg(base, T, spread) {
+  const g = hero();
+  g.cohorts = 16; g.mutation_scale = spread; g.rule_seed = base;
   g.global_force_mult = lerp(0.12, 1.3, T);
   g.sensor_gain = lerp(1.5, 7.0, T);
   g.trail_persistence = lerp(0.985, 0.90, T);
-  g.rule_seed = seed;
+  g.ink = Math.max(g.ink, 2.2);
   return g;
 }
+const seedOf = (cfg, k) => cfg.rule_seed + k * (0.08 + cfg.mutation_scale * 2.0);
 
-// Settle a config on the shared engine and read its phenotype + verdict. Returns
-// { vd, fit, v } where v carries the 8 merged descriptor fields a rubric reads.
+// Settle a config on the arena engine and read the whole-field phenotype.
 function evaluate(cfg) {
-  engine.load(cfg, 'ev' + Math.random());
-  engine.step(SETTLE); engine.render();
-  const a1 = readDescriptors(engine.cv, null);
-  engine.step(MOTION); engine.render();
-  const v1 = readDescriptors(engine.cv, a1.lum);
-  engine.step(T2); engine.render();
-  const a2 = readDescriptors(engine.cv, null);
-  engine.step(MOTION); engine.render();
-  const v2 = readDescriptors(engine.cv, a2.lum);
-  const v = merge(v1, v2);
-  return { vd: verdict(v1, false), fit: fitness2(v1, v2), v };
+  AE.load(cfg, 'ev' + Math.random());
+  AE.step(SETTLE); AE.render();
+  const a1 = readDescriptors(AE.cv, null);
+  AE.step(MOTION); AE.render();
+  const v1 = readDescriptors(AE.cv, a1.lum);
+  AE.step(T2); AE.render();
+  const a2 = readDescriptors(AE.cv, null);
+  AE.step(MOTION); AE.render();
+  const v2 = readDescriptors(AE.cv, a2.lum);
+  return { vd: verdict(v1, false), fit: fitness2(v1, v2) };
 }
-
-// Reject-sample a base genome that is genuinely alive at mid temperature, so the
-// level-1 heat ladder has somewhere good to climb to. Falls back to best-of-N.
+// Reject-sample a base seed whose 16-species field is genuinely lively at mid heat.
 function findHero() {
-  const base = hero();
-  let best = null, bestFit = -1;
-  for (let i = 0; i < 14; i++) {
+  let best = Math.random(), bestFit = -1;
+  for (let i = 0; i < 10; i++) {
     const seed = Math.random();
-    const r = evaluate(genomeAt(base, 0.5, seed));
+    const r = evaluate(arenaCfg(seed, 0.5, SPREAD_L1));
     if (r.fit > bestFit) { bestFit = r.fit; best = seed; }
-    if (bestFit > 0.18) break;
+    if (bestFit > 0.12) break;
   }
-  return { base, seed: best };
+  return best;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════════════════════════
 const SKEY = 'fluoddity_game_state';
-let S = { level: 1, T: T_START, center: null, seedBase: null, picks: [], gen: 0 };
-let cells = [];           // [{cfg, vd, fit, v, el, cv}]
-let busy = false;
-let HERO = null;
+let S = { level: 1, T: T_START, center: null, picks: [], gen: 0, champion: null };
+let cfgCur = null, framesSinceLoad = 0, sampleCounter = 0, winStreak = 0, arenaRunning = false, locked = false;
 
-function save() { try { localStorage.setItem(SKEY, JSON.stringify({ level: S.level, T: S.T, center: S.center, seedBase: S.seedBase, champion: S.champion || null })); } catch {} }
+function save() { try { localStorage.setItem(SKEY, JSON.stringify({ level: S.level, T: S.T, center: S.center, champion: S.champion || null })); } catch {} }
 function restore() { try { const r = JSON.parse(localStorage.getItem(SKEY) || 'null'); if (r && r.center != null) return r; } catch {} return null; }
 
-// ── grid plumbing ────────────────────────────────────────────────────────────
-function buildGridDom() {
-  const g = $('#grid'); g.innerHTML = ''; cells = [];
-  for (let i = 0; i < 16; i++) {
-    const el = document.createElement('div'); el.className = 'cell';
-    const cv = document.createElement('canvas'); cv.width = cv.height = DIM; el.appendChild(cv);
-    el.addEventListener('click', () => pick(i));
-    g.appendChild(el);
-    cells.push({ el, cv, cfg: null, vd: 'settling…', fit: 0, v: null });
+// ── the live arena loop (L1/L2) ──────────────────────────────────────────────
+function loadArena(cfg, key) { cfgCur = cfg; framesSinceLoad = 0; sampleCounter = 0; winStreak = 0; AE.load(cfg, key || ('a' + Math.random())); }
+function startArena() { if (!arenaRunning) { arenaRunning = true; requestAnimationFrame(arenaLoop); } }
+function arenaLoop() {
+  if (S.level >= 3) { arenaRunning = false; return; }   // L3 takes over
+  AE.step(3); AE.render(); framesSinceLoad += 3;
+  if (++sampleCounter >= 15) { sampleCounter = 0; sampleVerdict(); }
+  requestAnimationFrame(arenaLoop);
+}
+// Read the field exactly like evaluate() (8-step motion) so verdict thresholds
+// stay calibrated; drive the badge + win detection.
+function sampleVerdict() {
+  const a1 = readDescriptors(AE.cv, null);
+  AE.step(MOTION); AE.render(); framesSinceLoad += MOTION;
+  const v = readDescriptors(AE.cv, a1.lum);
+  const vd = verdict(v, false);
+  setBadge(vd);
+  if (locked || framesSinceLoad < SETTLE_FRAMES) { winStreak = 0; return; }
+  if (S.level === 1) {
+    if (tooHot(vd)) { if (++winStreak >= 2) winLevel1(); } else winStreak = 0;
+  } else if (S.level === 2) {
+    const tamed = !tooHot(vd) && vd !== 'dead' && v.fill > 0.04;
+    if (tamed) { if (++winStreak >= 2) winLevel2(); } else winStreak = 0;
   }
 }
-function blit(cell) {
-  const ctx = cell.cv.getContext('2d');
-  ctx.drawImage(engine.cv, 0, 0, DIM, DIM);
-}
 
-// Render the 16 candidate genomes one at a time (proven select.html pattern):
-// settle → snapshot → blit, yielding to the UI so cells pop in like cards.
-async function renderGrid(genomes) {
-  busy = true;
-  cells.forEach(c => { c.el.classList.remove('in', 'sel', 'selB'); c.el.querySelector('.boil')?.remove(); c.el.querySelector('.pick')?.remove(); });
-  S.picks = [];
-  let boiling = 0, alive = 0;
-  for (let i = 0; i < 16; i++) {
-    const cfg = genomes[i];
-    const r = evaluate(cfg);
-    blit(cells[i]);
-    cells[i].cfg = cfg; cells[i].vd = r.vd; cells[i].fit = r.fit; cells[i].v = r.v;
-    if (tooHot(r.vd)) { boiling++; const b = document.createElement('div'); b.className = 'boil'; cells[i].el.appendChild(b); }
-    if (r.vd === 'alive') alive++;
-    cells[i].el.classList.add('in');
-    await sleep();
+// ── species selection: legend swatches + tap-the-field ────────────────────────
+function buildLegend() {
+  const L = $('#legend'); L.innerHTML = '';
+  for (let k = 0; k < 16; k++) {
+    const sw = document.createElement('div'); sw.className = 'sw'; sw.dataset.k = k;
+    sw.style.background = `hsl(${(k / 16 * 360).toFixed(0)} 72% 55%)`;
+    sw.title = 'species ' + (k + 1);
+    sw.addEventListener('click', () => selectSpecies(k));
+    L.appendChild(sw);
   }
-  busy = false;
-  onGridReady(boiling, alive);
 }
+function attachFieldTap() {
+  AE.cv.addEventListener('click', (e) => {
+    try {
+      const gl = AE.gl, r = AE.cv.getBoundingClientRect();
+      const gx = clampN(Math.floor((e.clientX - r.left) / r.width * AE.dim), 0, AE.dim - 1);
+      const gy = clampN(Math.floor((1 - (e.clientY - r.top) / r.height) * AE.dim), 0, AE.dim - 1);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, AE.cFBO[AE.cPing]);
+      const buf = new Float32Array(4);
+      gl.readPixels(gx, gy, 1, 1, gl.RGBA, gl.FLOAT, buf);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (buf[2] === 0 && buf[3] === 0) return;        // nothing deposited there
+      let hue = Math.atan2(buf[3], buf[2]) / (2 * Math.PI); hue = ((hue % 1) + 1) % 1;
+      selectSpecies(Math.round(hue * 16) % 16);
+    } catch { /* readback unsupported — use the legend */ }
+  });
+}
+function selectSpecies(k) {
+  if (S.level === 1) {
+    // a pick re-centers on that species' brain and turns the heat up a notch.
+    S.center = seedOf(cfgCur, k); S.T = clamp01(S.T + T_STEP); S.gen++;
+    $('#gauge').classList.add('show'); setGauge(); save(); flashSwatch(k);
+    loadArena(arenaCfg(S.center, S.T, SPREAD_L1), 'l1g' + S.gen);
+    prompt('warmer… tap the liveliest one');
+  } else if (S.level === 2) {
+    const i = S.picks.indexOf(k);
+    if (i >= 0) S.picks.splice(i, 1); else if (S.picks.length < 2) S.picks.push(k); else S.picks = [k];
+    highlightPicks();
+    prompt(S.picks.length === 2 ? 'regrow to blend <b>A × B</b> and cool it' : S.picks.length === 1 ? 'tap a <b>second</b> to blend — or regrow to settle around this one' : 'tap up to <b>two calm species</b>, then regrow');
+  }
+}
+function highlightPicks() {
+  document.querySelectorAll('.sw').forEach((sw, k) => { sw.classList.toggle('a', S.picks[0] === k); sw.classList.toggle('b', S.picks[1] === k); });
+}
+function flashSwatch(k) { const sw = document.querySelectorAll('.sw')[k]; if (!sw) return; sw.classList.remove('flash'); void sw.offsetWidth; sw.classList.add('flash'); }
 
-// ── level 1: HEAT ───────────────────────────────────────────────────────────
+// ── level 1: HEAT ────────────────────────────────────────────────────────────
 function startLevel1(resumed) {
-  S.level = 1; setLevelLabel('level 1 · heat');
-  $('#gauge').classList.toggle('show', false);
-  setDock([{ id: 'reroll', label: '↻ new', cls: '', fn: freshHero }]);
-  prompt('warming up…');
-  if (!resumed) { const h = findHero(); HERO = h.base; S.seedBase = h.seed; S.center = h.seed; S.T = T_START; }
+  S.level = 1; locked = false; setLevelLabel('level 1 · heat'); showArena();
+  setDock([{ id: 'reroll', label: '↻ new world', cls: '', fn: freshHero }]);
+  $('#gauge').classList.remove('show');
+  if (!resumed) { S.center = findHero(); S.T = T_START; }
   S.gen = 0;
-  renderGrid(gridL1());
+  loadArena(arenaCfg(S.center, S.T, SPREAD_L1), 'l1');
+  prompt('tap the species you like — <b>make it interesting</b>');
+  startArena();
 }
-function gridL1() {
-  const out = [];
-  for (let k = 0; k < 16; k++) out.push(genomeAt(HERO, S.T, S.center + (k - 7.5) * SPREAD_L1));
-  return out;
-}
-function freshHero() { if (busy) return; const h = findHero(); HERO = h.base; S.seedBase = h.seed; S.center = h.seed; S.T = T_START; S.gen = 0; setGauge(); renderGrid(gridL1()); }
+function freshHero() { S.center = findHero(); S.T = T_START; S.gen = 0; setGauge(); loadArena(arenaCfg(S.center, S.T, SPREAD_L1), 'l1f'); prompt('tap the species you like — <b>make it interesting</b>'); }
 
 // ── level 2: TAME ────────────────────────────────────────────────────────────
 function startLevel2() {
-  S.level = 2; setLevelLabel('level 2 · tame'); save();
+  S.level = 2; locked = false; setLevelLabel('level 2 · tame'); save(); showArena();
+  S.picks = []; highlightPicks();
   setDock([
-    { id: 'apply', label: 'regrow', cls: 'primary', fn: applyL2 },
-    { id: 'reroll', label: '↻ reset', cls: '', fn: () => renderGrid(gridFromHero()) },
+    { id: 'apply', label: 'regrow ⟳', cls: 'primary', fn: regrowL2 },
+    { id: 'reseed', label: '↻ reset', cls: '', fn: () => { S.picks = []; highlightPicks(); loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'l2r' + Math.random()); } },
   ]);
-  renderGrid(gridFromHero());
+  // inherit level-1's boil temperature, so the field starts wild and must be tamed.
+  loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'l2');
+  prompt('too wild — tap up to <b>two calm species</b>, then regrow to cool it');
+  startArena();
 }
-function gridFromHero() {
-  // hand level-1's hot family over as 16 full, independent genomes to tame.
-  const out = [];
-  for (let k = 0; k < 16; k++) out.push(genomeAt(HERO, S.T, S.center + (k - 7.5) * SPREAD_L2));
-  return out;
-}
-function applyL2() {
-  if (busy) return;
+function regrowL2() {
   const ps = S.picks.slice();
-  let genomes;
-  if (ps.length >= 2) {                       // 2 taps → interpolate A↔B across 16
-    const A = cells[ps[0]].cfg, B = cells[ps[1]].cfg;
-    genomes = interpolate(A, B);
+  S.T = clamp01(S.T - L2_COOL);                 // every regrow eases it toward the edge
+  let base, spread = SPREAD_L2;
+  if (ps.length >= 2) {                          // interpolate: the 16 seeds span A→B
+    const sA = seedOf(cfgCur, ps[0]), sB = seedOf(cfgCur, ps[1]);
+    base = Math.min(sA, sB); spread = clampN((Math.abs(sB - sA) / 15 - 0.08) / 2, 0, 0.2);
     prompt('blending the two…');
-  } else if (ps.length === 1) {               // 1 tap → mutate around it
-    const P = cells[ps[0]].cfg;
-    genomes = Array.from({ length: 16 }, (_, k) => k === 0 ? { ...P } : mutate(P, 0.45));
-    prompt('mutating around your pick…');
-  } else {                                    // 0 taps → fresh hero seed
-    const h = findHero(); HERO = h.base; S.center = h.seed;
-    genomes = gridFromHero();
-    prompt('seeded fresh…');
-  }
-  renderGrid(genomes);
-}
-// Interpolate two genomes across the 16 cells. Continuous physics knobs lerp
-// linearly (so the morph reads as a gradient even where the brain jumps); the
-// rule_seed walks the line from A to B — exactly arena's seedOf() line, reused.
-function interpolate(A, B) {
-  const out = [];
-  for (let k = 0; k < 16; k++) {
-    const t = k / 15, g = { ...A };
-    for (const key in PARAMS) g[key] = lerp(A[key] ?? defaultConfig()[key], B[key] ?? defaultConfig()[key], t);
-    g.rule_seed = lerp(A.rule_seed, B.rule_seed, t);
-    g.cohorts = 16;
-    out.push(g);
-  }
-  return out;
-}
-
-// ── selection (levels 1–2) ───────────────────────────────────────────────────
-function pick(i) {
-  if (busy || !cells[i].cfg) return;
-  if (S.level === 1) {
-    // a pick re-centers on that brain and turns up the heat one notch.
-    S.center = cells[i].cfg.rule_seed; S.T = clamp01(S.T + T_STEP); S.gen++;
-    $('#gauge').classList.add('show'); setGauge(); save();
-    flashSel(i);
-    setTimeout(() => renderGrid(gridL1()), 220);
-  } else {
-    // level 2: collect up to two picks; A is accent, B is hot.
-    const idx = S.picks.indexOf(i);
-    if (idx >= 0) { S.picks.splice(idx, 1); }
-    else if (S.picks.length < 2) { S.picks.push(i); }
-    else { S.picks = [i]; }
-    cells.forEach((c, j) => {
-      c.el.classList.toggle('sel', S.picks[0] === j);
-      c.el.classList.toggle('selB', S.picks[1] === j);
-      c.el.querySelector('.pick')?.remove();
-      const r = S.picks.indexOf(j);
-      if (r >= 0) { const t = document.createElement('div'); t.className = 'pick' + (r === 1 ? ' pickB' : ''); t.textContent = r === 1 ? 'B' : 'A'; c.el.appendChild(t); }
-    });
-    prompt(S.picks.length === 0 ? 'tap up to <b>two</b> calm ones, then regrow' : S.picks.length === 1 ? 'tap a <b>second</b> to blend — or regrow to mutate this one' : 'regrow to blend <b>A × B</b>');
-  }
-}
-function flashSel(i) { cells[i].el.classList.add('sel'); }
-
-// ── what to do when a grid finishes rendering ────────────────────────────────
-function onGridReady(boiling, alive) {
-  if (S.level === 1) {
-    setGauge();
-    if (boiling >= 1) { winLevel1(); return; }
-    prompt(S.gen === 0 ? 'tap the one you like — <b>make it interesting</b>' : 'warmer… keep tapping the liveliest one');
-  } else if (S.level === 2) {
-    setBoilLabel(boiling);
-    if (boiling === 0 && alive >= 3) { winLevel2(); return; }
-    if (S.picks.length === 0) prompt(`<b>${boiling}/16 boiling</b> — tap up to two calm ones, then regrow`);
-  }
+  } else if (ps.length === 1) { base = seedOf(cfgCur, ps[0]); prompt('settling around your pick…'); }
+  else { base = Math.random(); prompt('fresh seed…'); }
+  S.center = base; S.picks = []; highlightPicks(); setGauge();
+  loadArena(arenaCfg(base, S.T, spread), 'l2g' + Math.random());
 }
 
 function winLevel1() {
-  setLevelLabel('');
-  overlay('boil', 'IT BOILED', 'You rode it all the way to the chaotic edge.<br><br>Now the harder game: <b>tame the boil.</b> A second tap lets you blend two organisms — pull the whole field back from chaos without letting it die.', () => startLevel2());
+  setLevelLabel(''); winStreak = 0; locked = true;
+  overlay('boil', 'IT BOILED', 'You rode it all the way to the chaotic edge.<br><br>Now the harder game: <b>tame the boil.</b> A second tap lets you blend two species — pull the whole field back from chaos without letting it die.', () => startLevel2());
 }
 function winLevel2() {
-  setLevelLabel('');
-  // remember the calmest pick (or champion) as the seed for breeding.
-  const champ = S.picks.length ? cells[S.picks[0]] : cells.slice().sort((a, b) => b.fit - a.fit)[0];
-  S.champion = champ ? { ...champ.cfg } : gridFromHero()[8];
+  setLevelLabel(''); winStreak = 0; locked = true;
+  S.champion = { ...cfgCur, mutation_scale: 0.02 };  // the tamed genome → the breeding seed
   save();
   overlay('tame', 'TAMED', 'You found the living edge — structured, moving, not boiling.<br><br>Last unlock: <b>breed it.</b> An endless stream, one at a time. Keep the ones you love. Your taste steers the rest — and your finds are saved to your own Bluesky.', () => gateLevel3());
 }
@@ -403,27 +355,26 @@ function gateLevel3() {
 
 function startLevel3() {
   $('#ov-gate').classList.remove('show'); $('#ov-level').classList.remove('show');
-  S.level = 3; setLevelLabel('level 3 · breed'); $('#gauge').classList.remove('show');
-  $('#grid').style.display = 'none'; $('#big').style.display = 'block';
+  S.level = 3; arenaRunning = false; locked = true; setLevelLabel('level 3 · breed'); $('#gauge').classList.remove('show');
+  $('#arena').style.display = 'none'; $('#legend').classList.add('hide'); $('#big').style.display = 'block';
   $('#lablink').setAttribute('href', '../breed.html');
-  // bigger, livelier engine for the one-at-a-time stream.
-  try { engine = new FluoddityEngine(480, 55000); } catch {}
-  const seed = S.champion || gridFromHero()[8];
+  // a fresh, livelier single-organism engine for the one-at-a-time stream.
+  try { BE = new FluoddityEngine(480, 55000); } catch {}
+  const seed = S.champion || { ...hero(), rule_seed: (S.center ?? Math.random()), mutation_scale: 0.02 };
   L3 = {
     pool: [{ config: seed, score: 1 }],
     votes: { hotF: [], notF: [] }, traj: [], scoreFn: null,
     rubricRkey: 'game' + Date.now().toString(36),
     sessionStartedAt: new Date().toISOString(),
     saved: new Set(), lastOrgAt: 0, orgCount: 0, served: 0,
-    cur: null, prevLum: null, v1: null, v2: null,
+    cur: null, prevLum: null, v1: null, v2: null, curFrames: 0,
   };
-  // pick up any taste the player trained earlier on hot.html.
   try { const r = JSON.parse(localStorage.getItem('fluoddity_active_rubric') || 'null'); if (r?.code) installRubric(r.code); } catch {}
   setDock([
     { id: 'not', label: '✕  not', cls: 'nay', fn: () => swipe(0) },
     { id: 'yay', label: '♥  hot', cls: 'yay', fn: () => swipe(1) },
   ]);
-  prompt('keep the ones you like — <b>swipe or tap</b>');
+  prompt('keep the ones you like — <b>swipe or tap a button</b>');
   bindSwipe();
   serveNext();
   requestAnimationFrame(l3Loop);
@@ -433,8 +384,7 @@ function startLevel3() {
 function installRubric(code) { try { L3.scoreFn = new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', code); } catch { L3.scoreFn = null; } }
 function scoreOf(v, fit) { if (!L3.scoreFn) return fit; try { const x = L3.scoreFn(v, fit, 0, 0, '', 0, null); return Number.isFinite(x) ? x : fit; } catch { return fit; } }
 
-// softmax parent pick (tau≈0.3) → mutate → that's the next card. Breeding really
-// is happening "in the background": the pool evolves with every vote.
+// softmax parent pick (tau≈0.3) → mutate → next card. The pool evolves with every vote.
 function serveNext() {
   const pool = L3.pool, tau = 0.3;
   let mx = -Infinity; for (const p of pool) mx = Math.max(mx, p.score);
@@ -442,18 +392,18 @@ function serveNext() {
   let r = Math.random() * sum, pi = 0; for (; pi < w.length; pi++) { r -= w[pi]; if (r <= 0) break; }
   const parent = pool[Math.min(pi, pool.length - 1)];
   const child = mutate(parent.config, 0.8);
-  engine.load(child, 'l3_' + (L3.served++));
+  BE.load(child, 'l3_' + (L3.served++));
   L3.cur = { config: child }; L3.prevLum = null; L3.v1 = null; L3.v2 = null; L3.curFrames = 0;
 }
 
 function l3Loop() {
   if (S.level !== 3) return;
-  engine.step(5); engine.render();
-  const ctx = $('#bigcv').getContext('2d');
-  if ($('#bigcv').width !== 480) { $('#bigcv').width = $('#bigcv').height = 480; }
-  ctx.drawImage(engine.cv, 0, 0, 480, 480);
+  BE.step(5); BE.render();
+  const cv = $('#bigcv'), ctx = cv.getContext('2d');
+  if (cv.width !== 480) { cv.width = cv.height = 480; }
+  ctx.drawImage(BE.cv, 0, 0, 480, 480);
   if ((++L3.curFrames % 20) === 0) {            // roll two snapshots for the feature vector
-    const a = readDescriptors(engine.cv, L3.prevLum);
+    const a = readDescriptors(BE.cv, L3.prevLum);
     L3.v1 = L3.v2 || a; L3.v2 = a; L3.prevLum = a.lum;
   }
   requestAnimationFrame(l3Loop);
@@ -472,7 +422,7 @@ async function swipe(label) {
     publishOrganism(L3.cur.config);            // auto-save the keeper (deduped, rate-limited)
   } else {
     L3.votes.notF.push(feats);
-    L3.pool.push({ config: L3.cur.config, score: -0.5 });  // remembered as a low-score anchor
+    L3.pool.push({ config: L3.cur.config, score: -0.5 });
     if (L3.pool.length > 40) L3.pool.shift();
   }
   L3.traj.push([L3.served, null, 0, +fit.toFixed(4), ...feats.map(x => +x.toFixed(4))]);
@@ -491,7 +441,6 @@ async function maybeRefit() {
   const scorerHash = await sha12(code);
   try { localStorage.setItem('fluoddity_active_rubric', JSON.stringify({ code, scorerHash, savedAt: new Date().toISOString(), source: 'game' })); localStorage.setItem('fluoddity_breed_custom_score', code); } catch {}
   toast(`taste updated · ${(acc * 100).toFixed(0)}% sharp`);
-  // keep one rubric record, updated in place.
   if (auth.isLoggedIn()) {
     try {
       await auth.pds.putRecord(RUB, L3.rubricRkey, {
@@ -553,22 +502,19 @@ async function flushExpedition() {
   } catch {}
 }
 
-// ── swipe gestures on the big card ───────────────────────────────────────────
+// ── swipe gestures on the big card (level 3) ─────────────────────────────────
 function bindSwipe() {
   const el = $('#big'); let x0 = null;
   el.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
-  el.addEventListener('pointerup', (e) => {
-    if (x0 == null) return; const dx = e.clientX - x0; x0 = null;
-    if (Math.abs(dx) > 50) swipe(dx > 0 ? 1 : 0);
-  });
-  el.addEventListener('click', (e) => { /* tap center = hot, edges handled by buttons */ });
+  el.addEventListener('pointerup', (e) => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 50) swipe(dx > 0 ? 1 : 0); });
 }
 function flashBig(label) { const f = $('#flash'); f.className = 'flash ' + (label ? 'hot' : 'not'); void f.offsetWidth; f.classList.add('go'); }
 
-// ── small HUD helpers ────────────────────────────────────────────────────────
+// ── HUD helpers ──────────────────────────────────────────────────────────────
 function prompt(html) { $('#prompt').innerHTML = html; }
 function setLevelLabel(t) { const e = $('#lvl'); e.textContent = t; e.classList.toggle('show', !!t); }
-function setBoilLabel(n) { prompt(`<b>${n}/16 boiling</b> — blend two calm ones to cool it (without letting it die)`); }
+function setBadge(vd) { const e = $('#vbadge'); e.textContent = vd; e.style.color = VIT_COLOR[vd] || '#fff'; }
+function showArena() { $('#big').style.display = 'none'; $('#arena').style.display = 'block'; $('#legend').classList.remove('hide'); }
 function setGauge() {
   const p = clamp01(S.T) * 84 + 8;
   $('#knob').style.left = p + '%'; $('#gtag').style.left = p + '%';
@@ -587,16 +533,19 @@ function overlay(kind, title, body, go) {
 // ═══════════════════════════════════════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════════════════════════════════════
-if (engine) {
-  buildGridDom();
-  // returning from the level-3 OAuth redirect? resume straight into breeding.
-  if (location.hash === '#l3') { history.replaceState({}, '', location.pathname); const r = restore(); if (r) { S = { ...S, ...r }; HERO = hero(); } startLevel3(); }
-  else {
+if (AE) {
+  $('#arena').appendChild(AE.cv);
+  buildLegend();
+  attachFieldTap();
+  if (location.hash === '#l3') {                 // returning from the level-3 OAuth redirect
+    history.replaceState({}, '', location.pathname);
+    const r = restore(); if (r) S = { ...S, ...r };
+    startLevel3();
+  } else {
     const r = restore();
-    if (r && r.level === 2 && r.center != null) { HERO = hero(); S = { ...S, ...r }; startLevel2(); }
+    if (r && r.level === 2 && r.center != null) { S = { ...S, ...r }; startLevel2(); }
     else { startLevel1(false); }
   }
-  document.addEventListener('visibilitychange', () => { /* engine loops are raf-driven; they pause when hidden */ });
 }
 </script>
 </body>

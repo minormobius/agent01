@@ -370,15 +370,21 @@ on the live pages).
 
 ## 12a. Build notes (where the shipped code deviated from the sketch)
 
-- **[build note] 16 *independent* colonies, not the arena's shared field.** The
-  spec said "arena is the hero," but the arena intermingles all 16 species into
-  *one* trail, so there's no per-colony `verdict()` — and the win conditions
-  ("anything boils," "0/16 boiling") need exactly that. The game therefore renders
-  16 *independent* single-genome colonies in a 4×4 grid (the proven `select.html`
-  settle→snapshot→blit pattern), each with its own live `verdict()`. This keeps
-  arena's *feel* (16 colonies, pick one, ecological framing) while making "X/16
-  boiling" a literal, satisfying counter. The shared-field arena stays available
-  as the expert surface (the ⚙ lab link points there from levels 1–2).
+- **[build note] Levels 1–2 are the *live* arena shared field** — one
+  `FluoddityEngine(512, 70000, { arena:true })` animating continuously, 16 species
+  intermingling, selected by tapping a species' territory (float-field hue
+  readback) or a legend swatch. (An earlier pass rendered 16 settled *stills* for
+  exact per-cell verdicts; it lost the living motion that is the whole point, so
+  it was replaced.) Win conditions read the **whole field** with `verdict()`: L1
+  wins when it boils, L2 wins when it's tamed back to alive. The "0/16 boiling"
+  counter became a single live verdict badge + heat gauge — the per-species count
+  isn't recoverable from one shared trail without hue-binning, and the live field
+  is worth more than the counter.
+- **[build note] Level 2 cools on a ladder.** Each "regrow" eases temperature
+  down a notch (`L2_COOL`) while the picks steer *which* genome family you settle
+  into (2 picks interpolate A→B across the 16 seeds via arena's `seedOf()` line, 1
+  settles around the pick, 0 reseeds). So taming is guaranteed-reachable in a few
+  regrows (you pass from boil → alive), and the picking is your taste, not a gate.
 - **[build note] Soft OAuth gate at the level-3 boundary**, not a hard gate at
   the front door (§9's recommended option). Levels 1–2 (which write nothing) run
   sign-in-free so a first-tap costs zero friction — the pigeon test. Sign-in is
