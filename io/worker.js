@@ -341,7 +341,13 @@ async function runSweep(env) {
   report.configured = true;
   const pub = new ServicePublisher(env);
   let minted = 0;
+  // Safety valve: cap new mints per run so an unexpected #hashtag flood can't
+  // burst-write hundreds of records on the service account. A write burst is the
+  // likely trigger of the earlier account takedowns; normal traffic is 0–2/run.
+  const MAX_MINTS_PER_SWEEP = 10;
+  let capped = false;
   for (const tag of SWEEP_TAGS) {
+    if (capped) break;
     const t = { searchStatus: null, postsSeen: 0, minted: 0, error: null };
     report.tags[tag] = t;
     let cursor = null;
@@ -361,6 +367,7 @@ async function runSweep(env) {
       t.postsSeen += posts.length;
       if (!posts.length) break;
       for (const post of posts) {
+        if (minted >= MAX_MINTS_PER_SWEEP) { capped = true; break; }
         try {
           const r = await sweepPost(env, pub, post, tag);
           if (r === true) { minted++; t.minted++; }
@@ -368,10 +375,11 @@ async function runSweep(env) {
         } catch (e) { report.skipped['error:' + String(e && e.message || e).slice(0, 60)] = (report.skipped['error:' + String(e && e.message || e).slice(0, 60)] || 0) + 1; }
       }
       cursor = data.cursor;
-      if (!cursor) break;
+      if (!cursor || capped) break;
     }
   }
   report.minted = minted;
+  if (capped) report.capped = MAX_MINTS_PER_SWEEP;
   await setState(env, 'last_sweep_at', String(Date.now()));
   await setState(env, 'last_sweep_report', JSON.stringify(report));
   return report;
