@@ -35,9 +35,15 @@ window.BRANWEN.propp = {
       realized: "Brân buys the peace back: a sound horse for each ruined one, a silver staff and gold plate measured to Matholwch's own body, and — the offender being his own brother, whom he can neither kill nor disown — a plea for reconciliation. The Irish council accepts for fear of a greater shame. A liquidation that settles nothing; the insult is paid for but not forgotten.", passage: 2 },
     { act: "outrage", sym: "F→", node: "The fatal gift", name: "The Cauldron of Rebirth given", gloss: "The donor's magical agent — given to the enemy.",
       realized: "To perfect the amends, Brân gives Matholwch the Cauldron of Rebirth, which returns slain men to battle but not to speech, with its iron-house back-story of the unkillable giant-couple. Propp's magical agent (F) normally arms the hero; here it is handed to the other side as compensation, and will return in Movement V as the weapon that nearly destroys the host of Britain. The tale's central irony, seeded as a gift of peace.", passage: 2 },
-    // Branwen's punishment and the starling, the crossing and the house, the
-    // fire and the battle, and the wondrous head are seeded as the translation
-    // reaches each movement.
+    // ── Act 3: ireland ───────────────────────────────────────────
+    { act: "ireland", sym: "A²", node: "Persecution", name: "Branwen scapegoated", gloss: "A second villainy, on the innocent.",
+      realized: "After a bright year and the birth of Gwern, the Irish court's grudge over the horse-insult turns on Branwen: she is driven from the king's bed to cook for the court, and the butcher boxes her ear every day for three years. Not calumny (Pwyll's Rhiannon) but scapegoating — the wronged queen punished for her brother's offence by a husband too weak to refuse his men.", passage: 3 },
+    { act: "ireland", sym: "B", node: "The call for rescue", name: "The starling's message", gloss: "News of the lack reaches the rescuer.",
+      realized: "Cut off by a three-year embargo on all crossings, Branwen rears a starling, teaches it her brother's face, and sends it over the sea with a letter bound under its wing. It finds Brân in council at Caer Seint; he reads of her pain. The smallest instrument in the branch sets the largest in motion — Propp's mediation carried by a hand-reared bird.", passage: 3 },
+    { act: "ireland", sym: "C↑", node: "Muster & departure", name: "The host of Britain raised", gloss: "The avenger gathers and sets out.",
+      realized: "Brân musters the whole Island of the Mighty — a hundred and forty-four districts — for one woman's wrong, and leaves seven stewards under his son Caradog to hold Britain. The scale tips from family to nation; and the stewards left behind seed a second disaster (Caswallon's usurpation in Brân's absence) folded inside the first.", passage: 3 },
+    // The crossing and the house, the fire and the battle, and the wondrous
+    // head are seeded as the translation reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the opening and the known shape of the branch, Branwen's distinctive Propp profile is the inversion of the wonder-tale, in three features:",

@@ -27,7 +27,7 @@ window.BRANWEN.motifs = {
   classes: { B: "Animals", D: "Magic", E: "The dead", F: "Marvels &amp; giants", K: "Deceptions &amp; death-traps", S: "Cruelty", Z: "Formulas &amp; refrains" },
   list: [
     // — B · Animals —
-    { cls: "B", code: "B291.1", name: "Bird as messenger (the starling)", conf: "high", passages: [],
+    { cls: "B", code: "B291.1", name: "Bird as messenger (the starling)", conf: "high", passages: [3],
       gloss: "Branwen rears a starling at her kneading-trough through three years of servitude, teaches it to know her brother, binds a letter under its wing, and sends it across the sea to Brân. The animal-messenger that brings the host of Britain to Ireland. <em>Enters in Movement III.</em>" },
 
     // — D · Magic —
@@ -49,7 +49,7 @@ window.BRANWEN.motifs = {
       gloss: "Twice in the tale a house is a trap. In the cauldron's back-story the Irish pack the giant couple into an iron house and heat it white-hot to kill them; they burst out. The motif then rhymes forward: the house the Irish build to hold Brân hides armed warriors in flour-bags. The death-trap dwelling, Insular and grim. <em>Enters in Movements II &amp; IV.</em>" },
 
     // — S · Cruelty —
-    { cls: "S", code: "S62", name: "The persecuted wife (Branwen's blow)", conf: "high", passages: [],
+    { cls: "S", code: "S62", name: "The persecuted wife (Branwen's blow)", conf: "high", passages: [3],
       gloss: "Not calumny (as with Pwyll's Rhiannon) but scapegoating: to avenge Efnisien's insult on someone, Matholwch's court drives Branwen from the king's bed to the kitchen, where the butcher boxes her ear every day. Her three years of servile suffering — and the blow, <em>paluawt Branwen</em>, named in the colophon as one of the Three Unhappy Blows of Britain. <em>Enters in Movement III.</em>" },
 
     // — Z · Formulas & refrains —
