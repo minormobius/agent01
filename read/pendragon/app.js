@@ -466,6 +466,7 @@
       orfeo:   (n) => "M" + (ROMAN[n] || n),
       gawain:  (n) => "F" + (ROMAN[n] || n),
       owain:   (n) => "Mvt " + (ROMAN[n] || n),
+      branwen: (n) => "Mvt " + (ROMAN[n] || n),
     };
 
     // dynamic grid template: code + name + one column per tale (the gloss spans full width below)
@@ -594,6 +595,7 @@
       orfeo:   (n) => "M" + (ROMANL[n] || n),
       gawain:  (n) => "F" + (["", "I", "II", "III", "IV"][n] || n),
       owain:   (n) => "Mvt " + (ROMANL[n] || n),
+      branwen: (n) => "Mvt " + (ROMANL[n] || n),
     };
 
     const MODES = [
