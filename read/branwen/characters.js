@@ -21,28 +21,28 @@ window.BRANWEN.characters = {
     // — Principals —
     { id: "bran", name: "Bendigeidfran", role: "principal", alt: "Brân the Blessed; Brân fab Llŷr", epithet: "the giant king of the Island of the Mighty",
       blurb: "\"Brân the Blessed,\" crowned king over Britain and exalted with the crown of London — a king the size of myth, a giant no house can hold. Son of Llŷr; brother of Branwen and Manawydan; half-brother of Nisien and Efnisien. He gives his sister in marriage to bind two islands, makes amends for Efnisien's outrage with the Cauldron of Rebirth, and at last leads the host of Britain over the sea to avenge her — wading the water himself, a bridge for his men. Mortally wounded by a poisoned spear, he commands his own head struck off; the head feasts and counsels the survivors, undecayed, for fourscore years before its burial at the White Hill of London, facing France, as a talisman against invasion.",
-      appears: [1, 2, 3, 4], pending: true,
+      appears: [1, 2, 3, 4, 5], pending: true,
       rel: [{ to: "branwen", label: "brother of" }, { to: "manawydan", label: "brother of" }, { to: "efnisien", label: "half-brother of" }, { to: "nisien", label: "half-brother of" }, { to: "matholwch", label: "father-in-law / overlord of" }, { to: "penarddun", label: "son of" }, { to: "cauldron", label: "gives the cauldron" }] },
 
     { id: "branwen", name: "Branwen", role: "principal", alt: "Branwen uerch Lyr", epithet: "daughter of Llŷr; one of the three chief ladies of Britain",
       blurb: "The title figure — \"Branwen daughter of Llŷr,\" one of the three chief matriarchs of the Island of the Mighty and the fairest maiden in the world. Married to Matholwch of Ireland to seal an alliance, she is honoured for a year and bears a son, Gwern; then, when the court's grudge over Efnisien's insult turns on her, she is driven from the king's bed to the kitchen and struck each day by the butcher. Over three years she rears a starling and teaches it to carry word of her wrong to her brother across the sea. The war her message brings lays both islands waste; she dies of a broken heart on the bank of the Alaw — <em>\"Alas that I was ever born: two good islands destroyed because of me.\"</em>",
-      appears: [1, 2, 3, 4], pending: true,
+      appears: [1, 2, 3, 4, 5], pending: true,
       rel: [{ to: "bran", label: "sister of" }, { to: "matholwch", label: "wife of" }, { to: "gwern", label: "mother of" }, { to: "manawydan", label: "sister of" }, { to: "starling", label: "rears and sends" }] },
 
     { id: "efnisien", name: "Efnisien", role: "principal", alt: "Efnissyen", epithet: "the strife-maker; half-brother to Brân",
       blurb: "The tale's engine of ruin: the half-brother who \"would stir up strife between the two kindreds when they loved each other most.\" Slighted that Branwen was given in marriage without his leave, he mutilates Matholwch's horses — the outrage that poisons the alliance. In Ireland he detects the warriors hidden in the flour-bags and crushes each skull; at the feast of reconciliation he throws the child Gwern into the fire, igniting the battle. At the last, seeing the Irish dead reborn from the cauldron, he hides among their corpses, is thrown in, and bursts the Cauldron of Rebirth — and his own heart — to destroy it. A figure of pure malice who ends in the tale's one act of redeeming self-sacrifice.",
-      appears: [1, 2, 4], pending: true,
+      appears: [1, 2, 4, 5], pending: true,
       rel: [{ to: "bran", label: "half-brother of" }, { to: "nisien", label: "brother of" }, { to: "matholwch", label: "outrages" }, { to: "gwern", label: "kills" }, { to: "cauldron", label: "destroys" }, { to: "penarddun", label: "son of" }] },
 
     // — The House of Llŷr & Britain —
     { id: "manawydan", name: "Manawydan", role: "llyr", alt: "Manawydan fab Llŷr", epithet: "brother of Brân; one of the seven",
       blurb: "Brother of Brân and Branwen, son of Llŷr — the Welsh reflex of the Irish sea-god Manannán mac Lir. He counsels and follows Brân, and is one of the seven men who survive the war in Ireland to carry the head home. His own tale is the Third Branch, <em>Manawydan fab Llŷr</em>, which opens where this one ends.",
-      appears: [1, 2], pending: true,
+      appears: [1, 2, 5], pending: true,
       rel: [{ to: "bran", label: "brother of" }, { to: "branwen", label: "brother of" }, { to: "penarddun", label: "son of" }] },
 
     { id: "nisien", name: "Nisien", role: "llyr", alt: "Nissyen", epithet: "the peace-maker; half-brother to Brân",
       blurb: "The good half-brother, son of Euroswydd and Penarddun — \"he would make peace between the two kindreds when they were angriest.\" The structural opposite of his brother Efnisien; the tale names them together at the outset to set its moral poles.",
-      appears: [1], pending: true,
+      appears: [1, 5], pending: true,
       rel: [{ to: "bran", label: "half-brother of" }, { to: "efnisien", label: "brother of" }, { to: "penarddun", label: "son of" }] },
 
     { id: "penarddun", name: "Penarddun", role: "llyr", alt: "Penarddun ferch Beli", epithet: "mother of the House of Llŷr",
@@ -59,7 +59,7 @@ window.BRANWEN.characters = {
     // — Creatures & instruments (enter in later movements) —
     { id: "cauldron", name: "The Cauldron of Rebirth", role: "creature", alt: "Pair Dadeni", epithet: "the cauldron that gives back the dead",
       blurb: "<em>Pair Dadeni</em>, the Cauldron of Rebirth: cast a slain man into it and by the next day he rises as good a fighter as before — but dumb, unable ever to speak. Brân gives it to Matholwch as part of the amends for Efnisien's outrage; in Ireland it turns the war against the Britons, reviving the Irish dead each night, until Efnisien destroys it with his own body. A token, not a character, but the tale's terrible fulcrum. <em>Enters in Movement II.</em>",
-      appears: [2], pending: true,
+      appears: [2, 5], pending: true,
       rel: [{ to: "bran", label: "given by" }, { to: "matholwch", label: "given to" }, { to: "efnisien", label: "destroyed by" }] },
 
     { id: "starling", name: "The starling", role: "creature", alt: "drudwen", epithet: "Branwen's messenger over the sea",
@@ -69,7 +69,7 @@ window.BRANWEN.characters = {
 
     { id: "gwern", name: "Gwern", role: "ireland", alt: "Gwern fab Matholwch", epithet: "the child king; Branwen's son",
       blurb: "Son of Branwen and Matholwch, and Brân's nephew. Born during Branwen's year of honour in Ireland; later, at the feast meant to reconcile the two kindreds, the kingship of Ireland is conferred on him — and Efnisien, called to fondle the boy, throws him head-first into the fire. His death ignites the battle. <em>Enters in Movement III.</em>",
-      appears: [3, 4], pending: true,
+      appears: [3, 4, 5], pending: true,
       rel: [{ to: "branwen", label: "son of" }, { to: "matholwch", label: "son of" }, { to: "efnisien", label: "killed by" }] },
 
     { id: "llasar", name: "Llasar Llaes Gyfnewid", role: "creature", alt: "the man from the lake", epithet: "the giant who bears the cauldron",
@@ -91,5 +91,10 @@ window.BRANWEN.characters = {
       blurb: "A young page among the seven stewards left to guard Britain — and a thread tying this branch to Pwyll's: Pendaran Dyfed is the fosterer of Pryderi in the First and Third Branches of the Mabinogi. One of the few of the company to escape the usurpation, fleeing to the woods. <em>Enters in Movement III.</em>",
       appears: [3], pending: true,
       rel: [{ to: "caradog", label: "fellow steward of" }] },
+
+    { id: "morddwyd", name: "Morddwyd Tyllion", role: "llyr", alt: "Mordwyt Tyllyon", epithet: "the warrior of the lost war-cry",
+      blurb: "A warrior of Britain whose obscure battle-shout — \"Gwern gwngwch fwch, Morddwyd Tyllion!\" (\"the gadflies of Morddwyd Tyllion's Cow!\") — rings out as the hall erupts after Gwern's death. A fossil war-formula whose meaning is lost; the Triads remember a Morddwyd Tyllion whose thigh-sinews were a marvel. A name the Mabinogi preserves without explaining. <em>Enters in Movement V.</em>",
+      appears: [5], pending: true,
+      rel: [{ to: "bran", label: "warrior of" }] },
   ],
 };

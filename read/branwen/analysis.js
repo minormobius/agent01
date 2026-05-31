@@ -49,8 +49,15 @@ window.BRANWEN.propp = {
       realized: "The Irish offer Gwern the throne, then — on Branwen's counsel, to spare the country — build a house to hold the giant who never had one, the highest honour, with homage and the kingship handed over. The settlement is sincere on Branwen's side and treacherous on the court's: the honour is the bait.", passage: 4 },
     { act: "crossing", sym: "η/¬η", node: "The bagged ambush", name: "Trickery and counter-trickery", gloss: "Deception met by deception.",
       realized: "Two hundred armed men are hidden in leather bags on the pillars, called \"meal.\" Efnisien reads the trap and crushes every head through the bone, capping it with an englyn — the strife-maker's malice, for once, the Britons' deliverance. The peace is a battlefield before the feast begins.", passage: 4 },
-    // The fire and the battle, and the wondrous head, are seeded as the
-    // translation reaches each movement.
+    // ── Act 5: ruin ──────────────────────────────────────────────
+    { act: "ruin", sym: "A³", node: "The spark", name: "Gwern cast into the fire", gloss: "The act that turns peace to war.",
+      realized: "At the feast of reconciliation, the kingship conferred on the boy, Efnisien is called to fondle his nephew — and flings Gwern headlong into the fire. Branwen would leap in after him but Brân holds her back with one hand, his shield in the other; the hall erupts. The alliance, embodied in the child, is murdered.", passage: 5 },
+    { act: "ruin", sym: "A→K", node: "The gift turned weapon", name: "The cauldron against its giver", gloss: "The donor's agent realised as the doom.",
+      realized: "The Irish kindle the Cauldron of Rebirth and cast in their dead, who rise each dawn mute and tireless, while the British dead stay dead. The gift Brân gave for peace in Movement II is now the engine of his host's destruction — the F→A inversion the absences below describe, played out in full.", passage: 5 },
+    { act: "ruin", sym: "†(redempt)", node: "Self-sacrifice", name: "Efnisien breaks the cauldron", gloss: "The villain's one redeeming act, at the cost of his life.",
+      realized: "Efnisien — who began the ruin and lit its spark — feigns death among the Irish corpses, is flung into the cauldron alive, and bursts it into four pieces, and his own heart with it. The strife-maker's single act of grace undoes his worst work, but saves only seven men. Propp has no slot for it: a villainy and a heroism in one body.", passage: 5 },
+    // The wounding, the wondrous head, and Branwen's death close the tale in
+    // the final movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the opening and the known shape of the branch, Branwen's distinctive Propp profile is the inversion of the wonder-tale, in three features:",
