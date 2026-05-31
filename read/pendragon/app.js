@@ -448,7 +448,7 @@
   // refit the visible diagram on resize (debounced)
   let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
-  /* ====================== CROSSWALK (four tales side by side) ====================== */
+  /* ====================== CROSSWALK (five tales side by side) ====================== */
   function renderCrosswalk() {
     const C = window.PENDRAGON && window.PENDRAGON.crosswalk;
     const host = $("#cw-host"); if (!C || !host) return;
@@ -459,7 +459,7 @@
     const tales = C.tales;
     const taleIds = tales.map((t) => t.id);
     const taleMap = {}; tales.forEach((t) => taleMap[t.id] = t);
-    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
     const passLabel = {
       culhwch: (n) => "M" + n,
       pwyll:   (n) => "Mvt " + (ROMAN[n] || n),
@@ -539,7 +539,7 @@
     });
 
     // ─ Propp ─
-    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the four"));
+    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the five"));
     host.appendChild(el("p", "cw-subnote", C.proppIntro));
     host.appendChild(header());
     C.propp.forEach((p) => {
@@ -567,7 +567,7 @@
 
   /* ====================== COMPARE (hypermythograph) ======================
      Three force-laid graphs (Motifs / Functions / Archetypes), each pinning
-     the four tales at the corners and letting the structural items float
+     the tales at the corners and letting the structural items float
      toward whichever tales claim them. The middle of each graph is the
      shared backbone; the periphery is what each tale brings uniquely. */
   function renderCompare() {
@@ -577,22 +577,28 @@
     const W = 1100, H = 720;
     const tales = C.tales;
     const taleIds = tales.map((t) => t.id);
-    const cornerFor = {
-      [taleIds[0]]: { x: W * 0.13, y: H * 0.18 },
-      [taleIds[1]]: { x: W * 0.87, y: H * 0.18 },
-      [taleIds[2]]: { x: W * 0.87, y: H * 0.82 },
-      [taleIds[3]]: { x: W * 0.13, y: H * 0.82 },
-    };
+    // Place the tale anchors evenly around an ellipse — works for any number of
+    // tales (a square for four, a pentagon for five, …), point-up.
+    const cornerFor = {};
+    (function () {
+      const N = taleIds.length, cxc = W / 2, cyc = H / 2, rx = W * 0.40, ry = H * 0.34;
+      taleIds.forEach((id, k) => {
+        const ang = -Math.PI / 2 + (2 * Math.PI * k) / N;
+        cornerFor[id] = { x: cxc + rx * Math.cos(ang), y: cyc + ry * Math.sin(ang) };
+      });
+    })();
+    const ROMANL = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
     const passLabelLocal = {
       culhwch: (n) => "M" + n,
-      pwyll:   (n) => "Mvt " + (["", "I", "II", "III", "IV", "V", "VI"][n] || n),
-      orfeo:   (n) => "M" + (["", "I", "II", "III", "IV", "V", "VI"][n] || n),
+      pwyll:   (n) => "Mvt " + (ROMANL[n] || n),
+      orfeo:   (n) => "M" + (ROMANL[n] || n),
       gawain:  (n) => "F" + (["", "I", "II", "III", "IV"][n] || n),
+      owain:   (n) => "Mvt " + (ROMANL[n] || n),
     };
 
     const MODES = [
-      { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The seven gold nodes in the centre are the codes every tale realises — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
-      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the four tales. The function symbols (α, A, B, …) that fire in all four sit centrally; the structural absences and inversions drift to the edges." },
+      { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The gold nodes in the centre are the codes most tales realise — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
+      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the five tales. The function symbols (α, A, B, …) that fire in all five sit centrally; the structural absences and inversions drift to the edges." },
       { id: "archetypes", label: "Archetypes", rows: () => C.archetypes, blurb: "Character roles each tale fills with a different figure. A corner-clinging archetype is one only that tale carries; the centre archetypes are the ones every tale instantiates somehow." },
     ];
 
