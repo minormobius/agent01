@@ -113,12 +113,15 @@ jobs:
           }
           # First account with BOTH handle+password set wins (atomic per account,
           # so we never cross-wire one account's handle with another's password).
-          # Main is last because it is currently taken down; modulo is the worker.
+          # Confirmed taken down (AccountTakedown) after the reply-bot spam:
+          #   - minomobi.bsky.social (main)
+          #   - modulomino.bsky.social (modulo)
+          # So morphyx is tried first — it is the only un-burned account left.
           SVC_HANDLE=""; SVC_PASSWORD=""
           for pair in \
             "$ATPROTO_SERVICE_HANDLE|$ATPROTO_SERVICE_PASSWORD" \
-            "$BLUESKY_MODULO_HANDLE|$BLUESKY_MODULO_APP_PASSWORD" \
             "$BLUESKY_MORPHYX_HANDLE|$BLUESKY_MORPHYX_APP_PASSWORD" \
+            "$BLUESKY_MODULO_HANDLE|$BLUESKY_MODULO_APP_PASSWORD" \
             "$BLUESKY_HANDLE|$BLUESKY_APP_PASSWORD"; do
             h="${pair%%|*}"; p="${pair#*|}"
             if [ -n "$h" ] && [ -n "$p" ]; then SVC_HANDLE="$h"; SVC_PASSWORD="$p"; break; fi
