@@ -132,13 +132,13 @@ window.PENDRAGON.crosswalk = {
       gloss: "A motif the Welsh romances share against the English pair. Olwen, Rhiannon and Owain’s Luned all bring the hero past the figure barring the marriage — Olwen against her giant father, Rhiannon against her father’s chosen suitor, Luned against her grieving mistress’s refusal. All three Welsh tales are woman-led recoveries; the English poems have queens taken or tested but never won by a helper’s wit." },
 
     // ── Distinctively single ───────────────────────────────────────
-    { code: "F407", name: "Talking severed head",
+    { code: "E783", name: "The vital (talking) severed head",
       culhwch: false,
       pwyll:   false,
       gawain:  { passages: [1], note: "The Green Knight's head, held in his hand from horseback, turns its eyes on Camelot and speaks the rules of the return-match." },
       orfeo:   false,
       owain: false,
-      gloss: "Gawain's distinctive opening miracle. The motif is older — see Bran the Blessed in the Mabinogi's Second Branch, the sibling of Pwyll's First — but Gawain's poem is the canonical Insular literary use. Pwyll's branch precedes Bran's by one position in the manuscript order." },
+      gloss: "Gawain's distinctive opening miracle, Thompson E783 (&ldquo;vital head&rdquo;). The motif is older — Brân the Blessed in the Mabinogi's Second Branch (Branwen, the sibling of Pwyll's First) is its canonical Insular instance, his head feasting and counselling the seven for fourscore years — but Gawain's poem is its great literary use. Pwyll's branch precedes Brân's by one position in the manuscript order." },
 
     { code: "F379.1", name: "The half-taken — body remains as if dead, self in fairyland",
       culhwch: false,
