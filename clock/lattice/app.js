@@ -1,19 +1,11 @@
-// Alexander's Horned Sphere — infinite WebGPU fractal zoom (the real one)
+// Alexander's Horned Sphere — infinite WebGPU fractal zoom
+// A ray-marched lattice of recursively interlocking torus "horns".
 //
-// Unlike the closed-ring "lattice" sibling, this is built from OPEN horns that
-// BIFURCATE. The trick is a reflection fold: at each recursion level the domain
-// is mirrored across the YZ plane (p.x = abs(p.x)), which turns one horn into a
-// clasping PAIR — exactly the binary branching of Alexander's construction. As
-// you descend, every horn's inner end splits into another mirrored pair, and a
-// per-level roll (the "clasp") tilts the two siblings into different planes so
-// they interlock instead of merging. Nothing ever closes into a loop; the horns
-// just fork and tighten toward the Cantor limit point at the origin.
-//
-// The endless zoom uses the same engine as the lattice: the whole structure is
-// invariant under a single similarity G = (scale k) o (twist theta about a
-// tilted axis) whose fixed point is the origin, so a log-periodic fold renders
-// every level in O(1) and the continuous zoom G^zc wraps seamlessly (image at
-// zc and zc+1 is identical; zc is kept in [0,1) so it loops forever).
+// The geometry is the attractor of a single similarity G = (scale by k,
+// rotate by theta about a tilted axis) about the origin. The SDF is exactly
+// G-invariant, so a log-periodic *fold* evaluates infinite recursion in O(1),
+// and zooming applies G^zc continuously — when zc crosses an integer the image
+// is provably identical, giving a perfectly seamless, endless zoom.
 
 const WGSL = /* wgsl */`
 struct Uniforms {
@@ -22,17 +14,18 @@ struct Uniforms {
   fr0         : vec4f,  // k, theta(twist), tube, steps
   fr1         : vec4f,  // colorPhase, glow, paletteMode, aoStrength
   light       : vec4f,  // lightYaw, lightPitch, fog, exposure
-  pal         : vec4f,  // bgBright, vignette, levels, spread
-  extra       : vec4f,  // clasp, curl, _, _
+  pal         : vec4f,  // bgBright, vignette, outerLevels, arms
 };
 @group(0) @binding(0) var<uniform> U : Uniforms;
 
 var<private> gLev  : f32 = 0.0;
-var<private> gSide : f32 = 0.0;
+var<private> gComp : f32 = 0.0;
 
 const TAU = 6.2831853;
 const AXIS = vec3f(0.15, 1.0, 0.0);
-const RO   = 0.45;   // inner (toward-origin) end radius of a horn
+const DCEN = 1.45;   // canonical clasp centre radius
+const RAD  = 0.50;   // torus major radius
+const SEP  = 0.30;   // half-separation of the two linked tori (< RAD => linked)
 
 fn rotAxis(axn : vec3f, ang : f32) -> mat3x3f {
   let a = normalize(axn);
@@ -44,62 +37,49 @@ fn rotAxis(axn : vec3f, ang : f32) -> mat3x3f {
     vec3f(t*x*z + s*y, t*y*z - s*x, t*z*z + c)
   );
 }
-fn rotY(a : f32) -> mat3x3f {
-  let c = cos(a); let s = sin(a);
-  return mat3x3f(vec3f(c, 0.0, -s), vec3f(0.0, 1.0, 0.0), vec3f(s, 0.0, c));
+
+fn sdTorusZ(p : vec3f, R : f32, r : f32) -> f32 { // ring in XY plane (axis Z)
+  let q = vec2f(length(p.xy) - R, p.z);
+  return length(q) - r;
+}
+fn sdTorusY(p : vec3f, R : f32, r : f32) -> f32 { // ring in XZ plane (axis Y)
+  let q = vec2f(length(p.xz) - R, p.y);
+  return length(q) - r;
 }
 
-// Distance to a rounded line segment (a straight tube).
-fn sdSeg(p : vec3f, a : vec3f, b : vec3f, r : f32) -> f32 {
-  let pa = p - a; let ba = b - a;
-  let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-  return length(pa - ba * h) - r;
+// One "clasp": two perpendicular, interlocking tori (a chain link / horn pair).
+fn clasp(q : vec3f) -> vec2f {
+  let tube = U.fr0.z;
+  let dA = sdTorusZ(q - vec3f(DCEN - SEP, 0.0, 0.0), RAD, tube);
+  let dB = sdTorusY(q - vec3f(DCEN + SEP, 0.0, 0.0), RAD, tube);
+  if (dA < dB) { return vec2f(dA, 0.0); }
+  return vec2f(dB, 1.0);
 }
 
-// One node: a single horn, mirrored into a clasping pair, then bent (knee) and
-// curled. Lives in a normalised frame; the level scale is applied by the caller.
-fn cell(q : vec3f) -> vec2f {
-  let tube   = U.fr0.z;
-  let k      = U.fr0.x;
-  let spread = U.pal.w;     // how far the siblings splay apart
-  let clasp  = U.extra.x;   // roll that tilts siblings into interlocking planes
-  let curl   = U.extra.y;   // hook-back of the outer end
-
-  var p = q;
-  let side = sign(p.x);     // remember which sibling for shading
-  p.x = abs(p.x);           // <-- reflection fold: one horn becomes a pair
-  p = rotY(clasp) * p;      // tilt the pair into different planes -> interlock
-
-  let Ri = RO * k;          // outer end meets the parent's inner end (continuity)
-  // a horn = two tubes: inner fork joint -> knee (splayed out) -> outer (curled)
-  let fork  = vec3f(0.0, RO, 0.0);
-  let knee  = vec3f(spread, RO + spread * 0.5, 0.0);
-  let outer = vec3f(spread * 0.5 + curl, Ri, 0.0);
-  let d1 = sdSeg(p, fork, knee, tube);
-  let d2 = sdSeg(p, knee, outer, tube);
-  return vec2f(min(d1, d2), side);
-}
-
-// Log-periodic fold over all integer levels of the similarity G. O(1).
+// Log-periodic fold: union over all integer levels of the similarity G,
+// with several rotational copies (arms) per level. Infinite detail, O(1) cost.
 fn mapFold(pw : vec3f) -> f32 {
   let k     = U.fr0.x;
   let theta = U.fr0.y;
   let outer = U.pal.z;
+  let arms  = max(1, i32(U.pal.w + 0.5));
   let lk    = log(k);
   let r     = length(pw);
   if (r < 1e-4) { return 0.02; }
 
-  let REF = RO * sqrt(k);                 // mid-radius of a level's horns
-  let n = round(log(r / REF) / lk);
+  let n = round(log(r / DCEN) / lk);
   var best = 1e9;
-  for (var j = -1; j <= 2; j = j + 1) {   // a cell spans ~an octave: check neighbours
+  for (var j = -1; j <= 1; j = j + 1) {
     let lev = n + f32(j);
-    if (lev > outer + 0.5) { continue; }  // bounded outer extent
+    if (lev > outer + 0.5) { continue; }     // bounded outer extent
     let s = pow(k, lev);
-    let q = (rotAxis(AXIS, -lev * theta) * pw) / s;
-    let c = cell(q);
-    let dW = c.x * s;
-    if (dW < best) { best = dW; gLev = lev; gSide = c.y; }
+    let baseP = (rotAxis(AXIS, -lev * theta) * pw) / s;
+    for (var a = 0; a < arms; a = a + 1) {
+      let qa = rotAxis(AXIS, f32(a) * TAU / f32(arms)) * baseP;
+      let c = clasp(qa);
+      let dW = c.x * s;
+      if (dW < best) { best = dW; gLev = lev; gComp = c.y + f32(a) * 0.137; }
+    }
   }
   return best;
 }
@@ -202,14 +182,14 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
   if (hit) {
     let pos = ro + rd * t;
     let nrm = calcNormal(pos, t);
-    let _d = mapScene(pos);                 // re-evaluate to set gLev/gSide
+    let _d = mapScene(pos);                 // re-evaluate to set gLev/gComp
     let ly = U.light.x; let lp = U.light.y;
     let ldir = normalize(vec3f(cos(lp) * sin(ly), sin(lp), cos(lp) * cos(ly)));
     let diff = max(dot(nrm, ldir), 0.0);
     let amb  = 0.22 + 0.22 * (nrm.y * 0.5 + 0.5);
     let ao   = clamp(1.0 - U.fr1.w * f32(i) / f32(steps), 0.0, 1.0);
     let fres = pow(1.0 - max(dot(nrm, -rd), 0.0), 3.0);
-    let base = palCol(gLev * 0.15 + gSide * 0.06 + cPhase, palM);
+    let base = palCol(gLev * 0.16 + gComp * 0.30 + cPhase, palM);
     var lit = base * (amb + diff * 0.95) * ao;
     lit += base * fres * 0.45;
     let fog = 1.0 - exp(-t * U.light.z * 0.14);
@@ -227,13 +207,13 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
 `;
 
 // ---------------------------------------------------------------------------
-// Parameters
+// Parameters (those with a `slider` show up in the panel)
 // ---------------------------------------------------------------------------
 const DEFAULTS = {
   zoomSpeed: 0.12, orbitSpeed: 0.06, pitch: 0.25,
-  twist: 0.90, k: 2.00, tube: 0.07, spread: 0.65, clasp: 1.20, curl: 0.25, levels: 3,
+  twist: 0.70, k: 2.20, tube: 0.13, arms: 3, outer: 2,
   fov: 48, dist: 7.0, glow: 0.45, palette: 1,
-  exposure: 1.15, fog: 0.10, ao: 0.75, quality: 160,
+  exposure: 1.15, fog: 0.10, ao: 0.75, quality: 128,
   bg: 0.65, vignette: 0.6,
 };
 const SLIDERS = [
@@ -241,12 +221,10 @@ const SLIDERS = [
   { key: 'orbitSpeed', label: 'orbit speed', min: -0.5, max: 0.5, step: 0.01 },
   { key: 'pitch', label: 'camera pitch', min: -1.35, max: 1.35, step: 0.01 },
   { key: 'twist', label: 'recursion twist', min: -1.6, max: 1.6, step: 0.01 },
-  { key: 'k', label: 'scale ratio', min: 1.6, max: 3.2, step: 0.01 },
-  { key: 'spread', label: 'fork splay', min: 0.1, max: 1.6, step: 0.01 },
-  { key: 'clasp', label: 'clasp (interlock)', min: 0, max: 3.1, step: 0.01 },
-  { key: 'curl', label: 'horn curl', min: -0.6, max: 0.9, step: 0.01 },
-  { key: 'tube', label: 'horn thickness', min: 0.02, max: 0.18, step: 0.004 },
-  { key: 'levels', label: 'outer extent', min: 0, max: 5, step: 1 },
+  { key: 'k', label: 'scale ratio', min: 1.5, max: 3.4, step: 0.01 },
+  { key: 'tube', label: 'horn thickness', min: 0.03, max: 0.28, step: 0.005 },
+  { key: 'arms', label: 'arms (symmetry)', min: 1, max: 7, step: 1 },
+  { key: 'outer', label: 'outer extent', min: 0, max: 4, step: 1 },
   { key: 'dist', label: 'camera distance', min: 3, max: 14, step: 0.1 },
   { key: 'fov', label: 'field of view', min: 20, max: 95, step: 1 },
   { key: 'glow', label: 'glow', min: 0, max: 1.5, step: 0.02 },
@@ -295,16 +273,15 @@ async function init() {
     primitive: { topology: 'triangle-list' },
   });
 
-  const FLOATS = 28;
   const ubo = device.createBuffer({
-    size: FLOATS * 4,
+    size: 24 * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const bind = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [{ binding: 0, resource: { buffer: ubo } }],
   });
-  const u = new Float32Array(FLOATS);
+  const u = new Float32Array(24);
 
   let W = 1, H = 1;
   function resize() {
@@ -338,8 +315,7 @@ async function init() {
     u[8] = params.k; u[9] = params.twist; u[10] = params.tube; u[11] = params.quality;
     u[12] = rt.colorPhase; u[13] = params.glow; u[14] = params.palette; u[15] = params.ao;
     u[16] = rt.yaw + 0.7; u[17] = 0.85; u[18] = params.fog; u[19] = params.exposure;
-    u[20] = params.bg; u[21] = params.vignette; u[22] = params.levels; u[23] = params.spread;
-    u[24] = params.clasp; u[25] = params.curl; u[26] = 0; u[27] = 0;
+    u[20] = params.bg; u[21] = params.vignette; u[22] = params.outer; u[23] = params.arms;
     device.queue.writeBuffer(ubo, 0, u);
 
     const enc = device.createCommandEncoder();
@@ -446,12 +422,10 @@ function reset() {
 function surprise() {
   const r = (a, b) => a + Math.random() * (b - a);
   params.twist = r(-1.5, 1.5);
-  params.k = r(1.7, 2.8);
-  params.spread = r(0.3, 1.3);
-  params.clasp = r(0.4, 2.6);
-  params.curl = r(-0.4, 0.7);
-  params.tube = r(0.04, 0.12);
-  params.levels = Math.round(r(2, 4));
+  params.k = r(1.7, 3.0);
+  params.tube = r(0.06, 0.2);
+  params.arms = Math.round(r(1, 6));
+  params.outer = Math.round(r(1, 3));
   params.palette = Math.floor(r(0, PALETTES.length));
   params.glow = r(0.1, 1.0);
   params.orbitSpeed = r(-0.2, 0.2);
@@ -468,7 +442,7 @@ function doShot() {
     if (!b) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(b);
-    a.download = 'horned-sphere.png';
+    a.download = 'clasped-lattice.png';
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }, 'image/png');

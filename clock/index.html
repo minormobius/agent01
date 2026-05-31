@@ -50,6 +50,7 @@ const P = [
   ['GARDEN','./garden/','Fluoddity Garden','#9e6'],
   ['HORNED','./horned/','Horned Sphere · fractal zoom','#e7c46a'],
   ['ANTOINE','./antoine/','Antoine’s Necklace · fractal zoom','#cdb4f0'],
+  ['LATTICE','./lattice/','Clasped-Torus Lattice · fractal zoom','#7fd4c0'],
 ];
 const N=P.length, RAD=5.0, CAM_Y=1.2, SC_Y=1.35;
 let yaw=0, pitch=0.12, autoRot=true;
@@ -94,7 +95,8 @@ fn sculptSDF(q:vec3f,id:i32)->f32{
     case 8:{return sdCapsule(q,0.18,0.18);}case 9:{return sdCyl(q,0.22,0.28);}
     case 10:{return sdHex(q,0.32,0.28);}case 11:{return sdRBox(q,0.28,0.05);}
     case 15:{return sdTorus(q,0.30,0.12);}
-    case 16:{let aa=atan2(q.z,q.x);let bx=cos(aa)*0.3;let bz=sin(aa)*0.3;return length(vec2f(length(vec2f(q.x-bx,q.z-bz))-0.09,q.y))-0.05;}default:{return 1e3;}
+    case 16:{let aa=atan2(q.z,q.x);let bx=cos(aa)*0.3;let bz=sin(aa)*0.3;return length(vec2f(length(vec2f(q.x-bx,q.z-bz))-0.09,q.y))-0.05;}
+    case 17:{let a1=sdTorus(q-vec3f(0.16,0.0,0.0),0.2,0.07);let a2=sdTorus((q-vec3f(-0.16,0.0,0.0)).yxz,0.2,0.07);return min(a1,a2);}default:{return 1e3;}
   }
 }
 fn sculptCol(id:i32)->vec3f{
@@ -106,7 +108,8 @@ fn sculptCol(id:i32)->vec3f{
     case 8:{return vec3f(0.33,0.4,1.0);}case 9:{return vec3f(1.0,0.5,0.13);}
     case 10:{return vec3f(0.13,0.73,0.33);}case 11:{return vec3f(0.8,0.8,0.87);}
     case 15:{return vec3f(0.905,0.769,0.416);}
-    case 16:{return vec3f(0.804,0.706,0.941);}default:{return vec3f(1.0);}
+    case 16:{return vec3f(0.804,0.706,0.941);}
+    case 17:{return vec3f(0.498,0.831,0.753);}default:{return vec3f(1.0);}
   }
 }
 
