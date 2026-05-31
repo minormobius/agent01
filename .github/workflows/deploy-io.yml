@@ -83,10 +83,14 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Prefer dedicated ATPROTO_SERVICE_* if set; otherwise fall back to the
+          # shared BLUESKY_* creds (the @minomobi.com post-to-bluesky account).
           ATPROTO_SERVICE_HANDLE: ${{ secrets.ATPROTO_SERVICE_HANDLE }}
           ATPROTO_SERVICE_PASSWORD: ${{ secrets.ATPROTO_SERVICE_PASSWORD }}
           ATPROTO_SERVICE_DID: ${{ secrets.ATPROTO_SERVICE_DID }}
           ATPROTO_SERVICE_PDS: ${{ secrets.ATPROTO_SERVICE_PDS }}
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
           IO_ADMIN_KEY: ${{ secrets.IO_ADMIN_KEY }}
         run: |
           set +e
@@ -98,8 +102,12 @@ jobs:
             npx wrangler secret put "$name" --name io < "$f"
             rm -f "$f"
           }
-          push_secret ATPROTO_SERVICE_HANDLE   "$ATPROTO_SERVICE_HANDLE"
-          push_secret ATPROTO_SERVICE_PASSWORD "$ATPROTO_SERVICE_PASSWORD"
+          # Dedicated service account takes precedence; else reuse the shared
+          # @minomobi.com creds so the sweeper works without a second account.
+          SVC_HANDLE="${ATPROTO_SERVICE_HANDLE:-$BLUESKY_HANDLE}"
+          SVC_PASSWORD="${ATPROTO_SERVICE_PASSWORD:-$BLUESKY_APP_PASSWORD}"
+          push_secret ATPROTO_SERVICE_HANDLE   "$SVC_HANDLE"
+          push_secret ATPROTO_SERVICE_PASSWORD "$SVC_PASSWORD"
           push_secret ATPROTO_SERVICE_DID      "$ATPROTO_SERVICE_DID"
           push_secret ATPROTO_SERVICE_PDS      "$ATPROTO_SERVICE_PDS"
           push_secret ADMIN_KEY                "$IO_ADMIN_KEY"
