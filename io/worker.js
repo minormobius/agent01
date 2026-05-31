@@ -91,11 +91,15 @@ export default {
 // ─────────────────────────────── API handlers ──────────────────────────────
 
 async function health(env) {
-  let tickets = null, dbOk = false;
+  let tickets = null, dbOk = false, lastSweep = null, lastSweepAt = null;
   try {
     const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM io_tickets').first();
     tickets = row ? row.n : 0;
     dbOk = true;
+    const rep = await env.DB.prepare("SELECT v FROM io_sweep_state WHERE k = 'last_sweep_report'").first();
+    if (rep && rep.v) lastSweep = safeParse(rep.v, null);
+    const at = await env.DB.prepare("SELECT v FROM io_sweep_state WHERE k = 'last_sweep_at'").first();
+    if (at && at.v) lastSweepAt = new Date(Number(at.v)).toISOString();
   } catch { /* table may not exist yet pre-migration */ }
   return json({
     ok: true,
@@ -105,6 +109,8 @@ async function health(env) {
     sweeperConfigured: !!(env.ATPROTO_SERVICE_HANDLE && env.ATPROTO_SERVICE_PASSWORD),
     sweepTags: SWEEP_TAGS,
     replyBot: env.SWEEP_REPLY !== 'off',
+    lastSweepAt,
+    lastSweep,
   });
 }
 
@@ -170,6 +176,13 @@ async function adminRefresh(request, env, ctx) {
 
 async function adminSweep(request, env, ctx) {
   if (!isAdmin(request, env)) return json({ error: 'unauthorized' }, 401);
+  // ?debug=1 runs synchronously and returns the diagnostic report so you can
+  // see exactly what the sweeper saw (search status, posts found, skips).
+  const url = new URL(request.url);
+  if (url.searchParams.get('debug') === '1') {
+    const report = await runSweep(env);
+    return json({ ok: true, report });
+  }
   ctx.waitUntil(runSweep(env).catch((e) => console.error('sweep', e)));
   return json({ ok: true, started: 'sweep' });
 }
@@ -321,10 +334,14 @@ async function indexOne(env, did, rkey) {
  * are set. Dedup by post uri in io_sweep_seen.
  */
 async function runSweep(env) {
-  if (!env.ATPROTO_SERVICE_HANDLE || !env.ATPROTO_SERVICE_PASSWORD) return 0;
+  const report = { configured: false, tags: {}, minted: 0, skipped: {} };
+  if (!env.ATPROTO_SERVICE_HANDLE || !env.ATPROTO_SERVICE_PASSWORD) return report;
+  report.configured = true;
   const pub = new ServicePublisher(env);
   let minted = 0;
   for (const tag of SWEEP_TAGS) {
+    const t = { searchStatus: null, postsSeen: 0, minted: 0, error: null };
+    report.tags[tag] = t;
     let cursor = null;
     for (let page = 0; page < 5; page++) {
       const params = new URLSearchParams({ q: `#${tag}`, sort: 'latest', limit: '25' });
@@ -332,34 +349,42 @@ async function runSweep(env) {
       let data;
       try {
         const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.feed.searchPosts?${params}`);
-        if (!res.ok) break;
+        t.searchStatus = res.status;
+        if (!res.ok) { t.error = (await res.text().catch(() => '')).slice(0, 200); break; }
         data = await res.json();
-      } catch { break; }
+      } catch (e) { t.error = String(e && e.message || e); break; }
       const posts = data.posts || [];
+      t.postsSeen += posts.length;
       if (!posts.length) break;
       for (const post of posts) {
-        try { if (await sweepPost(env, pub, post, tag)) minted++; }
-        catch (e) { console.error('sweepPost', e); }
+        try {
+          const r = await sweepPost(env, pub, post, tag);
+          if (r === true) { minted++; t.minted++; }
+          else if (typeof r === 'string') { report.skipped[r] = (report.skipped[r] || 0) + 1; }
+        } catch (e) { report.skipped['error:' + String(e && e.message || e).slice(0, 60)] = (report.skipped['error:' + String(e && e.message || e).slice(0, 60)] || 0) + 1; }
       }
       cursor = data.cursor;
       if (!cursor) break;
     }
   }
+  report.minted = minted;
   await setState(env, 'last_sweep_at', String(Date.now()));
-  return minted;
+  await setState(env, 'last_sweep_report', JSON.stringify(report));
+  return report;
 }
 
+// Returns true if a ticket was minted, or a short string reason if skipped.
 async function sweepPost(env, pub, post, tag) {
   const postUri = post.uri;
-  if (!postUri) return false;
+  if (!postUri) return 'no-uri';
   const already = await env.DB.prepare('SELECT post_uri FROM io_sweep_seen WHERE post_uri = ?').bind(postUri).first();
-  if (already) return false;
+  if (already) return 'already-seen';
 
   const text = (post.record && post.record.text) || '';
   if (text.replace(/#\w+/g, '').trim().length < 12) {
     // Bare-hashtag spam — mark seen so we don't re-check, but don't mint.
     await markSwept(env, postUri, null);
-    return false;
+    return 'too-short';
   }
 
   const kind = inferKind(text);
