@@ -540,7 +540,7 @@
     });
 
     // ─ Propp ─
-    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the five"));
+    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the corpus"));
     host.appendChild(el("p", "cw-subnote", C.proppIntro));
     host.appendChild(header());
     C.propp.forEach((p) => {
