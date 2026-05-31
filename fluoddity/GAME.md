@@ -388,8 +388,12 @@ on the live pages).
 - **[build note] Soft OAuth gate at the level-3 boundary**, not a hard gate at
   the front door (§9's recommended option). Levels 1–2 (which write nothing) run
   sign-in-free so a first-tap costs zero friction — the pigeon test. Sign-in is
-  required exactly where publishing begins (entering BREED). One overlay; the
-  redirect returns to `#l3` and resumes mid-stream. Flip to a hard gate by calling
+  required exactly where publishing begins (entering BREED). The gate has a real
+  Bluesky handle **typeahead** (`searchActorsTypeahead`, same as `fluoddity/play`),
+  not a bare `prompt()`. Sign-in uses a **clean `returnTo`** (origin+pathname, no
+  `#fragment` — a fragment swallows the worker's `?__auth_session=` token and
+  breaks the loop) plus a `fluoddity_game_resume` localStorage flag; boot `await`s
+  `auth.init()` then resumes straight into BREED. Flip to a hard gate by calling
   `gateLevel3()` at boot instead of `startLevel1()`.
 - **[build note] "Too hot" folds `boiling` + `blown out` together** (`tooHot()`)
   for both win tests, so the heat ladder is robust to exactly where a given seed's

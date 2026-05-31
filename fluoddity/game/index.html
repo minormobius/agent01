@@ -86,6 +86,18 @@ a { color: var(--accent); text-decoration: none; }
 #toast { position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%) translateY(20px); background: rgba(14,16,20,0.95); border: 1px solid var(--rule); border-radius: 10px; padding: 9px 15px; font-size: 12px; color: var(--accent); opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 60; pointer-events: none; white-space: nowrap; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* handle typeahead (sign-in gate) */
+.ta-wrap { position: relative; width: min(92vw, 340px); margin: 0 auto; }
+#gate-handle { width: 100%; font-family: var(--mono); font-size: 15px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; text-align: center; }
+#gate-handle:focus { outline: none; border-color: var(--accent); }
+.ta-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: #0b0d11; border: 1px solid var(--rule); border-radius: 10px; display: none; z-index: 5; max-height: 252px; overflow-y: auto; text-align: left; }
+.ta-results.show { display: block; }
+.ta-item { display: flex; align-items: center; gap: 9px; padding: 8px 11px; cursor: pointer; }
+.ta-item.on, .ta-item:hover { background: rgba(56,225,192,0.12); }
+.ta-item img, .ta-item .av { width: 22px; height: 22px; border-radius: 50%; background: #23272f; flex: 0 0 auto; object-fit: cover; }
+.ta-item .nm { font-size: 13px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ta-item .nm small { color: var(--muted); }
+
 #fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; z-index: 100; }
 </style>
 </head>
@@ -342,15 +354,56 @@ function winLevel2() {
 let L3 = null;
 function gateLevel3() {
   if (auth.isLoggedIn()) { startLevel3(); return; }
-  const ga = $('#gate-auth'); ga.innerHTML = '<button class="btn primary" id="gate-in">sign in with Bluesky</button>';
-  $('#gate-in').addEventListener('click', async () => {
-    const h = window.prompt('Your Bluesky handle (e.g. alice.bsky.social):'); if (!h) return;
-    ga.innerHTML = '<span style="color:var(--muted)">redirecting…</span>';
-    try { await auth.login(h.trim(), { returnTo: location.href.split('#')[0] + '#l3' }); }
-    catch (e) { ga.innerHTML = '<span style="color:#e0556b">' + (e.message || e) + '</span>'; }
-  });
+  const ga = $('#gate-auth');
+  ga.innerHTML = '<div class="ta-wrap"><input id="gate-handle" placeholder="your-handle.bsky.social" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div id="gate-results" class="ta-results"></div></div><button class="btn primary" id="gate-in" style="margin-top:12px">sign in →</button>';
+  const input = $('#gate-handle'), box = $('#gate-results'), btn = $('#gate-in');
+  const go = async () => {
+    const h = input.value.trim().replace(/^@/, ''); if (!h) { input.focus(); return; }
+    btn.disabled = true; btn.textContent = 'redirecting…';
+    try {
+      // clean returnTo (no #fragment — the auth worker appends ?__auth_session=…,
+      // which a fragment would swallow); a localStorage flag resumes into breed.
+      localStorage.setItem('fluoddity_game_resume', '1');
+      await auth.login(h, { returnTo: location.origin + location.pathname });
+    } catch (e) { btn.disabled = false; btn.textContent = 'sign in →'; toast(e.message || String(e)); }
+  };
+  wireTypeahead(input, box, go);
+  btn.addEventListener('click', go);
   $('#gate-skip').onclick = () => { $('#ov-gate').classList.remove('show'); startLevel2(); };
   $('#ov-gate').classList.add('show');
+  setTimeout(() => input.focus(), 60);
+}
+
+// Bluesky handle typeahead (public API, no auth) — same pattern as fluoddity/play.
+function wireTypeahead(input, box, submit) {
+  let items = [], active = -1, timer = null, abort = null;
+  const close = () => { box.classList.remove('show'); box.innerHTML = ''; items = []; active = -1; };
+  const render = () => {
+    if (!items.length) { close(); return; }
+    box.innerHTML = items.map((a, i) => `<div class="ta-item${i === active ? ' on' : ''}" data-i="${i}">${a.avatar ? `<img src="${a.avatar}" referrerpolicy="no-referrer" alt="">` : '<span class="av"></span>'}<span class="nm">${(a.displayName || a.handle).replace(/</g, '&lt;')}<br><small>@${a.handle.replace(/</g, '&lt;')}</small></span></div>`).join('');
+    box.classList.add('show');
+  };
+  const pick = (i) => { if (items[i]) { input.value = items[i].handle; close(); } };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim().replace(/^@/, '');
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(async () => {
+      if (abort) abort.abort(); abort = new AbortController();
+      try {
+        const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: abort.signal });
+        if (!res.ok) return; const d = await res.json();
+        items = d.actors || []; active = -1; render();
+      } catch (e) { /* aborted or offline */ }
+    }, 180);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' && items.length) { e.preventDefault(); active = (active + 1) % items.length; render(); }
+    else if (e.key === 'ArrowUp' && items.length) { e.preventDefault(); active = (active - 1 + items.length) % items.length; render(); }
+    else if (e.key === 'Escape') { close(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0) pick(active); submit(); }
+  });
+  box.addEventListener('mousedown', (e) => { const it = e.target.closest('.ta-item'); if (it) { e.preventDefault(); pick(+it.dataset.i); input.focus(); } });
 }
 
 function startLevel3() {
@@ -537,15 +590,18 @@ if (AE) {
   $('#arena').appendChild(AE.cv);
   buildLegend();
   attachFieldTap();
-  if (location.hash === '#l3') {                 // returning from the level-3 OAuth redirect
-    history.replaceState({}, '', location.pathname);
+  (async () => {
+    // wait for the session to validate (this also picks up the ?__auth_session=…
+    // token the auth worker appends when redirecting back from sign-in).
+    try { await auth.init(); } catch {}
+    const resuming = localStorage.getItem('fluoddity_game_resume') === '1';
+    if (resuming) localStorage.removeItem('fluoddity_game_resume');
     const r = restore(); if (r) S = { ...S, ...r };
-    startLevel3();
-  } else {
-    const r = restore();
-    if (r && r.level === 2 && r.center != null) { S = { ...S, ...r }; startLevel2(); }
-    else { startLevel1(false); }
-  }
+    if (resuming && auth.isLoggedIn()) { startLevel3(); return; }   // back from OAuth → breed
+    if (resuming && !auth.isLoggedIn() && S.champion) { showArena(); gateLevel3(); return; } // sign-in didn't take — let them retry without re-taming
+    if (S.level === 2 && S.center != null) { startLevel2(); return; }
+    startLevel1(false);
+  })();
 }
 </script>
 </body>
