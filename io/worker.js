@@ -108,7 +108,7 @@ async function health(env) {
     tickets,
     sweeperConfigured: !!(env.ATPROTO_SERVICE_HANDLE && env.ATPROTO_SERVICE_PASSWORD),
     sweepTags: SWEEP_TAGS,
-    replyBot: env.SWEEP_REPLY !== 'off',
+    replyBot: env.SWEEP_REPLY === 'on',
     lastSweepAt,
     lastSweep,
   });
@@ -413,9 +413,13 @@ async function sweepPost(env, pub, post, tag) {
   // Eagerly cache so the board shows it before the next index pass.
   const parsed = parseAtUri(result.uri);
   if (parsed) await indexOne(env, parsed.did, parsed.rkey).catch(() => {});
-  // "Tracked as…" reply in the original thread (best-effort; never blocks the
-  // mint). Opt-out by setting SWEEP_REPLY=off as a worker var.
-  if (env.SWEEP_REPLY !== 'off') {
+  // "Tracked as…" reply in the original thread. DEFAULT OFF: replying to many
+  // posts in a backfill pass looks like spam and got the service account
+  // takendown once (AccountTakedown). Opt in explicitly with SWEEP_REPLY=on,
+  // and only after the account is healthy + the backlog is already swept (so a
+  // first run won't fan out replies to old posts). Best-effort; never blocks
+  // the mint.
+  if (env.SWEEP_REPLY === 'on') {
     await replyTracked(pub, post, kind).catch((e) => console.error('replyTracked', e));
   }
   return true;
