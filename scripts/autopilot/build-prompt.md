@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-05-26 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-05-31 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, airchat, answers, ask, astro, atlas, atproto-data, audio, auto, bakery, bisk, bogo, borsuk, bounty, capset, cards, chess, clock, cluster, corn, crm, cult, data, density, disk, docs, draw, echo, elements, emsim, erdos, finance, flow, flows, fodder, functions, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, inpac, js, judge, kakeya, knotpac, labglass, lexicon, list, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, org, os, pac, packages, paint, pds, photo, phylo, pm, pokemon, poll, post01, prism, proteus, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, thread, time, torpac, torusworld, track, vault, viazovska, wars, wave, web, weft, wiki, wild, workers, yum, zoom
+**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, ask, astro, atlas, atproto-data, audio, auto, bakery, bisk, bogo, borsuk, bounty, capset, cards, cat, chess, clock, cluster, corn, crm, cult, curve, data, density, disk, docs, draw, echo, elements, empathy, emsim, erdos, finance, flights, flow, flows, fluoddity, fodder, functions, games, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, inpac, js, judge, kakeya, knotpac, labglass, lexicon, list, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, org, os, pac, packages, paint, pds, photo, phylo, pm, pokemon, poll, post01, prism, proteus, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, splice, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, ternary2, thread, time, torpac, torusworld, track, vault, viazovska, wars, wave, web, weft, wiki, wild, workers, yum, zoom
 
-**Catalog saturation** (sites per category): bluesky 28, data 27, games 23, tools 9, work 6.
+**Catalog saturation** (sites per category): bluesky 29, data 27, games 24, tools 9, work 6.
 
-**Neighborhood spark** (bisk 2026-05-26, 99 members / 249 posts):
+**Neighborhood spark** (bisk 2026-05-31, 99 members / 250 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: bluesky, noumena, encyclical
-- Top post: "americans are on holiday u know what that means" — @samuel.fm
+- Distinctive words: llm, bottleneck, imo
+- Top post: "" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
