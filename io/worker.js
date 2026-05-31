@@ -39,7 +39,7 @@ const CONSTELLATION_SOURCE = `${IO_COLLECTION}:board`;
 const BSKY_PUBLIC = 'https://public.api.bsky.app';
 
 // Seed sweep hashtag(s). Add/rename freely — matched against post text + tags.
-const SWEEP_TAGS = ['atprotoideasio'];
+const SWEEP_TAGS = ['atprotoideasio', 'atproideasio'];
 
 const KINDS = ['bug', 'feature', 'idea'];
 const STATUSES = ['new', 'triaged', 'in_progress', 'done', 'wontfix'];
