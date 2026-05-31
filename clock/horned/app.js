@@ -1,31 +1,35 @@
 // Alexander's Horned Sphere — infinite WebGPU fractal zoom (KIFS, real one)
 //
-// A body sphere sprouts a PAIR of open horns (circular arcs) that curl TOWARD
-// each other and hook; each horn's tip sprouts another such pair, forever,
-// tightening toward the Cantor limit. No closed loops — every horn is an open
-// arc tube.
+// A COPLANAR, CONTINUOUS binary canopy of circular arcs (everything in z=0):
+// a body sphere sprouts two horns; each horn's tip sprouts two more, mirror
+// images curling in opposite directions, forever, tightening to the Cantor
+// limit. Open arcs throughout — no closed loops.
 //
-// The two siblings are rendered EXPLICITLY (min of two arcs), not by an abs()
-// fold: each is rooted off-centre (at +-d) and curls INWARD toward the middle,
-// with opposite out-of-plane tilt (+-roll) so they hook in 3D instead of
-// colliding. mapTree() walks 'depth' generations down the primary lineage and
-// also a few OUTER generations up, taking the min across all of them — so the
-// whole structure (both children at the spine nodes, several generations, the
-// body) is on screen at once, and the outer generations keep a level visible
-// until you've zoomed well past it (no popping at the wrap).
+// Continuity + the binary fork come from ONE device: at each generation the
+// query is folded by x = abs(x) ACROSS THE TIP'S TANGENT LINE. Because a child
+// is the canonical arc placed at the parent tip with matching tangent, the fold
+// (a) glues both children to the tip with C^1 continuity, (b) makes them true
+// mirror images (opposite curl), and (c) renders the whole binary tree at O(1)
+// per generation. No out-of-plane roll, so every arc is coplanar.
 //
-// Infinite zoom: the primary lineage is an exact similarity. Each frame the CPU
-// builds the fractional descent G^zc about its FIXED POINT L (the limit point)
-// as an affine map A,b plus scale; the shader samples q = A*p + b and divides
-// distance by the scale. By self-similarity G^zc and G^(zc+1) render the same
-// structure, so zc wraps in [0,1): endless, seamless, zooms IN, no precision cap.
+// Canonical arc: starts at origin O tangent +Y, curls toward +x, tip
+//   T = (RA - RA cos s, RA sin s), end-tangent u' = (sin s, cos s).
+// Descend to a child frame: q -> k * Rz(s) * (q - T)  (lands u' on +Y so the
+//   next abs(x) mirrors across the tip tangent). Forward similarity is
+//   G(p) = T + (1/k) Rz(-s) p; the zoom contracts toward G's fixed point L.
+//
+// Zoom: CPU builds the fractional contraction G^zc about L as affine A,b + scale
+// each frame; shader samples q = A*p + b, distance /scale. Self-similar => zc
+// wraps in [0,1): endless, seamless, zooms IN, no precision cap. OUTER extra
+// generations are rendered UP the lineage (exact inverse map) so levels don't
+// pop at the wrap until they're well behind the camera.
 
 const WGSL = /* wgsl */`
 struct Uniforms {
   res   : vec4f,  // res.x, res.y, time, _
   cam   : vec4f,  // yaw, pitch, dist, fovTan
   geo   : vec4f,  // k, span, tube, RA
-  fork  : vec4f,  // d (root sep), roll, bodyR, bodyShow
+  fork  : vec4f,  // _, _, bodyR, bodyShow
   shade : vec4f,  // colorPhase, glow, paletteMode, aoStrength
   light : vec4f,  // lightYaw, lightPitch, fog, exposure
   pal   : vec4f,  // bgBright, vignette, depth, invS
@@ -39,72 +43,58 @@ struct Uniforms {
 var<private> gLev : f32 = 0.0;
 
 const TAU = 6.2831853;
+const PI  = 3.1415927;
 
 fn rotZ(a : f32) -> mat3x3f {
   let c = cos(a); let s = sin(a);
   return mat3x3f(vec3f(c, s, 0.0), vec3f(-s, c, 0.0), vec3f(0.0, 0.0, 1.0));
 }
-fn rotY(a : f32) -> mat3x3f {
-  let c = cos(a); let s = sin(a);
-  return mat3x3f(vec3f(c, 0.0, -s), vec3f(0.0, 1.0, 0.0), vec3f(s, 0.0, c));
-}
 
-// SDF of a circular arc tube rooted at the origin, tangent +Y, curling toward
-// -X (centre at (-RA,0)); point(phi) = (-RA+RA cos phi, RA sin phi), phi in
-// [0,span]. With endpoint caps it's a safe distance bound everywhere.
-fn sdArcInward(p : vec3f, RA : f32, tube : f32, span : f32) -> f32 {
-  let C = vec2f(-RA, 0.0);
-  let w = p.xy - C;
-  let th = clamp(atan2(w.y, w.x), 0.0, span);
-  let cp = C + RA * vec2f(cos(th), sin(th));
+// SDF of the canonical circular-arc tube: starts at origin (tangent +Y), curls
+// toward +x (centre (RA,0)); point(t) = (RA - RA cos t, RA sin t), t in [0,span].
+// Endpoint caps make it a valid distance bound even for span > pi.
+fn sdArc(p : vec3f, RA : f32, tube : f32, span : f32) -> f32 {
+  let C = vec2f(RA, 0.0);
+  let w = p.xy - C;                       // arc point dir = (-cos t, sin t)
+  let alpha = atan2(w.y, w.x);            // angle of w
+  let t = clamp(PI - alpha, 0.0, span);   // nearest param on the arc
+  let cp = C + RA * vec2f(-cos(t), sin(t));
   var d = length(vec3f(p.x - cp.x, p.y - cp.y, p.z)) - tube;
-  let e0 = vec3f(0.0, 0.0, 0.0);
-  let e1 = vec3f(-RA + RA * cos(span), RA * sin(span), 0.0);
+  let e0 = vec3f(0.0, 0.0, 0.0);                                  // base cap
+  let e1 = vec3f(RA - RA * cos(span), RA * sin(span), 0.0);       // tip cap
   d = min(d, length(p - e0) - tube);
   d = min(d, length(p - e1) - tube);
   return d;
 }
 
-// One horn: arc rooted at (+d,0,0), tilted by +roll out of plane.
-fn horn(x : vec3f, d : f32, roll : f32, RA : f32, tube : f32, span : f32) -> f32 {
-  let q = rotY(-roll) * (x - vec3f(d, 0.0, 0.0));
-  return sdArcInward(q, RA, tube, span);
-}
-// The sibling pair: horn A and its mirror (x->-x, z->-z) so they curl toward
-// each other and hook with opposite out-of-plane tilt.
-fn pair(x : vec3f, d : f32, roll : f32, RA : f32, tube : f32, span : f32) -> f32 {
-  let a = horn(x, d, roll, RA, tube, span);
-  let b = horn(vec3f(-x.x, x.y, -x.z), d, roll, RA, tube, span);
-  return min(a, b);
-}
-
+// Coplanar binary canopy: fold-then-evaluate per generation, descend the spine.
 fn mapTree(q0 : vec3f) -> f32 {
   let k    = U.geo.x;
   let span = U.geo.y;
   let tube = U.geo.z;
   let RA   = U.geo.w;
-  let d    = U.fork.x;
-  let roll = U.fork.y;
   let W    = i32(U.pal.z + 0.5);
   let OUT  = i32(U.qual.y + 0.5);
+  let T    = vec3f(RA - RA * cos(span), RA * sin(span), 0.0);  // canonical tip
 
-  let aS = vec3f(-RA + RA * cos(span), RA * sin(span), 0.0);
-  let Rp = rotY(roll);
-  let Pe = vec3f(d, 0.0, 0.0) + Rp * aS;          // horn-A tip (world)
-  let Mdesc = (k) * (rotZ(-span) * rotY(-roll));   // x' = Mdesc*(x-Pe)
-  let Masc  = (1.0 / k) * (Rp * rotZ(span));       // x  = Pe + Masc*x'  (inverse)
+  let Rasc  = rotZ(-span);     // ascend rotation (up the lineage)
+  let Rdesc = rotZ(span);      // descend rotation (down the lineage)
 
   var x   = q0;
   var scl = 1.0;
-  for (var o = 0; o < OUT; o = o + 1) { x = Pe + Masc * x; scl = scl / k; }
+  for (var o = 0; o < OUT; o = o + 1) {        // climb OUT generations up
+    x = T + (1.0 / k) * (Rasc * x);
+    scl = scl / k;
+  }
 
   var dist = 1e9;
   gLev = 0.0;
   let total = OUT + W;
   for (var g = 0; g < total; g = g + 1) {
-    let dd = pair(x, d, roll, RA, tube, span) / scl;
+    x.x = abs(x.x);                            // fold across tip tangent -> pair
+    let dd = sdArc(x, RA, tube, span) / scl;
     if (dd < dist) { dist = dd; gLev = f32(g - OUT); }
-    x = Mdesc * (x - Pe);
+    x = k * (Rdesc * (x - T));                 // descend the spine
     scl = scl * k;
   }
   return dist;
@@ -240,12 +230,12 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
 // Parameters
 // ---------------------------------------------------------------------------
 const RA = 0.5;          // arc radius (fixed; 'child scale' k is the size knob)
-const BODY_R = 0.22;
+const BODY_R = 0.16;
 const OUTER = 2;         // extra outer generations rendered (anti-blink)
 const DEFAULTS = {
   zoomSpeed: 0.08, orbitSpeed: 0.05, pitch: 0.10,
-  k: 2.00, span: 2.60, sep: 0.34, roll: 0.60, tube: 0.055, depth: 8,
-  fov: 55, dist: 4.4, glow: 0.40, palette: 1,
+  k: 2.00, span: 2.40, tube: 0.050, depth: 8,
+  fov: 55, dist: 4.2, glow: 0.40, palette: 1,
   exposure: 1.15, fog: 0.08, ao: 0.70, quality: 150,
   bg: 0.65, vignette: 0.6,
 };
@@ -254,12 +244,10 @@ const SLIDERS = [
   { key: 'orbitSpeed', label: 'orbit speed', min: -0.5, max: 0.5, step: 0.01 },
   { key: 'pitch', label: 'camera pitch', min: -1.35, max: 1.35, step: 0.01 },
   { key: 'span', label: 'arc span', min: 0.6, max: 5.4, step: 0.02 },
-  { key: 'sep', label: 'fork separation', min: 0.0, max: 0.7, step: 0.005 },
-  { key: 'roll', label: 'clasp roll (3D)', min: 0.0, max: 1.8, step: 0.01 },
   { key: 'k', label: 'child scale', min: 1.55, max: 2.7, step: 0.01 },
-  { key: 'tube', label: 'horn thickness', min: 0.02, max: 0.14, step: 0.003 },
-  { key: 'depth', label: 'recursion depth', min: 3, max: 11, step: 1 },
-  { key: 'dist', label: 'camera distance', min: 2.2, max: 12, step: 0.1 },
+  { key: 'tube', label: 'horn thickness', min: 0.015, max: 0.13, step: 0.003 },
+  { key: 'depth', label: 'recursion depth', min: 3, max: 12, step: 1 },
+  { key: 'dist', label: 'camera distance', min: 2.0, max: 12, step: 0.1 },
   { key: 'fov', label: 'field of view', min: 20, max: 95, step: 1 },
   { key: 'glow', label: 'glow', min: 0, max: 1.5, step: 0.02 },
   { key: 'fog', label: 'fog', min: 0, max: 0.6, step: 0.01 },
@@ -305,40 +293,17 @@ function mInv3(m) {
   ];
 }
 function rotZm(a) { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; }
-function rotYm(a) { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; }
-function rotAxism(ax, a) {
-  const c = Math.cos(a), s = Math.sin(a), t = 1 - c, [x, y, z] = ax;
-  return [
-    t*x*x + c,   t*x*y - s*z, t*x*z + s*y,
-    t*x*y + s*z, t*y*y + c,   t*y*z - s*x,
-    t*x*z - s*y, t*y*z + s*x, t*z*z + c,
-  ];
-}
-function axisAngle(m) {
-  const tr = m[0] + m[4] + m[8];
-  const ang = Math.acos(Math.max(-1, Math.min(1, (tr - 1) / 2)));
-  let ax = [1, 0, 0];
-  if (ang > 1e-5) {
-    const x = m[7] - m[5], y = m[2] - m[6], z = m[3] - m[1];
-    const n = Math.hypot(x, y, z) || 1; ax = [x / n, y / n, z / n];
-  }
-  return { ax, ang };
-}
 
-// Rchild (ascend rotation) = rotY(roll) * rotZ(span); Pe = (sep,0,0)+rotY(roll)*aS.
-// Zoom = contraction G^zc about fixed point L; A=k^-zc R(zc), b=L-A L, invS=k^zc.
+// Forward similarity G(p) = T + (1/k) Rz(-span) p. Zoom = contraction G^zc
+// about fixed point L; A = k^-zc Rz(-span*zc), b = L - A L, invS = k^zc.
 function buildZoom() {
-  const k = params.k, span = params.span, roll = params.roll, sep = params.sep;
-  const aS = [-RA + RA * Math.cos(span), RA * Math.sin(span), 0];
-  const Rp = rotYm(roll);
-  const Pe = mVec(Rp, aS); Pe[0] += sep;
-  const Rchild = mMul(Rp, rotZm(span));
-  const L = mVec(mInv3(mSub(mI(), mScale(1 / k, Rchild))), Pe);
+  const k = params.k, span = params.span;
+  const T = [RA - RA * Math.cos(span), RA * Math.sin(span), 0];
+  const Rg = rotZm(-span);
+  const L = mVec(mInv3(mSub(mI(), mScale(1 / k, Rg))), T);
 
   const zc = rt.zoomLevel - Math.floor(rt.zoomLevel);    // wrap [0,1): seamless
-  const { ax, ang } = axisAngle(Rchild);
-  const Rzc = rotAxism(ax, zc * ang);
-  const A = mScale(Math.pow(k, -zc), Rzc);               // contract toward L (zoom in)
+  const A = mScale(Math.pow(k, -zc), rotZm(-span * zc));  // contract toward L (zoom in)
   const AL = mVec(A, L);
   const b = [L[0] - AL[0], L[1] - AL[1], L[2] - AL[2]];
   const invS = Math.pow(k, zc);
@@ -421,7 +386,7 @@ async function init() {
     u[4] = rt.yaw; u[5] = params.pitch; u[6] = params.dist;
     u[7] = Math.tan((params.fov * Math.PI / 180) * 0.5);
     u[8] = params.k; u[9] = params.span; u[10] = params.tube; u[11] = RA;
-    u[12] = params.sep; u[13] = params.roll; u[14] = BODY_R; u[15] = z.bodyShow;
+    u[12] = 0; u[13] = 0; u[14] = BODY_R; u[15] = z.bodyShow;
     u[16] = rt.colorPhase; u[17] = params.glow; u[18] = params.palette; u[19] = params.ao;
     u[20] = rt.yaw + 0.7; u[21] = 0.85; u[22] = params.fog; u[23] = params.exposure;
     u[24] = params.bg; u[25] = params.vignette; u[26] = params.depth; u[27] = z.invS;
@@ -534,11 +499,9 @@ function reset() {
 }
 function surprise() {
   const r = (a, b) => a + Math.random() * (b - a);
-  params.span = r(1.8, 4.6);
-  params.sep = r(0.15, 0.55);
-  params.roll = r(0.2, 1.4);
+  params.span = r(1.6, 4.4);
   params.k = r(1.7, 2.4);
-  params.tube = r(0.035, 0.10);
+  params.tube = r(0.025, 0.09);
   params.depth = Math.round(r(6, 10));
   params.palette = Math.floor(r(0, PALETTES.length));
   params.glow = r(0.1, 0.9);
