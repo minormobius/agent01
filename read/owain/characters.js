@@ -25,7 +25,7 @@ window.OWAIN.characters = {
     // — Principals —
     { id: "owain", name: "Owain ab Urien", role: "principal", alt: "Yvain (Chrétien); Owain mab Urien Rheged", epithet: "knight of Arthur's court; lord of the fountain; the knight of the lion",
       blurb: "The hero. A knight of Arthur's court who, stung by Cei's mockery and moved by Cynon's tale of defeat, rides alone to the magic fountain, pours the water, endures the storm, and meets and mortally wounds its Black Knight. Trapped in the dead man's castle, made invisible by Luned's ring, he falls in love with the widow he has just made and — through Luned's contrivance — weds her and takes up the fountain's defence. Then Arthur's company finds him; he returns to court for a visit, overstays the term his wife set, and loses everything: she sends a messenger to strip the ring from his finger, and he runs mad and naked into the wilderness. Healed by a noblewoman's ointment, companioned by a lion he saves from a serpent, he wins his way back through a chain of rescues to reconciliation. Historically <strong>Owain mab Urien</strong> was a real sixth-century king of Rheged in the Hen Ogledd (the Old North), praised in Taliesin's elegies — euhemerised demotion in reverse, a historical prince climbing into Arthurian romance.",
-      appears: [1, 2, 3, 4, 5, 6, 7, 8], pending: true,
+      appears: [1, 2, 3, 4, 5, 6, 7, 8, 9], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "luned", label: "saved by / saviour of" }, { to: "lion", label: "companion of" }, { to: "black-knight", label: "slayer of" }, { to: "cynon", label: "completes the quest of" }, { to: "arthur", label: "knight of" }, { to: "cei", label: "mocked by" }, { to: "gwalchmei", label: "fights unknowing" }] },
 
     { id: "cynon", name: "Cynon ab Clydno", role: "court", alt: "Calogrenant (Chrétien)", epithet: "the knight whose defeat opens the tale",
@@ -35,12 +35,12 @@ window.OWAIN.characters = {
 
     { id: "countess", name: "The Countess of the Fountain", role: "fountain", alt: "Iarlles y Ffynnon; Laudine (Chrétien)", epithet: "the lady of the magic spring; the widow Owain makes and weds",
       blurb: "The title figure — <em>Iarlles y Ffynnon</em>, the Lady (Countess) of the Fountain. Widow of the Black Knight Owain kills, mistress of the castle and the magic spring whose defender must hold it against all comers. Persuaded by Luned's blunt logic — that she needs a champion to keep the fountain, and the man who beat her husband is the strongest available — she weds Owain and entrusts him with its defence. When Owain breaks his term and is lost, she takes back the ring she gave him; at the tale's end the two are reconciled. (In Chrétien she is Laudine.)",
-      appears: [4, 5, 6], pending: true,
+      appears: [4, 5, 6, 9], pending: true,
       rel: [{ to: "owain", label: "wife of" }, { to: "luned", label: "served and counselled by" }, { to: "black-knight", label: "widow of" }] },
 
     { id: "luned", name: "Luned", role: "fountain", alt: "Lunete (Chrétien)", epithet: "the Countess's maid; keeper of the ring of invisibility",
       blurb: "The Countess's quick-witted handmaid and the true engine of the plot. She hides the trapped Owain, gives him the ring that makes its wearer invisible, feeds and shelters him, and then — by sheer force of argument — talks her grieving mistress into marrying the very man who killed her husband. Later, having defended Owain's name at court, she is imprisoned in a stone vault by two of the Countess's pages and condemned to burn unless a champion comes; the lion-companioned Owain arrives in time to save her, closing the circle of obligation. The cleverest figure in the romance. (In Chrétien she is Lunete.)",
-      appears: [4, 5, 8], pending: true,
+      appears: [4, 5, 8, 9], pending: true,
       rel: [{ to: "countess", label: "maid and counsellor of" }, { to: "owain", label: "saviour of / saved by" }, { to: "ring", label: "keeper of" }] },
 
     { id: "lion", name: "The lion", role: "creature", alt: "the Knight of the Lion's lion", epithet: "the grateful beast; emblem of loyalty",
@@ -61,7 +61,7 @@ window.OWAIN.characters = {
     // — Arthur's court —
     { id: "arthur", name: "Arthur", role: "court", alt: "Yr Amherawdyr Arthur", epithet: "the emperor; lord of Caer Llion",
       blurb: "The emperor (<em>amherawdyr</em>) at whose court at Caer Llion ar Wysc the tale is told and to which it returns. He dozes while his men trade stories in the opening frame, and later leads the company that rides out to find the fountain — and Owain — bringing the hero back to court for the fateful visit that breaks his marriage-term.",
-      appears: [1, 2, 6], pending: true,
+      appears: [1, 2, 6, 9], pending: true,
       rel: [{ to: "owain", label: "lord of" }, { to: "cei", label: "lord of" }, { to: "cynon", label: "lord of" }, { to: "gwenhwyfar", label: "husband of" }] },
 
     { id: "cei", name: "Cei ab Cynyr", role: "court", alt: "Sir Kay", epithet: "the sharp-tongued steward",
@@ -116,5 +116,15 @@ window.OWAIN.characters = {
       blurb: "A man-shaped monster, no smaller than a giant, who kills and devours men on the mountain. He seizes the hospitable Earl's two sons at the hunt and demands the Earl's daughter on pain of slaying the sons before his eyes. When the giant balks at fighting \"the beast,\" Owain shuts the lion away out of honour and is overmatched — until the lion bursts out and tears the giant from shoulder to hip. The first of the back half's two mirror-combats over the lion.",
       appears: [8], pending: true,
       rel: [{ to: "owain", label: "slain by" }, { to: "earl-host", label: "tormentor of" }] },
+
+    { id: "du-traws", name: "The Black Oppressor", role: "wander", alt: "y Du Traws; the Black Tyrant", epithet: "the robber-lord turned hospitaller",
+      blurb: "<em>Y Du Traws</em> \u2014 the Black Oppressor, the last antagonist of the road: a robber-lord who drugs his guests at their welcome-feast, murders the men for their goods, and heaps his hall with corpses. He greets Owain with false-brotherly love; Owain overcomes and binds him, and spares his life on the vow that he will keep the charnel-house thereafter as a true hospice \"for the weak and the strong.\" His defeat was foretold (<em>darogan</em>). The dark mirror of every gracious host in the tale.",
+      appears: [9], pending: true,
+      rel: [{ to: "owain", label: "subdued by" }, { to: "ladies-24", label: "despoiler of" }] },
+
+    { id: "ladies-24", name: "The twenty-four ladies", role: "wander", alt: "the daughters of earls", epithet: "the despoiled widows of the Black Oppressor's hall",
+      blurb: "Four-and-twenty earls' daughters, the fairest ever seen, in rags worth less than twenty-four pence \u2014 widows of the men the Black Oppressor murdered at their welcome-feast, stripped of horses, clothes, gold and silver. Owain frees them, restores their goods, and brings them to Arthur's court, where each may stay or go as she wishes.",
+      appears: [9], pending: true,
+      rel: [{ to: "du-traws", label: "despoiled by" }, { to: "owain", label: "freed by" }] },
   ],
 };

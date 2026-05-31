@@ -21,6 +21,7 @@ window.OWAIN.propp = {
     { id: "return",   label: "Arthur's company; the recognition",   color: "#b07a4b" },
     { id: "fall",     label: "The broken term; madness",            color: "#9a6f9a" },
     { id: "lion",     label: "The lion; the chain of rescues",      color: "#7fb37f" },
+    { id: "close",    label: "The Countess regained; the close",    color: "#c9a24a" },
   ],
   moves: [
     // ── Act 1: frame ─────────────────────────────────────────────
@@ -75,16 +76,21 @@ window.OWAIN.propp = {
       realized: "Two combats in one movement, told to the same pattern: the man-eating giant who has seized the hospitable Earl's sons, and the two pages burning Luned at the stake. In each the enemy refuses to fight \"the beast,\" Owain shuts the lion away out of honour, is overmatched, and the lion bursts through wall or gate to save him. The sons are restored; Luned — who once vouched for Owain with her freedom — is delivered at the last hour. The oldest debt of all is paid.", passage: 8 },
     { act: "lion", sym: "(Mᵒ)", node: "The unrecognised champion", name: "Owain fights as 'in his stead'", gloss: "The hero acts under a borrowed identity.",
       realized: "Owain offers to fight the pages \"in Owain's stead\" — defending his own name without giving it, the inverse of the disguised combats of Movement VI. \"Owain's full strength had not yet come back\": the healed man still leans on his lion, and the tale says so plainly. The recognition proper, and the Countess regained, wait for Movement IX.", passage: 8 },
-    // The Countess regained, the Black Oppressor's hospice, and the return to
-    // Arthur's court close the tale in the final movement.
+    // ── Act 7: close ─────────────────────────────────────────────
+    { act: "close", sym: "W", node: "Wedding restored", name: "The Countess regained", gloss: "The hero is reunited with the bride.",
+      realized: "Owain goes back, takes the Countess, and brings her to Arthur's court — \"and she was his wife as long as she lived.\" Where Chrétien spends a long, knife-edged scene on the reconciliation, the Welsh dispatches Propp's restoration in a single sentence: the deed has already proved the man, so the marriage needs no further words. The reticence is the Welsh romance's signature, shared with the terse closes of Pwyll and Culhwch.", passage: 9 },
+    { act: "close", sym: "H–I–K", node: "The last rescue", name: "The Black Oppressor; the freed ladies", gloss: "A final struggle, victory, and liquidation.",
+      realized: "The last debt of the road: Owain (the lion at his side until the victory) subdues the Black Oppressor, the murderous host whose hall is a charnel-house, and spares him on his vow to keep it as a hospice. The twenty-four despoiled ladies are freed, their goods restored, and brought to Arthur's court. His victory was foretold (<em>darogan</em>) — the romance hero written into the future of the place he mends.", passage: 9 },
+    { act: "close", sym: "↑↑W°", node: "Apotheosis", name: "The hero at his height", gloss: "The hero ascends to a higher station.",
+      realized: "Owain dwells at Arthur's court as <em>penn-teulu</em>, head of the household, dear to the king, until he goes to his own dominions — the three hundred swords of the kindred of Cynfarch and the Flight of Ravens — and wherever he goes with them, he is victorious. The tale ends not on the marriage but on the war-band, returning its romance hero to the older heroic world of the Hen Ogledd, and signs off with its title-formula: <em>chwedyl Iarlles y Ffynnawn</em>.", passage: 9 },
   ],
   absent: {
-    note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the frame and the known shape of the romance, Owain's distinctive Propp profile (relative to the Welsh sister-tales) is shaping up around three features:",
+    note: "With the whole romance now rendered, Owain's distinctive Propp profile (relative to the Welsh sister-tales) rests on three features:",
     groups: [
       { label: "Interdiction & Violation drive the tale", syms: "γ δ", text: "Unlike Pwyll, Culhwch, or Orfeo — where no interdiction governs the plot — <em>Owain</em> turns on one: the term the Countess sets for her husband's absence, which Owain overstays. The violated interdiction (γ→δ) is the hinge that topples the whole back half of the tale into the fall-and-redemption arc. The most Continental-romance feature in the corpus." },
       { label: "The spine traversed twice", syms: "A…W ×2", text: "An ascending arc (quest → won bride → held office) and a descending-then-redemptive arc (madness → donor → helper → rescues → reconciliation). Pwyll braids three arcs across two heroes; Owain runs two arcs through one hero, joined at a moral fault-line rather than a generational one." },
       { label: "The grateful-helper animal", syms: "the lion (helper)", text: "Propp's helper-slot is filled by a beast bound to the hero by gratitude rather than magic or kinship — a feature absent from the Welsh sister-tales (whose helpers are the Oldest Animals of Culhwch, the donor-heroine of Pwyll) and shared instead with the international grateful-animal tradition (ATU 156 / B301)." },
     ],
-    verdict: "<em>Verdict pending the full translation.</em> The working thesis: where the native Welsh tales (Pwyll, Culhwch) refuse the indelible mark and the governing interdiction, <em>Owain</em> — the tale with a French twin — accepts both, and builds its second half on a broken promise and a beast's kept faith. That contrast is exactly the Welsh↔Continental seam the Pendragon evolutionary tree exists to trace.",
+    verdict: "Where the native Welsh tales (Pwyll, Culhwch) refuse the indelible mark and the governing interdiction, <em>Owain</em> — the tale with a French twin — accepts both, and builds its whole second half on a broken promise and a beast's kept faith: the spine traversed twice, joined at the violated term, with a grateful animal in the helper-slot. That contrast is exactly the Welsh↔Continental seam the Pendragon evolutionary tree exists to trace.",
   },
 };

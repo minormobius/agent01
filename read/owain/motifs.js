@@ -24,8 +24,8 @@ window.OWAIN.motifs = {
     { code: "ATU 156", name: "The grateful lion (thorn / serpent removed)", conf: "high",
       gloss: "The grateful-animal type behind the lion episode: a hero frees a beast from a tormentor (here a serpent gripping the lion's tail), and the beast becomes his faithful companion. Descends ultimately from the Androcles-and-the-lion stock (Aulus Gellius, 2nd c.). Owain's lion is the type's most famous medieval realisation — the helper bound by gratitude, not magic. Realised in Mvt VIII." },
   ],
-  classOrder: ["B", "D", "F", "G", "H", "N", "T", "Z"],
-  classes: { B: "Animals", D: "Magic", F: "Marvels &amp; the Otherworld", G: "Ogres &amp; giants", H: "Tests &amp; tasks", N: "Chance &amp; fate", T: "Love &amp; marriage", Z: "Formulas &amp; symbols" },
+  classOrder: ["B", "D", "F", "G", "H", "K", "M", "N", "T", "Z"],
+  classes: { B: "Animals", D: "Magic", F: "Marvels &amp; the Otherworld", G: "Ogres &amp; giants", H: "Tests &amp; tasks", K: "Deceptions", M: "Ordaining the future", N: "Chance &amp; fate", T: "Love &amp; marriage", Z: "Formulas &amp; symbols" },
   list: [
     // — B · Animals —
     { cls: "B", code: "B301", name: "Faithful animal / the grateful lion", conf: "high", passages: [8],
@@ -54,6 +54,14 @@ window.OWAIN.motifs = {
     // — G · Ogres &amp; giants —
     { cls: "G", code: "G312", name: "Cannibal ogre / man-eating giant", conf: "high", passages: [8],
       gloss: "The man-shaped monster of the mountain, \"no smaller than a giant,\" who kills and devours men and seizes the hospitable Earl's sons, demanding his daughter. Owain and the lion kill it (the lion's paw opening it shoulder-to-hip). The cannibal-ogre type; cf. the giant Ysbaddaden's monstrous household in Culhwch and the ogres of the international wonder-tale. Paired with the two pages at the fire as the movement's twin combats." },
+
+    // — K · Deceptions —
+    { cls: "K", code: "K811", name: "Murderous host / the treacherous welcome-feast", conf: "med", passages: [9],
+      gloss: "The Black Oppressor's hall: guests received \"with joy and honour,\" made drunk, and then slaughtered for their horses, gold and raiment, the corpses heaped in the house. The treacherous-host type \u2014 hospitality turned to ambush, the dark inversion of the tale's many gracious castles. Owain converts the house of spoil into a true hospice." },
+
+    // — M · Ordaining the future —
+    { cls: "M", code: "M312", name: "Prophecy: the hero will overcome", conf: "high", passages: [9],
+      gloss: "<em>Darogan oed dy dyuot ti yma y'm darestwng i</em> \u2014 \"it was foretold you would come here to subdue me,\" says the Black Oppressor as he yields. The romance hero arrives already written into the future of the place he mends; cf. the prophetic frame of <em>Culhwch</em> (Olwen destined for Culhwch) and the darogan-tradition of Welsh vaticination generally." },
 
     // — T · Love & marriage —
     { cls: "T", code: "T15", name: "Love at first sight", conf: "high", passages: [4],
