@@ -19,12 +19,13 @@ window.OWAIN.characters = {
     { id: "fountain",   label: "The fountain and its lady",        color: "#c97f9a" },
     { id: "road",       label: "Marvels and keepers of the road",  color: "#b07a4b" },
     { id: "creature",   label: "Creatures and helpers",            color: "#8aa363" },
+    { id: "wander",     label: "Figures of the wandering road",    color: "#9a6f9a" },
   ],
   cast: [
     // — Principals —
     { id: "owain", name: "Owain ab Urien", role: "principal", alt: "Yvain (Chrétien); Owain mab Urien Rheged", epithet: "knight of Arthur's court; lord of the fountain; the knight of the lion",
       blurb: "The hero. A knight of Arthur's court who, stung by Cei's mockery and moved by Cynon's tale of defeat, rides alone to the magic fountain, pours the water, endures the storm, and meets and mortally wounds its Black Knight. Trapped in the dead man's castle, made invisible by Luned's ring, he falls in love with the widow he has just made and — through Luned's contrivance — weds her and takes up the fountain's defence. Then Arthur's company finds him; he returns to court for a visit, overstays the term his wife set, and loses everything: she sends a messenger to strip the ring from his finger, and he runs mad and naked into the wilderness. Healed by a noblewoman's ointment, companioned by a lion he saves from a serpent, he wins his way back through a chain of rescues to reconciliation. Historically <strong>Owain mab Urien</strong> was a real sixth-century king of Rheged in the Hen Ogledd (the Old North), praised in Taliesin's elegies — euhemerised demotion in reverse, a historical prince climbing into Arthurian romance.",
-      appears: [1, 2, 3, 4, 5, 6], pending: true,
+      appears: [1, 2, 3, 4, 5, 6, 7], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "luned", label: "saved by / saviour of" }, { to: "lion", label: "companion of" }, { to: "black-knight", label: "slayer of" }, { to: "cynon", label: "completes the quest of" }, { to: "arthur", label: "knight of" }, { to: "cei", label: "mocked by" }, { to: "gwalchmei", label: "fights unknowing" }] },
 
     { id: "cynon", name: "Cynon ab Clydno", role: "court", alt: "Calogrenant (Chrétien)", epithet: "the knight whose defeat opens the tale",
@@ -94,5 +95,16 @@ window.OWAIN.characters = {
       blurb: "Luned's ring: turn the stone into the palm and close the hand, and \"as long as you hide it, it will hide you.\" It carries the trapped Owain out from between the castle gates, past the household come to kill him, and lets him watch the funeral — and the Countess — unseen. A token, not a character, but the hinge of Movement IV: the hero survives by a woman's gift and a woman's plan.",
       appears: [4], pending: true,
       rel: [{ to: "luned", label: "kept and given by" }, { to: "owain", label: "conceals" }] },
+
+    // — Figures of the wandering road (the fall and after) —
+    { id: "park-countess", name: "The Countess of the park", role: "wander", alt: "the widow with the balsam", epithet: "Owain's healer; the second widow",
+      blurb: "The widowed Countess of the fairest park in the world, who finds the mad, wasted Owain by her lake and has him anointed with a flask of precious balsam \u2014 sevenscore pounds' worth, poured out all at once by her kind-hearted maid \u2014 and nursed back to health over three months. Owain repays her by capturing the young Earl who has seized her two earldoms and besieges her last castle for refusing to wed him. The mirror-image of the Countess of the Fountain: the first widow is the cause of Owain's fall, the second the agent of his recovery.",
+      appears: [7], pending: true,
+      rel: [{ to: "owain", label: "healer of" }, { to: "young-earl", label: "besieged by" }] },
+
+    { id: "young-earl", name: "The young Earl", role: "wander", alt: "the besieging neighbour", epithet: "the suitor who makes war on a widow",
+      blurb: "A young earl, neighbour to the Countess of the park, who has stripped her of two earldoms and besieges her last dwelling because she would not become his wife. Owain, newly healed, drags him bodily from his saddle and delivers him to the Countess; for his life the Earl restores the earldoms, and for his freedom gives half his lands, his treasure, and hostages. A dark mirror of Owain, who also won a widow's land by force.",
+      appears: [7], pending: true,
+      rel: [{ to: "park-countess", label: "besieger of" }, { to: "owain", label: "captured by" }] },
   ],
 };

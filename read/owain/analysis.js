@@ -59,8 +59,17 @@ window.OWAIN.propp = {
       realized: "Cei raises the storm and is twice unhorsed; the whole Round Table falls one by one to the unknown black defender — who is Owain. Only Gwalchmei, in a borrowed robe that hides him too, lasts three days against his own cousin, until a blow bares his face and the two know each other. Arthur dissolves their courteous deadlock — \"give me both swords, and neither has beaten the other.\" A double recognition, each man hidden from the other.", passage: 6 },
     { act: "return", sym: "γ", node: "Interdiction set", name: "The term granted", gloss: "A condition is laid down — the seed of the violation.",
       realized: "The feast three years in the making is eaten in three months; then Arthur asks the Countess to lend Owain for three months, to show him to the nobles of Britain, and she grants it \"though it was hard for her.\" The term is set. Propp's interdiction (γ) is in place; the whole fall turns on Owain failing to keep it.", passage: 6 },
-    // The violated term (δ), the descent into madness, the lion-helper, and the
-    // closing liquidations are seeded as the translation reaches each movement.
+    // ── Act 5: fall ──────────────────────────────────────────────
+    { act: "fall", sym: "δ", node: "Violation", name: "The term broken", gloss: "The interdiction is broken; the hinge of the tale.",
+      realized: "Three months become three years; Owain never returns to the fountain. The reckoning rides into the feast at Caer Llion: a messenger strips the ring from his hand and names him deceiver, traitor, false, shamed, beardless. The violated term (δ) is the single hinge on which the whole back half turns — the one Propp interdiction-and-violation the Welsh romance fully commits to, and the engine it shares with Chrétien's <em>Yvain</em>.", passage: 7 },
+    { act: "fall", sym: "A↓↓", node: "The nadir", name: "Self-villainy — the madness", gloss: "The hero is undone, here by his own fault.",
+      realized: "Owain flees court for the wastes, his clothes rotting, his body wasting, long hair growing over him, living among the deer until even they leave him — the Brittonic <em>gwyllt</em>, the wild man whose reason is lost to guilt. The villainy that opens the redemptive arc is self-inflicted; there is no external villain to blame, only the broken word.", passage: 7 },
+    { act: "fall", sym: "RS", node: "Rescue / cure", name: "The healing donor", gloss: "A donor restores the fallen hero.",
+      realized: "The widowed Countess of the park has the wasted Owain anointed with a flask of precious balsam (poured out whole by her kind maid) and nursed three months back to health, \"fairer than before.\" The first Countess caused his fall; the second heals it — the romance's exact symmetry. The three-month cure answers the three-month leave he failed to keep.", passage: 7 },
+    { act: "fall", sym: "↑grat", node: "The first repayment", name: "Gratitude returned", gloss: "The healed hero repays his debt by deed.",
+      realized: "Hearing that a young earl besieges his healer for refusing to wed him, Owain borrows her arms and plucks the earl bodily from his saddle, winning back her two earldoms — \"your requital for the blessed ointment.\" The first link in the back half's chain of grateful rescues; he then rides on, refusing all reward. The lion (Movement VIII) is the next debt repaid.", passage: 7 },
+    // The lion-helper, the freeing of Luned, the Black Oppressor, and the
+    // closing reconciliation are seeded as the translation reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the frame and the known shape of the romance, Owain's distinctive Propp profile (relative to the Welsh sister-tales) is shaping up around three features:",

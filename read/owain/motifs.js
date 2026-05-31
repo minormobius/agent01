@@ -39,11 +39,17 @@ window.OWAIN.motifs = {
     { cls: "D", code: "D2143.1", name: "Storm produced by magic (the fountain rite)", conf: "high", passages: [2, 3, 6],
       gloss: "The romance's engine: pour a bowlful of the fountain's water on the great slab beside it, and a tempest of thunder, hail and lightning breaks over the wood, stripping every leaf — after which the Black Knight rides to answer. A weather-making rite tied to a place, straight from the Brittonic Otherworld stock; Chrétien's Barenton fountain in Brocéliande is its Continental cousin. First raised in Cynon's tale (Mvt II); Owain repeats the rite in Mvt III." },
 
+    { cls: "D", code: "D1244", name: "Magic ointment / healing balsam", conf: "high", passages: [7],
+      gloss: "The widowed Countess of the park's precious balsam, poured over the mad Owain's heart (and, by the kind maid's disobedience, over all of him), which raises him from his wasted state and heals him in three months \"fairer than before.\" The tale's instrument of grace \u2014 medicinal, not fairy; sevenscore pounds' worth, spent on a stranger. Contrast Sir Orfeo, recovered out of the Otherworld itself rather than by a salve." },
+
     // — F · Marvels & the Otherworld —
     { cls: "F", code: "F460", name: "The monstrous keeper of beasts", conf: "high", passages: [2, 3, 6],
       gloss: "The huge black man on the forest mound — one-eyed, one-footed, iron-clubbed — lord of the wild animals, who gather and bow at his call, and who directs the questing knight to the fountain. A threshold-guardian out of the older Insular Otherworld; the wild-herdsman type. Compare the giant Ysbaddaden's gatekeepers and the keepers of the marvels in Culhwch. Realised first in Cynon's tale (Mvt II), then again when Owain rides the same road in Mvt III — \"his size pleased Owain\" where it had only awed Cynon." },
     { cls: "F", code: "F718", name: "The marvellous fountain / spring of the Otherworld", conf: "high", passages: [2, 3, 5, 6],
       gloss: "The spring beneath the great tree, with its silver bowl on a slab — the bounded Otherworld threshold the whole tale orbits. The guardian who must be killed to be succeeded marks it as a place where office passes by combat, not inheritance — borne out in Mvt III, where Owain kills the defender and (the tale will show) takes both his widow and his post. First seen in Cynon's tale (Mvt II)." },
+
+    { cls: "F", code: "F567", name: "The wild man of the woods (madness in the wilderness)", conf: "med", passages: [7],
+      gloss: "His word broken and his ring stripped, Owain runs mad and naked into the wastes \u2014 clothes rotting, body wasting, long hair growing over him \u2014 until he lives among the deer and even they leave him behind. The native Brittonic <em>gwyllt</em>, the wild man whose reason is lost to grief and guilt and recovered only in the wilderness: the type behind Myrddin Wyllt (Merlin) and the Irish Suibhne. The Welsh romance's distinctive deepening of the international Yvain-madness, which in Chr\u00e9tien is briefer and less mythic." },
 
     // — T · Love & marriage —
     { cls: "T", code: "T15", name: "Love at first sight", conf: "high", passages: [4],
