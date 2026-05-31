@@ -8,6 +8,7 @@
 import { startOAuth, handleOAuthCallback, refreshOAuthToken } from './oauth/flow.js';
 import { getClientPublicJWK } from './oauth/keypair.js';
 import { createDPoPProof, deserializeDPoPKeyPair } from './oauth/jwt.js';
+import { METADATA_SCOPE } from './oauth/scope.js';
 
 export interface Env {
   DB: D1Database;
@@ -81,6 +82,14 @@ function errorResponse(message: string, status = 400, origin: string | null = nu
 
 const SESSION_TTL_DAYS = 30;
 
+// Name of the cross-subdomain SSO cookie. Scoped to .mino.mobi so a session
+// minted on any one site (e.g. the homepage) is recognised on every *.mino.mobi
+// subdomain without a re-login. The cookie is the SSO transport; the Bearer
+// header (localStorage token) remains as a fallback for the same-origin site
+// that just logged in and for any origin outside the .mino.mobi registrable
+// domain (e.g. labglass.minomobi.com), which the cookie can't reach.
+const SESSION_COOKIE = 'mino_session';
+
 function generateSessionToken(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
@@ -89,10 +98,32 @@ function generateSessionToken(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+function getCookie(request: Request, name: string): string | null {
+  const header = request.headers.get('Cookie');
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
+  }
+  return null;
+}
+
+// Bearer header first (the site that just logged in, and cross-registrable-domain
+// origins), then the .mino.mobi SSO cookie (every other subdomain).
 function getSessionToken(request: Request): string | null {
   const auth = request.headers.get('Authorization');
   if (auth?.startsWith('Bearer ')) return auth.slice(7);
-  return null;
+  return getCookie(request, SESSION_COOKIE);
+}
+
+function sessionCookie(token: string): string {
+  const maxAge = SESSION_TTL_DAYS * 24 * 60 * 60;
+  return `${SESSION_COOKIE}=${token}; Domain=.mino.mobi; Path=/; Max-Age=${maxAge}; Secure; HttpOnly; SameSite=Lax`;
+}
+
+function clearedSessionCookie(): string {
+  return `${SESSION_COOKIE}=; Domain=.mino.mobi; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax`;
 }
 
 async function getSession(db: D1Database, token: string): Promise<{
@@ -191,11 +222,13 @@ async function handleClientMetadata(env: Env): Promise<Response> {
     client_name: 'mino.mobi',
     client_uri: 'https://auth.mino.mobi',
     redirect_uris: ['https://auth.mino.mobi/oauth/callback'],
-    // transition:generic is kept for the grandfathered sites that request it.
-    // The granular scopes let sites ask for exactly what they touch (tight
-    // consent screen) instead of blanket write. Add new granular scopes here
-    // as sites need them; the auth server only grants what's declared.
-    scope: 'atproto transition:generic repo:com.minomobi.fluoddity.organism repo:app.bsky.feed.post blob:image/* blob:video/* rpc:com.atproto.server.getServiceAuth',
+    // The ceiling of everything any site can request. This is the enumerated
+    // union of every collection written across the repo (see oauth/scope.ts),
+    // plus transition:generic for the grandfathered sites (fluoddity, mmo) that
+    // still ask for it by name. Logins MINT the narrower UNIFIED_SCOPE (no
+    // transition:generic) by default; the auth server only grants what's
+    // declared here, so this must remain a superset.
+    scope: METADATA_SCOPE,
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'private_key_jwt',
@@ -268,13 +301,22 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
     expiresAt,
   ).run();
 
-  // Redirect back to the originating site with the session token
-  // The client library will pick up the token from the URL hash
+  // Redirect back to the originating site with the session token. Two transports:
+  //   1. The ?__auth_session= param — the client lib stores it in localStorage
+  //      (same-origin fallback, and the only path for origins outside .mino.mobi).
+  //   2. The Set-Cookie below — a .mino.mobi domain cookie that every *.mino.mobi
+  //      subdomain sees, giving single sign-on across the whole property.
   const returnUrl = result.returnTo || result.origin;
   const separator = returnUrl.includes('?') ? '&' : '?';
   const redirectUrl = `${returnUrl}${separator}__auth_session=${encodeURIComponent(sessionToken)}`;
 
-  return Response.redirect(redirectUrl, 302);
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: redirectUrl,
+      'Set-Cookie': sessionCookie(sessionToken),
+    },
+  });
 }
 
 async function handleGetMe(request: Request, env: Env, origin: string | null): Promise<Response> {
@@ -313,10 +355,16 @@ async function handleRefresh(request: Request, env: Env, origin: string | null):
 
 async function handleLogout(request: Request, env: Env, origin: string | null): Promise<Response> {
   const token = getSessionToken(request);
-  if (!token) return jsonResponse({ ok: true }, 200, origin);
-
-  await env.DB.prepare('DELETE FROM sessions WHERE session_id = ?').bind(token).run();
-  return jsonResponse({ ok: true }, 200, origin);
+  // Always clear the SSO cookie, even if there's no server-side row to delete.
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...corsHeaders(origin),
+    'Set-Cookie': clearedSessionCookie(),
+  };
+  if (token) {
+    await env.DB.prepare('DELETE FROM sessions WHERE session_id = ?').bind(token).run();
+  }
+  return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
 }
 
 // --- PDS Proxy ---

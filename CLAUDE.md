@@ -78,7 +78,11 @@ There is a **dedicated, shared OAuth worker** at `workers/auth/` deployed to `au
 └─────────────────────────┘         └──────────────────────────────────┘
 ```
 
-- **`workers/auth/`** — Cloudflare Worker (1.2k LOC TS) that holds the confidential OAuth client: PKCE + DPoP + PAR + `private_key_jwt`. Signing keypair is auto-generated into D1 on first `/client-metadata.json` request — no manual secret config. Sessions are opaque `Bearer` tokens; the worker holds the DPoP-bound PDS refresh token and minted access tokens on the site's behalf and proxies PDS calls through `/pds/*`.
+- **`workers/auth/`** — Cloudflare Worker (1.2k LOC TS) that holds the confidential OAuth client: PKCE + DPoP + PAR + `private_key_jwt`. Signing keypair is auto-generated into D1 on first `/client-metadata.json` request — no manual secret config. Sessions are opaque tokens carried two ways: an opaque `Bearer` token (stored in the originating site's `localStorage`) **and** a `mino_session` cookie scoped to `.mino.mobi`. The worker holds the DPoP-bound PDS refresh token and minted access tokens on the site's behalf and proxies PDS calls through `/pds/*`.
+
+#### Single sign-on across subdomains
+
+Sign in once (e.g. on the homepage) and every `*.mino.mobi` site recognises you with no re-login. The transport is the `.mino.mobi` domain cookie set on the OAuth callback (`Secure; HttpOnly; SameSite=Lax`): because every site shares the `mino.mobi` registrable domain, the cookie rides along on the client lib's credentialed `/api/me` and `/pds/*` calls. `AuthClient.init()` therefore validates against the worker even when *this* origin holds no token — a cookie-only session is picked up transparently. **Limitation:** `labglass.minomobi.com` is on a different registrable domain (`minomobi.com`), so the `.mino.mobi` cookie can't reach it; it falls back to its own per-site login. SSO only reaches sites that use the updated shared client lib (`packages/oauth-client/auth.js`) — currently bakery, photo, wave, wiki, and the homepage. Inline-OAuth sites and the grandfathered own-worker sites (airchat, poll/fluoddity) join as they migrate onto the shared lib.
 - **`packages/oauth-client/auth.js`** — 9.7 KB browser-side library, no deps, no build. Exports `AuthClient` with `login(handle, {scope})`, `init()`, `getUser()`, `logout()`, and `auth.pds.{createRecord, putRecord, listRecords, deleteRecord, uploadBlob, getBlob}`. PDS calls go through the worker, so the browser never sees a token that talks to a PDS directly.
 - **Deploy workflow**: `.github/workflows/deploy-auth.yml` — triggers on `main` or `claude/implement-oauth-bsky-JgUdn` touching `workers/auth/**`. The workflow auto-creates `mino-auth-db` on first run via `wrangler d1 create` (the `TODO_CREATE_DATABASE` placeholder in `workers/auth/wrangler.jsonc` is intentional — `sed`-patched at deploy time, not committed back).
 
@@ -88,8 +92,10 @@ The worker accepts a `scope` parameter on every OAuth start and stores it per-se
 
 ```js
 const auth = new AuthClient();
-// Default (identity + generic write):
-await auth.login('alice.bsky.social');                       // 'atproto transition:generic'
+// Default → the UNIFIED mino.mobi scope: the enumerated union of every
+// collection any site writes (NOT transition:generic). This is what homepage
+// sign-in mints, so the resulting SSO session works on every site:
+await auth.login('alice.bsky.social');
 
 // Custom: identity-only (no writes):
 await auth.login('alice.bsky.social', { scope: 'atproto' });
@@ -100,7 +106,11 @@ await auth.login('alice.bsky.social', {
 });
 ```
 
-Constraint: the worker's `client-metadata.json` declares the **umbrella scope** (currently `atproto transition:generic` — see `workers/auth/src/index.ts:182`). Sites can request narrower scopes within that umbrella. To exceed it — e.g. add a new `blob:` type that's outside `transition:generic` — bump the metadata scope. The ATProto auth server enforces the metadata as the ceiling.
+**The unified scope.** ATProto OAuth forbids prefix wildcards (`repo:com.minomobi.*` is illegal — only exact NSIDs or the blanket `repo:*`, and `repo:*` is just `transition:generic` renamed). So the one scope that "works for every site but isn't transition:generic" **enumerates every collection** the repo writes. That enumeration lives in **`workers/auth/src/oauth/scope.ts`**, which derives two strings:
+- `UNIFIED_SCOPE` — what a login mints by default. ~50 `repo:` collections + `blob:` types + `rpc:`. No `transition:generic`.
+- `METADATA_SCOPE` — the ceiling declared in `client-metadata.json`: `UNIFIED_SCOPE` **plus** `transition:generic`, which a few grandfathered sites (fluoddity, mmo) still request by name. The auth server only grants what the metadata declares, so the ceiling stays a superset.
+
+**When a new site ships a new lexicon, add its collection to `WRITE_COLLECTIONS` in `scope.ts` and redeploy the auth worker.** The consent screen then lists it. Sites can still request *narrower* scopes than the union by passing `{ scope }` to `login()`.
 
 When tightening a site's scope, prefer the narrowest scope that lets the feature work. The reward shows up in the Bluesky consent screen, which lists exactly what the site can do.
 
@@ -110,7 +120,7 @@ Three steps:
 
 1. **Allowlist the origin**. Add `https://your-site.mino.mobi` to `ALLOWED_ORIGINS` in `workers/auth/src/index.ts:21-30`. (The wildcard `*.mino.mobi` check on line 36 catches subdomains, but list the explicit origin so future devs can see who's using the worker.)
 2. **Import the client lib**. From your site: `import { AuthClient } from '../../packages/oauth-client/auth.js'`. Do **not** hand-roll an `auth.js` — photo/wave/wiki did, and they each diverge slightly. Use the shared lib.
-3. **Pick a scope**. Default is `atproto transition:generic`. If you can get away with less, pass `{ scope }` to `login()`.
+3. **Pick a scope**. Default is the `UNIFIED_SCOPE` union (see `scope.ts`) — and if your site writes a new collection, add it there so the union (and the consent screen) covers it. If you can get away with less, pass a narrower `{ scope }` to `login()`.
 
 That's it. Push to a branch matching `deploy-auth.yml`'s trigger glob to update `ALLOWED_ORIGINS`; push your site's branch to deploy the frontend.
 

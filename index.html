@@ -827,6 +827,97 @@ footer a:hover {
 </head>
 <body>
 
+<style>
+  .mino-auth {
+    position: fixed; top: 12px; right: 14px; z-index: 50;
+    font-family: var(--mono); font-size: 12px; line-height: 1;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mino-auth .auth-btn {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--accent); background: var(--accent-faint);
+    border: 1px solid var(--accent); border-radius: 4px;
+    padding: 6px 10px; cursor: pointer;
+  }
+  .mino-auth .auth-btn:hover { background: var(--accent); color: var(--bg); }
+  .mino-auth .auth-form { display: flex; align-items: center; gap: 6px; }
+  .mino-auth input {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text); background: var(--bg);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; width: 160px;
+  }
+  .mino-auth .auth-link {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--muted); background: none; border: none;
+    cursor: pointer; text-decoration: underline; padding: 4px;
+  }
+  .mino-auth .auth-link:hover { color: var(--accent); }
+  .mino-auth .auth-user { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .mino-auth .auth-user b { color: var(--text); font-weight: 600; }
+</style>
+
+<!-- Sign-in is progressive enhancement: stays hidden until the module runs, so
+     a no-JS visitor sees the page unchanged. A session minted here is carried to
+     every *.mino.mobi site by the .mino.mobi cookie (single sign-on). -->
+<div id="mino-auth" class="mino-auth" hidden>
+  <button id="auth-login-btn" class="auth-btn" type="button">Sign in with Bluesky</button>
+  <form id="auth-login-form" class="auth-form" hidden>
+    <input id="auth-handle" type="text" placeholder="you.bsky.social" autocomplete="username" spellcheck="false" autocapitalize="none" />
+    <button type="submit" class="auth-btn">Go</button>
+    <button type="button" id="auth-cancel" class="auth-link">cancel</button>
+  </form>
+  <span id="auth-user" class="auth-user" hidden>
+    signed in as <b id="auth-handle-label"></b>
+    <button type="button" id="auth-logout" class="auth-link">sign out</button>
+  </span>
+</div>
+
+<script type="module">
+  import { AuthClient } from '/packages/oauth-client/auth.js';
+
+  const root    = document.getElementById('mino-auth');
+  const loginBtn = document.getElementById('auth-login-btn');
+  const form    = document.getElementById('auth-login-form');
+  const handleI = document.getElementById('auth-handle');
+  const cancel  = document.getElementById('auth-cancel');
+  const userBox = document.getElementById('auth-user');
+  const label   = document.getElementById('auth-handle-label');
+  const logout  = document.getElementById('auth-logout');
+
+  const auth = new AuthClient();
+
+  function render(user) {
+    if (user) {
+      loginBtn.hidden = true; form.hidden = true; userBox.hidden = false;
+      label.textContent = user.handle || user.did;
+    } else {
+      userBox.hidden = true; form.hidden = true; loginBtn.hidden = false;
+    }
+  }
+
+  loginBtn.addEventListener('click', () => {
+    loginBtn.hidden = true; form.hidden = false; handleI.focus();
+  });
+  cancel.addEventListener('click', () => { form.hidden = true; loginBtn.hidden = false; });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const handle = handleI.value.trim();
+    if (!handle) return;
+    try {
+      // No scope passed → mints the unified mino.mobi scope (works on every site).
+      await auth.login(handle); // redirects to Bluesky
+    } catch (err) {
+      alert(err.message || 'Sign-in failed');
+    }
+  });
+  logout.addEventListener('click', async () => { await auth.logout(); });
+
+  auth.onAuthChange(render);
+  root.hidden = false;        // reveal now that JS is alive
+  render(null);
+  auth.init().catch(() => {}); // picks up URL token, localStorage, or SSO cookie
+</script>
+
 <h1>minomobi</h1>
 
 <div class="vis-tabs" role="tablist">
