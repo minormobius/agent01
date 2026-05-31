@@ -39,13 +39,16 @@ window.BRANWEN.motifs = {
       gloss: "Cast a slain man into the Cauldron of Rebirth and by next day he rises as good a fighter as before — but mute, never able to speak again. In Ireland it is turned against the Britons, reviving the Irish dead each night, until Efnisien bursts it with his own body. Resurrection without the soul's voice: the tale's bleakest marvel. <em>Enters in Movements II &amp; V.</em>" },
 
     // — F · Marvels & giants —
-    { cls: "F", code: "F531", name: "The giant king (no house can hold him)", conf: "high", passages: [1],
+    { cls: "F", code: "F531", name: "The giant king (no house can hold him)", conf: "high", passages: [1, 4],
       gloss: "Bendigeidfran is a giant: the wedding-feast must be held in tents, \"for no house could ever hold Bendigeidfran.\" Later he wades the Irish sea (no ship can bear him) and makes his own body a bridge for his host — <em>a fo ben, bid bont</em>, \"he who would be chief, let him be a bridge.\" The giant's scale is the hinge of the plot when the Irish build a house to hold him. Realised first in Movement I." },
     { cls: "F", code: "F407", name: "The living / talking severed head", conf: "high", passages: [],
       gloss: "Mortally wounded by a poisoned spear, Brân has his own head struck off; it stays undecayed, eats, and counsels the seven survivors through a seven-year feast at Harlech (with the birds of Rhiannon) and fourscore years at Gwales, before its burial at the White Hill of London facing France, a talisman against invasion. The canonical Insular instance of the motif — the Pendragon crosswalk's F407 row points here (the Gawain-poet's talking head is its later literary cousin). <em>Enters in Movement VI.</em>" },
 
     // — K · Deceptions & death-traps —
-    { cls: "K", code: "K811", name: "Victims lured into a house and burned (the iron house)", conf: "med", passages: [2],
+    { cls: "K", code: "K754.1", name: "Warriors concealed in bags (the flour-bag ambush)", conf: "high", passages: [4],
+      gloss: "The Irish hang two hundred leather bags on the pillars of the house built for Brân, an armed man in each, and tell anyone who asks that they hold meal. Efnisien, reading the trap, goes down the row crushing each hidden head through the bone \u2014 \"What is in this bag?\" \"Meal\" \u2014 and caps it with a grim englyn. The hidden-army ambush undone by a counter-deception; the death-trap house of Mvt II returned as a battlefield. <em>Enters in Movement IV.</em>" },
+
+    { cls: "K", code: "K811", name: "Victims lured into a house and burned (the iron house)", conf: "med", passages: [2, 4],
       gloss: "Twice in the tale a house is a trap. In the cauldron's back-story the Irish pack the giant couple into an iron house and heat it white-hot to kill them; they burst out. The motif then rhymes forward: the house the Irish build to hold Brân hides armed warriors in flour-bags. The death-trap dwelling, Insular and grim. <em>Enters in Movements II &amp; IV.</em>" },
 
     // — S · Cruelty —

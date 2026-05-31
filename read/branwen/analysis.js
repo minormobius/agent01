@@ -42,8 +42,15 @@ window.BRANWEN.propp = {
       realized: "Cut off by a three-year embargo on all crossings, Branwen rears a starling, teaches it her brother's face, and sends it over the sea with a letter bound under its wing. It finds Brân in council at Caer Seint; he reads of her pain. The smallest instrument in the branch sets the largest in motion — Propp's mediation carried by a hand-reared bird.", passage: 3 },
     { act: "ireland", sym: "C↑", node: "Muster & departure", name: "The host of Britain raised", gloss: "The avenger gathers and sets out.",
       realized: "Brân musters the whole Island of the Mighty — a hundred and forty-four districts — for one woman's wrong, and leaves seven stewards under his son Caradog to hold Britain. The scale tips from family to nation; and the stewards left behind seed a second disaster (Caswallon's usurpation in Brân's absence) folded inside the first.", passage: 3 },
-    // The crossing and the house, the fire and the battle, and the wondrous
-    // head are seeded as the translation reaches each movement.
+    // ── Act 4: crossing ──────────────────────────────────────────
+    { act: "crossing", sym: "↑G", node: "The crossing", name: "Brân a bridge for his host", gloss: "The hero crosses to the enemy's land.",
+      realized: "The host of Britain sails and Brân wades the sea (the swineherds' riddle of the moving forest and mountain, read by Branwen); the Irish break the bridge over the Llinon, and Brân lays his own body across it — <em>a fo ben, bit bont</em>, \"he who would be chief, let him be a bridge.\" The branch's image of kingship, and the road to the slaughter.", passage: 4 },
+    { act: "crossing", sym: "M·γ", node: "The false peace", name: "The kingdom offered; the house built", gloss: "A negotiated settlement that is really a trap.",
+      realized: "The Irish offer Gwern the throne, then — on Branwen's counsel, to spare the country — build a house to hold the giant who never had one, the highest honour, with homage and the kingship handed over. The settlement is sincere on Branwen's side and treacherous on the court's: the honour is the bait.", passage: 4 },
+    { act: "crossing", sym: "η/¬η", node: "The bagged ambush", name: "Trickery and counter-trickery", gloss: "Deception met by deception.",
+      realized: "Two hundred armed men are hidden in leather bags on the pillars, called \"meal.\" Efnisien reads the trap and crushes every head through the bone, capping it with an englyn — the strife-maker's malice, for once, the Britons' deliverance. The peace is a battlefield before the feast begins.", passage: 4 },
+    // The fire and the battle, and the wondrous head, are seeded as the
+    // translation reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the opening and the known shape of the branch, Branwen's distinctive Propp profile is the inversion of the wonder-tale, in three features:",
