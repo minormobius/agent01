@@ -107,6 +107,8 @@ async function health(env) {
     db: dbOk,
     tickets,
     sweeperConfigured: !!(env.ATPROTO_SERVICE_HANDLE && env.ATPROTO_SERVICE_PASSWORD),
+    serviceHandle: env.ATPROTO_SERVICE_HANDLE || null,
+    servicePds: env.ATPROTO_SERVICE_PDS || 'https://bsky.social',
     sweepTags: SWEEP_TAGS,
     replyBot: env.SWEEP_REPLY === 'on',
     lastSweepAt,
