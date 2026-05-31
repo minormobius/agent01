@@ -348,7 +348,9 @@ async function runSweep(env) {
       if (cursor) params.set('cursor', cursor);
       let data;
       try {
-        const res = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.feed.searchPosts?${params}`);
+        // searchPosts via the service account's PDS proxy — the public appview
+        // 403s unauthenticated. Bearer token forwards the read to the appview.
+        const res = await pub.authedGet('app.bsky.feed.searchPosts', Object.fromEntries(params));
         t.searchStatus = res.status;
         if (!res.ok) { t.error = (await res.text().catch(() => '')).slice(0, 200); break; }
         data = await res.json();
@@ -504,6 +506,18 @@ class ServicePublisher {
     this.did = data.did;
   }
   async getToken() { if (!this.accessJwt) await this.authenticate(); return this.accessJwt; }
+  // Authenticated read of an app.bsky.* XRPC method. The public appview now
+  // 403s unauthenticated searchPosts; the service account's PDS service-proxies
+  // app.bsky.* reads to the appview when we send a Bearer token.
+  async authedGet(method, params) {
+    const token = await this.getToken();
+    const qs = new URLSearchParams(params).toString();
+    let res = await fetch(`${this.serviceUrl}/xrpc/${method}?${qs}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) { await this.authenticate(); return this.authedGet(method, params); }
+    return res;
+  }
   async createRecord(collection, rkey, record) {
     const token = await this.getToken();
     const res = await fetch(`${this.serviceUrl}/xrpc/com.atproto.repo.createRecord`, {
