@@ -1,11 +1,13 @@
 # Fluoddity — the Game (`/game/`)
 
-> Design doc. **Plan only — no game code yet.** This describes a new front-door
-> surface that turns the existing instruments into a single, sliderless,
-> pigeon-friendly loop, while every action quietly contributes records to the
-> shared corpus (gallery / forest / rubrics).
+> Design doc + build notes. **Implemented** at `fluoddity/game/index.html` (all
+> three levels in one vanilla file, reusing the existing engine, descriptors,
+> auth, and the three lexicons). This describes the new front-door surface: a
+> single, sliderless, pigeon-friendly loop where every action quietly
+> contributes records to the shared corpus (gallery / forest / rubrics).
 >
-> Status: design. Owner: production branch. Build follows in phases (§11).
+> Status: shipped to the `claude/fluoddity-*` deploy. Build decisions that
+> deviated from the original sketch are flagged inline as **[build note]**.
 
 ---
 
@@ -365,6 +367,32 @@ on the live pages).
 6. **Sound:** ship a tiny synth/SFX layer or stay silent-with-toggle for v1?
 
 ---
+
+## 12a. Build notes (where the shipped code deviated from the sketch)
+
+- **[build note] 16 *independent* colonies, not the arena's shared field.** The
+  spec said "arena is the hero," but the arena intermingles all 16 species into
+  *one* trail, so there's no per-colony `verdict()` — and the win conditions
+  ("anything boils," "0/16 boiling") need exactly that. The game therefore renders
+  16 *independent* single-genome colonies in a 4×4 grid (the proven `select.html`
+  settle→snapshot→blit pattern), each with its own live `verdict()`. This keeps
+  arena's *feel* (16 colonies, pick one, ecological framing) while making "X/16
+  boiling" a literal, satisfying counter. The shared-field arena stays available
+  as the expert surface (the ⚙ lab link points there from levels 1–2).
+- **[build note] Soft OAuth gate at the level-3 boundary**, not a hard gate at
+  the front door (§9's recommended option). Levels 1–2 (which write nothing) run
+  sign-in-free so a first-tap costs zero friction — the pigeon test. Sign-in is
+  required exactly where publishing begins (entering BREED). One overlay; the
+  redirect returns to `#l3` and resumes mid-stream. Flip to a hard gate by calling
+  `gateLevel3()` at boot instead of `startLevel1()`.
+- **[build note] "Too hot" folds `boiling` + `blown out` together** (`tooHot()`)
+  for both win tests, so the heat ladder is robust to exactly where a given seed's
+  chaotic edge lands (some seeds gas out as `boiling`, some saturate as
+  `blown out`; both mean "you cooked it").
+- **[build note] Level-2 interpolation lerps continuous knobs *and* the
+  `rule_seed`** linearly across the 16 (the §5 perceptual caveat is accepted for
+  v1: the morph reads as a gradient via the physics even where the brain jumps).
+  The half-A/half-B crossbreed fallback is left as a one-function swap if needed.
 
 ## 13. What this explicitly does NOT touch
 

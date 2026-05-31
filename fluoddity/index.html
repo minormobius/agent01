@@ -77,7 +77,8 @@ footer a:hover { color: var(--accent); }
     <span class="herobar-right">
       <span class="initpick" id="initpick"></span>
       <span id="auth"></span>
-      <button class="openbtn" id="open-play" type="button">open this in playground →</button>
+      <a class="shuffle" id="open-pg" style="pointer-events:auto;cursor:pointer">playground →</a>
+      <button class="openbtn" id="open-play" type="button">▶ play</button>
     </span>
   </div>
   <div class="head">
@@ -87,6 +88,11 @@ footer a:hover { color: var(--accent); }
 </div>
 
 <div id="cards">
+  <a class="card" href="./game/" style="border-color:var(--accent);box-shadow:0 0 22px rgba(56,225,192,0.18)">
+    <div class="verb">play</div>
+    <div class="n">The game <span class="arrow">→</span></div>
+    <div class="d">No sliders. Tap the one you like; it gets more interesting. Heat it until it boils, tame the boil, then breed an endless stream by your taste — every find saved to your own Bluesky as you go.</div>
+  </a>
   <a class="card" href="./play/">
     <div class="verb">create</div>
     <div class="n">Playground <span class="arrow">→</span></div>
@@ -274,21 +280,20 @@ function blit() {
 function encodeConfig(c) {
   return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+// Primary CTA is the game; the playground deep-link is secondary (needs a hero organism).
 const openBtn = document.getElementById('open-play');
-openBtn.disabled = true;
-openBtn.addEventListener('click', (e) => {
-  e.stopPropagation(); // don't also reshuffle the hero
-  if (current) location.href = './play/#c=' + encodeConfig(current);
-});
+openBtn.addEventListener('click', (e) => { e.stopPropagation(); location.href = './game/'; });
+const pgBtn = document.getElementById('open-pg');
+pgBtn.addEventListener('click', (e) => { e.stopPropagation(); if (current) location.href = './play/#c=' + encodeConfig(current); });
 
 async function loop() {
   if (!engine) return;
-  if (!current) { current = await pickLively(); engine.load(current, 'hero'); openBtn.disabled = false; }
+  if (!current) { current = await pickLively(); engine.load(current, 'hero'); }
   engine.step(6); engine.render(); blit();
   requestAnimationFrame(loop);
 }
-document.getElementById('hero').addEventListener('click', async () => { if (engine) { openBtn.disabled = true; current = await pickLively(); engine.load(current, 'hero' + Math.random()); openBtn.disabled = false; } });
-if (engine) { requestAnimationFrame(loop); } else { openBtn.style.display = 'none'; }
+document.getElementById('hero').addEventListener('click', async () => { if (engine) { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
+if (engine) { requestAnimationFrame(loop); } else { pgBtn.style.display = 'none'; }
 </script>
 <script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>
