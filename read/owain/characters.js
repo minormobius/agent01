@@ -25,7 +25,7 @@ window.OWAIN.characters = {
     // — Principals —
     { id: "owain", name: "Owain ab Urien", role: "principal", alt: "Yvain (Chrétien); Owain mab Urien Rheged", epithet: "knight of Arthur's court; lord of the fountain; the knight of the lion",
       blurb: "The hero. A knight of Arthur's court who, stung by Cei's mockery and moved by Cynon's tale of defeat, rides alone to the magic fountain, pours the water, endures the storm, and meets and mortally wounds its Black Knight. Trapped in the dead man's castle, made invisible by Luned's ring, he falls in love with the widow he has just made and — through Luned's contrivance — weds her and takes up the fountain's defence. Then Arthur's company finds him; he returns to court for a visit, overstays the term his wife set, and loses everything: she sends a messenger to strip the ring from his finger, and he runs mad and naked into the wilderness. Healed by a noblewoman's ointment, companioned by a lion he saves from a serpent, he wins his way back through a chain of rescues to reconciliation. Historically <strong>Owain mab Urien</strong> was a real sixth-century king of Rheged in the Hen Ogledd (the Old North), praised in Taliesin's elegies — euhemerised demotion in reverse, a historical prince climbing into Arthurian romance.",
-      appears: [1, 2, 3, 4, 5, 6, 7], pending: true,
+      appears: [1, 2, 3, 4, 5, 6, 7, 8], pending: true,
       rel: [{ to: "countess", label: "husband of" }, { to: "luned", label: "saved by / saviour of" }, { to: "lion", label: "companion of" }, { to: "black-knight", label: "slayer of" }, { to: "cynon", label: "completes the quest of" }, { to: "arthur", label: "knight of" }, { to: "cei", label: "mocked by" }, { to: "gwalchmei", label: "fights unknowing" }] },
 
     { id: "cynon", name: "Cynon ab Clydno", role: "court", alt: "Calogrenant (Chrétien)", epithet: "the knight whose defeat opens the tale",
@@ -40,12 +40,12 @@ window.OWAIN.characters = {
 
     { id: "luned", name: "Luned", role: "fountain", alt: "Lunete (Chrétien)", epithet: "the Countess's maid; keeper of the ring of invisibility",
       blurb: "The Countess's quick-witted handmaid and the true engine of the plot. She hides the trapped Owain, gives him the ring that makes its wearer invisible, feeds and shelters him, and then — by sheer force of argument — talks her grieving mistress into marrying the very man who killed her husband. Later, having defended Owain's name at court, she is imprisoned in a stone vault by two of the Countess's pages and condemned to burn unless a champion comes; the lion-companioned Owain arrives in time to save her, closing the circle of obligation. The cleverest figure in the romance. (In Chrétien she is Lunete.)",
-      appears: [4, 5], pending: true,
+      appears: [4, 5, 8], pending: true,
       rel: [{ to: "countess", label: "maid and counsellor of" }, { to: "owain", label: "saviour of / saved by" }, { to: "ring", label: "keeper of" }] },
 
     { id: "lion", name: "The lion", role: "creature", alt: "the Knight of the Lion's lion", epithet: "the grateful beast; emblem of loyalty",
       blurb: "The romance's most famous image — the grateful lion Owain rescues from a serpent that has it by the tail, and which thereafter follows him \"like a greyhound he had reared,\" hunting for him, guarding his sleep, and fighting at his side. The lion is loyalty made visible: it measures, by contrast, the broken faith that drove Owain mad, and its companionship marks his moral recovery. It gives the Continental twin its title — <em>Yvain, le Chevalier au Lion</em>, the Knight of the Lion — and the sigil of this site.",
-      appears: [], pending: true,
+      appears: [8], pending: true,
       rel: [{ to: "owain", label: "companion of" }] },
 
     { id: "black-knight", name: "The Black Knight of the Fountain", role: "fountain", alt: "Esclados the Red (Chrétien)", epithet: "the fountain's defender",
@@ -106,5 +106,15 @@ window.OWAIN.characters = {
       blurb: "A young earl, neighbour to the Countess of the park, who has stripped her of two earldoms and besieges her last dwelling because she would not become his wife. Owain, newly healed, drags him bodily from his saddle and delivers him to the Countess; for his life the Earl restores the earldoms, and for his freedom gives half his lands, his treasure, and hostages. A dark mirror of Owain, who also won a widow's land by force.",
       appears: [7], pending: true,
       rel: [{ to: "park-countess", label: "besieger of" }, { to: "owain", label: "captured by" }] },
+
+    { id: "earl-host", name: "The hospitable Earl", role: "wander", alt: "\"the most hospitable man in the world\"", epithet: "the grieving host of the towered castle",
+      blurb: "The lord of the great towered castle, \"the most hospitable man in the world,\" whose house Owain finds drowned in grief: a man-eating giant has seized his two sons and demands his only daughter. Owain, with the lion, kills the giant and restores the sons. The grateful-host episode that pairs, in the same movement, with the saving of Luned.",
+      appears: [8], pending: true,
+      rel: [{ to: "owain", label: "saved by" }, { to: "giant", label: "tormented by" }] },
+
+    { id: "giant", name: "The man-eating giant", role: "wander", alt: "the mountain monster", epithet: "the cannibal ogre of the mountain",
+      blurb: "A man-shaped monster, no smaller than a giant, who kills and devours men on the mountain. He seizes the hospitable Earl's two sons at the hunt and demands the Earl's daughter on pain of slaying the sons before his eyes. When the giant balks at fighting \"the beast,\" Owain shuts the lion away out of honour and is overmatched — until the lion bursts out and tears the giant from shoulder to hip. The first of the back half's two mirror-combats over the lion.",
+      appears: [8], pending: true,
+      rel: [{ to: "owain", label: "slain by" }, { to: "earl-host", label: "tormentor of" }] },
   ],
 };

@@ -68,8 +68,15 @@ window.OWAIN.propp = {
       realized: "The widowed Countess of the park has the wasted Owain anointed with a flask of precious balsam (poured out whole by her kind maid) and nursed three months back to health, \"fairer than before.\" The first Countess caused his fall; the second heals it — the romance's exact symmetry. The three-month cure answers the three-month leave he failed to keep.", passage: 7 },
     { act: "fall", sym: "↑grat", node: "The first repayment", name: "Gratitude returned", gloss: "The healed hero repays his debt by deed.",
       realized: "Hearing that a young earl besieges his healer for refusing to wed him, Owain borrows her arms and plucks the earl bodily from his saddle, winning back her two earldoms — \"your requital for the blessed ointment.\" The first link in the back half's chain of grateful rescues; he then rides on, refusing all reward. The lion (Movement VIII) is the next debt repaid.", passage: 7 },
-    // The lion-helper, the freeing of Luned, the Black Oppressor, and the
-    // closing reconciliation are seeded as the translation reaches each movement.
+    // ── Act 6: lion ──────────────────────────────────────────────
+    { act: "lion", sym: "F-an", node: "The grateful helper", name: "The lion gained", gloss: "A helper attaches itself to the hero.",
+      realized: "Owain frees a jet-black lion from a serpent's coils, and the beast follows him \"like a greyhound he had reared\" — fetching fuel, killing a roebuck, keeping watch. Propp's helper-slot, filled in the Welsh sister-tales by kin or the Oldest Animals, is filled here by a beast bound only by gratitude (B301 / ATU 156). The lion is loyalty made visible, the exact moral mirror of the faith Owain broke.", passage: 8 },
+    { act: "lion", sym: "K×2", node: "The chain of rescues", name: "Liquidations — debts repaid", gloss: "The lacks are made good, in series.",
+      realized: "Two combats in one movement, told to the same pattern: the man-eating giant who has seized the hospitable Earl's sons, and the two pages burning Luned at the stake. In each the enemy refuses to fight \"the beast,\" Owain shuts the lion away out of honour, is overmatched, and the lion bursts through wall or gate to save him. The sons are restored; Luned — who once vouched for Owain with her freedom — is delivered at the last hour. The oldest debt of all is paid.", passage: 8 },
+    { act: "lion", sym: "(Mᵒ)", node: "The unrecognised champion", name: "Owain fights as 'in his stead'", gloss: "The hero acts under a borrowed identity.",
+      realized: "Owain offers to fight the pages \"in Owain's stead\" — defending his own name without giving it, the inverse of the disguised combats of Movement VI. \"Owain's full strength had not yet come back\": the healed man still leans on his lion, and the tale says so plainly. The recognition proper, and the Countess regained, wait for Movement IX.", passage: 8 },
+    // The Countess regained, the Black Oppressor's hospice, and the return to
+    // Arthur's court close the tale in the final movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the frame and the known shape of the romance, Owain's distinctive Propp profile (relative to the Welsh sister-tales) is shaping up around three features:",

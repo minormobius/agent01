@@ -22,16 +22,16 @@ window.OWAIN.motifs = {
     { code: "Chrétien parallel", name: "Yvain, le Chevalier au Lion (ATU-adjacent romance complex)", conf: "high",
       gloss: "<em>Owain</em> and Chrétien de Troyes' <em>Yvain</em> (c. 1177–81) share the whole armature: the magic storm-fountain and its defender, the won widow, the broken term and the madness, the grateful lion, the imprisoned maid rescued at the last hour. Whether the Welsh tale derives from Chrétien, Chrétien from a Welsh/Breton source, or both from a lost common <em>conte</em>, is the central unresolved question of Arthurian transmission — and the reason this tale anchors the Welsh↔Continental branch of the Pendragon evolutionary tree. No single clean ATU number covers the complex; it is a romance assembled from several tale-type stocks." },
     { code: "ATU 156", name: "The grateful lion (thorn / serpent removed)", conf: "high",
-      gloss: "The grateful-animal type behind the lion episode: a hero frees a beast from a tormentor (here a serpent gripping the lion's tail), and the beast becomes his faithful companion. Descends ultimately from the Androcles-and-the-lion stock (Aulus Gellius, 2nd c.). Owain's lion is the type's most famous medieval realisation — the helper bound by gratitude, not magic. <em>To be tied to its movement.</em>" },
+      gloss: "The grateful-animal type behind the lion episode: a hero frees a beast from a tormentor (here a serpent gripping the lion's tail), and the beast becomes his faithful companion. Descends ultimately from the Androcles-and-the-lion stock (Aulus Gellius, 2nd c.). Owain's lion is the type's most famous medieval realisation — the helper bound by gratitude, not magic. Realised in Mvt VIII." },
   ],
-  classOrder: ["B", "D", "F", "H", "N", "T", "Z"],
-  classes: { B: "Animals", D: "Magic", F: "Marvels &amp; the Otherworld", H: "Tests &amp; tasks", N: "Chance &amp; fate", T: "Love &amp; marriage", Z: "Formulas &amp; symbols" },
+  classOrder: ["B", "D", "F", "G", "H", "N", "T", "Z"],
+  classes: { B: "Animals", D: "Magic", F: "Marvels &amp; the Otherworld", G: "Ogres &amp; giants", H: "Tests &amp; tasks", N: "Chance &amp; fate", T: "Love &amp; marriage", Z: "Formulas &amp; symbols" },
   list: [
     // — B · Animals —
-    { cls: "B", code: "B301", name: "Faithful animal / the grateful lion", conf: "high", passages: [],
-      gloss: "The grateful lion Owain saves from a serpent, which thereafter follows him \"like a greyhound he had reared,\" hunts for him, guards his sleep, and fights at his side. Loyalty made visible — and the measure, by contrast, of the broken faith that drove Owain mad. Gives the Continental twin its title (<em>le Chevalier au Lion</em>) and this site its sigil. (No animal-helper of this grateful-beast kind in the Welsh sister-tales; cf. instead the Oldest Animals as <em>guides</em> in Culhwch — a different B-class function.) <em>Pending its movement.</em>" },
-    { cls: "B", code: "B871.1", name: "Giant serpent as adversary", conf: "med", passages: [],
-      gloss: "The serpent gripping the lion's tail — the adversary Owain cuts away to earn the lion's faith. <em>Pending its movement.</em>" },
+    { cls: "B", code: "B301", name: "Faithful animal / the grateful lion", conf: "high", passages: [8],
+      gloss: "The grateful lion Owain saves from a serpent, which thereafter follows him \"like a greyhound he had reared,\" hunts for him, guards his sleep, and fights at his side. Loyalty made visible — and the measure, by contrast, of the broken faith that drove Owain mad. Gives the Continental twin its title (<em>le Chevalier au Lion</em>) and this site its sigil. (No animal-helper of this grateful-beast kind in the Welsh sister-tales; cf. instead the Oldest Animals as <em>guides</em> in Culhwch — a different B-class function.) Realised in Mvt VIII, where Owain cuts the serpent free and gains the companion that fights the giant and the two pages at his side." },
+    { cls: "B", code: "B871.1", name: "Giant serpent as adversary", conf: "med", passages: [8],
+      gloss: "The serpent gripping the lion's tail — the adversary Owain cuts away to earn the lion's faith (Mvt VIII)." },
 
     // — D · Magic —
     { cls: "D", code: "D1361.17", name: "Ring of invisibility", conf: "high", passages: [4],
@@ -51,6 +51,10 @@ window.OWAIN.motifs = {
     { cls: "F", code: "F567", name: "The wild man of the woods (madness in the wilderness)", conf: "med", passages: [7],
       gloss: "His word broken and his ring stripped, Owain runs mad and naked into the wastes \u2014 clothes rotting, body wasting, long hair growing over him \u2014 until he lives among the deer and even they leave him behind. The native Brittonic <em>gwyllt</em>, the wild man whose reason is lost to grief and guilt and recovered only in the wilderness: the type behind Myrddin Wyllt (Merlin) and the Irish Suibhne. The Welsh romance's distinctive deepening of the international Yvain-madness, which in Chr\u00e9tien is briefer and less mythic." },
 
+    // — G · Ogres &amp; giants —
+    { cls: "G", code: "G312", name: "Cannibal ogre / man-eating giant", conf: "high", passages: [8],
+      gloss: "The man-shaped monster of the mountain, \"no smaller than a giant,\" who kills and devours men and seizes the hospitable Earl's sons, demanding his daughter. Owain and the lion kill it (the lion's paw opening it shoulder-to-hip). The cannibal-ogre type; cf. the giant Ysbaddaden's monstrous household in Culhwch and the ogres of the international wonder-tale. Paired with the two pages at the fire as the movement's twin combats." },
+
     // — T · Love & marriage —
     { cls: "T", code: "T15", name: "Love at first sight", conf: "high", passages: [4],
       gloss: "Owain falls in love with the Countess at the sight of her in her husband's funeral procession — grief he himself caused. \"When he saw the woman, love of her kindled in him until it filled every part of him.\" The Welsh ties love and killing in a single stroke (\"the wife of the man you killed yesterday\"), the knot Luned will untie. The romance commonplace, here at its starkest; the same hinge drives Chrétien's <em>Yvain</em>." },
@@ -58,7 +62,7 @@ window.OWAIN.motifs = {
       gloss: "The Countess will be argued into marrying the very man who killed her husband — not from fickleness (the medieval misogynist reading) but from necessity: the fountain must have a defender, and the strongest defender available is the man who beat the last one. The tale frames it as Luned's cold logic of survival, not the lady's weakness. <em>Realised across Mvt IV–V.</em>" },
 
     // — Z · Formulas & symbols —
-    { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [5, 6],
+    { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [5, 6, 8],
       gloss: "The romance's threefold rhythms (the repeated journeys to the fountain; the staged combats; the days of the marriage-term). Compare the pervasive Z71.1 across all four sister tales — the folktale's basic counting unit. <em>To be tied to specific movements.</em>" },
   ],
 };
