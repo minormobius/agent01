@@ -31,11 +31,11 @@ window.BRANWEN.motifs = {
       gloss: "Branwen rears a starling at her kneading-trough through three years of servitude, teaches it to know her brother, binds a letter under its wing, and sends it across the sea to Brân. The animal-messenger that brings the host of Britain to Ireland. <em>Enters in Movement III.</em>" },
 
     // — D · Magic —
-    { cls: "D", code: "D1171.3", name: "The Cauldron of Rebirth (magic cauldron)", conf: "high", passages: [],
+    { cls: "D", code: "D1171.3", name: "The Cauldron of Rebirth (magic cauldron)", conf: "high", passages: [2],
       gloss: "<em>Pair Dadeni</em>: a cauldron from the Irish lake (with the back-story of the giant Llasar Llaes Gyfnewid and his wife, and the iron house the Irish tried to burn them in). Brân gives it to Matholwch as part of the amends for Efnisien's outrage. The central magical object of the branch. <em>Enters in Movement II.</em>" },
 
     // — E · The dead —
-    { cls: "E", code: "E64.1", name: "Resurrection by cauldron — the dead return, but dumb", conf: "high", passages: [],
+    { cls: "E", code: "E64.1", name: "Resurrection by cauldron — the dead return, but dumb", conf: "high", passages: [2],
       gloss: "Cast a slain man into the Cauldron of Rebirth and by next day he rises as good a fighter as before — but mute, never able to speak again. In Ireland it is turned against the Britons, reviving the Irish dead each night, until Efnisien bursts it with his own body. Resurrection without the soul's voice: the tale's bleakest marvel. <em>Enters in Movements II &amp; V.</em>" },
 
     // — F · Marvels & giants —
@@ -45,7 +45,7 @@ window.BRANWEN.motifs = {
       gloss: "Mortally wounded by a poisoned spear, Brân has his own head struck off; it stays undecayed, eats, and counsels the seven survivors through a seven-year feast at Harlech (with the birds of Rhiannon) and fourscore years at Gwales, before its burial at the White Hill of London facing France, a talisman against invasion. The canonical Insular instance of the motif — the Pendragon crosswalk's F407 row points here (the Gawain-poet's talking head is its later literary cousin). <em>Enters in Movement VI.</em>" },
 
     // — K · Deceptions & death-traps —
-    { cls: "K", code: "K811", name: "Victims lured into a house and burned (the iron house)", conf: "med", passages: [],
+    { cls: "K", code: "K811", name: "Victims lured into a house and burned (the iron house)", conf: "med", passages: [2],
       gloss: "Twice in the tale a house is a trap. In the cauldron's back-story the Irish pack the giant couple into an iron house and heat it white-hot to kill them; they burst out. The motif then rhymes forward: the house the Irish build to hold Brân hides armed warriors in flour-bags. The death-trap dwelling, Insular and grim. <em>Enters in Movements II &amp; IV.</em>" },
 
     // — S · Cruelty —

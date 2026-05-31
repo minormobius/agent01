@@ -28,9 +28,16 @@ window.BRANWEN.propp = {
       realized: "The House of Llŷr on the rock of Harlech: the giant king Bendigeidfran, his brother Manawydan, and the half-brothers Nisien the peace-maker and Efnisien the strife-maker. The tale names its moral poles before anything happens — peace and ruin already seated side by side.", passage: 1 },
     { act: "marriage", sym: "W°(pre)", node: "The binding marriage", name: "Marriage as alliance", gloss: "A wedding opens the tale rather than closing it.",
       realized: "Matholwch of Ireland sails with thirteen ships to ask for Branwen; the counsel grants her, to bind the Island of the Mighty to Ireland. The feast at Aberffraw, in tents because no house can hold Brân, and Branwen becomes Matholwch's wife. Branwen inverts the wonder-tale: it puts the wedding at the START, as the thing that will be undone, not the reward that crowns the end.", passage: 1 },
-    // The outrage and the cauldron, Branwen's punishment and the starling, the
-    // crossing and the house, the fire and the battle, and the wondrous head
-    // are seeded as the translation reaches each movement.
+    // ── Act 2: outrage ───────────────────────────────────────────
+    { act: "outrage", sym: "A", node: "Villainy", name: "Efnisien's outrage", gloss: "A wrong opens the conflict.",
+      realized: "Slighted that his sister was married without his leave, Efnisien mutilates Matholwch's horses — lips, ears, tails, eyelids cut to the bone. The villainy is inward and familial: not a monster from outside but the king's own half-brother, doing what the prologue named him for. The alliance is poisoned at its root.", passage: 2 },
+    { act: "outrage", sym: "K(false)", node: "False liquidation", name: "The amends", gloss: "The lack is patched, not healed.",
+      realized: "Brân buys the peace back: a sound horse for each ruined one, a silver staff and gold plate measured to Matholwch's own body, and — the offender being his own brother, whom he can neither kill nor disown — a plea for reconciliation. The Irish council accepts for fear of a greater shame. A liquidation that settles nothing; the insult is paid for but not forgotten.", passage: 2 },
+    { act: "outrage", sym: "F→", node: "The fatal gift", name: "The Cauldron of Rebirth given", gloss: "The donor's magical agent — given to the enemy.",
+      realized: "To perfect the amends, Brân gives Matholwch the Cauldron of Rebirth, which returns slain men to battle but not to speech, with its iron-house back-story of the unkillable giant-couple. Propp's magical agent (F) normally arms the hero; here it is handed to the other side as compensation, and will return in Movement V as the weapon that nearly destroys the host of Britain. The tale's central irony, seeded as a gift of peace.", passage: 2 },
+    // Branwen's punishment and the starling, the crossing and the house, the
+    // fire and the battle, and the wondrous head are seeded as the translation
+    // reaches each movement.
   ],
   absent: {
     note: "<em>Provisional — to be finalised once the full text is rendered.</em> On the evidence of the opening and the known shape of the branch, Branwen's distinctive Propp profile is the inversion of the wonder-tale, in three features:",
