@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ternary — mino.mobi</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --flesh: #c45;
+  --knowledge: #daa520;
+  --argument: #6a9fb5;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --flesh: #e06070;
+    --knowledge: #daa520;
+    --argument: #7ec8e3;
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  padding: 4rem 2rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+
+h1 a { color: var(--muted); text-decoration: none; }
+h1 a:hover { color: var(--text); }
+
+.subtitle { font-size: 1.15rem; color: var(--text); margin-bottom: 1rem; }
+.desc { font-size: 0.95rem; color: var(--muted); margin-bottom: 2.5rem; }
+.hidden { display: none !important; }
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  cursor: pointer;
+  padding-bottom: 0.3rem;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+}
+
+.tab.active { color: var(--text); border-bottom-color: var(--link); }
+.tab:hover { color: var(--text); }
+
+textarea {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  margin-bottom: 0.75rem;
+}
+
+textarea:focus { outline: none; border-color: var(--link); }
+
+.list-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.list-row input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.list-row input:focus { outline: none; border-color: var(--link); }
+
+button {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover { border-color: var(--link); color: var(--link); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.action-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.handle-count {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.progress-track {
+  width: 100%;
+  height: 1px;
+  background: var(--rule);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--link);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.status-line {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.status-line.error { color: var(--link); }
+
+#resultsLayout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  align-items: start;
+  margin-bottom: 2.5rem;
+}
+
+#postCol {
+  position: sticky;
+  top: 1.5rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+
+.chart-wrap {
+  position: relative;
+}
+
+.chart-wrap canvas {
+  width: 100%;
+  aspect-ratio: 8 / 7;
+  display: block;
+  touch-action: none;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  padding: 0.4rem 0.6rem;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 10;
+  line-height: 1.4;
+}
+
+.chart-readout {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1rem;
+}
+
+.chart-readout.empty {
+  justify-content: center;
+  align-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.readout-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.readout-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.readout-handle {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.readout-handle a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.readout-handle a:hover { text-decoration: underline; }
+
+.readout-scores {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.readout-score {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 1px;
+}
+
+.section-header {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.result-row:last-child { border-bottom: none; }
+
+.result-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.result-handle {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-scores {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.result-score {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 1px;
+}
+
+#postChartWrap {
+  margin-bottom: 1rem;
+}
+
+#postList {
+  overflow-y: auto;
+}
+
+.post-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--rule);
+  line-height: 1.5;
+}
+
+.post-row:last-child { border-bottom: none; }
+
+.post-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.post-score {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 1px;
+  white-space: nowrap;
+}
+
+.post-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--text);
+  word-break: break-word;
+}
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--text); }
+
+@media (max-width: 700px) {
+  #resultsLayout {
+    grid-template-columns: 1fr;
+  }
+  #postCol {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+@media (max-width: 560px) {
+  body { padding: 1.5rem 0.75rem; }
+  .tabs { gap: 0.5rem; flex-wrap: wrap; }
+  .result-scores { gap: 0.3rem; }
+  .result-score { font-size: 0.6rem; }
+}
+</style>
+</head>
+<body>
+
+<h1><a href="/">mino.mobi</a> / ternary</h1>
+
+<p class="subtitle">Three lusts, one chart.</p>
+
+<p class="desc">
+  Paste handles or load a Bluesky list. Each poster placed by posting
+  temperament&mdash;flesh, knowledge, argument&mdash;scored from embeddings,
+  normalized against their peers. One hex per poster.
+</p>
+
+<div class="tabs" id="inputTabs">
+  <button class="tab active" data-tab="paste">paste handles</button>
+  <button class="tab" data-tab="list">load list</button>
+</div>
+
+<div id="pastePanel">
+  <textarea id="handleList" rows="6" placeholder="one handle per line&#10;alice.bsky.social&#10;bob.bsky.social" spellcheck="false"></textarea>
+</div>
+
+<div id="listPanel" class="hidden">
+  <div class="list-row">
+    <input type="text" id="listUrl" placeholder="https://bsky.app/profile/.../lists/..." autocomplete="off" spellcheck="false">
+    <button id="loadListBtn">load list</button>
+  </div>
+</div>
+
+<div class="action-row">
+  <button id="mapBtn" disabled>map</button>
+  <span class="handle-count" id="handleCount">0 handles</span>
+</div>
+
+<div class="tabs" id="modeTabs" style="margin-bottom:0.75rem">
+  <!-- <button class="tab active" data-mode="zeroshotnli">zero-shot nli</button> -->
+  <button class="tab" data-mode="similarity">similarity</button>
+</div>
+<div class="tabs" id="normTabs" style="margin-bottom:1.25rem">
+  <button class="tab active" data-norm="relative">relative</button>
+  <button class="tab" data-norm="absolute">absolute</button>
+</div>
+
+<div class="progress-track hidden" id="progressBar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<div class="status-line hidden" id="status"></div>
+
+<div id="results" class="hidden">
+  <div id="resultsLayout">
+    <div id="chartCol">
+      <div class="chart-wrap">
+        <canvas id="ternaryChart"></canvas>
+        <div class="tooltip hidden" id="tooltip"></div>
+      </div>
+    </div>
+    <div id="postCol">
+      <div class="chart-readout empty" id="chartReadout">hover a hex to inspect · click to expand</div>
+      <div id="postChartWrap" class="hidden">
+        <div class="section-header" id="postChartLabel" style="margin-top:0"></div>
+        <canvas id="postChart" height="240" style="width:100%;display:block"></canvas>
+      </div>
+      <div id="postList" class="hidden"></div>
+    </div>
+  </div>
+
+  <div class="section-header">rankings</div>
+  <div class="tabs" id="sortTabs">
+    <button class="tab active" data-sort="flesh">flesh</button>
+    <button class="tab" data-sort="knowledge">knowledge</button>
+    <button class="tab" data-sort="argument">argument</button>
+  </div>
+  <div id="resultsList"></div>
+</div>
+
+<footer>
+  <a href="/">mino.mobi</a> &middot;
+  <a href="/novelty">novelty</a> &middot;
+  <a href="/judge">judge</a> &middot;
+  <a href="/density">density</a> &middot;
+  <a href="/cluster">cluster</a> &middot;
+  <a href="/echo">echo</a>
+</footer>
+
+<script type="module">
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3/dist/transformers.min.js';
+
+const DEVICE = navigator.gpu ? 'webgpu' : 'wasm';
+
+let embedder = null;
+let classifier = null;
+
+function dot(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+  return s;
+}
+
+function unitCentroid(embs) {
+  const dim = embs[0].length;
+  const c = new Array(dim).fill(0);
+  for (const e of embs) for (let i = 0; i < dim; i++) c[i] += e[i];
+  let mag = 0;
+  for (let i = 0; i < dim; i++) mag += c[i] * c[i];
+  mag = Math.sqrt(mag) || 1;
+  for (let i = 0; i < dim; i++) c[i] /= mag;
+  return c;
+}
+
+function minMaxNormalize(rawScores) {
+  const axes = ['flesh', 'knowledge', 'argument'];
+  const mins = {}, maxes = {};
+  for (const ax of axes) {
+    const vals = rawScores.map(s => s[ax]);
+    mins[ax] = Math.min(...vals);
+    maxes[ax] = Math.max(...vals);
+  }
+  return {
+    results: rawScores.map(s => {
+      const n = {};
+      for (const ax of axes) {
+        const range = maxes[ax] - mins[ax] || 0.001;
+        n[ax] = Math.max((s[ax] - mins[ax]) / range, 0.02);
+      }
+      const tot = n.flesh + n.knowledge + n.argument;
+      return {
+        handle: s.handle,
+        flesh:      Math.round(n.flesh     / tot * 100),
+        knowledge:  Math.round(n.knowledge / tot * 100),
+        argument:   Math.round(n.argument  / tot * 100),
+        postScores: s.postScores || [],
+      };
+    }),
+  };
+}
+
+// Flesh is heterogeneous — sensory, personal/everyday, humor/wit, body/physical
+// are all "flesh" but embed in different parts of the space. A single centroid
+// misses most of them. Instead: one shared LOW pole (the "not-flesh" anchor)
+// and three independent HIGH facets. Per post: flesh = max(facet_i score).
+const FLESH_LOW = [
+  // formal / logical / academic
+  'the formal structure here assumes commutativity which breaks at the boundary condition',
+  'this argument conflates two distinct modal claims and that is where it goes wrong',
+  'the null hypothesis is not ruled out by this evidence regardless of p-value',
+  'consider what happens to the proof under a different set of axioms',
+  'the logical form is valid but the premises are doing too much work',
+  'empirically underdetermined regardless of theoretical elegance',
+  // casual intellectual discussion — analytical register in social-media style
+  'the more you think about it the less the standard intuition holds up',
+  'there is a non-obvious problem with the usual framing that most people miss',
+  'once you see the underlying structure the specific cases become less surprising',
+  'the philosophical implications here are more deflationary than they first appear',
+  'I think the intuition is just wrong once you actually trace through the argument',
+  'the interesting question is not what most people think it is',
+];
+
+const FLESH_FACETS = [
+  // sensory / pleasure
+  [
+    'I cannot stop thinking about how good that meal was last night',
+    'finally got a massage and my whole body unclenched for the first time in months',
+    'the way that song hits at full volume is a genuinely physical experience',
+    'ate something that made me involuntarily close my eyes',
+    'the light at golden hour this evening was almost unbearable',
+    'hot bath after a long week is a spiritual practice honestly',
+  ],
+  // humor / wit / absurdist
+  [
+    'this is the funniest thing I have seen all month and I will not be explaining further',
+    'extremely normal thing to be thinking about at 2am',
+    'my entire personality is collecting weird facts and waiting for the right moment',
+    'brain is completely empty, just pure static, love this for me',
+    'the vibes are absolutely astronomical right now and I cannot explain it',
+    'deeply unwell about this, in the best possible way',
+  ],
+  // body / physical / capability
+  [
+    'my body knew before my brain did that something was wrong',
+    'something about doing this with my hands is deeply satisfying',
+    'the muscle memory kicked in before I even thought about it',
+    'turns out I can hold that position way longer than I thought',
+    'my back is telling me things I do not want to hear right now',
+    'this is a very physical job and my body has strong opinions about it today',
+    'went to the gym today and I am going to be mentioning this for the rest of the week',
+    'did not skip leg day, this is a formal announcement, you are welcome',
+  ],
+];
+
+const AXES = [
+  {
+    axis: 'knowledge',
+    high: [
+      'read five papers on this last night and none of them agree with each other',
+      'the headline is misleading look at figure 3 the effect size is tiny',
+      'this is a well-documented phenomenon going back to the 1970s in the literature',
+      'citing this because the original author is always ignored and they got there first',
+      'the technical distinction here actually matters for the argument being made',
+      'per the meta-analysis the effect disappears when you control for publication bias',
+      'the reason this is impossible is thermodynamics, not engineering, no workaround exists',
+      'once you understand why the constraint exists it becomes obvious which approaches can work',
+      'the interesting question is what philosophical work this concept is actually doing in the argument',
+      'the deflationary strategy here is to deny the question is well-formed in the first place',
+    ],
+    low: [
+      'this is so real',
+      'no thoughts head empty just existing',
+      'honestly mood',
+      'I simply do not have the bandwidth for this today',
+      'lmaooo ok',
+      'it is what it is',
+      'cannot explain it just vibes',
+      'wait why is this so true',
+      'completed my workout today, very proud of myself',
+      'did the thing, feeling very accomplished, you may now applaud',
+    ],
+  },
+  {
+    axis: 'argument',
+    high: [
+      'this take is wrong and I am going to tell you exactly why',
+      'if you believe this you have not thought it through at all',
+      'you are describing your own political bias as neutral which is the tell',
+      'genuinely cannot believe people are still defending this',
+      'the strawman is incredible did you actually read what I wrote',
+      'this is not a both sides situation and I am done pretending it is',
+      'the entire framing of this piece is wrong and it is not a minor quibble',
+      'blocking everyone who disagrees and then acting confused why the replies all agree',
+    ],
+    low: [
+      'could probably pull this off if I needed to, worth keeping in mind',
+      'it is fine, I can adapt to whatever the situation requires',
+      'honestly either way works for me, no strong preference',
+      'will figure it out when the time comes, no need to decide now',
+      'no particular strong feelings about this one way or the other',
+      'just describing what happened, not really taking a position on it',
+      'more of an observation than an opinion, make of it what you will',
+      'genuinely open to being wrong about this if the evidence is there',
+    ],
+  },
+];
+
+const NLI_LABELS = [
+  'the author of this text is focused on personal experience, pleasure, humor, aesthetics, or everyday life',
+  'the author of this text is sharing knowledge, information, research, or intellectual analysis',
+  'the author of this text is expressing disagreement, criticism, debate, or conflict',
+];
+
+async function scoreSimilarity(userData) {
+  if (!embedder) {
+    embedder = await pipeline('feature-extraction', 'Xenova/bge-large-en-v1.5', {
+      device: DEVICE,
+      dtype: 'q8',
+      progress_callback: window._modelProgress,
+    });
+  }
+  if (window._onModelReady) window._onModelReady();
+
+  // Embed anchors once (~60 texts — small, fast).
+  const anchorTexts = [
+    ...FLESH_LOW,
+    ...FLESH_FACETS.flat(),
+    ...AXES.flatMap(ax => [...ax.high, ...ax.low]),
+  ];
+  const anchorMatrix = (await embedder(anchorTexts, { pooling: 'mean', normalize: true })).tolist();
+
+  let off = 0;
+  const fleshLoCentroid = unitCentroid(anchorMatrix.slice(off, off + FLESH_LOW.length));
+  off += FLESH_LOW.length;
+  const fleshFacetCentroids = FLESH_FACETS.map(facet => {
+    const c = unitCentroid(anchorMatrix.slice(off, off + facet.length));
+    off += facet.length;
+    return c;
+  });
+  const axisCentroids = [];
+  for (const ax of AXES) {
+    const hi = unitCentroid(anchorMatrix.slice(off, off + ax.high.length));
+    const lo = unitCentroid(anchorMatrix.slice(off + ax.high.length, off + ax.high.length + ax.low.length));
+    axisCentroids.push({ axis: ax.axis, hi, lo });
+    off += ax.high.length + ax.low.length;
+  }
+
+  // Embed each user separately — keeps batches manageable on WebGPU
+  // and gives a natural async yield for progress updates.
+  const totalPosts = userData.reduce((s, u) => s + u.texts.length, 0);
+  let donePosts = 0;
+  const rawScores = [];
+  for (const u of userData) {
+    const posts = (await embedder(u.texts, { pooling: 'mean', normalize: true })).tolist();
+
+    const postScores = posts.map((p, pi) => {
+      const ps = { text: u.texts[pi] };
+      const loScore = dot(p, fleshLoCentroid);
+      ps.flesh = Math.max(...fleshFacetCentroids.map(hi => dot(p, hi) - loScore));
+      for (const { axis, hi, lo } of axisCentroids) ps[axis] = dot(p, hi) - dot(p, lo);
+      return ps;
+    });
+    const scores = { flesh: 0, knowledge: 0, argument: 0 };
+    let totalWeight = 0;
+    for (const ps of postScores) {
+      const mn = Math.min(ps.flesh, ps.knowledge, ps.argument);
+      const f = Math.max(ps.flesh - mn, 0);
+      const k = Math.max(ps.knowledge - mn, 0);
+      const a = Math.max(ps.argument - mn, 0);
+      const tot = f + k + a || 0.001;
+      const signal = Math.max(f, k, a) / tot;
+      scores.flesh    += (f / tot) * signal;
+      scores.knowledge += (k / tot) * signal;
+      scores.argument  += (a / tot) * signal;
+      totalWeight += signal;
+    }
+    const w = totalWeight || 1;
+    scores.flesh    /= w;
+    scores.knowledge /= w;
+    scores.argument  /= w;
+    rawScores.push({ handle: u.handle, ...scores, postScores });
+    donePosts += u.texts.length;
+    if (window._scoringProgress) window._scoringProgress(donePosts, totalPosts);
+  }
+
+  return { rawResults: rawScores };
+}
+
+async function scoreNLI(userData) {
+  if (!classifier) {
+    classifier = await pipeline('zero-shot-classification', 'Xenova/nli-deberta-v3-small', {
+      device: DEVICE,
+      dtype: 'q8',
+      progress_callback: window._modelProgress,
+    });
+  }
+  if (window._onModelReady) window._onModelReady();
+
+  const results = [];
+  let done = 0;
+  const totalPosts = userData.reduce((s, u) => s + u.texts.length, 0);
+
+  for (const u of userData) {
+    if (!u.texts.length) continue;
+
+    const preds = await classifier(u.texts, NLI_LABELS, { multi_label: false });
+    const predsArr = Array.isArray(preds) ? preds : [preds];
+
+    const postScores = u.texts.map((text, i) => {
+      const pred = predsArr[i] || predsArr[0];
+      const ps = { text, flesh: 0, knowledge: 0, argument: 0 };
+      for (let j = 0; j < pred.labels.length; j++) {
+        if (pred.labels[j] === NLI_LABELS[0])      ps.flesh    = pred.scores[j];
+        else if (pred.labels[j] === NLI_LABELS[1]) ps.knowledge = pred.scores[j];
+        else                                        ps.argument  = pred.scores[j];
+      }
+      return ps;
+    });
+
+    // Same signal-weighted aggregation as similarity mode.
+    let f = 0, k = 0, a = 0, totalWeight = 0;
+    for (const ps of postScores) {
+      const mn = Math.min(ps.flesh, ps.knowledge, ps.argument);
+      const pf = Math.max(ps.flesh - mn, 0);
+      const pk = Math.max(ps.knowledge - mn, 0);
+      const pa = Math.max(ps.argument - mn, 0);
+      const tot = pf + pk + pa || 0.001;
+      const signal = Math.max(pf, pk, pa) / tot;
+      f += (pf / tot) * signal;
+      k += (pk / tot) * signal;
+      a += (pa / tot) * signal;
+      totalWeight += signal;
+    }
+    const w = totalWeight || 1;
+
+    results.push({
+      handle:    u.handle,
+      flesh:     f / w,
+      knowledge: k / w,
+      argument:  a / w,
+      postScores,
+    });
+
+    done += u.texts.length;
+    if (window._scoringProgress) window._scoringProgress(done, totalPosts);
+  }
+
+  return { rawResults: results };
+}
+
+window._scoreUsers = function (userData, mode) {
+  return mode === 'similarity' ? scoreSimilarity(userData) : scoreNLI(userData);
+};
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  var BSKY = 'https://public.api.bsky.app';
+  var POSTS_PER_USER = 100;
+  var HEX_RADIUS_MAX = 26;
+  var HEX_RADIUS_MIN = 8;
+
+  // State
+  var chartState = null;
+  var avatarImages = {};
+  var currentSort = 'flesh';
+  var normMode = 'relative';
+
+  function applyRelativeNorm(rawResults) {
+    var axes = ['flesh', 'knowledge', 'argument'];
+    var mins = {}, maxes = {};
+    for (var i = 0; i < axes.length; i++) {
+      var ax = axes[i];
+      var vals = rawResults.map(function(s) { return s[ax]; });
+      mins[ax] = Math.min.apply(null, vals);
+      maxes[ax] = Math.max.apply(null, vals);
+    }
+    return rawResults.map(function(s) {
+      var n = {};
+      for (var i = 0; i < axes.length; i++) {
+        var ax = axes[i];
+        var range = maxes[ax] - mins[ax] || 0.001;
+        n[ax] = Math.max((s[ax] - mins[ax]) / range, 0.02);
+      }
+      var tot = n.flesh + n.knowledge + n.argument;
+      return {
+        handle: s.handle, avatar: s.avatar, did: s.did, texts: s.texts,
+        flesh:     Math.round(n.flesh     / tot * 100),
+        knowledge: Math.round(n.knowledge / tot * 100),
+        argument:  Math.round(n.argument  / tot * 100),
+        postScores: s.postScores,
+      };
+    });
+  }
+
+  function applyAbsoluteNorm(rawResults) {
+    return rawResults.map(function(s) {
+      var f = Math.max(s.flesh || 0, 0.02);
+      var k = Math.max(s.knowledge || 0, 0.02);
+      var a = Math.max(s.argument || 0, 0.02);
+      var tot = f + k + a;
+      return {
+        handle: s.handle, avatar: s.avatar, did: s.did, texts: s.texts,
+        flesh:     Math.round(f / tot * 100),
+        knowledge: Math.round(k / tot * 100),
+        argument:  Math.round(a / tot * 100),
+        postScores: s.postScores,
+      };
+    });
+  }
+
+  function applyNorm(rawResults) {
+    return normMode === 'relative' ? applyRelativeNorm(rawResults) : applyAbsoluteNorm(rawResults);
+  }
+
+  function computePostNormBounds(posts) {
+    var bounds = {};
+    var axes = ['flesh', 'knowledge', 'argument'];
+    for (var i = 0; i < axes.length; i++) {
+      var ax = axes[i];
+      var vals = posts.map(function(p) { return p[ax] || 0; });
+      bounds[ax] = { min: Math.min.apply(null, vals), max: Math.max.apply(null, vals) };
+    }
+    return bounds;
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  function setStatus(msg, isError) {
+    var el = $('status');
+    show(el);
+    el.textContent = msg;
+    el.classList.toggle('error', !!isError);
+  }
+
+  function setProgress(pct) {
+    show($('progressBar'));
+    $('progressFill').style.width = pct + '%';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function getHandles() {
+    var raw = $('handleList').value.trim();
+    if (!raw) return [];
+    return raw.split(/[\n,]+/)
+      .map(function (h) { return h.trim().replace(/^@/, ''); })
+      .filter(function (h) { return h.length > 0; });
+  }
+
+  function updateCount() {
+    var n = getHandles().length;
+    $('handleCount').textContent = n + ' handle' + (n !== 1 ? 's' : '');
+    $('mapBtn').disabled = n < 2;
+  }
+
+  $('handleList').addEventListener('input', updateCount);
+
+  // ── Bluesky API ────────────────────────────────────
+
+  async function resolveHandle(handle) {
+    if (handle.startsWith('did:')) return handle;
+    var res = await fetch(BSKY + '/xrpc/com.atproto.identity.resolveHandle?handle=' + encodeURIComponent(handle));
+    if (!res.ok) throw new Error('Could not resolve: ' + handle);
+    return (await res.json()).did;
+  }
+
+  async function fetchProfile(did) {
+    var res = await fetch(BSKY + '/xrpc/app.bsky.actor.getProfile?actor=' + encodeURIComponent(did));
+    if (!res.ok) return null;
+    return res.json();
+  }
+
+  async function fetchRecentPosts(did, max) {
+    var texts = [];
+    var cursor;
+    while (texts.length < max) {
+      var url = BSKY + '/xrpc/app.bsky.feed.getAuthorFeed?actor=' + encodeURIComponent(did) +
+                '&limit=100&filter=posts_and_author_threads';
+      if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+      var res = await fetch(url);
+      if (!res.ok) break;
+      var data = await res.json();
+      var feed = data.feed || [];
+      if (!feed.length) break;
+      for (var i = 0; i < feed.length && texts.length < max; i++) {
+        var item = feed[i];
+        if (item.reason) continue;
+        var text = item.post && item.post.record && item.post.record.text;
+        if (text && text.length > 5 && !text.startsWith('…')) texts.push(text);
+      }
+      cursor = data.cursor;
+      if (!cursor) break;
+    }
+    // console.log(texts)
+    return texts;
+  }
+
+  // ── List loading ───────────────────────────────────
+
+  function parseListUrl(url) {
+    // https://bsky.app/profile/did:plc:.../lists/3mfx...
+    // https://bsky.app/profile/handle.bsky.social/lists/3mfx...
+    var m = url.match(/\/profile\/([^/]+)\/lists\/([^/?#]+)/);
+    if (!m) return null;
+    return { actor: m[1], rkey: m[2] };
+  }
+
+  async function fetchListMembers(actor, rkey) {
+    var did = await resolveHandle(actor);
+    var atUri = 'at://' + did + '/app.bsky.graph.list/' + rkey;
+    var handles = [];
+    var cursor;
+    while (true) {
+      var url = BSKY + '/xrpc/app.bsky.graph.getList?list=' + encodeURIComponent(atUri) + '&limit=100';
+      if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+      var res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to load list (HTTP ' + res.status + ')');
+      var data = await res.json();
+      var items = data.items || [];
+      if (items.length === 0) break;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].subject && items[i].subject.handle) {
+          handles.push(items[i].subject.handle);
+        }
+      }
+      cursor = data.cursor;
+      if (!cursor) break;
+    }
+    return handles;
+  }
+
+  // ── Data loading with concurrency ──────────────────
+
+  async function loadUserData(handle) {
+    var did = await resolveHandle(handle);
+    var profile = await fetchProfile(did);
+    var texts = await fetchRecentPosts(did, POSTS_PER_USER);
+    return {
+      handle: profile ? profile.handle : handle,
+      did: did,
+      avatar: profile ? profile.avatar : null,
+      texts: texts,
+    };
+  }
+
+  async function batchLoad(handles, concurrency, onProgress) {
+    var results = [];
+    var idx = 0;
+    var completed = 0;
+
+    async function worker() {
+      while (idx < handles.length) {
+        var i = idx++;
+        try {
+          results.push(await loadUserData(handles[i]));
+        } catch (e) { /* skip */ }
+        completed++;
+        if (onProgress) onProgress(completed, handles.length);
+      }
+    }
+
+    var workers = [];
+    for (var w = 0; w < Math.min(concurrency, handles.length); w++) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
+    return results;
+  }
+
+  // ── Hex geometry ───────────────────────────────────
+
+  function pointInTriangle(px, py, ax, ay, bx, by, cx, cy) {
+    var d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+    var a = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / d;
+    var b = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / d;
+    var c = 1 - a - b;
+    return a >= -0.001 && b >= -0.001 && c >= -0.001;
+  }
+
+  function generateHexCells(Ax, Ay, Bx, By, Cx, Cy, hexR) {
+    // Inset triangle so hexes don't straddle edges
+    var cenX = (Ax + Bx + Cx) / 3;
+    var cenY = (Ay + By + Cy) / 3;
+    var inset = hexR * 0.9;
+    var triH = Ay - Cy;
+    var scale = Math.max(0.5, 1 - inset / (triH * 0.5));
+    var iAx = cenX + (Ax - cenX) * scale;
+    var iAy = cenY + (Ay - cenY) * scale;
+    var iBx = cenX + (Bx - cenX) * scale;
+    var iBy = cenY + (By - cenY) * scale;
+    var iCx = cenX + (Cx - cenX) * scale;
+    var iCy = cenY + (Cy - cenY) * scale;
+
+    // Pointy-top hex grid
+    var hexW = Math.sqrt(3) * hexR;
+    var rowH = 1.5 * hexR;
+
+    var minY = Math.min(iAy, iBy, iCy);
+    var maxY = Math.max(iAy, iBy, iCy);
+    var minX = Math.min(iAx, iBx, iCx);
+    var maxX = Math.max(iAx, iBx, iCx);
+
+    var cells = [];
+    var row = 0;
+    for (var y = minY + hexR; y <= maxY; y += rowH) {
+      var offset = (row % 2) ? hexW * 0.5 : 0;
+      for (var x = minX + hexW * 0.5 + offset; x <= maxX; x += hexW) {
+        if (pointInTriangle(x, y, iAx, iAy, iBx, iBy, iCx, iCy)) {
+          cells.push({ x: x, y: y, occupant: null });
+        }
+      }
+      row++;
+    }
+    return cells;
+  }
+
+  function assignUsersToCells(cells, users, ternaryToXY) {
+    // Sort users by extremity (distance from center) — extreme users get priority
+    var center = { x: 33.33, y: 33.33, z: 33.33 };
+    var ranked = users.map(function (u) {
+      var df = u.flesh - 33.33, dk = u.knowledge - 33.33, da = u.argument - 33.33;
+      return { user: u, extremity: Math.sqrt(df * df + dk * dk + da * da) };
+    });
+    ranked.sort(function (a, b) { return b.extremity - a.extremity; });
+
+    var occupied = {};
+    var assignments = [];
+
+    for (var i = 0; i < ranked.length; i++) {
+      var u = ranked[i].user;
+      var ideal = ternaryToXY(u.flesh, u.knowledge, u.argument);
+
+      // Find nearest unoccupied cell
+      var bestIdx = -1, bestDist = Infinity;
+      for (var c = 0; c < cells.length; c++) {
+        if (occupied[c]) continue;
+        var dx = cells[c].x - ideal.x;
+        var dy = cells[c].y - ideal.y;
+        var dist = dx * dx + dy * dy;
+        if (dist < bestDist) { bestDist = dist; bestIdx = c; }
+      }
+
+      if (bestIdx >= 0) {
+        occupied[bestIdx] = true;
+        cells[bestIdx].occupant = u;
+        assignments.push({ user: u, cell: cells[bestIdx] });
+      }
+    }
+
+    return assignments;
+  }
+
+  function hexPath(ctx, cx, cy, r) {
+    ctx.beginPath();
+    for (var i = 0; i < 6; i++) {
+      var angle = Math.PI / 3 * i - Math.PI / 6;
+      var vx = cx + r * Math.cos(angle);
+      var vy = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(vx, vy);
+      else ctx.lineTo(vx, vy);
+    }
+    ctx.closePath();
+  }
+
+  // ── Chart drawing (redraws fully — no getImageData) ──
+
+  function getColors() {
+    var cs = getComputedStyle(document.documentElement);
+    return {
+      text: cs.getPropertyValue('--text').trim(),
+      muted: cs.getPropertyValue('--muted').trim(),
+      rule: cs.getPropertyValue('--rule').trim(),
+      bg: cs.getPropertyValue('--bg').trim(),
+      flesh: cs.getPropertyValue('--flesh').trim(),
+      knowledge: cs.getPropertyValue('--knowledge').trim(),
+      argument: cs.getPropertyValue('--argument').trim(),
+      link: cs.getPropertyValue('--link').trim(),
+    };
+  }
+
+  function drawTernaryChart(canvas, data, highlightHandle) {
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
+
+    var W = rect.width;
+    var H = rect.height;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    var col = getColors();
+    var mobile = W < 480;
+    var pad = mobile ? 28 : 48;
+    var labelPad = mobile ? 10 : 18;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Triangle geometry
+    var triW = W - pad * 2;
+    var triH = triW * Math.sqrt(3) / 2;
+    if (triH + pad + labelPad + 20 > H) {
+      triH = H - pad - labelPad - 20;
+      triW = triH * 2 / Math.sqrt(3);
+    }
+
+    var cx = W / 2;
+    // A = flesh (bottom-left), B = argument (bottom-right), C = knowledge (top)
+    var Ax = cx - triW / 2, Ay = pad + triH;
+    var Bx = cx + triW / 2, By = pad + triH;
+    var Cx = cx,            Cy = pad;
+
+    function ternaryToXY(f, k, a) {
+      var total = f + k + a || 1;
+      var fn = f / total, kn = k / total, an = a / total;
+      return { x: fn * Ax + kn * Cx + an * Bx, y: fn * Ay + kn * Cy + an * By };
+    }
+
+    // Grid lines
+    ctx.strokeStyle = col.rule;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.4;
+    for (var i = 1; i < 10; i++) {
+      var t = i / 10;
+      var lkL = ternaryToXY(1 - t, t, 0), lkR = ternaryToXY(0, t, 1 - t);
+      ctx.beginPath(); ctx.moveTo(lkL.x, lkL.y); ctx.lineTo(lkR.x, lkR.y); ctx.stroke();
+      var lfL = ternaryToXY(t, 1 - t, 0), lfR = ternaryToXY(t, 0, 1 - t);
+      ctx.beginPath(); ctx.moveTo(lfL.x, lfL.y); ctx.lineTo(lfR.x, lfR.y); ctx.stroke();
+      var laL = ternaryToXY(1 - t, 0, t), laR = ternaryToXY(0, 1 - t, t);
+      ctx.beginPath(); ctx.moveTo(laL.x, laL.y); ctx.lineTo(laR.x, laR.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Triangle outline
+    ctx.strokeStyle = col.text;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(Ax, Ay); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.closePath();
+    ctx.stroke();
+
+    // Axis labels
+    var fontSize = mobile ? 9 : 11;
+    ctx.font = 'bold ' + fontSize + 'px monospace';
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = col.flesh;
+    ctx.fillText('FLESH', cx, Ay + labelPad + (mobile ? 8 : 14));
+
+    ctx.save();
+    ctx.fillStyle = col.knowledge;
+    ctx.translate((Ax + Cx) / 2 - labelPad, (Ay + Cy) / 2);
+    ctx.rotate(-Math.PI / 3);
+    ctx.fillText('KNOWLEDGE', 0, 0);
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = col.argument;
+    ctx.translate((Bx + Cx) / 2 + labelPad, (By + Cy) / 2);
+    ctx.rotate(Math.PI / 3);
+    ctx.fillText('ARGUMENT', 0, 0);
+    ctx.restore();
+
+    // Tick labels
+    ctx.font = (mobile ? 7 : 9) + 'px monospace';
+    ctx.fillStyle = col.muted;
+    var step = mobile ? 20 : 10;
+    for (var v = 0; v <= 100; v += step) {
+      var t10 = v / 100;
+      var bp = ternaryToXY(1 - t10, 0, t10);
+      ctx.textAlign = 'center';
+      ctx.fillText((100 - v) + '', bp.x, bp.y + (mobile ? 10 : 14));
+      if (v > 0 && v < 100) {
+        var lp = ternaryToXY(1 - t10, t10, 0);
+        ctx.textAlign = 'right';
+        ctx.fillText(v + '', lp.x - 5, lp.y + 3);
+        var rp = ternaryToXY(0, 1 - t10, t10);
+        ctx.textAlign = 'left';
+        ctx.fillText(v + '', rp.x + 5, rp.y + 3);
+      }
+    }
+
+    // Dynamic hex sizing: shrink tiles when many users, enlarge when few
+    var nUsers = data.length;
+    var triSide = triW;
+    // Approximate hex count for equilateral triangle ≈ side² / (2.6 · r²)
+    var hexR = HEX_RADIUS_MAX;
+    if (nUsers > 0) {
+      var ideal = Math.sqrt((triSide * triSide) / (2.6 * nUsers * 1.4));
+      hexR = Math.max(HEX_RADIUS_MIN, Math.min(HEX_RADIUS_MAX, ideal));
+    }
+    var cells = generateHexCells(Ax, Ay, Bx, By, Cx, Cy, hexR);
+    // If not enough cells, shrink further until we fit
+    while (cells.length < nUsers && hexR > HEX_RADIUS_MIN) {
+      hexR = Math.max(HEX_RADIUS_MIN, hexR * 0.85);
+      cells = generateHexCells(Ax, Ay, Bx, By, Cx, Cy, hexR);
+    }
+    var assignments = assignUsersToCells(cells, data, ternaryToXY);
+
+    // Store for interaction
+    canvas._cells = cells;
+    canvas._dpr = dpr;
+    canvas._hexR = hexR;
+
+    // Draw empty hex outlines
+    ctx.strokeStyle = col.rule;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.25;
+    for (var c = 0; c < cells.length; c++) {
+      if (!cells[c].occupant) {
+        hexPath(ctx, cells[c].x, cells[c].y, hexR * 0.92);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw occupied hexes with avatars
+    var drawR = hexR * 0.92;
+    for (var c = 0; c < cells.length; c++) {
+      var cell = cells[c];
+      if (!cell.occupant) continue;
+      var u = cell.occupant;
+      var img = avatarImages[u.handle];
+      var isHighlight = u.handle === highlightHandle;
+
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.save();
+        hexPath(ctx, cell.x, cell.y, drawR);
+        ctx.clip();
+        var imgSize = drawR * 2.2;
+        ctx.drawImage(img, cell.x - imgSize / 2, cell.y - imgSize / 2, imgSize, imgSize);
+        ctx.restore();
+      } else {
+        // Fallback: colored dot
+        ctx.save();
+        hexPath(ctx, cell.x, cell.y, drawR);
+        ctx.fillStyle = col.muted + '40';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Hex border
+      hexPath(ctx, cell.x, cell.y, drawR);
+      if (isHighlight) {
+        ctx.strokeStyle = col.link;
+        ctx.lineWidth = 2.5;
+      } else {
+        ctx.strokeStyle = col.text + '60';
+        ctx.lineWidth = 0.8;
+      }
+      ctx.stroke();
+    }
+
+    return { cells: cells, ternaryToXY: ternaryToXY };
+  }
+
+  // ── Chart interaction ──────────────────────────────
+
+  function updateReadout(user) {
+    var el = $('chartReadout');
+    if (!user) {
+      el.className = 'chart-readout empty';
+      el.innerHTML = 'hover a hex to inspect · click to expand';
+      return;
+    }
+
+    el.className = 'chart-readout';
+    var imgTag = user.avatar
+      ? '<img class="readout-avatar" src="' + escHtml(user.avatar) + '" alt="">'
+      : '<div class="readout-avatar" style="background:var(--rule)"></div>';
+
+    var bskyUrl = 'https://bsky.app/profile/' + escHtml(user.handle);
+    var postsHtml = '';
+    var texts = user.texts || [];
+    for (var i = 0; i < Math.min(texts.length, 3); i++) {
+      var snippet = texts[i].length > 140 ? texts[i].slice(0, 140) + ' ' : texts[i];
+      postsHtml += '<div style="font-size:0.8rem;color:var(--muted);margin-top:0.25rem;line-height:1.4">' +
+        escHtml(snippet) + '</div>';
+    }
+
+    el.innerHTML = imgTag +
+      '<div class="readout-info">' +
+        '<div class="readout-handle"><a href="' + bskyUrl + '" target="_blank" rel="noopener">@' + escHtml(user.handle) + '</a></div>' +
+        '<div class="readout-scores">' +
+          '<span class="readout-score" style="color:var(--flesh);border:1px solid var(--flesh)">' + user.flesh + ' F</span>' +
+          '<span class="readout-score" style="color:var(--knowledge);border:1px solid var(--knowledge)">' + user.knowledge + ' K</span>' +
+          '<span class="readout-score" style="color:var(--argument);border:1px solid var(--argument)">' + user.argument + ' A</span>' +
+        '</div>' +
+        postsHtml +
+      '</div>';
+  }
+
+  function setupChartInteraction(canvas) {
+    var tooltip = $('tooltip');
+
+    function findHoveredCell(mx, my) {
+      var cells = canvas._cells || [];
+      var hexR = (canvas._hexR || 22) * 0.92;
+      for (var i = 0; i < cells.length; i++) {
+        if (!cells[i].occupant) continue;
+        var dx = cells[i].x - mx;
+        var dy = cells[i].y - my;
+        if (dx * dx + dy * dy < hexR * hexR) return cells[i];
+      }
+      return null;
+    }
+
+    function handleHover(clientX, clientY) {
+      var rect = canvas.getBoundingClientRect();
+      var mx = clientX - rect.left;
+      var my = clientY - rect.top;
+      var hit = findHoveredCell(mx, my);
+
+      if (!hit) {
+        if (canvas._lastHighlight) {
+          canvas._lastHighlight = null;
+          drawTernaryChart(canvas, chartState.results, null);
+          updateReadout(null);
+        }
+        hide(tooltip);
+        return;
+      }
+
+      var r = hit.occupant;
+      if (canvas._lastHighlight !== r.handle) {
+        canvas._lastHighlight = r.handle;
+        drawTernaryChart(canvas, chartState.results, r.handle);
+        updateReadout(r);
+      }
+
+      // Lightweight canvas tooltip for handle name
+      tooltip.textContent = '@' + r.handle;
+      show(tooltip);
+
+      var tx = mx + 14;
+      var ty = my - 28;
+      if (tx + 180 > rect.width) tx = mx - 180;
+      if (ty < 0) ty = my + 16;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+    }
+
+    canvas.onmousemove = function (e) { handleHover(e.clientX, e.clientY); };
+    canvas.onmouseleave = function () { hide(tooltip); };
+    canvas.onclick = function (e) {
+      var rect = canvas.getBoundingClientRect();
+      var hit = findHoveredCell(e.clientX - rect.left, e.clientY - rect.top);
+      if (!hit || !hit.occupant) {
+        lockedHandle = null;
+        renderPostList(null);
+        return;
+      }
+      var r = hit.occupant;
+      if (lockedHandle === r.handle) {
+        lockedHandle = null;
+        renderPostList(null);
+      } else {
+        lockedHandle = r.handle;
+        renderPostList(r);
+      }
+    };
+    canvas.ontouchstart = function (e) {
+      e.preventDefault();
+      if (e.touches.length) handleHover(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    canvas.ontouchmove = function (e) {
+      e.preventDefault();
+      if (e.touches.length) handleHover(e.touches[0].clientX, e.touches[0].clientY);
+    };
+  }
+
+  // ── Post list (click to expand) ────────────────────
+
+  var lockedHandle = null;
+
+  function postDisplayScores(ps, normBounds) {
+    var f, k, a;
+    if (normBounds) {
+      f = (ps.flesh - normBounds.flesh.min) / (normBounds.flesh.max - normBounds.flesh.min || 0.001);
+      k = (ps.knowledge - normBounds.knowledge.min) / (normBounds.knowledge.max - normBounds.knowledge.min || 0.001);
+      a = (ps.argument - normBounds.argument.min) / (normBounds.argument.max - normBounds.argument.min || 0.001);
+      f = Math.max(f, 0.02); k = Math.max(k, 0.02); a = Math.max(a, 0.02);
+    } else {
+      f = ps.flesh || 0; k = ps.knowledge || 0; a = ps.argument || 0;
+      var mn = Math.min(f, k, a);
+      f -= mn; k -= mn; a -= mn;
+    }
+    var tot = f + k + a || 0.001;
+    return {
+      flesh:     Math.round(f / tot * 100),
+      knowledge: Math.round(k / tot * 100),
+      argument:  Math.round(a / tot * 100),
+    };
+  }
+
+  function renderPostList(user) {
+    drawPostChart(user);
+    var el = $('postList');
+    if (!user || !user.postScores || !user.postScores.length) {
+      hide(el);
+      el.innerHTML = '';
+      return;
+    }
+    var posts = user.postScores;
+    var postNormBounds = normMode === 'relative' ? computePostNormBounds(posts) : null;
+    var html = '<div class="section-header" style="margin-top:0">posts · @' + escHtml(user.handle) +
+               ' <span style="font-weight:400;color:var(--muted)">(' + posts.length + ')</span></div>';
+    for (var i = 0; i < posts.length; i++) {
+      var p = posts[i];
+      var d = postDisplayScores(p, postNormBounds);
+      var dom = d.flesh >= d.knowledge && d.flesh >= d.argument ? 'flesh' :
+                d.knowledge >= d.argument ? 'knowledge' : 'argument';
+      var fw = function(ax) { return dom === ax ? ';font-weight:700' : ''; };
+      html += '<div class="post-row">' +
+        '<div class="post-scores">' +
+          '<span class="post-score" style="color:var(--flesh);border:1px solid var(--flesh)' + fw('flesh') + '">' + d.flesh + 'F</span>' +
+          '<span class="post-score" style="color:var(--knowledge);border:1px solid var(--knowledge)' + fw('knowledge') + '">' + d.knowledge + 'K</span>' +
+          '<span class="post-score" style="color:var(--argument);border:1px solid var(--argument)' + fw('argument') + '">' + d.argument + 'A</span>' +
+        '</div>' +
+        '<div class="post-text">' + escHtml(p.text) + '</div>' +
+      '</div>';
+    }
+    el.innerHTML = html;
+    show(el);
+  }
+
+  function drawPostChart(user) {
+    var wrap = $('postChartWrap');
+    var canvas = $('postChart');
+    if (!user || !user.postScores || !user.postScores.length) {
+      hide(wrap);
+      return;
+    }
+
+    $('postChartLabel').textContent = 'posts · @' + user.handle;
+    show(wrap);
+
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var W = canvas.getBoundingClientRect().width;
+    var H = 240;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    var col = getColors();
+    var pad = 36, labelPad = 12;
+
+    var triW = W - pad * 2;
+    var triH = triW * Math.sqrt(3) / 2;
+    if (triH + pad + labelPad + 16 > H) {
+      triH = H - pad - labelPad - 16;
+      triW = triH * 2 / Math.sqrt(3);
+    }
+    var cxc = W / 2;
+    var Ax = cxc - triW / 2, Ay = pad + triH;
+    var Bx = cxc + triW / 2, By = pad + triH;
+    var Cx = cxc,            Cy = pad;
+
+    function t2xy(f, k, a) {
+      var tot = f + k + a || 1;
+      return { x: (f/tot)*Ax + (k/tot)*Cx + (a/tot)*Bx,
+               y: (f/tot)*Ay + (k/tot)*Cy + (a/tot)*By };
+    }
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid lines
+    ctx.strokeStyle = col.rule;
+    ctx.lineWidth = 0.5;
+    ctx.globalAlpha = 0.35;
+    for (var i = 1; i < 10; i++) {
+      var t = i / 10;
+      var p1 = t2xy(1-t, t, 0), p2 = t2xy(0, t, 1-t);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      p1 = t2xy(t, 1-t, 0); p2 = t2xy(t, 0, 1-t);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+      p1 = t2xy(1-t, 0, t); p2 = t2xy(0, 1-t, t);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Triangle outline
+    ctx.strokeStyle = col.text;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(Ax, Ay); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.closePath();
+    ctx.stroke();
+
+    // Vertex labels
+    ctx.fillStyle = col.flesh;
+    ctx.font = '600 10px ' + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('flesh', Ax - 4, Ay - 10);
+    ctx.fillStyle = col.argument;
+    ctx.textAlign = 'left';
+    ctx.fillText('argument', Bx + 4, By - 10);
+    ctx.fillStyle = col.knowledge;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('knowledge', Cx, Cy - 4);
+
+    // Plot posts
+    var posts = user.postScores;
+    var postNormBounds = normMode === 'relative' ? computePostNormBounds(posts) : null;
+    for (var j = 0; j < posts.length; j++) {
+      var d = postDisplayScores(posts[j], postNormBounds);
+      var pt = t2xy(d.flesh, d.knowledge, d.argument);
+      var dom = d.flesh >= d.knowledge && d.flesh >= d.argument ? col.flesh :
+                d.knowledge >= d.argument ? col.knowledge : col.argument;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = dom;
+      ctx.globalAlpha = 0.65;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = col.bg;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  }
+
+  // ── Results list ───────────────────────────────────
+
+  function renderResults(data, sortBy) {
+    var sorted = data.slice().sort(function (a, b) { return b[sortBy] - a[sortBy]; });
+    var html = '';
+    for (var i = 0; i < sorted.length; i++) {
+      var r = sorted[i];
+      var imgTag = r.avatar
+        ? '<img class="result-avatar" src="' + escHtml(r.avatar) + '" alt="">'
+        : '<div class="result-avatar" style="background:var(--rule)"></div>';
+      html += '<div class="result-row">' +
+        imgTag +
+        '<span class="result-handle">' + escHtml(r.handle) + '</span>' +
+        '<div class="result-scores">' +
+          '<span class="result-score" style="color:var(--flesh);border:1px solid var(--flesh)">' + r.flesh + ' F</span>' +
+          '<span class="result-score" style="color:var(--knowledge);border:1px solid var(--knowledge)">' + r.knowledge + ' K</span>' +
+          '<span class="result-score" style="color:var(--argument);border:1px solid var(--argument)">' + r.argument + ' A</span>' +
+        '</div></div>';
+    }
+    $('resultsList').innerHTML = html;
+  }
+
+  // ── Avatar preloading ──────────────────────────────
+
+  function preloadAvatars(data) {
+    var remaining = 0;
+    return new Promise(function (resolve) {
+      for (var i = 0; i < data.length; i++) {
+        if (!data[i].avatar) continue;
+        remaining++;
+        var img = new Image();
+        img.onload = img.onerror = function () { if (--remaining <= 0) resolve(); };
+        img.src = data[i].avatar;
+        avatarImages[data[i].handle] = img;
+      }
+      if (remaining === 0) resolve();
+      setTimeout(resolve, 5000);
+    });
+  }
+
+  // ── Input tab switching ────────────────────────────
+
+  document.querySelectorAll('#inputTabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('#inputTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+      if (tab.dataset.tab === 'paste') {
+        show($('pastePanel')); hide($('listPanel'));
+      } else {
+        hide($('pastePanel')); show($('listPanel'));
+      }
+    });
+  });
+
+  // ── Load Bluesky list ──────────────────────────────
+
+  $('loadListBtn').addEventListener('click', async function () {
+    var url = $('listUrl').value.trim();
+    if (!url) return;
+
+    var parsed = parseListUrl(url);
+    if (!parsed) {
+      setStatus('could not parse list URL — expected bsky.app/profile/.../lists/...', true);
+      return;
+    }
+
+    var btn = $('loadListBtn');
+    btn.disabled = true;
+    btn.textContent = 'loading ';
+    setStatus('fetching list members ');
+    setProgress(20);
+
+    try {
+      var handles = await fetchListMembers(parsed.actor, parsed.rkey);
+      if (handles.length === 0) {
+        setStatus('empty list or could not load members', true);
+        setProgress(0);
+        return;
+      }
+
+      $('handleList').value = handles.join('\n');
+      show($('pastePanel')); hide($('listPanel'));
+      document.querySelectorAll('#inputTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.tab === 'paste');
+      });
+      updateCount();
+      setStatus(handles.length + ' members loaded from list');
+      setProgress(100);
+    } catch (err) {
+      setStatus('error: ' + err.message, true);
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'load list';
+    }
+  });
+
+  // ── Sort tabs ──────────────────────────────────────
+
+  document.querySelectorAll('#sortTabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      currentSort = tab.dataset.sort;
+      document.querySelectorAll('#sortTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.sort === currentSort);
+      });
+      if (chartState) renderResults(chartState.results, currentSort);
+    });
+  });
+
+  // ── Mode tabs ──────────────────────────────────────────────────
+
+  document.querySelectorAll('#modeTabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', async function () {
+      if (tab.classList.contains('active')) return;
+      document.querySelectorAll('#modeTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+
+      // Re-score immediately if we already have fetched data
+      if (!chartState || !chartState.rawResults || !chartState.rawResults.length) return;
+      var cachedUsers = chartState.rawResults.filter(function (r) { return r.texts && r.texts.length; });
+      if (!cachedUsers.length) return;
+
+      var mode = tab.dataset.mode;
+      var btn = $('mapBtn');
+      btn.disabled = true;
+      show($('progressBar'));
+      setProgress(65);
+      setStatus('loading model… (first run caches to browser)');
+
+      window._modelProgress = function (p) {
+        if (p && p.progress != null) setProgress(65 + p.progress * 0.15);
+      };
+      window._onModelReady = function () {
+        setProgress(80);
+        setStatus('scoring…');
+      };
+      window._scoringProgress = function (done, total) {
+        setProgress(80 + (done / total) * 5);
+        setStatus('scoring… ' + done + ' / ' + total + ' posts');
+      };
+
+      try {
+        var scored = await window._scoreUsers(
+          cachedUsers.map(function (r) { return { handle: r.handle, texts: r.texts }; }),
+          mode
+        );
+
+        var oldMap = {};
+        for (var i = 0; i < chartState.rawResults.length; i++) {
+          oldMap[chartState.rawResults[i].handle] = chartState.rawResults[i];
+        }
+        for (var j = 0; j < scored.rawResults.length; j++) {
+          var r = scored.rawResults[j];
+          var old = oldMap[r.handle];
+          if (old) { r.avatar = old.avatar; r.did = old.did; r.texts = old.texts; }
+        }
+
+        var normalizedResults = applyNorm(scored.rawResults);
+        lockedHandle = null;
+        renderPostList(null);
+        chartState = { rawResults: scored.rawResults, results: normalizedResults };
+        setProgress(100);
+        show($('results'));
+        drawTernaryChart($('ternaryChart'), normalizedResults, null);
+        setupChartInteraction($('ternaryChart'));
+        renderResults(normalizedResults, currentSort);
+        var modeLabel = mode === 'similarity' ? 'similarity' : 'zero-shot nli';
+        setStatus(normalizedResults.length + ' posters mapped · ' + modeLabel);
+      } catch (err) {
+        setStatus('error: ' + err.message, true);
+        setProgress(0);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // ── Norm tabs ──────────────────────────────────────────────────
+
+  document.querySelectorAll('#normTabs .tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      if (tab.classList.contains('active')) return;
+      document.querySelectorAll('#normTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+      });
+      normMode = tab.dataset.norm;
+      if (!chartState || !chartState.rawResults || !chartState.rawResults.length) return;
+      var normalizedResults = applyNorm(chartState.rawResults);
+      chartState.results = normalizedResults;
+      drawTernaryChart($('ternaryChart'), normalizedResults, null);
+      setupChartInteraction($('ternaryChart'));
+      renderResults(normalizedResults, currentSort);
+      if (lockedHandle) {
+        var user = normalizedResults.find(function(r) { return r.handle === lockedHandle; });
+        if (user) renderPostList(user);
+      }
+    });
+  });
+
+  // ── Main: map ──────────────────────────────────────
+
+  $('mapBtn').addEventListener('click', async function () {
+    var handles = getHandles();
+    if (handles.length < 2) {
+      setStatus('need at least 2 handles', true);
+      return;
+    }
+
+    var btn = $('mapBtn');
+    btn.disabled = true;
+    btn.textContent = 'mapping ';
+    hide($('results'));
+    lockedHandle = null;
+    renderPostList(null);
+    setProgress(5);
+    setStatus('fetching posts ');
+
+    try {
+      var userData = await batchLoad(handles, 6, function (done, total) {
+        setProgress(5 + (done / total) * 55);
+        setStatus('fetching posts  ' + done + '/' + total);
+      });
+
+      userData = userData.filter(function (u) { return u.texts.length >= 3; });
+      if (userData.length < 2) {
+        setStatus('not enough users with posts (need 2+ with 3+ posts each)', true);
+        setProgress(0);
+        btn.disabled = false;
+        btn.textContent = 'map';
+        return;
+      }
+
+      setProgress(65);
+      setStatus('loading model  (first run caches to browser)');
+
+      var mode = (document.querySelector('#modeTabs .tab.active') || {dataset:{}}).dataset.mode || 'similarity';
+      window._modelProgress = function (p) {
+        if (p && p.progress != null) setProgress(65 + p.progress * 0.15);
+      };
+      window._onModelReady = function () {
+        setProgress(80);
+        setStatus('scoring ');
+      };
+      window._scoringProgress = function (done, total) {
+        setProgress(80 + (done / total) * 5);
+        setStatus('scoring  ' + done + ' / ' + total + ' posts');
+      };
+
+      var scored = await window._scoreUsers(
+        userData.map(function (u) { return { handle: u.handle, texts: u.texts }; }),
+        mode
+      );
+
+      setProgress(85);
+      setStatus('loading avatars ');
+
+      var userMap = {};
+      for (var i = 0; i < userData.length; i++) userMap[userData[i].handle] = userData[i];
+      for (var j = 0; j < scored.rawResults.length; j++) {
+        var r = scored.rawResults[j];
+        var u = userMap[r.handle];
+        if (u) { r.avatar = u.avatar; r.did = u.did; r.texts = u.texts; }
+      }
+
+      var normalizedResults = applyNorm(scored.rawResults);
+      chartState = { rawResults: scored.rawResults, results: normalizedResults };
+      await preloadAvatars(normalizedResults);
+
+      setProgress(100);
+      show($('results'));
+
+      drawTernaryChart($('ternaryChart'), normalizedResults, null);
+      setupChartInteraction($('ternaryChart'));
+
+      currentSort = 'flesh';
+      document.querySelectorAll('#sortTabs .tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.sort === 'flesh');
+      });
+      renderResults(normalizedResults, 'flesh');
+
+      var cellCount = ($('ternaryChart')._cells || []).length;
+      var placed = normalizedResults.length;
+      var msg = placed + ' posters mapped (' + cellCount + ' hex cells available)';
+      setStatus(msg);
+
+    } catch (err) {
+      setStatus('error: ' + err.message, true);
+      setProgress(0);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'map';
+    }
+  });
+
+  // ── Resize ─────────────────────────────────────────
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      if (chartState && !$('results').classList.contains('hidden')) {
+        drawTernaryChart($('ternaryChart'), chartState.results, null);
+        setupChartInteraction($('ternaryChart'));
+      }
+    }, 300);
+  });
+
+  // ── URL params ─────────────────────────────────────
+
+  var params = new URLSearchParams(location.search);
+  var ph = params.get('handles');
+  if (ph) {
+    $('handleList').value = ph.split(',').join('\n');
+    updateCount();
+  }
+  var listParam = params.get('list');
+  if (listParam) {
+    $('listUrl').value = listParam;
+    hide($('pastePanel')); show($('listPanel'));
+    document.querySelectorAll('#inputTabs .tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.tab === 'list');
+    });
+  }
+
+})();
+</script>
+<script src="/js/typeahead.js"></script>
+
+</body>
+</html>
