@@ -14,6 +14,20 @@
 
 - **Service account = @minomobi.com (shared).** `deploy-io.yml` reuses the existing `BLUESKY_HANDLE`/`BLUESKY_APP_PASSWORD` GH secrets (the post-to-bluesky main account) as the sweeper's service account, unless dedicated `ATPROTO_SERVICE_HANDLE`/`_PASSWORD` are set (those take precedence). **Implication:** swept tickets are owned by, and "tracked as…" replies come from, @minomobi.com. TODO: if we want separate branding, create a dedicated handle (e.g. `tracker.minomobi.com`) + set the `ATPROTO_SERVICE_*` secrets, and the precedence logic switches over with no code change.
 
+**Setting secrets from CI (how to provision IO_ADMIN_KEY etc. without a laptop):**
+The repo has a `SECRETS_PAT` mechanism — a fine-grained Personal Access Token
+scoped to this repo with permission **Secrets: write** (GitHub forbids the
+built-in `GITHUB_TOKEN` from writing Actions secrets). A workflow with
+`env: GH_TOKEN: ${{ secrets.SECRETS_PAT }}` can run `gh secret set NAME -R "$GITHUB_REPOSITORY"`
+to create/update repo secrets. Reference: `bootstrap-tangled-key.yml`.
+- **`set-io-admin-key.yml`** (workflow_dispatch) uses this to: generate a random
+  `IO_ADMIN_KEY`, store it as a repo secret (so future `deploy-io` runs keep
+  pushing it), push it onto the live worker immediately as `ADMIN_KEY` (no
+  redeploy), and optionally fire a sweep. Run once; key is masked, never printed.
+- The worker reads `env.ADMIN_KEY`; `deploy-io.yml` maps repo secret
+  `IO_ADMIN_KEY` → worker secret `ADMIN_KEY`. Admin routes (`/api/sweep/run`,
+  `/api/triage`, `/api/index/refresh`) check `X-Admin-Key` against it.
+
 **Open TODOs (tracked here, not yet done):**
 - **TODO (poll/org framing):** `poll.mino.mobi` and `org.mino.mobi` send `X-Frame-Options: DENY`, so they're excluded from the portal (by host, in `scripts/generate-sites-json.mjs`'s `FRAME_BLOCKED_HOSTS`). Re-include them once they allowlist `frame-ancestors https://io.mino.mobi` (poll worker response headers + org). Their child sites (pm, wave.mino.mobi, wiki) are on other origins and frame fine — already included.
 - **TODO (supplemental → canonical):** 6 live endpoints aren't in index.html's `var P` PROJECTS array — `ai-edu`, `cat`, `fluoddity`, `games`, `splice`, `track`. They're added via a `SUPPLEMENTAL` list in `scripts/generate-sites-json.mjs`. Fold them into the canonical `var P` array (so the search catalog + OG card pick them up too) and delete from `SUPPLEMENTAL`. (Skipped `bakery`→`bake.mino.mobi` and `empathy`→`empath.mino.mobi`: already in the array under their real subdomains.)

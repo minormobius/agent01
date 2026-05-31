@@ -1,0 +1,78 @@
+name: Set io Admin Key
+
+# Provisions IO_ADMIN_KEY for the io worker. Run this ONCE (workflow_dispatch).
+# It:
+#   1. generates a random key (or uses the `key` input if you provide one),
+#   2. stores it as the repo secret IO_ADMIN_KEY (so future deploy-io runs keep
+#      pushing it to the worker) — requires the SECRETS_PAT (fine-grained PAT,
+#      "Secrets: write" on this repo),
+#   3. pushes it onto the live worker now as ADMIN_KEY (no redeploy needed),
+#   4. optionally fires a sweep to prove the admin routes now work.
+#
+# After this runs once, the key lives in repo secrets and you never need this
+# workflow again. The key itself is masked in logs and never printed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      key:
+        description: 'Admin key to set (leave blank to auto-generate a random one)'
+        required: false
+        type: string
+      fire_sweep:
+        description: 'Fire a sweep immediately after setting the key'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  set-key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate or accept the admin key
+        id: key
+        run: |
+          KEY="${{ inputs.key }}"
+          if [ -z "$KEY" ]; then KEY=$(openssl rand -hex 32); fi
+          echo "::add-mask::$KEY"
+          echo "value=$KEY" >> "$GITHUB_OUTPUT"
+          echo "Admin key ready (length=${#KEY}, masked)."
+
+      - name: Store as repo secret IO_ADMIN_KEY (for future deploys)
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SECRETS_PAT is empty. Add a fine-grained PAT scoped to this repo"
+            echo "  with permission 'Secrets: write' as the repo secret SECRETS_PAT, then re-run."
+            exit 1
+          fi
+          printf '%s' "${{ steps.key.outputs.value }}" | gh secret set IO_ADMIN_KEY -R "$GITHUB_REPOSITORY"
+          echo "::notice::IO_ADMIN_KEY stored as a repo secret."
+
+      - name: Install wrangler
+        working-directory: io
+        run: npm install wrangler
+
+      - name: Push key onto the live worker now (as ADMIN_KEY)
+        working-directory: io
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          f=$(mktemp); printf '%s' "${{ steps.key.outputs.value }}" > "$f"
+          npx wrangler secret put ADMIN_KEY --name io < "$f"
+          rm -f "$f"
+          echo "::notice::ADMIN_KEY pushed to the io worker."
+
+      - name: Fire a sweep (prove the admin routes work)
+        if: ${{ inputs.fire_sweep }}
+        run: |
+          echo "Triggering /api/sweep/run…"
+          RESP=$(curl -fsS -X POST -H "X-Admin-Key: ${{ steps.key.outputs.value }}" \
+            https://io.mino.mobi/api/sweep/run 2>&1 || echo "FAILED")
+          echo "Response: $RESP"
+          echo "Health after:"
+          curl -fsS https://io.mino.mobi/api/health || true
