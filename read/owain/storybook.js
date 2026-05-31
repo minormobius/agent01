@@ -6,10 +6,9 @@
    spread carries an `illus` brief — an art note for the illustration pass;
    it is not shown to the reader.
 
-   SKELETON IN PROGRESS. The cover and the court frame (Movement I) are
-   seeded so the Storybook view and the illustration pipeline run from the
-   start; the spreads grow movement by movement as the translation proceeds.
-   Attaches to window.OWAIN. */
+   COMPLETE. Twelve paged spreads carrying the whole romance from the court
+   frame to the homecoming, each with an `illus` art brief for the
+   illustration pass (not shown to the reader). Attaches to window.OWAIN. */
 window.OWAIN = window.OWAIN || {};
 window.OWAIN.book = {
   meta: {

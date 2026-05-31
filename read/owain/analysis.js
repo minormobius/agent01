@@ -2,14 +2,11 @@
    "Morphology of the Folktale" (1928): the 31 narrative functions of the
    wonder-tale.
 
-   SKELETON IN PROGRESS. The frame and the opening functions are seeded so
-   the spine, the cards, and the mythograph render from Movement I; the full
-   morphology — Owain's departure, the donor sequence at the fountain, the
-   two struggles (Black Knight; later the unwitting duel with Gwalchmei), the
-   broken interdiction and the descent into madness, the lion-helper, and the
-   chain of liquidations that close the tale — is laid in as the translation
-   reaches each movement. The `absent` section below is provisional and will
-   be finalised once the whole text is rendered. Loaded after tale.js;
+   COMPLETE. The whole romance laid against Propp's spine — seven acts,
+   twenty-six functions, from the court frame to the closing apotheosis —
+   with each beat linked to the movement that realises it. The `absent`
+   section reads the comparative payoff (which functions Welsh romance keeps,
+   doubles, or refuses) against the sister tales. Loaded after tale.js;
    attaches to window.OWAIN. */
 window.OWAIN = window.OWAIN || {};
 window.OWAIN.propp = {

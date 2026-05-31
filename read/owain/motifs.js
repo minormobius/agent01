@@ -2,13 +2,10 @@
    folklorists' "Dewey decimal": the Thompson Motif-Index (letter-classed
    call-numbers) and the Aarne-Thompson-Uther (ATU) tale-type index.
 
-   SKELETON IN PROGRESS. A seed set of the tale's signature motifs — the
-   storm-making fountain, the grateful lion, the ring of invisibility, the
-   monstrous herdsman, the loathly-to-fair Otherworld threshold — is laid in
-   so the motif grid, the cross-references, and the mythograph render from the
-   start; the full index grows as the translation reaches the movements that
-   realise each motif, and cross-references into Pwyll, Culhwch, Gawain and
-   Orfeo are added as they are confirmed.
+   COMPLETE. The motif index for the whole romance — fifteen motifs across
+   nine Thompson classes — each keyed to the movement(s) that realise it, with
+   inline cross-references into Pwyll, Culhwch, Gawain and Orfeo where the same
+   call-number lands.
 
    Honesty: exact call-numbers are best-effort identifications, not the
    authoritative index. Each motif carries a confidence flag:
@@ -17,18 +14,18 @@
    Attaches to window.OWAIN. */
 window.OWAIN = window.OWAIN || {};
 window.OWAIN.motifs = {
-  intro: "Folklorists have their own Dewey decimal: the <strong>Thompson Motif-Index</strong> files every recurring story-atom under a letter-class and number (A mythological, B animals, D magic, F marvels, H tests, K deceptions, M ordaining the future, N chance &amp; fate, Q reward &amp; punishment, T love, Z formulas), while the <strong>ATU index</strong> classifies whole tale-types. <em>Owain</em> sits where two currents meet: the international romance of the <strong>storm-making fountain</strong> and the <strong>grateful lion</strong> (shared with Chrétien's <em>Yvain</em> and, behind both, a deeper Insular and Classical stock), and the native Brittonic Otherworld — the monstrous one-eyed herdsman, the ring of invisibility, the spring whose guardian must be killed to be replaced. Below, a seed set of the signature motifs, with cross-references to the sister tales where the same call-number lands; <em>the index grows movement by movement.</em>",
+  intro: "Folklorists have their own Dewey decimal: the <strong>Thompson Motif-Index</strong> files every recurring story-atom under a letter-class and number (A mythological, B animals, D magic, F marvels, H tests, K deceptions, M ordaining the future, N chance &amp; fate, Q reward &amp; punishment, T love, Z formulas), while the <strong>ATU index</strong> classifies whole tale-types. <em>Owain</em> sits where two currents meet: the international romance of the <strong>storm-making fountain</strong> and the <strong>grateful lion</strong> (shared with Chrétien's <em>Yvain</em> and, behind both, a deeper Insular and Classical stock), and the native Brittonic Otherworld — the monstrous one-eyed herdsman, the ring of invisibility, the spring whose guardian must be killed to be replaced. Below, the motif index — fifteen motifs across nine Thompson classes — with cross-references to the sister tales where the same call-number lands.",
   taletypes: [
     { code: "Chrétien parallel", name: "Yvain, le Chevalier au Lion (ATU-adjacent romance complex)", conf: "high",
       gloss: "<em>Owain</em> and Chrétien de Troyes' <em>Yvain</em> (c. 1177–81) share the whole armature: the magic storm-fountain and its defender, the won widow, the broken term and the madness, the grateful lion, the imprisoned maid rescued at the last hour. Whether the Welsh tale derives from Chrétien, Chrétien from a Welsh/Breton source, or both from a lost common <em>conte</em>, is the central unresolved question of Arthurian transmission — and the reason this tale anchors the Welsh↔Continental branch of the Pendragon evolutionary tree. No single clean ATU number covers the complex; it is a romance assembled from several tale-type stocks." },
     { code: "ATU 156", name: "The grateful lion (thorn / serpent removed)", conf: "high",
       gloss: "The grateful-animal type behind the lion episode: a hero frees a beast from a tormentor (here a serpent gripping the lion's tail), and the beast becomes his faithful companion. Descends ultimately from the Androcles-and-the-lion stock (Aulus Gellius, 2nd c.). Owain's lion is the type's most famous medieval realisation — the helper bound by gratitude, not magic. Realised in Mvt VIII." },
   ],
-  classOrder: ["B", "D", "F", "G", "H", "K", "M", "N", "T", "Z"],
-  classes: { B: "Animals", D: "Magic", F: "Marvels &amp; the Otherworld", G: "Ogres &amp; giants", H: "Tests &amp; tasks", K: "Deceptions", M: "Ordaining the future", N: "Chance &amp; fate", T: "Love &amp; marriage", Z: "Formulas &amp; symbols" },
+  classOrder: ["B", "D", "F", "G", "H", "K", "M", "T", "Z"],
+  classes: { B: "Animals", D: "Magic", F: "Marvels &amp; the Otherworld", G: "Ogres &amp; giants", H: "Tests &amp; tasks", K: "Deceptions", M: "Ordaining the future", T: "Love &amp; marriage", Z: "Formulas &amp; symbols" },
   list: [
     // — B · Animals —
-    { cls: "B", code: "B301", name: "Faithful animal / the grateful lion", conf: "high", passages: [8],
+    { cls: "B", code: "B301", name: "Faithful animal / the grateful lion", conf: "high", passages: [8, 9],
       gloss: "The grateful lion Owain saves from a serpent, which thereafter follows him \"like a greyhound he had reared,\" hunts for him, guards his sleep, and fights at his side. Loyalty made visible — and the measure, by contrast, of the broken faith that drove Owain mad. Gives the Continental twin its title (<em>le Chevalier au Lion</em>) and this site its sigil. (No animal-helper of this grateful-beast kind in the Welsh sister-tales; cf. instead the Oldest Animals as <em>guides</em> in Culhwch — a different B-class function.) Realised in Mvt VIII, where Owain cuts the serpent free and gains the companion that fights the giant and the two pages at his side." },
     { cls: "B", code: "B871.1", name: "Giant serpent as adversary", conf: "med", passages: [8],
       gloss: "The serpent gripping the lion's tail — the adversary Owain cuts away to earn the lion's faith (Mvt VIII)." },
@@ -55,6 +52,10 @@ window.OWAIN.motifs = {
     { cls: "G", code: "G312", name: "Cannibal ogre / man-eating giant", conf: "high", passages: [8],
       gloss: "The man-shaped monster of the mountain, \"no smaller than a giant,\" who kills and devours men and seizes the hospitable Earl's sons, demanding his daughter. Owain and the lion kill it (the lion's paw opening it shoulder-to-hip). The cannibal-ogre type; cf. the giant Ysbaddaden's monstrous household in Culhwch and the ogres of the international wonder-tale. Paired with the two pages at the fire as the movement's twin combats." },
 
+    // — H · Tests &amp; tasks —
+    { cls: "H", code: "H1561.2", name: "Test of valour: the fountain combat", conf: "med", passages: [2, 3, 6],
+      gloss: "The fountain is, at bottom, a proving-ground: pour the water, raise the storm, and a champion comes to test you. It defeats Cynon (Mvt II), is overcome by Owain (III), and unhorses the whole of Arthur's household save Gwalchmei (VI). \"If you do not find trouble in that adventure, you need never seek trouble as long as you live\" — the keeper names it a test of valour outright. The same role-slot the beheading-game fills in Sir Gawain: a bounded, repeatable ordeal that measures the knight who dares it." },
+
     // — K · Deceptions —
     { cls: "K", code: "K811", name: "Murderous host / the treacherous welcome-feast", conf: "med", passages: [9],
       gloss: "The Black Oppressor's hall: guests received \"with joy and honour,\" made drunk, and then slaughtered for their horses, gold and raiment, the corpses heaped in the house. The treacherous-host type \u2014 hospitality turned to ambush, the dark inversion of the tale's many gracious castles. Owain converts the house of spoil into a true hospice." },
@@ -71,6 +72,6 @@ window.OWAIN.motifs = {
 
     // — Z · Formulas & symbols —
     { cls: "Z", code: "Z71.1", name: "Formulaic three (three days, three blows)", conf: "med", passages: [5, 6, 8],
-      gloss: "The romance's threefold rhythms (the repeated journeys to the fountain; the staged combats; the days of the marriage-term). Compare the pervasive Z71.1 across all four sister tales — the folktale's basic counting unit. <em>To be tied to specific movements.</em>" },
+      gloss: "The romance's threefold rhythms: the three years Owain holds the fountain (Mvt V), the three-day duel with Gwalchmei (VI), the threefold sigh that reveals Luned in the dark (VIII). Compare the pervasive Z71.1 across all four sister tales — the folktale's basic counting unit." },
   ],
 };
