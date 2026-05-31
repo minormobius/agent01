@@ -83,12 +83,21 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Prefer dedicated ATPROTO_SERVICE_* if set; otherwise fall back to the
-          # shared BLUESKY_* creds (the @minomobi.com post-to-bluesky account).
+          # Service-account precedence (first non-empty wins):
+          #   1. dedicated ATPROTO_SERVICE_*  (a throwaway tracker identity, if set)
+          #   2. BLUESKY_MODULO_*             (now the sweeper's account — main is
+          #      taken down after the reply-bot spam incident)
+          #   3. BLUESKY_MORPHYX_*            (next fallback)
+          #   4. BLUESKY_*                    (the original @minomobi.bsky.social;
+          #      currently AccountTakedown — last resort once it's restored)
           ATPROTO_SERVICE_HANDLE: ${{ secrets.ATPROTO_SERVICE_HANDLE }}
           ATPROTO_SERVICE_PASSWORD: ${{ secrets.ATPROTO_SERVICE_PASSWORD }}
           ATPROTO_SERVICE_DID: ${{ secrets.ATPROTO_SERVICE_DID }}
           ATPROTO_SERVICE_PDS: ${{ secrets.ATPROTO_SERVICE_PDS }}
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
           IO_ADMIN_KEY: ${{ secrets.IO_ADMIN_KEY }}
@@ -102,10 +111,19 @@ jobs:
             npx wrangler secret put "$name" --name io < "$f"
             rm -f "$f"
           }
-          # Dedicated service account takes precedence; else reuse the shared
-          # @minomobi.com creds so the sweeper works without a second account.
-          SVC_HANDLE="${ATPROTO_SERVICE_HANDLE:-$BLUESKY_HANDLE}"
-          SVC_PASSWORD="${ATPROTO_SERVICE_PASSWORD:-$BLUESKY_APP_PASSWORD}"
+          # First account with BOTH handle+password set wins (atomic per account,
+          # so we never cross-wire one account's handle with another's password).
+          # Main is last because it is currently taken down; modulo is the worker.
+          SVC_HANDLE=""; SVC_PASSWORD=""
+          for pair in \
+            "$ATPROTO_SERVICE_HANDLE|$ATPROTO_SERVICE_PASSWORD" \
+            "$BLUESKY_MODULO_HANDLE|$BLUESKY_MODULO_APP_PASSWORD" \
+            "$BLUESKY_MORPHYX_HANDLE|$BLUESKY_MORPHYX_APP_PASSWORD" \
+            "$BLUESKY_HANDLE|$BLUESKY_APP_PASSWORD"; do
+            h="${pair%%|*}"; p="${pair#*|}"
+            if [ -n "$h" ] && [ -n "$p" ]; then SVC_HANDLE="$h"; SVC_PASSWORD="$p"; break; fi
+          done
+          echo "Service handle resolved to: ${SVC_HANDLE:-(none)}"
           push_secret ATPROTO_SERVICE_HANDLE   "$SVC_HANDLE"
           push_secret ATPROTO_SERVICE_PASSWORD "$SVC_PASSWORD"
           push_secret ATPROTO_SERVICE_DID      "$ATPROTO_SERVICE_DID"
