@@ -1,121 +1,120 @@
-// Alexander's Horned Sphere — infinite WebGPU fractal zoom (the real one)
+// Alexander's Horned Sphere — infinite WebGPU fractal zoom (KIFS, real one)
 //
-// Unlike the closed-ring "lattice" sibling, this is built from OPEN horns that
-// BIFURCATE. The trick is a reflection fold: at each recursion level the domain
-// is mirrored across the YZ plane (p.x = abs(p.x)), which turns one horn into a
-// clasping PAIR — exactly the binary branching of Alexander's construction. As
-// you descend, every horn's inner end splits into another mirrored pair, and a
-// per-level roll (the "clasp") tilts the two siblings into different planes so
-// they interlock instead of merging. Nothing ever closes into a loop; the horns
-// just fork and tighten toward the Cantor limit point at the origin.
+// This renders the ACTUAL construction: a central body sphere from which open
+// horns grow as CIRCULAR ARCS; each horn's tip forks into two clasping horns
+// (binary branching), which fork again, forever, tightening toward the Cantor
+// limit. There are no closed loops — every horn is an open arc tube.
 //
-// The endless zoom uses the same engine as the lattice: the whole structure is
-// invariant under a single similarity G = (scale k) o (twist theta about a
-// tilted axis) whose fixed point is the origin, so a log-periodic fold renders
-// every level in O(1) and the continuous zoom G^zc wraps seamlessly (image at
-// zc and zc+1 is identical; zc is kept in [0,1) so it loops forever).
+// Engine: a kaleidoscopic IFS. mapTree() walks WINDOW recursion levels and
+// takes the min of the arc distance at EVERY level, so the whole tree — all
+// generations, both children at each node — is rendered at once (that's the
+// "non-zooming branches" you wanted to see). Binary branching comes from the
+// reflection fold x = abs(x); a per-level roll tilts the two siblings into
+// interlocking planes; the tip-to-origin re-frame chains each arc onto its
+// parent's tip.
+//
+// Zoom: the tree is self-similar along its primary (all-near-child) lineage,
+// which is an exact similarity D. Each frame the CPU composes total = floor+frac
+// descents of D about the tip (in double precision) into one affine map A,b plus
+// a scale S; the shader samples q = A*p + b and renders WINDOW levels from that
+// depth, scaling distance by 1/S. Integer descents slide the window deeper as
+// you zoom (revealing new generations) and the fractional part keeps it smooth.
 
 const WGSL = /* wgsl */`
 struct Uniforms {
-  resTimeZoom : vec4f,  // res.x, res.y, time, zoomWrapped[0,1)
-  cam         : vec4f,  // yaw, pitch, dist, fovTan
-  fr0         : vec4f,  // k, theta(twist), tube, steps
-  fr1         : vec4f,  // colorPhase, glow, paletteMode, aoStrength
-  light       : vec4f,  // lightYaw, lightPitch, fog, exposure
-  pal         : vec4f,  // bgBright, vignette, levels, spread
-  extra       : vec4f,  // clasp, curl, _, _
+  res   : vec4f,  // res.x, res.y, time, _
+  cam   : vec4f,  // yaw, pitch, dist, fovTan
+  geo   : vec4f,  // k, arcSpan, tube, RA
+  fork  : vec4f,  // splay, roll, bodyR, bodyShow
+  shade : vec4f,  // colorPhase, glow, paletteMode, aoStrength
+  light : vec4f,  // lightYaw, lightPitch, fog, exposure
+  pal   : vec4f,  // bgBright, vignette, windowLevels, invS
+  qual  : vec4f,  // steps, _, _, _
+  zr0   : vec4f,  // A col0 .xyz, b.x
+  zr1   : vec4f,  // A col1 .xyz, b.y
+  zr2   : vec4f,  // A col2 .xyz, b.z
 };
 @group(0) @binding(0) var<uniform> U : Uniforms;
 
-var<private> gLev  : f32 = 0.0;
-var<private> gSide : f32 = 0.0;
+var<private> gLev : f32 = 0.0;
 
 const TAU = 6.2831853;
-const AXIS = vec3f(0.15, 1.0, 0.0);
-const RO   = 0.45;   // inner (toward-origin) end radius of a horn
 
-fn rotAxis(axn : vec3f, ang : f32) -> mat3x3f {
-  let a = normalize(axn);
-  let s = sin(ang); let c = cos(ang); let t = 1.0 - c;
-  let x = a.x; let y = a.y; let z = a.z;
-  return mat3x3f(
-    vec3f(t*x*x + c,   t*x*y + s*z, t*x*z - s*y),
-    vec3f(t*x*y - s*z, t*y*y + c,   t*y*z + s*x),
-    vec3f(t*x*z + s*y, t*y*z - s*x, t*z*z + c)
-  );
+fn rotZ(a : f32) -> mat3x3f {
+  let c = cos(a); let s = sin(a);
+  return mat3x3f(vec3f(c, s, 0.0), vec3f(-s, c, 0.0), vec3f(0.0, 0.0, 1.0));
 }
 fn rotY(a : f32) -> mat3x3f {
   let c = cos(a); let s = sin(a);
   return mat3x3f(vec3f(c, 0.0, -s), vec3f(0.0, 1.0, 0.0), vec3f(s, 0.0, c));
 }
 
-// Distance to a rounded line segment (a straight tube).
-fn sdSeg(p : vec3f, a : vec3f, b : vec3f, r : f32) -> f32 {
-  let pa = p - a; let ba = b - a;
-  let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-  return length(pa - ba * h) - r;
+// Exact-ish SDF for a circular ARC tube: centreline is a circle of radius RA,
+// centre (-RA,0,0) so the arc starts at the origin (theta=0) heading +Y and
+// curls CCW to theta=arcSpan. Endpoint caps make it a safe distance bound.
+fn sdArc(p : vec3f, RA : f32, tube : f32, span : f32) -> f32 {
+  let Cc = vec2f(-RA, 0.0);
+  let v  = p.xy - Cc;
+  var a  = atan2(v.y, v.x);
+  a = clamp(a, 0.0, span);
+  let c  = Cc + RA * vec2f(cos(a), sin(a));
+  var d  = length(vec3f(p.x - c.x, p.y - c.y, p.z)) - tube;
+  // explicit endpoint caps (atan2 wrap safety in the open gap)
+  let e0 = vec3f(0.0, 0.0, 0.0);
+  let e1 = vec3f(Cc.x + RA * cos(span), Cc.y + RA * sin(span), 0.0);
+  d = min(d, length(p - e0) - tube);
+  d = min(d, length(p - e1) - tube);
+  return d;
 }
 
-// One node: a single horn, mirrored into a clasping pair, then bent (knee) and
-// curled. Lives in a normalised frame; the level scale is applied by the caller.
-fn cell(q : vec3f) -> vec2f {
-  let tube   = U.fr0.z;
-  let k      = U.fr0.x;
-  let spread = U.pal.w;     // how far the siblings splay apart
-  let clasp  = U.extra.x;   // roll that tilts siblings into interlocking planes
-  let curl   = U.extra.y;   // hook-back of the outer end
+// The full tree: WINDOW generations of arcs, branching via abs(x), all min'd.
+fn mapTree(q0 : vec3f) -> f32 {
+  let k     = U.geo.x;
+  let span  = U.geo.y;
+  let tube  = U.geo.z;
+  let RA    = U.geo.w;
+  let splay = U.fork.x;
+  let roll  = U.fork.y;
+  let W     = i32(U.pal.z + 0.5);
+  let Pe    = vec3f(RA * (cos(span) - 1.0), RA * sin(span), 0.0); // parent tip
 
-  var p = q;
-  let side = sign(p.x);     // remember which sibling for shading
-  p.x = abs(p.x);           // <-- reflection fold: one horn becomes a pair
-  p = rotY(clasp) * p;      // tilt the pair into different planes -> interlock
+  let Rz1 = rotZ(-span);
+  let Rz2 = rotZ(-splay);
+  let Ry  = rotY(roll);
 
-  let Ri = RO * k;          // outer end meets the parent's inner end (continuity)
-  // a horn = two tubes: inner fork joint -> knee (splayed out) -> outer (curled)
-  let fork  = vec3f(0.0, RO, 0.0);
-  let knee  = vec3f(spread, RO + spread * 0.5, 0.0);
-  let outer = vec3f(spread * 0.5 + curl, Ri, 0.0);
-  let d1 = sdSeg(p, fork, knee, tube);
-  let d2 = sdSeg(p, knee, outer, tube);
-  return vec2f(min(d1, d2), side);
-}
-
-// Log-periodic fold over all integer levels of the similarity G. O(1).
-fn mapFold(pw : vec3f) -> f32 {
-  let k     = U.fr0.x;
-  let theta = U.fr0.y;
-  let outer = U.pal.z;
-  let lk    = log(k);
-  let r     = length(pw);
-  if (r < 1e-4) { return 0.02; }
-
-  let REF = RO * sqrt(k);                 // mid-radius of a level's horns
-  let n = round(log(r / REF) / lk);
-  var best = 1e9;
-  for (var j = -1; j <= 2; j = j + 1) {   // a cell spans ~an octave: check neighbours
-    let lev = n + f32(j);
-    if (lev > outer + 0.5) { continue; }  // bounded outer extent
-    let s = pow(k, lev);
-    let q = (rotAxis(AXIS, -lev * theta) * pw) / s;
-    let c = cell(q);
-    let dW = c.x * s;
-    if (dW < best) { best = dW; gLev = lev; gSide = c.y; }
+  var x   = q0;
+  var scl = 1.0;
+  var d   = 1e9;
+  gLev = 0.0;
+  for (var i = 0; i < W; i = i + 1) {
+    let da = sdArc(x, RA, tube, span) / scl;
+    if (da < d) { d = da; gLev = f32(i); }
+    // descend to the child frame (chain tip -> origin, then branch + tilt)
+    x = x - Pe;
+    x = Rz1 * x;
+    x.x = abs(x.x);     // <-- binary branch: one horn becomes a clasping pair
+    x = Rz2 * x;        // splay the pair apart
+    x = Ry * x;         // roll into an interlocking plane (3D clasp)
+    x = x * k;          // child is 1/k the size -> magnify to canonical
+    scl = scl * k;
   }
-  return best;
+  return d;
 }
 
-// Apply the continuous zoom G^zc, then evaluate. Seamless at integer zc.
-fn mapScene(pw0 : vec3f) -> f32 {
-  let zc = U.resTimeZoom.w;
-  let k  = U.fr0.x;
-  let theta = U.fr0.y;
-  let F = pow(k, zc);
-  let p = (rotAxis(AXIS, -zc * theta) * pw0) / F;
-  return mapFold(p) * F;
+fn mapScene(pw : vec3f) -> f32 {
+  let A = mat3x3f(U.zr0.xyz, U.zr1.xyz, U.zr2.xyz);
+  let b = vec3f(U.zr0.w, U.zr1.w, U.zr2.w);
+  let q = A * pw + b;
+  var d = mapTree(q) * U.pal.w;                 // invS -> back to world scale
+  if (U.fork.w > 0.5) {                         // body sphere, only near zoom 0
+    let db = length(pw) - U.fork.z;
+    if (db < d) { d = db; gLev = -1.0; }
+  }
+  return d;
 }
 
 fn calcNormal(p : vec3f, t : f32) -> vec3f {
-  let h = max(0.0004, 0.0016 * t);
+  let h = max(0.0004, 0.0014 * t);
   let e = vec2f(1.0, -1.0);
   return normalize(
     e.xyy * mapScene(p + e.xyy * h) +
@@ -151,9 +150,9 @@ fn hash21(p : vec2f) -> f32 {
 fn bg(rd : vec3f, uv : vec2f) -> vec3f {
   let br = U.pal.x;
   var c = mix(vec3f(0.018, 0.018, 0.030), vec3f(0.060, 0.050, 0.038), uv.y * 0.5 + 0.5);
-  c += vec3f(0.20, 0.16, 0.10) * exp(-length(uv) * 1.6);     // centre glow
+  c += vec3f(0.20, 0.16, 0.10) * exp(-length(uv) * 1.6);
   let st = hash21(floor(uv * 190.0));
-  c += vec3f(step(0.9965, st)) * 0.7;                        // stars
+  c += vec3f(step(0.9965, st)) * 0.7;
   return c * br;
 }
 
@@ -163,7 +162,7 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
 }
 
 @fragment fn fs(@builtin(position) fc : vec4f) -> @location(0) vec4f {
-  let res = U.resTimeZoom.xy;
+  let res = U.res.xy;
   var uv = (2.0 * fc.xy - res) / res.y;
   uv.y = -uv.y;
 
@@ -178,38 +177,38 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
   let up = cross(f, rgt);
   let rd = normalize(f + ft * (uv.x * rgt + uv.y * up));
 
-  let steps = i32(U.fr0.w);
-  var t = 0.05;
+  let steps = i32(U.qual.x);
+  var t = 0.04;
   var hit = false;
   var glowAcc = 0.0;
   var i = 0;
-  let tmax = dist * 3.0 + 6.0;
+  let tmax = dist * 2.6 + 5.0;
   for (i = 0; i < steps; i = i + 1) {
     let pos = ro + rd * t;
     let dd = mapScene(pos);
-    glowAcc += exp(-abs(dd) * 22.0);
-    let eps = 0.0006 * t + 0.00018;
+    glowAcc += exp(-abs(dd) * 24.0);
+    let eps = 0.0006 * t + 0.00015;
     if (dd < eps) { hit = true; break; }
-    t += dd * 0.7;
+    t += dd * 0.72;
     if (t > tmax) { break; }
   }
 
-  let cPhase = U.fr1.x;
-  let glow   = U.fr1.y;
-  let palM   = U.fr1.z;
+  let cPhase = U.shade.x;
+  let glow   = U.shade.y;
+  let palM   = U.shade.z;
 
   var col = bg(rd, uv);
   if (hit) {
     let pos = ro + rd * t;
     let nrm = calcNormal(pos, t);
-    let _d = mapScene(pos);                 // re-evaluate to set gLev/gSide
+    let _d = mapScene(pos);                 // re-evaluate to set gLev
     let ly = U.light.x; let lp = U.light.y;
     let ldir = normalize(vec3f(cos(lp) * sin(ly), sin(lp), cos(lp) * cos(ly)));
     let diff = max(dot(nrm, ldir), 0.0);
     let amb  = 0.22 + 0.22 * (nrm.y * 0.5 + 0.5);
-    let ao   = clamp(1.0 - U.fr1.w * f32(i) / f32(steps), 0.0, 1.0);
+    let ao   = clamp(1.0 - U.shade.w * f32(i) / f32(steps), 0.0, 1.0);
     let fres = pow(1.0 - max(dot(nrm, -rd), 0.0), 3.0);
-    let base = palCol(gLev * 0.15 + gSide * 0.06 + cPhase, palM);
+    let base = palCol(gLev * 0.12 + cPhase, palM);
     var lit = base * (amb + diff * 0.95) * ao;
     lit += base * fres * 0.45;
     let fog = 1.0 - exp(-t * U.light.z * 0.14);
@@ -229,24 +228,25 @@ fn bg(rd : vec3f, uv : vec2f) -> vec3f {
 // ---------------------------------------------------------------------------
 // Parameters
 // ---------------------------------------------------------------------------
+const RA = 0.5;          // arc major radius (fixed; the scale knob is k)
+const ZOOM_MAX = 9;      // float32 holds ~k^9 magnification cleanly
 const DEFAULTS = {
-  zoomSpeed: 0.12, orbitSpeed: 0.06, pitch: 0.25,
-  twist: 0.90, k: 2.00, tube: 0.07, spread: 0.65, clasp: 1.20, curl: 0.25, levels: 3,
-  fov: 48, dist: 7.0, glow: 0.45, palette: 1,
-  exposure: 1.15, fog: 0.10, ao: 0.75, quality: 160,
+  zoomSpeed: 0.10, orbitSpeed: 0.05, pitch: 0.20,
+  k: 1.90, arc: 2.30, splay: 0.45, roll: 1.25, tube: 0.055, depth: 9,
+  fov: 50, dist: 6.5, glow: 0.40, palette: 1,
+  exposure: 1.15, fog: 0.10, ao: 0.70, quality: 160,
   bg: 0.65, vignette: 0.6,
 };
 const SLIDERS = [
   { key: 'zoomSpeed', label: 'zoom speed', min: -0.6, max: 0.6, step: 0.01 },
   { key: 'orbitSpeed', label: 'orbit speed', min: -0.5, max: 0.5, step: 0.01 },
   { key: 'pitch', label: 'camera pitch', min: -1.35, max: 1.35, step: 0.01 },
-  { key: 'twist', label: 'recursion twist', min: -1.6, max: 1.6, step: 0.01 },
-  { key: 'k', label: 'scale ratio', min: 1.6, max: 3.2, step: 0.01 },
-  { key: 'spread', label: 'fork splay', min: 0.1, max: 1.6, step: 0.01 },
-  { key: 'clasp', label: 'clasp (interlock)', min: 0, max: 3.1, step: 0.01 },
-  { key: 'curl', label: 'horn curl', min: -0.6, max: 0.9, step: 0.01 },
-  { key: 'tube', label: 'horn thickness', min: 0.02, max: 0.18, step: 0.004 },
-  { key: 'levels', label: 'outer extent', min: 0, max: 5, step: 1 },
+  { key: 'arc', label: 'horn curl', min: 1.2, max: 2.9, step: 0.01 },
+  { key: 'splay', label: 'fork splay', min: 0.0, max: 1.3, step: 0.01 },
+  { key: 'roll', label: 'clasp roll', min: 0.0, max: 3.1, step: 0.01 },
+  { key: 'k', label: 'child scale', min: 1.55, max: 2.7, step: 0.01 },
+  { key: 'tube', label: 'horn thickness', min: 0.02, max: 0.14, step: 0.003 },
+  { key: 'depth', label: 'recursion depth', min: 4, max: 12, step: 1 },
   { key: 'dist', label: 'camera distance', min: 3, max: 14, step: 0.1 },
   { key: 'fov', label: 'field of view', min: 20, max: 95, step: 1 },
   { key: 'glow', label: 'glow', min: 0, max: 1.5, step: 0.02 },
@@ -261,6 +261,60 @@ const PALETTES = ['rainbow', 'amber gold', 'ember', 'ice', 'orchid', 'mono'];
 
 const params = { ...DEFAULTS };
 const rt = { yaw: 0.6, zoomLevel: 0, colorPhase: 0, paused: false, last: 0 };
+
+// ---------------------------------------------------------------------------
+// CPU-side vector helpers (double precision) for the zoom descent
+// ---------------------------------------------------------------------------
+function rotZv(a, v) { const c = Math.cos(a), s = Math.sin(a); return [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]]; }
+function rotYv(a, v) { const c = Math.cos(a), s = Math.sin(a); return [c * v[0] + s * v[2], v[1], -s * v[0] + c * v[2]]; }
+function rotAxisv(ax, a, v) {
+  const c = Math.cos(a), s = Math.sin(a), t = 1 - c, x = ax[0], y = ax[1], z = ax[2];
+  return [
+    (t*x*x + c) * v[0] + (t*x*y - s*z) * v[1] + (t*x*z + s*y) * v[2],
+    (t*x*y + s*z) * v[0] + (t*y*y + c) * v[1] + (t*y*z - s*x) * v[2],
+    (t*x*z - s*y) * v[0] + (t*y*z + s*x) * v[1] + (t*z*z + c) * v[2],
+  ];
+}
+
+// Build the world->window-frame affine (columns of A + b) and scale S for the
+// current zoom, matching the shader's per-level descent (primary +x lineage).
+function buildZoom() {
+  const span = params.arc, splay = params.splay, roll = params.roll, k = params.k;
+  const Pe = [RA * (Math.cos(span) - 1.0), RA * Math.sin(span), 0.0];
+  const Rfn = (v) => rotYv(roll, rotZv(-splay, rotZv(-span, v))); // abs is identity on +x lineage
+
+  // axis-angle of R (for fractional descent R^zc)
+  const c0 = Rfn([1, 0, 0]), c1 = Rfn([0, 1, 0]), c2 = Rfn([0, 0, 1]);
+  const m = [c0[0], c1[0], c2[0], c0[1], c1[1], c2[1], c0[2], c1[2], c2[2]]; // row-major
+  const tr = m[0] + m[4] + m[8];
+  const ang = Math.acos(Math.max(-1, Math.min(1, (tr - 1) / 2)));
+  let ax = [1, 0, 0];
+  if (ang > 1e-5) {
+    const x = m[7] - m[5], y = m[2] - m[6], z = m[3] - m[1];
+    const n = Math.hypot(x, y, z) || 1; ax = [x / n, y / n, z / n];
+  }
+
+  let A = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]; // columns
+  let b = [0, 0, 0];
+  let S = 1;
+  const total = Math.max(0, Math.min(ZOOM_MAX, rt.zoomLevel));
+  const nb = Math.floor(total), zc = total - nb;
+
+  const descend = (Lfn, sMul) => {
+    const bm = [b[0] - Pe[0], b[1] - Pe[1], b[2] - Pe[2]];
+    A = [Lfn(A[0]), Lfn(A[1]), Lfn(A[2])];
+    b = Lfn(bm);
+    S *= sMul;
+  };
+  const Lfull = (v) => { const r = Rfn(v); return [r[0] * k, r[1] * k, r[2] * k]; };
+  for (let j = 0; j < nb; j++) descend(Lfull, k);
+  if (zc > 0) {
+    const kf = Math.pow(k, zc);
+    const Lfrac = (v) => { const r = rotAxisv(ax, zc * ang, v); return [r[0] * kf, r[1] * kf, r[2] * kf]; };
+    descend(Lfrac, kf);
+  }
+  return { A, b, invS: 1 / S, bodyShow: total < 0.5 ? 1 : 0 };
+}
 
 // ---------------------------------------------------------------------------
 // WebGPU bootstrap
@@ -295,7 +349,7 @@ async function init() {
     primitive: { topology: 'triangle-list' },
   });
 
-  const FLOATS = 28;
+  const FLOATS = 44; // 11 vec4
   const ubo = device.createBuffer({
     size: FLOATS * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -330,16 +384,21 @@ async function init() {
       rt.zoomLevel += params.zoomSpeed * dt;
       rt.colorPhase += (Math.abs(params.zoomSpeed) * 0.12 + 0.015) * dt;
     }
+    rt.zoomLevel = Math.max(0, Math.min(ZOOM_MAX, rt.zoomLevel));
 
-    const zc = rt.zoomLevel - Math.floor(rt.zoomLevel); // wrap -> bounded F, seamless
-    u[0] = W; u[1] = H; u[2] = now / 1000; u[3] = zc;
+    const z = buildZoom();
+    u[0] = W; u[1] = H; u[2] = now / 1000; u[3] = 0;
     u[4] = rt.yaw; u[5] = params.pitch; u[6] = params.dist;
     u[7] = Math.tan((params.fov * Math.PI / 180) * 0.5);
-    u[8] = params.k; u[9] = params.twist; u[10] = params.tube; u[11] = params.quality;
-    u[12] = rt.colorPhase; u[13] = params.glow; u[14] = params.palette; u[15] = params.ao;
-    u[16] = rt.yaw + 0.7; u[17] = 0.85; u[18] = params.fog; u[19] = params.exposure;
-    u[20] = params.bg; u[21] = params.vignette; u[22] = params.levels; u[23] = params.spread;
-    u[24] = params.clasp; u[25] = params.curl; u[26] = 0; u[27] = 0;
+    u[8] = params.k; u[9] = params.arc; u[10] = params.tube; u[11] = RA;
+    u[12] = params.splay; u[13] = params.roll; u[14] = DEFAULTS_bodyR; u[15] = z.bodyShow;
+    u[16] = rt.colorPhase; u[17] = params.glow; u[18] = params.palette; u[19] = params.ao;
+    u[20] = rt.yaw + 0.7; u[21] = 0.85; u[22] = params.fog; u[23] = params.exposure;
+    u[24] = params.bg; u[25] = params.vignette; u[26] = params.depth; u[27] = z.invS;
+    u[28] = params.quality; u[29] = 0; u[30] = 0; u[31] = 0;
+    u[32] = z.A[0][0]; u[33] = z.A[0][1]; u[34] = z.A[0][2]; u[35] = z.b[0];
+    u[36] = z.A[1][0]; u[37] = z.A[1][1]; u[38] = z.A[1][2]; u[39] = z.b[1];
+    u[40] = z.A[2][0]; u[41] = z.A[2][1]; u[42] = z.A[2][2]; u[43] = z.b[2];
     device.queue.writeBuffer(ubo, 0, u);
 
     const enc = device.createCommandEncoder();
@@ -365,6 +424,8 @@ async function init() {
   rt.last = performance.now();
   requestAnimationFrame(frame);
 }
+
+const DEFAULTS_bodyR = 0.42;
 
 function fail(msg) {
   const el = document.getElementById('nogpu');
@@ -445,22 +506,21 @@ function reset() {
 }
 function surprise() {
   const r = (a, b) => a + Math.random() * (b - a);
-  params.twist = r(-1.5, 1.5);
-  params.k = r(1.7, 2.8);
-  params.spread = r(0.3, 1.3);
-  params.clasp = r(0.4, 2.6);
-  params.curl = r(-0.4, 0.7);
-  params.tube = r(0.04, 0.12);
-  params.levels = Math.round(r(2, 4));
+  params.arc = r(1.7, 2.7);
+  params.splay = r(0.15, 1.1);
+  params.roll = r(0.4, 2.6);
+  params.k = r(1.7, 2.4);
+  params.tube = r(0.035, 0.10);
+  params.depth = Math.round(r(7, 11));
   params.palette = Math.floor(r(0, PALETTES.length));
-  params.glow = r(0.1, 1.0);
-  params.orbitSpeed = r(-0.2, 0.2);
-  params.zoomSpeed = r(0.05, 0.3) * (Math.random() < 0.25 ? -1 : 1);
+  params.glow = r(0.1, 0.9);
+  params.orbitSpeed = r(-0.18, 0.18);
+  params.zoomSpeed = r(0.05, 0.25) * (Math.random() < 0.3 ? -1 : 1);
   syncSliders();
 }
 
 // ---------------------------------------------------------------------------
-// Input: drag-orbit, wheel-zoom, pinch, keyboard
+// Input
 // ---------------------------------------------------------------------------
 let pendingShot = false;
 function doShot() {
@@ -496,13 +556,13 @@ function attachInput() {
     } else if (ptrs.size === 2) {
       const arr = [...ptrs.values()];
       const d = Math.hypot(arr[0].x - arr[1].x, arr[0].y - arr[1].y);
-      if (lastPinch) rt.zoomLevel += (d - lastPinch) * 0.004;
+      if (lastPinch) rt.zoomLevel += (d - lastPinch) * 0.006;
       lastPinch = d;
     }
   });
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    rt.zoomLevel += -e.deltaY * 0.0018;
+    rt.zoomLevel += -e.deltaY * 0.0022;
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
