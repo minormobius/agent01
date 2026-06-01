@@ -82,6 +82,8 @@
     braided: "the two turnings of %hero%, the one cast and the second"
   };
 
+  var PRON = { male: { s: "he", o: "him", p: "his" }, female: { s: "she", o: "her", p: "her" } };
+
   function toRoman(n) { var m = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]; return m[n] || ("" + n); }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function aWord(s) { return /^[aeiou]/i.test(s) ? "an " : "a "; }
@@ -192,7 +194,7 @@
       if (!roleNeed[role]) return;
       var name = pickName(genderOf[role]);
       var ep = pickEpithet();
-      var c = { id: role, name: name, role: role, epithet: ep,
+      var c = { id: role, name: name, role: role, epithet: ep, pron: PRON[genderOf[role]] || PRON.male,
         blurb: "<strong>" + name + "</strong>, " + ep + " — " + roleBlurb[role], appears: [], rel: [] };
       byRole[role] = c; cast.push(c);
     });
@@ -320,6 +322,11 @@
       var gloss = m.gloss + (m.cross && m.cross.length ? " <em>Sister-codes: " + m.cross.join(", ") + ".</em>" : "");
       return { cls: m.cls, code: m.code, name: m.name, gloss: gloss, conf: conf, passages: passages, realize: realize };
     });
+    // the doom-frame must carry the cradle-doom motif, in its first movement
+    if (frame.id === "fateddoom" && !motifList.some(function (m) { return m.code === "M341"; })) {
+      var dm = lex.MOTIF_BY_CODE["M341"];
+      if (dm) motifList.unshift({ cls: dm.cls, code: dm.code, name: dm.name, gloss: dm.gloss, conf: "high", passages: [1], realize: fill(dm.realize, mr) });
+    }
 
     // ── tale-type cards for the motif view ──
     var taletypes = [{ code: frame.label, name: "the frame this telling hangs on", conf: "high",
@@ -430,8 +437,22 @@
       });
       return text;
     }
+    // when a sentence's subject is the same character the last sentence led with,
+    // swap that leading name for a pronoun — and only every other time, so a run of
+    // one subject reads name / he / name / he, not Gwawl / Gwawl / Gwawl.
+    function pronominalize(text, prevRef) {
+      var best = Infinity, bestC = null;
+      cast.forEach(function (c) { var i = standaloneIdx(text, c.name); if (i >= 0 && i < best) { best = i; bestC = c; } });
+      if (bestC && bestC.id === prevRef.subj && !prevRef.pron && introduced[bestC.id] && bestC.pron) {
+        var p = best === 0 ? cap(bestC.pron.s) : bestC.pron.s;
+        text = text.slice(0, best) + p + text.slice(best + bestC.name.length);
+        prevRef.pron = true;
+      } else prevRef.pron = false;
+      prevRef.subj = bestC ? bestC.id : null;
+      return text;
+    }
     function emit(segs, text, prevRef) {
-      var s = sentence(soften(introduceNames(text), prevRef.t));
+      var s = sentence(soften(pronominalize(introduceNames(text), prevRef), prevRef.t));
       if (tr2.chance(0.13)) s = s.replace(/([.!?])$/, " " + tr2.pick(HOUSE.hedge) + "$1");
       segs.push({ e: s }); prevRef.t = s;
     }
@@ -455,7 +476,7 @@
       return tr2.pick(v);
     }
     var passages = movements.map(function (mv, mvi) {
-      var segs = [], prevRef = { t: null };
+      var segs = [], prevRef = { t: null, subj: null, pron: false };
       // proem on the first movement
       if (mvi === 0) { var proem = buildProem(); segs.push({ e: proem }); prevRef.t = proem; }
       // the beats of this movement, woven
@@ -481,11 +502,19 @@
         lastLead = lead;
         emit(segs, lead + " " + cap(line.replace(/^and\s+/i, "")), prevRef);
       });
-      // teller signature near the climax (penultimate movement) and envoi at the end
-      if (mvi === M - 2 && M > 2) segs.push({ e: sentence(tr2.pick(V.signature)) });
+      // teller signature near the climax (penultimate movement) and envoi at the end.
+      // The doom-frame refuses the happy signature and closes on the foretelling.
+      var doomed = frame.id === "fateddoom";
+      if (mvi === M - 2 && M > 2 && !doomed) segs.push({ e: sentence(tr2.pick(V.signature)) });
       if (mvi === M - 1) {
-        var envoi = join(tr2.pick(V.close), tr2.pick(HOUSE.close));
-        if (teller.id === "saturn") envoi += " (And " + teller.name + " numbered it: tale the " + ordinal(n) + " of the endless night.)";
+        var envoi;
+        if (doomed) {
+          envoi = "And the doom came as the cradle foretold, at the hour set for it, and not all the running had moved it by a finger's width. " +
+            (teller.id === "saturn" ? "And " + teller.name + " numbered it: tale the " + ordinal(n) + " of the endless night." : "Here the tale stops, where the foretelling always meant it to.");
+        } else {
+          envoi = join(tr2.pick(V.close), tr2.pick(HOUSE.close));
+          if (teller.id === "saturn") envoi += " (And " + teller.name + " numbered it: tale the " + ordinal(n) + " of the endless night.)";
+        }
         segs.push({ e: envoi });
       }
       return { title: mv.title, act: mv.act, segments: segs };
