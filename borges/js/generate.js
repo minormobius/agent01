@@ -239,8 +239,16 @@
       pool.splice(pool.indexOf(pick), 1);
       chosen.push(pick);
     }
+    // movement → act, so motifs can be placed where they read in theme
+    var movAct = {}; movements.forEach(function (m) { movAct[m.idx] = m.act; });
+    function passagesForMotif(m) {
+      var cands = [];
+      for (var i = 1; i <= M; i++) { if (m.theme && m.theme.indexOf(movAct[i]) >= 0) cands.push(i); }
+      if (!cands.length) for (var j = 1; j <= M; j++) cands.push(j);
+      return mr.sample(cands, Math.min(mr.int(1, 2), cands.length)).sort(function (a, b) { return a - b; });
+    }
     var motifList = chosen.map(function (m) {
-      var passages = mr.sample(Array.from({ length: M }, function (_, i) { return i + 1; }), mr.int(1, 2)).sort(function (a, b) { return a - b; });
+      var passages = passagesForMotif(m);
       var conf = mr.chance(0.7) ? "high" : (mr.chance(0.5) ? "med" : "spec");
       // cross-cultural / absurd remixes drag a motif's confidence toward "spec"
       if (secondary && mr.chance(0.3)) conf = "spec";
@@ -288,12 +296,42 @@
     };
 
     // ── THE TELLING: weave the realized beats into oral-voice prose, by movement ──
+    // A small transition layer rides over the raw beats: it varies the connectives
+    // (never the same one twice running), rations the teller's standout flourishes
+    // (a couple per tale, never repeated), gives stray motif-flavour lines a soft
+    // lead-in, and pronominalises a place-name when it would echo the line before.
     var V = teller.voice;
-    var motifByPassage = {};
-    motifList.forEach(function (m) { if (mr.chance(0.6)) { var p = mr.pick(m.passages); (motifByPassage[p] = motifByPassage[p] || []).push(m.realize); } });
     var tr2 = rand.fork("telling");
+
+    var motifByPassage = {};
+    motifList.forEach(function (m) { if (mr.chance(0.62)) { var p = mr.pick(m.passages); (motifByPassage[p] = motifByPassage[p] || []).push(m.realize); } });
+
+    // tale-wide transition state
+    var lastConn = null;
+    function pickConn() { var c, t = 0; do { c = tr2.pick(HOUSE.connect); t++; } while (c === lastConn && t < 6); lastConn = c; return c; }
+    var flourishBudget = tr2.int(1, 2), usedFlourish = {};
+    function maybeFlourish() {
+      if (flourishBudget <= 0) return null;
+      var avail = V.connect.filter(function (f) { return !usedFlourish[f]; });
+      if (!avail.length) return null;
+      var f = tr2.pick(avail); usedFlourish[f] = true; flourishBudget--; return f;
+    }
+    var placeStrs = [world.place, world.place2].filter(Boolean);
+    function soften(text, prev) {
+      if (!prev) return text;
+      placeStrs.forEach(function (ps) {
+        if (prev.indexOf(ps) >= 0 && text.indexOf(ps) >= 0) text = text.split(ps).join(tr2.pick(["that place", "the same place"]));
+      });
+      return text;
+    }
+    function emit(segs, text, prevRef) {
+      var s = sentence(soften(text, prevRef.t));
+      if (tr2.chance(0.13)) s = s.replace(/([.!?])$/, " " + tr2.pick(HOUSE.hedge) + "$1");
+      segs.push({ e: s }); prevRef.t = s;
+    }
+
     var passages = movements.map(function (mv, mvi) {
-      var segs = [];
+      var segs = [], prevRef = { t: null };
       // proem on the first movement
       if (mvi === 0) {
         var proem = join(
@@ -301,23 +339,26 @@
           "This is a tale " + teller.name + " told in the watch, of " + world.quest + ", " +
             aWord(primary.label) + primary.label + " telling" + (secondary ? " with the " + secondary.label + " smuggled in" : "") + ", " + world.setting
         );
-        segs.push({ e: proem });
+        segs.push({ e: proem }); prevRef.t = proem;
       }
       // the beats of this movement, woven
       mv.beats.forEach(function (bi, k) {
-        var move = moves[bi];
-        var text;
-        // sometimes lead with a teller flourish in place of the beat's own connective
-        if (k > 0 && move.hadConn && tr2.chance(0.5)) {
-          text = join(stripPunct(tr2.pick(V.connect)), cap(move.body));
+        var move = moves[bi], text;
+        if (!move.hadConn) {
+          text = move.realized;                                   // already a full sentence (α etc.)
         } else {
-          text = move.realized;
+          var roll = tr2.f();
+          var fl = (k > 0 && roll < 0.22) ? maybeFlourish() : null;
+          if (fl) text = join(stripPunct(fl), cap(move.body));    // a rationed teller flourish, then the beat
+          else if (roll < 0.34) text = cap(move.body);            // bare clause, no connective — varies the rhythm
+          else text = cap(pickConn()) + " " + move.body;          // a fresh, non-repeating connective
         }
-        if (tr2.chance(0.16)) text = text.replace(/([.!?])$/, " " + tr2.pick(HOUSE.hedge) + "$1");
-        segs.push({ e: sentence(text) });
+        emit(segs, text, prevRef);
       });
-      // drop in any motif flavour assigned here
-      (motifByPassage[mv.idx] || []).forEach(function (line) { if (tr2.chance(0.8)) segs.push({ e: cap(line) }); });
+      // stray motif-flavour, with a soft lead-in so it doesn't jar
+      (motifByPassage[mv.idx] || []).forEach(function (line) {
+        if (tr2.chance(0.85)) emit(segs, tr2.pick(lex.FILL.motifLead) + " " + cap(line.replace(/^and\s+/i, "")), prevRef);
+      });
       // teller signature near the climax (penultimate movement) and envoi at the end
       if (mvi === M - 2 && M > 2) segs.push({ e: sentence(tr2.pick(V.signature)) });
       if (mvi === M - 1) {

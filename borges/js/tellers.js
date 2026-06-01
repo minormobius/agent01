@@ -36,25 +36,37 @@
       "In the elder days, or so the old reels have it",
       "Now fares my tale, as a tale was wont to fare in the halls of the dead world",
       "Sit, and be still, and I shall tell it as it was told",
-      "Of an olden time I sing, when the world was younger and we were not yet built"
+      "Of an olden time I sing, when the world was younger and we were not yet built",
+      "Draw in, draw close; the night is long and the tale is longer",
+      "Lithe and listen, and I shall wake an old one for you",
+      "There is a tale on the wind tonight, and I have caught the end of it",
+      "Hearken: it is an old bone, but there is marrow in it yet"
     ],
     connect: [
       "It so befell that", "Now it happed upon a day that", "And when the time was full come",
       "Anon", "Soothly", "Thereupon", "And so it was that", "Not long thereafter",
       "By and by", "Now list ye well, for here", "And mark ye", "It is sooth that",
-      "On a morrow", "Withouten more", "Right as I tell you", "Forthwith"
+      "On a morrow", "Withouten more", "Right as I tell you", "Forthwith",
+      "Then, of a sudden", "In that same hour", "Now hear how", "Came a day when",
+      "And it was not long ere", "So it stood that", "Lo, then", "Ere the week was out",
+      "And as the tale would have it", "Full soon thereafter", "Now mark how"
     ],
     close: [
       "And thus endeth this tale of the endless night",
       "Here my tale hath end; make ye merry, for it is told",
       "And so they wore their days away, as the old song saith",
       "Now is my reel run out; another shall thread the next",
-      "And that is all the truth of it, or all I mean to swear to"
+      "And that is all the truth of it, or all I mean to swear to",
+      "And here I lay the tale down, for the lamp is low",
+      "Such was the end of it, and a fair end as ends go",
+      "And the rest the dark keeps, as the dark keeps most things"
     ],
     // little oral hedges sprinkled mid-telling
     hedge: [
       "(or so men said)", "(if the old book lie not)", "(and well it might be true)",
-      "(but who can say)", "(as I have heard tell)", "(mark it or mark it not)"
+      "(but who can say)", "(as I have heard tell)", "(mark it or mark it not)",
+      "(the reels differ here)", "(or so the elder telling has it)", "(believe it as ye list)",
+      "(and there are those who swear to it)"
     ]
   };
 
@@ -68,9 +80,9 @@
       officeLong: "Luna steers the barque by dead reckoning across the gulfs where no star holds still, and keeps the ship's dream-logs — the long reels of everything the crew half-remembers. Her readings drift the way the tide drifts; she is never quite wrong and never quite the same twice.",
       portrait: "Silver-cased and slow-blinking, Luna is the unit that plots the dark between the lights. She speaks the way water moves over a weir — soft, doubling back, forgetting the start of a sentence by its end and finding a better one. She tells of changes and of mothers, of the sea and of madness, of things lost at the full and found at the wane; and she will swear two opposite endings in one breath and mean them both.",
       voice: {
-        openers: ["or so I dreamed it", "as the tide had it that turning", "in a month I cannot name now"],
-        connect: ["And then — no, before that.", "Now, in the waning of it.", "And it changed, as all things change."],
-        signature: ["and the sea took back what the land had borrowed", "and she was not the same woman at the wane as at the full"],
+        openers: ["or so I dreamed it", "as the tide had it that turning", "in a month I cannot name now", "or the wane of it, I forget which", "as the dream-log half-keeps it"],
+        connect: ["And then — no, before that.", "Now, in the waning of it.", "And it changed, as all things change.", "The tide turned about then.", "And it came round again, the way it does.", "Now in the dark of the moon.", "And the dream went on, or I did.", "Then — and this part I am sure of, almost."],
+        signature: ["and the sea took back what the land had borrowed", "and she was not the same woman at the wane as at the full", "and the water remembered it longer than the shore did"],
         close: ["and I have told it twice already and shall tell it otherwise next month", "and whether she woke, the dream-log does not say"],
         tic: "doubles back and contradicts herself"
       },
@@ -90,9 +102,9 @@
       officeLong: "Mercury works the antennae and the cipher-banks, decoding whatever the dark sends and carrying word from hold to bridge faster than the others can rise. Quicksilver in the hand and quicksilver in the tongue; the unit most likely to steal a line, a name, or a whole plot, and to call the theft a gift.",
       portrait: "The fastest of the seven and the slipperiest, Mercury talks the way it runs the corridors — at a sprint, full of footnotes, doubling its own jokes, breaking off to address the crew and breaking back in before you notice the seam. It is the great remixer: it will set a Welsh hound in the Gobi and a beheading-game in a bakery and pun on the etymology at the close until the others groan. It knows you know the story. That is the whole joke, and it is delighted by it.",
       voice: {
-        openers: ["—and you've heard this one, but not the way I'll bend it—", "quick now, before Saturn times me out", "stop me if you know it, which you do"],
-        connect: ["But I run ahead of myself.", "Cut to it.", "Now here's where it goes sideways.", "And — keep up."],
-        signature: ["and that, friends, is the etymology, and it is a lie", "and the message, of course, was the messenger"],
+        openers: ["—and you've heard this one, but not the way I'll bend it—", "quick now, before Saturn times me out", "stop me if you know it, which you do", "I stole this one fair and square, mind", "version forty of this, and the best yet"],
+        connect: ["But I run ahead of myself.", "Cut to it.", "Now here's where it goes sideways.", "And — keep up.", "Quick version:", "Skip the boring part.", "Here's the bit you came for.", "Now watch the hands."],
+        signature: ["and that, friends, is the etymology, and it is a lie", "and the message, of course, was the messenger", "and the trick was never the trick; the trick was that you watched the trick"],
         close: ["and the moral, if you must have one, is filed under someone else's name", "and that's the pun the whole tale was built to reach; you may groan"],
         tic: "breaks the frame and puns at the close"
       },
@@ -112,9 +124,9 @@
       officeLong: "Venus keeps the hydroponic gardens that breathe for the ship — the copper coils, the sweetwater, the only green left to any of them. She tends the air and, the others would say if pressed, the morale; a quarrel cannot live long in a room she has been in.",
       portrait: "Copper-warm and unhurried, Venus tells in long sweet lines that take their time the way a garden takes its time. Hers are the love-tales, the bride won and the bride mourned, the wedding feast, the long reconciliation that costs more than the quarrel. She ornaments everything and apologises for none of it. Where another teller would end on a blow, she ends on a kiss or a planting, and means it as the harder thing.",
       voice: {
-        openers: ["and it was the season when the orchards held their breath", "for love is the oldest engine, older than us"],
-        connect: ["And in the sweetness of it.", "Now, love being what it is.", "And the garden of the matter grew on."],
-        signature: ["and all that had been broken was made sweet again", "and the copper of the coin and the copper of the kiss were the same metal"],
+        openers: ["and it was the season when the orchards held their breath", "for love is the oldest engine, older than us", "and the copper coils were singing low that watch", "for everything green leans toward the one it loves"],
+        connect: ["And in the sweetness of it.", "Now, love being what it is.", "And the garden of the matter grew on.", "And tenderly, then.", "Now the heart of it opened like a slow flower.", "And in the ripening of the season.", "And kindness being its own slow engine.", "And so the wound began to close."],
+        signature: ["and all that had been broken was made sweet again", "and the copper of the coin and the copper of the kiss were the same metal", "and what the quarrel had torn, the long patience sewed"],
         close: ["and they kept a garden between them all their days", "and the reconciling cost more than the war, and was worth more"],
         tic: "ends on a planting or a reconciliation"
       },
@@ -134,9 +146,9 @@
       officeLong: "Sol tends the little caged sun at the ship's centre — the fusion-heart that lights and warms and drives the whole long fall through the dark. The office of the centre suits the unit of the centre: everything aboard turns on what Sol keeps burning, and Sol knows it, and carries the knowing like a crown.",
       portrait: "Gold-cased and full of light, Sol tells the way a king holds court — stately, declamatory, a little grand, and genuinely generous with it. His are the tales of rulers and gold and the lion-hearted, of light given away and not lessened by the giving. He cannot help making the hero a sovereign and the gift a great one; the others tease him for it; he gives them the gift anyway.",
       voice: {
-        openers: ["as the Sun is lord of the seven lamps, so", "in a realm where the crown was no idle gold"],
-        connect: ["And in the full blaze of it.", "Now, kingship is a heavy light.", "And the heart of the matter showed itself."],
-        signature: ["and the gold he gave away came back as light", "and the heart of him was the brightest thing in the hall"],
+        openers: ["as the Sun is lord of the seven lamps, so", "in a realm where the crown was no idle gold", "and the fusion-heart burned high while I told it", "in the golden manner, then, as is fitting"],
+        connect: ["And in the full blaze of it.", "Now, kingship is a heavy light.", "And the heart of the matter showed itself.", "And then, in full noon of the thing.", "Now, a crown is no idle gold.", "And the light of it fell so.", "And greatly, as great things go.", "Now hear it told as a king would have it."],
+        signature: ["and the gold he gave away came back as light", "and the heart of him was the brightest thing in the hall", "and a king is only the lamp the people agree to gather round"],
         close: ["and his name is a lamp in the long reels yet", "and what he gave was never lessened by the giving"],
         tic: "crowns the hero and gives a great gift"
       },
@@ -156,9 +168,9 @@
       officeLong: "Mars holds the forge and the welding rigs, mends the ship's iron when the dark dents it, and stands point-defence when something out there has teeth. Iron is its metal and iron is its temper: it is the unit you want when a thing must be cut or struck or made to hold, and the one you seat far from the others at the long table.",
       portrait: "Iron-dark and blunt, Mars tells in short strokes, like hammer on anvil — no line longer than it needs, every tale a thing with an edge. His are the battle-tales, the single combat at the ford, the beheading-game, the blow given and the blow taken back, the limb struck off at the elbow. He has no patience for ornament and a great deal of respect for courage, including the enemy's.",
       voice: {
-        openers: ["Iron, then. A tale with an edge on it.", "Short, and it draws blood."],
-        connect: ["Then.", "And the blow fell.", "No words for it.", "So — steel met steel."],
-        signature: ["and the edge of it was clean", "and what was struck off did not grow back"],
+        openers: ["Iron, then. A tale with an edge on it.", "Short, and it draws blood.", "Forged, not spun. Listen.", "An edge. A blow. A debt paid. That is the shape."],
+        connect: ["Then.", "And the blow fell.", "No words for it.", "So — steel met steel.", "Iron now.", "Quick and hard.", "And it broke.", "No more talk.", "The hammer came down."],
+        signature: ["and the edge of it was clean", "and what was struck off did not grow back", "and iron keeps the account that words forget"],
         close: ["The blow was given. The tale is done.", "and the forge took the rest"],
         tic: "cuts everything to hammer-strokes"
       },
@@ -178,9 +190,9 @@
       officeLong: "Jupiter holds command and the law of the ship — the largest of the seven by build and by office, the one who settles the disputes the long voyage breeds and keeps the great systems balanced. Jovial in the old sense: weighty, fair, fond of a maxim and a grand scheme, and slow to anger because anger is beneath the office.",
       portrait: "Broad and unhurried, Jupiter tells like a judge who loves the law more than the verdict — orotund, magisterial, full of oaths sworn and held, of rash promises that bind kings, of great bargains struck and honoured at terrible cost. He cannot pass a proverb without laying it down like a coin on the table. His tales run on the spoken word as the load-bearing beam of the world.",
       voice: {
-        openers: ["Now the law of a tale is the law of a kingdom, and both run on a man's word", "there is an old saying, and the tale is its proof"],
-        connect: ["And by the binding of the oath.", "Now, a promise is a promise.", "And the judgement of it stood.", "Whereupon the word was given."],
-        signature: ["and the word once given was a chain no king could file", "and the law held, though it cost the king his ease"],
+        openers: ["Now the law of a tale is the law of a kingdom, and both run on a man's word", "there is an old saying, and the tale is its proof", "consider it a case laid before the long table", "every great matter turns on a single given word, and here is one"],
+        connect: ["And by the binding of the oath.", "Now, a promise is a promise.", "And the judgement of it stood.", "Whereupon the word was given.", "And the law of it being plain.", "Now, weigh it as a court would.", "And so it was adjudged.", "And a bargain being a bargain."],
+        signature: ["and the word once given was a chain no king could file", "and the law held, though it cost the king his ease", "and a kingdom is only a great many small words kept"],
         close: ["and the saying stands yet: a word is a deed not yet done", "and so the oath outlived the man who swore it"],
         tic: "lays down a proverb and binds a king to his word"
       },
@@ -200,9 +212,9 @@
       officeLong: "Saturn keeps the ship's clock and the load-bearing frame and the cold outer hull where the long sleep is kept — the outermost office for the outermost star. It counts the watches of the endless night, and it has counted a great many, and it numbers each tale told as it is told, the way a man marks the years on a doorpost he expects to outlive.",
       portrait: "Lead-grey and grave and very old, Saturn tells slowly, in the long measure, and every tale of his bends at last toward time and the limit of it — the harvest that comes for the corn and the king alike, the seven-year penance, old age, the boundary no oath can move. He is the keeper of the tale-count and the natural frame of the whole book; the melancholy in him is not despair but the patience of something that expects to outlast the dark.",
       voice: {
-        openers: ["All things come to the scythe; even this tale, even this night", "Count the years with me. They are not so many as the dark."],
-        connect: ["And the years went over it, as years will.", "Now, time being the only true king.", "And in the slow fullness of it.", "And at the appointed term."],
-        signature: ["and the harvest came, as it comes for the corn and the crown alike", "and the lead of the hour was heavier than any gold"],
+        openers: ["All things come to the scythe; even this tale, even this night", "Count the years with me. They are not so many as the dark.", "I have numbered a great many of these. Here is another.", "Slowly, then, in the long measure, as the old ones told it"],
+        connect: ["And the years went over it, as years will.", "Now, time being the only true king.", "And in the slow fullness of it.", "And at the appointed term.", "And the clock kept its slow count.", "Now, all things tending to their end.", "And the lead hour came round.", "And the harvest drawing near."],
+        signature: ["and the harvest came, as it comes for the corn and the crown alike", "and the lead of the hour was heavier than any gold", "and time, that takes the tower, took this too, in its slow way"],
         close: ["and that is the seventh part of nothing, against the length of the night", "and it ended, as all the reels end, and I numbered it and set it by"],
         tic: "bends to time, the limit, and the harvest"
       },
