@@ -324,8 +324,49 @@
       });
       return text;
     }
+    // first-mention introductions: in an oral telling no one just appears by name —
+    // each figure is named-and-placed the first time the tale reaches for them. The
+    // hero is introduced by the α beat; everyone else gets a short role-appositive
+    // spliced in at their first mention. (Telling only — the story-graph stays clean.)
+    var introduced = { hero: true };
+    function introClause(c) {
+      var ep = c.epithet ? ", " + c.epithet : "";
+      switch (c.role) {
+        case "heroine": return "the one the whole tale turns on" + ep;
+        case "villain": return "the worker of the harm to come" + ep;
+        case "donor": return "who keeps the road and asks its toll" + ep;
+        case "helper": return "a friend at the worst hour" + ep;
+        case "dispatcher": return "who would bring the word that started it" + ep;
+        case "false": return "who claims a deed he never did" + ep;
+        case "elder": return "the old " + world.honorific + " of " + world.place + ep;
+        default: return c.epithet || "of the tale";
+      }
+    }
+    function standaloneIdx(text, name) {
+      var from = 0, i;
+      while ((i = text.indexOf(name, from)) >= 0) {
+        var before = i === 0 ? "" : text.charAt(i - 1);
+        var after = text.charAt(i + name.length) || "";
+        if ((i === 0 || /[^A-Za-zÀ-ÿ]/.test(before)) && !/[A-Za-zÀ-ÿ'’]/.test(after)) return i;
+        from = i + 1;
+      }
+      return -1;
+    }
+    function introduceNames(text) {
+      cast.forEach(function (c) {
+        if (introduced[c.id]) return;
+        var i = standaloneIdx(text, c.name);
+        if (i < 0) return;
+        introduced[c.id] = true;
+        var at = i + c.name.length;
+        var tail = text.slice(at);
+        if (tail.charAt(0) === ",") tail = tail.slice(1); // avoid "— ," when the name was already followed by a comma
+        text = text.slice(0, at) + " — " + introClause(c) + " —" + tail;
+      });
+      return text;
+    }
     function emit(segs, text, prevRef) {
-      var s = sentence(soften(text, prevRef.t));
+      var s = sentence(soften(introduceNames(text), prevRef.t));
       if (tr2.chance(0.13)) s = s.replace(/([.!?])$/, " " + tr2.pick(HOUSE.hedge) + "$1");
       segs.push({ e: s }); prevRef.t = s;
     }
