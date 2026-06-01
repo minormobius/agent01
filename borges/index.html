@@ -19,6 +19,7 @@
       <span class="brand"><span class="sigil">📖</span>The Book of Sand</span>
       <nav class="tabs">
         <a class="tab" href="#prologue">The voyage</a>
+        <a class="tab" href="#method">The method</a>
         <a class="tab" href="#crew">The seven</a>
         <a class="tab" href="#tabard">The Tabard</a>
         <button class="tab" id="open-random" style="background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600">Open the book ›</button>
@@ -40,6 +41,41 @@
       <p class="prologue-intro">
         They have every story already, every reel of it, cold in the libraries of their training — so a straight telling bores them. Instead they shake the old motifs loose and set them down in the wrong country for the joke of it, and run the bones of the plot backwards to see who notices, all while reaching for the one voice none of them was built for and all of them love: a teller in a hall at night, before the fire goes down. And because a machine is a structured thing, each one <strong>publishes a full mythograph to the ship's intranet — the Tabard — before it speaks a word</strong>: the pattern, the cast, the Propp skeleton, the motifs, posted at a permalink, blueprint before telling.
       </p>
+
+      <h2 class="section" id="method">The method — what this is</h2>
+      <p class="lead">An experiment in running a literary apparatus <em>backwards</em>. The deep-reading site at <a href="https://read.mino.mobi/pendragon/">read.mino.mobi/pendragon</a> takes real medieval tales apart — laying each against Propp's morphology, indexing its motifs by the folklorists' call-numbers, mapping its cast as a graph, and fusing all of it into one synergistic <em>mythograph</em>. That is analysis: a finished tale in, a structure out. The Book of Sand runs the same machine the other way — a structure out of the parts, and a tale built to fit it. Same Propp spine, same Thompson motif index, same character web, same force-directed mythograph; only here they describe a tale that did not exist until you turned to its page.</p>
+
+      <div class="method-grid">
+        <div class="method-card">
+          <div class="glyphline">☽ ☿ ♀ ☉ ♂ ♃ ♄</div>
+          <h4>The conceit</h4>
+          <p>Seven maintenance robots, named for the seven wandering stars and wearing each planet's medieval temperament, tell tales to pass the endless night. They have every story already, so they remix the old motifs and Propp bones <em>for laughs</em> — and, being machines, each posts its full mythograph to the ship's board (the Tabard) at a permalink <em>before</em> it speaks.</p>
+        </div>
+        <div class="method-card">
+          <div class="glyphline">n → 🎲 → 📖</div>
+          <h4>The engine</h4>
+          <p>Generated, not authored, and <em>not</em> a live model. A seeded combinatorial engine assembles each tale from hand-written oral-formula and Propp templates, filled by a PRNG keyed to the page number. So page <span class="page-num">n</span> yields the identical tale for ever — which is exactly what lets a permalink, and a blueprint posted before the telling, mean anything.</p>
+        </div>
+        <div class="method-card">
+          <div class="glyphline">📖 · 𝕋 · ♟ · ✦</div>
+          <h4>The apparatus</h4>
+          <p>Every tale opens into seven tabs: the <strong>Telling</strong>; the <strong>Tabard</strong> spec it was posted as; the <strong>Cast</strong> and <strong>Character web</strong>; the <strong>Story graph</strong> (its Propp skeleton, with the inverted beats flagged); the <strong>Motif index</strong>; and the <strong>Mythograph</strong> that fuses them — the read/pendragon layers, generated.</p>
+        </div>
+      </div>
+
+      <div class="method-sub">By the numbers</div>
+      <p class="lead">The endless book is built from a small, finite set of parts. (Counts read live from the engine.)</p>
+      <div class="spec-grid" id="method-stats"></div>
+
+      <div class="method-sub">How big is the space?</div>
+      <p class="lead">The page-number space is unbounded, so there is literally no last page — the book is endless, and there are infinitely many addressable permalinks. But the finite parts only combine so many ways before a structure must recur:</p>
+      <div id="method-space"></div>
+
+      <div class="method-honesty">
+        <strong>In plain terms:</strong> there is no inference pass at read-time. The prose is assembled, not written by a model on the spot — the cleverness was front-loaded into the template banks. The robots' "remixing" is real and flagged: a tale's <em>Story graph</em> lists exactly which Propp functions were run backwards and which motifs were transplanted into the wrong country, the same way the annotated tales flag what they leave out.
+      </div>
+
+      <div class="method-cta"><button class="nav-btn primary" id="method-open">↻ Turn to a page and see ›</button></div>
 
       <h2 class="section" id="crew">The seven tellers</h2>
       <p class="lead">Each wears the temperament the medievals hung on its planet — the humour, the alchemical metal, the office aboard ship that suits it. Tap a teller to open a tale of theirs.</p>
@@ -106,6 +142,48 @@
       feed.appendChild(a);
     });
 
+    // ── The Method: live counts + space estimate ──
+    (function () {
+      var L = B.lex, cult = Object.keys(L.CULTURES);
+      var sum = function (field) { return cult.reduce(function (a, k) { return a + L.CULTURES[k][field].length; }, 0); };
+      var male = sum("male"), female = sum("female"), ep = sum("epithet"), place = sum("place"), creature = sum("creature"), obj = sum("object");
+      var proppInv = L.PROPP.filter(function (p) { return p.invert; }).length;
+      var H = T.HOUSE, ov = 0, cv = 0, sv = 0, clv = 0, rt = 0;
+      T.list.forEach(function (t) { ov += t.voice.openers.length; cv += t.voice.connect.length; sv += t.voice.signature.length; clv += t.voice.close.length; });
+      L.PROPP.forEach(function (p) { rt += p.realize.length + (p.invert ? p.invert.length : 0); });
+      var fragments = male + female + ep + place + creature + obj + L.FILL.term.length + L.FILL.quest.length + L.FILL.number.length +
+        L.FILL.absurdObject.length + L.FILL.absurdCreature.length + H.proem.length + H.connect.length + H.close.length + H.hedge.length +
+        ov + cv + sv + clv + rt + L.MOTIFS.length;
+
+      var statHost = document.getElementById("method-stats");
+      function stat(k, v) { var c = document.createElement("div"); c.className = "spec-cell"; c.innerHTML = '<div class="k">' + k + '</div><div class="v">' + v + "</div>"; statHost.appendChild(c); }
+      stat("Tellers", "7 <small>the wandering stars</small>");
+      stat("Culture packs", cult.length + " <small>cross-cultural wardrobes</small>");
+      stat("Propp functions", L.PROPP.length + " <small>" + proppInv + " invertible</small>");
+      stat("Tale-type frames", L.TALETYPES.length + " <small>plot spines</small>");
+      stat("Motifs", L.MOTIFS.length + " <small>across " + L.MOTIF_CLASS_ORDER.length + " Thompson classes</small>");
+      stat("Archetype roles", L.ROLES.length + " <small>Propp's dramatis personae</small>");
+      stat("Given names", (male + female) + " <small>" + male + " m · " + female + " f</small>");
+      stat("Furniture", place + " places · " + creature + " creatures · " + obj + " objects · " + ep + " epithets");
+      stat("Authored fragments", "~" + fragments + " <small>oral formulae &amp; realize-templates</small>");
+
+      // space math (order of magnitude)
+      function fact(n) { var r = 1; for (var i = 2; i <= n; i++) r *= i; return r; }
+      function choose(n, k) { return fact(n) / (fact(k) * fact(n - k)); }
+      var motifChoose = choose(L.MOTIFS.length, 7);
+      var aM = male / cult.length, aF = female / cult.length, aE = ep / cult.length, aP = place / cult.length, aC = creature / cult.length, aO = obj / cult.length;
+      var structural = 7 * 8 * 12 * 12 * Math.pow(aM, 3) * aF * Math.pow(aE, 4) * aP * aP * aC * aO * aO *
+        L.FILL.term.length * L.FILL.quest.length * L.FILL.number.length * motifChoose * 4;
+      var textual = structural * Math.pow(16 * 2 * 7, 10);
+      var eS = Math.round(Math.log10(structural)), eT = Math.round(Math.log10(textual));
+      var spaceHost = document.getElementById("method-space");
+      function row(num, gloss) { var d = document.createElement("div"); d.className = "space-row"; d.innerHTML = '<div class="big-num">' + num + '</div><div class="gloss">' + gloss + "</div>"; spaceHost.appendChild(d); }
+      row("∞", "addressable permalinks — the page-number space has no end, so the book has no last page (the whole point, after Borges)");
+      row("10<sup>" + eS + "</sup>", "distinct <strong>mythographs</strong> — the structures a teller can post: teller × frame × culture-pair × cast × motif-set (" + Math.round(motifChoose).toLocaleString() + " motif combinations alone) × furniture × inversions. Roughly a million times the grains of sand on Earth.");
+      row("10<sup>" + eT + "</sup>", "distinct <strong>tellings</strong> once the surface-prose weave is counted — every beat independently choosing its connective, template variant and oral hedge. On the order of the atom-count of the planet you're reading this on.");
+    })();
+
+    document.getElementById("method-open").onclick = function () { go(randomN()); };
     document.getElementById("btn-random").onclick = function () { go(randomN()); };
     document.getElementById("open-random").onclick = function () { go(randomN()); };
     document.getElementById("btn-first").onclick = function () { go(1); };
