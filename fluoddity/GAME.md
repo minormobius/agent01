@@ -462,6 +462,18 @@ on the live pages).
   its level tuning is untouched, but still gets the slider. Also: arena's reset now
   re-seeds the current ecosystem (it was aliased to the reroll/new-field button).
 
+- **[build note] Cross-board auth fix.** Sign-in failed across surfaces (and ate
+  in-progress organisms) because `authchip.js` and the playground logged in with
+  the default `returnTo` = the full URL *including the `#fragment`*. The auth
+  worker appends `?__auth_session=…`, which a fragment swallows — so the token was
+  lost (sign-in silently failed) and any organism in `#c=…` got mangled. Both now
+  pass a **clean `returnTo`** (`origin+pathname+search`, fragment stripped); the
+  playground already persists `getConfig()` to `localStorage` every 250ms, so the
+  organism is restored on return. The bare `prompt()` handle entry is replaced by
+  a shared typeahead dialog (`handle-dialog.js`). The session token lives in
+  origin-scoped `localStorage`, so signing in once on the landing carries across
+  every fluoddity surface.
+
 ## 13. What this explicitly does NOT touch
 
 - No change to `engine.js`, `descriptors.js`, the worker, `wrangler.jsonc`, or any
