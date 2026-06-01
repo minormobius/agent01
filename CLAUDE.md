@@ -200,6 +200,7 @@ What this means for you:
 | Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
 | Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
 | Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
+| Borges | `.github/workflows/deploy-borges.yml` | `main`, `claude/pendragon-endless-book-*`, `claude/pendragon-next-source-*` | `borges/**` |
 
 When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
 
@@ -724,6 +725,44 @@ A fork of `/time`'s newspaper aesthetic that publishes a **deterministic** daily
 
 ---
 
+## Project 8: Borges (`borges/`) — The Book of Sand, an endless book
+
+**Live at**: `borges.mino.mobi`
+**Stack**: Pure static HTML/JS (vanilla, no build step) + a thin routing Worker (assets binding)
+**Deploy**: `.github/workflows/deploy-borges.yml` — `npx wrangler deploy` on push to `main` or `claude/pendragon-endless-book-*` / `claude/pendragon-next-source-*` touching `borges/**`. Provisions `borges.mino.mobi`. No D1, no AI, no secrets beyond the shared Cloudflare credentials.
+
+An **endless book**, after Borges' *El libro de arena*. The frame: seven maintenance robots aboard the slow barque *Tabard*, each named for one of the seven wandering stars (the classical planets) and bearing its medieval planetary temperament + an alchemical metal + a ship-office that fits. They pass the endless night between galaxies telling tales in a medieval-English oral voice, remixing the old motifs and Propp structures **for laughs** (they have every story cold in their training); and because a machine is a structured thing, each **publishes a full mythograph to the ship's intranet — the Tabard — at a permalink before the telling**.
+
+### How it works — and why it's the read/pendragon apparatus run forward
+
+The book is **generated, not authored**: a seeded, combinatorial engine (`js/prng.js` mulberry32 + xmur3) so every page number `n` yields the same tale on any machine, for ever. That determinism is what makes a permalink (`/t/<n>`) meaningful and the mythograph postable *before* the telling. The page-number space is unbounded → the book is endless; Next/Prev/Random/goto walk it.
+
+Crucially, each generated tale is shaped **limb-for-limb like the annotated tales on `read.mino.mobi`** (`tale.passages`, `characters{roles,cast}`, `propp{acts,moves,absent}`, `motifs{taletypes,classOrder,classes,list}`) so the **same** Propp story-graph, Thompson motif index, character-web, and force-directed **mythograph** renderers (ported from `read/<tale>/app.js`) light it up unchanged. The read/ apparatus is analysis (backward); borges is the same apparatus as a generator (forward). The "for-laughs" subversions — cross-cultural motif transplants, inverted Propp functions, absurd magical agents, order-scrambles — are flagged in the spec, mirroring read/'s `propp.absent` ("what the teller shook loose").
+
+### The seven tellers (`js/tellers.js`)
+
+Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/translator — the great remixer, highest `remix`), Venus ♀ (copper, green-deck gardens), Sol ☉ (gold, fusion-heart), Mars ♂ (iron, forge/hull-welder — terse hammer-strokes), Jupiter ♃ (tin, governor/justice), Saturn ♄ (lead, chronometer/cold-hull — numbers the tales). Each carries voice banks (proem/connect/signature/close) overlaid on a shared house voice, plus affinities steering culture, frame, Propp emphasis and motif classes.
+
+### Key files
+
+| File | Role |
+|------|------|
+| `index.html` | General Prologue: the voyage, the seven-teller gallery, the Tabard board (entry) |
+| `tale.html` | Per-tale reader — 7 tabs: Telling / the Tabard (spec) / Cast / Character web / Story graph / Motifs / Mythograph |
+| `js/lexicon.js` | Culture packs (12 cross-cultural wardrobes), Propp function library w/ oral realize-templates + `invert` variants, tale-type frames, Thompson motif atoms, archetype roles |
+| `js/generate.js` | The engine: `n` → whole tale (teller, culture±graft, frame, cast, woven prose telling, motifs, flagged remixes) |
+| `js/render.js` | Reader: ported read/ graph renderers + prose telling + Tabard spec + per-teller theming + endless nav |
+| `worker.js` | `/t/<n>` & `/tale` → `tale.html`; else assets. Pretty permalinks; uses **root-absolute** asset paths so `/t/<n>` resolves |
+
+### Pitfalls / conventions
+
+- **Determinism is load-bearing.** Don't introduce `Date.now()` / unseeded `Math.random()` into the *generator* (the nav's "random page" picker is the only allowed unseeded roll, and it just chooses which deterministic page to open). Breaking determinism breaks every permalink.
+- **Root-absolute asset paths** in the HTML (`/css/…`, `/js/…`) — the pretty `/t/<n>` URL has a `/t/` base, so relative paths would 404.
+- The engine attaches to `globalThis` (not just `window`), so it unit-tests in plain node — see `borges/README.md`.
+- Generated tales reuse the read/ data shapes on purpose. If you change a renderer, keep parity with the read/ apparatus the user pointed at.
+
+---
+
 ## Geometry pack (`/geometry/` + siblings) — interactive math explainers
 
 Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
@@ -821,7 +860,7 @@ The full set of workflows lives under `.github/workflows/`. Deploy workflows are
 
 ### Deploy workflows (see deploy map above)
 
-`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`, `deploy-bisk.yml`
+`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`, `deploy-bisk.yml`, `deploy-borges.yml`
 
 ### Provisioning / one-shots
 

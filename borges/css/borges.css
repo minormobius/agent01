@@ -1,0 +1,274 @@
+/* borges — the Book of Sand. A cosmic recolour of the read.mino.mobi apparatus:
+   the same earthy hall-at-night palette, sunk a little deeper into the dark
+   between the stars, with a per-teller accent that the reader paints on from
+   the planet whose unit is telling. */
+
+:root {
+  --bg: #0c0d12;
+  --bg2: #14151d;
+  --panel: #181a24;
+  --ink: #e6e2d6;
+  --ink-dim: #aca896;
+  --ink-faint: #7d7a6c;
+  --gold: #c9a24a;
+  --gold-soft: #e0c178;
+  --line: #2b2d3a;
+  --accent: #9a86c4;        /* default; overridden per teller via --teller */
+  --teller: #c9a24a;
+  --teller-soft: #e0c178;
+  --maxw: 940px;
+  --serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--serif); line-height: 1.62; font-size: 18px;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(1px 1px at 12% 20%, rgba(255,255,255,0.10), transparent),
+    radial-gradient(1px 1px at 70% 35%, rgba(255,255,255,0.08), transparent),
+    radial-gradient(1px 1px at 40% 80%, rgba(255,255,255,0.07), transparent),
+    radial-gradient(1.5px 1.5px at 85% 70%, rgba(255,255,255,0.06), transparent),
+    radial-gradient(1px 1px at 25% 55%, rgba(255,255,255,0.05), transparent);
+  background-attachment: fixed;
+}
+a { color: var(--teller-soft); text-decoration: none; }
+a:hover { text-decoration: underline; }
+em { color: var(--ink); }
+strong { color: var(--teller-soft); font-weight: 600; }
+
+/* ── Header / nav ── */
+.topbar { position: sticky; top: 0; z-index: 50; background: rgba(12,13,18,0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.topbar-inner { max-width: var(--maxw); margin: 0 auto; display: flex; align-items: center; gap: 14px; padding: 10px 18px; flex-wrap: wrap; }
+.brand { font-size: 21px; color: var(--teller); letter-spacing: 0.04em; font-weight: 600; margin-right: auto; display: inline-flex; align-items: center; gap: 9px; }
+.brand .sigil { font-size: 22px; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--teller) 55%, transparent)); }
+.brand a { color: var(--teller); }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { font-family: var(--sans); font-size: 13px; background: transparent; color: var(--ink-dim); border: 1px solid transparent; border-radius: 999px; padding: 6px 13px; cursor: pointer; transition: all .15s; }
+.tab:hover { color: var(--ink); background: color-mix(in srgb, var(--teller) 10%, transparent); }
+.tab.active { color: var(--bg); background: var(--teller); border-color: var(--teller); font-weight: 600; }
+
+/* ── Layout ── */
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 18px 90px; }
+.view { display: none; animation: fade .25s ease; }
+.view.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.hero { padding: 38px 0 22px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.hero h1 { font-size: 38px; margin: 0 0 10px; color: var(--teller); letter-spacing: 0.02em; line-height: 1.1; }
+.hero p { font-size: 18px; color: var(--ink-dim); max-width: 72ch; margin: 0; }
+h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
+.lead { color: var(--ink-dim); max-width: 74ch; }
+.flash { animation: flash 1.1s ease; }
+@keyframes flash { 0% { border-color: var(--teller); box-shadow: 0 0 0 3px color-mix(in srgb, var(--teller) 25%, transparent); } 100% { box-shadow: none; } }
+
+/* ── Tale navigation (the endless turning) ── */
+.nav-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 6px; font-family: var(--sans); }
+.nav-btn { font-size: 14px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.nav-btn:hover { border-color: var(--teller); background: color-mix(in srgb, var(--teller) 14%, transparent); color: var(--teller-soft); }
+.nav-btn.primary { background: var(--teller); color: var(--bg); border-color: var(--teller); font-weight: 600; }
+.nav-btn.primary:hover { filter: brightness(1.08); color: var(--bg); }
+.nav-goto { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-faint); margin-left: auto; }
+.nav-goto input { width: 90px; font-family: var(--sans); font-size: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; color: var(--ink); }
+.nav-goto input:focus { outline: none; border-color: var(--teller); }
+.page-num { font-variant-numeric: tabular-nums; color: var(--teller-soft); }
+
+/* ── The telling (prose reader) ── */
+.tale-meta { margin: 16px 0 4px; }
+.tale-blurb {
+  color: var(--ink-dim); max-width: 84ch; font-size: 15px; line-height: 1.55;
+  background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--teller);
+  border-radius: 8px; padding: 13px 16px; margin-bottom: 10px;
+}
+.tale-blurb strong { color: var(--teller-soft); }
+.telling { margin-top: 18px; max-width: 74ch; }
+.telling .mvt-title { font-size: 23px; color: var(--teller-soft); margin: 34px 0 10px; letter-spacing: 0.01em; scroll-margin-top: 80px; }
+.telling .mvt-title:first-child { margin-top: 12px; }
+.telling p { margin: 0 0 14px; }
+.telling p.lead-para { font-size: 19px; color: var(--ink); }
+.telling .mvt-tag { font-family: var(--sans); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; margin-left: 8px; vertical-align: middle; }
+.dropcap { float: left; font-size: 58px; line-height: 0.74; padding: 6px 9px 0 0; color: var(--teller); font-family: Georgia, serif; }
+
+/* ── The Tabard (the spec the robot posts before telling) ── */
+.tabard-note { font-family: var(--sans); font-size: 13.5px; color: var(--ink-faint); border-left: 2px solid var(--teller); padding-left: 13px; margin: 4px 0 22px; max-width: 70ch; }
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+.spec-cell { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.spec-cell .k { font-family: var(--sans); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); }
+.spec-cell .v { font-size: 17px; color: var(--ink); margin-top: 3px; }
+.spec-cell .v small { color: var(--ink-faint); font-size: 12px; }
+.spec-perma { font-family: var(--sans); font-size: 12.5px; color: var(--ink-faint); margin-top: 6px; }
+.spec-perma code { color: var(--teller-soft); background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
+.skel { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.skel-beat { font-family: var(--sans); font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px; }
+.skel-beat .sy { font-family: var(--serif); font-style: italic; color: var(--teller-soft); }
+.skel-beat.inv { border-color: var(--accent); color: var(--accent); }
+
+/* ── Teller header strip (on a tale) ── */
+.teller-strip { display: flex; align-items: center; gap: 14px; margin: 14px 0 4px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--teller); border-radius: 10px; padding: 13px 16px; }
+.teller-strip .glyph { font-size: 34px; color: var(--teller); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--teller) 50%, transparent)); line-height: 1; }
+.teller-strip .who { flex: 1; }
+.teller-strip .who h3 { margin: 0; font-size: 20px; color: var(--teller-soft); }
+.teller-strip .who .sub { font-family: var(--sans); font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; }
+
+/* ── General Prologue: the ship + the seven ── */
+.prologue-intro { font-size: 19px; color: var(--ink-dim); max-width: 74ch; margin: 16px 0 8px; }
+.prologue-intro em { color: var(--ink); }
+.crew { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin: 24px 0 10px; }
+.teller-card {
+  --tc: var(--teller); background: var(--panel); border: 1px solid var(--line);
+  border-top: 3px solid var(--tc); border-radius: 12px; padding: 18px 18px 16px;
+  position: relative; overflow: hidden;
+}
+.teller-card::after { content: attr(data-glyph); position: absolute; right: 10px; top: -14px; font-size: 96px; color: var(--tc); opacity: 0.10; pointer-events: none; }
+.teller-card .tc-head { display: flex; align-items: baseline; gap: 10px; }
+.teller-card .tc-glyph { font-size: 26px; color: var(--tc); }
+.teller-card h3 { margin: 0; font-size: 23px; color: var(--tc); }
+.teller-card .tc-planet { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); }
+.teller-card .tc-office { font-family: var(--sans); font-size: 13px; color: var(--ink); margin: 9px 0 4px; font-weight: 600; }
+.teller-card .tc-meta { font-family: var(--sans); font-size: 11.5px; color: var(--ink-faint); margin-bottom: 9px; display: flex; flex-wrap: wrap; gap: 5px 12px; }
+.teller-card .tc-portrait { color: var(--ink-dim); font-size: 14.5px; line-height: 1.55; }
+.teller-card .tc-cta { margin-top: 12px; font-family: var(--sans); font-size: 13px; }
+.teller-card .tc-cta a { color: var(--tc); }
+
+.tabard-board { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 20px 16px; margin: 22px 0; }
+.tabard-board h2 { margin: 0 0 6px; color: var(--gold-soft); font-size: 23px; }
+.tabard-board p { color: var(--ink-dim); font-size: 15px; margin: 0 0 14px; max-width: 70ch; }
+.tabard-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.tabard-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 18px; }
+.feed-card { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 13px 15px; cursor: pointer; transition: border-color .15s, transform .12s; text-decoration: none; display: block; }
+.feed-card:hover { border-color: var(--fc, var(--gold)); transform: translateY(-2px); text-decoration: none; }
+.feed-card .fc-top { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 11.5px; color: var(--ink-faint); }
+.feed-card .fc-glyph { font-size: 16px; color: var(--fc, var(--gold)); }
+.feed-card .fc-no { margin-left: auto; font-variant-numeric: tabular-nums; }
+.feed-card .fc-title { color: var(--ink); font-size: 16.5px; margin: 7px 0 5px; line-height: 1.3; }
+.feed-card .fc-sub { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); }
+
+/* ── zoomable diagram viewport (shared by web / propp / mythograph) ── */
+.zoom-host { position: relative; width: 100%; height: 600px; max-height: 78vh; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); overflow: hidden; touch-action: none; cursor: grab; user-select: none; }
+.zoom-host:active { cursor: grabbing; }
+.zoom-host svg { display: block; width: 100%; height: 100%; }
+.zoom-controls { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 5; }
+.zbtn { width: 34px; height: 34px; border-radius: 8px; cursor: pointer; border: 1px solid var(--line); background: rgba(12,13,18,0.85); color: var(--ink); font-size: 18px; line-height: 1; font-family: var(--sans); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; }
+.zbtn:hover { background: color-mix(in srgb, var(--teller) 22%, transparent); color: var(--teller-soft); }
+.tree-legend { display: flex; flex-wrap: wrap; gap: 14px; font-family: var(--sans); font-size: 12px; color: var(--ink-dim); margin: 14px 0 6px; }
+.tree-legend .li { display: inline-flex; align-items: center; gap: 6px; }
+.tree-hint { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); margin-top: 10px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+
+/* ── Story graph (Propp) ── */
+svg.propp { display: block; }
+.propp-node { cursor: pointer; }
+.propp-node:hover rect { stroke-width: 2; }
+.propp-arrow { stroke: var(--ink-faint); stroke-width: 1.5; opacity: 0.6; fill: none; }
+.propp-act { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 12px; color: var(--teller-soft); margin: 28px 0 4px; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
+.propp-move { display: grid; grid-template-columns: 52px 1fr; gap: 15px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: start; scroll-margin-top: 80px; }
+.propp-badge { width: 46px; height: 46px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-style: italic; font-size: 22px; border: 1px solid var(--line); background: var(--panel); }
+.propp-name { font-size: 19px; color: var(--ink); }
+.propp-name .propp-sym { font-family: var(--serif); font-style: italic; color: var(--ink-faint); font-size: 15px; margin-left: 5px; }
+.propp-name .inv-tag { font-family: var(--sans); font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 999px; padding: 1px 7px; margin-left: 8px; }
+.propp-gloss { font-family: var(--sans); font-size: 13px; color: var(--ink-faint); font-style: italic; margin-top: 2px; }
+.propp-realized { color: var(--ink-dim); margin-top: 5px; max-width: 74ch; }
+.propp-jump { font-family: var(--sans); font-size: 12.5px; margin-top: 6px; }
+.propp-jump a { color: var(--teller-soft); cursor: pointer; }
+.propp-move.flash { animation: flash 1.1s ease; }
+.propp-absent { margin-top: 30px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; max-width: 82ch; }
+.propp-absent h3 { margin: 0 0 8px; color: var(--teller-soft); font-size: 19px; }
+.propp-abnote { color: var(--ink-dim); margin: 0 0 12px; }
+.propp-abgroup { color: var(--ink-dim); font-family: var(--sans); font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
+.propp-absyms { font-family: var(--serif); font-style: italic; color: var(--accent); margin-right: 6px; }
+.propp-abgroup strong { color: var(--ink); }
+.propp-verdict { color: var(--ink-dim); margin: 6px 0 0; border-top: 1px solid var(--line); padding-top: 12px; }
+.propp-verdict strong { color: var(--teller-soft); }
+
+/* ── Character web ── */
+svg.web { display: block; }
+.web-edge { stroke: var(--ink-faint); stroke-opacity: 0.32; stroke-width: 1.2; }
+.web-edge.hot { stroke: var(--teller); stroke-opacity: 0.92; stroke-width: 2.2; }
+.web-node { cursor: pointer; }
+.web-node circle { transition: opacity .15s; }
+.web-node:hover circle { stroke: var(--teller-soft); stroke-width: 2; }
+.web-label { fill: var(--ink-dim); font-family: var(--sans); pointer-events: none; }
+.web-node:hover .web-label { fill: var(--ink); }
+.web-node.dim { opacity: 0.18; }
+
+/* ── The mythograph ── */
+svg.myth { display: block; }
+.myth-node { cursor: pointer; }
+.myth-node:hover circle, .myth-node:hover rect { stroke: var(--teller-soft); stroke-width: 2; }
+.myth-node.dim { opacity: 0.1; }
+.myth-label { fill: var(--ink); font-family: var(--sans); paint-order: stroke; stroke: #0c0d12; stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.myth-pvbody { font-family: var(--sans); }
+.myth-sel rect { fill-opacity: 0.98; }
+svg.myth line.hot { stroke-opacity: 0.95 !important; stroke-width: 2.4 !important; }
+.myth-controls { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 8px; font-family: var(--sans); }
+.myth-filter { font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer; border: 1px solid var(--line); background: var(--panel); color: var(--ink-dim); display: inline-flex; align-items: center; gap: 6px; }
+.myth-filter.active { color: var(--ink); border-color: var(--teller); }
+.myth-filter:not(.active) { opacity: 0.4; }
+.myth-sliders { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; width: 100%; margin-top: 4px; }
+.myth-slider { display: inline-flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 12px; color: var(--ink-dim); }
+.myth-slider input[type="range"] { width: 130px; accent-color: var(--teller); }
+.myth-slval { min-width: 2.2em; text-align: right; color: var(--teller-soft); font-variant-numeric: tabular-nums; }
+.edgekey { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; }
+.edgekey-spine { height: 5px; width: 18px; }
+.myth-detail { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-height: 64px; }
+.md-hint { color: var(--ink-faint); font-family: var(--sans); font-size: 14px; }
+.md-type { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 11px; color: var(--ink-faint); }
+.md-title { margin: 3px 0 8px; color: var(--teller-soft); font-size: 20px; }
+.md-open { font-family: var(--sans); font-size: 13px; margin-bottom: 10px; }
+.md-open a { color: var(--teller-soft); cursor: pointer; }
+.md-group { font-family: var(--sans); font-size: 13px; color: var(--ink-dim); margin-bottom: 7px; line-height: 1.7; }
+.md-glabel { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+.md-chip { display: inline-block; padding: 2px 9px; margin: 1px 0; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-dim); cursor: pointer; background: color-mix(in srgb, var(--teller) 5%, transparent); }
+.md-chip:hover { background: color-mix(in srgb, var(--teller) 14%, transparent); text-decoration: none; }
+
+/* ── Motif index ── */
+.tt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 16px 0 8px; }
+.tt-card { background: var(--panel); border: 1px solid var(--teller); border-radius: 10px; padding: 14px 16px; }
+.tt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tt-code { font-family: var(--sans); font-weight: 600; color: var(--teller-soft); font-size: 14px; letter-spacing: 0.03em; }
+.tt-name { font-size: 17px; color: var(--ink); margin: 4px 0 5px; }
+.tt-gloss { color: var(--ink-dim); font-size: 14px; line-height: 1.5; }
+.motif-classhead { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 12px; color: var(--teller-soft); margin: 28px 0 10px; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
+.motif-clsletter { display: inline-block; width: 20px; text-align: center; font-family: var(--serif); font-style: italic; color: var(--accent); margin-right: 4px; }
+.motif-row { display: grid; grid-template-columns: 96px 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.motif-badge { font-family: var(--sans); font-size: 12.5px; font-weight: 600; color: var(--teller-soft); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 6px; text-align: center; }
+.motif-name { font-size: 17px; color: var(--ink); }
+.motif-gloss { color: var(--ink-dim); font-size: 15px; line-height: 1.5; margin-top: 3px; max-width: 78ch; }
+.motif-ex { font-family: var(--sans); font-size: 12.5px; color: var(--ink-faint); margin-top: 7px; }
+.motif-ex a { color: var(--teller-soft); cursor: pointer; }
+.conf { font-family: var(--sans); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.conf-high { color: var(--teller-soft); border-color: var(--teller); }
+.conf-med { color: var(--ink-dim); }
+.conf-spec { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); font-style: italic; }
+
+/* ── Character cards ── */
+.char-legend { display: flex; flex-wrap: wrap; gap: 14px; font-family: var(--sans); font-size: 12px; color: var(--ink-dim); margin: 14px 0 6px; }
+.char-legend .li { display: inline-flex; align-items: center; gap: 6px; }
+.char-rolehead { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 12px; color: var(--teller-soft); margin: 28px 0 12px; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
+.char-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.char-card { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 10px; padding: 14px 16px; scroll-margin-top: 80px; }
+.char-card h3 { margin: 0 0 2px; color: var(--teller-soft); font-size: 20px; }
+.char-sub { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); margin-bottom: 8px; }
+.char-blurb { color: var(--ink-dim); font-size: 15px; line-height: 1.55; }
+.char-appears { font-family: var(--sans); font-size: 12.5px; color: var(--ink-faint); margin-top: 10px; }
+.char-appears a { color: var(--teller-soft); cursor: pointer; }
+.char-rels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.char-rel { font-family: var(--sans); font-size: 11.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-dim); cursor: pointer; background: color-mix(in srgb, var(--teller) 5%, transparent); }
+.char-rel:hover { background: color-mix(in srgb, var(--teller) 14%, transparent); text-decoration: none; }
+.char-rel .rel-label { color: var(--ink-faint); }
+
+footer.foot { max-width: var(--maxw); margin: 0 auto; padding: 30px 18px 50px; border-top: 1px solid var(--line); font-family: var(--sans); font-size: 13px; color: var(--ink-faint); }
+footer.foot a { color: var(--ink-dim); }
+
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .hero h1 { font-size: 29px; }
+  .hero p { font-size: 16px; }
+  .brand { font-size: 18px; }
+  .zoom-host { height: 460px; }
+  #myth-host { height: 76vh; max-height: none; }
+  .char-grid, .crew { grid-template-columns: 1fr; }
+  .nav-goto { margin-left: 0; width: 100%; }
+}

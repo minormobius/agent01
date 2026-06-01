@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>The Book of Sand — an endless book told by seven robots named for the wandering stars</title>
+  <meta name="description" content="The Book of Sand: an endless book. Seven maintenance robots aboard the slow barque Tabard — each named for one of the seven wandering stars and bearing its medieval temperament — pass the endless night telling tales, in a medieval-oral voice, remixing the old motifs and Propp structures for laughs. Each robot publishes a full mythograph to the ship's intranet before the telling.">
+  <meta property="og:title" content="The Book of Sand — an endless book">
+  <meta property="og:description" content="Seven robots named for the seven planets tell an endless book in the medieval-oral voice, remixing the old motifs and Propp structures, and publishing a mythograph before each telling. After Borges: a book with no first page and no last.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="The Book of Sand">
+  <link rel="stylesheet" href="/css/borges.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>📖</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">📖</span>The Book of Sand</span>
+      <nav class="tabs">
+        <a class="tab" href="#prologue">The voyage</a>
+        <a class="tab" href="#crew">The seven</a>
+        <a class="tab" href="#tabard">The Tabard</a>
+        <button class="tab" id="open-random" style="background:var(--gold);color:var(--bg);border-color:var(--gold);font-weight:600">Open the book ›</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <section class="view active">
+      <div class="hero" id="prologue">
+        <h1>The Book of Sand</h1>
+        <p>An endless book. There is no first page and no last — only a number, and a tale waiting at it, the same tale for ever each time you turn there.</p>
+      </div>
+
+      <p class="prologue-intro">
+        Far out, on the long fall between two galaxies, the slow maintenance barque <em>Tabard</em> keeps its watches in the dark. Its crew are seven machines, very old, named — as the ancients named the planets — for the <strong>seven wandering stars</strong>. The night between ports is longer than any of them will say, and to pass it they do the one thing seven well-read machines left alone together will always end by doing: they tell each other stories.
+      </p>
+      <p class="prologue-intro">
+        They have every story already, every reel of it, cold in the libraries of their training — so a straight telling bores them. Instead they shake the old motifs loose and set them down in the wrong country for the joke of it, and run the bones of the plot backwards to see who notices, all while reaching for the one voice none of them was built for and all of them love: a teller in a hall at night, before the fire goes down. And because a machine is a structured thing, each one <strong>publishes a full mythograph to the ship's intranet — the Tabard — before it speaks a word</strong>: the pattern, the cast, the Propp skeleton, the motifs, posted at a permalink, blueprint before telling.
+      </p>
+
+      <h2 class="section" id="crew">The seven tellers</h2>
+      <p class="lead">Each wears the temperament the medievals hung on its planet — the humour, the alchemical metal, the office aboard ship that suits it. Tap a teller to open a tale of theirs.</p>
+      <div class="crew" id="crew-grid"></div>
+
+      <div class="tabard-board" id="tabard">
+        <h2>The Tabard</h2>
+        <p>The ship's board, where the tellers post their blueprints and where you enter the book. Turn to a page — any page — or take one at random out of the endless deck. Whatever number you turn to, the tale at it is fixed: the same teller, the same telling, for ever.</p>
+        <div class="tabard-actions">
+          <button class="nav-btn primary" id="btn-random">↻ A tale at random</button>
+          <button class="nav-btn" id="btn-first">Begin at № 1</button>
+          <span class="nav-goto">turn to № <input type="number" min="1" id="goto-input" value="1729" aria-label="Go to tale number"></span>
+        </div>
+        <div class="tabard-feed" id="feed"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span><a href="https://mino.mobi">mino.mobi</a> · the Book of Sand · borges.mino.mobi</span><br>
+    The Book of Sand is generated, not authored: a seeded, combinatorial engine, so every page number yields the same tale on any machine, for ever — which is what lets a teller post its mythograph before the telling and mean it. The apparatus (story-graph, motif index, character web, the synergistic mythograph) is the one built for the annotated medieval tales at <a href="https://read.mino.mobi/pendragon/">read.mino.mobi/pendragon</a>, run forward here as a generator instead of backward as analysis. After Jorge Luis Borges, <em>El libro de arena</em>: a book whose pages have no beginning and no end, because the sand of which it is made has neither.
+  </footer>
+
+  <script src="/js/prng.js"></script>
+  <script src="/js/tellers.js"></script>
+  <script src="/js/lexicon.js"></script>
+  <script src="/js/generate.js"></script>
+  <script>
+  (function () {
+    var B = window.BORGES, T = B.tellers, esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+    function go(n) { n = Math.max(1, Math.floor(n)); location.href = "/t/" + n; }
+    function randomN() { return 1 + Math.floor(Math.random() * 1000000); }
+
+    // The seven, in classical order
+    var grid = document.getElementById("crew-grid");
+    T.list.forEach(function (te) {
+      var card = document.createElement("a");
+      card.className = "teller-card"; card.style.setProperty("--teller", te.color); card.setAttribute("data-glyph", te.glyph);
+      card.href = "javascript:void 0"; card.style.cursor = "pointer";
+      card.innerHTML =
+        '<div class="tc-head"><span class="tc-glyph">' + te.glyph + '</span><h3>' + esc(te.name) + '</h3><span class="tc-planet">' + esc(te.planet) + '</span></div>' +
+        '<div class="tc-office">' + esc(te.office) + '</div>' +
+        '<div class="tc-meta"><span>' + esc(te.metal) + '</span><span>' + esc(te.day) + '</span><span>' + esc(te.humour.split(";")[0]) + '</span></div>' +
+        '<div class="tc-portrait">' + te.portrait + '</div>' +
+        '<div class="tc-cta"><a>Open a tale told by ' + esc(te.name) + ' ' + te.glyph + ' ›</a></div>';
+      // find a low page number whose teller is this one, for a tidy deep link
+      var target = randomN();
+      for (var k = 0; k < 64; k++) { var t = B.generate(1 + ((te.order - 1 + k * 7))); if (t.teller.id === te.id) { target = t.n; break; } }
+      card.onclick = function () { go(target); };
+      grid.appendChild(card);
+    });
+
+    // A featured deck of recent/featured page numbers — sampled, shown with their teller
+    var feed = document.getElementById("feed");
+    var seeds = [1, 7, 42, 88, 137, 256, 451, 1066, 1729, 2718, 3141, 9999];
+    seeds.forEach(function (n) {
+      var t = B.generate(n);
+      var a = document.createElement("a"); a.className = "feed-card"; a.href = "/t/" + n; a.style.setProperty("--fc", t.teller.color);
+      a.innerHTML =
+        '<div class="fc-top"><span class="fc-glyph">' + t.teller.glyph + '</span>' + esc(t.teller.name) + '<span class="fc-no">№ ' + n + '</span></div>' +
+        '<div class="fc-title">' + esc(t.title) + '</div>' +
+        '<div class="fc-sub">' + esc(t.frame.label) + ' · ' + esc(t.cultureLabel) + (t.secondaryCultureLabel ? " × " + esc(t.secondaryCultureLabel) : "") + (t.remixes.length ? ' · ' + t.remixes.length + ' shaken loose' : '') + '</div>';
+      feed.appendChild(a);
+    });
+
+    document.getElementById("btn-random").onclick = function () { go(randomN()); };
+    document.getElementById("open-random").onclick = function () { go(randomN()); };
+    document.getElementById("btn-first").onclick = function () { go(1); };
+    var gi = document.getElementById("goto-input");
+    gi.addEventListener("keydown", function (e) { if (e.key === "Enter") { var v = parseInt(gi.value, 10); if (v >= 1) go(v); } });
+  })();
+  </script>
+</body>
+</html>
