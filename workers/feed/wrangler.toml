@@ -11,9 +11,16 @@ pattern = "feed.mino.mobi"
 custom_domain = true
 
 [vars]
-FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster"
-LIKED_FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster-liked"
-PUBLISHER_DID = "did:plc:oqyev6xmuwgbtpr6jgxh5xg3"
+# Canonical feed identity is now morphyx (did:plc:yivyyp54vddf7qf2lpsikhe4).
+# The old simcluster publisher DID (did:plc:oqyev6xmuwgbtpr6jgxh5xg3) was taken
+# down; its generator records can no longer be re-published. The LEGACY_* URIs
+# are still accepted by getFeedSkeleton so existing subscribers keep getting
+# results until they re-subscribe to the new feed.
+FEED_URI = "at://did:plc:yivyyp54vddf7qf2lpsikhe4/app.bsky.feed.generator/simcluster"
+LIKED_FEED_URI = "at://did:plc:yivyyp54vddf7qf2lpsikhe4/app.bsky.feed.generator/simcluster-liked"
+PUBLISHER_DID = "did:plc:yivyyp54vddf7qf2lpsikhe4"
+LEGACY_FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster"
+LEGACY_LIKED_FEED_URI = "at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster-liked"
 HOSTNAME = "feed.mino.mobi"
 CONSTELLATION_RELAY = "https://constellation.us-east.host.bsky.network"
 BLUESKY_SEED_LIST = "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mhrbb6iqxi2g"
