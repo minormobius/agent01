@@ -62,6 +62,26 @@
     "wedding": ["The wedding at %place%", "The feast and the crowning"]
   };
 
+  // what each frame is "about" — announced in the proem, so the opening matches the plot
+  var SUBJECT = {
+    quest: "the winning of %object%",
+    bride: "how %heroine% was won by the asking",
+    calumny: "the lie at the gate, and the long penance after",
+    beheading: "the one blow, and the year between the giving and the taking",
+    descent: "the road down past the last door, and the long way back",
+    trickster: "how %object% was got by the cleverer hand",
+    dragon: "the slaying of %creature% at the water",
+    taboo: "the one thing forbidden, and the breaking of it",
+    swanmaiden: "the bride who flew, and was won a second time",
+    ogretasks: "the hard tasks set for %heroine%'s hand",
+    masterflight: "the flight out of the house of %creature%",
+    twobrothers: "the deed, and the false hand that claimed it",
+    fateddoom: "the doom laid on %hero%, and the running from it",
+    ashlad: "how the least of the hall came to the most",
+    chastitywager: "the wager laid on %heroine%, and how the lie came undone",
+    braided: "the two turnings of %hero%, the one cast and the second"
+  };
+
   function toRoman(n) { var m = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]; return m[n] || ("" + n); }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function aWord(s) { return /^[aeiou]/i.test(s) ? "an " : "a "; }
@@ -416,19 +436,28 @@
       segs.push({ e: s }); prevRef.t = s;
     }
 
+    // the subject the proem announces — tied to the frame and the rolled stakes,
+    // not a free-floating phrase, so the opening promise matches the plot.
+    var subject = fill(SUBJECT[frame.id] || "the winning of %object%", tr2);
+    function buildProem() {
+      // the opener is kept as its own clean sentence (some tellers' openers are
+      // multi-sentence declamations), so the variants can shuffle the pieces freely
+      var hp = sentence(cap(tr2.pick(HOUSE.proem)));
+      var toS = sentence(cap(tr2.pick(V.openers).replace(/^[—\s]+|[—\s]+$/g, "")));
+      var cl = primary.label, art = aWord(cl), graft = secondary ? " with the " + secondary.label + " smuggled in" : "", set = world.setting;
+      var frame1 = "This is a tale " + teller.name + " told in the watch, of " + subject + "; " + art + cl + " telling" + graft + ", " + set + ".";
+      var v = [
+        hp + " " + toS + " " + frame1,
+        "Of " + subject + ", then: " + art + cl + " tale" + graft + ", " + set + ". " + toS + " " + hp,
+        hp + " " + teller.name + " took up the watch and told of " + subject + ", " + art + cl + " telling" + graft + ", " + set + ". " + toS,
+        toS + " So " + teller.name + " told it that watch, of " + subject + ", after the " + cl + " manner" + graft + ", " + set + ". " + hp
+      ];
+      return tr2.pick(v);
+    }
     var passages = movements.map(function (mv, mvi) {
       var segs = [], prevRef = { t: null };
       // proem on the first movement
-      if (mvi === 0) {
-        var opener = tr2.pick(V.openers).replace(/^[—\s]+|[—\s]+$/g, "");
-        if (!/^I[\s']/.test(opener)) opener = opener.charAt(0).toLowerCase() + opener.slice(1); // joins after a comma; keep the pronoun "I"
-        var proem = join(
-          tr2.pick(HOUSE.proem) + ", " + opener,
-          "This is a tale " + teller.name + " told in the watch, of " + world.quest + ", " +
-            aWord(primary.label) + primary.label + " telling" + (secondary ? " with the " + secondary.label + " smuggled in" : "") + ", " + world.setting
-        );
-        segs.push({ e: proem }); prevRef.t = proem;
-      }
+      if (mvi === 0) { var proem = buildProem(); segs.push({ e: proem }); prevRef.t = proem; }
       // the beats of this movement, woven
       mv.beats.forEach(function (bi, k) {
         var move = moves[bi], text;
@@ -443,9 +472,14 @@
         }
         emit(segs, text, prevRef);
       });
-      // stray motif-flavour, with a soft lead-in so it doesn't jar
-      (motifByPassage[mv.idx] || []).forEach(function (line) {
-        if (tr2.chance(0.85)) emit(segs, tr2.pick(lex.FILL.motifLead) + " " + cap(line.replace(/^and\s+/i, "")), prevRef);
+      // stray motif-flavour, with a soft lead-in so it doesn't jar — at most two
+      // per movement, and never the same lead-in twice running
+      var drops = (motifByPassage[mv.idx] || []).slice(0, 2), lastLead = null;
+      drops.forEach(function (line) {
+        if (!tr2.chance(0.85)) return;
+        var lead; do { lead = tr2.pick(lex.FILL.motifLead); } while (lead === lastLead && lex.FILL.motifLead.length > 1);
+        lastLead = lead;
+        emit(segs, lead + " " + cap(line.replace(/^and\s+/i, "")), prevRef);
       });
       // teller signature near the climax (penultimate movement) and envoi at the end
       if (mvi === M - 2 && M > 2) segs.push({ e: sentence(tr2.pick(V.signature)) });
