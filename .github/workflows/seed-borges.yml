@@ -10,6 +10,13 @@ on:
         description: "Dry run (build + print records, no write)"
         type: boolean
         default: false
+  push:
+    branches:
+      - 'claude/pendragon-endless-book-*'
+    paths:
+      - 'borges/js/exemplar.js'
+      - 'scripts/seed-borges-tellings.mjs'
+      - '.github/workflows/seed-borges.yml'
 
 jobs:
   seed:
@@ -18,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Seed tellings
         env:
           MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
