@@ -753,7 +753,8 @@ Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/trans
 | `js/generate.js` | The engine: `n` → whole tale (teller, culture±graft, frame, cast, woven prose telling, multi-beat motifs w/ plant→payoff, flagged remixes) |
 | `js/frame.js` | The meta-story: the immortalism meditation (the 12-facet "Argument"), the 21 teller-pairs, and `interstitial(n)` — the "aboard the Tabard" card that traces a lunar-month wheel (waxing→full→waning→dark) of crew tension. Deterministic from `n`. |
 | `js/render.js` | Reader: ported read/ graph renderers + prose telling + interstitial card + Tabard spec + per-teller theming + endless nav |
-| `worker.js` | `/t/<n>` & `/tale` → `tale.html`; else assets. Pretty permalinks; uses **root-absolute** asset paths so `/t/<n>` resolves |
+| `worker.js` | `/t/<n>` & `/tale` → `tale.html`; the additive `/api/telling` live-render API (Gemini → atproto cache); else assets. Root-absolute asset paths so `/t/<n>` resolves |
+| `lexicons/telling.json` | `com.minomobi.borges.telling` record schema — the frozen live telling, cached per `n` on a service PDS |
 
 ### Pitfalls / conventions
 
@@ -761,6 +762,16 @@ Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/trans
 - **Root-absolute asset paths** in the HTML (`/css/…`, `/js/…`) — the pretty `/t/<n>` URL has a `/t/` base, so relative paths would 404.
 - The engine attaches to `globalThis` (not just `window`), so it unit-tests in plain node — see `borges/README.md`.
 - Generated tales reuse the read/ data shapes on purpose. If you change a renderer, keep parity with the read/ apparatus the user pointed at.
+
+### Live telling (optional inference layer — additive, fully guarded)
+
+On top of the canonical procedural telling, a model can **retell** a tale from the deterministic spec (the "glue"), frozen on first render so `/t/<n>` stays stable. **The site is fully functional with no inference** — every inference/atproto path is wrapped so it can never break asset serving or the procedural fallback.
+
+- **Model**: Gemini 2.5 Flash (Google AI Studio free tier), called directly from `worker.js` (no CF AI binding). `BORGES.promptFor()` in `js/generate.js` builds the retell-faithfully prompt from the procedural draft + the interstitial.
+- **Cache = atproto**: each telling is a public `com.minomobi.borges.telling` record (rkey = `n`) on a service PDS (schema `borges/lexicons/telling.json`). Reads unauthed; writes via a service-account session. First-write-wins.
+- **Worker API**: `GET /api/telling/<n>` (read cache) + `POST /api/telling` (render + putRecord), isolated from asset serving by try/catch.
+- **Secrets** (set via `wrangler secret put`, NOT in `wrangler.jsonc`, NOT committed): `GEMINI_API_KEY`, `BORGES_PDS_URL`, `BORGES_PDS_DID`, `BORGES_PDS_HANDLE`, `BORGES_PDS_PASSWORD` (app password). Until set, `/api/telling` returns "not configured" and the client never offers the live telling.
+- **Cannot be tested from the sandbox** (no Gemini/PDS network, no secrets) — verify on the deployed worker. The procedural path IS testable and is the guaranteed fallback.
 
 ---
 

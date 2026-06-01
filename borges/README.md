@@ -61,6 +61,43 @@ or a `claude/pendragon-*` branch touching `borges/**`, provisioning
 secrets beyond the shared Cloudflare credentials. The engine runs entirely in
 the browser, so a stable permalink is free and instant.
 
+## Live telling (optional inference layer)
+
+The procedural telling is canonical and always rendered. On top of it, a model
+can **retell** a tale from the deterministic spec — supplying the connective
+glue, in the teller's voice — without changing plot, cast, or the movement
+structure (so the mythograph posted before the telling still matches). The first
+rendering is **frozen** as an atproto record, so `/t/<n>` never drifts.
+
+- **Model:** Gemini 2.5 Flash (Google AI Studio free tier). The worker calls
+  `generativelanguage.googleapis.com` directly; no Cloudflare AI binding.
+- **Cache = atproto:** each telling is a public `com.minomobi.borges.telling`
+  record (rkey = `n`) on a service PDS. Reads are unauthed; writes use a service
+  account session. Schema: `lexicons/telling.json`.
+- **Prompt:** `BORGES.promptFor(tale, interstitial)` (in `js/generate.js`) hands
+  the model the procedural draft + the night's frame and asks it to retell,
+  faithfully, as strict JSON `{movements:[{title,body}]}`.
+- **Worker API** (`worker.js`, additive and fully guarded):
+  - `GET /api/telling/<n>` — read-only cache lookup (public PDS getRecord).
+  - `POST /api/telling` — render via Gemini, then putRecord (first-write-wins).
+- **Client** (`js/render.js`): reads the cache on load and swaps in the live
+  telling if present; otherwise shows a "✦ Let &lt;Teller&gt; tell it live"
+  button. Any failure (no secrets, network, model error) stays silently on the
+  procedural draft — the site is unchanged when inference is off.
+
+### Required secrets (set with `wrangler secret put`, not committed)
+
+| Secret | What |
+|--------|------|
+| `GEMINI_API_KEY` | Google AI Studio key (free, no card) |
+| `BORGES_PDS_URL` | the service account's PDS host, e.g. `https://bsky.social` |
+| `BORGES_PDS_DID` | the service account DID (for public reads) |
+| `BORGES_PDS_HANDLE` | the service account handle (for writes) |
+| `BORGES_PDS_PASSWORD` | an **app password** for the service account (writes) |
+
+Until these are set the `/api/telling` endpoints return "not configured" and the
+client never offers the live telling. No `wrangler.jsonc` change is needed.
+
 ## Testing the engine off-page
 
 ```bash

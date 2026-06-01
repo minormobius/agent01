@@ -75,6 +75,15 @@ h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
 .nav-goto input:focus { outline: none; border-color: var(--teller); }
 .page-num { font-variant-numeric: tabular-nums; color: var(--teller-soft); }
 
+/* ── The live telling (inference render) ── */
+.live-bar:empty { display: none; }
+.live-bar { margin: 12px 0 2px; }
+.live-summon { font-family: var(--sans); font-size: 13px; color: var(--ink-faint); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.live-summon .live-note { color: var(--ink-dim); }
+.live-badge { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; background: color-mix(in srgb, var(--teller) 7%, transparent); }
+.live-badge .live-model { color: var(--ink-dim); font-variant: small-caps; }
+.live-badge .live-toggle { color: var(--teller-soft); cursor: pointer; }
+
 /* ── The telling (prose reader) ── */
 .tale-meta { margin: 16px 0 4px; }
 .tale-blurb {

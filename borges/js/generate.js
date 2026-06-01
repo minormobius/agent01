@@ -560,4 +560,36 @@
   }
 
   B.generate = generate;
+
+  /* ── promptFor: the "glue" instruction. Hands a model the deterministic
+     procedural draft and asks it to RETELL — smoothing the seams, supplying the
+     connective tissue, in the teller's voice — without touching plot, cast, or
+     the movement structure. So the mythograph posted before the telling still
+     matches the telling. Returns { system, user } for a chat/instruct call. ── */
+  function stripTags(s) { return String(s || "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim(); }
+  B.promptFor = function (T, it) {
+    var teller = T.teller, voice = teller.voice || {};
+    var system = [
+      "You are " + teller.name + " (" + teller.planet + "), one of seven maintenance robots aboard the slow barque Tabard, telling tales to pass the endless night between the galaxies.",
+      "Temperament: " + teller.humour + ". Office aboard: " + teller.office + ".",
+      "You tell in the cadence of a medieval English oral storyteller in a hall at night — formulaic, plain, warm, archaic but readable. Your particular habit: " + (voice.tic || "the house voice, kept true") + ".",
+      "You are given a ROUGH procedural draft of tonight's tale, already complete in plot and cast. RETELL it as one flowing, coherent oral telling in your own voice: smooth the seams, supply the connective glue, deepen the images.",
+      "HARD RULES: keep every named character exactly as given; invent no new characters and no new events; keep the same movements in the same order; stay in the medieval-oral register; do NOT use em-dashes (—); do not mention being an AI or a model; do not address 'the reader'. Return STRICT JSON only, no prose around it."
+    ].join("\n");
+    var draft = T.tale.passages.map(function (p, i) {
+      return "MOVEMENT " + (i + 1) + " | " + stripTags(p.title) + "\n" + p.segments.map(function (s) { return stripTags(s.e); }).join(" ");
+    }).join("\n\n");
+    var user = [
+      "TALE No " + T.n + ": " + stripTags(T.title),
+      "Pattern: " + T.frame.label + ". Furniture: " + T.cultureLabel + (T.secondaryCultureLabel ? " grafted with " + T.secondaryCultureLabel : "") + ".",
+      it ? ("Tonight aboard the Tabard: " + stripTags(it.text)) : "",
+      "",
+      "THE ROUGH DRAFT — retell each movement in your voice, faithfully:",
+      draft,
+      "",
+      'Return JSON of exactly this shape and nothing else: {"movements":[{"title":"<the movement title, unchanged>","body":"<your retelling of that movement as flowing prose, two to five sentences>"}]} — one object per movement, in order.'
+    ].join("\n");
+    return { system: system, user: user, model: "gemini-2.5-flash", n: T.n,
+      meta: { teller: teller.name, title: stripTags(T.title), frame: T.frame.label } };
+  };
 })();

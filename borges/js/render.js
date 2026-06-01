@@ -77,6 +77,69 @@
       '<div class="inter-foot">' + foot + ' <a href="/#argument">the Argument of the voyage →</a></div>';
   }
 
+  /* ───────────── THE LIVE TELLING (optional inference render, cached on atproto) ─────────────
+     The procedural telling is canonical and always rendered first. If a live render
+     exists (a com.minomobi.borges.telling record), we swap it in; otherwise the
+     reader can summon one. Any failure stays silently on the procedural draft. */
+  var proceduralHTML = "";
+  function apiCall(path, opts) {
+    return fetch(path, opts).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); });
+  }
+  function setupLive() {
+    var bar = $("#live-bar"); if (!bar || typeof fetch === "undefined") return;
+    bar.innerHTML = ""; proceduralHTML = $("#telling").innerHTML;
+    apiCall("/api/telling/" + T.n).then(function (res) {
+      if (res.status === 200 && res.json && res.json.cached && res.json.telling) renderLive(res.json.telling);
+      else if (res.json && res.json.configured === false) { /* inference not set up: stay procedural, no bar */ }
+      else showSummon();
+    }).catch(function () { /* offline / error: stay procedural */ });
+  }
+  function showSummon() {
+    var bar = $("#live-bar"); bar.innerHTML = "";
+    var wrap = el("div", "live-summon");
+    wrap.appendChild(el("span", "live-note", "This telling is still " + escapeHtml(T.teller.name) + "’s rough draft. "));
+    var btn = el("button", "nav-btn", "✦ Let " + escapeHtml(T.teller.name) + " " + T.teller.glyph + " tell it live");
+    btn.onclick = function () { summon(btn); };
+    wrap.appendChild(btn); bar.appendChild(wrap);
+  }
+  function summon(btn) {
+    btn.disabled = true; btn.textContent = T.teller.name + " is telling…";
+    var pr = B.promptFor ? B.promptFor(T, B.interstitial ? B.interstitial(T.n) : null) : null;
+    if (!pr) { btn.textContent = "— cannot build the prompt"; return; }
+    apiCall("/api/telling", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
+      .then(function (res) {
+        if (res.json && res.json.telling && res.json.telling.movements && res.json.telling.movements.length) renderLive(res.json.telling);
+        else { btn.disabled = false; btn.textContent = (res.json && res.json.error) ? ("— " + res.json.error) : "— the telling did not come; try again"; }
+      }).catch(function () { btn.disabled = false; btn.textContent = "— the telling did not come; try again"; });
+  }
+  function renderLive(telling) {
+    var host = $("#telling"); host.innerHTML = "";
+    (telling.movements || []).forEach(function (mv, i) {
+      host.appendChild(el("h2", "mvt-title", escapeHtml(mv.title || ("Movement " + (i + 1)))));
+      String(mv.body || "").split(/\n\n+/).forEach(function (para, j) {
+        var pp = el("p", (i === 0 && j === 0) ? "lead-para" : null);
+        pp.innerHTML = (j === 0) ? dropCap(escapeHtml(para)) : escapeHtml(para);
+        host.appendChild(pp);
+      });
+    });
+    var bar = $("#live-bar"); bar.innerHTML = "";
+    var badge = el("div", "live-badge");
+    badge.innerHTML = "✦ told live by " + escapeHtml(telling.teller || T.teller.name) + " " + T.teller.glyph +
+      ' <span class="live-model">' + escapeHtml(telling.model || "") + "</span> · <a class=\"live-toggle\">show the procedural draft</a>";
+    bar.appendChild(badge);
+    var tg = $(".live-toggle", badge); if (tg) tg.onclick = function () { showProcedural(); };
+    window.scrollTo({ top: 0 });
+  }
+  function showProcedural() {
+    $("#telling").innerHTML = proceduralHTML;
+    var bar = $("#live-bar"); bar.innerHTML = "";
+    var note = el("div", "live-badge", "the procedural draft · <a class=\"live-toggle\">show the live telling</a>");
+    bar.appendChild(note);
+    var tg = $(".live-toggle", note); if (tg) tg.onclick = function () {
+      apiCall("/api/telling/" + T.n).then(function (res) { if (res.json && res.json.telling) renderLive(res.json.telling); else showSummon(); });
+    };
+  }
+
   /* ───────────── THE TELLING (prose reader) ───────────── */
   function dropCap(t) { return String(t).replace(/^((?:<[^>]+>)*\s*[“"'(]?\s*)(\S)/, function (m, a, b) { return a + '<span class="dropcap">' + b + '</span>'; }); }
   function renderTelling() {
@@ -578,6 +641,7 @@
     drawn = {}; // reset per-tale render caches
     renderInterstitial();
     renderTelling();
+    setupLive();
     renderNav();
     var hash = location.hash.slice(1);
     switchView(VIEWS.indexOf(hash) >= 0 ? hash : "telling");

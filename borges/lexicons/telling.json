@@ -1,0 +1,35 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.borges.telling",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A live-rendered telling of one tale from the Book of Sand (borges.mino.mobi). The tale's structure — teller, frame, cast, Propp spine, motifs — is generated deterministically from the page number n; this record holds the prose telling a model rendered from that deterministic spec, cached here so the permalink /t/<n> stays stable for ever. rkey is the page number n as a string.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["n", "teller", "movements", "model", "createdAt"],
+        "properties": {
+          "n": { "type": "integer", "minimum": 1, "description": "The page number; matches the rkey and the deterministic spec." },
+          "teller": { "type": "string", "maxLength": 64, "description": "Which of the seven told it (the planet's name)." },
+          "title": { "type": "string", "maxLength": 300 },
+          "frame": { "type": "string", "maxLength": 120, "description": "The tale-type frame label." },
+          "movements": {
+            "type": "array",
+            "description": "The telling, one entry per movement, in order.",
+            "items": {
+              "type": "object",
+              "required": ["title", "body"],
+              "properties": {
+                "title": { "type": "string", "maxLength": 200 },
+                "body": { "type": "string", "maxLength": 4000 }
+              }
+            }
+          },
+          "model": { "type": "string", "maxLength": 80, "description": "The inference model that rendered it, e.g. gemini-2.5-flash." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
