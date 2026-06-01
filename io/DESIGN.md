@@ -14,6 +14,12 @@
 
 - **Service account = @minomobi.com (shared).** `deploy-io.yml` reuses the existing `BLUESKY_HANDLE`/`BLUESKY_APP_PASSWORD` GH secrets (the post-to-bluesky main account) as the sweeper's service account, unless dedicated `ATPROTO_SERVICE_HANDLE`/`_PASSWORD` are set (those take precedence). **Implication:** swept tickets are owned by, and "tracked as…" replies come from, @minomobi.com. TODO: if we want separate branding, create a dedicated handle (e.g. `tracker.minomobi.com`) + set the `ATPROTO_SERVICE_*` secrets, and the precedence logic switches over with no code change.
 
+- **Service account migrated to morphyx (2026-06-01).** The reply bot, run during a backfill, fanned out replies across many old threads and got `minomobi.bsky.social` **taken down** (`AccountTakedown`). Fallout: `modulomino` and the feed's `simcluster` account were also taken down in the same window. `deploy-io.yml`'s service-account precedence now prefers `BLUESKY_MORPHYX_*` (atomic per-account selection — handle+password from the same account, never cross-wired). `SWEEP_REPLY` stays **off**. Added `MAX_MINTS_PER_SWEEP=10` safety valve in `runSweep` — a write burst is the likely takedown trigger, so the hourly cron now drip-mints. `/api/health` surfaces the live `serviceHandle` for diagnosis. Appeals for the three taken-down accounts are pending; modulo has since recovered (live profile, password updated — unverified for login).
+
+- **Parent-concatenation sweep (2026-06-01).** The `#atproideasio` post is almost always a *reply* tagging the tracker into a thread — the idea lives in the **parent**. `sweepPost` now hydrates the reply's parent via `app.bsky.feed.getPosts` (`getPostView` helper, authed appview proxy), uses the parent text as the idea body/title, keeps the reply as a `— tagged in:` annotation, and runs the substance check on the combined text. `source.parent` records the hydrated parent ref. Known limitation: only **one hop** — when the parent is itself a reaction, the real idea (grandparent) is missed. Acceptable; revisit if common.
+
+- **`POST /api/sweep/reset` (admin).** Clears `io_tickets` + `io_sweep_seen` so the board rebuilds from scratch under current logic (used for the parent-concat rebuild — old tickets minted on the dead simcluster DID couldn't be enriched in place). Does not touch PDS records. Like all admin routes, **open when no `ADMIN_KEY` is set** — see §9.3.
+
 **Admin routes are open by default (no key needed).** `isAdmin()` returns true
 when no `ADMIN_KEY` is set on the worker — the admin routes are low-stakes
 (`/api/sweep/run` + `/api/index/refresh` are idempotent re-scans; `/api/triage`
@@ -633,6 +639,68 @@ Not built now; phases 1–3 build toward it. Sketch so the data shape is right:
 
 Open design points deferred: how to bound/scope the nightly agent safely,
 human-in-the-loop gating before merge, and cost caps. Flagged here, not solved.
+
+### 9.1 Triage automation (the step before dispatch) — strategy
+
+Manual triage (2026-06-01) validated the pipeline and surfaced the rules an
+automated triager needs to encode. The board went 116→53 tickets after the
+parent-concatenation rebuild; hand-triage split it ~26 buildable / ~27 noise.
+The patterns are consistent enough to automate. Two-stage design:
+
+**Stage A — deterministic pre-filter (cheap, no model).** Runs in `worker.js`,
+folded into the existing sweep/index cron. Auto-routes the obvious cases so the
+model only sees genuine ideas:
+- → `wontfix`: combined (parent+reply) text < ~12 non-tag chars; pure reactions
+  (`it's beautiful`, `this amused me`, `real hours`); known bot posts (the
+  "#Top10 trending hashtags" account); exact-duplicate bodies (dedup by
+  normalized text hash — the board had 3× "there's an #atproideasio down there"
+  and 2× "are.na for tweets"); meta-commentary about the tracker itself.
+- → leave `new` for the model: everything else.
+This is just a tightening of the substance check already in `sweepPost`; lift
+the same predicates into a shared `classifyNoise(text)` and apply at mint time
+so noise never reaches `new`.
+
+**Stage B — model triage (Workers AI, cheap model).** A new admin route
+`POST /api/triage/auto` iterates `status='new'` tickets and, per ticket, asks a
+small instruct model (e.g. `@cf/meta/llama-3.1-8b-instruct`, already used by
+rite) for a strict-JSON verdict:
+```json
+{ "decision": "triaged|wontfix", "kind": "bug|feature|idea",
+  "severity": "low|med|high|null", "repo": "minormobius/agent01|null",
+  "site": "poll.mino.mobi|null", "effort": "S|M|L|XL",
+  "summary": "one-line actionable restatement", "rationale": "≤140 chars" }
+```
+Worker applies the verdict via the existing triage UPDATE path. `summary` lands
+in a new `triage_note` column (board-owned, never written to PDS — same rule as
+`status`). The model never writes to ATProto; it only grades D1 rows.
+
+**Why two stages:** Stage A removes ~half the volume for free and keeps the
+model's input clean (the noise is *mechanically* detectable — fragments, dups,
+bots — so spending tokens on it is waste). Stage B handles the judgment calls
+(is "atproto autobattler w/ microtransactions" buildable here? what repo?).
+
+**Idempotency / safety:** auto-triage only touches `status='new'` (never
+overrides a human's `triaged`/`wontfix`/`done`). `repo`-scoping is advisory at
+this stage — a ticket the model can't map to a repo stays `triaged` with
+`repo=null` and is simply not eligible for §9.2 dispatch. Cap per run (mirror
+`MAX_MINTS_PER_SWEEP`) so a flood can't burn Workers-AI neurons.
+
+### 9.2 Dispatch + execute (the original §9 sketch, now downstream of 9.1)
+
+Dispatch consumes the *output* of 9.1: only `status='triaged' AND
+repo='minormobius/agent01' AND effort∈{S,M}` tickets are dispatch-eligible
+(start conservative — small, single-repo, model-vetted work). The rest of §9's
+workflow (per-ticket branch, PR, merge→`done`) stands. Gating before merge stays
+human for now; revisit once the triager's precision is measured against a few
+nights of real output.
+
+### 9.3 Prerequisite: lock the admin surface
+
+Triage + reset + auto-triage all run through `isAdmin()`, which is **open when
+no `ADMIN_KEY` is set** (worker.js). Before any of this runs unattended, set the
+`IO_ADMIN_KEY` repo secret (deploy-io maps it → worker `ADMIN_KEY`) so the cron
+dispatch authenticates with `X-Admin-Key` and the public can't re-triage the
+board. This is the one hard blocker on automating triage.
 
 ---
 
