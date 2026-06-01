@@ -84,20 +84,27 @@
      exists (a com.minomobi.borges.telling record), we swap it in; otherwise the
      reader can summon one. Any failure stays silently on the procedural draft. */
   var proceduralHTML = "";
+  // the service account whose repo holds the frozen tellings (resolved once, public).
+  // Reads are unauthed and CORS-open, so the book pulls its own records directly.
+  var TELLING = "com.minomobi.borges.telling", BANTER = "com.minomobi.borges.banter";
+  var SERVICE = { did: "did:plc:yivyyp54vddf7qf2lpsikhe4", pds: "https://chalciporus.us-west.host.bsky.network" };
   function apiCall(path, opts) {
     return fetch(path, opts).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); });
+  }
+  function pullRecord(collection, n) {
+    if (typeof fetch === "undefined") return Promise.resolve(null);
+    var u = SERVICE.pds + "/xrpc/com.atproto.repo.getRecord?repo=" + encodeURIComponent(SERVICE.did) + "&collection=" + collection + "&rkey=" + n;
+    return fetch(u).then(function (r) { return r.status === 200 ? r.json().then(function (j) { return j.value || null; }) : null; }).catch(function () { return null; });
   }
   function setupLive() {
     var bar = $("#live-bar"); if (!bar) return;
     bar.innerHTML = ""; proceduralHTML = $("#telling").innerHTML;
-    // tale № 1 ships with a hand-authored telling — the canonical first page
-    if (T.n === 1 && B.exemplar) { renderLive(B.exemplar); return; }
-    if (typeof fetch === "undefined") return;
-    apiCall("/api/telling/" + T.n).then(function (res) {
-      if (res.status === 200 && res.json && res.json.cached && res.json.record) renderLive(res.json.record);
-      else if (res.json && res.json.configured === false) { /* inference not set up: stay procedural, no bar */ }
-      else showSummon();
-    }).catch(function () { /* offline / error: stay procedural */ });
+    if (typeof fetch === "undefined") { if (T.n === 1 && B.exemplar) renderLive(B.exemplar); return; }
+    pullRecord(TELLING, T.n).then(function (rec) {
+      if (rec && rec.movements && rec.movements.length) renderLive(rec);   // the book reads its own atproto record
+      else if (T.n === 1 && B.exemplar) renderLive(B.exemplar);            // hand-authored fallback before seeding
+      else showSummon();                                                   // offer to summon (worker → Gemini → atproto)
+    });
   }
   function showSummon() {
     var bar = $("#live-bar"); bar.innerHTML = "";
@@ -154,11 +161,10 @@
   function setupBanter() {
     var bar = $("#banter-bar"); if (!bar || typeof fetch === "undefined" || !B.promptForBanter) return;
     bar.innerHTML = "";
-    apiCall("/api/banter/" + T.n).then(function (res) {
-      if (res.status === 200 && res.json && res.json.cached && res.json.record) renderBanter(res.json.record);
-      else if (res.json && res.json.configured === false) { /* not set up: nothing */ }
+    pullRecord(BANTER, T.n).then(function (rec) {
+      if (rec && rec.lines && rec.lines.length) renderBanter(rec); // pulled from atproto
       else showBanterSummon();
-    }).catch(function () { });
+    });
   }
   function showBanterSummon() {
     var bar = $("#banter-bar"); bar.innerHTML = "";
