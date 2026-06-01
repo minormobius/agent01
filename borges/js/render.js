@@ -88,8 +88,11 @@
     return fetch(path, opts).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); });
   }
   function setupLive() {
-    var bar = $("#live-bar"); if (!bar || typeof fetch === "undefined") return;
+    var bar = $("#live-bar"); if (!bar) return;
     bar.innerHTML = ""; proceduralHTML = $("#telling").innerHTML;
+    // tale № 1 ships with a hand-authored telling — the canonical first page
+    if (T.n === 1 && B.exemplar) { renderLive(B.exemplar); return; }
+    if (typeof fetch === "undefined") return;
     apiCall("/api/telling/" + T.n).then(function (res) {
       if (res.status === 200 && res.json && res.json.cached && res.json.telling) renderLive(res.json.telling);
       else if (res.json && res.json.configured === false) { /* inference not set up: stay procedural, no bar */ }
