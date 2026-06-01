@@ -313,6 +313,16 @@ svg.myth line.hot { stroke-opacity: 0.95 !important; stroke-width: 2.4 !importan
 .conf-med { color: var(--ink-dim); }
 .conf-spec { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); font-style: italic; }
 
+/* ── Desire (Greimas actantial diagram) ── */
+.desire-host { height: 420px; max-height: 70vh; display: flex; align-items: center; justify-content: center; }
+.desire-host svg.desire { width: 100%; height: 100%; }
+svg.desire .desire-role { font-family: var(--sans); font-size: 10px; letter-spacing: 0.08em; }
+svg.desire .desire-name { font-family: var(--serif); font-size: 13.5px; fill: var(--ink); }
+svg.desire .desire-axis { font-family: var(--sans); font-size: 11px; fill: var(--ink-faint); font-style: italic; letter-spacing: 0.03em; }
+#desire-prose { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--teller); border-radius: 10px; padding: 14px 17px; margin-top: 14px; }
+.spec-desire { font-family: var(--sans); font-size: 13.5px; color: var(--ink-dim); margin: 14px 0 4px; }
+.spec-desire .desire-link { color: var(--teller-soft); cursor: pointer; }
+
 /* ── Character cards ── */
 .char-legend { display: flex; flex-wrap: wrap; gap: 14px; font-family: var(--sans); font-size: 12px; color: var(--ink-dim); margin: 14px 0 6px; }
 .char-legend .li { display: inline-flex; align-items: center; gap: 6px; }

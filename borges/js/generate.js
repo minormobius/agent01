@@ -84,6 +84,28 @@
 
   var PRON = { male: { s: "he", o: "him", p: "his" }, female: { s: "she", o: "her", p: "her" } };
 
+  // Greimas actantial model: per frame, what the Subject desires (the Object), the
+  // value it stands for, and what kind of force opposes. The rest of the actants
+  // (Sender, Receiver, Helper, Opponent) are read off the rolled cast.
+  var DESIRE = {
+    quest: { object: "%object%", value: "the made-whole: what was lost, restored", opp: "villain" },
+    bride: { object: "%heroine%", value: "union, and the line continued", opp: "villain" },
+    calumny: { object: "the cleared name", value: "the truth, against a settled lie", opp: "lie" },
+    beheading: { object: "the word kept", value: "the spoken word as a binding thing", opp: "villain" },
+    descent: { object: "the one taken back", value: "recovery, up out of the dark", opp: "villain" },
+    trickster: { object: "%object%", value: "wit over force; the world rebalanced", opp: "villain" },
+    dragon: { object: "the freed land", value: "order set over the monstrous", opp: "creature" },
+    taboo: { object: "the harmony restored", value: "the limit honoured, or paid for", opp: "fate" },
+    swanmaiden: { object: "%heroine%", value: "the loved thing, lost and won a second time", opp: "fate" },
+    ogretasks: { object: "%heroine%", value: "union won past the impossible", opp: "villain" },
+    masterflight: { object: "the way out", value: "freedom taken from the keeper", opp: "villain" },
+    twobrothers: { object: "the deed acknowledged", value: "the true set above the false", opp: "false" },
+    fateddoom: { object: "escape from the fixed hour", value: "the limit itself: desired against, never reached", opp: "fate" },
+    ashlad: { object: "the rightful place", value: "the least of the hall raised to the most", opp: "villain" },
+    chastitywager: { object: "the cleared name", value: "faith proved against the wager", opp: "lie" },
+    braided: { object: "the ends of both trials", value: "the wheel of trial, turned twice over", opp: "villain" }
+  };
+
   function toRoman(n) { var m = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]; return m[n] || ("" + n); }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function aWord(s) { return /^[aeiou]/i.test(s) ? "an " : "a "; }
@@ -391,6 +413,25 @@
     var motifByPassage = {};
     drops.forEach(function (d) { (motifByPassage[d.mvt] = motifByPassage[d.mvt] || []).push(d); });
 
+    // Parry–Lord themes: find movements whose beats touch a theme's triggers,
+    // pick one or two to EXPAND, and stage the set-piece at the head of that movement.
+    var themeByPassage = {}, deployedThemes = [];
+    (function () {
+      var fnByMvt = {}; moves.forEach(function (mv) { (fnByMvt[mv.passage] = fnByMvt[mv.passage] || {})[mv.id] = true; });
+      var cands = [];
+      lex.THEMES.forEach(function (th) {
+        for (var i = 1; i <= M; i++) { if (th.triggers.some(function (t) { return fnByMvt[i] && fnByMvt[i][t]; })) { cands.push({ th: th, mvt: i }); break; } }
+      });
+      var thr = rand.fork("themes");
+      var want = Math.min(cands.length, thr.int(1, 2));
+      thr.sample(cands, want).forEach(function (c) {
+        if (themeByPassage[c.mvt]) return; // one set-piece per movement
+        themeByPassage[c.mvt] = c.th;
+        deployedThemes.push({ id: c.th.id, label: c.th.label, note: c.th.note, mvt: c.mvt });
+      });
+      deployedThemes.sort(function (a, b) { return a.mvt - b.mvt; });
+    })();
+
     // tale-wide transition state
     var lastConn = null;
     function pickConn() { var c, t = 0; do { c = tr2.pick(HOUSE.connect); t++; } while (c === lastConn && t < 6); lastConn = c; return c; }
@@ -493,6 +534,8 @@
       var segs = [], prevRef = { t: null, subj: null, pron: false };
       // proem on the first movement
       if (mvi === 0) { var proem = buildProem(); segs.push({ e: proem }); prevRef.t = proem; }
+      // an oral set-piece, if this movement expands a theme — staged before the beats
+      if (themeByPassage[mv.idx]) emit(segs, fill(themeByPassage[mv.idx].expand, tr2), prevRef);
       // the beats of this movement, woven
       mv.beats.forEach(function (bi, k) {
         var move = moves[bi], text;
@@ -535,6 +578,26 @@
       return { title: mv.title, act: mv.act, segments: segs };
     });
 
+    // ── the actantial reading (Greimas): the axis of desire, read off cast + frame ──
+    var dz = DESIRE[frame.id] || { object: "%object%", value: "the thing desired", opp: "villain" };
+    function oppName(kind) {
+      if (kind === "fate") return frame.id === "fateddoom" ? "the fixed hour" : "the unyielding turn of things";
+      if (kind === "lie") return byRole["false"] ? byRole["false"].name + "'s lie" : "the settled lie";
+      if (kind === "creature") return world.creature;
+      if (kind === "false" && byRole["false"]) return byRole["false"].name;
+      return byRole.villain ? byRole.villain.name : world.creature;
+    }
+    var actant = {
+      subject: byRole.hero ? byRole.hero.name : "the hero",
+      object: fill(dz.object, rand.fork("actant")),
+      value: dz.value,
+      sender: byRole.dispatcher ? byRole.dispatcher.name : (byRole.elder ? byRole.elder.name : "the lack itself"),
+      receiver: (byRole.hero ? byRole.hero.name : "the hero") + ", and " + world.place,
+      helpers: [byRole.donor, byRole.helper].filter(Boolean).map(function (c) { return c.name; }),
+      opponent: oppName(dz.opp),
+      unreachable: dz.opp === "fate" // the tragic signature: the desire structurally cannot reach its object
+    };
+
     var tale = {
       meta: {
         blurb: "<strong>" + escapeAttr(title) + "</strong> — tale № " + n + " of the Book of Sand, told by <strong>" + teller.name + " " + teller.glyph + "</strong>, " + teller.office.toLowerCase() + " of the slow barque <em>Tabard</em>. The pattern is <strong>" + frame.label + "</strong>; the furniture is " + primary.label + (secondary ? " grafted with " + secondary.label : "") + "; the voice reaches, as all seven reach, for a teller in a hall at night. The robot posted its mythograph to the Tabard before it spoke — you can read the blueprint in the Story-graph, Motifs, Cast and Mythograph tabs. What follows is the telling."
@@ -549,6 +612,7 @@
       title: title, kicker: kicker,
       world: world, remixes: remixes,
       tale: tale, characters: characters, propp: propp, motifs: motifs,
+      actant: actant, themes: deployedThemes,
       movementCount: M
     };
   }

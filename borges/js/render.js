@@ -191,8 +191,70 @@
       skel.appendChild(chip);
     });
     host.appendChild(skel);
-    host.appendChild(el("p", "tree-hint", "Each beat is a Propp function; violet beats marked ↻ are the ones " + escapeHtml(T.teller.name) + " ran backwards for the joke of it. The full apparatus — story-graph, motif index, cast, character web, and the synergistic mythograph — is what this blueprint expands into across the other tabs."));
+
+    if (T.themes && T.themes.length) {
+      host.appendChild(el("div", "k", '<span style="font-family:var(--sans);font-size:10.5px;letter-spacing:.07em;color:var(--ink-faint);text-transform:uppercase">Oral set-pieces to expand</span>'));
+      var ths = el("div", "skel");
+      T.themes.forEach(function (th) { var c = el("span", "skel-beat"); c.innerHTML = escapeHtml(th.label); c.title = th.note; ths.appendChild(c); });
+      host.appendChild(ths);
+    }
+    if (T.actant) {
+      var dz = el("p", "spec-desire");
+      dz.innerHTML = "<strong>" + escapeHtml(T.actant.subject) + "</strong> desires <strong>" + escapeHtml(T.actant.object) + "</strong> — beneath the plot, <em>" + escapeHtml(T.actant.value) + "</em>. <a class=\"desire-link\">the axis of desire →</a>";
+      host.appendChild(dz);
+      var dl = $(".desire-link", dz); if (dl) dl.onclick = function () { switchView("desire"); };
+    }
+    host.appendChild(el("p", "tree-hint", "Each beat is a Propp function; violet beats marked ↻ are the ones " + escapeHtml(T.teller.name) + " ran backwards for the joke of it. The full apparatus — story-graph, motif index, cast, character web, the axis of desire, and the synergistic mythograph — is what this blueprint expands into across the other tabs."));
   }
+
+  /* ───────────── DESIRE (Greimas actantial model) ───────────── */
+  function renderDesire() {
+    var A = T.actant; if (!A) return;
+    $("#desire-intro").innerHTML = "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who sets it moving toward a Receiver, and a Helper and an Opponent who aid and block the wanting. Here is tonight's, read off the cast.";
+    var W = 760, H = 380, NW = 188, NH = 62;
+    var pos = {
+      sender: { x: 130, y: 78 }, object: { x: 380, y: 78 }, receiver: { x: 630, y: 78 },
+      helper: { x: 130, y: 300 }, subject: { x: 380, y: 300 }, opponent: { x: 630, y: 300 }
+    };
+    var label = {
+      sender: ["Sender", A.sender], object: ["Object", A.object], receiver: ["Receiver", A.receiver],
+      helper: ["Helper", A.helpers.length ? A.helpers.join(", ") : "(none on the road)"], subject: ["Subject", A.subject], opponent: ["Opponent", A.opponent]
+    };
+    var svg = svgEl("svg", { class: "desire", viewBox: "0 0 " + W + " " + H, preserveAspectRatio: "xMidYMid meet" });
+    var defs = svgEl("defs"); var mk = svgEl("marker", { id: "dar", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+    mk.appendChild(svgEl("path", { d: "M0 0 L10 5 L0 10 z", fill: "#8a7f6b" })); defs.appendChild(mk); svg.appendChild(defs);
+    function edge(a, b, dashed) {
+      var A1 = pos[a], B1 = pos[b]; var x1 = A1.x, y1 = A1.y, x2 = B1.x, y2 = B1.y;
+      if (y1 === y2) { var d = x2 > x1 ? 1 : -1; x1 += d * NW / 2; x2 -= d * NW / 2; }
+      else { var dy = y2 > y1 ? 1 : -1; y1 += dy * NH / 2; y2 -= dy * NH / 2; }
+      svg.appendChild(svgEl("line", { x1: x1, y1: y1, x2: x2, y2: y2, stroke: "#8a7f6b", "stroke-width": 1.6, "stroke-dasharray": dashed ? "6 5" : "0", "marker-end": "url(#dar)" }));
+    }
+    edge("sender", "object"); edge("object", "receiver");
+    edge("helper", "subject"); edge("opponent", "subject");
+    edge("subject", "object", A.unreachable); // the desire arrow — dashed when it cannot reach
+    // axis labels
+    svg.appendChild(txt(W / 2, 30, "the axis of transmission", "desire-axis"));
+    svg.appendChild(txt(W - 150, H / 2, A.unreachable ? "desire (it cannot reach)" : "the axis of desire", "desire-axis"));
+    svg.appendChild(txt(W / 2, H - 14, "the axis of power", "desire-axis"));
+    Object.keys(pos).forEach(function (k) {
+      var p = pos[k], col = k === "subject" ? "#d6a93f" : k === "object" ? "#c98aa6" : k === "opponent" ? "#c25b4a" : "#6fa8c9";
+      var g = svgEl("g");
+      g.appendChild(svgEl("rect", { x: p.x - NW / 2, y: p.y - NH / 2, width: NW, height: NH, rx: 9, fill: col, "fill-opacity": 0.14, stroke: col, "stroke-width": 1.5 }));
+      g.appendChild(txt(p.x, p.y - 11, label[k][0].toUpperCase(), "desire-role", col));
+      var nm = label[k][1]; if (nm.length > 26) nm = nm.slice(0, 25).replace(/\s\S*$/, "") + "…";
+      g.appendChild(txt(p.x, p.y + 10, nm, "desire-name"));
+      svg.appendChild(g);
+    });
+    var host = $("#desire-host"); host.innerHTML = ""; host.appendChild(svg);
+    var pr = $("#desire-prose");
+    var s = "<strong>" + escapeHtml(A.subject) + "</strong> desires <strong>" + escapeHtml(A.object) + "</strong> — which is, beneath the plot, <em>" + escapeHtml(A.value) + "</em>. " +
+      "It is set in motion by <strong>" + escapeHtml(A.sender) + "</strong>, for <strong>" + escapeHtml(A.receiver) + "</strong>. " +
+      (A.helpers.length ? "<strong>" + escapeHtml(A.helpers.join(" and ")) + "</strong> aid the wanting; " : "No helper aids the wanting; ") +
+      "<strong>" + escapeHtml(A.opponent) + "</strong> stands against it.";
+    if (A.unreachable) s += " And here is the tragic shape, written in the actants: the Object <em>is</em> escape from the Opponent — so the arrow of desire points at the one thing it can never reach. A wheel, not an arc; the want with no liquidation.";
+    pr.innerHTML = s;
+  }
+  function txt(x, y, s, cls, fill) { var t = svgEl("text", { x: x, y: y, "text-anchor": "middle", class: cls }); if (fill) t.setAttribute("fill", fill); t.textContent = s; return t; }
 
   /* ───────────── CHARACTERS ───────────── */
   function renderCharacters() {
@@ -559,7 +621,7 @@
   }
 
   /* ───────────── VIEW SWITCHING ───────────── */
-  var VIEWS = ["telling", "tabard", "characters", "web", "propp", "motifs", "myth"];
+  var VIEWS = ["telling", "tabard", "desire", "characters", "web", "propp", "motifs", "myth"];
   var drawn = {};
   var current = "telling";
   function switchView(v) {
@@ -568,6 +630,7 @@
     VIEWS.forEach(function (x) { var n = $("#view-" + x); if (n) n.classList.toggle("active", x === v); });
     Array.prototype.forEach.call($("#tabs").children, function (b) { b.classList.toggle("active", b.dataset.view === v); });
     if (v === "tabard" && !drawn.tabard) { renderTabard(); drawn.tabard = true; }
+    if (v === "desire" && !drawn.desire) { renderDesire(); drawn.desire = true; }
     if (v === "characters" && !drawn.characters) { renderCharacters(); drawn.characters = true; }
     if (v === "web" && !drawn.web) { renderWeb(); drawn.web = true; }
     if (v === "propp" && !drawn.propp) { renderPropp(); drawn.propp = true; }

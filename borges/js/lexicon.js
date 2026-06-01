@@ -525,6 +525,34 @@
     payLead: ["And so it came due:", "And so it fell out, as was promised:", "And the planted thing bore its fruit:", "And then, just as the first hour swore:", "And the debt was paid at the last:", "And the early word kept itself:", "And so the seed of it came up:"]
   };
 
+  /* ───────────────────────── THEMES (Parry–Lord) ─────────────────────────
+     Oral-formulaic *themes*: the recurrent set-pieces a singer composes with,
+     larger than a formula and smaller than the song — the arming, the feast,
+     the boast, the lament, the raising of the mound. A movement whose beats
+     touch a theme's `triggers` can EXPAND it: the telling swells into the
+     set-piece, the way oral epic fills its own performance time. Distinct from
+     motifs (flat flavour-atoms): a theme is a staged scene with its own order. */
+  var THEMES = [
+    { id: "arming", label: "the arming of the hero", note: "Homeric type-scene: the gear taken up in fixed order before the man is spent.", triggers: ["struggle", "departure"],
+      expand: "And first %hero% took up the helm, and then the ringed shirt, and then the blade that had a name, and last the shield; and so was made ready piece by piece, the way the old tellings always arm a man before they spend him." },
+    { id: "feast", label: "the feast in hall", note: "The hall-feast set-piece: the boards, the cup, the harper, the seating by rank.", triggers: ["wedding", "first-function", "recognition"],
+      expand: "The long boards were set and groaned with it, and the cup went sunwise round, and the harper had the high seat, and every soul was placed by rank, which in a tale is never once an idle matter." },
+    { id: "boast", label: "the boasting (flyting)", note: "The flyting: half the war fought in words at the meeting.", triggers: ["struggle", "trickery"],
+      expand: "Then came the boasting, each naming his line and his deeds and what his hand would do to the other, for among such folk half the war is fought in words before ever a blade is drawn." },
+    { id: "lament", label: "the lament", note: "The grief-cry raised over the irrevocable.", triggers: ["absentation", "villainy", "branding"],
+      expand: "And a keening went up then, the old grief-cry, from the hall to the gate to the grey lip of the sea, raised for the thing that had been done and would not be undone." },
+    { id: "council", label: "the council in hall", note: "The assembly type-scene: the folk in their orders, the matter laid in the middle.", triggers: ["mediation"],
+      expand: "The folk were called and sat in their orders, and the matter was set in the middle of them, and each spoke who had the right to speak, and the speaking was long and the deciding longer." },
+    { id: "voyage", label: "the sea-road", note: "The launching set-piece: keel to water, the salt road out of sight of land.", triggers: ["departure", "guidance"],
+      expand: "They ran the keel down to the water and shipped the long oars, and the salt road took them out, days and days from the sight of any land, the way the sea-tellings always go." },
+    { id: "threshold", label: "the crossing", note: "The threshold-scene: the hero at the line between the worlds.", triggers: ["guidance"],
+      expand: "At the very edge of it %hero% stood, where the one world stops and the other begins, and went over; for the crossing of that line is the whole of what a hero is for." },
+    { id: "mound", label: "the raising of the mound", note: "The burial set-piece: the howe raised high, the deeds laid in over the bones.", triggers: ["branding", "punishment"],
+      expand: "They raised the mound high and broad, to be seen far off by folk on the water, and laid the deeds in over the bones; for that is the only deathlessness the old tales will grant their mortals." },
+    { id: "supplication", label: "the supplication", note: "The suppliant at the knees, asking by the holy thing.", triggers: ["donor", "villainy"],
+      expand: "Then there was a going-down to the knees and a clasping of them, and the holy name was named in the asking; for a suppliant cannot be turned away without a cost that comes due later." }
+  ];
+
   B.lex = {
     CULTURES: CULTURES,
     ROLES: ROLES,
@@ -532,6 +560,7 @@
     TALETYPES: TALETYPES,
     MOTIFS: MOTIFS, MOTIF_BY_CODE: MOTIF_BY_CODE, MOTIF_BEATS: MOTIF_BEATS,
     MOTIF_CLASSES: MOTIF_CLASSES, MOTIF_CLASS_ORDER: MOTIF_CLASS_ORDER,
+    THEMES: THEMES,
     FILL: FILL
   };
 })();

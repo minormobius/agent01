@@ -748,7 +748,7 @@ Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/trans
 | File | Role |
 |------|------|
 | `index.html` | General Prologue: the voyage, the seven-teller gallery, the Tabard board (entry) |
-| `tale.html` | Per-tale reader — 7 tabs: Telling / the Tabard (spec) / Cast / Character web / Story graph / Motifs / Mythograph |
+| `tale.html` | Per-tale reader — 8 tabs: Telling / the Tabard (spec) / Desire (Greimas actantial diagram) / Cast / Character web / Story graph / Motifs / Mythograph. The telling also expands Parry–Lord oral set-pieces (`lexicon.js` THEMES: the arming, the feast, the lament…), listed in the Tabard spec |
 | `js/lexicon.js` | Culture packs (12 cross-cultural wardrobes), Propp function library w/ oral realize-templates + `invert` variants, tale-type frames, Thompson motif atoms, archetype roles |
 | `js/generate.js` | The engine: `n` → whole tale (teller, culture±graft, frame, cast, woven prose telling, multi-beat motifs w/ plant→payoff, flagged remixes) |
 | `js/frame.js` | The meta-story: the immortalism meditation (the 12-facet "Argument"), the 21 teller-pairs, `interstitial(n)` (the "aboard the Tabard" card that traces a lunar-month wheel — waxing→full→waning→dark — of crew tension, perspective-aware when the night's teller is in the foregrounded pair), and the **meta-mythograph**: `FRAME_PROPP` (the frame's own Propp cycle — looping, with Transfiguration/Wedding/Death forbidden) + `FRAME_MOTIFS` (folklore classes in the immortalist register, mostly inversions). Each watch "nibbles" one frame beat (`frameBeat`). Deterministic from `n`. |
