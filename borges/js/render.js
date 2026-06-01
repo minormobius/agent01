@@ -499,6 +499,16 @@
   }
 
   /* ───────────── jump handlers ───────────── */
+  // tab clicks → switch view (delegated, so it works regardless of when boot runs)
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest && ev.target.closest(".tab[data-view]");
+    if (b) { ev.preventDefault(); switchView(b.getAttribute("data-view")); }
+  });
+  // deep-link / back-forward to a specific tab via the hash
+  window.addEventListener("hashchange", function () {
+    var v = location.hash.slice(1);
+    if (VIEWS.indexOf(v) >= 0 && v !== current) switchView(v);
+  });
   document.addEventListener("click", function (ev) {
     var a = ev.target.closest && ev.target.closest("a[data-passage]");
     if (a) { ev.preventDefault(); switchView("telling"); var h = document.getElementById("mvt-" + a.getAttribute("data-passage")); if (h) setTimeout(function () { h.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); }
