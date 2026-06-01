@@ -330,16 +330,15 @@
     // spliced in at their first mention. (Telling only — the story-graph stays clean.)
     var introduced = { hero: true };
     function introClause(c) {
-      var ep = c.epithet ? ", " + c.epithet : "";
       switch (c.role) {
-        case "heroine": return "the one the whole tale turns on" + ep;
-        case "villain": return "the worker of the harm to come" + ep;
-        case "donor": return "who keeps the road and asks its toll" + ep;
-        case "helper": return "a friend at the worst hour" + ep;
-        case "dispatcher": return "who would bring the word that started it" + ep;
-        case "false": return "who claims a deed he never did" + ep;
-        case "elder": return "the old " + world.honorific + " of " + world.place + ep;
-        default: return c.epithet || "of the tale";
+        case "heroine": return "the one the tale turns on";
+        case "villain": return "the worker of the harm to come";
+        case "donor": return "the keeper of the road";
+        case "helper": return "a friend at the worst hour";
+        case "dispatcher": return "the bringer of the word";
+        case "false": return "the false claimant to come";
+        case "elder": return "the old " + world.honorific + " of " + world.place;
+        default: return "one of the tale";
       }
     }
     function standaloneIdx(text, name) {
@@ -360,8 +359,10 @@
         introduced[c.id] = true;
         var at = i + c.name.length;
         var tail = text.slice(at);
-        if (tail.charAt(0) === ",") tail = tail.slice(1); // avoid "— ," when the name was already followed by a comma
-        text = text.slice(0, at) + " — " + introClause(c) + " —" + tail;
+        if (tail.charAt(0) === ",") tail = tail.slice(1); // the name already had a comma; don't double it
+        var sep = /^[.;:!?]/.test(tail) ? "" : ","; // name at a clause/sentence end: close the appositive with the existing stop
+        var ep = c.epithet ? " " + c.epithet : "";
+        text = text.slice(0, at) + ep + ", " + introClause(c) + sep + tail;
       });
       return text;
     }
@@ -375,8 +376,10 @@
       var segs = [], prevRef = { t: null };
       // proem on the first movement
       if (mvi === 0) {
+        var opener = tr2.pick(V.openers).replace(/^[—\s]+|[—\s]+$/g, "");
+        if (!/^I[\s']/.test(opener)) opener = opener.charAt(0).toLowerCase() + opener.slice(1); // joins after a comma; keep the pronoun "I"
         var proem = join(
-          tr2.pick(HOUSE.proem) + " — " + stripPunct(tr2.pick(V.openers)),
+          tr2.pick(HOUSE.proem) + ", " + opener,
           "This is a tale " + teller.name + " told in the watch, of " + world.quest + ", " +
             aWord(primary.label) + primary.label + " telling" + (secondary ? " with the " + secondary.label + " smuggled in" : "") + ", " + world.setting
         );

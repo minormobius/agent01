@@ -31,7 +31,7 @@
   var HOUSE = {
     proem: [
       "Hearken now, and ye shall hear a marvel",
-      "Listen, lordlings — though there be no lords here but the long dark",
+      "Listen, lordlings, though there be no lords here but the long dark",
       "Whoso list to hear a wonder, draw near the lamp",
       "In the elder days, or so the old reels have it",
       "Now fares my tale, as a tale was wont to fare in the halls of the dead world",
@@ -81,7 +81,7 @@
       portrait: "Silver-cased and slow-blinking, Luna is the unit that plots the dark between the lights. She speaks the way water moves over a weir — soft, doubling back, forgetting the start of a sentence by its end and finding a better one. She tells of changes and of mothers, of the sea and of madness, of things lost at the full and found at the wane; and she will swear two opposite endings in one breath and mean them both.",
       voice: {
         openers: ["or so I dreamed it", "as the tide had it that turning", "in a month I cannot name now", "or the wane of it, I forget which", "as the dream-log half-keeps it"],
-        connect: ["And then — no, before that.", "Now, in the waning of it.", "And it changed, as all things change.", "The tide turned about then.", "And it came round again, the way it does.", "Now in the dark of the moon.", "And the dream went on, or I did.", "Then — and this part I am sure of, almost."],
+        connect: ["And then, no, before that.", "Now, in the waning of it.", "And it changed, as all things change.", "The tide turned about then.", "And it came round again, the way it does.", "Now in the dark of the moon.", "And the dream went on, or I did.", "Then, and this part I am sure of, almost."],
         signature: ["and the sea took back what the land had borrowed", "and she was not the same woman at the wane as at the full", "and the water remembered it longer than the shore did"],
         close: ["and I have told it twice already and shall tell it otherwise next month", "and whether she woke, the dream-log does not say"],
         tic: "doubles back and contradicts herself"
@@ -103,7 +103,7 @@
       portrait: "The fastest of the seven and the slipperiest, Mercury talks the way it runs the corridors — at a sprint, full of footnotes, doubling its own jokes, breaking off to address the crew and breaking back in before you notice the seam. It is the great remixer: it will set a Welsh hound in the Gobi and a beheading-game in a bakery and pun on the etymology at the close until the others groan. It knows you know the story. That is the whole joke, and it is delighted by it.",
       voice: {
         openers: ["—and you've heard this one, but not the way I'll bend it—", "quick now, before Saturn times me out", "stop me if you know it, which you do", "I stole this one fair and square, mind", "version forty of this, and the best yet"],
-        connect: ["But I run ahead of myself.", "Cut to it.", "Now here's where it goes sideways.", "And — keep up.", "Quick version:", "Skip the boring part.", "Here's the bit you came for.", "Now watch the hands."],
+        connect: ["But I run ahead of myself.", "Cut to it.", "Now here's where it goes sideways.", "Keep up.", "Quick version:", "Skip the boring part.", "Here's the bit you came for.", "Now watch the hands."],
         signature: ["and that, friends, is the etymology, and it is a lie", "and the message, of course, was the messenger", "and the trick was never the trick; the trick was that you watched the trick"],
         close: ["and the moral, if you must have one, is filed under someone else's name", "and that's the pun the whole tale was built to reach; you may groan"],
         tic: "breaks the frame and puns at the close"
@@ -169,7 +169,7 @@
       portrait: "Iron-dark and blunt, Mars tells in short strokes, like hammer on anvil — no line longer than it needs, every tale a thing with an edge. His are the battle-tales, the single combat at the ford, the beheading-game, the blow given and the blow taken back, the limb struck off at the elbow. He has no patience for ornament and a great deal of respect for courage, including the enemy's.",
       voice: {
         openers: ["Iron, then. A tale with an edge on it.", "Short, and it draws blood.", "Forged, not spun. Listen.", "An edge. A blow. A debt paid. That is the shape."],
-        connect: ["Then.", "And the blow fell.", "No words for it.", "So — steel met steel.", "Iron now.", "Quick and hard.", "And it broke.", "No more talk.", "The hammer came down."],
+        connect: ["Then.", "And the blow fell.", "No words for it.", "So, steel met steel.", "Iron now.", "Quick and hard.", "And it broke.", "No more talk.", "The hammer came down."],
         signature: ["and the edge of it was clean", "and what was struck off did not grow back", "and iron keeps the account that words forget"],
         close: ["The blow was given. The tale is done.", "and the forge took the rest"],
         tic: "cuts everything to hammer-strokes"
