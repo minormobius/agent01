@@ -136,6 +136,7 @@ return v.struct * 2 - v.blowout * 3 + 0.3 * nov;"></textarea>
 <script type="module">
 "use strict";
 import { FluoddityEngine, defaultConfig, mutate } from './engine.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { readDescriptors, fitness, fitness2, merge, vec, dist, verdict, VIT_COLOR } from './descriptors.js';
 import { PhaseMap } from './phasemap.js';
 import { EXPEDITION_COLLECTION, ANCHOR } from './data.js';
@@ -297,6 +298,22 @@ function openInPlayground(config) {
   const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   window.open(`./play/#c=${b64}`, '_blank', 'noopener');
 }
+
+// View toggle re-renders the population's thumbnails in the new mode (skipped
+// while a run is in flight — the next generation will render in it anyway).
+let _rethumbing = false;
+async function reThumbPop() {
+  if (_rethumbing || busy || !engine || !pop.length) return;
+  _rethumbing = true;
+  for (const ind of pop) {
+    engine.load(ind.config, 'rt' + ind.id); engine.step(288); engine.render();
+    if (!ind.thumb) { ind.thumb = document.createElement('canvas'); ind.thumb.width = ind.thumb.height = 96; }
+    ind.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 96, 96);
+  }
+  _rethumbing = false; drawPop();
+}
+if (engine) engine.displayMode = getViewMode();
+mountViewControls($('#topbar'), { engines: () => engine, onReset: () => $('#btn-seed').click(), onModeChange: reThumbPop });
 
 const phase = new PhaseMap($('#map'), {
   colorOf: (n) => VIT_COLOR[n.verdict] || '#888',

@@ -122,6 +122,7 @@ a:hover { text-decoration: underline; }
 <script type="module">
 "use strict";
 import { FluoddityEngine } from './engine.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { COLLECTION, ANCHOR, resolvePds, getRecord, getProfile, links, parseAtUri, parseConfig } from './data.js';
 
 const PLAYGROUND = './play/';
@@ -168,6 +169,16 @@ function loop() {
   requestAnimationFrame(loop);
 }
 if (engine) requestAnimationFrame(loop);
+if (engine) engine.displayMode = getViewMode();
+// re-grow the previews currently on screen (used by both the view toggle and reset).
+function reGrowVisible() {
+  for (const c of cards) {
+    if (!c.config) continue;
+    const r = c.el.getBoundingClientRect();
+    if (r.bottom > -200 && r.top < innerHeight + 200) { c.settled = false; c.steps = 0; if (!queue.includes(c)) queue.push(c); }
+  }
+}
+mountViewControls($('#topbar'), { engines: () => engine, onReset: reGrowVisible, onModeChange: reGrowVisible });
 
 // ── card rendering ───────────────────────────────────────────────────────────
 function makeCard(rec) {

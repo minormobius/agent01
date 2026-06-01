@@ -440,6 +440,15 @@ on the live pages).
   v1: the morph reads as a gradient via the physics even where the brain jumps).
   The half-A/half-B crossbreed fallback is left as a one-function swap if needed.
 
+- **[build note] Shared view controls (`../viewcontrols.js`).** A trail⇄particle
+  display toggle + a reset button, mounted in the top bar and wired to whichever
+  engine the level is driving (`AE` for L1/2/4, `BE` for L3). The mode persists in
+  `localStorage['fluoddity_display_mode']` — the same key the playground uses — so
+  the choice carries across every fluoddity surface. Reset re-seeds the current
+  level's field. The same component is mounted on every surface (arena, select,
+  hot, gallery, breed, map, torus, forest, the hero); `torus`/`forest` get
+  reset-only (no field to point particles at).
+
 ## 13. What this explicitly does NOT touch
 
 - No change to `engine.js`, `descriptors.js`, the worker, `wrangler.jsonc`, or any

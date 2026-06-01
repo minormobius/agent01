@@ -104,6 +104,7 @@ a { color: var(--accent); text-decoration: none; }
 "use strict";
 import { PhaseMap } from './phasemap.js';
 import { EXPEDITION_COLLECTION, EXPEDITION_PATH, RUBRIC_COLLECTION, RUBRIC_PATH, enumerateAll, getProfile, parseAtUri, parseConfig } from './data.js';
+import { mountViewControls } from './viewcontrols.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
@@ -174,6 +175,10 @@ const phase = new PhaseMap($('#map'), {
   onClick: (n) => focus(n.expIdx === focused ? -1 : n.expIdx),
 });
 function phaseRefresh() { phase.draw(); }
+
+// The forest is an atlas of published runs (no Fluoddity field), so there's no
+// trail⇄particle render to toggle — reset just re-fits the phase-space view.
+mountViewControls($('#topbar'), { toggle: false, onReset: () => phase.resetView() });
 
 (async function main() {
   let records;

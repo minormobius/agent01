@@ -76,6 +76,7 @@ footer a:hover { color: var(--accent); }
     <span class="shuffle" id="shuffle">click anywhere for another organism</span>
     <span class="herobar-right">
       <span class="initpick" id="initpick"></span>
+      <span id="viewctl"></span>
       <span id="auth"></span>
       <a class="shuffle" id="open-pg" style="pointer-events:auto;cursor:pointer">playground →</a>
       <button class="openbtn" id="open-play" type="button">▶ play</button>
@@ -194,6 +195,7 @@ footer a:hover { color: var(--accent); }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
 
 const cv = document.getElementById('herocv');
@@ -293,7 +295,11 @@ async function loop() {
   requestAnimationFrame(loop);
 }
 document.getElementById('hero').addEventListener('click', async () => { if (engine) { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
-if (engine) { requestAnimationFrame(loop); } else { pgBtn.style.display = 'none'; }
+if (engine) {
+  engine.displayMode = getViewMode();
+  mountViewControls(document.getElementById('viewctl'), { engines: () => engine, onReset: async () => { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
+  requestAnimationFrame(loop);
+} else { pgBtn.style.display = 'none'; }
 </script>
 <script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>

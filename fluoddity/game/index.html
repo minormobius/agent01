@@ -107,6 +107,7 @@ a { color: var(--accent); text-decoration: none; }
   <a class="home" href="../">← fluoddity</a>
   <span class="lvl" id="lvl"></span>
   <span class="spacer"></span>
+  <span id="viewctl"></span>
   <span id="auth"></span>
   <a class="lab" id="lablink" href="../arena.html">⚙ lab</a>
 </div>
@@ -146,6 +147,7 @@ a { color: var(--accent); text-decoration: none; }
 import { FluoddityEngine, randomConfig, mutate, defaultConfig } from '../engine.js';
 import { readDescriptors, verdict, fitness, fitness2, merge, FEATURES8, VIT_COLOR } from '../descriptors.js';
 import { auth, mountAuthChip } from '../authchip.js';
+import { mountViewControls, getViewMode } from '../viewcontrols.js';
 
 const $ = (s) => document.querySelector(s);
 const ANCHOR = 'did:web:g.mino.mobi';
@@ -168,7 +170,7 @@ mountAuthChip($('#auth'));
 
 let AE = null;  // arena engine (L1/L2)
 let BE = null;  // breed engine (L3)
-try { AE = new FluoddityEngine(ADIM, ACOUNT, { arena: true }); }
+try { AE = new FluoddityEngine(ADIM, ACOUNT, { arena: true }); AE.displayMode = getViewMode(); }
 catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This game needs WebGL2 with float render targets — ' + (e.message || e); }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -489,7 +491,7 @@ function startLevel3() {
   $('#arena').style.display = 'none'; $('#legend').classList.add('hide'); $('#big').style.display = 'block';
   $('#lablink').setAttribute('href', '../breed.html');
   // a fresh, livelier single-organism engine for the one-at-a-time stream.
-  try { BE = new FluoddityEngine(480, 55000); } catch {}
+  try { BE = new FluoddityEngine(480, 55000); BE.displayMode = getViewMode(); } catch {}
   const seed = S.champion || { ...hero(), rule_seed: (S.center ?? Math.random()), mutation_scale: 0.02 };
   L3 = {
     pool: [{ config: seed, score: 1 }],
@@ -674,6 +676,16 @@ if (AE) {
   $('#arena').appendChild(AE.cv);
   buildLegend();
   attachFieldTap();
+  // trail⇄particle toggle + reset, wired to whichever engine the level is driving.
+  mountViewControls($('#viewctl'), {
+    engines: () => (S.level === 3 ? BE : AE),
+    onReset: () => {
+      if (S.level === 3) { if (L3) serveNext(); }
+      else if (S.level === 2) { S.picks = []; S.regrows = 0; highlightPicks(); loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'rst' + Math.random()); prompt('reset — tap up to <b>two calm species</b>, then regrow'); }
+      else if (S.level === 4) { S.picks = []; highlightPicks(); S.spread = DISCOVER_SPREAD; loadArena(arenaCfg(S.center, T_DISCOVER, S.spread), 'rst' + Math.random()); setConv(); prompt('reset — tap one to converge, two to explore between'); }
+      else freshHero();
+    },
+  });
   (async () => {
     // wait for the session to validate (this also picks up the ?__auth_session=…
     // token the auth worker appends when redirecting back from sign-in).

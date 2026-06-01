@@ -76,6 +76,7 @@ a { color: var(--accent); text-decoration: none; }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
+import { mountViewControls } from './viewcontrols.js';
 import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
 import { COLLECTION, resolvePds, getRecord, parseConfig, parseAtUri } from './data.js';
 
@@ -352,6 +353,10 @@ void main(){
     await newOrganism();
     running = true; requestAnimationFrame(loop);
   });
+  // reset re-seeds the current organism's growth from frame 0. No trail⇄particle
+  // toggle here: the torus samples the trail field onto a 3D donut, so the
+  // particle (point) render has nowhere to project.
+  mountViewControls($('#dock'), { toggle: false, onReset: () => { if (cfg) engine.load(cfg, 'reset' + Math.random()); } });
   $('#btn-open').addEventListener('click', () => {
     if (!cfg) return;
     if (source && source.kind === 'shared') location.href = `./play/?o=${source.did}/${source.rkey}`;
