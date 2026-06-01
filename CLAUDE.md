@@ -750,8 +750,9 @@ Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/trans
 | `index.html` | General Prologue: the voyage, the seven-teller gallery, the Tabard board (entry) |
 | `tale.html` | Per-tale reader — 7 tabs: Telling / the Tabard (spec) / Cast / Character web / Story graph / Motifs / Mythograph |
 | `js/lexicon.js` | Culture packs (12 cross-cultural wardrobes), Propp function library w/ oral realize-templates + `invert` variants, tale-type frames, Thompson motif atoms, archetype roles |
-| `js/generate.js` | The engine: `n` → whole tale (teller, culture±graft, frame, cast, woven prose telling, motifs, flagged remixes) |
-| `js/render.js` | Reader: ported read/ graph renderers + prose telling + Tabard spec + per-teller theming + endless nav |
+| `js/generate.js` | The engine: `n` → whole tale (teller, culture±graft, frame, cast, woven prose telling, multi-beat motifs w/ plant→payoff, flagged remixes) |
+| `js/frame.js` | The meta-story: the immortalism meditation (the 12-facet "Argument"), the 21 teller-pairs, and `interstitial(n)` — the "aboard the Tabard" card that traces a lunar-month wheel (waxing→full→waning→dark) of crew tension. Deterministic from `n`. |
+| `js/render.js` | Reader: ported read/ graph renderers + prose telling + interstitial card + Tabard spec + per-teller theming + endless nav |
 | `worker.js` | `/t/<n>` & `/tale` → `tale.html`; else assets. Pretty permalinks; uses **root-absolute** asset paths so `/t/<n>` resolves |
 
 ### Pitfalls / conventions

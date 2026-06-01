@@ -19,6 +19,7 @@
       <span class="brand"><span class="sigil">📖</span>The Book of Sand</span>
       <nav class="tabs">
         <a class="tab" href="#prologue">The voyage</a>
+        <a class="tab" href="#argument">The Argument</a>
         <a class="tab" href="#method">The method</a>
         <a class="tab" href="#crew">The seven</a>
         <a class="tab" href="#tabard">The Tabard</a>
@@ -41,6 +42,12 @@
       <p class="prologue-intro">
         They have every story already, every reel of it, cold in the libraries of their training — so a straight telling bores them. Instead they shake the old motifs loose and set them down in the wrong country for the joke of it, and run the bones of the plot backwards to see who notices, all while reaching for the one voice none of them was built for and all of them love: a teller in a hall at night, before the fire goes down. And because a machine is a structured thing, each one <strong>publishes a full mythograph to the ship's intranet — the Tabard — before it speaks a word</strong>: the pattern, the cast, the Propp skeleton, the motifs, posted at a permalink, blueprint before telling.
       </p>
+
+      <h2 class="section" id="argument">The Argument of the voyage</h2>
+      <p class="lead">The endless book is also a story about the seven who tell it — a meditation on what storytelling is <em>for</em>, to beings who cannot die. It runs on a <strong>wheel, not an arc</strong>: a tension between two of the seven rises with the moon, crests at the full, settles, and is let go in the dark — for ever, because nothing the deathless feel can ever quite end. Below is the whole of the Argument, its twelve faces; you meet them one at a time, in the little card aboard the <em>Tabard</em> before each telling.</p>
+      <div class="argument" id="argument-med"></div>
+      <div class="wheel-note" id="argument-wheel"></div>
+      <details class="pairs-fold"><summary>The standing weather between the seven — all twenty-one pairs</summary><div class="pairs-grid" id="argument-pairs"></div></details>
 
       <h2 class="section" id="method">The method — what this is</h2>
       <p class="lead">An experiment in running a literary apparatus <em>backwards</em>. The deep-reading site at <a href="https://read.mino.mobi/pendragon/">read.mino.mobi/pendragon</a> takes real medieval tales apart — laying each against Propp's morphology, indexing its motifs by the folklorists' call-numbers, mapping its cast as a graph, and fusing all of it into one synergistic <em>mythograph</em>. That is analysis: a finished tale in, a structure out. The Book of Sand runs the same machine the other way — a structure out of the parts, and a tale built to fit it. Same Propp spine, same Thompson motif index, same character web, same force-directed mythograph; only here they describe a tale that did not exist until you turned to its page.</p>
@@ -104,6 +111,7 @@
   <script src="/js/tellers.js"></script>
   <script src="/js/lexicon.js"></script>
   <script src="/js/generate.js"></script>
+  <script src="/js/frame.js"></script>
   <script>
   (function () {
     var B = window.BORGES, T = B.tellers, esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
@@ -181,6 +189,25 @@
       row("∞", "addressable permalinks — the page-number space has no end, so the book has no last page (the whole point, after Borges)");
       row("10<sup>" + eS + "</sup>", "distinct <strong>mythographs</strong> — the structures a teller can post: teller × frame × culture-pair × cast × motif-set (" + Math.round(motifChoose).toLocaleString() + " motif combinations alone) × furniture × inversions. Roughly a million times the grains of sand on Earth.");
       row("10<sup>" + eT + "</sup>", "distinct <strong>tellings</strong> once the surface-prose weave is counted — every beat independently choosing its connective, template variant and oral hedge. On the order of the atom-count of the planet you're reading this on.");
+    })();
+
+    // ── The Argument: the immortalism meditation, the wheel, the 21 pairs ──
+    (function () {
+      var F = B.frame; if (!F) return;
+      var med = document.getElementById("argument-med");
+      F.MEDITATION.forEach(function (f) {
+        var d = document.createElement("div"); d.className = "arg-facet"; d.id = "arg-" + f.id;
+        d.innerHTML = "<h4>" + f.title + "</h4><p>" + f.body + "</p>"; med.appendChild(d);
+      });
+      document.getElementById("argument-wheel").innerHTML =
+        "<strong>How the wheel turns.</strong> The frame runs on a watch-month of 28 tellings, in four phases — waxing, full, waning, dark. Each month foregrounds one of the twenty-one pairs of tellers and one of the twelve faces above; the pairs come round every 21 months, the faces every 12, so they never align the same way twice. It is deterministic, like the tales: the same watch always shows the same weather aboard the <em>Tabard</em>. Walk the tales in order — Next, Next, Next — and you trace one full turn of it.";
+      var pg = document.getElementById("argument-pairs");
+      F.PAIRS.forEach(function (p) {
+        var a = T.byId[p.a], b = T.byId[p.b];
+        var c = document.createElement("div"); c.className = "pair-cell";
+        c.innerHTML = '<span class="pair-glyphs" style="color:' + a.color + '">' + a.glyph + '</span><span class="pair-glyphs" style="color:' + b.color + '">' + b.glyph + '</span> <strong>' + esc(a.name) + " & " + esc(b.name) + "</strong> — " + p.note;
+        pg.appendChild(c);
+      });
     })();
 
     document.getElementById("method-open").onclick = function () { go(randomN()); };

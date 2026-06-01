@@ -63,6 +63,17 @@
     return { fit: fit };
   }
 
+  /* ───────────── THE FRAME (interstitial, aboard the Tabard) ───────────── */
+  function renderInterstitial() {
+    var host = $("#interstitial"); if (!host) return;
+    if (!B.interstitial) { host.style.display = "none"; return; }
+    var it = B.interstitial(T.n);
+    host.innerHTML =
+      '<div class="inter-head"><span class="inter-sig">⟜</span> Aboard the <em>Tabard</em> · watch ' + T.n + ' · ' + it.phaseName + ' moon</div>' +
+      '<div class="inter-body">' + it.text + '</div>' +
+      '<div class="inter-foot">And ' + escapeHtml(T.teller.name) + ' ' + T.teller.glyph + ' took up the watch, and began. <a href="/#argument">the Argument of the voyage →</a></div>';
+  }
+
   /* ───────────── THE TELLING (prose reader) ───────────── */
   function dropCap(t) { return String(t).replace(/^((?:<[^>]+>)*\s*[“"'(]?\s*)(\S)/, function (m, a, b) { return a + '<span class="dropcap">' + b + '</span>'; }); }
   function renderTelling() {
@@ -562,6 +573,7 @@
       strip.style.borderLeftColor = T.teller.color;
     }
     drawn = {}; // reset per-tale render caches
+    renderInterstitial();
     renderTelling();
     renderNav();
     var hash = location.hash.slice(1);
