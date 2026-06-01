@@ -408,6 +408,14 @@ on the live pages).
   counter became a single live verdict badge + heat gauge — the per-species count
   isn't recoverable from one shared trail without hue-binning, and the live field
   is worth more than the counter.
+- **[build note] Wins are gated on player moves, not just `verdict()`.** A
+  16-species shared field has inherently low spatial coherence, so its whole-field
+  `verdict()` reads "boiling" almost immediately and flickers around the
+  threshold — which let both L1 and L2 auto-complete with zero input. Fixed by
+  requiring `MIN_HEATS` picks (L1) / `MIN_TAMES` cooling regrows (L2) *and* a
+  2-sample verdict streak before a level can be won, with a widened temperature
+  range so heating/cooling actually moves the field. The verdict is now
+  confirmation; the player's moves are the gate.
 - **[build note] Level 2 cools on a ladder.** Each "regrow" eases temperature
   down a notch (`L2_COOL`) while the picks steer *which* genome family you settle
   into (2 picks interpolate A→B across the 16 seeds via arena's `seedOf()` line, 1

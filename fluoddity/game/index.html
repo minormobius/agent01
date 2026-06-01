@@ -156,8 +156,9 @@ const EXP = 'com.minomobi.fluoddity.expedition';
 // ── tuning (see fluoddity/GAME.md §4–§8) ─────────────────────────────────────
 const ADIM = 512, ACOUNT = 70000;          // the live arena (levels 1–2)
 const SETTLE = 200, MOTION = 8, T2 = 150;   // used by evaluate() for hero search
-const T_START = 0.12, T_STEP = 0.13, L2_COOL = 0.075; // heat ladder / level-2 cooling
+const T_START = 0.10, T_STEP = 0.17, L2_COOL = 0.085; // heat ladder / level-2 cooling
 const SPREAD_L1 = 0.03, SPREAD_L2 = 0.06;   // how far the 16 species' seeds fan out
+const MIN_HEATS = 3, MIN_TAMES = 3;         // a level can't be won before this many player moves
 const T_DISCOVER = 0.5, DISCOVER_SPREAD = 0.06, SHRINK = 0.72, SPREAD_FLOOR = 0.008; // level-4 convergence
 const SETTLE_FRAMES = 150;                  // ignore win-checks until the field settles
 const REFIT_EVERY = 3, MIN_EACH = 4;        // rubric fit cadence (level 3)
@@ -184,9 +185,9 @@ function hero() { const g = defaultConfig(); g.cohorts = 16; g.trail_diffusion =
 function arenaCfg(base, T, spread) {
   const g = hero();
   g.cohorts = 16; g.mutation_scale = spread; g.rule_seed = base;
-  g.global_force_mult = lerp(0.12, 1.3, T);
-  g.sensor_gain = lerp(1.5, 7.0, T);
-  g.trail_persistence = lerp(0.985, 0.90, T);
+  g.global_force_mult = lerp(0.08, 1.45, T);
+  g.sensor_gain = lerp(1.2, 8.0, T);
+  g.trail_persistence = lerp(0.99, 0.88, T);
   g.ink = Math.max(g.ink, 2.2);
   return g;
 }
@@ -247,9 +248,11 @@ function sampleVerdict() {
   setBadge(vd);
   if (locked || framesSinceLoad < SETTLE_FRAMES) { winStreak = 0; return; }
   if (S.level === 1) {
-    if (tooHot(vd)) { if (++winStreak >= 2) winLevel1(); } else winStreak = 0;
+    // gated on heats so it can't win before the player has driven it up the ladder.
+    const wild = tooHot(vd) && S.gen >= MIN_HEATS;
+    if (wild) { if (++winStreak >= 2) winLevel1(); } else winStreak = 0;
   } else if (S.level === 2) {
-    const tamed = !tooHot(vd) && vd !== 'dead' && v.fill > 0.04;
+    const tamed = !tooHot(vd) && vd !== 'dead' && v.fill > 0.04 && (S.regrows || 0) >= MIN_TAMES;
     if (tamed) { if (++winStreak >= 2) winLevel2(); } else winStreak = 0;
   }
 }
@@ -317,7 +320,7 @@ function freshHero() { S.center = findHero(); S.T = T_START; S.gen = 0; setGauge
 // ── level 2: TAME ────────────────────────────────────────────────────────────
 function startLevel2() {
   S.level = 2; locked = false; setLevelLabel('level 2 · tame'); save(); showArena();
-  S.picks = []; highlightPicks();
+  S.picks = []; S.regrows = 0; highlightPicks();
   setDock([
     { id: 'apply', label: 'regrow ⟳', cls: 'primary', fn: regrowL2 },
     { id: 'reseed', label: '↻ reset', cls: '', fn: () => { S.picks = []; highlightPicks(); loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'l2r' + Math.random()); } },
@@ -329,6 +332,7 @@ function startLevel2() {
 }
 function regrowL2() {
   const ps = S.picks.slice();
+  S.regrows = (S.regrows || 0) + 1;
   S.T = clamp01(S.T - L2_COOL);                 // every regrow eases it toward the edge
   let base, spread = SPREAD_L2;
   if (ps.length >= 2) {                          // interpolate: the 16 seeds span A→B
