@@ -27,6 +27,41 @@
   };
   var ACT_ORDER = ["setup", "complication", "journey", "ordeal", "homecoming", "recognition"];
 
+  // movement titles keyed to the leading Propp beat (so titles stay true under any
+  // frame ordering). Several beats carry variants to keep a braided tale's repeats apart.
+  var MVT_TITLE = {
+    "first-function": ["%place% and the setting of it", "How it stood at %place%"],
+    "absentation": ["The one taken in the dark", "The empty place at the board"],
+    "interdiction": ["The one thing forbidden", "The word laid down"],
+    "violation": ["The word broken", "The forbidden thing done"],
+    "reconnaissance": ["The scouting of the ground", "The soft questions at the gate"],
+    "trickery": ["The fair-seeming snare", "The hook in the bargain"],
+    "complicity": ["The trap shut", "The boon granted unread"],
+    "villainy": ["The harm done", "The lack that walked the land"],
+    "mediation": ["The lack made known", "The word that sent the hero"],
+    "counteraction": ["The quest taken up", "The road resolved on"],
+    "departure": ["The road out", "Toward %place2%"],
+    "donor": ["The donor on the road", "The toll the road takes"],
+    "reaction": ["The hero's answer", "The kind thing done"],
+    "receipt": ["The gift in hand", "What the donor gave"],
+    "guidance": ["The way to %place2%", "Brought to %place2%"],
+    "struggle": ["The struggle at the ford", "The meeting at %place2%", "%creature% met at last"],
+    "branding": ["The mark taken", "The wound that told the tale"],
+    "victory": ["The one blow", "The winning of it", "The creature down"],
+    "liquidation": ["The lack set right", "The thing made whole"],
+    "return": ["The road home", "Homeward, the harder country"],
+    "pursuit": ["The chase across %place2%", "The thing that gained behind"],
+    "rescue": ["The river thrown up behind", "The second use of the gift"],
+    "unfounded-claims": ["The false claim in the hall", "The stolen boast"],
+    "difficult-task": ["The task that sorts true from false", "The proof set on the table"],
+    "solution": ["The task done at first asking", "The impossible thing made easy"],
+    "recognition": ["The recognition", "The knowing run round the hall"],
+    "exposure": ["The lie undone", "The false hand found out"],
+    "transfiguration": ["The making-new", "The true name spoken"],
+    "punishment": ["The reckoning", "The wage of the wrong"],
+    "wedding": ["The wedding at %place%", "The feast and the crowning"]
+  };
+
   function toRoman(n) { var m = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]; return m[n] || ("" + n); }
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function aWord(s) { return /^[aeiou]/i.test(s) ? "an " : "a "; }
@@ -184,6 +219,16 @@
     }
 
     var pr = rand.fork("prose");
+    // movements are titled by their *leading* Propp beat, not by the act — so a
+    // reordered or re-traversed frame (an early wedding, a mid-tale taboo, a
+    // braided second arc) still gets a true title. usedTitles keeps a braided
+    // tale's two ordeal-movements from sharing one.
+    var usedTitles = {};
+    function pickMvtTitle(id) {
+      var arr = MVT_TITLE[id] || ["The next turning"], pick = null;
+      for (var t = 0; t < arr.length + 2; t++) { pick = fill(pr.pick(arr), pr); if (!usedTitles[pick]) break; }
+      usedTitles[pick] = true; return pick;
+    }
     var moves = [], movements = [], curAct = null, curMovement = null;
     spine.forEach(function (id) {
       var fn = lex.PROPP_BY_ID[id]; if (!fn) return;
@@ -191,8 +236,7 @@
         curAct = fn.act;
         var meta = ACTS[curAct];
         var idx = movements.length + 1;
-        var ttl = fill(pr.pick(meta.titles).replace("%PLACE%", world.place).replace("%PLACE2%", world.place2).replace("%CREATURE%", world.creature), pr);
-        curMovement = { idx: idx, act: curAct, label: meta.label, color: meta.color, title: toRoman(idx) + ". " + cap(ttl), beats: [] };
+        curMovement = { idx: idx, act: curAct, label: meta.label, color: meta.color, title: toRoman(idx) + ". " + cap(pickMvtTitle(id)), beats: [] };
         movements.push(curMovement);
       }
       var inverted = !!toInvert[id];

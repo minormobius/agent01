@@ -172,7 +172,7 @@
       function choose(n, k) { return fact(n) / (fact(k) * fact(n - k)); }
       var motifChoose = choose(L.MOTIFS.length, 7);
       var aM = male / cult.length, aF = female / cult.length, aE = ep / cult.length, aP = place / cult.length, aC = creature / cult.length, aO = obj / cult.length;
-      var structural = 7 * 8 * 12 * 12 * Math.pow(aM, 3) * aF * Math.pow(aE, 4) * aP * aP * aC * aO * aO *
+      var structural = T.list.length * L.TALETYPES.length * cult.length * cult.length * Math.pow(aM, 3) * aF * Math.pow(aE, 4) * aP * aP * aC * aO * aO *
         L.FILL.term.length * L.FILL.quest.length * L.FILL.number.length * motifChoose * 4;
       var textual = structural * Math.pow(16 * 2 * 7, 10);
       var eS = Math.round(Math.log10(structural)), eT = Math.round(Math.log10(textual));

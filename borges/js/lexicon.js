@@ -270,7 +270,32 @@
       motifBias: { S: 1.6, H: 1.4, M: 1.4, Q: 1.4 } },
     { id: "taboo", label: "The Broken Word", titles: ["The Door That Was Forbidden", "%hero% and the One Thing Forbidden", "The Name Not to Be Asked"],
       spine: ["first-function", "wedding", "interdiction", "violation", "absentation", "counteraction", "departure", "donor", "reaction", "guidance", "liquidation", "return"],
-      motifBias: { M: 1.6, F: 1.6, T: 1.4, Q: 1.2 } }
+      motifBias: { M: 1.6, F: 1.6, T: 1.4, Q: 1.2 } },
+
+    { id: "swanmaiden", label: "The Animal Bride, Lost and Won Back", titles: ["The Bride Who Flew", "%hero% and the Hidden Skin", "How %heroine% Was Won Twice"],
+      spine: ["first-function", "reconnaissance", "donor", "reaction", "receipt", "wedding", "interdiction", "violation", "absentation", "counteraction", "departure", "guidance", "liquidation", "return"],
+      motifBias: { F: 2, T: 1.8, D: 1.4, M: 1.2 } },
+    { id: "ogretasks", label: "The Bride Behind the Tasks", titles: ["%hero% and the Giant's Daughter", "The Tasks Set for %heroine%'s Hand", "The Hard Things Done for Love"],
+      spine: ["first-function", "counteraction", "departure", "guidance", "difficult-task", "solution", "struggle", "victory", "liquidation", "wedding"],
+      motifBias: { H: 2.2, G: 1.6, T: 1.4, D: 1.2 } },
+    { id: "masterflight", label: "The Master-Maid and the Flight", titles: ["The Master-Maid", "%hero% in the House of %creature%", "The Flight, and the Things Cast Behind"],
+      spine: ["first-function", "villainy", "departure", "guidance", "difficult-task", "solution", "liquidation", "return", "pursuit", "rescue", "recognition", "wedding"],
+      motifBias: { R: 2, G: 1.4, K: 1.4, H: 1.2 } },
+    { id: "twobrothers", label: "The True Hero and the False", titles: ["The Two Brothers", "%hero% and the False %false%", "The Deed and the Stolen Boast"],
+      spine: ["first-function", "departure", "struggle", "victory", "branding", "liquidation", "unfounded-claims", "return", "difficult-task", "solution", "exposure", "recognition", "wedding"],
+      motifBias: { S: 1.4, K: 1.4, Q: 1.4, H: 1.2 } },
+    { id: "fateddoom", label: "The Doom Foretold", titles: ["The Doom Foretold", "What %hero% Could Not Outrun", "The Fixed Hour"],
+      spine: ["first-function", "interdiction", "departure", "donor", "reaction", "struggle", "branding", "recognition", "transfiguration"],
+      motifBias: { M: 2, N: 1.6, Q: 1.4, D: 1.2 } },
+    { id: "ashlad", label: "The Unpromising Hero", titles: ["The Ash-Lad", "The Least of the Hall", "How the Youngest Won"],
+      spine: ["first-function", "villainy", "mediation", "counteraction", "departure", "donor", "reaction", "receipt", "difficult-task", "solution", "recognition", "transfiguration", "wedding"],
+      motifBias: { Z: 1.6, S: 1.4, H: 1.4, Q: 1.2 } },
+    { id: "chastitywager", label: "The Wager on the Wife", titles: ["The Wager on %heroine%", "The Lie of the False Token", "How %heroine% Cleared Her Name"],
+      spine: ["first-function", "wedding", "trickery", "unfounded-claims", "villainy", "departure", "guidance", "recognition", "exposure", "transfiguration"],
+      motifBias: { K: 2, T: 1.6, M: 1.4, Q: 1.2 } },
+    { id: "braided", label: "The Braided Tale, in Two Arcs", titles: ["The Braided Tale", "The Two Turnings of %hero%", "%hero%, Twice Over"],
+      spine: ["first-function", "villainy", "counteraction", "departure", "struggle", "victory", "liquidation", "trickery", "complicity", "receipt", "struggle", "victory", "recognition", "wedding"],
+      motifBias: { M: 1.6, F: 1.4, H: 1.4, T: 1.2, Q: 1.2 } }
   ];
 
   /* ───────────────────────── MOTIFS ─────────────────────────
