@@ -66,6 +66,7 @@ export default {
       if (pathname === '/api/index/refresh' && request.method === 'POST') return adminRefresh(request, env, ctx);
       if (pathname === '/api/triage' && request.method === 'POST') return triage(request, env);
       if (pathname === '/api/sweep/run' && request.method === 'POST') return adminSweep(request, env, ctx);
+      if (pathname === '/api/sweep/reset' && request.method === 'POST') return adminReset(request, env);
       if (pathname === '/api/config') return configInfo();
     } catch (err) {
       return json({ error: String(err && err.message || err) }, 500);
@@ -187,6 +188,21 @@ async function adminSweep(request, env, ctx) {
   }
   ctx.waitUntil(runSweep(env).catch((e) => console.error('sweep', e)));
   return json({ ok: true, started: 'sweep' });
+}
+
+// Clear the board: drop all cached tickets and the swept-post dedup set so the
+// next sweep re-mints from scratch (with the new parent-concatenation logic).
+// Does NOT delete the underlying PDS records — most live on the taken-down
+// simcluster account and are unreachable anyway; this only resets our D1 cache.
+// The hourly cron then drip-refills at MAX_MINTS_PER_SWEEP/run (no burst).
+async function adminReset(request, env) {
+  if (!isAdmin(request, env)) return json({ error: 'unauthorized' }, 401);
+  const before = await env.DB.prepare('SELECT COUNT(*) AS n FROM io_tickets').first().catch(() => ({ n: 0 }));
+  await env.DB.prepare('DELETE FROM io_tickets').run();
+  await env.DB.prepare('DELETE FROM io_sweep_seen').run();
+  await setState(env, 'last_sweep_at', '');
+  await setState(env, 'last_sweep_report', '');
+  return json({ ok: true, cleared: (before && before.n) || 0 });
 }
 
 async function triage(request, env) {
@@ -392,28 +408,58 @@ async function sweepPost(env, pub, post, tag) {
   const already = await env.DB.prepare('SELECT post_uri FROM io_sweep_seen WHERE post_uri = ?').bind(postUri).first();
   if (already) return 'already-seen';
 
-  const text = (post.record && post.record.text) || '';
-  if (text.replace(/#\w+/g, '').trim().length < 12) {
-    // Bare-hashtag spam — mark seen so we don't re-check, but don't mint.
+  const replyText = (post.record && post.record.text) || '';
+
+  // The #hashtag post is nearly always a *reply* tagging the tracker into a
+  // thread — the actual idea lives in the parent it's replying to. Hydrate the
+  // parent and treat its text as the idea, with the reply kept as an annotation.
+  const parentUri = post.record && post.record.reply && post.record.reply.parent
+    && post.record.reply.parent.uri;
+  let parentText = '';
+  let parentRef = null;
+  if (parentUri) {
+    const parent = await getPostView(pub, parentUri).catch(() => null);
+    if (parent) {
+      parentText = (parent.record && parent.record.text) || '';
+      parentRef = { uri: parent.uri, cid: parent.cid, author: parent.author && parent.author.did };
+    }
+  }
+
+  // Idea body = parent (the substance) + the tagging reply's own note, if any.
+  // Strip the bare hashtags/mentions from the reply when judging substance so a
+  // "#atproideasio @board" reply with a meaty parent still mints.
+  const replyNote = replyText.replace(/#\w+/g, '').replace(/@[\w.\-]+/g, '').trim();
+  const ideaText = parentText || replyText;
+  const body = parentText
+    ? (replyNote ? `${parentText}\n\n— tagged in: ${replyNote}` : parentText)
+    : replyText;
+
+  // Substance check runs on the combined idea text, not the bare reply.
+  if (ideaText.replace(/#\w+/g, '').replace(/@[\w.\-]+/g, '').trim().length < 12) {
+    // Nothing of substance in parent or reply — mark seen, don't mint.
     await markSwept(env, postUri, null);
     return 'too-short';
   }
 
-  const kind = inferKind(text);
-  const title = firstLine(text).slice(0, 280) || `${kind} from @${post.author && post.author.handle || 'someone'}`;
+  const kind = inferKind(ideaText);
+  const title = firstLine(ideaText).slice(0, 280)
+    || `${kind} from @${(parentRef && post.author && post.author.handle) || (post.author && post.author.handle) || 'someone'}`;
   const site = inferSite(post);
 
   const record = {
     $type: IO_COLLECTION,
     kind,
     title,
-    body: text,
+    body,
     board: BOARD_ANCHOR,
     createdAt: new Date().toISOString(),
     source: {
       kind: 'swept',
+      // The hashtag reply we found in search…
       post: { uri: postUri, cid: post.cid },
       author: post.author && post.author.did,
+      // …and the parent post it tagged in, which carries the idea.
+      ...(parentRef ? { parent: parentRef } : {}),
     },
   };
   if (site) record.site = site;
@@ -547,6 +593,16 @@ class ServicePublisher {
 }
 
 // ─────────────────────────────── ATProto helpers ───────────────────────────
+
+// Hydrate a single post (author + record text + cid) by AT-URI, through the
+// service account's authed appview proxy (app.bsky.feed.getPosts). Returns the
+// postView or null. Used to pull the parent of a #hashtag reply.
+async function getPostView(pub, uri) {
+  const res = await pub.authedGet('app.bsky.feed.getPosts', { uris: uri });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return (data && data.posts && data.posts[0]) || null;
+}
 
 async function getRecord(did, collection, rkey) {
   const params = new URLSearchParams({ repo: did, collection, rkey });
