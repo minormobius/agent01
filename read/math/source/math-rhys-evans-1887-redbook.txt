@@ -1,0 +1,188 @@
+Math uab Mathonwy — Middle Welsh text (Fourth Branch of the Mabinogi)
+Source: Welsh Wikisource (cy.wikisource.org/wiki/Math_uab_Mathonwy)
+License: Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0)
+Underlying tradition: from the manuscripts (White Book of Rhydderch /
+   Red Book of Hergest); compare the public-domain edition of
+   Rhys & Evans (Oxford, 1887), the same volume from which the
+   Culhwch, Pwyll and Owain texts on this site are taken. The Fourth and
+   last Branch, the sequel to Manawydan; it opens on Math son of Mathonwy
+   lord of Gwynedd and his nephews Gwydion and Gilfaethwy, and the war
+   with Pryderi of Dyfed that closes the Pryderi thread of the cycle.
+   Editorial brackets [ ] in the wikitext mark the editor's restorations
+   and are preserved.
+============================================================================
+
+
+Math uab Mathonwy oed arglwyd ar Wyned, a Pryderi uab Pwyll oed arglwyd ar un cantref ar ugeint yn y Deheu. Sef oed y rei hynny, seith cantref Dyuet, a seith Morgannhwc, a phedwar Kyredigyawn, a thri Ystrat Tywi. Ac yn yr oes honno Math uab Mathonwy ny bydei uyw, namyn tra uei y deudroet ymlyc croth morwyn, onyt kynwryf ryuel a'y llesteirei. Sef oed yn uorwyn gyt ac ef, Goewin uerch Pebin o Dol Pebin yn Aruon. A honno teccaf morwyn oed yn y hoes o'r a wydit yno. Ac ynteu yg Kaer Dathyl yn Aruon yd oed y wasta\trwyd. Ac ny allei gylchu y wlat, namyn Giluathwy uab Don, [a Gwydyon] uab Don, y nyeint ueibon y chwaer, a'r teulu gyt ac wy [a aei] y gylchu y wlat drostaw.
+
+A'r uorwyn oed gyt a Math yn wastat; ac ynteu Giluaethwy uab Don a dodes y uryt ar y uorwyn, a'y charu hyt na wydat beth a wnay ymdanei. Ac nachaf y liw a'y wed a'y ansawd yn atueilaw o'y charyat, hyt nat oed hawd y adnabot.
+
+Sef a wnaeth Guydyon y urawd, synnyeit dydgweith arnaw yn graf. "A was," heb ef, "pa derw ytti?" "Pa ham?" heb ynteu. "Beth a wely di arnaf i?" "Gwelaf arnat," heb ef, "colli dy bryt a'th liw, a pha deryw yti?" "Arglwyd urawt," heb ef, "yr hynn a deryw ymi ny frwytha ymi y adef y neb." "Beth yw hynny, eneit?" heb ef. "Ti a wdost," heb ynteu, "kynedyf Math uab Mathonwy; ba hustyng bynnac, yr y uychanet, o'r a uo y rwng dynnyon, o ry kyuarfo y guynt ac ef, ef a'y guybyd." "Ie," heb y Guydyon, "taw di bellach. Mi a wnn dy uedwl di; caru Goewin yd wyt ti." Sef a wnaeth ynteu yna, pan wybu ef adnabot o'y urawt y uedwl, dodi ucheneit dromhaf yn y byt. "Taw, eneit, a'th ucheneidaw," heb ef, "nyt o hynny y goruydir. Minheu a baraf," heb ef, "cany ellir heb hynny, dygyuori Gwyned a Phowys a Deheubarth y geissaw y uorwyn; a byd lawen di, a mi a'y paraf yt."
+
+Ac ar hynny at Uath uab Mathonwy yd aethant wy. "Arglwyd," heb y Guydyon, "mi a gigleu dyuot y'r Deheu y ryw bryuet ni doeth y'r ynys honn eiroet." "Pwy eu henw wy?" heb ef. "Hobeu, Arglwyd," "Pa ryw aniueileit yw y rei hynny?" "Aniueileit bychein, guell eu kic no chic eidon. Bychein ynt wynteu; ac y maent yn symudaw enweu. Moch y gelwir weithon."
+
+"Pwy biewynt wy?" "Pryderi uab Pwyll, yd anuonet idaw o Annwn y gan Arawn Urenhin Annwn." (Ac etwa yd ys yn cadw o'r enw hwnnw hanner hwch, hanner hob).
+
+"Ie," heb ynteu, "ba furuf y keffir wy y gantaw ef?" "Mi a af ar uyn deudecuet, yn rith beird, Arglwyd, y erchi y moch." "Ef a ry eill ych necau," heb ynteu. "Nit drwc uyn trawscwyd i, Arglwyd," heb ef. "Ny doaf i heb y moch." "En llawen," heb ynteu, "kerda ragot."
+
+Ef a aeth, a Giluathwy, a deguyr gyt ac wynt, hyt yg Keredigyawn, yn y lle a elwir Rudlan Teiui yr awrhon; yd oed llys yno y Pryderi; ac yn rith beird y doethant ymywn. Llawen uuant wrthunt. Ar neillaw Pryderi y gossodet Guydyon y nos honno. "Ie," heb y Pryderi, "da yw genhym ni cahel kyuarwydyt gan rei o'r gwreinc racco." "Moes yw genhym ni, Arglwyd," heb y Guydyon, "y nos gyntaf y delher at wr mawr, dywedut o'r penkerd. Mi a dywedaf gyuarwydyd yn llawen."
+
+Ynteu Wydyon goreu kyuarwyd yn y byt oed. A'r nos honno, didanu y llys a wnaeth ar ymdidaneu digrif a chyuarwydyt, yny oed hoff gan paub o'r llys, ac yn didan gan Pryderi ymdidan ac ef.
+
+Ac ar diwed hynny, "Arglwyd," heb ef, "ae guell y gwna neb uy neges i wrthyt ti no mi uu hun?" "Na well," heb ynteu. "Tauawt lawn da yw y teu di." "Llyna uy neges inheu, Arglwyd, ymadolwyn a thidi am yr aniueileit a anuonet it o Annwuyn." "Ie," heb ynteu, "hawssaf yn y byt oed hynny by na bei ammot y rof a'm gwlat amdanunt; sef yw hynny, nat elont y genhyf yny hilyont eu deu kymeint yn y wlat." "Arglwyd," heb ynteu, "minheu a allaf dy rydhau ditheu o'r geireu hynny. Sef ual y gallaf, na dyro im y moch heno, ac [na] nacaha ui ohonunt. Auory minheu a dangossaf gyfnewit amdanunt wy."
+
+A'r nos honno yd aethont ef a'y gedymdeithon y'r lletty ar y kynghor. "A wyr," heb ef, "ny chawni y moch oc eu herchi." "Ie," heb wynte, "pa drawscwyd y keir wynteu?" "Mi a baraf eu cael," heb y Guydyon. Ac yna yd aeth ef yn y geluydodeu, ac y dechreuawt dangos y hut, ac yd hudwys deudec emys, a deudec milgi bronwyn du pob un o honunt, a deudec torch, a deudec kynillyuan arnunt, a neb o'r a'[e] guelei, ni wydat na bydynt eur; a deudec kyfrwy ar y meirch, ac am pob lle y dylyei hayarn uot arnunt, y bydei gwbyl o eur; a'r frwyneu yn un weith a hynny.
+
+A'r meirch ac a'r cwn y doeth ef at Prydery. "Dyd da it, Arglwyd," heb ef. "Duw a ro da it," heb ef, "a graessaw wrthyt." "Arglwyd," heb ef, "llyma rydit yti am y geir a dywedeist neithwyr am y moch, nas rodut ac nas guerthut. Titheu a elly gyfnewit yr a uo guell. Minheu a rodaf y deudeg meirch hynn ual y maent yn gyueir, ac eu kyfrwyeu, ac eu frwyneu, a'r deudec milgi ac eu torcheu ac eu kynllyuaneu, ual y guely, a'r deudec taryan eureit a wely di racco." (Y rei hynny a rithassei ef o'r madalch). "Ie," heb ynteu, "ni a gymerwn gynghor." Sef a gaussant yn y kynghor, rodi y moch e Wydyon, a chymryt y meirch a'r cwn a'r taryaneu y gantaw ynteu.
+
+Ac yna y kymeryssant wy ganheat, ac y dechreussant gerdet a'r moch. "A geimeit," heb y Guydyon, "reit yw in gerdet yn bryssur. Ny phara yr hut namyn o'r pryt pwy gilyd." A'r nos honno y kerdyssant hyt ygwarthaf Keredigyawn, y lle a elwir etwa o achaus hynny Mochtref. A thrannoeth y kymeryssant eu hynt; dros Elenit y doethant. A'r nos honno y buant y rwng Keri ac Arwystli, yn y dref a elwir heuyt o achaus hynny Mochtref. Ac odyna y kerdyssant racdunt, a'r nos honno yd aethant hyt yg kymwt ym Powys, a elwir o'r ystyr hwnnw heuyt Mochnant, ac yno y buant y nos honno. Ac odynha y kerdyssant hyt yg cantref Ros, ac yno y buant y nos honno y mywn y dref a elwir etwa Mochtref.
+
+"Ha wyr," heb y Gwydyon, "ni a gyrchwn kedernit Gwynet a'r aniueileit hynn. Yd ys yn lluydaw yn an ol." Sef y kyrchyssant y dref uchaf o Arllechwoed, ac yno gwneuthur creu y'r moch, ac o'r achaws hwnnw y dodet Creuwryon ar y dref. Ac yna guedy gwneuthur creu y'r moch y kyrchyssant ar Uath uab Mathonwy, hyt yg Kaer Tathyl.
+
+A phan doethant yno, yd oedit yn dygyuori y wlat. "Pa chwedleu yssyd yma?" heb y Gwydyon. "Dygyuor," heb wy, "y mae Pryderi yn ych ol chwi un cantref ar ugeint. Ryued uu hwyret y kerdyssawchi." "Mae yr aniueileit yd aethawch yn eu hwysc?" heb y Math. "Maent guedy gwneuthur creu udunt yn y cantref arall issot," heb y Guydyon. Ar hynny, llyma y clywynt yr utkyrn a'r dygyuor yn y wlat. Ar hynny guiscaw a wnaethant wynteu, a cherdet yny uydant ym Pennard yn Aruon.
+
+A'r nos honno yd ymhwelwys Gwydyon uab Don a Chiluathwy y urawt, kyt yg Kaer Dathyl. Ac yguely Math uab Mathonwy dodi Giluathwy a Goewyn uerch Pebin y gyscu y gyt, a chymell y morynyon allan yn amharchus, a chyscu genti o'y hanuod y nos honno.
+
+Pan welsant y dyd drannoeth, kyrchu a wnaethant parth a'r lle yd oed Math uab Mathonwy a'y lu. Pan doethant, yd oed y guyr hynny yn mynet y gymryt kynghor ba tu yd arhoynt Pryderi a guyr y Deheu. Ac ar y kynghor y doethant wynteu. Sef a gaussant yn eu kynghor, aros yg kedernit Gwyned yn Aruon. Ac yghymherued y dwy uaynawr yd arhoed, Maynawr Bennard a Maynawr Coet Alun.
+
+A Phryderi a'y kyrchwys yno wynt; ac yno y bu y gyfranc, ac y llas lladua uawr o pop parth, ac y bu reit y wyr y Deheu enkil. Sef lle yd enkilyssant, hyt y Ue a elwir etwa Nant Call; a hyt yno yd ymlidywyd, Ac yna y bu yr ayrua diuessur y meint. Ac yna y kilyssant hyt y lle a elwir Dol Penmaen. Ac yna clymu a wnaethant, a cheissaw ymdangneuedu, a gwystlaw a wnaeth Pryderi ar y tangneued. Sef a wystlwys, Gwrgi Guastra, ar y pedwyryd ar ugeint o ueibyon guyrda.
+
+A guedy hynny, kerdet o honunt yn eu tangneued hyt y Traeth Mawr; ac ual y gyt ac y doethant hyt y Uelen Ryd y pedyt ny ellit eu reoli o ymsaethu, gyrru kennadeu o Pryderi y erchi guahard y deulu, ac erchi gadu y ryngtaw ef a Guydyon uab Don, canys ef a baryssei hynny. At Math uab Mathonwy y doeth y genhat. "Ie," heb y Math, "e rof a Duw, os da gan Wydyon uab Don, mi a'e gadaf yn llawen. Ni chymellaf inheu ar neb uynet e ymlad, dros wneuthur ohanam ninheu an gallu." "Dioer," heb y kennadeu, "teg, med Pryderi, oed y'r gwr a wnaeth hynn idaw ef o gam, dodi y gorf yn erbyn y eidaw ynteu, a gadu y deu lu yn segur." "Dygaf y Duw uyg kyffes," [heb y Guydyon], "nat archaf i y wyr Gwyned ymlad drossof i, a minheu uy hun yn cael ymlad a Phryderi. Mi a dodaf uyg korf yn erbyn y eidaw yn llawen."
+
+A hynny a anuonet at Pryderi. "Ie," heb y Pryderi, "nit archaf inheu y neb gouyn uy iawn namyn my hun." E gwyr hynny a neilltuwyt, ac a dechreuwyt gwiscaw amdanunt, ac ymlad a wnaethant. Ac o nerth grym ac angerd, a hut a lledrith, Guydyon a oruu, a Phryderi a las, ac y Maen Tyuyawc, uch y Uelen Ryd y cladwyt, ac yno y may y ued.
+
+Gwyr y Deheu a gerdassant ac argan truan ganthunt parth ac eu gwlat, ac nit oed ryued; eu harglwyd a gollyssynt. a llawer oc eu goreuguyr, ac eu meirch, ac eu haruen can mwyaf.
+
+Gwyr Gwyned a ymchweles dracheuyn yn llawen orawenus. "Arglwyd," heb y Guydyon wrth Uath, "ponyt oed iawn ynni ollwng eu dylyedauc y wyr y Deheu, a wystlyssant in ar tangneued? Ac ny dylywn y garcharu." "Rydhaer ynteu," heb y Math. A'r guas hwnnw, a'r gwystlon oed gyt ac ef, a ellyngwyt yn ol guyr y Deheu.
+
+Enteu Math a gyrchwys Caer Tathyl. Giluaethwy uab Don a'r teulu a uuassynt gyt ac ef, a gyrchyssant y gylchaw Gwyned mal y gnotayssynt, a heb gyrchu y llys. Enteu Uath a gyrchwys e ystauell, ac a beris kyweiraw lle idaw y benelinyaw, ual y caei dodi y draet ym plyc croth y uorwyn. "Arglwyd," heb y Goewyn, "keis uorwyn a uo is dy draet weithon. Gwreic wyf i." "Pa ystyr yw hynny?" "Kyrch, Arglwyd, a doeth am uym penn, a hynny yn diargel, ac ny buum distaw inheu. Ny bu yn y llys nys guypei. Sef a doeth, dy nyeint ueibon dy chwaer, Arglwyd, Gwydyon uab Don a Giluaethwy uab Don. A threis arnaf a orugant a chywilyd y titheu, a chyscu a wnaethpwyt genhyf, a hynny i'th ystauell ac i'th wely." "Ie," heb ynteu, "yr hyn a allaf i, [mi a'e gwnaf]. Mi a baraf iawn y ti yn gyntaf, ac yn ol uy iawn y bydaf inheu. A thitheu," heb ef, "mi a'th gymeraf yn wreic im, ac a rodaf uedyant uyg kyuoeth i'th law ditheu."
+
+Ac yn hynny ny doethant wy yng kyuyl y llys, namyn trigyaw y gylchaw y wlat a wnaethant yny aeth guahard udunt ar y bwyt a'y llyn. Yn gyntaf ny doethant wy yn y gyuyl ef. Yna y doethant wynteu attaw ef. "Arglwyd," heb wynt, "dyd da it." "Ie," heb ynteu, "ay y wneuthur iawn ymi y doethauch chwi?" "Arglwyd, i'th ewyllus yd ydym." "Bei uy ewyllwys ny chollwn o wyr ac araeu a golleis. Vyg kywilyd ny ellwch chwi y dalu y mi, heb angheu Pryderi. A chan doethauch chwitheu y'm ewyllus inheu, mi a dechreuaf boen arnawch."
+
+Ac yna y kymerth e hutlath, ac y trewis Giluathwy yny uyd daran ewic; ac achub y llall a wnaeth yn gyflym, kyt mynhei dianc nys gallei, a'y taraw a'r un hutlath yny uyd yn garw. "Canys ywch yn rwymedigaeth, mi a wnaf ywch gerdet y gyt, a'ch bot yn gymaredic, ac yn un anyan a'r gwyduilot yd ywch yn eu rith, ac yn yr amser y bo etiued udunt wy, y uot ywchwitheu. A blwydyn y hediw, dowch yma ataf i."
+
+Ym penn y ulwydyn o'r un dyd, llyma y clywei odorun adan paret yr ystauell, a chyuarthua cwn y llys am penn y godorun. "Edrych," heb ynteu, "beth yssyd allan." "Arglwyd," heb un, "mi a edrycheis. Mae yna carw, ac ewic, ac elein gyt ac wynt." Ac ar hynny, kyuodi a oruc ynteu a dyuot allan. A phan doeth, sef y guelei y trillydyn; sef trillydyn oedynt, carw, ac ewic, ac elein cryf. Sef a wnaeth, dyrchauael e hutlath. "Yr hwnn a uu o honawch yn ewic yrllyned, bit uaed coed yleni. A'r hwnn a uu garw o honawch yrllyned, bit garnen eleni." Ac ar hynny, eu taraw a'r hutlath.
+
+"Y mab hagen a gymeraf i, ac a baraf y ueithryn a'y uedydyaw" Sef enw a dodet arnaw, Hydwn. "Ewch chwitheu, a bydwch y lleill yn uaed coed, a'r llall yn garnen coet. A'r anyan a uo y'r moch coet, bit y chwitheu. A blwydyn y hediw bydwch yma ydan y paret, ac ych etiued y gyt a chwi."
+
+Ym penn y ulwydyn, llyma y clywyn kyuarthua cwn dan paret yr ystauell, a dygyuor y llys y am hynny am eu penn. Ar hynny, kyuodi a oruc [ynteu] a mynet allan. A phan daw allan, trillydyn a welei. Sef kyfryw lydnot a welei, baed coed, a charnen coet, a chrynllwdyn da y gyt ac wy. A breisc oed yn yr oet oed arnaw.
+
+"Ie," heb ef, "hwnn a gymeraf i attaf, ac a baraf y uedydyaw," - a'y daraw a'r hutlath, yny uyd yn uab braswineu telediw. Sef enw a dodet ar hwnnw, Hychdwn. "A chwitheu, yr un a uu baed coet o honawch yrllyned, bit bleidast yleni, a'r hwn a uu garnen yrllyned, bit uleid yleni." Ac ar hynny eu taraw a'r hutlath, yny uydant bleid a bleidast. "Ac anyan yr aniueileit yd ywch yn eu rith, bit y chwitheu. A bydwch yma blwydyn y'r dyd hediw ydan y paret hwnn."
+
+Yr un dyd ym penn y ulwydyn, llyma y clywei dygyuor a chyuarthua dan paret yr ystauell. Ynteu a gyuodes allan, a phan daw, llyma y guelei bleid, a bleidast, a chrubothon cryf y gyt ac wynt. "Hwnn a gymeraf i," heb ef, "ac a baraf y uedydyaw, ac y mae y enw yn parawt. Sef yw hwnnw, Bleidwn. Y tri meib yssyd y chwi, a'r tri hynny ynt:
+
+:Tri meib Giluaethwy enwir,
+:Tri chenryssedat kywir,
+:Bleidwn, Hydwn, Hychdwn Hir."
+
+Ac ar hynny, yn y taraw wynteu yll deu a'r hutlath yny uydant yn eu cnawt eu hun. "A wyr," heb ef, "o gwnaethauch gam ymi, digawn y buawch ym poen, a chywilyd mawr a gawssawch, bot plant o bob un o honawch o'y gilid. Perwch enneint y'r gwyr, a golchi eu penneu, ac eu kyweiraw." A hynny a berit udunt.
+
+A guedy ymgueiraw ohonunt, attaw ef y kyrchyssant. "A wyr," heb ef, "tangneued a gawsawch, a cherennyd a geffwch. A rodwch im kynghor pa uorwyn a geisswyf." "Arglwyd," heb y Guydyon uab Don, "hawd yw dy gynghori. Aranrot uerch Don, dy nith uerch dy chwaer."
+
+Honno a gyrchwyt attaw. Y uorwyn a doeth ymywn. "A uorwyn," heb ef, "a wyt uorwyn di?" "Ny wnn i amgen no'm bot." Yna y kymerth ynteu yr hutlath a'y chamu. "Camha di dros honn," heb ef, "ac ot wyt uorwyn, mi a ednebydaf." Yna y camawd hitheu dros yr hutlath, ac ar y cam hwnnw, adaw mab brasuelyn mawr a oruc. Sef a wnaeth y mab, dodi diaspat uchel. Yn ol diaspat y mab, kyrchu y drws a oruc hi, ac ar hynny adaw y ryw bethan ohonei; a chyn cael o neb guelet yr eil olwc arnaw, Guydyon a'y kymerth, ac a droes llen o bali yn y gylch, ac a'e cudyawd. Sef y cudyawd, y mywn llaw gist is traed y wely.
+
+"Ie," heb [Math uab] Mathonwy, "mi a baraf uedydyaw hwn," wrth y mab brasuelyn. "Sef enw a baraf, Dylan." Bedydyaw a wnaethpwyt y mab, ac y gyt ac y bedydywyt, y mor a gyrchwys. Ac yn y lle, y gyt ac y doeth y'r mor, annyan y mor a gauas, a chystal y nouyei a'r pysc goreu yn y mor, ac o achaws hynny y gelwit Dylan Eil Ton. Ny thorres tonn adanaw eiryoet. A'r ergyt y doeth y angheu ohonaw, a uyrywys Gouannon y ewythyr. A hwnnw a uu trydyd anuat ergyt.
+
+Val yd oed Wydyon diwarnawt yn y wely, ac yn deffroi, ef a glywei diaspat yn y gist is y draet. Kyny bei uchel hi, kyuuch oed ac y kigleu ef. Sef a oruc ynteu, kyuodi yn gyflym, ac agori y gist. Ac ual y hegyr, ef a welei uab bychan yn rwyuaw y ureicheu o blyc y llen, ac yn y guascaru. Ac ef a gymerth y mab y rwng y dwylaw ac a gyrchwys y dref ac ef, lle y gwydat bot gwreic a bronneu genti. Ac ymobryn a wnaeth a'r wreic ueithryn y mab. Y mab a uagwyt y ulwydyn honno. Ac yn oet y ulwydyn hof oed gantunt y ureisket bei dwy ulwyd. A'r eil ulwydyn mab mawr oed, ac yn gallu e hun kyrchu y llys. Ynteu e hun Wydyon, wedy y dyuot y'r llys a synnywys arnaw. A'r mab a ymgeneuinawd ac ef, ac a'y carawd yn uwy noc un dyn. Yna y magwyt y mab yn y llys yny uu pedeirblwyd. A hof oed y uab wyth mlwyd uot yn gynureisket ac ef. A diwyrnawt ef a gerdawd yn ol Gwydyon y orymdeith allan. Sef a wnaeth, kyrchu Caer Aranrot a'r mab y gyt ac ef. Gwedy y dyuot y'r llys, kyuodi a oruc Aranrot yn y erbyn y raessawu, ac y gyuarch guell idaw. "Duw a ro da it," heb ef. "Pa uab yssyd i'th ol di?" heb hi. "Y mab hwnn, mab y ti yw," heb ef. "Oy a wr, ba doi arnat ti, uyg kywilydaw i, a dilyt uyg kywilyd, a'y gadw yn gyhyt a hynn?" "Ony byd arnat ti gywilyd uwy no meithryn o honaf i uab kystal a hwnn, ys bychan a beth uyd dy gywilyd di." "Pwy enw dy uab dy?" heb hi. "Dioer," heb ef, "nit oes arnaw un enw etwa." "Ie," heb hi, "mi a dynghaf dyghet idaw, na chaffo enw yny caffo y genhyf i." "Dygaf y Duw uyg kyffes," heb ef, "direit wreic wyt, a'r mab a geiff enw, kyt boet drwc genhyt ti. A thitheu," heb ef, "yr hwnn yd wyt ti, ac auar arnat am na'th elwir y uorwyn, ni'th elwir bellach byth yn uorwyn."
+
+Ac ar hynny, kerdet e ymdeith drwy y lit a wnaeth, a chyrchu Caer Tathyl, ac yno y bu y nos honno. A thrannoeth kyuodi a oruc, a chymryt y uab gyt ac ef, a mynet y orymdeith gan lann y weilgi rwng hynny ac Aber Menei. Ac yn y lle y guelas delysc a morwyal, hudaw llong a wnaeth. Ac o'r guimon a'r delysc hudaw cordwal a wnaeth, a hynny llawer, ac eu brithaw a oruc hyt na welsei neb lledyr degach noc ef. Ac ar hynny, kyweiraw hwyl ar y llong a wnaeth, a dyuot y drws porth Caer Aranrot, ef a'r mab yn y llong. Ac yna dechreu llunyaw esgidyeu, ac eu gwniaw. Ac yna y harganuot o'r gaer.
+
+Pan wybu ynteu y arganuot o'r gaer, dwyn eu heilyw e hun a oruc, a dodi eilyw arall arnunt, ual nat adnepit. "Pa dynyon yssyd yn y llong?" heb yr Aranrot. "Crydyon," heb wy. "Ewch y edrych pa ryw ledyr yssyd ganthunt, a pha ryw weith a wnant." Yna y doethpwyt, a phan doethpwyt, yd oed ef yn brithaw cordwal, a hynny yn eureit. Yna y doeth y kennadeu, a menegi idi hi hynny. "Ie," heb hitheu, "dygwch uessur uyn troet, ac erchwch y'r cryd wneuthur esgidyeu im." Ynteu a lunywys yr esgidyeu, ac nit wrth y messur, namyn yn uwy. Dyuot a'r esgidyeu idi. Nachaf yr esgidyeu yn ormod. "Ryuawr yw y rei hynn," heb hi. "Ef a geiff werth y rei hynn, a gwnaet heuyt rei a uo llei noc wynt." Sef a wnaeth ef, gwneuthur rei ereill yn llei lawer no'y throet, a'y hanuon idi. "Dywedwch idaw, nit a ymi un o'r esgidyeu hynn," heb hi. Ef a dywetpwyt idaw. "Ie," heb ef, "ny lunyaf esgidyeu idi yny welhwyf y throet." A hynny a dywetpwyt idi. "Ie," heb hi, "mi a af hyt attaw."
+
+Ac yna y doeth hi hyt y llong. A phan doeth, yd oed ef yn llunyaw, a'r mab yn gwniaw. "Ie, Arglwydes," heb ef, "dyd da it." "Duw a ro da it," heb hi. "Eres yw genhyf na uedrut kymedroli [ar wneuthur] esgidyeu wrth uessur." "Na uedreis," heb ynteu. "Mi a'y medraf weithon."
+
+Ac ar hynny, llyma y dryw yn seuyll ar wwrd y llog. Sef a wnaeth y mab, y uwrw a'y uedru y rwg giewyn y esgeir a'r ascwrn. Sef a wnaeth hitheu, chwerthin. "Dioer," heb hi, "ys llaw gyffes y medrwys y Lleu ef." "Ie," heb ynteu, "aniolwch Duw it. Neur gauas ef enw. A da digawn yw y enw. Llew Llaw Gyffes yw bellach."
+
+Ac yna difflannu y gueith yn delysc ac yn wimon. A'r gueith ny chanlynwys ef hwy no hynny. Ac o'r achaws hwnnw y gelwit ef yn drydyd eur gryd.
+
+"Dioer," heb hitheu, "ni henbydy well di o uot yn drwc wrthyf i.""Ny buum drwc i etwa wrthyt ti," heb ef. Ac yna yd ellyngwys ef y uab yn y bryt e hun, ac y kymerth y furyf e hun. "Ie," heb hitheu, "minheu a dyghaf dyghet y'r mab hwnn, na chaffo arueu byth yny gwiscof i ymdanaw." "Y rof a Duw," heb ef, "handid o'th direidi di, ac ef a geif arueu." Yna y doethant wy parth a Dinas Dinllef. Ac yna meithryn Llew Llaw Gyffes yny allwys marchogaeth pob march, ac yny oed gwbyl o bryt, a thwf, a meint.
+
+Ac yna adnabot a wnaeth Gwydyon arnaw y uot yn kymryt dihirwch o eisseu meirch ac arueu, a'y alw attaw a wnaeth. "A was," heb ynteu, "ni a awn, ui a thi, y neges auory. A byd lawenach noc yd wyt." "A hynny a wnaf inheu," heb y guas.
+
+Ac yn ieuengtit y dyd trannoeth, kyuodi a wnaethant, a chymryt yr aruordir y uynyd parth a Brynn Aryen. Ac yn y penn uchaf y Geuyn Clutno, ymgueiraw ar ueirch a wnaethant, a dyuot parth a Chacr Aranrot. Ac yna amgenu eu pryt a wnaethant, a chyrchu y porth yn rith deu was ieueinc, eithyr y uot yn prudach pryt Gwydyon noc un y guas.
+
+"E porthawr," heb ef, "dos ymywn, a dywet uot yma beird o Uorgannwc." Y porthawr a aeth. "Graessaw Duw wrthunt. Gellwng y mywn wy," heb hi. Diruawr leuenyd a uu yn eu herbyn. Yr yneuad a gyweirwyd ac y wwyta yd aethpwyt. Guedy daruot y bwyta, ymdidan a wnaeth hi a Guydyon am chwedleu a chyuarwydyt. Ynteu Wydyon kyuarwyd da oed.
+
+Guedy bot yn amser ymadaw a chyuedach, ystauell a gweirwyt udunt wy, ac y gyscu yd aethant. Hir bylgeint Guydyon a gyuodes. Ac yna y gelwis ef y hut a'y allu attaw. Erbyn pan oed dyd yn goleuliau, yd oed gyniweir ac utkyrn a lleuein yn y wlat yn gynghan. Pan ydoed y dyd yn dyuot, wynt a glywynt taraw drws yr ystauell, ac ar hynny Aranrot yn erchi agori. Kyuodi a oruc y guas ieuanc, ac agori. Hitheu a doeth y mywn, a morwyn y gyt a hi. "A wyrda," heb hi, "lle drwc yd ym." "Ie," heb ynteu, "ni a glywn utkyrn a lleuein, a beth a debygy di o hynny?" "Dioer," heb hi, "ni chawn welet llyw y weilgi gan pob llong ar torr y gilyd. Ac y maent yn kyrchu y tir yn gyntaf a allont. A pha beth a wnawni?" heb hi. "Arglwydes," heb y Gwydyon, "nyt oes in gynghor, onyt caeu y gaer arnam, a'y chynhal yn oreu a allom." "Ie," heb hitheu, "Duw a dalho ywch. A chynhelwch chwitheu; ac yma y keffwch digawn o arueu."
+
+Ac ar hynny, yn ol yr arueu yd aeth hi. A llyma hi yn dyuot, a dwy uorwyn gyt a hi, ac arueu deu wr gantunt. "Arglwydes," heb ef, "gwisc ymdan y gwryanc hwnn. A minheu, ui a'r morynyon, a wiscaf ymdanaf inheu. Mi a glywaf odorun y gwyr yn dyuot." "Hynny a wnaf yn llawen." A guiscaw a wnaeth hi amdanaw ef yn llawen, ac yn gwbyl.
+
+"A derw," heb ef, "wiscaw amdan y gwryanc hwnnw?" "Deryw," heb hi. "Neu deryw y minheu," heb ef. "Diodwn yn arueu weithon; nit reit ynn wrthunt." "Och," heb hitheu, "paham? Llyna y llynghes yng kylch y ty." "A wreic, nit oes yna un llynghes." "Och !" heb [hi], "pa ryw dygyuor a uu o honei?" "Dygyuor," heb ynteu, "y dorri dy dynghetuen am dy uab, ac y geissaw arueu idaw. Ac neur gauas ef arueu, heb y diolwch y ti." "E rof a Duw," heb hitheu, "gwr drwc wyt ti. Ac ef a allei llawer mab colli y eneit am y dygyuor a bereisti yn y cantref hwnn hediw. A mi a dynghaf dynghet idaw," heb hi, "na chaffo wreic uyth, o'r genedyl yssyd ar y dayar honn yr awr honn." "Ie," heb ynteu, "direidwreic uuost eiroet, ac ny dylyei neb uot yn borth it. A gwreic a geif ef ual kynt."
+
+Hwynteu a doethant at Math uab Mathonwy, a chwynaw yn luttaf yn y byt rac Aranrot a wnaethant, a menegi ual y paryssei yr arueu idaw oll. "Ie," heb y Math, "keisswn ninheu, ui a thi, oc an hut a'n lledrith, hudaw gwreic idaw ynteu o'r blodeu." Ynteu yna a meint gwr yndaw ac yn delediwhaf guas a welas dyn eiroet.
+
+Ac yna y kymeryssant wy blodeu y deri, a blodeu y banadyl, a blodeu yr erwein, ac o'r rei hynny, asswynaw yr un uorwyn deccaf a thelediwaf a welas dyn eiroet. Ac y bedydyaw o'r bedyd a wneynt yna, a dodi Blodeued arnei.
+
+Gwedy y kyscu y gyt wy ar y wled, "Nyt hawd," heb y Guydyon, "y wr heb gyuoeth idaw ossymdeithaw." "Ie," heb y Math, "mi a rodaf idaw yr un cantref goreu y was ieuanc y gael." "Arglwyd," heb ef, "pa gantref yw hwnnw?" "Cantref Dinodig," heb ef. A hwnnw a elwir yr awr honn Eiwynyd ac Ardudwy. Sef lle ar y cantref y kyuanhedwys lys idaw, yn y lle a elwir Mur Castell, a hynny yg gwrthtir Ardudwy. Ac yna y kyuanhedwys ef, ac y gwledychwys. A phawb a uu uodlawn idaw, ac y arglwydiaeth.
+
+Ac yna treigylgueith kyrchu a wnaeth parth a Chaer Dathyl e ymwelet a Math uab Mathonwy. Y dyd yd aeth ef parth a Chaer Tathyl, troi o uywn y llys a wnaeth hi. A hi a glywei lef corn, ac yn ol llef y corn llyma hyd blin yn mynet heibaw, a chwn a chynydyon yn y ol. Ac yn ol y cwn a'r kynydyon, bagat o wyr ar traet yn dyuot. "Ellynghwch was," heb hi, "e wybot pwy yr yniuer." Y gwas a aeth, a gouyn pwy oedynt. "Gronw Pebyr yw hwnn, y gwr yssyd arglwyd ar Benllyn," heb wy. Hynny a dywot y guas idi hitheu. Ynteu a gerdwys yn ol yr hyd. Ac ar Auon Gynnwael gordiwes yr hyd a'y lad. Ac wrth ulingyaw yr hyd, a llithyaw y gwn, ef a uu yny wascawd y nos arnaw. A phan ytoed y dyd yn atueilaw, a'r nos yn nessau, ef a doeth heb porth y llys.
+
+"Dioer," heb hi, "ni a gawn yn goganu gan yr unben o'e adu y prytwn y wlat arall, onys guahodwn." "Dioer, Arglwydes," heb wy, "iawnhaf yw y wahawd." Yna yd aeth kennadeu yn y erbyn y wahawd. Ac yna y kymerth ef [y] wahawd yn llawen, ac y doeth y'r llys, ac y doeth hitheu yn y erbyn y graessawu, ac y gyuarch well idaw. "Arglwydes, Duw a dalho it dy lywenyd," [heb ef]. Ymdiarchenu, a mynet y eisted a wnaethant. Sef a wnaeth Blodeued, edrych arnaw ef, ac yr awr yd edrych, nit oed gyueir arnei hi ny bei yn llawn o'e garyat ef. Ac ynteu a synywys arnei hitheu; a'r un medwl a doeth yndaw ef ac a doeth yndi hitheu. Ef ny allwys ymgelu o'e uot yn y charu, a'e uenegi idi a wnaeth. Hitheu a gymerth diruawr lywenyd yndi. Ac o achaws y serch, a'r caryat, a dodassei pob un o honunt ar y gilyd, y bu eu hymdidan y nos honno. Ac ny bu ohir e ymgael o honunt, amgen no'r nos honno. A'r nos honno kyscu y gyt a wnaethant.
+
+A thrannoeth, arouun a wnaeth ef e ymdeith. "Dioer," heb hi, "nyt ey y wrthyf i heno." E nos honno y buant y gyt heuyt. A'r nos honno y bu yr ymgynghor ganthunt pa furu y kehynt uot yg kyt. "Nyt oes gynghor it," heb ef, "onyt un; keissaw y ganthaw gwybot pa furu y del y angheu, a hynny yn rith ymgeled amdanaw."
+
+Trannoeth, arouun a wnaeth. "Dioer, ni chyghoraf it hediw uynet e wrthyf i." "Dioer, canys kynghory ditheu, nit af inheu," heb ef. "Dywedaf hagen uot yn perigyl dyuot yr unben bieu y llys adref." "Ie," heb hi, "auory, mi a'th ganhadaf di e ymdeith."
+
+Trannoeth, arouun a wnaeth ef, ac ny ludywys hitheu ef. "Ie," heb ynteu, "coffa a dywedeis wrthyt, ac ymdidan yn lut ac ef; a hynny yn rith ysmalawch caryat ac ef. A dilyt y gantaw pa ford y gallei dyuot y angheu."
+
+Enteu a doeth adref y nos honno. Treulaw y dyd a wnaethant drwy ymdidan, a cherd, a chyuedach. A'r nos honno y gyscu y gyt yd aethant. Ac ef a dywot parabyl, a'r eil wrthi. Ac yn hynny parabyl nis cauas. "Pa derw yti," heb ef, "ac a wyt iach di?" "Medylyaw yd wyf," heb hi, "yr hynn ny medylyut ti amdanaf i. Sef yw hynny," heb hi, "goualu am dy angheu di, ot elut yn gynt no miui." "Ie," heb ynteu, "Duw a dalho it dy ymgeled. Ony'm llad i Duw hagen, nit hawd uy llad i," heb ef. "A wney ditheu yr Duw ac yrof inheu, menegi ymi ba furu y galler dy lad ditheu? Canys guell uyghof i wrth ymoglyt no'r teu di." "Dywedaf yn llawen," heb ef. "Nit hawd uy llad i," heb ef, "o ergyt. A reit oed uot blwydyn yn gwneuthur y par y'm byrhit i ac ef, a heb gwneuthur dim o honaw, namyn pan uythit ar yr aberth duw Sul." "Ae diogel hynny?" heb hi. "Diogel, dioer," heb ef. "Ny ellir uy llad i y mywn ty," heb ef, "ny ellir allan; ny ellir uy llad ar uarch, ny ellir ar uyn troet." "Ie" heb hitheu, "pa delw y gellit dy lad ditheu?" "Mi a'e dywedaf yti," heb ynteu. "Gwneuthur ennein im ar lan auon, a gwneuthur cromglwyt uch benn y gerwyn, a'y thoi yn da didos wedi hynny hyhitheu. A dwyn bwch," heb ef, "a'y dodi gyr llaw y gerwyn, a dodi ohonof uinheu y neill troet ar geuyn y bwch, a'r llall ar emyl y gerwyn. Pwy bynnac a'm metrei i yuelly, ef a wnay uy angheu." "Ie," heb hitheu, "diolchaf y Duw hynny. Ef a ellir rac hynny dianc yn hawd."
+
+Nyt kynt noc y cauas hi yr ymadrawd, noc y hanuones hitheu at Gronw Pebyr. Gronw a lauurywys gueith y guayw, a'r un dyd ym penn y ulwydyn y bu barawt. A'r dyd hwnnw y peris ef idi hi guybot hynny. "Arglwyd," heb hi, "yd wyf yn medylyaw pa delw y gallei uot yr hynn a dywedeisti gynt wrthyf i. Ac a dangossy di ymi pa furu y sauut ti ar emyl y gerwyn a'r bwch, o faraf uinheu yr enneint?" "Dangossaf," heb ynteu.
+
+Hitheu a anuones at Gronw, ac a erchis idaw bot yg kyscawt y brynn a elwir weithon Brynn Kyuergyr; yglan Auon Kynuael oed hynny. Hitheu a beris kynnullaw a gauas o auyr yn y cantref a'y dwyn o'r parth draw y'r auon, gyuarwyneb a Bryn Kyuergyr,
+
+A thrannoeth hi a dywot, "Arglwyd," heb hi, "mi a bereis kyweiraw y glwyt, a'r ennein, ac y maent yn barawt." "Ie," heb ynteu, "awn eu hedrych yn llawen." Wy a doethant trannoeth y edrych yr enneint. "Ti a ey y'r ennein, Arglwyd?" heb hi. "Af yn llawen," heb ef. Ef a aeth y'r ennein, ac ymneinaw a wnaeth. "Arglwyd," heb hi, "llyma yr aniueileit a dywedeisti uot bwch arnunt." "Ie," heb ynteu, "par dala un ohonunt, a phar y dwyn yma." Ef a ducpwyt. Yna y kyuodes ynteu o'r ennein a guiscaw y lawdyr amdanaw, ac y dodes y neilltroet ar emyl y gerwyn, a'r llall ar geuyn y bwch.
+
+Ynteu Gronw a gyuodes e uynyd o'r brynn a elwir Brynn Kyuergyr, ac ar benn y neill glin y kyuodes, ac a'r guenwynwayw y uwrw, a'y uedru yn y ystlys, yny neita y paladyr ohonaw, a thrigyaw y penn yndaw. Ac yna bwrw ehetuan o honaw ynteu yn rith eryr, a dodi garymleis anhygar. Ac ny chahat y welet ef odyna y maes.
+
+Yn gyn gyflymet ac yd aeth ef e ymdeith, y kyrchyssant wynteu y llys, a'r nos honno kyscu y gyt. A thrannoeth kyuodi a oruc Gronw, a guereskyn Ardudwy. Guedy gwreskyn y wlat, y gwledychu a wnaeth yny oed yn y eidaw ef Ardudwy a Phenllyn.
+
+Yna y chwedyl a aeth at Math uab Mathonwy. Trymuryt a goueileint a gymerth Math yndaw, a mwy Wydyon noc ynteu lawer. "Arglwyd," heb y Guydyon, "ny orffwyssaf uyth, yny gaffwyf chwedleu y wrth uy nei." "Ie," heb y Math, "Duw a uo nerth yt." Ac yna kychwynnu a wnaeth ef, a dechreu rodyaw racdaw, a rodyaw Gwyned a wnaeth, a Phowys yn y theruyn. Guedy rodyaw pob lle, ef a doeth y Aruon, ac a doeth y ty uab eillt, ymaynawr Bennard.
+
+Diskynnu yn y ty a wnaeth, a thrigyaw yno y nos honno. Gwr y ty a'y dylwyth a doeth ymywn, ac yn diwethaf y doeth y meichat. Gwr y ty a dywot wrth y meichat, "A was," heb ef, "a doeth dy hwch di heno y mywn?" "Doeth," heb ynteu, "yr awr honn y doeth at y moch." "Ba ryw gerdet," heb y Guydyon, "yssyd ar yr hwch honno?" "Ban a\gorer y creu beunyd yd a allan. Ny cheir craf arnei, ac ny wybydir ba ford yd a, mwy no chyn elei yn y daear." "A wney di," heb y Guydyon, "yrofi, nat agorych y creu yny uwyf i yn y neillparth y'r creu y gyt a thi?" "Gwnaf yn llawen," heb ef. Y gyscu yd aethant y nos honno.
+
+A phan welas y meichat lliw y dyd, ef a deffroes Wydyon, a chyuodi a wnaeth Gwydyon, a guiscaw amdanaw a dyuot y gyt [ac ef] a seuyll wrth y creu. Y meichat a agores y creu. Y gyt ac y hegyr, llyma hitheu yn bwrw neit allan, a cherdet yn braf a wnaeth, a Guydyon a'y canlynwys. A chymryt gwrthwyneb auon a wnaeth, a chyrchu nant a wnaeth, a elwir weithon Nantllew, ac yna guastatau a wnaeth, a phori.
+
+Ynteu Wydyon a doeth y dan y prenn, ac a edrychwys pa beth yd oed yr hwch yn y bori; ac ef a welei yr hwch yn pori kic pwdyr a chynron. Sef a wnaeth ynteu, edrych ym blaen y prenn. A phan edrych, ef a welei eryr ym blaen y prenn. A phan ymyskytwei yr eryr, y syrthei y pryuet a'r kic pwdyr o honaw, a'r hwch yn yssu y rei hynny. Sef a wnaeth ynteu, medylyaw y mae Lleu oed yr eryr, a chanu englyn:
+
+:"Dar a dyf y rwng deu lenn,
+:Gorduwrych awyr a glenn.
+:Ony dywedaf i eu,
+:O ulodeu Lleu ban yw hynn."
+
+Sef a wnaeth ynteu yr eryr, ymellwng yny oed yg kymerued y prenn. Sef a wnaeth ynteu Wydyon, canu englyn arall:
+
+:"Dar a dyf yn ard uaes,
+:Nis gwlych glaw, mwy tawd nawes.
+:Ugein angerd a borthes.
+:Yn y blaen, Lleu Llaw Gyffes."
+
+Ac yna ymellwng idaw ynteu, yny uyd yn y geing issaf o'r pren. Canu englyn idaw ynteu yna:
+
+:"Dar a dyf dan anwaeret,
+:Mirein modur ymywet.
+:Ony dywedaf i [eu]
+:Ef dydau Lleu y'm arfet."
+
+Ac y dygwydawd ynteu ar lin Gwydyon; ac yna y trewis Gwydyon a'r hudlath ynteu, yny uyd yn y rith e hunan. Ny welsei neb ar wr dremynt druanach hagen noc a oed arnaw ef. Nit oed dim onyt croen ac ascwrn.
+
+Yna kyrchu Caer Dathyl a wnaeth ef, ac yno y ducpwyt a gahat o uedic da yg Gwyned wrthaw. Kyn kyuyl y'r ulwydyn, yd oed ef yn holl iach. "Arglwyd," heb ef, wrth Math uab Mathonwy, "madws oed y mi caffael iawn gan y gwr y keueis ouut gantaw." "Dioer," heb y Math, "ny eill ef ymgynhal, a'th iawn di gantaw." "Ie," heb ynteu, "goreu yw genhyf i bo kyntaf y caffwyf iawn."
+
+Yna dygyuoryaw Gwyned a wnaethant, a chyrchu Ardudwy. Gwydyon a gerdwys yn y blaen, a chyrchu Mur Castell a oruc. Sef a wnaeth Blodeuwed, clybot eu bot yn dyuot, kymryt y morynyon gyt a hi, a chyrchu y mynyd; a thrwy Auon Gynuael kyrchu llys a oed ar y mynyd. Ac ni wydyn gerdet rac ouyn, namyn ac eu hwyneb tra eu keuyn. Ac yna ni wybuant yny syrthyssant yn y llyn ac y bodyssant oll eithyr hi e hunan.
+
+Ac yna y gordiwawd Gwydyon hitheu, ac y dywot wrthi, "Ny ladaf i di. Mi a wnaf yssyd waeth it. Sef yw hynny," heb ef, "dy ellwng yn rith ederyn. Ac o achaws y kywilyd a wnaethost ti y Lew Llaw Gyffes, na ueidych ditheu dangos dy wyneb lliw dyd byth, a hynny rac ouyn yr holl adar. A bot gelynyaeth y rynghot a'r holl adar. A bot yn anyan udunt dy uaedu; a'th amherchi, y lle i'th gaffant. Ac na chollych dy enw, namyn dy alw uyth yn Blodeuwed."
+
+Sef yw Blodeuwed, tylluan o'r ieith yr awr honn. Ac o achaws hynny y mae digassawc yr adar y'r tylluan: ac ef a elwir etwa y dylluan yn Blodeuwed.
+
+Ynteu Gronwy Pebyr a gyrchwys Penllyn, ac odyno ymgynnatau a wnaeth. Sef kennadwri a anuones, gouyn a wnaeth y Lew Llaw Gyffes, a uynnei ae tir ae dayar, ae eur, ae aryant, am y sarhaet. "Na chymeraf, y Duw dygaf uyg kyffes," heb ef. "A llyma y peth lleiaf a gymeraf y gantaw; mynet y'r lle yd oedwn i ohonaw ef, ban im byryawd a'r par, a minheu y lle yd oed ynteu. A gadel y minheu y uwrw ef a phar. A hynny leiaf peth a gymeraf y gantaw."
+
+Hynny a uenegit y Gronw Bebyr. "Ie," heb ynteu, "dir yw ymi gwneuthur hynny. Wy gwyrda kywir, a'm teulu, a'm brodyr maeth, a oes ohonawch chwi, a gymero yr ergyt drossof i?" "Nac oes, dioer," heb wynt. Ac o achaws gomed ohonunt wy diodef kymryt un ergyt dros eu harglwyd, y gelwir wynteu, yr hynny hyt hediw, trydyd Anniweir Deulu.
+
+"Ie," heb ef, "mi a'e kymeraf." Ac yna y doethant yll deu hyt ar lan Auon Gynuael. Ac yna y seui Gronwy Bebyr, yn y lle yd oed Llew Llaw Gyffes ban y byryawd ef, a Llew yn y lle yd oed ynteu. Ac yna y dyuot Gronwy Bebyr wrth Llew, "Arglwyd," heb ef, "canys o drycystryw gwreic y gwneuthum yti a wneuthum, minheu a archaf yti, yr Duw, llech a welaf ar lan yr auon, gadel ym dodi honno y rynghof a'r dyrnawt." "Dioer," heb y Llew, "ni'th omedaf o hynny." "Ie," heb ef, "Duw a dalho it." Ac yna y kymerth Gronwy y llech ac y dodes y ryngtaw a'r ergyt. Ac yna y byryawd Llew ef a'r par, ac y guant y llech drwydi, ac ynteu drwydaw, yny dyrr y geuynn.
+
+Ac yna y llas Gronwy Bebyr, ac yno y mae y llech ar lan Auon Gynuael yn Ardudwy, a'r twll drwydi. Ac o achaws hynny ettwa y gelwir Llech Gronwy.
+
+Ynteu Llew Llaw Gyffes a oreskynnwys eilweith y wlat, ac y gwledychwys yn llwydanhus. A herwyd y dyweit y kyuarwydyt, ef a uu arglwyd wedy hynny ar Wyned.
+
+Ac yuelly y teruyna y geing honn o'r Mabinogi.
+
