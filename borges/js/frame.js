@@ -97,7 +97,11 @@
   var byId = (B.tellers && B.tellers.byId) || {};
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
-  /* the little card before a telling — deterministic from n, tracing the wheel */
+  /* the little card before a telling — deterministic from n, tracing the wheel.
+     The pair's weather is symmetric, but the night is not: when the teller is one
+     of the two, we hear it from that vertex (a partisan), and the OTHER one — the
+     vertex keeping silence tonight — speaks the meditation, while the narrator
+     answers the tension the only way a teller can, by telling. */
   function interstitial(n) {
     n = Math.max(1, Math.floor(n));
     var MONTH = 28;
@@ -108,13 +112,32 @@
     var a = byId[pair.a] || { name: cap(pair.a), glyph: "" };
     var bb = byId[pair.b] || { name: cap(pair.b), glyph: "" };
     var rand = B.prng ? B.prng.Rand("borges::interstitial::" + n) : null;
-    var attrib = rand && rand.chance(0.5) ? (rand.chance(0.5) ? a : bb) : null;
-    var med = attrib ? (attrib.name + " said, into the dark: " + lowerOpen(facet.tag)) : facet.tag;
-    var text = "Between " + a.name + " " + a.glyph + " and " + bb.name + " " + bb.glyph +
-      " it is the old weather: " + pair.note + " " + phase.beat + " " + med;
+
+    // who actually tells tonight — the same seed generate.js uses, so it matches the tale
+    var teller = (B.tellers && B.prng) ? B.tellers.forTale(n, B.prng.Rand("borges::book-of-sand::" + n + "::teller")) : null;
+    var inPair = !!(teller && (teller.id === pair.a || teller.id === pair.b));
+    var text;
+    if (inPair) {
+      var self = teller, other = (teller.id === pair.a) ? bb : a;
+      var pBeat = {
+        waxing: "And the watch tonight falls to " + self.name + ", with the thing still rising between them.",
+        full: "And tonight, of all nights, the watch is " + self.name + "'s: still hot from the long table, and telling anyway.",
+        waning: "And it is " + self.name + " who tells tonight, the careful silence between them not yet thawed.",
+        dark: "And it is " + self.name + " who tells tonight, the quarrel already let go, as it always is by the dark."
+      }[phase.key];
+      text = "Between " + self.name + " " + self.glyph + " and " + other.name + " " + other.glyph +
+        " it is the old weather: " + pair.note + " " + pBeat + " " +
+        other.name + " said, into the dark: " + lowerOpen(facet.tag);
+    } else {
+      var attrib = rand && rand.chance(0.5) ? (rand.chance(0.5) ? a : bb) : null;
+      var med = attrib ? (attrib.name + " said, into the dark: " + lowerOpen(facet.tag)) : facet.tag;
+      text = "Between " + a.name + " " + a.glyph + " and " + bb.name + " " + bb.glyph +
+        " it is the old weather: " + pair.note + " " + phase.beat + " " + med;
+    }
     return {
       n: n, watch: n, month: m, phaseKey: phase.key, phaseName: phase.name,
       pair: [a.name, bb.name], glyphs: [a.glyph, bb.glyph],
+      teller: teller ? teller.name : null, tellerGlyph: teller ? teller.glyph : "", tellerInPair: inPair,
       facetId: facet.id, facetTitle: facet.title, text: text
     };
   }

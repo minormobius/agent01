@@ -152,6 +152,7 @@ h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
 }
 .inter-head { font-family: var(--sans); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #9fb0c9; margin-bottom: 7px; }
 .inter-head .inter-sig { opacity: 0.8; margin-right: 4px; }
+.inter-head .inter-stake { color: var(--gold-soft); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
 .inter-body { color: var(--ink-dim); font-size: 15.5px; line-height: 1.6; font-style: italic; }
 .inter-foot { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
 .inter-foot a { color: #9fb0c9; }
