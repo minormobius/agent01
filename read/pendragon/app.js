@@ -448,7 +448,7 @@
   // refit the visible diagram on resize (debounced)
   let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
-  /* ====================== CROSSWALK (six tales side by side) ====================== */
+  /* ====================== CROSSWALK (seven tales side by side) ====================== */
   function renderCrosswalk() {
     const C = window.PENDRAGON && window.PENDRAGON.crosswalk;
     const host = $("#cw-host"); if (!C || !host) return;
@@ -467,6 +467,7 @@
       gawain:  (n) => "F" + (ROMAN[n] || n),
       owain:   (n) => "Mvt " + (ROMAN[n] || n),
       branwen: (n) => "Mvt " + (ROMAN[n] || n),
+      manawydan: (n) => "Mvt " + (ROMAN[n] || n),
     };
 
     // dynamic grid template: code + name + one column per tale (the gloss spans full width below)
@@ -596,11 +597,12 @@
       gawain:  (n) => "F" + (["", "I", "II", "III", "IV"][n] || n),
       owain:   (n) => "Mvt " + (ROMANL[n] || n),
       branwen: (n) => "Mvt " + (ROMANL[n] || n),
+      manawydan: (n) => "Mvt " + (ROMANL[n] || n),
     };
 
     const MODES = [
       { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The gold nodes in the centre are the codes most tales realise — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
-      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the six tales. The function symbols (α, A, B, …) that fire in all six sit centrally; the structural absences and inversions drift to the edges." },
+      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the seven tales. The function symbols (α, A, B, …) that fire in all seven sit centrally; the structural absences and inversions drift to the edges." },
       { id: "archetypes", label: "Archetypes", rows: () => C.archetypes, blurb: "Character roles each tale fills with a different figure. A corner-clinging archetype is one only that tale carries; the centre archetypes are the ones every tale instantiates somehow." },
     ];
 

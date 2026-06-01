@@ -81,10 +81,16 @@
           <p>The Second Branch of the Mabinogi — the great Welsh tragedy, and the sister-tale of <em>Pwyll</em>. The giant king Bendigeidfran marries his sister Branwen to Ireland to bind the two islands; his half-brother Efnisien's malice turns the alliance to war; the Cauldron of Rebirth gives back the dead but dumb; and Brân's living severed head feasts the seven survivors for fourscore years. The complete Middle Welsh tale from the Red Book of Hergest (Rhys &amp; Evans 1887), in original English translation across all six movements, with the full annotation layer.</p>
           <span class="tc-go">read.mino.mobi/branwen →</span>
         </a>
+        <a class="tale-card" href="/manawydan/">
+          <div class="tc-kicker">Complete</div>
+          <h3>Manawydan uab Llŷr</h3>
+          <p>The Third Branch of the Mabinogi — the sequel to <em>Branwen</em>, and its bright mirror. Two of the seven survivors come home; Manawydan weds Rhiannon and rules Dyfed with Pryderi and Cigfa, until a thunderclap and a fall of mist empty the whole land to a wasteland. Driven to live by their hands, then robbed of Pryderi and Rhiannon by a vanishing caer, Manawydan alone keeps his head — and lifts the entire enchantment with a craftsman's patience, a pregnant mouse on a tiny gallows, and a bargain he will not let go. The only branch where wit, not war, wins. The complete Middle Welsh tale (Welsh Wikisource reading text), in original English translation across all six movements, with the full annotation layer.</p>
+          <span class="tc-go">read.mino.mobi/manawydan →</span>
+        </a>
       </div>
 
-      <h2 class="section">The six tales side by side</h2>
-      <p class="lead">With six full stacks in the same apparatus — Culhwch, Pwyll, Branwen, Owain, Orfeo, Gawain — the comparative layer the motif index and the story graph open up can do its work. Below: the same Thompson Motif codes, the same Propp functions, the same character archetypes, laid against all six poems. The shape of that apparatus — and how to add a seventh tale — is on the <a href="#method">Method</a> page.</p>
+      <h2 class="section">The seven tales side by side</h2>
+      <p class="lead">With seven full stacks in the same apparatus — Culhwch, Pwyll, Branwen, Manawydan, Owain, Orfeo, Gawain — the comparative layer the motif index and the story graph open up can do its work. Below: the same Thompson Motif codes, the same Propp functions, the same character archetypes, laid against all seven poems. The first three Branches of the Mabinogi now stand together — Pwyll, the tragic Branwen, and the restoring Manawydan, which closes the revenge-arc Pwyll opened. The shape of that apparatus — and how to add an eighth tale — is on the <a href="#method">Method</a> page.</p>
       <div id="cw-host"></div>
 
       <h2 class="section">Explore the historiography</h2>
@@ -104,7 +110,7 @@
     <section class="view" id="view-method">
       <div class="hero">
         <h1>Method</h1>
-        <p class="lead">What we mean by reading a tale deeply, why we mean it, and how a seventh tale would be added to the cycle.</p>
+        <p class="lead">What we mean by reading a tale deeply, why we mean it, and how an eighth tale would be added to the cycle.</p>
       </div>
 
       <h2 class="section">The apparatus</h2>
@@ -163,19 +169,19 @@
       </div>
 
       <h2 class="section">The shape of the apparatus</h2>
-      <p class="lead">Each tale-site stands alone — you can read Culhwch without ever knowing the Pearl Poet exists. But because every layer is structured the same way, the comparative layer at <a href="#home">Pendragon</a> can read across them all without lifting a finger: the same Propp function code points at six different realisations, the same motif call-number cross-cuts every cycle, the same character archetype appears under six faces. That's the spine of this site.</p>
+      <p class="lead">Each tale-site stands alone — you can read Culhwch without ever knowing the Pearl Poet exists. But because every layer is structured the same way, the comparative layer at <a href="#home">Pendragon</a> can read across them all without lifting a finger: the same Propp function code points at seven different realisations, the same motif call-number cross-cuts every cycle, the same character archetype appears under seven faces. That's the spine of this site.</p>
       <p class="lead">The apparatus is intentionally read-only at the cross-tale level. The single source of truth for each tale is its own sub-site's data files; Pendragon picks them up and arranges them.</p>
 
       <h2 class="section">The illustration pipeline</h2>
-      <p class="lead">One registry, six tales. Adding the illustrations for a new tale used to mean a new script. Now it's a record in <code>scripts/illustrate/tales.mjs</code> — a few sentences of house style, a dictionary of character &amp; setting "pins" with the descriptions to inject when each appears, a list of regex triggers that match those pins to a given spread's art brief. A single runner, <code>scripts/illustrate.mjs</code>, takes <code>--tale &lt;slug&gt;</code> and renders only the spreads whose PNGs are missing — safe to re-run on every push. A matrix workflow fans it out across every registered tale.</p>
+      <p class="lead">One registry, seven tales. Adding the illustrations for a new tale used to mean a new script. Now it's a record in <code>scripts/illustrate/tales.mjs</code> — a few sentences of house style, a dictionary of character &amp; setting "pins" with the descriptions to inject when each appears, a list of regex triggers that match those pins to a given spread's art brief. A single runner, <code>scripts/illustrate.mjs</code>, takes <code>--tale &lt;slug&gt;</code> and renders only the spreads whose PNGs are missing — safe to re-run on every push. A matrix workflow fans it out across every registered tale.</p>
       <p class="lead">The point is that the artwork is consequential of the writing. The storybook's <code>illus</code> field is an art note — the illustrator (human or model) reads it; the pipeline assembles a prompt by selecting whichever pins the brief mentions; the picture comes out matching the prose. Change a brief, delete the PNG, push: the image is rebuilt to match.</p>
 
       <h2 class="section">The vision</h2>
       <p class="lead">A tale read deeply once is data forever. The annotation layer is the durable contribution — the place where attention compounds. Every motif we pin and every Propp function we mark is a tiny piece of literary infrastructure that the next tale, and the comparative layer, get to reuse.</p>
-      <p class="lead">The six tales here are the proof of concept that the same scaffolding works on a 12th-century Welsh prose tale (<em>Culhwch</em>), a 14th-century alliterative romance (<em>Gawain</em>), a c.1300 Breton lay (<em>Orfeo</em>), the first two Branches of the Mabinogi (<em>Pwyll</em> and the tragic <em>Branwen</em>), and one of the Three Welsh Romances — the Welsh twin of Chrétien’s <em>Yvain</em> — (<em>Owain</em>). The interesting work begins when the corpus is large enough to surface its own patterns: which motifs travel across the British Isles and which stop at the Welsh border; which Propp functions the Arthurian romances elide and which the Mabinogion branches keep; which character archetypes wear new faces in every century. The Mythograph is the inside-one-tale view of that; Pendragon is the across-tales view.</p>
+      <p class="lead">The seven tales here are the proof of concept that the same scaffolding works on a 12th-century Welsh prose tale (<em>Culhwch</em>), a 14th-century alliterative romance (<em>Gawain</em>), a c.1300 Breton lay (<em>Orfeo</em>), the first three Branches of the Mabinogi (<em>Pwyll</em>, the tragic <em>Branwen</em> and the restoring <em>Manawydan</em>), and one of the Three Welsh Romances — the Welsh twin of Chrétien’s <em>Yvain</em> — (<em>Owain</em>). The interesting work begins when the corpus is large enough to surface its own patterns: which motifs travel across the British Isles and which stop at the Welsh border; which Propp functions the Arthurian romances elide and which the Mabinogion branches keep; which character archetypes wear new faces in every century. The Mythograph is the inside-one-tale view of that; Pendragon is the across-tales view.</p>
 
-      <h2 class="section">How to add a sixth tale</h2>
-      <p class="lead">The pattern, in the order that has worked six times:</p>
+      <h2 class="section">How to add an eighth tale</h2>
+      <p class="lead">The pattern, in the order that has worked seven times:</p>
       <ol class="method-howto">
         <li><strong>Pick a tale, find a public-domain reading text</strong> in the original language. Welsh Wikisource, the TEAMS Middle English series, the Camelot Project, Gutenberg — note the manuscript line in the meta block.</li>
         <li><strong>Scaffold the sub-site</strong> at <code>read/&lt;slug&gt;/</code>: <code>index.html</code>, <code>styles.css</code>, an empty <code>tale.js</code> with the passages skeleton, and the standard <code>app.js</code> view-switching glue copied from the most recent sister.</li>
@@ -188,14 +194,14 @@
         <li><strong>Register the tale in <code>scripts/illustrate/tales.mjs</code></strong> — house style, character pins, regex triggers. Add the slug to the workflow matrix.</li>
         <li><strong>Add a card to the Pendragon home page</strong> and confirm the cross-tale crosswalk (motifs and Propp functions) picks up the new entries.</li>
       </ol>
-      <p class="lead">The sixth tale, <em>Branwen ferch Ll&#375;r</em> — the Second Branch, the corpus&rsquo;s one tragedy — is now complete and wired into the crosswalk above, bringing the Cauldron of Rebirth and Bran&rsquo;s talking head (the older cousin of the Green Knight&rsquo;s) into the comparison. The natural seventh is either a <strong>sibling of <em>Branwen</em></strong> that carries on the Four Branches — <em>Manawydan</em> (the Third, the direct sequel) or <em>Math</em> (the Fourth) — or a <strong>sibling of <em>Owain</em></strong> that completes the Three Welsh Romances and extends the Welsh&harr;Continental axis: <em>Peredur</em> (the Welsh Perceval, the Grail) or <em>Geraint</em> (the Welsh Erec). The apparatus is ready.</p>
+      <p class="lead">The seventh tale, <em>Manawydan uab Ll&#375;r</em> — the Third Branch, the direct sequel to <em>Branwen</em> and its bright mirror — is now complete and wired into the crosswalk above. It brings the enchanted wasteland and its lifting, the vanishing caer with its golden-bowl trap (the corpus&rsquo;s one true cousin of <em>Orfeo</em>&rsquo;s half-taken), and the host of shape-shifted mice into the comparison; and it closes the revenge-arc <em>Pwyll</em> opened, the badger-in-the-bag (K1601) avenged a generation on. The first three Branches now stand together on the grid. The natural eighth is <em>Math uab Mathonwy</em> — the Fourth and last Branch, completing the set and bringing the Mabinogi&rsquo;s great transformation-magic (Blodeuwedd, Arianrhod&rsquo;s curses, the wand it already shares with <em>Manawydan</em>) — or a <strong>sibling of <em>Owain</em></strong> that completes the Three Welsh Romances and extends the Welsh&harr;Continental axis: <em>Peredur</em> (the Welsh Perceval, the Grail) or <em>Geraint</em> (the Welsh Erec). The apparatus is ready.</p>
     </section>
 
     <!-- COMPARE (hypermythograph: the cross-tale graph layer) -->
     <section class="view" id="view-compare">
       <div class="hero">
         <h1>Comparative graph</h1>
-        <p class="lead">The six-tale crosswalk as a graph. The six tales are pinned around the edge; the structural elements they share — motifs, story functions, character archetypes — float between them, pulled toward whichever tales claim them. The middle of the graph is where the medieval Insular tradition is densest; the outskirts are where each poem is most distinctively itself.</p>
+        <p class="lead">The seven-tale crosswalk as a graph. The seven tales are pinned around the edge; the structural elements they share — motifs, story functions, character archetypes — float between them, pulled toward whichever tales claim them. The middle of the graph is where the medieval Insular tradition is densest; the outskirts are where each poem is most distinctively itself.</p>
       </div>
       <div class="cmp-controls">
         <div class="cmp-modes" id="cmp-modes"></div>
