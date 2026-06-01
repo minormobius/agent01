@@ -68,12 +68,14 @@
     var host = $("#interstitial"); if (!host) return;
     if (!B.interstitial) { host.style.display = "none"; return; }
     var it = B.interstitial(T.n);
+    var nibble = it.frameBeat ? ('<div class="inter-nibble">The wheel’s own beat tonight: <span class="nb-sym">' + escapeHtml(it.frameBeat.sym) + '</span> ' + escapeHtml(it.frameBeat.name) + ' — ' + escapeHtml(it.frameBeat.meaning) + ' <a href="/#frame-mytho">the frame’s mythograph →</a></div>') : "";
     var foot = it.tellerInPair
       ? "And so, from inside it, " + escapeHtml(T.teller.name) + " " + T.teller.glyph + " took up the watch and began."
       : "And " + escapeHtml(T.teller.name) + " " + T.teller.glyph + " took up the watch, and began.";
     host.innerHTML =
       '<div class="inter-head"><span class="inter-sig">⟜</span> Aboard the <em>Tabard</em> · watch ' + T.n + ' · ' + it.phaseName + ' moon' + (it.tellerInPair ? ' · <span class="inter-stake">the teller is in it</span>' : '') + '</div>' +
       '<div class="inter-body">' + it.text + '</div>' +
+      nibble +
       '<div class="inter-foot">' + foot + ' <a href="/#argument">the Argument of the voyage →</a></div>';
   }
 

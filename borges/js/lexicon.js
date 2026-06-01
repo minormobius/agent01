@@ -302,8 +302,8 @@
      Thompson-style story-atoms, filed by letter-class. Each carries a gloss
      (for the index view) and a realize-template (a flavour-sentence the
      telling can drop in). `cross` lists sister-codes the remixer can riff on. */
-  var MOTIF_CLASSES = { A: "Mythological", B: "Animals", C: "Tabu", D: "Magic", E: "The dead", F: "Marvels & the Otherworld", G: "Ogres & monsters", H: "Tests & tasks", J: "The wise & the foolish", K: "Deceptions", L: "Reversals of fortune", M: "Ordaining the future", N: "Chance & fate", Q: "Reward & punishment", R: "Captives & fugitives", S: "Unnatural cruelty", T: "Love & marriage", V: "The sacred", W: "Traits of character", X: "Humour", Z: "Formulas & symbols" };
-  var MOTIF_CLASS_ORDER = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "Q", "R", "S", "T", "V", "W", "X", "Z"];
+  var MOTIF_CLASSES = { A: "Mythological", B: "Animals", C: "Tabu", D: "Magic", E: "The dead", F: "Marvels & the Otherworld", G: "Ogres & monsters", H: "Tests & tasks", J: "The wise & the foolish", K: "Deceptions", L: "Reversals of fortune", M: "Ordaining the future", N: "Chance & fate", P: "Society & the hall", Q: "Reward & punishment", R: "Captives & fugitives", S: "Unnatural cruelty", T: "Love & marriage", V: "The sacred", W: "Traits of character", X: "Humour", Z: "Formulas & symbols" };
+  var MOTIF_CLASS_ORDER = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Z"];
 
   /* ── MOTIF_BEATS: plant-and-payoff pairs, keyed by motif code. A motif here is
      not a sticker but a thread — its `plant` lands in an early movement and its
@@ -329,7 +329,16 @@
     F576: { plant: "%heroine% rode past at a pace no pursuit could match, the faster chased the further gone", pay: "and only the right word, gently asked, halted her where all the hard chasing had failed" },
     C611: { plant: "one door in %place% was set never to be opened, and a single shut door in a tale is a promise", pay: "and the door was opened, naturally, and what had been behind it was loose in the world" },
     E310: { plant: "%hero% spent the last coin to bury a corpse the town had left unburied in the road", pay: "and the buried stranger's thanks walked back as a helper, asking half of all and meaning to keep none" },
-    E761: { plant: "%hero% left a bright blade standing in the tree: while it shone, %hero% lived", pay: "and far off the blade went red and dripped, and the hall knew the worst before the rider came" }
+    E761: { plant: "%hero% left a bright blade standing in the tree: while it shone, %hero% lived", pay: "and far off the blade went red and dripped, and the hall knew the worst before the rider came" },
+    G512: { plant: "%creature% had held %place2% in fear past the reach of living memory", pay: "and now it would not, for %hero% had done at the water the thing none could do" },
+    H561: { plant: "the riddle stood at the gate of %place2%, and it had killed every traveller who guessed", pay: "and %hero% turned it over once and gave it back its own answer, and the gate stood open" },
+    "D1810.8": { plant: "in sleep the warning came to %hero%, plain and unwelcome, and was not believed", pay: "and the warning came true to the letter, the way unbelieved warnings do" },
+    N271: { plant: "the deed was buried deep in %place%, and the doers thought it buried for good", pay: "but a bone, a ring, a harp that would sing only the one tune brought it up into the light" },
+    Q211: { plant: "a death lay unpaid in the account of %place%, an old blood owed", pay: "and the blood was answered at the last, life for life, by the old reckoning" },
+    L410: { plant: "%villain% sat the highest seat in %place% and meant to sit it for ever", pay: "and %villain% was set lowest at the end, and learned on the cold floor what the high seat never taught" },
+    C961: { plant: "the one forbidden thing was named to %hero%, and the price of it set: not death, but a shape", pay: "and the price was paid in full, and %hero% wore a beast's shape after, until the one right act" },
+    F211: { plant: "there was a door in the hill of %place2% that opened but the once a year", pay: "and %hero% went in by it at the thin hour, and the hill closed over the going" },
+    E422: { plant: "a wrong went unredressed in %place%, and the wronged one was buried with it unspoken", pay: "and the dead would not stay down, but walked, until at the last the wrong was mended" }
   };
 
   var MOTIFS = [
@@ -436,7 +445,38 @@
     { code: "G303", cls: "G", name: "The dark one outwitted by a quibble", theme: ["ordeal"], gloss: "The devil or demon comes for its bond and is cheated by a nicety of wording.", realize: "the dark one came for its bond and went off cheated, undone by a comma it had not read closely." },
     { code: "N101", cls: "N", name: "Fate's thumb on the scale", theme: ["journey", "ordeal"], gloss: "Chance leans the hero's way so plainly the hall remarks it.", realize: "chance leaned the hero's way so openly that even the hall muttered of a thumb on the scale." },
     { code: "Q53", cls: "Q", name: "Reward for the kept secret", theme: ["recognition"], gloss: "The hero kept the one secret faithfully, and the keeping is the thing rewarded.", realize: "%hero% had kept the one secret to the end, and it was the keeping, not the deed, that was paid for." },
-    { code: "T68.1", cls: "T", name: "The bride sets her own price", theme: ["complication"], gloss: "The sought-for names the terms of her own winning — and they are not the terms expected.", realize: "%heroine% named the price of her own winning, and it was not at all the price the suitors had brought." }
+    { code: "T68.1", cls: "T", name: "The bride sets her own price", theme: ["complication"], gloss: "The sought-for names the terms of her own winning — and they are not the terms expected.", realize: "%heroine% named the price of her own winning, and it was not at all the price the suitors had brought." },
+
+    // — C/D/F · more magic, tabu, marvels —
+    { code: "C961", cls: "C", name: "Transformation as the price of the tabu", theme: ["complication", "ordeal"], gloss: "The forbidden thing, once done, is paid for not in death but in a changed shape.", realize: "the price set on the forbidden thing was not death but a shape, and %hero% went four-footed a long while for it." },
+    { code: "F211", cls: "F", name: "The door in the hill", theme: ["setup", "journey"], gloss: "A way into the Otherworld that opens only at the one hour, the one night.", realize: "there was a door in the hill of %place2% that opened but once a year, and %hero% came to it on the one right night." },
+    { code: "D1711", cls: "D", name: "The one who knows the words", theme: ["journey"], gloss: "A figure who holds the words that bind and loose, and parts with only a few.", realize: "%donor% knew the words that bind and loose, and gave %hero% three of them and not a fourth." },
+    { code: "D2061", cls: "D", name: "The death-dealing glance", theme: ["ordeal"], gloss: "A look, a word, a name that kills of itself; faced only by indirection.", realize: "%creature%'s glance was death in itself, so %hero% fought it in the bright back of a shield and never head-on." },
+    { code: "F451", cls: "F", name: "The folk under the hill", theme: ["journey"], gloss: "Smiths and makers of the underground who forge what the upper world cannot.", realize: "under %place2% dwelt the folk who forge what cannot be forged above, and they owed %hero% a making." },
+    // — H/J · tests and counsel —
+    { code: "H580", cls: "H", name: "Wisdom given in a riddle", theme: ["journey", "recognition"], gloss: "The needful counsel comes folded into a riddle, and costs time to unfold.", realize: "the counsel came folded in a riddle, as the best counsel does, and cost %hero% a year to read straight." },
+    { code: "J21", cls: "J", name: "The counsel spurned, proved true", theme: ["homecoming", "recognition"], gloss: "Advice the hero waved off comes true at the worst possible hour.", realize: "the advice %hero% had waved off came true at the worst hour, which is the hour spurned advice keeps for itself." },
+    // — K · more deceptions —
+    { code: "K1817", cls: "K", name: "Disguise as pilgrim or holy beggar", theme: ["journey", "ordeal"], gloss: "The hero passes in the one cloak every door opens to and no guard searches.", realize: "%hero% went in the grey cloak of a pilgrim, which every door opens to and no guard thinks to search." },
+    // — L · reversals —
+    { code: "L113", cls: "L", name: "The hero of humble trade", theme: ["setup"], gloss: "The one who keeps the pigs, the pots, the gate is the one the tale was about.", realize: "%hero% kept the pigs, or the pots, or the gate, and the hall did not yet know what it had at the low end of the board." },
+    // — N · chance —
+    { code: "N511", cls: "N", name: "The buried treasure found", theme: ["journey", "ordeal"], gloss: "The gold lies where the dream said; the finding is the easy half.", realize: "the gold lay where the dream had said, under the third stone, and the finding of it was the easy half." },
+    // — P · society & the hall —
+    { code: "P320", cls: "P", name: "Guest-right", theme: ["complication", "homecoming"], gloss: "Bread, salt, and a place at the fire make a bond; to break it is the one unforgivable thing.", realize: "the stranger was given bread and salt and a seat by the fire, and to break that bond is the one wrong no country forgives." },
+    { code: "P634", cls: "P", name: "The feast", theme: ["recognition", "setup"], gloss: "A feast where the whole tale turns on who is seated where.", realize: "%place% kept a feast that ran three days, and at such a board the whole of a tale turns on who is seated where." },
+    { code: "P12", cls: "P", name: "The king's custom", theme: ["setup"], gloss: "An old absolute custom of the court — a wall set up in a tale only to be walked through.", realize: "the custom of %place% was old and absolute, and a custom in a tale is a wall raised only so the tale can walk through it." },
+    // — R · captives —
+    { code: "R45", cls: "R", name: "Captivity in the tower or mound", theme: ["complication"], gloss: "The taken one is kept in a tower with no door, a mound with no window, past the last road.", realize: "%heroine% was kept in a tower without a door and a mound without a window, past the last road there was." },
+    // — S · cruelty —
+    { code: "S183", cls: "S", name: "The frightful gift", theme: ["complication"], gloss: "A thing sent to the hall, wrapped fair, frightful within — a hand, a head, a heart.", realize: "what %villain% sent to the hall came wrapped fair and was a frightful thing within: a hand, a head, a heart." },
+    // — W · character —
+    { code: "W116", cls: "W", name: "Vanity", theme: ["complication", "recognition"], gloss: "Not greed but the wish to be seen winning undoes the proud one.", realize: "it was vanity undid the proud one, the wish to be seen winning, which is a slower poison even than greed." },
+    // — X · humour —
+    { code: "X1130", cls: "X", name: "The lying contest", theme: ["recognition"], gloss: "A contest of tall tales at the board, won fairly by lying best.", realize: "they fell to a lying-contest at the board, and the cup went to the biggest liar, fairly, for lying best." },
+    // — Z · the personified abstractions (and the immortalist nerve they touch) —
+    { code: "Z111", cls: "Z", name: "Death personified", theme: ["ordeal", "recognition"], gloss: "Death walks into the tale as a figure: courteous, unhurried, bargained with but never refused.", realize: "Death came into it as a figure, courteous and unhurried, who would be bargained with for a while but never, in the end, refused." },
+    { code: "Z115", cls: "Z", name: "Time personified", theme: ["recognition", "homecoming"], gloss: "Time sits at the edge of the tale, the one player who never loses, and takes the board at last.", realize: "Time sat at the edge of it the whole while, the one player at the board who never loses, and took the game at the last." }
   ];
   var MOTIF_BY_CODE = {}; MOTIFS.forEach(function (m) { MOTIF_BY_CODE[m.code] = m; });
 

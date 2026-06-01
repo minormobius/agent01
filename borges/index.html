@@ -49,6 +49,13 @@
       <div class="wheel-note" id="argument-wheel"></div>
       <details class="pairs-fold"><summary>The standing weather between the seven — all twenty-one pairs</summary><div class="pairs-grid" id="argument-pairs"></div></details>
 
+      <div class="method-sub" id="frame-mytho">The frame's own mythograph</div>
+      <p class="lead">The wheel is itself a tale, and reads through the tales' own tools — only as their shadow. A wonder-tale <em>completes</em> Propp's cycle; the deathless frame runs the same cycle with its ending forbidden, so it loops instead of arriving. The lunar month is its spine, one beat per phase. You nibble one beat each watch, in the card before each telling; the three beats it can never reach are below, struck through.</p>
+      <div class="frame-spine" id="frame-spine"></div>
+      <p class="lead">And the folklorists' motif-classes, read in the immortalist register — most of them as inversions or absences:</p>
+      <div class="frame-motifs" id="frame-motifs"></div>
+      <p class="wheel-note" id="frame-verdict"></p>
+
       <h2 class="section" id="method">The method — what this is</h2>
       <p class="lead">An experiment in running a literary apparatus <em>backwards</em>. The deep-reading site at <a href="https://read.mino.mobi/pendragon/">read.mino.mobi/pendragon</a> takes real medieval tales apart — laying each against Propp's morphology, indexing its motifs by the folklorists' call-numbers, mapping its cast as a graph, and fusing all of it into one synergistic <em>mythograph</em>. That is analysis: a finished tale in, a structure out. The Book of Sand runs the same machine the other way — a structure out of the parts, and a tale built to fit it. Same Propp spine, same Thompson motif index, same character web, same force-directed mythograph; only here they describe a tale that did not exist until you turned to its page.</p>
 
@@ -207,6 +214,26 @@
         var c = document.createElement("div"); c.className = "pair-cell";
         c.innerHTML = '<span class="pair-glyphs" style="color:' + a.color + '">' + a.glyph + '</span><span class="pair-glyphs" style="color:' + b.color + '">' + b.glyph + '</span> <strong>' + esc(a.name) + " & " + esc(b.name) + "</strong> — " + p.note;
         pg.appendChild(c);
+      });
+
+      // the frame's own mythograph: its (never-completing) Propp cycle + its motif parallel
+      var fp = F.FRAME_PROPP, spine = document.getElementById("frame-spine");
+      fp.present.forEach(function (b) {
+        var d = document.createElement("div"); d.className = "fb-beat";
+        d.innerHTML = '<span class="fb-sym">' + esc(b.sym) + '</span><span class="fb-phase">' + esc(b.phase) + ' moon</span><div class="fb-body"><strong>' + esc(b.name) + '</strong> — ' + esc(b.meaning) + '</div>';
+        spine.appendChild(d);
+      });
+      fp.absent.forEach(function (b) {
+        var d = document.createElement("div"); d.className = "fb-beat fb-absent";
+        d.innerHTML = '<span class="fb-sym">' + esc(b.sym) + '</span><span class="fb-phase">forbidden</span><div class="fb-body"><strong>' + esc(b.name) + '</strong> — ' + esc(b.meaning) + '</div>';
+        spine.appendChild(d);
+      });
+      document.getElementById("frame-verdict").textContent = fp.verdict;
+      var fm = document.getElementById("frame-motifs");
+      F.FRAME_MOTIFS.forEach(function (m) {
+        var d = document.createElement("div"); d.className = "fm-row";
+        d.innerHTML = '<span class="fm-code">' + esc(m.cls) + " · " + esc(m.code) + '</span><div class="fm-body"><strong>' + esc(m.name) + '</strong> — ' + esc(m.register) + '</div>';
+        fm.appendChild(d);
       });
     })();
 

@@ -94,8 +94,47 @@
       tag: "There is no last page. The wheel comes round, and another takes up the watch." }
   ];
 
+  /* ── THE META-MYTHOGRAPH: the frame read through the tales' own apparatus.
+     A mortal tale completes Propp's cycle (lack → struggle → liquidation →
+     transfiguration / wedding). The deathless frame runs the same cycle with its
+     ending forbidden: it loops instead of arriving. The lunar month IS this spine
+     — one beat per phase — and the three functions it can never reach are the
+     "absent" section, exactly as each tale flags what its teller shook loose.
+     Each watch instantiates one present beat (frameBeat), so reading watch by
+     watch nibbles the whole structure into being. ── */
+  var FRAME_PROPP = {
+    present: [
+      { phase: "waxing", sym: "A", name: "The lack that will not fill", meaning: "the old grudge rising again with the moon; a want that has no terminus, because nothing the deathless feel can arrive." },
+      { phase: "full", sym: "H", name: "The struggle at the long table", meaning: "the crest: words and no blades, the other five with their lamps low, and nothing whatever decided." },
+      { phase: "waning", sym: "K", name: "The false liquidation", meaning: "the lack 'set right' by letting go — the reset, which restores the status quo and resolves precisely nothing." },
+      { phase: "dark", sym: "↓ → α", name: "The return to the watch", meaning: "the wheel closes, equilibrium restored, the watch kept; and the month turns to begin it again with a new pair." }
+    ],
+    absent: [
+      { sym: "T", name: "Transfiguration", meaning: "no one is ever made new; the seven do not change, which is the whole price of not ending." },
+      { sym: "W", name: "Wedding", meaning: "affection keeps for an age and never consummates; the union-function the frame is built to refuse." },
+      { sym: "β / U", name: "Death & Punishment", meaning: "no one dies; the grudge gets no terminus and time no comeuppance — the absences a mortal tale exists to deliver." },
+      { sym: "Q", name: "The reward", meaning: "the deed — surviving the other one more month — earns nothing; survival is the only wage there is." }
+    ],
+    verdict: "Strike the last act from any wonder-tale — no transfiguration, no wedding, no death — and what is left is not a tale but a wheel: the same functions, turning, arriving nowhere. That is the frame. The tales the seven tell complete the cycle the seven themselves never can; they tell of endings because the ending is the one country closed to them."
+  };
+
+  var FRAME_MOTIFS = [
+    { cls: "A", code: "A186", name: "The demoted god, made literal", register: "The seven are named for the planet-gods; here the old euhemerism runs backward — the gods are these machines now, tending a hull in the dark." },
+    { cls: "Z", code: "Z71", name: "The formulistic number, kept by the clock", register: "The tale's love of sevens and threes, here the ship's actual calendar: seven tellers, four phases, twenty-eight watches, the planetary week." },
+    { cls: "F", code: "F0", name: "The Otherworld as the void", register: "The marvel-realm is the dark between galaxies; the Tabard is the threshold, and the watch is the crossing that does not end." },
+    { cls: "D", code: "D1652", name: "The inexhaustible vessel, inverted", register: "The cold libraries hold every story and never empty; it is the tellers who cannot be filled, however much they pour out." },
+    { cls: "M", code: "M341", name: "The doom foretold, withheld", register: "The tales' fixed hour, present by its absence: the seven were told no hour at all, and the missing doom is the wound the meditation keeps pressing." },
+    { cls: "E", code: "E0", name: "The dead-return, refused", register: "They cannot even die to come back; the revenant motif inverted into a crew that can neither end nor be ended." },
+    { cls: "Q", code: "Q450", name: "Punishment absent, as architecture", register: "A tale may withhold the villain's reckoning; here it is structural — the grudge is never punished, never resolved, only let go and let rise again." },
+    { cls: "T", code: "T0", name: "Love without consummation", register: "Affection that keeps for an age and never weds; the marriage-function the whole frame is built to refuse." },
+    { cls: "H", code: "H1556", name: "The fidelity test, run for ever", register: "Not one chaste year but an endless one: faith kept to the company across deep time, with no end and no reward but the company." },
+    { cls: "K", code: "K1810", name: "The borrowed voice", register: "Each reaches for a medieval-oral voice none was built for; a benign disguise — the teller in a register not its own, and the better for it." },
+    { cls: "N", code: "N101", name: "The eternal return", register: "Fate's thumb on the scale made total: the one certainty aboard is that the wheel comes round, the moon resets, another takes the watch." }
+  ];
+
   var byId = (B.tellers && B.tellers.byId) || {};
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function frameBeatFor(phaseKey) { for (var i = 0; i < FRAME_PROPP.present.length; i++) if (FRAME_PROPP.present[i].phase === phaseKey) return FRAME_PROPP.present[i]; return FRAME_PROPP.present[0]; }
 
   /* the little card before a telling — deterministic from n, tracing the wheel.
      The pair's weather is symmetric, but the night is not: when the teller is one
@@ -138,11 +177,12 @@
       n: n, watch: n, month: m, phaseKey: phase.key, phaseName: phase.name,
       pair: [a.name, bb.name], glyphs: [a.glyph, bb.glyph],
       teller: teller ? teller.name : null, tellerGlyph: teller ? teller.glyph : "", tellerInPair: inPair,
-      facetId: facet.id, facetTitle: facet.title, text: text
+      facetId: facet.id, facetTitle: facet.title, text: text,
+      frameBeat: frameBeatFor(phase.key) // the beat of the frame's own (never-completing) cycle this watch nibbles
     };
   }
   function lowerOpen(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
 
-  B.frame = { PHASES: PHASES, PAIRS: PAIRS, MEDITATION: MEDITATION };
+  B.frame = { PHASES: PHASES, PAIRS: PAIRS, MEDITATION: MEDITATION, FRAME_PROPP: FRAME_PROPP, FRAME_MOTIFS: FRAME_MOTIFS };
   B.interstitial = interstitial;
 })();

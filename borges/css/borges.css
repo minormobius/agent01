@@ -163,8 +163,27 @@ h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
 .inter-head .inter-sig { opacity: 0.8; margin-right: 4px; }
 .inter-head .inter-stake { color: var(--gold-soft); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
 .inter-body { color: var(--ink-dim); font-size: 15.5px; line-height: 1.6; font-style: italic; }
+.inter-nibble { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); margin-top: 9px; padding-top: 8px; border-top: 1px dotted var(--line); line-height: 1.5; }
+.inter-nibble .nb-sym { font-family: var(--serif); font-style: italic; color: #9fb0c9; margin-right: 3px; }
+.inter-nibble a { color: #9fb0c9; }
 .inter-foot { font-family: var(--sans); font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
 .inter-foot a { color: #9fb0c9; }
+
+/* ── The frame's own mythograph (meta) ── */
+.frame-spine { max-width: 76ch; margin: 12px 0 8px; }
+.fb-beat { display: grid; grid-template-columns: 56px 84px 1fr; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.fb-sym { font-family: var(--serif); font-style: italic; font-size: 19px; color: var(--teller-soft); }
+.fb-phase { font-family: var(--sans); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+.fb-body { color: var(--ink-dim); font-size: 15px; line-height: 1.55; }
+.fb-body strong { color: var(--ink); }
+.fb-absent { opacity: 0.62; }
+.fb-absent .fb-sym, .fb-absent .fb-body strong { text-decoration: line-through; text-decoration-color: var(--accent); }
+.fb-absent .fb-phase { color: var(--accent); }
+.frame-motifs { max-width: 76ch; margin: 10px 0 8px; }
+.fm-row { display: grid; grid-template-columns: 96px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.fm-code { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--teller-soft); letter-spacing: 0.02em; }
+.fm-body { color: var(--ink-dim); font-size: 14.5px; line-height: 1.55; }
+.fm-body strong { color: var(--ink); }
 
 /* ── The Argument (the meditation / rollup arc) ── */
 .argument { max-width: 74ch; margin: 16px 0 6px; }
