@@ -302,8 +302,35 @@
      Thompson-style story-atoms, filed by letter-class. Each carries a gloss
      (for the index view) and a realize-template (a flavour-sentence the
      telling can drop in). `cross` lists sister-codes the remixer can riff on. */
-  var MOTIF_CLASSES = { A: "Mythological", B: "Animals", D: "Magic", F: "Marvels & the Otherworld", G: "Ogres & monsters", H: "Tests & tasks", J: "The wise & the foolish", K: "Deceptions", M: "Ordaining the future", N: "Chance & fate", Q: "Reward & punishment", R: "Captives & fugitives", S: "Unnatural cruelty", T: "Love & marriage", Z: "Formulas & symbols" };
-  var MOTIF_CLASS_ORDER = ["A", "B", "D", "F", "G", "H", "J", "K", "M", "N", "Q", "R", "S", "T", "Z"];
+  var MOTIF_CLASSES = { A: "Mythological", B: "Animals", C: "Tabu", D: "Magic", E: "The dead", F: "Marvels & the Otherworld", G: "Ogres & monsters", H: "Tests & tasks", J: "The wise & the foolish", K: "Deceptions", L: "Reversals of fortune", M: "Ordaining the future", N: "Chance & fate", Q: "Reward & punishment", R: "Captives & fugitives", S: "Unnatural cruelty", T: "Love & marriage", V: "The sacred", W: "Traits of character", X: "Humour", Z: "Formulas & symbols" };
+  var MOTIF_CLASS_ORDER = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "Q", "R", "S", "T", "V", "W", "X", "Z"];
+
+  /* ── MOTIF_BEATS: plant-and-payoff pairs, keyed by motif code. A motif here is
+     not a sticker but a thread — its `plant` lands in an early movement and its
+     `pay` calls back in a later one, the way a real folktale motif recurs. The
+     generator picks an early movement for the plant and a later one for the pay;
+     where there's no room it falls back to the motif's single `realize`. */
+  var MOTIF_BEATS = {
+    D1652: { plant: "%object% was a small thing, but it would not be filled, however they fed it", pay: "and into that same unfillable %object% the trouble went at the last, head over heel, and the strings drew tight" },
+    D1413: { plant: "whatever set a hand to %object% was held fast to it, and could not let go", pay: "and so the stuck line grew long and comic, and the one at the end of it could not pull free" },
+    M223: { plant: "%hero% granted the boon before it was named: whatever you ask, you shall have", pay: "and the naming, when it came, carried off the bride and the half of the hall in one breath" },
+    M242: { plant: "%term% from that night, they swore, at this same place", pay: "and the term came round to the very night, and the appointment kept itself, as such appointments do" },
+    M341: { plant: "it was foretold over the cradle that %hero% would meet a fixed doom at a fixed hour", pay: "and the fixed hour came, and the doom with it, no finger's width turned aside for all the years of dodging" },
+    H1556: { plant: "the test was set on %hero%: a whole term to keep faith, and no eye to keep the score", pay: "and the term ran out with the faith unbroken, every night of it turned to the wall" },
+    T11: { plant: "%hero% loved %heroine% at the bare report of her, having seen no face", pay: "and when at the last they stood in one room, it was as though the report had been a memory" },
+    T338: { plant: "the night was given, and the leave, and no watcher set on the door", pay: "and still, each night of the term, %hero% turned to the wall and said no word" },
+    B313: { plant: "on the road %hero% spared a small beast that any other hand would have killed", pay: "and at the worst hour the spared beast came back, the debt warm in its mouth" },
+    D700: { plant: "the enchantment was laid deep, and only the one right act would ever lift it", pay: "and the one right act was done at the last, and the long spell went the way ice goes at noon" },
+    N886: { plant: "the child was got away unmarked, save the father's face it wore", pay: "and years on that same face gave the truth away, the father plain in the son" },
+    R215: { plant: "%helper% pressed a comb and a cloth into %hero%'s hand, for the running that would come", pay: "and the comb thrown down stood up a forest, the cloth a flood, and the chase fell away behind" },
+    K1810: { plant: "%hero% put off the known shape and went in beggar's rags", pay: "and so, unmarked at the high table, %hero% stood where the true face would have been seized at the door" },
+    S268: { plant: "%elder% promised the first thing to meet him home, not knowing what it would be", pay: "and the debt came to collect at its own hour, as rash-promised debts always do" },
+    R181: { plant: "the captor had sworn a great oath to keep the door it kept", pay: "and by that same oath %hero% bound it, and the door it swore to keep, it was made to open" },
+    F576: { plant: "%heroine% rode past at a pace no pursuit could match, the faster chased the further gone", pay: "and only the right word, gently asked, halted her where all the hard chasing had failed" },
+    C611: { plant: "one door in %place% was set never to be opened, and a single shut door in a tale is a promise", pay: "and the door was opened, naturally, and what had been behind it was loose in the world" },
+    E310: { plant: "%hero% spent the last coin to bury a corpse the town had left unburied in the road", pay: "and the buried stranger's thanks walked back as a helper, asking half of all and meaning to keep none" },
+    E761: { plant: "%hero% left a bright blade standing in the tree: while it shone, %hero% lived", pay: "and far off the blade went red and dripped, and the hall knew the worst before the rider came" }
+  };
 
   var MOTIFS = [
     { code: "A1654", cls: "A", name: "Origin of a custom / game first played", theme: ["recognition"], gloss: "The tale ends by naming a real-world thing it claims to have founded — a game, a lay, a livery.", realize: "and that, they say, was the first time ever the thing was done, and it is done so yet.", cross: ["A1450"] },
@@ -374,7 +401,42 @@
     { code: "Z71.1", cls: "Z", name: "The formulistic three", theme: ["setup", "complication", "ordeal"], gloss: "Three days, three tasks, three blows: the tale counts in threes.", realize: "three days she rode past, three tasks were set, three blows were struck, for the tale could not count otherwise." },
     { code: "Z254", cls: "Z", name: "The unpromising hero — the ash-lad who wins", theme: ["setup"], gloss: "The least-regarded of the house turns out to be the one the tale chose.", realize: "the least-likely of the hall, the one who sat by the ashes, was the one the tale had meant all along." },
     { code: "Z356", cls: "Z", name: "The sole survivor", theme: ["homecoming"], gloss: "One alone comes back to tell it, which is why there is a tale at all.", realize: "one alone came back out of it to tell the thing, which is the only reason you have it to hear." },
-    { code: "Z71.6", cls: "Z", name: "The year and a day, as the pulse of plot", theme: ["setup", "complication", "homecoming"], gloss: "The year-and-a-day measure beats out the structure of the whole.", realize: "%term% to bind it, %term% to suffer it, %term% to mend it: the tale ran on that one measure like a heart." }
+    { code: "Z71.6", cls: "Z", name: "The year and a day, as the pulse of plot", theme: ["setup", "complication", "homecoming"], gloss: "The year-and-a-day measure beats out the structure of the whole.", realize: "%term% to bind it, %term% to suffer it, %term% to mend it: the tale ran on that one measure like a heart." },
+
+    // — B · more animals —
+    { code: "B16", cls: "B", name: "The devouring beast tamed by music", theme: ["ordeal", "journey"], gloss: "A monster that no blade can master is quieted by a tune.", realize: "%hero% had no blade that would bite %creature%, only a tune, and the tune was enough." },
+    // — C · Tabu —
+    { code: "C611", cls: "C", name: "The forbidden chamber", theme: ["setup", "complication"], gloss: "One door, one box, one room is forbidden — and a single shut door in a tale is a promise it will open.", realize: "one door in %place% was never to be opened, and you know already that it was." },
+    { code: "C31", cls: "C", name: "Tabu: offending the supernatural spouse", theme: ["complication"], gloss: "The Otherworld bride sets one small absolute rule; breaking it loses her.", realize: "the rule the bride laid was small and absolute, and the breaking of it would cost her wholly." },
+    { code: "C752", cls: "C", name: "Tabu: the thing not to be done after dark", theme: ["setup"], gloss: "A prohibition bound to the hour — permitted by day, fatal by night.", realize: "by daylight all was allowed; the one forbidden thing belonged to the dark hours, and so of course it happened then." },
+    // — E · The dead —
+    { code: "E310", cls: "E", name: "The grateful dead", theme: ["journey"], gloss: "The hero pays for a stranger's burial and gains a helper who is the dead man's thanks.", realize: "%hero% paid to bury a stranger no one else would bury, and bought thereby a debt that would walk back as a friend." },
+    { code: "E422", cls: "E", name: "The restless revenant", theme: ["ordeal", "homecoming"], gloss: "The dead will not lie still until the wrong that holds them is set right.", realize: "the dead would not stay down in %place2%, but walked, and would walk, until the old wrong was mended." },
+    { code: "E761", cls: "E", name: "The life-token", theme: ["journey", "recognition"], gloss: "An object (a blade, a tree, a spring) mirrors the distant hero's life and betrays his death.", realize: "%hero% left a token behind that would show the truth: while it stayed bright, %hero% lived." },
+    { code: "E1", cls: "E", name: "The slain raised whole", theme: ["ordeal"], gloss: "The dead are restored from a cauldron or a spring, minus only some one thing.", realize: "the slain were set whole again into the world, lacking only the power of speech, which is a great deal to lack." },
+    // — L · Reversals of fortune —
+    { code: "L10", cls: "L", name: "The despised youngest", theme: ["setup"], gloss: "The least-regarded child carries the tale's whole favour.", realize: "the youngest got the ash-corner and the laughter, and the tale's whole favour besides." },
+    { code: "L161", cls: "L", name: "The lowly raised to the throne", theme: ["recognition"], gloss: "The swineherd, the ash-lad, the beggar at the gate is crowned.", realize: "the one who had begged at the gate was crowned within the year, and the gate-keepers told it ever after." },
+    { code: "L410", cls: "L", name: "The proud brought low", theme: ["recognition", "homecoming"], gloss: "The one who sat highest is set lowest, and learns it on the cold floor.", realize: "the one who had sat highest was set lowest, and learned on the cold floor the lesson the high seat never taught." },
+    { code: "L111", cls: "L", name: "The foundling of unknown birth", theme: ["setup"], gloss: "A child is found, not born to the hall, its blood not yet known.", realize: "the child was found and not born to the hall, and whose blood it carried no one yet knew." },
+    // — V · The sacred —
+    { code: "V11", cls: "V", name: "The offering owed to the old powers", theme: ["complication", "ordeal"], gloss: "The old powers are owed a thing and will have it, gently asked or not.", realize: "the old powers were owed their due, and would have it, asked gently or taken hard." },
+    { code: "V229", cls: "V", name: "The holy fool's true sight", theme: ["journey", "recognition"], gloss: "The one the hall counts simple sees the single true thing the wise walked past.", realize: "the one the hall held simple saw the one true thing that all the wise had walked straight past." },
+    { code: "V67", cls: "V", name: "The hallowed ground / sanctuary", theme: ["homecoming"], gloss: "Within a marked ring no hand may touch the hero, by a law older than the hall.", realize: "within the marked ring no hand could fall on %hero%, by a law older than the hall and stronger than the king's." },
+    // — W · Traits of character —
+    { code: "W11", cls: "W", name: "Generosity, and its return", theme: ["journey", "recognition"], gloss: "The hero gives where there is no gain in giving, and the giving returns tenfold.", realize: "%hero% gave where there was nothing to be got by giving, and the giving came back tenfold, as it does in tales." },
+    { code: "W154", cls: "W", name: "Ingratitude repaid", theme: ["recognition"], gloss: "The one the hero saved forgets it the moment the danger is past — and is paid for forgetting.", realize: "the one %hero% had saved forgot it the moment the danger passed, and was paid in the end for the forgetting." },
+    { code: "W181", cls: "W", name: "Jealousy, the slow poison", theme: ["complication"], gloss: "Not hate but jealousy begins the harm — hate that calls itself love.", realize: "it was not hate that began the harm but jealousy, which is only hate that has learned to call itself love." },
+    { code: "W34", cls: "W", name: "Loyalty held past reason", theme: ["ordeal", "homecoming"], gloss: "A helper holds to the hero past sense and past safety.", realize: "%helper% held to %hero% past sense and past safety, for loyalty was never any good at sums." },
+    // — X · Humour —
+    { code: "X905", cls: "X", name: "The tall tale, sworn true", theme: ["recognition"], gloss: "The teller swears every word true — the surest sign it is not.", realize: "and the teller swore every word of it for truth, which is the surest sign in the world that a tale is none." },
+    { code: "X1", cls: "X", name: "The biter bit", theme: ["ordeal", "recognition"], gloss: "The joke the villain set comes back on the villain — the only justice the funny tales allow.", realize: "the joke %villain% had set sprang back on %villain%, which is the whole of the justice the funny tales allow." },
+    { code: "X111", cls: "X", name: "The word taken two ways", theme: ["complication"], gloss: "The whole snarl comes of one word understood two ways.", realize: "the whole snarl came of a single word taken two ways, as whole wars have come of less." },
+    // — G/N/Q/T · a few more —
+    { code: "G303", cls: "G", name: "The dark one outwitted by a quibble", theme: ["ordeal"], gloss: "The devil or demon comes for its bond and is cheated by a nicety of wording.", realize: "the dark one came for its bond and went off cheated, undone by a comma it had not read closely." },
+    { code: "N101", cls: "N", name: "Fate's thumb on the scale", theme: ["journey", "ordeal"], gloss: "Chance leans the hero's way so plainly the hall remarks it.", realize: "chance leaned the hero's way so openly that even the hall muttered of a thumb on the scale." },
+    { code: "Q53", cls: "Q", name: "Reward for the kept secret", theme: ["recognition"], gloss: "The hero kept the one secret faithfully, and the keeping is the thing rewarded.", realize: "%hero% had kept the one secret to the end, and it was the keeping, not the deed, that was paid for." },
+    { code: "T68.1", cls: "T", name: "The bride sets her own price", theme: ["complication"], gloss: "The sought-for names the terms of her own winning — and they are not the terms expected.", realize: "%heroine% named the price of her own winning, and it was not at all the price the suitors had brought." }
   ];
   var MOTIF_BY_CODE = {}; MOTIFS.forEach(function (m) { MOTIF_BY_CODE[m.code] = m; });
 
@@ -391,7 +453,9 @@
     connectorTime: ["that winter", "by midsummer", "before the snow", "at the thin of the year", "on the eve of the feast", "when the moon was old", "at cock-crow", "the next May Eve", "deep in the dark of the year"],
     // soft lead-ins the transition layer hangs a stray motif-flavour line on, so it doesn't
     // jar; each ends with a colon or dash so a capitalised sentence can follow it cleanly
-    motifLead: ["And they tell, too:", "It is said, also:", "And mark this:", "Men say:", "And in that country:", "Now the tale keeps such things:", "Now here is a thing the old reels hold:", "And it was ever so:", "And folk add:"]
+    motifLead: ["And they tell, too:", "It is said, also:", "And mark this:", "Men say:", "And in that country:", "Now the tale keeps such things:", "Now here is a thing the old reels hold:", "And it was ever so:", "And folk add:"],
+    // callback lead-ins for the payoff half of a planted motif
+    payLead: ["And so it came due:", "And so it fell out, as was promised:", "And the planted thing bore its fruit:", "And then, just as the first hour swore:", "And the debt was paid at the last:", "And the early word kept itself:", "And so the seed of it came up:"]
   };
 
   B.lex = {
@@ -399,7 +463,7 @@
     ROLES: ROLES,
     PROPP: PROPP, PROPP_BY_ID: PROPP_BY_ID,
     TALETYPES: TALETYPES,
-    MOTIFS: MOTIFS, MOTIF_BY_CODE: MOTIF_BY_CODE,
+    MOTIFS: MOTIFS, MOTIF_BY_CODE: MOTIF_BY_CODE, MOTIF_BEATS: MOTIF_BEATS,
     MOTIF_CLASSES: MOTIF_CLASSES, MOTIF_CLASS_ORDER: MOTIF_CLASS_ORDER,
     FILL: FILL
   };

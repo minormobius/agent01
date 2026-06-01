@@ -313,19 +313,33 @@
       if (!cands.length) for (var j = 1; j <= M; j++) cands.push(j);
       return mr.sample(cands, Math.min(mr.int(1, 2), cands.length)).sort(function (a, b) { return a - b; });
     }
+    // drops: the motif-flavour the telling actually speaks. A plant/payoff motif
+    // contributes two (plant early, pay late, marked); a plain motif one.
+    var drops = [];
+    var PLANT_T = ["setup", "complication", "journey"], PAY_T = ["ordeal", "homecoming", "recognition"];
+    function pickMvtIn(themes, lo, hi) { var c = []; for (var i = lo; i <= hi; i++) if (themes.indexOf(movAct[i]) >= 0) c.push(i); return c.length ? mr.pick(c) : null; }
     var motifList = chosen.map(function (m) {
-      var passages = passagesForMotif(m);
       var conf = mr.chance(0.7) ? "high" : (mr.chance(0.5) ? "med" : "spec");
-      // cross-cultural / absurd remixes drag a motif's confidence toward "spec"
-      if (secondary && mr.chance(0.3)) conf = "spec";
-      var realize = fill(m.realize, mr);
+      if (secondary && mr.chance(0.3)) conf = "spec"; // cross-cultural grafts read as speculative
       var gloss = m.gloss + (m.cross && m.cross.length ? " <em>Sister-codes: " + m.cross.join(", ") + ".</em>" : "");
-      return { cls: m.cls, code: m.code, name: m.name, gloss: gloss, conf: conf, passages: passages, realize: realize };
+      var beats = lex.MOTIF_BEATS[m.code], passages = null;
+      if (beats && M >= 3) {
+        var pm = pickMvtIn(PLANT_T, 1, M - 1);
+        var qm = pm ? pickMvtIn(PAY_T, pm + 1, M) : null;
+        if (pm && qm) {
+          passages = [pm, qm];
+          drops.push({ mvt: pm, text: fill(beats.plant, mr), kind: "plant" });
+          drops.push({ mvt: qm, text: fill(beats.pay, mr), kind: "pay" });
+        }
+      }
+      if (!passages) { passages = passagesForMotif(m); if (mr.chance(0.62)) drops.push({ mvt: mr.pick(passages), text: fill(m.realize, mr), kind: "single" }); }
+      return { cls: m.cls, code: m.code, name: m.name, gloss: gloss, conf: conf, passages: passages };
     });
-    // the doom-frame must carry the cradle-doom motif, in its first movement
+    // the doom-frame must carry the cradle-doom (planted in movement I; the tragic close is its payoff)
     if (frame.id === "fateddoom" && !motifList.some(function (m) { return m.code === "M341"; })) {
-      var dm = lex.MOTIF_BY_CODE["M341"];
-      if (dm) motifList.unshift({ cls: dm.cls, code: dm.code, name: dm.name, gloss: dm.gloss, conf: "high", passages: [1], realize: fill(dm.realize, mr) });
+      var dm = lex.MOTIF_BY_CODE["M341"], bts = lex.MOTIF_BEATS["M341"];
+      if (dm) { motifList.unshift({ cls: dm.cls, code: dm.code, name: dm.name, gloss: dm.gloss, conf: "high", passages: [1] });
+        drops.push({ mvt: 1, text: fill(bts ? bts.plant : dm.realize, mr), kind: "single" }); }
     }
 
     // ── tale-type cards for the motif view ──
@@ -375,7 +389,7 @@
     var tr2 = rand.fork("telling");
 
     var motifByPassage = {};
-    motifList.forEach(function (m) { if (mr.chance(0.62)) { var p = mr.pick(m.passages); (motifByPassage[p] = motifByPassage[p] || []).push(m.realize); } });
+    drops.forEach(function (d) { (motifByPassage[d.mvt] = motifByPassage[d.mvt] || []).push(d); });
 
     // tale-wide transition state
     var lastConn = null;
@@ -493,14 +507,15 @@
         }
         emit(segs, text, prevRef);
       });
-      // stray motif-flavour, with a soft lead-in so it doesn't jar — at most two
-      // per movement, and never the same lead-in twice running
-      var drops = (motifByPassage[mv.idx] || []).slice(0, 2), lastLead = null;
-      drops.forEach(function (line) {
-        if (!tr2.chance(0.85)) return;
-        var lead; do { lead = tr2.pick(lex.FILL.motifLead); } while (lead === lastLead && lex.FILL.motifLead.length > 1);
+      // motif-flavour with a soft lead-in — at most two per movement, payoffs and
+      // plants kept over plain drops, and never the same lead-in twice running
+      var KP = { pay: 0, plant: 1, single: 2 };
+      var md = (motifByPassage[mv.idx] || []).slice().sort(function (a, b) { return KP[a.kind] - KP[b.kind]; }).slice(0, 2), lastLead = null;
+      md.forEach(function (d) {
+        var bank = d.kind === "pay" ? lex.FILL.payLead : lex.FILL.motifLead;
+        var lead; do { lead = tr2.pick(bank); } while (lead === lastLead && bank.length > 1);
         lastLead = lead;
-        emit(segs, lead + " " + cap(line.replace(/^and\s+/i, "")), prevRef);
+        emit(segs, lead + " " + cap(d.text.replace(/^and\s+/i, "")), prevRef);
       });
       // teller signature near the climax (penultimate movement) and envoi at the end.
       // The doom-frame refuses the happy signature and closes on the foretelling.
