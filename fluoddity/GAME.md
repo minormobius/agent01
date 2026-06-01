@@ -449,6 +449,18 @@ on the live pages).
   hot, gallery, breed, map, torus, forest, the hero); `torus`/`forest` get
   reset-only (no field to point particles at).
 
+- **[build note] Substrate-scale axis + matched density.** Fluoddity isn't
+  scale-invariant: field energy ∝ `count·brushSize²`, so the same genome looked
+  hotter on the torus (`384/45k`, density ≈2.88) than the playground (`1024/200k`,
+  ≈1.8). The engine gained `setSubstrate(s)` (a live multiplier on the brush), and
+  `viewcontrols.js` an **energy slider that defaults to "matched"** — each viewer
+  surface (hero, gallery, arena, select, torus) normalizes to the playground's
+  reference density `M_REF=1.8` at the slider's center, so an organism reads with
+  the same energy everywhere; sliding explores hotter/cooler renders of the
+  identical rule. The **game opts out of matching** (`substrate:{match:false}`) so
+  its level tuning is untouched, but still gets the slider. Also: arena's reset now
+  re-seeds the current ecosystem (it was aliased to the reroll/new-field button).
+
 ## 13. What this explicitly does NOT touch
 
 - No change to `engine.js`, `descriptors.js`, the worker, `wrangler.jsonc`, or any

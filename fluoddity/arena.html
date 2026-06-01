@@ -197,7 +197,9 @@ if (engine) {
 
   $('#btn-reroll').addEventListener('click', reroll);
   engine.displayMode = getViewMode();
-  mountViewControls($('#dock .left'), { engines: () => engine, onReset: reroll });
+  // reset re-seeds the CURRENT ecosystem from frame 0 (keeps your picks/lineage);
+  // "↻ new field" is the separate button that rerolls a fresh genome.
+  mountViewControls($('#dock .left'), { engines: () => engine, onReset: () => engine.load(cfg, 'reset' + Math.random()), substrate: true });
   $('#btn-back').addEventListener('click', back);
   $('#btn-prop').addEventListener('click', propagate);
   $('#btn-save').addEventListener('click', () => {

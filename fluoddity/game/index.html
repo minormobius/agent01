@@ -679,6 +679,7 @@ if (AE) {
   // trail⇄particle toggle + reset, wired to whichever engine the level is driving.
   mountViewControls($('#viewctl'), {
     engines: () => (S.level === 3 ? BE : AE),
+    substrate: { match: false },   // give the energy slider, but keep the game's tuned density at default
     onReset: () => {
       if (S.level === 3) { if (L3) serveNext(); }
       else if (S.level === 2) { S.picks = []; S.regrows = 0; highlightPicks(); loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'rst' + Math.random()); prompt('reset — tap up to <b>two calm species</b>, then regrow'); }

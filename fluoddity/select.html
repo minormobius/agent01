@@ -238,7 +238,7 @@ $('#mut').addEventListener('input', () => { $('#mutv').textContent = parseFloat(
 if (engine) {
   engine.displayMode = getViewMode();
   // snapshot grid: a view toggle re-renders the same 16 in the new mode; reset re-rolls.
-  mountViewControls($('#dock .left'), { engines: () => engine, onReset: reroll, onModeChange: () => { if (!busy) renderAll(false); } });
+  mountViewControls($('#dock .left'), { engines: () => engine, substrate: true, onReset: reroll, onModeChange: () => { if (!busy) renderAll(false); } });
   reroll();
 }
 </script>

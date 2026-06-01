@@ -38,7 +38,10 @@ function injectStyles() {
 .fviewctl { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono, ui-monospace, monospace); white-space: nowrap; }
 .fviewctl button { font: inherit; font-size: 12px; cursor: pointer; color: var(--fg, #e7e9ee); background: var(--panel, #0e1014); border: 1px solid var(--rule, #23272f); border-radius: 8px; padding: 7px 11px; white-space: nowrap; }
 .fviewctl button:hover { border-color: var(--accent, #38e1c0); color: var(--accent, #38e1c0); }
-.fviewctl button.fvc-on { color: #04110e; background: var(--accent, #38e1c0); border-color: var(--accent, #38e1c0); font-weight: 600; }`;
+.fviewctl button.fvc-on { color: #04110e; background: var(--accent, #38e1c0); border-color: var(--accent, #38e1c0); font-weight: 600; }
+.fviewctl .fvc-sub { display: inline-flex; align-items: center; gap: 6px; }
+.fviewctl .fvc-sub input[type=range] { width: 84px; accent-color: var(--accent, #38e1c0); vertical-align: middle; }
+.fviewctl .fvc-lbl { font-size: 11px; color: var(--muted, #8b909c); min-width: 70px; }`;
   document.head.appendChild(s);
 }
 
@@ -66,6 +69,39 @@ export function mountViewControls(container, opts = {}) {
   resetBtn.title = 'reset this field';
   if (showToggle) wrap.appendChild(toggleBtn);
   wrap.appendChild(resetBtn);
+
+  // Substrate (field-density) slider. Default position = "matched": every surface
+  // normalizes to one reference density (M_REF, the playground's), so the same
+  // organism reads with the same energy everywhere. Sliding explores hotter/cooler
+  // renders of the identical genome. opts.substrate === { match:false } keeps the
+  // surface's own density at the default (used by the game, to protect its tuning).
+  const M_REF = 1.8;
+  const wantSub = !!opts.substrate;
+  const matchOn = wantSub && (opts.substrate === true || opts.substrate.match !== false);
+  let energy = 1, slider = null, sliderLbl = null;
+  function matchMult() {
+    if (!matchOn) return 1;
+    const e0 = engineList()[0];
+    if (!e0 || !e0._baseBrush || !e0.count) return 1;
+    return Math.sqrt(M_REF / (e0.count * e0._baseBrush * e0._baseBrush));
+  }
+  function applySubstrate() {
+    const m = matchMult() * energy;
+    for (const e of engineList()) { if (e && typeof e.setSubstrate === 'function') e.setSubstrate(m); }
+  }
+  if (wantSub) {
+    const sub = document.createElement('span'); sub.className = 'fvc-sub';
+    slider = document.createElement('input');
+    slider.type = 'range'; slider.min = '-2'; slider.max = '2'; slider.step = '0.05'; slider.value = '0';
+    slider.title = 'substrate scale — field density / energy of the render';
+    sliderLbl = document.createElement('span'); sliderLbl.className = 'fvc-lbl';
+    sub.append(slider, sliderLbl); wrap.appendChild(sub);
+    const upd = () => { energy = Math.pow(2, parseFloat(slider.value)); sliderLbl.textContent = 'energy ×' + energy.toFixed(2); };
+    slider.addEventListener('input', (e) => { e.stopPropagation(); upd(); applySubstrate(); });
+    slider.addEventListener('change', (e) => { e.stopPropagation(); if (onModeChange) { try { onModeChange(mode); } catch { /* no-op */ } } });
+    upd();
+  }
+
   container.appendChild(wrap);
 
   function engineList() {
@@ -93,6 +129,7 @@ export function mountViewControls(container, opts = {}) {
   resetBtn.addEventListener('click', (e) => { e.stopPropagation(); try { onReset(); } catch { /* no-op */ } });
 
   paint();
-  applyEngines();   // push the persisted mode onto whatever engine exists at mount time (no re-render)
+  applyEngines();     // push the persisted mode onto whatever engine exists at mount time (no re-render)
+  if (wantSub) applySubstrate();   // match-by-default density on mount
   return { setMode, getMode: () => mode, apply: applyEngines };
 }

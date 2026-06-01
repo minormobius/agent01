@@ -356,7 +356,7 @@ void main(){
   // reset re-seeds the current organism's growth from frame 0. No trail⇄particle
   // toggle here: the torus samples the trail field onto a 3D donut, so the
   // particle (point) render has nowhere to project.
-  mountViewControls($('#dock'), { toggle: false, onReset: () => { if (cfg) engine.load(cfg, 'reset' + Math.random()); } });
+  mountViewControls($('#dock'), { engines: () => engine, toggle: false, substrate: true, onReset: () => { if (cfg) engine.load(cfg, 'reset' + Math.random()); } });
   $('#btn-open').addEventListener('click', () => {
     if (!cfg) return;
     if (source && source.kind === 'shared') location.href = `./play/?o=${source.did}/${source.rkey}`;

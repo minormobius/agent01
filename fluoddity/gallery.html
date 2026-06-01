@@ -178,7 +178,7 @@ function reGrowVisible() {
     if (r.bottom > -200 && r.top < innerHeight + 200) { c.settled = false; c.steps = 0; if (!queue.includes(c)) queue.push(c); }
   }
 }
-mountViewControls($('#topbar'), { engines: () => engine, onReset: reGrowVisible, onModeChange: reGrowVisible });
+mountViewControls($('#topbar'), { engines: () => engine, substrate: true, onReset: reGrowVisible, onModeChange: reGrowVisible });
 
 // ── card rendering ───────────────────────────────────────────────────────────
 function makeCard(rec) {

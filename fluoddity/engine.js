@@ -383,6 +383,13 @@ export class FluoddityEngine {
     this.texW = Math.ceil(Math.sqrt(count));
     this.texH = Math.ceil(count / this.texW);
     this.brushSize = 0.0015 * (1024 / dim) * 2.0;
+    // Substrate scale: a multiplier on the deposit splat size, i.e. on field
+    // density (energy ∝ count·brushSize²). The genome is NOT scale-invariant —
+    // (dim, count, brush) form a hidden "substrate" axis — so exposing this lets
+    // surfaces match each other's energy and lets a slider explore hotter/cooler
+    // renders of the same rule. setSubstrate(1) keeps the legacy brush.
+    this._baseBrush = this.brushSize;
+    this.substrate = 1;
     this.cfg = defaultConfig();
     this.frame = 0;
     this.currentKey = null;
@@ -467,6 +474,14 @@ export class FluoddityEngine {
     this.cfg.cohorts |= 0; this.cfg.initial_conditions |= 0;
     this.frame = 0;
     this.currentKey = key || null;
+  }
+
+  // Field-density multiplier. The deposit splat is the dominant energy lever:
+  // sensed field ∝ count·brushSize², so scaling the brush scales how hard agents
+  // are driven. Live (no rebuild) — takes effect on the next deposit.
+  setSubstrate(s) {
+    this.substrate = s > 0 ? s : 1;
+    this.brushSize = this._baseBrush * this.substrate;
   }
 
   _setEntityUniforms() {

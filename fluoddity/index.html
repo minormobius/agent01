@@ -297,7 +297,7 @@ async function loop() {
 document.getElementById('hero').addEventListener('click', async () => { if (engine) { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
 if (engine) {
   engine.displayMode = getViewMode();
-  mountViewControls(document.getElementById('viewctl'), { engines: () => engine, onReset: async () => { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
+  mountViewControls(document.getElementById('viewctl'), { engines: () => engine, substrate: true, onReset: async () => { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
   requestAnimationFrame(loop);
 } else { pgBtn.style.display = 'none'; }
 </script>
