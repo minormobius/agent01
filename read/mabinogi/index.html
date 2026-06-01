@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>The Four Branches of the Mabinogi — a deep-read hub</title>
+  <meta name="description" content="The Four Branches of the Mabinogi (Pedair Cainc y Mabinogi) — Pwyll, Branwen, Manawydan and Math — the masterwork of medieval Welsh prose, read deeply: complete original translations, character webs, story graphs, motif indexes and storybooks for all four branches, with the historiography of the work itself — its manuscripts (Peniarth 6, the White Book of Rhydderch, the Red Book of Hergest), its date and disputed authorship, the Pryderi thread that binds the four, the demoted gods of the houses of Dôn and Llŷr, and the translation history from Lady Charlotte Guest to Sioned Davies. A non-Arthurian companion to the Pendragon hub.">
+  <meta property="og:title" content="The Four Branches of the Mabinogi">
+  <meta property="og:description" content="The masterwork of medieval Welsh prose, read deeply — all four branches in full, with the historiography of the work itself.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/mabinogi/">
+  <meta property="og:site_name" content="Read">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+  <style>
+    :root{
+      --bg:#16140f; --bg2:#1d1a13; --panel:#211d16; --ink:#e9e1d2; --soft:#bdb29a;
+      --faint:#8a7f6b; --gold:#c9a24a; --gold-soft:#e0c178; --line:#37301f;
+      --green:#7fb37f; --blue:#7f8fb3; --mauve:#c97f9a; --rust:#c9854a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--ink);
+      font:17px/1.65 Georgia,"Iowan Old Style","Palatino Linotype",serif;
+      -webkit-font-smoothing:antialiased}
+    .sans{font-family:"Helvetica Neue",Arial,sans-serif}
+    a{color:var(--gold-soft);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:980px;margin:0 auto;padding:0 22px}
+    /* topbar */
+    .topbar{position:sticky;top:0;z-index:20;background:rgba(22,20,15,.92);
+      backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .topbar-inner{max-width:980px;margin:0 auto;padding:11px 22px;display:flex;
+      align-items:center;gap:14px;flex-wrap:wrap}
+    .brand{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;
+      letter-spacing:.2px;font-size:15px}
+    .brand .sigil{margin-right:8px}
+    .topbar nav{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;
+      font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px}
+    .topbar nav a{color:var(--soft)}
+    /* hero */
+    .hero{padding:64px 0 40px;border-bottom:1px solid var(--line)}
+    .kicker{font-family:"Helvetica Neue",Arial,sans-serif;text-transform:uppercase;
+      letter-spacing:3px;font-size:12px;color:var(--gold);margin-bottom:18px}
+    h1{font-size:clamp(34px,6vw,58px);line-height:1.05;font-weight:400;
+      letter-spacing:.5px;margin-bottom:20px}
+    h1 .welsh{display:block;color:var(--gold-soft);font-style:italic;
+      font-size:.5em;margin-top:10px;letter-spacing:.3px}
+    .lede{font-size:20px;color:var(--soft);max-width:46em}
+    .lede em{color:var(--ink)}
+    /* sections */
+    section{padding:46px 0;border-bottom:1px solid var(--line)}
+    h2{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;font-size:14px;
+      text-transform:uppercase;letter-spacing:2.5px;color:var(--gold);margin-bottom:8px}
+    h2 .num{color:var(--faint);margin-right:10px}
+    .sub{color:var(--faint);font-size:14px;font-family:"Helvetica Neue",Arial,sans-serif;
+      margin-bottom:24px}
+    h3{font-size:23px;font-weight:400;margin:30px 0 8px;color:var(--gold-soft)}
+    p{margin:0 0 16px;max-width:42em}
+    p.full{max-width:46em}
+    strong{color:#fff;font-weight:600}
+    .small{font-size:14.5px;color:var(--soft)}
+    /* tale cards */
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:6px}
+    .card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:22px 20px;transition:.16s;border-left-width:4px}
+    .card:hover{text-decoration:none;transform:translateY(-3px);border-color:var(--gold)}
+    .card .ord{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;letter-spacing:2px;
+      text-transform:uppercase;color:var(--faint)}
+    .card h3{margin:8px 0 4px;color:var(--ink);font-size:21px}
+    .card .wl{font-style:italic;color:var(--gold-soft);font-size:14px;margin-bottom:10px}
+    .card p{font-size:14.5px;color:var(--soft);margin:0;max-width:none}
+    .card .go{display:block;margin-top:14px;font-family:"Helvetica Neue",Arial,sans-serif;
+      font-size:12.5px;color:var(--gold)}
+    .c1{border-left-color:var(--gold)} .c2{border-left-color:var(--blue)}
+    .c3{border-left-color:var(--mauve)} .c4{border-left-color:var(--green)}
+    /* table */
+    .tbl-scroll{overflow-x:auto;margin-top:8px;border:1px solid var(--line);border-radius:12px}
+    table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:680px}
+    th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+    thead th{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;text-transform:uppercase;
+      letter-spacing:1px;color:var(--gold);background:var(--bg2);position:sticky;top:0}
+    tbody th{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:600;color:var(--gold-soft);
+      font-size:13px;white-space:nowrap;background:var(--bg2)}
+    td{color:var(--soft)}
+    tr:last-child td,tr:last-child th{border-bottom:none}
+    /* timeline-ish list */
+    .ms{list-style:none;margin:10px 0 0}
+    .ms li{padding:14px 0 14px 130px;position:relative;border-top:1px solid var(--line)}
+    .ms li:first-child{border-top:none}
+    .ms .when{position:absolute;left:0;top:14px;font-family:"Helvetica Neue",Arial,sans-serif;
+      font-weight:700;color:var(--gold);font-size:14px}
+    .ms .what{color:var(--soft);font-size:15px}
+    .ms .what b{color:var(--ink);font-weight:600}
+    .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);
+      border-radius:8px;padding:16px 18px;margin:20px 0;font-size:15px;color:var(--soft)}
+    .note b{color:var(--ink)}
+    footer{padding:40px 0 70px;color:var(--faint);font-size:14px}
+    footer a{color:var(--soft)}
+    @media(max-width:560px){.ms li{padding-left:0;padding-top:32px}.ms .when{top:8px}}
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🌿</span>The Four Branches of the Mabinogi</span>
+      <nav>
+        <a href="#branches">The branches</a>
+        <a href="#name">The name</a>
+        <a href="#text">Manuscripts</a>
+        <a href="#gods">The gods</a>
+        <a href="#thread">The Pryderi thread</a>
+        <a href="#compare">Compared</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <div class="hero">
+      <div class="kicker">A deep-read hub · medieval Welsh prose</div>
+      <h1>The Four Branches of the Mabinogi<span class="welsh">Pedair Cainc y Mabinogi</span></h1>
+      <p class="lede">Four linked tales — <em>Pwyll</em>, <em>Branwen</em>, <em>Manawydan</em> and <em>Math</em> — written in Wales around the eleventh or twelfth century and preserved in two great medieval books. They are the finest prose of the medieval Welsh, and one of the oldest bodies of story in any vernacular European literature: a world of demoted gods walking as kings, of the Otherworld a horse-ride away, of cauldrons and curses and shape-shifting, told in a clear, swift, ironic voice that has never gone out of date. Each branch lives here as a full deep-read; this hub holds the history of the work that binds them.</p>
+    </div>
+
+    <!-- THE BRANCHES -->
+    <section id="branches">
+      <h2><span class="num">01</span> The four branches</h2>
+      <div class="sub">Each branch is a self-contained deep-read — original translation alongside the Middle Welsh, with characters, story graph, motif index, mythograph and a storybook. Read them in order; the four make one arc.</div>
+      <div class="cards">
+        <a class="card c1" href="/pwyll/">
+          <div class="ord">First Branch</div>
+          <h3>Pwyll Pendefig Dyfed</h3>
+          <div class="wl">Pwyll, Prince of Dyfed</div>
+          <p>A prince trades places with the lord of the Otherworld; wins Rhiannon, the fairy bride on the white horse; outwits a rival with the badger-in-the-bag; and recovers a stolen son, named Pryderi.</p>
+          <span class="go">read.mino.mobi/pwyll →</span>
+        </a>
+        <a class="card c2" href="/branwen/">
+          <div class="ord">Second Branch</div>
+          <h3>Branwen ferch Llŷr</h3>
+          <div class="wl">Branwen, daughter of Llŷr</div>
+          <p>The great Welsh tragedy: a marriage to bind Britain and Ireland turns to war; the Cauldron of Rebirth gives back the dead but dumb; and the giant-king Brân's severed head feasts the seven survivors for fourscore years.</p>
+          <span class="go">read.mino.mobi/branwen →</span>
+        </a>
+        <a class="card c3" href="/manawydan/">
+          <div class="ord">Third Branch</div>
+          <h3>Manawydan uab Llŷr</h3>
+          <div class="wl">Manawydan, son of Llŷr</div>
+          <p>An enchanted mist empties a kingdom to a wasteland; a vanishing fortress steals two of the four left in it; and one patient man lifts the whole spell with a craftsman's wit and a mouse on a tiny gallows.</p>
+          <span class="go">read.mino.mobi/manawydan →</span>
+        </a>
+        <a class="card c4" href="/math/">
+          <div class="ord">Fourth Branch</div>
+          <h3>Math uab Mathonwy</h3>
+          <div class="wl">Math, son of Mathonwy</div>
+          <p>The branch of magicians: a war over Otherworld pigs, men turned to wild beasts, a wife conjured out of flowers, a man who becomes an eagle — and a wand that transforms, punishes and mends.</p>
+          <span class="go">read.mino.mobi/math →</span>
+        </a>
+      </div>
+      <p class="small" style="margin-top:22px">A fifth Mabinogion tale, <em>Culhwch ac Olwen</em>, and the romance <em>Owain</em> are read on this site too, but they are <strong>not</strong> of the Four Branches — they are Arthurian, and live in the <a href="/pendragon/">Pendragon</a> hub. The Four Branches are a non-Arthurian work of their own.</p>
+    </section>
+
+    <!-- THE NAME -->
+    <section id="name">
+      <h2><span class="num">02</span> The name — <span style="text-transform:none;letter-spacing:0;color:var(--gold-soft);font-style:italic">Mabinogi</span> and <span style="text-transform:none;letter-spacing:0;color:var(--gold-soft);font-style:italic">Mabinogion</span></h2>
+      <div class="sub">Why the Welsh and English titles differ — and what "branch" means.</div>
+      <p class="full">Each of the four tales ends with the same colophon: <em>ac yfelly y terfyna y geing honn o'r Mabinogi</em> — "and so ends this <strong>branch</strong> of the Mabinogi." The Welsh word is <strong>cainc</strong>, a "branch" or strand (as of a rope or a piece of music), and the four together are <em>Pedair Cainc y Mabinogi</em>, the Four Branches of the Mabinogi.</p>
+      <p class="full">The familiar English title <strong>Mabinogion</strong> is, strictly, a mistake — a fertile one. The word appears exactly once in the medieval manuscripts, at the end of the First Branch, where a scribe wrote <em>mabynogion</em>, almost certainly a slip for <em>mabynogi</em>. <strong>Lady Charlotte Guest</strong>, making the first full English translation in the 1840s, took it for a genuine plural and used it as the title for her whole collection of eleven Welsh tales — and it stuck. So <em>Mabinogion</em> now means the wider gathering of medieval Welsh prose tales; <em>Mabinogi</em> proper means only the Four Branches.</p>
+      <p class="full">What <em>mabinogi</em> itself meant is still argued. The root is <strong>mab</strong>, "son, boy, youth." It may mean a "tale of youth" or a story fit for the training of a young <em>cyfarwydd</em> (a professional storyteller); or — the reading many favour — "the tales of the family of <strong>Maponos</strong>," the British boy-god whose Welsh name is <strong>Mabon</strong>, son of <strong>Modron</strong> (the goddess Matrona). On that reading the very title points back to the divine substratum the branches are made of.</p>
+    </section>
+
+    <!-- THE TEXT -->
+    <section id="text">
+      <h2><span class="num">03</span> The manuscripts, the date, the author</h2>
+      <div class="sub">A work older than the books that carry it — and an author no one can name.</div>
+      <h3>The books</h3>
+      <p class="full">The Four Branches survive complete in two of the great medieval Welsh manuscripts, neither a copy of the other — both descend from lost earlier exemplars:</p>
+      <ul class="ms">
+        <li><span class="when">c. 1225</span><span class="what"><b>Peniarth 6</b> — the earliest witness: not the whole work but <b>fragments of the Second and Third Branches</b>, enough to show the text was already fixed and circulating by the early 13th century.</span></li>
+        <li><span class="when">c. 1350</span><span class="what"><b>The White Book of Rhydderch</b> (<i>Llyfr Gwyn Rhydderch</i>, Peniarth 4–5) — the oldest complete text, copied by several scribes; the base for most modern editions.</span></li>
+        <li><span class="when">1382–1410</span><span class="what"><b>The Red Book of Hergest</b> (<i>Llyfr Coch Hergest</i>) — the second complete version, the hand of Hywel Fychan of Buellt; the great public-domain editions (Rhys &amp; Evans, 1887) print from it.</span></li>
+      </ul>
+      <h3>The date</h3>
+      <p class="full">The tales are far older than the manuscripts. Behind them lies a long <strong>oral tradition</strong> — the stock of the <em>cyfarwydd</em>, the court storyteller — reaching back into the British Iron Age and beyond. The written form they now have is usually placed in the <strong>late eleventh or twelfth century</strong> (estimates run from c. 1060 to c. 1200), making them among the earliest prose narratives in any European vernacular, and roughly contemporary with — or earlier than — the first Continental romances.</p>
+      <h3>The author</h3>
+      <p class="full">No author is named, and the question is genuinely open. The shaping intelligence behind the four — the cross-references, the recurring figures, the deliberate symmetry — has led many scholars, since <strong>Ifor Williams</strong>'s foundational 1930 edition, to argue for a <strong>single author</strong> who gathered and re-formed inherited material into one tetralogy. That a single mind shaped the work is widely felt; <em>who</em> that mind was remains unproven. Named candidates have been proposed — the cleric <strong>Rhigyfarch</strong> of Llanbadarn, and (more recently and far more contentiously) the princess <strong>Gwenllian ferch Gruffudd</strong> — but none commands consensus, and the safest statement is the honest one: the Four Branches are anonymous, and probably the work of one extraordinarily skilful redactor of much older story.</p>
+      <div class="note"><b>On this site, the Welsh.</b> The reading text shown beside each translation is the Welsh Wikisource edition (CC&nbsp;BY-SA), of the White&nbsp;Book&nbsp;/&nbsp;Red&nbsp;Book tradition; the public-domain edition of Rhys &amp; Evans (Oxford, 1887, from the Red Book) is the diplomatic anchor. The English alongside it is an <b>original translation</b>, written fresh movement by movement — Lady Charlotte Guest's 1840s version is consulted only as a sense-check.</div>
+    </section>
+
+    <!-- THE GODS -->
+    <section id="gods">
+      <h2><span class="num">04</span> The two divine families</h2>
+      <div class="sub">The mythological substratum — old gods walking as kings, never once flagged as gods.</div>
+      <p class="full">The Four Branches are euhemerised myth: they take what were once the gods of the Brittonic world and present them, without comment, as the lords and ladies of an ancient Wales. The audience was expected to feel the older weight under the human surface. Two great kindreds divide the cycle between them, like the two divine races of Irish myth:</p>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Figure</th><th>In the branches</th><th>The god beneath</th></tr></thead>
+          <tbody>
+            <tr><th>Rhiannon</th><td>Fairy bride of Pwyll, mother of Pryderi; rides a white horse none can catch (Pwyll, Manawydan)</td><td><b>Rigantona</b>, "Great Queen"; the horse-goddess <b>Epona</b></td></tr>
+            <tr><th>Brân &amp; Manawydan</th><td>The giant-king and his brother, children of Llŷr (Branwen, Manawydan)</td><td>The sons of <b>Llŷr</b> = Irish <b>Lir</b>; Manawydan = the sea-god <b>Manannán mac Lir</b></td></tr>
+            <tr><th>Lleu Llaw Gyffes</th><td>The boy named, armed and wived against his mother's curses (Math)</td><td><b>Lugus</b> — Irish <b>Lugh</b>, Gaulish Lugus, the pan-Celtic god of light and skill</td></tr>
+            <tr><th>The children of Dôn</th><td>Math's magician-kindred: Gwydion, Gilfaethwy, Aranrhod, Gofannon (Math)</td><td>The family of the goddess <b>Dôn</b> = Irish <b>Danu</b>; the Welsh <b>Túatha Dé Danann</b></td></tr>
+            <tr><th>Mabon ap Modron</th><td>Named across the wider Mabinogion; the divine youth</td><td><b>Maponos</b> son of <b>Matrona</b> — and perhaps the very root of the word <i>mabinogi</i></td></tr>
+            <tr><th>Arawn &amp; Annwn</th><td>The Otherworld and its courteous king, entered by Pwyll; source of the swine in Math</td><td><b>Annwn</b>, the Brittonic Otherworld — not an underworld of the dead but a parallel realm</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small" style="margin-top:18px">The genius of the branches is that none of this is ever explained. Arawn is simply a king, Rhiannon simply a lady, Lleu simply a clever boy — and the audience is trusted to hear the gods underneath.</p>
+    </section>
+
+    <!-- THE PRYDERI THREAD -->
+    <section id="thread">
+      <h2><span class="num">05</span> The Pryderi thread</h2>
+      <div class="sub">The one figure who runs through all four — the spine that makes four tales one work.</div>
+      <p class="full">If anything makes the Four Branches a single composition rather than four loose tales, it is <strong>Pryderi</strong>. He is the only character to appear in every branch — never quite the hero, but always there, the connecting thread the redactor draws from the first page to the fourth:</p>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Branch</th><th>Pryderi's part</th></tr></thead>
+          <tbody>
+            <tr><th>I · Pwyll</th><td><b>Born, lost and recovered.</b> Stolen as a newborn, raised in secret by Teirnon, restored to Pwyll and Rhiannon, and named Pryderi ("care/anxiety") for the trouble of his loss.</td></tr>
+            <tr><th>II · Branwen</th><td><b>A survivor.</b> One of the seven who alone come home alive from the catastrophe in Ireland, bearing Brân's living head.</td></tr>
+            <tr><th>III · Manawydan</th><td><b>Lord and victim.</b> He gives his friend Manawydan the kingdom of Dyfed and his own mother Rhiannon in marriage — then is swallowed, with Rhiannon, by the enchanted caer until Manawydan wins them back.</td></tr>
+            <tr><th>IV · Math</th><td><b>Killed.</b> Defrauded of his Otherworld swine and slain by Gwydion's magic in single combat — the death that ends the thread, and the line of Pwyll with it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="full" style="margin-top:18px">Read together, the four trace the whole arc of a single life and lineage — born in the First Branch, dead in the Fourth — while the kindreds shift around him: the house of <strong>Llŷr</strong> rises and is broken in the Second, the house of <strong>Dôn</strong> rises in the Fourth. The cycle ends not on Pryderi but on Lleu, the bright god settling into kingship as the older line goes out.</p>
+    </section>
+
+    <!-- COMPARED -->
+    <section id="compare">
+      <h2><span class="num">06</span> The four branches compared</h2>
+      <div class="sub">The shared grammar of the cycle — read across the four at a glance. (The full cross-tale apparatus, set against the Arthurian tales too, lives in the <a href="/pendragon/">Pendragon</a> crosswalk.)</div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th></th><th>Pwyll</th><th>Branwen</th><th>Manawydan</th><th>Math</th></tr></thead>
+          <tbody>
+            <tr><th>Realm</th><td>Dyfed &amp; Annwn</td><td>Britain &amp; Ireland</td><td>Dyfed (the wasteland)</td><td>Gwynedd</td></tr>
+            <tr><th>Divine house</th><td>Rhiannon (Rigantona)</td><td>The children of Llŷr</td><td>Manawydan (Manannán)</td><td>The children of Dôn</td></tr>
+            <tr><th>Dominant mode</th><td>Exchange &amp; courtesy</td><td>Tragedy &amp; war</td><td>Patience &amp; wit</td><td>Trickery &amp; transformation</td></tr>
+            <tr><th>The marvellous object</th><td>Rhiannon's bottomless bag</td><td>The Cauldron of Rebirth</td><td>The golden bowl / the caer</td><td>The wand (<i>hudlath</i>)</td></tr>
+            <tr><th>Otherworld as…</th><td>A court ruled from within</td><td>The timeless feast at Gwales</td><td>A vanishing trap-fort</td><td>The source of the swine</td></tr>
+            <tr><th>The wronged woman</th><td>Rhiannon (calumniated)</td><td>Branwen (persecuted)</td><td>— (Cigfa kept safe)</td><td>Goewin (violated); Aranrhod</td></tr>
+            <tr><th>Ends on</th><td>A son restored &amp; named</td><td>Graves &amp; a buried head</td><td>The land made whole</td><td>An eagle made man; a new king</td></tr>
+            <tr><th>Onomastic close</th><td>The naming of Pryderi</td><td>Tal Ebolyon</td><td>Mynweir &amp; Mynordd</td><td>Llech Gronw; the owl's name</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- AFTERLIVES -->
+    <section id="after">
+      <h2><span class="num">07</span> Translations &amp; afterlives</h2>
+      <div class="sub">How the branches reached us, and where they went next.</div>
+      <h3>The English translations</h3>
+      <ul class="ms">
+        <li><span class="when">1838–49</span><span class="what"><b>Lady Charlotte Guest</b>, <i>The Mabinogion</i> — the first full English version, and the book that gave the collection its (mistaken, enduring) name; the public-domain text consulted on this site.</span></li>
+        <li><span class="when">1948</span><span class="what"><b>Gwyn &amp; Thomas Jones</b>, <i>The Mabinogion</i> (Everyman) — the scholarly standard for half a century, revised into the 1990s.</span></li>
+        <li><span class="when">1977</span><span class="what"><b>Patrick K. Ford</b>, <i>The Mabinogi and Other Medieval Welsh Tales</i> — a close, mythologically-attentive rendering.</span></li>
+        <li><span class="when">2007</span><span class="what"><b>Sioned Davies</b>, <i>The Mabinogion</i> (Oxford World's Classics) — the current standard, attuned to the tales' oral, performed quality.</span></li>
+      </ul>
+      <h3>The afterlives</h3>
+      <p class="full">The branches have never stopped breeding new work. <strong>Blodeuwedd</strong>, the woman made of flowers and unmade into an owl, alone gave rise to Saunders Lewis's verse-play <em>Blodeuwedd</em> and Alan Garner's novel <em>The Owl Service</em> (1967); the cycle fed Robert Graves's <em>The White Goddess</em>, Evangeline Walton's four novels, Lloyd Alexander's <em>Prydain</em> books, and a continuing stream of Welsh-language drama, poetry and song. The oldest prose of Wales is also among its most alive.</p>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <p style="max-width:46em;color:var(--soft)"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · The Four Branches of the Mabinogi — a deep-read hub for <em>Pwyll</em>, <em>Branwen</em>, <em>Manawydan</em> and <em>Math</em>, with the historiography of the work. The original translations, character webs, story graphs, motif indexes, mythographs and storybooks for each branch live at their own sub-sites above. The broader Arthurian and Brittonic comparative layer — which sets these branches beside <em>Culhwch ac Olwen</em>, <em>Owain</em>, <em>Sir Orfeo</em> and <em>Sir Gawain and the Green Knight</em> — lives at the <a href="/pendragon/">Pendragon</a> hub. The Four Branches are a non-Arthurian work; this hub reads them on their own terms.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
