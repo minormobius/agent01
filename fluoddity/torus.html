@@ -76,7 +76,7 @@ a { color: var(--accent); text-decoration: none; }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
-import { mountViewControls } from './viewcontrols.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
 import { COLLECTION, resolvePds, getRecord, parseConfig, parseAtUri } from './data.js';
 
@@ -177,6 +177,59 @@ void main(){
   const uMVP = gl.getUniformLocation(prog, 'u_mvp');
   const uR = gl.getUniformLocation(prog, 'u_R'), ur = gl.getUniformLocation(prog, 'u_r');
   const uCanvas = gl.getUniformLocation(prog, 'u_canvas'), uInk = gl.getUniformLocation(prog, 'u_ink'), uHue = gl.getUniformLocation(prog, 'u_hue');
+
+  // ── particle program: render the AGENTS themselves as points on the torus ───
+  // Reads each agent's (x,y) straight from the engine's entity texture, maps the
+  // toroidal UV onto the same 3D donut the surface uses, and colors by flow
+  // direction/speed. The 2D engine particle render can't project onto 3D, so the
+  // torus carries its own point shader. Falls back to the trail surface if it
+  // fails to compile.
+  let pprog = null, puMVP, puR, pur, puEntity, puTexW, puCount, puPoint;
+  try {
+    const TPVS = `#version 300 es
+precision highp float; precision highp int;
+uniform sampler2D u_entity; uniform int u_texW, u_count;
+uniform mat4 u_mvp; uniform float u_R, u_r, u_point;
+out vec3 v_col; out vec3 v_normal;
+vec3 hsv2rgb(vec3 c){ vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0); vec3 p = abs(fract(c.xxx + K.xyz)*6.0 - K.www); return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y); }
+void main(){
+  int idx = gl_VertexID;
+  if(idx >= u_count){ gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }
+  ivec2 tc = ivec2(idx % u_texW, idx / u_texW);
+  vec4 e = texelFetch(u_entity, tc, 0);
+  vec2 uv = e.xy * 0.5 + 0.5;                 // sim [-1,1] → toroidal UV [0,1]
+  float theta = uv.x * 6.28318530718, phi = uv.y * 6.28318530718;
+  float ct = cos(theta), st = sin(theta), cp = cos(phi), sp = sin(phi);
+  vec3 pos = vec3((u_R + u_r*cp)*ct, u_r*sp, (u_R + u_r*cp)*st);
+  v_normal = vec3(cp*ct, sp, cp*st);
+  vec2 vel = e.zw;
+  float hue = fract(atan(vel.y, vel.x) / 6.28318530718);
+  float spd = clamp(length(vel) * 1600.0, 0.2, 1.0);
+  v_col = hsv2rgb(vec3(hue, 0.85, spd));
+  gl_Position = u_mvp * vec4(pos, 1.0);
+  gl_PointSize = u_point;
+}`;
+    const TPFS = `#version 300 es
+precision highp float;
+in vec3 v_col; in vec3 v_normal; out vec4 o;
+void main(){
+  vec2 d = gl_PointCoord - 0.5; float r2 = dot(d, d);
+  if(r2 > 0.25) discard;
+  float a = exp(-r2 * 9.0);
+  float lambert = clamp(dot(normalize(v_normal), normalize(vec3(0.35, 0.7, 0.45))), 0.0, 1.0);
+  o = vec4(v_col * (0.5 + 0.7 * lambert) * a, a);
+}`;
+    pprog = gl.createProgram();
+    gl.attachShader(pprog, compile(gl.VERTEX_SHADER, TPVS));
+    gl.attachShader(pprog, compile(gl.FRAGMENT_SHADER, TPFS));
+    gl.linkProgram(pprog);
+    if (!gl.getProgramParameter(pprog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pprog));
+    puMVP = gl.getUniformLocation(pprog, 'u_mvp');
+    puR = gl.getUniformLocation(pprog, 'u_R'); pur = gl.getUniformLocation(pprog, 'u_r');
+    puEntity = gl.getUniformLocation(pprog, 'u_entity');
+    puTexW = gl.getUniformLocation(pprog, 'u_texW'); puCount = gl.getUniformLocation(pprog, 'u_count');
+    puPoint = gl.getUniformLocation(pprog, 'u_point');
+  } catch (e) { pprog = null; }
 
   // ── orbit camera ────────────────────────────────────────────────────────────
   let yaw = 0.6, pitch = 0.45, dist = 6.2;
@@ -331,9 +384,24 @@ void main(){
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, W, H);
-    gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE);
     gl.clearColor(0.012, 0.014, 0.020, 1); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    if (engine.displayMode === 'particles' && pprog) {
+      // additive point cloud — the donut form emerges from the agents themselves.
+      gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.useProgram(pprog);
+      gl.uniformMatrix4fv(puMVP, false, mvp);
+      gl.uniform1f(puR, 2.0); gl.uniform1f(pur, 0.78);
+      gl.uniform1i(puTexW, engine.texW); gl.uniform1i(puCount, engine.count);
+      gl.uniform1f(puPoint, Math.max(1.5, 2.2 * dpr));
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, engine.eTex[engine.ePing]); gl.uniform1i(puEntity, 0);
+      gl.bindVertexArray(null);
+      gl.drawArrays(gl.POINTS, 0, engine.count);
+      gl.disable(gl.BLEND);
+      return;
+    }
+
+    gl.disable(gl.BLEND); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE);
     gl.useProgram(prog);
     gl.uniformMatrix4fv(uMVP, false, mvp);
     gl.uniform1f(uR, 2.0); gl.uniform1f(ur, 0.78);
@@ -353,10 +421,10 @@ void main(){
     await newOrganism();
     running = true; requestAnimationFrame(loop);
   });
-  // reset re-seeds the current organism's growth from frame 0. No trail⇄particle
-  // toggle here: the torus samples the trail field onto a 3D donut, so the
-  // particle (point) render has nowhere to project.
-  mountViewControls($('#dock'), { engines: () => engine, toggle: false, substrate: true, onReset: () => { if (cfg) engine.load(cfg, 'reset' + Math.random()); } });
+  // trail⇄particle toggle (torus has its own 3D point shader), substrate slider,
+  // and reset (re-seeds the current organism's growth from frame 0).
+  engine.displayMode = getViewMode();
+  mountViewControls($('#dock'), { engines: () => engine, substrate: true, onModeChange: () => drawTorus(), onReset: () => { if (cfg) engine.load(cfg, 'reset' + Math.random()); } });
   $('#btn-open').addEventListener('click', () => {
     if (!cfg) return;
     if (source && source.kind === 'shared') location.href = `./play/?o=${source.did}/${source.rkey}`;

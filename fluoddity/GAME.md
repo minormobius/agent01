@@ -446,8 +446,9 @@ on the live pages).
   `localStorage['fluoddity_display_mode']` — the same key the playground uses — so
   the choice carries across every fluoddity surface. Reset re-seeds the current
   level's field. The same component is mounted on every surface (arena, select,
-  hot, gallery, breed, map, torus, forest, the hero); `torus`/`forest` get
-  reset-only (no field to point particles at).
+  hot, gallery, breed, map, torus, forest, the hero). `forest` is reset-only (no
+  engine); `torus` carries its **own 3D point shader** so particle view projects
+  each agent onto the donut surface (the 2D engine particle render can't).
 
 - **[build note] Substrate-scale axis + matched density.** Fluoddity isn't
   scale-invariant: field energy ∝ `count·brushSize²`, so the same genome looked
