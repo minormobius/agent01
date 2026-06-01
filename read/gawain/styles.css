@@ -445,3 +445,14 @@ footer.foot a { color: var(--ink-dim); }
   .iw-notes { grid-template-columns: 1fr; }
   .char-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Theme markers (Parry–Lord type-scenes) + Desire (Greimas) lens ── */
+.tale-themes { margin: 1px 0 14px; font-size: 13px; font-style: italic; color: var(--gold-soft); letter-spacing: .2px; }
+.propp-themes { margin: -4px 0 18px; font-size: 14px; color: var(--ink-dim); }
+.propp-themes a { color: var(--gold-soft); cursor: pointer; }
+.propp-themes a:hover { text-decoration: underline; }
+.propp-themes .pt-note { color: var(--ink-faint); font-style: italic; }
+#desire-host { margin: 16px 0 4px; }
+svg.desire { width: 100%; height: auto; max-width: 760px; display: block; margin: 0 auto; }
+.desire-prose { max-width: 44em; margin: 16px auto 0; color: var(--ink-dim); line-height: 1.62; }
+.desire-prose .desire-note { display: block; margin-top: 14px; padding-left: 13px; border-left: 3px solid var(--gold); font-size: 14.5px; color: var(--ink-faint); }
