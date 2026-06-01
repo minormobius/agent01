@@ -75,6 +75,18 @@ h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
 .nav-goto input:focus { outline: none; border-color: var(--teller); }
 .page-num { font-variant-numeric: tabular-nums; color: var(--teller-soft); }
 
+/* ── The banter (second inference pass, the crew before the telling) ── */
+.banter-bar:empty { display: none; }
+.banter-bar { margin: 10px 0 2px; }
+.banter-summon { font-family: var(--sans); font-size: 12.5px; }
+.banter-cue { color: #9fb0c9; cursor: pointer; }
+.banter-scene { border: 1px solid var(--line); border-left: 3px solid #9fb0c9; border-radius: 10px; padding: 12px 16px; background: rgba(159,176,201,0.04); }
+.banter-head { font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 9px; }
+.banter-line { margin: 0 0 7px; line-height: 1.5; }
+.banter-line:last-child { margin-bottom: 0; }
+.banter-who { font-family: var(--sans); font-size: 12px; font-weight: 600; margin-right: 8px; white-space: nowrap; }
+.banter-said { color: var(--ink-dim); font-style: italic; }
+
 /* ── The live telling (inference render) ── */
 .live-bar:empty { display: none; }
 .live-bar { margin: 12px 0 2px; }

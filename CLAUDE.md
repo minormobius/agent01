@@ -768,10 +768,12 @@ Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/trans
 On top of the canonical procedural telling, a model can **retell** a tale from the deterministic spec (the "glue"), frozen on first render so `/t/<n>` stays stable. **The site is fully functional with no inference** — every inference/atproto path is wrapped so it can never break asset serving or the procedural fallback.
 
 - **Model**: Gemini 2.5 Flash (Google AI Studio free tier), called directly from `worker.js` (no CF AI binding). `BORGES.promptFor()` in `js/generate.js` (v3) builds the retell-faithfully prompt from the BONES (desire/cast/set-pieces) + the procedural draft + the teller's voice samples + a hand-authored EXEMPLAR (`js/exemplar.js`, the gold-standard telling of tale № 1, also served verbatim for `/t/1`).
-- **Cache = atproto**: each telling is a public `com.minomobi.borges.telling` record (rkey = `n`) on a service PDS (schema `borges/lexicons/telling.json`). Reads unauthed; writes via a service-account session. First-write-wins.
-- **Worker API**: `GET /api/telling/<n>` (read cache) + `POST /api/telling` (render + putRecord), isolated from asset serving by try/catch.
-- **Secrets** (set via `wrangler secret put`, NOT in `wrangler.jsonc`, NOT committed): `GEMINI_API_KEY`, `BORGES_PDS_URL`, `BORGES_PDS_DID`, `BORGES_PDS_HANDLE`, `BORGES_PDS_PASSWORD` (app password). Until set, `/api/telling` returns "not configured" and the client never offers the live telling.
-- **Cannot be tested from the sandbox** (no Gemini/PDS network, no secrets) — verify on the deployed worker. The procedural path IS testable and is the guaranteed fallback.
+- **Two passes**: the **telling** (`com.minomobi.borges.telling`, `{movements}`, schema `borges/lexicons/telling.json`) and the **banter** — a short live scene of crew dialogue before the telling, `BORGES.promptForBanter()` → `com.minomobi.borges.banter` (`{lines}`, schema `borges/lexicons/banter.json`). Both frozen per `n`, first-write-wins.
+- **Cache = atproto** on the **morphyx** service account (`morphyxmino.bsky.social`, `did:plc:yivyyp54vddf7qf2lpsikhe4`), via the repo's shared `packages/atproto/pds.js` (`resolveHandle`/`resolvePds`/`PdsClient`). Reads unauthed; writes via session. Worker resolves DID+PDS at runtime from the handle.
+- **Worker API** (additive, isolated by try/catch): `GET/POST /api/telling` and `GET/POST /api/banter`.
+- **Secrets** (set via `wrangler secret put`, NOT committed): `GEMINI_API_KEY`, `BORGES_PDS_HANDLE` (= `morphyxmino.bsky.social`), `BORGES_PDS_PASSWORD` (app password). `BORGES_PDS_URL`/`BORGES_PDS_DID` are optional overrides (resolved otherwise). Until set, `/api/*` returns "not configured" and the client stays procedural.
+- **Seeding the gold standard**: `scripts/seed-borges-tellings.mjs` writes the hand-authored exemplar (and any frozen tellings) to morphyx's repo via `PdsClient`; workflow `seed-borges.yml` runs it with the `BLUESKY_MORPHYX_*` secrets (`--dry` supported). Tale № 1 is also served from `js/exemplar.js` client-side regardless.
+- **Cannot be tested from the sandbox** (no Gemini/PDS network, no secrets) — verify on deploy. The procedural path IS testable and is the guaranteed fallback.
 
 ---
 

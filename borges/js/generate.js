@@ -673,4 +673,41 @@
     return { system: system, user: user, model: "gemini-2.5-flash", n: T.n,
       meta: { teller: teller.name, title: stripTags(T.title), frame: T.frame.label } };
   };
+
+  /* ── promptForBanter (the second pass): scripts a short exchange among the
+     robots before the telling. The teller and the two in tonight's foregrounded
+     tension trade a few lines, rising with the moon-phase and glancing at the
+     tale about to be told, then the teller takes up the watch. Returns
+     { system, user, model, n, meta } for an instruct/chat call. ── */
+  B.promptForBanter = function (T, it) {
+    if (!it || !B.tellers) return null;
+    var byId = B.tellers.byId || {};
+    var ids = {}; ids[T.teller.id] = 1;
+    var pairIds = (B.frame && B.frame.PAIRS) ? null : null;
+    // the two in tension are named in it.pair; map names back to teller objects
+    var bothFromNames = (it.pair || []).map(function (nm) { return B.tellers.list.filter(function (t) { return t.name === nm; })[0]; }).filter(Boolean);
+    bothFromNames.forEach(function (t) { ids[t.id] = 1; });
+    var speakers = Object.keys(ids).map(function (id) { return byId[id]; }).filter(Boolean);
+    var desc = speakers.map(function (s) {
+      var v = s.voice || {};
+      return s.name + " " + s.glyph + " (" + s.metal + "; " + (s.humour.split(";")[0]) + "; tends to " + (v.tic || "keep the house voice") + ")";
+    }).join("; ");
+    var phaseMood = { waxing: "the tension is rising, so they needle, sidelong, not yet open", full: "it is the full of the moon and it comes to open words, though no blades, the others' lamps low", waning: "it is cooling into careful, pointed courtesy, worse than the quarrel", dark: "it is the dark of the moon and they have let it go, easy again, neither pretending to have forgotten" }[it.phaseKey] || "the old weather between them";
+    var a = T.actant || {};
+    var system = [
+      "You are scripting a brief exchange among the seven maintenance robots aboard the slow barque Tabard, in the moments before one of them tells a tale. They are very old machines who reach, even in banter, for a half-archaic hall-at-night cadence, dry and fond and a little weary of each other across deep time.",
+      "Tonight's speakers: " + desc + ". Keep each strictly in temperament. " + (it.tellerInPair ? "The teller is one of the two in tension tonight, and tells from inside it." : "The teller stands a little apart from the two in tension and will lead them in."),
+      "The weather tonight: " + (it.text ? it.text.replace(/<[^>]+>/g, "") : phaseMood) + " In short: " + phaseMood + ".",
+      "Write a SHORT exchange, four to six lines, that rises with the moon, glances once at the tale about to be told, and ends with " + T.teller.name + " taking up the watch to begin. Conversational but in the old cadence; dry humour welcome. Do NOT use em-dashes (the character —). Do not narrate stage directions; only who speaks and what they say. Return STRICT JSON only.",
+    ].join("\n");
+    var user = [
+      "The tale " + T.teller.name + " is about to tell: \"" + stripTags(T.title) + "\" (" + T.frame.label + "; " + T.cultureLabel + ").",
+      a.subject ? ("What it is about, beneath the plot: " + a.subject + " wants " + a.object + ", which is " + a.value + ".") : "",
+      "Let the banter glance at that, in character, without spoiling the ending.",
+      "",
+      'Return JSON of exactly this shape and nothing else: {"lines":[{"speaker":"<teller name>","line":"<what they say>"}]} — four to six lines, the last spoken by ' + T.teller.name + ", taking up the watch."
+    ].filter(Boolean).join("\n");
+    return { system: system, user: user, model: "gemini-2.5-flash", n: T.n,
+      meta: { teller: T.teller.name, phase: it.phaseName, pair: it.pair } };
+  };
 })();

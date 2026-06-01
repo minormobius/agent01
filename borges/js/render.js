@@ -94,7 +94,7 @@
     if (T.n === 1 && B.exemplar) { renderLive(B.exemplar); return; }
     if (typeof fetch === "undefined") return;
     apiCall("/api/telling/" + T.n).then(function (res) {
-      if (res.status === 200 && res.json && res.json.cached && res.json.telling) renderLive(res.json.telling);
+      if (res.status === 200 && res.json && res.json.cached && res.json.record) renderLive(res.json.record);
       else if (res.json && res.json.configured === false) { /* inference not set up: stay procedural, no bar */ }
       else showSummon();
     }).catch(function () { /* offline / error: stay procedural */ });
@@ -113,7 +113,7 @@
     if (!pr) { btn.textContent = "— cannot build the prompt"; return; }
     apiCall("/api/telling", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
       .then(function (res) {
-        if (res.json && res.json.telling && res.json.telling.movements && res.json.telling.movements.length) renderLive(res.json.telling);
+        if (res.json && res.json.record && res.json.record.movements && res.json.record.movements.length) renderLive(res.json.record);
         else { btn.disabled = false; btn.textContent = (res.json && res.json.error) ? ("— " + res.json.error) : "— the telling did not come; try again"; }
       }).catch(function () { btn.disabled = false; btn.textContent = "— the telling did not come; try again"; });
   }
@@ -141,8 +141,50 @@
     var note = el("div", "live-badge", "the procedural draft · <a class=\"live-toggle\">show the live telling</a>");
     bar.appendChild(note);
     var tg = $(".live-toggle", note); if (tg) tg.onclick = function () {
-      apiCall("/api/telling/" + T.n).then(function (res) { if (res.json && res.json.telling) renderLive(res.json.telling); else showSummon(); });
+      apiCall("/api/telling/" + T.n).then(function (res) { if (res.json && res.json.record) renderLive(res.json.record); else showSummon(); });
     };
+  }
+
+  /* ───────────── THE BANTER (second inference pass: the crew before the telling) ─────────────
+     Turns the interstitial's description of the tension into a short live scene —
+     the teller and the two in tension trading lines, cached as a
+     com.minomobi.borges.banter record. Optional; degrades to nothing. */
+  function glyphFor(name) { var t = (B.tellers && B.tellers.list || []).filter(function (x) { return x.name === name; })[0]; return t ? t.glyph : ""; }
+  function colorFor(name) { var t = (B.tellers && B.tellers.list || []).filter(function (x) { return x.name === name; })[0]; return t ? t.color : "var(--ink-faint)"; }
+  function setupBanter() {
+    var bar = $("#banter-bar"); if (!bar || typeof fetch === "undefined" || !B.promptForBanter) return;
+    bar.innerHTML = "";
+    apiCall("/api/banter/" + T.n).then(function (res) {
+      if (res.status === 200 && res.json && res.json.cached && res.json.record) renderBanter(res.json.record);
+      else if (res.json && res.json.configured === false) { /* not set up: nothing */ }
+      else showBanterSummon();
+    }).catch(function () { });
+  }
+  function showBanterSummon() {
+    var bar = $("#banter-bar"); bar.innerHTML = "";
+    var s = el("div", "banter-summon");
+    var btn = el("a", "banter-cue", "✦ let them speak first");
+    btn.onclick = function () { summonBanter(btn); };
+    s.appendChild(btn); bar.appendChild(s);
+  }
+  function summonBanter(btn) {
+    btn.textContent = "…";
+    var pr = B.promptForBanter(T, B.interstitial ? B.interstitial(T.n) : null);
+    if (!pr) { btn.remove(); return; }
+    apiCall("/api/banter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
+      .then(function (res) { if (res.json && res.json.record && res.json.record.lines && res.json.record.lines.length) renderBanter(res.json.record); else btn.textContent = "✦ let them speak first"; })
+      .catch(function () { btn.textContent = "✦ let them speak first"; });
+  }
+  function renderBanter(banter) {
+    var bar = $("#banter-bar"); bar.innerHTML = "";
+    var scene = el("div", "banter-scene");
+    scene.appendChild(el("div", "banter-head", "Before the telling, at the long table"));
+    (banter.lines || []).forEach(function (l) {
+      var row = el("div", "banter-line");
+      row.innerHTML = '<span class="banter-who" style="color:' + colorFor(l.speaker) + '">' + escapeHtml(l.speaker) + " " + glyphFor(l.speaker) + '</span><span class="banter-said">' + escapeHtml(l.line) + "</span>";
+      scene.appendChild(row);
+    });
+    bar.appendChild(scene);
   }
 
   /* ───────────── THE TELLING (prose reader) ───────────── */
@@ -708,6 +750,7 @@
     }
     drawn = {}; // reset per-tale render caches
     renderInterstitial();
+    setupBanter();
     renderTelling();
     setupLive();
     renderNav();
