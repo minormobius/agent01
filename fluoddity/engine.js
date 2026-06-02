@@ -232,6 +232,25 @@ const FRAG_ENTITY_ARENA = FRAG_ENTITY
     'vec4 mirr = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(yref(Rl),yref(Ll)));',
     'vec4 mirr = evalRule(arSeed, 0.0, floor(cohort), vec4(yref(Rl),yref(Ll)));');
 
+// ── Text-attractor variant (compiled only with { text:true }) ───────────────
+// Adds a text-field sampler and steers each agent toward the u_text_target
+// iso-contour of the (blurred) string: agents pile onto the letters but, because
+// the restoring force vanishes at the contour, keep their physarum bop near the
+// surface instead of freezing. Default-strength 0 = identical to FRAG_ENTITY, so
+// the variant is inert until the surface uploads text and raises the strength.
+const FRAG_ENTITY_TEXT = FRAG_ENTITY
+  .replace(
+    '  u_axial_force, u_lateral_force, u_hazard_rate;',
+    '  u_axial_force, u_lateral_force, u_hazard_rate;\nuniform sampler2D u_text; uniform float u_text_strength, u_text_target;')
+  .replace(
+    '  vel = vel*u_drag + force;',
+    '  vec2 _tuv = pos*0.5 + 0.5; const float _te = 0.0034;\n' +
+    '  float _P = texture(u_text, _tuv).r;\n' +
+    '  vec2 _tg = vec2(texture(u_text, _tuv+vec2(_te,0.0)).r - texture(u_text, _tuv-vec2(_te,0.0)).r,\n' +
+    '                  texture(u_text, _tuv+vec2(0.0,_te)).r - texture(u_text, _tuv-vec2(0.0,_te)).r);\n' +
+    '  vec2 _ft = u_text_strength * (u_text_target - _P) * _tg;\n' +
+    '  vel = vel*u_drag + force + _ft;');
+
 const VERT_BRUSH_ARENA = `#version 300 es
 precision highp float;
 in vec2 a_offset; in vec2 a_uv;
@@ -370,6 +389,7 @@ void main(){
 export class FluoddityEngine {
   constructor(dim = 384, count = 40000, opts = {}) {
     this.arena = !!opts.arena;
+    this.text = !!opts.text;
     const cv = document.createElement('canvas');
     cv.width = cv.height = dim;
     const gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: true, preserveDrawingBuffer: true });
@@ -408,7 +428,7 @@ export class FluoddityEngine {
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
       return p;
     };
-    this.pEntity = prog(VERT_FULLSCREEN, this.arena ? FRAG_ENTITY_ARENA : FRAG_ENTITY);
+    this.pEntity = prog(VERT_FULLSCREEN, this.arena ? FRAG_ENTITY_ARENA : this.text ? FRAG_ENTITY_TEXT : FRAG_ENTITY);
     this.pBrush = prog(this.arena ? VERT_BRUSH_ARENA : VERT_BRUSH, this.arena ? FRAG_BRUSH_ARENA : FRAG_BRUSH);
     this.pCanvas = prog(VERT_FULLSCREEN, this.arena ? FRAG_CANVAS_ARENA : FRAG_CANVAS);
     this.pDisplay = prog(VERT_FULLSCREEN, this.arena ? FRAG_DISPLAY_ARENA : FRAG_DISPLAY);
@@ -444,6 +464,21 @@ export class FluoddityEngine {
     this.cPing = 0;
     this.brushTex = floatTex(dim, dim, FILT);
     this.brushFBO = fbo(this.brushTex);
+
+    // Text-attractor field (opt-in via { text:true }). A LINEAR-filtered RGBA8
+    // texture the surface uploads a rendered string into; the move shader steers
+    // agents toward its u_text_target iso-contour. Starts blank (no pull).
+    if (this.text) {
+      this.textStrength = 0; this.textTarget = 0.5;
+      this.textTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
 
     this.triBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.triBuf);
@@ -484,6 +519,18 @@ export class FluoddityEngine {
     this.brushSize = this._baseBrush * this.substrate;
   }
 
+  // Upload a rendered string (any canvas/image) as the text-attractor field.
+  // Flipped vertically so canvas top-down maps to the field's y-up UV.
+  setText(source) {
+    if (!this.text || !this.textTex) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
   _setEntityUniforms() {
     const gl = this.gl, p = this.pEntity, c = this.cfg;
     const u = (n) => gl.getUniformLocation(p, n);
@@ -515,6 +562,11 @@ export class FluoddityEngine {
       gl.viewport(0, 0, this.texW, this.texH);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.eTex[r]); gl.uniform1i(gl.getUniformLocation(this.pEntity, 'u_entity'), 0);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.cTex[this.cPing]); gl.uniform1i(gl.getUniformLocation(this.pEntity, 'u_canvas'), 1);
+      if (this.text) {
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.textTex); gl.uniform1i(gl.getUniformLocation(this.pEntity, 'u_text'), 2);
+        gl.uniform1f(gl.getUniformLocation(this.pEntity, 'u_text_strength'), this.textStrength || 0);
+        gl.uniform1f(gl.getUniformLocation(this.pEntity, 'u_text_target'), this.textTarget != null ? this.textTarget : 0.5);
+      }
       this._setEntityUniforms();
       this._tri(this.pEntity);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
