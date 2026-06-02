@@ -93,10 +93,16 @@
           <p>The Fourth and last Branch of the Mabinogi — the branch of magicians. The trickster Gwydion starts a war over Otherworld pigs to wrong the king's foot-holder, and kills Pryderi; the brothers are punished as paired beasts; a boy is denied a name, arms and a wife by his own mother's curses, and given a wife made of flowers — Blodeuwedd — who betrays him to a hunter's spear. He flies off as an eagle, is sung down out of an oak and restored, and the reckoning falls. The complete Middle Welsh tale (Welsh Wikisource reading text), in original English translation across all six movements, with the full annotation layer.</p>
           <span class="tc-go">read.mino.mobi/math →</span>
         </a>
+        <a class="tale-card" href="/vitamerlini/">
+          <div class="tc-kicker">Complete</div>
+          <h3>Vita Merlini</h3>
+          <p>Geoffrey of Monmouth's Latin <em>Life of Merlin</em> (c. 1150), and the first Latin text on the site — the deepest taproot of the Arthurian Otherworld. After the slaughter of Arfderydd, Merlin the king-prophet runs mad with grief and becomes a wild man of the Caledonian Wood; sung sane by a harp, chained at court, riding a stag to his wife's wedding, prophesying the kings of Britain, and hearing the bard Taliesin tell of the Isle of Apples where Morgen tends the wounded Arthur. The earliest home of Avalon, Morgan le Fay, and the once-and-future king. A complete original translation of all 1,529 hexameters across fifteen movements, with the full annotation layer.</p>
+          <span class="tc-go">read.mino.mobi/vitamerlini →</span>
+        </a>
       </div>
 
-      <h2 class="section">The eight tales side by side</h2>
-      <p class="lead">With eight full stacks in the same apparatus — Culhwch, Pwyll, Branwen, Manawydan, Math, Owain, Orfeo, Gawain — the comparative layer the motif index and the story graph open up can do its work. Below: the same Thompson Motif codes, the same Propp functions, the same character archetypes, laid against all eight poems. The complete Four Branches of the Mabinogi now stand together on the grid — Pwyll's exchanges, the tragic Branwen, the restoring Manawydan, and the transformation-magic of Math — and are read together as a single work, with their own historiography, at the <a href="/mabinogi/">Mabinogi</a> hub. The shape of that apparatus — and how to add a ninth tale — is on the <a href="#method">Method</a> page.</p>
+      <h2 class="section">The nine tales side by side</h2>
+      <p class="lead">With nine full stacks in the same apparatus — Culhwch, Pwyll, Branwen, Manawydan, Math, Owain, Orfeo, Gawain, and the <em>Vita Merlini</em> — the comparative layer the motif index and the story graph open up can do its work. Below: the same Thompson Motif codes, the same Propp functions, the same character archetypes, laid against all nine poems. The complete Four Branches of the Mabinogi stand together on the grid — Pwyll's exchanges, the tragic Branwen, the restoring Manawydan, and the transformation-magic of Math — read together as a single work, with their own historiography, at the <a href="/mabinogi/">Mabinogi</a> hub; and now Geoffrey of Monmouth's Latin <em>Vita Merlini</em> joins them as the deep-mythic outlier — the one Latin text, the one that bends the wonder-tale spine almost out of recognition, and the earliest home of Avalon and the once-and-future king. The shape of that apparatus — and how to add a tenth tale — is on the <a href="#method">Method</a> page.</p>
       <div id="cw-host"></div>
 
       <h2 class="section">Explore the historiography</h2>
@@ -116,7 +122,7 @@
     <section class="view" id="view-method">
       <div class="hero">
         <h1>Method</h1>
-        <p class="lead">What we mean by reading a tale deeply, why we mean it, and how a ninth tale would be added to the cycle.</p>
+        <p class="lead">What we mean by reading a tale deeply, why we mean it, and how a tenth tale would be added to the cycle.</p>
       </div>
 
       <h2 class="section">The apparatus</h2>
@@ -193,14 +199,14 @@
       <p class="lead">The apparatus is intentionally read-only at the cross-tale level. The single source of truth for each tale is its own sub-site's data files; Pendragon picks them up and arranges them.</p>
 
       <h2 class="section">The illustration pipeline</h2>
-      <p class="lead">One registry, eight tales. Adding the illustrations for a new tale used to mean a new script. Now it's a record in <code>scripts/illustrate/tales.mjs</code> — a few sentences of house style, a dictionary of character &amp; setting "pins" with the descriptions to inject when each appears, a list of regex triggers that match those pins to a given spread's art brief. A single runner, <code>scripts/illustrate.mjs</code>, takes <code>--tale &lt;slug&gt;</code> and renders only the spreads whose PNGs are missing — safe to re-run on every push. A matrix workflow fans it out across every registered tale.</p>
+      <p class="lead">One registry, nine tales. Adding the illustrations for a new tale used to mean a new script. Now it's a record in <code>scripts/illustrate/tales.mjs</code> — a few sentences of house style, a dictionary of character &amp; setting "pins" with the descriptions to inject when each appears, a list of regex triggers that match those pins to a given spread's art brief. A single runner, <code>scripts/illustrate.mjs</code>, takes <code>--tale &lt;slug&gt;</code> and renders only the spreads whose PNGs are missing — safe to re-run on every push. A matrix workflow fans it out across every registered tale.</p>
       <p class="lead">The point is that the artwork is consequential of the writing. The storybook's <code>illus</code> field is an art note — the illustrator (human or model) reads it; the pipeline assembles a prompt by selecting whichever pins the brief mentions; the picture comes out matching the prose. Change a brief, delete the PNG, push: the image is rebuilt to match.</p>
 
       <h2 class="section">The vision</h2>
       <p class="lead">A tale read deeply once is data forever. The annotation layer is the durable contribution — the place where attention compounds. Every motif we pin and every Propp function we mark is a tiny piece of literary infrastructure that the next tale, and the comparative layer, get to reuse.</p>
-      <p class="lead">The eight tales here are the proof of concept that the same scaffolding works on a 12th-century Welsh prose tale (<em>Culhwch</em>), a 14th-century alliterative romance (<em>Gawain</em>), a c.1300 Breton lay (<em>Orfeo</em>), the complete Four Branches of the Mabinogi (<em>Pwyll</em>, the tragic <em>Branwen</em>, the restoring <em>Manawydan</em> and the transformation-magic of <em>Math</em>), and one of the Three Welsh Romances — the Welsh twin of Chrétien’s <em>Yvain</em> — (<em>Owain</em>). The interesting work begins when the corpus is large enough to surface its own patterns: which motifs travel across the British Isles and which stop at the Welsh border; which Propp functions the Arthurian romances elide and which the Mabinogion branches keep; which character archetypes wear new faces in every century. The Mythograph is the inside-one-tale view of that; Pendragon is the across-tales view.</p>
+      <p class="lead">The nine tales here are the proof of concept that the same scaffolding works on a 12th-century Welsh prose tale (<em>Culhwch</em>), a 14th-century alliterative romance (<em>Gawain</em>), a c.1300 Breton lay (<em>Orfeo</em>), the complete Four Branches of the Mabinogi (<em>Pwyll</em>, the tragic <em>Branwen</em>, the restoring <em>Manawydan</em> and the transformation-magic of <em>Math</em>), one of the Three Welsh Romances — the Welsh twin of Chrétien’s <em>Yvain</em> — (<em>Owain</em>), and a 12th-century Latin hexameter poem (Geoffrey of Monmouth's <em>Vita Merlini</em>). The interesting work begins when the corpus is large enough to surface its own patterns: which motifs travel across the British Isles and which stop at the Welsh border; which Propp functions the Arthurian romances elide and which the Mabinogion branches keep; which character archetypes wear new faces in every century. The Mythograph is the inside-one-tale view of that; Pendragon is the across-tales view.</p>
 
-      <h2 class="section">How to add a ninth tale</h2>
+      <h2 class="section">How to add a tenth tale</h2>
       <p class="lead">The pattern, in the order that has worked eight times:</p>
       <ol class="method-howto">
         <li><strong>Pick a tale, find a public-domain reading text</strong> in the original language. Welsh Wikisource, the TEAMS Middle English series, the Camelot Project, Gutenberg — note the manuscript line in the meta block.</li>
@@ -214,14 +220,14 @@
         <li><strong>Register the tale in <code>scripts/illustrate/tales.mjs</code></strong> — house style, character pins, regex triggers. Add the slug to the workflow matrix.</li>
         <li><strong>Add a card to the Pendragon home page</strong> and confirm the cross-tale crosswalk picks up the new entries — motifs, Propp functions, character archetypes, the axis of desire (does this tale's Subject reach its Object?) and the shared type-scenes.</li>
       </ol>
-      <p class="lead">The eighth tale, <em>Math uab Mathonwy</em> — the Fourth and last Branch — is now complete and wired into the crosswalk above, <strong>completing the Four Branches of the Mabinogi</strong> on the grid (now read together as a single work, with their own historiography, at the <a href="/mabinogi/">Mabinogi</a> hub). Math brings the Mabinogi&rsquo;s great transformation-magic into the comparison — men turned to beasts, a man to an eagle, Blodeuwedd the wife made of flowers and unmade into an owl — and the <em>hudlath</em> it shares with <em>Manawydan</em>, the two enchanter-branches reaching for the same wand. The natural ninth is a <strong>sibling of <em>Owain</em></strong> that completes the Three Welsh Romances and extends the Welsh&harr;Continental axis: <em>Peredur</em> (the Welsh Perceval, the Grail) or <em>Geraint</em> (the Welsh Erec). The apparatus is ready.</p>
+      <p class="lead">The ninth tale, <strong>Geoffrey of Monmouth's <em>Vita Merlini</em></strong> — the Latin <em>Life of Merlin</em> (c. 1150) — is now complete and wired into the crosswalk above: the first Latin text on the site, and the deepest taproot it reaches. It is the great outlier of the corpus, the one poem that keeps the apparatus's shape while bending the wonder-tale spine almost out of recognition — its hero flees society rather than questing into it, his lack is his own lost mind, his cure is given by a spring rather than won, and his crown is refused. And it is the earliest literary home of the things the whole hub exists to trace: <strong>Avalon</strong> (the Isle of Apples), <strong>Morgen</strong> (the first Morgan le Fay), and the <strong>once-and-future king</strong>, borne wounded over the sea to be healed. The natural tenth is a <strong>sibling of <em>Owain</em></strong> that completes the Three Welsh Romances and extends the Welsh&harr;Continental axis: <em>Peredur</em> (the Welsh Perceval, the Grail) or <em>Geraint</em> (the Welsh Erec). The apparatus is ready.</p>
     </section>
 
     <!-- COMPARE (hypermythograph: the cross-tale graph layer) -->
     <section class="view" id="view-compare">
       <div class="hero">
         <h1>Comparative graph</h1>
-        <p class="lead">The eight-tale crosswalk as a graph. The eight tales are pinned around the edge; the structural elements they share — motifs, story functions, character archetypes — float between them, pulled toward whichever tales claim them. The middle of the graph is where the medieval Insular tradition is densest; the outskirts are where each poem is most distinctively itself.</p>
+        <p class="lead">The nine-tale crosswalk as a graph. The nine tales are pinned around the edge; the structural elements they share — motifs, story functions, character archetypes — float between them, pulled toward whichever tales claim them. The middle of the graph is where the medieval Insular tradition is densest; the outskirts are where each poem is most distinctively itself.</p>
       </div>
       <div class="cmp-controls">
         <div class="cmp-modes" id="cmp-modes"></div>

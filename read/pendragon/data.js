@@ -23,6 +23,7 @@ const PENDRAGON = {
     teams:(l)   => ({ host: "TEAMS",             url: "https://d.lib.rochester.edu/teams", label: l || "TEAMS Middle English Texts" }),
     com: (q, l) => ({ host: "Wikimedia Commons", url: "https://commons.wikimedia.org/w/index.php?search=" + encodeURIComponent(q), label: l }),
     imslp:(q,l) => ({ host: "IMSLP",             url: "https://imslp.org/index.php?title=Special:Search&search=" + encodeURIComponent(q), label: l }),
+    read:(t,l)  => ({ host: "read.mino.mobi",    url: "/" + t + "/", label: l || "read in full" }),
   },
 
   /* ── TIMELINE ─────────────────────────────────────────────────────────
@@ -66,8 +67,8 @@ const PENDRAGON = {
 
     { year: 1150, span: "c. 1150", kind: "pseudohistory", strand: "Galfridian", fae: true,
       title: "Geoffrey — Vita Merlini & the first Morgan",
-      body: "Geoffrey's verse life of Merlin describes Avalon — the <em>Insula Pomorum</em>, “Isle of Apples” — ruled by <strong>Morgen</strong> and her nine sisters, mistresses of healing and shape-shifting flight. This is the first literary Morgan le Fay: not a villain but a benevolent otherworld healer. The fae are present at the very root.",
-      links: ["wp:Vita_Merlini|Vita Merlini", "wp:Morgan_le_Fay|Morgan le Fay"] },
+      body: "Geoffrey's verse life of Merlin describes Avalon — the <em>Insula Pomorum</em>, “Isle of Apples” — ruled by <strong>Morgen</strong> and her nine sisters, mistresses of healing and shape-shifting flight. This is the first literary Morgan le Fay: not a villain but a benevolent otherworld healer, and the earliest home of the <strong>once-and-future king</strong>, borne wounded over the sea to be healed. The fae are present at the very root. The <em>Vita Merlini</em> is now <strong>read in full on this site</strong> — all 1,529 hexameters of the wild man, the threefold death, the stag-ride, the Isle of Apples and the healing spring, alongside the Latin.",
+      links: ["read:vitamerlini|Vita Merlini — deep read", "wp:Vita_Merlini|Vita Merlini", "wp:Morgan_le_Fay|Morgan le Fay"] },
 
     { year: 1155, span: "1155", kind: "romance", strand: "Galfridian",
       title: "Wace — Roman de Brut & the Round Table",

@@ -459,7 +459,7 @@
     const tales = C.tales;
     const taleIds = tales.map((t) => t.id);
     const taleMap = {}; tales.forEach((t) => taleMap[t.id] = t);
-    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
+    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"];
     const passLabel = {
       culhwch: (n) => "M" + n,
       pwyll:   (n) => "Mvt " + (ROMAN[n] || n),
@@ -469,6 +469,7 @@
       branwen: (n) => "Mvt " + (ROMAN[n] || n),
       manawydan: (n) => "Mvt " + (ROMAN[n] || n),
       math: (n) => "Mvt " + (ROMAN[n] || n),
+      vitamerlini: (n) => "Mvt " + (ROMAN[n] || n),
     };
 
     // dynamic grid template: code + name + one column per tale (the gloss spans full width below)
@@ -621,7 +622,7 @@
         cornerFor[id] = { x: cxc + rx * Math.cos(ang), y: cyc + ry * Math.sin(ang) };
       });
     })();
-    const ROMANL = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
+    const ROMANL = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"];
     const passLabelLocal = {
       culhwch: (n) => "M" + n,
       pwyll:   (n) => "Mvt " + (ROMANL[n] || n),
@@ -631,11 +632,12 @@
       branwen: (n) => "Mvt " + (ROMANL[n] || n),
       manawydan: (n) => "Mvt " + (ROMANL[n] || n),
       math: (n) => "Mvt " + (ROMANL[n] || n),
+      vitamerlini: (n) => "Mvt " + (ROMANL[n] || n),
     };
 
     const MODES = [
       { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The gold nodes in the centre are the codes most tales realise — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
-      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the eight tales. The function symbols (α, A, B, …) that fire in all eight sit centrally; the structural absences and inversions drift to the edges." },
+      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the nine tales. The function symbols (α, A, B, …) that fire in most tales sit centrally; the structural absences and inversions drift to the edges — the Vita Merlini, which inverts or drops most of the spine, hangs furthest out." },
       { id: "archetypes", label: "Archetypes", rows: () => C.archetypes, blurb: "Character roles each tale fills with a different figure. A corner-clinging archetype is one only that tale carries; the centre archetypes are the ones every tale instantiates somehow." },
     ];
 
