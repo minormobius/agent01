@@ -658,7 +658,9 @@
     let mode = "motifs";
     let multiOnly = false;
     let selectedId = null;
-    const FULL_AVAILABLE = !!(C.motifsAll && C.motifsAll.length);
+    const ALL = (window.PENDRAGON && window.PENDRAGON.motifsAll) || null;
+    const CLASS_NAMES = (window.PENDRAGON && window.PENDRAGON.motifClassNames) || {};
+    const FULL_AVAILABLE = !!(ALL && ALL.length);
     let fullMotifs = FULL_AVAILABLE; // motifs graph defaults to the full-corpus picture
     const usingFull = () => mode === "motifs" && fullMotifs && FULL_AVAILABLE;
     const CLASS_COLOR = { A: "#c98a4a", B: "#7fb37f", C: "#9a8f6b", D: "#7c8fc9", E: "#9a9aa6", F: "#a07cc9", G: "#b0563b", H: "#6fa8c9", J: "#c9b24a", K: "#c97f9a", L: "#8a7f6b", M: "#56a0a0", N: "#d8b24a", P: "#8a9a6b", Q: "#cf7a5a", R: "#7f8fb3", S: "#b3566b", T: "#c97fae", V: "#9d82b3", W: "#8aa363", Z: "#9aa0a8" };
@@ -674,7 +676,7 @@
       return false;
     }
     function itemsFor(modeId) {
-      const rows = (modeId === "motifs" && fullMotifs && FULL_AVAILABLE) ? C.motifsAll : MODES.find((m) => m.id === modeId).rows();
+      const rows = (modeId === "motifs" && fullMotifs && FULL_AVAILABLE) ? ALL : MODES.find((m) => m.id === modeId).rows();
       return rows.map((row, i) => {
         const hits = taleIds.filter((id) => isPresent(row, id));
         return {
@@ -697,7 +699,7 @@
     function setBlurb() {
       const m = MODES.find((x) => x.id === mode);
       if (usingFull()) {
-        $("#cmp-blurb").innerHTML = "Every motif carried by any of the nine tales — <strong>" + C.motifsAll.length + " in all</strong>, unioned by Thompson code from each tale's own index and coloured by class. Each leaf is pulled toward the tale(s) that carry it; the shared backbone gathers toward the centre. Switch off <em>All corpus motifs</em> for the smaller curated comparison.";
+        $("#cmp-blurb").innerHTML = "Every motif carried by any of the nine tales — <strong>" + ALL.length + " in all</strong>, unioned by Thompson code from each tale's own index and coloured by class. Each leaf is pulled toward the tale(s) that carry it; the shared backbone gathers toward the centre. Switch off <em>All corpus motifs</em> for the smaller curated comparison.";
       } else { $("#cmp-blurb").textContent = m.blurb; }
     }
     const togHost = $("#cmp-toggles"); togHost.innerHTML = "";
@@ -720,8 +722,8 @@
       if (leg) {
         if (usingFull()) {
           const ORDER = "ABCDEFGHJKLMNPQRSTVWZ";
-          const present = [...new Set(C.motifsAll.map((r) => r.cls))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
-          const names = C.motifClassNames || {};
+          const present = [...new Set(ALL.map((r) => r.cls))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+          const names = CLASS_NAMES || {};
           leg.innerHTML = present.map((c) => `<span class="cmp-lchip"><span class="cmp-ldot" style="background:${CLASS_COLOR[c] || "#9aa0a8"}"></span>${c}<span class="cmp-lname"> · ${escapeHtml(names[c] || "")}</span></span>`).join("");
           leg.style.display = "";
         } else { leg.innerHTML = ""; leg.style.display = "none"; }
