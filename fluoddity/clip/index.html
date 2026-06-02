@@ -148,12 +148,51 @@ if (engine) {
   // ── make the narrated clip ───────────────────────────────────────────────────
   let clipBlob = null, rsvpGen = 0, recCtx = null, busy = false;
   function stopRSVP() { rsvpGen++; }
-  function runRSVP(wordsArr, perWord) {
+
+  function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+
+  // Per-word weight for the fallback schedule — paced by STRING LENGTH (chars),
+  // not word count, with /read's clause/sentence multipliers.
+  function wordWeight(w) {
+    let d = Math.max(1, w.length);
+    if (w.length > 8) d *= 1.3;
+    if (w.length > 12) d *= 1.5;
+    if (/[,;:]["')\]]?$/.test(w)) d *= 1.4;
+    if (/[.!?]["')\]]?$/.test(w)) d *= 2.0;
+    return d;
+  }
+
+  // Build [{ w, t }] where t is the second-offset to show the word. Primary: exact
+  // per-word start times from ElevenLabs character alignment. Fallback: length-
+  // weighted spread across the audio duration.
+  function buildSchedule(text, alignment, dur) {
+    const chars = alignment && alignment.characters;
+    const st = alignment && alignment.character_start_times_seconds;
+    if (chars && st && chars.length === st.length) {
+      const out = []; let cur = '', curT = null;
+      for (let i = 0; i < chars.length; i++) {
+        if (/\s/.test(chars[i])) { if (cur) { out.push({ w: cur, t: curT }); cur = ''; curT = null; } }
+        else { if (!cur) curT = st[i]; cur += chars[i]; }
+      }
+      if (cur) out.push({ w: cur, t: curT });
+      if (out.length) return out;
+    }
+    const toks = text.trim().split(/\s+/).filter(Boolean);
+    const total = toks.reduce((s, w) => s + wordWeight(w), 0) || 1;
+    let acc = 0; const out = [];
+    for (const w of toks) { out.push({ w, t: (acc / total) * dur }); acc += wordWeight(w); }
+    return out;
+  }
+
+  // Drive the RSVP off the AUDIO CLOCK (AudioContext.currentTime) so words land
+  // exactly when spoken — no drift. clock() returns seconds since audio start.
+  function driveRSVP(schedule, clock) {
     const myGen = ++rsvpGen; let i = 0;
-    (function step() {
-      if (myGen !== rsvpGen || i >= wordsArr.length) return;   // hold last word until audio ends
-      setWord(wordsArr[i]); i++;
-      setTimeout(step, perWord);
+    (function tick() {
+      if (myGen !== rsvpGen) return;
+      const tNow = clock();
+      while (i < schedule.length && schedule[i].t <= tNow) { setWord(schedule[i].w); i++; }
+      if (i < schedule.length) requestAnimationFrame(tick);   // else hold last word; src.onended stops the rec
     })();
   }
 
@@ -172,15 +211,17 @@ if (engine) {
         body: JSON.stringify({ text, voice_id: $('#voice').value }),
       });
       if (!ttsRes.ok) { const e = await ttsRes.json().catch(() => ({})); throw new Error(e.error || ('tts ' + ttsRes.status)); }
-      const mp3 = await ttsRes.arrayBuffer();
+      const tts = await ttsRes.json();
+      if (!tts.audio_base64) throw new Error('no audio returned');
+      const mp3 = b64ToBuf(tts.audio_base64);
 
-      // 2) decode → pace the RSVP to the audio
+      // 2) decode + build the word schedule (exact alignment, else length-weighted)
       recCtx = recCtx || new (window.AudioContext || window.webkitAudioContext)();
       if (recCtx.state === 'suspended') await recCtx.resume();
       const ab = await recCtx.decodeAudioData(mp3.slice(0));
-      const words = text.split(/\s+/).filter(Boolean);
-      const perWord = Math.max(70, (ab.duration * 1000) / Math.max(1, words.length));
-      status(`recording… ${ab.duration.toFixed(0)}s${ab.duration > 60 ? ' (over Bluesky\'s 60s limit — trim the snippet)' : ''}`);
+      const schedule = buildSchedule(text, tts.alignment, ab.duration);
+      const synced = !!(tts.alignment && tts.alignment.characters);
+      status(`recording… ${ab.duration.toFixed(0)}s · ${synced ? 'voice-synced' : 'length-paced'}${ab.duration > 60 ? ' (over 60s — trim the snippet)' : ''}`);
 
       // 3) record canvas video + voiceover audio into one stream
       engine.load(cfg, 'clip' + Math.random());            // clean field — capture the formation
@@ -206,11 +247,12 @@ if (engine) {
         status(`clip ready · ${(clipBlob.size / 1e6).toFixed(1)} MB · ${ab.duration.toFixed(0)}s — preview, then post.`, 'ok');
         busy = false; $('#btn-make').disabled = false;
       };
-      src.onended = () => { try { rec.stop(); } catch {} };
+      src.onended = () => { stopRSVP(); try { rec.stop(); } catch {} };
       const recStartedAt = performance.now();
       rec.start();
-      src.start();
-      runRSVP(words, perWord);
+      const t0 = recCtx.currentTime + 0.08;   // small lead so the first word lands with the audio
+      src.start(t0);
+      driveRSVP(schedule, () => recCtx.currentTime - t0);
     } catch (e) {
       status('couldn\'t make the clip: ' + (e.message || e), 'err');
       busy = false; $('#btn-make').disabled = false; stopRSVP();

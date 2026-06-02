@@ -62,14 +62,16 @@ async function handleTTS(request, env) {
 
   let el;
   try {
-    el = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+    // with-timestamps returns JSON { audio_base64, alignment, normalized_alignment }.
+    // The client drives the RSVP off the alignment for exact word-by-word sync.
+    el = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps`, {
       method: 'POST',
-      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+      headers: { 'xi-api-key': env.ELEVENLABS_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ text, model_id: body.model_id || DEFAULT_MODEL, voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.0 } }),
     });
   } catch (e) { return j({ error: 'elevenlabs unreachable: ' + (e.message || e) }, 502); }
   if (!el.ok) return j({ error: `elevenlabs ${el.status}: ${(await el.text().catch(() => '')).slice(0, 200)}` }, 502);
-  return new Response(el.body, { status: 200, headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
+  return new Response(el.body, { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 }
 
 function j(obj, status = 200) {
