@@ -15,8 +15,38 @@
 //   wild?(ctx),                     // full-organism randomizer
 //   reset?(ctx),                    // extra reset hook
 // }
-import { TAU, norm, perspective, lookAt, mul4 } from './vec.js';
+import { TAU, norm, perspective, lookAt, mul4, invert4 } from './vec.js';
 import { trailUpdate, trailReset, trailIsActive, trailClearBrush } from './trail.js';
+
+// Shared WGSL prelude (Uni + palette + tonemap), reused by any optional host pass.
+const COMMON = /* wgsl */`
+struct Uni {
+  vp    : mat4x4f,
+  cam   : vec4f,
+  light : vec4f,
+  misc  : vec4f,
+  res   : vec4f,
+};
+@group(0) @binding(0) var<uniform> U : Uni;
+const TAU = 6.2831853;
+fn palCol(t : f32, mode : f32) -> vec3f {
+  let a = vec3f(0.5); let b = vec3f(0.5);
+  var c = vec3f(1.0);
+  var d = vec3f(0.0, 0.33, 0.67);
+  let m = i32(mode + 0.5);
+  if (m == 1)      { d = vec3f(0.10, 0.20, 0.35); c = vec3f(1.0, 0.85, 0.55); }
+  else if (m == 2) { d = vec3f(0.55, 0.45, 0.30); }
+  else if (m == 3) { d = vec3f(0.30, 0.55, 0.85); c = vec3f(0.9, 1.0, 1.1); }
+  else if (m == 4) { d = vec3f(0.00, 0.10, 0.20); c = vec3f(0.8, 0.6, 1.2); }
+  else if (m == 5) { d = vec3f(0.55, 0.30, 0.20); c = vec3f(1.0, 0.7, 0.5); }
+  else if (m == 6) { d = vec3f(0.50, 0.50, 0.50); c = vec3f(0.5, 0.5, 0.5); }
+  return a + b * cos(TAU * (c * t + d));
+}
+fn aces(x : vec3f) -> vec3f {
+  let a = 2.51; let b = 0.03; let c = 2.43; let d = 0.59; let e = 0.14;
+  return clamp((x * (a * x + b)) / (x * (c * x + d) + e), vec3f(0.0), vec3f(1.0));
+}
+`;
 
 const WGSL = /* wgsl */`
 struct Uni {
@@ -495,6 +525,43 @@ export function mountOrganism(organism) {
     const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
     const tubeBind = device.createBindGroup({ layout: tubePipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
 
+    // ---- optional translucent host pass (e.g. Syllis' sponge) ----
+    // Drawn after the worm in the same pass: depth-tested (no write) against the
+    // worm so canals show it through and tissue in front tints it. basket has no
+    // organism.host, so none of this runs for it.
+    let spongePipeline = null, hostBind = null, hostUbo = null, hostArr = null;
+    if (organism.host) {
+      const hostModule = device.createShaderModule({ code: COMMON + organism.host.wgsl });
+      const hinfo = await hostModule.getCompilationInfo();
+      const herrs = hinfo.messages.filter((m) => m.type === 'error');
+      if (herrs.length) {
+        console.error(herrs);
+        return fail('Host shader error: ' + herrs.map((m) => 'L' + m.lineNum + ' ' + m.message).join(' | '));
+      }
+      spongePipeline = device.createRenderPipeline({
+        layout: 'auto',
+        vertex: { module: hostModule, entryPoint: 'vhost' },
+        fragment: {
+          module: hostModule, entryPoint: 'fhost',
+          targets: [{
+            format,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+            },
+          }],
+        },
+        primitive: { topology: 'triangle-list' },
+        depthStencil: { format: DEPTH, depthWriteEnabled: false, depthCompare: 'less' },
+      });
+      hostUbo = device.createBuffer({ size: 24 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+      hostArr = new Float32Array(24);
+      hostBind = device.createBindGroup({
+        layout: spongePipeline.getBindGroupLayout(0),
+        entries: [{ binding: 0, resource: { buffer: ubo } }, { binding: 1, resource: { buffer: hostUbo } }],
+      });
+    }
+
     let W = 1, H = 1, depthTex = null, depthView = null;
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -560,6 +627,11 @@ export function mountOrganism(organism) {
       u[28] = W; u[29] = H; u[30] = params.bg; u[31] = params.vignette;
       device.queue.writeBuffer(ubo, 0, u);
 
+      if (spongePipeline && params.hostAlpha > 0) {
+        const invVP = invert4(vp);
+        if (invVP) { organism.host.writeUniforms(hostArr, invVP, params); device.queue.writeBuffer(hostUbo, 0, hostArr); }
+      }
+
       const enc = device.createCommandEncoder();
       const pass = enc.beginRenderPass({
         colorAttachments: [{
@@ -581,6 +653,9 @@ export function mountOrganism(organism) {
       pass.setVertexBuffer(0, meshBuf); pass.setVertexBuffer(1, instBuf);
       pass.setIndexBuffer(idxBuf, 'uint16');
       pass.drawIndexed(idxCount, count);
+      if (spongePipeline && params.hostAlpha > 0) {
+        pass.setPipeline(spongePipeline); pass.setBindGroup(0, hostBind); pass.draw(3);
+      }
       pass.end();
       device.queue.submit([enc.finish()]);
 
