@@ -6,8 +6,9 @@
 // (rotate the branch frame 90 deg about its tangent each generation), recursing
 // `depth` times — the dense, space-filling crown of a basket star.
 //
-// Rendering: the whole creature is rebuilt on the CPU every frame as a list of
-// beads (instanced spheres, knobbly like the real animal) and re-uploaded, so
+// Rendering: the whole creature is rebuilt on the CPU every frame as instanced
+// spheres (knobbly beads) plus instanced tapered tubes stitching consecutive
+// beads into continuous ropes (the connective tissue), and re-uploaded, so
 // it genuinely MOVES — a global furl value coils/uncoils the arms while the
 // filaments undulate. Two coupling mechanisms make the tentacles INTERACT
 // rather than each writhing in isolation:
@@ -86,7 +87,33 @@ struct VSOut {
   o.ct = ict;
   return o;
 }
-@fragment fn fs(in : VSOut) -> @location(0) vec4f {
+// ---- instanced tubes (connective tissue between beads) ----
+// A unit cylinder (xz on the unit circle, y in [0,1]) is oriented to span p0->p1
+// and tapered between radii r0/r1, so each filament reads as a continuous rope.
+@vertex fn vtube(
+  @location(0) mp : vec3f,
+  @location(2) p0 : vec3f,
+  @location(3) p1 : vec3f,
+  @location(4) rr : vec2f,
+  @location(5) ict : f32,
+) -> VSOut {
+  let axis = p1 - p0;
+  let len = max(length(axis), 1e-5);
+  let dir = axis / len;
+  var up = vec3f(0.0, 1.0, 0.0);
+  if (abs(dir.y) > 0.9) { up = vec3f(1.0, 0.0, 0.0); }
+  let t1 = normalize(cross(up, dir));
+  let t2 = cross(dir, t1);
+  let radial = t1 * mp.x + t2 * mp.z;
+  let rad = mix(rr.x, rr.y, mp.y);
+  let world = p0 + dir * (mp.y * len) + radial * rad;
+  var o : VSOut;
+  o.pos = U.vp * vec4f(world, 1.0);
+  o.nrm = normalize(radial);
+  o.wp = world;
+  o.ct = ict;
+  return o;
+}
   let n = normalize(in.nrm);
   let L = normalize(U.light.xyz);
   let diff = max(dot(n, L), 0.0);
@@ -223,12 +250,31 @@ function makeSphere(stacks, sectors) {
   return { verts: new Float32Array(verts), idx: new Uint16Array(idx) };
 }
 
+// open-ended unit cylinder along +Y (y in [0,1]); positions only, normal is radial
+function makeTube(sides) {
+  const verts = [], idx = [];
+  for (let r = 0; r < 2; r++) {
+    for (let j = 0; j <= sides; j++) {
+      const th = TAU * j / sides;
+      verts.push(Math.cos(th), r, Math.sin(th));
+    }
+  }
+  const row = sides + 1;
+  for (let j = 0; j < sides; j++) {
+    const a = j, b = j + 1, c = row + j, d = row + j + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  return { verts: new Float32Array(verts), idx: new Uint16Array(idx) };
+}
+
 // ---------------------------------------------------------------------------
 // Build the creature into the instance buffer each frame
 // instance = [posx,posy,posz, sx,sy,sz, colorT, _]  (8 floats)
 // ---------------------------------------------------------------------------
-const FLOATS_PER = 8;
+const FLOATS_PER = 8;        // bead instance: pos(3) scale(3) ct(1) pad(1)
+const FLOATS_PER_LINK = 9;   // link instance: p0(3) p1(3) r0r1(2) ct(1)
 const MAX_INST = 26000;
+const MAX_LINK = 26000;
 
 // Kuramoto-coupled arm oscillators: each arm is a phase oscillator that nudges
 // its two ring neighbours. couple=0 → independent (each runs at its own natural
@@ -257,7 +303,7 @@ function updateArmPhases(dt) {
   for (let a = 0; a < arms; a++) A[a] = np[a];
 }
 
-function buildCreature(inst, time) {
+function buildCreature(inst, link, time) {
   let n = 0;
   const cap = inst.length - FLOATS_PER;
   function push(p, r, ct) {
@@ -266,6 +312,15 @@ function buildCreature(inst, time) {
     inst[n + 3] = r[0]; inst[n + 4] = r[1]; inst[n + 5] = r[2];
     inst[n + 6] = ct; inst[n + 7] = 0;
     n += FLOATS_PER;
+  }
+  let m = 0;
+  const lcap = link.length - FLOATS_PER_LINK;
+  function pushLink(p0, p1, r0, r1, ct) {
+    if (m > lcap) return;
+    link[m] = p0[0]; link[m + 1] = p0[1]; link[m + 2] = p0[2];
+    link[m + 3] = p1[0]; link[m + 4] = p1[1]; link[m + 5] = p1[2];
+    link[m + 6] = r0; link[m + 7] = r1; link[m + 8] = ct;
+    m += FLOATS_PER_LINK;
   }
 
   const th0 = params.thickness;
@@ -334,11 +389,19 @@ function buildCreature(inst, time) {
     const curlTotal = mix(curlOpen, curlClosed, furl) * (1 - 0.12 * br.gen);
     const ctBase = br.gen / (maxD + 1);
 
+    // anchor each primary arm into the central disk with a fillet tube
+    if (br.gen === 0) pushLink([0, 0.02, 0], br.p, bodyR * 0.5, br.rad, 0.03);
+
+    let prevP = null, prevR = 0;        // running tube endpoint along this filament
+    const TUBE = 0.82;                  // tubes a touch thinner than beads → knobby rope
     for (let i = 0; i < segs; i++) {
       const u = i / segs;
       const r = br.rad * (1 - 0.4 * u);
       const knob = 1 + 0.22 * Math.sin(u * 9 + br.phase);
-      push(p, [r * knob, r * knob, r * knob], ctBase + u * 0.06);
+      const rr = r * knob;
+      push(p, [rr, rr, rr], ctBase + u * 0.06);
+      if (prevP) pushLink(prevP, p, prevR * TUBE, rr * TUBE, ctBase + u * 0.06);
+      prevP = p; prevR = rr;
       // writhe is now driven by the arm's coupled phase (br.phase advances over
       // time via updateArmPhases), so neighbouring arms undulate in concert.
       const wob = params.writhe * Math.sin(br.phase + i * 0.6 + br.gen * 1.3);
@@ -365,7 +428,9 @@ function buildCreature(inst, time) {
       }
       p = [p[0] + t[0] * seg, p[1] + t[1] * seg, p[2] + t[2] * seg];
     }
-    push(p, [br.rad * 0.6, br.rad * 0.6, br.rad * 0.6], ctBase + 0.06); // tip cap
+    const tipR = br.rad * 0.6;
+    if (prevP) pushLink(prevP, p, prevR * TUBE, tipR * TUBE, ctBase + 0.06);
+    push(p, [tipR, tipR, tipR], ctBase + 0.06); // tip cap
 
     if (br.gen < maxD) {
       for (const side of [-1, 1]) {
@@ -383,7 +448,7 @@ function buildCreature(inst, time) {
       }
     }
   }
-  return n / FLOATS_PER;
+  return { beads: n / FLOATS_PER, links: m / FLOATS_PER_LINK };
 }
 
 // ---------------------------------------------------------------------------
@@ -440,6 +505,26 @@ async function init() {
     primitive: { topology: 'triangle-list', cullMode: 'back' },
     depthStencil: { format: DEPTH, depthWriteEnabled: true, depthCompare: 'less' },
   });
+  const tubePipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: {
+      module, entryPoint: 'vtube',
+      buffers: [
+        { arrayStride: 12, attributes: [
+          { shaderLocation: 0, offset: 0, format: 'float32x3' },
+        ] },
+        { arrayStride: 36, stepMode: 'instance', attributes: [
+          { shaderLocation: 2, offset: 0, format: 'float32x3' },   // p0
+          { shaderLocation: 3, offset: 12, format: 'float32x3' },  // p1
+          { shaderLocation: 4, offset: 24, format: 'float32x2' },  // r0,r1
+          { shaderLocation: 5, offset: 32, format: 'float32' },    // ct
+        ] },
+      ],
+    },
+    fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    depthStencil: { format: DEPTH, depthWriteEnabled: true, depthCompare: 'less' },
+  });
 
   const sphere = makeSphere(9, 12);
   const meshBuf = device.createBuffer({ size: sphere.verts.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
@@ -448,13 +533,23 @@ async function init() {
   device.queue.writeBuffer(idxBuf, 0, sphere.idx);
   const idxCount = sphere.idx.length;
 
+  const tube = makeTube(8);
+  const tubeBuf = device.createBuffer({ size: tube.verts.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(tubeBuf, 0, tube.verts);
+  const tubeIdxBuf = device.createBuffer({ size: tube.idx.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(tubeIdxBuf, 0, tube.idx);
+  const tubeIdxCount = tube.idx.length;
+
   const instData = new Float32Array(MAX_INST * FLOATS_PER);
   const instBuf = device.createBuffer({ size: instData.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+  const linkData = new Float32Array(MAX_LINK * FLOATS_PER_LINK);
+  const linkBuf = device.createBuffer({ size: linkData.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
 
   const ubo = device.createBuffer({ size: 32 * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   const u = new Float32Array(32);
   const bgBind = device.createBindGroup({ layout: bgPipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
   const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
+  const tubeBind = device.createBindGroup({ layout: tubePipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubo } }] });
 
   let W = 1, H = 1, depthTex = null, depthView = null;
   function resize() {
@@ -493,8 +588,10 @@ async function init() {
     updateArmPhases(dt);
     if (!rt.paused) rt.flowT += dt;
 
-    const count = buildCreature(instData, rt.flowT);
+    const built = buildCreature(instData, linkData, rt.flowT);
+    const count = built.beads, linkCount = built.links;
     device.queue.writeBuffer(instBuf, 0, instData, 0, count * FLOATS_PER);
+    if (linkCount) device.queue.writeBuffer(linkBuf, 0, linkData, 0, linkCount * FLOATS_PER_LINK);
 
     // camera
     const cp = Math.cos(params.pitch), sp = Math.sin(params.pitch);
@@ -525,6 +622,12 @@ async function init() {
       },
     });
     pass.setPipeline(bgPipeline); pass.setBindGroup(0, bgBind); pass.draw(3);
+    if (linkCount) {
+      pass.setPipeline(tubePipeline); pass.setBindGroup(0, tubeBind);
+      pass.setVertexBuffer(0, tubeBuf); pass.setVertexBuffer(1, linkBuf);
+      pass.setIndexBuffer(tubeIdxBuf, 'uint16');
+      pass.drawIndexed(tubeIdxCount, linkCount);
+    }
     pass.setPipeline(pipeline); pass.setBindGroup(0, bind);
     pass.setVertexBuffer(0, meshBuf); pass.setVertexBuffer(1, instBuf);
     pass.setIndexBuffer(idxBuf, 'uint16');
@@ -533,7 +636,7 @@ async function init() {
     device.queue.submit([enc.finish()]);
 
     frames++; fpsT += dt;
-    if (fpsT >= 0.5) { fpsEl.textContent = Math.round(frames / fpsT) + ' fps · ' + count + ' beads'; frames = 0; fpsT = 0; }
+    if (fpsT >= 0.5) { fpsEl.textContent = Math.round(frames / fpsT) + ' fps · ' + count + ' beads · ' + linkCount + ' links'; frames = 0; fpsT = 0; }
 
     if (pendingShot) { doShot(); pendingShot = false; }
     requestAnimationFrame(frame);
