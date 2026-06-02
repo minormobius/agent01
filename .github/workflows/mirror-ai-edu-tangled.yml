@@ -12,8 +12,10 @@ on:
     branches:
       - main
       - 'claude/ai-edu-site-architecture-*'
+      - 'claude/imagej-browser-rust-*'
     paths:
       - 'ai-edu/**'
+      - 'j/**'
       - '.github/workflows/mirror-ai-edu-tangled.yml'
   workflow_dispatch:
 
@@ -40,7 +42,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ai-edu/wasm/beam-solver/target
-          key: ai-edu-cargo-${{ hashFiles('ai-edu/wasm/beam-solver/Cargo.toml') }}
+            j/wasm/target
+          key: ai-edu-cargo-${{ hashFiles('ai-edu/wasm/beam-solver/Cargo.toml', 'j/wasm/Cargo.toml') }}
           restore-keys: |
             ai-edu-cargo-
 
@@ -58,6 +61,15 @@ jobs:
             --out-dir ../../dist/wasm/beam-solver/pkg \
             --out-name beam_solver
 
+      - name: Build ImageJ (j) WASM
+        working-directory: j/wasm
+        run: |
+          wasm-pack build \
+            --target web \
+            --release \
+            --out-dir ../pkg \
+            --out-name imagej
+
       - name: Stage standalone build
         working-directory: ai-edu
         run: |
@@ -73,6 +85,51 @@ jobs:
             cp getting-started/$g/index.html dist/getting-started/$g/
           done
           cp wasm/beam-solver/src/lib.rs dist/wasm/beam-solver/src/
+
+      - name: Stage ImageJ (j) under /j
+        working-directory: ai-edu
+        run: |
+          # j/ uses root-absolute paths (/app.js, /lib/…, /pkg/…) because it
+          # normally serves at the domain root (j.mino.mobi). On tangled it lives
+          # at a sub-path (<owner>.tngl.sh/ai-edu/j/), so every absolute path is
+          # rewritten to a depth-correct relative one here.
+          mkdir -p dist/j/lib dist/j/model dist/j/playground dist/j/pkg
+          cp ../j/index.html ../j/app.js ../j/styles.css dist/j/
+          cp ../j/lib/*.js dist/j/lib/
+          cp ../j/model/index.html ../j/model/model.js dist/j/model/
+          cp ../j/playground/index.html ../j/playground/playground.js dist/j/playground/
+          cp ../j/pkg/imagej.js ../j/pkg/imagej_bg.wasm dist/j/pkg/
+
+          cd dist/j
+          # --- root level (dist/j/) ---
+          sed -i -e 's|href="/styles.css"|href="styles.css"|g' \
+                 -e 's|src="/app.js"|src="app.js"|g' \
+                 -e 's|href="/"|href="./"|g' \
+                 -e 's|href="/model/"|href="model/"|g' \
+                 -e 's|href="/playground/"|href="playground/"|g' index.html
+          sed -i -e "s|from '/lib/|from './lib/|g" \
+                 -e "s|location.href='/model/'|location.href='model/'|g" app.js
+          sed -i -e "s|from '/pkg/|from '../pkg/|g" lib/wasm.js
+          # --- model/ (one level down) ---
+          sed -i -e 's|href="/styles.css"|href="../styles.css"|g' \
+                 -e 's|src="/model/model.js"|src="model.js"|g' \
+                 -e 's|href="/"|href="../"|g' \
+                 -e 's|href="/model/"|href="./"|g' \
+                 -e 's|href="/playground/"|href="../playground/"|g' model/index.html
+          sed -i -e "s|from '/lib/|from '../lib/|g" model/model.js
+          # --- playground/ (one level down) ---
+          sed -i -e 's|href="/styles.css"|href="../styles.css"|g' \
+                 -e 's|src="/playground/playground.js"|src="playground.js"|g' \
+                 -e 's|href="/"|href="../"|g' \
+                 -e 's|href="/model/"|href="../model/"|g' \
+                 -e 's|href="/playground/"|href="./"|g' playground/index.html
+          # Neutralize j.mino.mobi branding/titles so the provenance scrub passes.
+          sed -i -e 's|<b>j</b>\.mino\.mobi|<b>j</b>|g' -e 's|j\.mino\.mobi|j|g' \
+                 index.html model/index.html playground/index.html lib/store.js
+          # wasm-pack writes a pkg/.gitignore ('*') that would hide the build from
+          # the force-push — drop any nested .gitignore.
+          find . -name .gitignore -delete
+          echo "staged dist/j:"; find . -type f | sort
 
       - name: Scrub provenance markers from the build
         working-directory: ai-edu/dist
