@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>j.mino.mobi — ImageJ in the browser</title>
+<meta name="description" content="ImageJ-in-the-browser in Rust/WASM: confocal sphere stats, edge & circle detection, line profiles, and Monte-Carlo radial brightness sampling. All data stays in your tab.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header>
+  <div class="brand"><b>j</b>.mino.mobi</div>
+  <nav>
+    <a href="/" class="active">ImageJ</a>
+    <a href="/model/">Model</a>
+    <a href="/playground/">Playground</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="ver" id="ver">loading wasm…</div>
+</header>
+
+<div class="layout">
+  <!-- LEFT: image stage -->
+  <div class="stage">
+    <div class="row" style="margin-bottom:8px">
+      <input type="file" id="file" accept="image/*" style="font-size:12px">
+      <button class="ghost" id="synthBtn">Generate synthetic field</button>
+      <span class="hint" id="dims"></span>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <label>Colormap</label>
+      <select id="cmap">
+        <option value="gray">gray</option>
+        <option value="green" selected>green (fluor)</option>
+        <option value="viridis">viridis</option>
+        <option value="fire">fire</option>
+        <option value="magenta">magenta</option>
+      </select>
+      <label>Window</label>
+      <input type="range" id="lo" min="0" max="255" value="0">
+      <input type="range" id="hi" min="0" max="255" value="255">
+      <label style="min-width:auto"><input type="checkbox" id="showEdges"> edges</label>
+      <label style="min-width:auto"><input type="checkbox" id="showCircles" checked> circles</label>
+    </div>
+    <div class="canvas-wrap" id="wrap">
+      <canvas id="img"></canvas>
+      <canvas id="ov" class="overlay"></canvas>
+    </div>
+    <div class="hint">Drag on the image to draw a line profile. Hold <span class="kbd">Shift</span> to constrain to horizontal/vertical.</div>
+  </div>
+
+  <!-- RIGHT: tools -->
+  <div class="side">
+    <div class="card">
+      <h3>Gross statistics</h3>
+      <div class="stats-grid" id="statsGrid"><div class="muted" style="grid-column:1/3">Load or generate an image.</div></div>
+      <canvas id="histPlot" class="plot" style="margin-top:8px;height:90px"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Edge detect &amp; circle count</h3>
+      <div class="row"><label>Blur σ</label><input type="range" id="cBlur" min="0" max="5" step="0.1" value="1.4"><span class="val" id="cBlurV">1.4</span></div>
+      <div class="row"><label>min radius</label><input type="number" id="cMinR" value="8"><label>max radius</label><input type="number" id="cMaxR" value="90"></div>
+      <div class="row"><label>min spacing</label><input type="number" id="cMinD" value="24"><label>max count</label><input type="number" id="cMax" value="200"></div>
+      <div class="row"><label>edge frac</label><input type="range" id="cEdge" min="0.05" max="0.6" step="0.01" value="0.18"><span class="val" id="cEdgeV">0.18</span></div>
+      <div class="row"><label>vote frac</label><input type="range" id="cVote" min="0.2" max="0.95" step="0.01" value="0.55"><span class="val" id="cVoteV">0.55</span></div>
+      <div class="btnrow"><button id="detectBtn">Detect circles</button></div>
+      <div class="row" style="margin-top:10px"><span class="muted">spheres found</span><span class="big" id="circleCount" style="margin-left:auto">—</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Line profile</h3>
+      <div class="row"><label>thickness</label><input type="range" id="lThick" min="1" max="61" step="2" value="1"><span class="val" id="lThickV">1</span></div>
+      <div class="hint">Thickness &gt; 1 averages parallel scan-lines (the perpendicular roll-up).</div>
+      <canvas id="profPlot" class="plot"></canvas>
+      <div class="row"><span class="muted" id="profInfo">draw a line →</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Monte-Carlo radial sampling</h3>
+      <div class="hint">Casts random diameters through every detected sphere → a population of radial brightness curves.</div>
+      <div class="row"><label>angles/sphere</label><input type="number" id="mcAngles" value="24"><label>bins</label><input type="number" id="mcBins" value="80"></div>
+      <div class="row"><label>thickness</label><input type="range" id="mcThick" min="1" max="31" step="2" value="3"><span class="val" id="mcThickV">3</span></div>
+      <div class="btnrow"><button id="mcBtn">Run Monte-Carlo</button></div>
+      <div class="row" style="margin-top:8px"><span class="muted">curves</span><span class="big" id="mcCount" style="margin-left:auto">—</span></div>
+      <canvas id="mcPlot" class="plot"></canvas>
+      <div class="legend">
+        <div class="it"><span class="sw" style="background:#7aa2ff"></span>samples</div>
+        <div class="it"><span class="sw" style="background:#39d3bb"></span>mean</div>
+        <div class="it"><span class="sw" style="background:#39d3bb;opacity:.4"></span>±1σ</div>
+      </div>
+      <div class="btnrow">
+        <button id="toModelBtn" disabled>Send to /model →</button>
+        <button class="ghost" id="dlCsv" disabled>CSV</button>
+        <button class="ghost" id="dlJson" disabled>JSON</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

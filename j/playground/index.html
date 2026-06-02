@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>j.mino.mobi/playground — WebGPU diffusion into a sphere</title>
+<meta name="description" content="WebGPU 3D finite-difference simulation of a species diffusing into a sphere, with live cross-sectioning and Arrhenius temperature control.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header>
+  <div class="brand"><b>j</b>.mino.mobi</div>
+  <nav>
+    <a href="/">ImageJ</a>
+    <a href="/model/">Model</a>
+    <a href="/playground/" class="active">Playground</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="ver" id="ver">init…</div>
+</header>
+
+<div class="layout">
+  <div class="stage" style="display:flex;flex-direction:column;align-items:center">
+    <canvas id="gpu" width="560" height="560" style="border-radius:8px;max-width:100%;background:#05070c"></canvas>
+    <div id="nogpu" class="intro" style="display:none">
+      <h1>WebGPU not available</h1>
+      <p>This playground needs a WebGPU-capable browser (recent Chrome/Edge, or Safari/Firefox with WebGPU enabled). The simulation runs entirely on your GPU.</p>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="play">⏸ Pause</button>
+      <button class="ghost" id="reset">⟲ Reset</button>
+      <span class="pill" id="simtime">t = 0 s</span>
+      <span class="pill" id="fill">filled 0%</span>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h3>Cross-section</h3>
+      <div class="row"><label>axis</label>
+        <select id="axis"><option value="2">Z (xy plane)</option><option value="1">Y (xz plane)</option><option value="0">X (yz plane)</option></select>
+      </div>
+      <div class="row"><label>position</label><input type="range" id="slice" min="0" max="100" value="50"><span class="val" id="sliceV">50%</span></div>
+      <div class="row"><label>contrast</label><input type="range" id="gain" min="0.2" max="4" step="0.1" value="1"><span class="val" id="gainV">1.0</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Temperature (Arrhenius)</h3>
+      <div class="hint">D(T) = D₀·exp(−Eₐ/RT). Heat it up and watch the front race inward.</div>
+      <div class="row"><label>T (K)</label><input type="range" id="T" min="250" max="400" step="1" value="298"><span class="val" id="TV">298</span></div>
+      <div class="row"><label>D₀ (µm²/s)</label><input type="number" id="D0" value="50"></div>
+      <div class="row"><label>Eₐ (kJ/mol)</label><input type="number" id="Ea" value="20"></div>
+      <div class="row" style="margin-top:4px"><span class="muted">D(T)</span><span class="big" id="Dnow" style="margin-left:auto">—</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Fundamental parameters</h3>
+      <div class="row"><label>sphere R (µm)</label><input type="number" id="Rum" value="25"></div>
+      <div class="row"><label>surface conc</label><input type="range" id="cs" min="0.1" max="1" step="0.05" value="1"><span class="val" id="csV">1.0</span></div>
+      <div class="row"><label>1ˢᵗ-order k (1/s)</label><input type="range" id="k" min="0" max="0.02" step="0.0005" value="0"><span class="val" id="kV">0</span></div>
+      <div class="row"><label>grid N</label><select id="N"><option>48</option><option selected>64</option><option>80</option></select></div>
+      <div class="row"><label>dt (s)</label><input type="number" id="dt" value="0.5" step="0.1"></div>
+      <div class="row"><label>steps/frame</label><input type="range" id="spf" min="1" max="20" value="4"><span class="val" id="spfV">4</span></div>
+      <div class="hint" id="stab"></div>
+    </div>
+
+    <div class="card">
+      <h3>What you're seeing</h3>
+      <ul class="notes">
+        <li>The sphere starts empty; everything outside its surface is a reservoir at the surface concentration.</li>
+        <li>Explicit finite-difference Fickian diffusion runs on the GPU; the front obeys the same √(Dt) law you fit on the Model page.</li>
+        <li>First-order reaction <span class="kbd">k</span> consumes the species inside, giving a reaction–diffusion (Thiele) steady state instead of full saturation.</li>
+        <li>Drag the cross-section to look inside the volume.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+<script type="module" src="/playground/playground.js"></script>
+</body>
+</html>
