@@ -91,3 +91,36 @@ window.OWAIN.propp = {
     verdict: "Where the native Welsh tales (Pwyll, Culhwch) refuse the indelible mark and the governing interdiction, <em>Owain</em> — the tale with a French twin — accepts both, and builds its whole second half on a broken promise and a beast's kept faith: the spine traversed twice, joined at the violated term, with a grateful animal in the helper-slot. That contrast is exactly the Welsh↔Continental seam the Pendragon evolutionary tree exists to trace.",
   },
 };
+
+/* ── Desire (Greimas's actantial model). *Ref fields → cast ids for the Mythograph. */
+window.OWAIN.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> — and Owain's is the one desire that has to reach its Object twice.",
+  subject: "Owain", subjectRef: "owain",
+  object: "the Lady of the Fountain won — and, after he breaks faith and runs mad, won back",
+  value: "knighthood proven at the storm-spring, and the broken word redeemed",
+  sender: "Cynon's tale of the fountain, and Cei's mockery, that sting Owain to ride", senderRef: "cynon",
+  receiver: "Owain — and the Countess's land, kept by a defender", receiverRef: "owain",
+  helpers: [
+    { name: "Luned", ref: "luned", note: "the cleverest figure in the tale — the ring of invisibility, the embassy that wins the Countess, the rescue from the stake; she remakes his life twice" },
+    { name: "the lion", ref: "lion", note: "the grateful animal helper, loyalty made flesh — and the moral mirror of the faith Owain himself breaks" }
+  ],
+  opponent: "the Black Knight of the fountain — and, in the back half, Owain's own broken word", opponentRef: "black-knight",
+  unreachable: false,
+  note: "Owain is the corpus's one hero whose desire reaches its Object twice — because he loses it once by his own fault. He wins the Lady, overstays the term he swore, runs mad in the wilderness, and must win her back through a chain of grateful rescues. The Opponent doubles inward: the Black Knight guards the Object at first, but in the back half the true opponent is Owain's own faithlessness, made visible when Luned's ring is stripped from his finger. The arrow reaches — but only after it has fallen."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). */
+window.OWAIN.themes = [
+  { id: "feast", label: "the feast in hall", passage: 1,
+    note: "Arthur's court at Caerleon, where the tale is asked and told over the mead and the meat — the hall set-piece as the romance's frame; mirrored by the Countess's hall and the Black Oppressor's deadly welcome (Movement IX).",
+    lines: "Cei fetching the flagon and the skewers; the asking of a tale" },
+  { id: "threshold", label: "the crossing / the marked place", passage: 2,
+    note: "The fountain under the great tree, with its slab and silver bowl: pour the water and the storm comes, and the Black Knight rides to answer — the threshold-rite at the marked place where the Otherworld answers.",
+    lines: "the bowlful thrown on the slab; the tempest that strips the wood" },
+  { id: "council", label: "the council in hall", passage: 5,
+    note: "The Countess calls her people together to take counsel over keeping the fountain — the assembly type-scene that Luned engineers into a marriage with her lord's killer.",
+    lines: "the gathered nobles; the agreement to wed the champion who can hold the spring" },
+  { id: "lament", label: "the lament / the wild man", passage: 7,
+    note: "His word broken and his ring stripped, Owain runs mad and naked into the wastes, living among the deer — grief past speech, the corpus's one descent into the gwyllt.",
+    lines: "the clothes rotting from him; the hair grown over him; the deer his only company" }
+];

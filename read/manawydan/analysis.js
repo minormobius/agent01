@@ -97,3 +97,30 @@ window.MANAWYDAN.propp = {
     verdict: "The result is a wonder-tale that completes the spine yet wins by wit and mercy where the genre expects magic and punishment. Set against Branwen — which has the same parts and runs them into ruin — Manawydan is the corpus's clean restoration: the one branch where the lack is fully liquidated and the world is genuinely made whole again.",
   },
 };
+
+/* ── Desire (Greimas's actantial model). *Ref fields → cast ids for the Mythograph. */
+window.MANAWYDAN.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> that drives the branch.",
+  subject: "Manawydan", subjectRef: "manawydan",
+  object: "the enchantment lifted — Pryderi and Rhiannon freed, and Dyfed made whole",
+  value: "patience rewarded; a kingdom and a friendship restored without a single blow",
+  sender: "the loss itself — the mist that empties the land, the caer that takes his comrades",
+  receiver: "Pryderi and Rhiannon, and the seven cantrefs of Dyfed", receiverRef: "pryderi",
+  helpers: [
+    { name: "Cigfa, his steadfast companion", ref: "cigfa", note: "who keeps faith with him through the wilderness and the craft-exile" },
+    { name: "the one slow mouse", ref: "llwydwife", note: "the pregnant mouse too heavy to flee — the enchanter's own wife, and the single hostage on whom the whole rescue turns" }
+  ],
+  opponent: "Llwyd son of Cil Coed, the hidden enchanter avenging Gwawl", opponentRef: "llwyd",
+  unreachable: false,
+  note: "Manawydan's arrow reaches its Object — and uniquely in the corpus, by no magic and no blow at all. The Helper that wins it is the Opponent's own wife (the slow mouse), the one hostage patience could secure; the Subject's only weapons are a glove, a gallows, and a refusal to be hurried. Set against Branwen, its prequel (whose arrow is dashed), Manawydan is the bright mirror: the same wasteland, made whole."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). A wit-tale, light on the heroic set-pieces. */
+window.MANAWYDAN.themes = [
+  { id: "feast", label: "the feast in hall", passage: 1,
+    note: "The welcome-feast at Arberth — \"from it every honour took its beginning\" — the hall set-piece that opens the branch on the four friends in their contentment, before the mist falls.",
+    lines: "the feast prepared by Rhiannon and Cigfa; the four inseparable" },
+  { id: "council", label: "the council / taking of counsel", passage: 3,
+    note: "The repeated counsels of the craft-exile — \"what craft shall we take?\" — the four (then the two) deliberating their next move town by town: the council type-scene domesticated into a wit-tale's rhythm.",
+    lines: "“let us make saddles… shields… shoes”; the decision to move on rather than fight" }
+];

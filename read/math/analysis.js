@@ -101,3 +101,34 @@ window.MATH.propp = {
     verdict: "Math is the least heroic-questing and most magic-driven of the Branches: villainy multiplied, punishment doubled, the hero split, the wedding poisoned. Where the wonder-tale gives the closing work to a marriage, Math gives it to justice — fitted, doubled and exact — and to a single instrument, the wand, that does the transforming, the punishing and the mending alike.",
   },
 };
+
+/* ── Desire (Greimas's actantial model). *Ref fields → cast ids for the Mythograph.
+   Math is the corpus's most doubled/fused actantial structure. */
+window.MATH.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> — and Math's is the corpus's most doubled: every actant wears two faces.",
+  subject: "Gwydion", subjectRef: "gwydion",
+  object: "Lleu made a complete man — named, armed, wived — and, at the last, called back from the eagle to his lordship",
+  value: "a fatherless boy given a full social existence against his own mother's denial; the line of Dôn secured",
+  sender: "Aranrhod's three curses — the denials of name, arms and wife that set Gwydion's whole campaign in motion", senderRef: "aranrhod",
+  receiver: "Lleu, and the house of Dôn", receiverRef: "lleu",
+  helpers: [
+    { name: "Math, the elder magician", ref: "math", note: "his uncle and partner — the wand that tests, transforms and restores; together they conjure the wife of flowers and, at the last, call the eagle down" },
+    { name: "Blodeuwedd, the wife made of flowers", ref: "blodeuwedd", note: "a FALSE helper — conjured to complete Lleu, she becomes the instrument of his near-death; a Helper who turns Opponent (kin to Gawain's girdle)" }
+  ],
+  opponent: "Aranrhod, whose curses deny Lleu name, arms and wife — and, at the last, Gronw and the poisoned spear", opponentRef: "aranrhod",
+  unreachable: false,
+  note: "Math doubles and fuses its actants as nothing else in the corpus does. Aranrhod fills BOTH the Sender slot (her curses launch the whole campaign) and the Opponent slot (they are exactly what Gwydion must defeat). Blodeuwedd, conjured as the Helper that completes Lleu, becomes the Opponent that nearly kills him — the false helper, kin to Gawain's girdle. And the Subject, Gwydion, is himself the branch's first villain (the manufactured war, the death of Pryderi). The arrow reaches its Object — Lleu named, armed, wived, killed, and restored — but every actant looks two ways at once."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). */
+window.MATH.themes = [
+  { id: "feast", label: "the feast in hall", passage: 1,
+    note: "Gwydion, disguised as the chief of a company of bards, charms Pryderi's hall with tales over the feast — the hall set-piece turned to the trickster's purpose; mirrored later by Lleu's wedding-feast.",
+    lines: "the bardic embassy at Rhuddlan Teifi; the best teller of tales in the world" },
+  { id: "council", label: "the council / taking of counsel", passage: 3,
+    note: "Math, restored and reconciled, asks his nephews' counsel — \"give me counsel, what maiden shall I seek?\" — the assembly type-scene, the matter laid in the middle before Aranrhod is named.",
+    lines: "“that is easy to advise: Aranrhod daughter of Dôn, your sister's daughter”" },
+  { id: "arming", label: "the arming of Lleu", passage: 4,
+    note: "Aranrhod, tricked by Gwydion's phantom fleet, arms Lleu with her own hands — the arming type-scene turned inside out: the mother who swore he should bear no arms is made to gird him herself.",
+    lines: "the illusory ships at dawn; Aranrhod arming the young man, fully" }
+];

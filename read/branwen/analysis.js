@@ -73,3 +73,36 @@ window.BRANWEN.propp = {
     verdict: "Branwen is the corpus's structural negative. It is built from the same wonder-tale parts as its sister-branch Pwyll, but assembled to run the engine backwards — alliance into war, gift into weapon, rescue into desolation, marriage into a grave on the Alaw. Set against the restorative closes of the other five tales, it measures exactly how much the Welsh imagination could also refuse the happy ending.",
   },
 };
+
+/* ── Desire (Greimas's actantial model). *Ref fields → cast ids for the Mythograph.
+   Branwen is the corpus's one DASHED desire-arrow (unreachable): the rescue is the ruin. */
+window.BRANWEN.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> — and Branwen's is the corpus's one tragic shape, the arrow that cannot reach.",
+  subject: "Bendigeidfran (Brân)", subjectRef: "bran",
+  object: "Branwen freed, the wrong to her righted, and the two islands bound again in peace",
+  value: "honour restored, and an alliance that holds",
+  sender: "Branwen's own message — the starling's letter that carries her wrong across the sea", senderRef: "starling",
+  receiver: "Branwen, and the Island of the Mighty", receiverRef: "branwen",
+  helpers: [
+    { name: "Manawydan and the host of Britain", ref: "manawydan", note: "the war-host Brân leads over the sea, and his own giant body laid down as a bridge for them to cross" },
+    { name: "Efnisien's dying act", ref: "efnisien", note: "the strife-maker who began the ruin ends it — bursting the Cauldron of Rebirth with his own body, the one stroke that lets Britain prevail" }
+  ],
+  opponent: "the festering insult, and the Cauldron of Rebirth that gives the Irish dead back to battle", opponentRef: "cauldron",
+  unreachable: true,
+  note: "Branwen is the corpus's one desire-arrow drawn DASHED. Brân reaches Branwen — frees her — but never the Object beneath it: a restored alliance and honour. The rescue IS the ruin; both islands are emptied, Branwen dies of grief on the Alaw, Brân of a poisoned wound. The actant that gives it the tragic shape is Efnisien, who fills BOTH the Opponent slot (his outrage starts the war) and the Helper slot (his self-sacrifice wins it). A wheel of grief, not an arc; the want has no liquidation — the want IS the wasting."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). */
+window.BRANWEN.themes = [
+  { id: "feast", label: "the feast in hall", passage: 1,
+    note: "The wedding-feast at Aberffraw, held in tents because no house could hold the giant king — the hall set-piece that opens the tale, and is mirrored darkly by the feast in the great house in Ireland (Movement V).",
+    lines: "the pavilions by the sea; the two kings seated; Branwen given to Matholwch" },
+  { id: "voyage", label: "the sea-road", note: "The launching of the host of Britain across the Irish Sea — keel to water, the salt road between the islands; and Brân, too vast for any ship, wading it himself.", passage: 4,
+    lines: "the fleet of the Island of the Mighty; the giant a bridge over the river Llinon" },
+  { id: "lament", label: "the lament", passage: 6,
+    note: "Branwen's grief-cry on the bank of the Alaw, raised over the irrevocable: the keening for two good islands laid waste — the lament type-scene at its purest.",
+    lines: "“Alas that I was ever born — two good islands laid waste because of me”" },
+  { id: "mound", label: "the raising of the mound", passage: 6,
+    note: "Two burials close the branch: Branwen's four-sided grave on the Alaw, and the Wondrous Head laid in the White Hill of London, facing France, to guard Britain — the burial set-piece as the deeds laid in over the bones.",
+    lines: "the grave on the Alaw; the head buried at the White Hill, facing the sea" }
+];
