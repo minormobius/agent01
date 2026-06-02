@@ -193,9 +193,13 @@ if (engine) {
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : {});
       const chunks = [];
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-      rec.onstop = () => {
+      rec.onstop = async () => {
         stopRSVP();
-        clipBlob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+        let raw = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+        // MediaRecorder webm carries no Duration element → bsky's ffprobe 500s
+        // ("failed to get video duration"). Stamp in the real recorded length.
+        const durMs = Math.round(performance.now() - recStartedAt);
+        clipBlob = await fixWebmDuration(raw, durMs);
         const url = URL.createObjectURL(clipBlob);
         const v = $('#preview'); v.src = url; v.style.display = ''; v.muted = false; v.play().catch(() => {});
         $('#post-area').classList.add('show');
@@ -203,6 +207,7 @@ if (engine) {
         busy = false; $('#btn-make').disabled = false;
       };
       src.onended = () => { try { rec.stop(); } catch {} };
+      const recStartedAt = performance.now();
       rec.start();
       src.start();
       runRSVP(words, perWord);
@@ -211,6 +216,18 @@ if (engine) {
       busy = false; $('#btn-make').disabled = false; stopRSVP();
     }
   });
+
+  // Inject a Duration into a MediaRecorder webm (it ships without one). Uses the
+  // published fix-webm-duration ESM; if it can't load, upload raw and let the
+  // server try. mp4 already carries duration, so it's passed through untouched.
+  async function fixWebmDuration(blob, durMs) {
+    if (!/webm/i.test(blob.type) || !durMs) return blob;
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.5/+esm');
+      const fix = mod.default || mod.ysFixWebmDuration || mod;
+      return (await fix(blob, durMs, { logger: false })) || blob;
+    } catch (e) { console.warn('webm duration fix failed; uploading raw', e); return blob; }
+  }
 
   // ── download + post ──────────────────────────────────────────────────────────
   $('#btn-download').addEventListener('click', () => {
@@ -244,7 +261,7 @@ if (engine) {
     try {
       const { text, facets } = buildPost($('#caption').value);
       const r = await postFeedVideo(auth, user, {
-        blob: clipBlob, aspect: { width: engine.dim, height: engine.dim }, text, facets,
+        blob: clipBlob, aspect: { width: DIM, height: DIM }, text, facets,
         altText: ta.value.trim().slice(0, 1000), onStatus: (m) => status(m),
       });
       status(`posted · <a href="${r.url}" target="_blank" rel="noopener" style="color:var(--accent)">view on bluesky →</a>`, 'ok');
