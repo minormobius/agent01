@@ -166,11 +166,21 @@ function readFile(file){
   im.onerror=()=>flash('could not decode image');
   im.src=url;
 }
+// model code + (p1,p2) per seed — see K.synth_model().
+const SEED_PRESETS = {
+  fickian: [1, 0.03, 0,    'Fickian transient (τ=0.03)'],
+  thiele:  [2, 6,    0,    'reaction–diffusion (φ=6)'],
+  weibull: [3, 0.18, 0.6,  'stretched / heterogeneous (β=0.6)'],
+  biexp:   [4, 0.05, 0.5,  'core–shell (λ₁=0.05, λ₂=0.5)'],
+  exp:     [0, 0.20, 0,    'exponential penetration (λ=0.2)'],
+};
 function genSynth(){
+  const [m,p1,p2,label]=SEED_PRESETS[$('seed').value]||SEED_PRESETS.fickian;
   const seed=BigInt(Math.floor(Math.random()*1e15));
-  const rgba=K.synth_image(512,512,18,18,46,0.18,6,seed);
-  setImage(new Uint8Array(rgba), 512,512);
-  flash('synthetic confocal field generated');
+  const W=640,H=640;
+  const rgba=K.synth_model(W,H,14,30,48,m,p1,p2,2.5,seed);
+  setImage(new Uint8Array(rgba), W,H);
+  flash('seed: '+label);
 }
 
 $('file').addEventListener('change',e=>{ if(e.target.files[0]) readFile(e.target.files[0]); });

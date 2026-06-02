@@ -29,8 +29,8 @@
     <canvas id="fitPlot" class="plot" style="height:340px"></canvas>
     <div class="legend">
       <div class="it"><span class="sw" style="background:#7aa2ff"></span>data (mean ±σ)</div>
-      <div class="it"><span class="sw" style="background:#39d3bb"></span>Fickian sphere</div>
-      <div class="it"><span class="sw" style="background:#f0a020"></span>exp penetration</div>
+      <div class="it"><span class="sw" style="background:#39d3bb"></span>best fit (bold)</div>
+      <div class="it"><span class="sw" style="background:#9aa7b4"></span>other models</div>
     </div>
     <canvas id="histPlot" class="plot" style="height:200px;margin-top:12px"></canvas>
     <div class="hint" id="histInfo">population fit will appear here</div>
@@ -38,23 +38,39 @@
 
   <div class="side">
     <div class="card">
+      <h3>Try a model (clean demo data)</h3>
+      <div class="hint">Synthesises an analytic radial curve so each fit can be seen to win its own physics. Image-derived curves are blurrier, where Weibull is robustly best.</div>
+      <div class="row"><label>model</label>
+        <select id="demoModel">
+          <option value="fickian">Fickian transient</option>
+          <option value="thiele">Reaction–diffusion (Thiele)</option>
+          <option value="weibull">Stretched (Weibull)</option>
+          <option value="biexp">Bi-exponential / core–shell</option>
+          <option value="exp">Exponential</option>
+        </select>
+      </div>
+      <div class="row"><label>noise</label><input type="range" id="demoNoise" min="0" max="12" step="0.5" value="3"><span class="val" id="demoNoiseV">3</span></div>
+      <div class="btnrow"><button class="ghost" id="demoBtn">Generate demo dataset</button></div>
+    </div>
+
+    <div class="card">
       <h3>Fit</h3>
       <div class="row"><label>fit target</label>
         <select id="target"><option value="mean">population mean</option><option value="each">each curve (population)</option></select>
       </div>
-      <div class="btnrow"><button id="fitBtn">Fit models</button></div>
+      <div class="btnrow"><button id="fitBtn">Fit all models</button></div>
     </div>
 
     <div class="card">
-      <h3>Fickian sphere — results</h3>
-      <table class="tbl" id="ficTbl"><tbody><tr><td class="muted" colspan="2">run a fit</td></tr></tbody></table>
-      <ul class="notes" id="ficNotes"></ul>
+      <h3>Model comparison <span class="muted" style="font-weight:400;text-transform:none">(lower AIC = better)</span></h3>
+      <table class="tbl" id="cmpTbl"><tbody><tr><td class="muted" colspan="4">run a fit</td></tr></tbody></table>
+      <div class="hint">ΔAIC&lt;2 ≈ tie · 4–7 clearly better · &gt;10 decisive. AIC trades fit quality against parameter count.</div>
     </div>
 
     <div class="card">
-      <h3>Semi-empirical penetration</h3>
-      <table class="tbl" id="expTbl"><tbody><tr><td class="muted" colspan="2">run a fit</td></tr></tbody></table>
-      <ul class="notes" id="expNotes"></ul>
+      <h3>Best model — <span id="bestName">—</span></h3>
+      <table class="tbl" id="bestTbl"><tbody><tr><td class="muted" colspan="2">run a fit</td></tr></tbody></table>
+      <ul class="notes" id="bestNotes"></ul>
     </div>
 
     <div class="card">

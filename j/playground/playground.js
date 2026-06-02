@@ -12,6 +12,7 @@ struct U { N:u32, alpha:f32, kdt:f32, cs:f32, rad:f32, _a:f32, _b:f32, _c:f32 };
 @group(0) @binding(0) var<uniform> u:U;
 @group(0) @binding(1) var<storage, read> src:array<f32>;
 @group(0) @binding(2) var<storage, read_write> dst:array<f32>;
+@group(0) @binding(3) var<storage, read> dmul:array<f32>;   // per-cell diffusivity multiplier ∈ [0,1]
 
 fn idx(x:i32,y:i32,z:i32,N:i32)->i32 { return (z*N + y)*N + x; }
 
@@ -34,7 +35,7 @@ fn main(@builtin(global_invocation_id) gid:vec3<u32>) {
   let lap = samp(x-1,y,z,N,c)+samp(x+1,y,z,N,c)
           + samp(x,y-1,z,N,c)+samp(x,y+1,z,N,c)
           + samp(x,y,z-1,N,c)+samp(x,y,z+1,N,c) - 6.0*src[i];
-  var v = src[i] + u.alpha*lap - u.kdt*src[i];
+  var v = src[i] + u.alpha*dmul[i]*lap - u.kdt*src[i];
   dst[i] = clamp(v, 0.0, u.cs*4.0);
 }`;
 
@@ -79,7 +80,7 @@ fn cmap(t:f32)->vec3<f32>{
 }`;
 
 let device, ctx, format, compPipe, rendPipe;
-let bufA, bufB, current, other, compU, rendU, staging;
+let bufA, bufB, dmulBuf, current, other, compU, rendU, staging;
 let compAB, compBA, rendA, rendB;
 let N=64, radCells=64*RAD_FRAC, insideCount=1;
 let playing=true, simtime=0, frame=0, readBusy=false;
@@ -100,20 +101,41 @@ function packRender(axis,slice,cs,gain){
 function build(newN){
   N=newN; radCells=N*RAD_FRAC;
   const cells=N*N*N; const bytes=cells*4;
-  for (const b of [bufA,bufB,staging]) b && b.destroy && b.destroy();
+  for (const b of [bufA,bufB,dmulBuf,staging]) b && b.destroy && b.destroy();
   const SU=GPUBufferUsage;
   bufA=device.createBuffer({size:bytes,usage:SU.STORAGE|SU.COPY_SRC|SU.COPY_DST});
   bufB=device.createBuffer({size:bytes,usage:SU.STORAGE|SU.COPY_SRC|SU.COPY_DST});
+  dmulBuf=device.createBuffer({size:bytes,usage:SU.STORAGE|SU.COPY_DST});
   staging=device.createBuffer({size:bytes,usage:SU.COPY_DST|SU.MAP_READ});
   compU=compU||device.createBuffer({size:32,usage:SU.UNIFORM|SU.COPY_DST});
   rendU=rendU||device.createBuffer({size:32,usage:SU.UNIFORM|SU.COPY_DST});
 
   const cl=compPipe.getBindGroupLayout(0), rl=rendPipe.getBindGroupLayout(0);
-  compAB=device.createBindGroup({layout:cl,entries:[{binding:0,resource:{buffer:compU}},{binding:1,resource:{buffer:bufA}},{binding:2,resource:{buffer:bufB}}]});
-  compBA=device.createBindGroup({layout:cl,entries:[{binding:0,resource:{buffer:compU}},{binding:1,resource:{buffer:bufB}},{binding:2,resource:{buffer:bufA}}]});
+  compAB=device.createBindGroup({layout:cl,entries:[{binding:0,resource:{buffer:compU}},{binding:1,resource:{buffer:bufA}},{binding:2,resource:{buffer:bufB}},{binding:3,resource:{buffer:dmulBuf}}]});
+  compBA=device.createBindGroup({layout:cl,entries:[{binding:0,resource:{buffer:compU}},{binding:1,resource:{buffer:bufB}},{binding:2,resource:{buffer:bufA}},{binding:3,resource:{buffer:dmulBuf}}]});
   rendA=device.createBindGroup({layout:rl,entries:[{binding:0,resource:{buffer:rendU}},{binding:1,resource:{buffer:bufA}}]});
   rendB=device.createBindGroup({layout:rl,entries:[{binding:0,resource:{buffer:rendU}},{binding:1,resource:{buffer:bufB}}]});
+  buildDmul();
   reset();
+}
+
+// Per-cell diffusivity multiplier ∈ [0,1] — encodes the spatial structure that
+// makes each non-Fickian regime. Stays ≤1 so the explicit scheme stays stable.
+function buildDmul(){
+  if (!dmulBuf) return;
+  const cells=N*N*N; const dm=new Float32Array(cells); const c=(N-1)*0.5;
+  const regime=$('regime').value;
+  const shellFrac=+$('shellFrac').value, shellD=+$('shellD').value, het=+$('het').value;
+  let rng=0x9e3779b9>>>0;
+  const rnd=()=>{ rng=(rng*1664525+1013904223)>>>0; return rng/4294967296; };
+  for (let z=0;z<N;z++)for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const rho=Math.hypot(x-c,y-c,z-c)/radCells; const i=(z*N+y)*N+x;
+    let v=1.0;
+    if (regime==='coreshell'){ v = (rho > 1-shellFrac) ? shellD : 1.0; }   // slow outer shell
+    else if (regime==='hetero'){ v = het + (1-het)*rnd(); }                // quenched disorder
+    dm[i]=v;
+  }
+  device.queue.writeBuffer(dmulBuf,0,dm);
 }
 
 function reset(){
@@ -226,6 +248,16 @@ $('reset').addEventListener('click',()=>{ reset(); flash('reset'); });
 $('N').addEventListener('change',e=>{ build(+e.target.value); flash('grid '+e.target.value); });
 $('cs').addEventListener('input',e=>{ $('csV').textContent=(+e.target.value).toFixed(2); });
 $('cs').addEventListener('change',reset);
+
+$('regime').addEventListener('change',()=>{
+  const r=$('regime').value;
+  if (r==='thiele'){ $('k').value=0.01; $('kV').textContent='0.01'; } else { $('k').value=0; $('kV').textContent='0'; }
+  if (r==='coreshell'){ $('shellFrac').value=0.22; $('shellFracV').textContent='0.22'; $('shellD').value=0.12; $('shellDV').textContent='0.12'; }
+  if (r==='hetero'){ $('het').value=0.30; $('hetV').textContent='0.30'; }
+  buildDmul(); reset(); flash('regime: '+r);
+});
+for (const [id,vid] of [['shellFrac','shellFracV'],['shellD','shellDV'],['het','hetV']])
+  $(id).addEventListener('input',e=>{ $(vid).textContent=(+e.target.value).toFixed(2); buildDmul(); });
 for (const [id,vid,f] of [['slice','sliceV',v=>v+'%'],['gain','gainV',v=>(+v).toFixed(1)],['T','TV',v=>v],['k','kV',v=>v],['spf','spfV',v=>v]])
   $(id).addEventListener('input',e=>$(vid).textContent=f(e.target.value));
 

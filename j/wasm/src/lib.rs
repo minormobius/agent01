@@ -386,21 +386,27 @@ pub fn detect_circles(
                 rhist[d.round() as usize] += 1;
             }
         }
-        // Smooth and pick the dominant radius.
+        // Pick the dominant radius = the distance with the most edge support.
+        // The object's outer boundary (bright interior → dim background) is the
+        // sharpest gradient, so the smoothed distance histogram peaks at the
+        // true radius. NB: do NOT normalise by r — dividing by the circumference
+        // over-rewards small radii and systematically undersizes the circle,
+        // which then corrupts every downstream radial profile.
         let mut best_r = 0usize;
         let mut best_c = 0.0f64;
         for r in r0 as usize..=r1 as usize {
-            let c = rhist[r.saturating_sub(1)] as f64 * 0.5
+            let c = rhist[r.saturating_sub(2).max(r0 as usize)] as f64 * 0.25
+                + rhist[r.saturating_sub(1)] as f64 * 0.5
                 + rhist[r] as f64
-                + rhist[(r + 1).min(nbins - 1)] as f64 * 0.5;
-            // Normalise by circumference so small/large radii compete fairly.
-            let norm = c / (r as f64).max(1.0);
-            if norm > best_c {
-                best_c = norm;
+                + rhist[(r + 1).min(nbins - 1)] as f64 * 0.5
+                + rhist[(r + 2).min(nbins - 1)] as f64 * 0.25;
+            if c > best_c {
+                best_c = c;
                 best_r = r;
             }
         }
-        if best_r == 0 || best_c < 0.02 {
+        // Require at least a faint arc's worth of support, scaled to the radius.
+        if best_r == 0 || best_c < (best_r as f64 * 0.15).max(3.0) {
             continue;
         }
         circles.push(Circle {
@@ -650,10 +656,74 @@ struct FitResult {
     /// Named parameters.
     params: Vec<(String, f64)>,
     r2: f64,
+    /// Residual sum of squares (for AIC/BIC model ranking in JS).
+    sse: f64,
+    /// Number of free parameters (for AIC/BIC).
+    n_params: usize,
     /// Fitted curve evaluated at the input radii.
     fit: Vec<f32>,
     /// Human-readable notes (physics interpretation).
     notes: Vec<String>,
+}
+
+#[inline]
+fn sse_of(y: &[f64], pred: &[f64]) -> f64 {
+    y.iter().zip(pred).map(|(a, b)| (a - b).powi(2)).sum()
+}
+
+/// 3-basis linear least squares  y = c0·1 + c1·f1 + c2·f2  (Gaussian elim).
+fn linfit3(f1: &[f64], f2: &[f64], y: &[f64]) -> (f64, f64, f64) {
+    let mut a = [[0.0f64; 3]; 3];
+    let mut b = [0.0f64; 3];
+    for i in 0..y.len() {
+        let g = [1.0, f1[i], f2[i]];
+        for r in 0..3 {
+            b[r] += g[r] * y[i];
+            for c in 0..3 {
+                a[r][c] += g[r] * g[c];
+            }
+        }
+    }
+    for i in 0..3 {
+        let mut p = i;
+        for r in i + 1..3 {
+            if a[r][i].abs() > a[p][i].abs() {
+                p = r;
+            }
+        }
+        a.swap(i, p);
+        b.swap(i, p);
+        let piv = a[i][i];
+        if piv.abs() < 1e-12 {
+            return (y.iter().sum::<f64>() / y.len().max(1) as f64, 0.0, 0.0);
+        }
+        for r in 0..3 {
+            if r == i {
+                continue;
+            }
+            let f = a[r][i] / piv;
+            for c in i..3 {
+                a[r][c] -= f * a[i][c];
+            }
+            b[r] -= f * b[i];
+        }
+    }
+    (b[0] / a[0][0], b[1] / a[1][1], b[2] / a[2][2])
+}
+
+/// Concentration profile φ(ρ,τ) for Fickian uptake into a sphere — free fn so
+/// the synthetic generator can reuse it.
+fn sphere_phi(rho: f64, tau: f64, nt: usize) -> f64 {
+    let rr = rho.clamp(1e-4, 1.0);
+    let mut s = 0.0;
+    for n in 1..=nt {
+        let nf = n as f64;
+        let sign = if n % 2 == 0 { 1.0 } else { -1.0 };
+        s += sign / nf
+            * (nf * std::f64::consts::PI * rr).sin()
+            * (-nf * nf * std::f64::consts::PI * std::f64::consts::PI * tau).exp();
+    }
+    1.0 + (2.0 / (std::f64::consts::PI * rr)) * s
 }
 
 /// Semi-empirical "surface penetration" model:
@@ -699,6 +769,8 @@ pub fn fit_exp_penetration(rho: &[f32], intensity: &[f32]) -> JsValue {
             ("lambda_over_R".into(), lambda),
         ],
         r2,
+        sse: sse_of(&y, &pred),
+        n_params: 3,
         fit,
         notes,
     })
@@ -770,6 +842,8 @@ pub fn fit_sphere_diffusion(rho: &[f32], intensity: &[f32], n_terms: usize) -> J
             ("Mt_over_Minf".into(), mt_minf),
         ],
         r2,
+        sse: sse_of(&y, &pred),
+        n_params: 3,
         fit,
         notes,
     })
@@ -807,6 +881,175 @@ pub fn fit_power_law(t: &[f32], mt: &[f32]) -> JsValue {
         model: "korsmeyer_peppas".into(),
         params: vec![("k".into(), k), ("n".into(), n)],
         r2,
+        sse: sse_of(&ly, &pred),
+        n_params: 2,
+        fit,
+        notes,
+    })
+}
+
+/* ----------------------------------------------------------------------- *
+ *  Alternative diffusion models — for when Fick fails                       *
+ * ----------------------------------------------------------------------- */
+
+/// Steady-state reaction–diffusion in a sphere (first-order consumption /
+/// binding). With surface concentration Cs:
+///   C(r)/Cs = (R/r)·sinh(φ·r/R)/sinh(φ),   φ = R·√(k/D)  (Thiele modulus)
+/// Fit I(ρ) = bg + A·sinh(φρ)/(ρ·sinh φ). One nonlinear param (φ), linear bg,A.
+/// Use this when the snapshot is *steady* but signal stays piled at the surface:
+/// pure Fick would say "uniform", so something is holding it there.
+#[wasm_bindgen]
+pub fn fit_reaction_diffusion(rho: &[f32], intensity: &[f32]) -> JsValue {
+    let r: Vec<f64> = rho.iter().map(|&v| (v as f64).clamp(1e-4, 1.0)).collect();
+    let y: Vec<f64> = intensity.iter().map(|&v| v as f64).collect();
+    if r.len() < 3 {
+        return JsValue::NULL;
+    }
+    let shape = |rr: f64, phi: f64| -> f64 {
+        let sp = phi.sinh();
+        if sp.abs() < 1e-9 {
+            return 1.0;
+        }
+        (phi * rr).sinh() / (rr * sp)
+    };
+    let sse = |phi: f64| -> f64 {
+        let f: Vec<f64> = r.iter().map(|&rr| shape(rr, phi)).collect();
+        let (a, b) = linfit2(&f, &y);
+        f.iter().zip(&y).map(|(fi, yi)| (a + b * fi - yi).powi(2)).sum()
+    };
+    let phi = golden(0.1, 30.0, sse, 120);
+    let f: Vec<f64> = r.iter().map(|&rr| shape(rr, phi)).collect();
+    let (bg, amp) = linfit2(&f, &y);
+    let pred: Vec<f64> = f.iter().map(|fi| bg + amp * fi).collect();
+    let r2 = r_squared(&y, &pred);
+    let coth = 1.0 / phi.tanh();
+    let eta = if phi > 1e-3 {
+        3.0 / (phi * phi) * (phi * coth - 1.0)
+    } else {
+        1.0
+    };
+    let fit: Vec<f32> = pred.iter().map(|&v| v as f32).collect();
+    let notes = vec![
+        format!("Thiele modulus φ = {:.3}  (φ² = kR²/D, reaction vs diffusion).", phi),
+        format!("Penetration depth δ = R/φ = {:.3}·R, i.e. δ = √(D/k).", 1.0 / phi),
+        format!("Effectiveness factor η = {:.3} (fraction of the volume the species actually reaches).", eta),
+        "Large φ ⇒ a thin reactive surface shell; small φ ⇒ nearly uniform. If this beats Fickian, the snapshot is binding/consumption-limited, not mid-transient.".to_string(),
+    ];
+    ser(&FitResult {
+        model: "reaction_diffusion".into(),
+        params: vec![
+            ("bg".into(), bg),
+            ("A".into(), amp),
+            ("phi".into(), phi),
+            ("delta_over_R".into(), 1.0 / phi),
+            ("eta".into(), eta),
+        ],
+        r2,
+        sse: sse_of(&y, &pred),
+        n_params: 3,
+        fit,
+        notes,
+    })
+}
+
+/// Stretched-exponential (Weibull) penetration:
+///   I(ρ) = bg + A·exp(−((1−ρ)/λ)^β)
+/// β<1 ⇒ heavy tail (heterogeneous medium / distribution of trap depths),
+/// β=1 ⇒ plain exponential, β>1 ⇒ sharper front. Nested golden search over
+/// (β, λ); linear (bg, A).
+#[wasm_bindgen]
+pub fn fit_weibull_penetration(rho: &[f32], intensity: &[f32]) -> JsValue {
+    let r: Vec<f64> = rho.iter().map(|&v| v as f64).collect();
+    let y: Vec<f64> = intensity.iter().map(|&v| v as f64).collect();
+    if r.len() < 4 {
+        return JsValue::NULL;
+    }
+    let shape = |rr: f64, lam: f64, beta: f64| -> f64 {
+        let d = (1.0 - rr).max(0.0);
+        (-(d / lam).powf(beta)).exp()
+    };
+    let sse_lb = |lam: f64, beta: f64| -> f64 {
+        let f: Vec<f64> = r.iter().map(|&rr| shape(rr, lam, beta)).collect();
+        let (a, b) = linfit2(&f, &y);
+        f.iter().zip(&y).map(|(fi, yi)| (a + b * fi - yi).powi(2)).sum()
+    };
+    let best_lam = |beta: f64| -> f64 { golden(0.02, 3.0, |l| sse_lb(l, beta), 60) };
+    let beta = golden(0.3, 3.5, |b| { let l = best_lam(b); sse_lb(l, b) }, 50);
+    let lam = best_lam(beta);
+    let f: Vec<f64> = r.iter().map(|&rr| shape(rr, lam, beta)).collect();
+    let (bg, amp) = linfit2(&f, &y);
+    let pred: Vec<f64> = f.iter().map(|fi| bg + amp * fi).collect();
+    let r2 = r_squared(&y, &pred);
+    let fit: Vec<f32> = pred.iter().map(|&v| v as f32).collect();
+    let notes = vec![
+        format!("Stretch exponent β = {:.3} (β=1 plain exp; β<1 heavy tail / trapping; β>1 sharper front).", beta),
+        format!("Penetration depth λ = {:.3}·R.", lam),
+        "The go-to when the medium is heterogeneous (tortuosity, a spread of trap depths) and a single decay length won't fit.".to_string(),
+    ];
+    ser(&FitResult {
+        model: "weibull_penetration".into(),
+        params: vec![
+            ("bg".into(), bg),
+            ("A".into(), amp),
+            ("lambda_over_R".into(), lam),
+            ("beta".into(), beta),
+        ],
+        r2,
+        sse: sse_of(&y, &pred),
+        n_params: 4,
+        fit,
+        notes,
+    })
+}
+
+/// Bi-exponential penetration (two length scales / core–shell):
+///   I(ρ) = bg + A₁·exp(−(1−ρ)/λ₁) + A₂·exp(−(1−ρ)/λ₂),  λ₁<λ₂
+/// Nested golden over (λ₁, λ₂); linear (bg, A₁, A₂) via 3-basis LSQ.
+#[wasm_bindgen]
+pub fn fit_biexp_penetration(rho: &[f32], intensity: &[f32]) -> JsValue {
+    let r: Vec<f64> = rho.iter().map(|&v| v as f64).collect();
+    let y: Vec<f64> = intensity.iter().map(|&v| v as f64).collect();
+    if r.len() < 5 {
+        return JsValue::NULL;
+    }
+    let basis = |rr: f64, lam: f64| -> f64 {
+        let d = (1.0 - rr).max(0.0);
+        (-d / lam).exp()
+    };
+    let sse_ll = |lam1: f64, lam2: f64| -> (f64, f64, f64, f64) {
+        let f1: Vec<f64> = r.iter().map(|&rr| basis(rr, lam1)).collect();
+        let f2: Vec<f64> = r.iter().map(|&rr| basis(rr, lam2)).collect();
+        let (c0, c1, c2) = linfit3(&f1, &f2, &y);
+        let s = (0..y.len())
+            .map(|i| (c0 + c1 * f1[i] + c2 * f2[i] - y[i]).powi(2))
+            .sum();
+        (s, c0, c1, c2)
+    };
+    let best_l1 = |lam2: f64| -> f64 { golden(0.01, (lam2 * 0.95).max(0.02), |l1| sse_ll(l1, lam2).0, 50) };
+    let lam2 = golden(0.1, 3.0, |l2| { let l1 = best_l1(l2); sse_ll(l1, l2).0 }, 50);
+    let lam1 = best_l1(lam2);
+    let (sse_v, c0, c1, c2) = sse_ll(lam1, lam2);
+    let f1: Vec<f64> = r.iter().map(|&rr| basis(rr, lam1)).collect();
+    let f2: Vec<f64> = r.iter().map(|&rr| basis(rr, lam2)).collect();
+    let pred: Vec<f64> = (0..y.len()).map(|i| c0 + c1 * f1[i] + c2 * f2[i]).collect();
+    let r2 = r_squared(&y, &pred);
+    let fit: Vec<f32> = pred.iter().map(|&v| v as f32).collect();
+    let notes = vec![
+        format!("Two length scales: λ₁ = {:.3}·R (A₁={:.1}) and λ₂ = {:.3}·R (A₂={:.1}).", lam1, c1, lam2, c2),
+        "A fast surface population plus a slow deep one, or a core–shell barrier. Reach for this when single-exp residuals show two slopes on a log plot.".to_string(),
+    ];
+    ser(&FitResult {
+        model: "biexp_penetration".into(),
+        params: vec![
+            ("bg".into(), c0),
+            ("A1".into(), c1),
+            ("lambda1_over_R".into(), lam1),
+            ("A2".into(), c2),
+            ("lambda2_over_R".into(), lam2),
+        ],
+        r2,
+        sse: sse_v,
+        n_params: 5,
         fit,
         notes,
     })
@@ -875,6 +1118,88 @@ pub fn synth_image(
         }
     }
 
+    let mut out = vec![0u8; w * h * 4];
+    for i in 0..w * h {
+        let mut v = field[i];
+        if noise > 0.0 {
+            v += rng.normal() * noise + v.sqrt() * rng.normal() * (noise * 0.05);
+        }
+        let b = v.clamp(0.0, 255.0) as u8;
+        out[i * 4] = b;
+        out[i * 4 + 1] = b;
+        out[i * 4 + 2] = b;
+        out[i * 4 + 3] = 255;
+    }
+    out
+}
+
+/// Synthetic confocal field whose inward radial profile follows a chosen
+/// diffusion model — seed data to exercise each fit on the /model page.
+///
+/// `model`: 0 exp · 1 Fickian(τ=p1) · 2 reaction–diffusion(φ=p1) ·
+///          3 Weibull(λ=p1,β=p2) · 4 bi-exp/core–shell(λ₁=p1,λ₂=p2).
+/// `p1`,`p2` are fractions of the radius (lengths) or the dimensionless group.
+#[wasm_bindgen]
+pub fn synth_model(
+    w: usize,
+    h: usize,
+    n: usize,
+    min_r: f64,
+    max_r: f64,
+    model: u32,
+    p1: f64,
+    p2: f64,
+    noise: f64,
+    seed: u64,
+) -> Vec<u8> {
+    let mut rng = Rng::new(seed);
+    let mut field = vec![20.0f64; w * h];
+
+    // shape(ρ) → ~[0,1], surface (ρ=1) ≈ 1, decaying inward.
+    let shape = |rho: f64| -> f64 {
+        let r = rho.clamp(1e-3, 1.0);
+        let depth = 1.0 - r;
+        match model {
+            1 => sphere_phi(r, p1.max(1e-4), 40).clamp(0.0, 1.5),
+            2 => {
+                let phi = p1.max(0.05);
+                let sp = phi.sinh();
+                if sp.abs() < 1e-9 { 1.0 } else { (phi * r).sinh() / (r * sp) }
+            }
+            3 => (-(depth / p1.max(1e-3)).powf(p2.max(0.1))).exp(),
+            4 => 0.5 * (-depth / p1.max(1e-3)).exp() + 0.5 * (-depth / p2.max(1e-3)).exp(),
+            _ => (-depth / p1.max(1e-3)).exp(),
+        }
+    };
+
+    struct S { x: f64, y: f64, r: f64 }
+    let mut spheres: Vec<S> = Vec::new();
+    let mut attempts = 0;
+    while spheres.len() < n && attempts < n * 40 {
+        attempts += 1;
+        let r = min_r + rng.unit() * (max_r - min_r);
+        let x = r + rng.unit() * (w as f64 - 2.0 * r);
+        let y = r + rng.unit() * (h as f64 - 2.0 * r);
+        if spheres.iter().any(|s| ((s.x - x).powi(2) + (s.y - y).powi(2)).sqrt() < (s.r + r) * 0.85) {
+            continue;
+        }
+        spheres.push(S { x, y, r });
+    }
+    for s in &spheres {
+        let r0 = (s.x - s.r - 2.0).floor().max(0.0) as usize;
+        let r1 = (s.x + s.r + 2.0).ceil().min(w as f64) as usize;
+        let c0 = (s.y - s.r - 2.0).floor().max(0.0) as usize;
+        let c1 = (s.y + s.r + 2.0).ceil().min(h as f64) as usize;
+        for y in c0..c1 {
+            for x in r0..r1 {
+                let d = ((x as f64 - s.x).powi(2) + (y as f64 - s.y).powi(2)).sqrt();
+                if d <= s.r {
+                    let rho = d / s.r;
+                    field[y * w + x] += 15.0 + 210.0 * shape(rho);
+                }
+            }
+        }
+    }
     let mut out = vec![0u8; w * h * 4];
     for i in 0..w * h {
         let mut v = field[i];

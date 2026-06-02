@@ -24,7 +24,14 @@
   <div class="stage">
     <div class="row" style="margin-bottom:8px">
       <input type="file" id="file" accept="image/*" style="font-size:12px">
-      <button class="ghost" id="synthBtn">Generate synthetic field</button>
+      <select id="seed" title="physics of the synthetic field">
+        <option value="fickian">Seed: Fickian transient</option>
+        <option value="thiele">Seed: Reaction–diffusion</option>
+        <option value="weibull">Seed: Stretched / heterogeneous</option>
+        <option value="biexp">Seed: Core–shell (bi-exp)</option>
+        <option value="exp">Seed: Exponential</option>
+      </select>
+      <button class="ghost" id="synthBtn">Generate</button>
       <span class="hint" id="dims"></span>
     </div>
     <div class="row" style="margin-bottom:8px">
