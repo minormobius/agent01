@@ -91,19 +91,37 @@
   function apiCall(path, opts) {
     return fetch(path, opts).then(function (r) { return r.json().then(function (j) { return { status: r.status, json: j }; }); });
   }
+  function recordUrl(collection, n) {
+    return SERVICE.pds + "/xrpc/com.atproto.repo.getRecord?repo=" + encodeURIComponent(SERVICE.did) + "&collection=" + collection + "&rkey=" + n;
+  }
   function pullRecord(collection, n) {
     if (typeof fetch === "undefined") return Promise.resolve(null);
-    var u = SERVICE.pds + "/xrpc/com.atproto.repo.getRecord?repo=" + encodeURIComponent(SERVICE.did) + "&collection=" + collection + "&rkey=" + n;
-    return fetch(u).then(function (r) { return r.status === 200 ? r.json().then(function (j) { return j.value || null; }) : null; }).catch(function () { return null; });
+    return fetch(recordUrl(collection, n)).then(function (r) { return r.status === 200 ? r.json().then(function (j) { return j.value || null; }) : null; }).catch(function () { return null; });
+  }
+  // A small provenance line, shown under a record-backed telling or banter.
+  // source: "atproto" (pulled from the Tabard) | "live" (just rendered + saved) | "local" (client fallback, not yet on atproto)
+  function provenance(collection, model, source) {
+    var lex = collection === BANTER ? "/lexicons/banter.json" : "/lexicons/telling.json";
+    var p = el("div", "prov");
+    var lead = source === "live" ? "✦ told live just now · saved to the Tabard on "
+             : source === "local" ? "✦ hand-authored draft · not yet on "
+             : "⊕ pulled from the Tabard on ";
+    var atp = source === "local"
+      ? "atproto"
+      : '<a href="' + recordUrl(collection, T.n) + '" target="_blank" rel="noopener">atproto</a>';
+    var mdl = model ? ' · <span class="prov-model">' + escapeHtml(model) + "</span>" : "";
+    p.innerHTML = '<span class="prov-atp">' + lead + atp + "</span>" + mdl +
+      ' · <a class="prov-lex" href="' + lex + '" target="_blank" rel="noopener">lexicon</a>';
+    return p;
   }
   function setupLive() {
     var bar = $("#live-bar"); if (!bar) return;
     bar.innerHTML = ""; proceduralHTML = $("#telling").innerHTML;
-    if (typeof fetch === "undefined") { if (T.n === 1 && B.exemplar) renderLive(B.exemplar); return; }
+    if (typeof fetch === "undefined") { if (T.n === 1 && B.exemplar) renderLive(B.exemplar, "local"); return; }
     pullRecord(TELLING, T.n).then(function (rec) {
-      if (rec && rec.movements && rec.movements.length) renderLive(rec);   // the book reads its own atproto record
-      else if (T.n === 1 && B.exemplar) renderLive(B.exemplar);            // hand-authored fallback before seeding
-      else showSummon();                                                   // offer to summon (worker → Gemini → atproto)
+      if (rec && rec.movements && rec.movements.length) renderLive(rec, "atproto"); // the book reads its own atproto record
+      else if (T.n === 1 && B.exemplar) renderLive(B.exemplar, "local");            // hand-authored fallback before seeding
+      else showSummon();                                                            // offer to summon (worker → Gemini → atproto)
     });
   }
   function showSummon() {
@@ -120,11 +138,11 @@
     if (!pr) { btn.textContent = "— cannot build the prompt"; return; }
     apiCall("/api/telling", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
       .then(function (res) {
-        if (res.json && res.json.record && res.json.record.movements && res.json.record.movements.length) renderLive(res.json.record);
+        if (res.json && res.json.record && res.json.record.movements && res.json.record.movements.length) renderLive(res.json.record, "live");
         else { btn.disabled = false; btn.textContent = (res.json && res.json.error) ? ("— " + res.json.error) : "— the telling did not come; try again"; }
       }).catch(function () { btn.disabled = false; btn.textContent = "— the telling did not come; try again"; });
   }
-  function renderLive(telling) {
+  function renderLive(telling, source) {
     var host = $("#telling"); host.innerHTML = "";
     (telling.movements || []).forEach(function (mv, i) {
       host.appendChild(el("h2", "mvt-title", escapeHtml(mv.title || ("Movement " + (i + 1)))));
@@ -136,10 +154,12 @@
     });
     var bar = $("#live-bar"); bar.innerHTML = "";
     var badge = el("div", "live-badge");
-    badge.innerHTML = "✦ told live by " + escapeHtml(telling.teller || T.teller.name) + " " + T.teller.glyph +
-      ' <span class="live-model">' + escapeHtml(telling.model || "") + "</span> · <a class=\"live-toggle\">show the procedural draft</a>";
+    badge.appendChild(provenance(TELLING, telling.model, source || "atproto"));
+    var toggle = el("a", "live-toggle", "show the procedural draft");
+    badge.appendChild(document.createTextNode(" · "));
+    badge.appendChild(toggle);
     bar.appendChild(badge);
-    var tg = $(".live-toggle", badge); if (tg) tg.onclick = function () { showProcedural(); };
+    toggle.onclick = function () { showProcedural(); };
     window.scrollTo({ top: 0 });
   }
   function showProcedural() {
@@ -148,7 +168,7 @@
     var note = el("div", "live-badge", "the procedural draft · <a class=\"live-toggle\">show the live telling</a>");
     bar.appendChild(note);
     var tg = $(".live-toggle", note); if (tg) tg.onclick = function () {
-      apiCall("/api/telling/" + T.n).then(function (res) { if (res.json && res.json.record) renderLive(res.json.record); else showSummon(); });
+      apiCall("/api/telling/" + T.n).then(function (res) { if (res.json && res.json.record) renderLive(res.json.record, "atproto"); else showSummon(); });
     };
   }
 
@@ -162,7 +182,8 @@
     var bar = $("#banter-bar"); if (!bar || typeof fetch === "undefined" || !B.promptForBanter) return;
     bar.innerHTML = "";
     pullRecord(BANTER, T.n).then(function (rec) {
-      if (rec && rec.lines && rec.lines.length) renderBanter(rec); // pulled from atproto
+      if (rec && rec.lines && rec.lines.length) renderBanter(rec, "atproto"); // pulled from atproto
+      else if (T.n === 1 && B.exemplarBanter) renderBanter(B.exemplarBanter, "local"); // hand-authored fallback before seeding
       else showBanterSummon();
     });
   }
@@ -178,10 +199,10 @@
     var pr = B.promptForBanter(T, B.interstitial ? B.interstitial(T.n) : null);
     if (!pr) { btn.remove(); return; }
     apiCall("/api/banter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
-      .then(function (res) { if (res.json && res.json.record && res.json.record.lines && res.json.record.lines.length) renderBanter(res.json.record); else btn.textContent = "✦ let them speak first"; })
+      .then(function (res) { if (res.json && res.json.record && res.json.record.lines && res.json.record.lines.length) renderBanter(res.json.record, "live"); else btn.textContent = "✦ let them speak first"; })
       .catch(function () { btn.textContent = "✦ let them speak first"; });
   }
-  function renderBanter(banter) {
+  function renderBanter(banter, source) {
     var bar = $("#banter-bar"); bar.innerHTML = "";
     var scene = el("div", "banter-scene");
     scene.appendChild(el("div", "banter-head", "Before the telling, at the long table"));
@@ -190,6 +211,7 @@
       row.innerHTML = '<span class="banter-who" style="color:' + colorFor(l.speaker) + '">' + escapeHtml(l.speaker) + " " + glyphFor(l.speaker) + '</span><span class="banter-said">' + escapeHtml(l.line) + "</span>";
       scene.appendChild(row);
     });
+    scene.appendChild(provenance(BANTER, banter.model, source));
     bar.appendChild(scene);
   }
 

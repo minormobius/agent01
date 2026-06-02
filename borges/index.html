@@ -89,6 +89,14 @@
         <strong>In plain terms:</strong> there is no inference pass at read-time. The prose is assembled, not written by a model on the spot — the cleverness was front-loaded into the template banks. The robots' "remixing" is real and flagged: a tale's <em>Story graph</em> lists exactly which Propp functions were run backwards and which motifs were transplanted into the wrong country, the same way the annotated tales flag what they leave out.
       </div>
 
+      <div class="method-sub">The live layer — and where it lives</div>
+      <p class="lead">On top of the canonical procedural draft, a teller can be asked to <em>tell it live</em>: a language model retells the deterministic spec in that teller's voice, and a short scene of crew <em>banter</em> can play before it. To keep a permalink meaning something, each live render is <strong>frozen on first telling</strong> — and the freezer is <a href="https://atproto.com" target="_blank" rel="noopener">atproto</a>. Every frozen telling and banter is written as a public record on the service account's PDS (<span class="mono">morphyx</span>, <span class="mono">did:plc:yivyyp54vddf7qf2lpsikhe4</span>), and the book reads them straight back from there — no backend of our own. When a telling or its banter shows <span class="prov-atp">⊕ pulled from the Tabard on atproto</span>, that is the record on the wire. The two record shapes are defined as custom lexicons:</p>
+      <ul class="lex-list">
+        <li><a class="mono" href="/lexicons/telling.json" target="_blank" rel="noopener">com.minomobi.borges.telling</a> — a frozen telling: <span class="mono">{ n, teller, frame, title, movements[], model, createdAt }</span></li>
+        <li><a class="mono" href="/lexicons/banter.json" target="_blank" rel="noopener">com.minomobi.borges.banter</a> — the lead-in scene: <span class="mono">{ n, phase, pair[], lines[], model, createdAt }</span></li>
+      </ul>
+      <p class="lead">The <span class="page-num">rkey</span> of each record <em>is</em> the page number, so tale <span class="page-num">n</span>'s telling lives at a permalink on atproto exactly as it does here. Tale № 1 is hand-authored and pre-seeded; everything else is the procedural draft until a teller is summoned to tell it live.</p>
+
       <div class="method-cta"><button class="nav-btn primary" id="method-open">↻ Turn to a page and see ›</button></div>
 
       <h2 class="section" id="crew">The seven tellers</h2>

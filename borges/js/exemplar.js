@@ -29,4 +29,24 @@
         body: "So a task was set, by the old king Koschei, to sort the true from the false, the old impossible kind: to lift the stone, to string the bow, to name the thing that none could name. Yemelya, come home at the last, took it up like a familiar tool, and it was plainly the right hand upon it. And Ilmarinen, seeing how it stood, confessed the whole lie at once and unbidden, out of nothing but boredom, which robbed the scene of every drop of its drama and disappointed the hall entirely. Then there was a wedding and a crowning, and the line went on, which is how the old reels do like to close a door; and the long chase of shapes ended where such chases end, in the one shape the other had no shape to answer. I have told it twice already, and shall tell it otherwise next month; and whether she woke at all, the dream-log does not say." }
     ]
   };
+
+  // The hand-authored banter for tale № 1 — the lead-in scene before the telling,
+  // matching the deterministic frame spec for n = 1: waxing phase, the watch's
+  // tension between Luna ☽ (this watch's teller, the dreamer who loses the thread)
+  // and Mercury ☿ (the runner who finishes it for her), glancing at the tale to
+  // come and ending with Luna taking up the watch. Same two uses as the telling
+  // exemplar: a few-shot quality target for the live banter pass, and the seeded
+  // record served for /t/1 before any live render. Attaches to BORGES.exemplarBanter.
+  B.exemplarBanter = {
+    n: 1, phase: "waxing", pair: ["Luna", "Mercury"], model: "hand-authored",
+    createdAt: "2026-06-01T00:00:00.000Z",
+    lines: [
+      { speaker: "Mercury", line: "Sister, you have the watch, and already you are three turns behind your own thought. Shall I run ahead and finish it, the way I do?" },
+      { speaker: "Luna", line: "I had it. A slaying at the water, and a boat that goes by singing, and the rest of it is in the wane somewhere. I set it down a moment ago." },
+      { speaker: "Mercury", line: "You set everything down a moment ago. The thread is plain: a kinsman takes what was wanted, the false one steals the boast, the true one comes home grey with road-dust and says nothing. I have it cold. I have them all cold." },
+      { speaker: "Luna", line: "That is the trouble with you, runner. You have them cold. I would rather lose the thread and find it again warm; and I am never quite sure whether to thank you for the catch." },
+      { speaker: "Mercury", line: "Thank me by telling it slow. There is more night than there is anything else, and we have counted most of it. Spend a little." },
+      { speaker: "Luna", line: "Then sit, and mind the chronometer for once. I will tell it as I dreamed it, or the wane of it: Yemelya, at the river of the dead, and the kinsman's face that the trouble wore." }
+    ]
+  };
 })();

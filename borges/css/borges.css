@@ -96,6 +96,14 @@ h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
 .live-badge .live-model { color: var(--ink-dim); font-variant: small-caps; }
 .live-badge .live-toggle { color: var(--teller-soft); cursor: pointer; }
 
+/* ── Provenance line (record-backed telling / banter is read from atproto) ── */
+.prov { display: inline; font-family: var(--sans); font-size: 11.5px; color: var(--ink-faint); }
+.prov a { color: var(--teller-soft); text-decoration: none; border-bottom: 1px dotted currentColor; cursor: pointer; }
+.prov a:hover { color: var(--ink); }
+.prov .prov-atp { color: var(--ink-dim); }
+.prov .prov-model { font-variant: small-caps; }
+.banter-scene .prov { display: block; margin-top: 10px; padding-top: 8px; border-top: 1px dotted var(--line); }
+
 /* ── The telling (prose reader) ── */
 .tale-meta { margin: 16px 0 4px; }
 .tale-blurb {
@@ -226,6 +234,13 @@ h2.section { font-size: 26px; color: var(--teller-soft); margin: 34px 0 6px; }
 .method-honesty { background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 9px; padding: 13px 16px; margin: 18px 0 6px; color: var(--ink-dim); font-size: 15px; max-width: 80ch; }
 .method-honesty strong { color: var(--accent); }
 .method-cta { margin: 22px 0 6px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.92em; color: var(--ink-dim); }
+a.mono { color: var(--gold-soft); text-decoration: none; border-bottom: 1px dotted currentColor; }
+a.mono:hover { color: var(--gold); }
+.lex-list { list-style: none; padding: 0; margin: 12px 0 6px; max-width: 80ch; }
+.lex-list li { padding: 8px 0; border-bottom: 1px dotted var(--line); color: var(--ink-dim); font-size: 14px; line-height: 1.5; }
+.lex-list li:last-child { border-bottom: none; }
+.prov-atp { color: var(--ink-dim); }
 
 /* ── zoomable diagram viewport (shared by web / propp / mythograph) ── */
 .zoom-host { position: relative; width: 100%; height: 600px; max-height: 78vh; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); overflow: hidden; touch-action: none; cursor: grab; user-select: none; }
