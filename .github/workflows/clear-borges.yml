@@ -1,0 +1,33 @@
+name: Clear Borges Gemini records (atproto)
+
+# Deletes the model-rendered (Gemini) borges records from the morphyx service
+# repo, keeping only the hand-authored exemplar, so the book can be re-rolled
+# against the current engine. Idempotent. Manual (workflow_dispatch) plus a push
+# trigger scoped to the clear script, since the integration token can't dispatch.
+on:
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "Dry run (list what would be deleted, no delete)"
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'claude/pendragon-endless-book-*'
+    paths:
+      - 'scripts/borges-clear-gemini.mjs'
+      - '.github/workflows/clear-borges.yml'
+
+jobs:
+  clear:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Clear Gemini records
+        env:
+          MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          MORPHYX_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node scripts/borges-clear-gemini.mjs ${{ inputs.dry && '--dry' || '' }}
