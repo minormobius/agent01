@@ -386,6 +386,26 @@ svg.propp { display: block; }
 .cw-count { font-family: var(--sans); font-size: 11px; color: var(--ink-faint); margin-left: 8px; vertical-align: middle; }
 .cw-count.cw-c4 { color: var(--gold); font-weight: 700; }
 
+/* ── The axis of desire (Greimas, cross-tale) ── */
+.cw-desire { overflow-x: auto; margin: 4px 0 6px; }
+.cw-desire-tbl { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 13.5px; }
+.cw-desire-tbl thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-faint); font-weight: 600; padding: 0 14px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.cw-desire-tbl tbody th {
+  text-align: left; font-weight: 600; color: var(--ink); padding: 11px 14px 11px 0;
+  white-space: nowrap; vertical-align: top;
+}
+.cw-desire-tbl tbody td { color: var(--ink-dim); padding: 11px 14px 11px 0; vertical-align: top; line-height: 1.45; border-bottom: 1px solid var(--line); }
+.cw-desire-tbl tbody th { border-bottom: 1px solid var(--line); }
+.cw-desire-tbl tr.dz-failrow th, .cw-desire-tbl tr.dz-failrow td { background: rgba(160,124,201,0.07); }
+.dz-yes { display: inline-block; color: var(--gold); font-weight: 700; white-space: nowrap; }
+.dz-no { display: inline-block; color: #a07cc9; font-weight: 700; white-space: nowrap; }
+.dz-verdict { display: block; margin-top: 3px; font-size: 12px; color: var(--ink-faint); font-style: italic; line-height: 1.4; white-space: normal; }
+.cw-finding { color: var(--ink-dim); font-size: 14px; line-height: 1.6; max-width: 76ch; margin: 12px 0 4px; padding: 12px 16px; background: rgba(160,124,201,0.06); border-left: 3px solid #a07cc9; border-radius: 0 6px 6px 0; }
+.cw-finding strong, .cw-finding em { color: var(--ink); }
+
 /* ── Compare (hypermythograph) ── */
 .cmp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 12px 0 4px; }
 .cmp-modes { display: inline-flex; gap: 6px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; }

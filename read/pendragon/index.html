@@ -120,7 +120,7 @@
       </div>
 
       <h2 class="section">The apparatus</h2>
-      <p class="lead">Every tale lives at its own sub-site of <a href="/">read.mino.mobi</a> as a self-contained reader. Each one is built from the same seven layers, and each layer is data first — JavaScript objects, not narrative HTML — so the rendering, the comparisons, and the eventual port to anything else are mechanical.</p>
+      <p class="lead">Every tale lives at its own sub-site of <a href="/">read.mino.mobi</a> as a self-contained reader. Each one is built from the same nine layers, and each layer is data first — JavaScript objects, not narrative HTML — so the rendering, the comparisons, and the eventual port to anything else are mechanical.</p>
 
       <div class="method-layers">
         <div class="method-layer">
@@ -161,12 +161,26 @@
         <div class="method-layer">
           <span class="ml-num">6</span>
           <div>
-            <h3>Mythograph</h3>
-            <p>One synergistic graph over everything above. Movements pin to a horizontal gold spine; characters, motifs and Propp functions hang off the moments they touch, force-laid so cross-cutting elements pull toward the centre. Hover any node; click any node. It's the index of indexes.</p>
+            <h3>Desire (Greimas)</h3>
+            <p>The tale laid against A.&nbsp;J.&nbsp;Greimas's actantial model — the functional grammar of <em>wanting</em> beneath the plot. Six actants on three axes: a Subject who desires an Object (the axis of desire), a Sender who sets the quest in motion for a Receiver (the axis of transmission), and a Helper and an Opponent who aid or block (the axis of power). One <code>window.&lt;TALE&gt;.desire</code> object renders a six-box SVG diagram; its <code>unreachable</code> flag dashes the desire-arrow when the Object is never attained. Where Propp asks <em>what happens in what order</em>, Greimas asks <em>what the whole machine is for</em>.</p>
           </div>
         </div>
         <div class="method-layer">
           <span class="ml-num">7</span>
+          <div>
+            <h3>Type-scenes (Parry–Lord)</h3>
+            <p>The recurring oral set-pieces — arming, the feast in hall, the boast, the lament, the council, the voyage, the threshold-crossing, the mound, the supplication — that oral-formulaic theory (Milman Parry, Albert Lord) found to be the building blocks of traditional narrative. A <code>window.&lt;TALE&gt;.themes</code> array tags each occurrence to a passage and a shared <code>id</code>; they surface as <code>⟜&nbsp;type-scene</code> markers inline in the Read view and as a panel at the head of the Story graph. Because the ids are shared, the same type-scene can be tracked across all the tales at once.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">8</span>
+          <div>
+            <h3>Mythograph</h3>
+            <p>One synergistic graph over everything above. Movements pin to a horizontal gold spine; characters, motifs, Propp functions, type-scenes and the Object of desire hang off the moments they touch, force-laid so cross-cutting elements pull toward the centre. Hover any node; click any node. It's the index of indexes.</p>
+          </div>
+        </div>
+        <div class="method-layer">
+          <span class="ml-num">9</span>
           <div>
             <h3>Storybook</h3>
             <p>A faithful retelling for readers ~8 and up — the whole tale across paged spreads, with art briefs for each illustration. The storybook keeps the apparatus honest: if a tale doesn't fit a child-readable page-by-page retelling, the deeper layers are masking confusion. Images are generated from the briefs by a shared illustration pipeline; the artwork is data too.</p>
@@ -193,12 +207,12 @@
         <li><strong>Scaffold the sub-site</strong> at <code>read/&lt;slug&gt;/</code>: <code>index.html</code>, <code>styles.css</code>, an empty <code>tale.js</code> with the passages skeleton, and the standard <code>app.js</code> view-switching glue copied from the most recent sister.</li>
         <li><strong>Translate movement by movement.</strong> Each push to a movement deploys; review on the live site. Pwyll took six commits.</li>
         <li><strong>Write <code>characters.js</code></strong> — every named figure as a card, with role, blurb, appearances and typed relationships. The Character web falls out for free.</li>
-        <li><strong>Write <code>analysis.js</code></strong> — the Propp pass. Where Propp's 31 functions fire, which are absent, which the tale shifts.</li>
+        <li><strong>Write <code>analysis.js</code></strong> — the Propp pass (where Propp's 31 functions fire, which are absent, which the tale shifts), plus the <code>desire</code> object (the Greimas actantial six — Subject, Object, Sender, Receiver, Helper, Opponent — with <code>*Ref</code> cast-ids so the Mythograph can wire the actants to their character nodes) and the <code>themes</code> array (the Parry–Lord type-scenes, each tagged to a passage and a shared id).</li>
         <li><strong>Write <code>motifs.js</code></strong> — Thompson motifs and ATU types, with confidence levels and cross-tale references.</li>
-        <li><strong>Add the Mythograph hookup</strong> to <code>app.js</code>; it builds itself from the four data files above.</li>
+        <li><strong>Add the Mythograph hookup</strong> to <code>app.js</code>; it builds itself from the data files above — characters, Propp functions, motifs, type-scenes and the Object of desire all fall into the one graph.</li>
         <li><strong>Write <code>storybook.js</code></strong> — the faithful retelling, each spread carrying a title, prose text and an <code>illus</code> art brief.</li>
         <li><strong>Register the tale in <code>scripts/illustrate/tales.mjs</code></strong> — house style, character pins, regex triggers. Add the slug to the workflow matrix.</li>
-        <li><strong>Add a card to the Pendragon home page</strong> and confirm the cross-tale crosswalk (motifs and Propp functions) picks up the new entries.</li>
+        <li><strong>Add a card to the Pendragon home page</strong> and confirm the cross-tale crosswalk picks up the new entries — motifs, Propp functions, character archetypes, the axis of desire (does this tale's Subject reach its Object?) and the shared type-scenes.</li>
       </ol>
       <p class="lead">The eighth tale, <em>Math uab Mathonwy</em> — the Fourth and last Branch — is now complete and wired into the crosswalk above, <strong>completing the Four Branches of the Mabinogi</strong> on the grid (now read together as a single work, with their own historiography, at the <a href="/mabinogi/">Mabinogi</a> hub). Math brings the Mabinogi&rsquo;s great transformation-magic into the comparison — men turned to beasts, a man to an eagle, Blodeuwedd the wife made of flowers and unmade into an owl — and the <em>hudlath</em> it shares with <em>Manawydan</em>, the two enchanter-branches reaching for the same wand. The natural ninth is a <strong>sibling of <em>Owain</em></strong> that completes the Three Welsh Romances and extends the Welsh&harr;Continental axis: <em>Peredur</em> (the Welsh Perceval, the Grail) or <em>Geraint</em> (the Welsh Erec). The apparatus is ready.</p>
     </section>

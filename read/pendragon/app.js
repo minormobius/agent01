@@ -566,6 +566,37 @@
       if (a.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = a.gloss; row.appendChild(g); }
       host.appendChild(row);
     });
+
+    // ─ The axis of desire (Greimas) ─
+    if (C.desireAxis) {
+      host.appendChild(el("h3", "cw-grouphead", "The axis of desire · Greimas"));
+      host.appendChild(el("p", "cw-subnote", C.desireAxis.intro));
+      let html = '<table class="cw-desire-tbl"><thead><tr><th>Tale</th><th>Subject</th><th>Object — what is wanted</th><th>Opponent</th><th>Reaches?</th></tr></thead><tbody>';
+      C.desireAxis.rows.forEach((r) => {
+        const tobj = taleMap[r.tale] || {};
+        const reach = r.reaches ? '<span class="dz-yes">✓ reaches</span>' : '<span class="dz-no">⤺ falls short</span>';
+        html += `<tr class="${r.reaches ? "" : "dz-failrow"}"><th><a href="${tobj.href || "#"}" style="color:inherit">${tobj.sigil || ""} ${escapeHtml(tobj.short || r.tale)}</a></th><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.object)}</td><td>${escapeHtml(r.opponent)}</td><td>${reach}<span class="dz-verdict">${escapeHtml(r.verdict)}</span></td></tr>`;
+      });
+      html += "</tbody></table>";
+      const dt = el("div", "cw-desire"); dt.innerHTML = html; host.appendChild(dt);
+      if (C.desireAxis.finding) { const f = el("p", "cw-finding"); f.innerHTML = C.desireAxis.finding; host.appendChild(f); }
+    }
+
+    // ─ Shared type-scenes (Parry–Lord) ─
+    if (C.themes) {
+      host.appendChild(el("h3", "cw-grouphead", "Shared type-scenes · Parry–Lord"));
+      host.appendChild(el("p", "cw-subnote", C.themesIntro));
+      host.appendChild(header());
+      const themesSorted = C.themes.slice().sort((a, b) => taleIds.filter((id) => b[id]).length - taleIds.filter((id) => a[id]).length);
+      themesSorted.forEach((m) => {
+        const row = el("div", "cw-row");
+        row.appendChild(el("div", "cw-code", escapeHtml(m.code || "⟜")));
+        row.appendChild(el("div", "cw-name", escapeHtml(m.name) + " " + countLabel(m)));
+        tales.forEach((t) => row.appendChild(taleCell(t.id, m[t.id])));
+        if (m.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = m.gloss; row.appendChild(g); }
+        host.appendChild(row);
+      });
+    }
   }
 
   /* ====================== COMPARE (hypermythograph) ======================
