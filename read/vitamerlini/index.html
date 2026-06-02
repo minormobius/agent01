@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Vita Merlini — a deep read of Geoffrey of Monmouth's Life of Merlin</title>
+  <meta name="description" content="Vita Merlini (The Life of Merlin), Geoffrey of Monmouth's Latin poem in 1,529 hexameters, c. 1150 — the wild prophet's tale. After the slaughter of Arfderydd, Merlin the king-prophet of the Demetae runs mad with grief and flees to the Caledonian Wood; he is sung back to his senses, chained at Rhydderch's court, laughs at the leaf in his sister's hair, foresees the threefold death, rides a stag to his wife's wedding, prophesies the kings of Britain, hears Taliesin discourse on the cosmos and the Island of Apples where Morgen tends the wounded Arthur, is healed at last by a new-broken spring, and withdraws with his sister into the woods. Complete original translation of the Latin across all its movements, with characters, story graph, desire, motif index, mythograph and a storybook.">
+  <meta property="og:title" content="Vita Merlini — The Life of Merlin">
+  <meta property="og:description" content="Geoffrey of Monmouth's Latin Life of Merlin — the wild man of the woods, the threefold death, the Island of Apples and the healing spring. A complete original translation from the Latin, with the full annotation layer.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/vitamerlini/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🔮</span>Vita Merlini</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
+        <button class="tab" data-view="propp">Story graph</button>
+        <button class="tab" data-view="desire">Desire</button>
+        <button class="tab" data-view="motifs">Motifs</button>
+        <button class="tab" data-view="myth">Mythograph</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- READ (source + parallel translation) -->
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>Vita Merlini</h1>
+        <p>Geoffrey of Monmouth's <em>Life of Merlin</em> — a Latin poem of 1,529 hexameters, written about 1150. Not the boy-prophet of the <em>History</em> but an older, stranger Merlin: a king and seer of the Welsh who runs mad with grief on the battlefield of Arfderydd, flees to the Caledonian Wood, and becomes the archetypal <em>wild man</em> — sung back to his wits, chained, set free by the threefold death, riding a stag to his wife's wedding, prophesying the kings to come, and hearing Taliesin tell of the Island of Apples where Morgen tends the wounded Arthur. The first Latin tale on this site, and the deepest taproot of the Merlin legend.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- STORYBOOK (faithful middle-grade retelling) -->
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers 8 and up — the whole <em>Life of Merlin</em>, page by page. The madness and the marvels kept side by side, the way the poem keeps them. Illustrations to follow.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the poem, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
+    </section>
+
+    <!-- STORY GRAPH (Propp) -->
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The poem laid against Propp's 31 narrative functions — each beat linking to the movement that realises it. A wonder-tale spine bent into something stranger: the hero's "lack" is his own lost reason, and the quest is inward.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
+    <!-- DESIRE (Greimas) -->
+    <section class="view" id="view-desire">
+      <div class="hero"><h1>Desire</h1><p>The poem laid against Greimas's actantial model — the functional structure of <em>wanting</em> beneath the plot. Not the social web of who-knows-whom, but the single engine of desire: who wants what, who sends it, who aids and who blocks.</p></div>
+      <p class="lead" id="desire-intro"></p>
+      <div id="desire-host"></div>
+      <p class="desire-prose" id="desire-prose"></p>
+    </section>
+
+    <!-- MOTIF INDEX -->
+    <section class="view" id="view-motifs">
+      <div class="hero"><h1>Motif index</h1><p>The poem by call-number — the Thompson Motif-Index and ATU tale-types, the folklorists' Dewey decimal for mythic memes.</p></div>
+      <p class="lead" id="motif-intro"></p>
+      <div class="tt-grid" id="motif-taletypes"></div>
+      <div id="motif-groups"></div>
+    </section>
+
+    <!-- THE MYTHOGRAPH -->
+    <section class="view" id="view-myth">
+      <div class="hero"><h1>The mythograph</h1><p>One graph, all the layers. The movements run as a spine; characters, motifs, story-functions, type-scenes and the Object of desire hang from the moments they touch — and whatever cross-cuts the poem is pulled toward the centre.</p></div>
+      <div class="myth-controls" id="myth-filters"></div>
+      <div class="tree-legend" id="myth-legend"></div>
+      <div class="zoom-host" id="myth-host"></div>
+      <p class="tree-hint">Movements run as the gold spine. Hover a node to light its threads; click any node for detail. Toggle the layers above to isolate one kind of connection.</p>
+      <div class="myth-detail" id="myth-detail"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Vita Merlini</span><br>
+    A deep read of the <em>Vita Merlini</em> (<em>The Life of Merlin</em>), Geoffrey of Monmouth's Latin poem of about 1150 — the first Latin text on this site, and the oldest literary taproot of the Merlin legend after Geoffrey's own <em>History of the Kings of Britain</em>. The Latin source is the text of John Jay Parry's edition (<em>The Vita Merlini</em>, University of Illinois, 1925, public domain); the original English translation runs alongside it movement by movement, with character cards, character web, story graph, desire, motif index, mythograph and a faithful storybook retelling — the same apparatus built for <em>Sir Gawain and the Green Knight</em>, <em>Culhwch ac Olwen</em>, <em>Sir Orfeo</em>, the Four Branches of the Mabinogi (<em>Pwyll</em>, <em>Branwen</em>, <em>Manawydan</em>, <em>Math</em>), and <em>Owain</em>. Parry's own 1925 English is consulted as a sense-check, not copied; both source texts are preserved verbatim under <a href="source/vita-merlini-parry-1925-latin.txt">source/</a>. This site sits alongside the broader Arthurian and Brittonic historiography at <a href="/pendragon/">read.mino.mobi/pendragon</a>, where the cross-tale comparative layer lives — and where the <em>Vita Merlini</em>, with its Morgen and its Island of Apples, anchors the deep-mythic root of the Arthurian tree.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
