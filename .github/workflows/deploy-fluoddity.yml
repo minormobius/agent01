@@ -23,3 +23,18 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Push the ElevenLabs key (GitHub secret) into the worker as a Cloudflare
+      # secret so /api/tts can read env.ELEVENLABS_API_KEY. Runs after deploy (the
+      # worker must exist first); skipped with a 503-warning if the secret isn't set.
+      - name: Set ElevenLabs key as Worker secret
+        run: |
+          if [ -n "$ELEVENLABS_API_KEY" ]; then
+            printf '%s' "$ELEVENLABS_API_KEY" | npx wrangler secret put ELEVENLABS_API_KEY
+          else
+            echo "ELEVENLABS_API_KEY not set in GitHub secrets; skipping (/api/tts will 503)"
+          fi
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

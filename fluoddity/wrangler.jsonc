@@ -11,6 +11,6 @@
   // voiceover proxy). Empty = nobody. The ELEVENLABS_API_KEY is a Worker SECRET,
   // set once with: wrangler secret put ELEVENLABS_API_KEY
   "vars": {
-    "CLIP_WHITELIST": ""
+    "CLIP_WHITELIST": "minormobius.bsky.social,ponder.ooo"
   }
 }
