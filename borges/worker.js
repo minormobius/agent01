@@ -92,19 +92,42 @@ function buildRecord(kind, n, meta, parsed) {
   return Object.assign(base, { teller: meta.teller || "", title: meta.title || "", frame: meta.frame || "", movements });
 }
 
-/* ── Gemini 2.5 Flash → strict JSON ── */
+/* ── Gemini 2.5 Flash → strict JSON ──
+   2.5 Flash is a thinking model and its thinking tokens count against
+   maxOutputTokens, so a small budget gets eaten by thought and the JSON is
+   truncated. We disable thinking (this is a faithful-retell task, not a reasoning
+   one) and give the output real headroom — a six-movement telling needs far more
+   than the banter's handful of lines. The parser tolerates stray code fences and,
+   on failure, surfaces the finishReason so a truncation is diagnosable. */
+function extractJson(text) {
+  let t = String(text || "").trim();
+  if (t.startsWith("```")) t = t.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  try { return JSON.parse(t); } catch (e) {}
+  const a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} }
+  return null;
+}
 async function gemini(env, system, user) {
   const u = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(env.GEMINI_API_KEY);
   const body = {
     system_instruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
-    generationConfig: { temperature: 0.7, responseMimeType: "application/json", maxOutputTokens: 4096 },
+    generationConfig: {
+      temperature: 0.7,
+      responseMimeType: "application/json",
+      maxOutputTokens: 16384,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   };
   const r = await fetch(u, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error("gemini " + r.status + ": " + (await r.text()).slice(0, 200));
   const j = await r.json();
-  const text = (((j.candidates || [])[0] || {}).content || {}).parts ? j.candidates[0].content.parts.map((x) => x.text || "").join("") : "";
-  try { return JSON.parse(text); } catch (e) { throw new Error("model did not return JSON"); }
+  const cand = (j.candidates || [])[0] || {};
+  const text = (cand.content && cand.content.parts) ? cand.content.parts.map((x) => x.text || "").join("") : "";
+  const parsed = extractJson(text);
+  if (parsed) return parsed;
+  const why = cand.finishReason ? (" (finishReason " + cand.finishReason + ")") : "";
+  throw new Error("model did not return JSON" + why);
 }
 
 /* ── identity + records via the repo's shared PdsClient ── */
