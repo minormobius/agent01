@@ -194,13 +194,33 @@
     btn.onclick = function () { summonBanter(btn); };
     s.appendChild(btn); bar.appendChild(s);
   }
+  // The watch before and the watch after, as continuity context for the banter
+  // pass: each carries its teller + tale title + deterministic tension (always
+  // available, computed from the frame), and its frozen banter lines if any have
+  // been told live (or the hand-authored seed for № 1). Pulled async, then the
+  // prompt is built with the thread running through it.
+  function neighbourWatch(n) {
+    if (n < 1 || !B.interstitial) return Promise.resolve(null);
+    var it, g;
+    try { it = B.interstitial(n); g = B.generate ? B.generate(n) : null; } catch (e) { return Promise.resolve(null); }
+    var teller = (g && g.teller && g.teller.name) || (it.teller && it.teller.name) || it.teller;
+    var c = { n: n, teller: teller, title: g && g.title, phase: it.phaseName, tension: it.text, banter: null };
+    return pullRecord(BANTER, n).then(function (rec) {
+      if (rec && rec.lines && rec.lines.length) c.banter = rec.lines;
+      else if (n === 1 && B.exemplarBanter) c.banter = B.exemplarBanter.lines;
+      return c;
+    });
+  }
   function summonBanter(btn) {
     btn.textContent = "…";
-    var pr = B.promptForBanter(T, B.interstitial ? B.interstitial(T.n) : null);
-    if (!pr) { btn.remove(); return; }
-    apiCall("/api/banter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
-      .then(function (res) { if (res.json && res.json.record && res.json.record.lines && res.json.record.lines.length) renderBanter(res.json.record, "live"); else btn.textContent = "✦ let them speak first"; })
-      .catch(function () { btn.textContent = "✦ let them speak first"; });
+    var it = B.interstitial ? B.interstitial(T.n) : null;
+    if (!it) { btn.remove(); return; }
+    Promise.all([neighbourWatch(T.n - 1), neighbourWatch(T.n + 1)]).then(function (nb) {
+      var pr = B.promptForBanter(T, it, { prev: nb[0], next: nb[1] });
+      if (!pr) { btn.remove(); return; }
+      return apiCall("/api/banter", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(pr) })
+        .then(function (res) { if (res.json && res.json.record && res.json.record.lines && res.json.record.lines.length) renderBanter(res.json.record, "live"); else btn.textContent = "✦ let them speak first"; });
+    }).catch(function () { btn.textContent = "✦ let them speak first"; });
   }
   function renderBanter(banter, source) {
     var bar = $("#banter-bar"); bar.innerHTML = "";

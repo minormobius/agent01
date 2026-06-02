@@ -677,13 +677,18 @@
   /* ── promptForBanter (the second pass): scripts a short exchange among the
      robots before the telling. The teller and the two in tonight's foregrounded
      tension trade a few lines, rising with the moon-phase and glancing at the
-     tale about to be told, then the teller takes up the watch. Returns
+     tale about to be told, then the teller takes up the watch.
+     `ctx` (optional) carries continuity across watches: { prev, next }, each
+     { n, teller, title, phase, tension, banter:[lines]|null } — the watch before
+     and the watch after, with their frozen banter if it exists, else the
+     deterministic tension as the seed. This lets a night's banter pick up a
+     thread from last watch and lean faintly toward the next, so the immortal
+     crew's quarrel feels continuous rather than reset each page. Returns
      { system, user, model, n, meta } for an instruct/chat call. ── */
-  B.promptForBanter = function (T, it) {
+  B.promptForBanter = function (T, it, ctx) {
     if (!it || !B.tellers) return null;
     var byId = B.tellers.byId || {};
     var ids = {}; ids[T.teller.id] = 1;
-    var pairIds = (B.frame && B.frame.PAIRS) ? null : null;
     // the two in tension are named in it.pair; map names back to teller objects
     var bothFromNames = (it.pair || []).map(function (nm) { return B.tellers.list.filter(function (t) { return t.name === nm; })[0]; }).filter(Boolean);
     bothFromNames.forEach(function (t) { ids[t.id] = 1; });
@@ -694,16 +699,37 @@
     }).join("; ");
     var phaseMood = { waxing: "the tension is rising, so they needle, sidelong, not yet open", full: "it is the full of the moon and it comes to open words, though no blades, the others' lamps low", waning: "it is cooling into careful, pointed courtesy, worse than the quarrel", dark: "it is the dark of the moon and they have let it go, easy again, neither pretending to have forgotten" }[it.phaseKey] || "the old weather between them";
     var a = T.actant || {};
+    // the shape of tonight's tale — the movement titles, so the banter can glance
+    // at the story being told without our having to spoil its turns.
+    var shape = (T.tale && T.tale.passages || []).map(function (p) { return stripTags(p.title); }).filter(Boolean).join(" → ");
+    // continuity: render a neighbour watch as one line — its frozen banter's last
+    // beat if we have it, else the deterministic tension that seeds it.
+    function neighbourLine(c, when) {
+      if (!c) return "";
+      var who = c.teller || "a teller", what = c.title ? ('"' + stripTags(c.title) + '"') : "a tale";
+      var head = when + " (page " + c.n + "): " + who + (when === "Last watch" ? " told " : " tells ") + what + (c.phase ? ", the moon " + c.phase : "") + ".";
+      if (c.banter && c.banter.length) {
+        var last = c.banter[c.banter.length - 1];
+        return head + " It left off with " + last.speaker + ': "' + stripTags(last.line) + '"';
+      }
+      var firstSentence = stripTags(c.tension || "").split(". ")[0];
+      return head + (firstSentence ? " The weather between the crew: " + firstSentence + "." : "");
+    }
+    var prevLine = ctx && ctx.prev ? neighbourLine(ctx.prev, "Last watch") : "";
+    var nextLine = ctx && ctx.next ? neighbourLine(ctx.next, "Next watch") : "";
     var system = [
       "You are scripting a brief exchange among the seven maintenance robots aboard the slow barque Tabard, in the moments before one of them tells a tale. They are very old machines who reach, even in banter, for a half-archaic hall-at-night cadence, dry and fond and a little weary of each other across deep time.",
       "Tonight's speakers: " + desc + ". Keep each strictly in temperament. " + (it.tellerInPair ? "The teller is one of the two in tension tonight, and tells from inside it." : "The teller stands a little apart from the two in tension and will lead them in."),
       "The weather tonight: " + (it.text ? it.text.replace(/<[^>]+>/g, "") : phaseMood) + " In short: " + phaseMood + ".",
+      (prevLine || nextLine) ? "These watches do not reset; the quarrel runs on across nights. " + [prevLine, nextLine].filter(Boolean).join(" ") + " Let tonight pick up a thread from the last watch and lean, faintly, toward the next, without naming page numbers." : "",
       "Write a SHORT exchange, four to six lines, that rises with the moon, glances once at the tale about to be told, and ends with " + T.teller.name + " taking up the watch to begin. Conversational but in the old cadence; dry humour welcome. Do NOT use em-dashes (the character —). Do not narrate stage directions; only who speaks and what they say. Return STRICT JSON only.",
-    ].join("\n");
+    ].filter(Boolean).join("\n");
     var user = [
       "The tale " + T.teller.name + " is about to tell: \"" + stripTags(T.title) + "\" (" + T.frame.label + "; " + T.cultureLabel + ").",
+      shape ? ("Its shape, movement by movement (glance at it, do not spoil the turns): " + shape + ".") : "",
       a.subject ? ("What it is about, beneath the plot: " + a.subject + " wants " + a.object + ", which is " + a.value + ".") : "",
       "Let the banter glance at that, in character, without spoiling the ending.",
+      (prevLine || nextLine) ? ("\nCONTINUITY across the crew's long quarrel:\n" + [prevLine, nextLine].filter(Boolean).join("\n")) : "",
       "",
       'Return JSON of exactly this shape and nothing else: {"lines":[{"speaker":"<teller name>","line":"<what they say>"}]} — four to six lines, the last spoken by ' + T.teller.name + ", taking up the watch."
     ].filter(Boolean).join("\n");
