@@ -15,8 +15,11 @@
 //   • a shared swirling flow field (drifting world-space vortices) bends every
 //     filament, so arms passing through the same region braid and pour together;
 //   • Kuramoto phase-coupling between arms lets each nudge its ring neighbours,
-//     so they synchronise into travelling waves (or shimmer at mid-coupling).
-// Drag to spin, wheel to zoom.
+//     so they synchronise into travelling waves (or shimmer at mid-coupling);
+//   • a fluoddity brain (verbatim port of fluoddity/engine.js) steers each
+//     filament by sensing a shared, decaying, diffusing trail field that all
+//     tentacles deposit into — stigmergic interaction, like the slime engine.
+// Drag to spin, wheel to zoom; press B to reseed the brain.
 
 const TAU = Math.PI * 2;
 
@@ -144,6 +147,8 @@ const DEFAULTS = {
   arms: 5, depth: 5, branchLen: 0.95, splay: 0.62, lenFall: 0.74,
   thickness: 0.045, writhe: 0.6, writheSpeed: 1.4,
   flow: 0.55, flowScale: 0.7, flowChurn: 0.45, couple: 0.8,
+  brain: 0.45, brainSeed: 0.37, sensorGain: 1.5, sensorAngle: -0.14, sensorDist: 0.16,
+  trailDecay: 0.92, trailDiffuse: 0.7,
   fov: 50, dist: 5.2, glow: 0.3, palette: 5,
   exposure: 1.15, fog: 0.10, bg: 0.7, vignette: 0.6,
 };
@@ -164,6 +169,13 @@ const SLIDERS = [
   { key: 'flowScale', label: 'flow scale', min: 0.1, max: 2.5, step: 0.05 },
   { key: 'flowChurn', label: 'flow churn', min: 0, max: 1.5, step: 0.02 },
   { key: 'couple', label: 'arm coupling', min: 0, max: 2.0, step: 0.02 },
+  { key: 'brain', label: 'fluoddity brain', min: 0, max: 1.5, step: 0.02 },
+  { key: 'brainSeed', label: 'brain seed', min: 0, max: 1, step: 0.001 },
+  { key: 'sensorGain', label: 'sensor gain', min: 0, max: 8, step: 0.05 },
+  { key: 'sensorAngle', label: 'sensor angle', min: -1, max: 1, step: 0.01 },
+  { key: 'sensorDist', label: 'sensor distance', min: 0.02, max: 0.6, step: 0.01 },
+  { key: 'trailDecay', label: 'trail decay', min: 0.5, max: 0.995, step: 0.005 },
+  { key: 'trailDiffuse', label: 'trail diffuse', min: 0, max: 1.5, step: 0.02 },
   { key: 'dist', label: 'camera distance', min: 2.5, max: 12, step: 0.1 },
   { key: 'fov', label: 'field of view', min: 25, max: 90, step: 1 },
   { key: 'glow', label: 'glow', min: 0, max: 1.2, step: 0.02 },
@@ -179,6 +191,7 @@ const rt = {
   yaw: 0.6, paused: false, last: 0,
   furl: 0.5, furlPhase: 0, furlAuto: true,
   flowT: 0, armPhase: null, armOmega: null,
+  trail: null, trail2: null, brush: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -200,6 +213,113 @@ function rot(v, k, a) {
   ];
 }
 const mix = (a, b, t) => a + (b - a) * t;
+
+// ---------------------------------------------------------------------------
+// Fluoddity brain — verbatim port of fluoddity/engine.js evalRule(), plus the
+// shared stigmergic trail field it senses. Each filament is steered like a
+// fluoddity agent: it senses the trail field (deposited by ALL tentacles, and
+// decaying + diffusing every frame) at two points ahead (left/right, offset by
+// sensorAngle), feeds the L/R signal through the engine's 10-term Fourier brain
+// keyed by rule_seed, and turns by the brain's output. Interaction is indirect,
+// through the field they collectively write and read — exactly like the engine.
+//
+// The engine's arena path runs the brain with mutation_scale=0, which makes the
+// 10 Fourier centers depend only on rule_seed. We exploit that: precompute the
+// centers once per frame (brainCenters), then brainEval() is a cheap 10-term sum.
+// ---------------------------------------------------------------------------
+const _f32 = new Float32Array(1), _u32 = new Uint32Array(_f32.buffer);
+function f2u(x) { _f32[0] = x; return _u32[0]; }
+function pcg(v) {
+  const s = (Math.imul(v >>> 0, 747796405) + 2891336453) >>> 0;
+  const w = Math.imul((((s >>> ((s >>> 28) + 4)) ^ s) >>> 0), 277803737) >>> 0;
+  return ((w >>> 22) ^ w) >>> 0;
+}
+function h1(x, y) { return pcg((f2u(x) ^ pcg(f2u(y))) >>> 0) / 4294967295; }
+function genCenter(seed, i) {
+  const fs = 1 + 2 * Math.pow(h1(seed, i * 8 + 0), 2);
+  return {
+    f: [(h1(seed, i * 8 + 0) * 2 - 1) * fs, (h1(seed, i * 8 + 1) * 2 - 1) * fs,
+        (h1(seed, i * 8 + 2) * 2 - 1) * fs, (h1(seed, i * 8 + 3) * 2 - 1) * fs],
+    a: [h1(seed, i * 8 + 4) * 2 - 1, h1(seed, i * 8 + 5) * 2 - 1,
+        h1(seed, i * 8 + 6) * 2 - 1, h1(seed, i * 8 + 7) * 2 - 1],
+  };
+}
+// Precompute the 10 Fourier centers + phase offsets for a seed (mut=0 path).
+function brainCenters(seed) {
+  const C = [];
+  for (let i = 0; i < 10; i++) {
+    const c = genCenter(seed, i);
+    c.off = 2 * i * 0.6283 + c.a[3] * 3.14159;
+    C.push(c);
+  }
+  return C;
+}
+// sig = [Lfwd, Llat, Rfwd, Rlat] → [force.x, force.y, strafe.x, strafe.y]
+function brainEval(C, sig) {
+  let r0 = 0, r1 = 0, r2 = 0, r3 = 0;
+  for (let i = 0; i < 10; i++) {
+    const c = C[i], o = c.off;
+    const ph = sig[0] * c.f[0] + sig[1] * c.f[1] + sig[2] * c.f[2] + sig[3] * c.f[3];
+    r0 += c.a[0] * Math.sin(ph + o);
+    r1 += c.a[1] * Math.cos(ph + o * 0.7);
+    r2 += c.a[2] * Math.sin(ph * 2 + o * 1.3);
+    r3 += c.a[3] * Math.cos(ph * 2 + o * 0.5);
+  }
+  return [r0, r1, r2, r3];
+}
+
+// Shared 3D trail field (vector deposit). GN^3 cells over [-GR, GR] world.
+const GN = 24, GR = 2.8, GN2 = GN * GN, GLEN = GN * GN * GN * 3;
+function trailEnsure() {
+  if (rt.trail) return;
+  rt.trail = new Float32Array(GLEN);
+  rt.trail2 = new Float32Array(GLEN);
+  rt.brush = new Float32Array(GLEN);
+}
+const gcell = (c) => ((c + GR) / (2 * GR)) * GN - 0.5; // world → continuous cell coord
+function trailSample(p) {
+  const t = rt.trail;
+  const fx = gcell(p[0]), fy = gcell(p[1]), fz = gcell(p[2]);
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), z0 = Math.floor(fz);
+  const dx = fx - x0, dy = fy - y0, dz = fz - z0;
+  let vx = 0, vy = 0, vz = 0;
+  for (let i = 0; i < 8; i++) {
+    const cx = x0 + (i & 1), cy = y0 + ((i >> 1) & 1), cz = z0 + ((i >> 2) & 1);
+    if (cx < 0 || cy < 0 || cz < 0 || cx >= GN || cy >= GN || cz >= GN) continue;
+    const w = ((i & 1) ? dx : 1 - dx) * (((i >> 1) & 1) ? dy : 1 - dy) * (((i >> 2) & 1) ? dz : 1 - dz);
+    const o = (cz * GN2 + cy * GN + cx) * 3;
+    vx += t[o] * w; vy += t[o + 1] * w; vz += t[o + 2] * w;
+  }
+  return [vx, vy, vz];
+}
+function trailDeposit(p, v, w) {
+  const b = rt.brush;
+  const ix = Math.round(gcell(p[0])), iy = Math.round(gcell(p[1])), iz = Math.round(gcell(p[2]));
+  if (ix < 0 || iy < 0 || iz < 0 || ix >= GN || iy >= GN || iz >= GN) return;
+  const o = (iz * GN2 + iy * GN + ix) * 3;
+  b[o] += v[0] * w; b[o + 1] += v[1] * w; b[o + 2] += v[2] * w;
+}
+function trailUpdate(persistence, diffusion) {
+  const b = rt.brush, keep = persistence, add = 1 - persistence;
+  let t = rt.trail;
+  for (let i = 0; i < GLEN; i++) t[i] = t[i] * keep + b[i] * add;
+  const k = Math.min(1, diffusion * 0.5);
+  if (k > 0) {
+    const t2 = rt.trail2;
+    for (let z = 0; z < GN; z++) for (let y = 0; y < GN; y++) for (let x = 0; x < GN; x++) {
+      const o = (z * GN2 + y * GN + x) * 3;
+      for (let c = 0; c < 3; c++) {
+        let sum = 0, cnt = 0;
+        if (x > 0) { sum += t[o - 3 + c]; cnt++; } if (x < GN - 1) { sum += t[o + 3 + c]; cnt++; }
+        if (y > 0) { sum += t[o - GN * 3 + c]; cnt++; } if (y < GN - 1) { sum += t[o + GN * 3 + c]; cnt++; }
+        if (z > 0) { sum += t[o - GN2 * 3 + c]; cnt++; } if (z < GN - 1) { sum += t[o + GN2 * 3 + c]; cnt++; }
+        t2[o + c] = t[o + c] * (1 - k) + (cnt ? sum / cnt : t[o + c]) * k;
+      }
+    }
+    rt.trail = t2; rt.trail2 = t;
+  }
+  b.fill(0);
+}
 
 function perspective(fovy, aspect, near, far) {
   const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
@@ -371,6 +491,13 @@ function buildCreature(inst, link, time) {
     return [v0, v1, v2];
   }
 
+  // fluoddity brain: precompute the seed's 10 Fourier centers once per frame;
+  // each filament senses the shared trail field and steers by the brain output.
+  const brainOn = params.brain > 0;
+  let BC = null;
+  if (brainOn) { trailEnsure(); BC = brainCenters(params.brainSeed); }
+  const LAT = 0.06; // maps brain lateral output → per-segment turn (radians)
+
   // explicit stack instead of recursion (predictable, no call overhead)
   const A = rt.armPhase || [];
   const stack = [];
@@ -426,6 +553,24 @@ function buildCreature(inst, link, time) {
           nn = rot(nn, k, ang); b = rot(b, k, ang);
         }
         t = [tx, ty, tz];
+      }
+      // fluoddity steering: sense the shared trail L/R, run the brain, turn by it.
+      if (brainOn) {
+        const sd = params.sensorDist, gain = params.sensorGain, ang = params.sensorAngle * Math.PI;
+        const lo = rot(t, b, ang), ro = rot(t, b, -ang);
+        const Lv = trailSample([p[0] + lo[0] * sd, p[1] + lo[1] * sd, p[2] + lo[2] * sd]);
+        const Rv = trailSample([p[0] + ro[0] * sd, p[1] + ro[1] * sd, p[2] + ro[2] * sd]);
+        const Lf = (Lv[0] * t[0] + Lv[1] * t[1] + Lv[2] * t[2]) * gain;
+        const Ll = (Lv[0] * nn[0] + Lv[1] * nn[1] + Lv[2] * nn[2]) * gain;
+        const Rf = (Rv[0] * t[0] + Rv[1] * t[1] + Rv[2] * t[2]) * gain;
+        const Rl = (Rv[0] * nn[0] + Rv[1] * nn[1] + Rv[2] * nn[2]) * gain;
+        const base = brainEval(BC, [Lf, Ll, Rf, Rl]);
+        const mirr = brainEval(BC, [Rf, -Rl, Lf, -Ll]); // bilateral mirror (yref)
+        const turn = (base[1] - mirr[1]) * LAT * params.brain;        // lateral force
+        const twist = (base[3] - mirr[3]) * LAT * params.brain * 0.6; // lateral strafe
+        t = rot(t, b, turn); nn = rot(nn, b, turn);
+        nn = rot(nn, t, twist); b = rot(b, t, twist);
+        trailDeposit(p, t, 1); // lay this segment's heading into the shared field
       }
       p = [p[0] + t[0] * seg, p[1] + t[1] * seg, p[2] + t[2] * seg];
     }
@@ -594,6 +739,12 @@ async function init() {
     device.queue.writeBuffer(instBuf, 0, instData, 0, count * FLOATS_PER);
     if (linkCount) device.queue.writeBuffer(linkBuf, 0, linkData, 0, linkCount * FLOATS_PER_LINK);
 
+    // fold this frame's trail deposits into the shared field (freeze on pause)
+    if (params.brain > 0 && rt.trail) {
+      if (rt.paused) rt.brush.fill(0);
+      else trailUpdate(params.trailDecay, params.trailDiffuse);
+    }
+
     // camera
     const cp = Math.cos(params.pitch), sp = Math.sin(params.pitch);
     const eye = [
@@ -724,6 +875,7 @@ function reset() {
   Object.assign(params, DEFAULTS);
   rt.yaw = 0.6; rt.furlAuto = true; rt.furlPhase = 0; rt.furl = 0.5;
   rt.flowT = 0; rt.armPhase = null; rt.armOmega = null;
+  rt.trail = null; rt.trail2 = null; rt.brush = null;
   syncSliders();
 }
 function surprise() {
@@ -740,6 +892,11 @@ function surprise() {
   params.flowScale = r(0.3, 1.6);
   params.flowChurn = r(0.2, 0.9);
   params.couple = r(0.0, 1.6);
+  params.brain = r(0.0, 0.9);
+  params.brainSeed = Math.random();
+  params.sensorGain = r(0.5, 4);
+  params.sensorAngle = r(-0.5, 0.5);
+  rt.trail = null; rt.trail2 = null; rt.brush = null; // fresh field for the new brain
   params.furlSpeed = r(0.3, 1.2);
   params.palette = Math.floor(r(0, PALETTES.length));
   params.spinSpeed = r(-0.3, 0.3);
@@ -799,6 +956,11 @@ function attachInput() {
     else if (k === 'f') { rt.furlAuto = !rt.furlAuto; if (!rt.furlAuto) { params.furl = rt.furl > 0.5 ? 0 : 1; syncSliders(); } }
     else if (k === 'r') reset();
     else if (k === 's') pendingShot = true;
+    else if (k === 'b') { // reseed the fluoddity brain (fresh organism + field)
+      params.brainSeed = Math.random();
+      rt.trail = null; rt.trail2 = null; rt.brush = null;
+      syncSliders();
+    }
   });
 }
 
