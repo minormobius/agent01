@@ -658,6 +658,10 @@
     let mode = "motifs";
     let multiOnly = false;
     let selectedId = null;
+    const FULL_AVAILABLE = !!(C.motifsAll && C.motifsAll.length);
+    let fullMotifs = FULL_AVAILABLE; // motifs graph defaults to the full-corpus picture
+    const usingFull = () => mode === "motifs" && fullMotifs && FULL_AVAILABLE;
+    const CLASS_COLOR = { A: "#c98a4a", B: "#7fb37f", C: "#9a8f6b", D: "#7c8fc9", E: "#9a9aa6", F: "#a07cc9", G: "#b0563b", H: "#6fa8c9", J: "#c9b24a", K: "#c97f9a", L: "#8a7f6b", M: "#56a0a0", N: "#d8b24a", P: "#8a9a6b", Q: "#cf7a5a", R: "#7f8fb3", S: "#b3566b", T: "#c97fae", V: "#9d82b3", W: "#8aa363", Z: "#9aa0a8" };
 
     function isPresent(row, taleId) {
       const v = row[taleId];
@@ -670,7 +674,7 @@
       return false;
     }
     function itemsFor(modeId) {
-      const rows = MODES.find((m) => m.id === modeId).rows();
+      const rows = (modeId === "motifs" && fullMotifs && FULL_AVAILABLE) ? C.motifsAll : MODES.find((m) => m.id === modeId).rows();
       return rows.map((row, i) => {
         const hits = taleIds.filter((id) => isPresent(row, id));
         return {
@@ -687,18 +691,41 @@
     const modesHost = $("#cmp-modes"); modesHost.innerHTML = "";
     MODES.forEach((m) => {
       const b = el("button", "cmp-mode" + (m.id === mode ? " active" : ""), m.label);
-      b.onclick = () => { mode = m.id; selectedId = null; [...modesHost.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); $("#cmp-blurb").textContent = m.blurb; build(); };
+      b.onclick = () => { mode = m.id; selectedId = null; [...modesHost.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); setBlurb(); build(); };
       modesHost.appendChild(b);
     });
+    function setBlurb() {
+      const m = MODES.find((x) => x.id === mode);
+      if (usingFull()) {
+        $("#cmp-blurb").innerHTML = "Every motif carried by any of the nine tales — <strong>" + C.motifsAll.length + " in all</strong>, unioned by Thompson code from each tale's own index and coloured by class. Each leaf is pulled toward the tale(s) that carry it; the shared backbone gathers toward the centre. Switch off <em>All corpus motifs</em> for the smaller curated comparison.";
+      } else { $("#cmp-blurb").textContent = m.blurb; }
+    }
     const togHost = $("#cmp-toggles"); togHost.innerHTML = "";
     const togBtn = el("button", "cmp-toggle", "Multi-tale only");
     togBtn.onclick = () => { multiOnly = !multiOnly; togBtn.classList.toggle("active", multiOnly); build(); };
     togHost.appendChild(togBtn);
-    $("#cmp-blurb").textContent = MODES[0].blurb;
+    if (FULL_AVAILABLE) {
+      const fullBtn = el("button", "cmp-toggle" + (fullMotifs ? " active" : ""), "All corpus motifs");
+      fullBtn.title = "Show every motif from all nine tales, coloured by Thompson class — not just the curated comparison.";
+      fullBtn.onclick = () => { fullMotifs = !fullMotifs; fullBtn.classList.toggle("active", fullMotifs); setBlurb(); build(); };
+      togHost.appendChild(fullBtn);
+    }
+    setBlurb();
 
     function build() {
       host.innerHTML = "";
       $("#cmp-detail").innerHTML = '<div class="md-hint">Click any node above to see how each tale realises it.</div>';
+
+      const leg = $("#cmp-legend");
+      if (leg) {
+        if (usingFull()) {
+          const ORDER = "ABCDEFGHJKLMNPQRSTVWZ";
+          const present = [...new Set(C.motifsAll.map((r) => r.cls))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+          const names = C.motifClassNames || {};
+          leg.innerHTML = present.map((c) => `<span class="cmp-lchip"><span class="cmp-ldot" style="background:${CLASS_COLOR[c] || "#9aa0a8"}"></span>${c}<span class="cmp-lname"> · ${escapeHtml(names[c] || "")}</span></span>`).join("");
+          leg.style.display = "";
+        } else { leg.innerHTML = ""; leg.style.display = "none"; }
+      }
 
       const items = itemsFor(mode).filter((it) => !multiOnly || it.hits.length >= 2);
 
@@ -746,6 +773,7 @@
 
       const ITEM_R = (h) => 5 + 1.7 * Math.min(h, 4);
       const ITEM_FILL = (it) => {
+        if (usingFull()) return CLASS_COLOR[it.row.cls] || "#9aa0a8";
         if (it.hits.length >= 4) return "#e0c178";
         if (it.hits.length === 3) return "#c9a24a";
         if (it.hits.length === 2) return "#8a7f6b";

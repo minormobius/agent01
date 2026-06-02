@@ -421,6 +421,11 @@ svg.propp { display: block; }
 .cmp-toggle.active { background: rgba(201,162,74,0.18); color: var(--gold-soft); border-color: var(--gold); }
 .cmp-mode-blurb { color: var(--ink-dim); font-size: 14px; line-height: 1.55; max-width: 78ch; margin: 6px 0 14px; }
 #cmp-host { height: 70vh; min-height: 540px; max-height: 760px; }
+.cmp-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 2px 0 10px; }
+.cmp-lchip { font-family: var(--sans); font-size: 11px; color: var(--ink-dim); display: inline-flex; align-items: center; }
+.cmp-ldot { width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; display: inline-block; flex: none; }
+.cmp-lname { color: var(--ink-faint); }
+@media (max-width: 620px) { .cmp-lname { display: none; } }
 .cmp-graph .cmp-edge { transition: stroke-opacity 0.18s; }
 .cmp-graph .cmp-tnode { cursor: pointer; }
 .cmp-graph .cmp-tnode:hover rect { fill-opacity: 1; }
