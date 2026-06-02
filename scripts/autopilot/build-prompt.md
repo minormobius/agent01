@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-01 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-02 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, ask, astro, atlas, atproto-data, audio, auto, bakery, bisk, bogo, borsuk, bounty, capset, cards, cat, chess, clock, cluster, corn, crm, cult, curve, data, density, disk, docs, draw, echo, elements, empathy, emsim, erdos, finance, flights, flow, flows, fluoddity, fodder, functions, games, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, inpac, js, judge, kakeya, knotpac, labglass, lexicon, list, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, org, os, pac, packages, paint, pds, photo, phylo, pm, pokemon, poll, post01, prism, proteus, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, splice, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, ternary2, thread, time, torpac, torusworld, track, vault, viazovska, wars, wave, web, weft, wiki, wild, workers, yum, zoom
 
 **Catalog saturation** (sites per category): bluesky 29, data 27, games 24, tools 9, work 6.
 
-**Neighborhood spark** (bisk 2026-06-01, 99 members / 269 posts):
+**Neighborhood spark** (bisk 2026-06-02, 99 members / 256 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, anthropic, github
-- Top post: "big victory for the anti-bedtime left" — @samuel.fm
+- Distinctive words: anthropic, qwen, fluoddity
+- Top post: "according to the spacex filings, their valuation is justified entirely by grok, which will be 90% of enterprise ai, and " — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
