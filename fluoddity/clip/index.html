@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — clip</title>
+<meta name="description" content="Turn a snippet of text into a narrated video: an ElevenLabs voiceover over the RSVP swarm spelling each word, recorded and posted to Bluesky.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --hot: #ff6b3d;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --chrome: 320px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; } .pill:hover { color: var(--accent); border-color: var(--accent); }
+
+#stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+#stage canvas, #preview { width: min(46vw, calc(100dvh - var(--chrome))); height: auto; aspect-ratio: 1; display: block; border: 1px solid var(--rule); border-radius: 12px; background: #000; }
+#preview { display: none; object-fit: cover; }
+@media (max-width: 720px) { #stage { flex-direction: column; } #stage canvas, #preview { width: min(92vw, calc(100dvh - var(--chrome))); } }
+
+#snip { flex: 0 0 auto; padding: 8px 14px 2px; }
+#snip textarea { width: 100%; height: 56px; resize: none; font-family: var(--mono); font-size: 13px; line-height: 1.4; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 9px; padding: 9px 12px; }
+#snip textarea:focus { outline: none; border-color: var(--accent); }
+#snip .meta { font-size: 11px; color: var(--muted); padding: 3px 2px 0; }
+
+#bar { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 14px 4px; }
+.btn { font-family: var(--mono); font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 14px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); } .btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.post { color: #fff; background: var(--hot); border-color: var(--hot); font-weight: 700; }
+select, #voice { font-family: var(--mono); font-size: 12px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 8px; padding: 9px 10px; }
+.dial { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.dial input[type=range] { width: 90px; accent-color: var(--accent); }
+#status { flex: 1 1 100%; font-size: 12px; color: var(--muted); padding: 4px 2px; min-height: 18px; }
+#status.err { color: #ff6b6b; } #status.ok { color: var(--accent); }
+
+#post-area { flex: 0 0 auto; display: none; gap: 8px; align-items: center; padding: 0 14px 12px; flex-wrap: wrap; }
+#post-area.show { display: flex; }
+#caption { flex: 1 1 240px; min-width: 0; font-family: var(--mono); font-size: 13px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 9px; padding: 9px 12px; }
+#fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="../">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · clip</span>
+  <span class="spacer"></span>
+  <span id="viewctl"></span>
+  <span id="auth"></span>
+  <a class="pill" href="../read/">read ↗</a>
+  <a class="pill" href="../text/">say ↗</a>
+</div>
+
+<div id="stage">
+  <div id="field-wrap"></div>
+  <video id="preview" muted playsinline loop controls></video>
+</div>
+
+<div id="snip">
+  <textarea id="text" placeholder="paste ~1000 characters to narrate…"></textarea>
+  <div class="meta" id="charmeta">0 chars</div>
+</div>
+
+<div id="bar">
+  <select id="voice" title="ElevenLabs voice">
+    <option value="21m00Tcm4TlvDq8ikWAM">Rachel</option>
+    <option value="pNInz6obpgDQGcFmaJgB">Adam</option>
+    <option value="EXAVITQu4vr4xnSDxMaL">Bella</option>
+    <option value="ErXwobaYiN019PkySvjV">Antoni</option>
+    <option value="AZnzlk1XvdvUeBnXmlld">Domi</option>
+  </select>
+  <label class="dial">pull <input type="range" id="d-pull" min="0" max="0.04" step="0.001" value="0.022"></label>
+  <label class="dial">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.5"></label>
+  <button class="btn primary" id="btn-make">🎬 make clip</button>
+  <span id="status">sign in (top-right, whitelisted) → write a snippet → make a narrated clip.</span>
+</div>
+
+<div id="post-area">
+  <input id="caption" type="text" maxlength="260" placeholder="post caption…">
+  <button class="btn" id="btn-download">↓ save</button>
+  <button class="btn post" id="btn-post">post to bluesky →</button>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig } from '../engine.js';
+import { bakeText } from '../textfield.js';
+import { mountViewControls, getViewMode } from '../viewcontrols.js';
+import { auth, mountAuthChip } from '../authchip.js';
+import { pickClipMime, canPostVideo, postFeedVideo } from '../bskyvideo.js';
+
+const $ = (s) => document.querySelector(s);
+const DIM = 512, COUNT = 120000, SDFDIM = 384;
+const SAMPLE = "Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen, and regulating the circulation.";
+
+mountAuthChip($('#auth'));
+const status = (m, k) => { const e = $('#status'); e.innerHTML = m; e.className = k || ''; };
+
+let engine = null;
+try { engine = new FluoddityEngine(DIM, COUNT, { text: true }); engine.displayMode = getViewMode(); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This needs WebGL2 with float render targets — ' + (e.message || e); }
+
+if (engine) {
+  $('#field-wrap').appendChild(engine.cv);
+
+  function textConfig() {
+    const g = defaultConfig();
+    g.cohorts = 6; g.rule_seed = Math.random();
+    g.sensor_gain = 3.2; g.sensor_angle = -0.14; g.sensor_distance = 1.1;
+    g.mutation_scale = 0.05; g.global_force_mult = 0.5; g.drag = 0.92;
+    g.strafe_power = 0.16; g.axial_force = 0.05; g.lateral_force = -0.22;
+    g.trail_persistence = 0.92; g.trail_diffusion = 0.6;
+    g.initial_conditions = 1; g.ink = 3.6; g.hue = 0.0;
+    return g;
+  }
+  const cfg = textConfig();
+  engine.load(cfg, 'clip0');
+  engine.textTarget = 0.02; engine.textStrength = 0;
+
+  const ta = $('#text');
+  try { ta.value = sessionStorage.getItem('fluoddity_clip_text') || SAMPLE; } catch { ta.value = SAMPLE; }
+  function refreshMeta() {
+    const n = ta.value.length;
+    $('#charmeta').textContent = n + ' chars' + (n > 1100 ? ' · long clips may exceed Bluesky\'s 60s video limit' : '');
+    $('#caption').value = $('#caption').value || (ta.value.trim().replace(/\s+/g, ' ').slice(0, 180));
+  }
+  ta.addEventListener('input', refreshMeta);
+
+  const setWord = (w) => { engine.setTextData(bakeText(w, SDFDIM, 0.86), SDFDIM, SDFDIM); engine.textStrength = parseFloat($('#d-pull').value); };
+  $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); });
+  $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; });
+
+  // ── make the narrated clip ───────────────────────────────────────────────────
+  let clipBlob = null, rsvpGen = 0, recCtx = null, busy = false;
+  function stopRSVP() { rsvpGen++; }
+  function runRSVP(wordsArr, perWord) {
+    const myGen = ++rsvpGen; let i = 0;
+    (function step() {
+      if (myGen !== rsvpGen || i >= wordsArr.length) return;   // hold last word until audio ends
+      setWord(wordsArr[i]); i++;
+      setTimeout(step, perWord);
+    })();
+  }
+
+  $('#btn-make').addEventListener('click', async () => {
+    if (busy) return;
+    if (!auth.isLoggedIn()) { status('sign in (top-right) first — your handle must be on the clip whitelist.', 'err'); return; }
+    const text = ta.value.trim();
+    if (!text) { status('write something to narrate.', 'err'); return; }
+    busy = true; $('#btn-make').disabled = true; $('#post-area').classList.remove('show'); $('#preview').style.display = 'none'; clipBlob = null;
+    try {
+      // 1) voiceover via the whitelisted worker proxy
+      status('generating voiceover…');
+      const ttsRes = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (auth.getToken() || '') },
+        body: JSON.stringify({ text, voice_id: $('#voice').value }),
+      });
+      if (!ttsRes.ok) { const e = await ttsRes.json().catch(() => ({})); throw new Error(e.error || ('tts ' + ttsRes.status)); }
+      const mp3 = await ttsRes.arrayBuffer();
+
+      // 2) decode → pace the RSVP to the audio
+      recCtx = recCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (recCtx.state === 'suspended') await recCtx.resume();
+      const ab = await recCtx.decodeAudioData(mp3.slice(0));
+      const words = text.split(/\s+/).filter(Boolean);
+      const perWord = Math.max(70, (ab.duration * 1000) / Math.max(1, words.length));
+      status(`recording… ${ab.duration.toFixed(0)}s${ab.duration > 60 ? ' (over Bluesky\'s 60s limit — trim the snippet)' : ''}`);
+
+      // 3) record canvas video + voiceover audio into one stream
+      engine.load(cfg, 'clip' + Math.random());            // clean field — capture the formation
+      const vstream = engine.cv.captureStream(30);
+      const dest = recCtx.createMediaStreamDestination();
+      const src = recCtx.createBufferSource(); src.buffer = ab;
+      src.connect(dest); src.connect(recCtx.destination);   // record + hear
+      const stream = new MediaStream([...vstream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+      const mime = pickClipMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : {});
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        stopRSVP();
+        clipBlob = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+        const url = URL.createObjectURL(clipBlob);
+        const v = $('#preview'); v.src = url; v.style.display = ''; v.muted = false; v.play().catch(() => {});
+        $('#post-area').classList.add('show');
+        status(`clip ready · ${(clipBlob.size / 1e6).toFixed(1)} MB · ${ab.duration.toFixed(0)}s — preview, then post.`, 'ok');
+        busy = false; $('#btn-make').disabled = false;
+      };
+      src.onended = () => { try { rec.stop(); } catch {} };
+      rec.start();
+      src.start();
+      runRSVP(words, perWord);
+    } catch (e) {
+      status('couldn\'t make the clip: ' + (e.message || e), 'err');
+      busy = false; $('#btn-make').disabled = false; stopRSVP();
+    }
+  });
+
+  // ── download + post ──────────────────────────────────────────────────────────
+  $('#btn-download').addEventListener('click', () => {
+    if (!clipBlob) return;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(clipBlob);
+    a.download = `fluoddity-clip-${Date.now()}.${clipBlob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  function buildPost(caption) {
+    const enc = new TextEncoder();
+    const link = 'https://fluoddity.mino.mobi/read/';
+    const body = (caption || '').trim().slice(0, 230) || 'Read it in the swarm.';
+    const label = '▶ read it in the swarm';
+    const out = body + '\n\n' + label;
+    const byteStart = enc.encode(body + '\n\n').length, byteEnd = enc.encode(out).length;
+    return { text: out, facets: [{ index: { byteStart, byteEnd }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: link }] }] };
+  }
+
+  $('#btn-post').addEventListener('click', async () => {
+    if (!clipBlob) return;
+    let user = auth.getUser();
+    if (!user) { status('sign in first.', 'err'); return; }
+    if (!canPostVideo(user)) {
+      status('authorizing video posting…');
+      try { await auth.login(user.handle, { scope: 'atproto transition:generic', returnTo: location.origin + location.pathname }); }
+      catch (e) { status('authorization failed: ' + (e.message || e), 'err'); }
+      return;   // redirects; comes back authorized
+    }
+    $('#btn-post').disabled = true;
+    try {
+      const { text, facets } = buildPost($('#caption').value);
+      const r = await postFeedVideo(auth, user, {
+        blob: clipBlob, aspect: { width: engine.dim, height: engine.dim }, text, facets,
+        altText: ta.value.trim().slice(0, 1000), onStatus: (m) => status(m),
+      });
+      status(`posted · <a href="${r.url}" target="_blank" rel="noopener" style="color:var(--accent)">view on bluesky →</a>`, 'ok');
+    } catch (e) {
+      status('post failed: ' + (e.message || e), 'err');
+    } finally { $('#btn-post').disabled = false; }
+  });
+
+  mountViewControls($('#viewctl'), { engines: () => engine, onReset: () => { engine.load(cfg, 'r' + Math.random()); engine.textStrength = parseFloat($('#d-pull').value); } });
+
+  refreshMeta();
+  setWord(ta.value.trim().split(/\s+/)[0] || 'clip');   // show the first word at rest
+
+  function loop() { engine.step(6); engine.render(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

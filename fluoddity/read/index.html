@@ -82,6 +82,7 @@ a { color: var(--accent); text-decoration: none; }
   <button class="btn primary" id="btn-play">▶ play</button>
   <button class="btn" id="btn-restart" title="restart">⏮</button>
   <button class="btn" id="btn-bop" title="reroll the agents' bop flavor">↻ bop</button>
+  <button class="btn" id="btn-clip" title="make a narrated video of the next ~1000 chars">🎬 clip</button>
   <span class="now" id="now">type a search, pick a book — or hit demo</span>
   <div class="progress"><div id="pfill"></div></div>
 </div>
@@ -238,6 +239,13 @@ if (engine) {
   $('#btn-restart').addEventListener('click', () => { idx = 0; $('#pfill').style.width = '0%'; if (!playing) play(); });
   // reroll the wander/bop brain live — no re-scatter, so the read keeps flowing.
   $('#btn-bop').addEventListener('click', () => { cfg.rule_seed = Math.random(); engine.cfg.rule_seed = cfg.rule_seed; });
+  // hand the next ~1000 chars to /clip for a narrated, postable video.
+  $('#btn-clip').addEventListener('click', () => {
+    let s = '', i = idx;
+    while (i < words.length && s.length < 1000) { s += (s ? ' ' : '') + words[i].w; i++; }
+    try { sessionStorage.setItem('fluoddity_clip_text', s || SAMPLE); } catch {}
+    location.href = '../clip/';
+  });
   $('#btn-search').addEventListener('click', () => { const q = $('#q').value.trim(); if (q) search(q); });
   $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const q = $('#q').value.trim(); if (q) search(q); } });
   $('#btn-demo').addEventListener('click', () => loadWords(SAMPLE, 'Moby-Dick (opening)'));
