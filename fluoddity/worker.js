@@ -33,12 +33,24 @@ async function handleTTS(request, env) {
     me = await r.json();
   } catch { return j({ error: 'auth check failed' }, 502); }
 
-  // 2) whitelist (handles or DIDs, comma-separated in CLIP_WHITELIST)
+  // 2) whitelist (handles or DIDs, comma-separated in CLIP_WHITELIST). /api/me
+  //    sometimes returns the DID in the handle field, so we also resolve any
+  //    handle-shaped entries to DIDs and match on me.did.
   const allow = (env.CLIP_WHITELIST || '').split(',').map(s => s.trim().toLowerCase().replace(/^@/, '')).filter(Boolean);
   const handle = (me.handle || '').toLowerCase();
   const did = (me.did || '').toLowerCase();
-  if (!allow.length || !(allow.includes(handle) || allow.includes(did))) {
-    return j({ error: `@${me.handle || 'you'} is not on the clip whitelist` }, 403);
+  let ok = allow.includes(handle) || allow.includes(did);
+  if (!ok && did) {
+    for (const entry of allow) {
+      if (entry.startsWith('did:')) continue;
+      try {
+        const r = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(entry)}`);
+        if (r.ok) { const d = ((await r.json()).did || '').toLowerCase(); if (d && d === did) { ok = true; break; } }
+      } catch { /* keep checking other entries */ }
+    }
+  }
+  if (!ok) {
+    return j({ error: `${me.handle || me.did || 'you'} is not on the clip whitelist` }, 403);
   }
 
   // 3) ElevenLabs TTS → stream the audio back (same-origin, no CORS needed)
