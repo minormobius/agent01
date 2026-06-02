@@ -144,8 +144,8 @@ struct VSOut {
 // ---------------------------------------------------------------------------
 const DEFAULTS = {
   spinSpeed: 0.18, pitch: 0.45, furlSpeed: 0.55, furl: 0.5,
-  arms: 5, depth: 5, branchLen: 0.95, splay: 0.62, lenFall: 0.74,
-  thickness: 0.045, writhe: 0.6, writheSpeed: 1.4,
+  arms: 5, depth: 5, children: 2, branchLen: 0.95, splay: 0.62, lenFall: 0.74,
+  thickness: 0.045, stiffness: 0.4, writhe: 0.6, writheSpeed: 1.4,
   flow: 0.55, flowScale: 0.7, flowChurn: 0.45, couple: 0.8,
   brain: 0.45, brainSeed: 0.37, sensorGain: 1.5, sensorAngle: -0.14, sensorDist: 0.16,
   trailDecay: 0.92, trailDiffuse: 0.7,
@@ -159,10 +159,12 @@ const SLIDERS = [
   { key: 'furl', label: 'furl amount', min: 0, max: 1, step: 0.01 },
   { key: 'arms', label: 'arms', min: 3, max: 8, step: 1 },
   { key: 'depth', label: 'branch depth', min: 2, max: 7, step: 1 },
+  { key: 'children', label: 'child branches', min: 1, max: 4, step: 1 },
   { key: 'branchLen', label: 'branch length', min: 0.4, max: 1.6, step: 0.01 },
-  { key: 'splay', label: 'fork splay', min: 0.2, max: 1.2, step: 0.01 },
+  { key: 'splay', label: 'fork splay', min: 0.2, max: 1.8, step: 0.01 },
   { key: 'lenFall', label: 'child shrink', min: 0.5, max: 0.9, step: 0.01 },
   { key: 'thickness', label: 'thickness', min: 0.015, max: 0.09, step: 0.002 },
+  { key: 'stiffness', label: 'nodal stiffness', min: 0, max: 1, step: 0.02 },
   { key: 'writhe', label: 'writhe', min: 0, max: 1.6, step: 0.02 },
   { key: 'writheSpeed', label: 'writhe speed', min: 0, max: 3.5, step: 0.02 },
   { key: 'flow', label: 'flow swirl', min: 0, max: 1.2, step: 0.02 },
@@ -394,8 +396,8 @@ function makeTube(sides) {
 // ---------------------------------------------------------------------------
 const FLOATS_PER = 8;        // bead instance: pos(3) scale(3) ct(1) pad(1)
 const FLOATS_PER_LINK = 9;   // link instance: p0(3) p1(3) r0r1(2) ct(1)
-const MAX_INST = 26000;
-const MAX_LINK = 26000;
+const MAX_INST = 40000;
+const MAX_LINK = 40000;
 
 // Kuramoto-coupled arm oscillators: each arm is a phase oscillator that nudges
 // its two ring neighbours. couple=0 → independent (each runs at its own natural
@@ -497,6 +499,10 @@ function buildCreature(inst, link, time) {
   let BC = null;
   if (brainOn) { trailEnsure(); BC = brainCenters(params.brainSeed); }
   const LAT = 0.06; // maps brain lateral output → per-segment turn (radians)
+  // nodal stiffness → how freely each joint rotates under writhe/flow/brain.
+  // low stiffness = loose & floppy (more rotation), high = rigid.
+  const art = mix(2.0, 0.3, params.stiffness);
+  const nc = Math.max(1, Math.round(params.children)); // children per fork
 
   // explicit stack instead of recursion (predictable, no call overhead)
   const A = rt.armPhase || [];
@@ -532,7 +538,7 @@ function buildCreature(inst, link, time) {
       prevP = p; prevR = rr;
       // writhe is now driven by the arm's coupled phase (br.phase advances over
       // time via updateArmPhases), so neighbouring arms undulate in concert.
-      const wob = params.writhe * Math.sin(br.phase + i * 0.6 + br.gen * 1.3);
+      const wob = params.writhe * Math.sin(br.phase + i * 0.6 + br.gen * 1.3) * art;
       const dtheta = curlTotal / segs + wob * 0.14;
       t = rot(t, b, dtheta); nn = rot(nn, b, dtheta);
       const tw = wob * 0.10;
@@ -540,11 +546,12 @@ function buildCreature(inst, link, time) {
       // bend the filament toward the shared flow field — the coupling that makes
       // separate tentacles swirl and braid through the same patch of space.
       if (flowAmt > 0) {
+        const fe = flowAmt * art;
         const fl = flowAt(p);
         const fd = t[0] * fl[0] + t[1] * fl[1] + t[2] * fl[2];
-        let tx = t[0] + flowAmt * (fl[0] - t[0] * fd);
-        let ty = t[1] + flowAmt * (fl[1] - t[1] * fd);
-        let tz = t[2] + flowAmt * (fl[2] - t[2] * fd);
+        let tx = t[0] + fe * (fl[0] - t[0] * fd);
+        let ty = t[1] + fe * (fl[1] - t[1] * fd);
+        let tz = t[2] + fe * (fl[2] - t[2] * fd);
         const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
         const axx = t[1] * tz - t[2] * ty, axy = t[2] * tx - t[0] * tz, axz = t[0] * ty - t[1] * tx;
         const sl = Math.hypot(axx, axy, axz);
@@ -566,8 +573,8 @@ function buildCreature(inst, link, time) {
         const Rl = (Rv[0] * nn[0] + Rv[1] * nn[1] + Rv[2] * nn[2]) * gain;
         const base = brainEval(BC, [Lf, Ll, Rf, Rl]);
         const mirr = brainEval(BC, [Rf, -Rl, Lf, -Ll]); // bilateral mirror (yref)
-        const turn = (base[1] - mirr[1]) * LAT * params.brain;        // lateral force
-        const twist = (base[3] - mirr[3]) * LAT * params.brain * 0.6; // lateral strafe
+        const turn = (base[1] - mirr[1]) * LAT * params.brain * art;        // lateral force
+        const twist = (base[3] - mirr[3]) * LAT * params.brain * 0.6 * art; // lateral strafe
         t = rot(t, b, turn); nn = rot(nn, b, turn);
         nn = rot(nn, t, twist); b = rot(b, t, twist);
         trailDeposit(p, t, 1); // lay this segment's heading into the shared field
@@ -579,9 +586,11 @@ function buildCreature(inst, link, time) {
     push(p, [tipR, tipR, tipR], ctBase + 0.06); // tip cap
 
     if (br.gen < maxD) {
-      for (const side of [-1, 1]) {
-        let ct = rot(t, b, side * params.splay);
-        let cn = rot(nn, b, side * params.splay);
+      for (let j = 0; j < nc; j++) {
+        const frac = nc === 1 ? 0 : (j / (nc - 1) - 0.5) * 2; // fan children across [-1,1]
+        const sang = frac * params.splay;
+        let ct = rot(t, b, sang);
+        let cn = rot(nn, b, sang);
         let cb = norm(cross(ct, cn));
         cn = norm(cross(cb, ct));
         // alternate the bifurcation plane: spin the child frame 90deg about its tangent
@@ -589,7 +598,7 @@ function buildCreature(inst, link, time) {
         stack.push({
           p, t: ct, n: cn, b: cb,
           len: br.len * params.lenFall, rad: br.rad * params.lenFall,
-          gen: br.gen + 1, phase: br.phase + side * 0.9 + br.gen * 0.5,
+          gen: br.gen + 1, phase: br.phase + frac * 0.9 + br.gen * 0.5,
         });
       }
     }
@@ -855,6 +864,7 @@ function buildUI() {
   pauseBtn.addEventListener('click', () => togglePause(pauseBtn));
   document.getElementById('btnReset').addEventListener('click', reset);
   document.getElementById('btnRandom').addEventListener('click', surprise);
+  document.getElementById('btnWild').addEventListener('click', wild);
   document.getElementById('btnBrain').addEventListener('click', reseedBrain);
   document.getElementById('btnShot').addEventListener('click', () => { pendingShot = true; });
   document.getElementById('btnFull').addEventListener('click', toggleFull);
@@ -912,6 +922,43 @@ function surprise() {
   rt.furlAuto = true;
   syncSliders();
 }
+// Full-organism roll: structure + motion + brain + look, all at once. Depth is
+// clamped against the child-branch count so the crown never overruns the bead
+// budget (children^depth grows fast).
+function wild() {
+  const r = (a, b) => a + Math.random() * (b - a);
+  const arms = Math.round(r(3, 8));
+  const children = Math.round(r(1, 3));
+  // keep arms * (1 + children + children^2 + … + children^depth) under ~3400 branches
+  const branchesAt = (d) => children <= 1 ? (d + 1) : (Math.pow(children, d + 1) - 1) / (children - 1);
+  let depth = Math.round(r(3, 7));
+  while (depth > 2 && arms * branchesAt(depth) > 3400) depth--;
+  params.arms = arms; params.children = children; params.depth = depth;
+  params.branchLen = r(0.5, 1.5);
+  params.splay = r(0.3, 1.7);
+  params.lenFall = r(0.6, 0.85);
+  params.thickness = r(0.025, 0.075);
+  params.stiffness = r(0.0, 0.85);
+  params.writhe = r(0.2, 1.4);
+  params.writheSpeed = r(0.6, 3.0);
+  params.flow = r(0.0, 1.0);
+  params.flowScale = r(0.3, 2.0);
+  params.flowChurn = r(0.1, 1.0);
+  params.couple = r(0.0, 1.8);
+  params.furlSpeed = r(0.2, 1.4);
+  params.spinSpeed = r(-0.4, 0.4);
+  params.brain = r(0.0, 1.0);
+  params.brainSeed = Math.random();
+  params.sensorGain = r(0.4, 5);
+  params.sensorAngle = r(-0.6, 0.6);
+  params.sensorDist = r(0.05, 0.45);
+  params.trailDecay = r(0.7, 0.98);
+  params.trailDiffuse = r(0.0, 1.3);
+  params.palette = Math.floor(r(0, PALETTES.length));
+  rt.furlAuto = true; rt.armPhase = null; rt.armOmega = null;
+  rt.trail = null; rt.trail2 = null; rt.brush = null;
+  syncSliders();
+}
 
 // ---------------------------------------------------------------------------
 // Input
@@ -966,6 +1013,7 @@ function attachInput() {
     else if (k === 'r') reset();
     else if (k === 's') pendingShot = true;
     else if (k === 'b') reseedBrain();
+    else if (k === 'w') wild();
   });
 }
 
