@@ -77,3 +77,32 @@ window.ORFEO.propp = {
     verdict: "Strip away the U Punishment, the Pr/Rs Pursuit-Rescue, the L/Ex false-hero cycle, and the η/θ deception cluster — and what remains is the cleanest <strong>quest-with-restoration</strong> arc in our three-tale set. The poem is the wonder-tale's pure form, with the wonder-tale's last act (punish the villain, marry the prize) replaced by something more medieval and more humane: the antagonist bound by his own word, the queen returned by the same door she left through, and the faithful servant given the throne after the king's day. The classical Orpheus lost his Eurydice for not containing himself. The medieval Orfeo's whole rescue depends on containing himself — and Propp's scheme is exactly the right diagnostic to see why.",
   },
 };
+
+/* ── Desire (Greimas's actantial model). *Ref fields → cast ids for the Mythograph. */
+window.ORFEO.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> that drives the lay.",
+  subject: "Orfeo", subjectRef: "orfeo",
+  object: "Heurodis brought back out of Faerie",
+  value: "love kept faith with past all reason — and a kingship worth returning to",
+  sender: "love itself, and the grief of her taking",
+  receiver: "Orfeo, and Winchester restored to its true king", receiverRef: "orfeo",
+  helpers: [
+    { name: "his harp", note: "the magical agent he brings himself — his harping charms the wild beasts, opens the Fairy King's hall, and wins the rash boon" }
+  ],
+  opponent: "the Fairy King, who holds her", opponentRef: "fairyking",
+  unreachable: false,
+  note: "Orfeo's arrow reaches its Object cleanly, and the actants show how: he is the only hero in the corpus whose single Helper is a magical agent he carries himself (the harp), and his Opponent the Fairy King is bound by his own rash word — so the Object is won by art, not force. Set beside Gawain (whose desire half-fails), Orfeo's is the desire that reaches in full."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). */
+window.ORFEO.themes = [
+  { id: "lament", label: "the lament in the wilderness", passage: 3,
+    note: "Ten years of grief in the wastes — the grief-cry raised over the irrevocable, the lament type-scene stretched to fill a whole movement.",
+    lines: "he that had had castles and towers… now on the hard heath he lies" },
+  { id: "threshold", label: "the crossing into Faerie", passage: 4,
+    note: "The rock-cleft — three miles through solid stone onto the bright country: the threshold type-scene, the hero at the very line between the worlds.",
+    lines: "in at a rock the ladies ride, and he after, sparing neither stub nor stone" },
+  { id: "feast", label: "the feast in hall", passage: 5,
+    note: "The Fairy King's hall, where Orfeo harps and wins the rash boon — the hall set-piece; mirrored at the close by the recognition-feast in the steward's hall at Winchester (Movement VI).",
+    lines: "the harping in the bright hall; “ask of me what it be”" }
+];

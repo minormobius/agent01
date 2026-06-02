@@ -65,3 +65,36 @@ window.CULHWCH.propp = {
     verdict: "Strip those away and what remains is the pure <strong>task-and-helpers quest</strong> (ATU 513 crossed with the giant's-daughter / suitor-tasks type) — which is exactly how folklorists classify it. The structure confirms the call-number.",
   },
 };
+
+/* ── Desire (Greimas's actantial model) — hand-authored scholarship.
+   *Ref fields point at cast ids, used only to wire the actant structure into
+   the Mythograph; abstract actants carry no ref. Renderer shared (renderDesire). */
+window.CULHWCH.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> that drives the tale — and Culhwch's is peculiar: the Subject barely lifts a hand.",
+  subject: "Culhwch", subjectRef: "culhwch",
+  object: "Olwen, won for his wife",
+  value: "the destined marriage — and, through it, his coming of age and his place beside Arthur",
+  sender: "the stepmother's geas — the destiny that he shall have no wife but Olwen", senderRef: "stepmother",
+  receiver: "Culhwch, and Arthur's honour pledged to win her", receiverRef: "culhwch",
+  helpers: [
+    { name: "Arthur and his extraordinary companions", ref: "arthur", note: "the war-band of men with impossible skills (Cei, Bedwyr, Gwrhyr, Menw, Gwalchmai…) who do nearly all the actual questing" },
+    { name: "Olwen herself", ref: "olwen", note: "the Object who is also a Helper — she coaches Culhwch how to out-promise her father (the ogre's-daughter motif)" },
+    { name: "the freed Mabon", ref: "mabon", note: "the divine prisoner released so the great hunt can be won" }
+  ],
+  opponent: "Ysbaddaden Bencawr, whose death is fated to follow the marriage", opponentRef: "ysbaddaden",
+  unreachable: false,
+  note: "Culhwch is the corpus's strangest Subject: he names his desire once, at Arthur's gate, and then is almost a spectator — Arthur and the companions perform the wanting for him. The Object (Olwen) doubles as a Helper, and the Opponent's death is the Object's very precondition (Ysbaddaden may not outlive his daughter's wedding). The arrow reaches its Object cleanly — won not by the Subject's deeds but by the band's, and by a catalogue of impossible tasks completed."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). Shared ids for the cross-tale table. */
+window.CULHWCH.themes = [
+  { id: "arming", label: "the arming of Culhwch", passage: 1,
+    note: "The lavish setting-out: the boy on his dapple-grey steed, the gold gear, the two spears, the war-axe — the equipage type-scene that opens the tale, the hero made ready before he is spent.",
+    lines: "the four-cantref steed, the gold bridle, the ivory-hilted sword, the two silver spears" },
+  { id: "boast", label: "the invocation of Arthur's host", passage: 2,
+    note: "The great catalogue: Culhwch invokes some two hundred of Arthur's men by name, each with one impossible skill (the extraordinary-companions, Thompson F601) — the longest oral catalogue in the corpus, the singer filling performance-time with the naming of heroes.",
+    lines: "“I invoke my boon of Cei, and Bedwyr, and Greid son of Eri…”" },
+  { id: "feast", label: "the feast in hall", passage: 7,
+    note: "The hall of Ysbaddaden, where the giant receives the company and the parley is held — the hall set-piece, the seating and the speaking before the tasks are set.",
+    lines: "the giant's hall, the propped eyebrows, the spears thrown and thrown back" }
+];

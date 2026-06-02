@@ -110,3 +110,30 @@ window.PWYLL.propp = {
     verdict: "Strip away the U Punishment (refused on three fronts), the I Branding (Welsh tradition's mark-refusal), and the Pr/Rs Pursuit-Rescue (medieval Insular constant absence) — and what remains is the cleanest possible <strong>compound wonder-tale</strong>: three full Lack → Counteraction → Departure → Donor → Struggle → Liquidation → Recognition arcs, braided into one continuous narrative across two heroes and one heroine. The cross-tale layer (now four tales deep) lets us name what the Welsh imagination keeps: the bargain, the recognition, the restored marriage, the named heir. What it refuses: the wound, the chase, the condemnation. The lie unmade by a sentence; the punishment not asked for; the kingdom continuous. This is the substrate the English Breton lays draw on, and the substrate Sir Gawain and Sir Orfeo each inherit a piece of.",
   },
 };
+
+/* ── Desire (Greimas's actantial model). *Ref fields → cast ids for the Mythograph. */
+window.PWYLL.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. Distinct from the Character web (who is bound to whom), this is the single structure of <em>wanting</em> — and Pwyll's holds the corpus's strangest actantial event: the Subject changes hands mid-tale.",
+  subject: "Pwyll — and, in the second half, Teirnon", subjectRef: "pwyll",
+  object: "a secured line — Rhiannon won, and an heir to follow him",
+  value: "the continuance of the house of Dyfed, and the honour to deserve it",
+  sender: "the men of Dyfed, who press their lord to take a wife and get an heir",
+  receiver: "Dyfed, and the line of Pwyll",
+  helpers: [
+    { name: "Rhiannon", ref: "rhiannon", note: "she chooses Pwyll openly, and devises the bag-trick that defeats the rival" },
+    { name: "Teirnon", ref: "teirnon", note: "in the second half the Subject-role passes to him: he recovers the stolen heir and brings him home" }
+  ],
+  opponent: "Gwawl the rival suitor — then the unseen power that steals the child", opponentRef: "gwawl",
+  unreachable: false,
+  note: "Pwyll is the corpus's one tale whose SUBJECT transfers mid-stream: Pwyll wins Rhiannon and gets an heir, but when the child is snatched the wanting passes to Teirnon, who does the actual recovering and carries the boy back. The Opponent doubles to match — Gwawl the rival, then the unnamed snatching power. Two Subjects, two Opponents, one Object reached: Rhiannon won and Pryderi restored."
+};
+
+/* ── Theme (Parry–Lord oral type-scenes). */
+window.PWYLL.themes = [
+  { id: "feast", label: "the feast in hall", passage: 4,
+    note: "The wedding-feast at Hyfaidd Hen's court — the hall set-piece, the boards and the cup, where Gwawl arrives to claim his rash boon and the bag-trick is sprung.",
+    lines: "the great feast at Hyfaidd's court; the beggar at the door with his bag" },
+  { id: "council", label: "the council in hall", passage: 5,
+    note: "The assembly of the men of Dyfed — first pressing their lord to take a wife and get an heir, then convened over the false charge against Rhiannon: the council type-scene, the matter laid in the middle of the folk.",
+    lines: "the nobles of Dyfed, gathered, urging the king; the judgement on the queen" }
+];
