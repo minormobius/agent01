@@ -167,13 +167,14 @@ struct VSOut {
 // ---- shared parameter groups (organisms compose their schema from these) ----
 export const PALETTES = ['rainbow', 'amber', 'ember', 'ice', 'orchid', 'coral', 'mono'];
 export const DEFAULTS = {
-  motion: { spinSpeed: 0.18, pitch: 0.45, furlSpeed: 0.55, furl: 0.5 },
+  motion: { timeScale: 1, spinSpeed: 0.18, pitch: 0.45, furlSpeed: 0.55, furl: 0.5 },
   flow:   { flow: 0.55, flowScale: 0.7, flowChurn: 0.45 },
   brain:  { brain: 0.45, brainSeed: 0.37, sensorGain: 1.5, sensorAngle: -0.14, sensorDist: 0.16, trailDecay: 0.92, trailDiffuse: 0.7 },
   view:   { fov: 50, dist: 5.2, glow: 0.3, palette: 5, exposure: 1.15, fog: 0.10, bg: 0.7, vignette: 0.6 },
 };
 export const GROUPS = {
   motion: [
+    { key: 'timeScale', label: 'time scale (slo-mo)', min: 0.05, max: 2, step: 0.01 },
     { key: 'spinSpeed', label: 'spin speed', min: -0.8, max: 0.8, step: 0.01 },
     { key: 'pitch', label: 'camera pitch', min: -1.4, max: 1.4, step: 0.01 },
     { key: 'furlSpeed', label: 'furl speed', min: 0, max: 2.0, step: 0.01 },
@@ -585,18 +586,20 @@ export function mountOrganism(organism) {
       const dt = Math.min(0.05, (now - rt.last) / 1000 || 0);
       rt.last = now;
       const time = now / 1000;
-      if (!rt.paused) rt.yaw += params.spinSpeed * dt;
+      // global slo-mo: scale the simulation clock (not the fps meter)
+      const adt = dt * (params.timeScale ?? 1);
+      if (!rt.paused) rt.yaw += params.spinSpeed * adt;
 
       // furl: auto breathing eases toward a sine target; manual uses the slider
       let target = params.furl;
       if (rt.furlAuto && !rt.paused) {
-        rt.furlPhase += params.furlSpeed * dt;
+        rt.furlPhase += params.furlSpeed * adt;
         target = 0.5 - 0.5 * Math.cos(rt.furlPhase);
       }
-      rt.furl += (target - rt.furl) * Math.min(1, dt * 5);
+      rt.furl += (target - rt.furl) * Math.min(1, adt * 5);
 
-      organism.tick?.(ctx, dt);
-      if (!rt.paused) rt.flowT += dt;
+      organism.tick?.(ctx, adt);
+      if (!rt.paused) rt.flowT += adt;
 
       const em = makeEmitter(instData, linkData);
       organism.build(em, ctx, rt.flowT);
