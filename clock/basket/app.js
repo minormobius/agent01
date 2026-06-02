@@ -114,6 +114,7 @@ struct VSOut {
   o.ct = ict;
   return o;
 }
+@fragment fn fs(in : VSOut) -> @location(0) vec4f {
   let n = normalize(in.nrm);
   let L = normalize(U.light.xyz);
   let diff = max(dot(n, L), 0.0);
