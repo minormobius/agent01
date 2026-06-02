@@ -29,12 +29,15 @@
     function zoomAt(mx, my, f) { const nk = clamp(k * f, MIN, MAX); tx = mx - (mx - tx) * (nk / k); ty = my - (my - ty) * (nk / k); k = nk; apply(); }
     svg.addEventListener("wheel", (e) => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     const pts = new Map(); let pinch = null;
-    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, drag: false }); });
     svg.addEventListener("pointermove", (e) => {
-      if (!pts.has(e.pointerId)) return;
-      const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = pts.get(e.pointerId); if (!p) return;
+      const prevx = p.x, prevy = p.y; p.x = e.clientX; p.y = e.clientY;
       const arr = [...pts.values()];
-      if (arr.length === 1) { tx += e.clientX - prev.x; ty += e.clientY - prev.y; apply(); }
+      if (arr.length === 1) {
+        if (!p.drag) { if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < 5) return; p.drag = true; try { svg.setPointerCapture(e.pointerId); } catch (_) {} }
+        tx += e.clientX - prevx; ty += e.clientY - prevy; apply();
+      }
       else if (arr.length >= 2) {
         const r = svg.getBoundingClientRect(); const [a, b] = arr;
         const dist = Math.hypot(a.x - b.x, a.y - b.y);

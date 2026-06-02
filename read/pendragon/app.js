@@ -61,13 +61,23 @@
     }, { passive: false });
     const pts = new Map();
     let pinch = null;
-    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, drag: false }); });
     svg.addEventListener("pointermove", (e) => {
-      if (!pts.has(e.pointerId)) return;
-      const prev = pts.get(e.pointerId);
-      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = pts.get(e.pointerId); if (!p) return;
+      const prevx = p.x, prevy = p.y;
+      p.x = e.clientX; p.y = e.clientY;
       const arr = [...pts.values()];
-      if (arr.length === 1) { tx += e.clientX - prev.x; ty += e.clientY - prev.y; apply(); }
+      if (arr.length === 1) {
+        // Only begin panning — and capturing the pointer — once the gesture is clearly a drag.
+        // Capturing on pointerdown retargets the pointer to the SVG and eats the child node's
+        // click on desktop (touch synthesises its own click, so it only broke on mouse).
+        if (!p.drag) {
+          if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < 5) return;
+          p.drag = true;
+          try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        tx += e.clientX - prevx; ty += e.clientY - prevy; apply();
+      }
       else if (arr.length >= 2) {
         const r = svg.getBoundingClientRect();
         const [a, b] = arr;
@@ -523,7 +533,7 @@
     // ─ Motifs ─
     host.appendChild(el("h3", "cw-grouphead", "Shared motifs · Thompson codes"));
     host.appendChild(el("p", "cw-subnote", C.motifIntro));
-    host.appendChild(header());
+    const tblM = el("div", "cw-table"); tblM.appendChild(header());
     // Sort: most-shared first, then descending; within each tier, stable
     const motifsSorted = C.motifs.slice().sort((a, b) => {
       const ca = taleIds.filter((id) => a[id]).length;
@@ -539,34 +549,37 @@
       if (m.gloss) {
         const g = el("div", "cw-gloss"); g.innerHTML = m.gloss; row.appendChild(g);
       }
-      host.appendChild(row);
+      tblM.appendChild(row);
     });
+    host.appendChild(tblM);
 
     // ─ Propp ─
     host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the corpus"));
     host.appendChild(el("p", "cw-subnote", C.proppIntro));
-    host.appendChild(header());
+    const tblP = el("div", "cw-table"); tblP.appendChild(header());
     C.propp.forEach((p) => {
       const row = el("div", "cw-row");
       row.appendChild(el("div", "cw-code", `<em style="font-family: var(--serif); font-style: italic; color: var(--gold);">${escapeHtml(p.sym)}</em>`));
       row.appendChild(el("div", "cw-name", escapeHtml(p.name)));
       tales.forEach((t) => row.appendChild(taleCell(t.id, p[t.id])));
       if (p.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = p.gloss; row.appendChild(g); }
-      host.appendChild(row);
+      tblP.appendChild(row);
     });
+    host.appendChild(tblP);
 
     // ─ Archetypes ─
     host.appendChild(el("h3", "cw-grouphead", "Character archetypes"));
     host.appendChild(el("p", "cw-subnote", C.archetypeIntro));
-    host.appendChild(header());
+    const tblA = el("div", "cw-table"); tblA.appendChild(header());
     C.archetypes.forEach((a) => {
       const row = el("div", "cw-row");
       row.appendChild(el("div", "cw-code", "—"));
       row.appendChild(el("div", "cw-name", escapeHtml(a.role)));
       tales.forEach((t) => row.appendChild(taleCell(t.id, a[t.id])));
       if (a.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = a.gloss; row.appendChild(g); }
-      host.appendChild(row);
+      tblA.appendChild(row);
     });
+    host.appendChild(tblA);
 
     // ─ The axis of desire (Greimas) ─
     if (C.desireAxis) {
@@ -587,7 +600,7 @@
     if (C.themes) {
       host.appendChild(el("h3", "cw-grouphead", "Shared type-scenes · Parry–Lord"));
       host.appendChild(el("p", "cw-subnote", C.themesIntro));
-      host.appendChild(header());
+      const tblT = el("div", "cw-table"); tblT.appendChild(header());
       const themesSorted = C.themes.slice().sort((a, b) => taleIds.filter((id) => b[id]).length - taleIds.filter((id) => a[id]).length);
       themesSorted.forEach((m) => {
         const row = el("div", "cw-row");
@@ -595,8 +608,9 @@
         row.appendChild(el("div", "cw-name", escapeHtml(m.name) + " " + countLabel(m)));
         tales.forEach((t) => row.appendChild(taleCell(t.id, m[t.id])));
         if (m.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = m.gloss; row.appendChild(g); }
-        host.appendChild(row);
+        tblT.appendChild(row);
       });
+      host.appendChild(tblT);
     }
   }
 
