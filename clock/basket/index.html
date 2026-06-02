@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>Basket Star · furling fractal</title>
+<meta name="description" content="A WebGPU basket star (Gorgonocephalus) on a 5-fold loops fractal body plan — branching arms that furl and unfurl, every element alive. Drag to spin.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="gfx"></canvas>
+
+<div id="nogpu" class="nogpu hidden">
+  <h1>WebGPU not available</h1>
+  <p data-msg>This basket star is drawn on the GPU and needs WebGPU.</p>
+  <p>Try a recent Chrome / Edge (121+) or Safari 18+ on desktop, or enable
+     <code>chrome://flags/#enable-unsafe-webgpu</code>.</p>
+  <a class="crumb" href="../">← clock gallery</a>
+</div>
+
+<header id="hud" class="hud">
+  <a class="crumb" href="../">← clock gallery</a>
+  <div class="title">
+    <span class="kicker">furling fractal · webgpu</span>
+    <h1>Basket Star</h1>
+  </div>
+</header>
+
+<aside id="panel" class="panel">
+  <div class="panel-head">
+    <span>controls</span>
+    <button id="collapse" title="collapse">–</button>
+  </div>
+  <div id="controls" class="controls"></div>
+  <div class="buttons">
+    <button id="btnFurl">✊ furl</button>
+    <button id="btnPause">⏸ pause</button>
+    <button id="btnReset">⟲ reset</button>
+    <button id="btnRandom">✦ surprise</button>
+    <button id="btnShot">⤓ shot</button>
+    <button id="btnFull">⛶ full</button>
+  </div>
+  <div class="hint">drag to spin · wheel to zoom · pinch on touch · <b>H</b> hide · <b>Space</b> pause · <b>F</b> furl/unfurl</div>
+</aside>
+
+<div id="fps" class="fps"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
