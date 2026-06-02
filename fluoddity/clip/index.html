@@ -81,6 +81,7 @@ select, #voice { font-family: var(--mono); font-size: 12px; color: var(--fg); ba
   </select>
   <label class="dial">pull <input type="range" id="d-pull" min="0" max="0.04" step="0.001" value="0.022"></label>
   <label class="dial">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.5"></label>
+  <label class="dial">refill <input type="range" id="d-fill" min="0" max="0.01" step="0.0005" value="0.002" title="how fast agents respawn to keep the swarm full"></label>
   <button class="btn primary" id="btn-make">🎬 make clip</button>
   <span id="status">sign in (top-right, whitelisted) → write a snippet → make a narrated clip.</span>
 </div>
@@ -122,6 +123,7 @@ if (engine) {
     g.mutation_scale = 0.05; g.global_force_mult = 0.5; g.drag = 0.92;
     g.strafe_power = 0.16; g.axial_force = 0.05; g.lateral_force = -0.22;
     g.trail_persistence = 0.92; g.trail_diffusion = 0.6;
+    g.hazard_rate = 0.002;   // steady respawn → refills the swarm over a long clip
     g.initial_conditions = 1; g.ink = 3.6; g.hue = 0.0;
     return g;
   }
@@ -141,6 +143,7 @@ if (engine) {
   const setWord = (w) => { engine.setTextData(bakeText(w, SDFDIM, 0.86), SDFDIM, SDFDIM); engine.textStrength = parseFloat($('#d-pull').value); };
   $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); });
   $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; });
+  $('#d-fill').addEventListener('input', () => { engine.cfg.hazard_rate = parseFloat($('#d-fill').value); cfg.hazard_rate = engine.cfg.hazard_rate; });
 
   // ── make the narrated clip ───────────────────────────────────────────────────
   let clipBlob = null, rsvpGen = 0, recCtx = null, busy = false;
