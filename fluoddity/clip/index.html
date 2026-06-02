@@ -82,6 +82,7 @@ select, #voice { font-family: var(--mono); font-size: 12px; color: var(--fg); ba
   <label class="dial">pull <input type="range" id="d-pull" min="0" max="0.04" step="0.001" value="0.022"></label>
   <label class="dial">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.5"></label>
   <label class="dial">refill <input type="range" id="d-fill" min="0" max="0.01" step="0.0005" value="0.002" title="how fast agents respawn to keep the swarm full"></label>
+  <button class="btn" id="btn-species" title="mutate the swarm into a new species & reset the board — click to cycle">🧬 species</button>
   <label class="dial" title="3 voices in a staggered round, one whispered"><input type="checkbox" id="weird"> 👻 weird</label>
   <label class="dial" title="seconds between the staggered voices">stagger <input type="range" id="d-stagger" min="0.25" max="0.5" step="0.05" value="0.35"></label>
   <button class="btn primary" id="btn-make">🎬 make clip</button>
@@ -130,7 +131,7 @@ if (engine) {
     g.initial_conditions = 1; g.ink = 3.6; g.hue = 0.0;
     return g;
   }
-  const cfg = textConfig();
+  let cfg = textConfig();
   engine.load(cfg, 'clip0');
   engine.textTarget = 0.02; engine.textStrength = 0;
 
@@ -146,10 +147,33 @@ if (engine) {
   }
   ta.addEventListener('input', refreshMeta);
 
-  const setWord = (w) => { engine.setTextData(bakeText(w, SDFDIM, 0.86), SDFDIM, SDFDIM); engine.textStrength = parseFloat($('#d-pull').value); };
+  let lastWord = '';
+  const setWord = (w) => { lastWord = w; engine.setTextData(bakeText(w, SDFDIM, 0.86), SDFDIM, SDFDIM); engine.textStrength = parseFloat($('#d-pull').value); };
   $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); });
   $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; });
   $('#d-fill').addEventListener('input', () => { engine.cfg.hazard_rate = parseFloat($('#d-fill').value); cfg.hazard_rate = engine.cfg.hazard_rate; });
+
+  // 🧬 species: reroll the swarm's genome (brain seed + cohorts + sensing/forces)
+  // into a new species and reset the board. Built from the tuned text base each
+  // click (no drift), so words stay legible; the live dials carry over. Click to
+  // cycle through species.
+  const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+  function nextSpecies() {
+    const g = textConfig();                 // tuned, legible base — no accumulated drift
+    g.rule_seed = Math.random();            // the brain → the species' character
+    g.cohorts = 4 + (Math.random() * 6 | 0);
+    g.initial_conditions = (Math.random() * 3) | 0;
+    g.sensor_gain = rnd(2.4, 4.0); g.sensor_angle = rnd(-0.30, 0.15); g.sensor_distance = rnd(0.8, 1.4);
+    g.lateral_force = rnd(-0.45, -0.10); g.axial_force = rnd(0.02, 0.10); g.strafe_power = rnd(0.08, 0.24);
+    g.hue = Math.random();
+    g.global_force_mult = parseFloat($('#d-bop').value);   // carry the live dials
+    g.hazard_rate = parseFloat($('#d-fill').value);
+    cfg = g;
+    engine.load(cfg, 'sp' + Math.random());
+    engine.textStrength = parseFloat($('#d-pull').value);
+    if (lastWord) setWord(lastWord);        // re-form the current word on the fresh field
+  }
+  $('#btn-species').addEventListener('click', () => { if (!busy) nextSpecies(); });
 
   // ── make the narrated clip ───────────────────────────────────────────────────
   let clipBlob = null, rsvpGen = 0, recCtx = null, busy = false;
