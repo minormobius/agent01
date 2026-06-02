@@ -136,10 +136,13 @@ if (engine) {
 
   const ta = $('#text');
   try { ta.value = sessionStorage.getItem('fluoddity_clip_text') || SAMPLE; } catch { ta.value = SAMPLE; }
+  let captionTouched = false;
+  $('#caption').addEventListener('input', () => { captionTouched = true; });
   function refreshMeta() {
     const n = ta.value.length;
     $('#charmeta').textContent = n + ' chars' + (n > 1100 ? ' · long clips may exceed Bluesky\'s 60s video limit' : '');
-    $('#caption').value = $('#caption').value || (ta.value.trim().replace(/\s+/g, ' ').slice(0, 180));
+    // keep the caption following the snippet until the user edits it by hand
+    if (!captionTouched) $('#caption').value = ta.value.trim().replace(/\s+/g, ' ').slice(0, 180);
   }
   ta.addEventListener('input', refreshMeta);
 
