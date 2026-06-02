@@ -478,9 +478,9 @@ export const TALES = {
       [/\barthur\b|golden couch|golden bed|wounded .* king|warrior[- ]king/i, "arthur"],
       [/healing spring|new spring|spring (gushes|bubbl)|green turf|clear spring/i, "spring"],
       [/seventy (small )?(arched )?(doors|windows)|round tower[- ]house|house of seventy/i, "observatory"],
-      [/ancient,? .*oak|vast,? .* oak|half[- ]hollow oak|great .* oak tree|oak.*(acorn|woodpecker)/i, "oak"],
+      [/ancient,? .*oak tree|vast,? .* oak|half[- ]hollow oak|great .* oak tree|oak.*(acorn|woodpecker)|woodpecker on (a |the )?(branch|bough)/i, "oak"],
       [/maeldin/i, "maeldin"],
-      [/caledonian (wood|forest)|ancient (northern )?forest|forest glade|great northern forest|the old north/i, "caledon"],
+      [/caledonian (wood|forest)|ancient (northern )?forest|forest glade|great northern forest/i, "caledon"],
     ],
   },
 };
