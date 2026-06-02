@@ -8,9 +8,14 @@
 //
 // Rendering: the whole creature is rebuilt on the CPU every frame as a list of
 // beads (instanced spheres, knobbly like the real animal) and re-uploaded, so
-// it genuinely MOVES — a global furl value coils/uncoils the arms while a
-// per-branch writhe term (time + branch phase) makes the filaments undulate
-// independently. Drag to spin, wheel to zoom.
+// it genuinely MOVES — a global furl value coils/uncoils the arms while the
+// filaments undulate. Two coupling mechanisms make the tentacles INTERACT
+// rather than each writhing in isolation:
+//   • a shared swirling flow field (drifting world-space vortices) bends every
+//     filament, so arms passing through the same region braid and pour together;
+//   • Kuramoto phase-coupling between arms lets each nudge its ring neighbours,
+//     so they synchronise into travelling waves (or shimmer at mid-coupling).
+// Drag to spin, wheel to zoom.
 
 const TAU = Math.PI * 2;
 
@@ -110,6 +115,7 @@ const DEFAULTS = {
   spinSpeed: 0.18, pitch: 0.45, furlSpeed: 0.55, furl: 0.5,
   arms: 5, depth: 5, branchLen: 0.95, splay: 0.62, lenFall: 0.74,
   thickness: 0.045, writhe: 0.6, writheSpeed: 1.4,
+  flow: 0.55, flowScale: 0.7, flowChurn: 0.45, couple: 0.8,
   fov: 50, dist: 5.2, glow: 0.3, palette: 5,
   exposure: 1.15, fog: 0.10, bg: 0.7, vignette: 0.6,
 };
@@ -126,6 +132,10 @@ const SLIDERS = [
   { key: 'thickness', label: 'thickness', min: 0.015, max: 0.09, step: 0.002 },
   { key: 'writhe', label: 'writhe', min: 0, max: 1.6, step: 0.02 },
   { key: 'writheSpeed', label: 'writhe speed', min: 0, max: 3.5, step: 0.02 },
+  { key: 'flow', label: 'flow swirl', min: 0, max: 1.2, step: 0.02 },
+  { key: 'flowScale', label: 'flow scale', min: 0.1, max: 2.5, step: 0.05 },
+  { key: 'flowChurn', label: 'flow churn', min: 0, max: 1.5, step: 0.02 },
+  { key: 'couple', label: 'arm coupling', min: 0, max: 2.0, step: 0.02 },
   { key: 'dist', label: 'camera distance', min: 2.5, max: 12, step: 0.1 },
   { key: 'fov', label: 'field of view', min: 25, max: 90, step: 1 },
   { key: 'glow', label: 'glow', min: 0, max: 1.2, step: 0.02 },
@@ -140,6 +150,7 @@ const params = { ...DEFAULTS };
 const rt = {
   yaw: 0.6, paused: false, last: 0,
   furl: 0.5, furlPhase: 0, furlAuto: true,
+  flowT: 0, armPhase: null, armOmega: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -218,6 +229,34 @@ function makeSphere(stacks, sectors) {
 // ---------------------------------------------------------------------------
 const FLOATS_PER = 8;
 const MAX_INST = 26000;
+
+// Kuramoto-coupled arm oscillators: each arm is a phase oscillator that nudges
+// its two ring neighbours. couple=0 → independent (each runs at its own natural
+// frequency); turn it up → arms synchronise into travelling waves around the
+// crown. Slightly-detuned natural frequencies make mid-coupling shimmer.
+function updateArmPhases(dt) {
+  const arms = Math.round(params.arms);
+  let A = rt.armPhase, O = rt.armOmega;
+  if (!A || A.length !== arms) {
+    const old = A || [];
+    A = new Array(arms); O = new Array(arms);
+    for (let a = 0; a < arms; a++) {
+      A[a] = old[a] ?? (a * 1.7);
+      O[a] = 1 + 0.35 * ((arms > 1 ? a / (arms - 1) : 0) - 0.5); // detune ±17%
+    }
+    rt.armPhase = A; rt.armOmega = O;
+  }
+  if (rt.paused) return;
+  const K = params.couple, base = params.writheSpeed;
+  const np = new Array(arms);
+  for (let a = 0; a < arms; a++) {
+    const L = A[(a - 1 + arms) % arms], R = A[(a + 1) % arms];
+    const d = base * O[a] + K * (Math.sin(L - A[a]) + Math.sin(R - A[a]));
+    np[a] = A[a] + d * dt;
+  }
+  for (let a = 0; a < arms; a++) A[a] = np[a];
+}
+
 function buildCreature(inst, time) {
   let n = 0;
   const cap = inst.length - FLOATS_PER;
@@ -239,7 +278,45 @@ function buildCreature(inst, time) {
   const curlOpen = 0.45 * Math.PI;
   const curlClosed = 2.7 * Math.PI;
 
+  // --- shared swirling flow field --------------------------------------------
+  // A handful of drifting vortices in world space. Every filament segment is
+  // bent by the field sampled at its position, so tentacles passing through the
+  // same region flow together — they braid and pour around each other. Vortices
+  // orbit and alternate spin direction, so the field churns and shears.
+  const flowAmt = params.flow;
+  const tight = params.flowScale;
+  const NV = 5;
+  const vort = [];
+  for (let i = 0; i < NV; i++) {
+    const sp = time * params.flowChurn * (0.6 + 0.18 * i);
+    const c = [
+      1.3 * Math.sin(sp + i * 1.7) * Math.cos(i * 0.9),
+      0.7 * Math.sin(sp * 0.8 + i * 2.1),
+      1.3 * Math.cos(sp * 1.07 + i * 1.1),
+    ];
+    const ax = norm([
+      Math.sin(sp * 0.5 + i),
+      0.6 + 0.4 * Math.cos(sp * 0.4 + i * 1.3),
+      Math.cos(sp * 0.6 + i * 0.7),
+    ]);
+    vort.push({ c, ax, s: (i % 2 ? -1 : 1) });
+  }
+  function flowAt(p) {
+    let v0 = 0, v1 = 0, v2 = 0;
+    for (let i = 0; i < NV; i++) {
+      const q = vort[i];
+      const dx = p[0] - q.c[0], dy = p[1] - q.c[1], dz = p[2] - q.c[2];
+      const w = q.s * Math.exp(-(dx * dx + dy * dy + dz * dz) * tight);
+      const a = q.ax;
+      v0 += (a[1] * dz - a[2] * dy) * w;
+      v1 += (a[2] * dx - a[0] * dz) * w;
+      v2 += (a[0] * dy - a[1] * dx) * w;
+    }
+    return [v0, v1, v2];
+  }
+
   // explicit stack instead of recursion (predictable, no call overhead)
+  const A = rt.armPhase || [];
   const stack = [];
   for (let a = 0; a < arms; a++) {
     const ang = a / arms * TAU + 0.0;
@@ -247,7 +324,7 @@ function buildCreature(inst, time) {
     const B = norm(cross(T, [0, 1, 0]));
     const N = norm(cross(B, T));
     const base = [Math.cos(ang) * bodyR * 0.82, 0.02, Math.sin(ang) * bodyR * 0.82];
-    stack.push({ p: base, t: T, n: N, b: B, len: params.branchLen, rad: th0, gen: 0, phase: a * 1.7 });
+    stack.push({ p: base, t: T, n: N, b: B, len: params.branchLen, rad: th0, gen: 0, phase: A[a] ?? (a * 1.7) });
   }
 
   while (stack.length) {
@@ -262,11 +339,30 @@ function buildCreature(inst, time) {
       const r = br.rad * (1 - 0.4 * u);
       const knob = 1 + 0.22 * Math.sin(u * 9 + br.phase);
       push(p, [r * knob, r * knob, r * knob], ctBase + u * 0.06);
-      const wob = params.writhe * Math.sin(time * params.writheSpeed + br.phase + i * 0.6 + br.gen * 1.3);
+      // writhe is now driven by the arm's coupled phase (br.phase advances over
+      // time via updateArmPhases), so neighbouring arms undulate in concert.
+      const wob = params.writhe * Math.sin(br.phase + i * 0.6 + br.gen * 1.3);
       const dtheta = curlTotal / segs + wob * 0.14;
       t = rot(t, b, dtheta); nn = rot(nn, b, dtheta);
       const tw = wob * 0.10;
       nn = rot(nn, t, tw); b = rot(b, t, tw);
+      // bend the filament toward the shared flow field — the coupling that makes
+      // separate tentacles swirl and braid through the same patch of space.
+      if (flowAmt > 0) {
+        const fl = flowAt(p);
+        const fd = t[0] * fl[0] + t[1] * fl[1] + t[2] * fl[2];
+        let tx = t[0] + flowAmt * (fl[0] - t[0] * fd);
+        let ty = t[1] + flowAmt * (fl[1] - t[1] * fd);
+        let tz = t[2] + flowAmt * (fl[2] - t[2] * fd);
+        const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+        const axx = t[1] * tz - t[2] * ty, axy = t[2] * tx - t[0] * tz, axz = t[0] * ty - t[1] * tx;
+        const sl = Math.hypot(axx, axy, axz);
+        if (sl > 1e-6) {
+          const ang = Math.asin(Math.min(1, sl)), k = [axx / sl, axy / sl, axz / sl];
+          nn = rot(nn, k, ang); b = rot(b, k, ang);
+        }
+        t = [tx, ty, tz];
+      }
       p = [p[0] + t[0] * seg, p[1] + t[1] * seg, p[2] + t[2] * seg];
     }
     push(p, [br.rad * 0.6, br.rad * 0.6, br.rad * 0.6], ctBase + 0.06); // tip cap
@@ -393,7 +489,11 @@ async function init() {
     }
     rt.furl += (target - rt.furl) * Math.min(1, dt * 5);
 
-    const count = buildCreature(instData, time);
+    // advance the coupled arm oscillators + the flow-field clock (freeze on pause)
+    updateArmPhases(dt);
+    if (!rt.paused) rt.flowT += dt;
+
+    const count = buildCreature(instData, rt.flowT);
     device.queue.writeBuffer(instBuf, 0, instData, 0, count * FLOATS_PER);
 
     // camera
@@ -519,6 +619,7 @@ function toggleFull() {
 function reset() {
   Object.assign(params, DEFAULTS);
   rt.yaw = 0.6; rt.furlAuto = true; rt.furlPhase = 0; rt.furl = 0.5;
+  rt.flowT = 0; rt.armPhase = null; rt.armOmega = null;
   syncSliders();
 }
 function surprise() {
@@ -531,6 +632,10 @@ function surprise() {
   params.thickness = r(0.03, 0.07);
   params.writhe = r(0.3, 1.2);
   params.writheSpeed = r(0.8, 2.6);
+  params.flow = r(0.2, 0.9);
+  params.flowScale = r(0.3, 1.6);
+  params.flowChurn = r(0.2, 0.9);
+  params.couple = r(0.0, 1.6);
   params.furlSpeed = r(0.3, 1.2);
   params.palette = Math.floor(r(0, PALETTES.length));
   params.spinSpeed = r(-0.3, 0.3);
