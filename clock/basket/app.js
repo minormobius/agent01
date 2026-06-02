@@ -15,14 +15,14 @@
 const TAU = Math.PI * 2;
 
 const WGSL = /* wgsl */`
-struct U {
+struct Uni {
   vp    : mat4x4f,
   cam   : vec4f,   // camPos.xyz, exposure
   light : vec4f,   // lightDir.xyz, ambient
   misc  : vec4f,   // palette, fog, glow, time
   res   : vec4f,   // resX, resY, bgBright, vignette
 };
-@group(0) @binding(0) var<uniform> U : U;
+@group(0) @binding(0) var<uniform> U : Uni;
 
 const TAU = 6.2831853;
 
