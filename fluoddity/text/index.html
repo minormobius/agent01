@@ -67,10 +67,9 @@ a { color: var(--accent); text-decoration: none; }
 </div>
 
 <div id="dials">
-  <label class="dial">pull <input type="range" id="d-pull" min="0" max="0.08" step="0.002" value="0.028"><b id="v-pull"></b></label>
-  <label class="dial">hold <input type="range" id="d-hold" min="0.15" max="0.85" step="0.02" value="0.5"><b id="v-hold"></b></label>
-  <label class="dial">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.6"><b id="v-bop"></b></label>
-  <label class="dial">edge <input type="range" id="d-blur" min="2" max="22" step="1" value="8"><b id="v-blur"></b></label>
+  <label class="dial" title="how hard agents are shoved toward the text">pull <input type="range" id="d-pull" min="0" max="0.03" step="0.001" value="0.01"><b id="v-pull"></b></label>
+  <label class="dial" title="distance band they settle into — 0 = onto the letters, higher = a halo around them">hold <input type="range" id="d-hold" min="0" max="0.2" step="0.005" value="0.03"><b id="v-hold"></b></label>
+  <label class="dial" title="how much the physarum rule still drives them (the bop)">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.6"><b id="v-bop"></b></label>
   <label class="dial">size <input type="range" id="d-size" min="0.4" max="1" step="0.02" value="0.86"><b id="v-size"></b></label>
 </div>
 
@@ -111,9 +110,10 @@ if (engine) {
   engine.textTarget = parseFloat($('#d-hold').value);
   engine.textStrength = 0;   // raised after the first summon
 
-  // ── render the string into the attractor potential ──────────────────────────
-  // Sharp core (legible letters) + layered halos (a wide basin so distant agents
-  // are pulled in too). White = "text here"; the move shader chases its contour.
+  // ── render the string → binary mask → SDF gradient → bake into the field ─────
+  // aphid91's recipe. The baked texture stores, per pixel: rg = unit direction to
+  // the nearest text pixel, b = normalized distance, a = inside mask. The move
+  // shader reads it and shoves agents toward the text from anywhere in the field.
   const FONT = (size) => `800 ${size}px Arial, Helvetica, sans-serif`;
   function fitText(ctx, str, S, sizeScale) {
     const maxW = S * 0.9 * sizeScale, maxH = S * 0.86 * sizeScale;
@@ -122,7 +122,6 @@ if (engine) {
     let best = { lines: [words.join(' ')], size: 10 };
     for (let size = Math.floor(S * 0.5); size >= 10; size -= 2) {
       ctx.font = FONT(size);
-      // greedy wrap
       const lines = []; let cur = words[0];
       for (let i = 1; i < words.length; i++) {
         if (ctx.measureText(cur + ' ' + words[i]).width <= maxW) cur += ' ' + words[i];
@@ -135,35 +134,68 @@ if (engine) {
     }
     return best;
   }
-  function buildPotential(str, blurPx, sizeScale) {
+  function renderMask(str, sizeScale) {
     const S = DIM;
-    const sharp = document.createElement('canvas'); sharp.width = sharp.height = S;
-    const sc = sharp.getContext('2d');
-    sc.fillStyle = '#000'; sc.fillRect(0, 0, S, S);
-    sc.fillStyle = '#fff'; sc.textAlign = 'center'; sc.textBaseline = 'middle';
-    const { lines, size } = fitText(sc, str, S, sizeScale);
-    sc.font = FONT(size);
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, S, S);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const { lines, size } = fitText(ctx, str, S, sizeScale);
+    ctx.font = FONT(size);
     const lh = size * 1.12, y0 = S / 2 - (lines.length - 1) * lh / 2;
-    lines.forEach((l, i) => sc.fillText(l, S / 2, y0 + i * lh));
-
-    // potential = wide faint halo + mid halo + sharp core (lighter compositing)
-    const pot = document.createElement('canvas'); pot.width = pot.height = S;
-    const pc = pot.getContext('2d');
-    pc.fillStyle = '#000'; pc.fillRect(0, 0, S, S);
-    pc.globalCompositeOperation = 'lighter';
-    pc.globalAlpha = 0.45; pc.filter = `blur(${Math.round(blurPx * 6)}px)`; pc.drawImage(sharp, 0, 0);
-    pc.globalAlpha = 0.7;  pc.filter = `blur(${blurPx}px)`; pc.drawImage(sharp, 0, 0);
-    pc.globalAlpha = 1;    pc.filter = 'none'; pc.drawImage(sharp, 0, 0);
-    pc.globalCompositeOperation = 'source-over'; pc.globalAlpha = 1;
-    return pot;
+    lines.forEach((l, i) => ctx.fillText(l, S / 2, y0 + i * lh));
+    const img = ctx.getImageData(0, 0, S, S).data;
+    const mask = new Uint8Array(S * S);
+    for (let i = 0, p = 0; p < S * S; i += 4, p++) mask[p] = img[i] > 128 ? 1 : 0;
+    return mask;
+  }
+  // 8SSEDT-style distance transform: per pixel, the offset (gx,gy) to the nearest
+  // text pixel — distance and direction in one O(N) two-pass sweep.
+  function edt(mask, W, H) {
+    const N = W * H, INF = 1e9;
+    const gx = new Float32Array(N), gy = new Float32Array(N);
+    for (let i = 0; i < N; i++) { if (mask[i]) { gx[i] = 0; gy[i] = 0; } else { gx[i] = INF; gy[i] = INF; } }
+    const cmp = (x, y, cx, cy) => {
+      const qx = x + cx, qy = y + cy;
+      if (qx < 0 || qy < 0 || qx >= W || qy >= H) return;
+      const q = qy * W + qx, p = y * W + x;
+      const ox = gx[q] + cx, oy = gy[q] + cy;
+      if (ox * ox + oy * oy < gx[p] * gx[p] + gy[p] * gy[p]) { gx[p] = ox; gy[p] = oy; }
+    };
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) { cmp(x, y, -1, 0); cmp(x, y, 0, -1); cmp(x, y, -1, -1); cmp(x, y, 1, -1); }
+      for (let x = W - 1; x >= 0; x--) cmp(x, y, 1, 0);
+    }
+    for (let y = H - 1; y >= 0; y--) {
+      for (let x = W - 1; x >= 0; x--) { cmp(x, y, 1, 0); cmp(x, y, 0, 1); cmp(x, y, -1, 1); cmp(x, y, 1, 1); }
+      for (let x = 0; x < W; x++) cmp(x, y, -1, 0);
+    }
+    return { gx, gy };
+  }
+  function bakeSDF(mask) {
+    const S = DIM, N = S * S, RANGE = S * 0.55;
+    const { gx, gy } = edt(mask, S, S);
+    const out = new Uint8Array(N * 4);
+    for (let ty = 0; ty < S; ty++) for (let tx = 0; tx < S; tx++) {
+      const s = (S - 1 - ty) * S + tx;                 // vertical flip → field y-up
+      const ox = gx[s], oy = gy[s], d = Math.hypot(ox, oy);
+      let dx = 0, dy = 0;
+      if (d > 1e-3) { dx = ox / d; dy = -oy / d; }      // dir toward text, y flipped to sim space
+      const o = (ty * S + tx) * 4;
+      out[o] = (dx * 0.5 + 0.5) * 255 | 0;
+      out[o + 1] = (dy * 0.5 + 0.5) * 255 | 0;
+      out[o + 2] = Math.min(1, d / RANGE) * 255 | 0;
+      out[o + 3] = mask[s] ? 255 : 0;
+    }
+    return out;
   }
 
   let lastStr = '';
   function summon(rescatter) {
     lastStr = $('#text-in').value;
-    const pot = buildPotential(lastStr, parseFloat($('#d-blur').value), parseFloat($('#d-size').value));
-    engine.setText(pot);
+    engine.setTextData(bakeSDF(renderMask(lastStr, parseFloat($('#d-size').value))), DIM, DIM);
     engine.textStrength = parseFloat($('#d-pull').value);
+    engine.textTarget = parseFloat($('#d-hold').value);
     if (rescatter) engine.load(cfg, 'text' + Math.random());
   }
 
@@ -171,16 +203,14 @@ if (engine) {
   const setLbl = (id, v) => { const e = $('#v-' + id); if (e) e.textContent = v; };
   function syncLabels() {
     setLbl('pull', parseFloat($('#d-pull').value).toFixed(3));
-    setLbl('hold', parseFloat($('#d-hold').value).toFixed(2));
+    setLbl('hold', parseFloat($('#d-hold').value).toFixed(3));
     setLbl('bop', parseFloat($('#d-bop').value).toFixed(2));
-    setLbl('blur', $('#d-blur').value);
     setLbl('size', parseFloat($('#d-size').value).toFixed(2));
   }
   $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); syncLabels(); });
   $('#d-hold').addEventListener('input', () => { engine.textTarget = parseFloat($('#d-hold').value); syncLabels(); });
   $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; syncLabels(); });
-  $('#d-blur').addEventListener('input', () => { syncLabels(); summon(false); });   // rebuild potential
-  $('#d-size').addEventListener('input', () => { syncLabels(); summon(false); });
+  $('#d-size').addEventListener('input', () => { syncLabels(); summon(false); });   // re-bake the field
   $('#btn-summon').addEventListener('click', () => summon(false));
   $('#text-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') summon(false); });
   $('#btn-bop').addEventListener('click', () => { cfg.rule_seed = Math.random(); engine.load(cfg, 'bop' + Math.random()); engine.textStrength = parseFloat($('#d-pull').value); });

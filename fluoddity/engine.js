@@ -233,23 +233,24 @@ const FRAG_ENTITY_ARENA = FRAG_ENTITY
     'vec4 mirr = evalRule(arSeed, 0.0, floor(cohort), vec4(yref(Rl),yref(Ll)));');
 
 // ── Text-attractor variant (compiled only with { text:true }) ───────────────
-// Adds a text-field sampler and steers each agent toward the u_text_target
-// iso-contour of the (blurred) string: agents pile onto the letters but, because
-// the restoring force vanishes at the contour, keep their physarum bop near the
-// surface instead of freezing. Default-strength 0 = identical to FRAG_ENTITY, so
-// the variant is inert until the surface uploads text and raises the strength.
+// aphid91's recipe: render text → SDF → bake the gradient into a texture, then in
+// the entity update read the texture and apply force + strafe toward the text.
+// The baked field is (dir.xy → nearest text, dist, inside); agents are shoved to
+// the u_text_target distance band, and because the shove ∝ (dist − target) it
+// eases to zero at the band so they keep their physarum bop near the surface.
+// Default-strength 0 = identical to FRAG_ENTITY until the surface uploads text.
 const FRAG_ENTITY_TEXT = FRAG_ENTITY
   .replace(
     '  u_axial_force, u_lateral_force, u_hazard_rate;',
     '  u_axial_force, u_lateral_force, u_hazard_rate;\nuniform sampler2D u_text; uniform float u_text_strength, u_text_target;')
   .replace(
     '  vel = vel*u_drag + force;',
-    '  vec2 _tuv = pos*0.5 + 0.5; const float _te = 0.0034;\n' +
-    '  float _P = texture(u_text, _tuv).r;\n' +
-    '  vec2 _tg = vec2(texture(u_text, _tuv+vec2(_te,0.0)).r - texture(u_text, _tuv-vec2(_te,0.0)).r,\n' +
-    '                  texture(u_text, _tuv+vec2(0.0,_te)).r - texture(u_text, _tuv-vec2(0.0,_te)).r);\n' +
-    '  vec2 _ft = u_text_strength * (u_text_target - _P) * _tg;\n' +
-    '  vel = vel*u_drag + force + _ft;');
+    '  vec4 _T = texture(u_text, pos*0.5 + 0.5);\n' +
+    '  vec2 _push = (_T.rg*2.0 - 1.0) * (u_text_strength * (_T.b - u_text_target));\n' +
+    '  vel = vel*u_drag + force + _push*0.25;')
+  .replace(
+    '  pos += vel; pos += strafe*u_strafe_power;',
+    '  pos += vel; pos += strafe*u_strafe_power; pos += _push;');
 
 const VERT_BRUSH_ARENA = `#version 300 es
 precision highp float;
@@ -466,8 +467,8 @@ export class FluoddityEngine {
     this.brushFBO = fbo(this.brushTex);
 
     // Text-attractor field (opt-in via { text:true }). A LINEAR-filtered RGBA8
-    // texture the surface uploads a rendered string into; the move shader steers
-    // agents toward its u_text_target iso-contour. Starts blank (no pull).
+    // texture the surface bakes an SDF-gradient into (rg = dir→text, b = distance);
+    // the move shader shoves agents toward it. Starts blank (no pull).
     if (this.text) {
       this.textStrength = 0; this.textTarget = 0.5;
       this.textTex = gl.createTexture();
@@ -528,6 +529,17 @@ export class FluoddityEngine {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  // Upload a pre-baked SDF-gradient field as raw RGBA bytes (rg = unit direction
+  // toward the nearest text, b = normalized distance, a = inside mask). Already
+  // oriented for the y-up field, so no flip.
+  setTextData(arr, w, h) {
+    if (!this.text || !this.textTex) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, arr);
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
