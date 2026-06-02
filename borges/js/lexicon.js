@@ -547,8 +547,12 @@
       expand: "They ran the keel down to the water and shipped the long oars, and the salt road took them out, days and days from the sight of any land, the way the sea-tellings always go." },
     { id: "threshold", label: "the crossing", note: "The threshold-scene: the hero at the line between the worlds.", triggers: ["guidance"],
       expand: "At the very edge of it %hero% stood, where the one world stops and the other begins, and went over; for the crossing of that line is the whole of what a hero is for." },
-    { id: "mound", label: "the raising of the mound", note: "The burial set-piece: the howe raised high, the deeds laid in over the bones.", triggers: ["branding", "punishment"],
-      expand: "They raised the mound high and broad, to be seen far off by folk on the water, and laid the deeds in over the bones; for that is the only deathlessness the old tales will grant their mortals." },
+    { id: "mound", label: "the raising of the mound", note: "The burial set-piece: the howe raised high, the deeds laid in over the bones.", triggers: ["struggle", "victory"],
+      expand: [
+        "They raised the mound high and broad, to be seen far off by folk on the water, and laid the deeds in over the bones; for that is the only deathlessness the old tales will grant their mortals.",
+        "So they heaped the howe over the fallen and set a grey stone at its head, and sang the deeds in above the bones; for a song and a hill of earth are the only deathlessness the old tellings allow a mortal.",
+        "And they buried what had fallen deep, and raised the earth high over it, and named the deeds aloud that the mound might keep them; for being remembered is the one immortality the old tales will grant a man."
+      ] },
     { id: "supplication", label: "the supplication", note: "The suppliant at the knees, asking by the holy thing.", triggers: ["donor", "villainy"],
       expand: "Then there was a going-down to the knees and a clasping of them, and the holy name was named in the asking; for a suppliant cannot be turned away without a cost that comes due later." }
   ];

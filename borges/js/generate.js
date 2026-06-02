@@ -534,8 +534,14 @@
       var segs = [], prevRef = { t: null, subj: null, pron: false };
       // proem on the first movement
       if (mvi === 0) { var proem = buildProem(); segs.push({ e: proem }); prevRef.t = proem; }
-      // an oral set-piece, if this movement expands a theme — staged before the beats
-      if (themeByPassage[mv.idx]) emit(segs, fill(themeByPassage[mv.idx].expand, tr2), prevRef);
+      // an oral set-piece, if this movement expands a theme — staged before the beats.
+      // expand may be a single template or a pool of variants (keeps a recurring
+      // set-piece, like the mound, from reading the same in every tale).
+      if (themeByPassage[mv.idx]) {
+        var thExp = themeByPassage[mv.idx].expand;
+        if (Array.isArray(thExp)) thExp = tr2.pick(thExp);
+        emit(segs, fill(thExp, tr2), prevRef);
+      }
       // the beats of this movement, woven
       mv.beats.forEach(function (bi, k) {
         var move = moves[bi], text;
@@ -654,10 +660,15 @@
     }).join("\n\n");
     var exemplar = B.exemplar ? B.exemplar.movements.map(function (m) { return stripTags(m.title) + "\n" + stripTags(m.body); }).join("\n\n") : "";
 
+    var reordered = (T.frame && T.frame.id === "braided") || (T.remixes || []).some(function (r) { return r.kind === "scramble"; });
+    var orderNote = reordered
+      ? "NOTE ON ORDER: this telling is deliberately told out of chronological sequence (the teller's conceit). A movement may name an ending-beat (a wedding, a crowning, a burial) early, or a beginning-beat late. Render each movement faithfully where it stands and let it read as the teller leaping ahead and circling back, not as a contradiction; do NOT reorder the movements or 'correct' the chronology."
+      : "";
     var user = [
       "TALE No " + T.n + ": " + stripTags(T.title),
       "Pattern: " + T.frame.label + ". Furniture: " + T.cultureLabel + (T.secondaryCultureLabel ? " grafted with " + T.secondaryCultureLabel : "") + ".",
       it ? ("Tonight aboard the Tabard, the mood you tell into: " + stripTags(it.text)) : "",
+      orderNote,
       "",
       desire ? ("THE DESIRE (carry this as the spine): " + desire) : "",
       "THE CAST (keep every name exactly): " + cast + ".",
