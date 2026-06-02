@@ -855,6 +855,7 @@ function buildUI() {
   pauseBtn.addEventListener('click', () => togglePause(pauseBtn));
   document.getElementById('btnReset').addEventListener('click', reset);
   document.getElementById('btnRandom').addEventListener('click', surprise);
+  document.getElementById('btnBrain').addEventListener('click', reseedBrain);
   document.getElementById('btnShot').addEventListener('click', () => { pendingShot = true; });
   document.getElementById('btnFull').addEventListener('click', toggleFull);
   window._pauseBtn = pauseBtn;
@@ -866,6 +867,14 @@ function syncSliders() {
 function togglePause(btn) {
   rt.paused = !rt.paused;
   if (btn) { btn.classList.toggle('active', rt.paused); btn.textContent = rt.paused ? '▶ play' : '⏸ pause'; }
+}
+// reseed the fluoddity brain (fresh organism + wipe the field); wake the brain
+// if it's fully off so the action is always visible (matters on touch — no keys)
+function reseedBrain() {
+  params.brainSeed = Math.random();
+  if (params.brain <= 0) params.brain = DEFAULTS.brain;
+  rt.trail = null; rt.trail2 = null; rt.brush = null;
+  syncSliders();
 }
 function toggleFull() {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
@@ -956,11 +965,7 @@ function attachInput() {
     else if (k === 'f') { rt.furlAuto = !rt.furlAuto; if (!rt.furlAuto) { params.furl = rt.furl > 0.5 ? 0 : 1; syncSliders(); } }
     else if (k === 'r') reset();
     else if (k === 's') pendingShot = true;
-    else if (k === 'b') { // reseed the fluoddity brain (fresh organism + field)
-      params.brainSeed = Math.random();
-      rt.trail = null; rt.trail2 = null; rt.brush = null;
-      syncSliders();
-    }
+    else if (k === 'b') reseedBrain();
   });
 }
 
