@@ -82,6 +82,8 @@ select, #voice { font-family: var(--mono); font-size: 12px; color: var(--fg); ba
   <label class="dial">pull <input type="range" id="d-pull" min="0" max="0.04" step="0.001" value="0.022"></label>
   <label class="dial">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.5"></label>
   <label class="dial">refill <input type="range" id="d-fill" min="0" max="0.01" step="0.0005" value="0.002" title="how fast agents respawn to keep the swarm full"></label>
+  <label class="dial" title="3 voices in a staggered round, one whispered"><input type="checkbox" id="weird"> 👻 weird</label>
+  <label class="dial" title="seconds between the staggered voices">stagger <input type="range" id="d-stagger" min="0.25" max="0.5" step="0.05" value="0.35"></label>
   <button class="btn primary" id="btn-make">🎬 make clip</button>
   <span id="status">sign in (top-right, whitelisted) → write a snippet → make a narrated clip.</span>
 </div>
@@ -104,6 +106,7 @@ import { pickClipMime, canPostVideo, postFeedVideo } from '../bskyvideo.js';
 
 const $ = (s) => document.querySelector(s);
 const DIM = 512, COUNT = 120000, SDFDIM = 384;
+const VOICES = ['21m00Tcm4TlvDq8ikWAM', 'pNInz6obpgDQGcFmaJgB', 'EXAVITQu4vr4xnSDxMaL', 'ErXwobaYiN019PkySvjV', 'AZnzlk1XvdvUeBnXmlld'];
 const SAMPLE = "Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen, and regulating the circulation.";
 
 mountAuthChip($('#auth'));
@@ -196,6 +199,19 @@ if (engine) {
     })();
   }
 
+  // Fetch + decode one voice. Returns { buf, alignment }.
+  async function fetchVoice(text, voiceId) {
+    const r = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (auth.getToken() || '') },
+      body: JSON.stringify({ text, voice_id: voiceId }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || ('tts ' + r.status)); }
+    const t = await r.json();
+    if (!t.audio_base64) throw new Error('no audio returned');
+    return { buf: await recCtx.decodeAudioData(b64ToBuf(t.audio_base64)), alignment: t.alignment };
+  }
+
   $('#btn-make').addEventListener('click', async () => {
     if (busy) return;
     if (!auth.isLoggedIn()) { status('sign in (top-right) first — your handle must be on the clip whitelist.', 'err'); return; }
@@ -203,32 +219,55 @@ if (engine) {
     if (!text) { status('write something to narrate.', 'err'); return; }
     busy = true; $('#btn-make').disabled = true; $('#post-area').classList.remove('show'); $('#preview').style.display = 'none'; clipBlob = null;
     try {
-      // 1) voiceover via the whitelisted worker proxy
-      status('generating voiceover…');
-      const ttsRes = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (auth.getToken() || '') },
-        body: JSON.stringify({ text, voice_id: $('#voice').value }),
-      });
-      if (!ttsRes.ok) { const e = await ttsRes.json().catch(() => ({})); throw new Error(e.error || ('tts ' + ttsRes.status)); }
-      const tts = await ttsRes.json();
-      if (!tts.audio_base64) throw new Error('no audio returned');
-      const mp3 = b64ToBuf(tts.audio_base64);
-
-      // 2) decode + build the word schedule (exact alignment, else length-weighted)
       recCtx = recCtx || new (window.AudioContext || window.webkitAudioContext)();
       if (recCtx.state === 'suspended') await recCtx.resume();
-      const ab = await recCtx.decodeAudioData(mp3.slice(0));
-      const schedule = buildSchedule(text, tts.alignment, ab.duration);
-      const synced = !!(tts.alignment && tts.alignment.characters);
-      status(`recording… ${ab.duration.toFixed(0)}s · ${synced ? 'voice-synced' : 'length-paced'}${ab.duration > 60 ? ' (over 60s — trim the snippet)' : ''}`);
 
-      // 3) record canvas video + voiceover audio into one stream
+      // 1) voiceover(s). Weird mode = a staggered round of 3 voices, one whispered.
+      const weird = $('#weird').checked;
+      const lead = $('#voice').value;
+      let plan;
+      if (weird) {
+        status('generating 3 voices…');
+        const others = VOICES.filter(v => v !== lead);
+        const vB = others[0] || lead, vC = others[1] || others[0] || lead;
+        const step = parseFloat($('#d-stagger').value);
+        const [a, b, c] = await Promise.all([fetchVoice(text, lead), fetchVoice(text, vB), fetchVoice(text, vC)]);
+        plan = [
+          { ...a, offset: 0,        whisper: false, gain: 0.95 },
+          { ...b, offset: step,     whisper: false, gain: 0.70 },
+          { ...c, offset: 2 * step, whisper: true,  gain: 0.65 },   // the whisper, behind
+        ];
+      } else {
+        status('generating voiceover…');
+        plan = [{ ...(await fetchVoice(text, lead)), offset: 0, whisper: false, gain: 1.0 }];
+      }
+
+      // 2) schedule the RSVP off the LEAD voice's alignment (or length fallback)
+      const schedule = buildSchedule(text, plan[0].alignment, plan[0].buf.duration);
+      const synced = !!(plan[0].alignment && plan[0].alignment.characters);
+      const totalDur = Math.max(...plan.map(p => p.offset + p.buf.duration));
+      status(`recording… ${totalDur.toFixed(0)}s · ${weird ? 'weird ×' + plan.length + ' · ' : ''}${synced ? 'voice-synced' : 'length-paced'}${totalDur > 60 ? ' (over 60s — trim the snippet)' : ''}`);
+
+      // 3) record canvas video + the mixed voice stream
       engine.load(cfg, 'clip' + Math.random());            // clean field — capture the formation
       const vstream = engine.cv.captureStream(30);
       const dest = recCtx.createMediaStreamDestination();
-      const src = recCtx.createBufferSource(); src.buffer = ab;
-      src.connect(dest); src.connect(recCtx.destination);   // record + hear
+      // glue the layers (and prevent clipping) through a compressor in weird mode;
+      // a transparent gain in normal mode so the single voice is untouched.
+      const master = weird ? recCtx.createDynamicsCompressor() : recCtx.createGain();
+      master.connect(dest); master.connect(recCtx.destination);  // record + hear
+      const sources = plan.map(p => {
+        const s = recCtx.createBufferSource(); s.buffer = p.buf;
+        const g = recCtx.createGain(); g.gain.value = p.gain;
+        if (p.whisper) {                                  // thin + airy → reads as a whisper
+          const hp = recCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1100;
+          const lp = recCtx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 6500;
+          s.connect(hp); hp.connect(lp); lp.connect(g);
+        } else { s.connect(g); }
+        g.connect(master);
+        return s;
+      });
+
       const stream = new MediaStream([...vstream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
       const mime = pickClipMime();
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : {});
@@ -244,14 +283,17 @@ if (engine) {
         const url = URL.createObjectURL(clipBlob);
         const v = $('#preview'); v.src = url; v.style.display = ''; v.muted = false; v.play().catch(() => {});
         $('#post-area').classList.add('show');
-        status(`clip ready · ${(clipBlob.size / 1e6).toFixed(1)} MB · ${ab.duration.toFixed(0)}s — preview, then post.`, 'ok');
+        status(`clip ready · ${(clipBlob.size / 1e6).toFixed(1)} MB · ${totalDur.toFixed(0)}s — preview, then post.`, 'ok');
         busy = false; $('#btn-make').disabled = false;
       };
-      src.onended = () => { stopRSVP(); try { rec.stop(); } catch {} };
+      // lead end → hold last RSVP word; last track end → stop recording
+      let endsLeft = sources.length;
+      sources.forEach((s, k) => { s.onended = () => { if (k === 0) stopRSVP(); if (--endsLeft === 0) { try { rec.stop(); } catch {} } }; });
+
       const recStartedAt = performance.now();
       rec.start();
-      const t0 = recCtx.currentTime + 0.08;   // small lead so the first word lands with the audio
-      src.start(t0);
+      const t0 = recCtx.currentTime + 0.12;   // small lead so the first word lands with the audio
+      sources.forEach((s, k) => s.start(t0 + plan[k].offset));
       driveRSVP(schedule, () => recCtx.currentTime - t0);
     } catch (e) {
       status('couldn\'t make the clip: ' + (e.message || e), 'err');
