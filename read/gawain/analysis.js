@@ -89,18 +89,21 @@ window.GAWAIN.propp = {
    scholarship; the renderer (renderDesire) is shared with the sister tales. */
 window.GAWAIN.desire = {
   intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. This is a different graph from the Character web: that one maps who is bound to whom; this one maps the single structure of <em>wanting</em> that drives the poem.",
-  subject: "Gawain",
+  subject: "Gawain",            subjectRef: "gawain",
   object: "his honour kept whole — and, beneath it, his life",
   value: "the chivalric self, proven flawless against fear",
-  sender: "Arthur's court, and the beheading-game the Green Knight brings into it",
-  receiver: "Gawain, and the Round Table's name for trawþe",
+  sender: "Arthur's court, and the beheading-game the Green Knight brings into it", senderRef: "arthur",
+  receiver: "Gawain, and the Round Table's name for trawþe", receiverRef: "gawain",
   helpers: [
     { name: "the green girdle", note: "a FALSE helper — the aid that becomes the very flaw; structurally a Helper, morally an Opponent" },
-    { name: "Bertilak's lady", note: "ambiguous — tester and tempter, helper to the game and opponent to the vow" },
-    { name: "the pentangle, and Mary within the shield", note: "the true helper, the token of the faith the girdle betrays" }
+    { name: "Bertilak's lady", ref: "lady", note: "ambiguous — tester and tempter, helper to the game and opponent to the vow" },
+    { name: "the pentangle, and Mary within the shield", ref: "mary", note: "the true helper, the token of the faith the girdle betrays" }
   ],
-  opponent: "the Green Knight — and Gawain's own instinct to live",
+  opponent: "the Green Knight — and Gawain's own instinct to live", opponentRef: "greenknight",
   unreachable: false,
+  // *Ref fields (optional) point at cast ids, used only to wire the actant
+  // structure into the Mythograph; abstract actants (the Object, the girdle)
+  // carry no ref and simply don't appear there.
   note: "Gawain half-fails, and the actants show why: the Object is PERFECT honour, and the nick at the neck is the exact gap between the desire and its object. The girdle in the Helper slot is the tell — the only aid in the corpus that is also the wound. Set against the sister tales, Gawain's is the one desire-arrow that reaches its Object only after falling short of it: he keeps his life, but not the flawless self he wanted."
 };
 

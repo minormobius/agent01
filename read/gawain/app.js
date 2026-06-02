@@ -380,11 +380,25 @@
     G.characters.cast.forEach((c) => add("ch-" + c.id, c.name, c.name, "character", { char: c.id }, c.blurb || ""));
     G.motifs.list.forEach((m, i) => add("mo-" + i, (m.code || m.cls) + " — " + m.name, m.code || m.cls, "motif", { tab: "motifs" }, m.gloss || ""));
     G.propp.moves.forEach((mv, i) => add("pp-" + i, mv.sym + " · " + mv.name, mv.sym, "propp", { tab: "propp", anchor: "propp-move-" + i }, mv.realized || ""));
-    const edge = (a, b, type) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type }); };
+    // Theme (Parry–Lord type-scenes) — moment-anchored, like motifs
+    (G.themes || []).forEach((th, i) => add("th-" + i, "Type-scene · " + th.label, "⟜", "theme", { passage: th.passage }, th.note || ""));
+    // Desire (Greimas) — the Object of desire as a single node
+    if (G.desire) add("de-obj", "The Object of desire — " + G.desire.object, "✦", "desire", { tab: "desire" }, (G.desire.value ? G.desire.value + ". " : "") + (G.desire.note || ""));
+    const edge = (a, b, type, dashed) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type, dashed: !!dashed }); };
     G.characters.cast.forEach((c) => (c.appears || []).forEach((n) => edge("ch-" + c.id, "mv-" + n, "appears")));
     const seen = {}; G.characters.cast.forEach((c) => (c.rel || []).forEach((r) => { const k = [c.id, r.to].sort().join("|"); if (seen[k]) return; seen[k] = 1; edge("ch-" + c.id, "ch-" + r.to, "relates"); }));
     G.motifs.list.forEach((m, i) => (m.passages || []).forEach((n) => edge("mo-" + i, "mv-" + n, "exhibits")));
     G.propp.moves.forEach((mv, i) => edge("pp-" + i, "mv-" + mv.passage, "realizes"));
+    (G.themes || []).forEach((th, i) => edge("th-" + i, "mv-" + th.passage, "stages"));
+    // Desire edges: wire the actants to the Object via explicit cast-id refs
+    if (G.desire) {
+      const A = G.desire, used = {};
+      const link = (ref, type, dashed) => { if (ref && !used[ref]) { used[ref] = 1; edge("ch-" + ref, "de-obj", type, dashed); } };
+      link(A.subjectRef, "desires", A.unreachable);
+      link(A.opponentRef, "actant");
+      link(A.senderRef, "actant");
+      (A.helpers || []).forEach((h) => link(h.ref, "actant"));
+    }
     for (let i = 1; i < G.tale.passages.length; i++) edge("mv-" + i, "mv-" + (i + 1), "spine"); // the narrative backbone
     return { nodes, edges };
   }
@@ -394,12 +408,14 @@
     character: { color: "#6fa8c9", label: "Characters", r: 9 },
     motif: { color: "#c97f9a", label: "Motifs", r: 6 },
     propp: { color: "#7fb37f", label: "Functions", r: 6 },
+    theme: { color: "#c9854a", label: "Type-scenes", r: 7 },
+    desire: { color: "#a07cc9", label: "Desire", r: 11 },
   };
-  const MYTH_EDGE = { spine: "#d8b24a", appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f" };
+  const MYTH_EDGE = { spine: "#d8b24a", appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f", stages: "#c9854a", desires: "#a07cc9", actant: "#8a7fa8" };
 
   function renderMythograph() {
     const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
-    const active = { movement: true, character: true, motif: true, propp: true };
+    const active = {}; Object.keys(MYTH_TYPE).forEach((t) => active[t] = true);
     const mobile = (window.innerWidth || 900) < 640;
     const R = (n) => MYTH_TYPE[n.type].r;
     let selected = null, selGroup = null, grown = [];
@@ -427,7 +443,7 @@
     fhost.appendChild(sliders);
 
     const leg = $("#myth-legend"); leg.innerHTML = "";
-    [["spine", "narrative spine (I → IV)"], ["appears", "character → Fitt"], ["relates", "character ↔ character"], ["exhibits", "motif → Fitt"], ["realizes", "function → Fitt"]]
+    [["spine", "narrative spine (I → IV)"], ["appears", "character → Fitt"], ["relates", "character ↔ character"], ["exhibits", "motif → Fitt"], ["realizes", "function → Fitt"], ["stages", "type-scene → Fitt"], ["desires", "Subject → Object (desire)"], ["actant", "actant → Object"]]
       .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey${k === "spine" ? " edgekey-spine" : ""}" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
 
     // ---- build the svg (positions driven by the live simulation) ----
@@ -436,7 +452,7 @@
     const edgeObjs = [], adj = {};
     edges.forEach((e, ei) => {
       const sp = e.type === "spine";
-      const line = svgEl("line", { class: sp ? "myth-spine" : "", stroke: MYTH_EDGE[e.type], "stroke-opacity": sp ? 0.72 : 0.22, "stroke-width": sp ? 2.6 : 1 });
+      const line = svgEl("line", { class: sp ? "myth-spine" : "", stroke: MYTH_EDGE[e.type], "stroke-opacity": sp ? 0.72 : 0.22, "stroke-width": sp ? 2.6 : 1, "stroke-dasharray": e.dashed ? "5 4" : "0" });
       layer.appendChild(line); edgeObjs.push(line);
       (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
     });
@@ -512,11 +528,12 @@
       else if (n.link.char) { const a = el("a", null, "→ Character card"); a.setAttribute("data-char", n.link.char); open.appendChild(a); }
       else if (n.link.tab === "motifs") { const a = el("a", null, "→ In the motif index"); a.onclick = () => switchView("motifs"); open.appendChild(a); }
       else if (n.link.tab === "propp") { const a = el("a", null, "→ In the story graph"); a.onclick = () => { switchView("propp"); if (n.link.anchor) setTimeout(() => { const c = $("#" + n.link.anchor); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 40); }; open.appendChild(a); }
+      else if (n.link.tab === "desire") { const a = el("a", null, "→ The Desire diagram"); a.onclick = () => switchView("desire"); open.appendChild(a); }
       d.appendChild(open);
       // neighbours grouped by edge type
       const groups = {};
       (adj[i] || []).forEach((ei) => { const e = edges[ei]; const other = e.a === i ? e.b : e.a; (groups[e.type] = groups[e.type] || []).push(other); });
-      const GLAB = { spine: "In sequence", appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes" };
+      const GLAB = { spine: "In sequence", appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes", stages: "Stages", desires: "Desire reaches toward", actant: "Bears on the desire of" };
       const order = n.type === "movement" ? ["spine", "appears", "exhibits", "realizes", "relates"] : ["appears", "relates", "exhibits", "realizes", "spine"];
       order.forEach((t) => {
         if (!groups[t]) return;
