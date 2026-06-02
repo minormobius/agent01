@@ -153,7 +153,7 @@
   }
 
   /* ====================== CHARACTERS ====================== */
-  function toRoman(n) { const m = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV"]; return m[n] || ("" + n); }
+  function toRoman(n) { const m = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII"]; return m[n] || ("" + n); }
 
   function renderCharacters() {
     const ch = P.characters; if (!ch) return;
