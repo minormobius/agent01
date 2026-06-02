@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
     inputs:
       tale:
-        description: 'Which tale ("all" or a single slug: gawain|culhwch|orfeo|pwyll|owain|branwen|manawydan|math)'
+        description: 'Which tale ("all" or a single slug: gawain|culhwch|orfeo|pwyll|owain|branwen|manawydan|math|vitamerlini)'
         required: false
         default: 'all'
         type: string
@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tale: [gawain, culhwch, orfeo, pwyll, owain, branwen, manawydan, math]
+        tale: [gawain, culhwch, orfeo, pwyll, owain, branwen, manawydan, math, vitamerlini]
     steps:
       - uses: actions/checkout@v4
 
