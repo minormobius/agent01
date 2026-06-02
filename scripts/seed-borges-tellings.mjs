@@ -62,9 +62,12 @@ function recordFromBanter(ex) {
 
 (async () => {
   const B = loadBorges();
-  if (!B || !B.exemplar) throw new Error("could not load BORGES.exemplar");
-  // each entry: [collection, record]. Extend with more frozen tellings/banters here.
-  const records = [[TELLING, recordFromExemplar(B.exemplar)]];
+  const exemplars = B && (B.exemplars || (B.exemplar ? { 1: B.exemplar } : null));
+  if (!exemplars) throw new Error("could not load BORGES.exemplars");
+  // each entry: [collection, record]. Every hand-authored telling, plus banters.
+  const records = Object.keys(exemplars)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((k) => [TELLING, recordFromExemplar(exemplars[k])]);
   if (B.exemplarBanter) records.push([BANTER, recordFromBanter(B.exemplarBanter)]);
 
   if (DRY) {

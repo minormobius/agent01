@@ -114,13 +114,15 @@
       ' · <a class="prov-lex" href="' + lex + '" target="_blank" rel="noopener">lexicon</a>';
     return p;
   }
+  function localExemplar() { return (B.exemplars && B.exemplars[T.n]) || (T.n === 1 ? B.exemplar : null); }
   function setupLive() {
     var bar = $("#live-bar"); if (!bar) return;
     bar.innerHTML = ""; proceduralHTML = $("#telling").innerHTML;
-    if (typeof fetch === "undefined") { if (T.n === 1 && B.exemplar) renderLive(B.exemplar, "local"); return; }
+    if (typeof fetch === "undefined") { var ex0 = localExemplar(); if (ex0) renderLive(ex0, "local"); return; }
     pullRecord(TELLING, T.n).then(function (rec) {
+      var ex = localExemplar();
       if (rec && rec.movements && rec.movements.length) renderLive(rec, "atproto"); // the book reads its own atproto record
-      else if (T.n === 1 && B.exemplar) renderLive(B.exemplar, "local");            // hand-authored fallback before seeding
+      else if (ex) renderLive(ex, "local");                                         // hand-authored fallback before seeding
       else showSummon();                                                            // offer to summon (worker → Gemini → atproto)
     });
   }
