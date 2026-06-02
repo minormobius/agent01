@@ -13,6 +13,9 @@
      MORPHYX_HANDLE=morphyxmino.bsky.social MORPHYX_PASSWORD=xxxx \
        node scripts/borges-clear-gemini.mjs            # deletes
      node scripts/borges-clear-gemini.mjs --dry        # no creds needed? (still needs login to list)
+
+   Re-roll note: a push touching this file re-fires the clear so the book can be
+   rolled fresh against the current engine (e.g. after the burial-mound gate).
 */
 import { resolveHandle, resolvePds, PdsClient } from "../packages/atproto/pds.js";
 

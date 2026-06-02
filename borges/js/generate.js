@@ -417,9 +417,14 @@
     // pick one or two to EXPAND, and stage the set-piece at the head of that movement.
     var themeByPassage = {}, deployedThemes = [];
     (function () {
-      var fnByMvt = {}; moves.forEach(function (mv) { (fnByMvt[mv.passage] = fnByMvt[mv.passage] || {})[mv.id] = true; });
+      var fnByMvt = {}, allFns = {}; moves.forEach(function (mv) { (fnByMvt[mv.passage] = fnByMvt[mv.passage] || {})[mv.id] = true; allFns[mv.id] = true; });
       var cands = [];
       lex.THEMES.forEach(function (th) {
+        // gate: a theme with `require` only fires when the tale contains all those
+        // functions (e.g. the burial mound needs a real fought-and-won combat —
+        // both struggle AND victory — so it never lands on a non-lethal blow-game
+        // or a trickster's bloodless win).
+        if (th.require && !th.require.every(function (f) { return allFns[f]; })) return;
         for (var i = 1; i <= M; i++) { if (th.triggers.some(function (t) { return fnByMvt[i] && fnByMvt[i][t]; })) { cands.push({ th: th, mvt: i }); break; } }
       });
       var thr = rand.fork("themes");

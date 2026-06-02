@@ -547,7 +547,7 @@
       expand: "They ran the keel down to the water and shipped the long oars, and the salt road took them out, days and days from the sight of any land, the way the sea-tellings always go." },
     { id: "threshold", label: "the crossing", note: "The threshold-scene: the hero at the line between the worlds.", triggers: ["guidance"],
       expand: "At the very edge of it %hero% stood, where the one world stops and the other begins, and went over; for the crossing of that line is the whole of what a hero is for." },
-    { id: "mound", label: "the raising of the mound", note: "The burial set-piece: the howe raised high, the deeds laid in over the bones.", triggers: ["struggle", "victory"],
+    { id: "mound", label: "the raising of the mound", note: "The burial set-piece: the howe raised high, the deeds laid in over the bones.", triggers: ["victory"], require: ["struggle", "victory"],
       expand: [
         "They raised the mound high and broad, to be seen far off by folk on the water, and laid the deeds in over the bones; for that is the only deathlessness the old tales will grant their mortals.",
         "So they heaped the howe over the fallen and set a grey stone at its head, and sang the deeds in above the bones; for a song and a hill of earth are the only deathlessness the old tellings allow a mortal.",
