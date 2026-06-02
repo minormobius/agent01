@@ -81,6 +81,7 @@ a { color: var(--accent); text-decoration: none; }
 <div id="transport">
   <button class="btn primary" id="btn-play">▶ play</button>
   <button class="btn" id="btn-restart" title="restart">⏮</button>
+  <button class="btn" id="btn-bop" title="reroll the agents' bop flavor">↻ bop</button>
   <span class="now" id="now">type a search, pick a book — or hit demo</span>
   <div class="progress"><div id="pfill"></div></div>
 </div>
@@ -235,6 +236,8 @@ if (engine) {
   $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; syncLabels(); });
   $('#btn-play').addEventListener('click', () => { if (playing) pause(); else play(); });
   $('#btn-restart').addEventListener('click', () => { idx = 0; $('#pfill').style.width = '0%'; if (!playing) play(); });
+  // reroll the wander/bop brain live — no re-scatter, so the read keeps flowing.
+  $('#btn-bop').addEventListener('click', () => { cfg.rule_seed = Math.random(); engine.cfg.rule_seed = cfg.rule_seed; });
   $('#btn-search').addEventListener('click', () => { const q = $('#q').value.trim(); if (q) search(q); });
   $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const q = $('#q').value.trim(); if (q) search(q); } });
   $('#btn-demo').addEventListener('click', () => loadWords(SAMPLE, 'Moby-Dick (opening)'));
