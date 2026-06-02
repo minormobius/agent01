@@ -281,7 +281,9 @@
     const P = G.propp; if (!P) return;
     $("#propp-intro").innerHTML = P.intro;
     if (G.themes && G.themes.length) {
-      const td = el("div", "propp-themes", "<strong>Oral type-scenes (Parry–Lord):</strong> " + G.themes.map((x) => `<a data-passage="${x.passage}">${escapeHtml(x.label)}</a>`).join(" · ") + " <span class=\"pt-note\">— the set-pieces of oral composition; click to read.</span>");
+      const td = el("div", "propp-themes");
+      td.innerHTML = '<div class="pt-head">Oral type-scenes <span>· Parry–Lord</span></div>'
+        + G.themes.map((x) => `<a class="pt-row" data-passage="${x.passage}"><span class="pt-id">⟜ ${escapeHtml(x.label)}</span><span class="pt-note">${x.note}</span></a>`).join("");
       $("#propp-intro").after(td);
     }
     const actColor = {}; P.acts.forEach((a) => actColor[a.id] = a.color);
@@ -602,17 +604,43 @@
     svg.appendChild(mkText(W / 2, 28, "the axis of transmission", 12.5, "#8a7f6b", true));
     svg.appendChild(mkText(W - 142, H / 2, A.unreachable ? "desire (it cannot reach)" : "the axis of desire", 12.5, "#8a7f6b", true));
     svg.appendChild(mkText(W / 2, H - 12, "the axis of power", 12.5, "#8a7f6b", true));
+    const full = { sender: A.sender, object: A.object, receiver: A.receiver, helper: helperLabel, subject: A.subject, opponent: A.opponent };
+    const wrap2 = (s, max) => {
+      if (s.length <= max) return [s];
+      const words = s.split(" "); let a = "", b = "";
+      words.forEach((w) => { if (!b && (a + " " + w).trim().length <= max) a = (a + " " + w).trim(); else b = (b + " " + w).trim(); });
+      if (b.length > max) b = b.slice(0, max - 1).replace(/\s\S*$/, "") + "…";
+      return b ? [a, b] : [a];
+    };
     Object.keys(pos).forEach((k) => {
       const p = pos[k];
       const col = k === "subject" ? "#c9a24a" : k === "object" ? "#c97f9a" : k === "opponent" ? "#c25b4a" : "#6fa8c9";
-      const g = svgEl("g");
+      const g = svgEl("g", { class: "desire-node" });
       g.appendChild(svgEl("rect", { x: p.x - NW / 2, y: p.y - NH / 2, width: NW, height: NH, rx: 9, fill: col, "fill-opacity": 0.14, stroke: col, "stroke-width": 1.5 }));
-      g.appendChild(mkText(p.x, p.y - 10, label[k][0].toUpperCase(), 11, col));
-      let nm = label[k][1]; if (nm.length > 30) nm = nm.slice(0, 29).replace(/\s\S*$/, "") + "…";
-      g.appendChild(mkText(p.x, p.y + 12, nm, 12.5, "#e8e0d2"));
+      g.appendChild(mkText(p.x, p.y - NH / 2 + 16, label[k][0].toUpperCase(), 11, col));
+      const lines = wrap2(label[k][1], 26);
+      if (lines.length === 1) g.appendChild(mkText(p.x, p.y + 10, lines[0], 12.5, "#e8e0d2"));
+      else { g.appendChild(mkText(p.x, p.y + 4, lines[0], 12, "#e8e0d2")); g.appendChild(mkText(p.x, p.y + 20, lines[1], 12, "#e8e0d2")); }
+      const ttl = svgEl("title"); ttl.textContent = label[k][0] + ": " + full[k]; g.appendChild(ttl);
+      g.style.cursor = "pointer";
+      g.addEventListener("click", () => showDetail(k, col));
       svg.appendChild(g);
     });
     const host = $("#desire-host"); host.innerHTML = ""; host.appendChild(svg);
+    let det = $("#desire-detail"); if (!det) { det = el("div"); det.id = "desire-detail"; host.after(det); }
+    const roleText = {
+      subject: "SUBJECT · who wants", object: "OBJECT · what is wanted", receiver: "RECEIVER · who gains if it succeeds",
+      sender: "SENDER · who sets the wanting in motion", helper: "HELPER · what aids the wanting", opponent: "OPPONENT · what stands against it"
+    };
+    function showDetail(k, col) {
+      let body;
+      if (k === "helper" && A.helpers && A.helpers.length) body = A.helpers.map((h) => h.note ? `<strong>${escapeHtml(h.name)}</strong> — ${h.note}` : `<strong>${escapeHtml(h.name)}</strong>`).join("<br>");
+      else if (k === "object") body = `<strong>${escapeHtml(A.object)}</strong> <span class="dd-val">— beneath the plot, <em>${escapeHtml(A.value)}</em></span>`;
+      else body = `<strong>${escapeHtml(full[k])}</strong>`;
+      det.innerHTML = `<span class="dd-role" style="color:${col}">${roleText[k] || k}</span><span class="dd-body">${body}</span>`;
+    }
+    showDetail("subject", "#c9a24a");
+    if (!$("#desire-hint")) { const hint = el("p", "desire-hint", "Click any actant to expand it; hover for the full label."); hint.id = "desire-hint"; det.after(hint); }
     let s = `<strong>${escapeHtml(A.subject)}</strong> desires <strong>${escapeHtml(A.object)}</strong> — which is, beneath the plot, <em>${escapeHtml(A.value)}</em>. It is set in motion by <strong>${escapeHtml(A.sender)}</strong>, for <strong>${escapeHtml(A.receiver)}</strong>. `;
     if (A.helpers && A.helpers.length) {
       s += `<strong>${escapeHtml(A.helpers.map((h) => h.name).join(" and "))}</strong> aid the wanting`;
