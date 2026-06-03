@@ -23,3 +23,7 @@ data/yum-compounds.json
 
 # Wrangler local state
 .wrangler/
+
+# j/ (ImageJ in the browser) — Rust build artifacts; pkg/ is rebuilt in CI
+j/wasm/target/
+j/pkg/

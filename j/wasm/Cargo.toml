@@ -1,0 +1,26 @@
+[package]
+name = "imagej"
+version = "0.1.0"
+edition = "2021"
+description = "ImageJ-in-the-browser heavy compute kernel (WASM)"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+# wasm-opt pulls a binaryen binary at build time; skip it so CI builds are
+# hermetic and don't depend on a GitHub release download. opt-level=3 + lto
+# already gives a compact module.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

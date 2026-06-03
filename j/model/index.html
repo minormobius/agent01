@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>j.mino.mobi/model — Fickian diffusion fit</title>
+<meta name="description" content="Fit radial brightness curves to a Fickian sphere-diffusion model and a semi-empirical surface-penetration model. All in-browser.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header>
+  <div class="brand"><b>j</b>.mino.mobi</div>
+  <nav>
+    <a href="/">ImageJ</a>
+    <a href="/model/" class="active">Model</a>
+    <a href="/playground/">Playground</a>
+  </nav>
+  <div class="spacer"></div>
+  <div class="ver" id="ver">loading wasm…</div>
+</header>
+
+<div class="layout">
+  <div class="stage">
+    <div class="row" style="margin-bottom:8px">
+      <button id="loadBtn" class="ghost">Reload from ImageJ tab</button>
+      <input type="file" id="file" accept=".json,.csv" style="font-size:12px">
+      <span class="hint" id="dsInfo">no dataset</span>
+    </div>
+    <canvas id="fitPlot" class="plot" style="height:340px"></canvas>
+    <div class="legend">
+      <div class="it"><span class="sw" style="background:#7aa2ff"></span>data (mean ±σ)</div>
+      <div class="it"><span class="sw" style="background:#39d3bb"></span>best fit (bold)</div>
+      <div class="it"><span class="sw" style="background:#9aa7b4"></span>other models</div>
+    </div>
+    <canvas id="histPlot" class="plot" style="height:200px;margin-top:12px"></canvas>
+    <div class="hint" id="histInfo">population fit will appear here</div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h3>Try a model (clean demo data)</h3>
+      <div class="hint">Synthesises an analytic radial curve so each fit can be seen to win its own physics. Image-derived curves are blurrier, where Weibull is robustly best.</div>
+      <div class="row"><label>model</label>
+        <select id="demoModel">
+          <option value="fickian">Fickian transient</option>
+          <option value="thiele">Reaction–diffusion (Thiele)</option>
+          <option value="weibull">Stretched (Weibull)</option>
+          <option value="biexp">Bi-exponential / core–shell</option>
+          <option value="exp">Exponential</option>
+        </select>
+      </div>
+      <div class="row"><label>noise</label><input type="range" id="demoNoise" min="0" max="12" step="0.5" value="3"><span class="val" id="demoNoiseV">3</span></div>
+      <div class="btnrow"><button class="ghost" id="demoBtn">Generate demo dataset</button></div>
+    </div>
+
+    <div class="card">
+      <h3>Fit</h3>
+      <div class="row"><label>fit target</label>
+        <select id="target"><option value="mean">population mean</option><option value="each">each curve (population)</option></select>
+      </div>
+      <div class="btnrow"><button id="fitBtn">Fit all models</button></div>
+    </div>
+
+    <div class="card">
+      <h3>Model comparison <span class="muted" style="font-weight:400;text-transform:none">(lower AIC = better)</span></h3>
+      <table class="tbl" id="cmpTbl"><tbody><tr><td class="muted" colspan="4">run a fit</td></tr></tbody></table>
+      <div class="hint">ΔAIC&lt;2 ≈ tie · 4–7 clearly better · &gt;10 decisive. AIC trades fit quality against parameter count.</div>
+    </div>
+
+    <div class="card">
+      <h3>Best model — <span id="bestName">—</span></h3>
+      <table class="tbl" id="bestTbl"><tbody><tr><td class="muted" colspan="2">run a fit</td></tr></tbody></table>
+      <ul class="notes" id="bestNotes"></ul>
+    </div>
+
+    <div class="card">
+      <h3>Physical scale → D</h3>
+      <div class="hint">Convert the dimensionless fit to a diffusion coefficient.</div>
+      <div class="row"><label>sphere R (µm)</label><input type="number" id="Rum" value="25"></div>
+      <div class="row"><label>elapsed t (s)</label><input type="number" id="tsec" value="600"></div>
+      <div class="row" style="margin-top:6px"><span class="muted">D = τ·R²/t</span><span class="big" id="Dval" style="margin-left:auto">—</span></div>
+      <div class="hint" id="Dpop"></div>
+    </div>
+
+    <div class="card">
+      <h3>What power law should this follow?</h3>
+      <div class="hint">Fickian diffusion <i>into</i> a sphere held at fixed surface concentration:</div>
+      <div class="formula">φ(ρ,τ) = 1 + (2/πρ)·Σ (−1)ⁿ/n · sin(nπρ)·e^(−n²π²τ)</div>
+      <div class="hint">Total uptake:</div>
+      <div class="formula">Mₜ/M∞ = 1 − (6/π²)·Σ (1/n²)·e^(−n²π²τ)   (τ = Dt/R²)</div>
+      <ul class="notes">
+        <li><b>Early-time power law:</b> Mₜ/M∞ ≈ (6/√π)·√(Dt/R²) − 3Dt/R² → <b>∝ t^½</b>.</li>
+        <li><b>Korsmeyer–Peppas</b> Mₜ/M∞ = k·tⁿ: a sphere's Fickian exponent is <b>n ≈ 0.43</b> (slab 0.50, cylinder 0.45).</li>
+        <li>Penetration depth grows as <b>λ ≈ √(Dt)</b> — the semi-empirical exp model captures this directly.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+<script type="module" src="/model/model.js"></script>
+</body>
+</html>
