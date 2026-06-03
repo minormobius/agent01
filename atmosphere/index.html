@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>atmosphere — the Bluesky corner of mino.mobi</title>
+<meta name="description" content="Every Bluesky / ATProto tool built at mino.mobi, in one place. Social apps, network maps, account analysis, thread tools, media — plus the shared OAuth worker, feed generator, and atproto libraries underneath.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="atmosphere — the Bluesky corner of mino.mobi">
+<meta property="og:description" content="Every Bluesky / ATProto tool built at mino.mobi, in one place.">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta property="og:url" content="https://atmosphere.mino.mobi">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #8b0000;
+  --accent: #8b0000;
+  --accent-faint: rgba(139, 0, 0, 0.06);
+  --tag-bg: rgba(139, 0, 0, 0.08);
+  --tag-text: #8b0000;
+  /* Bluesky accent — the catalogue's own bluesky colour */
+  --sky: #1a82c4;
+  --sky-faint: rgba(110, 193, 228, 0.12);
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --text: #d4d4d4;
+    --muted: #777;
+    --rule: #333;
+    --link: #c45;
+    --accent: #c45;
+    --accent-faint: rgba(204, 68, 85, 0.08);
+    --tag-bg: rgba(204, 68, 85, 0.12);
+    --tag-text: #e67;
+    --sky: #6ec1e4;
+    --sky-faint: rgba(110, 193, 228, 0.10);
+  }
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2.4rem 1.4rem 5rem;
+}
+
+header { margin-bottom: 2.4rem; }
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 {
+  font-family: var(--serif); font-size: 2.8rem; font-weight: 600;
+  letter-spacing: -0.01em; line-height: 1.05;
+}
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.lede {
+  font-size: 1.02rem; color: var(--muted); margin-top: 1.1rem; max-width: 60ch;
+}
+.lede b { color: var(--text); font-weight: 600; }
+
+/* sky rule under the title, echoing the site's red rule */
+.sky-rule { height: 3px; width: 88px; background: var(--sky); margin: 1.3rem 0 0; border-radius: 2px; }
+
+/* category nav */
+.catnav {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  margin: 2rem 0 2.6rem;
+}
+.catnav a {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0.32rem 0.6rem;
+  transition: all 0.15s ease;
+}
+.catnav a:hover { color: var(--sky); border-color: var(--sky); background: var(--sky-faint); }
+
+section { margin-bottom: 3rem; scroll-margin-top: 1rem; }
+.section-label {
+  font-family: var(--mono); font-size: 0.65rem; font-weight: 400;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: 0.4rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule);
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.section-label .count { color: var(--sky); }
+.section-blurb { font-size: 0.9rem; color: var(--muted); margin: 0.8rem 0 1.4rem; font-style: italic; }
+
+/* card grid — one descriptive card per site */
+.projects {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 0.9rem;
+}
+.projects li {
+  display: flex; flex-direction: column;
+  padding: 0.95rem 1rem 1rem;
+  border: 1px solid var(--rule); border-radius: 7px;
+  border-top: 2px solid var(--rule);
+  background: var(--bg);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.projects li:hover {
+  border-color: var(--sky); border-top-color: var(--sky);
+  background: var(--sky-faint); transform: translateY(-2px);
+}
+/* whole card is clickable via the stretched link on the name */
+.projects li { position: relative; }
+.projects .name-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.45rem; }
+.projects a {
+  font-family: var(--mono); font-size: 0.96rem; color: var(--link);
+  text-decoration: none; letter-spacing: 0.01em; font-weight: 600;
+}
+.projects a::after {
+  content: ""; position: absolute; inset: 0; border-radius: 7px;
+}
+.projects li:hover a { color: var(--sky); }
+.parent {
+  font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0.05rem 0.32rem;
+}
+.tag {
+  font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--tag-text); background: var(--tag-bg);
+  padding: 0.15rem 0.4rem; border-radius: 3px; white-space: nowrap;
+}
+.tag.sky { color: var(--sky); background: var(--sky-faint); }
+.projects .desc { font-size: 0.85rem; line-height: 1.5; color: var(--muted); margin-top: auto; }
+@media (max-width: 480px) {
+  .projects { grid-template-columns: 1fr; }
+}
+
+/* infra section: lighter, two-column-ish reference rows */
+.infra { list-style: none; }
+.infra li {
+  display: grid; grid-template-columns: 11rem 1fr; gap: 0.8rem;
+  padding: 0.5rem 0.8rem; border-left: 2px solid transparent;
+}
+.infra li:hover { border-left-color: var(--muted); }
+@media (max-width: 560px) { .infra li { grid-template-columns: 1fr; gap: 0.1rem; } }
+.infra .what { font-family: var(--mono); font-size: 0.78rem; color: var(--text); }
+.infra .what small { color: var(--muted); display: block; font-size: 0.66rem; margin-top: 0.1rem; }
+.infra .why { font-size: 0.9rem; color: var(--muted); }
+
+footer {
+  margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.06em;
+  color: var(--muted); display: flex; gap: 0.8rem; flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--sky); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>atmosphere<span class="fly"> ✦</span></h1>
+  <p class="tagline">the Bluesky corner of mino.mobi</p>
+  <div class="sky-rule"></div>
+  <p class="lede">Every tool here lives on <b>ATProto</b> — the protocol behind Bluesky. They read the public network, map its graph, dissect a handle's posts, or write records straight to your own <b>PDS</b>. No backend servers, no SaaS: static files on Cloudflare Pages, data on the open protocol. Identity, when needed, runs through one shared OAuth worker.</p>
+</header>
+
+<nav class="catnav">
+  <a href="#social">Social apps</a>
+  <a href="#network">Network &amp; community</a>
+  <a href="#analysis">Account analysis</a>
+  <a href="#threads">Threads</a>
+  <a href="#media">Media</a>
+  <a href="#infra">Plumbing</a>
+</nav>
+
+<!-- ─────────────── SOCIAL APPS ─────────────── -->
+<section id="social">
+  <div class="section-label"><span>Social apps — your own thing on ATProto</span><span class="count">12</span></div>
+  <p class="section-blurb">These write records: votes, voice posts, answers, edits. Sign in with Bluesky; the data lands on a PDS, not our servers.</p>
+  <ul class="projects">
+    <li><div class="name-row"><a href="https://poll.mino.mobi">poll</a><span class="tag sky">writes</span><span class="tag">blind sigs</span></div><div class="desc">Anonymous polling with RSA blind signatures — the host can't link your identity to your vote. Public like-based mode too.</div></li>
+    <li><div class="name-row"><a href="https://airchat.mino.mobi">airchat</a><span class="tag sky">writes</span><span class="tag">voice</span></div><div class="desc">Voice-first social on ATProto. Browser records, Whisper transcribes, the audio blob lives on your PDS.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/answers/">answers</a><span class="tag sky">writes</span><span class="tag">Q&amp;A</span></div><div class="desc">Ask anything, answered by the ATmosphere — questions, answers, votes and best-answer selection as ATProto records.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi">rite</a><span class="tag sky">writes</span><span class="tag">prose</span></div><div class="desc">Sentence-editing drill plus eight surfaces over Bluesky prose. The hub for the eight sub-tools below.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/fodder/">fodder</a><span class="parent">rite</span></div><div class="desc">Tinder-style swipe deck crowdsourcing new corpus sentences mined from Project Gutenberg.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/redact/">redact</a><span class="parent">rite</span></div><div class="desc">Redactle over a Bluesky user's longest prose threads — guess the censored words.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/ask/">ask</a><span class="parent">rite</span></div><div class="desc">Semantic search over a profile's prose threads, mapped in 2D by embedding.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/atlas/">atlas</a><span class="parent">rite</span></div><div class="desc">Multi-view analytics over a writer's threads — length, difficulty, Flesch, Pareto.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/lexicon/">lexicon</a><span class="parent">rite</span></div><div class="desc">Word-level lenses — emotion, concreteness, sentiment, distinctiveness — over a profile's vocabulary.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/list/">list</a><span class="parent">rite</span></div><div class="desc">Semantic themes across a whole Bluesky list, aggregated from each member's clusters.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/web/">web</a><span class="parent">rite</span></div><div class="desc">Outbound-link knowledge graph from a writer's posts — PageRank over co-occurring URLs.</div></li>
+    <li><div class="name-row"><a href="https://rite.mino.mobi/signal/">signal</a><span class="parent">rite</span></div><div class="desc">A semantic map of what a writer reposts — their taste, as distinct from their voice.</div></li>
+  </ul>
+</section>
+
+<!-- ─────────────── NETWORK & COMMUNITY ─────────────── -->
+<section id="network">
+  <div class="section-label"><span>Network &amp; community — graph structure</span><span class="count">5</span></div>
+  <p class="section-blurb">The follow graph as terrain: communities, your tightest circle, who to meet next.</p>
+  <ul class="projects">
+    <li><div class="name-row"><a href="https://zoom.mino.mobi">zoom</a><span class="tag">canvas</span></div><div class="desc">SimCluster community viewer — infinite-canvas map of feed communities with hex-packed avatars and bridge arcs.</div></li>
+    <li><div class="name-row"><a href="https://bisk.mino.mobi">bisk</a><span class="tag">digest</span></div><div class="desc">The SimCluster Daily — a deterministic morning digest of a Bluesky neighborhood: top posts, deepest thread, sentiment weather.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/cluster/">cluster</a><span class="tag">graph</span></div><div class="desc">Find your tightest circle — the largest group of your follows who all mutually follow each other.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/seek/">seek</a><span class="tag">discovery</span></div><div class="desc">Find a friend — follows-of-follows you don't yet follow, ranked by network density.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/disk/">disk</a><span class="tag">hyperbolic</span></div><div class="desc">Poincaré interaction map — a hyperbolic-disk view of account interactions, more room at the edges.</div></li>
+  </ul>
+</section>
+
+<!-- ─────────────── ACCOUNT ANALYSIS ─────────────── -->
+<section id="analysis">
+  <div class="section-label"><span>Account &amp; post analysis — point a handle, get insight</span><span class="count">7</span></div>
+  <p class="section-blurb">Embeddings and aggregates over a profile's public posts. Read-only; nothing is written.</p>
+  <ul class="projects">
+    <li><div class="name-row"><a href="https://empath.mino.mobi">empathy</a><span class="tag">timeline</span></div><div class="desc">See Bluesky as anyone sees it — type a handle, get their reconstructed timeline, network, and blocks.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/judge/">judge</a><span class="tag">embeddings</span></div><div class="desc">Posting profile — personality traits and valence from post embeddings, topics via k-means.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/novelty/">novelty</a><span class="tag">drift</span></div><div class="desc">Semantic novelty trajectory — how an account's posting drifts or repeats over time.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/ternary/">ternary</a><span class="tag">temperament</span></div><div class="desc">Three lusts, one chart — a ternary plot of posting temperament: flesh, knowledge, argument.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/echo/">echo</a><span class="tag">compare</span></div><div class="desc">Post density head to head — two handles side by side on volume and patterns.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/density/">density</a><span class="tag">brevity</span></div><div class="desc">Post brevity, measured — filter posts by exact word count, ranked by character length.</div></li>
+    <li><div class="name-row"><a href="https://mino.mobi/wild/">wild</a><span class="tag">group</span></div><div class="desc">Group novelty — how wild is your corner? Semantic novelty across a whole list against the group centroid.</div></li>
+  </ul>
+</section>
+
+<!-- ─────────────── THREADS ─────────────── -->
+<section id="threads">
+  <div class="section-label"><span>Threads &amp; conversations</span><span class="count">2</span></div>
+  <p class="section-blurb">A conversation tree, rendered.</p>
+  <ul class="projects">
+    <li><div class="name-row"><a href="https://mino.mobi/weft/">weft</a><span class="tag">tidy-tree</span></div><div class="desc">Thread analysis — a tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs.</div></li>
+    <li><div class="name-row"><a href="https://photo.mino.mobi/#/thread">thread</a><span class="parent">photo</span></div><div class="desc">Threaded post viewer — full conversation tree with quote-post expansion.</div></li>
+  </ul>
+</section>
+
+<!-- ─────────────── MEDIA ─────────────── -->
+<section id="media">
+  <div class="section-label"><span>Media &amp; images</span><span class="count">3</span></div>
+  <p class="section-blurb">Every image a handle has posted, run through different lenses.</p>
+  <ul class="projects">
+    <li><div class="name-row"><a href="https://photo.mino.mobi">photo</a><span class="tag">masonry</span></div><div class="desc">Photo explorer — every image from any handle as a filterable masonry grid with engagement analytics.</div></li>
+    <li><div class="name-row"><a href="https://photo.mino.mobi/astro/">astro</a><span class="parent">photo</span></div><div class="desc">Astrology photo analyzer — EXIF timestamp + GPS feed an ephemeris that paints the sky at the moment of capture.</div></li>
+    <li><div class="name-row"><a href="https://photo.mino.mobi/prism/">prism</a><span class="parent">photo</span></div><div class="desc">Photo prism — keratoconic global effect, hex toggle, EXIF-aware chromatic dispersion.</div></li>
+  </ul>
+</section>
+
+<!-- ─────────────── PLUMBING ─────────────── -->
+<section id="infra">
+  <div class="section-label"><span>Plumbing — the shared ATProto layer</span><span class="count">dev</span></div>
+  <p class="section-blurb">What the surfaces above are built on. Not pages you visit — the workers, libraries, and pipelines that make the rest possible.</p>
+  <ul class="infra">
+    <li><div class="what">auth.mino.mobi<small>workers/auth</small></div><div class="why">Shared OAuth BFF — PKCE + DPoP + PAR + private_key_jwt. Holds the confidential client; every site signs in through it and proxies PDS calls via <code>/pds/*</code>.</div></li>
+    <li><div class="what">feed.mino.mobi<small>workers/feed</small></div><div class="why">SimCluster feed generator. Community detection on the mutual-follow graph every 6h; serves <code>getFeedSkeleton</code> + the graph data behind zoom &amp; bisk.</div></li>
+    <li><div class="what">scores.mino.mobi<small>workers/scores</small></div><div class="why">Generic multi-game leaderboard. Identity delegated to the auth worker; any game submits with no worker change.</div></li>
+    <li><div class="what">bsky-bot<small>workers/bsky-bot</small></div><div class="why">Notification listener — polls <code>listNotifications</code> every 5 min, dispatches mention handlers.</div></li>
+    <li><div class="what">packages/atproto<small>pds · bsky · crypto</small></div><div class="why">The shared library: identity resolution + authenticated PDS ops, read-only public-API wrappers, and ECDH+AES vault crypto.</div></li>
+    <li><div class="what">packages/oauth-client<small>auth.js</small></div><div class="why">Browser-side <code>AuthClient</code> — login, session, and a PDS proxy. No build step; what new static sites import.</div></li>
+    <li><div class="what">rite/lib/atproto<small>CAR + WASM</small></div><div class="why">Browser-side repo-export parsing — pulls a writer's full CAR and parses it with a Rust→WASM reader for the rite prose tools.</div></li>
+    <li><div class="what">post-to-bluesky<small>pipeline</small></div><div class="why">Pushes <code>time/posts/*.md</code> as threaded Bluesky posts across three accounts (main, modulo, morphyx).</div></li>
+    <li><div class="what">register-feed-generator<small>pipeline</small></div><div class="why">One-time registration of the SimCluster feed generators on Bluesky.</div></li>
+    <li><div class="what">publishers<small>phylo · answers · whtwnd · cards</small></div><div class="why">Pipelines that write <code>com.minomobi.*</code> and <code>com.whtwnd.*</code> records to a curator PDS from repo data.</div></li>
+  </ul>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+  <span>also at b.mino.mobi</span>
+  <span>the ATmosphere corner</span>
+</footer>
+
+</body>
+</html>

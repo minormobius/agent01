@@ -1,11 +1,11 @@
-name: Deploy Auth Worker
+name: Deploy Scores Worker
 
 on:
   push:
-    branches: [main, 'claude/implement-oauth-bsky-JgUdn', 'claude/fluoddity-emergent-behavior-UjGE8', 'claude/atproto-tracker-portal-*', 'claude/consolidate-feature-branches-dHYQO']
+    branches: [main, 'claude/consolidate-feature-branches-dHYQO']
     paths:
-      - 'workers/auth/**'
-      - '.github/workflows/deploy-auth.yml'
+      - 'workers/scores/**'
+      - '.github/workflows/deploy-scores.yml'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: workers/auth
+        working-directory: workers/scores
 
     steps:
       - uses: actions/checkout@v4
@@ -31,13 +31,12 @@ jobs:
       - name: Ensure D1 database exists
         id: ensure_db
         run: |
-          # Check if database already exists
           DB_ID=$(npx wrangler d1 list --json 2>/dev/null | node -e "
             let buf = '';
             process.stdin.on('data', d => buf += d);
             process.stdin.on('end', () => {
               const dbs = JSON.parse(buf);
-              const db = dbs.find(d => d.name === 'mino-auth-db');
+              const db = dbs.find(d => d.name === 'mino-scores-db');
               if (db) process.stdout.write(db.uuid);
             });
           " || true)
@@ -45,8 +44,8 @@ jobs:
           if [ -n "$DB_ID" ]; then
             echo "Database exists: $DB_ID"
           else
-            echo "Creating D1 database: mino-auth-db"
-            OUTPUT=$(npx wrangler d1 create mino-auth-db 2>&1)
+            echo "Creating D1 database: mino-scores-db"
+            OUTPUT=$(npx wrangler d1 create mino-scores-db 2>&1)
             echo "$OUTPUT"
             DB_ID=$(echo "$OUTPUT" | grep -oP '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
           fi
@@ -71,7 +70,7 @@ jobs:
         run: |
           for f in migrations/*.sql; do
             echo "Running migration: $f"
-            npx wrangler d1 execute mino-auth-db --file="$f" --remote || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing..."
+            npx wrangler d1 execute mino-scores-db --file="$f" --remote || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing..."
           done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -6,6 +6,19 @@
 <title>curve — factor a target into hand-drawn lines</title>
 <meta name="description" content="A drawing puzzle: a procedurally generated target curve is the product of 2–5 lines. Draw lines whose product fits the target. Three independent scores — fewer segments, straighter strokes, tighter fit.">
 
+<!-- Open Graph / link card -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mino.mobi/curve/">
+<meta property="og:title" content="curve — factor a target into hand-drawn lines">
+<meta property="og:description" content="A target curve is the secret product of a few hidden lines. Draw lines whose product fits it. Three scores: fewer segments, straighter strokes, tighter fit.">
+<meta property="og:image" content="https://mino.mobi/curve/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="curve — factor a target into hand-drawn lines">
+<meta name="twitter:description" content="A target curve is the secret product of a few hidden lines. Draw lines whose product fits it.">
+<meta name="twitter:image" content="https://mino.mobi/curve/og.png">
+
 <style>
 :root {
   --bg: #faf9f6;
@@ -41,9 +54,7 @@ h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
 .subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
 .lede { font-size: 0.96rem; color: var(--muted); margin: 0.8rem 0 1.4rem; }
 
-.target-strip { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.6rem; margin-bottom: 0.6rem; }
 canvas.viz { display: block; width: 100%; border: none; }
-canvas#target { aspect-ratio: 4 / 1; background: var(--canvas-bg); border-radius: 3px; }
 canvas#draw   { aspect-ratio: 4 / 3; background: var(--canvas-bg); border-radius: 3px; touch-action: none; cursor: crosshair; }
 .draw-wrap { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.6rem; margin-bottom: 0.6rem; position: relative; }
 .draw-hint { position: absolute; right: 1rem; top: 0.7rem; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--muted); pointer-events: none; }
@@ -58,6 +69,27 @@ canvas#draw   { aspect-ratio: 4 / 3; background: var(--canvas-bg); border-radius
 .score .arrow { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); margin-left: 0.2rem; }
 
 .btn-row { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.share-row { margin-top: 0.6rem; }
+
+.board { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.8rem 0.9rem; margin-top: 1.4rem; }
+.board-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.board-title { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.board-tabs { display: flex; gap: 0.25rem; }
+.tab { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.04em; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; }
+.tab.on { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.board-list { list-style: none; margin: 0; padding: 0; }
+.board-list li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: 0.6rem; align-items: baseline; padding: 0.32rem 0; border-top: 1px dotted var(--rule); font-family: var(--mono); font-size: 0.72rem; }
+.board-list li:first-child { border-top: none; }
+.board-list .rk { color: var(--muted); }
+.board-list .hd { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-list .hd small { color: var(--muted); }
+.board-list .sc { color: var(--accent); font-weight: 600; }
+.board-list .board-empty { display: block; color: var(--muted); font-style: italic; }
+.board-foot { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
+.board-foot input { font-family: var(--mono); font-size: 0.72rem; padding: 0.4rem 0.5rem; border: 1px solid var(--rule); border-radius: 3px; background: var(--bg); color: var(--fg); flex: 1; min-width: 9rem; }
+.board-foot .who { color: var(--accent); }
+.link-btn { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-family: var(--mono); font-size: 0.66rem; padding: 0; }
+.link-btn:hover { color: var(--accent); }
 .btn { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.04em; background: var(--paper); border: 1px solid var(--rule); color: var(--muted); padding: 0.45rem 0.7rem; border-radius: 3px; cursor: pointer; transition: all 0.12s; }
 .btn:hover { color: var(--fg); border-color: var(--muted); }
 .btn.primary { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
@@ -78,12 +110,8 @@ footer a:hover { color: var(--accent); }
   <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
   <h1>curve</h1>
   <p class="subtitle">factor a target into 2–5 hand-drawn lines</p>
-  <p class="lede">A target curve appears up top — it is the <em>product</em> of some hidden lines. Draw lines on the canvas below; your product is overlaid in orange. Three scores update live: number of segments (fewer is better), how straight each stroke was (R²), and how well your product fits the target.</p>
+  <p class="lede">The dashed cobalt curve is your <em>target</em> — the product of some hidden lines. Draw lines on the canvas; your product is overlaid in orange. Three scores update live: number of segments (fewer is better), how straight each stroke was (R²), and how well your product fits the target.</p>
 </header>
-
-<div class="target-strip">
-  <canvas id="target" class="viz" width="900" height="225"></canvas>
-</div>
 
 <div class="draw-wrap">
   <div class="draw-hint" id="draw-hint">draw a line ↘</div>
@@ -118,6 +146,23 @@ footer a:hover { color: var(--accent); }
   </div>
 </div>
 
+<div class="btn-row share-row">
+  <button class="btn" id="save-img">save image</button>
+  <button class="btn" id="share-bsky">share to bluesky</button>
+</div>
+
+<section class="board">
+  <div class="board-head">
+    <span class="board-title">leaderboard</span>
+    <div class="board-tabs">
+      <button class="tab on" data-period="all">all-time</button>
+      <button class="tab" data-period="today">today</button>
+    </div>
+  </div>
+  <ol class="board-list" id="board-list"><li class="board-empty">loading…</li></ol>
+  <div class="board-foot" id="board-foot"></div>
+</section>
+
 <footer>
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="https://mino.mobi/draw/">draw</a>
@@ -149,27 +194,53 @@ let revealed = false;
 // is well-behaved and visually compact. Target shape determined by the K factors.
 function generateTarget() {
   const K = 2 + Math.floor(Math.random() * 4); // 2..5
-  const factors = [];
-  for (let i = 0; i < K; i++) {
-    const a = rng(0.6, 1.4);
-    // slope bounded so a + b*x stays > 0.1 over [0,1]
-    const b = rng(-Math.min(0.9, a - 0.1), Math.min(0.9, a - 0.1));
-    factors.push({ a, b });
+  let factors, y, lo, hi;
+  // A product of strictly positive lines is log-concave — at most ONE bump.
+  // To get aggressive curvature (humps, dips, S- and W-shapes) we let a
+  // minority of factors have a root inside (0,1): each root is a zero-crossing
+  // in the product, and that's where the drama lives.
+  for (let attempt = 0; attempt < 40; attempt++) {
+    factors = [];
+    // Bias toward TWO crossers: two roots in (0,1) make the product bulge
+    // between them → W/M shapes, the wiggliest targets. ~85% have ≥1 crosser.
+    const roll = Math.random();
+    const crossers = roll < 0.45 ? 2 : roll < 0.85 ? 1 : 0;
+    const crossIdx = new Set();
+    while (crossIdx.size < Math.min(crossers, K)) crossIdx.add(Math.floor(Math.random() * K));
+    for (let i = 0; i < K; i++) {
+      if (crossIdx.has(i)) {
+        const r = rng(0.15, 0.85);                          // root location in (0,1)
+        const b = rng(1.0, 2.4) * (Math.random() < 0.5 ? -1 : 1);
+        factors.push({ a: -b * r, b });                     // a + b*x = 0 at x = r
+      } else {
+        const a = rng(0.5, 1.5);
+        const b = rng(-1, 1) * (a - 0.05) * 1.3;            // wider tilt than before
+        factors.push({ a, b });
+      }
+    }
+    y = new Float64Array(SAMPLES);
+    lo = Infinity; hi = -Infinity;
+    for (let i = 0; i < SAMPLES; i++) {
+      let p = 1;
+      for (const f of factors) p *= f.a + f.b * SAMPLE_X[i];
+      y[i] = p; if (p < lo) lo = p; if (p > hi) hi = p;
+    }
+    const amp = Math.max(Math.abs(lo), Math.abs(hi));
+    // count turning points + zero-crossings; demand visible drama, bounded amplitude
+    let turns = 0, crosses = 0;
+    for (let i = 1; i < SAMPLES - 1; i++) { const d0 = y[i]-y[i-1], d1 = y[i+1]-y[i]; if (d0 && d1 && Math.sign(d1) !== Math.sign(d0)) turns++; }
+    for (let i = 1; i < SAMPLES; i++) if (Math.sign(y[i]) !== Math.sign(y[i-1])) crosses++;
+    const lively = turns >= 1 || crosses >= 1;
+    if (lively && amp > 0.25 && amp < 60 && hi - lo > 0.35 * amp) break;
   }
-  const y = new Float64Array(SAMPLES);
-  let yMax = 0;
-  for (let i = 0; i < SAMPLES; i++) {
-    let p = 1;
-    for (const f of factors) p *= f.a + f.b * SAMPLE_X[i];
-    y[i] = p;
-    if (p > yMax) yMax = p;
-  }
-  return { factors, K, y, yMax: yMax * 1.15 };
+  // View bounds always include the 0 baseline and the y=1 unit reference, padded.
+  let yMin = Math.min(lo, 0), yMax = Math.max(hi, 1);
+  const pad = (yMax - yMin) * 0.12 || 0.2;
+  return { factors, K, y, yMin: yMin - pad, yMax: yMax + pad };
 }
 
 // ─── canvases ──────────────────────────────────────────────────────────────
-const tCanvas = $('target'), tCtx = tCanvas.getContext('2d');
-const dCanvas = $('draw'),   dCtx = dCanvas.getContext('2d');
+const dCanvas = $('draw'), dCtx = dCanvas.getContext('2d');
 
 function setupHiDPI(canvas, ctx) {
   const dpr = window.devicePixelRatio || 1;
@@ -180,14 +251,15 @@ function setupHiDPI(canvas, ctx) {
   return { W: r.width, H: r.height };
 }
 
-// plot ↔ canvas mapping
-function mapper(W, H, padX, padY, yMax) {
+// plot ↔ canvas mapping over the full [yMin, yMax] range (targets can go negative)
+function mapper(W, H, padX, padY, yMin, yMax) {
+  const span = (yMax - yMin) || 1;
   return {
-    W, H, padX, padY, yMax,
+    W, H, padX, padY, yMin, yMax,
     tx: x => padX + ((x - X_MIN) / (X_MAX - X_MIN)) * (W - 2 * padX),
-    ty: y => (H - padY) - (y / yMax) * (H - 2 * padY),
+    ty: y => (H - padY) - ((y - yMin) / span) * (H - 2 * padY),
     ux: px => X_MIN + ((px - padX) / (W - 2 * padX)) * (X_MAX - X_MIN),
-    uy: py => ((H - padY) - py) / (H - 2 * padY) * yMax,
+    uy: py => yMin + ((H - padY) - py) / (H - 2 * padY) * span,
   };
 }
 
@@ -203,32 +275,33 @@ function drawAxes(ctx, m) {
     const y = m.padY + i / 4 * (m.H - 2 * m.padY);
     ctx.beginPath(); ctx.moveTo(m.padX, y); ctx.lineTo(m.W - m.padX, y); ctx.stroke();
   }
+  const y0 = clamp(m.ty(0), m.padY, m.H - m.padY);
   ctx.strokeStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.moveTo(m.padX, m.H - m.padY); ctx.lineTo(m.W - m.padX, m.H - m.padY);
-  ctx.moveTo(m.padX, m.padY); ctx.lineTo(m.padX, m.H - m.padY);
+  ctx.moveTo(m.padX, y0); ctx.lineTo(m.W - m.padX, y0);             // zero baseline
+  ctx.moveTo(m.padX, m.padY); ctx.lineTo(m.padX, m.H - m.padY);     // y axis
   ctx.stroke();
   ctx.restore();
 }
 
-// ─── target render ─────────────────────────────────────────────────────────
-function renderTarget() {
-  const { W, H } = setupHiDPI(tCanvas, tCtx);
-  tCtx.fillStyle = cssVar('--canvas-bg'); tCtx.fillRect(0, 0, W, H);
-  const m = mapper(W, H, 30, 18, target.yMax);
-  drawAxes(tCtx, m);
-  tCtx.strokeStyle = cssVar('--accent');
-  tCtx.lineWidth = 2;
-  tCtx.beginPath();
-  for (let i = 0; i < SAMPLES; i++) {
-    const x = m.tx(SAMPLE_X[i]), y = m.ty(target.y[i]);
-    if (i === 0) tCtx.moveTo(x, y); else tCtx.lineTo(x, y);
+// y-axis ticks: 0 at the baseline and a dashed reference at y = 1.
+// (A flat line at 1 multiplies nothing — it's the natural unit for a product of lines.)
+function drawYTicks(ctx, m) {
+  ctx.save();
+  ctx.fillStyle = cssVar('--muted');
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('0', m.padX - 6, m.ty(0) + 4);
+  const y1 = m.ty(1);
+  if (y1 > m.padY && y1 < m.H - m.padY) {
+    ctx.strokeStyle = cssVar('--muted');
+    ctx.globalAlpha = 0.35; ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(m.padX, y1); ctx.lineTo(m.W - m.padX, y1); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillText('1', m.padX - 6, y1 + 4);
   }
-  tCtx.stroke();
-  // label
-  tCtx.fillStyle = cssVar('--muted');
-  tCtx.font = '10px ui-monospace, monospace';
-  tCtx.fillText('target · product of ' + target.K + ' line' + (target.K === 1 ? '' : 's'), 36, 16);
+  ctx.textAlign = 'left';
+  ctx.restore();
 }
 
 // ─── linear fit + linearity ────────────────────────────────────────────────
@@ -279,13 +352,14 @@ let drawMap = null;
 function renderDraw() {
   const { W, H } = setupHiDPI(dCanvas, dCtx);
   dCtx.fillStyle = cssVar('--canvas-bg'); dCtx.fillRect(0, 0, W, H);
-  drawMap = mapper(W, H, 40, 22, target.yMax);
+  drawMap = mapper(W, H, 40, 22, target.yMin, target.yMax);
   drawAxes(dCtx, drawMap);
+  drawYTicks(dCtx, drawMap);
 
-  // faint target reference
-  dCtx.strokeStyle = cssVar('--accent') + '55';
-  dCtx.lineWidth = 1.5;
-  dCtx.setLineDash([4, 4]);
+  // target reference (dashed cobalt — the curve to match)
+  dCtx.strokeStyle = cssVar('--accent') + 'bb';
+  dCtx.lineWidth = 2;
+  dCtx.setLineDash([5, 4]);
   dCtx.beginPath();
   for (let i = 0; i < SAMPLES; i++) {
     const x = drawMap.tx(SAMPLE_X[i]), y = drawMap.ty(target.y[i]);
@@ -293,6 +367,10 @@ function renderDraw() {
   }
   dCtx.stroke();
   dCtx.setLineDash([]);
+  // target label
+  dCtx.fillStyle = cssVar('--muted');
+  dCtx.font = '11px ui-monospace, monospace';
+  dCtx.fillText('target · product of ' + target.K + ' line' + (target.K === 1 ? '' : 's'), 46, 18);
 
   // each stroke: raw trace (light) + fitted line (bold)
   for (const s of strokes) {
@@ -333,7 +411,7 @@ function renderDraw() {
     dCtx.beginPath();
     for (let i = 0; i < SAMPLES; i++) {
       const x = drawMap.tx(SAMPLE_X[i]);
-      const y = drawMap.ty(clamp(up[i], -target.yMax * 0.2, target.yMax * 1.2));
+      const y = drawMap.ty(clamp(up[i], target.yMin, target.yMax));
       if (i === 0) dCtx.moveTo(x, y); else dCtx.lineTo(x, y);
     }
     dCtx.stroke();
@@ -422,6 +500,129 @@ $('reveal').addEventListener('click', () => {
 });
 $('new').addEventListener('click', () => { newRound(); });
 
+// ─── share: export result image + post to Bluesky ───────────────────────────
+$('save-img').addEventListener('click', async () => {
+  const blob = await renderShareImage();
+  downloadBlob(blob, 'curve.png');
+  setNote('saved curve.png', 'ok');
+});
+$('share-bsky').addEventListener('click', shareToBsky);
+
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function shareText() {
+  const f = fitScore();
+  const lin = strokes.length ? strokes.reduce((s, x) => s + x.fit.r2, 0) / strokes.length : null;
+  let t = `Factored a target into ${strokes.length} line${strokes.length === 1 ? '' : 's'} on mino.mobi/curve`;
+  if (f !== null) t += ` — fit ${(f * 100).toFixed(0)}%, linearity ${(lin * 100).toFixed(0)}%`;
+  return t;
+}
+
+async function shareToBsky() {
+  const blob = await renderShareImage();
+  const text = shareText();
+  const url = 'https://mino.mobi/curve/';
+  // native share sheet (mobile) carries the image directly
+  try {
+    const file = new File([blob], 'curve.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text, url });
+      return;
+    }
+  } catch (e) { /* fall through to intent */ }
+  // desktop: the compose intent can't carry an image, so save the PNG to attach
+  downloadBlob(blob, 'curve.png');
+  window.open('https://bsky.app/intent/compose?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
+  setNote('image saved — attach curve.png in the Bluesky composer', 'ok');
+}
+
+// render the current round to a 1080×1080 PNG (target + your product + scores)
+function renderShareImage() {
+  const S = 1080, c = document.createElement('canvas');
+  c.width = S; c.height = S;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fffdf7'; x.fillRect(0, 0, S, S);
+  // header
+  x.fillStyle = '#777'; x.font = '600 24px ui-monospace, monospace';
+  x.fillText('MINO.MOBI / CURVE', 64, 78);
+  x.fillStyle = '#8b0000'; x.fillRect(64, 94, 118, 4);
+  x.fillStyle = '#1a1a1a'; x.font = 'bold 92px Georgia, serif';
+  x.fillText('curve', 56, 188);
+  // plot panel
+  const PX = 64, PY = 240, PW = S - 128, PH = 560, pad = 44;
+  x.fillStyle = '#fafafa'; x.fillRect(PX, PY, PW, PH);
+  x.strokeStyle = '#e7e2d6'; x.lineWidth = 1; x.strokeRect(PX, PY, PW, PH);
+  const yMin = target.yMin, yMax = target.yMax, span = (yMax - yMin) || 1;
+  const px = t => PX + pad + t * (PW - 2 * pad);
+  const py = v => (PY + PH - pad) - ((v - yMin) / span) * (PH - 2 * pad);
+  // grid
+  x.strokeStyle = 'rgba(0,0,0,0.06)'; x.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const gx = PX + pad + i / 4 * (PW - 2 * pad), gy = PY + pad + i / 4 * (PH - 2 * pad);
+    x.beginPath(); x.moveTo(gx, PY + pad); x.lineTo(gx, PY + PH - pad); x.stroke();
+    x.beginPath(); x.moveTo(PX + pad, gy); x.lineTo(PX + PW - pad, gy); x.stroke();
+  }
+  // axes + y ticks (0 and 1)
+  x.strokeStyle = 'rgba(0,0,0,0.35)'; x.lineWidth = 1.5;
+  x.beginPath(); x.moveTo(PX + pad, py(0)); x.lineTo(PX + PW - pad, py(0));
+  x.moveTo(PX + pad, PY + pad); x.lineTo(PX + pad, PY + PH - pad); x.stroke();
+  x.fillStyle = '#777'; x.font = '18px ui-monospace, monospace'; x.textAlign = 'right';
+  x.fillText('0', PX + pad - 8, py(0) + 6);
+  const y1 = py(1);
+  if (y1 > PY + pad && y1 < PY + PH - pad) {
+    x.strokeStyle = 'rgba(0,0,0,0.22)'; x.setLineDash([3, 5]); x.lineWidth = 1;
+    x.beginPath(); x.moveTo(PX + pad, y1); x.lineTo(PX + PW - pad, y1); x.stroke(); x.setLineDash([]);
+    x.fillText('1', PX + pad - 8, y1 + 6);
+  }
+  x.textAlign = 'left';
+  const trace = ys => { x.beginPath(); for (let i = 0; i < SAMPLES; i++) { const xx = px(SAMPLE_X[i]), yy = py(clamp(ys[i], yMin, yMax)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); } x.stroke(); };
+  // solution (revealed)
+  if (revealed) {
+    x.strokeStyle = 'rgba(0,0,0,0.3)'; x.lineWidth = 1.5; x.setLineDash([2, 6]);
+    for (const f of target.factors) { x.beginPath(); x.moveTo(px(0), py(f.a)); x.lineTo(px(1), py(f.a + f.b)); x.stroke(); }
+    x.setLineDash([]);
+  }
+  // the actual hand-drawn scribbles (light grey) + each stroke's fitted line
+  for (const s of strokes) {
+    x.strokeStyle = 'rgba(60,60,60,0.40)'; x.lineWidth = 2.4; x.lineJoin = 'round'; x.lineCap = 'round';
+    x.beginPath();
+    s.raw.forEach((pt, i) => { const xx = px(pt.x), yy = py(clamp(pt.y, yMin, yMax)); i === 0 ? x.moveTo(xx, yy) : x.lineTo(xx, yy); });
+    x.stroke();
+    x.strokeStyle = 'rgba(26,74,138,0.55)'; x.lineWidth = 1.6; x.setLineDash([4, 4]);
+    x.beginPath(); x.moveTo(px(0), py(s.fit.a)); x.lineTo(px(1), py(s.fit.a + s.fit.b)); x.stroke();
+    x.setLineDash([]);
+  }
+  // your product (vermilion)
+  const up = userProductSamples();
+  if (up) { x.strokeStyle = '#c8542a'; x.lineWidth = 5; x.lineJoin = 'round'; trace(up); }
+  // target (cobalt, dashed, on top)
+  x.strokeStyle = '#1a4a8a'; x.lineWidth = 3.5; x.setLineDash([7, 5]); trace(target.y); x.setLineDash([]);
+  // scores footer
+  const f = fitScore();
+  const lin = strokes.length ? strokes.reduce((s, v) => s + v.fit.r2, 0) / strokes.length : null;
+  const cells = [
+    ['segments', strokes.length + ' / ' + MAX_STROKES],
+    ['linearity', lin === null ? '—' : (lin * 100).toFixed(1) + '%'],
+    ['fit', f === null ? '—' : (f * 100).toFixed(1) + '%'],
+  ];
+  const FY = PY + PH + 54, cw = PW / 3;
+  cells.forEach(([k, v], i) => {
+    const cx = PX + i * cw;
+    x.fillStyle = '#777'; x.font = '18px ui-monospace, monospace';
+    x.fillText(k.toUpperCase(), cx, FY);
+    x.fillStyle = '#1a4a8a'; x.font = 'bold 46px ui-monospace, monospace';
+    x.fillText(v, cx, FY + 52);
+  });
+  x.fillStyle = '#8b0000'; x.fillRect(0, S - 8, S, 8);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+
 function setNote(msg, cls) {
   const n = $('note');
   n.textContent = msg;
@@ -435,12 +636,149 @@ function newRound() {
   revealed = false;
   $('draw-hint').style.display = '';
   refreshScores();
-  renderTarget(); renderDraw();
+  renderDraw();
   setNote(`new target · product of ${target.K} hidden lines`);
 }
 
 newRound();
-window.addEventListener('resize', () => { renderTarget(); renderDraw(); });
+window.addEventListener('resize', () => { renderDraw(); });
+
+// ─── leaderboard: shared auth worker (auth.mino.mobi) + mino-scores ──────────
+const SCORES_API = 'https://scores.mino.mobi';
+const AUTH_API = 'https://auth.mino.mobi';
+const SESSION_KEY = 'mino_auth_session';   // shared across all mino.mobi sites
+const PENDING_KEY = 'curve_pending_score';
+const GAME = 'curve';
+let authUser = null;
+let boardPeriod = 'all';
+
+// Minimal client for the shared auth worker — same wire protocol as
+// packages/oauth-client/auth.js, inlined to keep curve a single static file.
+const Auth = {
+  token() { try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; } },
+  save(t) { try { localStorage.setItem(SESSION_KEY, t); } catch (e) {} },
+  clear() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} },
+  async init() {
+    const u = new URL(location.href);
+    const t = u.searchParams.get('__auth_session');
+    if (t) { this.save(t); u.searchParams.delete('__auth_session'); history.replaceState({}, '', u.toString()); }
+    if (!this.token()) return null;
+    try {
+      const r = await fetch(AUTH_API + '/api/me', { headers: { Authorization: 'Bearer ' + this.token() } });
+      if (!r.ok) { this.clear(); return null; }
+      return await r.json();
+    } catch (e) { return null; }
+  },
+  async login(handle) {
+    const r = await fetch(AUTH_API + '/oauth/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle: handle.replace(/^@/, '').trim(), origin: location.origin, returnTo: location.href, scope: 'atproto' }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'sign-in failed'); }
+    const { authUrl } = await r.json();
+    location.href = authUrl;
+  },
+  async logout() {
+    const t = this.token();
+    if (t) { try { await fetch(AUTH_API + '/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t } }); } catch (e) {} }
+    this.clear();
+  },
+};
+
+function meanR2() { return strokes.length ? strokes.reduce((s, x) => s + x.fit.r2, 0) / strokes.length : 0; }
+// One ranking metric, 0..100: fit dominates; straightness + economy of segments add polish.
+function leaderboardScore() {
+  if (!strokes.length) return null;
+  const f = fitScore() || 0, lin = meanR2();
+  const eff = clamp((MAX_STROKES - strokes.length) / (MAX_STROKES - 1), 0, 1);
+  return Math.round(75 * f + 15 * lin + 10 * eff);
+}
+function leaderboardMeta() {
+  return `K=${target.K} · ${strokes.length} seg · fit ${((fitScore() || 0) * 100).toFixed(0)}% · R² ${(meanR2() * 100).toFixed(0)}%`;
+}
+
+function stashPending(score, meta) { try { localStorage.setItem(PENDING_KEY, JSON.stringify({ score, meta, ts: Date.now() })); } catch (e) {} }
+function takePending() {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY); localStorage.removeItem(PENDING_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    return (Date.now() - p.ts > 600000) ? null : p;   // expire pending after 10 min
+  } catch (e) { return null; }
+}
+
+async function postScore(score, meta) {
+  const r = await fetch(SCORES_API + '/api/scores/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Auth.token() },
+    body: JSON.stringify({ game: GAME, score, meta }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ('submit failed (' + r.status + ')'));
+  return data;
+}
+
+async function submitScore() {
+  const sc = leaderboardScore();
+  if (sc == null) { setNote('draw something first', 'warn'); return; }
+  try {
+    const res = await postScore(sc, leaderboardMeta());
+    setNote(`submitted · score ${sc} · rank #${res.rank}`, 'ok');
+    boardPeriod = 'all'; syncTabs(); loadBoard();
+  } catch (e) { setNote(e.message, 'warn'); }
+}
+
+function syncTabs() { document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.period === boardPeriod)); }
+
+async function loadBoard() {
+  const list = $('board-list');
+  try {
+    const r = await fetch(`${SCORES_API}/api/scores/top?game=${GAME}&period=${boardPeriod}&limit=10`);
+    const rows = (await r.json()).scores || [];
+    if (!rows.length) { list.innerHTML = '<li class="board-empty">no scores yet — be the first</li>'; return; }
+    list.innerHTML = rows.map((s, i) => {
+      const hd = String(s.handle || s.did).replace(/[<>]/g, '');
+      const meta = String(s.meta || '').replace(/[<>]/g, '');
+      return `<li><span class="rk">${i + 1}</span><span class="hd">@${hd}${meta ? ` <small>${meta}</small>` : ''}</span><span class="sc">${Math.round(s.score)}</span></li>`;
+    }).join('');
+  } catch (e) { list.innerHTML = '<li class="board-empty">leaderboard unavailable</li>'; }
+}
+
+function renderBoardFoot() {
+  const foot = $('board-foot');
+  if (authUser && authUser.did) {
+    foot.innerHTML = '<button class="btn primary" id="submit-score">submit score</button>'
+      + ' <span>signed in as <span class="who">@' + String(authUser.handle || '').replace(/[<>]/g, '') + '</span></span>'
+      + ' <button class="link-btn" id="signout">sign out</button>';
+    $('submit-score').addEventListener('click', submitScore);
+    $('signout').addEventListener('click', async () => { await Auth.logout(); authUser = null; renderBoardFoot(); setNote('signed out'); });
+  } else {
+    foot.innerHTML = '<input id="handle" placeholder="you.bsky.social" autocomplete="username" spellcheck="false">'
+      + '<button class="btn primary" id="signin">sign in &amp; submit</button>';
+    $('signin').addEventListener('click', () => {
+      const h = $('handle').value.trim();
+      if (!h) { $('handle').focus(); setNote('enter your Bluesky handle to sign in', 'warn'); return; }
+      const sc = leaderboardScore();
+      if (sc != null) stashPending(sc, leaderboardMeta());
+      setNote('redirecting to Bluesky…');
+      Auth.login(h).catch(e => setNote(e.message, 'warn'));
+    });
+    $('handle').addEventListener('keydown', e => { if (e.key === 'Enter') $('signin').click(); });
+  }
+}
+
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { boardPeriod = t.dataset.period; syncTabs(); loadBoard(); }));
+
+(async () => {
+  authUser = await Auth.init();
+  renderBoardFoot();
+  const pending = takePending();
+  if (authUser && authUser.did && pending) {
+    try { const res = await postScore(pending.score, pending.meta); setNote(`submitted · score ${pending.score} · rank #${res.rank}`, 'ok'); }
+    catch (e) { setNote(e.message, 'warn'); }
+  }
+  loadBoard();
+})();
 </script>
 
 </body>
