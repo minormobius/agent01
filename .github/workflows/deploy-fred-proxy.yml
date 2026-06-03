@@ -2,7 +2,7 @@ name: Deploy FRED Proxy
 
 on:
   push:
-    branches: [main, 'claude/mortgage-calculator-rP4lK']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'workers/fred-proxy/**'
       - '.github/workflows/deploy-fred-proxy.yml'

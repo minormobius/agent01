@@ -2,7 +2,7 @@ name: Deploy Bakery
 
 on:
   push:
-    branches: [main, 'claude/implement-oauth-bsky-JgUdn']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'bakery/**'
       - '.github/workflows/deploy-bakery.yml'

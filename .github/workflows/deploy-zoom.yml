@@ -2,7 +2,7 @@ name: Deploy Zoom Viewer
 
 on:
   push:
-    branches: [main, 'claude/bluesky-anonymous-polls-*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'zoom/**'
       - '.github/workflows/deploy-zoom.yml'

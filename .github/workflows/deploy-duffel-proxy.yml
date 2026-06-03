@@ -2,7 +2,7 @@ name: Deploy Duffel Proxy
 
 on:
   push:
-    branches: [main, 'claude/mortgage-calculator-rP4lK']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'workers/duffel-proxy/**'
       - '.github/workflows/deploy-duffel-proxy.yml'

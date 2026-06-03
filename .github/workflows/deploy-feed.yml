@@ -2,7 +2,7 @@ name: Deploy Feed Worker
 
 on:
   push:
-    branches: [main, 'claude/document-projects-oPse6', 'claude/atproto-tracker-portal-CExE3']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'workers/feed/**'
       - 'poll/apps/api/migrations/0010_feed_communities.sql'

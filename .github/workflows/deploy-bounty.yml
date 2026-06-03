@@ -2,7 +2,7 @@ name: Deploy Bounty Board
 
 on:
   push:
-    branches: [main, 'claude/megaproject-dashboard-*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'bounty/**'
       - '.github/workflows/deploy-bounty.yml'
