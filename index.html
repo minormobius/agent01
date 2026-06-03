@@ -2889,7 +2889,7 @@ footer a:hover {
   if (!orrery) return;
 
   var radii = [0.40, 0.63, 0.86];  // three rings; planets/ring ∝ radius (homogeneous perimeter density)
-  var offsets = [-0.3, 0.2];
+  var offsets = [-0.3, 0.2, 0.6];  // per-ring angular start (one per radii entry)
 
   function layout() {
     var size = orrery.offsetWidth;
