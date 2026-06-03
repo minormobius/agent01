@@ -27,11 +27,13 @@ function repoPath(url) {
   if (m) { const label = OVERRIDE[m[1]] || m[1]; return m[2] ? label + '/' + m[2].replace(/\/+$/, '') : label; }
   return null;
 }
-function lastEdit(path) {
+function dates(path) {
   if (!path) return null;
   try {
-    const out = execSync(`git log -1 --all --no-merges --format=%cI -- "${path}"`, { cwd: ROOT }).toString().trim();
-    return out ? out.slice(0, 10) : null;
+    const out = execSync(`git log --all --no-merges --format=%cI -- "${path}"`, { cwd: ROOT }).toString().trim();
+    if (!out) return null;
+    const lines = out.split('\n');
+    return { t: lines[0].slice(0, 10), b: lines[lines.length - 1].slice(0, 10) };  // newest, oldest
   } catch { return null; }
 }
 
@@ -44,12 +46,17 @@ let updated = 0, missed = 0;
 const out = block.split('\n').map(line => {
   const um = line.match(/u:\s*'([^']+)'/);
   if (!um || !/n:\s*'/.test(line)) return line;
-  const t = lastEdit(repoPath(um[1]));
-  if (!t) { missed++; return line; }
+  const d = dates(repoPath(um[1]));
+  if (!d) { missed++; return line; }
   updated++;
-  if (/\bt:\s*'/.test(line)) return line.replace(/t:\s*'[^']*'/, `t:'${t}'`);
-  // insert t after the a:'...' field
-  return line.replace(/(a:\s*'[^']*')/, `$1, t:'${t}'`);
+  let nl = line;
+  // last-edit `t` (insert after a:'…')
+  nl = /\bt:\s*'/.test(nl) ? nl.replace(/t:\s*'[^']*'/, `t:'${d.t}'`)
+                           : nl.replace(/(a:\s*'[^']*')/, `$1, t:'${d.t}'`);
+  // birth `b` (insert after t:'…')
+  nl = /\bb:\s*'/.test(nl) ? nl.replace(/b:\s*'[^']*'/, `b:'${d.b}'`)
+                           : nl.replace(/(t:\s*'[^']*')/, `$1, b:'${d.b}'`);
+  return nl;
 });
 
 console.log(`recency: ${updated} entries got a last-edit date; ${missed} had no resolvable path (kept as-is)`);
