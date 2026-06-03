@@ -232,6 +232,26 @@ const FRAG_ENTITY_ARENA = FRAG_ENTITY
     'vec4 mirr = evalRule(u_rule_seed, u_mutation_scale, floor(cohort), vec4(yref(Rl),yref(Ll)));',
     'vec4 mirr = evalRule(arSeed, 0.0, floor(cohort), vec4(yref(Rl),yref(Ll)));');
 
+// ── Text-attractor variant (compiled only with { text:true }) ───────────────
+// aphid91's recipe: render text → SDF → bake the gradient into a texture, then in
+// the entity update read the texture and apply force + strafe toward the text.
+// The baked field is (dir.xy → nearest text, dist, inside); agents are shoved to
+// the u_text_target distance band, and because the shove ∝ (dist − target) it
+// eases to zero at the band so they keep their physarum bop near the surface.
+// Default-strength 0 = identical to FRAG_ENTITY until the surface uploads text.
+const FRAG_ENTITY_TEXT = FRAG_ENTITY
+  .replace(
+    '  u_axial_force, u_lateral_force, u_hazard_rate;',
+    '  u_axial_force, u_lateral_force, u_hazard_rate;\nuniform sampler2D u_text; uniform float u_text_strength, u_text_target;')
+  .replace(
+    '  vel = vel*u_drag + force;',
+    '  vec4 _T = texture(u_text, pos*0.5 + 0.5);\n' +
+    '  vec2 _push = (_T.rg*2.0 - 1.0) * (u_text_strength * (_T.b - u_text_target));\n' +
+    '  vel = vel*u_drag + force + _push*0.25;')
+  .replace(
+    '  pos += vel; pos += strafe*u_strafe_power;',
+    '  pos += vel; pos += strafe*u_strafe_power; pos += _push;');
+
 const VERT_BRUSH_ARENA = `#version 300 es
 precision highp float;
 in vec2 a_offset; in vec2 a_uv;
@@ -370,6 +390,7 @@ void main(){
 export class FluoddityEngine {
   constructor(dim = 384, count = 40000, opts = {}) {
     this.arena = !!opts.arena;
+    this.text = !!opts.text;
     const cv = document.createElement('canvas');
     cv.width = cv.height = dim;
     const gl = cv.getContext('webgl2', { antialias: false, alpha: false, depth: true, preserveDrawingBuffer: true });
@@ -383,6 +404,13 @@ export class FluoddityEngine {
     this.texW = Math.ceil(Math.sqrt(count));
     this.texH = Math.ceil(count / this.texW);
     this.brushSize = 0.0015 * (1024 / dim) * 2.0;
+    // Substrate scale: a multiplier on the deposit splat size, i.e. on field
+    // density (energy ∝ count·brushSize²). The genome is NOT scale-invariant —
+    // (dim, count, brush) form a hidden "substrate" axis — so exposing this lets
+    // surfaces match each other's energy and lets a slider explore hotter/cooler
+    // renders of the same rule. setSubstrate(1) keeps the legacy brush.
+    this._baseBrush = this.brushSize;
+    this.substrate = 1;
     this.cfg = defaultConfig();
     this.frame = 0;
     this.currentKey = null;
@@ -401,7 +429,7 @@ export class FluoddityEngine {
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
       return p;
     };
-    this.pEntity = prog(VERT_FULLSCREEN, this.arena ? FRAG_ENTITY_ARENA : FRAG_ENTITY);
+    this.pEntity = prog(VERT_FULLSCREEN, this.arena ? FRAG_ENTITY_ARENA : this.text ? FRAG_ENTITY_TEXT : FRAG_ENTITY);
     this.pBrush = prog(this.arena ? VERT_BRUSH_ARENA : VERT_BRUSH, this.arena ? FRAG_BRUSH_ARENA : FRAG_BRUSH);
     this.pCanvas = prog(VERT_FULLSCREEN, this.arena ? FRAG_CANVAS_ARENA : FRAG_CANVAS);
     this.pDisplay = prog(VERT_FULLSCREEN, this.arena ? FRAG_DISPLAY_ARENA : FRAG_DISPLAY);
@@ -438,6 +466,21 @@ export class FluoddityEngine {
     this.brushTex = floatTex(dim, dim, FILT);
     this.brushFBO = fbo(this.brushTex);
 
+    // Text-attractor field (opt-in via { text:true }). A LINEAR-filtered RGBA8
+    // texture the surface bakes an SDF-gradient into (rg = dir→text, b = distance);
+    // the move shader shoves agents toward it. Starts blank (no pull).
+    if (this.text) {
+      this.textStrength = 0; this.textTarget = 0.5;
+      this.textTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
     this.triBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.triBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
@@ -467,6 +510,37 @@ export class FluoddityEngine {
     this.cfg.cohorts |= 0; this.cfg.initial_conditions |= 0;
     this.frame = 0;
     this.currentKey = key || null;
+  }
+
+  // Field-density multiplier. The deposit splat is the dominant energy lever:
+  // sensed field ∝ count·brushSize², so scaling the brush scales how hard agents
+  // are driven. Live (no rebuild) — takes effect on the next deposit.
+  setSubstrate(s) {
+    this.substrate = s > 0 ? s : 1;
+    this.brushSize = this._baseBrush * this.substrate;
+  }
+
+  // Upload a rendered string (any canvas/image) as the text-attractor field.
+  // Flipped vertically so canvas top-down maps to the field's y-up UV.
+  setText(source) {
+    if (!this.text || !this.textTex) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  // Upload a pre-baked SDF-gradient field as raw RGBA bytes (rg = unit direction
+  // toward the nearest text, b = normalized distance, a = inside mask). Already
+  // oriented for the y-up field, so no flip.
+  setTextData(arr, w, h) {
+    if (!this.text || !this.textTex) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, arr);
+    gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
   _setEntityUniforms() {
@@ -500,6 +574,11 @@ export class FluoddityEngine {
       gl.viewport(0, 0, this.texW, this.texH);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.eTex[r]); gl.uniform1i(gl.getUniformLocation(this.pEntity, 'u_entity'), 0);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.cTex[this.cPing]); gl.uniform1i(gl.getUniformLocation(this.pEntity, 'u_canvas'), 1);
+      if (this.text) {
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.textTex); gl.uniform1i(gl.getUniformLocation(this.pEntity, 'u_text'), 2);
+        gl.uniform1f(gl.getUniformLocation(this.pEntity, 'u_text_strength'), this.textStrength || 0);
+        gl.uniform1f(gl.getUniformLocation(this.pEntity, 'u_text_target'), this.textTarget != null ? this.textTarget : 0.5);
+      }
       this._setEntityUniforms();
       this._tri(this.pEntity);
       gl.drawArrays(gl.TRIANGLES, 0, 3);

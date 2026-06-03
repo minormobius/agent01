@@ -98,6 +98,7 @@ a { color: var(--accent); text-decoration: none; }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig, mutate } from './engine.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 
 const $ = (s) => document.querySelector(s);
 const SPECIES = 16;
@@ -195,6 +196,10 @@ if (engine) {
   });
 
   $('#btn-reroll').addEventListener('click', reroll);
+  engine.displayMode = getViewMode();
+  // reset re-seeds the CURRENT ecosystem from frame 0 (keeps your picks/lineage);
+  // "↻ new field" is the separate button that rerolls a fresh genome.
+  mountViewControls($('#dock .left'), { engines: () => engine, onReset: () => engine.load(cfg, 'reset' + Math.random()), substrate: true });
   $('#btn-back').addEventListener('click', back);
   $('#btn-prop').addEventListener('click', propagate);
   $('#btn-save').addEventListener('click', () => {

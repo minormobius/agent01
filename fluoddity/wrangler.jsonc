@@ -1,8 +1,16 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "fluoddity-minomobi",
+  "main": "worker.js",
   "compatibility_date": "2026-03-21",
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // Comma-separated bsky handles/DIDs allowed to use /api/tts (the ElevenLabs
+  // voiceover proxy). Empty = nobody. The ELEVENLABS_API_KEY is a Worker SECRET,
+  // set once with: wrangler secret put ELEVENLABS_API_KEY
+  "vars": {
+    "CLIP_WHITELIST": "minormobius.bsky.social,ponder.ooo,did:plc:7zre4plmd5jllccww575j6sb"
   }
 }

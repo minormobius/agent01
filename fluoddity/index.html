@@ -76,8 +76,10 @@ footer a:hover { color: var(--accent); }
     <span class="shuffle" id="shuffle">click anywhere for another organism</span>
     <span class="herobar-right">
       <span class="initpick" id="initpick"></span>
+      <span id="viewctl"></span>
       <span id="auth"></span>
-      <button class="openbtn" id="open-play" type="button">open this in playground →</button>
+      <a class="shuffle" id="open-pg" style="pointer-events:auto;cursor:pointer">playground →</a>
+      <button class="openbtn" id="open-play" type="button">▶ play</button>
     </span>
   </div>
   <div class="head">
@@ -87,10 +89,30 @@ footer a:hover { color: var(--accent); }
 </div>
 
 <div id="cards">
+  <a class="card" href="./game/" style="border-color:var(--accent);box-shadow:0 0 22px rgba(56,225,192,0.18)">
+    <div class="verb">play</div>
+    <div class="n">The game <span class="arrow">→</span></div>
+    <div class="d">No sliders. Tap the one you like; it gets more interesting. Heat it until it boils, tame the boil, then breed an endless stream by your taste — every find saved to your own Bluesky as you go.</div>
+  </a>
   <a class="card" href="./play/">
     <div class="verb">create</div>
     <div class="n">Playground <span class="arrow">→</span></div>
     <div class="d">Tune a living organism in real time — sensing, forces, trails. A liveness readout grades it as you go. Save it to your PDS to plant it in the garden.</div>
+  </a>
+  <a class="card" href="./text/">
+    <div class="verb">say</div>
+    <div class="n">Say <span class="arrow">→</span></div>
+    <div class="d">Type a word and a swarm of vector-trail agents is pulled into its shape — an irresistible text attractor they still bop around. Tune the pull, the hold, and the bop.</div>
+  </a>
+  <a class="card" href="./read/">
+    <div class="verb">read</div>
+    <div class="n">Read <span class="arrow">→</span></div>
+    <div class="d">RSVP through the swarm. Search Project Gutenberg and stream a whole book word by word — each one summoned out of the field of agents that race to spell it, then dissolve into the next.</div>
+  </a>
+  <a class="card" href="./clip/">
+    <div class="verb">clip</div>
+    <div class="n">Clip <span class="arrow">→</span></div>
+    <div class="d">Make a narrated video: an ElevenLabs voiceover over the swarm spelling a snippet word by word, recorded with audio and posted to Bluesky. Whitelisted.</div>
   </a>
   <a class="card" href="./gallery.html">
     <div class="verb">browse</div>
@@ -188,6 +210,7 @@ footer a:hover { color: var(--accent); }
 <script type="module">
 "use strict";
 import { FluoddityEngine, randomConfig } from './engine.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { readDescriptors, fitness, fitness2, merge } from './descriptors.js';
 
 const cv = document.getElementById('herocv');
@@ -274,21 +297,24 @@ function blit() {
 function encodeConfig(c) {
   return btoa(unescape(encodeURIComponent(JSON.stringify(c)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+// Primary CTA is the game; the playground deep-link is secondary (needs a hero organism).
 const openBtn = document.getElementById('open-play');
-openBtn.disabled = true;
-openBtn.addEventListener('click', (e) => {
-  e.stopPropagation(); // don't also reshuffle the hero
-  if (current) location.href = './play/#c=' + encodeConfig(current);
-});
+openBtn.addEventListener('click', (e) => { e.stopPropagation(); location.href = './game/'; });
+const pgBtn = document.getElementById('open-pg');
+pgBtn.addEventListener('click', (e) => { e.stopPropagation(); if (current) location.href = './play/#c=' + encodeConfig(current); });
 
 async function loop() {
   if (!engine) return;
-  if (!current) { current = await pickLively(); engine.load(current, 'hero'); openBtn.disabled = false; }
+  if (!current) { current = await pickLively(); engine.load(current, 'hero'); }
   engine.step(6); engine.render(); blit();
   requestAnimationFrame(loop);
 }
-document.getElementById('hero').addEventListener('click', async () => { if (engine) { openBtn.disabled = true; current = await pickLively(); engine.load(current, 'hero' + Math.random()); openBtn.disabled = false; } });
-if (engine) { requestAnimationFrame(loop); } else { openBtn.style.display = 'none'; }
+document.getElementById('hero').addEventListener('click', async () => { if (engine) { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
+if (engine) {
+  engine.displayMode = getViewMode();
+  mountViewControls(document.getElementById('viewctl'), { engines: () => engine, substrate: true, onReset: async () => { current = await pickLively(); engine.load(current, 'hero' + Math.random()); } });
+  requestAnimationFrame(loop);
+} else { pgBtn.style.display = 'none'; }
 </script>
 <script type="module">import { mountAuthChip } from './authchip.js'; mountAuthChip(document.getElementById('auth'));</script>
 </body>

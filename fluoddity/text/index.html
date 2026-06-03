@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — say</title>
+<meta name="description" content="Type a word and a swarm of vector-trail agents is pulled into its shape — an irresistible text attractor they still bop around. Tune the pull, the hold, and the bop.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/text/">
+<meta property="og:title" content="fluoddity — say">
+<meta property="og:description" content="Type a word; the agents find their way to the text and bop around its surface.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --chrome: 232px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; } .pill:hover { color: var(--accent); border-color: var(--accent); }
+
+#stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+#stage canvas { width: min(100%, calc(100dvh - var(--chrome))); height: auto; aspect-ratio: 1; display: block; border: 1px solid var(--rule); border-radius: 12px; background: #000; }
+
+#say { flex: 0 0 auto; display: flex; gap: 8px; padding: 10px 14px 4px; }
+#say input { flex: 1 1 auto; font-family: var(--mono); font-size: 15px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 9px; padding: 11px 14px; }
+#say input:focus { outline: none; border-color: var(--accent); }
+.btn { font-family: var(--mono); font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 11px 15px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+#dials { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 14px 16px; align-items: center; justify-content: center; }
+.dial { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.dial input[type=range] { width: 92px; accent-color: var(--accent); }
+.dial b { color: var(--fg); min-width: 30px; display: inline-block; }
+#fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; }
+@media (max-width: 640px) { :root { --chrome: 300px; } }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="../">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · say</span>
+  <span class="spacer"></span>
+  <span id="viewctl"></span>
+  <span id="auth"></span>
+  <a class="pill" href="../arena.html">arena ↗</a>
+  <a class="pill" href="../play/">playground ↗</a>
+</div>
+
+<div id="stage"></div>
+
+<div id="say">
+  <input id="text-in" type="text" maxlength="40" placeholder="type a word…" value="hello">
+  <button class="btn primary" id="btn-summon">summon →</button>
+  <button class="btn" id="btn-bop" title="reroll the agents' wander/bop flavor">↻ bop</button>
+</div>
+
+<div id="dials">
+  <label class="dial" title="how hard agents are shoved toward the text">pull <input type="range" id="d-pull" min="0" max="0.03" step="0.001" value="0.01"><b id="v-pull"></b></label>
+  <label class="dial" title="distance band they settle into — 0 = onto the letters, higher = a halo around them">hold <input type="range" id="d-hold" min="0" max="0.2" step="0.005" value="0.03"><b id="v-hold"></b></label>
+  <label class="dial" title="how much the physarum rule still drives them (the bop)">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.6"><b id="v-bop"></b></label>
+  <label class="dial">size <input type="range" id="d-size" min="0.4" max="1" step="0.02" value="0.86"><b id="v-size"></b></label>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig } from '../engine.js';
+import { bakeText } from '../textfield.js';
+import { mountViewControls, getViewMode } from '../viewcontrols.js';
+import { mountAuthChip } from '../authchip.js';
+
+const $ = (s) => document.querySelector(s);
+const DIM = 512, COUNT = 120000;
+
+mountAuthChip($('#auth'));
+
+let engine = null;
+try { engine = new FluoddityEngine(DIM, COUNT, { text: true }); engine.displayMode = getViewMode(); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This needs WebGL2 with float render targets — ' + (e.message || e); }
+
+if (engine) {
+  $('#stage').appendChild(engine.cv);
+
+  // A calm physarum so the trail reads as legible text, with enough motion that
+  // the captured agents keep bopping around the letters.
+  function textConfig() {
+    const g = defaultConfig();
+    g.cohorts = 6; g.rule_seed = Math.random();
+    g.sensor_gain = 3.2; g.sensor_angle = -0.14; g.sensor_distance = 1.1;
+    g.mutation_scale = 0.05; g.global_force_mult = 0.6; g.drag = 0.92;
+    g.strafe_power = 0.16; g.axial_force = 0.05; g.lateral_force = -0.22;
+    g.trail_persistence = 0.93; g.trail_diffusion = 0.6;
+    g.initial_conditions = 1; g.ink = 3.6; g.hue = 0.0;
+    return g;
+  }
+  let cfg = textConfig();
+  engine.load(cfg, 'text0');
+  engine.textTarget = parseFloat($('#d-hold').value);
+  engine.textStrength = 0;   // raised after the first summon
+
+  // String → baked SDF-gradient field (shared with /read). The move shader reads
+  // it (rg = dir→text, b = distance) and shoves agents onto the letters.
+  let lastStr = '';
+  function summon(rescatter) {
+    lastStr = $('#text-in').value;
+    engine.setTextData(bakeText(lastStr, DIM, parseFloat($('#d-size').value)), DIM, DIM);
+    engine.textStrength = parseFloat($('#d-pull').value);
+    engine.textTarget = parseFloat($('#d-hold').value);
+    if (rescatter) engine.load(cfg, 'text' + Math.random());
+  }
+
+  // ── controls ────────────────────────────────────────────────────────────────
+  const setLbl = (id, v) => { const e = $('#v-' + id); if (e) e.textContent = v; };
+  function syncLabels() {
+    setLbl('pull', parseFloat($('#d-pull').value).toFixed(3));
+    setLbl('hold', parseFloat($('#d-hold').value).toFixed(3));
+    setLbl('bop', parseFloat($('#d-bop').value).toFixed(2));
+    setLbl('size', parseFloat($('#d-size').value).toFixed(2));
+  }
+  $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); syncLabels(); });
+  $('#d-hold').addEventListener('input', () => { engine.textTarget = parseFloat($('#d-hold').value); syncLabels(); });
+  $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; syncLabels(); });
+  $('#d-size').addEventListener('input', () => { syncLabels(); summon(false); });   // re-bake the field
+  $('#btn-summon').addEventListener('click', () => summon(false));
+  $('#text-in').addEventListener('keydown', (e) => { if (e.key === 'Enter') summon(false); });
+  $('#btn-bop').addEventListener('click', () => { cfg.rule_seed = Math.random(); engine.load(cfg, 'bop' + Math.random()); engine.textStrength = parseFloat($('#d-pull').value); });
+
+  mountViewControls($('#viewctl'), {
+    engines: () => engine,
+    onReset: () => { engine.load(cfg, 'scatter' + Math.random()); engine.textStrength = parseFloat($('#d-pull').value); },
+  });
+
+  syncLabels();
+  summon(false);   // form the placeholder word right away
+
+  function loop() { engine.step(6); engine.render(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

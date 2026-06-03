@@ -69,6 +69,7 @@ h3:first-child { margin-top: 0; }
 <script type="module">
 "use strict";
 import { FluoddityEngine } from './engine.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { readDescriptors, fitness, verdict, vec, dist, VIT_COLOR } from './descriptors.js';
 import { enumerateAll, parseAtUri, parseConfig } from './data.js';
 import { PhaseMap } from './phasemap.js';
@@ -130,6 +131,24 @@ async function evalAll() {
   }
   return scored;
 }
+
+// View toggle re-renders the node thumbnails (shown on hover/click) in the new
+// mode; reset re-fits the phase-space view. Thumbs are tiny here, so the toggle
+// mostly persists the global view choice for the field surfaces.
+let _rethumbing = false;
+async function reThumbNodes() {
+  if (_rethumbing || !engine) return;
+  _rethumbing = true;
+  for (const n of nodes) {
+    if (!n.config || !n.thumb) continue;
+    engine.load(n.config, 'rt' + n.uri); engine.step(308); engine.render();
+    n.thumb.getContext('2d').drawImage(engine.cv, 0, 0, 104, 104);
+    await raf();
+  }
+  _rethumbing = false; phase.draw();
+}
+if (engine) engine.displayMode = getViewMode();
+mountViewControls($('#topbar'), { engines: () => engine, onReset: () => phase.resetView(), onModeChange: reThumbNodes });
 
 function renderSide(ph, scored) {
   const stat = (k, v) => `<div class="stat"><span class="k">${k}</span><span class="v">${v}</span></div>`;

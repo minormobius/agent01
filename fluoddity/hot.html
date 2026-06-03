@@ -151,6 +151,7 @@ a { color: var(--accent); text-decoration: none; }
 import { FluoddityEngine, randomConfig } from './engine.js';
 import { readDescriptors, fitness, fitness2, merge, FEATURES8 } from './descriptors.js';
 import { COLLECTION, RUBRIC_COLLECTION, ANCHOR } from './data.js';
+import { mountViewControls, getViewMode } from './viewcontrols.js';
 import { auth } from './authchip.js';
 
 const $ = (s) => document.querySelector(s);
@@ -163,6 +164,10 @@ catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'Hot o
 if (engine) {
   $('#stage').insertBefore(engine.cv, $('#cv'));
   $('#cv').remove(); engine.cv.id = 'cv';
+  engine.displayMode = getViewMode();
+  // engine.cv IS the visible canvas, so a view toggle just re-renders the held
+  // frame in the new mode; reset starts a fresh queue.
+  mountViewControls($('#dock'), { engines: () => engine, onReset: () => $('#btn-fresh').click(), onModeChange: () => engine.render() });
 
   // ── queue + judgments ───────────────────────────────────────────────────────
   let queue = [], idx = 0, judgments = []; // {config, features, label} label 0|1

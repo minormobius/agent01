@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>fluoddity — play</title>
+<meta name="description" content="Tap the one you like. It gets more interesting. A wordless game of breeding emergent organisms — every find is saved to your own Bluesky as you play.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/game/">
+<meta property="og:title" content="fluoddity — play">
+<meta property="og:description" content="Tap the one you like. It gets more interesting. Wordless breeding of emergent organisms.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --hot: #ff6b3d; --cold: #4a7cff;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; overscroll-behavior: none; }
+body { display: flex; flex-direction: column; touch-action: manipulation; }
+a { color: var(--accent); text-decoration: none; }
+
+#bar { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid var(--rule); min-height: 44px; }
+#bar .home { color: var(--muted); font-size: 13px; } #bar .home:hover { color: var(--accent); }
+#bar .lvl { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.04em; opacity: 0; transition: opacity 0.4s; }
+#bar .lvl.show { opacity: 1; }
+#bar .spacer { flex: 1; }
+#bar .lab { font-size: 11px; color: var(--muted); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 8px; opacity: 0.7; }
+#bar .lab:hover { opacity: 1; color: var(--accent); }
+
+#gauge { flex: 0 0 auto; height: 0; overflow: hidden; transition: height 0.5s; }
+#gauge.show { height: 26px; }
+#gauge .track { margin: 7px 14px; height: 6px; border-radius: 4px; background: linear-gradient(90deg, var(--cold), #2a6b4f 38%, var(--accent) 55%, #d6b54a 78%, var(--hot)); position: relative; opacity: 0.85; }
+#gauge .knob { position: absolute; top: -4px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.7); transform: translateX(-50%); transition: left 0.6s cubic-bezier(.2,.8,.2,1); }
+#gauge .tag { position: absolute; top: -22px; font-size: 10px; color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+
+#stage { flex: 1 1 auto; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; padding: 10px; }
+
+/* the LIVE arena (levels 1–2) — one shared field, 16 species, animating */
+#arena { width: min(100%, calc(100dvh - 215px)); aspect-ratio: 1; border-radius: 14px; overflow: hidden; border: 1px solid var(--rule); background: #000; position: relative; }
+#arena canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+#vbadge { position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 7px; background: rgba(0,0,0,0.55); letter-spacing: 0.04em; pointer-events: none; }
+#arena.lockf::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, rgba(56,225,192,0.5), transparent 70%); animation: flash 0.65s ease-out; }
+
+/* big live organism (level 3) */
+#big { display: none; width: min(100%, calc(100dvh - 215px)); aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--rule); position: relative; touch-action: none; }
+#big canvas { width: 100%; height: 100%; display: block; }
+#big .swipehint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 6%; pointer-events: none; font-size: 30px; font-weight: 800; }
+#big .swipehint .nay { color: var(--muted); } #big .swipehint .yay { color: var(--hot); }
+#big .flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+#big .flash.hot { background: radial-gradient(circle, rgba(255,107,61,0.35), transparent 70%); }
+#big .flash.not { background: radial-gradient(circle, rgba(74,124,255,0.28), transparent 70%); }
+#big .flash.go { animation: flash 0.45s ease-out; }
+@keyframes flash { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* species legend (levels 1–2) */
+#legend { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; padding: 9px 14px 0; }
+#legend.hide { display: none; }
+.sw { width: 26px; height: 18px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; transition: transform 0.08s, box-shadow 0.12s; }
+.sw:hover { transform: scale(1.18); }
+.sw.a { border-color: #fff; transform: scale(1.22); box-shadow: 0 0 10px rgba(56,225,192,0.75); }
+.sw.b { border-color: #fff; transform: scale(1.22); box-shadow: 0 0 10px rgba(255,107,61,0.75); }
+.sw.flash { animation: swflash 0.45s ease-out; }
+@keyframes swflash { 0% { transform: scale(1.5); box-shadow: 0 0 16px rgba(255,255,255,0.9); } 100% { transform: scale(1); } }
+
+#prompt { flex: 0 0 auto; text-align: center; font-size: 14px; color: var(--fg); padding: 8px 16px 2px; min-height: 22px; }
+#prompt b { color: var(--accent); }
+#dock { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 14px 16px; flex-wrap: wrap; }
+.btn { font-family: var(--mono); font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 11px 18px; cursor: pointer; min-width: 96px; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.nay { color: var(--muted); } .btn.yay { color: #fff; background: var(--hot); border-color: var(--hot); font-weight: 700; }
+.ghost { background: transparent; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; } .ghost:hover { color: var(--accent); }
+
+.ov { position: fixed; inset: 0; background: rgba(5,6,8,0.86); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 30px; z-index: 50; }
+.ov.show { display: flex; }
+.ov h1 { font-size: clamp(40px, 11vw, 88px); margin: 0; letter-spacing: -0.02em; }
+.ov h1.boil { color: var(--hot); text-shadow: 0 0 40px rgba(255,107,61,0.6); }
+.ov h1.tame { color: var(--accent); text-shadow: 0 0 40px rgba(56,225,192,0.5); }
+.ov p { color: var(--muted); font-size: 15px; max-width: 40ch; line-height: 1.6; margin: 16px 0 26px; }
+.ov .big { font-size: 16px; }
+
+#toast { position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%) translateY(20px); background: rgba(14,16,20,0.95); border: 1px solid var(--rule); border-radius: 10px; padding: 9px 15px; font-size: 12px; color: var(--accent); opacity: 0; transition: opacity 0.3s, transform 0.3s; z-index: 60; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* handle typeahead (sign-in gate) */
+.ta-wrap { position: relative; width: min(92vw, 340px); margin: 0 auto; }
+#gate-handle { width: 100%; font-family: var(--mono); font-size: 15px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; text-align: center; }
+#gate-handle:focus { outline: none; border-color: var(--accent); }
+.ta-results { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: #0b0d11; border: 1px solid var(--rule); border-radius: 10px; display: none; z-index: 5; max-height: 252px; overflow-y: auto; text-align: left; }
+.ta-results.show { display: block; }
+.ta-item { display: flex; align-items: center; gap: 9px; padding: 8px 11px; cursor: pointer; }
+.ta-item.on, .ta-item:hover { background: rgba(56,225,192,0.12); }
+.ta-item img, .ta-item .av { width: 22px; height: 22px; border-radius: 50%; background: #23272f; flex: 0 0 auto; object-fit: cover; }
+.ta-item .nm { font-size: 13px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ta-item .nm small { color: var(--muted); }
+
+#fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; z-index: 100; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <a class="home" href="../">← fluoddity</a>
+  <span class="lvl" id="lvl"></span>
+  <span class="spacer"></span>
+  <span id="viewctl"></span>
+  <span id="auth"></span>
+  <a class="lab" id="lablink" href="../arena.html">⚙ lab</a>
+</div>
+
+<div id="gauge"><div class="track"><div class="knob" id="knob" style="left:8%"></div><div class="tag" id="gtag" style="left:8%">cold</div></div></div>
+
+<div id="stage">
+  <div id="arena"><div id="vbadge">settling…</div></div>
+  <div id="big">
+    <canvas id="bigcv"></canvas>
+    <div class="swipehint"><span class="nay">✕</span><span class="yay">♥</span></div>
+    <div class="flash" id="flash"></div>
+  </div>
+</div>
+<div id="legend"></div>
+
+<div id="prompt">warming up…</div>
+<div id="dock"></div>
+
+<div class="ov" id="ov-level">
+  <h1 id="ov-title"></h1>
+  <p id="ov-body"></p>
+  <button class="btn primary" id="ov-go">continue →</button>
+</div>
+<div class="ov" id="ov-gate">
+  <h1 style="font-size:clamp(30px,8vw,56px);color:var(--accent)">one more thing</h1>
+  <p class="big">You found a hot organism. Now <b>breed</b> it — an endless stream shaped by your taste.<br><br>Sign in with Bluesky so the ones you love get saved to <b>your</b> account (and feed the shared menagerie). Nothing else is stored.</p>
+  <div id="gate-auth"></div>
+  <button class="ghost" id="gate-skip" style="margin-top:18px">maybe later — back to taming</button>
+</div>
+
+<div id="toast"></div>
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, randomConfig, mutate, defaultConfig } from '../engine.js';
+import { readDescriptors, verdict, fitness, fitness2, merge, FEATURES8, VIT_COLOR } from '../descriptors.js';
+import { auth, mountAuthChip } from '../authchip.js';
+import { mountViewControls, getViewMode } from '../viewcontrols.js';
+
+const $ = (s) => document.querySelector(s);
+const ANCHOR = 'did:web:g.mino.mobi';
+const ORG = 'com.minomobi.fluoddity.organism';
+const RUB = 'com.minomobi.fluoddity.rubric';
+const EXP = 'com.minomobi.fluoddity.expedition';
+
+// ── tuning (see fluoddity/GAME.md §4–§8) ─────────────────────────────────────
+const ADIM = 512, ACOUNT = 70000;          // the live arena (levels 1–2)
+const SETTLE = 200, MOTION = 8, T2 = 150;   // used by evaluate() for hero search
+const T_START = 0.10, T_STEP = 0.17, L2_COOL = 0.085; // heat ladder / level-2 cooling
+const SPREAD_L1 = 0.03, SPREAD_L2 = 0.06;   // how far the 16 species' seeds fan out
+const MIN_HEATS = 3, MIN_TAMES = 3;         // a level can't be won before this many player moves
+const T_DISCOVER = 0.5, DISCOVER_SPREAD = 0.06, SHRINK = 0.72, SPREAD_FLOOR = 0.008; // level-4 convergence
+const SETTLE_FRAMES = 150;                  // ignore win-checks until the field settles
+const REFIT_EVERY = 3, MIN_EACH = 4;        // rubric fit cadence (level 3)
+const ORG_MIN_MS = 1500, ORG_CAP = 60;      // PDS write hygiene (level 3)
+
+mountAuthChip($('#auth'));
+
+let AE = null;  // arena engine (L1/L2)
+let BE = null;  // breed engine (L3)
+try { AE = new FluoddityEngine(ADIM, ACOUNT, { arena: true }); AE.displayMode = getViewMode(); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This game needs WebGL2 with float render targets — ' + (e.message || e); }
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const lerp = (a, b, t) => a + (b - a) * t;
+const clampN = (x, lo, hi) => x < lo ? lo : x > hi ? hi : x;
+const clamp01 = (x) => clampN(x, 0, 1);
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1600); }
+async function sha12(s) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].slice(0, 6).map(x => x.toString(16).padStart(2, '0')).join(''); }
+const tooHot = (vd) => vd === 'boiling' || vd === 'blown out';
+
+// A base genome's shape is fixed; the energy knobs ride temperature T. One arena
+// config expands into 16 species via seedOf() (mirrors FRAG_ENTITY_ARENA).
+function hero() { const g = defaultConfig(); g.cohorts = 16; g.trail_diffusion = 0.6; g.ink = 2.6; return g; }
+function arenaCfg(base, T, spread) {
+  const g = hero();
+  g.cohorts = 16; g.mutation_scale = spread; g.rule_seed = base;
+  g.global_force_mult = lerp(0.08, 1.45, T);
+  g.sensor_gain = lerp(1.2, 8.0, T);
+  g.trail_persistence = lerp(0.99, 0.88, T);
+  g.ink = Math.max(g.ink, 2.2);
+  return g;
+}
+const seedOf = (cfg, k) => cfg.rule_seed + k * (0.08 + cfg.mutation_scale * 2.0);
+
+// Settle a config on the arena engine and read the whole-field phenotype.
+function evaluate(cfg) {
+  AE.load(cfg, 'ev' + Math.random());
+  AE.step(SETTLE); AE.render();
+  const a1 = readDescriptors(AE.cv, null);
+  AE.step(MOTION); AE.render();
+  const v1 = readDescriptors(AE.cv, a1.lum);
+  AE.step(T2); AE.render();
+  const a2 = readDescriptors(AE.cv, null);
+  AE.step(MOTION); AE.render();
+  const v2 = readDescriptors(AE.cv, a2.lum);
+  return { vd: verdict(v1, false), fit: fitness2(v1, v2) };
+}
+// Reject-sample a base seed whose 16-species field is genuinely lively at mid heat.
+function findHero() {
+  let best = Math.random(), bestFit = -1;
+  for (let i = 0; i < 10; i++) {
+    const seed = Math.random();
+    const r = evaluate(arenaCfg(seed, 0.5, SPREAD_L1));
+    if (r.fit > bestFit) { bestFit = r.fit; best = seed; }
+    if (bestFit > 0.12) break;
+  }
+  return best;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const SKEY = 'fluoddity_game_state';
+let S = { level: 1, T: T_START, center: null, picks: [], gen: 0, champion: null };
+let cfgCur = null, framesSinceLoad = 0, sampleCounter = 0, winStreak = 0, arenaRunning = false, locked = false;
+
+function save() { try { localStorage.setItem(SKEY, JSON.stringify({ level: S.level, T: S.T, center: S.center, champion: S.champion || null, discoverParent: S.discoverParent || null, discoveries: S.discoveries || 0, discoverUnlocked: !!S.discoverUnlocked })); } catch {} }
+function restore() { try { const r = JSON.parse(localStorage.getItem(SKEY) || 'null'); if (r && r.center != null) return r; } catch {} return null; }
+
+// ── the live arena loop (L1/L2) ──────────────────────────────────────────────
+function loadArena(cfg, key) { cfgCur = cfg; framesSinceLoad = 0; sampleCounter = 0; winStreak = 0; AE.load(cfg, key || ('a' + Math.random())); }
+function startArena() { if (!arenaRunning) { arenaRunning = true; requestAnimationFrame(arenaLoop); } }
+function arenaLoop() {
+  if (!(S.level === 1 || S.level === 2 || S.level === 4)) { arenaRunning = false; return; }   // L3 takes over
+  AE.step(3); AE.render(); framesSinceLoad += 3;
+  if (++sampleCounter >= 15) { sampleCounter = 0; sampleVerdict(); }
+  requestAnimationFrame(arenaLoop);
+}
+// Read the field exactly like evaluate() (8-step motion) so verdict thresholds
+// stay calibrated; drive the badge + win detection.
+function sampleVerdict() {
+  const a1 = readDescriptors(AE.cv, null);
+  AE.step(MOTION); AE.render(); framesSinceLoad += MOTION;
+  const v = readDescriptors(AE.cv, a1.lum);
+  const vd = verdict(v, false);
+  if (S.level === 4) { setConv(); return; }   // discovery: show convergence, no win/lose
+  setBadge(vd);
+  if (locked || framesSinceLoad < SETTLE_FRAMES) { winStreak = 0; return; }
+  if (S.level === 1) {
+    // gated on heats so it can't win before the player has driven it up the ladder.
+    const wild = tooHot(vd) && S.gen >= MIN_HEATS;
+    if (wild) { if (++winStreak >= 2) winLevel1(); } else winStreak = 0;
+  } else if (S.level === 2) {
+    const tamed = !tooHot(vd) && vd !== 'dead' && v.fill > 0.04 && (S.regrows || 0) >= MIN_TAMES;
+    if (tamed) { if (++winStreak >= 2) winLevel2(); } else winStreak = 0;
+  }
+}
+
+// ── species selection: legend swatches + tap-the-field ────────────────────────
+function buildLegend() {
+  const L = $('#legend'); L.innerHTML = '';
+  for (let k = 0; k < 16; k++) {
+    const sw = document.createElement('div'); sw.className = 'sw'; sw.dataset.k = k;
+    sw.style.background = `hsl(${(k / 16 * 360).toFixed(0)} 72% 55%)`;
+    sw.title = 'species ' + (k + 1);
+    sw.addEventListener('click', () => selectSpecies(k));
+    L.appendChild(sw);
+  }
+}
+function attachFieldTap() {
+  AE.cv.addEventListener('click', (e) => {
+    try {
+      const gl = AE.gl, r = AE.cv.getBoundingClientRect();
+      const gx = clampN(Math.floor((e.clientX - r.left) / r.width * AE.dim), 0, AE.dim - 1);
+      const gy = clampN(Math.floor((1 - (e.clientY - r.top) / r.height) * AE.dim), 0, AE.dim - 1);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, AE.cFBO[AE.cPing]);
+      const buf = new Float32Array(4);
+      gl.readPixels(gx, gy, 1, 1, gl.RGBA, gl.FLOAT, buf);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      if (buf[2] === 0 && buf[3] === 0) return;        // nothing deposited there
+      let hue = Math.atan2(buf[3], buf[2]) / (2 * Math.PI); hue = ((hue % 1) + 1) % 1;
+      selectSpecies(Math.round(hue * 16) % 16);
+    } catch { /* readback unsupported — use the legend */ }
+  });
+}
+function selectSpecies(k) {
+  if (S.level === 1) {
+    // a pick re-centers on that species' brain and turns the heat up a notch.
+    S.center = seedOf(cfgCur, k); S.T = clamp01(S.T + T_STEP); S.gen++;
+    $('#gauge').classList.add('show'); setGauge(); save(); flashSwatch(k);
+    loadArena(arenaCfg(S.center, S.T, SPREAD_L1), 'l1g' + S.gen);
+    prompt('warmer… tap the liveliest one');
+  } else if (S.level === 2 || S.level === 4) {
+    const i = S.picks.indexOf(k);
+    if (i >= 0) S.picks.splice(i, 1); else if (S.picks.length < 2) S.picks.push(k); else S.picks = [k];
+    highlightPicks();
+    if (S.level === 4) prompt(S.picks.length === 2 ? 'regrow to <b>explore between</b> A × B' : S.picks.length === 1 ? 'regrow to <b>converge</b> — or <b>lock in</b> if you love it' : 'tap one to converge, two to explore between');
+    else prompt(S.picks.length === 2 ? 'regrow to blend <b>A × B</b> and cool it' : S.picks.length === 1 ? 'tap a <b>second</b> to blend — or regrow to settle around this one' : 'tap up to <b>two calm species</b>, then regrow');
+  }
+}
+function highlightPicks() {
+  document.querySelectorAll('.sw').forEach((sw, k) => { sw.classList.toggle('a', S.picks[0] === k); sw.classList.toggle('b', S.picks[1] === k); });
+}
+function flashSwatch(k) { const sw = document.querySelectorAll('.sw')[k]; if (!sw) return; sw.classList.remove('flash'); void sw.offsetWidth; sw.classList.add('flash'); }
+
+// ── level 1: HEAT ────────────────────────────────────────────────────────────
+function startLevel1(resumed) {
+  S.level = 1; locked = false; setLevelLabel('level 1 · heat'); showArena();
+  setDock([{ id: 'reroll', label: '↻ new world', cls: '', fn: freshHero }]);
+  $('#gauge').classList.remove('show');
+  if (!resumed) { S.center = findHero(); S.T = T_START; }
+  S.gen = 0;
+  loadArena(arenaCfg(S.center, S.T, SPREAD_L1), 'l1');
+  prompt('tap the species you like — <b>make it interesting</b>');
+  startArena();
+}
+function freshHero() { S.center = findHero(); S.T = T_START; S.gen = 0; setGauge(); loadArena(arenaCfg(S.center, S.T, SPREAD_L1), 'l1f'); prompt('tap the species you like — <b>make it interesting</b>'); }
+
+// ── level 2: TAME ────────────────────────────────────────────────────────────
+function startLevel2() {
+  S.level = 2; locked = false; setLevelLabel('level 2 · tame'); save(); showArena();
+  S.picks = []; S.regrows = 0; highlightPicks();
+  setDock([
+    { id: 'apply', label: 'regrow ⟳', cls: 'primary', fn: regrowL2 },
+    { id: 'reseed', label: '↻ reset', cls: '', fn: () => { S.picks = []; highlightPicks(); loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'l2r' + Math.random()); } },
+  ]);
+  // inherit level-1's boil temperature, so the field starts wild and must be tamed.
+  loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'l2');
+  prompt('too wild — tap up to <b>two calm species</b>, then regrow to cool it');
+  startArena();
+}
+function regrowL2() {
+  const ps = S.picks.slice();
+  S.regrows = (S.regrows || 0) + 1;
+  S.T = clamp01(S.T - L2_COOL);                 // every regrow eases it toward the edge
+  let base, spread = SPREAD_L2;
+  if (ps.length >= 2) {                          // interpolate: the 16 seeds span A→B
+    const sA = seedOf(cfgCur, ps[0]), sB = seedOf(cfgCur, ps[1]);
+    base = Math.min(sA, sB); spread = clampN((Math.abs(sB - sA) / 15 - 0.08) / 2, 0, 0.2);
+    prompt('blending the two…');
+  } else if (ps.length === 1) { base = seedOf(cfgCur, ps[0]); prompt('settling around your pick…'); }
+  else { base = Math.random(); prompt('fresh seed…'); }
+  S.center = base; S.picks = []; highlightPicks(); setGauge();
+  loadArena(arenaCfg(base, S.T, spread), 'l2g' + Math.random());
+}
+
+function winLevel1() {
+  setLevelLabel(''); winStreak = 0; locked = true;
+  overlay('boil', 'IT BOILED', 'You rode it all the way to the chaotic edge.<br><br>Now the harder game: <b>tame the boil.</b> A second tap lets you blend two species — pull the whole field back from chaos without letting it die.', () => startLevel2());
+}
+function winLevel2() {
+  setLevelLabel(''); winStreak = 0; locked = true;
+  S.champion = { ...cfgCur, mutation_scale: 0.02 };  // the tamed genome → the breeding seed
+  save();
+  overlay('tame', 'TAMED', 'You found the living edge — structured, moving, not boiling.<br><br>Last unlock: <b>breed it.</b> An endless stream, one at a time. Keep the ones you love. Your taste steers the rest — and your finds are saved to your own Bluesky.', () => gateLevel3());
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LEVEL 4: DISCOVER  (the level-2 arena as a Picbreeder-style discovery engine)
+//  Tap one to converge (spread tightens), two to explore between; LOCK IN
+//  collapses the field to one phenotype and publishes it as a lineage-linked
+//  discovery. No win — it's the open-ended engine that grows the phenotype map.
+// ═══════════════════════════════════════════════════════════════════════════
+function startLevel4() {
+  $('#ov-level').classList.remove('show'); $('#ov-gate').classList.remove('show');
+  S.level = 4; locked = false; setLevelLabel('level 4 · discover');
+  $('#big').style.display = 'none'; $('#arena').style.display = 'block'; $('#legend').classList.remove('hide');
+  $('#gauge').classList.remove('show'); $('#lablink').setAttribute('href', '../map.html');
+  S.discoveries = S.discoveries || 0; S.picks = []; highlightPicks();
+  S.spread = DISCOVER_SPREAD;
+  const base = (S.champion && S.champion.rule_seed != null) ? S.champion.rule_seed : (S.center ?? Math.random());
+  S.center = base;
+  setDock([
+    { id: 'lock', label: '✦ lock in', cls: 'primary', fn: lockIn },
+    { id: 'regrow', label: 'regrow ⟳', cls: '', fn: regrowL4 },
+    { id: 'wander', label: '↻ wander', cls: '', fn: () => { S.picks = []; highlightPicks(); S.spread = DISCOVER_SPREAD; S.center = Math.random(); loadArena(arenaCfg(S.center, T_DISCOVER, S.spread), 'l4w' + Math.random()); setConv(); prompt('somewhere new — tap one to converge, two to explore between'); } },
+  ]);
+  loadArena(arenaCfg(base, T_DISCOVER, S.spread), 'l4');
+  setConv();
+  prompt('the <b>discovery engine</b> — tap one to converge, two to explore between; <b>lock in</b> the one you love');
+  save(); startArena();
+}
+function regrowL4() {
+  const ps = S.picks.slice();
+  let base, spread;
+  if (ps.length >= 2) {                          // explore the space between two picks
+    const sA = seedOf(cfgCur, ps[0]), sB = seedOf(cfgCur, ps[1]);
+    base = Math.min(sA, sB); spread = clampN((Math.abs(sB - sA) / 15 - 0.08) / 2, 0, 0.2);
+    prompt('exploring between the two…');
+  } else if (ps.length === 1) {                  // converge: re-center + tighten the spread
+    base = seedOf(cfgCur, ps[0]); S.spread = Math.max(SPREAD_FLOOR, S.spread * SHRINK); spread = S.spread;
+    prompt('converging on your pick…');
+  } else {                                       // wander
+    base = Math.random(); S.spread = DISCOVER_SPREAD; spread = S.spread;
+    prompt('wandering somewhere new…');
+  }
+  S.center = base; S.picks = []; highlightPicks(); setConv();
+  loadArena(arenaCfg(base, T_DISCOVER, spread), 'l4g' + Math.random());
+}
+// Collapse to a single phenotype, publish it (lineage-linked), then re-expand to
+// hunt the next discovery from here — the engine.
+function lockIn() {
+  const seed = S.picks.length ? seedOf(cfgCur, S.picks[0]) : cfgCur.rule_seed;
+  S.discoveries = (S.discoveries || 0) + 1;
+  S.picks = []; highlightPicks();
+  loadArena({ ...cfgCur, rule_seed: seed, mutation_scale: 0.0 }, 'lock' + S.discoveries); // spread 0 → one phenotype fills the field
+  flashLock();
+  if (auth.isLoggedIn()) publishDiscovery({ ...cfgCur, rule_seed: seed, cohorts: 16, mutation_scale: 0.02 });
+  else toast('locked in ✦ (sign in to save discoveries)');
+  S.center = seed; S.spread = DISCOVER_SPREAD; save();
+  setTimeout(() => { if (S.level === 4) { loadArena(arenaCfg(seed, T_DISCOVER, S.spread), 'l4next' + Math.random()); setConv(); prompt(`discovery #${S.discoveries} locked. <b>hunt the next</b> — it branches from here`); } }, 1500);
+}
+async function publishDiscovery(cfg) {
+  const rec = { $type: ORG, name: 'discovery #' + S.discoveries + ' · the game', schemaVersion: 1, config: JSON.stringify(cfg), gallery: ANCHOR, createdAt: new Date().toISOString() };
+  if (S.discoverParent) rec.parent = S.discoverParent;       // grows a discovery lineage tree
+  try { const res = await auth.pds.createRecord(ORG, rec); if (res && res.uri) S.discoverParent = res.uri; save(); toast(`locked in ✦ discovery #${S.discoveries} published`); }
+  catch { toast('locked in ✦ (offline — not saved)'); }
+}
+function setConv() {
+  const conv = clamp01(1 - (S.spread - SPREAD_FLOOR) / (DISCOVER_SPREAD - SPREAD_FLOOR));
+  const n = Math.round(conv * 6), e = $('#vbadge');
+  e.textContent = 'lock ' + '▓'.repeat(n) + '░'.repeat(6 - n);
+  e.style.color = conv > 0.8 ? 'var(--accent)' : 'var(--muted)';
+}
+function flashLock() { const a = $('#arena'); a.classList.remove('lockf'); void a.offsetWidth; a.classList.add('lockf'); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  LEVEL 3: BREED  (background evolution + HOT/NOT swipe + auto-publish)
+// ═══════════════════════════════════════════════════════════════════════════
+let L3 = null;
+function gateLevel3() {
+  if (auth.isLoggedIn()) { startLevel3(); return; }
+  const ga = $('#gate-auth');
+  ga.innerHTML = '<div class="ta-wrap"><input id="gate-handle" placeholder="your-handle.bsky.social" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"><div id="gate-results" class="ta-results"></div></div><button class="btn primary" id="gate-in" style="margin-top:12px">sign in →</button>';
+  const input = $('#gate-handle'), box = $('#gate-results'), btn = $('#gate-in');
+  const go = async () => {
+    const h = input.value.trim().replace(/^@/, ''); if (!h) { input.focus(); return; }
+    btn.disabled = true; btn.textContent = 'redirecting…';
+    try {
+      // clean returnTo (no #fragment — the auth worker appends ?__auth_session=…,
+      // which a fragment would swallow); a localStorage flag resumes into breed.
+      localStorage.setItem('fluoddity_game_resume', '1');
+      await auth.login(h, { returnTo: location.origin + location.pathname });
+    } catch (e) { btn.disabled = false; btn.textContent = 'sign in →'; toast(e.message || String(e)); }
+  };
+  wireTypeahead(input, box, go);
+  btn.addEventListener('click', go);
+  $('#gate-skip').onclick = () => { $('#ov-gate').classList.remove('show'); startLevel2(); };
+  $('#ov-gate').classList.add('show');
+  setTimeout(() => input.focus(), 60);
+}
+
+// Bluesky handle typeahead (public API, no auth) — same pattern as fluoddity/play.
+function wireTypeahead(input, box, submit) {
+  let items = [], active = -1, timer = null, abort = null;
+  const close = () => { box.classList.remove('show'); box.innerHTML = ''; items = []; active = -1; };
+  const render = () => {
+    if (!items.length) { close(); return; }
+    box.innerHTML = items.map((a, i) => `<div class="ta-item${i === active ? ' on' : ''}" data-i="${i}">${a.avatar ? `<img src="${a.avatar}" referrerpolicy="no-referrer" alt="">` : '<span class="av"></span>'}<span class="nm">${(a.displayName || a.handle).replace(/</g, '&lt;')}<br><small>@${a.handle.replace(/</g, '&lt;')}</small></span></div>`).join('');
+    box.classList.add('show');
+  };
+  const pick = (i) => { if (items[i]) { input.value = items[i].handle; close(); } };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim().replace(/^@/, '');
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(async () => {
+      if (abort) abort.abort(); abort = new AbortController();
+      try {
+        const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: abort.signal });
+        if (!res.ok) return; const d = await res.json();
+        items = d.actors || []; active = -1; render();
+      } catch (e) { /* aborted or offline */ }
+    }, 180);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' && items.length) { e.preventDefault(); active = (active + 1) % items.length; render(); }
+    else if (e.key === 'ArrowUp' && items.length) { e.preventDefault(); active = (active - 1 + items.length) % items.length; render(); }
+    else if (e.key === 'Escape') { close(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0) pick(active); submit(); }
+  });
+  box.addEventListener('mousedown', (e) => { const it = e.target.closest('.ta-item'); if (it) { e.preventDefault(); pick(+it.dataset.i); input.focus(); } });
+}
+
+function startLevel3() {
+  $('#ov-gate').classList.remove('show'); $('#ov-level').classList.remove('show');
+  S.level = 3; arenaRunning = false; locked = true; setLevelLabel('level 3 · breed'); $('#gauge').classList.remove('show');
+  $('#arena').style.display = 'none'; $('#legend').classList.add('hide'); $('#big').style.display = 'block';
+  $('#lablink').setAttribute('href', '../breed.html');
+  // a fresh, livelier single-organism engine for the one-at-a-time stream.
+  try { BE = new FluoddityEngine(480, 55000); BE.displayMode = getViewMode(); } catch {}
+  const seed = S.champion || { ...hero(), rule_seed: (S.center ?? Math.random()), mutation_scale: 0.02 };
+  L3 = {
+    pool: [{ config: seed, score: 1 }],
+    votes: { hotF: [], notF: [] }, traj: [], scoreFn: null,
+    rubricRkey: 'game' + Date.now().toString(36),
+    sessionStartedAt: new Date().toISOString(),
+    saved: new Set(), lastOrgAt: 0, orgCount: 0, served: 0,
+    cur: null, prevLum: null, v1: null, v2: null, curFrames: 0,
+  };
+  try { const r = JSON.parse(localStorage.getItem('fluoddity_active_rubric') || 'null'); if (r?.code) installRubric(r.code); } catch {}
+  l3Dock();
+  prompt('keep the ones you like — <b>swipe or tap a button</b>');
+  bindSwipe();
+  serveNext();
+  requestAnimationFrame(l3Loop);
+  window.addEventListener('pagehide', flushExpedition, { once: true });
+}
+
+// Once a taste is trained, the player graduates: a ✦ discover button appears.
+function l3Dock() {
+  const btns = [
+    { id: 'not', label: '✕  not', cls: 'nay', fn: () => swipe(0) },
+    { id: 'yay', label: '♥  hot', cls: 'yay', fn: () => swipe(1) },
+  ];
+  if (S.discoverUnlocked) btns.push({ id: 'disc', label: '✦ discover →', cls: '', fn: startLevel4 });
+  setDock(btns);
+}
+function installRubric(code) { try { L3.scoreFn = new Function('v', 'fit', 'nov', 'align', 'verdict', 'gen', 'config', code); } catch { L3.scoreFn = null; } }
+function scoreOf(v, fit) { if (!L3.scoreFn) return fit; try { const x = L3.scoreFn(v, fit, 0, 0, '', 0, null); return Number.isFinite(x) ? x : fit; } catch { return fit; } }
+
+// softmax parent pick (tau≈0.3) → mutate → next card. The pool evolves with every vote.
+function serveNext() {
+  const pool = L3.pool, tau = 0.3;
+  let mx = -Infinity; for (const p of pool) mx = Math.max(mx, p.score);
+  let sum = 0; const w = pool.map(p => { const e = Math.exp((p.score - mx) / tau); sum += e; return e; });
+  let r = Math.random() * sum, pi = 0; for (; pi < w.length; pi++) { r -= w[pi]; if (r <= 0) break; }
+  const parent = pool[Math.min(pi, pool.length - 1)];
+  const child = mutate(parent.config, 0.8);
+  BE.load(child, 'l3_' + (L3.served++));
+  L3.cur = { config: child }; L3.prevLum = null; L3.v1 = null; L3.v2 = null; L3.curFrames = 0;
+}
+
+function l3Loop() {
+  if (S.level !== 3) return;
+  BE.step(5); BE.render();
+  const cv = $('#bigcv'), ctx = cv.getContext('2d');
+  if (cv.width !== 480) { cv.width = cv.height = 480; }
+  ctx.drawImage(BE.cv, 0, 0, 480, 480);
+  if ((++L3.curFrames % 20) === 0) {            // roll two snapshots for the feature vector
+    const a = readDescriptors(BE.cv, L3.prevLum);
+    L3.v1 = L3.v2 || a; L3.v2 = a; L3.prevLum = a.lum;
+  }
+  requestAnimationFrame(l3Loop);
+}
+
+async function swipe(label) {
+  if (!L3 || !L3.cur || !L3.v2) return;
+  const v = merge(L3.v1 || L3.v2, L3.v2);
+  const feats = FEATURES8.map(k => +v[k] || 0);
+  const fit = fitness(L3.v2);
+  flashBig(label);
+  if (label === 1) {
+    L3.votes.hotF.push(feats);
+    L3.pool.push({ config: L3.cur.config, score: 1.2 + scoreOf(v, fit) });
+    if (L3.pool.length > 40) L3.pool.shift();
+    publishOrganism(L3.cur.config);            // auto-save the keeper (deduped, rate-limited)
+  } else {
+    L3.votes.notF.push(feats);
+    L3.pool.push({ config: L3.cur.config, score: -0.5 });
+    if (L3.pool.length > 40) L3.pool.shift();
+  }
+  L3.traj.push([L3.served, null, 0, +fit.toFixed(4), ...feats.map(x => +x.toFixed(4))]);
+  maybeRefit();
+  serveNext();
+}
+
+async function maybeRefit() {
+  const H = L3.votes.hotF, N = L3.votes.notF, total = H.length + N.length;
+  if (H.length < MIN_EACH || N.length < MIN_EACH || total % REFIT_EVERY !== 0) return;
+  const F = [...H, ...N], y = [...H.map(() => 1), ...N.map(() => 0)];
+  const { w, b, acc } = trainLogistic(F, y);
+  const terms = w.map((wi, j) => `${wi.toFixed(4)} * v.${FEATURES8[j]}`);
+  const code = `// ${total} judgments · ${(acc * 100).toFixed(1)}% accuracy\nreturn ${terms.join(' + ')} + (${b.toFixed(4)});`;
+  installRubric(code);
+  const scorerHash = await sha12(code);
+  try { localStorage.setItem('fluoddity_active_rubric', JSON.stringify({ code, scorerHash, savedAt: new Date().toISOString(), source: 'game' })); localStorage.setItem('fluoddity_breed_custom_score', code); } catch {}
+  toast(`taste updated · ${(acc * 100).toFixed(0)}% sharp`);
+  if (!S.discoverUnlocked) { S.discoverUnlocked = true; save(); l3Dock(); setTimeout(() => toast('✦ discovery unlocked — lock in phenotypes'), 1700); }
+  if (auth.isLoggedIn()) {
+    try {
+      await auth.pds.putRecord(RUB, L3.rubricRkey, {
+        $type: RUB, name: 'taste from the game', schemaVersion: 1, scorer: code, scorerHash,
+        features: FEATURES8.slice(), weights: JSON.stringify(w.map(x => +x.toFixed(5))), bias: JSON.stringify(+b.toFixed(5)),
+        trainingSize: total, accuracy: JSON.stringify(+acc.toFixed(3)),
+        judgments: JSON.stringify([...H.map(f => [1, ...f]), ...N.map(f => [0, ...f])]).slice(0, 79000),
+        rubricForest: ANCHOR, createdAt: L3.sessionStartedAt,
+      });
+    } catch {}
+  }
+}
+
+function trainLogistic(F, y, iters = 300, lr = 0.25) {
+  const n = F.length, d = F[0].length; let w = new Array(d).fill(0), b = 0;
+  for (let it = 0; it < iters; it++) {
+    const gw = new Array(d).fill(0); let gb = 0;
+    for (let i = 0; i < n; i++) {
+      let z = b; for (let j = 0; j < d; j++) z += w[j] * F[i][j];
+      const e = 1 / (1 + Math.exp(-z)) - y[i];
+      for (let j = 0; j < d; j++) gw[j] += e * F[i][j]; gb += e;
+    }
+    for (let j = 0; j < d; j++) w[j] -= lr * gw[j] / n; b -= lr * gb / n;
+  }
+  let c = 0; for (let i = 0; i < n; i++) { let z = b; for (let j = 0; j < d; j++) z += w[j] * F[i][j]; if ((z > 0 ? 1 : 0) === y[i]) c++; }
+  return { w, b, acc: c / n };
+}
+
+// ── publishing (best-effort; never blocks play) ──────────────────────────────
+async function publishOrganism(cfg) {
+  if (!auth.isLoggedIn()) return;
+  const now = Date.now();
+  if (now - L3.lastOrgAt < ORG_MIN_MS || L3.orgCount >= ORG_CAP) return;
+  const key = cfg.rule_seed.toFixed(6) + ':' + cfg.global_force_mult.toFixed(3);
+  if (L3.saved.has(key)) return;
+  L3.saved.add(key); L3.lastOrgAt = now; L3.orgCount++;
+  try {
+    await auth.pds.createRecord(ORG, {
+      $type: ORG, name: 'from the game · ' + new Date().toLocaleDateString(),
+      schemaVersion: 1, config: JSON.stringify(cfg), gallery: ANCHOR, createdAt: new Date().toISOString(),
+    });
+    toast('saved to your garden ✦');
+  } catch { L3.orgCount--; }
+}
+
+let _flushed = false;
+async function flushExpedition() {
+  if (_flushed || !L3 || !auth.isLoggedIn() || L3.traj.length < 6) return;
+  _flushed = true;
+  const code = L3.scoreFn ? (localStorage.getItem('fluoddity_breed_custom_score') || 'default') : 'default';
+  try {
+    await auth.pds.createRecord(EXP, {
+      $type: EXP, name: 'a game session', schemaVersion: 2,
+      start: JSON.stringify(S.champion || {}), scorer: code, scorerHash: await sha12(code),
+      trajectory: JSON.stringify(L3.traj).slice(0, 199000),
+      knobs: JSON.stringify({ tau: 0.3, popSize: L3.pool.length, mutRate: 0.8 }),
+      generations: L3.served, forest: ANCHOR, createdAt: L3.sessionStartedAt,
+    });
+  } catch {}
+}
+
+// ── swipe gestures on the big card (level 3) ─────────────────────────────────
+function bindSwipe() {
+  const el = $('#big'); let x0 = null;
+  el.addEventListener('pointerdown', (e) => { x0 = e.clientX; });
+  el.addEventListener('pointerup', (e) => { if (x0 == null) return; const dx = e.clientX - x0; x0 = null; if (Math.abs(dx) > 50) swipe(dx > 0 ? 1 : 0); });
+}
+function flashBig(label) { const f = $('#flash'); f.className = 'flash ' + (label ? 'hot' : 'not'); void f.offsetWidth; f.classList.add('go'); }
+
+// ── HUD helpers ──────────────────────────────────────────────────────────────
+function prompt(html) { $('#prompt').innerHTML = html; }
+function setLevelLabel(t) { const e = $('#lvl'); e.textContent = t; e.classList.toggle('show', !!t); }
+function setBadge(vd) { const e = $('#vbadge'); e.textContent = vd; e.style.color = VIT_COLOR[vd] || '#fff'; }
+function showArena() { $('#big').style.display = 'none'; $('#arena').style.display = 'block'; $('#legend').classList.remove('hide'); }
+function setGauge() {
+  const p = clamp01(S.T) * 84 + 8;
+  $('#knob').style.left = p + '%'; $('#gtag').style.left = p + '%';
+  $('#gtag').textContent = S.T < 0.3 ? 'cold' : S.T < 0.55 ? 'warming' : S.T < 0.78 ? 'alive' : 'boiling';
+}
+function setDock(btns) {
+  const d = $('#dock'); d.innerHTML = '';
+  for (const b of btns) { const el = document.createElement('button'); el.className = 'btn ' + b.cls; el.id = 'b-' + b.id; el.innerHTML = b.label; el.onclick = b.fn; d.appendChild(el); }
+}
+function overlay(kind, title, body, go) {
+  const t = $('#ov-title'); t.textContent = title; t.className = kind;
+  $('#ov-body').innerHTML = body; $('#ov-level').classList.add('show');
+  $('#ov-go').onclick = () => { $('#ov-level').classList.remove('show'); go(); };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════════════════
+if (AE) {
+  $('#arena').appendChild(AE.cv);
+  buildLegend();
+  attachFieldTap();
+  // trail⇄particle toggle + reset, wired to whichever engine the level is driving.
+  mountViewControls($('#viewctl'), {
+    engines: () => (S.level === 3 ? BE : AE),
+    substrate: { match: false },   // give the energy slider, but keep the game's tuned density at default
+    onReset: () => {
+      if (S.level === 3) { if (L3) serveNext(); }
+      else if (S.level === 2) { S.picks = []; S.regrows = 0; highlightPicks(); loadArena(arenaCfg(S.center, S.T, SPREAD_L2), 'rst' + Math.random()); prompt('reset — tap up to <b>two calm species</b>, then regrow'); }
+      else if (S.level === 4) { S.picks = []; highlightPicks(); S.spread = DISCOVER_SPREAD; loadArena(arenaCfg(S.center, T_DISCOVER, S.spread), 'rst' + Math.random()); setConv(); prompt('reset — tap one to converge, two to explore between'); }
+      else freshHero();
+    },
+  });
+  (async () => {
+    // wait for the session to validate (this also picks up the ?__auth_session=…
+    // token the auth worker appends when redirecting back from sign-in).
+    try { await auth.init(); } catch {}
+    const resuming = localStorage.getItem('fluoddity_game_resume') === '1';
+    if (resuming) localStorage.removeItem('fluoddity_game_resume');
+    const r = restore(); if (r) S = { ...S, ...r };
+    if (resuming && auth.isLoggedIn()) { startLevel3(); return; }   // back from OAuth → breed
+    if (resuming && !auth.isLoggedIn() && S.champion) { showArena(); gateLevel3(); return; } // sign-in didn't take — let them retry without re-taming
+    if (S.level === 4 && S.center != null) { S.discoverUnlocked = true; startLevel4(); return; }
+    if (S.level === 2 && S.center != null) { startLevel2(); return; }
+    startLevel1(false);
+  })();
+}
+</script>
+</body>
+</html>
