@@ -25,6 +25,8 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WF = join(ROOT, '.github', 'workflows');
 const write = process.argv.includes('--write');
+const onlyArg = process.argv.find(a => a.startsWith('--only='));
+const only = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim())) : null;
 
 const reg = JSON.parse(readFileSync(join(ROOT, 'deploy-registry.json'), 'utf8'));
 const trunk = reg.trunk || 'main';
@@ -32,6 +34,7 @@ const trunk = reg.trunk || 'main';
 let changed = 0, skipped = 0, missing = 0;
 
 for (const s of reg.surfaces) {
+  if (only && !only.has(s.surface)) continue;
   const file = join(WF, `deploy-${s.surface}.yml`);
   if (!existsSync(file)) {
     if (!/needs-workflow/.test(s.status || '')) { console.log(`  ! ${s.surface}: no workflow file`); missing++; }
