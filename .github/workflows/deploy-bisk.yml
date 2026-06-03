@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/prepare-merge-candidates-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'bisk/**'
       - '.github/workflows/deploy-bisk.yml'
