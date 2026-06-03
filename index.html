@@ -2081,32 +2081,22 @@ footer a:hover {
     if (el) el.textContent = P.length + ' surfaces';
   })();
 
-  // Orrery renders from P (single source): childless top-level entries become
-  // naked inner-ring planets; entries with descendants become outer-ring systems
-  // whose moon-ring holds every descendant. Adding a surface to P places it here.
+  // Orrery renders TOP-LEVEL surfaces from P (single source). Moons (sub-pages)
+  // are omitted — the orrery outgrew showing all 125. It shows the ~50 top-level
+  // surfaces split across the two rings (highest-commit alternated outward so
+  // each ring carries a mix). Sub-pages remain reachable via the cards + the
+  // no-JS fallback nav, both still P-derived.
   (function() {
     var inner = document.querySelector('.orbit[data-ring="1"]');
     var outer = document.querySelector('.orbit[data-ring="2"]');
     if (!inner || !outer) return;
-    var kids = {};
-    P.forEach(function(p) { if (p.p) { (kids[p.p] = kids[p.p] || []).push(p); } });
-    function desc(n) {
-      var o = [];
-      (kids[n] || []).forEach(function(c) { o.push(c); o = o.concat(desc(c.n)); });
-      return o;
-    }
     function anchor(p) {
       return '<a href="' + p.u + '" data-age="' + p.a + '" data-commits="' + p.k + '">' + p.n + '</a>';
     }
+    var tops = P.filter(function(p) { return !p.p; }).sort(function(a, b) { return b.k - a.k; });
     var innerH = '', outerH = '';
-    P.filter(function(p) { return !p.p; }).forEach(function(p) {
-      var d = desc(p.n);
-      if (!d.length) { innerH += anchor(p); return; }
-      var mr = Math.min(140, 56 + d.length * 7);
-      var speed = Math.max(8, Math.min(18, 8 + d.length));
-      outerH += '<div class="planet">' + anchor(p) +
-        '<div class="moon-ring" style="--mr:' + mr + 'px;--moon-speed:' + speed + 's">' +
-        d.map(anchor).join('') + '</div></div>';
+    tops.forEach(function(p, i) {
+      if (i % 2 === 0) outerH += anchor(p); else innerH += anchor(p);
     });
     inner.innerHTML = innerH;
     outer.innerHTML = outerH;
