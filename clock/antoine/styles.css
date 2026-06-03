@@ -1,0 +1,75 @@
+:root{
+  --gold:#d4a843; --gold-soft:#e8c976; --ink:#f4ede0;
+  --bg:#0a0a0a; --panel:rgba(16,15,13,.72); --line:rgba(212,168,67,.22);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+canvas#gfx{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none;cursor:grab}
+canvas#gfx:active{cursor:grabbing}
+
+.hidden{display:none !important}
+
+.hud{position:fixed;top:0;left:0;right:0;padding:16px 18px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);z-index:5}
+.hud .crumb{pointer-events:auto}
+.crumb{display:inline-block;color:var(--gold);text-decoration:none;font-size:13px;
+  letter-spacing:.04em;opacity:.85;transition:opacity .2s}
+.crumb:hover{opacity:1}
+.title{margin-top:6px}
+.title .kicker{display:block;font-size:11px;letter-spacing:.3em;text-transform:uppercase;
+  color:var(--gold-soft);opacity:.7}
+.title h1{margin:2px 0 0;font-size:clamp(18px,3.4vw,30px);font-weight:300;letter-spacing:.01em;
+  text-shadow:0 2px 20px rgba(0,0,0,.6)}
+
+.panel{position:fixed;top:14px;right:14px;width:266px;max-height:calc(100vh - 28px);
+  display:flex;flex-direction:column;background:var(--panel);backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:14px;z-index:6;overflow:hidden;
+  box-shadow:0 18px 50px rgba(0,0,0,.5);font-size:12.5px}
+.panel.collapsed .controls,.panel.collapsed .buttons,.panel.collapsed .hint{display:none}
+.panel-head{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 14px;border-bottom:1px solid var(--line);letter-spacing:.2em;
+  text-transform:uppercase;font-size:11px;color:var(--gold-soft)}
+.panel-head button{background:none;border:1px solid var(--line);color:var(--gold-soft);
+  width:24px;height:24px;border-radius:7px;cursor:pointer;font-size:15px;line-height:1}
+.controls{overflow-y:auto;padding:10px 14px 4px}
+.controls::-webkit-scrollbar{width:8px}
+.controls::-webkit-scrollbar-thumb{background:rgba(212,168,67,.25);border-radius:8px}
+
+.ctl{margin-bottom:11px}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:4px;color:var(--ink);opacity:.92}
+.ctl .val{color:var(--gold-soft);font-variant-numeric:tabular-nums;font-size:11.5px;opacity:.85}
+.ctl input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;
+  background:linear-gradient(90deg,var(--gold) 0%,var(--gold) var(--p,40%),rgba(255,255,255,.12) var(--p,40%));
+  border-radius:4px;outline:none}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;
+  border-radius:50%;background:var(--gold-soft);cursor:pointer;border:2px solid #1a1712;
+  box-shadow:0 0 8px rgba(212,168,67,.5)}
+.ctl input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;
+  background:var(--gold-soft);cursor:pointer;border:2px solid #1a1712}
+.ctl select{width:100%;background:#15130f;color:var(--ink);border:1px solid var(--line);
+  border-radius:7px;padding:5px 7px;font-size:12px}
+
+.buttons{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 4px;border-top:1px solid var(--line)}
+.buttons button{flex:1 1 30%;background:#15130f;color:var(--gold-soft);border:1px solid var(--line);
+  border-radius:8px;padding:7px 4px;cursor:pointer;font-size:11.5px;transition:all .15s;white-space:nowrap}
+.buttons button:hover{background:#211d15;color:var(--gold)}
+.buttons button.active{background:var(--gold);color:#1a1712;border-color:var(--gold)}
+.hint{padding:8px 14px 12px;font-size:10.5px;line-height:1.5;color:rgba(244,237,224,.5)}
+.hint b{color:var(--gold-soft)}
+
+.fps{position:fixed;bottom:10px;left:12px;font-size:11px;font-variant-numeric:tabular-nums;
+  color:rgba(244,237,224,.45);z-index:5;pointer-events:none}
+
+.nogpu{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:30px;z-index:20;background:radial-gradient(circle at 50% 40%,#16130d,#070707)}
+.nogpu h1{font-weight:300;color:var(--gold-soft);font-size:28px}
+.nogpu p{max-width:440px;line-height:1.6;opacity:.8}
+.nogpu code{background:#15130f;padding:2px 6px;border-radius:5px;color:var(--gold-soft);font-size:12px}
+.nogpu .crumb{margin-top:18px}
+
+@media (max-width:560px){
+  .panel{width:auto;left:10px;right:10px;top:auto;bottom:10px;max-height:46vh}
+  .hud{padding:12px 14px}
+}
