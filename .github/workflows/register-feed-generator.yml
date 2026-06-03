@@ -2,7 +2,7 @@ name: Register Feed Generator
 
 on:
   push:
-    branches: [main, 'claude/document-projects-oPse6']
+    branches: [main, 'claude/document-projects-oPse6', 'claude/atproto-tracker-portal-CExE3']
     paths:
       - '.github/workflows/register-feed-generator.yml'
   workflow_dispatch:
@@ -39,8 +39,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          HANDLE="${{ secrets.BLUESKY_HANDLE }}"
-          PASSWORD="${{ secrets.BLUESKY_APP_PASSWORD }}"
+          # Publish under morphyx — the old simcluster/main accounts are taken down.
+          HANDLE="${{ secrets.BLUESKY_MORPHYX_HANDLE }}"
+          PASSWORD="${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}"
           FEED_RKEY="${{ inputs.feed_rkey }}"
           DISPLAY_NAME="${{ inputs.display_name }}"
           DESCRIPTION="${{ inputs.description }}"
@@ -136,8 +137,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          HANDLE="${{ secrets.BLUESKY_HANDLE }}"
-          PASSWORD="${{ secrets.BLUESKY_APP_PASSWORD }}"
+          # Publish under morphyx — the old simcluster/main accounts are taken down.
+          HANDLE="${{ secrets.BLUESKY_MORPHYX_HANDLE }}"
+          PASSWORD="${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}"
           FEED_RKEY="${{ matrix.rkey }}"
           DISPLAY_NAME="${{ matrix.name }}"
           DESCRIPTION="${{ matrix.desc }}"

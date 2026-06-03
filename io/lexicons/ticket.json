@@ -1,0 +1,90 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.io.ticket",
+  "description": "A bug report, feature request, or idea for a site in the mino constellation. Records live on each author's own PDS; io.mino.mobi indexes them for a shared board.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["kind", "title", "createdAt"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["bug", "feature", "idea"],
+            "description": "What kind of ticket this is."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 600,
+            "maxGraphemes": 300,
+            "description": "One-line summary."
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 20000,
+            "maxGraphemes": 10000,
+            "description": "Full description, repro steps, rationale."
+          },
+          "site": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Which site/endpoint this is about, e.g. poll.mino.mobi."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Exact page the ticket concerns, if known."
+          },
+          "repo": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Source repo that owns the site, e.g. minormobius/agent01. Enables automated triage/dispatch."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "med", "high"],
+            "description": "Advisory severity (bugs)."
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 80 },
+            "maxLength": 12
+          },
+          "board": {
+            "type": "string",
+            "format": "uri",
+            "description": "Discovery anchor: a constant URL every ticket links to, so a backlink index (Constellation) can enumerate all tickets network-wide. Set to the io board anchor URL."
+          },
+          "source": {
+            "type": "ref",
+            "ref": "#source",
+            "description": "Provenance. Absent or {kind:manual} for tickets filed directly; {kind:swept,...} for tickets minted from a Bluesky post by the sweeper."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["manual", "swept"] },
+        "post": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef",
+          "description": "The originating Bluesky post (swept tickets)."
+        },
+        "author": {
+          "type": "string",
+          "format": "did",
+          "description": "DID of the original poster (swept tickets)."
+        }
+      }
+    }
+  }
+}

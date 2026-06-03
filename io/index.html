@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>io — ideas & bugs for the mino constellation</title>
+<meta name="description" content="An ATProto-native bug, feature-request and idea tracker. Tickets live on your own PDS. Plus a StumbleUpon portal for mino.mobi sites.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="brand">io<span class="dot">.</span>mino.mobi</span>
+    <span class="tagline">ideas · bugs · features</span>
+    <nav class="nav">
+      <a href="/" class="active">tracker</a>
+      <a href="/board">board</a>
+      <a href="/stumble">stumble</a>
+      <span id="who" class="who"></span>
+    </nav>
+  </div>
+
+  <!-- Stumble launcher -->
+  <div class="card hero">
+    <h1>Stumble the constellation</h1>
+    <p>Jump to a random mino.mobi site. A bar rides along so you can hop again — or file a bug on whatever you land on.</p>
+    <div class="flex" style="justify-content:center;">
+      <a class="btn lg" href="/stumble">🎲 Surprise me</a>
+      <a class="btn lg ghost" href="/go" target="_blank" rel="noopener">↗ Random site (raw)</a>
+    </div>
+  </div>
+
+  <!-- Compose -->
+  <div class="card">
+    <h2>File a ticket</h2>
+    <div id="auth-gate">
+      <p class="muted small" style="margin-bottom:0.75rem;">
+        Tickets are ATProto records written to <b>your own PDS</b> — you own them. Sign in with Bluesky to file one.
+      </p>
+      <div class="flex wrap">
+        <input id="handle" data-bsky-typeahead placeholder="you.bsky.social" autocomplete="off" style="max-width:280px;">
+        <button class="btn" id="login-btn">Sign in with Bluesky</button>
+      </div>
+    </div>
+
+    <form id="compose" style="display:none;">
+      <div class="flex wrap" style="margin-bottom:1rem;">
+        <div style="flex:0 0 auto;">
+          <label>kind</label>
+          <select id="f-kind">
+            <option value="idea">💡 idea</option>
+            <option value="feature">✨ feature</option>
+            <option value="bug">🐞 bug</option>
+          </select>
+        </div>
+        <div style="flex:1 1 200px;">
+          <label>site (optional)</label>
+          <input id="f-site" placeholder="poll.mino.mobi">
+        </div>
+        <div id="sev-wrap" style="flex:0 0 auto; display:none;">
+          <label>severity</label>
+          <select id="f-severity">
+            <option value="">—</option>
+            <option value="low">low</option>
+            <option value="med">med</option>
+            <option value="high">high</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>title</label>
+        <input id="f-title" placeholder="One-line summary" maxlength="300" required>
+      </div>
+      <div class="field">
+        <label>details</label>
+        <textarea id="f-body" placeholder="What happened / what you'd like / why it matters. Repro steps for bugs."></textarea>
+      </div>
+      <input type="hidden" id="f-url">
+      <input type="hidden" id="f-repo">
+      <div class="flex">
+        <button type="submit" class="btn" id="submit-btn">File ticket</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" id="logout-btn">Sign out</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Board preview -->
+  <div class="card">
+    <div class="flex" style="margin-bottom:1rem;">
+      <h2 style="margin:0;">Board</h2>
+      <span class="spacer"></span>
+      <a class="small mono muted" href="/board">full board →</a>
+    </div>
+    <div id="board"></div>
+  </div>
+</div>
+
+<script src="/typeahead.js"></script>
+<script type="module">
+import { initAuth, login, logout, submitTicket, loadConfig, toast } from '/app.js';
+import { fetchTickets, renderBoard } from '/board.js';
+
+const $ = (id) => document.getElementById(id);
+
+await loadConfig();
+
+// Prefill from ?compose=bug&site=...&url=... (stumble bar deep-links here)
+const params = new URLSearchParams(location.search);
+const composeKind = params.get('compose') || params.get('kind');
+if (composeKind && ['bug','feature','idea'].includes(composeKind)) $('f-kind').value = composeKind;
+if (params.get('site')) $('f-site').value = params.get('site');
+if (params.get('url')) $('f-url').value = params.get('url');
+if (params.get('repo')) $('f-repo').value = params.get('repo');
+
+function syncSeverity() { $('sev-wrap').style.display = $('f-kind').value === 'bug' ? 'block' : 'none'; }
+$('f-kind').addEventListener('change', syncSeverity);
+syncSeverity();
+
+function onAuth(user) {
+  if (user) {
+    $('who').innerHTML = `<b>@${user.handle}</b>`;
+    $('auth-gate').style.display = 'none';
+    $('compose').style.display = 'block';
+    if (composeKind && $('f-title')) $('f-title').focus();
+  } else {
+    $('who').textContent = '';
+    $('auth-gate').style.display = 'block';
+    $('compose').style.display = 'none';
+  }
+}
+
+$('login-btn').addEventListener('click', () => login($('handle').value));
+$('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') login($('handle').value); });
+$('logout-btn').addEventListener('click', async () => { await logout(); });
+
+$('compose').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('submit-btn');
+  btn.disabled = true; btn.textContent = 'Filing…';
+  try {
+    await submitTicket({
+      kind: $('f-kind').value,
+      title: $('f-title').value.trim(),
+      body: $('f-body').value.trim(),
+      site: $('f-site').value.trim(),
+      url: $('f-url').value.trim(),
+      repo: $('f-repo').value.trim(),
+      severity: $('f-kind').value === 'bug' ? $('f-severity').value : '',
+    });
+    toast('Filed! It lives on your PDS.');
+    $('f-title').value = ''; $('f-body').value = '';
+    setTimeout(loadBoard, 1200);
+  } catch (err) {
+    toast(err.message || 'Failed to file', true);
+  } finally {
+    btn.disabled = false; btn.textContent = 'File ticket';
+  }
+});
+
+async function loadBoard() {
+  const tickets = await fetchTickets();
+  renderBoard($('board'), tickets);
+}
+
+await initAuth(onAuth);
+await loadBoard();
+</script>
+</body>
+</html>
