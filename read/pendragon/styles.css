@@ -357,10 +357,14 @@ svg.propp { display: block; }
 .cw-intro { color: var(--ink-dim); font-size: 16px; line-height: 1.6; max-width: 76ch; margin: 4px 0 16px; }
 .cw-grouphead { font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.07em; font-size: 12px; color: var(--gold-soft); margin: 26px 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--line); }
 .cw-subnote { color: var(--ink-dim); font-size: 14px; line-height: 1.55; max-width: 72ch; margin: 6px 0 14px; }
+/* Horizontal-scroll wrapper for each crosswalk section: the page is only
+   --maxw wide, but with nine tale-columns the grid is far wider, so each
+   table scrolls horizontally instead of overflowing/clipping the page. */
+.cw-table { overflow-x: auto; overflow-y: visible; padding-bottom: 6px; }
 .cw-row {
   display: grid;
-  grid-template-columns: 100px minmax(180px, 1.2fr) repeat(var(--cw-tale-cols, 4), minmax(150px, 1fr));
-  gap: 12px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line);
+  grid-template-columns: 96px minmax(150px, 1.1fr) repeat(var(--cw-tale-cols, 4), minmax(106px, 1fr));
+  gap: 10px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--line);
 }
 @media (max-width: 1000px) {
   .cw-row { grid-template-columns: 80px 1fr; }
@@ -386,6 +390,26 @@ svg.propp { display: block; }
 .cw-count { font-family: var(--sans); font-size: 11px; color: var(--ink-faint); margin-left: 8px; vertical-align: middle; }
 .cw-count.cw-c4 { color: var(--gold); font-weight: 700; }
 
+/* ── The axis of desire (Greimas, cross-tale) ── */
+.cw-desire { overflow-x: auto; margin: 4px 0 6px; }
+.cw-desire-tbl { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 13.5px; }
+.cw-desire-tbl thead th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-faint); font-weight: 600; padding: 0 14px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.cw-desire-tbl tbody th {
+  text-align: left; font-weight: 600; color: var(--ink); padding: 11px 14px 11px 0;
+  white-space: nowrap; vertical-align: top;
+}
+.cw-desire-tbl tbody td { color: var(--ink-dim); padding: 11px 14px 11px 0; vertical-align: top; line-height: 1.45; border-bottom: 1px solid var(--line); }
+.cw-desire-tbl tbody th { border-bottom: 1px solid var(--line); }
+.cw-desire-tbl tr.dz-failrow th, .cw-desire-tbl tr.dz-failrow td { background: rgba(160,124,201,0.07); }
+.dz-yes { display: inline-block; color: var(--gold); font-weight: 700; white-space: nowrap; }
+.dz-no { display: inline-block; color: #a07cc9; font-weight: 700; white-space: nowrap; }
+.dz-verdict { display: block; margin-top: 3px; font-size: 12px; color: var(--ink-faint); font-style: italic; line-height: 1.4; white-space: normal; }
+.cw-finding { color: var(--ink-dim); font-size: 14px; line-height: 1.6; max-width: 76ch; margin: 12px 0 4px; padding: 12px 16px; background: rgba(160,124,201,0.06); border-left: 3px solid #a07cc9; border-radius: 0 6px 6px 0; }
+.cw-finding strong, .cw-finding em { color: var(--ink); }
+
 /* ── Compare (hypermythograph) ── */
 .cmp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 12px 0 4px; }
 .cmp-modes { display: inline-flex; gap: 6px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; }
@@ -397,6 +421,18 @@ svg.propp { display: block; }
 .cmp-toggle.active { background: rgba(201,162,74,0.18); color: var(--gold-soft); border-color: var(--gold); }
 .cmp-mode-blurb { color: var(--ink-dim); font-size: 14px; line-height: 1.55; max-width: 78ch; margin: 6px 0 14px; }
 #cmp-host { height: 70vh; min-height: 540px; max-height: 760px; }
+.cmp-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin: 2px 0 10px; }
+.cmp-lchip { font-family: var(--sans); font-size: 11px; color: var(--ink-dim); display: inline-flex; align-items: center; }
+.cmp-ldot { width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; display: inline-block; flex: none; }
+.cmp-lname { color: var(--ink-faint); }
+@media (max-width: 620px) { .cmp-lname { display: none; } }
+.cmp-tales { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 2px; }
+.cmp-tales-lab { font-family: var(--sans); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-right: 2px; }
+.cmp-talechip { font-family: var(--sans); font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--tc, var(--line)); }
+.cmp-talechip:hover { background: rgba(201, 162, 74, 0.10); }
+.cmp-talechip.off { color: var(--ink-faint); opacity: 0.45; text-decoration: line-through; border-left-color: var(--line); }
+.cmp-d-readlink { display: inline-block; margin-top: 10px; font-family: var(--sans); font-size: 13px; color: var(--gold-soft); text-decoration: none; }
+.cmp-d-readlink:hover { color: var(--gold); }
 .cmp-graph .cmp-edge { transition: stroke-opacity 0.18s; }
 .cmp-graph .cmp-tnode { cursor: pointer; }
 .cmp-graph .cmp-tnode:hover rect { fill-opacity: 1; }

@@ -23,6 +23,7 @@ const PENDRAGON = {
     teams:(l)   => ({ host: "TEAMS",             url: "https://d.lib.rochester.edu/teams", label: l || "TEAMS Middle English Texts" }),
     com: (q, l) => ({ host: "Wikimedia Commons", url: "https://commons.wikimedia.org/w/index.php?search=" + encodeURIComponent(q), label: l }),
     imslp:(q,l) => ({ host: "IMSLP",             url: "https://imslp.org/index.php?title=Special:Search&search=" + encodeURIComponent(q), label: l }),
+    read:(t,l)  => ({ host: "read.mino.mobi",    url: "/" + t + "/", label: l || "read in full" }),
   },
 
   /* ── TIMELINE ─────────────────────────────────────────────────────────
@@ -66,8 +67,8 @@ const PENDRAGON = {
 
     { year: 1150, span: "c. 1150", kind: "pseudohistory", strand: "Galfridian", fae: true,
       title: "Geoffrey — Vita Merlini & the first Morgan",
-      body: "Geoffrey's verse life of Merlin describes Avalon — the <em>Insula Pomorum</em>, “Isle of Apples” — ruled by <strong>Morgen</strong> and her nine sisters, mistresses of healing and shape-shifting flight. This is the first literary Morgan le Fay: not a villain but a benevolent otherworld healer. The fae are present at the very root.",
-      links: ["wp:Vita_Merlini|Vita Merlini", "wp:Morgan_le_Fay|Morgan le Fay"] },
+      body: "Geoffrey's verse life of Merlin describes Avalon — the <em>Insula Pomorum</em>, “Isle of Apples” — ruled by <strong>Morgen</strong> and her nine sisters, mistresses of healing and shape-shifting flight. This is the first literary Morgan le Fay: not a villain but a benevolent otherworld healer, and the earliest home of the <strong>once-and-future king</strong>, borne wounded over the sea to be healed. The fae are present at the very root. The <em>Vita Merlini</em> is now <strong>read in full on this site</strong> — all 1,529 hexameters of the wild man, the threefold death, the stag-ride, the Isle of Apples and the healing spring, alongside the Latin.",
+      links: ["read:vitamerlini|Vita Merlini — deep read", "wp:Vita_Merlini|Vita Merlini", "wp:Morgan_le_Fay|Morgan le Fay"] },
 
     { year: 1155, span: "1155", kind: "romance", strand: "Galfridian",
       title: "Wace — Roman de Brut & the Round Table",
@@ -83,6 +84,11 @@ const PENDRAGON = {
       title: "Chrétien de Troyes — the romance turn ★",
       body: "Five verse romances reinvent the genre and shift the spotlight from the king to the individual questing knight. <em>Le Chevalier de la Charrette</em> introduces <strong>Lancelot</strong> and his adulterous love for Guinevere; <em>Le Conte du Graal</em> introduces the <strong>Grail</strong> (a mysterious serving-dish, not yet Christian) and Perceval. Courtly love, interior conflict, the unfinished quest — all begin here.",
       links: ["wp:Chrétien_de_Troyes|Chrétien de Troyes", "wp:Perceval,_the_Story_of_the_Grail|Conte du Graal", "gb:Chretien de Troyes Arthurian romances|Gutenberg", "cp:Camelot Project"] },
+
+    { year: 1200, span: "comp. c. 1200; MSS c. 1350–1410", kind: "source", strand: "Insular", fae: true,
+      title: "The Three Welsh Romances — Owain, Peredur, Geraint",
+      body: "Three Welsh Arthurian romances preserved in the White Book of Rhydderch and the Red Book of Hergest, each twinned with a Chrétien poem: <strong>Owain, neu Iarlles y Ffynnon</strong> (the Lady of the Fountain) with <em>Yvain</em>; <em>Peredur</em> with <em>Perceval</em>; <em>Geraint</em> with <em>Erec</em>. Whether the Welsh tales descend from Chrétien, Chrétien from Welsh/Breton sources, or all from a lost common stock is the unresolved crux of Arthurian transmission — the two-way Welsh↔French traffic the tree above tries to show. <em>Owain</em> is now read in full on this site, the storm-fountain, the won lady, the broken term, the madness and the grateful lion alongside the Middle Welsh.",
+      links: ["wp:Owain,_or_the_Lady_of_the_Fountain|Owain / Lady of the Fountain", "wp:Three_Welsh_Romances|Three Welsh Romances", "ia:Mabinogion Rhys Evans Red Book Hergest|Rhys & Evans 1887"] },
 
     { year: 1195, span: "c. 1190–1200", kind: "romance", strand: "French", fae: true,
       title: "Robert de Boron — the Grail made holy",
@@ -250,6 +256,7 @@ const PENDRAGON = {
       { id: "nennius",    strand: "Insular",    year: 830,  label: "Historia Brittonum" },
       { id: "annales",    strand: "Insular",    year: 970,  label: "Annales Cambriae" },
       { id: "culhwch",    strand: "Insular",    year: 1100, label: "Culhwch & Olwen", fae: true },
+      { id: "owain",      strand: "Insular",    year: 1200, label: "Owain (Iarlles y Ffynnon)", fae: true },
       { id: "geoffrey",   strand: "Galfridian", year: 1136, label: "Geoffrey of Monmouth", pivot: true },
       { id: "vitamerlini",strand: "Galfridian", year: 1150, label: "Vita Merlini", fae: true },
       { id: "wace",       strand: "Galfridian", year: 1155, label: "Wace — Brut" },
@@ -285,6 +292,8 @@ const PENDRAGON = {
       ["annales", "geoffrey", "influence"],
       ["culhwch", "geoffrey", "influence"],
       ["culhwch", "chretien", "influence"],
+      ["culhwch", "owain", "context"],
+      ["chretien", "owain", "influence"],
       ["geoffrey", "vitamerlini", "descends"],
       ["geoffrey", "wace", "descends"],
       ["wace", "layamon", "descends"],

@@ -28,12 +28,15 @@
     function zoomAt(mx, my, f) { const nk = clamp(k * f, MIN, MAX); tx = mx - (mx - tx) * (nk / k); ty = my - (my - ty) * (nk / k); k = nk; apply(); }
     svg.addEventListener("wheel", (e) => { e.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
     const pts = new Map(); let pinch = null;
-    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, drag: false }); });
     svg.addEventListener("pointermove", (e) => {
-      if (!pts.has(e.pointerId)) return;
-      const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = pts.get(e.pointerId); if (!p) return;
+      const prevx = p.x, prevy = p.y; p.x = e.clientX; p.y = e.clientY;
       const arr = [...pts.values()];
-      if (arr.length === 1) { tx += e.clientX - prev.x; ty += e.clientY - prev.y; apply(); }
+      if (arr.length === 1) {
+        if (!p.drag) { if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < 5) return; p.drag = true; try { svg.setPointerCapture(e.pointerId); } catch (_) {} }
+        tx += e.clientX - prevx; ty += e.clientY - prevy; apply();
+      }
       else if (arr.length >= 2) {
         const r = svg.getBoundingClientRect(); const [a, b] = arr;
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
@@ -94,6 +97,7 @@
     body.innerHTML = "";
     t.passages.forEach((pass, pi) => {
       const head = el("h2", "section tale-pass-title", pass.title); head.id = "tale-p-" + (pi + 1); body.appendChild(head);
+      if (O.themes) { const th = O.themes.filter((x) => x.passage === pi + 1); if (th.length) body.appendChild(el("div", "tale-themes", th.map((x) => "\u27dc <strong>type-scene:</strong> " + escapeHtml(x.label)).join(" &nbsp;\u00b7&nbsp; "))); }
       pass.segments.forEach((seg, si) => {
         const row = el("div", "tale-seg");
         const w = el("div", "seg-w"); w.innerHTML = `<span class="seg-no">${si + 1}.</span> ` + seg.w; row.appendChild(w);
@@ -275,6 +279,7 @@
   function renderPropp() {
     const P = O.propp; if (!P) return;
     $("#propp-intro").innerHTML = P.intro;
+    if (O.themes && O.themes.length) { const td = el("div", "propp-themes"); td.innerHTML = '<div class="pt-head">Oral type-scenes <span>\u00b7 Parry\u2013Lord</span></div>' + O.themes.map((x) => `<a class="pt-row" data-passage="${x.passage}"><span class="pt-id">\u27dc ${escapeHtml(x.label)}</span><span class="pt-note">${x.note}</span></a>`).join(""); $("#propp-intro").after(td); }
     const actColor = {}; P.acts.forEach((a) => actColor[a.id] = a.color);
     const leg = $("#propp-legend"); leg.innerHTML = "";
     P.acts.forEach((a) => leg.appendChild(el("span", "li", `<span class="dot" style="background:${a.color}"></span>${a.label}`)));
@@ -369,11 +374,15 @@
     O.characters.cast.forEach((c) => add("ch-" + c.id, c.name, c.name, "character", { char: c.id }, c.blurb || ""));
     O.motifs.list.forEach((m, i) => add("mo-" + i, (m.code || m.cls) + " — " + m.name, m.code || m.cls, "motif", { tab: "motifs" }, m.gloss || ""));
     O.propp.moves.forEach((mv, i) => add("pp-" + i, mv.sym + " · " + mv.name, mv.sym, "propp", { tab: "propp", anchor: "propp-move-" + i }, mv.realized || ""));
-    const edge = (a, b, type) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type }); };
+    (O.themes || []).forEach((th, i) => add("th-" + i, "Type-scene \u00b7 " + th.label, "\u27dc", "theme", { passage: th.passage }, th.note || ""));
+    if (O.desire) add("de-obj", "The Object of desire \u2014 " + O.desire.object, "\u2726", "desire", { tab: "desire" }, (O.desire.value ? O.desire.value + ". " : "") + (O.desire.note || ""));
+    const edge = (a, b, type, dashed) => { if (id2i[a] == null || id2i[b] == null) return; edges.push({ a: id2i[a], b: id2i[b], type, dashed: !!dashed }); };
     O.characters.cast.forEach((c) => (c.appears || []).forEach((n) => edge("ch-" + c.id, "mv-" + n, "appears")));
     const seen = {}; O.characters.cast.forEach((c) => (c.rel || []).forEach((r) => { const k = [c.id, r.to].sort().join("|"); if (seen[k]) return; seen[k] = 1; edge("ch-" + c.id, "ch-" + r.to, "relates"); }));
     O.motifs.list.forEach((m, i) => (m.passages || []).forEach((n) => edge("mo-" + i, "mv-" + n, "exhibits")));
     O.propp.moves.forEach((mv, i) => edge("pp-" + i, "mv-" + mv.passage, "realizes"));
+    (O.themes || []).forEach((th, i) => edge("th-" + i, "mv-" + th.passage, "stages"));
+    if (O.desire) { const A = O.desire, used = {}; const link = (ref, type, dashed) => { if (ref && !used[ref]) { used[ref] = 1; edge("ch-" + ref, "de-obj", type, dashed); } }; link(A.subjectRef, "desires", A.unreachable); link(A.opponentRef, "actant"); link(A.senderRef, "actant"); (A.helpers || []).forEach((h) => link(h.ref, "actant")); }
     for (let i = 1; i < O.tale.passages.length; i++) edge("mv-" + i, "mv-" + (i + 1), "spine"); // the narrative backbone
     return { nodes, edges };
   }
@@ -383,12 +392,14 @@
     character: { color: "#6fa8c9", label: "Characters", r: 9 },
     motif: { color: "#c97f9a", label: "Motifs", r: 6 },
     propp: { color: "#7fb37f", label: "Functions", r: 6 },
+    theme: { color: "#c9854a", label: "Type-scenes", r: 7 },
+    desire: { color: "#a07cc9", label: "Desire", r: 11 },
   };
-  const MYTH_EDGE = { spine: "#d8b24a", appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f" };
+  const MYTH_EDGE = { spine: "#d8b24a", appears: "#6fa8c9", relates: "#9a8fd0", exhibits: "#c97f9a", realizes: "#7fb37f", stages: "#c9854a", desires: "#a07cc9", actant: "#8a7fa8" };
 
   function renderMythograph() {
     const g = buildMythograph(), nodes = g.nodes, edges = g.edges;
-    const active = { movement: true, character: true, motif: true, propp: true };
+    const active = {}; Object.keys(MYTH_TYPE).forEach((t) => active[t] = true);
     const mobile = (window.innerWidth || 900) < 640;
     const R = (n) => MYTH_TYPE[n.type].r;
     let selected = null, selGroup = null, grown = [];
@@ -416,7 +427,7 @@
     fhost.appendChild(sliders);
 
     const leg = $("#myth-legend"); leg.innerHTML = "";
-    [["spine", "narrative spine (I → VI)"], ["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"]]
+    [["spine", "narrative spine (I → VI)"], ["appears", "character → movement"], ["relates", "character ↔ character"], ["exhibits", "motif → movement"], ["realizes", "function → movement"], ["stages", "type-scene → movement"], ["desires", "Subject → Object (desire)"], ["actant", "actant → Object"]]
       .forEach(([k, lab]) => leg.appendChild(el("span", "li", `<span class="edgekey${k === "spine" ? " edgekey-spine" : ""}" style="background:${MYTH_EDGE[k]}"></span>${lab}`)));
 
     // ---- build the svg (positions driven by the live simulation) ----
@@ -425,7 +436,7 @@
     const edgeObjs = [], adj = {};
     edges.forEach((e, ei) => {
       const sp = e.type === "spine";
-      const line = svgEl("line", { class: sp ? "myth-spine" : "", stroke: MYTH_EDGE[e.type], "stroke-opacity": sp ? 0.72 : 0.22, "stroke-width": sp ? 2.6 : 1 });
+      const line = svgEl("line", { class: sp ? "myth-spine" : "", stroke: MYTH_EDGE[e.type], "stroke-opacity": sp ? 0.72 : 0.22, "stroke-width": sp ? 2.6 : 1, "stroke-dasharray": e.dashed ? "5 4" : "0" });
       layer.appendChild(line); edgeObjs.push(line);
       (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei);
     });
@@ -500,10 +511,11 @@
       else if (n.link.char) { const a = el("a", null, "→ Character card"); a.setAttribute("data-char", n.link.char); open.appendChild(a); }
       else if (n.link.tab === "motifs") { const a = el("a", null, "→ In the motif index"); a.onclick = () => switchView("motifs"); open.appendChild(a); }
       else if (n.link.tab === "propp") { const a = el("a", null, "→ In the story graph"); a.onclick = () => { switchView("propp"); if (n.link.anchor) setTimeout(() => { const c = $("#" + n.link.anchor); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 40); }; open.appendChild(a); }
+      else if (n.link.tab === "desire") { const a = el("a", null, "→ The Desire diagram"); a.onclick = () => switchView("desire"); open.appendChild(a); }
       d.appendChild(open);
       const groups = {};
       (adj[i] || []).forEach((ei) => { const e = edges[ei]; const other = e.a === i ? e.b : e.a; (groups[e.type] = groups[e.type] || []).push(other); });
-      const GLAB = { spine: "In sequence", appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes" };
+      const GLAB = { spine: "In sequence", appears: "Appears in", relates: "Related to", exhibits: "Exhibits", realizes: "Realizes", stages: "Stages", desires: "Desire reaches toward", actant: "Bears on the desire of" };
       const order = n.type === "movement" ? ["spine", "appears", "exhibits", "realizes", "relates"] : ["appears", "relates", "exhibits", "realizes", "spine"];
       order.forEach((t) => {
         if (!groups[t]) return;
@@ -555,9 +567,92 @@
     simReady = true; running = true; raf(frame);
   }
 
+
+  /* ====================== DESIRE (Greimas actantial model) ======================
+     Ported from the borges reference renderer into read's SVG idiom; data is
+     hand-authored per tale in analysis.js. */
+  function renderDesire() {
+    const A = O.desire; if (!A) return;
+    $("#desire-intro").innerHTML = A.intro;
+    const W = 760, H = 380, NW = 188, NH = 62;
+    const pos = {
+      sender:  { x: 130, y: 78 },  object:  { x: 380, y: 78 },  receiver: { x: 630, y: 78 },
+      helper:  { x: 130, y: 300 }, subject: { x: 380, y: 300 }, opponent: { x: 630, y: 300 }
+    };
+    const helperLabel = (A.helpers && A.helpers.length) ? A.helpers.map((h) => h.name).join(", ") : "(none on the road)";
+    const label = {
+      sender: ["Sender", A.sender], object: ["Object", A.object], receiver: ["Receiver", A.receiver],
+      helper: ["Helper", helperLabel], subject: ["Subject", A.subject], opponent: ["Opponent", A.opponent]
+    };
+    const svg = svgEl("svg", { class: "desire", viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: "xMidYMid meet" });
+    const defs = svgEl("defs");
+    const mk = svgEl("marker", { id: "dar", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" });
+    mk.appendChild(svgEl("path", { d: "M0 0 L10 5 L0 10 z", fill: "#8a7f6b" })); defs.appendChild(mk); svg.appendChild(defs);
+    const mkText = (x, y, s, size, fill, italic) => { const tx = svgEl("text", { x, y, "text-anchor": "middle", "font-size": size, fill }); if (italic) tx.setAttribute("font-style", "italic"); tx.textContent = s; return tx; };
+    function edge(a, b, dashed) {
+      const A1 = pos[a], B1 = pos[b]; let x1 = A1.x, y1 = A1.y, x2 = B1.x, y2 = B1.y;
+      if (y1 === y2) { const d = x2 > x1 ? 1 : -1; x1 += d * NW / 2; x2 -= d * NW / 2; }
+      else { const dy = y2 > y1 ? 1 : -1; y1 += dy * NH / 2; y2 -= dy * NH / 2; }
+      svg.appendChild(svgEl("line", { x1, y1, x2, y2, stroke: "#8a7f6b", "stroke-width": 1.6, "stroke-dasharray": dashed ? "6 5" : "0", "marker-end": "url(#dar)" }));
+    }
+    edge("sender", "object"); edge("object", "receiver");
+    edge("helper", "subject"); edge("opponent", "subject");
+    edge("subject", "object", A.unreachable);
+    svg.appendChild(mkText(W / 2, 28, "the axis of transmission", 12.5, "#8a7f6b", true));
+    svg.appendChild(mkText(W - 142, H / 2, A.unreachable ? "desire (it cannot reach)" : "the axis of desire", 12.5, "#8a7f6b", true));
+    svg.appendChild(mkText(W / 2, H - 12, "the axis of power", 12.5, "#8a7f6b", true));
+    const full = { sender: A.sender, object: A.object, receiver: A.receiver, helper: helperLabel, subject: A.subject, opponent: A.opponent };
+    const wrap2 = (s, max) => {
+      if (s.length <= max) return [s];
+      const words = s.split(" "); let a = "", b = "";
+      words.forEach((w) => { if (!b && (a + " " + w).trim().length <= max) a = (a + " " + w).trim(); else b = (b + " " + w).trim(); });
+      if (b.length > max) b = b.slice(0, max - 1).replace(/\s\S*$/, "") + "…";
+      return b ? [a, b] : [a];
+    };
+    function showDetail(k, col) {
+      let body;
+      if (k === "helper" && A.helpers && A.helpers.length) body = A.helpers.map((h) => h.note ? `<strong>${escapeHtml(h.name)}</strong> — ${h.note}` : `<strong>${escapeHtml(h.name)}</strong>`).join("<br>");
+      else if (k === "object") body = `<strong>${escapeHtml(A.object)}</strong> <span class="dd-val">— beneath the plot, <em>${escapeHtml(A.value)}</em></span>`;
+      else body = `<strong>${escapeHtml(full[k])}</strong>`;
+      det.innerHTML = `<span class="dd-role" style="color:${col}">${roleText[k] || k}</span><span class="dd-body">${body}</span>`;
+    }
+    Object.keys(pos).forEach((k) => {
+      const p = pos[k];
+      const col = k === "subject" ? "#c9a24a" : k === "object" ? "#c97f9a" : k === "opponent" ? "#c25b4a" : "#6fa8c9";
+      const g = svgEl("g", { class: "desire-node" });
+      g.appendChild(svgEl("rect", { x: p.x - NW / 2, y: p.y - NH / 2, width: NW, height: NH, rx: 9, fill: col, "fill-opacity": 0.14, stroke: col, "stroke-width": 1.5 }));
+      g.appendChild(mkText(p.x, p.y - NH / 2 + 16, label[k][0].toUpperCase(), 11, col));
+      const lines = wrap2(label[k][1], 26);
+      if (lines.length === 1) g.appendChild(mkText(p.x, p.y + 10, lines[0], 12.5, "#e8e0d2"));
+      else { g.appendChild(mkText(p.x, p.y + 4, lines[0], 12, "#e8e0d2")); g.appendChild(mkText(p.x, p.y + 20, lines[1], 12, "#e8e0d2")); }
+      const ttl = svgEl("title"); ttl.textContent = label[k][0] + ": " + full[k]; g.appendChild(ttl);
+      g.style.cursor = "pointer";
+      g.addEventListener("click", () => showDetail(k, col));
+      svg.appendChild(g);
+    });
+    const host = $("#desire-host"); host.innerHTML = ""; host.appendChild(svg);
+    let det = $("#desire-detail"); if (!det) { det = el("div"); det.id = "desire-detail"; host.after(det); }
+    const roleText = {
+      subject: "SUBJECT · who wants", object: "OBJECT · what is wanted", receiver: "RECEIVER · who gains if it succeeds",
+      sender: "SENDER · who sets the wanting in motion", helper: "HELPER · what aids the wanting", opponent: "OPPONENT · what stands against it"
+    };
+    showDetail("subject", "#c9a24a");
+    if (!$("#desire-hint")) { const hint = el("p", "desire-hint", "Click any actant to expand it; hover for the full label."); hint.id = "desire-hint"; det.after(hint); }
+    let s = `<strong>${escapeHtml(A.subject)}</strong> desires <strong>${escapeHtml(A.object)}</strong> — which is, beneath the plot, <em>${escapeHtml(A.value)}</em>. It is set in motion by <strong>${escapeHtml(A.sender)}</strong>, for <strong>${escapeHtml(A.receiver)}</strong>. `;
+    if (A.helpers && A.helpers.length) {
+      s += `<strong>${escapeHtml(A.helpers.map((h) => h.name).join(" and "))}</strong> aid the wanting`;
+      const notes = A.helpers.filter((h) => h.note);
+      if (notes.length) s += " — " + notes.map((h) => `<em>${escapeHtml(h.name)}</em>: ${h.note}`).join("; ");
+      s += ". ";
+    } else s += "No helper aids the wanting. ";
+    s += `<strong>${escapeHtml(A.opponent)}</strong> stands against it.`;
+    if (A.unreachable) s += " And here is the tragic shape, written in the actants: the arrow of desire points at the one thing it cannot reach — a wheel, not an arc; the want with no liquidation.";
+    $("#desire-prose").innerHTML = s + (A.note ? `<span class="desire-note">${A.note}</span>` : "");
+  }
+
   /* ====================== VIEW SWITCHING ====================== */
-  const VIEWS = ["read", "book", "characters", "web", "propp", "motifs", "myth"];
-  let webDrawn = false, proppDrawn = false, motifsDrawn = false, mythDrawn = false, current = "read";
+  const VIEWS = ["read", "book", "characters", "web", "propp", "desire", "motifs", "myth"];
+  let webDrawn = false, proppDrawn = false, motifsDrawn = false, mythDrawn = false, desireDrawn = false, current = "read";
   function switchView(v) {
     if (!VIEWS.includes(v)) v = "read";
     current = v;
@@ -565,6 +660,7 @@
     [...$("#tabs").children].forEach((b) => b.classList.toggle("active", b.dataset.view === v));
     if (v === "web" && !webDrawn) { renderWeb(); webDrawn = true; }
     if (v === "propp" && !proppDrawn) { renderPropp(); proppDrawn = true; }
+    if (v === "desire" && !desireDrawn) { renderDesire(); desireDrawn = true; }
     if (v === "motifs" && !motifsDrawn) { renderMotifs(); motifsDrawn = true; }
     if (v === "myth" && !mythDrawn) { renderMythograph(); mythDrawn = true; }
     if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);

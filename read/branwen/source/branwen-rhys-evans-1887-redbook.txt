@@ -1,0 +1,672 @@
+Branwen uerch Lyr — the Second Branch of the Mabinogi (Middle Welsh, Red Book of Hergest)
+Source: "The Text of the Mabinogion and other Welsh Tales from the Red Book
+   of Hergest," ed. John Rhys & J. Gwenogvryn Evans (Oxford, 1887),
+   running head "Branwen, daughter of Llyr" (pp. 26 ff.). Public domain.
+   Internet Archive: archive.org/details/textofmabinogion00rhysiala
+   The same volume supplies the Pwyll, Culhwch and Owain texts on this site.
+   Underlying manuscripts: the White Book of Rhydderch (c. 1350) and the
+   Red Book of Hergest (c. 1382-1410).
+License: Public domain (edition pre-1900; OCR text via Internet Archive).
+
+NOTE ON THIS FILE — RAW OCR, TO BE NORMALISED:
+   This is the raw OCR of the 1887 edition's special Welsh typeface, which the
+   OCR mis-reads systematically (medieval w/u as "O"/"6", r as "z"/"x",
+   long-s as "f", illuminated capitals as "J[", "J)", etc.). It is preserved
+   here as the diplomatic anchor, NOT as a reading text; the Welsh shown in
+   tale.js is normalised by hand from this base, movement by movement (the
+   workflow used for Pwyll and Owain). The branch opens "Llyma yr eil geinc
+   o'r Mabinogi" / "Bendigeidfran fab Llyr a oedd frenhin coronawc ar yr ynys
+   honn" and closes "Ac uelly y teruyna y geinc honn yma o'r Mabinogi, o
+   achaws paluawt Branwen."
+============================================================================
+
+
+
+
+tfpma pz til getnc ox ma&inogi* 
+
+J J^ndigeityran vab Uyx aoed vzenhin cozonaOc ar 
+<+^J yx ynys honn. ac arderchaOc 0£tfzon lunafein. 
+J[ phzynhaOngOeith yd oed yn hardlech yn ardudOy 
+ynllys idaO. ac yn eifted yd*oedynt ar garrec hardlech 
+uch penn y weilgL amanaOydan uab Tlyz y vzaOt ygyt 
+ac ef. adeu vzoder un uam ac ef. niffyen ac efniffyen. 
+agOyzda yam hynny ual y gOedei ygkylch bzenhin. 
+Y deu uroder vnuam ac ef meibon oedynt y eurof- 
+ftyd oeuam ynteu penardim uerch ueli uabmynogan. 
+8r neill ox gOeiffon hynny gOas da oed. ef abarei 
+dangneued y rOng ydeulu pan vydynt lidyaOckaf. 
+fef oed hOnnO niffyen^ °ffHaII abarei ymlad rOng 
+ydeu uroder pan uei uOyhaf ydymgerynU 3c ual yd 
+oedynt yn eifted ueHy Oynt a welynt teir Hong ar dec 
+yndyuot o deheu iwerdon. ac ynkyzchu parth ac 
+attunt. a cherdet rugyl ebzOyd gantunt. °|f gOynt yn 
+eu hoi ac yn euneffau ynebzOyd attunt. Mi awelaf 
+longeu racco heb y bzenhin ac yn dyuot ynebzOyd 
+parth ar tir. ac erchOch ywyz yllys wifcaO ymdan- 
+unt, amynet y edzych pauedOl y6 yx eidunt~ °% gOyz 
+
+
+
+7280 Branwen, fcauabfer of Xtyr, 27 
+
+awifcOys ymdanunt. ac aneffayffant attunt y waeret. 
+gOedy gOelet yffongeu o agos diheu oed gantunt 
+nawelfynt Ilongeu gyweiryach y hanfaOd noc Oynt. 
+Hrwydon tec gOedus obali a oed arnunt. Jtc ar 
+hynny nachaf un ox Ilongeu yn raculaenu rac y rei 
+ereill. ac y gOelynt dyzchauael taryan ynvch no 
+bOad y Hong. afOch ydaryan y uynyd yn arOyd tang- 
+neued. ac y neffawys y gOyz attunt ual yd ymglyw- 
+ynt ymdidan. JEOzO badeu allan awnaethant Oynteu 
+aneffav parth ar tir. achyfarch gOell yx bzenhin. 
+If bzenhin ae clywei wynteu ox lie yd oed ar garrec 
+uchel uch eu penn. JpuO arodho da yOch heb ef a 
+graeffaO OzthyOch. ^ieu y niuer Ilongeu hynn. aphOy 
+yffyd bennaf arnunt Oy. arglOyd heb Oynt ymae yma 
+matholOch bzenhin ^werdon. ac ef bieu y Ilongeu, 
+Jleth heb y bzenhin a uynnei ef. a vynn ef. dyuot 
+yzth\. ^ a vynn arglOyd heb Oynt negeffaOl y6 
+Ozthyt ti onyt y neges ageiff. J*y ryO neger yO yx 
+eidaO ef heb y bzenhin. Mynnu ymgyfathzachu 
+athydi arglOyd heb Oynt. y erchi bzanwen uerch 
+lyz y doeth ef. Jfc os da gennyt ti ef auynn ym- 
+rOymaO ynys y kedyzn ac iwerdon ygyt ual y bydynt 
+gadarnach. |£e heb ynteu doet yx tir*. a chynghoz 
+agymerOn ninheu amhynny*. °|fz atteb hOnnO aaeth 
+attaO ef. ffinneu a af yn * Hawen heb ef. J|f adoeth 
+yztir. a Hawen uuOyt OzthaO. adygyuoz maOz avu 
+yny Hys ynos hono y rOng y niueroed ef aniueroed 
+y Hys. Yny He dzannoeth kymryt kyngoz. jSef 
+agahat yny kynghoz hOnnO rodi bzanwen y uatholOch. 
+a honno oed dzyded pzif rieni yn yx ynys hon~ teckaf 
+
+
+
+28 Branwen, daughter of Xl^t\ [728. 
+
+mozOyn yny byt oed. agOneuthur oet yn aberffraO 
+ygyfcu genthi. Sc odyno ygychOynnu. ac ykychOyn- 
+naffant yniueroed hynny parth ac ac aberffraO. 
+HatholOch ae niueroed ynyllongeu. Bendigeituran 
+ae niueroed ynteu ar tir yny doethant hyt yn aber- 
+ffraO. "|fn aberffraO dechzeu y wled ac eifted. jlef 
+ual ydeiftedaffant. bzenhin ynys y kedyxn. a manaO- 
+ydan uab Ilyz ox neillparth. a matholOch ox parth 
+arall. a bzannwen uerch lyz gyt ac ynteu. l|yt 
+ymyOn ty ydoedynt namyn ymyOn palleu. nyt 
+eyngaffei vendigeituran eiryoet myOn ty. argyued- 
+ach adechxeuaffant. JHlit ygyuedach aOnaethant. 
+ac ymdidan.. Jtphan welffant bot ynwell udunt 
+kymrut hun no dilit kyuedach ygyfcu ydaethant. 
+J[r nos honno y kyfcOys matholOch abxannOen ygyt. 
+athxannoeth kyuodi aoxugant paOb oniuer yllys. 
+arfOydwyx adechxeuaffant ymaruar am rannyat y 
+meirch ar gOeiffon. £tc eu rannu aOnaethant ympob 
+kyueir hyt ymox. He ar hynny dydgOeith nachaf 
+efnyffyn gOx anhagneuedus adywedaffam ni uchot 
+yndywannu y letty meirch matholOch. a gofyn a 
+Onaeth pioed y meirch. Meirch matholOch bxenhin 
+iwerdo yO yrei hynn heb 0y~ Jpeth awnant hOy 
+yma heb ef. Yma ymae bxenhin iwerdon. 3c yx gyfc- 
+Oys gan vzannwen dy whaer. ae ueirch yO y rei 
+hynn. ae ueHy y gOnaethant Oy am voxOyn kyftal a 
+honno. ac ynchOaer y minneu. y rodi heb vygkenn- 
+yat i. ny ellynt Oy tremic vOy arnaf i no hOnnO heb 
+ef. ac yn hynny gOan y dan y meirch. athoxri y 
+gOefleu Oxth y danned udunt ar clufteu Oxth ypen- 
+
+
+
+729J Branwen, fcaugbter of Xtyr, 29 
+
+neu. ar raOn Ozth y keuyn. ar ny chaei graf ar 
+yx amranneu. ylladei Oath yx afcOzn. a gOneuthur 
+anfuryf arymeirch ueHy. Hyt nat oed rym aellit 
+armeirch. 'ffchOedyl adoeth att uatholOch. Sef ual 
+ydoeth. dywedut anffuruaO y veirch ac eullygru 
+hyt nat oed un mOynant * aellit o honunt. |£e arglOyd 
+heb yzvn dywaratwydaO aOnaethpOyt. a hynny 
+auynnir y wneuthur ytti. JHoer eres yO gennyf os 
+vyggOaradwydaO avynnynt. rodi moxOyn gyftal kyu- 
+urd kyn annOylet gan y chenedyl ac arodyffant 
+ym". arglOyd heb un arall ti awely dangos mae ef. 
+Jlc nyt oes itt awnelych namyn kyzchu dy longeu. 
+ac ar hynny arouun y longeu awnaeth ef. °|f chOedyl 
+adoeth at vendigeituran bot matholOch ynadaO yllys 
+heb ovyn kenyat. a chennadeu aaeth youyn idaO 
+paham oed hynny*. jSef kennadeu aaeth. |£dic uab 
+anaraOc. ac eueyd hir y gOyx hynny ae gozdiwedaOd 
+ac aovynnaffant idaO padarpar oed yzeidaO. a pha 
+achaOs yd oed yn mynet ymeith. J)ioer heb ynteu 
+pei yfgOypOn ny doOn yma. @0byl waratOyd ageueis, 
+ac nydtic neb kyzch waeth noc adugum i yma. ary- 
+uedaOt rygynneryO ami. |ieth yO hynny heb Oynt^ 
+T|odi bzannwen uerch \yx ym yn tryded pzif rieni 
+yx ynys honn. Jtc yn uerch y vxenhin ynys ykedyzn 
+achyfcu genthi. HgOedy hynny vyggOaradOydaw^ 
+aryued oed gennyf nat kynn rodi mozOyn gyftal 
+ahonno ym y gOneit y gOaratwyd aOnelit ym. JHoer 
+arglOyd nyt ouod y neb a vedei yHys heb Oynt na 
+neb oe gyghoz ygOnaethpOyt y gOaratwyd hOnnO ytti. 
+a chyt bo gOaratwyd gennyt ti hynny. mOy yO gan 
+
+
+
+30 Branwen, fcaugbter of Xtyr* [730. 
+
+uendigeit uran. no chennyt ti y tremic hOnnG ar 
+gOare. |£e heb ef mi atebygaf. ac eiffoes ny eiH 
+ef vy niwaratwydaG i ohynny. "% gOyz hynny aym- 
+choelaffant ar atteb hwnnO parth ar He ydoed ven- 
+digeituran. £tmenegi idaO yx atteb arodaffei uath- 
+olOch. ||e heb ynteu nyt oes ymwaret oe vynet 
+ef ynanygneuedus ac nys gadOn. |£e arglOyd heb 
+Cy anuon ettwa gennadeu ynyol. anuonaf heb ef. 
+kyuodOch vanaOydan uab Hyz. ac eueyd hir. 8c unic 
+gle6 yfcOyd. 9c eOch yny ol heb ef amenegCch idaO. 
+ef ageiff march iach am bop un ox alygrOyt. J[c 
+ygyt a hynny ef ageiff ynwynabwarth idaO Ilatheu 
+aryant auo kyvzef achyhyt ac ef ehun. 8 chlaO* eur 
+kyflet ae wyneb^ J[ menegOch idaO py ry6 bx a wnaeth 
+hyny^ aphanyO om anuod inneu y gOnaethpOyt 
+hynny. He ymae bzaOt un uam ami awnaeth hynny *.* 
+J[c nat haOd gennyf ynheu nae lad ef nae diuetha. 
+adoet yymwelet ami heb ef. ami awnaf ydang- 
+neued aryllun y mynno ehun. Ykennadeu aaethant 
+ar ol matholOch. ac auanagaffant idaO yx ymadzaOd 
+hOnnO yngaredic. ac ef ae gOarandewis. awyz heb 
+ef niagymerOn gynghoz. Jffaaeth ynygynghox. fef 
+kynghoz auedylyaffant. ©s gOzthot hynny awnelynt 
+bot yndebygach gantunt kael kewilid auei vOy. 
+no chael iaOn avei gymeint. adifkynnu awnaeth ar 
+gymryt hynny. ac yx Hys ydoethant yndangneuedus. 
+JfchOeiryaO y pebylleu arpalleu awnaethant udunt. 
+ar ureint kyweirdeb neuad a my net y vOyta. ac ual 
+y declueuaffynt eifted ardeclneu y wled yd eifted- 
+affant yna. adechzeu ymdidan aOnaeth matholOch 
+
+
+
+731 j Branwen, bauobter of %lyv. 31 
+
+abendigeituran. ac nachaf yn ardiaOc gan vendigeit 
+uran yn ymdidan ac yndzift. amyOarth agaei gan vath- 
+olOch ae lewenyd yn waftat kynno hynny. J[med- 
+ylya6 aozuc bot ynathzift gan yz unben vychanet 
+agaOffei o iaOn am ygam. a 6z heb y bendigeituran 
+nyt Oyt gyftal ymdidanOz heno ac un nos. ac os yx 
+\>yd\enet gennyt ti dyiaOn. ti agey ychwanegu it 
+6zth dyvynnu dyhun*. ac auozy talu dy ueirch itt. 
+arglOyd heb ef duO adalo itt. Mi adelediwaf dy 
+iaOn heuyt it heb y bendigeitura^ ||i arodaf it peir. 
+achynnedyf ypeir yO. ygOz alader hediO it. y vOzO 
+yny peir. ac erbyn auozy y vot yn gyftal ac y 
+bu ozeu. eithyz nabyd Hyueryd gantaO. SdiolOch a 
+wnaeth ynteu hynny. a diruaOz lewenyd agymerth 
+yndaO ozachaOs hOnnO. Jtthzannoeth ytalOyt y ueirch 
+idaO tra barhaaOd meirch dof. ac odyna y kyzch- 
+Oyt ac ef kymOt arall ac y talOyt ebolyon idaO. yny 
+uu gObyl ida6 ydal. ac Ozth hynny ydodet ar y kym- 
+mOt hOnnO o hynny allan tal ebolyon. ar eil nos 
+eifted ygyt aOnaethant. arglOyd heb ymatholOch 
+pandoeth ytti ypeir arodeift ymi. J*f adoeth ym 
+heb ef ygan Oz auu yth wlat ti. ac ny Onn nabo 
+yno ykaffo. JPOy oed hOnnO heb ef. Ilaffar Ilaef- 
+gyfneOit heb ef. a hOnnO adoeth yma o Iwerdon 
+achymideu kymeinuoll y wreic ygyt ac ef. ac adiang- 
+yffant ozty haearn yn iwerdon. pan wnaethpOyt yn 
+wynnyas yn eu kylch^ ac ydihangyffant odyno. ac 
+eres yO gennyf i ony wdoft ti dim y Ozth hynny. §6n 
+arglOyd heb ef ^ * achymeint ac aOnn mi aemanag- 
+af y ti. °ff n hd a yd oedOn yn iwerdon dydgOeith ar 
+
+
+
+32 JSranwen, fcaugbter of Xtyr* [731. 
+
+ben golfed aoed uch penHynn yn Iwerdon. a Hynn 
+ypeir ygelwit. ami awelOn gOz melyngoch maOz 
+yndyuot oz flyn apheir ar y gefyn. agOz athzugar 
+maOz adzycweith auozles arnaO oed. agOzeic yny ol. 
+ac ot oed vaOz ef mOy dOyweith oed ywreic noc 
+ef. achyzchu attaf awnaethant achyfuarch gOett im^ 
+|£e heb ymi pagerdet yffyd arnaOch chOL Hyna y 
+ryO gerdet arglOyd yffyd arnam ni heb eL Y wreic 
+honn ympenn pythewnos amis y byd beichogi idi. 
+ar mab aaner yna oz tozIIOyth hOnC ar benn y 
+pytheOnos armis y byd gOz ymlad. HaOn aruaOc. 
+Y kymereis ynneu arnaf y goffymdeithaO OyntOy. ac 
+y buant vlOydyn ygyt amL Yny vlOydyn y keueis 
+yndiwarauun Oynt. Ohyny allan y gOarauunOyt im. 
+achyn penn y pedwyzyd mis Oynt ehun ynperi eu 
+hatgaffau ac aghynnOys yny wlat yngOneuthur far- 
+haedeu*. ac yneighaO ac yn gouutyaO gOyzda a 
+gOzaged da. f) hynny attan ydygyuozes vygkyuoeth 
+am vympen y erchi im ymvadeu ac Oynt. arodi deOis 
+im ae vyngkyuoeth aeOynt. ^dodeis ynneu ar gy- 
+nghoz vyggwlat beth awnelit amdanunt^ l|yt eynt 
+hOy oebod nyt oed reit udunt Oynteu oehanuod 
+herwyd ymlad vynet. Ac yna yny kyuyng gynghoz 
+ykaOffant gOneuthur yftauell haearn oil. agOedy bot 
+yn baraOt yz yftauell. J)yuynnu aoed oof yn Iwerd- 
+on ynoc oz aoed oberchen geueyl a myzthOl. 
+apheri goffot kyuuch achzib yz yftauell olo. apheri 
+gOaffanaethu yndiwall o vwyt allyn arnunt ar ywreic 
+ae gOz ae phknt. JlphanwybuOyt eu medOi Oynteu 
+ydechzeuit kymyfcu ytan ar glo am benn yz yftauell. 
+
+
+
+732J Branwen, bauobter of %lyv. 33 
+
+achOythu ymegineu*. yny vyd yty ynburwenn am 
+eupenn. Sc yna y bu ykynghoz gantunt ymperued 
+HaOz yz yftauell. ac yd arhoes ef yny vyd y pleit 
+hayarn yn wenn. Jfc rac diruaOz wres ykyzchOys y 
+pleit ae yfcOyd ae tharaG gantaO allan. ac yn yol 
+ynteu ywreic. 8neb nydihengis odyno namyn ef ae 
+wreic. Jtc yna omtebygu i arglGyd heb y matholOch 
+Ozth vendigeituran ydoeth ef dzOod attat ti. °|fna 
+dioer heb ynteu ydoeth yma ac yrodes y peir y 
+minheu. J*adelO arglOyd yd erbynneift ti OyntOy. 
+J!u rannu*ympob He yny kyuoeth. ac ymaent yn 
+HuoffaOc ac yndyzchauel ympob He. 9c yn kadarn- 
+hau yny uann y bont owyz ac arueu gozeu awelas 
+neb*. JKlit ymdidan awnaethant ynos honno tra 
+uuda gantunt acherd achyuedach. aphan welfant 
+vot yn Heffach udunt uynet y gyfcu noc eifted auei 
+hOy y gyfcu ydaethant ac uelly ytreulaffant ywled 
+honno trOy digrifOch J[c ynniwed hynny y kychwyn- 
+nOys matholOch abzannwengyt ac ef parth ac iwerdon. 
+a hynny oaber menei y kychwynnaffant teir Hong 
+ardec acydoethant hyt yn iwerdon. Yniwerdo 
+diruaOz lewenyd auu Ozthunt. 3|ydoei Oz maOz na 
+gOzeicda yn iwerdon yymwelet abzannwen ny rodei 
+hi ae cae ae modzOy ae teyzndlOs cadwedic idaO auei 
+arbennic y welet ynmynet ymeith. ac ymyfc hynny 
+y vlOydyn honno a due hi ynglotuaOz. fthOyl delediG 
+a due hi o glot achedymdeithon. a beichogi adam- 
+weinOys idi ygael yn hynny. JtgOedy treulaO yz 
+amferoed dylyeduf mab aanet idi. jSef enG adodet 
+arnaG gOern uab matholOch. ^odi ymab aruaeth 
+
+D 
+
+
+
+34 Branwen, baugbter of Xi£t\ [733. 
+
+awnaethpOyt yzunlle gozeu ywyx ynlwerdon. a 
+hynny ynyz eil ulOydyn Ityma ymodOzd yn iwerdon 
+am ygOaratwyd agaOffei vatholOch ygkymry. arfom 
+aOnathoedit idaO amy veirch. a hynny y urodyz maeth 
+ar rei neffaf gantaO ynlliwaO idaO hynny heb ygelu. 
+ac nachaf ydygyuoz yn iwerdo hyt nat oed lonyd 
+ida6 onychaei dial yfarhaet. jlef dial awnaethant 
+gyxru tnannOen o vn yftauell ac ef. ae chymeU y bobi 
+yny Hys. apheri yx kigyd gOedy y bei yn dzyllya6 
+kic dyuot idi atharaO boncluft arnei beunyd. JKc 
+uelly y gOnaethpOyt y phoen. |£e arglGyd heb y wyz 
+6zth uatholOctu parweithon wahard y Ilongeu ar yf- 
+graffeu ar cozygeu ual nat el neb y gymry. ac a del 
+yma o gymry carchara 6ynt hyt nat elont dzacheuyn 
+rac gGybot hynn. ac ar hynny ydifgynnyffant blOyn- 
+yded nyt Hei no their y buant uelly. ac yn hynny 
+meithxyn ederyn dxytwen aOnaeth hitheu ar dal y 
+noe gyt ahi adyfcu ieith idi. amenegi yx ederyn y 
+ryO 6z oed ybzaGt. adOyn Hythyz y poeneu * ar amarch 
+aoed arnei hitheu. ar Uythyr arOymOyt am von 
+efgyll yx edezyn. ae anuon parth achymry. ar ederyn 
+adoeth yzynys honn. jlef He ykauas uendigeituran 
+ygkaerfeint yn aruon yndadleu idaO dydgOeith. adi- 
+fgynnu ar y yfcOyd agarOhau y phluf yny arganuuwyt 
+yllythyz. ac adnabot meithxyn yzederyn ygkyuanned. 
+J[c yna kymryt yllythyz ae edzych*. aphandarllewyt 
+y Hythyz doluryaO aOnaeth bendigeituran o glybot y 
+poen aoed ar vzanwen adechzeu ox He hOnnO anuon 
+kenadeu ydygyfozyaO yr ynys honn ygyt. JIc yna 
+y peris ef dyuot HOyzwys pedeirgOlat afeith ugeint 
+
+
+
+733 J Bran wen, fcaugbter of %lyt. 35 
+
+hyt attaO. Jtc ehun kOynaO Oath hynny bot y poen 
+aoed ar ychwaer. 9c yna kymryt kynghou jSef 
+kynghoz agahat kyzchu iwerdon ac adaO seithwyz 
+yntywyffogyon yma. a chzadaOc uab bzan yn bennaf. 
+ac eu feith marchaOc. ynedeirnon ydedewit ygOyx 
+hynny. 9c oachaOs hynny ydodet feith marchaOc 
+ar ydzef. jSef feith wyz oedynt. iradaOc uab bzan. 
+clc eueyd hir. ac vnic gleO yfcOyd. ac idic uab 
+anaraOc wallt grOn. a ffodoz uab eruyTI. ac Olch 
+minafcOzn*. allafhar uab Haefar IlaefgygOyd. aphen- 
+daran dyuet ynwas ieuanc gyt ac Oy. °|f feith 
+hynny a dzicywys yn feith kynOeiffat yfynnyaO ar yx 
+ynys honn. J( chzadaOc uab bzan yn bennaf kynnweiff- 
+yat arnunt. |>endigeituran ar niuer adywedaffam 
+ni a hwylyaffant parth ac iwerdon. J[c nyt oed uaOz 
+y weilgi yna yueif ydaeth ef. If yt oed namyn dOy 
+auon. Ili ac archan ygelwit- £tgOedy hynny yd amyl- 
+haOys y weilgi y teyznaffoed*. J[c yna ykerdOys ef 
+ac aoed ogerd arweft ar y geuyn ehun achyzchu tir 
+iwerdon. a meicheit matholOch oed ar Ian y weilgi. 
+Oynt adoethant att vatholOch. JfrglOyd heb Oy hen- 
+pych gOell. J)uO arodo da yOch heb ef. achOedleu 
+ygennwch. arglOyd heb Oy. mae gennyn ni chOedleu 
+enryued- coet rywelfom ar y weilgi. yny He ny 
+welfam eiryoet vnpzenn. Ilyna beth eres heb ef. 
+Jtwel(eO)^ chOi dim namyn hynny. iOelem arglOyd 
+heb Oy mynydmaOz geir HaO jj/coet. ahOnnO ar gerdet. 
+ac efgeir aruchel ar ymynyd. aHyn o pob parth oz 
+efgeir. ar coet ar mynyd aphoppeth o hynny oil ar 
+gerdet. ||e heb ynteu nyt oes neb yma awypo (dim) 
+
+D 2 
+
+
+
+36 Branwen, fcaugbter of %tyv. [734. 
+
+yOxth hynny onys gOyx bxanwen go(uynnOch idi)* 
+kennadeu aaeth att uranwen. arglOydes heb Oy beth 
+debygy di y6 hynny. GOyx ynys ykedyxn yndyuot 
+dxOad o glybot vympoen i amhamarch |>eth y6 y 
+coet awelat arymox heb Oy. dOernene^ Uogeu 
+ahOylbxenni heb hi. ®ch heb Oy beth oed y mynyd 
+awelit gan yftlys y Ilongeu. JJendigeituran vymra t 
+i heb hi oed hOnnO yndyuot yueis. nyt oed log y 
+kyghanei ef yndi. Beth oed yx efgeir aruchel. ar Hynn 
+obop parth yx efgeir. J}f heb hi ynedxych ar yxynyf 
+honn ITidiaOc yO. °|f deu lygat ef opob parth ydxOyn 
+yO y dOy lynn o bop parth yx efceir. J[c yna dygyuox 
+holl wyx ymlad iwerdon awnaethpOyt ygyt. ar ho 1 
+uoxbennyd awnaethpOyt yn gyflym. achyngox a 
+gymerGyt. JtrglOyd heb y wyrda Oxth vatholOch nyt 
+oes gynghox namyn kiliaO dxOy linon auon a oed yn 
+iwerdon. agadu Ilinon yrot ac ef. athoxri y bont yf- 
+fyd ar yx avon- ameinfugyn yffyd yggOaelaOt yx 
+auon. ny eill nallong na Ileftyx arnei. Wynt agilyaf- 
+fant dxOy yx auon ac a toxraffant ypont. 
+
+jlendigeituran adoeth yx tir allyghes ygyt ac ef 
+parth aglann yx auon. BrglOyd heb y wyxda ti aOdoft 
+kynnedyf yx auon. ny eill neb vynet dxOydi. nyt oef 
+bont arnei hitheu. mae dy gynghox am bont heb Oy. 
+3|yt oes heb ynteu. namyn avo penn bit bont. Miui 
+auydaf bont heb ef. &c yna gyntaf y dywetpOyt y 
+geir hOliO ac ydiaerebir ettwa ohonaO. Jtc yna gOedy 
+goxwed ohonaO ef ar traOs yx auon. y byxywyt clOyteu 
+arnaO ef. ac ydaeth yluoed ef arydxaOs dxOod. Ar 
+hynny gyt ac ykuodes ef. Hyma gennadeu matholOch 
+
+
+
+735 J ffiranwen, bauabter of %l$r* 37 
+
+yndyuot attaO. ac ynkyuarch gOell ida6. ac yny an- 
+nerch ygan uatholOch ygyuathzachOz. ac yn mcnegi 
+oe vodef na haedei arnaO namyn da. J[c ymae 
+matholOch yn rodi bzenhinyaeth iwerdon ywern uab 
+matholOch dynei ditheu uab dychwaer. ac yny ef- 
+tynnu yth wyd di. ynUe yearn arcodyant awnaeth- 
+pOyt y vzannwen. 9c yny He ymynnych ditheu. ae 
+yma ae ynynys ykedyzn goffymdeitha uatholOch. |£e 
+heb ynteu vendigeit uran ony allafi vy hun cael y 
+vzenhinyaeth. ac atuyd yf kymeraf gyghoz am ych 
+kennadOzi chOi. © hynn hyt pan del amgenn ny cheff- 
+Och y gennyfi atteb. j|e heb Oynteu. yz atteb gozeu 
+agaffom ninneu attat ti ni adoOn ac ef. ac aro di- 
+theu yn kennadOzi ninheu. arhoaf heb ef a doOch 
+yn ebzOyd. Ykennadeu agyzchaffant racdu ac att 
+vatholOch ydoethanthant. ArglOyd hebOykyweira 
+atteb auo gwell att vendigeit uran. nywarandaOei 
+dim ox atteb aaeth ygennym ni attaO. Ifawyz heb 
+y matholOch mae ychkynghoz chOi. ArglOyd heb Oy 
+nyt oes itt gyghoz namyn vn. nyt eigOys ef y myOn 
+ty eiryoet heb Oy. iOna ty heb Oynt y geingho ef 
+agOyz ynys y kedyzn yny neiUparth yzty. athitheu 
+athlu yny parth aralL adyzo dy urenhinyaeth yny 
+ewyHys agOzhaidaO. Ac oenryded gOneuthur y ty 
+heb Oynt. peth nys kauas eiryoet ty y geinghei yn- 
+daO. ef atangneuedha athi. Jtrkennadeu aaethant 
+ar gennadOzi honno gantunt att uendigeit uran. Jlc 
+ynteu agymerth kynghoz. jSef agauas yny gynghoz 
+kymryt hynny. a thzOy gyghoz bzanwen uu hynny oil. 
+ac rac Ilygru ywlat oed genti hitheu hynny. "fdang- 
+
+
+
+
+
+
+
+8 Branwen, bausbter of %lyv. [736* 
+
+
+
+neued honno agyOeirOyt ar ty aateilOyt ynuaOx ac 
+ynbxaff. ac yftryO awnaeth ygOydyl. fef yftry6 a 
+wnaethant dodi gOanas obop parth ybopparth y bop 
+colouyn o cant colofyn aoed yny ty. a dodi boly 
+croen ar bop gOanas. agO* arua6c ympob un ohon- 
+unt. jlef aOnaeth efnyffyen dyuot ymblaen Hu ynys 
+y kedym ymyOn ac edzych golygon oxwyllt antru- 
+garaOc ar hyt yty. ac arganuot y bolyeu crOyn a 
+wnaeth arhyt ypyft. JEeth yffyd yny boly hOnn heb 
+ef 0*th un ozgOydyl. BlaOt eneit heb ef. jlef awnaeth 
+ynteu y deimlaO hyt pangauaf y benn. agOafcu y 
+benn yny glyO y vyffed yn ymanodi yny vzeithell 
+dzOy yx afcOzn. ac adaO hOnnO. a dodi y laO ar vn arall 
+agouyn beth yffyd yma. blaOt medei y gOydyl. jSef 
+awnaey ynteu yx un gOare aphaOb ohonunt hyt nat 
+edewis ef 0* byO ozholl wyz ozdeucan Ozeithy* un. 
+a dyuot at hOnnO agouyn beth yffyd yma. blaOt eneit 
+heb y gOydyl. jSef awnaeth ynteu y deimlaO ef. yny 
+gauas y benn. ac ual y gOafcaffei benneu yrei ereill 
+gOafcu pennhOnnO. fef yclyOei arueu am benn hOnnO. 
+nytymedewis ef ahOnnO yny IladaOd. J[c yna canu 
+eglyn. °|fffit yny boly hOnn amryO vlaOt. keimeit 
+kynniuyeit difgynneit yn trin rac kytwyz cat baraOt*. 
+J[c ar hynny ydothyO yniueroed yUy. ac y * doeth 
+gOy* o ynys ^werdon yzty ox neill parth ^ a gOyx o 
+ynys y kedym ox parth arall. ac yngyn ebxOydet ac 
+yd eiftedaffant y bu duundeb y ryngtunt. Ac yd 
+eftynnOyt y urenhinyaeth yx mab. J[c yna gOedy 
+daruot y dangued galO o vendigeituran y mab attaO. 
+ygan vendigeituran y kyzchaOd ymab att uanyO- 
+
+
+
+736J Branwen, fcaugbter of %l$r* 39 
+
+ydan. ftphaOb ox ae gOelei yny garu. ygan uanaGydan 
+
+y gelwis nyffyen uab euroffwyd y mab attaO. °|f niab 
+
+aaeth attaO yndiryon. ^aham heb yx efnyffyn. na 
+
+daO uy nei uab vychwaer attafi. kynny bei urenhin 
+
+ar iwerdon da oed gennyfi ymdirioni ar mab. aet 
+
+ynllaOen heb y bendigeituran. °|fmab aaeth atta6 
+
+ynllaOen. ^duO ydygaf vyngkyffes heb ynteu yny 
+
+uedOl. ys anhebic agyflauan gan ytylOyth ygOneuth- 
+
+ur aOnafi yx aOxhofu achyuodi y uynyd achymryt 
+
+y mab herOyd ydzaet. J[c heb ohir kynn kael odyn 
+
+yny ty gauael arnaO yny want y mab ynwyfc y benn 
+
+yny gynneu tan. Jfphanwelas bzanwenn y mab yn 
+
+boeth yny tan. Hi agyngytywys bOxO neit yny tan 
+
+ox He yd oed yn eifted rOng ydeu uroder. a chael o 
+
+uendigeituran hi yny neiUlaO. ae taryan yny Ha 6 
+
+arall. Jfc yna ymgyuoc o baOp ar hyt y ty. allyna 
+
+y godOzd mOyhaf auu gan niuer unty~ paOb ynky- 
+
+t 
+mryt y arueu. Jlc yna y dywaOt MoxdOyd tyllyon. 
+
+iiwern gOngOch uiOch uoxdwyt tyllyon. ac yny aeth 
+
+paOp ympenn y arueu. y kynhellis bendigeituran 
+
+vzanwen y rOng y daryan aeyfcOyd. Jtc yna y de- 
+
+chzeuis ygOydyl kynneu tan dan ypeir dateni. 3c yna 
+
+ybyzyOt y kalaned ynypeir. yny uei ynHaOn. ac yky- 
+
+uodynt dzannoeth yn wyz ymlad yn gyftal achynt 
+
+eithyz na eHynt dywedut. Be yna pan welas efnyffyn 
+
+y kalaned heb eni yn vn He owyx ynys y kedyzn 
+
+ydywaOt yny uedOl. ©iaduO heb ef gOae vi vymot 
+
+yn achaOs yx wydwic honn o wyz ynys ykedyzn. 
+
+Jtmeuyl ym heb ef ony cheiffafi waret rac hynn. ac 
+
+ymedyzyaO ymplith calaned y gOydyl. adyuot deu 
+
+
+
+40 Branwen, bauobter of Xtyr* [737* 
+
+wydel uonlKrcn idaO ae v6z6 yny peir ynrith gOydel. 
+Ymeftynnu idaO ynteu yny peir yny tyzr ypeir yn 
+pedwardzyll. ac yny tyzr y * gallon ynteu. ac o hynny 
+ybu y meint gozuot aim y wyz ynys ykedyzn. l|y 
+bu ozuot ohyny eithyz dianc feithwyz abzathu ben- 
+digeituran yny troet agOenOynwaeO. jlef feith wyz a 
+dihengis. JfzyderL ManaOydan. ©liuieri. Jlil taran. 
+l>alyeffm. 9c ynaOc grudyeu uab muryel. l|eilyn 
+uab gOynn hen. He yna yperis bendigeituran Had 
+ybenn. achymerOch chOi ypenn heb ef adygOch hyt 
+y gOynurynn yn Hundein. a chledOch yno ef ae wyneb 
+ar freinc. achOi avydOch ar yffozd ynhir. yn hardlech 
+y bydOch feith mlyned ar ginyaO. ac adar riannon 
+yncanu y6ch. Srpenn auyd kyftal gennOch y gedym- 
+deithas ac ybu ozeu gennOch pan uu arnaf i eiryoet. 
+Ec yggOalef ympenuro ybydOch pedwarugeint mlyn- 
+ed. 9c yny agozoch y dzOs parth ac aber henueleu 
+y tuachernyO y gellOch uot yno. ar penn yndilOgyz 
+gennOch. 9c ozpann agozoch y dzOs hOnnO ny eHOch 
+uot yno. KyzchOch lundein y gladu y penn. achyzch- 
+Och chOi ragoch dzOod~ &c yna yllas ybenn ef. ac 
+ykychOynnaffant ar penn gantunt dzOod y feithwyz 
+hynny ^ abzanwen ynOythuet, J£c y aber alaO yntal 
+ebolyon y doethant yz tir. ac yno eifted awnaethant 
+agozffowys. Jldzych oheni hitheu ar iwerdon. ac ar 
+ynys ykedyzn awelei ohonunt. ©iauab duO heb hi 
+gOae ui omganedigaeth. yfda dOy ynys adiffeithOyt 
+omachaOy i. adodi ucheneit uaOz athozri y challon ar 
+hynny. agOneuthur bed pedzyual idi ae chladu yno 
+ygglan alaO. 9c arhynny kerdet aOnaeth y feithwyz 
+
+
+
+738 J Branwen, bau^bter of %lyv. 41 
+
+parth ahardlech ar penn gantunt. Tal ybydant 
+ynkerdet. Ilyma gyweithyd ynkyuaruot acOynt owyz 
+agOzaged*. aoes gennOch ch6i chOedleu heb ymanaO- 
+ydan. l|ac oes heb Oynt onyt gozefgyn ogaffwallaOn 
+uab beli ynys y kedyzn. ae vot ynvzenhin cozonaOc 
+ynllundein. J* a daruu heb Oynteu ygaradaOc vab 
+bzan. ar feith wyz aedeOit ygyt ac ef ynyz ynys honn. 
+J)yuot KaffwallaOn am eu penn allad y chwegOyz~ 
+athozri o honaO ynteu gradaOc y gallon o annyuyget. 
+am welet y cledyf yn Had y wyz. ac nawydyat pOy 
+aelladei. IfjaffwalTaOn ar daroed idaOwifcaO Hen hut 
+ymdanaO. * &c ny welei neb ef ynllad y gOyz. namyn 
+ycledyf. 3|y mynnei gaffwallaOn ylad ynteu ynei 
+uab y geuynderO oed. 9 hOnnO uu ytrydyd dyn a 
+tozres y gallon o niuyget. JPenndarar dyuet a oed 
+ynwas ieuanc gyt ar feith wyz ' dihengis yz coet heb 
+Oynt. J£c yna y kyzchaffant jynteu hardlech ac y 
+dechzeuaffant eifted^ ac ydechzeuOyt ymdiOallu o vOyt 
+allynn. ac y dechzeuaffant Oynteu vOytta ac yuet. J)y- 
+uot tri ederyn adechzeu canu udunt ryO gerd. ac oc 
+aglyOffynt o gerd. diuOyn oed pob un y Ozthi hi. 
+aphell dzemynt oed udunt eu gOelet uch penn y 
+weilgi aHan. achyn amlycket oed udunt Oy achyn 
+bydynt gyt ac Oy. He arhynny o ginyaO y buant feith 
+mlyned. JIc ympenn yfeithuet ulOydyn y kychOyn- 
+naffant parth a gOalas ympenuro. 9c yno yd oed udunt 
+He tec bzenhineid uch benn y weilgi. ac yneuad uaOz 
+a oed yno udunt. ac yz neuad ykyzchyffant. 9e deu- 
+dzOs a oed ynagozet. ar trydyd dzOs yngayat yz hOm 
+tu a chernyO. weldi racco heb y manaOydan y dzOf 
+
+
+
+42 Branwen, fcauebter of %lyv. [73a 
+
+nydylyOn ni y agoxi. J[r nos honno y buant yno 
+yndiwall. ac yndigrif gantunt. J[c yx awelfynt o 
+vOyt yny gOyd. ac yx aglywyf ehun. ny doey ygof 
+udunt hOydim. nac o hynny nac o alar yny byt. 
+J[c yno ytreulyffant ypedwar ugeint mlyned hyt na 
+wybuant hOy eiryoet. dOyn yfpeit digrifach nahyfryd- 
+ach no honno. 3|yt oed annefmGythach nac adnabot 
+o vn ar y gilyd y uot yn hynny o amfer no phan doeth- 
+ant yno. ]fyt oed anneffmOythach gantunt Oynteu 
+gytuot ypenn yna. no phan uuaffei vendigeit uran 
+ynvyG gyt ac Oynt. J[c oachaOs y pedwar ugeint 
+mlyned hynny ygelOit. YfpydaOt urdaOl benn yfpyd- 
+aOt vxannOen a matholOch oed yx honn yd aethpOyt 
+y iwerdon. jlef aOnaeth heilyn uab gwynn dyd- 
+gOeith. Meuyl ar uymarafi heb ef onyt agoxaf ydxOs. 
+y wybot aegOir adywedir am hynny. 8goxi ydxOs 
+aOnaeth. ac edxych ar gernyO. ac ar aber henuelen*. 
+Jtphan edxychOys yd oed yngynhyfpyffet gantunt 
+y geniuer collet agollaffynt eiryoet *. ar geniuer car 
+a chedymdeith agoHaffynU ar geniuer dxOc adathoed 
+udunt achyt bei *yna y kyuarffei ac Oynt. ac yn ben- 
+naf ameu harglOyd. J[c ox gyuaOx honno ny allyffant 
+Oy oxfowys. namyn kychOynnu arpenn parth allun- 
+dein. ^a hyt bynnac y bydynt ar yffoxd Oynt a 
+doethant hyt yn llundein. ac agladaffant ypenn yny 
+gwynurynn. 9 hOnnO uu y trydyd mat cud pancud- 
+ywyt. ar trydyd anuat datcud pandatcudywyt. Hjjany 
+doey oxmes byth dxOy vox yx ynys honn trauei y 
+penn yny cud hOnnO* 9 hynny adyweit y kyfarwydyt 
+eukyfranc hOy. y gOyx agychwynnOys o iwerdon yO 
+
+
+
+739J Branwen, baugbter of Xtyr, 43 
+
+h6nn6. °ffniwerdon nyt edeOit dyn by 6 namyn pump 
+gOaaged beichaGc y myOn gogof yn diffeithOch iwerd- 
+on. ar pump gOzaged hynny ynyx un kyfnot aanet 
+udunt pumpmeib. Jfr pumpmeib hynny auagaffant 
+hyt panuuant weiffon maOx. ac yny uedylyaffant 
+amwraged. Jfc yny uu damunet gantunt eukaffael. 
+Hc^yna kyfcu pob un la6 heb laO gan uam y gilyd. 
+agOledychu ywlat ae chyuannhedu. ae rannu y 
+ryngtunt ell pump. Jlc o achaOs y rannyat h0nn6 
+y gelOir ettwa pump rann ^werdon. ac edzych y wlat 
+awnaethant fozd y buaffei yx aeruaeu. achael eur ac 
+aryant yny yttoedynt yn gyuoetha6c aHyna ual y 
+teruyna ygeinc honn ox mabinogi. o achaOs paluaOt 
+bzanOen. yzhonn a vu tryded anuat paluaOt yny* 
+ynys honn. He o achas yfpadaOt baan panaeth niuer 
+deg wlat afeith ugeint y iwerdon ydial paluaOt bzan- 
+Oen. 9c am yginyaO ynhardlech feith mlyned. Jfc 
+am ganyat adar riannon. Be ar yfpydaOt benn ped- 
+war ugeint mlyned*. 
