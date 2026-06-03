@@ -11,7 +11,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": "landing",
-      "status": "workflow-dispatch-only (needs ROOT_PAGES_PROJECT var; then enable push trigger + disable CF git auto-build)",
+      "status": "explicit-workflow (agent01 Pages); verifying first run, then disable CF git auto-build",
       "serves": [
         "(landing index)",
         "cluster",
