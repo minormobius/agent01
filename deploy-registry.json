@@ -3,43 +3,524 @@
   "trunk": "main",
   "hero": "claude/landing-projects-takeover-pKkmW",
   "surfaces": [
-    { "surface": "root",         "dir": ".",                    "endpoint": "minomobi.com / mino.mobi (landing)", "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": "landing", "status": "cf-autodeploy-needs-workflow",
-      "serves": ["(landing index)", "cluster", "density", "echo", "judge", "novelty", "seek", "ternary", "geometry", "elements", "music", "sweat", "noise", "flows", "phylo", "time", "wiki", "curve", "draw", "paint"],
+    {
+      "surface": "root",
+      "dir": ".",
+      "endpoint": "minomobi.com / mino.mobi (landing)",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": "landing",
+      "status": "cf-autodeploy-needs-workflow",
+      "serves": [
+        "(landing index)",
+        "cluster",
+        "density",
+        "echo",
+        "judge",
+        "novelty",
+        "seek",
+        "ternary",
+        "music",
+        "sweat",
+        "noise",
+        "flows",
+        "phylo",
+        "time",
+        "wiki"
+      ],
       "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other — see tension note in the chat.",
-      "paths": ["index.html", "styles.css", "scripts/generate-search-catalog.mjs", "functions/**"] },
-    { "surface": "ai-edu",       "dir": "ai-edu",               "endpoint": "ai.mino.mobi",                 "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["ai-edu/**"] },
-    { "surface": "airchat",      "dir": "airchat",              "endpoint": "airchat.mino.mobi, yapchat.mino.mobi", "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["atpolls-db"],              "provides": null,            "paths": ["airchat/**", "poll/apps/api/migrations/0018_airchat.sql", "poll/apps/api/migrations/0019_airchat_oauth.sql", "poll/apps/api/migrations/0020_airchat_reply_cids.sql", "poll/apps/api/migrations/0021_airchat_segments.sql"] },
-    { "surface": "atmosphere",   "dir": "atmosphere",           "endpoint": "atmosphere.mino.mobi, b.mino.mobi", "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["atmosphere/**"] },
-    { "surface": "auth",         "dir": "workers/auth",         "endpoint": "auth.mino.mobi",               "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["mino-auth-db"],            "provides": "auth.mino.mobi", "paths": ["workers/auth/**"] },
-    { "surface": "autopilot",    "dir": "auto",                 "endpoint": "auto",                          "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["auto/**"] },
-    { "surface": "bakery",       "dir": "bakery",               "endpoint": "bakery.mino.mobi",             "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["auth.mino.mobi"],          "provides": null,            "paths": ["bakery/**"] },
-    { "surface": "bisk",         "dir": "bisk",                 "endpoint": "bisk.mino.mobi",               "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["bisk/**"] },
-    { "surface": "borges",       "dir": "borges",               "endpoint": "borges.mino.mobi",             "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["borges/**"] },
-    { "surface": "bounty",       "dir": "bounty",               "endpoint": "bounty-minomobi",              "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["bounty-board"],            "provides": null,            "paths": ["bounty/**"] },
-    { "surface": "cards",        "dir": "cards",                "endpoint": "cards",                         "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["cards/**"] },
-    { "surface": "cat",          "dir": "cat",                  "endpoint": "cat.mino.mobi",                "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["atpolls-db"],              "provides": null,            "paths": ["cat/**", "poll/apps/api/migrations/0024_cat.sql", "poll/apps/api/migrations/0025_cat_reset_initial.sql"] },
-    { "surface": "clock",        "dir": "clock",                "endpoint": "clock-minomobi",               "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["clock/**"] },
-    { "surface": "cron",         "dir": "workers/cron",         "endpoint": "minomobi-cron",                "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["workers/cron/**"] },
-    { "surface": "duffel-proxy", "dir": "workers/duffel-proxy", "endpoint": "duffel-proxy",                 "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["workers/duffel-proxy/**"] },
-    { "surface": "empathy",      "dir": "empathy",              "endpoint": "empath.mino.mobi",             "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["empathy/**"] },
-    { "surface": "feed",         "dir": "workers/feed",         "endpoint": "feed.mino.mobi",               "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["atpolls-db"],              "provides": "feed.mino.mobi", "paths": ["workers/feed/**", "poll/apps/api/migrations/0010_feed_communities.sql", "poll/apps/api/migrations/0013_feed_liked_posts.sql"] },
-    { "surface": "fluoddity",    "dir": "fluoddity",            "endpoint": "fluoddity-minomobi",           "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["fluoddity/**"] },
-    { "surface": "fred-proxy",   "dir": "workers/fred-proxy",   "endpoint": "fred-proxy",                   "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["workers/fred-proxy/**"] },
-    { "surface": "games",        "dir": "games",                "endpoint": "games.mino.mobi",              "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["auth.mino.mobi"],          "provides": null,            "paths": ["games/**", "packages/oauth-client/**"] },
-    { "surface": "io",           "dir": "io",                   "endpoint": "io.mino.mobi",                 "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["atpolls-db", "auth.mino.mobi"], "provides": null,       "paths": ["io/**", "packages/oauth-client/**", "js/typeahead.js", "scripts/vendor-io.sh", "scripts/generate-sites-json.mjs", "poll/apps/api/migrations/0030_io_tickets.sql"] },
-    { "surface": "j",            "dir": "j",                    "endpoint": "j.mino.mobi",                  "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["j/**"] },
-    { "surface": "photo",        "dir": "photo",                "endpoint": "photo.mino.mobi",              "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["auth.mino.mobi"],          "provides": null,            "paths": ["photo/**"] },
-    { "surface": "poll",         "dir": "poll",                 "endpoint": "poll.mino.mobi",               "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["atpolls-db"],              "provides": "atpolls-db",    "paths": ["poll/**"] },
-    { "surface": "read",         "dir": "read",                 "endpoint": "read.mino.mobi",               "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["read/**"] },
-    { "surface": "rite",         "dir": "rite",                 "endpoint": "rite.mino.mobi",               "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["atpolls-db"],              "provides": null,            "paths": ["rite/**", "poll/apps/api/migrations/0014_fodder.sql", "poll/apps/api/migrations/0015_ask.sql", "poll/apps/api/migrations/0016_ask_map.sql", "poll/apps/api/migrations/0017_signal.sql"] },
-    { "surface": "scores",       "dir": "workers/scores",       "endpoint": "scores.mino.mobi",             "type": "backend",  "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["mino-scores-db", "auth.mino.mobi"], "provides": "scores.mino.mobi", "paths": ["workers/scores/**"] },
-    { "surface": "splice",       "dir": "splice",               "endpoint": "splice.mino.mobi",             "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": [],                          "provides": null,            "paths": ["splice/**"] },
-    { "surface": "zoom",         "dir": "zoom",                 "endpoint": "zoom.mino.mobi",               "type": "frontend", "branch": "claude/landing-projects-takeover-pKkmW", "uses": ["feed.mino.mobi"],          "provides": null,            "paths": ["zoom/**"] }
+      "paths": [
+        "index.html",
+        "styles.css",
+        "scripts/generate-search-catalog.mjs",
+        "functions/**"
+      ]
+    },
+    {
+      "surface": "ai-edu",
+      "dir": "ai-edu",
+      "endpoint": "ai.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "ai-edu/**"
+      ]
+    },
+    {
+      "surface": "airchat",
+      "dir": "airchat",
+      "endpoint": "airchat.mino.mobi, yapchat.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "paths": [
+        "airchat/**",
+        "poll/apps/api/migrations/0018_airchat.sql",
+        "poll/apps/api/migrations/0019_airchat_oauth.sql",
+        "poll/apps/api/migrations/0020_airchat_reply_cids.sql",
+        "poll/apps/api/migrations/0021_airchat_segments.sql"
+      ]
+    },
+    {
+      "surface": "atmosphere",
+      "dir": "atmosphere",
+      "endpoint": "atmosphere.mino.mobi, b.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "atmosphere/**"
+      ]
+    },
+    {
+      "surface": "auth",
+      "dir": "workers/auth",
+      "endpoint": "auth.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "mino-auth-db"
+      ],
+      "provides": "auth.mino.mobi",
+      "paths": [
+        "workers/auth/**"
+      ]
+    },
+    {
+      "surface": "autopilot",
+      "dir": "auto",
+      "endpoint": "auto",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "auto/**"
+      ]
+    },
+    {
+      "surface": "bakery",
+      "dir": "bakery",
+      "endpoint": "bakery.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "bakery/**"
+      ]
+    },
+    {
+      "surface": "bisk",
+      "dir": "bisk",
+      "endpoint": "bisk.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "bisk/**"
+      ]
+    },
+    {
+      "surface": "borges",
+      "dir": "borges",
+      "endpoint": "borges.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "borges/**"
+      ]
+    },
+    {
+      "surface": "bounty",
+      "dir": "bounty",
+      "endpoint": "bounty-minomobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "bounty-board"
+      ],
+      "provides": null,
+      "paths": [
+        "bounty/**"
+      ]
+    },
+    {
+      "surface": "cards",
+      "dir": "cards",
+      "endpoint": "cards",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "cards/**"
+      ],
+      "cohesion": "integrated"
+    },
+    {
+      "surface": "cat",
+      "dir": "cat",
+      "endpoint": "cat.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "paths": [
+        "cat/**",
+        "poll/apps/api/migrations/0024_cat.sql",
+        "poll/apps/api/migrations/0025_cat_reset_initial.sql"
+      ]
+    },
+    {
+      "surface": "clock",
+      "dir": "clock",
+      "endpoint": "clock-minomobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "clock/**"
+      ],
+      "mitosis": {
+        "status": "candidate",
+        "members": 23,
+        "plan": "divide into 2 thematic daughters (e.g. clock-maze: *pac/toruschess; clock-viz: the rest). Cleavage TBD pending a read of the toys.",
+        "caveat": "clock/fluoddity/ duplicates the top-level fluoddity surface — reconcile during split."
+      }
+    },
+    {
+      "surface": "cron",
+      "dir": "workers/cron",
+      "endpoint": "minomobi-cron",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "workers/cron/**"
+      ]
+    },
+    {
+      "surface": "duffel-proxy",
+      "dir": "workers/duffel-proxy",
+      "endpoint": "duffel-proxy",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "workers/duffel-proxy/**"
+      ]
+    },
+    {
+      "surface": "empathy",
+      "dir": "empathy",
+      "endpoint": "empath.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "empathy/**"
+      ]
+    },
+    {
+      "surface": "feed",
+      "dir": "workers/feed",
+      "endpoint": "feed.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": "feed.mino.mobi",
+      "paths": [
+        "workers/feed/**",
+        "poll/apps/api/migrations/0010_feed_communities.sql",
+        "poll/apps/api/migrations/0013_feed_liked_posts.sql"
+      ]
+    },
+    {
+      "surface": "fluoddity",
+      "dir": "fluoddity",
+      "endpoint": "fluoddity-minomobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fluoddity/**"
+      ]
+    },
+    {
+      "surface": "fred-proxy",
+      "dir": "workers/fred-proxy",
+      "endpoint": "fred-proxy",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "workers/fred-proxy/**"
+      ]
+    },
+    {
+      "surface": "games",
+      "dir": "games",
+      "endpoint": "games.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "games/**",
+        "packages/oauth-client/**"
+      ]
+    },
+    {
+      "surface": "io",
+      "dir": "io",
+      "endpoint": "io.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db",
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "io/**",
+        "packages/oauth-client/**",
+        "js/typeahead.js",
+        "scripts/vendor-io.sh",
+        "scripts/generate-sites-json.mjs",
+        "poll/apps/api/migrations/0030_io_tickets.sql"
+      ]
+    },
+    {
+      "surface": "j",
+      "dir": "j",
+      "endpoint": "j.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "j/**"
+      ]
+    },
+    {
+      "surface": "photo",
+      "dir": "photo",
+      "endpoint": "photo.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "photo/**"
+      ],
+      "cohesion": "integrated"
+    },
+    {
+      "surface": "poll",
+      "dir": "poll",
+      "endpoint": "poll.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": "atpolls-db",
+      "paths": [
+        "poll/**"
+      ]
+    },
+    {
+      "surface": "read",
+      "dir": "read",
+      "endpoint": "read.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "read/**"
+      ],
+      "cohesion": "integrated"
+    },
+    {
+      "surface": "rite",
+      "dir": "rite",
+      "endpoint": "rite.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "paths": [
+        "rite/**",
+        "poll/apps/api/migrations/0014_fodder.sql",
+        "poll/apps/api/migrations/0015_ask.sql",
+        "poll/apps/api/migrations/0016_ask_map.sql",
+        "poll/apps/api/migrations/0017_signal.sql"
+      ],
+      "cohesion": "integrated"
+    },
+    {
+      "surface": "scores",
+      "dir": "workers/scores",
+      "endpoint": "scores.mino.mobi",
+      "type": "backend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "mino-scores-db",
+        "auth.mino.mobi"
+      ],
+      "provides": "scores.mino.mobi",
+      "paths": [
+        "workers/scores/**"
+      ]
+    },
+    {
+      "surface": "splice",
+      "dir": "splice",
+      "endpoint": "splice.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "splice/**"
+      ]
+    },
+    {
+      "surface": "zoom",
+      "dir": "zoom",
+      "endpoint": "zoom.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "feed.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "zoom/**"
+      ]
+    },
+    {
+      "surface": "geometry",
+      "dir": "geometry",
+      "dirs": [
+        "geometry",
+        "erdos",
+        "guthkatz",
+        "hadwiger",
+        "heilbronn",
+        "kakeya",
+        "runner",
+        "szemeredi-trotter",
+        "viazovska",
+        "capset",
+        "borsuk",
+        "elements"
+      ],
+      "endpoint": "geometry.mino.mobi (planned)",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "needs-workflow",
+      "op": "encapsulation",
+      "note": "Geometry/explainer pack: hub geometry/ + scattered top-level explainer dirs + elements/. Members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — anaphase must keep them on the root domain via Worker routes OR rewrite links. Carve these dirs out of root.serves on split.",
+      "paths": [
+        "geometry/**",
+        "erdos/**",
+        "guthkatz/**",
+        "hadwiger/**",
+        "heilbronn/**",
+        "kakeya/**",
+        "runner/**",
+        "szemeredi-trotter/**",
+        "viazovska/**",
+        "capset/**",
+        "borsuk/**",
+        "elements/**"
+      ]
+    },
+    {
+      "surface": "canvas",
+      "dir": "draw",
+      "dirs": [
+        "draw",
+        "curve",
+        "paint",
+        "mmo"
+      ],
+      "endpoint": "canvas.mino.mobi (planned)",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "atpolls-db",
+        "scores.mino.mobi",
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "needs-workflow",
+      "op": "encapsulation",
+      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve submits to scores. One deploy unit; backends stay in poll/scores.",
+      "paths": [
+        "draw/**",
+        "curve/**",
+        "paint/**",
+        "mmo/**"
+      ]
+    }
   ],
   "unmanaged": {
     "$comment": "Have a wrangler config but NO deploy workflow. Deploy path unknown (manual wrangler, or stale). Each needs a triage decision: give it a workflow + add to `surfaces`, or confirm it's retired.",
-    "sites":            ["answers", "crm", "disk", "finance", "labglass", "mega", "org", "pm", "pokemon", "wars", "wave"],
-    "in_progress":      ["audio", "os"],
-    "reference_workers":["workers/bsky-bot", "workers/cards-mint", "workers/cluster-batch"]
+    "sites": [
+      "answers",
+      "crm",
+      "disk",
+      "finance",
+      "labglass",
+      "mega",
+      "org",
+      "pm",
+      "pokemon",
+      "wars",
+      "wave"
+    ],
+    "in_progress": [
+      "audio",
+      "os"
+    ],
+    "reference_workers": [
+      "workers/bsky-bot",
+      "workers/cards-mint",
+      "workers/cluster-batch"
+    ]
   }
 }
