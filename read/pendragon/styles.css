@@ -426,6 +426,13 @@ svg.propp { display: block; }
 .cmp-ldot { width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; display: inline-block; flex: none; }
 .cmp-lname { color: var(--ink-faint); }
 @media (max-width: 620px) { .cmp-lname { display: none; } }
+.cmp-tales { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 2px; }
+.cmp-tales-lab { font-family: var(--sans); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-right: 2px; }
+.cmp-talechip { font-family: var(--sans); font-size: 12px; padding: 3px 10px; border-radius: 999px; cursor: pointer; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--tc, var(--line)); }
+.cmp-talechip:hover { background: rgba(201, 162, 74, 0.10); }
+.cmp-talechip.off { color: var(--ink-faint); opacity: 0.45; text-decoration: line-through; border-left-color: var(--line); }
+.cmp-d-readlink { display: inline-block; margin-top: 10px; font-family: var(--sans); font-size: 13px; color: var(--gold-soft); text-decoration: none; }
+.cmp-d-readlink:hover { color: var(--gold); }
 .cmp-graph .cmp-edge { transition: stroke-opacity 0.18s; }
 .cmp-graph .cmp-tnode { cursor: pointer; }
 .cmp-graph .cmp-tnode:hover rect { fill-opacity: 1; }

@@ -628,14 +628,16 @@
     const taleIds = tales.map((t) => t.id);
     // Place the tale anchors evenly around an ellipse — works for any number of
     // tales (a square for four, a pentagon for five, …), point-up.
-    const cornerFor = {};
-    (function () {
-      const N = taleIds.length, cxc = W / 2, cyc = H / 2, rx = W * 0.40, ry = H * 0.34;
-      taleIds.forEach((id, k) => {
+    const excluded = new Set();
+    let cornerFor = {};
+    function layoutCorners(ids) {
+      const cf = {}, N = ids.length, cxc = W / 2, cyc = H / 2, rx = W * 0.40, ry = H * 0.34;
+      ids.forEach((id, k) => {
         const ang = -Math.PI / 2 + (2 * Math.PI * k) / N;
-        cornerFor[id] = { x: cxc + rx * Math.cos(ang), y: cyc + ry * Math.sin(ang) };
+        cf[id] = { x: cxc + rx * Math.cos(ang), y: cyc + ry * Math.sin(ang) };
       });
-    })();
+      return cf;
+    }
     const ROMANL = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"];
     const passLabelLocal = {
       culhwch: (n) => "M" + n,
@@ -714,9 +716,27 @@
     }
     setBlurb();
 
+    // Per-tale exclude chips — drop a story (and its leaves) out of the graph.
+    const talesHost = $("#cmp-tales");
+    if (talesHost) {
+      talesHost.innerHTML = "";
+      talesHost.appendChild(el("span", "cmp-tales-lab", "Tales in graph:"));
+      tales.forEach((t) => {
+        const chip = el("button", "cmp-talechip", `${t.sigil} ${escapeHtml(t.short)}`);
+        chip.style.setProperty("--tc", t.color);
+        chip.title = "Show / hide " + t.title;
+        chip.onclick = () => {
+          if (excluded.has(t.id)) { excluded.delete(t.id); chip.classList.remove("off"); }
+          else { excluded.add(t.id); chip.classList.add("off"); }
+          build();
+        };
+        talesHost.appendChild(chip);
+      });
+    }
+
     function build() {
       host.innerHTML = "";
-      $("#cmp-detail").innerHTML = '<div class="md-hint">Click any node above to see how each tale realises it.</div>';
+      resetDetail();
 
       const leg = $("#cmp-legend");
       if (leg) {
@@ -729,10 +749,16 @@
         } else { leg.innerHTML = ""; leg.style.display = "none"; }
       }
 
-      const items = itemsFor(mode).filter((it) => !multiOnly || it.hits.length >= 2);
+      const activeTales = tales.filter((t) => !excluded.has(t.id));
+      const activeIds = activeTales.map((t) => t.id);
+      cornerFor = layoutCorners(activeIds);
 
-      // Node list: 4 tale nodes + items
-      const nodes = tales.map((t) => ({
+      const items = itemsFor(mode)
+        .map((it) => ({ ...it, hits: it.hits.filter((id) => !excluded.has(id)) }))
+        .filter((it) => it.hits.length && (!multiOnly || it.hits.length >= 2));
+
+      // Node list: one pinned node per active tale + the item leaves
+      const nodes = activeTales.map((t) => ({
         id: "tale-" + t.id, type: "tale", tale: t, pinned: true,
         x: cornerFor[t.id].x, y: cornerFor[t.id].y, vx: 0, vy: 0,
       }));
@@ -761,7 +787,7 @@
       svg.appendChild(layer);
 
       // Tale corner backdrops (faint quadrant labels)
-      tales.forEach((t) => {
+      activeTales.forEach((t) => {
         const p = cornerFor[t.id];
         const halo = svgEl("circle", { cx: p.x, cy: p.y, r: 90, fill: t.color, "fill-opacity": 0.06 });
         layer.appendChild(halo);
@@ -784,6 +810,18 @@
 
       const adj = {}; edges.forEach((e, ei) => { (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei); });
 
+      let selIdx = -1;
+      function resetDetail() {
+        const noun = mode === "motifs" ? "motifs" : mode === "propp" ? "functions" : "roles";
+        $("#cmp-detail").innerHTML = '<div class="md-hint">Click a tale to light the ' + noun + ' it carries; click any leaf to see how each tale realises it. Use the chips above to drop a tale out of the graph.</div>';
+      }
+      function selectNode(i) { selIdx = i; highlight(i); const n = nodes[i]; if (n.type === "tale") fillTaleDetail(n.tale); else fillDetail(n.item); }
+      function deselect() { selIdx = -1; clearHi(); resetDetail(); }
+      function wire(g, i) {
+        g.addEventListener("mouseenter", () => highlight(i));
+        g.addEventListener("mouseleave", () => { selIdx >= 0 ? highlight(selIdx) : clearHi(); });
+        g.addEventListener("click", (ev) => { ev.stopPropagation(); selIdx === i ? deselect() : selectNode(i); });
+      }
       const nodeEls = nodes.map((n, i) => {
         if (n.type === "tale") {
           const g = svgEl("g", { class: "cmp-tnode", transform: `translate(${n.x} ${n.y})` });
@@ -791,16 +829,14 @@
           g.appendChild(svgEl("rect", { x: -r, y: -r, width: 2 * r, height: 2 * r, rx: 9, fill: n.tale.color, "fill-opacity": 0.92, stroke: "#14110d", "stroke-width": 1.8 }));
           const sigil = svgEl("text", { x: 0, y: -2, "text-anchor": "middle", "font-size": 24 }); sigil.textContent = n.tale.sigil; g.appendChild(sigil);
           const lab = svgEl("text", { x: 0, y: 18, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": 700 }); lab.textContent = n.tale.short; g.appendChild(lab);
-          const ttl = svgEl("title"); ttl.textContent = n.tale.title; g.appendChild(ttl);
-          g.addEventListener("click", () => { window.location.href = n.tale.href; });
+          const ttl = svgEl("title"); ttl.textContent = n.tale.title + " — click to light what it carries"; g.appendChild(ttl);
+          wire(g, i);
           return g;
         }
         const g = svgEl("g", { class: "cmp-inode", transform: `translate(${n.x} ${n.y})` });
         g.appendChild(svgEl("circle", { cx: 0, cy: 0, r: ITEM_R(n.hits), fill: ITEM_FILL(n.item), "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1 }));
         const ttl = svgEl("title"); ttl.textContent = n.item.full; g.appendChild(ttl);
-        g.addEventListener("mouseenter", () => highlight(i));
-        g.addEventListener("mouseleave", () => { selectedId ? null : clearHi(); });
-        g.addEventListener("click", () => { selectedId = n.id; highlight(i); fillDetail(n.item); });
+        wire(g, i);
         return g;
       });
       nodeEls.forEach((g) => layer.appendChild(g));
@@ -815,6 +851,18 @@
         edgeEls.forEach((l) => l.setAttribute("stroke-opacity", 0.22));
         nodeEls.forEach((gp) => gp.style.opacity = 1);
       }
+      function fillTaleDetail(tale) {
+        const d = $("#cmp-detail"); d.innerHTML = "";
+        const head = el("div", "cmp-d-head");
+        head.appendChild(el("div", "cmp-d-label", tale.sigil));
+        head.appendChild(el("div", "cmp-d-name", escapeHtml(tale.title)));
+        d.appendChild(head);
+        const mine = items.filter((it) => it.hits.indexOf(tale.id) !== -1);
+        const noun = mode === "motifs" ? "motifs" : mode === "propp" ? "narrative functions" : "archetype roles";
+        d.appendChild(el("div", "cmp-d-gloss", `<strong>${mine.length}</strong> ${noun} this tale carries are lit on the graph. Hover a lit node to read it; click one for the cross-tale view.`));
+        const a = el("a", "cmp-d-readlink"); a.href = tale.href; a.innerHTML = `Read <strong>${escapeHtml(tale.short)}</strong> in full →`;
+        d.appendChild(a);
+      }
       function fillDetail(it) {
         const d = $("#cmp-detail"); d.innerHTML = "";
         const head = el("div", "cmp-d-head");
@@ -823,7 +871,7 @@
         d.appendChild(head);
         if (it.row.gloss) { const g = el("div", "cmp-d-gloss"); g.innerHTML = it.row.gloss; d.appendChild(g); }
         const tlist = el("div", "cmp-d-tales");
-        tales.forEach((t) => {
+        activeTales.forEach((t) => {
           const v = it.row[t.id];
           const card = el("div", "cmp-d-tcard"); card.style.borderLeftColor = t.color;
           const head2 = el("div", "cmp-d-thead", `${t.sigil} ${escapeHtml(t.short)}`);
