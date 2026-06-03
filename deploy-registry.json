@@ -11,7 +11,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": "landing",
-      "status": "managed (deploy-root.yml verified green to agent01 Pages prod, run #1)",
+      "status": "deploy-root.yml ready; BLOCKED on making agent01 a Direct Upload project (Action-owned prod, --branch=main)",
       "serves": [
         "(landing index)",
         "cluster",
@@ -36,7 +36,7 @@
         "scripts/generate-search-catalog.mjs",
         "functions/**"
       ],
-      "todo": "Disable the CF Pages git auto-build in the dashboard so deploy-root.yml is the sole deploy path (currently both run; harmless because identical)."
+      "todo": "Convert agent01 Pages project to Direct Upload (disconnect git integration) so wrangler pages deploy --branch=main publishes to production + the mino.mobi custom domain. While git-connected, CLI deploys are previews only. Production branch stays main."
     },
     {
       "surface": "ai-edu",

@@ -4,15 +4,18 @@ name: Deploy Root (landing)
 # subsites it bundles + functions/ Pages Functions). Replaces the implicit
 # Cloudflare git-integration auto-deploy from main.
 #
-# Root is a Cloudflare PAGES project (project: agent01), so it deploys with
-# `wrangler pages deploy` and the functions/ dir ships as Pages Functions. The
-# project name defaults to `agent01` but can be overridden via the
-# ROOT_PAGES_PROJECT repo variable or the dispatch `project` input.
+# Root is a Cloudflare PAGES project (project: agent01) run as DIRECT UPLOAD:
+# the Action owns production. `wrangler pages deploy --branch=main` publishes to
+# the production slot (apex + the mino.mobi custom domain) and ships functions/
+# as Pages Functions. --branch must equal the project's production branch (main).
 #
-# Once a run is verified green, disable the project's git auto-build in the CF
-# dashboard so this workflow is the single deploy path. As static subsites
-# encapsulate into their own surfaces (math, canvas, …), remove their dirs from
-# the paths list below so root stops shipping them.
+# REQUIREMENT: agent01 must be a Direct Upload project (git integration
+# DISCONNECTED). While it's git-connected, CLI deploys land as previews
+# (<branch>.agent01.pages.dev) and never seize the custom domain — that was the
+# "builds didn't deploy" symptom. Production branch stays `main`.
+#
+# As static subsites encapsulate into their own surfaces (math, canvas, …),
+# remove their dirs from the paths list below so root stops shipping them.
 
 on:
   push:
