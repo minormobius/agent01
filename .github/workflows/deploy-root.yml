@@ -1,0 +1,70 @@
+name: Deploy Root (landing)
+
+# Explicit deploy for the root Pages project (the landing page + the static
+# subsites it bundles + functions/ Pages Functions). Replaces the implicit
+# Cloudflare git-integration auto-deploy from main.
+#
+# FIRST-RUN SAFETY: this is workflow_dispatch-only on purpose. Root is a
+# Cloudflare PAGES project, so it deploys with `wrangler pages deploy` and needs
+# the exact Pages project name — set repo variable ROOT_PAGES_PROJECT (or pass
+# the `project` input). Once a manual run is verified green, add the push
+# trigger below and disable the project's git auto-build in the CF dashboard.
+#
+#  push:
+#    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+#    paths:
+#      - 'index.html'
+#      - 'styles.css'
+#      - 'functions/**'
+#      - 'scripts/generate-search-catalog.mjs'
+#      # static subsites still bundled under root (carve out as they encapsulate):
+#      - 'cluster/**'
+#      - 'density/**'
+#      - 'echo/**'
+#      - 'judge/**'
+#      - 'novelty/**'
+#      - 'seek/**'
+#      - 'ternary/**'
+#      - 'music/**'
+#      - 'sweat/**'
+#      - 'noise/**'
+#      - 'flows/**'
+#      - 'phylo/**'
+#      - 'time/**'
+#      - 'wiki/**'
+#      - '.github/workflows/deploy-root.yml'
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Cloudflare Pages project name (overrides ROOT_PAGES_PROJECT var)'
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve Pages project name
+        id: proj
+        run: |
+          PROJECT="${{ github.event.inputs.project }}"
+          [ -z "$PROJECT" ] && PROJECT="${{ vars.ROOT_PAGES_PROJECT }}"
+          if [ -z "$PROJECT" ]; then
+            echo "::error::No Pages project name. Set repo variable ROOT_PAGES_PROJECT or pass the 'project' input."
+            exit 1
+          fi
+          echo "name=$PROJECT" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloudflare Pages (production branch)
+        run: npx wrangler pages deploy . --project-name="${{ steps.proj.outputs.name }}" --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -11,7 +11,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": "landing",
-      "status": "cf-autodeploy-needs-workflow",
+      "status": "workflow-dispatch-only (needs ROOT_PAGES_PROJECT var; then enable push trigger + disable CF git auto-build)",
       "serves": [
         "(landing index)",
         "cluster",
@@ -430,7 +430,7 @@
       ]
     },
     {
-      "surface": "geometry",
+      "surface": "math",
       "dir": "geometry",
       "dirs": [
         "geometry",
@@ -446,14 +446,14 @@
         "borsuk",
         "elements"
       ],
-      "endpoint": "geometry.mino.mobi (planned)",
+      "endpoint": "math.mino.mobi (planned)",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
       "status": "needs-workflow",
       "op": "encapsulation",
-      "note": "Geometry/explainer pack: hub geometry/ + scattered top-level explainer dirs + elements/. Members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — anaphase must keep them on the root domain via Worker routes OR rewrite links. Carve these dirs out of root.serves on split.",
+      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. Members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — moving to math.mino.mobi requires rewriting those cross-links in all members + the hub. Carve these dirs out of root.serves on split.",
       "paths": [
         "geometry/**",
         "erdos/**",
