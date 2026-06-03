@@ -353,7 +353,8 @@ hr {
 
 /* canvas / svg in modes */
 .vis-mode[data-mode="constellation"] canvas,
-.vis-mode[data-mode="force"] canvas {
+.vis-mode[data-mode="force"] canvas,
+.vis-mode[data-mode="depends"] canvas {
   width: 100%;
   aspect-ratio: 4 / 3;
   display: block;
@@ -827,6 +828,97 @@ footer a:hover {
 </head>
 <body>
 
+<style>
+  .mino-auth {
+    position: fixed; top: 12px; right: 14px; z-index: 50;
+    font-family: var(--mono); font-size: 12px; line-height: 1;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mino-auth .auth-btn {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--accent); background: var(--accent-faint);
+    border: 1px solid var(--accent); border-radius: 4px;
+    padding: 6px 10px; cursor: pointer;
+  }
+  .mino-auth .auth-btn:hover { background: var(--accent); color: var(--bg); }
+  .mino-auth .auth-form { display: flex; align-items: center; gap: 6px; }
+  .mino-auth input {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text); background: var(--bg);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; width: 160px;
+  }
+  .mino-auth .auth-link {
+    font-family: var(--mono); font-size: 12px;
+    color: var(--muted); background: none; border: none;
+    cursor: pointer; text-decoration: underline; padding: 4px;
+  }
+  .mino-auth .auth-link:hover { color: var(--accent); }
+  .mino-auth .auth-user { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .mino-auth .auth-user b { color: var(--text); font-weight: 600; }
+</style>
+
+<!-- Sign-in is progressive enhancement: stays hidden until the module runs, so
+     a no-JS visitor sees the page unchanged. A session minted here is carried to
+     every *.mino.mobi site by the .mino.mobi cookie (single sign-on). -->
+<div id="mino-auth" class="mino-auth" hidden>
+  <button id="auth-login-btn" class="auth-btn" type="button">Sign in with Bluesky</button>
+  <form id="auth-login-form" class="auth-form" hidden>
+    <input id="auth-handle" type="text" placeholder="you.bsky.social" autocomplete="username" spellcheck="false" autocapitalize="none" />
+    <button type="submit" class="auth-btn">Go</button>
+    <button type="button" id="auth-cancel" class="auth-link">cancel</button>
+  </form>
+  <span id="auth-user" class="auth-user" hidden>
+    signed in as <b id="auth-handle-label"></b>
+    <button type="button" id="auth-logout" class="auth-link">sign out</button>
+  </span>
+</div>
+
+<script type="module">
+  import { AuthClient } from '/packages/oauth-client/auth.js';
+
+  const root    = document.getElementById('mino-auth');
+  const loginBtn = document.getElementById('auth-login-btn');
+  const form    = document.getElementById('auth-login-form');
+  const handleI = document.getElementById('auth-handle');
+  const cancel  = document.getElementById('auth-cancel');
+  const userBox = document.getElementById('auth-user');
+  const label   = document.getElementById('auth-handle-label');
+  const logout  = document.getElementById('auth-logout');
+
+  const auth = new AuthClient();
+
+  function render(user) {
+    if (user) {
+      loginBtn.hidden = true; form.hidden = true; userBox.hidden = false;
+      label.textContent = user.handle || user.did;
+    } else {
+      userBox.hidden = true; form.hidden = true; loginBtn.hidden = false;
+    }
+  }
+
+  loginBtn.addEventListener('click', () => {
+    loginBtn.hidden = true; form.hidden = false; handleI.focus();
+  });
+  cancel.addEventListener('click', () => { form.hidden = true; loginBtn.hidden = false; });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const handle = handleI.value.trim();
+    if (!handle) return;
+    try {
+      // No scope passed → mints the unified mino.mobi scope (works on every site).
+      await auth.login(handle); // redirects to Bluesky
+    } catch (err) {
+      alert(err.message || 'Sign-in failed');
+    }
+  });
+  logout.addEventListener('click', async () => { await auth.logout(); });
+
+  auth.onAuthChange(render);
+  root.hidden = false;        // reveal now that JS is alive
+  render(null);
+  auth.init().catch(() => {}); // picks up URL token, localStorage, or SSO cookie
+</script>
+
 <h1>minomobi</h1>
 
 <div class="vis-tabs" role="tablist">
@@ -834,6 +926,7 @@ footer a:hover {
   <button class="vis-tab" data-mode="subway" role="tab">subway</button>
   <button class="vis-tab" data-mode="periodic" role="tab">periodic</button>
   <button class="vis-tab" data-mode="force" role="tab">force</button>
+  <button class="vis-tab" data-mode="depends" role="tab">depends</button>
   <button class="vis-tab" data-mode="orrery" role="tab">orrery</button>
 </div>
 
@@ -855,6 +948,11 @@ footer a:hover {
   <div class="vis-mode" data-mode="force">
     <canvas id="force-canvas"></canvas>
     <div id="force-tip" class="vis-tip"></div>
+  </div>
+
+  <div class="vis-mode" data-mode="depends">
+    <canvas id="depends-canvas"></canvas>
+    <div id="depends-tip" class="vis-tip"></div>
   </div>
 
   <div class="vis-mode" data-mode="orrery">
@@ -1063,7 +1161,7 @@ footer a:hover {
 
 <!-- ——— Bluesky ——— -->
 
-<div class="section-label">bluesky</div>
+<div class="section-label">bluesky <a href="https://atmosphere.mino.mobi" style="float:right;color:var(--accent);text-decoration:none;letter-spacing:0.1em;">portal ↗</a></div>
 
 <ul class="projects">
   <li>
@@ -1914,6 +2012,7 @@ footer a:hover {
     else if (m === 'subway') startSubway();
     else if (m === 'periodic') startPeriodic();
     else if (m === 'force') startForce();
+    else if (m === 'depends') startDepends();
     else if (m === 'orrery') {
       // existing orrery script listens to resize for layout
       window.dispatchEvent(new Event('resize'));
@@ -2419,6 +2518,209 @@ footer a:hover {
     if (!cvs._resized) {
       cvs._resized = true;
       window.addEventListener('resize', function() { if (mode === 'force') layout(); });
+    }
+  }
+
+  // ─────────── Dependency graph (shared infrastructure) ───────────
+  // Edges are real shared-infra relationships grounded in the repo / CLAUDE.md:
+  //   • atpolls-db shared by poll, feed, rite, airchat (Principle 7)
+  //   • the shared auth worker, reached via packages/oauth-client, by
+  //     bakery, photo, wave, wiki, and the homepage; the worker proxies the PDS
+  //   • mino-scores ← curve, and mino-scores validates identity via the auth worker
+  //   • zoom ← feed.mino.mobi; rite ← read's gutenberg-proxy; bisk ← packages/atproto
+  //   • own-OAuth / PDS-backed apps talk to the Bluesky PDS directly
+  // Hubs render as gold chips; sites as small circles; tap a node to open it.
+  var HUBS = [
+    { id:'pds',     label:'Bluesky PDS',      sub:'ATProto network',  u:'https://bsky.app',                    root:true },
+    { id:'auth',    label:'auth.mino.mobi',   sub:'OAuth · SSO',      u:'https://auth.mino.mobi/health' },
+    { id:'oauthlib',label:'oauth-client',     sub:'shared browser lib',u:'https://mino.mobi/packages/oauth-client/auth.js' },
+    { id:'atproto', label:'packages/atproto', sub:'shared lib' },
+    { id:'db',      label:'atpolls-db',       sub:'shared D1' },
+    { id:'feedw',   label:'feed.mino.mobi',   sub:'feed generator',   u:'https://feed.mino.mobi/health' },
+    { id:'gproxy',  label:'gutenberg-proxy',  sub:'read.mino.mobi' },
+    { id:'scores',  label:'mino-scores',      sub:'leaderboard worker' },
+  ];
+  // Clickable URLs for the site endpoints (sourced from the project list).
+  var SITE_URL = {
+    home:'https://mino.mobi', bakery:'https://bake.mino.mobi', photo:'https://photo.mino.mobi',
+    wave:'https://wave.mino.mobi', wiki:'https://mino.mobi/wiki/', poll:'https://poll.mino.mobi',
+    rite:'https://rite.mino.mobi', airchat:'https://airchat.mino.mobi', zoom:'https://zoom.mino.mobi',
+    curve:'https://mino.mobi/curve/', bisk:'https://bisk.mino.mobi', time:'https://mino.mobi/time/',
+    phylo:'https://mino.mobi/phylo/', music:'https://mino.mobi/music/', sweat:'https://mino.mobi/sweat/',
+    org:'https://org.mino.mobi', answers:'https://mino.mobi/answers/', labglass:'https://mino.mobi/labglass/',
+  };
+  // [consumer, dependsOn] — consumer is a hub id or a site id.
+  var DEPS = [
+    ['oauthlib','auth'], ['auth','pds'], ['atproto','pds'], ['gproxy','pds'], ['feedw','pds'],
+    ['home','oauthlib'], ['bakery','oauthlib'], ['photo','oauthlib'], ['wave','oauthlib'], ['wiki','oauthlib'],
+    ['poll','db'], ['feedw','db'], ['rite','db'], ['airchat','db'],
+    ['zoom','feedw'], ['rite','gproxy'], ['curve','scores'], ['scores','auth'], ['bisk','atproto'],
+    ['airchat','pds'], ['poll','pds'], ['rite','pds'],
+    ['time','pds'], ['phylo','pds'], ['music','pds'], ['sweat','pds'],
+    ['org','pds'], ['answers','pds'], ['labglass','pds'],
+  ];
+
+  function startDepends() {
+    var cvs = document.getElementById('depends-canvas');
+    var tip = document.getElementById('depends-tip');
+    var ctx = cvs.getContext('2d');
+    var dpr = 1, nodes = [], byId = {}, edges = [];
+    var mx = -999, my = -999, dragNode = null, hovered = null, pressTime = 0;
+
+    function ensure(id) {
+      if (byId[id]) return byId[id];
+      var hub = HUBS.find(function(h){ return h.id === id; });
+      var n = {
+        id: id, hub: !!hub,
+        label: hub ? hub.label : id,
+        sub: hub ? hub.sub : 'site',
+        u: hub ? hub.u : (SITE_URL[id] || ('https://mino.mobi/' + id + '/')),
+        root: hub ? !!hub.root : false,
+        x: 0, y: 0, vx: 0, vy: 0, deg: 0,
+      };
+      byId[id] = n; nodes.push(n);
+      return n;
+    }
+
+    function layout() {
+      var rect = cvs.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      cvs.width = rect.width * dpr; cvs.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var W = rect.width, H = rect.height;
+      nodes = []; byId = {}; edges = [];
+      HUBS.forEach(function(h){ ensure(h.id); });
+      DEPS.forEach(function(d){
+        var a = ensure(d[0]), b = ensure(d[1]);
+        a.deg++; b.deg++;
+        edges.push({ a: a, b: b });
+      });
+      nodes.forEach(function(n){
+        n.x = W/2 + (Math.random()-0.5) * W * 0.7;
+        n.y = H/2 + (Math.random()-0.5) * H * 0.7;
+        if (n.root) { n.x = W/2; n.y = H/2; }
+        n.r = n.hub ? 0 : 3.4 + Math.min(n.deg, 4) * 0.7; // hubs draw as chips
+      });
+    }
+
+    function step() {
+      var rect = cvs.getBoundingClientRect();
+      var W = rect.width, H = rect.height, cx = W/2, cy = H/2;
+      for (var i=0;i<nodes.length;i++) for (var j=i+1;j<nodes.length;j++){
+        var a=nodes[i], b=nodes[j];
+        var dx=b.x-a.x, dy=b.y-a.y, d2=dx*dx+dy*dy+1, d=Math.sqrt(d2);
+        // hubs push harder so labels keep clear
+        var strength = (a.hub||b.hub) ? 320 : 170;
+        var f = strength / d2;
+        a.vx-=(dx/d)*f; a.vy-=(dy/d)*f; b.vx+=(dx/d)*f; b.vy+=(dy/d)*f;
+      }
+      edges.forEach(function(e){
+        var dx=e.b.x-e.a.x, dy=e.b.y-e.a.y, d=Math.hypot(dx,dy)||1;
+        var rest = e.b.hub ? 86 : 64;
+        var f=(d-rest)*0.035;
+        e.a.vx+=(dx/d)*f; e.a.vy+=(dy/d)*f; e.b.vx-=(dx/d)*f; e.b.vy-=(dy/d)*f;
+      });
+      nodes.forEach(function(n){
+        // pds (root) is pinned to centre as the foundation; others gravitate gently
+        var g = n.root ? 0.02 : 0.0011;
+        n.vx += (cx-n.x)*g; n.vy += (cy-n.y)*g;
+        n.vx*=0.86; n.vy*=0.86;
+        if (n===dragNode){ n.x=mx; n.y=my; n.vx=0; n.vy=0; }
+        else { n.x+=n.vx; n.y+=n.vy;
+          n.x=Math.max(40, Math.min(W-40, n.x));
+          n.y=Math.max(16, Math.min(H-16, n.y)); }
+      });
+    }
+
+    function chipMetrics(n){
+      ctx.font = '10px ui-monospace, monospace';
+      var w = ctx.measureText(n.label).width + 16;
+      return { w: w, h: 18 };
+    }
+    function hitNode(n){
+      if (!n.hub) return Math.hypot(n.x-mx, n.y-my) < n.r + 6;
+      var m = chipMetrics(n);
+      return Math.abs(mx-n.x) < m.w/2 + 2 && Math.abs(my-n.y) < m.h/2 + 2;
+    }
+
+    function draw() {
+      if (mode !== 'depends') { animator = null; return; }
+      step();
+      var rect = cvs.getBoundingClientRect(), W=rect.width, H=rect.height;
+      ctx.fillStyle = '#0a0a14'; ctx.fillRect(0,0,W,H);
+
+      // edges (consumer → dependency), arrow toward the dependency
+      ctx.lineWidth = 0.8;
+      edges.forEach(function(e){
+        var lit = hovered && (e.a===hovered || e.b===hovered);
+        ctx.strokeStyle = lit ? 'rgba(218,165,32,0.9)' : 'rgba(150,150,180,0.22)';
+        ctx.beginPath(); ctx.moveTo(e.a.x, e.a.y); ctx.lineTo(e.b.x, e.b.y); ctx.stroke();
+        // arrowhead near the dependency end
+        var dx=e.b.x-e.a.x, dy=e.b.y-e.a.y, d=Math.hypot(dx,dy)||1;
+        var ax=e.b.x-(dx/d)*14, ay=e.b.y-(dy/d)*14, ang=Math.atan2(dy,dx);
+        ctx.fillStyle = lit ? 'rgba(218,165,32,0.9)' : 'rgba(150,150,180,0.3)';
+        ctx.beginPath();
+        ctx.moveTo(ax + Math.cos(ang)*5, ay + Math.sin(ang)*5);
+        ctx.lineTo(ax + Math.cos(ang+2.5)*5, ay + Math.sin(ang+2.5)*5);
+        ctx.lineTo(ax + Math.cos(ang-2.5)*5, ay + Math.sin(ang-2.5)*5);
+        ctx.closePath(); ctx.fill();
+      });
+
+      hovered = null;
+      nodes.forEach(function(n){ if (hitNode(n)) hovered = n; });
+
+      // site nodes (circles)
+      nodes.forEach(function(n){
+        if (n.hub) return;
+        ctx.fillStyle = (n===hovered) ? '#fff' : '#9fb2d0';
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#8893a8'; ctx.font = '9px ui-monospace, monospace';
+        ctx.textAlign='center'; ctx.fillText(n.label, n.x, n.y + n.r + 10);
+      });
+      // hub chips (gold, on top)
+      nodes.forEach(function(n){
+        if (!n.hub) return;
+        var m = chipMetrics(n), x=n.x-m.w/2, y=n.y-m.h/2;
+        ctx.fillStyle = n.root ? 'rgba(218,165,32,0.30)' : 'rgba(218,165,32,0.16)';
+        ctx.strokeStyle = (n===hovered) ? '#ffd96b' : '#daa520'; ctx.lineWidth = n===hovered?1.6:1;
+        roundRect(x, y, m.w, m.h, 5); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#ffe9ad'; ctx.font = '10px ui-monospace, monospace'; ctx.textAlign='center';
+        ctx.fillText(n.label, n.x, n.y + 3.5);
+      });
+
+      if (hovered) {
+        var dir = hovered.hub ? ' · used by ' : ' · depends on ';
+        var cnt = edges.filter(function(e){ return hovered.hub ? e.b===hovered : e.a===hovered; }).length;
+        tip.textContent = hovered.label + ' (' + hovered.sub + ')' + dir + cnt;
+        tip.style.display='block';
+        tip.style.left = (hovered.x + 14) + 'px'; tip.style.top = (hovered.y + 8) + 'px';
+        cvs.style.cursor = dragNode ? 'grabbing' : 'pointer';
+      } else { tip.style.display='none'; cvs.style.cursor='default'; }
+
+      animator = requestAnimationFrame(draw);
+    }
+
+    function roundRect(x,y,w,h,r){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+      ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+    }
+
+    cvs.onmousemove = function(e){ var r=cvs.getBoundingClientRect(); mx=e.clientX-r.left; my=e.clientY-r.top; };
+    cvs.onmouseleave = function(){ mx=-999; my=-999; dragNode=null; };
+    cvs.onmousedown = function(){ pressTime=performance.now(); if (hovered) dragNode=hovered; };
+    cvs.onmouseup = function(){
+      var elapsed = performance.now() - pressTime;
+      if (dragNode && elapsed < 220 && Math.hypot(dragNode.vx, dragNode.vy) < 4 && dragNode.u) {
+        window.open(dragNode.u, '_blank');
+      }
+      dragNode = null;
+    };
+
+    layout(); if (!animator) draw();
+    if (!cvs._resized) {
+      cvs._resized = true;
+      window.addEventListener('resize', function(){ if (mode === 'depends') layout(); });
     }
   }
 

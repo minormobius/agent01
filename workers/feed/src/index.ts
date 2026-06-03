@@ -15,6 +15,8 @@ export interface Env {
   STATE: KVNamespace;
   FEED_URI: string;
   LIKED_FEED_URI: string;
+  LEGACY_FEED_URI?: string;        // old simcluster (taken-down) URI, still served
+  LEGACY_LIKED_FEED_URI?: string;
   PUBLISHER_DID: string;
   HOSTNAME: string;
   CONSTELLATION_RELAY: string;
@@ -699,8 +701,12 @@ async function handleGetAvatars(url: URL, env: Env): Promise<Response> {
 
 async function handleGetFeedSkeleton(url: URL, env: Env): Promise<Response> {
   const feed = url.searchParams.get('feed');
-  const isLikedFeed = env.LIKED_FEED_URI && feed === env.LIKED_FEED_URI;
-  const isMainFeed = feed === env.FEED_URI;
+  // Accept both the new (morphyx) URIs and the legacy (taken-down simcluster)
+  // URIs so existing subscribers keep getting results during the migration.
+  const isLikedFeed = (env.LIKED_FEED_URI && feed === env.LIKED_FEED_URI) ||
+    (env.LEGACY_LIKED_FEED_URI && feed === env.LEGACY_LIKED_FEED_URI);
+  const isMainFeed = feed === env.FEED_URI ||
+    (env.LEGACY_FEED_URI && feed === env.LEGACY_FEED_URI);
 
   if (!isMainFeed && !isLikedFeed) {
     return Response.json(

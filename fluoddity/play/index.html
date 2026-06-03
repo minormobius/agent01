@@ -1422,11 +1422,14 @@ const FALLBACK_SCOPE = 'atproto transition:generic';
 // Once workers/auth ships the declarations this silently tightens.
 let scopeFellBack = false;
 async function startLogin(handle, scope){
-  if (scopeFellBack) { await auth.login(handle, { scope: FALLBACK_SCOPE }); return; }
+  // Clean returnTo (no #fragment) so the auth token round-trips and the organism
+  // — carried in #c=… or persisted to localStorage — survives the redirect.
+  const returnTo = location.origin + location.pathname + location.search;
+  if (scopeFellBack) { await auth.login(handle, { scope: FALLBACK_SCOPE, returnTo }); return; }
   try {
-    await auth.login(handle, { scope });
+    await auth.login(handle, { scope, returnTo });
   } catch (e) {
-    if (/scope/i.test(e.message || '')) { scopeFellBack = true; await auth.login(handle, { scope: FALLBACK_SCOPE }); }
+    if (/scope/i.test(e.message || '')) { scopeFellBack = true; await auth.login(handle, { scope: FALLBACK_SCOPE, returnTo }); }
     else throw e;
   }
 }

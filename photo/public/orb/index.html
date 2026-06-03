@@ -69,6 +69,27 @@
     button:hover { background: var(--gold); }
     button:disabled { opacity: 0.5; cursor: default; }
 
+    .modes {
+      display: inline-flex; gap: 0;
+      border: 1px solid var(--line); border-radius: 6px;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .modes .mode {
+      background: transparent; color: var(--ink-dim);
+      padding: 0.45rem 0.7rem; border-radius: 0;
+      font-size: 0.82rem; font-weight: 500;
+    }
+    .modes .mode.active { background: var(--accent); color: #15102a; }
+    .modes .mode:not(.active):hover { background: rgba(182,157,255,0.18); color: var(--ink); }
+
+    select#feed-select {
+      flex: 1; min-width: 0;
+      background: rgba(10,5,22,0.7); border: 1px solid var(--line);
+      color: var(--ink); padding: 0.5rem 0.7rem; border-radius: 6px;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.85rem;
+    }
+    select#feed-select:focus { outline: none; border-color: var(--accent); }
+
     .status {
       width: 100%; padding-top: 0.25rem;
       font-size: 0.75rem; color: var(--ink-dim);
@@ -129,8 +150,16 @@
 
   <header class="panel">
     <h1>🌕 <span class="o">orb</span></h1>
+    <div class="modes" role="tablist">
+      <button type="button" id="mode-thread" class="mode active" role="tab" aria-selected="true">thread</button>
+      <button type="button" id="mode-feed"   class="mode"        role="tab" aria-selected="false">feed</button>
+    </div>
     <form id="thread-form">
       <input id="thread-url" type="url" placeholder="paste a bsky.app/profile/.../post/... URL" />
+      <select id="feed-select" hidden>
+        <option value="at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster">SimCluster · scored feed</option>
+        <option value="at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster-liked">SimCluster · liked by community</option>
+      </select>
       <button type="submit" id="load-btn">load</button>
       <button type="button" id="pause-btn" title="pause autostamp">⏸</button>
     </form>

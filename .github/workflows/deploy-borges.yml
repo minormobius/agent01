@@ -1,0 +1,66 @@
+name: Deploy Borges (Book of Sand)
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/pendragon-endless-book-*'
+      - 'claude/pendragon-next-source-*'
+    paths:
+      - 'borges/**'
+      - '.github/workflows/deploy-borges.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: borges
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Sync worker secrets (Gemini key + morphyx PDS app password)
+        # Push the inference + cache credentials from GitHub secrets onto the
+        # deployed worker. The PDS handle/DID are public vars in wrangler.jsonc;
+        # only the app password is a secret, reused from the morphyx creds the
+        # seed workflow already uses. Each value is skipped (not clobbered) when
+        # its GitHub secret is empty, so a partial config degrades gracefully.
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BORGES_PDS_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
+            echo "✓ GEMINI_API_KEY synced"
+          else
+            echo "· GEMINI_API_KEY empty — skipped (inference stays off)"
+          fi
+          if [ -n "$BORGES_PDS_PASSWORD" ]; then
+            printf '%s' "$BORGES_PDS_PASSWORD" | npx wrangler secret put BORGES_PDS_PASSWORD
+            echo "✓ BORGES_PDS_PASSWORD synced (morphyx)"
+          else
+            echo "· BORGES_PDS_PASSWORD empty — skipped (live renders won't be frozen)"
+          fi
+      - name: Verify the book is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://borges.mino.mobi/t/1729 | grep -qi 'Book of Sand'; then
+              echo "✓ borges is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ borges didn't respond within 20s — edge propagation may be slow, continuing."

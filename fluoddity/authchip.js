@@ -9,6 +9,7 @@
 // `auth` is the singleton AuthClient — reuse it for PDS calls if a surface needs
 // to write (auth.pds.createRecord, etc.).
 import { AuthClient } from './auth.js';
+import { askHandle } from './handle-dialog.js';
 
 export const auth = new AuthClient();
 
@@ -46,10 +47,15 @@ export function mountAuthChip(el) {
   }
 
   async function doLogin() {
-    const handle = prompt('Sign in with your Bluesky handle (e.g. alice.bsky.social):');
+    const handle = await askHandle();
     if (!handle) return;
     el.innerHTML = `<span class="authbusy">redirecting…</span>`;
-    try { await auth.login(handle.trim()); }
+    // returnTo strips the #fragment: the auth worker appends ?__auth_session=…,
+    // and a fragment swallows it (token lost → sign-in silently fails, and any
+    // organism carried in #c=… gets mangled). Surfaces restore their own state
+    // from localStorage on return; the search string is kept (e.g. ?o=shared).
+    const returnTo = location.origin + location.pathname + location.search;
+    try { await auth.login(handle, { returnTo }); }
     catch (e) { alert('Sign-in failed: ' + (e.message || e)); render(auth.getUser()); }
   }
 

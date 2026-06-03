@@ -61,13 +61,23 @@
     }, { passive: false });
     const pts = new Map();
     let pinch = null;
-    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); try { svg.setPointerCapture(e.pointerId); } catch (_) {} });
+    svg.addEventListener("pointerdown", (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, drag: false }); });
     svg.addEventListener("pointermove", (e) => {
-      if (!pts.has(e.pointerId)) return;
-      const prev = pts.get(e.pointerId);
-      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const p = pts.get(e.pointerId); if (!p) return;
+      const prevx = p.x, prevy = p.y;
+      p.x = e.clientX; p.y = e.clientY;
       const arr = [...pts.values()];
-      if (arr.length === 1) { tx += e.clientX - prev.x; ty += e.clientY - prev.y; apply(); }
+      if (arr.length === 1) {
+        // Only begin panning — and capturing the pointer — once the gesture is clearly a drag.
+        // Capturing on pointerdown retargets the pointer to the SVG and eats the child node's
+        // click on desktop (touch synthesises its own click, so it only broke on mouse).
+        if (!p.drag) {
+          if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < 5) return;
+          p.drag = true;
+          try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        tx += e.clientX - prevx; ty += e.clientY - prevy; apply();
+      }
       else if (arr.length >= 2) {
         const r = svg.getBoundingClientRect();
         const [a, b] = arr;
@@ -448,7 +458,7 @@
   // refit the visible diagram on resize (debounced)
   let rT; window.addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { const z = zoomers[current]; if (z) z.fit(); }, 180); });
 
-  /* ====================== CROSSWALK (four tales side by side) ====================== */
+  /* ====================== CROSSWALK (eight tales side by side) ====================== */
   function renderCrosswalk() {
     const C = window.PENDRAGON && window.PENDRAGON.crosswalk;
     const host = $("#cw-host"); if (!C || !host) return;
@@ -459,12 +469,17 @@
     const tales = C.tales;
     const taleIds = tales.map((t) => t.id);
     const taleMap = {}; tales.forEach((t) => taleMap[t.id] = t);
-    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI"];
+    const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"];
     const passLabel = {
       culhwch: (n) => "M" + n,
       pwyll:   (n) => "Mvt " + (ROMAN[n] || n),
       orfeo:   (n) => "M" + (ROMAN[n] || n),
       gawain:  (n) => "F" + (ROMAN[n] || n),
+      owain:   (n) => "Mvt " + (ROMAN[n] || n),
+      branwen: (n) => "Mvt " + (ROMAN[n] || n),
+      manawydan: (n) => "Mvt " + (ROMAN[n] || n),
+      math: (n) => "Mvt " + (ROMAN[n] || n),
+      vitamerlini: (n) => "Mvt " + (ROMAN[n] || n),
     };
 
     // dynamic grid template: code + name + one column per tale (the gloss spans full width below)
@@ -518,7 +533,7 @@
     // ─ Motifs ─
     host.appendChild(el("h3", "cw-grouphead", "Shared motifs · Thompson codes"));
     host.appendChild(el("p", "cw-subnote", C.motifIntro));
-    host.appendChild(header());
+    const tblM = el("div", "cw-table"); tblM.appendChild(header());
     // Sort: most-shared first, then descending; within each tier, stable
     const motifsSorted = C.motifs.slice().sort((a, b) => {
       const ca = taleIds.filter((id) => a[id]).length;
@@ -534,39 +549,74 @@
       if (m.gloss) {
         const g = el("div", "cw-gloss"); g.innerHTML = m.gloss; row.appendChild(g);
       }
-      host.appendChild(row);
+      tblM.appendChild(row);
     });
+    host.appendChild(tblM);
 
     // ─ Propp ─
-    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the four"));
+    host.appendChild(el("h3", "cw-grouphead", "Propp's functions across the corpus"));
     host.appendChild(el("p", "cw-subnote", C.proppIntro));
-    host.appendChild(header());
+    const tblP = el("div", "cw-table"); tblP.appendChild(header());
     C.propp.forEach((p) => {
       const row = el("div", "cw-row");
       row.appendChild(el("div", "cw-code", `<em style="font-family: var(--serif); font-style: italic; color: var(--gold);">${escapeHtml(p.sym)}</em>`));
       row.appendChild(el("div", "cw-name", escapeHtml(p.name)));
       tales.forEach((t) => row.appendChild(taleCell(t.id, p[t.id])));
       if (p.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = p.gloss; row.appendChild(g); }
-      host.appendChild(row);
+      tblP.appendChild(row);
     });
+    host.appendChild(tblP);
 
     // ─ Archetypes ─
     host.appendChild(el("h3", "cw-grouphead", "Character archetypes"));
     host.appendChild(el("p", "cw-subnote", C.archetypeIntro));
-    host.appendChild(header());
+    const tblA = el("div", "cw-table"); tblA.appendChild(header());
     C.archetypes.forEach((a) => {
       const row = el("div", "cw-row");
       row.appendChild(el("div", "cw-code", "—"));
       row.appendChild(el("div", "cw-name", escapeHtml(a.role)));
       tales.forEach((t) => row.appendChild(taleCell(t.id, a[t.id])));
       if (a.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = a.gloss; row.appendChild(g); }
-      host.appendChild(row);
+      tblA.appendChild(row);
     });
+    host.appendChild(tblA);
+
+    // ─ The axis of desire (Greimas) ─
+    if (C.desireAxis) {
+      host.appendChild(el("h3", "cw-grouphead", "The axis of desire · Greimas"));
+      host.appendChild(el("p", "cw-subnote", C.desireAxis.intro));
+      let html = '<table class="cw-desire-tbl"><thead><tr><th>Tale</th><th>Subject</th><th>Object — what is wanted</th><th>Opponent</th><th>Reaches?</th></tr></thead><tbody>';
+      C.desireAxis.rows.forEach((r) => {
+        const tobj = taleMap[r.tale] || {};
+        const reach = r.reaches ? '<span class="dz-yes">✓ reaches</span>' : '<span class="dz-no">⤺ falls short</span>';
+        html += `<tr class="${r.reaches ? "" : "dz-failrow"}"><th><a href="${tobj.href || "#"}" style="color:inherit">${tobj.sigil || ""} ${escapeHtml(tobj.short || r.tale)}</a></th><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.object)}</td><td>${escapeHtml(r.opponent)}</td><td>${reach}<span class="dz-verdict">${escapeHtml(r.verdict)}</span></td></tr>`;
+      });
+      html += "</tbody></table>";
+      const dt = el("div", "cw-desire"); dt.innerHTML = html; host.appendChild(dt);
+      if (C.desireAxis.finding) { const f = el("p", "cw-finding"); f.innerHTML = C.desireAxis.finding; host.appendChild(f); }
+    }
+
+    // ─ Shared type-scenes (Parry–Lord) ─
+    if (C.themes) {
+      host.appendChild(el("h3", "cw-grouphead", "Shared type-scenes · Parry–Lord"));
+      host.appendChild(el("p", "cw-subnote", C.themesIntro));
+      const tblT = el("div", "cw-table"); tblT.appendChild(header());
+      const themesSorted = C.themes.slice().sort((a, b) => taleIds.filter((id) => b[id]).length - taleIds.filter((id) => a[id]).length);
+      themesSorted.forEach((m) => {
+        const row = el("div", "cw-row");
+        row.appendChild(el("div", "cw-code", escapeHtml(m.code || "⟜")));
+        row.appendChild(el("div", "cw-name", escapeHtml(m.name) + " " + countLabel(m)));
+        tales.forEach((t) => row.appendChild(taleCell(t.id, m[t.id])));
+        if (m.gloss) { const g = el("div", "cw-gloss"); g.innerHTML = m.gloss; row.appendChild(g); }
+        tblT.appendChild(row);
+      });
+      host.appendChild(tblT);
+    }
   }
 
   /* ====================== COMPARE (hypermythograph) ======================
      Three force-laid graphs (Motifs / Functions / Archetypes), each pinning
-     the four tales at the corners and letting the structural items float
+     the tales at the corners and letting the structural items float
      toward whichever tales claim them. The middle of each graph is the
      shared backbone; the periphery is what each tale brings uniquely. */
   function renderCompare() {
@@ -576,28 +626,46 @@
     const W = 1100, H = 720;
     const tales = C.tales;
     const taleIds = tales.map((t) => t.id);
-    const cornerFor = {
-      [taleIds[0]]: { x: W * 0.13, y: H * 0.18 },
-      [taleIds[1]]: { x: W * 0.87, y: H * 0.18 },
-      [taleIds[2]]: { x: W * 0.87, y: H * 0.82 },
-      [taleIds[3]]: { x: W * 0.13, y: H * 0.82 },
-    };
+    // Place the tale anchors evenly around an ellipse — works for any number of
+    // tales (a square for four, a pentagon for five, …), point-up.
+    const excluded = new Set();
+    let cornerFor = {};
+    function layoutCorners(ids) {
+      const cf = {}, N = ids.length, cxc = W / 2, cyc = H / 2, rx = W * 0.40, ry = H * 0.34;
+      ids.forEach((id, k) => {
+        const ang = -Math.PI / 2 + (2 * Math.PI * k) / N;
+        cf[id] = { x: cxc + rx * Math.cos(ang), y: cyc + ry * Math.sin(ang) };
+      });
+      return cf;
+    }
+    const ROMANL = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"];
     const passLabelLocal = {
       culhwch: (n) => "M" + n,
-      pwyll:   (n) => "Mvt " + (["", "I", "II", "III", "IV", "V", "VI"][n] || n),
-      orfeo:   (n) => "M" + (["", "I", "II", "III", "IV", "V", "VI"][n] || n),
+      pwyll:   (n) => "Mvt " + (ROMANL[n] || n),
+      orfeo:   (n) => "M" + (ROMANL[n] || n),
       gawain:  (n) => "F" + (["", "I", "II", "III", "IV"][n] || n),
+      owain:   (n) => "Mvt " + (ROMANL[n] || n),
+      branwen: (n) => "Mvt " + (ROMANL[n] || n),
+      manawydan: (n) => "Mvt " + (ROMANL[n] || n),
+      math: (n) => "Mvt " + (ROMANL[n] || n),
+      vitamerlini: (n) => "Mvt " + (ROMANL[n] || n),
     };
 
     const MODES = [
-      { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The seven gold nodes in the centre are the codes every tale realises — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
-      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the four tales. The function symbols (α, A, B, …) that fire in all four sit centrally; the structural absences and inversions drift to the edges." },
+      { id: "motifs",     label: "Motifs",     rows: () => C.motifs,     blurb: "Thompson motifs as gravity wells. The gold nodes in the centre are the codes most tales realise — the structural backbone. Single-coloured leaves at each corner are what that tale alone brings." },
+      { id: "propp",      label: "Functions",  rows: () => C.propp,      blurb: "Propp's 31 narrative functions across the nine tales. The function symbols (α, A, B, …) that fire in most tales sit centrally; the structural absences and inversions drift to the edges — the Vita Merlini, which inverts or drops most of the spine, hangs furthest out." },
       { id: "archetypes", label: "Archetypes", rows: () => C.archetypes, blurb: "Character roles each tale fills with a different figure. A corner-clinging archetype is one only that tale carries; the centre archetypes are the ones every tale instantiates somehow." },
     ];
 
     let mode = "motifs";
     let multiOnly = false;
     let selectedId = null;
+    const ALL = (window.PENDRAGON && window.PENDRAGON.motifsAll) || null;
+    const CLASS_NAMES = (window.PENDRAGON && window.PENDRAGON.motifClassNames) || {};
+    const FULL_AVAILABLE = !!(ALL && ALL.length);
+    let fullMotifs = FULL_AVAILABLE; // motifs graph defaults to the full-corpus picture
+    const usingFull = () => mode === "motifs" && fullMotifs && FULL_AVAILABLE;
+    const CLASS_COLOR = { A: "#c98a4a", B: "#7fb37f", C: "#9a8f6b", D: "#7c8fc9", E: "#9a9aa6", F: "#a07cc9", G: "#b0563b", H: "#6fa8c9", J: "#c9b24a", K: "#c97f9a", L: "#8a7f6b", M: "#56a0a0", N: "#d8b24a", P: "#8a9a6b", Q: "#cf7a5a", R: "#7f8fb3", S: "#b3566b", T: "#c97fae", V: "#9d82b3", W: "#8aa363", Z: "#9aa0a8" };
 
     function isPresent(row, taleId) {
       const v = row[taleId];
@@ -610,7 +678,7 @@
       return false;
     }
     function itemsFor(modeId) {
-      const rows = MODES.find((m) => m.id === modeId).rows();
+      const rows = (modeId === "motifs" && fullMotifs && FULL_AVAILABLE) ? ALL : MODES.find((m) => m.id === modeId).rows();
       return rows.map((row, i) => {
         const hits = taleIds.filter((id) => isPresent(row, id));
         return {
@@ -627,23 +695,70 @@
     const modesHost = $("#cmp-modes"); modesHost.innerHTML = "";
     MODES.forEach((m) => {
       const b = el("button", "cmp-mode" + (m.id === mode ? " active" : ""), m.label);
-      b.onclick = () => { mode = m.id; selectedId = null; [...modesHost.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); $("#cmp-blurb").textContent = m.blurb; build(); };
+      b.onclick = () => { mode = m.id; selectedId = null; [...modesHost.children].forEach((x) => x.classList.remove("active")); b.classList.add("active"); setBlurb(); build(); };
       modesHost.appendChild(b);
     });
+    function setBlurb() {
+      const m = MODES.find((x) => x.id === mode);
+      if (usingFull()) {
+        $("#cmp-blurb").innerHTML = "Every motif carried by any of the nine tales — <strong>" + ALL.length + " in all</strong>, unioned by Thompson code from each tale's own index and coloured by class. Each leaf is pulled toward the tale(s) that carry it; the shared backbone gathers toward the centre. Switch off <em>All corpus motifs</em> for the smaller curated comparison.";
+      } else { $("#cmp-blurb").textContent = m.blurb; }
+    }
     const togHost = $("#cmp-toggles"); togHost.innerHTML = "";
     const togBtn = el("button", "cmp-toggle", "Multi-tale only");
     togBtn.onclick = () => { multiOnly = !multiOnly; togBtn.classList.toggle("active", multiOnly); build(); };
     togHost.appendChild(togBtn);
-    $("#cmp-blurb").textContent = MODES[0].blurb;
+    if (FULL_AVAILABLE) {
+      const fullBtn = el("button", "cmp-toggle" + (fullMotifs ? " active" : ""), "All corpus motifs");
+      fullBtn.title = "Show every motif from all nine tales, coloured by Thompson class — not just the curated comparison.";
+      fullBtn.onclick = () => { fullMotifs = !fullMotifs; fullBtn.classList.toggle("active", fullMotifs); setBlurb(); build(); };
+      togHost.appendChild(fullBtn);
+    }
+    setBlurb();
+
+    // Per-tale exclude chips — drop a story (and its leaves) out of the graph.
+    const talesHost = $("#cmp-tales");
+    if (talesHost) {
+      talesHost.innerHTML = "";
+      talesHost.appendChild(el("span", "cmp-tales-lab", "Tales in graph:"));
+      tales.forEach((t) => {
+        const chip = el("button", "cmp-talechip", `${t.sigil} ${escapeHtml(t.short)}`);
+        chip.style.setProperty("--tc", t.color);
+        chip.title = "Show / hide " + t.title;
+        chip.onclick = () => {
+          if (excluded.has(t.id)) { excluded.delete(t.id); chip.classList.remove("off"); }
+          else { excluded.add(t.id); chip.classList.add("off"); }
+          build();
+        };
+        talesHost.appendChild(chip);
+      });
+    }
 
     function build() {
       host.innerHTML = "";
-      $("#cmp-detail").innerHTML = '<div class="md-hint">Click any node above to see how each tale realises it.</div>';
+      resetDetail();
 
-      const items = itemsFor(mode).filter((it) => !multiOnly || it.hits.length >= 2);
+      const leg = $("#cmp-legend");
+      if (leg) {
+        if (usingFull()) {
+          const ORDER = "ABCDEFGHJKLMNPQRSTVWZ";
+          const present = [...new Set(ALL.map((r) => r.cls))].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+          const names = CLASS_NAMES || {};
+          leg.innerHTML = present.map((c) => `<span class="cmp-lchip"><span class="cmp-ldot" style="background:${CLASS_COLOR[c] || "#9aa0a8"}"></span>${c}<span class="cmp-lname"> · ${escapeHtml(names[c] || "")}</span></span>`).join("");
+          leg.style.display = "";
+        } else { leg.innerHTML = ""; leg.style.display = "none"; }
+      }
 
-      // Node list: 4 tale nodes + items
-      const nodes = tales.map((t) => ({
+      const activeTales = tales.filter((t) => !excluded.has(t.id));
+      const activeIds = activeTales.map((t) => t.id);
+      cornerFor = layoutCorners(activeIds);
+
+      const items = itemsFor(mode)
+        .map((it) => ({ ...it, hits: it.hits.filter((id) => !excluded.has(id)) }))
+        .filter((it) => it.hits.length && (!multiOnly || it.hits.length >= 2));
+
+      // Node list: one pinned node per active tale + the item leaves
+      const nodes = activeTales.map((t) => ({
         id: "tale-" + t.id, type: "tale", tale: t, pinned: true,
         x: cornerFor[t.id].x, y: cornerFor[t.id].y, vx: 0, vy: 0,
       }));
@@ -672,7 +787,7 @@
       svg.appendChild(layer);
 
       // Tale corner backdrops (faint quadrant labels)
-      tales.forEach((t) => {
+      activeTales.forEach((t) => {
         const p = cornerFor[t.id];
         const halo = svgEl("circle", { cx: p.x, cy: p.y, r: 90, fill: t.color, "fill-opacity": 0.06 });
         layer.appendChild(halo);
@@ -686,6 +801,7 @@
 
       const ITEM_R = (h) => 5 + 1.7 * Math.min(h, 4);
       const ITEM_FILL = (it) => {
+        if (usingFull()) return CLASS_COLOR[it.row.cls] || "#9aa0a8";
         if (it.hits.length >= 4) return "#e0c178";
         if (it.hits.length === 3) return "#c9a24a";
         if (it.hits.length === 2) return "#8a7f6b";
@@ -694,6 +810,18 @@
 
       const adj = {}; edges.forEach((e, ei) => { (adj[e.a] = adj[e.a] || []).push(ei); (adj[e.b] = adj[e.b] || []).push(ei); });
 
+      let selIdx = -1;
+      function resetDetail() {
+        const noun = mode === "motifs" ? "motifs" : mode === "propp" ? "functions" : "roles";
+        $("#cmp-detail").innerHTML = '<div class="md-hint">Click a tale to light the ' + noun + ' it carries; click any leaf to see how each tale realises it. Use the chips above to drop a tale out of the graph.</div>';
+      }
+      function selectNode(i) { selIdx = i; highlight(i); const n = nodes[i]; if (n.type === "tale") fillTaleDetail(n.tale); else fillDetail(n.item); }
+      function deselect() { selIdx = -1; clearHi(); resetDetail(); }
+      function wire(g, i) {
+        g.addEventListener("mouseenter", () => highlight(i));
+        g.addEventListener("mouseleave", () => { selIdx >= 0 ? highlight(selIdx) : clearHi(); });
+        g.addEventListener("click", (ev) => { ev.stopPropagation(); selIdx === i ? deselect() : selectNode(i); });
+      }
       const nodeEls = nodes.map((n, i) => {
         if (n.type === "tale") {
           const g = svgEl("g", { class: "cmp-tnode", transform: `translate(${n.x} ${n.y})` });
@@ -701,16 +829,14 @@
           g.appendChild(svgEl("rect", { x: -r, y: -r, width: 2 * r, height: 2 * r, rx: 9, fill: n.tale.color, "fill-opacity": 0.92, stroke: "#14110d", "stroke-width": 1.8 }));
           const sigil = svgEl("text", { x: 0, y: -2, "text-anchor": "middle", "font-size": 24 }); sigil.textContent = n.tale.sigil; g.appendChild(sigil);
           const lab = svgEl("text", { x: 0, y: 18, "text-anchor": "middle", "font-size": 11, fill: "#14110d", "font-weight": 700 }); lab.textContent = n.tale.short; g.appendChild(lab);
-          const ttl = svgEl("title"); ttl.textContent = n.tale.title; g.appendChild(ttl);
-          g.addEventListener("click", () => { window.location.href = n.tale.href; });
+          const ttl = svgEl("title"); ttl.textContent = n.tale.title + " — click to light what it carries"; g.appendChild(ttl);
+          wire(g, i);
           return g;
         }
         const g = svgEl("g", { class: "cmp-inode", transform: `translate(${n.x} ${n.y})` });
         g.appendChild(svgEl("circle", { cx: 0, cy: 0, r: ITEM_R(n.hits), fill: ITEM_FILL(n.item), "fill-opacity": 0.9, stroke: "#14110d", "stroke-width": 1 }));
         const ttl = svgEl("title"); ttl.textContent = n.item.full; g.appendChild(ttl);
-        g.addEventListener("mouseenter", () => highlight(i));
-        g.addEventListener("mouseleave", () => { selectedId ? null : clearHi(); });
-        g.addEventListener("click", () => { selectedId = n.id; highlight(i); fillDetail(n.item); });
+        wire(g, i);
         return g;
       });
       nodeEls.forEach((g) => layer.appendChild(g));
@@ -725,6 +851,18 @@
         edgeEls.forEach((l) => l.setAttribute("stroke-opacity", 0.22));
         nodeEls.forEach((gp) => gp.style.opacity = 1);
       }
+      function fillTaleDetail(tale) {
+        const d = $("#cmp-detail"); d.innerHTML = "";
+        const head = el("div", "cmp-d-head");
+        head.appendChild(el("div", "cmp-d-label", tale.sigil));
+        head.appendChild(el("div", "cmp-d-name", escapeHtml(tale.title)));
+        d.appendChild(head);
+        const mine = items.filter((it) => it.hits.indexOf(tale.id) !== -1);
+        const noun = mode === "motifs" ? "motifs" : mode === "propp" ? "narrative functions" : "archetype roles";
+        d.appendChild(el("div", "cmp-d-gloss", `<strong>${mine.length}</strong> ${noun} this tale carries are lit on the graph. Hover a lit node to read it; click one for the cross-tale view.`));
+        const a = el("a", "cmp-d-readlink"); a.href = tale.href; a.innerHTML = `Read <strong>${escapeHtml(tale.short)}</strong> in full →`;
+        d.appendChild(a);
+      }
       function fillDetail(it) {
         const d = $("#cmp-detail"); d.innerHTML = "";
         const head = el("div", "cmp-d-head");
@@ -733,7 +871,7 @@
         d.appendChild(head);
         if (it.row.gloss) { const g = el("div", "cmp-d-gloss"); g.innerHTML = it.row.gloss; d.appendChild(g); }
         const tlist = el("div", "cmp-d-tales");
-        tales.forEach((t) => {
+        activeTales.forEach((t) => {
           const v = it.row[t.id];
           const card = el("div", "cmp-d-tcard"); card.style.borderLeftColor = t.color;
           const head2 = el("div", "cmp-d-thead", `${t.sigil} ${escapeHtml(t.short)}`);

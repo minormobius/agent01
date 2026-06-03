@@ -1,0 +1,33 @@
+name: Seed Borges tellings (atproto)
+
+# Writes hand-authored / frozen borges tellings (currently the gold-standard
+# exemplar, tale № 1) to the morphyx service account's repo as
+# com.minomobi.borges.telling records. Manual; idempotent (putRecord overwrites).
+on:
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "Dry run (build + print records, no write)"
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'claude/pendragon-endless-book-*'
+    paths:
+      - 'borges/js/exemplar.js'
+      - 'scripts/seed-borges-tellings.mjs'
+      - '.github/workflows/seed-borges.yml'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Seed tellings
+        env:
+          MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          MORPHYX_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node scripts/seed-borges-tellings.mjs ${{ inputs.dry && '--dry' || '' }}

@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: [main, 'claude/implement-oauth-bsky-JgUdn', 'claude/fluoddity-emergent-behavior-UjGE8']
+    branches: [main, 'claude/implement-oauth-bsky-JgUdn', 'claude/fluoddity-emergent-behavior-UjGE8', 'claude/atproto-tracker-portal-*', 'claude/consolidate-feature-branches-dHYQO']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'

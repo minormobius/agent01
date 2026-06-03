@@ -1,0 +1,8 @@
+# Don't ship Rust sources / build trees — only the compiled pkg/ goes out.
+wasm
+node_modules
+package.json
+package-lock.json
+.assetsignore
+wrangler.jsonc
+README.md

@@ -48,8 +48,15 @@ export class AuthClient {
 
   /**
    * Initialize the client. Call on page load.
-   * Picks up session token from URL (after OAuth redirect) or localStorage.
-   * Validates the session with the auth worker.
+   *
+   * Resolves the session from three sources, in order:
+   *   1. The ?__auth_session= URL param (just returned from an OAuth redirect).
+   *   2. localStorage (a token this origin stored on a previous visit).
+   *   3. The .mino.mobi SSO cookie — picked up implicitly. Even with no token
+   *      of our own, we still call /api/me with credentials, so a session minted
+   *      on another *.mino.mobi site (e.g. the homepage) is recognised here with
+   *      no re-login. The cookie is HttpOnly, so we never see its value — we just
+   *      learn the user identity back from the worker.
    */
   async init() {
     // 1. Check URL for auth callback token
@@ -63,20 +70,19 @@ export class AuthClient {
       this._token = this._loadToken();
     }
 
-    // 3. Validate session
-    if (this._token) {
-      try {
-        const user = await this._fetchMe();
-        this._user = user;
-        this._notify();
-      } catch {
-        // Session expired or invalid
-        this._token = null;
-        this._user = null;
-        this._removeToken();
-        this._notify();
-      }
+    // 3. Validate — always attempt, even with no local token, so a cookie-only
+    //    SSO session is discovered. _fetchMe sends credentials; the worker reads
+    //    the .mino.mobi cookie when no Bearer header is present.
+    try {
+      const user = await this._fetchMe();
+      this._user = user;
+    } catch {
+      // No valid session from token or cookie.
+      this._token = null;
+      this._user = null;
+      this._removeToken();
     }
+    this._notify();
 
     return this._user;
   }
@@ -88,7 +94,9 @@ export class AuthClient {
    * @param {string} handle - Bluesky handle (e.g. 'alice.bsky.social')
    * @param {object} [opts]
    * @param {string} [opts.returnTo] - URL to return to after auth (default: current page)
-   * @param {string} [opts.scope] - OAuth scope (default: 'atproto transition:generic')
+   * @param {string} [opts.scope] - OAuth scope. Omit to mint the unified mino.mobi
+   *   scope (the enumerated union of every site's collections — NOT transition:generic;
+   *   see workers/auth/src/oauth/scope.ts). Pass a narrower scope to tighten consent.
    */
   async login(handle, opts) {
     const returnTo = opts?.returnTo || window.location.href;
@@ -98,6 +106,7 @@ export class AuthClient {
     try {
       res = await fetch(`${this.authUrl}/oauth/start`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           handle: handle.replace(/^@/, '').trim(),
@@ -125,14 +134,18 @@ export class AuthClient {
    * Log out. Destroys the session on the auth worker and clears local state.
    */
   async logout() {
-    if (this._token) {
-      try {
-        await fetch(`${this.authUrl}/api/logout`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${this._token}` },
-        });
-      } catch { /* best effort */ }
-    }
+    // Always call the worker — in cookie-only SSO mode there's no local token,
+    // but the .mino.mobi cookie still needs clearing server-side. credentials:
+    // 'include' sends the cookie; the Bearer header is added when we have a token.
+    try {
+      const headers = {};
+      if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+      await fetch(`${this.authUrl}/api/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+      });
+    } catch { /* best effort */ }
     this._token = null;
     this._user = null;
     this._removeToken();
@@ -201,8 +214,14 @@ export class AuthClient {
   }
 
   async _fetchMe() {
+    // credentials: 'include' sends the .mino.mobi SSO cookie. The Bearer header
+    // is only added when this origin holds a token; with neither, the worker
+    // authenticates from the cookie alone (cross-subdomain SSO).
+    const headers = {};
+    if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
     const res = await fetch(`${this.authUrl}/api/me`, {
-      headers: { Authorization: `Bearer ${this._token}` },
+      credentials: 'include',
+      headers,
     });
     if (!res.ok) throw new Error('Session invalid');
     return res.json();
@@ -226,6 +245,7 @@ export class AuthClient {
 
     const res = await fetch(`${this.authUrl}${path}`, {
       method: opts?.method || 'GET',
+      credentials: 'include',
       headers,
       body: opts?.body,
     });

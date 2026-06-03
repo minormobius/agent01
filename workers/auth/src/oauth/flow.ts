@@ -18,6 +18,7 @@ import {
   type DPoPKeyPair,
 } from './jwt.js';
 import { getClientSigningKey, getClientPublicJWK } from './keypair.js';
+import { UNIFIED_SCOPE } from './scope.js';
 
 const BSKY_PUBLIC_API = 'https://public.api.bsky.app';
 const STATE_TTL_SECONDS = 300; // 5 minutes
@@ -128,7 +129,7 @@ export async function startOAuth(
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
     state,
-    scope: scope || 'atproto transition:generic',
+    scope: scope || UNIFIED_SCOPE,
     client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
     client_assertion: clientAssertion,
     login_hint: handle,
@@ -180,7 +181,7 @@ export async function startOAuth(
     state, codeVerifier, JSON.stringify(dpopSerialized),
     did, pdsUrl, authServerUrl, metadata.token_endpoint,
     dpopNonce || null, origin, returnTo || null,
-    scope || 'atproto transition:generic', expiresAt,
+    scope || UNIFIED_SCOPE, expiresAt,
   ).run();
 
   // 7. Build authorization URL

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — read</title>
+<meta name="description" content="RSVP reading through a swarm: a Project Gutenberg book streamed word by word, each one summoned out of a field of vector-trail agents that race to spell it.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fluoddity.mino.mobi/read/">
+<meta property="og:title" content="fluoddity — read">
+<meta property="og:description" content="A book streamed word by word; agents race to spell each one.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --chrome: 252px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; } .pill:hover { color: var(--accent); border-color: var(--accent); }
+
+#stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+#stage canvas { width: min(100%, calc(100dvh - var(--chrome))); height: auto; aspect-ratio: 1; display: block; border: 1px solid var(--rule); border-radius: 12px; background: #000; }
+
+#bar { flex: 0 0 auto; display: flex; gap: 8px; padding: 8px 14px 2px; align-items: center; }
+#bar input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); font-size: 14px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 9px; padding: 10px 13px; }
+#bar input:focus { outline: none; border-color: var(--accent); }
+.btn { font-family: var(--mono); font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 13px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); } .btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+#results { flex: 0 0 auto; display: flex; gap: 6px; padding: 0 14px; overflow-x: auto; max-height: 0; transition: max-height 0.25s; }
+#results.show { max-height: 64px; padding: 6px 14px; }
+.bookchip { flex: 0 0 auto; max-width: 240px; text-align: left; font-size: 11px; line-height: 1.3; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 7px 10px; cursor: pointer; }
+.bookchip:hover { border-color: var(--accent); } .bookchip small { color: var(--muted); display: block; }
+
+#transport { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 14px 4px; }
+#transport .now { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#transport .now b { color: var(--accent); }
+.progress { flex: 0 0 120px; height: 5px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+
+#dials { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 6px 14px 14px; align-items: center; justify-content: center; }
+.dial { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.dial input[type=range] { width: 96px; accent-color: var(--accent); }
+.dial b { color: var(--fg); min-width: 32px; display: inline-block; }
+#fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; line-height: 1.6; }
+@media (max-width: 640px) { :root { --chrome: 320px; } }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="../">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · read</span>
+  <span class="spacer"></span>
+  <span id="viewctl"></span>
+  <span id="auth"></span>
+  <a class="pill" href="../text/">say ↗</a>
+  <a class="pill" href="../play/">playground ↗</a>
+</div>
+
+<div id="stage"></div>
+
+<div id="bar">
+  <input id="q" type="text" placeholder="search Project Gutenberg… (e.g. frankenstein)" autocomplete="off">
+  <button class="btn" id="btn-search">search</button>
+  <button class="btn" id="btn-demo">demo</button>
+</div>
+<div id="results"></div>
+
+<div id="transport">
+  <button class="btn primary" id="btn-play">▶ play</button>
+  <button class="btn" id="btn-restart" title="restart">⏮</button>
+  <button class="btn" id="btn-bop" title="reroll the agents' bop flavor">↻ bop</button>
+  <button class="btn" id="btn-clip" title="make a narrated video of the next ~1000 chars">🎬 clip</button>
+  <span class="now" id="now">type a search, pick a book — or hit demo</span>
+  <div class="progress"><div id="pfill"></div></div>
+</div>
+
+<div id="dials">
+  <label class="dial" title="reading speed">wpm <input type="range" id="d-wpm" min="40" max="600" step="10" value="130"><b id="v-wpm"></b></label>
+  <label class="dial" title="how hard agents are shoved onto each word">pull <input type="range" id="d-pull" min="0" max="0.04" step="0.001" value="0.02"><b id="v-pull"></b></label>
+  <label class="dial" title="how much the agents keep bopping">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.5"><b id="v-bop"></b></label>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig } from '../engine.js';
+import { bakeText } from '../textfield.js';
+import { mountViewControls, getViewMode } from '../viewcontrols.js';
+import { mountAuthChip } from '../authchip.js';
+
+const $ = (s) => document.querySelector(s);
+const DIM = 512, COUNT = 120000, SDFDIM = 384;   // bake the SDF a touch smaller — fast enough per word
+const PROXY = 'https://read.mino.mobi/gutenberg-proxy?id=';
+const GUTENDEX = 'https://gutendex.com/?mime_type=text%2Fplain&search=';
+const SAMPLE = "Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world.";
+
+mountAuthChip($('#auth'));
+
+let engine = null;
+try { engine = new FluoddityEngine(DIM, COUNT, { text: true }); engine.displayMode = getViewMode(); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This needs WebGL2 with float render targets — ' + (e.message || e); }
+
+if (engine) {
+  $('#stage').appendChild(engine.cv);
+
+  function textConfig() {
+    const g = defaultConfig();
+    g.cohorts = 6; g.rule_seed = Math.random();
+    g.sensor_gain = 3.2; g.sensor_angle = -0.14; g.sensor_distance = 1.1;
+    g.mutation_scale = 0.05; g.global_force_mult = 0.5; g.drag = 0.92;
+    g.strafe_power = 0.16; g.axial_force = 0.05; g.lateral_force = -0.22;
+    g.trail_persistence = 0.92; g.trail_diffusion = 0.6;
+    g.initial_conditions = 1; g.ink = 3.6; g.hue = 0.0;
+    return g;
+  }
+  const cfg = textConfig();
+  engine.load(cfg, 'read0');
+  engine.textTarget = 0.02;
+  engine.textStrength = 0;
+
+  // ── RSVP engine ─────────────────────────────────────────────────────────────
+  let words = [], idx = 0, playing = false, timer = null, gen = 0, title = '';
+
+  function setWord(w) { engine.setTextData(bakeText(w, SDFDIM, 0.86), SDFDIM, SDFDIM); engine.textStrength = parseFloat($('#d-pull').value); }
+  function delayFor(tok) {
+    let d = 60000 / parseFloat($('#d-wpm').value);
+    const L = tok.w.length;
+    if (L > 8) d *= 1.3;
+    if (L > 12) d *= 1.5;
+    if (tok.clause) d *= 1.4;
+    if (tok.sentence) d *= 2.0;
+    if (tok.para) d *= 2.6;
+    return d;
+  }
+  function showWord(myGen) {
+    if (myGen !== gen || !playing) return;
+    if (idx >= words.length) { playing = false; $('#btn-play').textContent = '▶ play'; $('#now').innerHTML = '<b>done</b> · ' + esc(title); return; }
+    const tok = words[idx];
+    setWord(tok.w);
+    $('#pfill').style.width = (idx / words.length * 100) + '%';
+    $('#now').innerHTML = '<b>' + esc(tok.w) + '</b> · ' + (idx + 1) + '/' + words.length + (title ? ' · ' + esc(title) : '');
+    const d = delayFor(tok);
+    idx++;
+    timer = setTimeout(() => showWord(myGen), d);
+  }
+  function play() {
+    if (!words.length) return;
+    if (idx >= words.length) idx = 0;
+    playing = true; $('#btn-play').textContent = '⏸ pause';
+    showWord(gen);
+  }
+  function pause() { playing = false; clearTimeout(timer); $('#btn-play').textContent = '▶ play'; }
+  function loadWords(text, ttl) {
+    gen++; clearTimeout(timer);
+    words = tokenize(text); idx = 0; title = ttl || '';
+    $('#pfill').style.width = '0%';
+    if (words.length) play(); else $('#now').textContent = 'nothing to read';
+  }
+
+  // ── tokenize (RSVP metadata: clause / sentence / paragraph) ──────────────────
+  function tokenize(text) {
+    const out = [];
+    const paras = text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/);
+    for (const para of paras) {
+      const toks = para.trim().split(/\s+/).filter(Boolean);
+      toks.forEach((w, i) => out.push({
+        w, clause: /[,;:]$/.test(w), sentence: /[.!?]["')\]]?$/.test(w), para: i === toks.length - 1,
+      }));
+    }
+    return out;
+  }
+  function strip(text) {
+    let t = text.replace(/\r\n/g, '\n');
+    const s = t.search(/\*\*\* ?START OF (THE|THIS) PROJECT GUTENBERG/i);
+    if (s >= 0) { const nl = t.indexOf('\n', s); if (nl >= 0) t = t.slice(nl + 1); }
+    const e = t.search(/\*\*\* ?END OF (THE|THIS) PROJECT GUTENBERG/i);
+    if (e >= 0) t = t.slice(0, e);
+    return t.trim();
+  }
+  const esc = (s) => (s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+  // ── Gutenberg search + fetch ────────────────────────────────────────────────
+  async function search(q) {
+    $('#now').textContent = 'searching…';
+    try {
+      const r = await fetch(GUTENDEX + encodeURIComponent(q));
+      const d = await r.json();
+      const books = (d.results || []).filter(b => b.id).slice(0, 10).map(b => ({ id: b.id, title: b.title, author: (b.authors[0] && b.authors[0].name) || 'Unknown' }));
+      renderResults(books);
+      $('#now').textContent = books.length ? 'pick a book ↑' : 'no results';
+    } catch { $('#now').textContent = 'search failed'; }
+  }
+  function renderResults(books) {
+    const el = $('#results'); el.innerHTML = '';
+    if (!books.length) { el.classList.remove('show'); return; }
+    for (const b of books) {
+      const c = document.createElement('button'); c.className = 'bookchip';
+      c.innerHTML = esc(b.title.slice(0, 60)) + '<small>' + esc(b.author) + '</small>';
+      c.addEventListener('click', () => loadBook(b));
+      el.appendChild(c);
+    }
+    el.classList.add('show');
+  }
+  async function loadBook(b) {
+    pause(); $('#results').classList.remove('show');
+    $('#now').innerHTML = 'fetching <b>' + esc(b.title) + '</b>…';
+    try {
+      const r = await fetch(PROXY + b.id);
+      if (!r.ok) throw new Error('proxy ' + r.status);
+      loadWords(strip(await r.text()), b.title);
+    } catch (e) { $('#now').textContent = 'could not fetch that book (' + (e.message || e) + ')'; }
+  }
+
+  // ── controls ────────────────────────────────────────────────────────────────
+  const setLbl = (id, v) => { const e = $('#v-' + id); if (e) e.textContent = v; };
+  function syncLabels() {
+    setLbl('wpm', $('#d-wpm').value);
+    setLbl('pull', parseFloat($('#d-pull').value).toFixed(3));
+    setLbl('bop', parseFloat($('#d-bop').value).toFixed(2));
+  }
+  $('#d-wpm').addEventListener('input', syncLabels);
+  $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); syncLabels(); });
+  $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; syncLabels(); });
+  $('#btn-play').addEventListener('click', () => { if (playing) pause(); else play(); });
+  $('#btn-restart').addEventListener('click', () => { idx = 0; $('#pfill').style.width = '0%'; if (!playing) play(); });
+  // reroll the wander/bop brain live — no re-scatter, so the read keeps flowing.
+  $('#btn-bop').addEventListener('click', () => { cfg.rule_seed = Math.random(); engine.cfg.rule_seed = cfg.rule_seed; });
+  // hand the next ~1000 chars to /clip for a narrated, postable video.
+  $('#btn-clip').addEventListener('click', () => {
+    let s = '', i = idx;
+    while (i < words.length && s.length < 1000) { s += (s ? ' ' : '') + words[i].w; i++; }
+    try { sessionStorage.setItem('fluoddity_clip_text', s || SAMPLE); } catch {}
+    location.href = '../clip/';
+  });
+  $('#btn-search').addEventListener('click', () => { const q = $('#q').value.trim(); if (q) search(q); });
+  $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const q = $('#q').value.trim(); if (q) search(q); } });
+  $('#btn-demo').addEventListener('click', () => loadWords(SAMPLE, 'Moby-Dick (opening)'));
+
+  mountViewControls($('#viewctl'), {
+    engines: () => engine,
+    onReset: () => { engine.load(cfg, 'scatter' + Math.random()); engine.textStrength = parseFloat($('#d-pull').value); },
+  });
+
+  syncLabels();
+  loadWords(SAMPLE, 'Moby-Dick (opening)');   // alive on arrival
+
+  function loop() { engine.step(6); engine.render(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

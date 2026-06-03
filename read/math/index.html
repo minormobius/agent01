@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Math uab Mathonwy — a deep read of the Fourth Branch of the Mabinogi</title>
+  <meta name="description" content="Math uab Mathonwy (Math son of Mathonwy), the Fourth and last Branch of the Mabinogi — Welsh, from the White Book of Rhydderch (c. 1350) and the Red Book of Hergest (c. 1382–1410). Math the magician-king of Gwynedd whose feet must rest in a virgin's lap; Gwydion's theft of Pryderi's Annwn swine and the war that kills Pryderi; the outrage against Goewin and the punishment of the brothers as paired beasts; Aranrhod's three curses; Lleu Llaw Gyffes named, armed, and given a wife made of flowers — Blodeuwedd; her betrayal, the murder of Lleu, his flight as an eagle, and the reckoning. The branch of transformation. Complete original translation across all its movements, with characters, story graph, motif index, mythograph and a storybook.">
+  <meta property="og:title" content="Math uab Mathonwy">
+  <meta property="og:description" content="The Fourth Branch of the Mabinogi — the branch of transformation: the flower-wife, the eagle, and the magician's wand. A complete original translation, with the full annotation layer.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/math/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦉</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🦉</span>Math uab Mathonwy</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="book">Storybook</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
+        <button class="tab" data-view="propp">Story graph</button>
+        <button class="tab" data-view="desire">Desire</button>
+        <button class="tab" data-view="motifs">Motifs</button>
+        <button class="tab" data-view="myth">Mythograph</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>Math uab Mathonwy</h1>
+        <p>The Fourth and last Branch of the Mabinogi — the branch of transformation. Math, the old magician-king of Gwynedd, can only live with his feet in a maiden's lap save in time of war; and his nephew Gwydion, the great trickster-enchanter, starts a war on purpose — stealing Pryderi's Otherworld swine with illusory horses, and killing Pryderi himself — so that his brother can wrong the king's foot-holder. From that outrage runs the whole branch: the brothers punished as paired beasts; a child denied a name, arms, and a wife by his own mother's curses; a wife conjured out of flowers; her betrayal and the murder of Lleu; his flight as a wounded eagle; and a reckoning worked, like everything here, by the wand. It ends where the Four Branches end — with the Pryderi thread closed and a new lord over Gwynedd.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <section class="view" id="view-book">
+      <div class="hero"><h1>Storybook</h1><p>A faithful retelling for readers 8 and up — the whole Fourth Branch, page by page. The dark turns (the outrage, the murder, the punishments) handled with folktale tact. Illustrations to follow.</p></div>
+      <div class="book-frame">
+        <div class="book-page" id="book-page"></div>
+        <div class="book-nav" id="book-nav"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The cast</h1><p>Who does what — grouped by role, linked to the movements where they appear, and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The cast as a graph — every relationship in the tale, force-laid. Hover a node to light up its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore. Node size marks principals; colour marks role. Built straight from the relationship edges in the character cards.</p>
+    </section>
+
+    <section class="view" id="view-propp">
+      <div class="hero"><h1>Story graph</h1><p>The branch laid against Propp's 31 narrative functions — each beat linking to the movement that realises it. A tale driven by villainy and trickery, where the magical agent is the wand and the donor and the deceiver are the same man.</p></div>
+      <p class="lead" id="propp-intro"></p>
+      <div class="tree-legend" id="propp-legend"></div>
+      <div class="zoom-host" id="propp-spine"></div>
+      <p class="tree-hint">Drag/scroll/pinch to explore; click a node to jump to its detail below.</p>
+      <div id="propp-cards"></div>
+      <div class="propp-absent" id="propp-absent"></div>
+    </section>
+
+        <section class="view" id="view-desire">
+      <div class="hero"><h1>Desire</h1><p>The tale laid against Greimas's actantial model — the functional structure of <em>wanting</em> beneath the plot. Not the social web of who-knows-whom, but the single engine of desire: who wants what, who sends it, who aids and who blocks.</p></div>
+      <p class="lead" id="desire-intro"></p>
+      <div id="desire-host"></div>
+      <p class="desire-prose" id="desire-prose"></p>
+    </section>
+
+    <section class="view" id="view-motifs">
+      <div class="hero"><h1>Motif index</h1><p>The branch by call-number — the Thompson Motif-Index and ATU tale-types, the folklorists' Dewey decimal for mythic memes.</p></div>
+      <p class="lead" id="motif-intro"></p>
+      <div class="tt-grid" id="motif-taletypes"></div>
+      <div id="motif-groups"></div>
+    </section>
+
+    <section class="view" id="view-myth">
+      <div class="hero"><h1>The mythograph</h1><p>One graph, all the layers. The movements run as a spine; characters, motifs, story-functions, type-scenes and the Object of desire hang from the moments they touch — and whatever cross-cuts the tale is pulled toward the centre.</p></div>
+      <div class="myth-controls" id="myth-filters"></div>
+      <div class="tree-legend" id="myth-legend"></div>
+      <div class="zoom-host" id="myth-host"></div>
+      <p class="tree-hint">Movements run as the gold spine. Hover a node to light its threads; click any node for detail. Toggle the layers above to isolate one kind of connection.</p>
+      <div class="myth-detail" id="myth-detail"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · Math uab Mathonwy</span><br>
+    A deep read of <em>Math uab Mathonwy</em>, the Fourth and last Branch of the Mabinogi — the sequel to <em>Manawydan</em> and the close of the cycle that began with <em>Pwyll</em>. The Middle Welsh source is the Welsh Wikisource reading text (CC&nbsp;BY-SA&nbsp;4.0) from the White Book / Red Book tradition, the same edition that gives Pwyll on this site; the original English translation runs alongside it movement by movement, with character cards, character web, story graph, motif index, mythograph and a faithful storybook retelling — the same apparatus built for <em>Culhwch ac Olwen</em>, <em>Pwyll Pendefig Dyfed</em>, <em>Branwen ferch Llŷr</em>, <em>Manawydan uab Llŷr</em>, <em>Owain</em>, <em>Sir Orfeo</em>, and <em>Sir Gawain and the Green Knight</em>. The Four Branches as a single work — manuscripts, dating, the Pryderi thread and the mythological substratum — live at the <a href="/mabinogi/">Mabinogi</a> hub; the broader Arthurian and Brittonic historiography lives at <a href="/pendragon/">read.mino.mobi/pendragon</a>.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="motifs.js"></script>
+  <script src="storybook.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

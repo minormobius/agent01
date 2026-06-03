@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "borges",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    { "pattern": "borges.mino.mobi", "custom_domain": true }
+  ],
+  // Public identity of the service account whose repo caches the live tellings
+  // and banter (morphyx). These are not secret — the DID and handle are public,
+  // and the PDS URL is resolved from the DID at runtime (so a PDS migration is
+  // handled automatically; set BORGES_PDS_URL to pin it). The only secret is the
+  // app password (BORGES_PDS_PASSWORD), pushed to the worker by deploy-borges.yml
+  // from the existing BLUESKY_MORPHYX_APP_PASSWORD GitHub secret.
+  "vars": {
+    "BORGES_PDS_HANDLE": "morphyxmino.bsky.social",
+    "BORGES_PDS_DID": "did:plc:yivyyp54vddf7qf2lpsikhe4"
+  }
+}

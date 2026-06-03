@@ -80,3 +80,48 @@ window.GAWAIN.propp = {
     verdict: "And what the poem KEEPS that <em>Culhwch ac Olwen</em> skips is the deception cycle — ε ζ η θ, Reconnaissance, Delivery, Trickery, Complicity. Culhwch had no scheming villain; Gawain is built on one. Strip away the wedding and the false-hero machinery, foreground the donor-test triptych and the deception scaffold, and what remains is a chivalric <strong>honour-test romance</strong> with the structural backbone of a Proppian quest — a wonder-tale that has been bent toward confession.",
   },
 };
+
+/* ── Desire (Greimas's actantial model) ──────────────────────────────────
+   The functional desire-structure, distinct from the Character web's social
+   relationships: a Subject who wants an Object, a Sender who sets the wanting
+   in motion toward a Receiver, and the Helper and Opponent who aid and block
+   it. `unreachable: true` draws the desire-arrow dashed. Hand-authored
+   scholarship; the renderer (renderDesire) is shared with the sister tales. */
+window.GAWAIN.desire = {
+  intro: "Beneath the morphology runs the engine the morphology brackets out: <strong>desire</strong>. Greimas read every tale as six actants on three axes — a Subject who wants an Object, a Sender who dispatches it toward a Receiver, and a Helper and Opponent who aid and block the wanting. This is a different graph from the Character web: that one maps who is bound to whom; this one maps the single structure of <em>wanting</em> that drives the poem.",
+  subject: "Gawain",            subjectRef: "gawain",
+  object: "his honour kept whole — and, beneath it, his life",
+  value: "the chivalric self, proven flawless against fear",
+  sender: "Arthur's court, and the beheading-game the Green Knight brings into it", senderRef: "arthur",
+  receiver: "Gawain, and the Round Table's name for trawþe", receiverRef: "gawain",
+  helpers: [
+    { name: "the green girdle", note: "a FALSE helper — the aid that becomes the very flaw; structurally a Helper, morally an Opponent" },
+    { name: "Bertilak's lady", ref: "lady", note: "ambiguous — tester and tempter, helper to the game and opponent to the vow" },
+    { name: "the pentangle, and Mary within the shield", ref: "mary", note: "the true helper, the token of the faith the girdle betrays" }
+  ],
+  opponent: "the Green Knight — and Gawain's own instinct to live", opponentRef: "greenknight",
+  unreachable: false,
+  // *Ref fields (optional) point at cast ids, used only to wire the actant
+  // structure into the Mythograph; abstract actants (the Object, the girdle)
+  // carry no ref and simply don't appear there.
+  note: "Gawain half-fails, and the actants show why: the Object is PERFECT honour, and the nick at the neck is the exact gap between the desire and its object. The girdle in the Helper slot is the tell — the only aid in the corpus that is also the wound. Set against the sister tales, Gawain's is the one desire-arrow that reaches its Object only after falling short of it: he keeps his life, but not the flawless self he wanted."
+};
+
+/* ── Theme (the Parry–Lord oral type-scenes) ─────────────────────────────
+   The recurrent set-pieces of oral composition — larger than a motif, smaller
+   than the tale: the arming, the feast, the boast. Each points at real text
+   (with its line reference) and links into the Read view by `passage`. The
+   `id`s are shared across the corpus so the cross-tale Parry–Lord table lines
+   up. */
+window.GAWAIN.themes = [
+  { id: "feast", label: "the feast in hall", passage: 1,
+    note: "The New Year feast at Camelot (Fitt I), and the Yuletide feasting at Hautdesert (Fitt II) — the hall-feast set-piece: the dais and high table, the cup, the seating by rank.",
+    lines: "the Christmas court, the dais, the doubled mess at the high table" },
+  { id: "arming", label: "the arming of Gawain", passage: 2,
+    note: "SGGK ll. 566–669: the war-gear taken up in fixed order — the corpus's purest oral type-scene — and capped by the long blazon of the pentangle painted on the shield.",
+    lines: "the helm, the byrnie, the gold spurs, last the pentangle shield" },
+  { id: "boast", label: "the pact / flyting", passage: 3,
+    note: "The exchange-of-winnings struck at Hautdesert is a flyting-adjacent pact: the contest bound in words across the table before it is played out — half the game fought in the agreement.",
+    lines: "“whatever I win in the wood is yours, and you give me what you gain within”" }
+];
+

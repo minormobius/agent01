@@ -78,7 +78,11 @@ There is a **dedicated, shared OAuth worker** at `workers/auth/` deployed to `au
 └─────────────────────────┘         └──────────────────────────────────┘
 ```
 
-- **`workers/auth/`** — Cloudflare Worker (1.2k LOC TS) that holds the confidential OAuth client: PKCE + DPoP + PAR + `private_key_jwt`. Signing keypair is auto-generated into D1 on first `/client-metadata.json` request — no manual secret config. Sessions are opaque `Bearer` tokens; the worker holds the DPoP-bound PDS refresh token and minted access tokens on the site's behalf and proxies PDS calls through `/pds/*`.
+- **`workers/auth/`** — Cloudflare Worker (1.2k LOC TS) that holds the confidential OAuth client: PKCE + DPoP + PAR + `private_key_jwt`. Signing keypair is auto-generated into D1 on first `/client-metadata.json` request — no manual secret config. Sessions are opaque tokens carried two ways: an opaque `Bearer` token (stored in the originating site's `localStorage`) **and** a `mino_session` cookie scoped to `.mino.mobi`. The worker holds the DPoP-bound PDS refresh token and minted access tokens on the site's behalf and proxies PDS calls through `/pds/*`.
+
+#### Single sign-on across subdomains
+
+Sign in once (e.g. on the homepage) and every `*.mino.mobi` site recognises you with no re-login. The transport is the `.mino.mobi` domain cookie set on the OAuth callback (`Secure; HttpOnly; SameSite=Lax`): because every site shares the `mino.mobi` registrable domain, the cookie rides along on the client lib's credentialed `/api/me` and `/pds/*` calls. `AuthClient.init()` therefore validates against the worker even when *this* origin holds no token — a cookie-only session is picked up transparently. **Limitation:** `labglass.minomobi.com` is on a different registrable domain (`minomobi.com`), so the `.mino.mobi` cookie can't reach it; it falls back to its own per-site login. SSO only reaches sites that use the updated shared client lib (`packages/oauth-client/auth.js`) — currently bakery, photo, wave, wiki, and the homepage. Inline-OAuth sites and the grandfathered own-worker sites (airchat, poll/fluoddity) join as they migrate onto the shared lib.
 - **`packages/oauth-client/auth.js`** — 9.7 KB browser-side library, no deps, no build. Exports `AuthClient` with `login(handle, {scope})`, `init()`, `getUser()`, `logout()`, and `auth.pds.{createRecord, putRecord, listRecords, deleteRecord, uploadBlob, getBlob}`. PDS calls go through the worker, so the browser never sees a token that talks to a PDS directly.
 - **Deploy workflow**: `.github/workflows/deploy-auth.yml` — triggers on `main` or `claude/implement-oauth-bsky-JgUdn` touching `workers/auth/**`. The workflow auto-creates `mino-auth-db` on first run via `wrangler d1 create` (the `TODO_CREATE_DATABASE` placeholder in `workers/auth/wrangler.jsonc` is intentional — `sed`-patched at deploy time, not committed back).
 
@@ -88,8 +92,10 @@ The worker accepts a `scope` parameter on every OAuth start and stores it per-se
 
 ```js
 const auth = new AuthClient();
-// Default (identity + generic write):
-await auth.login('alice.bsky.social');                       // 'atproto transition:generic'
+// Default → the UNIFIED mino.mobi scope: the enumerated union of every
+// collection any site writes (NOT transition:generic). This is what homepage
+// sign-in mints, so the resulting SSO session works on every site:
+await auth.login('alice.bsky.social');
 
 // Custom: identity-only (no writes):
 await auth.login('alice.bsky.social', { scope: 'atproto' });
@@ -100,7 +106,11 @@ await auth.login('alice.bsky.social', {
 });
 ```
 
-Constraint: the worker's `client-metadata.json` declares the **umbrella scope** (currently `atproto transition:generic` — see `workers/auth/src/index.ts:182`). Sites can request narrower scopes within that umbrella. To exceed it — e.g. add a new `blob:` type that's outside `transition:generic` — bump the metadata scope. The ATProto auth server enforces the metadata as the ceiling.
+**The unified scope.** ATProto OAuth forbids prefix wildcards (`repo:com.minomobi.*` is illegal — only exact NSIDs or the blanket `repo:*`, and `repo:*` is just `transition:generic` renamed). So the one scope that "works for every site but isn't transition:generic" **enumerates every collection** the repo writes. That enumeration lives in **`workers/auth/src/oauth/scope.ts`**, which derives two strings:
+- `UNIFIED_SCOPE` — what a login mints by default. ~50 `repo:` collections + `blob:` types + `rpc:`. No `transition:generic`.
+- `METADATA_SCOPE` — the ceiling declared in `client-metadata.json`: `UNIFIED_SCOPE` **plus** `transition:generic`, which a few grandfathered sites (fluoddity, mmo) still request by name. The auth server only grants what the metadata declares, so the ceiling stays a superset.
+
+**When a new site ships a new lexicon, add its collection to `WRITE_COLLECTIONS` in `scope.ts` and redeploy the auth worker.** The consent screen then lists it. Sites can still request *narrower* scopes than the union by passing `{ scope }` to `login()`.
 
 When tightening a site's scope, prefer the narrowest scope that lets the feature work. The reward shows up in the Bluesky consent screen, which lists exactly what the site can do.
 
@@ -110,7 +120,7 @@ Three steps:
 
 1. **Allowlist the origin**. Add `https://your-site.mino.mobi` to `ALLOWED_ORIGINS` in `workers/auth/src/index.ts:21-30`. (The wildcard `*.mino.mobi` check on line 36 catches subdomains, but list the explicit origin so future devs can see who's using the worker.)
 2. **Import the client lib**. From your site: `import { AuthClient } from '../../packages/oauth-client/auth.js'`. Do **not** hand-roll an `auth.js` — photo/wave/wiki did, and they each diverge slightly. Use the shared lib.
-3. **Pick a scope**. Default is `atproto transition:generic`. If you can get away with less, pass `{ scope }` to `login()`.
+3. **Pick a scope**. Default is the `UNIFIED_SCOPE` union (see `scope.ts`) — and if your site writes a new collection, add it there so the union (and the consent screen) covers it. If you can get away with less, pass a narrower `{ scope }` to `login()`.
 
 That's it. Push to a branch matching `deploy-auth.yml`'s trigger glob to update `ALLOWED_ORIGINS`; push your site's branch to deploy the frontend.
 
@@ -199,7 +209,11 @@ What this means for you:
 | Auth worker | `.github/workflows/deploy-auth.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `workers/auth/**` |
 | Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
 | Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
+| Scores | `.github/workflows/deploy-scores.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `workers/scores/**` |
+| Atmosphere | `.github/workflows/deploy-atmosphere.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `atmosphere/**` |
 | Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
+| j (ImageJ/WASM) | `.github/workflows/deploy-j.yml` | `main`, `claude/imagej-browser-rust-*` | `j/**` |
+| Borges | `.github/workflows/deploy-borges.yml` | `main`, `claude/pendragon-endless-book-*`, `claude/pendragon-next-source-*` | `borges/**` |
 
 When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
 
@@ -724,6 +738,58 @@ A fork of `/time`'s newspaper aesthetic that publishes a **deterministic** daily
 
 ---
 
+## Project 8: Borges (`borges/`) — The Book of Sand, an endless book
+
+**Live at**: `borges.mino.mobi`
+**Stack**: Pure static HTML/JS (vanilla, no build step) + a thin routing Worker (assets binding)
+**Deploy**: `.github/workflows/deploy-borges.yml` — `npx wrangler deploy` on push to `main` or `claude/pendragon-endless-book-*` / `claude/pendragon-next-source-*` touching `borges/**`. Provisions `borges.mino.mobi`. No D1, no AI, no secrets beyond the shared Cloudflare credentials.
+
+An **endless book**, after Borges' *El libro de arena*. The frame: seven maintenance robots aboard the slow barque *Tabard*, each named for one of the seven wandering stars (the classical planets) and bearing its medieval planetary temperament + an alchemical metal + a ship-office that fits. They pass the endless night between galaxies telling tales in a medieval-English oral voice, remixing the old motifs and Propp structures **for laughs** (they have every story cold in their training); and because a machine is a structured thing, each **publishes a full mythograph to the ship's intranet — the Tabard — at a permalink before the telling**.
+
+### How it works — and why it's the read/pendragon apparatus run forward
+
+The book is **generated, not authored**: a seeded, combinatorial engine (`js/prng.js` mulberry32 + xmur3) so every page number `n` yields the same tale on any machine, for ever. That determinism is what makes a permalink (`/t/<n>`) meaningful and the mythograph postable *before* the telling. The page-number space is unbounded → the book is endless; Next/Prev/Random/goto walk it.
+
+Crucially, each generated tale is shaped **limb-for-limb like the annotated tales on `read.mino.mobi`** (`tale.passages`, `characters{roles,cast}`, `propp{acts,moves,absent}`, `motifs{taletypes,classOrder,classes,list}`) so the **same** Propp story-graph, Thompson motif index, character-web, and force-directed **mythograph** renderers (ported from `read/<tale>/app.js`) light it up unchanged. The read/ apparatus is analysis (backward); borges is the same apparatus as a generator (forward). The "for-laughs" subversions — cross-cultural motif transplants, inverted Propp functions, absurd magical agents, order-scrambles — are flagged in the spec, mirroring read/'s `propp.absent` ("what the teller shook loose").
+
+### The seven tellers (`js/tellers.js`)
+
+Luna ☽ (silver, navigator/dream-logs), Mercury ☿ (quicksilver, signals/translator — the great remixer, highest `remix`), Venus ♀ (copper, green-deck gardens), Sol ☉ (gold, fusion-heart), Mars ♂ (iron, forge/hull-welder — terse hammer-strokes), Jupiter ♃ (tin, governor/justice), Saturn ♄ (lead, chronometer/cold-hull — numbers the tales). Each carries voice banks (proem/connect/signature/close) overlaid on a shared house voice, plus affinities steering culture, frame, Propp emphasis and motif classes.
+
+### Key files
+
+| File | Role |
+|------|------|
+| `index.html` | General Prologue: the voyage, the seven-teller gallery, the Tabard board (entry) |
+| `tale.html` | Per-tale reader — 8 tabs: Telling / the Tabard (spec) / Desire (Greimas actantial diagram) / Cast / Character web / Story graph / Motifs / Mythograph. The telling also expands Parry–Lord oral set-pieces (`lexicon.js` THEMES: the arming, the feast, the lament…), listed in the Tabard spec |
+| `js/lexicon.js` | Culture packs (12 cross-cultural wardrobes), Propp function library w/ oral realize-templates + `invert` variants, tale-type frames, Thompson motif atoms, archetype roles |
+| `js/generate.js` | The engine: `n` → whole tale (teller, culture±graft, frame, cast, woven prose telling, multi-beat motifs w/ plant→payoff, flagged remixes) |
+| `js/frame.js` | The meta-story: the immortalism meditation (the 12-facet "Argument"), the 21 teller-pairs, `interstitial(n)` (the "aboard the Tabard" card that traces a lunar-month wheel — waxing→full→waning→dark — of crew tension, perspective-aware when the night's teller is in the foregrounded pair), and the **meta-mythograph**: `FRAME_PROPP` (the frame's own Propp cycle — looping, with Transfiguration/Wedding/Death forbidden) + `FRAME_MOTIFS` (folklore classes in the immortalist register, mostly inversions). Each watch "nibbles" one frame beat (`frameBeat`). Deterministic from `n`. |
+| `js/render.js` | Reader: ported read/ graph renderers + prose telling + interstitial card + Tabard spec + per-teller theming + endless nav |
+| `worker.js` | `/t/<n>` & `/tale` → `tale.html`; the additive `/api/telling` live-render API (Gemini → atproto cache); else assets. Root-absolute asset paths so `/t/<n>` resolves |
+| `lexicons/telling.json` | `com.minomobi.borges.telling` record schema — the frozen live telling, cached per `n` on a service PDS |
+
+### Pitfalls / conventions
+
+- **Determinism is load-bearing.** Don't introduce `Date.now()` / unseeded `Math.random()` into the *generator* (the nav's "random page" picker is the only allowed unseeded roll, and it just chooses which deterministic page to open). Breaking determinism breaks every permalink.
+- **Root-absolute asset paths** in the HTML (`/css/…`, `/js/…`) — the pretty `/t/<n>` URL has a `/t/` base, so relative paths would 404.
+- The engine attaches to `globalThis` (not just `window`), so it unit-tests in plain node — see `borges/README.md`.
+- Generated tales reuse the read/ data shapes on purpose. If you change a renderer, keep parity with the read/ apparatus the user pointed at.
+
+### Live telling (optional inference layer — additive, fully guarded)
+
+On top of the canonical procedural telling, a model can **retell** a tale from the deterministic spec (the "glue"), frozen on first render so `/t/<n>` stays stable. **The site is fully functional with no inference** — every inference/atproto path is wrapped so it can never break asset serving or the procedural fallback.
+
+- **Model**: Gemini 2.5 Flash (Google AI Studio free tier), called directly from `worker.js` (no CF AI binding). `BORGES.promptFor()` in `js/generate.js` (v3) builds the retell-faithfully prompt from the BONES (desire/cast/set-pieces) + the procedural draft + the teller's voice samples + a hand-authored EXEMPLAR (`js/exemplar.js`, the gold-standard telling of tale № 1, also served verbatim for `/t/1`).
+- **Two passes**: the **telling** (`com.minomobi.borges.telling`, `{movements}`, schema `borges/lexicons/telling.json`) and the **banter** — a short live scene of crew dialogue before the telling, `BORGES.promptForBanter()` → `com.minomobi.borges.banter` (`{lines}`, schema `borges/lexicons/banter.json`). Both frozen per `n`, first-write-wins.
+- **Cache = atproto** on the **morphyx** service account (`morphyxmino.bsky.social`, `did:plc:yivyyp54vddf7qf2lpsikhe4`), via the repo's shared `packages/atproto/pds.js` (`resolveHandle`/`resolvePds`/`PdsClient`). Reads unauthed; writes via session. Worker resolves DID+PDS at runtime from the handle.
+- **Worker API** (additive, isolated by try/catch): `GET/POST /api/telling` and `GET/POST /api/banter`.
+- **Secrets** (set via `wrangler secret put`, NOT committed): `GEMINI_API_KEY`, `BORGES_PDS_HANDLE` (= `morphyxmino.bsky.social`), `BORGES_PDS_PASSWORD` (app password). `BORGES_PDS_URL`/`BORGES_PDS_DID` are optional overrides (resolved otherwise). Until set, `/api/*` returns "not configured" and the client stays procedural.
+- **Seeding the gold standard**: `scripts/seed-borges-tellings.mjs` writes the hand-authored exemplar (and any frozen tellings) to morphyx's repo via `PdsClient`; workflow `seed-borges.yml` runs it with the `BLUESKY_MORPHYX_*` secrets (`--dry` supported). Tale № 1 is also served from `js/exemplar.js` client-side regardless.
+- **Cannot be tested from the sandbox** (no Gemini/PDS network, no secrets) — verify on deploy. The procedural path IS testable and is the guaranteed fallback.
+
+---
+
 ## Geometry pack (`/geometry/` + siblings) — interactive math explainers
 
 Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
@@ -752,6 +818,7 @@ Not actively managed but documented for context:
 | bsky-bot | `workers/bsky-bot/` | Notification listener (mention handler stub) | `*/5 * * * *` |
 | cluster-batch | `workers/cluster-batch/` | Follow graph bulk fetcher for cluster viz | HTTP only |
 | cards-mint | `workers/cards-mint/` | Ed25519 card signing for Wiki Cards game | HTTP only |
+| mino-scores | `workers/scores/` | **Shared multi-game leaderboard.** Generic `game_scores` table on its own D1 (`mino-scores-db`), keyed by game slug. Identity delegated to the shared auth worker (validates `Bearer` via `auth.mino.mobi/api/me`). Any static game submits with no worker change: `POST /api/scores/submit {game,score,meta}`, `GET /api/scores/top?game=&period=`. First consumer: `curve`. draw/paint can migrate onto it. | HTTP only |
 
 ---
 
@@ -821,7 +888,7 @@ The full set of workflows lives under `.github/workflows/`. Deploy workflows are
 
 ### Deploy workflows (see deploy map above)
 
-`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`, `deploy-bisk.yml`
+`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`, `deploy-bisk.yml`, `deploy-borges.yml`
 
 ### Provisioning / one-shots
 

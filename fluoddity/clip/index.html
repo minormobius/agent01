@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fluoddity — clip</title>
+<meta name="description" content="Turn a snippet of text into a narrated video: an ElevenLabs voiceover over the RSVP swarm spelling each word, recorded and posted to Bluesky.">
+<meta property="og:image" content="https://fluoddity.mino.mobi/og.png?v=1">
+<style>
+:root {
+  --bg: #050608; --panel: #0e1014; --fg: #e7e9ee; --muted: #8b909c;
+  --rule: #23272f; --accent: #38e1c0; --hot: #ff6b3d;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --chrome: 320px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--mono); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+a { color: var(--accent); text-decoration: none; }
+#topbar { flex: 0 0 auto; height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.crumb { color: var(--muted); font-size: 13px; white-space: nowrap; } .crumb:hover { color: var(--accent); }
+.title { font-size: 14px; white-space: nowrap; } .title b { color: var(--accent); }
+.spacer { flex: 1; }
+.pill { font-size: 12px; color: var(--muted); border: 1px solid var(--rule); border-radius: 7px; padding: 5px 10px; white-space: nowrap; } .pill:hover { color: var(--accent); border-color: var(--accent); }
+
+#stage { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+#stage canvas, #preview { width: min(46vw, calc(100dvh - var(--chrome))); height: auto; aspect-ratio: 1; display: block; border: 1px solid var(--rule); border-radius: 12px; background: #000; }
+#preview { display: none; object-fit: cover; }
+@media (max-width: 720px) { #stage { flex-direction: column; } #stage canvas, #preview { width: min(92vw, calc(100dvh - var(--chrome))); } }
+
+#snip { flex: 0 0 auto; padding: 8px 14px 2px; }
+#snip textarea { width: 100%; height: 56px; resize: none; font-family: var(--mono); font-size: 13px; line-height: 1.4; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 9px; padding: 9px 12px; }
+#snip textarea:focus { outline: none; border-color: var(--accent); }
+#snip .meta { font-size: 11px; color: var(--muted); padding: 3px 2px 0; }
+
+#bar { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 6px 14px 4px; }
+.btn { font-family: var(--mono); font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 14px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); } .btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: #04110e; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+.btn.post { color: #fff; background: var(--hot); border-color: var(--hot); font-weight: 700; }
+select, #voice { font-family: var(--mono); font-size: 12px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 8px; padding: 9px 10px; }
+.dial { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.dial input[type=range] { width: 90px; accent-color: var(--accent); }
+#status { flex: 1 1 100%; font-size: 12px; color: var(--muted); padding: 4px 2px; min-height: 18px; }
+#status.err { color: #ff6b6b; } #status.ok { color: var(--accent); }
+
+#post-area { flex: 0 0 auto; display: none; gap: 8px; align-items: center; padding: 0 14px 12px; flex-wrap: wrap; }
+#post-area.show { display: flex; }
+#caption { flex: 1 1 240px; min-width: 0; font-family: var(--mono); font-size: 13px; color: var(--fg); background: #0b0d11; border: 1px solid var(--rule); border-radius: 9px; padding: 9px 12px; }
+#fatal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 40px; color: #e0556b; font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <a class="crumb" href="../">← fluoddity</a>
+  <span class="title"><b>fluoddity</b> · clip</span>
+  <span class="spacer"></span>
+  <span id="viewctl"></span>
+  <span id="auth"></span>
+  <a class="pill" href="../read/">read ↗</a>
+  <a class="pill" href="../text/">say ↗</a>
+</div>
+
+<div id="stage">
+  <div id="field-wrap"></div>
+  <video id="preview" muted playsinline loop controls></video>
+</div>
+
+<div id="snip">
+  <textarea id="text" placeholder="paste ~1000 characters to narrate…"></textarea>
+  <div class="meta" id="charmeta">0 chars</div>
+</div>
+
+<div id="bar">
+  <select id="voice" title="ElevenLabs voice">
+    <option value="21m00Tcm4TlvDq8ikWAM">Rachel</option>
+    <option value="pNInz6obpgDQGcFmaJgB">Adam</option>
+    <option value="EXAVITQu4vr4xnSDxMaL">Bella</option>
+    <option value="ErXwobaYiN019PkySvjV">Antoni</option>
+    <option value="AZnzlk1XvdvUeBnXmlld">Domi</option>
+  </select>
+  <label class="dial">pull <input type="range" id="d-pull" min="0" max="0.04" step="0.001" value="0.022"></label>
+  <label class="dial">bop <input type="range" id="d-bop" min="0" max="1.4" step="0.05" value="0.5"></label>
+  <label class="dial">refill <input type="range" id="d-fill" min="0" max="0.01" step="0.0005" value="0.002" title="how fast agents respawn to keep the swarm full"></label>
+  <button class="btn" id="btn-species" title="mutate the swarm into a new species & reset the board — click to cycle">🧬 species</button>
+  <label class="dial" title="3 voices in a staggered round, one whispered"><input type="checkbox" id="weird"> 👻 weird</label>
+  <label class="dial" title="seconds between the staggered voices">stagger <input type="range" id="d-stagger" min="0.25" max="0.5" step="0.05" value="0.35"></label>
+  <button class="btn primary" id="btn-make">🎬 make clip</button>
+  <span id="status">sign in (top-right, whitelisted) → write a snippet → make a narrated clip.</span>
+</div>
+
+<div id="post-area">
+  <input id="caption" type="text" maxlength="260" placeholder="post caption…">
+  <button class="btn" id="btn-download">↓ save</button>
+  <button class="btn post" id="btn-post">post to bluesky →</button>
+</div>
+
+<div id="fatal"></div>
+
+<script type="module">
+"use strict";
+import { FluoddityEngine, defaultConfig } from '../engine.js';
+import { bakeText } from '../textfield.js';
+import { mountViewControls, getViewMode } from '../viewcontrols.js';
+import { auth, mountAuthChip } from '../authchip.js';
+import { pickClipMime, canPostVideo, postFeedVideo } from '../bskyvideo.js';
+
+const $ = (s) => document.querySelector(s);
+const DIM = 512, COUNT = 120000, SDFDIM = 384;
+const VOICES = ['21m00Tcm4TlvDq8ikWAM', 'pNInz6obpgDQGcFmaJgB', 'EXAVITQu4vr4xnSDxMaL', 'ErXwobaYiN019PkySvjV', 'AZnzlk1XvdvUeBnXmlld'];
+const SAMPLE = "Call me Ishmael. Some years ago—never mind how long precisely—having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little and see the watery part of the world. It is a way I have of driving off the spleen, and regulating the circulation.";
+
+mountAuthChip($('#auth'));
+const status = (m, k) => { const e = $('#status'); e.innerHTML = m; e.className = k || ''; };
+
+let engine = null;
+try { engine = new FluoddityEngine(DIM, COUNT, { text: true }); engine.displayMode = getViewMode(); }
+catch (e) { $('#fatal').style.display = 'flex'; $('#fatal').textContent = 'This needs WebGL2 with float render targets — ' + (e.message || e); }
+
+if (engine) {
+  $('#field-wrap').appendChild(engine.cv);
+
+  function textConfig() {
+    const g = defaultConfig();
+    g.cohorts = 6; g.rule_seed = Math.random();
+    g.sensor_gain = 3.2; g.sensor_angle = -0.14; g.sensor_distance = 1.1;
+    g.mutation_scale = 0.05; g.global_force_mult = 0.5; g.drag = 0.92;
+    g.strafe_power = 0.16; g.axial_force = 0.05; g.lateral_force = -0.22;
+    g.trail_persistence = 0.92; g.trail_diffusion = 0.6;
+    g.hazard_rate = 0.002;   // steady respawn → refills the swarm over a long clip
+    g.initial_conditions = 1; g.ink = 3.6; g.hue = 0.0;
+    return g;
+  }
+  let cfg = textConfig();
+  engine.load(cfg, 'clip0');
+  engine.textTarget = 0.02; engine.textStrength = 0;
+
+  const ta = $('#text');
+  try { ta.value = sessionStorage.getItem('fluoddity_clip_text') || SAMPLE; } catch { ta.value = SAMPLE; }
+  let captionTouched = false;
+  $('#caption').addEventListener('input', () => { captionTouched = true; });
+  function refreshMeta() {
+    const n = ta.value.length;
+    $('#charmeta').textContent = n + ' chars' + (n > 1100 ? ' · long clips may exceed Bluesky\'s 60s video limit' : '');
+    // keep the caption following the snippet until the user edits it by hand
+    if (!captionTouched) $('#caption').value = ta.value.trim().replace(/\s+/g, ' ').slice(0, 180);
+  }
+  ta.addEventListener('input', refreshMeta);
+
+  let lastWord = '';
+  const setWord = (w) => { lastWord = w; engine.setTextData(bakeText(w, SDFDIM, 0.86), SDFDIM, SDFDIM); engine.textStrength = parseFloat($('#d-pull').value); };
+  $('#d-pull').addEventListener('input', () => { engine.textStrength = parseFloat($('#d-pull').value); });
+  $('#d-bop').addEventListener('input', () => { engine.cfg.global_force_mult = parseFloat($('#d-bop').value); cfg.global_force_mult = engine.cfg.global_force_mult; });
+  $('#d-fill').addEventListener('input', () => { engine.cfg.hazard_rate = parseFloat($('#d-fill').value); cfg.hazard_rate = engine.cfg.hazard_rate; });
+
+  // 🧬 species: reroll the swarm's genome (brain seed + cohorts + sensing/forces)
+  // into a new species and reset the board. Built from the tuned text base each
+  // click (no drift), so words stay legible; the live dials carry over. Click to
+  // cycle through species.
+  const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
+  function nextSpecies() {
+    const g = textConfig();                 // tuned, legible base — no accumulated drift
+    g.rule_seed = Math.random();            // the brain → the species' character
+    g.cohorts = 4 + (Math.random() * 6 | 0);
+    g.initial_conditions = (Math.random() * 3) | 0;
+    g.sensor_gain = rnd(2.4, 4.0); g.sensor_angle = rnd(-0.30, 0.15); g.sensor_distance = rnd(0.8, 1.4);
+    g.lateral_force = rnd(-0.45, -0.10); g.axial_force = rnd(0.02, 0.10); g.strafe_power = rnd(0.08, 0.24);
+    g.hue = Math.random();
+    g.global_force_mult = parseFloat($('#d-bop').value);   // carry the live dials
+    g.hazard_rate = parseFloat($('#d-fill').value);
+    cfg = g;
+    engine.load(cfg, 'sp' + Math.random());
+    engine.textStrength = parseFloat($('#d-pull').value);
+    if (lastWord) setWord(lastWord);        // re-form the current word on the fresh field
+  }
+  $('#btn-species').addEventListener('click', () => { if (!busy) nextSpecies(); });
+
+  // ── make the narrated clip ───────────────────────────────────────────────────
+  let clipBlob = null, rsvpGen = 0, recCtx = null, busy = false;
+  function stopRSVP() { rsvpGen++; }
+
+  function b64ToBuf(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+
+  // Per-word weight for the fallback schedule — paced by STRING LENGTH (chars),
+  // not word count, with /read's clause/sentence multipliers.
+  function wordWeight(w) {
+    let d = Math.max(1, w.length);
+    if (w.length > 8) d *= 1.3;
+    if (w.length > 12) d *= 1.5;
+    if (/[,;:]["')\]]?$/.test(w)) d *= 1.4;
+    if (/[.!?]["')\]]?$/.test(w)) d *= 2.0;
+    return d;
+  }
+
+  // Build [{ w, t }] where t is the second-offset to show the word. Primary: exact
+  // per-word start times from ElevenLabs character alignment. Fallback: length-
+  // weighted spread across the audio duration.
+  function buildSchedule(text, alignment, dur) {
+    const chars = alignment && alignment.characters;
+    const st = alignment && alignment.character_start_times_seconds;
+    if (chars && st && chars.length === st.length) {
+      const out = []; let cur = '', curT = null;
+      for (let i = 0; i < chars.length; i++) {
+        if (/\s/.test(chars[i])) { if (cur) { out.push({ w: cur, t: curT }); cur = ''; curT = null; } }
+        else { if (!cur) curT = st[i]; cur += chars[i]; }
+      }
+      if (cur) out.push({ w: cur, t: curT });
+      if (out.length) return out;
+    }
+    const toks = text.trim().split(/\s+/).filter(Boolean);
+    const total = toks.reduce((s, w) => s + wordWeight(w), 0) || 1;
+    let acc = 0; const out = [];
+    for (const w of toks) { out.push({ w, t: (acc / total) * dur }); acc += wordWeight(w); }
+    return out;
+  }
+
+  // Drive the RSVP off the AUDIO CLOCK (AudioContext.currentTime) so words land
+  // exactly when spoken — no drift. clock() returns seconds since audio start.
+  function driveRSVP(schedule, clock) {
+    const myGen = ++rsvpGen; let i = 0;
+    (function tick() {
+      if (myGen !== rsvpGen) return;
+      const tNow = clock();
+      while (i < schedule.length && schedule[i].t <= tNow) { setWord(schedule[i].w); i++; }
+      if (i < schedule.length) requestAnimationFrame(tick);   // else hold last word; src.onended stops the rec
+    })();
+  }
+
+  // Fetch + decode one voice. Returns { buf, alignment }.
+  async function fetchVoice(text, voiceId) {
+    const r = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (auth.getToken() || '') },
+      body: JSON.stringify({ text, voice_id: voiceId }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || ('tts ' + r.status)); }
+    const t = await r.json();
+    if (!t.audio_base64) throw new Error('no audio returned');
+    return { buf: await recCtx.decodeAudioData(b64ToBuf(t.audio_base64)), alignment: t.alignment };
+  }
+
+  $('#btn-make').addEventListener('click', async () => {
+    if (busy) return;
+    if (!auth.isLoggedIn()) { status('sign in (top-right) first — your handle must be on the clip whitelist.', 'err'); return; }
+    const text = ta.value.trim();
+    if (!text) { status('write something to narrate.', 'err'); return; }
+    busy = true; $('#btn-make').disabled = true; $('#post-area').classList.remove('show'); $('#preview').style.display = 'none'; clipBlob = null;
+    try {
+      recCtx = recCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (recCtx.state === 'suspended') await recCtx.resume();
+
+      // 1) voiceover(s). Weird mode = a staggered round of 3 voices, one whispered.
+      const weird = $('#weird').checked;
+      const lead = $('#voice').value;
+      let plan;
+      if (weird) {
+        status('generating 3 voices…');
+        const others = VOICES.filter(v => v !== lead);
+        const vB = others[0] || lead, vC = others[1] || others[0] || lead;
+        const step = parseFloat($('#d-stagger').value);
+        const [a, b, c] = await Promise.all([fetchVoice(text, lead), fetchVoice(text, vB), fetchVoice(text, vC)]);
+        plan = [
+          { ...a, offset: 0,        whisper: false, gain: 0.95 },
+          { ...b, offset: step,     whisper: false, gain: 0.70 },
+          { ...c, offset: 2 * step, whisper: true,  gain: 0.65 },   // the whisper, behind
+        ];
+      } else {
+        status('generating voiceover…');
+        plan = [{ ...(await fetchVoice(text, lead)), offset: 0, whisper: false, gain: 1.0 }];
+      }
+
+      // 2) schedule the RSVP off the LEAD voice's alignment (or length fallback)
+      const schedule = buildSchedule(text, plan[0].alignment, plan[0].buf.duration);
+      const synced = !!(plan[0].alignment && plan[0].alignment.characters);
+      const totalDur = Math.max(...plan.map(p => p.offset + p.buf.duration));
+      status(`recording… ${totalDur.toFixed(0)}s · ${weird ? 'weird ×' + plan.length + ' · ' : ''}${synced ? 'voice-synced' : 'length-paced'}${totalDur > 60 ? ' (over 60s — trim the snippet)' : ''}`);
+
+      // 3) record canvas video + the mixed voice stream
+      engine.load(cfg, 'clip' + Math.random());            // clean field — capture the formation
+      const vstream = engine.cv.captureStream(30);
+      const dest = recCtx.createMediaStreamDestination();
+      // glue the layers (and prevent clipping) through a compressor in weird mode;
+      // a transparent gain in normal mode so the single voice is untouched.
+      const master = weird ? recCtx.createDynamicsCompressor() : recCtx.createGain();
+      master.connect(dest); master.connect(recCtx.destination);  // record + hear
+      const sources = plan.map(p => {
+        const s = recCtx.createBufferSource(); s.buffer = p.buf;
+        const g = recCtx.createGain(); g.gain.value = p.gain;
+        if (p.whisper) {                                  // thin + airy → reads as a whisper
+          const hp = recCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1100;
+          const lp = recCtx.createBiquadFilter(); lp.type = 'lowpass';  lp.frequency.value = 6500;
+          s.connect(hp); hp.connect(lp); lp.connect(g);
+        } else { s.connect(g); }
+        g.connect(master);
+        return s;
+      });
+
+      const stream = new MediaStream([...vstream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+      const mime = pickClipMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : {});
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = async () => {
+        stopRSVP();
+        let raw = new Blob(chunks, { type: (rec.mimeType || mime || 'video/webm').split(';')[0] });
+        // MediaRecorder webm carries no Duration element → bsky's ffprobe 500s
+        // ("failed to get video duration"). Stamp in the real recorded length.
+        const durMs = Math.round(performance.now() - recStartedAt);
+        clipBlob = await fixWebmDuration(raw, durMs);
+        const url = URL.createObjectURL(clipBlob);
+        const v = $('#preview'); v.src = url; v.style.display = ''; v.muted = false; v.play().catch(() => {});
+        $('#post-area').classList.add('show');
+        status(`clip ready · ${(clipBlob.size / 1e6).toFixed(1)} MB · ${totalDur.toFixed(0)}s — preview, then post.`, 'ok');
+        busy = false; $('#btn-make').disabled = false;
+      };
+      // lead end → hold last RSVP word; last track end → stop recording
+      let endsLeft = sources.length;
+      sources.forEach((s, k) => { s.onended = () => { if (k === 0) stopRSVP(); if (--endsLeft === 0) { try { rec.stop(); } catch {} } }; });
+
+      const recStartedAt = performance.now();
+      rec.start();
+      const t0 = recCtx.currentTime + 0.12;   // small lead so the first word lands with the audio
+      sources.forEach((s, k) => s.start(t0 + plan[k].offset));
+      driveRSVP(schedule, () => recCtx.currentTime - t0);
+    } catch (e) {
+      status('couldn\'t make the clip: ' + (e.message || e), 'err');
+      busy = false; $('#btn-make').disabled = false; stopRSVP();
+    }
+  });
+
+  // Inject a Duration into a MediaRecorder webm (it ships without one). Uses the
+  // published fix-webm-duration ESM; if it can't load, upload raw and let the
+  // server try. mp4 already carries duration, so it's passed through untouched.
+  async function fixWebmDuration(blob, durMs) {
+    if (!/webm/i.test(blob.type) || !durMs) return blob;
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/fix-webm-duration@1.0.5/+esm');
+      const fix = mod.default || mod.ysFixWebmDuration || mod;
+      return (await fix(blob, durMs, { logger: false })) || blob;
+    } catch (e) { console.warn('webm duration fix failed; uploading raw', e); return blob; }
+  }
+
+  // ── download + post ──────────────────────────────────────────────────────────
+  $('#btn-download').addEventListener('click', () => {
+    if (!clipBlob) return;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(clipBlob);
+    a.download = `fluoddity-clip-${Date.now()}.${clipBlob.type.includes('mp4') ? 'mp4' : 'webm'}`;
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  function buildPost(caption) {
+    const enc = new TextEncoder();
+    const link = 'https://fluoddity.mino.mobi/read/';
+    const body = (caption || '').trim().slice(0, 230) || 'Read it in the swarm.';
+    const label = '▶ read it in the swarm';
+    const out = body + '\n\n' + label;
+    const byteStart = enc.encode(body + '\n\n').length, byteEnd = enc.encode(out).length;
+    return { text: out, facets: [{ index: { byteStart, byteEnd }, features: [{ $type: 'app.bsky.richtext.facet#link', uri: link }] }] };
+  }
+
+  $('#btn-post').addEventListener('click', async () => {
+    if (!clipBlob) return;
+    let user = auth.getUser();
+    if (!user) { status('sign in first.', 'err'); return; }
+    if (!canPostVideo(user)) {
+      status('authorizing video posting…');
+      try { await auth.login(user.handle, { scope: 'atproto transition:generic', returnTo: location.origin + location.pathname }); }
+      catch (e) { status('authorization failed: ' + (e.message || e), 'err'); }
+      return;   // redirects; comes back authorized
+    }
+    $('#btn-post').disabled = true;
+    try {
+      const { text, facets } = buildPost($('#caption').value);
+      const r = await postFeedVideo(auth, user, {
+        blob: clipBlob, aspect: { width: DIM, height: DIM }, text, facets,
+        altText: ta.value.trim().slice(0, 1000), onStatus: (m) => status(m),
+      });
+      status(`posted · <a href="${r.url}" target="_blank" rel="noopener" style="color:var(--accent)">view on bluesky →</a>`, 'ok');
+    } catch (e) {
+      status('post failed: ' + (e.message || e), 'err');
+    } finally { $('#btn-post').disabled = false; }
+  });
+
+  mountViewControls($('#viewctl'), { engines: () => engine, onReset: () => { engine.load(cfg, 'r' + Math.random()); engine.textStrength = parseFloat($('#d-pull').value); } });
+
+  refreshMeta();
+  setWord(ta.value.trim().split(/\s+/)[0] || 'clip');   // show the first word at rest
+
+  function loop() { engine.step(6); engine.render(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>

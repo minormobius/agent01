@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>io — board</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="brand">io<span class="dot">.</span>mino.mobi</span>
+    <span class="tagline">board</span>
+    <nav class="nav">
+      <a href="/">tracker</a>
+      <a href="/board" class="active">board</a>
+      <a href="/stumble">stumble</a>
+    </nav>
+  </div>
+
+  <div class="filters">
+    <input class="search" id="search" placeholder="filter by title, site, repo…">
+    <select id="f-kind"><option value="">all kinds</option><option value="bug">bug</option><option value="feature">feature</option><option value="idea">idea</option></select>
+    <select id="f-repo"><option value="">all repos</option></select>
+    <select id="f-site"><option value="">all sites</option></select>
+    <button class="btn ghost" id="refresh">↻</button>
+  </div>
+
+  <div id="board"></div>
+</div>
+
+<script type="module">
+import { fetchTickets, renderBoard } from '/board.js';
+const $ = (id) => document.getElementById(id);
+let all = [];
+
+function applyAndRender() {
+  const kind = $('f-kind').value, repo = $('f-repo').value, site = $('f-site').value;
+  const search = $('search').value;
+  let t = all;
+  if (kind) t = t.filter((x) => x.kind === kind);
+  if (repo) t = t.filter((x) => x.repo === repo);
+  if (site) t = t.filter((x) => x.site === site);
+  renderBoard($('board'), t, { search });
+}
+
+function populateFacets() {
+  const repos = [...new Set(all.map((t) => t.repo).filter(Boolean))].sort();
+  const sites = [...new Set(all.map((t) => t.site).filter(Boolean))].sort();
+  for (const r of repos) { const o = document.createElement('option'); o.value = r; o.textContent = r; $('f-repo').appendChild(o); }
+  for (const s of sites) { const o = document.createElement('option'); o.value = s; o.textContent = s; $('f-site').appendChild(o); }
+}
+
+async function load() {
+  all = await fetchTickets();
+  // reset facet selects (keep "all")
+  $('f-repo').length = 1; $('f-site').length = 1;
+  populateFacets();
+  applyAndRender();
+}
+
+['f-kind', 'f-repo', 'f-site'].forEach((id) => $(id).addEventListener('change', applyAndRender));
+$('search').addEventListener('input', applyAndRender);
+$('refresh').addEventListener('click', load);
+await load();
+</script>
+</body>
+</html>
