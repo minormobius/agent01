@@ -11,7 +11,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": "landing",
-      "status": "deploy-root.yml ready; BLOCKED on making agent01 a Direct Upload project (Action-owned prod, --branch=main)",
+      "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
       "serves": [
         "(landing index)",
         "cluster",
@@ -35,8 +35,7 @@
         "styles.css",
         "scripts/generate-search-catalog.mjs",
         "functions/**"
-      ],
-      "todo": "Convert agent01 Pages project to Direct Upload (disconnect git integration) so wrangler pages deploy --branch=main publishes to production + the mino.mobi custom domain. While git-connected, CLI deploys are previews only. Production branch stays main."
+      ]
     },
     {
       "surface": "ai-edu",
