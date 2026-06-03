@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/pendragon-endless-book-*'
-      - 'claude/pendragon-next-source-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'borges/**'
       - '.github/workflows/deploy-borges.yml'

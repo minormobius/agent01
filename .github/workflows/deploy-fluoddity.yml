@@ -2,7 +2,7 @@ name: Deploy Fluoddity
 
 on:
   push:
-    branches: [main, 'claude/fluoddity-*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'fluoddity/**'
       - '.github/workflows/deploy-fluoddity.yml'
