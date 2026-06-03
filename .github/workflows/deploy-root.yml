@@ -1,5 +1,5 @@
 name: Deploy Root (landing)
-# verify run: confirm Direct Upload reaches production (apex), not a branch alias
+# verify run 2: production branch set to main — confirm apex + mino.mobi update
 
 # Explicit deploy for the root Pages project (the landing page + the static
 # subsites it bundles + functions/ Pages Functions). Replaces the implicit
