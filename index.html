@@ -228,6 +228,12 @@ hr {
   border-radius: 50%;
   display: inline-block;
 }
+.legend-grad {
+  display: inline-block;
+  width: 110px; height: 8px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--c-hot), var(--c-warm), var(--c-cold));
+}
 
 /* Site count */
 .site-count {
@@ -966,9 +972,9 @@ footer a:hover {
 </div>
 
 <div class="legend">
-  <span class="legend-item"><span class="legend-dot" style="background:var(--c-hot)"></span> this week</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--c-warm)"></span> last week</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--c-cold)"></span> 2+ weeks</span>
+  <span class="legend-item">edited&nbsp; recent</span>
+  <span class="legend-grad" aria-hidden="true"></span>
+  <span class="legend-item">older</span>
 </div>
 
 <!-- Mobile fallback -->
@@ -2076,15 +2082,31 @@ footer a:hover {
     games:   { label:'games',   color:'#f56991' },
   };
 
-  // Colour scale derives from each surface's last-edit date `t` (this week /
-  // last week / 2+ weeks) so it always reflects real recency. Entries without a
-  // resolvable `t` keep their hand-set age as a fallback.
+  // Last-edit recency drives the colour scale. p.a stays a DISCRETE tier (the
+  // canvas renderers use it for opacity steps / highlights); ageColor(p) is the
+  // CONTINUOUS gradient (today -> 30+ days) used by the orrery dial + legend.
+  // Gradient stops mirror --c-hot/--c-warm/--c-cold so it's theme-aware.
+  var ageColor;
   (function() {
+    var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var S = dark ? [[224, 85, 85], [212, 144, 80], [85, 176, 112]]
+                 : [[160, 48, 48], [160, 96, 32], [42, 122, 42]];
+    function mix(a, b, t) {
+      return [Math.round(a[0] + (b[0] - a[0]) * t),
+              Math.round(a[1] + (b[1] - a[1]) * t),
+              Math.round(a[2] + (b[2] - a[2]) * t)];
+    }
     var now = Date.now();
+    function daysOf(p) { return p.t ? (now - new Date(p.t + 'T00:00:00Z').getTime()) / 86400000 : null; }
+    ageColor = function(p) {
+      var d = daysOf(p); if (d == null) return null;
+      var f = Math.max(0, Math.min(1, d / 30));
+      var c = f < 0.5 ? mix(S[0], S[1], f * 2) : mix(S[1], S[2], (f - 0.5) * 2);
+      return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    };
     P.forEach(function(p) {
-      if (!p.t) return;
-      var days = (now - new Date(p.t + 'T00:00:00Z').getTime()) / 86400000;
-      p.a = days <= 7 ? 'hot' : days <= 14 ? 'warm' : 'cold';
+      var d = daysOf(p); if (d == null) return;
+      p.a = d <= 7 ? 'hot' : d <= 14 ? 'warm' : 'cold';
     });
   })();
 
@@ -2109,7 +2131,9 @@ footer a:hover {
     if (rings.some(function(r) { return !r; })) return;
     var R = [0.40, 0.63, 0.86];  // must mirror `radii` in the orrery layout below
     function anchor(p) {
-      return '<a href="' + p.u + '" data-age="' + p.a + '" data-commits="' + p.k + '">' + p.n + '</a>';
+      var c = ageColor(p);
+      var st = c ? ' style="color:' + c + ' !important;border-color:' + c + ' !important"' : '';
+      return '<a href="' + p.u + '" data-age="' + p.a + '" data-commits="' + p.k + '"' + st + '>' + p.n + '</a>';
     }
     var tops = P.filter(function(p) { return !p.p; }).sort(function(a, b) { return b.k - a.k; });
     // planets per ring ∝ radius, summing to tops.length (largest-remainder rounding)
