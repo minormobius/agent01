@@ -11,7 +11,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": "landing",
-      "status": "explicit-workflow (agent01 Pages); verifying first run, then disable CF git auto-build",
+      "status": "managed (deploy-root.yml verified green to agent01 Pages prod, run #1)",
       "serves": [
         "(landing index)",
         "cluster",
@@ -35,7 +35,8 @@
         "styles.css",
         "scripts/generate-search-catalog.mjs",
         "functions/**"
-      ]
+      ],
+      "todo": "Disable the CF Pages git auto-build in the dashboard so deploy-root.yml is the sole deploy path (currently both run; harmless because identical)."
     },
     {
       "surface": "ai-edu",
