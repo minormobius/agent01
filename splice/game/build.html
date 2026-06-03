@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>splice — clone the gene</title>
+<meta name="description" content="The full molecular cloning workflow as one campaign: take a gene, pick restriction enzymes, run PCR to add the cloning sites, verify on a gel that the insert survived, then execute the splice into the vector — ready for the organism. Every step graded by a real molecular-biology engine (Rust→WASM).">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#283039; --accent:#5ad1b0; --accent2:#7aa2ff; --warn:#e3b341; --bad:#f0776a;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent2);text-decoration:none}
+  header.top{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;
+    background:rgba(14,17,22,.9);backdrop-filter:blur(6px);padding:11px 20px;display:flex;align-items:center;gap:12px}
+  .crumb{font-size:13px;color:var(--muted)} .crumb a{color:var(--muted)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .wrap{max-width:960px;margin:0 auto;padding:22px 20px 80px}
+  h1{font-size:25px;margin:8px 0 2px;letter-spacing:-.4px}
+  .sub{color:var(--muted);margin:0 0 14px;font-size:14.5px}
+  .modes{font-size:13px;margin:0 0 14px;color:var(--muted)} .modes a{color:var(--accent2)}
+  .rail{display:flex;gap:6px;margin:14px 0 18px;flex-wrap:wrap}
+  .step{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+  .step.active{border-color:var(--accent2);color:var(--ink)}
+  .step.done{border-color:var(--accent);color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin:0 0 12px;font-weight:700}
+  .goal{font-size:16px;line-height:1.5}
+  .goal b{color:var(--ink)}
+  .map{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:8px}
+  button{background:#1c2230;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-size:14px;cursor:pointer;font-weight:600}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#06120e;border-color:var(--accent)}
+  button.primary:hover{filter:brightness(1.08);color:#06120e}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .enzymes{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+  .enz{font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px 13px;cursor:pointer;color:var(--ink);background:#10141a;user-select:none;display:flex;flex-direction:column;gap:2px;min-width:92px;align-items:center}
+  .enz .s{font-size:10px;color:var(--muted)}
+  .enz.on{background:var(--accent2);color:#0a0d12;border-color:var(--accent2)}
+  .enz.on .s{color:#0a0d12}
+  canvas{display:block;width:100%;border:1px solid var(--line);border-radius:8px;background:#0a0d12}
+  .small{font-size:12.5px;color:var(--muted)} .muted{color:var(--muted)} .mono{font-family:var(--mono)}
+  .verdict{margin-top:12px;padding:13px 16px;border-radius:10px;border:1px solid var(--line);font-size:14.5px}
+  .verdict.ok{border-color:var(--accent);background:rgba(90,209,176,.08)}
+  .verdict.bad{border-color:var(--bad);background:rgba(240,119,106,.08)}
+  .verdict.idle{color:var(--muted)}
+  .pcard{background:#0a0d12;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:6px 0}
+  .pcard .seq{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+  .pcard .seq .tail{color:var(--warn)} .pcard .seq .anneal{color:var(--accent)}
+  .pcard .m{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:4px}
+  .hidden{display:none}
+  .stars{font-size:22px;letter-spacing:3px}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">splice</a> / build</span>
+  <span class="badge" id="badge">engine: loading…</span>
+</header>
+
+<div class="wrap">
+  <h1>Clone the gene</h1>
+  <p class="sub">The whole workflow, one mission: get a gene into a vector, ready for its organism. Pick enzymes, run PCR, <b>verify it survived</b>, then splice. Every step is real.</p>
+  <p class="modes">also: <a href="/game/">cloning puzzle</a> · <a href="/game/primer.html">primer design</a> · <a href="/game/evolve.html">evolution</a> · <a href="/game/gel.html">gel</a></p>
+
+  <div class="rail" id="rail"></div>
+
+  <!-- STAGE 0: goal -->
+  <div class="panel" id="s_goal">
+    <h2>① The mission</h2>
+    <div class="goal" id="goalText">—</div>
+    <div class="map" id="goalMap"></div>
+    <div class="btnrow"><button class="primary" id="startBtn">Accept mission →</button>
+      <select id="diff" style="background:#10141a;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:13px">
+        <option value="1">routine</option><option value="2" selected>tricky</option><option value="3">nightmare</option>
+      </select>
+      <button id="newBtn">New mission</button>
+    </div>
+  </div>
+
+  <!-- STAGE 1: enzymes -->
+  <div class="panel hidden" id="s_enz">
+    <h2>② Choose two cloning enzymes</h2>
+    <div class="small">Pick a pair that cuts the vector's MCS (so the insert can go in) — but beware: an enzyme that also cuts <i>inside the gene</i> will shred your insert. You won't know for sure until the gel. Two <i>different</i> enzymes give a directional clone.</div>
+    <div class="enzymes" id="enzPalette"></div>
+    <div class="btnrow"><button class="primary" id="toPcr" disabled>Run PCR with these →</button>
+      <span class="small" id="enzInfo"></span></div>
+  </div>
+
+  <!-- STAGE 2: PCR -->
+  <div class="panel hidden" id="s_pcr">
+    <h2>③ PCR — amplify the gene &amp; add the sites</h2>
+    <div class="small">Your primers anneal to the gene's ends and carry 5'-tails (<span style="color:var(--warn)">amber</span>) that stamp the restriction sites onto the product.</div>
+    <div id="primers"></div>
+    <canvas id="pcrGel" width="640" height="150"></canvas>
+    <div class="small" id="pcrInfo"></div>
+    <div class="btnrow"><button class="primary" id="toVerify">Digest &amp; verify on gel →</button></div>
+  </div>
+
+  <!-- STAGE 3: verify -->
+  <div class="panel hidden" id="s_verify">
+    <h2>④ Verify — did the insert survive?</h2>
+    <div class="small">Diagnostic digest of your PCR product with both enzymes. A clean insert drops out as <b>one band at the gene's size</b>. If an enzyme cut inside the gene, you'll see it <b>split into extra bands</b> — the insert is ruined.</div>
+    <canvas id="verifyGel" width="640" height="240"></canvas>
+    <div class="verdict idle" id="verifyVerdict">Running the gel…</div>
+    <div class="btnrow" id="verifyBtns"></div>
+  </div>
+
+  <!-- STAGE 4: splice -->
+  <div class="panel hidden" id="s_splice">
+    <h2>⑤ Execute the splice</h2>
+    <canvas id="stage" width="640" height="320"></canvas>
+    <div class="btnrow"><button id="replaySplice">↻ Replay</button></div>
+  </div>
+
+  <!-- STAGE 5: confirm + win -->
+  <div class="panel hidden" id="s_done">
+    <h2>⑥ Confirm the construct</h2>
+    <div class="small">Final diagnostic digest of the recombinant plasmid: backbone + insert, exactly as designed.</div>
+    <canvas id="doneGel" width="640" height="200"></canvas>
+    <div class="verdict ok" id="winText"></div>
+    <div class="btnrow"><button class="primary" id="again">🎉 New mission →</button></div>
+  </div>
+</div>
+
+<script type="module">
+import { loadEngine, Engine } from '../lab/engine.js';
+import { generateBuild, SITES } from '../lab/buildgen.js';
+import { createGel, LADDER } from '../lab/gel-sim.js';
+import { playSplice } from '../lab/splice-anim.js';
+
+const $ = id => document.getElementById(id);
+const COMP={A:'T',T:'A',G:'C',C:'G'};
+const rc = s => s.split('').reverse().map(b=>COMP[b]||'N').join('');
+
+const api = {
+  restriction:(s,c)=>Engine.restriction(s,c).value,
+  clone:(v,i,e,vc,ic)=>Engine.clone(v,i,e,vc,ic).value,
+};
+
+let L=null, chosen=[], amplicon='', spliceAnim=null;
+const STEPS = ['Mission','Enzymes','PCR','Verify','Splice','Done'];
+let stage=0;
+
+function renderRail(){
+  $('rail').innerHTML = STEPS.map((s,i)=>
+    `<span class="step ${i===stage?'active':i<stage?'done':''}">${i<stage?'✓':(i+1)} ${s}</span>`).join('');
+}
+function show(id){ ['s_goal','s_enz','s_pcr','s_verify','s_splice','s_done'].forEach(x=>$(x).classList.add('hidden')); $(id).classList.remove('hidden'); }
+
+// ---- mission ----
+function newMission(){
+  stage=0; chosen=[]; amplicon='';
+  L = generateBuild(api, { difficulty:+$('diff').value });
+  $('goalText').innerHTML = L.brief;
+  $('goalMap').innerHTML = `gene <b>${L.geneName}</b>: ${L.gene.length} bp · vector: ${L.vector.length} bp circular · ${L.palette.length} enzymes on the bench`;
+  show('s_goal'); renderRail();
+}
+
+$('startBtn').onclick = ()=>{ stage=1; buildEnzymes(); show('s_enz'); renderRail(); };
+$('newBtn').onclick = newMission;
+$('again').onclick = newMission;
+
+// ---- enzymes ----
+function buildEnzymes(){
+  const vr = api.restriction(L.vector, true);
+  const gr = api.restriction(L.gene, false);
+  $('enzPalette').innerHTML = L.palette.map(p=>{
+    const meta = vr.enzymes.find(e=>e.name===p.name);
+    const ov = meta ? (meta.blunt?'blunt':`${meta.overhangType} ${meta.overhang}`) : '';
+    return `<div class="enz" data-enz="${p.name}"><span>${p.name}</span><span class="s">${p.site}</span><span class="s">${ov}</span></div>`;
+  }).join('');
+  $('enzPalette').querySelectorAll('.enz').forEach(el=> el.onclick=()=>{
+    const n=el.dataset.enz;
+    if(chosen.includes(n)){ chosen=chosen.filter(x=>x!==n); el.classList.remove('on'); }
+    else if(chosen.length<2){ chosen.push(n); el.classList.add('on'); }
+    $('toPcr').disabled = chosen.length!==2;
+    $('enzInfo').textContent = chosen.length===2 ? `${chosen[0]} + ${chosen[1]}` : `pick ${2-chosen.length} more`;
+  });
+  $('toPcr').disabled=true; $('enzInfo').textContent='';
+}
+
+// ---- PCR ----
+let pcrGel;
+$('toPcr').onclick = ()=>{
+  stage=2;
+  const [A,B]=chosen;
+  amplicon = SITES[A] + L.gene + SITES[B];
+  // primers: tail(site) + anneal(gene end)
+  const annF = L.gene.slice(0,20), annR = rc(L.gene.slice(-20));
+  const tmF = Engine.tm(annF).value.tm, tmR = Engine.tm(annR).value.tm;
+  $('primers').innerHTML =
+    primerCard('forward', SITES[A], annF, tmF) + primerCard('reverse', SITES[B], annR, tmR);
+  if(!pcrGel) pcrGel = createGel($('pcrGel'), Engine);
+  pcrGel.setLanes([{label:'ladder',ladder:true,frags:LADDER},{label:'PCR product',frags:[String(amplicon.length)]}]);
+  pcrGel.setConditions({voltage:110,agarose:1.2,gelLen:6});
+  pcrGel.run(35);
+  $('pcrInfo').textContent = `amplicon = ${A} site + ${L.geneName} (${L.gene.length} bp) + ${B} site = ${amplicon.length} bp`;
+  show('s_pcr'); renderRail();
+};
+function primerCard(role, site, anneal, tm){
+  return `<div class="pcard"><div class="small">${role} primer 5'→3'</div>
+    <div class="seq"><span class="tail">${site}</span><span class="anneal">${anneal}</span></div>
+    <div class="m">tail: ${site} (adds the cut site) · anneal Tm ${tm.toFixed(1)} °C</div></div>`;
+}
+
+// ---- verify ----
+let verifyGel;
+$('toVerify').onclick = ()=>{
+  stage=3;
+  const [A,B]=chosen;
+  // diagnostic digest of the linear amplicon with both enzymes
+  const dr = Engine.digest(amplicon, [A,B], false).value;
+  const frags = dr.fragments.filter(f=>f>=40); // tiny end bits run off
+  if(!verifyGel) verifyGel = createGel($('verifyGel'), Engine);
+  verifyGel.setLanes([
+    {label:'ladder',ladder:true,frags:LADDER},
+    {label:'expected',frags:[String(L.gene.length)]},
+    {label:'your digest',frags:frags.map(String)},
+  ]);
+  verifyGel.setConditions({voltage:100,agarose:1.0,gelLen:8});
+  verifyGel.run(45);
+  show('s_verify'); renderRail();
+  // grade: clean iff one dominant fragment ~ gene length and no internal split
+  const trapHit = chosen.filter(n=>L.trapEnzymes.includes(n));
+  const big = Math.max(...frags, 0);
+  const survived = trapHit.length===0 && Math.abs(big - L.gene.length) <= 20 && frags.filter(f=>f>L.gene.length*0.3).length===1;
+  setTimeout(()=>{
+    if(survived){
+      $('verifyVerdict').className='verdict ok';
+      $('verifyVerdict').innerHTML = `✓ <b>Insert intact.</b> One clean band at ~${L.gene.length} bp — the gene survived the digest. Ready to splice.`;
+      $('verifyBtns').innerHTML = '<button class="primary" id="toSplice">Execute the splice →</button>';
+      $('toSplice').onclick = doSplice;
+    } else {
+      const culprit = trapHit.length? trapHit.join(' & ') : 'an enzyme';
+      $('verifyVerdict').className='verdict bad';
+      $('verifyVerdict').innerHTML = `✗ <b>Insert shredded.</b> ${culprit} cuts <i>inside</i> ${L.geneName}, so your gene split into ${frags.length} pieces instead of one clean band. Back to the bench — pick enzymes that don't cut the gene.`;
+      $('verifyBtns').innerHTML = '<button id="backEnz">← Re-choose enzymes</button>';
+      $('backEnz').onclick = ()=>{ stage=1; chosen=[]; buildEnzymes(); show('s_enz'); renderRail(); };
+    }
+  }, 1500);
+};
+
+// ---- splice ----
+function doSplice(){
+  stage=4;
+  const [A,B]=chosen;
+  const res = api.clone(L.vector, amplicon, [A,B], true, false);
+  const prod = res.products[0];
+  window._recombinant = prod.seq;
+  const vr = api.restriction(L.vector, true);
+  const meA=vr.enzymes.find(e=>e.name===A), meB=vr.enzymes.find(e=>e.name===B);
+  const spec = {
+    leftEnz:{name:A, overhang:meA.overhang, type:meA.overhangType},
+    rightEnz:{name:B, overhang:meB.overhang, type:meB.overhangType},
+    recombinantLen: prod.length, insertLen: amplicon.length,
+  };
+  show('s_splice'); renderRail();
+  spliceAnim = playSplice($('stage'), spec, { speed:1, onDone: ()=> setTimeout(()=>confirm(prod), 600) });
+  window._spec = spec;
+}
+$('replaySplice').onclick = ()=>{ spliceAnim&&spliceAnim.stop(); spliceAnim=playSplice($('stage'), window._spec, {speed:1}); };
+
+// ---- confirm + win ----
+let doneGel;
+function confirm(prod){
+  stage=5;
+  const [A,B]=chosen;
+  const dr = Engine.digest(prod.seq, [A,B], true).value; // circular recombinant
+  const frags = dr.fragments.filter(f=>f>=40);
+  if(!doneGel) doneGel = createGel($('doneGel'), Engine);
+  doneGel.setLanes([
+    {label:'ladder',ladder:true,frags:LADDER},
+    {label:'recombinant',frags:frags.map(String)},
+  ]);
+  doneGel.setConditions({voltage:100,agarose:1.0,gelLen:8});
+  doneGel.run(45);
+  show('s_done'); renderRail();
+  $('winText').innerHTML = `<div class="stars">★★★</div><b>${L.geneName} is in.</b> A ${prod.length} bp recombinant, verified by diagnostic digest (${frags.length} bands). Transform it into <b>${L.organism.name}</b> and you're expressing.`;
+}
+
+(async()=>{
+  try{
+    await loadEngine('../lab/splice_engine.wasm');
+    $('badge').textContent='engine: ready'; $('badge').style.color='var(--accent)';
+    newMission();
+  }catch(e){ $('badge').textContent='engine: failed'; $('badge').style.color='var(--bad)'; console.error(e); }
+})();
+</script>
+</body>
+</html>
