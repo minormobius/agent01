@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/sentence-editing-drill-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'airchat/**'
       - 'poll/apps/api/migrations/0018_airchat.sql'

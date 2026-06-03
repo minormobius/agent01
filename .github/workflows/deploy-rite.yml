@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/sentence-editing-drill-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'

@@ -4,11 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/bluesky-anonymous-polls-*'
-      - 'claude/document-projects-oPse6'
-      - 'claude/polygon-drawing-game-*'
-      - 'claude/bluesky-thread-analysis-*'
-      - 'claude/prepare-merge-candidates-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'poll/**'
       - '.github/workflows/deploy-poll.yml'
