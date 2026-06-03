@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="90+ surfaces built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="125 surfaces built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 90+ surfaces built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:description" content="Personal tooling for the open web. 125 surfaces built in conversation &mdash; one human, one model, the open web.">
 <meta property="og:image" content="https://mino.mobi/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 90+ surfaces built in conversation.">
+<meta name="twitter:description" content="Personal tooling for the open web. 125 surfaces built in conversation.">
 <meta name="twitter:image" content="https://mino.mobi/og.png?v=2">
 <style>
 :root {
@@ -1139,7 +1139,7 @@ footer a:hover {
   </div>
 </div>
 
-<div class="site-count">70+ surfaces</div>
+<div class="site-count" id="site-count">125 surfaces</div>
 
 <div class="git-timeline">
   <h2>commit history</h2>
@@ -2192,6 +2192,7 @@ footer a:hover {
     { n:'sweat',    u:'https://mino.mobi/sweat/',                c:'tools',   k:4,  a:'cold' },
     { n:'j',        u:'https://j.mino.mobi',                     c:'tools',   k:2,  a:'warm' },
     { n:'borges',   u:'https://borges.mino.mobi',                c:'tools',   k:27, a:'hot' },
+    { n:'ai-edu',   u:'https://ai.mino.mobi',                    c:'tools',   k:26, a:'hot' },
     // games
     { n:'clock',     u:'https://mino.mobi/clock/',               c:'games',   k:119,a:'hot' },
     { n:'emsim',     u:'https://mino.mobi/clock/emsim/',         c:'games',   k:17, a:'warm', p:'clock' },
@@ -2234,6 +2235,12 @@ footer a:hover {
     tools:   { label:'tools',   color:'#a880ff' },
     games:   { label:'games',   color:'#f56991' },
   };
+
+  // Headline count derives from the taxonomy — single source of truth, no drift.
+  (function() {
+    var el = document.getElementById('site-count');
+    if (el) el.textContent = P.length + ' surfaces';
+  })();
 
   // ── Tab switcher ──
   var mode = 'constellation';
