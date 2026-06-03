@@ -959,9 +959,10 @@ footer a:hover {
 <div class="orrery" id="orrery">
   <div class="orrery-center"></div>
 
-  <!-- rings populated from P by the orrery builder (single source of truth) -->
-  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:80s"></div>
-  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:200s"></div>
+  <!-- three rings populated from P by the orrery builder (single source of truth) -->
+  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:90s"></div>
+  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:160s"></div>
+  <div class="orbit" data-ring="3" data-dir="cw" style="--speed:240s"></div>
 </div>
 
 <div class="legend">
@@ -2081,25 +2082,36 @@ footer a:hover {
     if (el) el.textContent = P.length + ' surfaces';
   })();
 
-  // Orrery renders TOP-LEVEL surfaces from P (single source). Moons (sub-pages)
-  // are omitted — the orrery outgrew showing all 125. It shows the ~50 top-level
-  // surfaces split across the two rings (highest-commit alternated outward so
-  // each ring carries a mix). Sub-pages remain reachable via the cards + the
-  // no-JS fallback nav, both still P-derived.
+  // Orrery: top-level surfaces from P (single source), spread across THREE rings.
+  // Count per ring is proportional to that ring's radius (circumference), so the
+  // spacing between planets is uniform on every ring — homogeneous perimeter
+  // density, NOT equal counts. Most-active surfaces form the tight inner core;
+  // the long tail spreads around the roomy outer ring. Sub-pages stay reachable
+  // via the P-derived cards + no-JS fallback.
   (function() {
-    var inner = document.querySelector('.orbit[data-ring="1"]');
-    var outer = document.querySelector('.orbit[data-ring="2"]');
-    if (!inner || !outer) return;
+    var rings = [
+      document.querySelector('.orbit[data-ring="1"]'),
+      document.querySelector('.orbit[data-ring="2"]'),
+      document.querySelector('.orbit[data-ring="3"]')
+    ];
+    if (rings.some(function(r) { return !r; })) return;
+    var R = [0.42, 0.70, 0.98];  // must mirror `radii` in the orrery layout below
     function anchor(p) {
       return '<a href="' + p.u + '" data-age="' + p.a + '" data-commits="' + p.k + '">' + p.n + '</a>';
     }
     var tops = P.filter(function(p) { return !p.p; }).sort(function(a, b) { return b.k - a.k; });
-    var innerH = '', outerH = '';
-    tops.forEach(function(p, i) {
-      if (i % 2 === 0) outerH += anchor(p); else innerH += anchor(p);
-    });
-    inner.innerHTML = innerH;
-    outer.innerHTML = outerH;
+    // planets per ring ∝ radius, summing to tops.length (largest-remainder rounding)
+    var sumR = R[0] + R[1] + R[2];
+    var n = R.map(function(r) { return Math.floor(tops.length * r / sumR); });
+    var rem = tops.length - n[0] - n[1] - n[2];
+    R.map(function(r, i) { return [(tops.length * r / sumR) - n[i], i]; })
+     .sort(function(a, b) { return b[0] - a[0]; })
+     .slice(0, rem).forEach(function(x) { n[x[1]]++; });
+    // fill inner core first with the most-active surfaces, then outward
+    var html = ['', '', ''], idx = 0;
+    for (var r = 0; r < 3; r++)
+      for (var c = 0; c < n[r] && idx < tops.length; c++) html[r] += anchor(tops[idx++]);
+    rings.forEach(function(ring, i) { ring.innerHTML = html[i]; });
   })();
 
   // ── Tab switcher ──
@@ -2840,7 +2852,7 @@ footer a:hover {
   var orrery = document.getElementById('orrery');
   if (!orrery) return;
 
-  var radii = [0.46, 0.86];  // inner widened: ring 1 now holds ~37 P-derived naked planets
+  var radii = [0.42, 0.70, 0.98];  // three rings; planets/ring ∝ radius (homogeneous perimeter density)
   var offsets = [-0.3, 0.2];
 
   function layout() {
