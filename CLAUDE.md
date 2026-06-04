@@ -183,6 +183,14 @@ Bakery is the reference for direct usage: `bakery/src/atproto.js` imports the sh
 
 **Every push to your Claude feature branch ships to production**, provided a `deploy-*.yml` workflow has a trigger glob that matches your branch and your changes touch its `paths:`. The human (`majormobius@gmail.com`) deploys *off Claude feature branches directly*, not just off `main`. There is no staging environment.
 
+> **Read these two memos before touching deploys:**
+> - **[`docs/DEPLOYS.md`](docs/DEPLOYS.md)** — the deploy pipeline in full (the registry system, Worker vs Pages, the golden rule, gotchas, onboarding).
+> - **[`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md)** — where everything lives.
+>
+> **Source of truth is [`deploy-registry.json`](deploy-registry.json)**, not this file. Every surface → one Cloudflare resource → one `deploy-<surface>.yml` → one owning branch (`hero`) + `main`. Edit the registry, then run `node scripts/gen-deploy-triggers.mjs --write` (sync workflow triggers), `node scripts/lint-deploy-registry.mjs` (must print `✓ registry valid`), and `node scripts/gen-surface-map.mjs --write` (rebuild the landing-page table).
+
+> ⭐ **THE GOLDEN RULE (do not skip — it has bitten us ~7 times).** A surface's `wrangler.jsonc` `name` **must** be the Cloudflare worker that owns the live custom domain, and the domain **must** be declared as a `routes: [{ pattern, custom_domain: true }]` entry. Otherwise `wrangler deploy` silently updates a stray `<name>.workers.dev` worker and **the live subdomain never changes** — a green deploy over a stale site. Don't assume `dir == subdomain` (`answers/` is live at `ask.mino.mobi`). Verify a deploy by confirming its log binds `<domain> (custom domain)`, not just that it's green. Full detection + fix in [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §4.
+
 What this means for you:
 
 1. **Find your project's workflow first.** Before touching code, locate `.github/workflows/deploy-<project>.yml`. The `on.push.branches` list tells you which branches deploy that project. The `on.push.paths` list tells you what file changes wake it up.
@@ -191,31 +199,19 @@ What this means for you:
 4. **The user pushes to feature branches deliberately.** If you see them push to `claude/foo-Xy7Pq` directly, that *is* the prod deploy for that surface. Don't "fix" it by merging to main first.
 5. **`workflow_dispatch` is your manual trigger.** Every deploy workflow has `workflow_dispatch:` so the human (or you, via the GitHub MCP tools) can fire a deploy out-of-band.
 
-### Per-project deploy workflow map
+### Per-surface deploy map
 
-| Project | Workflow | Triggers on (branches) | Path glob |
-|---------|----------|------------------------|-----------|
-| Root / landing | none (Cloudflare Pages auto from `main`) | `main` | `/` |
-| Poll | `.github/workflows/deploy-poll.yml` | `main`, `claude/bluesky-anonymous-polls-*`, `claude/document-projects-oPse6`, `claude/polygon-drawing-game-*`, `claude/bluesky-thread-analysis-*`, `claude/prepare-merge-candidates-*` | `poll/**` |
-| Rite | `.github/workflows/deploy-rite.yml` | `main`, `claude/sentence-editing-drill-*` | `rite/**` + fodder/ask/signal migrations |
-| Airchat | `.github/workflows/deploy-airchat.yml` | `main`, `claude/sentence-editing-drill-*` | `airchat/**` + airchat migrations |
-| Feed worker | `.github/workflows/deploy-feed.yml` | `main`, `claude/document-projects-oPse6` | `workers/feed/**` + feed migrations |
-| Zoom viewer | `.github/workflows/deploy-zoom.yml` | `main`, `claude/bluesky-anonymous-polls-*` | `zoom/**` |
-| Photo | `.github/workflows/deploy-photo.yml` | `main`, `claude/atproto-arena-duckdb-*` | `photo/**` |
-| Bakery | `.github/workflows/deploy-bakery.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `bakery/**` |
-| Cards | `.github/workflows/deploy-cards.yml` | `main`, **`claude/*`** (any Claude branch) | `cards/**` |
-| Clock | `.github/workflows/deploy-clock.yml` | `main`, **`claude/*`** (any Claude branch) | `clock/**` |
-| Read | `.github/workflows/deploy-read.yml` | `main`, `claude/eye-tracking-exploration-*` | `read/**` |
-| Auth worker | `.github/workflows/deploy-auth.yml` | `main`, `claude/implement-oauth-bsky-JgUdn` | `workers/auth/**` |
-| Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
-| Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
-| Scores | `.github/workflows/deploy-scores.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `workers/scores/**` |
-| Atmosphere | `.github/workflows/deploy-b.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `b/**` |
-| Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
-| j (ImageJ/WASM) | `.github/workflows/deploy-j.yml` | `main`, `claude/imagej-browser-rust-*` | `j/**` |
-| Borges | `.github/workflows/deploy-borges.yml` | `main`, `claude/pendragon-endless-book-*`, `claude/pendragon-next-source-*` | `borges/**` |
+**Do not hand-maintain a table here — it rots.** The live map is
+[`deploy-registry.json`](deploy-registry.json) (`surface → dir → endpoint → type →
+owning branch`, ~44 surfaces). The human-readable rendering is the **surface-map
+table on the landing page** (`index.html`), regenerated from the registry by
+`node scripts/gen-surface-map.mjs --write`. To see what deploys what right now,
+read the registry or run `node scripts/lint-deploy-registry.mjs`.
 
-When designing a deploy for a new project, copy the closest existing workflow — they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate before deploy", airchat's similar) and the right secret names.
+When designing a deploy for a new surface, copy the closest existing workflow —
+they encode the build-order quirks (poll's `shared → web → api`, rite's "migrate
+before deploy", audio's monorepo build) and the right secret names. Templates and
+the full onboarding recipe are in [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §5/§8.
 
 ---
 
@@ -884,11 +880,11 @@ These have `npm install` + build pipelines. Breakage here blocks deployment.
 
 ## GitHub Actions
 
-The full set of workflows lives under `.github/workflows/`. Deploy workflows are also summarized in the **Per-project deploy workflow map** above; this section covers the non-deploy automation (provisioning, syncing, publishing, scoring). When in doubt, **read the workflow file** — these are short, declarative, and the source of truth.
+The full set of workflows lives under `.github/workflows/`. This section covers the non-deploy automation (provisioning, syncing, publishing, scoring). When in doubt, **read the workflow file** — these are short, declarative, and the source of truth.
 
-### Deploy workflows (see deploy map above)
+### Deploy workflows
 
-`deploy-poll.yml`, `deploy-rite.yml`, `deploy-airchat.yml`, `deploy-feed.yml`, `deploy-zoom.yml`, `deploy-photo.yml`, `deploy-bakery.yml`, `deploy-cards.yml`, `deploy-clock.yml`, `deploy-read.yml`, `deploy-auth.yml`, `deploy-bounty.yml`, `deploy-fred-proxy.yml`, `deploy-bisk.yml`, `deploy-borges.yml`
+One `deploy-<surface>.yml` per surface (~45). Don't enumerate them here — `ls .github/workflows/deploy-*.yml`, or read [`deploy-registry.json`](deploy-registry.json) / [`docs/DEPLOYS.md`](docs/DEPLOYS.md).
 
 ### Provisioning / one-shots
 
@@ -1035,7 +1031,8 @@ If step 2's branch doesn't match any trigger glob, the deploy won't fire and the
 2. **Minimal changes.** Fix what's broken, nothing more. No drive-by refactors.
 3. **Headers matter.** COOP/COEP, HSTS, CSP — get them right or features silently fail.
 4. **Build order matters.** Poll monorepo: shared → web → deploy. Always.
-5. **Push triggers Actions, and Actions ship to prod.** Know which workflow your push wakes up before you push it. A push to `time/posts/` posts to Bluesky. A push to `poll/` from `claude/bluesky-anonymous-polls-*` deploys the poll worker. A push to `cards/` from *any* `claude/*` branch deploys cards. See the deploy map above.
+5. **Push triggers Actions, and Actions ship to prod.** Know which workflow your push wakes up before you push it. A push to `time/posts/` posts to Bluesky. A push to a surface's `dir` on an owning branch deploys it. Which branch owns which surface is in [`deploy-registry.json`](deploy-registry.json) (one owner each — no wildcards); the pipeline is in [`docs/DEPLOYS.md`](docs/DEPLOYS.md).
+6. **The deploy `name` must own the domain.** See the golden rule in the Deployment Model section / `docs/DEPLOYS.md` §4 — a `wrangler.jsonc` `name` that doesn't match the worker bound to the live subdomain ships green into a stray and the site never updates.
 6. **Deploys belong in GitHub Actions, not in your bash session.** The sandbox can't reach Cloudflare/Bluesky/PDS — that's by design, and the deploy workflows already hold the right secrets, build steps, and migration ordering. If you find yourself wanting to `wrangler deploy` from here, you actually want to push to a branch the workflow recognizes.
 7. **Feed, poll, rite, airchat share D1 (`atpolls-db`).** Migrations live in `poll/apps/api/migrations/` and apply to every consumer. Number sequentially; if two branches collide on the same migration number, the later merge renumbers (see commit `070f919` for the pattern).
 8. **The user pushes to feature branches deliberately.** When you see commits land on a `claude/foo-*` branch and the site updates, that's the intended deploy path — not a mistake to "fix" by retargeting to `main`.

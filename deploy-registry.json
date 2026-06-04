@@ -1,5 +1,5 @@
 {
-  "$comment": "SOURCE OF TRUTH for which branch deploys which surface. Edit this file ONLY. Run `node scripts/gen-deploy-triggers.mjs` to sync the deploy-*.yml trigger blocks, and `node scripts/lint-deploy-registry.mjs` to validate. INVARIANT: every surface maps to exactly ONE feature branch (plus main). A branch MAY own many surfaces (one Claude consciously taking several). A surface owned by two branches, or any wildcard branch, is forbidden. To claim a surface, change its `branch` field to your branch.",
+  "$comment": "SOURCE OF TRUTH for which branch deploys which surface. Edit this file ONLY. Run `node scripts/gen-deploy-triggers.mjs` to sync the deploy-*.yml trigger blocks, and `node scripts/lint-deploy-registry.mjs` to validate. INVARIANT: every surface maps to exactly ONE feature branch (plus main). A branch MAY own many surfaces (one Claude consciously taking several). A surface owned by two branches, or any wildcard branch, is forbidden. To claim a surface, change its `branch` field to your branch. Full pipeline + the golden rule (worker name must match the domain-owning worker): docs/DEPLOYS.md. Repo layout: docs/REPO-STRUCTURE.md.",
   "trunk": "main",
   "hero": "claude/landing-projects-takeover-pKkmW",
   "surfaces": [
