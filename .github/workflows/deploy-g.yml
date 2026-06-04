@@ -1,0 +1,36 @@
+name: Deploy g (WebGPU gallery)
+
+# g.mino.mobi — the WebGPU gallery, renamed from the vestigial `clock` surface.
+# ADDITIVE: stages a mirror of clock/ into g/dist at build time (sources NOT
+# moved), so clock.mino.mobi keeps serving until its dashboard redirect to
+# g.mino.mobi is in place. See the "g" + "clock" entries in deploy-registry.json.
+
+on:
+  push:
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    paths:
+      - 'clock/**'
+      - 'g/**'
+      - '.github/workflows/deploy-g.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage gallery (mirror of clock/)
+        working-directory: g
+        run: |
+          rm -rf dist && mkdir -p dist
+          cp -r ../clock/. dist/
+          rm -f dist/wrangler.jsonc dist/wrangler.toml
+          ls -la dist/ | head -30
+
+      - name: Deploy to Cloudflare
+        working-directory: g
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

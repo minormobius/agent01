@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "g",
+  "compatibility_date": "2026-03-21",
+  // g.mino.mobi — the WebGPU gallery, renamed from the vestigial `clock` surface.
+  // deploy-g.yml stages a mirror of clock/ into ./dist at build time (sources are
+  // NOT moved), so this is an ADDITIVE successor: clock.mino.mobi keeps working
+  // until its dashboard redirect to g.mino.mobi is set. See the "g" + "clock"
+  // entries in deploy-registry.json for the deferred teardown.
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "g.mino.mobi", "custom_domain": true }
+  ]
+}
