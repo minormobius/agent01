@@ -77,7 +77,11 @@
       "provides": null,
       "paths": [
         "atmosphere/**"
-      ]
+      ],
+      "serves": [
+        "disk"
+      ],
+      "note": "The Bluesky corner of mino.mobi. Worker mino-atmosphere serves two custom domains (atmosphere.mino.mobi + b.mino.mobi, b=Bluesky). Also hosts the disk Poincare interaction map at /disk (moved out of its own root-bundled surface; was the stray worker mino-disk -> delete it)."
     },
     {
       "surface": "auth",
@@ -655,20 +659,6 @@
       "note": "\"Answers — powered by ATProto\". Static worker-assets. Live subdomain is ask.mino.mobi (worker `ask`); also bundled at mino.mobi/answers/. Has inline OAuth (answers/assets/answers.js) — migrate to shared oauth-client later.",
       "paths": [
         "answers/**"
-      ]
-    },
-    {
-      "surface": "disk",
-      "dir": "disk",
-      "endpoint": "disk.mino.mobi (pending attach)",
-      "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [],
-      "provides": null,
-      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-disk.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
-      "note": "disk — Poincare interaction map. Static worker-assets (Worker `mino-disk`). Currently served via root bundle at mino.mobi/disk/; own subdomain not attached.",
-      "paths": [
-        "disk/**"
       ]
     },
     {
