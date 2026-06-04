@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>canvas · mino.mobi</title>
+  <meta name="description" content="Drawing toys on mino.mobi — collaborative and generative canvases backed by ATProto.">
+  <style>
+    :root { --ink:#1a1a1a; --soft:#666; --line:#e6e6e6; --accent:#b8860b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+           color:var(--ink); background:#fafaf8; -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:680px; margin:0 auto; padding:64px 24px 80px; }
+    .crumb { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
+    .crumb a { color:var(--soft); text-decoration:none; }
+    .crumb a:hover { color:var(--accent); }
+    h1 { font-size:30px; margin:8px 0 4px; font-weight:700; }
+    p.lede { color:var(--soft); margin:0 0 36px; }
+    ul { list-style:none; margin:0; padding:0; }
+    li { border-top:1px solid var(--line); }
+    a.toy { display:flex; align-items:baseline; gap:14px; padding:18px 4px; text-decoration:none; color:inherit; }
+    a.toy:hover { background:#fff; }
+    a.toy b { font-size:18px; }
+    a.toy span { color:var(--soft); font-size:14px; }
+    footer { margin-top:48px; font-size:13px; color:var(--soft); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / canvas</div>
+    <h1>canvas</h1>
+    <p class="lede">Drawing toys — collaborative and generative canvases on ATProto.</p>
+    <ul>
+      <li><a class="toy" href="./draw/"><b>draw</b><span>shared pixel canvas, sign in to place</span></a></li>
+      <li><a class="toy" href="./mmo/"><b>mmo</b><span>massively-multiplayer stroke canvas</span></a></li>
+      <li><a class="toy" href="./paint/"><b>paint</b><span>painterly freehand canvas</span></a></li>
+      <li><a class="toy" href="./curve/"><b>curve</b><span>generative curve game with leaderboard</span></a></li>
+    </ul>
+    <footer>Backends stay on poll.mino.mobi and scores.mino.mobi.</footer>
+  </div>
+</body>
+</html>

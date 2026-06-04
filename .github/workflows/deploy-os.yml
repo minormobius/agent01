@@ -1,0 +1,42 @@
+name: Deploy os (terminal frontend)
+
+# os.mino.mobi — React + Vite + xterm.js terminal UI. Worker `pds-os` serves the
+# Vite build (./dist). This is the FRONTEND ONLY. The backend container worker
+# (os/api, os-mino-api) deploys separately and manually via deploy-os-api.yml —
+# it is intentionally NOT wired here because it builds/runs paid Cloudflare
+# Containers. See the "os" registry entry.
+
+on:
+  push:
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    paths:
+      - 'os/**'
+      - '!os/api/**'
+      - '.github/workflows/deploy-os.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: os
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy frontend worker (pds-os)
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

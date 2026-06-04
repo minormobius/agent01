@@ -1,0 +1,79 @@
+name: Deploy Root (landing)
+# verify run 2: production branch set to main — confirm apex + mino.mobi update
+
+# Explicit deploy for the root Pages project (the landing page + the static
+# subsites it bundles + functions/ Pages Functions). Replaces the implicit
+# Cloudflare git-integration auto-deploy from main.
+#
+# Root is a Cloudflare PAGES project (project: agent01) run as DIRECT UPLOAD:
+# the Action owns production. `wrangler pages deploy --branch=main` publishes to
+# the production slot (apex + the mino.mobi custom domain) and ships functions/
+# as Pages Functions. --branch must equal the project's production branch (main).
+#
+# REQUIREMENT: agent01 must be a Direct Upload project (git integration
+# DISCONNECTED). While it's git-connected, CLI deploys land as previews
+# (<branch>.agent01.pages.dev) and never seize the custom domain — that was the
+# "builds didn't deploy" symptom. Production branch stays `main`.
+#
+# As static subsites encapsulate into their own surfaces (math, canvas, …),
+# remove their dirs from the paths list below so root stops shipping them.
+
+on:
+  push:
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    paths:
+      - 'index.html'
+      - 'styles.css'
+      - 'functions/**'
+      - 'scripts/generate-search-catalog.mjs'
+      # static subsites still bundled under root (carve out as they encapsulate):
+      - 'cluster/**'
+      - 'density/**'
+      - 'echo/**'
+      - 'judge/**'
+      - 'novelty/**'
+      - 'seek/**'
+      - 'ternary/**'
+      - 'music/**'
+      - 'sweat/**'
+      - 'noise/**'
+      - 'flows/**'
+      - 'phylo/**'
+      - 'time/**'
+      - 'wiki/**'
+      - '.github/workflows/deploy-root.yml'
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Cloudflare Pages project name (overrides ROOT_PAGES_PROJECT var / agent01 default)'
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Resolve Pages project name
+        id: proj
+        run: |
+          PROJECT="${{ github.event.inputs.project }}"
+          [ -z "$PROJECT" ] && PROJECT="${{ vars.ROOT_PAGES_PROJECT }}"
+          [ -z "$PROJECT" ] && PROJECT="agent01"
+          echo "name=$PROJECT" >> "$GITHUB_OUTPUT"
+          echo "Deploying Pages project: $PROJECT"
+
+      - name: Deploy to Cloudflare Pages (production branch)
+        # --commit-message is forced to an ASCII string (the SHA). Wrangler would
+        # otherwise forward the git HEAD message to the Pages deployments API, which
+        # rejects multibyte chars (em-dashes etc.) with a misleading
+        # "Invalid commit message, it must be a valid UTF-8 string [8000111]".
+        run: npx wrangler pages deploy . --project-name="${{ steps.proj.outputs.name }}" --branch=main --commit-dirty=true --commit-hash="${{ github.sha }}" --commit-message="root deploy ${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

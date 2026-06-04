@@ -2,7 +2,7 @@ name: Deploy Scores Worker
 
 on:
   push:
-    branches: [main, 'claude/consolidate-feature-branches-dHYQO']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'workers/scores/**'
       - '.github/workflows/deploy-scores.yml'

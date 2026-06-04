@@ -1,0 +1,44 @@
+name: Deploy torus (toroidal games)
+
+# torus.mino.mobi — the toroidal game family carved out of the deprecated `clock`
+# surface. ADDITIVE: stages the 7 game dirs from clock/ into torus/dist at build
+# time (sources NOT moved); the gallery (g.mino.mobi) and clock still serve them.
+
+on:
+  push:
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    paths:
+      - 'clock/corn/**'
+      - 'clock/emsim/**'
+      - 'clock/inpac/**'
+      - 'clock/knotpac/**'
+      - 'clock/pac/**'
+      - 'clock/torpac/**'
+      - 'clock/toruschess/**'
+      - 'torus/**'
+      - '.github/workflows/deploy-torus.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage toroidal games into dist/
+        working-directory: torus
+        run: |
+          rm -rf dist && mkdir -p dist
+          cp index.html dist/
+          for d in corn emsim inpac knotpac pac torpac toruschess; do
+            mkdir -p "dist/$d"
+            cp -r "../clock/$d/." "dist/$d/"
+          done
+          ls -la dist/
+
+      - name: Deploy to Cloudflare
+        working-directory: torus
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

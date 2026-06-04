@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "torus",
+  "compatibility_date": "2026-03-21",
+  // torus.mino.mobi — the toroidal game family carved out of the deprecated
+  // `clock` surface. deploy-torus.yml stages the 7 game dirs from clock/ into
+  // ./dist at build time (sources are NOT moved); the gallery (g.mino.mobi) and
+  // clock still serve them too, so this is ADDITIVE.
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "torus.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -9,6 +9,11 @@
   // reconciles routes to this list on every deploy, so KEEP BOTH lines —
   // ai.ascential.work was also added in the dashboard, and deleting it here
   // would de-register it on the next deploy.
+  // NOTE: ai.ascential.work lives on a SEPARATE zone from mino.mobi, so the
+  // deploy's CLOUDFLARE_API_TOKEN must carry Workers Routes:Edit on BOTH zones.
+  // A missing scope on the ascential.work zone surfaces as a deploy-time
+  // "/zones/.../workers/routes ... Authentication error [code: 10000]" — that's
+  // a token-scope problem, not a config bug (the worker upload itself succeeds).
   "routes": [
     { "pattern": "ai.mino.mobi", "custom_domain": true },
     { "pattern": "ai.ascential.work", "custom_domain": true }

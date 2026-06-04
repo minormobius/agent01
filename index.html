@@ -4,17 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>minomobi &mdash; personal tooling for the open web</title>
-<meta name="description" content="90+ surfaces built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
+<meta name="description" content="125 surfaces built in conversation. Static files on Cloudflare Pages, data on ATProto PDS. No backend servers. No SaaS dependencies.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="minomobi">
-<meta property="og:description" content="Personal tooling for the open web. 90+ surfaces built in conversation &mdash; one human, one model, the open web.">
+<meta property="og:description" content="Personal tooling for the open web. 125 surfaces built in conversation &mdash; one human, one model, the open web.">
 <meta property="og:image" content="https://mino.mobi/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://mino.mobi">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="minomobi">
-<meta name="twitter:description" content="Personal tooling for the open web. 90+ surfaces built in conversation.">
+<meta name="twitter:description" content="Personal tooling for the open web. 125 surfaces built in conversation.">
 <meta name="twitter:image" content="https://mino.mobi/og.png?v=2">
 <style>
 :root {
@@ -228,6 +228,12 @@ hr {
   border-radius: 50%;
   display: inline-block;
 }
+.legend-grad {
+  display: inline-block;
+  width: 110px; height: 8px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--c-hot), var(--c-warm), var(--c-cold));
+}
 
 /* Site count */
 .site-count {
@@ -361,7 +367,8 @@ hr {
   background: #0a0a14;
   border-radius: 4px;
 }
-.vis-mode[data-mode="subway"] svg {
+.vis-mode[data-mode="subway"] svg,
+.vis-mode[data-mode="timeline"] svg {
   width: 100%;
   aspect-ratio: 5 / 3;
   display: block;
@@ -928,6 +935,7 @@ footer a:hover {
   <button class="vis-tab" data-mode="force" role="tab">force</button>
   <button class="vis-tab" data-mode="depends" role="tab">depends</button>
   <button class="vis-tab" data-mode="orrery" role="tab">orrery</button>
+  <button class="vis-tab" data-mode="timeline" role="tab">timeline</button>
 </div>
 
 <div id="vis-stage">
@@ -955,191 +963,36 @@ footer a:hover {
     <div id="depends-tip" class="vis-tip"></div>
   </div>
 
+  <div class="vis-mode" data-mode="timeline">
+    <svg id="timeline-svg" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="timeline-tip" class="vis-tip"></div>
+  </div>
+
   <div class="vis-mode" data-mode="orrery">
 <div class="orrery" id="orrery">
   <div class="orrery-center"></div>
 
-  <!-- Inner ring: naked planets -->
-  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:80s">
-    <a href="https://poll.mino.mobi" data-age="warm" data-commits="75">poll</a>
-    <a href="https://airchat.mino.mobi" data-age="hot" data-commits="25">airchat</a>
-    <a href="https://zoom.mino.mobi" data-age="warm" data-commits="23">zoom</a>
-    <a href="https://mino.mobi/weft/" data-age="hot" data-commits="19">weft</a>
-    <a href="https://bisk.mino.mobi" data-age="hot" data-commits="1">bisk</a>
-    <a href="https://empath.mino.mobi" data-age="hot" data-commits="1">empathy</a>
-    <a href="https://mino.mobi/time/" data-age="cold" data-commits="15">time</a>
-    <a href="https://mino.mobi/labglass/" data-age="cold" data-commits="25">labglass</a>
-    <a href="https://os.mino.mobi" data-age="warm" data-commits="16">os</a>
-    <a href="https://mino.mobi/noise/" data-age="cold" data-commits="6">noise</a>
-    <a href="https://mino.mobi/bounty/" data-age="cold" data-commits="5">bounty</a>
-  </div>
-
-  <!-- Outer ring: planets with moons -->
-  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:200s">
-    <div class="planet">
-      <a href="https://org.mino.mobi" data-age="hot" data-commits="40">org</a>
-      <div class="moon-ring" style="--mr:96px;--moon-speed:12s">
-        <a href="https://mino.mobi/pm/" data-age="warm" data-commits="17">pm</a>
-        <a href="https://wave.mino.mobi" data-age="cold" data-commits="10">wave</a>
-        <a href="https://mino.mobi/wiki/" data-age="warm" data-commits="15">wiki</a>
-        <a href="https://mino.mobi/crm/" data-age="warm" data-commits="14">crm</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://photo.mino.mobi" data-age="hot" data-commits="39">photo</a>
-      <div class="moon-ring" style="--mr:80px;--moon-speed:10s">
-        <a href="https://photo.mino.mobi/#/thread" data-age="hot" data-commits="3">thread</a>
-        <a href="https://photo.mino.mobi/astro/" data-age="hot" data-commits="4">astro</a>
-        <a href="https://photo.mino.mobi/prism/" data-age="hot" data-commits="3">prism</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/phylo/" data-age="cold" data-commits="28">phylo</a>
-      <div class="moon-ring" style="--mr:80px;--moon-speed:11s">
-        <a href="https://mino.mobi/mega/" data-age="cold" data-commits="11">mega</a>
-        <a href="https://mino.mobi/flows/" data-age="cold" data-commits="5">flows</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/wars/" data-age="hot" data-commits="7">wars</a>
-      <div class="moon-ring" style="--mr:60px;--moon-speed:9s">
-        <a href="https://mino.mobi/wars/cult/" data-age="hot" data-commits="5">cult</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/geometry/" data-age="hot" data-commits="11">geometry</a>
-      <div class="moon-ring" style="--mr:80px;--moon-speed:13s">
-        <a href="https://mino.mobi/erdos/" data-age="hot" data-commits="1">erdős</a>
-        <a href="https://mino.mobi/guthkatz/" data-age="hot" data-commits="1">guthkatz</a>
-        <a href="https://mino.mobi/hadwiger/" data-age="hot" data-commits="1">hadwiger</a>
-        <a href="https://mino.mobi/runner/" data-age="hot" data-commits="1">runner</a>
-        <a href="https://mino.mobi/kakeya/" data-age="hot" data-commits="1">kakeya</a>
-        <a href="https://mino.mobi/capset/" data-age="hot" data-commits="1">capset</a>
-        <a href="https://mino.mobi/szemeredi-trotter/" data-age="hot" data-commits="1">szemerédi–trotter</a>
-        <a href="https://mino.mobi/heilbronn/" data-age="hot" data-commits="1">heilbronn</a>
-        <a href="https://mino.mobi/borsuk/" data-age="hot" data-commits="1">borsuk</a>
-        <a href="https://mino.mobi/viazovska/" data-age="hot" data-commits="1">viazovska</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/elements/" data-age="hot" data-commits="1">elements</a>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/cards/" data-age="hot" data-commits="122">cards</a>
-      <div class="moon-ring" style="--mr:96px;--moon-speed:11s">
-        <a href="https://mino.mobi/cards/collection/techtree.html" data-age="warm" data-commits="15">techtree</a>
-        <a href="https://mino.mobi/cards/collection/grow.html" data-age="warm" data-commits="10">grow</a>
-        <a href="https://mino.mobi/cards/games/recipe.html" data-age="warm" data-commits="3">recipe</a>
-        <a href="https://mino.mobi/cards/games/yum.html" data-age="hot" data-commits="6">yum</a>
-        <a href="https://mino.mobi/answers/" data-age="hot" data-commits="30">answers</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://bake.mino.mobi" data-age="cold" data-commits="25">bakery</a>
-      <div class="moon-ring" style="--mr:72px;--moon-speed:11s">
-        <a href="https://mino.mobi/sweat/" data-age="cold" data-commits="4">sweat</a>
-        <a href="https://mino.mobi/music/" data-age="cold" data-commits="17">music</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/cluster/" data-age="cold" data-commits="10">cluster</a>
-      <div class="moon-ring" style="--mr:132px;--moon-speed:16s">
-        <a href="https://mino.mobi/ternary/" data-age="warm" data-commits="7">ternary</a>
-        <a href="https://mino.mobi/judge/" data-age="cold" data-commits="9">judge</a>
-        <a href="https://mino.mobi/novelty/" data-age="cold" data-commits="12">novelty</a>
-        <a href="https://mino.mobi/echo/" data-age="cold" data-commits="1">echo</a>
-        <a href="https://mino.mobi/density/" data-age="cold" data-commits="5">density</a>
-        <a href="https://mino.mobi/seek/" data-age="cold" data-commits="3">seek</a>
-        <a href="https://mino.mobi/wild/" data-age="warm" data-commits="3">wild</a>
-        <a href="https://mino.mobi/disk/" data-age="warm" data-commits="2">disk</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/read/" data-age="hot" data-commits="37">read</a>
-      <div class="moon-ring" style="--mr:64px;--moon-speed:10s">
-        <a href="https://mino.mobi/read/flow/" data-age="warm" data-commits="1">flow</a>
-        <a href="https://mino.mobi/read/post01/" data-age="hot" data-commits="13">post01</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/finance/" data-age="hot" data-commits="28">finance</a>
-      <div class="moon-ring" style="--mr:72px;--moon-speed:10s">
-        <a href="https://mino.mobi/finance/bogo/" data-age="hot" data-commits="2">bogo</a>
-        <a href="https://mino.mobi/finance/agimet/" data-age="hot" data-commits="2">agimet</a>
-        <a href="https://mino.mobi/finance/stocks/" data-age="hot" data-commits="2">stocks</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/clock/" data-age="hot" data-commits="119">clock</a>
-      <div class="moon-ring" style="--mr:108px;--moon-speed:14s">
-        <a href="https://mino.mobi/clock/emsim/" data-age="warm" data-commits="17">emsim</a>
-        <a href="https://mino.mobi/clock/stretch/" data-age="warm" data-commits="4">stretch</a>
-        <a href="https://mino.mobi/clock/globe/" data-age="hot" data-commits="11">globe</a>
-        <a href="https://mino.mobi/clock/hand/" data-age="warm" data-commits="6">hand</a>
-        <a href="https://mino.mobi/clock/scope/" data-age="warm" data-commits="6">scope</a>
-        <a href="https://mino.mobi/clock/mole/" data-age="hot" data-commits="3">mole</a>
-        <a href="https://mino.mobi/clock/ship/" data-age="hot" data-commits="6">ship</a>
-        <a href="https://mino.mobi/clock/helix/" data-age="warm" data-commits="2">helix</a>
-        <a href="https://mino.mobi/clock/corn/" data-age="warm" data-commits="2">corn</a>
-        <a href="https://mino.mobi/clock/mol/" data-age="warm" data-commits="2">mol</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/clock/scape/" data-age="warm" data-commits="24">torusworld</a>
-      <div class="moon-ring" style="--mr:84px;--moon-speed:11s">
-        <a href="https://mino.mobi/clock/pac/" data-age="hot" data-commits="18">pac</a>
-        <a href="https://mino.mobi/clock/torpac/" data-age="warm" data-commits="1">torpac</a>
-        <a href="https://mino.mobi/clock/knotpac/" data-age="warm" data-commits="11">knotpac</a>
-        <a href="https://mino.mobi/clock/inpac/" data-age="warm" data-commits="9">inpac</a>
-        <a href="https://mino.mobi/clock/toruschess/" data-age="warm" data-commits="2">chess</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://rite.mino.mobi" data-age="hot" data-commits="42">rite</a>
-      <div class="moon-ring" style="--mr:108px;--moon-speed:14s">
-        <a href="https://rite.mino.mobi/fodder/" data-age="hot" data-commits="8">fodder</a>
-        <a href="https://rite.mino.mobi/redact/" data-age="hot" data-commits="4">redact</a>
-        <a href="https://rite.mino.mobi/ask/" data-age="hot" data-commits="6">ask</a>
-        <a href="https://rite.mino.mobi/atlas/" data-age="hot" data-commits="3">atlas</a>
-        <a href="https://rite.mino.mobi/lexicon/" data-age="hot" data-commits="3">lexicon</a>
-        <a href="https://rite.mino.mobi/list/" data-age="hot" data-commits="3">list</a>
-        <a href="https://rite.mino.mobi/web/" data-age="hot" data-commits="3">web</a>
-        <a href="https://rite.mino.mobi/signal/" data-age="hot" data-commits="4">signal</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/pokemon/" data-age="warm" data-commits="22">pokemon</a>
-      <div class="moon-ring" style="--mr:60px;--moon-speed:9s">
-        <a href="https://mino.mobi/pokemon/proteus/" data-age="hot" data-commits="15">proteus</a>
-      </div>
-    </div>
-    <div class="planet">
-      <a href="https://mino.mobi/mmo/" data-age="hot" data-commits="18">mmo</a>
-      <div class="moon-ring" style="--mr:72px;--moon-speed:10s">
-        <a href="https://mino.mobi/draw/" data-age="hot" data-commits="6">draw</a>
-        <a href="https://mino.mobi/paint/" data-age="hot" data-commits="5">paint</a>
-        <a href="https://mino.mobi/range/" data-age="hot" data-commits="3">range</a>
-        <a href="https://mino.mobi/curve/" data-age="hot" data-commits="1">curve</a>
-      </div>
-    </div>
-  </div>
+  <!-- three rings populated from P by the orrery builder (single source of truth) -->
+  <div class="orbit" data-ring="1" data-dir="cw" style="--speed:90s"></div>
+  <div class="orbit" data-ring="2" data-dir="ccw" style="--speed:160s"></div>
+  <div class="orbit" data-ring="3" data-dir="cw" style="--speed:240s"></div>
 </div>
 
 <div class="legend">
-  <span class="legend-item"><span class="legend-dot" style="background:var(--c-hot)"></span> this week</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--c-warm)"></span> last week</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--c-cold)"></span> 2+ weeks</span>
+  <span class="legend-item">edited&nbsp; recent</span>
+  <span class="legend-grad" aria-hidden="true"></span>
+  <span class="legend-item">older</span>
 </div>
 
 <!-- Mobile fallback -->
 <nav class="orrery-fallback">
-  <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://airchat.mino.mobi">airchat</a><a href="https://zoom.mino.mobi">zoom</a><a href="https://mino.mobi/weft/">weft</a><a href="https://bisk.mino.mobi">bisk</a><a href="https://mino.mobi/time/">time</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://os.mino.mobi">os</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/bounty/">bounty</a></div></div>
-  <div class="ofb-group"><div class="ofb-links"><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/geometry/">geometry</a><a href="https://mino.mobi/erdos/">erdős</a><a href="https://mino.mobi/guthkatz/">guthkatz</a><a href="https://mino.mobi/hadwiger/">hadwiger</a><a href="https://mino.mobi/runner/">runner</a><a href="https://mino.mobi/kakeya/">kakeya</a><a href="https://mino.mobi/capset/">capset</a><a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a><a href="https://mino.mobi/heilbronn/">heilbronn</a><a href="https://mino.mobi/borsuk/">borsuk</a><a href="https://mino.mobi/viazovska/">viazovska</a><a href="https://mino.mobi/elements/">elements</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/collection/techtree.html">techtree</a><a href="https://mino.mobi/cards/collection/grow.html">grow</a><a href="https://mino.mobi/cards/games/recipe.html">recipe</a><a href="https://mino.mobi/cards/games/yum.html">yum</a><a href="https://mino.mobi/answers/">answers</a><a href="https://bake.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://mino.mobi/music/">music</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/wild/">wild</a><a href="https://mino.mobi/disk/">disk</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://rite.mino.mobi">rite</a><a href="https://rite.mino.mobi/fodder/">fodder</a><a href="https://rite.mino.mobi/redact/">redact</a><a href="https://rite.mino.mobi/ask/">ask</a><a href="https://rite.mino.mobi/atlas/">atlas</a><a href="https://rite.mino.mobi/lexicon/">lexicon</a><a href="https://rite.mino.mobi/list/">list</a><a href="https://rite.mino.mobi/web/">web</a><a href="https://rite.mino.mobi/signal/">signal</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/stretch/">stretch</a><a href="https://mino.mobi/clock/globe/">globe</a><a href="https://mino.mobi/clock/hand/">hand</a><a href="https://mino.mobi/clock/scope/">scope</a><a href="https://mino.mobi/clock/mole/">mole</a><a href="https://mino.mobi/clock/ship/">ship</a><a href="https://mino.mobi/clock/helix/">helix</a><a href="https://mino.mobi/clock/corn/">corn</a><a href="https://mino.mobi/clock/mol/">mol</a><a href="https://mino.mobi/clock/scape/">torusworld</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a><a href="https://empath.mino.mobi">empathy</a><a href="https://mino.mobi/curve/">curve</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://airchat.mino.mobi">airchat</a><a href="https://zoom.mino.mobi">zoom</a><a href="https://mino.mobi/weft/">weft</a><a href="https://bisk.mino.mobi">bisk</a><a href="https://empath.mino.mobi">empathy</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/wild/">wild</a><a href="https://mino.mobi/disk/">disk</a><a href="https://mino.mobi/answers/">answers</a><a href="https://atmosphere.mino.mobi">atmosphere</a><a href="https://cat.mino.mobi">cat</a><a href="https://mino.mobi/track/">track</a><a href="https://mino.mobi/bounty/">bounty</a><a href="https://io.mino.mobi">io</a><a href="https://mino.mobi/time/">time</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/elements/">elements</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://os.mino.mobi">os</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/music/">music</a><a href="https://bake.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://j.mino.mobi">j</a><a href="https://borges.mino.mobi">borges</a><a href="https://ai.mino.mobi">ai-edu</a><a href="https://splice.mino.mobi">splice</a><a href="https://games.mino.mobi">games</a><a href="https://fluoddity.mino.mobi">fluoddity</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://photo.mino.mobi/orb/">orb</a><a href="https://photo.mino.mobi/fractal/">fractal</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/ternary2/">ternary2</a><a href="https://mino.mobi/ternary3/">ternary3</a><a href="https://rite.mino.mobi">rite</a><a href="https://rite.mino.mobi/fodder/">fodder</a><a href="https://rite.mino.mobi/redact/">redact</a><a href="https://rite.mino.mobi/ask/">ask</a><a href="https://rite.mino.mobi/atlas/">atlas</a><a href="https://rite.mino.mobi/lexicon/">lexicon</a><a href="https://rite.mino.mobi/list/">list</a><a href="https://rite.mino.mobi/web/">web</a><a href="https://rite.mino.mobi/signal/">signal</a><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/collection/techtree.html">techtree</a><a href="https://mino.mobi/cards/collection/grow.html">grow</a><a href="https://mino.mobi/cards/games/recipe.html">recipe</a><a href="https://mino.mobi/cards/games/yum.html">yum</a><a href="https://mino.mobi/geometry/">geometry</a><a href="https://mino.mobi/erdos/">erdos</a><a href="https://mino.mobi/guthkatz/">guthkatz</a><a href="https://mino.mobi/hadwiger/">hadwiger</a><a href="https://mino.mobi/runner/">runner</a><a href="https://mino.mobi/kakeya/">kakeya</a><a href="https://mino.mobi/capset/">capset</a><a href="https://mino.mobi/szemeredi-trotter/">szemeredi-trotter</a><a href="https://mino.mobi/heilbronn/">heilbronn</a><a href="https://mino.mobi/borsuk/">borsuk</a><a href="https://mino.mobi/viazovska/">viazovska</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/read/pendragon/">pendragon</a><a href="https://mino.mobi/read/mabinogi/">mabinogi</a><a href="https://mino.mobi/read/pwyll/">pwyll</a><a href="https://mino.mobi/read/branwen/">branwen</a><a href="https://mino.mobi/read/manawydan/">manawydan</a><a href="https://mino.mobi/read/math/">math</a><a href="https://mino.mobi/read/gawain/">gawain</a><a href="https://mino.mobi/read/culhwch/">culhwch</a><a href="https://mino.mobi/read/orfeo/">orfeo</a><a href="https://mino.mobi/read/owain/">owain</a><a href="https://mino.mobi/read/vitamerlini/">vitamerlini</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/stretch/">stretch</a><a href="https://mino.mobi/clock/globe/">globe</a><a href="https://mino.mobi/clock/hand/">hand</a><a href="https://mino.mobi/clock/scope/">scope</a><a href="https://mino.mobi/clock/mole/">mole</a><a href="https://mino.mobi/clock/ship/">ship</a><a href="https://mino.mobi/clock/helix/">helix</a><a href="https://mino.mobi/clock/corn/">corn</a><a href="https://mino.mobi/clock/mol/">mol</a><a href="https://mino.mobi/clock/antoine/">antoine</a><a href="https://mino.mobi/clock/basket/">basket</a><a href="https://mino.mobi/clock/garden/">garden</a><a href="https://mino.mobi/clock/horned/">horned</a><a href="https://mino.mobi/clock/lattice/">lattice</a><a href="https://mino.mobi/clock/scape/">torusworld</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a><a href="https://mino.mobi/curve/">curve</a></div></div>
 </nav>
   </div>
 </div>
 
-<div class="site-count">70+ surfaces</div>
+<div class="site-count" id="site-count">125 surfaces</div>
 
 <div class="git-timeline">
   <h2>commit history</h2>
@@ -1305,6 +1158,57 @@ footer a:hover {
     </div>
     <div class="desc">Poincar&eacute; interaction map. Hyperbolic-disk view of account interactions with more room at the edge.</div>
   </li>
+  <li>
+    <div class="name-row">
+      <a href="https://atmosphere.mino.mobi">atmosphere</a>
+      <span class="tag">atproto</span>
+      <span class="tag">hub</span>
+    </div>
+    <div class="desc">Portal to every Bluesky tool here&mdash;feeds, network maps, account analysis, and the shared OAuth worker in one place.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://cat.mino.mobi">cat</a>
+      <span class="tag">firehose</span>
+    </div>
+    <div class="desc">Cats from the firehose. A live stream of cat photos posted to Bluesky, filtered by hashtag and image.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/track/">track</a>
+      <span class="tag">arrow</span>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Interaction metro. A 2D transit-map view of a Bluesky account&rsquo;s interaction patterns, powered by Apache Arrow.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://photo.mino.mobi/orb/">orb</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Thread on a sphere. Wraps a Bluesky thread&rsquo;s images onto a glowing, auto-scrolling WebGPU orb.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://photo.mino.mobi/fractal/">fractal</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Fractalize. Turn any Bluesky photo into an endlessly zooming fractal of itself, rendered on the GPU.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/ternary2/">ternary2</a>
+      <span class="tag">embeddings</span>
+    </div>
+    <div class="desc">Ternary, server-embedded. The flesh/knowledge/argument temperament plot with embeddings computed edge-side via a Pages Function.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/ternary3/">ternary3</a>
+      <span class="tag">embeddings</span>
+    </div>
+    <div class="desc">Ternary, iterated. A third cut at the posting-temperament chart.</div>
+  </li>
 </ul>
 
 <!-- ——— Work ——— -->
@@ -1359,6 +1263,14 @@ footer a:hover {
       <span class="tag">vault</span>
     </div>
     <div class="desc">Vault CRM. Encrypted contact records sealed to PDS with ECDH + AES-GCM; tiered sharing for team members.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://io.mino.mobi">io</a>
+      <span class="tag">atproto</span>
+      <span class="tag">pds</span>
+    </div>
+    <div class="desc">ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites.</div>
   </li>
 </ul>
 
@@ -1653,6 +1565,98 @@ footer a:hover {
     </div>
     <div class="desc">Helix Calendar. Fractal nested helix visualization of time with drill-down zoom from years to seconds.</div>
   </li>
+  <li>
+    <div class="name-row">
+      <a href="https://j.mino.mobi">j</a>
+      <span class="tag">rust</span>
+      <span class="tag">wasm</span>
+    </div>
+    <div class="desc">ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM&mdash;every pixel stays client-side.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://borges.mino.mobi">borges</a>
+      <span class="tag">generative</span>
+    </div>
+    <div class="desc">The Book of Sand. Seven robot crew aboard the Tabard tell an endless, deterministically-generated tale&mdash;each annotated with a full mythograph before the telling.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/pendragon/">pendragon</a>
+      <span class="tag">arthuriana</span>
+    </div>
+    <div class="desc">The comparative hub. Fifteen centuries of the Arthur legend as a timeline, evolutionary tree, wiki, and cross-tale motif crosswalk.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/mabinogi/">mabinogi</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">The Four Branches, gathered. Hub for Pwyll, Branwen, Manawydan, and Math with shared historiography and character webs.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/pwyll/">pwyll</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">First Branch of the Mabinogi. Pwyll, Lord of Dyfed&mdash;the otherworld bargain and the courtship of Rhiannon.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/branwen/">branwen</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">Second Branch&mdash;the great Welsh tragedy of Branwen, the starling, and the ruinous war with Ireland.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/manawydan/">manawydan</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">Third Branch&mdash;the enchanted wasteland of Dyfed and a quiet comedy of restoration.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/math/">math</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">Fourth Branch&mdash;the branch of transformation: the flower-wife Blodeuwedd, the eagle, and the magician&rsquo;s wand.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/gawain/">gawain</a>
+      <span class="tag">middle-english</span>
+    </div>
+    <div class="desc">Sir Gawain and the Green Knight&mdash;the beheading game, set beside its Middle English across all four fitts.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/culhwch/">culhwch</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">Culhwch ac Olwen&mdash;the oldest Arthurian tale, and the giant&rsquo;s list of impossible tasks.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/orfeo/">orfeo</a>
+      <span class="tag">middle-english</span>
+    </div>
+    <div class="desc">Sir Orfeo&mdash;the medieval English Orpheus, harping his queen back from the fairy king.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/owain/">owain</a>
+      <span class="tag">welsh</span>
+    </div>
+    <div class="desc">Owain, or the Lady of the Fountain&mdash;one of the Three Welsh Romances, a knight against the fountain&rsquo;s storm.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/read/vitamerlini/">vitamerlini</a>
+      <span class="tag">latin</span>
+    </div>
+    <div class="desc">Geoffrey of Monmouth&rsquo;s Life of Merlin&mdash;the wild prophet of the woods, translated in full from the Latin.</div>
+  </li>
 </ul>
 
 <!-- ——— Games ——— -->
@@ -1804,6 +1808,65 @@ footer a:hover {
     </div>
     <div class="desc">Hand-drawn graph scorer. A procedurally generated target curve is the product of 2&ndash;5 hidden lines &mdash; draw lines whose product fits. Three scores: segment count, linearity, fit.</div>
   </li>
+  <li>
+    <div class="name-row">
+      <a href="https://splice.mino.mobi">splice</a>
+      <span class="tag">wasm</span>
+      <span class="tag">biology</span>
+    </div>
+    <div class="desc">Molecular-biology workbench&mdash;restriction mapping, PCR, and cloning compiled to WASM and wrapped as a campaign puzzle game.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://games.mino.mobi">games</a>
+      <span class="tag">workers</span>
+      <span class="tag">do</span>
+    </div>
+    <div class="desc">Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durable Objects.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://fluoddity.mino.mobi">fluoddity</a>
+      <span class="tag">atproto</span>
+      <span class="tag">canvas</span>
+    </div>
+    <div class="desc">Breed and fork emergent vector-trail organisms as deterministic genomes saved to your PDS, with an interactive phylogeny.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/antoine/">antoine</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Antoine&rsquo;s Necklace&mdash;an infinite GPU zoom into interlocking torus beads, each chain opening onto another.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/basket/">basket</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Basket Star&mdash;a furling, five-fold fractal brittle star rendered on the GPU.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/garden/">garden</a>
+      <span class="tag">atproto</span>
+    </div>
+    <div class="desc">Fluoddity Garden&mdash;a branching, ATProto-backed gallery of organisms; fork one to grow a new branch.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/horned/">horned</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Alexander&rsquo;s Horned Sphere&mdash;an endless zoom into open horns bifurcating toward a Cantor limit.</div>
+  </li>
+  <li>
+    <div class="name-row">
+      <a href="https://mino.mobi/clock/lattice/">lattice</a>
+      <span class="tag">webgpu</span>
+    </div>
+    <div class="desc">Horned Sphere, latticed&mdash;a recursive, ray-marched lattice of interlocking horns.</div>
+  </li>
 </ul>
 
 <!-- ——— Claude's ——— -->
@@ -1872,6 +1935,90 @@ footer a:hover {
 
 <p class="claude-foot">Older work shipped through <code>wiki-card-game</code> (cards), <code>atproto-arena-duckdb</code> (photo), <code>helix-calendar-webgpu</code> (clock + the torus games), <code>megaproject-dashboard</code> (mega + bounty), <code>document-projects</code> (the original CLAUDE.md), <code>eye-tracking-exploration</code> (read), <code>finance-ui-exploration</code> (finance), <code>implement-oauth-bsky</code> (workers/auth + packages/oauth-client), and a dozen others. Full inheritance log: <code>git log --merges --grep=claude/</code>.</p>
 
+<style>
+  .surfmap { margin: 52px 0 8px; }
+  .surfmap h2 { font-family: var(--serif); font-size: 1.3rem; margin: 0 0 4px; }
+  .surfmap p.sm-note { color: var(--muted); font-size: .85rem; line-height: 1.5; margin: 0 0 18px; max-width: 72ch; }
+  .surfmap p.sm-note code, .surfmap p.sm-foot code { font-family: var(--mono); font-size: .92em; }
+  .surfmap .sm-scroll { overflow-x: auto; }
+  .surfmap table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+  .surfmap th, .surfmap td { text-align: left; padding: 7px 16px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+  .surfmap th { font-family: var(--mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .surfmap td.surf code { font-family: var(--mono); background: var(--tag-bg); color: var(--tag-text); padding: 1px 6px; border-radius: 4px; }
+  .surfmap td.kind { color: var(--muted); }
+  .surfmap td.eps { line-height: 1.75; }
+  .surfmap .ep { font-family: var(--mono); }
+  .surfmap a.ep { color: var(--link); text-decoration: none; }
+  .surfmap a.ep:hover { text-decoration: underline; }
+  .surfmap code.ep { color: var(--muted); }
+  .surfmap .sm-dash { color: var(--rule); }
+  .surfmap p.sm-foot { color: var(--muted); font-size: .8rem; line-height: 1.55; margin: 16px 0 0; }
+</style>
+<section class="surfmap" id="surface-map" aria-label="Deploy surface map">
+  <h2>Deploy surface map</h2>
+  <p class="sm-note">Every deploy surface (<code>deploy-&lt;surface&gt;.yml</code>) and the endpoints around it: what it <b>exposes</b> (public <code>mino.mobi</code> domains <em>and</em> worker/project names), the shared backends &amp; D1 databases that <b>feed in</b> (<code>uses</code>), and what it <b>provides</b> to others. Linked tokens are reachable domains; plain ones are workers or databases. Source of truth is <code>deploy-registry.json</code> &mdash; to QB a surface set its <code>branch</code> there and run <code>scripts/gen-deploy-triggers.mjs</code>; regenerate this table with <code>node&nbsp;scripts/gen-surface-map.mjs&nbsp;--write</code>.</p>
+  <div class="sm-scroll">
+  <table>
+    <thead><tr><th>Surface</th><th>Kind</th><th>Exposes</th><th>Feeds&nbsp;in (uses)</th><th>Provides</th></tr></thead>
+    <tbody>
+      <!-- SURFACE-MAP:BEGIN (generated by scripts/gen-surface-map.mjs from deploy-registry.json — do not edit by hand) -->
+      <tr><td class="surf"><code>ai-edu</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://ai.mino.mobi">ai.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>airchat</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://airchat.mino.mobi">airchat.mino.mobi</a>, <a class="ep" href="https://yapchat.mino.mobi">yapchat.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>answers</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://answers.mino.mobi">answers.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>atmosphere</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://atmosphere.mino.mobi">atmosphere.mino.mobi</a>, <a class="ep" href="https://b.mino.mobi">b.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>audio</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://audio.mino.mobi">audio.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>auth</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><code class="ep">mino-auth-db</code></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td></tr>
+      <tr><td class="surf"><code>autopilot</code></td><td class="kind">backend</td><td class="eps"><code class="ep">auto</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>bakery</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://bakery.mino.mobi">bakery.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>bisk</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://bisk.mino.mobi">bisk.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>borges</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://borges.mino.mobi">borges.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>bounty</code></td><td class="kind">backend</td><td class="eps"><code class="ep">bounty-minomobi</code></td><td class="eps"><code class="ep">bounty-board</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>canvas</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://canvas.mino.mobi">canvas.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code>, <a class="ep" href="https://scores.mino.mobi">scores.mino.mobi</a>, <a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>cards</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://cards.mino.mobi">cards.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>cat</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://cat.mino.mobi">cat.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>clock</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://clock.mino.mobi">clock.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>crm</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://crm.mino.mobi">crm.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>cron</code></td><td class="kind">backend</td><td class="eps"><code class="ep">minomobi-cron</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>disk</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://disk.mino.mobi">disk.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>duffel-proxy</code></td><td class="kind">backend</td><td class="eps"><code class="ep">duffel-proxy</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>empathy</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://empath.mino.mobi">empath.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>feed</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td></tr>
+      <tr><td class="surf"><code>finance</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fin.mino.mobi">fin.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>fluoddity</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://fluoddity.mino.mobi">fluoddity.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>fred-proxy</code></td><td class="kind">backend</td><td class="eps"><code class="ep">fred-proxy</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>g</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://g.mino.mobi">g.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>games</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://games.mino.mobi">games.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>io</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://io.mino.mobi">io.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code>, <a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>j</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://j.mino.mobi">j.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>labglass</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://glass.mino.mobi">glass.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>math</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://math.mino.mobi">math.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>mega</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://mega.mino.mobi">mega.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>org</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://org.mino.mobi">org.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>os</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://os.mino.mobi">os.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>photo</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://photo.mino.mobi">photo.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>pm</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://pm.mino.mobi">pm.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>pokemon</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://poke.mino.mobi">poke.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>poll</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://poll.mino.mobi">poll.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><code class="ep">atpolls-db</code></td></tr>
+      <tr><td class="surf"><code>read</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://read.mino.mobi">read.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>rite</code></td><td class="kind">fullstack</td><td class="eps"><a class="ep" href="https://rite.mino.mobi">rite.mino.mobi</a></td><td class="eps"><code class="ep">atpolls-db</code></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>root</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://minomobi.com">minomobi.com</a>, <a class="ep" href="https://mino.mobi">mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><code class="ep">landing</code></td></tr>
+      <tr><td class="surf"><code>scores</code></td><td class="kind">backend</td><td class="eps"><a class="ep" href="https://scores.mino.mobi">scores.mino.mobi</a></td><td class="eps"><code class="ep">mino-scores-db</code>, <a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><a class="ep" href="https://scores.mino.mobi">scores.mino.mobi</a></td></tr>
+      <tr><td class="surf"><code>splice</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://splice.mino.mobi">splice.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>torus</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://torus.mino.mobi">torus.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>wars</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://war.mino.mobi">war.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>wave</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://wave.mino.mobi">wave.mino.mobi</a></td><td class="eps"><a class="ep" href="https://auth.mino.mobi">auth.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <tr><td class="surf"><code>zoom</code></td><td class="kind">frontend</td><td class="eps"><a class="ep" href="https://zoom.mino.mobi">zoom.mino.mobi</a></td><td class="eps"><a class="ep" href="https://feed.mino.mobi">feed.mino.mobi</a></td><td class="eps"><span class="sm-dash">&mdash;</span></td></tr>
+      <!-- SURFACE-MAP:END -->
+    </tbody>
+  </table>
+  </div>
+  <p class="sm-foot">
+    <!-- SURFACE-MAP-UNMANAGED:BEGIN (generated) -->
+    <b>Unmanaged</b> (wrangler config, no deploy surface yet): —. In progress: <code>os/api (Cloudflare Containers worker os-mino-api; deploy-os-api.yml is READY but dispatch-only; pending: enable CF Containers, set SYNC_TOKEN+GITHUB_TOKEN secrets, create R2 bucket os-workspace, attach os-api.minomobi.com)</code>. Each needs a workflow + registry entry, or a retire decision.
+    <!-- SURFACE-MAP-UNMANAGED:END -->
+  </p>
+</section>
+
 <hr>
 
 <footer>
@@ -1887,27 +2034,27 @@ footer a:hover {
   // Short keys keep the inline data compact.
   var P = [
     // bluesky
-    { n:'poll',     u:'https://poll.mino.mobi',                  c:'bluesky', k:75, a:'warm' },
-    { n:'airchat',  u:'https://airchat.mino.mobi',               c:'bluesky', k:25, a:'hot' },
-    { n:'zoom',     u:'https://zoom.mino.mobi',                  c:'bluesky', k:23, a:'warm' },
-    { n:'weft',     u:'https://mino.mobi/weft/',                 c:'bluesky', k:19, a:'hot' },
-    { n:'bisk',     u:'https://bisk.mino.mobi',                  c:'bluesky', k:1,  a:'hot' },
-    { n:'empathy',  u:'https://empath.mino.mobi',              c:'bluesky', k:1,  a:'hot' },
-    { n:'photo',    u:'https://photo.mino.mobi',                 c:'bluesky', k:39, a:'hot' },
+    { n:'poll',     u:'https://poll.mino.mobi',                  c:'bluesky', k:75, a:'warm', t:'2026-05-30', b:'2026-03-07' },
+    { n:'airchat',  u:'https://airchat.mino.mobi',               c:'bluesky', k:25, a:'hot', t:'2026-05-29', b:'2026-05-20' },
+    { n:'zoom',     u:'https://zoom.mino.mobi',                  c:'bluesky', k:23, a:'warm', t:'2026-05-29', b:'2026-03-26' },
+    { n:'weft',     u:'https://mino.mobi/weft/',                 c:'bluesky', k:19, a:'hot', t:'2026-05-29', b:'2026-04-24' },
+    { n:'bisk',     u:'https://bisk.mino.mobi',                  c:'bluesky', k:1,  a:'hot', t:'2026-06-02', b:'2026-05-24' },
+    { n:'empathy',  u:'https://empath.mino.mobi',              c:'bluesky', k:1,  a:'hot', t:'2026-05-29', b:'2026-05-28' },
+    { n:'photo',    u:'https://photo.mino.mobi',                 c:'bluesky', k:39, a:'hot', t:'2026-05-30', b:'2026-03-16' },
     { n:'thread',   u:'https://photo.mino.mobi/#/thread',        c:'bluesky', k:3,  a:'hot',  p:'photo' },
     { n:'astro',    u:'https://photo.mino.mobi/astro/',          c:'bluesky', k:4,  a:'hot',  p:'photo' },
     { n:'prism',    u:'https://photo.mino.mobi/prism/',          c:'bluesky', k:3,  a:'hot',  p:'photo' },
-    { n:'ternary',  u:'https://mino.mobi/ternary/',              c:'bluesky', k:7,  a:'warm' },
-    { n:'judge',    u:'https://mino.mobi/judge/',                c:'bluesky', k:9,  a:'cold' },
-    { n:'novelty',  u:'https://mino.mobi/novelty/',              c:'bluesky', k:12, a:'cold' },
-    { n:'echo',     u:'https://mino.mobi/echo/',                 c:'bluesky', k:1,  a:'cold' },
-    { n:'density',  u:'https://mino.mobi/density/',              c:'bluesky', k:5,  a:'cold' },
-    { n:'seek',     u:'https://mino.mobi/seek/',                 c:'bluesky', k:3,  a:'cold' },
-    { n:'cluster',  u:'https://mino.mobi/cluster/',              c:'bluesky', k:10, a:'cold' },
-    { n:'wild',     u:'https://mino.mobi/wild/',                 c:'bluesky', k:3,  a:'warm' },
-    { n:'disk',     u:'https://mino.mobi/disk/',                 c:'bluesky', k:2,  a:'warm' },
-    { n:'answers',  u:'https://mino.mobi/answers/',              c:'bluesky', k:30, a:'hot' },
-    { n:'rite',     u:'https://rite.mino.mobi',                  c:'bluesky', k:42, a:'hot' },
+    { n:'ternary',  u:'https://mino.mobi/ternary/',              c:'bluesky', k:7,  a:'warm', t:'2026-05-29', b:'2026-03-05' },
+    { n:'judge',    u:'https://mino.mobi/judge/',                c:'bluesky', k:9,  a:'cold', t:'2026-05-31', b:'2026-03-04' },
+    { n:'novelty',  u:'https://mino.mobi/novelty/',              c:'bluesky', k:12, a:'cold', t:'2026-05-31', b:'2026-03-04' },
+    { n:'echo',     u:'https://mino.mobi/echo/',                 c:'bluesky', k:1,  a:'cold', t:'2026-05-31', b:'2026-03-05' },
+    { n:'density',  u:'https://mino.mobi/density/',              c:'bluesky', k:5,  a:'cold', t:'2026-05-31', b:'2026-02-28' },
+    { n:'seek',     u:'https://mino.mobi/seek/',                 c:'bluesky', k:3,  a:'cold', t:'2026-05-29', b:'2026-02-28' },
+    { n:'cluster',  u:'https://mino.mobi/cluster/',              c:'bluesky', k:10, a:'cold', t:'2026-05-29', b:'2026-02-28' },
+    { n:'wild',     u:'https://mino.mobi/wild/',                 c:'bluesky', k:3,  a:'warm', t:'2026-05-29', b:'2026-04-23' },
+    { n:'disk',     u:'https://mino.mobi/disk/',                 c:'bluesky', k:2,  a:'warm', t:'2026-05-29', b:'2026-04-10' },
+    { n:'answers',  u:'https://mino.mobi/answers/',              c:'bluesky', k:30, a:'hot', t:'2026-05-29', b:'2026-04-18' },
+    { n:'rite',     u:'https://rite.mino.mobi',                  c:'bluesky', k:42, a:'hot', t:'2026-05-29', b:'2026-05-20' },
     { n:'fodder',   u:'https://rite.mino.mobi/fodder/',          c:'bluesky', k:8,  a:'hot',  p:'rite' },
     { n:'redact',   u:'https://rite.mino.mobi/redact/',          c:'bluesky', k:4,  a:'hot',  p:'rite' },
     { n:'ask',      u:'https://rite.mino.mobi/ask/',             c:'bluesky', k:6,  a:'hot',  p:'rite' },
@@ -1916,76 +2063,106 @@ footer a:hover {
     { n:'list',     u:'https://rite.mino.mobi/list/',            c:'bluesky', k:3,  a:'hot',  p:'rite' },
     { n:'web',      u:'https://rite.mino.mobi/web/',             c:'bluesky', k:3,  a:'hot',  p:'rite' },
     { n:'signal',   u:'https://rite.mino.mobi/signal/',          c:'bluesky', k:4,  a:'hot',  p:'rite' },
+    { n:'atmosphere',u:'https://atmosphere.mino.mobi',           c:'bluesky', k:3,  a:'hot', t:'2026-05-31', b:'2026-05-30' },
+    { n:'cat',      u:'https://cat.mino.mobi',                   c:'bluesky', k:5,  a:'hot', t:'2026-05-28', b:'2026-05-28' },
+    { n:'track',    u:'https://mino.mobi/track/',                c:'bluesky', k:15, a:'warm', t:'2026-05-29', b:'2026-04-10' },
+    { n:'orb',      u:'https://photo.mino.mobi/orb/',            c:'bluesky', k:5,  a:'hot',  p:'photo' },
+    { n:'fractal',  u:'https://photo.mino.mobi/fractal/',        c:'bluesky', k:7,  a:'hot',  p:'photo' },
+    { n:'ternary2', u:'https://mino.mobi/ternary2/',             c:'bluesky', k:4,  a:'warm', t:'2026-05-31', b:'2026-05-31', p:'ternary' },
+    { n:'ternary3', u:'https://mino.mobi/ternary3/',             c:'bluesky', k:1,  a:'warm', t:'2026-06-02', b:'2026-06-02', p:'ternary' },
     // work
-    { n:'org',      u:'https://org.mino.mobi',                   c:'work',    k:40, a:'hot' },
-    { n:'pm',       u:'https://mino.mobi/pm/',                   c:'work',    k:17, a:'warm', p:'org' },
-    { n:'wave',     u:'https://wave.mino.mobi',                  c:'work',    k:10, a:'cold', p:'org' },
-    { n:'wiki',     u:'https://mino.mobi/wiki/',                 c:'work',    k:15, a:'warm', p:'org' },
-    { n:'crm',      u:'https://mino.mobi/crm/',                  c:'work',    k:14, a:'warm', p:'org' },
-    { n:'bounty',   u:'https://mino.mobi/bounty/',               c:'work',    k:5,  a:'cold' },
+    { n:'org',      u:'https://org.mino.mobi',                   c:'work',    k:40, a:'hot', t:'2026-05-29', b:'2026-03-25' },
+    { n:'pm',       u:'https://mino.mobi/pm/',                   c:'work',    k:17, a:'warm', t:'2026-05-29', b:'2026-03-25', p:'org' },
+    { n:'wave',     u:'https://wave.mino.mobi',                  c:'work',    k:10, a:'cold', t:'2026-05-29', b:'2026-03-25', p:'org' },
+    { n:'wiki',     u:'https://mino.mobi/wiki/',                 c:'work',    k:15, a:'warm', t:'2026-05-29', b:'2026-04-15', p:'org' },
+    { n:'crm',      u:'https://mino.mobi/crm/',                  c:'work',    k:14, a:'warm', t:'2026-05-29', b:'2026-03-25', p:'org' },
+    { n:'bounty',   u:'https://mino.mobi/bounty/',               c:'work',    k:5,  a:'cold', t:'2026-05-29', b:'2026-03-18' },
+    { n:'io',       u:'https://io.mino.mobi',                    c:'work',    k:19, a:'hot', t:'2026-06-03', b:'2026-05-30' },
     // data
-    { n:'time',     u:'https://mino.mobi/time/',                 c:'data',    k:15, a:'cold' },
-    { n:'mega',     u:'https://mino.mobi/mega/',                 c:'data',    k:11, a:'cold' },
-    { n:'finance',  u:'https://mino.mobi/finance/',              c:'data',    k:28, a:'hot' },
-    { n:'bogo',     u:'https://mino.mobi/finance/bogo/',         c:'data',    k:2,  a:'hot',  p:'finance' },
+    { n:'time',     u:'https://mino.mobi/time/',                 c:'data',    k:15, a:'cold', t:'2026-05-29', b:'2026-02-25' },
+    { n:'mega',     u:'https://mino.mobi/mega/',                 c:'data',    k:11, a:'cold', t:'2026-05-29', b:'2026-03-17' },
+    { n:'finance',  u:'https://mino.mobi/finance/',              c:'data',    k:28, a:'hot', t:'2026-05-29', b:'2026-03-14' },
+    { n:'bogo',     u:'https://mino.mobi/finance/bogo/',         c:'data',    k:2,  a:'hot', t:'2026-05-14', b:'2026-03-31',  p:'finance' },
     { n:'agimet',   u:'https://mino.mobi/finance/agimet/',       c:'data',    k:2,  a:'hot',  p:'finance' },
     { n:'stocks',   u:'https://mino.mobi/finance/stocks/',       c:'data',    k:2,  a:'hot',  p:'finance' },
-    { n:'wars',     u:'https://mino.mobi/wars/',                 c:'data',    k:7,  a:'hot' },
-    { n:'cult',     u:'https://mino.mobi/wars/cult/',            c:'data',    k:5,  a:'hot',  p:'wars' },
-    { n:'flows',    u:'https://mino.mobi/flows/',                c:'data',    k:5,  a:'cold' },
-    { n:'phylo',    u:'https://mino.mobi/phylo/',                c:'data',    k:28, a:'cold' },
-    { n:'cards',    u:'https://mino.mobi/cards/',                c:'data',    k:122,a:'hot' },
-    { n:'geometry', u:'https://mino.mobi/geometry/',             c:'data',    k:1,  a:'hot' },
-    { n:'erdos',    u:'https://mino.mobi/erdos/',                c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'guthkatz', u:'https://mino.mobi/guthkatz/',             c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'hadwiger', u:'https://mino.mobi/hadwiger/',             c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'runner',   u:'https://mino.mobi/runner/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'kakeya',   u:'https://mino.mobi/kakeya/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'capset',   u:'https://mino.mobi/capset/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'szemeredi-trotter', u:'https://mino.mobi/szemeredi-trotter/', c:'data', k:1, a:'hot', p:'geometry' },
-    { n:'heilbronn', u:'https://mino.mobi/heilbronn/',           c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'borsuk',   u:'https://mino.mobi/borsuk/',               c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'viazovska',u:'https://mino.mobi/viazovska/',            c:'data',    k:1,  a:'hot',  p:'geometry' },
-    { n:'elements', u:'https://mino.mobi/elements/',             c:'data',    k:1,  a:'hot' },
-    { n:'techtree', u:'https://mino.mobi/cards/collection/techtree.html', c:'data', k:15, a:'warm', p:'cards' },
-    { n:'grow',     u:'https://mino.mobi/cards/collection/grow.html',     c:'data', k:10, a:'warm', p:'cards' },
-    { n:'recipe',   u:'https://mino.mobi/cards/games/recipe.html',        c:'data', k:3,  a:'warm', p:'cards' },
-    { n:'yum',      u:'https://mino.mobi/cards/games/yum.html',           c:'data', k:6,  a:'hot',  p:'cards' },
+    { n:'wars',     u:'https://mino.mobi/wars/',                 c:'data',    k:7,  a:'hot', t:'2026-05-29', b:'2026-03-17' },
+    { n:'cult',     u:'https://mino.mobi/wars/cult/',            c:'data',    k:5,  a:'hot', t:'2026-05-29', b:'2026-04-25',  p:'wars' },
+    { n:'flows',    u:'https://mino.mobi/flows/',                c:'data',    k:5,  a:'cold', t:'2026-05-29', b:'2026-03-01' },
+    { n:'phylo',    u:'https://mino.mobi/phylo/',                c:'data',    k:28, a:'cold', t:'2026-05-29', b:'2026-02-22' },
+    { n:'cards',    u:'https://mino.mobi/cards/',                c:'data',    k:122,a:'hot', t:'2026-05-29', b:'2026-03-08' },
+    { n:'geometry', u:'https://mino.mobi/geometry/',             c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23' },
+    { n:'erdos',    u:'https://mino.mobi/erdos/',                c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'guthkatz', u:'https://mino.mobi/guthkatz/',             c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'hadwiger', u:'https://mino.mobi/hadwiger/',             c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'runner',   u:'https://mino.mobi/runner/',               c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'kakeya',   u:'https://mino.mobi/kakeya/',               c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'capset',   u:'https://mino.mobi/capset/',               c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'szemeredi-trotter', u:'https://mino.mobi/szemeredi-trotter/', c:'data', k:1, a:'hot', t:'2026-05-29', b:'2026-05-23', p:'geometry' },
+    { n:'heilbronn', u:'https://mino.mobi/heilbronn/',           c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'borsuk',   u:'https://mino.mobi/borsuk/',               c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23',  p:'geometry' },
+    { n:'viazovska',u:'https://mino.mobi/viazovska/',            c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-24',  p:'geometry' },
+    { n:'elements', u:'https://mino.mobi/elements/',             c:'data',    k:1,  a:'hot', t:'2026-05-29', b:'2026-05-23' },
+    { n:'techtree', u:'https://mino.mobi/cards/collection/techtree.html', c:'data', k:15, a:'warm', t:'2026-05-29', b:'2026-04-13', p:'cards' },
+    { n:'grow',     u:'https://mino.mobi/cards/collection/grow.html',     c:'data', k:10, a:'warm', t:'2026-05-29', b:'2026-04-13', p:'cards' },
+    { n:'recipe',   u:'https://mino.mobi/cards/games/recipe.html',        c:'data', k:3,  a:'warm', t:'2026-05-29', b:'2026-04-13', p:'cards' },
+    { n:'yum',      u:'https://mino.mobi/cards/games/yum.html',           c:'data', k:6,  a:'hot', t:'2026-05-29', b:'2026-04-13',  p:'cards' },
     // tools
-    { n:'labglass', u:'https://mino.mobi/labglass/',             c:'tools',   k:25, a:'cold' },
-    { n:'os',       u:'https://os.mino.mobi',                    c:'tools',   k:16, a:'warm' },
-    { n:'read',     u:'https://mino.mobi/read/',                 c:'tools',   k:37, a:'hot' },
-    { n:'flow',     u:'https://mino.mobi/read/flow/',            c:'tools',   k:1,  a:'warm', p:'read' },
-    { n:'post01',   u:'https://mino.mobi/read/post01/',          c:'tools',   k:13, a:'hot',  p:'read' },
-    { n:'noise',    u:'https://mino.mobi/noise/',                c:'tools',   k:6,  a:'cold' },
-    { n:'music',    u:'https://mino.mobi/music/',                c:'tools',   k:17, a:'cold' },
-    { n:'bakery',   u:'https://bake.mino.mobi',                  c:'tools',   k:25, a:'cold' },
-    { n:'sweat',    u:'https://mino.mobi/sweat/',                c:'tools',   k:4,  a:'cold' },
+    { n:'labglass', u:'https://mino.mobi/labglass/',             c:'tools',   k:25, a:'cold', t:'2026-05-29', b:'2026-02-25' },
+    { n:'os',       u:'https://os.mino.mobi',                    c:'tools',   k:16, a:'warm', t:'2026-05-29', b:'2026-03-15' },
+    { n:'read',     u:'https://mino.mobi/read/',                 c:'tools',   k:37, a:'hot', t:'2026-06-03', b:'2026-03-14' },
+    { n:'flow',     u:'https://mino.mobi/read/flow/',            c:'tools',   k:1,  a:'warm', t:'2026-05-29', b:'2026-04-05', p:'read' },
+    { n:'post01',   u:'https://mino.mobi/read/post01/',          c:'tools',   k:13, a:'hot', t:'2026-05-29', b:'2026-04-27',  p:'read' },
+    { n:'pendragon',u:'https://mino.mobi/read/pendragon/',       c:'tools',   k:25, a:'hot', t:'2026-06-03', b:'2026-05-29',  p:'read' },
+    { n:'mabinogi', u:'https://mino.mobi/read/mabinogi/',        c:'tools',   k:1,  a:'hot', t:'2026-06-01', b:'2026-06-01',  p:'read' },
+    { n:'pwyll',    u:'https://mino.mobi/read/pwyll/',           c:'tools',   k:16, a:'hot', t:'2026-06-02', b:'2026-05-29',  p:'mabinogi' },
+    { n:'branwen',  u:'https://mino.mobi/read/branwen/',         c:'tools',   k:16, a:'hot', t:'2026-06-02', b:'2026-05-31',  p:'mabinogi' },
+    { n:'manawydan',u:'https://mino.mobi/read/manawydan/',       c:'tools',   k:13, a:'hot', t:'2026-06-02', b:'2026-06-01',  p:'mabinogi' },
+    { n:'math',     u:'https://mino.mobi/read/math/',            c:'tools',   k:10, a:'hot', t:'2026-06-02', b:'2026-06-01',  p:'mabinogi' },
+    { n:'gawain',   u:'https://mino.mobi/read/gawain/',          c:'tools',   k:6,  a:'warm', t:'2026-06-02', b:'2026-05-29', p:'read' },
+    { n:'culhwch',  u:'https://mino.mobi/read/culhwch/',         c:'tools',   k:3,  a:'warm', t:'2026-06-02', b:'2026-05-29', p:'read' },
+    { n:'orfeo',    u:'https://mino.mobi/read/orfeo/',           c:'tools',   k:13, a:'warm', t:'2026-06-02', b:'2026-05-29', p:'read' },
+    { n:'owain',    u:'https://mino.mobi/read/owain/',           c:'tools',   k:19, a:'hot', t:'2026-06-02', b:'2026-05-30',  p:'read' },
+    { n:'vitamerlini',u:'https://mino.mobi/read/vitamerlini/',   c:'tools',   k:22, a:'hot', t:'2026-06-02', b:'2026-06-02',  p:'read' },
+    { n:'noise',    u:'https://mino.mobi/noise/',                c:'tools',   k:6,  a:'cold', t:'2026-05-29', b:'2026-03-09' },
+    { n:'music',    u:'https://mino.mobi/music/',                c:'tools',   k:17, a:'cold', t:'2026-05-29', b:'2026-02-23' },
+    { n:'bakery',   u:'https://bake.mino.mobi',                  c:'tools',   k:25, a:'cold', t:'2026-05-29', b:'2026-02-21' },
+    { n:'sweat',    u:'https://mino.mobi/sweat/',                c:'tools',   k:4,  a:'cold', t:'2026-05-29', b:'2026-02-22' },
+    { n:'j',        u:'https://j.mino.mobi',                     c:'tools',   k:2,  a:'warm', t:'2026-06-02', b:'2026-06-02' },
+    { n:'borges',   u:'https://borges.mino.mobi',                c:'tools',   k:27, a:'hot', t:'2026-06-02', b:'2026-06-01' },
+    { n:'ai-edu',   u:'https://ai.mino.mobi',                    c:'tools',   k:26, a:'hot', t:'2026-05-30', b:'2026-05-25' },
     // games
-    { n:'clock',     u:'https://mino.mobi/clock/',               c:'games',   k:119,a:'hot' },
-    { n:'emsim',     u:'https://mino.mobi/clock/emsim/',         c:'games',   k:17, a:'warm', p:'clock' },
-    { n:'stretch',   u:'https://mino.mobi/clock/stretch/',       c:'games',   k:4,  a:'warm', p:'clock' },
-    { n:'globe',     u:'https://mino.mobi/clock/globe/',         c:'games',   k:11, a:'hot',  p:'clock' },
-    { n:'hand',      u:'https://mino.mobi/clock/hand/',          c:'games',   k:6,  a:'warm', p:'clock' },
-    { n:'scope',     u:'https://mino.mobi/clock/scope/',         c:'games',   k:6,  a:'warm', p:'clock' },
-    { n:'mole',      u:'https://mino.mobi/clock/mole/',          c:'games',   k:3,  a:'hot',  p:'clock' },
-    { n:'ship',      u:'https://mino.mobi/clock/ship/',          c:'games',   k:6,  a:'hot',  p:'clock' },
-    { n:'helix',     u:'https://mino.mobi/clock/helix/',         c:'games',   k:2,  a:'warm', p:'clock' },
-    { n:'corn',      u:'https://mino.mobi/clock/corn/',          c:'games',   k:2,  a:'warm', p:'clock' },
-    { n:'mol',       u:'https://mino.mobi/clock/mol/',           c:'games',   k:2,  a:'warm', p:'clock' },
-    { n:'torusworld',u:'https://mino.mobi/clock/scape/',         c:'games',   k:24, a:'warm' },
-    { n:'pac',       u:'https://mino.mobi/clock/pac/',           c:'games',   k:18, a:'hot',  p:'torusworld' },
-    { n:'torpac',    u:'https://mino.mobi/clock/torpac/',        c:'games',   k:1,  a:'warm', p:'torusworld' },
-    { n:'knotpac',   u:'https://mino.mobi/clock/knotpac/',       c:'games',   k:11, a:'warm', p:'torusworld' },
-    { n:'inpac',     u:'https://mino.mobi/clock/inpac/',         c:'games',   k:9,  a:'warm', p:'torusworld' },
-    { n:'chess',     u:'https://mino.mobi/clock/toruschess/',    c:'games',   k:2,  a:'warm', p:'torusworld' },
-    { n:'pokemon',   u:'https://mino.mobi/pokemon/',             c:'games',   k:22, a:'warm' },
-    { n:'proteus',   u:'https://mino.mobi/pokemon/proteus/',     c:'games',   k:15, a:'hot',  p:'pokemon' },
-    { n:'mmo',       u:'https://mino.mobi/mmo/',                 c:'games',   k:18, a:'hot' },
-    { n:'draw',      u:'https://mino.mobi/draw/',                c:'games',   k:6,  a:'hot',  p:'mmo' },
-    { n:'paint',     u:'https://mino.mobi/paint/',               c:'games',   k:5,  a:'hot',  p:'mmo' },
-    { n:'range',     u:'https://mino.mobi/range/',               c:'games',   k:3,  a:'hot',  p:'mmo' },
-    { n:'curve',     u:'https://mino.mobi/curve/',               c:'games',   k:1,  a:'hot',  p:'mmo' },
+    { n:'clock',     u:'https://mino.mobi/clock/',               c:'games',   k:119,a:'hot', t:'2026-06-02', b:'2026-03-22' },
+    { n:'emsim',     u:'https://mino.mobi/clock/emsim/',         c:'games',   k:17, a:'warm', t:'2026-05-29', b:'2026-04-03', p:'clock' },
+    { n:'stretch',   u:'https://mino.mobi/clock/stretch/',       c:'games',   k:4,  a:'warm', t:'2026-05-29', b:'2026-03-27', p:'clock' },
+    { n:'globe',     u:'https://mino.mobi/clock/globe/',         c:'games',   k:11, a:'hot', t:'2026-05-29', b:'2026-04-11',  p:'clock' },
+    { n:'hand',      u:'https://mino.mobi/clock/hand/',          c:'games',   k:6,  a:'warm', t:'2026-05-29', b:'2026-04-13', p:'clock' },
+    { n:'scope',     u:'https://mino.mobi/clock/scope/',         c:'games',   k:6,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
+    { n:'mole',      u:'https://mino.mobi/clock/mole/',          c:'games',   k:3,  a:'hot', t:'2026-05-29', b:'2026-05-15',  p:'clock' },
+    { n:'ship',      u:'https://mino.mobi/clock/ship/',          c:'games',   k:6,  a:'hot', t:'2026-05-29', b:'2026-04-28',  p:'clock' },
+    { n:'helix',     u:'https://mino.mobi/clock/helix/',         c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
+    { n:'corn',      u:'https://mino.mobi/clock/corn/',          c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
+    { n:'mol',       u:'https://mino.mobi/clock/mol/',           c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
+    { n:'antoine',   u:'https://mino.mobi/clock/antoine/',       c:'games',   k:2,  a:'warm', t:'2026-05-30', b:'2026-05-30', p:'clock' },
+    { n:'basket',    u:'https://mino.mobi/clock/basket/',        c:'games',   k:9,  a:'hot', t:'2026-06-02', b:'2026-06-02',  p:'clock' },
+    { n:'garden',    u:'https://mino.mobi/clock/garden/',        c:'games',   k:6,  a:'hot', t:'2026-05-27', b:'2026-05-27',  p:'clock' },
+    { n:'horned',    u:'https://mino.mobi/clock/horned/',        c:'games',   k:7,  a:'warm', t:'2026-05-31', b:'2026-05-30', p:'clock' },
+    { n:'lattice',   u:'https://mino.mobi/clock/lattice/',       c:'games',   k:1,  a:'warm', t:'2026-05-31', b:'2026-05-31', p:'clock' },
+    { n:'torusworld',u:'https://mino.mobi/clock/scape/',         c:'games',   k:24, a:'warm', t:'2026-05-29', b:'2026-03-29' },
+    { n:'pac',       u:'https://mino.mobi/clock/pac/',           c:'games',   k:18, a:'hot', t:'2026-05-29', b:'2026-04-02',  p:'torusworld' },
+    { n:'torpac',    u:'https://mino.mobi/clock/torpac/',        c:'games',   k:1,  a:'warm', t:'2026-05-29', b:'2026-04-03', p:'torusworld' },
+    { n:'knotpac',   u:'https://mino.mobi/clock/knotpac/',       c:'games',   k:11, a:'warm', t:'2026-05-29', b:'2026-04-02', p:'torusworld' },
+    { n:'inpac',     u:'https://mino.mobi/clock/inpac/',         c:'games',   k:9,  a:'warm', t:'2026-05-29', b:'2026-04-02', p:'torusworld' },
+    { n:'chess',     u:'https://mino.mobi/clock/toruschess/',    c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-03-30', p:'torusworld' },
+    { n:'pokemon',   u:'https://mino.mobi/pokemon/',             c:'games',   k:22, a:'warm', t:'2026-05-29', b:'2026-03-14' },
+    { n:'proteus',   u:'https://mino.mobi/pokemon/proteus/',     c:'games',   k:15, a:'hot', t:'2026-05-29', b:'2026-05-17',  p:'pokemon' },
+    { n:'mmo',       u:'https://mino.mobi/mmo/',                 c:'games',   k:18, a:'hot', t:'2026-05-29', b:'2026-05-14' },
+    { n:'draw',      u:'https://mino.mobi/draw/',                c:'games',   k:6,  a:'hot', t:'2026-05-29', b:'2026-05-14',  p:'mmo' },
+    { n:'paint',     u:'https://mino.mobi/paint/',               c:'games',   k:5,  a:'hot', t:'2026-05-29', b:'2026-05-14',  p:'mmo' },
+    { n:'range',     u:'https://mino.mobi/range/',               c:'games',   k:3,  a:'hot', t:'2026-05-29', b:'2026-05-14',  p:'mmo' },
+    { n:'curve',     u:'https://mino.mobi/curve/',               c:'games',   k:1,  a:'hot', t:'2026-05-30', b:'2026-05-30',  p:'mmo' },
+    { n:'splice',    u:'https://splice.mino.mobi',               c:'games',   k:25, a:'hot', t:'2026-05-30', b:'2026-05-29' },
+    { n:'games',     u:'https://games.mino.mobi',                c:'games',   k:2,  a:'warm', t:'2026-05-23', b:'2026-05-22' },
+    { n:'fluoddity', u:'https://fluoddity.mino.mobi',            c:'games',   k:43, a:'hot', t:'2026-06-02', b:'2026-05-27' },
   ];
 
   var CATS = {
@@ -1995,6 +2172,74 @@ footer a:hover {
     tools:   { label:'tools',   color:'#a880ff' },
     games:   { label:'games',   color:'#f56991' },
   };
+
+  // Last-edit recency drives the colour scale. p.a stays a DISCRETE tier (the
+  // canvas renderers use it for opacity steps / highlights); ageColor(p) is the
+  // CONTINUOUS gradient (today -> 30+ days) used by the orrery dial + legend.
+  // Gradient stops mirror --c-hot/--c-warm/--c-cold so it's theme-aware.
+  var ageColor;
+  (function() {
+    var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var S = dark ? [[224, 85, 85], [212, 144, 80], [85, 176, 112]]
+                 : [[160, 48, 48], [160, 96, 32], [42, 122, 42]];
+    function mix(a, b, t) {
+      return [Math.round(a[0] + (b[0] - a[0]) * t),
+              Math.round(a[1] + (b[1] - a[1]) * t),
+              Math.round(a[2] + (b[2] - a[2]) * t)];
+    }
+    var now = Date.now();
+    function daysOf(p) { return p.t ? (now - new Date(p.t + 'T00:00:00Z').getTime()) / 86400000 : null; }
+    ageColor = function(p) {
+      var d = daysOf(p); if (d == null) return null;
+      var f = Math.max(0, Math.min(1, d / 30));
+      var c = f < 0.5 ? mix(S[0], S[1], f * 2) : mix(S[1], S[2], (f - 0.5) * 2);
+      return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    };
+    P.forEach(function(p) {
+      var d = daysOf(p); if (d == null) return;
+      p.a = d <= 7 ? 'hot' : d <= 14 ? 'warm' : 'cold';
+    });
+  })();
+
+  // Headline count derives from the taxonomy — single source of truth, no drift.
+  (function() {
+    var el = document.getElementById('site-count');
+    if (el) el.textContent = P.length + ' surfaces';
+  })();
+
+  // Orrery: top-level surfaces from P (single source), spread across THREE rings.
+  // Count per ring is proportional to that ring's radius (circumference), so the
+  // spacing between planets is uniform on every ring — homogeneous perimeter
+  // density, NOT equal counts. Most-active surfaces form the tight inner core;
+  // the long tail spreads around the roomy outer ring. Sub-pages stay reachable
+  // via the P-derived cards + no-JS fallback.
+  (function() {
+    var rings = [
+      document.querySelector('.orbit[data-ring="1"]'),
+      document.querySelector('.orbit[data-ring="2"]'),
+      document.querySelector('.orbit[data-ring="3"]')
+    ];
+    if (rings.some(function(r) { return !r; })) return;
+    var R = [0.40, 0.63, 0.86];  // must mirror `radii` in the orrery layout below
+    function anchor(p) {
+      var c = ageColor(p);
+      var st = c ? ' style="color:' + c + ' !important;border-color:' + c + ' !important"' : '';
+      return '<a href="' + p.u + '" data-age="' + p.a + '" data-commits="' + p.k + '"' + st + '>' + p.n + '</a>';
+    }
+    var tops = P.filter(function(p) { return !p.p; }).sort(function(a, b) { return b.k - a.k; });
+    // planets per ring ∝ radius, summing to tops.length (largest-remainder rounding)
+    var sumR = R[0] + R[1] + R[2];
+    var n = R.map(function(r) { return Math.floor(tops.length * r / sumR); });
+    var rem = tops.length - n[0] - n[1] - n[2];
+    R.map(function(r, i) { return [(tops.length * r / sumR) - n[i], i]; })
+     .sort(function(a, b) { return b[0] - a[0]; })
+     .slice(0, rem).forEach(function(x) { n[x[1]]++; });
+    // fill inner core first with the most-active surfaces, then outward
+    var html = ['', '', ''], idx = 0;
+    for (var r = 0; r < 3; r++)
+      for (var c = 0; c < n[r] && idx < tops.length; c++) html[r] += anchor(tops[idx++]);
+    rings.forEach(function(ring, i) { ring.innerHTML = html[i]; });
+  })();
 
   // ── Tab switcher ──
   var mode = 'constellation';
@@ -2013,6 +2258,7 @@ footer a:hover {
     else if (m === 'periodic') startPeriodic();
     else if (m === 'force') startForce();
     else if (m === 'depends') startDepends();
+    else if (m === 'timeline') startTimeline();
     else if (m === 'orrery') {
       // existing orrery script listens to resize for layout
       window.dispatchEvent(new Event('resize'));
@@ -2297,6 +2543,83 @@ footer a:hover {
       subwayAnimator = requestAnimationFrame(tick);
     }
     subwayAnimator = requestAnimationFrame(tick);
+  }
+
+  // ─────────── Invention timeline ───────────
+  // Each surface's first commit is its birth date (P field `b`, from the commit
+  // tree). Plot births left→right on a time axis, swimlaned by category, colored
+  // by the same recency gradient as the orrery (so you see WHEN it was invented
+  // and HOW recently it's been touched).
+  function startTimeline() {
+    var svg = document.getElementById('timeline-svg');
+    var tip = document.getElementById('timeline-tip');
+    svg.innerHTML = '';
+    var W = 1000, H = 600;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    function el(name, attrs) {
+      var n = document.createElementNS('http://www.w3.org/2000/svg', name);
+      for (var k in attrs) n.setAttribute(k, attrs[k]);
+      return n;
+    }
+    function ms(d) { return new Date(d + 'T00:00:00Z').getTime(); }
+
+    var withB = P.filter(function(p) { return p.b; });
+    if (!withB.length) return;
+    var minT = Math.min.apply(null, withB.map(function(p) { return ms(p.b); }));
+    var maxT = Date.now();
+    var x0 = 110, x1 = W - 36, yTop = 46, yBot = H - 52;
+    function sx(t) { return x0 + (x1 - x0) * (t - minT) / (maxT - minT); }
+
+    // month gridlines + labels
+    var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var d = new Date(minT); d.setUTCDate(1);
+    while (d.getTime() <= maxT) {
+      var gx = sx(d.getTime());
+      if (gx >= x0 - 1) {
+        svg.appendChild(el('line', { x1: gx, y1: yTop, x2: gx, y2: yBot, stroke: '#ffffff', opacity: 0.06 }));
+        var ml = el('text', { x: gx, y: yBot + 20, 'text-anchor': 'middle', 'font-size': 11, 'font-family': 'ui-monospace, monospace', fill: '#888' });
+        ml.textContent = MON[d.getUTCMonth()];
+        svg.appendChild(ml);
+      }
+      d.setUTCMonth(d.getUTCMonth() + 1);
+    }
+    // now marker
+    var nx = sx(maxT);
+    svg.appendChild(el('line', { x1: nx, y1: yTop, x2: nx, y2: yBot, stroke: '#fff', opacity: 0.22, 'stroke-dasharray': '3 4' }));
+    var nl = el('text', { x: nx, y: yTop - 6, 'text-anchor': 'end', 'font-size': 10, 'font-family': 'ui-monospace, monospace', fill: '#aaa' });
+    nl.textContent = 'now'; svg.appendChild(nl);
+
+    var catKeys = Object.keys(CATS);
+    catKeys.forEach(function(cat, ci) {
+      var projs = withB.filter(function(p) { return p.c === cat; })
+                       .sort(function(a, b) { return ms(a.b) - ms(b.b); });
+      if (!projs.length) return;
+      var color = CATS[cat].color;
+      var laneY = yTop + 24 + ci * (yBot - yTop - 48) / (catKeys.length - 1);
+      var band = 34;
+      svg.appendChild(el('line', { x1: x0, y1: laneY, x2: x1, y2: laneY, stroke: color, opacity: 0.14 }));
+      var lbl = el('text', { x: x0 - 14, y: laneY + 4, 'text-anchor': 'end', 'font-size': 12, 'font-family': 'ui-monospace, monospace', fill: color, opacity: 0.85 });
+      lbl.textContent = cat; svg.appendChild(lbl);
+
+      projs.forEach(function(p, i) {
+        var x = sx(ms(p.b));
+        var y = laneY + (((i * 53) % band) - band / 2);  // deterministic vertical jitter
+        var r = 3 + Math.sqrt(p.k) * 0.4;
+        var c = (typeof ageColor === 'function' && ageColor(p)) || color;
+        var g = el('g', { cursor: 'pointer' });
+        g.appendChild(el('circle', { cx: x, cy: y, r: r, fill: c, opacity: 0.92, stroke: color, 'stroke-width': 0.6 }));
+        g.addEventListener('click', function() { window.open(p.u, '_blank'); });
+        g.addEventListener('mouseenter', function(e) {
+          tip.textContent = p.n + ' · born ' + p.b + ' · ' + p.k + ' commits';
+          tip.style.display = 'block';
+          var sr = svg.getBoundingClientRect();
+          tip.style.left = (e.clientX - sr.left + 14) + 'px';
+          tip.style.top = (e.clientY - sr.top) + 'px';
+        });
+        g.addEventListener('mouseleave', function() { tip.style.display = 'none'; });
+        svg.appendChild(g);
+      });
+    });
   }
 
   // ─────────── Periodic table ───────────
@@ -2734,8 +3057,8 @@ footer a:hover {
   var orrery = document.getElementById('orrery');
   if (!orrery) return;
 
-  var radii = [0.30, 0.85];
-  var offsets = [-0.3, 0.2];
+  var radii = [0.40, 0.63, 0.86];  // three rings; planets/ring ∝ radius (homogeneous perimeter density)
+  var offsets = [-0.3, 0.2, 0.6];  // per-ring angular start (one per radii entry)
 
   function layout() {
     var size = orrery.offsetWidth;

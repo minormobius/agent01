@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "canvas",
+  "compatibility_date": "2026-02-20",
+  // Static drawing-toy bundle (draw + curve + paint + mmo). The member dirs live
+  // at the repo ROOT and are STAGED into ./dist by deploy-canvas.yml at build
+  // time — they are NOT moved. Their backends are untouched: draw/paint/mmo call
+  // poll.mino.mobi/api/{draw,mmo} and curve calls scores.mino.mobi — all ABSOLUTE
+  // origins, so serving the frontends from canvas.mino.mobi keeps every API call
+  // working (already cross-origin). Root's Pages project still serves the
+  // canonical https://mino.mobi/<x>/ URLs, so this surface is ADDITIVE.
+  // DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "canvas.mino.mobi", "custom_domain": true }
+  ]
+}

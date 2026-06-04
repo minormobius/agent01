@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/oauth-partykit-games-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'games/**'
       - 'packages/oauth-client/**'

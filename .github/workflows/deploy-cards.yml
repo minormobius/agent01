@@ -2,7 +2,7 @@ name: Deploy Cards
 
 on:
   push:
-    branches: [main, 'claude/*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'cards/**'
       - '.github/workflows/deploy-cards.yml'

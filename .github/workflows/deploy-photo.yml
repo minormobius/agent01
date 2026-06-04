@@ -2,7 +2,7 @@ name: Deploy ATPhoto
 
 on:
   push:
-    branches: [main, 'claude/atproto-arena-duckdb-*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'photo/**'
       - '.github/workflows/deploy-photo.yml'

@@ -2,7 +2,7 @@ name: Deploy Clock Sculptures
 
 on:
   push:
-    branches: [main, 'claude/*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'clock/**'
       - '.github/workflows/deploy-clock.yml'

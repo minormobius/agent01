@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/imagej-browser-rust-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'j/**'
       - '.github/workflows/deploy-j.yml'

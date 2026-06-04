@@ -2,7 +2,7 @@ name: Deploy Atmosphere Portal
 
 on:
   push:
-    branches: [main, 'claude/consolidate-feature-branches-dHYQO']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'atmosphere/**'
       - '.github/workflows/deploy-atmosphere.yml'

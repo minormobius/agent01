@@ -2,7 +2,7 @@ name: Deploy Zoom Viewer
 
 on:
   push:
-    branches: [main, 'claude/bluesky-anonymous-polls-*']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'zoom/**'
       - '.github/workflows/deploy-zoom.yml'
@@ -17,6 +17,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
 
       - name: Deploy static site
         run: npx wrangler deploy

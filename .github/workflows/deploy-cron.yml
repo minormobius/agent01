@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/toolset-audit-roadmap-*'
+      - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'workers/cron/**'
       - '.github/workflows/deploy-cron.yml'
