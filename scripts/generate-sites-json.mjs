@@ -44,14 +44,7 @@ function hostOf(url) {
 // to the landing page's curated array.
 // TODO: fold these into the canonical `var P` array in index.html (then the
 // search catalog + OG card pick them up too) and delete from this list.
-const SUPPLEMENTAL = [
-  { name: 'ai-edu',    url: 'https://mino.mobi/ai-edu/',    category: 'tools', weight: 1, heat: 'cold' },
-  { name: 'cat',       url: 'https://mino.mobi/cat/',       category: 'bluesky', weight: 1, heat: 'hot' },
-  { name: 'fluoddity', url: 'https://mino.mobi/fluoddity/', category: 'bluesky', weight: 1, heat: 'hot' },
-  { name: 'games',     url: 'https://games.mino.mobi',      category: 'games', weight: 1, heat: 'hot' },
-  { name: 'splice',    url: 'https://mino.mobi/splice/',    category: 'tools', weight: 1, heat: 'hot' },
-  { name: 'track',     url: 'https://mino.mobi/track/',     category: 'bluesky', weight: 1, heat: 'hot' },
-];
+const SUPPLEMENTAL = []; // folded into index.html var P (2026-06-04); empty to avoid duplicates
 
 function parseProjects(html) {
   const start = html.indexOf('var P = [');
@@ -59,12 +52,17 @@ function parseProjects(html) {
   const end = html.indexOf('];', start);
   const block = html.slice(start, end);
   // { n:'poll', u:'https://poll.mino.mobi', c:'bluesky', k:75, a:'warm', p:'photo' }
-  const re = /\{\s*n:'([^']+)',\s*u:'([^']+)',\s*c:'([^']+)',\s*k:(\d+),\s*a:'([^']+)'(?:,\s*p:'([^']+)')?\s*\}/g;
+  // Match the 5 required fields; tolerate any trailing fields (t:, b:, p:) in any
+  // order before the closing brace, and pull `parent` out of that tail if present.
+  // (var P entries carry t:/b: date fields the old regex didn't account for, which
+  // silently dropped every dated entry.)
+  const re = /\{\s*n:'([^']+)',\s*u:'([^']+)',\s*c:'([^']+)',\s*k:(\d+),\s*a:'([^']+)'([^}]*)\}/g;
   const out = [];
   let m;
   while ((m = re.exec(block)) !== null) {
-    const [, name, url, category, k, heat, parent] = m;
-    out.push({ name, url, category, weight: Number(k), heat, parent: parent || null });
+    const [, name, url, category, k, heat, rest] = m;
+    const pm = /p:'([^']+)'/.exec(rest);
+    out.push({ name, url, category, weight: Number(k), heat, parent: pm ? pm[1] : null });
   }
   return out;
 }

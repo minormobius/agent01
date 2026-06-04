@@ -344,6 +344,26 @@ hr {
   border-color: var(--accent);
   background: var(--accent-faint);
 }
+.stumble-wrap { display: flex; justify-content: center; margin: 0.4rem 0 0.1rem; }
+#stumble-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  background: var(--accent);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+#stumble-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.28); filter: brightness(1.08); }
+#stumble-cta .die { font-size: 0.8rem; }
 
 #vis-stage {
   position: relative;
@@ -928,6 +948,8 @@ footer a:hover {
 
 <h1>minomobi</h1>
 
+<div class="stumble-wrap"><a id="stumble-cta" href="https://io.mino.mobi/stumble" title="Jump to a random mino.mobi site"><span class="die">🎲</span> stumble</a></div>
+
 <div class="vis-tabs" role="tablist">
   <button class="vis-tab active" data-mode="constellation" role="tab">constellation</button>
   <button class="vis-tab" data-mode="subway" role="tab">subway</button>
@@ -987,7 +1009,7 @@ footer a:hover {
 <!-- Mobile fallback -->
 <nav class="orrery-fallback">
   <div class="ofb-group"><div class="ofb-links"><a href="https://poll.mino.mobi">poll</a><a href="https://airchat.mino.mobi">airchat</a><a href="https://zoom.mino.mobi">zoom</a><a href="https://mino.mobi/weft/">weft</a><a href="https://bisk.mino.mobi">bisk</a><a href="https://empath.mino.mobi">empathy</a><a href="https://mino.mobi/judge/">judge</a><a href="https://mino.mobi/novelty/">novelty</a><a href="https://mino.mobi/echo/">echo</a><a href="https://mino.mobi/density/">density</a><a href="https://mino.mobi/seek/">seek</a><a href="https://mino.mobi/cluster/">cluster</a><a href="https://mino.mobi/wild/">wild</a><a href="https://b.mino.mobi/disk/">disk</a><a href="https://mino.mobi/answers/">answers</a><a href="https://b.mino.mobi">atmosphere</a><a href="https://cat.mino.mobi">cat</a><a href="https://mino.mobi/track/">track</a><a href="https://mino.mobi/bounty/">bounty</a><a href="https://io.mino.mobi">io</a><a href="https://mino.mobi/time/">time</a><a href="https://mino.mobi/mega/">mega</a><a href="https://mino.mobi/flows/">flows</a><a href="https://mino.mobi/phylo/">phylo</a><a href="https://mino.mobi/elements/">elements</a><a href="https://mino.mobi/labglass/">labglass</a><a href="https://os.mino.mobi">os</a><a href="https://mino.mobi/noise/">noise</a><a href="https://mino.mobi/music/">music</a><a href="https://bake.mino.mobi">bakery</a><a href="https://mino.mobi/sweat/">sweat</a><a href="https://j.mino.mobi">j</a><a href="https://borges.mino.mobi">borges</a><a href="https://ai.mino.mobi">ai-edu</a><a href="https://splice.mino.mobi">splice</a><a href="https://games.mino.mobi">games</a><a href="https://fluoddity.mino.mobi">fluoddity</a></div></div>
-  <div class="ofb-group"><div class="ofb-links"><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://photo.mino.mobi/orb/">orb</a><a href="https://photo.mino.mobi/fractal/">fractal</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/ternary2/">ternary2</a><a href="https://mino.mobi/ternary3/">ternary3</a><a href="https://rite.mino.mobi">rite</a><a href="https://rite.mino.mobi/fodder/">fodder</a><a href="https://rite.mino.mobi/redact/">redact</a><a href="https://rite.mino.mobi/ask/">ask</a><a href="https://rite.mino.mobi/atlas/">atlas</a><a href="https://rite.mino.mobi/lexicon/">lexicon</a><a href="https://rite.mino.mobi/list/">list</a><a href="https://rite.mino.mobi/web/">web</a><a href="https://rite.mino.mobi/signal/">signal</a><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/collection/techtree.html">techtree</a><a href="https://mino.mobi/cards/collection/grow.html">grow</a><a href="https://mino.mobi/cards/games/recipe.html">recipe</a><a href="https://mino.mobi/cards/games/yum.html">yum</a><a href="https://mino.mobi/geometry/">geometry</a><a href="https://mino.mobi/erdos/">erdos</a><a href="https://mino.mobi/guthkatz/">guthkatz</a><a href="https://mino.mobi/hadwiger/">hadwiger</a><a href="https://mino.mobi/runner/">runner</a><a href="https://mino.mobi/kakeya/">kakeya</a><a href="https://mino.mobi/capset/">capset</a><a href="https://mino.mobi/szemeredi-trotter/">szemeredi-trotter</a><a href="https://mino.mobi/heilbronn/">heilbronn</a><a href="https://mino.mobi/borsuk/">borsuk</a><a href="https://mino.mobi/viazovska/">viazovska</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/read/pendragon/">pendragon</a><a href="https://mino.mobi/read/mabinogi/">mabinogi</a><a href="https://mino.mobi/read/pwyll/">pwyll</a><a href="https://mino.mobi/read/branwen/">branwen</a><a href="https://mino.mobi/read/manawydan/">manawydan</a><a href="https://mino.mobi/read/math/">math</a><a href="https://mino.mobi/read/gawain/">gawain</a><a href="https://mino.mobi/read/culhwch/">culhwch</a><a href="https://mino.mobi/read/orfeo/">orfeo</a><a href="https://mino.mobi/read/owain/">owain</a><a href="https://mino.mobi/read/vitamerlini/">vitamerlini</a><a href="https://mino.mobi/clock/">clock</a><a href="https://mino.mobi/clock/emsim/">emsim</a><a href="https://mino.mobi/clock/stretch/">stretch</a><a href="https://mino.mobi/clock/globe/">globe</a><a href="https://mino.mobi/clock/hand/">hand</a><a href="https://mino.mobi/clock/scope/">scope</a><a href="https://mino.mobi/clock/mole/">mole</a><a href="https://mino.mobi/clock/ship/">ship</a><a href="https://mino.mobi/clock/helix/">helix</a><a href="https://mino.mobi/clock/corn/">corn</a><a href="https://mino.mobi/clock/mol/">mol</a><a href="https://mino.mobi/clock/antoine/">antoine</a><a href="https://mino.mobi/clock/basket/">basket</a><a href="https://mino.mobi/clock/garden/">garden</a><a href="https://mino.mobi/clock/horned/">horned</a><a href="https://mino.mobi/clock/lattice/">lattice</a><a href="https://mino.mobi/clock/scape/">torusworld</a><a href="https://mino.mobi/clock/pac/">pac</a><a href="https://mino.mobi/clock/torpac/">torpac</a><a href="https://mino.mobi/clock/knotpac/">knotpac</a><a href="https://mino.mobi/clock/inpac/">inpac</a><a href="https://mino.mobi/clock/toruschess/">chess</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a><a href="https://mino.mobi/curve/">curve</a></div></div>
+  <div class="ofb-group"><div class="ofb-links"><a href="https://photo.mino.mobi">photo</a><a href="https://photo.mino.mobi/#/thread">thread</a><a href="https://photo.mino.mobi/astro/">astro</a><a href="https://photo.mino.mobi/prism/">prism</a><a href="https://photo.mino.mobi/orb/">orb</a><a href="https://photo.mino.mobi/fractal/">fractal</a><a href="https://mino.mobi/ternary/">ternary</a><a href="https://mino.mobi/ternary2/">ternary2</a><a href="https://mino.mobi/ternary3/">ternary3</a><a href="https://rite.mino.mobi">rite</a><a href="https://rite.mino.mobi/fodder/">fodder</a><a href="https://rite.mino.mobi/redact/">redact</a><a href="https://rite.mino.mobi/ask/">ask</a><a href="https://rite.mino.mobi/atlas/">atlas</a><a href="https://rite.mino.mobi/lexicon/">lexicon</a><a href="https://rite.mino.mobi/list/">list</a><a href="https://rite.mino.mobi/web/">web</a><a href="https://rite.mino.mobi/signal/">signal</a><a href="https://org.mino.mobi">org</a><a href="https://mino.mobi/pm/">pm</a><a href="https://wave.mino.mobi">wave</a><a href="https://mino.mobi/wiki/">wiki</a><a href="https://mino.mobi/crm/">crm</a><a href="https://mino.mobi/finance/">finance</a><a href="https://mino.mobi/finance/bogo/">bogo</a><a href="https://mino.mobi/finance/agimet/">agimet</a><a href="https://mino.mobi/finance/stocks/">stocks</a><a href="https://mino.mobi/wars/">wars</a><a href="https://mino.mobi/wars/cult/">cult</a><a href="https://mino.mobi/cards/">cards</a><a href="https://mino.mobi/cards/collection/techtree.html">techtree</a><a href="https://mino.mobi/cards/collection/grow.html">grow</a><a href="https://mino.mobi/cards/games/recipe.html">recipe</a><a href="https://mino.mobi/cards/games/yum.html">yum</a><a href="https://mino.mobi/geometry/">geometry</a><a href="https://mino.mobi/erdos/">erdos</a><a href="https://mino.mobi/guthkatz/">guthkatz</a><a href="https://mino.mobi/hadwiger/">hadwiger</a><a href="https://mino.mobi/runner/">runner</a><a href="https://mino.mobi/kakeya/">kakeya</a><a href="https://mino.mobi/capset/">capset</a><a href="https://mino.mobi/szemeredi-trotter/">szemeredi-trotter</a><a href="https://mino.mobi/heilbronn/">heilbronn</a><a href="https://mino.mobi/borsuk/">borsuk</a><a href="https://mino.mobi/viazovska/">viazovska</a><a href="https://mino.mobi/read/">read</a><a href="https://mino.mobi/read/flow/">flow</a><a href="https://mino.mobi/read/post01/">post01</a><a href="https://mino.mobi/read/pendragon/">pendragon</a><a href="https://mino.mobi/read/mabinogi/">mabinogi</a><a href="https://mino.mobi/read/pwyll/">pwyll</a><a href="https://mino.mobi/read/branwen/">branwen</a><a href="https://mino.mobi/read/manawydan/">manawydan</a><a href="https://mino.mobi/read/math/">math</a><a href="https://mino.mobi/read/gawain/">gawain</a><a href="https://mino.mobi/read/culhwch/">culhwch</a><a href="https://mino.mobi/read/orfeo/">orfeo</a><a href="https://mino.mobi/read/owain/">owain</a><a href="https://mino.mobi/read/vitamerlini/">vitamerlini</a><a href="https://g.mino.mobi/">clock</a><a href="https://g.mino.mobi/emsim/">emsim</a><a href="https://g.mino.mobi/stretch/">stretch</a><a href="https://g.mino.mobi/globe/">globe</a><a href="https://g.mino.mobi/hand/">hand</a><a href="https://g.mino.mobi/scope/">scope</a><a href="https://g.mino.mobi/mole/">mole</a><a href="https://g.mino.mobi/ship/">ship</a><a href="https://g.mino.mobi/helix/">helix</a><a href="https://g.mino.mobi/corn/">corn</a><a href="https://g.mino.mobi/mol/">mol</a><a href="https://g.mino.mobi/antoine/">antoine</a><a href="https://g.mino.mobi/basket/">basket</a><a href="https://g.mino.mobi/garden/">garden</a><a href="https://g.mino.mobi/horned/">horned</a><a href="https://g.mino.mobi/lattice/">lattice</a><a href="https://torus.mino.mobi/">torusworld</a><a href="https://torus.mino.mobi/pac/">pac</a><a href="https://torus.mino.mobi/torpac/">torpac</a><a href="https://torus.mino.mobi/knotpac/">knotpac</a><a href="https://torus.mino.mobi/inpac/">inpac</a><a href="https://torus.mino.mobi/toruschess/">chess</a><a href="https://mino.mobi/pokemon/">pokemon</a><a href="https://mino.mobi/pokemon/proteus/">proteus</a><a href="https://mino.mobi/mmo/">mmo</a><a href="https://mino.mobi/draw/">draw</a><a href="https://mino.mobi/paint/">paint</a><a href="https://mino.mobi/range/">range</a><a href="https://mino.mobi/curve/">curve</a></div></div>
 </nav>
   </div>
 </div>
@@ -1559,7 +1581,7 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/">clock</a>
+      <a href="https://g.mino.mobi/">clock</a>
       <span class="tag">webgpu</span>
       <span class="tag">canvas</span>
     </div>
@@ -1666,35 +1688,35 @@ footer a:hover {
 <ul class="projects">
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/pac/">pac</a>
+      <a href="https://torus.mino.mobi/pac/">pac</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">First-person Pac-Man on a torus. FPV view with physics simulation on a curved surface.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/torpac/">torpac</a>
+      <a href="https://torus.mino.mobi/torpac/">torpac</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">Multi-torus Pac-Man. Play across multiple toroidal worlds with customizable configurations.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/knotpac/">knotpac</a>
+      <a href="https://torus.mino.mobi/knotpac/">knotpac</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">Pac-Man on torus knots. Topological shapes&mdash;Hopf Link, Borromean Rings, and beyond.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/inpac/">inpac</a>
+      <a href="https://torus.mino.mobi/inpac/">inpac</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">Interior Pac-Man. First-person gameplay inside the hollow interior of a large torus.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/toruschess/">chess</a>
+      <a href="https://torus.mino.mobi/toruschess/">chess</a>
       <span class="tag">canvas</span>
       <span class="tag">webrtc</span>
     </div>
@@ -1702,14 +1724,14 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/emsim/">emsim</a>
+      <a href="https://g.mino.mobi/emsim/">emsim</a>
       <span class="tag">canvas</span>
     </div>
     <div class="desc">Multi-physics torus field simulator. Position tori with gravity, magnetic, and force field interactions.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/scape/">scape</a>
+      <a href="https://torus.mino.mobi/">scape</a>
       <span class="tag">canvas</span>
       <span class="tag">webrtc</span>
     </div>
@@ -1717,28 +1739,28 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/stretch/">stretch</a>
+      <a href="https://g.mino.mobi/stretch/">stretch</a>
       <span class="tag">webgpu</span>
     </div>
     <div class="desc">Interactive 3D deformable blob geometry rendered with GPU acceleration.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/globe/">globe</a>
+      <a href="https://g.mino.mobi/globe/">globe</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">Earth globe with analytical ocean currents. Land-masked particle drift, no visible mesh bands.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/hand/">hand</a>
+      <a href="https://g.mino.mobi/hand/">hand</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">Articulated hand rig for clock-family demos.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/scope/">scope</a>
+      <a href="https://g.mino.mobi/scope/">scope</a>
       <span class="tag">canvas</span>
     </div>
     <div class="desc">Telescoping scope visualization inside the clock family.</div>
@@ -1759,14 +1781,14 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/mole/">mole</a>
+      <a href="https://g.mino.mobi/mole/">mole</a>
       <span class="tag">webgpu</span>
     </div>
     <div class="desc">WebGPU molecular dynamics. Twelve molecules including C60 and exotic elements rendered at interactive frame rates.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/ship/">ship</a>
+      <a href="https://g.mino.mobi/ship/">ship</a>
       <span class="tag">webgl</span>
     </div>
     <div class="desc">Sail simulator. Wind-driven physics on the clock&rsquo;s family of curved surfaces.</div>
@@ -1834,35 +1856,35 @@ footer a:hover {
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/antoine/">antoine</a>
+      <a href="https://g.mino.mobi/antoine/">antoine</a>
       <span class="tag">webgpu</span>
     </div>
     <div class="desc">Antoine&rsquo;s Necklace&mdash;an infinite GPU zoom into interlocking torus beads, each chain opening onto another.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/basket/">basket</a>
+      <a href="https://g.mino.mobi/basket/">basket</a>
       <span class="tag">webgpu</span>
     </div>
     <div class="desc">Basket Star&mdash;a furling, five-fold fractal brittle star rendered on the GPU.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/garden/">garden</a>
+      <a href="https://g.mino.mobi/garden/">garden</a>
       <span class="tag">atproto</span>
     </div>
     <div class="desc">Fluoddity Garden&mdash;a branching, ATProto-backed gallery of organisms; fork one to grow a new branch.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/horned/">horned</a>
+      <a href="https://g.mino.mobi/horned/">horned</a>
       <span class="tag">webgpu</span>
     </div>
     <div class="desc">Alexander&rsquo;s Horned Sphere&mdash;an endless zoom into open horns bifurcating toward a Cantor limit.</div>
   </li>
   <li>
     <div class="name-row">
-      <a href="https://mino.mobi/clock/lattice/">lattice</a>
+      <a href="https://g.mino.mobi/lattice/">lattice</a>
       <span class="tag">webgpu</span>
     </div>
     <div class="desc">Horned Sphere, latticed&mdash;a recursive, ray-marched lattice of interlocking horns.</div>
@@ -1918,12 +1940,12 @@ footer a:hover {
   </li>
   <li>
     <code>ship-sail-simulator</code>
-    <span class="claude-ships">shipped <a href="https://mino.mobi/clock/ship/">ship</a></span>
+    <span class="claude-ships">shipped <a href="https://g.mino.mobi/ship/">ship</a></span>
     <span class="claude-blurb">Wind-driven sail physics on the clock&rsquo;s curved-surface family.</span>
   </li>
   <li>
     <code>webgpu-molecular-dynamics</code>
-    <span class="claude-ships">shipped <a href="https://mino.mobi/clock/mole/">mole</a></span>
+    <span class="claude-ships">shipped <a href="https://g.mino.mobi/mole/">mole</a></span>
     <span class="claude-blurb">Twelve molecules including C60 rendered at interactive rates on the GPU.</span>
   </li>
   <li>
@@ -2129,28 +2151,28 @@ footer a:hover {
     { n:'borges',   u:'https://borges.mino.mobi',                c:'tools',   k:27, a:'hot', t:'2026-06-02', b:'2026-06-01' },
     { n:'ai-edu',   u:'https://ai.mino.mobi',                    c:'tools',   k:26, a:'hot', t:'2026-05-30', b:'2026-05-25' },
     // games
-    { n:'clock',     u:'https://mino.mobi/clock/',               c:'games',   k:119,a:'hot', t:'2026-06-02', b:'2026-03-22' },
-    { n:'emsim',     u:'https://mino.mobi/clock/emsim/',         c:'games',   k:17, a:'warm', t:'2026-05-29', b:'2026-04-03', p:'clock' },
-    { n:'stretch',   u:'https://mino.mobi/clock/stretch/',       c:'games',   k:4,  a:'warm', t:'2026-05-29', b:'2026-03-27', p:'clock' },
-    { n:'globe',     u:'https://mino.mobi/clock/globe/',         c:'games',   k:11, a:'hot', t:'2026-05-29', b:'2026-04-11',  p:'clock' },
-    { n:'hand',      u:'https://mino.mobi/clock/hand/',          c:'games',   k:6,  a:'warm', t:'2026-05-29', b:'2026-04-13', p:'clock' },
-    { n:'scope',     u:'https://mino.mobi/clock/scope/',         c:'games',   k:6,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
-    { n:'mole',      u:'https://mino.mobi/clock/mole/',          c:'games',   k:3,  a:'hot', t:'2026-05-29', b:'2026-05-15',  p:'clock' },
-    { n:'ship',      u:'https://mino.mobi/clock/ship/',          c:'games',   k:6,  a:'hot', t:'2026-05-29', b:'2026-04-28',  p:'clock' },
-    { n:'helix',     u:'https://mino.mobi/clock/helix/',         c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
-    { n:'corn',      u:'https://mino.mobi/clock/corn/',          c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
-    { n:'mol',       u:'https://mino.mobi/clock/mol/',           c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'clock' },
-    { n:'antoine',   u:'https://mino.mobi/clock/antoine/',       c:'games',   k:2,  a:'warm', t:'2026-05-30', b:'2026-05-30', p:'clock' },
-    { n:'basket',    u:'https://mino.mobi/clock/basket/',        c:'games',   k:9,  a:'hot', t:'2026-06-02', b:'2026-06-02',  p:'clock' },
-    { n:'garden',    u:'https://mino.mobi/clock/garden/',        c:'games',   k:6,  a:'hot', t:'2026-05-27', b:'2026-05-27',  p:'clock' },
-    { n:'horned',    u:'https://mino.mobi/clock/horned/',        c:'games',   k:7,  a:'warm', t:'2026-05-31', b:'2026-05-30', p:'clock' },
-    { n:'lattice',   u:'https://mino.mobi/clock/lattice/',       c:'games',   k:1,  a:'warm', t:'2026-05-31', b:'2026-05-31', p:'clock' },
-    { n:'torusworld',u:'https://mino.mobi/clock/scape/',         c:'games',   k:24, a:'warm', t:'2026-05-29', b:'2026-03-29' },
-    { n:'pac',       u:'https://mino.mobi/clock/pac/',           c:'games',   k:18, a:'hot', t:'2026-05-29', b:'2026-04-02',  p:'torusworld' },
-    { n:'torpac',    u:'https://mino.mobi/clock/torpac/',        c:'games',   k:1,  a:'warm', t:'2026-05-29', b:'2026-04-03', p:'torusworld' },
-    { n:'knotpac',   u:'https://mino.mobi/clock/knotpac/',       c:'games',   k:11, a:'warm', t:'2026-05-29', b:'2026-04-02', p:'torusworld' },
-    { n:'inpac',     u:'https://mino.mobi/clock/inpac/',         c:'games',   k:9,  a:'warm', t:'2026-05-29', b:'2026-04-02', p:'torusworld' },
-    { n:'chess',     u:'https://mino.mobi/clock/toruschess/',    c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-03-30', p:'torusworld' },
+    { n:'g',     u:'https://g.mino.mobi/',               c:'games',   k:119,a:'hot', t:'2026-06-02', b:'2026-03-22' },
+    { n:'emsim',     u:'https://g.mino.mobi/emsim/',         c:'games',   k:17, a:'warm', t:'2026-05-29', b:'2026-04-03', p:'g' },
+    { n:'stretch',   u:'https://g.mino.mobi/stretch/',       c:'games',   k:4,  a:'warm', t:'2026-05-29', b:'2026-03-27', p:'g' },
+    { n:'globe',     u:'https://g.mino.mobi/globe/',         c:'games',   k:11, a:'hot', t:'2026-05-29', b:'2026-04-11',  p:'g' },
+    { n:'hand',      u:'https://g.mino.mobi/hand/',          c:'games',   k:6,  a:'warm', t:'2026-05-29', b:'2026-04-13', p:'g' },
+    { n:'scope',     u:'https://g.mino.mobi/scope/',         c:'games',   k:6,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'g' },
+    { n:'mole',      u:'https://g.mino.mobi/mole/',          c:'games',   k:3,  a:'hot', t:'2026-05-29', b:'2026-05-15',  p:'g' },
+    { n:'ship',      u:'https://g.mino.mobi/ship/',          c:'games',   k:6,  a:'hot', t:'2026-05-29', b:'2026-04-28',  p:'g' },
+    { n:'helix',     u:'https://g.mino.mobi/helix/',         c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'g' },
+    { n:'corn',      u:'https://g.mino.mobi/corn/',          c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'g' },
+    { n:'mol',       u:'https://g.mino.mobi/mol/',           c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-04-11', p:'g' },
+    { n:'antoine',   u:'https://g.mino.mobi/antoine/',       c:'games',   k:2,  a:'warm', t:'2026-05-30', b:'2026-05-30', p:'g' },
+    { n:'basket',    u:'https://g.mino.mobi/basket/',        c:'games',   k:9,  a:'hot', t:'2026-06-02', b:'2026-06-02',  p:'g' },
+    { n:'garden',    u:'https://g.mino.mobi/garden/',        c:'games',   k:6,  a:'hot', t:'2026-05-27', b:'2026-05-27',  p:'g' },
+    { n:'horned',    u:'https://g.mino.mobi/horned/',        c:'games',   k:7,  a:'warm', t:'2026-05-31', b:'2026-05-30', p:'g' },
+    { n:'lattice',   u:'https://g.mino.mobi/lattice/',       c:'games',   k:1,  a:'warm', t:'2026-05-31', b:'2026-05-31', p:'g' },
+    { n:'torus',u:'https://torus.mino.mobi/',         c:'games',   k:24, a:'warm', t:'2026-05-29', b:'2026-03-29' },
+    { n:'pac',       u:'https://torus.mino.mobi/pac/',           c:'games',   k:18, a:'hot', t:'2026-05-29', b:'2026-04-02',  p:'torus' },
+    { n:'torpac',    u:'https://torus.mino.mobi/torpac/',        c:'games',   k:1,  a:'warm', t:'2026-05-29', b:'2026-04-03', p:'torus' },
+    { n:'knotpac',   u:'https://torus.mino.mobi/knotpac/',       c:'games',   k:11, a:'warm', t:'2026-05-29', b:'2026-04-02', p:'torus' },
+    { n:'inpac',     u:'https://torus.mino.mobi/inpac/',         c:'games',   k:9,  a:'warm', t:'2026-05-29', b:'2026-04-02', p:'torus' },
+    { n:'chess',     u:'https://torus.mino.mobi/toruschess/',    c:'games',   k:2,  a:'warm', t:'2026-05-29', b:'2026-03-30', p:'torus' },
     { n:'pokemon',   u:'https://mino.mobi/pokemon/',             c:'games',   k:22, a:'warm', t:'2026-05-29', b:'2026-03-14' },
     { n:'proteus',   u:'https://mino.mobi/pokemon/proteus/',     c:'games',   k:15, a:'hot', t:'2026-05-29', b:'2026-05-17',  p:'pokemon' },
     { n:'mmo',       u:'https://mino.mobi/mmo/',                 c:'games',   k:18, a:'hot', t:'2026-05-29', b:'2026-05-14' },
@@ -2160,6 +2182,7 @@ footer a:hover {
     { n:'curve',     u:'https://mino.mobi/curve/',               c:'games',   k:1,  a:'hot', t:'2026-05-30', b:'2026-05-30',  p:'mmo' },
     { n:'splice',    u:'https://splice.mino.mobi',               c:'games',   k:25, a:'hot', t:'2026-05-30', b:'2026-05-29' },
     { n:'games',     u:'https://games.mino.mobi',                c:'games',   k:2,  a:'warm', t:'2026-05-23', b:'2026-05-22' },
+    { n:'canvas',   u:'https://canvas.mino.mobi',               c:'tools',   k:2,  a:'warm', t:'2026-06-04', b:'2026-06-04' },
     { n:'fluoddity', u:'https://fluoddity.mino.mobi',            c:'games',   k:43, a:'hot', t:'2026-06-02', b:'2026-05-27' },
   ];
 
