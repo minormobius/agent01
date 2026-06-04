@@ -85,7 +85,7 @@ function makeBees() {
     a.href = b.u;
     a.title = b.n;
     a.style.setProperty('--bee-hue', Math.round((i / BEES.length) * 360));
-    a.innerHTML = `<span class="bee-body"></span><span class="bee-name">${b.n}</span>`;
+    a.innerHTML = `<span class="bee-body"></span><span class="bee-glyph">🐝</span><span class="bee-name">${b.n}</span>`;
     layer.appendChild(a);
     return a;
   });
