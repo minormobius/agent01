@@ -69,7 +69,11 @@ jobs:
           echo "Deploying Pages project: $PROJECT"
 
       - name: Deploy to Cloudflare Pages (production branch)
-        run: npx wrangler pages deploy . --project-name="${{ steps.proj.outputs.name }}" --branch=main --commit-dirty=true
+        # --commit-message is forced to an ASCII string (the SHA). Wrangler would
+        # otherwise forward the git HEAD message to the Pages deployments API, which
+        # rejects multibyte chars (em-dashes etc.) with a misleading
+        # "Invalid commit message, it must be a valid UTF-8 string [8000111]".
+        run: npx wrangler pages deploy . --project-name="${{ steps.proj.outputs.name }}" --branch=main --commit-dirty=true --commit-hash="${{ github.sha }}" --commit-message="root deploy ${{ github.sha }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
