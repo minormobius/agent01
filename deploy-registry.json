@@ -665,13 +665,13 @@
     {
       "surface": "answers",
       "dir": "answers",
-      "endpoint": "answers.mino.mobi (pending attach)",
+      "endpoint": "ask.mino.mobi",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-answers.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
-      "note": "Answers — ATProto Q&A. Static worker-assets (Worker `mino-answers`). Currently served via root bundle at mino.mobi/answers/; own subdomain not attached. Has inline OAuth (answers/assets/answers.js + answers/docs.html) — migrate to shared oauth-client when carving fully.",
+      "status": "MANAGED — FIXED (zoom-bucket): the answers/ site is live at ask.mino.mobi via a worker named `ask` (not answers.mino.mobi). Config renamed mino-answers -> ask + custom_domain route, so the Action now updates the live worker (was deploying stray mino-answers; ask sat ~45 days). CLEANUP: delete the orphan `mino-answers` worker.",
+      "note": "\"Answers — powered by ATProto\". Static worker-assets. Live subdomain is ask.mino.mobi (worker `ask`); also bundled at mino.mobi/answers/. Has inline OAuth (answers/assets/answers.js) — migrate to shared oauth-client later.",
       "paths": [
         "answers/**"
       ]
