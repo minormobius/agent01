@@ -714,13 +714,28 @@
       "paths": [
         "audio/**"
       ]
+    },
+    {
+      "surface": "os",
+      "dir": "os",
+      "endpoint": "os.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED (frontend) — deploy-os.yml: Vite build -> Worker `pds-os`, live at os.mino.mobi (probe-verified). The backend container worker (os/api, os-mino-api) is deliberately NOT auto-deployed: see deploy-os-api.yml (manual, dispatch-only) + unmanaged.in_progress.",
+      "note": "React + Vite + xterm.js terminal UI; talks to os-api (Cloudflare Containers backend) at runtime via SYNC_URL. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
+      "paths": [
+        "os/**",
+        "!os/api/**"
+      ]
     }
   ],
   "unmanaged": {
     "$comment": "Have a wrangler config but NO deploy workflow. `sites` here are all currently BUNDLED into the root Pages project (served at mino.mobi/<name>/) — their own-subdomain workers are not attached. Each needs a CARVE-OUT (own worker deploy + domain attach + drop from root bundle), not just a workflow. `in_progress` + `reference_workers` as before.",
     "sites": [],
     "in_progress": [
-      "os"
+      "os/api (Cloudflare Containers worker os-mino-api; deploy-os-api.yml is READY but dispatch-only; pending: enable CF Containers, set SYNC_TOKEN+GITHUB_TOKEN secrets, create R2 bucket os-workspace, attach os-api.minomobi.com)"
     ],
     "reference_workers": [
       "workers/bsky-bot",
