@@ -644,18 +644,82 @@
       "paths": [
         "wave/**"
       ]
+    },
+    {
+      "surface": "wars",
+      "dir": "wars",
+      "endpoint": "war.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-wars.yml). Independent worker, own subdomain live (probe-verified). Disconnect CF git once this Action is confirmed canonical.",
+      "note": "War Factor Analysis — Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
+      "paths": [
+        "wars/**"
+      ]
+    },
+    {
+      "surface": "answers",
+      "dir": "answers",
+      "endpoint": "answers.mino.mobi (pending attach)",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-answers.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "note": "Answers — ATProto Q&A. Static worker-assets (Worker `mino-answers`). Currently served via root bundle at mino.mobi/answers/; own subdomain not attached. Has inline OAuth (answers/assets/answers.js + answers/docs.html) — migrate to shared oauth-client when carving fully.",
+      "paths": [
+        "answers/**"
+      ]
+    },
+    {
+      "surface": "disk",
+      "dir": "disk",
+      "endpoint": "disk.mino.mobi (pending attach)",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-disk.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "note": "disk — Poincare interaction map. Static worker-assets (Worker `mino-disk`). Currently served via root bundle at mino.mobi/disk/; own subdomain not attached.",
+      "paths": [
+        "disk/**"
+      ]
+    },
+    {
+      "surface": "crm",
+      "dir": "crm",
+      "endpoint": "crm.mino.mobi (pending attach)",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-crm.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "note": "Vault CRM SPA (Vite + tsc -> ./dist, Worker `crm`). Currently served via root bundle at mino.mobi/crm/; own subdomain not attached.",
+      "paths": [
+        "crm/**"
+      ]
+    },
+    {
+      "surface": "audio",
+      "dir": "audio",
+      "endpoint": "audio.mino.mobi (pending attach)",
+      "type": "fullstack",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-audio.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "note": "Audio Rooms — voice-room app. Vite monorepo (apps/web -> audio/dist) + Worker `audio-rooms-api` with Durable Object RoomCoordinator. Domain audio.mino.mobi not yet attached; first deploy stands up the worker+DO at workers.dev. Attach domain in dashboard to launch.",
+      "paths": [
+        "audio/**"
+      ]
     }
   ],
   "unmanaged": {
     "$comment": "Have a wrangler config but NO deploy workflow. `sites` here are all currently BUNDLED into the root Pages project (served at mino.mobi/<name>/) — their own-subdomain workers are not attached. Each needs a CARVE-OUT (own worker deploy + domain attach + drop from root bundle), not just a workflow. `in_progress` + `reference_workers` as before.",
-    "sites": [
-      "answers",
-      "crm",
-      "disk",
-      "wars"
-    ],
+    "sites": [],
     "in_progress": [
-      "audio",
       "os"
     ],
     "reference_workers": [
