@@ -429,8 +429,8 @@
       "paths": [
         "zoom/**"
       ],
-      "status": "MANAGED — FIXED: now deploys to the live Cloudflare PAGES project `zoom` via `wrangler pages deploy --project-name=zoom` (was wrongly running `wrangler deploy`, which updated a stray Worker `mino-zoom` on workers.dev, leaving zoom.mino.mobi frozen ~2mo). CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
-      "note": "Vite/React build -> ./dist, published to the `zoom` Pages project (production slot, --branch=main). zoom/wrangler.jsonc still says name:mino-zoom but is IGNORED by pages deploy (CLI --project-name wins); left as-is to minimize churn."
+      "status": "MANAGED — FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
+      "note": "Vite/React build -> ./dist, Worker `zoom` with custom_domain zoom.mino.mobi (canvas/math/g/torus pattern). NB: zoom is a Worker, not a Pages project (verified: no Pages project named zoom)."
     },
     {
       "surface": "math",

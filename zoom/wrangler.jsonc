@@ -1,8 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mino-zoom",
+  "name": "zoom",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "dist"
-  }
+  },
+  "routes": [
+    { "pattern": "zoom.mino.mobi", "custom_domain": true }
+  ]
 }
