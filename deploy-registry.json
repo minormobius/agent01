@@ -53,7 +53,7 @@
       "surface": "airchat",
       "dir": "airchat",
       "endpoint": "airchat.mino.mobi, yapchat.mino.mobi",
-      "type": "backend",
+      "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
         "atpolls-db"
@@ -160,7 +160,7 @@
     {
       "surface": "cards",
       "dir": "cards",
-      "endpoint": "cards",
+      "endpoint": "cards.mino.mobi",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -174,7 +174,7 @@
       "surface": "cat",
       "dir": "cat",
       "endpoint": "cat.mino.mobi",
-      "type": "backend",
+      "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
         "atpolls-db"
@@ -259,7 +259,7 @@
     {
       "surface": "fluoddity",
       "dir": "fluoddity",
-      "endpoint": "fluoddity-minomobi",
+      "endpoint": "fluoddity.mino.mobi",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -299,7 +299,7 @@
       "surface": "io",
       "dir": "io",
       "endpoint": "io.mino.mobi",
-      "type": "backend",
+      "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
         "atpolls-db",
@@ -346,7 +346,7 @@
       "surface": "poll",
       "dir": "poll",
       "endpoint": "poll.mino.mobi",
-      "type": "backend",
+      "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
         "atpolls-db"
@@ -373,7 +373,7 @@
       "surface": "rite",
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
-      "type": "backend",
+      "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
         "atpolls-db"
