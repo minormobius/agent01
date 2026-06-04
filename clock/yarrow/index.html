@@ -3,513 +3,511 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Yarrow · The Stalk Oracle</title>
-<meta name="description" content="A procedurally drawn yarrow-stalk oracle. Cast the I Ching the old way — 49 stalks, divided by hand, three changes to a line.">
+<title>Yarrow — Achillea millefolium · a generated specimen</title>
+<meta name="description" content="One perfect yarrow stalk, grown from a single number. A procedural herbarium specimen of Achillea millefolium with a dissertation on its botanical characteristics and the ruleset that generates it.">
 <style>
 :root{
-  --bg:#0b0a10; --bg2:#14111b; --ink:#e9d6a8; --ink-soft:rgba(233,214,168,.55);
-  --gold:#e7c46a; --gold-dim:rgba(231,196,106,.35); --straw:#cdb98a;
-  --line:rgba(231,196,106,.18); --change:#e0623c;
+  --paper:#f3ecdb; --paper2:#efe6d0; --ink:#2a2722; --ink2:#5b5346; --faint:#8a7f6c;
+  --rule:rgba(42,39,34,.14); --green:#5d6a3e; --rose:#9c5a63; --ochre:#b88a3c;
+  --accent:#7c6a3a;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:radial-gradient(120% 90% at 50% -10%,#1a1526 0%,var(--bg) 55%,#070609 100%);
-  color:var(--ink);font:15px/1.5 ui-serif,Georgia,"Songti SC",serif;-webkit-text-size-adjust:100%;
-  -webkit-tap-highlight-color:transparent;overflow-x:hidden}
-body{display:flex;flex-direction:column;min-height:100%;align-items:center}
-a{color:var(--gold);text-decoration:none}
+html{ -webkit-text-size-adjust:100%; }
+body{ min-height:100%; background:var(--paper);
+  color:var(--ink); font:16px/1.62 ui-serif,"Iowan Old Style",Georgia,"Songti SC",serif;
+  -webkit-font-smoothing:antialiased; }
+a{color:var(--accent)} a:hover{color:var(--rose)}
 #back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;
-  color:var(--ink-soft);letter-spacing:.06em}
-#back:hover{color:var(--gold)}
-header{text-align:center;padding:34px 16px 6px;max-width:680px}
-.glyph{font-size:46px;color:var(--gold);line-height:1;text-shadow:0 0 30px rgba(231,196,106,.4)}
-h1{font:600 22px/1.1 ui-serif,Georgia,serif;letter-spacing:.18em;margin:8px 0 2px;text-transform:uppercase}
-.sub{color:var(--ink-soft);font-size:13px;font-style:italic;max-width:46ch;margin:0 auto}
+  color:var(--faint);letter-spacing:.06em;text-decoration:none}
+#back:hover{color:var(--ink)}
 
-#stage{width:100%;max-width:760px;flex:1;display:flex;flex-direction:column;align-items:center;
-  padding:8px 14px 40px}
-#q{width:100%;max-width:520px;margin:18px auto 10px;display:flex;gap:8px}
-#q input{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--ink);
-  border-radius:9px;padding:11px 14px;font:italic 15px/1 ui-serif,Georgia,serif;outline:none}
-#q input::placeholder{color:rgba(233,214,168,.3)}
-#q input:focus{border-color:var(--gold-dim)}
+.wrap{max-width:1080px;margin:0 auto;padding:46px 22px 64px}
+.masthead{text-align:center;border-bottom:1.5px double var(--rule);padding-bottom:16px;margin-bottom:8px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.34em;text-transform:uppercase;color:var(--faint)}
+.latin{font:italic 700 30px/1.1 ui-serif,Georgia,serif;letter-spacing:.01em;margin:9px 0 3px}
+.latin .auth{font-weight:400;font-style:normal;font-size:18px;color:var(--ink2)}
+.commons{font-size:14px;color:var(--ink2)}
+.commons b{font-weight:600;color:var(--ink)}
 
-.altar{position:relative;width:100%;max-width:560px;aspect-ratio:1/.86;margin:6px auto 0}
-canvas{display:block;width:100%;height:100%}
-#narr{min-height:1.4em;text-align:center;font:13px/1.4 ui-monospace,monospace;color:var(--ink-soft);
-  letter-spacing:.03em;margin:2px 0 10px;padding:0 8px}
-#narr b{color:var(--gold);font-weight:600}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:30px;margin-top:26px}
+@media(max-width:820px){ .layout{grid-template-columns:1fr} }
 
-.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:2px}
-button{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.06em;color:var(--bg);
-  background:linear-gradient(180deg,#f1d588,#d6a94e);border:0;border-radius:999px;
-  padding:12px 22px;cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s;
-  box-shadow:0 6px 22px rgba(231,196,106,.22)}
-button:hover{transform:translateY(-1px);box-shadow:0 9px 26px rgba(231,196,106,.34)}
-button:active{transform:translateY(0)}
-button.ghost{background:transparent;color:var(--ink-soft);box-shadow:none;border:1px solid var(--line)}
-button.ghost:hover{color:var(--gold);border-color:var(--gold-dim)}
-button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
+/* ── the specimen plate ── */
+.plate{position:relative;border:1px solid var(--rule);background:
+  linear-gradient(180deg,#f6f0e1,#ece2cb);box-shadow:0 1px 0 #fff inset,0 10px 30px rgba(60,50,30,.10);
+  border-radius:3px;overflow:hidden}
+.plate canvas{display:block;width:100%;height:auto;aspect-ratio:3/4}
+.platelabel{position:absolute;right:10px;bottom:10px;width:188px;background:rgba(249,244,232,.92);
+  border:1px solid var(--rule);padding:9px 11px;font:10.5px/1.45 ui-monospace,monospace;color:var(--ink2);
+  box-shadow:0 2px 8px rgba(60,50,30,.12)}
+.platelabel .h{font-weight:700;letter-spacing:.16em;color:var(--ink);border-bottom:1px solid var(--rule);
+  padding-bottom:4px;margin-bottom:5px;display:flex;justify-content:space-between}
+.platelabel .row{display:flex;justify-content:space-between;gap:8px}
+.platelabel .row span:last-child{color:var(--ink);text-align:right}
 
-.tally{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;
-  font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
-.tally .dot{display:inline-flex;flex-direction:column;align-items:center;gap:4px}
-.tally .n{font-size:20px;color:var(--gold);font-weight:700}
-.tally .l{letter-spacing:.08em;text-transform:uppercase;font-size:10px}
+.tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
+button{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--paper);
+  background:var(--green);border:0;border-radius:7px;padding:11px 17px;cursor:pointer;
+  transition:transform .12s,filter .12s}
+button:hover{filter:brightness(1.08);transform:translateY(-1px)} button:active{transform:none}
+button.ghost{background:transparent;color:var(--ink2);border:1px solid var(--rule)}
+button.ghost:hover{color:var(--ink);filter:none}
+.seedline{font:12px/1 ui-monospace,monospace;color:var(--faint);display:flex;align-items:center;gap:6px}
+.seedline input{width:104px;background:rgba(255,255,255,.5);border:1px solid var(--rule);border-radius:5px;
+  color:var(--ink);font:12px/1 ui-monospace,monospace;padding:7px 8px;outline:none}
+.seedline input:focus{border-color:var(--green)}
 
-#result{width:100%;max-width:620px;margin:22px auto 0;opacity:0;transform:translateY(10px);
-  transition:opacity .6s,transform .6s;pointer-events:none}
-#result.show{opacity:1;transform:none;pointer-events:auto}
-.cast{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
-.hexcard{text-align:center;min-width:150px}
-.hexcard .hx{font-size:34px;color:var(--gold);line-height:1.05;letter-spacing:.04em}
-.hexcard .no{font:12px/1 ui-monospace,monospace;color:var(--ink-soft);margin:6px 0 2px;letter-spacing:.1em}
-.hexcard .ch{font-size:26px;color:var(--ink);font-family:"Songti SC","STSong",ui-serif,serif}
-.hexcard .py{font-style:italic;color:var(--straw);font-size:14px}
-.hexcard .en{font-size:15px;letter-spacing:.04em;margin-top:1px}
-.arrow{display:flex;align-items:center;color:var(--gold-dim);font-size:24px}
-.judg{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;
-  padding:16px 18px;margin:6px 0;font-size:15.5px;line-height:1.6}
-.judg .lab{font:11px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--gold-dim);display:block;margin-bottom:7px}
-.moving{font-size:13.5px;color:var(--ink-soft);line-height:1.6}
-.moving b{color:var(--change);font-weight:600}
-.moving .changedot{color:var(--change)}
-#result .foot{text-align:center;margin-top:18px}
+/* ── dissertation ── */
+.diss{font-size:15.5px}
+.diss h2{font:600 13px/1.2 ui-monospace,monospace;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--accent);margin:22px 0 7px;display:flex;align-items:center;gap:10px}
+.diss h2::before{content:"";flex:0 0 22px;height:1px;background:var(--accent);opacity:.5}
+.diss h2:first-child{margin-top:4px}
+.diss p{margin:0 0 11px} .diss p+p{text-indent:1.1em}
+.diss .lead{font-size:16.5px}
+.diss .lead::first-letter{font-size:3.1em;float:left;line-height:.82;padding:6px 8px 0 0;
+  font-weight:700;color:var(--green);font-family:ui-serif,Georgia,serif}
+.diss em{color:var(--ink)}
+.fieldnote{background:rgba(124,106,58,.07);border-left:3px solid var(--green);
+  padding:12px 15px;margin:14px 0;font-size:14.5px;color:var(--ink2);border-radius:0 6px 6px 0}
+.fieldnote b{color:var(--ink);font-weight:600}
 
-footer{color:rgba(233,214,168,.32);font:11px/1.6 ui-monospace,monospace;text-align:center;
-  padding:26px 16px 34px;max-width:560px}
-footer a{color:rgba(233,214,168,.5)}
-@media(max-width:480px){ .glyph{font-size:38px} h1{font-size:18px} .arrow{transform:rotate(90deg)} }
+/* ── ruleset table ── */
+.ruleset{margin-top:8px;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.ruleset .cap{background:rgba(93,106,62,.10);font:11px/1 ui-monospace,monospace;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);padding:9px 13px;border-bottom:1px solid var(--rule)}
+.ruleset table{width:100%;border-collapse:collapse;font-size:13.5px}
+.ruleset td{padding:8px 13px;vertical-align:top;border-bottom:1px solid var(--rule)}
+.ruleset tr:last-child td{border-bottom:0}
+.ruleset td.k{width:42%;color:var(--ink2)} .ruleset td.k b{color:var(--ink);font-weight:600}
+.ruleset td.v{color:var(--ink);font-family:ui-monospace,monospace;font-size:12.5px}
+.ruleset td.v .note{display:block;color:var(--faint);font-family:ui-serif,Georgia,serif;
+  font-size:12.5px;margin-top:2px}
+
+footer{border-top:1px solid var(--rule);margin-top:40px;padding-top:18px;text-align:center;
+  font:11.5px/1.7 ui-monospace,monospace;color:var(--faint)}
+footer a{color:var(--ink2)}
 </style>
 </head>
 <body>
 <a id="back" href="../">&larr; gallery</a>
 
-<header>
-  <div class="glyph">蓍</div>
-  <h1>Yarrow</h1>
-  <p class="sub">The oracle cast the old way — fifty stalks of milfoil, divided by hand, three changes to a line, six lines to a hexagram.</p>
-</header>
-
-<main id="stage">
-  <form id="q" autocomplete="off" onsubmit="return false">
-    <input id="qtext" placeholder="Hold a question in mind (optional)…" maxlength="120">
-  </form>
-
-  <div class="altar">
-    <canvas id="c"></canvas>
-  </div>
-  <div id="narr">Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.</div>
-
-  <div class="controls">
-    <button id="cast">Divide the stalks</button>
-    <button id="auto" class="ghost">Cast all six</button>
-    <button id="reset" class="ghost" hidden>Fresh bundle</button>
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">Minomobi Herbarium · Living Procedural Collection</div>
+    <div class="latin">Achillea millefolium <span class="auth">L.</span></div>
+    <div class="commons">Yarrow · Milfoil · Thousand-leaf · Soldier's woundwort &nbsp;—&nbsp; family <b>Asteraceae</b></div>
   </div>
 
-  <div class="tally" id="tallyrow" hidden>
-    <span class="dot"><span class="n" id="t-line">—</span><span class="l">line</span></span>
-    <span class="dot"><span class="n" id="t-pile">49</span><span class="l">in hand</span></span>
-    <span class="dot"><span class="n" id="t-set">0</span><span class="l">set aside</span></span>
+  <div class="layout">
+    <!-- LEFT: the specimen -->
+    <div>
+      <div class="plate">
+        <canvas id="c" width="600" height="800"></canvas>
+        <div class="platelabel">
+          <div class="h"><span>MINOMOBI HERB.</span><span id="lab-acc">№ —</span></div>
+          <div class="row"><span>Achillea millefolium</span><span id="lab-morph">—</span></div>
+          <div class="row"><span>height</span><span id="lab-h">—</span></div>
+          <div class="row"><span>cauline leaves</span><span id="lab-leaves">—</span></div>
+          <div class="row"><span>capitula</span><span id="lab-heads">—</span></div>
+          <div class="row"><span>det.</span><span>procedural</span></div>
+        </div>
+      </div>
+
+      <div class="tools">
+        <button id="grow">⟳ New specimen</button>
+        <span class="seedline">seed
+          <input id="seed" inputmode="numeric" maxlength="10" aria-label="seed">
+          <button class="ghost" id="sow">sow</button>
+        </span>
+      </div>
+
+      <div class="ruleset">
+        <div class="cap">Generation ruleset · this specimen</div>
+        <table id="rules"><tbody></tbody></table>
+      </div>
+    </div>
+
+    <!-- RIGHT: the dissertation -->
+    <div class="diss">
+      <p class="lead">Yarrow is the plant that taught a hemisphere how to decide. Fifty of its dried
+      stalks, sorted by hand, are the oldest randomiser of the <a href="../yijing/">Yijing</a> — but long
+      before it was an oracle it was a plant, and a strange, exact one. What stands on the plate to the
+      left was not photographed. It was <em>grown</em>: a single 32-bit number, run forward through the
+      rules that describe a real <em>Achillea&nbsp;millefolium</em>, until a whole stalk fell out. Sow the
+      same number again and the same plant returns, leaf for leaf, forever.</p>
+
+      <div class="fieldnote" id="fieldnote">…</div>
+
+      <h2>The thousand-leaf</h2>
+      <p>The epithet <em>millefolium</em> — “thousand-leaf” — is barely an exaggeration. Each leaf is
+      lanceolate only in silhouette; up close it is cut two or three times over (bipinnate to tripinnate)
+      into dozens of thread-fine segments, so that a single leaf carries scores of leaflets and a whole
+      plant carries, plausibly, its thousand. The texture is soft, almost feathery, grey-green and faintly
+      hairy, and aromatic the instant it is crushed. Leaves are set <em>alternately</em> up the stem at
+      the golden divergence of ≈137.5°; the basal leaves are largest and stalked, the stem (cauline)
+      leaves smaller, stalkless, and half-clasping — so the plant tapers in leaf as it climbs.</p>
+
+      <h2>The stalk, and why it became an oracle</h2>
+      <p>The flowering stem is erect, tough, and faintly <em>furrowed</em> — angled rather than round —
+      usually unbranched until the inflorescence, and lightly woolly toward the top. Dried, these stems
+      are straight, light, and strong, which is precisely why, half a world from where yarrow grows
+      wildest, fifty dried stalks became the counting-rods of the Book of Changes. The plant of staunched
+      wounds — <em>Achillea</em> for Achilles, who is said to have dressed his soldiers' wounds with it;
+      hence woundwort, soldier's woundwort, staunchweed, nosebleed-plant — became the plant of decisions.
+      Its odds, cast in stalks rather than coins, are still weighted the old, lopsided way next door at
+      <a href="../yijing/">/yijing</a>.</p>
+
+      <h2>The corymb — a crowd pretending to be one flower</h2>
+      <p>What looks like a single flat bloom is a <em>corymb</em>: a crowd of small flower-heads whose
+      lower branches are stalked longer than the upper, so every head is lifted to nearly the same plane —
+      a landing-pad built for pollinators. And each “head” is itself a crowd. In the Asteraceae fashion,
+      a capitulum gathers a ring of (typically five, occasionally three to eight) broad white <em>ray
+      florets</em> — the false “petals” — around a button of ten to thirty tiny <em>disc florets</em>,
+      the whole cupped in rows of dry, membranous-margined bracts. Dozens of these heads make one corymb;
+      the eye, generously, reads the dozens as one.</p>
+
+      <h2>Colour</h2>
+      <p>Most wild populations are chalk-white. Rose and pink morphs occur naturally and are selected hard
+      in gardens, where deep madder cultivars are common; the specimen at left is <span id="diss-morph">white</span>.</p>
+
+      <h2>The ruleset — how this stalk was grown</h2>
+      <p>The drawing is not a picture so much as a <em>hypothesis</em> about a plant: a small set of
+      botanical rules, run forward from a seed. <b>Phyllotaxis</b> places the leaves up the stem,
+      alternating at the golden angle and tapering in size toward the top. The <b>leaf rule</b> builds
+      each leaf as a bipinnate rachis — so many pinna-pairs, each split into so many filaments; their
+      product is the “thousand.” The <b>corymb rule</b> resolves a handful of primary branches onto one
+      upper plane to make the flat top, then scatters the heads across its width. The <b>capitulum
+      rule</b> draws each head's ray florets around the modal five, on an ochre disc. The <b>morph
+      rule</b> paints the rays white, with a minority struck rose. Every value the rules chose for this
+      specimen is listed under the plate — and because the seed is the only input, the plate is a
+      permalink: <span id="diss-permalink">?seed=…</span> grows this exact plant anywhere, any time.</p>
+    </div>
   </div>
 
-  <section id="result"></section>
-</main>
-
-<footer>
-  The yarrow-stalk method (蓍筮) is older than the coins and weights its odds differently:
-  a moving yin appears but 1 time in 16, a moving yang 3. Every stalk here is drawn from
-  noise — no two milfoil quite alike. &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
-</footer>
+  <footer>
+    A living procedural specimen · same apparatus, run forward, that reads the tales at read.mino.mobi
+    backward. &nbsp;·&nbsp; <a href="../yijing/">cast the oracle →</a> &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
+  </footer>
+</div>
 
 <script>
 'use strict';
-/* ───────────────────────── deterministic noise (per-stalk character) ───────── */
+/* ───────── deterministic noise ───────── */
 function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
   h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
   return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0;};}
 function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 
-/* ───────────────────────── I Ching: 64 hexagrams ──────────────────────────────
-   binary is bottom→top, 1 = yang (solid), 0 = yin (broken). */
-const HEX = [
- null,
- {ch:'乾',py:'Qián',en:'The Creative',b:'111111',j:'Sublime success through tireless, upright action — the dragon-power of pure heaven. Persevere.'},
- {ch:'坤',py:'Kūn',en:'The Receptive',b:'000000',j:'Yielding devotion brings success. Follow, do not lead; find friends in the west and south, and rest.'},
- {ch:'屯',py:'Zhūn',en:'Difficulty at the Beginning',b:'100010',j:'Sprouting through hard ground. Do not advance alone — gather helpers before you set out.'},
- {ch:'蒙',py:'Méng',en:'Youthful Folly',b:'010001',j:'The spring at the mountain’s foot. The fool seeks the sage; answer the first sincere asking only.'},
- {ch:'需',py:'Xū',en:'Waiting',b:'111010',j:'Clouds rise but do not yet rain. Wait in strength and good cheer; nourishment comes to those who endure.'},
- {ch:'訟',py:'Sòng',en:'Conflict',b:'010111',j:'Sincere but obstructed. Halt halfway; seek the great mediator rather than press the quarrel to its bitter end.'},
- {ch:'師',py:'Shī',en:'The Army',b:'010000',j:'The multitude moved by one tried leader. Discipline and a just cause carry the day.'},
- {ch:'比',py:'Bǐ',en:'Holding Together',b:'000010',j:'Union around a center. Come quickly while the bond is fresh; the latecomer meets misfortune.'},
- {ch:'小畜',py:'Xiǎo Chù',en:'Small Taming',b:'111011',j:'Dense clouds, no rain yet. A small force restrains the great — refine your influence and wait.'},
- {ch:'履',py:'Lǚ',en:'Treading',b:'110111',j:'Treading on the tiger’s tail. Conduct yourself with care and it will not bite.'},
- {ch:'泰',py:'Tài',en:'Peace',b:'111000',j:'Heaven and earth unite. The small departs, the great arrives — a flowering season of harmony.'},
- {ch:'否',py:'Pǐ',en:'Standstill',b:'000111',j:'Heaven and earth draw apart. The petty wax, the worthy withdraw; hold your principles in private.'},
- {ch:'同人',py:'Tóng Rén',en:'Fellowship',b:'101111',j:'Companions in the open field. Bind people by shared purpose, never by faction.'},
- {ch:'大有',py:'Dà Yǒu',en:'Great Possession',b:'111101',j:'Fire high in heaven. Great wealth held with modesty — curb evil, foster good.'},
- {ch:'謙',py:'Qiān',en:'Modesty',b:'001000',j:'A mountain hidden within the earth. The modest carry things to completion; all is leveled in grace.'},
- {ch:'豫',py:'Yù',en:'Enthusiasm',b:'000100',j:'Thunder bursts from the earth. Move the many by shared delight; set your forces marching.'},
- {ch:'隨',py:'Suí',en:'Following',b:'100110',j:'Thunder asleep within the lake. To lead, first learn to follow; adapt to the hour.'},
- {ch:'蠱',py:'Gǔ',en:'Work on the Decayed',b:'011001',j:'What has spoiled through neglect. Repair the past with care — three days before, three days after.'},
- {ch:'臨',py:'Lín',en:'Approach',b:'110000',j:'The great approaches. Spring favors you now, but the eighth month brings misfortune — act while it lasts.'},
- {ch:'觀',py:'Guān',en:'Contemplation',b:'000011',j:'Wind moves over the earth. The ablution made, the offering not yet brought; observe with reverence, and be observed.'},
- {ch:'噬嗑',py:'Shì Kè',en:'Biting Through',b:'100101',j:'Jaws closing on the obstacle. Bite through the matter firmly; let justice be exact.'},
- {ch:'賁',py:'Bì',en:'Grace',b:'101001',j:'Fire beneath the mountain. Beauty brings small success — let elegance serve substance, not replace it.'},
- {ch:'剝',py:'Bō',en:'Splitting Apart',b:'000001',j:'The mountain rests on eroded earth. It does not further to go anywhere; lie low until the dark spends itself.'},
- {ch:'復',py:'Fù',en:'Return',b:'100000',j:'Thunder within the earth — the turning point. The light returns; friends come without blame.'},
- {ch:'無妄',py:'Wú Wàng',en:'Innocence',b:'100111',j:'The unexpected, under heaven. Act from a pure motive and succeed; scheme and you stumble.'},
- {ch:'大畜',py:'Dà Chù',en:'Great Taming',b:'111001',j:'Heaven within the mountain. Great force held in check stores power — it furthers to cross the great water.'},
- {ch:'頤',py:'Yí',en:'Nourishment',b:'100001',j:'The open mouth. Watch what you feed yourself and others; seek the right nourishment.'},
- {ch:'大過',py:'Dà Guò',en:'Preponderance of the Great',b:'011110',j:'The ridgepole sags under weight. A critical, passing time — act, even alone, and find a way through.'},
- {ch:'坎',py:'Kǎn',en:'The Abyss',b:'010010',j:'Water pouring into the chasm, doubled. Danger upon danger; keep the heart sincere and win through.'},
- {ch:'離',py:'Lí',en:'The Clinging',b:'101101',j:'Fire clinging to its fuel. Care for what sustains you; cling to what is right and brightness endures.'},
- {ch:'咸',py:'Xián',en:'Influence',b:'001110',j:'A lake upon the mountain. Mutual attraction, gentle and constant — the wooing of the open-hearted.'},
- {ch:'恆',py:'Héng',en:'Duration',b:'011100',j:'Thunder and wind, enduring. Stay the course; what lasts is constancy in motion, not standing still.'},
- {ch:'遯',py:'Dùn',en:'Retreat',b:'001111',j:'The mountain under heaven. The small advances — withdraw in good time, with dignity, not in panic.'},
- {ch:'大壯',py:'Dà Zhuàng',en:'Great Power',b:'111100',j:'Thunder in heaven. Use great strength only joined to what is right, or it gores like a ram in a hedge.'},
- {ch:'晉',py:'Jìn',en:'Progress',b:'000101',j:'The sun rising over the earth. Steady advance and honor; the able one is received and rewarded.'},
- {ch:'明夷',py:'Míng Yí',en:'Darkening of the Light',b:'101000',j:'The sun sunk into the earth. In adversity, veil your brightness; persevere inwardly through the dark.'},
- {ch:'家人',py:'Jiā Rén',en:'The Family',b:'101011',j:'Wind issuing from fire. Each in their proper place — order at the hearth orders the world.'},
- {ch:'睽',py:'Kuí',en:'Opposition',b:'110101',j:'Fire above, lake below, parting ways. In small things, fortune; bridge estrangement with patience.'},
- {ch:'蹇',py:'Jiǎn',en:'Obstruction',b:'001010',j:'Water on the mountain — the hard road. Do not press forward; turn inward and seek the great helper.'},
- {ch:'解',py:'Xiè',en:'Deliverance',b:'010100',j:'Thunder and rain loosing the tension. The knot unties; return to the ordinary, then act swiftly on the rest.'},
- {ch:'損',py:'Sǔn',en:'Decrease',b:'110001',j:'Decrease below to increase above. Sincerity makes even a small offering enough.'},
- {ch:'益',py:'Yì',en:'Increase',b:'100011',j:'Wind and thunder strengthening each other. A time of giving from above — undertake great things.'},
- {ch:'夬',py:'Guài',en:'Breakthrough',b:'111110',j:'The lake risen to heaven. Resolutely expose the wrong — not by arms but by clear, public truth.'},
- {ch:'姤',py:'Gòu',en:'Coming to Meet',b:'011111',j:'Wind under heaven. The dark returns unbidden; do not embrace the bold intruder.'},
- {ch:'萃',py:'Cuì',en:'Gathering Together',b:'000110',j:'The lake upon the earth. The many assemble — bring a great offering and meet the great person.'},
- {ch:'升',py:'Shēng',en:'Pushing Upward',b:'011000',j:'Wood growing within the earth. Effortful, gradual ascent; press upward, and seek the one who can advance you.'},
- {ch:'困',py:'Kùn',en:'Oppression',b:'010110',j:'The lake drained dry. Exhaustion and constraint; the great endure without losing faith — say little, do much.'},
- {ch:'井',py:'Jǐng',en:'The Well',b:'011010',j:'Water drawn up through wood. The town may move, the well does not — tend the source that nourishes all.'},
- {ch:'革',py:'Gé',en:'Revolution',b:'101110',j:'Fire within the lake — the molting. Change only when the time is ripe; then people will trust it.'},
- {ch:'鼎',py:'Dǐng',en:'The Cauldron',b:'011101',j:'Fire over wood — the sacred vessel. Nourishment refined into culture; supreme good fortune.'},
- {ch:'震',py:'Zhèn',en:'The Arousing',b:'100100',j:'Thunder repeated. Terror that gives way to laughter; the sage is shaken but never drops the sacred spoon.'},
- {ch:'艮',py:'Gèn',en:'Keeping Still',b:'001001',j:'Mountain upon mountain. Stillness in the back, beyond the self; act when it is time, rest when it is time.'},
- {ch:'漸',py:'Jiàn',en:'Development',b:'001011',j:'A tree on the mountain, growing slowly. Gradual progress, measured as a marriage; patience perfects.'},
- {ch:'歸妹',py:'Guī Mèi',en:'The Marrying Maiden',b:'110100',j:'Thunder over the lake. A subordinate union — understand its transience; to go on blindly brings misfortune.'},
- {ch:'豐',py:'Fēng',en:'Abundance',b:'101100',j:'Thunder and lightning together — the zenith. Be the sun at noon; enjoy the fullness, knowing it must wane.'},
- {ch:'旅',py:'Lǚ',en:'The Wanderer',b:'001101',j:'Fire on the mountain, passing on. The stranger keeps small and correct; reserve and caution are your shelter.'},
- {ch:'巽',py:'Xùn',en:'The Gentle',b:'011011',j:'Wind following wind. Penetrate by gentle persistence; it furthers to have a goal and to see the great person.'},
- {ch:'兌',py:'Duì',en:'The Joyous',b:'110110',j:'Lake resting on lake. Joy that is true and steadfast; gladness shared persuades people to the hardest tasks.'},
- {ch:'渙',py:'Huàn',en:'Dispersion',b:'010011',j:'Wind over water, scattering. Dissolve the heart’s hardness; the king draws near his temple to reunite the dispersed.'},
- {ch:'節',py:'Jié',en:'Limitation',b:'110010',j:'Water held within the lake. Set measured limits — but galling limits cannot last, so temper the rule.'},
- {ch:'中孚',py:'Zhōng Fú',en:'Inner Truth',b:'110011',j:'Wind over the lake. Sincerity that moves even pigs and fishes; with truth at the center, cross the great water.'},
- {ch:'小過',py:'Xiǎo Guò',en:'Small Exceeding',b:'001100',j:'Thunder on the mountain. Exceed in small things, not great; the bird should fly low, not high.'},
- {ch:'既濟',py:'Jì Jì',en:'After Completion',b:'101010',j:'Water over fire, in perfect order. Success in the small; the work is done — now guard against the disorder that follows.'},
- {ch:'未濟',py:'Wèi Jì',en:'Before Completion',b:'010101',j:'Fire over water, not yet ordered. The crossing nearly made — the little fox wets its tail at the end. Care, to the last step.'},
-];
-const CODE2NO = {};            // 6-bit code (bit i = line i, bottom=0) → King Wen number
-for(let n=1;n<=64;n++){
-  const b=HEX[n].b; let code=0;
-  for(let i=0;i<6;i++) if(b[i]==='1') code|=1<<i;
-  CODE2NO[code]=n;
-}
-function hexNumberFromLines(vals){      // vals[0..5] bottom→top of 6/7/8/9
-  let code=0;
-  for(let i=0;i<6;i++) if(vals[i]===7||vals[i]===9) code|=1<<i;
-  return CODE2NO[code];
-}
-function transformedLines(vals){        // flip the moving lines (6,9)
-  return vals.map(v=> v===6?7 : v===9?8 : v);
+/* ───────── the ruleset: seed → a complete specimen ─────────
+   Every botanical parameter is a deterministic function of one 32-bit seed. */
+function grow(seed){
+  const seedStr=String(seed>>>0);
+  const r=mulberry32(xmur3('yarrow:'+seedStr)());
+  const R=(lo,hi)=>lo+(hi-lo)*r();
+  const I=(lo,hi)=>Math.round(R(lo,hi));
+
+  // ── stem ──
+  const heightCm = +R(22,86).toFixed(1);
+  const stemHue  = I(74,108);                 // grey-green
+  const stemSat  = I(22,40);
+  const stemLight= I(34,46);
+  const curve    = R(-0.10,0.10);             // lateral lean of the stalk
+  const furrows  = I(2,4);
+
+  // ── leaves (cauline) ──
+  const nodeCount   = I(5,9);                  // leaves on the flowering stem
+  const pinnaPairs  = I(9,15);                 // primary divisions per leaf
+  const lobesPerPin = I(3,6);                  // filaments per pinna
+  const leafletsPerLeaf = pinnaPairs*2*lobesPerPin;
+  // basal leaves are larger & more divided — counted but not all drawn; estimate total
+  const basalLeaves = I(3,6);
+  const totalLeaflets = Math.round(leafletsPerLeaf*(nodeCount + basalLeaves*1.7));
+  const divergence = 137.5;                    // golden angle (constant law)
+
+  // ── corymb ──
+  const branchCount   = I(3,6);
+  const headCount     = I(16,46);
+  const corymbWidthCm = +R(3.4,9.2).toFixed(1);
+
+  // ── capitulum ──
+  const rayMode = 5;
+  // per-head ray counts, drawn around the mode (3..8) — store the modal/observed spread
+  const rayLo = 3, rayHi = 8;
+  const discFlorets = I(10,30);
+
+  // ── colour morph ──
+  const morph = r() < 0.82 ? 'white' : 'rose';
+
+  return {seed:seed>>>0, seedStr, heightCm, stemHue, stemSat, stemLight, curve, furrows,
+    nodeCount, pinnaPairs, lobesPerPin, leafletsPerLeaf, basalLeaves, totalLeaflets, divergence,
+    branchCount, headCount, corymbWidthCm, rayMode, rayLo, rayHi, discFlorets, morph,
+    _rand:r};
 }
 
-/* ───────────────────────── the yarrow division (authentic) ─────────────────────
-   Returns {steps, value}. value ∈ 6,7,8,9. The first change sheds 5 or 9 stalks,
-   the next two shed 4 or 8; what remains, divided by four, is the line. */
-function computeLine(){
-  let stalks=49; const steps=[];
-  for(let c=0;c<3;c++){
-    const left = 1 + Math.floor(Math.random()*(stalks-1));   // each heap ≥ 1
-    const right = stalks - left;
-    const rRem  = (right-1)%4 || 4;     // one stalk lifted from the right heap first
-    const lRem  = left%4 || 4;
-    const held  = 1 + lRem + rRem;      // the lifted stalk + both remainders
-    steps.push({total:stalks, left, right, lRem, rRem, held, after:stalks-held});
-    stalks -= held;
-  }
-  return {steps, value:stalks/4};
-}
-
-/* ───────────────────────── canvas: a bundle of procedural stalks ───────────── */
+/* ───────── render the specimen onto the plate ───────── */
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
-let W=0,H=0,DPR=1;
-let SEED = (Math.random()*1e9)|0;       // fresh per bundle
-function resize(){
-  const r=cv.getBoundingClientRect(); DPR=Math.min(devicePixelRatio||1,2);
-  W=r.width; H=r.height; cv.width=W*DPR|0; cv.height=H*DPR|0;
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-}
-addEventListener('resize',resize);
+const CW=600, CH=800;                          // logical plate size
+const MAX_HEIGHT_CM=86;
 
-// one stalk: base at (x,y0), grows upward `len`, leaning by `lean`, character from seed
-function stalk(x,y0,len,lean,seed,alpha,scale){
-  const rnd=mulberry32(seed^SEED);
-  const hue=40+rnd()*16, sat=22+rnd()*30, lig=46+rnd()*26;
-  const sway=(rnd()-0.5)*len*0.16, bend=(rnd()-0.5)*0.5;
-  const w=(1.6+rnd()*1.1)*(scale||1);
-  const tipx = x+lean*len+sway, tipy=y0-len;
-  const midx = x+lean*len*0.5 + bend*len*0.12, midy=y0-len*0.52;
-  ctx.save(); ctx.globalAlpha=alpha??1;
-  ctx.lineCap='round'; ctx.lineWidth=w;
-  ctx.strokeStyle=`hsl(${hue} ${sat}% ${lig}%)`;
-  ctx.beginPath(); ctx.moveTo(x,y0); ctx.quadraticCurveTo(midx,midy,tipx,tipy); ctx.stroke();
-  // a darker node or two
-  ctx.lineWidth=w*1.5; ctx.strokeStyle=`hsl(${hue-6} ${sat+8}% ${lig-22}%)`;
-  for(const t of [0.34,0.66]){
-    const nx=x+(midx-x)*0,  // sample the quadratic
-      bx=(1-t)*(1-t)*x+2*(1-t)*t*midx+t*t*tipx,
-      by=(1-t)*(1-t)*y0+2*(1-t)*t*midy+t*t*tipy;
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+0.1,by+0.1); ctx.stroke();
-  }
-  // a couple of feathery leaf ticks
-  if(rnd()<0.85){
-    ctx.lineWidth=Math.max(.6,w*0.4); ctx.strokeStyle=`hsl(${hue+4} ${sat+6}% ${lig-6}%)`;
-    const t=0.55+rnd()*0.3;
-    const bx=(1-t)*(1-t)*x+2*(1-t)*t*midx+t*t*tipx, by=(1-t)*(1-t)*y0+2*(1-t)*t*midy+t*t*tipy;
-    const dir=lean>=0?-1:1, ll=len*0.07*(scale||1);
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+dir*ll, by-ll*0.4); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-dir*ll*0.7, by-ll*0.5); ctx.stroke();
-  }
-  ctx.restore();
+function petalColor(spec){
+  return spec.morph==='rose'
+    ? {fill:'#e9c4cb', edge:'#c98a96'}
+    : {fill:'#f7f3e8', edge:'#d8cdb4'};
 }
 
-// a fan of `n` stalks centered at cx, baseline by, spread by fan width
-function fan(cx,by,n,width,len,seedBase,alpha,scale){
-  if(n<=0) return;
-  const span=Math.min(width, 6+n*4.0);
-  for(let i=0;i<n;i++){
-    const f = n===1?0.5 : i/(n-1);
-    const x = cx + (f-0.5)*span;
-    const lean = (f-0.5)*0.5;
-    const jit = (mulberry32((seedBase+i*97)^SEED)()-0.5)*span*0.06;
-    stalk(x+jit, by, len*(0.88+0.18*mulberry32(seedBase+i*31)()), lean, seedBase+i*7, alpha, scale);
-  }
-}
+function drawSpecimen(spec){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,CW,CH);
 
-/* ───────────────────────── the hexagram, drawn line by line ────────────────── */
-let LINES=[];     // line values gathered so far (bottom→top)
-function drawHexagram(x,cy,vals,lineH,gap,full){
-  // draw from bottom up; cy is vertical center of the whole stack
-  const total=6*lineH+5*gap;
-  let y=cy+total/2 - lineH/2;
-  const half=full*0.42;
+  // paper + faint vignette
+  const bg=ctx.createLinearGradient(0,0,0,CH);
+  bg.addColorStop(0,'#f6f0e1'); bg.addColorStop(1,'#e8dcc3');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,CW,CH);
+  const vg=ctx.createRadialGradient(CW*0.42,CH*0.45,CH*0.2,CW*0.42,CH*0.5,CH*0.7);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,48,26,.08)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
+
+  const pxPerCm = (CH*0.80)/MAX_HEIGHT_CM;
+  const heightPx = spec.heightCm*pxPerCm;
+  const baseY = CH-58, topY = baseY-heightPx;
+  const cx = CW*0.42;
+  const rnd = mulberry32(xmur3('draw:'+spec.seedStr)());
+
+  // stem as a quadratic from base to top
+  const ctrlX = cx + spec.curve*heightPx*0.5;
+  const ctrlY = (baseY+topY)/2;
+  const topX  = cx + spec.curve*heightPx;
+  const stemXY=t=>{ const mt=1-t;
+    return [ mt*mt*cx + 2*mt*t*ctrlX + t*t*topX,
+             mt*mt*baseY + 2*mt*t*ctrlY + t*t*topY ]; };
+  const stemTangent=t=>{ // for outward leaf direction
+    const dx=2*(1-t)*(ctrlX-cx)+2*t*(topX-ctrlX);
+    const dy=2*(1-t)*(ctrlY-baseY)+2*t*(topY-ctrlY);
+    const L=Math.hypot(dx,dy)||1; return [dx/L,dy/L]; };
+
+  const stemCol=`hsl(${spec.stemHue} ${spec.stemSat}% ${spec.stemLight}%)`;
+  const stemDark=`hsl(${spec.stemHue} ${spec.stemSat+6}% ${spec.stemLight-12}%)`;
+
+  // ── base tuft (basal rosette hint) ──
   ctx.save();
-  for(let i=0;i<6;i++){
-    const v=vals[i];
-    const drawn = v!==undefined && v!==null;
-    const yang = v===7||v===9;
-    const moving = v===6||v===9;
-    ctx.lineWidth=lineH;
-    ctx.lineCap='butt';
-    ctx.strokeStyle = drawn ? (moving?'#e7c46a':'rgba(231,196,106,.85)') : 'rgba(231,196,106,.12)';
-    ctx.shadowColor= drawn?'rgba(231,196,106,.5)':'transparent'; ctx.shadowBlur=drawn?10:0;
-    if(!drawn||yang){
-      ctx.beginPath(); ctx.moveTo(x-full*0.5,y); ctx.lineTo(x+full*0.5,y); ctx.stroke();
-    }else{
-      ctx.beginPath(); ctx.moveTo(x-full*0.5,y); ctx.lineTo(x-full*0.5+half,y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x+full*0.5-half,y); ctx.lineTo(x+full*0.5,y); ctx.stroke();
-    }
-    ctx.shadowBlur=0;
-    if(moving){
-      ctx.fillStyle=v===9?'rgba(224,98,60,.9)':'rgba(224,98,60,.0)';
-      ctx.strokeStyle='#e0623c'; ctx.lineWidth=1.6;
-      ctx.beginPath(); ctx.arc(x, y, lineH*0.5+2, 0, 7);
-      if(v===9){ctx.fill();} ctx.stroke();
-    }
-    y-=lineH+gap;
+  for(let k=0;k<spec.basalLeaves;k++){
+    const side=k%2?1:-1, ang=(0.9+rnd()*0.5)*side, len=heightPx*(0.10+rnd()*0.05);
+    drawLeaf(cx+side*4, baseY-2, side, -0.15, len, Math.max(6,spec.pinnaPairs-2), spec.lobesPerPin, rnd, true);
   }
   ctx.restore();
-}
 
-/* ───────────────────────── render loop / animation ────────────────────────── */
-let anim=null;     // current line animation state, or null
-let t0=0;
-function now(){return performance.now();}
+  // ── stem ──
+  ctx.lineCap='round';
+  for(let i=0;i<24;i++){ // taper by stacking shrinking segments
+    const t0=i/24, t1=(i+1)/24;
+    const [x0,y0]=stemXY(t0), [x1,y1]=stemXY(t1);
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1);
+    ctx.lineWidth=(1-t0)*4.6+1.4; ctx.strokeStyle=stemCol; ctx.stroke();
+  }
+  // furrows
+  ctx.globalAlpha=.4; ctx.strokeStyle=stemDark; ctx.lineWidth=.7;
+  for(let f=0;f<spec.furrows;f++){
+    const off=(f-(spec.furrows-1)/2)*1.6;
+    ctx.beginPath();
+    for(let i=0;i<=24;i++){const [x,y]=stemXY(i/24); if(i===0)ctx.moveTo(x+off,y); else ctx.lineTo(x+off,y);}
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
 
-function render(){
-  ctx.clearRect(0,0,W,H);
-  // soft altar glow
-  const g=ctx.createRadialGradient(W*0.5,H*0.46,10,W*0.5,H*0.46,W*0.6);
-  g.addColorStop(0,'rgba(231,196,106,.05)'); g.addColorStop(1,'transparent');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-
-  const baseY=H*0.72, len=H*0.34, hexX=W*0.80, hexFull=W*0.30;
-  const hexLineH=Math.max(4,H*0.022), hexGap=Math.max(5,H*0.026);
-
-  // hexagram column (always visible, fills as lines are won)
-  drawHexagram(hexX, H*0.46, LINES, hexLineH, hexGap, hexFull);
-  ctx.save();
-  ctx.fillStyle='rgba(233,214,168,.3)'; ctx.font='11px ui-monospace,monospace';
-  ctx.textAlign='center'; ctx.fillText(LINES.length+' / 6', hexX, H*0.46+ (3*hexLineH+2.5*hexGap)+18);
-  ctx.restore();
-
-  if(!anim){
-    // resting bundle of 49 (or none if finished)
-    if(LINES.length<6) fan(W*0.40, baseY, 49, W*0.5, len, 1000, 1, 1);
-    requestAnimationFrame(render); return;
+  // ── cauline leaves: alternate up the stem, tapering ──
+  const leafTop=0.60;                          // corymb begins above this
+  for(let i=0;i<spec.nodeCount;i++){
+    const f=spec.nodeCount===1?0.4:i/(spec.nodeCount-1);
+    const t=0.06+f*(leafTop-0.06);
+    const [ax,ay]=stemXY(t);
+    const side=i%2?1:-1;
+    const droop=-0.10 - f*0.18;                // upper leaves droop more
+    const len=heightPx*(0.20 - 0.10*f);        // basal-ward leaves longer
+    const pinnae=Math.max(5,Math.round(spec.pinnaPairs*(1-0.35*f)));
+    drawLeaf(ax,ay,side,droop,len,pinnae,spec.lobesPerPin,rnd,false);
   }
 
-  // ── play current line animation ──
-  const A=anim, T=now()-A.start;
-  const step=A.steps[A.si];
-  const cx=W*0.40, leftCx=W*0.20, rightCx=W*0.60;
-  const D={split:620, lift:420, countL:520, countR:520, gather:520};
-  const phaseOrder=['split','lift','countL','countR','gather'];
-  let acc=0, phase='split', pt=0;
-  for(const ph of phaseOrder){ if(T<acc+D[ph]){phase=ph; pt=(T-acc)/D[ph]; break;} acc+=D[ph]; }
-  if(T>=acc){ // this change finished
-    A.setAside += step.held;
-    A.pile = step.after;
-    A.si++;
-    if(A.si>=A.steps.length){ finishLine(A); return requestAnimationFrame(render); }
-    A.start=now(); narrChange(A);
-    return requestAnimationFrame(render);
-  }
-  const ease=t=>t<0?0:t>1?1:t*t*(3-2*t);
+  // ── corymb ──
+  drawCorymb(spec,stemXY,leafTop,topX,topY,baseY,heightPx,rnd);
 
-  // draw the working pile / heaps depending on phase
-  if(phase==='split'){
-    const e=ease(pt);
-    const lcx = cx + (leftCx-cx)*e, rcx = cx + (rightCx-cx)*e;
-    fan(lcx, baseY, step.left,  W*0.30, len, 1000, 1, 1);
-    fan(rcx, baseY, step.right, W*0.30, len, 4000, 1, 1);
-  } else {
-    // heaps in place; remainders peel away to the "set aside" shelf at top
-    const e=ease(pt);
-    let lShow=step.left, rShow=step.right, peelL=0, peelR=0, lift=0;
-    if(phase==='lift'){ lift=1; rShow=step.right-1; }
-    else if(phase==='countL'){ peelL=step.lRem*e; lShow=step.left-step.lRem*e; rShow=step.right-1; lift=1; }
-    else if(phase==='countR'){ peelL=step.lRem; lShow=step.left-step.lRem; peelR=step.rRem*e; rShow=step.right-1-step.rRem*e; lift=1; }
-    else if(phase==='gather'){ // counted fours flow back to center
-      const eg=ease(pt);
-      const lcx=leftCx+(cx-leftCx)*eg, rcx=rightCx+(cx-rightCx)*eg;
-      fan(lcx, baseY, step.left-step.lRem, W*0.30, len, 1000,1,1);
-      fan(rcx, baseY, step.right-1-step.rRem, W*0.30, len, 4000,1,1);
-      drawShelf(A, step, 1);
-      requestAnimationFrame(render); return;
+  // ── scale bar (10 cm) ──
+  const barCm=10, barPx=barCm*pxPerCm, bx=CW-46, by=baseY;
+  ctx.strokeStyle='rgba(42,39,34,.5)'; ctx.lineWidth=1.4; ctx.lineCap='butt';
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx,by-barPx); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx-4,by); ctx.lineTo(bx+4,by);
+  ctx.moveTo(bx-4,by-barPx); ctx.lineTo(bx+4,by-barPx); ctx.stroke();
+  for(let c=1;c<barCm;c++){const yy=by-c*pxPerCm; ctx.beginPath(); ctx.moveTo(bx-2,yy); ctx.lineTo(bx+2,yy); ctx.stroke();}
+  ctx.save(); ctx.translate(bx+12,by-barPx/2); ctx.rotate(Math.PI/2);
+  ctx.fillStyle='rgba(42,39,34,.55)'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
+  ctx.fillText('10 cm',0,0); ctx.restore();
+
+  // helpers ────────────────────────────────────────────────
+  function drawLeaf(ax,ay,side,droopBias,len,pinnae,lobes,rnd,basal){
+    // outward-and-up direction; droopBias bends it down a touch
+    const out=side, baseAng=-1.15;             // up
+    const ang=baseAng + droopBias + (rnd()-0.5)*0.18;
+    const dx=Math.cos(ang)*out, dy=Math.sin(ang);
+    const rl=Math.hypot(dx,dy)||1; const ux=dx/rl, uy=dy/rl;
+    // rachis with slight outward bow → endpoint
+    const ex=ax+ux*len, ey=ay+uy*len;
+    const bowx=-uy*out*len*0.10, bowy=ux*out*len*0.10*0;
+    const mx=(ax+ex)/2+bowx, my=(ay+ey)/2+len*0.06;
+    const leafG=`hsl(${spec.stemHue+4} ${spec.stemSat+(basal?4:8)}% ${spec.stemLight+(basal?2:8)}%)`;
+    // rachis
+    ctx.strokeStyle=leafG; ctx.lineWidth=basal?1.6:1.2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,ex,ey); ctx.stroke();
+    // pinnae + filaments (the feathery, bipinnate cut)
+    ctx.lineWidth=basal?0.9:0.7;
+    for(let p=1;p<=pinnae;p++){
+      const tt=p/(pinnae+1);
+      const mt=1-tt;
+      const px=mt*mt*ax+2*mt*tt*mx+tt*tt*ex;
+      const py=mt*mt*ay+2*mt*tt*my+tt*tt*ey;
+      // local rachis tangent
+      const tx=2*mt*(mx-ax)+2*tt*(ex-mx), ty=2*mt*(my-ay)+2*tt*(ey-my);
+      const tl=Math.hypot(tx,ty)||1; const rx=tx/tl, ry=ty/tl;
+      const nx=-ry, ny=rx;                       // normal to rachis
+      const pinLen=len*(0.16+0.06*Math.sin(tt*Math.PI))*(basal?1.12:1);
+      for(const s2 of [-1,1]){
+        for(let q=0;q<lobes;q++){
+          const spread=(q/(lobes-1||1)-0.5);   // fan of filaments
+          const a2=0.55*spread;                  // angle within pinna
+          const fx=nx*Math.cos(a2)+rx*Math.sin(a2);
+          const fy=ny*Math.cos(a2)+ry*Math.sin(a2);
+          const fl=pinLen*(0.7+0.3*Math.cos(spread*2.0));
+          ctx.beginPath(); ctx.moveTo(px,py);
+          ctx.lineTo(px+s2*fx*fl + rx*pinLen*0.12, py+s2*fy*fl + ry*pinLen*0.12);
+          ctx.stroke();
+        }
+      }
     }
-    fan(leftCx, baseY, Math.max(0,Math.round(lShow)),  W*0.30, len, 1000,1,1);
-    fan(rightCx, baseY, Math.max(0,Math.round(rShow)), W*0.30, len, 4000,1,1);
-    // the single lifted stalk floats between the heaps
-    if(lift){ stalk(W*0.40, baseY-len*0.2, len*0.9, 0.0, 777, 1, 1.1); }
-    drawShelf(A, step, phase==='lift'?ease(pt):1, peelL, peelR);
   }
-  requestAnimationFrame(render);
-}
 
-// the "set aside" tally shelf at the top of the altar
-function drawShelf(A, step, liftP, peelL, peelR){
-  const sx=W*0.5, sy=H*0.13;
-  ctx.save();
-  ctx.fillStyle='rgba(233,214,168,.28)'; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='center';
-  ctx.fillText('set aside', sx, sy-16);
-  const got = A.setAside + (liftP||0) + (peelL||0) + (peelR||0);
-  // draw little crossed stalks for the held pile
-  const n=Math.min(40,Math.round(got));
-  for(let i=0;i<n;i++){
-    const a=(i*0.6)%(Math.PI), r=8+i*1.0;
-    const x=sx+(i- n/2)*5.0, y=sy+Math.sin(i*1.7)*3;
-    ctx.strokeStyle='hsl('+(42+(i%7)*2)+' 30% 60%)'; ctx.lineWidth=1.4; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(x,y-7); ctx.lineTo(x+Math.cos(a)*3,y+7); ctx.stroke();
+  function drawCorymb(spec,stemXY,leafTop,topX,topY,baseY,heightPx,rnd){
+    const widthPx = spec.corymbWidthCm*pxPerCm;
+    const [cbX,cbY]=stemXY(leafTop+0.02);        // where the inflorescence forks
+    const topLineY = topY - heightPx*0.01;        // the flat top plane
+    const cp=petalColor(spec);
+
+    // distribute heads across the corymb width, flat-topped (slightly domed)
+    const heads=[];
+    for(let i=0;i<spec.headCount;i++){
+      const u=spec.headCount===1?0.5:i/(spec.headCount-1);
+      const jitterX=(rnd()-0.5)*widthPx*0.06;
+      const hx=topX+(u-0.5)*widthPx + jitterX;
+      const dome=-(1-(2*u-1)*(2*u-1))*heightPx*0.05;   // middle slightly higher
+      const hy=topLineY+dome+(rnd()-0.5)*heightPx*0.018;
+      heads.push({hx,hy,u});
+    }
+    heads.sort((a,b)=>a.hx-b.hx);
+    // group into primary branches (compound corymb)
+    const per=Math.ceil(spec.headCount/spec.branchCount);
+    const branchG=`hsl(${spec.stemHue} ${spec.stemSat}% ${spec.stemLight-4}%)`;
+    for(let b=0;b<spec.branchCount;b++){
+      const grp=heads.slice(b*per,(b+1)*per); if(!grp.length) continue;
+      const bt=leafTop+0.04 + (b/spec.branchCount)*(0.9-leafTop);   // fork height up the stem
+      const [ox,oy]=stemXY(Math.min(0.97,bt));
+      const cxAvg=grp.reduce((s,h)=>s+h.hx,0)/grp.length;
+      const cyAvg=grp.reduce((s,h)=>s+h.hy,0)/grp.length;
+      // primary branch from stem to the cluster — gentle upward sweep with a slight sag
+      ctx.strokeStyle=branchG; ctx.lineWidth=1.5; ctx.lineCap='round';
+      const sag=Math.abs(cxAvg-ox)*0.14;
+      ctx.beginPath(); ctx.moveTo(ox,oy);
+      ctx.quadraticCurveTo((ox+cxAvg)/2,(oy+cyAvg)/2+sag,cxAvg,cyAvg-6); ctx.stroke();
+      // peduncles to each head
+      ctx.lineWidth=0.9;
+      for(const h of grp){
+        ctx.beginPath(); ctx.moveTo(cxAvg,cyAvg-4);
+        ctx.quadraticCurveTo((cxAvg+h.hx)/2, Math.min(cyAvg,h.hy)+8, h.hx,h.hy); ctx.stroke();
+      }
+    }
+    // draw the capitula last, on top
+    for(const h of heads){
+      const rr=widthPx*0.045 + 1.5;
+      const rays=Math.max(spec.rayLo,Math.min(spec.rayHi,
+        Math.round(spec.rayMode+(rnd()-0.5)*2.4)));
+      // ray florets
+      for(let k=0;k<rays;k++){
+        const a=(k/rays)*Math.PI*2 + rnd()*0.1;
+        const lx=h.hx+Math.cos(a)*rr*0.78, ly=h.hy+Math.sin(a)*rr*0.78;
+        ctx.save(); ctx.translate(lx,ly); ctx.rotate(a);
+        ctx.fillStyle=cp.fill; ctx.strokeStyle=cp.edge; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.ellipse(0,0,rr*0.5,rr*0.32,0,0,7); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+      // disc
+      ctx.fillStyle='#caa14a';
+      ctx.beginPath(); ctx.arc(h.hx,h.hy,rr*0.42,0,7); ctx.fill();
+      ctx.fillStyle='#a87f2e';
+      for(let d=0;d<5;d++){const a=rnd()*7,rd=rr*0.42*rnd();
+        ctx.beginPath(); ctx.arc(h.hx+Math.cos(a)*rd,h.hy+Math.sin(a)*rd,0.7,0,7); ctx.fill();}
+    }
   }
-  ctx.restore();
 }
 
-function startLine(){
-  if(LINES.length>=6 || anim) return;
-  const {steps,value}=computeLine();
-  anim={steps,value,si:0,start:now(),setAside:0,pile:49};
-  tallyrow.hidden=false;
-  narrChange(anim);
+/* ───────── bind a spec to the page (label, ruleset, prose) ───────── */
+function present(spec){
+  drawSpecimen(spec);
+  // plate label
+  set('lab-acc','№ '+spec.seedStr);
+  set('lab-morph',spec.morph);
+  set('lab-h',spec.heightCm+' cm');
+  set('lab-leaves',spec.nodeCount+' + ~'+spec.basalLeaves+' basal');
+  set('lab-heads','~'+spec.headCount);
+  // dissertation dynamic spans
+  set('diss-morph',spec.morph==='rose'?'a rose morph':'white');
+  set('diss-permalink','?seed='+spec.seedStr);
+  // field note
+  const fn=document.getElementById('fieldnote');
+  fn.innerHTML = `<b>Specimen № ${spec.seedStr}.</b> A stalk of about <b>${spec.heightCm}&nbsp;cm</b> `+
+    `bearing <b>${spec.nodeCount}</b> cauline leaves above a basal rosette, each leaf cut into roughly `+
+    `<b>${spec.leafletsPerLeaf}</b> segments — on the order of <b>${spec.totalLeaflets.toLocaleString()}</b> `+
+    `leaflets in all, true to its name. Its corymb spreads ~<b>${spec.corymbWidthCm}&nbsp;cm</b> across `+
+    `<b>${spec.headCount}</b> heads on <b>${spec.branchCount}</b> primary branches; ray florets cluster `+
+    `about the modal <b>${spec.rayMode}</b>. Flowers: <b>${spec.morph}</b>.`;
+  // ruleset table
+  const rows=[
+    ['Seed <b>(the only input)</b>', spec.seedStr, 'one 32-bit number → the whole plant'],
+    ['Stem height', spec.heightCm+' cm', 'erect, furrowed flowering stalk'],
+    ['Furrows', spec.furrows, 'the stem is angled, not round'],
+    ['Phyllotaxis', spec.divergence+'° · alternate', 'the golden divergence angle'],
+    ['Cauline leaves', spec.nodeCount, 'tapering in size up the stem'],
+    ['Basal leaves', '~'+spec.basalLeaves, 'larger, stalked, more divided'],
+    ['Leaf cut', spec.pinnaPairs+' pinna-pairs × '+spec.lobesPerPin+' lobes', 'bipinnate — the “mille-folium”'],
+    ['Leaflets / leaf', '≈ '+spec.leafletsPerLeaf, ''],
+    ['Leaflets total', '≈ '+spec.totalLeaflets.toLocaleString(), 'the thousand'],
+    ['Corymb width', spec.corymbWidthCm+' cm', 'flat-topped inflorescence'],
+    ['Primary branches', spec.branchCount, 'resolved onto one plane'],
+    ['Capitula (heads)', spec.headCount, 'each a composite flower'],
+    ['Ray florets / head', spec.rayMode+' (range '+spec.rayLo+'–'+spec.rayHi+')', 'the white “petals”'],
+    ['Disc florets / head', '~'+spec.discFlorets, 'on an ochre button'],
+    ['Colour morph', spec.morph, 'white ~82% · rose ~18%'],
+  ];
+  const tb=document.querySelector('#rules tbody');
+  tb.innerHTML=rows.map(([k,v,n])=>
+    `<tr><td class="k">${k}</td><td class="v">${v}${n?`<span class="note">${n}</span>`:''}</td></tr>`).join('');
+  // seed box + permalink
+  document.getElementById('seed').value=spec.seedStr;
+  try{ history.replaceState(null,'', '?seed='+spec.seedStr); }catch(e){}
 }
-const NAMES=['First','Second','Third'];
-function narrChange(A){
-  const s=A.steps[A.si];
-  setN('t-pile', s.total); setN('t-set', A.setAside);
-  narr.innerHTML = `<b>${NAMES[A.si]} change</b> — ${s.total} stalks split <b>${s.left}</b> / <b>${s.right}</b>, `+
-    `set aside <b>${s.held}</b>.`;
-}
-function finishLine(A){
-  anim=null;
-  LINES.push(A.value);
-  const meaning={6:'old yin · moving',7:'young yang',8:'young yin',9:'old yang · moving'}[A.value];
-  setN('t-line', LINES.length); setN('t-pile', A.value*4); setN('t-set', 49-A.value*4);
-  narr.innerHTML = `Line <b>${LINES.length}</b> — ${A.value*4} stalks remain, in <b>${A.value}</b> bundles of four → <b>${A.value}</b> · ${meaning}.`;
-  reset.hidden=false;
-  if(LINES.length>=6){ cast.disabled=true; auto.disabled=true; setTimeout(reveal, 650); }
-  else if(autoRun){ setTimeout(startLine, 520); }
-}
-function setN(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
+function set(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 
-/* ───────────────────────── reveal the reading ──────────────────────────────── */
-function reveal(){
-  const primaryNo=hexNumberFromLines(LINES);
-  const moving=[]; LINES.forEach((v,i)=>{ if(v===6||v===9) moving.push(i); });
-  const P=HEX[primaryNo];
-  let html = `<div class="cast">`;
-  html += hexCardHTML(primaryNo, LINES);
-  if(moving.length){
-    const tl=transformedLines(LINES); const tNo=hexNumberFromLines(tl);
-    html += `<div class="arrow">→</div>` + hexCardHTML(tNo, tl, true);
-  }
-  html += `</div>`;
-  html += `<div class="judg"><span class="lab">The Judgment</span>${P.j}</div>`;
-  if(moving.length){
-    const tNo=hexNumberFromLines(transformedLines(LINES)); const Tn=HEX[tNo];
-    const ls=moving.map(i=>`<span class="changedot">●</span> line ${i+1}`).join(', ');
-    html += `<div class="moving"><b>Moving:</b> ${ls}. The situation is in motion — it ripens toward `+
-      `<b>${tNo}. ${Tn.en}</b> (${Tn.ch} ${Tn.py}): ${Tn.j}</div>`;
-  } else {
-    html += `<div class="moving">No moving lines — the answer is steady. Read the Judgment as it stands.</div>`;
-  }
-  const q=document.getElementById('qtext').value.trim();
-  if(q) html = `<div class="moving" style="text-align:center;margin-bottom:14px;font-style:italic">“${escapeHtml(q)}”</div>` + html;
-  html += `<div class="foot"><button class="ghost" onclick="hardReset()">Ask again</button></div>`;
-  const R=document.getElementById('result');
-  R.innerHTML=html; R.classList.add('show');
-  R.scrollIntoView({behavior:'smooth',block:'start'});
-}
-function hexCardHTML(no, vals, dim){
-  const h=HEX[no];
-  return `<div class="hexcard">`+
-    `<div class="hx">${hexGlyph(vals)}</div>`+
-    `<div class="no">HEXAGRAM ${no}</div>`+
-    `<div class="ch">${h.ch}</div><div class="py">${h.py}</div>`+
-    `<div class="en">${h.en}</div></div>`;
-}
-function hexGlyph(vals){ // unicode-ish line stack using box chars, bottom→top so reverse for display
-  const rev=[...vals].reverse();
-  return rev.map(v=>{
-    const yang=(v===7||v===9), moving=(v===6||v===9);
-    const bar= yang?'▬▬▬▬▬':'▬▬&nbsp;▬▬';
-    const mk = moving? (v===9?' ○':' ✕'):'';
-    return `<div style="font-size:15px;letter-spacing:-1px;color:${moving?'#e0623c':'#e7c46a'}">${bar}${mk}</div>`;
-  }).join('');
-}
-function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+/* ───────── controls ───────── */
+function randomSeed(){ return (Math.random()*0xFFFFFFFF)>>>0; }
+function sow(seed){ present(grow(seed>>>0)); }
 
-/* ───────────────────────── controls ───────────────────────────────────────── */
-let autoRun=false;
-const cast=document.getElementById('cast'), auto=document.getElementById('auto'),
-      reset=document.getElementById('reset'), narr=document.getElementById('narr'),
-      tallyrow=document.getElementById('tallyrow');
-cast.onclick=()=>{ autoRun=false; startLine(); };
-auto.onclick=()=>{ autoRun=true; startLine(); };
-reset.onclick=hardReset;
-cv.addEventListener('pointerdown',e=>{ if(LINES.length<6 && !anim){ autoRun=false; startLine(); } });
+document.getElementById('grow').onclick=()=>sow(randomSeed());
+document.getElementById('sow').onclick=()=>{
+  const v=parseInt(document.getElementById('seed').value,10);
+  sow(Number.isFinite(v)?v:randomSeed());
+};
+document.getElementById('seed').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('sow').click(); });
 
-function hardReset(){
-  LINES=[]; anim=null; autoRun=false; SEED=(Math.random()*1e9)|0;
-  cast.disabled=false; auto.disabled=false; reset.hidden=true;
-  tallyrow.hidden=true; setN('t-line','—'); setN('t-pile',49); setN('t-set',0);
-  narr.innerHTML='Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.';
-  const R=document.getElementById('result'); R.classList.remove('show'); setTimeout(()=>R.innerHTML='',400);
-}
-window.hardReset=hardReset;
-
-resize(); requestAnimationFrame(render);
+// initial seed from ?seed= for permalink determinism, else random
+const urlSeed=parseInt(new URLSearchParams(location.search).get('seed'),10);
+sow(Number.isFinite(urlSeed)?urlSeed:randomSeed());
 </script>
 </body>
 </html>
