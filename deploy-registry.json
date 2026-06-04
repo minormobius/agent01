@@ -544,22 +544,115 @@
         "clock/toruschess/**",
         "torus/**"
       ]
+    },
+    {
+      "surface": "labglass",
+      "dir": "labglass",
+      "endpoint": "glass.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-labglass.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "DuckDB + Pyodide biotech data workbench. Static worker-assets (Worker `glass`). Needs COOP/COEP headers (labglass/_headers). Different registrable domain (minomobi.com) — outside the .mino.mobi SSO cookie.",
+      "paths": [
+        "labglass/**"
+      ]
+    },
+    {
+      "surface": "mega",
+      "dir": "mega",
+      "endpoint": "mega.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-mega.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Megaproject dashboard — global infrastructure tracker. Static worker-assets (Worker `mega-minomobi`).",
+      "paths": [
+        "mega/**"
+      ]
+    },
+    {
+      "surface": "pm",
+      "dir": "pm",
+      "endpoint": "pm.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-pm.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Mino PM — earned-value project management. Static worker-assets (Worker `pm`).",
+      "paths": [
+        "pm/**"
+      ]
+    },
+    {
+      "surface": "pokemon",
+      "dir": "pokemon",
+      "endpoint": "poke.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-pokemon.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Critter Red — Pokemon-style game. Static worker-assets (Worker `mino-poke`).",
+      "paths": [
+        "pokemon/**"
+      ]
+    },
+    {
+      "surface": "finance",
+      "dir": "finance",
+      "endpoint": "fin.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-finance.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Personal finance planning SPA (Vite -> ./dist, Worker `fin`). SPA fallback enabled.",
+      "paths": [
+        "finance/**"
+      ]
+    },
+    {
+      "surface": "org",
+      "dir": "org",
+      "endpoint": "org.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Org SPA (Vite + tsc -> ./dist, Worker `org`). Has inline OAuth in org/src/pds.ts (migration to shared oauth-client pending).",
+      "paths": [
+        "org/**"
+      ]
+    },
+    {
+      "surface": "wave",
+      "dir": "wave",
+      "endpoint": "wave.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-projects-takeover-pKkmW",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "MANAGED — onboarded to Actions (deploy-wave.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "note": "Wave SPA (Vite + tsc -> ./dist, Worker `wave`). Uses shared oauth-client wrapper (wave/src/lib/auth.ts) -> auth.mino.mobi.",
+      "paths": [
+        "wave/**"
+      ]
     }
   ],
   "unmanaged": {
-    "$comment": "Have a wrangler config but NO deploy workflow. Deploy path unknown (manual wrangler, or stale). Each needs a triage decision: give it a workflow + add to `surfaces`, or confirm it's retired.",
+    "$comment": "Have a wrangler config but NO deploy workflow. `sites` here are all currently BUNDLED into the root Pages project (served at mino.mobi/<name>/) — their own-subdomain workers are not attached. Each needs a CARVE-OUT (own worker deploy + domain attach + drop from root bundle), not just a workflow. `in_progress` + `reference_workers` as before.",
     "sites": [
       "answers",
       "crm",
       "disk",
-      "finance",
-      "labglass",
-      "mega",
-      "org",
-      "pm",
-      "pokemon",
-      "wars",
-      "wave"
+      "wars"
     ],
     "in_progress": [
       "audio",
