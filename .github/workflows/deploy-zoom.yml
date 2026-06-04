@@ -28,8 +28,15 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy static site
-        run: npx wrangler deploy
+      # Deploy to the EXISTING Pages project `zoom` that owns zoom.mino.mobi.
+      # (Previously this ran `wrangler deploy`, which deployed a *separate* Worker
+      # named `mino-zoom` to *.workers.dev — not the subdomain — so the live site
+      # languished. `wrangler pages deploy` targets the real Pages project.)
+      # --branch=main publishes to the project's production slot regardless of the
+      # git branch the Action runs from. --commit-message is pinned to the SHA
+      # (ASCII) to dodge the Pages 8000111 multibyte-commit-message rejection.
+      - name: Deploy to the zoom Pages project (production)
+        run: npx wrangler pages deploy dist --project-name=zoom --branch=main --commit-dirty=true --commit-hash="${{ github.sha }}" --commit-message="zoom deploy ${{ github.sha }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
