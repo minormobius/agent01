@@ -1,11 +1,11 @@
-name: Deploy Atmosphere Portal
+name: Deploy b (Bluesky corner)
 
 on:
   push:
     branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
-      - 'atmosphere/**'
-      - '.github/workflows/deploy-atmosphere.yml'
+      - 'b/**'
+      - '.github/workflows/deploy-b.yml'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: atmosphere
+        working-directory: b
 
     steps:
       - uses: actions/checkout@v4

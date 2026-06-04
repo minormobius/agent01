@@ -68,20 +68,20 @@
       ]
     },
     {
-      "surface": "atmosphere",
-      "dir": "atmosphere",
-      "endpoint": "atmosphere.mino.mobi, b.mino.mobi",
+      "surface": "b",
+      "dir": "b",
+      "endpoint": "b.mino.mobi",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
       "paths": [
-        "atmosphere/**"
+        "b/**"
       ],
       "serves": [
         "disk"
       ],
-      "note": "The Bluesky corner of mino.mobi. Worker mino-atmosphere serves two custom domains (atmosphere.mino.mobi + b.mino.mobi, b=Bluesky). Also hosts the disk Poincare interaction map at /disk (moved out of its own root-bundled surface; was the stray worker mino-disk -> delete it)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",

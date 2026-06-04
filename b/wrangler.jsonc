@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "b",
+  "compatibility_date": "2026-02-20",
+  "routes": [
+    { "pattern": "b.mino.mobi", "custom_domain": true }
+  ],
+  // b.mino.mobi — the Bluesky corner of mino.mobi (b = Bluesky, companion to
+  // g = graphics). Hosts the disk Poincaré interaction map at /disk.
+  // (atmosphere.mino.mobi retired — detach it in the dashboard.)
+  "assets": {
+    "directory": "."
+  }
+}

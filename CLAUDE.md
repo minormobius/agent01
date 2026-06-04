@@ -210,7 +210,7 @@ What this means for you:
 | Bounty | `.github/workflows/deploy-bounty.yml` | `main`, `claude/megaproject-dashboard-*` | `bounty/**` |
 | Fred proxy | `.github/workflows/deploy-fred-proxy.yml` | `main`, `claude/mortgage-calculator-rP4lK` | `workers/fred-proxy/**` |
 | Scores | `.github/workflows/deploy-scores.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `workers/scores/**` |
-| Atmosphere | `.github/workflows/deploy-atmosphere.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `atmosphere/**` |
+| Atmosphere | `.github/workflows/deploy-b.yml` | `main`, `claude/consolidate-feature-branches-dHYQO` | `b/**` |
 | Bisk | `.github/workflows/deploy-bisk.yml` | `main`, `claude/prepare-merge-candidates-*` | `bisk/**` |
 | j (ImageJ/WASM) | `.github/workflows/deploy-j.yml` | `main`, `claude/imagej-browser-rust-*` | `j/**` |
 | Borges | `.github/workflows/deploy-borges.yml` | `main`, `claude/pendragon-endless-book-*`, `claude/pendragon-next-source-*` | `borges/**` |
