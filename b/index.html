@@ -177,27 +177,19 @@ footer a:hover { color: var(--sky); }
 #bee-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #bee-layer { position: absolute; inset: 0; pointer-events: none; }
 .bee { position: absolute; left: 0; top: 0; pointer-events: auto; text-decoration: none; will-change: transform; }
-.bee-glyph { position: absolute; transform: translate(-50%, -50%); font-size: 17px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); transition: transform 0.12s ease; }
-.bee-name { position: absolute; left: 0; top: 0; transform: translate(-50%, 9px); white-space: nowrap; font: 600 10px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.04em; color: #ffd86b; background: rgba(4,8,16,0.78); padding: 2px 5px; border-radius: 4px; opacity: 0; transition: opacity 0.12s ease; }
+.bee-body { position: absolute; width: 11px; height: 11px; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.55), hsl(var(--bee-hue) 90% 62%) 62%); box-shadow: 0 0 7px hsl(var(--bee-hue) 90% 60% / 0.85), inset 0 0 0 1px rgba(0,0,0,0.28); transition: transform 0.12s ease; }
+.bee-name { position: absolute; transform: translate(9px, -50%); white-space: nowrap; font: 600 10px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.02em; color: hsl(var(--bee-hue) 85% 80%); text-shadow: 0 1px 2px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95); }
 .bee:hover { z-index: 5; }
-.bee:hover .bee-glyph { transform: translate(-50%, -50%) scale(1.55); }
-.bee:hover .bee-name { opacity: 1; }
+.bee:hover .bee-body { transform: translate(-50%, -50%) scale(1.6); }
+.bee:hover .bee-name { color: #fff; }
 #bee-stage.bee-off { display: flex; align-items: center; justify-content: center; }
 #bee-stage.bee-off::after { content: "the bee swarm needs WebGL2"; color: #6b86b0; font: 500 12px/1 ui-monospace, monospace; }
 #bee-stage.bee-off #bee-field, #bee-stage.bee-off #bee-layer, #bee-stage.bee-off #bee-controls { display: none; }
-#bee-controls { position: absolute; right: 10px; bottom: 10px; z-index: 8; }
-.bee-panel { background: rgba(6,12,24,0.86); border: 1px solid rgba(120,160,220,0.18); border-radius: 10px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font: 500 11px/1.4 ui-monospace, Menlo, monospace; color: #cfe0f5; }
-.bee-toggle { display: block; background: none; border: 0; color: #ffd86b; font: inherit; padding: 7px 12px; cursor: pointer; letter-spacing: 0.08em; }
-.bee-body { display: none; padding: 4px 12px 12px; max-height: 48vh; overflow-y: auto; width: 224px; }
-.bee-panel.open .bee-body { display: block; }
-.bee-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 9px; }
-.bee-btns button { background: rgba(255,216,107,0.1); border: 1px solid rgba(255,216,107,0.35); color: #ffd86b; border-radius: 6px; padding: 6px 4px; cursor: pointer; font: inherit; }
-.bee-btns button:hover { background: rgba(255,216,107,0.22); }
-.bee-slider { display: grid; grid-template-columns: 82px 1fr 34px; align-items: center; gap: 6px; margin: 4px 0; }
-.bee-slider-name { color: #9fb6d6; font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
-.bee-slider input { width: 100%; accent-color: #ffd86b; }
-.bee-slider output { color: #ffd86b; font-size: 10px; text-align: right; }
-@media (max-width: 640px) { #bee-stage { height: 48vh; } .bee-body { width: 180px; } }
+#bee-controls { position: absolute; right: 12px; bottom: 12px; z-index: 8; }
+.hive-btn { background: rgba(255,216,107,0.12); border: 1px solid rgba(255,216,107,0.4); color: #ffd86b; border-radius: 999px; padding: 8px 16px; cursor: pointer; font: 600 12px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.06em; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: background 0.15s ease, transform 0.1s ease; }
+.hive-btn:hover { background: rgba(255,216,107,0.24); }
+.hive-btn:active { transform: scale(0.96); }
+@media (max-width: 640px) { #bee-stage { height: 48vh; } }
 </style>
 </head>
 <body>
