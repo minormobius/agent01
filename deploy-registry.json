@@ -267,7 +267,8 @@
       "provides": null,
       "paths": [
         "fluoddity/**"
-      ]
+      ],
+      "status": "MANAGED — FIXED: added custom_domain route (fluoddity.mino.mobi) to make the binding declarative. Name kept (fluoddity-minomobi); no twin worker found, so it was already deploying the right worker."
     },
     {
       "surface": "fred-proxy",
@@ -569,7 +570,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-mega.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED — FIXED (zoom-bucket): config renamed mega-minomobi -> mega + custom_domain route (mega.mino.mobi). Was deploying stray worker mega-minomobi. CLEANUP: delete the orphan `mega-minomobi` worker.",
       "note": "Megaproject dashboard — global infrastructure tracker. Static worker-assets (Worker `mega-minomobi`).",
       "paths": [
         "mega/**"
@@ -597,7 +598,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-pokemon.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED — FIXED (zoom-bucket): config renamed mino-poke -> poke + custom_domain route, so wrangler deploy updates the worker that owns poke.mino.mobi. Was deploying stray worker mino-poke. CLEANUP: delete the orphan `mino-poke` worker in the dashboard.",
       "note": "Critter Red — Pokemon-style game. Static worker-assets (Worker `mino-poke`).",
       "paths": [
         "pokemon/**"
@@ -655,7 +656,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-wars.yml). Independent worker, own subdomain live (probe-verified). Disconnect CF git once this Action is confirmed canonical.",
+      "status": "MANAGED — FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
       "note": "War Factor Analysis — Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
       "paths": [
         "wars/**"
@@ -725,7 +726,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (frontend) — deploy-os.yml: Vite build -> Worker `pds-os`, live at os.mino.mobi (probe-verified). The backend container worker (os/api, os-mino-api) is deliberately NOT auto-deployed: see deploy-os-api.yml (manual, dispatch-only) + unmanaged.in_progress.",
+      "status": "MANAGED (frontend) — FIXED (zoom-bucket): config renamed pds-os -> os + custom_domain route (os.mino.mobi). Was deploying stray worker pds-os. CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected — still manual via deploy-os-api.yml.)",
       "note": "React + Vite + xterm.js terminal UI; talks to os-api (Cloudflare Containers backend) at runtime via SYNC_URL. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
       "paths": [
         "os/**",
