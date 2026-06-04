@@ -1,0 +1,48 @@
+name: Deploy Canvas (drawing toys)
+
+# Encapsulation surface: bundles the drawing toys (draw + curve + paint + mmo)
+# into ONE deploy unit at canvas.mino.mobi.
+#
+# ADDITIVE launch: the member dirs are STAGED into canvas/dist at build time, not
+# moved. Their backends are untouched — draw/paint/mmo hit poll.mino.mobi/api and
+# curve hits scores.mino.mobi, all absolute origins, so the API calls keep working
+# from the new subdomain. Root still serves the canonical https://mino.mobi/<x>/
+# URLs, so nothing breaks. Carve-out from root is the deferred follow-up (see
+# canvas/wrangler.jsonc + the "canvas" entry in deploy-registry.json).
+
+on:
+  push:
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    paths:
+      - 'draw/**'
+      - 'curve/**'
+      - 'paint/**'
+      - 'mmo/**'
+      - 'canvas/**'
+      - '.github/workflows/deploy-canvas.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage member sites into dist/
+        working-directory: canvas
+        run: |
+          rm -rf dist && mkdir -p dist
+          # canvas/index.html is the surface hub (committed in this dir)
+          cp index.html dist/
+          for d in draw curve paint mmo; do
+            mkdir -p "dist/$d"
+            cp -r "../$d/." "dist/$d/"
+          done
+          ls -la dist/
+
+      - name: Deploy to Cloudflare
+        working-directory: canvas
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

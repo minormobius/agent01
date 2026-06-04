@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "math",
+  "compatibility_date": "2026-02-20",
+  // Static explainer pack (geometry hub + scattered explainer dirs + elements).
+  // The member dirs live at the repo ROOT and are STAGED into ./dist by
+  // deploy-math.yml at build time — they are NOT moved. Root's Pages project
+  // still serves the canonical https://mino.mobi/<x>/ URLs, so this surface is
+  // ADDITIVE: math.mino.mobi serves the same pages on their own subdomain
+  // without breaking the existing links the members cross-reference absolutely.
+  // DEFERRED (the "on split" work the registry note describes): rewrite the
+  // absolute mino.mobi/<x>/ cross-links to relative, then carve these dirs out
+  // of root.serves so root stops shipping them.
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "math.mino.mobi", "custom_domain": true }
+  ]
+}

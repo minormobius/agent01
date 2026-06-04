@@ -451,9 +451,9 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "needs-workflow",
+      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
       "op": "encapsulation",
-      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. Members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — moving to math.mino.mobi requires rewriting those cross-links in all members + the hub. Carve these dirs out of root.serves on split.",
+      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. DEFERRED on-split work: members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — rewrite those to relative in all members + the hub, THEN carve these dirs out of root.serves + deploy-root.yml paths so root stops shipping them.",
       "paths": [
         "geometry/**",
         "erdos/**",
@@ -487,9 +487,9 @@
         "auth.mino.mobi"
       ],
       "provides": null,
-      "status": "needs-workflow",
+      "status": "MANAGED — additive launch via deploy-canvas.yml (Worker `canvas`, custom_domain canvas.mino.mobi + thin canvas/index.html hub). Members STAGED from root, not moved; backends untouched (absolute origins). Root still serves canonical mino.mobi/<x>/.",
       "op": "encapsulation",
-      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve submits to scores. One deploy unit; backends stay in poll/scores.",
+      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve submits to scores — all ABSOLUTE origins, so the frontends move cleanly. One deploy unit; backends stay in poll/scores. DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.",
       "paths": [
         "draw/**",
         "curve/**",

@@ -1,0 +1,56 @@
+name: Deploy Math (explainer pack)
+
+# Encapsulation surface: bundles the geometry hub + the scattered top-level
+# explainer dirs + elements/ into ONE deploy unit at math.mino.mobi.
+#
+# ADDITIVE launch: the member dirs are STAGED into math/dist at build time, not
+# moved. Root's Pages project still serves the canonical https://mino.mobi/<x>/
+# URLs the members cross-link to, so nothing breaks. The cross-link rewrite and
+# the carve-out from deploy-root.yml's paths list are deferred follow-ups (see
+# math/wrangler.jsonc + the "math" entry in deploy-registry.json).
+
+on:
+  push:
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    paths:
+      - 'geometry/**'
+      - 'erdos/**'
+      - 'guthkatz/**'
+      - 'hadwiger/**'
+      - 'heilbronn/**'
+      - 'kakeya/**'
+      - 'runner/**'
+      - 'szemeredi-trotter/**'
+      - 'viazovska/**'
+      - 'capset/**'
+      - 'borsuk/**'
+      - 'elements/**'
+      - 'math/**'
+      - '.github/workflows/deploy-math.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage member sites into dist/
+        working-directory: math
+        run: |
+          rm -rf dist && mkdir -p dist
+          for d in geometry erdos guthkatz hadwiger heilbronn kakeya runner \
+                   szemeredi-trotter viazovska capset borsuk elements; do
+            mkdir -p "dist/$d"
+            cp -r "../$d/." "dist/$d/"
+          done
+          # math.mino.mobi/ root serves the geometry hub (also available at /geometry/)
+          cp -r ../geometry/. dist/
+          ls -la dist/
+
+      - name: Deploy to Cloudflare
+        working-directory: math
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
