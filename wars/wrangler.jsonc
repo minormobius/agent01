@@ -1,8 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "wars-minomobi",
+  "name": "war",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "."
-  }
+  },
+  "routes": [
+    { "pattern": "war.mino.mobi", "custom_domain": true }
+  ]
 }

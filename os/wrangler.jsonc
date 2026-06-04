@@ -1,7 +1,10 @@
 {
-  "name": "pds-os",
+  "name": "os",
   "compatibility_date": "2024-09-23",
   "assets": {
     "directory": "./dist"
-  }
+  },
+  "routes": [
+    { "pattern": "os.mino.mobi", "custom_domain": true }
+  ]
 }

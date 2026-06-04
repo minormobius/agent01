@@ -1,11 +1,11 @@
-name: Deploy Clock Sculptures
+name: Deploy b (Bluesky corner)
 
 on:
   push:
     branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
-      - 'clock/**'
-      - '.github/workflows/deploy-clock.yml'
+      - 'b/**'
+      - '.github/workflows/deploy-b.yml'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: clock
+        working-directory: b
 
     steps:
       - uses: actions/checkout@v4

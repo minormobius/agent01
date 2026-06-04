@@ -1,8 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mega-minomobi",
+  "name": "mega",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "."
-  }
+  },
+  "routes": [
+    { "pattern": "mega.mino.mobi", "custom_domain": true }
+  ]
 }

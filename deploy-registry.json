@@ -1,5 +1,5 @@
 {
-  "$comment": "SOURCE OF TRUTH for which branch deploys which surface. Edit this file ONLY. Run `node scripts/gen-deploy-triggers.mjs` to sync the deploy-*.yml trigger blocks, and `node scripts/lint-deploy-registry.mjs` to validate. INVARIANT: every surface maps to exactly ONE feature branch (plus main). A branch MAY own many surfaces (one Claude consciously taking several). A surface owned by two branches, or any wildcard branch, is forbidden. To claim a surface, change its `branch` field to your branch.",
+  "$comment": "SOURCE OF TRUTH for which branch deploys which surface. Edit this file ONLY. Run `node scripts/gen-deploy-triggers.mjs` to sync the deploy-*.yml trigger blocks, and `node scripts/lint-deploy-registry.mjs` to validate. INVARIANT: every surface maps to exactly ONE feature branch (plus main). A branch MAY own many surfaces (one Claude consciously taking several). A surface owned by two branches, or any wildcard branch, is forbidden. To claim a surface, change its `branch` field to your branch. Full pipeline + the golden rule (worker name must match the domain-owning worker): docs/DEPLOYS.md. Repo layout: docs/REPO-STRUCTURE.md.",
   "trunk": "main",
   "hero": "claude/landing-projects-takeover-pKkmW",
   "surfaces": [
@@ -68,16 +68,20 @@
       ]
     },
     {
-      "surface": "atmosphere",
-      "dir": "atmosphere",
-      "endpoint": "atmosphere.mino.mobi, b.mino.mobi",
+      "surface": "b",
+      "dir": "b",
+      "endpoint": "b.mino.mobi",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
       "paths": [
-        "atmosphere/**"
-      ]
+        "b/**"
+      ],
+      "serves": [
+        "disk"
+      ],
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
@@ -187,25 +191,6 @@
       ]
     },
     {
-      "surface": "clock",
-      "dir": "clock",
-      "endpoint": "clock.mino.mobi (deprecated → g.mino.mobi)",
-      "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [],
-      "provides": null,
-      "paths": [
-        "clock/**"
-      ],
-      "mitosis": {
-        "status": "executed (g + torus)",
-        "members": 23,
-        "plan": "DONE — g.mino.mobi mirrors the gallery; torus.mino.mobi takes corn/emsim/inpac/knotpac/pac/torpac/toruschess.",
-        "caveat": "DEFERRED: reconcile clock/fluoddity + clock/garden (+ shared clock/lib) into the top-level fluoddity surface; drop torus-game tiles from the gallery once torus.mino.mobi is canonical."
-      },
-      "status": "DEPRECATED — vestigial name. Superseded by g.mino.mobi (full gallery) + torus.mino.mobi (toroidal games). Kept deploying until clock.mino.mobi → g.mino.mobi redirect is set in the Cloudflare dashboard, then retire deploy-clock.yml + this entry."
-    },
-    {
       "surface": "cron",
       "dir": "workers/cron",
       "endpoint": "minomobi-cron",
@@ -267,7 +252,8 @@
       "provides": null,
       "paths": [
         "fluoddity/**"
-      ]
+      ],
+      "status": "MANAGED — FIXED: added custom_domain route (fluoddity.mino.mobi) to make the binding declarative. Name kept (fluoddity-minomobi); no twin worker found, so it was already deploying the right worker."
     },
     {
       "surface": "fred-proxy",
@@ -428,7 +414,9 @@
       "provides": null,
       "paths": [
         "zoom/**"
-      ]
+      ],
+      "status": "MANAGED — FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
+      "note": "Vite/React build -> ./dist, Worker `zoom` with custom_domain zoom.mino.mobi (canvas/math/g/torus pattern). NB: zoom is a Worker, not a Pages project (verified: no Pages project named zoom)."
     },
     {
       "surface": "math",
@@ -508,7 +496,7 @@
       "provides": null,
       "status": "MANAGED — additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",
       "op": "encapsulation",
-      "note": "g.mino.mobi is the renamed clock gallery (clock/index.html = “G — WebGPU Gallery”) + all toys. Deprecates the “clock” name. DEFERRED: redirect clock.mino.mobi → g.mino.mobi, partition the torus games out of the gallery tiles, reconcile clock/fluoddity+garden into the fluoddity surface.",
+      "note": "g.mino.mobi is the renamed clock gallery (clock/index.html = “G — WebGPU Gallery”) + all toys; reads from clock/ source. SUPERSEDES the retired `clock` surface (deploy-clock.yml removed — it only ever updated a stray `clock-minomobi` worker, never the live clock worker). DEFERRED dashboard steps: redirect clock.mino.mobi → g.mino.mobi then delete the stale `clock` worker; delete the `clock-minomobi` stray now; partition torus games out of the gallery tiles; reconcile clock/fluoddity+garden into the fluoddity surface.",
       "paths": [
         "clock/**",
         "g/**"
@@ -567,7 +555,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-mega.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED — FIXED (zoom-bucket): config renamed mega-minomobi -> mega + custom_domain route (mega.mino.mobi). Was deploying stray worker mega-minomobi. CLEANUP: delete the orphan `mega-minomobi` worker.",
       "note": "Megaproject dashboard — global infrastructure tracker. Static worker-assets (Worker `mega-minomobi`).",
       "paths": [
         "mega/**"
@@ -595,7 +583,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-pokemon.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "MANAGED — FIXED (zoom-bucket): config renamed mino-poke -> poke + custom_domain route, so wrangler deploy updates the worker that owns poke.mino.mobi. Was deploying stray worker mino-poke. CLEANUP: delete the orphan `mino-poke` worker in the dashboard.",
       "note": "Critter Red — Pokemon-style game. Static worker-assets (Worker `mino-poke`).",
       "paths": [
         "pokemon/**"
@@ -653,7 +641,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — onboarded to Actions (deploy-wars.yml). Independent worker, own subdomain live (probe-verified). Disconnect CF git once this Action is confirmed canonical.",
+      "status": "MANAGED — FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
       "note": "War Factor Analysis — Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
       "paths": [
         "wars/**"
@@ -662,29 +650,15 @@
     {
       "surface": "answers",
       "dir": "answers",
-      "endpoint": "answers.mino.mobi (pending attach)",
+      "endpoint": "ask.mino.mobi",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-answers.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
-      "note": "Answers — ATProto Q&A. Static worker-assets (Worker `mino-answers`). Currently served via root bundle at mino.mobi/answers/; own subdomain not attached. Has inline OAuth (answers/assets/answers.js + answers/docs.html) — migrate to shared oauth-client when carving fully.",
+      "status": "MANAGED — FIXED (zoom-bucket): the answers/ site is live at ask.mino.mobi via a worker named `ask` (not answers.mino.mobi). Config renamed mino-answers -> ask + custom_domain route, so the Action now updates the live worker (was deploying stray mino-answers; ask sat ~45 days). CLEANUP: delete the orphan `mino-answers` worker.",
+      "note": "\"Answers — powered by ATProto\". Static worker-assets. Live subdomain is ask.mino.mobi (worker `ask`); also bundled at mino.mobi/answers/. Has inline OAuth (answers/assets/answers.js) — migrate to shared oauth-client later.",
       "paths": [
         "answers/**"
-      ]
-    },
-    {
-      "surface": "disk",
-      "dir": "disk",
-      "endpoint": "disk.mino.mobi (pending attach)",
-      "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [],
-      "provides": null,
-      "status": "MANAGED (domain pending) — onboarded to Actions (deploy-disk.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
-      "note": "disk — Poincare interaction map. Static worker-assets (Worker `mino-disk`). Currently served via root bundle at mino.mobi/disk/; own subdomain not attached.",
-      "paths": [
-        "disk/**"
       ]
     },
     {
@@ -723,7 +697,7 @@
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (frontend) — deploy-os.yml: Vite build -> Worker `pds-os`, live at os.mino.mobi (probe-verified). The backend container worker (os/api, os-mino-api) is deliberately NOT auto-deployed: see deploy-os-api.yml (manual, dispatch-only) + unmanaged.in_progress.",
+      "status": "MANAGED (frontend) — FIXED (zoom-bucket): config renamed pds-os -> os + custom_domain route (os.mino.mobi). Was deploying stray worker pds-os. CLEANUP: delete the orphan `pds-os` worker. (os/api container worker unaffected — still manual via deploy-os-api.yml.)",
       "note": "React + Vite + xterm.js terminal UI; talks to os-api (Cloudflare Containers backend) at runtime via SYNC_URL. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.",
       "paths": [
         "os/**",

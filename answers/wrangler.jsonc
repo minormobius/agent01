@@ -1,8 +1,13 @@
+// answers/ is the "Answers — powered by ATProto" site, served at ask.mino.mobi
+// by a worker named `ask` (NOT answers.mino.mobi). Name must match that worker.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mino-answers",
+  "name": "ask",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "."
-  }
+  },
+  "routes": [
+    { "pattern": "ask.mino.mobi", "custom_domain": true }
+  ]
 }

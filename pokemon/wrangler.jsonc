@@ -1,10 +1,12 @@
 // Cloudflare Workers static assets — root directory set to pokemon/
-// Update `name` to match the CF project that serves poke.mino.mobi.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "mino-poke",
+  "name": "poke",
   "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "."
-  }
+  },
+  "routes": [
+    { "pattern": "poke.mino.mobi", "custom_domain": true }
+  ]
 }

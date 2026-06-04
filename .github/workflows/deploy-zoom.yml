@@ -28,7 +28,12 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy static site
+      # Deploy to the existing Worker `zoom` (name set in zoom/wrangler.jsonc),
+      # which owns zoom.mino.mobi via the custom_domain route declared there.
+      # The config name was previously `mino-zoom`, which spun up a SEPARATE
+      # Worker on *.workers.dev and left the subdomain languishing. There is no
+      # Pages project named `zoom` — it's a Worker. (Matches canvas/math/g/torus.)
+      - name: Deploy to the zoom Worker
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

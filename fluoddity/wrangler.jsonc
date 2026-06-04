@@ -7,6 +7,9 @@
     "directory": ".",
     "binding": "ASSETS"
   },
+  "routes": [
+    { "pattern": "fluoddity.mino.mobi", "custom_domain": true }
+  ],
   // Comma-separated bsky handles/DIDs allowed to use /api/tts (the ElevenLabs
   // voiceover proxy). Empty = nobody. The ELEVENLABS_API_KEY is a Worker SECRET,
   // set once with: wrangler secret put ELEVENLABS_API_KEY
