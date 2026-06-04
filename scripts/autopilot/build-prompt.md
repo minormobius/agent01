@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-03 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-04 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, ask, astro, atlas, atmosphere, atproto-data, audio, auto, bakery, bisk, bogo, borges, borsuk, bounty, capset, cards, cat, chess, clock, cluster, corn, crm, cult, curve, data, density, disk, docs, draw, echo, elements, empathy, emsim, erdos, finance, flights, flow, flows, fluoddity, fodder, functions, games, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, inpac, io, j, js, judge, kakeya, knotpac, labglass, lexicon, list, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, org, os, pac, packages, paint, pds, photo, phylo, pm, pokemon, poll, post01, prism, proteus, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, splice, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, ternary2, ternary3, thread, time, torpac, torusworld, track, vault, viazovska, wars, wave, web, weft, wiki, wild, workers, yum, zoom
+**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, antoine, ask, astro, atlas, atmosphere, atproto-data, audio, auto, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, disk, docs, draw, echo, elements, empathy, emsim, erdos, finance, flights, flow, flows, fluoddity, fodder, fractal, functions, g, games, garden, gawain, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, horned, inpac, io, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, math, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, orb, orfeo, org, os, owain, pac, packages, paint, pds, pendragon, photo, phylo, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, splice, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, ternary2, ternary3, thread, time, torpac, torus, track, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yum, zoom
 
-**Catalog saturation** (sites per category): bluesky 29, data 27, games 24, tools 9, work 6.
+**Catalog saturation** (sites per category): bluesky 36, games 32, data 27, tools 24, work 7.
 
-**Neighborhood spark** (bisk 2026-06-03, 100 members / 268 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: claude, chatgpt, llm
-- Top post: "BE ABSOLUTELY NOT AFRAID" — @gracekind.net
+**Neighborhood spark** (bisk 2026-06-04, 100 members / 263 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: ist, llm, glich
+- Top post: "legitimately cannot understand anyone saying "where did the apocalypse we were told was coming from the oil issues go" g" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
