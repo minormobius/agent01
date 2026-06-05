@@ -75,6 +75,7 @@ async function keepFilled() {
   if (filling) return; filling = true;
   while (pieceQueue.length < 4) { const p = await nextPiece(); if (!p) break; pieceQueue.push(p); if (!piece && !over && started) spawnNext(); }
   filling = false;
+  if (!piece && !pieceQueue.length && !over) setStatus('no threads from the feed — retrying…'), setTimeout(() => { if (!piece && !over) keepFilled(); }, 4000);
 }
 
 // thread -> connected polyhex, returned as relative CUBE cells (root at origin)
@@ -99,7 +100,7 @@ function threadToPiece(root) {
 // ── game state ──────────────────────────────────────────────────────────────
 let occupied = new Map(); // "col,row" -> { post }
 let piece = null;         // { cells:[cube], col, row, root }  (anchor in offset)
-let score = 0, placed = 0, lines = 0, over = false, started = false;
+let score = 0, placed = 0, lines = 0, over = false, started = true;
 const avatars = new Map();
 
 function absOffset(pc, dCol = 0, dRow = 0) {
@@ -121,6 +122,7 @@ function spawn(p) {
   off = absOffset(piece); piece.row -= Math.min(...off.map((o) => o.row));
   loadAvatars(piece.cells);
   if (collides(piece, 0, 0)) { over = true; setStatus('topped out — press R to restart'); }
+  else setStatus('');
 }
 function spawnNext() { if (pieceQueue.length) { spawn(pieceQueue.shift()); keepFilled(); } else keepFilled(); }
 
@@ -278,5 +280,5 @@ function esc(s) { return (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 addEventListener('resize', resize, { passive: true });
 resize();
 setInterval(tick, FALL_MS);
-setStatus(listInput ? 'press a key / tap a button to start (your list)' : 'press a key / tap a button to start');
+setStatus(listInput ? 'loading threads… (your list)' : 'loading threads…');
 keepFilled();
