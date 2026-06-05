@@ -152,7 +152,7 @@ function renderInputs() {
       body.append(
         field('search for', textInput(inp.q, (v) => inp.q = v, 'keyword, phrase, #hashtag')),
         field('order', select([['latest', 'latest'], ['top', 'top']], inp.sort, (v) => inp.sort = v)),
-        el('div', 'fg-note', '🔒 search needs sign-in — coming in slice 2'),
+        el('div', 'fg-note', '🔎 matches recent posts across Bluesky'),
       );
     } else if (inp.type === 'list') {
       body.append(field('list uri', textInput(inp.uri, (v) => inp.uri = v, 'at://did:plc:…/app.bsky.graph.list/…')));

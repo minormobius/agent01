@@ -16,16 +16,19 @@ const CORS = {
 };
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 
-// Optional service session for authed search (the public AppView 403s search).
-// Set FEEDGEN_BSKY_HANDLE + FEEDGEN_BSKY_APP_PASSWORD to enable; degrades cleanly.
+// Service session for authed search (the public AppView 403s search). Uses the
+// repo's morphyx service account (BLUESKY_MORPHYX_* worker secrets, injected by
+// deploy-b.yml from the GH secrets). Degrades cleanly if unset.
 let _svc = null;
 async function serviceToken(env) {
-  if (!env.FEEDGEN_BSKY_HANDLE || !env.FEEDGEN_BSKY_APP_PASSWORD) return null;
+  const handle = env.BLUESKY_MORPHYX_HANDLE || env.FEEDGEN_BSKY_HANDLE;
+  const pass = env.BLUESKY_MORPHYX_APP_PASSWORD || env.FEEDGEN_BSKY_APP_PASSWORD;
+  if (!handle || !pass) return null;
   if (_svc && _svc.exp > Date.now()) return _svc.token;
   try {
     const r = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: env.FEEDGEN_BSKY_HANDLE, password: env.FEEDGEN_BSKY_APP_PASSWORD }),
+      body: JSON.stringify({ identifier: handle, password: pass }),
     });
     if (!r.ok) return null;
     const d = await r.json();

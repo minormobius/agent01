@@ -12,7 +12,8 @@
   // feed-generator service (did:web:b.mino.mobi + getFeedSkeleton); every other
   // path falls through to the static site via the ASSETS binding.
   // (atmosphere.mino.mobi retired — detach it in the dashboard.)
-  // Optional search secrets: FEEDGEN_BSKY_HANDLE, FEEDGEN_BSKY_APP_PASSWORD.
+  // Search service secrets BLUESKY_MORPHYX_HANDLE/_APP_PASSWORD are injected by
+  // deploy-b.yml from the GH secrets (the shared morphyx account).
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
