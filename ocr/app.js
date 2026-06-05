@@ -1,18 +1,18 @@
-// OCR — pull text (e.g. an activation code) off an image, entirely client-side.
+// OCR — pull text (e.g. activation codes) off images, entirely client-side.
 //
-// Load an image, drag a box around the part you need, and it OCRs just that
-// crop (smaller → faster + more accurate). "Scan whole image" is the fallback.
+// Flow: load image(s) or a whole folder. For each image you draw a box around
+// the text you want (or "Whole image" / "Skip"). Drawing a box dispatches that
+// image to OCR and IMMEDIATELY advances to the next one — so boxing never waits
+// on compute. OCR runs one-at-a-time in a Web Worker; results fill in below as
+// they finish. Box everything, then walk away.
 //
-// The OCR itself (image decode + neural detect/recognize, all Rust/WASM) runs
-// in a Web Worker (ocr.worker.js → engine.js) so the synchronous inference
-// never blocks the UI. If module workers aren't available, we fall back to
-// running the same engine on the main thread (works, just not as smooth).
+// The OCR itself (decode + neural detect/recognize, all Rust/WASM) lives in
+// ocr.worker.js → engine.js. This file is the queue + selection UI + export.
 
 // ---- OCR transport: worker, with a main-thread fallback ----
 let worker = null;
 let fallback = null;
 const pending = new Map(); // id → { resolve, reject, onProgress }
-let nextId = 1;
 
 try {
   worker = new Worker(new URL('./ocr.worker.js', import.meta.url), { type: 'module' });
@@ -33,13 +33,12 @@ try {
   worker = null;
 }
 
-async function ocrScan(file, rect, onProgress) {
+async function ocrScan(file, rect, jobId, onProgress) {
   const buf = await file.arrayBuffer();
   if (worker) {
-    const id = nextId++;
     return new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject, onProgress });
-      worker.postMessage({ type: 'scan', id, buf, mime: file.type, rect }, [buf]);
+      pending.set(jobId, { resolve, reject, onProgress });
+      worker.postMessage({ type: 'scan', id: jobId, buf, mime: file.type, rect }, [buf]);
     });
   }
   if (!fallback) fallback = await import('./engine.js');
@@ -60,52 +59,6 @@ function findCodes(text) {
   return out;
 }
 
-function fmtBytes(n) {
-  if (!n && n !== 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function statusFor(p) {
-  if (p.stage === 'detection' || p.stage === 'recognition') {
-    const pct = p.total ? Math.round((p.received / p.total) * 100) : null;
-    return `Loading ${p.stage} model… ${pct != null ? pct + '%' : fmtBytes(p.received)} (one-time, then cached)`;
-  }
-  if (p.stage === 'init') return 'Warming up the engine…';
-  return 'Reading the image…'; // scan
-}
-
-// ---- DOM ----
-const $ = (id) => document.getElementById(id);
-const drop = $('drop'), fileInput = $('file'), cameraInput = $('camera');
-const preview = $('preview'), hint = $('hint'), overlay = $('overlay'), statusEl = $('status');
-const selbox = $('selbox'), selhelp = $('selhelp');
-const errorEl = $('error'), scanAllBtn = $('scanAllBtn'), copyAllBtn = $('copyAllBtn');
-const codesSection = $('codesSection'), codesEl = $('codes');
-const textSection = $('textSection'), textHeading = $('textHeading'), textEl = $('text'), emptyEl = $('empty');
-
-let busy = false;
-let previewUrl = null;
-let lastText = '';
-let currentFile = null;
-let hasImage = false;
-
-// selection state
-let selecting = false;
-let selStart = null;     // {x,y} fractions of the preview
-let selRect = null;      // {x,y,w,h} fractions, or null
-
-function setBusy(on, label) {
-  busy = on;
-  drop.classList.toggle('busy', on);
-  // Toggle a class, not the `hidden` attribute: `.overlay { display:flex }`
-  // would override `[hidden]`'s display:none and keep it permanently visible.
-  overlay.classList.toggle('show', on);
-  if (label != null) statusEl.textContent = label;
-  for (const b of document.querySelectorAll('.actions button')) b.disabled = on;
-}
-
 function copy(value, el) {
   navigator.clipboard?.writeText(value).then(() => {
     if (!el) return;
@@ -115,18 +68,87 @@ function copy(value, el) {
   });
 }
 
+// ---- DOM ----
+const $ = (id) => document.getElementById(id);
+const drop = $('drop'), fileInput = $('file'), folderInput = $('folder'), cameraInput = $('camera');
+const preview = $('preview'), hint = $('hint'), selbox = $('selbox');
+const stagebar = $('stagebar'), stageinfo = $('stageinfo'), stagedone = $('stagedone');
+const wholeBtn = $('wholeBtn'), skipBtn = $('skipBtn');
+const errorEl = $('error'), results = $('results'), rowsEl = $('rows'), statsEl = $('stats');
+
 function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
 
-function clearResults() {
+// ---- the queue ----
+// item: { id, file, name, rect, status, result, error, rowEl }
+//   status: waiting → (queued | running | done | error | skipped)
+const queue = [];
+let cursor = 0;       // index of the image currently shown for selection
+let nextId = 1;
+let previewUrl = null;
+const CONCURRENCY = 1; // single wasm engine — one OCR at a time
+
+const baseName = (p) => (p || '').split('/').pop();
+
+function addFiles(list) {
+  const imgs = [...list]
+    .filter((f) => f.type ? f.type.startsWith('image/') : /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name))
+    .sort((a, b) => (a.webkitRelativePath || a.name).localeCompare(b.webkitRelativePath || b.name, undefined, { numeric: true }));
+  if (!imgs.length) { showError('No images found in that selection.'); return; }
   errorEl.hidden = true;
-  codesSection.hidden = true;
-  textSection.hidden = true;
-  copyAllBtn.hidden = true;
+  for (const f of imgs) {
+    queue.push({ id: nextId++, file: f, name: f.webkitRelativePath || f.name, rect: null, status: 'waiting', result: null, error: null, rowEl: null });
+  }
+  results.hidden = false;
+  refreshStage();
+  updateStats();
 }
+
+function hasCurrent() {
+  return cursor < queue.length && queue[cursor].status === 'waiting';
+}
+
+function showImage(item) {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(item.file);
+  preview.src = previewUrl;
+  preview.classList.add('show');
+  clearSelection();
+}
+
+function refreshStage() {
+  while (cursor < queue.length && queue[cursor].status !== 'waiting') cursor++;
+  if (cursor < queue.length) {
+    const item = queue[cursor];
+    showImage(item);
+    hint.hidden = true;
+    drop.classList.add('has-image');
+    const total = queue.length;
+    stageinfo.textContent = total > 1 ? `Image ${cursor + 1} of ${total}` : 'Draw a box';
+    stagebar.hidden = false;
+    stagedone.hidden = true;
+  } else {
+    // nothing waiting
+    stagebar.hidden = true;
+    drop.classList.remove('has-image');
+    clearSelection();
+    if (queue.length) {
+      preview.classList.remove('show');
+      const anyOpen = queue.some((q) => q.status === 'queued' || q.status === 'running');
+      stagedone.textContent = anyOpen
+        ? 'All set — OCR is finishing in the background. You can walk away; results fill in below.'
+        : 'Done. Add more images or a folder to keep going.';
+      stagedone.hidden = false;
+    }
+  }
+}
+
+// ---- selection (drag a box over the current image) ----
+let selecting = false;
+let selStart = null;
+let selRect = null;
 
 function clearSelection() { selRect = null; selbox.hidden = true; }
 
-// ---- selection (drag a box over the preview) ----
 function pointerFrac(ev) {
   const r = preview.getBoundingClientRect();
   return {
@@ -134,7 +156,6 @@ function pointerFrac(ev) {
     y: Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)),
   };
 }
-
 function drawSelbox(a, b) {
   const r = preview.getBoundingClientRect();
   const d = drop.getBoundingClientRect();
@@ -149,7 +170,7 @@ function drawSelbox(a, b) {
 }
 
 drop.addEventListener('pointerdown', (ev) => {
-  if (!hasImage || busy) return;
+  if (!hasCurrent()) return;
   const r = preview.getBoundingClientRect();
   if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return;
   ev.preventDefault();
@@ -158,105 +179,187 @@ drop.addEventListener('pointerdown', (ev) => {
   drop.setPointerCapture?.(ev.pointerId);
   drawSelbox(selStart, selStart);
 });
-drop.addEventListener('pointermove', (ev) => {
-  if (!selecting) return;
-  selRect = drawSelbox(selStart, pointerFrac(ev));
-});
+drop.addEventListener('pointermove', (ev) => { if (selecting) selRect = drawSelbox(selStart, pointerFrac(ev)); });
 function endSelect(ev) {
   if (!selecting) return;
   selecting = false;
   drop.releasePointerCapture?.(ev.pointerId);
   const cur = drawSelbox(selStart, pointerFrac(ev));
   if (cur.w < 0.02 || cur.h < 0.02) { clearSelection(); return; } // ignore taps
-  selRect = cur;
-  scan(selRect);
+  decide('region', cur);
 }
 drop.addEventListener('pointerup', endSelect);
 drop.addEventListener('pointercancel', () => { selecting = false; clearSelection(); });
 
-// ---- render ----
-function render(result) {
-  lastText = result.text || '';
-  const codes = findCodes(lastText);
-  codesEl.innerHTML = '';
-  if (codes.length) {
-    for (const c of codes) {
-      const btn = document.createElement('button');
-      btn.className = 'code';
-      btn.title = 'Click to copy';
-      btn.innerHTML = `<span></span><span class="copy">⧉</span>`;
-      btn.firstChild.textContent = c;
-      btn.addEventListener('click', () => copy(c, btn));
-      codesEl.appendChild(btn);
-    }
-    codesSection.hidden = false;
+// ---- decide what to do with the current image, then advance ----
+function decide(action, rect) {
+  if (!hasCurrent()) return;
+  const item = queue[cursor];
+  if (action === 'skip') {
+    item.status = 'skipped';
   } else {
-    codesSection.hidden = true;
+    item.rect = action === 'region' ? rect : null;
+    item.status = 'queued';
+    pump();
   }
-  const n = result.lines?.length || 0;
-  textHeading.textContent = `All text${n ? ` (${n} line${n === 1 ? '' : 's'})` : ''}`;
-  textEl.textContent = lastText;
-  textEl.hidden = !lastText;
-  emptyEl.hidden = !!lastText;
-  textSection.hidden = false;
-  copyAllBtn.hidden = !lastText;
+  renderRow(item);
+  updateStats();
+  refreshStage();
 }
 
-// ---- load + scan ----
-function loadImage(file) {
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    showError('That doesn’t look like an image. Try a PNG, JPEG, or WebP.');
-    return;
-  }
-  currentFile = file;
-  hasImage = true;
-  clearResults();
-  clearSelection();
-
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = URL.createObjectURL(file);
-  preview.src = previewUrl;
-  preview.classList.add('show');
-  hint.hidden = true;
-  selhelp.hidden = false;
-  scanAllBtn.hidden = false;
-  drop.classList.add('has-image');
-}
-
-async function scan(rect) {
-  if (!currentFile || busy) return;
-  errorEl.hidden = true;
-  setBusy(true, 'Reading the image…');
-  try {
-    const result = await ocrScan(currentFile, rect || null, (p) => setBusy(true, statusFor(p)));
-    setBusy(false);
-    render(result);
-  } catch (err) {
-    setBusy(false);
-    showError(err?.message || String(err));
+// ---- OCR pump: at most CONCURRENCY jobs in flight ----
+let running = 0;
+function pump() {
+  while (running < CONCURRENCY) {
+    const item = queue.find((q) => q.status === 'queued');
+    if (!item) break;
+    item.status = 'running';
+    running++;
+    renderRow(item);
+    ocrScan(item.file, item.rect, item.id, (p) => {
+      item._progress = p.stage === 'detection' || p.stage === 'recognition' ? 'loading models…' : 'reading…';
+      renderRow(item);
+    })
+      .then((res) => { item.result = res; item.status = 'done'; })
+      .catch((err) => { item.error = err?.message || String(err); item.status = 'error'; })
+      .finally(() => { running--; item._progress = null; renderRow(item); updateStats(); refreshStage(); pump(); });
   }
 }
 
-// ---- events ----
-drop.addEventListener('click', () => { if (!busy && !hasImage) fileInput.click(); });
-drop.addEventListener('dragover', (e) => { e.preventDefault(); if (!busy) drop.classList.add('dragging'); });
+// ---- results rendering ----
+function pill(item) {
+  if (item.status === 'done') return ['done', 'done'];
+  if (item.status === 'error') return ['error', 'error'];
+  if (item.status === 'skipped') return ['skipped', 'skipped'];
+  if (item.status === 'running') return [item._progress || 'reading…', 'running'];
+  return ['queued', ''];
+}
+
+function renderRow(item) {
+  let row = item.rowEl;
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'row';
+    item.rowEl = row;
+    rowsEl.appendChild(row);
+  }
+  const [label, cls] = pill(item);
+  row.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'row-head';
+  const name = document.createElement('span');
+  name.className = 'row-name';
+  name.textContent = baseName(item.name);
+  name.title = item.name;
+  const badge = document.createElement('span');
+  badge.className = `pill ${cls}`;
+  badge.textContent = label;
+  head.append(name, badge);
+  row.appendChild(head);
+
+  if (item.status === 'done') {
+    const text = item.result?.text || '';
+    const codes = findCodes(text);
+    if (codes.length) {
+      const wrap = document.createElement('div');
+      wrap.className = 'row-codes';
+      for (const c of codes) {
+        const btn = document.createElement('button');
+        btn.className = 'code';
+        btn.title = 'Click to copy';
+        btn.innerHTML = `<span></span><span class="copy">⧉</span>`;
+        btn.firstChild.textContent = c;
+        btn.addEventListener('click', () => copy(c, btn));
+        wrap.appendChild(btn);
+      }
+      row.appendChild(wrap);
+    }
+    if (text) {
+      const det = document.createElement('details');
+      det.className = 'row-text';
+      const sum = document.createElement('summary');
+      const n = item.result?.lines?.length || 0;
+      sum.textContent = codes.length ? `Full text (${n} line${n === 1 ? '' : 's'})` : `Text (${n} line${n === 1 ? '' : 's'})`;
+      const pre = document.createElement('pre');
+      pre.textContent = text;
+      det.append(sum, pre);
+      if (!codes.length) det.open = true;
+      row.appendChild(det);
+    } else {
+      const e = document.createElement('div');
+      e.className = 'row-empty';
+      e.textContent = 'No text found — try a tighter box or a sharper shot.';
+      row.appendChild(e);
+    }
+  } else if (item.status === 'error') {
+    const e = document.createElement('div');
+    e.className = 'row-empty';
+    e.textContent = item.error || 'failed';
+    row.appendChild(e);
+  }
+}
+
+function updateStats() {
+  if (!queue.length) { statsEl.textContent = ''; return; }
+  const c = { done: 0, skipped: 0, error: 0, busy: 0, waiting: 0 };
+  for (const q of queue) {
+    if (q.status === 'done') c.done++;
+    else if (q.status === 'skipped') c.skipped++;
+    else if (q.status === 'error') c.error++;
+    else if (q.status === 'waiting') c.waiting++;
+    else c.busy++; // queued | running
+  }
+  const parts = [`${c.done} done`];
+  if (c.busy) parts.push(`${c.busy} working`);
+  if (c.waiting) parts.push(`${c.waiting} to box`);
+  if (c.skipped) parts.push(`${c.skipped} skipped`);
+  if (c.error) parts.push(`${c.error} failed`);
+  statsEl.textContent = `· ${parts.join(' · ')} of ${queue.length}`;
+}
+
+// ---- export ----
+function csvCell(s) { return `"${String(s ?? '').replace(/"/g, '""')}"`; }
+function buildCsv() {
+  const lines = ['file,status,codes,text'];
+  for (const q of queue) {
+    if (q.status === 'waiting') continue;
+    const text = q.result?.text || '';
+    const codes = q.status === 'done' ? findCodes(text).join(' ') : '';
+    lines.push([q.name, q.status, codes, q.status === 'done' ? text : (q.error || '')].map(csvCell).join(','));
+  }
+  return lines.join('\r\n');
+}
+
+$('copyCsvBtn').addEventListener('click', (e) => { copy(buildCsv(), e.currentTarget); });
+$('downloadCsvBtn').addEventListener('click', () => {
+  const blob = new Blob([buildCsv()], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ocr-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+// ---- entry points ----
+drop.addEventListener('click', () => { if (!hasCurrent() && !queue.some((q) => q.status === 'waiting')) fileInput.click(); });
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragging'); });
 drop.addEventListener('dragleave', () => drop.classList.remove('dragging'));
 drop.addEventListener('drop', (e) => {
   e.preventDefault();
   drop.classList.remove('dragging');
-  const f = e.dataTransfer.files?.[0];
-  if (f) loadImage(f);
+  if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
 });
+wholeBtn.addEventListener('click', () => decide('whole'));
+skipBtn.addEventListener('click', () => decide('skip'));
 $('chooseBtn').addEventListener('click', () => fileInput.click());
+$('folderBtn').addEventListener('click', () => folderInput.click());
 $('cameraBtn').addEventListener('click', () => cameraInput.click());
-scanAllBtn.addEventListener('click', () => { clearSelection(); scan(null); });
-copyAllBtn.addEventListener('click', () => copy(lastText, copyAllBtn));
-fileInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; loadImage(f); });
-cameraInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; loadImage(f); });
+fileInput.addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+folderInput.addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+cameraInput.addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
 window.addEventListener('paste', (e) => {
-  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
-  if (item) loadImage(item.getAsFile());
+  const imgs = [...(e.clipboardData?.items || [])].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile()).filter(Boolean);
+  if (imgs.length) addFiles(imgs);
 });
-// keep the selection box aligned if the preview reflows
 window.addEventListener('resize', () => { if (selRect) drawSelbox(selRect, { x: selRect.x + selRect.w, y: selRect.y + selRect.h }); });
