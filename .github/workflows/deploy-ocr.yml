@@ -34,10 +34,14 @@ jobs:
       - name: Verify it's live
         continue-on-error: true
         run: |
-          for attempt in 1 2 3 4 5; do
-            if curl -fsS https://ocr.mino.mobi/ | grep -qi 'read text off an image'; then
-              echo "✓ ocr.mino.mobi is live"; exit 0
-            fi
-            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          for host in ocr.mino.mobi ocr.ascential.work; do
+            ok=
+            for attempt in 1 2 3 4 5; do
+              if curl -fsS "https://$host/" | grep -qi 'read text off an image'; then
+                echo "✓ $host is live"; ok=1; break
+              fi
+              echo "  $host attempt $attempt: not yet, sleeping…"; sleep 4
+            done
+            [ -n "$ok" ] || echo "⚠️ $host didn't respond within 20s — new custom domains can take a few minutes to provision, continuing."
           done
-          echo "⚠️ ocr.mino.mobi didn't respond within 20s — edge propagation may be slow, continuing."
+          exit 0
