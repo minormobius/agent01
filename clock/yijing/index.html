@@ -596,7 +596,7 @@ function ytextHTML(t, opts={}){
     (opts.gloss?`<div class="gloss">${opts.gloss}</div>`:'')+
     (t.n?`<div class="n">${t.n}</div>`:'')+`</div>`;
 }
-const READ = `<a class="src-link" href="https://read.mino.mobi/iching/">our open translation →</a>`;
+const READ = n => `<a class="src-link" href="https://read.mino.mobi/iching/#h${n}">our open translation →</a>`;
 function reveal(){
   const r = composeReading(LINES, HEX, ZHOUYI);
   const P = HEX[r.primaryNo];
@@ -608,7 +608,7 @@ function reveal(){
   html += blk('The Image', r.image, 'gen');
   // The Judgment — our canonical translation (falls back to the paraphrase only if missing)
   if(r.judgment){
-    html += blk('The Judgment', ytextHTML(r.judgment) + READ);
+    html += blk('The Judgment', ytextHTML(r.judgment) + READ(r.primaryNo));
   } else {
     html += blk('The Judgment', P.j);
   }
@@ -618,7 +618,7 @@ function reveal(){
     html += `<div class="moving">No lines move — the answer is steady; read the Judgment as it stands.</div>`;
   } else if(r.useLine){                       // all six move on Hexagram 1 or 2 → the use-line (用九/用六)
     html += `<div class="judg"><span class="lab">All lines move · the use-line</span>`+
-      ytextHTML(r.useLine, {name:r.useLine.name})+`</div>`;
+      ytextHTML(r.useLine, {name:r.useLine.name})+` ${READ(r.primaryNo)}</div>`;
   } else if(r.lineReadings.length){           // 1, 2, 4 or 5 lines: read specific line-texts
     const items = r.lineReadings.map(x=> x.canonical
       ? ytextHTML(x.canonical, {name:x.canonical.name, still:x.relating, gloss:x.text})
@@ -626,7 +626,7 @@ function reveal(){
     const lab = r.lineReadings[0].relating
       ? `The line to read · in the relating hexagram ${r.transformedNo}`
       : (k===1 ? 'The moving line' : 'The moving lines');
-    html += `<div class="judg"><span class="lab">${lab}</span>${items} ${READ}</div>`;
+    html += `<div class="judg"><span class="lab">${lab}</span>${items} ${READ(r.lineReadings[0].hexNo)}</div>`;
   } else {                                    // 3 or 6 moving: the answer is carried by the Judgments
     html += `<div class="moving">${k>=6
       ? 'Every line moves — the answer is carried wholly by the relating hexagram below.'
@@ -642,7 +642,7 @@ function reveal(){
                 : `Where it ripens to, if the moving line runs its course.`;
     html += `<div class="judg"><span class="lab">The relating hexagram → ${r.relating.no} · ${HEX[r.relating.no].ch} ${HEX[r.relating.no].py}</span>`+
       `<div class="moving" style="margin-bottom:8px"><b>In motion →</b> ${frame}</div>`+
-      ytextHTML(r.relating.judgment)+` ${READ}</div>`;
+      ytextHTML(r.relating.judgment)+` ${READ(r.relating.no)}</div>`;
   }
   if(USE_SET) html += `<div class="moving" style="opacity:.72">Cast with your own set of fifty — seed-grown, hand-cured.</div>`;
   const q=document.getElementById('qtext').value.trim();

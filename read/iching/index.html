@@ -34,14 +34,23 @@ a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
 .masthead .sub{color:var(--ink2);font-size:14px;font-style:italic;max-width:54ch;margin:6px auto 0}
 .masthead .tag{font:11px/1 ui-monospace,monospace;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
 
-/* hexagram nav */
-#hexnav{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:20px 0 0}
-#hexnav .hx{font:13px/1 Georgia,serif;color:var(--ink2);background:rgba(216,178,90,.05);
-  border:1px solid var(--rule);border-radius:999px;padding:7px 13px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
-#hexnav .hx:hover{color:var(--ink);border-color:var(--gold-dim)}
-#hexnav .hx.on{background:linear-gradient(180deg,#e8c46e,#c79a44);color:#0e0d0b;border-color:transparent}
-#hexnav .hx .n{font:11px/1 ui-monospace,monospace;opacity:.7}
-#hexnav .hx .zh{font-family:"Songti SC","STSong",serif;font-size:15px}
+/* hexagram index — the classic 8×8 chart, lower trigram ↓ × upper trigram → */
+#hexnav{margin:22px 0 4px}
+.hxgrid{display:grid;grid-template-columns:minmax(16px,auto) repeat(8,minmax(0,1fr));gap:4px;width:100%}
+.hxgrid .cnr{font:8px/1.25 ui-monospace,monospace;color:var(--faint);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;text-align:center}
+.hxgrid .th{display:flex;align-items:center;justify-content:center;color:var(--gold-dim);line-height:1}
+.hxgrid .th.up{flex-direction:column;gap:2px}
+.hxgrid .th .g{font-size:clamp(13px,3vw,17px)}
+.hxgrid .th .tp{font:8.5px/1 ui-monospace,monospace;color:var(--faint);letter-spacing:.02em}
+.hxgrid .hx{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  aspect-ratio:1/1;border:1px solid var(--rule);border-radius:7px;background:rgba(216,178,90,.045);
+  color:var(--ink2);cursor:pointer;padding:1px;font-family:Georgia,serif}
+.hxgrid .hx:hover{color:var(--ink);border-color:var(--gold-dim);background:rgba(216,178,90,.1)}
+.hxgrid .hx.on{background:linear-gradient(180deg,#e8c46e,#c79a44);color:#0e0d0b;border-color:transparent}
+.hxgrid .hx .n{font:8.5px/1 ui-monospace,monospace;opacity:.6}
+.hxgrid .hx .zh{font-family:"Songti SC","STSong",serif;font-size:clamp(13px,3.3vw,18px)}
+.hxgrid .hx.empty{visibility:hidden;cursor:default;border:0;background:none}
 
 /* hexagram header */
 .hexhead{display:flex;gap:20px;align-items:center;justify-content:center;margin:30px 0 6px}
@@ -150,16 +159,40 @@ function render(no){
 
 const avail = Object.keys(ZHOUYI.hexagrams).map(Number).sort((a,b)=>a-b);
 const nav = document.getElementById('hexnav');
-nav.innerHTML = avail.map(n=>{ const h=ZHOUYI.hexagrams[n];
-  return `<button class="hx" data-n="${n}" title="${h.name.py} · ${h.name.en}"><span class="n">${n}</span><span class="zh">${h.name.zh}</span></button>`;
-}).join('');
+
+// the eight trigrams by 3-bit code (bit0 = bottom line, 1 = yang)
+const TRI = {
+  7:{g:'☰',zh:'乾',py:'Qián'}, 1:{g:'☳',zh:'震',py:'Zhèn'}, 2:{g:'☵',zh:'坎',py:'Kǎn'},
+  4:{g:'☶',zh:'艮',py:'Gèn'},  0:{g:'☷',zh:'坤',py:'Kūn'},  6:{g:'☴',zh:'巽',py:'Xùn'},
+  5:{g:'☲',zh:'離',py:'Lí'},   3:{g:'☱',zh:'兌',py:'Duì'},
+};
+const ORDER=[7,1,2,4,0,6,5,3];               // Wilhelm/Baynes endpaper order
+const triCodes=bits=>{ const b=bits.split('').map(Number);  // bottom→top
+  return { lower:b[0]+b[1]*2+b[2]*4, upper:b[3]+b[4]*2+b[5]*4 }; };
+const CELL={};                                // "lower-upper" → King Wen number
+avail.forEach(n=>{ const c=triCodes(ZHOUYI.hexagrams[n].figure); CELL[c.lower+'-'+c.upper]=n; });
+
+let g = `<div class="hxgrid"><div class="cnr">下&nbsp;↓<br>上&nbsp;→</div>`;
+ORDER.forEach(up=> g+=`<div class="th up" title="upper trigram · ${TRI[up].zh} ${TRI[up].py}"><span class="g">${TRI[up].g}</span><span class="tp">${TRI[up].py}</span></div>`);
+ORDER.forEach(lo=>{
+  g+=`<div class="th" title="lower trigram · ${TRI[lo].zh} ${TRI[lo].py}"><span class="g">${TRI[lo].g}</span></div>`;
+  ORDER.forEach(up=>{
+    const n=CELL[lo+'-'+up];
+    if(n){ const h=ZHOUYI.hexagrams[n];
+      g+=`<button class="hx" data-n="${n}" title="${n} · ${h.name.zh} ${h.name.py} · ${h.name.en}">`+
+         `<span class="n">${n}</span><span class="zh">${h.name.zh}</span></button>`;
+    } else g+=`<div class="hx empty"></div>`;
+  });
+});
+nav.innerHTML = g + `</div>`;
+
 function show(n){
   if(!ZHOUYI.hexagrams[n]) n=avail[0];
   render(n);
   try{ history.replaceState(null,'','#h'+n); }catch(e){}
-  nav.querySelectorAll('.hx').forEach(b=>b.classList.toggle('on', +b.dataset.n===n));
+  nav.querySelectorAll('.hx[data-n]').forEach(b=>b.classList.toggle('on', +b.dataset.n===n));
 }
-nav.querySelectorAll('.hx').forEach(b=>b.onclick=()=>{ show(+b.dataset.n); window.scrollTo({top:0,behavior:'smooth'}); });
+nav.querySelectorAll('.hx[data-n]').forEach(b=>b.onclick=()=>{ show(+b.dataset.n); window.scrollTo({top:0,behavior:'smooth'}); });
 addEventListener('hashchange',()=>{ const n=parseInt((location.hash.match(/h(\d+)/)||[])[1],10); if(avail.includes(n)) show(n); });
 const init = parseInt((location.hash.match(/h(\d+)/)||[])[1],10);
 show(avail.includes(init) ? init : avail[0]);
