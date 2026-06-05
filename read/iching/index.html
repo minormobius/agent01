@@ -36,9 +36,10 @@ a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
 
 /* hexagram header */
 .hexhead{display:flex;gap:20px;align-items:center;justify-content:center;margin:30px 0 6px}
-.figure{display:flex;flex-direction:column;gap:6px}
-.figure .ln{display:flex;justify-content:space-between;width:78px;height:9px}
-.figure .ln .seg{height:100%;border-radius:2px;background:var(--gold);box-shadow:0 0 10px rgba(216,178,90,.3)}
+.figure{display:flex;flex-direction:column;gap:8px}
+.figure .ln{display:flex;justify-content:space-between;width:80px;height:9px}
+.figure .ln .seg{height:100%;border-radius:2px;background:linear-gradient(180deg,#e8c46e,#c79a44);
+  box-shadow:0 1px 1px rgba(0,0,0,.55)}
 .figure .ln.yang .seg{width:100%}
 .figure .ln.yin .seg{width:calc(50% - 8px)}
 .hexname{text-align:left}
