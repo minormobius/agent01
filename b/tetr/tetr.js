@@ -1,16 +1,17 @@
-// b/tetr — Bluesky threads fall as hex pieces; slide them as the structure
-// descends and build a tower. Each piece is a real thread quantized onto a hex
-// grid: root post -> a cell, each reply -> an adjacent hex (the threadbeast,
-// gridded). Source: our SimCluster feed by default; ?list=<bsky list url> to
-// bring your own. Fully client-side + unauthed (feed skeleton + getPostThread).
+// b/tetr — Bluesky threads fall as pointy-top hex pieces; slide them and stack.
+// Each piece is a real thread quantized onto a hex grid (getPostThread -> tree ->
+// BFS onto cells). Geometry: pieces are RIGID in cube coords, the field is odd-r
+// OFFSET (upright rectangle with real horizontal rows), so we get proper line
+// clears and pieces that nestle a half-hex as they fall without distorting.
+// Source: our SimCluster feed by default; ?list=<bsky list url> for your own.
 
 const FEED_SKELETON = 'https://feed.mino.mobi/xrpc/app.bsky.feed.getFeedSkeleton';
 const SIMCLUSTER = 'at://did:plc:oqyev6xmuwgbtpr6jgxh5xg3/app.bsky.feed.generator/simcluster';
 const PUB = 'https://public.api.bsky.app/xrpc';
 const SQRT3 = Math.sqrt(3);
-const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]]; // flat-top axial neighbors
+const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]]; // axial neighbors (piece build)
 
-const COLS = 7, R_FLOOR = 14, MAX_CELLS = 7;
+const COLS = 8, ROWS = 18, MAX_CELLS = 7;
 const FALL_MS = 900;
 
 const canvas = document.getElementById('tetr');
@@ -18,15 +19,21 @@ const ctx = canvas.getContext('2d');
 const elScore = document.getElementById('t-score');
 const elPlaced = document.getElementById('t-placed');
 const elHeight = document.getElementById('t-height');
+const elLines = document.getElementById('t-lines');
 const elStatus = document.getElementById('t-status');
 const elPanel = document.getElementById('t-panel');
 
 const params = new URLSearchParams(location.search);
 const listInput = params.get('list');
 
+// ── hex math: odd-r offset <-> cube; offset -> pixel (pointy-top, upright) ────
+const parity = (row) => ((row % 2) + 2) % 2;
+function offsetToCube(col, row) { const q = col - (row - parity(row)) / 2, r = row; return { x: q, y: -q - r, z: r }; }
+function cubeToOffset(c) { const col = c.x + (c.z - parity(c.z)) / 2; return { col, row: c.z }; }
+function offsetToPixel(col, row) { return { x: OX + SQRT3 * S * (col + 0.5 * parity(row)), y: OY + 1.5 * S * row }; }
+
 // ── source: a stream of thread polyhex pieces ───────────────────────────────
 let feedCursor = null, uriQueue = [], pieceQueue = [], filling = false;
-
 async function xrpc(base, method, p = {}) {
   const u = new URL(`${base}/${method}`);
   for (const k in p) if (p[k] != null && p[k] !== '') u.searchParams.set(k, p[k]);
@@ -57,164 +64,144 @@ async function refillUris() {
   }
 }
 async function nextPiece() {
-  for (let tries = 0; tries < 40; tries++) {
+  for (let t = 0; t < 40; t++) {
     if (!uriQueue.length) { try { await refillUris(); } catch (_) {} if (!uriQueue.length) return null; }
     const uri = uriQueue.shift();
-    try {
-      const r = await xrpc(PUB, 'app.bsky.feed.getPostThread', { uri, depth: 8 });
-      const p = threadToPiece(r.thread);
-      if (p) return p;
-    } catch (_) {}
+    try { const r = await xrpc(PUB, 'app.bsky.feed.getPostThread', { uri, depth: 8 }); const p = threadToPiece(r.thread); if (p) return p; } catch (_) {}
   }
   return null;
 }
 async function keepFilled() {
   if (filling) return; filling = true;
-  while (pieceQueue.length < 4) { const p = await nextPiece(); if (!p) break; pieceQueue.push(p); if (!piece && !over) spawnNext(); }
+  while (pieceQueue.length < 4) { const p = await nextPiece(); if (!p) break; pieceQueue.push(p); if (!piece && !over && started) spawnNext(); }
   filling = false;
 }
 
-// ── thread -> connected polyhex (BFS onto the hex grid) ─────────────────────
+// thread -> connected polyhex, returned as relative CUBE cells (root at origin)
 function threadToPiece(root) {
   if (!root || !root.post) return null;
   const occ = new Set(['0,0']);
-  const cells = [{ q: 0, r: 0, post: root.post }];
+  const ax = [{ q: 0, r: 0, post: root.post }];
   const queue = [{ node: root, q: 0, r: 0 }];
-  while (queue.length && cells.length < MAX_CELLS) {
+  while (queue.length && ax.length < MAX_CELLS) {
     const { node, q, r } = queue.shift();
-    const kids = (node.replies || []).filter((x) => x && x.post);
-    for (const kid of kids) {
-      if (cells.length >= MAX_CELLS) break;
+    for (const kid of (node.replies || []).filter((x) => x && x.post)) {
+      if (ax.length >= MAX_CELLS) break;
       for (const [dq, dr] of DIRS) {
         const nq = q + dq, nr = r + dr, key = nq + ',' + nr;
-        if (!occ.has(key)) { occ.add(key); cells.push({ q: nq, r: nr, post: kid.post }); queue.push({ node: kid, q: nq, r: nr }); break; }
+        if (!occ.has(key)) { occ.add(key); ax.push({ q: nq, r: nr, post: kid.post }); queue.push({ node: kid, q: nq, r: nr }); break; }
       }
     }
   }
-  return { cells, root: root.post };
+  return { cells: ax.map((c) => ({ x: c.q, y: -c.q - c.r, z: c.r, post: c.post })), root: root.post };
 }
 
 // ── game state ──────────────────────────────────────────────────────────────
-let occupied = new Map(); // "q,r" -> { post }
-let piece = null;         // { cells:[{q,r,post}], aq, ar, root }
-let score = 0, placed = 0, over = false, started = false, timer = 0;
+let occupied = new Map(); // "col,row" -> { post }
+let piece = null;         // { cells:[cube], col, row, root }  (anchor in offset)
+let score = 0, placed = 0, lines = 0, over = false, started = false;
 const avatars = new Map();
 
-function absCells(pc, dq = 0, dr = 0) {
-  return pc.cells.map((c) => ({ q: pc.aq + c.q + dq, r: pc.ar + c.r + dr, post: c.post }));
+function absOffset(pc, dCol = 0, dRow = 0) {
+  const base = offsetToCube(pc.col + dCol, pc.row + dRow);
+  return pc.cells.map((c) => { const o = cubeToOffset({ x: base.x + c.x, y: base.y + c.y, z: base.z + c.z }); return { col: o.col, row: o.row, post: c.post }; });
 }
-function collides(pc, dq, dr) {
-  for (const c of absCells(pc, dq, dr)) {
-    if (c.q < 0 || c.q >= COLS || c.r > R_FLOOR) return true;
-    if (occupied.has(c.q + ',' + c.r)) return true;
+function collides(pc, dCol, dRow) {
+  for (const o of absOffset(pc, dCol, dRow)) {
+    if (o.col < 0 || o.col >= COLS || o.row >= ROWS) return true;
+    if (occupied.has(o.col + ',' + o.row)) return true;
   }
   return false;
 }
 function spawn(p) {
-  const minr = Math.min(...p.cells.map((c) => c.r));
-  const minq = Math.min(...p.cells.map((c) => c.q));
-  const maxq = Math.max(...p.cells.map((c) => c.q));
-  const cells = p.cells.map((c) => ({ q: c.q - minq, r: c.r - minr, post: c.post }));
-  piece = { cells, aq: Math.max(0, Math.floor((COLS - 1 - (maxq - minq)) / 2)), ar: -1, root: p.root };
-  loadAvatars(cells);
+  piece = { cells: p.cells, col: Math.floor(COLS / 2), row: 0, root: p.root };
+  let off = absOffset(piece);
+  const minc = Math.min(...off.map((o) => o.col)), maxc = Math.max(...off.map((o) => o.col));
+  if (minc < 0) piece.col -= minc; if (maxc > COLS - 1) piece.col -= (maxc - (COLS - 1));
+  off = absOffset(piece); piece.row -= Math.min(...off.map((o) => o.row));
+  loadAvatars(piece.cells);
   if (collides(piece, 0, 0)) { over = true; setStatus('topped out — press R to restart'); }
 }
 function spawnNext() { if (pieceQueue.length) { spawn(pieceQueue.shift()); keepFilled(); } else keepFilled(); }
-function rot60(c) { return { q: -c.r, r: c.q + c.r, post: c.post }; }
 
-function move(dq) { if (piece && !over && !collides(piece, dq, 0)) { piece.aq += dq; render(); } }
-function rotate() {
-  if (!piece || over) return;
-  const rc = piece.cells.map(rot60);
-  const test = { ...piece, cells: rc };
-  if (!collides(test, 0, 0)) { piece.cells = rc; render(); }
-}
-function softDrop() { if (!piece || over) return; if (!collides(piece, 0, 1)) { piece.ar++; } else lock(); render(); }
-function hardDrop() { if (!piece || over) return; let d = 0; while (!collides(piece, 0, d + 1)) d++; piece.ar += d; lock(); render(); }
+function move(dCol) { if (piece && !over && !collides(piece, dCol, 0)) { piece.col += dCol; render(); } }
+function rotate() { if (!piece || over) return; const rc = piece.cells.map((c) => ({ x: -c.z, y: -c.x, z: -c.y, post: c.post })); if (!collides({ ...piece, cells: rc }, 0, 0)) { piece.cells = rc; render(); } }
+function softDrop() { if (!piece || over) return; if (!collides(piece, 0, 1)) piece.row++; else lock(); render(); }
+function hardDrop() { if (!piece || over) return; let d = 0; while (!collides(piece, 0, d + 1)) d++; piece.row += d; lock(); render(); }
+function tick() { if (over || !started || !piece) return; if (!collides(piece, 0, 1)) piece.row++; else lock(); render(); }
 
-function tick() { if (over || !started || !piece) return; if (!collides(piece, 0, 1)) piece.ar++; else lock(); render(); }
-
-function heightScore() {
-  let m = R_FLOOR + 1;
-  for (const k of occupied.keys()) { const r = parseInt(k.split(',')[1], 10); if (r < m) m = r; }
-  return Math.max(0, R_FLOOR - m + 1);
+function heightScore() { let m = ROWS; for (const k of occupied.keys()) { const r = +k.split(',')[1]; if (r < m) m = r; } return Math.max(0, ROWS - m); }
+function clearLines() {
+  let cleared = 0;
+  for (let row = ROWS - 1; row >= 0; row--) {
+    let full = true;
+    for (let col = 0; col < COLS; col++) if (!occupied.has(col + ',' + row)) { full = false; break; }
+    if (full) {
+      cleared++;
+      const next = new Map();
+      for (const [k, v] of occupied) { const [c, r] = k.split(',').map(Number); if (r === row) continue; next.set(c + ',' + (r < row ? r + 1 : r), v); }
+      occupied = next; row++;
+    }
+  }
+  return cleared;
 }
 function lock() {
-  let topOut = false;
-  for (const c of absCells(piece)) {
-    occupied.set(c.q + ',' + c.r, { post: c.post });
-    if (c.r < 0) topOut = true;
-  }
+  for (const o of absOffset(piece)) occupied.set(o.col + ',' + o.row, { post: o.post });
   placed += piece.cells.length;
-  score = placed + heightScore() * 3;
+  const cl = clearLines(); lines += cl;
+  score = placed + heightScore() * 2 + lines * 12;
+  elPlaced.textContent = placed; elHeight.textContent = heightScore(); elLines.textContent = lines; elScore.textContent = score;
   piece = null;
-  elPlaced.textContent = placed;
-  elHeight.textContent = heightScore();
-  elScore.textContent = score;
-  if (topOut) { over = true; setStatus('topped out — press R to restart'); return; }
+  if (cl) setStatus(cl > 1 ? `${cl} lines!` : 'line!'), setTimeout(() => { if (!over) setStatus(''); }, 700);
   spawnNext();
 }
-
 function reset() {
-  occupied = new Map(); piece = null; score = 0; placed = 0; over = false; started = true;
-  elScore.textContent = '0'; elPlaced.textContent = '0'; elHeight.textContent = '0';
-  setStatus('');
-  pieceQueue = []; uriQueue = []; feedCursor = null;
-  keepFilled();
+  occupied = new Map(); piece = null; score = placed = lines = 0; over = false; started = true;
+  elScore.textContent = elPlaced.textContent = elHeight.textContent = elLines.textContent = '0';
+  setStatus(''); pieceQueue = []; uriQueue = []; feedCursor = null; keepFilled();
 }
 
 // ── rendering ────────────────────────────────────────────────────────────────
 let S = 22, OX = 26, OY = 26;
 function resize() {
-  const maxW = Math.min(window.innerWidth - 24, 560);
+  const maxW = Math.min((document.querySelector('.stage') || document.body).clientWidth - 8, 460);
   const maxH = window.innerHeight - 150;
-  const sW = maxW / (1.5 * COLS + 0.6);
-  const sH = maxH / (SQRT3 * (R_FLOOR + (COLS - 1) / 2 + 2.5));
-  S = Math.max(10, Math.min(sW, sH));
-  OX = S + 4; OY = S * SQRT3 * 1.2;
+  const sW = maxW / (SQRT3 * (COLS + 0.5));
+  const sH = maxH / (1.5 * ROWS + 0.6);
+  S = Math.max(9, Math.min(sW, sH));
+  OX = SQRT3 * S * 0.5 + 3; OY = S + 3;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = 1.5 * S * (COLS - 1) + 2 * S + 8;
-  const ch = SQRT3 * S * (R_FLOOR + (COLS - 1) / 2 + 2.5) + 8;
-  canvas.width = cw * dpr; canvas.height = ch * dpr;
-  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  render();
+  const cw = SQRT3 * S * (COLS + 0.5) + 6, ch = 1.5 * S * (ROWS - 1) + 2 * S + 6;
+  canvas.width = cw * dpr; canvas.height = ch * dpr; canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); render();
 }
-function center(q, r) { return { x: OX + 1.5 * S * q, y: OY + SQRT3 * S * (r + q / 2) }; }
 function hexPath(cx, cy) {
   ctx.beginPath();
-  for (let i = 0; i < 6; i++) { const a = Math.PI / 180 * (60 * i); const x = cx + S * Math.cos(a), y = cy + S * Math.sin(a); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  for (let i = 0; i < 6; i++) { const a = Math.PI / 180 * (60 * i - 90); const x = cx + S * Math.cos(a), y = cy + S * Math.sin(a); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
   ctx.closePath();
 }
 function hue(did) { let h = 0; for (let i = 0; i < (did || '').length; i++) h = (h * 31 + did.charCodeAt(i)) % 360; return h; }
-function drawCell(q, r, post, active) {
-  const { x, y } = center(q, r);
+function drawCell(col, row, post, active) {
+  const { x, y } = offsetToPixel(col, row);
   const did = post && post.author && post.author.did;
-  hexPath(x, y);
-  ctx.fillStyle = `hsl(${hue(did)} ${active ? 70 : 55}% ${active ? 52 : 38}%)`;
-  ctx.fill();
+  hexPath(x, y); ctx.fillStyle = `hsl(${hue(did)} ${active ? 68 : 50}% ${active ? 50 : 34}%)`; ctx.fill();
   const av = did && avatars.get(did);
-  if (av) { ctx.save(); hexPath(x, y); ctx.clip(); ctx.globalAlpha = active ? 1 : 0.85; ctx.drawImage(av, x - S, y - S, 2 * S, 2 * S); ctx.restore(); }
-  ctx.lineWidth = 1.5; ctx.strokeStyle = active ? 'rgba(255,255,255,0.85)' : 'rgba(10,18,32,0.6)'; hexPath(x, y); ctx.stroke();
+  if (av) { const p = S * 0.78; ctx.save(); hexPath(x, y); ctx.clip(); ctx.globalAlpha = active ? 1 : 0.82; ctx.drawImage(av, x - p, y - p, 2 * p, 2 * p); ctx.restore(); }
+  ctx.lineWidth = 1.4; ctx.strokeStyle = active ? 'rgba(255,255,255,0.9)' : 'rgba(10,18,32,0.6)'; hexPath(x, y); ctx.stroke();
 }
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // faint grid columns
-  for (let q = 0; q < COLS; q++) for (let r = 0; r <= R_FLOOR; r++) { const { x, y } = center(q, r); hexPath(x, y); ctx.fillStyle = 'rgba(120,160,220,0.04)'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(120,160,220,0.08)'; ctx.stroke(); }
-  for (const [k, v] of occupied) { const [q, r] = k.split(',').map(Number); if (r >= -1) drawCell(q, r, v.post, false); }
-  if (piece) for (const c of absCells(piece)) drawCell(c.q, c.r, c.post, true);
+  for (let row = 0; row < ROWS; row++) for (let col = 0; col < COLS; col++) { const { x, y } = offsetToPixel(col, row); hexPath(x, y); ctx.fillStyle = 'rgba(120,160,220,0.04)'; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(120,160,220,0.08)'; ctx.stroke(); }
+  for (const [k, v] of occupied) { const [c, r] = k.split(',').map(Number); drawCell(c, r, v.post, false); }
+  if (piece) for (const o of absOffset(piece)) drawCell(o.col, o.row, o.post, true);
 }
 function loadAvatars(cells) {
   for (const c of cells) {
-    const a = c.post && c.post.author; const did = a && a.did;
+    const a = c.post && c.post.author, did = a && a.did;
     if (!did || avatars.has(did) || !a.avatar) continue;
     avatars.set(did, null);
-    // No crossOrigin: Bluesky's avatar CDN serves no CORS headers, so setting it
-    // would block the load. We only drawImage (never read pixels back), so a
-    // tainted canvas is fine.
-    const img = new Image();
-    img.onload = () => { avatars.set(did, img); render(); };
-    img.onerror = () => {};
+    const img = new Image(); // no crossOrigin: bsky CDN has no CORS; we only drawImage
+    img.onload = () => { avatars.set(did, img); render(); }; img.onerror = () => {};
     img.src = a.avatar;
   }
 }
@@ -226,36 +213,28 @@ addEventListener('keydown', (e) => {
   if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', ' '].includes(e.key)) e.preventDefault();
   if (e.key === 'r' || e.key === 'R') return reset();
   if (!started) start();
-  if (e.key === 'ArrowLeft') move(-1);
-  else if (e.key === 'ArrowRight') move(1);
-  else if (e.key === 'ArrowDown') softDrop();
-  else if (e.key === 'ArrowUp' || e.key === 'x') rotate();
+  if (e.key === 'ArrowLeft') move(-1); else if (e.key === 'ArrowRight') move(1);
+  else if (e.key === 'ArrowDown') softDrop(); else if (e.key === 'ArrowUp' || e.key === 'x') rotate();
   else if (e.key === ' ') hardDrop();
 });
 document.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
   if (!started) start();
-  const a = b.getAttribute('data-act');
-  ({ left: () => move(-1), right: () => move(1), rot: rotate, drop: hardDrop, soft: softDrop, restart: reset }[a] || (() => {}))();
+  ({ left: () => move(-1), right: () => move(1), rot: rotate, drop: hardDrop, soft: softDrop, restart: reset }[b.getAttribute('data-act')] || (() => {}))();
 }));
-// tap a heap hex -> show the post
 canvas.addEventListener('pointerdown', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const rect = canvas.getBoundingClientRect(), px = e.clientX - rect.left, py = e.clientY - rect.top;
   let best = null, bd = S * S;
-  for (const [k, v] of occupied) { const [q, r] = k.split(',').map(Number); const c = center(q, r); const d = (c.x - px) ** 2 + (c.y - py) ** 2; if (d < bd) { bd = d; best = v; } }
-  if (best && best.post) showPost(best.post); else hidePost();
+  for (const [k, v] of occupied) { const [c, r] = k.split(',').map(Number); const p = offsetToPixel(c, r); const d = (p.x - px) ** 2 + (p.y - py) ** 2; if (d < bd) { bd = d; best = v; } }
+  if (best && best.post) showPost(best.post);
 });
 function showPost(p) {
   const a = p.author || {};
-  elPanel.innerHTML = `<button id="t-panel-x">✕</button><div class="t-p-head"><b>${esc(a.displayName || a.handle || '')}</b> <span>@${esc(a.handle || '')}</span></div><div class="t-p-text">${esc((p.record && p.record.text) || '')}</div><a href="https://bsky.app/profile/${esc(a.handle || a.did)}/post/${esc((p.uri || '').split('/').pop())}" target="_blank" rel="noopener">open on Bluesky ↗</a>`;
-  elPanel.style.display = 'block';
-  document.getElementById('t-panel-x').onclick = hidePost;
+  elPanel.innerHTML = `<div class="t-p-head"><b>${esc(a.displayName || a.handle || '')}</b><span>@${esc(a.handle || '')}</span></div><div class="t-p-text">${esc((p.record && p.record.text) || '')}</div><a href="https://bsky.app/profile/${esc(a.handle || a.did)}/post/${esc((p.uri || '').split('/').pop())}" target="_blank" rel="noopener">open on Bluesky ↗</a>`;
 }
-function hidePost() { elPanel.style.display = 'none'; }
 function esc(s) { return (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 addEventListener('resize', resize, { passive: true });
 resize();
-timer = setInterval(tick, FALL_MS);
-setStatus(listInput ? 'press any key / tap a button to start (your list)' : 'press any key / tap a button to start');
+setInterval(tick, FALL_MS);
+setStatus(listInput ? 'press a key / tap a button to start (your list)' : 'press a key / tap a button to start');
 keepFilled();
