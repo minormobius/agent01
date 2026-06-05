@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>feedgen — build a Bluesky feed from blocks</title>
+<meta name="description" content="A SkyFeed-style no-code feed builder. Stack input/filter/sort blocks, preview live against the public Bluesky network. The feed definition lives on ATProto.">
+<meta property="og:title" content="feedgen — build a Bluesky feed from blocks">
+<meta property="og:description" content="No-code Bluesky feed builder. Blocks in, a live feed out.">
+<meta property="og:url" content="https://b.mino.mobi/feedgen/">
+<style>
+:root { --bg:#04060f; --panel:#0a1324; --panel2:#0c1830; --line:rgba(120,160,220,0.16); --fg:#dce8fb; --muted:#8ea6c8; --sky:#5aa9ff; --gold:#ffd86b; --mono: ui-monospace, Menlo, Consolas, monospace; }
+* { box-sizing: border-box; }
+body { margin:0; background: radial-gradient(120% 80% at 50% -10%, #0b1830 0%, #060d1c 50%, #04060f 100%); color: var(--fg); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height:100vh; }
+a { color: var(--sky); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 18px 60px; }
+.crumb { color: var(--muted); text-decoration:none; font-size:13px; }
+.crumb:hover { color: var(--sky); }
+h1 { margin:.5rem 0 .1rem; font-size: 26px; }
+h1 .dot { color: var(--gold); }
+.sub { color: var(--muted); margin:0 0 2px; }
+.note-firehose { color: var(--muted); font-size: 12px; margin:.4rem 0 0; }
+.grid { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); gap: 18px; margin-top: 20px; align-items:start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+.panel { background: var(--panel); border:1px solid var(--line); border-radius: 12px; padding: 14px; }
+.panel h2 { font: 600 11px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color: var(--muted); margin: 2px 0 10px; }
+.section { margin-bottom: 16px; }
+.section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.section-head h2 { margin:0; }
+.fg-add { font: 500 12px var(--mono); background: rgba(90,169,255,0.1); border:1px solid rgba(90,169,255,0.35); color: var(--sky); border-radius:7px; padding:5px 8px; cursor:pointer; }
+
+.fg-card { background: var(--panel2); border:1px solid var(--line); border-radius: 9px; margin-bottom: 8px; }
+.fg-card-head { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; border-bottom:1px solid var(--line); }
+.fg-card-title { font: 600 11px var(--mono); letter-spacing:.08em; text-transform:uppercase; color: var(--gold); }
+.fg-x { background:none; border:0; color: var(--muted); cursor:pointer; font-size:13px; padding:2px 4px; }
+.fg-x:hover { color:#ff8e8e; }
+.fg-card-body { padding: 9px 10px; display:flex; flex-wrap:wrap; gap:9px; }
+.fg-field { display:flex; flex-direction:column; gap:3px; flex:1 1 150px; }
+.fg-flabel { font: 500 10px/1 var(--mono); letter-spacing:.06em; text-transform:uppercase; color: var(--muted); }
+.fg-input { background:#060e1e; border:1px solid var(--line); color: var(--fg); border-radius:6px; padding:6px 8px; font:14px var(--mono); width:100%; }
+.fg-input:focus { outline:none; border-color: var(--sky); }
+.fg-num { max-width: 90px; }
+.fg-note { color: var(--muted); font-size:12px; }
+.fg-meta-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+
+.fg-def-toggle { background:none; border:0; color: var(--muted); font: 500 12px var(--mono); cursor:pointer; padding:0; }
+.fg-def-wrap { display:none; margin-top:8px; }
+.fg-def-wrap.open { display:block; }
+#fg-def { margin:0; max-height: 260px; overflow:auto; background:#060e1e; border:1px solid var(--line); border-radius:8px; padding:10px; font:12px/1.45 var(--mono); color:#a8c4ea; white-space:pre; }
+
+.preview-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.fg-run { font: 600 13px var(--mono); background: var(--gold); color:#1a1300; border:0; border-radius:999px; padding:8px 18px; cursor:pointer; }
+.fg-run:hover { filter: brightness(1.06); }
+.fg-status { color: var(--muted); font: 500 12px var(--mono); padding:6px 2px; }
+.fg-err { color:#ff9a9a; }
+.fg-post { display:flex; gap:10px; padding:10px 4px; border-top:1px solid var(--line); text-decoration:none; color:inherit; }
+.fg-post:hover { background: rgba(90,169,255,0.05); }
+.fg-av { width:34px; height:34px; border-radius:50%; flex:0 0 auto; object-fit:cover; background:#0c1830; }
+.fg-av-empty { display:inline-block; }
+.fg-post-main { min-width:0; }
+.fg-post-head { font-size:13px; }
+.fg-handle, .fg-when { color: var(--muted); font-weight:400; }
+.fg-when { font-size:11px; }
+.fg-post-text { margin:2px 0; white-space:pre-wrap; word-break:break-word; }
+.fg-post-meta { color: var(--muted); font:11px var(--mono); }
+.publish-stub { margin-top:14px; padding:10px 12px; border:1px dashed var(--line); border-radius:9px; color: var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="https://b.mino.mobi/">← atmosphere</a>
+  <h1>feedgen<span class="dot">.</span></h1>
+  <p class="sub">build a Bluesky feed from blocks — stack inputs, filters and a sort, preview it live.</p>
+  <p class="note-firehose">Inputs query the public Bluesky network directly (search, lists, authors). The feed definition you build here is the record we'll write to your PDS — feeds live on ATProto, not a database.</p>
+
+  <div class="grid">
+    <!-- builder -->
+    <div class="panel">
+      <div class="section">
+        <div class="fg-meta-row">
+          <label class="fg-field" style="flex:1 1 200px"><span class="fg-flabel">feed name</span><input id="fg-name" class="fg-input" type="text"></label>
+          <label class="fg-field" style="flex:0 0 130px"><span class="fg-flabel">sort</span><select id="fg-sort" class="fg-input"><option value="latest">latest</option><option value="top">top (likes)</option></select></label>
+          <label class="fg-field" style="flex:0 0 90px"><span class="fg-flabel">limit</span><input id="fg-limit" class="fg-input fg-num" type="number" min="1" max="100"></label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>inputs</h2>
+          <select id="fg-add-input" class="fg-add"><option value="">+ add input…</option><option value="search">search</option><option value="list">list</option><option value="author">author</option></select>
+        </div>
+        <div id="fg-inputs"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>filters</h2>
+          <select id="fg-add-filter" class="fg-add"><option value="">+ add filter…</option><option value="regex">regex</option><option value="media">has media</option><option value="lang">language</option><option value="minLikes">min likes</option><option value="removeReplies">remove replies</option><option value="removeReposts">remove reposts</option></select>
+        </div>
+        <div id="fg-filters"></div>
+      </div>
+
+      <div class="section">
+        <button id="fg-def-toggle" class="fg-def-toggle">⋯ feed definition (the ATProto record)</button>
+        <div id="fg-def-wrap" class="fg-def-wrap"><pre id="fg-def"></pre></div>
+      </div>
+
+      <div class="publish-stub">Publishing — sign in with Bluesky, write the definition to your PDS, and a stateless worker serves it as a real installable feed — is the next slice. For now: build &amp; preview.</div>
+    </div>
+
+    <!-- preview -->
+    <div class="panel">
+      <div class="preview-head"><h2 style="margin:0">live preview</h2><button id="fg-run" class="fg-run">▶ run preview</button></div>
+      <div id="fg-preview"></div>
+    </div>
+  </div>
+</div>
+<script type="module" src="./feedgen.js"></script>
+</body>
+</html>
