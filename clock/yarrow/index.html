@@ -166,6 +166,10 @@ footer a{color:var(--ink2)}
         </div>
         <div class="crit" id="grade-crit"></div>
         <div class="gradenote" id="grade-note"></div>
+        <div style="padding:0 14px 16px">
+          <button id="store">Store these green in the drying loft →</button>
+          <span id="store-msg" style="font:12px/1.4 ui-monospace,monospace;color:var(--faint);margin-left:8px"></span>
+        </div>
       </div>
     </div>
 
@@ -232,8 +236,11 @@ footer a{color:var(--ink2)}
   </footer>
 </div>
 
-<script>
+<script type="module">
 'use strict';
+import { reapPlant } from '../lib/sticks.js';
+import { Loft } from '../lib/inventory.js';
+const loft = new Loft(); loft.init();
 /* ───────── deterministic noise ───────── */
 function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
   h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
@@ -698,6 +705,16 @@ $('sow').onclick=()=>{
   sow(Number.isFinite(v)?v:randomSeed());
 };
 $('seed').addEventListener('keydown',e=>{ if(e.key==='Enter') $('sow').click(); });
+
+// Reap → store the green sticks in the drying loft (sticks cure there over time).
+$('store').onclick=async()=>{
+  if(!CURRENT) return;
+  const sticks=reapPlant(CURRENT);            // genomes, reapedAt = now
+  $('store').disabled=true;
+  try{ await loft.add(sticks); }catch(e){}
+  $('store-msg').innerHTML=`${sticks.length} green sticks set to dry · <a href="../sticks/">open the loft →</a>`;
+  setTimeout(()=>{ $('store').disabled=false; }, 800);
+};
 
 // initial seed from ?seed= for permalink determinism, else random
 const urlSeed=parseInt(new URLSearchParams(location.search).get('seed'),10);
