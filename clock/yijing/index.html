@@ -254,11 +254,13 @@ function transformedLines(vals){        // flip the moving lines (6,9)
    or 4/8 (the next two). A casual, unaimed tap lands roughly uniformly, so the
    classic yarrow odds (moving yin 1/16 … moving yang 3/16) are preserved — but
    the hand that stops the bar is now your own. */
+// the right heap must keep at least two stalks (one is lifted, ≥1 remains to
+// count by fours), so left is clamped to [1, stalks-2].
 function splitFromMarker(stalks, marker){
-  return Math.max(1, Math.min(stalks-1, 1 + Math.round(marker*(stalks-2))));
+  return Math.max(1, Math.min(stalks-2, 1 + Math.round(marker*(stalks-3))));
 }
 function computeChange(stalks, left){
-  left = Math.max(1, Math.min(stalks-1, left));
+  left = Math.max(1, Math.min(stalks-2, left));
   const right = stalks - left;
   const rRem = (right-1)%4 || 4;     // one stalk lifted from the right heap first
   const lRem = left%4 || 4;
@@ -274,56 +276,80 @@ function resize(){
   const r=cv.getBoundingClientRect(); DPR=Math.min(devicePixelRatio||1,2);
   W=r.width; H=r.height; cv.width=W*DPR|0; cv.height=H*DPR|0;
   ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(STICKS.length) layoutAll(true);     // re-home the stalks into the new size
 }
 addEventListener('resize',resize);
 
-// one stalk: base at (x,y0), grows upward `len`, leaning by `lean`, character from seed.
-// `col` (optional {h,s,l}) overrides the procedural straw with a real cured stick's hue.
-function stalk(x,y0,len,lean,seed,alpha,scale,col){
-  const rnd=mulberry32(seed^SEED);
-  const hue=col?col.h+(rnd()-0.5)*4 : 40+rnd()*16,
-        sat=col?col.s : 22+rnd()*30,
-        lig=col?col.l+(rnd()-0.5)*5 : 46+rnd()*26;
-  const sway=(rnd()-0.5)*len*0.16, bend=(rnd()-0.5)*0.5;
-  const w=(1.6+rnd()*1.1)*(scale||1);
-  const tipx = x+lean*len+sway, tipy=y0-len;
-  const midx = x+lean*len*0.5 + bend*len*0.12, midy=y0-len*0.52;
-  ctx.save(); ctx.globalAlpha=alpha??1;
-  ctx.lineCap='round'; ctx.lineWidth=w;
-  ctx.strokeStyle=`hsl(${hue} ${sat}% ${lig}%)`;
-  ctx.beginPath(); ctx.moveTo(x,y0); ctx.quadraticCurveTo(midx,midy,tipx,tipy); ctx.stroke();
-  // a darker node or two
-  ctx.lineWidth=w*1.5; ctx.strokeStyle=`hsl(${hue-6} ${sat+8}% ${lig-22}%)`;
-  for(const t of [0.34,0.66]){
-    const nx=x+(midx-x)*0,  // sample the quadratic
-      bx=(1-t)*(1-t)*x+2*(1-t)*t*midx+t*t*tipx,
-      by=(1-t)*(1-t)*y0+2*(1-t)*t*midy+t*t*tipy;
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+0.1,by+0.1); ctx.stroke();
-  }
-  // a couple of feathery leaf ticks
-  if(rnd()<0.85){
-    ctx.lineWidth=Math.max(.6,w*0.4); ctx.strokeStyle=`hsl(${hue+4} ${sat+6}% ${lig-6}%)`;
-    const t=0.55+rnd()*0.3;
-    const bx=(1-t)*(1-t)*x+2*(1-t)*t*midx+t*t*tipx, by=(1-t)*(1-t)*y0+2*(1-t)*t*midy+t*t*tipy;
-    const dir=lean>=0?-1:1, ll=len*0.07*(scale||1);
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+dir*ll, by-ll*0.4); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-dir*ll*0.7, by-ll*0.5); ctx.stroke();
-  }
-  ctx.restore();
+/* ───────────────────────── the stalks as a physical sim ─────────────────────
+   49 persistent stalk objects. Each has a HOME zone — the working bundle, the
+   left heap, the right heap, or the set-aside pile — and a target position. Every
+   frame it eases toward its target, so dividing the bundle, lifting a stalk and
+   counting-off-fours all read as the SAME objects physically moving, never as
+   counts that appear and vanish. The set-aside pile only grows. */
+let STICKS=[];
+function makeColour(i){
+  if(USE_SET && SET_COLS && SET_COLS.length) return SET_COLS[i % SET_COLS.length];
+  const r=mulberry32(((i*2654435761)>>>0) ^ SEED);
+  return { h:40+r()*16, s:22+r()*30, l:46+r()*26 };
 }
+function newStick(i){
+  const r=mulberry32(((i*40503+7)>>>0) ^ SEED);
+  return { id:i, x:0,y:0,ang:0, tx:0,ty:0,tang:0,
+    w:1.5+r()*1.1, bend:(r()-0.5)*0.5, jig:r(), col:makeColour(i), zone:'pile' };
+}
+function initSticks(){ STICKS=[]; for(let i=0;i<49;i++) STICKS.push(newStick(i)); layoutAll(true); }
+function recolour(){ STICKS.forEach((s,i)=> s.col=makeColour(i)); }
+function geom(){ return { baseY:H*0.80, len:H*0.30, cx:W*0.42 }; }
+function place(s,tx,ty,tang,snap){ s.tx=tx; s.ty=ty; s.tang=tang; if(snap){ s.x=tx; s.y=ty; s.ang=tang; } }
 
-// a fan of `n` stalks centered at cx, baseline by, spread by fan width
-function fan(cx,by,n,width,len,seedBase,alpha,scale){
-  if(n<=0) return;
-  const span=Math.min(width, 6+n*4.0);
-  for(let i=0;i<n;i++){
-    const f = n===1?0.5 : i/(n-1);
-    const x = cx + (f-0.5)*span;
-    const lean = (f-0.5)*0.5;
-    const jit = (mulberry32((seedBase+i*97)^SEED)()-0.5)*span*0.06;
-    const col = (USE_SET && SET_COLS && SET_COLS.length) ? SET_COLS[i % SET_COLS.length] : null;
-    stalk(x+jit, by, len*(0.88+0.18*mulberry32(seedBase+i*31)()), lean, seedBase+i*7, alpha, scale, col);
+function layoutColumn(list, cx, baseY, spanW, len, snap){
+  const n=list.length;
+  list.forEach((s,i)=>{
+    const f=n<=1?0.5:i/(n-1);
+    const x=cx+(f-0.5)*Math.min(spanW, 8+n*4.2);
+    const lean=(f-0.5)*0.5 + s.bend*0.18;
+    s.len=len*(0.86+0.2*s.jig);
+    place(s, x, baseY, lean, snap);
+  });
+}
+function layoutAside(snap){
+  const aside=STICKS.filter(s=>s.zone==='aside');
+  const ox=W*0.5, oy=H*0.165, len=geom().len*0.62;
+  aside.forEach((s,i)=>{
+    const col=i%9, row=(i/9)|0;
+    const x=ox+(col-4)*W*0.026 + (s.jig-0.5)*7;
+    const y=oy+row*Math.max(9,H*0.024) + (s.bend)*6;
+    s.len=len; place(s, x, y, 1.15 + (s.jig-0.5)*1.0, snap);   // laid down, jumbled
+  });
+}
+function layoutAll(snap){
+  const g=geom();
+  layoutColumn(STICKS.filter(s=>s.zone==='pile'),  g.cx,    g.baseY, W*0.46, g.len, snap);
+  layoutColumn(STICKS.filter(s=>s.zone==='left'),  W*0.20,  g.baseY, W*0.26, g.len, snap);
+  layoutColumn(STICKS.filter(s=>s.zone==='right'), W*0.65,  g.baseY, W*0.26, g.len, snap);
+  layoutAside(snap);
+}
+function easeSticks(){
+  const k=0.17;
+  for(const s of STICKS){
+    s.x+=(s.tx-s.x)*k; s.y+=(s.ty-s.y)*k; s.ang+=(s.tang-s.ang)*k;
   }
+}
+function drawStickObj(s){
+  const sx=s.x, sy=s.y, tipx=sx+Math.sin(s.ang)*s.len, tipy=sy-Math.cos(s.ang)*s.len;
+  const px=Math.cos(s.ang), py=Math.sin(s.ang);            // perpendicular for the bow
+  const midx=(sx+tipx)/2 + px*s.bend*s.len*0.10, midy=(sy+tipy)/2 + py*s.bend*s.len*0.10;
+  const c=s.col;
+  ctx.lineCap='round'; ctx.lineWidth=s.w;
+  ctx.strokeStyle=`hsl(${c.h} ${c.s}% ${c.l}%)`;
+  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(midx,midy,tipx,tipy); ctx.stroke();
+  // a node
+  const t=0.42, bx=(1-t)*(1-t)*sx+2*(1-t)*t*midx+t*t*tipx, by=(1-t)*(1-t)*sy+2*(1-t)*t*midy+t*t*tipy;
+  ctx.lineWidth=s.w*1.5; ctx.strokeStyle=`hsl(${c.h-6} ${c.s+8}% ${Math.max(12,c.l-22)}%)`;
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+0.1,by+0.1); ctx.stroke();
+}
+function drawSticks(){
+  for(const z of ['aside','left','right','pile']) for(const s of STICKS) if(s.zone===z) drawStickObj(s);
 }
 
 /* ───────────────────────── the hexagram, drawn line by line ────────────────── */
@@ -373,142 +399,124 @@ function render(){
   g.addColorStop(0,'rgba(231,196,106,.05)'); g.addColorStop(1,'transparent');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
-  const baseY=H*0.72, len=H*0.34, hexX=W*0.80, hexFull=W*0.30;
-  const hexLineH=Math.max(4,H*0.022), hexGap=Math.max(5,H*0.026);
-
-  // hexagram column (always visible, fills as lines are won)
+  const hexX=W*0.80, hexFull=W*0.30, hexLineH=Math.max(4,H*0.022), hexGap=Math.max(5,H*0.026);
   drawHexagram(hexX, H*0.46, LINES, hexLineH, hexGap, hexFull);
   ctx.save();
-  ctx.fillStyle='rgba(233,214,168,.3)'; ctx.font='11px ui-monospace,monospace';
-  ctx.textAlign='center'; ctx.fillText(LINES.length+' / 6', hexX, H*0.46+ (3*hexLineH+2.5*hexGap)+18);
+  ctx.fillStyle='rgba(233,214,168,.3)'; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='center';
+  ctx.fillText(LINES.length+' / 6', hexX, H*0.46+(3*hexLineH+2.5*hexGap)+18);
+  if(STICKS.some(s=>s.zone==='aside')){ ctx.fillStyle='rgba(233,214,168,.30)';
+    ctx.fillText('set aside', W*0.5, Math.max(12, H*0.07)); }
   ctx.restore();
 
-  const cx=W*0.40, leftCx=W*0.20, rightCx=W*0.60;
+  // advance the division sequence (each step just re-homes the stalks)
+  if(anim && anim.phase==='play') advancePlay();
 
-  if(!anim){
-    // resting bundle of 49 (or none if finished)
-    if(LINES.length<6) fan(cx, baseY, 49, W*0.5, len, 1000, 1, 1);
-    requestAnimationFrame(render); return;
-  }
+  // the forty-nine stalks are always present and always gliding to their homes
+  easeSticks();
+  drawSticks();
 
-  // ── the division minigame: a marker sweeps the bundle; tap to split ──
-  if(anim.phase==='aim'){
-    const SWEEP = USE_SET ? 1700 : 1050;                  // ms per pass; slower, more deliberate, in set mode
+  // the division minigame: a marker sweeps the bundle; tap to split
+  if(anim && anim.phase==='aim'){
+    const G=geom(), baseY=G.baseY, len=G.len;
+    const SWEEP = USE_SET ? 1700 : 1050;                  // slower, more deliberate, in set mode
     const tt=(now()-anim.aimStart)%(2*SWEEP);
     anim.marker = tt<SWEEP ? tt/SWEEP : 2 - tt/SWEEP;     // ping-pong 0→1→0
-    fan(cx, baseY, Math.min(49,anim.stalks), W*0.5, len, 1000, 1, 1);
-    const bx0=W*0.16, bx1=W*0.64, mx=bx0+(bx1-bx0)*anim.marker, by=baseY+22;
-    ctx.strokeStyle='rgba(231,196,106,.20)'; ctx.lineWidth=2; ctx.lineCap='round';
+    const bx0=W*0.18, bx1=W*0.66, mx=bx0+(bx1-bx0)*anim.marker, by=baseY+18;
+    ctx.strokeStyle='rgba(231,196,106,.18)'; ctx.lineWidth=2; ctx.lineCap='round';
     ctx.beginPath(); ctx.moveTo(bx0,by); ctx.lineTo(bx1,by); ctx.stroke();
     ctx.strokeStyle='#e7c46a'; ctx.lineWidth=3; ctx.shadowColor='rgba(231,196,106,.6)'; ctx.shadowBlur=10;
-    ctx.beginPath(); ctx.moveTo(mx, baseY-len*0.92); ctx.lineTo(mx, by+5); ctx.stroke(); ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.moveTo(mx, baseY-len*0.95); ctx.lineTo(mx, by+5); ctx.stroke(); ctx.shadowBlur=0;
     ctx.fillStyle='#e7c46a'; ctx.beginPath(); ctx.moveTo(mx,by-2); ctx.lineTo(mx-5,by+9); ctx.lineTo(mx+5,by+9); ctx.closePath(); ctx.fill();
     const left=splitFromMarker(anim.stalks, anim.marker), right=anim.stalks-left;
     ctx.font='12px ui-monospace,monospace'; ctx.fillStyle='rgba(233,214,168,.7)';
-    ctx.textAlign='right'; ctx.fillText(left, mx-9, by+25);
-    ctx.textAlign='left';  ctx.fillText(right, mx+9, by+25);
-    requestAnimationFrame(render); return;
-  }
-
-  // ── play the chosen change (split → count → gather) ──
-  const A=anim, step=A.curStep, T=now()-A.playStart;
-  const D={split:620*PACE, lift:420*PACE, countL:520*PACE, countR:520*PACE, gather:520*PACE};
-  const phaseOrder=['split','lift','countL','countR','gather'];
-  const TOTAL=D.split+D.lift+D.countL+D.countR+D.gather;
-  let acc=0, phase='gather', pt=1;
-  for(const ph of phaseOrder){ if(T<acc+D[ph]){phase=ph; pt=(T-acc)/D[ph]; break;} acc+=D[ph]; }
-  if(T>=TOTAL){ // this change finished — all five phases have played out
-    A.setAside += step.held;
-    A.ci++;
-    if(A.ci>=3){ finishLine(A); return requestAnimationFrame(render); }
-    A.stalks = step.after; A.phase='aim'; A.aimStart=now(); aimNarr(A); updateButton();
-    return requestAnimationFrame(render);
-  }
-  const ease=t=>t<0?0:t>1?1:t*t*(3-2*t);
-
-  // draw the working pile / heaps depending on phase
-  if(phase==='split'){
-    const e=ease(pt);
-    const lcx = cx + (leftCx-cx)*e, rcx = cx + (rightCx-cx)*e;
-    fan(lcx, baseY, step.left,  W*0.30, len, 1000, 1, 1);
-    fan(rcx, baseY, step.right, W*0.30, len, 4000, 1, 1);
-  } else {
-    // heaps in place; remainders peel away to the "set aside" shelf at top
-    const e=ease(pt);
-    let lShow=step.left, rShow=step.right, peelL=0, peelR=0, lift=0;
-    if(phase==='lift'){ lift=1; rShow=step.right-1; }
-    else if(phase==='countL'){ peelL=step.lRem*e; lShow=step.left-step.lRem*e; rShow=step.right-1; lift=1; }
-    else if(phase==='countR'){ peelL=step.lRem; lShow=step.left-step.lRem; peelR=step.rRem*e; rShow=step.right-1-step.rRem*e; lift=1; }
-    else if(phase==='gather'){ // counted fours flow back to center
-      const eg=ease(pt);
-      const lcx=leftCx+(cx-leftCx)*eg, rcx=rightCx+(cx-rightCx)*eg;
-      fan(lcx, baseY, step.left-step.lRem, W*0.30, len, 1000,1,1);
-      fan(rcx, baseY, step.right-1-step.rRem, W*0.30, len, 4000,1,1);
-      drawShelf(A, step, 1);
-      requestAnimationFrame(render); return;
-    }
-    fan(leftCx, baseY, Math.max(0,Math.round(lShow)),  W*0.30, len, 1000,1,1);
-    fan(rightCx, baseY, Math.max(0,Math.round(rShow)), W*0.30, len, 4000,1,1);
-    // the single lifted stalk floats between the heaps
-    if(lift){ stalk(W*0.40, baseY-len*0.2, len*0.9, 0.0, 777, 1, 1.1, (USE_SET&&SET_COLS&&SET_COLS.length)?SET_COLS[0]:null); }
-    drawShelf(A, step, phase==='lift'?ease(pt):1, peelL, peelR);
+    ctx.textAlign='right'; ctx.fillText(left, mx-9, by+24);
+    ctx.textAlign='left';  ctx.fillText(right, mx+9, by+24);
   }
   requestAnimationFrame(render);
 }
 
-// the "set aside" tally shelf at the top of the altar
-function drawShelf(A, step, liftP, peelL, peelR){
-  const sx=W*0.5, sy=H*0.13;
-  ctx.save();
-  ctx.fillStyle='rgba(233,214,168,.28)'; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='center';
-  ctx.fillText('set aside', sx, sy-16);
-  const got = A.setAside + (liftP||0) + (peelL||0) + (peelR||0);
-  // draw little crossed stalks for the held pile
-  const n=Math.min(40,Math.round(got));
-  for(let i=0;i<n;i++){
-    const a=(i*0.6)%(Math.PI), r=8+i*1.0;
-    const x=sx+(i- n/2)*5.0, y=sy+Math.sin(i*1.7)*3;
-    ctx.strokeStyle='hsl('+(42+(i%7)*2)+' 30% 60%)'; ctx.lineWidth=1.4; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(x,y-7); ctx.lineTo(x+Math.cos(a)*3,y+7); ctx.stroke();
+// step the play sequence: when the dwell elapses, run the next step's re-homing
+function advancePlay(){
+  const A=anim;
+  if(now()-A.seqStart >= A.seq[A.seqI].ms){
+    A.seqI++;
+    if(A.seqI>=A.seq.length){ endChange(); return; }
+    A.seq[A.seqI].fn(); A.seqStart=now();
   }
-  ctx.restore();
+}
+const inZone=z=>STICKS.filter(s=>s.zone===z);
+
+// one change = five re-homings of the actual stalks. Nothing is subtracted —
+// stalks are physically moved between bundle, heaps, and the set-aside pile.
+function buildSeq(step){
+  const P=PACE;
+  return [
+    { ms:820*P, fn:()=>{ // SPLIT the working bundle into two heaps, by position
+        const ps=inZone('pile').slice().sort((a,b)=>a.x-b.x);
+        ps.forEach((s,i)=> s.zone = i<step.left ? 'left' : 'right');
+        layoutAll();
+      }},
+    { ms:560*P, fn:()=>{ // LIFT one stalk from the right heap → set it aside
+        const r=inZone('right'); const s=r[r.length-1]; if(s) s.zone='aside'; layoutAll();
+      }},
+    { ms:700*P, fn:()=>{ // COUNT the left heap off by fours; the remainder → set aside
+        const l=inZone('left'); for(let k=0;k<step.lRem;k++){ const s=l[l.length-1-k]; if(s) s.zone='aside'; } layoutAll();
+      }},
+    { ms:700*P, fn:()=>{ // COUNT the right heap off by fours; the remainder → set aside
+        const r=inZone('right'); for(let k=0;k<step.rRem;k++){ const s=r[r.length-1-k]; if(s) s.zone='aside'; } layoutAll();
+      }},
+    { ms:820*P, fn:()=>{ // GATHER the counted fours back into the working bundle
+        STICKS.forEach(s=>{ if(s.zone==='left'||s.zone==='right') s.zone='pile'; }); layoutAll();
+      }},
+  ];
+}
+function endChange(){
+  const A=anim;
+  A.ci++; setTally();
+  if(A.ci>=3){ finishLine(); return; }
+  A.stalks = A.curStep.after; A.phase='aim'; A.aimStart=now(); aimNarr(A); updateButton();
 }
 
 const NAMES=['First','Second','Third'];
 function startLine(){
   if(LINES.length>=6 || anim) return;
-  anim={ci:0, stalks:49, steps:[], setAside:0, phase:'aim', aimStart:now(), curStep:null, playStart:0, marker:0};
-  tallyrow.hidden=false;
+  STICKS.forEach(s=> s.zone='pile'); layoutAll();        // gather all forty-nine back into the hand
+  anim={ ci:0, stalks:49, phase:'aim', aimStart:now(), marker:0, curStep:null, seq:null, seqI:0, seqStart:0 };
+  tallyrow.hidden=false; setTally();
   aimNarr(anim); updateButton();
 }
 function doSplit(){
   if(!anim || anim.phase!=='aim') return;
   const left=splitFromMarker(anim.stalks, anim.marker);
   const step=computeChange(anim.stalks, left);
-  anim.steps.push(step); anim.curStep=step;
-  anim.phase='play'; anim.playStart=now();
+  anim.curStep=step; anim.phase='play';
+  anim.seq=buildSeq(step); anim.seqI=0; anim.seq[0].fn(); anim.seqStart=now();
   playNarr(anim, step); updateButton();
 }
+function setTally(){
+  setN('t-pile', inZone('pile').length || (anim?anim.stalks:49));
+  setN('t-set', inZone('aside').length);
+}
 function aimNarr(A){
-  setN('t-pile', A.stalks); setN('t-set', A.setAside);
-  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — ${A.stalks} stalks. <b>Tap to split</b> the bundle.`;
+  setTally();
+  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — ${A.stalks} stalks in hand. <b>Tap to split</b> the bundle.`;
 }
 function playNarr(A, s){
-  setN('t-pile', s.total); setN('t-set', A.setAside);
-  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — split <b>${s.left}</b> / <b>${s.right}</b>, count by fours, set aside <b>${s.held}</b>.`;
+  setTally();
+  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — split <b>${s.left}</b> / <b>${s.right}</b>; lift one, count off fours, set <b>${s.held}</b> aside.`;
 }
 function updateButton(){
   if(!anim){ cast.textContent='Divide the stalks'; cast.disabled=false; }
   else if(anim.phase==='aim'){ cast.textContent='Split!'; cast.disabled=false; }
   else { cast.textContent='counting…'; cast.disabled=true; }
 }
-function finishLine(A){
-  const value=A.curStep.after/4;
+function finishLine(){
+  const value=anim.curStep.after/4;
   anim=null;
   LINES.push(value);
   const meaning={6:'old yin · moving',7:'young yang',8:'young yin',9:'old yang · moving'}[value];
-  setN('t-line', LINES.length); setN('t-pile', value*4); setN('t-set', 49-value*4);
-  const lineMsg = `Line <b>${LINES.length}</b> — ${value*4} stalks remain, in <b>${value}</b> bundles of four → <b>${value}</b> · ${meaning}.`;
+  setN('t-line', LINES.length); setTally();
+  const lineMsg = `Line <b>${LINES.length}</b> — ${value*4} stalks remain → <b>${value}</b> · ${meaning}.`;
   narr.innerHTML = lineMsg;
   reset.hidden=false; updateButton();
   if(LINES.length>=6){ cast.disabled=true; setTimeout(reveal, USE_SET?1500:650); }
@@ -583,6 +591,7 @@ cv.addEventListener('pointerdown',e=>{ if(cast.disabled) return;
 function hardReset(){
   LINES=[]; anim=null; SEED=(Math.random()*1e9)|0;
   reset.hidden=true;
+  STICKS.forEach(s=> s.zone='pile'); recolour(); layoutAll();   // gather + a fresh bundle
   tallyrow.hidden=true; setN('t-line','—'); setN('t-pile',49); setN('t-set',0);
   narr.innerHTML=baseNarr||'Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.';
   updateButton();
@@ -594,6 +603,7 @@ window.hardReset=hardReset;
 function applyMode(){
   PACE = USE_SET ? 2.0 : 1;                 // set mode is slower, more deliberate
   SET_COLS = USE_SET ? SET.slice(0,49).map(x=>stickHsl(x.g)) : null;
+  if(STICKS.length) recolour();             // re-skin the stalks for the chosen mode
   baseNarr = USE_SET
     ? 'Your set of fifty, cured by your own hand. One is set aside; <b>forty-nine</b> remain. Breathe, and divide.'
     : 'Fifty stalks, fresh-cut for practice. One is set aside; <b>forty-nine</b> remain.';
@@ -631,7 +641,7 @@ loft.init().then(()=>{
   applyMode(); renderSetbar();
 }).catch(()=>{});
 
-resize(); requestAnimationFrame(render);
+resize(); initSticks(); requestAnimationFrame(render);
 </script>
 </body>
 </html>
