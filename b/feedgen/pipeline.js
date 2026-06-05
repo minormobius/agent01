@@ -30,6 +30,18 @@ async function resolveActor(actor) {
   return r.did;
 }
 
+// Accept either an at:// list uri or a bsky.app list URL
+// (https://bsky.app/profile/<actor>/lists/<rkey>); resolve a handle to a DID.
+async function resolveListUri(s) {
+  const v = (s || '').trim();
+  if (!v || v.startsWith('at://')) return v;
+  const m = v.match(/\/profile\/([^/]+)\/lists\/([^/?#]+)/);
+  if (!m) return v;
+  const actor = decodeURIComponent(m[1]);
+  const did = actor.startsWith('did:') ? actor : await resolveActor(actor);
+  return `at://${did}/app.bsky.graph.list/${m[2]}`;
+}
+
 const isRepost = (fi) => !!(fi && fi.reason && (fi.reason.$type || '').includes('Repost'));
 
 async function gather(input, ctx) {
@@ -42,7 +54,7 @@ async function gather(input, ctx) {
   }
   if (input.type === 'list') {
     if (!input.uri) return [];
-    const r = await xrpc('app.bsky.feed.getListFeed', { list: input.uri, limit });
+    const r = await xrpc('app.bsky.feed.getListFeed', { list: await resolveListUri(input.uri), limit });
     return (r.feed || []).map((fi) => ({ post: fi.post, isRepost: isRepost(fi) }));
   }
   if (input.type === 'author') {

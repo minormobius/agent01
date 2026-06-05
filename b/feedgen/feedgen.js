@@ -155,7 +155,7 @@ function renderInputs() {
         el('div', 'fg-note', '🔎 matches recent posts across Bluesky'),
       );
     } else if (inp.type === 'list') {
-      body.append(field('list uri', textInput(inp.uri, (v) => inp.uri = v, 'at://did:plc:…/app.bsky.graph.list/…')));
+      body.append(field('list', textInput(inp.uri, (v) => inp.uri = v, 'paste a bsky.app list URL')));
     } else if (inp.type === 'author') {
       const actorInput = textInput(inp.actor, (v) => inp.actor = v, 'handle.bsky.social or did:…');
       actorInput.setAttribute('data-bsky-typeahead', '');
