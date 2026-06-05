@@ -64,26 +64,54 @@ export function classify(sand, silt, clay){
   return { key, name: TEXTURE_CLASSES[key] };
 }
 
-// ── 2. composition → behaviour + look ───────────────────────────────────────
-// Inputs are FRACTIONS in [0,1] that sum to ~1.
-export function soilProps(sand, silt, clay){
+// ── 2. composition (+ wetness) → behaviour + look ────────────────────────────
+// Inputs are FRACTIONS in [0,1] that sum to ~1; wet ∈ [0,1] (bone-dry → saturated).
+export function soilProps(sand, silt, clay, wet=0.25){
   const tot = sand+silt+clay || 1;
-  sand/=tot; silt/=tot; clay/=tot;
-  // cohesion: clay binds strongly, silt a little, sand not at all.
-  const cohesion = clamp01(clay*1.0 + silt*0.22);
-  // critical slope = angle of repose, lifted by cohesion toward near-vertical clay walls.
-  const reposeDeg = lerp(33, 78, cohesion);        // dry sand ≈ 33°, stiff clay holds ≈ 78°
-  const maxSlope  = Math.tan(reposeDeg*DEG);        // height per cell of run
-  // how briskly material topples once a slope is over-steep (sand pours, clay creeps).
-  const flowRate  = lerp(0.62, 0.05, cohesion);
-  // heave: how much of the poked volume rebounds as a rim (sand bulks & ejects more).
-  const heave     = lerp(1.0, 0.55, cohesion);
-  // colour (sandy straw → silty buff → reddish clay) and grain (coarse sand → smooth clay)
+  sand/=tot; silt/=tot; clay/=tot; wet=clamp01(wet);
+  // intrinsic cohesion: clay binds strongly, silt a little, sand not at all (dry).
+  const intrinsic = clamp01(clay*1.0 + silt*0.22);
+  // capillary suction — the "damp sand" effect: zero when dry, peaks half-wet, gone when soaked.
+  const capillary = 4*wet*(1-wet) * (0.55 + 0.45*(clay+silt));
+  // saturation: past ~0.82 the pore water carries the load → it weakens and flows (liquefaction).
+  const sat = clamp01((wet-0.82)/0.18);
+  const cohesion = clamp01((intrinsic + 0.62*capillary) * (1 - 0.9*sat));
+  // critical slope = angle of repose; lifted by cohesion (damp sand / clay hold steep), then
+  // collapsed toward a slurry angle as it saturates.
+  const dryRepose = lerp(33, 80, cohesion);        // dry sand ≈33°, cohesive ≈80°
+  const reposeDeg = lerp(dryRepose, 12, sat);      // saturated → ~12°, runs out flat
+  const maxSlope  = Math.tan(reposeDeg*DEG);
+  // how briskly it topples once over-steep: sand pours, clay creeps, slurry gushes.
+  let flowRate    = lerp(0.62, 0.05, cohesion);
+  flowRate        = lerp(flowRate, 0.9, sat);
+  const heave     = lerp(1.0, 0.55, cohesion);     // sand bulks & ejects more on a poke
+  // desiccation cracking: needs clay AND dryness.
+  const crack     = clamp01((clay-0.30)*2.6) * clamp01(1 - wet/0.34);
+  // colour (sandy straw → silty buff → reddish clay), darkened & enriched as it wets.
   const C = (a,b,c)=> clamp01(sand*a + silt*b + clay*c);
-  const color = { r:C(0.85,0.74,0.58), g:C(0.76,0.66,0.37), b:C(0.55,0.52,0.28) };
-  const grain = { amp: lerp(0.06,0.22,sand), scale: lerp(2.0,9.0,sand), roughness: lerp(0.25,0.85,sand) };
-  return { sand, silt, clay, cohesion, reposeDeg, maxSlope, flowRate, heave, color, grain,
-           class: classify(sand*100, silt*100, clay*100) };
+  const dark = 1 - 0.40*Math.sqrt(wet);
+  const color = { r:C(0.85,0.74,0.58)*dark, g:C(0.76,0.66,0.37)*dark, b:C(0.55,0.52,0.28)*dark };
+  const grain = { amp: lerp(0.06,0.22,sand)*(1-0.6*wet), scale: lerp(2.0,9.0,sand), roughness: lerp(0.25,0.85,sand) };
+  return { sand, silt, clay, wet, intrinsic, capillary, sat, cohesion, reposeDeg, maxSlope,
+           flowRate, heave, crack, color, grain, class: classify(sand*100, silt*100, clay*100) };
+}
+
+// a static desiccation-crack pattern (Worley cell boundaries) in [0,1], 1 on a crack.
+// Deterministic; the renderer just multiplies it by the live `crack` intensity.
+export function crackMask(N, freq=9, seed=7){
+  const out=new Float32Array(N*N);
+  const ss=(a,b,x)=>{ const t=clamp01((x-a)/(b-a)); return t*t*(3-2*t); };
+  const pt=(ix,iy)=>{ const r=mulberry32((Math.imul(ix+1,374761393)^Math.imul(iy+131,668265263)^Math.imul(seed,2654435761))>>>0);
+    return [ix+r(), iy+r()]; };
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const fx=(x/N)*freq, fy=(y/N)*freq, ix=Math.floor(fx), iy=Math.floor(fy);
+    let f1=1e9,f2=1e9;
+    for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){
+      const [px,py]=pt(ix+i,iy+j); const dx=px-fx, dy=py-fy; const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<f1){ f2=f1; f1=d; } else if(d<f2){ f2=d; } }
+    out[y*N+x]=1-ss(0.0,0.06,f2-f1);
+  }
+  return out;
 }
 
 // ── 3. the height-field ──────────────────────────────────────────────────────
@@ -151,6 +179,32 @@ export class Field {
         if(r>=R*0.9){ const t=(r-rPeak)/halfW; const m=1-t*t; if(m>0) h[this.idx(x,y)] += m*k; }
       }
     }
+    return this;
+  }
+
+  // pour material on top — a cone that relaxation spreads to a pile at the angle of
+  // repose. NOT mass-conserving on purpose: you're adding soil to the table.
+  heap(nx, ny, R, amount){
+    const N=this.N, h=this.h, cx=nx*(N-1), cy=ny*(N-1), R2=R*R;
+    const lo=c=>Math.max(0,Math.floor(c-R)), hi=c=>Math.min(N-1,Math.ceil(c+R));
+    for(let y=lo(cy);y<=hi(cy);y++) for(let x=lo(cx);x<=hi(cx);x++){
+      const dx=x-cx, dy=y-cy, r2=dx*dx+dy*dy;
+      if(r2<R2) h[this.idx(x,y)] += amount*(1-r2/R2);
+    }
+    return this;
+  }
+
+  // smooth a disc toward its own mean — a finger flattening the sand (≈mass-neutral)
+  smoothDisc(nx, ny, R, strength=0.5){
+    const N=this.N, h=this.h, cx=nx*(N-1), cy=ny*(N-1), R2=R*R;
+    const lo=c=>Math.max(0,Math.floor(c-R)), hi=c=>Math.min(N-1,Math.ceil(c+R));
+    let sum=0, cnt=0;
+    for(let y=lo(cy);y<=hi(cy);y++) for(let x=lo(cx);x<=hi(cx);x++){
+      const dx=x-cx, dy=y-cy; if(dx*dx+dy*dy<R2){ sum+=h[this.idx(x,y)]; cnt++; } }
+    if(!cnt) return this; const mean=sum/cnt;
+    for(let y=lo(cy);y<=hi(cy);y++) for(let x=lo(cx);x<=hi(cx);x++){
+      const dx=x-cx, dy=y-cy, r2=dx*dx+dy*dy;
+      if(r2<R2){ const i=this.idx(x,y); const f=strength*(1-Math.sqrt(r2)/R); h[i]+=(mean-h[i])*f; } }
     return this;
   }
 
