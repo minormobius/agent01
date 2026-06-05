@@ -356,7 +356,8 @@ function loop(){ rafId=0;
   if(dirty){ renderer.render(field, props); dirty=false; }
   if(settling) requestRender();
 }
-function applyPen(nx,ny,dx,dy){
+// lay one mark of the current pen at (nx,ny); dx,dy is the local stroke direction (for the rake)
+function stamp(nx,ny,dx,dy){
   const R=tool.R, depth=tool.depth;
   if(pen==='stylus'){ field.poke(nx,ny,R,depth,props.heave); }
   else if(pen==='rake'){
@@ -367,6 +368,19 @@ function applyPen(nx,ny,dx,dy){
   }
   else if(pen==='pour'){ field.heap(nx,ny,R, depth*0.9); }
   else if(pen==='smooth'){ field.smoothDisc(nx,ny,R, Math.min(1,depth/16)); }
+}
+// a single dab (a poke). Discrete marks still work.
+function dab(nx,ny){ stamp(nx,ny,0,0); settling=true; dirty=true; requestRender(); }
+// connect the dots: stamp overlapping marks from the last point to (nx,ny) so a drag
+// draws a continuous line, not spaced dots. A large jump is left as one dab (no streak).
+function strokeTo(nx,ny){
+  const dx=nx-lnx, dy=ny-lny, distCells=Math.hypot(dx,dy)*(N-1);
+  const JUMP=0.5*(N-1);                                   // beyond ~half the field = a teleport, not a drag
+  if(distCells<1e-3) return;
+  if(distCells>JUMP){ stamp(nx,ny,dx,dy); }
+  else { const step=Math.max(1, tool.R*0.5);              // overlap spacing
+    const steps=Math.min(500, Math.max(1, Math.ceil(distCells/step)));
+    for(let s=1;s<=steps;s++){ const t=s/steps; stamp(lnx+dx*t, lny+dy*t, dx,dy); } }
   settling=true; dirty=true; requestRender();
 }
 function recompute(){ props=soilProps(comp.sand,comp.silt,comp.clay,wet); updateReadout(); drawTriangle();
@@ -375,11 +389,10 @@ function recompute(){ props=soilProps(comp.sand,comp.silt,comp.clay,wet); update
 /* ───────────────────────── pointer handling ───────────────────────── */
 function fieldXY(ev){ const r=soil.getBoundingClientRect();
   return [ Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width)), Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height)) ]; }
-let drawing=false, lastT=0, lnx=0, lny=0;
+let drawing=false, lnx=0, lny=0;
 soil.addEventListener('pointerdown',e=>{ drawing=true; soil.setPointerCapture(e.pointerId);
-  const [x,y]=fieldXY(e); lnx=x; lny=y; applyPen(x,y,0,0); e.preventDefault(); });
-soil.addEventListener('pointermove',e=>{ if(!drawing) return; const now=performance.now();
-  if(now-lastT<20) return; lastT=now; const [x,y]=fieldXY(e); applyPen(x,y, x-lnx, y-lny); lnx=x; lny=y; });
+  const [x,y]=fieldXY(e); lnx=x; lny=y; dab(x,y); e.preventDefault(); });
+soil.addEventListener('pointermove',e=>{ if(!drawing) return; const [x,y]=fieldXY(e); strokeTo(x,y); lnx=x; lny=y; });
 soil.addEventListener('pointerup',()=>{ drawing=false; });
 soil.addEventListener('pointercancel',()=>{ drawing=false; });
 
