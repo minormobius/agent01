@@ -43,12 +43,22 @@ canvas{display:block;width:100%;height:100%}
 button{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.06em;color:var(--bg);
   background:linear-gradient(180deg,#f1d588,#d6a94e);border:0;border-radius:999px;
   padding:12px 22px;cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s;
-  box-shadow:0 6px 22px rgba(231,196,106,.22)}
+  box-shadow:0 6px 22px rgba(231,196,106,.22);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 button:hover{transform:translateY(-1px);box-shadow:0 9px 26px rgba(231,196,106,.34)}
 button:active{transform:translateY(0)}
 button.ghost{background:transparent;color:var(--ink-soft);box-shadow:none;border:1px solid var(--line)}
 button.ghost:hover{color:var(--gold);border-color:var(--gold-dim)}
 button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
+
+.setbar{max-width:520px;margin:14px auto 0;text-align:center;font:12.5px/1.5 ui-monospace,monospace;
+  color:var(--ink-soft);display:flex;flex-direction:column;gap:9px;align-items:center}
+.setbar b{color:var(--gold)}
+.setbar .modes{display:flex;gap:8px}
+.setbar .mode{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;padding:9px 16px;border-radius:999px;
+  cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink-soft);
+  box-shadow:none;touch-action:manipulation}
+.setbar .mode.on{background:linear-gradient(180deg,#f1d588,#d6a94e);color:var(--bg);border-color:transparent}
+.setbar a{color:var(--gold)}
 
 .tally{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;
   font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
@@ -99,6 +109,8 @@ footer a{color:rgba(233,214,168,.5)}
   <div class="altar">
     <canvas id="c"></canvas>
   </div>
+  <div id="setbar" class="setbar"></div>
+
   <div id="narr">Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.</div>
 
   <div class="controls">
@@ -123,14 +135,33 @@ footer a{color:rgba(233,214,168,.5)}
   &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
 </footer>
 
-<script>
+<script type="module">
 'use strict';
+import { Loft } from '../lib/inventory.js';
+import { cure } from '../lib/sticks.js';
 /* ───────────────────────── deterministic noise (per-stalk character) ───────── */
 function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
   h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
   return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0;};}
 function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ───────────────────────── the cured set drawn from the loft ─────────────────── */
+const loft = new Loft();
+let USE_SET=false, SET=[], SET_COLS=null, PACE=1, baseNarr='';
+const COLOUR_TARGET={ straw:[45,40,62], gold:[40,56,54], red:[20,46,48] };  // dried-toward hues
+function stickHsl(g){
+  const t=COLOUR_TARGET[g.colourPath]||COLOUR_TARGET.straw, r=mulberry32(g.grainSeed||1);
+  let h=t[0]+(r()-0.5)*7, s=t[1]+(r()-0.5)*9, l=t[2]+(r()-0.5)*9;
+  if(cure(g).seasoned){ l-=5; s+=6; }      // seasoned rods are richer, darker
+  return {h,s,l};
+}
+function computeSet(){
+  const cured = loft.items.map(g=>({g,st:cure(g)})).filter(x=>x.st.castable)
+    .sort((a,b)=>b.st.grade-a.st.grade);
+  SET = cured.slice(0,50);
+  return cured.length;
+}
 
 /* ───────────────────────── I Ching: 64 hexagrams ──────────────────────────────
    binary is bottom→top, 1 = yang (solid), 0 = yin (broken). */
@@ -244,10 +275,13 @@ function resize(){
 }
 addEventListener('resize',resize);
 
-// one stalk: base at (x,y0), grows upward `len`, leaning by `lean`, character from seed
-function stalk(x,y0,len,lean,seed,alpha,scale){
+// one stalk: base at (x,y0), grows upward `len`, leaning by `lean`, character from seed.
+// `col` (optional {h,s,l}) overrides the procedural straw with a real cured stick's hue.
+function stalk(x,y0,len,lean,seed,alpha,scale,col){
   const rnd=mulberry32(seed^SEED);
-  const hue=40+rnd()*16, sat=22+rnd()*30, lig=46+rnd()*26;
+  const hue=col?col.h+(rnd()-0.5)*4 : 40+rnd()*16,
+        sat=col?col.s : 22+rnd()*30,
+        lig=col?col.l+(rnd()-0.5)*5 : 46+rnd()*26;
   const sway=(rnd()-0.5)*len*0.16, bend=(rnd()-0.5)*0.5;
   const w=(1.6+rnd()*1.1)*(scale||1);
   const tipx = x+lean*len+sway, tipy=y0-len;
@@ -285,7 +319,8 @@ function fan(cx,by,n,width,len,seedBase,alpha,scale){
     const x = cx + (f-0.5)*span;
     const lean = (f-0.5)*0.5;
     const jit = (mulberry32((seedBase+i*97)^SEED)()-0.5)*span*0.06;
-    stalk(x+jit, by, len*(0.88+0.18*mulberry32(seedBase+i*31)()), lean, seedBase+i*7, alpha, scale);
+    const col = (USE_SET && SET_COLS && SET_COLS.length) ? SET_COLS[i % SET_COLS.length] : null;
+    stalk(x+jit, by, len*(0.88+0.18*mulberry32(seedBase+i*31)()), lean, seedBase+i*7, alpha, scale, col);
   }
 }
 
@@ -356,11 +391,12 @@ function render(){
   const A=anim, T=now()-A.start;
   const step=A.steps[A.si];
   const cx=W*0.40, leftCx=W*0.20, rightCx=W*0.60;
-  const D={split:620, lift:420, countL:520, countR:520, gather:520};
+  const D={split:620*PACE, lift:420*PACE, countL:520*PACE, countR:520*PACE, gather:520*PACE};
   const phaseOrder=['split','lift','countL','countR','gather'];
-  let acc=0, phase='split', pt=0;
+  const TOTAL=D.split+D.lift+D.countL+D.countR+D.gather;
+  let acc=0, phase='gather', pt=1;
   for(const ph of phaseOrder){ if(T<acc+D[ph]){phase=ph; pt=(T-acc)/D[ph]; break;} acc+=D[ph]; }
-  if(T>=acc){ // this change finished
+  if(T>=TOTAL){ // this change finished — all five phases have played out
     A.setAside += step.held;
     A.pile = step.after;
     A.si++;
@@ -394,7 +430,7 @@ function render(){
     fan(leftCx, baseY, Math.max(0,Math.round(lShow)),  W*0.30, len, 1000,1,1);
     fan(rightCx, baseY, Math.max(0,Math.round(rShow)), W*0.30, len, 4000,1,1);
     // the single lifted stalk floats between the heaps
-    if(lift){ stalk(W*0.40, baseY-len*0.2, len*0.9, 0.0, 777, 1, 1.1); }
+    if(lift){ stalk(W*0.40, baseY-len*0.2, len*0.9, 0.0, 777, 1, 1.1, (USE_SET&&SET_COLS&&SET_COLS.length)?SET_COLS[0]:null); }
     drawShelf(A, step, phase==='lift'?ease(pt):1, peelL, peelR);
   }
   requestAnimationFrame(render);
@@ -437,9 +473,16 @@ function finishLine(A){
   LINES.push(A.value);
   const meaning={6:'old yin · moving',7:'young yang',8:'young yin',9:'old yang · moving'}[A.value];
   setN('t-line', LINES.length); setN('t-pile', A.value*4); setN('t-set', 49-A.value*4);
-  narr.innerHTML = `Line <b>${LINES.length}</b> — ${A.value*4} stalks remain, in <b>${A.value}</b> bundles of four → <b>${A.value}</b> · ${meaning}.`;
+  const lineMsg = `Line <b>${LINES.length}</b> — ${A.value*4} stalks remain, in <b>${A.value}</b> bundles of four → <b>${A.value}</b> · ${meaning}.`;
+  narr.innerHTML = lineMsg;
   reset.hidden=false;
-  if(LINES.length>=6){ cast.disabled=true; auto.disabled=true; setTimeout(reveal, 650); }
+  if(LINES.length>=6){ cast.disabled=true; auto.disabled=true; setTimeout(reveal, USE_SET?1500:650); }
+  else if(USE_SET){
+    // meditative: a held breath between lines before the next division is offered
+    cast.disabled=true;
+    setTimeout(()=>{ if(LINES.length<6 && !anim){ cast.disabled=false;
+      narr.innerHTML = lineMsg + ` &nbsp;·&nbsp; <span style="opacity:.65">breathe, then divide again.</span>`; } }, 1600);
+  }
   else if(autoRun){ setTimeout(startLine, 520); }
 }
 function setN(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
@@ -465,6 +508,7 @@ function reveal(){
   } else {
     html += `<div class="moving">No moving lines — the answer is steady. Read the Judgment as it stands.</div>`;
   }
+  if(USE_SET) html += `<div class="moving" style="opacity:.72">Cast with your own set of fifty — seed-grown, hand-cured.</div>`;
   const q=document.getElementById('qtext').value.trim();
   if(q) html = `<div class="moving" style="text-align:center;margin-bottom:14px;font-style:italic">“${escapeHtml(q)}”</div>` + html;
   html += `<div class="foot"><button class="ghost" onclick="hardReset()">Ask again</button></div>`;
@@ -499,16 +543,58 @@ const cast=document.getElementById('cast'), auto=document.getElementById('auto')
 cast.onclick=()=>{ autoRun=false; startLine(); };
 auto.onclick=()=>{ autoRun=true; startLine(); };
 reset.onclick=hardReset;
-cv.addEventListener('pointerdown',e=>{ if(LINES.length<6 && !anim){ autoRun=false; startLine(); } });
+cv.addEventListener('pointerdown',e=>{ if(LINES.length<6 && !anim && !cast.disabled){ if(!USE_SET) autoRun=false; startLine(); } });
 
 function hardReset(){
   LINES=[]; anim=null; autoRun=false; SEED=(Math.random()*1e9)|0;
   cast.disabled=false; auto.disabled=false; reset.hidden=true;
   tallyrow.hidden=true; setN('t-line','—'); setN('t-pile',49); setN('t-set',0);
-  narr.innerHTML='Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.';
+  narr.innerHTML=baseNarr||'Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.';
   const R=document.getElementById('result'); R.classList.remove('show'); setTimeout(()=>R.innerHTML='',400);
 }
 window.hardReset=hardReset;
+
+/* ───────────────────────── set vs practice mode (draws from the loft) ───────── */
+function applyMode(){
+  PACE = USE_SET ? 2.0 : 1;                 // set mode is slow and deliberate
+  auto.style.display = USE_SET ? 'none' : '';  // no speed-cast with a real set
+  SET_COLS = USE_SET ? SET.slice(0,49).map(x=>stickHsl(x.g)) : null;
+  baseNarr = USE_SET
+    ? 'Your set of fifty, cured by your own hand. One is set aside; <b>forty-nine</b> remain. Breathe, and divide.'
+    : 'Fifty stalks, fresh-cut for practice. One is set aside; <b>forty-nine</b> remain.';
+  if(!anim && LINES.length===0) narr.innerHTML=baseNarr;
+}
+function switchMode(useSet){
+  if(USE_SET===useSet) return;
+  USE_SET=useSet; applyMode(); hardReset(); renderSetbar();
+}
+function renderSetbar(){
+  const total=computeSet();
+  const bar=document.getElementById('setbar');
+  if(total>=50){
+    bar.innerHTML =
+      `<div>Your set is ready — <b>${total}</b> cured stalks in the loft.</div>`+
+      `<div class="modes">`+
+        `<button class="mode ${USE_SET?'on':''}" id="m-set">consult with your set</button>`+
+        `<button class="mode ${USE_SET?'':'on'}" id="m-prac">practice</button>`+
+      `</div>`;
+    document.getElementById('m-set').onclick=()=>switchMode(true);
+    document.getElementById('m-prac').onclick=()=>switchMode(false);
+  } else {
+    if(USE_SET){ USE_SET=false; applyMode(); }
+    bar.innerHTML =
+      `<div>Your loft holds <b>${total}</b> of <b>50</b> cured stalks — gather a full set to consult `+
+      `with your own. <a href="../sticks/">the drying loft →</a></div>`+
+      `<div style="opacity:.65">Until then, these are fresh-cut practice stalks.</div>`;
+  }
+}
+
+applyMode(); renderSetbar();
+loft.init().then(()=>{
+  const total=computeSet();
+  USE_SET = total>=50;                       // default to your own set when you have one
+  applyMode(); renderSetbar();
+}).catch(()=>{});
 
 resize(); requestAnimationFrame(render);
 </script>
