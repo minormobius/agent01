@@ -189,6 +189,7 @@ import { Loft } from '../lib/inventory.js';
 import { cure } from '../lib/sticks.js';
 import { drawStalk } from '../lib/stalk-render.js';
 import { composeReading, trigramRows, ZHUXI_RULES, POSITIONS } from '../lib/iching.js';
+import { ZHOUYI } from '../lib/zhouyi.js';
 /* ───────────────────────── deterministic noise (per-stalk character) ───────── */
 function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
   h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
@@ -583,7 +584,15 @@ function reveal(){
   if(r.transformedNo) html += `<div class="arrow">→</div>` + hexCardHTML(r.transformedNo, transformedLines(LINES), true);
   html += `</div>`;
   html += blk('The Image', r.image, 'gen');
-  html += blk('The Judgment', P.j);
+  const src=ZHOUYI[r.primaryNo];
+  if(src){
+    html += blk('The Judgment',
+      `<span style="font-family:'Songti SC','STSong',serif;font-size:21px;color:var(--gold)">${src.z}</span> `+
+      `<span style="font-style:italic;color:var(--straw);font-size:13px">${src.py}</span><br>${src.e}`+
+      ` <a href="https://read.mino.mobi/iching/" style="font-size:12px">our open translation →</a>`);
+  } else {
+    html += blk('The Judgment', P.j);
+  }
   html += blk('How this cast is read', r.focus.rule, 'rule');
   if(r.lineReadings.length){
     const items = r.lineReadings.map(x=>`<div class="lread"><span class="changedot">●</span> ${x.text}`+

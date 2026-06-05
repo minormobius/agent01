@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Zhouyi 周易 — an open translation</title>
+<meta name="description" content="An original, openly-licensed English translation of the Zhouyi (the base text of the I Ching / Book of Changes), shown beside the received Chinese with philological notes. From read.mino.mobi.">
+<meta property="og:title" content="The Zhouyi 周易 — an open translation">
+<meta property="og:description" content="Original English beside the received Chinese, with notes on the graphs, the cruxes, and the Mawangdui variants. A transparent working translation, CC BY-SA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://read.mino.mobi/iching/">
+<meta property="og:site_name" content="Read">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☰</text></svg>">
+<style>
+:root{
+  --bg:#0e0d0b; --surf:#16140f; --ink:#e9e2d0; --ink2:#a59c86; --faint:#776e5a;
+  --gold:#d8b25a; --gold-dim:rgba(216,178,90,.4); --jade:#6fae8e; --rule:rgba(216,178,90,.16);
+  --rose:#c46a52;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:
+  radial-gradient(120% 80% at 50% -10%, #1b1810 0%, var(--bg) 60%, #080706 100%);
+  color:var(--ink);font:17px/1.65 Georgia,"Songti SC","Source Han Serif",serif;-webkit-text-size-adjust:100%}
+a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
+#crumb{position:fixed;top:12px;left:16px;font:12px/1 ui-monospace,monospace;color:var(--faint);letter-spacing:.06em;z-index:9}
+#crumb:hover{color:var(--gold)}
+.wrap{max-width:760px;margin:0 auto;padding:54px 22px 80px}
+
+/* masthead */
+.masthead{text-align:center;border-bottom:1px double var(--rule);padding-bottom:22px;margin-bottom:8px}
+.masthead .han{font-size:54px;color:var(--gold);line-height:1;text-shadow:0 0 32px rgba(216,178,90,.35);
+  font-family:"Songti SC","STSong","Source Han Serif",serif}
+.masthead h1{font:600 23px/1.2 Georgia,serif;letter-spacing:.04em;margin:12px 0 2px}
+.masthead .sub{color:var(--ink2);font-size:14px;font-style:italic;max-width:54ch;margin:6px auto 0}
+.masthead .tag{font:11px/1 ui-monospace,monospace;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+
+/* hexagram header */
+.hexhead{display:flex;gap:20px;align-items:center;justify-content:center;margin:30px 0 6px}
+.figure{display:flex;flex-direction:column;gap:6px}
+.figure .ln{display:flex;justify-content:space-between;width:78px;height:9px}
+.figure .ln .seg{height:100%;border-radius:2px;background:var(--gold);box-shadow:0 0 10px rgba(216,178,90,.3)}
+.figure .ln.yang .seg{width:100%}
+.figure .ln.yin .seg{width:calc(50% - 8px)}
+.hexname{text-align:left}
+.hexname .no{font:11px/1 ui-monospace,monospace;letter-spacing:.14em;color:var(--faint)}
+.hexname .han{font-size:46px;color:var(--gold);line-height:1.05;font-family:"Songti SC","STSong",serif}
+.hexname .py{font-style:italic;color:var(--jade);font-size:17px}
+.hexname .en{font-size:16px;letter-spacing:.03em;color:var(--ink)}
+
+/* a passage: parallel text */
+.seg{margin:26px 0;padding-bottom:22px;border-bottom:1px solid var(--rule)}
+.seg .label{font:11px/1 ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);
+  display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.seg .label .mini{display:inline-flex;flex-direction:column;gap:1.5px}
+.seg .label .mini i{display:block;width:16px;height:2px;background:var(--faint);border-radius:1px}
+.seg .label .mini i.on{background:var(--rose);box-shadow:0 0 5px var(--rose)}
+.seg .label .mini i.split{background:linear-gradient(90deg,var(--faint) 38%,transparent 38% 62%,var(--faint) 62%)}
+.seg .label .mini i.on.split{background:linear-gradient(90deg,var(--rose) 38%,transparent 38% 62%,var(--rose) 62%)}
+.seg .han{font-size:27px;line-height:1.5;color:var(--ink);font-family:"Songti SC","STSong","Source Han Serif",serif;letter-spacing:.04em}
+.seg .py{font:italic 14px/1.4 Georgia,serif;color:var(--jade);margin:3px 0 10px}
+.seg .en{font-size:17px;line-height:1.62}
+.seg .note{font-size:14px;line-height:1.6;color:var(--ink2);margin-top:10px;padding-left:14px;border-left:2px solid var(--rule)}
+.seg.judgment .han{font-size:34px;color:var(--gold)}
+.seg.useline{opacity:.92}
+.seg.useline .label{color:var(--jade)}
+
+.arc{font-style:italic;color:var(--ink2);text-align:center;max-width:52ch;margin:26px auto 0;font-size:15.5px}
+
+/* method + sources */
+.method{margin-top:40px;background:rgba(216,178,90,.04);border:1px solid var(--rule);border-radius:12px;padding:20px 22px}
+.method h2{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:10px}
+.method p{font-size:14px;line-height:1.62;color:var(--ink2);margin:0 0 8px}
+.method .lic{color:var(--jade);font-weight:600}
+.method .src{font-size:13.5px;line-height:1.8;margin-top:8px}
+.method .src a{color:var(--ink)}
+footer{text-align:center;color:var(--faint);font:12px/1.7 ui-monospace,monospace;margin-top:34px}
+footer a{color:var(--ink2)}
+.pilot{text-align:center;font:12px/1.5 ui-monospace,monospace;color:var(--faint);margin-top:18px}
+</style>
+</head>
+<body>
+<a id="crumb" href="https://read.mino.mobi/">&larr; read.mino.mobi</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="tag">Read · the Book of Changes</div>
+    <div class="han">易經</div>
+    <h1>The Zhouyi — an open translation</h1>
+    <p class="sub">The base text of the <em>I&nbsp;Ching</em>: each hexagram’s Judgment and its six line-texts,
+    in original English beside the received Chinese, with notes on the graphs and the cruxes.</p>
+  </div>
+  <main id="reader"></main>
+  <div class="pilot" id="pilot"></div>
+  <footer>
+    A transparent working translation · openly licensed ·
+    <a href="https://g.mino.mobi/yijing/">consult the oracle →</a> ·
+    <a href="https://read.mino.mobi/pendragon/">the read apparatus</a>
+  </footer>
+</div>
+
+<script type="module">
+import { ZHOUYI } from './data.js';
+
+const reader = document.getElementById('reader');
+function figure(bits){ // bits bottom→top → render top→bottom
+  return `<div class="figure">`+bits.split('').reverse().map(b=>
+    `<div class="ln ${b==='1'?'yang':'yin'}">`+(b==='1'?`<span class="seg"></span>`:`<span class="seg"></span><span class="seg"></span>`)+`</div>`
+  ).join('')+`</div>`;
+}
+function mini(bits, activePos){ // small 6-line glyph, highlight the active line (1-indexed from bottom)
+  return `<span class="mini">`+bits.split('').map((b,i)=>{
+    const pos=i+1, on=pos===activePos?'on':'';
+    return `<i class="${b==='1'?'':'split'} ${on}" data-p="${pos}"></i>`;
+  }).reverse().join('')+`</span>`;
+}
+function segBlock(s, cls, label, bits, activePos){
+  return `<div class="seg ${cls}">`+
+    (label?`<div class="label">${bits?mini(bits,activePos):''}${label}</div>`:'')+
+    `<div class="han">${s.z}</div><div class="py">${s.py}</div>`+
+    `<div class="en">${s.e}</div>`+
+    (s.n?`<div class="note">${s.n}</div>`:'')+`</div>`;
+}
+
+function render(no){
+  const h = ZHOUYI.hexagrams[no];
+  let html = `<div class="hexhead">${figure(h.figure)}<div class="hexname">`+
+    `<div class="no">HEXAGRAM ${h.no}</div><div class="han">${h.name.zh}</div>`+
+    `<div class="py">${h.name.py}</div><div class="en">${h.name.en}</div></div></div>`;
+  html += segBlock(h.judgment, 'judgment', 'The Judgment · 卦辭', h.figure, 0);
+  h.lines.forEach(l=> html += segBlock(l, 'line', `${l.name} · line ${l.pos}`, h.figure, l.pos));
+  if(h.useLine) html += segBlock(h.useLine, 'useline', `${h.useLine.name} · using the nines`, null, 0);
+  if(h.note) html += `<p class="arc">${h.note}</p>`;
+  // method + sources
+  const m = ZHOUYI.meta;
+  html += `<div class="method"><h2>Method &amp; sources</h2>`+
+    `<p>${m.method}</p><p class="lic">License: ${m.license}.</p>`+
+    `<div class="src">`+ m.sources.map(s=>`· <a href="${s.url}" target="_blank" rel="noopener">${s.label}</a> — ${s.host}`).join('<br>') +`</div></div>`;
+  reader.innerHTML = html;
+}
+
+render(1);
+const total = Object.keys(ZHOUYI.hexagrams).length;
+document.getElementById('pilot').textContent = `Pilot — ${total} of 64 hexagrams translated. The rest are coming.`;
+</script>
+</body>
+</html>
