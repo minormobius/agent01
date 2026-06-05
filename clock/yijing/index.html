@@ -247,21 +247,23 @@ function transformedLines(vals){        // flip the moving lines (6,9)
   return vals.map(v=> v===6?7 : v===9?8 : v);
 }
 
-/* ───────────────────────── the yarrow division (authentic) ─────────────────────
-   Returns {steps, value}. value ∈ 6,7,8,9. The first change sheds 5 or 9 stalks,
-   the next two shed 4 or 8; what remains, divided by four, is the line. */
-function computeLine(){
-  let stalks=49; const steps=[];
-  for(let c=0;c<3;c++){
-    const left = 1 + Math.floor(Math.random()*(stalks-1));   // each heap ≥ 1
-    const right = stalks - left;
-    const rRem  = (right-1)%4 || 4;     // one stalk lifted from the right heap first
-    const lRem  = left%4 || 4;
-    const held  = 1 + lRem + rRem;      // the lifted stalk + both remainders
-    steps.push({total:stalks, left, right, lRem, rRem, held, after:stalks-held});
-    stalks -= held;
-  }
-  return {steps, value:stalks/4};
+/* ───────────────────────── the yarrow division (player-driven) ─────────────────
+   Each of the three changes per line begins by dividing the pile into two heaps.
+   A marker sweeps the bundle; the player taps to stop it, choosing the split.
+   Where you stop sets `left`; the counting-by-fours then sheds 5/9 (first change)
+   or 4/8 (the next two). A casual, unaimed tap lands roughly uniformly, so the
+   classic yarrow odds (moving yin 1/16 … moving yang 3/16) are preserved — but
+   the hand that stops the bar is now your own. */
+function splitFromMarker(stalks, marker){
+  return Math.max(1, Math.min(stalks-1, 1 + Math.round(marker*(stalks-2))));
+}
+function computeChange(stalks, left){
+  left = Math.max(1, Math.min(stalks-1, left));
+  const right = stalks - left;
+  const rRem = (right-1)%4 || 4;     // one stalk lifted from the right heap first
+  const lRem = left%4 || 4;
+  const held = 1 + lRem + rRem;      // the lifted stalk + both remainders
+  return { total:stalks, left, right, lRem, rRem, held, after:stalks-held };
 }
 
 /* ───────────────────────── canvas: a bundle of procedural stalks ───────────── */
@@ -381,16 +383,35 @@ function render(){
   ctx.textAlign='center'; ctx.fillText(LINES.length+' / 6', hexX, H*0.46+ (3*hexLineH+2.5*hexGap)+18);
   ctx.restore();
 
+  const cx=W*0.40, leftCx=W*0.20, rightCx=W*0.60;
+
   if(!anim){
     // resting bundle of 49 (or none if finished)
-    if(LINES.length<6) fan(W*0.40, baseY, 49, W*0.5, len, 1000, 1, 1);
+    if(LINES.length<6) fan(cx, baseY, 49, W*0.5, len, 1000, 1, 1);
     requestAnimationFrame(render); return;
   }
 
-  // ── play current line animation ──
-  const A=anim, T=now()-A.start;
-  const step=A.steps[A.si];
-  const cx=W*0.40, leftCx=W*0.20, rightCx=W*0.60;
+  // ── the division minigame: a marker sweeps the bundle; tap to split ──
+  if(anim.phase==='aim'){
+    const SWEEP = USE_SET ? 1700 : 1050;                  // ms per pass; slower, more deliberate, in set mode
+    const tt=(now()-anim.aimStart)%(2*SWEEP);
+    anim.marker = tt<SWEEP ? tt/SWEEP : 2 - tt/SWEEP;     // ping-pong 0→1→0
+    fan(cx, baseY, Math.min(49,anim.stalks), W*0.5, len, 1000, 1, 1);
+    const bx0=W*0.16, bx1=W*0.64, mx=bx0+(bx1-bx0)*anim.marker, by=baseY+22;
+    ctx.strokeStyle='rgba(231,196,106,.20)'; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(bx0,by); ctx.lineTo(bx1,by); ctx.stroke();
+    ctx.strokeStyle='#e7c46a'; ctx.lineWidth=3; ctx.shadowColor='rgba(231,196,106,.6)'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(mx, baseY-len*0.92); ctx.lineTo(mx, by+5); ctx.stroke(); ctx.shadowBlur=0;
+    ctx.fillStyle='#e7c46a'; ctx.beginPath(); ctx.moveTo(mx,by-2); ctx.lineTo(mx-5,by+9); ctx.lineTo(mx+5,by+9); ctx.closePath(); ctx.fill();
+    const left=splitFromMarker(anim.stalks, anim.marker), right=anim.stalks-left;
+    ctx.font='12px ui-monospace,monospace'; ctx.fillStyle='rgba(233,214,168,.7)';
+    ctx.textAlign='right'; ctx.fillText(left, mx-9, by+25);
+    ctx.textAlign='left';  ctx.fillText(right, mx+9, by+25);
+    requestAnimationFrame(render); return;
+  }
+
+  // ── play the chosen change (split → count → gather) ──
+  const A=anim, step=A.curStep, T=now()-A.playStart;
   const D={split:620*PACE, lift:420*PACE, countL:520*PACE, countR:520*PACE, gather:520*PACE};
   const phaseOrder=['split','lift','countL','countR','gather'];
   const TOTAL=D.split+D.lift+D.countL+D.countR+D.gather;
@@ -398,10 +419,9 @@ function render(){
   for(const ph of phaseOrder){ if(T<acc+D[ph]){phase=ph; pt=(T-acc)/D[ph]; break;} acc+=D[ph]; }
   if(T>=TOTAL){ // this change finished — all five phases have played out
     A.setAside += step.held;
-    A.pile = step.after;
-    A.si++;
-    if(A.si>=A.steps.length){ finishLine(A); return requestAnimationFrame(render); }
-    A.start=now(); narrChange(A);
+    A.ci++;
+    if(A.ci>=3){ finishLine(A); return requestAnimationFrame(render); }
+    A.stalks = step.after; A.phase='aim'; A.aimStart=now(); aimNarr(A); updateButton();
     return requestAnimationFrame(render);
   }
   const ease=t=>t<0?0:t>1?1:t*t*(3-2*t);
@@ -454,36 +474,50 @@ function drawShelf(A, step, liftP, peelL, peelR){
   ctx.restore();
 }
 
+const NAMES=['First','Second','Third'];
 function startLine(){
   if(LINES.length>=6 || anim) return;
-  const {steps,value}=computeLine();
-  anim={steps,value,si:0,start:now(),setAside:0,pile:49};
+  anim={ci:0, stalks:49, steps:[], setAside:0, phase:'aim', aimStart:now(), curStep:null, playStart:0, marker:0};
   tallyrow.hidden=false;
-  narrChange(anim);
+  aimNarr(anim); updateButton();
 }
-const NAMES=['First','Second','Third'];
-function narrChange(A){
-  const s=A.steps[A.si];
+function doSplit(){
+  if(!anim || anim.phase!=='aim') return;
+  const left=splitFromMarker(anim.stalks, anim.marker);
+  const step=computeChange(anim.stalks, left);
+  anim.steps.push(step); anim.curStep=step;
+  anim.phase='play'; anim.playStart=now();
+  playNarr(anim, step); updateButton();
+}
+function aimNarr(A){
+  setN('t-pile', A.stalks); setN('t-set', A.setAside);
+  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — ${A.stalks} stalks. <b>Tap to split</b> the bundle.`;
+}
+function playNarr(A, s){
   setN('t-pile', s.total); setN('t-set', A.setAside);
-  narr.innerHTML = `<b>${NAMES[A.si]} change</b> — ${s.total} stalks split <b>${s.left}</b> / <b>${s.right}</b>, `+
-    `set aside <b>${s.held}</b>.`;
+  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — split <b>${s.left}</b> / <b>${s.right}</b>, count by fours, set aside <b>${s.held}</b>.`;
+}
+function updateButton(){
+  if(!anim){ cast.textContent='Divide the stalks'; cast.disabled=false; }
+  else if(anim.phase==='aim'){ cast.textContent='Split!'; cast.disabled=false; }
+  else { cast.textContent='counting…'; cast.disabled=true; }
 }
 function finishLine(A){
+  const value=A.curStep.after/4;
   anim=null;
-  LINES.push(A.value);
-  const meaning={6:'old yin · moving',7:'young yang',8:'young yin',9:'old yang · moving'}[A.value];
-  setN('t-line', LINES.length); setN('t-pile', A.value*4); setN('t-set', 49-A.value*4);
-  const lineMsg = `Line <b>${LINES.length}</b> — ${A.value*4} stalks remain, in <b>${A.value}</b> bundles of four → <b>${A.value}</b> · ${meaning}.`;
+  LINES.push(value);
+  const meaning={6:'old yin · moving',7:'young yang',8:'young yin',9:'old yang · moving'}[value];
+  setN('t-line', LINES.length); setN('t-pile', value*4); setN('t-set', 49-value*4);
+  const lineMsg = `Line <b>${LINES.length}</b> — ${value*4} stalks remain, in <b>${value}</b> bundles of four → <b>${value}</b> · ${meaning}.`;
   narr.innerHTML = lineMsg;
-  reset.hidden=false;
-  if(LINES.length>=6){ cast.disabled=true; auto.disabled=true; setTimeout(reveal, USE_SET?1500:650); }
+  reset.hidden=false; updateButton();
+  if(LINES.length>=6){ cast.disabled=true; setTimeout(reveal, USE_SET?1500:650); }
   else if(USE_SET){
     // meditative: a held breath between lines before the next division is offered
     cast.disabled=true;
     setTimeout(()=>{ if(LINES.length<6 && !anim){ cast.disabled=false;
       narr.innerHTML = lineMsg + ` &nbsp;·&nbsp; <span style="opacity:.65">breathe, then divide again.</span>`; } }, 1600);
   }
-  else if(autoRun){ setTimeout(startLine, 520); }
 }
 function setN(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 
@@ -536,28 +570,29 @@ function hexGlyph(vals){ // unicode-ish line stack using box chars, bottom→top
 function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 /* ───────────────────────── controls ───────────────────────────────────────── */
-let autoRun=false;
 const cast=document.getElementById('cast'), auto=document.getElementById('auto'),
       reset=document.getElementById('reset'), narr=document.getElementById('narr'),
       tallyrow=document.getElementById('tallyrow');
-cast.onclick=()=>{ autoRun=false; startLine(); };
-auto.onclick=()=>{ autoRun=true; startLine(); };
+auto.style.display='none';   // the division is now an interactive minigame — no speed-cast
+// one button: begin a line, then tap to stop the sweeping marker (split) three times
+cast.onclick=()=>{ if(cast.disabled) return; if(!anim) startLine(); else if(anim.phase==='aim') doSplit(); };
 reset.onclick=hardReset;
-cv.addEventListener('pointerdown',e=>{ if(LINES.length<6 && !anim && !cast.disabled){ if(!USE_SET) autoRun=false; startLine(); } });
+cv.addEventListener('pointerdown',e=>{ if(cast.disabled) return;
+  if(!anim){ if(LINES.length<6) startLine(); } else if(anim.phase==='aim') doSplit(); });
 
 function hardReset(){
-  LINES=[]; anim=null; autoRun=false; SEED=(Math.random()*1e9)|0;
-  cast.disabled=false; auto.disabled=false; reset.hidden=true;
+  LINES=[]; anim=null; SEED=(Math.random()*1e9)|0;
+  reset.hidden=true;
   tallyrow.hidden=true; setN('t-line','—'); setN('t-pile',49); setN('t-set',0);
   narr.innerHTML=baseNarr||'Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.';
+  updateButton();
   const R=document.getElementById('result'); R.classList.remove('show'); setTimeout(()=>R.innerHTML='',400);
 }
 window.hardReset=hardReset;
 
 /* ───────────────────────── set vs practice mode (draws from the loft) ───────── */
 function applyMode(){
-  PACE = USE_SET ? 2.0 : 1;                 // set mode is slow and deliberate
-  auto.style.display = USE_SET ? 'none' : '';  // no speed-cast with a real set
+  PACE = USE_SET ? 2.0 : 1;                 // set mode is slower, more deliberate
   SET_COLS = USE_SET ? SET.slice(0,49).map(x=>stickHsl(x.g)) : null;
   baseNarr = USE_SET
     ? 'Your set of fifty, cured by your own hand. One is set aside; <b>forty-nine</b> remain. Breathe, and divide.'
@@ -589,7 +624,7 @@ function renderSetbar(){
   }
 }
 
-applyMode(); renderSetbar();
+applyMode(); renderSetbar(); updateButton();
 loft.init().then(()=>{
   const total=computeSet();
   USE_SET = total>=50;                       // default to your own set when you have one
