@@ -53,6 +53,7 @@ button{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--p
 button:hover{filter:brightness(1.08);transform:translateY(-1px)} button:active{transform:none}
 button.ghost{background:transparent;color:var(--ink2);border:1px solid var(--rule)}
 button.ghost:hover{color:var(--ink);filter:none}
+button.ghost.on{color:var(--green);border-color:var(--green)}
 .seedline{font:12px/1 ui-monospace,monospace;color:var(--faint);display:flex;align-items:center;gap:6px}
 .seedline input{width:104px;background:rgba(255,255,255,.5);border:1px solid var(--rule);border-radius:5px;
   color:var(--ink);font:12px/1 ui-monospace,monospace;padding:7px 8px;outline:none}
@@ -147,6 +148,7 @@ footer a{color:var(--ink2)}
       <div class="tools">
         <button id="grow">⟳ New specimen</button>
         <button id="reap">🌾 Reap</button>
+        <button class="ghost" id="breeze">🍃 Breeze: on</button>
         <span class="seedline">seed
           <input id="seed" inputmode="numeric" maxlength="10" aria-label="seed">
           <button class="ghost" id="sow">sow</button>
@@ -303,22 +305,31 @@ function petalColor(spec){
     : {fill:'#f7f3e8', edge:'#d8cdb4'};
 }
 
-function drawSpecimen(spec){
+// paper + faint vignette — the static plate background (drawn live, never bent)
+function paintPaper(g){
+  const bg=g.createLinearGradient(0,0,0,CH);
+  bg.addColorStop(0,'#f6f0e1'); bg.addColorStop(1,'#e8dcc3');
+  g.fillStyle=bg; g.fillRect(0,0,CW,CH);
+  const vg=g.createRadialGradient(CW*0.34,CH*0.45,CH*0.2,CW*0.34,CH*0.5,CH*0.7);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,48,26,.08)');
+  g.fillStyle=vg; g.fillRect(0,0,CW,CH);
+}
+
+// render the plant (stem + leaves + corymb only) into an offscreen buffer, so a live
+// frame can bend it in the breeze without re-stroking every filament. The shape is
+// still wholly deterministic from the seed; only the later sway is live.
+function renderPlant(spec){
+  if(!plantCv){ plantCv=document.createElement('canvas'); plantCv.width=CW; plantCv.height=CH;
+    pctx=plantCv.getContext('2d'); }
+  const ctx = pctx;              // every draw below targets the offscreen buffer
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,CW,CH);
-
-  // paper + faint vignette
-  const bg=ctx.createLinearGradient(0,0,0,CH);
-  bg.addColorStop(0,'#f6f0e1'); bg.addColorStop(1,'#e8dcc3');
-  ctx.fillStyle=bg; ctx.fillRect(0,0,CW,CH);
-  const vg=ctx.createRadialGradient(CW*0.34,CH*0.45,CH*0.2,CW*0.34,CH*0.5,CH*0.7);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,48,26,.08)');
-  ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
 
   const pxPerCm = (CH*0.80)/MAX_HEIGHT_CM;
   const heightPx = spec.heightCm*pxPerCm;
   const baseY = CH-58, topY = baseY-heightPx;
   const cx = CW*0.34;            // left-of-centre so the herbarium label never hides it
+  GEO = { pxPerCm, baseY, topY, heightPx, cx };
   const rnd = mulberry32(xmur3('draw:'+spec.seedStr)());
 
   // stem as a quadratic from base to top
@@ -378,8 +389,7 @@ function drawSpecimen(spec){
   // ── corymb ──
   drawCorymb(spec,stemXY,leafTop,topX,topY,baseY,heightPx,rnd);
 
-  // ── scale bar (10 cm), kept on the left edge ──
-  drawScaleBar(pxPerCm,baseY);
+  // (paper + 10 cm scale bar are drawn on the live canvas by the compositor)
 
   // helpers ────────────────────────────────────────────────
   function drawLeaf(ax,ay,side,droopBias,len,pinnae,lobes,rnd,basal){
@@ -497,6 +507,69 @@ function drawScaleBar(pxPerCm,baseY){
   ctx.fillStyle='rgba(42,39,34,.55)'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
   ctx.fillText('10 cm',0,0); ctx.restore();
 }
+
+/* ───────── a gentle breeze: a coarse but real sway model ─────────
+   The stalk is a lightly-damped cantilever. We integrate ONE degree of freedom —
+   the tip's lateral displacement X — under a gusty wind force, then distribute that
+   bend up the stem (≈0 at the rooted foot, most at the flexible top) and blit the
+   pre-rendered plant back in horizontal slices. Natural frequency, damping and
+   amplitude all fall out of the specimen: a tall, few-furrowed stalk is floppy and
+   slow; a short, ribbed one is stiff and quick. Cheap enough to run every frame. */
+let GEO=null, plantCv=null, pctx=null, WM=null;
+let X=0, V=0, rafId=0, lastT=0;
+const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+let breezeOn = !reduceMotion;
+
+function windModelFor(spec){
+  const H=GEO.heightPx;
+  const tall =clamp01((spec.heightCm-22)/64);      // 0 short … 1 tall
+  const stout=clamp01((spec.furrows-2)/2);         // ribbier ≈ a touch stiffer
+  const flex =clamp01(0.35 + tall*0.62 - stout*0.18);
+  const fHz  = 1.05 - 0.55*flex;                   // floppy → slower (≈0.5–1.05 Hz)
+  return { omega:2*Math.PI*fHz, zeta:0.16+0.05*stout, ampPx:H*(0.045+0.08*flex), flex };
+}
+// a gentle, gusty breeze in ≈[-1,1]: slow base sway + two gust harmonics + a slow drift
+function windAt(t){ return 0.50*Math.sin(t*0.9) + 0.28*Math.sin(t*1.7+1.1)
+                         + 0.16*Math.sin(t*2.9+2.3) + 0.12*Math.sin(t*0.37); }
+
+// composite one frame onto the live canvas: paper, then the plant bent by tip-shift `amp`
+function blitBent(amp,t,flutter){
+  if(!GEO||!plantCv) return;
+  paintPaper(ctx);
+  const H=GEO.heightPx, baseY=GEO.baseY, band=4;
+  const y0=Math.max(0,(GEO.topY|0)-Math.round(H*0.10)-10);   // skip empty rows above the corymb
+  ctx.drawImage(plantCv, 0,0,CW,y0, 0,0,CW,y0);              // (nothing there, but keeps it whole)
+  for(let y=y0; y<baseY; y+=band){
+    const bh=Math.min(band, baseY-y);
+    const h=Math.max(0,Math.min(1,(baseY-y)/H));             // 0 at foot … 1 at tip
+    const dx = amp*Math.pow(h,1.55)                          // cantilever bend profile
+             + (flutter||0)*h*Math.sin(h*5.0 - t*(WM?WM.omega*2.2:6));  // a little leaf-flutter
+    ctx.drawImage(plantCv, 0,y,CW,bh, dx,y,CW,bh);
+  }
+  ctx.drawImage(plantCv, 0,baseY,CW,CH-baseY, 0,baseY,CW,CH-baseY);   // the unbent foot
+  drawScaleBar(GEO.pxPerCm, baseY);
+}
+
+function frame(now){
+  if(!breezeOn||!WM){ rafId=0; return; }
+  if(!lastT) lastT=now;
+  let dt=(now-lastT)/1000; lastT=now; if(dt>0.05) dt=0.05;   // clamp after a tab stall
+  const t=now/1000;
+  const target=WM.ampPx*windAt(t)*0.4;                       // wind → a static tip target
+  const a=WM.omega*WM.omega*(target-X) - 2*WM.zeta*WM.omega*V;  // damped, driven 2nd-order
+  V+=a*dt; X+=V*dt;
+  const lim=WM.ampPx*1.5; if(X>lim)X=lim; else if(X<-lim)X=-lim;
+  const flutter=WM.ampPx*0.10*Math.min(1,Math.abs(windAt(t))+0.3);
+  blitBent(X,t,flutter);
+  rafId=requestAnimationFrame(frame);
+}
+function startBreeze(){ if(rafId||!breezeOn||REAPED) return; lastT=0; rafId=requestAnimationFrame(frame); }
+function stopBreeze(){ if(rafId){ cancelAnimationFrame(rafId); rafId=0; } }
+// show the standing plant: paint at once (no flash), then animate if the breeze is on
+function showPlant(){ blitBent(0,0,0); if(breezeOn && !reduceMotion && !REAPED) startBreeze(); else stopBreeze(); }
+document.addEventListener('visibilitychange',()=>{          // pause when the tab is hidden
+  if(document.hidden) stopBreeze(); else if(breezeOn && !REAPED && CURRENT) startBreeze();
+});
 
 /* ───────── reaping: a plant → its dried stalks ───────── */
 const clamp01=x=>x<0?0:x>1?1:x;
@@ -621,7 +694,9 @@ function renderHarvest(spec,g){
 
 /* ───────── bind a spec to the page (label, ruleset, prose) ───────── */
 function present(spec){
-  drawSpecimen(spec);
+  renderPlant(spec);              // (re)bake the plant buffer for this seed
+  WM=windModelFor(spec); X=0; V=0;
+  showPlant();                    // paint it — and set it swaying if the breeze is on
   // plate label
   set('lab-acc','№ '+spec.seedStr);
   set('lab-morph',spec.morph);
@@ -679,6 +754,7 @@ function toggleReap(){
   if(!CURRENT) return;
   REAPED=!REAPED;
   if(REAPED){
+    stopBreeze();                 // the cut, bound bundle doesn't sway
     const sticks=reap(CURRENT);
     drawSticks(CURRENT,sticks);
     renderHarvest(CURRENT, grade(sticks));
@@ -690,7 +766,7 @@ function toggleReap(){
       $('store-msg').innerHTML=`${genomes.length} green stalks set to dry · <a href="../sticks/">the drying loft →</a>`;
     }
   }else{
-    drawSpecimen(CURRENT);
+    showPlant();                  // back to the standing plant — resume the breeze
     $('harvest').hidden=true;
   }
   setReapLabel();
@@ -698,6 +774,15 @@ function toggleReap(){
 
 $('grow').onclick=()=>sow(randomSeed());
 $('reap').onclick=toggleReap;
+$('breeze').onclick=()=>{
+  breezeOn=!breezeOn;
+  $('breeze').classList.toggle('on',breezeOn);
+  $('breeze').textContent = breezeOn?'🍃 Breeze: on':'🍃 Breeze: off';
+  if(REAPED) return;                       // sticks are bound — no wind there
+  if(breezeOn) startBreeze(); else { stopBreeze(); blitBent(0,0,0); }   // still the air
+};
+$('breeze').classList.toggle('on',breezeOn);
+$('breeze').textContent = breezeOn?'🍃 Breeze: on':'🍃 Breeze: off';
 $('sow').onclick=()=>{
   const v=parseInt($('seed').value,10);
   sow(Number.isFinite(v)?v:randomSeed());
