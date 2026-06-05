@@ -140,7 +140,12 @@ export async function evaluate(def, ctx = {}) {
   const limit = Math.max(1, Math.min(def.limit || 500, 1000));
   const pages = Math.min(8, Math.max(1, Math.ceil(limit / 100) + 1)); // a little extra for filtering
   const c = { ...ctx, pages, maxPerInput: limit * 2 };
-  const inputs = def.inputs || [];
+  // No input blocks → default to a broad recent-posts sample across the network
+  // (a true firehose needs an ingester; this approximates via a near-universal
+  // search so filters/regex can run over "all posts"). Needs the search token.
+  const inputs = (def.inputs && def.inputs.length)
+    ? def.inputs
+    : [{ type: 'search', q: 'a', sort: (def.sort && def.sort.type === 'top') ? 'top' : 'latest' }];
   const errors = [];
   const results = await Promise.all(inputs.map((i) =>
     gather(i, c).catch((e) => { errors.push(`${i.type}: ${e.message || e}`); return []; })));

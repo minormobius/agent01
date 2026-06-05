@@ -145,6 +145,7 @@ function card(title, body, onRemove) {
 // ── render the editor from `def` ────────────────────────────────────────────
 function renderInputs() {
   const host = $('fg-inputs'); host.textContent = '';
+  if (!def.inputs.length) host.append(el('div', 'fg-note', 'no inputs → all recent posts across Bluesky (then filtered below)'));
   const ta = [];
   def.inputs.forEach((inp, i) => {
     const body = el('div', 'fg-card-body');
