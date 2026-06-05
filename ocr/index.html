@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OCR · read text off an image</title>
+  <meta name="description" content="Pull text — an activation code, a serial, a label — off any image. Runs entirely in your browser; images never leave your device." />
+  <meta name="theme-color" content="#0d0d0d" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🔎</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="crumb" href="https://mino.mobi">mino.mobi</a>
+    <h1>OCR</h1>
+    <span class="tagline">read text off an image</span>
+  </header>
+
+  <main class="wrap">
+    <div id="drop" class="drop">
+      <input id="file" type="file" accept="image/*" hidden />
+      <input id="camera" type="file" accept="image/*" capture="environment" hidden />
+      <img id="preview" class="preview" alt="" hidden />
+      <div id="hint" class="hint">
+        <div class="hint-big">Drop an image here</div>
+        <div class="hint-sub">or click to choose · paste from clipboard · snap a photo</div>
+      </div>
+      <div id="overlay" class="overlay" hidden>
+        <div class="spinner"></div>
+        <div id="status" class="status"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="chooseBtn">Choose image</button>
+      <button id="cameraBtn">Take photo</button>
+      <button id="copyAllBtn" class="secondary" hidden>Copy all text</button>
+    </div>
+
+    <div id="error" class="error" hidden></div>
+
+    <section id="codesSection" class="section" hidden>
+      <h2>Likely codes</h2>
+      <div id="codes" class="codes"></div>
+    </section>
+
+    <section id="textSection" class="section" hidden>
+      <h2 id="textHeading">All text</h2>
+      <pre id="text" class="text"></pre>
+      <div id="empty" class="empty" hidden>No text found. Try a sharper, better-lit, or more cropped shot.</div>
+    </section>
+
+    <p class="footnote">
+      Runs entirely in your browser · OCR by
+      <a href="https://github.com/robertknight/ocrs" target="_blank" rel="noreferrer">ocrs</a>
+      (Rust&nbsp;→&nbsp;WASM) · images never leave your device
+    </p>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

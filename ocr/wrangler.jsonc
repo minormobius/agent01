@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ocr",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-16",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  // ocr.mino.mobi is the custom domain this worker owns (the GOLDEN RULE:
+  // worker `name` must match the worker bound to the live subdomain).
+  // The ocr.ascential.work alias is added as a second custom_domain route
+  // ONCE that domain exists in the Cloudflare dashboard AND the deploy token
+  // carries Workers Routes:Edit on the ascential.work zone — see ai-edu's
+  // wrangler.jsonc for the precedent + the [code: 10000] gotcha. Until then,
+  // keep this to the single mino.mobi route so the deploy can't fail on it.
+  "routes": [
+    { "pattern": "ocr.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -1,0 +1,118 @@
+:root {
+  --bg: #0d0d0d;
+  --surface: #16161c;
+  --inset: #111;
+  --elevated: #1e1e26;
+  --border: #2a2a33;
+  --border-strong: #3a3a45;
+  --text: #e8e8e8;
+  --muted: #9a9aa5;
+  --faint: #6a6a75;
+  --accent: #2a6df0;
+  --accent-text: #fff;
+  --link: #5b9af0;
+  --error-bg: rgba(255, 60, 60, 0.12);
+  --error-border: rgba(255, 80, 80, 0.4);
+  --error-text: #ff9b9b;
+  --overlay: rgba(0, 0, 0, 0.82);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa; --surface: #fff; --inset: #f5f5f5; --elevated: #f0f0f0;
+    --border: #e0e0e0; --border-strong: #d0d0d0; --text: #1a1a1a;
+    --muted: #666; --faint: #999; --accent: #1a1a1a; --link: #1a73e8;
+    --error-bg: #fff0f0; --error-border: #ffccc7; --error-text: #cf1322;
+    --overlay: rgba(0, 0, 0, 0.8);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.topbar {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.crumb { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+.crumb:hover { color: var(--text); }
+.topbar h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.02em; }
+.tagline { color: var(--faint); font-size: 0.85rem; }
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 64px; }
+
+.drop {
+  position: relative;
+  border: 2px dashed var(--border-strong);
+  border-radius: 14px;
+  background: var(--inset);
+  min-height: 260px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  cursor: pointer; overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+}
+.drop.dragging { border-color: var(--accent); background: var(--elevated); }
+.drop.busy { cursor: progress; }
+.hint { padding: 32px; }
+.hint-big { font-size: 1.25rem; font-weight: 600; }
+.hint-sub { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
+.preview { max-width: 100%; max-height: 460px; display: block; object-fit: contain; }
+
+.overlay {
+  position: absolute; inset: 0; background: var(--overlay); color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px;
+}
+.status { font-size: 0.9rem; max-width: 440px; }
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid rgba(255,255,255,0.25); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.actions button {
+  padding: 9px 16px; border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--accent); color: var(--accent-text); font-size: 0.9rem; cursor: pointer;
+}
+.actions button.secondary { background: var(--surface); color: var(--text); }
+.actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.error {
+  margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 0.9rem;
+  background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text);
+}
+
+.section { margin-top: 28px; }
+.section h2 {
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted); margin: 0 0 10px;
+}
+.codes { display: flex; flex-wrap: wrap; gap: 8px; }
+.code {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem; font-weight: 600; letter-spacing: 0.04em;
+  background: var(--elevated); border: 1px solid var(--border-strong);
+  border-radius: 8px; color: var(--text); cursor: pointer;
+}
+.code:hover { border-color: var(--accent); }
+.code .copy { color: var(--muted); font-size: 0.85rem; }
+
+.text {
+  white-space: pre-wrap; word-break: break-word; margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92rem; line-height: 1.5; color: var(--text);
+  background: var(--inset); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 16px;
+}
+.empty { color: var(--muted); font-size: 0.9rem; }
+
+.footnote { margin-top: 36px; font-size: 0.78rem; color: var(--faint); text-align: center; }
+.footnote a { color: var(--link); }
