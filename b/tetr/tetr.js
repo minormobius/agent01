@@ -209,7 +209,10 @@ function loadAvatars(cells) {
     const a = c.post && c.post.author; const did = a && a.did;
     if (!did || avatars.has(did) || !a.avatar) continue;
     avatars.set(did, null);
-    const img = new Image(); img.crossOrigin = 'anonymous';
+    // No crossOrigin: Bluesky's avatar CDN serves no CORS headers, so setting it
+    // would block the load. We only drawImage (never read pixels back), so a
+    // tainted canvas is fine.
+    const img = new Image();
     img.onload = () => { avatars.set(did, img); render(); };
     img.onerror = () => {};
     img.src = a.avatar;
