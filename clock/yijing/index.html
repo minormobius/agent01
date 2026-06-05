@@ -146,6 +146,7 @@ footer a{color:rgba(233,214,168,.5)}
 'use strict';
 import { Loft } from '../lib/inventory.js';
 import { cure } from '../lib/sticks.js';
+import { drawStalk } from '../lib/stalk-render.js';
 /* ───────────────────────── deterministic noise (per-stalk character) ───────── */
 function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
   h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
@@ -343,17 +344,11 @@ function easeSticks(){
   }
 }
 function drawStickObj(s){
-  const sx=s.x, sy=s.y, tipx=sx+Math.sin(s.ang)*s.len, tipy=sy-Math.cos(s.ang)*s.len;
-  const px=Math.cos(s.ang), py=Math.sin(s.ang);            // perpendicular for the bow
-  const midx=(sx+tipx)/2 + px*s.bend*s.len*0.10, midy=(sy+tipy)/2 + py*s.bend*s.len*0.10;
-  const c=s.col;
-  ctx.lineCap='round'; ctx.lineWidth=s.w;
-  ctx.strokeStyle=`hsl(${c.h} ${c.s}% ${c.l}%)`;
-  ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(midx,midy,tipx,tipy); ctx.stroke();
-  // a node
-  const t=0.42, bx=(1-t)*(1-t)*sx+2*(1-t)*t*midx+t*t*tipx, by=(1-t)*(1-t)*sy+2*(1-t)*t*midy+t*t*tipy;
-  ctx.lineWidth=s.w*1.5; ctx.strokeStyle=`hsl(${c.h-6} ${c.s+8}% ${Math.max(12,c.l-22)}%)`;
-  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+0.1,by+0.1); ctx.stroke();
+  drawStalk(ctx, {
+    lenPx:s.len, diaPx:Math.max(2.6, s.w*2.0), col:s.col,
+    warp:Math.abs(s.bend)*0.5, warpDir:s.bend>=0?1:-1,
+    nodes:Math.max(2, Math.round(s.len/44)), grainSeed:((s.id*2654435761)>>>0)||1,
+  }, { x:s.x, y:s.y, ang:s.ang, detail:0.6, fuzz:false, ends:true });
 }
 function drawSticks(){
   for(const z of ['aside','left','right','pile']) for(const s of STICKS) if(s.zone===z) drawStickObj(s);

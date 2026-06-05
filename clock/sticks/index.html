@@ -154,6 +154,7 @@ input:focus{border-color:var(--green)}
 <script type="module">
 import { cure, canTend, tend, gradeSet, CURE_MS, SEASON_MS, TEND_MAX } from '../lib/sticks.js';
 import { Loft } from '../lib/inventory.js';
+import { drawStalk } from '../lib/stalk-render.js';
 
 const $ = id => document.getElementById(id);
 const loft = new Loft();
@@ -180,53 +181,14 @@ function drawStick(cv, stick, st, detail){
   ctx.clearRect(0,0,W,H);
   const pad=H*0.06;
   const lenPx=(H-2*pad)*Math.min(1, stick.lenCm/86*1.05+0.18);
-  const cx=W*0.5, topY=(H-lenPx)/2, botY=topY+lenPx;
-  const r=mulberry32(stick.grainSeed||1);
-  const dia=Math.max(2.2, stick.diaMm*(W/120)*1.9);
-  const col=stickColour(stick, st);
-  // warp: horizontal bow proportional to warp (or spoiled warp)
-  const bow=(st.warp||0)*lenPx*0.20*((stick.grainSeed%2)?1:-1);
-  const midX=cx+bow, midY=(topY+botY)/2;
-  const xAt=t=>{ const mt=1-t; return mt*mt*cx + 2*mt*t*midX + t*t*cx; };
-  const yAt=t=> topY + t*lenPx;
-  // body
-  ctx.lineCap='round';
-  ctx.lineWidth=dia;
-  ctx.strokeStyle=`hsl(${col.h} ${col.s}% ${col.l}%)`;
-  ctx.beginPath();
-  for(let i=0;i<=24;i++){ const t=i/24, x=xAt(t), y=yAt(t); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }
-  ctx.stroke();
-  // shading edge
-  ctx.lineWidth=dia*0.4; ctx.strokeStyle=`hsl(${col.h} ${col.s}% ${Math.max(12,col.l-16)}%)`; ctx.globalAlpha=0.5;
-  ctx.beginPath();
-  for(let i=0;i<=24;i++){ const t=i/24, x=xAt(t)+dia*0.22, y=yAt(t); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }
-  ctx.stroke(); ctx.globalAlpha=1;
-  // grain striations (detail only)
-  if(detail){
-    ctx.lineWidth=0.6; ctx.strokeStyle=`hsl(${col.h} ${col.s}% ${Math.max(14,col.l-22)}%)`; ctx.globalAlpha=0.35;
-    for(let k=0;k<5;k++){ const off=(r()-0.5)*dia*0.7;
-      ctx.beginPath();
-      for(let i=0;i<=24;i++){ const t=i/24, x=xAt(t)+off, y=yAt(t); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }
-      ctx.stroke(); }
-    ctx.globalAlpha=1;
-  }
-  // nodes (dark rings)
-  ctx.lineWidth=dia*1.18; ctx.strokeStyle=`hsl(${col.h} ${col.s+6}% ${Math.max(12,col.l-26)}%)`;
-  const nodes=stick.nodes||3;
-  for(let n=1;n<=nodes;n++){ const t=n/(nodes+1); const x=xAt(t), y=yAt(t);
-    ctx.beginPath(); ctx.moveTo(x,y-0.5); ctx.lineTo(x,y+0.5); ctx.stroke(); }
-  // checking crack (spoiled = checked): a jagged split down part of the stick
-  if(st.spoiled==='checked'){
-    ctx.strokeStyle='rgba(40,26,16,.7)'; ctx.lineWidth=1.1;
-    ctx.beginPath();
-    const t0=0.2+r()*0.2; let prevx=xAt(t0), prevy=yAt(t0); ctx.moveTo(prevx,prevy);
-    for(let t=t0;t<t0+0.5;t+=0.06){ const x=xAt(t)+(r()-0.5)*dia*0.5, y=yAt(t); ctx.lineTo(x,y); }
-    ctx.stroke();
-  }
-  // tip caps
-  ctx.fillStyle=`hsl(${col.h} ${col.s}% ${Math.max(14,col.l-10)}%)`;
-  ctx.beginPath(); ctx.arc(cx,topY,dia*0.5,0,7); ctx.fill();
-  ctx.beginPath(); ctx.arc(cx,botY,dia*0.5,0,7); ctx.fill();
+  const cx=W*0.5, botY=(H+lenPx)/2;            // base at the bottom; the stalk grows up
+  const dia=Math.max(2.4, stick.diaMm*(W/120)*1.9);
+  drawStalk(ctx, {
+    lenPx, diaPx:dia, col:stickColour(stick, st),
+    warp:(st.warp||0)*0.9, warpDir:(stick.grainSeed%2)?1:-1,
+    check: st.spoiled==='checked' ? Math.max(0.7, st.check||0) : (st.check||0),
+    nodes:stick.nodes||4, grainSeed:stick.grainSeed||1, seasoned:st.seasoned,
+  }, { x:cx, y:botY, ang:0, detail:detail?1:0.85, fuzz:!!detail, ends:true });
   if(detail){
     ctx.fillStyle='rgba(42,39,34,.5)'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
     ctx.fillText(`${stick.lenCm} cm · ⌀${stick.diaMm} mm`, cx, H-6);
