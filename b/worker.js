@@ -70,17 +70,41 @@ async function getDef(did, rkey) {
   return d.value || null;
 }
 
+// Per-feed ranked-uri cache (per isolate). One gather per feed per minute keeps
+// Bluesky's API happy no matter how many people open/scroll the feed; the cursor
+// just pages through the cached list.
+const FEED_CACHE = new Map();
+const CACHE_TTL = 60 * 1000;
+const CACHE_MAX = 300;
+
+async function rankedUris(feed, did, rkey, env) {
+  const hit = FEED_CACHE.get(feed);
+  if (hit && (Date.now() - hit.at) < CACHE_TTL) return hit.uris;
+  const def = await getDef(did, rkey);
+  let uris = [];
+  if (def) {
+    try {
+      const { posts } = await evaluate({ ...def, limit: Math.min(def.limit || 500, 1000) }, { searchToken: await serviceToken(env) });
+      uris = posts.map((p) => p.uri);
+    } catch { uris = []; }
+  }
+  if (FEED_CACHE.size >= CACHE_MAX) FEED_CACHE.delete(FEED_CACHE.keys().next().value);
+  FEED_CACHE.set(feed, { at: Date.now(), uris });
+  return uris;
+}
+
 async function getFeedSkeleton(url, env) {
   const feed = url.searchParams.get('feed') || '';
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '40', 10) || 40, 100);
+  const pageLimit = Math.min(parseInt(url.searchParams.get('limit') || '30', 10) || 30, 100);
+  const offset = parseInt(url.searchParams.get('cursor') || '0', 10) || 0;
   const m = feed.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
   if (!m) return json({ feed: [] });
-  const def = await getDef(m[1], m[2]);
-  if (!def) return json({ feed: [] });
-  try {
-    const { posts } = await evaluate({ ...def, limit }, { searchToken: await serviceToken(env) });
-    return json({ feed: posts.map((p) => ({ post: p.uri })) });
-  } catch { return json({ feed: [] }); }
+  const uris = await rankedUris(feed, m[1], m[2], env);
+  const page = uris.slice(offset, offset + pageLimit);
+  const out = { feed: page.map((u) => ({ post: u })) };
+  const next = offset + pageLimit;
+  if (next < uris.length) out.cursor = String(next);
+  return json(out);
 }
 
 export default {
@@ -99,7 +123,8 @@ export default {
       let body; try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
       const def = body && body.def;
       if (!def) return json({ error: 'no def' }, 400);
-      try { return json(await evaluate(def, { searchToken: await serviceToken(env) })); }
+      // Preview caps at 100 for speed; the published feed uses the real limit.
+      try { return json(await evaluate({ ...def, limit: Math.min(def.limit || 100, 100) }, { searchToken: await serviceToken(env) })); }
       catch (e) { return json({ posts: [], errors: [String((e && e.message) || e)], candidateCount: 0 }); }
     }
 

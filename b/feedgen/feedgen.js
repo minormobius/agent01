@@ -17,7 +17,7 @@ const def = {
   inputs: [{ type: 'author', actor: 'bsky.app', filter: 'posts_no_replies' }],
   filters: [],
   sort: { type: 'latest' },
-  limit: 40,
+  limit: 500,
 };
 
 const INPUT_DEFAULTS = {
@@ -238,7 +238,7 @@ async function runPreview() {
     const res = await fetch('/api/feedgen/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ def }) });
     if (!res.ok) throw new Error('preview HTTP ' + res.status);
     const { posts, errors, candidateCount } = await res.json();
-    let head = `<div class="fg-status">${posts.length} post${posts.length === 1 ? '' : 's'} · ${candidateCount} matched candidates`;
+    let head = `<div class="fg-status">preview: ${posts.length} shown · ${candidateCount} matched · published feed serves up to ${def.limit}`;
     if (errors.length) head += ` · <span class="fg-err">${esc(errors.join('; '))}</span>`;
     head += '</div>';
     out.innerHTML = head + (posts.length ? posts.map(renderPost).join('') : '<div class="fg-status">no posts — loosen the filters or change the input</div>');
@@ -262,7 +262,7 @@ function init() {
   });
   $('fg-name').addEventListener('input', (e) => def.name = e.target.value);
   $('fg-sort').addEventListener('change', (e) => def.sort.type = e.target.value);
-  $('fg-limit').addEventListener('input', (e) => def.limit = Math.max(1, Math.min(100, parseInt(e.target.value || '40', 10))));
+  $('fg-limit').addEventListener('input', (e) => def.limit = Math.max(1, Math.min(1000, parseInt(e.target.value || '500', 10))));
   $('fg-run').addEventListener('click', runPreview);
   $('fg-def-toggle').addEventListener('click', () => $('fg-def-wrap').classList.toggle('open'));
   renderAll();

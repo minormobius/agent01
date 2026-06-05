@@ -45,23 +45,37 @@ async function resolveListUri(s) {
 const isRepost = (fi) => !!(fi && fi.reason && (fi.reason.$type || '').includes('Repost'));
 
 async function gather(input, ctx) {
-  const limit = 100;
+  const PER = 100;
+  const pages = ctx.pages || 1;
+  const cap = ctx.maxPerInput || PER;
+  // Follow each input's own cursor up to `pages` pages (or until exhausted / cap).
+  async function pageLoop(method, baseParams, opts, mapFn) {
+    let out = [], cursor, p = 0;
+    do {
+      const r = await xrpc(method, { ...baseParams, limit: PER, cursor }, opts);
+      out = out.concat(mapFn(r));
+      cursor = r.cursor;
+      p++;
+    } while (cursor && p < pages && out.length < cap);
+    return out;
+  }
   if (input.type === 'search') {
     if (!input.q) return [];
     if (!ctx.searchToken) throw new Error('search needs a service token (not configured yet)');
-    const r = await xrpc('app.bsky.feed.searchPosts', { q: input.q, sort: input.sort || 'latest', limit }, { base: APP, token: ctx.searchToken });
-    return (r.posts || []).map((post) => ({ post, isRepost: false }));
+    return pageLoop('app.bsky.feed.searchPosts', { q: input.q, sort: input.sort || 'latest' },
+      { base: APP, token: ctx.searchToken }, (r) => (r.posts || []).map((post) => ({ post, isRepost: false })));
   }
   if (input.type === 'list') {
     if (!input.uri) return [];
-    const r = await xrpc('app.bsky.feed.getListFeed', { list: await resolveListUri(input.uri), limit });
-    return (r.feed || []).map((fi) => ({ post: fi.post, isRepost: isRepost(fi) }));
+    const uri = await resolveListUri(input.uri);
+    return pageLoop('app.bsky.feed.getListFeed', { list: uri }, {},
+      (r) => (r.feed || []).map((fi) => ({ post: fi.post, isRepost: isRepost(fi) })));
   }
   if (input.type === 'author') {
     if (!input.actor) return [];
     const actor = await resolveActor(input.actor);
-    const r = await xrpc('app.bsky.feed.getAuthorFeed', { actor, limit, filter: input.filter || 'posts_no_replies' });
-    return (r.feed || []).map((fi) => ({ post: fi.post, isRepost: isRepost(fi) }));
+    return pageLoop('app.bsky.feed.getAuthorFeed', { actor, filter: input.filter || 'posts_no_replies' }, {},
+      (r) => (r.feed || []).map((fi) => ({ post: fi.post, isRepost: isRepost(fi) })));
   }
   return [];
 }
@@ -116,16 +130,20 @@ function sortCands(cands, sort) {
 }
 
 // evaluate(def, ctx) → { posts: postView[], errors: string[], candidateCount }
+// Gathers ~`limit` posts deep by paginating each input (pages scale with limit),
+// dedupes, filters, sorts, returns the top `limit`.
 export async function evaluate(def, ctx = {}) {
+  const limit = Math.max(1, Math.min(def.limit || 500, 1000));
+  const pages = Math.min(8, Math.max(1, Math.ceil(limit / 100) + 1)); // a little extra for filtering
+  const c = { ...ctx, pages, maxPerInput: limit * 2 };
   const inputs = def.inputs || [];
   const errors = [];
   const results = await Promise.all(inputs.map((i) =>
-    gather(i, ctx).catch((e) => { errors.push(`${i.type}: ${e.message || e}`); return []; })));
+    gather(i, c).catch((e) => { errors.push(`${i.type}: ${e.message || e}`); return []; })));
   let cands = results.flat();
   const seen = new Set();
-  cands = cands.filter((c) => c.post && c.post.uri && !seen.has(c.post.uri) && seen.add(c.post.uri));
-  cands = cands.filter((c) => passes(c, def.filters || []));
+  cands = cands.filter((x) => x.post && x.post.uri && !seen.has(x.post.uri) && seen.add(x.post.uri));
+  cands = cands.filter((x) => passes(x, def.filters || []));
   cands = sortCands(cands, (def.sort && def.sort.type) || 'latest');
-  const limit = def.limit || 40;
-  return { posts: cands.slice(0, limit).map((c) => c.post), errors, candidateCount: cands.length };
+  return { posts: cands.slice(0, limit).map((x) => x.post), errors, candidateCount: cands.length };
 }
