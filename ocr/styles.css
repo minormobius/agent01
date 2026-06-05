@@ -103,6 +103,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text);
 }
 
+/* ---- AI reader toggle ---- */
+.ai-toggle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; font-size: 0.9rem; cursor: pointer; }
+.ai-strong { color: var(--accent); font-weight: 600; }
+.ai-note { color: var(--faint); font-size: 0.8rem; }
+
 /* ---- expected-format panel ---- */
 .fmt { margin-top: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 4px 14px; }
 .fmt > summary { cursor: pointer; padding: 8px 0; font-size: 0.9rem; }

@@ -77,6 +77,51 @@ const wholeBtn = $('wholeBtn'), skipBtn = $('skipBtn');
 const errorEl = $('error'), results = $('results'), rowsEl = $('rows'), statsEl = $('stats');
 const fmtOn = $('fmtOn'), fmtGroups = $('fmtGroups'), fmtSize = $('fmtSize'),
   fmtSep = $('fmtSep'), fmtAlpha = $('fmtAlpha'), fmtFix = $('fmtFix');
+const aiOn = $('aiOn');
+
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+// ---- AI reader (vision model via /api/read) ----
+// Crop on the main thread (createImageBitmap decodes off-thread), then POST the
+// JPEG to the worker, which asks the vision model — told the format so it fixes
+// look-alikes at read time. Returns an ocrs-shaped { text, lines }.
+const AI_MAX = 1600, AI_MIN_CROP = 1000;
+async function cropToBlob(file, rect) {
+  const buf = await file.arrayBuffer();
+  const bmp = await createImageBitmap(new Blob([buf], { type: file.type }), { imageOrientation: 'from-image' });
+  const W = bmp.width, H = bmp.height;
+  let sx = 0, sy = 0, sw = W, sh = H;
+  if (rect) {
+    sx = Math.round(clamp01(rect.x) * W);
+    sy = Math.round(clamp01(rect.y) * H);
+    sw = Math.min(Math.max(8, Math.round(clamp01(rect.w) * W)), W - sx);
+    sh = Math.min(Math.max(8, Math.round(clamp01(rect.h) * H)), H - sy);
+  }
+  const long = Math.max(sw, sh);
+  let scale = 1;
+  if (long > AI_MAX) scale = AI_MAX / long;
+  else if (rect && long < AI_MIN_CROP) scale = Math.min(AI_MIN_CROP / long, 4);
+  const tw = Math.max(1, Math.round(sw * scale)), th = Math.max(1, Math.round(sh * scale));
+  const canvas = new OffscreenCanvas(tw, th);
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, tw, th);
+  bmp.close?.();
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+}
+
+async function aiRead(file, rect, onProgress) {
+  onProgress?.({ stage: 'ai' });
+  const blob = await cropToBlob(file, rect);
+  const cfg = readFmt();
+  const params = new URLSearchParams();
+  if (cfg.on) { params.set('groups', cfg.groups); params.set('size', cfg.size); params.set('alpha', cfg.alphabet); }
+  const res = await fetch(`/api/read?${params}`, { method: 'POST', headers: { 'content-type': blob.type }, body: blob });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok || j.error) throw new Error(j.error || `AI read failed (${res.status})`);
+  const text = j.text != null ? j.text : (j.chars || '');
+  return { text, lines: text ? text.split('\n') : [], _ai: true, confidence: j.confidence };
+}
 
 function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
 
@@ -264,10 +309,14 @@ function pump() {
     item.status = 'running';
     running++;
     renderRow(item);
-    ocrScan(item.file, item.rect, item.id, (p) => {
-      item._progress = p.stage === 'detection' || p.stage === 'recognition' ? 'loading models…' : 'reading…';
+    const prog = (p) => {
+      item._progress = p.stage === 'ai' ? 'asking the model…'
+        : (p.stage === 'detection' || p.stage === 'recognition') ? 'loading models…'
+        : 'reading…';
       renderRow(item);
-    })
+    };
+    const job = aiOn.checked ? aiRead(item.file, item.rect, prog) : ocrScan(item.file, item.rect, item.id, prog);
+    job
       .then((res) => { item.result = res; item.status = 'done'; })
       .catch((err) => { item.error = err?.message || String(err); item.status = 'error'; })
       .finally(() => { running--; item._progress = null; renderRow(item); updateStats(); refreshStage(); pump(); });
@@ -276,7 +325,14 @@ function pump() {
 
 // ---- results rendering ----
 function pill(item) {
-  if (item.status === 'done') return ['done', 'done'];
+  if (item.status === 'done') {
+    if (item.result?._ai) {
+      const c = item.result.confidence;
+      const cstr = typeof c === 'number' ? ` ${Math.round(c * 100)}%` : '';
+      return [`AI${cstr}`, 'done'];
+    }
+    return ['done', 'done'];
+  }
   if (item.status === 'error') return ['error', 'error'];
   if (item.status === 'skipped') return ['skipped', 'skipped'];
   if (item.status === 'running') return [item._progress || 'reading…', 'running'];
