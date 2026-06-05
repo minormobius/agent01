@@ -26,11 +26,11 @@ const elPanel = document.getElementById('t-panel');
 const params = new URLSearchParams(location.search);
 const listInput = params.get('list');
 
-// ── hex math: odd-r offset <-> cube; offset -> pixel (pointy-top, upright) ────
-const parity = (row) => ((row % 2) + 2) % 2;
-function offsetToCube(col, row) { const q = col - (row - parity(row)) / 2, r = row; return { x: q, y: -q - r, z: r }; }
-function cubeToOffset(c) { const col = c.x + (c.z - parity(c.z)) / 2; return { col, row: c.z }; }
-function offsetToPixel(col, row) { return { x: OX + SQRT3 * S * (col + 0.5 * parity(row)), y: OY + 1.5 * S * row }; }
+// ── hex math: odd-q offset <-> cube; offset -> pixel (flat-top, upright) ──────
+const parity = (n) => ((n % 2) + 2) % 2;
+function offsetToCube(col, row) { const x = col, z = row - (col - parity(col)) / 2; return { x, y: -x - z, z }; }
+function cubeToOffset(c) { return { col: c.x, row: c.z + (c.x - parity(c.x)) / 2 }; }
+function offsetToPixel(col, row) { return { x: OX + 1.5 * S * col, y: OY + SQRT3 * S * (row + 0.5 * parity(col)) }; }
 
 // ── source: a stream of thread polyhex pieces ───────────────────────────────
 let feedCursor = null, uriQueue = [], pieceQueue = [], filling = false;
@@ -166,18 +166,18 @@ let S = 22, OX = 26, OY = 26;
 function resize() {
   const maxW = Math.min((document.querySelector('.stage') || document.body).clientWidth - 8, 460);
   const maxH = window.innerHeight - 150;
-  const sW = maxW / (SQRT3 * (COLS + 0.5));
-  const sH = maxH / (1.5 * ROWS + 0.6);
+  const sW = maxW / (1.5 * COLS + 0.5);
+  const sH = maxH / (SQRT3 * (ROWS + 0.5));
   S = Math.max(9, Math.min(sW, sH));
-  OX = SQRT3 * S * 0.5 + 3; OY = S + 3;
+  OX = S + 3; OY = SQRT3 * S * 0.5 + 3;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const cw = SQRT3 * S * (COLS + 0.5) + 6, ch = 1.5 * S * (ROWS - 1) + 2 * S + 6;
+  const cw = 1.5 * S * (COLS - 1) + 2 * S + 6, ch = SQRT3 * S * (ROWS + 0.5) + 6;
   canvas.width = cw * dpr; canvas.height = ch * dpr; canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); render();
 }
 function hexPath(cx, cy) {
   ctx.beginPath();
-  for (let i = 0; i < 6; i++) { const a = Math.PI / 180 * (60 * i - 90); const x = cx + S * Math.cos(a), y = cy + S * Math.sin(a); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  for (let i = 0; i < 6; i++) { const a = Math.PI / 180 * (60 * i); const x = cx + S * Math.cos(a), y = cy + S * Math.sin(a); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
   ctx.closePath();
 }
 function hue(did) { let h = 0; for (let i = 0; i < (did || '').length; i++) h = (h * 31 + did.charCodeAt(i)) % 360; return h; }
@@ -223,13 +223,55 @@ document.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click
 }));
 canvas.addEventListener('pointerdown', (e) => {
   const rect = canvas.getBoundingClientRect(), px = e.clientX - rect.left, py = e.clientY - rect.top;
-  let best = null, bd = S * S;
-  for (const [k, v] of occupied) { const [c, r] = k.split(',').map(Number); const p = offsetToPixel(c, r); const d = (p.x - px) ** 2 + (p.y - py) ** 2; if (d < bd) { bd = d; best = v; } }
-  if (best && best.post) showPost(best.post);
+  let best = null, bd = (S * 0.95) ** 2;
+  const consider = (col, row, post) => { const p = offsetToPixel(col, row); const d = (p.x - px) ** 2 + (p.y - py) ** 2; if (d < bd) { bd = d; best = post; } };
+  for (const [k, v] of occupied) { const [c, r] = k.split(',').map(Number); consider(c, r, v.post); }
+  if (piece) for (const o of absOffset(piece)) consider(o.col, o.row, o.post);
+  if (best && best.uri) showThread(best.uri);
 });
-function showPost(p) {
-  const a = p.author || {};
-  elPanel.innerHTML = `<div class="t-p-head"><b>${esc(a.displayName || a.handle || '')}</b><span>@${esc(a.handle || '')}</span></div><div class="t-p-text">${esc((p.record && p.record.text) || '')}</div><a href="https://bsky.app/profile/${esc(a.handle || a.did)}/post/${esc((p.uri || '').split('/').pop())}" target="_blank" rel="noopener">open on Bluesky ↗</a>`;
+async function showThread(uri) {
+  elPanel.innerHTML = '<div class="t-empty">loading thread…</div>';
+  try { const r = await xrpc(PUB, 'app.bsky.feed.getPostThread', { uri, depth: 20 }); elPanel.innerHTML = '<div class="t-thread">' + threadHtml(r.thread, uri) + '</div>'; elPanel.scrollTop = 0; }
+  catch (_) { elPanel.innerHTML = '<div class="t-empty">could not load thread</div>'; }
+}
+function threadHtml(node, focus) {
+  if (!node || !node.post) return '<div class="t-empty">no thread</div>';
+  const anc = []; let p = node.parent; while (p && p.post) { anc.unshift(p.post); p = p.parent; }
+  let h = '';
+  anc.forEach((post, i) => { h += postHtml(post, i, false); });
+  h += postHtml(node.post, anc.length, node.post.uri === focus);
+  h += repliesHtml(node.replies, anc.length + 1, focus);
+  return h;
+}
+function repliesHtml(replies, depth, focus) {
+  if (!replies) return '';
+  let h = '';
+  for (const r of replies) { if (!r || !r.post) continue; h += postHtml(r.post, depth, r.post.uri === focus) + repliesHtml(r.replies, depth + 1, focus); }
+  return h;
+}
+function postHtml(post, depth, focus) {
+  const a = post.author || {}, rec = post.record || {};
+  const av = a.avatar ? `<img class="t-av" src="${esc(a.avatar)}" loading="lazy">` : '<span class="t-av"></span>';
+  return `<div class="t-post${focus ? ' focus' : ''}" style="margin-left:${Math.min(depth, 7) * 11}px">`
+    + `<div class="t-ph">${av}<b>${esc(a.displayName || a.handle || '')}</b><span>@${esc(a.handle || '')}</span></div>`
+    + `<div class="t-pt">${esc(rec.text || '')}</div>${embedHtml(post.embed)}</div>`;
+}
+function embedHtml(e) {
+  if (!e) return '';
+  const t = e.$type || '';
+  if (t.includes('recordWithMedia')) return embedHtml(e.media) + quoteHtml(e.record);
+  if (t.includes('embed.images')) return '<div class="t-imgs">' + (e.images || []).map((im) => `<img src="${esc(im.thumb)}" alt="${esc(im.alt || '')}" loading="lazy">`).join('') + '</div>';
+  if (t.includes('embed.video')) return `<div class="t-vid">${e.thumbnail ? `<img src="${esc(e.thumbnail)}" loading="lazy">` : ''}<span>▶ video</span></div>`;
+  if (t.includes('embed.external')) { const x = e.external || {}; return `<a class="t-ext" href="${esc(x.uri)}" target="_blank" rel="noopener">${x.thumb ? `<img src="${esc(x.thumb)}" loading="lazy">` : ''}<span>${esc(x.title || x.uri)}</span></a>`; }
+  if (t.includes('embed.record')) return quoteHtml(e);
+  return '';
+}
+function quoteHtml(e) {
+  let v = e && (e.record || e);
+  if (v && v.record && v.record.author) v = v.record;
+  if (!v || !v.author) return '';
+  const a = v.author || {}, val = v.value || {};
+  return `<div class="t-quote"><div class="t-ph"><b>${esc(a.displayName || a.handle || '')}</b><span>@${esc(a.handle || '')}</span></div><div class="t-pt">${esc(val.text || '')}</div>${embedHtml(v.embeds && v.embeds[0])}</div>`;
 }
 function esc(s) { return (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
