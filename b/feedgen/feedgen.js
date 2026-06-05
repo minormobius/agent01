@@ -96,8 +96,9 @@ async function publish() {
 }
 function signinFlow() {
   const host = $('fg-auth');
-  host.innerHTML = `<input id="fg-handle" class="fg-input" placeholder="you.bsky.social" autocomplete="username" spellcheck="false" autocapitalize="none" style="width:160px"><button id="fg-go" class="fg-authbtn">go</button><button id="fg-cancel" class="fg-authbtn ghost">cancel</button>`;
+  host.innerHTML = `<input id="fg-handle" class="fg-input" data-bsky-typeahead placeholder="you.bsky.social" autocomplete="username" spellcheck="false" autocapitalize="none" style="width:160px"><button id="fg-go" class="fg-authbtn">go</button><button id="fg-cancel" class="fg-authbtn ghost">cancel</button>`;
   const h = $('fg-handle'); h.focus();
+  if (window.bskyAttachTypeahead) window.bskyAttachTypeahead(h);
   const go = async () => {
     const handle = h.value.trim(); if (!handle) return;
     $('fg-go').textContent = '…';
@@ -144,6 +145,7 @@ function card(title, body, onRemove) {
 // ── render the editor from `def` ────────────────────────────────────────────
 function renderInputs() {
   const host = $('fg-inputs'); host.textContent = '';
+  const ta = [];
   def.inputs.forEach((inp, i) => {
     const body = el('div', 'fg-card-body');
     if (inp.type === 'search') {
@@ -155,13 +157,17 @@ function renderInputs() {
     } else if (inp.type === 'list') {
       body.append(field('list uri', textInput(inp.uri, (v) => inp.uri = v, 'at://did:plc:…/app.bsky.graph.list/…')));
     } else if (inp.type === 'author') {
+      const actorInput = textInput(inp.actor, (v) => inp.actor = v, 'handle.bsky.social or did:…');
+      actorInput.setAttribute('data-bsky-typeahead', '');
+      ta.push(actorInput);
       body.append(
-        field('author', textInput(inp.actor, (v) => inp.actor = v, 'handle.bsky.social or did:…')),
+        field('author', actorInput),
         field('include', select([['posts_no_replies', 'posts'], ['posts_with_replies', 'posts + replies'], ['posts_with_media', 'media only']], inp.filter, (v) => inp.filter = v)),
       );
     }
     host.append(card(`input · ${inp.type}`, body, () => { def.inputs.splice(i, 1); renderInputs(); }));
   });
+  ta.forEach((i) => { if (window.bskyAttachTypeahead) window.bskyAttachTypeahead(i); });
 }
 
 function renderFilters() {
