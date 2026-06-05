@@ -34,6 +34,15 @@ a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
 .masthead .sub{color:var(--ink2);font-size:14px;font-style:italic;max-width:54ch;margin:6px auto 0}
 .masthead .tag{font:11px/1 ui-monospace,monospace;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
 
+/* hexagram nav */
+#hexnav{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin:20px 0 0}
+#hexnav .hx{font:13px/1 Georgia,serif;color:var(--ink2);background:rgba(216,178,90,.05);
+  border:1px solid var(--rule);border-radius:999px;padding:7px 13px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+#hexnav .hx:hover{color:var(--ink);border-color:var(--gold-dim)}
+#hexnav .hx.on{background:linear-gradient(180deg,#e8c46e,#c79a44);color:#0e0d0b;border-color:transparent}
+#hexnav .hx .n{font:11px/1 ui-monospace,monospace;opacity:.7}
+#hexnav .hx .zh{font-family:"Songti SC","STSong",serif;font-size:15px}
+
 /* hexagram header */
 .hexhead{display:flex;gap:20px;align-items:center;justify-content:center;margin:30px 0 6px}
 .figure{display:flex;flex-direction:column;gap:8px}
@@ -89,6 +98,7 @@ footer a{color:var(--ink2)}
     <p class="sub">The base text of the <em>I&nbsp;Ching</em>: each hexagram’s Judgment and its six line-texts,
     in original English beside the received Chinese, with notes on the graphs and the cruxes.</p>
   </div>
+  <nav id="hexnav"></nav>
   <main id="reader"></main>
   <div class="pilot" id="pilot"></div>
   <footer>
@@ -138,9 +148,22 @@ function render(no){
   reader.innerHTML = html;
 }
 
-render(1);
-const total = Object.keys(ZHOUYI.hexagrams).length;
-document.getElementById('pilot').textContent = `Pilot — ${total} of 64 hexagrams translated. The rest are coming.`;
+const avail = Object.keys(ZHOUYI.hexagrams).map(Number).sort((a,b)=>a-b);
+const nav = document.getElementById('hexnav');
+nav.innerHTML = avail.map(n=>{ const h=ZHOUYI.hexagrams[n];
+  return `<button class="hx" data-n="${n}"><span class="n">${n}</span><span class="zh">${h.name.zh}</span> ${h.name.py}</button>`;
+}).join('');
+function show(n){
+  if(!ZHOUYI.hexagrams[n]) n=avail[0];
+  render(n);
+  try{ history.replaceState(null,'','#h'+n); }catch(e){}
+  nav.querySelectorAll('.hx').forEach(b=>b.classList.toggle('on', +b.dataset.n===n));
+}
+nav.querySelectorAll('.hx').forEach(b=>b.onclick=()=>{ show(+b.dataset.n); window.scrollTo({top:0,behavior:'smooth'}); });
+addEventListener('hashchange',()=>{ const n=parseInt((location.hash.match(/h(\d+)/)||[])[1],10); if(avail.includes(n)) show(n); });
+const init = parseInt((location.hash.match(/h(\d+)/)||[])[1],10);
+show(avail.includes(init) ? init : avail[0]);
+document.getElementById('pilot').textContent = `${avail.length} of 64 hexagrams translated — and growing.`;
 </script>
 </body>
 </html>
