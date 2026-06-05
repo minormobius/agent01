@@ -103,7 +103,11 @@ function passes(cand, filters) {
       if (f.mode === 'exclude' && hit) return false;
       if (f.mode !== 'exclude' && !hit) return false;
     } else if (f.type === 'media') {
-      if (!m[f.has]) return false;
+      const want = Array.isArray(f.has) ? f.has : (f.has ? [f.has] : []);
+      if (want.length) {
+        const hasAny = want.some((k) => m[k]);
+        if (f.mode === 'none' ? hasAny : !hasAny) return false;
+      }
     } else if (f.type === 'lang') {
       if (!f.code) continue;
       const langs = rec.langs || [];

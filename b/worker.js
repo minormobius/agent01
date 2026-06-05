@@ -107,6 +107,51 @@ async function getFeedSkeleton(url, env) {
   return json(out);
 }
 
+// ── Gemini 2.5 Flash regex assistant ─────────────────────────────────────────
+async function gemini(env, system, user) {
+  const u = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(env.GEMINI_API_KEY);
+  const body = {
+    system_instruction: { parts: [{ text: system }] },
+    contents: [{ role: 'user', parts: [{ text: user }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
+  };
+  const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('gemini ' + r.status + ': ' + (await r.text()).slice(0, 160));
+  const j = await r.json();
+  const cand = (j.candidates || [])[0] || {};
+  return (cand.content && cand.content.parts) ? cand.content.parts.map((x) => x.text || '').join('') : '';
+}
+
+const REGEX_SYSTEM = [
+  'You generate ONE JavaScript-compatible regular expression to filter Bluesky posts by their TEXT, for a no-code feed builder.',
+  'Reply ONLY with JSON: {"pattern": string, "mode": "include"|"exclude", "label": string, "explain": string}.',
+  'pattern: a JS regex body used as new RegExp(pattern, "i") — no surrounding slashes, no flags, backslashes escaped for JSON.',
+  'mode: "include" keeps posts whose text matches; "exclude" drops posts whose text matches.',
+  'label: 2-5 words. explain: one short sentence.',
+  'Prefer word boundaries (\\b) and alternation; cover common synonyms/variants; keep it readable.',
+  'Examples:',
+  '"posts about coffee" -> {"pattern":"\\\\b(coffee|espresso|latte|cappuccino|cold ?brew|barista)\\\\b","mode":"include","label":"about coffee","explain":"Keeps posts mentioning coffee."}',
+  '"posts without websites or links" -> {"pattern":"https?://|www\\\\.|\\\\b[a-z0-9-]+\\\\.(com|net|org|io|co|app|dev|news|xyz|me|gg|sh|ai)\\\\b","mode":"exclude","label":"no links","explain":"Drops posts containing URLs or domains."}',
+].join('\n');
+
+async function regexAssistant(request, env) {
+  if (!env.GEMINI_API_KEY) return json({ error: 'regex assistant not configured' }, 503);
+  let body; try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const prompt = String((body && body.prompt) || '').slice(0, 500);
+  if (!prompt.trim()) return json({ error: 'describe the filter you want' }, 400);
+  try {
+    const out = await gemini(env, REGEX_SYSTEM, prompt);
+    let p; try { p = JSON.parse(out); } catch { return json({ error: 'the model did not return valid JSON' }, 502); }
+    try { new RegExp(p.pattern, 'i'); } catch { return json({ error: 'produced an invalid regex' }, 502); }
+    return json({
+      pattern: String(p.pattern),
+      mode: p.mode === 'exclude' ? 'exclude' : 'include',
+      label: String(p.label || '').slice(0, 60),
+      explain: String(p.explain || '').slice(0, 200),
+    });
+  } catch (e) { return json({ error: String((e && e.message) || e) }, 502); }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -116,6 +161,7 @@ export default {
     if (path === '/.well-known/did.json') return json(didDoc());
     if (path === '/xrpc/app.bsky.feed.describeFeedGenerator') return json({ did: SERVICE_DID, feeds: [] });
     if (path === '/xrpc/app.bsky.feed.getFeedSkeleton') return getFeedSkeleton(url, env);
+    if (path === '/api/feedgen/regex' && request.method === 'POST') return regexAssistant(request, env);
 
     // Builder preview — evaluate a posted definition (so search works via the
     // service token without exposing it to the browser).

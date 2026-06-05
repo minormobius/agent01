@@ -27,7 +27,7 @@ const INPUT_DEFAULTS = {
 };
 const FILTER_DEFAULTS = {
   regex:         () => ({ type: 'regex', mode: 'include', pattern: '' }),
-  media:         () => ({ type: 'media', has: 'image' }),
+  media:         () => ({ type: 'media', has: ['image'], mode: 'any' }),
   lang:          () => ({ type: 'lang', code: 'en' }),
   removeReplies: () => ({ type: 'removeReplies' }),
   removeReposts: () => ({ type: 'removeReposts' }),
@@ -182,7 +182,22 @@ function renderFilters() {
         field('pattern', textInput(f.pattern, (v) => f.pattern = v, 'e.g. \\b(art|sketch)\\b')),
       );
     } else if (f.type === 'media') {
-      body.append(field('must have', select([['image', 'image'], ['video', 'video'], ['link', 'link'], ['quote', 'quote']], f.has, (v) => f.has = v)));
+      if (!Array.isArray(f.has)) f.has = f.has ? [f.has] : [];
+      const toggles = el('div', 'fg-toggles');
+      ['image', 'video', 'link', 'quote'].forEach((k) => {
+        const lab = el('label', 'fg-toggle');
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = f.has.includes(k);
+        cb.addEventListener('change', () => {
+          if (cb.checked) { if (!f.has.includes(k)) f.has.push(k); }
+          else { f.has = f.has.filter((x) => x !== k); }
+        });
+        lab.append(cb, document.createTextNode(' ' + k));
+        toggles.append(lab);
+      });
+      body.append(
+        field('mode', select([['any', 'has any of'], ['none', 'has none of']], f.mode || 'any', (v) => f.mode = v)),
+        field('media', toggles),
+      );
     } else if (f.type === 'lang') {
       body.append(field('language', textInput(f.code, (v) => f.code = v, 'en, ja, pt …')));
     } else if (f.type === 'minLikes') {
@@ -249,9 +264,37 @@ async function runPreview() {
   }
 }
 
+// ── regex assistant (Gemini 2.5 Flash) ──────────────────────────────────────
+function wireAssistant() {
+  const go = $('fg-ai-go'), inp = $('fg-ai-prompt'), msg = $('fg-ai-msg');
+  if (!go) return;
+  const run = async () => {
+    const prompt = inp.value.trim();
+    if (!prompt) return;
+    go.disabled = true; const t = go.textContent; go.textContent = '…'; msg.textContent = 'thinking…';
+    try {
+      const r = await fetch('/api/feedgen/regex', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ('HTTP ' + r.status));
+      def.filters.push({ type: 'regex', mode: d.mode, pattern: d.pattern });
+      renderFilters();
+      msg.innerHTML = `✓ added <b>${esc(d.label || 'regex')}</b> (${d.mode})${d.explain ? ' — ' + esc(d.explain) : ''}`;
+      inp.value = '';
+      runPreview();
+    } catch (e) {
+      msg.textContent = '✕ ' + ((e && e.message) || e);
+    } finally {
+      go.disabled = false; go.textContent = t;
+    }
+  };
+  go.addEventListener('click', run);
+  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+}
+
 // ── wire toolbar ────────────────────────────────────────────────────────────
 function init() {
   initAuth();
+  wireAssistant();
   $('fg-add-input').addEventListener('change', (e) => {
     const t = e.target.value; e.target.value = '';
     if (INPUT_DEFAULTS[t]) { def.inputs.push(INPUT_DEFAULTS[t]()); renderInputs(); }

@@ -76,6 +76,12 @@ h1 .dot { color: var(--gold); }
 .fg-pubmsg { color: var(--muted); font:12px var(--mono); margin-left:10px; }
 .fg-pubmsg a { color: var(--sky); }
 .fg-field .bsky-ta-wrap { width: 100%; }
+.fg-assistant { display:flex; gap:6px; margin: 0 0 8px; }
+.fg-assistant .fg-input { flex:1; }
+.fg-assistant .fg-add { flex:0 0 auto; }
+.fg-toggles { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:4px 0; }
+.fg-toggle { display:inline-flex; align-items:center; gap:4px; font:12px var(--mono); color: var(--fg); cursor:pointer; }
+.fg-toggle input { accent-color: var(--sky); }
 </style>
 </head>
 <body>
@@ -108,6 +114,11 @@ h1 .dot { color: var(--gold); }
         <div class="section-head"><h2>filters</h2>
           <select id="fg-add-filter" class="fg-add"><option value="">+ add filter…</option><option value="regex">regex</option><option value="media">has media</option><option value="lang">language</option><option value="minLikes">min likes</option><option value="removeReplies">remove replies</option><option value="removeReposts">remove reposts</option></select>
         </div>
+        <div class="fg-assistant">
+          <input id="fg-ai-prompt" class="fg-input" placeholder="✨ describe a filter in words — &ldquo;posts about coffee&rdquo;, &ldquo;no links&rdquo;, &ldquo;not reposts of news&rdquo;">
+          <button id="fg-ai-go" class="fg-add" type="button">generate</button>
+        </div>
+        <div id="fg-ai-msg" class="fg-note"></div>
         <div id="fg-filters"></div>
       </div>
 
