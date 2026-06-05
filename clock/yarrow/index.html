@@ -319,9 +319,9 @@ function paintPaper(g){
 // frame can bend it in the breeze without re-stroking every filament. The shape is
 // still wholly deterministic from the seed; only the later sway is live.
 function renderPlant(spec){
-  if(!plantCv){ plantCv=document.createElement('canvas'); plantCv.width=CW; plantCv.height=CH;
-    pctx=plantCv.getContext('2d'); }
-  const ctx = pctx;              // every draw below targets the offscreen buffer
+  if(!stemCv){ stemCv=document.createElement('canvas'); stemCv.width=CW; stemCv.height=CH;
+    sctx=stemCv.getContext('2d'); }
+  const ctx = sctx;             // the trunk buffer holds the base tuft + stem + furrows only
   ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,CW,CH);
 
@@ -329,7 +329,6 @@ function renderPlant(spec){
   const heightPx = spec.heightCm*pxPerCm;
   const baseY = CH-58, topY = baseY-heightPx;
   const cx = CW*0.34;            // left-of-centre so the herbarium label never hides it
-  GEO = { pxPerCm, baseY, topY, heightPx, cx };
   const rnd = mulberry32(xmur3('draw:'+spec.seedStr)());
 
   // stem as a quadratic from base to top
@@ -339,21 +338,17 @@ function renderPlant(spec){
   const stemXY=t=>{ const mt=1-t;
     return [ mt*mt*cx + 2*mt*t*ctrlX + t*t*topX,
              mt*mt*baseY + 2*mt*t*ctrlY + t*t*topY ]; };
-  const stemTangent=t=>{ // for outward leaf direction
-    const dx=2*(1-t)*(ctrlX-cx)+2*t*(topX-ctrlX);
-    const dy=2*(1-t)*(ctrlY-baseY)+2*t*(topY-ctrlY);
-    const L=Math.hypot(dx,dy)||1; return [dx/L,dy/L]; };
+  GEO  = { pxPerCm, baseY, topY, heightPx, cx };
+  STEM = { stemXY };            // the compositor needs the hinge map at frame time
 
   const stemCol=`hsl(${spec.stemHue} ${spec.stemSat}% ${spec.stemLight}%)`;
   const stemDark=`hsl(${spec.stemHue} ${spec.stemSat+6}% ${spec.stemLight-12}%)`;
 
-  // ── base tuft (basal rosette hint) ──
-  ctx.save();
+  // ── base tuft (basal rosette hint) — stays on the trunk, barely sways ──
   for(let k=0;k<spec.basalLeaves;k++){
-    const side=k%2?1:-1, ang=(0.9+rnd()*0.5)*side, len=heightPx*(0.10+rnd()*0.05);
-    drawLeaf(cx+side*4, baseY-2, side, -0.15, len, Math.max(6,spec.pinnaPairs-2), spec.lobesPerPin, rnd, true);
+    const side=k%2?1:-1, len=heightPx*(0.10+rnd()*0.05);
+    drawLeafInto(ctx, cx+side*4, baseY-2, side, -0.15, len, Math.max(6,spec.pinnaPairs-2), spec.lobesPerPin, rnd, true, spec);
   }
-  ctx.restore();
 
   // ── stem ──
   ctx.lineCap='round';
@@ -373,125 +368,131 @@ function renderPlant(spec){
   }
   ctx.globalAlpha=1;
 
-  // ── cauline leaves: alternate up the stem, tapering ──
+  // ── appendage cantilevers: each cauline leaf is its own hinged sprite ──
+  PARTS=[];
   const leafTop=0.60;                          // corymb begins above this
   for(let i=0;i<spec.nodeCount;i++){
     const f=spec.nodeCount===1?0.4:i/(spec.nodeCount-1);
     const t=0.06+f*(leafTop-0.06);
-    const [ax,ay]=stemXY(t);
     const side=i%2?1:-1;
     const droop=-0.10 - f*0.18;                // upper leaves droop more
     const len=heightPx*(0.20 - 0.10*f);        // basal-ward leaves longer
     const pinnae=Math.max(5,Math.round(spec.pinnaPairs*(1-0.35*f)));
-    drawLeaf(ax,ay,side,droop,len,pinnae,spec.lobesPerPin,rnd,false);
+    const pad=10, S=Math.ceil(len*1.7)+pad*2;
+    const c=document.createElement('canvas'); c.width=S; c.height=S;
+    const lhx=S*0.5, lhy=S*0.84;               // petiole hinge, in sprite-local px
+    drawLeafInto(c.getContext('2d'), lhx, lhy, side, droop, len, pinnae, spec.lobesPerPin, rnd, false, spec);
+    const fHz=1.6+1.3*f;                        // smaller upper leaves flutter faster
+    PARTS.push({ spr:c, hx:lhx, hy:lhy, tStem:t,
+      omega:2*Math.PI*fHz, zeta:0.22, W:0.10+0.04*f, beta:2.0, thetaMax:0.45,
+      ph:rnd()*6.283, theta:0, vel:0 });
   }
 
-  // ── corymb ──
-  drawCorymb(spec,stemXY,leafTop,topX,topY,baseY,heightPx,rnd);
+  // ── and each corymb primary branch (carrying its heads) is its own cantilever ──
+  buildCorymbParts(spec,rnd,stemXY,leafTop,topX,topY,baseY,heightPx,pxPerCm);
 
   // (paper + 10 cm scale bar are drawn on the live canvas by the compositor)
+}
 
-  // helpers ────────────────────────────────────────────────
-  function drawLeaf(ax,ay,side,droopBias,len,pinnae,lobes,rnd,basal){
-    // outward-and-up direction; droopBias bends it down a touch
-    const out=side, baseAng=-1.15;             // up
-    const ang=baseAng + droopBias + (rnd()-0.5)*0.18;
-    const dx=Math.cos(ang)*out, dy=Math.sin(ang);
-    const rl=Math.hypot(dx,dy)||1; const ux=dx/rl, uy=dy/rl;
-    // rachis with slight outward bow → endpoint
-    const ex=ax+ux*len, ey=ay+uy*len;
-    const bowx=-uy*out*len*0.10, bowy=ux*out*len*0.10*0;
-    const mx=(ax+ex)/2+bowx, my=(ay+ey)/2+len*0.06;
-    const leafG=`hsl(${spec.stemHue+4} ${spec.stemSat+(basal?4:8)}% ${spec.stemLight+(basal?2:8)}%)`;
-    // rachis
-    ctx.strokeStyle=leafG; ctx.lineWidth=basal?1.6:1.2; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.quadraticCurveTo(mx,my,ex,ey); ctx.stroke();
-    // pinnae + filaments (the feathery, bipinnate cut)
-    ctx.lineWidth=basal?0.9:0.7;
-    for(let p=1;p<=pinnae;p++){
-      const tt=p/(pinnae+1);
-      const mt=1-tt;
-      const px=mt*mt*ax+2*mt*tt*mx+tt*tt*ex;
-      const py=mt*mt*ay+2*mt*tt*my+tt*tt*ey;
-      // local rachis tangent
-      const tx=2*mt*(mx-ax)+2*tt*(ex-mx), ty=2*mt*(my-ay)+2*tt*(ey-my);
-      const tl=Math.hypot(tx,ty)||1; const rx=tx/tl, ry=ty/tl;
-      const nx=-ry, ny=rx;                       // normal to rachis
-      const pinLen=len*(0.16+0.06*Math.sin(tt*Math.PI))*(basal?1.12:1);
-      for(const s2 of [-1,1]){
-        for(let q=0;q<lobes;q++){
-          const spread=(q/(lobes-1||1)-0.5);   // fan of filaments
-          const a2=0.55*spread;                  // angle within pinna
-          const fx=nx*Math.cos(a2)+rx*Math.sin(a2);
-          const fy=ny*Math.cos(a2)+ry*Math.sin(a2);
-          const fl=pinLen*(0.7+0.3*Math.cos(spread*2.0));
-          ctx.beginPath(); ctx.moveTo(px,py);
-          ctx.lineTo(px+s2*fx*fl + rx*pinLen*0.12, py+s2*fy*fl + ry*pinLen*0.12);
-          ctx.stroke();
-        }
+// draw one feathery leaf into context g, hinged at (ax,ay), pointing up-and-out
+function drawLeafInto(g, ax,ay, side, droopBias, len, pinnae, lobes, rnd, basal, spec){
+  const out=side, baseAng=-1.15;               // up
+  const ang=baseAng + droopBias + (rnd()-0.5)*0.18;
+  const dx=Math.cos(ang)*out, dy=Math.sin(ang);
+  const rl=Math.hypot(dx,dy)||1; const ux=dx/rl, uy=dy/rl;
+  const ex=ax+ux*len, ey=ay+uy*len;
+  const bowx=-uy*out*len*0.10;
+  const mx=(ax+ex)/2+bowx, my=(ay+ey)/2+len*0.06;
+  const leafG=`hsl(${spec.stemHue+4} ${spec.stemSat+(basal?4:8)}% ${spec.stemLight+(basal?2:8)}%)`;
+  g.strokeStyle=leafG; g.lineWidth=basal?1.6:1.2; g.lineCap='round';
+  g.beginPath(); g.moveTo(ax,ay); g.quadraticCurveTo(mx,my,ex,ey); g.stroke();
+  g.lineWidth=basal?0.9:0.7;
+  for(let p=1;p<=pinnae;p++){
+    const tt=p/(pinnae+1), mt=1-tt;
+    const px=mt*mt*ax+2*mt*tt*mx+tt*tt*ex;
+    const py=mt*mt*ay+2*mt*tt*my+tt*tt*ey;
+    const tx=2*mt*(mx-ax)+2*tt*(ex-mx), ty=2*mt*(my-ay)+2*tt*(ey-my);
+    const tl=Math.hypot(tx,ty)||1; const rx=tx/tl, ry=ty/tl;
+    const nx=-ry, ny=rx;                        // normal to rachis
+    const pinLen=len*(0.16+0.06*Math.sin(tt*Math.PI))*(basal?1.12:1);
+    for(const s2 of [-1,1]){
+      for(let q=0;q<lobes;q++){
+        const spread=(q/(lobes-1||1)-0.5);
+        const a2=0.55*spread;
+        const fx=nx*Math.cos(a2)+rx*Math.sin(a2);
+        const fy=ny*Math.cos(a2)+ry*Math.sin(a2);
+        const fl=pinLen*(0.7+0.3*Math.cos(spread*2.0));
+        g.beginPath(); g.moveTo(px,py);
+        g.lineTo(px+s2*fx*fl + rx*pinLen*0.12, py+s2*fy*fl + ry*pinLen*0.12);
+        g.stroke();
       }
     }
   }
+}
 
-  function drawCorymb(spec,stemXY,leafTop,topX,topY,baseY,heightPx,rnd){
-    const widthPx = spec.corymbWidthCm*pxPerCm;
-    const [cbX,cbY]=stemXY(leafTop+0.02);        // where the inflorescence forks
-    const topLineY = topY - heightPx*0.01;        // the flat top plane
-    const cp=petalColor(spec);
+// lay out the corymb, then bake each primary branch (+ its heads) as a hinged sprite
+function buildCorymbParts(spec,rnd,stemXY,leafTop,topX,topY,baseY,heightPx,pxPerCm){
+  const widthPx = spec.corymbWidthCm*pxPerCm;
+  const topLineY = topY - heightPx*0.01;
+  const cp=petalColor(spec);
+  const rr=widthPx*0.045 + 1.5;
+  const heads=[];
+  for(let i=0;i<spec.headCount;i++){
+    const u=spec.headCount===1?0.5:i/(spec.headCount-1);
+    const jitterX=(rnd()-0.5)*widthPx*0.06;
+    const hx=topX+(u-0.5)*widthPx + jitterX;
+    const dome=-(1-(2*u-1)*(2*u-1))*heightPx*0.05;
+    const hy=topLineY+dome+(rnd()-0.5)*heightPx*0.018;
+    heads.push({hx,hy,u});
+  }
+  heads.sort((a,b)=>a.hx-b.hx);
+  const per=Math.ceil(spec.headCount/spec.branchCount);
+  for(let b=0;b<spec.branchCount;b++){
+    const grp=heads.slice(b*per,(b+1)*per); if(!grp.length) continue;
+    const bt=Math.min(0.97, leafTop+0.04 + (b/spec.branchCount)*(0.9-leafTop));   // fork height
+    const fork=stemXY(bt), ox=fork[0], oy=fork[1];
+    let minX=ox,maxX=ox,minY=oy,maxY=oy;       // bound the branch + its ray florets
+    for(const h of grp){ if(h.hx-rr<minX)minX=h.hx-rr; if(h.hx+rr>maxX)maxX=h.hx+rr;
+      if(h.hy-rr<minY)minY=h.hy-rr; if(h.hy+rr>maxY)maxY=h.hy+rr; }
+    const pad=6, offX=minX-pad, offY=minY-pad;
+    const W=Math.ceil(maxX-minX)+pad*2, Hh=Math.ceil(maxY-minY)+pad*2;
+    const c=document.createElement('canvas'); c.width=W; c.height=Hh;
+    drawBranchInto(c.getContext('2d'), grp, ox,oy, offX,offY, spec, rnd, rr, cp);
+    const fHz=1.0+0.5*rnd();                    // the light cluster: a slower, wider swing
+    PARTS.push({ spr:c, hx:ox-offX, hy:oy-offY, tStem:bt,
+      omega:2*Math.PI*fHz, zeta:0.15, W:0.11+0.05*rnd(), beta:3.0, thetaMax:0.34,
+      ph:rnd()*6.283, theta:0, vel:0, branch:true });
+  }
+}
 
-    // distribute heads across the corymb width, flat-topped (slightly domed)
-    const heads=[];
-    for(let i=0;i<spec.headCount;i++){
-      const u=spec.headCount===1?0.5:i/(spec.headCount-1);
-      const jitterX=(rnd()-0.5)*widthPx*0.06;
-      const hx=topX+(u-0.5)*widthPx + jitterX;
-      const dome=-(1-(2*u-1)*(2*u-1))*heightPx*0.05;   // middle slightly higher
-      const hy=topLineY+dome+(rnd()-0.5)*heightPx*0.018;
-      heads.push({hx,hy,u});
+// render one primary branch — its stalk, peduncles and capitula — offset into a sprite
+function drawBranchInto(g, grp, ox,oy, offX,offY, spec, rnd, rr, cp){
+  const X=x=>x-offX, Y=y=>y-offY;
+  const cxAvg=grp.reduce((s,h)=>s+h.hx,0)/grp.length;
+  const cyAvg=grp.reduce((s,h)=>s+h.hy,0)/grp.length;
+  const branchG=`hsl(${spec.stemHue} ${spec.stemSat}% ${spec.stemLight-4}%)`;
+  g.strokeStyle=branchG; g.lineWidth=1.5; g.lineCap='round';
+  const sag=Math.abs(cxAvg-ox)*0.14;
+  g.beginPath(); g.moveTo(X(ox),Y(oy));
+  g.quadraticCurveTo(X((ox+cxAvg)/2),Y((oy+cyAvg)/2+sag),X(cxAvg),Y(cyAvg-6)); g.stroke();
+  g.lineWidth=0.9;
+  for(const h of grp){
+    g.beginPath(); g.moveTo(X(cxAvg),Y(cyAvg-4));
+    g.quadraticCurveTo(X((cxAvg+h.hx)/2), Y(Math.min(cyAvg,h.hy)+8), X(h.hx),Y(h.hy)); g.stroke();
+  }
+  for(const h of grp){
+    const rays=Math.max(spec.rayLo,Math.min(spec.rayHi, Math.round(spec.rayMode+(rnd()-0.5)*2.4)));
+    for(let k=0;k<rays;k++){
+      const a=(k/rays)*Math.PI*2 + rnd()*0.1;
+      const lx=X(h.hx+Math.cos(a)*rr*0.78), ly=Y(h.hy+Math.sin(a)*rr*0.78);
+      g.save(); g.translate(lx,ly); g.rotate(a);
+      g.fillStyle=cp.fill; g.strokeStyle=cp.edge; g.lineWidth=0.5;
+      g.beginPath(); g.ellipse(0,0,rr*0.5,rr*0.32,0,0,7); g.fill(); g.stroke(); g.restore();
     }
-    heads.sort((a,b)=>a.hx-b.hx);
-    // group into primary branches (compound corymb)
-    const per=Math.ceil(spec.headCount/spec.branchCount);
-    const branchG=`hsl(${spec.stemHue} ${spec.stemSat}% ${spec.stemLight-4}%)`;
-    for(let b=0;b<spec.branchCount;b++){
-      const grp=heads.slice(b*per,(b+1)*per); if(!grp.length) continue;
-      const bt=leafTop+0.04 + (b/spec.branchCount)*(0.9-leafTop);   // fork height up the stem
-      const [ox,oy]=stemXY(Math.min(0.97,bt));
-      const cxAvg=grp.reduce((s,h)=>s+h.hx,0)/grp.length;
-      const cyAvg=grp.reduce((s,h)=>s+h.hy,0)/grp.length;
-      // primary branch from stem to the cluster — gentle upward sweep with a slight sag
-      ctx.strokeStyle=branchG; ctx.lineWidth=1.5; ctx.lineCap='round';
-      const sag=Math.abs(cxAvg-ox)*0.14;
-      ctx.beginPath(); ctx.moveTo(ox,oy);
-      ctx.quadraticCurveTo((ox+cxAvg)/2,(oy+cyAvg)/2+sag,cxAvg,cyAvg-6); ctx.stroke();
-      // peduncles to each head
-      ctx.lineWidth=0.9;
-      for(const h of grp){
-        ctx.beginPath(); ctx.moveTo(cxAvg,cyAvg-4);
-        ctx.quadraticCurveTo((cxAvg+h.hx)/2, Math.min(cyAvg,h.hy)+8, h.hx,h.hy); ctx.stroke();
-      }
-    }
-    // draw the capitula last, on top
-    for(const h of heads){
-      const rr=widthPx*0.045 + 1.5;
-      const rays=Math.max(spec.rayLo,Math.min(spec.rayHi,
-        Math.round(spec.rayMode+(rnd()-0.5)*2.4)));
-      // ray florets
-      for(let k=0;k<rays;k++){
-        const a=(k/rays)*Math.PI*2 + rnd()*0.1;
-        const lx=h.hx+Math.cos(a)*rr*0.78, ly=h.hy+Math.sin(a)*rr*0.78;
-        ctx.save(); ctx.translate(lx,ly); ctx.rotate(a);
-        ctx.fillStyle=cp.fill; ctx.strokeStyle=cp.edge; ctx.lineWidth=0.5;
-        ctx.beginPath(); ctx.ellipse(0,0,rr*0.5,rr*0.32,0,0,7); ctx.fill(); ctx.stroke();
-        ctx.restore();
-      }
-      // disc
-      ctx.fillStyle='#caa14a';
-      ctx.beginPath(); ctx.arc(h.hx,h.hy,rr*0.42,0,7); ctx.fill();
-      ctx.fillStyle='#a87f2e';
-      for(let d=0;d<5;d++){const a=rnd()*7,rd=rr*0.42*rnd();
-        ctx.beginPath(); ctx.arc(h.hx+Math.cos(a)*rd,h.hy+Math.sin(a)*rd,0.7,0,7); ctx.fill();}
-    }
+    g.fillStyle='#caa14a'; g.beginPath(); g.arc(X(h.hx),Y(h.hy),rr*0.42,0,7); g.fill();
+    g.fillStyle='#a87f2e';
+    for(let d=0;d<5;d++){ const a=rnd()*7, rd=rr*0.42*rnd();
+      g.beginPath(); g.arc(X(h.hx+Math.cos(a)*rd),Y(h.hy+Math.sin(a)*rd),0.7,0,7); g.fill(); }
   }
 }
 
@@ -508,14 +509,16 @@ function drawScaleBar(pxPerCm,baseY){
   ctx.fillText('10 cm',0,0); ctx.restore();
 }
 
-/* ───────── a gentle breeze: a coarse but real sway model ─────────
-   The stalk is a lightly-damped cantilever. We integrate ONE degree of freedom —
-   the tip's lateral displacement X — under a gusty wind force, then distribute that
-   bend up the stem (≈0 at the rooted foot, most at the flexible top) and blit the
-   pre-rendered plant back in horizontal slices. Natural frequency, damping and
-   amplitude all fall out of the specimen: a tall, few-furrowed stalk is floppy and
-   slow; a short, ribbed one is stiff and quick. Cheap enough to run every frame. */
-let GEO=null, plantCv=null, pctx=null, WM=null;
+/* ───────── a gentle breeze: a small forest of coupled cantilevers ─────────
+   One step past the single-cantilever bow. The TRUNK is a distributed cantilever
+   (slice-bent by its tip displacement X). Then EACH cauline leaf and EACH corymb
+   branch is its own rigid cantilever — a pre-baked sprite, hinged on the (already
+   moving) stem, with its own damped 1-DOF oscillator. A child is driven by its share
+   of the gust AND by base excitation from the trunk's acceleration (so the heads
+   whip when the stem jerks), and it inherits the stem's local lean at its hinge for
+   free. About a dozen oscillators — integrating them is nothing; the cost is one
+   drawImage per part. Shape stays deterministic from the seed; only motion is live. */
+let GEO=null, stemCv=null, sctx=null, WM=null, STEM=null, PARTS=[];
 let X=0, V=0, rafId=0, lastT=0;
 const reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 let breezeOn = !reduceMotion;
@@ -532,42 +535,61 @@ function windModelFor(spec){
 function windAt(t){ return 0.50*Math.sin(t*0.9) + 0.28*Math.sin(t*1.7+1.1)
                          + 0.16*Math.sin(t*2.9+2.3) + 0.12*Math.sin(t*0.37); }
 
-// composite one frame onto the live canvas: paper, then the plant bent by tip-shift `amp`
-function blitBent(amp,t,flutter){
-  if(!GEO||!plantCv) return;
+// composite one live frame: paper, the slice-bent trunk, then every appendage swung
+// about its hinge by (the trunk's lean there) + (its own deflection θ).
+function paintFrame(t){
+  if(!GEO||!stemCv) return;
   paintPaper(ctx);
   const H=GEO.heightPx, baseY=GEO.baseY, band=4;
-  const y0=Math.max(0,(GEO.topY|0)-Math.round(H*0.10)-10);   // skip empty rows above the corymb
-  ctx.drawImage(plantCv, 0,0,CW,y0, 0,0,CW,y0);              // (nothing there, but keeps it whole)
+  const y0=Math.max(0,(GEO.topY|0)-Math.round(H*0.10)-10);
   for(let y=y0; y<baseY; y+=band){
     const bh=Math.min(band, baseY-y);
-    const h=Math.max(0,Math.min(1,(baseY-y)/H));             // 0 at foot … 1 at tip
-    const dx = amp*Math.pow(h,1.55)                          // cantilever bend profile
-             + (flutter||0)*h*Math.sin(h*5.0 - t*(WM?WM.omega*2.2:6));  // a little leaf-flutter
-    ctx.drawImage(plantCv, 0,y,CW,bh, dx,y,CW,bh);
+    const h=Math.max(0,Math.min(1,(baseY-y)/H));               // 0 at foot … 1 at tip
+    ctx.drawImage(stemCv, 0,y,CW,bh, X*Math.pow(h,1.55),y,CW,bh);   // trunk: distributed bend
   }
-  ctx.drawImage(plantCv, 0,baseY,CW,CH-baseY, 0,baseY,CW,CH-baseY);   // the unbent foot
+  ctx.drawImage(stemCv, 0,baseY,CW,CH-baseY, 0,baseY,CW,CH-baseY);  // the unbent foot
+  for(const p of PARTS){
+    const xy=STEM.stemXY(p.tStem), ry=xy[1];
+    const h=Math.max(0,Math.min(1,(baseY-ry)/H));
+    const shift=X*Math.pow(h,1.55);                            // hinge rides the trunk's bend
+    const phiStem=X*1.55*Math.pow(h,0.55)/H;                   // …and inherits its local lean
+    ctx.save();
+    ctx.translate(xy[0]+shift, ry);
+    ctx.rotate(phiStem + p.theta);                             // + the appendage's own swing
+    ctx.drawImage(p.spr, -p.hx, -p.hy);
+    ctx.restore();
+  }
   drawScaleBar(GEO.pxPerCm, baseY);
 }
+function resetPose(){ X=0; V=0; for(const p of PARTS){ p.theta=0; p.vel=0; } }
+function paintStatic(){ resetPose(); paintFrame(0); }            // the still herbarium plate
 
 function frame(now){
   if(!breezeOn||!WM){ rafId=0; return; }
   if(!lastT) lastT=now;
-  let dt=(now-lastT)/1000; lastT=now; if(dt>0.05) dt=0.05;   // clamp after a tab stall
-  const t=now/1000;
-  const target=WM.ampPx*windAt(t)*0.4;                       // wind → a static tip target
-  const a=WM.omega*WM.omega*(target-X) - 2*WM.zeta*WM.omega*V;  // damped, driven 2nd-order
-  V+=a*dt; X+=V*dt;
+  let dt=(now-lastT)/1000; lastT=now; if(dt>0.05) dt=0.05;       // clamp after a tab stall
+  const t=now/1000, H=GEO.heightPx;
+  // trunk tip — driven, damped second-order
+  const target=WM.ampPx*windAt(t)*0.4;
+  const Xacc=WM.omega*WM.omega*(target-X) - 2*WM.zeta*WM.omega*V;
+  V+=Xacc*dt; X+=V*dt;
   const lim=WM.ampPx*1.5; if(X>lim)X=lim; else if(X<-lim)X=-lim;
-  const flutter=WM.ampPx*0.10*Math.min(1,Math.abs(windAt(t))+0.3);
-  blitBent(X,t,flutter);
+  // each appendage — its own gust + base excitation from the trunk's acceleration
+  const baseExcite = -(Xacc/H);
+  for(const p of PARTS){
+    const tgt=p.W*windAt(t+p.ph);                              // own gust response (rad)
+    const a=p.omega*p.omega*(tgt-p.theta) - 2*p.zeta*p.omega*p.vel + p.beta*baseExcite;
+    p.vel+=a*dt; p.theta+=p.vel*dt;
+    if(p.theta>p.thetaMax) p.theta=p.thetaMax; else if(p.theta<-p.thetaMax) p.theta=-p.thetaMax;
+  }
+  paintFrame(t);
   rafId=requestAnimationFrame(frame);
 }
 function startBreeze(){ if(rafId||!breezeOn||REAPED) return; lastT=0; rafId=requestAnimationFrame(frame); }
 function stopBreeze(){ if(rafId){ cancelAnimationFrame(rafId); rafId=0; } }
 // show the standing plant: paint at once (no flash), then animate if the breeze is on
-function showPlant(){ blitBent(0,0,0); if(breezeOn && !reduceMotion && !REAPED) startBreeze(); else stopBreeze(); }
-document.addEventListener('visibilitychange',()=>{          // pause when the tab is hidden
+function showPlant(){ paintStatic(); if(breezeOn && !reduceMotion && !REAPED) startBreeze(); else stopBreeze(); }
+document.addEventListener('visibilitychange',()=>{              // pause when the tab is hidden
   if(document.hidden) stopBreeze(); else if(breezeOn && !REAPED && CURRENT) startBreeze();
 });
 
@@ -779,7 +801,7 @@ $('breeze').onclick=()=>{
   $('breeze').classList.toggle('on',breezeOn);
   $('breeze').textContent = breezeOn?'🍃 Breeze: on':'🍃 Breeze: off';
   if(REAPED) return;                       // sticks are bound — no wind there
-  if(breezeOn) startBreeze(); else { stopBreeze(); blitBent(0,0,0); }   // still the air
+  if(breezeOn) startBreeze(); else paintStatic();   // still the air
 };
 $('breeze').classList.toggle('on',breezeOn);
 $('breeze').textContent = breezeOn?'🍃 Breeze: on':'🍃 Breeze: off';
