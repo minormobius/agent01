@@ -63,25 +63,55 @@ export async function ensureEngine(onProgress) {
   return engineInit;
 }
 
-// Gently downscale very large images (and fix EXIF orientation while we're at
-// it — phone photos are exactly the big ones). Returns the bytes to hand to the
-// wasm decoder. Any failure falls back to the original bytes untouched.
-async function toScanBytes(buf, mime) {
+// Small crops get upscaled to at least this on their long edge so the
+// recognition model has enough pixels to work with (a code that filled only a
+// sliver of the original would otherwise be near-illegible after detection's
+// internal resize).
+const MIN_CROP_DIM = 1400;
+
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+// Prepare the bytes to hand to the wasm decoder:
+//   - rect (normalised {x,y,w,h} in 0..1): crop to just that region.
+//   - upscale small crops toward MIN_CROP_DIM; downscale anything over MAX_DIM.
+//   - fix EXIF orientation (the displayed <img> the user selected over is
+//     oriented the same way, so the normalised rect lines up).
+// Any failure (no OffscreenCanvas, decode error) falls back to whole-image
+// original bytes — so OCR still runs, just without the crop/scale.
+async function prepareBytes(buf, mime, rect) {
   if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas !== 'function') {
     return new Uint8Array(buf);
   }
   try {
     const bmp = await createImageBitmap(new Blob([buf], { type: mime }), { imageOrientation: 'from-image' });
-    const max = Math.max(bmp.width, bmp.height);
-    if (max <= MAX_DIM) { bmp.close?.(); return new Uint8Array(buf); }
-    const scale = MAX_DIM / max;
-    const w = Math.round(bmp.width * scale);
-    const h = Math.round(bmp.height * scale);
-    const canvas = new OffscreenCanvas(w, h);
+    const W = bmp.width, H = bmp.height;
+
+    let sx = 0, sy = 0, sw = W, sh = H;
+    if (rect) {
+      sx = Math.round(clamp01(rect.x) * W);
+      sy = Math.round(clamp01(rect.y) * H);
+      sw = Math.max(8, Math.round(clamp01(rect.w) * W));
+      sh = Math.max(8, Math.round(clamp01(rect.h) * H));
+      sw = Math.min(sw, W - sx);
+      sh = Math.min(sh, H - sy);
+    }
+
+    const srcLong = Math.max(sw, sh);
+    let scale = 1;
+    if (srcLong > MAX_DIM) scale = MAX_DIM / srcLong;
+    else if (rect && srcLong < MIN_CROP_DIM) scale = Math.min(MIN_CROP_DIM / srcLong, 4);
+
+    // Nothing to do: whole image, already a sane size → use original bytes.
+    if (!rect && scale === 1) { bmp.close?.(); return new Uint8Array(buf); }
+
+    const tw = Math.max(1, Math.round(sw * scale));
+    const th = Math.max(1, Math.round(sh * scale));
+    const canvas = new OffscreenCanvas(tw, th);
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(bmp, 0, 0, w, h);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, sx, sy, sw, sh, 0, 0, tw, th);
     bmp.close?.();
-    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 });
     return new Uint8Array(await blob.arrayBuffer());
   } catch {
     return new Uint8Array(buf);
@@ -89,9 +119,11 @@ async function toScanBytes(buf, mime) {
 }
 
 // Run OCR over an image's encoded bytes. Returns { text, lines }.
-export async function scanBytes(buf, mime, onProgress) {
+// opts: { rect?: {x,y,w,h} normalised 0..1, onProgress?: fn }
+export async function scanBytes(buf, mime, opts = {}) {
+  const { rect = null, onProgress = null } = opts;
   await ensureEngine(onProgress);
   onProgress?.({ stage: 'scan' });
-  const bytes = await toScanBytes(buf, mime);
+  const bytes = await prepareBytes(buf, mime, rect);
   return JSON.parse(extract_text(bytes, ''));
 }

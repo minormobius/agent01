@@ -19,9 +19,12 @@ self.onmessage = async (e) => {
   }
 
   if (msg.type === 'scan') {
-    const { id, buf, mime } = msg;
+    const { id, buf, mime, rect } = msg;
     try {
-      const result = await scanBytes(buf, mime, (p) => self.postMessage({ type: 'progress', id, ...p }));
+      const result = await scanBytes(buf, mime, {
+        rect: rect || null,
+        onProgress: (p) => self.postMessage({ type: 'progress', id, ...p }),
+      });
       self.postMessage({ type: 'result', id, result });
     } catch (err) {
       self.postMessage({ type: 'error', id, message: err?.message || String(err) });

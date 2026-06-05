@@ -1,14 +1,16 @@
 // OCR — pull text (e.g. an activation code) off an image, entirely client-side.
 //
-// The actual OCR (image decode + neural detect/recognize, all Rust/WASM) runs
+// Load an image, drag a box around the part you need, and it OCRs just that
+// crop (smaller → faster + more accurate). "Scan whole image" is the fallback.
+//
+// The OCR itself (image decode + neural detect/recognize, all Rust/WASM) runs
 // in a Web Worker (ocr.worker.js → engine.js) so the synchronous inference
-// never blocks the UI thread — the page stays responsive while it computes.
-// If module workers aren't available, we fall back to running the same engine
-// on the main thread (works, just not as smooth).
+// never blocks the UI. If module workers aren't available, we fall back to
+// running the same engine on the main thread (works, just not as smooth).
 
 // ---- OCR transport: worker, with a main-thread fallback ----
 let worker = null;
-let fallback = null; // lazily-imported engine.js for the no-worker path
+let fallback = null;
 const pending = new Map(); // id → { resolve, reject, onProgress }
 let nextId = 1;
 
@@ -22,30 +24,26 @@ try {
     if (m.type === 'error') { entry ? (entry.reject(new Error(m.message)), pending.delete(m.id)) : showError(m.message); return; }
   };
   worker.onerror = (e) => {
-    // A worker-level failure rejects whatever's in flight; future scans fall
-    // back to the main thread.
     const err = new Error(e.message || 'OCR worker error');
     for (const [id, entry] of pending) { entry.reject(err); pending.delete(id); }
-    worker = null;
+    worker = null; // future scans fall back to the main thread
   };
-  // Warm up wasm + models so the first real scan is quicker.
-  worker.postMessage({ type: 'warmup' });
+  worker.postMessage({ type: 'warmup' }); // load wasm + models eagerly
 } catch {
   worker = null;
 }
 
-async function ocrScan(file, onProgress) {
+async function ocrScan(file, rect, onProgress) {
   const buf = await file.arrayBuffer();
   if (worker) {
     const id = nextId++;
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject, onProgress });
-      worker.postMessage({ type: 'scan', id, buf, mime: file.type }, [buf]);
+      worker.postMessage({ type: 'scan', id, buf, mime: file.type, rect }, [buf]);
     });
   }
-  // Fallback: same engine, on the main thread.
   if (!fallback) fallback = await import('./engine.js');
-  return fallback.scanBytes(buf, file.type, onProgress);
+  return fallback.scanBytes(buf, file.type, { rect, onProgress });
 }
 
 // Heuristic: pull out activation/license/serial-looking tokens.
@@ -78,17 +76,25 @@ function statusFor(p) {
   return 'Reading the image…'; // scan
 }
 
-// ---- DOM wiring ----
+// ---- DOM ----
 const $ = (id) => document.getElementById(id);
 const drop = $('drop'), fileInput = $('file'), cameraInput = $('camera');
 const preview = $('preview'), hint = $('hint'), overlay = $('overlay'), statusEl = $('status');
-const errorEl = $('error'), copyAllBtn = $('copyAllBtn');
+const selbox = $('selbox'), selhelp = $('selhelp');
+const errorEl = $('error'), scanAllBtn = $('scanAllBtn'), copyAllBtn = $('copyAllBtn');
 const codesSection = $('codesSection'), codesEl = $('codes');
 const textSection = $('textSection'), textHeading = $('textHeading'), textEl = $('text'), emptyEl = $('empty');
 
 let busy = false;
 let previewUrl = null;
 let lastText = '';
+let currentFile = null;
+let hasImage = false;
+
+// selection state
+let selecting = false;
+let selStart = null;     // {x,y} fractions of the preview
+let selRect = null;      // {x,y,w,h} fractions, or null
 
 function setBusy(on, label) {
   busy = on;
@@ -107,11 +113,66 @@ function copy(value, el) {
   });
 }
 
-function showError(msg) {
-  errorEl.textContent = msg;
-  errorEl.hidden = false;
+function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
+
+function clearResults() {
+  errorEl.hidden = true;
+  codesSection.hidden = true;
+  textSection.hidden = true;
+  copyAllBtn.hidden = true;
 }
 
+function clearSelection() { selRect = null; selbox.hidden = true; }
+
+// ---- selection (drag a box over the preview) ----
+function pointerFrac(ev) {
+  const r = preview.getBoundingClientRect();
+  return {
+    x: Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width)),
+    y: Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height)),
+  };
+}
+
+function drawSelbox(a, b) {
+  const r = preview.getBoundingClientRect();
+  const d = drop.getBoundingClientRect();
+  const x1 = Math.min(a.x, b.x), y1 = Math.min(a.y, b.y);
+  const x2 = Math.max(a.x, b.x), y2 = Math.max(a.y, b.y);
+  selbox.style.left = `${(r.left - d.left) + x1 * r.width}px`;
+  selbox.style.top = `${(r.top - d.top) + y1 * r.height}px`;
+  selbox.style.width = `${(x2 - x1) * r.width}px`;
+  selbox.style.height = `${(y2 - y1) * r.height}px`;
+  selbox.hidden = false;
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+drop.addEventListener('pointerdown', (ev) => {
+  if (!hasImage || busy) return;
+  const r = preview.getBoundingClientRect();
+  if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) return;
+  ev.preventDefault();
+  selecting = true;
+  selStart = pointerFrac(ev);
+  drop.setPointerCapture?.(ev.pointerId);
+  drawSelbox(selStart, selStart);
+});
+drop.addEventListener('pointermove', (ev) => {
+  if (!selecting) return;
+  selRect = drawSelbox(selStart, pointerFrac(ev));
+});
+function endSelect(ev) {
+  if (!selecting) return;
+  selecting = false;
+  drop.releasePointerCapture?.(ev.pointerId);
+  const cur = drawSelbox(selStart, pointerFrac(ev));
+  if (cur.w < 0.02 || cur.h < 0.02) { clearSelection(); return; } // ignore taps
+  selRect = cur;
+  scan(selRect);
+}
+drop.addEventListener('pointerup', endSelect);
+drop.addEventListener('pointercancel', () => { selecting = false; clearSelection(); });
+
+// ---- render ----
 function render(result) {
   lastText = result.text || '';
   const codes = findCodes(lastText);
@@ -139,26 +200,34 @@ function render(result) {
   copyAllBtn.hidden = !lastText;
 }
 
-async function run(file) {
-  if (!file || busy) return;
+// ---- load + scan ----
+function loadImage(file) {
+  if (!file) return;
   if (!file.type.startsWith('image/')) {
     showError('That doesn’t look like an image. Try a PNG, JPEG, or WebP.');
     return;
   }
-  errorEl.hidden = true;
-  codesSection.hidden = true;
-  textSection.hidden = true;
-  copyAllBtn.hidden = true;
+  currentFile = file;
+  hasImage = true;
+  clearResults();
+  clearSelection();
 
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = URL.createObjectURL(file);
   preview.src = previewUrl;
   preview.hidden = false;
   hint.hidden = true;
+  selhelp.hidden = false;
+  scanAllBtn.hidden = false;
+  drop.classList.add('has-image');
+}
 
+async function scan(rect) {
+  if (!currentFile || busy) return;
+  errorEl.hidden = true;
   setBusy(true, 'Reading the image…');
   try {
-    const result = await ocrScan(file, (p) => setBusy(true, statusFor(p)));
+    const result = await ocrScan(currentFile, rect || null, (p) => setBusy(true, statusFor(p)));
     setBusy(false);
     render(result);
   } catch (err) {
@@ -167,21 +236,25 @@ async function run(file) {
   }
 }
 
-drop.addEventListener('click', () => { if (!busy) fileInput.click(); });
+// ---- events ----
+drop.addEventListener('click', () => { if (!busy && !hasImage) fileInput.click(); });
 drop.addEventListener('dragover', (e) => { e.preventDefault(); if (!busy) drop.classList.add('dragging'); });
 drop.addEventListener('dragleave', () => drop.classList.remove('dragging'));
 drop.addEventListener('drop', (e) => {
   e.preventDefault();
   drop.classList.remove('dragging');
   const f = e.dataTransfer.files?.[0];
-  if (f) run(f);
+  if (f) loadImage(f);
 });
 $('chooseBtn').addEventListener('click', () => fileInput.click());
 $('cameraBtn').addEventListener('click', () => cameraInput.click());
+scanAllBtn.addEventListener('click', () => { clearSelection(); scan(null); });
 copyAllBtn.addEventListener('click', () => copy(lastText, copyAllBtn));
-fileInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; run(f); });
-cameraInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; run(f); });
+fileInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; loadImage(f); });
+cameraInput.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; loadImage(f); });
 window.addEventListener('paste', (e) => {
   const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
-  if (item) run(item.getAsFile());
+  if (item) loadImage(item.getAsFile());
 });
+// keep the selection box aligned if the preview reflows
+window.addEventListener('resize', () => { if (selRect) drawSelbox(selRect, { x: selRect.x + selRect.w, y: selRect.y + selRect.h }); });

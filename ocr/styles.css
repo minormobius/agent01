@@ -61,7 +61,20 @@ body {
 .hint { padding: 32px; }
 .hint-big { font-size: 1.25rem; font-weight: 600; }
 .hint-sub { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
-.preview { max-width: 100%; max-height: 460px; display: block; object-fit: contain; }
+.preview {
+  max-width: 100%; max-height: 460px; display: block; object-fit: contain;
+  user-select: none; -webkit-user-drag: none;
+}
+.drop.has-image { cursor: crosshair; touch-action: none; }
+.selbox {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgba(42, 109, 240, 0.16);
+  border-radius: 2px;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.18);
+}
+.selhelp { margin-top: 12px; font-size: 0.85rem; color: var(--muted); text-align: center; }
 
 .overlay {
   position: absolute; inset: 0; background: var(--overlay); color: #fff;
