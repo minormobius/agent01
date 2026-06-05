@@ -48,7 +48,8 @@ a{color:var(--accent)} a:hover{color:var(--rose)}
 .tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
 button{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--paper);
   background:var(--green);border:0;border-radius:7px;padding:11px 17px;cursor:pointer;
-  transition:transform .12s,filter .12s}
+  transition:transform .12s,filter .12s;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
 button:hover{filter:brightness(1.08);transform:translateY(-1px)} button:active{transform:none}
 button.ghost{background:transparent;color:var(--ink2);border:1px solid var(--rule)}
 button.ghost:hover{color:var(--ink);filter:none}
@@ -84,6 +85,35 @@ button.ghost:hover{color:var(--ink);filter:none}
 .ruleset td.v .note{display:block;color:var(--faint);font-family:ui-serif,Georgia,serif;
   font-size:12.5px;margin-top:2px}
 
+/* ── harvest / grading ── */
+.harvest{margin-top:14px;border:1px solid var(--rule);border-radius:8px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(184,138,60,.07),rgba(184,138,60,.02))}
+.harvest .cap{background:rgba(184,138,60,.14);font:11px/1 ui-monospace,monospace;letter-spacing:.16em;
+  text-transform:uppercase;color:#876a2e;padding:9px 13px;border-bottom:1px solid var(--rule);
+  display:flex;justify-content:space-between;align-items:center}
+.gradehead{display:flex;align-items:baseline;gap:12px;padding:13px 14px 6px}
+.gradehead .score{font:700 34px/1 ui-serif,Georgia,serif;color:var(--ochre)}
+.gradehead .score small{font-size:15px;color:var(--faint);font-weight:400}
+.gradehead .tier{font:600 16px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.gradehead .tier small{display:block;font:11px/1.3 ui-monospace,monospace;color:var(--faint);
+  font-weight:400;letter-spacing:.04em;margin-top:3px}
+.crit{padding:4px 14px 10px}
+.crit .c{margin:7px 0}
+.crit .cr{display:flex;justify-content:space-between;font:12px/1.3 ui-monospace,monospace;color:var(--ink2);margin-bottom:3px}
+.crit .cr b{color:var(--ink);font-weight:600}
+.crit .cr .pct{color:var(--faint)}
+.crit .bar{height:6px;background:rgba(42,39,34,.10);border-radius:3px;overflow:hidden}
+.crit .bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#b88a3c,#8a9b4e)}
+.crit .note{font:12.5px/1.4 ui-serif,Georgia,serif;color:var(--faint);margin-top:2px}
+.gradenote{padding:0 14px 14px;font:13px/1.55 ui-serif,Georgia,serif;color:var(--ink2)}
+.gradenote b{color:var(--ink)}
+
+/* keep the label from covering the plant on narrow screens */
+@media(max-width:600px){
+  .platelabel{position:static;width:auto;margin:0;border:0;border-top:1px solid var(--rule);
+    box-shadow:none;background:rgba(249,244,232,.7);border-radius:0}
+}
+
 footer{border-top:1px solid var(--rule);margin-top:40px;padding-top:18px;text-align:center;
   font:11.5px/1.7 ui-monospace,monospace;color:var(--faint)}
 footer a{color:var(--ink2)}
@@ -116,6 +146,7 @@ footer a{color:var(--ink2)}
 
       <div class="tools">
         <button id="grow">⟳ New specimen</button>
+        <button id="reap">🌾 Reap</button>
         <span class="seedline">seed
           <input id="seed" inputmode="numeric" maxlength="10" aria-label="seed">
           <button class="ghost" id="sow">sow</button>
@@ -125,6 +156,16 @@ footer a{color:var(--ink2)}
       <div class="ruleset">
         <div class="cap">Generation ruleset · this specimen</div>
         <table id="rules"><tbody></tbody></table>
+      </div>
+
+      <div class="harvest" id="harvest" hidden>
+        <div class="cap"><span>Harvest grade · the reaped sticks</span><span id="grade-count">—</span></div>
+        <div class="gradehead">
+          <div class="score"><span id="grade-score">—</span><small>/100</small></div>
+          <div class="tier"><span id="grade-tier">—</span><small id="grade-tagline">—</small></div>
+        </div>
+        <div class="crit" id="grade-crit"></div>
+        <div class="gradenote" id="grade-note"></div>
       </div>
     </div>
 
@@ -265,14 +306,14 @@ function drawSpecimen(spec){
   const bg=ctx.createLinearGradient(0,0,0,CH);
   bg.addColorStop(0,'#f6f0e1'); bg.addColorStop(1,'#e8dcc3');
   ctx.fillStyle=bg; ctx.fillRect(0,0,CW,CH);
-  const vg=ctx.createRadialGradient(CW*0.42,CH*0.45,CH*0.2,CW*0.42,CH*0.5,CH*0.7);
+  const vg=ctx.createRadialGradient(CW*0.34,CH*0.45,CH*0.2,CW*0.34,CH*0.5,CH*0.7);
   vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,48,26,.08)');
   ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
 
   const pxPerCm = (CH*0.80)/MAX_HEIGHT_CM;
   const heightPx = spec.heightCm*pxPerCm;
   const baseY = CH-58, topY = baseY-heightPx;
-  const cx = CW*0.42;
+  const cx = CW*0.34;            // left-of-centre so the herbarium label never hides it
   const rnd = mulberry32(xmur3('draw:'+spec.seedStr)());
 
   // stem as a quadratic from base to top
@@ -332,16 +373,8 @@ function drawSpecimen(spec){
   // ── corymb ──
   drawCorymb(spec,stemXY,leafTop,topX,topY,baseY,heightPx,rnd);
 
-  // ── scale bar (10 cm) ──
-  const barCm=10, barPx=barCm*pxPerCm, bx=CW-46, by=baseY;
-  ctx.strokeStyle='rgba(42,39,34,.5)'; ctx.lineWidth=1.4; ctx.lineCap='butt';
-  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx,by-barPx); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(bx-4,by); ctx.lineTo(bx+4,by);
-  ctx.moveTo(bx-4,by-barPx); ctx.lineTo(bx+4,by-barPx); ctx.stroke();
-  for(let c=1;c<barCm;c++){const yy=by-c*pxPerCm; ctx.beginPath(); ctx.moveTo(bx-2,yy); ctx.lineTo(bx+2,yy); ctx.stroke();}
-  ctx.save(); ctx.translate(bx+12,by-barPx/2); ctx.rotate(Math.PI/2);
-  ctx.fillStyle='rgba(42,39,34,.55)'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
-  ctx.fillText('10 cm',0,0); ctx.restore();
+  // ── scale bar (10 cm), kept on the left edge ──
+  drawScaleBar(pxPerCm,baseY);
 
   // helpers ────────────────────────────────────────────────
   function drawLeaf(ax,ay,side,droopBias,len,pinnae,lobes,rnd,basal){
@@ -447,6 +480,146 @@ function drawSpecimen(spec){
   }
 }
 
+// 10 cm scale bar, drawn on the left edge so the label (bottom-right) never sits on it
+function drawScaleBar(pxPerCm,baseY){
+  const barCm=10, barPx=barCm*pxPerCm, bx=26, by=baseY;
+  ctx.strokeStyle='rgba(42,39,34,.5)'; ctx.lineWidth=1.4; ctx.lineCap='butt';
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx,by-barPx); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(bx-4,by); ctx.lineTo(bx+4,by);
+  ctx.moveTo(bx-4,by-barPx); ctx.lineTo(bx+4,by-barPx); ctx.stroke();
+  for(let c=1;c<barCm;c++){const yy=by-c*pxPerCm; ctx.beginPath(); ctx.moveTo(bx-2,yy); ctx.lineTo(bx+2,yy); ctx.stroke();}
+  ctx.save(); ctx.translate(bx+13,by-barPx/2); ctx.rotate(Math.PI/2);
+  ctx.fillStyle='rgba(42,39,34,.55)'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
+  ctx.fillText('10 cm',0,0); ctx.restore();
+}
+
+/* ───────── reaping: a plant → its dried stalks ───────── */
+const clamp01=x=>x<0?0:x>1?1:x;
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const cvar=a=>{const m=mean(a); if(m<=0)return 0; return Math.sqrt(mean(a.map(x=>(x-m)*(x-m))))/m;};
+const bandScore=(x,lo,hi,soft)=>{ if(x>=lo&&x<=hi)return 1; const d=x<lo?lo-x:x-hi; return clamp01(1-d/soft); };
+
+function reap(spec){
+  const r=mulberry32(xmur3('reap:'+spec.seedStr)());
+  const curveMag=Math.abs(spec.curve);            // lateral lean of the stalk, 0..0.10
+  const sticks=[];
+  const mk=(lenCm,main)=>{
+    const straightness=clamp01(0.94 - curveMag*5.0 - r()*0.34 + (main?0.13:-0.04));
+    const diaMm=+((main?2.7:1.7) + r()*0.8 + spec.furrows*0.12).toFixed(2);
+    const stiffness=clamp01((diaMm-1.4)/2.0*0.55 + (spec.furrows-2)/2*0.22
+                            + Math.min(lenCm/55,1)*0.30 + (main?0.05:0) - (1-straightness)*0.12);
+    return {lenCm:+lenCm.toFixed(1), straightness, diaMm, stiffness, main};
+  };
+  sticks.push(mk(spec.heightCm, true));            // the main flowering stalk
+  for(let b=0;b<spec.branchCount;b++)              // primary branches → side stalks
+    sticks.push(mk(spec.heightCm*(0.26+0.20*r()), false));
+  return sticks;
+}
+
+/* ───────── grading engine: are these sticks fit to divine with? ─────────
+   Five weighted criteria over the reaped bundle → 0–100 and a tier. Wholly
+   deterministic from the seed, so a specimen always reaps + grades the same. */
+const TIERS=[
+  [83,'Temple grade',"flawless counting-rods — a diviner would keep these"],
+  [70,"Diviner's grade",'sound and castable; sort the best fifty'],
+  [57,'Serviceable','usable once dried and trimmed'],
+  [43,'Common','rough — practice stalks at most'],
+  [0 ,'Kindling','too crooked or slight to count with'],
+];
+const tierFor=s=>{ for(const[t,name,desc] of TIERS) if(s>=t) return {name,desc}; };
+
+// per-stick rod quality — is THIS stalk a keepable counting-rod?
+const rodLengthFit=lenCm=>bandScore(lenCm,25,55,22);            // 25–55 cm sits well in the hand
+function rodQuality(s){
+  return clamp01(s.straightness*0.40 + s.stiffness*0.35 + rodLengthFit(s.lenCm)*0.25);
+}
+function grade(sticks){
+  const q=sticks.map(rodQuality);
+  const usable=sticks.filter((s,i)=>q[i]>=0.5);            // the rods worth keeping
+  const keep=usable.length?usable:sticks;
+  const best     = Math.max(...q);                         // the finest single rod in the bunch
+  const straight = mean(sticks.map(s=>s.straightness));
+  const stiff    = mean(sticks.map(s=>s.stiffness));
+  const uniform  = clamp01(1 - (cvar(keep.map(s=>s.lenCm))*0.85 + cvar(keep.map(s=>s.diaMm))*0.55));
+  const yieldScore = clamp01(usable.length/5);             // a single plant's realistic best is ~5 good rods
+  const W={best:.26,str:.24,stiff:.20,uni:.10,yld:.20};
+  const overall=Math.round(100*(best*W.best+straight*W.str+stiff*W.stiff+uniform*W.uni+yieldScore*W.yld));
+  const avgLen=mean(sticks.map(s=>s.lenCm));
+  return { overall, tier:tierFor(overall), n:sticks.length, usable:usable.length, needed:50, avgLen,
+    criteria:[
+      ['Finest rod',   best,    best>.82?'one true counting-rod in the bunch':best>.6?'the best is serviceable':'not one keeper among them'],
+      ['Straightness', straight,straight>.8?'true and unbent — they lie flat in the hand':straight>.55?'a workable lean':'kinked; they would foul the count'],
+      ['Stiffness',    stiff,   stiff>.75?'woody and rigid when dried':stiff>.5?'firm enough to sort':'whippy — bends under its own weight'],
+      ['Uniformity',   uniform, uniform>.7?'a matched set':uniform>.45?'sortable into a set':'wildly mismatched — much waste'],
+      ['Usable yield', yieldScore,`${usable.length} of ${sticks.length} stalks make a keepable rod`],
+    ] };
+}
+
+/* ───────── draw the reaped bundle (bound dried stalks) ───────── */
+function drawSticks(spec,sticks){
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,CW,CH);
+  const bg=ctx.createLinearGradient(0,0,0,CH);
+  bg.addColorStop(0,'#f6f0e1'); bg.addColorStop(1,'#e8dcc3'); ctx.fillStyle=bg; ctx.fillRect(0,0,CW,CH);
+  const vg=ctx.createRadialGradient(CW*0.31,CH*0.46,CH*0.2,CW*0.31,CH*0.5,CH*0.7);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(60,48,26,.08)'); ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
+
+  const pxPerCm=(CH*0.80)/MAX_HEIGHT_CM, baseY=CH-58;
+  const tieX=CW*0.33, tieY=CH*0.50, n=sticks.length, spread=0.085;
+  const r=mulberry32(xmur3('sticks:'+spec.seedStr)());
+  // longest behind, shortest in front
+  const order=sticks.map((s,i)=>i).sort((a,b)=>sticks[b].lenCm-sticks[a].lenCm);
+  for(const i of order){
+    const s=sticks[i];
+    const a=(i-(n-1)/2)*spread + (r()-0.5)*0.03;
+    const half=s.lenCm*pxPerCm/2;
+    const dx=Math.sin(a), dy=-Math.cos(a), nx=-dy, ny=dx;
+    const x0=tieX-dx*half*0.85, y0=tieY-dy*half*0.85;     // butt end (shorter below the tie)
+    const x1=tieX+dx*half,      y1=tieY+dy*half;           // tip end
+    const bow=(1-s.straightness)*half*0.16*(r()<.5?1:-1);
+    const mx=(x0+x1)/2+nx*bow, my=(y0+y1)/2+ny*bow;
+    const hue=40+r()*10, sat=26+r()*16, lig=58+r()*12;
+    ctx.lineCap='round'; ctx.lineWidth=Math.max(1.4,s.diaMm*1.5);
+    ctx.strokeStyle=`hsl(${hue} ${sat}% ${lig}%)`;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.quadraticCurveTo(mx,my,x1,y1); ctx.stroke();
+    // nodes
+    ctx.strokeStyle=`hsl(${hue-6} ${sat+8}% ${lig-22}%)`; ctx.lineWidth=Math.max(1.6,s.diaMm*1.9);
+    for(const t of [0.30,0.62]){
+      const px=(1-t)*(1-t)*x0+2*(1-t)*t*mx+t*t*x1, py=(1-t)*(1-t)*y0+2*(1-t)*t*my+t*t*y1;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+0.1,py+0.1); ctx.stroke();
+    }
+  }
+  // binding cord at the tie
+  const bw=Math.max(15,n*3.4);
+  ctx.save(); ctx.translate(tieX,tieY);
+  ctx.strokeStyle='#7a5a2e'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-bw/2,4); ctx.lineTo(bw/2,-4); ctx.stroke();
+  ctx.strokeStyle='#5f461f'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-bw/2,7); ctx.lineTo(bw/2,-1); ctx.stroke();
+  ctx.restore();
+  // caption + scale
+  ctx.fillStyle='rgba(42,39,34,.55)'; ctx.font='italic 13px ui-serif,Georgia,serif'; ctx.textAlign='left';
+  ctx.fillText('reaped — '+n+' stalk'+(n>1?'s':''),24,CH-30);
+  drawScaleBar(pxPerCm,baseY);
+}
+
+function renderHarvest(spec,g){
+  set('grade-count', g.n+' stalk'+(g.n>1?'s':''));
+  set('grade-score', g.overall);
+  set('grade-tier', g.tier.name);
+  set('grade-tagline', g.tier.desc);
+  document.getElementById('grade-crit').innerHTML = g.criteria.map(([k,v,note])=>{
+    const pct=Math.round(v*100);
+    return `<div class="c"><div class="cr"><b>${k}</b><span class="pct">${pct}%</span></div>`+
+      `<div class="bar"><i style="width:${pct}%"></i></div><div class="note">${note}</div></div>`;
+  }).join('');
+  const keep=Math.max(g.usable,1);
+  document.getElementById('grade-note').innerHTML =
+    `This reaping gives <b>${g.usable}</b> keepable rod${g.usable===1?'':'s'} of <b>${g.n}</b> stalks cut. `+
+    `Casting the <a href="../yijing/">Yijing</a> wants <b>50</b>, so you would harvest roughly `+
+    `<b>${Math.ceil(g.needed/keep)}</b> plants like this and keep only the straightest. The grade is `+
+    `deterministic: seed <b>${spec.seedStr}</b> always reaps this same bundle.`;
+}
+
 /* ───────── bind a spec to the page (label, ruleset, prose) ───────── */
 function present(spec){
   drawSpecimen(spec);
@@ -494,16 +667,37 @@ function present(spec){
 }
 function set(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 
-/* ───────── controls ───────── */
+/* ───────── controls / state ───────── */
+let CURRENT=null, REAPED=false;
+const $=id=>document.getElementById(id);
 function randomSeed(){ return (Math.random()*0xFFFFFFFF)>>>0; }
-function sow(seed){ present(grow(seed>>>0)); }
+function setReapLabel(){ $('reap').textContent = REAPED?'🌱 Regrow':'🌾 Reap'; }
+function sow(seed){
+  CURRENT=grow(seed>>>0); REAPED=false;
+  present(CURRENT); $('harvest').hidden=true; setReapLabel();
+}
+function toggleReap(){
+  if(!CURRENT) return;
+  REAPED=!REAPED;
+  if(REAPED){
+    const sticks=reap(CURRENT);
+    drawSticks(CURRENT,sticks);
+    renderHarvest(CURRENT, grade(sticks));
+    $('harvest').hidden=false;
+  }else{
+    drawSpecimen(CURRENT);
+    $('harvest').hidden=true;
+  }
+  setReapLabel();
+}
 
-document.getElementById('grow').onclick=()=>sow(randomSeed());
-document.getElementById('sow').onclick=()=>{
-  const v=parseInt(document.getElementById('seed').value,10);
+$('grow').onclick=()=>sow(randomSeed());
+$('reap').onclick=toggleReap;
+$('sow').onclick=()=>{
+  const v=parseInt($('seed').value,10);
   sow(Number.isFinite(v)?v:randomSeed());
 };
-document.getElementById('seed').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('sow').click(); });
+$('seed').addEventListener('keydown',e=>{ if(e.key==='Enter') $('sow').click(); });
 
 // initial seed from ?seed= for permalink determinism, else random
 const urlSeed=parseInt(new URLSearchParams(location.search).get('seed'),10);
