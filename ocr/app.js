@@ -99,7 +99,9 @@ let selRect = null;      // {x,y,w,h} fractions, or null
 function setBusy(on, label) {
   busy = on;
   drop.classList.toggle('busy', on);
-  overlay.hidden = !on;
+  // Toggle a class, not the `hidden` attribute: `.overlay { display:flex }`
+  // would override `[hidden]`'s display:none and keep it permanently visible.
+  overlay.classList.toggle('show', on);
   if (label != null) statusEl.textContent = label;
   for (const b of document.querySelectorAll('.actions button')) b.disabled = on;
 }
@@ -215,7 +217,7 @@ function loadImage(file) {
   if (previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = URL.createObjectURL(file);
   preview.src = previewUrl;
-  preview.hidden = false;
+  preview.classList.add('show');
   hint.hidden = true;
   selhelp.hidden = false;
   scanAllBtn.hidden = false;

@@ -62,9 +62,10 @@ body {
 .hint-big { font-size: 1.25rem; font-weight: 600; }
 .hint-sub { margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
 .preview {
-  max-width: 100%; max-height: 460px; display: block; object-fit: contain;
+  max-width: 100%; max-height: 460px; display: none; object-fit: contain;
   user-select: none; -webkit-user-drag: none;
 }
+.preview.show { display: block; }
 .drop.has-image { cursor: crosshair; touch-action: none; }
 .selbox {
   position: absolute;
@@ -78,9 +79,10 @@ body {
 
 .overlay {
   position: absolute; inset: 0; background: var(--overlay); color: #fff;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 24px;
 }
+.overlay.show { display: flex; }
 .status { font-size: 0.9rem; max-width: 440px; }
 .spinner {
   width: 32px; height: 32px;
