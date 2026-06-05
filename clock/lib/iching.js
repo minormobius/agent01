@@ -1,12 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // iching.js — a grounded, deterministic reading engine for the Yijing.
 //
-// Rather than copy 384 fixed line texts, this generates an interpretation the way
-// classical commentators reason: from the hexagram's STRUCTURE. It decomposes the
-// figure into its trigrams, reads each line's position-doctrine (correctness 正,
-// centrality 中, correspondence 應, the ruling line), applies Zhu Xi's rules for
-// WHICH texts a cast surfaces given how many lines move, and composes prose from a
-// vocabulary grounded in the sources. Same cast → same reading (Borges-style).
+// Two layers, kept separate. (1) A STRUCTURAL reader that reasons the way classical
+// commentators do: it decomposes the figure into its trigrams, reads each line's
+// position-doctrine (correctness 正, centrality 中, correspondence 應, the ruling
+// line), and composes prose from a vocabulary grounded in the sources. Same cast →
+// same words (Borges-style). (2) The CANONICAL TEXT — our own open translation of
+// the Zhouyi (read/iching/data.js, mirrored to clock/lib/zhouyi.js). Pass that table
+// to composeReading() and it attaches, to exactly the line(s) and judgment(s) a cast
+// surfaces under Zhu Xi's rules, the received 卦辭/爻辭 in our translation. The
+// structural prose then reads as commentary *around* the authentic text, not in place
+// of it. Omit the table and you get the structural layer alone (the older behaviour).
 //
 // Apparatus & sources are documented in /yijing (the "Method" tab) and below:
 //  · Trigram attributes — Shuogua (8th Wing); table per Wikipedia "Bagua".
@@ -136,8 +140,10 @@ function lineReading(p, key){
   return `${cap(bits.join(', '))}: ${CHANGE[p.value]} — ${tail}.`;
 }
 
-// the whole reading, assembled from the structure
-export function composeReading(lines, HEX){
+// the whole reading, assembled from the structure.
+// ZHOUYI (optional) = our open translation keyed by King Wen number; when given, the
+// canonical 卦辭/爻辭 are attached to exactly what this cast surfaces (see footer).
+export function composeReading(lines, HEX, ZHOUYI){
   const code=lines.reduce((c,v,i)=>c|((v===7||v===9)?1<<i:0),0);
   const primaryNo=codeToNo(HEX,code);
   const tl=transformedLines(lines), tcode=tl.reduce((c,v,i)=>c|((v===7||v===9)?1<<i:0),0);
@@ -155,12 +161,32 @@ export function composeReading(lines, HEX){
   if(focus.lines.length){
     const hx = focus.relating ? tl : lines;
     const rp = lineProps(hx);
-    out.lineReadings = focus.lines.map(i=>({ pos:i+1, relating:!!focus.relating, text:lineReading(rp[i], key) }));
+    out.lineReadings = focus.lines.map(i=>({
+      pos:i+1, relating:!!focus.relating,
+      hexNo: focus.relating ? transformedNo : primaryNo,   // which hexagram this line belongs to
+      text:lineReading(rp[i], key),                        // structural gloss
+    }));
   }
-  if(m.length>=3 && m.length<=6 && transformedNo){
-    out.movement = `The figure is mostly in motion; it resolves toward ${transformedNo}. ${HEX[transformedNo].en} — ${HEX[transformedNo].j}`;
-  } else if(m.length && transformedNo){
-    out.movement = `In motion it ripens toward ${transformedNo}. ${HEX[transformedNo].en} (${HEX[transformedNo].ch} ${HEX[transformedNo].py}): ${HEX[transformedNo].j}`;
+
+  // ── attach the canonical translation for exactly what this cast surfaces ──
+  if(ZHOUYI){
+    const k=m.length;
+    out.judgment = ZHOUYI[primaryNo]?.judgment || null;                     // 卦辭 of the primary
+    out.relating = out.transformedNo ? {                                    // the transitional / 之卦
+      no: out.transformedNo,
+      judgment: ZHOUYI[out.transformedNo]?.judgment || null,
+      // why we look at it, and how hard, per the moving-line count:
+      role: !k ? null
+          : k>=6 ? 'whole'                  // all move → the relating Judgment IS the answer (Hex 1/2 excepted)
+          : k===3 ? 'coequal'              // three move → both Judgments are read (present / trend)
+          : (k>=4 ? 'host' : 'trend'),     // 4–5 move → the surfaced line lives here; 1–2 → it shows the tendency
+    } : null;
+    // all six moving: Hexagrams 1 & 2 alone have their own all-lines text (用九 / 用六)
+    out.useLine = (k===6 && ZHOUYI[primaryNo]?.useLine) ? ZHOUYI[primaryNo].useLine : null;
+    // splice the canonical line-text onto each surfaced line
+    out.lineReadings = out.lineReadings.map(x => ({
+      ...x, canonical: ZHOUYI[x.hexNo]?.lines?.[x.pos-1] || null,
+    }));
   }
   return out;
 }

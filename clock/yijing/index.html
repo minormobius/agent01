@@ -97,6 +97,17 @@ button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
 .lread{font-size:14px;line-height:1.6;margin:7px 0;color:var(--ink-soft)}
 .lread .changedot{color:var(--change);margin-right:4px}
 .lread .rel{color:var(--gold-dim);font-style:italic}
+/* canonical translated text (爻辭 / 卦辭) surfaced from our open Zhouyi */
+.ytext{margin:10px 0 4px}
+.ytext+.ytext{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.ytext .nm{font:11px/1 ui-monospace,monospace;letter-spacing:.14em;color:var(--change);margin-right:8px}
+.ytext .nm.still{color:var(--gold-dim)}
+.ytext .z{font-family:"Songti SC","STSong",serif;font-size:19px;color:var(--gold);letter-spacing:.03em}
+.ytext .py{font-style:italic;color:var(--straw);font-size:12.5px;margin:2px 0 4px}
+.ytext .e{font-size:15px;line-height:1.6}
+.ytext .n{font-size:12.5px;line-height:1.55;color:var(--ink-soft);margin-top:6px;padding-left:11px;border-left:2px solid var(--line)}
+.ytext .gloss{font-size:12.5px;line-height:1.55;color:var(--gold-dim);font-style:italic;margin-top:5px}
+.src-link{font-size:11.5px}
 #result .foot{text-align:center;margin-top:18px}
 #result .foot a{font-size:13px}
 
@@ -576,33 +587,63 @@ function setN(id,v){const el=document.getElementById(id); if(el)el.textContent=v
 
 /* ───────────────────────── reveal the reading ──────────────────────────────── */
 function blk(label, text, kind){ return `<div class="judg ${kind||''}"><span class="lab">${label}</span>${text}</div>`; }
+// render a canonical translated text block (爻辭 / 卦辭) from our open Zhouyi
+function ytextHTML(t, opts={}){
+  if(!t) return '';
+  const tag = opts.name ? `<span class="nm ${opts.still?'still':''}">${opts.name}</span>` : '';
+  return `<div class="ytext">${tag}<span class="z">${t.z}</span>`+
+    `<div class="py">${t.py||''}</div><div class="e">${t.e||''}</div>`+
+    (opts.gloss?`<div class="gloss">${opts.gloss}</div>`:'')+
+    (t.n?`<div class="n">${t.n}</div>`:'')+`</div>`;
+}
+const READ = `<a class="src-link" href="https://read.mino.mobi/iching/">our open translation →</a>`;
 function reveal(){
-  const r = composeReading(LINES, HEX);
+  const r = composeReading(LINES, HEX, ZHOUYI);
   const P = HEX[r.primaryNo];
+  const k = r.moving.length;
   let html = `<div class="cast">`;
   html += hexCardHTML(r.primaryNo, LINES);
   if(r.transformedNo) html += `<div class="arrow">→</div>` + hexCardHTML(r.transformedNo, transformedLines(LINES), true);
   html += `</div>`;
   html += blk('The Image', r.image, 'gen');
-  const src=ZHOUYI[r.primaryNo];
-  if(src){
-    html += blk('The Judgment',
-      `<span style="font-family:'Songti SC','STSong',serif;font-size:21px;color:var(--gold)">${src.z}</span> `+
-      `<span style="font-style:italic;color:var(--straw);font-size:13px">${src.py}</span><br>${src.e}`+
-      ` <a href="https://read.mino.mobi/iching/" style="font-size:12px">our open translation →</a>`);
+  // The Judgment — our canonical translation (falls back to the paraphrase only if missing)
+  if(r.judgment){
+    html += blk('The Judgment', ytextHTML(r.judgment) + READ);
   } else {
     html += blk('The Judgment', P.j);
   }
   html += blk('How this cast is read', r.focus.rule, 'rule');
-  if(r.lineReadings.length){
-    const items = r.lineReadings.map(x=>`<div class="lread"><span class="changedot">●</span> ${x.text}`+
-      `${x.relating?' <span class="rel">— in the relating hexagram</span>':''}</div>`).join('');
-    html += `<div class="judg"><span class="lab">The moving lines</span>${items}</div>`;
-  } else {
+  // The moving line(s) — the live edge of the answer: canonical text + structural gloss
+  if(k===0){
     html += `<div class="moving">No lines move — the answer is steady; read the Judgment as it stands.</div>`;
+  } else if(r.useLine){                       // all six move on Hexagram 1 or 2 → the use-line (用九/用六)
+    html += `<div class="judg"><span class="lab">All lines move · the use-line</span>`+
+      ytextHTML(r.useLine, {name:r.useLine.name})+`</div>`;
+  } else if(r.lineReadings.length){           // 1, 2, 4 or 5 lines: read specific line-texts
+    const items = r.lineReadings.map(x=> x.canonical
+      ? ytextHTML(x.canonical, {name:x.canonical.name, still:x.relating, gloss:x.text})
+      : `<div class="lread"><span class="changedot">●</span> ${x.text}</div>`).join('');
+    const lab = r.lineReadings[0].relating
+      ? `The line to read · in the relating hexagram ${r.transformedNo}`
+      : (k===1 ? 'The moving line' : 'The moving lines');
+    html += `<div class="judg"><span class="lab">${lab}</span>${items} ${READ}</div>`;
+  } else {                                    // 3 or 6 moving: the answer is carried by the Judgments
+    html += `<div class="moving">${k>=6
+      ? 'Every line moves — the answer is carried wholly by the relating hexagram below.'
+      : 'Three lines move — both Judgments are read: the primary above is your present, the relating below your trend.'}</div>`;
   }
   html += blk('The figure', r.structure, 'gen');
-  if(r.movement) html += `<div class="moving"><b>In motion →</b> ${r.movement}</div>`;
+  // The transitional / relating hexagram (之卦) — canonical Judgment, weighted by how much is in motion
+  if(r.relating && r.relating.judgment){
+    const role = r.relating.role;
+    const frame = role==='whole'   ? `Read this Judgment as the whole of the answer.`
+                : role==='coequal' ? `Read alongside the primary — this is where the situation is tending.`
+                : role==='host'    ? `The line above is read here, within this hexagram.`
+                : `Where it ripens to, if the moving line runs its course.`;
+    html += `<div class="judg"><span class="lab">The relating hexagram → ${r.relating.no} · ${HEX[r.relating.no].ch} ${HEX[r.relating.no].py}</span>`+
+      `<div class="moving" style="margin-bottom:8px"><b>In motion →</b> ${frame}</div>`+
+      ytextHTML(r.relating.judgment)+` ${READ}</div>`;
+  }
   if(USE_SET) html += `<div class="moving" style="opacity:.72">Cast with your own set of fifty — seed-grown, hand-cured.</div>`;
   const q=document.getElementById('qtext').value.trim();
   if(q) html = `<div class="moving" style="text-align:center;margin-bottom:14px;font-style:italic">“${escapeHtml(q)}”</div>` + html;
@@ -706,10 +747,14 @@ function methodHTML(){
     <p>A cast of fifty yarrow stalks yields six lines, bottom to top. Each is <em>young</em> or <em>old</em>:
     the old (moving) lines are the live edge of the answer, and flipping them gives a second, <b>relating</b>
     hexagram. A hexagram is read as two <b>trigrams</b> — upper and lower — and as six <b>lines</b>, each with
-    a place and a part to play. The reading below is <b>generated</b> from that structure, deterministically:
-    the same cast always yields the same words — the same apparatus the
+    a place and a part to play. Two layers meet in the reading below. The <b>structural</b> parts — the Image,
+    the figure, the gloss on each line — are <b>generated</b> deterministically from that structure: the same cast
+    always yields the same words (the apparatus the
     <a href="https://read.mino.mobi/pendragon/" target="_blank" rel="noopener">read</a> tales analyse backward
-    and <a href="https://borges.mino.mobi/" target="_blank" rel="noopener">borges</a> runs forward, here turned on a hexagram.</p>
+    and <a href="https://borges.mino.mobi/" target="_blank" rel="noopener">borges</a> runs forward, here turned on a
+    hexagram). The <b>oracular text</b> — the Judgment, and whichever line-texts a cast surfaces — is our own
+    <a href="https://read.mino.mobi/iching/" target="_blank" rel="noopener">open translation of the Zhouyi</a>
+    from the received Chinese. The structure reads as commentary around the authentic text, not in place of it.</p>
 
     <h3>The eight trigrams</h3>
     <p>Each trigram is a nature-image with a quality and a place in the family — the vocabulary of the
@@ -731,15 +776,16 @@ function methodHTML(){
     you consult:</p>
     <table><thead><tr><th>moving</th><th>read</th></tr></thead><tbody>${rules}</tbody></table>
 
-    <h3>Quoted, paraphrased, generated</h3>
+    <h3>Translated, or generated</h3>
     <ul>
       <li>The hexagram names and the King Wen sequence are <b>standard</b>.</li>
-      <li>Each hexagram’s one-line <b>Judgment</b> is an editorial <em>paraphrase</em> grounded in Legge and
-      Wilhelm — not a direct quotation.</li>
-      <li>The <b>Image</b>, the <b>figure</b>, and the <b>moving-line</b> readings are <em>generated</em> from
-      the structure above, seeded by the hexagram so a cast always reads the same.</li>
-      <li>We do <b>not</b> reproduce the 384 classical line texts; the line readings are structural, not the
-      received <em>yáocí</em>.</li>
+      <li>Each hexagram’s <b>Judgment</b> (卦辭) and the <b>line-texts</b> (爻辭) a cast surfaces — including the
+      relating hexagram’s Judgment and the all-lines use-text (用九 / 用六) of Hexagrams 1 and 2 — are our own
+      <b>original translation</b> from the received Chinese, shown beside the source with philological notes at
+      <a href="https://read.mino.mobi/iching/" target="_blank" rel="noopener">read.mino.mobi/iching</a> (CC&nbsp;BY-SA).
+      A cast pulls in only what Zhu Xi’s rules call for, so you read the authentic 爻辭, not a summary of it.</li>
+      <li>The <b>Image</b>, the <b>figure</b>, and the italic <b>gloss</b> beneath each line are <em>generated</em>
+      from the structure above (trigrams + position-doctrine), seeded by the hexagram so a cast always reads the same.</li>
     </ul>
 
     <h3>Sources</h3>
