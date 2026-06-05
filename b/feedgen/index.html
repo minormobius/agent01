@@ -70,6 +70,11 @@ h1 .dot { color: var(--gold); }
 .fg-authbtn:hover { background: rgba(90,169,255,0.22); }
 .fg-authbtn.ghost { background:none; border-color: var(--line); color: var(--muted); }
 .fg-who { color: var(--gold); font:600 12px var(--mono); }
+.fg-pubbtn { background: var(--gold); color:#1a1300; border:0; border-radius:999px; padding:7px 16px; font:600 13px var(--mono); cursor:pointer; }
+.fg-pubbtn:hover { filter: brightness(1.06); }
+.fg-pubbtn:disabled { opacity:.6; cursor:default; }
+.fg-pubmsg { color: var(--muted); font:12px var(--mono); margin-left:10px; }
+.fg-pubmsg a { color: var(--sky); }
 </style>
 </head>
 <body>
@@ -110,7 +115,7 @@ h1 .dot { color: var(--gold); }
         <div id="fg-def-wrap" class="fg-def-wrap"><pre id="fg-def"></pre></div>
       </div>
 
-      <div class="publish-stub">Sign-in is live (top-right) — auth runs through the shared mino.mobi OAuth worker. Next: <b>publish</b> writes this definition to your PDS as an ATProto record + the <code>app.bsky.feed.generator</code> record, and a stateless worker serves it as a real installable feed (and unlocks the search input).</div>
+      <div id="fg-publish" class="publish-stub"></div>
     </div>
 
     <!-- preview -->

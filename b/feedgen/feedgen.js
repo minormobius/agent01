@@ -2,7 +2,6 @@
 // public Bluesky AppView. The pipeline object IS the future atproto record;
 // "definition" shows it verbatim. Publishing (OAuth → write record → serving
 // worker) is slice 2.
-import { evaluate } from './pipeline.js';
 import { AuthClient } from './auth.js';
 
 const auth = new AuthClient();
@@ -50,6 +49,49 @@ function renderAuth() {
   } else {
     host.innerHTML = `<button id="fg-signin" class="fg-authbtn">sign in with Bluesky</button>`;
     $('fg-signin').addEventListener('click', signinFlow);
+  }
+  renderPublish();
+}
+
+// ── publish: write the definition + the feed.generator record to the PDS ─────
+function renderPublish() {
+  const host = $('fg-publish');
+  if (!host) return;
+  if (!user) {
+    host.innerHTML = 'Sign in (top-right) to publish this feed to your PDS as a real, installable Bluesky feed.';
+    return;
+  }
+  host.innerHTML = `<button id="fg-publish-btn" class="fg-pubbtn">⬆ publish to Bluesky</button><span id="fg-publish-msg" class="fg-pubmsg"></span>`;
+  $('fg-publish-btn').addEventListener('click', publish);
+}
+async function publish() {
+  const btn = $('fg-publish-btn'), msg = $('fg-publish-msg');
+  if (!def.inputs || !def.inputs.length) { msg.textContent = ' add at least one input first'; return; }
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'publishing…'; msg.textContent = '';
+  try {
+    const now = new Date().toISOString();
+    const defRes = await auth.pds.createRecord('com.minomobi.feedgen.def', { $type: 'com.minomobi.feedgen.def', ...def, createdAt: now });
+    const rkey = (defRes.uri || '').split('/').pop();
+    await auth.pds.putRecord('app.bsky.feed.generator', rkey, {
+      $type: 'app.bsky.feed.generator',
+      did: 'did:web:b.mino.mobi',
+      displayName: (def.name || 'feedgen feed').slice(0, 240),
+      description: ((def.description ? def.description + '\n\n' : '') + 'built with b.mino.mobi/feedgen').slice(0, 300),
+      createdAt: now,
+    });
+    const feedUrl = `https://bsky.app/profile/${user.did}/feed/${rkey}`;
+    msg.innerHTML = ` ✓ published — <a href="${esc(feedUrl)}" target="_blank" rel="noopener">open your feed ↗</a>`;
+  } catch (e) {
+    const m = (e && e.message) || String(e);
+    if (/40[13]|scope|insufficient|forbidden|not.*allowed/i.test(m)) {
+      msg.innerHTML = ' needs the publish scope — <a href="#" id="fg-reauth">sign out &amp; back in</a> to grant it.';
+      const r = document.getElementById('fg-reauth');
+      if (r) r.addEventListener('click', async (ev) => { ev.preventDefault(); await auth.logout(); user = null; renderAuth(); signinFlow(); });
+    } else {
+      msg.textContent = ' publish failed: ' + m;
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = label;
   }
 }
 function signinFlow() {
@@ -187,7 +229,9 @@ async function runPreview() {
   const out = $('fg-preview');
   out.innerHTML = '<div class="fg-status">running…</div>';
   try {
-    const { posts, errors, candidateCount } = await evaluate(def);
+    const res = await fetch('/api/feedgen/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ def }) });
+    if (!res.ok) throw new Error('preview HTTP ' + res.status);
+    const { posts, errors, candidateCount } = await res.json();
     let head = `<div class="fg-status">${posts.length} post${posts.length === 1 ? '' : 's'} · ${candidateCount} matched candidates`;
     if (errors.length) head += ` · <span class="fg-err">${esc(errors.join('; '))}</span>`;
     head += '</div>';

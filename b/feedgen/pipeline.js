@@ -1,25 +1,24 @@
-// feedgen pipeline — evaluate a SkyFeed-style block definition against the public
-// Bluesky AppView. Pure: a definition object in, post views out. This SAME module
-// will run in the serving Worker (slice 2) returning bare uris for getFeedSkeleton;
-// only the output shape differs, so keep gather/filter/sort here canonical.
+// feedgen evaluator — a SkyFeed-style block definition in, post views out.
+// Runs in the b Worker (slice 2): both /api/feedgen/preview and getFeedSkeleton
+// call evaluate(). Search uses the public AppView WITH a service token (the
+// public endpoint 403s unauthed); list/author/filters/sort are open.
 //
-// Definition shape (this is the atproto record we'll write to the user's PDS):
-//   {
-//     name, description,
-//     inputs:  [ {type:'search', q, sort}, {type:'list', uri}, {type:'author', actor, filter} ],
-//     filters: [ {type:'regex', mode:'include'|'exclude', pattern},
-//                {type:'media', has:'image'|'video'|'link'|'quote'},
-//                {type:'lang', code}, {type:'removeReplies'}, {type:'removeReposts'},
-//                {type:'minLikes', n}, {type:'minReposts', n} ],
-//     sort: {type:'latest'|'top'}, limit
-//   }
+// Definition (this is the com.minomobi.feedgen.def record on the user's PDS):
+//   { name, description,
+//     inputs:[{type:'search',q,sort}|{type:'list',uri}|{type:'author',actor,filter}],
+//     filters:[{type:'regex',mode,pattern}|{type:'media',has}|{type:'lang',code}|
+//              {type:'removeReplies'}|{type:'removeReposts'}|{type:'minLikes',n}],
+//     sort:{type:'latest'|'top'}, limit }
 
-const PUB = 'https://public.api.bsky.app/xrpc';
+const PUB = 'https://public.api.bsky.app/xrpc'; // open reads (lists, authors)
+const APP = 'https://api.bsky.app/xrpc';        // authed reads (search) w/ Bearer
 
-export async function xrpc(method, params = {}) {
-  const u = new URL(`${PUB}/${method}`);
+async function xrpc(method, params = {}, opts = {}) {
+  const u = new URL(`${opts.base || PUB}/${method}`);
   for (const k in params) if (params[k] != null && params[k] !== '') u.searchParams.set(k, params[k]);
-  const r = await fetch(u.toString());
+  const headers = {};
+  if (opts.token) headers['Authorization'] = `Bearer ${opts.token}`;
+  const r = await fetch(u.toString(), { headers });
   if (!r.ok) throw new Error(`${method} → HTTP ${r.status}`);
   return r.json();
 }
@@ -33,18 +32,12 @@ async function resolveActor(actor) {
 
 const isRepost = (fi) => !!(fi && fi.reason && (fi.reason.$type || '').includes('Repost'));
 
-// One input block → [{post, isRepost}]
-async function gather(input) {
+async function gather(input, ctx) {
   const limit = 100;
   if (input.type === 'search') {
     if (!input.q) return [];
-    let r;
-    try {
-      r = await xrpc('app.bsky.feed.searchPosts', { q: input.q, sort: input.sort || 'latest', limit });
-    } catch (e) {
-      if (/HTTP 40[13]/.test(e.message || '')) throw new Error('search needs sign-in (coming in slice 2) — use list or author inputs for now');
-      throw e;
-    }
+    if (!ctx.searchToken) throw new Error('search needs a service token (not configured yet)');
+    const r = await xrpc('app.bsky.feed.searchPosts', { q: input.q, sort: input.sort || 'latest', limit }, { base: APP, token: ctx.searchToken });
     return (r.posts || []).map((post) => ({ post, isRepost: false }));
   }
   if (input.type === 'list') {
@@ -86,8 +79,8 @@ function passes(cand, filters) {
     } else if (f.type === 'media') {
       if (!m[f.has]) return false;
     } else if (f.type === 'lang') {
-      const langs = rec.langs || [];
       if (!f.code) continue;
+      const langs = rec.langs || [];
       if (!langs.some((l) => (l || '').toLowerCase().startsWith(f.code.toLowerCase()))) return false;
     } else if (f.type === 'removeReplies') {
       if (rec.reply) return false;
@@ -110,12 +103,12 @@ function sortCands(cands, sort) {
   return cands.sort((a, b) => key(b) - key(a));
 }
 
-// Returns { posts: postView[], errors: string[] }
-export async function evaluate(def) {
+// evaluate(def, ctx) → { posts: postView[], errors: string[], candidateCount }
+export async function evaluate(def, ctx = {}) {
   const inputs = def.inputs || [];
   const errors = [];
   const results = await Promise.all(inputs.map((i) =>
-    gather(i).catch((e) => { errors.push(`${i.type}: ${e.message || e}`); return []; })));
+    gather(i, ctx).catch((e) => { errors.push(`${i.type}: ${e.message || e}`); return []; })));
   let cands = results.flat();
   const seen = new Set();
   cands = cands.filter((c) => c.post && c.post.uri && !seen.has(c.post.uri) && seen.add(c.post.uri));
