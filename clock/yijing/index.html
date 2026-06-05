@@ -91,7 +91,40 @@ button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
 .moving{font-size:13.5px;color:var(--ink-soft);line-height:1.6}
 .moving b{color:var(--change);font-weight:600}
 .moving .changedot{color:var(--change)}
+.judg.gen .lab::after{content:' · generated from structure';color:var(--gold-dim);opacity:.7;font-weight:400;letter-spacing:.02em}
+.judg.rule{font-size:14px}
+.judg.rule .lab{color:var(--change);opacity:.8}
+.lread{font-size:14px;line-height:1.6;margin:7px 0;color:var(--ink-soft)}
+.lread .changedot{color:var(--change);margin-right:4px}
+.lread .rel{color:var(--gold-dim);font-style:italic}
 #result .foot{text-align:center;margin-top:18px}
+#result .foot a{font-size:13px}
+
+/* ── Method tab ── */
+.mscrim{position:fixed;inset:0;background:rgba(8,7,12,.72);backdrop-filter:blur(3px);
+  display:none;align-items:flex-start;justify-content:center;z-index:40;padding:24px 14px;overflow:auto}
+.mscrim.on{display:flex}
+.method{background:linear-gradient(180deg,#14111b,#0b0a10);border:1px solid var(--line);border-radius:14px;
+  max-width:760px;width:100%;padding:30px 26px 36px;position:relative;color:var(--ink)}
+.method .mclose{position:absolute;top:12px;right:18px;font:24px/1 ui-serif,Georgia;color:var(--ink-soft);cursor:pointer}
+.method h2{font:600 22px/1.15 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--gold);margin-bottom:4px}
+.method .kick{font:11px/1 ui-monospace,monospace;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:16px}
+.method h3{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);
+  margin:22px 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.method p{font-size:14.5px;line-height:1.62;color:var(--ink-soft);margin:0 0 10px}
+.method p b,.method li b{color:var(--ink)}
+.method em{color:var(--ink);font-style:italic}
+.method ul{margin:0 0 10px;padding-left:18px;font-size:14px;line-height:1.6;color:var(--ink-soft)}
+.method li{margin:4px 0}
+.method table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 10px}
+.method td,.method th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
+.method th{font:11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-dim)}
+.method td .gl{display:inline-flex;flex-direction:column;gap:2px;vertical-align:middle}
+.method td .gl i{display:block;width:22px;height:3px;border-radius:1px;background:var(--gold)}
+.method td .gl i.yin{background:linear-gradient(90deg,var(--gold) 38%,transparent 38%,transparent 62%,var(--gold) 62%)}
+.method a{color:var(--gold)} .method a:hover{color:var(--change)}
+.method .src{font-size:13px;line-height:1.7}
+.method .note{font-size:12.5px;color:var(--ink-soft);opacity:.8;font-style:italic;margin-top:6px}
 
 footer{color:rgba(233,214,168,.32);font:11px/1.6 ui-monospace,monospace;text-align:center;
   padding:26px 16px 34px;max-width:560px}
@@ -139,14 +172,23 @@ footer a{color:rgba(233,214,168,.5)}
   The yarrow-stalk method (蓍筮) is older than the coins and weights its odds differently:
   a moving yin appears but 1 time in 16, a moving yang 3. Every stalk here is drawn from
   noise — no two milfoil quite alike; meet a single one at <a href="../yarrow/">/yarrow</a>.
+  &nbsp;·&nbsp; <a href="#" id="footer-method">Method &amp; sources</a>
   &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
 </footer>
+
+<div class="mscrim" id="method-scrim">
+  <div class="method">
+    <span class="mclose" id="method-close">×</span>
+    <div id="method-body"></div>
+  </div>
+</div>
 
 <script type="module">
 'use strict';
 import { Loft } from '../lib/inventory.js';
 import { cure } from '../lib/sticks.js';
 import { drawStalk } from '../lib/stalk-render.js';
+import { composeReading, trigramRows, ZHUXI_RULES, POSITIONS } from '../lib/iching.js';
 /* ───────────────────────── deterministic noise (per-stalk character) ───────── */
 function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
   h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
@@ -532,32 +574,33 @@ function finishLine(){
 function setN(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 
 /* ───────────────────────── reveal the reading ──────────────────────────────── */
+function blk(label, text, kind){ return `<div class="judg ${kind||''}"><span class="lab">${label}</span>${text}</div>`; }
 function reveal(){
-  const primaryNo=hexNumberFromLines(LINES);
-  const moving=[]; LINES.forEach((v,i)=>{ if(v===6||v===9) moving.push(i); });
-  const P=HEX[primaryNo];
+  const r = composeReading(LINES, HEX);
+  const P = HEX[r.primaryNo];
   let html = `<div class="cast">`;
-  html += hexCardHTML(primaryNo, LINES);
-  if(moving.length){
-    const tl=transformedLines(LINES); const tNo=hexNumberFromLines(tl);
-    html += `<div class="arrow">→</div>` + hexCardHTML(tNo, tl, true);
-  }
+  html += hexCardHTML(r.primaryNo, LINES);
+  if(r.transformedNo) html += `<div class="arrow">→</div>` + hexCardHTML(r.transformedNo, transformedLines(LINES), true);
   html += `</div>`;
-  html += `<div class="judg"><span class="lab">The Judgment</span>${P.j}</div>`;
-  if(moving.length){
-    const tNo=hexNumberFromLines(transformedLines(LINES)); const Tn=HEX[tNo];
-    const ls=moving.map(i=>`<span class="changedot">●</span> line ${i+1}`).join(', ');
-    html += `<div class="moving"><b>Moving:</b> ${ls}. The situation is in motion — it ripens toward `+
-      `<b>${tNo}. ${Tn.en}</b> (${Tn.ch} ${Tn.py}): ${Tn.j}</div>`;
+  html += blk('The Image', r.image, 'gen');
+  html += blk('The Judgment', P.j);
+  html += blk('How this cast is read', r.focus.rule, 'rule');
+  if(r.lineReadings.length){
+    const items = r.lineReadings.map(x=>`<div class="lread"><span class="changedot">●</span> ${x.text}`+
+      `${x.relating?' <span class="rel">— in the relating hexagram</span>':''}</div>`).join('');
+    html += `<div class="judg"><span class="lab">The moving lines</span>${items}</div>`;
   } else {
-    html += `<div class="moving">No moving lines — the answer is steady. Read the Judgment as it stands.</div>`;
+    html += `<div class="moving">No lines move — the answer is steady; read the Judgment as it stands.</div>`;
   }
+  html += blk('The figure', r.structure, 'gen');
+  if(r.movement) html += `<div class="moving"><b>In motion →</b> ${r.movement}</div>`;
   if(USE_SET) html += `<div class="moving" style="opacity:.72">Cast with your own set of fifty — seed-grown, hand-cured.</div>`;
   const q=document.getElementById('qtext').value.trim();
   if(q) html = `<div class="moving" style="text-align:center;margin-bottom:14px;font-style:italic">“${escapeHtml(q)}”</div>` + html;
-  html += `<div class="foot"><button class="ghost" onclick="hardReset()">Ask again</button></div>`;
+  html += `<div class="foot"><a href="#" id="open-method">Method &amp; sources →</a> &nbsp;·&nbsp; <button class="ghost" onclick="hardReset()">Ask again</button></div>`;
   const R=document.getElementById('result');
   R.innerHTML=html; R.classList.add('show');
+  const ml=document.getElementById('open-method'); if(ml) ml.onclick=e=>{ e.preventDefault(); openMethod(); };
   R.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function hexCardHTML(no, vals, dim){
@@ -638,6 +681,82 @@ function renderSetbar(){
       `<div style="opacity:.65">Until then, these are fresh-cut practice stalks.</div>`;
   }
 }
+
+/* ───────────────────────── Method & sources (the docs tab) ──────────────────── */
+function methodHTML(){
+  const tri = trigramRows().map(t=>{
+    const bars=t.glyph.slice().reverse().map(b=>`<i class="${b?'':'yin'}"></i>`).join('');
+    return `<tr><td><span class="gl">${bars}</span></td><td>${t.zh} <span style="color:var(--ink-soft)">${t.py}</span></td>`+
+      `<td>${t.en}</td><td>${t.nature}</td><td>${t.attr}</td><td>${t.family}</td><td>${t.element}</td></tr>`;
+  }).join('');
+  const rules = ZHUXI_RULES.map(([k,,what])=>`<tr><td style="text-align:center;color:var(--gold)">${k}</td><td>${what}</td></tr>`).join('');
+  const positions = POSITIONS.map((p,i)=>`<li><b>${i+1}.</b> ${p}</li>`).join('');
+  return `
+    <div class="kick">Yijing · the method</div>
+    <h2>How this reading is built, and from what</h2>
+    <p>A cast of fifty yarrow stalks yields six lines, bottom to top. Each is <em>young</em> or <em>old</em>:
+    the old (moving) lines are the live edge of the answer, and flipping them gives a second, <b>relating</b>
+    hexagram. A hexagram is read as two <b>trigrams</b> — upper and lower — and as six <b>lines</b>, each with
+    a place and a part to play. The reading below is <b>generated</b> from that structure, deterministically:
+    the same cast always yields the same words — the same apparatus the
+    <a href="https://read.mino.mobi/pendragon/" target="_blank" rel="noopener">read</a> tales analyse backward
+    and <a href="https://borges.mino.mobi/" target="_blank" rel="noopener">borges</a> runs forward, here turned on a hexagram.</p>
+
+    <h3>The eight trigrams</h3>
+    <p>Each trigram is a nature-image with a quality and a place in the family — the vocabulary of the
+    <em>Shuogua</em> (the 8th of the Ten Wings). A reading's <b>Image</b> line is composed from the two
+    trigrams that build the figure.</p>
+    <table><thead><tr><th></th><th>名</th><th>name</th><th>nature</th><th>attribute</th><th>family</th><th>element</th></tr></thead><tbody>${tri}</tbody></table>
+
+    <h3>The lines, and their places</h3>
+    <p>Reading from the foot up, each place carries a meaning:</p>
+    <ul>${positions}</ul>
+    <p><b>Correctness</b> (正 <em>zhèng</em>): a firm line belongs in places 1, 3, 5; a yielding line in
+    2, 4, 6. <b>Centrality</b> (中 <em>zhōng</em>): the 2nd and 5th places are the centres of the lower and
+    upper trigrams. <b>Correspondence</b> (應 <em>yìng</em>): places 1–4, 2–5, 3–6 answer one another when the
+    two lines are of opposite kind. The <b>ruling line</b> is usually the fifth — the throne. The “figure”
+    block of a reading is generated from exactly these tests.</p>
+
+    <h3>Which text a cast surfaces — Zhu Xi’s rules</h3>
+    <p>Not every cast is read the same way. Following Zhu Xi (朱熹), the number of moving lines decides what
+    you consult:</p>
+    <table><thead><tr><th>moving</th><th>read</th></tr></thead><tbody>${rules}</tbody></table>
+
+    <h3>Quoted, paraphrased, generated</h3>
+    <ul>
+      <li>The hexagram names and the King Wen sequence are <b>standard</b>.</li>
+      <li>Each hexagram’s one-line <b>Judgment</b> is an editorial <em>paraphrase</em> grounded in Legge and
+      Wilhelm — not a direct quotation.</li>
+      <li>The <b>Image</b>, the <b>figure</b>, and the <b>moving-line</b> readings are <em>generated</em> from
+      the structure above, seeded by the hexagram so a cast always reads the same.</li>
+      <li>We do <b>not</b> reproduce the 384 classical line texts; the line readings are structural, not the
+      received <em>yáocí</em>.</li>
+    </ul>
+
+    <h3>Sources</h3>
+    <div class="src">
+      <p>· James Legge, <em>The Yî King</em> (Sacred Books of the East XVI, 1882) — public domain:
+      <a href="https://sacred-texts.com/ich/index.htm" target="_blank" rel="noopener">sacred-texts.com</a>,
+      <a href="https://archive.org/details/wg916" target="_blank" rel="noopener">Internet Archive</a>.</p>
+      <p>· Trigram attributes (Shuogua) —
+      <a href="https://en.wikipedia.org/wiki/Bagua" target="_blank" rel="noopener">Wikipedia, “Bagua”</a>.</p>
+      <p>· Moving-line rules — Zhu Xi, <em>Yixue Qimeng</em> (易學啟蒙); summarised at
+      <a href="https://castiching.com/articles/zhu-xi-method" target="_blank" rel="noopener">castiching.com</a> and
+      <a href="https://www.biroco.com/yijing/basics.htm" target="_blank" rel="noopener">biroco.com</a>; see also
+      <a href="https://en.wikibooks.org/wiki/I_Ching/The_Moving_Line" target="_blank" rel="noopener">Wikibooks</a>.</p>
+      <p>· Line doctrine (zhèng / zhōng / yìng, the ruling line) — classical exegesis (Wilhelm/Baynes
+      introduction; Legge).</p>
+    </div>`;
+}
+let methodBuilt=false;
+function openMethod(){
+  if(!methodBuilt){ document.getElementById('method-body').innerHTML=methodHTML(); methodBuilt=true; }
+  document.getElementById('method-scrim').classList.add('on');
+}
+function closeMethod(){ document.getElementById('method-scrim').classList.remove('on'); }
+document.getElementById('method-close').onclick=closeMethod;
+document.getElementById('method-scrim').onclick=e=>{ if(e.target===document.getElementById('method-scrim')) closeMethod(); };
+document.getElementById('footer-method').onclick=e=>{ e.preventDefault(); openMethod(); };
 
 applyMode(); renderSetbar(); updateButton();
 loft.init().then(()=>{
