@@ -3,6 +3,10 @@
 // "definition" shows it verbatim. Publishing (OAuth → write record → serving
 // worker) is slice 2.
 import { evaluate } from './pipeline.js';
+import { AuthClient } from './auth.js';
+
+const auth = new AuthClient();
+let user = null;
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -30,6 +34,38 @@ const FILTER_DEFAULTS = {
   removeReposts: () => ({ type: 'removeReposts' }),
   minLikes:      () => ({ type: 'minLikes', n: 5 }),
 };
+
+// ── auth (shared mino.mobi OAuth worker, auth.mino.mobi) ─────────────────────
+async function initAuth() {
+  try { user = await auth.init(); } catch { user = null; }
+  renderAuth();
+}
+function renderAuth() {
+  const host = $('fg-auth');
+  if (!host) return;
+  host.textContent = '';
+  if (user) {
+    host.innerHTML = `<span class="fg-who">🦋 @${esc(user.handle || user.did || '')}</span><button id="fg-signout" class="fg-authbtn ghost">sign out</button>`;
+    $('fg-signout').addEventListener('click', async () => { await auth.logout(); user = null; renderAuth(); });
+  } else {
+    host.innerHTML = `<button id="fg-signin" class="fg-authbtn">sign in with Bluesky</button>`;
+    $('fg-signin').addEventListener('click', signinFlow);
+  }
+}
+function signinFlow() {
+  const host = $('fg-auth');
+  host.innerHTML = `<input id="fg-handle" class="fg-input" placeholder="you.bsky.social" autocomplete="username" spellcheck="false" autocapitalize="none" style="width:160px"><button id="fg-go" class="fg-authbtn">go</button><button id="fg-cancel" class="fg-authbtn ghost">cancel</button>`;
+  const h = $('fg-handle'); h.focus();
+  const go = async () => {
+    const handle = h.value.trim(); if (!handle) return;
+    $('fg-go').textContent = '…';
+    try { await auth.login(handle); }
+    catch (e) { alert('Login failed: ' + (e.message || e)); renderAuth(); }
+  };
+  $('fg-go').addEventListener('click', go);
+  h.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  $('fg-cancel').addEventListener('click', renderAuth);
+}
 
 // ── small field helpers ─────────────────────────────────────────────────────
 function field(label, input) {
@@ -165,6 +201,7 @@ async function runPreview() {
 
 // ── wire toolbar ────────────────────────────────────────────────────────────
 function init() {
+  initAuth();
   $('fg-add-input').addEventListener('change', (e) => {
     const t = e.target.value; e.target.value = '';
     if (INPUT_DEFAULTS[t]) { def.inputs.push(INPUT_DEFAULTS[t]()); renderInputs(); }

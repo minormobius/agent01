@@ -65,10 +65,16 @@ h1 .dot { color: var(--gold); }
 .fg-post-text { margin:2px 0; white-space:pre-wrap; word-break:break-word; }
 .fg-post-meta { color: var(--muted); font:11px var(--mono); }
 .publish-stub { margin-top:14px; padding:10px 12px; border:1px dashed var(--line); border-radius:9px; color: var(--muted); font-size:12px; }
+.fg-authbar { float:right; display:flex; gap:8px; align-items:center; margin-top:-2px; }
+.fg-authbtn { background: rgba(90,169,255,0.12); border:1px solid rgba(90,169,255,0.4); color: var(--sky); border-radius:999px; padding:6px 13px; font:600 12px var(--mono); cursor:pointer; }
+.fg-authbtn:hover { background: rgba(90,169,255,0.22); }
+.fg-authbtn.ghost { background:none; border-color: var(--line); color: var(--muted); }
+.fg-who { color: var(--gold); font:600 12px var(--mono); }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div id="fg-auth" class="fg-authbar"></div>
   <a class="crumb" href="https://b.mino.mobi/">← atmosphere</a>
   <h1>feedgen<span class="dot">.</span></h1>
   <p class="sub">build a Bluesky feed from blocks — stack inputs, filters and a sort, preview it live.</p>
@@ -104,7 +110,7 @@ h1 .dot { color: var(--gold); }
         <div id="fg-def-wrap" class="fg-def-wrap"><pre id="fg-def"></pre></div>
       </div>
 
-      <div class="publish-stub">Publishing — sign in with Bluesky, write the definition to your PDS, and a stateless worker serves it as a real installable feed — is the next slice. For now: build &amp; preview.</div>
+      <div class="publish-stub">Sign-in is live (top-right) — auth runs through the shared mino.mobi OAuth worker. Next: <b>publish</b> writes this definition to your PDS as an ATProto record + the <code>app.bsky.feed.generator</code> record, and a stateless worker serves it as a real installable feed (and unlocks the search input).</div>
     </div>
 
     <!-- preview -->
