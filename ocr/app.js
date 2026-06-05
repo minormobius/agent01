@@ -75,8 +75,56 @@ const preview = $('preview'), hint = $('hint'), selbox = $('selbox');
 const stagebar = $('stagebar'), stageinfo = $('stageinfo'), stagedone = $('stagedone');
 const wholeBtn = $('wholeBtn'), skipBtn = $('skipBtn');
 const errorEl = $('error'), results = $('results'), rowsEl = $('rows'), statsEl = $('stats');
+const fmtOn = $('fmtOn'), fmtGroups = $('fmtGroups'), fmtSize = $('fmtSize'),
+  fmtSep = $('fmtSep'), fmtAlpha = $('fmtAlpha'), fmtFix = $('fmtFix');
 
 function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
+
+// ---- expected-format (post-processing for known keys) ----
+// Confusable groups. When the chosen alphabet contains exactly ONE member of a
+// group, the others are mapped to it (e.g. alphabet has 0 but not O → O maps to
+// 0). If it contains 0 or >1 members, that group is left untouched — so the
+// default full A–Z0–9 alphabet changes nothing.
+const CONFUSE = [['0', 'O'], ['1', 'I', 'L'], ['2', 'Z'], ['5', 'S'], ['6', 'G'], ['8', 'B']];
+
+function clampInt(v, lo, hi, dflt) { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; }
+
+function readFmt() {
+  return {
+    on: fmtOn.checked,
+    groups: clampInt(fmtGroups.value, 1, 50, 5),
+    size: clampInt(fmtSize.value, 1, 50, 5),
+    sep: fmtSep.value.length ? fmtSep.value : ' ',
+    alphabet: (fmtAlpha.value || '').toUpperCase(),
+    fix: fmtFix.checked,
+  };
+}
+
+function confuseMap(alphabet) {
+  const set = new Set(alphabet);
+  const map = {};
+  for (const grp of CONFUSE) {
+    const allowed = grp.filter((c) => set.has(c));
+    if (allowed.length === 1) for (const c of grp) if (c !== allowed[0]) map[c] = allowed[0];
+  }
+  return map;
+}
+
+// Clean OCR text to the expected key: uppercase, fix look-alikes, keep only
+// alphabet chars, regroup. Returns { formatted, n, expected, ok }.
+function formatKey(text, cfg) {
+  const set = new Set(cfg.alphabet);
+  const cmap = cfg.fix ? confuseMap(cfg.alphabet) : {};
+  let chars = '';
+  for (let ch of (text || '').toUpperCase()) {
+    if (cmap[ch]) ch = cmap[ch];
+    if (set.has(ch)) chars += ch;
+  }
+  const expected = cfg.groups * cfg.size;
+  const groups = [];
+  for (let i = 0; i < chars.length; i += cfg.size) groups.push(chars.slice(i, i + cfg.size));
+  return { formatted: groups.join(cfg.sep), n: chars.length, expected, ok: chars.length === expected };
+}
 
 // ---- the queue ----
 // item: { id, file, name, rect, status, result, error, rowEl }
@@ -260,6 +308,26 @@ function renderRow(item) {
 
   if (item.status === 'done') {
     const text = item.result?.text || '';
+
+    // Expected-format key (when enabled) — the formatted/validated answer.
+    const cfg = readFmt();
+    if (cfg.on) {
+      const fk = formatKey(text, cfg);
+      const wrap = document.createElement('div');
+      wrap.className = 'row-key';
+      const key = document.createElement('code');
+      key.className = 'key';
+      key.textContent = fk.formatted || '—';
+      key.title = 'Click to copy';
+      if (fk.formatted) key.addEventListener('click', () => copy(fk.formatted, key));
+      const flag = document.createElement('span');
+      flag.className = `key-flag ${fk.ok ? 'ok' : 'warn'}`;
+      flag.textContent = fk.ok ? `✓ ${fk.expected}` : `⚠ ${fk.n}/${fk.expected}`;
+      flag.title = fk.ok ? 'Length matches expected' : 'Character count does not match — check this one';
+      wrap.append(key, flag);
+      row.appendChild(wrap);
+    }
+
     const codes = findCodes(text);
     if (codes.length) {
       const wrap = document.createElement('div');
@@ -321,14 +389,28 @@ function updateStats() {
 // ---- export ----
 function csvCell(s) { return `"${String(s ?? '').replace(/"/g, '""')}"`; }
 function buildCsv() {
-  const lines = ['file,status,codes,text'];
+  const cfg = readFmt();
+  const header = cfg.on ? ['file', 'status', 'formatted', 'valid', 'text'] : ['file', 'status', 'codes', 'text'];
+  const lines = [header.join(',')];
   for (const q of queue) {
     if (q.status === 'waiting') continue;
     const text = q.result?.text || '';
-    const codes = q.status === 'done' ? findCodes(text).join(' ') : '';
-    lines.push([q.name, q.status, codes, q.status === 'done' ? text : (q.error || '')].map(csvCell).join(','));
+    const tail = q.status === 'done' ? text : (q.error || '');
+    let cols;
+    if (cfg.on) {
+      const fk = q.status === 'done' ? formatKey(text, cfg) : { formatted: '', ok: false };
+      cols = [q.name, q.status, fk.formatted, q.status === 'done' ? (fk.ok ? 'ok' : 'check') : '', tail];
+    } else {
+      cols = [q.name, q.status, q.status === 'done' ? findCodes(text).join(' ') : '', tail];
+    }
+    lines.push(cols.map(csvCell).join(','));
   }
   return lines.join('\r\n');
+}
+
+// Re-render existing rows when the format settings change (live preview).
+for (const el of [fmtOn, fmtGroups, fmtSize, fmtSep, fmtAlpha, fmtFix]) {
+  el.addEventListener('input', () => { for (const q of queue) if (q.rowEl) renderRow(q); });
 }
 
 $('copyCsvBtn').addEventListener('click', (e) => { copy(buildCsv(), e.currentTarget); });

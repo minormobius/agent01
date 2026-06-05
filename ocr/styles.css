@@ -103,6 +103,21 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text);
 }
 
+/* ---- expected-format panel ---- */
+.fmt { margin-top: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 4px 14px; }
+.fmt > summary { cursor: pointer; padding: 8px 0; font-size: 0.9rem; }
+.fmt-hint { color: var(--muted); font-weight: 400; }
+.fmt-grid { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 6px 0 12px; }
+.fmt-grid label { font-size: 0.85rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.fmt-grid input[type="number"] { width: 54px; }
+.fmt-grid input[type="text"] { padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--inset); color: var(--text); font-family: ui-monospace, monospace; }
+.fmt-grid input[type="number"] { padding: 5px 6px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--inset); color: var(--text); }
+#fmtSep { width: 36px; text-align: center; }
+.fmt-alpha { flex-basis: 100%; }
+.fmt-alpha input { flex: 1; min-width: 0; }
+.fmt-note { flex-basis: 100%; margin: 2px 0 0; font-size: 0.78rem; color: var(--faint); }
+.fmt-note code { background: var(--inset); padding: 1px 4px; border-radius: 4px; }
+
 /* ---- results ---- */
 .results { margin-top: 30px; }
 .results-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
@@ -129,6 +144,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .pill.done { color: var(--ok); border-color: var(--ok); }
 .pill.error { color: var(--error-text); border-color: var(--error-border); }
 .pill.skipped { color: var(--faint); }
+
+.row-key { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.05rem; font-weight: 700; letter-spacing: 0.06em;
+  padding: 7px 11px; border-radius: 7px;
+  background: var(--elevated); border: 1px solid var(--border-strong); color: var(--text);
+  cursor: pointer;
+}
+.key:hover { border-color: var(--accent); }
+.key-flag { font-size: 0.78rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+.key-flag.ok { color: var(--ok); border-color: var(--ok); }
+.key-flag.warn { color: var(--warn); border-color: var(--warn); }
 
 .row-codes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .code {

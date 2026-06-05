@@ -53,6 +53,19 @@
 
     <div id="error" class="error" hidden></div>
 
+    <details id="fmt" class="fmt">
+      <summary>Expected format <span class="fmt-hint">— clean &amp; group known keys (optional)</span></summary>
+      <div class="fmt-grid">
+        <label class="fmt-toggle"><input type="checkbox" id="fmtOn" /> Enable</label>
+        <label>Groups <input type="number" id="fmtGroups" min="1" max="50" value="5" /></label>
+        <label>× size <input type="number" id="fmtSize" min="1" max="50" value="5" /></label>
+        <label>Separator <input type="text" id="fmtSep" value=" " maxlength="3" /></label>
+        <label class="fmt-fix"><input type="checkbox" id="fmtFix" checked /> Fix look-alikes via alphabet</label>
+        <label class="fmt-alpha">Alphabet <input type="text" id="fmtAlpha" value="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" spellcheck="false" /></label>
+        <p class="fmt-note">Remove characters your keys never use (e.g. delete <code>O</code> so an OCR’d “O” becomes <code>0</code>). Expected length = groups × size.</p>
+      </div>
+    </details>
+
     <section id="results" class="results" hidden>
       <div class="results-head">
         <h2>Results <span id="stats" class="stats"></span></h2>
