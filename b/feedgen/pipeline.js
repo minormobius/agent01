@@ -38,7 +38,13 @@ async function gather(input) {
   const limit = 100;
   if (input.type === 'search') {
     if (!input.q) return [];
-    const r = await xrpc('app.bsky.feed.searchPosts', { q: input.q, sort: input.sort || 'latest', limit });
+    let r;
+    try {
+      r = await xrpc('app.bsky.feed.searchPosts', { q: input.q, sort: input.sort || 'latest', limit });
+    } catch (e) {
+      if (/HTTP 40[13]/.test(e.message || '')) throw new Error('search needs sign-in (coming in slice 2) — use list or author inputs for now');
+      throw e;
+    }
     return (r.posts || []).map((post) => ({ post, isRepost: false }));
   }
   if (input.type === 'list') {

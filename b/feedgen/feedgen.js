@@ -11,7 +11,7 @@ const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls)
 const def = {
   name: 'My feed',
   description: '',
-  inputs: [{ type: 'search', q: 'bluesky', sort: 'latest' }],
+  inputs: [{ type: 'author', actor: 'bsky.app', filter: 'posts_no_replies' }],
   filters: [],
   sort: { type: 'latest' },
   limit: 40,
@@ -72,6 +72,7 @@ function renderInputs() {
       body.append(
         field('search for', textInput(inp.q, (v) => inp.q = v, 'keyword, phrase, #hashtag')),
         field('order', select([['latest', 'latest'], ['top', 'top']], inp.sort, (v) => inp.sort = v)),
+        el('div', 'fg-note', '🔒 search needs sign-in — coming in slice 2'),
       );
     } else if (inp.type === 'list') {
       body.append(field('list uri', textInput(inp.uri, (v) => inp.uri = v, 'at://did:plc:…/app.bsky.graph.list/…')));
