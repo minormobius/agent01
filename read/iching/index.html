@@ -151,7 +151,7 @@ function render(no){
 const avail = Object.keys(ZHOUYI.hexagrams).map(Number).sort((a,b)=>a-b);
 const nav = document.getElementById('hexnav');
 nav.innerHTML = avail.map(n=>{ const h=ZHOUYI.hexagrams[n];
-  return `<button class="hx" data-n="${n}"><span class="n">${n}</span><span class="zh">${h.name.zh}</span> ${h.name.py}</button>`;
+  return `<button class="hx" data-n="${n}" title="${h.name.py} · ${h.name.en}"><span class="n">${n}</span><span class="zh">${h.name.zh}</span></button>`;
 }).join('');
 function show(n){
   if(!ZHOUYI.hexagrams[n]) n=avail[0];
