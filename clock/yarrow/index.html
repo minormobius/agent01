@@ -153,11 +153,6 @@ footer a{color:var(--ink2)}
         </span>
       </div>
 
-      <div class="ruleset">
-        <div class="cap">Generation ruleset · this specimen</div>
-        <table id="rules"><tbody></tbody></table>
-      </div>
-
       <div class="harvest" id="harvest" hidden>
         <div class="cap"><span>Harvest grade · the reaped sticks</span><span id="grade-count">—</span></div>
         <div class="gradehead">
@@ -166,10 +161,12 @@ footer a{color:var(--ink2)}
         </div>
         <div class="crit" id="grade-crit"></div>
         <div class="gradenote" id="grade-note"></div>
-        <div style="padding:0 14px 16px">
-          <button id="store">Store these green in the drying loft →</button>
-          <span id="store-msg" style="font:12px/1.4 ui-monospace,monospace;color:var(--faint);margin-left:8px"></span>
-        </div>
+        <div id="store-msg" style="padding:0 14px 14px;font:12px/1.45 ui-monospace,monospace;color:var(--faint)"></div>
+      </div>
+
+      <div class="ruleset">
+        <div class="cap">Generation ruleset · this specimen</div>
+        <table id="rules"><tbody></tbody></table>
       </div>
     </div>
 
@@ -670,13 +667,13 @@ function present(spec){
 function set(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
 
 /* ───────── controls / state ───────── */
-let CURRENT=null, REAPED=false;
+let CURRENT=null, REAPED=false, storedThisSpec=false;
 const $=id=>document.getElementById(id);
 function randomSeed(){ return (Math.random()*0xFFFFFFFF)>>>0; }
 function setReapLabel(){ $('reap').textContent = REAPED?'🌱 Regrow':'🌾 Reap'; }
 function sow(seed){
-  CURRENT=grow(seed>>>0); REAPED=false;
-  present(CURRENT); $('harvest').hidden=true; setReapLabel();
+  CURRENT=grow(seed>>>0); REAPED=false; storedThisSpec=false;
+  present(CURRENT); $('harvest').hidden=true; $('store-msg').innerHTML=''; setReapLabel();
 }
 function toggleReap(){
   if(!CURRENT) return;
@@ -686,6 +683,12 @@ function toggleReap(){
     drawSticks(CURRENT,sticks);
     renderHarvest(CURRENT, grade(sticks));
     $('harvest').hidden=false;
+    if(!storedThisSpec){            // reaping IS the harvest — the cut stalks go straight to the loft
+      storedThisSpec=true;
+      const genomes=reapPlant(CURRENT);
+      Promise.resolve(loft.add(genomes)).catch(()=>{});
+      $('store-msg').innerHTML=`${genomes.length} green stalks set to dry · <a href="../sticks/">the drying loft →</a>`;
+    }
   }else{
     drawSpecimen(CURRENT);
     $('harvest').hidden=true;
@@ -700,16 +703,6 @@ $('sow').onclick=()=>{
   sow(Number.isFinite(v)?v:randomSeed());
 };
 $('seed').addEventListener('keydown',e=>{ if(e.key==='Enter') $('sow').click(); });
-
-// Reap → store the green sticks in the drying loft (sticks cure there over time).
-$('store').onclick=async()=>{
-  if(!CURRENT) return;
-  const sticks=reapPlant(CURRENT);            // genomes, reapedAt = now
-  $('store').disabled=true;
-  try{ await loft.add(sticks); }catch(e){}
-  $('store-msg').innerHTML=`${sticks.length} green sticks set to dry · <a href="../sticks/">open the loft →</a>`;
-  setTimeout(()=>{ $('store').disabled=false; }, 800);
-};
 
 // initial seed from ?seed= for permalink determinism, else random
 const urlSeed=parseInt(new URLSearchParams(location.search).get('seed'),10);
