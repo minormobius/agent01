@@ -163,7 +163,9 @@ nav.querySelectorAll('.hx').forEach(b=>b.onclick=()=>{ show(+b.dataset.n); windo
 addEventListener('hashchange',()=>{ const n=parseInt((location.hash.match(/h(\d+)/)||[])[1],10); if(avail.includes(n)) show(n); });
 const init = parseInt((location.hash.match(/h(\d+)/)||[])[1],10);
 show(avail.includes(init) ? init : avail[0]);
-document.getElementById('pilot').textContent = `${avail.length} of 64 hexagrams translated — and growing.`;
+document.getElementById('pilot').textContent = avail.length >= 64
+  ? `All 64 hexagrams translated — the complete Zhouyi.`
+  : `${avail.length} of 64 hexagrams translated — and growing.`;
 </script>
 </body>
 </html>
