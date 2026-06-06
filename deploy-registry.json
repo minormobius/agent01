@@ -272,11 +272,12 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/procedural-board-games-iFAiZ",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": null,
+      "note": "Two things live here: the Jackbox-style party platform at / (phone+TV, OAuth rooms, RoomCoordinator DO) AND The Ludographer at /gen/ — a borges-shaped procedural board-game catalogue (seed n -> a complete, coherent, deterministic board game: theme, board, mechanics, components, rulebook, win condition, twist). /gen/ is pure static (no worker/DO changes); it serves through the existing assets fallback in games/worker.js.",
       "paths": [
         "games/**",
         "packages/oauth-client/**"
