@@ -108,8 +108,11 @@ const ORD = ['first','second','third','fourth','fifth','sixth','seventh','eighth
 const natWord = nat => (nat||'').split(/[ ,(]/)[0] || 'mixed';
 const esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
-// ctx = { houses: [{n,name,title,matter,domain}], meanings: { key: {la,en,planet,nature,sig} } }
+// ctx = { houses:[{n,name,title,matter,domain,sign,mode,la,en}],
+//         meanings:{ key:{la,en,planet,nature,sig,mode,strength,domus} },
+//         houseExtras:[{place:13|14|15,name,la,en}] }  // Witnesses + Judge, sourced
 // sel = { kind:'house', house:1..12 } | { kind:'judge'|'witnessRight'|'witnessLeft' }
+// Each line is SOURCED (Fludd's Latin+English, cited) or COMPOSED from his Regulæ (rulesLine).
 export function readShieldPosition(shield, sel, ctx){
   const keyOf = rows => rows.map(r=>r===1?'1':'0').join('');
   const M = rows => (ctx.meanings && ctx.meanings[keyOf(rows)]) || null;
@@ -123,6 +126,24 @@ export function readShieldPosition(shield, sel, ctx){
   const fluddAt = (m, idx) => (m && m.domus && m.domus[idx])
     ? `<div class="rfludd"><div class="la">${esc(m.domus[idx].la)}</div><div class="en">${esc(m.domus[idx].en)}</div>`+
       `<div class="rsrc">— Robert Fludd, Tractatus de Geomantia (1704)</div></div>` : '';
+  // a place's own province, sourced — for the three further places (Witnesses 13/14, Judge 15)
+  const placeFludd = place => {
+    const x = (ctx.houseExtras||[]).find(e=>e.place===place);
+    return x ? `<div class="rfludd"><div class="la">${esc(x.la)}</div><div class="en">${esc(x.en)}</div>`+
+      `<div class="rsrc">— Fludd, Liber III, Cap. V (the houses)</div></div>` : '';
+  };
+  // L4 — Fludd's Regulæ, APPLIED (composed from his own data): the figure's strength, and the
+  // concord of its mode (movable/fixed/common, read from its sign by Regula IV) with the house's.
+  const concord = (fm, hm) => !fm||!hm ? null
+    : fm===hm ? `${fm} figure in a ${fm} house — like with like, which by the rule strengthens its signification`
+    : (fm==='common'||hm==='common') ? `a ${fm} figure in a ${hm} house — neither plainly concordant nor contrary`
+    : `a ${fm} figure in a ${hm} house — fixed and movable cross, which by the rule weakens it in judgment`;
+  const rulesLine = (m, H) => {
+    const parts=[];
+    if(m.strength) parts.push(`Fludd ranks <b>${esc(m.la)}</b> among the <b>${esc(m.strength)}</b> figures`);
+    const c = concord(m.mode, H && H.mode); if(c) parts.push(c);
+    return parts.length ? `<p class="rrule">${parts.join('; ')}. <span class="rsrc">— by Fludd’s Regulæ</span></p>` : '';
+  };
 
   if(sel.kind==='house'){
     const hc = houseChart(shield).find(h=>h.house===sel.house);
@@ -140,6 +161,7 @@ export function readShieldPosition(shield, sel, ctx){
       body:`<p class="rdom">${esc(H.domain)}</p>`+
            `<p class="rfig">Here stands <b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
            fluddAt(m, sel.house-1)+
+           rulesLine(m, H)+
            `<p class="rnat ${nat}">${natLine}</p>`+ judgeTail() };
   }
 
@@ -153,7 +175,7 @@ export function readShieldPosition(shield, sel, ctx){
     else                  verdict='Witnesses of mixed temper: a qualified outcome — '+(g(m)?'tending to the good':b(m)?'tending to the ill':'evenly poised')+'.';
     return { title:'The Judge · the verdict', figureName:m.la,
       body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
-           fluddAt(m, 14)+
+           placeFludd(15)+ fluddAt(m, 14)+
            `<p class="rnat ${natWord(m.nature)}">${verdict}</p>` };
   }
 
@@ -165,7 +187,7 @@ export function readShieldPosition(shield, sel, ctx){
                        : 'Left Witness · the quesited’s side, what follows';
     return { title:lede, figureName:m.la,
       body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
-           fluddAt(m, right?12:13)+ judgeTail() };
+           placeFludd(right?13:14)+ fluddAt(m, right?12:13)+ judgeTail() };
   }
   return { title:'', body:'' };
 }
