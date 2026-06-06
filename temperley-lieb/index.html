@@ -204,6 +204,10 @@ footer a:hover { color: var(--accent); }
         <span class="ctrl-label">grid · L × M</span>
         <div class="ctrl-row"><input id="th-size" type="range" min="4" max="14" value="10" step="1"><span class="ctrl-val" id="th-size-val">10</span></div>
       </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="th-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="th-speed-val">3</span></div>
+      </div>
       <div class="stats" id="th-stats"></div>
       <div class="stat-note">
         δ = 1 is free (infinite temperature — every tiling equally likely). δ &gt; 1 rewards
@@ -248,9 +252,9 @@ footer a:hover { color: var(--accent); }
         </div>
       </div>
       <div class="ctrl-group">
-        <span class="ctrl-label">colour</span>
+        <span class="ctrl-label">view</span>
         <div class="btn-row" id="is-mode">
-          <button class="btn active" data-m="tribe">tribe (FK)</button>
+          <button class="btn active" data-m="loops">domain loops</button>
           <button class="btn" data-m="spin">spin ↑↓</button>
         </div>
       </div>
@@ -258,11 +262,17 @@ footer a:hover { color: var(--accent); }
         <span class="ctrl-label">grid · L × L</span>
         <div class="ctrl-row"><input id="is-size" type="range" min="16" max="96" value="48" step="8"><span class="ctrl-val" id="is-size-val">48</span></div>
       </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="is-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="is-speed-val">3</span></div>
+      </div>
       <div class="stats" id="is-stats"></div>
       <div class="stat-note">
-        Swendsen–Wang flips entire correlated tribes per step, so it stays fast even at T<sub>c</sub>
-        where single-spin flips freeze (critical slowing-down). The biggest-tribe fraction is the
-        order parameter you can watch: it climbs from ~0 to ~1 across T<sub>c</sub>.
+        The <strong>domain loops</strong> view draws the walls between up and down regions — the
+        Peierls contours, the same loops as the rest of this page — in a fixed colour, with the
+        majority phase gauge-pinned so it never swaps tint. Swendsen–Wang flips whole correlated
+        tribes per step, so it stays fast even at T<sub>c</sub> where single-spin flips freeze. The
+        biggest-tribe fraction is the order parameter: it climbs from ~0 to ~1 across T<sub>c</sub>.
       </div>
     </div>
   </div>
@@ -823,7 +833,7 @@ document.getElementById('rel-row').addEventListener('click',e=>{
 // Thermal tab — Metropolis loop-gas thermostat (weight δ^#loops; δ=√2 = Ising)
 //   tribes = loops; flip a tile, accept with min(1, δ^Δloops). Torus boundary.
 // ═════════════════════════════════════════════════════════════════════
-const thermal = { L:10, M:10, mode:'torus', delta:Math.SQRT2, states:[], loops:0, running:false, raf:null, sweeps:0, acc:0, prop:0 };
+const thermal = { L:10, M:10, mode:'torus', delta:Math.SQRT2, states:[], loops:0, running:false, raf:null, sweeps:0, acc:0, prop:0, ups:3, lastT:0 };
 const thCanvas = document.getElementById('th-canvas'), thCtx = thCanvas.getContext('2d');
 function closedCount(states){ return trace(states, thermal.L, thermal.M, thermal.mode).filter(c=>c.closed).length; }
 function thRandomize(){ const n=thermal.L*thermal.M; thermal.states=new Array(n);
@@ -872,9 +882,11 @@ function drawThermal(){ const ctx=thCtx,g=thGeom();
     <div class="stat-row"><span class="k">accept rate</span><span class="v">${(accRate*100).toFixed(0)}%</span></div>`;
 }
 function thActive(){ return document.querySelector('.pane.active')?.dataset.pane==='thermal'; }
-function thLoop(){ if(!thermal.running||!thActive()) return;
-  const n=thermal.L*thermal.M, steps=2*n;          // ~2 sweeps per frame
-  for(let s=0;s<steps;s++) mcStep(); thermal.sweeps+=steps/n; drawThermal();
+function thLoop(ts){ if(!thermal.running||!thActive()) return;
+  if(ts==null) ts=performance.now();
+  if(ts - thermal.lastT >= 1000/thermal.ups){ thermal.lastT=ts;       // throttle: ups updates/sec
+    const n=thermal.L*thermal.M, steps=Math.max(1, n>>1);             // ~half a sweep per update (gentle)
+    for(let s=0;s<steps;s++) mcStep(); thermal.sweeps+=steps/n; drawThermal(); }
   thermal.raf=requestAnimationFrame(thLoop); }
 function thSetRun(on){ thermal.running=on; const b=document.getElementById('th-run');
   b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
@@ -888,6 +900,7 @@ function setDelta(v){ thermal.delta=v; thDelta.value=v; thDeltaVal.textContent=v
 thDelta.addEventListener('input',e=>setDelta(parseFloat(e.target.value)));
 document.getElementById('th-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-d]'); if(b) setDelta(parseFloat(b.dataset.d)); });
 document.getElementById('th-size').addEventListener('input',e=>{ thermal.L=thermal.M=parseInt(e.target.value,10); document.getElementById('th-size-val').textContent=thermal.L; thRandomize(); drawThermal(); });
+document.getElementById('th-speed').addEventListener('input',e=>{ thermal.ups=parseInt(e.target.value,10); document.getElementById('th-speed-val').textContent=thermal.ups; });
 
 // ═════════════════════════════════════════════════════════════════════
 // Ising tab — true-temperature thermostat via Swendsen–Wang cluster updates
@@ -895,7 +908,7 @@ document.getElementById('th-size').addEventListener('input',e=>{ thermal.L=therm
 // ═════════════════════════════════════════════════════════════════════
 const Tc = 2/Math.log(1+Math.SQRT2);     // 2.2691853…
 const ising = { L:48, T:Tc, spins:null, labels:null, ntribes:0, big:0,
-  mode:'tribe', running:false, anneal:false, annDir:-1, raf:null, sweeps:0 };
+  mode:'loops', running:false, anneal:false, annDir:-1, raf:null, sweeps:0, ups:3, lastT:0 };
 const isCanvas = document.getElementById('is-canvas'), isCtx = isCanvas.getContext('2d');
 function isFind(p,x){ while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; }
 function isInit(){ const N=ising.L*ising.L; ising.spins=new Int8Array(N);
@@ -921,11 +934,20 @@ function isGeom(){ const W=isCanvas.width,H=isCanvas.height,pad=14;
   return { W,H,cs, ox:Math.round((W-cs*ising.L)/2), oy:Math.round((H-cs*ising.L)/2) }; }
 function drawIsing(){ const ctx=isCtx,g=isGeom(),L=ising.L,s=ising.spins;
   ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  // gauge-fix: pin the majority phase to a fixed colour so the dominant region never swaps tint
+  let msum=0; for(let i=0;i<L*L;i++) msum+=s[i]; const gg=msum>=0?1:-1;
   if(ising.mode==='spin'){ const up='#c0392b', dn='#1d6fa3';
-    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=s[y*L+x]>0?up:dn; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
-  } else { const lab=ising.labels;
-    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const hue=((lab[y*L+x]*137.508)%360);
-      ctx.fillStyle='hsl('+hue.toFixed(0)+',58%,52%)'; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=(s[y*L+x]*gg>0)?up:dn; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+  } else {
+    // domain-loops view: faint gauge-fixed tint + Peierls contour walls (stable accent colour)
+    const upT='rgba(192,57,43,0.13)', dnT='rgba(29,111,163,0.15)';
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=(s[y*L+x]*gg>0)?upT:dnT; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+    ctx.strokeStyle=cssVar('--accent'); ctx.lineCap='round'; ctx.lineWidth=Math.max(1,g.cs*0.16); ctx.beginPath();
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+      if(s[i]!==s[y*L+((x+1)%L)]){ const X=g.ox+(x+1)*g.cs; ctx.moveTo(X,g.oy+y*g.cs); ctx.lineTo(X,g.oy+(y+1)*g.cs); }
+      if(s[i]!==s[((y+1)%L)*L+x]){ const Y=g.oy+(y+1)*g.cs; ctx.moveTo(g.ox+x*g.cs,Y); ctx.lineTo(g.ox+(x+1)*g.cs,Y); }
+    }
+    ctx.stroke();
   }
   ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
   ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
@@ -948,11 +970,14 @@ function isStats(){ const L=ising.L,N=L*L,s=ising.spins; let m=0,e=0;
     <div class="stat-row"><span class="k">sweeps</span><span class="v">${ising.sweeps}</span></div>`;
 }
 function isActive(){ return document.querySelector('.pane.active')?.dataset.pane==='ising'; }
-function isLoop(){ if(!ising.running||!isActive()) return;
-  if(ising.anneal){ ising.T += ising.annDir*0.012;
-    if(ising.T<=1.20){ ising.T=1.20; ising.annDir=1; } if(ising.T>=3.60){ ising.T=3.60; ising.annDir=-1; }
-    isSetTemp(ising.T,true); }
-  swStep(); drawIsing(); ising.raf=requestAnimationFrame(isLoop); }
+function isLoop(ts){ if(!ising.running||!isActive()) return;
+  if(ts==null) ts=performance.now();
+  if(ts - ising.lastT >= 1000/ising.ups){ ising.lastT=ts;              // throttle: ups updates/sec
+    if(ising.anneal){ ising.T += ising.annDir*0.03;
+      if(ising.T<=1.20){ ising.T=1.20; ising.annDir=1; } if(ising.T>=3.60){ ising.T=3.60; ising.annDir=-1; }
+      isSetTemp(ising.T,true); }
+    swStep(); drawIsing(); }
+  ising.raf=requestAnimationFrame(isLoop); }
 function isSetRun(on){ ising.running=on; const b=document.getElementById('is-run');
   b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
   if(on) ising.raf=requestAnimationFrame(isLoop); else cancelAnimationFrame(ising.raf); }
@@ -971,6 +996,7 @@ document.getElementById('is-mode').addEventListener('click',e=>{ const b=e.targe
   ising.mode=b.dataset.m; document.querySelectorAll('#is-mode .btn').forEach(x=>x.classList.toggle('active',x===b)); drawIsing(); });
 document.getElementById('is-size').addEventListener('input',e=>{ ising.L=parseInt(e.target.value,10);
   document.getElementById('is-size-val').textContent=ising.L; isInit(); labelStats(fkClusters()); drawIsing(); });
+document.getElementById('is-speed').addEventListener('input',e=>{ ising.ups=parseInt(e.target.value,10); document.getElementById('is-speed-val').textContent=ising.ups; });
 
 // ═════════════════════════════════════════════════════════════════════
 // Init
