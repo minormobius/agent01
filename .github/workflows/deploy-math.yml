@@ -16,6 +16,7 @@ on:
       - 'geometry/**'
       - 'meander/**'
       - 'temperley-lieb/**'
+      - 'aztec/**'
       - 'erdos/**'
       - 'guthkatz/**'
       - 'hadwiger/**'
@@ -41,7 +42,7 @@ jobs:
         working-directory: math
         run: |
           rm -rf dist && mkdir -p dist
-          for d in geometry meander temperley-lieb erdos guthkatz hadwiger heilbronn kakeya runner \
+          for d in geometry meander temperley-lieb aztec erdos guthkatz hadwiger heilbronn kakeya runner \
                    szemeredi-trotter viazovska capset borsuk elements; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"

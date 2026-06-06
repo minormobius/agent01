@@ -31,6 +31,7 @@ on:
       # deploy-math to math.mino.mobi). Carve back out once it stabilizes.
       - 'meander/**'
       - 'temperley-lieb/**'
+      - 'aztec/**'
       # static subsites still bundled under root (carve out as they encapsulate):
       - 'cluster/**'
       - 'density/**'

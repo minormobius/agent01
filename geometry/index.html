@@ -27,6 +27,7 @@
   --c-runner:   #0aa19c;
   --c-meander:  #a01f4c;
   --c-templieb: #0d6e63;
+  --c-aztec:    #2456b8;
   --c-kakeya:   #a35a00;
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
@@ -59,6 +60,7 @@
     --c-runner:   #4ed4cf;
     --c-meander:  #e0608f;
     --c-templieb: #3fb8a8;
+    --c-aztec:    #6f93e8;
     --c-kakeya:   #d99450;
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
@@ -354,6 +356,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/runner/">runner</a> ·
     <a href="https://mino.mobi/meander/">meander</a> ·
     <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> ·
+    <a href="https://mino.mobi/aztec/">aztec</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
@@ -505,6 +508,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/runner/">runner</a>
   <a href="https://mino.mobi/meander/">meander</a>
   <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+  <a href="https://mino.mobi/aztec/">aztec</a>
   <a href="https://mino.mobi/kakeya/">kakeya</a>
   <a href="https://mino.mobi/capset/">capset</a>
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
@@ -638,6 +642,18 @@ const PACK = [
     status: 'proved',
     statusRank: 0,
     statusText: 'foundational',
+  },
+  {
+    name: 'aztec',
+    url:  'https://mino.mobi/aztec/',
+    accent: 'var(--c-aztec)',
+    problem: 'Arctic Circle theorem',
+    era: 1995,
+    eraText: 'Jockusch–Propp–Shor 1995',
+    tech: 'domino shuffling / dimers',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'limit shape = circle',
   },
   {
     name: 'erdős',
