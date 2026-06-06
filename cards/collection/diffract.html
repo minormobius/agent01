@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diffract — X-ray Laue crystal puzzle</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0f; --panel: #14141c; --ink: #e6e6ec; --dim: #9a9aa8;
+  --gold: #c9a84c; --gold-soft: #e3c977; --line: rgba(255,255,255,0.10);
+  --good: #5fcf7a; --bad: #e0635a;
+}
+html, body { background: var(--bg); color: var(--ink); font-family: 'SF Mono','Fira Code',ui-monospace,monospace; min-height: 100%; }
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--gold-soft); }
+
+header { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+  padding: 0.9rem 1.2rem; border-bottom: 1px solid var(--line); }
+header .back { font-size: 0.72rem; letter-spacing: 0.06em; }
+header h1 { font-size: 1.1rem; letter-spacing: 0.12em; font-weight: 600; }
+header .sub { font-size: 0.7rem; color: var(--dim); }
+
+main { max-width: 1180px; margin: 0 auto; padding: 1rem 1.2rem 4rem; }
+
+.stages { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem; }
+.stage h2 { font-size: 0.72rem; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; margin-bottom: 0.5rem; display:flex; justify-content: space-between; }
+.stage canvas { width: 100%; aspect-ratio: 1; display: block; border-radius: 6px; background: #050507; touch-action: none; cursor: grab; }
+.stage canvas:active { cursor: grabbing; }
+.cap { font-size: 0.64rem; color: var(--dim); margin-top: 0.45rem; line-height: 1.5; }
+
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; }
+.card h3 { font-size: 0.72rem; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; margin-bottom: 0.7rem; }
+
+.guess-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+button.sys, button.act { font-family: inherit; background: #1d1d28; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 7px; padding: 0.55rem 0.5rem; font-size: 0.78rem;
+  cursor: pointer; transition: all 0.12s; letter-spacing: 0.02em; }
+button.sys:hover, button.act:hover { border-color: var(--gold); color: var(--gold-soft); }
+button.sys:disabled { cursor: default; opacity: 0.6; }
+button.sys.correct { background: rgba(95,207,122,0.18); border-color: var(--good); color: var(--good); opacity: 1; }
+button.sys.wrong { background: rgba(224,99,90,0.18); border-color: var(--bad); color: var(--bad); opacity: 1; }
+button.act { width: 100%; margin-top: 0.6rem; background: #241f12; border-color: rgba(201,168,76,0.4); color: var(--gold-soft); }
+
+.scoreline { display: flex; gap: 1.2rem; font-size: 0.78rem; margin-bottom: 0.7rem; }
+.scoreline b { color: var(--gold-soft); }
+
+.reveal { margin-top: 0.8rem; font-size: 0.75rem; line-height: 1.6; min-height: 1.2rem; }
+.reveal .verdict { font-weight: 600; letter-spacing: 0.04em; }
+.reveal .verdict.ok { color: var(--good); }
+.reveal .verdict.no { color: var(--bad); }
+.reveal table { margin-top: 0.5rem; border-collapse: collapse; font-size: 0.7rem; }
+.reveal td { padding: 0.1rem 0.7rem 0.1rem 0; color: var(--dim); }
+.reveal td.v { color: var(--ink); }
+
+.meter { font-size: 0.78rem; line-height: 1.8; }
+.meter .axis { font-size: 1.2rem; color: var(--gold-soft); letter-spacing: 0.05em; }
+.meter .hint { color: var(--dim); font-size: 0.68rem; }
+
+.ctrl { margin-bottom: 0.85rem; }
+.ctrl label { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--dim); margin-bottom: 0.25rem; }
+.ctrl label .val { color: var(--gold-soft); }
+.ctrl input[type=range] { width: 100%; accent-color: var(--gold); }
+.toggles { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.7rem; color: var(--dim); }
+.toggles label { display: flex; gap: 0.35rem; align-items: center; cursor: pointer; }
+
+details.docs { margin-top: 1.4rem; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0.6rem 1rem; }
+details.docs summary { cursor: pointer; font-size: 0.78rem; letter-spacing: 0.06em; color: var(--gold-soft); }
+details.docs[open] summary { margin-bottom: 0.7rem; }
+.docs-body { font-family: Georgia,'Times New Roman',serif; font-size: 0.92rem; line-height: 1.65; color: #d2d2da; }
+.docs-body h4 { font-family: 'SF Mono',monospace; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 1.1rem 0 0.4rem; }
+.docs-body p { margin-bottom: 0.7rem; }
+.docs-body code, .docs-body .eq { font-family: 'SF Mono',monospace; font-size: 0.82rem; color: var(--gold-soft); }
+.docs-body .eq { display: block; background: #0c0c12; border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem 0.8rem; margin: 0.5rem 0; color: var(--ink); overflow-x: auto; }
+
+@media (max-width: 760px) {
+  .stages, .cols { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="../index.html">&larr; Cards</a>
+  <h1>DIFFRACT</h1>
+  <span class="sub">hold an unknown crystal &middot; turn it under the X-ray sun &middot; name it from the diffraction</span>
+</header>
+
+<main>
+  <div class="stages">
+    <div class="stage">
+      <h2><span>the specimen</span><span style="color:var(--gold)">&#9788; X-ray beam &rarr; into screen</span></h2>
+      <canvas id="crystal"></canvas>
+      <div class="cap">Drag to turn the crystal in the fixed beam. The beam travels into the screen; the detector behind it catches the reflected spots (right). Coloured stubs are the crystal axes <b style="color:#e0635a">a</b> <b style="color:#5fcf7a">b</b> <b style="color:#6fa9ff">c</b>.</div>
+    </div>
+    <div class="stage">
+      <h2><span>Laue diffraction pattern</span><span id="spotcount" style="color:var(--dim)"></span></h2>
+      <canvas id="pattern"></canvas>
+      <div class="cap">Each spot is a family of lattice planes reflecting the one wavelength (from the white beam) that satisfies Bragg's law. Rotate until the pattern snaps into <b>n-fold symmetry</b> &mdash; that names the system.</div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <h3>name that crystal</h3>
+      <div class="scoreline">
+        <span>score <b id="score">0</b></span>
+        <span>streak <b id="streak">0</b></span>
+        <span>seen <b id="seen">0</b></span>
+      </div>
+      <div class="guess-grid" id="guessGrid"></div>
+      <div class="reveal" id="reveal">Rotate the specimen, read its symmetry, then pick the crystal system.</div>
+      <button class="act" id="newBtn">New specimen &#8635;</button>
+    </div>
+
+    <div class="card">
+      <h3>symmetry along the beam</h3>
+      <div class="meter">
+        <div class="axis" id="axisReadout">&mdash;</div>
+        <div class="hint" id="axisHint">Align a rotation axis with the beam (into the screen) to lock the pattern's symmetry.</div>
+      </div>
+      <h3 style="margin-top:1.1rem">X-ray source &amp; detector</h3>
+      <div class="ctrl">
+        <label>shortest wavelength &lambda;<sub>min</sub> (harder X-rays) <span class="val" id="lminVal"></span></label>
+        <input type="range" id="lmin" min="0.20" max="1.20" step="0.02" value="0.40">
+      </div>
+      <div class="ctrl">
+        <label>longest wavelength &lambda;<sub>max</sub> <span class="val" id="lmaxVal"></span></label>
+        <input type="range" id="lmax" min="1.20" max="3.00" step="0.05" value="2.20">
+      </div>
+      <div class="ctrl">
+        <label>detector zoom <span class="val" id="zoomVal"></span></label>
+        <input type="range" id="zoom" min="0.5" max="2.2" step="0.05" value="1.0">
+      </div>
+      <div class="ctrl">
+        <label>detail (reflection radius) <span class="val" id="radVal"></span></label>
+        <input type="range" id="rad" min="0.80" max="1.70" step="0.05" value="1.15">
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="tRays" checked> diffracted rays</label>
+        <label><input type="checkbox" id="tAxes" checked> crystal axes</label>
+        <label><input type="checkbox" id="tSpin"> auto-spin</label>
+      </div>
+    </div>
+  </div>
+
+  <details class="docs">
+    <summary>How this works &mdash; Bragg, Laue, and reading symmetry</summary>
+    <div class="docs-body">
+      <p>This is the <b>transmission Laue method</b>, the oldest trick in X-ray crystallography (von Laue, 1912). A single crystal sits still in a <em>white</em> (polychromatic) X-ray beam &mdash; the &ldquo;X-ray sun.&rdquo; Every family of parallel lattice planes selects, from the whole spectrum, the one wavelength that satisfies Bragg's law and mirrors the beam into a sharp spot on the detector.</p>
+
+      <h4>Bragg's law</h4>
+      <p>A family of planes with spacing <code>d</code> reflects constructively when</p>
+      <div class="eq">n&lambda; = 2 d sin&theta;</div>
+      <p>In Laue diffraction <code>&theta;</code> and <code>d</code> are fixed by the crystal's orientation, so each plane family simply <em>picks its own &lambda;</em> out of the white beam. That's why a still crystal lights up dozens of spots at once.</p>
+
+      <h4>The reflection, in vectors</h4>
+      <p>Write the incident beam as the unit vector <code>s&#8320;</code> and a set of planes by its reciprocal-lattice vector <code>G = h&middot;a* + k&middot;b* + l&middot;c*</code> (its length is <code>|G| = 1/d</code>). The elastic Laue condition <code>k &minus; k&#8320; = G</code> works out to a pure mirror reflection of the beam across the planes:</p>
+      <div class="eq">s = s&#8320; &minus; 2 (s&#8320; &middot; &Gcirc;) &Gcirc;,&nbsp;&nbsp;&nbsp; &lambda; = &minus;2 (s&#8320; &middot; G) / |G|&sup2;</div>
+      <p>The spot only appears if that required <code>&lambda;</code> falls inside the beam's band <code>[&lambda;<sub>min</sub>, &lambda;<sub>max</sub>]</code>. Lowering <code>&lambda;<sub>min</sub></code> (harder X-rays) admits more, higher-order planes &mdash; so the pattern fills in. This page computes exactly that, live, for the rotating reciprocal lattice.</p>
+
+      <h4>Why the pattern names the crystal</h4>
+      <p>A Laue pattern carries the <b>point symmetry of the crystal as seen down the beam</b>. Turn a cubic crystal so a cube axis &lang;100&rang; points into the screen and the spots lock into <b>4-fold</b> symmetry; a body diagonal &lang;111&rang; gives <b>3-fold</b>; a face diagonal &lang;110&rang; gives <b>2-fold</b>. Each system has a signature highest axis:</p>
+      <div class="eq">cubic &rarr; 4,3,2&nbsp; hexagonal &rarr; 6&nbsp; trigonal &rarr; 3&nbsp; tetragonal &rarr; 4&nbsp; orthorhombic &rarr; 2,2,2&nbsp; monoclinic &rarr; one 2&nbsp; triclinic &rarr; none</div>
+      <p>So the game is real crystallography in miniature: rotate to find the highest-order rotation axis, count its spokes, and that narrows the seven systems. The spacing of the spots scales with <code>1/a</code>, so a small unit cell throws a <em>wide</em> pattern &mdash; a second clue once you've got the symmetry.</p>
+
+      <h4>Honest caveats</h4>
+      <p>Spot <em>positions</em> here are exact reflection geometry. Spot <em>brightness</em> uses a simplified Kramers white-beam spectrum and a crude form-factor falloff, plus lattice-centering extinctions (P / I / F / C / R and the diamond rule) &mdash; enough to make face-centred and primitive cells look different, but not a full structure-factor calculation. Laue resolves the <em>Laue class</em>, not the exact compound; the specimen name in the reveal is the mineral the lattice was taken from.</p>
+    </div>
+  </details>
+</main>
+
+<script>
+"use strict";
+// ── Diffract — transmission Laue crystal puzzle ───────────────
+// Pure Canvas 2D. Real reflection geometry; simplified intensities.
+
+// ── 3x3 linear algebra ───────────────────────────────────────
+const D2R = Math.PI / 180;
+function rotX(a){const c=Math.cos(a),s=Math.sin(a);return[1,0,0, 0,c,-s, 0,s,c];}
+function rotY(a){const c=Math.cos(a),s=Math.sin(a);return[c,0,s, 0,1,0, -s,0,c];}
+function rotZ(a){const c=Math.cos(a),s=Math.sin(a);return[c,-s,0, s,c,0, 0,0,1];}
+function mul3(A,B){const o=new Array(9);for(let r=0;r<3;r++)for(let col=0;col<3;col++){let s=0;for(let k=0;k<3;k++)s+=A[r*3+k]*B[k*3+col];o[r*3+col]=s;}return o;}
+function mv(m,v){return[m[0]*v[0]+m[1]*v[1]+m[2]*v[2], m[3]*v[0]+m[4]*v[1]+m[5]*v[2], m[6]*v[0]+m[7]*v[1]+m[8]*v[2]];}
+function cross(a,b){return[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];}
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function sub(a,b){return[a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+function norm(v){const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l];}
+function len(v){return Math.hypot(v[0],v[1],v[2]);}
+
+// ── Reciprocal lattice from cell parameters ──────────────────
+function reciprocal(a,b,c,al,be,ga){
+  al*=D2R; be*=D2R; ga*=D2R;
+  const ca=Math.cos(al),cb=Math.cos(be),cg=Math.cos(ga),sg=Math.sin(ga);
+  const va=[a,0,0];
+  const vb=[b*cg, b*sg, 0];
+  const cx=c*cb, cy=c*(ca-cb*cg)/sg;
+  const cz=c*Math.sqrt(Math.max(1e-6, 1-ca*ca-cb*cb-cg*cg+2*ca*cb*cg))/sg;
+  const vc=[cx,cy,cz];
+  const V=dot(va,cross(vb,vc));
+  return {
+    as: cross(vb,vc).map(x=>x/V),
+    bs: cross(vc,va).map(x=>x/V),
+    cs: cross(va,vb).map(x=>x/V),
+  };
+}
+
+// ── Lattice-centering extinction rules ───────────────────────
+function allowed(center,h,k,l){
+  switch(center){
+    case 'P': return true;
+    case 'I': return ((h+k+l)&1)===0;
+    case 'C': return ((h+k)&1)===0;
+    case 'F': { const e=x=>((x&1)===0); return (e(h)&&e(k)&&e(l))||(!e(h)&&!e(k)&&!e(l)); }
+    case 'R': return (((-h+k+l)%3)+3)%3===0;            // hexagonal axes, obverse
+    case 'diamond': {                                    // F + (all-even ⇒ h+k+l≡0 mod4)
+      const e=x=>((x&1)===0);
+      if(e(h)&&e(k)&&e(l)) return ((h+k+l)%4)===0;
+      if(!e(h)&&!e(k)&&!e(l)) return true;
+      return false;
+    }
+    default: return true;
+  }
+}
+
+// ── Crystal habit geometry (adapted from grow.html) ──────────
+function buildHabit(sys){
+  switch(sys){
+    case 'cubic': return octahedron();
+    case 'tetragonal': return tetragonal();
+    case 'orthorhombic': return orthorhombic();
+    case 'hexagonal': return hexPrism(6);
+    case 'trigonal': return trigonal();
+    case 'monoclinic': return monoclinic();
+    case 'triclinic': return triclinic();
+    default: return hexPrism(6);
+  }
+}
+function octahedron(){
+  const s=1, verts=[[s,0,0],[-s,0,0],[0,s,0],[0,-s,0],[0,0,s],[0,0,-s]];
+  const tris=[[0,2,4],[0,4,3],[0,3,5],[0,5,2],[1,4,2],[1,3,4],[1,5,3],[1,2,5]];
+  return {verts,tris};
+}
+function tetragonal(){
+  const r=0.5,h=1.1,tH=0.6,v=[],b=[],t=[];
+  for(let i=0;i<4;i++){const a=Math.PI/2*i+Math.PI/4;b.push([r*Math.cos(a),-h,r*Math.sin(a)]);t.push([r*Math.cos(a),h,r*Math.sin(a)]);}
+  v.push(...b,...t,[0,h+tH,0],[0,-h,0]);
+  const tris=[];for(let i=0;i<4;i++){const j=(i+1)%4;tris.push([i,j,j+4],[i,j+4,i+4],[i+4,j+4,8],[9,j,i]);}
+  return{verts:v,tris};
+}
+function orthorhombic(){
+  const a=0.78,b=0.46,h=1.0,dH=0.5;
+  const v=[[-a,-h,-b],[a,-h,-b],[a,-h,b],[-a,-h,b],[-a,h,-b],[a,h,-b],[a,h,b],[-a,h,b],[0,h+dH,0],[0,-h,0]];
+  const tris=[],idx=[[0,1],[1,2],[2,3],[3,0]];
+  for(let i=0;i<4;i++){const[c,d]=idx[i];tris.push([c,d,d+4],[c,d+4,c+4],[c+4,d+4,8],[9,d,c]);}
+  return{verts:v,tris};
+}
+function hexPrism(n){
+  const r=0.62,h=0.95,tH=0.22,verts=[];
+  for(let i=0;i<n;i++){const a=Math.PI*2/n*i;verts.push([r*Math.cos(a),-h,r*Math.sin(a)]);}
+  for(let i=0;i<n;i++){const a=Math.PI*2/n*i;verts.push([r*Math.cos(a),h,r*Math.sin(a)]);}
+  verts.push([0,h+tH,0],[0,-h,0]);
+  const api=n*2,bci=n*2+1,tris=[];
+  for(let i=0;i<n;i++){const j=(i+1)%n;tris.push([i,j,j+n],[i,j+n,i+n],[i+n,j+n,api],[bci,j,i]);}
+  return{verts,tris};
+}
+function trigonal(){
+  const n=6,r=0.6,h=1.0,tH=0.7,verts=[];
+  for(let i=0;i<n;i++){const a=Math.PI*2/n*i-Math.PI/2;verts.push([r*Math.cos(a),-h,r*Math.sin(a)]);}
+  for(let i=0;i<n;i++){const a=Math.PI*2/n*i-Math.PI/2;verts.push([r*Math.cos(a),h,r*Math.sin(a)]);}
+  for(let i=0;i<n;i++){const a=Math.PI*2/n*i-Math.PI/2;const tr=r*(0.3+0.25*(i%2===0?1:0.4));const th=h+tH*(0.6+0.4*(i%2===0?1:0.7));verts.push([tr*Math.cos(a),th,tr*Math.sin(a)]);}
+  verts.push([0,-h,0],[0,h+tH,0]);
+  const bci=n*3,api=n*3+1,tris=[];
+  for(let i=0;i<n;i++){const j=(i+1)%n;tris.push([i,j,j+n],[i,j+n,i+n],[bci,j,i],[i+n,j+n,j+2*n],[i+n,j+2*n,i+2*n],[i+2*n,j+2*n,api]);}
+  return{verts,tris};
+}
+function monoclinic(){
+  const r=0.55,h=1.0,sk=0.35,verts=[];
+  for(let i=0;i<4;i++){const a=Math.PI/2*i+Math.PI/4;verts.push([r*Math.cos(a)-h*sk,-h,r*Math.sin(a)]);}
+  for(let i=0;i<4;i++){const a=Math.PI/2*i+Math.PI/4;verts.push([r*Math.cos(a)+h*sk,h,r*Math.sin(a)]);}
+  verts.push([h*sk+0.15,h+0.4,0],[-h*sk,-h,0]);
+  const tris=[];for(let i=0;i<4;i++){const j=(i+1)%4;tris.push([i,j,j+4],[i,j+4,i+4],[i+4,j+4,8],[9,j,i]);}
+  return{verts,tris};
+}
+function triclinic(){
+  const a=0.82,b=0.6,h=0.34,skx=0.22,skz=0.16;
+  const v=[[-a-skx,-h,-b-skz],[a-skx,-h,-b+skz],[a+skx,-h,b-skz],[-a+skx,-h,b+skz],
+           [-a+skx,h,-b+skz],[a+skx,h,-b-skz],[a-skx,h,b+skz],[-a-skx,h,b-skz]];
+  const tris=[[0,1,5],[0,5,4],[1,2,6],[1,6,5],[2,3,7],[2,7,6],[3,0,4],[3,4,7],[0,3,2],[0,2,1],[4,5,6],[4,6,7]];
+  return{verts:v,tris};
+}
+
+// ── Specimen roster (real minerals; cell params in angstroms) ─
+const SYSTEMS=['cubic','tetragonal','hexagonal','trigonal','orthorhombic','monoclinic','triclinic'];
+const SYS_LABEL={cubic:'Cubic',tetragonal:'Tetragonal',hexagonal:'Hexagonal',trigonal:'Trigonal',orthorhombic:'Orthorhombic',monoclinic:'Monoclinic',triclinic:'Triclinic'};
+const SYS_AXES={cubic:'4-, 3- and 2-fold',tetragonal:'one 4-fold',hexagonal:'one 6-fold',trigonal:'one 3-fold',orthorhombic:'three 2-folds',monoclinic:'a single 2-fold',triclinic:'none (only a centre)'};
+
+// color = habit tint [r,g,b] 0..1
+const ROSTER=[
+  {name:'Halite (NaCl)',    sys:'cubic',       center:'F',      a:5.64,b:5.64,c:5.64,al:90,be:90,ga:90,  col:[0.85,0.85,0.92]},
+  {name:'Fluorite',         sys:'cubic',       center:'F',      a:5.46,b:5.46,c:5.46,al:90,be:90,ga:90,  col:[0.55,0.75,0.9]},
+  {name:'Pyrite',           sys:'cubic',       center:'P',      a:5.42,b:5.42,c:5.42,al:90,be:90,ga:90,  col:[0.86,0.74,0.35]},
+  {name:'Diamond',          sys:'cubic',       center:'diamond',a:3.567,b:3.567,c:3.567,al:90,be:90,ga:90,col:[0.9,0.95,1.0]},
+  {name:'Zircon',           sys:'tetragonal',  center:'I',      a:6.61,b:6.61,c:5.98,al:90,be:90,ga:90,  col:[0.78,0.6,0.45]},
+  {name:'Rutile (TiO₂)',sys:'tetragonal', center:'P',      a:4.59,b:4.59,c:2.96,al:90,be:90,ga:90,  col:[0.7,0.3,0.2]},
+  {name:'Beryl',            sys:'hexagonal',   center:'P',      a:9.21,b:9.21,c:9.19,al:90,be:90,ga:120, col:[0.45,0.8,0.6]},
+  {name:'Apatite',          sys:'hexagonal',   center:'P',      a:9.42,b:9.42,c:6.88,al:90,be:90,ga:120, col:[0.6,0.85,0.75]},
+  {name:'Calcite',          sys:'trigonal',    center:'R',      a:4.99,b:4.99,c:17.06,al:90,be:90,ga:120,col:[0.9,0.88,0.8]},
+  {name:'Corundum (ruby)',  sys:'trigonal',    center:'R',      a:4.76,b:4.76,c:12.99,al:90,be:90,ga:120,col:[0.8,0.25,0.3]},
+  {name:'Hematite',         sys:'trigonal',    center:'R',      a:5.04,b:5.04,c:13.77,al:90,be:90,ga:120,col:[0.55,0.3,0.32]},
+  {name:'Topaz',            sys:'orthorhombic',center:'C',      a:4.65,b:8.80,c:8.39,al:90,be:90,ga:90,  col:[0.95,0.8,0.55]},
+  {name:'Olivine',          sys:'orthorhombic',center:'P',      a:4.75,b:10.20,c:5.98,al:90,be:90,ga:90, col:[0.55,0.75,0.35]},
+  {name:'Gypsum',           sys:'monoclinic',  center:'C',      a:5.68,b:15.18,c:6.52,al:90,be:118.4,ga:90,col:[0.9,0.9,0.85]},
+  {name:'Orthoclase',       sys:'monoclinic',  center:'C',      a:8.56,b:12.96,c:7.21,al:90,be:116.0,ga:90,col:[0.92,0.78,0.62]},
+  {name:'Albite',           sys:'triclinic',   center:'P',      a:8.14,b:12.79,c:7.16,al:94.3,be:116.6,ga:87.7,col:[0.9,0.9,0.92]},
+  {name:'Kyanite',          sys:'triclinic',   center:'P',      a:7.10,b:7.74,c:5.57,al:89.99,be:101.1,ga:106.0,col:[0.5,0.6,0.85]},
+];
+
+// ── State ────────────────────────────────────────────────────
+let specimen=null;     // current roster entry
+let recip=null;        // {as,bs,cs} in crystal frame
+let Rspec=null;        // random fixed lattice orientation
+let habit=null;        // {verts,tris}
+let rx=0, ry=0;        // user rotation
+let dragging=false, lx=0, ly=0;
+let locked=false;      // guessed already?
+let dirty=true;        // recompute spots
+let spots=[];          // [{x,y,I,s}] current Laue pattern (detector px @F=1)
+let score=0, streak=0, seen=0;
+
+const P={ lmin:0.40, lmax:2.20, zoom:1.0, rad:1.15, rays:true, axes:true, spin:false };
+
+// ── Canvases ─────────────────────────────────────────────────
+const cC=document.getElementById('crystal'), ctxC=cC.getContext('2d');
+const cP=document.getElementById('pattern'), ctxP=cP.getContext('2d');
+const DPR=Math.min(devicePixelRatio||1,2);
+function fit(cv){const r=cv.getBoundingClientRect();cv.width=Math.max(2,(r.width*DPR)|0);cv.height=Math.max(2,(r.height*DPR)|0);}
+function fitAll(){fit(cC);fit(cP);dirty=true;}
+addEventListener('resize',fitAll);
+
+// ── New specimen ─────────────────────────────────────────────
+function newSpecimen(){
+  specimen=ROSTER[(Math.random()*ROSTER.length)|0];
+  recip=reciprocal(specimen.a,specimen.b,specimen.c,specimen.al,specimen.be,specimen.ga);
+  Rspec=mul3(rotZ(Math.random()*6.28),mul3(rotY(Math.random()*6.28),rotX(Math.random()*6.28)));
+  habit=buildHabit(specimen.sys);
+  rx=(Math.random()-0.5)*1.4; ry=Math.random()*6.28;
+  locked=false; dirty=true;
+  seen++; document.getElementById('seen').textContent=seen;
+  document.getElementById('reveal').innerHTML='Rotate the specimen, read its symmetry, then pick the crystal system.';
+  buildGuessGrid();
+}
+
+// ── Laue spot computation ────────────────────────────────────
+// Orientation O = Ruser * Rspec applied to reciprocal vectors.
+// We sample a SPHERE of radius R in reciprocal space (|G| < R). A sphere
+// is rotation-invariant for every system, so the pattern's symmetry is
+// honest; an index box would clip corners and fake-break 6-/3-fold.
+function computeSpots(){
+  const O=mul3(mul3(rotX(rx),rotY(ry)),Rspec);
+  const as=mv(O,recip.as), bs=mv(O,recip.bs), cs=mv(O,recip.cs);
+  const lmin=P.lmin, lmax=P.lmax;
+  const R=Math.min(P.rad, 2/lmin);          // sampling radius (also Ewald ceiling)
+  const hb=Math.ceil(R*specimen.a)+2, kb=Math.ceil(R*specimen.b)+2, lb=Math.ceil(R*specimen.c)+2;
+  const merged=new Map();                    // key: direction -> spot (harmonics overlap exactly)
+  for(let h=-hb;h<=hb;h++)for(let k=-kb;k<=kb;k++)for(let l=-lb;l<=lb;l++){
+    if(h===0&&k===0&&l===0) continue;
+    if(!allowed(specimen.center,h,k,l)) continue;
+    const Gx=h*as[0]+k*bs[0]+l*cs[0];
+    const Gy=h*as[1]+k*bs[1]+l*cs[1];
+    const Gz=h*as[2]+k*bs[2]+l*cs[2];
+    const g2=Gx*Gx+Gy*Gy+Gz*Gz;
+    const gl=Math.sqrt(g2);
+    if(gl>R) continue;           // spherical cut → symmetry-faithful
+    if(Gz>=0) continue;          // need s0.G < 0 for positive wavelength (s0=+z)
+    const lambda=-2*Gz/g2;       // wavelength this plane would reflect
+    if(lambda<lmin||lambda>lmax) continue;
+    // reflected beam direction s = s0 - 2(s0.ghat)ghat , s0=(0,0,1)
+    const ndz=Gz/gl;             // s0 . ghat  (<0)
+    const sx=-2*ndz*Gx/gl, sy=-2*ndz*Gy/gl, sz=1-2*ndz*ndz;
+    if(sz<=0.04) continue;       // keep transmission (forward) spots only
+    const dx=sx/sz, dy=sy/sz;    // gnomonic detector coords (focal length 1)
+    // intensity: Kramers white-beam spectrum * crude form-factor falloff
+    const spec=Math.max(0,(lambda-lmin))/(lambda*lambda);
+    const ff=1/(1+(gl*0.55)*(gl*0.55));
+    const I=spec*ff;
+    if(I<=0) continue;
+    // fine key: only true harmonics (identical direction) collapse together
+    const key=Math.round(dx*4000)+','+Math.round(dy*4000);
+    const ex=merged.get(key);
+    if(ex){ ex.I+=I; } else { merged.set(key,{x:dx,y:dy,I,s:[sx,sy,sz]}); }
+  }
+  spots=[...merged.values()];
+  // normalize intensity
+  let Imax=1e-9; for(const s of spots) if(s.I>Imax) Imax=s.I;
+  for(const s of spots) s.n=s.I/Imax;
+  document.getElementById('spotcount').textContent=spots.length+' spots';
+}
+
+// ── Symmetry detection along the beam (z) ────────────────────
+function detectSymmetry(){
+  // operate on detector coords scaled to ~px, drop the central direct-beam blob
+  const half=cP.width/2, F=half/0.95*P.zoom;
+  // only spots that actually land ON the (finite) detector count toward symmetry
+  const pts=[]; for(const s of spots){ const x=s.x*F, y=s.y*F; const r=Math.hypot(x,y); if(r>half*0.06 && r<half*0.98 && s.n>0.05) pts.push([x,y]); }
+  if(pts.length<5) return {n:1,frac:0,count:pts.length};
+  const tol=Math.max(7*DPR, half*0.03);
+  function matchFrac(ang){
+    const c=Math.cos(ang),s=Math.sin(ang); let hit=0;
+    for(const[px,py] of pts){
+      const rxp=px*c-py*s, ryp=px*s+py*c;
+      let ok=false;
+      for(const[qx,qy] of pts){ if(Math.hypot(rxp-qx,ryp-qy)<tol){ok=true;break;} }
+      if(ok) hit++;
+    }
+    return hit/pts.length;
+  }
+  let best={n:1,frac:0,count:pts.length};
+  for(const n of [6,4,3,2]){
+    const f=matchFrac(2*Math.PI/n);
+    if(f>=0.80){ best={n,frac:f,count:pts.length}; break; }
+    if(f>best.frac && best.n===1) best={n:1,frac:f,count:pts.length};
+  }
+  return best;
+}
+
+// ── Render: crystal habit ────────────────────────────────────
+function drawCrystal(){
+  const W=cC.width,Hc=cC.height; ctxC.clearRect(0,0,W,Hc);
+  // subtle beam halo + direct-beam marker (beam into screen)
+  const cx=W/2, cy=Hc/2, scale=Math.min(W,Hc)*0.30;
+  const O=mul3(mul3(rotX(rx),rotY(ry)),Rspec);
+  // faint incoming beam glow
+  const grd=ctxC.createRadialGradient(cx,cy,0,cx,cy,scale*1.6);
+  grd.addColorStop(0,'rgba(201,168,76,0.10)'); grd.addColorStop(1,'rgba(201,168,76,0)');
+  ctxC.fillStyle=grd; ctxC.fillRect(0,0,W,Hc);
+
+  const col=specimen.col;
+  const light=norm([0.4,0.55,-0.7]); // toward viewer-ish (-z is toward camera)
+  const faces=habit.tris.map(t=>{
+    const a=mv(O,habit.verts[t[0]]),b=mv(O,habit.verts[t[1]]),c=mv(O,habit.verts[t[2]]);
+    const z=(a[2]+b[2]+c[2])/3;
+    let n=norm(cross(sub(b,a),sub(c,a)));
+    const shade=0.32+0.68*Math.abs(dot(n,light));
+    return {a,b,c,z,shade};
+  }).sort((p,q)=>q.z-p.z); // far (large z) first
+  function P2(v){ return [cx+v[0]*scale, cy-v[1]*scale]; }
+  for(const f of faces){
+    const pa=P2(f.a),pb=P2(f.b),pc=P2(f.c);
+    ctxC.beginPath();ctxC.moveTo(pa[0],pa[1]);ctxC.lineTo(pb[0],pb[1]);ctxC.lineTo(pc[0],pc[1]);ctxC.closePath();
+    const r=(col[0]*f.shade*255)|0,g=(col[1]*f.shade*255)|0,b=(col[2]*f.shade*255)|0;
+    ctxC.fillStyle='rgba('+r+','+g+','+b+',0.55)';
+    ctxC.strokeStyle='rgba(255,255,255,0.18)'; ctxC.lineWidth=1*DPR;
+    ctxC.fill(); ctxC.stroke();
+  }
+  // crystal axes a/b/c (direct lattice directions, just for orientation cue)
+  if(P.axes){
+    const A=mv(O,norm([1,0,0])),Bv=mv(O,[0,1,0]),C=mv(O,[0,0,1]);
+    const axdef=[[A,'#e0635a','a'],[Bv,'#5fcf7a','b'],[C,'#6fa9ff','c']];
+    for(const[ax,color,lab] of axdef){
+      const p0=P2([0,0,0]),p1=P2([ax[0]*1.45,ax[1]*1.45,ax[2]*1.45]);
+      ctxC.strokeStyle=color;ctxC.lineWidth=2*DPR;ctxC.globalAlpha=0.85;
+      ctxC.beginPath();ctxC.moveTo(p0[0],p0[1]);ctxC.lineTo(p1[0],p1[1]);ctxC.stroke();
+      ctxC.fillStyle=color;ctxC.font=(11*DPR)+'px monospace';ctxC.fillText(lab,p1[0]+3*DPR,p1[1]);
+      ctxC.globalAlpha=1;
+    }
+  }
+  // diffracted rays toward detector
+  if(P.rays){
+    ctxC.globalAlpha=0.5;
+    const top=[...spots].sort((a,b)=>b.n-a.n).slice(0,16);
+    for(const s of top){
+      const p1=[cx+s.x*scale*0.9, cy-s.y*scale*0.9];
+      ctxC.strokeStyle='rgba(120,200,255,'+(0.15+0.5*s.n)+')';ctxC.lineWidth=1*DPR;
+      ctxC.beginPath();ctxC.moveTo(cx,cy);ctxC.lineTo(p1[0],p1[1]);ctxC.stroke();
+    }
+    ctxC.globalAlpha=1;
+  }
+  // direct beam center
+  ctxC.fillStyle='rgba(201,168,76,0.9)';
+  ctxC.beginPath();ctxC.arc(cx,cy,3*DPR,0,7);ctxC.fill();
+}
+
+// ── Render: detector pattern ─────────────────────────────────
+function drawPattern(){
+  const W=cP.width,Hp=cP.height; ctxP.clearRect(0,0,W,Hp);
+  ctxP.fillStyle='#050507'; ctxP.fillRect(0,0,W,Hp);
+  const cx=W/2, cy=Hp/2, half=W/2, F=half/0.95*P.zoom;
+  // faint crosshair
+  ctxP.strokeStyle='rgba(255,255,255,0.06)';ctxP.lineWidth=1;
+  ctxP.beginPath();ctxP.moveTo(cx,0);ctxP.lineTo(cx,Hp);ctxP.moveTo(0,cy);ctxP.lineTo(W,cy);ctxP.stroke();
+  // spots — cheap two-arc glow (no per-spot gradient), brightest first, capped
+  ctxP.globalCompositeOperation='lighter';
+  for(const s of spots){
+    if(s.n<0.015) continue;                       // skip the faintest
+    const x=cx+s.x*F, y=cy-s.y*F;
+    if(x<-20||x>W+20||y<-20||y>Hp+20) continue;
+    const rad=(1.1+5.2*Math.sqrt(s.n))*DPR;
+    const a=0.30+0.70*s.n;
+    ctxP.fillStyle='rgba(90,150,255,'+(a*0.35)+')';            // soft halo
+    ctxP.beginPath();ctxP.arc(x,y,rad,0,7);ctxP.fill();
+    ctxP.fillStyle='rgba(228,240,255,'+a+')';                  // bright core
+    ctxP.beginPath();ctxP.arc(x,y,Math.max(0.8*DPR,rad*0.42),0,7);ctxP.fill();
+  }
+  ctxP.globalCompositeOperation='source-over';
+  // direct beam
+  ctxP.fillStyle='rgba(201,168,76,0.85)';
+  ctxP.beginPath();ctxP.arc(cx,cy,3.5*DPR,0,7);ctxP.fill();
+  ctxP.strokeStyle='rgba(201,168,76,0.4)';ctxP.lineWidth=1*DPR;
+  ctxP.beginPath();ctxP.arc(cx,cy,7*DPR,0,7);ctxP.stroke();
+}
+
+// ── Loop ─────────────────────────────────────────────────────
+function frame(){
+  if(P.spin && !dragging){ ry+=0.006; dirty=true; }
+  const draw=dirty;
+  if(dirty){ computeSpots(); updateMeter(); dirty=false; }
+  if(draw){ drawCrystal(); drawPattern(); }   // idle = no work
+  requestAnimationFrame(frame);
+}
+function updateMeter(){
+  const sym=detectSymmetry();
+  const ax=document.getElementById('axisReadout'), hint=document.getElementById('axisHint');
+  if(sym.n>1){
+    ax.textContent='◉ '+sym.n+'-fold axis along the beam';
+    ax.style.color='var(--good)';
+    hint.textContent='A '+sym.n+'-fold axis points down the beam ('+Math.round(sym.frac*100)+'% match over '+sym.count+' spots).';
+  } else {
+    ax.textContent='— no rotation axis aligned';
+    ax.style.color='var(--gold-soft)';
+    hint.textContent='Keep turning: line a symmetry axis up with the beam and the spots will lock into a regular n-fold star.';
+  }
+}
+
+// ── Guessing ─────────────────────────────────────────────────
+function buildGuessGrid(){
+  const grid=document.getElementById('guessGrid'); grid.innerHTML='';
+  for(const sys of SYSTEMS){
+    const b=document.createElement('button');
+    b.className='sys'; b.textContent=SYS_LABEL[sys]; b.dataset.sys=sys;
+    b.addEventListener('click',()=>guess(sys,b));
+    grid.appendChild(b);
+  }
+}
+function guess(sys,btn){
+  if(locked) return;
+  locked=true;
+  const right=sys===specimen.sys;
+  const btns=document.querySelectorAll('#guessGrid .sys');
+  btns.forEach(b=>{
+    b.disabled=true;
+    if(b.dataset.sys===specimen.sys) b.classList.add('correct');
+    if(b.dataset.sys===sys && !right) b.classList.add('wrong');
+  });
+  if(right){ score+=10+streak*2; streak++; } else { streak=0; }
+  document.getElementById('score').textContent=score;
+  document.getElementById('streak').textContent=streak;
+  const cellTip = specimen.a<4 ? 'small (wide pattern)' : specimen.a>8 ? 'large (tight pattern)' : 'medium';
+  document.getElementById('reveal').innerHTML=
+    '<div class="verdict '+(right?'ok':'no')+'">'+(right?'✓ correct':'✗ not quite')+
+    ' — it was <b>'+specimen.name+'</b></div>'+
+    '<table>'+
+    '<tr><td>system</td><td class="v">'+SYS_LABEL[specimen.sys]+'</td></tr>'+
+    '<tr><td>signature symmetry</td><td class="v">'+SYS_AXES[specimen.sys]+'</td></tr>'+
+    '<tr><td>lattice</td><td class="v">a='+specimen.a+' b='+specimen.b+' c='+specimen.c+' Å</td></tr>'+
+    '<tr><td>angles</td><td class="v">α='+specimen.al+'° β='+specimen.be+'° γ='+specimen.ga+'°</td></tr>'+
+    '<tr><td>centering</td><td class="v">'+specimen.center+'</td></tr>'+
+    '<tr><td>cell size</td><td class="v">'+cellTip+'</td></tr>'+
+    '</table>';
+}
+
+// ── Input ────────────────────────────────────────────────────
+function pdown(e){dragging=true;P.spin=false;document.getElementById('tSpin').checked=false;lx=e.clientX;ly=e.clientY;cC.setPointerCapture&&cC.setPointerCapture(e.pointerId);}
+function pmove(e){if(!dragging)return;const dx=e.clientX-lx,dy=e.clientY-ly;ry+=dx*0.008;rx+=dy*0.008;rx=Math.max(-1.5,Math.min(1.5,rx));lx=e.clientX;ly=e.clientY;dirty=true;}
+function pup(){dragging=false;}
+for(const cv of [cC,cP]){
+  cv.addEventListener('pointerdown',pdown);
+  cv.addEventListener('pointermove',pmove);
+  cv.addEventListener('pointerup',pup);
+  cv.addEventListener('pointercancel',pup);
+}
+
+// ── Controls ─────────────────────────────────────────────────
+function bindRange(id,key,fmt){
+  const el=document.getElementById(id), out=document.getElementById(id+'Val');
+  const upd=()=>{P[key]=parseFloat(el.value);out.textContent=fmt(P[key]);dirty=true;};
+  el.addEventListener('input',upd); upd();
+}
+bindRange('lmin','lmin',v=>v.toFixed(2)+' Å');
+bindRange('lmax','lmax',v=>v.toFixed(2)+' Å');
+bindRange('zoom','zoom',v=>v.toFixed(2)+'×');
+bindRange('rad','rad',v=>v.toFixed(2)+' Å⁻¹');
+document.getElementById('tRays').addEventListener('change',e=>{P.rays=e.target.checked;dirty=true;});
+document.getElementById('tAxes').addEventListener('change',e=>{P.axes=e.target.checked;dirty=true;});
+document.getElementById('tSpin').addEventListener('change',e=>{P.spin=e.target.checked;dirty=true;});
+document.getElementById('newBtn').addEventListener('click',newSpecimen);
+
+// ── Boot ─────────────────────────────────────────────────────
+fitAll();
+newSpecimen();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
