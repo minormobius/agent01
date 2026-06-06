@@ -452,7 +452,7 @@ footer a:hover { color: var(--accent); }
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">grid · L × L</span>
-        <div class="ctrl-row"><input id="tt-size" type="range" min="6" max="24" value="14" step="2"><span class="ctrl-val" id="tt-size-val">14</span></div>
+        <div class="ctrl-row"><input id="tt-size" type="range" min="5" max="24" value="14" step="1"><span class="ctrl-val" id="tt-size-val">14</span></div>
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">anneal temperature · τT (auto-cools)</span>
@@ -468,6 +468,11 @@ footer a:hover { color: var(--accent); }
         squares are the two endpoints. Lower τT greedily hunts turns, higher τT shakes the path loose
         to escape local traps. "Best" keeps the twistiest path seen so far. Wraps across the torus
         seam show as stubs at opposite edges.
+        <br><br><strong>A parity law falls out:</strong> all-turns (τ = 1) is reachable only when L is
+        <em>even</em>. For <em>odd</em> L the minimum number of straight cells is exactly
+        <strong>L − 1</strong> — an all-turns path forces moves to alternate horizontal/vertical, which
+        tiles each column with length-2 vertical steps, impossible for odd L. The annealer hits this
+        bound on the nose every run.
       </div>
     </div>
   </div>
@@ -1411,13 +1416,16 @@ function drawTort(){ const ctx=ttCtx,g=ttGeom(),L=tort.L,s=tort.seq;
   ttStats(); }
 function ttStats(){ const N=tort.L*tort.L, interior=N-2;
   const turns=interior-tort.straights, tau=turns/interior;
-  const bestTurns=interior-tort.best, bestTau=bestTurns/interior;
+  const bestTau=(interior-tort.best)/interior;
+  const floor = tort.L%2 ? tort.L-1 : 0;     // parity bound: min straights
+  const opt = tort.best<=floor;
   document.getElementById('tt-stats').innerHTML = `
     <div class="stat-row"><span class="k">cells N</span><span class="v">${N} (${tort.L}×${tort.L})</span></div>
     <div class="stat-row"><span class="k">turns</span><span class="v hot">${turns}</span></div>
     <div class="stat-row"><span class="k">straights</span><span class="v win">${tort.straights}</span></div>
     <div class="stat-row"><span class="k">tortuosity τ</span><span class="v hot">${tau.toFixed(3)}</span></div>
-    <div class="stat-row"><span class="k">best τ found</span><span class="v win">${bestTau.toFixed(3)}${tort.best===0?' — all turns!':''}</span></div>
+    <div class="stat-row"><span class="k">best τ found</span><span class="v win">${bestTau.toFixed(3)}${opt?' ✓ optimal':''}</span></div>
+    <div class="stat-row"><span class="k">parity bound</span><span class="v ${floor?'':'hot'}">${floor? '≥ '+floor+' straights (L odd)':'τ = 1 reachable (L even)'}</span></div>
     <div class="stat-row"><span class="k">τT · moves</span><span class="v">${tort.T.toFixed(2)} · ${tort.moves}</span></div>`;
 }
 function tActive(){ return document.querySelector('.pane.active')?.dataset.pane==='tort'; }
