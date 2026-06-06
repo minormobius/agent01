@@ -105,7 +105,9 @@ footer a:hover { color: var(--accent); }
     <strong>freeze</strong> into four solid blocks of one domino type each, the centre stays a
     roiling jumble — and the boundary between them converges to a perfect <strong>circle</strong>.
     That's the <strong>Arctic Circle theorem</strong>. Resample, or grow the diamond order by
-    order and watch the circle sharpen.
+    order and watch the circle sharpen. Then drag the <strong>bias</strong>: tilt the creation coin
+    toward horizontal dominoes and the circle stretches into the <strong>arctic ellipse</strong>
+    <em>X²/p + Y²/(1−p) = 1</em> — same algorithm, one knob turned.
   </p>
   <div class="grid-wrap">
     <div><canvas id="az-canvas" width="800" height="800"></canvas></div>
@@ -113,6 +115,10 @@ footer a:hover { color: var(--accent); }
       <div class="ctrl-group">
         <span class="ctrl-label">order · n</span>
         <div class="ctrl-row"><input id="n-slider" type="range" min="1" max="64" value="32" step="1"><span class="ctrl-val" id="n-val">32</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">creation bias · p (horizontal)</span>
+        <div class="ctrl-row"><input id="bias-slider" type="range" min="0.10" max="0.90" value="0.50" step="0.02"><span class="ctrl-val" id="bias-val">0.50</span></div>
       </div>
       <div class="ctrl-group">
         <div class="btn-row">
@@ -123,15 +129,16 @@ footer a:hover { color: var(--accent); }
       </div>
       <div class="ctrl-group">
         <div class="btn-row">
-          <button class="btn active" id="circle-btn">arctic circle</button>
+          <button class="btn active" id="circle-btn">arctic curve</button>
         </div>
       </div>
       <div class="stats" id="az-stats"></div>
       <div class="stat-note">
         Each colour is one of the four domino types — N / S / E / W — and the theorem says each
-        owns one frozen corner. The temperate (disordered) region fills the inscribed circle of
-        radius <em>n</em>/√2; its area is π/4 of the diamond, so ~78.5% of the tiling is "liquid"
-        and ~21.5% is "frozen".
+        owns one frozen corner. At bias p = ½ the temperate region is the inscribed circle (area
+        π/4). Off ½ it's the <strong>arctic ellipse</strong> with semi-axes √p and √(1−p) (so the
+        axes-squared always sum to 1); its area fraction is π√(p(1−p))/2, peaking at p = ½. More
+        horizontal creations ⇒ a wider, flatter liquid lens and fatter E/W frozen corners.
       </div>
     </div>
   </div>
@@ -216,6 +223,28 @@ in three moves:</p>
 runs it from order 1 with fresh coins. (The implementation here was checked against brute-force
 enumeration: it reproduces the 2, 8, 64, 1024 tiling counts of AD₁–₄ and samples them uniformly.)</p>
 
+<h2>Biasing the coin: the arctic ellipse</h2>
+<p>The shuffle has exactly one source of randomness — the coin flipped to fill each fresh 2×2 hole.
+Make it <strong>unfair</strong>. Let <em>p</em> be the probability the hole is filled with two
+<em>horizontal</em> dominoes (and 1−<em>p</em> vertical). This is the <strong>weighted</strong>
+shuffle (Propp's <em>generalized domino-shuffling</em>): with a spatially uniform bias the
+destruction and sliding carry the weights through unchanged, so a single global <em>p</em> samples
+the weighted tiling measure. Cohn, Elkies &amp; Propp's <em>local statistics</em> paper
+(<a href="https://arxiv.org/abs/math/0008243">math/0008243</a>) is exactly the apparatus that pins
+down what such a biased ensemble looks like in the large.</p>
+<p>The answer is clean: the arctic circle becomes an <strong>arctic ellipse</strong>. In rescaled
+coordinates <em>X</em> = (<em>x</em>+½)/<em>n</em>, <em>Y</em> = (<em>y</em>+½)/<em>n</em> (the diamond
+is |<em>X</em>|+|<em>Y</em>| ≤ 1), the frozen/temperate boundary converges to</p>
+<blockquote><strong>X²/p + Y²/(1−p) = 1</strong> &nbsp;— semi-axes √p and √(1−p).</blockquote>
+<p>A few things fall right out. The semi-axes <em>squared</em> always sum to one (√p² + √(1−p)² = 1),
+so the ellipse breathes between a horizontal sliver and a vertical one while staying snug inside the
+diamond, hitting the circle exactly at <em>p</em> = ½. The temperate area fraction is
+<strong>π√(p(1−p))/2</strong>, maximal (π/4 ≈ 0.785) at <em>p</em> = ½ and shrinking as you push the
+bias either way — order is <em>cheaper</em> when the dominoes have a preferred direction. Both the
+ellipse and the area law were checked here against the sampler (semi-axis √(1−p) and the area
+fraction match the simulated boundary to within finite-size error). Drag the bias on the
+<strong>sample</strong> tab and watch the dashed curve — and the four corners — deform.</p>
+
 <h2>Why it sits in the geometry pack</h2>
 <p>Domino tilings are the <strong>dimer model</strong> — perfect matchings of a lattice — a first
 cousin of the loop model behind <a href="https://mino.mobi/temperley-lieb/">Temperley–Lieb</a> and the
@@ -278,13 +307,14 @@ function cssVar(n){ return getComputedStyle(document.documentElement).getPropert
 const inAz = (x,y,n) => Math.abs(x+0.5)+Math.abs(y+0.5) <= n;
 function typeOf(o,x,y,p){ const c=((x+y)%2+2)%2; return o==='H' ? (c===p?'N':'S') : (c===p?'W':'E'); }
 const SLIDE = { N:[0,-1], S:[0,1], W:[-1,0], E:[1,0] };
-function ad1(){ return Math.random()<0.5
+function ad1(ph){ ph=(ph==null)?0.5:ph; return Math.random()<ph
   ? [{o:'H',x:-1,y:-1},{o:'H',x:-1,y:0}]
   : [{o:'V',x:-1,y:-1},{o:'V',x:0,y:-1}]; }
-function grow(t,n){ return growPhases(t,n).result; }
+function grow(t,n,ph){ return growPhases(t,n,ph).result; }
 // Same shuffle, but returns every intermediate so the "how it works" tab can
 // step through Destroy → Slide → Create. grow() above just takes .result.
-function growPhases(t,n){
+// ph = probability a fresh 2×2 hole is filled HORIZONTAL (bias; 0.5 = uniform).
+function growPhases(t,n,ph){ ph=(ph==null)?0.5:ph;
   const p=(n+1)%2, occ=new Map();
   const dom=t.map((d,i)=>{ const cs=d.o==='H'?[[d.x,d.y],[d.x+1,d.y]]:[[d.x,d.y],[d.x,d.y+1]];
     cs.forEach(([cx,cy])=>occ.set(cx+','+cy,i)); return {o:d.o,x:d.x,y:d.y,type:typeOf(d.o,d.x,d.y,p)}; });
@@ -308,17 +338,17 @@ function growPhases(t,n){
     if(!need.every(([cx,cy])=>emptySet.has(cx+','+cy))) continue; // robustness; validated never triggers
     need.forEach(([cx,cy])=>emptySet.delete(cx+','+cy));
     holes.push({x,y});
-    if(Math.random()<0.5) created.push({o:'H',x,y},{o:'H',x,y:y+1});
+    if(Math.random()<ph) created.push({o:'H',x,y},{o:'H',x,y:y+1});
     else created.push({o:'V',x,y},{o:'V',x:x+1,y}); }
   return { badBlocks, survivors, moved, holes, created, result: moved.concat(created) };
 }
-function buildTo(n){ let t=ad1(); for(let k=1;k<n;k++) t=grow(t,k); return t; }
+function buildTo(n,ph){ let t=ad1(ph); for(let k=1;k<n;k++) t=grow(t,k,ph); return t; }
 
 // ═════════════════════════════════════════════════════════════════════
 // State + render
 // ═════════════════════════════════════════════════════════════════════
-const st = { n:32, tiling:[], showCircle:true, playing:false, raf:null };
-st.tiling = buildTo(st.n);
+const st = { n:32, tiling:[], showCircle:true, playing:false, raf:null, bias:0.5 };
+st.tiling = buildTo(st.n, st.bias);
 const canvas = document.getElementById('az-canvas'), ctx = canvas.getContext('2d');
 function draw(){
   const W=canvas.width, H=canvas.height, n=st.n, pad=14;
@@ -330,19 +360,20 @@ function draw(){
   const p=(n+1)%2;
   const counts={N:0,S:0,W:0,E:0}; let inside=0;
   const drawStroke = cs>=4;
+  const b=st.bias;                          // arctic ellipse: X²/b + Y²/(1−b) = 1
   for(const d of st.tiling){
     const ty=typeOf(d.o,d.x,d.y,p); counts[ty]++;
     ctx.fillStyle=col[ty];
     const w=d.o==='H'?2*cs:cs, h=d.o==='H'?cs:2*cs;
     ctx.fillRect(px(d.x), py(d.y), w, h);
     if(drawStroke){ ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=1; ctx.strokeRect(px(d.x)+0.5, py(d.y)+0.5, w-1, h-1); }
-    // temperate count: domino centre inside arctic circle
+    // temperate count: domino centre inside the arctic ellipse
     const ccx=d.o==='H'?d.x+1:d.x+0.5, ccy=d.o==='H'?d.y+0.5:d.y+1;
-    if(Math.hypot(ccx+0.5, ccy+0.5) <= n/Math.SQRT2) inside++;
+    if((ccx+0.5)*(ccx+0.5)/(b*n*n) + (ccy+0.5)*(ccy+0.5)/((1-b)*n*n) <= 1) inside++;
   }
   if(st.showCircle){
     ctx.strokeStyle=cssVar('--canvas-ink'); ctx.globalAlpha=0.55; ctx.lineWidth=2; ctx.setLineDash([6,4]);
-    ctx.beginPath(); ctx.arc(px(-0.5), py(-0.5), (n/Math.SQRT2)*cs, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(px(-0.5), py(-0.5), Math.sqrt(b)*n*cs, Math.sqrt(1-b)*n*cs, 0, 0, Math.PI*2); ctx.stroke();
     ctx.setLineDash([]); ctx.globalAlpha=1;
   }
   const total=st.tiling.length;
@@ -351,18 +382,22 @@ function draw(){
     <div class="stat-row"><span class="k">order n</span><span class="v">${n}</span></div>
     <div class="stat-row"><span class="k">squares</span><span class="v">${2*n*(n+1)}</span></div>
     <div class="stat-row"><span class="k">tilings of AD<sub>n</sub></span><span class="v">2^${n*(n+1)/2}</span></div>
+    <div class="stat-row"><span class="k">creation bias p</span><span class="v hot">${b.toFixed(2)}${Math.abs(b-0.5)<0.011?' (circle)':' (ellipse)'}</span></div>
+    <div class="stat-row"><span class="k">ellipse axes √p,√(1−p)</span><span class="v">${Math.sqrt(b).toFixed(2)}, ${Math.sqrt(1-b).toFixed(2)}</span></div>
     <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.N}"></span>N north</span><span class="v">${counts.N}</span></div>
     <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.S}"></span>S south</span><span class="v">${counts.S}</span></div>
     <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.E}"></span>E east</span><span class="v">${counts.E}</span></div>
     <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.W}"></span>W west</span><span class="v">${counts.W}</span></div>
     <div class="stat-row"><span class="k">temperate frac</span><span class="v hot">${frac.toFixed(3)}</span></div>
-    <div class="stat-row"><span class="k">→ π/4</span><span class="v">${(Math.PI/4).toFixed(3)}</span></div>`;
+    <div class="stat-row"><span class="k">→ π√(p(1−p))/2</span><span class="v">${(Math.PI*Math.sqrt(b*(1-b))/2).toFixed(3)}</span></div>`;
 }
 // controls
 const nSlider=document.getElementById('n-slider'), nVal=document.getElementById('n-val');
-nSlider.addEventListener('input',e=>{ st.n=parseInt(e.target.value,10); nVal.textContent=st.n; st.tiling=buildTo(st.n); draw(); });
-document.getElementById('resample-btn').addEventListener('click',()=>{ st.tiling=buildTo(st.n); draw(); });
-document.getElementById('grow-btn').addEventListener('click',()=>{ if(st.n>=parseInt(nSlider.max,10))return; st.tiling=grow(st.tiling,st.n); st.n++; nSlider.value=st.n; nVal.textContent=st.n; draw(); });
+nSlider.addEventListener('input',e=>{ st.n=parseInt(e.target.value,10); nVal.textContent=st.n; st.tiling=buildTo(st.n,st.bias); draw(); });
+const biasSlider=document.getElementById('bias-slider'), biasVal=document.getElementById('bias-val');
+biasSlider.addEventListener('input',e=>{ st.bias=parseFloat(e.target.value); biasVal.textContent=st.bias.toFixed(2); st.tiling=buildTo(st.n,st.bias); draw(); });
+document.getElementById('resample-btn').addEventListener('click',()=>{ st.tiling=buildTo(st.n,st.bias); draw(); });
+document.getElementById('grow-btn').addEventListener('click',()=>{ if(st.n>=parseInt(nSlider.max,10))return; st.tiling=grow(st.tiling,st.n,st.bias); st.n++; nSlider.value=st.n; nVal.textContent=st.n; draw(); });
 document.getElementById('circle-btn').addEventListener('click',e=>{ st.showCircle=!st.showCircle; e.target.classList.toggle('active',st.showCircle); draw(); });
 const playBtn=document.getElementById('play-btn');
 playBtn.addEventListener('click',()=>{
@@ -372,7 +407,7 @@ playBtn.addEventListener('click',()=>{
   const step=(now)=>{ if(!st.playing)return; acc+=now-last; last=now;
     if(acc>90){ acc=0; const max=parseInt(nSlider.max,10);
       if(st.n>=max){ st.playing=false; playBtn.textContent='▶ grow to max'; playBtn.classList.remove('active'); return; }
-      st.tiling=grow(st.tiling,st.n); st.n++; nSlider.value=st.n; nVal.textContent=st.n; draw(); }
+      st.tiling=grow(st.tiling,st.n,st.bias); st.n++; nSlider.value=st.n; nVal.textContent=st.n; draw(); }
     st.raf=requestAnimationFrame(step); };
   st.raf=requestAnimationFrame(step);
 });
