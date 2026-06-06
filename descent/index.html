@@ -138,8 +138,9 @@ footer a:hover { color: var(--accent); }
       <div class="stat-note">
         Dark interior = <strong>trainable</strong> (loss converges, like the Mandelbrot set's body);
         bright filaments = the boundary, where a hair's change in learning rate flips training from
-        success to blow-up. The structure is genuinely self-similar — keep zooming. CPU renderer for
-        now; a WebGPU compute path is next.
+        success to blow-up. The structure is genuinely self-similar — keep zooming. Runs on a WebGPU
+        compute shader where available (one thread per pixel) and falls back to a progressive CPU
+        renderer otherwise — the "renderer" readout below says which.
       </div>
     </div>
   </div>
@@ -181,9 +182,11 @@ engine of self-similarity, just as it is for the quadratic map behind Mandelbrot
 <h2>Doing it on the GPU</h2>
 <p>Every pixel is an independent training run with no shared state — which makes this perfectly parallel
 and a natural fit for a <strong>WebGPU compute shader</strong>: one thread per pixel, each iterating the
-tiny network and writing its escape colour. This page renders on the CPU (progressively, coarse-to-fine)
-so it works everywhere; the GPU port lets the resolution, step count, and network size climb toward the
-ranges in the original paper.</p>
+tiny network and writing its escape colour to a buffer that a fullscreen pass blits. This page uses that
+path where WebGPU is available and falls back to a progressive CPU renderer otherwise, so it works
+everywhere; the GPU lets the resolution, step count, and network size climb toward the ranges in the
+original paper. The compute shader runs the identical update to the CPU reference, so both draw the same
+fractal.</p>
 
 <p class="meta-stamp">sources</p>
 <ul>
@@ -268,14 +271,20 @@ function colorOf(res,T,pal){
 // ═════════════════════════════════════════════════════════════════════
 // View + progressive renderer
 // ═════════════════════════════════════════════════════════════════════
-const cv = document.getElementById('de-canvas'), cx = cv.getContext('2d');
+const cv = document.getElementById('de-canvas'); let cx = null, mode = 'cpu';
+function ensureCPU(){ if(!cx) cx = cv.getContext('2d'); }
 const view = { cx:4.0, cy:1.0, spanX:8.0, spanY:2.4 };   // default η1∈[0,8], η2∈[−0.2,2.2]
 const de = { T:400, H:2, pal:'neon', res:420, img:null, row:0, stride:8, phase:'coarse', raf:null, probe:null };
 function defaultView(){ view.cx=4.0; view.cy=1.0; view.spanX=8.0; view.spanY=2.4; }
 function pxToEta(px,py){ const R=de.res; return [ view.cx + (px/R-0.5)*view.spanX, view.cy - (py/R-0.5)*view.spanY ]; }
-function startRender(){ cancelAnimationFrame(de.raf); de.res=parseInt(document.getElementById('de-res').value,10);
+function startRenderCPU(){ ensureCPU(); cancelAnimationFrame(de.raf); de.res=parseInt(document.getElementById('de-res').value,10);
   cv.width=de.res; cv.height=de.res; de.img=cx.createImageData(de.res,de.res);
   coarsePass(); de.row=0; de.phase='fine'; de.raf=requestAnimationFrame(renderStep); updateStats(); }
+function startRender(){ de.res=parseInt(document.getElementById('de-res').value,10);
+  if(mode==='gpu'){ try{ renderGPU(); updateStats(); return; }catch(e){ console.warn('GPU render failed → CPU',e); mode='cpu'; } }
+  startRenderCPU(); }
+function quickDraw(){ if(mode==='gpu'){ try{ renderGPU(); return; }catch(e){ mode='cpu'; } }
+  if(!de.img){ startRenderCPU(); return; } coarsePass(); de.row=0; cancelAnimationFrame(de.raf); de.raf=requestAnimationFrame(renderStep); }
 function shade(px,py){ const [e1,e2]=pxToEta(px,py); const r=trainPixel(e1,e2,de.H,de.T); return colorOf(r,de.T,PALETTES[de.pal]); }
 function coarsePass(){ const R=de.res, s=de.stride, d=de.img.data;
   for(let y=0;y<R;y+=s) for(let x=0;x<R;x+=s){ const [r,g,b]=shade(x+s/2|0,y+s/2|0);
@@ -295,14 +304,152 @@ function updateStats(){ const prog=de.phase==='fine'?Math.min(100,Math.round(100
     <div class="stat-row"><span class="k">zoom</span><span class="v">${(8.0/view.spanX).toExponential(2)}×</span></div>
     <div class="stat-row"><span class="k">net</span><span class="v">tanh · ${de.H} hidden</span></div>
     <div class="stat-row"><span class="k">steps · res</span><span class="v">${de.T} · ${de.res}²</span></div>
-    <div class="stat-row"><span class="k">refine</span><span class="v">${de.row>=de.res?'done':prog+'%'}</span></div>`;
+    <div class="stat-row"><span class="k">renderer</span><span class="v hot">${mode==='gpu'?'WebGPU':'CPU'+(de.row>=de.res?'':' · '+prog+'%')}</span></div>`;
 }
+// ═════════════════════════════════════════════════════════════════════
+// WebGPU compute path — one thread per pixel runs the SAME training loop as
+// trainPixel() above, writes its escape colour to a storage buffer, which a
+// fullscreen pass blits. Fully guarded: any failure falls back to CPU.
+// ═════════════════════════════════════════════════════════════════════
+const WGSL_STRUCT = `
+struct U {
+  view: vec4<f32>,
+  res: u32, T: u32, H: u32, pad: u32,
+  stops: array<vec4<f32>, 6>,
+};`;
+const COMPUTE_WGSL = WGSL_STRUCT + `
+@group(0) @binding(0) var<uniform> u: U;
+@group(0) @binding(1) var<storage, read_write> outp: array<u32>;
+fn ramp(x: f32) -> vec3<f32> {
+  let t = clamp(x, 0.0, 1.0) * 5.0;
+  let ii = min(i32(floor(t)), 4);
+  let f = t - f32(ii);
+  return mix(u.stops[ii].xyz, u.stops[ii + 1].xyz, f) / 255.0;
+}
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let R = u.res;
+  if (gid.x >= R || gid.y >= R) { return; }
+  let e1 = u.view.x + (f32(gid.x) / f32(R) - 0.5) * u.view.z;
+  let e2 = u.view.y - (f32(gid.y) / f32(R) - 0.5) * u.view.w;
+  var W1 = array<f32, 4>(1.2, -0.8, 0.5, -1.1);
+  var B1 = array<f32, 4>(0.3, -0.5, -0.2, 0.4);
+  var W2 = array<f32, 4>(0.9, 0.7, -0.6, 0.5);
+  var b2 = 0.1;
+  var DX = array<f32, 3>(-1.0, 0.0, 1.0);
+  var DY = array<f32, 3>(-0.6, 0.2, 0.7);
+  let H = i32(u.H);
+  let T = i32(u.T);
+  let THRESH = 1000000.0;
+  var prevL = -1.0; var mu = f32(T); var trainable = true; var finalL = 0.0;
+  for (var t = 0; t < T; t = t + 1) {
+    var gW1 = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+    var gB1 = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+    var gW2 = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+    var a   = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+    var gb2 = 0.0; var L = 0.0;
+    for (var i = 0; i < 3; i = i + 1) {
+      let x = DX[i];
+      var yh = b2;
+      for (var h = 0; h < H; h = h + 1) { a[h] = tanh(W1[h] * x + B1[h]); yh = yh + W2[h] * a[h]; }
+      let e = yh - DY[i];
+      L = L + e * e;
+      let s = 2.0 * e / 3.0;
+      gb2 = gb2 + s;
+      for (var h = 0; h < H; h = h + 1) {
+        gW2[h] = gW2[h] + s * a[h];
+        let dz = s * W2[h] * (1.0 - a[h] * a[h]);
+        gW1[h] = gW1[h] + dz * x;
+        gB1[h] = gB1[h] + dz;
+      }
+    }
+    L = L / 3.0;
+    if (!(L < THRESH)) {
+      finalL = L; mu = f32(t);
+      if (prevL > 0.0 && L > prevL) {
+        mu = f32(t - 1) + clamp((log(THRESH) - log(prevL)) / (log(L) - log(prevL)), 0.0, 1.0);
+      }
+      trainable = false; break;
+    }
+    for (var h = 0; h < H; h = h + 1) { W1[h] = W1[h] - e1 * gW1[h]; B1[h] = B1[h] - e1 * gB1[h]; W2[h] = W2[h] - e2 * gW2[h]; }
+    b2 = b2 - e2 * gb2; prevL = L; finalL = L;
+  }
+  var col: vec3<f32>;
+  if (trainable) {
+    let v = clamp((log(max(finalL, 1e-12)) / log(10.0) + 9.0) / 9.0, 0.0, 1.0);
+    let g = 8.0 + 18.0 * v;
+    col = vec3<f32>(g, g * 0.7, g * 1.3) / 255.0;
+  } else {
+    col = ramp(pow(mu / f32(T), 0.42));
+  }
+  let r = u32(clamp(col.x, 0.0, 1.0) * 255.0);
+  let g2 = u32(clamp(col.y, 0.0, 1.0) * 255.0);
+  let b3 = u32(clamp(col.z, 0.0, 1.0) * 255.0);
+  outp[gid.y * R + gid.x] = r | (g2 << 8u) | (b3 << 16u) | (255u << 24u);
+}`;
+const RENDER_WGSL = WGSL_STRUCT + `
+@group(0) @binding(0) var<uniform> u: U;
+@group(0) @binding(1) var<storage, read> px: array<u32>;
+@vertex
+fn vmain(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4<f32> {
+  var p = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));
+  return vec4<f32>(p[vi], 0.0, 1.0);
+}
+@fragment
+fn fmain(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+  let R = u.res;
+  let v = px[u32(pos.y) * R + u32(pos.x)];
+  return vec4<f32>(f32(v & 0xffu), f32((v >> 8u) & 0xffu), f32((v >> 16u) & 0xffu), 255.0) / 255.0;
+}`;
+let gpu = null;
+async function initGPU(){
+  const adapter = await navigator.gpu.requestAdapter(); if(!adapter) throw new Error('no adapter');
+  const device = await adapter.requestDevice();
+  const ctx = cv.getContext('webgpu'); if(!ctx) throw new Error('no webgpu context');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format, alphaMode:'opaque' });
+  const ubuf = device.createBuffer({ size:128, usage:GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  device.pushErrorScope('validation');
+  const compMod = device.createShaderModule({ code: COMPUTE_WGSL });
+  const rendMod = device.createShaderModule({ code: RENDER_WGSL });
+  const compPipe = device.createComputePipeline({ layout:'auto', compute:{ module:compMod, entryPoint:'main' } });
+  const rendPipe = device.createRenderPipeline({ layout:'auto', vertex:{ module:rendMod, entryPoint:'vmain' },
+    fragment:{ module:rendMod, entryPoint:'fmain', targets:[{ format }] }, primitive:{ topology:'triangle-list' } });
+  const err = await device.popErrorScope(); if(err) throw new Error('WGSL: ' + err.message);
+  gpu = { device, ctx, format, ubuf, compPipe, rendPipe, outbuf:null, outRes:0, compBG:null, rendBG:null };
+}
+function renderGPU(){
+  if(!gpu) throw new Error('gpu not ready');
+  const device = gpu.device, R = de.res;
+  if(cv.width!==R || cv.height!==R){ cv.width=R; cv.height=R; }
+  if(gpu.outRes!==R || !gpu.outbuf){
+    if(gpu.outbuf) gpu.outbuf.destroy();
+    gpu.outbuf = device.createBuffer({ size:R*R*4, usage:GPUBufferUsage.STORAGE });
+    gpu.compBG = device.createBindGroup({ layout:gpu.compPipe.getBindGroupLayout(0),
+      entries:[ {binding:0,resource:{buffer:gpu.ubuf}}, {binding:1,resource:{buffer:gpu.outbuf}} ] });
+    gpu.rendBG = device.createBindGroup({ layout:gpu.rendPipe.getBindGroupLayout(0),
+      entries:[ {binding:0,resource:{buffer:gpu.ubuf}}, {binding:1,resource:{buffer:gpu.outbuf}} ] });
+    gpu.outRes = R;
+  }
+  const ab = new ArrayBuffer(128), dv = new DataView(ab);
+  dv.setFloat32(0,view.cx,true); dv.setFloat32(4,view.cy,true); dv.setFloat32(8,view.spanX,true); dv.setFloat32(12,view.spanY,true);
+  dv.setUint32(16,R,true); dv.setUint32(20,de.T,true); dv.setUint32(24,de.H,true); dv.setUint32(28,0,true);
+  const st = PALETTES[de.pal]; for(let i=0;i<6;i++){ const o=32+i*16; dv.setFloat32(o,st[i][0],true); dv.setFloat32(o+4,st[i][1],true); dv.setFloat32(o+8,st[i][2],true); dv.setFloat32(o+12,0,true); }
+  device.queue.writeBuffer(gpu.ubuf, 0, ab);
+  const enc = device.createCommandEncoder();
+  const cp = enc.beginComputePass(); cp.setPipeline(gpu.compPipe); cp.setBindGroup(0,gpu.compBG);
+  const wg = Math.ceil(R/8); cp.dispatchWorkgroups(wg, wg); cp.end();
+  const rp = enc.beginRenderPass({ colorAttachments:[{ view:gpu.ctx.getCurrentTexture().createView(), loadOp:'clear', storeOp:'store', clearValue:{r:0,g:0,b:0,a:1} }] });
+  rp.setPipeline(gpu.rendPipe); rp.setBindGroup(0,gpu.rendBG); rp.draw(3); rp.end();
+  device.queue.submit([enc.finish()]);
+}
+
 // ── interaction: drag to pan, wheel to zoom, click to probe ──
 let drag=null;
 cv.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy,moved:false}; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove',e=>{ if(!drag)return; const r=cv.getBoundingClientRect();
   const dx=(e.clientX-drag.x)/r.width, dy=(e.clientY-drag.y)/r.height; if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)>3)drag.moved=true;
-  view.cx=drag.cx - dx*view.spanX; view.cy=drag.cy + dy*view.spanY; coarsePass(); de.row=0; cancelAnimationFrame(de.raf); de.raf=requestAnimationFrame(renderStep); });
+  view.cx=drag.cx - dx*view.spanX; view.cy=drag.cy + dy*view.spanY; quickDraw(); });
 cv.addEventListener('pointerup',e=>{ if(drag&&!drag.moved){ probeAt(e); } drag=null; });
 cv.addEventListener('wheel',e=>{ e.preventDefault(); const r=cv.getBoundingClientRect();
   const mx=(e.clientX-r.left)/r.width, my=(e.clientY-r.top)/r.height;
@@ -333,10 +480,13 @@ document.getElementById('de-res').addEventListener('input',e=>{ document.getElem
 document.getElementById('de-cmap').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b)return;
   de.pal=b.dataset.c; document.querySelectorAll('#de-cmap .btn').forEach(x=>x.classList.toggle('active',x===b)); startRender(); });
 
-// Init
-defaultView(); startRender(); drawProbe();
-const initialHash=(location.hash||'').replace(/^#/,'');
-if(TAB_NAMES.includes(initialHash)&&initialHash!=='explore') setTimeout(()=>showTab(initialHash),0);
+// Init — probe WebGPU; on any failure use the CPU renderer
+(async ()=>{
+  if(navigator.gpu){ try{ await initGPU(); mode='gpu'; }catch(e){ console.warn('WebGPU unavailable → CPU fallback:', e.message); mode='cpu'; } }
+  defaultView(); startRender(); drawProbe(); updateStats();
+  const initialHash=(location.hash||'').replace(/^#/,'');
+  if(TAB_NAMES.includes(initialHash)&&initialHash!=='explore') setTimeout(()=>showTab(initialHash),0);
+})();
 </script>
 </body>
 </html>
