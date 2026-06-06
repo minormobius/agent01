@@ -217,7 +217,7 @@ addEventListener('keydown', (e) => {
   if (!started) start();
   if (e.key === 'ArrowLeft') move(-1); else if (e.key === 'ArrowRight') move(1);
   else if (e.key === 'ArrowDown') softDrop(); else if (e.key === 'ArrowUp' || e.key === 'x') rotate();
-  else if (e.key === ' ') hardDrop();
+  else if (e.key === ' ' && !e.repeat) hardDrop(); // one drop per press — ignore auto-repeat
 });
 document.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
   if (!started) start();
