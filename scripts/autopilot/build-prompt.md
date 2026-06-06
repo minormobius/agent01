@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-05 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-06 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, antoine, ask, astro, atlas, atmosphere, atproto-data, audio, auto, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, disk, docs, draw, echo, elements, empathy, emsim, erdos, finance, flights, flow, flows, fluoddity, fodder, fractal, functions, g, games, garden, gawain, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, horned, inpac, io, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, math, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, orb, orfeo, org, os, owain, pac, packages, paint, pds, pendragon, photo, phylo, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, splice, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, ternary2, ternary3, thread, time, torpac, torus, track, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yum, zoom
 
 **Catalog saturation** (sites per category): bluesky 36, games 32, data 27, tools 24, work 7.
 
-**Neighborhood spark** (bisk 2026-06-05, 100 members / 270 posts):
+**Neighborhood spark** (bisk 2026-06-06, 100 members / 273 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: rsi, anthropic, llms
-- Top post: "The median AI safety person is a weirdo who was into it 10 years before there was any system that appeared to match thei" — @eugenevinitsky.bsky.social
+- Distinctive words: mythos, minecraft, anthropic
+- Top post: "they say he does a funny voice when he says "my totenkopf" and as a millennial, i can assure you that he is actually doi" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
