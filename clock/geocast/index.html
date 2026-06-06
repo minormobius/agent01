@@ -148,6 +148,14 @@ footer a{color:var(--ink-soft)}
       </div>
 
       <div class="panel">
+        <div class="cap">Ask a question · does it perfect?</div>
+        <div class="body">
+          <div class="ctl"><label>the matter</label><select id="qhouse"></select></div>
+          <div id="judgment"></div>
+        </div>
+      </div>
+
+      <div class="panel">
         <div class="cap">The casting</div>
         <div class="body">
           <div class="controls">
@@ -181,10 +189,10 @@ footer a{color:var(--ink-soft)}
 'use strict';
 import { soilProps, Field } from '../lib/soil.js';
 import { makeRenderer } from '../lib/soil-render.js';
-import { mothersFromCounts, shield, figurePoints, readShieldPosition } from '../lib/geomancy.js';
-import { MEANINGS, HOUSES, HOUSE_EXTRAS } from '../lib/geomancy-meanings.js';
+import { mothersFromCounts, shield, figurePoints, readShieldPosition, perfection } from '../lib/geomancy.js';
+import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION } from '../lib/geomancy-meanings.js';
 const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
-const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS };
+const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS, perfection: PERFECTION };
 let SH = null, curSelKey = 'judge';
 
 const N = 320;
@@ -246,6 +254,7 @@ function measure(){
   renderShield(SH);
   drawOverlay(counts);
   renderReading();
+  renderJudgment();
   return counts;
 }
 
@@ -294,6 +303,18 @@ function renderReading(){
   const r=readShieldPosition(SH, parseSel(curSelKey), CTX);
   el.innerHTML = r.title ? `<div class="rtitle">${r.title}</div>${r.body}` : '<div class="rmuted">Click any figure in the shield.</div>';
   document.querySelectorAll('#mothers [data-sel],#shield [data-sel]').forEach(e=>e.classList.toggle('sel', e.dataset.sel===curSelKey));
+}
+// ── the question: does the matter perfect? (Fludd, Liber III, Cap. VI) ──
+const qSel = document.getElementById('qhouse');
+if(qSel){
+  qSel.innerHTML = HOUSES.map(h=>`<option value="${h.n}"${h.n===7?' selected':''}>${h.n} · ${h.name} — ${h.matter}</option>`).join('');
+  qSel.addEventListener('change', renderJudgment);
+}
+function renderJudgment(){
+  const el=document.getElementById('judgment'); if(!el) return;
+  if(!SH){ el.innerHTML='<div class="rmuted">Cast first, then ask.</div>'; return; }
+  const r=perfection(SH, +(qSel?qSel.value:7), CTX);
+  el.innerHTML = `<div class="rtitle">${r.title}</div>${r.body}`;
 }
 function pickSel(t){ const el=t&&t.closest&&t.closest('[data-sel]'); if(el){ curSelKey=el.dataset.sel; renderReading(); return true; } return false; }
 document.addEventListener('click', e=>pickSel(e.target));

@@ -191,3 +191,54 @@ export function readShieldPosition(shield, sel, ctx){
   }
   return { title:'', body:'' };
 }
+
+// ── L7 — PERFECTION: does the question come to pass? (Fludd, Liber III, Cap. VI) ──
+// We link the querent's significator (the figure in the 1st house) to the quesited's (the
+// figure in the topic house) by Fludd's four connections — occupation, conjunction, mutation,
+// translation. Detection is COMPOSED (a computational reading of his stated method); for each
+// connection found we show Fludd's own SOURCED definition. Deterministic. ctx as above, plus
+// ctx.perfection = { modes:[{key,name,la,en}] } (the sourced definitions).
+export function perfection(shield, queryHouse, ctx){
+  const HC = houseChart(shield);
+  const keyOf = rows => rows.map(r=>r===1?'1':'0').join('');
+  const k = h => keyOf(HC[h-1].rows);                 // figure-key in house h (1..12)
+  const M = key => (ctx.meanings && ctx.meanings[key]) || null;
+  const adj = (a,b) => Math.abs(a-b)===1;             // houses set side by side
+  const allH = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const housesWith = key => allH.filter(h=>k(h)===key);
+  const Q = 1, T = Math.max(1, Math.min(12, queryHouse|0));
+  const qk = k(Q), tk = k(T), Ht = ctx.houses[T-1];
+  const found = [];
+
+  if(T!==Q){
+    // 1) Occupation — the querent's own figure also stands in the quesited house
+    if(qk===tk) found.push({key:'occupation', how:`<b>${esc(M(qk).la)}</b> — the querent’s own figure — also stands in the ${ORD[T-1]} house, the matter itself.`});
+    // 2) Conjunction — a significator recurs in a house beside the other significator's house
+    let c=null;
+    for(const h of housesWith(qk)) if(h!==Q && adj(h,T)){ c=`<b>${esc(M(qk).la)}</b> (the querent) recurs in the ${ORD[h-1]} house, set beside the ${ORD[T-1]}.`; break; }
+    if(!c) for(const h of housesWith(tk)) if(h!==T && adj(h,Q)){ c=`<b>${esc(M(tk).la)}</b> (the matter) recurs in the ${ORD[h-1]} house, set beside the first.`; break; }
+    if(c) found.push({key:'conjunction', how:c});
+    // 3) Mutation — the two significators meet together in two adjacent houses elsewhere
+    if(qk!==tk) for(let h=1;h<12;h++){ const s=new Set([k(h),k(h+1)]); const orig=x=>x===Q||x===T;
+      if(s.has(qk)&&s.has(tk)&&!(orig(h)&&orig(h+1))){ found.push({key:'mutation', how:`<b>${esc(M(qk).la)}</b> and <b>${esc(M(tk).la)}</b> meet together in the ${ORD[h-1]} and ${ORD[h]} houses.`}); break; } }
+    // 4) Translation — a third figure stands beside both significators, carrying between them
+    for(const x of new Set(allH.map(k))){ if(x===qk||x===tk) continue; const hs=housesWith(x);
+      if(hs.some(h=>adj(h,Q))&&hs.some(h=>adj(h,T))){ found.push({key:'translation', how:`A third figure, <b>${esc(M(x).la)}</b>, stands beside both significators and carries between them.`}); break; } }
+  }
+
+  const perfects = found.length>0;
+  const defOf = key => (ctx.perfection && ctx.perfection.modes||[]).find(m=>m.key===key) || null;
+  const judge = M(keyOf(shield.judge.rows));
+  let body = `<p class="rfig">Querent — the first house — is <b>${esc(M(qk).la)}</b> (${esc(M(qk).en)}). The matter — the ${ORD[T-1]} house, <b>${esc(Ht.name)}</b> (${esc(Ht.matter)}) — is <b>${esc(M(tk).la)}</b> (${esc(M(tk).en)}).</p>`;
+  if(T===Q) return { title:'Perfection — the judgment', perfects:false,
+    body: body + `<p class="rmuted">Choose a house other than the first as the matter asked about.</p>` };
+  if(perfects){
+    body += `<p class="rnat good">The question <b>perfects</b> — by ${found.map(f=>f.key).join(', ')}. The matter is brought to pass.</p>`;
+    for(const f of found){ const d=defOf(f.key);
+      body += `<p class="rfig">${f.how}</p>`+ (d?`<div class="rfludd"><div class="la">${esc(d.la)}</div><div class="en">${esc(d.en)}</div><div class="rsrc">— Fludd, Liber III, Cap. VI · ${esc(d.name)}</div></div>`:''); }
+  } else {
+    body += `<p class="rnat ill">The question does <b>not perfect</b>: by occupation, conjunction, mutation, or translation the two significators do not meet — the matter is not brought about of itself.</p>`;
+  }
+  if(judge) body += `<p class="rjudge">The Judge is <b>${esc(judge.la)}</b> (${esc(judge.nature)}); the manner of the end ${({good:'inclines to the good',ill:'inclines to the ill',mixed:'is mixed, turning on its company',neutral:'rests passive'}[natWord(judge.nature)]||'is mixed')}.</p>`;
+  return { title:'Perfection — does the matter come to pass?', perfects, body };
+}

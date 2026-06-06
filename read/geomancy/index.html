@@ -101,6 +101,7 @@ footer a{color:var(--ink2)}
   <main id="entry" class="entry"></main>
   <div id="source"></div>
   <div id="houses"></div>
+  <div id="perfection"></div>
   <div id="roadmap"></div>
   <div id="method"></div>
   <footer>
@@ -178,6 +179,15 @@ if(H.length) document.getElementById('houses').innerHTML =
     ).join('')+`</div>`:'')+
   `</div>`;
 
+// perfection — how a question is answered (Liber III, Cap. VI)
+const PF = (GEOMANCY.fludd && GEOMANCY.fludd.perfection) || null;
+if(PF) document.getElementById('perfection').innerHTML =
+  `<div class="method"><h2>Perfection — how a question is answered</h2>`+
+  `<p>The figures and houses describe; <em>perfection</em> decides. The querent is the figure in the first house, the matter the figure in the house it belongs to; the question comes to pass when the two are linked by one of four connections. This is the method <a href="https://g.mino.mobi/geocast/">geocast</a> now runs when you ask a question.</p>`+
+  `<div class="par"><div class="la">${PF.intro.la}</div><div class="en">${PF.intro.en}</div></div>`+
+  PF.modes.map(m=>`<h3 class="lh">${m.name}</h3><div class="par"><div class="la">${m.la}</div><div class="en">${m.en}</div></div>`).join('')+
+  `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${PF.source}</p></div>`;
+
 // roadmap — what's translated, and what's coming
 const doneFigs = F.filter(f=>f.domus);
 document.getElementById('roadmap').innerHTML =
@@ -188,6 +198,9 @@ document.getElementById('roadmap').innerHTML =
     (doneFigs.length>=16?` — the whole chapter, complete: every figure in every shield-place, Latin beside English.`
       :` done (${doneFigs.map(f=>f.la).join(', ')}); the rest to come, tranche by tranche.`)+`</li>`+
   `<li class="done"><b>House descriptions</b> — Fludd’s account of all each house governs (Liber III, Cap. V), the twelve houses and the three further places (Witnesses + Judge), Latin beside English.</li>`+
+  `<li class="done"><b>Perfection</b> — the four connections that answer a question (Liber III, Cap. VI: occupation, conjunction, mutation, translation), applied live in geocast: ask, and the chart judges.</li>`+
+  `<li class="todo"><b>Aspects</b> — the geomantic sextile, square and trine between houses (a later book), to refine the manner of the outcome.</li>`+
+  `<li class="todo"><b>Doubled figures &amp; pairs</b> — Cap. IV (a figure repeated) and the figure-with-figure tables — two more sourced combinatorial layers.</li>`+
   `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
   `</ul></div>`;
 
