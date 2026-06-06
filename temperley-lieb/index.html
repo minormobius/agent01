@@ -107,6 +107,7 @@ footer a:hover { color: var(--accent); }
 
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="tiles" role="tab">tiles</button>
+  <button class="tab" data-tab="thermal" role="tab">thermal</button>
   <button class="tab" data-tab="torus" role="tab">torus</button>
   <button class="tab" data-tab="algebra" role="tab">algebra</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
@@ -162,6 +163,52 @@ footer a:hover { color: var(--accent); }
         quotients (the Jones subfactors, the ADE classification). δ = 2 is the boundary
         between "small" and generic. Switch to the <strong>torus</strong> tab to see this
         same configuration wrapped onto a donut.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── THERMAL PANE ─────────── -->
+<section class="pane" data-pane="thermal">
+  <p class="lead">
+    The loop tiles <em>are</em> the <strong>Q-state Potts model</strong> in disguise — loop
+    weight δ = √Q, so <strong>δ = √2 is exactly the Ising model</strong>. Here the δ slider is a
+    <strong>thermostat</strong>: we randomly flip tiles and accept each flip with Boltzmann
+    probability min(1, δ<sup>Δloops</sup>), sampling the loop gas at that fugacity. The
+    <strong>tribes are the loops</strong> — and which tribe a tile joins is decided by global
+    connectivity, not its orientation. Hit <strong>run</strong> and watch the tribes reorganise.
+    (Torus boundary, so every tribe closes; winding tribes are coloured hot.)
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="th-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">loop fugacity · δ  (Q = δ²)</span>
+        <div class="ctrl-row"><input id="th-delta" type="range" min="0.40" max="2.40" value="1.41" step="0.01"><span class="ctrl-val" id="th-delta-val">1.41</span></div>
+        <div class="btn-row" id="th-presets">
+          <button class="btn" data-d="1">1 · free</button>
+          <button class="btn active" data-d="1.41421356">√2 · Ising</button>
+          <button class="btn" data-d="1.73205081">√3 · 3-Potts</button>
+          <button class="btn" data-d="2">2 · Q=4</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="th-run">▶ run</button>
+          <button class="btn" id="th-sweep">+1 sweep</button>
+          <button class="btn" id="th-rand">randomise</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × M</span>
+        <div class="ctrl-row"><input id="th-size" type="range" min="4" max="14" value="10" step="1"><span class="ctrl-val" id="th-size-val">10</span></div>
+      </div>
+      <div class="stats" id="th-stats"></div>
+      <div class="stat-note">
+        δ = 1 is free (infinite temperature — every tiling equally likely). δ &gt; 1 rewards
+        <em>more</em> tribes (many small loops); δ &lt; 1 rewards <em>fewer</em> (a few big,
+        often winding, loops). At δ = √2 the loops are the Fortuin–Kasteleyn cluster boundaries
+        of the Ising model — the tribes you're watching are FK clusters.
       </div>
     </div>
   </div>
@@ -367,12 +414,13 @@ the same donut, now carrying loops instead of a maze.</p>
 // ═════════════════════════════════════════════════════════════════════
 const tabs = document.querySelectorAll('.tab');
 const panes = document.querySelectorAll('.pane');
-const TAB_NAMES = ['tiles', 'torus', 'algebra', 'docs'];
+const TAB_NAMES = ['tiles', 'thermal', 'torus', 'algebra', 'docs'];
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
   try { history.replaceState(null, '', '#' + name); } catch {}
   if (name === 'tiles') drawTiles();
+  if (name === 'thermal') { if(!thermal.states.length) thRandomize(); drawThermal(); if(thermal.running) thermal.raf=requestAnimationFrame(thLoop); }
   if (name === 'torus') { syncTorusFromTiles(); startSpin(); }
   if (name === 'algebra') drawAlg();
 }
@@ -717,13 +765,83 @@ document.getElementById('rel-row').addEventListener('click',e=>{
 });
 
 // ═════════════════════════════════════════════════════════════════════
+// Thermal tab — Metropolis loop-gas thermostat (weight δ^#loops; δ=√2 = Ising)
+//   tribes = loops; flip a tile, accept with min(1, δ^Δloops). Torus boundary.
+// ═════════════════════════════════════════════════════════════════════
+const thermal = { L:10, M:10, mode:'torus', delta:Math.SQRT2, states:[], loops:0, running:false, raf:null, sweeps:0, acc:0, prop:0 };
+const thCanvas = document.getElementById('th-canvas'), thCtx = thCanvas.getContext('2d');
+function closedCount(states){ return trace(states, thermal.L, thermal.M, thermal.mode).filter(c=>c.closed).length; }
+function thRandomize(){ const n=thermal.L*thermal.M; thermal.states=new Array(n);
+  for(let i=0;i<n;i++) thermal.states[i]=Math.random()<0.5?0:1;
+  thermal.loops=closedCount(thermal.states); thermal.sweeps=0; thermal.acc=0; thermal.prop=0; }
+function mcStep(){ const n=thermal.L*thermal.M, i=(Math.random()*n)|0;
+  thermal.states[i]^=1; const after=closedCount(thermal.states); const d=after-thermal.loops; thermal.prop++;
+  if(Math.random() < Math.pow(thermal.delta, d)){ thermal.loops=after; thermal.acc++; }
+  else thermal.states[i]^=1; }
+function thGeom(){ const W=thCanvas.width,H=thCanvas.height,pad=18;
+  const cs=Math.min((W-2*pad)/thermal.L,(H-2*pad)/thermal.M); return {W,H,cs,ox:(W-cs*thermal.L)/2,oy:(H-cs*thermal.M)/2}; }
+function drawThermal(){ const ctx=thCtx,g=thGeom();
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  for(let x=0;x<=thermal.L;x++){ ctx.beginPath(); ctx.moveTo(g.ox+x*g.cs,g.oy); ctx.lineTo(g.ox+x*g.cs,g.oy+thermal.M*g.cs); ctx.stroke(); }
+  for(let y=0;y<=thermal.M;y++){ ctx.beginPath(); ctx.moveTo(g.ox,g.oy+y*g.cs); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy+y*g.cs); ctx.stroke(); }
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox,g.oy+thermal.M*g.cs);
+  ctx.moveTo(g.ox+thermal.L*g.cs,g.oy); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy+thermal.M*g.cs);
+  ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy);
+  ctx.moveTo(g.ox,g.oy+thermal.M*g.cs); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy+thermal.M*g.cs); ctx.stroke(); ctx.setLineDash([]);
+  const comps=trace(thermal.states,thermal.L,thermal.M,thermal.mode);
+  const map=new Map(); comps.forEach((c,ci)=>c.seq.forEach(([x,y,d])=>map.set(x+','+y+','+d,ci)));
+  const lw=Math.max(1.5,g.cs*0.10);
+  for(let y=0;y<thermal.M;y++) for(let x=0;x<thermal.L;x++){ const st=thermal.states[y*thermal.L+x];
+    const ciA=map.get(x+','+y+',0'), ciB=map.get(x+','+y+','+(st===0?1:2));
+    const colA=ciA!=null?colorForComp(comps,ciA).color:cssVar('--canvas-ink');
+    const colB=ciB!=null?colorForComp(comps,ciB).color:cssVar('--canvas-ink');
+    const x0=g.ox+x*g.cs,y0=g.oy+y*g.cs,r=g.cs/2; ctx.lineCap='round'; ctx.lineWidth=lw;
+    if(st===0){ ctx.strokeStyle=colA;ctx.beginPath();ctx.arc(x0,y0,r,0,Math.PI/2);ctx.stroke();
+      ctx.strokeStyle=colB;ctx.beginPath();ctx.arc(x0+g.cs,y0+g.cs,r,Math.PI,Math.PI*1.5);ctx.stroke(); }
+    else { ctx.strokeStyle=colA;ctx.beginPath();ctx.arc(x0+g.cs,y0,r,Math.PI/2,Math.PI);ctx.stroke();
+      ctx.strokeStyle=colB;ctx.beginPath();ctx.arc(x0,y0+g.cs,r,Math.PI*1.5,Math.PI*2);ctx.stroke(); }
+  }
+  const closed=comps.filter(c=>c.closed), wind=closed.filter(c=>c.wx!==0||c.wy!==0);
+  let big=0; for(const c of closed){ const len=new Set(c.seq.map(p=>p.join(','))).size/2; if(len>big) big=len; }
+  const Q=thermal.delta*thermal.delta, accRate=thermal.prop?thermal.acc/thermal.prop:0;
+  const isIsing=Math.abs(thermal.delta-Math.SQRT2)<0.02;
+  document.getElementById('th-stats').innerHTML = `
+    <div class="stat-row"><span class="k">δ  ·  Q = δ²</span><span class="v hot">${thermal.delta.toFixed(3)} · ${Q.toFixed(2)}</span></div>
+    <div class="stat-row"><span class="k">model</span><span class="v ${isIsing?'win':''}">${isIsing?'ISING (Q=2)':Q<1.04?'free / percolation':'Q='+Q.toFixed(2)+' Potts'}</span></div>
+    <div class="stat-row"><span class="k">tribes (loops)</span><span class="v hot">${closed.length}</span></div>
+    <div class="stat-row"><span class="k">· winding</span><span class="v win">${wind.length}</span></div>
+    <div class="stat-row"><span class="k">biggest tribe</span><span class="v">${big} arcs</span></div>
+    <div class="stat-row"><span class="k">sweeps</span><span class="v">${thermal.sweeps.toFixed(1)}</span></div>
+    <div class="stat-row"><span class="k">accept rate</span><span class="v">${(accRate*100).toFixed(0)}%</span></div>`;
+}
+function thActive(){ return document.querySelector('.pane.active')?.dataset.pane==='thermal'; }
+function thLoop(){ if(!thermal.running||!thActive()) return;
+  const n=thermal.L*thermal.M, steps=2*n;          // ~2 sweeps per frame
+  for(let s=0;s<steps;s++) mcStep(); thermal.sweeps+=steps/n; drawThermal();
+  thermal.raf=requestAnimationFrame(thLoop); }
+function thSetRun(on){ thermal.running=on; const b=document.getElementById('th-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on) thermal.raf=requestAnimationFrame(thLoop); else cancelAnimationFrame(thermal.raf); }
+document.getElementById('th-run').addEventListener('click',()=>thSetRun(!thermal.running));
+document.getElementById('th-sweep').addEventListener('click',()=>{ const n=thermal.L*thermal.M; for(let s=0;s<n;s++)mcStep(); thermal.sweeps+=1; drawThermal(); });
+document.getElementById('th-rand').addEventListener('click',()=>{ thRandomize(); drawThermal(); });
+const thDelta=document.getElementById('th-delta'), thDeltaVal=document.getElementById('th-delta-val');
+function setDelta(v){ thermal.delta=v; thDelta.value=v; thDeltaVal.textContent=v.toFixed(2);
+  document.querySelectorAll('#th-presets .btn').forEach(b=>b.classList.toggle('active',Math.abs(parseFloat(b.dataset.d)-v)<0.005)); drawThermal(); }
+thDelta.addEventListener('input',e=>setDelta(parseFloat(e.target.value)));
+document.getElementById('th-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-d]'); if(b) setDelta(parseFloat(b.dataset.d)); });
+document.getElementById('th-size').addEventListener('input',e=>{ thermal.L=thermal.M=parseInt(e.target.value,10); document.getElementById('th-size-val').textContent=thermal.L; thRandomize(); drawThermal(); });
+
+// ═════════════════════════════════════════════════════════════════════
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildGenRow();
 drawTiles();
 drawAlg();
 window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
-  if(p==='tiles')drawTiles(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
+  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
 const initialHash=(location.hash||'').replace(/^#/,'');
 if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
 </script>
