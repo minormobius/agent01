@@ -110,6 +110,7 @@ footer a:hover { color: var(--accent); }
   <button class="tab" data-tab="thermal" role="tab">thermal</button>
   <button class="tab" data-tab="ising" role="tab">ising</button>
   <button class="tab" data-tab="potts" role="tab">potts</button>
+  <button class="tab" data-tab="phase" role="tab">phase</button>
   <button class="tab" data-tab="torus" role="tab">torus</button>
   <button class="tab" data-tab="algebra" role="tab">algebra</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
@@ -343,6 +344,43 @@ footer a:hover { color: var(--accent); }
   </div>
 </section>
 
+<!-- ─────────── PHASE PANE ─────────── -->
+<section class="pane" data-pane="phase">
+  <p class="lead">
+    The phase diagram ties the thermostats together. Sweep the temperature from cold to hot and, at
+    each T, let Swendsen–Wang equilibrate and measure the order parameter — the Potts magnetisation
+    m. The curve falls from 1 (frozen, ordered) to 0 (disordered) as you cross the exact critical
+    temperature <strong>T<sub>c</sub> = 1/ln(1+√Q)</strong> (dashed line). <strong>For Q ≤ 4 the fall
+    is continuous; for Q ≥ 5 it drops off a cliff</strong> — a first-order transition. Pick Q, hit
+    run, and watch the curve draw itself.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="ph-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">colours · Q  (Q = 2 is Ising)</span>
+        <div class="ctrl-row"><input id="ph-q" type="range" min="2" max="10" value="2" step="1"><span class="ctrl-val" id="ph-q-val">2</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="ph-run">▶ run sweep</button>
+          <button class="btn" id="ph-reset">reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L (smaller = faster)</span>
+        <div class="ctrl-row"><input id="ph-size" type="range" min="16" max="40" value="24" step="4"><span class="ctrl-val" id="ph-size-val">24</span></div>
+      </div>
+      <div class="stats" id="ph-stats"></div>
+      <div class="stat-note">
+        Blue is the magnetisation m; faint orange is the energy per site. The sweep heats cold→hot,
+        carrying the lattice from each T to the next (adiabatic), so the curve tracks the equilibrium
+        branch. Finite L rounds the corner off — bump L up to sharpen the transition, down for speed.
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ─────────── TORUS PANE ─────────── -->
 <section class="pane" data-pane="torus">
   <p class="lead">
@@ -555,7 +593,7 @@ the same donut, now carrying loops instead of a maze.</p>
 // ═════════════════════════════════════════════════════════════════════
 const tabs = document.querySelectorAll('.tab');
 const panes = document.querySelectorAll('.pane');
-const TAB_NAMES = ['tiles', 'thermal', 'ising', 'potts', 'torus', 'algebra', 'docs'];
+const TAB_NAMES = ['tiles', 'thermal', 'ising', 'potts', 'phase', 'torus', 'algebra', 'docs'];
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
@@ -564,6 +602,7 @@ function showTab(name) {
   if (name === 'thermal') { if(!thermal.states.length) thRandomize(); drawThermal(); if(thermal.running) thermal.raf=requestAnimationFrame(thLoop); }
   if (name === 'ising') { if(!ising.spins){ isInit(); labelStats(fkClusters()); } drawIsing(); if(ising.running) ising.raf=requestAnimationFrame(isLoop); }
   if (name === 'potts') { if(!potts.spins){ poInit(); } drawPotts(); if(potts.running) potts.raf=requestAnimationFrame(poLoop); }
+  if (name === 'phase') { drawPhase(); if(phase.running) phase.raf=requestAnimationFrame(phTick); }
   if (name === 'torus') { if(!donut.states){ syncTorusFromTiles(); } else { drawTorus(); updateTorusStats(); } startSpin(); }
   if (name === 'algebra') drawAlg();
 }
@@ -1196,13 +1235,87 @@ document.getElementById('po-size').addEventListener('input',e=>{ potts.L=parseIn
 document.getElementById('po-speed').addEventListener('input',e=>{ potts.ups=parseInt(e.target.value,10); document.getElementById('po-speed-val').textContent=potts.ups; });
 
 // ═════════════════════════════════════════════════════════════════════
+// Phase tab — order-parameter vs temperature, swept with Swendsen–Wang
+//   the curve falls through Tc(Q); Q≥5 falls off a (first-order) cliff
+// ═════════════════════════════════════════════════════════════════════
+const phase = { Q:2, L:24, steps:48, eq:20, samp:24, data:[], lat:null, idx:0, running:false, raf:null, Tmin:0, Tmax:0 };
+const phCanvas = document.getElementById('ph-canvas'), phCtx = phCanvas.getContext('2d');
+function phLatInit(cold){ const N=phase.L*phase.L; phase.lat=new Uint8Array(N);
+  if(!cold) for(let i=0;i<N;i++) phase.lat[i]=(Math.random()*phase.Q)|0; }   // cold = all 0
+function phSW(T){ const L=phase.L,N=L*L,s=phase.lat,Q=phase.Q,p=1-Math.exp(-1/T);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  const col=new Map(); for(let i=0;i<N;i++){ const r=isFind(par,i); let c=col.get(r); if(c===undefined){ c=(Math.random()*Q)|0; col.set(r,c); } s[i]=c; } }
+function phMeasure(){ const L=phase.L,N=L*L,s=phase.lat,Q=phase.Q;
+  const cnt=new Array(Q).fill(0); for(let i=0;i<N;i++) cnt[s[i]]++;
+  let fmax=0; for(const c of cnt) if(c>fmax) fmax=c; fmax/=N;
+  let e=0; for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x; if(s[i]===s[y*L+((x+1)%L)])e++; if(s[i]===s[((y+1)%L)*L+x])e++; }
+  return { m:(Q*fmax-1)/(Q-1), e:-e/N }; }
+function phStart(){ phase.Tmin=0.55*Tcq(phase.Q); phase.Tmax=1.55*Tcq(phase.Q);
+  phase.idx=0; phase.data=[]; phLatInit(true); phase.running=true;
+  document.getElementById('ph-run').textContent='⏸ pause'; phase.raf=requestAnimationFrame(phTick); }
+function phActive(){ return document.querySelector('.pane.active')?.dataset.pane==='phase'; }
+function phTick(){ if(!phase.running||!phActive()) return;
+  if(phase.idx>=phase.steps){ phase.running=false; document.getElementById('ph-run').textContent='▶ re-run'; drawPhase(); return; }
+  const T=phase.Tmin+(phase.Tmax-phase.Tmin)*phase.idx/(phase.steps-1);
+  for(let i=0;i<phase.eq;i++) phSW(T);                                  // equilibrate
+  let sm=0,se=0; for(let k=0;k<phase.samp;k++){ phSW(T); const o=phMeasure(); sm+=o.m; se+=o.e; }
+  phase.data.push({ T, m:sm/phase.samp, e:se/phase.samp });
+  phase.idx++; drawPhase();
+  phase.raf=requestAnimationFrame(phTick); }
+function drawPhase(){ const ctx=phCtx,W=phCanvas.width,H=phCanvas.height;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const mL=78,mR=34,mT=46,mB=64, pw=W-mL-mR, ph=H-mT-mB;
+  const Tmin=phase.Tmin||0.55*Tcq(phase.Q), Tmax=phase.Tmax||1.55*Tcq(phase.Q);
+  const X=T=>mL+pw*(T-Tmin)/(Tmax-Tmin), Y=v=>mT+ph*(1-v);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1; ctx.strokeRect(mL,mT,pw,ph);
+  ctx.font='13px ui-monospace,monospace'; ctx.fillStyle=cssVar('--muted');
+  for(let v=0;v<=1.0001;v+=0.25){ const yy=Y(v); ctx.globalAlpha=0.45; ctx.beginPath(); ctx.moveTo(mL,yy); ctx.lineTo(mL+pw,yy); ctx.stroke(); ctx.globalAlpha=1; ctx.fillText(v.toFixed(2), mL-38, yy+4); }
+  for(let k=0;k<=4;k++){ const T=Tmin+(Tmax-Tmin)*k/4; ctx.fillText(T.toFixed(2), X(T)-16, mT+ph+22); }
+  const tc=Tcq(phase.Q); if(tc>=Tmin&&tc<=Tmax){ ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(X(tc),mT); ctx.lineTo(X(tc),mT+ph); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=cssVar('--accent'); ctx.fillText('Tc='+tc.toFixed(3), X(tc)+5, mT+14); }
+  const d=phase.data;
+  if(d.length){
+    ctx.strokeStyle='#d98324'; ctx.lineWidth=1.4; ctx.globalAlpha=0.7; ctx.beginPath();   // energy, faint
+    d.forEach((pt,i)=>{ const xx=X(pt.T),yy=Y(-pt.e/2); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.strokeStyle='#1d6fa3'; ctx.lineWidth=2.6; ctx.beginPath();                         // magnetisation
+    d.forEach((pt,i)=>{ const xx=X(pt.T),yy=Y(pt.m); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }); ctx.stroke();
+    ctx.fillStyle='#1d6fa3'; d.forEach(pt=>{ ctx.beginPath(); ctx.arc(X(pt.T),Y(pt.m),2.6,0,7); ctx.fill(); });
+  }
+  ctx.fillStyle=cssVar('--fg'); ctx.font='14px ui-monospace,monospace';
+  ctx.save(); ctx.translate(20,mT+ph/2); ctx.rotate(-Math.PI/2); ctx.fillText('order parameter  m',-66,0); ctx.restore();
+  ctx.fillText('temperature  T', mL+pw/2-46, H-20);
+  phStats(); }
+function phStats(){ const d=phase.data, last=d.length?d[d.length-1]:null;
+  document.getElementById('ph-stats').innerHTML = `
+    <div class="stat-row"><span class="k">Q · δ=√Q</span><span class="v hot">${phase.Q} · ${Math.sqrt(phase.Q).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">Tc(Q)</span><span class="v hot">${Tcq(phase.Q).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">transition</span><span class="v ${phase.Q>=5?'win':''}">${phase.Q>=5?'1st-order (Q≥5)':'continuous (Q≤4)'}</span></div>
+    <div class="stat-row"><span class="k">points</span><span class="v">${d.length} / ${phase.steps}</span></div>
+    <div class="stat-row"><span class="k">last T · m</span><span class="v">${last?last.T.toFixed(3)+' · '+last.m.toFixed(3):'—'}</span></div>`;
+}
+document.getElementById('ph-run').addEventListener('click',()=>{
+  if(phase.running){ phase.running=false; document.getElementById('ph-run').textContent='▶ resume'; return; }
+  if(phase.idx>=phase.steps || phase.data.length===0){ phStart(); }
+  else { phase.running=true; document.getElementById('ph-run').textContent='⏸ pause'; phase.raf=requestAnimationFrame(phTick); } });
+document.getElementById('ph-reset').addEventListener('click',()=>{ phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
+document.getElementById('ph-q').addEventListener('input',e=>{ phase.Q=parseInt(e.target.value,10); document.getElementById('ph-q-val').textContent=phase.Q;
+  phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
+document.getElementById('ph-size').addEventListener('input',e=>{ phase.L=parseInt(e.target.value,10); document.getElementById('ph-size-val').textContent=phase.L;
+  phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
+
+// ═════════════════════════════════════════════════════════════════════
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildGenRow();
 drawTiles();
 drawAlg();
 window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
-  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='potts')drawPotts(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
+  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='potts')drawPotts(); else if(p==='phase')drawPhase(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
 const initialHash=(location.hash||'').replace(/^#/,'');
 if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
 </script>
