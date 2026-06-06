@@ -48,6 +48,19 @@
       '<span>~' + g.playtime + ' min</span>' +
       '<span class="cx">weight ' + g.complexity + ' ' + complexityDots(g.complexity) + '</span>';
     head.appendChild(meta);
+    // NN critic rating — progressive enhancement (only if the model loaded)
+    if (L.rateGame) {
+      var rating = L.rateGame(g);
+      if (rating != null) {
+        var verdict = rating >= 70 ? "a keeper" : rating >= 55 ? "solid" : rating >= 40 ? "playable" : "rough";
+        var badge = el("div", "critic-badge",
+          '<span class="cb-label">NN critic</span>' +
+          '<span class="cb-score">' + rating + '<small>/100</small></span>' +
+          '<span class="cb-verdict">' + verdict + '</span>');
+        badge.title = "A tiny neural net's predicted self-test quality, from the game's static features alone — no playtest. It ranks games (Spearman ≈ 0.25); the exact number is a rough estimate.";
+        head.appendChild(badge);
+      }
+    }
     head.appendChild(el("p", "tagline", md(g.tagline)));
     head.appendChild(el("div", "byline", "designed by " + esc(g.designer.person) + " · " + esc(g.designer.studio) + " · " + g.designer.year));
     page.appendChild(head);

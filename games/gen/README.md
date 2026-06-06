@@ -141,19 +141,53 @@ node games/gen/test/playtest.mjs --dataset out.json 2000   # emit NN training ta
 > (symmetric greedy-vs-greedy ties inflate the draw count); the quality score is
 > the headline.
 
+## The NN critic (Rung 2) — `js/critic.js` · `test/train-critic.mjs`
+
+A tiny `tanh` MLP — the same hand-rolled backprop as the `descent/` toy net,
+wider input + a regression head — learns to predict a game's self-test quality
+from its **static 72-dim feature vector** (`js/features.js`), i.e. *without
+playing it*:
+
+```
+x (72) → tanh(W1·x + b1) (16) → W2·h + b2 → quality/100        ~1,185 params
+```
+
+Trained in node (`node games/gen/test/train-critic.mjs 6000 16 600`, ~30 s, no
+GPU) on labels the self-test generates, with input standardisation + mini-batch
+SGD + momentum + L2 + **validation early-stopping**. The trained weights live in
+`js/critic-model.json` (committed); the browser loads them (`critic-load.js`)
+and shows a "NN critic" rating badge on every rulebook and gallery card — a
+progressive enhancement that can't break the showcase.
+
+**Honest results.** Exact score is a *noisy* target (val R² ≈ 0.07 — most of a
+game's quality is the per-seed economy roll the static features can't see), so
+the headline metric is **ranking**, which is all a screening filter needs:
+
+- val **Spearman ≈ 0.25**, and on a fresh *unseen* sample the predicted deciles
+  line up monotonically with actual quality (D1 ≈ 45 → D10 ≈ 64; top decile
+  **+19 pts** over the bottom).
+- the net screens **100k unseen seeds in ~7 s** (~70 µs each) vs ~5 ms to truly
+  playtest — a ~70× speed-up for finding good games.
+- its learned saliencies read as coherent design opinions: **+** richer action
+  menus, auction, worker-placement, movement; **−** `op:evDispersion` (one
+  dominant action — the real degeneracy), racing, over-complexity.
+
+> The low R² is the point, not a bug: it's an honest measurement that ~90% of
+> quality variance is below the resolution of *static* features. Rung 3 (a net
+> that sees game *state*, via self-play) is where that ceiling lifts.
+
 ## Roadmap
 
-1. ~~**Bot self-playtest (the real balance filter).**~~ **Done — Rung 0 + 1**
-   above. Next within this line:
-   - **Rung 1.5 — MCTS agent** for a sharper skill signal than 1-ply greedy.
-   - **Rung 2 — the tiny NN critic.** `js/features.js` already emits the static
-     66-dim feature vector; `--dataset` already emits `(features → quality)`
-     rows. A small `tanh` MLP (the `descent/` net, wider input), trained in
-     node/browser with hand-rolled backprop, learns to predict quality *without
-     simulating* — so the generator can screen seeds in microseconds and do
-     guided search ("a great 3-player area-control game").
+1. ~~**Bot self-playtest (Rung 0 + 1).**~~ **Done.**
+   ~~**Tiny NN critic (Rung 2).**~~ **Done** (above). Remaining in this line:
+   - **Rung 1.5 — MCTS agent** for a sharper skill label than 1-ply greedy
+     (would also raise the achievable Spearman the critic trains against).
+   - **Generator integration** — have `generate.js`/the lobby use `rateGame()`
+     to bias "featured" toward high-predicted seeds, or offer guided search
+     ("a great 3-player area-control game") by screening with the net.
    - **Rung 3 — cross-game value/policy net** trained by self-play across the
-     catalogue: one net that plays *unseen* generated games.
+     catalogue: one net that sees featurised *state* and plays *unseen*
+     generated games — the ceiling-lifting rung.
 2. **Play modes** (the showcase becomes a game):
    - *solo vs bots* — the interpreter above, with a UI;
    - *hot-seat* — pass-and-play on one screen;

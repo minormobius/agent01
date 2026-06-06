@@ -50,6 +50,10 @@
 <script src="js/prng.js"></script>
 <script src="js/lexicon.js"></script>
 <script src="js/generate.js"></script>
+<script src="js/operational.js"></script>
+<script src="js/features.js"></script>
+<script src="js/critic.js"></script>
+<script src="js/critic-load.js"></script>
 <script src="js/board.js"></script>
 <script>
 (function () {
@@ -70,8 +74,10 @@
     a.style.setProperty("--accent2", pal.accent2);
     a.style.setProperty("--board", pal.board);
     var mechs = g.mechanics.slice(0, 3).map(function (m) { return chip(m.name, "g-" + m.family); }).join("");
+    var rating = L.rateGame ? L.rateGame(g) : null;
+    var rateHtml = (rating != null) ? '<span class="g-rate" title="NN critic’s predicted quality">⌁ ' + rating + '</span>' : '';
     a.innerHTML =
-      '<div class="g-thumb">' + L.board(g) + '</div>' +
+      '<div class="g-thumb">' + L.board(g) + (rateHtml ? '<span class="g-rate-badge">' + rateHtml + '</span>' : '') + '</div>' +
       '<div class="g-body">' +
         '<div class="g-no">№ ' + n + '</div>' +
         '<h3>' + g.title + '</h3>' +
@@ -88,7 +94,8 @@
       shown++;
     }
   }
-  addBatch(6);
+  // load the NN critic first (best-effort) so cards can show its rating, then build.
+  L.loadCritic().finally(function () { addBatch(6); });
   document.getElementById("more").onclick = function () { addBatch(6); };
 
   // nav

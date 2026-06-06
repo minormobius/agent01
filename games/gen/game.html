@@ -28,8 +28,15 @@
 <script src="js/prng.js"></script>
 <script src="js/lexicon.js"></script>
 <script src="js/generate.js"></script>
+<script src="js/operational.js"></script>
+<script src="js/features.js"></script>
+<script src="js/critic.js"></script>
+<script src="js/critic-load.js"></script>
 <script src="js/board.js"></script>
 <script src="js/render.js"></script>
-<script>LUDO.mountReader();</script>
+<script>
+  // load the NN critic (best-effort), then render — the page works either way.
+  LUDO.loadCritic().finally(function () { LUDO.mountReader(); });
+</script>
 </body>
 </html>
