@@ -118,6 +118,11 @@ export function readShieldPosition(shield, sel, ctx){
     mixed:'is of mixed temper, turning on its company', neutral:'rests passive, swayed by the figures around it'}[natWord(nat)] || 'is mixed');
   const judgeTail = () => judgeM
     ? `<p class="rjudge">Over the whole question the Judge is <b>${esc(judgeM.la)}</b> (${esc(judgeM.nature)}); the matter, in the end, ${endWord(judgeM.nature)}.</p>` : '';
+  // Fludd's own signification for this figure in this shield-place (houses 1–12, then
+  // Right Witness = 13, Left Witness = 14, Judge = 15), Latin beside English, when we have it.
+  const fluddAt = (m, idx) => (m && m.domus && m.domus[idx])
+    ? `<div class="rfludd"><div class="la">${esc(m.domus[idx].la)}</div><div class="en">${esc(m.domus[idx].en)}</div>`+
+      `<div class="rsrc">— Robert Fludd, Tractatus de Geomantia (1704)</div></div>` : '';
 
   if(sel.kind==='house'){
     const hc = houseChart(shield).find(h=>h.house===sel.house);
@@ -134,6 +139,7 @@ export function readShieldPosition(shield, sel, ctx){
       figureName: m.la,
       body:`<p class="rdom">${esc(H.domain)}</p>`+
            `<p class="rfig">Here stands <b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
+           fluddAt(m, sel.house-1)+
            `<p class="rnat ${nat}">${natLine}</p>`+ judgeTail() };
   }
 
@@ -147,6 +153,7 @@ export function readShieldPosition(shield, sel, ctx){
     else                  verdict='Witnesses of mixed temper: a qualified outcome — '+(g(m)?'tending to the good':b(m)?'tending to the ill':'evenly poised')+'.';
     return { title:'The Judge · the verdict', figureName:m.la,
       body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
+           fluddAt(m, 14)+
            `<p class="rnat ${natWord(m.nature)}">${verdict}</p>` };
   }
 
@@ -157,7 +164,8 @@ export function readShieldPosition(shield, sel, ctx){
     const lede = right ? 'Right Witness · the querent’s side, what leads in'
                        : 'Left Witness · the quesited’s side, what follows';
     return { title:lede, figureName:m.la,
-      body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+ judgeTail() };
+      body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
+           fluddAt(m, right?12:13)+ judgeTail() };
   }
   return { title:'', body:'' };
 }

@@ -11,9 +11,12 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const key = rows => rows.map(r => r === 1 ? '1' : '0').join('');   // 1 = single/active
 
-const entries = GEOMANCY.figures.map(f =>
-  `  '${key(f.rows)}': ${JSON.stringify({ la:f.la, en:f.en, planet:f.planet, nature:f.nature, sig:f.sig })},`
-).join('\n');
+const entries = GEOMANCY.figures.map(f => {
+  const o = { la:f.la, en:f.en, planet:f.planet, nature:f.nature, sig:f.sig };
+  if (f.domus) o.domus = f.domus;                 // the 15 shield-place significations {la,en}
+  if (f.physiognomy) o.physiognomy = f.physiognomy;
+  return `  '${key(f.rows)}': ${JSON.stringify(o)},`;
+}).join('\n');
 const houses = GEOMANCY.houses.map(h =>
   `  ${JSON.stringify({ n:h.n, name:h.name, title:h.title, matter:h.matter, domain:h.domain })},`
 ).join('\n');
