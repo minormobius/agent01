@@ -176,8 +176,9 @@ document.getElementById('roadmap').innerHTML =
   `<div class="method"><h2>Roadmap</h2><ul class="road">`+
   `<li class="done">The sixteen figures — names, forms &amp; natures, translated beside the Latin.</li>`+
   `<li class="done">Fludd’s apparatus — the elements, fortunes, zodiac, planets, the strong/weak/middling classes, the houses doctrine, and the rules of judgment.</li>`+
-  `<li class="prog">The figures in the fifteen shield-places (Cap. III) — <b>${doneFigs.length} of 16</b> done`+
-    (doneFigs.length?` (${doneFigs.map(f=>f.la).join(', ')})`:'')+`; the rest to come, tranche by tranche.</li>`+
+  `<li class="${doneFigs.length>=16?'done':'prog'}">The figures in the shield-places (Cap. III) — <b>${doneFigs.length} of 16</b>`+
+    (doneFigs.length>=16?` — the whole chapter, complete: every figure in every shield-place, Latin beside English.`
+      :` done (${doneFigs.map(f=>f.la).join(', ')}); the rest to come, tranche by tranche.`)+`</li>`+
   `<li class="todo"><b>House descriptions</b> — a fuller account of each of the twelve houses and all it governs.</li>`+
   `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
   `</ul></div>`;
@@ -187,12 +188,12 @@ const m = GEOMANCY.meta;
 document.getElementById('method').innerHTML =
   `<div class="method"><h2>Method &amp; sources</h2><p>${m.method}</p>`+
   `<div class="prov"><b>On provenance.</b> This is a real translation of one named source: <b>Robert Fludd’s
-   <em>Tractatus de Geomantia</em>, Liber II</b>, in the <b>Fasciculus Geomanticus</b> (Verona, 1704), pp. 34–38.
-   The Latin above is transcribed from the page images of that edition (read directly — the book’s own OCR is
+   <em>Tractatus de Geomantia</em>, Liber II</b>, in the <b>Fasciculus Geomanticus</b> (Verona, 1704), pp. 34–75.
+   The Latin is transcribed from the page images of that edition (read directly — the book’s own OCR is
    unusable), lightly normalised. The English is ours; the notes flag the cruxes — notably this printing’s
-   inversion of <em>Puer</em> and <em>Puella</em>. This first tranche gives Fludd’s names, forms and natures of
-   the figures; his per-house significations are the next tranche, and a faithful translation of <b>al-Zanātī’s
-   Arabic</b> remains the deeper spine to converge on.</div>`+
+   inversion of <em>Puer</em> and <em>Puella</em>. <b>The figures are now complete:</b> their names, forms and
+   natures, and — for all sixteen — Fludd’s signification in each shield-place (Cap. III). A faithful translation
+   of <b>al-Zanātī’s Arabic</b> remains the deeper spine to converge on.</div>`+
   `<p class="lic" style="margin-top:10px">License: ${m.license}.</p>`+
   `<div class="src">`+ m.sources.map(s=>`· <a href="${s.url}" target="_blank" rel="noopener">${s.label}</a> — ${s.host}`).join('<br>') +`</div></div>`;
 
