@@ -209,7 +209,7 @@ if(WP){
   const groups={}; for(const p of WP.pairs){ const j=judgeName(p.a,p.b); (groups[j]=groups[j]||[]).push(p); }
   document.getElementById('witnesspairs').innerHTML =
     `<div class="method"><h2>The two Witnesses — the verdict</h2>`+
-    `<p>The Right Witness (the querent’s side) and the Left (the quesited’s) add to the <b>Judge</b>; taken together they are read as a pair. Fludd gives a signification for each pair, grouped by the Judge they make. This is the verdict in his own words — a large table (~256 ordered pairs), transcribed here in progress and, once complete, to speak in geocast’s judgment.</p>`+
+    `<p>The Right Witness (the querent’s side) and the Left (the quesited’s) add to the <b>Judge</b>; taken together they are read as a pair. Fludd gives a signification for each pair, grouped by the Judge they make — the whole of his Cap. V is below (${WP.pairs.length} ordered pairs, right named first), Latin beside English, and it now speaks in <a href="https://g.mino.mobi/geocast/">geocast</a>’s judgment when your two Witnesses match a pair.</p>`+
     Object.keys(groups).sort().map(j=>`<h3 class="lh">When the Judge is ${j}</h3>`+
       groups[j].map(p=>`<div class="par"><div class="pl">${p.a} &amp; ${p.b}</div><div class="la">${p.la}</div><div class="en">${p.en}</div></div>`).join('')
     ).join('')+
@@ -237,7 +237,8 @@ document.getElementById('roadmap').innerHTML =
   `<li class="done"><b>Perfection</b> — the four connections that answer a question (Liber III, Cap. VI: occupation, conjunction, mutation, translation), applied live in geocast: ask, and the chart judges.</li>`+
   `<li class="done"><b>Aspects</b> — the geomantic conjunction, sextile, square, trine and opposition between houses (a companion tract, Lib. II), now refining the manner of every judgment in geocast.</li>`+
   `<li class="done"><b>Doubled figures</b> — Cap. IV, the querent’s figure doubling into each house, folded into the judgment (the other origin-houses are a mechanical follow-up).</li>`+
-  `<li class="prog"><b>The Witnesses together</b> — Fludd’s verdict table (Lib. II, Cap. V), the two Witnesses read as a pair, grouped by the Judge they make — <b>${(GEOMANCY.fludd&&GEOMANCY.fludd.witnessPairs?GEOMANCY.fludd.witnessPairs.pairs.length:0)} of ~256</b> transcribed; the rest in tranches, then wired into the verdict.</li>`+
+  `<li class="done"><b>The Witnesses together</b> — Fludd’s whole verdict table (Lib. II, Cap. V), the two Witnesses read as a pair grouped by the Judge they make (${(GEOMANCY.fludd&&GEOMANCY.fludd.witnessPairs?GEOMANCY.fludd.witnessPairs.pairs.length:0)} ordered pairs), wired live into geocast’s judgment.</li>`+
+  `<li class="todo"><b>Multiplied figures</b> — Cap. VI (a figure appearing three or more times), a further refinement of the doubling doctrine — an optional bonus.</li>`+
   `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
   `</ul></div>`;
 

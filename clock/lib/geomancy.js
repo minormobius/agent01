@@ -117,6 +117,17 @@ function aspectBetween(h1, h2, ctx){
   return (((ctx&&ctx.aspects&&ctx.aspects.list)||[]).find(x=>x.key===key)) || { key, name:key, nature:'mixed' };
 }
 
+// Cap. V — the two Witnesses read together (right named first), which make the Judge. Sourced
+// (Fludd's Latin+English) when the ordered pair is in the table; else '' (the verdict synthesis
+// stands). The table is the whole of Cap. V — the Judge-groups Fludd gives, not all 256 pairs.
+function witnessPairText(shield, ctx){
+  const wr = shield.witnessRight.figure, wl = shield.witnessLeft.figure;
+  if(!wr || !wl || !ctx || !ctx.witnessPairs) return '';
+  const p = (ctx.witnessPairs.pairs||[]).find(x => x.a===wr.name && x.b===wl.name);
+  return p ? `<div class="rfludd"><div class="la">${esc(p.la)}</div><div class="en">${esc(p.en)}</div>`+
+    `<div class="rsrc">— Fludd, Liber II, Cap. V · the Witnesses ${esc(wr.name)} &amp; ${esc(wl.name)}</div></div>` : '';
+}
+
 // ctx = { houses:[{n,name,title,matter,domain,sign,mode,la,en}],
 //         meanings:{ key:{la,en,planet,nature,sig,mode,strength,domus} },
 //         houseExtras:[{place:13|14|15,name,la,en}] }  // Witnesses + Judge, sourced
@@ -185,7 +196,8 @@ export function readShieldPosition(shield, sel, ctx){
     return { title:'The Judge · the verdict', figureName:m.la,
       body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
            placeFludd(15)+ fluddAt(m, 14)+
-           `<p class="rnat ${natWord(m.nature)}">${verdict}</p>` };
+           `<p class="rnat ${natWord(m.nature)}">${verdict}</p>`+
+           witnessPairText(shield, ctx) };
   }
 
   if(sel.kind==='witnessRight' || sel.kind==='witnessLeft'){
@@ -265,5 +277,6 @@ export function perfection(shield, queryHouse, ctx){
     body += `<p class="rrule">The matter’s house bears <b>no aspect</b> to the first — the two scarcely regard each other.</p>`;
   }
   if(judge) body += `<p class="rjudge">The Judge is <b>${esc(judge.la)}</b> (${esc(judge.nature)}); the manner of the end ${({good:'inclines to the good',ill:'inclines to the ill',mixed:'is mixed, turning on its company',neutral:'rests passive'}[natWord(judge.nature)]||'is mixed')}.</p>`;
+  body += witnessPairText(shield, ctx);
   return { title:'Perfection — does the matter come to pass?', perfects, body };
 }
