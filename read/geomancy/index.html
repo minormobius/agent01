@@ -103,6 +103,7 @@ footer a{color:var(--ink2)}
   <div id="houses"></div>
   <div id="perfection"></div>
   <div id="doubling"></div>
+  <div id="witnesspairs"></div>
   <div id="aspects"></div>
   <div id="roadmap"></div>
   <div id="method"></div>
@@ -199,6 +200,22 @@ if(DBL) document.getElementById('doubling').innerHTML =
   DBL.places.map(p=>`<div class="par"><div class="pl">into the ${['','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth','eleventh','twelfth'][p.place]} house</div><div class="la">${p.la}</div><div class="en">${p.en}</div></div>`).join('')+
   `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${DBL.source}</p></div>`;
 
+// the two Witnesses together — the verdict (Cap. V), grouped by the Judge they make
+const WP = (GEOMANCY.fludd && GEOMANCY.fludd.witnessPairs) || null;
+if(WP){
+  const figByName = n => F.find(x=>x.la===n) || F.find(x=>x.la.split(' ')[0]===n);
+  const xr=(a,b)=>a.map((v,i)=>((v===1)^(b[i]===1))?1:2);
+  const judgeName=(a,b)=>{ const A=figByName(a),B=figByName(b); if(!A||!B) return '—'; const j=xr(A.rows,B.rows).join(); const m=F.find(x=>x.rows.join()===j); return m?m.la:'—'; };
+  const groups={}; for(const p of WP.pairs){ const j=judgeName(p.a,p.b); (groups[j]=groups[j]||[]).push(p); }
+  document.getElementById('witnesspairs').innerHTML =
+    `<div class="method"><h2>The two Witnesses — the verdict</h2>`+
+    `<p>The Right Witness (the querent’s side) and the Left (the quesited’s) add to the <b>Judge</b>; taken together they are read as a pair. Fludd gives a signification for each pair, grouped by the Judge they make. This is the verdict in his own words — a large table (~256 ordered pairs), transcribed here in progress and, once complete, to speak in geocast’s judgment.</p>`+
+    Object.keys(groups).sort().map(j=>`<h3 class="lh">When the Judge is ${j}</h3>`+
+      groups[j].map(p=>`<div class="par"><div class="pl">${p.a} &amp; ${p.b}</div><div class="la">${p.la}</div><div class="en">${p.en}</div></div>`).join('')
+    ).join('')+
+    `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${WP.source}</p></div>`;
+}
+
 // the geomantic aspects (companion tract) — how two houses regard each other
 const ASP = (GEOMANCY.fludd && GEOMANCY.fludd.aspects) || null;
 if(ASP) document.getElementById('aspects').innerHTML =
@@ -220,7 +237,7 @@ document.getElementById('roadmap').innerHTML =
   `<li class="done"><b>Perfection</b> — the four connections that answer a question (Liber III, Cap. VI: occupation, conjunction, mutation, translation), applied live in geocast: ask, and the chart judges.</li>`+
   `<li class="done"><b>Aspects</b> — the geomantic conjunction, sextile, square, trine and opposition between houses (a companion tract, Lib. II), now refining the manner of every judgment in geocast.</li>`+
   `<li class="done"><b>Doubled figures</b> — Cap. IV, the querent’s figure doubling into each house, folded into the judgment (the other origin-houses are a mechanical follow-up).</li>`+
-  `<li class="todo"><b>Figure pairs</b> — the figure-with-figure tables (Lib. II, Cap. V) — one more sourced combinatorial layer.</li>`+
+  `<li class="prog"><b>The Witnesses together</b> — Fludd’s verdict table (Lib. II, Cap. V), the two Witnesses read as a pair, grouped by the Judge they make — <b>${(GEOMANCY.fludd&&GEOMANCY.fludd.witnessPairs?GEOMANCY.fludd.witnessPairs.pairs.length:0)} of ~256</b> transcribed; the rest in tranches, then wired into the verdict.</li>`+
   `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
   `</ul></div>`;
 

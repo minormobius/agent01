@@ -141,6 +141,34 @@ export const GEOMANCY = {
         { place:12, la:'Duodecima: petitorem deventurum in quandam tribulationem, aut morbum gravem, aut damnum alicujus rei, aut detrimentum ex inimicis: neque potest sese res pejus habere, quam si sit Cauda.', en:'the twelfth: that the petitioner will fall into some tribulation, or a grave sickness, or the loss of some thing, or harm from enemies: nor can the matter be worse than when it is Cauda.' },
       ],
     },
+
+    // Cap. V — the two WITNESSES taken together, which make the Judge. Fludd groups the pairs by
+    // the Judge they sum to, and the witnesses are positional (right = the querent's side, left =
+    // the quesited's), so the order matters — "Major & Amissio" differs from "Amissio & Major".
+    // The full table is ~256 ordered pairs (16 Judge-groups); transcribed in tranches, presented
+    // here as a reference until complete, then wired into the verdict. (Liber II, Cap. V, pp. 91+.)
+    // In each entry, a = the right witness (named first), b = the left.
+    witnessPairs: {
+      source:'Robert Fludd, Tractatus de Geomantia, Liber II, Cap. V — the signification of the two Witnesses together (which make the Judge), Fasciculus Geomanticus (1704), pp. 91 ff. Transcription in progress.',
+      note:'The two Witnesses are positional — the right from the querent’s side, the left from the quesited’s — so Fludd lists ordered pairs, and groups them by the Judge they make. Below is the running transcription.',
+      pairs:[
+        { a:'Laetitia', b:'Tristitia', la:'dolorem & tristitiam, difficultatem in rebus fœmineis & accipiendis servis, contrarium nuptiis, signum parvulorum hominum, malum pro infantibus & generatione, incarcerationem, retardationem absentis, & adversitatem in itinere.', en:'grief and sorrow; difficulty in women’s matters and in taking on servants; contrary to marriage; a sign of lowly men; ill for infants and for generation; imprisonment; the delay of an absent one; and adversity on a journey.' },
+        { a:'Via', b:'Coniunctio', la:'bonum pro viatore, viam bonam, bonum pro nuptiis, pro morbis, pro incarceratis; &, si modo conjungatur petitori rei petitæ, erit utilis in mercantia.', en:'good for a traveller; a good way; good for marriages, for sicknesses, for prisoners; and, if it be joined to the petitioner of the thing sought, useful in trade.' },
+        { a:'Cauda Draconis', b:'Caput Draconis', la:'bonam fortunam in re omni, gaudium & lætitiam, complementum subitaneum petitionis.', en:'good fortune in every matter; joy and gladness; the sudden fulfilment of the petition.' },
+        { a:'Populus', b:'Carcer', la:'libros, papyrum, colorem viridem, periculum in rebus terrestribus, verbi gratia in mineris, incarceratis, campis, terra.', en:'books, paper, the colour green; danger in earthly matters — for example in mines, prisoners, fields, land.' },
+        { a:'Fortuna Major', b:'Amissio', la:'acquisitionem proficui & securum, bonas nuptias & securitatem inter eas.', en:'the gaining of profit, and secure; good marriages, and security among them.' },
+        { a:'Amissio', b:'Fortuna Major', la:'valde edaces, bonas nuptias & acquisitionem in omni re bona, quod nuptiæ fient cum magna difficultate & labore; contraria est hæc figura incarceratis, denotatque rem amissam facile inveniendam esse.', en:'very voracious; good marriages and gain in every good matter; that marriages will be made with great difficulty and toil; this figure is contrary to prisoners, and denotes that a lost thing will be easily found.' },
+        { a:'Tristitia', b:'Laetitia', la:'magnum laborem in itinere & durum in nuptiis ac societate; impedit acquisitionem rei & detrimentum affert incarcerato.', en:'great toil on a journey, and hardship in marriage and fellowship; it hinders the gaining of the matter and harms a prisoner.' },
+        { a:'Rubeus', b:'Puella', la:'nuptias infantum seu juniorum hominum ex quibus proficuum proveniet, longum iter, res terrestres, bonum pro mutatione & motu.', en:'marriages of the young, from which profit will come; a long journey; earthly matters; good for change and movement.' },
+        { a:'Albus', b:'Puer', la:'rem contra voluntatem petitoris, disputationem, perturbationem in via, sed finem bonum.', en:'a matter against the petitioner’s will; dispute; disturbance on the way; but a good end.' },
+        { a:'Amissio', b:'Populus', la:'damnum quod nunquam reparabitur, contrarium societati & nuptiis, sed bonum pro incarceratione & morbis, effusionem sanguinis.', en:'a loss that will never be repaired; contrary to fellowship and marriage; but good for imprisonment and sicknesses; the shedding of blood.' },
+        { a:'Caput Draconis', b:'Puella', la:'fœminam & mutationem in damno, recuperationem rerum perditarum.', en:'a woman, and a change to loss; the recovery of lost things.' },
+        { a:'Via', b:'Acquisitio', la:'eum qui est extra patriam esse reversurum, magnas expensas in mercantia, servos fugitivos qui tamen revertentur.', en:'that one who is abroad will return; great expenses in trade; runaway servants who will nonetheless come back.' },
+        { a:'Carcer', b:'Fortuna Major', la:'mineras & cavernas, colorem rubrum, multam diversitatem, damnum & injurias pro fœminis, damnum peregrinantibus, bonum pro terra juxta domum.', en:'mines and caverns; the colour red; much diversity; loss and injuries on account of women; loss to travellers; good for land near home.' },
+        { a:'Cauda Draconis', b:'Rubeus', la:'multum mali, hominem malum, paucum sermonem, anxietatem de suo Domino, querelas & lites, sive vulnera & effusiones sanguinis; contraria est etiam incarceratis & morbis.', en:'much ill; an evil man; little speech; anxiety about one’s lord; quarrels and lawsuits, or wounds and sheddings of blood; also contrary to prisoners and the sick.' },
+        { a:'Fortuna Minor', b:'Coniunctio', la:'securitatem factam per manum Regis aut judicis.', en:'security made by the hand of a king or a judge.' },
+      ],
+    },
   },
 
   // rows: [Fire, Air, Water, Earth]; 1 = single (odd), 2 = double (even).
