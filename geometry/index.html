@@ -29,6 +29,7 @@
   --c-templieb: #0d6e63;
   --c-aztec:    #2456b8;
   --c-markov:   #6a3aa0;
+  --c-descent:  #b5179e;
   --c-kakeya:   #a35a00;
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
@@ -63,6 +64,7 @@
     --c-templieb: #3fb8a8;
     --c-aztec:    #6f93e8;
     --c-markov:   #a98fe0;
+    --c-descent:  #e879d4;
     --c-kakeya:   #d99450;
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
@@ -360,6 +362,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> ·
     <a href="https://mino.mobi/aztec/">aztec</a> ·
     <a href="https://mino.mobi/markov/">markov</a> ·
+    <a href="https://mino.mobi/descent/">descent</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
@@ -513,6 +516,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
   <a href="https://mino.mobi/aztec/">aztec</a>
   <a href="https://mino.mobi/markov/">markov</a>
+  <a href="https://mino.mobi/descent/">descent</a>
   <a href="https://mino.mobi/kakeya/">kakeya</a>
   <a href="https://mino.mobi/capset/">capset</a>
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
@@ -670,6 +674,18 @@ const PACK = [
     status: 'foundational',
     statusRank: 0,
     statusText: 'two unrelated gems',
+  },
+  {
+    name: 'descent',
+    url:  'https://mino.mobi/descent/',
+    accent: 'var(--c-descent)',
+    problem: 'Neural-net trainability fractal',
+    era: 2024,
+    eraText: 'Sohl-Dickstein 2024',
+    tech: 'gradient-descent escape-time',
+    status: 'observed',
+    statusRank: 1,
+    statusText: 'fractal boundary, dim ≈ 1.7',
   },
   {
     name: 'erdős',

@@ -18,6 +18,7 @@ on:
       - 'temperley-lieb/**'
       - 'aztec/**'
       - 'markov/**'
+      - 'descent/**'
       - 'erdos/**'
       - 'guthkatz/**'
       - 'hadwiger/**'

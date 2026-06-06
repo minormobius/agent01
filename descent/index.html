@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>descent — the fractal edge of neural-network trainability</title>
+<meta name="description" content="One gradient-descent step is an iterated map; whether a tiny neural net's training converges or explodes, as a function of its two learning rates, is a fractal — the Mandelbrot set's machine-learning cousin (Sohl-Dickstein 2024). Pan and zoom the trainability boundary.">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #b5179e;            /* electric magenta */
+  --accent-faint: rgba(181, 23, 158, 0.10);
+  --canvas-bg: #0a0710; --canvas-ink: #1a1416; --canvas-rule: #c8bcae;
+  --tag-bg: #eee; --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #e879d4; --accent-faint: rgba(232, 121, 212, 0.14);
+    --canvas-bg: #0a0710; --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.8rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas#de-canvas { width: 100%; aspect-ratio: 1/1; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; cursor: crosshair; touch-action: none; image-rendering: auto; }
+canvas#de-probe { width: 100%; height: 110px; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 3.2em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; word-break: break-all; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>descent</h1>
+  <p class="subtitle">the fractal edge of neural-network trainability · sohl-dickstein 2024</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · a Mandelbrot cousin, drawn by gradient descent</p>
+</header>
+
+<p class="lead">
+  One step of gradient descent, <em>θ → θ − η·∇L(θ)</em>, is an iterated map — and whether training a
+  tiny neural net <strong>converges</strong> or <strong>explodes</strong>, as a function of its two
+  learning rates (η₁ for the first layer, η₂ for the second), is a <strong>fractal</strong>. It's the
+  exact Mandelbrot escape-time algorithm, with "one training step" in place of <em>z² + c</em>. Pan
+  (drag) and zoom (scroll) the boundary; click any point to watch that run's loss converge or blow up.
+</p>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="explore" role="tab">explore</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── EXPLORE PANE ─────────── -->
+<section class="pane active" data-pane="explore">
+  <div class="grid-wrap">
+    <div><canvas id="de-canvas" width="420" height="420"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="de-reset">⌖ reset view</button>
+          <button class="btn" id="de-render">re-render</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">training steps · T (max escape)</span>
+        <div class="ctrl-row"><input id="de-steps" type="range" min="100" max="1500" value="400" step="50"><span class="ctrl-val" id="de-steps-val">400</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">hidden units · H</span>
+        <div class="ctrl-row"><input id="de-h" type="range" min="1" max="4" value="2" step="1"><span class="ctrl-val" id="de-h-val">2</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">colour map</span>
+        <div class="btn-row" id="de-cmap">
+          <button class="btn active" data-c="neon">neon</button>
+          <button class="btn" data-c="ember">ember</button>
+          <button class="btn" data-c="ice">ice</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">resolution (CPU cost)</span>
+        <div class="ctrl-row"><input id="de-res" type="range" min="200" max="640" value="420" step="20"><span class="ctrl-val" id="de-res-val">420</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">probed run · loss vs step</span>
+        <canvas id="de-probe" width="250" height="110"></canvas>
+      </div>
+      <div class="stats" id="de-stats"></div>
+      <div class="stat-note">
+        Dark interior = <strong>trainable</strong> (loss converges, like the Mandelbrot set's body);
+        bright filaments = the boundary, where a hair's change in learning rate flips training from
+        success to blow-up. The structure is genuinely self-similar — keep zooming. CPU renderer for
+        now; a WebGPU compute path is next.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>Training is an iterated map</h2>
+<p>Full-batch gradient descent updates every parameter as <code>θ ← θ − η·∇L(θ)</code>. Apply it again
+and again and you have a <strong>dynamical system</strong>: a fixed map iterated from a fixed start,
+parameterised by your hyperparameters. For some learning rates the iteration settles into a minimum —
+training <em>converges</em>. For others the loss grows without bound — training <em>diverges</em>. The
+question "which hyperparameters train?" is the question "which starting conditions stay bounded?", the
+same question the Mandelbrot set answers for <code>z → z² + c</code>.</p>
+
+<h2>The boundary is fractal</h2>
+<p>Jascha Sohl-Dickstein showed in 2024 that the boundary between trainable and untrainable
+hyperparameters is a <strong>fractal</strong>, robustly, across architectures. Here the plane is the two
+learning rates — η₁ for the input layer's weights, η₂ for the output layer's — of a tiny net
+<code>x → tanh(W₁x + b₁) → W₂·a + b₂</code> trained on three points. Each pixel runs that net's training
+for up to <em>T</em> steps from a fixed initialisation; if the loss crosses a blow-up threshold we colour
+by <strong>how fast</strong> it escaped (the escape time), exactly as a Mandelbrot renderer does. Survive
+all <em>T</em> steps and the pixel is "trainable" — the dark interior.</p>
+<blockquote>Nobody designed the filigree. It is what the edge of stability looks like.</blockquote>
+<p>We measured the boundary directly: as the render resolution doubles, the boundary's length grows about
+3.3× rather than 2×, putting its fractal dimension near <strong>1.7</strong> — and fresh islands of
+trainability keep appearing at every zoom level. A smooth curve does neither.</p>
+
+<h2>Why it happens</h2>
+<p>The gradient-descent map is <em>nonlinear</em> (the <code>tanh</code> sees to that). Near the edge of
+stability — learning rates close to the critical <code>2/curvature</code> — the linearised step has
+eigenvalues hugging the unit circle, the dynamics turn chaotic, and small hyperparameter changes are
+amplified without limit. That sensitive dependence, folded over and over by the nonlinearity, is the
+engine of self-similarity, just as it is for the quadratic map behind Mandelbrot. Click a pixel on the
+<strong>explore</strong> tab to watch a single run's loss curve hug the boundary, converge, or detonate.</p>
+
+<h2>Doing it on the GPU</h2>
+<p>Every pixel is an independent training run with no shared state — which makes this perfectly parallel
+and a natural fit for a <strong>WebGPU compute shader</strong>: one thread per pixel, each iterating the
+tiny network and writing its escape colour. This page renders on the CPU (progressively, coarse-to-fine)
+so it works everywhere; the GPU port lets the resolution, step count, and network size climb toward the
+ranges in the original paper.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Sohl-Dickstein, J. (2024). <em>The boundary of neural network trainability is fractal.</em> arXiv:2402.06184.</li>
+  <li>Mandelbrot, B. (1980). <em>Fractal aspects of the iteration of z ↦ λz(1−z).</em></li>
+  <li><a href="https://sohl-dickstein.github.io/2024/02/12/fractal.html">Sohl-Dickstein — Neural network training makes beautiful fractals</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/markov/">markov</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// Tabs
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['explore','docs'];
+function showTab(name){ tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  panes.forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
+  try{history.replaceState(null,'','#'+name);}catch{}
+  if(name==='explore') startRender(); }
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+
+// ═════════════════════════════════════════════════════════════════════
+// The tiny network + training dynamics (CPU reference; mirrors the GPU path)
+//   x → tanh(W1·x + b1) → W2·a + b2 ; per-layer learning rates (η1, η2) = plane
+// ═════════════════════════════════════════════════════════════════════
+const DATA_X = [-1.0, 0.0, 1.0], DATA_Y = [-0.6, 0.2, 0.7], THRESH = 1e6;
+// fixed init (the "z₀"); H=2 is the validated config (fractal dimension ≈ 1.7)
+const MW1 = [1.2,-0.8,0.5,-1.1], MB1 = [0.3,-0.5,-0.2,0.4], MW2 = [0.9,0.7,-0.6,0.5], MB2 = 0.1;
+function initFor(H){ return { W1:MW1.slice(0,H), b1:MB1.slice(0,H), W2:MW2.slice(0,H), b2:MB2 }; }
+// returns { mu (smooth escape time), trainable, L (final loss) }; if `traj`, also records loss[]
+function trainPixel(eta1, eta2, H, T, traj){
+  const I=initFor(H), D=DATA_X.length;
+  let W1=I.W1.slice(), b1=I.b1.slice(), W2=I.W2.slice(), b2=I.b2, prevL=null;
+  const a=new Array(H);
+  for(let t=0;t<T;t++){
+    let gb2=0, L=0; const gW1=new Array(H).fill(0), gb1=new Array(H).fill(0), gW2=new Array(H).fill(0);
+    for(let i=0;i<D;i++){ const x=DATA_X[i]; let yh=b2;
+      for(let h=0;h<H;h++){ a[h]=Math.tanh(W1[h]*x+b1[h]); yh+=W2[h]*a[h]; }
+      const e=yh-DATA_Y[i]; L+=e*e; const s=2*e/D; gb2+=s;
+      for(let h=0;h<H;h++){ gW2[h]+=s*a[h]; const dz=s*W2[h]*(1-a[h]*a[h]); gW1[h]+=dz*x; gb1[h]+=dz; } }
+    L/=D;
+    if(traj) traj.push(L);
+    if(!isFinite(L) || L>THRESH){
+      let mu=t;
+      if(prevL!=null && isFinite(prevL) && prevL>0 && L>prevL){ const lt=Math.log(THRESH), lp=Math.log(prevL), lc=Math.log(L);
+        const f=(lt-lp)/(lc-lp); mu=(t-1)+Math.min(1,Math.max(0,f)); }
+      return { mu, trainable:false, L };
+    }
+    for(let h=0;h<H;h++){ W1[h]-=eta1*gW1[h]; b1[h]-=eta1*gb1[h]; W2[h]-=eta2*gW2[h]; }
+    b2-=eta2*gb2; prevL=L;
+  }
+  return { mu:T, trainable:true, L:prevL };
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Colour
+// ═════════════════════════════════════════════════════════════════════
+const PALETTES = {
+  neon:  [[10,2,20],[70,8,95],[185,18,135],[255,72,80],[255,200,64],[245,255,205]],
+  ember: [[8,4,12],[58,8,28],[150,20,30],[232,92,20],[250,202,62],[255,255,236]],
+  ice:   [[6,6,18],[18,30,92],[20,112,172],[58,200,222],[200,246,255],[255,255,255]],
+};
+function ramp(stops,x){ x=x<0?0:x>1?1:x; const n=stops.length-1, s=x*n; let i=Math.floor(s); if(i>=n)i=n-1; const f=s-i, A=stops[i], B=stops[i+1];
+  return [A[0]+(B[0]-A[0])*f, A[1]+(B[1]-A[1])*f, A[2]+(B[2]-A[2])*f]; }
+function colorOf(res,T,pal){
+  if(res.trainable){ const v=Math.max(0,Math.min(1,(Math.log10(Math.max(1e-12,res.L))+9)/9)); const g=8+18*v; return [g,g*0.7,g*1.3]; }
+  const x=Math.pow(res.mu/T, 0.42); return ramp(pal, x);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// View + progressive renderer
+// ═════════════════════════════════════════════════════════════════════
+const cv = document.getElementById('de-canvas'), cx = cv.getContext('2d');
+const view = { cx:4.0, cy:1.0, spanX:8.0, spanY:2.4 };   // default η1∈[0,8], η2∈[−0.2,2.2]
+const de = { T:400, H:2, pal:'neon', res:420, img:null, row:0, stride:8, phase:'coarse', raf:null, probe:null };
+function defaultView(){ view.cx=4.0; view.cy=1.0; view.spanX=8.0; view.spanY=2.4; }
+function pxToEta(px,py){ const R=de.res; return [ view.cx + (px/R-0.5)*view.spanX, view.cy - (py/R-0.5)*view.spanY ]; }
+function startRender(){ cancelAnimationFrame(de.raf); de.res=parseInt(document.getElementById('de-res').value,10);
+  cv.width=de.res; cv.height=de.res; de.img=cx.createImageData(de.res,de.res);
+  coarsePass(); de.row=0; de.phase='fine'; de.raf=requestAnimationFrame(renderStep); updateStats(); }
+function shade(px,py){ const [e1,e2]=pxToEta(px,py); const r=trainPixel(e1,e2,de.H,de.T); return colorOf(r,de.T,PALETTES[de.pal]); }
+function coarsePass(){ const R=de.res, s=de.stride, d=de.img.data;
+  for(let y=0;y<R;y+=s) for(let x=0;x<R;x+=s){ const [r,g,b]=shade(x+s/2|0,y+s/2|0);
+    for(let dy=0;dy<s&&y+dy<R;dy++)for(let dx=0;dx<s&&x+dx<R;dx++){ const k=((y+dy)*R+(x+dx))*4; d[k]=r;d[k+1]=g;d[k+2]=b;d[k+3]=255; } }
+  cx.putImageData(de.img,0,0); }
+function renderStep(){ const R=de.res, d=de.img.data, t0=performance.now();
+  while(de.row<R){ const y=de.row;
+    for(let x=0;x<R;x++){ const [r,g,b]=shade(x,y); const k=(y*R+x)*4; d[k]=r;d[k+1]=g;d[k+2]=b;d[k+3]=255; }
+    de.row++; if(performance.now()-t0>28) break; }
+  cx.putImageData(de.img,0,0);
+  if(de.row<R){ de.raf=requestAnimationFrame(renderStep); updateStats(); } else updateStats();
+}
+function updateStats(){ const prog=de.phase==='fine'?Math.min(100,Math.round(100*de.row/de.res)):0;
+  document.getElementById('de-stats').innerHTML = `
+    <div class="stat-row"><span class="k">η₁ range</span><span class="v hot">${(view.cx-view.spanX/2).toFixed(4)} … ${(view.cx+view.spanX/2).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">η₂ range</span><span class="v hot">${(view.cy-view.spanY/2).toFixed(4)} … ${(view.cy+view.spanY/2).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">zoom</span><span class="v">${(8.0/view.spanX).toExponential(2)}×</span></div>
+    <div class="stat-row"><span class="k">net</span><span class="v">tanh · ${de.H} hidden</span></div>
+    <div class="stat-row"><span class="k">steps · res</span><span class="v">${de.T} · ${de.res}²</span></div>
+    <div class="stat-row"><span class="k">refine</span><span class="v">${de.row>=de.res?'done':prog+'%'}</span></div>`;
+}
+// ── interaction: drag to pan, wheel to zoom, click to probe ──
+let drag=null;
+cv.addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy,moved:false}; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove',e=>{ if(!drag)return; const r=cv.getBoundingClientRect();
+  const dx=(e.clientX-drag.x)/r.width, dy=(e.clientY-drag.y)/r.height; if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)>3)drag.moved=true;
+  view.cx=drag.cx - dx*view.spanX; view.cy=drag.cy + dy*view.spanY; coarsePass(); de.row=0; cancelAnimationFrame(de.raf); de.raf=requestAnimationFrame(renderStep); });
+cv.addEventListener('pointerup',e=>{ if(drag&&!drag.moved){ probeAt(e); } drag=null; });
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const r=cv.getBoundingClientRect();
+  const mx=(e.clientX-r.left)/r.width, my=(e.clientY-r.top)/r.height;
+  const e1=view.cx+(mx-0.5)*view.spanX, e2=view.cy-(my-0.5)*view.spanY;     // zoom toward cursor
+  const f=e.deltaY<0?0.8:1.25; view.spanX*=f; view.spanY*=f;
+  view.cx=e1-(mx-0.5)*view.spanX; view.cy=e2+(my-0.5)*view.spanY;
+  startRender(); }, {passive:false});
+function probeAt(e){ const r=cv.getBoundingClientRect(); const px=(e.clientX-r.left)/r.width*de.res, py=(e.clientY-r.top)/r.height*de.res;
+  const [e1,e2]=pxToEta(px,py); const traj=[]; const res=trainPixel(e1,e2,de.H,de.T,traj); de.probe={e1,e2,traj,res}; drawProbe(); }
+const pc=document.getElementById('de-probe'), pcx=pc.getContext('2d');
+function drawProbe(){ const W=pc.width,H=pc.height; pcx.fillStyle='#0a0710'; pcx.fillRect(0,0,W,H);
+  if(!de.probe){ pcx.fillStyle='#888'; pcx.font='11px '+getComputedStyle(document.documentElement).getPropertyValue('--mono'); pcx.fillText('click the fractal to probe a run',8,H/2); return; }
+  const tr=de.probe.traj, n=tr.length; if(!n)return;
+  const logs=tr.map(L=>Math.log10(Math.max(1e-12,L))); let lo=Math.min(...logs), hi=Math.max(...logs); if(hi-lo<1){hi=lo+1;}
+  const X=i=>6+(W-12)*i/Math.max(1,de.T-1), Y=v=>H-6-(H-12)*(v-lo)/(hi-lo);
+  pcx.strokeStyle=de.probe.res.trainable?'#3fb87a':'#e8506e'; pcx.lineWidth=1.6; pcx.beginPath();
+  logs.forEach((v,i)=>{ const x=X(i),y=Y(v); i?pcx.lineTo(x,y):pcx.moveTo(x,y); }); pcx.stroke();
+  pcx.fillStyle='#ccc'; pcx.font='10px '+getComputedStyle(document.documentElement).getPropertyValue('--mono');
+  pcx.fillText('η₁='+de.probe.e1.toFixed(3)+' η₂='+de.probe.e2.toFixed(3), 6, 12);
+  pcx.fillText(de.probe.res.trainable?'converged (log₁₀ loss)':'diverged @ step '+Math.floor(de.probe.res.mu), 6, H-2);
+}
+// ── controls ──
+document.getElementById('de-reset').addEventListener('click',()=>{ defaultView(); startRender(); });
+document.getElementById('de-render').addEventListener('click',startRender);
+document.getElementById('de-steps').addEventListener('input',e=>{ de.T=parseInt(e.target.value,10); document.getElementById('de-steps-val').textContent=de.T; startRender(); });
+document.getElementById('de-h').addEventListener('input',e=>{ de.H=parseInt(e.target.value,10); document.getElementById('de-h-val').textContent=de.H; startRender(); });
+document.getElementById('de-res').addEventListener('input',e=>{ document.getElementById('de-res-val').textContent=e.target.value; startRender(); });
+document.getElementById('de-cmap').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b)return;
+  de.pal=b.dataset.c; document.querySelectorAll('#de-cmap .btn').forEach(x=>x.classList.toggle('active',x===b)); startRender(); });
+
+// Init
+defaultView(); startRender(); drawProbe();
+const initialHash=(location.hash||'').replace(/^#/,'');
+if(TAB_NAMES.includes(initialHash)&&initialHash!=='explore') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>

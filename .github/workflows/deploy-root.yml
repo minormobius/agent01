@@ -33,6 +33,7 @@ on:
       - 'temperley-lieb/**'
       - 'aztec/**'
       - 'markov/**'
+      - 'descent/**'
       # static subsites still bundled under root (carve out as they encapsulate):
       - 'cluster/**'
       - 'density/**'
