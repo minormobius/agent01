@@ -101,6 +101,8 @@ footer a:hover { color: var(--accent); }
   <button class="tab" data-tab="metropolis" role="tab">metropolis</button>
   <button class="tab" data-tab="walk" role="tab">walk</button>
   <button class="tab" data-tab="text" role="tab">text</button>
+  <button class="tab" data-tab="tree" role="tab">tree</button>
+  <button class="tab" data-tab="spectrum" role="tab">spectrum</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
 
@@ -266,6 +268,60 @@ footer a:hover { color: var(--accent); }
   </div>
 </section>
 
+<!-- ─────────── TREE PANE ─────────── -->
+<section class="pane" data-pane="tree">
+  <p class="lead">
+    The other Markov. Solutions of <strong>x² + y² + z² = 3xyz</strong> in positive integers — the
+    <strong>Markov triples</strong> — form an infinite binary tree rooted at (1,1,1). Fix two
+    coordinates and the equation is a quadratic in the third with a second root z′ = 3xy − z
+    (<strong>Vieta jumping</strong>): every triple has neighbours, and climbing away from the root
+    grows them forever. The values that appear — <strong>1, 2, 5, 13, 29, 34, 89, 169, …</strong> —
+    are the <strong>Markov numbers</strong>. Click any node to inspect its triple.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="mt-canvas" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">tree depth</span>
+        <div class="ctrl-row"><input id="mt-depth" type="range" min="1" max="7" value="5" step="1"><span class="ctrl-val" id="mt-depth-val">5</span></div>
+      </div>
+      <div class="stats" id="mt-stats"></div>
+      <div class="stat-note">
+        The stem 1,1,1 → 1,1,2 → 1,2,5 is unbranched; from (1,2,5) on, each triple has two children
+        (the two Vieta jumps that <em>increase</em> the largest entry). The famous open
+        <strong>unicity conjecture</strong> (Frobenius, 1913) asks whether the largest entry determines
+        the whole triple — i.e. whether every Markov number appears exactly once in the tree. Verified
+        past 10<sup>50</sup>, still unproven.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── SPECTRUM PANE ─────────── -->
+<section class="pane" data-pane="spectrum">
+  <p class="lead">
+    Here's where the two Markovs almost touch. "How badly can an irrational be approximated by
+    fractions?" has an answer for each number — its <strong>Lagrange number</strong> — and the set of
+    all of them is the <strong>Markov spectrum</strong>. Below 3 it is <em>discrete</em>: a ladder
+    indexed exactly by the Markov numbers, <strong>L<sub>m</sub> = √(9m²−4) / m</strong>, climbing
+    √5, √8, √221/5, … toward 3 but never reaching it. The golden ratio (m = 1, L = √5 ≈ 2.236) is the
+    single <strong>worst-approximable number there is</strong>. Hover a rung.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="sp-canvas" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="stats" id="sp-stats"></div>
+      <div class="stat-note">
+        Top: the ladder, evenly spaced so you can read it — every rung is a Markov number, rising to the
+        dashed ceiling at 3. Bottom: the spectrum on a true axis, where the ladder crowds against 3, a
+        complicated zone of gaps follows, and from <strong>Freiman's constant ≈ 4.5278</strong> onward
+        it is a solid ray (Hall, 1947). m = 1 ↔ φ = [1;1,1,…]; m = 2 ↔ 1+√2 = [2;2,2,…]; the rest are
+        periodic blocks of 1s and 2s (Markov's theorem).
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ─────────── DOCS PANE ─────────── -->
 <section class="pane" data-pane="docs">
 <article class="docs">
@@ -317,6 +373,30 @@ the same idea at full resolution — an n-gram model where the next character is
 last <em>n</em>. It is the ancestor of every autocomplete and, in spirit, of the large language models
 that followed: more context, better statistics, and language emerges with no rules written down.</p>
 
+<h2>The Markov numbers</h2>
+<p>The early Markov, from his 1879 thesis: the positive-integer solutions of
+<code>x² + y² + z² = 3xyz</code>. The trivial one is (1,1,1); the equation is a quadratic in each
+variable, so given two coordinates the third has a partner root <code>z′ = 3xy − z</code> — a
+<strong>Vieta jump</strong>. Jumping repeatedly generates every solution, and they hang on a binary
+tree: 1,1,1 → 1,1,2 → 1,2,5, then forks forever. The numbers that show up as coordinates —
+<strong>1, 2, 5, 13, 29, 34, 89, 169, 194, 233, …</strong> — are the <strong>Markov numbers</strong>,
+and two famous spines run up the tree: the odd-indexed Fibonacci numbers (1,5,13,34,89,233,…) and the
+odd-indexed Pell numbers (2,5,29,169,985,…). The <strong>tree</strong> tab grows it; the
+<strong>unicity conjecture</strong> — that the largest entry names the triple uniquely — is still open
+after a century.</p>
+
+<h2>… and the spectrum that connects them</h2>
+<p>Now Markov's actual theorem, the bridge to approximation. By Hurwitz, every irrational α has
+infinitely many rationals with <code>|α − p/q| &lt; 1/(√5 q²)</code>, and √5 is best possible — the
+golden ratio achieves it and nothing beats it. But if you <em>exclude</em> the golden ratio and its
+equivalents, the constant improves to √8; exclude those too and it jumps to √(221)/5; and so on. Markov
+proved these record constants are exactly <strong>L<sub>m</sub> = √(9m²−4)/m</strong>, indexed by the
+Markov numbers — the same 1, 2, 5, 13, … from the tree. This discrete ladder, climbing to 3, is the
+bottom of the <strong>Lagrange/Markov spectrum</strong>; above 3 lie gaps, and past
+<strong>Freiman's constant ≈ 4.5278</strong> the spectrum is a solid ray (Hall). The extremal numbers
+have continued fractions built from just 1s and 2s. The <strong>spectrum</strong> tab plots the ladder
+and the ray.</p>
+
 <p class="meta-stamp">sources</p>
 <ul>
   <li>Markov, A. A. (1906). <em>Extension of the law of large numbers to dependent quantities.</em></li>
@@ -346,14 +426,16 @@ that followed: more context, better statistics, and language emerges with no rul
 // Tabs
 // ═════════════════════════════════════════════════════════════════════
 const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane');
-const TAB_NAMES = ['chain','metropolis','walk','text','docs'];
+const TAB_NAMES = ['chain','metropolis','walk','text','tree','spectrum','docs'];
 function showTab(name){ tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
   panes.forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
   try{history.replaceState(null,'','#'+name);}catch{}
   if(name==='chain'){ drawChain(); if(chain.running) chain.raf=requestAnimationFrame(chLoop); }
   if(name==='metropolis'){ drawMH(); if(mh.running) mh.raf=requestAnimationFrame(mhLoop); }
   if(name==='walk'){ drawWalk(); if(walk.running) walk.raf=requestAnimationFrame(wkLoop); }
-  if(name==='text' && !tx.built){ txBuildAndGen(); } }
+  if(name==='text' && !tx.built){ txBuildAndGen(); }
+  if(name==='tree'){ if(!mt.nodes.length) mtBuild(); drawTree(); }
+  if(name==='spectrum'){ drawSpectrum(); } }
 tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
 function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 const COLS = ['--c1','--c2','--c3','--c4','--c5','--c6'].map(cssVar);
@@ -583,12 +665,117 @@ document.getElementById('tx-order').addEventListener('input',e=>{ tx.order=parse
 document.getElementById('tx-gen').addEventListener('click',()=>{ if(!tx.built)txBuild(); document.getElementById('tx-out').textContent=txGenerate(900); });
 
 // ═════════════════════════════════════════════════════════════════════
+// tree tab — Markov triples (x²+y²+z²=3xyz) via Vieta jumping
+// ═════════════════════════════════════════════════════════════════════
+const mt = { depth:5, nodes:[], mnums:[], sel:-1 };
+const mtCanvas = document.getElementById('mt-canvas'), mtCtx = mtCanvas.getContext('2d');
+function fmtBig(b){ let s=b.toString(), out='', c=0; for(let i=s.length-1;i>=0;i--){ out=s[i]+out; if(++c%3===0&&i>0) out=','+out; } return out; }
+function mtBuild(){ const nodes=[], mset=new Set([1n,2n,5n]); const D=mt.depth; const cmp=(p,q)=>p<q?-1:p>q?1:0;
+  function rec(a,b,c,level,x0,x1,par){ const idx=nodes.length, cx=(x0+x1)/2;
+    nodes.push({a,b,c,level,x:cx,par}); mset.add(c);
+    if(level>=D) return;
+    const c1=[b,c,3n*b*c-a].sort(cmp);   // Vieta jump replacing the smallest entry
+    const c2=[a,c,3n*a*c-b].sort(cmp);   // Vieta jump replacing the middle entry
+    rec(c1[0],c1[1],c1[2],level+1,x0,cx,idx);
+    rec(c2[0],c2[1],c2[2],level+1,cx,x1,idx); }
+  rec(1n,2n,5n,0,0,1,-1);                 // BigInt → exact at any depth (values blow past 2^53)
+  mt.nodes=nodes; mt.mnums=[...mset].sort(cmp); mt.sel=-1; }
+function drawTree(){ const ctx=mtCtx,W=mtCanvas.width,H=mtCanvas.height,pad=40;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const D=mt.depth, rowH=(H-2*pad)/(D+0.5), X=x=>pad+x*(W-2*pad), Y=l=>pad+l*rowH;
+  ctx.strokeStyle='rgba(120,110,130,0.45)'; ctx.lineWidth=1.2;
+  for(const nd of mt.nodes){ if(nd.par<0)continue; const p=mt.nodes[nd.par];
+    ctx.beginPath(); ctx.moveTo(X(p.x),Y(p.level)); ctx.lineTo(X(nd.x),Y(nd.level)); ctx.stroke(); }
+  for(let i=0;i<mt.nodes.length;i++){ const nd=mt.nodes[i], x=X(nd.x), y=Y(nd.level);
+    const r = nd.level<=2 ? 16 : nd.level<=4 ? 9 : 5;
+    ctx.fillStyle = i===mt.sel ? cssVar('--accent') : cssVar('--canvas-bg');
+    ctx.strokeStyle=cssVar('--accent'); ctx.lineWidth = i===mt.sel?2.4:1.4;
+    ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); ctx.stroke();
+    if(nd.level<=3){ ctx.fillStyle = i===mt.sel?'#fff':cssVar('--accent'); ctx.font='12px '+cssVar('--mono'); ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(nd.c.toString(), x, y); } }
+  ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  const sel = mt.sel>=0 ? mt.nodes[mt.sel] : null;
+  const ok = sel ? (sel.a*sel.a+sel.b*sel.b+sel.c*sel.c === 3n*sel.a*sel.b*sel.c) : false;
+  document.getElementById('mt-stats').innerHTML = `
+    <div class="stat-row"><span class="k">depth</span><span class="v">${D}</span></div>
+    <div class="stat-row"><span class="k">triples (nodes)</span><span class="v">${mt.nodes.length}</span></div>
+    <div class="stat-row"><span class="k">distinct Markov #</span><span class="v hot">${mt.mnums.length}</span></div>
+    <div class="stat-row"><span class="k">largest</span><span class="v" style="font-size:.62rem">${fmtBig(mt.mnums[mt.mnums.length-1])}</span></div>
+    <div class="stat-row"><span class="k">selected triple</span><span class="v hot">${sel?('('+sel.a+', '+sel.b+', '+sel.c+')'):'—'}</span></div>
+    <div class="stat-row"><span class="k">x²+y²+z² = 3xyz ?</span><span class="v ${sel?(ok?'hot':''):''}">${sel?(ok?'✓ '+(sel.a*sel.a+sel.b*sel.b+sel.c*sel.c):'✗'):'—'}</span></div>`;
+}
+mtCanvas.addEventListener('click',e=>{ const r=mtCanvas.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(mtCanvas.width/r.width), py=(e.clientY-r.top)*(mtCanvas.height/r.height);
+  const W=mtCanvas.width,H=mtCanvas.height,pad=40, D=mt.depth, rowH=(H-2*pad)/(D+0.5);
+  let best=-1,bd=1e9; for(let i=0;i<mt.nodes.length;i++){ const nd=mt.nodes[i], x=pad+nd.x*(W-2*pad), y=pad+nd.level*rowH; const d=Math.hypot(px-x,py-y); if(d<bd&&d<22){bd=d;best=i;} }
+  if(best>=0){ mt.sel=best; drawTree(); } });
+document.getElementById('mt-depth').addEventListener('input',e=>{ mt.depth=parseInt(e.target.value,10); document.getElementById('mt-depth-val').textContent=mt.depth; mtBuild(); drawTree(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// spectrum tab — Lagrange/Markov spectrum below 3 + Hall's ray
+// ═════════════════════════════════════════════════════════════════════
+const FREIMAN = 4.5278; // Freiman's constant — start of Hall's ray
+const sp = { rungs:[], sel:-1 };
+const spCanvas = document.getElementById('sp-canvas'), spCtx = spCanvas.getContext('2d');
+function spBuild(){ if(!mt.nodes.length) mtBuild();
+  const cfs = {1:'[1; 1,1,1,…]  (φ, golden)', 2:'[2; 2,2,2,…]  (1+√2, silver)'};
+  sp.rungs = mt.mnums.slice(0,10).map(M=>{ const m=Number(M); return { m, L:Math.sqrt(9*m*m-4)/m, cf: cfs[m]||'periodic 1s & 2s' }; }); }
+function drawSpectrum(){ if(!sp.rungs.length) spBuild();
+  const ctx=spCtx,W=spCanvas.width,H=spCanvas.height; ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  ctx.font='13px '+cssVar('--mono');
+  // --- top: the ladder (evenly spaced rungs rising to 3) ---
+  const lx=70, lw=W-150, ly0=H*0.10, lh=H*0.40, n=sp.rungs.length;
+  ctx.fillStyle=cssVar('--muted'); ctx.fillText('the ladder  L_m = √(9m²−4)/m  → 3', lx, ly0-14);
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(lx, ly0); ctx.lineTo(lx+lw, ly0); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=cssVar('--accent'); ctx.fillText('3', lx+lw+6, ly0+4);
+  const v0=2.15, vmap=L=>ly0+lh*(1-(L-v0)/(3-v0));    // L→y within ladder band
+  for(let i=0;i<n;i++){ const rr=sp.rungs[i], x=lx+lw*(i+0.5)/n, y=vmap(rr.L);
+    ctx.strokeStyle='rgba(120,110,130,0.4)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,ly0+lh); ctx.stroke();
+    ctx.fillStyle = i===sp.sel?cssVar('--accent'):cssVar('--canvas-bg'); ctx.strokeStyle=cssVar('--accent'); ctx.lineWidth=i===sp.sel?2.4:1.6;
+    ctx.beginPath(); ctx.arc(x,y,i===sp.sel?7:5,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=cssVar('--muted'); ctx.font='11px '+cssVar('--mono'); ctx.textAlign='center';
+    ctx.fillText('m='+rr.m, x, ly0+lh+16); ctx.fillText(rr.L.toFixed(3), x, ly0+lh+30); }
+  ctx.textAlign='start';
+  // --- bottom: the true spectrum axis 2 → 5 ---
+  const ax=70, aw=W-110, ay=H*0.80, vlo=2, vhi=5, mapx=v=>ax+aw*(v-vlo)/(vhi-vlo);
+  ctx.fillStyle=cssVar('--muted'); ctx.font='13px '+cssVar('--mono'); ctx.fillText('the Markov spectrum (true scale)', ax, ay-26);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay); ctx.stroke();
+  for(let v=2;v<=5;v++){ const x=mapx(v); ctx.strokeStyle=cssVar('--canvas-rule'); ctx.beginPath(); ctx.moveTo(x,ay-4); ctx.lineTo(x,ay+4); ctx.stroke();
+    ctx.fillStyle=cssVar('--muted'); ctx.font='11px '+cssVar('--mono'); ctx.textAlign='center'; ctx.fillText(v, x, ay+18); }
+  ctx.textAlign='start';
+  for(const rr of sp.rungs){ const x=mapx(rr.L); ctx.strokeStyle=cssVar('--accent'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x,ay-14); ctx.lineTo(x,ay); ctx.stroke(); }
+  // boundary at 3 + label
+  const x3=mapx(3); ctx.strokeStyle='rgba(120,110,130,0.7)'; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.moveTo(x3,ay-30); ctx.lineTo(x3,ay+8); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=cssVar('--muted'); ctx.font='10px '+cssVar('--mono'); ctx.textAlign='center';
+  ctx.fillText('discrete ↑ → 3', mapx(2.6), ay-18); ctx.fillText('gaps', mapx(3.7), ay-18);
+  // Hall's ray
+  ctx.fillStyle=cssVar('--accent'); ctx.fillRect(mapx(FREIMAN), ay-7, mapx(5)-mapx(FREIMAN), 7);
+  ctx.fillStyle=cssVar('--muted'); ctx.fillText('Hall ray [F,∞)', mapx(4.75), ay-18);
+  ctx.textAlign='start';
+  const s = sp.sel>=0 ? sp.rungs[sp.sel] : null;
+  document.getElementById('sp-stats').innerHTML = `
+    <div class="stat-row"><span class="k">rungs shown</span><span class="v">${sp.rungs.length}</span></div>
+    <div class="stat-row"><span class="k">smallest L (m=1)</span><span class="v hot">√5 = ${Math.sqrt(5).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">accumulates at</span><span class="v hot">3</span></div>
+    <div class="stat-row"><span class="k">Freiman's constant</span><span class="v">${FREIMAN}</span></div>
+    <div class="stat-row"><span class="k">selected m</span><span class="v hot">${s?s.m:'—'}</span></div>
+    <div class="stat-row"><span class="k">L_m</span><span class="v">${s?s.L.toFixed(5):'—'}</span></div>
+    <div class="stat-row"><span class="k">continued fraction</span><span class="v" style="font-size:.62rem">${s?s.cf:'—'}</span></div>`;
+}
+spCanvas.addEventListener('click',e=>{ const r=spCanvas.getBoundingClientRect();
+  const px=(e.clientX-r.left)*(spCanvas.width/r.width); const W=spCanvas.width, lx=70, lw=W-150, n=sp.rungs.length;
+  let best=-1,bd=1e9; for(let i=0;i<n;i++){ const x=lx+lw*(i+0.5)/n; const d=Math.abs(px-x); if(d<bd&&d<24){bd=d;best=i;} }
+  if(best>=0){ sp.sel=best; drawSpectrum(); } });
+
+// ═════════════════════════════════════════════════════════════════════
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildChain(); drawChain();
 mhReset(); wkReset();
 window.addEventListener('resize',()=>{ const p=activePane();
-  if(p==='chain')drawChain(); else if(p==='metropolis'){mh.bg=null;drawMH();} else if(p==='walk')drawWalk(); });
+  if(p==='chain')drawChain(); else if(p==='metropolis'){mh.bg=null;drawMH();} else if(p==='walk')drawWalk();
+  else if(p==='tree')drawTree(); else if(p==='spectrum')drawSpectrum(); });
 const initialHash=(location.hash||'').replace(/^#/,'');
 if(TAB_NAMES.includes(initialHash)&&initialHash!=='chain') setTimeout(()=>showTab(initialHash),0);
 </script>

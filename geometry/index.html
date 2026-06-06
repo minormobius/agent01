@@ -28,6 +28,7 @@
   --c-meander:  #a01f4c;
   --c-templieb: #0d6e63;
   --c-aztec:    #2456b8;
+  --c-markov:   #6a3aa0;
   --c-kakeya:   #a35a00;
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
@@ -61,6 +62,7 @@
     --c-meander:  #e0608f;
     --c-templieb: #3fb8a8;
     --c-aztec:    #6f93e8;
+    --c-markov:   #a98fe0;
     --c-kakeya:   #d99450;
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
@@ -357,6 +359,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/meander/">meander</a> ·
     <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> ·
     <a href="https://mino.mobi/aztec/">aztec</a> ·
+    <a href="https://mino.mobi/markov/">markov</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
@@ -509,6 +512,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/meander/">meander</a>
   <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
   <a href="https://mino.mobi/aztec/">aztec</a>
+  <a href="https://mino.mobi/markov/">markov</a>
   <a href="https://mino.mobi/kakeya/">kakeya</a>
   <a href="https://mino.mobi/capset/">capset</a>
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
@@ -654,6 +658,18 @@ const PACK = [
     status: 'proved',
     statusRank: 0,
     statusText: 'limit shape = circle',
+  },
+  {
+    name: 'markov',
+    url:  'https://mino.mobi/markov/',
+    accent: 'var(--c-markov)',
+    problem: 'Markov chains, MCMC & the Markov numbers',
+    era: 1906,
+    eraText: 'Markov 1879 & 1906',
+    tech: 'MCMC / Diophantine tree',
+    status: 'foundational',
+    statusRank: 0,
+    statusText: 'two unrelated gems',
   },
   {
     name: 'erdős',
