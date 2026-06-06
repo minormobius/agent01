@@ -108,6 +108,7 @@ footer a:hover { color: var(--accent); }
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="tiles" role="tab">tiles</button>
   <button class="tab" data-tab="thermal" role="tab">thermal</button>
+  <button class="tab" data-tab="ising" role="tab">ising</button>
   <button class="tab" data-tab="torus" role="tab">torus</button>
   <button class="tab" data-tab="algebra" role="tab">algebra</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
@@ -209,6 +210,59 @@ footer a:hover { color: var(--accent); }
         <em>more</em> tribes (many small loops); δ &lt; 1 rewards <em>fewer</em> (a few big,
         often winding, loops). At δ = √2 the loops are the Fortuin–Kasteleyn cluster boundaries
         of the Ising model — the tribes you're watching are FK clusters.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── ISING PANE ─────────── -->
+<section class="pane" data-pane="ising">
+  <p class="lead">
+    Now a real temperature axis. This is the <strong>Ising model</strong> — Potts at Q = 2, the
+    δ = √2 point of the thermal tab — driven by the <strong>Swendsen–Wang</strong> cluster
+    thermostat: open bonds between aligned neighbours with probability 1 − e<sup>−2/T</sup>, then
+    flip whole <strong>tribes</strong> (the Fortuin–Kasteleyn clusters) at once. Cool through the
+    exact critical temperature <strong>T<sub>c</sub> = 2 / ln(1 + √2) ≈ 2.269</strong> and watch
+    the tribes diverge: a froth of tiny tribes when hot, one <em>fractal spanning tribe</em> at
+    T<sub>c</sub>, a single frozen continent below. Hit <strong>anneal</strong> to ramp the
+    temperature and ride through the transition. (Torus boundary.)
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="is-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">temperature · T  (T<sub>c</sub> ≈ 2.269)</span>
+        <div class="ctrl-row"><input id="is-temp" type="range" min="0.80" max="4.00" value="2.269" step="0.005"><span class="ctrl-val" id="is-temp-val">2.269</span></div>
+        <div class="btn-row" id="is-presets">
+          <button class="btn" data-t="3.6">hot</button>
+          <button class="btn active" data-t="2.269185">T<sub>c</sub></button>
+          <button class="btn" data-t="1.4">cold</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="is-run">▶ run</button>
+          <button class="btn" id="is-anneal">anneal</button>
+          <button class="btn" id="is-sweep">+1 sweep</button>
+          <button class="btn" id="is-rand">randomise</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">colour</span>
+        <div class="btn-row" id="is-mode">
+          <button class="btn active" data-m="tribe">tribe (FK)</button>
+          <button class="btn" data-m="spin">spin ↑↓</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="is-size" type="range" min="16" max="96" value="48" step="8"><span class="ctrl-val" id="is-size-val">48</span></div>
+      </div>
+      <div class="stats" id="is-stats"></div>
+      <div class="stat-note">
+        Swendsen–Wang flips entire correlated tribes per step, so it stays fast even at T<sub>c</sub>
+        where single-spin flips freeze (critical slowing-down). The biggest-tribe fraction is the
+        order parameter you can watch: it climbs from ~0 to ~1 across T<sub>c</sub>.
       </div>
     </div>
   </div>
@@ -414,13 +468,14 @@ the same donut, now carrying loops instead of a maze.</p>
 // ═════════════════════════════════════════════════════════════════════
 const tabs = document.querySelectorAll('.tab');
 const panes = document.querySelectorAll('.pane');
-const TAB_NAMES = ['tiles', 'thermal', 'torus', 'algebra', 'docs'];
+const TAB_NAMES = ['tiles', 'thermal', 'ising', 'torus', 'algebra', 'docs'];
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
   try { history.replaceState(null, '', '#' + name); } catch {}
   if (name === 'tiles') drawTiles();
   if (name === 'thermal') { if(!thermal.states.length) thRandomize(); drawThermal(); if(thermal.running) thermal.raf=requestAnimationFrame(thLoop); }
+  if (name === 'ising') { if(!ising.spins){ isInit(); labelStats(fkClusters()); } drawIsing(); if(ising.running) ising.raf=requestAnimationFrame(isLoop); }
   if (name === 'torus') { syncTorusFromTiles(); startSpin(); }
   if (name === 'algebra') drawAlg();
 }
@@ -835,13 +890,96 @@ document.getElementById('th-presets').addEventListener('click',e=>{ const b=e.ta
 document.getElementById('th-size').addEventListener('input',e=>{ thermal.L=thermal.M=parseInt(e.target.value,10); document.getElementById('th-size-val').textContent=thermal.L; thRandomize(); drawThermal(); });
 
 // ═════════════════════════════════════════════════════════════════════
+// Ising tab — true-temperature thermostat via Swendsen–Wang cluster updates
+//   tribes = Fortuin–Kasteleyn clusters; cool through Tc = 2/ln(1+√2) ≈ 2.269
+// ═════════════════════════════════════════════════════════════════════
+const Tc = 2/Math.log(1+Math.SQRT2);     // 2.2691853…
+const ising = { L:48, T:Tc, spins:null, labels:null, ntribes:0, big:0,
+  mode:'tribe', running:false, anneal:false, annDir:-1, raf:null, sweeps:0 };
+const isCanvas = document.getElementById('is-canvas'), isCtx = isCanvas.getContext('2d');
+function isFind(p,x){ while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; }
+function isInit(){ const N=ising.L*ising.L; ising.spins=new Int8Array(N);
+  for(let i=0;i<N;i++) ising.spins[i]=Math.random()<0.5?1:-1; ising.sweeps=0; }
+function fkClusters(){ // one FK bond realisation over current spins; returns union-find parents
+  const L=ising.L,N=L*L,s=ising.spins,p=1-Math.exp(-2/ising.T);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  return par;
+}
+function labelStats(par){ const N=par.length, lab=new Int32Array(N), cnt=new Map();
+  for(let i=0;i<N;i++){ const r=isFind(par,i); lab[i]=r; cnt.set(r,(cnt.get(r)||0)+1); }
+  let big=0; for(const v of cnt.values()) if(v>big) big=v;
+  ising.labels=lab; ising.ntribes=cnt.size; ising.big=big; }
+function swStep(){ const par=fkClusters(), N=par.length, s=ising.spins, sign=new Map();
+  for(let i=0;i<N;i++){ const r=isFind(par,i); let g=sign.get(r); if(g===undefined){ g=Math.random()<0.5?1:-1; sign.set(r,g); } s[i]*=g; }
+  labelStats(par); ising.sweeps++; }
+function isGeom(){ const W=isCanvas.width,H=isCanvas.height,pad=14;
+  const cs=Math.floor(Math.min((W-2*pad)/ising.L,(H-2*pad)/ising.L));
+  return { W,H,cs, ox:Math.round((W-cs*ising.L)/2), oy:Math.round((H-cs*ising.L)/2) }; }
+function drawIsing(){ const ctx=isCtx,g=isGeom(),L=ising.L,s=ising.spins;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  if(ising.mode==='spin'){ const up='#c0392b', dn='#1d6fa3';
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=s[y*L+x]>0?up:dn; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+  } else { const lab=ising.labels;
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const hue=((lab[y*L+x]*137.508)%360);
+      ctx.fillStyle='hsl('+hue.toFixed(0)+',58%,52%)'; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+  }
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
+  isStats(); }
+function isStats(){ const L=ising.L,N=L*L,s=ising.spins; let m=0,e=0;
+  for(let i=0;i<N;i++) m+=s[i];
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x; e+=s[i]*(s[((y+1)%L)*L+x]+s[y*L+((x+1)%L)]); }
+  const mag=Math.abs(m)/N, en=-e/N, T=ising.T;
+  let phase,cls; if(T>Tc+0.2){ phase='paramagnet (disordered)'; cls=''; }
+  else if(T<Tc-0.2){ phase='ferromagnet (ordered)'; cls='win'; }
+  else { phase='≈ critical — fractal tribe'; cls='hot'; }
+  document.getElementById('is-stats').innerHTML = `
+    <div class="stat-row"><span class="k">T  ·  β</span><span class="v hot">${T.toFixed(3)} · ${(1/T).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">T / Tc</span><span class="v">${(T/Tc).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">phase</span><span class="v ${cls}">${phase}</span></div>
+    <div class="stat-row"><span class="k">|magnetisation|</span><span class="v hot">${mag.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">energy / site</span><span class="v">${en.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">tribes (FK)</span><span class="v">${ising.ntribes}</span></div>
+    <div class="stat-row"><span class="k">biggest tribe</span><span class="v win">${(100*ising.big/N).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="k">sweeps</span><span class="v">${ising.sweeps}</span></div>`;
+}
+function isActive(){ return document.querySelector('.pane.active')?.dataset.pane==='ising'; }
+function isLoop(){ if(!ising.running||!isActive()) return;
+  if(ising.anneal){ ising.T += ising.annDir*0.012;
+    if(ising.T<=1.20){ ising.T=1.20; ising.annDir=1; } if(ising.T>=3.60){ ising.T=3.60; ising.annDir=-1; }
+    isSetTemp(ising.T,true); }
+  swStep(); drawIsing(); ising.raf=requestAnimationFrame(isLoop); }
+function isSetRun(on){ ising.running=on; const b=document.getElementById('is-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on) ising.raf=requestAnimationFrame(isLoop); else cancelAnimationFrame(ising.raf); }
+const isTemp=document.getElementById('is-temp'), isTempVal=document.getElementById('is-temp-val');
+function isSetTemp(v,fromLoop){ ising.T=v; isTemp.value=v; isTempVal.textContent=v.toFixed(3);
+  document.querySelectorAll('#is-presets .btn').forEach(b=>b.classList.toggle('active',Math.abs(parseFloat(b.dataset.t)-v)<0.01));
+  if(!fromLoop && !ising.running) drawIsing(); }
+isTemp.addEventListener('input',e=>isSetTemp(parseFloat(e.target.value),false));
+document.getElementById('is-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) isSetTemp(parseFloat(b.dataset.t),false); });
+document.getElementById('is-run').addEventListener('click',()=>isSetRun(!ising.running));
+document.getElementById('is-anneal').addEventListener('click',()=>{ ising.anneal=!ising.anneal;
+  document.getElementById('is-anneal').classList.toggle('active',ising.anneal); if(ising.anneal && !ising.running) isSetRun(true); });
+document.getElementById('is-sweep').addEventListener('click',()=>{ swStep(); drawIsing(); });
+document.getElementById('is-rand').addEventListener('click',()=>{ isInit(); labelStats(fkClusters()); drawIsing(); });
+document.getElementById('is-mode').addEventListener('click',e=>{ const b=e.target.closest('[data-m]'); if(!b) return;
+  ising.mode=b.dataset.m; document.querySelectorAll('#is-mode .btn').forEach(x=>x.classList.toggle('active',x===b)); drawIsing(); });
+document.getElementById('is-size').addEventListener('input',e=>{ ising.L=parseInt(e.target.value,10);
+  document.getElementById('is-size-val').textContent=ising.L; isInit(); labelStats(fkClusters()); drawIsing(); });
+
+// ═════════════════════════════════════════════════════════════════════
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildGenRow();
 drawTiles();
 drawAlg();
 window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
-  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
+  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
 const initialHash=(location.hash||'').replace(/^#/,'');
 if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
 </script>
