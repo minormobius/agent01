@@ -112,6 +112,7 @@ footer a:hover { color: var(--accent); }
   <button class="tab" data-tab="potts" role="tab">potts</button>
   <button class="tab" data-tab="phase" role="tab">phase</button>
   <button class="tab" data-tab="torus" role="tab">torus</button>
+  <button class="tab" data-tab="tort" role="tab">tortuosity</button>
   <button class="tab" data-tab="algebra" role="tab">algebra</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
@@ -426,6 +427,52 @@ footer a:hover { color: var(--accent); }
   </div>
 </section>
 
+<!-- ─────────── TORTUOSITY PANE ─────────── -->
+<section class="pane" data-pane="tort">
+  <p class="lead">
+    A continuous path that visits every square of the torus is a <strong>Hamiltonian path</strong>.
+    At each interior cell it either goes <strong>straight</strong> or <strong>turns</strong> — and
+    <strong>tortuosity</strong> τ = turns / (interior cells) measures how wiggly it is, maxed out at
+    τ = 1 when <em>every</em> cell is a turn. That all-turns limit is exactly the loop picture this
+    whole page runs on: every arc is a 90° turn. Maximising turns is a combinatorial optimisation,
+    so we throw the Monte-Carlo toolset at it: <strong>simulated annealing</strong> with
+    <strong>backbite</strong> moves (reconnect one endpoint to a lattice neighbour, reversing the
+    tail — the standard ergodic move on Hamiltonian paths) that minimises the count of straight
+    cells. Hit run and watch the snake crumple into a maximally twisty path.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="tt-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="tt-run">▶ anneal</button>
+          <button class="btn" id="tt-best">restore best</button>
+          <button class="btn" id="tt-reset">reset (snake)</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="tt-size" type="range" min="6" max="24" value="14" step="2"><span class="ctrl-val" id="tt-size-val">14</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">anneal temperature · τT (auto-cools)</span>
+        <div class="ctrl-row"><input id="tt-temp" type="range" min="0.02" max="2.00" value="1.20" step="0.02"><span class="ctrl-val" id="tt-temp-val">1.20</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="tt-speed" type="range" min="1" max="8" value="4" step="1"><span class="ctrl-val" id="tt-speed-val">4</span></div>
+      </div>
+      <div class="stats" id="tt-stats"></div>
+      <div class="stat-note">
+        Red dots mark the <strong>straight</strong> cells — the defects from a perfectly twisty path;
+        squares are the two endpoints. Lower τT greedily hunts turns, higher τT shakes the path loose
+        to escape local traps. "Best" keeps the twistiest path seen so far. Wraps across the torus
+        seam show as stubs at opposite edges.
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ─────────── ALGEBRA PANE ─────────── -->
 <section class="pane" data-pane="algebra">
   <p class="lead">
@@ -593,7 +640,7 @@ the same donut, now carrying loops instead of a maze.</p>
 // ═════════════════════════════════════════════════════════════════════
 const tabs = document.querySelectorAll('.tab');
 const panes = document.querySelectorAll('.pane');
-const TAB_NAMES = ['tiles', 'thermal', 'ising', 'potts', 'phase', 'torus', 'algebra', 'docs'];
+const TAB_NAMES = ['tiles', 'thermal', 'ising', 'potts', 'phase', 'torus', 'tort', 'algebra', 'docs'];
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
@@ -604,6 +651,7 @@ function showTab(name) {
   if (name === 'potts') { if(!potts.spins){ poInit(); } drawPotts(); if(potts.running) potts.raf=requestAnimationFrame(poLoop); }
   if (name === 'phase') { drawPhase(); if(phase.running) phase.raf=requestAnimationFrame(phTick); }
   if (name === 'torus') { if(!donut.states){ syncTorusFromTiles(); } else { drawTorus(); updateTorusStats(); } startSpin(); }
+  if (name === 'tort') { if(!tort.seq.length){ tInitSnake(); } drawTort(); if(tort.running) tort.raf=requestAnimationFrame(tLoop); }
   if (name === 'algebra') drawAlg();
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
@@ -1309,13 +1357,96 @@ document.getElementById('ph-size').addEventListener('input',e=>{ phase.L=parseIn
   phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
 
 // ═════════════════════════════════════════════════════════════════════
+// Tortuosity tab — max-turn Hamiltonian path on the torus via backbite + SA
+//   τ = turns/(interior cells); minimise straight cells. Single path invariant.
+// ═════════════════════════════════════════════════════════════════════
+const tort = { L:14, seq:[], pos:[], straights:0, best:Infinity, bestSeq:null,
+  running:false, raf:null, T:1.2, ups:4, lastT:0, moves:0 };
+const ttCanvas = document.getElementById('tt-canvas'), ttCtx = ttCanvas.getContext('2d');
+function tDir(a,b){ const L=tort.L; let dx=(b%L)-(a%L), dy=((b/L)|0)-((a/L)|0);
+  if(dx===L-1)dx=-1; else if(dx===-(L-1))dx=1; if(dy===L-1)dy=-1; else if(dy===-(L-1))dy=1; return [dx,dy]; }
+function tNeighbors(c){ const L=tort.L, x=c%L, y=(c/L)|0;
+  return [ y*L+((x+1)%L), y*L+((x+L-1)%L), ((y+1)%L)*L+x, ((y+L-1)%L)*L+x ]; }
+function tCountStraights(){ const s=tort.seq, n=s.length; let st=0;
+  for(let i=1;i<n-1;i++){ const a=tDir(s[i-1],s[i]), b=tDir(s[i],s[i+1]); if(a[0]===b[0]&&a[1]===b[1]) st++; }
+  return st; }
+function tInitSnake(){ const L=tort.L; tort.seq=[];
+  for(let y=0;y<L;y++){ if(y%2===0){ for(let x=0;x<L;x++) tort.seq.push(y*L+x); } else { for(let x=L-1;x>=0;x--) tort.seq.push(y*L+x); } }
+  tort.pos=new Array(L*L); tort.seq.forEach((c,i)=>tort.pos[c]=i);
+  tort.straights=tCountStraights(); tort.best=tort.straights; tort.bestSeq=tort.seq.slice(); tort.moves=0; tort.T=1.2; }
+function tReverse(i,j){ const s=tort.seq; while(i<j){ const t=s[i];s[i]=s[j];s[j]=t; tort.pos[s[i]]=i; tort.pos[s[j]]=j; i++;j--; } if(i===j) tort.pos[s[i]]=i; }
+function tProposeRange(){ const s=tort.seq, n=s.length;
+  if(Math.random()<0.5){ const e=s[0], nb=tNeighbors(e), w=nb[(Math.random()*4)|0], k=tort.pos[w]; return k<=1?null:[0,k-1]; }
+  else { const e=s[n-1], nb=tNeighbors(e), w=nb[(Math.random()*4)|0], k=tort.pos[w]; return k>=n-2?null:[k+1,n-1]; } }
+function tStep(){ const r=tProposeRange(); if(!r) return;
+  const before=tort.straights; tReverse(r[0],r[1]); const after=tCountStraights(); const d=after-before;
+  if(d<=0 || Math.random() < Math.exp(-d/tort.T)){ tort.straights=after;
+    if(after<tort.best){ tort.best=after; tort.bestSeq=tort.seq.slice(); } }
+  else tReverse(r[0],r[1]);     // reversal is its own inverse → revert
+  tort.moves++; }
+function ttGeom(){ const W=ttCanvas.width,H=ttCanvas.height,pad=24;
+  const cs=Math.floor(Math.min((W-2*pad)/tort.L,(H-2*pad)/tort.L));
+  return { W,H,cs, ox:Math.round((W-cs*tort.L)/2), oy:Math.round((H-cs*tort.L)/2) }; }
+function drawTort(){ const ctx=ttCtx,g=ttGeom(),L=tort.L,s=tort.seq;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  for(let x=0;x<=L;x++){ ctx.beginPath(); ctx.moveTo(g.ox+x*g.cs,g.oy); ctx.lineTo(g.ox+x*g.cs,g.oy+L*g.cs); ctx.stroke(); }
+  for(let y=0;y<=L;y++){ ctx.beginPath(); ctx.moveTo(g.ox,g.oy+y*g.cs); ctx.lineTo(g.ox+L*g.cs,g.oy+y*g.cs); ctx.stroke(); }
+  const cx=c=>g.ox+((c%L)+0.5)*g.cs, cy=c=>g.oy+(((c/L)|0)+0.5)*g.cs;
+  // path: half-cell stubs per step (wrap-aware — wraps show as stubs at opposite edges)
+  ctx.strokeStyle=cssVar('--accent'); ctx.lineCap='round'; ctx.lineWidth=Math.max(2,g.cs*0.16);
+  ctx.beginPath();
+  for(let i=0;i<s.length-1;i++){ const a=s[i],b=s[i+1], d=tDir(a,b), h=g.cs/2;
+    ctx.moveTo(cx(a),cy(a)); ctx.lineTo(cx(a)+d[0]*h, cy(a)+d[1]*h);
+    ctx.moveTo(cx(b),cy(b)); ctx.lineTo(cx(b)-d[0]*h, cy(b)-d[1]*h); }
+  ctx.stroke();
+  // straight-cell defects (red dots)
+  ctx.fillStyle='#c0392b';
+  for(let i=1;i<s.length-1;i++){ const a=tDir(s[i-1],s[i]), b=tDir(s[i],s[i+1]);
+    if(a[0]===b[0]&&a[1]===b[1]){ ctx.beginPath(); ctx.arc(cx(s[i]),cy(s[i]),Math.max(2,g.cs*0.14),0,7); ctx.fill(); } }
+  // endpoints (squares)
+  ctx.fillStyle=cssVar('--accent');
+  [s[0],s[s.length-1]].forEach(c=>{ const r=g.cs*0.18; ctx.fillRect(cx(c)-r,cy(c)-r,2*r,2*r); });
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2; ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
+  ttStats(); }
+function ttStats(){ const N=tort.L*tort.L, interior=N-2;
+  const turns=interior-tort.straights, tau=turns/interior;
+  const bestTurns=interior-tort.best, bestTau=bestTurns/interior;
+  document.getElementById('tt-stats').innerHTML = `
+    <div class="stat-row"><span class="k">cells N</span><span class="v">${N} (${tort.L}×${tort.L})</span></div>
+    <div class="stat-row"><span class="k">turns</span><span class="v hot">${turns}</span></div>
+    <div class="stat-row"><span class="k">straights</span><span class="v win">${tort.straights}</span></div>
+    <div class="stat-row"><span class="k">tortuosity τ</span><span class="v hot">${tau.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">best τ found</span><span class="v win">${bestTau.toFixed(3)}${tort.best===0?' — all turns!':''}</span></div>
+    <div class="stat-row"><span class="k">τT · moves</span><span class="v">${tort.T.toFixed(2)} · ${tort.moves}</span></div>`;
+}
+function tActive(){ return document.querySelector('.pane.active')?.dataset.pane==='tort'; }
+function tLoop(ts){ if(!tort.running||!tActive()) return; if(ts==null) ts=performance.now();
+  if(ts-tort.lastT >= 1000/tort.ups){ tort.lastT=ts;
+    const moves=2*tort.L*tort.L; for(let i=0;i<moves;i++) tStep();
+    tort.T=Math.max(0.02, tort.T*0.96); document.getElementById('tt-temp').value=tort.T;
+    document.getElementById('tt-temp-val').textContent=tort.T.toFixed(2); drawTort(); }
+  tort.raf=requestAnimationFrame(tLoop); }
+function tSetRun(on){ tort.running=on; const b=document.getElementById('tt-run');
+  b.textContent=on?'⏸ pause':'▶ anneal'; b.classList.toggle('active',on);
+  if(on){ tort.lastT=0; tort.raf=requestAnimationFrame(tLoop); } else cancelAnimationFrame(tort.raf); }
+document.getElementById('tt-run').addEventListener('click',()=>tSetRun(!tort.running));
+document.getElementById('tt-reset').addEventListener('click',()=>{ tSetRun(false); tInitSnake(); drawTort(); });
+document.getElementById('tt-best').addEventListener('click',()=>{ if(!tort.bestSeq) return; tort.seq=tort.bestSeq.slice();
+  tort.pos=new Array(tort.L*tort.L); tort.seq.forEach((c,i)=>tort.pos[c]=i); tort.straights=tort.best; drawTort(); });
+document.getElementById('tt-size').addEventListener('input',e=>{ tSetRun(false); tort.L=parseInt(e.target.value,10);
+  document.getElementById('tt-size-val').textContent=tort.L; tInitSnake(); drawTort(); });
+document.getElementById('tt-temp').addEventListener('input',e=>{ tort.T=parseFloat(e.target.value); document.getElementById('tt-temp-val').textContent=tort.T.toFixed(2); });
+document.getElementById('tt-speed').addEventListener('input',e=>{ tort.ups=parseInt(e.target.value,10); document.getElementById('tt-speed-val').textContent=tort.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildGenRow();
 drawTiles();
 drawAlg();
 window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
-  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='potts')drawPotts(); else if(p==='phase')drawPhase(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
+  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='potts')drawPotts(); else if(p==='phase')drawPhase(); else if(p==='torus')drawTorus(); else if(p==='tort')drawTort(); else if(p==='algebra')drawAlg(); });
 const initialHash=(location.hash||'').replace(/^#/,'');
 if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
 </script>
