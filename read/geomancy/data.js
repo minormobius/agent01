@@ -1,85 +1,127 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// data.js — the sixteen geomantic figures, with an ORIGINAL English redaction of
-// their significations after the Latin geomancers (Heinrich Cornelius Agrippa,
-// "Of Geomancy"; the "Fasciculus Geomanticus", 1687 — Robert Fludd, Henri de
-// Pisis, Alfakini). This is the canonical home of the text.
+// data.js — an ORIGINAL English translation of the geomantic figures from a single
+// named source of truth, set beside the Latin:
 //
-// PROVENANCE — read this honestly. The figures, their names, and their fourfold
-// line-patterns are standard. The significations here are our own modern English,
-// redacted from the Western Latin tradition cited above — the fetchable "cousin"
-// of the older Arabic ʿilm al-raml. They are a working stand-in: the intended spine
-// is a faithful translation of al-Zanātī's "Kitāb al-Faṣl fī uṣūl ʿilm al-raml",
-// which we will set beside the Arabic, term by term, once a clean source is in hand.
-// Element schemes differ between authors; where we give one, the note flags it.
-// CC BY-SA 4.0. A transparent working text — corrections welcome.
+//   Robert Fludd, "Tractatus de Geomantia", Liber II ("De Figuris Geomanticis"),
+//   in the FASCICULUS GEOMANTICUS (Verona, 1704), pp. 34–38.
+//   Scan: Internet Archive, item b3299753x.
+//
+// The Latin below is transcribed from the page images of that edition (read directly,
+// not from its broken OCR), lightly normalised (long-ſ → s, æ kept). The English is
+// ours; notes mark the cruxes. This is a transparent WORKING translation — corrections
+// welcome — and a first tranche: Fludd's NAMES, FORMS and NATURES of the figures. The
+// per-house significations ("Acquisitio in domo Prima…") are a later tranche, and a
+// faithful translation of al-Zanātī's Arabic remains the deeper spine to converge on.
+//
+// A flagged crux: this printing inverts PUER and PUELLA against the common attribution
+// — Puer falls under Venus and among the fortunate, Puella under Mars and the
+// unfortunate (while Rubeus stays Mars, Amissio Venus). Almost certainly a transposition
+// in this edition; we render the text as printed and note it, rather than silently fix it.
+// CC BY-SA 4.0.
 // ─────────────────────────────────────────────────────────────────────────────
 'use strict';
 
 export const GEOMANCY = {
   meta: {
-    title: 'The Sixteen Figures',
+    title: 'Of the Geomantic Figures',
+    author: 'Robert Fludd, Tractatus de Geomantia, Liber II',
     license: 'CC BY-SA 4.0',
-    method: 'A figure is four lines, top to bottom Fire · Air · Water · Earth; a line is single (•, active, an odd tally) or double (• •, passive, even). The significations below are an original English redaction after the Latin geomancers, pending a faithful translation of al-Zanātī’s Arabic — the spine to come.',
+    method: 'A figure is four lines, top to bottom Fire · Air · Water · Earth; a line is single (•, odd) or double (• •, even). Below are Fludd’s sixteen figures with their names, forms and natures (element, fortune, sign and planet), translated from the Fasciculus Geomanticus (Verona, 1704), pp. 34–38, with the Latin shown.',
     sources: [
-      { label: 'Agrippa, “Of Geomancy” (tr. R. Turner, 1655)', host: 'princeton.edu/~ezb/geomancy', url: 'https://www.princeton.edu/~ezb/geomancy/agrippa.html' },
-      { label: 'Fasciculus Geomanticus (1687) — Fludd, de Pisis, Alfakini', host: 'archive.org', url: 'https://archive.org/details/b3299753x' },
-      { label: 'al-Zanātī, Kitāb al-Faṣl fī uṣūl ʿilm al-raml — the spine to come', host: 'forthcoming', url: 'https://en.wikipedia.org/wiki/Arabic_geomancy' },
+      { label: 'Fasciculus Geomanticus (Verona, 1704) — R. Fludd, Tractatus de Geomantia, Lib. II, pp. 34–38', host: 'archive.org/details/b3299753x', url: 'https://archive.org/details/b3299753x' },
+      { label: 'al-Zanātī, Kitāb al-Faṣl fī uṣūl ʿilm al-raml — the deeper spine, to come', host: 'forthcoming', url: 'https://en.wikipedia.org/wiki/Arabic_geomancy' },
     ],
   },
-  // rows: [Fire, Air, Water, Earth]; 1 = single (active/odd), 2 = double (passive/even)
+
+  // Fludd's prefatory definition (p. 35), and his own classifying lists (pp. 37–38),
+  // verbatim Latin beside English — the "source text" this translation points to.
+  fludd: {
+    preface: {
+      la: 'Figuræ illæ, quæ possunt ex seriebus quatuor linearum Geomanticarum extrahi, sunt numero sedecim, quæ nomine ac forma ab invicem distinguuntur, ut sequitur.',
+      en: 'Those figures which can be drawn out of the four series of geomantic lines are sixteen in number, distinguished one from another by name and by form, as follows.',
+    },
+    lists: [
+      { head:'The elements (by the quarters of the world), p. 38',
+        rows:[
+          { la:'Igneæ, quæ habent ex plagis mundi Meridiem: Rubeus, Minor, Amissio, Cauda Draconis.', en:'Fiery, holding the South: Rubeus, Fortuna Minor, Amissio, Cauda Draconis.' },
+          { la:'Aereæ, quæ habent Orientem: Lætitia, Puella, Acquisitio, Conjunctio.', en:'Airy, holding the East: Lætitia, Puella, Acquisitio, Coniunctio.' },
+          { la:'Aqueæ, quæ habent Septentrionem: Populus, Via, Puer, Albus.', en:'Watery, holding the North: Populus, Via, Puer, Albus.' },
+          { la:'Terreæ, quæ habent Occidentem: Major, Caput Draconis, Carcer, Tristitia.', en:'Earthy, holding the West: Fortuna Major, Caput Draconis, Carcer, Tristitia.' },
+        ] },
+      { head:'The fortunes (good, ill, and between), p. 38',
+        rows:[
+          { la:'Omnino bonæ & fortunatæ: Major, Lætitia, Caput Draconis, Albus, Puer, Acquisitio.', en:'Wholly good and fortunate: Fortuna Major, Lætitia, Caput Draconis, Albus, Puer, Acquisitio.' },
+          { la:'Omnino malæ & infælices: Tristitia, Rubeus, Puella, Amissio, Cauda Draconis, Minor, Carcer.', en:'Wholly bad and unhappy: Tristitia, Rubeus, Puella, Amissio, Cauda Draconis, Fortuna Minor, Carcer.' },
+          { la:'Nec bonæ omnino, nec omnino malæ, sed intermediæ: Populus, Via, Conjunctio.', en:'Neither wholly good nor wholly bad, but in between: Populus, Via, Coniunctio.' },
+        ] },
+      { head:'The signs of the Zodiac, p. 37',
+        rows:[
+          { la:'Acquisitio Arieti; Lætitia & Minor Tauro; Rubeus & Puer Geminis; Albus & Populus Cancro; Via Leoni; Caput Draconis & Conjunctio Virgini; Puella Libræ; Tristitia & Amissio Scorpioni; Cauda Draconis Sagittario; Populus Capricorno; Major Aquario; Carcer Piscibus.',
+            en:'Acquisitio to Aries; Lætitia & Minor to Taurus; Rubeus & Puer to Gemini; Albus & Populus to Cancer; Via to Leo; Caput Draconis & Coniunctio to Virgo; Puella to Libra; Tristitia & Amissio to Scorpio; Cauda Draconis to Sagittarius; Populus to Capricorn; Major to Aquarius; Carcer to Pisces.' },
+        ] },
+      { head:'The planets (direct & retrograde), p. 37',
+        rows:[
+          { la:'Saturni: Directus Carceri, Retrogradus Tristitiæ. Jovis: Directus Lætitiæ, Retrogradus Acquisitioni. Martis: Directus Rubeo, Retrogradus Puellæ. Solis: Velox Majori, Tardus Minori. Veneris: Directa Puero, Retrograda Amissioni. Mercurii: Directus Albo, Retrogradus Conjunctioni. Lunæ: Directa Populo, Retrograda Viæ. Jupiter & Venus Directi, Capiti Draconis. Saturnus & Mars Retrogradi, Caudæ Draconis.',
+            en:'Saturn: direct → Carcer, retrograde → Tristitia. Jupiter: direct → Lætitia, retrograde → Acquisitio. Mars: direct → Rubeus, retrograde → Puella. Sun: swift → Major, slow → Minor. Venus: direct → Puer, retrograde → Amissio. Mercury: direct → Albus, retrograde → Coniunctio. Moon: direct → Populus, retrograde → Via. Jupiter & Venus direct → Caput Draconis. Saturn & Mars retrograde → Cauda Draconis.' },
+        ] },
+    ],
+  },
+
+  // rows: [Fire, Air, Water, Earth]; 1 = single (odd), 2 = double (even).
+  // element / nature / zodiac / planet are Fludd's own (pp. 37–38). nature: good|ill|mixed.
   figures: [
-    { la:'Via', en:'The Way', rows:[1,1,1,1], planet:'Moon', element:'Water', nature:'mixed',
-      sig:'The road, and motion along it: journeys, change, news that travels, the turning of a course. It carries things from one state to another — favourable for travel and for what must move or alter, contrary to whatever needs to stand still.',
-      note:'Via, “the way / the road” — all four lines single, a single track of points; the Arabic is Ṭarīq (طريق), the road. Ruled by the Moon, ever-changing.' },
-    { la:'Cauda Draconis', en:'The Tail of the Dragon', rows:[1,1,1,2], planet:'Descending Node', element:'Fire', nature:'ill',
-      sig:'A threshold outward: endings, exits, release, the close of a matter. Good for what should be finished or let go, and for losing what one wishes rid of; ill for beginnings and for keeping.',
-      note:'Cauda Draconis, the descending lunar node (☋) — the door out. Of an ill, “going-out” nature; pairs with Caput, its head.' },
-    { la:'Puer', en:'The Boy', rows:[1,1,2,1], planet:'Mars', element:'Air', nature:'ill, save in war and love',
-      sig:'The young soldier: heat, rashness, drive, conflict. Reckless and headstrong, ill in most affairs — but strong in war, contest, and passion, where boldness wins.',
-      note:'Puer, “the boy”; the figure is read as a rod or weapon. Martial. Its reversion is Puella, the girl.' },
-    { la:'Fortuna Minor', en:'The Lesser Fortune', rows:[1,1,2,2], planet:'Sun', element:'Fire', nature:'good, but fleeting',
-      sig:'Swift, outward fortune — success had quickly, through others or by speed, but not built to last. Good for matters wanting a fast result; weak for what must endure.',
-      note:'Fortuna Minor — “fortune going out” (the upper lines single), help from without. A solar figure, like its greater twin.' },
-    { la:'Puella', en:'The Girl', rows:[1,2,1,1], planet:'Venus', element:'Water', nature:'good',
-      sig:'Harmony, beauty, affection, peace. Favourable in love, friendship, and pleasant dealings; pure and well-mannered, though changeable in graver matters.',
-      note:'Puella, “the girl” — Venusian; the reversion of Puer. Good in nearly all questions but war.' },
-    { la:'Amissio', en:'Loss', rows:[1,2,1,2], planet:'Venus', element:'Fire', nature:'ill (good for release)',
-      sig:'Loss, the slipping-away of things, what leaves the hand. The mirror of Acquisitio: ill where one wishes to gain or keep, but favourable where one wishes to be free of a thing or end a burden.',
-      note:'Amissio, “loss” — an emptied purse, the inversion of Acquisitio. Good only when loss itself is the wish.' },
-    { la:'Carcer', en:'The Prison', rows:[1,2,2,1], planet:'Saturn', element:'Earth', nature:'ill (stable)',
-      sig:'Binding, restriction, delay, confinement, isolation. Things held fast and slow to move; ill for freedom and progress, yet steadying for what must be fixed in place or kept.',
-      note:'Carcer, “the prison” — a closed cell (the outer lines single, walling the centre). Saturnine; a symmetrical, locked figure.' },
-    { la:'Laetitia', en:'Joy', rows:[1,2,2,2], planet:'Jupiter', element:'Air', nature:'good',
-      sig:'Joy, health, gladness, good news; things rising and lightening. Favourable for happiness, recovery, and elevation — the spirit lifted up.',
-      note:'Laetitia, “joy” — the single Fire line at the head; only Fire active, its ruling element. An upward, Jovial figure.' },
-    { la:'Caput Draconis', en:'The Head of the Dragon', rows:[2,1,1,1], planet:'Ascending Node', element:'Earth', nature:'good',
-      sig:'A threshold inward: beginnings, entries, the open door, a good foundation. Favourable for starting and for receiving; it takes on the good or ill of the figures it keeps company with, but is good of itself.',
-      note:'Caput Draconis, the ascending lunar node (☊) — the door in; reversion of Cauda. A figure of thresholds.' },
-    { la:'Acquisitio', en:'Gain', rows:[2,1,2,1], planet:'Jupiter', element:'Fire', nature:'good',
-      sig:'Gain, profit, the getting of the thing desired; money, increase, success in business and ambition. One of the most fortunate figures — the full purse.',
-      note:'Acquisitio, “gain.” The Latin geomancers give it bonum finem, fortunatum — receptionem rei desideratæ, “a good and fortunate end, the receiving of the thing desired.” Jovial; the inversion of Amissio.' },
-    { la:'Coniunctio', en:'Conjunction', rows:[2,1,1,2], planet:'Mercury', element:'Air', nature:'mixed',
-      sig:'Meeting, union, the coming-together of things or people; recovery of what was lost. Neutral of itself — good with the good and ill with the ill — it joins whatever it touches.',
-      note:'Coniunctio, “conjunction” — a symmetrical, Mercurial figure of combination. Its verdict follows its company.' },
-    { la:'Rubeus', en:'Red', rows:[2,1,2,2], planet:'Mars', element:'Water', nature:'ill',
-      sig:'Heat of the blood: passion, anger, violence, vice, lust, fever and falsehood. An ill figure in nearly all honest matters; favourable only to things base or destructive.',
-      note:'Rubeus, “the red” — only Air active. Martial and inflamed; the reversion of Albus, its peaceful opposite.' },
-    { la:'Fortuna Major', en:'The Greater Fortune', rows:[2,2,1,1], planet:'Sun', element:'Earth', nature:'good',
-      sig:'Great and lasting fortune, won by one’s own strength; power, protection, success that holds. Among the best of figures — the inward, solar victory.',
-      note:'Fortuna Major — “fortune going in” (the lower lines single), strength from within. Solar; like beams of light descending.' },
-    { la:'Albus', en:'White', rows:[2,2,1,2], planet:'Mercury', element:'Water', nature:'good',
-      sig:'Peace, wisdom, clarity, clean counsel, purity of mind. Favourable for thought, learning, and quiet beginnings; bright and untroubled.',
-      note:'Albus, “the white” — only Water active, its ruling element. Mercurial and serene; the reversion of Rubeus.' },
-    { la:'Tristitia', en:'Sorrow', rows:[2,2,2,1], planet:'Saturn', element:'Earth', nature:'ill',
-      sig:'Sorrow, grief, melancholy, lowering and decline; things pressed down and slow. Ill for joy and advancement — yet apt for what should sink, stay hidden, or be rooted deep.',
-      note:'Tristitia, “sorrow” — only Earth active, its ruling element; a single point at the foot. Saturnine; the inversion of Laetitia, its joy.' },
-    { la:'Populus', en:'The People', rows:[2,2,2,2], planet:'Moon', element:'Water', nature:'neutral',
-      sig:'A crowd, a gathering, the multitude; wholly passive, it takes the colour of whatever acts upon it. Neither good nor ill of itself — a still water that reflects its neighbours.',
-      note:'Populus, “the people / the assembly” — all lines double, every point paired; the Arabic is Jamāʿa (جماعة), the gathering. Lunar and reflective; the inversion of Via.' },
+    { la:'Acquisitio', en:'Gain', rows:[2,1,2,1], element:'Air', nature:'good', zodiac:'Aries', planet:'Jupiter (retrograde)',
+      sig:'Gain, profit, the getting of the thing desired — money, increase, success in business and ambition. The full purse.',
+      note:'“Gain.” Fludd ranks it among the wholly fortunate (omnino bonæ), of Air and the East, under Jupiter retrograde, referred to Aries.' },
+    { la:'Cauda Draconis', en:'The Tail of the Dragon', rows:[1,1,1,2], element:'Fire', nature:'ill', zodiac:'Sagittarius', planet:'Saturn & Mars (retrograde)',
+      sig:'A threshold outward: endings, exits, release, the close of a matter. Good for what should be finished or let go; ill for beginnings and keeping.',
+      note:'The descending node, the door out. Fludd: wholly ill, Fiery, of the South; Saturn & Mars retrograde; Sagittarius. Reversion of Caput.' },
+    { la:'Puer', en:'The Boy', rows:[1,1,2,1], element:'Water', nature:'good', zodiac:'Gemini', planet:'Venus (direct)',
+      sig:'The young soldier — heat, drive, boldness, the rush to act; fierce in war, contest and love.',
+      note:'CRUX: this edition counts Puer among the wholly fortunate and gives it Venus (direct) — the reverse of the common attribution (Mars, and ill). Almost certainly a Puer/Puella transposition in this printing; rendered as printed, flagged. Fludd: of Water, the North; Gemini.' },
+    { la:'Fortuna Minor', en:'The Lesser Fortune', rows:[1,1,2,2], element:'Fire', nature:'ill', zodiac:'Taurus', planet:'Sun (slow)',
+      sig:'Swift, outward, lesser fortune — success had quickly, through others or by speed, but not built to last.',
+      note:'Fludd ranks it among the ill (omnino malæ), Fiery, of the South; the Sun “slow” (tardus); Taurus. “Fortune going out.”' },
+    { la:'Puella', en:'The Girl', rows:[1,2,1,1], element:'Air', nature:'ill', zodiac:'Libra', planet:'Mars (retrograde)',
+      sig:'Harmony, beauty, affection, peace — favourable in love and pleasant dealings, pure but changeable.',
+      note:'CRUX: Fludd’s printing counts Puella among the ill and gives it Mars (retrograde) — the reverse of the usual reading (Venus, and good). The likely transposition with Puer; rendered as printed, flagged. Fludd: of Air, the East; Libra.' },
+    { la:'Amissio', en:'Loss', rows:[1,2,1,2], element:'Fire', nature:'ill', zodiac:'Scorpio', planet:'Venus (retrograde)',
+      sig:'Loss, the slipping-away of things, what leaves the hand — the mirror of Acquisitio; good only where one wishes to be free of a thing.',
+      note:'“Loss.” Fludd: wholly ill, Fiery, of the South; Venus retrograde; Scorpio. The inversion of Acquisitio.' },
+    { la:'Carcer', en:'The Prison', rows:[1,2,2,1], element:'Earth', nature:'ill', zodiac:'Pisces', planet:'Saturn (direct)',
+      sig:'Binding, restriction, delay, confinement, isolation — ill for freedom and progress, yet steadying for what must be fixed or kept.',
+      note:'“The prison,” a closed cell. Fludd: wholly ill, Earthy, of the West; Saturn direct; Pisces.' },
+    { la:'Laetitia', en:'Joy', rows:[1,2,2,2], element:'Air', nature:'good', zodiac:'Taurus', planet:'Jupiter (direct)',
+      sig:'Joy, health, gladness, good news; things rising and lightening — happiness, recovery, elevation.',
+      note:'“Joy.” Fludd: wholly fortunate, Airy, of the East; Jupiter direct; Taurus. Only Fire active — an upward figure.' },
+    { la:'Caput Draconis', en:'The Head of the Dragon', rows:[2,1,1,1], element:'Earth', nature:'good', zodiac:'Virgo', planet:'Jupiter & Venus (direct)',
+      sig:'A threshold inward: beginnings, entries, the open door, a good foundation; it takes the good or ill of its company, but is good of itself.',
+      note:'The ascending node, the door in. Fludd: wholly fortunate, Earthy, of the West; Jupiter & Venus direct; Virgo. Reversion of Cauda.' },
+    { la:'Coniunctio', en:'Conjunction', rows:[2,1,1,2], element:'Air', nature:'mixed', zodiac:'Virgo', planet:'Mercury (retrograde)',
+      sig:'Meeting, union, the coming-together of things or people; recovery of what was lost. Good with the good and ill with the ill — it joins whatever it touches.',
+      note:'“Conjunction.” Fludd: intermediate (nec bona nec mala), Airy, of the East; Mercury retrograde; Virgo.' },
+    { la:'Rubeus', en:'Red', rows:[2,1,2,2], element:'Fire', nature:'ill', zodiac:'Gemini', planet:'Mars (direct)',
+      sig:'Heat of the blood — passion, anger, violence, vice, lust, fever and falsehood; ill in nearly all honest matters.',
+      note:'“The red.” Fludd: wholly ill, Fiery, of the South; Mars direct; Gemini. The reversion of Albus.' },
+    { la:'Fortuna Major', en:'The Greater Fortune', rows:[2,2,1,1], element:'Earth', nature:'good', zodiac:'Aquarius', planet:'Sun (swift)',
+      sig:'Great and lasting fortune, won by one’s own strength; power, protection, success that holds — the inward, solar victory.',
+      note:'Fludd: wholly fortunate, Earthy, of the West; the Sun “swift” (velox); Aquarius. “Fortune going in.”' },
+    { la:'Albus', en:'White', rows:[2,2,1,2], element:'Water', nature:'good', zodiac:'Cancer', planet:'Mercury (direct)',
+      sig:'Peace, wisdom, clarity, clean counsel, purity of mind — favourable for thought, learning and quiet beginnings.',
+      note:'“The white.” Fludd: wholly fortunate, Watery, of the North; Mercury direct; Cancer. The reversion of Rubeus.' },
+    { la:'Tristitia', en:'Sorrow', rows:[2,2,2,1], element:'Earth', nature:'ill', zodiac:'Scorpio', planet:'Saturn (retrograde)',
+      sig:'Sorrow, grief, melancholy, lowering and decline — ill for joy and advancement, yet apt for what should sink, stay hidden, or be rooted deep.',
+      note:'“Sorrow.” Fludd: wholly ill, Earthy, of the West; Saturn retrograde; Scorpio. The inversion of Lætitia.' },
+    { la:'Populus', en:'The People', rows:[2,2,2,2], element:'Water', nature:'mixed', zodiac:'Cancer & Capricorn', planet:'Moon (direct)',
+      sig:'A crowd, a gathering, the multitude; wholly passive, it takes the colour of whatever acts upon it — a still water reflecting its neighbours.',
+      note:'“The people / the assembly”; the Arabic is Jamāʿa (جماعة). Fludd: intermediate, Watery, of the North; the Moon direct; given two signs, Cancer and Capricorn. Inversion of Via.' },
+    { la:'Via', en:'The Way', rows:[1,1,1,1], element:'Water', nature:'mixed', zodiac:'Leo', planet:'Moon (retrograde)',
+      sig:'The road, and motion along it: journeys, change, news that travels; it carries things from one state to another — good for travel and change, contrary to what must stand still.',
+      note:'“The way / the road”; the Arabic is Ṭarīq (طريق). Fludd: intermediate, Watery, of the North; the Moon retrograde; Leo.' },
   ],
-  // the twelve astrological houses the figures are cast into (Mothers→1–4, Daughters→5–8,
-  // Nieces→9–12). Each governs a province of the question; the figure that falls there is
-  // read in its light. Latin house-names are the traditional tags.
+
+  // the twelve houses the figures are cast into (Mothers→1–4, Daughters→5–8, Nieces→9–12).
+  // Standard provinces of the question; Fludd's per-house significations are a later tranche.
   houses: [
     { n:1,  name:'Vita',          title:'Life & the Querent',     matter:'life and health',
       domain:'The querent themselves — life, the body, health, and the whole frame of the question.' },

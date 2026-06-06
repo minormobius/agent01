@@ -68,20 +68,26 @@ a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
 .hrow .hnm{font-style:italic;color:var(--ink)} .hrow .hd{color:var(--ink2);font-size:13px}
 footer{text-align:center;color:var(--faint);font:12px/1.7 ui-monospace,monospace;margin-top:34px}
 footer a{color:var(--ink2)}
+.par{margin:9px 0;padding-bottom:9px;border-bottom:1px solid var(--rule)}
+.par .la{font-style:italic;color:var(--gold);font-size:15px;line-height:1.5}
+.par .en{color:var(--ink2);font-size:14px;line-height:1.55;margin-top:3px}
+.lh{font:600 11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--jade);margin:16px 0 6px}
 </style>
 </head>
 <body>
 <a id="crumb" href="https://read.mino.mobi/">&larr; read.mino.mobi</a>
 <div class="wrap">
   <div class="masthead">
-    <div class="tag">Read · the science of the sand</div>
+    <div class="tag">Read · Of the Geomantic Figures</div>
     <div class="em">🜃</div>
-    <h1>The Sixteen Figures</h1>
-    <p class="sub">The figures of geomancy (<em>ʿilm al-raml</em>): an original English redaction of their
-    significations after the Latin geomancers, with notes — a working text converging toward al-Zanātī’s Arabic.</p>
+    <h1>Of the Geomantic Figures</h1>
+    <p class="sub">An original English translation, beside the Latin, of Robert Fludd’s
+    <em>Tractatus de Geomantia</em> on the sixteen figures — their names, forms and natures —
+    from the <em>Fasciculus Geomanticus</em> (Verona, 1704).</p>
   </div>
   <nav id="nav"></nav>
   <main id="entry" class="entry"></main>
+  <div id="source"></div>
   <div id="houses"></div>
   <div id="method"></div>
   <footer>
@@ -111,7 +117,7 @@ function show(i){
   entry.innerHTML =
     `<div class="fhead">${glyph(f.rows)}<div class="fname">`+
     `<div class="la">${f.la}</div><div class="en">${f.en}</div>`+
-    `<div class="el">☿ <b>${f.planet}</b> · ${f.element}</div>`+
+    `<div class="el">☿ <b>${f.planet}</b> · ${f.element} · ${f.zodiac}</div>`+
     `<span class="nat ${f.nature.split(/[ ,(]/)[0]}">${f.nature}</span></div></div>`+
     `<p class="sig">${f.sig}</p>`+
     `<p class="note">${f.note}</p>`;
@@ -119,6 +125,15 @@ function show(i){
   try{ history.replaceState(null,'','#'+f.la.toLowerCase().replace(/\s+/g,'-')); }catch(e){}
 }
 nav.querySelectorAll('.fb').forEach(b=>b.onclick=()=>{ show(+b.dataset.i); window.scrollTo({top:0,behavior:'smooth'}); });
+
+// the source: Fludd's preface + his own classifying lists, the Latin beside our English
+const fl = GEOMANCY.fludd;
+if(fl) document.getElementById('source').innerHTML =
+  `<div class="method"><h2>The source · Robert Fludd, Liber II</h2>`+
+  `<div class="par"><div class="la">${fl.preface.la}</div><div class="en">${fl.preface.en}</div></div>`+
+  fl.lists.map(L=>`<h3 class="lh">${L.head}</h3>`+
+    L.rows.map(r=>`<div class="par"><div class="la">${r.la}</div><div class="en">${r.en}</div></div>`).join('')
+  ).join('') +`</div>`;
 
 // the twelve houses
 const H = GEOMANCY.houses || [];
@@ -133,11 +148,13 @@ if(H.length) document.getElementById('houses').innerHTML =
 const m = GEOMANCY.meta;
 document.getElementById('method').innerHTML =
   `<div class="method"><h2>Method &amp; sources</h2><p>${m.method}</p>`+
-  `<div class="prov"><b>On provenance.</b> The figures, their names and their line-patterns are standard. The
-   significations here are our own modern English, redacted from the Western <b>Latin</b> tradition cited below —
-   the fetchable cousin of the older Arabic. They stand in until the intended spine is set beside them: a faithful,
-   term-by-term translation of <b>al-Zanātī’s <em>Kitāb al-Faṣl fī uṣūl ʿilm al-raml</em></b>, the fountainhead of
-   <em>ʿilm al-raml</em>. This text is honest about being a redaction, not yet that translation.</div>`+
+  `<div class="prov"><b>On provenance.</b> This is a real translation of one named source: <b>Robert Fludd’s
+   <em>Tractatus de Geomantia</em>, Liber II</b>, in the <b>Fasciculus Geomanticus</b> (Verona, 1704), pp. 34–38.
+   The Latin above is transcribed from the page images of that edition (read directly — the book’s own OCR is
+   unusable), lightly normalised. The English is ours; the notes flag the cruxes — notably this printing’s
+   inversion of <em>Puer</em> and <em>Puella</em>. This first tranche gives Fludd’s names, forms and natures of
+   the figures; his per-house significations are the next tranche, and a faithful translation of <b>al-Zanātī’s
+   Arabic</b> remains the deeper spine to converge on.</div>`+
   `<p class="lic" style="margin-top:10px">License: ${m.license}.</p>`+
   `<div class="src">`+ m.sources.map(s=>`· <a href="${s.url}" target="_blank" rel="noopener">${s.label}</a> — ${s.host}`).join('<br>') +`</div></div>`;
 
