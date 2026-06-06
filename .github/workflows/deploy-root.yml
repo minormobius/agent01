@@ -30,6 +30,7 @@ on:
       # canonical mino.mobi/meander/ in sync with edits (also ships via
       # deploy-math to math.mino.mobi). Carve back out once it stabilizes.
       - 'meander/**'
+      - 'temperley-lieb/**'
       # static subsites still bundled under root (carve out as they encapsulate):
       - 'cluster/**'
       - 'density/**'

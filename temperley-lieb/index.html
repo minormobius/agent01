@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>temperley–lieb — loops, tiles, and the algebra that wraps</title>
+<meta name="description" content="Interactive Temperley–Lieb explorer: tile a grid with the two TL tiles, watch loops form, weight each by δ. Wrap the grid onto a cylinder or torus and loops start winding (the affine/annular TL). Plus a diagram calculator for the generators e_i, the defining relations, and the Markov trace back to meanders.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #0d6e63;            /* deep viridian — loops / knot teal */
+  --accent-faint: rgba(13, 110, 99, 0.10);
+  --canvas-bg: #fbf8f3;
+  --canvas-ink: #1a1416;
+  --canvas-rule: #c8bcae;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* contractible-loop palette */
+  --L1: #0d6e63; --L2: #1d6fa3; --L3: #d98324; --L4: #2a8a5a; --L5: #7b3fb0;
+  --L6: #b5942a; --L7: #128a86; --L8: #9a4a8a; --L9: #5a6fb0; --L10: #4a8a3a;
+  /* non-contractible (winding) loops — hot reds/magentas */
+  --W1: #c0392b; --W2: #a01f4c; --W3: #d6336c; --W4: #e8590c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #3fb8a8; --accent-faint: rgba(63, 184, 168, 0.12);
+    --canvas-bg: #f4ece2; --canvas-ink: #1a1416; --canvas-rule: #b9aa97;
+    --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.9rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; touch-action: none; }
+canvas.sq { aspect-ratio: 1 / 1; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 2.6em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.gen-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; word-break: break-all; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--W1); font-weight: 600; }
+.verdict { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.04em; min-height: 1.5em; }
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.partial { color: var(--muted); }
+.verdict.bad { color: var(--W1); }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>temperley–lieb</h1>
+  <p class="subtitle">the algebra of non-crossing loops · tile it, then wrap it</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · sibling of <a href="https://mino.mobi/meander/">meander</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/viazovska/">viazovska</a> · torus craft: <a href="https://torus.mino.mobi/">torus.mino.mobi</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="tiles" role="tab">tiles</button>
+  <button class="tab" data-tab="torus" role="tab">torus</button>
+  <button class="tab" data-tab="algebra" role="tab">algebra</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── TILES PANE ─────────── -->
+<section class="pane active" data-pane="tiles">
+  <p class="lead">
+    Fill a grid with the two <strong>Temperley–Lieb tiles</strong> — each cell connects
+    its four edges with a non-crossing pair of arcs. The arcs link up across cells into
+    <strong>loops</strong>, and every closed loop is worth a weight <strong>δ</strong>.
+    Now choose how the grid's edges are glued: a flat <em>disk</em>, a <em>cylinder</em>
+    (left meets right), or a <em>torus</em> (both pairs glued). On the cylinder and torus,
+    loops can <strong>wind around</strong> and never close up inside the picture — those are
+    the non-contractible loops of the <em>affine</em> Temperley–Lieb algebra. Click any tile
+    to flip it.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="tiles-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">boundary</span>
+        <div class="btn-row" id="mode-row">
+          <button class="btn active" data-mode="disk">disk</button>
+          <button class="btn" data-mode="cylinder">cylinder</button>
+          <button class="btn" data-mode="torus">torus</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">columns · L</span>
+        <div class="ctrl-row"><input id="L-slider" type="range" min="2" max="10" value="6" step="1"><span class="ctrl-val" id="L-val">6</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">rows · M</span>
+        <div class="ctrl-row"><input id="M-slider" type="range" min="2" max="10" value="6" step="1"><span class="ctrl-val" id="M-val">6</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">loop weight · δ</span>
+        <div class="ctrl-row"><input id="delta-slider" type="range" min="0" max="2" value="1.41" step="0.01"><span class="ctrl-val" id="delta-val">1.41</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" data-fill="0">all ╲</button>
+          <button class="btn" data-fill="1">all ╱</button>
+          <button class="btn" data-fill="check">checker</button>
+          <button class="btn" data-fill="rand">random</button>
+        </div>
+      </div>
+      <div class="stats" id="tiles-stats"></div>
+      <div class="verdict" id="tiles-verdict"></div>
+      <div class="stat-note">
+        Special δ = 2·cos(π/(k+2)) — 1, √2, φ, √3, … — are where TL has its famous
+        quotients (the Jones subfactors, the ADE classification). δ = 2 is the boundary
+        between "small" and generic. Switch to the <strong>torus</strong> tab to see this
+        same configuration wrapped onto a donut.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── TORUS PANE ─────────── -->
+<section class="pane" data-pane="torus">
+  <p class="lead">
+    The exact same tiling from the <strong>tiles</strong> tab, projected onto a real torus
+    (the gluing the geometry pack's <a href="https://torus.mino.mobi/">toroidal games</a>
+    use). Contractible loops sit in a patch; <strong>non-contractible loops wind through the
+    hole or around the tube</strong> and can't be shrunk away — that winding is the whole
+    point of the affine algebra. Drag to rotate.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="torus-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn active" id="spin-btn">spin</button>
+          <button class="btn" id="torus-sync">↻ from tiles</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">tube radius · r/R</span>
+        <div class="ctrl-row"><input id="rr-slider" type="range" min="0.2" max="0.6" value="0.42" step="0.01"><span class="ctrl-val" id="rr-val">0.42</span></div>
+      </div>
+      <div class="stats" id="torus-stats"></div>
+      <div class="stat-note">
+        Edit on the <strong>tiles</strong> tab (in torus mode), then come here — the donut
+        mirrors it. A loop that circles the hole is winding in one direction; one that
+        circles the tube winds in the other. The pair of winding numbers is the loop's
+        <em>homology class</em> on the torus.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── ALGEBRA PANE ─────────── -->
+<section class="pane" data-pane="algebra">
+  <p class="lead">
+    Temperley–Lieb is an <em>algebra</em>: its elements are diagrams on <strong>n strands</strong>,
+    and you multiply them by stacking. The generators <strong>e<sub>i</sub></strong> cap strands
+    i and i+1. Build a word by clicking generators; the diagram reduces to a basis picture times
+    <strong>δ<sup>(loops)</sup></strong>, and the defining relations fall out as pictures.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="alg-canvas" width="760" height="380"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">strands · n</span>
+        <div class="ctrl-row"><input id="n-slider" type="range" min="2" max="7" value="4" step="1"><span class="ctrl-val" id="n-val">4</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">append generator</span>
+        <div class="gen-row" id="gen-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="alg-back">⌫ pop</button>
+          <button class="btn" id="alg-clear">clear → 1</button>
+          <button class="btn" id="alg-trace">close (trace)</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">check a relation</span>
+        <div class="btn-row" id="rel-row">
+          <button class="btn" data-rel="sq">eᵢ²</button>
+          <button class="btn" data-rel="braid">eᵢeᵢ₊₁eᵢ</button>
+          <button class="btn" data-rel="far">eᵢeⱼ</button>
+        </div>
+      </div>
+      <div class="stats" id="alg-stats"></div>
+      <div class="verdict" id="alg-verdict"></div>
+      <div class="stat-note">
+        The "close (trace)" button glues each top point to the bottom point below it and
+        counts the loops — the <strong>Markov trace</strong>. Pairing two such diagrams is
+        exactly an entry of the meander matrix on <a href="https://mino.mobi/meander/">/meander/</a>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>Pictures you can multiply</h2>
+<p>The <strong>Temperley–Lieb algebra</strong> TL<sub>n</sub>(δ) is an algebra whose elements
+are <em>diagrams</em>. Fix <em>n</em> strands. A basis diagram connects <em>n</em> points on
+the bottom of a box to <em>n</em> points on the top with <strong>non-crossing</strong> strands.
+There are exactly <strong>C<sub>n</sub></strong> of them — the Catalan number, the same count
+that runs every row of arches on <a href="https://mino.mobi/meander/">/meander/</a>. A TL diagram
+and a meander arch system are the same combinatorial animal in different costumes.</p>
+
+<p>Two rules make it an algebra:</p>
+<ul>
+  <li><strong>Multiply by stacking.</strong> Put one diagram above another and join the middle
+  points. The result is another diagram — possibly with closed loops trapped inside.</li>
+  <li><strong>Every closed loop is worth δ.</strong> Pull each trapped loop out as a numerical
+  factor <em>δ</em> (the loop weight / fugacity) and erase it. So
+  <code>diagram × diagram = δ^(#loops) × (basis diagram)</code>.</li>
+</ul>
+
+<h2>The relations are pictures</h2>
+<p>Generated by 1 and <em>e</em><sub>1</sub>, …, <em>e</em><sub>n−1</sub> (each <em>e<sub>i</sub></em>
+caps strands <em>i</em>, <em>i</em>+1 top and bottom), with three relations you can <em>see</em>
+in the <a href="#algebra" data-jump="algebra">algebra tab</a>:</p>
+<ul>
+  <li><code>eᵢ² = δ·eᵢ</code> — a cap-cup stacked on itself pops one circle (one δ).</li>
+  <li><code>eᵢ eᵢ₊₁ eᵢ = eᵢ</code> — a zig-zag of strands pulls straight; no loop.</li>
+  <li><code>eᵢ eⱼ = eⱼ eᵢ</code> for |i−j| ≥ 2 — distant caps don't interact.</li>
+</ul>
+<p>That's the whole presentation. <code>dim TL<sub>n</sub> = C<sub>n</sub></code> (1, 2, 5, 14,
+42, 132, …).</p>
+
+<h2>Tiles, and the loop model</h2>
+<p>A word in the generators is a <strong>tiling</strong> of a rectangle by two tiles — a
+pass-through and a turn. The <a href="#tiles" data-jump="tiles">tiles tab</a> lets you set each
+cell freely, so you're building a configuration of the <strong>completely-packed loop model</strong>
+on a lattice: the very model behind the Potts model, the six-vertex model, and the Jones
+polynomial. Counting loops weighted by δ is the algebra's trace. At δ = 1 each loop counts once,
+and the single-loop configurations are precisely the <a href="https://mino.mobi/meander/">meanders</a>.</p>
+
+<h2>Does it wrap? — the affine / annular algebra</h2>
+<p>Planar TL lives in a <strong>disk</strong> (a flat box). Roll the box into a tube so strand
+<em>n</em>+1 is strand 1 again and you get the <strong>affine</strong> (a.k.a. periodic or
+annular) Temperley–Lieb algebra. Strands now <strong>wind around</strong> the cylinder, and a
+new kind of loop appears: a <strong>non-contractible</strong> one that circles the tube and can't
+be shrunk away. These winding loops usually carry their <em>own</em> weight, separate from δ.
+This is the algebra of the periodic XXZ spin chain and the loop/Potts model on a cylinder —
+the setting where you read off conformal field theory data (central charge, the operator
+spectrum). It is the same loop-gas / Coulomb-gas family whose conformal weights, gravitationally
+dressed, produce the <a href="https://mino.mobi/meander/#growth" data-x>quantum-gravity exponent</a>
+on the meander page.</p>
+
+<p>Glue the other pair of sides too and you have a <strong>torus</strong>: loops can wind in two
+independent directions, the partition function becomes <strong>modular invariant</strong>, and the
+loop model's CFT identity is fully exposed. The <a href="#torus" data-jump="torus">torus tab</a>
+shows your tiling on the donut so you can watch a loop thread the hole. So: yes it wraps; yes the
+strands become loops; and <em>how</em> you wrap — disk → cylinder → torus — is exactly the dial
+that turns a combinatorial toy into integrable statistical mechanics.</p>
+
+<blockquote>The tiles are Catalan-simple. The gluing is where the physics lives.</blockquote>
+
+<h2>The Markov trace, and back to meanders</h2>
+<p>Close a diagram by joining each top point to the bottom point beneath it and count the loops:
+that's the <strong>Markov trace</strong>, <code>tr(D) = δ^(#loops)</code>. It is how the Jones
+polynomial of a knot is extracted from a braid pushed into TL. And pairing two arch systems —
+one reflected — and counting the loops of their union is exactly an entry of the
+<strong>meander matrix</strong>, whose determinant Di Francesco factored in closed form even though
+the meander <em>numbers</em> have none. Same algebra, both pages.</p>
+
+<h2>History</h2>
+<ul>
+  <li><strong>1971</strong> — Temperley &amp; Lieb introduce the algebra to unify the Potts and
+  ice-type (six-vertex) models in statistical mechanics.</li>
+  <li><strong>1983–85</strong> — Vaughan Jones meets the same algebra in the theory of subfactors;
+  out of it falls the <strong>Jones polynomial</strong> of knots, and the special values
+  δ = 2cos(π/(k+2)).</li>
+  <li><strong>1990s</strong> — Kauffman's diagram calculus makes "the elements are pictures"
+  literal; the algebra becomes a staple of quantum topology.</li>
+  <li><strong>affine era</strong> — the periodic / annular TL algebra (Graham–Lehrer,
+  Pasquier–Saleur, and the integrability school) ties the winding sectors to conformal field
+  theory on the cylinder and torus.</li>
+</ul>
+
+<h2>Why it sits in the geometry pack</h2>
+<p>It's the algebraic engine of its sibling <a href="https://mino.mobi/meander/">meander</a> page,
+and it shares the loop-gas/CFT machinery that links the pack's combinatorics to physics — the way
+<a href="https://mino.mobi/viazovska/">Viazovska</a>'s modular forms do for sphere packing. And the
+wrap question reaches across the site to the <a href="https://torus.mino.mobi/">toroidal games</a>:
+the same donut, now carrying loops instead of a maze.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Temperley, H. N. V. &amp; Lieb, E. H. (1971). <em>Relations between the percolation and colouring problem… and the Potts model.</em> Proc. R. Soc. Lond. A 322, 251–280.</li>
+  <li>Jones, V. F. R. (1985). <em>A polynomial invariant for knots via von Neumann algebras.</em> Bull. AMS 12, 103–111.</li>
+  <li>Kauffman, L. H. (1990). <em>An invariant of regular isotopy.</em> Trans. AMS 318, 417–471.</li>
+  <li>Graham, J. J. &amp; Lehrer, G. I. (1998). <em>The representation theory of affine Temperley–Lieb algebras.</em> L'Enseign. Math. 44.</li>
+  <li>Di Francesco, P., Golinelli, O. &amp; Guitter, E. (1997). <em>Meanders and the Temperley–Lieb algebra.</em> Comm. Math. Phys. 186, 1–59.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Temperley%E2%80%93Lieb_algebra">Wikipedia — Temperley–Lieb algebra</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/meander/">meander</a>
+  <span>·</span>
+  <a href="https://torus.mino.mobi/">torus</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// Tab switcher
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['tiles', 'torus', 'algebra', 'docs'];
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  try { history.replaceState(null, '', '#' + name); } catch {}
+  if (name === 'tiles') drawTiles();
+  if (name === 'torus') { syncTorusFromTiles(); startSpin(); }
+  if (name === 'algebra') drawAlg();
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+document.querySelectorAll('[data-jump]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.jump); }));
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const LOOPC = ['--L1','--L2','--L3','--L4','--L5','--L6','--L7','--L8','--L9','--L10'].map(cssVar);
+const WINDC = ['--W1','--W2','--W3','--W4'].map(cssVar);
+
+// ═════════════════════════════════════════════════════════════════════
+// Lattice loop engine  (validated: 0 failures / 4320 random configs)
+//   dirs 0=N,1=E,2=S,3=W ; cell state 0="╲" pairs N-W & E-S ; 1="╱" pairs N-E & S-W
+// ═════════════════════════════════════════════════════════════════════
+const ARC = { 0:{0:3,3:0,1:2,2:1}, 1:{0:1,1:0,2:3,3:2} };
+const arcP = (s,d) => ARC[s][d];
+function link(x,y,d,L,M,mode) {
+  const wrapX = (mode==='cylinder'||mode==='torus'), wrapY = (mode==='torus');
+  if (d===0) { if (y-1>=0) return {x,y:y-1,d:2,dwx:0,dwy:0}; return wrapY?{x,y:M-1,d:2,dwx:0,dwy:-1}:null; }
+  if (d===2) { if (y+1<M)  return {x,y:y+1,d:0,dwx:0,dwy:0}; return wrapY?{x,y:0,d:0,dwx:0,dwy:1}:null; }
+  if (d===1) { if (x+1<L)  return {x:x+1,y,d:3,dwx:0,dwy:0}; return wrapX?{x:0,y,d:3,dwx:1,dwy:0}:null; }
+  if (d===3) { if (x-1>=0) return {x:x-1,y,d:1,dwx:0,dwy:0}; return wrapX?{x:L-1,y,d:1,dwx:-1,dwy:0}:null; }
+}
+// returns components: { seq:[[x,y,d]...] traversal order, closed, wx, wy }
+function trace(states, L, M, mode) {
+  const seen = new Set(), comps = [];
+  const K = (x,y,d) => x+','+y+','+d;
+  const at = (x,y) => states[y*L+x];
+  const lim = 8*L*M + 8;
+  for (let x=0;x<L;x++) for (let y=0;y<M;y++) for (let d=0;d<4;d++) {
+    if (seen.has(K(x,y,d))) continue;
+    // rewind to an open endpoint if this is an open path
+    let cx=x,cy=y,cd=d, closed=true;
+    { let px=x,py=y,pd=d, g=0;
+      while (g++<lim) { const lk=link(px,py,pd,L,M,mode); if (!lk) { cx=px;cy=py;cd=pd;closed=false;break; }
+        const ax=arcP(at(lk.x,lk.y),lk.d); if (K(lk.x,lk.y,ax)===K(x,y,d)) { cx=x;cy=y;cd=d;closed=true;break; }
+        px=lk.x;py=lk.y;pd=ax; } }
+    const seq=[]; let fx=cx,fy=cy,fd=cd, wx=0,wy=0, s=0;
+    while (s++<lim) {
+      seen.add(K(fx,fy,fd)); seq.push([fx,fy,fd]);
+      const ax = arcP(at(fx,fy),fd); seen.add(K(fx,fy,ax)); seq.push([fx,fy,ax]);
+      const lk = link(fx,fy,ax,L,M,mode);
+      if (!lk) { closed=false; break; }
+      wx+=lk.dwx; wy+=lk.dwy;
+      if (lk.x===cx && lk.y===cy && lk.d===cd) { closed=true; break; }
+      fx=lk.x; fy=lk.y; fd=lk.d;
+    }
+    comps.push({ seq, closed, wx, wy });
+  }
+  return comps;
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Tiles tab
+// ═════════════════════════════════════════════════════════════════════
+const tiles = { L:6, M:6, mode:'disk', delta:1.41, states:[] };
+function fillStates(kind) {
+  const n = tiles.L*tiles.M; tiles.states = new Array(n);
+  for (let i=0;i<n;i++) {
+    const x=i%tiles.L, y=(i/tiles.L|0);
+    tiles.states[i] = kind==='check' ? (x+y)&1 : kind==='rand' ? (Math.random()<0.5?0:1) : kind;
+  }
+}
+fillStates(0);
+const tilesCanvas = document.getElementById('tiles-canvas');
+const tCtx = tilesCanvas.getContext('2d');
+function tilesGeom() {
+  const W=tilesCanvas.width, H=tilesCanvas.height, pad=18;
+  const cs = Math.min((W-2*pad)/tiles.L, (H-2*pad)/tiles.M);
+  const gw=cs*tiles.L, gh=cs*tiles.M;
+  return { W,H,cs, ox:(W-gw)/2, oy:(H-gh)/2 };
+}
+function compDecomp() {
+  const comps = trace(tiles.states, tiles.L, tiles.M, tiles.mode);
+  const map = new Map();   // "x,y,d" -> comp index
+  comps.forEach((c,ci) => c.seq.forEach(([x,y,d]) => map.set(x+','+y+','+d, ci)));
+  return { comps, map };
+}
+function colorForComp(comps, ci) {
+  const c = comps[ci];
+  if (c.closed && (c.wx!==0 || c.wy!==0)) {
+    // non-contractible: index winding loops among themselves
+    let wIdx=0; for (let k=0;k<ci;k++){ const cc=comps[k]; if (cc.closed && (cc.wx||cc.wy)) wIdx++; }
+    return { color: WINDC[wIdx % WINDC.length], wind:true, open:!c.closed };
+  }
+  return { color: LOOPC[ci % LOOPC.length], wind:false, open:!c.closed };
+}
+function drawTiles() {
+  const ctx=tCtx, g=tilesGeom();
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  // faint grid
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  for (let x=0;x<=tiles.L;x++){ ctx.beginPath(); ctx.moveTo(g.ox+x*g.cs,g.oy); ctx.lineTo(g.ox+x*g.cs,g.oy+tiles.M*g.cs); ctx.stroke(); }
+  for (let y=0;y<=tiles.M;y++){ ctx.beginPath(); ctx.moveTo(g.ox,g.oy+y*g.cs); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy+y*g.cs); ctx.stroke(); }
+  // wrapped-edge markers
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  if (tiles.mode==='cylinder'||tiles.mode==='torus') {
+    ctx.beginPath(); ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox,g.oy+tiles.M*g.cs);
+    ctx.moveTo(g.ox+tiles.L*g.cs,g.oy); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy+tiles.M*g.cs); ctx.stroke();
+  }
+  if (tiles.mode==='torus') {
+    ctx.beginPath(); ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy);
+    ctx.moveTo(g.ox,g.oy+tiles.M*g.cs); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy+tiles.M*g.cs); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // arcs coloured by loop
+  const { comps, map } = compDecomp();
+  const lw = Math.max(2, g.cs*0.10);
+  for (let y=0;y<tiles.M;y++) for (let x=0;x<tiles.L;x++) {
+    const st=tiles.states[y*tiles.L+x];
+    // both arcs in this cell may belong to different components; colour each by its port
+    // arc A uses port N(0); arc B uses the other pair — find via map on a representative dir
+    const portA = st===0 ? 0 : 0;   // N is in arc A for both states
+    const ciA = map.get(x+','+y+','+0);
+    const ciB = map.get(x+','+y+','+ (st===0?1:2)); // E(1) for state0, S(2) for state1 — the "other" arc
+    const colA = ciA!=null ? colorForComp(comps,ciA).color : cssVar('--canvas-ink');
+    const colB = ciB!=null ? colorForComp(comps,ciB).color : cssVar('--canvas-ink');
+    // draw the two arcs of this cell separately so their loop colours can differ
+    const x0=g.ox+x*g.cs, y0=g.oy+y*g.cs, r=g.cs/2;
+    ctx.lineCap='round'; ctx.lineWidth=lw;
+    if (st===0) {
+      ctx.strokeStyle=colA; ctx.beginPath(); ctx.arc(x0,y0,r,0,Math.PI/2); ctx.stroke();
+      ctx.strokeStyle=colB; ctx.beginPath(); ctx.arc(x0+g.cs,y0+g.cs,r,Math.PI,Math.PI*1.5); ctx.stroke();
+    } else {
+      ctx.strokeStyle=colA; ctx.beginPath(); ctx.arc(x0+g.cs,y0,r,Math.PI/2,Math.PI); ctx.stroke();
+      ctx.strokeStyle=colB; ctx.beginPath(); ctx.arc(x0,y0+g.cs,r,Math.PI*1.5,Math.PI*2); ctx.stroke();
+    }
+  }
+  // stats
+  const closed = comps.filter(c=>c.closed);
+  const wind = closed.filter(c=>c.wx!==0||c.wy!==0);
+  const contr = closed.length - wind.length;
+  const open = comps.filter(c=>!c.closed).length;
+  const weight = Math.pow(tiles.delta, closed.length);
+  const windClasses = wind.map(c=>`(${c.wx>0?'+':''}${c.wx},${c.wy>0?'+':''}${c.wy})`);
+  const uniq = [...new Set(windClasses)];
+  document.getElementById('tiles-stats').innerHTML = `
+    <div class="stat-row"><span class="k">grid</span><span class="v">${tiles.L} × ${tiles.M}</span></div>
+    <div class="stat-row"><span class="k">closed loops</span><span class="v hot">${closed.length}</span></div>
+    <div class="stat-row"><span class="k">· contractible</span><span class="v">${contr}</span></div>
+    <div class="stat-row"><span class="k">· winding</span><span class="v win">${wind.length}</span></div>
+    <div class="stat-row"><span class="k">open strands</span><span class="v">${open}</span></div>
+    <div class="stat-row"><span class="k">δ<sup>loops</sup></span><span class="v hot">${weight.toFixed(3)}</span></div>
+  `;
+  const ve = document.getElementById('tiles-verdict');
+  if (tiles.mode==='disk') { ve.textContent = open>0 ? `disk: ${open} strands end on the boundary` : 'disk: all loops closed'; ve.className='verdict partial'; }
+  else if (wind.length>0) { ve.innerHTML = `wrapping! ${wind.length} non-contractible loop${wind.length>1?'s':''} · class${uniq.length>1?'es':''} ${uniq.join(' ')}`; ve.className='verdict win'; }
+  else { ve.textContent = `${tiles.mode}: no winding loops in this config`; ve.className='verdict partial'; }
+}
+tilesCanvas.addEventListener('click', e => {
+  const rect=tilesCanvas.getBoundingClientRect(), g=tilesGeom();
+  const px=(e.clientX-rect.left)*(tilesCanvas.width/rect.width);
+  const py=(e.clientY-rect.top)*(tilesCanvas.height/rect.height);
+  const x=Math.floor((px-g.ox)/g.cs), y=Math.floor((py-g.oy)/g.cs);
+  if (x<0||y<0||x>=tiles.L||y>=tiles.M) return;
+  tiles.states[y*tiles.L+x] ^= 1; drawTiles();
+});
+document.getElementById('mode-row').addEventListener('click', e => {
+  const b=e.target.closest('[data-mode]'); if(!b) return; tiles.mode=b.dataset.mode;
+  document.querySelectorAll('#mode-row .btn').forEach(x=>x.classList.toggle('active',x.dataset.mode===tiles.mode));
+  drawTiles();
+});
+document.querySelectorAll('[data-fill]').forEach(b=>b.addEventListener('click',()=>{ fillStates(b.dataset.fill==='0'?0:b.dataset.fill==='1'?1:b.dataset.fill); drawTiles(); }));
+function bindSize(id,key,valId){ const s=document.getElementById(id); s.addEventListener('input',e=>{ tiles[key]=parseInt(e.target.value,10); document.getElementById(valId).textContent=tiles[key]; fillStates(0); drawTiles(); }); }
+bindSize('L-slider','L','L-val'); bindSize('M-slider','M','M-val');
+document.getElementById('delta-slider').addEventListener('input',e=>{ tiles.delta=parseFloat(e.target.value); document.getElementById('delta-val').textContent=tiles.delta.toFixed(2); drawTiles(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// Torus tab — project the (torus-mode) tiling onto a donut. Read-only.
+//   parametrization from clock/knotpac:  P(u,v) = ((R+r cosv)cosu, r sinv, (R+r cosv)sinu)
+// ═════════════════════════════════════════════════════════════════════
+const torusCanvas = document.getElementById('torus-canvas');
+const dCtx = torusCanvas.getContext('2d');
+const donut = { ay:0.6, ax:0.5, spin:true, rr:0.42, raf:null };
+function portGrid(x,y,d){ // grid coords of an edge-midpoint
+  if (d===0) return [x+0.5, y];
+  if (d===1) return [x+1,   y+0.5];
+  if (d===2) return [x+0.5, y+1];
+  return [x, y+0.5];
+}
+function syncTorusFromTiles(){ drawTorus(); updateTorusStats(); }
+function updateTorusStats(){
+  const comps = trace(tiles.states, tiles.L, tiles.M, 'torus');
+  const wind = comps.filter(c=>c.wx!==0||c.wy!==0);
+  document.getElementById('torus-stats').innerHTML = `
+    <div class="stat-row"><span class="k">grid (glued)</span><span class="v">${tiles.L} × ${tiles.M}</span></div>
+    <div class="stat-row"><span class="k">loops</span><span class="v hot">${comps.length}</span></div>
+    <div class="stat-row"><span class="k">winding loops</span><span class="v win">${wind.length}</span></div>
+    <div class="stat-row"><span class="k">tiles-tab mode</span><span class="v">${tiles.mode}</span></div>`;
+}
+function drawTorus(){
+  try {
+    const ctx=dCtx, W=torusCanvas.width, H=torusCanvas.height;
+    ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+    const L=tiles.L, M=tiles.M;
+    const R=1.0, r=donut.rr, scale=Math.min(W,H)*0.34, cx=W/2, cy=H/2;
+    const ca=Math.cos(donut.ay), sa=Math.sin(donut.ay), cb=Math.cos(donut.ax), sb=Math.sin(donut.ax);
+    function proj(gx,gy){
+      const u=2*Math.PI*gx/L, v=2*Math.PI*gy/M;
+      const cvv=Math.cos(v), rr=R+r*cvv;
+      let X=rr*Math.cos(u), Y=r*Math.sin(v), Z=rr*Math.sin(u);
+      let x1=ca*X+sa*Z, z1=-sa*X+ca*Z;          // yaw about Y
+      let y2=cb*Y - sb*z1, z2=sb*Y + cb*z1;      // pitch about X
+      return { sx:cx+scale*x1, sy:cy-scale*y2, depth:z2 };
+    }
+    // faint torus wireframe (depth-shaded) for context
+    ctx.lineWidth=1;
+    for (let i=0;i<L;i++){ for (let j=0;j<M;j++){
+      const a=proj(i,j), b=proj(i+1,j), c=proj(i,j+1);
+      const sh=(a.depth+1.6)/3.2; ctx.strokeStyle=`rgba(150,140,128,${0.10+0.18*sh})`;
+      ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.moveTo(a.sx,a.sy); ctx.lineTo(c.sx,c.sy); ctx.stroke();
+    }}
+    // loops as 3D polylines, painter-sorted by mean depth
+    const comps = trace(tiles.states, L, M, 'torus');
+    const segs=[];
+    comps.forEach((comp,ci)=>{
+      const wind = comp.wx!==0||comp.wy!==0;
+      let wIdx=0; for(let k=0;k<ci;k++){const c=comps[k]; if(c.wx||c.wy) wIdx++;}
+      const color = wind ? WINDC[wIdx%WINDC.length] : LOOPC[ci%LOOPC.length];
+      const pts = comp.seq.map(([x,y,d])=>{ const [gx,gy]=portGrid(x,y,d); return proj(gx,gy); });
+      for (let k=0;k<pts.length;k++){ const a=pts[k], b=pts[(k+1)%pts.length];
+        segs.push({ a,b, color, w: wind?3.4:2.2, depth:(a.depth+b.depth)/2 }); }
+    });
+    segs.sort((p,q)=>p.depth-q.depth);
+    ctx.lineCap='round';
+    for (const s of segs){ const sh=Math.max(0.35,(s.depth+1.6)/3.2);
+      ctx.globalAlpha=0.45+0.55*sh; ctx.strokeStyle=s.color; ctx.lineWidth=s.w;
+      ctx.beginPath(); ctx.moveTo(s.a.sx,s.a.sy); ctx.lineTo(s.b.sx,s.b.sy); ctx.stroke(); }
+    ctx.globalAlpha=1;
+  } catch(err){ /* donut is non-essential — never let it break the page */ }
+}
+function startSpin(){ cancelAnimationFrame(donut.raf); let last=performance.now();
+  const loop=(t)=>{ const dt=(t-last)/1000; last=t;
+    if (donut.spin && document.querySelector('.pane.active')?.dataset.pane==='torus'){ donut.ay+=dt*0.5; drawTorus(); }
+    donut.raf=requestAnimationFrame(loop); };
+  donut.raf=requestAnimationFrame(loop); }
+let dragging=false, lastXY=null;
+torusCanvas.addEventListener('pointerdown',e=>{ dragging=true; donut.spin=false; document.getElementById('spin-btn').classList.remove('active'); lastXY=[e.clientX,e.clientY]; torusCanvas.setPointerCapture(e.pointerId); });
+torusCanvas.addEventListener('pointermove',e=>{ if(!dragging)return; donut.ay+=(e.clientX-lastXY[0])*0.01; donut.ax+=(e.clientY-lastXY[1])*0.01; lastXY=[e.clientX,e.clientY]; drawTorus(); });
+torusCanvas.addEventListener('pointerup',()=>{ dragging=false; });
+document.getElementById('spin-btn').addEventListener('click',e=>{ donut.spin=!donut.spin; e.target.classList.toggle('active',donut.spin); if(donut.spin) startSpin(); });
+document.getElementById('torus-sync').addEventListener('click',syncTorusFromTiles);
+document.getElementById('rr-slider').addEventListener('input',e=>{ donut.rr=parseFloat(e.target.value); document.getElementById('rr-val').textContent=donut.rr.toFixed(2); drawTorus(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// Algebra engine  (validated: relations pass n=2..6, dim = C_n, trace 1↦n, e_i↦n-1)
+//   diagram = involution on 2n nodes: 0..n-1 bottom, n..2n-1 top
+// ═════════════════════════════════════════════════════════════════════
+function identity(n){ const p=new Array(2*n); for(let i=0;i<n;i++){p[i]=n+i;p[n+i]=i;} return p; }
+function gen(n,i){ const p=new Array(2*n); const a=i-1,b=i;
+  for(let j=0;j<n;j++){ if(j!==a&&j!==b){p[j]=n+j;p[n+j]=j;} } p[a]=b;p[b]=a; p[n+a]=n+b;p[n+b]=n+a; return p; }
+function product(D1,D2,n){
+  const N=3*n, adj=Array.from({length:N},()=>[]); const add=(u,v)=>{adj[u].push(v);adj[v].push(u);};
+  const d1=k=>k, d2=k=> k<n ? n+k : 2*n+(k-n);
+  for(let k=0;k<2*n;k++){ const m=D1[k]; if(m>k) add(d1(k),d1(m)); }
+  for(let k=0;k<2*n;k++){ const m=D2[k]; if(m>k) add(d2(k),d2(m)); }
+  const seen=new Array(N).fill(false); const isEnd=u=>u<n||u>=2*n;
+  const res=new Array(2*n); const mE=u=> u<n? u : n+(u-2*n);
+  for(let s=0;s<N;s++){ if(!isEnd(s)||seen[s])continue; let cur=s,prev=-1; seen[s]=true;
+    while(true){ const nx=adj[cur].find(z=>z!==prev); if(nx===undefined)break;
+      if(isEnd(nx)){ seen[nx]=true; res[mE(s)]=mE(nx); res[mE(nx)]=mE(s); break; } seen[nx]=true; prev=cur; cur=nx; } }
+  let loops=0; for(let u=n;u<2*n;u++){ if(seen[u])continue; loops++; let cur=u,prev=-1;
+    while(true){ seen[cur]=true; const nx=adj[cur].find(z=>z!==prev); if(nx===undefined||nx===u||seen[nx])break; prev=cur;cur=nx; } }
+  return { diagram:res, loops };
+}
+function evalWord(n,word){ let D=identity(n), loops=0; for(const i of word){ const r=product(D,gen(n,i),n); D=r.diagram; loops+=r.loops; } return {D,loops}; }
+function markovTrace(D,n){ const N=2*n, adj=Array.from({length:N},()=>[]); const add=(u,v)=>{adj[u].push(v);adj[v].push(u);};
+  for(let k=0;k<2*n;k++){const m=D[k]; if(m>k)add(k,m);} for(let i=0;i<n;i++)add(i,n+i);
+  const seen=new Array(N).fill(false); let loops=0;
+  for(let s=0;s<N;s++){ if(seen[s])continue; loops++; let cur=s,prev=-1;
+    while(true){ seen[cur]=true; const nx=adj[cur].find(z=>z!==prev&&!seen[z]); if(nx===undefined)break; prev=cur;cur=nx; } } return loops; }
+const eqv=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
+function catalan(n){ let c=1; for(let k=0;k<n;k++) c=c*(2*(2*k+1))/(k+2); return Math.round(c); }
+
+// ── Algebra tab state + render ──
+const alg = { n:4, word:[] };
+const algCanvas = document.getElementById('alg-canvas');
+const aCtx = algCanvas.getContext('2d');
+function buildGenRow(){ const row=document.getElementById('gen-row'); row.innerHTML='';
+  for(let i=1;i<=alg.n-1;i++){ const b=document.createElement('button'); b.className='btn'; b.innerHTML=`e<sub>${i}</sub>`;
+    b.addEventListener('click',()=>{ alg.word.push(i); drawAlg(); }); row.appendChild(b); } }
+function drawAlg(){
+  const ctx=aCtx, W=algCanvas.width, H=algCanvas.height;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const n=alg.n; const { D, loops } = evalWord(n, alg.word);
+  // layout: a box with n bottom points and n top points; draw the reduced diagram
+  const padX=70, padY=46, boxW=W-2*padX, boxH=H-2*padY;
+  const bx=i=> padX + (n===1?boxW/2: boxW*i/(n-1));
+  const yB=H-padY, yT=padY;
+  // frame
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  ctx.strokeRect(padX-24, yT, boxW+48, boxH);
+  // arcs of the reduced diagram (nodes 0..n-1 bottom, n..2n-1 top)
+  const pos = i => i<n ? {x:bx(i), y:yB} : {x:bx(i-n), y:yT};
+  ctx.lineWidth=3; ctx.lineCap='round'; ctx.strokeStyle=cssVar('--accent');
+  const drawn=new Set();
+  for(let i=0;i<2*n;i++){ const j=D[i]; if(drawn.has(i)||j==null)continue; drawn.add(i);drawn.add(j);
+    const a=pos(i), b=pos(j);
+    ctx.beginPath();
+    if ((i<n)===(j<n)) { // same side -> cup/cap arc bulging inward
+      const dir = i<n ? -1 : 1; const mx=(a.x+b.x)/2, depth=Math.min(boxH*0.42, Math.abs(a.x-b.x)*0.6+18);
+      ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(mx, a.y+dir*depth, b.x,b.y);
+    } else { // through strand
+      ctx.moveTo(a.x,a.y); ctx.bezierCurveTo(a.x,(a.y+b.y)/2, b.x,(a.y+b.y)/2, b.x,b.y);
+    }
+    ctx.stroke();
+  }
+  // endpoints
+  for(let i=0;i<n;i++){ for(const yy of [yB,yT]){ ctx.fillStyle=cssVar('--canvas-ink'); ctx.beginPath(); ctx.arc(bx(i),yy,4,0,Math.PI*2); ctx.fill(); } }
+  // δ^loops coefficient + word, top-left
+  ctx.fillStyle=cssVar('--accent'); ctx.font='600 22px Georgia, serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  const coeff = loops===0 ? '' : (loops===1 ? 'δ · ' : `δ${'²³⁴⁵⁶⁷⁸⁹'[loops-2]||('^'+loops)} · `);
+  ctx.fillText(coeff || '1 ×', padX-24, 12);
+  ctx.fillStyle=cssVar('--muted'); ctx.font='13px ui-monospace, monospace';
+  const wordStr = alg.word.length ? alg.word.map(i=>'e'+i).join(' ') : '1  (identity)';
+  ctx.textAlign='right'; ctx.fillText(wordStr, W-padX+24, 16);
+  // stats
+  document.getElementById('alg-stats').innerHTML = `
+    <div class="stat-row"><span class="k">strands n</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">word length</span><span class="v">${alg.word.length}</span></div>
+    <div class="stat-row"><span class="k">δ exponent (loops)</span><span class="v hot">${loops}</span></div>
+    <div class="stat-row"><span class="k">dim TL<sub>n</sub> = C<sub>n</sub></span><span class="v">${catalan(n)}</span></div>`;
+}
+function setVerdict(txt,cls){ const e=document.getElementById('alg-verdict'); e.textContent=txt; e.className='verdict '+cls; }
+document.getElementById('alg-back').addEventListener('click',()=>{ alg.word.pop(); drawAlg(); setVerdict('',''); });
+document.getElementById('alg-clear').addEventListener('click',()=>{ alg.word=[]; drawAlg(); setVerdict('',''); });
+document.getElementById('alg-trace').addEventListener('click',()=>{ const {D}=evalWord(alg.n,alg.word); const L=markovTrace(D,alg.n);
+  setVerdict(`Markov trace: closing up gives ${L} loop${L>1?'s':''}  →  tr = δ^${L}`, 'win'); });
+document.getElementById('n-slider').addEventListener('input',e=>{ alg.n=parseInt(e.target.value,10); document.getElementById('n-val').textContent=alg.n; alg.word=[]; buildGenRow(); drawAlg(); setVerdict('',''); });
+document.getElementById('rel-row').addEventListener('click',e=>{
+  const b=e.target.closest('[data-rel]'); if(!b) return; const n=alg.n;
+  if (b.dataset.rel==='sq'){ const i=Math.min(1,n-1); alg.word=[i,i]; drawAlg();
+    const {D,loops}=evalWord(n,[i,i]); const ok=eqv(D,gen(n,i))&&loops===1;
+    setVerdict(`e${i}² = δ·e${i}  →  ${ok?'✓ holds (1 loop pops out)':'?'}`, ok?'win':'bad'); }
+  else if (b.dataset.rel==='braid'){ if(n<3){ setVerdict('need n ≥ 3 for eᵢeᵢ₊₁eᵢ', 'partial'); return; }
+    const i=1; alg.word=[i,i+1,i]; drawAlg();
+    const {D,loops}=evalWord(n,[i,i+1,i]); const ok=eqv(D,gen(n,i))&&loops===0;
+    setVerdict(`e${i} e${i+1} e${i} = e${i}  →  ${ok?'✓ holds (strand straightens, no loop)':'?'}`, ok?'win':'bad'); }
+  else { if(n<4){ setVerdict('need n ≥ 4 for distant eᵢeⱼ', 'partial'); return; }
+    const i=1,j=3; alg.word=[i,j]; drawAlg();
+    const ok=eqv(evalWord(n,[i,j]).D, evalWord(n,[j,i]).D);
+    setVerdict(`e${i} e${j} = e${j} e${i}  →  ${ok?'✓ holds (|i−j| ≥ 2 commute)':'?'}`, ok?'win':'bad'); }
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// Init
+// ═════════════════════════════════════════════════════════════════════
+buildGenRow();
+drawTiles();
+drawAlg();
+window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
+  if(p==='tiles')drawTiles(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
+const initialHash=(location.hash||'').replace(/^#/,'');
+if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>

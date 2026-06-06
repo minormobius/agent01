@@ -26,6 +26,7 @@
   --c-hadwiger: #5e3b8b;
   --c-runner:   #0aa19c;
   --c-meander:  #a01f4c;
+  --c-templieb: #0d6e63;
   --c-kakeya:   #a35a00;
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
@@ -57,6 +58,7 @@
     --c-hadwiger: #b08adc;
     --c-runner:   #4ed4cf;
     --c-meander:  #e0608f;
+    --c-templieb: #3fb8a8;
     --c-kakeya:   #d99450;
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
@@ -351,6 +353,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/hadwiger/">hadwiger</a> ·
     <a href="https://mino.mobi/runner/">runner</a> ·
     <a href="https://mino.mobi/meander/">meander</a> ·
+    <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
@@ -501,6 +504,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/hadwiger/">hadwiger</a>
   <a href="https://mino.mobi/runner/">runner</a>
   <a href="https://mino.mobi/meander/">meander</a>
+  <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
   <a href="https://mino.mobi/kakeya/">kakeya</a>
   <a href="https://mino.mobi/capset/">capset</a>
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
@@ -622,6 +626,18 @@ const PACK = [
     status: 'open',
     statusRank: 3,
     statusText: 'no closed form',
+  },
+  {
+    name: 'temperley–lieb',
+    url:  'https://mino.mobi/temperley-lieb/',
+    accent: 'var(--c-templieb)',
+    problem: 'TL algebra & loop models',
+    era: 1971,
+    eraText: 'Temperley–Lieb 1971',
+    tech: 'diagram algebra / loops',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'foundational',
   },
   {
     name: 'erdős',
