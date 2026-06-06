@@ -92,3 +92,72 @@ export function shield(mothers){
     reconciler:   wrap(reconciler),
   };
 }
+
+// ── the read: figures cast into the twelve houses, and a generated reading ──
+// Borges/Yijing-style: we don't enumerate the millions of figure×house×judge texts,
+// we COMPOSE each from the parts — the figure's signification, the house's province,
+// the figure's nature, and the standing of the Judge and Witnesses. Deterministic.
+
+// the 12 figures placed in the houses: Mothers→1–4, Daughters→5–8, Nieces→9–12
+export function houseChart(shield){
+  const figs = [...shield.mothers, ...shield.daughters, ...shield.nieces];
+  return figs.map((f,i) => ({ house:i+1, rows:f.rows, figure:f.figure }));
+}
+
+const ORD = ['first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth','eleventh','twelfth'];
+const natWord = nat => (nat||'').split(/[ ,(]/)[0] || 'mixed';
+const esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+// ctx = { houses: [{n,name,title,matter,domain}], meanings: { key: {la,en,planet,nature,sig} } }
+// sel = { kind:'house', house:1..12 } | { kind:'judge'|'witnessRight'|'witnessLeft' }
+export function readShieldPosition(shield, sel, ctx){
+  const keyOf = rows => rows.map(r=>r===1?'1':'0').join('');
+  const M = rows => (ctx.meanings && ctx.meanings[keyOf(rows)]) || null;
+  const judgeM = M(shield.judge.rows);
+  const endWord = nat => ({good:'inclines to the good', ill:'inclines to the ill',
+    mixed:'is of mixed temper, turning on its company', neutral:'rests passive, swayed by the figures around it'}[natWord(nat)] || 'is mixed');
+  const judgeTail = () => judgeM
+    ? `<p class="rjudge">Over the whole question the Judge is <b>${esc(judgeM.la)}</b> (${esc(judgeM.nature)}); the matter, in the end, ${endWord(judgeM.nature)}.</p>` : '';
+
+  if(sel.kind==='house'){
+    const hc = houseChart(shield).find(h=>h.house===sel.house);
+    const m = M(hc.rows), H = ctx.houses[sel.house-1];
+    if(!m||!H) return { title:'', body:'' };
+    const nat = natWord(m.nature);
+    const natLine = {
+      good:    `A fortunate figure in this house — ${esc(H.matter)} is favoured.`,
+      ill:     `An ill figure here — ${esc(H.matter)} is crossed or troubled.`,
+      mixed:   `A figure of mixed temper — ${esc(H.matter)} turns on the company it keeps.`,
+      neutral: `A passive figure — ${esc(H.matter)} waits, and takes the colour of the figures beside it.`,
+    }[nat] || '';
+    return { title:`The ${ORD[sel.house-1]} House · ${esc(H.name)} — ${esc(H.title)}`,
+      figureName: m.la,
+      body:`<p class="rdom">${esc(H.domain)}</p>`+
+           `<p class="rfig">Here stands <b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
+           `<p class="rnat ${nat}">${natLine}</p>`+ judgeTail() };
+  }
+
+  if(sel.kind==='judge'){
+    const m=judgeM, wR=M(shield.witnessRight.rows), wL=M(shield.witnessLeft.rows);
+    if(!m) return { title:'', body:'' };
+    const g=x=>natWord(x&&x.nature)==='good', b=x=>natWord(x&&x.nature)==='ill';
+    let verdict;
+    if(g(wR)&&g(wL))      verdict='Two fortunate Witnesses: the matter comes to a clear and happy end.';
+    else if(b(wR)&&b(wL)) verdict='Two ill Witnesses: a hard road, and a doubtful end.';
+    else                  verdict='Witnesses of mixed temper: a qualified outcome — '+(g(m)?'tending to the good':b(m)?'tending to the ill':'evenly poised')+'.';
+    return { title:'The Judge · the verdict', figureName:m.la,
+      body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+
+           `<p class="rnat ${natWord(m.nature)}">${verdict}</p>` };
+  }
+
+  if(sel.kind==='witnessRight' || sel.kind==='witnessLeft'){
+    const right = sel.kind==='witnessRight';
+    const m = M(right ? shield.witnessRight.rows : shield.witnessLeft.rows);
+    if(!m) return { title:'', body:'' };
+    const lede = right ? 'Right Witness · the querent’s side, what leads in'
+                       : 'Left Witness · the quesited’s side, what follows';
+    return { title:lede, figureName:m.la,
+      body:`<p class="rfig"><b>${esc(m.la)}</b> — ${esc(m.en)}. ${esc(m.sig)}</p>`+ judgeTail() };
+  }
+  return { title:'', body:'' };
+}

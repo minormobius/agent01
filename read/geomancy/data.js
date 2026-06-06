@@ -77,6 +77,35 @@ export const GEOMANCY = {
       sig:'A crowd, a gathering, the multitude; wholly passive, it takes the colour of whatever acts upon it. Neither good nor ill of itself — a still water that reflects its neighbours.',
       note:'Populus, “the people / the assembly” — all lines double, every point paired; the Arabic is Jamāʿa (جماعة), the gathering. Lunar and reflective; the inversion of Via.' },
   ],
+  // the twelve astrological houses the figures are cast into (Mothers→1–4, Daughters→5–8,
+  // Nieces→9–12). Each governs a province of the question; the figure that falls there is
+  // read in its light. Latin house-names are the traditional tags.
+  houses: [
+    { n:1,  name:'Vita',          title:'Life & the Querent',     matter:'life and health',
+      domain:'The querent themselves — life, the body, health, and the whole frame of the question.' },
+    { n:2,  name:'Lucrum',        title:'Wealth',                 matter:'money and gain',
+      domain:'Money, movable goods and earnings — gain and loss.' },
+    { n:3,  name:'Fratres',       title:'Kin & Rumour',           matter:'kin, news and short journeys',
+      domain:'Brothers and sisters, neighbours, short journeys, letters and rumour.' },
+    { n:4,  name:'Genitor',       title:'Home & Father',          matter:'home, land and endings',
+      domain:'The father, the home, land and foundations, and the end of matters.' },
+    { n:5,  name:'Nati',          title:'Children & Pleasure',    matter:'children and pleasure',
+      domain:'Children, pleasure, feasts and messengers — what delights.' },
+    { n:6,  name:'Valetudo',      title:'Sickness & Service',     matter:'sickness and servants',
+      domain:'Sickness, servants, labour, and the small beasts of the house.' },
+    { n:7,  name:'Uxor',          title:'Marriage & the Other',   matter:'marriage and the other party',
+      domain:'Marriage and partners, the other party, and open enemies — the quesited.' },
+    { n:8,  name:'Mors',          title:'Death & Inheritance',    matter:'death and inheritance',
+      domain:'Death, dread, inheritance, and the partner’s wealth.' },
+    { n:9,  name:'Peregrinatio',  title:'Journeys & Faith',       matter:'far journeys and learning',
+      domain:'Long journeys, religion, dreams, and learning.' },
+    { n:10, name:'Regnum',        title:'Honour & Rule',          matter:'honour and career',
+      domain:'Honour, office, command and career — and the mother.' },
+    { n:11, name:'Benefacta',     title:'Friends & Hope',         matter:'friends and hopes',
+      domain:'Friends, allies, hopes, and the favour of fortune.' },
+    { n:12, name:'Carcer',        title:'Sorrow & Secret Foes',   matter:'sorrows and hidden foes',
+      domain:'Sorrows, prisons, secret enemies, and hidden harms.' },
+  ],
 };
 
 if (typeof window !== 'undefined') window.GEOMANCY = GEOMANCY;

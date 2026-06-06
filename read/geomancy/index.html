@@ -62,6 +62,10 @@ a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
 .prov{background:rgba(196,106,82,.08);border-left:3px solid var(--rose);padding:12px 15px;border-radius:0 8px 8px 0;
   font-size:13.5px;line-height:1.6;color:var(--ink2);margin-top:14px}
 .prov b{color:var(--ink)}
+.hlist{margin-top:10px}
+.hrow{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.hrow .hn{font:600 13px/1.5 ui-monospace,monospace;color:var(--gold);min-width:20px;text-align:right}
+.hrow .hnm{font-style:italic;color:var(--ink)} .hrow .hd{color:var(--ink2);font-size:13px}
 footer{text-align:center;color:var(--faint);font:12px/1.7 ui-monospace,monospace;margin-top:34px}
 footer a{color:var(--ink2)}
 </style>
@@ -78,6 +82,7 @@ footer a{color:var(--ink2)}
   </div>
   <nav id="nav"></nav>
   <main id="entry" class="entry"></main>
+  <div id="houses"></div>
   <div id="method"></div>
   <footer>
     A transparent working redaction · openly licensed ·
@@ -114,6 +119,15 @@ function show(i){
   try{ history.replaceState(null,'','#'+f.la.toLowerCase().replace(/\s+/g,'-')); }catch(e){}
 }
 nav.querySelectorAll('.fb').forEach(b=>b.onclick=()=>{ show(+b.dataset.i); window.scrollTo({top:0,behavior:'smooth'}); });
+
+// the twelve houses
+const H = GEOMANCY.houses || [];
+if(H.length) document.getElementById('houses').innerHTML =
+  `<div class="method"><h2>The twelve houses</h2>`+
+  `<p>A reading casts the figures into twelve houses — the Mothers into 1–4, the Daughters into 5–8, the Nieces into 9–12 — each governing a province of the question. The figure that falls in a house is read in its light (this is how <a href="https://g.mino.mobi/geocast/">geocast</a> generates a reading: <em>this figure × this house × the Judge</em>).</p>`+
+  `<div class="hlist">`+ H.map(h=>
+    `<div class="hrow"><span class="hn">${h.n}</span><div><div class="hnm">${h.name} — ${h.title}</div><div class="hd">${h.domain}</div></div></div>`
+  ).join('') +`</div></div>`;
 
 // method + sources
 const m = GEOMANCY.meta;

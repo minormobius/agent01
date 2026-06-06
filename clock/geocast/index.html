@@ -70,6 +70,21 @@ h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4p
   border-top:1px solid var(--line);padding-top:9px}
 .judge .jsig{max-width:46ch;margin-left:auto;margin-right:auto}
 
+/* clickable shield positions + the reading */
+.fc[data-sel],.mother[data-sel],.judge[data-sel]{cursor:pointer}
+.fc[data-sel]:hover,.mother[data-sel]:hover{border-color:var(--gold-dim)}
+.fc.sel,.mother.sel{border-color:var(--sand);box-shadow:0 0 0 1px var(--sand) inset}
+.judge.sel{outline:1px solid var(--sand)}
+#reading .rtitle{font:600 14px/1.3 ui-serif,Georgia,serif;color:var(--sand);margin-bottom:8px;letter-spacing:.01em}
+#reading p{margin:0 0 8px;font:14px/1.6 ui-serif,Georgia,serif;color:var(--ink-soft)}
+#reading p b{color:var(--ink)}
+#reading .rdom{color:var(--faint);font-style:italic;font-size:13px}
+#reading .rfig{color:var(--ink-soft)}
+#reading .rnat{padding-left:11px;border-left:2px solid var(--line)}
+#reading .rnat.good{border-color:#9ec27a;color:#bcd49a} #reading .rnat.ill{border-color:var(--clay);color:#e3a489}
+#reading .rjudge{font-size:13px;color:var(--faint);border-top:1px solid var(--line);padding-top:8px}
+#reading .rmuted{font:13px/1.5 ui-monospace,monospace;color:var(--faint)}
+
 .controls{display:flex;flex-direction:column;gap:11px}
 .ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
 .ctl label{width:70px}
@@ -117,8 +132,13 @@ footer a{color:var(--ink-soft)}
       </div>
 
       <div class="panel">
-        <div class="cap">The shield · the read</div>
+        <div class="cap">The shield · click to read</div>
         <div class="body"><div id="shield"></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="cap">The reading</div>
+        <div class="body"><div id="reading"></div></div>
       </div>
 
       <div class="panel">
@@ -155,9 +175,11 @@ footer a{color:var(--ink-soft)}
 'use strict';
 import { soilProps, Field } from '../lib/soil.js';
 import { makeRenderer } from '../lib/soil-render.js';
-import { mothersFromCounts, shield, figurePoints } from '../lib/geomancy.js';
-import { MEANINGS } from '../lib/geomancy-meanings.js';
+import { mothersFromCounts, shield, figurePoints, readShieldPosition } from '../lib/geomancy.js';
+import { MEANINGS, HOUSES } from '../lib/geomancy-meanings.js';
 const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
+const CTX = { houses: HOUSES, meanings: MEANINGS };
+let SH = null, curSelKey = 'judge';
 
 const N = 320;
 const field = new Field(N);
@@ -213,9 +235,11 @@ function measure(){
     counts.push(countDots(prof));
   }
   const M = mothersFromCounts(counts);
+  SH = shield(M);
   renderMothers(M);
-  renderShield(shield(M));
+  renderShield(SH);
   drawOverlay(counts);
+  renderReading();
   return counts;
 }
 
@@ -228,26 +252,26 @@ function renderMothers(M){
       return `<div class="frow"><span class="pts">${pts}</span><span class="cnt">${m.counts[ri]}</span></div>`;
     }).join('');
     const f=m.figure;
-    return `<div class="mother"><div class="mh">Mother ${roman[mi]}</div>${rows}`+
+    return `<div class="mother" data-sel="house:${mi+1}" role="button" tabindex="0"><div class="mh">Mother ${roman[mi]} · H${mi+1}</div>${rows}`+
            `<div class="fname">${f?f.name:'—'}</div><div class="fgloss">${f?f.gloss:''}</div></div>`;
   }).join('');
 }
 
 /* ── the derived shield: Daughters → Nieces → Witnesses → Judge → Reconciler ── */
 function glyphRows(rows){ return rows.map(v=>`<div class="gr">${v===1?'•':'• •'}</div>`).join(''); }
-function figCell(fig, label, cls){ const f=fig.figure;
-  return `<div class="fc ${cls||''}"><div class="fl">${label}</div><div class="gg">${glyphRows(fig.rows)}</div>`+
+function figCell(fig, label, cls, sel){ const f=fig.figure;
+  return `<div class="fc ${cls||''}"${sel?` data-sel="${sel}" role="button" tabindex="0"`:''}>`+
+         `<div class="fl">${label}</div><div class="gg">${glyphRows(fig.rows)}</div>`+
          `<div class="fn">${f?f.name:'—'}</div></div>`; }
 function renderShield(S){
   const dn=['I','II','III','IV'];
-  const daughters = S.daughters.map((d,i)=>figCell(d,'Daughter '+dn[i])).join('');
-  const nieces    = S.nieces.map((n,i)=>figCell(n,'Niece '+dn[i])).join('');
-  const wit       = figCell(S.witnessRight,'Right witness') + figCell(S.witnessLeft,'Left witness');
+  const daughters = S.daughters.map((d,i)=>figCell(d,'Daughter '+dn[i]+' · H'+(5+i),'','house:'+(5+i))).join('');
+  const nieces    = S.nieces.map((n,i)=>figCell(n,'Niece '+dn[i]+' · H'+(9+i),'','house:'+(9+i))).join('');
+  const wit       = figCell(S.witnessRight,'Right witness','','witnessRight') + figCell(S.witnessLeft,'Left witness','','witnessLeft');
   const jf = S.judge.figure, jp = figurePoints(S.judge.rows), jm = meaningOf(S.judge.rows);
-  const judge = `<div class="judge"><div class="jl">The Judge · the verdict</div><div class="jg">${glyphRows(S.judge.rows)}</div>`+
+  const judge = `<div class="judge" data-sel="judge" role="button" tabindex="0"><div class="jl">The Judge · the verdict</div><div class="jg">${glyphRows(S.judge.rows)}</div>`+
     `<div class="jn">${jf?jf.name:'—'}</div><div class="jgloss">${jf?jf.gloss:''} · ${jp} points`+
-    (jm?` · <span class="jnat ${jm.nature.split(/[ ,(]/)[0]}">${jm.nature}</span>`:'')+`</div>`+
-    (jm?`<div class="jsig">${jm.sig}</div>`:'')+`</div>`;
+    (jm?` · <span class="jnat ${jm.nature.split(/[ ,(]/)[0]}">${jm.nature}</span>`:'')+`</div></div>`;
   document.getElementById('shield').innerHTML =
     `<div class="srow">${daughters}</div>`+
     `<div class="srow">${nieces}</div>`+
@@ -255,6 +279,19 @@ function renderShield(S){
     judge +
     `<div class="srow one">${figCell(S.reconciler,'Reconciler','muted')}</div>`;
 }
+
+/* ── the generated reading: figure × house × Judge, composed on click ── */
+function parseSel(k){ return k.startsWith('house:') ? {kind:'house', house:+k.slice(6)} : {kind:k}; }
+function renderReading(){
+  const el=document.getElementById('reading'); if(!el) return;
+  if(!SH){ el.innerHTML='<div class="rmuted">Stab the lines, then click a figure to read it.</div>'; return; }
+  const r=readShieldPosition(SH, parseSel(curSelKey), CTX);
+  el.innerHTML = r.title ? `<div class="rtitle">${r.title}</div>${r.body}` : '<div class="rmuted">Click any figure in the shield.</div>';
+  document.querySelectorAll('#mothers [data-sel],#shield [data-sel]').forEach(e=>e.classList.toggle('sel', e.dataset.sel===curSelKey));
+}
+function pickSel(t){ const el=t&&t.closest&&t.closest('[data-sel]'); if(el){ curSelKey=el.dataset.sel; renderReading(); return true; } return false; }
+document.addEventListener('click', e=>pickSel(e.target));
+document.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ if(pickSel(e.target)) e.preventDefault(); } });
 
 /* ── overlay: brackets, the implied line, group numerals, live counts ── */
 function drawOverlay(counts){
