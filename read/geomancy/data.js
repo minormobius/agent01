@@ -119,6 +119,28 @@ export const GEOMANCY = {
           la:'Oppositio manifestæ inimicitiæ aspectus est; Geomanticus, quum figuræ duæ sunt in domibus sibi oppositis, ut 1 & 7. Est aspectus omnium pessimus.', en:'Opposition — the aspect of open enmity: when two figures stand in opposite houses (as 1 and 7). It is the worst aspect of all.' },
       ],
     },
+
+    // Cap. IV — when a figure DOUBLES (the same figure recurs in another house). Fludd treats
+    // every origin-house in turn (pp. 76–93); we fold in the canonical block: the QUERENT's
+    // figure (the 1st house) doubling into each house 2–12, which is exactly the mechanism behind
+    // perfection by occupation and conjunction. Note the exception-figures named in each clause.
+    doubling: {
+      source:'Robert Fludd, Tractatus de Geomantia, Liber II, Cap. IV — De significatione 16 figurarum quando se duplicant in quæstione (Fasciculus Geomanticus, 1704, pp. 76–77). The block for the figure of the first house; Fludd gives the like for every other origin-house in turn.',
+      intro:{ la:'Figura in prima domo inventa significat, quando se duplicat in domo:', en:'The figure found in the first house — the querent’s own — signifies, when it doubles itself into the house:' },
+      places:[
+        { place:2, la:'Secunda: locum, & præcipue si fuerit fortunata fixa; si contraria, contrarium indicat; id quod observandum est etiam per omnes cæteras domus.', en:'the second: a place or estate — especially if the figure be a fortunate, fixed one; if a contrary figure, it indicates the contrary (which is to be observed through all the other houses too).' },
+        { place:3, la:'Tertia: rem bonam inter cognatum, fratres aut parentes, sorores aut vicinos.', en:'the third: a good matter among kinsman, brothers or parents, sisters or neighbours.' },
+        { place:4, la:'Quarta: malam mutationem, sed tamen non ultra modum, nisi sit Cauda Draconis.', en:'the fourth: an ill change, yet not beyond measure — unless it be Cauda Draconis.' },
+        { place:5, la:'Quinta: lætitiam, socios bibaces & edaces, nova vestimenta, Musicam, melodiam, rem antiquam, bonum ad animi sententiam, ita ut ne voto quidem melius sese habere res posset, nisi sit Cauda Draconis.', en:'the fifth: joy, boon companions for drink and food, new garments, music and melody, an old matter, good to one’s heart’s content — so the matter could not be better even by a wish — unless it be Cauda Draconis.' },
+        { place:6, la:'Sexta: morbum, tribulationem, timorem.', en:'the sixth: sickness, tribulation, fear.' },
+        { place:7, la:'Septima: res timidas gratia exercitus aut fœminæ malæ, omnéque bonum, nisi Cauda aut Via ibi existant, quæ denotant in hac domo omne malum, nisi quæstio sit facta pro congregatione vel nuptiis & inimicis, nam aliter periculum ostendunt.', en:'the seventh: fearful matters by reason of war or an ill woman, and every good — unless Cauda or Via be there, which denote in this house every ill, unless the question be about a gathering, or marriages and enemies; for otherwise they show danger.' },
+        { place:8, la:'Octava: malum, magnam iram, aut mortem aut contusionem, damnum, verba injuriosa, tribulationes malas; sed si bona sit figura, significat acquisitionem hereditatis mortuorum.', en:'the eighth: ill, great wrath, or death or bruising, loss, injurious words, evil tribulations; but if the figure be good, it signifies the gaining of the inheritance of the dead.' },
+        { place:9, la:'Nona: aliquod bonum, mutationem firmam & stabilem ad acquirendam rem aliquam pro alio, ac tractandum aliquod negotium religiosum aut Ecclesiæ, aut cum gentibus seu hominibus Ecclesiasticis, aut cum nuntiis, aut iis qui de peregrinatione redeunt, nisi Cauda & Rubeus sint in quæstione facta pro itinere.', en:'the ninth: some good; a firm and stable change for gaining something for another, and the handling of some religious or Church business, or with peoples or churchmen, or with messengers, or those returning from pilgrimage — unless Cauda and Rubeus be in a question made about a journey.' },
+        { place:10, la:'Decima: totum bonum, ita ut res sese melius habere non possit, & maxime pro honore & dignitate acquirenda, nisi adsit Cauda & Rubeus.', en:'the tenth: all good, so the matter could not be better, and especially for honour and dignity to be gained — unless Cauda and Rubeus be present.' },
+        { place:11, la:'Undecima: bonum, ita ut non sit melior in quæstione; nam significat spem, bonum amicum, modo ut sit Major, Via, vel Acquisitio.', en:'the eleventh: good, so there is none better in the question; for it signifies hope, a good friend — provided it be Fortuna Major, Via, or Acquisitio.' },
+        { place:12, la:'Duodecima: petitorem deventurum in quandam tribulationem, aut morbum gravem, aut damnum alicujus rei, aut detrimentum ex inimicis: neque potest sese res pejus habere, quam si sit Cauda.', en:'the twelfth: that the petitioner will fall into some tribulation, or a grave sickness, or the loss of some thing, or harm from enemies: nor can the matter be worse than when it is Cauda.' },
+      ],
+    },
   },
 
   // rows: [Fire, Air, Water, Earth]; 1 = single (odd), 2 = double (even).

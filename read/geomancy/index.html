@@ -102,6 +102,7 @@ footer a{color:var(--ink2)}
   <div id="source"></div>
   <div id="houses"></div>
   <div id="perfection"></div>
+  <div id="doubling"></div>
   <div id="aspects"></div>
   <div id="roadmap"></div>
   <div id="method"></div>
@@ -189,6 +190,15 @@ if(PF) document.getElementById('perfection').innerHTML =
   PF.modes.map(m=>`<h3 class="lh">${m.name}</h3><div class="par"><div class="la">${m.la}</div><div class="en">${m.en}</div></div>`).join('')+
   `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${PF.source}</p></div>`;
 
+// doubled figures (Cap. IV) — the querent's figure recurring in another house
+const DBL = (GEOMANCY.fludd && GEOMANCY.fludd.doubling) || null;
+if(DBL) document.getElementById('doubling').innerHTML =
+  `<div class="method"><h2>Doubled figures — when a figure recurs</h2>`+
+  `<p>A figure that appears twice in the shield is read specially. Fludd gives this for every house in turn; here is the canonical block — the querent’s own figure (the first house) doubling into each house — the very thing that drives perfection by occupation and conjunction, so <a href="https://g.mino.mobi/geocast/">geocast</a> now names it in the judgment.</p>`+
+  `<div class="par"><div class="en"><em>${DBL.intro.en}</em></div></div>`+
+  DBL.places.map(p=>`<div class="par"><div class="pl">into the ${['','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth','eleventh','twelfth'][p.place]} house</div><div class="la">${p.la}</div><div class="en">${p.en}</div></div>`).join('')+
+  `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${DBL.source}</p></div>`;
+
 // the geomantic aspects (companion tract) — how two houses regard each other
 const ASP = (GEOMANCY.fludd && GEOMANCY.fludd.aspects) || null;
 if(ASP) document.getElementById('aspects').innerHTML =
@@ -209,7 +219,8 @@ document.getElementById('roadmap').innerHTML =
   `<li class="done"><b>House descriptions</b> — Fludd’s account of all each house governs (Liber III, Cap. V), the twelve houses and the three further places (Witnesses + Judge), Latin beside English.</li>`+
   `<li class="done"><b>Perfection</b> — the four connections that answer a question (Liber III, Cap. VI: occupation, conjunction, mutation, translation), applied live in geocast: ask, and the chart judges.</li>`+
   `<li class="done"><b>Aspects</b> — the geomantic conjunction, sextile, square, trine and opposition between houses (a companion tract, Lib. II), now refining the manner of every judgment in geocast.</li>`+
-  `<li class="todo"><b>Doubled figures &amp; pairs</b> — Cap. IV (a figure repeated) and the figure-with-figure tables — two more sourced combinatorial layers.</li>`+
+  `<li class="done"><b>Doubled figures</b> — Cap. IV, the querent’s figure doubling into each house, folded into the judgment (the other origin-houses are a mechanical follow-up).</li>`+
+  `<li class="todo"><b>Figure pairs</b> — the figure-with-figure tables (Lib. II, Cap. V) — one more sourced combinatorial layer.</li>`+
   `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
   `</ul></div>`;
 

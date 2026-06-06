@@ -248,6 +248,13 @@ export function perfection(shield, queryHouse, ctx){
   } else {
     body += `<p class="rnat ill">The question does <b>not perfect</b>: by occupation, conjunction, mutation, or translation the two significators do not meet — the matter is not brought about of itself.</p>`;
   }
+  // Cap. IV — where the querent's figure DOUBLES: Fludd's own meaning for each recurrence
+  const dups = housesWith(qk).filter(h=>h!==Q);
+  if(dups.length && ctx.doubling){
+    body += `<p class="rfig">The querent’s figure <b>${esc(M(qk).la)}</b> doubles into the ${dups.map(h=>ORD[h-1]).join(', ')} house${dups.length>1?'s':''}${dups.includes(T)?' — including the matter’s own house':''}.</p>`;
+    for(const h of dups){ const d=(ctx.doubling.places||[]).find(p=>p.place===h);
+      if(d) body += `<div class="rfludd"><div class="la">${esc(d.la)}</div><div class="en">${esc(d.en)}</div><div class="rsrc">— Fludd, Liber II, Cap. IV (doubled figures)</div></div>`; }
+  }
   // the aspect between the two houses colours the manner of the outcome
   const asp = aspectBetween(Q, T, ctx);
   if(asp){
