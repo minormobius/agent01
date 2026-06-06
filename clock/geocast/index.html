@@ -64,6 +64,11 @@ h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4p
 .judge .jg .gr{font-size:16px;color:var(--sand);letter-spacing:4px;line-height:1.3}
 .judge .jn{margin-top:7px;font:700 18px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
 .judge .jgloss{font:11px/1.3 ui-monospace,monospace;color:var(--faint);margin-top:2px}
+.judge .jnat{padding:1px 6px;border:1px solid var(--line);border-radius:999px}
+.judge .jnat.good{color:#9ec27a} .judge .jnat.ill{color:var(--clay)} .judge .jnat.mixed,.judge .jnat.neutral{color:var(--ink-soft)}
+.judge .jsig{font:13px/1.5 ui-serif,Georgia,serif;color:var(--ink-soft);margin-top:9px;text-align:left;
+  border-top:1px solid var(--line);padding-top:9px}
+.judge .jsig{max-width:46ch;margin-left:auto;margin-right:auto}
 
 .controls{display:flex;flex-direction:column;gap:11px}
 .ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
@@ -151,6 +156,8 @@ footer a{color:var(--ink-soft)}
 import { soilProps, Field } from '../lib/soil.js';
 import { makeRenderer } from '../lib/soil-render.js';
 import { mothersFromCounts, shield, figurePoints } from '../lib/geomancy.js';
+import { MEANINGS } from '../lib/geomancy-meanings.js';
+const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
 
 const N = 320;
 const field = new Field(N);
@@ -236,9 +243,11 @@ function renderShield(S){
   const daughters = S.daughters.map((d,i)=>figCell(d,'Daughter '+dn[i])).join('');
   const nieces    = S.nieces.map((n,i)=>figCell(n,'Niece '+dn[i])).join('');
   const wit       = figCell(S.witnessRight,'Right witness') + figCell(S.witnessLeft,'Left witness');
-  const jf = S.judge.figure, jp = figurePoints(S.judge.rows);
-  const judge = `<div class="judge"><div class="jl">The Judge</div><div class="jg">${glyphRows(S.judge.rows)}</div>`+
-    `<div class="jn">${jf?jf.name:'—'}</div><div class="jgloss">${jf?jf.gloss:''} · ${jp} points</div></div>`;
+  const jf = S.judge.figure, jp = figurePoints(S.judge.rows), jm = meaningOf(S.judge.rows);
+  const judge = `<div class="judge"><div class="jl">The Judge · the verdict</div><div class="jg">${glyphRows(S.judge.rows)}</div>`+
+    `<div class="jn">${jf?jf.name:'—'}</div><div class="jgloss">${jf?jf.gloss:''} · ${jp} points`+
+    (jm?` · <span class="jnat ${jm.nature.split(/[ ,(]/)[0]}">${jm.nature}</span>`:'')+`</div>`+
+    (jm?`<div class="jsig">${jm.sig}</div>`:'')+`</div>`;
   document.getElementById('shield').innerHTML =
     `<div class="srow">${daughters}</div>`+
     `<div class="srow">${nieces}</div>`+

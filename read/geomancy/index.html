@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Sixteen Figures — geomancy, an open redaction</title>
+<meta name="description" content="The sixteen figures of geomancy with an original English redaction of their significations after the Latin geomancers (Agrippa; the Fasciculus Geomanticus), a working stand-in pending a faithful translation of al-Zanātī's Arabic. From read.mino.mobi.">
+<meta property="og:title" content="The Sixteen Figures — geomancy">
+<meta property="og:description" content="The figures of ʿilm al-raml: original English significations beside the Latin names, with notes — converging toward al-Zanātī's Arabic.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>🜃</text></svg>">
+<style>
+:root{
+  --bg:#0e0d0b; --ink:#e9e2d0; --ink2:#a59c86; --faint:#776e5a;
+  --gold:#d8b25a; --gold-dim:rgba(216,178,90,.4); --jade:#6fae8e; --rule:rgba(216,178,90,.16); --rose:#c46a52;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:radial-gradient(120% 80% at 50% -10%, #1b1810 0%, var(--bg) 60%, #080706 100%);
+  color:var(--ink);font:17px/1.65 Georgia,"Songti SC",serif;-webkit-text-size-adjust:100%}
+a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
+#crumb{position:fixed;top:12px;left:16px;font:12px/1 ui-monospace,monospace;color:var(--faint);letter-spacing:.06em;z-index:9}
+#crumb:hover{color:var(--gold)}
+.wrap{max-width:760px;margin:0 auto;padding:54px 22px 80px}
+.masthead{text-align:center;border-bottom:1px double var(--rule);padding-bottom:22px;margin-bottom:8px}
+.masthead .em{font-size:48px;color:var(--gold);line-height:1;text-shadow:0 0 30px rgba(216,178,90,.3)}
+.masthead h1{font:600 23px/1.2 Georgia,serif;letter-spacing:.04em;margin:10px 0 2px}
+.masthead .sub{color:var(--ink2);font-size:14px;font-style:italic;max-width:56ch;margin:6px auto 0}
+.masthead .tag{font:11px/1 ui-monospace,monospace;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+
+#nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;margin:22px 0 6px}
+#nav .fb{border:1px solid var(--rule);border-radius:8px;background:rgba(216,178,90,.05);cursor:pointer;
+  padding:7px 4px 6px;text-align:center;color:var(--ink2)}
+#nav .fb:hover{color:var(--ink);border-color:var(--gold-dim)}
+#nav .fb.on{background:linear-gradient(180deg,#e8c46e,#c79a44);color:#0e0d0b;border-color:transparent}
+#nav .fb .g{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:4px}
+#nav .fb .g i{font-size:9px;line-height:1;letter-spacing:2px}
+#nav .fb .nm{font:600 11px/1.1 Georgia,serif}
+
+.entry{margin-top:30px}
+.fhead{display:flex;gap:22px;align-items:center;justify-content:center;margin:8px 0 4px}
+.glyph{display:flex;flex-direction:column;gap:7px}
+.glyph .ln{display:flex;gap:9px}
+.glyph .ln .d{width:9px;height:9px;border-radius:50%;background:linear-gradient(180deg,#e8c46e,#c79a44);box-shadow:0 1px 1px rgba(0,0,0,.5)}
+.glyph .ln.empty{visibility:hidden}
+.fname{text-align:left}
+.fname .la{font-size:34px;color:var(--gold);line-height:1.05;font-style:italic}
+.fname .en{font-size:17px;color:var(--ink)}
+.fname .el{font:11px/1.5 ui-monospace,monospace;letter-spacing:.06em;color:var(--faint);margin-top:4px;text-transform:uppercase}
+.fname .el b{color:var(--jade);font-weight:600}
+.nat{display:inline-block;font:11px/1 ui-monospace,monospace;letter-spacing:.06em;border:1px solid var(--rule);
+  border-radius:999px;padding:3px 9px;margin-top:6px}
+.nat.good{color:#9ec27a;border-color:rgba(158,194,122,.4)} .nat.ill{color:var(--rose);border-color:rgba(196,106,82,.4)}
+.nat.mixed,.nat.neutral{color:var(--ink2)}
+.sig{font-size:17px;line-height:1.62;margin:22px 0 0}
+.note{font-size:14px;line-height:1.6;color:var(--ink2);margin-top:12px;padding-left:14px;border-left:2px solid var(--rule)}
+
+.method{margin-top:40px;background:rgba(216,178,90,.04);border:1px solid var(--rule);border-radius:12px;padding:20px 22px}
+.method h2{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:10px}
+.method p{font-size:14px;line-height:1.62;color:var(--ink2);margin:0 0 8px}
+.method .lic{color:var(--jade);font-weight:600}
+.method .src{font-size:13.5px;line-height:1.8;margin-top:8px} .method .src a{color:var(--ink)}
+.prov{background:rgba(196,106,82,.08);border-left:3px solid var(--rose);padding:12px 15px;border-radius:0 8px 8px 0;
+  font-size:13.5px;line-height:1.6;color:var(--ink2);margin-top:14px}
+.prov b{color:var(--ink)}
+footer{text-align:center;color:var(--faint);font:12px/1.7 ui-monospace,monospace;margin-top:34px}
+footer a{color:var(--ink2)}
+</style>
+</head>
+<body>
+<a id="crumb" href="https://read.mino.mobi/">&larr; read.mino.mobi</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="tag">Read · the science of the sand</div>
+    <div class="em">🜃</div>
+    <h1>The Sixteen Figures</h1>
+    <p class="sub">The figures of geomancy (<em>ʿilm al-raml</em>): an original English redaction of their
+    significations after the Latin geomancers, with notes — a working text converging toward al-Zanātī’s Arabic.</p>
+  </div>
+  <nav id="nav"></nav>
+  <main id="entry" class="entry"></main>
+  <div id="method"></div>
+  <footer>
+    A transparent working redaction · openly licensed ·
+    <a href="https://g.mino.mobi/geocast/">cast the figures →</a> ·
+    <a href="https://read.mino.mobi/iching/">the Zhouyi</a>
+  </footer>
+</div>
+
+<script type="module">
+import { GEOMANCY } from './data.js';
+const F = GEOMANCY.figures, nav = document.getElementById('nav'), entry = document.getElementById('entry');
+
+function glyph(rows, big){
+  return `<div class="glyph">`+ rows.map(v=>{
+    const d = v===1 ? `<span class="d"></span>` : `<span class="d"></span><span class="d"></span>`;
+    return `<div class="ln">${d}</div>`;
+  }).join('') + `</div>`;
+}
+function navGlyph(rows){
+  return `<div class="g">`+ rows.map(v=>`<i>${v===1?'•':'• •'}</i>`).join('') +`</div>`;
+}
+nav.innerHTML = F.map((f,i)=>`<button class="fb" data-i="${i}">${navGlyph(f.rows)}<div class="nm">${f.la}</div></button>`).join('');
+
+function show(i){
+  const f = F[i];
+  entry.innerHTML =
+    `<div class="fhead">${glyph(f.rows)}<div class="fname">`+
+    `<div class="la">${f.la}</div><div class="en">${f.en}</div>`+
+    `<div class="el">☿ <b>${f.planet}</b> · ${f.element}</div>`+
+    `<span class="nat ${f.nature.split(/[ ,(]/)[0]}">${f.nature}</span></div></div>`+
+    `<p class="sig">${f.sig}</p>`+
+    `<p class="note">${f.note}</p>`;
+  nav.querySelectorAll('.fb').forEach(b=>b.classList.toggle('on', +b.dataset.i===i));
+  try{ history.replaceState(null,'','#'+f.la.toLowerCase().replace(/\s+/g,'-')); }catch(e){}
+}
+nav.querySelectorAll('.fb').forEach(b=>b.onclick=()=>{ show(+b.dataset.i); window.scrollTo({top:0,behavior:'smooth'}); });
+
+// method + sources
+const m = GEOMANCY.meta;
+document.getElementById('method').innerHTML =
+  `<div class="method"><h2>Method &amp; sources</h2><p>${m.method}</p>`+
+  `<div class="prov"><b>On provenance.</b> The figures, their names and their line-patterns are standard. The
+   significations here are our own modern English, redacted from the Western <b>Latin</b> tradition cited below —
+   the fetchable cousin of the older Arabic. They stand in until the intended spine is set beside them: a faithful,
+   term-by-term translation of <b>al-Zanātī’s <em>Kitāb al-Faṣl fī uṣūl ʿilm al-raml</em></b>, the fountainhead of
+   <em>ʿilm al-raml</em>. This text is honest about being a redaction, not yet that translation.</div>`+
+  `<p class="lic" style="margin-top:10px">License: ${m.license}.</p>`+
+  `<div class="src">`+ m.sources.map(s=>`· <a href="${s.url}" target="_blank" rel="noopener">${s.label}</a> — ${s.host}`).join('<br>') +`</div></div>`;
+
+const slug = location.hash.replace('#','');
+const init = Math.max(0, F.findIndex(f=>f.la.toLowerCase().replace(/\s+/g,'-')===slug));
+show(init>=0?init:0);
+</script>
+</body>
+</html>
