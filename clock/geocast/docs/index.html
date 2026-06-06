@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Geocast — the manual</title>
+<meta name="description" content="How to read the geomancer's table: cast sixteen lines in the sand, submit, and read the shield — Mothers, Daughters, Nieces, Witnesses, Judge — the twelve houses, perfection, and aspects. A how-to with flow charts.">
+<style>
+:root{
+  --bg:#15110d; --ink:#ecdcc0; --ink-soft:rgba(236,220,192,.62); --faint:#8c7c63;
+  --sand:#e7c46a; --sand-dim:rgba(231,196,106,.4); --clay:#c0714e; --line:rgba(231,196,106,.16); --jade:#9ec27a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{min-height:100%;background:radial-gradient(130% 90% at 50% -10%, #241c14 0%, var(--bg) 58%, #0c0907 100%);
+  color:var(--ink);font:16px/1.6 ui-serif,Georgia,"Songti SC",serif;-webkit-tap-highlight-color:transparent}
+a{color:var(--sand);text-decoration:none} a:hover{color:var(--clay)}
+#back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);letter-spacing:.06em}
+#back:hover{color:var(--sand)}
+.wrap{max-width:820px;margin:0 auto;padding:46px 22px 72px}
+.masthead{text-align:center;border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:8px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+h1{font:600 26px/1.15 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 6px}
+.sub{color:var(--ink-soft);font-size:14.5px;font-style:italic;max-width:60ch;margin:0 auto}
+h2{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);
+  margin:34px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+h3{font:600 15px/1.3 ui-serif,Georgia,serif;color:var(--sand);margin:20px 0 6px}
+p{margin:0 0 11px;color:var(--ink-soft)} p b,li b{color:var(--ink)} .lead{color:var(--ink);font-size:17px}
+ul{margin:0 0 12px 2px;list-style:none} li{margin:0 0 8px;padding-left:18px;position:relative;color:var(--ink-soft);font-size:14.5px}
+li::before{content:'·';position:absolute;left:4px;color:var(--sand-dim)}
+
+/* flow chart */
+.flow{display:flex;flex-direction:column;align-items:center;gap:0;margin:14px 0 8px}
+.step{width:100%;max-width:560px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(231,196,106,.05),rgba(231,196,106,.01));
+  padding:12px 16px;text-align:center}
+.step .t{font:600 14px/1.3 ui-serif,Georgia,serif;color:var(--ink)}
+.step .d{font-size:12.5px;color:var(--ink-soft);margin-top:3px}
+.step.key{border-color:var(--sand-dim);background:linear-gradient(180deg,rgba(231,196,106,.14),rgba(231,196,106,.03))}
+.step.key .t{color:var(--sand)}
+.arr{color:var(--sand-dim);font-size:18px;line-height:1;margin:7px 0}
+.branch{display:flex;gap:12px;width:100%;max-width:560px;flex-wrap:wrap}
+.branch .step{flex:1 1 0;min-width:150px}
+
+/* the shield silhouette */
+.shield-demo{display:flex;flex-direction:column;align-items:center;gap:7px;margin:14px 0;overflow-x:auto}
+.sdr{display:flex;justify-content:center;gap:6px}
+.sc{flex:0 0 60px;border:1px solid var(--line);border-radius:6px;background:rgba(0,0,0,.18);padding:6px 2px;text-align:center}
+.sc b{display:block;font:600 13px/1 ui-monospace,monospace;color:var(--sand)}
+.sc span{font:9px/1.2 ui-monospace,monospace;color:var(--faint)}
+.sc.j{border-color:var(--sand-dim);background:linear-gradient(180deg,rgba(231,196,106,.14),rgba(231,196,106,.02))}
+.sc.w{border-color:rgba(231,196,106,.28)}
+
+.card{border:1px solid var(--line);border-radius:12px;background:rgba(231,196,106,.04);padding:16px 20px;margin:14px 0}
+.gloss dt{font:600 14px/1.4 ui-serif,Georgia,serif;color:var(--ink);margin-top:10px}
+.gloss dd{font-size:14px;color:var(--ink-soft);margin:2px 0 0}
+.gloss dt:first-child{margin-top:0}
+footer{border-top:1px solid var(--line);margin-top:36px;padding-top:16px;text-align:center;font:12px/1.7 ui-monospace,monospace;color:var(--faint)}
+footer a{color:var(--ink-soft)}
+.cta{display:inline-block;margin-top:6px;font:600 13px/1 ui-serif,Georgia,serif;color:var(--bg);
+  background:linear-gradient(180deg,#f1d588,#d6a94e);border-radius:7px;padding:10px 16px}
+.cta:hover{filter:brightness(1.07);color:var(--bg)}
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; the table</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">Geocast · the manual</div>
+    <h1>How to read the geomancer's table</h1>
+    <p class="sub">You make sixteen marks in the sand. From them the table raises a shield of figures and reads it.
+    Here is what you are looking at, how to cast, and how to read.</p>
+  </div>
+
+  <h2>What am I looking at?</h2>
+  <p class="lead">Geomancy (<i>ʿilm al-raml</i>, “the science of the sand”) asks a question by making rows of marks
+  without counting, and reading each row as <b>odd</b> or <b>even</b>. Four rows make a <b>figure</b>; sixteen rows
+  make four figures — the <b>Mothers</b> — and from the Mothers the rest of the shield is generated by fixed rules.
+  Nothing here is random in the machine: <i>you</i> are the randomness, in the sand.</p>
+  <p>The table never counts for you. It measures the marks you leave between each pair of parentheses and reports
+  the parity. The reading is then composed from a real source — Robert Fludd’s <i>Tractatus de Geomantia</i>
+  (1704) — every line traceable to the Latin on <a href="https://read.mino.mobi/geomancy">read.mino.mobi</a>.</p>
+
+  <h2>How to cast</h2>
+  <div class="flow">
+    <div class="step"><div class="t">Fresh sand</div><div class="d">Sixteen lines wait, each between a pair of ( brackets ), in four groups of four — one group per Mother.</div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="t">Stab the dots — don’t count</div><div class="d">Tap or drag dots along each line. Hold your question in mind; let the hand fall as it will.</div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="t">The table reads each line</div><div class="d">It counts the distinct dots between the brackets: <b>odd → •</b> (single, active), <b>even → ••</b> (double, passive). You see the count and parity appear at each line.</div></div>
+    <div class="arr">↓</div>
+    <div class="step key"><div class="t">Read the cast ▸</div><div class="d">When the marks are set, submit. <b>Nothing is judged until you do.</b> The cast then locks — the sand is untouchable until you clear it.</div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="t">⟲ Fresh sand</div><div class="d">Clears everything back to a blank slate for a new question.</div></div>
+  </div>
+
+  <h2>How the shield is built</h2>
+  <p>Your sixteen lines are the four <b>Mothers</b>. Everything else follows by rule — no new input. The shield is
+  read <b>right → left</b> (its Arabic origin), and narrows from eight figures to one:</p>
+  <div class="shield-demo">
+    <div class="sdr">
+      <div class="sc"><b>8</b><span>Dau IV</span></div><div class="sc"><b>7</b><span>Dau III</span></div>
+      <div class="sc"><b>6</b><span>Dau II</span></div><div class="sc"><b>5</b><span>Dau I</span></div>
+      <div class="sc"><b>4</b><span>Mot IV</span></div><div class="sc"><b>3</b><span>Mot III</span></div>
+      <div class="sc"><b>2</b><span>Mot II</span></div><div class="sc"><b>1</b><span>Mot I</span></div>
+    </div>
+    <div class="sdr">
+      <div class="sc"><b>12</b><span>Niece</span></div><div class="sc"><b>11</b><span>Niece</span></div>
+      <div class="sc"><b>10</b><span>Niece</span></div><div class="sc"><b>9</b><span>Niece</span></div>
+    </div>
+    <div class="sdr">
+      <div class="sc w"><b>L</b><span>Witness</span></div><div class="sc w"><b>R</b><span>Witness</span></div>
+    </div>
+    <div class="sdr"><div class="sc j"><b>◆</b><span>Judge</span></div></div>
+  </div>
+  <ul>
+    <li><b>Mothers (1–4)</b> — your four cast figures, the seed of everything.</li>
+    <li><b>Daughters (5–8)</b> — the Mothers <i>transposed</i>: the first line of each Mother becomes the first Daughter, and so on.</li>
+    <li><b>Nieces (9–12)</b> — each made by <i>adding</i> a pair above it (line by line: two singles or two doubles → double; one of each → single).</li>
+    <li><b>Witnesses</b> — the Right from the Mothers’ side (the querent), the Left from the Daughters’ (the matter).</li>
+    <li><b>Judge</b> — the two Witnesses added: the verdict over the whole question. It always carries an even number of points.</li>
+  </ul>
+
+  <h2>How to read</h2>
+  <div class="flow">
+    <div class="step"><div class="t">Tap any place in the shield</div><div class="d">Each figure in its place is read in that place’s light — what the figure means, here. Houses 1–12 are the provinces of the question (life, wealth, kin, home, … secret foes).</div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="t">Ask a question — pick the matter’s house</div><div class="d">Choose the house your question belongs to (marriage → the 7th, money → the 2nd, and so on).</div></div>
+    <div class="arr">↓</div>
+    <div class="step"><div class="t">Does it <i>perfect</i>?</div><div class="d">The table links your significator (the figure in the 1st house) to the matter’s, by Fludd’s four connections — <b>occupation, conjunction, mutation, translation</b>. If they meet, the matter comes to pass.</div></div>
+    <div class="arr">↓</div>
+    <div class="branch">
+      <div class="step"><div class="t">The aspect</div><div class="d">How the two houses regard each other — trine &amp; sextile favour it, square &amp; opposition cross it.</div></div>
+      <div class="step"><div class="t">The Judge</div><div class="d">The temper of the end — good, ill, or mixed — and the two Witnesses read together.</div></div>
+    </div>
+    <div class="arr">↓</div>
+    <div class="step key"><div class="t">The judgment</div><div class="d">Significators → the connection that joins them → the aspect that colours it → the Judge’s verdict. Every line links to the Latin on <a href="https://read.mino.mobi/geomancy">read</a>.</div></div>
+  </div>
+
+  <h2>A small glossary</h2>
+  <div class="card">
+    <dl class="gloss">
+      <dt>Figure</dt><dd>Four lines, each single (•) or double (••) — one of sixteen. Top to bottom: Fire, Air, Water, Earth.</dd>
+      <dt>House</dt><dd>One of twelve provinces a figure can fall into — life, substance, kin, home, children, sickness, the other party, death, journeys, honour, friends, sorrows.</dd>
+      <dt>Witnesses &amp; Judge</dt><dd>The right Witness is the querent’s side, the left the matter’s; together they make the Judge, the verdict.</dd>
+      <dt>Perfection</dt><dd>Whether the question is “brought to pass” — by the querent’s and the matter’s significators connecting (occupation, conjunction, mutation, or translation).</dd>
+      <dt>Aspect</dt><dd>How two houses regard each other by their distance — conjunction, sextile, square, trine, opposition.</dd>
+      <dt>Reconciler</dt><dd>An optional sixteenth figure (Judge + first Mother), a final confirmation; not shown on the table by default.</dd>
+    </dl>
+  </div>
+
+  <p style="text-align:center;margin-top:26px">
+    <a class="cta" href="../">⟲ Go to the table</a>
+    &nbsp;&nbsp; <a href="https://read.mino.mobi/geomancy">the figures &amp; the Latin →</a>
+  </p>
+
+  <footer>
+    Geocast · the geomancer’s table · built on the <a href="../../soil/">soil engine</a>
+    &nbsp;·&nbsp; the reading after <a href="https://read.mino.mobi/geomancy">Robert Fludd (1704)</a>
+  </footer>
+</div>
+</body>
+</html>
