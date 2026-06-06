@@ -17,6 +17,7 @@ on:
       - 'meander/**'
       - 'temperley-lieb/**'
       - 'aztec/**'
+      - 'markov/**'
       - 'erdos/**'
       - 'guthkatz/**'
       - 'hadwiger/**'

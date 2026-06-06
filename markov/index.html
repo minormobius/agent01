@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>markov — chains, MCMC, and the Markov numbers</title>
+<meta name="description" content="Two unrelated gems from one Andrey Markov. Watch a Markov chain converge to its stationary distribution, sample a density with Metropolis, see random-walk recurrence (Pólya), generate n-gram text — and, on the number-theory side, the Markov tree and the Lagrange spectrum below 3.">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #6a3aa0;            /* deep violet */
+  --accent-faint: rgba(106, 58, 160, 0.10);
+  --canvas-bg: #fbf8f3; --canvas-ink: #1a1416; --canvas-rule: #c8bcae;
+  --tag-bg: #eee; --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --c1: #6a3aa0; --c2: #2479b8; --c3: #d98324; --c4: #2a8a5a; --c5: #b5302a; --c6: #9a4a8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #a98fe0; --accent-faint: rgba(169, 143, 224, 0.14);
+    --canvas-bg: #f4ece2; --canvas-ink: #1a1416; --canvas-rule: #b9aa97;
+    --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.8rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; aspect-ratio: 1/1; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 2.6em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.gen-out { font-family: var(--serif); font-size: 1rem; line-height: 1.6; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; padding: 1rem 1.1rem; min-height: 14rem; white-space: pre-wrap; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>markov</h1>
+  <p class="subtitle">markov chains · MCMC · the markov numbers</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · the engine room behind <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> &amp; <a href="https://mino.mobi/aztec/">aztec</a></p>
+</header>
+
+<p class="lead">
+  Two unrelated gems, both Andrey Markov's. On one side, <strong>Markov chains</strong> — memoryless
+  random processes that forget where they came from, and the engine (<strong>MCMC</strong>) behind
+  every thermostat on the sibling pages. On the other, the <strong>Markov numbers</strong> — a
+  Diophantine tree hiding inside how badly you can approximate a number. Same man, 1906 and 1879;
+  nothing else in common.
+</p>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="chain" role="tab">chain</button>
+  <button class="tab" data-tab="metropolis" role="tab">metropolis</button>
+  <button class="tab" data-tab="walk" role="tab">walk</button>
+  <button class="tab" data-tab="text" role="tab">text</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── CHAIN PANE ─────────── -->
+<section class="pane active" data-pane="chain">
+  <p class="lead">
+    A <strong>Markov chain</strong> hops between states, each step depending only on where it is now.
+    Drop the walker and watch the bars: the fraction of time it spends in each state converges to the
+    <strong>stationary distribution</strong> π — no matter where it started. How fast it forgets is
+    set by the <strong>spectral gap</strong>; the <em>two clusters</em> chain barely connects, so it
+    mixes painfully slowly (a tiny gap). Click a state to teleport the walker there.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="ch-canvas" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">chain</span>
+        <div class="btn-row" id="ch-preset">
+          <button class="btn active" data-c="cycle">cycle</button>
+          <button class="btn" data-c="clusters">two clusters</button>
+          <button class="btn" data-c="random">random</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="ch-run">▶ run</button>
+          <button class="btn" id="ch-step">+1 step</button>
+          <button class="btn" id="ch-reset">reset counts</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">laziness (self-loop prob)</span>
+        <div class="ctrl-row"><input id="ch-lazy" type="range" min="0" max="0.8" value="0" step="0.05"><span class="ctrl-val" id="ch-lazy-val">0.00</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec</span>
+        <div class="ctrl-row"><input id="ch-speed" type="range" min="1" max="20" value="6" step="1"><span class="ctrl-val" id="ch-speed-val">6</span></div>
+      </div>
+      <div class="stats" id="ch-stats"></div>
+      <div class="stat-note">
+        Bars: filled = empirical visit frequency, outline = stationary π (computed as the left
+        eigenvector πP = π). |λ₂| is the second-largest eigenvalue magnitude — the closer to 1, the
+        slower the chain mixes; the relaxation time is 1/(1−|λ₂|).
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── METROPOLIS PANE ─────────── -->
+<section class="pane" data-pane="metropolis">
+  <p class="lead">
+    You want samples from a probability density but can only <em>evaluate</em> it. <strong>Metropolis</strong>
+    builds a Markov chain whose stationary distribution <em>is</em> that density: from the current point,
+    propose a random nearby step, and accept it with probability min(1, f(new)/f(old)) — always uphill,
+    sometimes down. Run it and the wandering dots fill in the true density. The step size is everything:
+    too small crawls, too big gets rejected. This is the exact machinery behind the ising/potts
+    thermostats.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="mh-canvas" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="mh-run">▶ run</button>
+          <button class="btn" id="mh-reset">reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">step size · σ</span>
+        <div class="ctrl-row"><input id="mh-sigma" type="range" min="0.05" max="2.5" value="0.6" step="0.05"><span class="ctrl-val" id="mh-sigma-val">0.60</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec</span>
+        <div class="ctrl-row"><input id="mh-speed" type="range" min="1" max="30" value="20" step="1"><span class="ctrl-val" id="mh-speed-val">20</span></div>
+      </div>
+      <div class="stats" id="mh-stats"></div>
+      <div class="stat-note">
+        Faint background = the target density (a mixture of three Gaussians). Dots = accepted samples,
+        which pile up exactly where the density is high. Acceptance rate near 0.23–0.4 is the
+        sweet spot; push σ to the extremes and watch it collapse to 0 or 1, both of which sample badly.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── WALK PANE ─────────── -->
+<section class="pane" data-pane="walk">
+  <p class="lead">
+    A random walk is the simplest Markov chain: step to a random lattice neighbour, forever.
+    <strong>Pólya's theorem</strong> (1921) says something startling — in 1 and 2 dimensions the walk
+    is <strong>recurrent</strong> (it returns to the origin with probability 1), but in 3 dimensions it
+    is <strong>transient</strong>: it wanders off and may never come back. <em>"A drunk man will find his
+    way home, but a drunk bird may get lost forever."</em> Watch the return fraction climb to 1 — or
+    stall near Pólya's constant 0.34.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="wk-canvas" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">dimension</span>
+        <div class="btn-row" id="wk-dim">
+          <button class="btn" data-d="1">1-D line</button>
+          <button class="btn active" data-d="2">2-D plane</button>
+          <button class="btn" data-d="3">3-D space</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="wk-run">▶ run</button>
+          <button class="btn" id="wk-reset">reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">walkers</span>
+        <div class="ctrl-row"><input id="wk-num" type="range" min="100" max="1200" value="500" step="100"><span class="ctrl-val" id="wk-num-val">500</span></div>
+      </div>
+      <div class="stats" id="wk-stats"></div>
+      <div class="stat-note">
+        Each dot is an independent walker; a walker glows once it has revisited the origin. The return
+        fraction is the share that have made it home at least once. As the clock runs it →1 in 1-D/2-D
+        but plateaus near <strong>0.3405</strong> in 3-D — the Pólya return probability.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── TEXT PANE ─────────── -->
+<section class="pane" data-pane="text">
+  <p class="lead">
+    The Markov chain everyone has met: feed it text, and it learns, for each short run of characters,
+    what tends to come next. Generate by hopping that chain. At <strong>order 1</strong> it's gibberish
+    with the right letter frequencies; crank the order up and English crystallises out of pure
+    statistics — words, then phrases — with no grammar, no dictionary, nothing but "what followed what."
+  </p>
+  <div class="grid-wrap">
+    <div>
+      <div class="gen-out" id="tx-out"></div>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">corpus</span>
+        <div class="btn-row" id="tx-corpus">
+          <button class="btn active" data-k="alice">alice</button>
+          <button class="btn" data-k="sonnet">sonnet</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">order · n (context length)</span>
+        <div class="ctrl-row"><input id="tx-order" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="tx-order-val">3</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="tx-gen">↻ generate</button>
+        </div>
+      </div>
+      <div class="stats" id="tx-stats"></div>
+      <div class="stat-note">
+        Character-level model: the context is the last <em>n</em> characters, and the next character is
+        drawn from those that followed that exact context in the corpus. Order 1–2 ≈ letter soup; 4–6 ≈
+        almost-words and real phrasing; 8 starts quoting the source verbatim (the model overfits).
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>Two Markovs</h2>
+<p>Andrey Andreyevich Markov (1856–1922) lends his name to two things on this page that have nothing
+to do with each other. The <strong>Markov chains</strong> came late (around 1906), when he studied
+sequences of dependent random variables — partly, the story goes, to win an argument about whether the
+law of large numbers needs independence. (It doesn't.) The <strong>Markov numbers</strong> came early
+(1879–1880), from his thesis on indefinite quadratic forms. Both are below; the number-theory half
+arrives in the next pass.</p>
+
+<h2>Chains and the stationary distribution</h2>
+<p>A Markov chain is a walk on states where the next state depends only on the current one — the
+<em>memoryless</em> property. Encode it as a transition matrix <code>P</code> with <code>P[i][j]</code>
+the probability of going i→j (rows sum to 1). If the chain is <strong>irreducible</strong> (you can get
+anywhere) and <strong>aperiodic</strong> (no rigid cycle), there is a unique <strong>stationary
+distribution</strong> π with <code>πP = π</code>, and the fraction of time spent in each state converges
+to π from <em>any</em> start. That's the ergodic theorem, and it's what the <strong>chain</strong> tab
+shows: the bars climb to π and stay.</p>
+<p>How fast? The transition matrix's eigenvalues are 1 = λ₁ &gt; |λ₂| ≥ …; the gap 1−|λ₂| is the
+<strong>spectral gap</strong>, and the chain forgets its start on a timescale of <code>1/(1−|λ₂|)</code>.
+The <em>two clusters</em> preset wires two tight groups with one thin bridge: |λ₂| sits just under 1,
+the gap is tiny, and mixing takes forever — the same bottleneck that makes glassy physical systems hard
+to simulate.</p>
+
+<h2>MCMC: running a chain backwards</h2>
+<p>Usually you have a chain and want its stationary π. <strong>Markov chain Monte Carlo</strong> flips
+that: you have a distribution π you want to sample (a Gibbs measure, a posterior, a density you can only
+evaluate up to a constant) and you <em>design</em> a chain whose stationary distribution is exactly π.
+The <strong>Metropolis</strong> rule does it with one trick: propose a move, accept with probability
+min(1, π(new)/π(old)). The ratio kills the unknown normalising constant, and detailed balance
+guarantees π is stationary. Every thermostat on <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+— Metropolis spin flips, Swendsen–Wang clusters, the tortuosity backbite, the Aztec shuffle — is an
+MCMC sampler in this exact sense.</p>
+
+<h2>Recurrence: Pólya's theorem</h2>
+<p>The plainest chain is the simple random walk on the integer lattice. Pólya (1921) found a sharp
+dimensional divide: the walk returns to its start with probability 1 in dimensions 1 and 2
+(<strong>recurrent</strong>), but in dimension 3 the return probability drops to about
+<strong>0.3405</strong> (<strong>transient</strong>) — and keeps falling in higher dimensions. The
+<strong>walk</strong> tab races hundreds of walkers and watches the return fraction confirm it: home in
+the plane, lost in space.</p>
+
+<h2>Text and the original application</h2>
+<p>Markov's own first application of his chains was to <em>text</em>: he counted vowel/consonant
+transitions across 20,000 letters of Pushkin's <em>Eugene Onegin</em>. The <strong>text</strong> tab is
+the same idea at full resolution — an n-gram model where the next character is drawn conditional on the
+last <em>n</em>. It is the ancestor of every autocomplete and, in spirit, of the large language models
+that followed: more context, better statistics, and language emerges with no rules written down.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Markov, A. A. (1906). <em>Extension of the law of large numbers to dependent quantities.</em></li>
+  <li>Pólya, G. (1921). <em>Über eine Aufgabe der Wahrscheinlichkeitsrechnung betreffend die Irrfahrt im Straßennetz.</em> Math. Ann. 84.</li>
+  <li>Metropolis, N. et al. (1953); Hastings, W. K. (1970). <em>Equation of state calculations / Monte Carlo sampling methods using Markov chains.</em></li>
+  <li>Levin, D., Peres, Y. &amp; Wilmer, E. <em>Markov Chains and Mixing Times.</em></li>
+  <li><a href="https://en.wikipedia.org/wiki/Markov_chain">Wikipedia — Markov chain</a> · <a href="https://en.wikipedia.org/wiki/Markov_number">Markov number</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+  <span>·</span>
+  <a href="https://mino.mobi/aztec/">aztec</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// Tabs
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['chain','metropolis','walk','text','docs'];
+function showTab(name){ tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  panes.forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
+  try{history.replaceState(null,'','#'+name);}catch{}
+  if(name==='chain'){ drawChain(); if(chain.running) chain.raf=requestAnimationFrame(chLoop); }
+  if(name==='metropolis'){ drawMH(); if(mh.running) mh.raf=requestAnimationFrame(mhLoop); }
+  if(name==='walk'){ drawWalk(); if(walk.running) walk.raf=requestAnimationFrame(wkLoop); }
+  if(name==='text' && !tx.built){ txBuildAndGen(); } }
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const COLS = ['--c1','--c2','--c3','--c4','--c5','--c6'].map(cssVar);
+function activePane(){ return document.querySelector('.pane.active')?.dataset.pane; }
+
+// ═════════════════════════════════════════════════════════════════════
+// Linear-algebra helpers for finite chains
+// ═════════════════════════════════════════════════════════════════════
+function rowStochastic(P){ return P.map(r=>{ const s=r.reduce((a,b)=>a+b,0)||1; return r.map(v=>v/s); }); }
+function vecMatLeft(v,P){ const N=v.length, o=new Array(N).fill(0);
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++) o[j]+=v[i]*P[i][j]; return o; }
+function stationary(P){ const N=P.length; let v=new Array(N).fill(1/N);
+  for(let t=0;t<4000;t++){ const w=vecMatLeft(v,P); let s=0; for(const x of w)s+=x; for(let i=0;i<N;i++)w[i]/=s;
+    let d=0; for(let i=0;i<N;i++)d+=Math.abs(w[i]-v[i]); v=w; if(d<1e-12)break; } return v; }
+function lambda2(P,pi){ const N=P.length;            // |λ2| via power iteration orthogonal to π
+  let w=new Array(N).fill(0); w[0]=1; let s=0; for(let i=0;i<N;i++){ w[i]-=pi[i]; } // remove π component-ish
+  let ratio=0;
+  for(let t=0;t<300;t++){ const u=vecMatLeft(w,P); // project out the all-ones / stationary direction
+    let dot=0; for(let i=0;i<N;i++)dot+=u[i]; for(let i=0;i<N;i++)u[i]-=dot/N;
+    let n1=Math.hypot(...w), n2=Math.hypot(...u); if(n1>1e-14) ratio=n2/n1;
+    if(n2>1e-12){ for(let i=0;i<N;i++)u[i]/=n2; } w=u; }
+  return Math.min(0.9999, ratio); }
+
+// ═════════════════════════════════════════════════════════════════════
+// chain tab
+// ═════════════════════════════════════════════════════════════════════
+const chain = { kind:'cycle', N:5, P:[], pi:[], lazy:0, cur:0, counts:[], steps:0, running:false, raf:null, ups:6, lastT:0, lam2:0 };
+const chCanvas = document.getElementById('ch-canvas'), chCtx = chCanvas.getContext('2d');
+function buildChain(){
+  let N, P;
+  if(chain.kind==='cycle'){ N=5; P=Array.from({length:N},()=>new Array(N).fill(0));
+    for(let i=0;i<N;i++){ P[i][(i+1)%N]=0.5; P[i][(i+N-1)%N]=0.5; } }
+  else if(chain.kind==='clusters'){ N=6; P=Array.from({length:N},()=>new Array(N).fill(0));
+    const eps=0.02, A=[0,1,2], B=[3,4,5];
+    for(const grp of [A,B]) for(const i of grp) for(const j of grp) if(i!==j) P[i][j]=1;
+    P[2][3]=eps; P[3][2]=eps; P[5][0]=eps; P[0][5]=eps;   // thin bridges
+    P=rowStochastic(P); }
+  else { N=6; P=Array.from({length:N},()=>Array.from({length:N},()=>Math.random()*Math.random())); // skewed → non-uniform π
+    for(let i=0;i<N;i++) P[i][i]+=0.1; P=rowStochastic(P); }
+  // laziness: lazy*I + (1-lazy)*P
+  const L=chain.lazy; for(let i=0;i<N;i++) for(let j=0;j<N;j++) P[i][j]=(i===j?L:0)+(1-L)*P[i][j];
+  chain.N=N; chain.P=P; chain.pi=stationary(P); chain.lam2=lambda2(P,chain.pi);
+  chain.cur=0; chain.counts=new Array(N).fill(0); chain.steps=0;
+}
+function chStep(){ const r=Math.random(); let acc=0, row=chain.P[chain.cur], nx=chain.N-1;
+  for(let j=0;j<chain.N;j++){ acc+=row[j]; if(r<=acc){ nx=j; break; } }
+  chain.cur=nx; chain.counts[nx]++; chain.steps++; }
+function drawChain(){ const ctx=chCtx,W=chCanvas.width,H=chCanvas.height,N=chain.N;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const cx=W/2, cyTop=H*0.30, R=Math.min(W,H)*0.21;
+  const nodeXY=i=>{ const a=-Math.PI/2 + 2*Math.PI*i/N; return [cx+R*Math.cos(a), cyTop+R*Math.sin(a)]; };
+  // edges
+  ctx.lineWidth=1.4;
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){ if(i===j||chain.P[i][j]<0.02)continue;
+    const [x0,y0]=nodeXY(i),[x1,y1]=nodeXY(j); ctx.strokeStyle='rgba(120,110,130,'+(0.12+0.55*chain.P[i][j]).toFixed(3)+')';
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+  // nodes (radius ∝ π)
+  for(let i=0;i<N;i++){ const [x,y]=nodeXY(i); const rad=8+34*chain.pi[i];
+    ctx.fillStyle = i===chain.cur ? cssVar('--accent') : cssVar('--canvas-bg');
+    ctx.strokeStyle=cssVar('--accent'); ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(x,y,rad,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = i===chain.cur ? '#fff' : cssVar('--accent'); ctx.font='13px '+cssVar('--mono'); ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(i, x, y); }
+  ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  // bar chart: empirical vs π
+  const total=chain.steps||1, bx=W*0.10, bw=W*0.80, by=H*0.62, bh=H*0.30, gap=bw/N;
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(bx,by+bh); ctx.lineTo(bx+bw,by+bh); ctx.stroke();
+  let maxv=0; for(let i=0;i<N;i++) maxv=Math.max(maxv, chain.pi[i], chain.counts[i]/total); maxv=Math.max(maxv,0.1);
+  for(let i=0;i<N;i++){ const emp=chain.counts[i]/total, p=chain.pi[i];
+    const xC=bx+gap*(i+0.5), barW=gap*0.34;
+    const he=bh*emp/maxv, hp=bh*p/maxv;
+    ctx.fillStyle=COLS[i%COLS.length]; ctx.fillRect(xC-barW-1, by+bh-he, barW, he);               // empirical
+    ctx.strokeStyle=cssVar('--canvas-ink'); ctx.lineWidth=1.6; ctx.strokeRect(xC+1, by+bh-hp, barW, hp); // π outline
+    ctx.fillStyle=cssVar('--muted'); ctx.font='12px '+cssVar('--mono'); ctx.textAlign='center'; ctx.fillText(i, xC, by+bh+15); }
+  ctx.textAlign='start';
+  ctx.fillStyle=cssVar('--muted'); ctx.font='12px '+cssVar('--mono');
+  ctx.fillText('■ empirical', bx, by-8); ctx.fillText('▢ stationary π', bx+bw*0.42, by-8);
+  // TV distance
+  let tv=0; for(let i=0;i<N;i++) tv+=Math.abs(chain.counts[i]/total - chain.pi[i]); tv/=2;
+  document.getElementById('ch-stats').innerHTML = `
+    <div class="stat-row"><span class="k">states</span><span class="v">${N}</span></div>
+    <div class="stat-row"><span class="k">steps</span><span class="v">${chain.steps}</span></div>
+    <div class="stat-row"><span class="k">|λ₂|</span><span class="v hot">${chain.lam2.toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">relaxation 1/(1−|λ₂|)</span><span class="v">${(1/(1-chain.lam2)).toFixed(1)}</span></div>
+    <div class="stat-row"><span class="k">‖empirical−π‖<sub>TV</sub></span><span class="v hot">${tv.toFixed(3)}</span></div>`;
+}
+function chLoop(ts){ if(!chain.running||activePane()!=='chain') return; if(ts==null)ts=performance.now();
+  if(ts-chain.lastT>=1000/chain.ups){ chain.lastT=ts; chStep(); drawChain(); }
+  chain.raf=requestAnimationFrame(chLoop); }
+function chSetRun(on){ chain.running=on; const b=document.getElementById('ch-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ chain.lastT=0; chain.raf=requestAnimationFrame(chLoop); } else cancelAnimationFrame(chain.raf); }
+document.getElementById('ch-preset').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b)return;
+  chain.kind=b.dataset.c; document.querySelectorAll('#ch-preset .btn').forEach(x=>x.classList.toggle('active',x===b));
+  buildChain(); drawChain(); });
+document.getElementById('ch-run').addEventListener('click',()=>chSetRun(!chain.running));
+document.getElementById('ch-step').addEventListener('click',()=>{ chStep(); drawChain(); });
+document.getElementById('ch-reset').addEventListener('click',()=>{ chain.counts=new Array(chain.N).fill(0); chain.steps=0; chain.cur=0; drawChain(); });
+document.getElementById('ch-lazy').addEventListener('input',e=>{ chain.lazy=parseFloat(e.target.value); document.getElementById('ch-lazy-val').textContent=chain.lazy.toFixed(2); buildChain(); drawChain(); });
+document.getElementById('ch-speed').addEventListener('input',e=>{ chain.ups=parseInt(e.target.value,10); document.getElementById('ch-speed-val').textContent=chain.ups; });
+chCanvas.addEventListener('click',e=>{ const r=chCanvas.getBoundingClientRect(); const px=(e.clientX-r.left)*(chCanvas.width/r.width), py=(e.clientY-r.top)*(chCanvas.height/r.height);
+  const cx=chCanvas.width/2, cyTop=chCanvas.height*0.30, R=Math.min(chCanvas.width,chCanvas.height)*0.21;
+  for(let i=0;i<chain.N;i++){ const a=-Math.PI/2+2*Math.PI*i/chain.N, x=cx+R*Math.cos(a), y=cyTop+R*Math.sin(a);
+    if(Math.hypot(px-x,py-y)<26){ chain.cur=i; drawChain(); break; } } });
+
+// ═════════════════════════════════════════════════════════════════════
+// metropolis tab — sample a 2D Gaussian mixture
+// ═════════════════════════════════════════════════════════════════════
+const MIX = [ {mx:-1.3,my:-0.6,s:0.55,w:1.0}, {mx:1.4,my:0.4,s:0.7,w:1.1}, {mx:0.0,my:1.5,s:0.45,w:0.7} ];
+function targetDensity(x,y){ let f=0; for(const g of MIX){ const dx=(x-g.mx)/g.s, dy=(y-g.my)/g.s; f+=g.w*Math.exp(-0.5*(dx*dx+dy*dy))/(g.s*g.s); } return f; }
+function gauss(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+const mh = { x:0,y:0, sigma:0.6, samples:0, acc:0, pts:[], bg:null, running:false, raf:null, ups:20, lastT:0, range:4 };
+const mhCanvas = document.getElementById('mh-canvas'), mhCtx = mhCanvas.getContext('2d');
+function mhReset(){ mh.x=0; mh.y=0; mh.samples=0; mh.acc=0; mh.pts=[]; mh.bg=null; }
+function mhStep(){ const nx=mh.x+mh.sigma*gauss(), ny=mh.y+mh.sigma*gauss();
+  const a=targetDensity(nx,ny)/targetDensity(mh.x,mh.y);
+  if(Math.random()<a){ mh.x=nx; mh.y=ny; mh.acc++; }
+  mh.samples++; mh.pts.push([mh.x,mh.y]); if(mh.pts.length>4000) mh.pts.shift(); }
+function drawMH(){ const ctx=mhCtx,W=mhCanvas.width,H=mhCanvas.height,Rg=mh.range;
+  const px=x=>W*(x+Rg)/(2*Rg), py=y=>H*(1-(y+Rg)/(2*Rg));
+  if(!mh.bg){ mh.bg=ctx.createImageData(W,H); const d=mh.bg.data; let fmax=0;
+    const dens=new Float32Array(W*H);
+    for(let j=0;j<H;j+=2)for(let i=0;i<W;i+=2){ const x=(i/W)*2*Rg-Rg, y=(1-j/H)*2*Rg-Rg; const f=targetDensity(x,y); dens[j*W+i]=f; if(f>fmax)fmax=f; }
+    const bgc=[251,248,243], acc=[106,58,160];
+    for(let j=0;j<H;j+=2)for(let i=0;i<W;i+=2){ const t=Math.min(1,dens[j*W+i]/fmax*1.1); const r=bgc[0]+(acc[0]-bgc[0])*t*0.22, g=bgc[1]+(acc[1]-bgc[1])*t*0.22, b=bgc[2]+(acc[2]-bgc[2])*t*0.22;
+      for(let dj=0;dj<2;dj++)for(let di=0;di<2;di++){ const k=((j+dj)*W+(i+di))*4; d[k]=r;d[k+1]=g;d[k+2]=b;d[k+3]=255; } } }
+  ctx.putImageData(mh.bg,0,0);
+  ctx.fillStyle='rgba(106,58,160,0.55)';
+  for(const [x,y] of mh.pts){ ctx.fillRect(px(x)-1.1, py(y)-1.1, 2.2, 2.2); }
+  ctx.fillStyle=cssVar('--accent'); ctx.beginPath(); ctx.arc(px(mh.x),py(mh.y),4,0,7); ctx.fill();
+  const rate=mh.samples?mh.acc/mh.samples:0;
+  document.getElementById('mh-stats').innerHTML = `
+    <div class="stat-row"><span class="k">samples</span><span class="v">${mh.samples}</span></div>
+    <div class="stat-row"><span class="k">step σ</span><span class="v hot">${mh.sigma.toFixed(2)}</span></div>
+    <div class="stat-row"><span class="k">acceptance</span><span class="v hot">${(rate*100).toFixed(0)}%</span></div>
+    <div class="stat-row"><span class="k">target</span><span class="v">3-Gaussian mix</span></div>`;
+}
+function mhLoop(ts){ if(!mh.running||activePane()!=='metropolis')return; if(ts==null)ts=performance.now();
+  if(ts-mh.lastT>=1000/mh.ups){ mh.lastT=ts; for(let i=0;i<8;i++) mhStep(); drawMH(); }
+  mh.raf=requestAnimationFrame(mhLoop); }
+function mhSetRun(on){ mh.running=on; const b=document.getElementById('mh-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ mh.lastT=0; mh.raf=requestAnimationFrame(mhLoop); } else cancelAnimationFrame(mh.raf); }
+document.getElementById('mh-run').addEventListener('click',()=>mhSetRun(!mh.running));
+document.getElementById('mh-reset').addEventListener('click',()=>{ mhReset(); drawMH(); });
+document.getElementById('mh-sigma').addEventListener('input',e=>{ mh.sigma=parseFloat(e.target.value); document.getElementById('mh-sigma-val').textContent=mh.sigma.toFixed(2); });
+document.getElementById('mh-speed').addEventListener('input',e=>{ mh.ups=parseInt(e.target.value,10); document.getElementById('mh-speed-val').textContent=mh.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
+// walk tab — Pólya recurrence
+// ═════════════════════════════════════════════════════════════════════
+const walk = { dim:2, n:500, pos:[], returned:[], steps:0, retCount:0, running:false, raf:null, ups:20, lastT:0, hist:[] };
+const wkCanvas = document.getElementById('wk-canvas'), wkCtx = wkCanvas.getContext('2d');
+function wkReset(){ const n=walk.n; walk.pos=Array.from({length:n},()=>[0,0,0]); walk.returned=new Array(n).fill(false);
+  walk.steps=0; walk.retCount=0; walk.hist=[]; }
+function wkStep(){ const D=walk.dim;
+  for(let k=0;k<walk.n;k++){ const ax=(Math.random()*D)|0, dir=Math.random()<0.5?1:-1; walk.pos[k][ax]+=dir;
+    if(!walk.returned[k] && walk.pos[k][0]===0 && walk.pos[k][1]===0 && walk.pos[k][2]===0){ walk.returned[k]=true; walk.retCount++; } }
+  walk.steps++; walk.hist.push(walk.retCount/walk.n); if(walk.hist.length>600) walk.hist.shift(); }
+function drawWalk(){ const ctx=wkCtx,W=wkCanvas.width,H=wkCanvas.height,D=walk.dim;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const cx=W/2, cy=H*0.42, sc=Math.min(W,H)*0.40/Math.max(8,Math.sqrt(walk.steps)+2);
+  // axes / origin
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx-W*0.45,cy); ctx.lineTo(cx+W*0.45,cy); if(D>=2){ ctx.moveTo(cx,cy-H*0.30); ctx.lineTo(cx,cy+H*0.30);} ctx.stroke();
+  ctx.fillStyle=cssVar('--accent'); ctx.beginPath(); ctx.arc(cx,cy,3.5,0,7); ctx.fill();
+  for(let k=0;k<walk.n;k++){ const p=walk.pos[k]; let sx,sy;
+    if(D===1){ sx=cx+p[0]*sc; sy=cy + ((k/walk.n)-0.5)*H*0.5; }
+    else if(D===2){ sx=cx+p[0]*sc; sy=cy-p[1]*sc; }
+    else { const iso=0.5; sx=cx+(p[0]-p[2]*iso)*sc; sy=cy-(p[1]-p[2]*iso)*sc; }
+    ctx.fillStyle = walk.returned[k] ? 'rgba(106,58,160,0.85)' : 'rgba(120,110,130,0.30)';
+    ctx.fillRect(sx-1.3,sy-1.3,2.6,2.6); }
+  // return-fraction curve
+  const gy=H*0.78, gh=H*0.17, gx=W*0.10, gw=W*0.80;
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1; ctx.strokeRect(gx,gy,gw,gh);
+  ctx.strokeStyle='rgba(120,110,130,0.5)'; ctx.setLineDash([3,3]); // 0.34 line
+  const y34=gy+gh*(1-0.3405); ctx.beginPath(); ctx.moveTo(gx,y34); ctx.lineTo(gx+gw,y34); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=cssVar('--muted'); ctx.font='11px '+cssVar('--mono'); ctx.fillText('0.34', gx+gw+2, y34+3); ctx.fillText('1', gx-12, gy+4); ctx.fillText('0', gx-12, gy+gh);
+  ctx.strokeStyle=cssVar('--accent'); ctx.lineWidth=2; ctx.beginPath();
+  walk.hist.forEach((v,i)=>{ const x=gx+gw*i/Math.max(1,walk.hist.length-1), y=gy+gh*(1-v); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+  const frac=walk.retCount/walk.n;
+  document.getElementById('wk-stats').innerHTML = `
+    <div class="stat-row"><span class="k">dimension</span><span class="v hot">${D}-D</span></div>
+    <div class="stat-row"><span class="k">walkers</span><span class="v">${walk.n}</span></div>
+    <div class="stat-row"><span class="k">steps</span><span class="v">${walk.steps}</span></div>
+    <div class="stat-row"><span class="k">returned home</span><span class="v hot">${(frac*100).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="k">verdict</span><span class="v ${D<3?'hot':''}">${D<3?'recurrent → 1':'transient → 0.34'}</span></div>`;
+}
+function wkLoop(ts){ if(!walk.running||activePane()!=='walk')return; if(ts==null)ts=performance.now();
+  if(ts-walk.lastT>=1000/walk.ups){ walk.lastT=ts; wkStep(); drawWalk(); }
+  walk.raf=requestAnimationFrame(wkLoop); }
+function wkSetRun(on){ walk.running=on; const b=document.getElementById('wk-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ walk.lastT=0; walk.raf=requestAnimationFrame(wkLoop); } else cancelAnimationFrame(walk.raf); }
+document.getElementById('wk-dim').addEventListener('click',e=>{ const b=e.target.closest('[data-d]'); if(!b)return;
+  walk.dim=parseInt(b.dataset.d,10); document.querySelectorAll('#wk-dim .btn').forEach(x=>x.classList.toggle('active',x===b)); wkReset(); drawWalk(); });
+document.getElementById('wk-run').addEventListener('click',()=>wkSetRun(!walk.running));
+document.getElementById('wk-reset').addEventListener('click',()=>{ wkReset(); drawWalk(); });
+document.getElementById('wk-num').addEventListener('input',e=>{ walk.n=parseInt(e.target.value,10); document.getElementById('wk-num-val').textContent=walk.n; wkReset(); drawWalk(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// text tab — n-gram character model
+// ═════════════════════════════════════════════════════════════════════
+const CORPUS = {
+  alice: "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, 'and what is the use of a book,' thought Alice 'without pictures or conversations?' So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her. There was nothing so very remarkable in that; nor did Alice think it so very much out of the way to hear the Rabbit say to itself, 'Oh dear! Oh dear! I shall be late!' but when the Rabbit actually took a watch out of its waistcoat-pocket, and looked at it, and then hurried on, Alice started to her feet, for it flashed across her mind that she had never before seen a rabbit with either a waistcoat-pocket, or a watch to take out of it, and burning with curiosity, she ran across the field after it, and was just in time to see it pop down a large rabbit-hole under the hedge.",
+  sonnet: "Shall I compare thee to a summer's day? Thou art more lovely and more temperate: Rough winds do shake the darling buds of May, And summer's lease hath all too short a date: Sometime too hot the eye of heaven shines, And often is his gold complexion dimm'd; And every fair from fair sometime declines, By chance or nature's changing course untrimm'd; But thy eternal summer shall not fade, Nor lose possession of that fair thou owest; Nor shall Death brag thou wander'st in his shade, When in eternal lines to time thou growest: So long as men can breathe or eyes can see, So long lives this, and this gives life to thee."
+};
+const tx = { corpus:'alice', order:3, model:null, built:false };
+function txBuild(){ const order=tx.order; const text=CORPUS[tx.corpus]; const wrapped=text+text.slice(0,order); // circular: every context has a successor
+  const m=new Map();
+  for(let i=0;i+order<wrapped.length;i++){ const ctx=wrapped.slice(i,i+order), nx=wrapped[i+order];
+    let arr=m.get(ctx); if(!arr){ arr=[]; m.set(ctx,arr); } arr.push(nx); }
+  tx.model=m; tx.built=true; }
+function txGenerate(len){ const order=tx.order, text=CORPUS[tx.corpus];
+  let ctx=text.slice(0,order), out=ctx;
+  for(let i=0;i<len;i++){ const arr=tx.model.get(ctx); if(!arr||!arr.length) break;
+    const nx=arr[(Math.random()*arr.length)|0]; out+=nx; ctx=out.slice(out.length-order); }
+  return out; }
+function txBuildAndGen(){ txBuild(); document.getElementById('tx-out').textContent=txGenerate(900);
+  document.getElementById('tx-stats').innerHTML = `
+    <div class="stat-row"><span class="k">corpus</span><span class="v">${tx.corpus}</span></div>
+    <div class="stat-row"><span class="k">corpus chars</span><span class="v">${CORPUS[tx.corpus].length}</span></div>
+    <div class="stat-row"><span class="k">order n</span><span class="v hot">${tx.order}</span></div>
+    <div class="stat-row"><span class="k">distinct contexts</span><span class="v">${tx.model.size}</span></div>`; }
+document.getElementById('tx-corpus').addEventListener('click',e=>{ const b=e.target.closest('[data-k]'); if(!b)return;
+  tx.corpus=b.dataset.k; document.querySelectorAll('#tx-corpus .btn').forEach(x=>x.classList.toggle('active',x===b)); txBuildAndGen(); });
+document.getElementById('tx-order').addEventListener('input',e=>{ tx.order=parseInt(e.target.value,10); document.getElementById('tx-order-val').textContent=tx.order; txBuildAndGen(); });
+document.getElementById('tx-gen').addEventListener('click',()=>{ if(!tx.built)txBuild(); document.getElementById('tx-out').textContent=txGenerate(900); });
+
+// ═════════════════════════════════════════════════════════════════════
+// Init
+// ═════════════════════════════════════════════════════════════════════
+buildChain(); drawChain();
+mhReset(); wkReset();
+window.addEventListener('resize',()=>{ const p=activePane();
+  if(p==='chain')drawChain(); else if(p==='metropolis'){mh.bg=null;drawMH();} else if(p==='walk')drawWalk(); });
+const initialHash=(location.hash||'').replace(/^#/,'');
+if(TAB_NAMES.includes(initialHash)&&initialHash!=='chain') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>

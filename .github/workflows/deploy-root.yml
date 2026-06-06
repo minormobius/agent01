@@ -32,6 +32,7 @@ on:
       - 'meander/**'
       - 'temperley-lieb/**'
       - 'aztec/**'
+      - 'markov/**'
       # static subsites still bundled under root (carve out as they encapsulate):
       - 'cluster/**'
       - 'density/**'
