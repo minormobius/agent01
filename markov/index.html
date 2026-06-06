@@ -154,35 +154,69 @@ footer a:hover { color: var(--accent); }
 <!-- ─────────── METROPOLIS PANE ─────────── -->
 <section class="pane" data-pane="metropolis">
   <p class="lead">
-    You want samples from a probability density but can only <em>evaluate</em> it. <strong>Metropolis</strong>
-    builds a Markov chain whose stationary distribution <em>is</em> that density: from the current point,
-    propose a random nearby step, and accept it with probability min(1, f(new)/f(old)) — always uphill,
-    sometimes down. Run it and the wandering dots fill in the true density. The step size is everything:
-    too small crawls, too big gets rejected. This is the exact machinery behind the ising/potts
-    thermostats.
+    Design a 2-D distribution as a <strong>mixture of Gaussians</strong> — click empty space to drop
+    one, drag to move it, shape it (width, height, tilt, weight). Then sample it <strong>exactly</strong>
+    (i.i.d. — the right tool for a mixture, and what you'd feed a Monte Carlo) or watch
+    <strong>Metropolis</strong> wander in and converge to the same density. Export the samples as
+    CSV/JSON, or copy a one-line call that returns them from the <code>/markov-sample</code> API.
   </p>
   <div class="grid-wrap">
     <div><canvas id="mh-canvas" width="760" height="760"></canvas></div>
     <div class="controls">
       <div class="ctrl-group">
-        <div class="btn-row">
-          <button class="btn" id="mh-run">▶ run</button>
-          <button class="btn" id="mh-reset">reset</button>
+        <span class="ctrl-label">sampler</span>
+        <div class="btn-row" id="mh-engine">
+          <button class="btn active" data-e="metropolis">metropolis</button>
+          <button class="btn" data-e="exact">exact (i.i.d.)</button>
         </div>
       </div>
       <div class="ctrl-group">
-        <span class="ctrl-label">step size · σ</span>
+        <div class="btn-row">
+          <button class="btn" id="mh-run">▶ run</button>
+          <button class="btn" id="mh-drawn">draw N</button>
+          <button class="btn" id="mh-clear">clear samples</button>
+          <button class="btn" id="mh-resetmix">reset mixture</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">target sample count · N</span>
+        <div class="ctrl-row"><input id="mh-n" type="range" min="500" max="100000" value="2000" step="500"><span class="ctrl-val" id="mh-n-val">2000</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">metropolis proposal · σ</span>
         <div class="ctrl-row"><input id="mh-sigma" type="range" min="0.05" max="2.5" value="0.6" step="0.05"><span class="ctrl-val" id="mh-sigma-val">0.60</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">selected Gaussian — click one</span>
+        <div class="ctrl-row"><span class="ctrl-label" style="min-width:2.4em">σx</span><input id="mh-sx" type="range" min="0.1" max="2.5" value="0.6" step="0.05"><span class="ctrl-val" id="mh-sx-val">0.60</span></div>
+        <div class="ctrl-row"><span class="ctrl-label" style="min-width:2.4em">σy</span><input id="mh-sy" type="range" min="0.1" max="2.5" value="0.6" step="0.05"><span class="ctrl-val" id="mh-sy-val">0.60</span></div>
+        <div class="ctrl-row"><span class="ctrl-label" style="min-width:2.4em">tilt</span><input id="mh-rot" type="range" min="-1.57" max="1.57" value="0" step="0.05"><span class="ctrl-val" id="mh-rot-val">0.00</span></div>
+        <div class="ctrl-row"><span class="ctrl-label" style="min-width:2.4em">wt</span><input id="mh-w" type="range" min="0.1" max="3" value="1" step="0.1"><span class="ctrl-val" id="mh-w-val">1.0</span></div>
+        <div class="btn-row"><button class="btn" id="mh-del">delete selected</button></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">export cleanup (metropolis) — burn-in / thin</span>
+        <div class="ctrl-row"><input id="mh-burnin" type="range" min="0" max="5000" value="500" step="100"><span class="ctrl-val" id="mh-burnin-val">500</span></div>
+        <div class="ctrl-row"><input id="mh-thin" type="range" min="1" max="50" value="10" step="1"><span class="ctrl-val" id="mh-thin-val">10</span></div>
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">speed · updates / sec</span>
         <div class="ctrl-row"><input id="mh-speed" type="range" min="1" max="30" value="20" step="1"><span class="ctrl-val" id="mh-speed-val">20</span></div>
       </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">export</span>
+        <div class="btn-row">
+          <button class="btn" id="mh-csv">⤓ CSV</button>
+          <button class="btn" id="mh-json">⤓ JSON</button>
+          <button class="btn" id="mh-api">⧉ copy API call</button>
+        </div>
+      </div>
       <div class="stats" id="mh-stats"></div>
       <div class="stat-note">
-        Faint background = the target density (a mixture of three Gaussians). Dots = accepted samples,
-        which pile up exactly where the density is high. Acceptance rate near 0.23–0.4 is the
-        sweet spot; push σ to the extremes and watch it collapse to 0 or 1, both of which sample badly.
+        Exact sampling draws each point independently — clean i.i.d. samples, no warm-up. Metropolis
+        produces a <em>correlated</em> chain, so its export applies <strong>burn-in</strong> (drop the
+        warm-up) and <strong>thinning</strong> (keep every k-th) to recover near-independent samples.
+        The API call POSTs your spec to <code>/markov-sample</code> and returns exact samples server-side.
       </div>
     </div>
   </div>
@@ -542,47 +576,109 @@ chCanvas.addEventListener('click',e=>{ const r=chCanvas.getBoundingClientRect();
     if(Math.hypot(px-x,py-y)<26){ chain.cur=i; drawChain(); break; } } });
 
 // ═════════════════════════════════════════════════════════════════════
-// metropolis tab — sample a 2D Gaussian mixture
+// metropolis tab — design a Gaussian mixture, sample exact or via Metropolis, export
 // ═════════════════════════════════════════════════════════════════════
-const MIX = [ {mx:-1.3,my:-0.6,s:0.55,w:1.0}, {mx:1.4,my:0.4,s:0.7,w:1.1}, {mx:0.0,my:1.5,s:0.45,w:0.7} ];
-function targetDensity(x,y){ let f=0; for(const g of MIX){ const dx=(x-g.mx)/g.s, dy=(y-g.my)/g.s; f+=g.w*Math.exp(-0.5*(dx*dx+dy*dy))/(g.s*g.s); } return f; }
 function gauss(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
-const mh = { x:0,y:0, sigma:0.6, samples:0, acc:0, pts:[], bg:null, running:false, raf:null, ups:20, lastT:0, range:4 };
+const mh = { comps:[], sel:-1, engine:'metropolis', x:0,y:0, sigma:0.6, chain:[], display:[], acc:0, prop:0,
+  burnin:500, thin:10, nTarget:2000, running:false, raf:null, ups:20, lastT:0, range:4, bg:null, dragging:false, moved:false };
 const mhCanvas = document.getElementById('mh-canvas'), mhCtx = mhCanvas.getContext('2d');
-function mhReset(){ mh.x=0; mh.y=0; mh.samples=0; mh.acc=0; mh.pts=[]; mh.bg=null; }
-function mhStep(){ const nx=mh.x+mh.sigma*gauss(), ny=mh.y+mh.sigma*gauss();
-  const a=targetDensity(nx,ny)/targetDensity(mh.x,mh.y);
-  if(Math.random()<a){ mh.x=nx; mh.y=ny; mh.acc++; }
-  mh.samples++; mh.pts.push([mh.x,mh.y]); if(mh.pts.length>4000) mh.pts.shift(); }
-function drawMH(){ const ctx=mhCtx,W=mhCanvas.width,H=mhCanvas.height,Rg=mh.range;
-  const px=x=>W*(x+Rg)/(2*Rg), py=y=>H*(1-(y+Rg)/(2*Rg));
-  if(!mh.bg){ mh.bg=ctx.createImageData(W,H); const d=mh.bg.data; let fmax=0;
-    const dens=new Float32Array(W*H);
+function mhDefault(){ mh.comps=[ {mx:-1.3,my:-0.6,sx:0.55,sy:0.55,rot:0,w:1.0},
+  {mx:1.4,my:0.4,sx:1.0,sy:0.45,rot:-0.5,w:1.1}, {mx:0.0,my:1.5,sx:0.45,sy:0.45,rot:0,w:0.7} ]; mh.sel=-1; }
+function compDensity(c,x,y){ const dx=x-c.mx, dy=y-c.my, co=Math.cos(c.rot), si=Math.sin(c.rot);
+  const u=co*dx+si*dy, v=-si*dx+co*dy; return (c.w/(c.sx*c.sy))*Math.exp(-0.5*(u*u/(c.sx*c.sx)+v*v/(c.sy*c.sy))); }
+function targetDensity(x,y){ let f=0; for(const c of mh.comps) f+=compDensity(c,x,y); return f; }
+function exactSample(){ const tot=mh.comps.reduce((a,c)=>a+c.w,0); let r=Math.random()*tot, ci=0;
+  for(let i=0;i<mh.comps.length;i++){ ci=i; r-=mh.comps[i].w; if(r<=0) break; }
+  const c=mh.comps[ci], a=gauss()*c.sx, b=gauss()*c.sy, co=Math.cos(c.rot), si=Math.sin(c.rot);
+  return [c.mx+co*a-si*b, c.my+si*a+co*b]; }
+function mhReset(){ mh.chain=[]; mh.display=[]; mh.acc=0; mh.prop=0; mh.x=0; mh.y=0; }
+function pushSample(p){ mh.chain.push(p); if(mh.chain.length>120000) mh.chain.shift();
+  mh.display.push(p); if(mh.display.length>3500) mh.display.shift(); }
+function mhStepMCMC(){ if(!mh.comps.length) return; const nx=mh.x+mh.sigma*gauss(), ny=mh.y+mh.sigma*gauss();
+  const fo=targetDensity(mh.x,mh.y), fn=targetDensity(nx,ny);
+  if(fo<=0 || Math.random()<fn/fo){ mh.x=nx; mh.y=ny; if(fo>0) mh.acc++; }
+  mh.prop++; pushSample([mh.x,mh.y]); }
+function mhDrawN(N){ if(!mh.comps.length) return; for(let i=0;i<N;i++) pushSample(exactSample()); }
+function exportable(){ if(mh.engine==='exact') return mh.chain;
+  const b=Math.min(mh.burnin, Math.max(0,mh.chain.length)); const t=Math.max(1,mh.thin), out=[];
+  for(let i=b;i<mh.chain.length;i+=t) out.push(mh.chain[i]); return out; }
+function mhSpec(){ return { n:mh.nTarget, format:'csv', components: mh.comps.map(c=>({
+  mx:+c.mx.toFixed(4), my:+c.my.toFixed(4), sx:+c.sx.toFixed(4), sy:+c.sy.toFixed(4), rot:+c.rot.toFixed(4), w:+c.w.toFixed(3) })) }; }
+const W2 = x=>mhCanvas.width*(x+mh.range)/(2*mh.range), H2 = y=>mhCanvas.height*(1-(y+mh.range)/(2*mh.range));
+function drawMH(){ const ctx=mhCtx,W=mhCanvas.width,H=mhCanvas.height,Rg=mh.range, scale=W/(2*Rg);
+  if(!mh.bg){ mh.bg=ctx.createImageData(W,H); const d=mh.bg.data; let fmax=1e-9; const dens=new Float32Array(W*H);
     for(let j=0;j<H;j+=2)for(let i=0;i<W;i+=2){ const x=(i/W)*2*Rg-Rg, y=(1-j/H)*2*Rg-Rg; const f=targetDensity(x,y); dens[j*W+i]=f; if(f>fmax)fmax=f; }
     const bgc=[251,248,243], acc=[106,58,160];
     for(let j=0;j<H;j+=2)for(let i=0;i<W;i+=2){ const t=Math.min(1,dens[j*W+i]/fmax*1.1); const r=bgc[0]+(acc[0]-bgc[0])*t*0.22, g=bgc[1]+(acc[1]-bgc[1])*t*0.22, b=bgc[2]+(acc[2]-bgc[2])*t*0.22;
       for(let dj=0;dj<2;dj++)for(let di=0;di<2;di++){ const k=((j+dj)*W+(i+di))*4; d[k]=r;d[k+1]=g;d[k+2]=b;d[k+3]=255; } } }
   ctx.putImageData(mh.bg,0,0);
-  ctx.fillStyle='rgba(106,58,160,0.55)';
-  for(const [x,y] of mh.pts){ ctx.fillRect(px(x)-1.1, py(y)-1.1, 2.2, 2.2); }
-  ctx.fillStyle=cssVar('--accent'); ctx.beginPath(); ctx.arc(px(mh.x),py(mh.y),4,0,7); ctx.fill();
-  const rate=mh.samples?mh.acc/mh.samples:0;
+  ctx.fillStyle='rgba(106,58,160,0.5)';
+  for(const [x,y] of mh.display){ ctx.fillRect(W2(x)-1.1, H2(y)-1.1, 2.2, 2.2); }
+  // component ellipses (1σ + 2σ), oriented; selected highlighted
+  for(let i=0;i<mh.comps.length;i++){ const c=mh.comps[i], cx=W2(c.mx), cy=H2(c.my), seld=i===mh.sel;
+    ctx.strokeStyle = seld ? cssVar('--accent') : 'rgba(40,30,50,0.5)'; ctx.lineWidth = seld?2.4:1.4;
+    for(const k of [1,2]){ ctx.beginPath(); ctx.ellipse(cx,cy, c.sx*scale*k, c.sy*scale*k, -c.rot, 0, 7); ctx.stroke(); }
+    ctx.fillStyle = seld ? cssVar('--accent') : 'rgba(40,30,50,0.6)'; ctx.beginPath(); ctx.arc(cx,cy, seld?5:3.5, 0,7); ctx.fill(); }
+  mhStats(); }
+function mhStats(){ const exp=exportable().length, raw=mh.chain.length, rate=mh.prop?mh.acc/mh.prop:0, isM=mh.engine==='metropolis';
   document.getElementById('mh-stats').innerHTML = `
-    <div class="stat-row"><span class="k">samples</span><span class="v">${mh.samples}</span></div>
-    <div class="stat-row"><span class="k">step σ</span><span class="v hot">${mh.sigma.toFixed(2)}</span></div>
-    <div class="stat-row"><span class="k">acceptance</span><span class="v hot">${(rate*100).toFixed(0)}%</span></div>
-    <div class="stat-row"><span class="k">target</span><span class="v">3-Gaussian mix</span></div>`;
+    <div class="stat-row"><span class="k">Gaussians</span><span class="v">${mh.comps.length}</span></div>
+    <div class="stat-row"><span class="k">sampler</span><span class="v hot">${mh.engine}${isM?'':' · i.i.d.'}</span></div>
+    <div class="stat-row"><span class="k">raw samples</span><span class="v">${raw.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="k">exportable</span><span class="v hot">${exp.toLocaleString()}${isM?' (after burn/thin)':''}</span></div>
+    <div class="stat-row"><span class="k">acceptance</span><span class="v">${isM?(rate*100).toFixed(0)+'%':'—'}</span></div>`;
 }
 function mhLoop(ts){ if(!mh.running||activePane()!=='metropolis')return; if(ts==null)ts=performance.now();
-  if(ts-mh.lastT>=1000/mh.ups){ mh.lastT=ts; for(let i=0;i<8;i++) mhStep(); drawMH(); }
+  if(ts-mh.lastT>=1000/mh.ups){ mh.lastT=ts;
+    if(mh.engine==='exact'){ const left=mh.nTarget-mh.chain.length; if(left>0) mhDrawN(Math.min(250,left)); else mhSetRun(false); }
+    else { for(let i=0;i<12;i++) mhStepMCMC(); }
+    drawMH(); }
   mh.raf=requestAnimationFrame(mhLoop); }
 function mhSetRun(on){ mh.running=on; const b=document.getElementById('mh-run');
   b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
   if(on){ mh.lastT=0; mh.raf=requestAnimationFrame(mhLoop); } else cancelAnimationFrame(mh.raf); }
+function mhSyncSliders(){ const c = mh.sel>=0 ? mh.comps[mh.sel] : null;
+  const set=(id,val,fix)=>{ const el=document.getElementById(id); el.value=val; document.getElementById(id+'-val').textContent=(+val).toFixed(fix); };
+  if(c){ set('mh-sx',c.sx,2); set('mh-sy',c.sy,2); set('mh-rot',c.rot,2); set('mh-w',c.w,1); } }
+function download(name,text,mime){ const blob=new Blob([text],{type:mime}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+function toCSV(pts){ let s='x,y\n'; for(const [x,y] of pts) s+=x.toFixed(6)+','+y.toFixed(6)+'\n'; return s; }
+// canvas: click empty to add, click a Gaussian to select, drag to move
+function mhWorld(e){ const r=mhCanvas.getBoundingClientRect(), Rg=mh.range;
+  const px=(e.clientX-r.left)*(mhCanvas.width/r.width), py=(e.clientY-r.top)*(mhCanvas.height/r.height);
+  return [ (px/mhCanvas.width)*2*Rg-Rg, (1-py/mhCanvas.height)*2*Rg-Rg ]; }
+mhCanvas.addEventListener('pointerdown',e=>{ const [wx,wy]=mhWorld(e); let hit=-1,bd=1e9;
+  for(let i=0;i<mh.comps.length;i++){ const c=mh.comps[i], d=Math.hypot(wx-c.mx,wy-c.my); if(d<bd&&d<0.28){bd=d;hit=i;} }
+  if(hit>=0){ mh.sel=hit; mh.dragging=true; mh.moved=false; mhCanvas.setPointerCapture(e.pointerId); }
+  else { mh.comps.push({mx:wx,my:wy,sx:0.5,sy:0.5,rot:0,w:1}); mh.sel=mh.comps.length-1; mh.bg=null; mhReset(); }
+  mhSyncSliders(); drawMH(); });
+mhCanvas.addEventListener('pointermove',e=>{ if(!mh.dragging||mh.sel<0)return; const [wx,wy]=mhWorld(e);
+  mh.comps[mh.sel].mx=wx; mh.comps[mh.sel].my=wy; mh.moved=true; mh.bg=null; drawMH(); });
+mhCanvas.addEventListener('pointerup',()=>{ if(mh.dragging&&mh.moved){ mhReset(); drawMH(); } mh.dragging=false; });
+document.getElementById('mh-engine').addEventListener('click',e=>{ const b=e.target.closest('[data-e]'); if(!b)return;
+  mh.engine=b.dataset.e; document.querySelectorAll('#mh-engine .btn').forEach(x=>x.classList.toggle('active',x===b)); mhReset(); drawMH(); });
 document.getElementById('mh-run').addEventListener('click',()=>mhSetRun(!mh.running));
-document.getElementById('mh-reset').addEventListener('click',()=>{ mhReset(); drawMH(); });
+document.getElementById('mh-drawn').addEventListener('click',()=>{ mhReset(); mhDrawN(mh.nTarget); drawMH(); });
+document.getElementById('mh-clear').addEventListener('click',()=>{ mhReset(); drawMH(); });
+document.getElementById('mh-resetmix').addEventListener('click',()=>{ mhDefault(); mh.bg=null; mhReset(); mhSyncSliders(); drawMH(); });
+document.getElementById('mh-n').addEventListener('input',e=>{ mh.nTarget=parseInt(e.target.value,10); document.getElementById('mh-n-val').textContent=mh.nTarget.toLocaleString(); });
 document.getElementById('mh-sigma').addEventListener('input',e=>{ mh.sigma=parseFloat(e.target.value); document.getElementById('mh-sigma-val').textContent=mh.sigma.toFixed(2); });
+function selEdit(field,val,fix,id){ if(mh.sel<0)return; mh.comps[mh.sel][field]=val; document.getElementById(id+'-val').textContent=val.toFixed(fix); mh.bg=null; mhReset(); drawMH(); }
+document.getElementById('mh-sx').addEventListener('input',e=>selEdit('sx',parseFloat(e.target.value),2,'mh-sx'));
+document.getElementById('mh-sy').addEventListener('input',e=>selEdit('sy',parseFloat(e.target.value),2,'mh-sy'));
+document.getElementById('mh-rot').addEventListener('input',e=>selEdit('rot',parseFloat(e.target.value),2,'mh-rot'));
+document.getElementById('mh-w').addEventListener('input',e=>selEdit('w',parseFloat(e.target.value),1,'mh-w'));
+document.getElementById('mh-del').addEventListener('click',()=>{ if(mh.sel<0||mh.comps.length<=1)return; mh.comps.splice(mh.sel,1); mh.sel=-1; mh.bg=null; mhReset(); drawMH(); });
+document.getElementById('mh-burnin').addEventListener('input',e=>{ mh.burnin=parseInt(e.target.value,10); document.getElementById('mh-burnin-val').textContent=mh.burnin; drawMH(); });
+document.getElementById('mh-thin').addEventListener('input',e=>{ mh.thin=parseInt(e.target.value,10); document.getElementById('mh-thin-val').textContent=mh.thin; drawMH(); });
 document.getElementById('mh-speed').addEventListener('input',e=>{ mh.ups=parseInt(e.target.value,10); document.getElementById('mh-speed-val').textContent=mh.ups; });
+document.getElementById('mh-csv').addEventListener('click',()=>{ const pts=exportable(); if(!pts.length)return; download('samples.csv',toCSV(pts),'text/csv'); });
+document.getElementById('mh-json').addEventListener('click',()=>{ const pts=exportable(); if(!pts.length)return;
+  download('samples.json',JSON.stringify({engine:mh.engine,n:pts.length,components:mh.comps,samples:pts.map(([x,y])=>[+x.toFixed(6),+y.toFixed(6)])}),'application/json'); });
+document.getElementById('mh-api').addEventListener('click',()=>{ const b=document.getElementById('mh-api');
+  const curl="curl -X POST https://mino.mobi/markov-sample -H 'Content-Type: application/json' -d '"+JSON.stringify(mhSpec())+"'";
+  const done=()=>{ const o=b.textContent; b.textContent='✓ copied'; setTimeout(()=>b.textContent=o,1200); };
+  if(navigator.clipboard) navigator.clipboard.writeText(curl).then(done,done); else done(); });
 
 // ═════════════════════════════════════════════════════════════════════
 // walk tab — Pólya recurrence
@@ -772,7 +868,7 @@ spCanvas.addEventListener('click',e=>{ const r=spCanvas.getBoundingClientRect();
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildChain(); drawChain();
-mhReset(); wkReset();
+mhDefault(); mhReset(); mhSyncSliders(); wkReset();
 window.addEventListener('resize',()=>{ const p=activePane();
   if(p==='chain')drawChain(); else if(p==='metropolis'){mh.bg=null;drawMH();} else if(p==='walk')drawWalk();
   else if(p==='tree')drawTree(); else if(p==='spectrum')drawSpectrum(); });
