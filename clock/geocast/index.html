@@ -49,6 +49,22 @@ h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4p
 .mother .fname{margin-top:8px;font:600 12px/1.15 ui-serif,Georgia,serif;color:var(--ink)}
 .mother .fgloss{font:10px/1.2 ui-monospace,monospace;color:var(--faint)}
 
+/* the derived shield */
+#shield .srow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:9px}
+#shield .srow.two{grid-template-columns:repeat(2,1fr)}
+#shield .srow.one{grid-template-columns:1fr;max-width:48%}
+.fc{border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.14)}
+.fc.muted{opacity:.62}
+.fc .fl{font:8px/1.1 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint);margin-bottom:4px}
+.fc .gg .gr{font-size:11px;color:var(--sand);letter-spacing:2px;line-height:1.22}
+.fc .fn{margin-top:4px;font:600 10px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.judge{border:1px solid var(--sand-dim);border-radius:9px;padding:11px 10px;text-align:center;
+  background:linear-gradient(180deg,rgba(231,196,106,.13),rgba(231,196,106,.02));margin:2px 0 12px}
+.judge .jl{font:10px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);margin-bottom:6px}
+.judge .jg .gr{font-size:16px;color:var(--sand);letter-spacing:4px;line-height:1.3}
+.judge .jn{margin-top:7px;font:700 18px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.judge .jgloss{font:11px/1.3 ui-monospace,monospace;color:var(--faint);margin-top:2px}
+
 .controls{display:flex;flex-direction:column;gap:11px}
 .ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
 .ctl label{width:70px}
@@ -96,6 +112,11 @@ footer a{color:var(--ink-soft)}
       </div>
 
       <div class="panel">
+        <div class="cap">The shield · the read</div>
+        <div class="body"><div id="shield"></div></div>
+      </div>
+
+      <div class="panel">
         <div class="cap">The casting</div>
         <div class="body">
           <div class="controls">
@@ -129,7 +150,7 @@ footer a{color:var(--ink-soft)}
 'use strict';
 import { soilProps, Field } from '../lib/soil.js';
 import { makeRenderer } from '../lib/soil-render.js';
-import { mothersFromCounts, ELEMENTS } from '../lib/geomancy.js';
+import { mothersFromCounts, shield, figurePoints } from '../lib/geomancy.js';
 
 const N = 320;
 const field = new Field(N);
@@ -184,14 +205,15 @@ function measure(){
     for(let x=L.xLi;x<=L.xRi;x++){ let d=0; for(let y=y0;y<=y1;y++){ const v=-h[y*N+x]; if(v>d) d=v; } prof[x-L.xLi]=d; }
     counts.push(countDots(prof));
   }
-  renderMothers(counts);
+  const M = mothersFromCounts(counts);
+  renderMothers(M);
+  renderShield(shield(M));
   drawOverlay(counts);
   return counts;
 }
 
 /* ── the four Mothers, live ── */
-function renderMothers(counts){
-  const M=mothersFromCounts(counts);
+function renderMothers(M){
   const roman=['I','II','III','IV'];
   document.getElementById('mothers').innerHTML = M.map((m,mi)=>{
     const rows=m.rows.map((v,ri)=>{
@@ -202,6 +224,27 @@ function renderMothers(counts){
     return `<div class="mother"><div class="mh">Mother ${roman[mi]}</div>${rows}`+
            `<div class="fname">${f?f.name:'—'}</div><div class="fgloss">${f?f.gloss:''}</div></div>`;
   }).join('');
+}
+
+/* ── the derived shield: Daughters → Nieces → Witnesses → Judge → Reconciler ── */
+function glyphRows(rows){ return rows.map(v=>`<div class="gr">${v===1?'•':'• •'}</div>`).join(''); }
+function figCell(fig, label, cls){ const f=fig.figure;
+  return `<div class="fc ${cls||''}"><div class="fl">${label}</div><div class="gg">${glyphRows(fig.rows)}</div>`+
+         `<div class="fn">${f?f.name:'—'}</div></div>`; }
+function renderShield(S){
+  const dn=['I','II','III','IV'];
+  const daughters = S.daughters.map((d,i)=>figCell(d,'Daughter '+dn[i])).join('');
+  const nieces    = S.nieces.map((n,i)=>figCell(n,'Niece '+dn[i])).join('');
+  const wit       = figCell(S.witnessRight,'Right witness') + figCell(S.witnessLeft,'Left witness');
+  const jf = S.judge.figure, jp = figurePoints(S.judge.rows);
+  const judge = `<div class="judge"><div class="jl">The Judge</div><div class="jg">${glyphRows(S.judge.rows)}</div>`+
+    `<div class="jn">${jf?jf.name:'—'}</div><div class="jgloss">${jf?jf.gloss:''} · ${jp} points</div></div>`;
+  document.getElementById('shield').innerHTML =
+    `<div class="srow">${daughters}</div>`+
+    `<div class="srow">${nieces}</div>`+
+    `<div class="srow two">${wit}</div>`+
+    judge +
+    `<div class="srow one">${figCell(S.reconciler,'Reconciler','muted')}</div>`;
 }
 
 /* ── overlay: brackets, the implied line, group numerals, live counts ── */

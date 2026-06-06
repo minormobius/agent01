@@ -60,3 +60,35 @@ export function mothersFromCounts(counts16){
   for (let i=0;i<4;i++) m.push(figureFromCounts(counts16.slice(i*4, i*4+4)));
   return m;
 }
+
+// total points in a figure (a single line = 1 point, a double = 2)
+export function figurePoints(rows){ return rows.reduce((s,v)=> s + (v===1?1:2), 0); }
+
+// adding two figures, row by row: a row is single iff exactly one of the two is single
+// (single+double=odd→single; single+single & double+double=even→double). XOR on the active bits.
+function addRows(a,b){ return a.map((v,i)=> ((v===1) ^ (b[i]===1)) ? 1 : 2); }
+const wrap = rows => ({ rows: rows.slice(), figure: lookupFigure(rows) });
+
+// the full geomantic shield from the four Mothers (each a figure with .rows).
+// Daughters are the Mothers transposed (row j of every Mother becomes Daughter j);
+// the Nieces, Witnesses, Judge and Reconciler are successive additions. The shield is
+// read right-to-left (its Arabic origin); the Judge is the verdict, and — by the
+// classical theorem — always carries an even number of points.
+export function shield(mothers){
+  const M = mothers.map(m => m.rows);
+  const D = [0,1,2,3].map(j => [M[0][j], M[1][j], M[2][j], M[3][j]]);     // Daughters = transpose
+  const N = [ addRows(M[0],M[1]), addRows(M[2],M[3]), addRows(D[0],D[1]), addRows(D[2],D[3]) ];
+  const witnessRight = addRows(N[0], N[1]);     // the right witness, from the Mothers' side
+  const witnessLeft  = addRows(N[2], N[3]);     // the left witness, from the Daughters' side
+  const judge        = addRows(witnessRight, witnessLeft);
+  const reconciler   = addRows(judge, M[0]);    // Judge + the First Mother (the optional 16th figure)
+  return {
+    mothers:   mothers.map(m => wrap(m.rows)),
+    daughters: D.map(wrap),
+    nieces:    N.map(wrap),
+    witnessRight: wrap(witnessRight),
+    witnessLeft:  wrap(witnessLeft),
+    judge:        wrap(judge),
+    reconciler:   wrap(reconciler),
+  };
+}
