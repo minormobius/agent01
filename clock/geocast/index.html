@@ -104,6 +104,8 @@ h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4p
 #reading .rfludd .la{font-style:italic;color:var(--sand);font-size:13.5px;line-height:1.5}
 #reading .rfludd .en{color:var(--ink);font-size:13.5px;line-height:1.5;margin-top:3px}
 #reading .rfludd .rsrc{font:9px/1 ui-monospace,monospace;color:var(--faint);margin-top:5px;letter-spacing:.04em}
+#reading .rfludd a.rlink{display:inline-block;color:var(--sand);text-decoration:none}
+#reading .rfludd a.rlink:hover{color:var(--clay);text-decoration:underline}
 #reading .rrule{font-size:12.5px;color:var(--faint);padding:2px 0 2px 11px;border-left:2px dotted var(--line)}
 #reading .rrule b{color:var(--ink-soft)} #reading .rrule .rsrc{font:9px/1 ui-monospace,monospace;letter-spacing:.04em}
 
@@ -200,7 +202,8 @@ import { makeRenderer } from '../lib/soil-render.js';
 import { mothersFromCounts, shield, figurePoints, readShieldPosition, perfection } from '../lib/geomancy.js';
 import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION, ASPECTS, DOUBLING, WITNESS_PAIRS } from '../lib/geomancy-meanings.js';
 const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
-const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS, perfection: PERFECTION, aspects: ASPECTS, doubling: DOUBLING, witnessPairs: WITNESS_PAIRS };
+const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS, perfection: PERFECTION, aspects: ASPECTS, doubling: DOUBLING, witnessPairs: WITNESS_PAIRS,
+  readUrl: 'https://read.mino.mobi/geomancy' };   // geocast shows English; links to the Latin on read
 let SH = null, curSelKey = 'judge', phase = 'casting';   // casting → cast (locked)
 
 const N = 320;

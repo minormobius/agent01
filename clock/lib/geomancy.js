@@ -107,6 +107,16 @@ export function houseChart(shield){
 const ORD = ['first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth','eleventh','twelfth'];
 const natWord = nat => (nat||'').split(/[ ,(]/)[0] || 'mixed';
 const esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const slugify = s => String(s||'').toLowerCase().replace(/\s+/g,'-');
+
+// a sourced block: Latin beside English with a citation by default; but when ctx.readUrl is set
+// (e.g. geocast), drop the Latin and instead LINK to read.mino.mobi at the right section/figure.
+function fluddBlock(la, en, anchor, cite, ctx){
+  if(ctx && ctx.readUrl)
+    return `<div class="rfludd"><div class="en">${esc(en)}</div>`+
+      `<a class="rsrc rlink" href="${esc(ctx.readUrl)}#${esc(anchor)}" target="_blank" rel="noopener">→ the Latin on read · ${esc(cite)}</a></div>`;
+  return `<div class="rfludd"><div class="la">${esc(la)}</div><div class="en">${esc(en)}</div><div class="rsrc">— ${esc(cite)}</div></div>`;
+}
 
 // the geomantic aspect between two houses, by how many houses lie between them (companion
 // "Geomantiæ" tract, Lib. II): conjunction 0, sextile 2, square 3, trine 4, opposition 6 apart.
@@ -124,8 +134,7 @@ function witnessPairText(shield, ctx){
   const wr = shield.witnessRight.figure, wl = shield.witnessLeft.figure;
   if(!wr || !wl || !ctx || !ctx.witnessPairs) return '';
   const p = (ctx.witnessPairs.pairs||[]).find(x => x.a===wr.name && x.b===wl.name);
-  return p ? `<div class="rfludd"><div class="la">${esc(p.la)}</div><div class="en">${esc(p.en)}</div>`+
-    `<div class="rsrc">— Fludd, Liber II, Cap. V · the Witnesses ${esc(wr.name)} &amp; ${esc(wl.name)}</div></div>` : '';
+  return p ? fluddBlock(p.la, p.en, 'witnesspairs', `Fludd, Lib. II Cap. V · ${wr.name} & ${wl.name}`, ctx) : '';
 }
 
 // ctx = { houses:[{n,name,title,matter,domain,sign,mode,la,en}],
@@ -144,13 +153,11 @@ export function readShieldPosition(shield, sel, ctx){
   // Fludd's own signification for this figure in this shield-place (houses 1–12, then
   // Right Witness = 13, Left Witness = 14, Judge = 15), Latin beside English, when we have it.
   const fluddAt = (m, idx) => (m && m.domus && m.domus[idx])
-    ? `<div class="rfludd"><div class="la">${esc(m.domus[idx].la)}</div><div class="en">${esc(m.domus[idx].en)}</div>`+
-      `<div class="rsrc">— Robert Fludd, Tractatus de Geomantia (1704)</div></div>` : '';
+    ? fluddBlock(m.domus[idx].la, m.domus[idx].en, slugify(m.la), `Fludd, Tractatus de Geomantia · ${m.la}`, ctx) : '';
   // a place's own province, sourced — for the three further places (Witnesses 13/14, Judge 15)
   const placeFludd = place => {
     const x = (ctx.houseExtras||[]).find(e=>e.place===place);
-    return x ? `<div class="rfludd"><div class="la">${esc(x.la)}</div><div class="en">${esc(x.en)}</div>`+
-      `<div class="rsrc">— Fludd, Liber III, Cap. V (the houses)</div></div>` : '';
+    return x ? fluddBlock(x.la, x.en, 'houses', 'Fludd, Lib. III Cap. V (the houses)', ctx) : '';
   };
   // L4 — Fludd's Regulæ, APPLIED (composed from his own data): the figure's strength, and the
   // concord of its mode (movable/fixed/common, read from its sign by Regula IV) with the house's.
@@ -256,7 +263,7 @@ export function perfection(shield, queryHouse, ctx){
   if(perfects){
     body += `<p class="rnat good">The question <b>perfects</b> — by ${found.map(f=>f.key).join(', ')}. The matter is brought to pass.</p>`;
     for(const f of found){ const d=defOf(f.key);
-      body += `<p class="rfig">${f.how}</p>`+ (d?`<div class="rfludd"><div class="la">${esc(d.la)}</div><div class="en">${esc(d.en)}</div><div class="rsrc">— Fludd, Liber III, Cap. VI · ${esc(d.name)}</div></div>`:''); }
+      body += `<p class="rfig">${f.how}</p>`+ (d? fluddBlock(d.la, d.en, 'perfection', 'Fludd, Lib. III Cap. VI · '+d.name, ctx) : ''); }
   } else {
     body += `<p class="rnat ill">The question does <b>not perfect</b>: by occupation, conjunction, mutation, or translation the two significators do not meet — the matter is not brought about of itself.</p>`;
   }
@@ -265,14 +272,14 @@ export function perfection(shield, queryHouse, ctx){
   if(dups.length && ctx.doubling){
     body += `<p class="rfig">The querent’s figure <b>${esc(M(qk).la)}</b> doubles into the ${dups.map(h=>ORD[h-1]).join(', ')} house${dups.length>1?'s':''}${dups.includes(T)?' — including the matter’s own house':''}.</p>`;
     for(const h of dups){ const d=(ctx.doubling.places||[]).find(p=>p.place===h);
-      if(d) body += `<div class="rfludd"><div class="la">${esc(d.la)}</div><div class="en">${esc(d.en)}</div><div class="rsrc">— Fludd, Liber II, Cap. IV (doubled figures)</div></div>`; }
+      if(d) body += fluddBlock(d.la, d.en, 'doubling', 'Fludd, Lib. II Cap. IV (doubled figures)', ctx); }
   }
   // the aspect between the two houses colours the manner of the outcome
   const asp = aspectBetween(Q, T, ctx);
   if(asp){
     const word={good:'a favourable aspect, of friendship',ill:'a hard aspect, of enmity',strong:'conjunction — the strongest regard of all'}[asp.nature]||'an aspect';
     body += `<p class="rrule">The matter’s house stands in <b>${esc(asp.name.toLowerCase())}</b> to the first — ${word}.</p>`+
-      (asp.la?`<div class="rfludd"><div class="la">${esc(asp.la)}</div><div class="en">${esc(asp.en)}</div><div class="rsrc">— Fasciculus Geomanticus, Geomantiæ tract, Lib. II (the aspects)</div></div>`:'');
+      (asp.la? fluddBlock(asp.la, asp.en, 'aspects', 'Geomantiæ tract, Lib. II (the aspects)', ctx) : '');
   } else {
     body += `<p class="rrule">The matter’s house bears <b>no aspect</b> to the first — the two scarcely regard each other.</p>`;
   }
