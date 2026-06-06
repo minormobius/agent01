@@ -109,6 +109,7 @@ footer a:hover { color: var(--accent); }
   <button class="tab active" data-tab="tiles" role="tab">tiles</button>
   <button class="tab" data-tab="thermal" role="tab">thermal</button>
   <button class="tab" data-tab="ising" role="tab">ising</button>
+  <button class="tab" data-tab="potts" role="tab">potts</button>
   <button class="tab" data-tab="torus" role="tab">torus</button>
   <button class="tab" data-tab="algebra" role="tab">algebra</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
@@ -278,14 +279,80 @@ footer a:hover { color: var(--accent); }
   </div>
 </section>
 
+<!-- ─────────── POTTS PANE ─────────── -->
+<section class="pane" data-pane="potts">
+  <p class="lead">
+    The <strong>Potts model</strong> is the Ising model with <strong>Q colours</strong> instead of
+    two: each site picks one of Q states, and neighbours that match lower the energy. <strong>Q = 2
+    is exactly Ising</strong>; Q = 3, 4, … are its colourful cousins — and the loop weight is
+    δ = √Q, so this is the very same family as the thermal tab, now dialled to any integer Q. Same
+    Swendsen–Wang thermostat: bond matching neighbours with probability 1 − e<sup>−1/T</sup>, then
+    recolour whole domains at once. Each Q has its own exact critical temperature
+    <strong>T<sub>c</sub> = 1 / ln(1 + √Q)</strong>. Cool through it and watch Q-coloured continents
+    freeze out. <em>For Q ≤ 4 the freeze is continuous; for Q ≥ 5 it turns abrupt (first-order) —
+    crank Q up, sit near T<sub>c</sub>, and you can catch ordered and disordered regions coexisting.</em>
+    (Torus boundary.)
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="po-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">colours · Q  (Q = 2 is Ising)</span>
+        <div class="ctrl-row"><input id="po-q" type="range" min="2" max="10" value="3" step="1"><span class="ctrl-val" id="po-q-val">3</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">temperature · T</span>
+        <div class="ctrl-row"><input id="po-temp" type="range" min="0.20" max="2.50" value="0.995" step="0.005"><span class="ctrl-val" id="po-temp-val">0.995</span></div>
+        <div class="btn-row" id="po-presets">
+          <button class="btn" data-rel="1.6">hot</button>
+          <button class="btn active" data-rel="1">T<sub>c</sub></button>
+          <button class="btn" data-rel="0.7">cold</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="po-run">▶ run</button>
+          <button class="btn" id="po-anneal">anneal</button>
+          <button class="btn" id="po-sweep">+1 sweep</button>
+          <button class="btn" id="po-rand">randomise</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">view</span>
+        <div class="btn-row" id="po-mode">
+          <button class="btn active" data-m="loops">domain loops</button>
+          <button class="btn" data-m="colour">Q colours</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="po-size" type="range" min="16" max="96" value="48" step="8"><span class="ctrl-val" id="po-size-val">48</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="po-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="po-speed-val">3</span></div>
+      </div>
+      <div class="stats" id="po-stats"></div>
+      <div class="stat-note">
+        Order parameter is the <strong>Potts magnetisation</strong> m = (Q·f<sub>max</sub> − 1)/(Q − 1),
+        where f<sub>max</sub> is the fraction in the most common colour: m ≈ 0 disordered, → 1 frozen.
+        The domain-loops view draws the walls between unlike colours in a fixed accent — a Q-colour
+        Peierls picture, calm by default at ≤ 3 updates/sec.
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ─────────── TORUS PANE ─────────── -->
 <section class="pane" data-pane="torus">
   <p class="lead">
-    The exact same tiling from the <strong>tiles</strong> tab, projected onto a real torus
-    (the gluing the geometry pack's <a href="https://torus.mino.mobi/">toroidal games</a>
-    use). Contractible loops sit in a patch; <strong>non-contractible loops wind through the
-    hole or around the tube</strong> and can't be shrunk away — that winding is the whole
-    point of the affine algebra. Drag to rotate.
+    The tiling projected onto a real torus (the gluing the geometry pack's
+    <a href="https://torus.mino.mobi/">toroidal games</a> use) — and now you can <strong>run the
+    loop-gas thermostat right here on the donut</strong>. Hit run and the same δ-weighted
+    Metropolis dynamics from the thermal tab reshuffle the loops live in 3D. Contractible loops sit
+    in a patch; <strong>non-contractible loops wind through the hole or around the tube</strong> and
+    can't be shrunk away. Pull δ <em>down</em> and watch winding loops appear and thread the donut —
+    that winding is the whole point of the affine algebra. Drag to rotate.
   </p>
   <div class="grid-wrap">
     <div><canvas id="torus-canvas" class="sq" width="760" height="760"></canvas></div>
@@ -293,19 +360,29 @@ footer a:hover { color: var(--accent); }
       <div class="ctrl-group">
         <div class="btn-row">
           <button class="btn active" id="spin-btn">spin</button>
+          <button class="btn" id="torus-run">▶ run</button>
+          <button class="btn" id="torus-rand">randomise</button>
           <button class="btn" id="torus-sync">↻ from tiles</button>
         </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">loop fugacity · δ  (Q = δ²)</span>
+        <div class="ctrl-row"><input id="torus-delta" type="range" min="0.40" max="2.40" value="1.41" step="0.01"><span class="ctrl-val" id="torus-delta-val">1.41</span></div>
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">tube radius · r/R</span>
         <div class="ctrl-row"><input id="rr-slider" type="range" min="0.2" max="0.6" value="0.42" step="0.01"><span class="ctrl-val" id="rr-val">0.42</span></div>
       </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="torus-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="torus-speed-val">3</span></div>
+      </div>
       <div class="stats" id="torus-stats"></div>
       <div class="stat-note">
-        Edit on the <strong>tiles</strong> tab (in torus mode), then come here — the donut
-        mirrors it. A loop that circles the hole is winding in one direction; one that
-        circles the tube winds in the other. The pair of winding numbers is the loop's
-        <em>homology class</em> on the torus.
+        Run the thermostat here, or edit on the <strong>tiles</strong> tab (torus mode) and hit
+        <strong>↻ from tiles</strong> to mirror it. A loop that circles the hole is winding in one
+        direction; one that circles the tube winds in the other. The pair of winding numbers is the
+        loop's <em>homology class</em> on the torus.
       </div>
     </div>
   </div>
@@ -478,7 +555,7 @@ the same donut, now carrying loops instead of a maze.</p>
 // ═════════════════════════════════════════════════════════════════════
 const tabs = document.querySelectorAll('.tab');
 const panes = document.querySelectorAll('.pane');
-const TAB_NAMES = ['tiles', 'thermal', 'ising', 'torus', 'algebra', 'docs'];
+const TAB_NAMES = ['tiles', 'thermal', 'ising', 'potts', 'torus', 'algebra', 'docs'];
 function showTab(name) {
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
@@ -486,7 +563,8 @@ function showTab(name) {
   if (name === 'tiles') drawTiles();
   if (name === 'thermal') { if(!thermal.states.length) thRandomize(); drawThermal(); if(thermal.running) thermal.raf=requestAnimationFrame(thLoop); }
   if (name === 'ising') { if(!ising.spins){ isInit(); labelStats(fkClusters()); } drawIsing(); if(ising.running) ising.raf=requestAnimationFrame(isLoop); }
-  if (name === 'torus') { syncTorusFromTiles(); startSpin(); }
+  if (name === 'potts') { if(!potts.spins){ poInit(); } drawPotts(); if(potts.running) potts.raf=requestAnimationFrame(poLoop); }
+  if (name === 'torus') { if(!donut.states){ syncTorusFromTiles(); } else { drawTorus(); updateTorusStats(); } startSpin(); }
   if (name === 'algebra') drawAlg();
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
@@ -658,28 +736,40 @@ document.getElementById('delta-slider').addEventListener('input',e=>{ tiles.delt
 // ═════════════════════════════════════════════════════════════════════
 const torusCanvas = document.getElementById('torus-canvas');
 const dCtx = torusCanvas.getContext('2d');
-const donut = { ay:0.6, ax:0.5, spin:true, rr:0.42, raf:null };
+const donut = { ay:0.6, ax:0.5, spin:true, rr:0.42, raf:null,
+  states:null, L:0, M:0, delta:Math.SQRT2, loops:0, running:false, ups:3, lastT:0, sweeps:0, _last:0 };
+function donutClosed(states){ return trace(states, donut.L, donut.M, 'torus').filter(c=>c.closed).length; }
+function donutStep(){ const n=donut.L*donut.M, i=(Math.random()*n)|0;
+  donut.states[i]^=1; const after=donutClosed(donut.states); const d=after-donut.loops;
+  if(Math.random() < Math.pow(donut.delta, d)) donut.loops=after; else donut.states[i]^=1; }
+function torusRandomize(){ if(!donut.L){ donut.L=tiles.L; donut.M=tiles.M; } const n=donut.L*donut.M;
+  donut.states=new Array(n); for(let i=0;i<n;i++) donut.states[i]=Math.random()<0.5?0:1;
+  donut.loops=donutClosed(donut.states); donut.sweeps=0; drawTorus(); updateTorusStats(); }
+function torusSetRun(on){ donut.running=on; const b=document.getElementById('torus-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on); if(on){ donut.lastT=0; if(!donut.states) torusRandomize(); startSpin(); } }
 function portGrid(x,y,d){ // grid coords of an edge-midpoint
   if (d===0) return [x+0.5, y];
   if (d===1) return [x+1,   y+0.5];
   if (d===2) return [x+0.5, y+1];
   return [x, y+0.5];
 }
-function syncTorusFromTiles(){ drawTorus(); updateTorusStats(); }
-function updateTorusStats(){
-  const comps = trace(tiles.states, tiles.L, tiles.M, 'torus');
+function syncTorusFromTiles(){ donut.L=tiles.L; donut.M=tiles.M; donut.states=tiles.states.slice();
+  donut.loops=donutClosed(donut.states); donut.sweeps=0; drawTorus(); updateTorusStats(); }
+function updateTorusStats(){ if(!donut.states) return;
+  const comps = trace(donut.states, donut.L, donut.M, 'torus');
   const wind = comps.filter(c=>c.wx!==0||c.wy!==0);
   document.getElementById('torus-stats').innerHTML = `
-    <div class="stat-row"><span class="k">grid (glued)</span><span class="v">${tiles.L} × ${tiles.M}</span></div>
+    <div class="stat-row"><span class="k">grid (glued)</span><span class="v">${donut.L} × ${donut.M}</span></div>
     <div class="stat-row"><span class="k">loops</span><span class="v hot">${comps.length}</span></div>
     <div class="stat-row"><span class="k">winding loops</span><span class="v win">${wind.length}</span></div>
-    <div class="stat-row"><span class="k">tiles-tab mode</span><span class="v">${tiles.mode}</span></div>`;
+    <div class="stat-row"><span class="k">δ · sweeps</span><span class="v">${donut.delta.toFixed(2)} · ${donut.sweeps.toFixed(1)}</span></div>`;
 }
 function drawTorus(){
   try {
     const ctx=dCtx, W=torusCanvas.width, H=torusCanvas.height;
     ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
-    const L=tiles.L, M=tiles.M;
+    if(!donut.states) return;
+    const L=donut.L, M=donut.M;
     const R=1.0, r=donut.rr, scale=Math.min(W,H)*0.34, cx=W/2, cy=H/2;
     const ca=Math.cos(donut.ay), sa=Math.sin(donut.ay), cb=Math.cos(donut.ax), sb=Math.sin(donut.ax);
     function proj(gx,gy){
@@ -698,7 +788,7 @@ function drawTorus(){
       ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.moveTo(a.sx,a.sy); ctx.lineTo(c.sx,c.sy); ctx.stroke();
     }}
     // loops as 3D polylines, painter-sorted by mean depth
-    const comps = trace(tiles.states, L, M, 'torus');
+    const comps = trace(donut.states, L, M, 'torus');
     const segs=[];
     comps.forEach((comp,ci)=>{
       const wind = comp.wx!==0||comp.wy!==0;
@@ -716,17 +806,28 @@ function drawTorus(){
     ctx.globalAlpha=1;
   } catch(err){ /* donut is non-essential — never let it break the page */ }
 }
-function startSpin(){ cancelAnimationFrame(donut.raf); let last=performance.now();
-  const loop=(t)=>{ const dt=(t-last)/1000; last=t;
-    if (donut.spin && document.querySelector('.pane.active')?.dataset.pane==='torus'){ donut.ay+=dt*0.5; drawTorus(); }
-    donut.raf=requestAnimationFrame(loop); };
-  donut.raf=requestAnimationFrame(loop); }
+function startSpin(){ if(donut.raf) return; donut._last=performance.now(); donut.raf=requestAnimationFrame(torusLoop); }
+function torusLoop(t){
+  const active = document.querySelector('.pane.active')?.dataset.pane==='torus';
+  const dt=(t-(donut._last||t))/1000; donut._last=t;
+  if(active){ let need=false;
+    if(donut.spin){ donut.ay+=dt*0.5; need=true; }
+    if(donut.running && donut.states && t-donut.lastT>=1000/donut.ups){ donut.lastT=t;   // throttle
+      const n=donut.L*donut.M, steps=Math.max(1,n>>1);                                    // ~half a sweep/update
+      for(let s=0;s<steps;s++) donutStep(); donut.sweeps+=steps/n; updateTorusStats(); need=true; }
+    if(need) drawTorus();
+  }
+  donut.raf=requestAnimationFrame(torusLoop); }
 let dragging=false, lastXY=null;
 torusCanvas.addEventListener('pointerdown',e=>{ dragging=true; donut.spin=false; document.getElementById('spin-btn').classList.remove('active'); lastXY=[e.clientX,e.clientY]; torusCanvas.setPointerCapture(e.pointerId); });
 torusCanvas.addEventListener('pointermove',e=>{ if(!dragging)return; donut.ay+=(e.clientX-lastXY[0])*0.01; donut.ax+=(e.clientY-lastXY[1])*0.01; lastXY=[e.clientX,e.clientY]; drawTorus(); });
 torusCanvas.addEventListener('pointerup',()=>{ dragging=false; });
 document.getElementById('spin-btn').addEventListener('click',e=>{ donut.spin=!donut.spin; e.target.classList.toggle('active',donut.spin); if(donut.spin) startSpin(); });
 document.getElementById('torus-sync').addEventListener('click',syncTorusFromTiles);
+document.getElementById('torus-run').addEventListener('click',()=>torusSetRun(!donut.running));
+document.getElementById('torus-rand').addEventListener('click',torusRandomize);
+document.getElementById('torus-delta').addEventListener('input',e=>{ donut.delta=parseFloat(e.target.value); document.getElementById('torus-delta-val').textContent=donut.delta.toFixed(2); updateTorusStats(); });
+document.getElementById('torus-speed').addEventListener('input',e=>{ donut.ups=parseInt(e.target.value,10); document.getElementById('torus-speed-val').textContent=donut.ups; });
 document.getElementById('rr-slider').addEventListener('input',e=>{ donut.rr=parseFloat(e.target.value); document.getElementById('rr-val').textContent=donut.rr.toFixed(2); drawTorus(); });
 
 // ═════════════════════════════════════════════════════════════════════
@@ -999,13 +1100,109 @@ document.getElementById('is-size').addEventListener('input',e=>{ ising.L=parseIn
 document.getElementById('is-speed').addEventListener('input',e=>{ ising.ups=parseInt(e.target.value,10); document.getElementById('is-speed-val').textContent=ising.ups; });
 
 // ═════════════════════════════════════════════════════════════════════
+// Potts tab — Q-colour generalisation of Ising via Swendsen–Wang
+//   Q=2 is Ising; loop weight δ=√Q. Exact Tc(Q) = 1/ln(1+√Q).
+// ═════════════════════════════════════════════════════════════════════
+function Tcq(Q){ return 1/Math.log(1+Math.sqrt(Q)); }
+const potts = { L:48, Q:3, T:Tcq(3), spins:null, mode:'loops', running:false, anneal:false, annDir:-1,
+  raf:null, sweeps:0, ndom:0, big:0, m:0, energy:0, ups:3, lastT:0 };
+const poCanvas = document.getElementById('po-canvas'), poCtx = poCanvas.getContext('2d');
+const POC = LOOPC;     // 10-colour palette for Q states
+function poInit(){ const N=potts.L*potts.L; potts.spins=new Uint8Array(N);
+  for(let i=0;i<N;i++) potts.spins[i]=(Math.random()*potts.Q)|0; potts.sweeps=0; }
+function poStep(){ const L=potts.L,N=L*L,s=potts.spins,Q=potts.Q,p=1-Math.exp(-1/potts.T);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  const col=new Map(); for(let i=0;i<N;i++){ const r=isFind(par,i); let c=col.get(r); if(c===undefined){ c=(Math.random()*Q)|0; col.set(r,c); } s[i]=c; }
+  potts.sweeps++; }
+function poMeasure(){ const L=potts.L,N=L*L,s=potts.spins,Q=potts.Q;
+  const cnt=new Array(Q).fill(0); for(let i=0;i<N;i++) cnt[s[i]]++;
+  let fmax=0; for(const c of cnt) if(c>fmax) fmax=c; fmax/=N; potts.m=(Q*fmax-1)/(Q-1);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i; let e=0;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]){ e++; const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]){ e++; const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  potts.energy=-e/N;
+  const sz=new Map(); for(let i=0;i<N;i++){ const r=isFind(par,i); sz.set(r,(sz.get(r)||0)+1); }
+  let big=0; for(const v of sz.values()) if(v>big) big=v; potts.ndom=sz.size; potts.big=big; }
+function poGeom(){ const W=poCanvas.width,H=poCanvas.height,pad=14;
+  const cs=Math.floor(Math.min((W-2*pad)/potts.L,(H-2*pad)/potts.L));
+  return { W,H,cs, ox:Math.round((W-cs*potts.L)/2), oy:Math.round((H-cs*potts.L)/2) }; }
+function drawPotts(){ const ctx=poCtx,g=poGeom(),L=potts.L,s=potts.spins; poMeasure();
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  if(potts.mode==='colour'){
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=POC[s[y*L+x]%POC.length]; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+  } else {
+    ctx.globalAlpha=0.14;
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=POC[s[y*L+x]%POC.length]; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=cssVar('--accent'); ctx.lineCap='round'; ctx.lineWidth=Math.max(1,g.cs*0.16); ctx.beginPath();
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+      if(s[i]!==s[y*L+((x+1)%L)]){ const X=g.ox+(x+1)*g.cs; ctx.moveTo(X,g.oy+y*g.cs); ctx.lineTo(X,g.oy+(y+1)*g.cs); }
+      if(s[i]!==s[((y+1)%L)*L+x]){ const Y=g.oy+(y+1)*g.cs; ctx.moveTo(g.ox+x*g.cs,Y); ctx.lineTo(g.ox+(x+1)*g.cs,Y); }
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
+  poStats(); }
+function poStats(){ const T=potts.T,Q=potts.Q,tc=Tcq(Q),N=potts.L*potts.L;
+  let phase,cls; if(T>tc*1.08){ phase='disordered'; cls=''; }
+  else if(T<tc*0.92){ phase='ordered'; cls='win'; } else { phase='≈ critical'; cls='hot'; }
+  document.getElementById('po-stats').innerHTML = `
+    <div class="stat-row"><span class="k">Q  ·  δ=√Q</span><span class="v hot">${Q} · ${Math.sqrt(Q).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">T  ·  β</span><span class="v">${T.toFixed(3)} · ${(1/T).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">Tc(Q) · T/Tc</span><span class="v hot">${tc.toFixed(3)} · ${(T/tc).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">phase</span><span class="v ${cls}">${phase}${Q>=5?' · 1st-order':''}</span></div>
+    <div class="stat-row"><span class="k">magnetisation m</span><span class="v hot">${potts.m.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">energy / site</span><span class="v">${potts.energy.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">biggest domain</span><span class="v win">${(100*potts.big/N).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="k">domains · sweeps</span><span class="v">${potts.ndom} · ${potts.sweeps}</span></div>`;
+}
+function poActive(){ return document.querySelector('.pane.active')?.dataset.pane==='potts'; }
+function poLoop(ts){ if(!potts.running||!poActive()) return;
+  if(ts==null) ts=performance.now();
+  if(ts - potts.lastT >= 1000/potts.ups){ potts.lastT=ts;
+    if(potts.anneal){ const tc=Tcq(potts.Q); potts.T += potts.annDir*0.02*tc;
+      if(potts.T<=0.5*tc){ potts.T=0.5*tc; potts.annDir=1; } if(potts.T>=1.7*tc){ potts.T=1.7*tc; potts.annDir=-1; }
+      poSetTemp(potts.T,true); }
+    poStep(); drawPotts(); }
+  potts.raf=requestAnimationFrame(poLoop); }
+function poSetRun(on){ potts.running=on; const b=document.getElementById('po-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ potts.lastT=0; potts.raf=requestAnimationFrame(poLoop); } else cancelAnimationFrame(potts.raf); }
+const poTemp=document.getElementById('po-temp'), poTempVal=document.getElementById('po-temp-val');
+function poSetTemp(v,fromLoop){ potts.T=v; poTemp.value=v; poTempVal.textContent=v.toFixed(3);
+  const tc=Tcq(potts.Q);
+  document.querySelectorAll('#po-presets .btn').forEach(b=>b.classList.toggle('active',Math.abs(parseFloat(b.dataset.rel)*tc - v)<0.01));
+  if(!fromLoop && !potts.running) drawPotts(); }
+function poSetQ(Q){ potts.Q=Q; document.getElementById('po-q-val').textContent=Q; poInit(); poSetTemp(Tcq(Q),false); drawPotts(); }
+poTemp.addEventListener('input',e=>poSetTemp(parseFloat(e.target.value),false));
+document.getElementById('po-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-rel]'); if(b) poSetTemp(parseFloat(b.dataset.rel)*Tcq(potts.Q),false); });
+document.getElementById('po-q').addEventListener('input',e=>poSetQ(parseInt(e.target.value,10)));
+document.getElementById('po-run').addEventListener('click',()=>poSetRun(!potts.running));
+document.getElementById('po-anneal').addEventListener('click',()=>{ potts.anneal=!potts.anneal;
+  document.getElementById('po-anneal').classList.toggle('active',potts.anneal); if(potts.anneal && !potts.running) poSetRun(true); });
+document.getElementById('po-sweep').addEventListener('click',()=>{ poStep(); drawPotts(); });
+document.getElementById('po-rand').addEventListener('click',()=>{ poInit(); drawPotts(); });
+document.getElementById('po-mode').addEventListener('click',e=>{ const b=e.target.closest('[data-m]'); if(!b) return;
+  potts.mode=b.dataset.m; document.querySelectorAll('#po-mode .btn').forEach(x=>x.classList.toggle('active',x===b)); drawPotts(); });
+document.getElementById('po-size').addEventListener('input',e=>{ potts.L=parseInt(e.target.value,10);
+  document.getElementById('po-size-val').textContent=potts.L; poInit(); drawPotts(); });
+document.getElementById('po-speed').addEventListener('input',e=>{ potts.ups=parseInt(e.target.value,10); document.getElementById('po-speed-val').textContent=potts.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
 // Init
 // ═════════════════════════════════════════════════════════════════════
 buildGenRow();
 drawTiles();
 drawAlg();
 window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
-  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
+  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='potts')drawPotts(); else if(p==='torus')drawTorus(); else if(p==='algebra')drawAlg(); });
 const initialHash=(location.hash||'').replace(/^#/,'');
 if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
 </script>
