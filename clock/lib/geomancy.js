@@ -108,6 +108,15 @@ const ORD = ['first','second','third','fourth','fifth','sixth','seventh','eighth
 const natWord = nat => (nat||'').split(/[ ,(]/)[0] || 'mixed';
 const esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
+// the geomantic aspect between two houses, by how many houses lie between them (companion
+// "Geomantiæ" tract, Lib. II): conjunction 0, sextile 2, square 3, trine 4, opposition 6 apart.
+const ASPECT_GAP = { 0:'conjunction', 2:'sextile', 3:'square', 4:'trine', 6:'opposition' };
+function aspectBetween(h1, h2, ctx){
+  const diff = ((h2-h1)%12+12)%12, m = Math.min(diff, 12-diff), key = ASPECT_GAP[m];
+  if(!key) return null;
+  return (((ctx&&ctx.aspects&&ctx.aspects.list)||[]).find(x=>x.key===key)) || { key, name:key, nature:'mixed' };
+}
+
 // ctx = { houses:[{n,name,title,matter,domain,sign,mode,la,en}],
 //         meanings:{ key:{la,en,planet,nature,sig,mode,strength,domus} },
 //         houseExtras:[{place:13|14|15,name,la,en}] }  // Witnesses + Judge, sourced
@@ -238,6 +247,15 @@ export function perfection(shield, queryHouse, ctx){
       body += `<p class="rfig">${f.how}</p>`+ (d?`<div class="rfludd"><div class="la">${esc(d.la)}</div><div class="en">${esc(d.en)}</div><div class="rsrc">— Fludd, Liber III, Cap. VI · ${esc(d.name)}</div></div>`:''); }
   } else {
     body += `<p class="rnat ill">The question does <b>not perfect</b>: by occupation, conjunction, mutation, or translation the two significators do not meet — the matter is not brought about of itself.</p>`;
+  }
+  // the aspect between the two houses colours the manner of the outcome
+  const asp = aspectBetween(Q, T, ctx);
+  if(asp){
+    const word={good:'a favourable aspect, of friendship',ill:'a hard aspect, of enmity',strong:'conjunction — the strongest regard of all'}[asp.nature]||'an aspect';
+    body += `<p class="rrule">The matter’s house stands in <b>${esc(asp.name.toLowerCase())}</b> to the first — ${word}.</p>`+
+      (asp.la?`<div class="rfludd"><div class="la">${esc(asp.la)}</div><div class="en">${esc(asp.en)}</div><div class="rsrc">— Fasciculus Geomanticus, Geomantiæ tract, Lib. II (the aspects)</div></div>`:'');
+  } else {
+    body += `<p class="rrule">The matter’s house bears <b>no aspect</b> to the first — the two scarcely regard each other.</p>`;
   }
   if(judge) body += `<p class="rjudge">The Judge is <b>${esc(judge.la)}</b> (${esc(judge.nature)}); the manner of the end ${({good:'inclines to the good',ill:'inclines to the ill',mixed:'is mixed, turning on its company',neutral:'rests passive'}[natWord(judge.nature)]||'is mixed')}.</p>`;
   return { title:'Perfection — does the matter come to pass?', perfects, body };

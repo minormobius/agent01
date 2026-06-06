@@ -102,6 +102,7 @@ footer a{color:var(--ink2)}
   <div id="source"></div>
   <div id="houses"></div>
   <div id="perfection"></div>
+  <div id="aspects"></div>
   <div id="roadmap"></div>
   <div id="method"></div>
   <footer>
@@ -188,6 +189,14 @@ if(PF) document.getElementById('perfection').innerHTML =
   PF.modes.map(m=>`<h3 class="lh">${m.name}</h3><div class="par"><div class="la">${m.la}</div><div class="en">${m.en}</div></div>`).join('')+
   `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${PF.source}</p></div>`;
 
+// the geomantic aspects (companion tract) — how two houses regard each other
+const ASP = (GEOMANCY.fludd && GEOMANCY.fludd.aspects) || null;
+if(ASP) document.getElementById('aspects').innerHTML =
+  `<div class="method"><h2>The aspects — how the houses regard each other</h2>`+
+  `<p>On top of perfection, the <em>aspect</em> between the querent’s house and the matter’s — measured by how many houses lie between them — colours the manner of the outcome: friendly, hostile, or none. From a companion tract in the same volume (not Fludd’s own), which is also the one that catches his <em>Puer/Puella</em> slip.</p>`+
+  ASP.list.map(a=>`<h3 class="lh">${a.name} — ${a.housesApart===0?'same house':a.housesApart+' houses apart'} · ${a.nature}</h3><div class="par"><div class="la">${a.la}</div><div class="en">${a.en}</div></div>`).join('')+
+  `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${ASP.source}</p></div>`;
+
 // roadmap — what's translated, and what's coming
 const doneFigs = F.filter(f=>f.domus);
 document.getElementById('roadmap').innerHTML =
@@ -199,7 +208,7 @@ document.getElementById('roadmap').innerHTML =
       :` done (${doneFigs.map(f=>f.la).join(', ')}); the rest to come, tranche by tranche.`)+`</li>`+
   `<li class="done"><b>House descriptions</b> — Fludd’s account of all each house governs (Liber III, Cap. V), the twelve houses and the three further places (Witnesses + Judge), Latin beside English.</li>`+
   `<li class="done"><b>Perfection</b> — the four connections that answer a question (Liber III, Cap. VI: occupation, conjunction, mutation, translation), applied live in geocast: ask, and the chart judges.</li>`+
-  `<li class="todo"><b>Aspects</b> — the geomantic sextile, square and trine between houses (a later book), to refine the manner of the outcome.</li>`+
+  `<li class="done"><b>Aspects</b> — the geomantic conjunction, sextile, square, trine and opposition between houses (a companion tract, Lib. II), now refining the manner of every judgment in geocast.</li>`+
   `<li class="todo"><b>Doubled figures &amp; pairs</b> — Cap. IV (a figure repeated) and the figure-with-figure tables — two more sourced combinatorial layers.</li>`+
   `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
   `</ul></div>`;

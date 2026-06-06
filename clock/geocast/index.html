@@ -190,9 +190,9 @@ footer a{color:var(--ink-soft)}
 import { soilProps, Field } from '../lib/soil.js';
 import { makeRenderer } from '../lib/soil-render.js';
 import { mothersFromCounts, shield, figurePoints, readShieldPosition, perfection } from '../lib/geomancy.js';
-import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION } from '../lib/geomancy-meanings.js';
+import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION, ASPECTS } from '../lib/geomancy-meanings.js';
 const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
-const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS, perfection: PERFECTION };
+const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS, perfection: PERFECTION, aspects: ASPECTS };
 let SH = null, curSelKey = 'judge';
 
 const N = 320;

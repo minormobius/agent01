@@ -98,6 +98,27 @@ export const GEOMANCY = {
         { key:'translation', name:'Translation', la:'In figuris denique accidit Translatio, videlicet quando figura portat secum dispositionem significatoris. Exempli gratia: petit aliquis an habiturus sit cum persona aliqua nuptias, & Lætitia in secunda domo transfertur in eam quæ est ab illa septimo loco posita, ac prima se duplicat in quinta, quibus denotatur amicitia. Atque multa hujusmodi in hac arte accidunt ad incrementum & detrimentum exaltationis.', en:'Translation, lastly, happens when a third figure carries the disposition of a significator from one to the other. E.g., one asks whether he will have marriage with a certain person, and Lætitia in the second house is carried into the house seventh from it, while the first house’s figure doubles in the fifth — by which friendship is denoted. And many such things happen in this art, to the increase or the lessening of the outcome. (A third figure carries between the two: the matter is brought about by a go-between.)' },
       ],
     },
+
+    // The geomantic ASPECTS — how the querent's house (1) and the matter's house regard each
+    // other, by how many houses lie between them. From a COMPANION tract in the same Fasciculus
+    // (the "Geomantiæ" tract, Liber II, pp. 255–256) — the very tract that flags Fludd's
+    // Puer/Puella transposition — not from Fludd's own Tractatus. They colour the manner of the
+    // outcome on top of perfection.
+    aspects: {
+      source:'Fasciculus Geomanticus (1704), the “Geomantiæ” tract, Liber II — the geomantic aspects, pp. 255–256 (a companion to Fludd, not his own Tractatus).',
+      list:[
+        { key:'conjunction', name:'Conjunction', housesApart:0, nature:'strong',
+          la:'Conjunctio, quum duæ figuræ in eadem domo sunt; vis ejus omnium validissima.', en:'Conjunction — the two in one house; its force the strongest of all.' },
+        { key:'sextile', name:'Sextile', housesApart:2, nature:'good',
+          la:'Sextilis aspectus Geomanticus fit, quum inter duas figuras una media interjacet, ut schemate 1 & 3, inter quas est 2.', en:'The geomantic sextile: when one figure lies between the two (as houses 1 and 3, with 2 between) — a friendly aspect.' },
+        { key:'square', name:'Square', housesApart:3, nature:'ill',
+          la:'Geomanticus quartilis est, quum inter duas figuras duæ exactè intersunt domus, ut 1 & 4, inter quas 2 & 3. Est aspectus occultæ inimicitiæ, mediocriter malus.', en:'The geomantic square (quartile): when two houses lie exactly between the figures (as 1 and 4, with 2 and 3 between). It is the aspect of hidden enmity, middlingly ill.' },
+        { key:'trine', name:'Trine', housesApart:4, nature:'good',
+          la:'Trinus aut Trigonus Geomanticus fit, quum inter duas figuras tres integræ interjacent figuræ aut domus, ut 1 cum 5 aut 9. Est aspectus bonus simpliciter, seu perfectæ amicitiæ.', en:'The geomantic trine (trigon): when three whole houses lie between the figures (as house 1 with the 5th or the 9th). It is an aspect simply good, of perfect friendship.' },
+        { key:'opposition', name:'Opposition', housesApart:6, nature:'ill',
+          la:'Oppositio manifestæ inimicitiæ aspectus est; Geomanticus, quum figuræ duæ sunt in domibus sibi oppositis, ut 1 & 7. Est aspectus omnium pessimus.', en:'Opposition — the aspect of open enmity: when two figures stand in opposite houses (as 1 and 7). It is the worst aspect of all.' },
+      ],
+    },
   },
 
   // rows: [Fire, Air, Water, Earth]; 1 = single (odd), 2 = double (even).
@@ -148,7 +169,7 @@ export const GEOMANCY = {
       ] },
     { la:'Puer', en:'The Boy', rows:[1,1,2,1], element:'Water', nature:'good', zodiac:'Gemini', planet:'Venus (direct)',
       sig:'The young soldier — heat, drive, boldness, the rush to act; fierce in war, contest and love.',
-      note:'CRUX: this edition counts Puer among the wholly fortunate and gives it Venus (direct) — the reverse of the common attribution (Mars, and ill). Almost certainly a Puer/Puella transposition in this printing; rendered as printed, flagged. Fludd: of Water, the North; Gemini. From Cap. III (pp. 59–61); uniquely, the print gives all SIXTEEN places (through the Reconciler) — and they read light and lucky throughout, which fits the favourable classing here.',
+      note:'CRUX: this edition counts Puer among the wholly fortunate and gives it Venus (direct) — the reverse of the common attribution (Mars, and ill). Almost certainly a Puer/Puella transposition; rendered as printed, flagged. Independent confirmation in the same volume: the companion Geomantiæ tract (p. 239) warns that “apud Robertum [Fludd]… puellam pro puero semper haberi, ut & apud Gebrum… qui error venit maximè notandus” — in Fludd (as in Geber) Puella is always taken for Puer and Puer for Puella, an error most to be noted. Fludd: of Water, the North; Gemini. From Cap. III (pp. 59–61); uniquely, the print gives all SIXTEEN places (through the Reconciler) — light and lucky throughout, fitting the favourable classing here.',
       physiognomy:{ la:'Quando est hæc figura in prima domo, significat hominem juvenem, pulchrum & boni vultus, sine barba, luxuriosum, instrumenta & Musicam amantem, Monachos, Hypocritas & scholares.', en:'When this figure is in the first house, it signifies a young man, handsome and of good countenance, beardless, lustful, loving instruments and music; monks, hypocrites, and scholars.' },
       domus:[
         { la:'gaudium, spem, nuptias, hilarem more infantis, qui nihil nisi canere ac tempus fallere, Musicâ & societatem mulierum amat.', en:'Joy; hope; marriages; one cheerful after the manner of a child, who loves nothing but to sing and while away the time, fond of music and the company of women.' },
