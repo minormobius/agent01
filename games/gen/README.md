@@ -104,12 +104,56 @@ Pushes to that branch (or `main`) touching `games/**` fire
 `.github/workflows/deploy-games.yml` → `wrangler deploy` of the `games` worker,
 which serves `/gen/` as static assets. Nothing about the party platform changes.
 
+## The self-test (Rung 0 + 1) — `js/operational.js` · `js/sim.js` · `test/playtest.mjs`
+
+The grammar guarantees *coherent*; the self-test measures *good*. It cannot
+write a bespoke engine for 10⁶ games, so it **projects every game onto a common
+abstract economy** (`operational.js`: resources, a parameterised action menu
+with costs/yields, an end trigger) and plays that with a generic simulator
+(`sim.js`) and pluggable agents (random, greedy). The action costs/yields are
+themselves rolled from the seed, so some games come out balanced and some
+degenerate — which is the point.
+
+`test/playtest.mjs` scores each game on the measurable aesthetics of a good game
+(after Cameron Browne's automated game-design battery):
+
+| Signal | Question | Weight |
+|---|---|---|
+| **skill** | does a greedy agent beat a random one above chance? | 45 |
+| **completion** | does the game reliably end? | 20 |
+| **decisiveness** | do skilled games resolve, or stalemate into ties? | 15 |
+| **fairness** | is first-player win-rate near its fair share? | 10 |
+| **non-dominance** | is there more than one good action? | 10 |
+
+→ a 0..100 quality score + verdict flags. Over 300 seeds it means 55/100 with a
+real spread, cleanly separating top games (skill 1.0, decisive, fair) from
+degenerate ones (luck-driven, never-ending, one dominant action).
+
+```bash
+node games/gen/test/playtest.mjs 300 60            # summary report
+node games/gen/test/playtest.mjs --dataset out.json 2000   # emit NN training table
+```
+
+> *Limitation:* this is an **economic** projection — it models the resource /
+> tempo / scoring spine, not spatial tactics (blocking, adjacency, hidden info).
+> Enough to catch the big degeneracies cheaply; spatial-heavy mechanics get
+> bespoke semantics in a later rung. Decisiveness/fairness are read conservatively
+> (symmetric greedy-vs-greedy ties inflate the draw count); the quality score is
+> the headline.
+
 ## Roadmap
 
-1. **Bot self-playtest (the real balance filter).** A lightweight rules
-   interpreter + greedy/MCTS bots play each generated game; reject or re-roll
-   games that are unwinnable, runaway-snowball, or single-strategy. Promotes
-   "coherent" → "actually good."
+1. ~~**Bot self-playtest (the real balance filter).**~~ **Done — Rung 0 + 1**
+   above. Next within this line:
+   - **Rung 1.5 — MCTS agent** for a sharper skill signal than 1-ply greedy.
+   - **Rung 2 — the tiny NN critic.** `js/features.js` already emits the static
+     66-dim feature vector; `--dataset` already emits `(features → quality)`
+     rows. A small `tanh` MLP (the `descent/` net, wider input), trained in
+     node/browser with hand-rolled backprop, learns to predict quality *without
+     simulating* — so the generator can screen seeds in microseconds and do
+     guided search ("a great 3-player area-control game").
+   - **Rung 3 — cross-game value/policy net** trained by self-play across the
+     catalogue: one net that plays *unseen* generated games.
 2. **Play modes** (the showcase becomes a game):
    - *solo vs bots* — the interpreter above, with a UI;
    - *hot-seat* — pass-and-play on one screen;
