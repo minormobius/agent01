@@ -76,6 +76,14 @@ footer a{color:var(--ink2)}
 .par.phys{background:rgba(216,178,90,.05);padding:9px 11px;border-radius:8px;border-bottom:0;margin-top:12px}
 .dintro{font-style:italic;color:var(--ink2);font-size:14px;margin:6px 0 12px}
 .soon{font:12px/1.5 ui-monospace,monospace;color:var(--faint);margin-top:18px;padding:10px 12px;border:1px dashed var(--rule);border-radius:8px}
+.road{list-style:none;margin:4px 0 0;padding:0}
+.road li{font-size:14px;line-height:1.5;color:var(--ink2);padding:6px 0 6px 26px;position:relative;border-bottom:1px solid var(--rule)}
+.road li:last-child{border-bottom:0}
+.road li::before{position:absolute;left:0;top:6px;font:12px/1.5 ui-monospace,monospace}
+.road li.done::before{content:'✓';color:var(--jade)}
+.road li.prog::before{content:'◐';color:var(--gold)}
+.road li.todo::before{content:'○';color:var(--faint)}
+.road li b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -93,6 +101,7 @@ footer a{color:var(--ink2)}
   <main id="entry" class="entry"></main>
   <div id="source"></div>
   <div id="houses"></div>
+  <div id="roadmap"></div>
   <div id="method"></div>
   <footer>
     A transparent working redaction · openly licensed ·
@@ -160,6 +169,18 @@ if(H.length) document.getElementById('houses').innerHTML =
   `<div class="hlist">`+ H.map(h=>
     `<div class="hrow"><span class="hn">${h.n}</span><div><div class="hnm">${h.name} — ${h.title}</div><div class="hd">${h.domain}</div></div></div>`
   ).join('') +`</div></div>`;
+
+// roadmap — what's translated, and what's coming
+const doneFigs = F.filter(f=>f.domus);
+document.getElementById('roadmap').innerHTML =
+  `<div class="method"><h2>Roadmap</h2><ul class="road">`+
+  `<li class="done">The sixteen figures — names, forms &amp; natures, translated beside the Latin.</li>`+
+  `<li class="done">Fludd’s apparatus — the elements, fortunes, zodiac, planets, the strong/weak/middling classes, the houses doctrine, and the rules of judgment.</li>`+
+  `<li class="prog">The figures in the fifteen shield-places (Cap. III) — <b>${doneFigs.length} of 16</b> done`+
+    (doneFigs.length?` (${doneFigs.map(f=>f.la).join(', ')})`:'')+`; the rest to come, tranche by tranche.</li>`+
+  `<li class="todo"><b>House descriptions</b> — a fuller account of each of the twelve houses and all it governs.</li>`+
+  `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
+  `</ul></div>`;
 
 // method + sources
 const m = GEOMANCY.meta;
