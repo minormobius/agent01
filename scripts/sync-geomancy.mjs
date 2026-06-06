@@ -18,7 +18,7 @@ const entries = GEOMANCY.figures.map(f => {
   return `  '${key(f.rows)}': ${JSON.stringify(o)},`;
 }).join('\n');
 const houses = GEOMANCY.houses.map(h =>
-  `  ${JSON.stringify({ n:h.n, name:h.name, title:h.title, matter:h.matter, domain:h.domain })},`
+  `  ${JSON.stringify({ n:h.n, name:h.name, title:h.title, matter:h.matter, domain:h.domain, la:h.la, en:h.en })},`
 ).join('\n');
 
 const out =
