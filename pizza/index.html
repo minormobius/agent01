@@ -96,15 +96,26 @@ canvas#pie { display: block; width: 100%; aspect-ratio: 1 / 1; touch-action: non
 .tab { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.04em; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; }
 .tab.on { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
 .board-list { list-style: none; margin: 0; padding: 0; }
-.board-list li { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: 0.6rem; align-items: baseline; padding: 0.32rem 0; border-top: 1px dotted var(--rule); font-family: var(--mono); font-size: 0.72rem; }
+.board-list li { display: grid; grid-template-columns: 1.5rem 1.4rem 1fr auto; gap: 0.55rem; align-items: center; padding: 0.32rem 0; border-top: 1px dotted var(--rule); font-family: var(--mono); font-size: 0.72rem; }
 .board-list li:first-child { border-top: none; }
 .board-list .rk { color: var(--muted); }
-.board-list .hd { color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-list .pfp { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--rule) center/cover no-repeat; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.10) inset; }
+.board-list .pfp.fallback { background: var(--accent-faint); }
+.board-list a.hd { color: var(--fg); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-list a.hd:hover { color: var(--accent); }
 .board-list .hd small { color: var(--muted); }
 .board-list .sc { color: var(--accent); font-weight: 600; }
 .board-list .board-empty { display: block; color: var(--muted); font-style: italic; }
 .board-foot { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
-.board-foot input { font-family: var(--mono); font-size: 0.72rem; padding: 0.4rem 0.5rem; border: 1px solid var(--rule); border-radius: 3px; background: var(--bg); color: var(--fg); flex: 1; min-width: 9rem; }
+.ta-wrap { position: relative; flex: 1; min-width: 9rem; display: flex; }
+.board-foot input { font-family: var(--mono); font-size: 0.72rem; padding: 0.4rem 0.5rem; border: 1px solid var(--rule); border-radius: 3px; background: var(--bg); color: var(--fg); flex: 1; min-width: 0; }
+.ta-results { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; display: none; z-index: 20; max-height: 230px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+.ta-results.show { display: block; }
+.ta-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; cursor: pointer; }
+.ta-item.on, .ta-item:hover { background: var(--accent-faint); }
+.ta-item img, .ta-item .av { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--rule); flex: none; object-fit: cover; }
+.ta-item .nm { font-family: var(--mono); font-size: 0.7rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.ta-item .nm small { color: var(--muted); }
 .board-foot .who { color: var(--accent); }
 .link-btn { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-family: var(--mono); font-size: 0.66rem; padding: 0; }
 .link-btn:hover { color: var(--accent); }
@@ -678,17 +689,60 @@ async function submitScore() {
   } catch (e) { setNote(e.message, 'warn'); }
 }
 function syncTabs() { document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.period === boardPeriod)); }
+
+// ── profile hydration: turn stored dids into live handle + avatar ───────────
+const BSKY_PUBLIC = 'https://public.api.bsky.app';
+const profileCache = new Map();      // did or handle → profile
+const inflightProfile = new Map();
+const isDid = s => /^did:/.test(String(s || ''));
+function esc(s) { return String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+async function fetchProfiles(actors) {
+  const need = [...new Set(actors.filter(a => a && !profileCache.has(a) && !inflightProfile.has(a)))];
+  for (let i = 0; i < need.length; i += 25) {
+    const chunk = need.slice(i, i + 25);
+    const url = new URL(BSKY_PUBLIC + '/xrpc/app.bsky.actor.getProfiles');
+    chunk.forEach(a => url.searchParams.append('actors', a));
+    const p = fetch(url.toString())
+      .then(r => r.ok ? r.json() : { profiles: [] })
+      .then(d => { for (const pr of d.profiles || []) { if (pr.did) profileCache.set(pr.did, pr); if (pr.handle) profileCache.set(pr.handle, pr); } })
+      .catch(() => {})
+      .finally(() => chunk.forEach(a => inflightProfile.delete(a)));
+    chunk.forEach(a => inflightProfile.set(a, p));
+  }
+  await Promise.all([...new Set(actors)].map(a => inflightProfile.get(a)).filter(Boolean));
+}
+function profileOf(s) { return (s.did && profileCache.get(s.did)) || (s.handle && profileCache.get(s.handle)) || null; }
+function handleOf(s) {
+  const pr = profileOf(s);
+  if (pr && pr.handle) return pr.handle;
+  if (s.handle && !isDid(s.handle)) return s.handle;
+  const did = String(s.did || s.handle || '');
+  return isDid(did) ? did.slice(0, 16) + '…' : (did || 'anon');
+}
+
 async function loadBoard() {
   const list = $('board-list');
+  const period = boardPeriod;            // pin: the user may switch tabs mid-load
   try {
-    const r = await fetch(`${SCORES_API}/api/scores/top?game=${GAME}&period=${boardPeriod}&limit=10`);
+    const r = await fetch(`${SCORES_API}/api/scores/top?game=${GAME}&period=${period}&limit=10`);
+    if (period !== boardPeriod) return;
     const rows = (await r.json()).scores || [];
     if (!rows.length) { list.innerHTML = '<li class="board-empty">no scores yet — be the first</li>'; return; }
-    list.innerHTML = rows.map((s, i) => {
-      const hd = String(s.handle || s.did).replace(/[<>]/g, '');
-      const meta = String(s.meta || '').replace(/[<>]/g, '');
-      return `<li><span class="rk">${i + 1}</span><span class="hd">@${hd}${meta ? ` <small>${meta}</small>` : ''}</span><span class="sc">${Math.round(s.score)}</span></li>`;
-    }).join('');
+    const rowHtml = (s, i) => {
+      const did = String(s.did || s.handle || '');
+      const meta = esc(String(s.meta || ''));
+      const pr = profileOf(s);
+      const avatar = pr && pr.avatar;
+      return `<li data-actor="${esc(did)}">`
+        + `<span class="rk">${i + 1}</span>`
+        + `<span class="pfp${avatar ? '' : ' fallback'}"${avatar ? ` style="background-image:url('${esc(avatar)}')"` : ''}></span>`
+        + `<a class="hd" href="https://bsky.app/profile/${encodeURIComponent(did)}" target="_blank" rel="noopener">@${esc(handleOf(s))}${meta ? ` <small>${meta}</small>` : ''}</a>`
+        + `<span class="sc">${Math.round(s.score)}</span></li>`;
+    };
+    list.innerHTML = rows.map(rowHtml).join('');
+    // hydrate avatars + canonical handles in the background, then repaint
+    await fetchProfiles(rows.map(s => s.did || s.handle));
+    if (period === boardPeriod) list.innerHTML = rows.map(rowHtml).join('');
   } catch (e) { list.innerHTML = '<li class="board-empty">leaderboard unavailable</li>'; }
 }
 function renderBoardFoot() {
@@ -700,18 +754,56 @@ function renderBoardFoot() {
     $('submit-score').addEventListener('click', submitScore);
     $('signout').addEventListener('click', async () => { await Auth.logout(); authUser = null; renderBoardFoot(); setNote('signed out'); });
   } else {
-    foot.innerHTML = '<input id="handle" placeholder="you.bsky.social" autocomplete="username" spellcheck="false">'
+    foot.innerHTML = '<span class="ta-wrap"><input id="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><div class="ta-results" id="ta-results"></div></span>'
       + '<button class="btn primary" id="signin">sign in &amp; submit</button>';
-    $('signin').addEventListener('click', () => {
+    const doSignin = () => {
       const h = $('handle').value.trim();
       if (!h) { $('handle').focus(); setNote('enter your Bluesky handle to sign in', 'warn'); return; }
       const sc = leaderboardScore();
       if (sc != null) stashPending(sc, leaderboardMeta());
       setNote('redirecting to Bluesky…');
       Auth.login(h).catch(e => setNote(e.message, 'warn'));
-    });
-    $('handle').addEventListener('keydown', e => { if (e.key === 'Enter') $('signin').click(); });
+    };
+    $('signin').addEventListener('click', doSignin);
+    wireTypeahead($('handle'), $('ta-results'), doSignin);
   }
+}
+
+// Live Bluesky handle autocomplete on the sign-in input (public appview, no auth).
+function wireTypeahead(input, box, onSubmit) {
+  let items = [], active = -1, timer = null, abort = null;
+  const close = () => { box.classList.remove('show'); box.innerHTML = ''; items = []; active = -1; };
+  const render = () => {
+    if (!items.length) { close(); return; }
+    box.innerHTML = items.map((a, i) =>
+      `<div class="ta-item${i === active ? ' on' : ''}" data-i="${i}">`
+      + (a.avatar ? `<img src="${esc(a.avatar)}" referrerpolicy="no-referrer" alt="">` : '<span class="av"></span>')
+      + `<span class="nm">${esc(a.displayName || a.handle)}<br><small>@${esc(a.handle)}</small></span></div>`).join('');
+    box.classList.add('show');
+  };
+  const pick = i => { if (items[i]) { input.value = items[i].handle; close(); } };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim().replace(/^@/, '');
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(async () => {
+      if (abort) abort.abort();
+      abort = new AbortController();
+      try {
+        const r = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: abort.signal });
+        if (!r.ok) return;
+        items = (await r.json()).actors || []; active = -1; render();
+      } catch (e) { /* aborted / offline */ }
+    }, 180);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' && items.length) { e.preventDefault(); active = (active + 1) % items.length; render(); }
+    else if (e.key === 'ArrowUp' && items.length) { e.preventDefault(); active = (active - 1 + items.length) % items.length; render(); }
+    else if (e.key === 'Escape') { close(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0) { pick(active); } else { onSubmit(); } }
+  });
+  input.addEventListener('blur', () => setTimeout(close, 120));
+  box.addEventListener('mousedown', e => { const it = e.target.closest('.ta-item'); if (it) { e.preventDefault(); pick(+it.dataset.i); input.focus(); } });
 }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { boardPeriod = t.dataset.period; syncTabs(); loadBoard(); }));
 
