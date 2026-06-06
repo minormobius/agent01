@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>meander — counting closed loops across a line</title>
+<meta name="description" content="Interactive visualization of meanders: a closed loop crossing a line at 2n points. Superpose two non-crossing arch systems and watch them fuse into one loop. The meandric numbers (1, 2, 8, 42, 262, 1828, …) have no known closed form; their growth exponent was pulled from 2D quantum gravity.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #a01f4c;            /* Pompeiian amaranth — Greek-key red-violet */
+  --accent-faint: rgba(160, 31, 76, 0.10);
+  --canvas-bg: #fbf8f3;
+  --canvas-ink: #1a1416;
+  --canvas-rule: #c8bcae;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* component palette (loops) */
+  --L1: #a01f4c;
+  --L2: #1d6fa3;
+  --L3: #d98324;
+  --L4: #2a8a5a;
+  --L5: #7b3fb0;
+  --L6: #c0392b;
+  --L7: #128a86;
+  --L8: #b5942a;
+  --L9: #5a6fb0;
+  --L10:#9a4a8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #e0608f;
+    --accent-faint: rgba(224, 96, 143, 0.12);
+    --canvas-bg: #f4ece2;
+    --canvas-ink: #1a1416;
+    --canvas-rule: #b9aa97;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.grid-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .grid-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+canvas {
+  width: 100%;
+  display: block;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+}
+canvas.wide { aspect-ratio: 2 / 1; }
+canvas.chart { aspect-ratio: 16 / 9; }
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  min-width: 2.6em;
+  text-align: right;
+}
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-faint);
+}
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; word-break: break-all; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--accent); font-weight: 600; }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  min-height: 1.5em;
+}
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.partial { color: var(--muted); }
+
+.stat-note {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+  font-family: var(--serif);
+  font-style: italic;
+}
+
+table.seq {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  margin: 1rem 0;
+}
+table.seq th, table.seq td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.4rem 0.5rem;
+  text-align: right;
+}
+table.seq th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.62rem; }
+table.seq td:first-child, table.seq th:first-child { text-align: left; }
+table.seq td.big { color: var(--accent); }
+table.seq tr.known td { color: var(--muted); font-style: italic; }
+
+.docs {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  max-width: 64ch;
+}
+.docs h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 2.2rem 0 0.6rem;
+  letter-spacing: -0.01em;
+}
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--tag-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 2px;
+  color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 2.4rem 0 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+.lead {
+  font-family: var(--serif);
+  font-size: 0.96rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+  max-width: 64ch;
+}
+
+footer {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+.prov { font-size: 0.78rem; color: var(--muted); margin-top: 0.6rem; font-family: var(--serif); font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>meander</h1>
+  <p class="subtitle">closed loops across a line · 1, 2, 8, 42, 262, 1828, … · no formula known</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/erdos/">erdős</a> · <a href="https://mino.mobi/guthkatz/">guthkatz</a> · <a href="https://mino.mobi/hadwiger/">hadwiger</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a> · <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> · <a href="https://mino.mobi/heilbronn/">heilbronn</a> · <a href="https://mino.mobi/borsuk/">borsuk</a> · <a href="https://mino.mobi/viazovska/">viazovska</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="explorer" role="tab">explorer</button>
+  <button class="tab" data-tab="count" role="tab">count</button>
+  <button class="tab" data-tab="growth" role="tab">growth</button>
+  <button class="tab" data-tab="fold" role="tab">fold</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── EXPLORER PANE ─────────── -->
+<section class="pane active" data-pane="explorer">
+  <p class="lead">
+    A <strong>meander</strong> is a single closed loop crossing a horizontal line at
+    2<em>n</em> points, never touching itself. Build one from two halves: a
+    <strong>non-crossing arch system</strong> above the line and another below.
+    Superpose them — sometimes they fuse into one loop (a meander), sometimes
+    they fall apart into several (a <em>meandric system</em>). Click two points on
+    the same row to draw an arch; the rest reflows to stay non-crossing.
+  </p>
+  <div class="grid-wrap">
+    <div>
+      <canvas id="ex-canvas" class="wide" width="800" height="400"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">order · n  (2n crossings)</span>
+        <div class="ctrl-row">
+          <input id="n-slider" type="range" min="2" max="8" value="4" step="1">
+          <span class="ctrl-val" id="n-val">4</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">editing</span>
+        <div class="btn-row" id="side-row">
+          <button class="btn active" data-side="top">top arches</button>
+          <button class="btn" data-side="bot">bottom arches</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">presets · this row</span>
+        <div class="btn-row">
+          <button class="btn" data-preset="rainbow">rainbow</button>
+          <button class="btn" data-preset="stairs">stairs</button>
+          <button class="btn" data-preset="random">random</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="find-btn">find a meander</button>
+          <button class="btn" id="swap-btn">swap rows</button>
+        </div>
+      </div>
+
+      <div class="stats" id="ex-stats"></div>
+      <div class="verdict" id="ex-verdict"></div>
+
+      <div class="stat-note">
+        Each row is a perfect matching of the 2<em>n</em> points by non-crossing
+        arcs — there are <em>C<sub>n</sub></em> (a Catalan number) of them per row.
+        The loop alternates: an arc above, an arc below, above, below. It's a
+        meander exactly when that walk visits all 2<em>n</em> points in one cycle.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── COUNT PANE ─────────── -->
+<section class="pane" data-pane="count">
+  <article class="docs">
+    <h2>How many meanders of order n?</h2>
+    <p>
+      There are <em>C<sub>n</sub></em> non-crossing arch systems per row, so
+      <em>C<sub>n</sub></em>² ways to stack a top and a bottom. The meandric number
+      <strong>M<sub>n</sub></strong> counts just the stacks that form a
+      <em>single</em> loop. The table below is computed live in your browser by
+      brute force — generating every arch system, superposing every pair, and
+      counting loops.
+    </p>
+    <div class="btn-row" style="margin-bottom:1rem;">
+      <button class="btn active" id="compute-btn">compute through n = 7</button>
+      <button class="btn" id="compute8-btn">…push to n = 8 (slow)</button>
+    </div>
+    <table class="seq" id="count-table"></table>
+    <p>
+      The sequence — 1, 2, 8, 42, 262, 1828, 13820, 110954, … (OEIS
+      <a href="https://oeis.org/A005315">A005315</a>) — has <strong>no known
+      closed form</strong>. There is no formula, no generating function in closed
+      form, no efficient way to compute M<sub>n</sub> beyond direct enumeration.
+      It is one of the cleanest unsolved counting problems in combinatorics: a
+      schoolchild can state it, and nobody can solve it.
+    </p>
+    <p>
+      Notice how fast the meanders thin out against the C<sub>n</sub>² pairs: most
+      ways of stacking two arch systems fall into pieces. The
+      <a href="#growth" data-jump="growth">growth tab</a> asks how the survivors
+      multiply.
+    </p>
+  </article>
+</section>
+
+<!-- ─────────── GROWTH PANE ─────────── -->
+<section class="pane" data-pane="growth">
+  <p class="lead">
+    M<sub>n</sub> grows like <em>C · R</em><sup>2n</sup> / <em>n</em><sup>α</sup>.
+    The ratio M<sub>n+1</sub>/M<sub>n</sub> climbs toward
+    <em>R</em>² ≈ 12.26 — slowly. The exponent α is the strange part.
+  </p>
+  <div class="grid-wrap">
+    <div>
+      <canvas id="growth-canvas" class="chart" width="720" height="405"></canvas>
+    </div>
+    <div class="controls">
+      <div class="stats">
+        <div class="stat-row"><span class="k">connectivity R</span><span class="v hot">3.5018…</span></div>
+        <div class="stat-row"><span class="k">R²</span><span class="v hot">12.2626…</span></div>
+        <div class="stat-row"><span class="k">exponent α</span><span class="v hot">(29+√145)/12</span></div>
+        <div class="stat-row"><span class="k">α ≈</span><span class="v">3.4201…</span></div>
+      </div>
+      <div class="stat-note">
+        That α is not combinatorics. Di Francesco, Golinelli and Guitter (1997)
+        derived it from a <strong>c = −4 conformal field theory</strong> coupled
+        to two-dimensional <strong>quantum gravity</strong> — a model of a
+        fluctuating random surface, gravitationally dressed à la KPZ/Liouville.
+        A child can count the loops; the rate they multiply at is read off a
+        theory of random geometry. <em>R</em> and α are numerical / field-theory
+        predictions, not theorems.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── FOLD PANE ─────────── -->
+<section class="pane" data-pane="fold">
+  <p class="lead">
+    Meanders are the same object as <strong>folded strips of stamps</strong>. Take
+    the configuration from the explorer, lay its 2<em>n</em> crossings out as a
+    strip, and fold: the arches above and below the line become the creases of a
+    flat-folded stack seen edge-on. Drag the slider to fold and unfold.
+  </p>
+  <div class="grid-wrap">
+    <div>
+      <canvas id="fold-canvas" class="wide" width="800" height="400"></canvas>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">fold</span>
+        <div class="ctrl-row">
+          <input id="fold-slider" type="range" min="0" max="1" value="0.5" step="0.01">
+          <span class="ctrl-val" id="fold-val">0.50</span>
+        </div>
+      </div>
+      <table class="seq" id="fold-table"></table>
+      <div class="stat-note">
+        Folding a strip of stamps flat and reading the folded edges end-on gives
+        exactly an arch system on each side. The connectivity of the paper forces
+        a single thread — a <em>semi-meander</em>; gluing both ends closes it into
+        a meander. The stamp-folding counts (OEIS
+        <a href="https://oeis.org/A000136">A000136</a>,
+        <a href="https://oeis.org/A000682">A000682</a>) are meander relatives, and
+        every bit as formula-less.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>What a meander is</h2>
+<p>Draw an infinite horizontal line. Now draw a single closed curve — a loop — that
+crosses the line transversally at 2<em>n</em> points and never touches itself
+anywhere else. That's a <strong>closed meander of order <em>n</em></strong>. Count
+the essentially different ones and you get the <strong>meandric numbers</strong>
+M<sub>n</sub>: 1, 2, 8, 42, 262, 1828, 13820, 110954, 933458, …</p>
+
+<p>The name is literal: the curve wanders back and forth across the line like the
+river Maíandros (modern Büyük Menderes) in Anatolia, whose looping course gave
+Greek its word for a winding path — and gave us the Greek-key border pattern.</p>
+
+<h2>The arch-system picture</h2>
+<p>Cut the plane along the line. Above it, the loop becomes a set of
+<strong>non-crossing arcs</strong> pairing up the 2<em>n</em> crossing points;
+below it, another. Each half is a <strong>non-crossing perfect matching</strong> of
+2<em>n</em> points — and those are counted by the Catalan number
+<em>C<sub>n</sub></em> = <code>(2n choose n)/(n+1)</code>. A meander is a pair (top
+matching, bottom matching) whose superposition is a <em>single</em> loop. So
+meanders live inside <em>C<sub>n</sub></em>² stacked pairs, and the entire
+difficulty is the word <em>single</em>: deciding when two independently-easy
+objects happen to interlock into one connected curve.</p>
+
+<blockquote>The pieces are Catalan-simple. The connectivity is the abyss.</blockquote>
+
+<h2>Why it's hard — and the quantum-gravity exponent</h2>
+<p>Both the top and bottom matchings have a clean product formula (Catalan
+numbers). Their pairing does not. There is no known closed form for
+M<sub>n</sub>, no nice generating function, no polynomial-time formula. The best
+exact tool is what the <a href="#count" data-jump="count">count tab</a> does:
+enumerate.</p>
+
+<p>What <em>is</em> known is the asymptotics. M<sub>n</sub> ~
+<em>C·R</em><sup>2n</sup>/<em>n</em><sup>α</sup> with a connectivity constant
+<em>R</em> ≈ 3.5018 and a configuration exponent</p>
+
+<p style="text-align:center;font-family:var(--mono);font-size:1.05rem;">α = (29 + √145) / 12 ≈ 3.4201.</p>
+
+<p>Di Francesco, Golinelli and Guitter obtained α in 1997 by mapping meanders to a
+gas of self-avoiding loops on a random surface — a <strong>c = −4 conformal field
+theory coupled to 2D quantum gravity</strong>. The irrational exponent with a √145
+in it is the gravitational dressing (KPZ) of a conformal weight. It is genuinely
+startling that a question about doodling a loop over a line should have its growth
+rate dictated by a theory of fluctuating spacetime.</p>
+
+<h2>The determinant that <em>does</em> have a formula</h2>
+<p>Here is the sting. Arrange all <em>C<sub>n</sub></em> arch systems and form the
+<strong>meander matrix</strong>: entry (<em>p</em>, <em>q</em>) is
+<em>q</em><sup>(number of loops when arch systems <em>p</em> and <em>q</em> are
+superposed)</sup>. This is the Gram matrix of the <strong>Temperley–Lieb
+algebra</strong>'s natural bilinear form. Di Francesco proved its
+<strong>determinant factors completely</strong> into a product of
+Chebyshev-type (cyclotomic-flavoured) polynomials in <em>q</em> — an exact,
+closed, beautiful product. Same objects, opposite epistemics: the <em>number</em>
+of single-loop meanders is hopeless, yet a natural <em>determinant</em> over the
+very same arch systems is one of the prettiest closed forms in the subject.</p>
+
+<h2>Meanders as factorizations</h2>
+<p>Label the crossings 1…2<em>n</em> along the line. The top matching and bottom
+matching are each <strong>fixed-point-free involutions</strong> of those labels.
+Following the loop is exactly composing the two involutions, and the configuration
+is a meander iff that composition is a single <strong>2n-cycle</strong>. So
+counting meanders is counting factorizations of a long cycle into two non-crossing
+involutions — a question that lands squarely in the combinatorics of the symmetric
+group, map enumeration, and Hurwitz theory.</p>
+
+<h2>Folding stamps</h2>
+<p>Meanders are in bijection with ways to <strong>fold a strip of stamps</strong>
+flat. View a flat-folded strip edge-on: consecutive stamps are joined by creases
+that arch alternately over and under the stack — an arch system above and below a
+line. The single connected strip forces a single thread, a <em>semi-meander</em>;
+closing both ends gives a meander. The stamp-folding sequences (OEIS
+<a href="https://oeis.org/A000136">A000136</a>, <a href="https://oeis.org/A000682">A000682</a>)
+are cousins of M<sub>n</sub> and just as resistant to a formula. The
+<a href="#fold" data-jump="fold">fold tab</a> animates the correspondence.</p>
+
+<h2>History</h2>
+<ul>
+  <li><strong>1912</strong> — Henri Poincaré, working on the qualitative theory of
+  differential equations and curves on surfaces, runs into the configurations now
+  called meanders.</li>
+  <li><strong>1960s–70s</strong> — Touchard and Lunnon study the equivalent
+  <em>stamp-folding</em> problem; the sequences enter the early tables of
+  combinatorics.</li>
+  <li><strong>1980s</strong> — Arnold and the Russian school connect meanders to
+  the topology of plane curves, Gauss codes, and singularity theory.</li>
+  <li><strong>1997</strong> — Di Francesco, Golinelli &amp; Guitter give the
+  matrix-model / quantum-gravity analysis: the connectivity constant
+  <em>R</em> and the exponent α = (29+√145)/12. Di Francesco proves the
+  <em>meander determinant</em> product formula.</li>
+  <li><strong>today</strong> — M<sub>n</sub> is known only by enumeration into the
+  low double-digit orders. The exact constant <em>R</em>, a closed form, and even
+  whether M<sub>n</sub> is "P-recursive" remain open.</li>
+</ul>
+
+<h2>Why this sits in the geometry pack</h2>
+<p>The pack collects extremal and combinatorial problems with a small-integer
+heart and a long, open climb — the <a href="https://mino.mobi/runner/">lonely
+runner</a>, <a href="https://mino.mobi/heilbronn/">Heilbronn's triangle</a>. Meanders
+are the purest of the lot: the statement fits on a napkin, the answer is a sequence
+of integers, and the growth rate had to be borrowed from quantum gravity because no
+one can derive it by counting. It also wires this pack to a different one —
+<a href="https://mino.mobi/viazovska/">Viazovska</a>'s modular forms and meanders'
+conformal field theory are both moments where physics-grade special structure
+crashes a discrete problem.</p>
+
+<h2>What's in this site</h2>
+<ul>
+  <li><strong>explorer</strong> — stack two non-crossing arch systems; the loops
+  are coloured by connected component, and a badge tells you whether you've made a
+  meander (1 loop) or a meandric system (several). Edit either row by clicking two
+  points; presets and a <em>find a meander</em> search are provided.</li>
+  <li><strong>count</strong> — brute-force M<sub>n</sub> in your browser and watch
+  it diverge from C<sub>n</sub>².</li>
+  <li><strong>growth</strong> — the ratio M<sub>n+1</sub>/M<sub>n</sub> creeping
+  toward R² ≈ 12.26, and the quantum-gravity exponent.</li>
+  <li><strong>fold</strong> — the stamp-folding bijection, animated on the current
+  configuration.</li>
+  <li><strong>docs</strong> — this page.</li>
+</ul>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Di Francesco, P., Golinelli, O. &amp; Guitter, E. (1997). <em>Meanders and the Temperley–Lieb algebra.</em> Communications in Mathematical Physics 186, 1–59.</li>
+  <li>Di Francesco, P. (1997). <em>Meander determinants.</em> Communications in Mathematical Physics 191, 543–583.</li>
+  <li>Lando, S. K. &amp; Zvonkin, A. K. (1993). <em>Plane and projective meanders.</em> Theoretical Computer Science 117, 227–241.</li>
+  <li>Lunnon, W. F. (1968). <em>A map-folding problem.</em> Mathematics of Computation 22, 193–199.</li>
+  <li>OEIS <a href="https://oeis.org/A005315">A005315</a> (closed meanders), <a href="https://oeis.org/A005316">A005316</a> (open meanders), <a href="https://oeis.org/A000682">A000682</a> (semi-meanders / stamp foldings).</li>
+  <li><a href="https://en.wikipedia.org/wiki/Meander_(mathematics)">Wikipedia — Meander (mathematics)</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/runner/">runner</a>
+  <span>·</span>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────
+// Tab switcher
+// ─────────────────────────────────────────────────────────────────────
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['explorer', 'count', 'growth', 'fold', 'docs'];
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  try { history.replaceState(null, '', '#' + name); } catch {}
+  if (name === 'growth') drawGrowth();
+  if (name === 'fold') drawFold();
+  if (name === 'explorer') drawExplorer();
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+document.querySelectorAll('[data-jump]').forEach(a =>
+  a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.jump); }));
+
+// ─────────────────────────────────────────────────────────────────────
+// Palette
+// ─────────────────────────────────────────────────────────────────────
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+const LOOP_COLORS = ['--L1','--L2','--L3','--L4','--L5','--L6','--L7','--L8','--L9','--L10']
+  .map(v => cssVar(v));
+
+// ─────────────────────────────────────────────────────────────────────
+// Matching utilities  (a "matching" is a partner array: partner[i] = j)
+// ─────────────────────────────────────────────────────────────────────
+// Canonical "stairs" pairing of an ordered list of point indices: consecutive
+// pairs (always non-crossing). Used as the reflow rule after a forced arc.
+function pairConsecutive(list, partner) {
+  for (let i = 0; i + 1 < list.length; i += 2) {
+    partner[list[i]] = list[i + 1];
+    partner[list[i + 1]] = list[i];
+  }
+}
+function stairsMatching(N) {
+  const p = new Array(N);
+  for (let i = 0; i < N; i += 2) { p[i] = i + 1; p[i + 1] = i; }
+  return p;
+}
+function rainbowMatching(N) {
+  const p = new Array(N);
+  for (let i = 0; i < N / 2; i++) { p[i] = N - 1 - i; p[N - 1 - i] = i; }
+  return p;
+}
+// Uniformly-ish random non-crossing matching via a random balanced-bracket walk.
+function randomMatching(N) {
+  const p = new Array(N).fill(-1);
+  const stack = [];
+  let open = 0;            // currently unclosed opens
+  let remaining = N;       // points not yet placed
+  for (let i = 0; i < N; i++) {
+    remaining = N - i;
+    // We may "close" (match with stack top) only if open > 0.
+    // We may "open" only if after opening we can still close everyone:
+    //   opens left to possibly place <= remaining-1, need open+1 <= remaining-1.
+    const canClose = open > 0;
+    const canOpen = (open + 1) <= (remaining - 1);
+    let doOpen;
+    if (canOpen && canClose) doOpen = Math.random() < 0.5;
+    else doOpen = canOpen;
+    if (doOpen) { stack.push(i); open++; }
+    else { const j = stack.pop(); open--; p[j] = i; p[i] = j; }
+  }
+  return p;
+}
+// Force the arc (a,b) into the matching, then reflow the rest with the canonical
+// stairs rule so the whole thing stays a non-crossing perfect matching.
+// Requires a,b of opposite parity (else no non-crossing matching contains it).
+function forceArc(partner, N, a, b) {
+  if (a > b) [a, b] = [b, a];
+  if (((b - a) % 2) === 0) return false;       // same parity -> impossible
+  const inside = [], outside = [];
+  for (let k = 0; k < N; k++) {
+    if (k === a || k === b) continue;
+    if (k > a && k < b) inside.push(k); else outside.push(k);
+  }
+  const next = new Array(N);
+  next[a] = b; next[b] = a;
+  pairConsecutive(inside, next);
+  pairConsecutive(outside, next);
+  for (let k = 0; k < N; k++) partner[k] = next[k];
+  return true;
+}
+// Loops of the superposition of top + bottom matchings.
+// Returns { comp: Int per point, count }. Walk alternates top-arc, bottom-arc.
+function loopDecomp(top, bot, N) {
+  const comp = new Array(N).fill(-1);
+  let count = 0;
+  for (let s = 0; s < N; s++) {
+    if (comp[s] !== -1) continue;
+    let cur = s;
+    do {
+      comp[cur] = count;
+      cur = top[cur];
+      comp[cur] = count;
+      cur = bot[cur];
+    } while (cur !== s);
+    count++;
+  }
+  return { comp, count };
+}
+function dyckWord(partner, N) {
+  // '(' if this point opens an arc to a later point, ')' otherwise.
+  let s = '';
+  for (let i = 0; i < N; i++) s += (partner[i] > i ? '(' : ')');
+  return s;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Explorer state
+// ─────────────────────────────────────────────────────────────────────
+const ex = {
+  n: 4,
+  top: rainbowMatching(8),
+  bot: stairsMatching(8),
+  editSide: 'top',
+  selected: -1,      // selected point index awaiting a partner
+  flash: 0,          // brief invalid-click flash timer
+};
+function setN(n) {
+  ex.n = n;
+  const N = 2 * n;
+  ex.top = rainbowMatching(N);
+  ex.bot = stairsMatching(N);
+  ex.selected = -1;
+}
+
+const exCanvas = document.getElementById('ex-canvas');
+const exCtx = exCanvas.getContext('2d');
+const exStats = document.getElementById('ex-stats');
+const exVerdict = document.getElementById('ex-verdict');
+
+// Geometry: map point index -> x; line at mid height.
+function exLayout() {
+  const W = exCanvas.width, H = exCanvas.height;
+  const N = 2 * ex.n;
+  const marginX = 46, mid = H / 2;
+  const span = W - 2 * marginX;
+  const xs = [];
+  for (let i = 0; i < N; i++) xs.push(marginX + (N === 1 ? 0 : span * i / (N - 1)));
+  return { W, H, N, mid, xs, step: N > 1 ? span / (N - 1) : span };
+}
+function drawArch(ctx, x1, x2, mid, up, color, width) {
+  const r = Math.abs(x2 - x1) / 2;
+  const cx = (x1 + x2) / 2;
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  // up: upper semicircle (angles PI..2PI), else lower (0..PI)
+  if (up) ctx.arc(cx, mid, r, Math.PI, 2 * Math.PI);
+  else ctx.arc(cx, mid, r, 0, Math.PI);
+  ctx.stroke();
+}
+function drawExplorer() {
+  const ctx = exCtx;
+  const { W, H, N, mid, xs } = exLayout();
+  ctx.fillStyle = cssVar('--canvas-bg');
+  ctx.fillRect(0, 0, W, H);
+
+  const { comp, count } = loopDecomp(ex.top, ex.bot, N);
+  const colorFor = c => LOOP_COLORS[c % LOOP_COLORS.length];
+
+  // the line
+  ctx.strokeStyle = cssVar('--canvas-rule');
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(20, mid); ctx.lineTo(W - 20, mid); ctx.stroke();
+
+  // arcs — top then bottom, coloured by component
+  for (let i = 0; i < N; i++) {
+    if (ex.top[i] > i) drawArch(ctx, xs[i], xs[ex.top[i]], mid, true, colorFor(comp[i]), 2.4);
+    if (ex.bot[i] > i) drawArch(ctx, xs[i], xs[ex.bot[i]], mid, false, colorFor(comp[i]), 2.4);
+  }
+
+  // crossing points
+  for (let i = 0; i < N; i++) {
+    const sel = (i === ex.selected);
+    ctx.beginPath();
+    ctx.fillStyle = sel ? cssVar('--accent') : colorFor(comp[i]);
+    ctx.arc(xs[i], mid, sel ? 6.5 : 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = cssVar('--canvas-ink');
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = cssVar('--canvas-ink');
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(i + 1, xs[i], mid + 10);
+  }
+
+  if (ex.flash > 0) {
+    ctx.fillStyle = 'rgba(192,57,43,0.10)';
+    ctx.fillRect(0, 0, W, H);
+    ex.flash--;
+  }
+
+  // readouts
+  const isMeander = count === 1;
+  exStats.innerHTML = `
+    <div class="stat-row"><span class="k">order n</span><span class="v">${ex.n}  (${N} crossings)</span></div>
+    <div class="stat-row"><span class="k">arch systems C<sub>n</sub></span><span class="v">${CATALAN[ex.n]}/row</span></div>
+    <div class="stat-row"><span class="k">loops</span><span class="v ${isMeander ? 'win' : 'hot'}">${count}</span></div>
+    <div class="stat-row"><span class="k">top word</span><span class="v">${dyckWord(ex.top, N)}</span></div>
+    <div class="stat-row"><span class="k">bottom word</span><span class="v">${dyckWord(ex.bot, N)}</span></div>
+  `;
+  if (isMeander) {
+    exVerdict.innerHTML = '✓ MEANDER — one closed loop';
+    exVerdict.className = 'verdict win';
+  } else {
+    exVerdict.innerHTML = `meandric system — ${count} separate loops`;
+    exVerdict.className = 'verdict partial';
+  }
+}
+
+// click -> nearest point; first click selects, second click forces an arc on the
+// active row between the two points (if opposite parity).
+exCanvas.addEventListener('click', e => {
+  const rect = exCanvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (exCanvas.width / rect.width);
+  const { N, xs } = exLayout();
+  let best = -1, bestD = 1e9;
+  for (let i = 0; i < N; i++) { const d = Math.abs(xs[i] - x); if (d < bestD) { bestD = d; best = i; } }
+  if (best < 0) return;
+  if (ex.selected === -1) { ex.selected = best; }
+  else if (ex.selected === best) { ex.selected = -1; }
+  else {
+    const arr = ex.editSide === 'top' ? ex.top : ex.bot;
+    const ok = forceArc(arr, N, ex.selected, best);
+    if (!ok) ex.flash = 6;          // same parity — illegal arc
+    ex.selected = -1;
+  }
+  drawExplorer();
+});
+
+// controls
+const nSlider = document.getElementById('n-slider');
+const nValEl = document.getElementById('n-val');
+nSlider.addEventListener('input', e => {
+  setN(parseInt(e.target.value, 10));
+  nValEl.textContent = ex.n;
+  drawExplorer();
+});
+document.getElementById('side-row').addEventListener('click', e => {
+  const b = e.target.closest('[data-side]'); if (!b) return;
+  ex.editSide = b.dataset.side; ex.selected = -1;
+  document.querySelectorAll('#side-row .btn').forEach(x =>
+    x.classList.toggle('active', x.dataset.side === ex.editSide));
+  drawExplorer();
+});
+document.querySelectorAll('[data-preset]').forEach(b =>
+  b.addEventListener('click', () => {
+    const N = 2 * ex.n;
+    const arr = b.dataset.preset === 'rainbow' ? rainbowMatching(N)
+              : b.dataset.preset === 'stairs' ? stairsMatching(N)
+              : randomMatching(N);
+    if (ex.editSide === 'top') ex.top = arr; else ex.bot = arr;
+    ex.selected = -1;
+    drawExplorer();
+  }));
+document.getElementById('swap-btn').addEventListener('click', () => {
+  [ex.top, ex.bot] = [ex.bot, ex.top]; ex.selected = -1; drawExplorer();
+});
+document.getElementById('find-btn').addEventListener('click', () => {
+  const N = 2 * ex.n;
+  for (let tries = 0; tries < 4000; tries++) {
+    const t = randomMatching(N), b = randomMatching(N);
+    if (loopDecomp(t, b, N).count === 1) { ex.top = t; ex.bot = b; ex.selected = -1; drawExplorer(); return; }
+  }
+  ex.flash = 6; drawExplorer();
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Catalan numbers + count tab (brute force M_n)
+// ─────────────────────────────────────────────────────────────────────
+const CATALAN = [1];
+for (let n = 1; n <= 9; n++) CATALAN[n] = Math.round(CATALAN[n - 1] * (2 * (2 * n - 1)) / (n + 1));
+const KNOWN_M = [1, 1, 2, 8, 42, 262, 1828, 13820, 110954, 933458]; // index by n; KNOWN_M[1]=1
+
+// Enumerate every non-crossing matching of an ordered point list -> partner arrays.
+function enumerateMatchings(points) {
+  if (points.length === 0) return [[]];
+  const p = points[0], out = [];
+  for (let qi = 1; qi < points.length; qi += 2) {     // even gap inside
+    const q = points[qi];
+    const inside = points.slice(1, qi), outside = points.slice(qi + 1);
+    const insM = enumerateMatchings(inside), outM = enumerateMatchings(outside);
+    for (const a of insM) for (const c of outM) out.push([[p, q], ...a, ...c]);
+  }
+  return out;
+}
+function toPartnerArrays(matchings, N) {
+  return matchings.map(m => { const a = new Array(N); for (const [i, j] of m) { a[i] = j; a[j] = i; } return a; });
+}
+function meanderCount(n) {
+  const N = 2 * n;
+  const Ms = toPartnerArrays(enumerateMatchings([...Array(N).keys()]), N);
+  let M = 0;
+  for (const t of Ms) for (const b of Ms) if (loopDecomp(t, b, N).count === 1) M++;
+  return M;
+}
+
+let computedUpTo = 0;
+const computed = {};
+function renderCountTable() {
+  const rows = [];
+  rows.push('<tr><th>n</th><th>crossings</th><th>C<sub>n</sub></th><th>C<sub>n</sub>²</th><th>M<sub>n</sub></th><th>M/C²</th></tr>');
+  const maxShown = Math.max(computedUpTo, 9);
+  for (let n = 1; n <= maxShown; n++) {
+    const c = CATALAN[n], c2 = c * c;
+    const have = computed[n] !== undefined;
+    const M = have ? computed[n] : KNOWN_M[n];
+    const cls = have ? '' : 'known';
+    const Mtxt = M === undefined ? '—' : M.toLocaleString();
+    const frac = (M !== undefined && c2 > 0) ? (M / c2).toFixed(4) : '—';
+    rows.push(`<tr class="${cls}"><td>${n}</td><td>${2 * n}</td><td>${c.toLocaleString()}</td><td>${c2.toLocaleString()}</td><td class="big">${Mtxt}${have ? '' : '*'}</td><td>${frac}</td></tr>`);
+  }
+  document.getElementById('count-table').innerHTML = rows.join('') +
+    '<tr><td colspan="6" style="text-align:left;color:var(--muted);font-style:italic;border:none;padding-top:0.6rem;">* known value (OEIS A005315); rows without an asterisk were computed live above.</td></tr>';
+}
+function computeThrough(maxN) {
+  for (let n = 1; n <= maxN; n++) {
+    if (computed[n] === undefined) computed[n] = meanderCount(n);
+  }
+  computedUpTo = Math.max(computedUpTo, maxN);
+  renderCountTable();
+}
+document.getElementById('compute-btn').addEventListener('click', () => computeThrough(7));
+document.getElementById('compute8-btn').addEventListener('click', e => {
+  e.target.textContent = 'computing n = 8…';
+  setTimeout(() => { computeThrough(8); e.target.textContent = 'n = 8 done'; e.target.classList.add('active'); }, 30);
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Growth tab: ratio M_{n+1}/M_n -> R^2
+// ─────────────────────────────────────────────────────────────────────
+const R2 = 12.2626;
+const growthCanvas = document.getElementById('growth-canvas');
+const growthCtx = growthCanvas.getContext('2d');
+function drawGrowth() {
+  const ctx = growthCtx, W = growthCanvas.width, H = growthCanvas.height;
+  ctx.fillStyle = cssVar('--canvas-bg'); ctx.fillRect(0, 0, W, H);
+  const padL = 52, padR = 18, padT = 24, padB = 38;
+  const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
+  const ratios = [];
+  for (let n = 1; n + 1 < KNOWN_M.length; n++) ratios.push({ n, r: KNOWN_M[n + 1] / KNOWN_M[n] });
+  const yMax = 14;
+  const sx = i => x0 + (x1 - x0) * i / (ratios.length - 1);
+  const sy = v => y0 + (y1 - y0) * (v / yMax);
+
+  // axes
+  ctx.strokeStyle = cssVar('--canvas-rule'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke();
+  ctx.fillStyle = cssVar('--canvas-ink'); ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = 0; v <= yMax; v += 2) {
+    const y = sy(v);
+    ctx.strokeStyle = 'rgba(120,110,100,0.18)'; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+    ctx.fillStyle = cssVar('--canvas-ink'); ctx.fillText(v, x0 - 8, y);
+  }
+
+  // asymptote R^2
+  const yR = sy(R2);
+  ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 1.4; ctx.setLineDash([6, 4]);
+  ctx.beginPath(); ctx.moveTo(x0, yR); ctx.lineTo(x1, yR); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = cssVar('--accent'); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText('R² ≈ 12.26', x0 + 8, yR - 3);
+
+  // ratio curve
+  ctx.strokeStyle = cssVar('--canvas-ink'); ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ratios.forEach((d, i) => { const x = sx(i), y = sy(d.r); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.stroke();
+  ratios.forEach((d, i) => {
+    const x = sx(i), y = sy(d.r);
+    ctx.fillStyle = cssVar('--accent'); ctx.beginPath(); ctx.arc(x, y, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = cssVar('--canvas-ink'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.font = '9px ui-monospace, monospace';
+    ctx.fillText(d.r.toFixed(2), x, y + 6);
+    ctx.fillStyle = cssVar('--canvas-rule');
+    ctx.fillText('M' + (d.n + 1) + '/M' + d.n, x, y0 + 6);
+  });
+  ctx.fillStyle = cssVar('--canvas-ink'); ctx.textAlign = 'center'; ctx.font = '11px ui-monospace, monospace';
+  ctx.fillText('successive ratios climb toward R² — slowly', (x0 + x1) / 2, y1 - 6);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Fold tab: morph the explorer config between flat strip and folded arches
+// ─────────────────────────────────────────────────────────────────────
+const foldCanvas = document.getElementById('fold-canvas');
+const foldCtx = foldCanvas.getContext('2d');
+const foldSlider = document.getElementById('fold-slider');
+const foldValEl = document.getElementById('fold-val');
+foldSlider.addEventListener('input', e => { foldValEl.textContent = parseFloat(e.target.value).toFixed(2); drawFold(); });
+function drawFold() {
+  const ctx = foldCtx, W = foldCanvas.width, H = foldCanvas.height;
+  const N = 2 * ex.n, mid = H / 2, marginX = 46, span = W - 2 * marginX;
+  const f = parseFloat(foldSlider.value);     // 0 flat, 1 folded
+  ctx.fillStyle = cssVar('--canvas-bg'); ctx.fillRect(0, 0, W, H);
+  const { comp } = loopDecomp(ex.top, ex.bot, N);
+  const colorFor = c => LOOP_COLORS[c % LOOP_COLORS.length];
+  // x of each stamp (flat: spread out; folded: still along the line — folding
+  // pulls the *connections* into arcs, which is what we animate by raising arcs)
+  const xs = [];
+  for (let i = 0; i < N; i++) xs.push(marginX + (N === 1 ? 0 : span * i / (N - 1)));
+
+  // baseline
+  ctx.strokeStyle = cssVar('--canvas-rule'); ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(20, mid); ctx.lineTo(W - 20, mid); ctx.stroke();
+
+  // the strip itself (segments between consecutive stamps) — flat at f=0
+  ctx.strokeStyle = cssVar('--canvas-ink'); ctx.lineWidth = 1; ctx.globalAlpha = 0.25 + 0.0 * f;
+  ctx.beginPath();
+  for (let i = 0; i + 1 < N; i++) { ctx.moveTo(xs[i], mid); ctx.lineTo(xs[i + 1], mid); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+
+  // arcs grow out of the line as we fold: scale their height by f
+  function archScaled(x1, x2, up, color) {
+    const r = Math.abs(x2 - x1) / 2, cx = (x1 + x2) / 2;
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.4;
+    const steps = 28;
+    for (let s = 0; s <= steps; s++) {
+      const th = Math.PI * s / steps;             // 0..PI
+      const px = cx - r * Math.cos(th);           // left->right
+      const py = mid + (up ? -1 : 1) * r * Math.sin(th) * f;
+      s ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+  for (let i = 0; i < N; i++) {
+    if (ex.top[i] > i) archScaled(xs[i], xs[ex.top[i]], true, colorFor(comp[i]));
+    if (ex.bot[i] > i) archScaled(xs[i], xs[ex.bot[i]], false, colorFor(comp[i]));
+  }
+  // stamps
+  for (let i = 0; i < N; i++) {
+    ctx.fillStyle = colorFor(comp[i]); ctx.strokeStyle = cssVar('--canvas-ink'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.rect(xs[i] - 5, mid - 5, 10, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = cssVar('--canvas-ink'); ctx.font = '9px ui-monospace, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(i + 1, xs[i], mid + 9);
+  }
+  ctx.fillStyle = cssVar('--canvas-ink'); ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText(f < 0.05 ? 'flat strip of stamps' : f > 0.95 ? 'folded — edges are arch systems' : 'folding…', W / 2, 12);
+}
+const FOLDING_KNOWN = [
+  ['n', 'meanders M', 'stamp foldings', 'semi-meanders'],
+  [1, '1', '1', '1'], [2, '2', '2', '2'], [3, '8', '6', '4'], [4, '42', '16', '10'],
+  [5, '262', '50', '24'], [6, '1828', '144', '66'], [7, '13820', '462', '174'],
+];
+(function renderFoldTable() {
+  const t = document.getElementById('fold-table');
+  t.innerHTML = FOLDING_KNOWN.map((row, ri) =>
+    ri === 0
+      ? '<tr>' + row.map(c => `<th>${c}</th>`).join('') + '</tr>'
+      : '<tr>' + row.map((c, ci) => `<td${ci === 1 ? ' class="big"' : ''}>${c}</td>`).join('') + '</tr>'
+  ).join('');
+})();
+
+// ─────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────
+setN(4);
+nValEl.textContent = ex.n;
+renderCountTable();
+drawExplorer();
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.pane.active');
+  if (!active) return;
+  if (active.dataset.pane === 'explorer') drawExplorer();
+  else if (active.dataset.pane === 'growth') drawGrowth();
+  else if (active.dataset.pane === 'fold') drawFold();
+});
+
+const initialHash = (location.hash || '').replace(/^#/, '');
+if (TAB_NAMES.includes(initialHash) && initialHash !== 'explorer') setTimeout(() => showTab(initialHash), 0);
+</script>
+</body>
+</html>
