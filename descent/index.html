@@ -92,6 +92,8 @@ footer a:hover { color: var(--accent); }
   learning rates (η₁ for the first layer, η₂ for the second), is a <strong>fractal</strong>. It's the
   exact Mandelbrot escape-time algorithm, with "one training step" in place of <em>z² + c</em>. Pan
   (drag) and zoom (scroll) the boundary; click any point to watch that run's loss converge or blow up.
+  Or flip the model at each point to a tiny recurrent <strong>language model</strong> — then every dark
+  pixel is a nanomodel that <em>learned to talk</em>, and clicking it shows what it says.
 </p>
 
 <nav class="tabs" role="tablist">
@@ -104,6 +106,13 @@ footer a:hover { color: var(--accent); }
   <div class="grid-wrap">
     <div><canvas id="de-canvas" width="420" height="420"></canvas></div>
     <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">what lives at each point</span>
+        <div class="btn-row" id="de-task">
+          <button class="btn active" data-t="reg">curve-fitter</button>
+          <button class="btn" data-t="lm">nano-LM</button>
+        </div>
+      </div>
       <div class="ctrl-group">
         <div class="btn-row">
           <button class="btn" id="de-reset">⌖ reset view</button>
@@ -133,6 +142,7 @@ footer a:hover { color: var(--accent); }
       <div class="ctrl-group">
         <span class="ctrl-label">probed run · loss vs step</span>
         <canvas id="de-probe" width="250" height="110"></canvas>
+        <div id="de-gen" style="font-family:var(--mono);font-size:0.72rem;color:var(--accent);word-break:break-all;min-height:1.2em;margin-top:0.35rem"></div>
       </div>
       <div class="stats" id="de-stats"></div>
       <div class="stat-note">
@@ -178,6 +188,21 @@ eigenvalues hugging the unit circle, the dynamics turn chaotic, and small hyperp
 amplified without limit. That sensitive dependence, folded over and over by the nonlinearity, is the
 engine of self-similarity, just as it is for the quadratic map behind Mandelbrot. Click a pixel on the
 <strong>explore</strong> tab to watch a single run's loss curve hug the boundary, converge, or detonate.</p>
+
+<h2>A field of nanomodels</h2>
+<p>Flip the "what lives at each point" toggle and the curve-fitter becomes a genuine — if absurdly tiny —
+<strong>language model</strong>: a recurrent net <code>h_t = tanh(W_x·x_t + W_h·h_{t-1} + b)</code> that
+reads a short string one character at a time and predicts the next. Now every dark pixel is a learning
+rate at which this nanomodel <em>successfully learns the string</em> — click one and it tells you what it
+generates (it really does say "abcabc…"); click the bright chaos and it babbles, then blows up.</p>
+<p>Two things had to be true to make it fractal, and both are lessons. First, <strong>recurrence</strong>:
+a memoryless next-character model has a smooth, boring trainability boundary — it's the hidden state fed
+back through <code>W_h</code> that makes the dynamics chaotic enough to fracture. Second, the
+<strong>loss</strong>: trained with ordinary cross-entropy, the model <em>never</em> diverges — softmax's
+gradients are bounded, so it's unconditionally stable (we checked out to learning rate 800). The
+explosive, fractal-making instability needs an <em>unbounded</em> loss, so the nanomodels are trained
+with squared error toward the next character. The edge of trainability is real, but you only see its
+fractal teeth when the loss can run away.</p>
 
 <h2>Doing it on the GPU</h2>
 <p>Every pixel is an independent training run with no shared state — which makes this perfectly parallel
@@ -254,6 +279,48 @@ function trainPixel(eta1, eta2, H, T, traj){
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// The nano-LM: a recurrent char model trained on a short string.
+//   h_t = tanh(Wx·onehot(c_t) + Wh·h_{t-1} + bh);  out = Wo·h + bo
+//   squared-error toward the next character (cross-entropy is too stable —
+//   its bounded gradients never diverge, so it can't fractal). Recurrence is
+//   what supplies the chaos; per-layer LRs: η₁ = recurrent core, η₂ = readout.
+// ═════════════════════════════════════════════════════════════════════
+const LM_STR='abcabcabcabc', LM_CH=[...new Set(LM_STR)], LM_V=LM_CH.length, LM_SEQ=[...LM_STR].map(c=>LM_CH.indexOf(c)), LM_D=4;
+function lmInit(){ const Wx=[],Wh=[],bh=[],Wo=[],bo=[];
+  for(let d=0;d<LM_D;d++){ Wx.push([]); for(let v=0;v<LM_V;v++) Wx[d].push(0.4*Math.sin(d*1.3+v*0.7)); Wh.push([]); for(let e=0;e<LM_D;e++) Wh[d].push(0.5*Math.cos(d*0.9+e*1.1)); bh.push(0.1*Math.sin(d)); }
+  for(let v=0;v<LM_V;v++){ Wo.push([]); for(let d=0;d<LM_D;d++) Wo[v].push(0.4*Math.cos(v*1.3+d*0.5)); bo.push(0.05*Math.sin(v*0.6)); }
+  return {Wx,Wh,bh,Wo,bo}; }
+function lmTrainPixel(e1, e2, T, opts){ opts=opts||{}; const p=lmInit(), L=LM_SEQ.length, D=LM_D, V=LM_V; let prevL=null;
+  for(let t=0;t<T;t++){
+    const hs=[new Array(D).fill(0)], outs=[];
+    for(let i=0;i<L-1;i++){ const c=LM_SEQ[i], hp=hs[i], h=new Array(D);
+      for(let d=0;d<D;d++){ let s=p.bh[d]+p.Wx[d][c]; for(let e=0;e<D;e++) s+=p.Wh[d][e]*hp[e]; h[d]=Math.tanh(s); } hs.push(h);
+      const o=new Array(V); for(let v=0;v<V;v++){ let s=p.bo[v]; for(let d=0;d<D;d++) s+=p.Wo[v][d]*h[d]; o[v]=s; } outs.push(o); }
+    const gWx=Array.from({length:D},()=>new Array(V).fill(0)), gWh=Array.from({length:D},()=>new Array(D).fill(0)), gbh=new Array(D).fill(0),
+          gWo=Array.from({length:V},()=>new Array(D).fill(0)), gbo=new Array(V).fill(0);
+    let loss=0; const N=L-1; let dhnext=new Array(D).fill(0);
+    for(let i=L-2;i>=0;i--){ const c=LM_SEQ[i], y=LM_SEQ[i+1], h=hs[i+1], hp=hs[i], o=outs[i]; const dh=new Array(D).fill(0);
+      for(let v=0;v<V;v++){ const er=o[v]-(v===y?1:0); loss+=er*er; const dout=2*er/N; gbo[v]+=dout; for(let d=0;d<D;d++){ gWo[v][d]+=dout*h[d]; dh[d]+=p.Wo[v][d]*dout; } }
+      for(let d=0;d<D;d++) dh[d]+=dhnext[d];
+      const dz=new Array(D); for(let d=0;d<D;d++){ dz[d]=dh[d]*(1-h[d]*h[d]); gbh[d]+=dz[d]; gWx[d][c]+=dz[d]; for(let e=0;e<D;e++) gWh[d][e]+=dz[d]*hp[e]; }
+      dhnext=new Array(D).fill(0); for(let e=0;e<D;e++){ let s=0; for(let d=0;d<D;d++) s+=p.Wh[d][e]*dz[d]; dhnext[e]=s; }
+    }
+    loss/=N; if(opts.traj) opts.traj.push(loss);
+    if(!isFinite(loss) || loss>THRESH){ let mu=t;
+      if(prevL!=null && isFinite(prevL) && prevL>0 && loss>prevL){ const lt=Math.log(THRESH), lp=Math.log(prevL), lc=Math.log(loss); mu=(t-1)+Math.min(1,Math.max(0,(lt-lp)/(lc-lp))); }
+      return { mu, trainable:false, L:loss, gen:'' };
+    }
+    for(let d=0;d<D;d++){ for(let v=0;v<V;v++) p.Wx[d][v]-=e1*gWx[d][v]; for(let e=0;e<D;e++) p.Wh[d][e]-=e1*gWh[d][e]; p.bh[d]-=e1*gbh[d]; }
+    for(let v=0;v<V;v++){ for(let d=0;d<D;d++) p.Wo[v][d]-=e2*gWo[v][d]; p.bo[v]-=e2*gbo[v]; }
+    prevL=loss;
+  }
+  let gen=''; if(opts.gen){ let h=new Array(D).fill(0), c=LM_SEQ[0]; gen=LM_CH[c];
+    for(let k=0;k<14;k++){ const nh=new Array(D); for(let d=0;d<D;d++){ let s=p.bh[d]+p.Wx[d][c]; for(let e=0;e<D;e++) s+=p.Wh[d][e]*h[e]; nh[d]=Math.tanh(s); } h=nh;
+      let bi=0,bs=-1e9; for(let v=0;v<V;v++){ let s=p.bo[v]; for(let d=0;d<D;d++) s+=p.Wo[v][d]*h[d]; if(s>bs){ bs=s; bi=v; } } c=bi; gen+=LM_CH[c]; } }
+  return { mu:T, trainable:true, L:prevL, gen };
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // Colour
 // ═════════════════════════════════════════════════════════════════════
 const PALETTES = {
@@ -274,18 +341,23 @@ function colorOf(res,T,pal){
 const cv = document.getElementById('de-canvas'); let cx = null, mode = 'cpu';
 function ensureCPU(){ if(!cx) cx = cv.getContext('2d'); }
 const view = { cx:4.0, cy:1.0, spanX:8.0, spanY:2.4 };   // default η1∈[0,8], η2∈[−0.2,2.2]
-const de = { T:400, H:2, pal:'neon', res:420, img:null, row:0, stride:8, phase:'coarse', raf:null, probe:null };
-function defaultView(){ view.cx=4.0; view.cy=1.0; view.spanX=8.0; view.spanY=2.4; }
+const de = { T:400, H:2, pal:'neon', res:420, img:null, row:0, stride:8, phase:'coarse', raf:null, probe:null, task:'reg' };
+function baseSpan(){ return de.task==='lm' ? 3.0 : 8.0; }
+function defaultView(){ if(de.task==='lm'){ view.cx=1.5; view.cy=0.75; view.spanX=3.0; view.spanY=1.5; }
+  else { view.cx=4.0; view.cy=1.0; view.spanX=8.0; view.spanY=2.4; } }
 function pxToEta(px,py){ const R=de.res; return [ view.cx + (px/R-0.5)*view.spanX, view.cy - (py/R-0.5)*view.spanY ]; }
 function startRenderCPU(){ ensureCPU(); cancelAnimationFrame(de.raf); de.res=parseInt(document.getElementById('de-res').value,10);
   cv.width=de.res; cv.height=de.res; de.img=cx.createImageData(de.res,de.res);
   coarsePass(); de.row=0; de.phase='fine'; de.raf=requestAnimationFrame(renderStep); updateStats(); }
+function gpuActive(){ return de.task==='reg' && mode==='gpu' && gpu; }   // nano-LM has no GPU kernel yet → CPU
 function startRender(){ de.res=parseInt(document.getElementById('de-res').value,10);
-  if(mode==='gpu'){ try{ renderGPU(); updateStats(); return; }catch(e){ console.warn('GPU render failed → CPU',e); mode='cpu'; } }
+  if(gpuActive()){ try{ renderGPU(); updateStats(); return; }catch(e){ console.warn('GPU render failed → CPU',e); mode='cpu'; } }
   startRenderCPU(); }
-function quickDraw(){ if(mode==='gpu'){ try{ renderGPU(); return; }catch(e){ mode='cpu'; } }
+function quickDraw(){ if(gpuActive()){ try{ renderGPU(); return; }catch(e){ mode='cpu'; } }
   if(!de.img){ startRenderCPU(); return; } coarsePass(); de.row=0; cancelAnimationFrame(de.raf); de.raf=requestAnimationFrame(renderStep); }
-function shade(px,py){ const [e1,e2]=pxToEta(px,py); const r=trainPixel(e1,e2,de.H,de.T); return colorOf(r,de.T,PALETTES[de.pal]); }
+function shade(px,py){ const [e1,e2]=pxToEta(px,py);
+  const r = de.task==='lm' ? lmTrainPixel(e1,e2,de.T,{}) : trainPixel(e1,e2,de.H,de.T);
+  return colorOf(r,de.T,PALETTES[de.pal]); }
 function coarsePass(){ const R=de.res, s=de.stride, d=de.img.data;
   for(let y=0;y<R;y+=s) for(let x=0;x<R;x+=s){ const [r,g,b]=shade(x+s/2|0,y+s/2|0);
     for(let dy=0;dy<s&&y+dy<R;dy++)for(let dx=0;dx<s&&x+dx<R;dx++){ const k=((y+dy)*R+(x+dx))*4; d[k]=r;d[k+1]=g;d[k+2]=b;d[k+3]=255; } }
@@ -301,10 +373,10 @@ function updateStats(){ const prog=de.phase==='fine'?Math.min(100,Math.round(100
   document.getElementById('de-stats').innerHTML = `
     <div class="stat-row"><span class="k">η₁ range</span><span class="v hot">${(view.cx-view.spanX/2).toFixed(4)} … ${(view.cx+view.spanX/2).toFixed(4)}</span></div>
     <div class="stat-row"><span class="k">η₂ range</span><span class="v hot">${(view.cy-view.spanY/2).toFixed(4)} … ${(view.cy+view.spanY/2).toFixed(4)}</span></div>
-    <div class="stat-row"><span class="k">zoom</span><span class="v">${(8.0/view.spanX).toExponential(2)}×</span></div>
-    <div class="stat-row"><span class="k">net</span><span class="v">tanh · ${de.H} hidden</span></div>
+    <div class="stat-row"><span class="k">zoom</span><span class="v">${(baseSpan()/view.spanX).toExponential(2)}×</span></div>
+    <div class="stat-row"><span class="k">model</span><span class="v">${de.task==='lm'?'recurrent LM · '+LM_D+'h · "'+LM_STR+'"':'tanh curve · '+de.H+' hidden'}</span></div>
     <div class="stat-row"><span class="k">steps · res</span><span class="v">${de.T} · ${de.res}²</span></div>
-    <div class="stat-row"><span class="k">renderer</span><span class="v hot">${mode==='gpu'?'WebGPU':'CPU'+(de.row>=de.res?'':' · '+prog+'%')}</span></div>`;
+    <div class="stat-row"><span class="k">renderer</span><span class="v hot">${gpuActive()?'WebGPU':'CPU'+(de.row>=de.res?'':' · '+prog+'%')}</span></div>`;
 }
 // ═════════════════════════════════════════════════════════════════════
 // WebGPU compute path — one thread per pixel runs the SAME training loop as
@@ -387,47 +459,35 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let b3 = u32(clamp(col.z, 0.0, 1.0) * 255.0);
   outp[gid.y * R + gid.x] = r | (g2 << 8u) | (b3 << 16u) | (255u << 24u);
 }`;
-const RENDER_WGSL = WGSL_STRUCT + `
-@group(0) @binding(0) var<uniform> u: U;
-@group(0) @binding(1) var<storage, read> px: array<u32>;
-@vertex
-fn vmain(@builtin(vertex_index) vi: u32) -> @builtin(position) vec4<f32> {
-  var p = array<vec2<f32>, 3>(vec2<f32>(-1.0, -1.0), vec2<f32>(3.0, -1.0), vec2<f32>(-1.0, 3.0));
-  return vec4<f32>(p[vi], 0.0, 1.0);
-}
-@fragment
-fn fmain(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-  let R = u.res;
-  let v = px[u32(pos.y) * R + u32(pos.x)];
-  return vec4<f32>(f32(v & 0xffu), f32((v >> 8u) & 0xffu), f32((v >> 16u) & 0xffu), 255.0) / 255.0;
-}`;
-let gpu = null;
+let gpu = null, gpuBusy = false, gpuDirty = false;
 async function initGPU(){
   const adapter = await navigator.gpu.requestAdapter(); if(!adapter) throw new Error('no adapter');
   const device = await adapter.requestDevice();
-  const ctx = cv.getContext('webgpu'); if(!ctx) throw new Error('no webgpu context');
-  const format = navigator.gpu.getPreferredCanvasFormat();
-  ctx.configure({ device, format, alphaMode:'opaque' });
-  const ubuf = device.createBuffer({ size:128, usage:GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
   device.pushErrorScope('validation');
-  const compMod = device.createShaderModule({ code: COMPUTE_WGSL });
-  const rendMod = device.createShaderModule({ code: RENDER_WGSL });
-  const compPipe = device.createComputePipeline({ layout:'auto', compute:{ module:compMod, entryPoint:'main' } });
-  const rendPipe = device.createRenderPipeline({ layout:'auto', vertex:{ module:rendMod, entryPoint:'vmain' },
-    fragment:{ module:rendMod, entryPoint:'fmain', targets:[{ format }] }, primitive:{ topology:'triangle-list' } });
+  const mod = device.createShaderModule({ code: COMPUTE_WGSL });
+  const compPipe = device.createComputePipeline({ layout:'auto', compute:{ module:mod, entryPoint:'main' } });
   const err = await device.popErrorScope(); if(err) throw new Error('WGSL: ' + err.message);
-  gpu = { device, ctx, format, ubuf, compPipe, rendPipe, outbuf:null, outRes:0, compBG:null, rendBG:null };
+  const ubuf = device.createBuffer({ size:128, usage:GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  gpu = { device, ubuf, compPipe, outbuf:null, staging:null, outRes:0, compBG:null };
 }
+// GPU computes into a storage buffer, we read it back and putImageData onto the 2-D canvas —
+// so the canvas is never locked to a webgpu context and CPU/GPU/both-tasks coexist cleanly.
 function renderGPU(){
   if(!gpu) throw new Error('gpu not ready');
+  if(gpuBusy){ gpuDirty=true; return; }
+  gpuBusy=true;
+  _renderGPU().then(()=>{ gpuBusy=false; if(gpuDirty){ gpuDirty=false; renderGPU(); } })
+    .catch(e=>{ gpuBusy=false; console.warn('GPU render error → CPU', e); mode='cpu'; startRenderCPU(); });
+}
+async function _renderGPU(){
   const device = gpu.device, R = de.res;
   if(cv.width!==R || cv.height!==R){ cv.width=R; cv.height=R; }
+  ensureCPU(); if(!de.img || de.img.width!==R) de.img = cx.createImageData(R,R);
   if(gpu.outRes!==R || !gpu.outbuf){
-    if(gpu.outbuf) gpu.outbuf.destroy();
-    gpu.outbuf = device.createBuffer({ size:R*R*4, usage:GPUBufferUsage.STORAGE });
+    if(gpu.outbuf) gpu.outbuf.destroy(); if(gpu.staging) gpu.staging.destroy();
+    gpu.outbuf = device.createBuffer({ size:R*R*4, usage:GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });
+    gpu.staging = device.createBuffer({ size:R*R*4, usage:GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
     gpu.compBG = device.createBindGroup({ layout:gpu.compPipe.getBindGroupLayout(0),
-      entries:[ {binding:0,resource:{buffer:gpu.ubuf}}, {binding:1,resource:{buffer:gpu.outbuf}} ] });
-    gpu.rendBG = device.createBindGroup({ layout:gpu.rendPipe.getBindGroupLayout(0),
       entries:[ {binding:0,resource:{buffer:gpu.ubuf}}, {binding:1,resource:{buffer:gpu.outbuf}} ] });
     gpu.outRes = R;
   }
@@ -439,9 +499,12 @@ function renderGPU(){
   const enc = device.createCommandEncoder();
   const cp = enc.beginComputePass(); cp.setPipeline(gpu.compPipe); cp.setBindGroup(0,gpu.compBG);
   const wg = Math.ceil(R/8); cp.dispatchWorkgroups(wg, wg); cp.end();
-  const rp = enc.beginRenderPass({ colorAttachments:[{ view:gpu.ctx.getCurrentTexture().createView(), loadOp:'clear', storeOp:'store', clearValue:{r:0,g:0,b:0,a:1} }] });
-  rp.setPipeline(gpu.rendPipe); rp.setBindGroup(0,gpu.rendBG); rp.draw(3); rp.end();
+  enc.copyBufferToBuffer(gpu.outbuf, 0, gpu.staging, 0, R*R*4);
   device.queue.submit([enc.finish()]);
+  await gpu.staging.mapAsync(GPUMapMode.READ);
+  const u32 = new Uint32Array(gpu.staging.getMappedRange().slice(0)); gpu.staging.unmap();
+  const d = de.img.data; for(let i=0;i<R*R;i++){ const v=u32[i], k=i*4; d[k]=v&0xff; d[k+1]=(v>>8)&0xff; d[k+2]=(v>>16)&0xff; d[k+3]=255; }
+  cx.putImageData(de.img,0,0); updateStats();
 }
 
 // ── interaction: drag to pan, wheel to zoom, click to probe ──
@@ -458,18 +521,23 @@ cv.addEventListener('wheel',e=>{ e.preventDefault(); const r=cv.getBoundingClien
   view.cx=e1-(mx-0.5)*view.spanX; view.cy=e2+(my-0.5)*view.spanY;
   startRender(); }, {passive:false});
 function probeAt(e){ const r=cv.getBoundingClientRect(); const px=(e.clientX-r.left)/r.width*de.res, py=(e.clientY-r.top)/r.height*de.res;
-  const [e1,e2]=pxToEta(px,py); const traj=[]; const res=trainPixel(e1,e2,de.H,de.T,traj); de.probe={e1,e2,traj,res}; drawProbe(); }
+  const [e1,e2]=pxToEta(px,py); const traj=[];
+  const res = de.task==='lm' ? lmTrainPixel(e1,e2,de.T,{traj,gen:true}) : trainPixel(e1,e2,de.H,de.T,traj);
+  de.probe={e1,e2,traj,res}; drawProbe(); }
 const pc=document.getElementById('de-probe'), pcx=pc.getContext('2d');
-function drawProbe(){ const W=pc.width,H=pc.height; pcx.fillStyle='#0a0710'; pcx.fillRect(0,0,W,H);
-  if(!de.probe){ pcx.fillStyle='#888'; pcx.font='11px '+getComputedStyle(document.documentElement).getPropertyValue('--mono'); pcx.fillText('click the fractal to probe a run',8,H/2); return; }
-  const tr=de.probe.traj, n=tr.length; if(!n)return;
-  const logs=tr.map(L=>Math.log10(Math.max(1e-12,L))); let lo=Math.min(...logs), hi=Math.max(...logs); if(hi-lo<1){hi=lo+1;}
-  const X=i=>6+(W-12)*i/Math.max(1,de.T-1), Y=v=>H-6-(H-12)*(v-lo)/(hi-lo);
-  pcx.strokeStyle=de.probe.res.trainable?'#3fb87a':'#e8506e'; pcx.lineWidth=1.6; pcx.beginPath();
-  logs.forEach((v,i)=>{ const x=X(i),y=Y(v); i?pcx.lineTo(x,y):pcx.moveTo(x,y); }); pcx.stroke();
-  pcx.fillStyle='#ccc'; pcx.font='10px '+getComputedStyle(document.documentElement).getPropertyValue('--mono');
-  pcx.fillText('η₁='+de.probe.e1.toFixed(3)+' η₂='+de.probe.e2.toFixed(3), 6, 12);
-  pcx.fillText(de.probe.res.trainable?'converged (log₁₀ loss)':'diverged @ step '+Math.floor(de.probe.res.mu), 6, H-2);
+function drawProbe(){ const W=pc.width,H=pc.height; const ge=document.getElementById('de-gen');
+  pcx.fillStyle='#0a0710'; pcx.fillRect(0,0,W,H);
+  if(!de.probe){ ge.textContent=''; pcx.fillStyle='#888'; pcx.font='11px '+getComputedStyle(document.documentElement).getPropertyValue('--mono'); pcx.fillText('click the fractal to probe a run',8,H/2); return; }
+  const tr=de.probe.traj, n=tr.length;
+  if(n){ const logs=tr.map(L=>Math.log10(Math.max(1e-12,L))); let lo=Math.min(...logs), hi=Math.max(...logs); if(hi-lo<1){hi=lo+1;}
+    const X=i=>6+(W-12)*i/Math.max(1,de.T-1), Y=v=>H-6-(H-12)*(v-lo)/(hi-lo);
+    pcx.strokeStyle=de.probe.res.trainable?'#3fb87a':'#e8506e'; pcx.lineWidth=1.6; pcx.beginPath();
+    logs.forEach((v,i)=>{ const x=X(i),y=Y(v); i?pcx.lineTo(x,y):pcx.moveTo(x,y); }); pcx.stroke();
+    pcx.fillStyle='#ccc'; pcx.font='10px '+getComputedStyle(document.documentElement).getPropertyValue('--mono');
+    pcx.fillText('η₁='+de.probe.e1.toFixed(3)+' η₂='+de.probe.e2.toFixed(3), 6, 12);
+    pcx.fillText(de.probe.res.trainable?'converged (log₁₀ loss)':'diverged @ step '+Math.floor(de.probe.res.mu), 6, H-2); }
+  if(de.task==='lm'){ ge.textContent = de.probe.res.trainable ? 'this nanomodel says: "'+de.probe.res.gen+'"' : 'this nanomodel babbled, then diverged'; }
+  else ge.textContent='';
 }
 // ── controls ──
 document.getElementById('de-reset').addEventListener('click',()=>{ defaultView(); startRender(); });
@@ -479,9 +547,15 @@ document.getElementById('de-h').addEventListener('input',e=>{ de.H=parseInt(e.ta
 document.getElementById('de-res').addEventListener('input',e=>{ document.getElementById('de-res-val').textContent=e.target.value; startRender(); });
 document.getElementById('de-cmap').addEventListener('click',e=>{ const b=e.target.closest('[data-c]'); if(!b)return;
   de.pal=b.dataset.c; document.querySelectorAll('#de-cmap .btn').forEach(x=>x.classList.toggle('active',x===b)); startRender(); });
+document.getElementById('de-task').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(!b)return;
+  de.task=b.dataset.t; document.querySelectorAll('#de-task .btn').forEach(x=>x.classList.toggle('active',x===b));
+  if(de.task==='lm' && !gpuActive() && parseInt(document.getElementById('de-res').value,10)>300){   // nano-LM is CPU + heavier
+    document.getElementById('de-res').value=280; document.getElementById('de-res-val').textContent=280; }
+  de.probe=null; defaultView(); startRender(); drawProbe(); });
 
 // Init — probe WebGPU; on any failure use the CPU renderer
 (async ()=>{
+  ensureCPU();
   if(navigator.gpu){ try{ await initGPU(); mode='gpu'; }catch(e){ console.warn('WebGPU unavailable → CPU fallback:', e.message); mode='cpu'; } }
   defaultView(); startRender(); drawProbe(); updateStats();
   const initialHash=(location.hash||'').replace(/^#/,'');
