@@ -106,15 +106,20 @@ export function generateWorld(seed, opts={}){
   for(let i=0;i<plateCount;i++){const c=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);
     plates.push({ center:c, oceanic: rnd()<oceanFraction?1:0, axis:norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]), speed:0.4+rnd()*1.0, buoy:0.12+rnd()*0.30 });}
   const top2=p=>{let d1=-2,d2=-2,k1=0;for(let s=0;s<plateCount;s++){const d=p[0]*plates[s].center[0]+p[1]*plates[s].center[1]+p[2]*plates[s].center[2];if(d>d1){d2=d1;d1=d;k1=s}else if(d>d2)d2=d}return[d1,d2,k1]};
+  // domain-warp the plate query → fractal, jagged boundaries (not smooth Voronoi arcs)
+  const warp=p=>{const f=2.6,g=6.3,A=0.34,B=0.14;
+    const x=p[0]+(fbm3(p[0]*f,p[1]*f,p[2]*f,seed+201)-0.5)*A+(fbm3(p[0]*g,p[1]*g,p[2]*g,seed+204)-0.5)*B;
+    const y=p[1]+(fbm3(p[0]*f,p[1]*f,p[2]*f,seed+202)-0.5)*A+(fbm3(p[0]*g,p[1]*g,p[2]*g,seed+205)-0.5)*B;
+    const z=p[2]+(fbm3(p[0]*f,p[1]*f,p[2]*f,seed+203)-0.5)*A+(fbm3(p[0]*g,p[1]*g,p[2]*g,seed+206)-0.5)*B;
+    const l=Math.hypot(x,y,z)||1;return[x/l,y/l,z/l]};
 
-  // 1. ADAPTIVE sampling: dense on continents + ALL plate boundaries (coasts,
-  //    mountains, trenches, arcs), sparse in deep ocean. Rejection-sampled from
-  //    a fine Fibonacci candidate set so density follows the structure.
-  const rotA=rnd()*6.283, M=Math.round(targetN*2.4);
+  // 1. ADAPTIVE sampling: dense on continents + extra-dense along the (warped)
+  //    plate boundaries — coasts, mountains, trenches, arcs. Sparse deep ocean.
+  const rotA=rnd()*6.283, M=Math.round(targetN*2.1);
   const V=[], plateRaw=[];
   for(let i=0;i<M;i++){const z=1-(2*i+1)/M,r=Math.sqrt(1-z*z),th=ga*i+rotA;const p=[r*Math.cos(th),r*Math.sin(th),z];
-    const t=top2(p), bp=Math.exp(-(t[0]-t[1])/0.05); // bp→1 near a plate boundary
-    if(rnd()<Math.min(1,(plates[t[2]].oceanic?0.13:0.60)+bp*0.44)){V.push(p);plateRaw.push(t[2])}}
+    const t=top2(warp(p)), bp=Math.exp(-(t[0]-t[1])/0.035); // bp→1 near a (jagged) plate boundary
+    if(rnd()<Math.min(1,(plates[t[2]].oceanic?0.12:0.52)+bp*0.78)){V.push(p);plateRaw.push(t[2])}}
   const N=V.length;
 
   // 2. spherical Delaunay/Voronoi ---------------------------------------------
