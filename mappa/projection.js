@@ -13,6 +13,20 @@ import { mulberry32 } from './engine.js';
 const HAB = [0,0,0, 0.02,0.22,0.5, 0.16,0.72,0.92,0.82, 0.12,0.66,0.78,0.62, 0.05,0];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const norm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
+// spherical weighted k-means over a set of cell indices → {assign (local idx per cell), centroids}
+function kmeansSphere(cells, K, V, weight, rnd){
+  const seeds=[cells[Math.floor(rnd()*cells.length)]];
+  while(seeds.length<K){let best=cells[0],bs=-1;
+    for(let t=0;t<48;t++){const i=cells[Math.floor(rnd()*cells.length)];let nd=2;for(const s of seeds){const d=1-dot(V[i],V[s]);if(d<nd)nd=d}
+      const sc=nd*(0.3+(weight?weight[i]:1))*(0.6+rnd()*0.8);if(sc>bs){bs=sc;best=i}}seeds.push(best)}
+  let cent=seeds.map(i=>V[i].slice());
+  const assign=new Int16Array(cells.length);
+  for(let it=0;it<10;it++){const acc=Array.from({length:K},()=>[0,0,0]),wsum=new Float64Array(K);
+    for(let t=0;t<cells.length;t++){const i=cells[t];let bk=0,bd=-2;for(let k=0;k<K;k++){const d=dot(V[i],cent[k]);if(d>bd){bd=d;bk=k}}assign[t]=bk;
+      const wg=0.2+(weight?weight[i]:1);acc[bk][0]+=V[i][0]*wg;acc[bk][1]+=V[i][1]*wg;acc[bk][2]+=V[i][2]*wg;wsum[bk]+=wg}
+    for(let k=0;k<K;k++)if(wsum[k]>0)cent[k]=norm(acc[k])}
+  return {assign,centroids:cent};
+}
 function Heap(){this.a=[]}
 Heap.prototype.push=function(k,v){const a=this.a;a.push([k,v]);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;const t=a[p];a[p]=a[i];a[i]=t;i=p}};
 Heap.prototype.pop=function(){const a=this.a,top=a[0],last=a.pop();if(a.length){a[0]=last;let i=0;for(;;){let l=2*i+1,r=l+1,s=i;if(l<a.length&&a[l][0]<a[s][0])s=l;if(r<a.length&&a[r][0]<a[s][0])s=r;if(s===i)break;const t=a[s];a[s]=a[i];a[i]=t;i=s}}return top};
@@ -109,6 +123,23 @@ export function projectAtlas(world, wings, sites){
       cities.push({n:nd.n,u:nd.u,k:nd.k,a:nd.a,f:nd.f,b:nd.b,w:nd.w,w2:nd.w2,v:V[site],site,capital:rank===0});
     });
   }
+  // 5. SOVEREIGN COUNTRIES — cluster each civilization's CITIES into states
+  //    (balanced ~1-2 cities each; biggest hold 2-3), then territory follows.
+  const countryOf=new Int16Array(N).fill(-1);
+  const countries=[];
+  const citiesByWing={}; for(const w of wings) citiesByWing[w.id]=[];
+  for(const c of cities){ c.country=-1; citiesByWing[c.w].push(c); }
+  for(const w of wings){
+    const cw=citiesByWing[w.id], cand=cellsByWing[w.id]||[];
+    if(!cw.length||!cand.length) continue;
+    const Kw=Math.max(1, Math.round(cw.length*0.62)); // ~0.6 countries per city → some hold 2
+    const cl=kmeansSphere(cw.map(c=>c.site), Kw, V, null, rnd);
+    const base=countries.length;
+    for(let k=0;k<Kw;k++) countries.push({wing:w.id, hue:w.hue+(((k*53)%30)-15), lo:((k*29)%14)-7, cells:0, cities:0, centroid:cl.centroids[k]});
+    for(let t=0;t<cw.length;t++){const ci=base+cl.assign[t]; cw[t].country=ci; countries[ci].cities++}
+    for(const cell of cand){let bk=0,bd=-2;for(let k=0;k<Kw;k++){const d=dot(V[cell],cl.centroids[k]);if(d>bd){bd=d;bk=k}}countryOf[cell]=base+bk;countries[base+bk].cells++}
+  }
+
   const roads=buildRoads(world, cities);
-  return {cities, region:regionWingIdx, centroids:cent, wingRegion, roads};
+  return {cities, region:regionWingIdx, centroids:cent, wingRegion, roads, countries, countryOf};
 }
