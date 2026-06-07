@@ -34,6 +34,8 @@ const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, mode='orb', atlasOn=true;
+const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null}; // null = derive from seed
+const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
 let mview={x:0,y:0,s:1};
 let MW=1400,MH=1100,S=1,ox=0,oy=0;
@@ -57,8 +59,12 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function build(){world=rustGen?unpackRust(rustMod.generate_world(seed>>>0,GEN_N())):generateWorld(seed,{N:GEN_N()});atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
-  MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();draw()}
+function build(){const g=genome;
+  world=rustGen
+    ? unpackRust(rustMod.generate_world(seed>>>0,GEN_N(), g.oceanFraction??-1, g.axialTilt??-1, g.waterFrac??-1, g.plateCount??0, g.solar??1.0))
+    : generateWorld(seed,{N:GEN_N(), oceanFraction:g.oceanFraction??undefined, axialTilt:g.axialTilt??undefined, waterFrac:g.waterFrac??undefined, plateCount:g.plateCount??undefined, solar:g.solar??1.0});
+  atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
+  MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
 
 function cellHSL(i){const b=BIOMES[world.biome[i]];let h=b.h,s=b.s,l=b.l;
@@ -204,6 +210,29 @@ function buildLegend(){legendEl.innerHTML='';if(mode==='tectonic')return;
   if(atlasOn){for(const w of WINGS){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,55,58)+'"></span>'+w.label;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
   else{const seen=new Set();for(let i=0;i<world.N;i++)seen.add(world.biome[i]);for(let bi=3;bi<BIOMES.length;bi++){if(!seen.has(bi))continue;const b=BIOMES[bi];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(b.h,b.s,b.l)+'"></span>'+b.name;legendEl.appendChild(c)}}}
+// --- map builder: the genome as sliders ---
+const $=id=>document.getElementById(id);
+const sliders=[
+  ['solar',         $('sSolar'),  $('vSolar'),  v=>v.toFixed(2)+'×',     v=>+v,            m=>(m.solar??1)],
+  ['axialTilt',     $('sTilt'),   $('vTilt'),   v=>v+'°',                v=>v*Math.PI/180, m=>m.axialTiltDeg],
+  ['waterFrac',     $('sWater'),  $('vWater'),  v=>v+'% water',          v=>v/100,         m=>Math.round(m.waterFrac*100)],
+  ['oceanFraction', $('sOcean'),  $('vOcean'),  v=>v+'% crust',          v=>v/100,         m=>Math.round(m.oceanFraction*100)],
+  ['plateCount',    $('sPlates'), $('vPlates'), v=>v+' plates',          v=>v|0,           m=>m.plateCount],
+];
+function syncSliders(){const m=world.meta;
+  for(const [p,sl,vl,fmt,,fromMeta] of sliders){const lab=sl.closest('label');
+    if(!pinned.has(p)){const mv=fromMeta(m);sl.value=mv;vl.textContent=fmt(+mv);lab.classList.remove('pin')}
+    else{lab.classList.add('pin')}}
+  $('bMeta').textContent='seed '+m.seed+' · '+(m.N/1000).toFixed(1)+'k · '+Math.round(m.seaCoverage*100)+'% sea';
+}
+for(const [p,sl,vl,fmt,toG] of sliders){
+  sl.addEventListener('input',()=>{vl.textContent=fmt(+sl.value);sl.closest('label').classList.add('pin')});
+  sl.addEventListener('change',()=>{pinned.add(p);genome[p]=toG(+sl.value);regen()});
+}
+$('bAuto').onclick=()=>{pinned.clear();for(const k in genome)genome[k]=null;regen()};
+$('builderToggle').onclick=()=>$('builder').classList.toggle('show');
+$('builderClose').onclick=()=>$('builder').classList.remove('show');
+
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
 addEventListener('resize',resize);resize();initEngine().finally(()=>regen());
 

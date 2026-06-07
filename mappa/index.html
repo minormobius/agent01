@@ -35,6 +35,19 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 #tkey{position:fixed;left:16px;bottom:64px;z-index:6;background:#140f08e0;border:1px solid #2c2316;border-radius:8px;padding:8px 11px;font-size:11.5px;color:#b7a988;display:none}
 #tkey.show{display:block}#tkey b{color:var(--parch)}#tkey i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 #status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:8;background:#140f08e8;border:1px solid #2c2316;border-radius:9px;padding:11px 18px;color:var(--gold);font-size:13px;letter-spacing:.05em;opacity:0;transition:opacity .15s;pointer-events:none}
+#builder{position:fixed;top:52px;right:14px;z-index:7;width:236px;background:#120d07f2;border:1px solid #2c2316;border-radius:10px;padding:12px 13px 11px;display:none;pointer-events:auto}
+#builder.show{display:block}
+#builder .bhead{display:flex;justify-content:space-between;align-items:center;color:var(--gold);font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px}
+#builder .bhead button{background:none;border:0;color:#b7a988;cursor:pointer;font-size:15px;line-height:1}
+#builder label{display:block;font-size:11px;color:#b7a988;margin:9px 0 2px}
+#builder label span{float:right;color:var(--parch);font-variant-numeric:tabular-nums}
+#builder label.pin span{color:var(--gold)}
+#builder input[type=range]{width:100%;accent-color:var(--gold);margin:0}
+#builder .brow{display:flex;justify-content:space-between;align-items:center;margin-top:11px;gap:8px}
+#builder .brow button{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:5px 9px;border-radius:6px;cursor:pointer;font-size:11.5px}
+#builder .brow button:hover{border-color:var(--gold)}
+#builder #bMeta{font-size:10.5px;color:#8c7a5c;font-variant-numeric:tabular-nums}
+@media (max-width:760px){#builder{top:auto;bottom:120px;right:8px;left:8px;width:auto}}
 @media (max-width:760px){
   header{padding:8px 9px;gap:6px;flex-wrap:wrap}
   .right{width:100%;margin-left:0;margin-top:2px}#q{flex:1;width:auto}
@@ -49,11 +62,20 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 <header>
   <a href="https://mino.mobi/">mino.mobi</a>
   <span class="modes"><button data-m="orb" class="on">Orb</button><button data-m="map">Mercator</button><button data-m="civ">Civ</button><button data-m="tectonic">Tectonic</button></span>
-  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="reseed">↻ new world</button></span>
+  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
 </header>
 <div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">▸ arrows = Euler-pole drift · cool = oceanic plate</span></div>
 <div id="tip"></div>
 <div id="status"></div>
+<div id="builder">
+  <div class="bhead"><span>world genome</span><button id="builderClose">×</button></div>
+  <label data-p="solar">Solar luminosity <span id="vSolar">—</span><input type="range" id="sSolar" min="0.70" max="1.40" step="0.01" value="1"></label>
+  <label data-p="axialTilt">Axial tilt <span id="vTilt">—</span><input type="range" id="sTilt" min="0" max="42" step="1" value="20"></label>
+  <label data-p="waterFrac">Water volume <span id="vWater">—</span><input type="range" id="sWater" min="3" max="32" step="1" value="15"></label>
+  <label data-p="oceanFraction">Oceanic crust <span id="vOcean">—</span><input type="range" id="sOcean" min="28" max="86" step="1" value="60"></label>
+  <label data-p="plateCount">Plates <span id="vPlates">—</span><input type="range" id="sPlates" min="7" max="28" step="1" value="16"></label>
+  <div class="brow"><button id="bAuto">⟲ from seed</button><span id="bMeta"></span></div>
+</div>
 <footer>
   <div class="scrub"><button class="btn" id="play">▶ chronicle</button>
     <input type="range" id="time" min="0" max="1000" value="1000"><span class="era" id="era">all founded</span></div>
