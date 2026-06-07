@@ -38,17 +38,26 @@ h1{font:600 26px/1.12 ui-serif,Georgia,serif;letter-spacing:.05em;margin:9px 0 5
 .dial{text-align:center}
 .dlabel{font:10px/1.2 ui-monospace,monospace;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;margin-bottom:8px}
 .dlabel b{color:var(--gold)}
-.disc{position:relative;width:118px;height:118px;margin:0 auto;border-radius:50%;cursor:pointer;
+.disc{position:relative;width:118px;height:118px;margin:0 auto;border-radius:50%;cursor:grab;overflow:hidden;
+  touch-action:none;
   background:radial-gradient(circle at 38% 32%, #6b4f22, #3a2a12 70%, #271b0c);
   border:2px solid rgba(236,198,106,.5);
-  box-shadow:0 2px 6px rgba(0,0,0,.5), 0 0 0 4px rgba(0,0,0,.22) inset, 0 1px 0 rgba(255,230,170,.25) inset;
-  transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+  box-shadow:0 2px 6px rgba(0,0,0,.5), 0 0 0 4px rgba(0,0,0,.22) inset, 0 1px 0 rgba(255,230,170,.25) inset}
+.disc:active{cursor:grabbing}
 .disc:focus{outline:2px solid var(--gold);outline-offset:3px}
 .disc.locked{cursor:default;opacity:.96}
-.disc .knob{position:absolute;left:50%;top:50%;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);
+/* the brass face: 16 detent ticks engraved round the rim — this is what spins */
+.discface{position:absolute;inset:0;border-radius:50%;z-index:1;pointer-events:none;
+  background:repeating-conic-gradient(from -1.2deg, rgba(236,198,106,.55) 0deg 2.4deg, transparent 2.4deg 22.5deg);
+  box-shadow:0 0 0 4px rgba(0,0,0,.18) inset}
+/* the fixed index that reads the detent at the top of the dial */
+.index{position:absolute;left:50%;top:-2px;z-index:3;transform:translateX(-50%);width:0;height:0;
+  border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--gold);
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+.disc .knob{position:absolute;left:50%;top:50%;z-index:2;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);
   background:radial-gradient(circle at 40% 35%, #f1d588, #b98a36);box-shadow:0 1px 2px rgba(0,0,0,.6)}
 /* the window: shows the figure as four rows of silver points */
-.window{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:58px;height:52px;border-radius:6px;
+.window{position:absolute;left:50%;top:11px;z-index:2;transform:translateX(-50%);width:58px;height:52px;border-radius:6px;
   background:linear-gradient(180deg,#120c04,#1d1408);border:1px solid rgba(236,198,106,.4);
   box-shadow:0 1px 2px rgba(0,0,0,.6) inset;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:5px 0}
 .wrow{display:flex;justify-content:center;gap:7px;height:7px}
@@ -56,7 +65,6 @@ h1{font:600 26px/1.12 ui-serif,Georgia,serif;letter-spacing:.05em;margin:9px 0 5
 .window.empty .wrow .pt{background:rgba(236,198,106,.18);box-shadow:none}
 .dfig{margin-top:8px;font:600 12px/1.15 ui-serif,Georgia,serif;color:var(--ink);min-height:15px}
 .dfig .ar{font-size:13px;color:var(--gold);margin-left:4px}
-.spinning .disc{transform:rotate(320deg)}
 
 .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:22px}
 button{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:#1a1206;background:linear-gradient(180deg,#f1d588,#cf9f3e);
@@ -147,9 +155,15 @@ footer a{color:var(--ink-soft)}
   <div class="diss">
     <h2>What this is</h2>
     <p>The only known medieval geomantic machine: a copper-alloy plate inlaid with gold and silver, made by
-    al-Mawṣilī in 1241/42. The diviner turned dials whose windows revealed configurations of silver points —
-    a randomiser in brass, the uncounted hand. The four Mothers cast here raise the same shield the
-    <a href="../geocast/">sand table</a> does; the reading is composed from <a href="https://read.mino.mobi/geomancy">Robert Fludd (1704)</a>.
+    al-Mawṣilī in 1241/42, now in the British Museum. The diviner turned dials whose windows revealed
+    configurations of silver points — a randomiser in brass, the uncounted hand.</p>
+    <p><b>How the dial settles.</b> Each disc here is simulated as a real rotor with sixteen <em>detents</em> —
+    notched seats round the rim, one per figure. Flick it (tap, or grab and throw with the cursor) and it spins
+    free, coasting under friction while the detents ratchet it notch by notch; when its momentum is spent it
+    drops into whichever seat it last passed — and that well is the figure. Nothing is pre-chosen: the figure is
+    wherever the physics comes to rest, exactly as a sprung brass detent would have behaved on the bench in Mosul.</p>
+    <p>The four Mothers cast here raise the same shield the <a href="../geocast/">sand table</a> does; the reading
+    is composed from <a href="https://read.mino.mobi/geomancy">Robert Fludd (1704)</a>.
     New to the art? <a href="../geocast/docs/">Read the manual →</a></p>
   </div>
 
@@ -162,60 +176,118 @@ footer a{color:var(--ink-soft)}
 
 <script type="module">
 'use strict';
-import { FIGURES, shield, figurePoints, lookupFigure, readShieldPosition, perfection } from '../lib/geomancy.js';
+import { FIGURES, shield, figurePoints, readShieldPosition, perfection } from '../lib/geomancy.js';
 import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION, ASPECTS, DOUBLING, WITNESS_PAIRS } from '../lib/geomancy-meanings.js';
 const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
 const CTX = { houses:HOUSES, meanings:MEANINGS, houseExtras:HOUSE_EXTRAS, perfection:PERFECTION, aspects:ASPECTS, doubling:DOUBLING, witnessPairs:WITNESS_PAIRS, readUrl:'https://read.mino.mobi/geomancy' };
 
 const ROMAN=['I','II','III','IV'];
-let mothers=[null,null,null,null], SH=null, curSelKey='judge', phase='casting', spinning=[false,false,false,false];
+let mothers=[null,null,null,null], SH=null, curSelKey='judge', phase='casting';
 
-/* ── the four dials ── */
+/* ── the four dials: a physical brass rotor with 16 detents ──
+   Each disc is a free rotor. A flick gives it angular velocity; it coasts under
+   friction (DAMP) while a periodic detent torque (ω̇ = −DETENT·sin(16θ)) ratchets it
+   notch by notch, until it loses its momentum and drops into one of the sixteen wells —
+   each well a figure. The al-Mawṣilī window reads whichever figure sits under the fixed
+   index; the engraved brass face turns behind it. Pure rigid-body integration in rAF;
+   nothing is pre-decided — the figure is wherever the physics comes to rest. */
 const dialsEl=document.getElementById('dials');
+const WELLS=16, STEP=2*Math.PI/WELLS, DETENT=42, DAMP=2.4, TAU=2*Math.PI;
+const D=[0,1,2,3].map(()=>({th:0,w:0,moving:false,settled:false,t:0}));
+const ref=[];                                          // cached {face,win,fig} per dial
+const idxOf=th=>((Math.round(th/STEP)%WELLS)+WELLS)%WELLS;
 function windowRows(rows){ return rows.map(v=>`<div class="wrow">${v===1?'<span class="pt"></span>':'<span class="pt"></span><span class="pt"></span>'}</div>`).join(''); }
-function emptyWindow(){ return `<div class="wrow"><span class="pt"></span></div>`.repeat(4); }
+
 function renderDials(){
-  dialsEl.innerHTML = [0,1,2,3].map(i=>{
-    const m=mothers[i], f=m?lookupFigure(m):null;
-    return `<div class="dial" data-i="${i}">`+
+  dialsEl.innerHTML = [0,1,2,3].map(i=>
+    `<div class="dial" data-i="${i}">`+
       `<div class="dlabel">Mother <b>${ROMAN[i]}</b> · House ${i+1}</div>`+
-      `<div class="disc${phase==='cast'?' locked':''}" data-i="${i}" role="button" tabindex="0" aria-label="Mother ${ROMAN[i]} dial">`+
-        `<div class="window${m?'':' empty'}">${m?windowRows(m):emptyWindow()}</div><div class="knob"></div>`+
+      `<div class="disc${phase==='cast'?' locked':''}" data-i="${i}" role="button" tabindex="0" aria-label="Mother ${ROMAN[i]} dial — flick to turn">`+
+        `<div class="index"></div><div class="discface"></div><div class="window"></div><div class="knob"></div>`+
       `</div>`+
-      `<div class="dfig">${f?f.name:'—'}</div>`+
-    `</div>`;
-  }).join('');
+      `<div class="dfig" data-i="${i}">—</div>`+
+    `</div>`).join('');
+  ref.length=0;
+  [0,1,2,3].forEach(i=>{ const dial=dialsEl.querySelector(`.dial[data-i="${i}"]`);
+    ref[i]={ face:dial.querySelector('.discface'), win:dial.querySelector('.window'), fig:dial.querySelector('.dfig') }; paint(i); });
 }
-function spin(i){
-  if(phase==='cast' || spinning[i]) return;
-  spinning[i]=true;
-  const dial=dialsEl.querySelector(`.dial[data-i="${i}"]`);
-  const disc=dial.querySelector('.disc'); disc.style.transform='rotate(340deg)';
-  let ticks=0; const iv=setInterval(()=>{
-    const r=FIGURES[Math.floor(Math.random()*16)].rows;
-    dial.querySelector('.window').className='window'; dial.querySelector('.window').innerHTML=windowRows(r);
-    if(++ticks>=7){ clearInterval(iv);
-      mothers[i]=FIGURES[Math.floor(Math.random()*16)].rows;   // final blind settle
-      disc.style.transform=''; spinning[i]=false; renderDials(); updateStatus();
+function paint(i){
+  const r=ref[i], d=D[i]; if(!r) return;
+  r.face.style.transform=`rotate(${d.th}rad)`;
+  const f=FIGURES[idxOf(d.th)], live=!!mothers[i]||d.moving;
+  r.win.className='window'+(live?'':' empty'); r.win.innerHTML=windowRows(f.rows);
+  r.fig.textContent = live ? f.name : '—';
+}
+
+/* the integrator — one rAF for all four rotors */
+let raf=0, last=0;
+function loop(now){
+  if(!last) last=now; let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+  let any=false;
+  for(let i=0;i<4;i++){ const d=D[i]; if(!d.moving) continue; any=true; d.t+=dt;
+    const steps=Math.max(1,Math.min(12,Math.ceil(Math.abs(d.w)*dt/0.05)));   // resolve the detent sine
+    const h=dt/steps;
+    for(let s=0;s<steps;s++){ const a=-DETENT*Math.sin(WELLS*d.th) - DAMP*d.w; d.w+=a*h; d.th+=d.w*h; }
+    if((Math.abs(d.w)<0.06 && Math.abs(Math.sin(WELLS*d.th))<0.04) || d.t>6){  // dropped into a well (or failsafe)
+      d.th=Math.round(d.th/STEP)*STEP; d.w=0; d.moving=false; d.settled=true;
+      mothers[i]=FIGURES[idxOf(d.th)].rows;
     }
-  },55);
+    paint(i);
+  }
+  if(any){ raf=requestAnimationFrame(loop); } else { raf=0; last=0; updateStatus(); }
 }
+function ensureLoop(){ if(!raf){ last=0; raf=requestAnimationFrame(loop); } }
+function flick(i,w0){
+  if(phase==='cast') return;
+  const d=D[i]; d.w=w0; d.moving=true; d.settled=false; d.t=0; mothers[i]=null;
+  ensureLoop(); updateStatus();
+}
+function randomFlick(i){ const dir=Math.random()<.5?-1:1; flick(i, dir*(14+Math.random()*16)); }
+
 function updateStatus(){
-  const set=mothers.filter(Boolean).length;
-  document.getElementById('submit').disabled = set<4 || phase==='cast';
+  const set=mothers.filter(Boolean).length, spinning=D.some(d=>d.moving);
+  document.getElementById('submit').disabled = set<4 || phase==='cast' || spinning;
   if(phase==='cast'){ setStatus('The cast is read and fixed — ⟲ Fresh tablet to recast.','cast'); return; }
-  setStatus(set<4 ? `${set} of 4 Mothers set — turn the rest.` : 'All four Mothers set — read the tablet.', set<4?'':'ready');
+  if(spinning){ setStatus('The dials are turning…',''); return; }
+  setStatus(set<4 ? `${set} of 4 Mothers set — flick the rest.` : 'All four Mothers set — read the tablet.', set<4?'':'ready');
 }
 function setStatus(t,c){ const s=document.getElementById('status'); s.textContent=t; s.className='status'+(c?' '+c:''); }
 
-dialsEl.addEventListener('click',e=>{ const d=e.target.closest('.disc'); if(d) spin(+d.dataset.i); });
-dialsEl.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')){ const d=e.target.closest('.disc'); if(d){ spin(+d.dataset.i); e.preventDefault(); } } });
-document.getElementById('turnall').addEventListener('click',()=>{ if(phase==='cast') return; [0,1,2,3].forEach(i=>setTimeout(()=>spin(i), i*120)); });
+/* ── interaction: tap a disc to flick it blind; or grab and throw it with the wrist ── */
+let drag=null;
+function discAt(t){ return t.closest? t.closest('.disc'):null; }
+function angleTo(disc,x,y){ const r=disc.getBoundingClientRect(); return Math.atan2(y-(r.top+r.height/2), x-(r.left+r.width/2)); }
+dialsEl.addEventListener('pointerdown',e=>{
+  const disc=discAt(e.target); if(!disc||phase==='cast') return;
+  const i=+disc.dataset.i; D[i].moving=false;                       // catch the rotor
+  drag={i, ang:angleTo(disc,e.clientX,e.clientY), t:performance.now(), vel:0, moved:false};
+  disc.setPointerCapture?.(e.pointerId); e.preventDefault();
+});
+dialsEl.addEventListener('pointermove',e=>{
+  if(!drag) return; const disc=dialsEl.querySelector(`.disc[data-i="${drag.i}"]`); if(!disc) return;
+  const ang=angleTo(disc,e.clientX,e.clientY); let da=ang-drag.ang;
+  if(da>Math.PI) da-=TAU; if(da<-Math.PI) da+=TAU;
+  const now=performance.now(), dt=Math.max(1,now-drag.t)/1000;
+  D[drag.i].th+=da; drag.vel=da/dt; drag.ang=ang; drag.t=now; if(Math.abs(da)>0.012) drag.moved=true;
+  paint(drag.i);
+});
+function release(){
+  if(!drag) return; const i=drag.i;
+  if(drag.moved) flick(i, Math.max(-40,Math.min(40, drag.vel)));   // throw at the measured wrist-speed
+  else randomFlick(i);                                             // a tap spins it blind
+  drag=null;
+}
+window.addEventListener('pointerup',release);
+window.addEventListener('pointercancel',release);
+dialsEl.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ const d=discAt(e.target); if(d){ randomFlick(+d.dataset.i); e.preventDefault(); } } });
+
+document.getElementById('turnall').addEventListener('click',()=>{ if(phase==='cast') return; [0,1,2,3].forEach(i=>setTimeout(()=>randomFlick(i), i*140)); });
 document.getElementById('reset').addEventListener('click',freshTablet);
-document.getElementById('submit').addEventListener('click',()=>{ if(phase==='casting' && mothers.every(Boolean)) submit(); });
+document.getElementById('submit').addEventListener('click',()=>{ if(phase==='casting' && mothers.every(Boolean) && !D.some(d=>d.moving)) submit(); });
 
 function freshTablet(){
-  mothers=[null,null,null,null]; SH=null; phase='casting'; spinning=[false,false,false,false];
+  mothers=[null,null,null,null]; SH=null; phase='casting';
+  D.forEach(d=>{ d.th=0; d.w=0; d.moving=false; d.settled=false; d.t=0; });
   document.getElementById('result').hidden=true;
   renderDials(); updateStatus();
 }
