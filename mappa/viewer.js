@@ -20,7 +20,7 @@ let world=null, atlas=null, mode='orb', atlasOn=true;
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
 let mview={x:0,y:0,s:1};
 let MW=1400,MH=1100,S=1,ox=0,oy=0;
-let cellPoly=[], cellFill=[], cellBase=[], rivMerc=[], bordMerc=[]; // precomputed geometry/colour
+let cellPoly=[], cellFill=[], cellBase=[], rivMerc=[], bordMerc=[], roadMerc=[]; // precomputed geometry/colour
 
 const LABEL_PX=11;
 const hsl=(h,s,l,a)=>'hsl('+h+' '+s+'% '+l+'%'+(a!=null?' / '+a:'')+')';
@@ -57,10 +57,13 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
     cellPoly[i]={pts,bb:[x0,y0,x1,y1],wrap:x0<0?MW:(x1>MW?-MW:0)}}
   rivMerc=world.rivers.map(r=>{const a=mxy(r.a),b=mxy(r.b);return{a,b,w:r.w,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
+  roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
 }
+const CIV_SEA=[206,40,40];
 function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
   for(let i=0;i<N;i++){
     if(mode==='tectonic'){const p=world.plate[i];cellFill[i]=world.plateType[i]===0?hsl((p*47)%360,24,world.water[i]?30:46):hsl(210,30,24+(p%4)*3);cellBase[i]=[0,0,0];continue}
+    if(mode==='civ'&&world.water[i]!==0){cellFill[i]=hsl(...CIV_SEA);cellBase[i]=CIV_SEA;continue} // civ: one flat sea (no bathymetry)
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
@@ -78,7 +81,8 @@ function draw(){if(mode==='orb'){drawOrb();return}
   const px=k=>k/(mview.s*S); // k screen-px → world units
   if(mode==='tectonic'){ctx.lineCap='round';for(const bd of world.bounds){const p=mxy(bd.a),q=mxy(bd.b);if(Math.abs(p[0]-q[0])>MW*0.5)continue;ctx.lineWidth=px(bd.c>0.18?2.4:1.6);ctx.strokeStyle=bd.c>0.18?'#e0603c':(bd.c<-0.18?'#3fb6a0':'#d8b24a');ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}
   else{ctx.strokeStyle='#3a6f8c';ctx.lineCap='round';for(const r of rivMerc){if(r.skip)continue;ctx.lineWidth=px(0.5+r.w*0.55);ctx.beginPath();ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1]);ctx.stroke()}
-    if(atlasOn){ctx.strokeStyle='rgba(20,12,6,.55)';ctx.lineWidth=px(1.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke()}}
+    if(atlasOn){ctx.strokeStyle='rgba(20,12,6,.55)';ctx.lineWidth=px(1.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke()}
+    if(mode==='civ'&&atlasOn){ctx.strokeStyle='rgba(60,30,12,.8)';ctx.lineCap='round';ctx.lineWidth=px(1.5);ctx.beginPath();for(const r of roadMerc){if(r.skip)continue;ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1])}ctx.stroke()}}
   ctx.restore();
   if(mode==='tectonic')drawDrift();
   renderAtlasOverlay();

@@ -13,6 +13,31 @@ import { mulberry32 } from './engine.js';
 const HAB = [0,0,0, 0.02,0.22,0.5, 0.16,0.72,0.92,0.82, 0.12,0.66,0.78,0.62, 0.05,0];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const norm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l]};
+function Heap(){this.a=[]}
+Heap.prototype.push=function(k,v){const a=this.a;a.push([k,v]);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;const t=a[p];a[p]=a[i];a[i]=t;i=p}};
+Heap.prototype.pop=function(){const a=this.a,top=a[0],last=a.pop();if(a.length){a[0]=last;let i=0;for(;;){let l=2*i+1,r=l+1,s=i;if(l<a.length&&a[l][0]<a[s][0])s=l;if(r<a.length&&a[r][0]<a[s][0])s=r;if(s===i)break;const t=a[s];a[s]=a[i];a[i]=t;i=s}}return top};
+Heap.prototype.size=function(){return this.a.length};
+
+// Roads: a least-cost network. One Dijkstra per region capital over LAND (water
+// blocked, mountains expensive), tracing each city back to its capital. ~9 runs.
+function buildRoads(world, cities){
+  const {N,V,adj,elev,water}=world;
+  const ang=(i,j)=>Math.acos(Math.max(-1,Math.min(1,V[i][0]*V[j][0]+V[i][1]*V[j][1]+V[i][2]*V[j][2])));
+  const byW={}; for(const c of cities){(byW[c.w]||(byW[c.w]=[])).push(c)}
+  const edgeSet=new Set(), roads=[];
+  for(const wid in byW){const cap=byW[wid].find(c=>c.capital); if(!cap)continue; const src=cap.site;
+    const dist=new Float64Array(N).fill(Infinity), prev=new Int32Array(N).fill(-1), h=new Heap();
+    dist[src]=0; h.push(0,src);
+    while(h.size()){const[d,i]=h.pop(); if(d>dist[i])continue;
+      for(const j of adj[i]){ if(water[j]!==0) continue; // roads stay on land
+        const w=ang(i,j)*(1+5*Math.max(0,elev[j])); // mountains costly
+        if(d+w<dist[j]){dist[j]=d+w;prev[j]=i;h.push(dist[j],j)} }}
+    for(const c of byW[wid]){ if(c.capital)continue; let cur=c.site, guard=0;
+      while(prev[cur]>=0 && guard++<4000){const p=prev[cur],a=Math.min(cur,p),b=Math.max(cur,p),key=a*N+b;
+        if(!edgeSet.has(key)){edgeSet.add(key);roads.push([cur,p])} cur=p; if(cur===src)break} }
+  }
+  return roads;
+}
 
 export function projectAtlas(world, wings, sites){
   const {N,V,water,biome,elev,adj,meta}=world;
@@ -84,5 +109,6 @@ export function projectAtlas(world, wings, sites){
       cities.push({n:nd.n,u:nd.u,k:nd.k,a:nd.a,f:nd.f,b:nd.b,w:nd.w,w2:nd.w2,v:V[site],site,capital:rank===0});
     });
   }
-  return {cities, region:regionWingIdx, centroids:cent, wingRegion};
+  const roads=buildRoads(world, cities);
+  return {cities, region:regionWingIdx, centroids:cent, wingRegion, roads};
 }
