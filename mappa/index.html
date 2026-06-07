@@ -34,6 +34,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 #tip b{color:var(--gold)}#tip .m{color:#9c8a6c;font-size:11px}#tip .open{color:var(--gold);font-size:10.5px}
 #tkey{position:fixed;left:16px;bottom:64px;z-index:6;background:#140f08e0;border:1px solid #2c2316;border-radius:8px;padding:8px 11px;font-size:11.5px;color:#b7a988;display:none}
 #tkey.show{display:block}#tkey b{color:var(--parch)}#tkey i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+#status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:8;background:#140f08e8;border:1px solid #2c2316;border-radius:9px;padding:11px 18px;color:var(--gold);font-size:13px;letter-spacing:.05em;opacity:0;transition:opacity .15s;pointer-events:none}
 @media (max-width:760px){
   header{padding:8px 9px;gap:6px;flex-wrap:wrap}
   .right{width:100%;margin-left:0;margin-top:2px}#q{flex:1;width:auto}
@@ -52,6 +53,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 </header>
 <div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">▸ arrows = Euler-pole drift · cool = oceanic plate</span></div>
 <div id="tip"></div>
+<div id="status"></div>
 <footer>
   <div class="scrub"><button class="btn" id="play">▶ chronicle</button>
     <input type="range" id="time" min="0" max="1000" value="1000"><span class="era" id="era">all founded</span></div>

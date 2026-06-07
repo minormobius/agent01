@@ -8,10 +8,10 @@ import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
-const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey');
+const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
-let world=null, atlas=null, mode='orb', atlasOn=true, tiltAngle=0.4;
-let yaw=0.4,pitch=0.30,orbR=320,spin=true,spinRAF=0;
+let world=null, atlas=null, mode='orb', atlasOn=true;
+let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
 let mview={x:0,y:0,s:1};
 let MW=1400,MH=1100,S=1,ox=0,oy=0;
 let cellPoly=[], cellFill=[], cellBase=[], rivMerc=[], bordMerc=[]; // precomputed geometry/colour
@@ -20,9 +20,13 @@ const LABEL_PX=11;
 const hsl=(h,s,l,a)=>'hsl('+h+' '+s+'% '+l+'%'+(a!=null?' / '+a:'')+')';
 const wing=id=>WINGS.find(w=>w.id===id);
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-function rotp(p){const cy=Math.cos(yaw),sy=Math.sin(yaw),x1=cy*p[0]+sy*p[1],y1=-sy*p[0]+cy*p[1];const cp=Math.cos(pitch),sp=Math.sin(pitch);return[x1,cp*y1-sp*p[2],sp*y1+cp*p[2]]}
-function roll(q){const c=Math.cos(tiltAngle),s=Math.sin(tiltAngle);return[q[0]*c-q[1]*s,q[0]*s+q[1]*c,q[2]]}
-function orbV(v){return roll(rotp(v))}
+function mMul(A,B){const r=[[0,0,0],[0,0,0],[0,0,0]];for(let i=0;i<3;i++)for(let j=0;j<3;j++)r[i][j]=A[i][0]*B[0][j]+A[i][1]*B[1][j]+A[i][2]*B[2][j];return r}
+function mV(M,v){return[M[0][0]*v[0]+M[0][1]*v[1]+M[0][2]*v[2],M[1][0]*v[0]+M[1][1]*v[1]+M[1][2]*v[2],M[2][0]*v[0]+M[2][1]*v[1]+M[2][2]*v[2]]}
+function mVT(M,v){return[M[0][0]*v[0]+M[1][0]*v[1]+M[2][0]*v[2],M[0][1]*v[0]+M[1][1]*v[1]+M[2][1]*v[2],M[0][2]*v[0]+M[1][2]*v[1]+M[2][2]*v[2]]}
+const RX=a=>{const c=Math.cos(a),s=Math.sin(a);return[[1,0,0],[0,c,-s],[0,s,c]]};
+const RY=a=>{const c=Math.cos(a),s=Math.sin(a);return[[c,0,s],[0,1,0],[-s,0,c]]};
+const RZ=a=>{const c=Math.cos(a),s=Math.sin(a);return[[c,-s,0],[s,c,0],[0,0,1]]};
+function orbV(v){return mV(R,v)}
 const CLAT=1.40,YMAX=Math.log(Math.tan(Math.PI/4+CLAT/2));
 function lonlat(v){return[Math.atan2(v[1],v[0]),Math.asin(Math.max(-1,Math.min(1,v[2])))]}
 function mxy(v){const ll=lonlat(v),la=Math.max(-CLAT,Math.min(CLAT,ll[1]));return[(ll[0]+Math.PI)/(2*Math.PI)*MW,(YMAX-Math.log(Math.tan(Math.PI/4+la/2)))/(2*YMAX)*MH]}
@@ -30,8 +34,8 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function build(){world=generateWorld(seed);atlas=projectAtlas(world,WINGS,SITES);tiltAngle=world.meta.axialTilt;
-  MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();draw()}
+function build(){world=generateWorld(seed);atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
+  MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();draw()}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
 
 function cellHSL(i){const b=BIOMES[world.biome[i]];let h=b.h,s=b.s,l=b.l;
@@ -120,14 +124,13 @@ function renderAtlasOverlay(){if(!atlasOn||mode==='tectonic')return;
     const lx=it.x,ly=it.y+r+LABEL_PX-1,box=[lx-tw/2-2,ly-LABEL_PX,lx+tw/2+2,ly+2];
     if(c===hot||!overlaps(box,placed)){ctx.textAlign='center';ctx.fillStyle='rgba(6,4,2,.92)';ctx.fillText(c.n,lx+0.4,ly+0.4);ctx.fillStyle=hsl(w.hue,46,92);ctx.fillText(c.n,lx,ly);placed.push(box)}}
 }
-function orbSpin(){if(mode!=='orb'||!spin){spinRAF=0;return}yaw+=0.0014;draw();spinRAF=requestAnimationFrame(orbSpin)}
+function orbSpin(){if(mode!=='orb'||!spin){spinRAF=0;return}R=mMul(R,RZ(0.0015));draw();spinRAF=requestAnimationFrame(orbSpin)} // spin about the planet's own pole
 
 // ---- picking + tooltip -------------------------------------------------------
 function pickCity(px,py,touch){if(!atlasOn)return null;let best=null,bd=1e18;
   for(const c of atlas.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const p=projV(c.v);if(!p)continue;const d=(p.x-px)**2+(p.y-py)**2;if(d<bd){bd=d;best=c}}return bd<(touch?22:13)**2?best:null}
 function pickCell(px,py){let dir;
-  if(mode==='orb'){const cx=W/2,cy=H/2,R=orbR;let nx=(px-cx)/R,ny=-(py-cy)/R;const cr=Math.cos(-tiltAngle),sr=Math.sin(-tiltAngle);const rx=nx*cr-ny*sr,ry=nx*sr+ny*cr;const r2=rx*rx+ry*ry;if(r2>1)return -1;const rz=Math.sqrt(1-r2);
-    const cp=Math.cos(-pitch),sp=Math.sin(-pitch),y1=cp*ry-sp*rz,z1=sp*ry+cp*rz;const cyw=Math.cos(-yaw),syw=Math.sin(-yaw);dir=[cyw*rx+syw*y1,-syw*rx+cyw*y1,z1]}
+  if(mode==='orb'){const cx=W/2,cy=H/2,RR=orbR,nx=(px-cx)/RR,ny=-(py-cy)/RR,r2=nx*nx+ny*ny;if(r2>1)return -1;const nz=Math.sqrt(1-r2);dir=mVT(R,[nx,ny,nz])}
   else{const mx=((px-mview.x)/mview.s-ox)/S,my=((py-mview.y)/mview.s-oy)/S;const lon=mx/MW*2*Math.PI-Math.PI;const t=(1-my/MH*2)*YMAX;const lat=2*Math.atan(Math.exp(t))-Math.PI/2;const cl=Math.cos(lat);dir=[cl*Math.cos(lon),cl*Math.sin(lon),Math.sin(lat)]}
   let bi=-1,bd=-2;for(let i=0;i<world.N;i++){const d=dot(world.V[i],dir);if(d>bd){bd=d;bi=i}}return bi}
 function showTip(px,py){tip.style.left=Math.max(80,Math.min(innerWidth-80,px))+'px';tip.style.top=Math.max(54,py)+'px';tip.style.opacity=1}
@@ -139,11 +142,11 @@ function tipCell(i,px,py){if(i<0){tip.style.opacity=0;return}showTip(px,py);cons
 const cz=s=>Math.max(0.5,Math.min(40,s));
 const ptrs=new Map();let gesture=null,tapStart=null;const di=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});spin=false;
-  if(ptrs.size===1){tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};gesture=mode==='orb'?{mode:'rot',x:e.clientX,y:e.clientY,yaw,pitch}:{mode:'pan',x:e.clientX,y:e.clientY,vx:mview.x,vy:mview.y};cv.classList.add('drag')}
+  if(ptrs.size===1){tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};gesture=mode==='orb'?{mode:'rot',x:e.clientX,y:e.clientY,R0:R}:{mode:'pan',x:e.clientX,y:e.clientY,vx:mview.x,vy:mview.y};cv.classList.add('drag')}
   else if(ptrs.size===2){const p=[...ptrs.values()];gesture={mode:'pinch',d:di(p[0],p[1]),s:mview.s,r:orbR,vx:mview.x,vy:mview.y};tapStart=null;tip.style.opacity=0}});
 cv.addEventListener('pointermove',e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){const p=[...ptrs.values()],f=di(p[0],p[1])/(gesture.d||1);if(mode==='orb')orbR=Math.max(120,Math.min(2400,gesture.r*f));else{const ns=cz(gesture.s*f),cmx=(p[0].x+p[1].x)/2,cmy=(p[0].y+p[1].y)/2,rx=(cmx-gesture.vx)/gesture.s,ry=(cmy-gesture.vy)/gesture.s;mview.s=ns;mview.x=cmx-rx*ns;mview.y=cmy-ry*ns}draw();return}
-  if(gesture&&gesture.mode==='rot'&&ptrs.size===1){yaw=gesture.yaw-(e.clientX-gesture.x)*0.006;pitch=Math.max(-1.45,Math.min(1.45,gesture.pitch+(e.clientY-gesture.y)*0.006));if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8)tapStart=null;draw();return}
+  if(gesture&&gesture.mode==='rot'&&ptrs.size===1){const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;R=mMul(mMul(RX(dy*0.006),RY(dx*0.006)),gesture.R0);if(tapStart&&Math.hypot(dx,dy)>8)tapStart=null;draw();return}
   if(gesture&&gesture.mode==='pan'&&ptrs.size===1){mview.x=gesture.vx+(e.clientX-gesture.x);mview.y=gesture.vy+(e.clientY-gesture.y);if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8){tapStart=null;tip.style.opacity=0}draw();return}
   if(e.pointerType==='mouse'&&ptrs.size===0){const c=pickCity(e.clientX,e.clientY);if(c!==hot){hot=c;draw()}
     if(c){tipCity(c,e.clientX,e.clientY,false);cv.style.cursor='pointer'}else{tipCell(pickCell(e.clientX,e.clientY),e.clientX,e.clientY);cv.style.cursor='grab'}}});
@@ -153,7 +156,7 @@ function endPtr(e){ptrs.delete(e.pointerId);
       if(c){if(!tapStart.touch){if(c.u)open(c.u,'_blank')}else if(selected===c&&c.u){open(c.u,'_blank')}else{selected=c;hot=c;tipCity(c,tapStart.x,tapStart.y,true);draw()}}
       else{selected=null;hot=null;if(tapStart.touch)tipCell(pickCell(tapStart.x,tapStart.y),tapStart.x,tapStart.y);else tip.style.opacity=0;draw()}}
     gesture=null;tapStart=null}
-  else if(ptrs.size===1){const p=[...ptrs.values()][0];gesture=mode==='orb'?{mode:'rot',x:p.x,y:p.y,yaw,pitch}:{mode:'pan',x:p.x,y:p.y,vx:mview.x,vy:mview.y};tapStart=null}}
+  else if(ptrs.size===1){const p=[...ptrs.values()][0];gesture=mode==='orb'?{mode:'rot',x:p.x,y:p.y,R0:R}:{mode:'pan',x:p.x,y:p.y,vx:mview.x,vy:mview.y};tapStart=null}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;if(mode==='orb')orbR=Math.max(120,Math.min(2400,orbR*f));else{const ns=cz(mview.s*f),rx=(e.clientX-mview.x)/mview.s,ry=(e.clientY-mview.y)/mview.s;mview.x=e.clientX-rx*ns;mview.y=e.clientY-ry*ns;mview.s=ns}draw()},{passive:false});
 
@@ -162,7 +165,8 @@ let hot=null,selected=null,query='',active=new Set(WINGS.map(w=>w.id)),tcut=1,pl
 document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('.modes button').forEach(x=>x.classList.toggle('on',x===b));
   tkey.classList.toggle('show',mode==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();if(mode==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
-document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;build()};
+function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
+document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;regen()};
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
 const tEl=document.getElementById('time'),eraEl=document.getElementById('era');
 const eraLabel=()=>tcut>=1?'all founded':'↤ '+new Date(SITES.minB+(SITES.maxB-SITES.minB)*tcut).toISOString().slice(0,10);
@@ -174,4 +178,4 @@ function buildLegend(){legendEl.innerHTML='';if(mode==='tectonic')return;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
   else{const seen=new Set();for(let i=0;i<world.N;i++)seen.add(world.biome[i]);for(let bi=3;bi<BIOMES.length;bi++){if(!seen.has(bi))continue;const b=BIOMES[bi];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(b.h,b.s,b.l)+'"></span>'+b.name;legendEl.appendChild(c)}}}
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
-addEventListener('resize',resize);resize();build();buildLegend();
+addEventListener('resize',resize);resize();regen();

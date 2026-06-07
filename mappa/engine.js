@@ -92,7 +92,7 @@ function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation abov
 // ---- the engine -------------------------------------------------------------
 export function generateWorld(seed, opts={}){
   const rnd=mulberry32(seed>>>0);
-  const targetN=opts.N||6000;
+  const targetN=opts.N||9000;
   const oceanFraction = opts.oceanFraction ?? (0.58+rnd()*0.12); // varies per world
   const axialTilt = opts.axialTilt ?? (0.12+rnd()*0.47);          // ~7°–34°, drives seasonality
 
