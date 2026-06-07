@@ -62,11 +62,14 @@ h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4p
 
 /* the derived shield */
 /* the traditional shield — a pyramid: 8 across, then 4, 2, and the Judge, each row centred */
-#shield{overflow-x:auto;-webkit-overflow-scrolling:touch}
-#shield .shield-inner{width:max-content;margin:0 auto}
-#shield .srow{display:flex;justify-content:center;gap:7px;margin-bottom:9px}
-.fc{flex:0 0 116px;border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.14)}
-@media(max-width:760px){ .fc{flex:0 0 80px} }
+#shield{overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:safe center;--fcw:116px;--fcg:7px}
+#shield .shield-inner{width:max-content;flex:0 0 auto}
+#shield .srow{display:flex;justify-content:center;gap:var(--fcg);margin-bottom:9px}
+/* each niece sits under the pair of figures above it that forms it; each witness under its pair of nieces */
+#shield .srow.nieces{gap:calc(var(--fcw) + 2*var(--fcg))}
+#shield .srow.witnesses{gap:calc(3*var(--fcw) + 4*var(--fcg))}
+.fc{flex:0 0 var(--fcw);border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.14)}
+@media(max-width:760px){ #shield{--fcw:80px} }
 .fc.muted{opacity:.62}
 .fc .fl{font:8px/1.1 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint);margin-bottom:4px}
 .fc .fl b{color:var(--sand);font-size:11px}
@@ -324,8 +327,8 @@ function renderShield(S){
   document.getElementById('shield').innerHTML =
     `<div class="shield-inner">`+
     `<div class="srow">${top}</div>`+
-    `<div class="srow">${nieces}</div>`+
-    `<div class="srow">${wit}</div>`+
+    `<div class="srow nieces">${nieces}</div>`+
+    `<div class="srow witnesses">${wit}</div>`+
     judge+
     `</div>`;
 }
