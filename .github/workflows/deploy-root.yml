@@ -53,6 +53,9 @@ on:
       # (reviewable alongside the live homepage; promote into index.html once approved)
       - 'orrery/**'
       - 'scripts/build-orrery.mjs'
+      # mappa mundi: procedurally-generated world atlas (surfaces as cities)
+      - 'mappa/**'
+      - 'scripts/build-mappa.mjs'
       - '.github/workflows/deploy-root.yml'
   workflow_dispatch:
     inputs:
