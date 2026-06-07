@@ -17,3 +17,9 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# Skip wasm-opt: its bundled binaryen rejects the bulk-memory ops LLVM emits
+# (memory.fill/copy) and isn't needed — opt-level=3 + lto already yields a
+# compact module. Same approach as j/wasm in this repo.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
