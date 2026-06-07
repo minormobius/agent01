@@ -7,11 +7,28 @@ import { generateWorld, BIOMES, setTriangulator } from './engine.js';
 import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
 
-// Optional Rust/WASM accelerator. If mappa/pkg/ has been built (build-mappa-engine.yml),
-// use its fast Delaunay and detail the globe at higher resolution; else JS fallback.
-let wasmReady=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js');await m.default();if(m.engine_version&&m.engine_version()>=1){setTriangulator(xy=>m.triangulate_xy(xy));wasmReady=true}}catch(e){wasmReady=false}}
-const GEN_N=()=>wasmReady?15000:9000;
+// Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
+// higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
+let rustMod=null, rustGen=false;
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js');await m.default();const v=(m.engine_version?m.engine_version():0);
+  if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
+  else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
+}catch(e){rustGen=false}}
+const GEN_N=()=>rustGen?16000:9000;
+// unpack the Rust engine's flat CSR arrays into the world shape viewer/projection use
+function unpackRust(o){const N=o.n,pos=o.positions;
+  const V=new Array(N);for(let i=0;i<N;i++)V[i]=[pos[3*i],pos[3*i+1],pos[3*i+2]];
+  const cv=o.cell_verts,co=o.cell_offsets,cells=new Array(N);
+  for(let i=0;i<N;i++){const s=co[i],e=co[i+1],poly=new Array(e-s);for(let k=s;k<e;k++)poly[k-s]=[cv[3*k],cv[3*k+1],cv[3*k+2]];cells[i]=poly}
+  const af=o.adj,ao=o.adj_offsets,adj=new Array(N);
+  for(let i=0;i<N;i++){const s=ao[i],e=ao[i+1],a=new Array(e-s);for(let k=s;k<e;k++)a[k-s]=af[k];adj[i]=a}
+  const rv=o.rivers,rivers=[];for(let k=0;k+7<rv.length;k+=8)rivers.push({a:[rv[k],rv[k+1],rv[k+2]],b:[rv[k+3],rv[k+4],rv[k+5]],w:rv[k+6],flow:rv[k+7]});
+  const bd=o.bounds,bounds=[];for(let k=0;k+6<bd.length;k+=7)bounds.push({a:[bd[k],bd[k+1],bd[k+2]],b:[bd[k+3],bd[k+4],bd[k+5]],c:bd[k+6]});
+  const pp=o.plates_out,plates=[];for(let k=0;k+7<pp.length;k+=8)plates.push({center:[pp[k],pp[k+1],pp[k+2]],axis:[pp[k+3],pp[k+4],pp[k+5]],speed:pp[k+6],oceanic:pp[k+7]});
+  const m=o.meta;
+  return {N,V,cells,adj,elev:o.elev,water:o.water,plate:o.plate,plateType:o.plate_type,temperature:o.temperature,moisture:o.moisture,seasonality:o.seasonality,biome:o.biome,rivers,bounds,plates,
+    meta:{seed:m.seed,N:m.n,plateCount:m.plate_count,oceanFraction:m.ocean_fraction,waterFrac:m.water_frac,seaCoverage:m.sea_coverage,axialTilt:m.axial_tilt,axialTiltDeg:m.axial_tilt_deg}};
+}
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
@@ -40,7 +57,7 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function build(){world=generateWorld(seed,{N:GEN_N()});atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
+function build(){world=rustGen?unpackRust(rustMod.generate_world(seed>>>0,GEN_N())):generateWorld(seed,{N:GEN_N()});atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();draw()}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
 
