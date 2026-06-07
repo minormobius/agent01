@@ -92,14 +92,27 @@ function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation abov
 // ---- the engine -------------------------------------------------------------
 export function generateWorld(seed, opts={}){
   const rnd=mulberry32(seed>>>0);
-  const N=opts.N||2200;
+  const targetN=opts.N||6000;
   const oceanFraction = opts.oceanFraction ?? (0.58+rnd()*0.12); // varies per world
   const axialTilt = opts.axialTilt ?? (0.12+rnd()*0.47);          // ~7°–34°, drives seasonality
 
-  // 1. Fibonacci sphere points -------------------------------------------------
-  const ga=Math.PI*(3-Math.sqrt(5)), rot=rnd()*6.283;
-  const V=new Array(N);
-  for(let i=0;i<N;i++){const z=1-(2*i+1)/N,r=Math.sqrt(1-z*z),th=ga*i+rot;V[i]=[r*Math.cos(th),r*Math.sin(th),z]}
+  // 0. plates first — so sampling can concentrate resolution where it matters --
+  const ga=Math.PI*(3-Math.sqrt(5));
+  const plateCount = opts.plateCount || (9+Math.floor(rnd()*7)); // 9..15
+  const plates=[];
+  for(let i=0;i<plateCount;i++){const c=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);
+    plates.push({ center:c, oceanic: rnd()<oceanFraction?1:0, axis:norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]), speed:0.4+rnd()*1.0, buoy:0.12+rnd()*0.30 });}
+  const top2=p=>{let d1=-2,d2=-2,k1=0;for(let s=0;s<plateCount;s++){const d=p[0]*plates[s].center[0]+p[1]*plates[s].center[1]+p[2]*plates[s].center[2];if(d>d1){d2=d1;d1=d;k1=s}else if(d>d2)d2=d}return[d1,d2,k1]};
+
+  // 1. ADAPTIVE sampling: dense on continents + ALL plate boundaries (coasts,
+  //    mountains, trenches, arcs), sparse in deep ocean. Rejection-sampled from
+  //    a fine Fibonacci candidate set so density follows the structure.
+  const rotA=rnd()*6.283, M=Math.round(targetN*2.4);
+  const V=[], plateRaw=[];
+  for(let i=0;i<M;i++){const z=1-(2*i+1)/M,r=Math.sqrt(1-z*z),th=ga*i+rotA;const p=[r*Math.cos(th),r*Math.sin(th),z];
+    const t=top2(p), bp=Math.exp(-(t[0]-t[1])/0.05); // bp→1 near a plate boundary
+    if(rnd()<Math.min(1,(plates[t[2]].oceanic?0.13:0.60)+bp*0.44)){V.push(p);plateRaw.push(t[2])}}
+  const N=V.length;
 
   // 2. spherical Delaunay/Voronoi ---------------------------------------------
   const proj=V.map(p=>[p[0]/(1-p[2]),p[1]/(1-p[2])]);
@@ -120,17 +133,8 @@ export function generateWorld(seed, opts={}){
   for(let i=0;i<N;i++){const p=V[i];const e1=norm(cross(p,Math.abs(p[2])<0.9?[0,0,1]:[1,0,0])),e2=cross(p,e1);
     const cs=inc[i].map(ti=>{const c=cc[ti];return{a:Math.atan2(dot(c,e2),dot(c,e1)),c}});cs.sort((u,v)=>u.a-v.a);cells[i]=cs.map(o=>o.c)}
 
-  // 3. RANDOM plates (this is what makes every world different) -----------------
-  const plateCount = opts.plateCount || (9+Math.floor(rnd()*7)); // 9..15
-  const plates=[];
-  for(let i=0;i<plateCount;i++){
-    const c=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);
-    plates.push({ center:c, oceanic: rnd()<oceanFraction?1:0,
-      axis:norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]), speed:0.4+rnd()*1.0,
-      buoy: 0.12+rnd()*0.30 }); // continental thickness → base height
-  }
-  const plate=new Int16Array(N);
-  for(let i=0;i<N;i++){let bp=0,bd=-2;for(let s=0;s<plateCount;s++){const d=dot(V[i],plates[s].center);if(d>bd){bd=d;bp=s}}plate[i]=bp}
+  // 3. plate assignment (already chosen during adaptive sampling) --------------
+  const plate=Int16Array.from(plateRaw);
   const ptype=i=>plates[plate[i]].oceanic;
   const vel=i=>scl(cross(plates[plate[i]].axis,V[i]),plates[plate[i]].speed);
 
@@ -140,7 +144,8 @@ export function generateWorld(seed, opts={}){
     for(const j of adj[i]){if(plate[j]===plate[i])continue;const oj=ptype(j);
       const dir=norm(sub(V[j],scl(V[i],dot(V[i],V[j]))));
       const rel=dot(sub(vi,vel(j)),dir);cs+=rel;nn++;
-      if(rel>0){ if(!oi&&!oj)mt+=rel*1.0; else if(!oi&&oj)mt+=rel*0.7; else if(oi&&!oj)lf-=rel*1.15; else lf+=rel*0.25; }
+      if(rel>0){ if(!oi&&!oj)mt+=rel*1.0; else if(!oi&&oj)mt+=rel*0.7; else if(oi&&!oj)lf-=rel*1.15;
+        else { const volc=fbm3(V[i][0]*9.3,V[i][1]*9.3,V[i][2]*9.3,seed+71); lf+=rel*(volc>0.64?0.55:0.04); } } // ocean-ocean: SPARSE volcanic arc, not a welded strip
       else { const dv=-rel; if(oi)lf+=dv*0.35; else lf-=dv*0.45; }}
     if(nn){conv[i]=cs/nn;if(!oi&&mt>0)mountSrc[i]=mt;localF[i]=lf}}
   let mf=Float32Array.from(mountSrc);
