@@ -156,9 +156,18 @@ export function generateWorld(seed, opts={}){
     const noise=(fbm3(p[0]*2.0,p[1]*2.0,p[2]*2.0,seed)-0.5)*(oi?0.30:0.22);
     if(!oi){const craton=pl.buoy*Math.exp(-(gd*gd)/(2*0.5*0.5));elevRaw[i]=0.10+craton+mf[i]*0.6+localF[i]*0.5+noise;}
     else elevRaw[i]=-0.55+mf[i]*0.55+localF[i]*0.6+noise;}
-  // sea level: choose so land fraction ≈ (1 - oceanFraction-ish), data-driven
-  const sorted=Float32Array.from(elevRaw).sort();
-  const sl=sorted[Math.floor(N*oceanFraction)];
+  // SEA LEVEL by water VOLUME, not percentile: pour a fixed volume of water over
+  // the real topography and let it settle — solve Σ areaᵢ·max(0, h−elevᵢ) = V.
+  // Deep ocean basins (oceanic plates) hold water at depth, so continents stay
+  // high and dry instead of being flooded to a forced ocean fraction.
+  const triArea=(a,b,c)=>{const bc=cross(b,c);return 2*Math.atan2(Math.abs(dot(a,bc)),1+dot(a,b)+dot(b,c)+dot(c,a))};
+  const area=new Float32Array(N);for(let i=0;i<N;i++){const cc2=cells[i];let s=0;for(let k=0;k<cc2.length;k++)s+=triArea(V[i],cc2[k],cc2[(k+1)%cc2.length]);area[i]=s}
+  let eMin=1e9,eMax=-1e9;for(let i=0;i<N;i++){if(elevRaw[i]<eMin)eMin=elevRaw[i];if(elevRaw[i]>eMax)eMax=elevRaw[i]}
+  const waterVol=h=>{let v=0;for(let i=0;i<N;i++){const d=h-elevRaw[i];if(d>0)v+=area[i]*d}return v};
+  const waterFrac=opts.waterFrac??(0.10+rnd()*0.10);   // 0.10–0.20 of basin capacity (less sea-biased)
+  const Vtarget=waterVol(eMax)*waterFrac;
+  let lo=eMin,hi=eMax;for(let it=0;it<44;it++){const mid=(lo+hi)/2;if(waterVol(mid)<Vtarget)lo=mid;else hi=mid}
+  const sl=(lo+hi)/2;
   const elev=new Float32Array(N);for(let i=0;i<N;i++)elev[i]=elevRaw[i]-sl; // 0 = shore
   // Earth-like hypsometry: compress land so most is lowland; mountains are rare/high
   let landMax=1e-6;for(let i=0;i<N;i++)if(elev[i]>landMax)landMax=elev[i];
@@ -210,10 +219,12 @@ export function generateWorld(seed, opts={}){
   // plate-boundary segments (for tectonic view)
   const bounds=[];for(const[k,ts]of e2t){if(ts.length!==2)continue;const[a,b]=k.split(',').map(Number);if(plate[a]===plate[b])continue;bounds.push({a:cc[ts[0]],b:cc[ts[1]],c:(conv[a]+conv[b])/2})}
 
+  let oceanA=0,totA=0;for(let i=0;i<N;i++){totA+=area[i];if(water[i]!==0)oceanA+=area[i]}
   return {
-    meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),axialTilt:+axialTilt.toFixed(3),
+    meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),waterFrac:+waterFrac.toFixed(3),
+      seaCoverage:+(oceanA/totA).toFixed(3),axialTilt:+axialTilt.toFixed(3),
       axialTiltDeg:Math.round(axialTilt*180/Math.PI),seaLevelRaw:+sl.toFixed(4)},
-    N, V, cells, adj, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
+    N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
     plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
     elev, water, temperature, moisture, seasonality, biome, conv, bounds, rivers,
     _euler:{tris:tris.length, Vc:N+1},

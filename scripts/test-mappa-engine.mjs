@@ -19,9 +19,10 @@ for (const seed of [1,2,3,7,42,99,2026,31337]) {
   // climate ranges
   let tmin=1e9,tmax=-1e9; for(let i=0;i<w.N;i++){if(w.temperature[i]<tmin)tmin=w.temperature[i];if(w.temperature[i]>tmax)tmax=w.temperature[i]}
   if(tmin<-80||tmax>60) fail(`seed ${seed}: temperature out of range [${tmin|0},${tmax|0}]`);
-  // land fraction sane
+  // sea coverage (area-weighted — the real visual fraction) sane + emergent
   let land=0,lake=0; for(let i=0;i<w.N;i++){if(w.water[i]===0)land++;else if(w.water[i]===2)lake++}
-  const lf=land/w.N; if(lf<0.18||lf>0.62) fail(`seed ${seed}: land fraction ${(lf*100|0)}% out of band`);
+  const sea=w.meta.seaCoverage; if(sea<0.25||sea>0.90) fail(`seed ${seed}: sea coverage ${(sea*100|0)}% out of band`);
+  const lf=land/w.N;
   // biome diversity: a real world has many biomes among land
   const bset=new Set(); for(let i=0;i<w.N;i++)if(w.water[i]===0)bset.add(w.biome[i]);
   if(bset.size<5) fail(`seed ${seed}: only ${bset.size} land biomes (want ≥5)`);
