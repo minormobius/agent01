@@ -50,6 +50,9 @@ form { margin: 24px 0 6px; background: var(--panel); border:1px solid var(--line
 .run:disabled { opacity:.5; cursor:default; }
 .status { color:var(--muted); font:500 13px var(--mono); }
 .status.err { color:#ff9a9a; }
+.lookback { color:var(--muted); font:500 12px var(--mono); display:inline-flex; align-items:center; gap:6px; }
+.lookback select { background:#060e1e; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:4px 6px; font:500 12px var(--mono); cursor:pointer; }
+.lookback select:focus { outline:none; border-color:var(--sky); }
 
 /* summary */
 .summary { margin: 22px 0 8px; padding:14px 16px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; line-height:1.7; }
@@ -82,7 +85,7 @@ footer a:hover { color:var(--sky); }
   <a class="crumb" href="/">← b.mino.mobi · the Bluesky corner</a>
   <h1>spark<span class="dot"> ✦</span></h1>
   <p class="sub">what they liked before they followed</p>
-  <p class="lede">Give a <b>follower</b> and the account they <b>followed</b>. spark finds the moment of the follow, then surfaces every post of the followed account the follower had already <b>liked before that moment</b> — a vague portrait of what, exactly, earned them a spot in the feed. Read straight off the public network. No login, nothing written, nobody's permission needed.</p>
+  <p class="lede">Give a <b>follower</b> and the account they <b>followed</b>. spark finds the moment of the follow, then surfaces the followed account's posts the follower had <b>liked in the run-up to it</b> — a vague portrait of what, exactly, earned them a spot in the feed. The tipping-point signal sits close to the follow, so it looks back a couple of months by default; widen it if you want the deeper history. Read straight off the public network — no login, nothing written, nobody's permission needed.</p>
 
   <form id="form" autocomplete="off">
     <div class="fields">
@@ -98,6 +101,16 @@ footer a:hover { color:var(--sky); }
     </div>
     <div class="runrow">
       <button class="run" id="run" type="submit">find the spark</button>
+      <label class="lookback">look back
+        <select id="window">
+          <option value="1209600000">2 weeks</option>
+          <option value="5184000000" selected>2 months</option>
+          <option value="15552000000">6 months</option>
+          <option value="31536000000">1 year</option>
+          <option value="all">all time</option>
+        </select>
+        before the follow
+      </label>
       <span class="status" id="status"></span>
     </div>
   </form>
@@ -236,19 +249,20 @@ async function hydrate(uris) {
 }
 
 // ── render ───────────────────────────────────────────────────────────────────
-function renderSummary(followerProf, followedProf, followAt, count, scanned) {
+function renderSummary(followerProf, followedProf, followAt, count, scanned, winLabel, windowCut) {
   const fr = followerProf?.handle || 'the follower';
   const fd = followedProf?.handle || 'the followed';
+  const win = winLabel === 'all time' ? 'before the follow' : `in the ${winLabel} before the follow`;
   let html = `<div class="summary">`;
   if (followAt) {
     html += `<span class="who">@${esc(fr)}</span> followed <span class="who">@${esc(fd)}</span> on <b>${esc(fmtDate(followAt))}</b>.<br>`;
-    if (count) html += `Before that, they had already liked <span class="big">${count}</span> of @${esc(fd)}'s post${count === 1 ? '' : 's'}.`;
-    else html += `In ${scanned.toLocaleString()} likes scanned, none of @${esc(fd)}'s posts were liked before the follow.`;
+    if (count) html += `${winLabel === 'all time' ? 'Before that' : `In the ${esc(winLabel)} before`}, they had liked <span class="big">${count}</span> of @${esc(fd)}'s post${count === 1 ? '' : 's'}.`;
+    else html += `None of @${esc(fd)}'s posts were liked ${win} (${scanned.toLocaleString()} likes scanned).`;
   } else {
     html += `<span class="who">@${esc(fr)}</span> doesn't appear to follow <span class="who">@${esc(fd)}</span> — showing <span class="big">${count}</span> of @${esc(fd)}'s post${count === 1 ? '' : 's'} they've liked, with no time filter.`;
   }
   const scanNote = followAt
-    ? `seeked past the newer likes; scanned ${scanned.toLocaleString()} from the follow back`
+    ? `scanned ${scanned.toLocaleString()} likes ${win}` + (windowCut ? ` · older likes lie beyond — widen the window to look further back` : '')
     : `scanned ${scanned.toLocaleString()} likes`;
   html += `<div class="meta">${scanNote} · ordered by like recency (closest to the follow first)</div></div>`;
   return html;
@@ -295,26 +309,34 @@ async function run(followerRaw, followedRaw) {
     const followAt = await findFollow(pds, followerDid, followedDid);
     const followMs = followAt ? new Date(followAt).getTime() : Infinity;
 
+    // Look-back window: the tipping-point signal lives in the weeks before the
+    // follow, not in likes from years earlier — so by default we only scan the
+    // window before the follow and stop. `all` = the whole pre-follow history.
+    const winSel = $('window').value;
+    const windowMs = winSel === 'all' ? Infinity : (parseInt(winSel, 10) || (60 * 86400000));
+    // Lower time bound for the scan. No follow → no anchor, so scan everything.
+    const lowerMs = (followAt && windowMs !== Infinity) ? (followMs - windowMs) : -Infinity;
+
     // Likes before the follow are the OLDER ones. Seek the like list straight to
     // the follow moment via a synthetic TID cursor (+1h margin to absorb any
-    // rkey/createdAt skew), so we never fetch the newer-than-follow tail. The
-    // exact createdAt < followMs check below still does the precise cut.
+    // rkey/createdAt skew), so we never fetch the newer-than-follow tail; and
+    // since the list is descending, early-stop once we drop below lowerMs.
     const SEEK_MARGIN_MS = 60 * 60 * 1000;
     const startCursor = followAt ? tidFromMs(followMs + SEEK_MARGIN_MS) : '';
     const prefix = `at://${followedDid}/app.bsky.feed.post/`;
     const hits = []; // { postUri, likedAt }
-    let scanned = 0;
+    let scanned = 0, stop = false;
     await listRecords(pds, followerDid, 'app.bsky.feed.like', (recs) => {
       for (const rec of recs) {
+        const likedAt = rec.value && rec.value.createdAt;
+        const t = likedAt ? new Date(likedAt).getTime() : 0;
+        if (t < lowerMs) { stop = true; break; } // past the window — done (older still follow)
         scanned++;
-        const subj = rec.value && rec.value.subject;
-        const uri = subj && subj.uri;
-        if (!uri || !uri.startsWith(prefix)) continue;
-        const likedAt = rec.value.createdAt;
-        if (new Date(likedAt).getTime() < followMs) hits.push({ postUri: uri, likedAt });
+        const uri = rec.value && rec.value.subject && rec.value.subject.uri;
+        if (uri && uri.startsWith(prefix) && t < followMs) hits.push({ postUri: uri, likedAt });
       }
-      if (scanned % 500 < 100) setStatus(`scanned ${scanned.toLocaleString()} likes before the follow · found ${hits.length}…`);
-      return false;
+      if (scanned % 500 < 100) setStatus(`scanned ${scanned.toLocaleString()} likes in the window · found ${hits.length}…`);
+      return stop;
     }, startCursor);
 
     // Dedupe by post uri (keep earliest like), then sort by like recency (newest first).
@@ -328,13 +350,14 @@ async function run(followerRaw, followedRaw) {
     setStatus(`hydrating ${unique.length} post${unique.length === 1 ? '' : 's'}…`);
     const posts = await hydrate(unique.map((h) => h.postUri));
 
-    let html = renderSummary(followerProf, followedProf, followAt, unique.length, scanned);
+    const winLabel = $('window').selectedOptions[0].textContent;
+    let html = renderSummary(followerProf, followedProf, followAt, unique.length, scanned, winLabel, stop);
     if (unique.length) {
       html += '<div class="posts">';
       for (const h of unique) html += renderPost(h, posts.get(h.postUri), followedProf, followAt);
       html += '</div>';
     } else if (followAt) {
-      html += `<p class="empty">No spark on record — every like came after the follow, or the follower simply followed cold.</p>`;
+      html += `<p class="empty">No spark in this window — none of @${esc(followedProf?.handle || 'them')}'s posts were liked in the ${esc(winLabel)} before the follow.${stop ? ' Try a longer look-back.' : ''}</p>`;
     }
     outEl.innerHTML = html;
     setStatus('done.');
@@ -352,6 +375,7 @@ $('form').addEventListener('submit', (e) => {
   const url = new URL(location.href);
   url.searchParams.set('follower', follower.trim());
   url.searchParams.set('followed', followed.trim());
+  url.searchParams.set('window', $('window').value);
   history.replaceState(null, '', url);
   run(follower, followed);
 });
@@ -364,6 +388,7 @@ $('swap').addEventListener('click', () => {
 const q = new URLSearchParams(location.search);
 if (q.get('follower')) $('follower').value = q.get('follower');
 if (q.get('followed')) $('followed').value = q.get('followed');
+if (q.get('window') && [...$('window').options].some((o) => o.value === q.get('window'))) $('window').value = q.get('window');
 if (q.get('follower') && q.get('followed')) run(q.get('follower'), q.get('followed'));
 </script>
 </body>
