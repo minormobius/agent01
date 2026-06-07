@@ -11,9 +11,14 @@ name: Deploy Math (explainer pack)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/math-meander-patterns-MSxvk']
     paths:
       - 'geometry/**'
+      - 'meander/**'
+      - 'temperley-lieb/**'
+      - 'aztec/**'
+      - 'markov/**'
+      - 'descent/**'
       - 'erdos/**'
       - 'guthkatz/**'
       - 'hadwiger/**'
@@ -39,7 +44,7 @@ jobs:
         working-directory: math
         run: |
           rm -rf dist && mkdir -p dist
-          for d in geometry erdos guthkatz hadwiger heilbronn kakeya runner \
+          for d in geometry meander temperley-lieb aztec erdos guthkatz hadwiger heilbronn kakeya runner \
                    szemeredi-trotter viazovska capset borsuk elements; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"

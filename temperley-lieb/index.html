@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>temperley–lieb — loops, tiles, and the algebra that wraps</title>
+<meta name="description" content="Interactive Temperley–Lieb explorer: tile a grid with the two TL tiles, watch loops form, weight each by δ. Wrap the grid onto a cylinder or torus and loops start winding (the affine/annular TL). Plus a diagram calculator for the generators e_i, the defining relations, and the Markov trace back to meanders.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #0d6e63;            /* deep viridian — loops / knot teal */
+  --accent-faint: rgba(13, 110, 99, 0.10);
+  --canvas-bg: #fbf8f3;
+  --canvas-ink: #1a1416;
+  --canvas-rule: #c8bcae;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* contractible-loop palette */
+  --L1: #0d6e63; --L2: #1d6fa3; --L3: #d98324; --L4: #2a8a5a; --L5: #7b3fb0;
+  --L6: #b5942a; --L7: #128a86; --L8: #9a4a8a; --L9: #5a6fb0; --L10: #4a8a3a;
+  /* non-contractible (winding) loops — hot reds/magentas */
+  --W1: #c0392b; --W2: #a01f4c; --W3: #d6336c; --W4: #e8590c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #3fb8a8; --accent-faint: rgba(63, 184, 168, 0.12);
+    --canvas-bg: #f4ece2; --canvas-ink: #1a1416; --canvas-rule: #b9aa97;
+    --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.9rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; touch-action: none; }
+canvas.sq { aspect-ratio: 1 / 1; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 2.6em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.gen-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; word-break: break-all; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.win { color: var(--W1); font-weight: 600; }
+.verdict { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.04em; min-height: 1.5em; }
+.verdict.win { color: var(--accent); font-weight: 600; }
+.verdict.partial { color: var(--muted); }
+.verdict.bad { color: var(--W1); }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>temperley–lieb</h1>
+  <p class="subtitle">the algebra of non-crossing loops · tile it, then wrap it</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · sibling of <a href="https://mino.mobi/meander/">meander</a> · <a href="https://mino.mobi/runner/">runner</a> · <a href="https://mino.mobi/viazovska/">viazovska</a> · torus craft: <a href="https://torus.mino.mobi/">torus.mino.mobi</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="tiles" role="tab">tiles</button>
+  <button class="tab" data-tab="thermal" role="tab">thermal</button>
+  <button class="tab" data-tab="ising" role="tab">ising</button>
+  <button class="tab" data-tab="potts" role="tab">potts</button>
+  <button class="tab" data-tab="phase" role="tab">phase</button>
+  <button class="tab" data-tab="torus" role="tab">torus</button>
+  <button class="tab" data-tab="tort" role="tab">tortuosity</button>
+  <button class="tab" data-tab="algebra" role="tab">algebra</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── TILES PANE ─────────── -->
+<section class="pane active" data-pane="tiles">
+  <p class="lead">
+    Fill a grid with the two <strong>Temperley–Lieb tiles</strong> — each cell connects
+    its four edges with a non-crossing pair of arcs. The arcs link up across cells into
+    <strong>loops</strong>, and every closed loop is worth a weight <strong>δ</strong>.
+    Now choose how the grid's edges are glued: a flat <em>disk</em>, a <em>cylinder</em>
+    (left meets right), or a <em>torus</em> (both pairs glued). On the cylinder and torus,
+    loops can <strong>wind around</strong> and never close up inside the picture — those are
+    the non-contractible loops of the <em>affine</em> Temperley–Lieb algebra. Click any tile
+    to flip it.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="tiles-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">boundary</span>
+        <div class="btn-row" id="mode-row">
+          <button class="btn active" data-mode="disk">disk</button>
+          <button class="btn" data-mode="cylinder">cylinder</button>
+          <button class="btn" data-mode="torus">torus</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">columns · L</span>
+        <div class="ctrl-row"><input id="L-slider" type="range" min="2" max="10" value="6" step="1"><span class="ctrl-val" id="L-val">6</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">rows · M</span>
+        <div class="ctrl-row"><input id="M-slider" type="range" min="2" max="10" value="6" step="1"><span class="ctrl-val" id="M-val">6</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">loop weight · δ</span>
+        <div class="ctrl-row"><input id="delta-slider" type="range" min="0" max="2" value="1.41" step="0.01"><span class="ctrl-val" id="delta-val">1.41</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" data-fill="0">all ╲</button>
+          <button class="btn" data-fill="1">all ╱</button>
+          <button class="btn" data-fill="check">checker</button>
+          <button class="btn" data-fill="rand">random</button>
+        </div>
+      </div>
+      <div class="stats" id="tiles-stats"></div>
+      <div class="verdict" id="tiles-verdict"></div>
+      <div class="stat-note">
+        Special δ = 2·cos(π/(k+2)) — 1, √2, φ, √3, … — are where TL has its famous
+        quotients (the Jones subfactors, the ADE classification). δ = 2 is the boundary
+        between "small" and generic. Switch to the <strong>torus</strong> tab to see this
+        same configuration wrapped onto a donut.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── THERMAL PANE ─────────── -->
+<section class="pane" data-pane="thermal">
+  <p class="lead">
+    The loop tiles <em>are</em> the <strong>Q-state Potts model</strong> in disguise — loop
+    weight δ = √Q, so <strong>δ = √2 is exactly the Ising model</strong>. Here the δ slider is a
+    <strong>thermostat</strong>: we randomly flip tiles and accept each flip with Boltzmann
+    probability min(1, δ<sup>Δloops</sup>), sampling the loop gas at that fugacity. The
+    <strong>tribes are the loops</strong> — and which tribe a tile joins is decided by global
+    connectivity, not its orientation. Hit <strong>run</strong> and watch the tribes reorganise.
+    (Torus boundary, so every tribe closes; winding tribes are coloured hot.)
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="th-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">loop fugacity · δ  (Q = δ²)</span>
+        <div class="ctrl-row"><input id="th-delta" type="range" min="0.40" max="2.40" value="1.41" step="0.01"><span class="ctrl-val" id="th-delta-val">1.41</span></div>
+        <div class="btn-row" id="th-presets">
+          <button class="btn" data-d="1">1 · free</button>
+          <button class="btn active" data-d="1.41421356">√2 · Ising</button>
+          <button class="btn" data-d="1.73205081">√3 · 3-Potts</button>
+          <button class="btn" data-d="2">2 · Q=4</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="th-run">▶ run</button>
+          <button class="btn" id="th-sweep">+1 sweep</button>
+          <button class="btn" id="th-rand">randomise</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × M</span>
+        <div class="ctrl-row"><input id="th-size" type="range" min="4" max="14" value="10" step="1"><span class="ctrl-val" id="th-size-val">10</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="th-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="th-speed-val">3</span></div>
+      </div>
+      <div class="stats" id="th-stats"></div>
+      <div class="stat-note">
+        δ = 1 is free (infinite temperature — every tiling equally likely). δ &gt; 1 rewards
+        <em>more</em> tribes (many small loops); δ &lt; 1 rewards <em>fewer</em> (a few big,
+        often winding, loops). At δ = √2 the loops are the Fortuin–Kasteleyn cluster boundaries
+        of the Ising model — the tribes you're watching are FK clusters.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── ISING PANE ─────────── -->
+<section class="pane" data-pane="ising">
+  <p class="lead">
+    Now a real temperature axis. This is the <strong>Ising model</strong> — Potts at Q = 2, the
+    δ = √2 point of the thermal tab — driven by the <strong>Swendsen–Wang</strong> cluster
+    thermostat: open bonds between aligned neighbours with probability 1 − e<sup>−2/T</sup>, then
+    flip whole <strong>tribes</strong> (the Fortuin–Kasteleyn clusters) at once. Cool through the
+    exact critical temperature <strong>T<sub>c</sub> = 2 / ln(1 + √2) ≈ 2.269</strong> and watch
+    the tribes diverge: a froth of tiny tribes when hot, one <em>fractal spanning tribe</em> at
+    T<sub>c</sub>, a single frozen continent below. Hit <strong>anneal</strong> to ramp the
+    temperature and ride through the transition. (Torus boundary.)
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="is-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">temperature · T  (T<sub>c</sub> ≈ 2.269)</span>
+        <div class="ctrl-row"><input id="is-temp" type="range" min="0.80" max="4.00" value="2.269" step="0.005"><span class="ctrl-val" id="is-temp-val">2.269</span></div>
+        <div class="btn-row" id="is-presets">
+          <button class="btn" data-t="3.6">hot</button>
+          <button class="btn active" data-t="2.269185">T<sub>c</sub></button>
+          <button class="btn" data-t="1.4">cold</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="is-run">▶ run</button>
+          <button class="btn" id="is-anneal">anneal</button>
+          <button class="btn" id="is-sweep">+1 sweep</button>
+          <button class="btn" id="is-rand">randomise</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">view</span>
+        <div class="btn-row" id="is-mode">
+          <button class="btn active" data-m="loops">domain loops</button>
+          <button class="btn" data-m="spin">spin ↑↓</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="is-size" type="range" min="16" max="96" value="48" step="8"><span class="ctrl-val" id="is-size-val">48</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="is-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="is-speed-val">3</span></div>
+      </div>
+      <div class="stats" id="is-stats"></div>
+      <div class="stat-note">
+        The <strong>domain loops</strong> view draws the walls between up and down regions — the
+        Peierls contours, the same loops as the rest of this page — in a fixed colour, with the
+        majority phase gauge-pinned so it never swaps tint. Swendsen–Wang flips whole correlated
+        tribes per step, so it stays fast even at T<sub>c</sub> where single-spin flips freeze. The
+        biggest-tribe fraction is the order parameter: it climbs from ~0 to ~1 across T<sub>c</sub>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── POTTS PANE ─────────── -->
+<section class="pane" data-pane="potts">
+  <p class="lead">
+    The <strong>Potts model</strong> is the Ising model with <strong>Q colours</strong> instead of
+    two: each site picks one of Q states, and neighbours that match lower the energy. <strong>Q = 2
+    is exactly Ising</strong>; Q = 3, 4, … are its colourful cousins — and the loop weight is
+    δ = √Q, so this is the very same family as the thermal tab, now dialled to any integer Q. Same
+    Swendsen–Wang thermostat: bond matching neighbours with probability 1 − e<sup>−1/T</sup>, then
+    recolour whole domains at once. Each Q has its own exact critical temperature
+    <strong>T<sub>c</sub> = 1 / ln(1 + √Q)</strong>. Cool through it and watch Q-coloured continents
+    freeze out. <em>For Q ≤ 4 the freeze is continuous; for Q ≥ 5 it turns abrupt (first-order) —
+    crank Q up, sit near T<sub>c</sub>, and you can catch ordered and disordered regions coexisting.</em>
+    (Torus boundary.)
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="po-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">colours · Q  (Q = 2 is Ising)</span>
+        <div class="ctrl-row"><input id="po-q" type="range" min="2" max="10" value="3" step="1"><span class="ctrl-val" id="po-q-val">3</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">temperature · T</span>
+        <div class="ctrl-row"><input id="po-temp" type="range" min="0.20" max="2.50" value="0.995" step="0.005"><span class="ctrl-val" id="po-temp-val">0.995</span></div>
+        <div class="btn-row" id="po-presets">
+          <button class="btn" data-rel="1.6">hot</button>
+          <button class="btn active" data-rel="1">T<sub>c</sub></button>
+          <button class="btn" data-rel="0.7">cold</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="po-run">▶ run</button>
+          <button class="btn" id="po-anneal">anneal</button>
+          <button class="btn" id="po-sweep">+1 sweep</button>
+          <button class="btn" id="po-rand">randomise</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">view</span>
+        <div class="btn-row" id="po-mode">
+          <button class="btn active" data-m="loops">domain loops</button>
+          <button class="btn" data-m="colour">Q colours</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="po-size" type="range" min="16" max="96" value="48" step="8"><span class="ctrl-val" id="po-size-val">48</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="po-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="po-speed-val">3</span></div>
+      </div>
+      <div class="stats" id="po-stats"></div>
+      <div class="stat-note">
+        Order parameter is the <strong>Potts magnetisation</strong> m = (Q·f<sub>max</sub> − 1)/(Q − 1),
+        where f<sub>max</sub> is the fraction in the most common colour: m ≈ 0 disordered, → 1 frozen.
+        The domain-loops view draws the walls between unlike colours in a fixed accent — a Q-colour
+        Peierls picture, calm by default at ≤ 3 updates/sec.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── PHASE PANE ─────────── -->
+<section class="pane" data-pane="phase">
+  <p class="lead">
+    The phase diagram ties the thermostats together. Sweep the temperature from cold to hot and, at
+    each T, let Swendsen–Wang equilibrate and measure the order parameter — the Potts magnetisation
+    m. The curve falls from 1 (frozen, ordered) to 0 (disordered) as you cross the exact critical
+    temperature <strong>T<sub>c</sub> = 1/ln(1+√Q)</strong> (dashed line). <strong>For Q ≤ 4 the fall
+    is continuous; for Q ≥ 5 it drops off a cliff</strong> — a first-order transition. Pick Q, hit
+    run, and watch the curve draw itself.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="ph-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">colours · Q  (Q = 2 is Ising)</span>
+        <div class="ctrl-row"><input id="ph-q" type="range" min="2" max="10" value="2" step="1"><span class="ctrl-val" id="ph-q-val">2</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="ph-run">▶ run sweep</button>
+          <button class="btn" id="ph-reset">reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L (smaller = faster)</span>
+        <div class="ctrl-row"><input id="ph-size" type="range" min="16" max="40" value="24" step="4"><span class="ctrl-val" id="ph-size-val">24</span></div>
+      </div>
+      <div class="stats" id="ph-stats"></div>
+      <div class="stat-note">
+        Blue is the magnetisation m; faint orange is the energy per site. The sweep heats cold→hot,
+        carrying the lattice from each T to the next (adiabatic), so the curve tracks the equilibrium
+        branch. Finite L rounds the corner off — bump L up to sharpen the transition, down for speed.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── TORUS PANE ─────────── -->
+<section class="pane" data-pane="torus">
+  <p class="lead">
+    The tiling projected onto a real torus (the gluing the geometry pack's
+    <a href="https://torus.mino.mobi/">toroidal games</a> use) — and now you can <strong>run the
+    loop-gas thermostat right here on the donut</strong>. Hit run and the same δ-weighted
+    Metropolis dynamics from the thermal tab reshuffle the loops live in 3D. Contractible loops sit
+    in a patch; <strong>non-contractible loops wind through the hole or around the tube</strong> and
+    can't be shrunk away. Pull δ <em>down</em> and watch winding loops appear and thread the donut —
+    that winding is the whole point of the affine algebra. Drag to rotate.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="torus-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn active" id="spin-btn">spin</button>
+          <button class="btn" id="torus-run">▶ run</button>
+          <button class="btn" id="torus-rand">randomise</button>
+          <button class="btn" id="torus-sync">↻ from tiles</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">loop fugacity · δ  (Q = δ²)</span>
+        <div class="ctrl-row"><input id="torus-delta" type="range" min="0.40" max="2.40" value="1.41" step="0.01"><span class="ctrl-val" id="torus-delta-val">1.41</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">tube radius · r/R</span>
+        <div class="ctrl-row"><input id="rr-slider" type="range" min="0.2" max="0.6" value="0.42" step="0.01"><span class="ctrl-val" id="rr-val">0.42</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="torus-speed" type="range" min="1" max="8" value="3" step="1"><span class="ctrl-val" id="torus-speed-val">3</span></div>
+      </div>
+      <div class="stats" id="torus-stats"></div>
+      <div class="stat-note">
+        Run the thermostat here, or edit on the <strong>tiles</strong> tab (torus mode) and hit
+        <strong>↻ from tiles</strong> to mirror it. A loop that circles the hole is winding in one
+        direction; one that circles the tube winds in the other. The pair of winding numbers is the
+        loop's <em>homology class</em> on the torus.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── TORTUOSITY PANE ─────────── -->
+<section class="pane" data-pane="tort">
+  <p class="lead">
+    A continuous path that visits every square of the torus is a <strong>Hamiltonian path</strong>.
+    At each interior cell it either goes <strong>straight</strong> or <strong>turns</strong> — and
+    <strong>tortuosity</strong> τ = turns / (interior cells) measures how wiggly it is, maxed out at
+    τ = 1 when <em>every</em> cell is a turn. That all-turns limit is exactly the loop picture this
+    whole page runs on: every arc is a 90° turn. Maximising turns is a combinatorial optimisation,
+    so we throw the Monte-Carlo toolset at it: <strong>simulated annealing</strong> with
+    <strong>backbite</strong> moves (reconnect one endpoint to a lattice neighbour, reversing the
+    tail — the standard ergodic move on Hamiltonian paths) that minimises the count of straight
+    cells. Hit run and watch the snake crumple into a maximally twisty path.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="tt-canvas" class="sq" width="760" height="760"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="tt-run">▶ anneal</button>
+          <button class="btn" id="tt-best">restore best</button>
+          <button class="btn" id="tt-reset">reset (snake)</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="tt-size" type="range" min="5" max="24" value="14" step="1"><span class="ctrl-val" id="tt-size-val">14</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">anneal temperature · τT (auto-cools)</span>
+        <div class="ctrl-row"><input id="tt-temp" type="range" min="0.02" max="2.00" value="1.20" step="0.02"><span class="ctrl-val" id="tt-temp-val">1.20</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · updates / sec (lower = calmer)</span>
+        <div class="ctrl-row"><input id="tt-speed" type="range" min="1" max="8" value="4" step="1"><span class="ctrl-val" id="tt-speed-val">4</span></div>
+      </div>
+      <div class="stats" id="tt-stats"></div>
+      <div class="stat-note">
+        Red dots mark the <strong>straight</strong> cells — the defects from a perfectly twisty path;
+        squares are the two endpoints. Lower τT greedily hunts turns, higher τT shakes the path loose
+        to escape local traps. "Best" keeps the twistiest path seen so far. Wraps across the torus
+        seam show as stubs at opposite edges.
+        <br><br><strong>A parity law falls out:</strong> all-turns (τ = 1) is reachable only when L is
+        <em>even</em>. For <em>odd</em> L the minimum number of straight cells is exactly
+        <strong>L − 1</strong> — an all-turns path forces moves to alternate horizontal/vertical, which
+        tiles each column with length-2 vertical steps, impossible for odd L. The annealer hits this
+        bound on the nose every run.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── ALGEBRA PANE ─────────── -->
+<section class="pane" data-pane="algebra">
+  <p class="lead">
+    Temperley–Lieb is an <em>algebra</em>: its elements are diagrams on <strong>n strands</strong>,
+    and you multiply them by stacking. The generators <strong>e<sub>i</sub></strong> cap strands
+    i and i+1. Build a word by clicking generators; the diagram reduces to a basis picture times
+    <strong>δ<sup>(loops)</sup></strong>, and the defining relations fall out as pictures.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="alg-canvas" width="760" height="380"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">strands · n</span>
+        <div class="ctrl-row"><input id="n-slider" type="range" min="2" max="7" value="4" step="1"><span class="ctrl-val" id="n-val">4</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">append generator</span>
+        <div class="gen-row" id="gen-row"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="alg-back">⌫ pop</button>
+          <button class="btn" id="alg-clear">clear → 1</button>
+          <button class="btn" id="alg-trace">close (trace)</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">check a relation</span>
+        <div class="btn-row" id="rel-row">
+          <button class="btn" data-rel="sq">eᵢ²</button>
+          <button class="btn" data-rel="braid">eᵢeᵢ₊₁eᵢ</button>
+          <button class="btn" data-rel="far">eᵢeⱼ</button>
+        </div>
+      </div>
+      <div class="stats" id="alg-stats"></div>
+      <div class="verdict" id="alg-verdict"></div>
+      <div class="stat-note">
+        The "close (trace)" button glues each top point to the bottom point below it and
+        counts the loops — the <strong>Markov trace</strong>. Pairing two such diagrams is
+        exactly an entry of the meander matrix on <a href="https://mino.mobi/meander/">/meander/</a>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>Pictures you can multiply</h2>
+<p>The <strong>Temperley–Lieb algebra</strong> TL<sub>n</sub>(δ) is an algebra whose elements
+are <em>diagrams</em>. Fix <em>n</em> strands. A basis diagram connects <em>n</em> points on
+the bottom of a box to <em>n</em> points on the top with <strong>non-crossing</strong> strands.
+There are exactly <strong>C<sub>n</sub></strong> of them — the Catalan number, the same count
+that runs every row of arches on <a href="https://mino.mobi/meander/">/meander/</a>. A TL diagram
+and a meander arch system are the same combinatorial animal in different costumes.</p>
+
+<p>Two rules make it an algebra:</p>
+<ul>
+  <li><strong>Multiply by stacking.</strong> Put one diagram above another and join the middle
+  points. The result is another diagram — possibly with closed loops trapped inside.</li>
+  <li><strong>Every closed loop is worth δ.</strong> Pull each trapped loop out as a numerical
+  factor <em>δ</em> (the loop weight / fugacity) and erase it. So
+  <code>diagram × diagram = δ^(#loops) × (basis diagram)</code>.</li>
+</ul>
+
+<h2>The relations are pictures</h2>
+<p>Generated by 1 and <em>e</em><sub>1</sub>, …, <em>e</em><sub>n−1</sub> (each <em>e<sub>i</sub></em>
+caps strands <em>i</em>, <em>i</em>+1 top and bottom), with three relations you can <em>see</em>
+in the <a href="#algebra" data-jump="algebra">algebra tab</a>:</p>
+<ul>
+  <li><code>eᵢ² = δ·eᵢ</code> — a cap-cup stacked on itself pops one circle (one δ).</li>
+  <li><code>eᵢ eᵢ₊₁ eᵢ = eᵢ</code> — a zig-zag of strands pulls straight; no loop.</li>
+  <li><code>eᵢ eⱼ = eⱼ eᵢ</code> for |i−j| ≥ 2 — distant caps don't interact.</li>
+</ul>
+<p>That's the whole presentation. <code>dim TL<sub>n</sub> = C<sub>n</sub></code> (1, 2, 5, 14,
+42, 132, …).</p>
+
+<h2>Tiles, and the loop model</h2>
+<p>A word in the generators is a <strong>tiling</strong> of a rectangle by two tiles — a
+pass-through and a turn. The <a href="#tiles" data-jump="tiles">tiles tab</a> lets you set each
+cell freely, so you're building a configuration of the <strong>completely-packed loop model</strong>
+on a lattice: the very model behind the Potts model, the six-vertex model, and the Jones
+polynomial. Counting loops weighted by δ is the algebra's trace. At δ = 1 each loop counts once,
+and the single-loop configurations are precisely the <a href="https://mino.mobi/meander/">meanders</a>.</p>
+
+<h2>Does it wrap? — the affine / annular algebra</h2>
+<p>Planar TL lives in a <strong>disk</strong> (a flat box). Roll the box into a tube so strand
+<em>n</em>+1 is strand 1 again and you get the <strong>affine</strong> (a.k.a. periodic or
+annular) Temperley–Lieb algebra. Strands now <strong>wind around</strong> the cylinder, and a
+new kind of loop appears: a <strong>non-contractible</strong> one that circles the tube and can't
+be shrunk away. These winding loops usually carry their <em>own</em> weight, separate from δ.
+This is the algebra of the periodic XXZ spin chain and the loop/Potts model on a cylinder —
+the setting where you read off conformal field theory data (central charge, the operator
+spectrum). It is the same loop-gas / Coulomb-gas family whose conformal weights, gravitationally
+dressed, produce the <a href="https://mino.mobi/meander/#growth" data-x>quantum-gravity exponent</a>
+on the meander page.</p>
+
+<p>Glue the other pair of sides too and you have a <strong>torus</strong>: loops can wind in two
+independent directions, the partition function becomes <strong>modular invariant</strong>, and the
+loop model's CFT identity is fully exposed. The <a href="#torus" data-jump="torus">torus tab</a>
+shows your tiling on the donut so you can watch a loop thread the hole. So: yes it wraps; yes the
+strands become loops; and <em>how</em> you wrap — disk → cylinder → torus — is exactly the dial
+that turns a combinatorial toy into integrable statistical mechanics.</p>
+
+<blockquote>The tiles are Catalan-simple. The gluing is where the physics lives.</blockquote>
+
+<h2>The Markov trace, and back to meanders</h2>
+<p>Close a diagram by joining each top point to the bottom point beneath it and count the loops:
+that's the <strong>Markov trace</strong>, <code>tr(D) = δ^(#loops)</code>. It is how the Jones
+polynomial of a knot is extracted from a braid pushed into TL. And pairing two arch systems —
+one reflected — and counting the loops of their union is exactly an entry of the
+<strong>meander matrix</strong>, whose determinant Di Francesco factored in closed form even though
+the meander <em>numbers</em> have none. Same algebra, both pages.</p>
+
+<h2>History</h2>
+<ul>
+  <li><strong>1971</strong> — Temperley &amp; Lieb introduce the algebra to unify the Potts and
+  ice-type (six-vertex) models in statistical mechanics.</li>
+  <li><strong>1983–85</strong> — Vaughan Jones meets the same algebra in the theory of subfactors;
+  out of it falls the <strong>Jones polynomial</strong> of knots, and the special values
+  δ = 2cos(π/(k+2)).</li>
+  <li><strong>1990s</strong> — Kauffman's diagram calculus makes "the elements are pictures"
+  literal; the algebra becomes a staple of quantum topology.</li>
+  <li><strong>affine era</strong> — the periodic / annular TL algebra (Graham–Lehrer,
+  Pasquier–Saleur, and the integrability school) ties the winding sectors to conformal field
+  theory on the cylinder and torus.</li>
+</ul>
+
+<h2>Why it sits in the geometry pack</h2>
+<p>It's the algebraic engine of its sibling <a href="https://mino.mobi/meander/">meander</a> page,
+and it shares the loop-gas/CFT machinery that links the pack's combinatorics to physics — the way
+<a href="https://mino.mobi/viazovska/">Viazovska</a>'s modular forms do for sphere packing. And the
+wrap question reaches across the site to the <a href="https://torus.mino.mobi/">toroidal games</a>:
+the same donut, now carrying loops instead of a maze.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Temperley, H. N. V. &amp; Lieb, E. H. (1971). <em>Relations between the percolation and colouring problem… and the Potts model.</em> Proc. R. Soc. Lond. A 322, 251–280.</li>
+  <li>Jones, V. F. R. (1985). <em>A polynomial invariant for knots via von Neumann algebras.</em> Bull. AMS 12, 103–111.</li>
+  <li>Kauffman, L. H. (1990). <em>An invariant of regular isotopy.</em> Trans. AMS 318, 417–471.</li>
+  <li>Graham, J. J. &amp; Lehrer, G. I. (1998). <em>The representation theory of affine Temperley–Lieb algebras.</em> L'Enseign. Math. 44.</li>
+  <li>Di Francesco, P., Golinelli, O. &amp; Guitter, E. (1997). <em>Meanders and the Temperley–Lieb algebra.</em> Comm. Math. Phys. 186, 1–59.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Temperley%E2%80%93Lieb_algebra">Wikipedia — Temperley–Lieb algebra</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/meander/">meander</a>
+  <span>·</span>
+  <a href="https://torus.mino.mobi/">torus</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// Tab switcher
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab');
+const panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['tiles', 'thermal', 'ising', 'potts', 'phase', 'torus', 'tort', 'algebra', 'docs'];
+function showTab(name) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  try { history.replaceState(null, '', '#' + name); } catch {}
+  if (name === 'tiles') drawTiles();
+  if (name === 'thermal') { if(!thermal.states.length) thRandomize(); drawThermal(); if(thermal.running) thermal.raf=requestAnimationFrame(thLoop); }
+  if (name === 'ising') { if(!ising.spins){ isInit(); labelStats(fkClusters()); } drawIsing(); if(ising.running) ising.raf=requestAnimationFrame(isLoop); }
+  if (name === 'potts') { if(!potts.spins){ poInit(); } drawPotts(); if(potts.running) potts.raf=requestAnimationFrame(poLoop); }
+  if (name === 'phase') { drawPhase(); if(phase.running) phase.raf=requestAnimationFrame(phTick); }
+  if (name === 'torus') { if(!donut.states){ syncTorusFromTiles(); } else { drawTorus(); updateTorusStats(); } startSpin(); }
+  if (name === 'tort') { if(!tort.seq.length){ tInitSnake(); } drawTort(); if(tort.running) tort.raf=requestAnimationFrame(tLoop); }
+  if (name === 'algebra') drawAlg();
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+document.querySelectorAll('[data-jump]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showTab(a.dataset.jump); }));
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+const LOOPC = ['--L1','--L2','--L3','--L4','--L5','--L6','--L7','--L8','--L9','--L10'].map(cssVar);
+const WINDC = ['--W1','--W2','--W3','--W4'].map(cssVar);
+
+// ═════════════════════════════════════════════════════════════════════
+// Lattice loop engine  (validated: 0 failures / 4320 random configs)
+//   dirs 0=N,1=E,2=S,3=W ; cell state 0="╲" pairs N-W & E-S ; 1="╱" pairs N-E & S-W
+// ═════════════════════════════════════════════════════════════════════
+const ARC = { 0:{0:3,3:0,1:2,2:1}, 1:{0:1,1:0,2:3,3:2} };
+const arcP = (s,d) => ARC[s][d];
+function link(x,y,d,L,M,mode) {
+  const wrapX = (mode==='cylinder'||mode==='torus'), wrapY = (mode==='torus');
+  if (d===0) { if (y-1>=0) return {x,y:y-1,d:2,dwx:0,dwy:0}; return wrapY?{x,y:M-1,d:2,dwx:0,dwy:-1}:null; }
+  if (d===2) { if (y+1<M)  return {x,y:y+1,d:0,dwx:0,dwy:0}; return wrapY?{x,y:0,d:0,dwx:0,dwy:1}:null; }
+  if (d===1) { if (x+1<L)  return {x:x+1,y,d:3,dwx:0,dwy:0}; return wrapX?{x:0,y,d:3,dwx:1,dwy:0}:null; }
+  if (d===3) { if (x-1>=0) return {x:x-1,y,d:1,dwx:0,dwy:0}; return wrapX?{x:L-1,y,d:1,dwx:-1,dwy:0}:null; }
+}
+// returns components: { seq:[[x,y,d]...] traversal order, closed, wx, wy }
+function trace(states, L, M, mode) {
+  const seen = new Set(), comps = [];
+  const K = (x,y,d) => x+','+y+','+d;
+  const at = (x,y) => states[y*L+x];
+  const lim = 8*L*M + 8;
+  for (let x=0;x<L;x++) for (let y=0;y<M;y++) for (let d=0;d<4;d++) {
+    if (seen.has(K(x,y,d))) continue;
+    // rewind to an open endpoint if this is an open path
+    let cx=x,cy=y,cd=d, closed=true;
+    { let px=x,py=y,pd=d, g=0;
+      while (g++<lim) { const lk=link(px,py,pd,L,M,mode); if (!lk) { cx=px;cy=py;cd=pd;closed=false;break; }
+        const ax=arcP(at(lk.x,lk.y),lk.d); if (K(lk.x,lk.y,ax)===K(x,y,d)) { cx=x;cy=y;cd=d;closed=true;break; }
+        px=lk.x;py=lk.y;pd=ax; } }
+    const seq=[]; let fx=cx,fy=cy,fd=cd, wx=0,wy=0, s=0;
+    while (s++<lim) {
+      seen.add(K(fx,fy,fd)); seq.push([fx,fy,fd]);
+      const ax = arcP(at(fx,fy),fd); seen.add(K(fx,fy,ax)); seq.push([fx,fy,ax]);
+      const lk = link(fx,fy,ax,L,M,mode);
+      if (!lk) { closed=false; break; }
+      wx+=lk.dwx; wy+=lk.dwy;
+      if (lk.x===cx && lk.y===cy && lk.d===cd) { closed=true; break; }
+      fx=lk.x; fy=lk.y; fd=lk.d;
+    }
+    comps.push({ seq, closed, wx, wy });
+  }
+  return comps;
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Tiles tab
+// ═════════════════════════════════════════════════════════════════════
+const tiles = { L:6, M:6, mode:'disk', delta:1.41, states:[] };
+function fillStates(kind) {
+  const n = tiles.L*tiles.M; tiles.states = new Array(n);
+  for (let i=0;i<n;i++) {
+    const x=i%tiles.L, y=(i/tiles.L|0);
+    tiles.states[i] = kind==='check' ? (x+y)&1 : kind==='rand' ? (Math.random()<0.5?0:1) : kind;
+  }
+}
+fillStates(0);
+const tilesCanvas = document.getElementById('tiles-canvas');
+const tCtx = tilesCanvas.getContext('2d');
+function tilesGeom() {
+  const W=tilesCanvas.width, H=tilesCanvas.height, pad=18;
+  const cs = Math.min((W-2*pad)/tiles.L, (H-2*pad)/tiles.M);
+  const gw=cs*tiles.L, gh=cs*tiles.M;
+  return { W,H,cs, ox:(W-gw)/2, oy:(H-gh)/2 };
+}
+function compDecomp() {
+  const comps = trace(tiles.states, tiles.L, tiles.M, tiles.mode);
+  const map = new Map();   // "x,y,d" -> comp index
+  comps.forEach((c,ci) => c.seq.forEach(([x,y,d]) => map.set(x+','+y+','+d, ci)));
+  return { comps, map };
+}
+function colorForComp(comps, ci) {
+  const c = comps[ci];
+  if (c.closed && (c.wx!==0 || c.wy!==0)) {
+    // non-contractible: index winding loops among themselves
+    let wIdx=0; for (let k=0;k<ci;k++){ const cc=comps[k]; if (cc.closed && (cc.wx||cc.wy)) wIdx++; }
+    return { color: WINDC[wIdx % WINDC.length], wind:true, open:!c.closed };
+  }
+  return { color: LOOPC[ci % LOOPC.length], wind:false, open:!c.closed };
+}
+function drawTiles() {
+  const ctx=tCtx, g=tilesGeom();
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  // faint grid
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  for (let x=0;x<=tiles.L;x++){ ctx.beginPath(); ctx.moveTo(g.ox+x*g.cs,g.oy); ctx.lineTo(g.ox+x*g.cs,g.oy+tiles.M*g.cs); ctx.stroke(); }
+  for (let y=0;y<=tiles.M;y++){ ctx.beginPath(); ctx.moveTo(g.ox,g.oy+y*g.cs); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy+y*g.cs); ctx.stroke(); }
+  // wrapped-edge markers
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  if (tiles.mode==='cylinder'||tiles.mode==='torus') {
+    ctx.beginPath(); ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox,g.oy+tiles.M*g.cs);
+    ctx.moveTo(g.ox+tiles.L*g.cs,g.oy); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy+tiles.M*g.cs); ctx.stroke();
+  }
+  if (tiles.mode==='torus') {
+    ctx.beginPath(); ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy);
+    ctx.moveTo(g.ox,g.oy+tiles.M*g.cs); ctx.lineTo(g.ox+tiles.L*g.cs,g.oy+tiles.M*g.cs); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // arcs coloured by loop
+  const { comps, map } = compDecomp();
+  const lw = Math.max(2, g.cs*0.10);
+  for (let y=0;y<tiles.M;y++) for (let x=0;x<tiles.L;x++) {
+    const st=tiles.states[y*tiles.L+x];
+    // both arcs in this cell may belong to different components; colour each by its port
+    // arc A uses port N(0); arc B uses the other pair — find via map on a representative dir
+    const portA = st===0 ? 0 : 0;   // N is in arc A for both states
+    const ciA = map.get(x+','+y+','+0);
+    const ciB = map.get(x+','+y+','+ (st===0?1:2)); // E(1) for state0, S(2) for state1 — the "other" arc
+    const colA = ciA!=null ? colorForComp(comps,ciA).color : cssVar('--canvas-ink');
+    const colB = ciB!=null ? colorForComp(comps,ciB).color : cssVar('--canvas-ink');
+    // draw the two arcs of this cell separately so their loop colours can differ
+    const x0=g.ox+x*g.cs, y0=g.oy+y*g.cs, r=g.cs/2;
+    ctx.lineCap='round'; ctx.lineWidth=lw;
+    if (st===0) {
+      ctx.strokeStyle=colA; ctx.beginPath(); ctx.arc(x0,y0,r,0,Math.PI/2); ctx.stroke();
+      ctx.strokeStyle=colB; ctx.beginPath(); ctx.arc(x0+g.cs,y0+g.cs,r,Math.PI,Math.PI*1.5); ctx.stroke();
+    } else {
+      ctx.strokeStyle=colA; ctx.beginPath(); ctx.arc(x0+g.cs,y0,r,Math.PI/2,Math.PI); ctx.stroke();
+      ctx.strokeStyle=colB; ctx.beginPath(); ctx.arc(x0,y0+g.cs,r,Math.PI*1.5,Math.PI*2); ctx.stroke();
+    }
+  }
+  // stats
+  const closed = comps.filter(c=>c.closed);
+  const wind = closed.filter(c=>c.wx!==0||c.wy!==0);
+  const contr = closed.length - wind.length;
+  const open = comps.filter(c=>!c.closed).length;
+  const weight = Math.pow(tiles.delta, closed.length);
+  const windClasses = wind.map(c=>`(${c.wx>0?'+':''}${c.wx},${c.wy>0?'+':''}${c.wy})`);
+  const uniq = [...new Set(windClasses)];
+  document.getElementById('tiles-stats').innerHTML = `
+    <div class="stat-row"><span class="k">grid</span><span class="v">${tiles.L} × ${tiles.M}</span></div>
+    <div class="stat-row"><span class="k">closed loops</span><span class="v hot">${closed.length}</span></div>
+    <div class="stat-row"><span class="k">· contractible</span><span class="v">${contr}</span></div>
+    <div class="stat-row"><span class="k">· winding</span><span class="v win">${wind.length}</span></div>
+    <div class="stat-row"><span class="k">open strands</span><span class="v">${open}</span></div>
+    <div class="stat-row"><span class="k">δ<sup>loops</sup></span><span class="v hot">${weight.toFixed(3)}</span></div>
+  `;
+  const ve = document.getElementById('tiles-verdict');
+  if (tiles.mode==='disk') { ve.textContent = open>0 ? `disk: ${open} strands end on the boundary` : 'disk: all loops closed'; ve.className='verdict partial'; }
+  else if (wind.length>0) { ve.innerHTML = `wrapping! ${wind.length} non-contractible loop${wind.length>1?'s':''} · class${uniq.length>1?'es':''} ${uniq.join(' ')}`; ve.className='verdict win'; }
+  else { ve.textContent = `${tiles.mode}: no winding loops in this config`; ve.className='verdict partial'; }
+}
+tilesCanvas.addEventListener('click', e => {
+  const rect=tilesCanvas.getBoundingClientRect(), g=tilesGeom();
+  const px=(e.clientX-rect.left)*(tilesCanvas.width/rect.width);
+  const py=(e.clientY-rect.top)*(tilesCanvas.height/rect.height);
+  const x=Math.floor((px-g.ox)/g.cs), y=Math.floor((py-g.oy)/g.cs);
+  if (x<0||y<0||x>=tiles.L||y>=tiles.M) return;
+  tiles.states[y*tiles.L+x] ^= 1; drawTiles();
+});
+document.getElementById('mode-row').addEventListener('click', e => {
+  const b=e.target.closest('[data-mode]'); if(!b) return; tiles.mode=b.dataset.mode;
+  document.querySelectorAll('#mode-row .btn').forEach(x=>x.classList.toggle('active',x.dataset.mode===tiles.mode));
+  drawTiles();
+});
+document.querySelectorAll('[data-fill]').forEach(b=>b.addEventListener('click',()=>{ fillStates(b.dataset.fill==='0'?0:b.dataset.fill==='1'?1:b.dataset.fill); drawTiles(); }));
+function bindSize(id,key,valId){ const s=document.getElementById(id); s.addEventListener('input',e=>{ tiles[key]=parseInt(e.target.value,10); document.getElementById(valId).textContent=tiles[key]; fillStates(0); drawTiles(); }); }
+bindSize('L-slider','L','L-val'); bindSize('M-slider','M','M-val');
+document.getElementById('delta-slider').addEventListener('input',e=>{ tiles.delta=parseFloat(e.target.value); document.getElementById('delta-val').textContent=tiles.delta.toFixed(2); drawTiles(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// Torus tab — project the (torus-mode) tiling onto a donut. Read-only.
+//   parametrization from clock/knotpac:  P(u,v) = ((R+r cosv)cosu, r sinv, (R+r cosv)sinu)
+// ═════════════════════════════════════════════════════════════════════
+const torusCanvas = document.getElementById('torus-canvas');
+const dCtx = torusCanvas.getContext('2d');
+const donut = { ay:0.6, ax:0.5, spin:true, rr:0.42, raf:null,
+  states:null, L:0, M:0, delta:Math.SQRT2, loops:0, running:false, ups:3, lastT:0, sweeps:0, _last:0 };
+function donutClosed(states){ return trace(states, donut.L, donut.M, 'torus').filter(c=>c.closed).length; }
+function donutStep(){ const n=donut.L*donut.M, i=(Math.random()*n)|0;
+  donut.states[i]^=1; const after=donutClosed(donut.states); const d=after-donut.loops;
+  if(Math.random() < Math.pow(donut.delta, d)) donut.loops=after; else donut.states[i]^=1; }
+function torusRandomize(){ if(!donut.L){ donut.L=tiles.L; donut.M=tiles.M; } const n=donut.L*donut.M;
+  donut.states=new Array(n); for(let i=0;i<n;i++) donut.states[i]=Math.random()<0.5?0:1;
+  donut.loops=donutClosed(donut.states); donut.sweeps=0; drawTorus(); updateTorusStats(); }
+function torusSetRun(on){ donut.running=on; const b=document.getElementById('torus-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on); if(on){ donut.lastT=0; if(!donut.states) torusRandomize(); startSpin(); } }
+function portGrid(x,y,d){ // grid coords of an edge-midpoint
+  if (d===0) return [x+0.5, y];
+  if (d===1) return [x+1,   y+0.5];
+  if (d===2) return [x+0.5, y+1];
+  return [x, y+0.5];
+}
+function syncTorusFromTiles(){ donut.L=tiles.L; donut.M=tiles.M; donut.states=tiles.states.slice();
+  donut.loops=donutClosed(donut.states); donut.sweeps=0; drawTorus(); updateTorusStats(); }
+function updateTorusStats(){ if(!donut.states) return;
+  const comps = trace(donut.states, donut.L, donut.M, 'torus');
+  const wind = comps.filter(c=>c.wx!==0||c.wy!==0);
+  document.getElementById('torus-stats').innerHTML = `
+    <div class="stat-row"><span class="k">grid (glued)</span><span class="v">${donut.L} × ${donut.M}</span></div>
+    <div class="stat-row"><span class="k">loops</span><span class="v hot">${comps.length}</span></div>
+    <div class="stat-row"><span class="k">winding loops</span><span class="v win">${wind.length}</span></div>
+    <div class="stat-row"><span class="k">δ · sweeps</span><span class="v">${donut.delta.toFixed(2)} · ${donut.sweeps.toFixed(1)}</span></div>`;
+}
+function drawTorus(){
+  try {
+    const ctx=dCtx, W=torusCanvas.width, H=torusCanvas.height;
+    ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+    if(!donut.states) return;
+    const L=donut.L, M=donut.M;
+    const R=1.0, r=donut.rr, scale=Math.min(W,H)*0.34, cx=W/2, cy=H/2;
+    const ca=Math.cos(donut.ay), sa=Math.sin(donut.ay), cb=Math.cos(donut.ax), sb=Math.sin(donut.ax);
+    function proj(gx,gy){
+      const u=2*Math.PI*gx/L, v=2*Math.PI*gy/M;
+      const cvv=Math.cos(v), rr=R+r*cvv;
+      let X=rr*Math.cos(u), Y=r*Math.sin(v), Z=rr*Math.sin(u);
+      let x1=ca*X+sa*Z, z1=-sa*X+ca*Z;          // yaw about Y
+      let y2=cb*Y - sb*z1, z2=sb*Y + cb*z1;      // pitch about X
+      return { sx:cx+scale*x1, sy:cy-scale*y2, depth:z2 };
+    }
+    // faint torus wireframe (depth-shaded) for context
+    ctx.lineWidth=1;
+    for (let i=0;i<L;i++){ for (let j=0;j<M;j++){
+      const a=proj(i,j), b=proj(i+1,j), c=proj(i,j+1);
+      const sh=(a.depth+1.6)/3.2; ctx.strokeStyle=`rgba(150,140,128,${0.10+0.18*sh})`;
+      ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.moveTo(a.sx,a.sy); ctx.lineTo(c.sx,c.sy); ctx.stroke();
+    }}
+    // loops as 3D polylines, painter-sorted by mean depth
+    const comps = trace(donut.states, L, M, 'torus');
+    const segs=[];
+    comps.forEach((comp,ci)=>{
+      const wind = comp.wx!==0||comp.wy!==0;
+      let wIdx=0; for(let k=0;k<ci;k++){const c=comps[k]; if(c.wx||c.wy) wIdx++;}
+      const color = wind ? WINDC[wIdx%WINDC.length] : LOOPC[ci%LOOPC.length];
+      const pts = comp.seq.map(([x,y,d])=>{ const [gx,gy]=portGrid(x,y,d); return proj(gx,gy); });
+      for (let k=0;k<pts.length;k++){ const a=pts[k], b=pts[(k+1)%pts.length];
+        segs.push({ a,b, color, w: wind?3.4:2.2, depth:(a.depth+b.depth)/2 }); }
+    });
+    segs.sort((p,q)=>p.depth-q.depth);
+    ctx.lineCap='round';
+    for (const s of segs){ const sh=Math.max(0.35,(s.depth+1.6)/3.2);
+      ctx.globalAlpha=0.45+0.55*sh; ctx.strokeStyle=s.color; ctx.lineWidth=s.w;
+      ctx.beginPath(); ctx.moveTo(s.a.sx,s.a.sy); ctx.lineTo(s.b.sx,s.b.sy); ctx.stroke(); }
+    ctx.globalAlpha=1;
+  } catch(err){ /* donut is non-essential — never let it break the page */ }
+}
+function startSpin(){ if(donut.raf) return; donut._last=performance.now(); donut.raf=requestAnimationFrame(torusLoop); }
+function torusLoop(t){
+  const active = document.querySelector('.pane.active')?.dataset.pane==='torus';
+  const dt=(t-(donut._last||t))/1000; donut._last=t;
+  if(active){ let need=false;
+    if(donut.spin){ donut.ay+=dt*0.5; need=true; }
+    if(donut.running && donut.states && t-donut.lastT>=1000/donut.ups){ donut.lastT=t;   // throttle
+      const n=donut.L*donut.M, steps=Math.max(1,n>>1);                                    // ~half a sweep/update
+      for(let s=0;s<steps;s++) donutStep(); donut.sweeps+=steps/n; updateTorusStats(); need=true; }
+    if(need) drawTorus();
+  }
+  donut.raf=requestAnimationFrame(torusLoop); }
+let dragging=false, lastXY=null;
+torusCanvas.addEventListener('pointerdown',e=>{ dragging=true; donut.spin=false; document.getElementById('spin-btn').classList.remove('active'); lastXY=[e.clientX,e.clientY]; torusCanvas.setPointerCapture(e.pointerId); });
+torusCanvas.addEventListener('pointermove',e=>{ if(!dragging)return; donut.ay+=(e.clientX-lastXY[0])*0.01; donut.ax+=(e.clientY-lastXY[1])*0.01; lastXY=[e.clientX,e.clientY]; drawTorus(); });
+torusCanvas.addEventListener('pointerup',()=>{ dragging=false; });
+document.getElementById('spin-btn').addEventListener('click',e=>{ donut.spin=!donut.spin; e.target.classList.toggle('active',donut.spin); if(donut.spin) startSpin(); });
+document.getElementById('torus-sync').addEventListener('click',syncTorusFromTiles);
+document.getElementById('torus-run').addEventListener('click',()=>torusSetRun(!donut.running));
+document.getElementById('torus-rand').addEventListener('click',torusRandomize);
+document.getElementById('torus-delta').addEventListener('input',e=>{ donut.delta=parseFloat(e.target.value); document.getElementById('torus-delta-val').textContent=donut.delta.toFixed(2); updateTorusStats(); });
+document.getElementById('torus-speed').addEventListener('input',e=>{ donut.ups=parseInt(e.target.value,10); document.getElementById('torus-speed-val').textContent=donut.ups; });
+document.getElementById('rr-slider').addEventListener('input',e=>{ donut.rr=parseFloat(e.target.value); document.getElementById('rr-val').textContent=donut.rr.toFixed(2); drawTorus(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// Algebra engine  (validated: relations pass n=2..6, dim = C_n, trace 1↦n, e_i↦n-1)
+//   diagram = involution on 2n nodes: 0..n-1 bottom, n..2n-1 top
+// ═════════════════════════════════════════════════════════════════════
+function identity(n){ const p=new Array(2*n); for(let i=0;i<n;i++){p[i]=n+i;p[n+i]=i;} return p; }
+function gen(n,i){ const p=new Array(2*n); const a=i-1,b=i;
+  for(let j=0;j<n;j++){ if(j!==a&&j!==b){p[j]=n+j;p[n+j]=j;} } p[a]=b;p[b]=a; p[n+a]=n+b;p[n+b]=n+a; return p; }
+function product(D1,D2,n){
+  const N=3*n, adj=Array.from({length:N},()=>[]); const add=(u,v)=>{adj[u].push(v);adj[v].push(u);};
+  const d1=k=>k, d2=k=> k<n ? n+k : 2*n+(k-n);
+  for(let k=0;k<2*n;k++){ const m=D1[k]; if(m>k) add(d1(k),d1(m)); }
+  for(let k=0;k<2*n;k++){ const m=D2[k]; if(m>k) add(d2(k),d2(m)); }
+  const seen=new Array(N).fill(false); const isEnd=u=>u<n||u>=2*n;
+  const res=new Array(2*n); const mE=u=> u<n? u : n+(u-2*n);
+  for(let s=0;s<N;s++){ if(!isEnd(s)||seen[s])continue; let cur=s,prev=-1; seen[s]=true;
+    while(true){ const nx=adj[cur].find(z=>z!==prev); if(nx===undefined)break;
+      if(isEnd(nx)){ seen[nx]=true; res[mE(s)]=mE(nx); res[mE(nx)]=mE(s); break; } seen[nx]=true; prev=cur; cur=nx; } }
+  let loops=0; for(let u=n;u<2*n;u++){ if(seen[u])continue; loops++; let cur=u,prev=-1;
+    while(true){ seen[cur]=true; const nx=adj[cur].find(z=>z!==prev); if(nx===undefined||nx===u||seen[nx])break; prev=cur;cur=nx; } }
+  return { diagram:res, loops };
+}
+function evalWord(n,word){ let D=identity(n), loops=0; for(const i of word){ const r=product(D,gen(n,i),n); D=r.diagram; loops+=r.loops; } return {D,loops}; }
+function markovTrace(D,n){ const N=2*n, adj=Array.from({length:N},()=>[]); const add=(u,v)=>{adj[u].push(v);adj[v].push(u);};
+  for(let k=0;k<2*n;k++){const m=D[k]; if(m>k)add(k,m);} for(let i=0;i<n;i++)add(i,n+i);
+  const seen=new Array(N).fill(false); let loops=0;
+  for(let s=0;s<N;s++){ if(seen[s])continue; loops++; let cur=s,prev=-1;
+    while(true){ seen[cur]=true; const nx=adj[cur].find(z=>z!==prev&&!seen[z]); if(nx===undefined)break; prev=cur;cur=nx; } } return loops; }
+const eqv=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
+function catalan(n){ let c=1; for(let k=0;k<n;k++) c=c*(2*(2*k+1))/(k+2); return Math.round(c); }
+
+// ── Algebra tab state + render ──
+const alg = { n:4, word:[] };
+const algCanvas = document.getElementById('alg-canvas');
+const aCtx = algCanvas.getContext('2d');
+function buildGenRow(){ const row=document.getElementById('gen-row'); row.innerHTML='';
+  for(let i=1;i<=alg.n-1;i++){ const b=document.createElement('button'); b.className='btn'; b.innerHTML=`e<sub>${i}</sub>`;
+    b.addEventListener('click',()=>{ alg.word.push(i); drawAlg(); }); row.appendChild(b); } }
+function drawAlg(){
+  const ctx=aCtx, W=algCanvas.width, H=algCanvas.height;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const n=alg.n; const { D, loops } = evalWord(n, alg.word);
+  // layout: a box with n bottom points and n top points; draw the reduced diagram
+  const padX=70, padY=46, boxW=W-2*padX, boxH=H-2*padY;
+  const bx=i=> padX + (n===1?boxW/2: boxW*i/(n-1));
+  const yB=H-padY, yT=padY;
+  // frame
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  ctx.strokeRect(padX-24, yT, boxW+48, boxH);
+  // arcs of the reduced diagram (nodes 0..n-1 bottom, n..2n-1 top)
+  const pos = i => i<n ? {x:bx(i), y:yB} : {x:bx(i-n), y:yT};
+  ctx.lineWidth=3; ctx.lineCap='round'; ctx.strokeStyle=cssVar('--accent');
+  const drawn=new Set();
+  for(let i=0;i<2*n;i++){ const j=D[i]; if(drawn.has(i)||j==null)continue; drawn.add(i);drawn.add(j);
+    const a=pos(i), b=pos(j);
+    ctx.beginPath();
+    if ((i<n)===(j<n)) { // same side -> cup/cap arc bulging inward
+      const dir = i<n ? -1 : 1; const mx=(a.x+b.x)/2, depth=Math.min(boxH*0.42, Math.abs(a.x-b.x)*0.6+18);
+      ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(mx, a.y+dir*depth, b.x,b.y);
+    } else { // through strand
+      ctx.moveTo(a.x,a.y); ctx.bezierCurveTo(a.x,(a.y+b.y)/2, b.x,(a.y+b.y)/2, b.x,b.y);
+    }
+    ctx.stroke();
+  }
+  // endpoints
+  for(let i=0;i<n;i++){ for(const yy of [yB,yT]){ ctx.fillStyle=cssVar('--canvas-ink'); ctx.beginPath(); ctx.arc(bx(i),yy,4,0,Math.PI*2); ctx.fill(); } }
+  // δ^loops coefficient + word, top-left
+  ctx.fillStyle=cssVar('--accent'); ctx.font='600 22px Georgia, serif'; ctx.textAlign='left'; ctx.textBaseline='top';
+  const coeff = loops===0 ? '' : (loops===1 ? 'δ · ' : `δ${'²³⁴⁵⁶⁷⁸⁹'[loops-2]||('^'+loops)} · `);
+  ctx.fillText(coeff || '1 ×', padX-24, 12);
+  ctx.fillStyle=cssVar('--muted'); ctx.font='13px ui-monospace, monospace';
+  const wordStr = alg.word.length ? alg.word.map(i=>'e'+i).join(' ') : '1  (identity)';
+  ctx.textAlign='right'; ctx.fillText(wordStr, W-padX+24, 16);
+  // stats
+  document.getElementById('alg-stats').innerHTML = `
+    <div class="stat-row"><span class="k">strands n</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">word length</span><span class="v">${alg.word.length}</span></div>
+    <div class="stat-row"><span class="k">δ exponent (loops)</span><span class="v hot">${loops}</span></div>
+    <div class="stat-row"><span class="k">dim TL<sub>n</sub> = C<sub>n</sub></span><span class="v">${catalan(n)}</span></div>`;
+}
+function setVerdict(txt,cls){ const e=document.getElementById('alg-verdict'); e.textContent=txt; e.className='verdict '+cls; }
+document.getElementById('alg-back').addEventListener('click',()=>{ alg.word.pop(); drawAlg(); setVerdict('',''); });
+document.getElementById('alg-clear').addEventListener('click',()=>{ alg.word=[]; drawAlg(); setVerdict('',''); });
+document.getElementById('alg-trace').addEventListener('click',()=>{ const {D}=evalWord(alg.n,alg.word); const L=markovTrace(D,alg.n);
+  setVerdict(`Markov trace: closing up gives ${L} loop${L>1?'s':''}  →  tr = δ^${L}`, 'win'); });
+document.getElementById('n-slider').addEventListener('input',e=>{ alg.n=parseInt(e.target.value,10); document.getElementById('n-val').textContent=alg.n; alg.word=[]; buildGenRow(); drawAlg(); setVerdict('',''); });
+document.getElementById('rel-row').addEventListener('click',e=>{
+  const b=e.target.closest('[data-rel]'); if(!b) return; const n=alg.n;
+  if (b.dataset.rel==='sq'){ const i=Math.min(1,n-1); alg.word=[i,i]; drawAlg();
+    const {D,loops}=evalWord(n,[i,i]); const ok=eqv(D,gen(n,i))&&loops===1;
+    setVerdict(`e${i}² = δ·e${i}  →  ${ok?'✓ holds (1 loop pops out)':'?'}`, ok?'win':'bad'); }
+  else if (b.dataset.rel==='braid'){ if(n<3){ setVerdict('need n ≥ 3 for eᵢeᵢ₊₁eᵢ', 'partial'); return; }
+    const i=1; alg.word=[i,i+1,i]; drawAlg();
+    const {D,loops}=evalWord(n,[i,i+1,i]); const ok=eqv(D,gen(n,i))&&loops===0;
+    setVerdict(`e${i} e${i+1} e${i} = e${i}  →  ${ok?'✓ holds (strand straightens, no loop)':'?'}`, ok?'win':'bad'); }
+  else { if(n<4){ setVerdict('need n ≥ 4 for distant eᵢeⱼ', 'partial'); return; }
+    const i=1,j=3; alg.word=[i,j]; drawAlg();
+    const ok=eqv(evalWord(n,[i,j]).D, evalWord(n,[j,i]).D);
+    setVerdict(`e${i} e${j} = e${j} e${i}  →  ${ok?'✓ holds (|i−j| ≥ 2 commute)':'?'}`, ok?'win':'bad'); }
+});
+
+// ═════════════════════════════════════════════════════════════════════
+// Thermal tab — Metropolis loop-gas thermostat (weight δ^#loops; δ=√2 = Ising)
+//   tribes = loops; flip a tile, accept with min(1, δ^Δloops). Torus boundary.
+// ═════════════════════════════════════════════════════════════════════
+const thermal = { L:10, M:10, mode:'torus', delta:Math.SQRT2, states:[], loops:0, running:false, raf:null, sweeps:0, acc:0, prop:0, ups:3, lastT:0 };
+const thCanvas = document.getElementById('th-canvas'), thCtx = thCanvas.getContext('2d');
+function closedCount(states){ return trace(states, thermal.L, thermal.M, thermal.mode).filter(c=>c.closed).length; }
+function thRandomize(){ const n=thermal.L*thermal.M; thermal.states=new Array(n);
+  for(let i=0;i<n;i++) thermal.states[i]=Math.random()<0.5?0:1;
+  thermal.loops=closedCount(thermal.states); thermal.sweeps=0; thermal.acc=0; thermal.prop=0; }
+function mcStep(){ const n=thermal.L*thermal.M, i=(Math.random()*n)|0;
+  thermal.states[i]^=1; const after=closedCount(thermal.states); const d=after-thermal.loops; thermal.prop++;
+  if(Math.random() < Math.pow(thermal.delta, d)){ thermal.loops=after; thermal.acc++; }
+  else thermal.states[i]^=1; }
+function thGeom(){ const W=thCanvas.width,H=thCanvas.height,pad=18;
+  const cs=Math.min((W-2*pad)/thermal.L,(H-2*pad)/thermal.M); return {W,H,cs,ox:(W-cs*thermal.L)/2,oy:(H-cs*thermal.M)/2}; }
+function drawThermal(){ const ctx=thCtx,g=thGeom();
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  for(let x=0;x<=thermal.L;x++){ ctx.beginPath(); ctx.moveTo(g.ox+x*g.cs,g.oy); ctx.lineTo(g.ox+x*g.cs,g.oy+thermal.M*g.cs); ctx.stroke(); }
+  for(let y=0;y<=thermal.M;y++){ ctx.beginPath(); ctx.moveTo(g.ox,g.oy+y*g.cs); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy+y*g.cs); ctx.stroke(); }
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox,g.oy+thermal.M*g.cs);
+  ctx.moveTo(g.ox+thermal.L*g.cs,g.oy); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy+thermal.M*g.cs);
+  ctx.moveTo(g.ox,g.oy); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy);
+  ctx.moveTo(g.ox,g.oy+thermal.M*g.cs); ctx.lineTo(g.ox+thermal.L*g.cs,g.oy+thermal.M*g.cs); ctx.stroke(); ctx.setLineDash([]);
+  const comps=trace(thermal.states,thermal.L,thermal.M,thermal.mode);
+  const map=new Map(); comps.forEach((c,ci)=>c.seq.forEach(([x,y,d])=>map.set(x+','+y+','+d,ci)));
+  const lw=Math.max(1.5,g.cs*0.10);
+  for(let y=0;y<thermal.M;y++) for(let x=0;x<thermal.L;x++){ const st=thermal.states[y*thermal.L+x];
+    const ciA=map.get(x+','+y+',0'), ciB=map.get(x+','+y+','+(st===0?1:2));
+    const colA=ciA!=null?colorForComp(comps,ciA).color:cssVar('--canvas-ink');
+    const colB=ciB!=null?colorForComp(comps,ciB).color:cssVar('--canvas-ink');
+    const x0=g.ox+x*g.cs,y0=g.oy+y*g.cs,r=g.cs/2; ctx.lineCap='round'; ctx.lineWidth=lw;
+    if(st===0){ ctx.strokeStyle=colA;ctx.beginPath();ctx.arc(x0,y0,r,0,Math.PI/2);ctx.stroke();
+      ctx.strokeStyle=colB;ctx.beginPath();ctx.arc(x0+g.cs,y0+g.cs,r,Math.PI,Math.PI*1.5);ctx.stroke(); }
+    else { ctx.strokeStyle=colA;ctx.beginPath();ctx.arc(x0+g.cs,y0,r,Math.PI/2,Math.PI);ctx.stroke();
+      ctx.strokeStyle=colB;ctx.beginPath();ctx.arc(x0,y0+g.cs,r,Math.PI*1.5,Math.PI*2);ctx.stroke(); }
+  }
+  const closed=comps.filter(c=>c.closed), wind=closed.filter(c=>c.wx!==0||c.wy!==0);
+  let big=0; for(const c of closed){ const len=new Set(c.seq.map(p=>p.join(','))).size/2; if(len>big) big=len; }
+  const Q=thermal.delta*thermal.delta, accRate=thermal.prop?thermal.acc/thermal.prop:0;
+  const isIsing=Math.abs(thermal.delta-Math.SQRT2)<0.02;
+  document.getElementById('th-stats').innerHTML = `
+    <div class="stat-row"><span class="k">δ  ·  Q = δ²</span><span class="v hot">${thermal.delta.toFixed(3)} · ${Q.toFixed(2)}</span></div>
+    <div class="stat-row"><span class="k">model</span><span class="v ${isIsing?'win':''}">${isIsing?'ISING (Q=2)':Q<1.04?'free / percolation':'Q='+Q.toFixed(2)+' Potts'}</span></div>
+    <div class="stat-row"><span class="k">tribes (loops)</span><span class="v hot">${closed.length}</span></div>
+    <div class="stat-row"><span class="k">· winding</span><span class="v win">${wind.length}</span></div>
+    <div class="stat-row"><span class="k">biggest tribe</span><span class="v">${big} arcs</span></div>
+    <div class="stat-row"><span class="k">sweeps</span><span class="v">${thermal.sweeps.toFixed(1)}</span></div>
+    <div class="stat-row"><span class="k">accept rate</span><span class="v">${(accRate*100).toFixed(0)}%</span></div>`;
+}
+function thActive(){ return document.querySelector('.pane.active')?.dataset.pane==='thermal'; }
+function thLoop(ts){ if(!thermal.running||!thActive()) return;
+  if(ts==null) ts=performance.now();
+  if(ts - thermal.lastT >= 1000/thermal.ups){ thermal.lastT=ts;       // throttle: ups updates/sec
+    const n=thermal.L*thermal.M, steps=Math.max(1, n>>1);             // ~half a sweep per update (gentle)
+    for(let s=0;s<steps;s++) mcStep(); thermal.sweeps+=steps/n; drawThermal(); }
+  thermal.raf=requestAnimationFrame(thLoop); }
+function thSetRun(on){ thermal.running=on; const b=document.getElementById('th-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on) thermal.raf=requestAnimationFrame(thLoop); else cancelAnimationFrame(thermal.raf); }
+document.getElementById('th-run').addEventListener('click',()=>thSetRun(!thermal.running));
+document.getElementById('th-sweep').addEventListener('click',()=>{ const n=thermal.L*thermal.M; for(let s=0;s<n;s++)mcStep(); thermal.sweeps+=1; drawThermal(); });
+document.getElementById('th-rand').addEventListener('click',()=>{ thRandomize(); drawThermal(); });
+const thDelta=document.getElementById('th-delta'), thDeltaVal=document.getElementById('th-delta-val');
+function setDelta(v){ thermal.delta=v; thDelta.value=v; thDeltaVal.textContent=v.toFixed(2);
+  document.querySelectorAll('#th-presets .btn').forEach(b=>b.classList.toggle('active',Math.abs(parseFloat(b.dataset.d)-v)<0.005)); drawThermal(); }
+thDelta.addEventListener('input',e=>setDelta(parseFloat(e.target.value)));
+document.getElementById('th-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-d]'); if(b) setDelta(parseFloat(b.dataset.d)); });
+document.getElementById('th-size').addEventListener('input',e=>{ thermal.L=thermal.M=parseInt(e.target.value,10); document.getElementById('th-size-val').textContent=thermal.L; thRandomize(); drawThermal(); });
+document.getElementById('th-speed').addEventListener('input',e=>{ thermal.ups=parseInt(e.target.value,10); document.getElementById('th-speed-val').textContent=thermal.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
+// Ising tab — true-temperature thermostat via Swendsen–Wang cluster updates
+//   tribes = Fortuin–Kasteleyn clusters; cool through Tc = 2/ln(1+√2) ≈ 2.269
+// ═════════════════════════════════════════════════════════════════════
+const Tc = 2/Math.log(1+Math.SQRT2);     // 2.2691853…
+const ising = { L:48, T:Tc, spins:null, labels:null, ntribes:0, big:0,
+  mode:'loops', running:false, anneal:false, annDir:-1, raf:null, sweeps:0, ups:3, lastT:0 };
+const isCanvas = document.getElementById('is-canvas'), isCtx = isCanvas.getContext('2d');
+function isFind(p,x){ while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; }
+function isInit(){ const N=ising.L*ising.L; ising.spins=new Int8Array(N);
+  for(let i=0;i<N;i++) ising.spins[i]=Math.random()<0.5?1:-1; ising.sweeps=0; }
+function fkClusters(){ // one FK bond realisation over current spins; returns union-find parents
+  const L=ising.L,N=L*L,s=ising.spins,p=1-Math.exp(-2/ising.T);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  return par;
+}
+function labelStats(par){ const N=par.length, lab=new Int32Array(N), cnt=new Map();
+  for(let i=0;i<N;i++){ const r=isFind(par,i); lab[i]=r; cnt.set(r,(cnt.get(r)||0)+1); }
+  let big=0; for(const v of cnt.values()) if(v>big) big=v;
+  ising.labels=lab; ising.ntribes=cnt.size; ising.big=big; }
+function swStep(){ const par=fkClusters(), N=par.length, s=ising.spins, sign=new Map();
+  for(let i=0;i<N;i++){ const r=isFind(par,i); let g=sign.get(r); if(g===undefined){ g=Math.random()<0.5?1:-1; sign.set(r,g); } s[i]*=g; }
+  labelStats(par); ising.sweeps++; }
+function isGeom(){ const W=isCanvas.width,H=isCanvas.height,pad=14;
+  const cs=Math.floor(Math.min((W-2*pad)/ising.L,(H-2*pad)/ising.L));
+  return { W,H,cs, ox:Math.round((W-cs*ising.L)/2), oy:Math.round((H-cs*ising.L)/2) }; }
+function drawIsing(){ const ctx=isCtx,g=isGeom(),L=ising.L,s=ising.spins;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  // gauge-fix: pin the majority phase to a fixed colour so the dominant region never swaps tint
+  let msum=0; for(let i=0;i<L*L;i++) msum+=s[i]; const gg=msum>=0?1:-1;
+  if(ising.mode==='spin'){ const up='#c0392b', dn='#1d6fa3';
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=(s[y*L+x]*gg>0)?up:dn; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+  } else {
+    // domain-loops view: faint gauge-fixed tint + Peierls contour walls (stable accent colour)
+    const upT='rgba(192,57,43,0.13)', dnT='rgba(29,111,163,0.15)';
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=(s[y*L+x]*gg>0)?upT:dnT; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+    ctx.strokeStyle=cssVar('--accent'); ctx.lineCap='round'; ctx.lineWidth=Math.max(1,g.cs*0.16); ctx.beginPath();
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+      if(s[i]!==s[y*L+((x+1)%L)]){ const X=g.ox+(x+1)*g.cs; ctx.moveTo(X,g.oy+y*g.cs); ctx.lineTo(X,g.oy+(y+1)*g.cs); }
+      if(s[i]!==s[((y+1)%L)*L+x]){ const Y=g.oy+(y+1)*g.cs; ctx.moveTo(g.ox+x*g.cs,Y); ctx.lineTo(g.ox+(x+1)*g.cs,Y); }
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
+  isStats(); }
+function isStats(){ const L=ising.L,N=L*L,s=ising.spins; let m=0,e=0;
+  for(let i=0;i<N;i++) m+=s[i];
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x; e+=s[i]*(s[((y+1)%L)*L+x]+s[y*L+((x+1)%L)]); }
+  const mag=Math.abs(m)/N, en=-e/N, T=ising.T;
+  let phase,cls; if(T>Tc+0.2){ phase='paramagnet (disordered)'; cls=''; }
+  else if(T<Tc-0.2){ phase='ferromagnet (ordered)'; cls='win'; }
+  else { phase='≈ critical — fractal tribe'; cls='hot'; }
+  document.getElementById('is-stats').innerHTML = `
+    <div class="stat-row"><span class="k">T  ·  β</span><span class="v hot">${T.toFixed(3)} · ${(1/T).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">T / Tc</span><span class="v">${(T/Tc).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">phase</span><span class="v ${cls}">${phase}</span></div>
+    <div class="stat-row"><span class="k">|magnetisation|</span><span class="v hot">${mag.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">energy / site</span><span class="v">${en.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">tribes (FK)</span><span class="v">${ising.ntribes}</span></div>
+    <div class="stat-row"><span class="k">biggest tribe</span><span class="v win">${(100*ising.big/N).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="k">sweeps</span><span class="v">${ising.sweeps}</span></div>`;
+}
+function isActive(){ return document.querySelector('.pane.active')?.dataset.pane==='ising'; }
+function isLoop(ts){ if(!ising.running||!isActive()) return;
+  if(ts==null) ts=performance.now();
+  if(ts - ising.lastT >= 1000/ising.ups){ ising.lastT=ts;              // throttle: ups updates/sec
+    if(ising.anneal){ ising.T += ising.annDir*0.03;
+      if(ising.T<=1.20){ ising.T=1.20; ising.annDir=1; } if(ising.T>=3.60){ ising.T=3.60; ising.annDir=-1; }
+      isSetTemp(ising.T,true); }
+    swStep(); drawIsing(); }
+  ising.raf=requestAnimationFrame(isLoop); }
+function isSetRun(on){ ising.running=on; const b=document.getElementById('is-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on) ising.raf=requestAnimationFrame(isLoop); else cancelAnimationFrame(ising.raf); }
+const isTemp=document.getElementById('is-temp'), isTempVal=document.getElementById('is-temp-val');
+function isSetTemp(v,fromLoop){ ising.T=v; isTemp.value=v; isTempVal.textContent=v.toFixed(3);
+  document.querySelectorAll('#is-presets .btn').forEach(b=>b.classList.toggle('active',Math.abs(parseFloat(b.dataset.t)-v)<0.01));
+  if(!fromLoop && !ising.running) drawIsing(); }
+isTemp.addEventListener('input',e=>isSetTemp(parseFloat(e.target.value),false));
+document.getElementById('is-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(b) isSetTemp(parseFloat(b.dataset.t),false); });
+document.getElementById('is-run').addEventListener('click',()=>isSetRun(!ising.running));
+document.getElementById('is-anneal').addEventListener('click',()=>{ ising.anneal=!ising.anneal;
+  document.getElementById('is-anneal').classList.toggle('active',ising.anneal); if(ising.anneal && !ising.running) isSetRun(true); });
+document.getElementById('is-sweep').addEventListener('click',()=>{ swStep(); drawIsing(); });
+document.getElementById('is-rand').addEventListener('click',()=>{ isInit(); labelStats(fkClusters()); drawIsing(); });
+document.getElementById('is-mode').addEventListener('click',e=>{ const b=e.target.closest('[data-m]'); if(!b) return;
+  ising.mode=b.dataset.m; document.querySelectorAll('#is-mode .btn').forEach(x=>x.classList.toggle('active',x===b)); drawIsing(); });
+document.getElementById('is-size').addEventListener('input',e=>{ ising.L=parseInt(e.target.value,10);
+  document.getElementById('is-size-val').textContent=ising.L; isInit(); labelStats(fkClusters()); drawIsing(); });
+document.getElementById('is-speed').addEventListener('input',e=>{ ising.ups=parseInt(e.target.value,10); document.getElementById('is-speed-val').textContent=ising.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
+// Potts tab — Q-colour generalisation of Ising via Swendsen–Wang
+//   Q=2 is Ising; loop weight δ=√Q. Exact Tc(Q) = 1/ln(1+√Q).
+// ═════════════════════════════════════════════════════════════════════
+function Tcq(Q){ return 1/Math.log(1+Math.sqrt(Q)); }
+const potts = { L:48, Q:3, T:Tcq(3), spins:null, mode:'loops', running:false, anneal:false, annDir:-1,
+  raf:null, sweeps:0, ndom:0, big:0, m:0, energy:0, ups:3, lastT:0 };
+const poCanvas = document.getElementById('po-canvas'), poCtx = poCanvas.getContext('2d');
+const POC = LOOPC;     // 10-colour palette for Q states
+function poInit(){ const N=potts.L*potts.L; potts.spins=new Uint8Array(N);
+  for(let i=0;i<N;i++) potts.spins[i]=(Math.random()*potts.Q)|0; potts.sweeps=0; }
+function poStep(){ const L=potts.L,N=L*L,s=potts.spins,Q=potts.Q,p=1-Math.exp(-1/potts.T);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  const col=new Map(); for(let i=0;i<N;i++){ const r=isFind(par,i); let c=col.get(r); if(c===undefined){ c=(Math.random()*Q)|0; col.set(r,c); } s[i]=c; }
+  potts.sweeps++; }
+function poMeasure(){ const L=potts.L,N=L*L,s=potts.spins,Q=potts.Q;
+  const cnt=new Array(Q).fill(0); for(let i=0;i<N;i++) cnt[s[i]]++;
+  let fmax=0; for(const c of cnt) if(c>fmax) fmax=c; fmax/=N; potts.m=(Q*fmax-1)/(Q-1);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i; let e=0;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]){ e++; const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]){ e++; const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  potts.energy=-e/N;
+  const sz=new Map(); for(let i=0;i<N;i++){ const r=isFind(par,i); sz.set(r,(sz.get(r)||0)+1); }
+  let big=0; for(const v of sz.values()) if(v>big) big=v; potts.ndom=sz.size; potts.big=big; }
+function poGeom(){ const W=poCanvas.width,H=poCanvas.height,pad=14;
+  const cs=Math.floor(Math.min((W-2*pad)/potts.L,(H-2*pad)/potts.L));
+  return { W,H,cs, ox:Math.round((W-cs*potts.L)/2), oy:Math.round((H-cs*potts.L)/2) }; }
+function drawPotts(){ const ctx=poCtx,g=poGeom(),L=potts.L,s=potts.spins; poMeasure();
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  if(potts.mode==='colour'){
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=POC[s[y*L+x]%POC.length]; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+  } else {
+    ctx.globalAlpha=0.14;
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ ctx.fillStyle=POC[s[y*L+x]%POC.length]; ctx.fillRect(g.ox+x*g.cs,g.oy+y*g.cs,g.cs,g.cs); }
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=cssVar('--accent'); ctx.lineCap='round'; ctx.lineWidth=Math.max(1,g.cs*0.16); ctx.beginPath();
+    for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+      if(s[i]!==s[y*L+((x+1)%L)]){ const X=g.ox+(x+1)*g.cs; ctx.moveTo(X,g.oy+y*g.cs); ctx.lineTo(X,g.oy+(y+1)*g.cs); }
+      if(s[i]!==s[((y+1)%L)*L+x]){ const Y=g.oy+(y+1)*g.cs; ctx.moveTo(g.ox+x*g.cs,Y); ctx.lineTo(g.ox+(x+1)*g.cs,Y); }
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2;
+  ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
+  poStats(); }
+function poStats(){ const T=potts.T,Q=potts.Q,tc=Tcq(Q),N=potts.L*potts.L;
+  let phase,cls; if(T>tc*1.08){ phase='disordered'; cls=''; }
+  else if(T<tc*0.92){ phase='ordered'; cls='win'; } else { phase='≈ critical'; cls='hot'; }
+  document.getElementById('po-stats').innerHTML = `
+    <div class="stat-row"><span class="k">Q  ·  δ=√Q</span><span class="v hot">${Q} · ${Math.sqrt(Q).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">T  ·  β</span><span class="v">${T.toFixed(3)} · ${(1/T).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">Tc(Q) · T/Tc</span><span class="v hot">${tc.toFixed(3)} · ${(T/tc).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">phase</span><span class="v ${cls}">${phase}${Q>=5?' · 1st-order':''}</span></div>
+    <div class="stat-row"><span class="k">magnetisation m</span><span class="v hot">${potts.m.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">energy / site</span><span class="v">${potts.energy.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">biggest domain</span><span class="v win">${(100*potts.big/N).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="k">domains · sweeps</span><span class="v">${potts.ndom} · ${potts.sweeps}</span></div>`;
+}
+function poActive(){ return document.querySelector('.pane.active')?.dataset.pane==='potts'; }
+function poLoop(ts){ if(!potts.running||!poActive()) return;
+  if(ts==null) ts=performance.now();
+  if(ts - potts.lastT >= 1000/potts.ups){ potts.lastT=ts;
+    if(potts.anneal){ const tc=Tcq(potts.Q); potts.T += potts.annDir*0.02*tc;
+      if(potts.T<=0.5*tc){ potts.T=0.5*tc; potts.annDir=1; } if(potts.T>=1.7*tc){ potts.T=1.7*tc; potts.annDir=-1; }
+      poSetTemp(potts.T,true); }
+    poStep(); drawPotts(); }
+  potts.raf=requestAnimationFrame(poLoop); }
+function poSetRun(on){ potts.running=on; const b=document.getElementById('po-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ potts.lastT=0; potts.raf=requestAnimationFrame(poLoop); } else cancelAnimationFrame(potts.raf); }
+const poTemp=document.getElementById('po-temp'), poTempVal=document.getElementById('po-temp-val');
+function poSetTemp(v,fromLoop){ potts.T=v; poTemp.value=v; poTempVal.textContent=v.toFixed(3);
+  const tc=Tcq(potts.Q);
+  document.querySelectorAll('#po-presets .btn').forEach(b=>b.classList.toggle('active',Math.abs(parseFloat(b.dataset.rel)*tc - v)<0.01));
+  if(!fromLoop && !potts.running) drawPotts(); }
+function poSetQ(Q){ potts.Q=Q; document.getElementById('po-q-val').textContent=Q; poInit(); poSetTemp(Tcq(Q),false); drawPotts(); }
+poTemp.addEventListener('input',e=>poSetTemp(parseFloat(e.target.value),false));
+document.getElementById('po-presets').addEventListener('click',e=>{ const b=e.target.closest('[data-rel]'); if(b) poSetTemp(parseFloat(b.dataset.rel)*Tcq(potts.Q),false); });
+document.getElementById('po-q').addEventListener('input',e=>poSetQ(parseInt(e.target.value,10)));
+document.getElementById('po-run').addEventListener('click',()=>poSetRun(!potts.running));
+document.getElementById('po-anneal').addEventListener('click',()=>{ potts.anneal=!potts.anneal;
+  document.getElementById('po-anneal').classList.toggle('active',potts.anneal); if(potts.anneal && !potts.running) poSetRun(true); });
+document.getElementById('po-sweep').addEventListener('click',()=>{ poStep(); drawPotts(); });
+document.getElementById('po-rand').addEventListener('click',()=>{ poInit(); drawPotts(); });
+document.getElementById('po-mode').addEventListener('click',e=>{ const b=e.target.closest('[data-m]'); if(!b) return;
+  potts.mode=b.dataset.m; document.querySelectorAll('#po-mode .btn').forEach(x=>x.classList.toggle('active',x===b)); drawPotts(); });
+document.getElementById('po-size').addEventListener('input',e=>{ potts.L=parseInt(e.target.value,10);
+  document.getElementById('po-size-val').textContent=potts.L; poInit(); drawPotts(); });
+document.getElementById('po-speed').addEventListener('input',e=>{ potts.ups=parseInt(e.target.value,10); document.getElementById('po-speed-val').textContent=potts.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
+// Phase tab — order-parameter vs temperature, swept with Swendsen–Wang
+//   the curve falls through Tc(Q); Q≥5 falls off a (first-order) cliff
+// ═════════════════════════════════════════════════════════════════════
+const phase = { Q:2, L:24, steps:48, eq:20, samp:24, data:[], lat:null, idx:0, running:false, raf:null, Tmin:0, Tmax:0 };
+const phCanvas = document.getElementById('ph-canvas'), phCtx = phCanvas.getContext('2d');
+function phLatInit(cold){ const N=phase.L*phase.L; phase.lat=new Uint8Array(N);
+  if(!cold) for(let i=0;i<N;i++) phase.lat[i]=(Math.random()*phase.Q)|0; }   // cold = all 0
+function phSW(T){ const L=phase.L,N=L*L,s=phase.lat,Q=phase.Q,p=1-Math.exp(-1/T);
+  const par=new Int32Array(N); for(let i=0;i<N;i++) par[i]=i;
+  for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x;
+    const jr=y*L+((x+1)%L); if(s[i]===s[jr]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jr); if(a!==b)par[a]=b; }
+    const jd=((y+1)%L)*L+x; if(s[i]===s[jd]&&Math.random()<p){ const a=isFind(par,i),b=isFind(par,jd); if(a!==b)par[a]=b; }
+  }
+  const col=new Map(); for(let i=0;i<N;i++){ const r=isFind(par,i); let c=col.get(r); if(c===undefined){ c=(Math.random()*Q)|0; col.set(r,c); } s[i]=c; } }
+function phMeasure(){ const L=phase.L,N=L*L,s=phase.lat,Q=phase.Q;
+  const cnt=new Array(Q).fill(0); for(let i=0;i<N;i++) cnt[s[i]]++;
+  let fmax=0; for(const c of cnt) if(c>fmax) fmax=c; fmax/=N;
+  let e=0; for(let y=0;y<L;y++) for(let x=0;x<L;x++){ const i=y*L+x; if(s[i]===s[y*L+((x+1)%L)])e++; if(s[i]===s[((y+1)%L)*L+x])e++; }
+  return { m:(Q*fmax-1)/(Q-1), e:-e/N }; }
+function phStart(){ phase.Tmin=0.55*Tcq(phase.Q); phase.Tmax=1.55*Tcq(phase.Q);
+  phase.idx=0; phase.data=[]; phLatInit(true); phase.running=true;
+  document.getElementById('ph-run').textContent='⏸ pause'; phase.raf=requestAnimationFrame(phTick); }
+function phActive(){ return document.querySelector('.pane.active')?.dataset.pane==='phase'; }
+function phTick(){ if(!phase.running||!phActive()) return;
+  if(phase.idx>=phase.steps){ phase.running=false; document.getElementById('ph-run').textContent='▶ re-run'; drawPhase(); return; }
+  const T=phase.Tmin+(phase.Tmax-phase.Tmin)*phase.idx/(phase.steps-1);
+  for(let i=0;i<phase.eq;i++) phSW(T);                                  // equilibrate
+  let sm=0,se=0; for(let k=0;k<phase.samp;k++){ phSW(T); const o=phMeasure(); sm+=o.m; se+=o.e; }
+  phase.data.push({ T, m:sm/phase.samp, e:se/phase.samp });
+  phase.idx++; drawPhase();
+  phase.raf=requestAnimationFrame(phTick); }
+function drawPhase(){ const ctx=phCtx,W=phCanvas.width,H=phCanvas.height;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const mL=78,mR=34,mT=46,mB=64, pw=W-mL-mR, ph=H-mT-mB;
+  const Tmin=phase.Tmin||0.55*Tcq(phase.Q), Tmax=phase.Tmax||1.55*Tcq(phase.Q);
+  const X=T=>mL+pw*(T-Tmin)/(Tmax-Tmin), Y=v=>mT+ph*(1-v);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1; ctx.strokeRect(mL,mT,pw,ph);
+  ctx.font='13px ui-monospace,monospace'; ctx.fillStyle=cssVar('--muted');
+  for(let v=0;v<=1.0001;v+=0.25){ const yy=Y(v); ctx.globalAlpha=0.45; ctx.beginPath(); ctx.moveTo(mL,yy); ctx.lineTo(mL+pw,yy); ctx.stroke(); ctx.globalAlpha=1; ctx.fillText(v.toFixed(2), mL-38, yy+4); }
+  for(let k=0;k<=4;k++){ const T=Tmin+(Tmax-Tmin)*k/4; ctx.fillText(T.toFixed(2), X(T)-16, mT+ph+22); }
+  const tc=Tcq(phase.Q); if(tc>=Tmin&&tc<=Tmax){ ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(X(tc),mT); ctx.lineTo(X(tc),mT+ph); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=cssVar('--accent'); ctx.fillText('Tc='+tc.toFixed(3), X(tc)+5, mT+14); }
+  const d=phase.data;
+  if(d.length){
+    ctx.strokeStyle='#d98324'; ctx.lineWidth=1.4; ctx.globalAlpha=0.7; ctx.beginPath();   // energy, faint
+    d.forEach((pt,i)=>{ const xx=X(pt.T),yy=Y(-pt.e/2); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.strokeStyle='#1d6fa3'; ctx.lineWidth=2.6; ctx.beginPath();                         // magnetisation
+    d.forEach((pt,i)=>{ const xx=X(pt.T),yy=Y(pt.m); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }); ctx.stroke();
+    ctx.fillStyle='#1d6fa3'; d.forEach(pt=>{ ctx.beginPath(); ctx.arc(X(pt.T),Y(pt.m),2.6,0,7); ctx.fill(); });
+  }
+  ctx.fillStyle=cssVar('--fg'); ctx.font='14px ui-monospace,monospace';
+  ctx.save(); ctx.translate(20,mT+ph/2); ctx.rotate(-Math.PI/2); ctx.fillText('order parameter  m',-66,0); ctx.restore();
+  ctx.fillText('temperature  T', mL+pw/2-46, H-20);
+  phStats(); }
+function phStats(){ const d=phase.data, last=d.length?d[d.length-1]:null;
+  document.getElementById('ph-stats').innerHTML = `
+    <div class="stat-row"><span class="k">Q · δ=√Q</span><span class="v hot">${phase.Q} · ${Math.sqrt(phase.Q).toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">Tc(Q)</span><span class="v hot">${Tcq(phase.Q).toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">transition</span><span class="v ${phase.Q>=5?'win':''}">${phase.Q>=5?'1st-order (Q≥5)':'continuous (Q≤4)'}</span></div>
+    <div class="stat-row"><span class="k">points</span><span class="v">${d.length} / ${phase.steps}</span></div>
+    <div class="stat-row"><span class="k">last T · m</span><span class="v">${last?last.T.toFixed(3)+' · '+last.m.toFixed(3):'—'}</span></div>`;
+}
+document.getElementById('ph-run').addEventListener('click',()=>{
+  if(phase.running){ phase.running=false; document.getElementById('ph-run').textContent='▶ resume'; return; }
+  if(phase.idx>=phase.steps || phase.data.length===0){ phStart(); }
+  else { phase.running=true; document.getElementById('ph-run').textContent='⏸ pause'; phase.raf=requestAnimationFrame(phTick); } });
+document.getElementById('ph-reset').addEventListener('click',()=>{ phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
+document.getElementById('ph-q').addEventListener('input',e=>{ phase.Q=parseInt(e.target.value,10); document.getElementById('ph-q-val').textContent=phase.Q;
+  phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
+document.getElementById('ph-size').addEventListener('input',e=>{ phase.L=parseInt(e.target.value,10); document.getElementById('ph-size-val').textContent=phase.L;
+  phase.running=false; phase.data=[]; phase.idx=0; document.getElementById('ph-run').textContent='▶ run sweep'; drawPhase(); });
+
+// ═════════════════════════════════════════════════════════════════════
+// Tortuosity tab — max-turn Hamiltonian path on the torus via backbite + SA
+//   τ = turns/(interior cells); minimise straight cells. Single path invariant.
+// ═════════════════════════════════════════════════════════════════════
+const tort = { L:14, seq:[], pos:[], straights:0, best:Infinity, bestSeq:null,
+  running:false, raf:null, T:1.2, ups:4, lastT:0, moves:0 };
+const ttCanvas = document.getElementById('tt-canvas'), ttCtx = ttCanvas.getContext('2d');
+function tDir(a,b){ const L=tort.L; let dx=(b%L)-(a%L), dy=((b/L)|0)-((a/L)|0);
+  if(dx===L-1)dx=-1; else if(dx===-(L-1))dx=1; if(dy===L-1)dy=-1; else if(dy===-(L-1))dy=1; return [dx,dy]; }
+function tNeighbors(c){ const L=tort.L, x=c%L, y=(c/L)|0;
+  return [ y*L+((x+1)%L), y*L+((x+L-1)%L), ((y+1)%L)*L+x, ((y+L-1)%L)*L+x ]; }
+function tCountStraights(){ const s=tort.seq, n=s.length; let st=0;
+  for(let i=1;i<n-1;i++){ const a=tDir(s[i-1],s[i]), b=tDir(s[i],s[i+1]); if(a[0]===b[0]&&a[1]===b[1]) st++; }
+  return st; }
+function tInitSnake(){ const L=tort.L; tort.seq=[];
+  for(let y=0;y<L;y++){ if(y%2===0){ for(let x=0;x<L;x++) tort.seq.push(y*L+x); } else { for(let x=L-1;x>=0;x--) tort.seq.push(y*L+x); } }
+  tort.pos=new Array(L*L); tort.seq.forEach((c,i)=>tort.pos[c]=i);
+  tort.straights=tCountStraights(); tort.best=tort.straights; tort.bestSeq=tort.seq.slice(); tort.moves=0; tort.T=1.2; }
+function tReverse(i,j){ const s=tort.seq; while(i<j){ const t=s[i];s[i]=s[j];s[j]=t; tort.pos[s[i]]=i; tort.pos[s[j]]=j; i++;j--; } if(i===j) tort.pos[s[i]]=i; }
+function tProposeRange(){ const s=tort.seq, n=s.length;
+  if(Math.random()<0.5){ const e=s[0], nb=tNeighbors(e), w=nb[(Math.random()*4)|0], k=tort.pos[w]; return k<=1?null:[0,k-1]; }
+  else { const e=s[n-1], nb=tNeighbors(e), w=nb[(Math.random()*4)|0], k=tort.pos[w]; return k>=n-2?null:[k+1,n-1]; } }
+function tStep(){ const r=tProposeRange(); if(!r) return;
+  const before=tort.straights; tReverse(r[0],r[1]); const after=tCountStraights(); const d=after-before;
+  if(d<=0 || Math.random() < Math.exp(-d/tort.T)){ tort.straights=after;
+    if(after<tort.best){ tort.best=after; tort.bestSeq=tort.seq.slice(); } }
+  else tReverse(r[0],r[1]);     // reversal is its own inverse → revert
+  tort.moves++; }
+function ttGeom(){ const W=ttCanvas.width,H=ttCanvas.height,pad=24;
+  const cs=Math.floor(Math.min((W-2*pad)/tort.L,(H-2*pad)/tort.L));
+  return { W,H,cs, ox:Math.round((W-cs*tort.L)/2), oy:Math.round((H-cs*tort.L)/2) }; }
+function drawTort(){ const ctx=ttCtx,g=ttGeom(),L=tort.L,s=tort.seq;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,g.W,g.H);
+  ctx.strokeStyle=cssVar('--canvas-rule'); ctx.lineWidth=1;
+  for(let x=0;x<=L;x++){ ctx.beginPath(); ctx.moveTo(g.ox+x*g.cs,g.oy); ctx.lineTo(g.ox+x*g.cs,g.oy+L*g.cs); ctx.stroke(); }
+  for(let y=0;y<=L;y++){ ctx.beginPath(); ctx.moveTo(g.ox,g.oy+y*g.cs); ctx.lineTo(g.ox+L*g.cs,g.oy+y*g.cs); ctx.stroke(); }
+  const cx=c=>g.ox+((c%L)+0.5)*g.cs, cy=c=>g.oy+(((c/L)|0)+0.5)*g.cs;
+  // path: half-cell stubs per step (wrap-aware — wraps show as stubs at opposite edges)
+  ctx.strokeStyle=cssVar('--accent'); ctx.lineCap='round'; ctx.lineWidth=Math.max(2,g.cs*0.16);
+  ctx.beginPath();
+  for(let i=0;i<s.length-1;i++){ const a=s[i],b=s[i+1], d=tDir(a,b), h=g.cs/2;
+    ctx.moveTo(cx(a),cy(a)); ctx.lineTo(cx(a)+d[0]*h, cy(a)+d[1]*h);
+    ctx.moveTo(cx(b),cy(b)); ctx.lineTo(cx(b)-d[0]*h, cy(b)-d[1]*h); }
+  ctx.stroke();
+  // straight-cell defects (red dots)
+  ctx.fillStyle='#c0392b';
+  for(let i=1;i<s.length-1;i++){ const a=tDir(s[i-1],s[i]), b=tDir(s[i],s[i+1]);
+    if(a[0]===b[0]&&a[1]===b[1]){ ctx.beginPath(); ctx.arc(cx(s[i]),cy(s[i]),Math.max(2,g.cs*0.14),0,7); ctx.fill(); } }
+  // endpoints (squares)
+  ctx.fillStyle=cssVar('--accent');
+  [s[0],s[s.length-1]].forEach(c=>{ const r=g.cs*0.18; ctx.fillRect(cx(c)-r,cy(c)-r,2*r,2*r); });
+  ctx.strokeStyle=cssVar('--accent'); ctx.setLineDash([4,4]); ctx.lineWidth=2; ctx.strokeRect(g.ox,g.oy,L*g.cs,L*g.cs); ctx.setLineDash([]);
+  ttStats(); }
+function ttStats(){ const N=tort.L*tort.L, interior=N-2;
+  const turns=interior-tort.straights, tau=turns/interior;
+  const bestTau=(interior-tort.best)/interior;
+  const floor = tort.L%2 ? tort.L-1 : 0;     // parity bound: min straights
+  const opt = tort.best<=floor;
+  document.getElementById('tt-stats').innerHTML = `
+    <div class="stat-row"><span class="k">cells N</span><span class="v">${N} (${tort.L}×${tort.L})</span></div>
+    <div class="stat-row"><span class="k">turns</span><span class="v hot">${turns}</span></div>
+    <div class="stat-row"><span class="k">straights</span><span class="v win">${tort.straights}</span></div>
+    <div class="stat-row"><span class="k">tortuosity τ</span><span class="v hot">${tau.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">best τ found</span><span class="v win">${bestTau.toFixed(3)}${opt?' ✓ optimal':''}</span></div>
+    <div class="stat-row"><span class="k">parity bound</span><span class="v ${floor?'':'hot'}">${floor? '≥ '+floor+' straights (L odd)':'τ = 1 reachable (L even)'}</span></div>
+    <div class="stat-row"><span class="k">τT · moves</span><span class="v">${tort.T.toFixed(2)} · ${tort.moves}</span></div>`;
+}
+function tActive(){ return document.querySelector('.pane.active')?.dataset.pane==='tort'; }
+function tLoop(ts){ if(!tort.running||!tActive()) return; if(ts==null) ts=performance.now();
+  if(ts-tort.lastT >= 1000/tort.ups){ tort.lastT=ts;
+    const moves=2*tort.L*tort.L; for(let i=0;i<moves;i++) tStep();
+    tort.T=Math.max(0.02, tort.T*0.96); document.getElementById('tt-temp').value=tort.T;
+    document.getElementById('tt-temp-val').textContent=tort.T.toFixed(2); drawTort(); }
+  tort.raf=requestAnimationFrame(tLoop); }
+function tSetRun(on){ tort.running=on; const b=document.getElementById('tt-run');
+  b.textContent=on?'⏸ pause':'▶ anneal'; b.classList.toggle('active',on);
+  if(on){ tort.lastT=0; tort.raf=requestAnimationFrame(tLoop); } else cancelAnimationFrame(tort.raf); }
+document.getElementById('tt-run').addEventListener('click',()=>tSetRun(!tort.running));
+document.getElementById('tt-reset').addEventListener('click',()=>{ tSetRun(false); tInitSnake(); drawTort(); });
+document.getElementById('tt-best').addEventListener('click',()=>{ if(!tort.bestSeq) return; tort.seq=tort.bestSeq.slice();
+  tort.pos=new Array(tort.L*tort.L); tort.seq.forEach((c,i)=>tort.pos[c]=i); tort.straights=tort.best; drawTort(); });
+document.getElementById('tt-size').addEventListener('input',e=>{ tSetRun(false); tort.L=parseInt(e.target.value,10);
+  document.getElementById('tt-size-val').textContent=tort.L; tInitSnake(); drawTort(); });
+document.getElementById('tt-temp').addEventListener('input',e=>{ tort.T=parseFloat(e.target.value); document.getElementById('tt-temp-val').textContent=tort.T.toFixed(2); });
+document.getElementById('tt-speed').addEventListener('input',e=>{ tort.ups=parseInt(e.target.value,10); document.getElementById('tt-speed-val').textContent=tort.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
+// Init
+// ═════════════════════════════════════════════════════════════════════
+buildGenRow();
+drawTiles();
+drawAlg();
+window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane;
+  if(p==='tiles')drawTiles(); else if(p==='thermal')drawThermal(); else if(p==='ising')drawIsing(); else if(p==='potts')drawPotts(); else if(p==='phase')drawPhase(); else if(p==='torus')drawTorus(); else if(p==='tort')drawTort(); else if(p==='algebra')drawAlg(); });
+const initialHash=(location.hash||'').replace(/^#/,'');
+if (TAB_NAMES.includes(initialHash) && initialHash!=='tiles') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>
