@@ -2,14 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0c0a07">
 <title>mino.mobi · mappa mundi</title>
 <meta name="description" content="A procedurally-generated world where every mino.mobi surface is a city. Theme-wings are countries; founding dates are tectonic history.">
 <style>
 :root{--ink:#2a2118;--sea:#3a5a6b;--gold:#a9802f;--parch:#e8dcc0;--frame:#1c150d}
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
-body{background:#0c0a07;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden}
-#map{position:fixed;inset:0;display:block;cursor:grab;background:#0c0a07}
+body{background:#0c0a07;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;
+  overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#map{position:fixed;inset:0;display:block;cursor:grab;background:#0c0a07;touch-action:none}
 #map.drag{cursor:grabbing}
 header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:baseline;gap:12px;padding:12px 18px;pointer-events:none;
   background:linear-gradient(#0c0a07cc,#0c0a0700)}
@@ -32,7 +34,18 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 .chip .dot{width:8px;height:8px;border-radius:2px}.chip.off{opacity:.35}
 #tip{position:fixed;z-index:9;pointer-events:none;opacity:0;transform:translate(-50%,-135%);background:#19120bf5;border:1px solid #3a2e1c;
   border-radius:7px;padding:6px 9px;max-width:230px;font-size:12px;transition:opacity .1s}
-#tip b{color:var(--gold)}#tip .m{color:#9c8a6c;font-size:11px}
+#tip b{color:var(--gold)}#tip .m{color:#9c8a6c;font-size:11px}#tip .open{color:var(--gold);font-size:10.5px;letter-spacing:.03em}
+@media (max-width:640px){
+  header{padding:8px 10px;gap:6px;flex-wrap:wrap}
+  header h1{font-size:14px} header .sub{display:none}
+  header .right{width:100%;margin-left:0;margin-top:2px} #q{flex:1;width:auto}
+  footer{flex-direction:column;align-items:stretch;gap:8px;padding:8px 10px 12px}
+  .scrub{max-width:none}
+  .legend{max-width:none;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+  .legend::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto}
+}
+@media (max-width:640px) and (display-mode:standalone){footer{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
 </style>
 </head>
 <body>
@@ -143,40 +156,49 @@ function makeWorld(seed, GW, GH, wings, nodes){
 /*GEN_END*/
 const cv=document.getElementById('map'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
 let DPR=Math.min(2,window.devicePixelRatio||1), W=0,H=0, world=null, seed=(Math.random()*1e9)|0;
-let view={x:0,y:0,s:1}, hot=null, query='', active=new Set(D.wings.map(w=>w.id)), tcut=1, playing=false;
+let view={x:0,y:0,s:1}, hot=null, selected=null, query='', active=new Set(D.wings.map(w=>w.id)), tcut=1, playing=false;
+const terr=document.createElement('canvas'); let terrOW=0, terrOH=0;
 const GW=200,GH=130;
 const hsl=(h,s,l,a)=> 'hsl('+h+' '+s+'% '+l+'%'+(a!=null?' / '+a:'')+')';
 const wing=id=>D.wings.find(w=>w.id===id);
 function fmtDate(b){return b||'—'}
 
-function build(){ world=makeWorld(seed,GW,GH,D.wings,D.nodes); fit(); draw(); }
+function build(){ world=makeWorld(seed,GW,GH,D.wings,D.nodes); fit(); renderTerrain(); draw(); }
 function fit(){ // scale world grid to cover viewport
   const sx=W/GW, sy=H/GH; world.cell=Math.max(sx,sy); world.ox=(W-GW*world.cell)/2; world.oy=(H-GH*world.cell)/2; }
 
 function landShade(id,e,sl){ const w=wing(id); const t=Math.min(1,(e-sl)/0.6); // coast→interior
   const l=46+t*26, s=26+t*10; return hsl(w.hue,s,l); }
-function draw(){
-  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H);
-  ctx.save(); ctx.translate(view.x,view.y); ctx.scale(view.s,view.s);
-  const cell=world.cell, ox=world.ox, oy=world.oy, {elev,land,country,mtn,seaLevel}=world;
-  // sea
-  ctx.fillStyle='#0c0a07'; ctx.fillRect(-view.x/view.s,-view.y/view.s,W/view.s,H/view.s);
-  // terrain raster
-  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const idx=j*GW+i;const x=ox+i*cell,y=oy+j*cell;
-    if(!land[idx]){ const d=Math.max(0,seaLevel-elev[idx]); ctx.fillStyle=hsl(205,38,Math.max(8,20-d*30)); ctx.fillRect(x,y,cell+1,cell+1); continue; }
-    const id=D.wings[country[idx]].id; let col=landShade(id,elev[idx],seaLevel);
-    if(mtn[idx]) col=hsl(wing(id).hue,12,72);
-    if(!active.has(id)) col=hsl(wing(id).hue,8,28);
-    // simple hillshade from east-west gradient
-    const eR=land[idx+1]?elev[idx+1]:elev[idx]; const sh=Math.max(-0.12,Math.min(0.12,(elev[idx]-eR)*1.5));
-    ctx.fillStyle=col; ctx.fillRect(x,y,cell+1,cell+1);
-    if(sh>0.02){ctx.fillStyle='rgba(255,245,220,'+sh+')';ctx.fillRect(x,y,cell+1,cell+1);} else if(sh<-0.02){ctx.fillStyle='rgba(0,0,0,'+(-sh)+')';ctx.fillRect(x,y,cell+1,cell+1);}
+
+// Rasterize terrain ONCE to an offscreen canvas (depends only on world + active).
+// pan/pinch/time/hover then just blit this — cheap enough for mobile.
+function renderTerrain(){
+  const TS=4, ow=GW*TS, oh=GH*TS; terr.width=ow; terr.height=oh; terrOW=ow; terrOH=oh;
+  const tx=terr.getContext('2d'); const {elev,land,country,mtn,seaLevel}=world;
+  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const idx=j*GW+i;const x=i*TS,y=j*TS;
+    let col;
+    if(!land[idx]){ const d=Math.max(0,seaLevel-elev[idx]); col=hsl(205,38,Math.max(8,20-d*30)); }
+    else { const id=D.wings[country[idx]].id; col=landShade(id,elev[idx],seaLevel);
+      if(mtn[idx]) col=hsl(wing(id).hue,12,72);
+      if(!active.has(id)) col=hsl(wing(id).hue,8,28); }
+    tx.fillStyle=col; tx.fillRect(x,y,TS+1,TS+1);
+    if(land[idx]){ const eR=land[idx+1]?elev[idx+1]:elev[idx]; const sh=Math.max(-0.12,Math.min(0.12,(elev[idx]-eR)*1.5));
+      if(sh>0.02){tx.fillStyle='rgba(255,245,220,'+sh+')';tx.fillRect(x,y,TS+1,TS+1);}
+      else if(sh<-0.02){tx.fillStyle='rgba(0,0,0,'+(-sh)+')';tx.fillRect(x,y,TS+1,TS+1);} }
   }
   // coastline ink
-  ctx.strokeStyle='rgba(20,14,8,.55)';ctx.lineWidth=1/view.s;
   for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const idx=j*GW+i; if(!land[idx])continue;
-    if(i+1<GW&&!land[idx+1]||j+1<GH&&!land[idx+GW]||i>0&&!land[idx-1]||j>0&&!land[idx-GW]){
-      ctx.fillStyle='rgba(20,14,8,.5)';ctx.fillRect(ox+i*cell,oy+j*cell,cell+1,cell+1);}}
+    if((i+1<GW&&!land[idx+1])||(j+1<GH&&!land[idx+GW])||(i>0&&!land[idx-1])||(j>0&&!land[idx-GW])){
+      tx.fillStyle='rgba(20,14,8,.5)';tx.fillRect(i*TS,j*TS,TS+1,TS+1);}}
+}
+
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0c0a07'; ctx.fillRect(0,0,W,H); // ocean void beyond the map
+  ctx.save(); ctx.translate(view.x,view.y); ctx.scale(view.s,view.s);
+  const cell=world.cell, ox=world.ox, oy=world.oy;
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(terr,0,0,terrOW,terrOH, ox,oy, GW*cell, GH*cell);
   // country labels (capitals' country names) — drawn faint behind cities
   ctx.textAlign='center';
   for(const w of D.wings){ if(!active.has(w.id))continue; const cap=world.cities.find(c=>c.w===w.id&&c.capital); if(!cap)continue;
@@ -201,23 +223,59 @@ function draw(){
   ctx.restore();
 }
 function screenToWorld(px,py){ return {x:(px-view.x)/view.s, y:(py-view.y)/view.s}; }
-function pick(px,py){ const p=screenToWorld(px,py); const cell=world.cell,ox=world.ox,oy=world.oy; let best=null,bd=1e9;
+function pick(px,py,touch){ const p=screenToWorld(px,py); const cell=world.cell,ox=world.ox,oy=world.oy; let best=null,bd=1e9;
   for(const c of world.cities){ if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;
     const x=ox+c.x*cell,y=oy+c.y*cell;const d=(x-p.x)**2+(y-p.y)**2; if(d<bd){bd=d;best=c} }
-  return bd< (12/view.s)**2 ? best : null; }
+  return bd< ((touch?22:12)/view.s)**2 ? best : null; }
+function clampZoom(s){ return Math.max(0.6,Math.min(8,s)); }
+function showTip(c,px,py,touch){ tip.style.opacity=1;
+  tip.style.left=Math.max(80,Math.min(innerWidth-80,px))+'px'; tip.style.top=Math.max(54,py)+'px';
+  const seam=c.w2?'border town · '+wing(c.w).label+' ✕ '+wing(c.w2).label:wing(c.w).label;
+  tip.innerHTML='<b>'+c.n+'</b> '+(c.capital?'★':'')+'<br><span class="m">'+seam+' · founded '+fmtDate(c.b)+'</span>'
+    +(c.u?'<br><span class="open">'+(touch?'tap again to open ↗':'click to open ↗')+'</span>':''); }
 
-cv.addEventListener('mousemove',e=>{ if(drag){view.x=drag.vx+(e.clientX-drag.x);view.y=drag.vy+(e.clientY-drag.y);draw();return;}
-  const c=pick(e.clientX,e.clientY); if(c!==hot){hot=c;draw();}
-  if(c){ tip.style.opacity=1; tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';
-    const seam=c.w2?'border town · '+wing(c.w).label+' ✕ '+wing(c.w2).label:wing(c.w).label;
-    tip.innerHTML='<b>'+c.n+'</b> '+(c.capital?'★':'')+'<br><span class="m">'+seam+' · founded '+fmtDate(c.b)+'</span>';
-    cv.style.cursor='pointer'; } else { tip.style.opacity=0; cv.style.cursor=drag?'grabbing':'grab'; } });
-let drag=null;
-cv.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y};cv.classList.add('drag')});
-window.addEventListener('mouseup',()=>{drag=null;cv.classList.remove('drag')});
-cv.addEventListener('click',e=>{ if(drag&&(Math.abs(e.clientX-drag.x)>3))return; const c=pick(e.clientX,e.clientY); if(c&&c.u)window.open(c.u,'_blank'); });
-cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;const ns=Math.max(0.6,Math.min(6,view.s*f));
+// Unified pointer handling: 1 finger/mouse = pan, 2 fingers = pinch-zoom, tap = select/open.
+const ptrs=new Map(); let gesture=null, tapStart=null;
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===1){ tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};
+    gesture={mode:'pan',x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}; cv.classList.add('drag'); }
+  else if(ptrs.size===2){ const p=[...ptrs.values()];
+    gesture={mode:'pinch',d:dist(p[0],p[1]),s:view.s,vx:view.x,vy:view.y}; tapStart=null; tip.style.opacity=0; }
+});
+cv.addEventListener('pointermove',e=>{
+  if(ptrs.has(e.pointerId)) ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){ const p=[...ptrs.values()];
+    const nd=dist(p[0],p[1]); const ns=clampZoom(gesture.s*(nd/(gesture.d||1)));
+    const cmx=(p[0].x+p[1].x)/2, cmy=(p[0].y+p[1].y)/2;
+    const rx=(cmx-gesture.vx)/gesture.s, ry=(cmy-gesture.vy)/gesture.s; // anchor pinch on the midpoint
+    view.s=ns; view.x=cmx-rx*ns; view.y=cmy-ry*ns; draw(); return; }
+  if(gesture&&gesture.mode==='pan'&&ptrs.size===1){ view.x=gesture.vx+(e.clientX-gesture.x); view.y=gesture.vy+(e.clientY-gesture.y);
+    if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8){ tapStart=null; tip.style.opacity=0; } draw(); return; }
+  if(e.pointerType==='mouse'&&ptrs.size===0){ // hover (desktop only)
+    const c=pick(e.clientX,e.clientY); if(c!==hot){hot=c;draw();}
+    if(c){ showTip(c,e.clientX,e.clientY,false); cv.style.cursor='pointer'; }
+    else { if(!selected) tip.style.opacity=0; cv.style.cursor='grab'; } }
+});
+function endPtr(e){ ptrs.delete(e.pointerId);
+  if(ptrs.size===0){ cv.classList.remove('drag');
+    if(tapStart && Date.now()-tapStart.t<400){ const c=pick(tapStart.x,tapStart.y,tapStart.touch);
+      if(c){ if(!tapStart.touch){ if(c.u) window.open(c.u,'_blank'); } // desktop: single click opens (hover already showed it)
+             else if(selected===c && c.u){ window.open(c.u,'_blank'); } // touch: tap to select, tap again to open
+             else { selected=c; hot=c; showTip(c,tapStart.x,tapStart.y,true); draw(); } }
+      else { selected=null; hot=null; tip.style.opacity=0; draw(); } }
+    gesture=null; tapStart=null;
+  } else if(ptrs.size===1){ const p=[...ptrs.values()][0]; // pinch → resume one-finger pan
+    gesture={mode:'pan',x:p.x,y:p.y,vx:view.x,vy:view.y}; tapStart=null; }
+}
+cv.addEventListener('pointerup',endPtr);
+cv.addEventListener('pointercancel',endPtr);
+cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;const ns=clampZoom(view.s*f);
   const rx=(e.clientX-view.x)/view.s,ry=(e.clientY-view.y)/view.s;view.x=e.clientX-rx*ns;view.y=e.clientY-ry*ns;view.s=ns;draw();},{passive:false});
+// double-tap / double-click to zoom in toward the point
+cv.addEventListener('dblclick',e=>{const ns=clampZoom(view.s*1.8);const rx=(e.clientX-view.x)/view.s,ry=(e.clientY-view.y)/view.s;
+  view.x=e.clientX-rx*ns;view.y=e.clientY-ry*ns;view.s=ns;draw();});
 
 // time scrubber
 const tEl=document.getElementById('time'),eraEl=document.getElementById('era');
@@ -232,7 +290,7 @@ const lg=document.getElementById('legend');
 for(const w of D.wings){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;
   c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,50,58)+'"></span>'+w.label;
   c.onclick=()=>{ if(active.size===1&&active.has(w.id))active=new Set(D.wings.map(x=>x.id)); else active=new Set([w.id]);
-    for(const ch of lg.children) ch.classList.toggle('off',!active.has(ch.dataset.w)); draw(); };
+    for(const ch of lg.children) ch.classList.toggle('off',!active.has(ch.dataset.w)); renderTerrain(); draw(); };
   lg.appendChild(c);}
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw();});
 document.getElementById('reseed').addEventListener('click',()=>{seed=(Math.random()*1e9)|0;build();});
