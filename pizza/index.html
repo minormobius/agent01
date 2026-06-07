@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pizza — cut a fair share for every guest</title>
+<meta name="description" content="A geometry game: a table of guests arrives, each wanting a different share of the pizza. Drag freehand strokes — your wobbly path is straightened into a clean cut — and carve a slice for everyone. Scored on how close each guest gets to what they asked for.">
+
+<!-- Open Graph / link card -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://canvas.mino.mobi/pizza/">
+<meta property="og:title" content="pizza — cut a fair share for every guest">
+<meta property="og:description" content="Guests arrive wanting different shares. Drag freehand cuts across the pizza and serve everyone their slice.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="pizza — cut a fair share for every guest">
+<meta name="twitter:description" content="Carve the pizza so every guest gets the share they asked for.">
+
+<style>
+:root {
+  --bg: #faf6ee;
+  --paper: #fffdf7;
+  --fg: #2a1d12;
+  --muted: #8a7a66;
+  --rule: #e3d8c5;
+  --accent: #c0531f;      /* tomato/terracotta */
+  --accent-faint: rgba(192, 83, 31, 0.10);
+  --good: #2e7d32;
+  --meh: #c08a1f;
+  --crust: #d39a4e;
+  --crust-dark: #a86b2a;
+  --cheese: #f6d985;
+  --cut: #5a3a1a;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15110c; --paper: #1d1812; --fg: #ece2d2; --muted: #9a8a74; --rule: #3a3026;
+    --accent: #e07a44; --accent-faint: rgba(224,122,68,0.13); --good: #7cc47f; --meh: #d9b14e;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 720px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+
+header { margin-bottom: 1.2rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.lede { font-size: 0.96rem; color: var(--muted); margin: 0.8rem 0 1.2rem; }
+.lede b { color: var(--fg); font-weight: 600; }
+
+.order { background: var(--paper); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 4px; padding: 0.7rem 0.9rem; margin-bottom: 0.7rem; font-size: 0.92rem; }
+.order .big { font-family: var(--mono); color: var(--accent); font-weight: 600; }
+
+.guests { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.8rem; }
+.guest { display: flex; align-items: center; gap: 0.4rem; background: var(--paper); border: 1px solid var(--rule); border-radius: 20px; padding: 0.28rem 0.7rem 0.28rem 0.4rem; font-family: var(--mono); font-size: 0.72rem; }
+.guest .sw { width: 0.85rem; height: 0.85rem; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.12) inset; }
+.guest .gn { font-weight: 600; color: var(--fg); }
+.guest .gw { color: var(--muted); }
+.guest .got { font-weight: 600; }
+.guest .got.good { color: var(--good); }
+.guest .got.meh { color: var(--meh); }
+.guest .got.bad { color: var(--accent); }
+.guest .miss { color: var(--muted); font-style: italic; }
+
+.pie-wrap { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem; margin-bottom: 0.6rem; position: relative; }
+canvas#pie { display: block; width: 100%; aspect-ratio: 1 / 1; touch-action: none; cursor: crosshair; border-radius: 4px; }
+.pie-hint { position: absolute; left: 50%; bottom: 1.1rem; transform: translateX(-50%); font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); pointer-events: none; background: var(--paper); padding: 0.15rem 0.5rem; border-radius: 10px; border: 1px solid var(--rule); opacity: 0.92; }
+
+.bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: end; }
+@media (max-width: 560px) { .bottom { grid-template-columns: 1fr; } }
+.scores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.score { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.55rem 0.6rem; }
+.score .k { display: block; font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.score .v { display: block; font-family: var(--mono); font-size: 1.4rem; color: var(--accent); margin-top: 0.15rem; line-height: 1.1; }
+.score.ok .v { color: var(--good); }
+.score small { font-family: var(--serif); font-size: 0.68rem; font-style: italic; color: var(--muted); }
+
+.btn-row { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.share-row { margin-top: 0.7rem; }
+.btn { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.04em; background: var(--paper); border: 1px solid var(--rule); color: var(--muted); padding: 0.45rem 0.7rem; border-radius: 3px; cursor: pointer; transition: all 0.12s; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.primary { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
+.note { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin: 0.8rem 0; min-height: 1.3em; }
+.note.ok { color: var(--good); }
+.note.warn { color: var(--accent); }
+
+.board { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.8rem 0.9rem; margin-top: 1.4rem; }
+.board-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+.board-title { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.board-tabs { display: flex; gap: 0.25rem; }
+.tab { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.04em; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.2rem 0.5rem; border-radius: 3px; cursor: pointer; }
+.tab.on { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.board-list { list-style: none; margin: 0; padding: 0; }
+.board-list li { display: grid; grid-template-columns: 1.5rem 1.4rem 1fr auto; gap: 0.55rem; align-items: center; padding: 0.32rem 0; border-top: 1px dotted var(--rule); font-family: var(--mono); font-size: 0.72rem; }
+.board-list li:first-child { border-top: none; }
+.board-list .rk { color: var(--muted); }
+.board-list .pfp { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--rule) center/cover no-repeat; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,0.10) inset; }
+.board-list .pfp.fallback { background: var(--accent-faint); }
+.board-list a.hd { color: var(--fg); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-list a.hd:hover { color: var(--accent); }
+.board-list .hd small { color: var(--muted); }
+.board-list .sc { color: var(--accent); font-weight: 600; }
+.board-list .board-empty { display: block; color: var(--muted); font-style: italic; }
+.board-foot { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.7rem; padding-top: 0.6rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
+.ta-wrap { position: relative; flex: 1; min-width: 9rem; display: flex; }
+.board-foot input { font-family: var(--mono); font-size: 0.72rem; padding: 0.4rem 0.5rem; border: 1px solid var(--rule); border-radius: 3px; background: var(--bg); color: var(--fg); flex: 1; min-width: 0; }
+.ta-results { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; display: none; z-index: 20; max-height: 230px; overflow-y: auto; box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+.ta-results.show { display: block; }
+.ta-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.55rem; cursor: pointer; }
+.ta-item.on, .ta-item:hover { background: var(--accent-faint); }
+.ta-item img, .ta-item .av { width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--rule); flex: none; object-fit: cover; }
+.ta-item .nm { font-family: var(--mono); font-size: 0.7rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.ta-item .nm small { color: var(--muted); }
+.board-foot .who { color: var(--accent); }
+.link-btn { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-family: var(--mono); font-size: 0.66rem; padding: 0; }
+.link-btn:hover { color: var(--accent); }
+
+footer { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://canvas.mino.mobi/">← canvas</a>
+  <h1>pizza</h1>
+  <p class="subtitle">cut a fair share for every guest</p>
+  <p class="lede">A table of guests arrives, each wanting a <b>different share</b> of the pizza. <b>Drag freehand strokes</b> across it — your wobbly path is straightened into a clean edge-to-edge cut — and carve out a slice for everyone. You're scored on how close each guest gets to the share they asked for.</p>
+</header>
+
+<div class="order" id="order">seating the table…</div>
+<div class="guests" id="guests"></div>
+
+<div class="pie-wrap">
+  <span class="pie-hint" id="pie-hint">drag a stroke across the pizza to cut ↔</span>
+  <canvas id="pie" width="900" height="900"></canvas>
+</div>
+
+<div class="note" id="note">drag freehand across the pizza to make your first cut</div>
+
+<div class="bottom">
+  <div class="scores">
+    <div class="score" id="card-pieces">
+      <span class="k">pieces</span>
+      <span class="v" id="s-pieces">1</span>
+      <small>for <span id="s-guests">—</span></small>
+    </div>
+    <div class="score" id="card-acc">
+      <span class="k">accuracy</span>
+      <span class="v" id="s-acc">—</span>
+      <small>shares matched ↑</small>
+    </div>
+    <div class="score">
+      <span class="k">cuts</span>
+      <span class="v" id="s-cuts">0</span>
+      <small>fewer is neat</small>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" id="undo">undo</button>
+    <button class="btn" id="clear">clear</button>
+    <button class="btn primary" id="new">new table</button>
+  </div>
+</div>
+
+<div class="btn-row share-row">
+  <button class="btn" id="save-img">save image</button>
+  <button class="btn" id="share-bsky">share to bluesky</button>
+</div>
+
+<section class="board">
+  <div class="board-head">
+    <span class="board-title">leaderboard</span>
+    <div class="board-tabs">
+      <button class="tab on" data-period="all">all-time</button>
+      <button class="tab" data-period="today">today</button>
+    </div>
+  </div>
+  <ol class="board-list" id="board-list"><li class="board-empty">loading…</li></ol>
+  <div class="board-foot" id="board-foot"></div>
+</section>
+
+<footer>
+  <a href="https://canvas.mino.mobi/">canvas</a>
+  <a href="https://canvas.mino.mobi/curve/">curve</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+</footer>
+
+<script>
+'use strict';
+
+// ─── tiny utils ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// Distinct guest colors — a piece is tinted with the color of the guest it serves.
+const PIECE_COLORS = [
+  [231, 111, 81], [42, 157, 143], [233, 196, 106], [70, 110, 160],
+  [173, 99, 169], [106, 153, 78], [224, 122, 68], [108, 142, 191],
+];
+const NAMES = ['Ada', 'Bo', 'Cleo', 'Dex', 'Esi', 'Finn', 'Goro', 'Hye', 'Ivo', 'Juno', 'Kit', 'Lila'];
+
+// ─── game model (logical, unit disk radius 1) ───────────────────────────────
+// A "cut" is the straight line we FIT over the player's freehand stroke, stored
+// as a normalized normal (nx,ny) + offset c: a point (x,y) is on the positive
+// side when nx*x + ny*y > c. We also keep `raw` (the wobbly path actually drawn)
+// to render the messiness, and `straight` (how line-like the stroke was).
+let cuts = [];          // [{nx, ny, c, raw:[{x,y}], straight}]
+let pizza = null;       // { customers:[{name,want,pct,color}], toppings:[{x,y,r}] }
+let drag = null;        // { raw:[{x,y}] } in progress
+let analysis = null;    // analyze() result: {regions, sigColor, pieces, match}
+
+const GRID = 200;       // sampling resolution for area/region detection
+const NOISE = 0.001;    // ignore regions below 0.1% of the pie (discretization dust)
+const MAX_CUTS = 10;
+
+// ─── round setup ────────────────────────────────────────────────────────────
+function newRound() {
+  const N = rint(3, 6);
+  const names = shuffle(NAMES).slice(0, N);
+  // Appetites: skewed weights (so shares are genuinely uneven), each floored at
+  // 8% so no guest is asked an impossible sliver, then rounded to whole percents.
+  let w = [];
+  for (let i = 0; i < N; i++) w.push(0.4 + Math.random() * Math.random() * 3);
+  let s = w.reduce((a, b) => a + b, 0);
+  let frac = w.map(x => x / s);
+  for (let k = 0; k < 4; k++) { frac = frac.map(x => Math.max(0.08, x)); const z = frac.reduce((a, b) => a + b, 0); frac = frac.map(x => x / z); }
+  let pct = frac.map(x => Math.round(x * 100));
+  let drift = 100 - pct.reduce((a, b) => a + b, 0);
+  pct[pct.indexOf(Math.max(...pct))] += drift;     // absorb rounding into the biggest order
+  const customers = names.map((nm, i) => ({ name: nm, want: pct[i] / 100, pct: pct[i], color: PIECE_COLORS[i % PIECE_COLORS.length] }));
+
+  // pepperoni — decorative, fixed for the round
+  const toppings = [];
+  let guard = 0;
+  const nt = rint(9, 13);
+  while (toppings.length < nt && guard++ < 400) {
+    const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * 0.78;
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+    if (toppings.every(t => Math.hypot(t.x - x, t.y - y) > 0.2)) toppings.push({ x, y, r: 0.06 + Math.random() * 0.03 });
+  }
+
+  pizza = { customers, toppings };
+  cuts = []; drag = null; analysis = null;
+  const list = customers.map(c => `<b>${c.name}</b> ${c.pct}%`).join(', ');
+  $('order').innerHTML = `a table of <span class="big">${N}</span> — serve each their share: ${list}.`;
+  $('s-guests').textContent = N + ' guests';
+  $('pie-hint').style.display = '';
+  analyze();
+  render();
+  setNote(`${N} guests seated — drag freehand to carve out their slices`);
+}
+
+// ─── fit a straight line over a freehand stroke (total least squares) ────────
+// Orthogonal regression: the cut is the principal axis of the stroke's points
+// through their centroid. Unlike y = a + b·x it handles vertical/steep strokes.
+function fitLine(pts) {
+  const n = pts.length;
+  let mx = 0, my = 0;
+  for (const p of pts) { mx += p.x; my += p.y; }
+  mx /= n; my /= n;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const p of pts) { const dx = p.x - mx, dy = p.y - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+  sxx /= n; syy /= n; sxy /= n;
+  const theta = 0.5 * Math.atan2(2 * sxy, sxx - syy);   // principal-axis angle
+  const dirx = Math.cos(theta), diry = Math.sin(theta);
+  const tr = sxx + syy, det = sxx * syy - sxy * sxy;
+  const disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+  const l1 = tr / 2 + disc, l2 = tr / 2 - disc;         // eigenvalues (var along / across)
+  const straight = l1 > 1e-9 ? clamp(1 - l2 / l1, 0, 1) : 0;
+  return { nx: -diry, ny: dirx, c: -diry * mx + dirx * my, straight, spread: Math.sqrt(l1) };
+}
+
+// Clip a cut line to the unit circle → the two chord endpoints (unit coords).
+function chordEnds(cut) {
+  const { nx, ny, c } = cut;
+  const fx = nx * c, fy = ny * c, half = Math.sqrt(Math.max(0, 1 - c * c));
+  const dx = -ny, dy = nx;
+  return [{ x: fx - dx * half, y: fy - dy * half }, { x: fx + dx * half, y: fy + dy * half }];
+}
+
+// ─── region analysis (the scoring core) ─────────────────────────────────────
+// Within the convex disk, an arrangement of straight cuts partitions the pie
+// into cells, each uniquely identified by which side of every cut it lies on.
+// Sample a dense grid, bucket points by that side-signature, read piece areas
+// off the bucket counts.
+function analyze() {
+  const buckets = new Map();
+  let total = 0;
+  const step = 2 / GRID;
+  for (let i = 0; i < GRID; i++) {
+    const x = -1 + (i + 0.5) * step;
+    for (let j = 0; j < GRID; j++) {
+      const y = -1 + (j + 0.5) * step;
+      if (x * x + y * y > 1) continue;
+      total++;
+      let sig = '';
+      for (const cut of cuts) sig += (cut.nx * x + cut.ny * y > cut.c) ? '1' : '0';
+      let b = buckets.get(sig);
+      if (!b) { b = { n: 0, sx: 0, sy: 0 }; buckets.set(sig, b); }
+      b.n++; b.sx += x; b.sy += y;
+    }
+  }
+  let regions = [];
+  for (const [sig, b] of buckets) {
+    const area = b.n / total;
+    if (area < NOISE) continue;
+    regions.push({ sig, area, cx: b.sx / b.n, cy: b.sy / b.n });
+  }
+  regions.sort((a, b) => b.area - a.area);
+
+  const match = pizza ? computeMatch(regions) : null;
+  const sigColor = new Map();
+  regions.forEach((r, i) => {
+    const cu = match && match.regToCust.get(r.sig);
+    sigColor.set(r.sig, cu ? cu.color : [170, 170, 170]);   // unmatched extras → grey
+  });
+  analysis = { regions, sigColor, pieces: regions.length, match };
+  return analysis;
+}
+
+// Assign pieces to guests. To best satisfy a set of orders with a set of pieces,
+// hand the biggest piece to the hungriest guest, and so on (sorted matching is
+// optimal for minimizing total share error). accuracy = 1 − total-variation
+// distance between the piece sizes and the requested shares (0..1), which also
+// penalizes the wrong number of pieces (extras/missing pair against zero).
+function computeMatch(regions) {
+  const custs = pizza.customers.map((c, idx) => ({ c, idx, want: c.want })).sort((a, b) => b.want - a.want);
+  const regToCust = new Map();
+  const served = new Array(pizza.customers.length).fill(null);
+  const m = Math.min(regions.length, custs.length);
+  for (let i = 0; i < m; i++) { regToCust.set(regions[i].sig, custs[i].c); served[custs[i].idx] = regions[i].area; }
+  const L = Math.max(regions.length, custs.length);
+  let err = 0;
+  for (let i = 0; i < L; i++) {
+    const p = i < regions.length ? regions[i].area : 0;
+    const d = i < custs.length ? custs[i].want : 0;
+    err += Math.abs(p - d);
+  }
+  return { regToCust, served, accuracy: clamp(1 - err / 2, 0, 1), extra: Math.max(0, regions.length - custs.length) };
+}
+
+// One ranking number, 0..100: how well everyone was served.
+function leaderboardScore() {
+  if (!analysis || !analysis.match || cuts.length < 1) return null;
+  return Math.round(100 * analysis.match.accuracy);
+}
+
+// ─── rendering ──────────────────────────────────────────────────────────────
+const cv = $('pie'), ctx = cv.getContext('2d');
+let geom = null;
+
+function setupHiDPI() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = cv.getBoundingClientRect();
+  cv.width = Math.round(r.width * dpr);
+  cv.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { W: r.width, H: r.height };
+}
+
+// offscreen tint of the piece regions (translucent, so cheese shows through)
+const tintCv = document.createElement('canvas');
+tintCv.width = tintCv.height = 220;
+function buildTint() {
+  const g = tintCv.getContext('2d');
+  const N = tintCv.width;
+  const img = g.createImageData(N, N), d = img.data;
+  for (let iy = 0; iy < N; iy++) {
+    const y = (iy + 0.5) / N * 2 - 1;
+    for (let ix = 0; ix < N; ix++) {
+      const x = (ix + 0.5) / N * 2 - 1, o = (iy * N + ix) * 4;
+      if (x * x + y * y > 1) { d[o + 3] = 0; continue; }
+      let sig = '';
+      for (const cut of cuts) sig += (cut.nx * x + cut.ny * y > cut.c) ? '1' : '0';
+      const col = analysis && analysis.sigColor.get(sig);
+      if (col) { d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 105; } else d[o + 3] = 0;
+    }
+  }
+  g.putImageData(img, 0, 0);
+}
+
+function drawScene(c, CX, CY, RAD, opts) {
+  opts = opts || {};
+  const mx = u => CX + u.x * RAD, my = u => CY + u.y * RAD;
+  c.save();
+  // plate
+  c.beginPath(); c.arc(CX, CY, RAD * 1.02, 0, Math.PI * 2); c.fillStyle = cssVar('--crust-dark'); c.fill();
+  // crust
+  c.beginPath(); c.arc(CX, CY, RAD, 0, Math.PI * 2); c.fillStyle = cssVar('--crust'); c.fill();
+  // cheese face (inset from crust) + toppings + tint + raw strokes, all clipped
+  const inner = RAD * 0.93;
+  c.save();
+  c.beginPath(); c.arc(CX, CY, inner, 0, Math.PI * 2); c.clip();
+  c.fillStyle = cssVar('--cheese'); c.fillRect(CX - RAD, CY - RAD, RAD * 2, RAD * 2);
+  c.fillStyle = 'rgba(208,90,50,0.16)';
+  for (const t of (pizza ? pizza.toppings : [])) { c.beginPath(); c.arc(CX + t.x * RAD, CY + t.y * RAD, t.r * RAD * 1.7, 0, Math.PI * 2); c.fill(); }
+  if (analysis && cuts.length) { c.imageSmoothingEnabled = true; c.drawImage(tintCv, CX - RAD, CY - RAD, RAD * 2, RAD * 2); }
+  for (const t of (pizza ? pizza.toppings : [])) {
+    const px = CX + t.x * RAD, py = CY + t.y * RAD, pr = t.r * RAD;
+    c.beginPath(); c.arc(px, py, pr, 0, Math.PI * 2); c.fillStyle = '#b0301f'; c.fill();
+    c.beginPath(); c.arc(px - pr * 0.25, py - pr * 0.25, pr * 0.55, 0, Math.PI * 2); c.fillStyle = 'rgba(255,255,255,0.16)'; c.fill();
+  }
+  // the messy hand-drawn paths (committed, light) — the cut you actually drew
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  for (const cut of cuts) traceRaw(c, cut.raw, mx, my, 'rgba(70,45,20,0.30)', Math.max(1.5, RAD * 0.008));
+  // in-progress stroke (darker)
+  if (opts.drag && opts.drag.raw.length) traceRaw(c, opts.drag.raw, mx, my, 'rgba(70,45,20,0.55)', Math.max(1.8, RAD * 0.009));
+  c.restore();   // end cheese clip
+
+  // committed cuts: the fitted line, straightened, edge to edge (the knife)
+  c.lineCap = 'round';
+  for (const cut of cuts) {
+    const [a, b] = chordEnds(cut);
+    c.beginPath(); c.moveTo(mx(a), my(a)); c.lineTo(mx(b), my(b));
+    c.strokeStyle = cssVar('--cut'); c.lineWidth = Math.max(2, RAD * 0.012); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.25)'; c.lineWidth = Math.max(1, RAD * 0.004); c.stroke();
+  }
+
+  // live preview: the fitted chord for the stroke being drawn (dashed)
+  if (opts.drag && opts.drag.raw.length >= 4) {
+    const f = fitLine(opts.drag.raw);
+    if (f.spread > 0.02 && Math.abs(f.c) < 0.999) {
+      const [a, b] = chordEnds(f);
+      c.setLineDash([7, 6]);
+      c.beginPath(); c.moveTo(mx(a), my(a)); c.lineTo(mx(b), my(b));
+      c.strokeStyle = cssVar('--accent'); c.lineWidth = Math.max(2, RAD * 0.011); c.stroke();
+      c.setLineDash([]);
+    }
+  }
+
+  // piece labels: guest name + actual share, on roomy pieces
+  if (analysis && analysis.pieces > 1 && opts.labels !== false) {
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    const fam = cssVar('--mono') || 'monospace';
+    for (const r of analysis.regions) {
+      if (r.area < 0.04) continue;
+      const lx = CX + r.cx * RAD, ly = CY + r.cy * RAD;
+      const cu = analysis.match && analysis.match.regToCust.get(r.sig);
+      const name = cu ? cu.name : 'extra';
+      const pctTxt = Math.round(r.area * 100) + '%';
+      const lbl = (s, dy, size, bold) => {
+        c.font = `${bold ? '700 ' : ''}${Math.round(RAD * size)}px ${fam}`;
+        c.lineWidth = Math.max(2, RAD * 0.018); c.strokeStyle = 'rgba(40,25,12,0.8)'; c.strokeText(s, lx, ly + dy);
+        c.fillStyle = '#fff'; c.fillText(s, lx, ly + dy);
+      };
+      lbl(name, -RAD * 0.045, 0.05, false);
+      lbl(pctTxt, RAD * 0.05, 0.078, true);
+    }
+  }
+  c.restore();
+}
+function traceRaw(c, raw, mx, my, style, w) {
+  if (!raw || raw.length < 2) return;
+  c.strokeStyle = style; c.lineWidth = w;
+  c.beginPath();
+  raw.forEach((p, i) => { const X = mx(p), Y = my(p); i === 0 ? c.moveTo(X, Y) : c.lineTo(X, Y); });
+  c.stroke();
+}
+
+function render() {
+  const { W, H } = setupHiDPI();
+  ctx.clearRect(0, 0, W, H);
+  const RAD = Math.min(W, H) * 0.44;
+  geom = { CX: W / 2, CY: H / 2, RAD };
+  if (analysis && cuts.length) buildTint();
+  drawScene(ctx, geom.CX, geom.CY, RAD, { drag });
+  refreshScores();
+  renderGuests();
+}
+
+function refreshScores() {
+  const p = analysis ? analysis.pieces : 1;
+  const N = pizza ? pizza.customers.length : 0;
+  $('s-pieces').textContent = p;
+  $('s-cuts').textContent = cuts.length;
+  const onCount = p === N;
+  $('card-pieces').classList.toggle('ok', onCount);
+  if (analysis && analysis.match && cuts.length) {
+    const a = Math.round(analysis.match.accuracy * 100);
+    $('s-acc').textContent = a + '%';
+    $('card-acc').classList.toggle('ok', a >= 90 && onCount);
+  } else {
+    $('s-acc').textContent = '—';
+    $('card-acc').classList.remove('ok');
+  }
+}
+
+function renderGuests() {
+  if (!pizza) return;
+  const served = (analysis && analysis.match && cuts.length) ? analysis.match.served : null;
+  $('guests').innerHTML = pizza.customers.map((c, i) => {
+    const rgb = `rgb(${c.color.join(',')})`;
+    let tail = '';
+    const got = served ? served[i] : null;
+    if (got == null) { tail = cuts.length ? '<span class="miss">— no slice</span>' : ''; }
+    else {
+      const diff = Math.abs(got - c.want);
+      const cls = diff <= 0.02 ? 'good' : diff <= 0.05 ? 'meh' : 'bad';
+      tail = `<span class="got ${cls}">got ${Math.round(got * 100)}%</span>`;
+    }
+    return `<span class="guest"><span class="sw" style="background:${rgb}"></span><span class="gn">${c.name}</span><span class="gw">${c.pct}%</span>${tail}</span>`;
+  }).join('');
+}
+
+// ─── pointer handling (freehand) ─────────────────────────────────────────────
+function evToUnit(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left - r.width / 2) / geom.RAD, y: (e.clientY - r.top - r.height / 2) / geom.RAD };
+}
+cv.addEventListener('pointerdown', e => {
+  if (cuts.length >= MAX_CUTS) { setNote(`${MAX_CUTS} cuts is the cap — undo or start a new table`, 'warn'); return; }
+  cv.setPointerCapture(e.pointerId);
+  drag = { raw: [evToUnit(e)] };
+  $('pie-hint').style.display = 'none';
+  render();
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  drag.raw.push(evToUnit(e));
+  render();
+});
+function endDrag(e) {
+  if (!drag) return;
+  try { cv.releasePointerCapture(e.pointerId); } catch {}
+  const raw = drag.raw;
+  drag = null;
+  if (raw.length < 3) { render(); setNote('that was barely a stroke — drag a line across the pie', 'warn'); return; }
+  const f = fitLine(raw);
+  if (f.spread < 0.03) { render(); setNote('too short to fit a cut — drag a longer stroke', 'warn'); return; }
+  if (Math.abs(f.c) >= 0.999) { render(); setNote('that cut misses the pizza — aim across it', 'warn'); return; }
+  cuts.push({ nx: f.nx, ny: f.ny, c: f.c, raw, straight: f.straight });
+  analyze();
+  render();
+  const a = Math.round(analysis.match.accuracy * 100);
+  const onCount = analysis.pieces === pizza.customers.length;
+  const clean = f.straight > 0.9 ? ' · clean cut' : '';
+  setNote(`cut ${cuts.length} · ${analysis.pieces} piece${analysis.pieces === 1 ? '' : 's'} · ${a}% served${clean}` + (onCount && a >= 96 ? ' — everyone happy!' : ''), onCount && a >= 90 ? 'ok' : '');
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+// ─── buttons ────────────────────────────────────────────────────────────────
+$('undo').addEventListener('click', () => {
+  if (!cuts.length) return;
+  cuts.pop(); analyze(); render();
+  setNote(cuts.length ? `undid · ${cuts.length} cut${cuts.length === 1 ? '' : 's'} left` : 'back to a whole pie');
+});
+$('clear').addEventListener('click', () => { cuts = []; analyze(); render(); setNote('cleared — same table, fresh pie'); });
+$('new').addEventListener('click', newRound);
+
+function setNote(msg, cls) { const n = $('note'); n.textContent = msg; n.className = 'note' + (cls ? ' ' + cls : ''); }
+
+// ─── share: export PNG + post to Bluesky ────────────────────────────────────
+$('save-img').addEventListener('click', async () => { downloadBlob(await renderShareImage(), 'pizza.png'); setNote('saved pizza.png', 'ok'); });
+$('share-bsky').addEventListener('click', shareToBsky);
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function shareText() {
+  const sc = leaderboardScore();
+  const a = analysis && analysis.match ? Math.round(analysis.match.accuracy * 100) : 0;
+  let t = `Served a table of ${pizza.customers.length} on canvas.mino.mobi/pizza`;
+  if (sc != null) t += ` — ${a}% of everyone's share, score ${sc}`;
+  return t;
+}
+async function shareToBsky() {
+  const blob = await renderShareImage(), text = shareText(), url = 'https://canvas.mino.mobi/pizza/';
+  try {
+    const file = new File([blob], 'pizza.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text, url }); return; }
+  } catch (e) {}
+  downloadBlob(blob, 'pizza.png');
+  window.open('https://bsky.app/intent/compose?text=' + encodeURIComponent(text + ' ' + url), '_blank', 'noopener');
+  setNote('image saved — attach pizza.png in the Bluesky composer', 'ok');
+}
+function renderShareImage() {
+  const S = 1080, c = document.createElement('canvas'); c.width = S; c.height = S;
+  const x = c.getContext('2d');
+  x.fillStyle = cssVar('--paper') || '#fffdf7'; x.fillRect(0, 0, S, S);
+  x.fillStyle = '#8a7a66'; x.font = '600 24px ui-monospace, monospace'; x.fillText('CANVAS.MINO.MOBI / PIZZA', 64, 80);
+  x.fillStyle = cssVar('--accent') || '#c0531f'; x.fillRect(64, 96, 150, 5);
+  x.fillStyle = cssVar('--fg') || '#2a1d12'; x.font = 'bold 84px Georgia, serif'; x.fillText('pizza', 56, 184);
+  if (analysis && cuts.length) buildTint();
+  drawScene(x, S / 2, 560, 330, { drag: null });
+  const sc = leaderboardScore();
+  const cells = [
+    ['pieces', analysis.pieces + ' / ' + pizza.customers.length],
+    ['accuracy', cuts.length && analysis.match ? Math.round(analysis.match.accuracy * 100) + '%' : '—'],
+    ['score', sc == null ? '—' : String(sc)],
+  ];
+  const FY = 968, cw = (S - 128) / 3;
+  cells.forEach(([k, v], i) => {
+    const cx = 64 + i * cw;
+    x.fillStyle = '#8a7a66'; x.font = '20px ui-monospace, monospace'; x.fillText(k.toUpperCase(), cx, FY);
+    x.fillStyle = cssVar('--accent') || '#c0531f'; x.font = 'bold 48px ui-monospace, monospace'; x.fillText(v, cx, FY + 54);
+  });
+  x.fillStyle = cssVar('--accent') || '#c0531f'; x.fillRect(0, S - 8, S, 8);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+
+// ─── boot ───────────────────────────────────────────────────────────────────
+newRound();
+window.addEventListener('resize', render);
+
+// ─── leaderboard: shared auth worker (auth.mino.mobi) + mino-scores ──────────
+const SCORES_API = 'https://scores.mino.mobi';
+const AUTH_API = 'https://auth.mino.mobi';
+const SESSION_KEY = 'mino_auth_session';   // shared across all mino.mobi sites
+const PENDING_KEY = 'pizza_pending_score';
+const GAME = 'pizza';
+let authUser = null;
+let boardPeriod = 'all';
+
+// Minimal client for the shared auth worker — same wire protocol as
+// packages/oauth-client/auth.js, inlined to keep pizza a single static file.
+const Auth = {
+  token() { try { return localStorage.getItem(SESSION_KEY); } catch (e) { return null; } },
+  save(t) { try { localStorage.setItem(SESSION_KEY, t); } catch (e) {} },
+  clear() { try { localStorage.removeItem(SESSION_KEY); } catch (e) {} },
+  async init() {
+    const u = new URL(location.href);
+    const t = u.searchParams.get('__auth_session');
+    if (t) { this.save(t); u.searchParams.delete('__auth_session'); history.replaceState({}, '', u.toString()); }
+    if (!this.token()) return null;
+    try {
+      const r = await fetch(AUTH_API + '/api/me', { headers: { Authorization: 'Bearer ' + this.token() } });
+      if (!r.ok) { this.clear(); return null; }
+      return await r.json();
+    } catch (e) { return null; }
+  },
+  async login(handle) {
+    const r = await fetch(AUTH_API + '/oauth/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle: handle.replace(/^@/, '').trim(), origin: location.origin, returnTo: location.href, scope: 'atproto' }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'sign-in failed'); }
+    const { authUrl } = await r.json();
+    location.href = authUrl;
+  },
+  async logout() {
+    const t = this.token();
+    if (t) { try { await fetch(AUTH_API + '/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t } }); } catch (e) {} }
+    this.clear();
+  },
+};
+
+function leaderboardMeta() {
+  return `${pizza.customers.length} guests · ${analysis.pieces} pc · ${cuts.length} cut${cuts.length === 1 ? '' : 's'} · ${Math.round(analysis.match.accuracy * 100)}% served`;
+}
+function stashPending(score, meta) { try { localStorage.setItem(PENDING_KEY, JSON.stringify({ score, meta, ts: Date.now() })); } catch (e) {} }
+function takePending() {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY); localStorage.removeItem(PENDING_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    return (Date.now() - p.ts > 600000) ? null : p;
+  } catch (e) { return null; }
+}
+async function postScore(score, meta) {
+  const r = await fetch(SCORES_API + '/api/scores/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Auth.token() },
+    body: JSON.stringify({ game: GAME, score, meta }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ('submit failed (' + r.status + ')'));
+  return data;
+}
+async function submitScore() {
+  const sc = leaderboardScore();
+  if (sc == null) { setNote('carve some slices first', 'warn'); return; }
+  try {
+    const res = await postScore(sc, leaderboardMeta());
+    setNote(`submitted · score ${sc} · rank #${res.rank}`, 'ok');
+    boardPeriod = 'all'; syncTabs(); loadBoard();
+  } catch (e) { setNote(e.message, 'warn'); }
+}
+function syncTabs() { document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.period === boardPeriod)); }
+
+// ── profile hydration: turn stored dids into live handle + avatar ───────────
+const BSKY_PUBLIC = 'https://public.api.bsky.app';
+const profileCache = new Map();      // did or handle → profile
+const inflightProfile = new Map();
+const isDid = s => /^did:/.test(String(s || ''));
+function esc(s) { return String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c])); }
+async function fetchProfiles(actors) {
+  const need = [...new Set(actors.filter(a => a && !profileCache.has(a) && !inflightProfile.has(a)))];
+  for (let i = 0; i < need.length; i += 25) {
+    const chunk = need.slice(i, i + 25);
+    const url = new URL(BSKY_PUBLIC + '/xrpc/app.bsky.actor.getProfiles');
+    chunk.forEach(a => url.searchParams.append('actors', a));
+    const p = fetch(url.toString())
+      .then(r => r.ok ? r.json() : { profiles: [] })
+      .then(d => { for (const pr of d.profiles || []) { if (pr.did) profileCache.set(pr.did, pr); if (pr.handle) profileCache.set(pr.handle, pr); } })
+      .catch(() => {})
+      .finally(() => chunk.forEach(a => inflightProfile.delete(a)));
+    chunk.forEach(a => inflightProfile.set(a, p));
+  }
+  await Promise.all([...new Set(actors)].map(a => inflightProfile.get(a)).filter(Boolean));
+}
+function profileOf(s) { return (s.did && profileCache.get(s.did)) || (s.handle && profileCache.get(s.handle)) || null; }
+function handleOf(s) {
+  const pr = profileOf(s);
+  if (pr && pr.handle) return pr.handle;
+  if (s.handle && !isDid(s.handle)) return s.handle;
+  const did = String(s.did || s.handle || '');
+  return isDid(did) ? did.slice(0, 16) + '…' : (did || 'anon');
+}
+
+async function loadBoard() {
+  const list = $('board-list');
+  const period = boardPeriod;            // pin: the user may switch tabs mid-load
+  try {
+    const r = await fetch(`${SCORES_API}/api/scores/top?game=${GAME}&period=${period}&limit=10`);
+    if (period !== boardPeriod) return;
+    const rows = (await r.json()).scores || [];
+    if (!rows.length) { list.innerHTML = '<li class="board-empty">no scores yet — be the first</li>'; return; }
+    const rowHtml = (s, i) => {
+      const did = String(s.did || s.handle || '');
+      const meta = esc(String(s.meta || ''));
+      const pr = profileOf(s);
+      const avatar = pr && pr.avatar;
+      return `<li data-actor="${esc(did)}">`
+        + `<span class="rk">${i + 1}</span>`
+        + `<span class="pfp${avatar ? '' : ' fallback'}"${avatar ? ` style="background-image:url('${esc(avatar)}')"` : ''}></span>`
+        + `<a class="hd" href="https://bsky.app/profile/${encodeURIComponent(did)}" target="_blank" rel="noopener">@${esc(handleOf(s))}${meta ? ` <small>${meta}</small>` : ''}</a>`
+        + `<span class="sc">${Math.round(s.score)}</span></li>`;
+    };
+    list.innerHTML = rows.map(rowHtml).join('');
+    // hydrate avatars + canonical handles in the background, then repaint
+    await fetchProfiles(rows.map(s => s.did || s.handle));
+    if (period === boardPeriod) list.innerHTML = rows.map(rowHtml).join('');
+  } catch (e) { list.innerHTML = '<li class="board-empty">leaderboard unavailable</li>'; }
+}
+function renderBoardFoot() {
+  const foot = $('board-foot');
+  if (authUser && authUser.did) {
+    foot.innerHTML = '<button class="btn primary" id="submit-score">submit score</button>'
+      + ' <span>signed in as <span class="who">@' + String(authUser.handle || '').replace(/[<>]/g, '') + '</span></span>'
+      + ' <button class="link-btn" id="signout">sign out</button>';
+    $('submit-score').addEventListener('click', submitScore);
+    $('signout').addEventListener('click', async () => { await Auth.logout(); authUser = null; renderBoardFoot(); setNote('signed out'); });
+  } else {
+    foot.innerHTML = '<span class="ta-wrap"><input id="handle" placeholder="you.bsky.social" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><div class="ta-results" id="ta-results"></div></span>'
+      + '<button class="btn primary" id="signin">sign in &amp; submit</button>';
+    const doSignin = () => {
+      const h = $('handle').value.trim();
+      if (!h) { $('handle').focus(); setNote('enter your Bluesky handle to sign in', 'warn'); return; }
+      const sc = leaderboardScore();
+      if (sc != null) stashPending(sc, leaderboardMeta());
+      setNote('redirecting to Bluesky…');
+      Auth.login(h).catch(e => setNote(e.message, 'warn'));
+    };
+    $('signin').addEventListener('click', doSignin);
+    wireTypeahead($('handle'), $('ta-results'), doSignin);
+  }
+}
+
+// Live Bluesky handle autocomplete on the sign-in input (public appview, no auth).
+function wireTypeahead(input, box, onSubmit) {
+  let items = [], active = -1, timer = null, abort = null;
+  const close = () => { box.classList.remove('show'); box.innerHTML = ''; items = []; active = -1; };
+  const render = () => {
+    if (!items.length) { close(); return; }
+    box.innerHTML = items.map((a, i) =>
+      `<div class="ta-item${i === active ? ' on' : ''}" data-i="${i}">`
+      + (a.avatar ? `<img src="${esc(a.avatar)}" referrerpolicy="no-referrer" alt="">` : '<span class="av"></span>')
+      + `<span class="nm">${esc(a.displayName || a.handle)}<br><small>@${esc(a.handle)}</small></span></div>`).join('');
+    box.classList.add('show');
+  };
+  const pick = i => { if (items[i]) { input.value = items[i].handle; close(); } };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value.trim().replace(/^@/, '');
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(async () => {
+      if (abort) abort.abort();
+      abort = new AbortController();
+      try {
+        const r = await fetch(`${BSKY_PUBLIC}/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`, { signal: abort.signal });
+        if (!r.ok) return;
+        items = (await r.json()).actors || []; active = -1; render();
+      } catch (e) { /* aborted / offline */ }
+    }, 180);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' && items.length) { e.preventDefault(); active = (active + 1) % items.length; render(); }
+    else if (e.key === 'ArrowUp' && items.length) { e.preventDefault(); active = (active - 1 + items.length) % items.length; render(); }
+    else if (e.key === 'Escape') { close(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0) { pick(active); } else { onSubmit(); } }
+  });
+  input.addEventListener('blur', () => setTimeout(close, 120));
+  box.addEventListener('mousedown', e => { const it = e.target.closest('.ta-item'); if (it) { e.preventDefault(); pick(+it.dataset.i); input.focus(); } });
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => { boardPeriod = t.dataset.period; syncTabs(); loadBoard(); }));
+
+(async () => {
+  authUser = await Auth.init();
+  renderBoardFoot();
+  const pending = takePending();
+  if (authUser && authUser.did && pending) {
+    try { const res = await postScore(pending.score, pending.meta); setNote(`submitted · score ${pending.score} · rank #${res.rank}`, 'ok'); }
+    catch (e) { setNote(e.message, 'warn'); }
+  }
+  loadBoard();
+})();
+</script>
+
+</body>
+</html>
