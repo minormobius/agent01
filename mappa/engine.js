@@ -129,6 +129,12 @@ export function generateWorld(seed, opts={}){
   for(let i=0;i<M;i++){const z=1-(2*i+1)/M,r=Math.sqrt(1-z*z),th=ga*i+rotA;const p=[r*Math.cos(th),r*Math.sin(th),z];
     const t=top2(warp(p)), bp=Math.exp(-(t[0]-t[1])/0.035); // bp→1 near a (jagged) plate boundary
     if(rnd()<Math.min(1,(plates[t[2]].oceanic?0.12:0.52)+bp*0.78)){V.push(p);plateRaw.push(t[2])}}
+  // COAST REFINEMENT: inject dense jittered clusters around a supplied coastline
+  // (the previous pass's emergent coast) → a high-resolution pass right at the shore.
+  const refine=opts.refinePoints; // flat [x,y,z,…] unit vectors
+  if(refine&&refine.length){const per=opts.refinePer??4, jit=opts.refineJitter??0.012;
+    for(let r=0;r+2<refine.length;r+=3){const rx=refine[r],ry=refine[r+1],rz=refine[r+2];
+      for(let q=0;q<per;q++){const p=norm([rx+(rnd()-0.5)*jit,ry+(rnd()-0.5)*jit,rz+(rnd()-0.5)*jit]);V.push(p);plateRaw.push(top2(warp(p))[2])}}}
   const N=V.length;
 
   // 2. spherical Delaunay/Voronoi ---------------------------------------------

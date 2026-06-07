@@ -10,7 +10,7 @@ import { SITES, WINGS } from './sites.js';
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=4');await m.default('./pkg/mappa_engine_bg.wasm?v=4');const v=(m.engine_version?m.engine_version():0);
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=5');await m.default('./pkg/mappa_engine_bg.wasm?v=5');const v=(m.engine_version?m.engine_version():0);
   if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
   else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
 }catch(e){rustGen=false}}
@@ -62,10 +62,20 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
 
 function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined})}
 function build(){const g=genome;let w=null;
-  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
+  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,EMPTY))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
   world=w||genJS(g);driftT=(world.meta&&world.meta.ageSpan)||0.5;
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
+const EMPTY=new Float64Array(0);
+function coastPointsOf(w){const out=[];for(let i=0;i<w.N;i++){if(w.water[i]!==0)continue;for(const j of w.adj[i])if(w.water[j]===1){out.push(w.V[i][0],w.V[i][1],w.V[i][2]);break}}return new Float64Array(out)}
+function refineCoasts(){if(!world)return;const cp=coastPointsOf(world);if(!cp.length)return;
+  if(statusEl){statusEl.textContent='refining coasts…';statusEl.style.opacity=1}
+  setTimeout(()=>{const g=genome;let w=null;
+    if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
+    if(!w)w=generateWorld(seed,{N:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,refinePoints:cp,refinePer:5});
+    world=w;driftT=(world.meta&&world.meta.ageSpan)||0.5;atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5));
+    MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw();
+    if(statusEl)statusEl.style.opacity=0;},20)}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
 
 function cellHSL(i){const b=BIOMES[world.biome[i]];let h=b.h,s=b.s,l=b.l;
@@ -253,6 +263,7 @@ for(const [p,sl,vl,fmt,toG] of sliders){
 }
 $('bAuto').onclick=()=>{pinned.clear();for(const k in genome)genome[k]=null;regen()};
 $('builderToggle').onclick=()=>$('builder').classList.toggle('show');
+const _br=document.getElementById('bRefine');if(_br)_br.onclick=refineCoasts;
 $('builderClose').onclick=()=>$('builder').classList.remove('show');
 
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}

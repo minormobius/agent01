@@ -139,7 +139,7 @@ struct Plate { center0: V3, center: V3, oceanic: bool, axis: V3, speed: f64, buo
 // the genome — any field can override the seed-derived value (sentinel < 0 = derive)
 struct Params { ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32 }
 
-fn build(seed: u32, target_n: usize, p: Params) -> World {
+fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
     let mut rng = Rng::new(seed);
     let ga = std::f64::consts::PI * (3.0 - 5.0_f64.sqrt());
     // always draw the derived value (keeps the RNG stream stable) then maybe override
@@ -198,6 +198,20 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
         if rng.next() < (base + bp*0.78).min(1.0) {
             vv.push(p);
             plate_raw.push(t.2 as u32);
+        }
+    }
+    // COAST REFINEMENT: inject dense jittered clusters around supplied coastline points
+    if !refine.is_empty() {
+        let per = 5usize; let jit = 0.012;
+        let mut idx = 0;
+        while idx + 2 < refine.len() {
+            let (rx, ry, rz) = (refine[idx], refine[idx+1], refine[idx+2]);
+            for _ in 0..per {
+                let p = norm([rx + (rng.next()-0.5)*jit, ry + (rng.next()-0.5)*jit, rz + (rng.next()-0.5)*jit]);
+                let t = top2(warp(p), &plates);
+                vv.push(p); plate_raw.push(t.2 as u32);
+            }
+            idx += 3;
         }
     }
     let n = vv.len();
@@ -543,9 +557,9 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
 
 // ---- wasm API ---------------------------------------------------------------
 #[wasm_bindgen]
-pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32) -> Result<JsValue, JsValue> {
+pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32, refine: &[f64]) -> Result<JsValue, JsValue> {
     let p = Params { ocean_fraction, axial_tilt, water_frac, plate_count, solar, planet_radius, age };
-    let w = build(seed, (n as usize).clamp(500, 220000), p);
+    let w = build(seed, (n as usize).clamp(500, 220000), p, refine);
     serde_wasm_bindgen::to_value(&w).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
@@ -557,4 +571,4 @@ pub fn triangulate_xy(coords: &[f64]) -> Vec<u32> {
 }
 
 #[wasm_bindgen]
-pub fn engine_version() -> u32 { 4 }
+pub fn engine_version() -> u32 { 5 }
