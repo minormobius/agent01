@@ -16,6 +16,8 @@
   --bg:#04060f; --panel:#0a1324; --panel2:#0c1830; --line:rgba(120,160,220,0.16);
   --fg:#dce8fb; --muted:#8ea6c8; --sky:#5aa9ff; --gold:#ffd86b; --rose:#ff7a9c;
   --mono: ui-monospace, Menlo, Consolas, monospace;
+  /* aliases for the shared /feedgen/typeahead.js (styles itself from these) */
+  --rule: rgba(120,160,220,0.28); --text: var(--fg);
 }
 * { box-sizing: border-box; }
 body { margin:0; background: radial-gradient(120% 80% at 50% -10%, #0b1830 0%, #060d1c 50%, #04060f 100%); color: var(--fg); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height:100vh; }
@@ -86,12 +88,12 @@ footer a:hover { color:var(--sky); }
     <div class="fields">
       <div class="field">
         <label class="flabel" for="follower">follower <small>who did the following</small></label>
-        <input id="follower" name="follower" placeholder="alice.bsky.social" spellcheck="false">
+        <input id="follower" name="follower" placeholder="alice.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
       </div>
       <div class="swap-wrap"><button type="button" class="swap" id="swap" title="swap">⇄</button></div>
       <div class="field">
         <label class="flabel" for="followed">followed <small>whose posts</small></label>
-        <input id="followed" name="followed" placeholder="bob.bsky.social" spellcheck="false">
+        <input id="followed" name="followed" placeholder="bob.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
       </div>
     </div>
     <div class="runrow">
@@ -108,6 +110,9 @@ footer a:hover { color:var(--sky); }
     <span>permissionless · public ATProto records</span>
   </footer>
 </div>
+
+<!-- shared Bluesky handle typeahead — same file the feedgen builder uses -->
+<script src="/feedgen/typeahead.js"></script>
 
 <script type="module">
 const PUBLIC = 'https://public.api.bsky.app';
