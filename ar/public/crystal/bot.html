@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AR Crystal — test bot</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{min-height:100%;background:#0a0a0f;color:#e6e6ec;font-family:'SF Mono','Fira Code',ui-monospace,monospace;}
+main{max-width:42rem;margin:0 auto;padding:2rem 1.3rem;}
+a{color:#c9a84c;}
+.crumb{font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:#9a9aa8;}
+h1{font-size:1.3rem;letter-spacing:0.1em;margin:0.5rem 0;}
+p.sub{font-size:0.78rem;color:#9a9aa8;line-height:1.6;margin-bottom:1.4rem;}
+.row{display:flex;gap:0.6rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap;font-size:0.85rem;color:#9a9aa8;}
+input{font-family:inherit;background:#1d1d28;border:1px solid rgba(255,255,255,0.1);color:#e3c977;border-radius:8px;
+  padding:0.5rem 0.7rem;font-size:1.1rem;letter-spacing:0.3em;width:6.5rem;text-align:center;text-transform:uppercase;}
+button{font-family:inherit;background:#1d1d28;color:#e6e6ec;border:1px solid rgba(255,255,255,0.1);border-radius:9px;
+  padding:0.7rem 1rem;font-size:0.85rem;cursor:pointer;}
+button:hover{border-color:#c9a84c;color:#e3c977;}
+button:disabled{opacity:0.45;cursor:default;}
+#log{background:#05050a;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:0.8rem 0.9rem;margin-top:1.2rem;
+  font-size:0.74rem;line-height:1.65;height:60vh;overflow-y:auto;white-space:pre-wrap;color:#cdd;}
+#log .t{color:#6a6a78;}
+</style>
+</head>
+<body>
+<main>
+  <a class="crumb" href="./">← AR Crystal</a>
+  <h1>🤖 test bot</h1>
+  <p class="sub">A stand-in partner so you can test one phone at a time. Enter the <b>same room code</b> as your phone, then pick which side the bot should play. It uses the real diffraction physics — the crystal-bot tumbles a random mineral and streams the true scatter; the detector-bot reads the symmetry and guesses.</p>
+
+  <div class="row">
+    <span>room</span><input id="room" maxlength="4" autocomplete="off" autocapitalize="characters">
+  </div>
+  <div class="row">
+    <button id="bCrystal">💎 play the Crystal</button>
+    <button id="bDetector">📡 play the Detector</button>
+    <button id="bStop" disabled>■ stop</button>
+  </div>
+
+  <div id="log"></div>
+</main>
+
+<script type="module">
+import { runBot } from './bot.js';
+const $=id=>document.getElementById(id);
+const logEl=$('log');
+function log(s){ const t=new Date().toLocaleTimeString(); logEl.innerHTML+=`<span class="t">${t}</span>  ${s}\n`; logEl.scrollTop=logEl.scrollHeight; }
+// prefill room from ?room= or a random code (but you'll usually paste your phone's code)
+const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const rnd=()=>{let s='';for(let i=0;i<4;i++)s+=A[(Math.random()*A.length)|0];return s;};
+$('room').value=(new URLSearchParams(location.search).get('room')||rnd()).toUpperCase();
+const wsBase=`${location.protocol==='https:'?'wss':'ws'}://${location.host}`;
+let stop=null;
+function start(role){
+  if(stop) stop();
+  const room=$('room').value.trim().toUpperCase(); $('room').value=room;
+  $('bCrystal').disabled=true; $('bDetector').disabled=true; $('bStop').disabled=false;
+  stop=runBot({role, room, wsBase, log});
+}
+$('bCrystal').onclick=()=>start('crystal');
+$('bDetector').onclick=()=>start('detector');
+$('bStop').onclick=()=>{ if(stop){stop();stop=null;} log('stopped.'); $('bCrystal').disabled=false; $('bDetector').disabled=false; $('bStop').disabled=true; };
+// auto-start if ?role= given
+const r=new URLSearchParams(location.search).get('role');
+if(r==='crystal'||r==='detector') start(r);
+</script>
+</body>
+</html>
