@@ -171,6 +171,28 @@ footer {
 footer a { color: var(--muted); text-decoration: none; }
 footer a:hover { color: var(--sky); }
 </style>
+<style>
+/* ── bee swarm hero ── each bee is a fluoddity particle + a site link ── */
+#bee-stage { position: relative; width: 100%; height: 56vh; min-height: 340px; max-height: 560px; margin: 1.6rem 0 0.4rem; border-radius: 12px; overflow: hidden; background: radial-gradient(120% 100% at 50% 0%, #0b1830 0%, #060d1c 55%, #04060f 100%); border: 1px solid rgba(120,160,220,0.12); }
+#bee-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#bee-layer { position: absolute; inset: 0; pointer-events: none; }
+.bee { position: absolute; left: 0; top: 0; pointer-events: auto; text-decoration: none; will-change: transform; }
+.bee-body { position: absolute; width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%); background: radial-gradient(circle, hsl(var(--bee-hue) 92% 62% / 0.9), hsl(var(--bee-hue) 92% 62% / 0) 70%); transition: transform 0.12s ease; }
+.bee-glyph { position: absolute; transform: translate(-50%, -50%); font-size: 15px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.55)); transition: transform 0.12s ease; }
+.bee-name { position: absolute; transform: translate(9px, -50%); white-space: nowrap; font: 600 10px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.02em; color: hsl(var(--bee-hue) 85% 80%); text-shadow: 0 1px 2px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95); }
+.bee:hover { z-index: 5; }
+.bee:hover .bee-glyph { transform: translate(-50%, -50%) scale(1.7); }
+.bee:hover .bee-body { transform: translate(-50%, -50%) scale(1.5); }
+.bee:hover .bee-name { color: #fff; }
+#bee-stage.bee-off { display: flex; align-items: center; justify-content: center; }
+#bee-stage.bee-off::after { content: "the bee swarm needs WebGL2"; color: #6b86b0; font: 500 12px/1 ui-monospace, monospace; }
+#bee-stage.bee-off #bee-field, #bee-stage.bee-off #bee-layer, #bee-stage.bee-off #bee-controls { display: none; }
+#bee-controls { position: absolute; right: 12px; bottom: 12px; z-index: 8; }
+.hive-btn { background: rgba(255,216,107,0.12); border: 1px solid rgba(255,216,107,0.4); color: #ffd86b; border-radius: 999px; padding: 8px 16px; cursor: pointer; font: 600 12px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.06em; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: background 0.15s ease, transform 0.1s ease; }
+.hive-btn:hover { background: rgba(255,216,107,0.24); }
+.hive-btn:active { transform: scale(0.96); }
+@media (max-width: 640px) { #bee-stage { height: 48vh; } }
+</style>
 </head>
 <body>
 
@@ -181,6 +203,12 @@ footer a:hover { color: var(--sky); }
   <div class="sky-rule"></div>
   <p class="lede">Every tool here lives on <b>ATProto</b> — the protocol behind Bluesky. They read the public network, map its graph, dissect a handle's posts, or write records straight to your own <b>PDS</b>. No backend servers, no SaaS: static files on Cloudflare Pages, data on the open protocol. Identity, when needed, runs through one shared OAuth worker.</p>
 </header>
+
+<section id="bee-stage" aria-label="A swarm of bees — each bee is a Bluesky-corner site and a fluoddity particle. Hover a bee for its name, click to visit.">
+  <canvas id="bee-field"></canvas>
+  <div id="bee-layer"></div>
+  <div id="bee-controls"></div>
+</section>
 
 <nav class="catnav">
   <a href="#social">Social apps</a>
@@ -285,5 +313,6 @@ footer a:hover { color: var(--sky); }
   <span>the ATmosphere corner</span>
 </footer>
 
+<script type="module" src="./bees.js"></script>
 </body>
 </html>

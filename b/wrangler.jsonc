@@ -1,14 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "b",
+  "main": "worker.js",
   "compatibility_date": "2026-02-20",
   "routes": [
     { "pattern": "b.mino.mobi", "custom_domain": true }
   ],
   // b.mino.mobi — the Bluesky corner of mino.mobi (b = Bluesky, companion to
-  // g = graphics). Hosts the disk Poincaré interaction map at /disk.
+  // g = graphics). Hosts the disk Poincaré interaction map at /disk and the
+  // feedgen feed builder at /feedgen. The worker also serves this domain as a
+  // feed-generator service (did:web:b.mino.mobi + getFeedSkeleton); every other
+  // path falls through to the static site via the ASSETS binding.
   // (atmosphere.mino.mobi retired — detach it in the dashboard.)
+  // Search service secrets BLUESKY_MORPHYX_HANDLE/_APP_PASSWORD are injected by
+  // deploy-b.yml from the GH secrets (the shared morphyx account).
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS"
   }
 }
