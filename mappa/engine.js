@@ -94,6 +94,7 @@ export function generateWorld(seed, opts={}){
   const rnd=mulberry32(seed>>>0);
   const N=opts.N||2200;
   const oceanFraction = opts.oceanFraction ?? (0.58+rnd()*0.12); // varies per world
+  const axialTilt = opts.axialTilt ?? (0.12+rnd()*0.47);          // ~7°–34°, drives seasonality
 
   // 1. Fibonacci sphere points -------------------------------------------------
   const ga=Math.PI*(3-Math.sqrt(5)), rot=rnd()*6.283;
@@ -178,32 +179,38 @@ export function generateWorld(seed, opts={}){
   const distSea=new Int16Array(N).fill(-1);{const q=[];for(let i=0;i<N;i++)if(water[i]===1){distSea[i]=0;q.push(i)}
     for(let h=0;h<q.length;h++){const i=q[h];for(const j of adj[i])if(distSea[j]<0){distSea[j]=distSea[i]+1;q.push(j)}}}
   let maxD=1;for(let i=0;i<N;i++)if(distSea[i]>maxD)maxD=distSea[i];
-  const temperature=new Float32Array(N), moisture=new Float32Array(N), biome=new Uint8Array(N);
+  const temperature=new Float32Array(N), moisture=new Float32Array(N), seasonality=new Float32Array(N), biome=new Uint8Array(N);
   for(let i=0;i<N;i++){
     const la=lat(i), alat=Math.abs(la)/(Math.PI/2);
-    let T=28 - 45*Math.pow(alat,1.25);            // latitudinal temperature
+    let T=28 - 45*Math.pow(alat,1.25);            // mean annual temperature
     if(water[i]===0)T-=Math.max(0,elev[i])*42;     // altitude lapse on land
     T+=(fbm3(V[i][0]*3+9,V[i][1]*3,V[i][2]*3,seed+5)-0.5)*5;
     temperature[i]=T;
     // moisture: coastal proximity × latitude rainfall bands (+noise)
     const coast=Math.exp(-(distSea[i]/Math.max(3,maxD*0.5)));
-    const band=0.5+0.5*Math.cos((la*3.0));         // wet equator/mid, dry subtropics(~30°)
+    const band=0.5+0.5*Math.cos((la*3.0));
     let M=Math.max(0,Math.min(1, coast*0.6 + band*0.45 - Math.max(0,elev[i])*0.25
         + (fbm3(V[i][0]*2-4,V[i][1]*2,V[i][2]*2,seed+11)-0.5)*0.3));
     moisture[i]=M;
+    // seasonality: axial tilt × latitude × continentality → annual winter depth
+    const contl = water[i]===1?0 : Math.min(1, distSea[i]/Math.max(3,maxD*0.5));
+    const seas = (axialTilt/0.41) * (8 + 34*Math.pow(alat,1.1)) * (0.55+0.75*contl);
+    seasonality[i]=seas;
+    const Teff = T - 0.32*seas; // growing-season-limited temperature for biomes
     biome[i]= water[i]===1 ? (elev[i]>-0.12?BI.ocean_shelf:BI.ocean_deep)
             : water[i]===2 ? BI.lake
-            : classify(T,M,elev[i]);
+            : classify(Teff,M,elev[i]);
   }
 
   // plate-boundary segments (for tectonic view)
   const bounds=[];for(const[k,ts]of e2t){if(ts.length!==2)continue;const[a,b]=k.split(',').map(Number);if(plate[a]===plate[b])continue;bounds.push({a:cc[ts[0]],b:cc[ts[1]],c:(conv[a]+conv[b])/2})}
 
   return {
-    meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),seaLevelRaw:+sl.toFixed(4)},
+    meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),axialTilt:+axialTilt.toFixed(3),
+      axialTiltDeg:Math.round(axialTilt*180/Math.PI),seaLevelRaw:+sl.toFixed(4)},
     N, V, cells, adj, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
     plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
-    elev, water, temperature, moisture, biome, conv, bounds, rivers,
+    elev, water, temperature, moisture, seasonality, biome, conv, bounds, rivers,
     _euler:{tris:tris.length, Vc:N+1},
   };
 }
