@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/procedural-board-games-iFAiZ'
     paths:
       - 'games/**'
       - 'packages/oauth-client/**'
