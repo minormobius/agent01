@@ -8,7 +8,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/merge-candidate-features-ciJkT",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
