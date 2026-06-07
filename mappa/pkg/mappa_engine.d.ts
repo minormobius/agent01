@@ -1,10 +1,9 @@
 /* tslint:disable */
 /* eslint-disable */
 
-/**
- * Tiny self-describing hook so callers can confirm the module loaded.
- */
 export function engine_version(): number;
+
+export function generate_world(seed: number, n: number): any;
 
 export function triangulate_xy(coords: Float64Array): Uint32Array;
 
@@ -13,10 +12,12 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly engine_version: () => number;
+    readonly generate_world: (a: number, b: number, c: number) => void;
     readonly triangulate_xy: (a: number, b: number, c: number) => void;
-    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number) => number;
-    readonly __wbindgen_export2: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
+    readonly __wbindgen_export3: (a: number, b: number, c: number) => void;
 }
 
 export type SyncInitInput = BufferSource | WebAssembly.Module;
