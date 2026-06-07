@@ -99,14 +99,21 @@ export function generateWorld(seed, opts={}){
   const _of=0.58+rnd()*0.12, _at=0.12+rnd()*0.47; // always draw (keep RNG stream stable under overrides)
   const oceanFraction = opts.oceanFraction ?? _of; // varies per world
   const axialTilt = opts.axialTilt ?? _at;          // ~7°–34°, drives seasonality
-  const solar = opts.solar ?? 1.0;                                // stellar luminosity (1 = sun-like) → global temperature
+  const solar = opts.solar ?? 1.0;                  // stellar luminosity (1 = sun-like) → global temperature
+  const planetRadius = opts.planetRadius ?? 1.0;    // Earth=1. bigger → more plates + (higher gravity) lower relief
+  const age = Math.max(1, Math.round(opts.age ?? 4)); // geological epochs → plate drift + orogenic-belt development
+  const plateScale = Math.min(3.0, Math.max(0.35, Math.pow(planetRadius,1.3)));   // area ∝ r²
+  const reliefScale = Math.min(1.9, Math.max(0.45, Math.pow(planetRadius,-0.55))); // relief ∝ 1/gravity
+  const DT=0.1, ageSpan = age*DT;                   // total plate-drift time
+  const rotAx=(v,a,phi)=>{const c=Math.cos(phi),s=Math.sin(phi),d=a[0]*v[0]+a[1]*v[1]+a[2]*v[2];
+    return [v[0]*c+(a[1]*v[2]-a[2]*v[1])*s+a[0]*d*(1-c), v[1]*c+(a[2]*v[0]-a[0]*v[2])*s+a[1]*d*(1-c), v[2]*c+(a[0]*v[1]-a[1]*v[0])*s+a[2]*d*(1-c)]};
 
   // 0. plates first — so sampling can concentrate resolution where it matters --
   const ga=Math.PI*(3-Math.sqrt(5));
-  const _pc=12+Math.floor(rnd()*10); const plateCount = opts.plateCount || _pc; // 12..21 — more plates → more coastline
+  const _pc=12+Math.floor(rnd()*10); const plateCount = opts.plateCount || Math.max(4,Math.min(44,Math.round(_pc*plateScale)));
   const plates=[];
-  for(let i=0;i<plateCount;i++){const c=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);
-    plates.push({ center:c, oceanic: rnd()<oceanFraction?1:0, axis:norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]), speed:0.4+rnd()*1.0, buoy:0.12+rnd()*0.30 });}
+  for(let i=0;i<plateCount;i++){const c0=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);const oceanic=rnd()<oceanFraction?1:0;const axis=norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]);const speed=0.4+rnd()*1.0;const buoy=0.12+rnd()*0.30;
+    plates.push({ center0:c0, center:rotAx(c0,axis,speed*ageSpan), oceanic, axis, speed, buoy });} // center = present (drifted) position
   const top2=p=>{let d1=-2,d2=-2,k1=0;for(let s=0;s<plateCount;s++){const d=p[0]*plates[s].center[0]+p[1]*plates[s].center[1]+p[2]*plates[s].center[2];if(d>d1){d2=d1;d1=d;k1=s}else if(d>d2)d2=d}return[d1,d2,k1]};
   // domain-warp the plate query → fractal, jagged boundaries (not smooth Voronoi arcs)
   const warp=p=>{const f=2.6,g=6.3,A=0.34,B=0.14;
@@ -160,6 +167,23 @@ export function generateWorld(seed, opts={}){
         else { const volc=fbm3(V[i][0]*9.3,V[i][1]*9.3,V[i][2]*9.3,seed+71); lf+=rel*(volc>0.64?0.55:0.04); } } // ocean-ocean: SPARSE volcanic arc, not a welded strip
       else { const dv=-rel; if(oi)lf+=dv*0.35; else lf-=dv*0.45; }}
     if(nn){conv[i]=cs/nn;if(!oi&&mt>0)mountSrc[i]=mt;localF[i]=lf}}
+  // multi-epoch OROGENY: as the plates drift over `age` epochs, accumulate
+  // continental convergence — so mountain belts develop and WIDEN with geological
+  // age (history, not a single snapshot). Boundaries are the same warped/jagged
+  // lines as the present (wV reused across epochs).
+  const wV=V.map(p=>warp(p));
+  const mountAccum=new Float32Array(N);
+  const STEPS=Math.max(2,Math.min(12,age+1));
+  for(let s=0;s<STEPS;s++){const t=ageSpan*s/(STEPS-1);
+    const ct=plates.map(pl=>rotAx(pl.center0,pl.axis,pl.speed*t));
+    const pe=new Int16Array(N);
+    for(let i=0;i<N;i++){let bk=0,bd=-2;for(let k=0;k<plateCount;k++){const d=wV[i][0]*ct[k][0]+wV[i][1]*ct[k][1]+wV[i][2]*ct[k][2];if(d>bd){bd=d;bk=k}}pe[i]=bk}
+    for(let i=0;i<N;i++){if(plates[pe[i]].oceanic)continue;const a=plates[pe[i]].axis,sp=plates[pe[i]].speed,vi=scl(cross(a,V[i]),sp);let up=0;
+      for(const j of adj[i]){if(pe[j]===pe[i])continue;const oj=plates[pe[j]].oceanic;
+        const dir=norm(sub(V[j],scl(V[i],dot(V[i],V[j]))));const vj=scl(cross(plates[pe[j]].axis,V[j]),plates[pe[j]].speed);
+        const rel=dot(sub(vi,vj),dir);if(rel>0)up+= oj?rel*0.7:rel*1.0;}
+      if(up>mountAccum[i])mountAccum[i]=up;}} // MAX over epochs: present strength, belts widen with drift
+  for(let i=0;i<N;i++)mountSrc[i]=mountAccum[i];
   let mf=Float32Array.from(mountSrc);
   for(let it=0;it<3;it++){const nf=Float32Array.from(mf);for(let i=0;i<N;i++){if(ptype(i))continue;let m=mf[i];for(const j of adj[i])if(!ptype(j))m=Math.max(m,mf[j]*0.66);nf[i]=m}mf=nf}
   const elevRaw=new Float32Array(N);
@@ -200,7 +224,7 @@ export function generateWorld(seed, opts={}){
   const elev=new Float32Array(N);for(let i=0;i<N;i++)elev[i]=elevRaw[i]-sl; // 0 = shore
   // mild hypsometry compression (erosion already does most of the shaping)
   let landMax=1e-6;for(let i=0;i<N;i++)if(elev[i]>landMax)landMax=elev[i];
-  for(let i=0;i<N;i++)if(elev[i]>0)elev[i]=Math.pow(elev[i]/landMax,1.5)*0.95;
+  for(let i=0;i<N;i++)if(elev[i]>0)elev[i]=Math.pow(elev[i]/landMax,1.5)*0.95*reliefScale; // gravity scales relief
   const water=new Uint8Array(N);// 0 land, 1 ocean, 2 lake
   for(let i=0;i<N;i++)water[i]=elev[i]>0?0:1;
 
@@ -252,7 +276,8 @@ export function generateWorld(seed, opts={}){
   return {
     meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),waterFrac:+waterFrac.toFixed(3),
       seaCoverage:+(oceanA/totA).toFixed(3),axialTilt:+axialTilt.toFixed(3),
-      axialTiltDeg:Math.round(axialTilt*180/Math.PI),solar:+solar.toFixed(3),seaLevelRaw:+sl.toFixed(4)},
+      axialTiltDeg:Math.round(axialTilt*180/Math.PI),solar:+solar.toFixed(3),
+      planetRadius:+planetRadius.toFixed(3),age,ageSpan:+ageSpan.toFixed(3),seaLevelRaw:+sl.toFixed(4)},
     N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
     plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
     elev, water, temperature, moisture, seasonality, biome, conv, bounds, rivers,

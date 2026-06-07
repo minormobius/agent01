@@ -10,7 +10,7 @@ import { SITES, WINGS } from './sites.js';
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=3');await m.default('./pkg/mappa_engine_bg.wasm?v=3');const v=(m.engine_version?m.engine_version():0);
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=4');await m.default('./pkg/mappa_engine_bg.wasm?v=4');const v=(m.engine_version?m.engine_version():0);
   if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
   else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
 }catch(e){rustGen=false}}
@@ -27,14 +27,14 @@ function unpackRust(o){const N=o.n,pos=o.positions;
   const pp=o.plates_out,plates=[];for(let k=0;k+7<pp.length;k+=8)plates.push({center:[pp[k],pp[k+1],pp[k+2]],axis:[pp[k+3],pp[k+4],pp[k+5]],speed:pp[k+6],oceanic:pp[k+7]});
   const m=o.meta;
   return {N,V,cells,adj,elev:o.elev,water:o.water,plate:o.plate,plateType:o.plate_type,temperature:o.temperature,moisture:o.moisture,seasonality:o.seasonality,biome:o.biome,rivers,bounds,plates,
-    meta:{seed:m.seed,N:m.n,plateCount:m.plate_count,oceanFraction:m.ocean_fraction,waterFrac:m.water_frac,seaCoverage:m.sea_coverage,axialTilt:m.axial_tilt,axialTiltDeg:m.axial_tilt_deg}};
+    meta:{seed:m.seed,N:m.n,plateCount:m.plate_count,oceanFraction:m.ocean_fraction,waterFrac:m.water_frac,seaCoverage:m.sea_coverage,axialTilt:m.axial_tilt,axialTiltDeg:m.axial_tilt_deg,solar:m.solar,planetRadius:m.planet_radius,age:m.age,ageSpan:m.age_span}};
 }
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, mode='orb', atlasOn=true;
-const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null}; // null = derive from seed
+const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null}; // null = derive from seed
 const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
 let driftT=0.5; // tectonic drift interval (how far back the plate trails reach)
@@ -60,10 +60,10 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0})}
+function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined})}
 function build(){const g=genome;let w=null;
-  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
-  world=w||genJS(g);
+  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
+  world=w||genJS(g);driftT=(world.meta&&world.meta.ageSpan)||0.5;
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
@@ -238,6 +238,8 @@ const sliders=[
   ['waterFrac',     $('sWater'),  $('vWater'),  v=>v+'% water',          v=>v/100,         m=>Math.round(m.waterFrac*100)],
   ['oceanFraction', $('sOcean'),  $('vOcean'),  v=>v+'% crust',          v=>v/100,         m=>Math.round(m.oceanFraction*100)],
   ['plateCount',    $('sPlates'), $('vPlates'), v=>v+' plates',          v=>v|0,           m=>m.plateCount],
+  ['planetRadius',  $('sRadius'), $('vRadius'), v=>v.toFixed(2)+'×R⊕',    v=>+v,            m=>(m.planetRadius??1)],
+  ['age',           $('sAge'),    $('vAge'),    v=>v+' epochs',          v=>v|0,           m=>(m.age??4)],
 ];
 function syncSliders(){const m=world.meta;
   for(const [p,sl,vl,fmt,,fromMeta] of sliders){const lab=sl.closest('label');

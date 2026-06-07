@@ -22,6 +22,8 @@ type V3 = [f64; 3];
 #[inline] fn dot(a: V3, b: V3) -> f64 { a[0]*b[0] + a[1]*b[1] + a[2]*b[2] }
 #[inline] fn cross(a: V3, b: V3) -> V3 { [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]] }
 #[inline] fn norm(a: V3) -> V3 { let l = (a[0]*a[0]+a[1]*a[1]+a[2]*a[2]).sqrt().max(1e-30); [a[0]/l, a[1]/l, a[2]/l] }
+#[inline] fn rot_ax(v: V3, a: V3, phi: f64) -> V3 { let (c,s)=(phi.cos(),phi.sin()); let d=a[0]*v[0]+a[1]*v[1]+a[2]*v[2];
+    [v[0]*c+(a[1]*v[2]-a[2]*v[1])*s+a[0]*d*(1.0-c), v[1]*c+(a[2]*v[0]-a[0]*v[2])*s+a[1]*d*(1.0-c), v[2]*c+(a[0]*v[1]-a[1]*v[0])*s+a[2]*d*(1.0-c)] }
 
 // ---- prng (mulberry32, u32 arithmetic mirrors JS) ---------------------------
 struct Rng { a: u32 }
@@ -108,7 +110,7 @@ fn classify(t: f64, m: f64, e_above: f64) -> u8 {
 
 #[derive(Serialize)]
 struct Meta { seed: u32, n: usize, plate_count: usize, ocean_fraction: f64,
-    water_frac: f64, sea_coverage: f64, axial_tilt: f64, axial_tilt_deg: i32, solar: f64 }
+    water_frac: f64, sea_coverage: f64, axial_tilt: f64, axial_tilt_deg: i32, solar: f64, planet_radius: f64, age: i32, age_span: f64 }
 
 #[derive(Serialize)]
 struct World {
@@ -132,10 +134,10 @@ struct World {
     plates_out: Vec<f32>,     // 8 per: cx,cy,cz,ax,ay,az,speed,oceanic
 }
 
-struct Plate { center: V3, oceanic: bool, axis: V3, speed: f64, buoy: f64 }
+struct Plate { center0: V3, center: V3, oceanic: bool, axis: V3, speed: f64, buoy: f64 }
 
 // the genome — any field can override the seed-derived value (sentinel < 0 = derive)
-struct Params { ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64 }
+struct Params { ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32 }
 
 fn build(seed: u32, target_n: usize, p: Params) -> World {
     let mut rng = Rng::new(seed);
@@ -146,20 +148,23 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
     let ocean_fraction = if p.ocean_fraction >= 0.0 { p.ocean_fraction } else { ocean_fraction_d };
     let axial_tilt = if p.axial_tilt >= 0.0 { p.axial_tilt } else { axial_tilt_d };
     let solar = if p.solar > 0.0 { p.solar } else { 1.0 };
+    let planet_radius = if p.planet_radius > 0.0 { p.planet_radius } else { 1.0 };
+    let age = (if p.age > 0 { p.age } else { 4 }).max(1).min(20);
+    let plate_scale = planet_radius.powf(1.3).clamp(0.35, 3.0);       // area ∝ r²
+    let relief_scale = planet_radius.powf(-0.55).clamp(0.45, 1.9);    // relief ∝ 1/gravity
+    let dt = 0.1; let age_span = age as f64 * dt;                     // total plate-drift time
 
     // plates first
     let plate_count_d = 12 + (rng.next()*10.0).floor() as usize; // 12..21
-    let plate_count = if p.plate_count > 0 { p.plate_count as usize } else { plate_count_d };
+    let plate_count = if p.plate_count > 0 { p.plate_count as usize } else { ((plate_count_d as f64 * plate_scale).round() as i64).clamp(4, 44) as usize };
     let mut plates: Vec<Plate> = Vec::with_capacity(plate_count);
     for _ in 0..plate_count {
-        let c = norm([rng.next()*2.0-1.0, rng.next()*2.0-1.0, rng.next()*2.0-1.0]);
-        plates.push(Plate {
-            center: c,
-            oceanic: rng.next() < ocean_fraction,
-            axis: norm([rng.next()-0.5, rng.next()-0.5, rng.next()-0.5]),
-            speed: 0.4 + rng.next()*1.0,
-            buoy: 0.12 + rng.next()*0.30,
-        });
+        let c0 = norm([rng.next()*2.0-1.0, rng.next()*2.0-1.0, rng.next()*2.0-1.0]);
+        let oceanic = rng.next() < ocean_fraction;
+        let axis = norm([rng.next()-0.5, rng.next()-0.5, rng.next()-0.5]);
+        let speed = 0.4 + rng.next()*1.0;
+        let buoy = 0.12 + rng.next()*0.30;
+        plates.push(Plate { center0: c0, center: rot_ax(c0, axis, speed*age_span), oceanic, axis, speed, buoy }); // center = present (drifted)
     }
     let top2 = |p: V3, plates: &Vec<Plate>| -> (f64, f64, usize) {
         let (mut d1, mut d2, mut k1) = (-2.0, -2.0, 0usize);
@@ -290,6 +295,38 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
         }
         if nn > 0 { conv[i] = cs/nn as f64; if !oi && mt > 0.0 { mount_src[i] = mt; } local_f[i] = lf; }
     }
+    // multi-epoch OROGENY — plates drift over `age` epochs; keep the MAX convergence
+    // each cell ever saw, so belts widen with geological age (history, not a snapshot).
+    let wv: Vec<V3> = (0..n).map(|i| warp(vv[i])).collect();
+    let mut mount_accum = vec![0.0f64; n];
+    let steps = ((age + 1).max(2).min(12)) as usize;
+    for s in 0..steps {
+        let t = age_span * s as f64 / (steps as f64 - 1.0);
+        let ct: Vec<V3> = plates.iter().map(|pl| rot_ax(pl.center0, pl.axis, pl.speed * t)).collect();
+        let pe: Vec<usize> = (0..n).map(|i| {
+            let mut bk = 0usize; let mut bd = -2.0;
+            for k in 0..ct.len() { let d = wv[i][0]*ct[k][0] + wv[i][1]*ct[k][1] + wv[i][2]*ct[k][2]; if d > bd { bd = d; bk = k; } }
+            bk
+        }).collect();
+        for i in 0..n {
+            if plates[pe[i]].oceanic { continue; }
+            let a = plates[pe[i]].axis; let sp = plates[pe[i]].speed;
+            let vi = { let c = cross(a, vv[i]); [c[0]*sp, c[1]*sp, c[2]*sp] };
+            let mut up = 0.0;
+            for &jj in &adj_set[i] {
+                let j = jj as usize;
+                if pe[j] == pe[i] { continue; }
+                let oj = plates[pe[j]].oceanic;
+                let dv = dot(vv[i], vv[j]);
+                let dir = norm(sub(vv[j], [vv[i][0]*dv, vv[i][1]*dv, vv[i][2]*dv]));
+                let vj = { let c = cross(plates[pe[j]].axis, vv[j]); [c[0]*plates[pe[j]].speed, c[1]*plates[pe[j]].speed, c[2]*plates[pe[j]].speed] };
+                let rel = dot([vi[0]-vj[0], vi[1]-vj[1], vi[2]-vj[2]], dir);
+                if rel > 0.0 { up += if oj { rel*0.7 } else { rel*1.0 }; }
+            }
+            if up > mount_accum[i] { mount_accum[i] = up; }
+        }
+    }
+    for i in 0..n { mount_src[i] = mount_accum[i]; }
     // diffuse mountains over continental cells
     let mut mf = mount_src.clone();
     for _ in 0..3 {
@@ -380,7 +417,7 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
     let mut elev = vec![0.0f64; n];
     for i in 0..n { elev[i] = elev_raw[i] - sl; }
     let mut land_max = 1e-6; for i in 0..n { if elev[i] > land_max { land_max = elev[i]; } }
-    for i in 0..n { if elev[i] > 0.0 { elev[i] = (elev[i]/land_max).powf(1.5)*0.95; } }
+    for i in 0..n { if elev[i] > 0.0 { elev[i] = (elev[i]/land_max).powf(1.5)*0.95*relief_scale; } }
     let mut water = vec![0u8; n];
     for i in 0..n { water[i] = if elev[i] > 0.0 { 0 } else { 1 }; }
 
@@ -495,6 +532,7 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
             axial_tilt: (axial_tilt*1000.0).round()/1000.0,
             axial_tilt_deg: (axial_tilt*180.0/std::f64::consts::PI).round() as i32,
             solar: (solar*1000.0).round()/1000.0,
+            planet_radius: (planet_radius*1000.0).round()/1000.0, age, age_span: (age_span*1000.0).round()/1000.0,
         },
         positions, cell_verts, cell_offsets, adj: adj_flat, adj_offsets,
         elev: elev_f, water, plate, plate_type,
@@ -505,8 +543,8 @@ fn build(seed: u32, target_n: usize, p: Params) -> World {
 
 // ---- wasm API ---------------------------------------------------------------
 #[wasm_bindgen]
-pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64) -> Result<JsValue, JsValue> {
-    let p = Params { ocean_fraction, axial_tilt, water_frac, plate_count, solar };
+pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32) -> Result<JsValue, JsValue> {
+    let p = Params { ocean_fraction, axial_tilt, water_frac, plate_count, solar, planet_radius, age };
     let w = build(seed, (n as usize).clamp(500, 220000), p);
     serde_wasm_bindgen::to_value(&w).map_err(|e| JsValue::from_str(&e.to_string()))
 }
@@ -519,4 +557,4 @@ pub fn triangulate_xy(coords: &[f64]) -> Vec<u32> {
 }
 
 #[wasm_bindgen]
-pub fn engine_version() -> u32 { 3 }
+pub fn engine_version() -> u32 { 4 }
