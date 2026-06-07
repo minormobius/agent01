@@ -4,300 +4,59 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0c0a07">
-<title>mino.mobi · mappa mundi</title>
-<meta name="description" content="A procedurally-generated world where every mino.mobi surface is a city. Theme-wings are countries; founding dates are tectonic history.">
+<title>mino.mobi · mappa — a world engine</title>
+<meta name="description" content="A procedurally-generated planet: spherical plate tectonics, climate, biomes, rivers and lakes — rendered as a globe and a true Mercator map. The mino.mobi atlas is a habitability projection on top.">
 <style>
-:root{--ink:#2a2118;--sea:#3a5a6b;--gold:#a9802f;--parch:#e8dcc0;--frame:#1c150d}
+:root{--gold:#a9802f;--parch:#e8dcc0}
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
-body{background:#0c0a07;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;
-  overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-#map{position:fixed;inset:0;display:block;cursor:grab;background:#0c0a07;touch-action:none}
+body{background:#070a0c;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#map{position:fixed;inset:0;display:block;cursor:grab;background:#070a0c;touch-action:none}
 #map.drag{cursor:grabbing}
-header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:baseline;gap:12px;padding:12px 18px;pointer-events:none;
-  background:linear-gradient(#0c0a07cc,#0c0a0700)}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:11px 16px;pointer-events:none;background:linear-gradient(#070a0ccc,#070a0c00)}
 header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
-header h1{font:600 16px/1 ui-serif,'Iowan Old Style',Georgia,serif;letter-spacing:.04em;color:var(--parch)}
-header .sub{color:#b7a988;font-size:12.5px;font-style:italic}
-header .right{margin-left:auto;display:flex;gap:8px;pointer-events:auto}
+.modes{display:flex;gap:4px;pointer-events:auto;background:#140f08aa;border:1px solid #2c2316;border-radius:8px;padding:3px}
+.modes button{background:none;border:0;color:#b7a988;padding:4px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.modes button.on{background:#2a2114;color:var(--gold)}
+.right{margin-left:auto;display:flex;gap:8px;pointer-events:auto}
 button,input{font:inherit}
 .btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
-.btn:hover{border-color:var(--gold)}
-#q{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:999px;width:160px;outline:none;font-size:12.5px}
+.btn:hover{border-color:var(--gold)}.btn.on{border-color:var(--gold);color:var(--gold)}
+#q{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:999px;width:132px;outline:none;font-size:12.5px}
 #q:focus{border-color:var(--gold)}
-footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 18px;pointer-events:none;
-  background:linear-gradient(#0c0a0700,#0c0a07dd)}
-.scrub{pointer-events:auto;display:flex;align-items:center;gap:10px;flex:1;max-width:560px}
+footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 16px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cdd)}
+.scrub{pointer-events:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto;width:340px;max-width:42vw}
 .scrub input[type=range]{flex:1;accent-color:var(--gold)}
-.era{font-size:12px;color:#b7a988;font-variant-numeric:tabular-nums;min-width:96px}
-.legend{pointer-events:auto;display:flex;flex-wrap:wrap;gap:5px 7px;justify-content:flex-end;max-width:48vw}
+.era{font-size:12px;color:#b7a988;font-variant-numeric:tabular-nums;min-width:90px}
+.legend{pointer-events:auto;display:flex;flex-wrap:wrap;gap:5px 7px;justify-content:flex-end;max-width:52vw;margin-left:auto;max-height:84px;overflow:hidden}
 .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;border:1px solid #3a2e1c;background:#1a140ccc;font-size:11.5px;color:#b7a988;cursor:pointer}
 .chip .dot{width:8px;height:8px;border-radius:2px}.chip.off{opacity:.35}
-#tip{position:fixed;z-index:9;pointer-events:none;opacity:0;transform:translate(-50%,-135%);background:#19120bf5;border:1px solid #3a2e1c;
-  border-radius:7px;padding:6px 9px;max-width:230px;font-size:12px;transition:opacity .1s}
-#tip b{color:var(--gold)}#tip .m{color:#9c8a6c;font-size:11px}#tip .open{color:var(--gold);font-size:10.5px;letter-spacing:.03em}
-@media (max-width:640px){
-  header{padding:8px 10px;gap:6px;flex-wrap:wrap}
-  header h1{font-size:14px} header .sub{display:none}
-  header .right{width:100%;margin-left:0;margin-top:2px} #q{flex:1;width:auto}
-  footer{flex-direction:column;align-items:stretch;gap:8px;padding:8px 10px 12px}
-  .scrub{max-width:none}
-  .legend{max-width:none;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
-  .legend::-webkit-scrollbar{display:none}
-  .chip{flex:0 0 auto}
+#tip{position:fixed;z-index:9;pointer-events:none;opacity:0;transform:translate(-50%,-135%);background:#19120bf5;border:1px solid #3a2e1c;border-radius:7px;padding:6px 9px;max-width:240px;font-size:12px;transition:opacity .1s}
+#tip b{color:var(--gold)}#tip .m{color:#9c8a6c;font-size:11px}#tip .open{color:var(--gold);font-size:10.5px}
+#tkey{position:fixed;left:16px;bottom:64px;z-index:6;background:#140f08e0;border:1px solid #2c2316;border-radius:8px;padding:8px 11px;font-size:11.5px;color:#b7a988;display:none}
+#tkey.show{display:block}#tkey b{color:var(--parch)}#tkey i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+@media (max-width:760px){
+  header{padding:8px 9px;gap:6px;flex-wrap:wrap}
+  .right{width:100%;margin-left:0;margin-top:2px}#q{flex:1;width:auto}
+  footer{flex-direction:column;align-items:stretch;gap:8px;padding:8px 9px 12px}.scrub{width:auto;max-width:none}
+  .legend{max-width:none;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;max-height:none;padding-bottom:2px}.legend::-webkit-scrollbar{display:none}.chip{flex:0 0 auto}
+  #tkey{bottom:auto;top:96px}
 }
-@media (max-width:640px) and (display-mode:standalone){footer{padding-bottom:calc(12px + env(safe-area-inset-bottom))}}
 </style>
 </head>
 <body>
 <canvas id="map"></canvas>
 <header>
   <a href="https://mino.mobi/">mino.mobi</a>
-  <h1>mappa mundi</h1>
-  <span class="sub">— every surface a city; the wings are countries; founding dates are tectonics</span>
-  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn" id="reseed">↻ new world</button></span>
+  <span class="modes"><button data-m="orb" class="on">Orb</button><button data-m="map">Mercator</button><button data-m="tectonic">Tectonic</button></span>
+  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="reseed">↻ new world</button></span>
 </header>
+<div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">▸ arrows = Euler-pole drift · cool = oceanic plate</span></div>
 <div id="tip"></div>
 <footer>
-  <div class="scrub">
-    <button class="btn" id="play">▶ chronicle</button>
-    <input type="range" id="time" min="0" max="1000" value="1000">
-    <span class="era" id="era">all founded</span>
-  </div>
+  <div class="scrub"><button class="btn" id="play">▶ chronicle</button>
+    <input type="range" id="time" min="0" max="1000" value="1000"><span class="era" id="era">all founded</span></div>
   <div class="legend" id="legend"></div>
 </footer>
-<script>
-const D={"wings":[{"id":"social","label":"The Social Layer","hue":205,"cx":0.13,"cy":0.3},{"id":"lenses","label":"Lenses","hue":265,"cx":0.16,"cy":0.66},{"id":"bench","label":"The Workbench","hue":32,"cx":0.18,"cy":0.9},{"id":"cards","label":"The Card Table","hue":345,"cx":0.45,"cy":0.16},{"id":"studio","label":"The Studio","hue":158,"cx":0.47,"cy":0.43},{"id":"arcade","label":"The Arcade","hue":48,"cx":0.81,"cy":0.17},{"id":"sandbox","label":"Simulations & Sandboxes","hue":122,"cx":0.84,"cy":0.46},{"id":"math","label":"Interactive Mathematics","hue":190,"cx":0.69,"cy":0.81},{"id":"reading","label":"The Reading Room","hue":18,"cx":0.91,"cy":0.83}],"nodes":[{"n":"poll","u":"https://poll.mino.mobi","k":75,"a":"warm","b":"2026-03-07","f":0.132,"w":"social","w2":null},{"n":"airchat","u":"https://airchat.mino.mobi","k":25,"a":"hot","b":"2026-05-20","f":0.83,"w":"social","w2":null},{"n":"zoom","u":"https://zoom.mino.mobi","k":23,"a":"warm","b":"2026-03-26","f":0.311,"w":"social","w2":null},{"n":"weft","u":"https://mino.mobi/weft/","k":19,"a":"hot","b":"2026-04-24","f":0.585,"w":"lenses","w2":"social"},{"n":"bisk","u":"https://bisk.mino.mobi","k":1,"a":"hot","b":"2026-05-24","f":0.868,"w":"social","w2":null},{"n":"empathy","u":"https://empath.mino.mobi","k":1,"a":"hot","b":"2026-05-28","f":0.906,"w":"lenses","w2":null},{"n":"photo","u":"https://photo.mino.mobi","k":39,"a":"hot","b":"2026-03-16","f":0.217,"w":"studio","w2":null},{"n":"thread","u":"https://photo.mino.mobi/#/thread","k":3,"a":"hot","b":"","f":0.6,"w":"studio","w2":null},{"n":"astro","u":"https://photo.mino.mobi/astro/","k":4,"a":"hot","b":"","f":0.6,"w":"studio","w2":null},{"n":"prism","u":"https://photo.mino.mobi/prism/","k":3,"a":"hot","b":"","f":0.6,"w":"studio","w2":null},{"n":"ternary","u":"https://mino.mobi/ternary/","k":7,"a":"warm","b":"2026-03-05","f":0.113,"w":"lenses","w2":null},{"n":"judge","u":"https://mino.mobi/judge/","k":9,"a":"cold","b":"2026-03-04","f":0.104,"w":"lenses","w2":null},{"n":"novelty","u":"https://mino.mobi/novelty/","k":12,"a":"cold","b":"2026-03-04","f":0.104,"w":"lenses","w2":null},{"n":"echo","u":"https://mino.mobi/echo/","k":1,"a":"cold","b":"2026-03-05","f":0.113,"w":"lenses","w2":null},{"n":"density","u":"https://mino.mobi/density/","k":5,"a":"cold","b":"2026-02-28","f":0.066,"w":"lenses","w2":null},{"n":"seek","u":"https://mino.mobi/seek/","k":3,"a":"cold","b":"2026-02-28","f":0.066,"w":"lenses","w2":null},{"n":"cluster","u":"https://mino.mobi/cluster/","k":10,"a":"cold","b":"2026-02-28","f":0.066,"w":"lenses","w2":null},{"n":"wild","u":"https://mino.mobi/wild/","k":3,"a":"warm","b":"2026-04-23","f":0.575,"w":"lenses","w2":null},{"n":"disk","u":"https://b.mino.mobi/disk/","k":2,"a":"warm","b":"2026-04-10","f":0.453,"w":"social","w2":null},{"n":"answers","u":"https://mino.mobi/answers/","k":30,"a":"hot","b":"2026-04-18","f":0.528,"w":"lenses","w2":null},{"n":"rite","u":"https://rite.mino.mobi","k":42,"a":"hot","b":"2026-05-20","f":0.83,"w":"lenses","w2":null},{"n":"fodder","u":"https://rite.mino.mobi/fodder/","k":8,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"redact","u":"https://rite.mino.mobi/redact/","k":4,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"ask","u":"https://rite.mino.mobi/ask/","k":6,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"atlas","u":"https://rite.mino.mobi/atlas/","k":3,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"lexicon","u":"https://rite.mino.mobi/lexicon/","k":3,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"list","u":"https://rite.mino.mobi/list/","k":3,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"web","u":"https://rite.mino.mobi/web/","k":3,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"signal","u":"https://rite.mino.mobi/signal/","k":4,"a":"hot","b":"","f":0.6,"w":"lenses","w2":null},{"n":"atmosphere","u":"https://b.mino.mobi","k":3,"a":"hot","b":"2026-05-30","f":0.925,"w":"social","w2":null},{"n":"feedgen","u":"https://b.mino.mobi/feedgen/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"social","w2":null},{"n":"tetr","u":"https://b.mino.mobi/tetr/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"social","w2":null},{"n":"cat","u":"https://cat.mino.mobi","k":5,"a":"hot","b":"2026-05-28","f":0.906,"w":"social","w2":null},{"n":"track","u":"https://mino.mobi/track/","k":15,"a":"warm","b":"2026-04-10","f":0.453,"w":"lenses","w2":null},{"n":"orb","u":"https://photo.mino.mobi/orb/","k":5,"a":"hot","b":"","f":0.6,"w":"studio","w2":null},{"n":"fractal","u":"https://photo.mino.mobi/fractal/","k":7,"a":"hot","b":"","f":0.6,"w":"studio","w2":null},{"n":"ternary2","u":"https://mino.mobi/ternary2/","k":4,"a":"warm","b":"2026-05-31","f":0.934,"w":"lenses","w2":null},{"n":"ternary3","u":"https://mino.mobi/ternary3/","k":1,"a":"warm","b":"2026-06-02","f":0.953,"w":"lenses","w2":null},{"n":"org","u":"https://org.mino.mobi","k":40,"a":"hot","b":"2026-03-25","f":0.302,"w":"bench","w2":null},{"n":"pm","u":"https://mino.mobi/pm/","k":17,"a":"warm","b":"2026-03-25","f":0.302,"w":"bench","w2":null},{"n":"wave","u":"https://wave.mino.mobi","k":10,"a":"cold","b":"2026-03-25","f":0.302,"w":"bench","w2":null},{"n":"wiki","u":"https://mino.mobi/wiki/","k":15,"a":"warm","b":"2026-04-15","f":0.5,"w":"bench","w2":null},{"n":"crm","u":"https://mino.mobi/crm/","k":14,"a":"warm","b":"2026-03-25","f":0.302,"w":"bench","w2":null},{"n":"bounty","u":"https://mino.mobi/bounty/","k":5,"a":"cold","b":"2026-03-18","f":0.236,"w":"bench","w2":null},{"n":"io","u":"https://io.mino.mobi","k":19,"a":"hot","b":"2026-05-30","f":0.925,"w":"bench","w2":null},{"n":"time","u":"https://mino.mobi/time/","k":15,"a":"cold","b":"2026-02-25","f":0.038,"w":"bench","w2":null},{"n":"mega","u":"https://mino.mobi/mega/","k":11,"a":"cold","b":"2026-03-17","f":0.226,"w":"bench","w2":null},{"n":"finance","u":"https://mino.mobi/finance/","k":28,"a":"hot","b":"2026-03-14","f":0.198,"w":"bench","w2":null},{"n":"bogo","u":"https://mino.mobi/finance/bogo/","k":2,"a":"hot","b":"2026-03-31","f":0.358,"w":"bench","w2":null},{"n":"agimet","u":"https://mino.mobi/finance/agimet/","k":2,"a":"hot","b":"","f":0.6,"w":"bench","w2":null},{"n":"stocks","u":"https://mino.mobi/finance/stocks/","k":2,"a":"hot","b":"","f":0.6,"w":"bench","w2":null},{"n":"wars","u":"https://mino.mobi/wars/","k":7,"a":"hot","b":"2026-03-17","f":0.226,"w":"bench","w2":null},{"n":"cult","u":"https://mino.mobi/wars/cult/","k":5,"a":"hot","b":"2026-04-25","f":0.594,"w":"bench","w2":null},{"n":"flows","u":"https://mino.mobi/flows/","k":5,"a":"cold","b":"2026-03-01","f":0.075,"w":"bench","w2":null},{"n":"phylo","u":"https://mino.mobi/phylo/","k":28,"a":"cold","b":"2026-02-22","f":0.009,"w":"bench","w2":null},{"n":"cards","u":"https://mino.mobi/cards/","k":122,"a":"hot","b":"2026-03-08","f":0.142,"w":"cards","w2":null},{"n":"geometry","u":"https://mino.mobi/geometry/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"erdos","u":"https://mino.mobi/erdos/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"guthkatz","u":"https://mino.mobi/guthkatz/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"hadwiger","u":"https://mino.mobi/hadwiger/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"runner","u":"https://mino.mobi/runner/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"meander","u":"https://mino.mobi/meander/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"math","w2":null},{"n":"temperley-lieb","u":"https://mino.mobi/temperley-lieb/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"math","w2":null},{"n":"aztec","u":"https://mino.mobi/aztec/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"math","w2":null},{"n":"markov","u":"https://mino.mobi/markov/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"math","w2":null},{"n":"descent","u":"https://mino.mobi/descent/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"math","w2":null},{"n":"kakeya","u":"https://mino.mobi/kakeya/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"capset","u":"https://mino.mobi/capset/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"szemeredi-trotter","u":"https://mino.mobi/szemeredi-trotter/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"heilbronn","u":"https://mino.mobi/heilbronn/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"borsuk","u":"https://mino.mobi/borsuk/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"viazovska","u":"https://mino.mobi/viazovska/","k":1,"a":"hot","b":"2026-05-24","f":0.868,"w":"math","w2":null},{"n":"elements","u":"https://mino.mobi/elements/","k":1,"a":"hot","b":"2026-05-23","f":0.858,"w":"math","w2":null},{"n":"techtree","u":"https://mino.mobi/cards/collection/techtree.html","k":15,"a":"warm","b":"2026-04-13","f":0.481,"w":"cards","w2":null},{"n":"grow","u":"https://mino.mobi/cards/collection/grow.html","k":10,"a":"warm","b":"2026-04-13","f":0.481,"w":"cards","w2":null},{"n":"recipe","u":"https://mino.mobi/cards/games/recipe.html","k":3,"a":"warm","b":"2026-04-13","f":0.481,"w":"cards","w2":null},{"n":"yum","u":"https://mino.mobi/cards/games/yum.html","k":6,"a":"hot","b":"2026-04-13","f":0.481,"w":"cards","w2":null},{"n":"diffract","u":"https://mino.mobi/cards/collection/diffract.html","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"cards","w2":null},{"n":"labglass","u":"https://mino.mobi/labglass/","k":25,"a":"cold","b":"2026-02-25","f":0.038,"w":"bench","w2":null},{"n":"os","u":"https://os.mino.mobi","k":16,"a":"warm","b":"2026-03-15","f":0.208,"w":"bench","w2":null},{"n":"ocr","u":"https://ocr.mino.mobi","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"bench","w2":null},{"n":"read","u":"https://mino.mobi/read/","k":37,"a":"hot","b":"2026-03-14","f":0.198,"w":"reading","w2":null},{"n":"flow","u":"https://mino.mobi/read/flow/","k":1,"a":"warm","b":"2026-04-05","f":0.406,"w":"reading","w2":null},{"n":"post01","u":"https://mino.mobi/read/post01/","k":13,"a":"hot","b":"2026-04-27","f":0.613,"w":"reading","w2":null},{"n":"pendragon","u":"https://mino.mobi/read/pendragon/","k":25,"a":"hot","b":"2026-05-29","f":0.915,"w":"reading","w2":null},{"n":"mabinogi","u":"https://mino.mobi/read/mabinogi/","k":1,"a":"hot","b":"2026-06-01","f":0.943,"w":"reading","w2":null},{"n":"pwyll","u":"https://mino.mobi/read/pwyll/","k":16,"a":"hot","b":"2026-05-29","f":0.915,"w":"reading","w2":null},{"n":"branwen","u":"https://mino.mobi/read/branwen/","k":16,"a":"hot","b":"2026-05-31","f":0.934,"w":"reading","w2":null},{"n":"manawydan","u":"https://mino.mobi/read/manawydan/","k":13,"a":"hot","b":"2026-06-01","f":0.943,"w":"reading","w2":null},{"n":"math","u":"https://mino.mobi/read/math/","k":10,"a":"hot","b":"2026-06-01","f":0.943,"w":"reading","w2":null},{"n":"gawain","u":"https://mino.mobi/read/gawain/","k":6,"a":"warm","b":"2026-05-29","f":0.915,"w":"reading","w2":null},{"n":"culhwch","u":"https://mino.mobi/read/culhwch/","k":3,"a":"warm","b":"2026-05-29","f":0.915,"w":"reading","w2":null},{"n":"orfeo","u":"https://mino.mobi/read/orfeo/","k":13,"a":"warm","b":"2026-05-29","f":0.915,"w":"reading","w2":null},{"n":"owain","u":"https://mino.mobi/read/owain/","k":19,"a":"hot","b":"2026-05-30","f":0.925,"w":"reading","w2":null},{"n":"vitamerlini","u":"https://mino.mobi/read/vitamerlini/","k":22,"a":"hot","b":"2026-06-02","f":0.953,"w":"reading","w2":null},{"n":"geomancy","u":"https://mino.mobi/read/geomancy/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"iching","u":"https://mino.mobi/read/iching/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"noise","u":"https://mino.mobi/noise/","k":6,"a":"cold","b":"2026-03-09","f":0.151,"w":"studio","w2":null},{"n":"music","u":"https://mino.mobi/music/","k":17,"a":"cold","b":"2026-02-23","f":0.019,"w":"studio","w2":null},{"n":"bakery","u":"https://bake.mino.mobi","k":25,"a":"cold","b":"2026-02-21","f":0,"w":"studio","w2":null},{"n":"sweat","u":"https://mino.mobi/sweat/","k":4,"a":"cold","b":"2026-02-22","f":0.009,"w":"studio","w2":null},{"n":"j","u":"https://j.mino.mobi","k":2,"a":"warm","b":"2026-06-02","f":0.953,"w":"bench","w2":null},{"n":"borges","u":"https://borges.mino.mobi","k":27,"a":"hot","b":"2026-06-01","f":0.943,"w":"reading","w2":"studio"},{"n":"ai-edu","u":"https://ai.mino.mobi","k":26,"a":"hot","b":"2026-05-25","f":0.877,"w":"bench","w2":null},{"n":"g","u":"https://g.mino.mobi/","k":119,"a":"hot","b":"2026-03-22","f":0.274,"w":"sandbox","w2":null},{"n":"emsim","u":"https://g.mino.mobi/emsim/","k":17,"a":"warm","b":"2026-04-03","f":0.387,"w":"sandbox","w2":null},{"n":"stretch","u":"https://g.mino.mobi/stretch/","k":4,"a":"warm","b":"2026-03-27","f":0.321,"w":"sandbox","w2":null},{"n":"globe","u":"https://g.mino.mobi/globe/","k":11,"a":"hot","b":"2026-04-11","f":0.462,"w":"sandbox","w2":null},{"n":"hand","u":"https://g.mino.mobi/hand/","k":6,"a":"warm","b":"2026-04-13","f":0.481,"w":"sandbox","w2":null},{"n":"scope","u":"https://g.mino.mobi/scope/","k":6,"a":"warm","b":"2026-04-11","f":0.462,"w":"sandbox","w2":null},{"n":"mole","u":"https://g.mino.mobi/mole/","k":3,"a":"hot","b":"2026-05-15","f":0.783,"w":"sandbox","w2":null},{"n":"ship","u":"https://g.mino.mobi/ship/","k":6,"a":"hot","b":"2026-04-28","f":0.623,"w":"sandbox","w2":null},{"n":"helix","u":"https://g.mino.mobi/helix/","k":2,"a":"warm","b":"2026-04-11","f":0.462,"w":"sandbox","w2":null},{"n":"corn","u":"https://g.mino.mobi/corn/","k":2,"a":"warm","b":"2026-04-11","f":0.462,"w":"sandbox","w2":null},{"n":"mol","u":"https://g.mino.mobi/mol/","k":2,"a":"warm","b":"2026-04-11","f":0.462,"w":"sandbox","w2":null},{"n":"antoine","u":"https://g.mino.mobi/antoine/","k":2,"a":"warm","b":"2026-05-30","f":0.925,"w":"math","w2":null},{"n":"basket","u":"https://g.mino.mobi/basket/","k":9,"a":"hot","b":"2026-06-02","f":0.953,"w":"math","w2":null},{"n":"garden","u":"https://g.mino.mobi/garden/","k":6,"a":"hot","b":"2026-05-27","f":0.896,"w":"sandbox","w2":"arcade"},{"n":"horned","u":"https://g.mino.mobi/horned/","k":7,"a":"warm","b":"2026-05-30","f":0.925,"w":"math","w2":null},{"n":"lattice","u":"https://g.mino.mobi/lattice/","k":1,"a":"warm","b":"2026-05-31","f":0.934,"w":"math","w2":null},{"n":"sticks","u":"https://g.mino.mobi/sticks/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"tablet","u":"https://g.mino.mobi/tablet/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"yarrow","u":"https://g.mino.mobi/yarrow/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"yijing","u":"https://g.mino.mobi/yijing/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"soil","u":"https://g.mino.mobi/soil/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"reading","w2":null},{"n":"torus","u":"https://torus.mino.mobi/","k":24,"a":"warm","b":"2026-03-29","f":0.34,"w":"arcade","w2":null},{"n":"pac","u":"https://torus.mino.mobi/pac/","k":18,"a":"hot","b":"2026-04-02","f":0.377,"w":"arcade","w2":null},{"n":"torpac","u":"https://torus.mino.mobi/torpac/","k":1,"a":"warm","b":"2026-04-03","f":0.387,"w":"arcade","w2":null},{"n":"knotpac","u":"https://torus.mino.mobi/knotpac/","k":11,"a":"warm","b":"2026-04-02","f":0.377,"w":"arcade","w2":null},{"n":"inpac","u":"https://torus.mino.mobi/inpac/","k":9,"a":"warm","b":"2026-04-02","f":0.377,"w":"arcade","w2":null},{"n":"chess","u":"https://torus.mino.mobi/toruschess/","k":2,"a":"warm","b":"2026-03-30","f":0.349,"w":"arcade","w2":null},{"n":"pokemon","u":"https://mino.mobi/pokemon/","k":22,"a":"warm","b":"2026-03-14","f":0.198,"w":"arcade","w2":null},{"n":"proteus","u":"https://mino.mobi/pokemon/proteus/","k":15,"a":"hot","b":"2026-05-17","f":0.802,"w":"arcade","w2":"sandbox"},{"n":"mmo","u":"https://mino.mobi/mmo/","k":18,"a":"hot","b":"2026-05-14","f":0.774,"w":"arcade","w2":null},{"n":"draw","u":"https://mino.mobi/draw/","k":6,"a":"hot","b":"2026-05-14","f":0.774,"w":"arcade","w2":null},{"n":"paint","u":"https://mino.mobi/paint/","k":5,"a":"hot","b":"2026-05-14","f":0.774,"w":"arcade","w2":null},{"n":"range","u":"https://mino.mobi/range/","k":3,"a":"hot","b":"2026-05-14","f":0.774,"w":"arcade","w2":null},{"n":"curve","u":"https://mino.mobi/curve/","k":1,"a":"hot","b":"2026-05-30","f":0.925,"w":"arcade","w2":null},{"n":"splice","u":"https://splice.mino.mobi","k":25,"a":"hot","b":"2026-05-29","f":0.915,"w":"arcade","w2":"sandbox"},{"n":"games","u":"https://games.mino.mobi","k":2,"a":"warm","b":"2026-05-22","f":0.849,"w":"arcade","w2":null},{"n":"gen","u":"https://games.mino.mobi/gen/","k":1,"a":"hot","b":"2026-06-07","f":1,"w":"arcade","w2":null},{"n":"canvas","u":"https://canvas.mino.mobi","k":2,"a":"warm","b":"2026-06-04","f":0.972,"w":"arcade","w2":"studio"},{"n":"pizza","u":"https://canvas.mino.mobi/pizza/","k":1,"a":"hot","b":"2026-06-06","f":0.991,"w":"arcade","w2":null},{"n":"fluoddity","u":"https://fluoddity.mino.mobi","k":43,"a":"hot","b":"2026-05-27","f":0.896,"w":"sandbox","w2":"arcade"}],"minB":1771632000000,"maxB":1780790400000};
-/*GEN_START*/
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function hash2(ix,iy,seed){let n=(ix*374761393+iy*668265263+seed*69069)|0;n=Math.imul(n^(n>>>13),1274126177);n=n^(n>>>16);return((n>>>0)/4294967296)}
-function smooth(t){return t*t*(3-2*t)}
-function vnoise(x,y,seed){const x0=Math.floor(x),y0=Math.floor(y);const fx=smooth(x-x0),fy=smooth(y-y0);
-  const a=hash2(x0,y0,seed),b=hash2(x0+1,y0,seed),c=hash2(x0,y0+1,seed),d=hash2(x0+1,y0+1,seed);
-  return (a*(1-fx)+b*fx)*(1-fy)+(c*(1-fx)+d*fx)*fy}
-function fbm(x,y,seed){let v=0,amp=0.5,fr=1;for(let o=0;o<5;o++){v+=amp*vnoise(x*fr,y*fr,seed+o*131);fr*=2;amp*=0.5}return v}
-
-// makeWorld: seeded, returns terrain arrays + placed cities. No DOM.
-function makeWorld(seed, GW, GH, wings, nodes){
-  const rnd=mulberry32(seed);
-  const seeds=wings.map(w=>({id:w.id, x:w.cx*GW + (rnd()-0.5)*GW*0.06, y:w.cy*GH + (rnd()-0.5)*GH*0.06}));
-  const N=GW*GH;
-  const elev=new Float32Array(N), country=new Int8Array(N), land=new Uint8Array(N), border=new Float32Array(N);
-  const warp=GW*0.10;
-  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){
-    const idx=j*GW+i;
-    // continental falloff (corners → ocean), softened by noise so coasts wander
-    const nx=i/GW-0.5, ny=j/GH-0.5;
-    const rad=Math.sqrt(nx*nx*1.05+ny*ny*1.5);
-    let e=fbm(i*0.045,j*0.045,seed)*1.15 - rad*1.35 + 0.34;
-    // guarantee land near each country seed (gaussian bump)
-    let nearest=0,d1=1e9,d2=1e9;
-    const wx=i+(vnoise(i*0.06,j*0.06,seed+7)-0.5)*warp, wy=j+(vnoise(i*0.06,j*0.06,seed+19)-0.5)*warp;
-    for(let s=0;s<seeds.length;s++){const dx=wx-seeds[s].x,dy=wy-seeds[s].y;const d=Math.sqrt(dx*dx+dy*dy);
-      if(d<d1){d2=d1;d1=d;nearest=s}else if(d<d2){d2=d}}
-    // bump from the *unwarped* nearest real seed distance
-    let bump=0; for(const s of seeds){const dx=i-s.x,dy=j-s.y;const sig=GW*0.16;bump+=0.55*Math.exp(-(dx*dx+dy*dy)/(2*sig*sig))}
-    e+=Math.min(bump,0.6);
-    elev[idx]=e; country[idx]=nearest;
-    border[idx]=d1/(d2||1); // →1 at country borders
-  }
-  // sea level chosen for a healthy land fraction
-  const sorted=Float32Array.from(elev).sort();
-  const seaLevel=sorted[Math.floor(N*0.40)];
-  for(let idx=0;idx<N;idx++) land[idx]= elev[idx]>seaLevel?1:0;
-  // mountains: high border cells on land
-  const mtn=new Uint8Array(N);
-  for(let idx=0;idx<N;idx++) if(land[idx] && border[idx]>0.86 && elev[idx]>seaLevel+0.10) mtn[idx]=1;
-
-  // city placement ----------------------------------------------------------
-  const byC={}; for(const w of wings) byC[w.id]=[];
-  for(const nd of nodes) byC[nd.w].push(nd);
-  const landCells={}; // land cells per country
-  for(const w of wings) landCells[w.id]=[];
-  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const idx=j*GW+i; if(land[idx]) landCells[wings[country[idx]].id].push(i+j*GW);}
-  const cities=[];
-  function centroid(id){let sx=0,sy=0,c=0;for(const idx of landCells[id]){sx+=idx%GW;sy+=(idx/GW|0);c++}return c?{x:sx/c,y:sy/c}:{x:GW/2,y:GH/2}}
-  const cen={}; for(const w of wings) cen[w.id]=centroid(w.id);
-  // border cells for seams (cells whose two nearest seeds are exactly a,b)
-  function seamCells(a,b){const out=[];const ai=wings.findIndex(w=>w.id===a),bi=wings.findIndex(w=>w.id===b);
-    for(let idx=0;idx<N;idx++){ if(!land[idx]||border[idx]<0.80) continue; const c1=country[idx]; if(c1!==ai&&c1!==bi) continue;
-      // recompute 2nd-nearest country at this cell
-      const i=idx%GW,j=idx/GW|0; let n1=0,n2=0,dd1=1e9,dd2=1e9;
-      for(let s=0;s<seeds.length;s++){const dx=i-seeds[s].x,dy=j-seeds[s].y;const d=dx*dx+dy*dy; if(d<dd1){dd2=dd1;n2=n1;dd1=d;n1=s}else if(d<dd2){dd2=d;n2=s}}
-      const pair=[n1,n2].sort().join(','); if(pair===[ai,bi].sort().join(',')) out.push(idx);
-    } return out;}
-
-  for(const w of wings){
-    const mem=byC[w.id].slice().sort((p,q)=>q.k-p.k);
-    const placed=[]; const cand=landCells[w.id];
-    mem.forEach((nd,rank)=>{
-      let px,py;
-      if(nd.w2){ const sc=seamCells(nd.w,nd.w2); if(sc.length){const idx=sc[(Math.floor(rnd()*sc.length))]; px=idx%GW;py=idx/GW|0;} }
-      if(px===undefined){
-        if(rank===0 && cand.length){ // capital near the craton centroid
-          px=cen[w.id].x; py=cen[w.id].y;
-        } else if(cand.length){
-          // sample candidates; reward spacing; old→interior, new→frontier
-          let best=null,bs=-1e9;
-          for(let t=0;t<24;t++){const idx=cand[Math.floor(rnd()*cand.length)];const ci=idx%GW,cj=idx/GW|0;
-            let mind=1e9; for(const p of placed){const dx=p.x-ci,dy=p.y-cj;mind=Math.min(mind,dx*dx+dy*dy)}
-            const dcx=ci-cen[w.id].x,dcy=cj-cen[w.id].y;const dCen=Math.sqrt(dcx*dcx+dcy*dcy);
-            const ageBias=(nd.f-0.5)*dCen*0.9; // newer (f→1) rewarded for distance from centroid
-            const score=Math.sqrt(mind)+ageBias+rnd()*2;
-            if(score>bs){bs=score;best={x:ci,y:cj}}}
-          px=best.x;py=best.y;
-        } else { const s=seeds[wings.findIndex(x=>x.id===w.id)]; px=s.x;py=s.y; }
-      }
-      placed.push({x:px,y:py});
-      cities.push({n:nd.n,u:nd.u,k:nd.k,a:nd.a,f:nd.f,b:nd.b,w:nd.w,w2:nd.w2,x:px,y:py,capital:rank===0});
-    });
-  }
-  return {GW,GH,elev,country,land,mtn,border,cities,seaLevel,seeds};
-}
-/*GEN_END*/
-const cv=document.getElementById('map'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
-let DPR=Math.min(2,window.devicePixelRatio||1), W=0,H=0, world=null, seed=(Math.random()*1e9)|0;
-let view={x:0,y:0,s:1}, hot=null, selected=null, query='', active=new Set(D.wings.map(w=>w.id)), tcut=1, playing=false;
-const terr=document.createElement('canvas'); let terrOW=0, terrOH=0;
-const GW=200,GH=130;
-const hsl=(h,s,l,a)=> 'hsl('+h+' '+s+'% '+l+'%'+(a!=null?' / '+a:'')+')';
-const wing=id=>D.wings.find(w=>w.id===id);
-function fmtDate(b){return b||'—'}
-
-function build(){ world=makeWorld(seed,GW,GH,D.wings,D.nodes); fit(); renderTerrain(); draw(); }
-function fit(){ // scale world grid to cover viewport
-  const sx=W/GW, sy=H/GH; world.cell=Math.max(sx,sy); world.ox=(W-GW*world.cell)/2; world.oy=(H-GH*world.cell)/2; }
-
-function landShade(id,e,sl){ const w=wing(id); const t=Math.min(1,(e-sl)/0.6); // coast→interior
-  const l=46+t*26, s=26+t*10; return hsl(w.hue,s,l); }
-
-// Rasterize terrain ONCE to an offscreen canvas (depends only on world + active).
-// pan/pinch/time/hover then just blit this — cheap enough for mobile.
-function renderTerrain(){
-  const TS=4, ow=GW*TS, oh=GH*TS; terr.width=ow; terr.height=oh; terrOW=ow; terrOH=oh;
-  const tx=terr.getContext('2d'); const {elev,land,country,mtn,seaLevel}=world;
-  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const idx=j*GW+i;const x=i*TS,y=j*TS;
-    let col;
-    if(!land[idx]){ const d=Math.max(0,seaLevel-elev[idx]); col=hsl(205,38,Math.max(8,20-d*30)); }
-    else { const id=D.wings[country[idx]].id; col=landShade(id,elev[idx],seaLevel);
-      if(mtn[idx]) col=hsl(wing(id).hue,12,72);
-      if(!active.has(id)) col=hsl(wing(id).hue,8,28); }
-    tx.fillStyle=col; tx.fillRect(x,y,TS+1,TS+1);
-    if(land[idx]){ const eR=land[idx+1]?elev[idx+1]:elev[idx]; const sh=Math.max(-0.12,Math.min(0.12,(elev[idx]-eR)*1.5));
-      if(sh>0.02){tx.fillStyle='rgba(255,245,220,'+sh+')';tx.fillRect(x,y,TS+1,TS+1);}
-      else if(sh<-0.02){tx.fillStyle='rgba(0,0,0,'+(-sh)+')';tx.fillRect(x,y,TS+1,TS+1);} }
-  }
-  // coastline ink
-  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const idx=j*GW+i; if(!land[idx])continue;
-    if((i+1<GW&&!land[idx+1])||(j+1<GH&&!land[idx+GW])||(i>0&&!land[idx-1])||(j>0&&!land[idx-GW])){
-      tx.fillStyle='rgba(20,14,8,.5)';tx.fillRect(i*TS,j*TS,TS+1,TS+1);}}
-}
-
-function draw(){
-  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H);
-  ctx.fillStyle='#0c0a07'; ctx.fillRect(0,0,W,H); // ocean void beyond the map
-  ctx.save(); ctx.translate(view.x,view.y); ctx.scale(view.s,view.s);
-  const cell=world.cell, ox=world.ox, oy=world.oy;
-  ctx.imageSmoothingEnabled=true;
-  ctx.drawImage(terr,0,0,terrOW,terrOH, ox,oy, GW*cell, GH*cell);
-  // country labels (capitals' country names) — drawn faint behind cities
-  ctx.textAlign='center';
-  for(const w of D.wings){ if(!active.has(w.id))continue; const cap=world.cities.find(c=>c.w===w.id&&c.capital); if(!cap)continue;
-    const x=ox+cap.x*cell,y=oy+cap.y*cell; ctx.font='italic '+(13)+'px ui-serif,Georgia,serif';
-    ctx.fillStyle=hsl(w.hue,30,82,.5); ctx.fillText(w.label.toUpperCase(),x,y-16); }
-  // cities
-  for(const c of world.cities){
-    const vis=active.has(c.w)&&(c.f<=tcut)&&(!query||c.n.toLowerCase().includes(query));
-    const x=ox+c.x*cell,y=oy+c.y*cell; const r=(c.capital?3.4:2.0)+Math.sqrt(c.k)*0.9;
-    if(!vis){ if(c.f<=tcut){ctx.fillStyle='rgba(180,165,130,.10)';ctx.beginPath();ctx.arc(x,y,1.4,0,7);ctx.fill();} continue; }
-    const w=wing(c.w);
-    ctx.beginPath();ctx.arc(x,y,r,0,7);
-    ctx.fillStyle=c.w2?hsl((w.hue+wing(c.w2).hue)/2,55,60):hsl(w.hue,50,hot===c?70:58);
-    ctx.fill();
-    ctx.lineWidth=(c.capital?1.4:0.8)/1; ctx.strokeStyle=c===hot?'#fff':'rgba(20,14,8,.7)'; ctx.stroke();
-    if(c.capital){ // capital star ring
-      ctx.strokeStyle=hsl(w.hue,60,80,.9);ctx.lineWidth=1;ctx.beginPath();ctx.arc(x,y,r+2.5,0,7);ctx.stroke(); }
-    if(c===hot||c.capital||view.s>1.6||c.k>=15){ ctx.font=(c.capital?'600 ':'')+ (10) +'px ui-serif,Georgia,serif';
-      ctx.fillStyle='rgba(24,16,9,.92)';ctx.textAlign='center'; ctx.fillText(c.n,x,y+r+10);
-      ctx.fillStyle=hsl(w.hue,40,90,.95); ctx.fillText(c.n,x,y+r+9.4); }
-  }
-  ctx.restore();
-}
-function screenToWorld(px,py){ return {x:(px-view.x)/view.s, y:(py-view.y)/view.s}; }
-function pick(px,py,touch){ const p=screenToWorld(px,py); const cell=world.cell,ox=world.ox,oy=world.oy; let best=null,bd=1e9;
-  for(const c of world.cities){ if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;
-    const x=ox+c.x*cell,y=oy+c.y*cell;const d=(x-p.x)**2+(y-p.y)**2; if(d<bd){bd=d;best=c} }
-  return bd< ((touch?22:12)/view.s)**2 ? best : null; }
-function clampZoom(s){ return Math.max(0.6,Math.min(8,s)); }
-function showTip(c,px,py,touch){ tip.style.opacity=1;
-  tip.style.left=Math.max(80,Math.min(innerWidth-80,px))+'px'; tip.style.top=Math.max(54,py)+'px';
-  const seam=c.w2?'border town · '+wing(c.w).label+' ✕ '+wing(c.w2).label:wing(c.w).label;
-  tip.innerHTML='<b>'+c.n+'</b> '+(c.capital?'★':'')+'<br><span class="m">'+seam+' · founded '+fmtDate(c.b)+'</span>'
-    +(c.u?'<br><span class="open">'+(touch?'tap again to open ↗':'click to open ↗')+'</span>':''); }
-
-// Unified pointer handling: 1 finger/mouse = pan, 2 fingers = pinch-zoom, tap = select/open.
-const ptrs=new Map(); let gesture=null, tapStart=null;
-const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId);
-  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(ptrs.size===1){ tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};
-    gesture={mode:'pan',x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}; cv.classList.add('drag'); }
-  else if(ptrs.size===2){ const p=[...ptrs.values()];
-    gesture={mode:'pinch',d:dist(p[0],p[1]),s:view.s,vx:view.x,vy:view.y}; tapStart=null; tip.style.opacity=0; }
-});
-cv.addEventListener('pointermove',e=>{
-  if(ptrs.has(e.pointerId)) ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){ const p=[...ptrs.values()];
-    const nd=dist(p[0],p[1]); const ns=clampZoom(gesture.s*(nd/(gesture.d||1)));
-    const cmx=(p[0].x+p[1].x)/2, cmy=(p[0].y+p[1].y)/2;
-    const rx=(cmx-gesture.vx)/gesture.s, ry=(cmy-gesture.vy)/gesture.s; // anchor pinch on the midpoint
-    view.s=ns; view.x=cmx-rx*ns; view.y=cmy-ry*ns; draw(); return; }
-  if(gesture&&gesture.mode==='pan'&&ptrs.size===1){ view.x=gesture.vx+(e.clientX-gesture.x); view.y=gesture.vy+(e.clientY-gesture.y);
-    if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8){ tapStart=null; tip.style.opacity=0; } draw(); return; }
-  if(e.pointerType==='mouse'&&ptrs.size===0){ // hover (desktop only)
-    const c=pick(e.clientX,e.clientY); if(c!==hot){hot=c;draw();}
-    if(c){ showTip(c,e.clientX,e.clientY,false); cv.style.cursor='pointer'; }
-    else { if(!selected) tip.style.opacity=0; cv.style.cursor='grab'; } }
-});
-function endPtr(e){ ptrs.delete(e.pointerId);
-  if(ptrs.size===0){ cv.classList.remove('drag');
-    if(tapStart && Date.now()-tapStart.t<400){ const c=pick(tapStart.x,tapStart.y,tapStart.touch);
-      if(c){ if(!tapStart.touch){ if(c.u) window.open(c.u,'_blank'); } // desktop: single click opens (hover already showed it)
-             else if(selected===c && c.u){ window.open(c.u,'_blank'); } // touch: tap to select, tap again to open
-             else { selected=c; hot=c; showTip(c,tapStart.x,tapStart.y,true); draw(); } }
-      else { selected=null; hot=null; tip.style.opacity=0; draw(); } }
-    gesture=null; tapStart=null;
-  } else if(ptrs.size===1){ const p=[...ptrs.values()][0]; // pinch → resume one-finger pan
-    gesture={mode:'pan',x:p.x,y:p.y,vx:view.x,vy:view.y}; tapStart=null; }
-}
-cv.addEventListener('pointerup',endPtr);
-cv.addEventListener('pointercancel',endPtr);
-cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;const ns=clampZoom(view.s*f);
-  const rx=(e.clientX-view.x)/view.s,ry=(e.clientY-view.y)/view.s;view.x=e.clientX-rx*ns;view.y=e.clientY-ry*ns;view.s=ns;draw();},{passive:false});
-// double-tap / double-click to zoom in toward the point
-cv.addEventListener('dblclick',e=>{const ns=clampZoom(view.s*1.8);const rx=(e.clientX-view.x)/view.s,ry=(e.clientY-view.y)/view.s;
-  view.x=e.clientX-rx*ns;view.y=e.clientY-ry*ns;view.s=ns;draw();});
-
-// time scrubber
-const tEl=document.getElementById('time'),eraEl=document.getElementById('era');
-function eraLabel(){ if(tcut>=1)return 'all founded'; const ms=D.minB+(D.maxB-D.minB)*tcut; return '↤ '+new Date(ms).toISOString().slice(0,10); }
-tEl.addEventListener('input',()=>{tcut=+tEl.value/1000;eraEl.textContent=eraLabel();draw();});
-document.getElementById('play').addEventListener('click',()=>{ playing=!playing; if(playing){tcut=0;tEl.value=0;step();} });
-function step(){ if(!playing)return; tcut=Math.min(1,tcut+0.006); tEl.value=tcut*1000; eraEl.textContent=eraLabel(); draw();
-  if(tcut>=1){playing=false;document.getElementById('play').textContent='▶ chronicle';return;} document.getElementById('play').textContent='⏸';requestAnimationFrame(step); }
-
-// legend
-const lg=document.getElementById('legend');
-for(const w of D.wings){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;
-  c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,50,58)+'"></span>'+w.label;
-  c.onclick=()=>{ if(active.size===1&&active.has(w.id))active=new Set(D.wings.map(x=>x.id)); else active=new Set([w.id]);
-    for(const ch of lg.children) ch.classList.toggle('off',!active.has(ch.dataset.w)); renderTerrain(); draw(); };
-  lg.appendChild(c);}
-document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw();});
-document.getElementById('reseed').addEventListener('click',()=>{seed=(Math.random()*1e9)|0;build();});
-
-function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); W=innerWidth;H=innerHeight; cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px'; if(world){fit();draw();} }
-window.addEventListener('resize',resize);
-resize(); build();
-</script>
+<script type="module" src="./viewer.js"></script>
 </body>
 </html>
