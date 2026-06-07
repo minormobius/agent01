@@ -72,16 +72,17 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/follower-post-discovery-bZumw",
       "uses": [],
       "provides": null,
       "paths": [
         "b/**"
       ],
       "serves": [
-        "disk"
+        "disk",
+        "spark"
       ],
-      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, and spark at /spark (the followed account's posts a follower had liked before they followed — permissionless, client-side over public ATProto records). Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
