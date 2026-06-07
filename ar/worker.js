@@ -18,6 +18,14 @@ export default {
       const id = env.SIGNAL.idFromName(m[1].toUpperCase());
       return env.SIGNAL.get(id).fetch(request);
     }
+    if (url.pathname === '/api/queue') {
+      if (request.headers.get('Upgrade') !== 'websocket') {
+        return new Response('expected websocket', { status: 426 });
+      }
+      // one global lobby coordinates all matchmaking
+      const id = env.LOBBY.idFromName('lobby');
+      return env.LOBBY.get(id).fetch(request);
+    }
     if (url.pathname === '/api/health') {
       return new Response(JSON.stringify({ ok: true, ts: Date.now() }), {
         headers: { 'content-type': 'application/json' },
@@ -27,6 +35,12 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+function roomCode() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = ''; for (let i = 0; i < 4; i++) s += A[(Math.random() * A.length) | 0];
+  return s;
+}
 
 // ── Room: relays JSON messages between the peers in one room ──
 // Uses the WebSocket Hibernation API so the DO can sleep between bursts.
@@ -90,4 +104,63 @@ export class Room {
   async webSocketError(ws) {
     this.broadcastPeers();
   }
+}
+
+// ── Lobby: matchmaking — pairs waiting players, assigns roles ──
+// A singleton DO. Players open a WebSocket and send {type:'join'}; when
+// two are waiting it mints a room code, randomly assigns crystal/detector,
+// and tells each peer {type:'matched', room, role}. They then close this
+// socket and connect to that Room.
+export class Lobby {
+  constructor(ctx, env) { this.ctx = ctx; this.env = env; }
+
+  async fetch(request) {
+    const pair = new WebSocketPair();
+    const client = pair[0], server = pair[1];
+    this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({ state: 'idle' });
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  waiting() {
+    return this.ctx.getWebSockets().filter(ws => {
+      const a = ws.deserializeAttachment() || {};
+      return ws.readyState === 1 && a.state === 'waiting';
+    });
+  }
+
+  announce() {
+    const n = this.waiting().length;
+    const msg = JSON.stringify({ type: 'queue', waiting: n });
+    for (const ws of this.waiting()) { try { ws.send(msg); } catch {} }
+  }
+
+  tryMatch() {
+    const w = this.waiting();
+    while (w.length >= 2) {
+      const a = w.shift(), b = w.shift();
+      const room = roomCode();
+      const aCrystal = Math.random() < 0.5;
+      a.serializeAttachment({ state: 'matched' });
+      b.serializeAttachment({ state: 'matched' });
+      try { a.send(JSON.stringify({ type: 'matched', room, role: aCrystal ? 'emitter' : 'detector' })); } catch {}
+      try { b.send(JSON.stringify({ type: 'matched', room, role: aCrystal ? 'detector' : 'emitter' })); } catch {}
+    }
+  }
+
+  async webSocketMessage(ws, raw) {
+    if (typeof raw !== 'string') return;
+    let m; try { m = JSON.parse(raw); } catch { return; }
+    if (m.type === 'join') {
+      ws.serializeAttachment({ state: 'waiting' });
+      this.tryMatch();
+      this.announce();
+    } else if (m.type === 'leave') {
+      ws.serializeAttachment({ state: 'idle' });
+      this.announce();
+    }
+  }
+
+  async webSocketClose(ws) { try { ws.close(); } catch {} this.announce(); }
+  async webSocketError() { this.announce(); }
 }

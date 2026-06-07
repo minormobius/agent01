@@ -9,11 +9,13 @@
   },
   "durable_objects": {
     "bindings": [
-      { "name": "SIGNAL", "class_name": "Room" }
+      { "name": "SIGNAL", "class_name": "Room" },
+      { "name": "LOBBY", "class_name": "Lobby" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_classes": ["Room"] }
+    { "tag": "v1", "new_classes": ["Room"] },
+    { "tag": "v2", "new_classes": ["Lobby"] }
   ],
   "routes": [
     { "pattern": "ar.mino.mobi", "custom_domain": true }

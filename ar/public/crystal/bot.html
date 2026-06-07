@@ -34,6 +34,9 @@ button:disabled{opacity:0.45;cursor:default;}
     <span>room</span><input id="room" maxlength="4" autocomplete="off" autocapitalize="characters">
   </div>
   <div class="row">
+    <button id="bMatch">⚡ quick match (role assigned)</button>
+  </div>
+  <div class="row">
     <button id="bCrystal">💎 play the Crystal</button>
     <button id="bDetector">📡 play the Detector</button>
     <button id="bStop" disabled>■ stop</button>
@@ -43,7 +46,7 @@ button:disabled{opacity:0.45;cursor:default;}
 </main>
 
 <script type="module">
-import { runBot } from './bot.js';
+import { runBot, runBotMatch } from './bot.js';
 const $=id=>document.getElementById(id);
 const logEl=$('log');
 function log(s){ const t=new Date().toLocaleTimeString(); logEl.innerHTML+=`<span class="t">${t}</span>  ${s}\n`; logEl.scrollTop=logEl.scrollHeight; }
@@ -58,9 +61,15 @@ function start(role){
   $('bCrystal').disabled=true; $('bDetector').disabled=true; $('bStop').disabled=false;
   stop=runBot({role, room, wsBase, log});
 }
+function startMatch(){
+  if(stop) stop();
+  $('bCrystal').disabled=true; $('bDetector').disabled=true; $('bMatch').disabled=true; $('bStop').disabled=false;
+  stop=runBotMatch({wsBase, log});
+}
+$('bMatch').onclick=startMatch;
 $('bCrystal').onclick=()=>start('crystal');
 $('bDetector').onclick=()=>start('detector');
-$('bStop').onclick=()=>{ if(stop){stop();stop=null;} log('stopped.'); $('bCrystal').disabled=false; $('bDetector').disabled=false; $('bStop').disabled=true; };
+$('bStop').onclick=()=>{ if(stop){stop();stop=null;} log('stopped.'); $('bCrystal').disabled=false; $('bDetector').disabled=false; $('bMatch').disabled=false; $('bStop').disabled=true; };
 // auto-start if ?role= given
 const r=new URLSearchParams(location.search).get('role');
 if(r==='crystal'||r==='detector') start(r);

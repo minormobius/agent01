@@ -104,32 +104,71 @@ function onMessage(m){
   }
 }
 
-// ── role: start ──────────────────────────────────────────────
-async function startRole(r){
-  role=r;
-  roomCode=($('room').value||'').trim().toUpperCase() || randomCode();
-  $('room').value=roomCode;
-  const ok=await requestSensors();
-  if(!ok){ alert('Motion & orientation access is required. On iOS, allow it when prompted (Settings ▸ Safari ▸ Motion & Orientation Access must be on).'); return; }
-  if(r==='detector'){ await startCamera(); }
-  show(r);
-  if(r==='emitter'){ $('eCode').textContent=roomCode; initEmitter(); }
-  else { $('dCode').textContent=roomCode; initDetector(); }
-  connect();
-  requestAnimationFrame(loop);
-}
 function randomCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for(let i=0;i<4;i++) s+=A[(Math.random()*A.length)|0]; return s; }
 
 // ── camera passthrough (detector) ────────────────────────────
-let videoEl=null;
-async function startCamera(){
-  videoEl=$('cam');
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    videoEl.srcObject=stream; videoEl.setAttribute('playsinline',''); videoEl.muted=true;
-    await videoEl.play();
-  }catch(e){ /* no camera → black backdrop, still playable */ videoEl.style.display='none'; }
+// camStream: null = not yet tried, false = tried & unavailable, else MediaStream
+let camStream=null;
+async function getCam(){
+  if(camStream!==null) return camStream;
+  try{ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}); }
+  catch(e){ camStream=false; }
+  return camStream;
 }
+function attachCam(){
+  const v=$('cam');
+  if(camStream){ v.srcObject=camStream; v.setAttribute('playsinline',''); v.muted=true; v.play().catch(()=>{}); }
+  else { v.style.display='none'; }   // no camera → dots on black, still playable
+}
+function stopCam(){ if(camStream){ try{ camStream.getTracks().forEach(t=>t.stop()); }catch{} } camStream=null; }
+
+// ── enter a role into a room (permissions/camera already handled) ──
+function enter(r, code){
+  role=r; roomCode=code;
+  show(r);
+  if(r==='emitter'){ $('eCode').textContent=code; initEmitter(); }
+  else { $('dCode').textContent=code; attachCam(); initDetector(); }
+  connect();
+  requestAnimationFrame(loop);
+}
+
+// ── manual: pick a side + room code ──────────────────────────
+async function startRole(r){
+  const ok=await requestSensors();
+  if(!ok){ alert('Motion & orientation access is required. On iOS, allow it when prompted (Settings ▸ Safari ▸ Motion & Orientation Access must be on).'); return; }
+  const code=($('room').value||'').trim().toUpperCase() || randomCode();
+  $('room').value=code;
+  if(r==='detector') await getCam();
+  enter(r, code);
+}
+
+// ── quick match: role assigned by the lobby ──────────────────
+let qws=null;
+function setMatchUI(searching,text){
+  $('matchStatus').textContent=text||''; $('matchStatus').style.display=(searching&&text)?'block':'none';
+  $('matchCancel').style.display=searching?'inline-block':'none';
+}
+async function startMatch(){
+  const ok=await requestSensors();
+  if(!ok){ alert('Motion & orientation access is required. On iOS, allow it when prompted (Settings ▸ Safari ▸ Motion & Orientation Access must be on).'); return; }
+  await getCam();                          // acquire in the gesture; crystal releases it on match
+  setMatchUI(true,'searching for a partner…');
+  const proto=location.protocol==='https:'?'wss':'ws';
+  qws=new WebSocket(`${proto}://${location.host}/api/queue`);
+  qws.onopen=()=>qws.send(JSON.stringify({type:'join'}));
+  qws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;}
+    if(m.type==='queue'){ setMatchUI(true, m.waiting>1?`matching… ${m.waiting} in queue`:'searching for a partner…'); }
+    else if(m.type==='matched'){ const w=qws; qws=null; try{w.close();}catch{} onMatched(m.room,m.role); }
+  };
+  qws.onclose=()=>{ if(qws){ qws=null; setMatchUI(false,''); } };
+  qws.onerror=()=>setMatchUI(true,'queue error — tap Quick match to retry');
+}
+function onMatched(room, role){
+  setMatchUI(false,'');
+  if(role==='emitter') stopCam();          // crystal doesn't need the camera
+  enter(role, room);
+}
+function cancelMatch(){ if(qws){ try{qws.send(JSON.stringify({type:'leave'}));qws.close();}catch{} qws=null; } setMatchUI(false,''); }
 
 // ════════════════════════════════════════════════════════════
 //  EMITTER  (the crystal)
@@ -287,5 +326,7 @@ function loop(now){
 
 // ── boot ─────────────────────────────────────────────────────
 $('room').value=randomCode();
+$('beMatch').onclick=startMatch;
+$('matchCancel').onclick=cancelMatch;
 $('beCrystal').onclick=()=>startRole('emitter');
 $('beDetector').onclick=()=>startRole('detector');

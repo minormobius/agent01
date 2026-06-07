@@ -107,3 +107,23 @@ export function runBot({ role, room, wsBase, log=console.log }){
   function cleanup(){ stopped=true; clearInterval(streamTimer); clearTimeout(guessTimer); }
   return ()=>{ cleanup(); try{ws.close();}catch{} };
 }
+
+// Join matchmaking; play whatever role the lobby assigns.
+export function runBotMatch({ wsBase, log=console.log }){
+  log(`▸ bot → matchmaking queue ${wsBase}/api/queue`);
+  const ws=new WebSocket(`${wsBase}/api/queue`);
+  let stopRoom=null, done=false;
+  ws.onopen =()=>{ log('● queue connected — joining'); ws.send(JSON.stringify({type:'join'})); };
+  ws.onclose=()=>log('○ queue socket closed');
+  ws.onerror=e =>log('! queue error '+((e&&e.message)||''));
+  ws.onmessage=ev=>{ let m; try{m=JSON.parse(ev.data);}catch{return;}
+    if(m.type==='queue'){ log(`waiting… ${m.waiting} in queue`); }
+    else if(m.type==='matched'){
+      log(`✦ matched! room ${m.room} — assigned ${m.role}`);
+      try{ws.close();}catch{}
+      const role=m.role==='emitter'?'crystal':'detector';
+      if(!done) stopRoom=runBot({role, room:m.room, wsBase, log});
+    }
+  };
+  return ()=>{ done=true; try{ws.close();}catch{} if(stopRoom) stopRoom(); };
+}

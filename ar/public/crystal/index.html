@@ -26,6 +26,12 @@ html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'SF Mono
 .role .d{font-size:0.72rem;color:var(--dim);line-height:1.5;}
 #landing .fine{font-size:0.66rem;color:var(--dim);max-width:28rem;line-height:1.6;opacity:0.8;}
 #landing a{color:var(--gold);}
+.matchbtn{font-family:inherit;background:linear-gradient(135deg,#caa84c,#9c7d2e);color:#15130a;border:none;border-radius:14px;
+  padding:1rem 2.2rem;font-size:1.1rem;letter-spacing:0.06em;font-weight:700;cursor:pointer;box-shadow:0 4px 18px rgba(201,168,76,0.25);}
+.matchbtn:active{transform:translateY(1px);}
+.matchstatus{display:none;font-size:0.8rem;color:var(--gold2);}
+.btn2{display:none;font-family:inherit;background:#1d1d28;border:1px solid var(--line);color:var(--dim);border-radius:8px;padding:0.4rem 0.9rem;font-size:0.72rem;cursor:pointer;}
+.divider{font-size:0.66rem;color:var(--dim);letter-spacing:0.1em;opacity:0.6;margin:0.3rem 0;}
 
 /* shared chrome */
 .bar{display:flex;align-items:center;gap:0.6rem;padding:calc(0.6rem + env(safe-area-inset-top)) 0.8rem 0.6rem;font-size:0.7rem;color:var(--dim);background:rgba(10,10,15,0.6);backdrop-filter:blur(6px);z-index:5;}
@@ -70,6 +76,12 @@ button.sys:disabled{opacity:0.6;}
 <section id="landing" class="screen on">
   <h1>✷ AR CRYSTAL</h1>
   <p class="sub">A two-phone X-ray diffraction lab. One phone <b>is the crystal</b> — tilt it under the beam. The other is the <b>detector</b> — sweep it through the air to catch the scatter spots and name the mineral.</p>
+
+  <button class="matchbtn" id="beMatch">⚡ Quick match</button>
+  <div class="matchstatus" id="matchStatus"></div>
+  <button class="btn2" id="matchCancel">cancel</button>
+  <div class="divider">— or pick a side &amp; share a room code —</div>
+
   <div class="roomrow"><span>room</span><input id="room" maxlength="4" autocomplete="off" autocapitalize="characters"></div>
   <div class="roles">
     <div class="role" id="beCrystal">
