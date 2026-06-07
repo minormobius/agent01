@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Crosswalk — Walahfrid & Macer, one garden read twice</title>
+<meta name="description" content="A comparative reading of the two herb-poems of the Alchemist's Garden: Walahfrid Strabo's Hortulus and Macer Floridus's De viribus herbarum, plant by plant — lyric garden beside apothecary, 200 years apart, sharing 17 plants. From read.mino.mobi.">
+<meta property="og:title" content="The Crosswalk — Walahfrid & Macer">
+<meta property="og:description" content="Seventeen plants, two Latin poems, two centuries apart — the lyric garden beside the apothecary. Including the bed where Macer names Walahfrid and argues with him. CC BY-SA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://read.mino.mobi/alch/crosswalk/">
+<meta property="og:site_name" content="Read">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>⇄</text></svg>">
+<link rel="stylesheet" href="../garden.css">
+<style>
+  .lede{max-width:64ch;margin:18px auto 0;color:var(--ink2);font-size:15px;line-height:1.66}
+  .lede b{color:var(--ink)} .lede .jade{color:var(--jade)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:24px 0 8px}
+  .chip{font:12px/1 ui-monospace,monospace;color:var(--ink2);border:1px solid var(--rule);
+    border-radius:999px;padding:6px 11px;cursor:pointer;background:rgba(216,178,90,.045);transition:.15s}
+  .chip:hover{color:#0e0d0b;background:linear-gradient(180deg,#e8c46e,#c79a44);border-color:transparent}
+  .chip.gap{opacity:.5;border-style:dashed}
+
+  .dip{border:1px solid var(--rule);border-radius:14px;margin:26px 0;overflow:hidden;
+    background:rgba(216,178,90,.025);scroll-margin-top:14px}
+  .dip-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;padding:16px 20px 12px;
+    border-bottom:1px solid var(--rule);background:rgba(216,178,90,.05)}
+  .dip-head .en{font:600 20px/1.1 Georgia,serif;color:var(--gold)}
+  .dip-head .names{font:13px/1.3 Georgia,serif;font-style:italic;color:var(--ink2)}
+  .dip-head .names .sep{color:var(--faint);font-style:normal;margin:0 5px}
+  .dip-head .bot{font:11px/1 ui-monospace,monospace;color:var(--faint)}
+  .dip-head .deg{margin-left:auto;font:10.5px/1 ui-monospace,monospace;letter-spacing:.04em;
+    color:var(--gold-dim);border:1px solid var(--gold-soft);border-radius:999px;padding:5px 9px;text-transform:uppercase;white-space:nowrap}
+
+  .seam{display:flex;gap:9px;align-items:flex-start;padding:12px 20px;color:var(--jade);
+    font-size:14px;line-height:1.55;font-style:italic;border-bottom:1px solid var(--rule);background:rgba(111,174,142,.06)}
+  .seam .mark{font-style:normal;opacity:.8}
+
+  .leaves{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  @media(max-width:620px){.leaves{grid-template-columns:1fr}}
+  .leaf{padding:15px 20px}
+  .leaf.h{border-right:1px solid var(--rule)}
+  @media(max-width:620px){.leaf.h{border-right:0;border-bottom:1px solid var(--rule)}}
+  .leaf .who{font:10.5px/1 ui-monospace,monospace;letter-spacing:.16em;text-transform:uppercase;margin-bottom:9px}
+  .leaf.h .who{color:var(--gold-dim)} .leaf.m .who{color:var(--jade)}
+  .leaf .who b{color:var(--ink2);font-weight:400}
+  .leaf .char{font-size:14px;line-height:1.6;color:var(--ink2);margin-bottom:11px}
+  .leaf .taste{border-left:2px solid var(--rule);padding-left:11px;margin-bottom:11px}
+  .leaf .taste .la{font:italic 14px/1.45 Georgia,serif;color:var(--ink)}
+  .leaf .taste .en{font-size:13px;line-height:1.45;color:var(--faint)}
+  .leaf .more{font:12px/1 ui-monospace,monospace;color:var(--gold)}
+  .leaf .more.gapnote{color:var(--faint);font-style:italic}
+</style>
+</head>
+<body>
+<nav id="crumb"><a href="https://read.mino.mobi/">read</a> · <a href="../">the Alchemist's Garden</a></nav>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="tag">The Alchemist's Garden · the Crosswalk</div>
+    <div class="glyph">⇄</div>
+    <h1>One garden, read twice</h1>
+    <p class="sub">Walahfrid Strabo’s <em>Hortulus</em> and Macer Floridus’s
+    <em>De viribus herbarum</em> — two Latin herb-poems two centuries apart —
+    bed against chapter, the lyric garden beside the apothecary.</p>
+  </div>
+
+  <p class="lede">Seventeen plants grow in both poems. Walahfrid (<b>c. 840</b>)
+  writes a personal, lyric garden; Macer (<b>11th c.</b>) writes the clinical
+  herbal that became the most-copied of the Middle Ages — every entry opening
+  with its Galenic <b>degrees</b> of heat and dryness. Read side by side, the
+  same herb turns twice. And in one bed the two poems are not merely parallel but
+  <span class="jade">in conversation</span>: Macer’s lovage chapter names
+  <em>“Strabus”</em> — Walahfrid Strabo himself — and argues with him.</p>
+
+  <nav class="chips" id="chips"></nav>
+  <main id="walk"></main>
+
+  <footer>
+    A comparative reading · openly licensed ·
+    <a href="../hortulus/">the Hortulus</a> · <a href="../macer/">Macer</a> ·
+    <a href="../">the garden</a>
+  </footer>
+
+</div>
+
+<script type="module">
+import { HORTULUS } from '../hortulus/data.js';
+import { MACER } from '../macer/data.js';
+
+const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const planted = s => s && Array.isArray(s.lines) && s.lines.length > 0;
+const hBySeq = {}; HORTULUS.sections.forEach(s => hBySeq[s.seq] = s);
+
+// The curated seams — the specific thread that ties each shared bed together.
+const SEAMS = {
+  2:  'They clasp hands on a single Greek word — Walahfrid’s <em>elelifagus</em>, Macer’s <em>elelisphacus</em>.',
+  3:  'Walahfrid draws rue’s beauty; Macer gives the antidote its legend — Mithridates, and the weasels that eat rue before fighting serpents.',
+  4:  'Eight lyric lines on its hair-like foliage, against twenty-one of pure pharmacy.',
+  7:  'The bitterest bed in both — and Macer ends on Pliny’s Capitol chariot-victor, crowned with a draught of wormwood.',
+  8:  'Both make it, above all, a chest-and-cough draught; Macer adds that it works better joined with iris — another shared bed.',
+  9:  'The shared eye-virtue, which Macer grounds in the serpent that chews fennel to brighten its sight.',
+  10: 'Named from the sword (Walahfrid’s <em>gladiola</em>) and from the rainbow (Macer’s <em>iris</em>) — and both live in the dried orris root.',
+  11: '★ The keystone: Macer names <em>“Strabus”</em> and disputes him — “I recall no one who agrees with Strabo.” The two gardens, in literal dialogue.',
+  12: 'Erato’s poor-man’s herb that staunches blood, against a “sharp and very fiery” worm-killer.',
+  13: 'Macer sets the silver lily after the golden rose exactly as Walahfrid pairs them — and both make it a snakebite cure.',
+  14: 'The grieving-mother legend and the chewing-sound etymology, against the opium-extraction manual and its lethal dose.',
+  16: 'Walahfrid marvels that mint’s kinds are past counting; Macer takes one kind and gives its plain pharmacy.',
+  17: 'Both poets pause longest here — Walahfrid digressing outward into the providence of trade, Macer inward to define the afterbirth.',
+  18: 'The stomach as “king of the body” (Walahfrid) against the triumphal crown of Hercules (Macer); both: the seed for the urine.',
+  19: 'Each poem’s single most-exalted herb, meeting head-on — the Muse-defeating praise beside the full Pliny legend.',
+  22: 'The very same scar-healing salve — turning fresh black scars back to clear skin — named on both sides.',
+  24: 'Both crown the rose “the flower of flowers,” word for word — then Walahfrid soars to the Virgin, Macer to a rose-oil recipe.',
+  15: 'Walahfrid tucks costmary into his clary bed; Macer’s own Costus chapter waits on its source (the Eastern-spice half of the text).',
+};
+
+// Build the pairs from Macer's hortulus links, ordered by the Hortulus (garden) order.
+const pairs = MACER.sections
+  .filter(s => s.hortulus && hBySeq[s.hortulus])
+  .map(m => ({ m, h: hBySeq[m.hortulus] }))
+  .sort((a, b) => a.h.seq - b.h.seq);
+
+const taste = s => {
+  if (!planted(s)) return '';
+  const l = s.lines[0];
+  return `<div class="taste"><div class="la">${esc(l.la)}</div><div class="en">${esc(l.en)}</div></div>`;
+};
+
+const walk = document.getElementById('walk');
+const chips = document.getElementById('chips');
+
+walk.innerHTML = pairs.map(({ m, h }) => {
+  const id = 'x' + h.seq;
+  const names = `<span class="w">${esc(h.la)}</span><span class="sep">/</span><span class="m">${esc(m.la)}</span>`;
+  const deg = m.degrees ? `<span class="deg">${esc(m.degrees)}</span>` : '';
+  const seam = SEAMS[h.seq] ? `<div class="seam"><span class="mark">⇄</span><span>${SEAMS[h.seq]}</span></div>` : '';
+
+  const macerLeaf = planted(m)
+    ? `<div class="char">${esc(m.note)}</div>${taste(m)}<a class="more" href="../macer/#c${m.seq}">Macer, ch. ${m.seq} →</a>`
+    : `<div class="char">${esc(m.note || '')}</div><span class="more gapnote">${esc(m.crux || 'awaiting its source')}</span>`;
+
+  return `<section class="dip" id="${id}">
+    <div class="dip-head">
+      <span class="en">${esc(h.en)}</span>
+      <span class="names">${names}</span>
+      <span class="bot">${esc(m.bot || h.bot || '')}</span>
+      ${deg}
+    </div>
+    ${seam}
+    <div class="leaves">
+      <div class="leaf h">
+        <div class="who"><b>Walahfrid · Hortulus</b> — the lyric garden</div>
+        <div class="char">${esc(h.note)}</div>
+        ${taste(h)}
+        <a class="more" href="../hortulus/#s${h.seq}">Hortulus ${esc(h.roman || '')} →</a>
+      </div>
+      <div class="leaf m">
+        <div class="who"><b>Macer · De viribus herbarum</b> — the apothecary</div>
+        ${macerLeaf}
+      </div>
+    </div>
+  </section>`;
+}).join('');
+
+chips.innerHTML = pairs.map(({ m, h }) =>
+  `<button class="chip ${planted(m) ? '' : 'gap'}" data-id="x${h.seq}">${esc(h.en)}</button>`
+).join('');
+chips.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  document.getElementById(b.dataset.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+</script>
+</body>
+</html>
