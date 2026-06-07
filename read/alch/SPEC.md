@@ -125,17 +125,26 @@ and growing."
 
 ### Tranches
 
-1. **Threshold (this one).** Hub + viewer + schema; preface, proem, **Sage**,
-   **Rue** translated. The pattern, proven and live.
-2. **Plant the beds.** Translate the remaining 21 plants, bed by bed (one or a
-   few per commit — each push deploys and gives a live URL to proof against, per
-   read/'s "movement by movement" rule). Then layer the **correspondence overlay**
-   (planet · element · humoral qualities · signature) from a *named* donor source
-   — Culpeper's *Complete Herbal* (1653) for planetary rulerships; the
-   Salernitan/Dioscoridean "degrees" for humoral qualities — kept visibly
-   separate from Walahfrid.
-3. **Converge.** Collate the Latin against MGH/the St Gall manuscript; record
-   variants in the notes.
+1. **Threshold.** ✅ Hub + viewer + schema; preface, proem, Sage, Rue. The
+   pattern, proven and live.
+2. **Plant the beds.** ✅ **Complete — all 23 plants translated** line-for-line
+   from the verbatim Latin, plus the proem and the dedication (403 parallel
+   lines; the whole received text). Done bed by bed, a few per commit, each push
+   deploying a live URL to proof against (read/'s "movement by movement" rule).
+   Realia and cruxes glossed throughout (the soap-bubble melon, the Ceres-as-
+   Latona slip in the poppy, Walahfrid's own doubt over *ambrosia*, the
+   rose/lily martyrdom allegory, the pennyroyal "one house" digression).
+3. **Correspondence overlay.** ◻ Pending. Layer the per-plant overlay (planet ·
+   element · humoral qualities · signature) from a *named* donor — Culpeper's
+   *Complete Herbal* (1653) for planetary rulerships; the Salernitan/Dioscoridean
+   "degrees" for humoral qualities — kept visibly separate from Walahfrid. This
+   is the step that turns the faithful edition into something the downstream
+   `g.` garden app can compute on, and where the deferred downstream gets its
+   raw material.
+4. **Converge.** ◻ Pending. Collate the working Latin (Canisius → Migne) against
+   the MGH critical text and the St Gall manuscript; record variants in the
+   notes. (The current text totals 403 lines against the ~444 sometimes cited
+   for the whole poem — collation will reconcile the count and the readings.)
 
 ### Downstream (`g.mino.mobi`) — deferred
 
