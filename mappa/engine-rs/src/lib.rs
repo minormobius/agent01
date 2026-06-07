@@ -108,7 +108,7 @@ fn classify(t: f64, m: f64, e_above: f64) -> u8 {
 
 #[derive(Serialize)]
 struct Meta { seed: u32, n: usize, plate_count: usize, ocean_fraction: f64,
-    water_frac: f64, sea_coverage: f64, axial_tilt: f64, axial_tilt_deg: i32 }
+    water_frac: f64, sea_coverage: f64, axial_tilt: f64, axial_tilt_deg: i32, solar: f64 }
 
 #[derive(Serialize)]
 struct World {
@@ -134,14 +134,22 @@ struct World {
 
 struct Plate { center: V3, oceanic: bool, axis: V3, speed: f64, buoy: f64 }
 
-fn build(seed: u32, target_n: usize) -> World {
+// the genome — any field can override the seed-derived value (sentinel < 0 = derive)
+struct Params { ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64 }
+
+fn build(seed: u32, target_n: usize, p: Params) -> World {
     let mut rng = Rng::new(seed);
     let ga = std::f64::consts::PI * (3.0 - 5.0_f64.sqrt());
-    let ocean_fraction = 0.58 + rng.next()*0.12;
-    let axial_tilt = 0.12 + rng.next()*0.47;
+    // always draw the derived value (keeps the RNG stream stable) then maybe override
+    let ocean_fraction_d = 0.58 + rng.next()*0.12;
+    let axial_tilt_d = 0.12 + rng.next()*0.47;
+    let ocean_fraction = if p.ocean_fraction >= 0.0 { p.ocean_fraction } else { ocean_fraction_d };
+    let axial_tilt = if p.axial_tilt >= 0.0 { p.axial_tilt } else { axial_tilt_d };
+    let solar = if p.solar > 0.0 { p.solar } else { 1.0 };
 
     // plates first
-    let plate_count = 12 + (rng.next()*10.0).floor() as usize; // 12..21
+    let plate_count_d = 12 + (rng.next()*10.0).floor() as usize; // 12..21
+    let plate_count = if p.plate_count > 0 { p.plate_count as usize } else { plate_count_d };
     let mut plates: Vec<Plate> = Vec::with_capacity(plate_count);
     for _ in 0..plate_count {
         let c = norm([rng.next()*2.0-1.0, rng.next()*2.0-1.0, rng.next()*2.0-1.0]);
@@ -323,7 +331,8 @@ fn build(seed: u32, target_n: usize) -> World {
     }
 
     // sea level by water volume
-    let water_frac = 0.10 + rng.next()*0.10;
+    let water_frac_d = 0.10 + rng.next()*0.10;
+    let water_frac = if p.water_frac >= 0.0 { p.water_frac } else { water_frac_d };
     let sea_level_by_volume = |elev_raw: &Vec<f64>, area: &Vec<f64>| -> f64 {
         let mut e_min = 1e9; let mut e_max = -1e9;
         for i in 0..n { if elev_raw[i] < e_min { e_min = elev_raw[i]; } if elev_raw[i] > e_max { e_max = elev_raw[i]; } }
@@ -422,7 +431,7 @@ fn build(seed: u32, target_n: usize) -> World {
     for i in 0..n {
         let la = vv[i][2].clamp(-1.0,1.0).asin();
         let alat = la.abs()/(std::f64::consts::PI/2.0);
-        let mut t = 28.0 - 45.0*alat.powf(1.25);
+        let mut t = 28.0 - 45.0*alat.powf(1.25) + (solar-1.0)*38.0;
         if water[i]==0 { t -= elev[i].max(0.0)*42.0; }
         t += (fbm3(vv[i][0]*3.0+9.0, vv[i][1]*3.0, vv[i][2]*3.0, seed as i32+5)-0.5)*5.0;
         temperature[i] = t;
@@ -485,6 +494,7 @@ fn build(seed: u32, target_n: usize) -> World {
             sea_coverage: (ocean_a/tot_a*1000.0).round()/1000.0,
             axial_tilt: (axial_tilt*1000.0).round()/1000.0,
             axial_tilt_deg: (axial_tilt*180.0/std::f64::consts::PI).round() as i32,
+            solar: (solar*1000.0).round()/1000.0,
         },
         positions, cell_verts, cell_offsets, adj: adj_flat, adj_offsets,
         elev: elev_f, water, plate, plate_type,
@@ -495,8 +505,9 @@ fn build(seed: u32, target_n: usize) -> World {
 
 // ---- wasm API ---------------------------------------------------------------
 #[wasm_bindgen]
-pub fn generate_world(seed: u32, n: u32) -> Result<JsValue, JsValue> {
-    let w = build(seed, (n as usize).clamp(500, 60000));
+pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64) -> Result<JsValue, JsValue> {
+    let p = Params { ocean_fraction, axial_tilt, water_frac, plate_count, solar };
+    let w = build(seed, (n as usize).clamp(500, 220000), p);
     serde_wasm_bindgen::to_value(&w).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
@@ -508,4 +519,4 @@ pub fn triangulate_xy(coords: &[f64]) -> Vec<u32> {
 }
 
 #[wasm_bindgen]
-pub fn engine_version() -> u32 { 2 }
+pub fn engine_version() -> u32 { 3 }

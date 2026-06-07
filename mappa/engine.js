@@ -98,6 +98,7 @@ export function generateWorld(seed, opts={}){
   const targetN=opts.N||9000;
   const oceanFraction = opts.oceanFraction ?? (0.58+rnd()*0.12); // varies per world
   const axialTilt = opts.axialTilt ?? (0.12+rnd()*0.47);          // ~7°–34°, drives seasonality
+  const solar = opts.solar ?? 1.0;                                // stellar luminosity (1 = sun-like) → global temperature
 
   // 0. plates first — so sampling can concentrate resolution where it matters --
   const ga=Math.PI*(3-Math.sqrt(5));
@@ -223,7 +224,7 @@ export function generateWorld(seed, opts={}){
   const temperature=new Float32Array(N), moisture=new Float32Array(N), seasonality=new Float32Array(N), biome=new Uint8Array(N);
   for(let i=0;i<N;i++){
     const la=lat(i), alat=Math.abs(la)/(Math.PI/2);
-    let T=28 - 45*Math.pow(alat,1.25);            // mean annual temperature
+    let T=28 - 45*Math.pow(alat,1.25) + (solar-1)*38;  // mean annual temperature (solar luminosity shifts it)
     if(water[i]===0)T-=Math.max(0,elev[i])*42;     // altitude lapse on land
     T+=(fbm3(V[i][0]*3+9,V[i][1]*3,V[i][2]*3,seed+5)-0.5)*5;
     temperature[i]=T;
@@ -250,7 +251,7 @@ export function generateWorld(seed, opts={}){
   return {
     meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),waterFrac:+waterFrac.toFixed(3),
       seaCoverage:+(oceanA/totA).toFixed(3),axialTilt:+axialTilt.toFixed(3),
-      axialTiltDeg:Math.round(axialTilt*180/Math.PI),seaLevelRaw:+sl.toFixed(4)},
+      axialTiltDeg:Math.round(axialTilt*180/Math.PI),solar:+solar.toFixed(3),seaLevelRaw:+sl.toFixed(4)},
     N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
     plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
     elev, water, temperature, moisture, seasonality, biome, conv, bounds, rivers,
