@@ -1,19 +1,25 @@
 #!/usr/bin/env node
-// Mappa Mundi v3 — real plate tectonics (continental + oceanic plates), with a
-// flat map, a TECTONIC view, and an ORB (globe) view. Ships at /mappa2/.
+// Mappa Mundi — a SPHERICAL world engine. Tectonics run in real spherical
+// coordinates (points on a unit sphere, plates moving as Euler-pole rotations);
+// the flat map is a true Mercator projection of the sphere; the orb is the
+// native view. Ships at /mappa2/.
 //
-// THE MODEL (v3):
-//   • 9 CONTINENTAL plates = the theme-wings. High base + craton → always land.
-//   • ~12 OCEANIC "spacer" plates seeded in the gaps and around the rim = the
-//     SEAS between the countries. Low base → always water.
-//   • Type-aware boundary tectonics:
-//       cont–cont convergent → mountain RANGE (diffused inland, has width)
-//       cont–ocean convergent → coastal arc on the continent + TRENCH offshore
-//       ocean–ocean divergent → mid-ocean RIDGE;  cont–cont divergent → RIFT
-//   • Rivers: priority-flood depression fill + downhill flow accumulation.
-//   • Countries/cities ride on the continental plates; oceanic plates are seas.
+// PIPELINE (all on the unit sphere):
+//   • Points: Fibonacci sphere (even, deterministic), as unit vectors.
+//   • Mesh: SPHERICAL Delaunay — stereographic-project from the north pole,
+//     run planar Bowyer–Watson, stitch the convex hull to a ghost north-pole
+//     vertex (stereographic preserves Delaunay). Dual = spherical Voronoi.
+//     Verified by Euler's formula: triangles == 2·(N+1) − 4 == 2N−2.
+//   • Plates: 9 continental (wings) + oceanic spacers. Each plate is a rigid
+//     rotation about an EULER POLE (axis + angular speed); v = ω × p. Boundary
+//     convergence = relative velocity · great-circle direction to the neighbour.
+//       cont–cont convergent → range; cont–ocean → coastal arc + trench;
+//       ocean–ocean divergent → ridge; cont–cont divergent → rift.
+//   • Elevation: continental craton (great-circle falloff) + tectonic uplift +
+//     3-D value noise sampled on the sphere. Continents above sea, oceans below.
+//   • Rivers: priority-flood + flow accumulation on the spherical mesh graph.
 //
-// Deterministic + DOM-free generator (between GEN markers), self-tested in node.
+// Generator is deterministic + DOM-free (between GEN markers), self-tested here.
 //   node scripts/build-mappa2.mjs   →   mappa2/index.html
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -21,7 +27,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-// ---- parse P + wing model (shared with v1) ----------------------------------
+// ---- parse P + wing model ---------------------------------------------------
 const html = readFileSync(join(root, 'index.html'), 'utf8');
 const block = html.match(/var P = \[([\s\S]*?)\n  \];/)[1];
 const surfaces = [];
@@ -31,16 +37,17 @@ for (const line of block.split('\n')) {
   surfaces.push({ n:n[1], u:g(/u:'([^']+)'/,''), c:g(/c:'([^']+)'/,''),
     k:+(g(/k:(\d+)/,'1')), a:g(/a:'([^']+)'/,'warm'), b:g(/b:'([^']+)'/,''), p:g(/p:'([^']+)'/,'') });
 }
+// wings carry an approximate lon/lat (degrees) for their continental plate seed
 const WINGS = [
-  { id:'social',  label:'The Social Layer', hue:205, cx:0.14, cy:0.28 },
-  { id:'lenses',  label:'Lenses',           hue:265, cx:0.15, cy:0.62 },
-  { id:'bench',   label:'The Workbench',    hue:32,  cx:0.20, cy:0.90 },
-  { id:'cards',   label:'The Card Table',   hue:345, cx:0.46, cy:0.15 },
-  { id:'studio',  label:'The Studio',       hue:158, cx:0.49, cy:0.45 },
-  { id:'arcade',  label:'The Arcade',       hue:48,  cx:0.83, cy:0.16 },
-  { id:'sandbox', label:'Simulations & Sandboxes', hue:122, cx:0.86, cy:0.45 },
-  { id:'math',    label:'Interactive Mathematics', hue:190, cx:0.66, cy:0.85 },
-  { id:'reading', label:'The Reading Room', hue:18,  cx:0.93, cy:0.85 },
+  { id:'social',  label:'The Social Layer', hue:205, lon:-150, lat: 35 },
+  { id:'lenses',  label:'Lenses',           hue:265, lon:-140, lat:-10 },
+  { id:'bench',   label:'The Workbench',    hue:32,  lon:-120, lat:-50 },
+  { id:'cards',   label:'The Card Table',   hue:345, lon: -40, lat: 55 },
+  { id:'studio',  label:'The Studio',       hue:158, lon: -20, lat:  5 },
+  { id:'arcade',  label:'The Arcade',       hue:48,  lon: 110, lat: 50 },
+  { id:'sandbox', label:'Simulations & Sandboxes', hue:122, lon: 130, lat:  0 },
+  { id:'math',    label:'Interactive Mathematics', hue:190, lon:  55, lat:-45 },
+  { id:'reading', label:'The Reading Room', hue:18,  lon: 150, lat:-55 },
 ];
 const ASSIGN = {
   social:'poll airchat zoom bisk cat atmosphere disk feedgen tetr',
@@ -67,47 +74,48 @@ const foundNorm = s => s.b ? (Date.parse(s.b)-minB)/(maxB-minB||1) : 0.6;
 const nodes = surfaces.map(s=>({ n:s.n, u:s.u, k:s.k, a:s.a, b:s.b||'',
   f:+foundNorm(s).toFixed(3), w:wingOf(s), w2:(SEAM[s.n]?SEAM[s.n][1]:null) }));
 
-// ---- the DOM-free world generator -------------------------------------------
+// ---- the DOM-free spherical world generator ---------------------------------
 const GEN = String.raw`
-const WW=1400, WH=900;
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function hash2(ix,iy,s){let n=(ix*374761393+iy*668265263+s*69069)|0;n=Math.imul(n^(n>>>13),1274126177);n=n^(n>>>16);return((n>>>0)/4294967296)}
+// vec3
+function vsub(a,b){return[a[0]-b[0],a[1]-b[1],a[2]-b[2]]}
+function vadd(a,b){return[a[0]+b[0],a[1]+b[1],a[2]+b[2]]}
+function vscale(a,s){return[a[0]*s,a[1]*s,a[2]*s]}
+function vdot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}
+function vcross(a,b){return[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}
+function vlen(a){return Math.hypot(a[0],a[1],a[2])}
+function vnorm(a){const l=vlen(a)||1;return[a[0]/l,a[1]/l,a[2]/l]}
+function llToVec(lon,lat){const cl=Math.cos(lat);return[cl*Math.cos(lon),cl*Math.sin(lon),Math.sin(lat)]}
+// 3D value noise
+function h3(i,j,k,s){let n=(i*374761393+j*668265263+k*1610612741+s*69069)|0;n=Math.imul(n^(n>>>13),1274126177);n=n^(n>>>16);return((n>>>0)/4294967296)}
 function sm(t){return t*t*(3-2*t)}
-function vn(x,y,s){const x0=Math.floor(x),y0=Math.floor(y),fx=sm(x-x0),fy=sm(y-y0);
-  const a=hash2(x0,y0,s),b=hash2(x0+1,y0,s),c=hash2(x0,y0+1,s),d=hash2(x0+1,y0+1,s);
-  return (a*(1-fx)+b*fx)*(1-fy)+(c*(1-fx)+d*fx)*fy}
-function fbm(x,y,s){let v=0,a=0.5,f=1;for(let o=0;o<5;o++){v+=a*vn(x*f,y*f,s+o*131);f*=2;a*=0.5}return v}
+function vn3(x,y,z,s){const x0=Math.floor(x),y0=Math.floor(y),z0=Math.floor(z),fx=sm(x-x0),fy=sm(y-y0),fz=sm(z-z0);
+  function L(a,b,t){return a*(1-t)+b*t}
+  const c000=h3(x0,y0,z0,s),c100=h3(x0+1,y0,z0,s),c010=h3(x0,y0+1,z0,s),c110=h3(x0+1,y0+1,z0,s),
+        c001=h3(x0,y0,z0+1,s),c101=h3(x0+1,y0,z0+1,s),c011=h3(x0,y0+1,z0+1,s),c111=h3(x0+1,y0+1,z0+1,s);
+  return L(L(L(c000,c100,fx),L(c010,c110,fx),fy),L(L(c001,c101,fx),L(c011,c111,fx),fy),fz)}
+function fbm3(x,y,z,s){let v=0,a=0.5,f=1;for(let o=0;o<5;o++){v+=a*vn3(x*f,y*f,z*f,s+o*131);f*=2;a*=0.5}return v}
 
-function circum(P,a,b,c){const ax=P[a].x,ay=P[a].y,bx=P[b].x,by=P[b].y,cx=P[c].x,cy=P[c].y;
-  const d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by)); if(Math.abs(d)<1e-12)return{x:0,y:0,r2:Infinity};
+// planar Bowyer–Watson (used after stereographic projection)
+function circum(P,a,b,c){const ax=P[a][0],ay=P[a][1],bx=P[b][0],by=P[b][1],cx=P[c][0],cy=P[c][1];
+  const d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));if(Math.abs(d)<1e-15)return{x:0,y:0,r2:Infinity};
   const A=ax*ax+ay*ay,B=bx*bx+by*by,C=cx*cx+cy*cy;
-  const ux=(A*(by-cy)+B*(cy-ay)+C*(ay-by))/d, uy=(A*(cx-bx)+B*(ax-cx)+C*(bx-ax))/d;
-  return {x:ux,y:uy,r2:(ax-ux)*(ax-ux)+(ay-uy)*(ay-uy)}}
-function triangulate(pts){
-  const n=pts.length; let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
-  for(const p of pts){if(p.x<mnX)mnX=p.x;if(p.y<mnY)mnY=p.y;if(p.x>mxX)mxX=p.x;if(p.y>mxY)mxY=p.y}
-  const dm=Math.max(mxX-mnX,mxY-mnY)||1, mx=(mnX+mxX)/2, my=(mnY+mxY)/2;
+  const ux=(A*(by-cy)+B*(cy-ay)+C*(ay-by))/d,uy=(A*(cx-bx)+B*(ax-cx)+C*(bx-ax))/d;
+  return{x:ux,y:uy,r2:(ax-ux)*(ax-ux)+(ay-uy)*(ay-uy)}}
+function triangulate(pts){ // pts: [[x,y],...] planar
+  const n=pts.length;let mnX=1e9,mnY=1e9,mxX=-1e9,mxY=-1e9;
+  for(const p of pts){if(p[0]<mnX)mnX=p[0];if(p[1]<mnY)mnY=p[1];if(p[0]>mxX)mxX=p[0];if(p[1]>mxY)mxY=p[1]}
+  const dm=Math.max(mxX-mnX,mxY-mnY)||1,mx=(mnX+mxX)/2,my=(mnY+mxY)/2;
   const P=pts.slice(),i0=n,i1=n+1,i2=n+2;
-  P.push({x:mx-20*dm,y:my-dm},{x:mx,y:my+20*dm},{x:mx+20*dm,y:my-dm});
+  P.push([mx-20*dm,my-dm],[mx,my+20*dm],[mx+20*dm,my-dm]);
   let T=[[i0,i1,i2]];T[0].cc=circum(P,i0,i1,i2);
   for(let i=0;i<n;i++){const p=P[i],bad=[];
-    for(const t of T){const cc=t.cc;if((p.x-cc.x)*(p.x-cc.x)+(p.y-cc.y)*(p.y-cc.y)<cc.r2-1e-9)bad.push(t)}
+    for(const t of T){const cc=t.cc;if((p[0]-cc.x)*(p[0]-cc.x)+(p[1]-cc.y)*(p[1]-cc.y)<cc.r2-1e-9)bad.push(t)}
     const ed=[];for(const t of bad)ed.push([t[0],t[1]],[t[1],t[2]],[t[2],t[0]]);
     const poly=[];for(let a=0;a<ed.length;a++){let sh=false;for(let b=0;b<ed.length;b++){if(a!==b&&ed[a][0]===ed[b][1]&&ed[a][1]===ed[b][0]){sh=true;break}}if(!sh)poly.push(ed[a])}
     const bs=new Set(bad);T=T.filter(t=>!bs.has(t));
     for(const e of poly){const nt=[e[0],e[1],i];nt.cc=circum(P,nt[0],nt[1],nt[2]);T.push(nt)}}
   return T.filter(t=>t[0]<n&&t[1]<n&&t[2]<n);
-}
-function clipRect(poly){
-  const planes=[p=>p.x>=0,p=>p.x<=WW,p=>p.y>=0,p=>p.y<=WH];
-  const cut=[(a,b)=>({x:0,y:a.y+(b.y-a.y)*((0-a.x)/(b.x-a.x))}),(a,b)=>({x:WW,y:a.y+(b.y-a.y)*((WW-a.x)/(b.x-a.x))}),
-            (a,b)=>({x:a.x+(b.x-a.x)*((0-a.y)/(b.y-a.y)),y:0}),(a,b)=>({x:a.x+(b.x-a.x)*((WH-a.y)/(b.y-a.y)),y:WH})];
-  let out=poly;
-  for(let k=0;k<4;k++){const ins=planes[k],ct=cut[k],inp=out;out=[];
-    for(let i=0;i<inp.length;i++){const A=inp[i],B=inp[(i+1)%inp.length],ai=ins(A),bi=ins(B);
-      if(ai){out.push(A);if(!bi)out.push(ct(A,B))}else if(bi)out.push(ct(A,B))}
-    if(out.length===0)break}
-  return out;
 }
 function MinHeap(){this.a=[]}
 MinHeap.prototype.push=function(k,v){const a=this.a;a.push([k,v]);let i=a.length-1;while(i>0){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;const t=a[p];a[p]=a[i];a[i]=t;i=p}};
@@ -116,99 +124,101 @@ MinHeap.prototype.size=function(){return this.a.length};
 
 function makeWorld(seed, wings, nodes){
   const rnd=mulberry32(seed);
-  const target=1500, cols=Math.round(Math.sqrt(target*WW/WH)), rows=Math.round(target/cols);
-  const cw=WW/cols, ch=WH/rows, P=[];
-  for(let j=0;j<rows;j++)for(let i=0;i<cols;i++)P.push({x:(i+0.5+(rnd()-0.5)*0.8)*cw,y:(j+0.5+(rnd()-0.5)*0.8)*ch});
-  const Nreal=P.length;
-  const fr=12;for(let i=0;i<=fr;i++){P.push({x:-WW*0.3+WW*1.6*i/fr,y:-WH*0.3},{x:-WW*0.3+WW*1.6*i/fr,y:WH*1.3},{x:-WW*0.3,y:-WH*0.3+WH*1.6*i/fr},{x:WW*1.3,y:-WH*0.3+WH*1.6*i/fr})}
-  const N=P.length;
-
-  const T=triangulate(P);const cc=T.map(t=>t.cc);
-  const inc=Array.from({length:N},()=>[]);T.forEach((t,ti)=>{for(const v of t)inc[v].push(ti)});
-  const adj=Array.from({length:N},()=>new Set());const emap=new Map();
-  const ek=(a,b)=>a<b?a+','+b:b+','+a;
-  T.forEach((t,ti)=>{const e=[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]];for(const[a,b]of e){adj[a].add(b);adj[b].add(a);const k=ek(a,b);(emap.get(k)||emap.set(k,[]).get(k)).push(ti)}});
+  // 1. Fibonacci sphere points (unit vectors) -------------------------------
+  const N=1600, ga=Math.PI*(3-Math.sqrt(5)), rot=rnd()*6.283;
+  const V=[];for(let i=0;i<N;i++){const z=1-(2*i+1)/N,r=Math.sqrt(1-z*z),th=ga*i+rot;V.push([r*Math.cos(th),r*Math.sin(th),z])}
+  // 2. spherical Delaunay via stereographic projection from north pole -------
+  const proj=V.map(p=>[p[0]/(1-p[2]),p[1]/(1-p[2])]); // z<1 always (no point at pole)
+  const triR=triangulate(proj);                        // triangles among real points
+  // edges; hull edges (count 1) stitch to ghost north-pole vertex (index N)
+  const emap=new Map();const ek=(a,b)=>a<b?a+','+b:b+','+a;
+  for(const t of triR){const e=[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]];for(const[a,b]of e){const k=ek(a,b);emap.set(k,(emap.get(k)||0)+1)}}
+  const GH=N;const tris=triR.map(t=>[t[0],t[1],t[2]]);
+  for(const[k,c]of emap)if(c===1){const[a,b]=k.split(',').map(Number);tris.push([a,b,GH])}
+  // spherical circumcentres (unit normal of each triangle, oriented outward) --
+  const PV=V.concat([[0,0,1]]); // ghost = north pole
+  const cc=tris.map(t=>{let c=vnorm(vcross(vsub(PV[t[1]],PV[t[0]]),vsub(PV[t[2]],PV[t[0]])));const cen=vadd(vadd(PV[t[0]],PV[t[1]]),PV[t[2]]);if(vdot(c,cen)<0)c=vscale(c,-1);return c});
+  // adjacency among REAL points + incident triangles per real point ----------
+  const inc=Array.from({length:N},()=>[]);const adj=Array.from({length:N},()=>new Set());
+  tris.forEach((t,ti)=>{for(const v of t)if(v<N)inc[v].push(ti);
+    for(let a=0;a<3;a++){const u=t[a],w=t[(a+1)%3];if(u<N&&w<N){adj[u].add(w);adj[w].add(u)}}});
   const A=adj.map(s=>[...s]);
-  const cells=new Array(N).fill(null);
-  for(let i=0;i<Nreal;i++){const p=P[i];const cs=inc[i].map(ti=>({a:Math.atan2(cc[ti].y-p.y,cc[ti].x-p.x),c:cc[ti]}));cs.sort((u,v)=>u.a-v.a);let poly=cs.map(c=>c.c);if(poly.length>=3)cells[i]=clipRect(poly)}
-  const vedges=[];for(const[k,t]of emap){if(t.length!==2)continue;const[a,b]=k.split(',').map(Number);if(a>=Nreal&&b>=Nreal)continue;vedges.push({i:a,j:b,ax:cc[t[0]].x,ay:cc[t[0]].y,bx:cc[t[1]].x,by:cc[t[1]].y})}
+  // edge → incident triangles (real–real edges only) for plate-boundary segments
+  const e2t=new Map();tris.forEach((t,ti)=>{for(let a=0;a<3;a++){const u=t[a],w=t[(a+1)%3];if(u<N&&w<N){const k=ek(u,w);(e2t.get(k)||e2t.set(k,[]).get(k)).push(ti)}}});
+  // Voronoi cell polygons: incident circumcentres ordered around each point ---
+  const cells=new Array(N);
+  for(let i=0;i<N;i++){const p=V[i];let e1=vnorm(vcross(p,Math.abs(p[2])<0.9?[0,0,1]:[1,0,0]));const e2=vcross(p,e1);
+    const cs=inc[i].map(ti=>{const c=cc[ti];return{a:Math.atan2(vdot(c,e2),vdot(c,e1)),c}});cs.sort((u,v)=>u.a-v.a);cells[i]=cs.map(o=>o.c)}
 
-  // PLATES: 9 continental (wings) + oceanic spacer plates ---------------------
-  const cont=wings.map(w=>({type:0,x:w.cx*WW,y:w.cy*WH})); // type 0 = continental
-  const oA=[[-0.13,0.5],[1.13,0.5],[0.5,-0.13],[0.5,1.13],[-0.12,-0.12],[1.12,-0.12],[-0.12,1.12],[1.12,1.12],
-    [0.31,0.30],[0.31,0.62],[0.33,0.88],[0.64,0.30],[0.67,0.58],[0.66,0.12],[0.50,0.70],[0.78,0.66]]; // rim + interior channel seas
-  const ocean=oA.map(([ax,ay])=>({type:1,x:(ax+(rnd()-0.5)*0.05)*WW,y:(ay+(rnd()-0.5)*0.05)*WH})); // type 1 = oceanic
-  const plates=cont.concat(ocean); const NC=cont.length;
-  for(const pl of plates){const a=rnd()*6.283;pl.dx=Math.cos(a)*(0.6+rnd()*0.8);pl.dy=Math.sin(a)*(0.6+rnd()*0.8)}
-  const plate=new Int16Array(N).fill(-1);
-  for(let i=0;i<Nreal;i++){let bp=0,bd=1e18;for(let s=0;s<plates.length;s++){const dx=P[i].x-plates[s].x,dy=P[i].y-plates[s].y,d=dx*dx+dy*dy;if(d<bd){bd=d;bp=s}}plate[i]=bp}
+  // 3. plates: continental (wings) + oceanic spacers, each an Euler-pole rotor
+  const D2R=Math.PI/180;
+  const cont=wings.map(w=>({type:0,s:llToVec(w.lon*D2R,w.lat*D2R)}));
+  const oLL=[[-90,60],[-60,-70],[0,-30],[30,30],[80,15],[170,30],[180,-20],[-170,-40],[20,-75],[-50,80],[90,75],[140,-75]];
+  const ocean=oLL.map(([lo,la])=>({type:1,s:llToVec((lo+(rnd()-0.5)*12)*D2R,(la+(rnd()-0.5)*8)*D2R)}));
+  const plates=cont.concat(ocean);const NC=cont.length;
+  for(const pl of plates){const ax=vnorm([rnd()-0.5,rnd()-0.5,rnd()-0.5]);pl.ax=ax;pl.sp=0.5+rnd()*0.9} // Euler pole + angular speed
+  const plate=new Int16Array(N);
+  for(let i=0;i<N;i++){let bp=0,bd=-2;for(let s=0;s<plates.length;s++){const d=vdot(V[i],plates[s].s);if(d>bd){bd=d;bp=s}}plate[i]=bp}
   const ptype=i=>plates[plate[i]].type;
+  const vel=i=>vscale(vcross(plates[plate[i]].ax,V[i]),plates[plate[i]].sp); // ω × p
 
-  // tectonics: per-site convergence + type-aware mountain / trench / ridge -----
-  const conv=new Float32Array(N), mountSrc=new Float32Array(N), localF=new Float32Array(N);
-  for(let i=0;i<Nreal;i++){let cs=0,nn=0,mt=0,lf=0;const ti=ptype(i);
-    for(const j of A[i]){if(j>=Nreal||plate[j]===plate[i])continue;const tj=ptype(j);
-      const dx=P[j].x-P[i].x,dy=P[j].y-P[i].y,L=Math.hypot(dx,dy)||1;
-      const rel=(plates[plate[i]].dx-plates[plate[j]].dx)*(dx/L)+(plates[plate[i]].dy-plates[plate[j]].dy)*(dy/L);
-      cs+=rel;nn++;
-      if(rel>0){ // convergent
-        if(ti===0&&tj===0)mt+=rel*1.0;            // cont-cont: mountains
-        else if(ti===0&&tj===1)mt+=rel*0.75;       // cont side of subduction: coastal arc
-        else if(ti===1&&tj===0)lf-=rel*1.15;       // ocean side: trench
-        else lf+=rel*0.25;                          // ocean-ocean: island arc
-      } else { const dv=-rel;
-        if(ti===1)lf+=dv*0.35;                      // mid-ocean ridge
-        else lf-=dv*0.45;                           // continental rift
-      }}
-    if(nn){conv[i]=cs/nn; if(ti===0&&mt>0)mountSrc[i]=mt; localF[i]=lf}}
-  // diffuse mountains inland over continental sites (gives ranges width)
+  // 4. tectonics: convergence + type-aware mountain/trench/ridge --------------
+  const conv=new Float32Array(N),mountSrc=new Float32Array(N),localF=new Float32Array(N);
+  for(let i=0;i<N;i++){let cs=0,nn=0,mt=0,lf=0;const ti=ptype(i),vi=vel(i);
+    for(const j of A[i]){if(plate[j]===plate[i])continue;const tj=ptype(j);
+      const dir=vnorm(vsub(V[j],vscale(V[i],vdot(V[i],V[j])))); // great-circle tangent i→j
+      const rel=vdot(vsub(vi,vel(j)),dir); cs+=rel;nn++;
+      if(rel>0){ if(ti===0&&tj===0)mt+=rel*1.0; else if(ti===0&&tj===1)mt+=rel*0.75; else if(ti===1&&tj===0)lf-=rel*1.15; else lf+=rel*0.25; }
+      else { const dv=-rel; if(ti===1)lf+=dv*0.35; else lf-=dv*0.45; }}
+    if(nn){conv[i]=cs/nn;if(ti===0&&mt>0)mountSrc[i]=mt;localF[i]=lf}}
   let mf=Float32Array.from(mountSrc);
-  for(let it=0;it<3;it++){const nf=Float32Array.from(mf);for(let i=0;i<Nreal;i++){if(ptype(i)!==0)continue;let m=mf[i];for(const j of A[i])if(j<Nreal&&ptype(j)===0)m=Math.max(m,mf[j]*0.66);nf[i]=m}mf=nf}
+  for(let it=0;it<3;it++){const nf=Float32Array.from(mf);for(let i=0;i<N;i++){if(ptype(i)!==0)continue;let m=mf[i];for(const j of A[i])if(ptype(j)===0)m=Math.max(m,mf[j]*0.66);nf[i]=m}mf=nf}
+  // plate-boundary Voronoi segments, classified by convergence (for Tectonic view)
+  const bounds=[];for(const[k,ts]of e2t){if(ts.length!==2)continue;const[a,b]=k.split(',').map(Number);if(plate[a]===plate[b])continue;bounds.push({a:cc[ts[0]],b:cc[ts[1]],c:(conv[a]+conv[b])/2})}
 
-  // elevation: continents always above water, oceans below --------------------
+  // 5. elevation -------------------------------------------------------------
   const elev=new Float32Array(N);
-  for(let i=0;i<Nreal;i++){const p=P[i],ti=ptype(i);
-    let e; const noise=(fbm(p.x*0.006,p.y*0.006,seed)-0.5)*(ti===0?0.20:0.30);
-    if(ti===0){const pl=plates[plate[i]],dc=Math.hypot(p.x-pl.x,p.y-pl.y);
-      const craton=0.30*Math.exp(-(dc*dc)/(2*(WW*0.22)*(WW*0.22)));
-      e=0.24+craton+mf[i]*0.62+localF[i]*0.5+noise;
-    } else { e=-0.55+mf[i]*0.55+localF[i]*0.6+noise; }
-    elev[i]=e}
+  for(let i=0;i<N;i++){const p=V[i],ti=ptype(i),noise=(fbm3(p[0]*2.2,p[1]*2.2,p[2]*2.2,seed)-0.5)*(ti===0?0.20:0.30);
+    if(ti===0){const gd=Math.acos(Math.max(-1,Math.min(1,vdot(p,plates[plate[i]].s))));const craton=0.30*Math.exp(-(gd*gd)/(2*0.45*0.45));
+      elev[i]=0.24+craton+mf[i]*0.62+localF[i]*0.5+noise;}
+    else elev[i]=-0.55+mf[i]*0.55+localF[i]*0.6+noise;}
   const sl=0.0;
-  const land=new Uint8Array(N);for(let i=0;i<Nreal;i++)land[i]=elev[i]>sl?1:0;
-  const mtn=new Uint8Array(N);for(let i=0;i<Nreal;i++)mtn[i]=land[i]&&mf[i]>0.85?1:0; // snowcaps: high tectonic peaks only
+  const land=new Uint8Array(N);for(let i=0;i<N;i++)land[i]=elev[i]>sl?1:0;
+  const mtn=new Uint8Array(N);for(let i=0;i<N;i++)mtn[i]=land[i]&&mf[i]>0.85?1:0;
   const shade=new Float32Array(N);
-  for(let i=0;i<Nreal;i++){if(!land[i])continue;let eR=elev[i],best=1e9;for(const j of A[i])if(j<Nreal){const d=P[j].x-P[i].x;if(d>0&&d<best){best=d;eR=elev[j]}}shade[i]=Math.max(-0.16,Math.min(0.16,(elev[i]-eR)*1.3))}
+  for(let i=0;i<N;i++){if(!land[i])continue;let eR=elev[i],best=-2;for(const j of A[i]){const d=vdot(vsub(V[j],V[i]),[1,0,0]);if(d>best){best=d;eR=elev[j]}}shade[i]=Math.max(-0.16,Math.min(0.16,(elev[i]-eR)*1.3))}
 
-  // rivers --------------------------------------------------------------------
+  // 6. rivers (priority-flood + flow accumulation on the sphere graph) --------
   const filled=Float32Array.from(elev),inq=new Uint8Array(N),heap=new MinHeap();
-  for(let i=0;i<Nreal;i++)if(!land[i]){inq[i]=1;heap.push(filled[i],i)}
-  while(heap.size()){const[e,i]=heap.pop();for(const j of A[i]){if(j>=Nreal||inq[j])continue;filled[j]=Math.max(elev[j],e+1e-4);inq[j]=1;heap.push(filled[j],j)}}
+  for(let i=0;i<N;i++)if(!land[i]){inq[i]=1;heap.push(filled[i],i)}
+  while(heap.size()){const[e,i]=heap.pop();for(const j of A[i]){if(inq[j])continue;filled[j]=Math.max(elev[j],e+1e-4);inq[j]=1;heap.push(filled[j],j)}}
   const down=new Int32Array(N).fill(-1);
-  for(let i=0;i<Nreal;i++){if(!land[i])continue;let lo=filled[i],bj=-1;for(const j of A[i]){if(j>=Nreal)continue;if(filled[j]<lo){lo=filled[j];bj=j}}down[i]=bj}
-  const order=[];for(let i=0;i<Nreal;i++)if(land[i])order.push(i);order.sort((a,b)=>filled[b]-filled[a]);
-  const flow=new Float32Array(N);for(let i=0;i<Nreal;i++)if(land[i])flow[i]=1;
+  for(let i=0;i<N;i++){if(!land[i])continue;let lo=filled[i],bj=-1;for(const j of A[i])if(filled[j]<lo){lo=filled[j];bj=j}down[i]=bj}
+  const order=[];for(let i=0;i<N;i++)if(land[i])order.push(i);order.sort((a,b)=>filled[b]-filled[a]);
+  const flow=new Float32Array(N);for(let i=0;i<N;i++)if(land[i])flow[i]=1;
   for(const i of order){const j=down[i];if(j>=0&&land[j])flow[j]+=flow[i]}
-  const rivers=[];for(const i of order){const j=down[i];if(j>=0&&land[j]&&flow[i]>16)rivers.push({ax:P[i].x,ay:P[i].y,bx:P[j].x,by:P[j].y,w:Math.min(5,0.6+Math.sqrt(flow[i])/6)})}
+  const rivers=[];for(const i of order){const j=down[i];if(j>=0&&land[j]&&flow[i]>16)rivers.push({a:V[i],b:V[j],w:Math.min(5,0.6+Math.sqrt(flow[i])/6)})}
 
-  // cities (on continental plates only) ---------------------------------------
+  // 7. cities (continental land only) ----------------------------------------
   const landByW={};for(const w of wings)landByW[w.id]=[];
-  for(let i=0;i<Nreal;i++)if(land[i]&&plate[i]<NC)landByW[wings[plate[i]].id].push(i);
-  const cenByW={};for(let wi=0;wi<wings.length;wi++){const ls=landByW[wings[wi].id];let sx=0,sy=0;for(const i of ls){sx+=P[i].x;sy+=P[i].y}cenByW[wings[wi].id]=ls.length?{x:sx/ls.length,y:sy/ls.length}:{x:plates[wi].x,y:plates[wi].y}}
+  for(let i=0;i<N;i++)if(land[i]&&plate[i]<NC)landByW[wings[plate[i]].id].push(i);
+  const cenByW={};for(let wi=0;wi<wings.length;wi++){const ls=landByW[wings[wi].id];let acc=[0,0,0];for(const i of ls)acc=vadd(acc,V[i]);cenByW[wings[wi].id]=ls.length?vnorm(acc):plates[wi].s}
   function seamSites(a,b){const ai=wings.findIndex(w=>w.id===a),bi=wings.findIndex(w=>w.id===b),out=[];
-    for(let i=0;i<Nreal;i++){if(!land[i]||(plate[i]!==ai&&plate[i]!==bi))continue;let tch=false;for(const j of A[i])if(j<Nreal&&(plate[j]===ai||plate[j]===bi)&&plate[j]!==plate[i]){tch=true;break}if(tch)out.push(i)}return out}
+    for(let i=0;i<N;i++){if(!land[i]||(plate[i]!==ai&&plate[i]!==bi))continue;let tch=false;for(const j of A[i])if((plate[j]===ai||plate[j]===bi)&&plate[j]!==plate[i]){tch=true;break}if(tch)out.push(i)}return out}
   const byW={};for(const w of wings)byW[w.id]=[];for(const nd of nodes)byW[nd.w].push(nd);
   const cities=[];
   for(const w of wings){const mem=byW[w.id].slice().sort((p,q)=>q.k-p.k),cand=landByW[w.id],placed=[],cen=cenByW[w.id];
     mem.forEach((nd,rank)=>{let site=-1;
       if(nd.w2){const ss=seamSites(nd.w,nd.w2);if(ss.length)site=ss[Math.floor(rnd()*ss.length)]}
-      if(site<0){if(rank===0&&cand.length){let bd=1e18;for(const i of cand){const d=(P[i].x-cen.x)**2+(P[i].y-cen.y)**2;if(d<bd){bd=d;site=i}}}
-        else if(cand.length){let best=-1,bs=-1e18;for(let t=0;t<26;t++){const i=cand[Math.floor(rnd()*cand.length)];let mind=1e18;for(const p of placed){const dx=P[p].x-P[i].x,dy=P[p].y-P[i].y;mind=Math.min(mind,dx*dx+dy*dy)}const dC=Math.hypot(P[i].x-cen.x,P[i].y-cen.y),ab=(nd.f-0.5)*dC*0.9,scv=Math.sqrt(mind)+ab+rnd()*40;if(scv>bs){bs=scv;best=i}}site=best}
+      if(site<0){if(rank===0&&cand.length){let bd=-2;for(const i of cand){const d=vdot(V[i],cen);if(d>bd){bd=d;site=i}}}
+        else if(cand.length){let best=-1,bs=-1e18;for(let t=0;t<26;t++){const i=cand[Math.floor(rnd()*cand.length)];let mind=2;for(const p of placed){const d=1-vdot(V[p],V[i]);if(d<mind)mind=d}const dC=1-vdot(V[i],cen),ab=(nd.f-0.5)*dC*1.5,scv=mind+ab+rnd()*0.04;if(scv>bs){bs=scv;best=i}}site=best}
         else site=0}
       if(site<0)site=cand.length?cand[0]:0;placed.push(site);
-      cities.push({n:nd.n,u:nd.u,k:nd.k,a:nd.a,f:nd.f,b:nd.b,w:nd.w,w2:nd.w2,x:P[site].x,y:P[site].y,capital:rank===0})})}
+      cities.push({n:nd.n,u:nd.u,k:nd.k,a:nd.a,f:nd.f,b:nd.b,w:nd.w,w2:nd.w2,v:V[site],capital:rank===0})})}
 
-  return {WW,WH,Nreal,NC,P,cells,land,elev,plate,ptype:Array.from({length:Nreal},(_,i)=>ptype(i)),mtn,shade,conv,vedges,rivers,cities,sl,cen:cenByW,plates};
+  return {N,NC,V,cells,land,elev,plate,ptype:Array.from({length:N},(_,i)=>ptype(i)),mtn,shade,conv,bounds,rivers,cities,sl,cen:cenByW,
+    plates:plates.map(pl=>({type:pl.type,s:pl.s,ax:pl.ax,sp:pl.sp})),
+    _euler:{triCount:tris.length,Vcount:N+1}};
 }
 `;
 
@@ -218,23 +228,19 @@ function makeWorld(seed, wings, nodes){
   let ok=true;
   for(const seed of [1,7,42,2026,99]){
     const w=Sx.makeWorld(seed,WINGS,nodes);
-    const good=w.cells.slice(0,w.Nreal).filter(c=>c&&c.length>=3&&c.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))).length;
-    const landN=w.land.reduce((a,b)=>a+b,0),landFrac=landN/w.Nreal;
-    // per-wing land fraction (continental sites)
-    const wingLand={}; for(let wi=0;wi<WINGS.length;wi++)wingLand[wi]={l:0,t:0};
-    let oceL=0,oceT=0,deep=0;
-    let islands=0; // land on an oceanic plate — cellHSL must handle these (no wing)
-    for(let i=0;i<w.Nreal;i++){const p=w.plate[i];if(p<w.NC){wingLand[p].t++;if(w.land[i])wingLand[p].l++}else{oceT++;if(!w.land[i])oceL++;else islands++}if(w.elev[i]<-0.6)deep++}
+    const euler = w._euler.triCount === 2*w._euler.Vcount-4; // sphere: F = 2V-4
+    const goodCells=w.cells.filter(c=>c&&c.length>=3&&c.every(p=>Number.isFinite(p[0])&&Math.abs(Math.hypot(p[0],p[1],p[2])-1)<1e-6)).length;
+    const landN=w.land.reduce((a,b)=>a+b,0),landFrac=landN/w.N;
+    const wingLand={};for(let i=0;i<w.NC;i++)wingLand[i]={l:0,t:0};let oceL=0,oceT=0,deep=0,isl=0;
+    for(let i=0;i<w.N;i++){const p=w.plate[i];if(p<w.NC){wingLand[p].t++;if(w.land[i])wingLand[p].l++}else{oceT++;if(!w.land[i])oceL++;else isl++}if(w.elev[i]<-0.6)deep++}
     const minWing=Math.min(...Object.values(wingLand).map(o=>o.t?o.l/o.t:1));
-    const oceSea=oceT?oceL/oceT:1;
-    const empty=WINGS.filter(wg=>!w.cities.some(c=>c.w===wg.id)).map(x=>x.id);
-    const placed=w.cities.length,finite=w.cities.every(c=>Number.isFinite(c.x)&&Number.isFinite(c.y));
-    const mtns=w.mtn.reduce((a,b)=>a+b,0);
-    console.log(`seed ${String(seed).padStart(4)}: cells=${good}/${w.Nreal} land=${(landFrac*100|0)}% minWingLand=${(minWing*100|0)}% oceanIsSea=${(oceSea*100|0)}% deepTrench=${deep} islandArc=${islands} cities=${placed}/144 mtns=${mtns} rivers=${w.rivers.length} empty=[${empty}]`);
-    if(placed!==144||!finite||empty.length||good<w.Nreal*0.97||minWing<0.45||oceSea<0.85||w.rivers.length<4) ok=false;
+    const oceSea=oceT?oceL/oceT:1,empty=WINGS.filter(wg=>!w.cities.some(c=>c.w===wg.id)).map(x=>x.id);
+    const placed=w.cities.length,finite=w.cities.every(c=>Number.isFinite(c.v[0]));
+    console.log(`seed ${String(seed).padStart(4)}: euler(F=2V-4)=${euler?'OK':'FAIL '+w._euler.triCount+'!='+(2*w._euler.Vcount-4)} cells=${goodCells}/${w.N} land=${(landFrac*100|0)}% minWing=${(minWing*100|0)}% sea=${(oceSea*100|0)}% trench=${deep} isl=${isl} cities=${placed}/144 rivers=${w.rivers.length} empty=[${empty}]`);
+    if(!euler||placed!==144||!finite||empty.length||goodCells<w.N*0.99||minWing<0.40||oceSea<0.82) ok=false;
   }
-  if(!ok){console.error('\n✗ v3 self-test FAILED');process.exit(1)}
-  console.log('✓ v3 self-test passed (continents above water, oceanic spacer plates below, trenches, 144 cities)\n');
+  if(!ok){console.error('\n✗ spherical self-test FAILED');process.exit(1)}
+  console.log('✓ spherical self-test passed (Euler-valid sphere mesh, continents above water, 144 cities)\n');
 }
 
 // ---- emit the page ----------------------------------------------------------
@@ -246,7 +252,7 @@ const page = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0c0a07">
 <title>mino.mobi · mappa mundi II</title>
-<meta name="description" content="A procedurally-generated world: continental plates as countries, oceanic spacer plates as seas, real tectonics, rivers — flat map, tectonic view, and a draggable globe.">
+<meta name="description" content="A spherical procedurally-generated world: plate tectonics in spherical coordinates, a true Mercator map, and a native globe.">
 <style>
 :root{--gold:#a9802f;--parch:#e8dcc0}
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
@@ -255,14 +261,13 @@ body{background:#0c0a07;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui
 #map.drag{cursor:grabbing}
 header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:11px 16px;pointer-events:none;background:linear-gradient(#0c0a07cc,#0c0a0700)}
 header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
-header h1{font:600 16px/1 ui-serif,'Iowan Old Style',Georgia,serif;letter-spacing:.04em}
 .modes{display:flex;gap:4px;pointer-events:auto;background:#140f08aa;border:1px solid #2c2316;border-radius:8px;padding:3px}
 .modes button{background:none;border:0;color:#b7a988;padding:4px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
 .modes button.on{background:#2a2114;color:var(--gold)}
 .right{margin-left:auto;display:flex;gap:8px;pointer-events:auto}
 button,input{font:inherit}
 .btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
-.btn:hover{border-color:var(--gold)}.btn.on{border-color:var(--gold);color:var(--gold)}
+.btn:hover{border-color:var(--gold)}
 #q{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:999px;width:138px;outline:none;font-size:12.5px}
 #q:focus{border-color:var(--gold)}
 footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 16px;pointer-events:none;background:linear-gradient(#0c0a0700,#0c0a07dd)}
@@ -277,7 +282,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 #tkey{position:fixed;left:16px;bottom:64px;z-index:6;background:#140f08e0;border:1px solid #2c2316;border-radius:8px;padding:8px 11px;font-size:11.5px;color:#b7a988;display:none}
 #tkey.show{display:block}#tkey b{color:var(--parch)}#tkey i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
 @media (max-width:680px){
-  header{padding:8px 9px;gap:6px;flex-wrap:wrap}header h1{display:none}
+  header{padding:8px 9px;gap:6px;flex-wrap:wrap}
   .right{width:100%;margin-left:0;margin-top:2px}#q{flex:1;width:auto}
   footer{flex-direction:column;align-items:stretch;gap:8px;padding:8px 9px 12px}.scrub{max-width:none}
   .legend{max-width:none;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.legend::-webkit-scrollbar{display:none}.chip{flex:0 0 auto}
@@ -289,10 +294,10 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 <canvas id="map"></canvas>
 <header>
   <a href="https://mino.mobi/">mino.mobi</a>
-  <span class="modes"><button data-m="map" class="on">Map</button><button data-m="tectonic">Tectonic</button><button data-m="orb">Orb</button></span>
+  <span class="modes"><button data-m="orb" class="on">Orb</button><button data-m="map">Mercator</button><button data-m="tectonic">Tectonic</button></span>
   <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn" id="reseed">↻ new world</button></span>
 </header>
-<div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">▸ arrows = plate drift · cool fill = oceanic plate</span></div>
+<div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">▸ arrows = Euler-pole drift · cool = oceanic plate</span></div>
 <div id="tip"></div>
 <footer>
   <div class="scrub"><button class="btn" id="play">▶ chronicle</button>
@@ -303,65 +308,72 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 const D=${DATA};
 /*GEN_START*/${GEN}/*GEN_END*/
 const cv=document.getElementById('map'),ctx=cv.getContext('2d'),tip=document.getElementById('tip'),tkey=document.getElementById('tkey');
-let DPR=Math.min(2,devicePixelRatio||1),W=0,H=0,world=null,seed=(Math.random()*1e9)|0,mode='map';
-let view={x:0,y:0,s:1},hot=null,selected=null,query='',active=new Set(D.wings.map(w=>w.id)),tcut=1,playing=false;
-let yaw=0.3,pitch=0.35,orbR=320,spin=true,spinRAF=0;
-const terr=document.createElement('canvas');let S=1,ox=0,oy=0;
+let DPR=Math.min(2,devicePixelRatio||1),W=0,H=0,world=null,seed=(Math.random()*1e9)|0,mode='orb';
+let hot=null,selected=null,query='',active=new Set(D.wings.map(w=>w.id)),tcut=1,playing=false;
+let yaw=0.4,pitch=0.3,orbR=320,spin=true,spinRAF=0;           // orb camera
+let mview={x:0,y:0,s:1};                                       // mercator pan/zoom
+const merc=document.createElement('canvas');let MW=1400,MH=1100,S=1,ox=0,oy=0;
 const hsl=(h,s,l,a)=>'hsl('+h+' '+s+'% '+l+'%'+(a!=null?' / '+a:'')+')';
 const wing=id=>D.wings.find(w=>w.id===id);
-function fit(){S=Math.max(W/WW,H/WH);ox=(W-WW*S)/2;oy=(H-WH*S)/2}
-function build(){world=makeWorld(seed,D.wings,D.nodes);fit();renderTerr();draw()}
+// vec helpers (page side)
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+function rotp(p){const cy=Math.cos(yaw),sy=Math.sin(yaw),x1=cy*p[0]+sy*p[1],y1=-sy*p[0]+cy*p[1];
+  const cp=Math.cos(pitch),sp=Math.sin(pitch);return [x1,cp*y1-sp*p[2],sp*y1+cp*p[2]]}
+// mercator projection of a unit vector
+const CLAT=1.40,YMAX=Math.log(Math.tan(Math.PI/4+CLAT/2));
+function lonlat(v){return [Math.atan2(v[1],v[0]),Math.asin(Math.max(-1,Math.min(1,v[2])))]}
+function mxy(v){const ll=lonlat(v),la=Math.max(-CLAT,Math.min(CLAT,ll[1]));
+  return [(ll[0]+Math.PI)/(2*Math.PI)*MW,(YMAX-Math.log(Math.tan(Math.PI/4+la/2)))/(2*YMAX)*MH]}
 
-// per-cell colour as [h,s,l] (shared by flat + orb) -----------------------------
+function build(){world=makeWorld(seed,D.wings,D.nodes);MH=Math.round(MW*YMAX/Math.PI);fit();renderMerc();draw()}
+function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
+
 function cellHSL(i){
   if(!world.land[i]){const d=Math.max(0,world.sl-world.elev[i]);return [205,44,Math.max(8,21-d*20)]}
   const t=Math.min(1,(world.elev[i]-world.sl)/0.85),p=world.plate[i];
-  if(p>=world.NC){let l=42+t*20;if(world.mtn[i])l=72;return [48,15,l]} // island arc on an oceanic plate (no wing)
-  const w=wing(D.wings[p].id);
-  let l=38+t*26,s=36-t*9;if(world.mtn[i]){l=72;s=10}if(!active.has(w.id)){l=24+t*5;s=7}return [w.hue,s,l]}
-function poly(c,p){c.beginPath();c.moveTo(p[0].x,p[0].y);for(let k=1;k<p.length;k++)c.lineTo(p[k].x,p[k].y);c.closePath()}
+  if(p>=world.NC){let l=42+t*20;if(world.mtn[i])l=72;return [48,15,l]}
+  const w=wing(D.wings[p].id);let l=38+t*26,s=36-t*9;if(world.mtn[i]){l=72;s=10}if(!active.has(w.id)){l=24+t*5;s=7}return [w.hue,s,l]}
 
-// offscreen terrain (map) OR tectonic raster -----------------------------------
-function renderTerr(){
-  terr.width=WW;terr.height=WH;const tx=terr.getContext('2d');
-  if(mode==='tectonic'){renderTect(tx);return}
-  tx.fillStyle='#0e2029';tx.fillRect(0,0,WW,WH);
-  for(let i=0;i<world.Nreal;i++){const c=world.cells[i];if(!c)continue;const[h,s,l]=cellHSL(i);tx.fillStyle=hsl(h,s,l);poly(tx,c);tx.fill();
-    if(world.land[i]){const sh=world.shade[i];if(sh>0.02){tx.fillStyle='rgba(255,247,228,'+sh+')';poly(tx,c);tx.fill()}else if(sh<-0.02){tx.fillStyle='rgba(0,0,0,'+(-sh)+')';poly(tx,c);tx.fill()}}}
-  tx.lineWidth=1.5;tx.strokeStyle='rgba(16,11,6,.7)';tx.beginPath();
-  for(const e of world.vedges)if(world.land[e.i]!==world.land[e.j]){tx.moveTo(e.ax,e.ay);tx.lineTo(e.bx,e.by)}tx.stroke();
-  tx.strokeStyle='#3e6f8a';tx.lineCap='round';for(const r of world.rivers){tx.lineWidth=r.w;tx.beginPath();tx.moveTo(r.ax,r.ay);tx.lineTo(r.bx,r.by);tx.stroke()}
-  // toned-down mountain carets: only true peaks, small, faint
-  tx.strokeStyle='rgba(58,44,26,.34)';tx.lineWidth=0.9;tx.beginPath();let mc=0;
-  for(let i=0;i<world.Nreal;i++){if(!world.mtn[i])continue;if((mc++%3))continue;const p=world.P[i],h=2.4+world.elev[i]*2.4;tx.moveTo(p.x-h*0.55,p.y+h*0.38);tx.lineTo(p.x,p.y-h*0.46);tx.lineTo(p.x+h*0.55,p.y+h*0.38)}tx.stroke();
+// --- Mercator offscreen (Map + Tectonic), static per world --------------------
+function mpoly(g,verts){ // unwrap longitudes around the cell mean to avoid the seam
+  let sx=0,sy=0;for(const v of verts){const ll=lonlat(v);sx+=Math.cos(ll[0]);sy+=Math.sin(ll[0])}const ml=Math.atan2(sy,sx);
+  const pts=verts.map(v=>{const ll=lonlat(v),la=Math.max(-CLAT,Math.min(CLAT,ll[1]));let lo=ll[0];lo=ml+Math.atan2(Math.sin(lo-ml),Math.cos(lo-ml));
+    return [(lo+Math.PI)/(2*Math.PI)*MW,(YMAX-Math.log(Math.tan(Math.PI/4+la/2)))/(2*YMAX)*MH]});
+  let off=0;const minx=Math.min(...pts.map(p=>p[0])),maxx=Math.max(...pts.map(p=>p[0]));
+  const draw=(dx)=>{g.beginPath();g.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)g.lineTo(pts[k][0]+dx,pts[k][1]);g.closePath()};
+  return {draw, wrap:minx<0?MW:(maxx>MW?-MW:0)};
 }
-function renderTect(tx){
-  tx.fillStyle='#11161c';tx.fillRect(0,0,WW,WH);
-  for(let i=0;i<world.Nreal;i++){const c=world.cells[i];if(!c)continue;const p=world.plate[i];
-    if(world.ptype[i]===0){const w=D.wings[p];tx.fillStyle=hsl(w.hue,22,world.land[i]?46:32)}
-    else tx.fillStyle=hsl(210,34,26+(p%3)*3);
-    poly(tx,c);tx.fill()}
-  // boundaries by type
-  for(const e of world.vedges){if(world.plate[e.i]===world.plate[e.j])continue;const cnv=(world.conv[e.i]+world.conv[e.j])/2;
-    tx.lineWidth=cnv>0.18?2.6:1.8;tx.strokeStyle=cnv>0.18?'#e0603c':(cnv<-0.18?'#3fb6a0':'#d8b24a');
-    tx.beginPath();tx.moveTo(e.ax,e.ay);tx.lineTo(e.bx,e.by);tx.stroke()}
+function renderMerc(){
+  merc.width=MW;merc.height=MH;const g=merc.getContext('2d');
+  if(mode==='tectonic'){g.fillStyle='#11161c';g.fillRect(0,0,MW,MH);
+    for(let i=0;i<world.N;i++){const c=world.cells[i];if(!c)continue;const p=world.plate[i];
+      g.fillStyle=world.ptype[i]===0?hsl(D.wings[p].hue,22,world.land[i]?46:32):hsl(210,34,26+(p%3)*3);
+      const m=mpoly(g,c);m.draw(0);g.fill();if(m.wrap){m.draw(m.wrap);g.fill()}}
+    g.lineCap='round';for(const bd of world.bounds){const a=mxy(bd.a),b=mxy(bd.b);if(Math.abs(a[0]-b[0])>MW*0.5)continue;
+      g.lineWidth=bd.c>0.18?2.6:1.8;g.strokeStyle=bd.c>0.18?'#e0603c':(bd.c<-0.18?'#3fb6a0':'#d8b24a');g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke()}
+    return}
+  g.fillStyle='#0e2029';g.fillRect(0,0,MW,MH);
+  for(let i=0;i<world.N;i++){const c=world.cells[i];if(!c)continue;const[h,s,l]=cellHSL(i);g.fillStyle=hsl(h,s,l);
+    const m=mpoly(g,c);m.draw(0);g.fill();if(m.wrap){m.draw(m.wrap);g.fill()}
+    if(world.land[i]){const sh=world.shade[i];if(Math.abs(sh)>0.02){g.fillStyle=sh>0?'rgba(255,247,228,'+sh+')':'rgba(0,0,0,'+(-sh)+')';m.draw(0);g.fill();if(m.wrap){m.draw(m.wrap);g.fill()}}}}
+  // rivers
+  g.strokeStyle='#3e6f8a';g.lineCap='round';for(const r of world.rivers){const a=mxy(r.a),b=mxy(r.b);if(Math.abs(a[0]-b[0])>MW*0.5)continue;g.lineWidth=r.w;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke()}
 }
 
 function draw(){if(mode==='orb'){drawOrb();return}
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle='#0c0a07';ctx.fillRect(0,0,W,H);
-  ctx.save();ctx.translate(view.x,view.y);ctx.scale(view.s,view.s);ctx.imageSmoothingEnabled=true;
-  ctx.drawImage(terr,0,0,WW,WH,ox,oy,WW*S,WH*S);
-  if(mode==='tectonic'){ // drift arrows
-    ctx.lineCap='round';for(const pl of world.plates){const x=ox+pl.x*S,y=oy+pl.y*S,L=26;
-      ctx.strokeStyle=pl.type===0?'rgba(233,220,192,.8)':'rgba(120,180,210,.8)';ctx.lineWidth=2;
-      const ex=x+pl.dx*L,ey=y+pl.dy*L;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(ex,ey);ctx.stroke();
-      const ang=Math.atan2(pl.dy,pl.dx);ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-7*Math.cos(ang-0.4),ey-7*Math.sin(ang-0.4));ctx.moveTo(ex,ey);ctx.lineTo(ex-7*Math.cos(ang+0.4),ey-7*Math.sin(ang+0.4));ctx.stroke()}
-  }
+  ctx.save();ctx.translate(mview.x,mview.y);ctx.scale(mview.s,mview.s);ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(merc,0,0,MW,MH,ox,oy,MW*S,MH*S);
+  if(mode==='tectonic'){ctx.lineCap='round';for(const pl of world.plates){const sp=mxy(pl.s),v=[0,0,0];
+    const w=Math.cos(0),vv=[pl.ax[1]*pl.s[2]-pl.ax[2]*pl.s[1],pl.ax[2]*pl.s[0]-pl.ax[0]*pl.s[2],pl.ax[0]*pl.s[1]-pl.ax[1]*pl.s[0]];
+    const tgt=mxy([pl.s[0]+vv[0]*0.12,pl.s[1]+vv[1]*0.12,pl.s[2]+vv[2]*0.12]);const x=ox+sp[0]*S,y=oy+sp[1]*S,ex=ox+tgt[0]*S,ey=oy+tgt[1]*S;
+    if(Math.abs(sp[0]-tgt[0])>MW*0.5)continue;ctx.strokeStyle=pl.type===0?'rgba(233,220,192,.85)':'rgba(120,180,210,.85)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(ex,ey);ctx.stroke();const an=Math.atan2(ey-y,ex-x);ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-7*Math.cos(an-0.4),ey-7*Math.sin(an-0.4));ctx.moveTo(ex,ey);ctx.lineTo(ex-7*Math.cos(an+0.4),ey-7*Math.sin(an+0.4));ctx.stroke()}}
   ctx.textAlign='center';
-  for(const w of D.wings){if(!active.has(w.id))continue;const cen=world.cen[w.id],x=ox+cen.x*S,y=oy+cen.y*S;
+  for(const w of D.wings){if(!active.has(w.id))continue;const cp=mxy(world.cen[w.id]),x=ox+cp[0]*S,y=oy+cp[1]*S;
     ctx.font='italic 14px ui-serif,Georgia,serif';ctx.fillStyle=hsl(w.hue,30,84,mode==='tectonic'?.85:.5);ctx.fillText(w.label.toUpperCase(),x,y)}
   if(mode==='map')for(const c of world.cities){const vis=active.has(c.w)&&c.f<=tcut&&(!query||c.n.toLowerCase().includes(query));
-    const x=ox+c.x*S,y=oy+c.y*S,r=(c.capital?3.4:2)+Math.sqrt(c.k)*0.9;
+    const m=mxy(c.v),x=ox+m[0]*S,y=oy+m[1]*S,r=(c.capital?3.4:2)+Math.sqrt(c.k)*0.9;
     if(!vis){if(c.f<=tcut){ctx.fillStyle='rgba(180,165,130,.10)';ctx.beginPath();ctx.arc(x,y,1.4,0,7);ctx.fill()}continue}
     cityDot(ctx,c,x,y,r)}
   ctx.restore();
@@ -370,94 +382,73 @@ function cityDot(g,c,x,y,r){const w=wing(c.w);g.beginPath();g.arc(x,y,r,0,7);
   g.fillStyle=c.w2?hsl((w.hue+wing(c.w2).hue)/2,55,62):hsl(w.hue,52,hot===c?72:58);g.fill();
   g.lineWidth=c.capital?1.4:0.8;g.strokeStyle=c===hot?'#fff':'rgba(20,14,8,.7)';g.stroke();
   if(c.capital){g.strokeStyle=hsl(w.hue,60,82,.9);g.lineWidth=1;g.beginPath();g.arc(x,y,r+2.6,0,7);g.stroke()}
-  if(c===hot||c.capital||view.s>1.6||c.k>=15){g.font=(c.capital?'600 ':'')+'10px ui-serif,Georgia,serif';g.textAlign='center';
+  if(c===hot||c.capital||mview.s>1.6||c.k>=15){g.font=(c.capital?'600 ':'')+'10px ui-serif,Georgia,serif';g.textAlign='center';
     g.fillStyle='rgba(20,13,7,.92)';g.fillText(c.n,x,y+r+10);g.fillStyle=hsl(w.hue,40,90,.95);g.fillText(c.n,x,y+r+9.4)}}
 
-// --- ORB (orthographic globe, vanilla canvas) ---------------------------------
-function llOf(x,y){return [(x/WW-0.5)*Math.PI*1.96,(0.5-y/WH)*Math.PI*0.98]}
-function sph(lon,lat){const cl=Math.cos(lat);return [cl*Math.sin(lon),Math.sin(lat),cl*Math.cos(lon)]}
-function rotp(p){const cy=Math.cos(yaw),sy=Math.sin(yaw),x1=cy*p[0]+sy*p[2],z1=-sy*p[0]+cy*p[2];
-  const cp=Math.cos(pitch),sp=Math.sin(pitch);return [x1,cp*p[1]-sp*z1,sp*p[1]+cp*z1]}
-const LIGHT=(()=>{const v=[-0.5,0.62,0.6],l=Math.hypot(...v);return v.map(c=>c/l)})();
-function drawOrb(){
-  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle='#08080c';ctx.fillRect(0,0,W,H);
-  const cx=W/2,cy=H/2,R=orbR;
-  ctx.save();ctx.beginPath();ctx.arc(cx,cy,R+1,0,7);ctx.fillStyle='#0a1a24';ctx.fill();
-  // collect front-facing cells, painter-sort by depth
-  const front=[];for(let i=0;i<world.Nreal;i++){const c=world.cells[i];if(!c)continue;const n=rotp(sph(...llOf(world.P[i].x,world.P[i].y)));if(n[2]>0.04)front.push([i,n])}
+// --- ORB: native sphere render -----------------------------------------------
+const LIGHT=(()=>{const v=[-0.5,0.55,0.66],l=Math.hypot(...v);return v.map(c=>c/l)})();
+function drawOrb(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle='#08080c';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H/2,R=orbR;ctx.beginPath();ctx.arc(cx,cy,R+1,0,7);ctx.fillStyle='#0a1a24';ctx.fill();
+  const front=[];for(let i=0;i<world.N;i++){const n=rotp(world.V[i]);if(n[2]>0.02)front.push([i,n])}
   front.sort((a,b)=>a[1][2]-b[1][2]);
-  for(const[i,n]of front){const c=world.cells[i];const nd=Math.max(0,n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2]);
+  for(const[i,n]of front){const c=world.cells[i],nd=Math.max(0,n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2]);
     const[h,s,l]=cellHSL(i);ctx.fillStyle=hsl(h,s,Math.min(96,l*(0.5+0.62*nd)));
-    ctx.beginPath();let st=false;for(const v of c){const q=rotp(sph(...llOf(v.x,v.y)));const sx=cx+R*q[0],sy=cy-R*q[1];if(!st){ctx.moveTo(sx,sy);st=true}else ctx.lineTo(sx,sy)}ctx.closePath();ctx.fill()}
-  // limb shade + highlight
-  const g=ctx.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R);g.addColorStop(0,'rgba(255,250,235,.10)');g.addColorStop(0.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.45)');
+    ctx.beginPath();let st=false;for(const v of c){const q=rotp(v),sx=cx+R*q[0],sy=cy-R*q[1];if(!st){ctx.moveTo(sx,sy);st=true}else ctx.lineTo(sx,sy)}ctx.closePath();ctx.fill()}
+  const g=ctx.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R);g.addColorStop(0,'rgba(255,250,235,.10)');g.addColorStop(.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.45)');
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
-  ctx.restore();
-  // cities on the near hemisphere
-  for(const c of world.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;
-    const q=rotp(sph(...llOf(c.x,c.y)));if(q[2]<=0.05)continue;const x=cx+R*q[0],y=cy-R*q[1],r=(c.capital?2.6:1.6)+Math.sqrt(c.k)*0.7;
-    const w=wing(c.w);ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=hsl(w.hue,55,hot===c?75:60);ctx.fill();
-    ctx.lineWidth=0.8;ctx.strokeStyle=c===hot?'#fff':'rgba(10,8,5,.7)';ctx.stroke();
-    if(c===hot||(c.capital&&q[2]>0.4)){ctx.font='10px ui-serif,Georgia,serif';ctx.textAlign='center';ctx.fillStyle='rgba(8,6,3,.9)';ctx.fillText(c.n,x,y-r-3.6);ctx.fillStyle=hsl(w.hue,45,92);ctx.fillText(c.n,x,y-r-4)}}
-}
+  for(const c of world.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const q=rotp(c.v);if(q[2]<=0.04)continue;
+    const x=cx+R*q[0],y=cy-R*q[1],r=(c.capital?2.6:1.6)+Math.sqrt(c.k)*0.7,w=wing(c.w);
+    ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=hsl(w.hue,55,hot===c?75:60);ctx.fill();ctx.lineWidth=0.8;ctx.strokeStyle=c===hot?'#fff':'rgba(10,8,5,.7)';ctx.stroke();
+    if(c===hot||(c.capital&&q[2]>0.45)){ctx.font='10px ui-serif,Georgia,serif';ctx.textAlign='center';ctx.fillStyle='rgba(8,6,3,.9)';ctx.fillText(c.n,x,y-r-3.6);ctx.fillStyle=hsl(w.hue,45,92);ctx.fillText(c.n,x,y-r-4)}}}
 function orbSpin(){if(mode!=='orb'||!spin){spinRAF=0;return}yaw+=0.0016;draw();spinRAF=requestAnimationFrame(orbSpin)}
 
 // --- interaction --------------------------------------------------------------
-function s2w(px,py){return{x:(px-view.x)/view.s,y:(py-view.y)/view.s}}
-function pick(px,py,touch){if(mode==='orb')return pickOrb(px,py,touch);if(mode!=='map')return null;
-  const p=s2w(px,py);let best=null,bd=1e18;for(const c of world.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const x=ox+c.x*S,y=oy+c.y*S,d=(x-p.x)**2+(y-p.y)**2;if(d<bd){bd=d;best=c}}return bd<((touch?22:13)/view.s)**2?best:null}
-function pickOrb(px,py,touch){const cx=W/2,cy=H/2,R=orbR;let best=null,bd=1e18;
-  for(const c of world.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const q=rotp(sph(...llOf(c.x,c.y)));if(q[2]<=0.05)continue;const x=cx+R*q[0],y=cy-R*q[1],d=(x-px)**2+(y-py)**2;if(d<bd){bd=d;best=c}}return bd<(touch?22:14)**2?best:null}
-const cz=s=>Math.max(0.5,Math.min(9,s));
+function pick(px,py,touch){
+  if(mode==='orb'){const cx=W/2,cy=H/2,R=orbR;let best=null,bd=1e18;for(const c of world.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const q=rotp(c.v);if(q[2]<=0.04)continue;const x=cx+R*q[0],y=cy-R*q[1],d=(x-px)**2+(y-py)**2;if(d<bd){bd=d;best=c}}return bd<(touch?22:14)**2?best:null}
+  if(mode!=='map')return null;let best=null,bd=1e18;for(const c of world.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const m=mxy(c.v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S),d=(x-px)**2+(y-py)**2;if(d<bd){bd=d;best=c}}return bd<(touch?22:13)**2?best:null}
 function showTip(c,px,py,t){tip.style.opacity=1;tip.style.left=Math.max(80,Math.min(innerWidth-80,px))+'px';tip.style.top=Math.max(54,py)+'px';
   const seam=c.w2?'border town · '+wing(c.w).label+' ✕ '+wing(c.w2).label:wing(c.w).label;
   tip.innerHTML='<b>'+c.n+'</b> '+(c.capital?'★':'')+'<br><span class="m">'+seam+' · founded '+(c.b||'—')+'</span>'+(c.u?'<br><span class="open">'+(t?'tap again to open ↗':'click to open ↗')+'</span>':'')}
-const ptrs=new Map();let gesture=null,tapStart=null;const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const cz=s=>Math.max(0.5,Math.min(9,s));
+const ptrs=new Map();let gesture=null,tapStart=null;const di=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});spin=false;
   if(ptrs.size===1){tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};
-    gesture=mode==='orb'?{mode:'rot',x:e.clientX,y:e.clientY,yaw,pitch}:{mode:'pan',x:e.clientX,y:e.clientY,vx:view.x,vy:view.y};cv.classList.add('drag')}
-  else if(ptrs.size===2){const p=[...ptrs.values()];gesture={mode:'pinch',d:dist(p[0],p[1]),s:view.s,r:orbR,vx:view.x,vy:view.y};tapStart=null;tip.style.opacity=0}});
+    gesture=mode==='orb'?{mode:'rot',x:e.clientX,y:e.clientY,yaw,pitch}:{mode:'pan',x:e.clientX,y:e.clientY,vx:mview.x,vy:mview.y};cv.classList.add('drag')}
+  else if(ptrs.size===2){const p=[...ptrs.values()];gesture={mode:'pinch',d:di(p[0],p[1]),s:mview.s,r:orbR,vx:mview.x,vy:mview.y};tapStart=null;tip.style.opacity=0}});
 cv.addEventListener('pointermove',e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){const p=[...ptrs.values()],f=dist(p[0],p[1])/(gesture.d||1);
-    if(mode==='orb'){orbR=Math.max(120,Math.min(900,gesture.r*f))}else{const ns=cz(gesture.s*f),cmx=(p[0].x+p[1].x)/2,cmy=(p[0].y+p[1].y)/2,rx=(cmx-gesture.vx)/gesture.s,ry=(cmy-gesture.vy)/gesture.s;view.s=ns;view.x=cmx-rx*ns;view.y=cmy-ry*ns}draw();return}
-  if(gesture&&gesture.mode==='rot'&&ptrs.size===1){yaw=gesture.yaw-(e.clientX-gesture.x)*0.006;pitch=Math.max(-1.45,Math.min(1.45,gesture.pitch+(e.clientY-gesture.y)*0.006));
-    if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8)tapStart=null;draw();return}
-  if(gesture&&gesture.mode==='pan'&&ptrs.size===1){view.x=gesture.vx+(e.clientX-gesture.x);view.y=gesture.vy+(e.clientY-gesture.y);
-    if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8){tapStart=null;tip.style.opacity=0}draw();return}
+  if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){const p=[...ptrs.values()],f=di(p[0],p[1])/(gesture.d||1);
+    if(mode==='orb')orbR=Math.max(120,Math.min(900,gesture.r*f));else{const ns=cz(gesture.s*f),cmx=(p[0].x+p[1].x)/2,cmy=(p[0].y+p[1].y)/2,rx=(cmx-gesture.vx)/gesture.s,ry=(cmy-gesture.vy)/gesture.s;mview.s=ns;mview.x=cmx-rx*ns;mview.y=cmy-ry*ns}draw();return}
+  if(gesture&&gesture.mode==='rot'&&ptrs.size===1){yaw=gesture.yaw-(e.clientX-gesture.x)*0.006;pitch=Math.max(-1.45,Math.min(1.45,gesture.pitch+(e.clientY-gesture.y)*0.006));if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8)tapStart=null;draw();return}
+  if(gesture&&gesture.mode==='pan'&&ptrs.size===1){mview.x=gesture.vx+(e.clientX-gesture.x);mview.y=gesture.vy+(e.clientY-gesture.y);if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8){tapStart=null;tip.style.opacity=0}draw();return}
   if(e.pointerType==='mouse'&&ptrs.size===0){const c=pick(e.clientX,e.clientY);if(c!==hot){hot=c;draw()}
     if(c){showTip(c,e.clientX,e.clientY,false);cv.style.cursor='pointer'}else{if(!selected)tip.style.opacity=0;cv.style.cursor='grab'}}});
 function endPtr(e){ptrs.delete(e.pointerId);
   if(ptrs.size===0){cv.classList.remove('drag');
     if(tapStart&&Date.now()-tapStart.t<400){const c=pick(tapStart.x,tapStart.y,tapStart.touch);
-      if(c){if(!tapStart.touch){if(c.u)open(c.u,'_blank')}else if(selected===c&&c.u){open(c.u,'_blank')}else{selected=c;hot=c;showTip(c,tapStart.x,tapStart.y,true);draw()}}
-      else{selected=null;hot=null;tip.style.opacity=0;draw()}}
+      if(c){if(!tapStart.touch){if(c.u)open(c.u,'_blank')}else if(selected===c&&c.u){open(c.u,'_blank')}else{selected=c;hot=c;showTip(c,tapStart.x,tapStart.y,true);draw()}}else{selected=null;hot=null;tip.style.opacity=0;draw()}}
     gesture=null;tapStart=null}
-  else if(ptrs.size===1){const p=[...ptrs.values()][0];gesture=mode==='orb'?{mode:'rot',x:p.x,y:p.y,yaw,pitch}:{mode:'pan',x:p.x,y:p.y,vx:view.x,vy:view.y};tapStart=null}}
+  else if(ptrs.size===1){const p=[...ptrs.values()][0];gesture=mode==='orb'?{mode:'rot',x:p.x,y:p.y,yaw,pitch}:{mode:'pan',x:p.x,y:p.y,vx:mview.x,vy:mview.y};tapStart=null}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
 cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;
-  if(mode==='orb'){orbR=Math.max(120,Math.min(900,orbR*f))}else{const ns=cz(view.s*f),rx=(e.clientX-view.x)/view.s,ry=(e.clientY-view.y)/view.s;view.x=e.clientX-rx*ns;view.y=e.clientY-ry*ns;view.s=ns}draw()},{passive:false});
-cv.addEventListener('dblclick',e=>{if(mode==='orb')return;const ns=cz(view.s*1.8),rx=(e.clientX-view.x)/view.s,ry=(e.clientY-view.y)/view.s;view.x=e.clientX-rx*ns;view.y=e.clientY-ry*ns;view.s=ns;draw()});
+  if(mode==='orb')orbR=Math.max(120,Math.min(900,orbR*f));else{const ns=cz(mview.s*f),rx=(e.clientX-mview.x)/mview.s,ry=(e.clientY-mview.y)/mview.s;mview.x=e.clientX-rx*ns;mview.y=e.clientY-ry*ns;mview.s=ns}draw()},{passive:false});
 
-// modes
 document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;
   document.querySelectorAll('.modes button').forEach(x=>x.classList.toggle('on',x===b));
   tkey.classList.toggle('show',mode==='tectonic');tip.style.opacity=0;hot=selected=null;
-  if(mode!=='orb')renderTerr();
-  if(mode==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else{spin=false}
+  if(mode!=='orb')renderMerc();
+  if(mode==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;
   draw()});
-// time scrubber
 const tEl=document.getElementById('time'),eraEl=document.getElementById('era');
 function eraLabel(){return tcut>=1?'all founded':'↤ '+new Date(D.minB+(D.maxB-D.minB)*tcut).toISOString().slice(0,10)}
 tEl.addEventListener('input',()=>{tcut=+tEl.value/1000;eraEl.textContent=eraLabel();draw()});
 document.getElementById('play').addEventListener('click',()=>{playing=!playing;if(playing){tcut=0;tEl.value=0;step()}});
 function step(){if(!playing)return;tcut=Math.min(1,tcut+0.006);tEl.value=tcut*1000;eraEl.textContent=eraLabel();draw();
   if(tcut>=1){playing=false;document.getElementById('play').textContent='▶ chronicle';return}document.getElementById('play').textContent='⏸';requestAnimationFrame(step)}
-// legend
 const lg=document.getElementById('legend');
 for(const w of D.wings){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;
   c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,50,58)+'"></span>'+w.label;
   c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(D.wings.map(x=>x.id));else active=new Set([w.id]);
-    for(const ch of lg.children)ch.classList.toggle('off',!active.has(ch.dataset.w));if(mode!=='orb')renderTerr();draw()};lg.appendChild(c)}
+    for(const ch of lg.children)ch.classList.toggle('off',!active.has(ch.dataset.w));if(mode!=='orb')renderMerc();draw()};lg.appendChild(c)}
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
 document.getElementById('reseed').addEventListener('click',()=>{seed=(Math.random()*1e9)|0;build()});
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
@@ -468,4 +459,4 @@ addEventListener('resize',resize);resize();build();
 `;
 mkdirSync(join(root,'mappa2'),{recursive:true});
 writeFileSync(join(root,'mappa2','index.html'),page);
-console.log('wrote mappa2/index.html  ('+(page.length/1024|0)+' KB,', nodes.length,'cities · 9 continental + 12 oceanic plates)');
+console.log('wrote mappa2/index.html  ('+(page.length/1024|0)+' KB, spherical · 144 cities · 9 continental + 12 oceanic plates)');
