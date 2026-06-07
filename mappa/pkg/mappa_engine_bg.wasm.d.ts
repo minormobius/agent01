@@ -2,7 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const engine_version: () => number;
-export const generate_world: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+export const generate_world: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
 export const triangulate_xy: (a: number, b: number, c: number) => void;
 export const __wbindgen_export: (a: number, b: number) => number;
 export const __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;

@@ -16,12 +16,14 @@ export function engine_version() {
  * @param {number} water_frac
  * @param {number} plate_count
  * @param {number} solar
+ * @param {number} planet_radius
+ * @param {number} age
  * @returns {any}
  */
-export function generate_world(seed, n, ocean_fraction, axial_tilt, water_frac, plate_count, solar) {
+export function generate_world(seed, n, ocean_fraction, axial_tilt, water_frac, plate_count, solar, planet_radius, age) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-        wasm.generate_world(retptr, seed, n, ocean_fraction, axial_tilt, water_frac, plate_count, solar);
+        wasm.generate_world(retptr, seed, n, ocean_fraction, axial_tilt, water_frac, plate_count, solar, planet_radius, age);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
