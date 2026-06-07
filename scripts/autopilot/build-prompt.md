@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-06 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-07 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, antoine, ask, astro, atlas, atmosphere, atproto-data, audio, auto, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, disk, docs, draw, echo, elements, empathy, emsim, erdos, finance, flights, flow, flows, fluoddity, fodder, fractal, functions, g, games, garden, gawain, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, horned, inpac, io, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, math, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, orb, orfeo, org, os, owain, pac, packages, paint, pds, pendragon, photo, phylo, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, splice, src, stocks, stretch, sweat, szemeredi-trotter, techtree, ternary, ternary2, ternary3, thread, time, torpac, torus, track, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yum, zoom
+**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, antoine, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, echo, elements, empathy, emsim, erdos, feedgen, finance, flights, flow, flows, fluoddity, fodder, fractal, functions, g, games, garden, gawain, gen, geomancy, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, horned, iching, inpac, io, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, os, owain, pac, packages, paint, pds, pendragon, photo, phylo, pizza, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, soil, splice, src, sticks, stocks, stretch, sweat, szemeredi-trotter, tablet, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, time, torpac, torus, track, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
-**Catalog saturation** (sites per category): bluesky 36, games 32, data 27, tools 24, work 7.
+**Catalog saturation** (sites per category): bluesky 38, games 38, data 33, tools 28, work 7.
 
-**Neighborhood spark** (bisk 2026-06-06, 100 members / 273 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: mythos, minecraft, anthropic
-- Top post: "they say he does a funny voice when he says "my totenkopf" and as a millennial, i can assure you that he is actually doi" — @segyges.bsky.social
+**Neighborhood spark** (bisk 2026-06-07, 100 members / 230 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: llm, anthropic, mino
+- Top post: "Nice ones and zeros you’ve got there. Would be a shame if someone assigned meaning to them" — @gracekind.net
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
