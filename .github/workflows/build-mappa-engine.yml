@@ -1,0 +1,56 @@
+name: Build mappa engine (wasm)
+
+# Compiles mappa/engine-rs (the fast Delaunay kernel) to WASM with wasm-pack and
+# commits the result to mappa/pkg/. The viewer loads mappa/pkg/ as an OPTIONAL
+# accelerator with a JS fallback, so the site works whether or not this has run.
+# Committing mappa/pkg/** wakes deploy-root (paths: mappa/**), which serves it.
+# This workflow only triggers on engine-rs changes, so there's no build loop.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/merge-candidate-features-ciJkT'
+    paths:
+      - 'mappa/engine-rs/**'
+      - '.github/workflows/build-mappa-engine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            mappa/engine-rs/target
+          key: cargo-mappa-${{ runner.os }}-${{ hashFiles('mappa/engine-rs/Cargo.toml', 'mappa/engine-rs/src/**') }}
+          restore-keys: cargo-mappa-${{ runner.os }}-
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build Rust/WASM kernel
+        working-directory: mappa/engine-rs
+        run: wasm-pack build --release --target web --out-dir ../pkg --out-name mappa_engine
+
+      - name: Commit pkg/
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f mappa/pkg/.gitignore mappa/pkg/package.json mappa/pkg/README.md
+          git add -f mappa/pkg/mappa_engine.js mappa/pkg/mappa_engine_bg.wasm mappa/pkg/mappa_engine.d.ts 2>/dev/null || true
+          git add -f mappa/pkg
+          git commit -m "build: mappa engine wasm kernel" || { echo "no changes"; exit 0; }
+          git push

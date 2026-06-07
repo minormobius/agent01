@@ -1,0 +1,19 @@
+[package]
+name = "mappa-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Fast spherical mesh kernel for mappa — Delaunay triangulation of stereographically-projected sphere points. The O(n log n) replacement for the JS Bowyer–Watson, to detail out the globes at high resolution. Pure Rust, clean WASM."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+delaunator = "1.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

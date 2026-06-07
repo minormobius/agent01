@@ -3,9 +3,15 @@
 // Mercator (true projection, VECTOR — crisp at any zoom), Tectonic (plates).
 // Cells are precomputed once and drawn as polygons; labels are screen-space,
 // constant size, decluttered.
-import { generateWorld, BIOMES } from './engine.js';
+import { generateWorld, BIOMES, setTriangulator } from './engine.js';
 import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
+
+// Optional Rust/WASM accelerator. If mappa/pkg/ has been built (build-mappa-engine.yml),
+// use its fast Delaunay and detail the globe at higher resolution; else JS fallback.
+let wasmReady=false;
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js');await m.default();if(m.engine_version&&m.engine_version()>=1){setTriangulator(xy=>m.triangulate_xy(xy));wasmReady=true}}catch(e){wasmReady=false}}
+const GEN_N=()=>wasmReady?15000:9000;
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
@@ -34,7 +40,7 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function build(){world=generateWorld(seed);atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
+function build(){world=generateWorld(seed,{N:GEN_N()});atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();draw()}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
 
@@ -178,4 +184,4 @@ function buildLegend(){legendEl.innerHTML='';if(mode==='tectonic')return;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
   else{const seen=new Set();for(let i=0;i<world.N;i++)seen.add(world.biome[i]);for(let bi=3;bi<BIOMES.length;bi++){if(!seen.has(bi))continue;const b=BIOMES[bi];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(b.h,b.s,b.l)+'"></span>'+b.name;legendEl.appendChild(c)}}}
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
-addEventListener('resize',resize);resize();regen();
+addEventListener('resize',resize);resize();initEngine().finally(()=>regen());

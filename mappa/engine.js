@@ -16,6 +16,9 @@
 
 // ---- prng + vec3 ------------------------------------------------------------
 export function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+// Optional fast triangulator (Rust/WASM). null → use the built-in JS Bowyer–Watson.
+// fn(Float64Array of [x0,y0,x1,y1,…]) → Uint32Array of triangle vertex indices.
+let extTri=null; export function setTriangulator(fn){extTri=fn}
 const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
 const scl=(a,s)=>[a[0]*s,a[1]*s,a[2]*s];
@@ -116,7 +119,9 @@ export function generateWorld(seed, opts={}){
 
   // 2. spherical Delaunay/Voronoi ---------------------------------------------
   const proj=V.map(p=>[p[0]/(1-p[2]),p[1]/(1-p[2])]);
-  const triR=triangulate(proj);
+  let triR;
+  if(extTri){const flat=new Float64Array(N*2);for(let i=0;i<N;i++){flat[2*i]=proj[i][0];flat[2*i+1]=proj[i][1]}const t=extTri(flat);triR=[];for(let k=0;k+2<t.length;k+=3)triR.push([t[k],t[k+1],t[k+2]])}
+  else triR=triangulate(proj);
   const ek=(a,b)=>a<b?a+','+b:b+','+a;
   const ecount=new Map();
   for(const t of triR){for(const[a,b]of[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]])ecount.set(ek(a,b),(ecount.get(ek(a,b))||0)+1)}
