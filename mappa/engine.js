@@ -101,7 +101,7 @@ export function generateWorld(seed, opts={}){
 
   // 0. plates first — so sampling can concentrate resolution where it matters --
   const ga=Math.PI*(3-Math.sqrt(5));
-  const plateCount = opts.plateCount || (9+Math.floor(rnd()*7)); // 9..15
+  const plateCount = opts.plateCount || (12+Math.floor(rnd()*10)); // 12..21 — more plates → more coastline
   const plates=[];
   for(let i=0;i<plateCount;i++){const c=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);
     plates.push({ center:c, oceanic: rnd()<oceanFraction?1:0, axis:norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]), speed:0.4+rnd()*1.0, buoy:0.12+rnd()*0.30 });}
@@ -161,22 +161,39 @@ export function generateWorld(seed, opts={}){
     const noise=(fbm3(p[0]*2.0,p[1]*2.0,p[2]*2.0,seed)-0.5)*(oi?0.30:0.22);
     if(!oi){const craton=pl.buoy*Math.exp(-(gd*gd)/(2*0.5*0.5));elevRaw[i]=0.10+craton+mf[i]*0.6+localF[i]*0.5+noise;}
     else elevRaw[i]=-0.55+mf[i]*0.55+localF[i]*0.6+noise;}
-  // SEA LEVEL by water VOLUME, not percentile: pour a fixed volume of water over
-  // the real topography and let it settle — solve Σ areaᵢ·max(0, h−elevᵢ) = V.
-  // Deep ocean basins (oceanic plates) hold water at depth, so continents stay
-  // high and dry instead of being flooded to a forced ocean fraction.
+  // cell areas (true spherical Voronoi area) — for water volume + drainage weight
   const triArea=(a,b,c)=>{const bc=cross(b,c);return 2*Math.atan2(Math.abs(dot(a,bc)),1+dot(a,b)+dot(b,c)+dot(c,a))};
   const area=new Float32Array(N);for(let i=0;i<N;i++){const cc2=cells[i];let s=0;for(let k=0;k<cc2.length;k++)s+=triArea(V[i],cc2[k],cc2[(k+1)%cc2.length]);area[i]=s}
-  let eMin=1e9,eMax=-1e9;for(let i=0;i<N;i++){if(elevRaw[i]<eMin)eMin=elevRaw[i];if(elevRaw[i]>eMax)eMax=elevRaw[i]}
-  const waterVol=h=>{let v=0;for(let i=0;i<N;i++){const d=h-elevRaw[i];if(d>0)v+=area[i]*d}return v};
-  const waterFrac=opts.waterFrac??(0.10+rnd()*0.10);   // 0.10–0.20 of basin capacity (less sea-biased)
-  const Vtarget=waterVol(eMax)*waterFrac;
-  let lo=eMin,hi=eMax;for(let it=0;it<44;it++){const mid=(lo+hi)/2;if(waterVol(mid)<Vtarget)lo=mid;else hi=mid}
-  const sl=(lo+hi)/2;
+  // SEA LEVEL by water VOLUME: pour a fixed volume over the topography and let it
+  // settle — solve Σ areaᵢ·max(0, h−elevᵢ) = V. Deep basins hold water at depth.
+  const waterFrac=opts.waterFrac??(0.10+rnd()*0.10);
+  const seaLevelByVolume=()=>{let eMin=1e9,eMax=-1e9;for(let i=0;i<N;i++){if(elevRaw[i]<eMin)eMin=elevRaw[i];if(elevRaw[i]>eMax)eMax=elevRaw[i]}
+    const wv=h=>{let v=0;for(let i=0;i<N;i++){const d=h-elevRaw[i];if(d>0)v+=area[i]*d}return v};
+    const Vt=wv(eMax)*waterFrac;let lo=eMin,hi=eMax;for(let it=0;it<40;it++){const m=(lo+hi)/2;if(wv(m)<Vt)lo=m;else hi=m}return (lo+hi)/2};
+  let sl=seaLevelByVolume();
+  // HYDRAULIC EROSION — carve valleys ∝ drainage area, diffuse hillslopes. Gives
+  // dendritic drainage networks (texture), sharp continental divides (rivers run
+  // in carved valleys and never cross ridges), and eroded coastlines.
+  {const CARVE=0.16, DIFF=0.10, ITER=opts.erodeIter??4;
+   for(let it=0;it<ITER;it++){
+     const fl=Float32Array.from(elevRaw),iq=new Uint8Array(N),hp=new MinHeap();
+     for(let i=0;i<N;i++)if(elevRaw[i]<=sl){iq[i]=1;hp.push(fl[i],i)}
+     while(hp.size()){const[e,i]=hp.pop();for(const j of adj[i]){if(iq[j])continue;fl[j]=Math.max(elevRaw[j],e+1e-5);iq[j]=1;hp.push(fl[j],j)}}
+     const dn=new Int32Array(N).fill(-1);
+     for(let i=0;i<N;i++){if(elevRaw[i]<=sl)continue;let loE=fl[i],bj=-1;for(const j of adj[i])if(fl[j]<loE){loE=fl[j];bj=j}dn[i]=bj}
+     const ord=[];for(let i=0;i<N;i++)if(elevRaw[i]>sl)ord.push(i);ord.sort((a,b)=>fl[b]-fl[a]);
+     const drain=Float32Array.from(area);for(const i of ord){const j=dn[i];if(j>=0)drain[j]+=drain[i]}
+     let maxD=1e-9;for(let i=0;i<N;i++)if(drain[i]>maxD)maxD=drain[i];
+     const ne=Float32Array.from(elevRaw);
+     for(const i of ord)ne[i]=elevRaw[i]-CARVE*Math.pow(drain[i]/maxD,0.35);
+     for(let i=0;i<N;i++){if(elevRaw[i]<=sl)continue;let s=0,c=0;for(const j of adj[i]){s+=ne[j];c++}ne[i]+=DIFF*(s/c-ne[i])}
+     for(let i=0;i<N;i++)elevRaw[i]=ne[i];
+   }}
+  sl=seaLevelByVolume(); // re-settle the sea once over the eroded topography
   const elev=new Float32Array(N);for(let i=0;i<N;i++)elev[i]=elevRaw[i]-sl; // 0 = shore
-  // Earth-like hypsometry: compress land so most is lowland; mountains are rare/high
+  // mild hypsometry compression (erosion already does most of the shaping)
   let landMax=1e-6;for(let i=0;i<N;i++)if(elev[i]>landMax)landMax=elev[i];
-  for(let i=0;i<N;i++)if(elev[i]>0)elev[i]=Math.pow(elev[i]/landMax,2.3)*0.95;
+  for(let i=0;i<N;i++)if(elev[i]>0)elev[i]=Math.pow(elev[i]/landMax,1.5)*0.95;
   const water=new Uint8Array(N);// 0 land, 1 ocean, 2 lake
   for(let i=0;i<N;i++)water[i]=elev[i]>0?0:1;
 

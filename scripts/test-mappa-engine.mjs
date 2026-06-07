@@ -11,11 +11,11 @@ function fingerprint(w){let e=0;for(let i=0;i<w.N;i++)e+=w.elev[i]*(i+1);
 
 const macro = []; // continental "centre of mass" per seed → must differ
 for (const seed of [1,2,3,7,42,99,2026,31337]) {
-  const w = generateWorld(seed);
+  const w = generateWorld(seed,{N:3000});
   const euler = w._euler.tris === 2*w._euler.Vc - 4;
   if(!euler) fail(`seed ${seed}: Euler F=2V-4 violated (${w._euler.tris} vs ${2*w._euler.Vc-4})`);
   // determinism
-  if(fingerprint(w)!==fingerprint(generateWorld(seed))) fail(`seed ${seed}: NOT deterministic`);
+  if(fingerprint(w)!==fingerprint(generateWorld(seed,{N:3000}))) fail(`seed ${seed}: NOT deterministic`);
   // climate ranges
   let tmin=1e9,tmax=-1e9; for(let i=0;i<w.N;i++){if(w.temperature[i]<tmin)tmin=w.temperature[i];if(w.temperature[i]>tmax)tmax=w.temperature[i]}
   if(tmin<-80||tmax>60) fail(`seed ${seed}: temperature out of range [${tmin|0},${tmax|0}]`);
