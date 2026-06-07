@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>traffic — the Biham–Middleton–Levine self-organizing jam</title>
+<meta name="description" content="The Biham–Middleton–Levine model: a two-colour cellular automaton on a torus where red cars go east and blue cars go south. From random starts it spontaneously flows or gridlocks, with a sharp phase transition at a critical density. Watch it self-organize.">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #c8541e;            /* signal amber-red */
+  --accent-faint: rgba(200, 84, 30, 0.10);
+  --canvas-bg: #0a0a12; --canvas-ink: #1a1416; --canvas-rule: #c8bcae;
+  --tag-bg: #eee; --tag-text: #555;
+  --car-e: #e8506e; --car-s: #2aa0d8;   /* east = red, south = blue */
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #f0935a; --accent-faint: rgba(240, 147, 90, 0.14);
+    --canvas-bg: #0a0a12; --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.8rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; aspect-ratio: 1/1; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; image-rendering: pixelated; }
+canvas#tr-phase { aspect-ratio: auto; image-rendering: auto; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 3.2em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.swatch { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 2px; vertical-align: middle; margin-right: 0.3em; }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>traffic</h1>
+  <p class="subtitle">biham–middleton–levine · a self-organizing gridlock · 1992</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · a cellular automaton on the torus</p>
+</header>
+
+<p class="lead">
+  The simplest model of traffic that has a soul. On a wrap-around grid, <strong style="color:var(--car-e)">red
+  cars head east</strong> and <strong style="color:var(--car-s)">blue cars head south</strong>; on
+  alternating ticks each colour steps forward one cell — but only if the cell ahead is empty. From a
+  random scatter, the cars <strong>organize themselves</strong>: below a critical density they line up
+  into diagonal bands and flow freely; above it the whole grid <strong>locks solid</strong>. Nobody
+  coordinates it. Slide the density across the transition and watch.
+</p>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="simulate" role="tab">simulate</button>
+  <button class="tab" data-tab="phase" role="tab">phase diagram</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── SIMULATE PANE ─────────── -->
+<section class="pane active" data-pane="simulate">
+  <div class="grid-wrap">
+    <div><canvas id="tr-canvas" width="600" height="600"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="tr-run">▶ run</button>
+          <button class="btn" id="tr-rand">↻ randomize</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">density · ρ (fraction of cells with a car)</span>
+        <div class="ctrl-row"><input id="tr-density" type="range" min="0.05" max="0.60" value="0.30" step="0.005"><span class="ctrl-val" id="tr-density-val">0.300</span></div>
+        <div class="btn-row" id="tr-preset">
+          <button class="btn" data-d="0.25">free flow</button>
+          <button class="btn" data-d="0.34">critical</button>
+          <button class="btn" data-d="0.45">gridlock</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="tr-size" type="range" min="48" max="200" value="120" step="8"><span class="ctrl-val" id="tr-size-val">120</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · cycles / sec</span>
+        <div class="ctrl-row"><input id="tr-speed" type="range" min="1" max="30" value="12" step="1"><span class="ctrl-val" id="tr-speed-val">12</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">mean velocity vs time</span>
+        <canvas id="tr-vel" width="250" height="70" style="image-rendering:auto"></canvas>
+      </div>
+      <div class="stats" id="tr-stats"></div>
+      <div class="stat-note">
+        <span class="swatch" style="background:var(--car-e)"></span>east
+        <span class="swatch" style="background:var(--car-s)"></span>south. <strong>Mean velocity</strong>
+        is the fraction of cars that managed to move on their turn — the order parameter. It settles to
+        ≈ 1 (free flow) or ≈ 0 (jam); right at the critical density it can hang in a metastable tangle
+        for a long time before deciding.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── PHASE PANE ─────────── -->
+<section class="pane" data-pane="phase">
+  <p class="lead">
+    The order parameter is <strong>mean velocity</strong> at steady state. Sweep the density and it
+    stays pinned near 1 (everything flows) until a <strong>critical density ρ<sub>c</sub> ≈ 0.3–0.4</strong>,
+    where it collapses to 0 (everything jams) — a sharp transition with no smooth in-between. Run the
+    sweep and watch the cliff draw itself.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="tr-phase" width="760" height="560"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="tr-sweep">▶ run sweep</button>
+          <button class="btn" id="tr-sweep-reset">reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L (smaller = faster)</span>
+        <div class="ctrl-row"><input id="tr-psize" type="range" min="32" max="96" value="56" step="8"><span class="ctrl-val" id="tr-psize-val">56</span></div>
+      </div>
+      <div class="stats" id="tr-pstats"></div>
+      <div class="stat-note">
+        Each point: a fresh random grid at that density, run to steady state, mean velocity of the last
+        cycles. The exact ρ<sub>c</sub> drifts a little with grid size and aspect ratio (and there are
+        delicate intermediate phases near it), but the cliff is unmistakable.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The rule</h2>
+<p>The <strong>Biham–Middleton–Levine</strong> model (1992) is a cellular automaton on an
+<em>L × L</em> torus. Every cell is empty, holds an <strong style="color:var(--car-e)">east-bound (red)</strong>
+car, or a <strong style="color:var(--car-s)">south-bound (blue)</strong> car. Time alternates between two
+moves:</p>
+<ul>
+  <li><strong>Odd steps:</strong> every red car simultaneously tries to move one cell <strong>east</strong>;
+  it succeeds only if that cell is currently empty.</li>
+  <li><strong>Even steps:</strong> every blue car simultaneously tries to move one cell <strong>south</strong>,
+  same rule.</li>
+</ul>
+<p>That's the whole law. No car ever changes colour or direction; cars are never created or destroyed.
+The grid wraps, so a car leaving the right edge reappears on the left. Start from a random placement at
+density ρ (half red, half blue) and just iterate.</p>
+
+<h2>Self-organization and the jam</h2>
+<p>What makes it famous is that this trivial rule produces a genuine <strong>phase transition</strong>.
+Below a critical density the cars spontaneously sort themselves into <strong>diagonal stripes</strong> —
+red and blue interleaving so that everyone has clear road ahead — and the system reaches a state where
+<em>every car moves every turn</em>. Mean velocity → 1. Above the critical density, the cars deadlock
+into a <strong>global jam</strong>: red cars blocked by blue, blue blocked by red, in a frozen lattice
+where nothing can move. Mean velocity → 0.</p>
+<blockquote>No one builds the stripes and no one calls the gridlock. Both are just what a torus full of
+stubborn cars settles into.</blockquote>
+<p>The transition is sharp. Jockusch-style smoothness it is not: as you nudge the density up through
+<strong>ρ<sub>c</sub> ≈ 0.3–0.4</strong> (it depends on the grid size and aspect ratio), the steady-state
+velocity falls off a cliff from 1 to 0. Right at the edge the system is fascinating — it can sit in
+<strong>metastable, partially-jammed “intermediate” phases</strong>, neither fully flowing nor fully
+locked, sometimes for enormous numbers of steps, and on non-square tori it can settle into exotic
+periodic patterns. The <strong>phase diagram</strong> tab measures the cliff directly.</p>
+
+<h2>Why it belongs in the geometry pack</h2>
+<p>BML is a tiny discrete dynamical system on a <strong>torus</strong> — the same surface the
+<a href="https://mino.mobi/temperley-lieb/">loop tiles</a> wind around — and, like the
+<a href="https://mino.mobi/descent/">trainability fractal</a> and the
+<a href="https://mino.mobi/markov/">Ising thermostats</a>, its headline is an <strong>emergent phase
+transition</strong> from a microscopically simple rule. Order parameter, criticality, metastability,
+self-organization: the whole vocabulary of statistical mechanics, acted out by traffic.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Biham, O., Middleton, A. A. &amp; Levine, D. (1992). <em>Self-organization and a dynamical transition in traffic-flow models.</em> Phys. Rev. A 46, R6124.</li>
+  <li>D'Souza, R. M. (2005). <em>Coexisting phases and lattice dependence of a cellular automaton model for traffic flow.</em> Phys. Rev. E 71.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Biham%E2%80%93Middleton%E2%80%93Levine_traffic_model">Wikipedia — Biham–Middleton–Levine traffic model</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/descent/">descent</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// Tabs
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['simulate','phase','docs'];
+function showTab(name){ tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  panes.forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
+  try{history.replaceState(null,'','#'+name);}catch{}
+  if(name==='simulate'){ drawGrid(); if(bml.running) bml.raf=requestAnimationFrame(simLoop); }
+  if(name==='phase'){ drawPhase(); if(ph.running) ph.raf=requestAnimationFrame(phTick); } }
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function activePane(){ return document.querySelector('.pane.active')?.dataset.pane; }
+
+// ═════════════════════════════════════════════════════════════════════
+// BML engine — grid: 0 empty, 1 east(red), 2 south(blue), on an L×L torus
+// ═════════════════════════════════════════════════════════════════════
+function makeGrid(L, density, redRatio){ const n=L*L, k=Math.round(density*n), g=new Uint8Array(n);
+  const idx=new Int32Array(n); for(let i=0;i<n;i++) idx[i]=i;
+  for(let i=0;i<k;i++){ const j=i+((Math.random()*(n-i))|0); const t=idx[i]; idx[i]=idx[j]; idx[j]=t; g[idx[i]] = (i < k*redRatio) ? 1 : 2; }
+  return g; }
+function stepEast(g, L){ const next=g.slice(); let moved=0, cars=0;
+  for(let y=0;y<L;y++){ const row=y*L; for(let x=0;x<L;x++){ const i=row+x; if(g[i]===1){ cars++; const j=row+((x+1)%L); if(g[j]===0){ next[i]=0; next[j]=1; moved++; } } } }
+  return { g:next, moved, cars }; }
+function stepSouth(g, L){ const next=g.slice(); let moved=0, cars=0;
+  for(let y=0;y<L;y++){ const row=y*L, rown=((y+1)%L)*L; for(let x=0;x<L;x++){ const i=row+x; if(g[i]===2){ cars++; const j=rown+x; if(g[j]===0){ next[i]=0; next[j]=2; moved++; } } } }
+  return { g:next, moved, cars }; }
+// one full BML cycle (east then south); returns mean velocity over all cars this cycle
+function cycle(g, L){ const e=stepEast(g, L); const s=stepSouth(e.g, L);
+  const cars=e.cars+s.cars; return { g:s.g, vel: cars ? (e.moved+s.moved)/cars : 1 }; }
+
+// ═════════════════════════════════════════════════════════════════════
+// simulate tab
+// ═════════════════════════════════════════════════════════════════════
+const bml = { L:120, density:0.30, redRatio:0.5, grid:null, step:0, running:false, raf:null, ups:12, lastT:0, vel:0, velHist:[] };
+const tc = document.getElementById('tr-canvas'), tcx = tc.getContext('2d');
+function bmlRandomize(){ bml.grid=makeGrid(bml.L, bml.density, bml.redRatio); bml.step=0; bml.vel=0; bml.velHist=[]; }
+function drawGrid(){ const L=bml.L, W=tc.width; if(tc.width!==L){ tc.width=L; tc.height=L; }
+  const img=tcx.createImageData(L,L), d=img.data, g=bml.grid;
+  const bg=[10,10,18], e=[232,80,110], s=[42,160,216];
+  for(let i=0;i<L*L;i++){ const v=g?g[i]:0, k=i*4, c = v===1?e : v===2?s : bg; d[k]=c[0]; d[k+1]=c[1]; d[k+2]=c[2]; d[k+3]=255; }
+  tcx.putImageData(img,0,0); drawVel(); updateStats(); }
+function drawVel(){ const c=document.getElementById('tr-vel'), x=c.getContext('2d'), W=c.width, H=c.height;
+  x.fillStyle='#0a0a12'; x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(255,255,255,0.15)'; x.lineWidth=1; const y1=4+(H-8)*(1-1), y0=4+(H-8)*(1-0);
+  x.beginPath(); x.moveTo(4,4); x.lineTo(W-4,4); x.stroke();
+  x.fillStyle='#888'; x.font='9px '+cssVar('--mono'); x.fillText('1',W-10,11); x.fillText('0',W-10,H-3);
+  const h=bml.velHist; if(h.length>1){ x.strokeStyle=cssVar('--accent'); x.lineWidth=1.6; x.beginPath();
+    h.forEach((v,i)=>{ const px=4+(W-8)*i/Math.max(1,h.length-1), py=4+(H-8)*(1-v); i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke(); } }
+function phaseLabel(){ if(bml.step<6) return ['settling','']; const v=bml.vel;
+  if(v>0.97) return ['free flow','hot']; if(v<0.03) return ['gridlock','hot']; return ['intermediate / metastable','']; }
+function updateStats(){ const n=bml.L*bml.L, cars=bml.grid?bml.grid.reduce((a,b)=>a+(b?1:0),0):0;
+  const [lab,cls]=phaseLabel();
+  document.getElementById('tr-stats').innerHTML = `
+    <div class="stat-row"><span class="k">grid</span><span class="v">${bml.L} × ${bml.L}</span></div>
+    <div class="stat-row"><span class="k">density ρ</span><span class="v hot">${bml.density.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">cars</span><span class="v">${cars.toLocaleString()}</span></div>
+    <div class="stat-row"><span class="k">cycle</span><span class="v">${bml.step}</span></div>
+    <div class="stat-row"><span class="k">mean velocity</span><span class="v hot">${bml.vel.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">phase</span><span class="v ${cls}">${lab}</span></div>`;
+}
+function simStep(){ const r=cycle(bml.grid, bml.L); bml.grid=r.g; bml.vel=r.vel; bml.step++;
+  bml.velHist.push(r.vel); if(bml.velHist.length>240) bml.velHist.shift(); }
+function simLoop(ts){ if(!bml.running||activePane()!=='simulate') return; if(ts==null)ts=performance.now();
+  if(ts-bml.lastT>=1000/bml.ups){ bml.lastT=ts; simStep(); drawGrid(); }
+  bml.raf=requestAnimationFrame(simLoop); }
+function simSetRun(on){ bml.running=on; const b=document.getElementById('tr-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ bml.lastT=0; bml.raf=requestAnimationFrame(simLoop); } else cancelAnimationFrame(bml.raf); }
+document.getElementById('tr-run').addEventListener('click',()=>simSetRun(!bml.running));
+document.getElementById('tr-rand').addEventListener('click',()=>{ bmlRandomize(); drawGrid(); });
+document.getElementById('tr-density').addEventListener('input',e=>{ bml.density=parseFloat(e.target.value); document.getElementById('tr-density-val').textContent=bml.density.toFixed(3);
+  document.querySelectorAll('#tr-preset .btn').forEach(x=>x.classList.toggle('active',Math.abs(parseFloat(x.dataset.d)-bml.density)<0.003)); bmlRandomize(); drawGrid(); });
+document.getElementById('tr-preset').addEventListener('click',e=>{ const b=e.target.closest('[data-d]'); if(!b)return;
+  bml.density=parseFloat(b.dataset.d); document.getElementById('tr-density').value=bml.density; document.getElementById('tr-density-val').textContent=bml.density.toFixed(3);
+  document.querySelectorAll('#tr-preset .btn').forEach(x=>x.classList.toggle('active',x===b)); bmlRandomize(); drawGrid(); });
+document.getElementById('tr-size').addEventListener('input',e=>{ bml.L=parseInt(e.target.value,10); document.getElementById('tr-size-val').textContent=bml.L; bmlRandomize(); drawGrid(); });
+document.getElementById('tr-speed').addEventListener('input',e=>{ bml.ups=parseInt(e.target.value,10); document.getElementById('tr-speed-val').textContent=bml.ups; });
+
+// ═════════════════════════════════════════════════════════════════════
+// phase diagram tab — steady-state velocity vs density
+// ═════════════════════════════════════════════════════════════════════
+const ph = { L:56, data:[], idx:0, steps:60, eq:280, samp:40, running:false, raf:null, rho0:0.10, rho1:0.55 };
+const pc = document.getElementById('tr-phase'), pcx = pc.getContext('2d');
+function phReset(){ ph.running=false; ph.data=[]; ph.idx=0; document.getElementById('tr-sweep').textContent='▶ run sweep'; drawPhase(); }
+function phStart(){ ph.L=parseInt(document.getElementById('tr-psize').value,10); ph.data=[]; ph.idx=0; ph.running=true;
+  document.getElementById('tr-sweep').textContent='⏸ pause'; ph.raf=requestAnimationFrame(phTick); }
+function phActive(){ return activePane()==='phase'; }
+function phTick(){ if(!ph.running||!phActive()) return;
+  if(ph.idx>=ph.steps){ ph.running=false; document.getElementById('tr-sweep').textContent='▶ re-run'; drawPhase(); return; }
+  const rho = ph.rho0 + (ph.rho1-ph.rho0)*ph.idx/(ph.steps-1);
+  let g = makeGrid(ph.L, rho, 0.5);
+  for(let t=0;t<ph.eq;t++){ g = cycle(g, ph.L).g; }       // equilibrate
+  let s=0; for(let t=0;t<ph.samp;t++){ const r=cycle(g, ph.L); g=r.g; s+=r.vel; }
+  ph.data.push({ rho, v:s/ph.samp }); ph.idx++; drawPhase();
+  ph.raf=requestAnimationFrame(phTick); }
+function drawPhase(){ const W=pc.width,H=pc.height; pcx.fillStyle=cssVar('--canvas-bg'); pcx.fillRect(0,0,W,H);
+  const mL=70,mR=26,mT=30,mB=54, pw=W-mL-mR, ph2=H-mT-mB;
+  const X=r=>mL+pw*(r-ph.rho0)/(ph.rho1-ph.rho0), Y=v=>mT+ph2*(1-v);
+  pcx.strokeStyle='rgba(150,150,160,0.5)'; pcx.lineWidth=1; pcx.strokeRect(mL,mT,pw,ph2);
+  pcx.fillStyle='#999'; pcx.font='13px '+cssVar('--mono');
+  for(let v=0;v<=1.001;v+=0.25){ const y=Y(v); pcx.globalAlpha=0.35; pcx.beginPath(); pcx.moveTo(mL,y); pcx.lineTo(mL+pw,y); pcx.stroke(); pcx.globalAlpha=1; pcx.fillText(v.toFixed(2), mL-36, y+4); }
+  for(let k=0;k<=5;k++){ const r=ph.rho0+(ph.rho1-ph.rho0)*k/5; pcx.fillText(r.toFixed(2), X(r)-14, mT+ph2+20); }
+  const d=ph.data;
+  if(d.length){ pcx.strokeStyle=cssVar('--accent'); pcx.lineWidth=2.6; pcx.beginPath();
+    d.forEach((p,i)=>{ const x=X(p.rho),y=Y(p.v); i?pcx.lineTo(x,y):pcx.moveTo(x,y); }); pcx.stroke();
+    pcx.fillStyle=cssVar('--accent'); d.forEach(p=>{ pcx.beginPath(); pcx.arc(X(p.rho),Y(p.v),2.4,0,7); pcx.fill(); }); }
+  pcx.fillStyle=cssVar('--fg'); pcx.font='14px '+cssVar('--mono');
+  pcx.save(); pcx.translate(18,mT+ph2/2); pcx.rotate(-Math.PI/2); pcx.fillText('mean velocity',-48,0); pcx.restore();
+  pcx.fillText('density  ρ', mL+pw/2-34, H-18);
+  document.getElementById('tr-pstats').innerHTML = `
+    <div class="stat-row"><span class="k">grid</span><span class="v">${ph.L} × ${ph.L}</span></div>
+    <div class="stat-row"><span class="k">points</span><span class="v">${d.length} / ${ph.steps}</span></div>
+    <div class="stat-row"><span class="k">last ρ · v</span><span class="v hot">${d.length?d[d.length-1].rho.toFixed(3)+' · '+d[d.length-1].v.toFixed(3):'—'}</span></div>`;
+}
+document.getElementById('tr-sweep').addEventListener('click',()=>{ if(ph.running){ ph.running=false; document.getElementById('tr-sweep').textContent='▶ resume'; return; }
+  if(ph.idx>=ph.steps||!ph.data.length){ phStart(); } else { ph.running=true; document.getElementById('tr-sweep').textContent='⏸ pause'; ph.raf=requestAnimationFrame(phTick); } });
+document.getElementById('tr-sweep-reset').addEventListener('click',phReset);
+document.getElementById('tr-psize').addEventListener('input',e=>{ ph.L=parseInt(e.target.value,10); document.getElementById('tr-psize-val').textContent=ph.L; phReset(); });
+
+// Init
+bmlRandomize(); drawGrid(); drawPhase();
+const initialHash=(location.hash||'').replace(/^#/,'');
+if(TAB_NAMES.includes(initialHash)&&initialHash!=='simulate') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>
