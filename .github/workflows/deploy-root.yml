@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/math-meander-patterns-MSxvk']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'index.html'
       - 'styles.css'

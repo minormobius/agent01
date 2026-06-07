@@ -7,7 +7,7 @@ name: Deploy g (WebGPU gallery)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/yarrow-stick-divination-Setnh']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'clock/**'
       - 'g/**'

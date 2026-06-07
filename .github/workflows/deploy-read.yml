@@ -2,7 +2,7 @@ name: Deploy Read
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/yarrow-stick-divination-Setnh']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'read/**'
       - '.github/workflows/deploy-read.yml'
