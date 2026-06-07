@@ -1,0 +1,38 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.yarrow.stick",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A single reaped yarrow stalk, saved to the drying loft (g.mino.mobi/sticks). The record stores only the immutable GENOME and the reap timestamp; the stick's live condition (drying, warp, checking, spoilage, grade) is recomputed deterministically from reapedAt + tends by the client, so the record is never re-written for curing — only for tends and culls.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["v", "seedStr", "pos", "reapedAt"],
+        "properties": {
+          "v": { "type": "integer", "description": "Schema version." },
+          "seedStr": { "type": "string", "description": "Parent specimen seed (the yarrow plant this stalk was reaped from)." },
+          "pos": { "type": "integer", "description": "Position on the plant: 0 = main flowering stalk, 1..n = primary branches." },
+          "main": { "type": "boolean", "description": "True for the main stalk." },
+          "lenCm": { "type": "number", "description": "Length in centimetres." },
+          "diaMm": { "type": "number", "description": "Diameter in millimetres." },
+          "straightness0": { "type": "number", "description": "Green (as-reaped) straightness, 0..1." },
+          "stiffnessPotential": { "type": "number", "description": "Stiffness once fully dried, 0..1." },
+          "dryRate": { "type": "number", "description": "Drying rate multiplier; faster dryers warp and check more." },
+          "warpTendency": { "type": "number", "description": "Latent tendency to bow as it dries, 0..1." },
+          "crackRisk": { "type": "number", "description": "Latent tendency to check (split), 0..1." },
+          "colourPath": { "type": "string", "description": "The colour it dries toward: straw | gold | red." },
+          "nodes": { "type": "integer", "description": "Number of stem nodes." },
+          "grainSeed": { "type": "integer", "description": "Seed for grain/render variation." },
+          "reapedAt": { "type": "integer", "description": "Reap time, epoch milliseconds. The cure clock starts here." },
+          "tends": {
+            "type": "array",
+            "description": "Epoch-ms timestamps of each turn/tend. Turning the bundle mid-cure evens the drying and reduces warp + checking.",
+            "items": { "type": "integer" }
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

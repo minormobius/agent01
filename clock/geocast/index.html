@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Geocast — read the figures from the sand</title>
+<meta name="description" content="The geomancer's table. The sand holds only the bracketed lines; you stab the active dots, and the table reads the marks between each pair of parentheses — odd or even — to build the four Mother figures. Built on the soil engine. WebGPU, with a Canvas2D fallback.">
+<style>
+:root{
+  --bg:#15110d; --bg2:#1d1812; --ink:#ecdcc0; --ink-soft:rgba(236,220,192,.58); --faint:#8c7c63;
+  --sand:#e7c46a; --sand-dim:rgba(231,196,106,.35); --clay:#c0714e; --line:rgba(231,196,106,.16);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{ -webkit-text-size-adjust:100% }
+body{ min-height:100%; background:
+  radial-gradient(130% 90% at 50% -10%, #241c14 0%, var(--bg) 58%, #0c0907 100%);
+  color:var(--ink); font:15px/1.55 ui-serif,Georgia,"Songti SC",serif; -webkit-tap-highlight-color:transparent }
+a{color:var(--sand);text-decoration:none} a:hover{color:var(--clay)}
+#back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);letter-spacing:.06em}
+#back:hover{color:var(--sand)}
+.wrap{max-width:1100px;margin:0 auto;padding:42px 20px 64px}
+.masthead{text-align:center;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4px}
+.sub{color:var(--ink-soft);font-size:14px;font-style:italic;max-width:62ch;margin:0 auto}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:860px){ .layout{grid-template-columns:1fr} }
+.result{margin-top:18px}
+.result[hidden]{display:none}
+.rcols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:860px){ .rcols{grid-template-columns:1fr} }
+.castnote{font:13px/1.55 ui-serif,Georgia,serif;color:var(--ink-soft);margin-bottom:12px}
+.castnote b{color:var(--ink)}
+.status{margin-top:11px;font:11px/1.4 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint)}
+.status.ready{color:var(--sand)} .status.cast{color:#9ec27a}
+.caphint{font:9px/1 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint);text-transform:none}
+.field.locked #soil{cursor:not-allowed}
+#submit{flex:1 0 auto}
+
+.field{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 14px 36px rgba(0,0,0,.45);background:#0c0907}
+.field canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;touch-action:none}
+.field #soil{cursor:crosshair}
+.field #overlay{position:absolute;inset:0;pointer-events:none}
+.field .hint{position:absolute;right:10px;bottom:10px;font:11px/1.3 ui-monospace,monospace;color:var(--faint);pointer-events:none}
+.field .renderer{position:absolute;left:10px;bottom:10px;font:10px/1 ui-monospace,monospace;color:var(--faint);pointer-events:none;letter-spacing:.08em}
+
+.panel{border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(231,196,106,.04),rgba(231,196,106,.01));margin-bottom:16px}
+.panel .cap{font:11px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);
+  padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel .body{padding:14px}
+
+.mothers{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mother{border:1px solid var(--line);border-radius:8px;padding:9px 7px;text-align:center;background:rgba(0,0,0,.15)}
+.mother .mh{font:10px/1 ui-monospace,monospace;letter-spacing:.12em;color:var(--faint);margin-bottom:7px}
+.frow{display:flex;align-items:center;justify-content:center;gap:6px;height:16px}
+.frow .pts{font-size:15px;color:var(--sand);letter-spacing:3px;min-width:34px;text-align:center;line-height:1}
+.frow .cnt{font:9px/1 ui-monospace,monospace;color:var(--faint);min-width:14px;text-align:left}
+.mother .fname{margin-top:8px;font:600 12px/1.15 ui-serif,Georgia,serif;color:var(--ink)}
+.mother .fgloss{font:10px/1.2 ui-monospace,monospace;color:var(--faint)}
+
+/* the derived shield */
+/* the traditional shield — a pyramid: 8 across, then 4, 2, and the Judge, each row centred */
+#shield{overflow-x:auto}
+#shield .srow{display:flex;justify-content:center;gap:7px;margin-bottom:9px}
+.fc{flex:0 0 116px;border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.14)}
+@media(max-width:760px){ .fc{flex:0 0 80px} }
+.fc.muted{opacity:.62}
+.fc .fl{font:8px/1.1 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint);margin-bottom:4px}
+.fc .fl b{color:var(--sand);font-size:11px}
+.fc .gg .gr{font-size:11px;color:var(--sand);letter-spacing:2px;line-height:1.22}
+.fc .fn{margin-top:4px;font:600 10px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.fc.judge{border-color:var(--sand-dim);background:linear-gradient(180deg,rgba(231,196,106,.14),rgba(231,196,106,.02))}
+.fc .jmeta{font:9px/1.3 ui-monospace,monospace;color:var(--faint);margin-top:3px}
+.fc .jnat.good{color:#9ec27a} .fc .jnat.ill{color:var(--clay)} .fc .jnat.mixed,.fc .jnat.neutral{color:var(--ink-soft)}
+.judge{border:1px solid var(--sand-dim);border-radius:9px;padding:11px 10px;text-align:center;
+  background:linear-gradient(180deg,rgba(231,196,106,.13),rgba(231,196,106,.02));margin:2px 0 12px}
+.judge .jl{font:10px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);margin-bottom:6px}
+.judge .jg .gr{font-size:16px;color:var(--sand);letter-spacing:4px;line-height:1.3}
+.judge .jn{margin-top:7px;font:700 18px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.judge .jgloss{font:11px/1.3 ui-monospace,monospace;color:var(--faint);margin-top:2px}
+.judge .jnat{padding:1px 6px;border:1px solid var(--line);border-radius:999px}
+.judge .jnat.good{color:#9ec27a} .judge .jnat.ill{color:var(--clay)} .judge .jnat.mixed,.judge .jnat.neutral{color:var(--ink-soft)}
+.judge .jsig{font:13px/1.5 ui-serif,Georgia,serif;color:var(--ink-soft);margin-top:9px;text-align:left;
+  border-top:1px solid var(--line);padding-top:9px}
+.judge .jsig{max-width:46ch;margin-left:auto;margin-right:auto}
+
+/* clickable shield positions + the reading */
+.fc[data-sel],.mother[data-sel],.judge[data-sel]{cursor:pointer}
+.fc[data-sel]:hover,.mother[data-sel]:hover{border-color:var(--gold-dim)}
+.fc.sel,.mother.sel{border-color:var(--sand);box-shadow:0 0 0 1px var(--sand) inset}
+.judge.sel{outline:1px solid var(--sand)}
+#reading .rtitle{font:600 14px/1.3 ui-serif,Georgia,serif;color:var(--sand);margin-bottom:8px;letter-spacing:.01em}
+#reading p{margin:0 0 8px;font:14px/1.6 ui-serif,Georgia,serif;color:var(--ink-soft)}
+#reading p b{color:var(--ink)}
+#reading .rdom{color:var(--faint);font-style:italic;font-size:13px}
+#reading .rfig{color:var(--ink-soft)}
+#reading .rnat{padding-left:11px;border-left:2px solid var(--line)}
+#reading .rnat.good{border-color:#9ec27a;color:#bcd49a} #reading .rnat.ill{border-color:var(--clay);color:#e3a489}
+#reading .rjudge{font-size:13px;color:var(--faint);border-top:1px solid var(--line);padding-top:8px}
+#reading .rmuted{font:13px/1.5 ui-monospace,monospace;color:var(--faint)}
+#reading .rfludd{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:rgba(231,196,106,.06)}
+#reading .rfludd .la{font-style:italic;color:var(--sand);font-size:13.5px;line-height:1.5}
+#reading .rfludd .en{color:var(--ink);font-size:13.5px;line-height:1.5;margin-top:3px}
+#reading .rfludd .rsrc{font:9px/1 ui-monospace,monospace;color:var(--faint);margin-top:5px;letter-spacing:.04em}
+#reading .rfludd a.rlink{display:inline-block;color:var(--sand);text-decoration:none}
+#reading .rfludd a.rlink:hover{color:var(--clay);text-decoration:underline}
+#reading .rrule{font-size:12.5px;color:var(--faint);padding:2px 0 2px 11px;border-left:2px dotted var(--line)}
+#reading .rrule b{color:var(--ink-soft)} #reading .rrule .rsrc{font:9px/1 ui-monospace,monospace;letter-spacing:.04em}
+
+.controls{display:flex;flex-direction:column;gap:11px}
+.ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
+.ctl label{width:70px}
+.ctl input[type=range]{flex:1;accent-color:var(--sand)}
+.ctl .num{width:36px;text-align:right;color:var(--ink)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+button{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--bg);background:linear-gradient(180deg,#f1d588,#d6a94e);
+  border:0;border-radius:7px;padding:10px 15px;cursor:pointer;transition:filter .12s,transform .12s}
+button:hover{filter:brightness(1.07);transform:translateY(-1px)} button:active{transform:none}
+button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+button.ghost:hover{color:var(--sand);filter:none}
+
+.diss{font-size:14px;color:var(--ink-soft);margin-top:8px}
+.diss h2{font:600 12px/1.2 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);margin:16px 0 7px}
+.diss p{margin:0 0 9px} .diss b{color:var(--ink)}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-top:16px;text-align:center;font:11.5px/1.7 ui-monospace,monospace;color:var(--faint)}
+footer a{color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; gallery</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">Geocast · read the figures from the sand</div>
+    <h1>The geomancer's table</h1>
+    <p class="sub">The sand keeps only the bracketed lines. You stab the dots between them — without counting —
+    and the table reads each line: odd leaves a single point, even a double. Four lines make a figure; the
+    four groups are the Mothers.</p>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="field">
+        <canvas id="soil"></canvas>
+        <canvas id="overlay"></canvas>
+        <div class="hint">stab dots between the brackets</div>
+        <div class="renderer" id="rlabel"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="cap">Cast the sand</div>
+        <div class="body">
+          <p class="castnote">Stab the sixteen lines — four to a Mother — without counting. When the marks are set, <b>read the cast</b>. Once read, the cast is fixed until you clear the sand.</p>
+          <div class="controls">
+            <div class="ctl"><label>mark size</label><input id="size" type="range" min="1" max="6" value="2"><span class="num" id="sizeN">2</span></div>
+            <div class="ctl"><label>touch</label><input id="depth" type="range" min="2" max="9" value="3"><span class="num" id="depthN">3</span></div>
+          </div>
+          <div class="btns">
+            <button id="submit">Read the cast →</button>
+            <button class="ghost" id="random">⚄ Cast at random</button>
+            <button class="ghost" id="reset">⟲ Fresh sand</button>
+          </div>
+          <div id="status" class="status">The sand is fresh — stab your lines.</div>
+        </div>
+      </div>
+
+      <div class="diss">
+        <h2>How it reads</h2>
+        <p>Between each pair of parentheses runs an invisible line. The table looks along it and counts the
+        distinct dots you've left — <b>odd → •</b> (a single point, active), <b>even → ••</b> (a double point,
+        passive). It never counts for you; it measures the sand. Four lines make a figure; the sixteen lines
+        give the four Mothers, the seed of the whole shield — read once you submit the cast.
+        New here? <a href="docs/">Read the manual →</a></p>
+      </div>
+    </div>
+  </div>
+
+  <section id="result" class="result" hidden>
+    <div class="panel">
+      <div class="cap">The shield <span class="caphint">— read right → left · eight, four, two, the Judge</span></div>
+      <div class="body"><div id="shield"></div></div>
+    </div>
+    <div class="rcols">
+      <div class="panel"><div class="cap">The reading · tap a place</div><div class="body"><div id="reading"></div></div></div>
+      <div class="panel"><div class="cap">Ask a question · does it perfect?</div><div class="body"><div class="ctl"><label>the matter</label><select id="qhouse"></select></div><div id="judgment"></div></div></div>
+    </div>
+  </section>
+
+  <footer>
+    Built on the <a href="../soil/">soil engine</a> · siblings: <a href="../yarrow/">yarrow</a> · <a href="../yijing/">the oracle</a>
+    &nbsp;·&nbsp; cast in brass: <a href="../tablet/">al-Mawsili's tablet →</a> · <a href="docs/">the manual</a>
+    &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
+  </footer>
+</div>
+
+<script type="module">
+'use strict';
+import { soilProps, Field } from '../lib/soil.js';
+import { makeRenderer } from '../lib/soil-render.js';
+import { mothersFromCounts, shield, figurePoints, readShieldPosition, perfection } from '../lib/geomancy.js';
+import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION, ASPECTS, DOUBLING, WITNESS_PAIRS } from '../lib/geomancy-meanings.js';
+const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
+const CTX = { houses: HOUSES, meanings: MEANINGS, houseExtras: HOUSE_EXTRAS, perfection: PERFECTION, aspects: ASPECTS, doubling: DOUBLING, witnessPairs: WITNESS_PAIRS,
+  readUrl: 'https://read.mino.mobi/geomancy' };   // geocast shows English; links to the Latin on read
+let SH = null, curSelKey = 'judge', phase = 'casting';   // casting → cast (locked)
+
+const N = 320;
+const field = new Field(N);
+const props = soilProps(0.82, 0.13, 0.05, 0.40);   // damp pale sand — holds a crisp dot
+const ZSCALE = N*0.0135;
+let tool = { R:2, depth:3 };
+
+/* ── 16 bracketed lines, in four Mother groups ── */
+const NLINES=16, PERGROUP=4, GROUPS=4, GAPF=0.7, mY=0.07, mX=0.135;
+const parenR=3, parenDepth=4;
+const EX = parenR + 6;                    // cells near a bracket excluded from the count
+const BAND = 5, THRESH = 1.0, SEP = 6;    // measurement: band half-height, depth floor, min dot spacing
+const maxBase = (NLINES-1) + (GROUPS-1)*GAPF;
+const LINES = [];
+for(let i=0;i<NLINES;i++){
+  const group=Math.floor(i/PERGROUP), row=i%PERGROUP;
+  const base=i+group*GAPF, yn=mY+(base/maxBase)*(1-2*mY);
+  const yc=Math.round(yn*(N-1));
+  const xLn=mX, xRn=1-mX;
+  const xLi=Math.round(xLn*(N-1))+EX, xRi=Math.round(xRn*(N-1))-EX;
+  LINES.push({i,group,row,yn,xLn,xRn,yc,xLi,xRi});
+}
+
+const soil=document.getElementById('soil'), overlay=document.getElementById('overlay');
+const octx=overlay.getContext('2d');
+let renderer=null, dirty=true, rafId=0;
+function requestRender(){ if(!rafId) rafId=requestAnimationFrame(()=>{ rafId=0; if(dirty){ renderer.render(field,props); dirty=false; } }); }
+
+/* ── lay the brackets into fresh sand ── */
+function freshSand(){
+  field.h.fill(0); field._d.fill(0);
+  for(const L of LINES){
+    field.poke(L.xLn, L.yn, parenR, parenDepth, props.heave);
+    field.poke(L.xRn, L.yn, parenR, parenDepth, props.heave);
+  }
+  dirty=true; requestRender();
+  SH=null; phase='casting'; lockField(false);
+  const res=document.getElementById('result'); if(res) res.hidden=true;
+  measureCounts();
+}
+
+/* ── measurement: read the dots along each line, between its brackets ── */
+function countDots(prof){
+  let count=0, last=-1e9;
+  for(let x=1;x<prof.length-1;x++){
+    if(prof[x]>=THRESH && prof[x]>=prof[x-1] && prof[x]>prof[x+1] && (x-last)>=SEP){ count++; last=x; }
+  }
+  return count;
+}
+function rawCounts(){
+  const h=field.h, counts=[];
+  for(const L of LINES){
+    const y0=Math.max(0,L.yc-BAND), y1=Math.min(N-1,L.yc+BAND);
+    const prof=new Array(L.xRi-L.xLi+1);
+    for(let x=L.xLi;x<=L.xRi;x++){ let d=0; for(let y=y0;y<=y1;y++){ const v=-h[y*N+x]; if(v>d) d=v; } prof[x-L.xLi]=d; }
+    counts.push(countDots(prof));
+  }
+  return counts;
+}
+function setStatus(t,cls){ const s=document.getElementById('status'); if(s){ s.textContent=t; s.className='status'+(cls?' '+cls:''); } }
+function lockField(on){ const f=soil.closest&&soil.closest('.field'); if(f) f.classList.toggle('locked', on); }
+
+// during casting: measure the sand for the live overlay only — no figures revealed yet
+function measureCounts(){
+  const counts=rawCounts(); drawOverlay(counts);
+  const marked=counts.filter(n=>n>0).length;
+  setStatus(marked? `${marked} of 16 lines marked — read the cast when ready.` : 'The sand is fresh — stab your lines.', marked?'ready':'');
+  return counts;
+}
+// submit: the operator reads the cast — build the shield, reveal the reading, and LOCK the sand
+function submit(){
+  const counts=rawCounts();
+  SH = shield(mothersFromCounts(counts));
+  renderShield(SH); drawOverlay(counts);
+  curSelKey='judge'; renderReading(); renderJudgment();
+  phase='cast'; lockField(true);
+  document.getElementById('result').hidden=false;
+  setStatus('The cast is read and fixed — ⟲ Fresh sand to recast.', 'cast');
+  const res=document.getElementById('result'); if(res.scrollIntoView) res.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ── the four Mothers, live ── */
+function renderMothers(M){
+  const roman=['I','II','III','IV'];
+  document.getElementById('mothers').innerHTML = M.map((m,mi)=>{
+    const rows=m.rows.map((v,ri)=>{
+      const pts = v===1 ? '•' : '• •';
+      return `<div class="frow"><span class="pts">${pts}</span><span class="cnt">${m.counts[ri]}</span></div>`;
+    }).join('');
+    const f=m.figure;
+    return `<div class="mother" data-sel="house:${mi+1}" role="button" tabindex="0"><div class="mh">Mother ${roman[mi]} · H${mi+1}</div>${rows}`+
+           `<div class="fname">${f?f.name:'—'}</div><div class="fgloss">${f?f.gloss:''}</div></div>`;
+  }).join('');
+}
+
+/* ── the derived shield: Daughters → Nieces → Witnesses → Judge → Reconciler ── */
+function glyphRows(rows){ return rows.map(v=>`<div class="gr">${v===1?'•':'• •'}</div>`).join(''); }
+function figCell(fig, label, cls, sel){ const f=fig.figure;
+  return `<div class="fc ${cls||''}"${sel?` data-sel="${sel}" role="button" tabindex="0"`:''}>`+
+         `<div class="fl">${label}</div><div class="gg">${glyphRows(fig.rows)}</div>`+
+         `<div class="fn">${f?f.name:'—'}</div></div>`; }
+function renderShield(S){
+  // the traditional shield, read right → left: top row of 8 (Mothers 1–4 + Daughters 5–8),
+  // then 4 Nieces (9–12), then the two Witnesses, then the Judge.
+  const first = [...S.mothers, ...S.daughters];                 // index 0..7 → houses 1..8
+  const role8 = h => h<=4 ? 'Mother' : 'Daughter';
+  const top    = [8,7,6,5,4,3,2,1].map(h => figCell(first[h-1], `<b>${h}</b> ${role8(h)}`, '', 'house:'+h)).join('');
+  const nieces = [12,11,10,9].map(h => figCell(S.nieces[h-9], `<b>${h}</b> Niece`, '', 'house:'+h)).join('');
+  const wit    = figCell(S.witnessLeft,'Left Witness','','witnessLeft') + figCell(S.witnessRight,'Right Witness','','witnessRight');
+  const jf = S.judge.figure, jp = figurePoints(S.judge.rows), jm = meaningOf(S.judge.rows);
+  const judge = `<div class="srow"><div class="fc judge" data-sel="judge" role="button" tabindex="0">`+
+    `<div class="fl">The Judge</div><div class="gg">${glyphRows(S.judge.rows)}</div>`+
+    `<div class="fn">${jf?jf.name:'—'}</div>`+
+    `<div class="jmeta">${jp} pts${jm?` · <span class="jnat ${jm.nature.split(/[ ,(]/)[0]}">${jm.nature}</span>`:''}</div></div></div>`;
+  document.getElementById('shield').innerHTML =
+    `<div class="srow">${top}</div>`+
+    `<div class="srow">${nieces}</div>`+
+    `<div class="srow">${wit}</div>`+
+    judge;
+}
+
+/* ── the generated reading: figure × house × Judge, composed on click ── */
+function parseSel(k){ return k.startsWith('house:') ? {kind:'house', house:+k.slice(6)} : {kind:k}; }
+function renderReading(){
+  const el=document.getElementById('reading'); if(!el) return;
+  if(!SH){ el.innerHTML='<div class="rmuted">Stab the lines, then click a figure to read it.</div>'; return; }
+  const r=readShieldPosition(SH, parseSel(curSelKey), CTX);
+  el.innerHTML = r.title ? `<div class="rtitle">${r.title}</div>${r.body}` : '<div class="rmuted">Click any figure in the shield.</div>';
+  document.querySelectorAll('#mothers [data-sel],#shield [data-sel]').forEach(e=>e.classList.toggle('sel', e.dataset.sel===curSelKey));
+}
+// ── the question: does the matter perfect? (Fludd, Liber III, Cap. VI) ──
+const qSel = document.getElementById('qhouse');
+if(qSel){
+  qSel.innerHTML = HOUSES.map(h=>`<option value="${h.n}"${h.n===7?' selected':''}>${h.n} · ${h.name} — ${h.matter}</option>`).join('');
+  qSel.addEventListener('change', renderJudgment);
+}
+function renderJudgment(){
+  const el=document.getElementById('judgment'); if(!el) return;
+  if(!SH){ el.innerHTML='<div class="rmuted">Cast first, then ask.</div>'; return; }
+  const r=perfection(SH, +(qSel?qSel.value:7), CTX);
+  el.innerHTML = `<div class="rtitle">${r.title}</div>${r.body}`;
+}
+function pickSel(t){ const el=t&&t.closest&&t.closest('[data-sel]'); if(el){ curSelKey=el.dataset.sel; renderReading(); return true; } return false; }
+document.addEventListener('click', e=>pickSel(e.target));
+document.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ if(pickSel(e.target)) e.preventDefault(); } });
+
+/* ── overlay: brackets, the implied line, group numerals, live counts ── */
+function drawOverlay(counts){
+  const W=overlay.width, H=overlay.height; if(!W) return;
+  octx.clearRect(0,0,W,H);
+  const lineGapPx = (LINES.length>1 ? (LINES[1].yn-LINES[0].yn) : 0.05) * H;
+  const fs = Math.max(11, lineGapPx*1.05);
+  octx.textBaseline='middle';
+  // group numerals
+  const roman=['I','II','III','IV'];
+  octx.fillStyle='rgba(231,196,106,.5)'; octx.textAlign='center';
+  octx.font=`${Math.max(12,fs*0.9)}px ui-serif,Georgia,serif`;
+  for(let g=0;g<GROUPS;g++){
+    const first=LINES[g*PERGROUP], last=LINES[g*PERGROUP+PERGROUP-1];
+    const yc=((first.yn+last.yn)/2)*H;
+    octx.fillText(roman[g], mX*0.42*W, yc);
+  }
+  for(const L of LINES){
+    const y=L.yn*H, xL=L.xLn*W, xR=L.xRn*W;
+    // implied measurement line (faint, dashed)
+    octx.strokeStyle='rgba(231,196,106,.16)'; octx.lineWidth=1; octx.setLineDash([2,5]);
+    octx.beginPath(); octx.moveTo(xL+fs*0.4,y); octx.lineTo(xR-fs*0.4,y); octx.stroke(); octx.setLineDash([]);
+    // brackets
+    octx.fillStyle='rgba(231,196,106,.62)'; octx.font=`${fs}px ui-monospace,monospace`;
+    octx.textAlign='center'; octx.fillText('(', xL, y); octx.fillText(')', xR, y);
+    // live count + parity
+    const n=counts[L.i], par = (n%2===1)?'•':'••';
+    octx.fillStyle = n>0 ? 'rgba(236,220,192,.7)' : 'rgba(140,124,99,.5)';
+    octx.font=`${Math.max(9,fs*0.5)}px ui-monospace,monospace`; octx.textAlign='left';
+    octx.fillText(`${n} ${par}`, xR+fs*0.5, y);
+  }
+}
+
+/* ── stabbing dots (between the brackets); connect on a drag ── */
+function stamp(nx,ny){ field.poke(nx,ny, tool.R, tool.depth, props.heave); }
+let drawing=false, lnx=0, lny=0;
+function fieldXY(ev){ const r=soil.getBoundingClientRect();
+  return [ Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width)), Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height)) ]; }
+function after(){ dirty=true; requestRender(); if(phase==='casting') measureCounts(); }
+function strokeTo(nx,ny){ const dx=nx-lnx, dy=ny-lny, dist=Math.hypot(dx,dy)*(N-1);
+  if(dist<1e-3) return;
+  if(dist>0.5*(N-1)){ stamp(nx,ny); }
+  else { const step=Math.max(1,tool.R*0.5), steps=Math.min(500,Math.max(1,Math.ceil(dist/step)));
+    for(let s=1;s<=steps;s++){ const t=s/steps; stamp(lnx+dx*t, lny+dy*t); } }
+  after();
+}
+soil.addEventListener('pointerdown',e=>{ if(phase==='cast') return; drawing=true; soil.setPointerCapture(e.pointerId);
+  const [x,y]=fieldXY(e); lnx=x; lny=y; stamp(x,y); after(); e.preventDefault(); });
+soil.addEventListener('pointermove',e=>{ if(!drawing) return; const [x,y]=fieldXY(e); strokeTo(x,y); lnx=x; lny=y; });
+soil.addEventListener('pointerup',()=>{ drawing=false; });
+soil.addEventListener('pointercancel',()=>{ drawing=false; });
+
+/* ── controls ── */
+const $=id=>document.getElementById(id);
+$('size').addEventListener('input',e=>{ tool.R=+e.target.value; $('sizeN').textContent=tool.R; });
+$('depth').addEventListener('input',e=>{ tool.depth=+e.target.value; $('depthN').textContent=tool.depth; });
+$('reset').addEventListener('click',freshSand);
+$('submit').addEventListener('click',()=>{ if(phase==='casting') submit(); });
+$('random').addEventListener('click',()=>{
+  freshSand();
+  for(const L of LINES){
+    const n = Math.floor(Math.random()*6);            // a quick, uncounted hand
+    for(let k=0;k<n;k++){ const t=(k+1)/(n+1)+(Math.random()-0.5)*0.02;
+      stamp(L.xLn + (L.xRn-L.xLn)*t, L.yn + (Math.random()-0.5)*0.004); }
+  }
+  dirty=true; requestRender();
+  submit();                                            // a random cast is an active cast — reveal it
+});
+
+/* ── boot ── */
+function sizeCanvas(){ const r=soil.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(1,Math.round(r.width*dpr)), h=Math.max(1,Math.round(r.height*dpr));
+  if(renderer) renderer.resize(w,h);
+  overlay.width=w; overlay.height=h;
+  dirty=true; requestRender(); drawOverlay(rawCounts());
+}
+window.addEventListener('resize', sizeCanvas);
+
+(async function boot(){
+  renderer = await makeRenderer(soil, {N, zScale:ZSCALE, crackFreq:9, crackMask:null});
+  $('rlabel').textContent = renderer.kind;
+  sizeCanvas();
+  freshSand();
+})();
+</script>
+</body>
+</html>

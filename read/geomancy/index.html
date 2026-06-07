@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>The Sixteen Figures — geomancy, an open redaction</title>
+<meta name="description" content="The sixteen figures of geomancy with an original English redaction of their significations after the Latin geomancers (Agrippa; the Fasciculus Geomanticus), a working stand-in pending a faithful translation of al-Zanātī's Arabic. From read.mino.mobi.">
+<meta property="og:title" content="The Sixteen Figures — geomancy">
+<meta property="og:description" content="The figures of ʿilm al-raml: original English significations beside the Latin names, with notes — converging toward al-Zanātī's Arabic.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>🜃</text></svg>">
+<style>
+:root{
+  --bg:#0e0d0b; --ink:#e9e2d0; --ink2:#a59c86; --faint:#776e5a;
+  --gold:#d8b25a; --gold-dim:rgba(216,178,90,.4); --jade:#6fae8e; --rule:rgba(216,178,90,.16); --rose:#c46a52;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:radial-gradient(120% 80% at 50% -10%, #1b1810 0%, var(--bg) 60%, #080706 100%);
+  color:var(--ink);font:17px/1.65 Georgia,"Songti SC",serif;-webkit-text-size-adjust:100%}
+a{color:var(--gold);text-decoration:none} a:hover{color:var(--rose)}
+#crumb{position:fixed;top:12px;left:16px;font:12px/1 ui-monospace,monospace;color:var(--faint);letter-spacing:.06em;z-index:9}
+#crumb:hover{color:var(--gold)}
+.wrap{max-width:760px;margin:0 auto;padding:54px 22px 80px}
+.masthead{text-align:center;border-bottom:1px double var(--rule);padding-bottom:22px;margin-bottom:8px}
+.masthead .em{font-size:48px;color:var(--gold);line-height:1;text-shadow:0 0 30px rgba(216,178,90,.3)}
+.masthead h1{font:600 23px/1.2 Georgia,serif;letter-spacing:.04em;margin:10px 0 2px}
+.masthead .sub{color:var(--ink2);font-size:14px;font-style:italic;max-width:56ch;margin:6px auto 0}
+.masthead .tag{font:11px/1 ui-monospace,monospace;letter-spacing:.28em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+
+#nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:7px;margin:22px 0 6px}
+#nav .fb{border:1px solid var(--rule);border-radius:8px;background:rgba(216,178,90,.05);cursor:pointer;
+  padding:7px 4px 6px;text-align:center;color:var(--ink2)}
+#nav .fb:hover{color:var(--ink);border-color:var(--gold-dim)}
+#nav .fb.on{background:linear-gradient(180deg,#e8c46e,#c79a44);color:#0e0d0b;border-color:transparent}
+#nav .fb .g{display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:4px}
+#nav .fb .g i{font-size:9px;line-height:1;letter-spacing:2px}
+#nav .fb .nm{font:600 11px/1.1 Georgia,serif}
+
+.entry{margin-top:30px}
+.fhead{display:flex;gap:22px;align-items:center;justify-content:center;margin:8px 0 4px}
+.glyph{display:flex;flex-direction:column;gap:7px}
+.glyph .ln{display:flex;gap:9px}
+.glyph .ln .d{width:9px;height:9px;border-radius:50%;background:linear-gradient(180deg,#e8c46e,#c79a44);box-shadow:0 1px 1px rgba(0,0,0,.5)}
+.glyph .ln.empty{visibility:hidden}
+.fname{text-align:left}
+.fname .la{font-size:34px;color:var(--gold);line-height:1.05;font-style:italic}
+.fname .en{font-size:17px;color:var(--ink)}
+.fname .el{font:11px/1.5 ui-monospace,monospace;letter-spacing:.06em;color:var(--faint);margin-top:4px;text-transform:uppercase}
+.fname .el b{color:var(--jade);font-weight:600}
+.nat{display:inline-block;font:11px/1 ui-monospace,monospace;letter-spacing:.06em;border:1px solid var(--rule);
+  border-radius:999px;padding:3px 9px;margin-top:6px}
+.nat.good{color:#9ec27a;border-color:rgba(158,194,122,.4)} .nat.ill{color:var(--rose);border-color:rgba(196,106,82,.4)}
+.nat.mixed,.nat.neutral{color:var(--ink2)}
+.sig{font-size:17px;line-height:1.62;margin:22px 0 0}
+.note{font-size:14px;line-height:1.6;color:var(--ink2);margin-top:12px;padding-left:14px;border-left:2px solid var(--rule)}
+
+.method{margin-top:40px;background:rgba(216,178,90,.04);border:1px solid var(--rule);border-radius:12px;padding:20px 22px}
+.method h2{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:10px}
+.method p{font-size:14px;line-height:1.62;color:var(--ink2);margin:0 0 8px}
+.method .lic{color:var(--jade);font-weight:600}
+.method .src{font-size:13.5px;line-height:1.8;margin-top:8px} .method .src a{color:var(--ink)}
+.prov{background:rgba(196,106,82,.08);border-left:3px solid var(--rose);padding:12px 15px;border-radius:0 8px 8px 0;
+  font-size:13.5px;line-height:1.6;color:var(--ink2);margin-top:14px}
+.prov b{color:var(--ink)}
+.hlist{margin-top:10px}
+.hrow{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.hrow .hn{font:600 13px/1.5 ui-monospace,monospace;color:var(--gold);min-width:20px;text-align:right}
+.hrow .hnm{font-style:italic;color:var(--ink)} .hrow .hd{color:var(--ink2);font-size:13px}
+footer{text-align:center;color:var(--faint);font:12px/1.7 ui-monospace,monospace;margin-top:34px}
+footer a{color:var(--ink2)}
+.par{margin:9px 0;padding-bottom:9px;border-bottom:1px solid var(--rule)}
+.par .la{font-style:italic;color:var(--gold);font-size:15px;line-height:1.5}
+.par .en{color:var(--ink2);font-size:14px;line-height:1.55;margin-top:3px}
+.lh{font:600 11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--jade);margin:16px 0 6px}
+.par .pl{font:10px/1.4 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--jade);margin-bottom:2px}
+.par.phys{background:rgba(216,178,90,.05);padding:9px 11px;border-radius:8px;border-bottom:0;margin-top:12px}
+.dintro{font-style:italic;color:var(--ink2);font-size:14px;margin:6px 0 12px}
+.soon{font:12px/1.5 ui-monospace,monospace;color:var(--faint);margin-top:18px;padding:10px 12px;border:1px dashed var(--rule);border-radius:8px}
+.road{list-style:none;margin:4px 0 0;padding:0}
+.road li{font-size:14px;line-height:1.5;color:var(--ink2);padding:6px 0 6px 26px;position:relative;border-bottom:1px solid var(--rule)}
+.road li:last-child{border-bottom:0}
+.road li::before{position:absolute;left:0;top:6px;font:12px/1.5 ui-monospace,monospace}
+.road li.done::before{content:'✓';color:var(--jade)}
+.road li.prog::before{content:'◐';color:var(--gold)}
+.road li.todo::before{content:'○';color:var(--faint)}
+.road li b{color:var(--ink)}
+</style>
+</head>
+<body>
+<a id="crumb" href="https://read.mino.mobi/">&larr; read.mino.mobi</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="tag">Read · Of the Geomantic Figures</div>
+    <div class="em">🜃</div>
+    <h1>Of the Geomantic Figures</h1>
+    <p class="sub">An original English translation, beside the Latin, of Robert Fludd’s
+    <em>Tractatus de Geomantia</em> on the sixteen figures — their names, forms and natures —
+    from the <em>Fasciculus Geomanticus</em> (Verona, 1704).</p>
+  </div>
+  <nav id="nav"></nav>
+  <main id="entry" class="entry"></main>
+  <div id="source"></div>
+  <div id="houses"></div>
+  <div id="perfection"></div>
+  <div id="doubling"></div>
+  <div id="witnesspairs"></div>
+  <div id="aspects"></div>
+  <div id="roadmap"></div>
+  <div id="method"></div>
+  <footer>
+    A transparent working redaction · openly licensed ·
+    <a href="https://g.mino.mobi/geocast/">cast the figures →</a> ·
+    <a href="https://read.mino.mobi/iching/">the Zhouyi</a>
+  </footer>
+</div>
+
+<script type="module">
+import { GEOMANCY } from './data.js';
+const F = GEOMANCY.figures, nav = document.getElementById('nav'), entry = document.getElementById('entry');
+
+function glyph(rows, big){
+  return `<div class="glyph">`+ rows.map(v=>{
+    const d = v===1 ? `<span class="d"></span>` : `<span class="d"></span><span class="d"></span>`;
+    return `<div class="ln">${d}</div>`;
+  }).join('') + `</div>`;
+}
+function navGlyph(rows){
+  return `<div class="g">`+ rows.map(v=>`<i>${v===1?'•':'• •'}</i>`).join('') +`</div>`;
+}
+nav.innerHTML = F.map((f,i)=>`<button class="fb" data-i="${i}">${navGlyph(f.rows)}<div class="nm">${f.la}</div></button>`).join('');
+
+const PLACES = ['First house','Second house','Third house','Fourth house','Fifth house','Sixth house',
+  'Seventh house','Eighth house','Ninth house','Tenth house','Eleventh house','Twelfth house',
+  'Right Witness (13)','Left Witness (14)','The Judge (15)','The Reconciler (16)'];
+function domusHtml(f){
+  if(!f.domus) return `<div class="soon">Fludd’s per-place significations for this figure — a later tranche.</div>`;
+  return `<h3 class="lh">In the fifteen places of the shield · Fludd, Cap. III</h3>`+
+    `<p class="dintro"><em>${f.la} denotat in domo…</em> — its meaning in each place the figure can fall.</p>`+
+    f.domus.map((d,i)=>`<div class="par"><div class="pl">${PLACES[i]}</div><div class="la">${d.la}</div><div class="en">${d.en}</div></div>`).join('')+
+    (f.physiognomy?`<div class="par phys"><div class="pl">Of the person</div><div class="la">${f.physiognomy.la}</div><div class="en">${f.physiognomy.en}</div></div>`:'');
+}
+function show(i){
+  const f = F[i];
+  entry.innerHTML =
+    `<div class="fhead">${glyph(f.rows)}<div class="fname">`+
+    `<div class="la">${f.la}</div><div class="en">${f.en}</div>`+
+    `<div class="el">☿ <b>${f.planet}</b> · ${f.element} · ${f.zodiac}</div>`+
+    `<span class="nat ${f.nature.split(/[ ,(]/)[0]}">${f.nature}</span></div></div>`+
+    `<p class="sig">${f.sig}</p>`+
+    `<p class="note">${f.note}</p>`+ domusHtml(f);
+  nav.querySelectorAll('.fb').forEach(b=>b.classList.toggle('on', +b.dataset.i===i));
+  try{ history.replaceState(null,'','#'+f.la.toLowerCase().replace(/\s+/g,'-')); }catch(e){}
+}
+nav.querySelectorAll('.fb').forEach(b=>b.onclick=()=>{ show(+b.dataset.i); window.scrollTo({top:0,behavior:'smooth'}); });
+
+// the source: Fludd's preface + his own classifying lists, the Latin beside our English
+const fl = GEOMANCY.fludd;
+if(fl) document.getElementById('source').innerHTML =
+  `<div class="method"><h2>The source · Robert Fludd, Liber II</h2>`+
+  `<div class="par"><div class="la">${fl.preface.la}</div><div class="en">${fl.preface.en}</div></div>`+
+  fl.lists.map(L=>`<h3 class="lh">${L.head}</h3>`+
+    L.rows.map(r=>`<div class="par"><div class="la">${r.la}</div><div class="en">${r.en}</div></div>`).join('')
+  ).join('')+
+  (fl.houseDoctrine?`<h3 class="lh">The twelve houses · Cap. II</h3><div class="par"><div class="la">${fl.houseDoctrine.la}</div><div class="en">${fl.houseDoctrine.en}</div></div>`:'')+
+  (fl.rules?`<h3 class="lh">The rules of judgment</h3>`+fl.rules.map(r=>`<div class="par"><div class="la">${r.la}</div><div class="en">${r.en}</div></div>`).join(''):'')
+  +`</div>`;
+
+// the twelve houses
+const H = GEOMANCY.houses || [], HX = GEOMANCY.houseExtras || [];
+if(H.length) document.getElementById('houses').innerHTML =
+  `<div class="method"><h2>The twelve houses</h2>`+
+  `<p>A reading casts the figures into twelve houses — the Mothers into 1–4, the Daughters into 5–8, the Nieces into 9–12 — each governing a province of the question. The figure that falls in a house is read in its light (this is how <a href="https://g.mino.mobi/geocast/">geocast</a> generates a reading: <em>this figure × this house × the Judge</em>). Below, each house with Fludd’s own description of all it governs (Liber III, Cap. V), the Latin beside the English.</p>`+
+  `<div class="hlist">`+ H.map(h=>
+    `<div class="hrow"><span class="hn">${h.n}</span><div><div class="hnm">${h.name} — ${h.title}</div>`+
+    (h.la?`<div class="par"><div class="la">${h.la}</div><div class="en">${h.en}</div></div>`:`<div class="hd">${h.domain}</div>`)+
+    `</div></div>`
+  ).join('') +`</div>`+
+  (HX.length?`<h3 class="lh">And three further houses — the Witnesses and the Judge (13–15)</h3>`+
+    `<div class="hlist">`+ HX.map(x=>
+      `<div class="hrow"><span class="hn">${x.place}</span><div><div class="hnm">${x.name}</div>`+
+      `<div class="par"><div class="la">${x.la}</div><div class="en">${x.en}</div></div></div></div>`
+    ).join('')+`</div>`:'')+
+  `</div>`;
+
+// perfection — how a question is answered (Liber III, Cap. VI)
+const PF = (GEOMANCY.fludd && GEOMANCY.fludd.perfection) || null;
+if(PF) document.getElementById('perfection').innerHTML =
+  `<div class="method"><h2>Perfection — how a question is answered</h2>`+
+  `<p>The figures and houses describe; <em>perfection</em> decides. The querent is the figure in the first house, the matter the figure in the house it belongs to; the question comes to pass when the two are linked by one of four connections. This is the method <a href="https://g.mino.mobi/geocast/">geocast</a> now runs when you ask a question.</p>`+
+  `<div class="par"><div class="la">${PF.intro.la}</div><div class="en">${PF.intro.en}</div></div>`+
+  PF.modes.map(m=>`<h3 class="lh">${m.name}</h3><div class="par"><div class="la">${m.la}</div><div class="en">${m.en}</div></div>`).join('')+
+  `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${PF.source}</p></div>`;
+
+// doubled figures (Cap. IV) — the querent's figure recurring in another house
+const DBL = (GEOMANCY.fludd && GEOMANCY.fludd.doubling) || null;
+if(DBL) document.getElementById('doubling').innerHTML =
+  `<div class="method"><h2>Doubled figures — when a figure recurs</h2>`+
+  `<p>A figure that appears twice in the shield is read specially. Fludd gives this for every house in turn; here is the canonical block — the querent’s own figure (the first house) doubling into each house — the very thing that drives perfection by occupation and conjunction, so <a href="https://g.mino.mobi/geocast/">geocast</a> now names it in the judgment.</p>`+
+  `<div class="par"><div class="en"><em>${DBL.intro.en}</em></div></div>`+
+  DBL.places.map(p=>`<div class="par"><div class="pl">into the ${['','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth','eleventh','twelfth'][p.place]} house</div><div class="la">${p.la}</div><div class="en">${p.en}</div></div>`).join('')+
+  `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${DBL.source}</p></div>`;
+
+// the two Witnesses together — the verdict (Cap. V), grouped by the Judge they make
+const WP = (GEOMANCY.fludd && GEOMANCY.fludd.witnessPairs) || null;
+if(WP){
+  const figByName = n => F.find(x=>x.la===n) || F.find(x=>x.la.split(' ')[0]===n);
+  const xr=(a,b)=>a.map((v,i)=>((v===1)^(b[i]===1))?1:2);
+  const judgeName=(a,b)=>{ const A=figByName(a),B=figByName(b); if(!A||!B) return '—'; const j=xr(A.rows,B.rows).join(); const m=F.find(x=>x.rows.join()===j); return m?m.la:'—'; };
+  const groups={}; for(const p of WP.pairs){ const j=judgeName(p.a,p.b); (groups[j]=groups[j]||[]).push(p); }
+  document.getElementById('witnesspairs').innerHTML =
+    `<div class="method"><h2>The two Witnesses — the verdict</h2>`+
+    `<p>The Right Witness (the querent’s side) and the Left (the quesited’s) add to the <b>Judge</b>; taken together they are read as a pair. Fludd gives a signification for each pair, grouped by the Judge they make — the whole of his Cap. V is below (${WP.pairs.length} ordered pairs, right named first), Latin beside English, and it now speaks in <a href="https://g.mino.mobi/geocast/">geocast</a>’s judgment when your two Witnesses match a pair.</p>`+
+    Object.keys(groups).sort().map(j=>`<h3 class="lh">When the Judge is ${j}</h3>`+
+      groups[j].map(p=>`<div class="par"><div class="pl">${p.a} &amp; ${p.b}</div><div class="la">${p.la}</div><div class="en">${p.en}</div></div>`).join('')
+    ).join('')+
+    `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${WP.source}</p></div>`;
+}
+
+// the geomantic aspects (companion tract) — how two houses regard each other
+const ASP = (GEOMANCY.fludd && GEOMANCY.fludd.aspects) || null;
+if(ASP) document.getElementById('aspects').innerHTML =
+  `<div class="method"><h2>The aspects — how the houses regard each other</h2>`+
+  `<p>On top of perfection, the <em>aspect</em> between the querent’s house and the matter’s — measured by how many houses lie between them — colours the manner of the outcome: friendly, hostile, or none. From a companion tract in the same volume (not Fludd’s own), which is also the one that catches his <em>Puer/Puella</em> slip.</p>`+
+  ASP.list.map(a=>`<h3 class="lh">${a.name} — ${a.housesApart===0?'same house':a.housesApart+' houses apart'} · ${a.nature}</h3><div class="par"><div class="la">${a.la}</div><div class="en">${a.en}</div></div>`).join('')+
+  `<p class="lic" style="margin-top:6px;color:var(--faint);font-style:italic">${ASP.source}</p></div>`;
+
+// roadmap — what's translated, and what's coming
+const doneFigs = F.filter(f=>f.domus);
+document.getElementById('roadmap').innerHTML =
+  `<div class="method"><h2>Roadmap</h2><ul class="road">`+
+  `<li class="done">The sixteen figures — names, forms &amp; natures, translated beside the Latin.</li>`+
+  `<li class="done">Fludd’s apparatus — the elements, fortunes, zodiac, planets, the strong/weak/middling classes, the houses doctrine, and the rules of judgment.</li>`+
+  `<li class="${doneFigs.length>=16?'done':'prog'}">The figures in the shield-places (Cap. III) — <b>${doneFigs.length} of 16</b>`+
+    (doneFigs.length>=16?` — the whole chapter, complete: every figure in every shield-place, Latin beside English.`
+      :` done (${doneFigs.map(f=>f.la).join(', ')}); the rest to come, tranche by tranche.`)+`</li>`+
+  `<li class="done"><b>House descriptions</b> — Fludd’s account of all each house governs (Liber III, Cap. V), the twelve houses and the three further places (Witnesses + Judge), Latin beside English.</li>`+
+  `<li class="done"><b>Perfection</b> — the four connections that answer a question (Liber III, Cap. VI: occupation, conjunction, mutation, translation), applied live in geocast: ask, and the chart judges.</li>`+
+  `<li class="done"><b>Aspects</b> — the geomantic conjunction, sextile, square, trine and opposition between houses (a companion tract, Lib. II), now refining the manner of every judgment in geocast.</li>`+
+  `<li class="done"><b>Doubled figures</b> — Cap. IV, the querent’s figure doubling into each house, folded into the judgment (the other origin-houses are a mechanical follow-up).</li>`+
+  `<li class="done"><b>The Witnesses together</b> — Fludd’s whole verdict table (Lib. II, Cap. V), the two Witnesses read as a pair grouped by the Judge they make (${(GEOMANCY.fludd&&GEOMANCY.fludd.witnessPairs?GEOMANCY.fludd.witnessPairs.pairs.length:0)} ordered pairs), wired live into geocast’s judgment.</li>`+
+  `<li class="todo"><b>Multiplied figures</b> — Cap. VI (a figure appearing three or more times), a further refinement of the doubling doctrine — an optional bonus.</li>`+
+  `<li class="todo">al-Zanātī’s <em>Kitāb al-Faṣl</em> — the Arabic spine, set beside the Latin.</li>`+
+  `</ul></div>`;
+
+// method + sources
+const m = GEOMANCY.meta;
+document.getElementById('method').innerHTML =
+  `<div class="method"><h2>Method &amp; sources</h2><p>${m.method}</p>`+
+  `<div class="prov"><b>On provenance.</b> This is a real translation of one named source: <b>Robert Fludd’s
+   <em>Tractatus de Geomantia</em>, Liber II</b>, in the <b>Fasciculus Geomanticus</b> (Verona, 1704), pp. 34–75.
+   The Latin is transcribed from the page images of that edition (read directly — the book’s own OCR is
+   unusable), lightly normalised. The English is ours; the notes flag the cruxes — notably this printing’s
+   inversion of <em>Puer</em> and <em>Puella</em>. <b>The figures are now complete:</b> their names, forms and
+   natures, and — for all sixteen — Fludd’s signification in each shield-place (Cap. III). A faithful translation
+   of <b>al-Zanātī’s Arabic</b> remains the deeper spine to converge on.</div>`+
+  `<p class="lic" style="margin-top:10px">License: ${m.license}.</p>`+
+  `<div class="src">`+ m.sources.map(s=>`· <a href="${s.url}" target="_blank" rel="noopener">${s.label}</a> — ${s.host}`).join('<br>') +`</div></div>`;
+
+const slug = location.hash.replace('#','');
+const init = Math.max(0, F.findIndex(f=>f.la.toLowerCase().replace(/\s+/g,'-')===slug));
+show(init>=0?init:0);
+</script>
+</body>
+</html>
