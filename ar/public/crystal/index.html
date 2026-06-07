@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>AR Crystal — two-phone X-ray diffraction</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{--bg:#0a0a0f;--panel:#14141c;--ink:#e6e6ec;--dim:#9a9aa8;--gold:#c9a84c;--gold2:#e3c977;--line:rgba(255,255,255,0.10);--good:#5fcf7a;--bad:#e0635a;}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'SF Mono','Fira Code',ui-monospace,monospace;overflow:hidden;}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;}
+.screen.on{display:flex;}
+
+/* landing */
+#landing{justify-content:center;align-items:center;padding:1.5rem;text-align:center;gap:1.1rem;overflow-y:auto;}
+#landing h1{font-size:1.5rem;letter-spacing:0.14em;}
+#landing .sub{font-size:0.8rem;color:var(--dim);max-width:30rem;line-height:1.6;}
+.roomrow{display:flex;gap:0.5rem;align-items:center;font-size:0.85rem;color:var(--dim);}
+.roomrow input{font-family:inherit;background:#1d1d28;border:1px solid var(--line);color:var(--gold2);border-radius:8px;
+  padding:0.5rem 0.7rem;font-size:1.1rem;letter-spacing:0.3em;width:6.5rem;text-align:center;text-transform:uppercase;}
+.roles{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;}
+.role{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.3rem 1.2rem;width:13rem;cursor:pointer;transition:all .15s;}
+.role:hover,.role:active{border-color:var(--gold);transform:translateY(-2px);}
+.role .ic{font-size:2.2rem;}
+.role .t{font-size:1rem;letter-spacing:0.08em;margin:0.5rem 0 0.3rem;}
+.role .d{font-size:0.72rem;color:var(--dim);line-height:1.5;}
+#landing .fine{font-size:0.66rem;color:var(--dim);max-width:28rem;line-height:1.6;opacity:0.8;}
+#landing a{color:var(--gold);}
+
+/* shared chrome */
+.bar{display:flex;align-items:center;gap:0.6rem;padding:calc(0.6rem + env(safe-area-inset-top)) 0.8rem 0.6rem;font-size:0.7rem;color:var(--dim);background:rgba(10,10,15,0.6);backdrop-filter:blur(6px);z-index:5;}
+.bar .code{color:var(--gold2);letter-spacing:0.25em;font-size:0.9rem;}
+.bar .grow{flex:1;}
+.btn{font-family:inherit;background:#1d1d28;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:0.42rem 0.7rem;font-size:0.72rem;cursor:pointer;}
+.btn:active{border-color:var(--gold);}
+
+/* emitter */
+#emitter{background:radial-gradient(circle at 50% 35%,#15131f,#0a0a0f);}
+#eCanvas{flex:1;width:100%;display:block;touch-action:none;}
+#emitter .info{padding:0.8rem 1rem calc(1rem + env(safe-area-inset-bottom));text-align:center;background:rgba(10,10,15,0.5);}
+#eName{font-size:1.3rem;letter-spacing:0.05em;}
+#eMeta{font-size:0.7rem;color:var(--dim);margin-top:0.25rem;}
+#eVerdict{font-size:0.85rem;margin-top:0.5rem;min-height:1.1rem;font-weight:600;}
+.hintline{font-size:0.66rem;color:var(--dim);opacity:0.7;margin-top:0.4rem;}
+
+/* detector */
+#detector{background:#000;}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;}
+#dCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:1;touch-action:none;}
+.dpanel{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:0.7rem 0.8rem calc(0.8rem + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,rgba(8,8,12,0.92),rgba(8,8,12,0.0));}
+.meter{display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:0.5rem;}
+#dAxis{color:var(--gold2);}
+#dCaught{color:var(--dim);}
+.guess-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;}
+button.sys{font-family:inherit;background:rgba(29,29,40,0.85);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0.5rem 0.2rem;font-size:0.66rem;cursor:pointer;}
+button.sys:active{border-color:var(--gold);}
+button.sys.correct{background:rgba(95,207,122,0.25);border-color:var(--good);color:var(--good);}
+button.sys:disabled{opacity:0.6;}
+#dReveal{font-size:0.72rem;line-height:1.5;margin-top:0.55rem;min-height:1rem;}
+#dReveal .dim{color:var(--dim);}
+.dtop{position:absolute;top:0;left:0;right:0;z-index:3;}
+.scorechip{display:flex;gap:1rem;font-size:0.72rem;}
+.scorechip b{color:var(--gold2);}
+</style>
+</head>
+<body>
+
+<!-- ── Landing ───────────────────────────────────────────── -->
+<section id="landing" class="screen on">
+  <h1>✷ AR CRYSTAL</h1>
+  <p class="sub">A two-phone X-ray diffraction lab. One phone <b>is the crystal</b> — tilt it under the beam. The other is the <b>detector</b> — sweep it through the air to catch the scatter spots and name the mineral.</p>
+  <div class="roomrow"><span>room</span><input id="room" maxlength="4" autocomplete="off" autocapitalize="characters"></div>
+  <div class="roles">
+    <div class="role" id="beCrystal">
+      <div class="ic">💎</div><div class="t">I'm the Crystal</div>
+      <div class="d">Hold &amp; tilt the crystal in the X-ray beam. You'll know the secret mineral; they have to guess it.</div>
+    </div>
+    <div class="role" id="beDetector">
+      <div class="ic">📡</div><div class="t">I'm the Detector</div>
+      <div class="d">Camera + motion. Move the phone to catch the diffraction spots in space and read their symmetry.</div>
+    </div>
+  </div>
+  <p class="fine">Both phones must enter the <b>same room code</b>. iOS will ask for Motion &amp; Orientation and Camera access — tap allow. Works best in Safari over Wi-Fi in the same room. A <a href="https://mino.mobi/cards/collection/diffract.html">single-phone version</a> explains the physics.</p>
+</section>
+
+<!-- ── Emitter (crystal) ─────────────────────────────────── -->
+<section id="emitter" class="screen">
+  <div class="bar"><span>room <span class="code" id="eCode">—</span></span><span class="grow" id="eStatus">…</span>
+    <button class="btn" id="eCal">recalibrate</button><button class="btn" id="eNext">new crystal</button></div>
+  <canvas id="eCanvas"></canvas>
+  <div class="info">
+    <div id="eName">—</div>
+    <div id="eMeta"></div>
+    <div id="eVerdict"></div>
+    <div class="hintline">Tilt the phone to rotate the lattice. Line up its symmetry axes with the beam to give your partner a clean pattern — or hide them to make it hard.</div>
+  </div>
+</section>
+
+<!-- ── Detector (scatter) ────────────────────────────────── -->
+<section id="detector" class="screen">
+  <video id="cam" playsinline muted></video>
+  <canvas id="dCanvas"></canvas>
+  <div class="dtop">
+    <div class="bar"><span>room <span class="code" id="dCode">—</span></span><span class="grow" id="dStatus">…</span>
+      <span class="scorechip">score <b id="dScore">0</b> · streak <b id="dStreak">0</b></span></div>
+  </div>
+  <div class="dpanel">
+    <div class="meter"><span id="dAxis">— pan to find a symmetry axis</span><span id="dCaught">0/0 caught</span></div>
+    <div class="guess-grid" id="guessGrid"></div>
+    <div id="dReveal">Catch the spots, read the symmetry, then name the crystal system.</div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.55rem;">
+      <button class="btn" id="dCal" style="flex:1">recalibrate beam (aim &amp; tap)</button>
+      <button class="btn" id="dNext" style="flex:1">next crystal</button>
+    </div>
+  </div>
+</section>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

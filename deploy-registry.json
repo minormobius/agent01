@@ -175,6 +175,20 @@
       "cohesion": "integrated"
     },
     {
+      "surface": "ar",
+      "dir": "ar",
+      "endpoint": "ar.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/3d-crystal-diffraction-B5YhB",
+      "uses": [],
+      "provides": null,
+      "note": "Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/.",
+      "paths": [
+        "ar/**",
+        ".github/workflows/deploy-ar.yml"
+      ]
+    },
+    {
       "surface": "cat",
       "dir": "cat",
       "endpoint": "cat.mino.mobi",

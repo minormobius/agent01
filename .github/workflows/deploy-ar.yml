@@ -1,0 +1,42 @@
+name: Deploy AR (ar.mino.mobi)
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/3d-crystal-diffraction-B5YhB'
+    paths:
+      - 'ar/**'
+      - '.github/workflows/deploy-ar.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + Durable Object + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify it's live
+        continue-on-error: true
+        run: |
+          ok=
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "https://ar.mino.mobi/api/health" | grep -qi '"ok":true'; then
+              echo "✓ ar.mino.mobi is live"; ok=1; break
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          [ -n "$ok" ] || echo "⚠️ ar.mino.mobi took >20s to provision"
+          exit 0

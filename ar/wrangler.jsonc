@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ar",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "assets": {
+    "directory": "public",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "SIGNAL", "class_name": "Room" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_classes": ["Room"] }
+  ],
+  "routes": [
+    { "pattern": "ar.mino.mobi", "custom_domain": true }
+  ]
+}
