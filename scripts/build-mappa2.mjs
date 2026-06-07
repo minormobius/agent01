@@ -223,13 +223,14 @@ function makeWorld(seed, wings, nodes){
     // per-wing land fraction (continental sites)
     const wingLand={}; for(let wi=0;wi<WINGS.length;wi++)wingLand[wi]={l:0,t:0};
     let oceL=0,oceT=0,deep=0;
-    for(let i=0;i<w.Nreal;i++){const p=w.plate[i];if(p<w.NC){wingLand[p].t++;if(w.land[i])wingLand[p].l++}else{oceT++;if(!w.land[i])oceL++}if(w.elev[i]<-0.6)deep++}
+    let islands=0; // land on an oceanic plate — cellHSL must handle these (no wing)
+    for(let i=0;i<w.Nreal;i++){const p=w.plate[i];if(p<w.NC){wingLand[p].t++;if(w.land[i])wingLand[p].l++}else{oceT++;if(!w.land[i])oceL++;else islands++}if(w.elev[i]<-0.6)deep++}
     const minWing=Math.min(...Object.values(wingLand).map(o=>o.t?o.l/o.t:1));
     const oceSea=oceT?oceL/oceT:1;
     const empty=WINGS.filter(wg=>!w.cities.some(c=>c.w===wg.id)).map(x=>x.id);
     const placed=w.cities.length,finite=w.cities.every(c=>Number.isFinite(c.x)&&Number.isFinite(c.y));
     const mtns=w.mtn.reduce((a,b)=>a+b,0);
-    console.log(`seed ${String(seed).padStart(4)}: cells=${good}/${w.Nreal} land=${(landFrac*100|0)}% minWingLand=${(minWing*100|0)}% oceanIsSea=${(oceSea*100|0)}% deepTrench=${deep} cities=${placed}/144 mtns=${mtns} rivers=${w.rivers.length} empty=[${empty}]`);
+    console.log(`seed ${String(seed).padStart(4)}: cells=${good}/${w.Nreal} land=${(landFrac*100|0)}% minWingLand=${(minWing*100|0)}% oceanIsSea=${(oceSea*100|0)}% deepTrench=${deep} islandArc=${islands} cities=${placed}/144 mtns=${mtns} rivers=${w.rivers.length} empty=[${empty}]`);
     if(placed!==144||!finite||empty.length||good<w.Nreal*0.97||minWing<0.45||oceSea<0.85||w.rivers.length<4) ok=false;
   }
   if(!ok){console.error('\n✗ v3 self-test FAILED');process.exit(1)}
@@ -314,7 +315,9 @@ function build(){world=makeWorld(seed,D.wings,D.nodes);fit();renderTerr();draw()
 // per-cell colour as [h,s,l] (shared by flat + orb) -----------------------------
 function cellHSL(i){
   if(!world.land[i]){const d=Math.max(0,world.sl-world.elev[i]);return [205,44,Math.max(8,21-d*20)]}
-  const w=wing(D.wings[world.plate[i]].id),t=Math.min(1,(world.elev[i]-world.sl)/0.85);
+  const t=Math.min(1,(world.elev[i]-world.sl)/0.85),p=world.plate[i];
+  if(p>=world.NC){let l=42+t*20;if(world.mtn[i])l=72;return [48,15,l]} // island arc on an oceanic plate (no wing)
+  const w=wing(D.wings[p].id);
   let l=38+t*26,s=36-t*9;if(world.mtn[i]){l=72;s=10}if(!active.has(w.id)){l=24+t*5;s=7}return [w.hue,s,l]}
 function poly(c,p){c.beginPath();c.moveTo(p[0].x,p[0].y);for(let k=1;k<p.length;k++)c.lineTo(p[k].x,p[k].y);c.closePath()}
 
