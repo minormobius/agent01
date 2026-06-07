@@ -46,11 +46,23 @@ jobs:
         run: wasm-pack build --release --target web --out-dir ../pkg --out-name mappa_engine
 
       - name: Commit pkg/
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           rm -f mappa/pkg/.gitignore mappa/pkg/package.json mappa/pkg/README.md
-          git add -f mappa/pkg/mappa_engine.js mappa/pkg/mappa_engine_bg.wasm mappa/pkg/mappa_engine.d.ts 2>/dev/null || true
           git add -f mappa/pkg
-          git commit -m "build: mappa engine wasm kernel" || { echo "no changes"; exit 0; }
+          git commit -m "build: mappa engine wasm kernel" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so kick the root
+      # deploy explicitly to publish the freshly-built pkg/.
+      - name: Deploy the new kernel (dispatch deploy-root)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-root.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}'
