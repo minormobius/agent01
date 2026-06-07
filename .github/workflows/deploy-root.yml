@@ -56,6 +56,8 @@ on:
       # mappa mundi: procedurally-generated world atlas (surfaces as cities)
       - 'mappa/**'
       - 'scripts/build-mappa.mjs'
+      - 'mappa2/**'
+      - 'scripts/build-mappa2.mjs'
       - '.github/workflows/deploy-root.yml'
   workflow_dispatch:
     inputs:
