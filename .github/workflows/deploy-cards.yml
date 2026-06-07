@@ -2,7 +2,7 @@ name: Deploy Cards
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/3d-crystal-diffraction-B5YhB']
     paths:
       - 'cards/**'
       - '.github/workflows/deploy-cards.yml'
