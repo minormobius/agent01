@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Ludographer</title>
+<meta name="description" content="A procedurally generated board game. Every catalogue number resolves to the same complete game — rules, board, components — for ever.">
+<link rel="stylesheet" href="css/gen.css">
+</head>
+<body class="reader">
+<nav class="topnav">
+  <a class="brand" href="/gen/">The&nbsp;Ludographer</a>
+  <div class="nav-controls">
+    <button id="prev" title="Previous catalogue number">‹ prev</button>
+    <form id="goform" class="goform">
+      <span class="hash">№</span>
+      <input id="seedbox" type="number" min="1" inputmode="numeric" aria-label="catalogue number" value="1">
+      <button type="submit">go</button>
+    </form>
+    <button id="next" title="Next catalogue number">next ›</button>
+    <button id="rand" class="rand" title="A random game">⚄ random</button>
+  </div>
+  <a class="up" href="/">↑ games</a>
+</nav>
+
+<main id="app" class="app"></main>
+
+<script src="js/prng.js"></script>
+<script src="js/lexicon.js"></script>
+<script src="js/generate.js"></script>
+<script src="js/operational.js"></script>
+<script src="js/features.js"></script>
+<script src="js/critic.js"></script>
+<script src="js/critic-load.js"></script>
+<script src="js/board.js"></script>
+<script src="js/render.js"></script>
+<script>
+  // load the NN critic (best-effort), then render — the page works either way.
+  LUDO.loadCritic().finally(function () { LUDO.mountReader(); });
+</script>
+</body>
+</html>

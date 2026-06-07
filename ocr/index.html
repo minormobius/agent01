@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OCR · read text off an image</title>
+  <meta name="description" content="Pull text — activation codes, serials, labels — off your images. Box just the part you need; batch a whole folder. Runs entirely in your browser; images never leave your device." />
+  <meta name="theme-color" content="#0d0d0d" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🔎</text></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>OCR</h1>
+    <span class="tagline">read text off an image</span>
+  </header>
+
+  <main class="wrap">
+    <div class="stage">
+      <div id="drop" class="drop">
+        <input id="file" type="file" accept="image/*" multiple hidden />
+        <input id="folder" type="file" webkitdirectory multiple hidden />
+        <input id="camera" type="file" accept="image/*" capture="environment" hidden />
+        <img id="preview" class="preview" alt="" draggable="false" />
+        <div id="selbox" class="selbox" hidden></div>
+        <div id="hint" class="hint">
+          <div class="hint-big">Drop images here</div>
+          <div class="hint-sub">choose images or a whole folder · paste · snap a photo</div>
+        </div>
+      </div>
+
+      <div id="stagebar" class="stagebar" hidden>
+        <div class="stage-info">
+          <span id="stageinfo"></span>
+          <span class="stage-help">— drag a box around the text, or:</span>
+        </div>
+        <div class="stage-actions">
+          <button id="wholeBtn" class="secondary">Whole image</button>
+          <button id="skipBtn" class="secondary">Skip</button>
+        </div>
+      </div>
+
+      <div id="stagedone" class="stagedone" hidden>
+        All set — OCR is finishing in the background. You can walk away; results fill in below.
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="chooseBtn">Choose image(s)</button>
+      <button id="folderBtn">Choose folder</button>
+      <button id="cameraBtn">Take photo</button>
+    </div>
+
+    <label class="ai-toggle">
+      <input type="checkbox" id="aiOn" />
+      <span>Use AI reader <span class="ai-strong">(most accurate)</span></span>
+      <span class="ai-note">— sends the cropped region to a vision model (Gemini); needs configuring</span>
+    </label>
+
+    <div id="error" class="error" hidden></div>
+
+    <details id="fmt" class="fmt">
+      <summary>Expected format <span class="fmt-hint">— clean &amp; group known keys (optional)</span></summary>
+      <div class="fmt-grid">
+        <label class="fmt-toggle"><input type="checkbox" id="fmtOn" /> Enable</label>
+        <label>Groups <input type="number" id="fmtGroups" min="1" max="50" value="5" /></label>
+        <label>× size <input type="number" id="fmtSize" min="1" max="50" value="5" /></label>
+        <label>Separator <input type="text" id="fmtSep" value=" " maxlength="3" /></label>
+        <label class="fmt-fix"><input type="checkbox" id="fmtFix" checked /> Fix look-alikes via alphabet</label>
+        <label class="fmt-alpha">Alphabet <input type="text" id="fmtAlpha" value="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" spellcheck="false" /></label>
+        <p class="fmt-note">Remove characters your keys never use (e.g. delete <code>O</code> so an OCR’d “O” becomes <code>0</code>). Expected length = groups × size.</p>
+      </div>
+    </details>
+
+    <section id="results" class="results" hidden>
+      <div class="results-head">
+        <h2>Results <span id="stats" class="stats"></span></h2>
+        <div class="results-actions">
+          <button id="copyCsvBtn" class="secondary">Copy CSV</button>
+          <button id="downloadCsvBtn" class="secondary">Download CSV</button>
+        </div>
+      </div>
+      <div id="rows" class="rows"></div>
+    </section>
+
+    <p class="footnote">
+      Runs entirely in your browser · OCR by
+      <a href="https://github.com/robertknight/ocrs" target="_blank" rel="noreferrer">ocrs</a>
+      (Rust&nbsp;→&nbsp;WASM) · images never leave your device
+    </p>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

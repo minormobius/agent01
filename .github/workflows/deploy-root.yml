@@ -26,6 +26,14 @@ on:
       - 'styles.css'
       - 'functions/**'
       - 'scripts/generate-search-catalog.mjs'
+      # geometry-pack page under active development on this branch — keep the
+      # canonical mino.mobi/meander/ in sync with edits (also ships via
+      # deploy-math to math.mino.mobi). Carve back out once it stabilizes.
+      - 'meander/**'
+      - 'temperley-lieb/**'
+      - 'aztec/**'
+      - 'markov/**'
+      - 'descent/**'
       # static subsites still bundled under root (carve out as they encapsulate):
       - 'cluster/**'
       - 'density/**'

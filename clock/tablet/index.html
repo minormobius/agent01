@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Al-Mawsili's Tablet — cast the shield in brass</title>
+<meta name="description" content="A simulation of the brass geomantic instrument of Muḥammad ibn Khutlukh al-Mawṣilī (Mosul, 1241 CE). Turn the four Mother dials — each lands on a figure in silver points — then read the shield. The Arabic-origin counterpart to the sand table; the reading after Robert Fludd.">
+<style>
+:root{
+  --bg:#170f05; --plate1:#4a3617; --plate2:#2e2110; --ink:#f0e3c2; --ink-soft:rgba(240,227,194,.6); --faint:#9c855a;
+  --brass:#c9a24a; --gold:#ecc66a; --gold-dim:rgba(236,198,106,.4); --silver:#d9dde8; --clay:#c0714e;
+  --line:rgba(201,162,74,.22); --jade:#9ec27a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{min-height:100%;background:radial-gradient(130% 90% at 50% -12%, #2a1e0c 0%, var(--bg) 60%, #0b0702 100%);
+  color:var(--ink);font:15px/1.55 ui-serif,Georgia,"Songti SC",serif;-webkit-tap-highlight-color:transparent}
+a{color:var(--gold);text-decoration:none} a:hover{color:var(--clay)}
+#back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);letter-spacing:.06em}
+#back:hover{color:var(--gold)}
+.wrap{max-width:1040px;margin:0 auto;padding:42px 20px 64px}
+.masthead{text-align:center;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:20px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+h1{font:600 26px/1.12 ui-serif,Georgia,serif;letter-spacing:.05em;margin:9px 0 5px;color:var(--gold)}
+.sub{color:var(--ink-soft);font-size:14px;font-style:italic;max-width:64ch;margin:0 auto}
+
+/* the brass plate */
+.plate{position:relative;border-radius:16px;padding:26px 22px 22px;
+  background:linear-gradient(150deg,var(--plate1),var(--plate2) 60%,#241a0c);
+  border:1px solid rgba(236,198,106,.34);
+  box-shadow:0 1px 0 rgba(255,230,170,.18) inset, 0 0 0 6px rgba(0,0,0,.18) inset, 0 22px 50px rgba(0,0,0,.5)}
+.plate::before{content:"";position:absolute;inset:9px;border-radius:10px;border:1px solid rgba(236,198,106,.18);pointer-events:none}
+.platecap{text-align:center;font:11px/1.4 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:4px}
+.platesub{text-align:center;font:12px/1.5 ui-serif,Georgia,serif;font-style:italic;color:var(--ink-soft);margin-bottom:18px}
+
+.dials{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:620px){ .dials{grid-template-columns:repeat(2,1fr)} }
+.dial{text-align:center}
+.dlabel{font:10px/1.2 ui-monospace,monospace;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;margin-bottom:8px}
+.dlabel b{color:var(--gold)}
+.disc{position:relative;width:118px;height:118px;margin:0 auto;border-radius:50%;cursor:grab;overflow:hidden;
+  touch-action:none;
+  background:radial-gradient(circle at 38% 32%, #6b4f22, #3a2a12 70%, #271b0c);
+  border:2px solid rgba(236,198,106,.5);
+  box-shadow:0 2px 6px rgba(0,0,0,.5), 0 0 0 4px rgba(0,0,0,.22) inset, 0 1px 0 rgba(255,230,170,.25) inset}
+.disc:active{cursor:grabbing}
+.disc:focus{outline:2px solid var(--gold);outline-offset:3px}
+.disc.locked{cursor:default;opacity:.96}
+/* the brass face: 16 detent ticks engraved round the rim — this is what spins */
+.discface{position:absolute;inset:0;border-radius:50%;z-index:1;pointer-events:none;
+  background:repeating-conic-gradient(from -1.2deg, rgba(236,198,106,.55) 0deg 2.4deg, transparent 2.4deg 22.5deg);
+  box-shadow:0 0 0 4px rgba(0,0,0,.18) inset}
+/* the fixed index that reads the detent at the top of the dial */
+.index{position:absolute;left:50%;top:-2px;z-index:3;transform:translateX(-50%);width:0;height:0;
+  border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--gold);
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+.disc .knob{position:absolute;left:50%;top:50%;z-index:2;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle at 40% 35%, #f1d588, #b98a36);box-shadow:0 1px 2px rgba(0,0,0,.6)}
+/* the window: shows the figure as four rows of silver points */
+.window{position:absolute;left:50%;top:11px;z-index:2;transform:translateX(-50%);width:58px;height:52px;border-radius:6px;
+  background:linear-gradient(180deg,#120c04,#1d1408);border:1px solid rgba(236,198,106,.4);
+  box-shadow:0 1px 2px rgba(0,0,0,.6) inset;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:5px 0}
+.wrow{display:flex;justify-content:center;gap:7px;height:7px}
+.wrow .pt{width:6px;height:6px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,var(--silver));box-shadow:0 0 3px rgba(217,221,232,.5)}
+.window.empty .wrow .pt{background:rgba(236,198,106,.18);box-shadow:none}
+.dfig{margin-top:8px;font:600 12px/1.15 ui-serif,Georgia,serif;color:var(--ink);min-height:15px}
+.dfig .ar{font-size:13px;color:var(--gold);margin-left:4px}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+button{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:#1a1206;background:linear-gradient(180deg,#f1d588,#cf9f3e);
+  border:0;border-radius:8px;padding:11px 17px;cursor:pointer;transition:filter .12s,transform .12s}
+button:hover{filter:brightness(1.07);transform:translateY(-1px)} button:active{transform:none}
+button:disabled{opacity:.45;cursor:default;filter:none;transform:none}
+button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+button.ghost:hover{color:var(--gold);filter:none}
+.status{text-align:center;margin-top:13px;font:11px/1.4 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint)}
+.status.ready{color:var(--gold)} .status.cast{color:var(--jade)}
+
+/* the revealed reading */
+.result{margin-top:22px} .result[hidden]{display:none}
+.panel{border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(236,198,106,.05),rgba(236,198,106,.01));margin-bottom:16px}
+.panel .cap{font:11px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel .cap .caphint{font-size:9px;letter-spacing:.04em;color:var(--faint);text-transform:none}
+.panel .body{padding:14px}
+.rcols{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media(max-width:820px){ .rcols{grid-template-columns:1fr} }
+.ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);margin-bottom:8px}
+.ctl label{width:64px} select{flex:1;background:#241a0c;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px}
+
+#shield{overflow-x:auto}
+#shield .srow{display:flex;justify-content:center;gap:7px;margin-bottom:9px}
+.fc{flex:0 0 112px;border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.2)}
+@media(max-width:760px){ .fc{flex:0 0 78px} }
+.fc[data-sel]{cursor:pointer} .fc[data-sel]:hover{border-color:var(--gold-dim)} .fc.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.fc .fl{font:8px/1.1 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint);margin-bottom:4px}
+.fc .fl b{color:var(--gold);font-size:11px}
+.fc .gg .gr{font-size:11px;color:var(--silver);letter-spacing:2px;line-height:1.22}
+.fc .fn{margin-top:4px;font:600 10px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.fc.judge{border-color:var(--gold-dim);background:linear-gradient(180deg,rgba(236,198,106,.14),rgba(236,198,106,.02))}
+.fc .jmeta{font:9px/1.3 ui-monospace,monospace;color:var(--faint);margin-top:3px}
+.fc .jnat.good{color:var(--jade)} .fc .jnat.ill{color:var(--clay)} .fc .jnat.mixed,.fc .jnat.neutral{color:var(--ink-soft)}
+#reading .rtitle{font:600 14px/1.3 ui-serif,Georgia,serif;color:var(--gold);margin-bottom:8px}
+#reading p{margin:0 0 8px;font:14px/1.6 ui-serif,Georgia,serif;color:var(--ink-soft)} #reading p b{color:var(--ink)}
+#reading .rdom{color:var(--faint);font-style:italic;font-size:13px}
+#reading .rnat{padding-left:11px;border-left:2px solid var(--line)}
+#reading .rnat.good{border-color:var(--jade);color:#bcd49a} #reading .rnat.ill{border-color:var(--clay);color:#e3a489}
+#reading .rrule{font-size:12.5px;color:var(--faint);padding:2px 0 2px 11px;border-left:2px dotted var(--line)} #reading .rrule b{color:var(--ink-soft)}
+#reading .rjudge{font-size:13px;color:var(--faint);border-top:1px solid var(--line);padding-top:8px}
+#reading .rmuted{font:13px/1.5 ui-monospace,monospace;color:var(--faint)}
+#reading .rfludd{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:rgba(236,198,106,.06)}
+#reading .rfludd .en{color:var(--ink);font-size:13.5px;line-height:1.5}
+#reading .rfludd a.rlink{display:inline-block;margin-top:5px;font:9px/1.3 ui-monospace,monospace;letter-spacing:.04em;color:var(--gold)}
+#reading .rfludd a.rlink:hover{color:var(--clay);text-decoration:underline}
+
+.diss{font-size:13.5px;color:var(--ink-soft);margin-top:24px;max-width:70ch}
+.diss h2{font:600 12px/1.2 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin:0 0 8px}
+.diss p{margin:0 0 9px} .diss b{color:var(--ink)}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-top:16px;text-align:center;font:11.5px/1.7 ui-monospace,monospace;color:var(--faint)}
+footer a{color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; gallery</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">Al-Mawsili's tablet · cast the shield in brass</div>
+    <h1>The geomancer's brass tablet</h1>
+    <p class="sub">After the brass geomantic instrument of Muḥammad ibn Khutlukh al-Mawṣilī — Mosul, 1241 CE,
+    now in the British Museum. Turn the four Mother dials: each lands, unbidden, on a figure in silver points.
+    Then read the shield.</p>
+  </div>
+
+  <div class="plate">
+    <div class="platecap">The four Mothers</div>
+    <div class="platesub">Turn each dial — let the hand fall as it will — then read the tablet.</div>
+    <div class="dials" id="dials"></div>
+    <div class="controls">
+      <button id="submit" disabled>Read the tablet →</button>
+      <button class="ghost" id="turnall">⟳ Turn all four</button>
+      <button class="ghost" id="reset">⟲ Fresh tablet</button>
+    </div>
+    <div class="status" id="status">No dial is set — turn the four Mothers.</div>
+  </div>
+
+  <section id="result" class="result" hidden>
+    <div class="panel">
+      <div class="cap">The shield <span class="caphint">— read right → left · eight, four, two, the Judge</span></div>
+      <div class="body"><div id="shield"></div></div>
+    </div>
+    <div class="rcols">
+      <div class="panel"><div class="cap">The reading · tap a place</div><div class="body"><div id="reading"></div></div></div>
+      <div class="panel"><div class="cap">Ask a question · does it perfect?</div><div class="body"><div class="ctl"><label>the matter</label><select id="qhouse"></select></div><div id="judgment"></div></div></div>
+    </div>
+  </section>
+
+  <div class="diss">
+    <h2>What this is</h2>
+    <p>The only known medieval geomantic machine: a copper-alloy plate inlaid with gold and silver, made by
+    al-Mawṣilī in 1241/42, now in the British Museum. The diviner turned dials whose windows revealed
+    configurations of silver points — a randomiser in brass, the uncounted hand.</p>
+    <p><b>How the dial settles.</b> Each disc here is simulated as a real rotor with sixteen <em>detents</em> —
+    notched seats round the rim, one per figure. Flick it (tap, or grab and throw with the cursor) and it spins
+    free, coasting under friction while the detents ratchet it notch by notch; when its momentum is spent it
+    drops into whichever seat it last passed — and that well is the figure. Nothing is pre-chosen: the figure is
+    wherever the physics comes to rest, exactly as a sprung brass detent would have behaved on the bench in Mosul.</p>
+    <p>The four Mothers cast here raise the same shield the <a href="../geocast/">sand table</a> does; the reading
+    is composed from <a href="https://read.mino.mobi/geomancy">Robert Fludd (1704)</a>.
+    New to the art? <a href="../geocast/docs/">Read the manual →</a></p>
+  </div>
+
+  <footer>
+    Al-Mawsili's tablet · the Arabic-origin counterpart to the <a href="../geocast/">sand</a>
+    &nbsp;·&nbsp; the reading after <a href="https://read.mino.mobi/geomancy">Fludd</a>
+    &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
+  </footer>
+</div>
+
+<script type="module">
+'use strict';
+import { FIGURES, shield, figurePoints, readShieldPosition, perfection } from '../lib/geomancy.js';
+import { MEANINGS, HOUSES, HOUSE_EXTRAS, PERFECTION, ASPECTS, DOUBLING, WITNESS_PAIRS } from '../lib/geomancy-meanings.js';
+const meaningOf = rows => MEANINGS[rows.map(r=>r===1?'1':'0').join('')] || null;
+const CTX = { houses:HOUSES, meanings:MEANINGS, houseExtras:HOUSE_EXTRAS, perfection:PERFECTION, aspects:ASPECTS, doubling:DOUBLING, witnessPairs:WITNESS_PAIRS, readUrl:'https://read.mino.mobi/geomancy' };
+
+const ROMAN=['I','II','III','IV'];
+let mothers=[null,null,null,null], SH=null, curSelKey='judge', phase='casting';
+
+/* ── the four dials: a physical brass rotor with 16 detents ──
+   Each disc is a free rotor. A flick gives it angular velocity; it coasts under
+   friction (DAMP) while a periodic detent torque (ω̇ = −DETENT·sin(16θ)) ratchets it
+   notch by notch, until it loses its momentum and drops into one of the sixteen wells —
+   each well a figure. The al-Mawṣilī window reads whichever figure sits under the fixed
+   index; the engraved brass face turns behind it. Pure rigid-body integration in rAF;
+   nothing is pre-decided — the figure is wherever the physics comes to rest. */
+const dialsEl=document.getElementById('dials');
+const WELLS=16, STEP=2*Math.PI/WELLS, DETENT=42, DAMP=2.4, TAU=2*Math.PI;
+const D=[0,1,2,3].map(()=>({th:0,w:0,moving:false,settled:false,t:0}));
+const ref=[];                                          // cached {face,win,fig} per dial
+const idxOf=th=>((Math.round(th/STEP)%WELLS)+WELLS)%WELLS;
+function windowRows(rows){ return rows.map(v=>`<div class="wrow">${v===1?'<span class="pt"></span>':'<span class="pt"></span><span class="pt"></span>'}</div>`).join(''); }
+
+function renderDials(){
+  dialsEl.innerHTML = [0,1,2,3].map(i=>
+    `<div class="dial" data-i="${i}">`+
+      `<div class="dlabel">Mother <b>${ROMAN[i]}</b> · House ${i+1}</div>`+
+      `<div class="disc${phase==='cast'?' locked':''}" data-i="${i}" role="button" tabindex="0" aria-label="Mother ${ROMAN[i]} dial — flick to turn">`+
+        `<div class="index"></div><div class="discface"></div><div class="window"></div><div class="knob"></div>`+
+      `</div>`+
+      `<div class="dfig" data-i="${i}">—</div>`+
+    `</div>`).join('');
+  ref.length=0;
+  [0,1,2,3].forEach(i=>{ const dial=dialsEl.querySelector(`.dial[data-i="${i}"]`);
+    ref[i]={ face:dial.querySelector('.discface'), win:dial.querySelector('.window'), fig:dial.querySelector('.dfig') }; paint(i); });
+}
+function paint(i){
+  const r=ref[i], d=D[i]; if(!r) return;
+  r.face.style.transform=`rotate(${d.th}rad)`;
+  const f=FIGURES[idxOf(d.th)], live=!!mothers[i]||d.moving;
+  r.win.className='window'+(live?'':' empty'); r.win.innerHTML=windowRows(f.rows);
+  r.fig.textContent = live ? f.name : '—';
+}
+
+/* the integrator — one rAF for all four rotors */
+let raf=0, last=0;
+function loop(now){
+  if(!last) last=now; let dt=(now-last)/1000; last=now; if(dt>0.05) dt=0.05;
+  let any=false;
+  for(let i=0;i<4;i++){ const d=D[i]; if(!d.moving) continue; any=true; d.t+=dt;
+    const steps=Math.max(1,Math.min(12,Math.ceil(Math.abs(d.w)*dt/0.05)));   // resolve the detent sine
+    const h=dt/steps;
+    for(let s=0;s<steps;s++){ const a=-DETENT*Math.sin(WELLS*d.th) - DAMP*d.w; d.w+=a*h; d.th+=d.w*h; }
+    if((Math.abs(d.w)<0.06 && Math.abs(Math.sin(WELLS*d.th))<0.04) || d.t>6){  // dropped into a well (or failsafe)
+      d.th=Math.round(d.th/STEP)*STEP; d.w=0; d.moving=false; d.settled=true;
+      mothers[i]=FIGURES[idxOf(d.th)].rows;
+    }
+    paint(i);
+  }
+  if(any){ raf=requestAnimationFrame(loop); } else { raf=0; last=0; updateStatus(); }
+}
+function ensureLoop(){ if(!raf){ last=0; raf=requestAnimationFrame(loop); } }
+function flick(i,w0){
+  if(phase==='cast') return;
+  const d=D[i]; d.w=w0; d.moving=true; d.settled=false; d.t=0; mothers[i]=null;
+  ensureLoop(); updateStatus();
+}
+function randomFlick(i){ const dir=Math.random()<.5?-1:1; flick(i, dir*(14+Math.random()*16)); }
+
+function updateStatus(){
+  const set=mothers.filter(Boolean).length, spinning=D.some(d=>d.moving);
+  document.getElementById('submit').disabled = set<4 || phase==='cast' || spinning;
+  if(phase==='cast'){ setStatus('The cast is read and fixed — ⟲ Fresh tablet to recast.','cast'); return; }
+  if(spinning){ setStatus('The dials are turning…',''); return; }
+  setStatus(set<4 ? `${set} of 4 Mothers set — flick the rest.` : 'All four Mothers set — read the tablet.', set<4?'':'ready');
+}
+function setStatus(t,c){ const s=document.getElementById('status'); s.textContent=t; s.className='status'+(c?' '+c:''); }
+
+/* ── interaction: tap a disc to flick it blind; or grab and throw it with the wrist ── */
+let drag=null;
+function discAt(t){ return t.closest? t.closest('.disc'):null; }
+function angleTo(disc,x,y){ const r=disc.getBoundingClientRect(); return Math.atan2(y-(r.top+r.height/2), x-(r.left+r.width/2)); }
+dialsEl.addEventListener('pointerdown',e=>{
+  const disc=discAt(e.target); if(!disc||phase==='cast') return;
+  const i=+disc.dataset.i; D[i].moving=false;                       // catch the rotor
+  drag={i, ang:angleTo(disc,e.clientX,e.clientY), t:performance.now(), vel:0, moved:false};
+  disc.setPointerCapture?.(e.pointerId); e.preventDefault();
+});
+dialsEl.addEventListener('pointermove',e=>{
+  if(!drag) return; const disc=dialsEl.querySelector(`.disc[data-i="${drag.i}"]`); if(!disc) return;
+  const ang=angleTo(disc,e.clientX,e.clientY); let da=ang-drag.ang;
+  if(da>Math.PI) da-=TAU; if(da<-Math.PI) da+=TAU;
+  const now=performance.now(), dt=Math.max(1,now-drag.t)/1000;
+  D[drag.i].th+=da; drag.vel=da/dt; drag.ang=ang; drag.t=now; if(Math.abs(da)>0.012) drag.moved=true;
+  paint(drag.i);
+});
+function release(){
+  if(!drag) return; const i=drag.i;
+  if(drag.moved) flick(i, Math.max(-40,Math.min(40, drag.vel)));   // throw at the measured wrist-speed
+  else randomFlick(i);                                             // a tap spins it blind
+  drag=null;
+}
+window.addEventListener('pointerup',release);
+window.addEventListener('pointercancel',release);
+dialsEl.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ const d=discAt(e.target); if(d){ randomFlick(+d.dataset.i); e.preventDefault(); } } });
+
+document.getElementById('turnall').addEventListener('click',()=>{ if(phase==='cast') return; [0,1,2,3].forEach(i=>setTimeout(()=>randomFlick(i), i*140)); });
+document.getElementById('reset').addEventListener('click',freshTablet);
+document.getElementById('submit').addEventListener('click',()=>{ if(phase==='casting' && mothers.every(Boolean) && !D.some(d=>d.moving)) submit(); });
+
+function freshTablet(){
+  mothers=[null,null,null,null]; SH=null; phase='casting';
+  D.forEach(d=>{ d.th=0; d.w=0; d.moving=false; d.settled=false; d.t=0; });
+  document.getElementById('result').hidden=true;
+  renderDials(); updateStatus();
+}
+function submit(){
+  SH = shield(mothers.map(r=>({rows:r})));
+  renderShield(SH); curSelKey='judge'; renderReading(); renderJudgment();
+  phase='cast'; renderDials(); updateStatus();
+  const res=document.getElementById('result'); res.hidden=false;
+  if(res.scrollIntoView) res.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ── the shield (8 / 4 / 2 / Judge, read right→left) — same render as the sand table ── */
+function glyphRows(rows){ return rows.map(v=>`<div class="gr">${v===1?'•':'• •'}</div>`).join(''); }
+function figCell(fig, label, cls, sel){ const f=fig.figure;
+  return `<div class="fc ${cls||''}"${sel?` data-sel="${sel}" role="button" tabindex="0"`:''}>`+
+    `<div class="fl">${label}</div><div class="gg">${glyphRows(fig.rows)}</div><div class="fn">${f?f.name:'—'}</div></div>`; }
+function renderShield(S){
+  const first=[...S.mothers, ...S.daughters], role8=h=>h<=4?'Mother':'Daughter';
+  const top    = [8,7,6,5,4,3,2,1].map(h=>figCell(first[h-1], `<b>${h}</b> ${role8(h)}`, '', 'house:'+h)).join('');
+  const nieces = [12,11,10,9].map(h=>figCell(S.nieces[h-9], `<b>${h}</b> Niece`, '', 'house:'+h)).join('');
+  const wit    = figCell(S.witnessLeft,'Left Witness','','witnessLeft') + figCell(S.witnessRight,'Right Witness','','witnessRight');
+  const jf=S.judge.figure, jp=figurePoints(S.judge.rows), jm=meaningOf(S.judge.rows);
+  const judge = `<div class="srow"><div class="fc judge" data-sel="judge" role="button" tabindex="0"><div class="fl">The Judge</div>`+
+    `<div class="gg">${glyphRows(S.judge.rows)}</div><div class="fn">${jf?jf.name:'—'}</div>`+
+    `<div class="jmeta">${jp} pts${jm?` · <span class="jnat ${jm.nature.split(/[ ,(]/)[0]}">${jm.nature}</span>`:''}</div></div></div>`;
+  document.getElementById('shield').innerHTML =
+    `<div class="srow">${top}</div><div class="srow">${nieces}</div><div class="srow">${wit}</div>`+judge;
+}
+function parseSel(k){ return k.startsWith('house:')?{kind:'house',house:+k.slice(6)}:{kind:k}; }
+function renderReading(){
+  const el=document.getElementById('reading'); if(!el||!SH) return;
+  const r=readShieldPosition(SH, parseSel(curSelKey), CTX);
+  el.innerHTML = r.title ? `<div class="rtitle">${r.title}</div>${r.body}` : '<div class="rmuted">Tap any place in the shield.</div>';
+  document.querySelectorAll('#shield [data-sel]').forEach(e=>e.classList.toggle('sel', e.dataset.sel===curSelKey));
+}
+const qSel=document.getElementById('qhouse');
+qSel.innerHTML = HOUSES.map(h=>`<option value="${h.n}"${h.n===7?' selected':''}>${h.n} · ${h.name} — ${h.matter}</option>`).join('');
+qSel.addEventListener('change', renderJudgment);
+function renderJudgment(){ const el=document.getElementById('judgment'); if(!el||!SH) return;
+  const r=perfection(SH, +qSel.value, CTX); el.innerHTML = `<div class="rtitle">${r.title}</div>${r.body}`; }
+document.addEventListener('click',e=>{ const el=e.target.closest&&e.target.closest('#shield [data-sel]'); if(el){ curSelKey=el.dataset.sel; renderReading(); } });
+
+freshTablet();
+</script>
+</body>
+</html>

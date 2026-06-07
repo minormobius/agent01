@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Drying Loft · yarrow sticks</title>
+<meta name="description" content="Cure your reaped yarrow stalks into counting-rods. Each stick dries in real time — turn them to keep them true, cull the warped and checked, and gather a set of fifty for the Yijing.">
+<style>
+:root{
+  --paper:#f3ecdb; --ink:#2a2722; --ink2:#5b5346; --faint:#8a7f6c;
+  --rule:rgba(42,39,34,.14); --green:#5d6a3e; --rose:#9c5a63; --ochre:#b88a3c;
+  --accent:#7c6a3a; --bad:#a8503a; --good:#5d7a4a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{min-height:100%;background:radial-gradient(120% 80% at 50% -10%,#efe7d2,#e7dcc3 70%,#ddd0b3);
+  color:var(--ink);font:16px/1.6 ui-serif,"Iowan Old Style",Georgia,"Songti SC",serif;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent);text-decoration:none} a:hover{color:var(--rose)}
+button{font:600 13px/1 ui-serif,Georgia,serif;color:var(--paper);background:var(--green);border:0;
+  border-radius:7px;padding:9px 14px;cursor:pointer;transition:filter .12s,transform .1s;
+  touch-action:manipulation;user-select:none}
+button:hover{filter:brightness(1.08)} button:active{transform:translateY(1px)}
+button:disabled{opacity:.4;cursor:default;filter:none}
+button.ghost{background:transparent;color:var(--ink2);border:1px solid var(--rule)}
+button.ghost:hover{color:var(--ink)}
+button.warn{background:var(--bad)}
+input{font:14px/1 ui-monospace,monospace;background:rgba(255,255,255,.55);border:1px solid var(--rule);
+  border-radius:6px;padding:9px 11px;color:var(--ink);outline:none}
+input:focus{border-color:var(--green)}
+#back{position:fixed;top:12px;left:14px;z-index:20;font:12px/1 ui-monospace,monospace;color:var(--faint)}
+#back:hover{color:var(--ink)}
+
+.wrap{max-width:1040px;margin:0 auto;padding:44px 20px 70px}
+.masthead{text-align:center;border-bottom:1.5px double var(--rule);padding-bottom:14px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+.title{font:600 29px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:8px 0 3px}
+.lede{color:var(--ink2);font-size:14.5px;font-style:italic;max-width:62ch;margin:0 auto}
+.nav{margin-top:8px;font:12px/1 ui-monospace,monospace;color:var(--faint)}
+.nav a{margin:0 7px}
+
+/* sign-in + set summary bar */
+.bar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+  margin:18px 0 6px;padding:12px 15px;border:1px solid var(--rule);border-radius:11px;
+  background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,.12))}
+.set{display:flex;gap:20px;align-items:baseline;flex-wrap:wrap}
+.set .big{font:700 24px/1 ui-serif,Georgia,serif;color:var(--ochre)}
+.set .big small{font-size:14px;color:var(--faint);font-weight:400}
+.set .stat{font:12px/1.3 ui-monospace,monospace;color:var(--ink2)}
+.set .stat b{color:var(--ink);font-weight:600;font-size:15px}
+.auth{display:flex;gap:8px;align-items:center;font:12px/1.3 ui-monospace,monospace;color:var(--ink2)}
+.auth input{width:160px}
+.auth .who b{color:var(--ink)}
+.castbtn{background:var(--ochre)}
+
+.cure-meter{height:7px;border-radius:4px;background:rgba(42,39,34,.12);overflow:hidden;margin-top:4px}
+.cure-meter i{display:block;height:100%;background:linear-gradient(90deg,#7d9b4e,#b88a3c)}
+
+/* the loft grid */
+.loft{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:18px}
+.card{border:1px solid var(--rule);border-radius:12px;background:rgba(255,255,255,.28);
+  padding:10px;display:flex;flex-direction:column;align-items:center;cursor:pointer;
+  transition:box-shadow .15s,transform .1s;position:relative}
+.card:hover{box-shadow:0 6px 20px rgba(60,48,26,.12);transform:translateY(-1px)}
+.card canvas{display:block;width:100%;height:150px}
+.badge{position:absolute;top:8px;left:8px;font:10px/1 ui-monospace,monospace;letter-spacing:.06em;
+  text-transform:uppercase;padding:3px 6px;border-radius:5px;background:rgba(255,255,255,.8);color:var(--ink2)}
+.badge.green{color:#4a7a3a} .badge.curing{color:#977a2e} .badge.cured{color:#3c6a4a;background:#dcebd6}
+.badge.seasoned{color:#7a5a2e;background:#efe0c4} .badge.spoiled{color:#fff;background:var(--bad)}
+.card .meta{width:100%;margin-top:7px;font:11px/1.4 ui-monospace,monospace;color:var(--ink2)}
+.card .meta .row{display:flex;justify-content:space-between}
+.card .meta b{color:var(--ink)}
+.card .risk{color:var(--bad);font-size:10.5px;font-style:italic;margin-top:2px;min-height:1.3em}
+.card .acts{display:flex;gap:6px;width:100%;margin-top:7px}
+.card .acts button{flex:1;padding:7px 0;font-size:12px}
+
+.empty{text-align:center;color:var(--ink2);padding:60px 20px;border:1px dashed var(--rule);border-radius:14px;
+  margin-top:18px;background:rgba(255,255,255,.18)}
+.empty .big{font:600 19px/1.3 ui-serif,Georgia,serif;color:var(--ink);margin-bottom:8px}
+
+/* gallery detail modal */
+.scrim{position:fixed;inset:0;background:rgba(30,24,14,.5);display:none;align-items:center;justify-content:center;
+  z-index:30;padding:18px;backdrop-filter:blur(2px)}
+.scrim.on{display:flex}
+.detail{background:var(--paper);border:1px solid var(--rule);border-radius:14px;max-width:720px;width:100%;
+  max-height:92vh;overflow:auto;display:grid;grid-template-columns:200px 1fr;gap:0}
+@media(max-width:600px){ .detail{grid-template-columns:1fr} }
+.detail .plate{background:linear-gradient(180deg,#f6f0e1,#e8dcc3);border-right:1px solid var(--rule);
+  padding:14px;display:flex;align-items:center;justify-content:center}
+@media(max-width:600px){ .detail .plate{border-right:0;border-bottom:1px solid var(--rule)} }
+.detail .plate canvas{width:170px;height:460px;display:block}
+.detail .info{padding:18px 20px}
+.detail .info h3{font:600 20px/1.1 ui-serif,Georgia,serif;margin-bottom:2px}
+.detail .info .sub{font:12px/1.3 ui-monospace,monospace;color:var(--faint);margin-bottom:12px}
+.dossier{width:100%;border-collapse:collapse;font-size:13px}
+.dossier td{padding:6px 4px;border-bottom:1px solid var(--rule);vertical-align:top}
+.dossier td.k{color:var(--ink2);width:48%}
+.dossier td.v{color:var(--ink);font-family:ui-monospace,monospace;font-size:12px;text-align:right}
+.timeline{margin:14px 0 4px}
+.timeline .track{position:relative;height:10px;border-radius:5px;background:rgba(42,39,34,.12);overflow:hidden}
+.timeline .track i{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,#7d9b4e,#b88a3c)}
+.timeline .marks{position:relative;height:16px;margin-top:2px;font:9px/1 ui-monospace,monospace;color:var(--faint)}
+.timeline .marks span{position:absolute;transform:translateX(-50%)}
+.timeline .tend{position:absolute;top:-3px;width:2px;height:16px;background:var(--green)}
+.detail .acts{display:flex;gap:9px;margin-top:16px}
+.detail .close{position:absolute;top:12px;right:16px;font:20px/1 ui-serif,Georgia;color:var(--faint);cursor:pointer}
+
+.note{font:11.5px/1.6 ui-monospace,monospace;color:var(--faint);text-align:center;margin-top:26px}
+.note a{color:var(--ink2)}
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; gallery</a>
+
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">Yarrow · the drying loft</div>
+    <div class="title">The Drying Loft</div>
+    <p class="lede">Reaped stalks come in green. They cure here in real time — turn them to keep them true,
+    cull the warped and the checked, and gather fifty sound rods for the oracle.</p>
+    <div class="nav"><a href="../yarrow/">← grow &amp; reap</a> · <a href="../yijing/">cast the Yijing →</a></div>
+  </div>
+
+  <div class="bar">
+    <div class="set">
+      <div class="big"><span id="s-castable">0</span><small>/50 ready</small></div>
+      <div class="stat">curing<br><b id="s-curing">0</b></div>
+      <div class="stat">culled-worthy<br><b id="s-spoiled">0</b></div>
+      <div class="stat">avg grade<br><b id="s-grade">—</b></div>
+      <button class="castbtn" id="cast" disabled>Cast the Yijing</button>
+    </div>
+    <div class="auth" id="auth"></div>
+  </div>
+
+  <div id="loft" class="loft"></div>
+  <div id="empty" class="empty" hidden>
+    <div class="big">Your loft is empty.</div>
+    Grow a specimen and reap it into sticks, then come back and watch them cure.<br>
+    <a href="../yarrow/">→ to the field</a>
+  </div>
+
+  <p class="note" id="storenote"></p>
+</div>
+
+<!-- gallery detail -->
+<div class="scrim" id="scrim">
+  <div class="detail" id="detail">
+    <span class="close" id="d-close">×</span>
+    <div class="plate"><canvas id="d-canvas" width="340" height="920"></canvas></div>
+    <div class="info" id="d-info"></div>
+  </div>
+</div>
+
+<script type="module">
+import { cure, canTend, tend, gradeSet, CURE_MS, SEASON_MS, TEND_MAX } from '../lib/sticks.js';
+import { Loft } from '../lib/inventory.js';
+import { drawStalk } from '../lib/stalk-render.js';
+
+const $ = id => document.getElementById(id);
+const loft = new Loft();
+let openUid = null;          // currently-open detail stick uid
+const uid = g => `${g.seedStr}:${g.pos}@${g.reapedAt}`;
+
+/* ───────── stick rendering (shared by cards + detail) ───────── */
+function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+const COLOUR_TARGET = { straw:[45,40,62], gold:[40,56,54], red:[20,46,48] };
+function stickColour(stick, st){
+  const dry = 1 - st.moisture;                 // 0 green → 1 dry
+  const g=[88,34,44], t=COLOUR_TARGET[stick.colourPath]||COLOUR_TARGET.straw;
+  let h=lerp(g[0],t[0],dry), s=lerp(g[1],t[1],dry), l=lerp(g[2],t[2],dry);
+  if(st.spoiled){ s*=0.45; l*=0.82; h=lerp(h,28,0.5); }       // grey-brown when spoiled
+  if(st.seasoned){ l-=4; s+=6; }
+  return {h,s,l};
+}
+// draw a single stick filling a canvas, oriented vertical. detail adds grain+nodes+label.
+function drawStick(cv, stick, st, detail){
+  const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  const pad=H*0.06;
+  const lenPx=(H-2*pad)*Math.min(1, stick.lenCm/86*1.05+0.18);
+  const cx=W*0.5, botY=(H+lenPx)/2;            // base at the bottom; the stalk grows up
+  const dia=Math.max(2.4, stick.diaMm*(W/120)*1.9);
+  drawStalk(ctx, {
+    lenPx, diaPx:dia, col:stickColour(stick, st),
+    warp:(st.warp||0)*0.9, warpDir:(stick.grainSeed%2)?1:-1,
+    check: st.spoiled==='checked' ? Math.max(0.7, st.check||0) : (st.check||0),
+    nodes:stick.nodes||4, grainSeed:stick.grainSeed||1, seasoned:st.seasoned,
+  }, { x:cx, y:botY, ang:0, detail:detail?1:0.85, fuzz:!!detail, ends:true });
+  if(detail){
+    ctx.fillStyle='rgba(42,39,34,.5)'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center';
+    ctx.fillText(`${stick.lenCm} cm · ⌀${stick.diaMm} mm`, cx, H-6);
+  }
+}
+
+/* ───────── render the loft ───────── */
+function render(){
+  const items = loft.items;
+  $('empty').hidden = items.length>0;
+  // summary
+  const set = gradeSet(items);
+  $('s-castable').textContent = set.castable;
+  $('s-curing').textContent   = set.curing;
+  $('s-spoiled').textContent  = set.spoiled;
+  $('s-grade').textContent    = set.castable? set.avgGrade+' · '+set.tier : '—';
+  const cast=$('cast'); cast.disabled=!set.ready; cast.title=set.ready?'':'Cure 50 sound sticks first';
+
+  const loftEl=$('loft');
+  // build/refresh cards (rebuild keeps it simple; counts are small)
+  loftEl.innerHTML='';
+  for(const g of items){
+    const st = cure(g);
+    const card=document.createElement('div'); card.className='card';
+    const stageClass = st.spoiled?'spoiled':st.stage;
+    const stageLabel = st.spoiled?st.spoilName:st.stage;
+    const cv=document.createElement('canvas'); cv.width=130; cv.height=150;
+    card.innerHTML = `<span class="badge ${stageClass}">${stageLabel}</span>`;
+    card.appendChild(cv);
+    drawStick(cv,g,st,false);
+    const meta=document.createElement('div'); meta.className='meta';
+    const moistPct=Math.round(st.moisture*100);
+    meta.innerHTML =
+      `<div class="row"><span>${g.main?'main stalk':'branch '+g.pos}</span><span>${g.lenCm}cm</span></div>`+
+      (st.spoiled
+        ? `<div class="row"><span>cull</span><b>—</b></div>`
+        : st.castable
+          ? `<div class="row"><span>grade</span><b>${st.grade} · ${st.tier}</b></div>`
+          : `<div class="row"><span>moisture</span><b>${moistPct}%</b></div>
+             <div class="cure-meter"><i style="width:${Math.round(st.p*100)}%"></i></div>`)+
+      `<div class="risk">${st.risk||(st.seasoned?'seasoned — at its finest':'')}</div>`;
+    card.appendChild(meta);
+    const acts=document.createElement('div'); acts.className='acts';
+    const turn=document.createElement('button'); turn.textContent='Turn';
+    turn.disabled=!canTend(g); turn.onclick=e=>{ e.stopPropagation(); doTend(g); };
+    const cull=document.createElement('button'); cull.className='ghost'; cull.textContent=st.spoiled?'Cull':'Discard';
+    if(st.spoiled) cull.className='warn';
+    cull.onclick=e=>{ e.stopPropagation(); loft.remove(g); };
+    acts.appendChild(turn); acts.appendChild(cull); card.appendChild(acts);
+    card.onclick=()=>openDetail(g);
+    loftEl.appendChild(card);
+  }
+  if(openUid){ const g=items.find(x=>uid(x)===openUid); if(g) fillDetail(g); else closeDetail(); }
+}
+let refreshing=false;
+function doTend(g){ const t=tend(g); if(uid(t)===uid(g)) loft.update(t); }
+
+/* ───────── gallery detail ───────── */
+function openDetail(g){ openUid=uid(g); $('scrim').classList.add('on'); fillDetail(g); }
+function closeDetail(){ openUid=null; $('scrim').classList.remove('on'); }
+function fillDetail(g){
+  const st=cure(g);
+  drawStick($('d-canvas'), g, st, true);
+  const fmt=x=>Math.round(x*100)+'%';
+  const ageS=(st.age/1000).toFixed(1), cureS=(CURE_MS/1000).toFixed(0), seasonS=(SEASON_MS/1000).toFixed(0);
+  const stageLabel = st.spoiled?st.spoilName:st.stage;
+  $('d-info').innerHTML =
+    `<h3>${g.main?'Main stalk':'Branch '+g.pos}</h3>`+
+    `<div class="sub">from specimen № ${g.seedStr} · reaped ${new Date(g.reapedAt).toLocaleString()}</div>`+
+    `<table class="dossier">
+      <tr><td class="k">Stage</td><td class="v">${stageLabel}${st.castable?' · castable':''}</td></tr>
+      <tr><td class="k">Grade</td><td class="v">${st.spoiled?'— (cull)':st.grade+' · '+st.tier}</td></tr>
+      <tr><td class="k">Length · diameter</td><td class="v">${g.lenCm} cm · ⌀${g.diaMm} mm</td></tr>
+      <tr><td class="k">Moisture</td><td class="v">${fmt(st.moisture)}</td></tr>
+      <tr><td class="k">Straightness (now)</td><td class="v">${fmt(st.straightness)}</td></tr>
+      <tr><td class="k">Stiffness (now)</td><td class="v">${fmt(st.stiffness)}</td></tr>
+      <tr><td class="k">Warp · checking</td><td class="v">${fmt(st.warp)} · ${fmt(st.check)}</td></tr>
+      <tr><td class="k">Latent: warp-tendency</td><td class="v">${fmt(g.warpTendency)}</td></tr>
+      <tr><td class="k">Latent: crack-risk</td><td class="v">${fmt(g.crackRisk)}</td></tr>
+      <tr><td class="k">Dry rate</td><td class="v">${g.dryRate.toFixed(2)}×</td></tr>
+      <tr><td class="k">Dries toward</td><td class="v">${g.colourPath}</td></tr>
+      <tr><td class="k">Turns (tends)</td><td class="v">${(g.tends||[]).length} / ${TEND_MAX}</td></tr>
+    </table>`+
+    `<div class="timeline">
+      <div class="track"><i style="width:${Math.round(Math.min(1,st.age/SEASON_MS)*100)}%"></i>${tendTicks(g)}</div>
+      <div class="marks"><span style="left:0%">reaped</span><span style="left:${Math.round(CURE_MS/SEASON_MS*100)}%">cured</span><span style="left:100%">seasoned</span></div>
+    </div>`+
+    `<div class="sub">age ${ageS}s · cures at ${cureS}s · seasons at ${seasonS}s</div>`+
+    `<div class="acts">
+      <button id="d-turn" ${canTend(g)?'':'disabled'}>Turn the stick</button>
+      <button class="${st.spoiled?'warn':'ghost'}" id="d-cull">${st.spoiled?'Cull it':'Discard'}</button>
+    </div>`;
+  $('d-turn').onclick=()=>doTend(g);
+  $('d-cull').onclick=()=>{ loft.remove(g); closeDetail(); };
+}
+function tendTicks(g){
+  return (g.tends||[]).map(t=>{ const x=Math.min(100,(t-g.reapedAt)/SEASON_MS*100);
+    return `<span class="tend" style="left:${x}%"></span>`; }).join('');
+}
+$('d-close').onclick=closeDetail;
+$('scrim').onclick=e=>{ if(e.target===$('scrim')) closeDetail(); };
+$('cast').onclick=()=>{ location.href='../yijing/'; };
+
+/* ───────── auth UI ───────── */
+function renderAuth(){
+  const el=$('auth');
+  if(loft.signedIn()){
+    el.innerHTML=`<span class="who">in your PDS · <b>@${loft.user.handle||loft.user.did}</b></span> <button class="ghost" id="signout">sign out</button>`;
+    $('signout').onclick=async()=>{ await loft.signOut(); renderAuth(); };
+  } else if(loft.canSync()){
+    el.innerHTML=`<input id="handle" placeholder="you.bsky.social" autocomplete="username"><button id="signin">keep in my PDS</button>`;
+    $('signin').onclick=async()=>{ const h=$('handle').value.trim(); if(h){ try{ await loft.signIn(h); }catch(e){ alert(e.message||e); } } };
+    $('handle').addEventListener('keydown',e=>{ if(e.key==='Enter')$('signin').click(); });
+  } else {
+    el.innerHTML=`<span>saved on this device</span>`;
+  }
+}
+
+/* ───────── boot ───────── */
+loft.onChange(()=>render());
+$('storenote').innerHTML='Sticks cure in seconds here (demo pace). Each stick is deterministic — '+
+  'the same specimen always reaps, cures and grades the same. <a href="../yarrow/">Reap more →</a>';
+await loft.init();
+renderAuth();
+render();
+setInterval(render, 450);   // watch them dry in real time
+</script>
+</body>
+</html>

@@ -93,10 +93,42 @@ async function handleImgProxy(request) {
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 
+// /api/model — same-origin proxy for the ocrs OCR models used by /codescan.
+// The models live in an S3 bucket that sends no CORS headers, so the browser
+// can't fetch them directly; we proxy them same-origin and let Cloudflare's
+// edge cache the (immutable) bytes. Whitelisted names only.
+const OCRS_MODELS = {
+  'text-detection': 'https://ocrs-models.s3-accelerate.amazonaws.com/text-detection.rten',
+  'text-recognition': 'https://ocrs-models.s3-accelerate.amazonaws.com/text-recognition.rten',
+};
+
+async function handleModelProxy(request) {
+  const url = new URL(request.url);
+  const name = url.searchParams.get('name');
+  const target = OCRS_MODELS[name];
+  if (!target) {
+    return jsonResponse({ ok: false, error: 'unknown model', allowed: Object.keys(OCRS_MODELS) }, 400);
+  }
+
+  const upstream = await fetch(target, { cf: { cacheTtl: 31536000, cacheEverything: true } });
+  if (!upstream.ok) {
+    return jsonResponse({ ok: false, error: `upstream ${upstream.status}` }, 502);
+  }
+
+  const headers = new Headers();
+  headers.set('content-type', 'application/octet-stream');
+  const cl = upstream.headers.get('content-length');
+  if (cl) headers.set('content-length', cl);
+  headers.set('cache-control', 'public, max-age=31536000, immutable');
+  headers.set('access-control-allow-origin', '*');
+  return new Response(upstream.body, { status: 200, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/img') return handleImgProxy(request);
+    if (url.pathname === '/api/model') return handleModelProxy(request);
     // Everything else: serve the Vite build output as-is.
     return env.ASSETS.fetch(request);
   },

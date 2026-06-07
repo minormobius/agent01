@@ -25,6 +25,11 @@
   --c-guthkatz: #1a5e7a;
   --c-hadwiger: #5e3b8b;
   --c-runner:   #0aa19c;
+  --c-meander:  #a01f4c;
+  --c-templieb: #0d6e63;
+  --c-aztec:    #2456b8;
+  --c-markov:   #6a3aa0;
+  --c-descent:  #b5179e;
   --c-kakeya:   #a35a00;
   --c-capset:   #3a8a40;
   --c-elements: #3d4a72;
@@ -55,6 +60,11 @@
     --c-guthkatz: #6abad8;
     --c-hadwiger: #b08adc;
     --c-runner:   #4ed4cf;
+    --c-meander:  #e0608f;
+    --c-templieb: #3fb8a8;
+    --c-aztec:    #6f93e8;
+    --c-markov:   #a98fe0;
+    --c-descent:  #e879d4;
     --c-kakeya:   #d99450;
     --c-capset:   #6abf6f;
     --c-elements: #8aa0d4;
@@ -348,6 +358,11 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/guthkatz/">guthkatz</a> ·
     <a href="https://mino.mobi/hadwiger/">hadwiger</a> ·
     <a href="https://mino.mobi/runner/">runner</a> ·
+    <a href="https://mino.mobi/meander/">meander</a> ·
+    <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> ·
+    <a href="https://mino.mobi/aztec/">aztec</a> ·
+    <a href="https://mino.mobi/markov/">markov</a> ·
+    <a href="https://mino.mobi/descent/">descent</a> ·
     <a href="https://mino.mobi/kakeya/">kakeya</a> ·
     <a href="https://mino.mobi/capset/">capset</a> ·
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
@@ -497,6 +512,11 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/guthkatz/">guthkatz</a>
   <a href="https://mino.mobi/hadwiger/">hadwiger</a>
   <a href="https://mino.mobi/runner/">runner</a>
+  <a href="https://mino.mobi/meander/">meander</a>
+  <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+  <a href="https://mino.mobi/aztec/">aztec</a>
+  <a href="https://mino.mobi/markov/">markov</a>
+  <a href="https://mino.mobi/descent/">descent</a>
   <a href="https://mino.mobi/kakeya/">kakeya</a>
   <a href="https://mino.mobi/capset/">capset</a>
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
@@ -606,6 +626,66 @@ const PACK = [
     status: 'open',
     statusRank: 3,
     statusText: 'k ≤ 7 proven',
+  },
+  {
+    name: 'meander',
+    url:  'https://mino.mobi/meander/',
+    accent: 'var(--c-meander)',
+    problem: 'Counting closed meanders',
+    era: 1912,
+    eraText: 'Poincaré 1912, open',
+    tech: 'Temperley–Lieb / 2D gravity',
+    status: 'open',
+    statusRank: 3,
+    statusText: 'no closed form',
+  },
+  {
+    name: 'temperley–lieb',
+    url:  'https://mino.mobi/temperley-lieb/',
+    accent: 'var(--c-templieb)',
+    problem: 'TL algebra & loop models',
+    era: 1971,
+    eraText: 'Temperley–Lieb 1971',
+    tech: 'diagram algebra / loops',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'foundational',
+  },
+  {
+    name: 'aztec',
+    url:  'https://mino.mobi/aztec/',
+    accent: 'var(--c-aztec)',
+    problem: 'Arctic Circle theorem',
+    era: 1995,
+    eraText: 'Jockusch–Propp–Shor 1995',
+    tech: 'domino shuffling / dimers',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'limit shape = circle',
+  },
+  {
+    name: 'markov',
+    url:  'https://mino.mobi/markov/',
+    accent: 'var(--c-markov)',
+    problem: 'Markov chains, MCMC & the Markov numbers',
+    era: 1906,
+    eraText: 'Markov 1879 & 1906',
+    tech: 'MCMC / Diophantine tree',
+    status: 'foundational',
+    statusRank: 0,
+    statusText: 'two unrelated gems',
+  },
+  {
+    name: 'descent',
+    url:  'https://mino.mobi/descent/',
+    accent: 'var(--c-descent)',
+    problem: 'Neural-net trainability fractal',
+    era: 2024,
+    eraText: 'Sohl-Dickstein 2024',
+    tech: 'gradient-descent escape-time',
+    status: 'observed',
+    statusRank: 1,
+    statusText: 'fractal boundary, dim ≈ 1.7',
   },
   {
     name: 'erdős',

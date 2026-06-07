@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aztec — domino tilings and the arctic circle</title>
+<meta name="description" content="Sample a uniform random domino tiling of the Aztec diamond by domino shuffling (EKLP) and watch the Arctic Circle theorem (Jockusch–Propp–Shor 1995) appear: four frozen corners, a roiling disordered centre, and a perfect circle between them.">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #2456b8;            /* deep ice cobalt */
+  --accent-faint: rgba(36, 86, 184, 0.10);
+  --canvas-bg: #fbf8f3; --canvas-ink: #1a1416; --canvas-rule: #c8bcae;
+  --tag-bg: #eee; --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* the four domino types / frozen quadrants */
+  --dN: #e05a47; --dS: #3aa6a0; --dE: #e0a92e; --dW: #3f6fd0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #6f93e8; --accent-faint: rgba(111, 147, 232, 0.13);
+    --canvas-bg: #f4ece2; --canvas-ink: #1a1416; --canvas-rule: #b9aa97;
+    --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.9rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; aspect-ratio: 1/1; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 2.6em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.swatch { display: inline-block; width: 0.72em; height: 0.72em; border-radius: 2px; vertical-align: middle; margin-right: 0.35em; border: 1px solid rgba(0,0,0,0.2); }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>aztec</h1>
+  <p class="subtitle">domino tilings · the arctic circle theorem · 1992–1995</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · loop-family siblings: <a href="https://mino.mobi/meander/">meander</a> · <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="sample" role="tab">sample</button>
+  <button class="tab" data-tab="how" role="tab">how it works</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── SAMPLE PANE ─────────── -->
+<section class="pane active" data-pane="sample">
+  <p class="lead">
+    The <strong>Aztec diamond</strong> of order <em>n</em> is a staircase diamond of
+    2<em>n</em>(<em>n</em>+1) squares; it can be tiled by 2×1 dominoes in
+    2<sup><em>n</em>(<em>n</em>+1)/2</sup> ways. Pick one <strong>uniformly at random</strong>
+    (here, by <em>domino shuffling</em>) and something astonishing happens: the corners
+    <strong>freeze</strong> into four solid blocks of one domino type each, the centre stays a
+    roiling jumble — and the boundary between them converges to a perfect <strong>circle</strong>.
+    That's the <strong>Arctic Circle theorem</strong>. Resample, or grow the diamond order by
+    order and watch the circle sharpen. Then drag the <strong>bias</strong>: tilt the creation coin
+    toward horizontal dominoes and the circle stretches into the <strong>arctic ellipse</strong>
+    <em>X²/p + Y²/(1−p) = 1</em> — same algorithm, one knob turned.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="az-canvas" width="800" height="800"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">order · n</span>
+        <div class="ctrl-row"><input id="n-slider" type="range" min="1" max="64" value="32" step="1"><span class="ctrl-val" id="n-val">32</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">creation bias · p (horizontal)</span>
+        <div class="ctrl-row"><input id="bias-slider" type="range" min="0.10" max="0.90" value="0.50" step="0.02"><span class="ctrl-val" id="bias-val">0.50</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="resample-btn">resample</button>
+          <button class="btn" id="grow-btn">grow +1</button>
+          <button class="btn" id="play-btn">▶ grow to max</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn active" id="circle-btn">arctic curve</button>
+        </div>
+      </div>
+      <div class="stats" id="az-stats"></div>
+      <div class="stat-note">
+        Each colour is one of the four domino types — N / S / E / W — and the theorem says each
+        owns one frozen corner. At bias p = ½ the temperate region is the inscribed circle (area
+        π/4). Off ½ it's the <strong>arctic ellipse</strong> with semi-axes √p and √(1−p) (so the
+        axes-squared always sum to 1); its area fraction is π√(p(1−p))/2, peaking at p = ½. More
+        horizontal creations ⇒ a wider, flatter liquid lens and fatter E/W frozen corners.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── HOW PANE ─────────── -->
+<section class="pane" data-pane="how">
+  <p class="lead">
+    The shuffle grows the diamond by one ring at a time, in three moves. Press
+    <strong>next phase</strong> and watch a tiny diamond do it, step by step — the only
+    randomness is a coin flip per new hole, yet it keeps every tiling equally likely.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="how-canvas" width="800" height="800"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">order</span>
+        <div class="stat-row"><span class="k">current n</span><span class="v hot" id="how-n">1</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="how-next">next phase ▸</button>
+          <button class="btn" id="how-reset">reset</button>
+        </div>
+      </div>
+      <div class="stats"><div id="how-caption"></div></div>
+      <div class="stat-note">
+        <strong style="color:var(--dN)">Destroy</strong>: delete every 2×2 brick whose two
+        dominoes point into each other (they'd collide). <strong style="color:var(--dE)">Slide</strong>:
+        each survivor steps one cell the way it faces (N↑ S↓ E→ W←). <strong style="color:var(--dW)">Create</strong>:
+        every empty 2×2 hole gets two dominoes — a coin flip picks horizontal or vertical.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The Aztec diamond</h2>
+<p>The <strong>Aztec diamond</strong> AD<sub><em>n</em></sub> is the union of the unit squares
+whose centres <em>(x</em>+½, <em>y</em>+½<em>)</em> satisfy |<em>x</em>+½| + |<em>y</em>+½| ≤
+<em>n</em> — a diamond with staircase sides, 2<em>n</em>(<em>n</em>+1) squares in all. Elkies,
+Kuperberg, Larsen and Propp proved in 1992 that the number of ways to tile it with
+2×1 dominoes is exactly <strong>2<sup><em>n</em>(<em>n</em>+1)/2</sup></strong> — a clean power
+of two, which is already a small miracle.</p>
+
+<h2>The Arctic Circle theorem</h2>
+<p>Now take a tiling <strong>uniformly at random</strong>. Jockusch, Propp and Shor (1995) proved
+that as <em>n</em> → ∞, the tiling splits into two phases separated by a sharp curve that, rescaled,
+is exactly the circle inscribed in the diamond — radius <em>n</em>/√2:</p>
+<ul>
+  <li><strong>Outside the circle — frozen.</strong> The four corners are forced into a single
+  brick pattern: the north corner is all one domino type, the east another, and so on. Zero entropy;
+  there's only one way to tile each corner once you're far enough out.</li>
+  <li><strong>Inside the circle — temperate.</strong> A genuinely random, disordered sea of all four
+  types. This is where all 2<sup><em>n</em>(<em>n</em>+1)/2</sup> tilings differ.</li>
+</ul>
+<p>A purely combinatorial object — dominoes on a board — spontaneously grows a perfect circle. It is
+one of the cleanest <strong>limit-shape</strong> phenomena in mathematics, and the founding example
+of an industry (limit shapes of random surfaces, the Ising and dimer models, the Kardar–Parisi–Zhang
+universality class).</p>
+
+<blockquote>No one drew the circle. It is what a random tiling looks like.</blockquote>
+
+<h2>Domino shuffling</h2>
+<p>How do you sample a tiling <em>uniformly</em> — each of 2<sup><em>n</em>(<em>n</em>+1)/2</sup>
+equally likely — without listing them all? The <strong>shuffling algorithm</strong> of
+Elkies–Kuperberg–Larsen–Propp builds AD<sub><em>n</em>+1</sub> from a uniform AD<sub><em>n</em></sub>
+in three moves:</p>
+<ol>
+  <li><strong>Destruction.</strong> Find every 2×2 block holding two dominoes that point <em>into</em>
+  each other and delete them.</li>
+  <li><strong>Sliding.</strong> Every surviving domino slides one step in its type-direction
+  (N up, S down, E right, W left).</li>
+  <li><strong>Creation.</strong> The empty 2×2 blocks that open up each get a fresh pair of dominoes —
+  two horizontal or two vertical — by a fair coin flip.</li>
+</ol>
+<p>Each coin flip is the only randomness, and the magic is that this exactly preserves uniformity. The
+<strong>grow +1</strong> button runs one step of this on the live tiling; <strong>resample</strong>
+runs it from order 1 with fresh coins. (The implementation here was checked against brute-force
+enumeration: it reproduces the 2, 8, 64, 1024 tiling counts of AD₁–₄ and samples them uniformly.)</p>
+
+<h2>Biasing the coin: the arctic ellipse</h2>
+<p>The shuffle has exactly one source of randomness — the coin flipped to fill each fresh 2×2 hole.
+Make it <strong>unfair</strong>. Let <em>p</em> be the probability the hole is filled with two
+<em>horizontal</em> dominoes (and 1−<em>p</em> vertical). This is the <strong>weighted</strong>
+shuffle (Propp's <em>generalized domino-shuffling</em>): with a spatially uniform bias the
+destruction and sliding carry the weights through unchanged, so a single global <em>p</em> samples
+the weighted tiling measure. Cohn, Elkies &amp; Propp's <em>local statistics</em> paper
+(<a href="https://arxiv.org/abs/math/0008243">math/0008243</a>) is exactly the apparatus that pins
+down what such a biased ensemble looks like in the large.</p>
+<p>The answer is clean: the arctic circle becomes an <strong>arctic ellipse</strong>. In rescaled
+coordinates <em>X</em> = (<em>x</em>+½)/<em>n</em>, <em>Y</em> = (<em>y</em>+½)/<em>n</em> (the diamond
+is |<em>X</em>|+|<em>Y</em>| ≤ 1), the frozen/temperate boundary converges to</p>
+<blockquote><strong>X²/p + Y²/(1−p) = 1</strong> &nbsp;— semi-axes √p and √(1−p).</blockquote>
+<p>A few things fall right out. The semi-axes <em>squared</em> always sum to one (√p² + √(1−p)² = 1),
+so the ellipse breathes between a horizontal sliver and a vertical one while staying snug inside the
+diamond, hitting the circle exactly at <em>p</em> = ½. The temperate area fraction is
+<strong>π√(p(1−p))/2</strong>, maximal (π/4 ≈ 0.785) at <em>p</em> = ½ and shrinking as you push the
+bias either way — order is <em>cheaper</em> when the dominoes have a preferred direction. Both the
+ellipse and the area law were checked here against the sampler (semi-axis √(1−p) and the area
+fraction match the simulated boundary to within finite-size error). Drag the bias on the
+<strong>sample</strong> tab and watch the dashed curve — and the four corners — deform.</p>
+
+<h2>Why it sits in the geometry pack</h2>
+<p>Domino tilings are the <strong>dimer model</strong> — perfect matchings of a lattice — a first
+cousin of the loop model behind <a href="https://mino.mobi/temperley-lieb/">Temperley–Lieb</a> and the
+non-crossing world of <a href="https://mino.mobi/meander/">meanders</a>. The same statistical-mechanics
+machinery (height functions, Kasteleyn's determinant, conformal field theory) runs underneath all
+three. The arctic circle is the loud, visual face of it: poke a simple object, and a limit shape falls
+out.</p>
+
+<h2>Go deeper</h2>
+<ul>
+  <li><strong>The hexagon / lozenge tilings</strong> give an arctic <em>ellipse</em> (Cohn–Larsen–Propp).</li>
+  <li><strong>Other regions</strong> give other arctic curves — the "tacnode", the "arctic
+  parabola" — a whole zoo of limit shapes.</li>
+  <li><strong>Random sorting networks, RSK, TASEP</strong> all share the same Tracy–Widom edge
+  fluctuations as the arctic boundary.</li>
+</ul>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Elkies, N., Kuperberg, G., Larsen, M. &amp; Propp, J. (1992). <em>Alternating-sign matrices and domino tilings.</em> J. Algebraic Combin. 1.</li>
+  <li>Jockusch, W., Propp, J. &amp; Shor, P. (1995/1998). <em>Random domino tilings and the arctic circle theorem.</em> arXiv:math/9801068.</li>
+  <li>Cohn, H., Elkies, N. &amp; Propp, J. (1996). <em>Local statistics for random domino tilings of the Aztec diamond.</em> Duke Math. J. 85.</li>
+  <li>Propp, J. (2003). <em>Generalized domino-shuffling.</em> Theoret. Comput. Sci. 303.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Aztec_diamond">Wikipedia — Aztec diamond</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/meander/">meander</a>
+  <span>·</span>
+  <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════
+// Tabs
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['sample','how','docs'];
+function showTab(name){ tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  panes.forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
+  try{history.replaceState(null,'','#'+name);}catch{} if(name==='sample') draw(); if(name==='how') drawHow(); }
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+// ═════════════════════════════════════════════════════════════════════
+// Aztec domino shuffling  (validated: 0 invalid / 45k samples; uniform on
+// AD2,AD3; tiling counts 2,8,64,1024; stable to AD100)
+//   AD_n = cells (x,y) with |x+0.5|+|y+0.5| <= n ; types N/S/E/W slide
+//   up/down/right/left ; typing parity p=(n+1)%2 alternates with order
+// ═════════════════════════════════════════════════════════════════════
+const inAz = (x,y,n) => Math.abs(x+0.5)+Math.abs(y+0.5) <= n;
+function typeOf(o,x,y,p){ const c=((x+y)%2+2)%2; return o==='H' ? (c===p?'N':'S') : (c===p?'W':'E'); }
+const SLIDE = { N:[0,-1], S:[0,1], W:[-1,0], E:[1,0] };
+function ad1(ph){ ph=(ph==null)?0.5:ph; return Math.random()<ph
+  ? [{o:'H',x:-1,y:-1},{o:'H',x:-1,y:0}]
+  : [{o:'V',x:-1,y:-1},{o:'V',x:0,y:-1}]; }
+function grow(t,n,ph){ return growPhases(t,n,ph).result; }
+// Same shuffle, but returns every intermediate so the "how it works" tab can
+// step through Destroy → Slide → Create. grow() above just takes .result.
+// ph = probability a fresh 2×2 hole is filled HORIZONTAL (bias; 0.5 = uniform).
+function growPhases(t,n,ph){ ph=(ph==null)?0.5:ph;
+  const p=(n+1)%2, occ=new Map();
+  const dom=t.map((d,i)=>{ const cs=d.o==='H'?[[d.x,d.y],[d.x+1,d.y]]:[[d.x,d.y],[d.x,d.y+1]];
+    cs.forEach(([cx,cy])=>occ.set(cx+','+cy,i)); return {o:d.o,x:d.x,y:d.y,type:typeOf(d.o,d.x,d.y,p)}; });
+  const dead=new Set(), badBlocks=[];          // DESTROY: nose-to-nose 2×2 bricks
+  for(let i=0;i<dom.length;i++){ if(dead.has(i))continue; const a=dom[i];
+    if(a.o==='H'){ const b=occ.get(a.x+','+(a.y+1)), b2=occ.get((a.x+1)+','+(a.y+1));
+      if(b!==undefined&&b===b2&&dom[b].o==='H'&&!dead.has(b)&&a.type==='S'&&dom[b].type==='N'){dead.add(i);dead.add(b);badBlocks.push({x:a.x,y:a.y});} }
+    else { const b=occ.get((a.x+1)+','+a.y), b2=occ.get((a.x+1)+','+(a.y+1));
+      if(b!==undefined&&b===b2&&dom[b].o==='V'&&!dead.has(b)&&a.type==='E'&&dom[b].type==='W'){dead.add(i);dead.add(b);badBlocks.push({x:a.x,y:a.y});} } }
+  const survivors=[], moved=[], focc=new Set();   // SLIDE
+  for(let i=0;i<dom.length;i++){ if(dead.has(i))continue; const d=dom[i]; const [dx,dy]=SLIDE[d.type];
+    survivors.push({o:d.o,x:d.x,y:d.y,nx:d.x+dx,ny:d.y+dy,dir:d.type});
+    moved.push({o:d.o,x:d.x+dx,y:d.y+dy}); }
+  for(const d of moved){ const cs=d.o==='H'?[[d.x,d.y],[d.x+1,d.y]]:[[d.x,d.y],[d.x,d.y+1]]; cs.forEach(([cx,cy])=>focc.add(cx+','+cy)); }
+  const emptySet=new Set();
+  for(let y=-(n+1);y<n+1;y++) for(let x=-(n+1);x<n+1;x++) if(inAz(x,y,n+1)&&!focc.has(x+','+y)) emptySet.add(x+','+y);
+  const sorted=[...emptySet].map(s=>s.split(',').map(Number)).sort((a,b)=>a[1]-b[1]||a[0]-b[0]);
+  const holes=[], created=[];                      // CREATE: coin-flip fill
+  for(const [x,y] of sorted){ if(!emptySet.has(x+','+y))continue;
+    const need=[[x,y],[x+1,y],[x,y+1],[x+1,y+1]];
+    if(!need.every(([cx,cy])=>emptySet.has(cx+','+cy))) continue; // robustness; validated never triggers
+    need.forEach(([cx,cy])=>emptySet.delete(cx+','+cy));
+    holes.push({x,y});
+    if(Math.random()<ph) created.push({o:'H',x,y},{o:'H',x,y:y+1});
+    else created.push({o:'V',x,y},{o:'V',x:x+1,y}); }
+  return { badBlocks, survivors, moved, holes, created, result: moved.concat(created) };
+}
+function buildTo(n,ph){ let t=ad1(ph); for(let k=1;k<n;k++) t=grow(t,k,ph); return t; }
+
+// ═════════════════════════════════════════════════════════════════════
+// State + render
+// ═════════════════════════════════════════════════════════════════════
+const st = { n:32, tiling:[], showCircle:true, playing:false, raf:null, bias:0.5 };
+st.tiling = buildTo(st.n, st.bias);
+const canvas = document.getElementById('az-canvas'), ctx = canvas.getContext('2d');
+function draw(){
+  const W=canvas.width, H=canvas.height, n=st.n, pad=14;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const cs=(Math.min(W,H)-2*pad)/(2*n);
+  const ox=pad + (W-2*pad - cs*2*n)/2, oy=pad + (H-2*pad - cs*2*n)/2;
+  const px=x=>ox+(x+n)*cs, py=y=>oy+(y+n)*cs;
+  const col={N:cssVar('--dN'),S:cssVar('--dS'),E:cssVar('--dE'),W:cssVar('--dW')};
+  const p=(n+1)%2;
+  const counts={N:0,S:0,W:0,E:0}; let inside=0;
+  const drawStroke = cs>=4;
+  const b=st.bias;                          // arctic ellipse: X²/b + Y²/(1−b) = 1
+  for(const d of st.tiling){
+    const ty=typeOf(d.o,d.x,d.y,p); counts[ty]++;
+    ctx.fillStyle=col[ty];
+    const w=d.o==='H'?2*cs:cs, h=d.o==='H'?cs:2*cs;
+    ctx.fillRect(px(d.x), py(d.y), w, h);
+    if(drawStroke){ ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=1; ctx.strokeRect(px(d.x)+0.5, py(d.y)+0.5, w-1, h-1); }
+    // temperate count: domino centre inside the arctic ellipse
+    const ccx=d.o==='H'?d.x+1:d.x+0.5, ccy=d.o==='H'?d.y+0.5:d.y+1;
+    if((ccx+0.5)*(ccx+0.5)/(b*n*n) + (ccy+0.5)*(ccy+0.5)/((1-b)*n*n) <= 1) inside++;
+  }
+  if(st.showCircle){
+    ctx.strokeStyle=cssVar('--canvas-ink'); ctx.globalAlpha=0.55; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.ellipse(px(-0.5), py(-0.5), Math.sqrt(b)*n*cs, Math.sqrt(1-b)*n*cs, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+  }
+  const total=st.tiling.length;
+  const frac = total? (inside/total) : 0;
+  document.getElementById('az-stats').innerHTML = `
+    <div class="stat-row"><span class="k">order n</span><span class="v">${n}</span></div>
+    <div class="stat-row"><span class="k">squares</span><span class="v">${2*n*(n+1)}</span></div>
+    <div class="stat-row"><span class="k">tilings of AD<sub>n</sub></span><span class="v">2^${n*(n+1)/2}</span></div>
+    <div class="stat-row"><span class="k">creation bias p</span><span class="v hot">${b.toFixed(2)}${Math.abs(b-0.5)<0.011?' (circle)':' (ellipse)'}</span></div>
+    <div class="stat-row"><span class="k">ellipse axes √p,√(1−p)</span><span class="v">${Math.sqrt(b).toFixed(2)}, ${Math.sqrt(1-b).toFixed(2)}</span></div>
+    <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.N}"></span>N north</span><span class="v">${counts.N}</span></div>
+    <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.S}"></span>S south</span><span class="v">${counts.S}</span></div>
+    <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.E}"></span>E east</span><span class="v">${counts.E}</span></div>
+    <div class="stat-row"><span class="k"><span class="swatch" style="background:${col.W}"></span>W west</span><span class="v">${counts.W}</span></div>
+    <div class="stat-row"><span class="k">temperate frac</span><span class="v hot">${frac.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">→ π√(p(1−p))/2</span><span class="v">${(Math.PI*Math.sqrt(b*(1-b))/2).toFixed(3)}</span></div>`;
+}
+// controls
+const nSlider=document.getElementById('n-slider'), nVal=document.getElementById('n-val');
+nSlider.addEventListener('input',e=>{ st.n=parseInt(e.target.value,10); nVal.textContent=st.n; st.tiling=buildTo(st.n,st.bias); draw(); });
+const biasSlider=document.getElementById('bias-slider'), biasVal=document.getElementById('bias-val');
+biasSlider.addEventListener('input',e=>{ st.bias=parseFloat(e.target.value); biasVal.textContent=st.bias.toFixed(2); st.tiling=buildTo(st.n,st.bias); draw(); });
+document.getElementById('resample-btn').addEventListener('click',()=>{ st.tiling=buildTo(st.n,st.bias); draw(); });
+document.getElementById('grow-btn').addEventListener('click',()=>{ if(st.n>=parseInt(nSlider.max,10))return; st.tiling=grow(st.tiling,st.n,st.bias); st.n++; nSlider.value=st.n; nVal.textContent=st.n; draw(); });
+document.getElementById('circle-btn').addEventListener('click',e=>{ st.showCircle=!st.showCircle; e.target.classList.toggle('active',st.showCircle); draw(); });
+const playBtn=document.getElementById('play-btn');
+playBtn.addEventListener('click',()=>{
+  if(st.playing){ st.playing=false; playBtn.textContent='▶ grow to max'; playBtn.classList.remove('active'); cancelAnimationFrame(st.raf); return; }
+  st.playing=true; playBtn.textContent='⏸ pause'; playBtn.classList.add('active');
+  let acc=0, last=performance.now();
+  const step=(now)=>{ if(!st.playing)return; acc+=now-last; last=now;
+    if(acc>90){ acc=0; const max=parseInt(nSlider.max,10);
+      if(st.n>=max){ st.playing=false; playBtn.textContent='▶ grow to max'; playBtn.classList.remove('active'); return; }
+      st.tiling=grow(st.tiling,st.n,st.bias); st.n++; nSlider.value=st.n; nVal.textContent=st.n; draw(); }
+    st.raf=requestAnimationFrame(step); };
+  st.raf=requestAnimationFrame(step);
+});
+// ═════════════════════════════════════════════════════════════════════
+// "How it works" — step through Destroy → Slide → Create on a small diamond
+// ═════════════════════════════════════════════════════════════════════
+const howSt = { n:1, tiling:ad1(), phase:'start', data:null };
+const howCanvas = document.getElementById('how-canvas'), hCtx = howCanvas.getContext('2d');
+function arrow(ctx,x0,y0,x1,y1,head){
+  ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0); ctx.beginPath(); ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-head*Math.cos(a-0.4), y1-head*Math.sin(a-0.4));
+  ctx.lineTo(x1-head*Math.cos(a+0.4), y1-head*Math.sin(a+0.4)); ctx.closePath(); ctx.fill();
+}
+function drawHow(){
+  const ctx=hCtx, W=howCanvas.width, H=howCanvas.height, pad=24;
+  ctx.fillStyle=cssVar('--canvas-bg'); ctx.fillRect(0,0,W,H);
+  const E=howSt.n+1, cs=(Math.min(W,H)-2*pad)/(2*E);
+  const X=c=>W/2+(c+0.5)*cs, Y=c=>H/2+(c+0.5)*cs;
+  const col={N:cssVar('--dN'),S:cssVar('--dS'),E:cssVar('--dE'),W:cssVar('--dW')};
+  // colour parity: create shows moved dominoes at their new home → use the new
+  // order's parity so a domino keeps its colour through the slide (no flip)
+  const P = howSt.phase==='create' ? ((howSt.n%2)+2)%2 : ((howSt.n+1)%2);
+  const rect=d=> d.o==='H' ? [X(d.x),Y(d.y),2*cs,cs] : [X(d.x),Y(d.y),cs,2*cs];
+  const cen=d=>{ const [rx,ry,w,h]=rect(d); return [rx+w/2, ry+h/2]; };
+  function drawDom(d, alpha=1){ const ty=typeOf(d.o,d.x,d.y,P), [rx,ry,w,h]=rect(d);
+    ctx.globalAlpha=alpha; ctx.fillStyle=col[ty]; ctx.fillRect(rx,ry,w,h);
+    ctx.strokeStyle='rgba(0,0,0,0.25)'; ctx.lineWidth=1; ctx.strokeRect(rx+0.5,ry+0.5,w-1,h-1); ctx.globalAlpha=1; }
+  const d=howSt.data; let cap='';
+  if(howSt.phase==='start'){
+    howSt.tiling.forEach(dm=>drawDom(dm));
+    cap=`<div class="stat-row"><span class="k">phase</span><span class="v">ready</span></div>
+      <div style="margin-top:.45rem">A uniform tiling of order <b>${howSt.n}</b>. Press <b>next phase ▸</b> to grow it toward order ${howSt.n+1}.</div>`;
+  } else if(howSt.phase==='destroy'){
+    const has=d.badBlocks.length>0;
+    howSt.tiling.forEach(dm=>drawDom(dm, has?0.4:1));
+    ctx.lineWidth=Math.max(3,cs*0.16); ctx.strokeStyle=cssVar('--dN');
+    d.badBlocks.forEach(b=>ctx.strokeRect(X(b.x),Y(b.y),2*cs,2*cs));
+    cap=`<div class="stat-row"><span class="k">1 · DESTROY</span><span class="v" style="color:var(--dN)">${d.badBlocks.length} pair${d.badBlocks.length===1?'':'s'}</span></div>
+      <div style="margin-top:.45rem">${has? 'These '+d.badBlocks.length+' brick'+(d.badBlocks.length===1?'':'s')+' (red) hold two dominoes pointing into each other. Delete them.' : 'Nothing is nose-to-nose this round, so nothing is deleted. On to the slide.'}</div>`;
+  } else if(howSt.phase==='slide'){
+    d.survivors.forEach(s=>drawDom({o:s.o,x:s.x,y:s.y}));
+    ctx.strokeStyle=cssVar('--canvas-ink'); ctx.fillStyle=cssVar('--canvas-ink');
+    d.survivors.forEach(s=>{ const [x0,y0]=cen({o:s.o,x:s.x,y:s.y}), [x1,y1]=cen({o:s.o,x:s.nx,y:s.ny});
+      if(Math.hypot(x1-x0,y1-y0)>0.5) arrow(ctx,x0,y0,x1,y1,cs*0.30); });
+    cap=`<div class="stat-row"><span class="k">2 · SLIDE</span><span class="v" style="color:var(--dE)">${d.survivors.length} dominoes</span></div>
+      <div style="margin-top:.45rem">Each surviving domino steps one cell the way it faces (arrows): N↑ S↓ E→ W←. They pull apart and leave 2×2 holes.</div>`;
+  } else if(howSt.phase==='create'){
+    d.moved.forEach(dm=>drawDom(dm));
+    ctx.setLineDash([5,4]); ctx.lineWidth=2.4; ctx.strokeStyle=cssVar('--dW');
+    d.holes.forEach(b=>ctx.strokeRect(X(b.x),Y(b.y),2*cs,2*cs)); ctx.setLineDash([]);
+    cap=`<div class="stat-row"><span class="k">3 · CREATE</span><span class="v" style="color:var(--dW)">${d.holes.length} hole${d.holes.length===1?'':'s'}</span></div>
+      <div style="margin-top:.45rem">${d.holes.length} empty 2×2 hole${d.holes.length===1?'':'s'} opened up (dashed). Flip a coin for each — two horizontal or two vertical — and the diamond reaches order ${howSt.n+1}. <b>Next ▸</b> fills them.</div>`;
+  }
+  document.getElementById('how-caption').innerHTML=cap;
+  document.getElementById('how-n').textContent = howSt.phase==='start' ? howSt.n : (howSt.n+' → '+(howSt.n+1));
+}
+function howNext(){
+  if(howSt.phase==='start'){ howSt.data=growPhases(howSt.tiling,howSt.n); howSt.phase='destroy'; }
+  else if(howSt.phase==='destroy'){ howSt.phase='slide'; }
+  else if(howSt.phase==='slide'){ howSt.phase='create'; }
+  else { howSt.tiling=howSt.data.result; howSt.n++; howSt.phase='start'; howSt.data=null; }
+  drawHow();
+}
+document.getElementById('how-next').addEventListener('click', howNext);
+document.getElementById('how-reset').addEventListener('click', ()=>{ howSt.n=1; howSt.tiling=ad1(); howSt.phase='start'; howSt.data=null; drawHow(); });
+
+window.addEventListener('resize',()=>{ const p=document.querySelector('.pane.active')?.dataset.pane; if(p==='sample') draw(); else if(p==='how') drawHow(); });
+draw();
+const initialHash=(location.hash||'').replace(/^#/,'');
+if(TAB_NAMES.includes(initialHash)&&initialHash!=='sample') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>

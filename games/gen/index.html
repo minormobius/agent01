@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Ludographer — an endless catalogue of board games</title>
+<meta name="description" content="Procedurally generated board games. Every number resolves to the same complete game — theme, board, mechanics, components, rules, designer — for ever. Browse the endless catalogue.">
+<link rel="stylesheet" href="css/gen.css">
+</head>
+<body class="lobby">
+<nav class="topnav">
+  <a class="brand" href="/gen/">The&nbsp;Ludographer</a>
+  <a class="up" href="/">↑ games.mino.mobi</a>
+</nav>
+
+<header class="hero">
+  <h1>The Ludographer</h1>
+  <p class="lede">An <strong>endless catalogue</strong> of board games. Every number resolves — deterministically, on any machine, for ever — to the same complete game: a theme, a board, a tight set of mechanics that actually fit each other, the components they imply, a generated rulebook, an imaginary designer, and one deliberately broken rule.</p>
+  <form id="goform" class="hero-go">
+    <span class="hash">№</span>
+    <input id="seedbox" type="number" min="1" inputmode="numeric" placeholder="pick a number…" aria-label="catalogue number">
+    <button type="submit">open the rulebook</button>
+    <button type="button" id="rand" class="rand">⚄ surprise me</button>
+  </form>
+  <p class="sub">No two adjacent numbers are alike; the catalogue does not end.</p>
+</header>
+
+<section class="featured">
+  <h2>From the catalogue</h2>
+  <div id="gallery" class="gallery"></div>
+  <button id="more" class="more">show more →</button>
+</section>
+
+<section class="explainer">
+  <h2>How big is this, really?</h2>
+  <div class="explainer-grid">
+    <div><strong id="stat-combos">—</strong><span>distinct game skeletons in the first 5,000 numbers</span></div>
+    <div><strong id="stat-mech">—</strong><span>mechanic primitives, tagged so only compatible ones combine</span></div>
+    <div><strong id="stat-topo">—</strong><span>board topologies (grid, hex, map, track, tiles, tableau, rondel, regions)</span></div>
+    <div><strong id="stat-theme">—</strong><span>thematic skins renaming the whole economy</span></div>
+  </div>
+  <p>A game here is a constraint walk: pick a <em>core engine</em>, satisfy what it needs with <em>secondary mechanics</em> that legally fit, derive the components, then choose a <em>win condition</em> the assembled set can actually be driven toward. Because the grammar only ever expresses combinations that cohere, every number you can open is a game that holds together — winnable by construction. (Catching the <em>boring-but-legal</em> games needs a bot that self-playtests each one; that's the next milestone, and it arrives with actually being able to play them.)</p>
+  <p class="kin">Kin to <a href="https://borges.mino.mobi/">borges.mino.mobi</a>, which does the same trick for medieval tales. The Ludographer is that apparatus re-aimed at the table.</p>
+</section>
+
+<footer class="site-foot">
+  <a href="/gen/game.html?n=1">№1</a> · <a href="/">games.mino.mobi</a> · spec-only showcase · play modes coming
+</footer>
+
+<script src="js/prng.js"></script>
+<script src="js/lexicon.js"></script>
+<script src="js/generate.js"></script>
+<script src="js/operational.js"></script>
+<script src="js/features.js"></script>
+<script src="js/critic.js"></script>
+<script src="js/critic-load.js"></script>
+<script src="js/board.js"></script>
+<script>
+(function () {
+  var L = window.LUDO;
+  // featured seeds — a curated spread plus rolling extras.
+  var FEAT = [1, 7, 42, 108, 256, 777, 1000, 1729, 3003, 8888, 9001, 24601];
+  var shown = 0;
+  var gallery = document.getElementById("gallery");
+
+  function chip(text, kind) { return '<span class="g-chip ' + (kind || "") + '">' + text + '</span>'; }
+  function card(n) {
+    var g = L.generate(n);
+    var pal = g.theme.pal;
+    var a = document.createElement("a");
+    a.className = "g-card";
+    a.href = "game.html?n=" + n;
+    a.style.setProperty("--accent", pal.accent);
+    a.style.setProperty("--accent2", pal.accent2);
+    a.style.setProperty("--board", pal.board);
+    var mechs = g.mechanics.slice(0, 3).map(function (m) { return chip(m.name, "g-" + m.family); }).join("");
+    var rating = L.rateGame ? L.rateGame(g) : null;
+    var rateHtml = (rating != null) ? '<span class="g-rate" title="NN critic’s predicted quality">⌁ ' + rating + '</span>' : '';
+    a.innerHTML =
+      '<div class="g-thumb">' + L.board(g) + (rateHtml ? '<span class="g-rate-badge">' + rateHtml + '</span>' : '') + '</div>' +
+      '<div class="g-body">' +
+        '<div class="g-no">№ ' + n + '</div>' +
+        '<h3>' + g.title + '</h3>' +
+        '<div class="g-theme">' + g.theme.name + ' · ' + g.topology.short + '</div>' +
+        '<div class="g-chips">' + mechs + '</div>' +
+        '<div class="g-foot">' + g.players.min + '–' + g.players.max + 'p · ~' + g.playtime + 'm · wt ' + g.complexity + ' · <span class="g-win">' + g.win.name + '</span></div>' +
+      '</div>';
+    return a;
+  }
+  function addBatch(k) {
+    for (var i = 0; i < k; i++) {
+      var n = shown < FEAT.length ? FEAT[shown] : (13 + shown * 97 + (shown * shown) % 311);
+      gallery.appendChild(card(n));
+      shown++;
+    }
+  }
+  // load the NN critic first (best-effort) so cards can show its rating, then build.
+  L.loadCritic().finally(function () { addBatch(6); });
+  document.getElementById("more").onclick = function () { addBatch(6); };
+
+  // nav
+  function open(n) { location.href = "game.html?n=" + Math.max(1, Math.floor(n)); }
+  document.getElementById("goform").onsubmit = function (e) { e.preventDefault(); open(parseInt(document.getElementById("seedbox").value, 10) || 1); };
+  document.getElementById("rand").onclick = function () { open(1 + Math.floor(Math.random() * 9e6)); };
+
+  // live stats over the first 5000 seeds (cheap; runs once)
+  (function stats() {
+    var combos = {}, t0 = Date.now();
+    for (var n = 1; n <= 5000 && Date.now() - t0 < 800; n++) {
+      var g = L.generate(n);
+      combos[g.topology.id + "|" + g.mechIds.slice().sort().join(",") + "|" + g.win.id] = 1;
+    }
+    document.getElementById("stat-combos").textContent = Object.keys(combos).length.toLocaleString() + "+";
+    document.getElementById("stat-mech").textContent = L.lex.MECH.length;
+    document.getElementById("stat-topo").textContent = L.lex.TOPOLOGIES.length;
+    document.getElementById("stat-theme").textContent = L.lex.THEMES.length;
+  })();
+})();
+</script>
+</body>
+</html>

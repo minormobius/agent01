@@ -272,11 +272,12 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/procedural-board-games-iFAiZ",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": null,
+      "note": "Two things live here: the Jackbox-style party platform at / (phone+TV, OAuth rooms, RoomCoordinator DO) AND The Ludographer at /gen/ — a borges-shaped procedural board-game catalogue (seed n -> a complete, coherent, deterministic board game: theme, board, mechanics, components, rulebook, win condition, twist). /gen/ is pure static (no worker/DO changes); it serves through the existing assets fallback in games/worker.js.",
       "paths": [
         "games/**",
         "packages/oauth-client/**"
@@ -328,6 +329,19 @@
         "photo/**"
       ],
       "cohesion": "integrated"
+    },
+    {
+      "surface": "ocr",
+      "dir": "ocr",
+      "endpoint": "ocr.mino.mobi, ocr.ascential.work",
+      "type": "frontend",
+      "branch": "claude/image-text-extraction-gH8UH",
+      "uses": [],
+      "provides": null,
+      "note": "Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/). Worker `ocr` owns ocr.mino.mobi; /api/model proxies the ocrs models (S3, no CORS). 2nd custom_domain route ocr.ascential.work added (alias; same worker, separate ascential.work zone — shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ai-edu).",
+      "paths": [
+        "ocr/**"
+      ]
     },
     {
       "surface": "poll",
@@ -465,11 +479,12 @@
         "draw",
         "curve",
         "paint",
-        "mmo"
+        "mmo",
+        "pizza"
       ],
       "endpoint": "canvas.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/pizza-cutting-game-7VvX2",
       "uses": [
         "atpolls-db",
         "scores.mino.mobi",
@@ -478,12 +493,13 @@
       "provides": null,
       "status": "MANAGED — additive launch via deploy-canvas.yml (Worker `canvas`, custom_domain canvas.mino.mobi + thin canvas/index.html hub). Members STAGED from root, not moved; backends untouched (absolute origins). Root still serves canonical mino.mobi/<x>/.",
       "op": "encapsulation",
-      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve submits to scores — all ABSOLUTE origins, so the frontends move cleanly. One deploy unit; backends stay in poll/scores. DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.",
+      "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve+pizza submit to scores — all ABSOLUTE origins, so the frontends move cleanly. One deploy unit; backends stay in poll/scores. pizza is a standalone static canvas game (no backend beyond the shared scores+auth workers). DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.",
       "paths": [
         "draw/**",
         "curve/**",
         "paint/**",
-        "mmo/**"
+        "mmo/**",
+        "pizza/**"
       ]
     },
     {

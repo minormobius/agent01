@@ -90,10 +90,15 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.wave.thread',
   // wiki
   'com.minomobi.wiki.note',
+  // yarrow — the drying loft (g.mino.mobi/sticks) saves cured stick genomes
+  'com.minomobi.yarrow.stick',
   // bakery
   'exchange.recipe.recipe',
   // poll + wave post to Bluesky proper
   'app.bsky.feed.post',
+  // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
+  'com.minomobi.feedgen.def',
+  'app.bsky.feed.generator',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,

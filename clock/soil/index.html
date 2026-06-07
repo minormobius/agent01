@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Soil — a sand table</title>
+<meta name="description" content="A soil sand table. Pick a composition on the USDA texture triangle and set its wetness; a field of that soil stretches out. Poke, rake, pour and smooth it — sand slumps to its angle of repose, damp sand holds a sandcastle, saturated soil liquefies, dry clay cracks. WebGPU, with a Canvas2D fallback.">
+<style>
+:root{
+  --bg:#15110d; --bg2:#1d1812; --ink:#ecdcc0; --ink-soft:rgba(236,220,192,.58); --faint:#8c7c63;
+  --sand:#e7c46a; --sand-dim:rgba(231,196,106,.35); --clay:#c0714e; --line:rgba(231,196,106,.16);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{ -webkit-text-size-adjust:100% }
+body{ min-height:100%; background:
+  radial-gradient(130% 90% at 50% -10%, #241c14 0%, var(--bg) 58%, #0c0907 100%);
+  color:var(--ink); font:15px/1.55 ui-serif,Georgia,"Songti SC",serif; -webkit-tap-highlight-color:transparent }
+a{color:var(--sand);text-decoration:none} a:hover{color:var(--clay)}
+#back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);letter-spacing:.06em}
+#back:hover{color:var(--sand)}
+.wrap{max-width:1140px;margin:0 auto;padding:42px 20px 64px}
+.masthead{text-align:center;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+h1{font:600 25px/1.1 ui-serif,Georgia,serif;letter-spacing:.04em;margin:9px 0 4px}
+.sub{color:var(--ink-soft);font-size:14px;font-style:italic;max-width:62ch;margin:0 auto}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:860px){ .layout{grid-template-columns:1fr} }
+
+.field{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 14px 36px rgba(0,0,0,.45);background:#0c0907}
+.field canvas{display:block;width:100%;height:auto;aspect-ratio:1/1;cursor:crosshair;touch-action:none}
+.field .badge{position:absolute;left:10px;top:10px;font:11px/1.4 ui-monospace,monospace;color:var(--ink-soft);
+  background:rgba(12,9,7,.5);border:1px solid var(--line);border-radius:7px;padding:6px 9px;pointer-events:none;backdrop-filter:blur(3px)}
+.field .badge b{color:var(--sand)}
+.field .hint{position:absolute;right:10px;bottom:10px;font:11px/1.3 ui-monospace,monospace;color:var(--faint);pointer-events:none}
+.field .renderer{position:absolute;left:10px;bottom:10px;font:10px/1 ui-monospace,monospace;color:var(--faint);pointer-events:none;letter-spacing:.08em}
+
+.panel{border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(231,196,106,.04),rgba(231,196,106,.01));margin-bottom:16px}
+.panel .cap{font:11px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);
+  padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel .body{padding:14px}
+
+#tri{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none}
+.readout{display:flex;align-items:baseline;gap:12px;margin:10px 0 4px}
+.readout .cls{font:600 19px/1.1 ui-serif,Georgia,serif;color:var(--ink)}
+.bars{margin:8px 0 4px}
+.bars .row{display:flex;align-items:center;gap:8px;font:11px/1.6 ui-monospace,monospace;color:var(--ink-soft)}
+.bars .row .lab{width:42px}
+.bars .row .bar{flex:1;height:7px;background:rgba(236,220,192,.10);border-radius:4px;overflow:hidden}
+.bars .row .bar i{display:block;height:100%}
+.bars .row .v{width:38px;text-align:right;color:var(--ink)}
+.facts{font:12px/1.6 ui-monospace,monospace;color:var(--ink-soft);margin-top:8px}
+.facts b{color:var(--sand)}
+
+.pens{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.controls{display:flex;flex-direction:column;gap:11px}
+.ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
+.ctl label{width:64px}
+.ctl input[type=range]{flex:1;accent-color:var(--sand)}
+.ctl .num{width:46px;text-align:right;color:var(--ink)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+button{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--bg);background:linear-gradient(180deg,#f1d588,#d6a94e);
+  border:0;border-radius:7px;padding:10px 14px;cursor:pointer;transition:filter .12s,transform .12s}
+button:hover{filter:brightness(1.07);transform:translateY(-1px)} button:active{transform:none}
+button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+button.ghost:hover{color:var(--sand);filter:none}
+button.ghost.on{color:var(--bg);background:linear-gradient(180deg,#f1d588,#d6a94e);border-color:transparent}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.presets button{padding:7px 10px;font-size:11px}
+
+.diss{font-size:14.5px;color:var(--ink-soft);margin-top:8px}
+.diss h2{font:600 12px/1.2 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--sand-dim);margin:18px 0 7px}
+.diss p{margin:0 0 10px} .diss b{color:var(--ink)}
+footer{border-top:1px solid var(--line);margin-top:34px;padding-top:16px;text-align:center;font:11.5px/1.7 ui-monospace,monospace;color:var(--faint)}
+footer a{color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; gallery</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">Soil · a sand table</div>
+    <h1>A field of soil, and a finger to work it</h1>
+    <p class="sub">Pick a soil on the texture triangle and set how wet it is; a field of exactly that earth
+    stretches out. Poke, rake, pour and smooth it — what you displace heaps into the rim, then settles the
+    way that soil settles. Damp sand holds a sandcastle; saturate it and it slumps; dry clay cracks.</p>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="field">
+        <canvas id="soil"></canvas>
+        <div class="badge" id="badge">—</div>
+        <div class="hint">drag to work · tap to mark</div>
+        <div class="renderer" id="rlabel"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <div class="cap">The tool</div>
+        <div class="body">
+          <div class="pens" id="pens">
+            <button class="ghost on" data-pen="stylus">✦ Stylus</button>
+            <button class="ghost" data-pen="rake">≣ Rake</button>
+            <button class="ghost" data-pen="pour">⛰ Pour</button>
+            <button class="ghost" data-pen="smooth">◠ Smooth</button>
+          </div>
+          <div class="controls">
+            <div class="ctl"><label>thickness</label><input id="size" type="range" min="2" max="40" value="6"><span class="num" id="sizeN">6</span></div>
+            <div class="ctl"><label>press</label><input id="depth" type="range" min="2" max="26" value="10"><span class="num" id="depthN">10</span></div>
+          </div>
+          <div class="btns" style="margin-top:11px">
+            <button id="reset">⟲ Reset</button>
+            <button class="ghost" id="reseed">⟳ New ground</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="cap">USDA soil texture triangle</div>
+        <div class="body">
+          <canvas id="tri" width="520" height="470"></canvas>
+          <div class="readout"><span class="cls" id="cls">—</span></div>
+          <div class="bars" id="bars"></div>
+          <div class="ctl" style="margin-top:8px"><label>wetness</label><input id="wet" type="range" min="0" max="100" value="25"><span class="num" id="wetN">25%</span></div>
+          <div class="facts" id="facts"></div>
+          <div class="presets">
+            <button class="ghost" data-mix="92,5,3">Sand</button>
+            <button class="ghost" data-mix="65,25,10">Sandy loam</button>
+            <button class="ghost" data-mix="40,40,20">Loam</button>
+            <button class="ghost" data-mix="15,65,20">Silt loam</button>
+            <button class="ghost" data-mix="20,20,60">Clay</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="diss">
+        <h2>What you're working</h2>
+        <p>The field is a <b>height-field</b> of soil. A poke presses a dish in; that soil is <b>heaved up
+        into the rim</b> (mass conserved), then the surface <b>relaxes</b> — any slope steeper than the soil
+        can hold topples downhill until it settles. Dry sand stands at ≈33°, so it slumps wide; clay's
+        cohesion holds near-vertical walls. <b>Wetness</b> adds capillary suction: a little water lets even
+        sand stand steep (the sandcastle), too much and the pores carry the load and it <b>liquefies</b> and
+        runs out flat. Dry clay loses water and <b>cracks</b>. <b>Pour</b> drops fresh soil that finds its
+        own angle of repose; <b>rake</b> draws parallel furrows; <b>smooth</b> wipes it flat again.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    A standing soil table · siblings: <a href="../yarrow/">the yarrow specimen</a> · <a href="../yijing/">the oracle</a>
+    &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
+  </footer>
+</div>
+
+<script type="module">
+'use strict';
+import { soilProps, Field, classify, crackMask } from '../lib/soil.js';
+import { makeRenderer } from '../lib/soil-render.js';
+
+/* ───────────────────────── state ───────────────────────── */
+const N = 320;                          // grid (×4 = 1280B/row, 256-aligned for WebGPU)
+const field = new Field(N);
+let comp = { sand:0.40, silt:0.40, clay:0.20 };
+let wet  = 0.25;
+let props = soilProps(comp.sand, comp.silt, comp.clay, wet);
+let pen = 'stylus';
+let tool = { R:6, depth:10 };
+const ZSCALE = N*0.0135;                 // grid-independent shading exaggeration
+const CRACK_FREQ = 9;
+const SETTLE_ITERS = 5;
+const CRACKMASK = crackMask(N, CRACK_FREQ, 7);   // static pattern; intensity is live
+
+/* ───────────────────────── soil texture triangle ───────────────────────── */
+const tri = document.getElementById('tri'), tctx = tri.getContext('2d');
+const TW = tri.width, TH = tri.height, pad = 34;
+const A = { x: TW/2, y: pad };                 // 100% clay
+const B = { x: pad,  y: TH-pad };              // 100% sand
+const C = { x: TW-pad, y: TH-pad };            // 100% silt
+const CLASS_TINT = {
+  sand:[222,196,140], loamy_sand:[214,188,132], sandy_loam:[206,180,124], loam:[196,170,116],
+  silt_loam:[200,184,140], silt:[206,194,156], sandy_clay_loam:[190,150,104], clay_loam:[182,140,96],
+  silty_clay_loam:[184,150,110], sandy_clay:[176,120,84], silty_clay:[170,118,90], clay:[160,104,74],
+};
+function baryToComp(px,py){
+  const v0={x:B.x-A.x,y:B.y-A.y}, v1={x:C.x-A.x,y:C.y-A.y}, v2={x:px-A.x,y:py-A.y};
+  const d00=v0.x*v0.x+v0.y*v0.y, d01=v0.x*v1.x+v0.y*v1.y, d11=v1.x*v1.x+v1.y*v1.y;
+  const d20=v2.x*v0.x+v2.y*v0.y, d21=v2.x*v1.x+v2.y*v1.y, den=d00*d11-d01*d01||1;
+  const wB=(d11*d20-d01*d21)/den, wC=(d00*d21-d01*d20)/den; return { clay:1-wB-wC, sand:wB, silt:wC };
+}
+const compToXY=c=>({ x:c.clay*A.x+c.sand*B.x+c.silt*C.x, y:c.clay*A.y+c.sand*B.y+c.silt*C.y });
+function clampComp(c){ let {sand,silt,clay}=c; sand=Math.max(0,sand);silt=Math.max(0,silt);clay=Math.max(0,clay);
+  const s=sand+silt+clay||1; return {sand:sand/s,silt:silt/s,clay:clay/s}; }
+let triBase=null;
+function drawTriangle(){
+  if(!triBase){
+    const img=tctx.createImageData(TW,TH), d=img.data;
+    for(let y=0;y<TH;y++) for(let x=0;x<TW;x++){ const b=baryToComp(x+0.5,y+0.5), i=(y*TW+x)*4;
+      if(b.clay<-0.002||b.sand<-0.002||b.silt<-0.002){ d[i+3]=0; continue; }
+      const t=CLASS_TINT[classify(b.sand*100,b.silt*100,b.clay*100).key]||[180,150,110];
+      d[i]=t[0];d[i+1]=t[1];d[i+2]=t[2];d[i+3]=255; }
+    tctx.putImageData(img,0,0); triBase=tctx.getImageData(0,0,TW,TH);
+  }
+  tctx.putImageData(triBase,0,0);
+  tctx.strokeStyle='rgba(20,15,10,.55)'; tctx.lineWidth=1.4;
+  tctx.beginPath(); tctx.moveTo(A.x,A.y); tctx.lineTo(B.x,B.y); tctx.lineTo(C.x,C.y); tctx.closePath(); tctx.stroke();
+  tctx.fillStyle='#f0e3c6'; tctx.font='bold 12px ui-monospace,monospace';
+  tctx.textAlign='center'; tctx.fillText('100% clay', A.x, A.y-12);
+  tctx.textAlign='left';   tctx.fillText('100% sand', B.x-6, B.y+20);
+  tctx.textAlign='right';  tctx.fillText('100% silt', C.x+6, C.y+20);
+  const p=compToXY(comp);
+  tctx.beginPath(); tctx.arc(p.x,p.y,7,0,7); tctx.fillStyle='rgba(20,15,10,.85)'; tctx.fill();
+  tctx.beginPath(); tctx.arc(p.x,p.y,5,0,7); tctx.fillStyle='#f1d588'; tctx.fill();
+  tctx.lineWidth=1.5; tctx.strokeStyle='#15110d'; tctx.stroke();
+}
+
+/* ───────────────────────── readout ───────────────────────── */
+const pct=x=>Math.round(x*100);
+function updateReadout(){
+  document.getElementById('cls').textContent = props.class.name;
+  document.getElementById('bars').innerHTML =
+    [['sand','#d8b46a',comp.sand],['silt','#b9a888',comp.silt],['clay','#c0714e',comp.clay]]
+    .map(([l,c,v])=>`<div class="row"><span class="lab">${l}</span><div class="bar"><i style="width:${pct(v)}%;background:${c}"></i></div><span class="v">${pct(v)}%</span></div>`).join('');
+  const wetWord = props.sat>0.4?'saturated — liquefies' : wet<0.1?'bone dry' : wet<0.4?'damp — holds steep' : 'wet';
+  document.getElementById('facts').innerHTML =
+    `angle of repose <b>${props.reposeDeg.toFixed(0)}°</b> · ${wetWord}` + (props.crack>0.12?` · <b>cracking</b>`:'');
+  document.getElementById('badge').innerHTML =
+    `<b>${props.class.name}</b><br>${pct(comp.sand)} sand · ${pct(comp.silt)} silt · ${pct(comp.clay)} clay · ${pct(wet)}% wet`;
+}
+
+/* ───────────────────────── renderer (shared engine) ───────────────────────── */
+const soil = document.getElementById('soil');
+let renderer = null;
+
+/* ───────────────────────── tools, poke + settle loop ───────────────────────── */
+let dirty=true, settling=false, rafId=0;
+function requestRender(){ if(!rafId) rafId=requestAnimationFrame(loop); }
+function loop(){ rafId=0;
+  if(settling){ const r=field.settle(props, SETTLE_ITERS); settling=!r.settled; dirty=true; }
+  if(dirty){ renderer.render(field, props); dirty=false; }
+  if(settling) requestRender();
+}
+// lay one mark of the current pen at (nx,ny); dx,dy is the local stroke direction (for the rake)
+function stamp(nx,ny,dx,dy){
+  const R=tool.R, depth=tool.depth;
+  if(pen==='stylus'){ field.poke(nx,ny,R,depth,props.heave); }
+  else if(pen==='rake'){
+    let L=Math.hypot(dx,dy), ux,uy; if(L<1e-4){ux=1;uy=0;} else {ux=dx/L;uy=dy/L;}
+    const px=-uy, py=ux, teeth=5, toothR=Math.max(1.5,R*0.42), span=R*1.5;
+    for(let i=0;i<teeth;i++){ const t=(i/(teeth-1)-0.5)*2, off=t*span;
+      field.poke(nx+px*off/(N-1), ny+py*off/(N-1), toothR, depth*0.85, props.heave); }
+  }
+  else if(pen==='pour'){ field.heap(nx,ny,R, depth*0.9); }
+  else if(pen==='smooth'){ field.smoothDisc(nx,ny,R, Math.min(1,depth/16)); }
+}
+// a single dab (a poke). Discrete marks still work.
+function dab(nx,ny){ stamp(nx,ny,0,0); settling=true; dirty=true; requestRender(); }
+// connect the dots: stamp overlapping marks from the last point to (nx,ny) so a drag
+// draws a continuous line, not spaced dots. A large jump is left as one dab (no streak).
+function strokeTo(nx,ny){
+  const dx=nx-lnx, dy=ny-lny, distCells=Math.hypot(dx,dy)*(N-1);
+  const JUMP=0.5*(N-1);                                   // beyond ~half the field = a teleport, not a drag
+  if(distCells<1e-3) return;
+  if(distCells>JUMP){ stamp(nx,ny,dx,dy); }
+  else { const step=Math.max(1, tool.R*0.5);              // overlap spacing
+    const steps=Math.min(500, Math.max(1, Math.ceil(distCells/step)));
+    for(let s=1;s<=steps;s++){ const t=s/steps; stamp(lnx+dx*t, lny+dy*t, dx,dy); } }
+  settling=true; dirty=true; requestRender();
+}
+function recompute(){ props=soilProps(comp.sand,comp.silt,comp.clay,wet); updateReadout(); drawTriangle();
+  settling=true; dirty=true; requestRender(); }     // existing relief may now be over-steep → it slumps
+
+/* ───────────────────────── pointer handling ───────────────────────── */
+function fieldXY(ev){ const r=soil.getBoundingClientRect();
+  return [ Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width)), Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height)) ]; }
+let drawing=false, lnx=0, lny=0;
+soil.addEventListener('pointerdown',e=>{ drawing=true; soil.setPointerCapture(e.pointerId);
+  const [x,y]=fieldXY(e); lnx=x; lny=y; dab(x,y); e.preventDefault(); });
+soil.addEventListener('pointermove',e=>{ if(!drawing) return; const [x,y]=fieldXY(e); strokeTo(x,y); lnx=x; lny=y; });
+soil.addEventListener('pointerup',()=>{ drawing=false; });
+soil.addEventListener('pointercancel',()=>{ drawing=false; });
+
+function triPick(ev){ const r=tri.getBoundingClientRect();
+  comp=clampComp(baryToComp((ev.clientX-r.left)/r.width*TW, (ev.clientY-r.top)/r.height*TH)); recompute(); }
+let triDrag=false;
+tri.addEventListener('pointerdown',e=>{ triDrag=true; tri.setPointerCapture(e.pointerId); triPick(e); });
+tri.addEventListener('pointermove',e=>{ if(triDrag) triPick(e); });
+tri.addEventListener('pointerup',()=>{ triDrag=false; });
+
+/* ───────────────────────── controls ───────────────────────── */
+const $=id=>document.getElementById(id);
+document.querySelectorAll('#pens button').forEach(b=>b.addEventListener('click',()=>{
+  pen=b.dataset.pen; document.querySelectorAll('#pens button').forEach(o=>o.classList.toggle('on',o===b)); }));
+$('size').addEventListener('input',e=>{ tool.R=+e.target.value; $('sizeN').textContent=tool.R; });
+$('depth').addEventListener('input',e=>{ tool.depth=+e.target.value; $('depthN').textContent=tool.depth; });
+$('wet').addEventListener('input',e=>{ wet=+e.target.value/100; $('wetN').textContent=Math.round(wet*100)+'%'; recompute(); });
+$('reset').addEventListener('click',()=>{ field.h.fill(0); field._d.fill(0); settling=false; dirty=true; requestRender(); });
+$('reseed').addEventListener('click',()=>{ field.reset((Math.random()*1e9)|0); settling=true; dirty=true; requestRender(); });
+document.querySelectorAll('.presets button').forEach(b=>b.addEventListener('click',()=>{
+  const [s,si,c]=b.dataset.mix.split(',').map(Number); comp=clampComp({sand:s/100,silt:si/100,clay:c/100}); recompute(); }));
+
+/* ───────────────────────── boot ───────────────────────── */
+function sizeCanvas(){ const r=soil.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=Math.max(1,Math.round(r.width*dpr)), h=Math.max(1,Math.round(r.height*dpr));
+  if(renderer) renderer.resize(w,h); dirty=true; requestRender(); }
+window.addEventListener('resize', sizeCanvas);
+
+(async function boot(){
+  renderer = await makeRenderer(soil, {N, zScale:ZSCALE, crackFreq:CRACK_FREQ, crackMask:CRACKMASK});
+  $('rlabel').textContent = renderer.kind;
+  sizeCanvas(); updateReadout(); drawTriangle();
+  settling=false; dirty=true; requestRender();        // fresh ground, zero pokes
+})();
+</script>
+</body>
+</html>

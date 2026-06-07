@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Yijing · The Yarrow Oracle</title>
+<meta name="description" content="The Book of Changes, consulted the old way — fifty yarrow stalks, divided by hand, three changes to a line. Authentic yarrow odds, every stalk drawn from noise.">
+<style>
+:root{
+  --bg:#0b0a10; --bg2:#14111b; --ink:#e9d6a8; --ink-soft:rgba(233,214,168,.55);
+  --gold:#e7c46a; --gold-dim:rgba(231,196,106,.35); --straw:#cdb98a;
+  --line:rgba(231,196,106,.18); --change:#e0623c;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:radial-gradient(120% 90% at 50% -10%,#1a1526 0%,var(--bg) 55%,#070609 100%);
+  color:var(--ink);font:15px/1.5 ui-serif,Georgia,"Songti SC",serif;-webkit-text-size-adjust:100%;
+  -webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body{display:flex;flex-direction:column;min-height:100%;align-items:center}
+a{color:var(--gold);text-decoration:none}
+#back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;
+  color:var(--ink-soft);letter-spacing:.06em}
+#back:hover{color:var(--gold)}
+header{text-align:center;padding:34px 16px 6px;max-width:680px}
+.glyph{font-size:46px;color:var(--gold);line-height:1;text-shadow:0 0 30px rgba(231,196,106,.4)}
+h1{font:600 22px/1.1 ui-serif,Georgia,serif;letter-spacing:.18em;margin:8px 0 2px;text-transform:uppercase}
+.sub{color:var(--ink-soft);font-size:13px;font-style:italic;max-width:46ch;margin:0 auto}
+
+#stage{width:100%;max-width:760px;flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:8px 14px 40px}
+#q{width:100%;max-width:520px;margin:18px auto 10px;display:flex;gap:8px}
+#q input{flex:1;background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--ink);
+  border-radius:9px;padding:11px 14px;font:italic 15px/1 ui-serif,Georgia,serif;outline:none}
+#q input::placeholder{color:rgba(233,214,168,.3)}
+#q input:focus{border-color:var(--gold-dim)}
+
+.altar{position:relative;width:100%;max-width:560px;aspect-ratio:1/.86;margin:6px auto 0}
+canvas{display:block;width:100%;height:100%}
+#narr{min-height:1.4em;text-align:center;font:13px/1.4 ui-monospace,monospace;color:var(--ink-soft);
+  letter-spacing:.03em;margin:2px 0 10px;padding:0 8px}
+#narr b{color:var(--gold);font-weight:600}
+
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:2px}
+button{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.06em;color:var(--bg);
+  background:linear-gradient(180deg,#f1d588,#d6a94e);border:0;border-radius:999px;
+  padding:12px 22px;cursor:pointer;transition:transform .12s,box-shadow .12s,opacity .2s;
+  box-shadow:0 6px 22px rgba(231,196,106,.22);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button:hover{transform:translateY(-1px);box-shadow:0 9px 26px rgba(231,196,106,.34)}
+button:active{transform:translateY(0)}
+button.ghost{background:transparent;color:var(--ink-soft);box-shadow:none;border:1px solid var(--line)}
+button.ghost:hover{color:var(--gold);border-color:var(--gold-dim)}
+button:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
+
+.setbar{max-width:520px;margin:14px auto 0;text-align:center;font:12.5px/1.5 ui-monospace,monospace;
+  color:var(--ink-soft);display:flex;flex-direction:column;gap:9px;align-items:center}
+.setbar b{color:var(--gold)}
+.setbar .modes{display:flex;gap:8px}
+.setbar .mode{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;padding:9px 16px;border-radius:999px;
+  cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink-soft);
+  box-shadow:none;touch-action:manipulation}
+.setbar .mode.on{background:linear-gradient(180deg,#f1d588,#d6a94e);color:var(--bg);border-color:transparent}
+.setbar a{color:var(--gold)}
+
+.tally{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;
+  font:12px/1 ui-monospace,monospace;color:var(--ink-soft)}
+.tally .dot{display:inline-flex;flex-direction:column;align-items:center;gap:4px}
+.tally .n{font-size:20px;color:var(--gold);font-weight:700}
+.tally .l{letter-spacing:.08em;text-transform:uppercase;font-size:10px}
+
+#result{width:100%;max-width:620px;margin:22px auto 0;opacity:0;transform:translateY(10px);
+  transition:opacity .6s,transform .6s;pointer-events:none}
+#result.show{opacity:1;transform:none;pointer-events:auto}
+.cast{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+.hexcard{text-align:center;min-width:150px}
+.hexcard .hx{margin-bottom:4px}
+.hx-stack{display:flex;flex-direction:column;gap:8px;align-items:center}
+.hx-line{position:relative;display:flex;justify-content:space-between;width:96px;height:9px}
+.hx-line .seg{height:100%;border-radius:2px;box-shadow:0 1px 1px rgba(0,0,0,.5)}
+.hx-line.yang .seg{width:100%}
+.hx-line .seg.yin{width:calc(50% - 9px)}
+.hx-line .mk{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);
+  font:11px/1 ui-monospace,monospace;text-shadow:0 0 3px rgba(11,10,16,.9)}
+.hexcard .no{font:12px/1 ui-monospace,monospace;color:var(--ink-soft);margin:6px 0 2px;letter-spacing:.1em}
+.hexcard .ch{font-size:26px;color:var(--ink);font-family:"Songti SC","STSong",ui-serif,serif}
+.hexcard .py{font-style:italic;color:var(--straw);font-size:14px}
+.hexcard .en{font-size:15px;letter-spacing:.04em;margin-top:1px}
+.arrow{display:flex;align-items:center;color:var(--gold-dim);font-size:24px}
+.judg{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:12px;
+  padding:16px 18px;margin:6px 0;font-size:15.5px;line-height:1.6}
+.judg .lab{font:11px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--gold-dim);display:block;margin-bottom:7px}
+.moving{font-size:13.5px;color:var(--ink-soft);line-height:1.6}
+.moving b{color:var(--change);font-weight:600}
+.moving .changedot{color:var(--change)}
+.judg.gen .lab::after{content:' · generated from structure';color:var(--gold-dim);opacity:.7;font-weight:400;letter-spacing:.02em}
+.judg.rule{font-size:14px}
+.judg.rule .lab{color:var(--change);opacity:.8}
+.lread{font-size:14px;line-height:1.6;margin:7px 0;color:var(--ink-soft)}
+.lread .changedot{color:var(--change);margin-right:4px}
+.lread .rel{color:var(--gold-dim);font-style:italic}
+/* canonical translated text (爻辭 / 卦辭) surfaced from our open Zhouyi */
+.ytext{margin:10px 0 4px}
+.ytext+.ytext{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.ytext .nm{font:11px/1 ui-monospace,monospace;letter-spacing:.14em;color:var(--change);margin-right:8px}
+.ytext .nm.still{color:var(--gold-dim)}
+.ytext .z{font-family:"Songti SC","STSong",serif;font-size:19px;color:var(--gold);letter-spacing:.03em}
+.ytext .py{font-style:italic;color:var(--straw);font-size:12.5px;margin:2px 0 4px}
+.ytext .e{font-size:15px;line-height:1.6}
+.ytext .n{font-size:12.5px;line-height:1.55;color:var(--ink-soft);margin-top:6px;padding-left:11px;border-left:2px solid var(--line)}
+.ytext .gloss{font-size:12.5px;line-height:1.55;color:var(--gold-dim);font-style:italic;margin-top:5px}
+.src-link{font-size:11.5px}
+#result .foot{text-align:center;margin-top:18px}
+#result .foot a{font-size:13px}
+
+/* ── Method tab ── */
+.mscrim{position:fixed;inset:0;background:rgba(8,7,12,.72);backdrop-filter:blur(3px);
+  display:none;align-items:flex-start;justify-content:center;z-index:40;padding:24px 14px;overflow:auto}
+.mscrim.on{display:flex}
+.method{background:linear-gradient(180deg,#14111b,#0b0a10);border:1px solid var(--line);border-radius:14px;
+  max-width:760px;width:100%;padding:30px 26px 36px;position:relative;color:var(--ink)}
+.method .mclose{position:absolute;top:12px;right:18px;font:24px/1 ui-serif,Georgia;color:var(--ink-soft);cursor:pointer}
+.method h2{font:600 22px/1.15 ui-serif,Georgia,serif;letter-spacing:.04em;color:var(--gold);margin-bottom:4px}
+.method .kick{font:11px/1 ui-monospace,monospace;letter-spacing:.26em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:16px}
+.method h3{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);
+  margin:22px 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.method p{font-size:14.5px;line-height:1.62;color:var(--ink-soft);margin:0 0 10px}
+.method p b,.method li b{color:var(--ink)}
+.method em{color:var(--ink);font-style:italic}
+.method ul{margin:0 0 10px;padding-left:18px;font-size:14px;line-height:1.6;color:var(--ink-soft)}
+.method li{margin:4px 0}
+.method table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 10px}
+.method td,.method th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle}
+.method th{font:11px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-dim)}
+.method td .gl{display:inline-flex;flex-direction:column;gap:2px;vertical-align:middle}
+.method td .gl i{display:block;width:22px;height:3px;border-radius:1px;background:var(--gold)}
+.method td .gl i.yin{background:linear-gradient(90deg,var(--gold) 38%,transparent 38%,transparent 62%,var(--gold) 62%)}
+.method a{color:var(--gold)} .method a:hover{color:var(--change)}
+.method .src{font-size:13px;line-height:1.7}
+.method .note{font-size:12.5px;color:var(--ink-soft);opacity:.8;font-style:italic;margin-top:6px}
+
+footer{color:rgba(233,214,168,.32);font:11px/1.6 ui-monospace,monospace;text-align:center;
+  padding:26px 16px 34px;max-width:560px}
+footer a{color:rgba(233,214,168,.5)}
+@media(max-width:480px){ .glyph{font-size:38px} h1{font-size:18px} .arrow{transform:rotate(90deg)} }
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; gallery</a>
+
+<header>
+  <div class="glyph">易</div>
+  <h1>Yijing</h1>
+  <p class="sub">The Book of Changes, cast the old way — fifty stalks of milfoil, divided by hand, three changes to a line, six lines to a hexagram. <a href="../yarrow/" style="white-space:nowrap">the stalk itself →</a></p>
+</header>
+
+<main id="stage">
+  <form id="q" autocomplete="off" onsubmit="return false">
+    <input id="qtext" placeholder="Hold a question in mind (optional)…" maxlength="120">
+  </form>
+
+  <div class="altar">
+    <canvas id="c"></canvas>
+  </div>
+  <div id="setbar" class="setbar"></div>
+
+  <div id="narr">Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.</div>
+
+  <div class="controls">
+    <button id="cast">Divide the stalks</button>
+    <button id="auto" class="ghost">Cast all six</button>
+    <button id="reset" class="ghost" hidden>Fresh bundle</button>
+  </div>
+
+  <div class="tally" id="tallyrow" hidden>
+    <span class="dot"><span class="n" id="t-line">—</span><span class="l">line</span></span>
+    <span class="dot"><span class="n" id="t-pile">49</span><span class="l">in hand</span></span>
+    <span class="dot"><span class="n" id="t-set">0</span><span class="l">set aside</span></span>
+  </div>
+
+  <section id="result"></section>
+</main>
+
+<footer>
+  The yarrow-stalk method (蓍筮) is older than the coins and weights its odds differently:
+  a moving yin appears but 1 time in 16, a moving yang 3. Every stalk here is drawn from
+  noise — no two milfoil quite alike; meet a single one at <a href="../yarrow/">/yarrow</a>.
+  &nbsp;·&nbsp; <a href="#" id="footer-method">Method &amp; sources</a>
+  &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
+</footer>
+
+<div class="mscrim" id="method-scrim">
+  <div class="method">
+    <span class="mclose" id="method-close">×</span>
+    <div id="method-body"></div>
+  </div>
+</div>
+
+<script type="module">
+'use strict';
+import { Loft } from '../lib/inventory.js';
+import { cure } from '../lib/sticks.js';
+import { drawStalk } from '../lib/stalk-render.js';
+import { composeReading, trigramRows, ZHUXI_RULES, POSITIONS } from '../lib/iching.js';
+import { ZHOUYI } from '../lib/zhouyi.js';
+/* ───────────────────────── deterministic noise (per-stalk character) ───────── */
+function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){
+  h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0;};}
+function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ───────────────────────── the cured set drawn from the loft ─────────────────── */
+const loft = new Loft();
+let USE_SET=false, SET=[], SET_COLS=null, PACE=1, baseNarr='';
+const COLOUR_TARGET={ straw:[45,40,62], gold:[40,56,54], red:[20,46,48] };  // dried-toward hues
+function stickHsl(g){
+  const t=COLOUR_TARGET[g.colourPath]||COLOUR_TARGET.straw, r=mulberry32(g.grainSeed||1);
+  let h=t[0]+(r()-0.5)*7, s=t[1]+(r()-0.5)*9, l=t[2]+(r()-0.5)*9;
+  if(cure(g).seasoned){ l-=5; s+=6; }      // seasoned rods are richer, darker
+  return {h,s,l};
+}
+function computeSet(){
+  const cured = loft.items.map(g=>({g,st:cure(g)})).filter(x=>x.st.castable)
+    .sort((a,b)=>b.st.grade-a.st.grade);
+  SET = cured.slice(0,50);
+  return cured.length;
+}
+
+/* ───────────────────────── I Ching: 64 hexagrams ──────────────────────────────
+   binary is bottom→top, 1 = yang (solid), 0 = yin (broken). */
+const HEX = [
+ null,
+ {ch:'乾',py:'Qián',en:'The Creative',b:'111111',j:'Sublime success through tireless, upright action — the dragon-power of pure heaven. Persevere.'},
+ {ch:'坤',py:'Kūn',en:'The Receptive',b:'000000',j:'Yielding devotion brings success. Follow, do not lead; find friends in the west and south, and rest.'},
+ {ch:'屯',py:'Zhūn',en:'Difficulty at the Beginning',b:'100010',j:'Sprouting through hard ground. Do not advance alone — gather helpers before you set out.'},
+ {ch:'蒙',py:'Méng',en:'Youthful Folly',b:'010001',j:'The spring at the mountain’s foot. The fool seeks the sage; answer the first sincere asking only.'},
+ {ch:'需',py:'Xū',en:'Waiting',b:'111010',j:'Clouds rise but do not yet rain. Wait in strength and good cheer; nourishment comes to those who endure.'},
+ {ch:'訟',py:'Sòng',en:'Conflict',b:'010111',j:'Sincere but obstructed. Halt halfway; seek the great mediator rather than press the quarrel to its bitter end.'},
+ {ch:'師',py:'Shī',en:'The Army',b:'010000',j:'The multitude moved by one tried leader. Discipline and a just cause carry the day.'},
+ {ch:'比',py:'Bǐ',en:'Holding Together',b:'000010',j:'Union around a center. Come quickly while the bond is fresh; the latecomer meets misfortune.'},
+ {ch:'小畜',py:'Xiǎo Chù',en:'Small Taming',b:'111011',j:'Dense clouds, no rain yet. A small force restrains the great — refine your influence and wait.'},
+ {ch:'履',py:'Lǚ',en:'Treading',b:'110111',j:'Treading on the tiger’s tail. Conduct yourself with care and it will not bite.'},
+ {ch:'泰',py:'Tài',en:'Peace',b:'111000',j:'Heaven and earth unite. The small departs, the great arrives — a flowering season of harmony.'},
+ {ch:'否',py:'Pǐ',en:'Standstill',b:'000111',j:'Heaven and earth draw apart. The petty wax, the worthy withdraw; hold your principles in private.'},
+ {ch:'同人',py:'Tóng Rén',en:'Fellowship',b:'101111',j:'Companions in the open field. Bind people by shared purpose, never by faction.'},
+ {ch:'大有',py:'Dà Yǒu',en:'Great Possession',b:'111101',j:'Fire high in heaven. Great wealth held with modesty — curb evil, foster good.'},
+ {ch:'謙',py:'Qiān',en:'Modesty',b:'001000',j:'A mountain hidden within the earth. The modest carry things to completion; all is leveled in grace.'},
+ {ch:'豫',py:'Yù',en:'Enthusiasm',b:'000100',j:'Thunder bursts from the earth. Move the many by shared delight; set your forces marching.'},
+ {ch:'隨',py:'Suí',en:'Following',b:'100110',j:'Thunder asleep within the lake. To lead, first learn to follow; adapt to the hour.'},
+ {ch:'蠱',py:'Gǔ',en:'Work on the Decayed',b:'011001',j:'What has spoiled through neglect. Repair the past with care — three days before, three days after.'},
+ {ch:'臨',py:'Lín',en:'Approach',b:'110000',j:'The great approaches. Spring favors you now, but the eighth month brings misfortune — act while it lasts.'},
+ {ch:'觀',py:'Guān',en:'Contemplation',b:'000011',j:'Wind moves over the earth. The ablution made, the offering not yet brought; observe with reverence, and be observed.'},
+ {ch:'噬嗑',py:'Shì Kè',en:'Biting Through',b:'100101',j:'Jaws closing on the obstacle. Bite through the matter firmly; let justice be exact.'},
+ {ch:'賁',py:'Bì',en:'Grace',b:'101001',j:'Fire beneath the mountain. Beauty brings small success — let elegance serve substance, not replace it.'},
+ {ch:'剝',py:'Bō',en:'Splitting Apart',b:'000001',j:'The mountain rests on eroded earth. It does not further to go anywhere; lie low until the dark spends itself.'},
+ {ch:'復',py:'Fù',en:'Return',b:'100000',j:'Thunder within the earth — the turning point. The light returns; friends come without blame.'},
+ {ch:'無妄',py:'Wú Wàng',en:'Innocence',b:'100111',j:'The unexpected, under heaven. Act from a pure motive and succeed; scheme and you stumble.'},
+ {ch:'大畜',py:'Dà Chù',en:'Great Taming',b:'111001',j:'Heaven within the mountain. Great force held in check stores power — it furthers to cross the great water.'},
+ {ch:'頤',py:'Yí',en:'Nourishment',b:'100001',j:'The open mouth. Watch what you feed yourself and others; seek the right nourishment.'},
+ {ch:'大過',py:'Dà Guò',en:'Preponderance of the Great',b:'011110',j:'The ridgepole sags under weight. A critical, passing time — act, even alone, and find a way through.'},
+ {ch:'坎',py:'Kǎn',en:'The Abyss',b:'010010',j:'Water pouring into the chasm, doubled. Danger upon danger; keep the heart sincere and win through.'},
+ {ch:'離',py:'Lí',en:'The Clinging',b:'101101',j:'Fire clinging to its fuel. Care for what sustains you; cling to what is right and brightness endures.'},
+ {ch:'咸',py:'Xián',en:'Influence',b:'001110',j:'A lake upon the mountain. Mutual attraction, gentle and constant — the wooing of the open-hearted.'},
+ {ch:'恆',py:'Héng',en:'Duration',b:'011100',j:'Thunder and wind, enduring. Stay the course; what lasts is constancy in motion, not standing still.'},
+ {ch:'遯',py:'Dùn',en:'Retreat',b:'001111',j:'The mountain under heaven. The small advances — withdraw in good time, with dignity, not in panic.'},
+ {ch:'大壯',py:'Dà Zhuàng',en:'Great Power',b:'111100',j:'Thunder in heaven. Use great strength only joined to what is right, or it gores like a ram in a hedge.'},
+ {ch:'晉',py:'Jìn',en:'Progress',b:'000101',j:'The sun rising over the earth. Steady advance and honor; the able one is received and rewarded.'},
+ {ch:'明夷',py:'Míng Yí',en:'Darkening of the Light',b:'101000',j:'The sun sunk into the earth. In adversity, veil your brightness; persevere inwardly through the dark.'},
+ {ch:'家人',py:'Jiā Rén',en:'The Family',b:'101011',j:'Wind issuing from fire. Each in their proper place — order at the hearth orders the world.'},
+ {ch:'睽',py:'Kuí',en:'Opposition',b:'110101',j:'Fire above, lake below, parting ways. In small things, fortune; bridge estrangement with patience.'},
+ {ch:'蹇',py:'Jiǎn',en:'Obstruction',b:'001010',j:'Water on the mountain — the hard road. Do not press forward; turn inward and seek the great helper.'},
+ {ch:'解',py:'Xiè',en:'Deliverance',b:'010100',j:'Thunder and rain loosing the tension. The knot unties; return to the ordinary, then act swiftly on the rest.'},
+ {ch:'損',py:'Sǔn',en:'Decrease',b:'110001',j:'Decrease below to increase above. Sincerity makes even a small offering enough.'},
+ {ch:'益',py:'Yì',en:'Increase',b:'100011',j:'Wind and thunder strengthening each other. A time of giving from above — undertake great things.'},
+ {ch:'夬',py:'Guài',en:'Breakthrough',b:'111110',j:'The lake risen to heaven. Resolutely expose the wrong — not by arms but by clear, public truth.'},
+ {ch:'姤',py:'Gòu',en:'Coming to Meet',b:'011111',j:'Wind under heaven. The dark returns unbidden; do not embrace the bold intruder.'},
+ {ch:'萃',py:'Cuì',en:'Gathering Together',b:'000110',j:'The lake upon the earth. The many assemble — bring a great offering and meet the great person.'},
+ {ch:'升',py:'Shēng',en:'Pushing Upward',b:'011000',j:'Wood growing within the earth. Effortful, gradual ascent; press upward, and seek the one who can advance you.'},
+ {ch:'困',py:'Kùn',en:'Oppression',b:'010110',j:'The lake drained dry. Exhaustion and constraint; the great endure without losing faith — say little, do much.'},
+ {ch:'井',py:'Jǐng',en:'The Well',b:'011010',j:'Water drawn up through wood. The town may move, the well does not — tend the source that nourishes all.'},
+ {ch:'革',py:'Gé',en:'Revolution',b:'101110',j:'Fire within the lake — the molting. Change only when the time is ripe; then people will trust it.'},
+ {ch:'鼎',py:'Dǐng',en:'The Cauldron',b:'011101',j:'Fire over wood — the sacred vessel. Nourishment refined into culture; supreme good fortune.'},
+ {ch:'震',py:'Zhèn',en:'The Arousing',b:'100100',j:'Thunder repeated. Terror that gives way to laughter; the sage is shaken but never drops the sacred spoon.'},
+ {ch:'艮',py:'Gèn',en:'Keeping Still',b:'001001',j:'Mountain upon mountain. Stillness in the back, beyond the self; act when it is time, rest when it is time.'},
+ {ch:'漸',py:'Jiàn',en:'Development',b:'001011',j:'A tree on the mountain, growing slowly. Gradual progress, measured as a marriage; patience perfects.'},
+ {ch:'歸妹',py:'Guī Mèi',en:'The Marrying Maiden',b:'110100',j:'Thunder over the lake. A subordinate union — understand its transience; to go on blindly brings misfortune.'},
+ {ch:'豐',py:'Fēng',en:'Abundance',b:'101100',j:'Thunder and lightning together — the zenith. Be the sun at noon; enjoy the fullness, knowing it must wane.'},
+ {ch:'旅',py:'Lǚ',en:'The Wanderer',b:'001101',j:'Fire on the mountain, passing on. The stranger keeps small and correct; reserve and caution are your shelter.'},
+ {ch:'巽',py:'Xùn',en:'The Gentle',b:'011011',j:'Wind following wind. Penetrate by gentle persistence; it furthers to have a goal and to see the great person.'},
+ {ch:'兌',py:'Duì',en:'The Joyous',b:'110110',j:'Lake resting on lake. Joy that is true and steadfast; gladness shared persuades people to the hardest tasks.'},
+ {ch:'渙',py:'Huàn',en:'Dispersion',b:'010011',j:'Wind over water, scattering. Dissolve the heart’s hardness; the king draws near his temple to reunite the dispersed.'},
+ {ch:'節',py:'Jié',en:'Limitation',b:'110010',j:'Water held within the lake. Set measured limits — but galling limits cannot last, so temper the rule.'},
+ {ch:'中孚',py:'Zhōng Fú',en:'Inner Truth',b:'110011',j:'Wind over the lake. Sincerity that moves even pigs and fishes; with truth at the center, cross the great water.'},
+ {ch:'小過',py:'Xiǎo Guò',en:'Small Exceeding',b:'001100',j:'Thunder on the mountain. Exceed in small things, not great; the bird should fly low, not high.'},
+ {ch:'既濟',py:'Jì Jì',en:'After Completion',b:'101010',j:'Water over fire, in perfect order. Success in the small; the work is done — now guard against the disorder that follows.'},
+ {ch:'未濟',py:'Wèi Jì',en:'Before Completion',b:'010101',j:'Fire over water, not yet ordered. The crossing nearly made — the little fox wets its tail at the end. Care, to the last step.'},
+];
+const CODE2NO = {};            // 6-bit code (bit i = line i, bottom=0) → King Wen number
+for(let n=1;n<=64;n++){
+  const b=HEX[n].b; let code=0;
+  for(let i=0;i<6;i++) if(b[i]==='1') code|=1<<i;
+  CODE2NO[code]=n;
+}
+function hexNumberFromLines(vals){      // vals[0..5] bottom→top of 6/7/8/9
+  let code=0;
+  for(let i=0;i<6;i++) if(vals[i]===7||vals[i]===9) code|=1<<i;
+  return CODE2NO[code];
+}
+function transformedLines(vals){        // flip the moving lines (6,9)
+  return vals.map(v=> v===6?7 : v===9?8 : v);
+}
+
+/* ───────────────────────── the yarrow division (player-driven) ─────────────────
+   Each of the three changes per line begins by dividing the pile into two heaps.
+   A marker sweeps the bundle; the player taps to stop it, choosing the split.
+   Where you stop sets `left`; the counting-by-fours then sheds 5/9 (first change)
+   or 4/8 (the next two). A casual, unaimed tap lands roughly uniformly, so the
+   classic yarrow odds (moving yin 1/16 … moving yang 3/16) are preserved — but
+   the hand that stops the bar is now your own. */
+// the right heap must keep at least two stalks (one is lifted, ≥1 remains to
+// count by fours), so left is clamped to [1, stalks-2].
+function splitFromMarker(stalks, marker){
+  return Math.max(1, Math.min(stalks-2, 1 + Math.round(marker*(stalks-3))));
+}
+function computeChange(stalks, left){
+  left = Math.max(1, Math.min(stalks-2, left));
+  const right = stalks - left;
+  const rRem = (right-1)%4 || 4;     // one stalk lifted from the right heap first
+  const lRem = left%4 || 4;
+  const held = 1 + lRem + rRem;      // the lifted stalk + both remainders
+  return { total:stalks, left, right, lRem, rRem, held, after:stalks-held };
+}
+
+/* ───────────────────────── canvas: a bundle of procedural stalks ───────────── */
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+let SEED = (Math.random()*1e9)|0;       // fresh per bundle
+function resize(){
+  const r=cv.getBoundingClientRect(); DPR=Math.min(devicePixelRatio||1,2);
+  W=r.width; H=r.height; cv.width=W*DPR|0; cv.height=H*DPR|0;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  if(STICKS.length) layoutAll(true);     // re-home the stalks into the new size
+}
+addEventListener('resize',resize);
+
+/* ───────────────────────── the stalks as a physical sim ─────────────────────
+   49 persistent stalk objects. Each has a HOME zone — the working bundle, the
+   left heap, the right heap, or the set-aside pile — and a target position. Every
+   frame it eases toward its target, so dividing the bundle, lifting a stalk and
+   counting-off-fours all read as the SAME objects physically moving, never as
+   counts that appear and vanish. The set-aside pile only grows. */
+let STICKS=[];
+function makeColour(i){
+  if(USE_SET && SET_COLS && SET_COLS.length) return SET_COLS[i % SET_COLS.length];
+  const r=mulberry32(((i*2654435761)>>>0) ^ SEED);
+  return { h:40+r()*16, s:22+r()*30, l:46+r()*26 };
+}
+function newStick(i){
+  const r=mulberry32(((i*40503+7)>>>0) ^ SEED);
+  return { id:i, x:0,y:0,ang:0, tx:0,ty:0,tang:0,
+    w:1.5+r()*1.1, bend:(r()-0.5)*0.5, jig:r(), col:makeColour(i), zone:'pile' };
+}
+function initSticks(){ STICKS=[]; for(let i=0;i<49;i++) STICKS.push(newStick(i)); layoutAll(true); }
+function recolour(){ STICKS.forEach((s,i)=> s.col=makeColour(i)); }
+function geom(){ return { baseY:H*0.80, len:H*0.30, cx:W*0.42 }; }
+function place(s,tx,ty,tang,snap){ s.tx=tx; s.ty=ty; s.tang=tang; if(snap){ s.x=tx; s.y=ty; s.ang=tang; } }
+
+function layoutColumn(list, cx, baseY, spanW, len, snap){
+  const n=list.length;
+  list.forEach((s,i)=>{
+    const f=n<=1?0.5:i/(n-1);
+    const x=cx+(f-0.5)*Math.min(spanW, 8+n*4.2);
+    const lean=(f-0.5)*0.5 + s.bend*0.18;
+    s.len=len*(0.86+0.2*s.jig);
+    place(s, x, baseY, lean, snap);
+  });
+}
+function layoutAside(snap){
+  const aside=STICKS.filter(s=>s.zone==='aside');
+  const ox=W*0.5, oy=H*0.165, len=geom().len*0.62;
+  aside.forEach((s,i)=>{
+    const col=i%9, row=(i/9)|0;
+    const x=ox+(col-4)*W*0.026 + (s.jig-0.5)*7;
+    const y=oy+row*Math.max(9,H*0.024) + (s.bend)*6;
+    s.len=len; place(s, x, y, 1.15 + (s.jig-0.5)*1.0, snap);   // laid down, jumbled
+  });
+}
+function layoutAll(snap){
+  const g=geom();
+  layoutColumn(STICKS.filter(s=>s.zone==='pile'),  g.cx,    g.baseY, W*0.46, g.len, snap);
+  layoutColumn(STICKS.filter(s=>s.zone==='left'),  W*0.20,  g.baseY, W*0.26, g.len, snap);
+  layoutColumn(STICKS.filter(s=>s.zone==='right'), W*0.65,  g.baseY, W*0.26, g.len, snap);
+  layoutAside(snap);
+}
+function easeSticks(){
+  const k=0.17;
+  for(const s of STICKS){
+    s.x+=(s.tx-s.x)*k; s.y+=(s.ty-s.y)*k; s.ang+=(s.tang-s.ang)*k;
+  }
+}
+function drawStickObj(s){
+  drawStalk(ctx, {
+    lenPx:s.len, diaPx:Math.max(2.6, s.w*2.0), col:s.col,
+    warp:Math.abs(s.bend)*0.5, warpDir:s.bend>=0?1:-1,
+    nodes:Math.max(2, Math.round(s.len/44)), grainSeed:((s.id*2654435761)>>>0)||1,
+  }, { x:s.x, y:s.y, ang:s.ang, detail:0.6, fuzz:false, ends:true });
+}
+function drawSticks(){
+  for(const z of ['aside','left','right','pile']) for(const s of STICKS) if(s.zone===z) drawStickObj(s);
+}
+
+/* ───────────────────────── the hexagram, drawn line by line ────────────────── */
+let LINES=[];     // line values gathered so far (bottom→top)
+function drawHexagram(x,cy,vals,lineH,gap,full){
+  // draw from bottom up; cy is vertical center of the whole stack
+  const total=6*lineH+5*gap;
+  let y=cy+total/2 - lineH/2;
+  const half=full*0.42;
+  ctx.save();
+  for(let i=0;i<6;i++){
+    const v=vals[i];
+    const drawn = v!==undefined && v!==null;
+    const yang = v===7||v===9;
+    const moving = v===6||v===9;
+    ctx.lineWidth=lineH;
+    ctx.lineCap='butt';
+    ctx.strokeStyle = drawn ? (moving?'#e7c46a':'rgba(231,196,106,.85)') : 'rgba(231,196,106,.12)';
+    ctx.shadowColor= drawn?'rgba(231,196,106,.5)':'transparent'; ctx.shadowBlur=drawn?10:0;
+    if(!drawn||yang){
+      ctx.beginPath(); ctx.moveTo(x-full*0.5,y); ctx.lineTo(x+full*0.5,y); ctx.stroke();
+    }else{
+      ctx.beginPath(); ctx.moveTo(x-full*0.5,y); ctx.lineTo(x-full*0.5+half,y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+full*0.5-half,y); ctx.lineTo(x+full*0.5,y); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    if(moving){
+      ctx.fillStyle=v===9?'rgba(224,98,60,.9)':'rgba(224,98,60,.0)';
+      ctx.strokeStyle='#e0623c'; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(x, y, lineH*0.5+2, 0, 7);
+      if(v===9){ctx.fill();} ctx.stroke();
+    }
+    y-=lineH+gap;
+  }
+  ctx.restore();
+}
+
+/* ───────────────────────── render loop / animation ────────────────────────── */
+let anim=null;     // current line animation state, or null
+let t0=0;
+function now(){return performance.now();}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  // soft altar glow
+  const g=ctx.createRadialGradient(W*0.5,H*0.46,10,W*0.5,H*0.46,W*0.6);
+  g.addColorStop(0,'rgba(231,196,106,.05)'); g.addColorStop(1,'transparent');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  const hexX=W*0.80, hexFull=W*0.30, hexLineH=Math.max(4,H*0.022), hexGap=Math.max(5,H*0.026);
+  drawHexagram(hexX, H*0.46, LINES, hexLineH, hexGap, hexFull);
+  ctx.save();
+  ctx.fillStyle='rgba(233,214,168,.3)'; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='center';
+  ctx.fillText(LINES.length+' / 6', hexX, H*0.46+(3*hexLineH+2.5*hexGap)+18);
+  if(STICKS.some(s=>s.zone==='aside')){ ctx.fillStyle='rgba(233,214,168,.30)';
+    ctx.fillText('set aside', W*0.5, Math.max(12, H*0.07)); }
+  ctx.restore();
+
+  // advance the division sequence (each step just re-homes the stalks)
+  if(anim && anim.phase==='play') advancePlay();
+
+  // the forty-nine stalks are always present and always gliding to their homes
+  easeSticks();
+  drawSticks();
+
+  // the division minigame: a marker sweeps the bundle; tap to split
+  if(anim && anim.phase==='aim'){
+    const G=geom(), baseY=G.baseY, len=G.len;
+    const SWEEP = USE_SET ? 1700 : 1050;                  // slower, more deliberate, in set mode
+    const tt=(now()-anim.aimStart)%(2*SWEEP);
+    anim.marker = tt<SWEEP ? tt/SWEEP : 2 - tt/SWEEP;     // ping-pong 0→1→0
+    const bx0=W*0.18, bx1=W*0.66, mx=bx0+(bx1-bx0)*anim.marker, by=baseY+18;
+    ctx.strokeStyle='rgba(231,196,106,.18)'; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(bx0,by); ctx.lineTo(bx1,by); ctx.stroke();
+    ctx.strokeStyle='#e7c46a'; ctx.lineWidth=3; ctx.shadowColor='rgba(231,196,106,.6)'; ctx.shadowBlur=10;
+    ctx.beginPath(); ctx.moveTo(mx, baseY-len*0.95); ctx.lineTo(mx, by+5); ctx.stroke(); ctx.shadowBlur=0;
+    ctx.fillStyle='#e7c46a'; ctx.beginPath(); ctx.moveTo(mx,by-2); ctx.lineTo(mx-5,by+9); ctx.lineTo(mx+5,by+9); ctx.closePath(); ctx.fill();
+    const left=splitFromMarker(anim.stalks, anim.marker), right=anim.stalks-left;
+    ctx.font='12px ui-monospace,monospace'; ctx.fillStyle='rgba(233,214,168,.7)';
+    ctx.textAlign='right'; ctx.fillText(left, mx-9, by+24);
+    ctx.textAlign='left';  ctx.fillText(right, mx+9, by+24);
+  }
+  requestAnimationFrame(render);
+}
+
+// step the play sequence: when the dwell elapses, run the next step's re-homing
+function advancePlay(){
+  const A=anim;
+  if(now()-A.seqStart >= A.seq[A.seqI].ms){
+    A.seqI++;
+    if(A.seqI>=A.seq.length){ endChange(); return; }
+    A.seq[A.seqI].fn(); A.seqStart=now();
+  }
+}
+const inZone=z=>STICKS.filter(s=>s.zone===z);
+
+// one change = five re-homings of the actual stalks. Nothing is subtracted —
+// stalks are physically moved between bundle, heaps, and the set-aside pile.
+function buildSeq(step){
+  const P=PACE;
+  return [
+    { ms:820*P, fn:()=>{ // SPLIT the working bundle into two heaps, by position
+        const ps=inZone('pile').slice().sort((a,b)=>a.x-b.x);
+        ps.forEach((s,i)=> s.zone = i<step.left ? 'left' : 'right');
+        layoutAll();
+      }},
+    { ms:560*P, fn:()=>{ // LIFT one stalk from the right heap → set it aside
+        const r=inZone('right'); const s=r[r.length-1]; if(s) s.zone='aside'; layoutAll();
+      }},
+    { ms:700*P, fn:()=>{ // COUNT the left heap off by fours; the remainder → set aside
+        const l=inZone('left'); for(let k=0;k<step.lRem;k++){ const s=l[l.length-1-k]; if(s) s.zone='aside'; } layoutAll();
+      }},
+    { ms:700*P, fn:()=>{ // COUNT the right heap off by fours; the remainder → set aside
+        const r=inZone('right'); for(let k=0;k<step.rRem;k++){ const s=r[r.length-1-k]; if(s) s.zone='aside'; } layoutAll();
+      }},
+    { ms:820*P, fn:()=>{ // GATHER the counted fours back into the working bundle
+        STICKS.forEach(s=>{ if(s.zone==='left'||s.zone==='right') s.zone='pile'; }); layoutAll();
+      }},
+  ];
+}
+function endChange(){
+  const A=anim;
+  A.ci++; setTally();
+  if(A.ci>=3){ finishLine(); return; }
+  A.stalks = A.curStep.after; A.phase='aim'; A.aimStart=now(); aimNarr(A); updateButton();
+}
+
+const NAMES=['First','Second','Third'];
+function startLine(){
+  if(LINES.length>=6 || anim) return;
+  STICKS.forEach(s=> s.zone='pile'); layoutAll();        // gather all forty-nine back into the hand
+  anim={ ci:0, stalks:49, phase:'aim', aimStart:now(), marker:0, curStep:null, seq:null, seqI:0, seqStart:0 };
+  tallyrow.hidden=false; setTally();
+  aimNarr(anim); updateButton();
+}
+function doSplit(){
+  if(!anim || anim.phase!=='aim') return;
+  const left=splitFromMarker(anim.stalks, anim.marker);
+  const step=computeChange(anim.stalks, left);
+  anim.curStep=step; anim.phase='play';
+  anim.seq=buildSeq(step); anim.seqI=0; anim.seq[0].fn(); anim.seqStart=now();
+  playNarr(anim, step); updateButton();
+}
+function setTally(){
+  setN('t-pile', inZone('pile').length || (anim?anim.stalks:49));
+  setN('t-set', inZone('aside').length);
+}
+function aimNarr(A){
+  setTally();
+  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — ${A.stalks} stalks in hand. <b>Tap to split</b> the bundle.`;
+}
+function playNarr(A, s){
+  setTally();
+  narr.innerHTML = `<b>${NAMES[A.ci]} change</b> — split <b>${s.left}</b> / <b>${s.right}</b>; lift one, count off fours, set <b>${s.held}</b> aside.`;
+}
+function updateButton(){
+  if(!anim){ cast.textContent='Divide the stalks'; cast.disabled=false; }
+  else if(anim.phase==='aim'){ cast.textContent='Split!'; cast.disabled=false; }
+  else { cast.textContent='counting…'; cast.disabled=true; }
+}
+function finishLine(){
+  const value=anim.curStep.after/4;
+  anim=null;
+  LINES.push(value);
+  const meaning={6:'old yin · moving',7:'young yang',8:'young yin',9:'old yang · moving'}[value];
+  setN('t-line', LINES.length); setTally();
+  const lineMsg = `Line <b>${LINES.length}</b> — ${value*4} stalks remain → <b>${value}</b> · ${meaning}.`;
+  narr.innerHTML = lineMsg;
+  reset.hidden=false; updateButton();
+  if(LINES.length>=6){ cast.disabled=true; setTimeout(reveal, USE_SET?1500:650); }
+  else if(USE_SET){
+    // meditative: a held breath between lines before the next division is offered
+    cast.disabled=true;
+    setTimeout(()=>{ if(LINES.length<6 && !anim){ cast.disabled=false;
+      narr.innerHTML = lineMsg + ` &nbsp;·&nbsp; <span style="opacity:.65">breathe, then divide again.</span>`; } }, 1600);
+  }
+}
+function setN(id,v){const el=document.getElementById(id); if(el)el.textContent=v;}
+
+/* ───────────────────────── reveal the reading ──────────────────────────────── */
+function blk(label, text, kind){ return `<div class="judg ${kind||''}"><span class="lab">${label}</span>${text}</div>`; }
+// render a canonical translated text block (爻辭 / 卦辭) from our open Zhouyi
+function ytextHTML(t, opts={}){
+  if(!t) return '';
+  const tag = opts.name ? `<span class="nm ${opts.still?'still':''}">${opts.name}</span>` : '';
+  return `<div class="ytext">${tag}<span class="z">${t.z}</span>`+
+    `<div class="py">${t.py||''}</div><div class="e">${t.e||''}</div>`+
+    (opts.gloss?`<div class="gloss">${opts.gloss}</div>`:'')+
+    (t.n?`<div class="n">${t.n}</div>`:'')+`</div>`;
+}
+const READ = n => `<a class="src-link" href="https://read.mino.mobi/iching/#h${n}">our open translation →</a>`;
+function reveal(){
+  const r = composeReading(LINES, HEX, ZHOUYI);
+  const P = HEX[r.primaryNo];
+  const k = r.moving.length;
+  let html = `<div class="cast">`;
+  html += hexCardHTML(r.primaryNo, LINES);
+  if(r.transformedNo) html += `<div class="arrow">→</div>` + hexCardHTML(r.transformedNo, transformedLines(LINES), true);
+  html += `</div>`;
+  html += blk('The Image', r.image, 'gen');
+  // The Judgment — our canonical translation (falls back to the paraphrase only if missing)
+  if(r.judgment){
+    html += blk('The Judgment', ytextHTML(r.judgment) + READ(r.primaryNo));
+  } else {
+    html += blk('The Judgment', P.j);
+  }
+  html += blk('How this cast is read', r.focus.rule, 'rule');
+  // The moving line(s) — the live edge of the answer: canonical text + structural gloss
+  if(k===0){
+    html += `<div class="moving">No lines move — the answer is steady; read the Judgment as it stands.</div>`;
+  } else if(r.useLine){                       // all six move on Hexagram 1 or 2 → the use-line (用九/用六)
+    html += `<div class="judg"><span class="lab">All lines move · the use-line</span>`+
+      ytextHTML(r.useLine, {name:r.useLine.name})+` ${READ(r.primaryNo)}</div>`;
+  } else if(r.lineReadings.length){           // 1, 2, 4 or 5 lines: read specific line-texts
+    const items = r.lineReadings.map(x=> x.canonical
+      ? ytextHTML(x.canonical, {name:x.canonical.name, still:x.relating, gloss:x.text})
+      : `<div class="lread"><span class="changedot">●</span> ${x.text}</div>`).join('');
+    const lab = r.lineReadings[0].relating
+      ? `The line to read · in the relating hexagram ${r.transformedNo}`
+      : (k===1 ? 'The moving line' : 'The moving lines');
+    html += `<div class="judg"><span class="lab">${lab}</span>${items} ${READ(r.lineReadings[0].hexNo)}</div>`;
+  } else {                                    // 3 or 6 moving: the answer is carried by the Judgments
+    html += `<div class="moving">${k>=6
+      ? 'Every line moves — the answer is carried wholly by the relating hexagram below.'
+      : 'Three lines move — both Judgments are read: the primary above is your present, the relating below your trend.'}</div>`;
+  }
+  html += blk('The figure', r.structure, 'gen');
+  // The transitional / relating hexagram (之卦) — canonical Judgment, weighted by how much is in motion
+  if(r.relating && r.relating.judgment){
+    const role = r.relating.role;
+    const frame = role==='whole'   ? `Read this Judgment as the whole of the answer.`
+                : role==='coequal' ? `Read alongside the primary — this is where the situation is tending.`
+                : role==='host'    ? `The line above is read here, within this hexagram.`
+                : `Where it ripens to, if the moving line runs its course.`;
+    html += `<div class="judg"><span class="lab">The relating hexagram → ${r.relating.no} · ${HEX[r.relating.no].ch} ${HEX[r.relating.no].py}</span>`+
+      `<div class="moving" style="margin-bottom:8px"><b>In motion →</b> ${frame}</div>`+
+      ytextHTML(r.relating.judgment)+` ${READ(r.relating.no)}</div>`;
+  }
+  if(USE_SET) html += `<div class="moving" style="opacity:.72">Cast with your own set of fifty — seed-grown, hand-cured.</div>`;
+  const q=document.getElementById('qtext').value.trim();
+  if(q) html = `<div class="moving" style="text-align:center;margin-bottom:14px;font-style:italic">“${escapeHtml(q)}”</div>` + html;
+  html += `<div class="foot"><a href="#" id="open-method">Method &amp; sources →</a> &nbsp;·&nbsp; <button class="ghost" onclick="hardReset()">Ask again</button></div>`;
+  const R=document.getElementById('result');
+  R.innerHTML=html; R.classList.add('show');
+  const ml=document.getElementById('open-method'); if(ml) ml.onclick=e=>{ e.preventDefault(); openMethod(); };
+  R.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function hexCardHTML(no, vals, dim){
+  const h=HEX[no];
+  return `<div class="hexcard">`+
+    `<div class="hx">${hexGlyph(vals)}</div>`+
+    `<div class="no">HEXAGRAM ${no}</div>`+
+    `<div class="ch">${h.ch}</div><div class="py">${h.py}</div>`+
+    `<div class="en">${h.en}</div></div>`;
+}
+function hexGlyph(vals){ // real CSS bars, bottom→top so reverse for display
+  const rev=[...vals].reverse();
+  return `<div class="hx-stack">` + rev.map(v=>{
+    const yang=(v===7||v===9), moving=(v===6||v===9);
+    const col = moving?'#e0623c':'#e7c46a';
+    const body = yang
+      ? `<span class="seg" style="background:${col}"></span>`
+      : `<span class="seg yin" style="background:${col}"></span><span class="seg yin" style="background:${col}"></span>`;
+    const mk = moving ? `<span class="mk" style="color:${v===9?'#e0623c':'#e0623c'}">${v===9?'○':'✕'}</span>` : '';
+    return `<div class="hx-line ${yang?'yang':'yin'}">${body}${mk}</div>`;
+  }).join('') + `</div>`;
+}
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ───────────────────────── controls ───────────────────────────────────────── */
+const cast=document.getElementById('cast'), auto=document.getElementById('auto'),
+      reset=document.getElementById('reset'), narr=document.getElementById('narr'),
+      tallyrow=document.getElementById('tallyrow');
+auto.style.display='none';   // the division is now an interactive minigame — no speed-cast
+// one button: begin a line, then tap to stop the sweeping marker (split) three times
+cast.onclick=()=>{ if(cast.disabled) return; if(!anim) startLine(); else if(anim.phase==='aim') doSplit(); };
+reset.onclick=hardReset;
+cv.addEventListener('pointerdown',e=>{ if(cast.disabled) return;
+  if(!anim){ if(LINES.length<6) startLine(); } else if(anim.phase==='aim') doSplit(); });
+
+function hardReset(){
+  LINES=[]; anim=null; SEED=(Math.random()*1e9)|0;
+  reset.hidden=true;
+  STICKS.forEach(s=> s.zone='pile'); recolour(); layoutAll();   // gather + a fresh bundle
+  tallyrow.hidden=true; setN('t-line','—'); setN('t-pile',49); setN('t-set',0);
+  narr.innerHTML=baseNarr||'Fifty stalks. One is set aside, and never used. <b>Forty-nine</b> remain.';
+  updateButton();
+  const R=document.getElementById('result'); R.classList.remove('show'); setTimeout(()=>R.innerHTML='',400);
+}
+window.hardReset=hardReset;
+
+/* ───────────────────────── set vs practice mode (draws from the loft) ───────── */
+function applyMode(){
+  PACE = USE_SET ? 2.0 : 1;                 // set mode is slower, more deliberate
+  SET_COLS = USE_SET ? SET.slice(0,49).map(x=>stickHsl(x.g)) : null;
+  if(STICKS.length) recolour();             // re-skin the stalks for the chosen mode
+  baseNarr = USE_SET
+    ? 'Your set of fifty, cured by your own hand. One is set aside; <b>forty-nine</b> remain. Breathe, and divide.'
+    : 'Fifty stalks, fresh-cut for practice. One is set aside; <b>forty-nine</b> remain.';
+  if(!anim && LINES.length===0) narr.innerHTML=baseNarr;
+}
+function switchMode(useSet){
+  if(USE_SET===useSet) return;
+  USE_SET=useSet; applyMode(); hardReset(); renderSetbar();
+}
+function renderSetbar(){
+  const total=computeSet();
+  const bar=document.getElementById('setbar');
+  if(total>=50){
+    bar.innerHTML =
+      `<div>Your set is ready — <b>${total}</b> cured stalks in the loft.</div>`+
+      `<div class="modes">`+
+        `<button class="mode ${USE_SET?'on':''}" id="m-set">consult with your set</button>`+
+        `<button class="mode ${USE_SET?'':'on'}" id="m-prac">practice</button>`+
+      `</div>`;
+    document.getElementById('m-set').onclick=()=>switchMode(true);
+    document.getElementById('m-prac').onclick=()=>switchMode(false);
+  } else {
+    if(USE_SET){ USE_SET=false; applyMode(); }
+    bar.innerHTML =
+      `<div>Your loft holds <b>${total}</b> of <b>50</b> cured stalks — gather a full set to consult `+
+      `with your own. <a href="../sticks/">the drying loft →</a></div>`+
+      `<div style="opacity:.65">Until then, these are fresh-cut practice stalks.</div>`;
+  }
+}
+
+/* ───────────────────────── Method & sources (the docs tab) ──────────────────── */
+function methodHTML(){
+  const tri = trigramRows().map(t=>{
+    const bars=t.glyph.slice().reverse().map(b=>`<i class="${b?'':'yin'}"></i>`).join('');
+    return `<tr><td><span class="gl">${bars}</span></td><td>${t.zh} <span style="color:var(--ink-soft)">${t.py}</span></td>`+
+      `<td>${t.en}</td><td>${t.nature}</td><td>${t.attr}</td><td>${t.family}</td><td>${t.element}</td></tr>`;
+  }).join('');
+  const rules = ZHUXI_RULES.map(([k,,what])=>`<tr><td style="text-align:center;color:var(--gold)">${k}</td><td>${what}</td></tr>`).join('');
+  const positions = POSITIONS.map((p,i)=>`<li><b>${i+1}.</b> ${p}</li>`).join('');
+  return `
+    <div class="kick">Yijing · the method</div>
+    <h2>How this reading is built, and from what</h2>
+    <p>A cast of fifty yarrow stalks yields six lines, bottom to top. Each is <em>young</em> or <em>old</em>:
+    the old (moving) lines are the live edge of the answer, and flipping them gives a second, <b>relating</b>
+    hexagram. A hexagram is read as two <b>trigrams</b> — upper and lower — and as six <b>lines</b>, each with
+    a place and a part to play. Two layers meet in the reading below. The <b>structural</b> parts — the Image,
+    the figure, the gloss on each line — are <b>generated</b> deterministically from that structure: the same cast
+    always yields the same words (the apparatus the
+    <a href="https://read.mino.mobi/pendragon/" target="_blank" rel="noopener">read</a> tales analyse backward
+    and <a href="https://borges.mino.mobi/" target="_blank" rel="noopener">borges</a> runs forward, here turned on a
+    hexagram). The <b>oracular text</b> — the Judgment, and whichever line-texts a cast surfaces — is our own
+    <a href="https://read.mino.mobi/iching/" target="_blank" rel="noopener">open translation of the Zhouyi</a>
+    from the received Chinese. The structure reads as commentary around the authentic text, not in place of it.</p>
+
+    <h3>The eight trigrams</h3>
+    <p>Each trigram is a nature-image with a quality and a place in the family — the vocabulary of the
+    <em>Shuogua</em> (the 8th of the Ten Wings). A reading's <b>Image</b> line is composed from the two
+    trigrams that build the figure.</p>
+    <table><thead><tr><th></th><th>名</th><th>name</th><th>nature</th><th>attribute</th><th>family</th><th>element</th></tr></thead><tbody>${tri}</tbody></table>
+
+    <h3>The lines, and their places</h3>
+    <p>Reading from the foot up, each place carries a meaning:</p>
+    <ul>${positions}</ul>
+    <p><b>Correctness</b> (正 <em>zhèng</em>): a firm line belongs in places 1, 3, 5; a yielding line in
+    2, 4, 6. <b>Centrality</b> (中 <em>zhōng</em>): the 2nd and 5th places are the centres of the lower and
+    upper trigrams. <b>Correspondence</b> (應 <em>yìng</em>): places 1–4, 2–5, 3–6 answer one another when the
+    two lines are of opposite kind. The <b>ruling line</b> is usually the fifth — the throne. The “figure”
+    block of a reading is generated from exactly these tests.</p>
+
+    <h3>Which text a cast surfaces — Zhu Xi’s rules</h3>
+    <p>Not every cast is read the same way. Following Zhu Xi (朱熹), the number of moving lines decides what
+    you consult:</p>
+    <table><thead><tr><th>moving</th><th>read</th></tr></thead><tbody>${rules}</tbody></table>
+
+    <h3>Translated, or generated</h3>
+    <ul>
+      <li>The hexagram names and the King Wen sequence are <b>standard</b>.</li>
+      <li>Each hexagram’s <b>Judgment</b> (卦辭) and the <b>line-texts</b> (爻辭) a cast surfaces — including the
+      relating hexagram’s Judgment and the all-lines use-text (用九 / 用六) of Hexagrams 1 and 2 — are our own
+      <b>original translation</b> from the received Chinese, shown beside the source with philological notes at
+      <a href="https://read.mino.mobi/iching/" target="_blank" rel="noopener">read.mino.mobi/iching</a> (CC&nbsp;BY-SA).
+      A cast pulls in only what Zhu Xi’s rules call for, so you read the authentic 爻辭, not a summary of it.</li>
+      <li>The <b>Image</b>, the <b>figure</b>, and the italic <b>gloss</b> beneath each line are <em>generated</em>
+      from the structure above (trigrams + position-doctrine), seeded by the hexagram so a cast always reads the same.</li>
+    </ul>
+
+    <h3>Sources</h3>
+    <div class="src">
+      <p>· James Legge, <em>The Yî King</em> (Sacred Books of the East XVI, 1882) — public domain:
+      <a href="https://sacred-texts.com/ich/index.htm" target="_blank" rel="noopener">sacred-texts.com</a>,
+      <a href="https://archive.org/details/wg916" target="_blank" rel="noopener">Internet Archive</a>.</p>
+      <p>· Trigram attributes (Shuogua) —
+      <a href="https://en.wikipedia.org/wiki/Bagua" target="_blank" rel="noopener">Wikipedia, “Bagua”</a>.</p>
+      <p>· Moving-line rules — Zhu Xi, <em>Yixue Qimeng</em> (易學啟蒙); summarised at
+      <a href="https://castiching.com/articles/zhu-xi-method" target="_blank" rel="noopener">castiching.com</a> and
+      <a href="https://www.biroco.com/yijing/basics.htm" target="_blank" rel="noopener">biroco.com</a>; see also
+      <a href="https://en.wikibooks.org/wiki/I_Ching/The_Moving_Line" target="_blank" rel="noopener">Wikibooks</a>.</p>
+      <p>· Line doctrine (zhèng / zhōng / yìng, the ruling line) — classical exegesis (Wilhelm/Baynes
+      introduction; Legge).</p>
+    </div>`;
+}
+let methodBuilt=false;
+function openMethod(){
+  if(!methodBuilt){ document.getElementById('method-body').innerHTML=methodHTML(); methodBuilt=true; }
+  document.getElementById('method-scrim').classList.add('on');
+}
+function closeMethod(){ document.getElementById('method-scrim').classList.remove('on'); }
+document.getElementById('method-close').onclick=closeMethod;
+document.getElementById('method-scrim').onclick=e=>{ if(e.target===document.getElementById('method-scrim')) closeMethod(); };
+document.getElementById('footer-method').onclick=e=>{ e.preventDefault(); openMethod(); };
+
+applyMode(); renderSetbar(); updateButton();
+loft.init().then(()=>{
+  const total=computeSet();
+  USE_SET = total>=50;                       // default to your own set when you have one
+  applyMode(); renderSetbar();
+}).catch(()=>{});
+
+resize(); initSticks(); requestAnimationFrame(render);
+</script>
+</body>
+</html>
