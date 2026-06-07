@@ -331,6 +331,19 @@
       "cohesion": "integrated"
     },
     {
+      "surface": "ocr",
+      "dir": "ocr",
+      "endpoint": "ocr.mino.mobi, ocr.ascential.work",
+      "type": "frontend",
+      "branch": "claude/image-text-extraction-gH8UH",
+      "uses": [],
+      "provides": null,
+      "note": "Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/). Worker `ocr` owns ocr.mino.mobi; /api/model proxies the ocrs models (S3, no CORS). 2nd custom_domain route ocr.ascential.work added (alias; same worker, separate ascential.work zone — shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ai-edu).",
+      "paths": [
+        "ocr/**"
+      ]
+    },
+    {
       "surface": "poll",
       "dir": "poll",
       "endpoint": "poll.mino.mobi",

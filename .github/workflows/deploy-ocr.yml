@@ -1,0 +1,63 @@
+name: Deploy OCR (ocr.mino.mobi)
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/image-text-extraction-gH8UH'
+    paths:
+      - 'ocr/**'
+      - '.github/workflows/deploy-ocr.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ocr
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        # The OCR wasm (wasm/codescan_ocr*) is pre-built and committed — there is
+        # no Rust build step here. Rebuild it from os/crates/codescan-ocr only
+        # when the crate changes (see that crate's README).
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Sync GEMINI_API_KEY (AI reader)
+        # Pushes the existing repo Gemini key onto the worker so /api/read works.
+        # Skipped (not clobbered) when the secret is empty — the page then keeps
+        # using the local ocrs reader and the AI toggle reports "not configured".
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
+            echo "✓ GEMINI_API_KEY synced"
+          else
+            echo "· GEMINI_API_KEY empty — AI reader stays off"
+          fi
+      - name: Verify it's live
+        continue-on-error: true
+        run: |
+          for host in ocr.mino.mobi ocr.ascential.work; do
+            ok=
+            for attempt in 1 2 3 4 5; do
+              if curl -fsS "https://$host/" | grep -qi 'read text off an image'; then
+                echo "✓ $host is live"; ok=1; break
+              fi
+              echo "  $host attempt $attempt: not yet, sleeping…"; sleep 4
+            done
+            [ -n "$ok" ] || echo "⚠️ $host didn't respond within 20s — new custom domains can take a few minutes to provision, continuing."
+          done
+          exit 0

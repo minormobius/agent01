@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ocr",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-16",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  // Both are live Cloudflare custom domains for this worker (the GOLDEN RULE:
+  // worker `name` must match the worker bound to the live subdomain). wrangler
+  // reconciles routes to this list on every deploy, so KEEP BOTH lines —
+  // deleting ocr.ascential.work here would de-register it on the next deploy.
+  // NOTE: ocr.ascential.work lives on a SEPARATE zone from mino.mobi, so the
+  // deploy's CLOUDFLARE_API_TOKEN must carry Workers Routes:Edit on BOTH zones
+  // (it already does — ai-edu deploys ai.ascential.work with the same token).
+  // A missing scope on the ascential.work zone would surface as a deploy-time
+  // "/zones/.../workers/routes ... Authentication error [code: 10000]" — a
+  // token-scope problem, not a config bug (the worker upload itself succeeds).
+  "routes": [
+    { "pattern": "ocr.mino.mobi", "custom_domain": true },
+    { "pattern": "ocr.ascential.work", "custom_domain": true }
+  ]
+}

@@ -14,6 +14,7 @@ import UploadButton from './components/UploadButton.jsx';
 import Albums from './components/Albums.jsx';
 import Thread from './components/Thread.jsx';
 import Sleuth from './components/Sleuth.jsx';
+import CodeScan from './components/CodeScan.jsx';
 import './App.css';
 
 // ---- Theme toggle ----
@@ -104,6 +105,11 @@ export default function App() {
         <Sleuth themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />} />
       </div>
     );
+  }
+
+  // CodeScan — pull text (e.g. an activation code) off an image
+  if (route.startsWith('#/codescan')) {
+    return <CodeScan themeToggle={<ThemeToggle isDark={isDark} onToggle={toggleTheme} />} />;
   }
 
   // Default: gallery view
@@ -407,6 +413,7 @@ function GalleryView({ themeToggle }) {
           <h1>ATPhoto</h1>
           <span className="photo-subtitle">Arena</span>
           <a href="#/thread" className="photo-nav-link">Thread</a>
+          <a href="#/codescan" className="photo-nav-link">CodeScan</a>
         </div>
 
         <div className="photo-header-right">
