@@ -172,10 +172,22 @@ async function getProfile(did) {
   } catch { return null; }
 }
 
+// rkeys are TIDs: a 64-bit (53-bit µs-since-epoch << 10 | clock-id), base32-sortable.
+// Synthesising the TID for a given instant lets us use it as a listRecords cursor
+// to seek straight to records older than that instant (the PDS pages by rkey<cursor,
+// descending) — so we skip every like newer than the follow server-side.
+const TID_B32 = '234567abcdefghijklmnopqrstuvwxyz';
+function tidFromMs(ms, clockid = 1023) {
+  let v = (BigInt(Math.floor(ms)) * 1000n << 10n) | BigInt(clockid & 1023);
+  let s = '';
+  for (let i = 0; i < 13; i++) { s = TID_B32[Number(v & 31n)] + s; v >>= 5n; }
+  return s;
+}
+
 // ── repo records ─────────────────────────────────────────────────────────────
-// Paginate a collection newest-first. onPage(records) may return true to stop.
-async function listRecords(pds, did, collection, onPage) {
-  let cursor = '';
+// Paginate a collection newest-first from startCursor. onPage(records) may return true to stop.
+async function listRecords(pds, did, collection, onPage, startCursor = '') {
+  let cursor = startCursor;
   for (let page = 0; page < 400; page++) {  // hard ceiling ≈ 40k records
     const u = new URL(`${pds}/xrpc/com.atproto.repo.listRecords`);
     u.searchParams.set('repo', did);
@@ -230,7 +242,10 @@ function renderSummary(followerProf, followedProf, followAt, count, scanned) {
   } else {
     html += `<span class="who">@${esc(fr)}</span> doesn't appear to follow <span class="who">@${esc(fd)}</span> — showing <span class="big">${count}</span> of @${esc(fd)}'s post${count === 1 ? '' : 's'} they've liked, with no time filter.`;
   }
-  html += `<div class="meta">scanned ${scanned.toLocaleString()} of @${esc(fr)}'s likes · ordered by like recency (closest to the follow first)</div></div>`;
+  const scanNote = followAt
+    ? `seeked past the newer likes; scanned ${scanned.toLocaleString()} from the follow back`
+    : `scanned ${scanned.toLocaleString()} likes`;
+  html += `<div class="meta">${scanNote} · ordered by like recency (closest to the follow first)</div></div>`;
   return html;
 }
 
@@ -275,7 +290,12 @@ async function run(followerRaw, followedRaw) {
     const followAt = await findFollow(pds, followerDid, followedDid);
     const followMs = followAt ? new Date(followAt).getTime() : Infinity;
 
-    // Scan likes newest-first; collect likes of the followed's posts dated before the follow.
+    // Likes before the follow are the OLDER ones. Seek the like list straight to
+    // the follow moment via a synthetic TID cursor (+1h margin to absorb any
+    // rkey/createdAt skew), so we never fetch the newer-than-follow tail. The
+    // exact createdAt < followMs check below still does the precise cut.
+    const SEEK_MARGIN_MS = 60 * 60 * 1000;
+    const startCursor = followAt ? tidFromMs(followMs + SEEK_MARGIN_MS) : '';
     const prefix = `at://${followedDid}/app.bsky.feed.post/`;
     const hits = []; // { postUri, likedAt }
     let scanned = 0;
@@ -288,9 +308,9 @@ async function run(followerRaw, followedRaw) {
         const likedAt = rec.value.createdAt;
         if (new Date(likedAt).getTime() < followMs) hits.push({ postUri: uri, likedAt });
       }
-      if (scanned % 500 < 100) setStatus(`scanned ${scanned.toLocaleString()} likes · found ${hits.length}…`);
+      if (scanned % 500 < 100) setStatus(`scanned ${scanned.toLocaleString()} likes before the follow · found ${hits.length}…`);
       return false;
-    });
+    }, startCursor);
 
     // Dedupe by post uri (keep earliest like), then sort by like recency (newest first).
     const byUri = new Map();
