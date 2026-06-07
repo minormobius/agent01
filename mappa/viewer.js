@@ -10,7 +10,7 @@ import { SITES, WINGS } from './sites.js';
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js');await m.default();const v=(m.engine_version?m.engine_version():0);
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=3');await m.default('./pkg/mappa_engine_bg.wasm?v=3');const v=(m.engine_version?m.engine_version():0);
   if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
   else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
 }catch(e){rustGen=false}}
@@ -37,6 +37,7 @@ let world=null, atlas=null, mode='orb', atlasOn=true;
 const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null}; // null = derive from seed
 const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
+let driftT=0.5; // tectonic drift interval (how far back the plate trails reach)
 let mview={x:0,y:0,s:1};
 let MW=1400,MH=1100,S=1,ox=0,oy=0;
 let cellPoly=[], cellFill=[], cellBase=[], rivMerc=[], bordMerc=[], roadMerc=[]; // precomputed geometry/colour
@@ -59,10 +60,10 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function build(){const g=genome;
-  world=rustGen
-    ? unpackRust(rustMod.generate_world(seed>>>0,GEN_N(), g.oceanFraction??-1, g.axialTilt??-1, g.waterFrac??-1, g.plateCount??0, g.solar??1.0))
-    : generateWorld(seed,{N:GEN_N(), oceanFraction:g.oceanFraction??undefined, axialTilt:g.axialTilt??undefined, waterFrac:g.waterFrac??undefined, plateCount:g.plateCount??undefined, solar:g.solar??1.0});
+function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0})}
+function build(){const g=genome;let w=null;
+  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
+  world=w||genJS(g);
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
 function fit(){S=Math.max(W/MW,H/MH);ox=(W-MW*S)/2;oy=(H-MH*S)/2}
@@ -110,10 +111,19 @@ function draw(){if(mode==='orb'){drawOrb();return}
   if(mode==='tectonic')drawDrift();
   renderAtlasOverlay();
 }
-function drawDrift(){for(const pl of world.plates){const vv=[pl.axis[1]*pl.center[2]-pl.axis[2]*pl.center[1],pl.axis[2]*pl.center[0]-pl.axis[0]*pl.center[2],pl.axis[0]*pl.center[1]-pl.axis[1]*pl.center[0]];
-  const s=projVm(pl.center),t=projVm([pl.center[0]+vv[0]*0.12,pl.center[1]+vv[1]*0.12,pl.center[2]+vv[2]*0.12]);if(Math.abs(s.x-t.x)>W*0.5)continue;
-  ctx.strokeStyle=pl.oceanic?'rgba(120,180,210,.85)':'rgba(233,220,192,.85)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke();
-  const an=Math.atan2(t.y-s.y,t.x-s.x);ctx.beginPath();ctx.moveTo(t.x,t.y);ctx.lineTo(t.x-7*Math.cos(an-0.4),t.y-7*Math.sin(an-0.4));ctx.moveTo(t.x,t.y);ctx.lineTo(t.x-7*Math.cos(an+0.4),t.y-7*Math.sin(an+0.4));ctx.stroke()}}
+// rotate unit vector v about unit axis a by angle phi (Rodrigues) — plate Euler motion
+function rotAxis(v,a,phi){const c=Math.cos(phi),s=Math.sin(phi),d=a[0]*v[0]+a[1]*v[1]+a[2]*v[2];
+  return[v[0]*c+(a[1]*v[2]-a[2]*v[1])*s+a[0]*d*(1-c),v[1]*c+(a[2]*v[0]-a[0]*v[2])*s+a[1]*d*(1-c),v[2]*c+(a[0]*v[1]-a[1]*v[0])*s+a[2]*d*(1-c)]}
+function drawDrift(){const T=driftT,STEPS=16; // how far each plate centre has drifted along its Euler rotation
+  for(const pl of world.plates){const th=pl.speed*T; // radians of rotation over the interval
+    ctx.strokeStyle=pl.oceanic?'rgba(120,180,210,.85)':'rgba(233,220,192,.9)';ctx.lineWidth=2;ctx.beginPath();let started=false,prev=null;
+    for(let k=0;k<=STEPS;k++){const q=projVm(rotAxis(pl.center,pl.axis,-th*(1-k/STEPS)));
+      if(prev&&Math.abs(q.x-prev.x)>W*0.5)started=false;
+      if(!started){ctx.moveTo(q.x,q.y);started=true}else ctx.lineTo(q.x,q.y);prev=q}
+    ctx.stroke();
+    const now=projVm(pl.center),back=projVm(rotAxis(pl.center,pl.axis,-th/STEPS)),an=Math.atan2(now.y-back.y,now.x-back.x);
+    if(Math.abs(now.x-back.x)<W*0.5){ctx.beginPath();ctx.moveTo(now.x,now.y);ctx.lineTo(now.x-8*Math.cos(an-0.45),now.y-8*Math.sin(an-0.45));ctx.moveTo(now.x,now.y);ctx.lineTo(now.x-8*Math.cos(an+0.45),now.y-8*Math.sin(an+0.45));ctx.stroke()}
+    const o=projVm(rotAxis(pl.center,pl.axis,-th));ctx.fillStyle='rgba(150,120,80,.55)';ctx.beginPath();ctx.arc(o.x,o.y,2.4,0,7);ctx.fill()}}
 function projVm(v){const m=mxy(v);return{x:mview.x+mview.s*(ox+m[0]*S),y:mview.y+mview.s*(oy+m[1]*S)}}
 
 // ---- Orb (native sphere) -----------------------------------------------------
@@ -225,9 +235,9 @@ function syncSliders(){const m=world.meta;
     else{lab.classList.add('pin')}}
   $('bMeta').textContent='seed '+m.seed+' · '+(m.N/1000).toFixed(1)+'k · '+Math.round(m.seaCoverage*100)+'% sea';
 }
+let regenT=0;
 for(const [p,sl,vl,fmt,toG] of sliders){
-  sl.addEventListener('input',()=>{vl.textContent=fmt(+sl.value);sl.closest('label').classList.add('pin')});
-  sl.addEventListener('change',()=>{pinned.add(p);genome[p]=toG(+sl.value);regen()});
+  sl.addEventListener('input',()=>{vl.textContent=fmt(+sl.value);sl.closest('label').classList.add('pin');pinned.add(p);genome[p]=toG(+sl.value);clearTimeout(regenT);regenT=setTimeout(regen,200)});
 }
 $('bAuto').onclick=()=>{pinned.clear();for(const k in genome)genome[k]=null;regen()};
 $('builderToggle').onclick=()=>$('builder').classList.toggle('show');

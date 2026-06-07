@@ -96,13 +96,14 @@ function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation abov
 export function generateWorld(seed, opts={}){
   const rnd=mulberry32(seed>>>0);
   const targetN=opts.N||9000;
-  const oceanFraction = opts.oceanFraction ?? (0.58+rnd()*0.12); // varies per world
-  const axialTilt = opts.axialTilt ?? (0.12+rnd()*0.47);          // ~7°–34°, drives seasonality
+  const _of=0.58+rnd()*0.12, _at=0.12+rnd()*0.47; // always draw (keep RNG stream stable under overrides)
+  const oceanFraction = opts.oceanFraction ?? _of; // varies per world
+  const axialTilt = opts.axialTilt ?? _at;          // ~7°–34°, drives seasonality
   const solar = opts.solar ?? 1.0;                                // stellar luminosity (1 = sun-like) → global temperature
 
   // 0. plates first — so sampling can concentrate resolution where it matters --
   const ga=Math.PI*(3-Math.sqrt(5));
-  const plateCount = opts.plateCount || (12+Math.floor(rnd()*10)); // 12..21 — more plates → more coastline
+  const _pc=12+Math.floor(rnd()*10); const plateCount = opts.plateCount || _pc; // 12..21 — more plates → more coastline
   const plates=[];
   for(let i=0;i<plateCount;i++){const c=norm([rnd()*2-1,rnd()*2-1,rnd()*2-1]);
     plates.push({ center:c, oceanic: rnd()<oceanFraction?1:0, axis:norm([rnd()-0.5,rnd()-0.5,rnd()-0.5]), speed:0.4+rnd()*1.0, buoy:0.12+rnd()*0.30 });}
@@ -172,7 +173,7 @@ export function generateWorld(seed, opts={}){
   const area=new Float32Array(N);for(let i=0;i<N;i++){const cc2=cells[i];let s=0;for(let k=0;k<cc2.length;k++)s+=triArea(V[i],cc2[k],cc2[(k+1)%cc2.length]);area[i]=s}
   // SEA LEVEL by water VOLUME: pour a fixed volume over the topography and let it
   // settle — solve Σ areaᵢ·max(0, h−elevᵢ) = V. Deep basins hold water at depth.
-  const waterFrac=opts.waterFrac??(0.10+rnd()*0.10);
+  const _wf=0.10+rnd()*0.10; const waterFrac=opts.waterFrac??_wf;
   const seaLevelByVolume=()=>{let eMin=1e9,eMax=-1e9;for(let i=0;i<N;i++){if(elevRaw[i]<eMin)eMin=elevRaw[i];if(elevRaw[i]>eMax)eMax=elevRaw[i]}
     const wv=h=>{let v=0;for(let i=0;i<N;i++){const d=h-elevRaw[i];if(d>0)v+=area[i]*d}return v};
     const Vt=wv(eMax)*waterFrac;let lo=eMin,hi=eMax;for(let it=0;it<40;it++){const m=(lo+hi)/2;if(wv(m)<Vt)lo=m;else hi=m}return (lo+hi)/2};
