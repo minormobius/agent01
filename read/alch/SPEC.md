@@ -26,12 +26,23 @@ the hub; each rescued text is a *bed* in it.
    one self-contained `index.html` viewer in the shared read/ visual language.
 6. **Built in tranches**, with a roadmap. Ship the threshold, then grow.
 
-## This is a ≥2-source effort
+## The beds
 
-The Hortulus is bed #1, the starter. The hub is designed to hold more beds; a
-second source follows. Adding a bed = a new `read/alch/<slug>/` directory
-(`index.html` + `data.js`) and a new entry in the hub's bed list. Nothing else
-changes.
+Adding a bed = a new `read/alch/<slug>/` directory (`index.html` + `data.js`) and
+a new entry in the hub's bed list. Nothing else changes. So far:
+
+- **Bed I — Walahfrid Strabo, *Hortulus*** (`hortulus/`) — the lyric garden, c. 840.
+  Complete: 23 plants + frame, 403 parallel lines. *(detailed below.)*
+- **Bed II — Macer Floridus, *De viribus herbarum*** (`macer/`) — the apothecary's
+  herbal, 11th c. 49 of 77 chapters (all reachable from the working source).
+- **Bed III — *Capitulare de villis*, cap. 70** (`capitulare/`) — Charlemagne's
+  imperial garden by decree, c. 800. Source: MGH, *Capitularia* I (Boretius 1883),
+  no. 32; sole ms Wolfenbüttel Cod. Guelf. 254 Helmst. A prose inventory, not a
+  poem: 72 herbs + 16 trees, each cross-linked to its Hortulus bed / Macer chapter
+  — the third axis of the crosswalk, supplying the gourd, melon, radish, and clary
+  Macer omits.
+- **The Crosswalk** (`crosswalk/`) + **the correspondence overlay**
+  (`correspondences.js`) sit across the beds (see below).
 
 ---
 
