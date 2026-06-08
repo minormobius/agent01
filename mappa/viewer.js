@@ -34,8 +34,19 @@ const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
-let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[];
+let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null;
 const BIDX=Object.fromEntries(BIOMES.map((b,i)=>[b.id,i])); // biome id → index
+// ethnographic subsistence modes (the cultivation belts) — index → label + colour
+const SUB=[
+  {id:'barren',  name:'barren / ice',       col:[210,6,72]},
+  {id:'forage',  name:'foragers',           col:[96,15,46]},
+  {id:'pastoral',name:'pastoralists',       col:[44,42,62]},
+  {id:'hoe',     name:'hoe horticulture',   col:[108,48,40]},
+  {id:'plow',    name:'plough farmers',     col:[40,60,56]},
+  {id:'irrig',   name:'irrigation',         col:[168,46,38]},
+  {id:'maritime',name:'maritime / fishing', col:[200,34,50]},
+];
+const ETHNO_SEA=[206,26,24];
 const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null,rotationRate:null}; // null = derive from seed
 const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
@@ -106,7 +117,7 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
   roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   countryBordMerc=[];const cof=atlas.countryOf;if(cof)for(let i=0;i<N;i++){const ci=cof[i];if(ci<0)continue;for(const j of world.adj[i]){const cj=cof[j];if(j>i&&cj>=0&&cj!==ci){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;countryBordMerc.push([a,b])}}}
-  computeLandmarks();computeVolcanoes();
+  computeLandmarks();computeVolcanoes();computeAnthro();
 }
 // pick the most prominent, spatially-separated volcanoes for labelling on relief
 function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
@@ -116,6 +127,30 @@ function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
     let ok=true;for(const j of picked)if(dot(world.V[i],world.V[j])>0.985){ok=false;break} // keep them >~10° apart
     if(ok)picked.push(i)}
   volcanoes=picked.map((i,k)=>({i,name:placeName(100+k)}));}
+// ETHNOGRAPHIC ATLAS: classify each land cell's subsistence mode from ecology —
+// a Whittaker-style classifier over (biome, temp, moisture, slope, river, coast).
+function computeAnthro(){const N=world.N;subMode=new Uint8Array(N);
+  const slope=new Float32Array(N),coast=new Uint8Array(N);
+  for(let i=0;i<N;i++){if(world.water[i]!==0)continue;let mx=0,oc=false;
+    for(const j of world.adj[i]){const d=Math.abs(world.elev[i]-world.elev[j]);if(d>mx)mx=d;if(world.water[j]===1)oc=true}
+    slope[i]=mx;coast[i]=oc?1:0}
+  // river cells: river-segment endpoints coincide with cell positions (both engines)
+  const riverCell=new Uint8Array(N),key=p=>(Math.round(p[0]*2048)+','+Math.round(p[1]*2048)+','+Math.round(p[2]*2048));
+  const idx=new Map();for(let i=0;i<N;i++)idx.set(key(world.V[i]),i);
+  for(const r of world.rivers){const i=idx.get(key(r.a));if(i!=null)riverCell[i]=1;const j=idx.get(key(r.b));if(j!=null)riverCell[j]=1}
+  const B=BIDX;
+  for(let i=0;i<N;i++){if(world.water[i]!==0){subMode[i]=0;continue}
+    const T=world.temperature[i],M=world.moisture[i],e=world.elev[i],b=world.biome[i],s=slope[i],riv=riverCell[i],cst=coast[i];
+    let m;
+    if(b===B.ice||b===B.glacier||b===B.snow||T<-8) m=0;              // barren / permanent ice
+    else if(riv&&M<0.45&&e<0.45) m=5;                                // arid valley + a river → irrigation core
+    else if(M<0.12&&!riv) m=1;                                       // desert interior → sparse foragers
+    else if(cst&&(M<0.32||T<3)) m=6;                                 // poor-hinterland coast → maritime / fishing
+    else if(M<0.28||(T<4&&M<0.55)) m=2;                              // semi-arid / cold grassland → pastoralists
+    else if((T>17&&M>0.50)||(s>0.085&&M>0.45)) m=3;                  // warm-wet or broken-wet uplands → hoe horticulture
+    else if(T<2) m=1;                                                // cold marginal → foragers
+    else m=4;                                                        // temperate, arable, gentle → plough farmers
+    subMode[i]=m}}
 // ---- topographic relief: extremes + hypsometric palette ----------------------
 function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
   for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
@@ -157,6 +192,9 @@ function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
       else{cellFill[i]=hsl(40,6,40);cellBase[i]=[40,6,40]}
       continue}
     if(layer==='topo'){const c=topoHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm);continue}
+    if(layer==='ethno'){ // ethnographic atlas: subsistence belts
+      if(world.water[i]!==0){cellFill[i]=hsl(...ETHNO_SEA);cellBase[i]=ETHNO_SEA;continue}
+      const c=SUB[subMode[i]].col,sh=shadeOf(i);cellBase[i]=c;cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(94,c[2]+sh*30)));continue}
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
@@ -314,7 +352,8 @@ function showTip(px,py){tip.style.left=Math.max(80,Math.min(innerWidth-80,px))+'
 function tipCity(c,px,py,t){showTip(px,py);const seam=c.w2?'border · '+wing(c.w).label+' ✕ '+wing(c.w2).label:wing(c.w).label;
   tip.innerHTML='<b>'+c.n+'</b> '+(c.capital?'★':'')+'<br><span class="m">'+seam+' · founded '+(c.b||'—')+'</span>'+(c.u?'<br><span class="open">'+(t?'tap again to open ↗':'click to open ↗')+'</span>':'')}
 function tipCell(i,px,py){if(i<0){tip.style.opacity=0;return}showTip(px,py);const b=BIOMES[world.biome[i]],T=world.temperature[i],M=world.moisture[i],e=world.elev[i],ws=world.seasonality[i];
-  tip.innerHTML='<b>'+b.name+'</b><br><span class="m">'+(T|0)+'°C mean · winter −'+(ws*0.5|0)+'° · moisture '+(M*100|0)+'%<br>'+(world.water[i]?'sea':(Math.max(0,e)*4000|0)+' m')+'</span>'}
+  const sub=(layer==='ethno'&&subMode&&world.water[i]===0)?'<br><span class="open">'+SUB[subMode[i]].name+'</span>':'';
+  tip.innerHTML='<b>'+b.name+'</b><br><span class="m">'+(T|0)+'°C mean · winter −'+(ws*0.5|0)+'° · moisture '+(M*100|0)+'%<br>'+(world.water[i]?'sea':(Math.max(0,e)*4000|0)+' m')+'</span>'+sub}
 
 const cz=s=>Math.max(0.5,Math.min(40,s));
 const ptrs=new Map();let gesture=null,tapStart=null;const di=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -363,6 +402,9 @@ function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
   if(layer==='topo'){
     for(const[lab,col]of[['deep',[222,60,16]],['sea',[205,56,42]],['shore',[100,44,42]],['hills',[58,38,51]],['highland',[40,28,62]],['snow',[26,12,86]]]){
       const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(...col)+'"></span>'+lab;legendEl.appendChild(c)}
+    return}
+  if(layer==='ethno'){const seen=new Set();for(let i=0;i<world.N;i++)if(world.water[i]===0)seen.add(subMode[i]);
+    for(let k=0;k<SUB.length;k++){if(!seen.has(k))continue;const s=SUB[k];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(...s.col)+'"></span>'+s.name;legendEl.appendChild(c)}
     return}
   if(atlasOn){for(const w of WINGS){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,55,58)+'"></span>'+w.label;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
