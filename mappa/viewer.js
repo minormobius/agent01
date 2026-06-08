@@ -8,6 +8,7 @@ import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
 import { worldSignals } from './lib/world-signals.js';
 import { encodeConfig, decodeConfig } from './lib/world-share.js';
+import { featureName, worldName } from './lib/names.js';
 
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
@@ -159,14 +160,8 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
 // in that landmass's language). Cheap relative to generation; runs once per build.
 function computeWorldMeta(){
   try{signals=worldSignals(world);}catch(e){signals=null}
-  const i=largestLandCell();worldTitle=featureName('world', i>=0?i:(peakI>=0?peakI:0), (world.meta.seed>>>0)*7+13);
+  try{worldTitle=worldName(world);}catch(e){worldTitle=''}
 }
-function largestLandCell(){const N=world.N,seen=new Uint8Array(N);let bi=-1,bestA=-1;
-  for(let s=0;s<N;s++){if(seen[s]||world.water[s]!==0)continue;let a=0,rep=s;const q=[s];seen[s]=1;
-    for(let h=0;h<q.length;h++){const c=q[h];a+=world.area?world.area[c]:1;if(world.elev[c]>world.elev[rep])rep=c;
-      for(const j of world.adj[c])if(!seen[j]&&world.water[j]===0){seen[j]=1;q.push(j)}}
-    if(a>bestA){bestA=a;bi=rep}}
-  return bi}
 // pick the most prominent, spatially-separated volcanoes for labelling on relief
 function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
   const cand=[];for(let i=0;i<world.N;i++)if(world.volc[i]>0.3)cand.push(i);
@@ -174,7 +169,7 @@ function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
   const picked=[];for(const i of cand){if(picked.length>=10)break;
     let ok=true;for(const j of picked)if(dot(world.V[i],world.V[j])>0.985){ok=false;break} // keep them >~10° apart
     if(ok)picked.push(i)}
-  volcanoes=picked.map((i,k)=>({i,name:featureName('volcano',i,100+k)}));}
+  volcanoes=picked.map((i,k)=>({i,name:featureName(world,'volcano',i,100+k)}));}
 // ETHNOGRAPHIC ATLAS: classify each land cell's subsistence mode from ecology —
 // a Whittaker-style classifier over (biome, temp, moisture, slope, river, coast).
 function computeAnthro(){const N=world.N;subMode=new Uint8Array(N);
@@ -264,7 +259,7 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
     const cand=[];for(let i=0;i<N;i++)if(raw[i]>0.45*mx)cand.push(i);cand.sort((a,b)=>raw[b]-raw[a]);
     let picked=0;for(const i of cand){if(picked>=K[c])break;let ok=true;
       for(const d of minerals)if(d.c===c&&dot(world.V[i],world.V[d.i])>0.984){ok=false;break}
-      if(ok){minerals.push({i,c,score:raw[i]/mx,name:featureName('ore',i,200+c*13+picked)});picked++}}}
+      if(ok){minerals.push({i,c,score:raw[i]/mx,name:featureName(world,'ore',i,200+c*13+picked)});picked++}}}
   minerals.sort((a,b)=>b.score-a.score);minerals.forEach((d,k)=>d.lab=k<12);} // label the strongest dozen
 // FOSSIL DIG SITES: fossils survive where sedimentary strata were laid down (low
 // ground — basins, floodplains, coasts, lake beds) AND are now exposed by erosion
@@ -299,13 +294,13 @@ function computeFossils(){digsites=[];if(!world)return;const N=world.N;
     else if(alat<0.45)fc=4;                    // paleo-tropical → dinosaur floodplain
     else if(alat<0.72)fc=5;                    // paleo-temperate → mammal bone beds
     else fc=6;                                 // paleo-polar → ice-age tundra
-    digsites.push({i,fc,g,score:raw[i]/mx,name:featureName('dig',i,400+picked*7),lab:false});picked++}
+    digsites.push({i,fc,g,score:raw[i]/mx,name:featureName(world,'dig',i,400+picked*7),lab:false});picked++}
   digsites.sort((a,b)=>b.score-a.score);digsites.forEach((d,k)=>d.lab=k<12);}
 // ---- topographic relief: extremes + hypsometric palette ----------------------
 function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
   for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
   landMaxE=Math.max(1e-4,hi);deepMaxE=Math.max(1e-4,-lo);
-  peakName=featureName('peak',peakI,1);troughName=featureName('trough',troughI,2);}
+  peakName=featureName(world,'peak',peakI,1);troughName=featureName(world,'trough',troughI,2);}
 // ---- TOPONYMY: deterministic place-names with regional linguistic coherence ----
 // A feature name = a generated SPECIFIC root + a feature-appropriate GENERIC term
 // (Mount X · X Deep · X Lode · X Beds). The root's phonotactics are onset+nucleus+
@@ -313,31 +308,6 @@ function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
 // chosen per TECTONIC PLATE, so every feature on a landmass shares a tongue and the
 // language borders fall along the plate sutures (mountain belts as linguistic divides,
 // as on Earth). Deterministic: same (seed, plate, salt) ⇒ same name, for ever.
-const LANGS=[
-  {id:'Varn', on:['k','kr','gr','dr','th','sk','v','t','br','d','h'],  nu:['a','o','u','au'],      co:['rk','th','n','d','k','rn','','ld']},  // harsh · northern highland
-  {id:'Lyr',  on:['l','v','s','n','th','m','el','r','ll'],             nu:['e','i','ae','ia','y'], co:['l','r','n','en','','il','th']},       // liquid · forest upland
-  {id:'Mor',  on:['m','b','h','v','d','n','br','l','r'],               nu:['o','u','a','oa'],      co:['m','l','n','r','on','','um']},        // round · lowland river
-  {id:'Kael', on:['k','q','z','sh','t','h','rh','j','s','n','kh'],     nu:['a','i','ai','u'],      co:['n','r','t','sh','d','','m']},         // bright · southern desert
-  {id:'Esh',  on:['s','sy','v','th','n','x','z','st','sh'],            nu:['y','i','e','ei'],      co:['s','x','th','','ss','n']},            // sibilant · eastern coast
-];
-const GENERIC={ // feature kind → generic toponym terms (prefix and/or suffix forms)
-  peak:   {pre:['Mount','Mt.','Pike of','Cairn'], suf:['Tor','Horn','Fell','Pike','Crag','Scaur','Spire']},
-  trough: {pre:[],                                suf:['Deep','Trench','Abyss','Trough','Fault','Sink','Gulf']},
-  volcano:{pre:['Mount'],                         suf:['Fell','Caldera','Pyre','Forge','Smokes','Ashmount']},
-  ore:    {pre:[],                                suf:['Lode','Field','Diggings','Reach','Vein','Workings','Mine','Strike']},
-  dig:    {pre:[],                                suf:['Beds','Quarry','Pits','Bonebeds','Marl','Hollow','Cutting']},
-};
-function nameRng(salt){let s=(((world.meta.seed>>>0)*0x9e3779b1)^((salt>>>0)*0x85ebca77))>>>0;
-  return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
-function langOf(i){const p=((world.plate?world.plate[i]:0)>>>0);return((p*0x9e3779b1)>>>0)%LANGS.length} // plate → language family
-function genRoot(lid,rnd){const L=LANGS[lid],cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
-  const syl=first=>L.on[(rnd()*L.on.length)|0]+L.nu[(rnd()*L.nu.length)|0]+(first||rnd()<0.5?L.co[(rnd()*L.co.length)|0]:''); // open second syllables read cleaner
-  let nm=cap(syl(true));if(rnd()<0.4)nm+=syl(false);return nm}
-// full toponym for a feature of `kind` at cell `i`, salted so each feature differs
-function featureName(kind,i,salt){const rnd=nameRng(salt),lid=i>=0?langOf(i):((salt>>>3)%LANGS.length);
-  const root=genRoot(lid,rnd),g=GENERIC[kind];if(!g)return root;
-  if(g.pre.length&&(g.suf.length===0||rnd()<0.4))return g.pre[(rnd()*g.pre.length)|0]+' '+root;
-  return root+' '+g.suf[(rnd()*g.suf.length)|0]}
 function landmarkLabels(){ // {peak,trough} display strings (names already carry their generic)
   const pm=Math.round(landMaxE*9000), dm=Math.round(deepMaxE*9000);
   return{peak:'▲ '+peakName+'  ·  '+pm.toLocaleString()+' m',
@@ -645,8 +615,9 @@ document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
 document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;clearShareURL();regen()};
 // ---- share: this exact world as a permalink (and optionally a PDS record) -----
-function currentConfig(){return{seed,genome,n:world?world.N:undefined}}
-function permalink(){return location.origin+location.pathname+'?w='+encodeConfig(currentConfig())}
+function currentConfig(){return{seed,genome}} // shape is resolution-stable, so n is omitted from shares
+function _shareBase(){return location.origin+location.pathname.replace(/[^/]*$/,'')} // → …/mappa/
+function cardURL(){return _shareBase()+'card?w='+encodeConfig(currentConfig())}        // the unfurlable share link (OG card → bounces to the app)
 function clearShareURL(){try{history.replaceState(null,'',location.origin+location.pathname)}catch(e){}}
 function parseShareURL(){try{const p=new URLSearchParams(location.search),w=p.get('w');
   if(w){const c=decodeConfig(w);if(c){seed=c.seed;pinned.clear();for(const k in genome)genome[k]=null;
@@ -654,12 +625,12 @@ function parseShareURL(){try{const p=new URLSearchParams(location.search),w=p.ge
   const s=p.get('seed');if(s!=null&&s!==''&&!isNaN(+s))seed=(+s)>>>0;
 }catch(e){}return false}
 const _sp=id=>document.getElementById(id);
-function openShare(){if(!world)return;const link=permalink();
+function openShare(){if(!world)return;
   _sp('spTitle').textContent=worldTitle||('World '+world.meta.seed);
   _sp('spScore').textContent=signals?('★ '+signals.score+'/100 interesting'+(signals.flags.length?'  ·  '+signals.flags.slice(0,3).join(', '):'')):'';
   _sp('spDesc').textContent=signals?signals.descriptor:'';
-  _sp('spLink').value=link;_sp('spMsg').textContent='';_sp('spMsg').className='';
-  try{history.replaceState(null,'','?w='+encodeConfig(currentConfig()))}catch(e){}
+  _sp('spLink').value=cardURL();_sp('spMsg').textContent='paste it anywhere — it unfurls into a card of this world';_sp('spMsg').className='';
+  try{history.replaceState(null,'','?w='+encodeConfig(currentConfig()))}catch(e){} // keep the address bar on the live world
   _sp('sharePop').classList.add('show');_sp('spLink').focus();_sp('spLink').select()}
 _sp('share').onclick=()=>{const pop=_sp('sharePop');if(pop.classList.contains('show'))pop.classList.remove('show');else openShare()};
 _sp('shareClose').onclick=()=>_sp('sharePop').classList.remove('show');
