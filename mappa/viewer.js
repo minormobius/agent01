@@ -43,6 +43,8 @@ const ORE=[
   {id:'tin',   label:'tin',             col:'#9aa6b2'},
   {id:'gems',  label:'gemstones',       col:'#c98ce8'},
   {id:'salt',  label:'salt / evaporite',col:'#e6ebf0'},
+  {id:'coal',  label:'coal',            col:'#2c2c33'}, // fossil fuel — paleo-swamps
+  {id:'oil',   label:'oil & gas',       col:'#5d7040'}, // fossil fuel — buried anoxic marine basins
 ];
 const BIDX=Object.fromEntries(BIOMES.map((b,i)=>[b.id,i])); // biome id → index
 // ethnographic subsistence modes (the cultivation belts) — index → label + colour
@@ -174,6 +176,7 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
   for(const r of world.rivers){const i=idx.get(key(r.a));if(i!=null)riverCell[i]=1;const j=idx.get(key(r.b));if(j!=null)riverCell[j]=1}
   const cra=i=>bdist[i]<0?0:bdist[i]/bmax, arc=i=>world.volc[i], lakeNbr=i=>{for(const j of world.adj[i])if(world.water[j]===2)return 1;return 0};
   const plc=i=>{if(!riverCell[i])return 0;let m=0;for(const j of world.adj[i])m=Math.max(m,arc(j),cra(j)*0.6);return m*0.7};
+  const deltaNbr=i=>{if(world.water[i]!==1)return 0;for(const j of world.adj[i])if(world.water[j]===0&&riverCell[j])return 1;return 0}; // river mouth into shelf
   const SCORE=[ // one per ORE commodity (same order)
     i=>Math.max(arc(i)*0.9,cra(i)*0.5,plc(i)),                                                   // gold
     i=>arc(i),                                                                                   // copper (porphyry arc)
@@ -181,10 +184,15 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
     i=>world.elev[i]>0.4?(world.elev[i]/landMaxE)*(0.4+0.6*cra(i)):0,                            // tin (granite highlands)
     i=>cra(i)>0.6?cra(i):0,                                                                       // gems (deep craton kimberlite)
     i=>(world.moisture[i]<0.25&&world.elev[i]<0.28&&world.elev[i]>0)?(0.25-world.moisture[i])*4*(1-world.elev[i]/0.28)+lakeNbr(i)*0.4:0, // salt (arid basin)
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i],T=world.temperature[i],M=world.moisture[i];                                  // coal: paleo-swamps —
+        return (e>0&&e<0.35&&T>12&&M>0.55)?(M-0.55)*2*Math.min(1,(T-12)/15)*(1-e/0.35):0},                                                //   warm wet lowlands
+    i=>{if(world.water[i]===1)return world.elev[i]>-0.22?0.4+deltaNbr(i)*0.6:0;                                                            // oil & gas: shallow shelf
+        if(world.water[i]===0)return (world.elev[i]>0&&world.elev[i]<0.18)?(0.5-world.elev[i]/0.18*0.3)*(world.moisture[i]<0.5?1:0.6):0;   //   (delta-fed) + onshore
+        return 0},                                                                                                                        //   low former-marine basins
   ];
-  const K=[8,7,6,5,4,6]; // deposits per commodity
+  const K=[8,7,6,5,4,6,6,7]; // deposits per commodity
   for(let c=0;c<ORE.length;c++){const sc=SCORE[c];let mx=1e-6;const raw=new Float32Array(N);
-    for(let i=0;i<N;i++){if(world.water[i]!==0)continue;const v=sc(i);raw[i]=v;if(v>mx)mx=v}
+    for(let i=0;i<N;i++){const v=sc(i);raw[i]=v;if(v>mx)mx=v}
     const cand=[];for(let i=0;i<N;i++)if(raw[i]>0.45*mx)cand.push(i);cand.sort((a,b)=>raw[b]-raw[a]);
     let picked=0;for(const i of cand){if(picked>=K[c])break;let ok=true;
       for(const d of minerals)if(d.c===c&&dot(world.V[i],world.V[d.i])>0.984){ok=false;break}
