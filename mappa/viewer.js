@@ -67,9 +67,16 @@ function build(){const g=genome;let w=null;
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
 const EMPTY=new Float64Array(0);
-function coastPointsOf(w){const out=[];for(let i=0;i<w.N;i++){if(w.water[i]!==0)continue;for(const j of w.adj[i])if(w.water[j]===1){out.push(w.V[i][0],w.V[i][1],w.V[i][2]);break}}return new Float64Array(out)}
-function refineCoasts(){if(!world)return;const cp=coastPointsOf(world);if(!cp.length)return;
-  if(statusEl){statusEl.textContent='refining coasts…';statusEl.style.opacity=1}
+// feature points to refine: coastlines + high mountains + river lines (subsampled)
+function featurePointsOf(w){const pts=[];
+  for(let i=0;i<w.N;i++){if(w.water[i]===0){let c=false;for(const j of w.adj[i])if(w.water[j]===1){c=true;break}
+    if(c||w.elev[i]>0.5)pts.push(w.V[i])}} // coasts + mountains
+  for(const r of w.rivers)pts.push(r.a);   // river channels
+  const MAX=1900,step=Math.max(1,Math.ceil(pts.length/MAX)),out=[];
+  for(let i=0;i<pts.length;i+=step){const p=pts[i];out.push(p[0],p[1],p[2])}
+  return new Float64Array(out)}
+function refineDetail(){if(!world)return;const cp=featurePointsOf(world);if(!cp.length)return;
+  if(statusEl){statusEl.textContent='refining detail…';statusEl.style.opacity=1}
   setTimeout(()=>{const g=genome;let w=null;
     if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
     if(!w)w=generateWorld(seed,{N:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,refinePoints:cp,refinePer:5});
@@ -115,18 +122,19 @@ function draw(){if(mode==='orb'){drawOrb();return}
   ctx.save();ctx.translate(mview.x,mview.y);ctx.scale(mview.s,mview.s);ctx.translate(ox,oy);ctx.scale(S,S);
   const inv=(sx,sy)=>[((sx-mview.x)/mview.s-ox)/S,((sy-mview.y)/mview.s-oy)/S];
   const a=inv(0,0),b=inv(W,H),vx0=Math.min(a[0],b[0])-20,vx1=Math.max(a[0],b[0])+20,vy0=Math.min(a[1],b[1])-20,vy1=Math.max(a[1],b[1])+20;
-  for(let i=0;i<world.N;i++){const g=cellPoly[i],bb=g.bb;
-    const vis=!(bb[2]<vx0||bb[0]>vx1||bb[3]<vy0||bb[1]>vy1);
-    const visW=g.wrap&&!(bb[2]+g.wrap<vx0||bb[0]+g.wrap>vx1||bb[3]<vy0||bb[1]>vy1);
-    if(!vis&&!visW)continue;ctx.fillStyle=cellFill[i];if(vis){tracePoly(g.pts,0);ctx.fill()}if(visW){tracePoly(g.pts,g.wrap);ctx.fill()}}
   const px=k=>k/(mview.s*S); // k screen-px → world units
-  if(mode==='tectonic'){ctx.lineCap='round';for(const bd of world.bounds){const p=mxy(bd.a),q=mxy(bd.b);if(Math.abs(p[0]-q[0])>MW*0.5)continue;ctx.lineWidth=px(bd.c>0.18?2.4:1.6);ctx.strokeStyle=bd.c>0.18?'#e0603c':(bd.c<-0.18?'#3fb6a0':'#d8b24a');ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}
-  else{ctx.strokeStyle='#3a6f8c';ctx.lineCap='round';for(const r of rivMerc){if(r.skip)continue;ctx.lineWidth=px(0.5+r.w*0.55);ctx.beginPath();ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1]);ctx.stroke()}
-    if(mode==='civ'&&atlasOn){ // sovereignty: country borders (thin) + civilisation borders (thick) + roads
-      ctx.strokeStyle='rgba(22,15,9,.42)';ctx.lineWidth=px(0.8);ctx.beginPath();for(const e of countryBordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke();
-      ctx.strokeStyle='rgba(12,7,3,.72)';ctx.lineWidth=px(2.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke();
-      ctx.strokeStyle='rgba(58,28,10,.85)';ctx.lineCap='round';ctx.lineWidth=px(1.4);ctx.beginPath();for(const r of roadMerc){if(r.skip)continue;ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1])}ctx.stroke();
-    } else if(atlasOn){ctx.strokeStyle='rgba(20,12,6,.55)';ctx.lineWidth=px(1.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke()}}
+  const kLo=Math.floor(vx0/MW), kHi=Math.floor(vx1/MW); // world copies → seamless Mercator cylinder
+  for(let kk=kLo;kk<=kHi;kk++){const off=kk*MW, wx0=vx0-off, wx1=vx1-off;
+    ctx.save();ctx.translate(off,0);
+    for(let i=0;i<world.N;i++){const g=cellPoly[i],bb=g.bb;if(bb[2]<wx0||bb[0]>wx1||bb[3]<vy0||bb[1]>vy1)continue;ctx.fillStyle=cellFill[i];tracePoly(g.pts,0);ctx.fill()}
+    if(mode==='tectonic'){ctx.lineCap='round';for(const bd of world.bounds){const p=mxy(bd.a),q=mxy(bd.b);if(Math.abs(p[0]-q[0])>MW*0.5)continue;ctx.lineWidth=px(bd.c>0.18?2.4:1.6);ctx.strokeStyle=bd.c>0.18?'#e0603c':(bd.c<-0.18?'#3fb6a0':'#d8b24a');ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}
+    else{ctx.strokeStyle='#3a6f8c';ctx.lineCap='round';for(const r of rivMerc){if(r.skip)continue;ctx.lineWidth=px(0.5+r.w*0.55);ctx.beginPath();ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1]);ctx.stroke()}
+      if(mode==='civ'&&atlasOn){ // sovereignty: country borders (thin) + civilisation borders (thick) + roads
+        ctx.strokeStyle='rgba(22,15,9,.42)';ctx.lineWidth=px(0.8);ctx.beginPath();for(const e of countryBordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke();
+        ctx.strokeStyle='rgba(12,7,3,.72)';ctx.lineWidth=px(2.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke();
+        ctx.strokeStyle='rgba(58,28,10,.85)';ctx.lineCap='round';ctx.lineWidth=px(1.4);ctx.beginPath();for(const r of roadMerc){if(r.skip)continue;ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1])}ctx.stroke();
+      } else if(atlasOn){ctx.strokeStyle='rgba(20,12,6,.55)';ctx.lineWidth=px(1.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke()}}
+    ctx.restore();}
   ctx.restore();
   if(mode==='tectonic')drawDrift();
   renderAtlasOverlay();
@@ -173,12 +181,19 @@ function drawGraticule(cx,cy,R){
 // ---- screen-space atlas overlay: constant-size dots + decluttered labels -----
 function dotR(c){return(c.capital?3.2:2.0)+Math.min(5.5,Math.sqrt(c.k)*0.85)}
 const overlaps=(b,arr)=>arr.some(o=>!(b[2]<o[0]||b[0]>o[2]||b[3]<o[1]||b[1]>o[3]));
+// screen position(s) of a unit vector — multiple copies across the Mercator cylinder, one on the orb
+function screenCopies(v){
+  if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return [];return [{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}]}
+  const m=mxy(v),baseX=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(y<-40||y>H+40)return [];
+  const stepX=mview.s*S*MW,out=[],kLo=Math.ceil((-60-baseX)/stepX),kHi=Math.floor((W+60-baseX)/stepX);
+  for(let k=kLo;k<=kHi;k++)out.push({x:baseX+k*stepX,y});return out}
 function renderAtlasOverlay(){if(!atlasOn||mode==='tectonic')return;
   const placed=[];ctx.textAlign='center';ctx.textBaseline='alphabetic';
-  for(const w of WINGS){if(!active.has(w.id))continue;const rk=atlas.wingRegion[w.id],cc=atlas.centroids[rk];if(!cc)continue;const p=projV(cc);if(!p)continue;
+  for(const w of WINGS){if(!active.has(w.id))continue;const rk=atlas.wingRegion[w.id],cc=atlas.centroids[rk];if(!cc)continue;
     const txt=w.label.toUpperCase();ctx.font='italic 12px ui-serif,Georgia,serif';const tw=ctx.measureText(txt).width;
-    ctx.fillStyle='rgba(6,4,2,.55)';ctx.fillText(txt,p.x+0.5,p.y+0.5);ctx.fillStyle=hsl(w.hue,34,87,.62);ctx.fillText(txt,p.x,p.y);placed.push([p.x-tw/2-3,p.y-12,p.x+tw/2+3,p.y+3])}
-  const items=[];for(const c of atlas.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const p=projV(c.v);if(!p)continue;items.push({c,x:p.x,y:p.y,prio:(c.capital?5e5:0)+c.k+(c===hot?1e9:0)})}
+    for(const p of screenCopies(cc)){ctx.fillStyle='rgba(6,4,2,.55)';ctx.fillText(txt,p.x+0.5,p.y+0.5);ctx.fillStyle=hsl(w.hue,34,87,.62);ctx.fillText(txt,p.x,p.y);placed.push([p.x-tw/2-3,p.y-12,p.x+tw/2+3,p.y+3])}}
+  const items=[];for(const c of atlas.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;
+    for(const p of screenCopies(c.v))items.push({c,x:p.x,y:p.y,prio:(c.capital?5e5:0)+c.k+(c===hot?1e9:0)})}
   items.sort((a,b)=>b.prio-a.prio);
   for(const it of items){const c=it.c,w=wing(c.w),r=dotR(c);ctx.beginPath();ctx.arc(it.x,it.y,r,0,7);ctx.fillStyle=c.w2?hsl((w.hue+wing(c.w2).hue)/2,60,64):hsl(w.hue,60,hot===c?78:62);ctx.fill();
     ctx.lineWidth=c.capital?1.4:0.8;ctx.strokeStyle=c===hot?'#fff':'rgba(6,4,2,.8)';ctx.stroke();
@@ -191,7 +206,7 @@ function orbSpin(){if(mode!=='orb'||!spin){spinRAF=0;return}R=mMul(R,RZ(0.0015))
 
 // ---- picking + tooltip -------------------------------------------------------
 function pickCity(px,py,touch){if(!atlasOn)return null;let best=null,bd=1e18;
-  for(const c of atlas.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;const p=projV(c.v);if(!p)continue;const d=(p.x-px)**2+(p.y-py)**2;if(d<bd){bd=d;best=c}}return bd<(touch?22:13)**2?best:null}
+  for(const c of atlas.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;for(const p of screenCopies(c.v)){const d=(p.x-px)**2+(p.y-py)**2;if(d<bd){bd=d;best=c}}}return bd<(touch?22:13)**2?best:null}
 function pickCell(px,py){let dir;
   if(mode==='orb'){const cx=W/2,cy=H/2,RR=orbR,nx=(px-cx)/RR,ny=-(py-cy)/RR,r2=nx*nx+ny*ny;if(r2>1)return -1;const nz=Math.sqrt(1-r2);dir=mVT(R,[nx,ny,nz])}
   else{const mx=((px-mview.x)/mview.s-ox)/S,my=((py-mview.y)/mview.s-oy)/S;const lon=mx/MW*2*Math.PI-Math.PI;const t=(1-my/MH*2)*YMAX;const lat=2*Math.atan(Math.exp(t))-Math.PI/2;const cl=Math.cos(lat);dir=[cl*Math.cos(lon),cl*Math.sin(lon),Math.sin(lat)]}
@@ -263,7 +278,7 @@ for(const [p,sl,vl,fmt,toG] of sliders){
 }
 $('bAuto').onclick=()=>{pinned.clear();for(const k in genome)genome[k]=null;regen()};
 $('builderToggle').onclick=()=>$('builder').classList.toggle('show');
-const _br=document.getElementById('bRefine');if(_br)_br.onclick=refineCoasts;
+const _br=document.getElementById('bRefine');if(_br)_br.onclick=refineDetail;
 $('builderClose').onclick=()=>$('builder').classList.remove('show');
 
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
