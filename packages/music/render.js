@@ -33,12 +33,23 @@ function decodeNote(s) {
 
 // ─── public api ─────────────────────────────────────────────────────────
 //
-//   await renderComposition(composition) → Blob (audio/wav)
+//   await renderComposition(composition)         → Blob (audio/wav)   — for download / upload
+//   await renderCompositionToBuffer(composition) → { buffer, loopSeconds } — for GAPLESS looping
+//   compositionLoopSeconds(composition)          → musical bar length in seconds
 //
 // composition is the parsed JSON of a com.minomobi.music.composition
 // record's value (or any object in that shape).
 
-export async function renderComposition(composition) {
+// The musical loop length — steps × the duration of a 16th note. The rendered audio
+// has a +0.5s release tail PAST this; loop on this value, not the buffer length, or
+// you get a half-second of silence at every loop seam.
+export function compositionLoopSeconds(composition) {
+  const bpm = composition.bpm || 120, steps = composition.steps || 16;
+  return steps * (60 / bpm / 4);
+}
+
+// Render to an AudioBuffer (the shared core of both the WAV and the buffer paths).
+async function renderOffline(composition) {
   const bpm = composition.bpm || 120;
   const steps = composition.steps || 16;
   const tracks = composition.tracks || [];
@@ -55,9 +66,17 @@ export async function renderComposition(composition) {
       playNote(ctx, ctx.destination, instrument, n.pitch, n.duration * stepDur, n.velocity, volume, n.start * stepDur);
     }
   }
+  return ctx.startRendering();
+}
 
-  const rendered = await ctx.startRendering();
-  return audioBufferToWavBlob(rendered);
+export async function renderComposition(composition) {
+  return audioBufferToWavBlob(await renderOffline(composition));
+}
+
+// For in-page playback: the raw AudioBuffer + the bar length to loop on. Feed both to
+// AudioField.fromBuffer(buffer, { loopEnd: loopSeconds }) for a seamless, gapless loop.
+export async function renderCompositionToBuffer(composition) {
+  return { buffer: await renderOffline(composition), loopSeconds: compositionLoopSeconds(composition) };
 }
 
 // ─── synth (mirrors /music/index.html playNote) ─────────────────────────

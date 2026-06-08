@@ -270,7 +270,7 @@ sheet of ±1s.</p>
 
 <script type="module">
 import { AudioField } from '../packages/audio-react/audio.js';
-import { renderComposition, loadBundledIndex, loadBundledComposition } from '../packages/music/render.js';
+import { renderCompositionToBuffer, loadBundledIndex, loadBundledComposition } from '../packages/music/render.js';
 import { stateToComposition } from '../packages/music/sonify.js';
 // ═════════════════════════════════════════════════════════════════════
 // Tabs
@@ -396,8 +396,8 @@ async function ensureCompList(){ if(_compIndex) return _compIndex;
 async function playComposition(id){ const sel=document.getElementById('is-trackpick'); const idx=await ensureCompList();
   const entry=(idx.compositions||[]).find(c=>c.id===id); if(!entry) return;
   const prev=sel.options[sel.selectedIndex]?.textContent; if(sel.options[sel.selectedIndex]) sel.options[sel.selectedIndex].textContent='rendering '+entry.name+'…';
-  try{ const comp=await loadBundledComposition(entry, COMP_BASE); const wav=await renderComposition(comp);
-    await getAF().fromFile(wav); setMusicMode(true, entry.name); }
+  try{ const comp=await loadBundledComposition(entry, COMP_BASE); const { buffer, loopSeconds }=await renderCompositionToBuffer(comp);
+    getAF().fromBuffer(buffer, { loopEnd: loopSeconds }); setMusicMode(true, entry.name); }
   catch(err){ console.warn('composition render failed',err); alert('Could not render that track: '+(err?.message||err)); }
   finally{ if(sel.options[sel.selectedIndex] && prev) sel.options[sel.selectedIndex].textContent=prev; } }
 document.getElementById('is-trackpick').addEventListener('change',e=>{ const id=e.target.value; if(id) playComposition(id); });
@@ -410,7 +410,7 @@ async function sonifyGrid(){ const status=document.getElementById('is-son-status
     voices:[ ...f.up.map(p=>({pos:p,species:0})), ...f.down.map(p=>({pos:p,species:1})) ] }));
   const comp=stateToComposition(frames, { name:'Ising '+new Date().toTimeString().slice(0,8), steps:frames.length });
   sim.music.lastComp=comp;
-  try{ const wav=await renderComposition(comp); await getAF().fromFile(wav); setMusicMode(true,'self ♫');
+  try{ const { buffer, loopSeconds }=await renderCompositionToBuffer(comp); getAF().fromBuffer(buffer, { loopEnd: loopSeconds }); setMusicMode(true,'self ♫');
     const sel=document.getElementById('is-trackpick'); if(sel) sel.value='';
     if(status) status.textContent=`▸ the magnet now pulses to its own soundtrack — ${comp.bpm} BPM, ${comp.tracks.length} voices, ${comp.description.includes('major')?'major / ordered':'minor / molten'}. ⬇ to keep it.`;
   }catch(err){ console.warn('sonify render failed',err); if(status) status.textContent='render failed: '+(err?.message||err); } }

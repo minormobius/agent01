@@ -66,7 +66,7 @@ const ZERO = { loudness: 0, bass: 0, mid: 0, treble: 0, beat: false, onset: 1, s
 export class AudioField {
   constructor({ fftSize = 2048, smoothing = 0.8, beat = {} } = {}) {
     this.fftSize = fftSize; this.smoothing = smoothing;
-    this.ctx = null; this.analyser = null; this.src = null; this.el = null; this.stream = null;
+    this.ctx = null; this.analyser = null; this.src = null; this.el = null; this.stream = null; this.bufferSrc = null;
     this.freq = null; this.time = null; this.sampleRate = 44100;
     this.agc = { L: makeAGC(), bass: makeAGC(), mid: makeAGC(), treble: makeAGC() };
     this.beat = new BeatDetector(beat);
@@ -86,6 +86,7 @@ export class AudioField {
     return this.ctx;
   }
   _disconnect() { try { if (this.src) this.src.disconnect(); } catch {} this.src = null;
+    if (this.bufferSrc) { try { this.bufferSrc.stop(); } catch {} try { this.bufferSrc.disconnect(); } catch {} this.bufferSrc = null; }
     if (this.stream) { try { this.stream.getTracks().forEach(t => t.stop()); } catch {} this.stream = null; }
     if (this.el) { try { this.el.pause(); } catch {} } }
   async fromFile(file) {
@@ -107,6 +108,19 @@ export class AudioField {
     this.src = this.ctx.createMediaElementSource(el);
     this.src.connect(this.analyser); this.analyser.connect(this.ctx.destination);
     this.el = el; this.source = 'element'; return el;
+  }
+  // Gapless looping of a known buffer (a rendered /music track). loopEnd is the musical
+  // bar length in seconds — looping there skips the silent release tail, so there's no
+  // gap at the seam (unlike <audio loop>, which is never gapless).
+  fromBuffer(buffer, { loop = true, loopStart = 0, loopEnd = 0 } = {}) {
+    this._ctx(); this._disconnect();
+    const src = this.ctx.createBufferSource();
+    src.buffer = buffer; src.loop = loop;
+    if (loopEnd > 0) { src.loopStart = loopStart; src.loopEnd = loopEnd; }
+    src.connect(this.analyser); this.analyser.connect(this.ctx.destination);
+    this.bufferSrc = src; this.el = null; this.source = 'buffer';
+    src.start();
+    return src;
   }
   async fromMic() {
     this._ctx(); this._disconnect();
@@ -131,7 +145,14 @@ export class AudioField {
       beat, onset, spectrum: this.freq,
     };
   }
-  playing() { return this.source === 'mic' ? !!this.stream : !!(this.el && !this.el.paused); }
-  toggle() { if (this.el) { if (this.el.paused) this.el.play().catch(() => {}); else this.el.pause(); } }
+  playing() {
+    if (this.source === 'mic') return !!this.stream;
+    if (this.source === 'buffer') return !!this.bufferSrc && !!this.ctx && this.ctx.state === 'running';
+    return !!(this.el && !this.el.paused);
+  }
+  toggle() {
+    if (this.source === 'buffer') { if (!this.ctx) return; this.ctx.state === 'running' ? this.ctx.suspend() : this.ctx.resume(); return; }
+    if (this.el) { if (this.el.paused) this.el.play().catch(() => {}); else this.el.pause(); }
+  }
   dispose() { this._disconnect(); try { if (this.ctx) this.ctx.close(); } catch {} this.ctx = null; this.analyser = null; }
 }
