@@ -15,7 +15,7 @@
 //   listMessages(placeId)              -> Message[]
 //   postMessage({placeId,text,parentId}) -> Message
 
-import { listRepoRecords, resolveDid, handleForDid } from './atproto.js';
+import { listRepoRecords, resolveDid, profileForDid } from './atproto.js';
 
 export const PLACE_NSID = 'com.minomobi.hoop.place';
 export const MESSAGE_NSID = 'com.minomobi.hoop.message';
@@ -82,7 +82,7 @@ export class LocalBackend {
     SEED_MESSAGES.forEach((m, i) => {
       const id = `seed-${i}`;
       const parentId = m.parentOf != null ? `seed-${m.parentOf}` : undefined;
-      made.push({ id, placeId: m.placeId, text: m.text, author: m.author, parentId, createdAt: new Date(t).toISOString() });
+      made.push({ id, placeId: m.placeId, text: m.text, author: m.author, parentId, seed: true, createdAt: new Date(t).toISOString() });
       t += 60000;
     });
     this._write(LS_PLACES, places);
@@ -122,16 +122,9 @@ export class AtprotoBackend {
     this.mode = 'atproto';
     this.auth = auth;
     this.getCrew = getCrew;
-    this._didHandle = new Map(); // did -> handle (display cache)
   }
 
-  async _label(did) {
-    if (!did) return 'unknown';
-    if (this._didHandle.has(did)) return this._didHandle.get(did);
-    const h = await handleForDid(did);
-    this._didHandle.set(did, h);
-    return h;
-  }
+  async _profile(did) { return profileForDid(did); }
 
   async _crewDids() {
     const me = this.auth.getUser();
@@ -150,7 +143,8 @@ export class AtprotoBackend {
     for (const r of all) {
       const v = r.value || {};
       const id = placeId(v.x, v.y);
-      const place = { id, title: v.title, glyph: v.glyph, kind: v.kind, x: v.x, y: v.y, summary: v.summary, createdAt: v.createdAt, author: await this._label(r._did) };
+      const prof = await this._profile(r._did);
+      const place = { id, title: v.title, glyph: v.glyph, kind: v.kind, x: v.x, y: v.y, summary: v.summary, createdAt: v.createdAt, author: prof.handle, authorDid: prof.did, avatar: prof.avatar };
       const prev = byId.get(id);
       if (!prev || (place.createdAt && place.createdAt < prev.createdAt)) byId.set(id, place);
     }
@@ -177,7 +171,8 @@ export class AtprotoBackend {
     for (const r of all) {
       const v = r.value || {};
       if (v.placeId !== pid) continue;
-      out.push({ id: r.uri || `${r._did}/${r.cid}`, placeId: v.placeId, text: v.text, parentId: v.parentId, createdAt: v.createdAt, author: await this._label(r._did) });
+      const prof = await this._profile(r._did);
+      out.push({ id: r.uri || `${r._did}/${r.cid}`, placeId: v.placeId, text: v.text, parentId: v.parentId, createdAt: v.createdAt, author: prof.handle, authorDid: prof.did, avatar: prof.avatar });
     }
     out.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
     return out;

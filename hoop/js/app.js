@@ -172,15 +172,37 @@ const App = {
 
   renderMsg(node, depth) {
     const wrap = el('div', { className: 'msg', style: `margin-left:${Math.min(depth, 4) * 16}px` });
+    const av = this.avatarEl(node);
+    const body = el('div', { className: 'msg-main' });
     const head = el('div', { className: 'msg-head' }, [
       el('span', { className: 'msg-author', textContent: '@' + (node.author || 'someone') }),
-      el('span', { className: 'msg-time', textContent: fmtTime(node.createdAt) }),
     ]);
-    const reply = el('button', { className: 'reply-link', textContent: 'reply', onclick: () => this.setReply(node) });
-    head.append(reply);
-    wrap.append(head, el('div', { className: 'msg-text', textContent: node.text }));
+    if (node.seed) head.append(el('span', { className: 'ghost', textContent: '👻', title: 'Auto-seeded preview message — a specter, not a real ATProto record.' }));
+    head.append(el('span', { className: 'msg-time', textContent: fmtTime(node.createdAt) }));
+    head.append(el('button', { className: 'reply-link', textContent: 'reply', onclick: () => this.setReply(node) }));
+    body.append(head, el('div', { className: 'msg-text', textContent: node.text }));
+    const row = el('div', { className: 'msg-row' }, [av, body]);
+    wrap.append(row);
     for (const c of node.children) wrap.append(this.renderMsg(c, depth + 1));
     return wrap;
+  },
+
+  // Real pfp from the author's DID when we have one; otherwise a deterministic
+  // identicon so even the seed-data specters get a stable face.
+  avatarEl(node) {
+    const a = el('div', { className: 'avatar' });
+    if (node.avatar) {
+      a.append(el('img', { src: node.avatar, loading: 'lazy', alt: '', referrerPolicy: 'no-referrer' }));
+      if (node.authorDid) a.title = node.authorDid;
+    } else {
+      a.classList.add('identicon');
+      const name = (node.author || '?').replace(/^@/, '');
+      let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      a.style.background = `hsl(${h % 360} 45% 38%)`;
+      a.textContent = name.slice(0, 1).toUpperCase();
+      if (node.seed) a.classList.add('identicon-ghost');
+    }
+    return a;
   },
 
   setReply(node) {

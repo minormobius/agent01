@@ -11,6 +11,7 @@ const PLC_DIRECTORY = 'https://plc.directory';
 
 const _handleCache = new Map(); // handle -> did
 const _pdsCache = new Map();    // did -> pds origin
+const _profileCache = new Map(); // did -> { handle, avatar, did }
 
 /** Resolve a handle (or pass a did through) to a DID. */
 export async function resolveDid(handleOrDid) {
@@ -87,15 +88,23 @@ export async function listRepoRecords(handleOrDid, collection, { limit = 100, ma
   return out;
 }
 
-/** Best-effort handle for a DID (for display). Falls back to the DID. */
-export async function handleForDid(did) {
-  if (!did) return 'unknown';
+/** Best-effort {handle, avatar, did} for a DID. Cached. Falls back to the DID. */
+export async function profileForDid(did) {
+  if (!did) return { handle: 'unknown', avatar: null, did: null };
+  if (_profileCache.has(did)) return _profileCache.get(did);
+  let prof = { handle: did, avatar: null, did };
   try {
     const r = await fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`);
-    if (!r.ok) return did;
-    const p = await r.json();
-    return p.handle || did;
-  } catch {
-    return did;
-  }
+    if (r.ok) {
+      const p = await r.json();
+      prof = { handle: p.handle || did, avatar: p.avatar || null, did };
+    }
+  } catch { /* keep fallback */ }
+  _profileCache.set(did, prof);
+  return prof;
+}
+
+/** Best-effort handle for a DID (for display). Falls back to the DID. */
+export async function handleForDid(did) {
+  return (await profileForDid(did)).handle;
 }
