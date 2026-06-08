@@ -62,7 +62,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 <header>
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="./docs/" style="pointer-events:auto;color:#b7a988;font-weight:400;font-size:12.5px;text-decoration:none">docs ↗</a>
-  <span class="modes"><button data-proj="orb" class="on">Orb</button><button data-proj="flat">Mercator</button><button data-layer="topo" title="topographic relief: hypsometric tints + highest peak & deepest trough">Relief</button><button data-layer="wind" title="prevailing surface winds: trade winds, westerlies, polar easterlies">Wind</button><button data-layer="ethno" title="ethnographic atlas: subsistence belts (foragers, pastoralists, hoe horticulture, plough farmers, irrigation, maritime)">Ethno</button><button data-layer="minerals" title="mineral deposits: porphyry copper/gold on arcs, iron & gems in cratons, tin in highlands, salt in arid basins, placer gold down rivers">Ore</button><button data-layer="civ">Civ</button><button data-layer="tectonic">Tectonic</button></span>
+  <span class="modes"><button data-proj="orb" class="on">Orb</button><button data-proj="flat">Mercator</button><button data-layer="topo" title="topographic relief: hypsometric tints + highest peak & deepest trough">Relief</button><button data-layer="wind" title="prevailing surface winds: trade winds, westerlies, polar easterlies">Wind</button><button data-layer="ethno" title="ethnographic atlas: subsistence belts (foragers, pastoralists, hoe horticulture, plough farmers, irrigation, maritime)">Ethno</button><button data-layer="minerals" title="mineral deposits: porphyry copper/gold on arcs, iron & gems in cratons, tin in highlands, salt in arid basins, placer gold down rivers">Ore</button><button data-layer="fossils" title="fossil dig sites: where sedimentary strata are exposed in eroded badlands & coasts — each labelled with the fossils its rock records, read from where the land sat in deep time">Fossils</button><button data-layer="paleo" title="deep-time scrub: rewind the plates along their Euler poles and watch the continents drift — a present desert slides onto the paleo-equator">Paleo</button><button data-layer="civ">Civ</button><button data-layer="tectonic">Tectonic</button></span>
   <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
 </header>
 <div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">trails = how far each plate has drifted (dot = past, ▸ = now)</span></div>
@@ -82,8 +82,10 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <div class="brow" style="margin-top:7px"><span id="bMeta"></span></div>
 </div>
 <footer>
-  <div class="scrub"><button class="btn" id="play">▶ chronicle</button>
+  <div class="scrub" id="chronScrub"><button class="btn" id="play">▶ chronicle</button>
     <input type="range" id="time" min="0" max="1000" value="1000"><span class="era" id="era">all founded</span></div>
+  <div class="scrub" id="paleoScrub" style="display:none"><button class="btn" id="paleoPlay">▶ drift</button>
+    <input type="range" id="paleoT" min="0" max="1000" value="0"><span class="era" id="paleoEra">present</span></div>
   <div class="legend" id="legend"></div>
 </footer>
 <script type="module" src="./viewer.js"></script>

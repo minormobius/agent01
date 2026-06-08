@@ -34,7 +34,8 @@ const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
-let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null, minerals=[];
+let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null, minerals=[], digsites=[];
+let paleoT=0, paleoPlaying=false, paleoDir=1; // deep-time scrub: 0 = present, 1 = full drift back; dir for ping-pong play
 // ore commodities and where they form (filled in computeMinerals) — id, label, colour
 const ORE=[
   {id:'gold',  label:'gold',            col:'#e8c24a'},
@@ -45,6 +46,18 @@ const ORE=[
   {id:'salt',  label:'salt / evaporite',col:'#e6ebf0'},
   {id:'coal',  label:'coal',            col:'#2c2c33'}, // fossil fuel — paleo-swamps
   {id:'oil',   label:'oil & gas',       col:'#5d7040'}, // fossil fuel — buried anoxic marine basins
+];
+// fossil dig-site categories — what the strata record, read from the cell's
+// PALEO-latitude (where the land sat when the beds were laid down). index → label,
+// colour, taxa detail.
+const FOSSILS=[
+  {id:'reef',  name:'reef (tropical sea)',     col:'#e57ba6', det:'corals · ammonites · sea-lilies'},
+  {id:'shelf', name:'shelf sea',               col:'#5aa6cc', det:'brachiopods · belemnites · trilobites'},
+  {id:'lake',  name:'lake beds (lagerstätte)', col:'#62c2a4', det:'fish · insects · leaf impressions'},
+  {id:'coal',  name:'coal forest',             col:'#3f8a4a', det:'giant clubmosses · early amphibians'},
+  {id:'dino',  name:'dinosaur floodplain',     col:'#cf9438', det:'theropods · sauropods · petrified wood'},
+  {id:'mammal',name:'mammal bone beds',        col:'#b06a3a', det:'browsing herds · early carnivores'},
+  {id:'tundra',name:'ice-age tundra',          col:'#d2d8e2', det:'mammoth · tusks · cold-steppe fauna'},
 ];
 const BIDX=Object.fromEntries(BIOMES.map((b,i)=>[b.id,i])); // biome id → index
 // ethnographic subsistence modes (the cultivation belts) — index → label + colour
@@ -128,7 +141,7 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
   roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   countryBordMerc=[];const cof=atlas.countryOf;if(cof)for(let i=0;i<N;i++){const ci=cof[i];if(ci<0)continue;for(const j of world.adj[i]){const cj=cof[j];if(j>i&&cj>=0&&cj!==ci){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;countryBordMerc.push([a,b])}}}
-  computeLandmarks();computeVolcanoes();computeAnthro();computeMinerals();
+  computeLandmarks();computeVolcanoes();computeAnthro();computeMinerals();computeFossils();
 }
 // pick the most prominent, spatially-separated volcanoes for labelling on relief
 function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
@@ -198,6 +211,41 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
       for(const d of minerals)if(d.c===c&&dot(world.V[i],world.V[d.i])>0.984){ok=false;break}
       if(ok){minerals.push({i,c,score:raw[i]/mx,name:placeName(200+c*13+picked)});picked++}}}
   minerals.sort((a,b)=>b.score-a.score);minerals.forEach((d,k)=>d.lab=k<12);} // label the strongest dozen
+// FOSSIL DIG SITES: fossils survive where sedimentary strata were laid down (low
+// ground — basins, floodplains, coasts, lake beds) AND are now exposed by erosion
+// (arid badlands, sea cliffs — not buried under wet forest or fused into high peaks).
+// Each site's fossil TYPE is read from where its cell sat in deep time: rewind the
+// plate to the deposition age and the paleo-latitude says reef vs. dinosaur vs. tundra.
+function computeFossils(){digsites=[];if(!world)return;const N=world.N;
+  const riverCell=new Uint8Array(N),key=p=>(Math.round(p[0]*2048)+','+Math.round(p[1]*2048)+','+Math.round(p[2]*2048));
+  const idx=new Map();for(let i=0;i<N;i++)idx.set(key(world.V[i]),i);
+  for(const r of world.rivers){const i=idx.get(key(r.a));if(i!=null)riverCell[i]=1;const j=idx.get(key(r.b));if(j!=null)riverCell[j]=1}
+  const slopeOf=i=>{let mx=0;for(const j of world.adj[i]){const d=Math.abs(world.elev[i]-world.elev[j]);if(d>mx)mx=d}return mx};
+  const flagsOf=i=>{let coast=0,lake=0;for(const j of world.adj[i]){if(world.water[j]===1)coast=1;if(world.water[j]===2)lake=1}return[coast,lake]};
+  const raw=new Float32Array(N);let mx=1e-6;
+  for(let i=0;i<N;i++){if(world.water[i]!==0){raw[i]=0;continue}
+    const e=world.elev[i],M=world.moisture[i];if(e>0.6){raw[i]=0;continue}            // high peaks: erosional/metamorphic — barren
+    const[coast,lake]=flagsOf(i),riv=riverCell[i];
+    const deposition=(e<0.4?(1-e/0.4):0)*(1+0.6*riv+0.5*coast+0.7*lake+((!coast&&e<0.3)?0.45:0)); // low ground gathers thick sediment (+ inland intracratonic basins)
+    const exposure=Math.max(0,Math.min(1.3,0.2+(0.4-M)*2))*(0.55+Math.min(0.8,slopeOf(i)*6)); // aridity + relief strip cover into outcrops
+    const v=deposition*exposure;raw[i]=v;if(v>mx)mx=v}
+  const cand=[];for(let i=0;i<N;i++)if(raw[i]>0.42*mx)cand.push(i);cand.sort((a,b)=>raw[b]-raw[a]);
+  let picked=0;for(const i of cand){if(picked>=14)break;let ok=true;
+    for(const d of digsites)if(dot(world.V[i],world.V[d.i])>0.978){ok=false;break}
+    if(!ok)continue;
+    let s=(((world.meta.seed>>>0)^(i*0x9e3779b1))>>>0);s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;
+    const g=0.4+(s/4294967296)*0.55;                                                  // deposition age: 0.4..0.95 of the drift span
+    const alat=Math.abs(paleoLatAt(i,g))/(Math.PI/2);
+    const[coast,lake]=flagsOf(i),e=world.elev[i],M=world.moisture[i];
+    const marine=coast&&e<0.10, lacust=!marine&&(lake||(riverCell[i]&&e<0.22&&M>0.3));
+    let fc; if(marine)fc=alat<0.35?0:1;        // reef (tropical sea) / shelf sea
+    else if(lacust)fc=2;                       // lake lagerstätte
+    else if(alat<0.18)fc=3;                    // paleo-equatorial → coal forest
+    else if(alat<0.45)fc=4;                    // paleo-tropical → dinosaur floodplain
+    else if(alat<0.72)fc=5;                    // paleo-temperate → mammal bone beds
+    else fc=6;                                 // paleo-polar → ice-age tundra
+    digsites.push({i,fc,g,score:raw[i]/mx,name:placeName(400+picked*7),lab:false});picked++}
+  digsites.sort((a,b)=>b.score-a.score);digsites.forEach((d,k)=>d.lab=k<12);}
 // ---- topographic relief: extremes + hypsometric palette ----------------------
 function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
   for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
@@ -242,16 +290,19 @@ function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
     if(layer==='ethno'){ // ethnographic atlas: subsistence belts
       if(world.water[i]!==0){cellFill[i]=hsl(...ETHNO_SEA);cellBase[i]=ETHNO_SEA;continue}
       const c=SUB[subMode[i]].col,sh=shadeOf(i);cellBase[i]=c;cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(94,c[2]+sh*30)));continue}
-    if(layer==='minerals'){ // muted relief base; deposits drawn as markers on top
+    if(layer==='minerals'||layer==='fossils'){ // muted relief base; deposits/digs drawn as markers on top
       if(world.water[i]!==0){const c=[210,14,15];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
       const t=Math.min(1,Math.max(0,world.elev[i]/landMaxE)),c=[36,9,34+t*26];cellBase[i]=c;
       cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(92,c[2]+shadeOf(i)*42)));continue}
+    if(layer==='paleo'){ // present biome colours (so a continent stays recognisable as it drifts)
+      const b=BIOMES[world.biome[i]];const c=[b.h,Math.round(b.s*0.92),b.l];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
 
 // ---- Mercator / Tectonic: VECTOR render, viewport-culled ---------------------
-function draw(){if(proj==='orb'){drawOrb();return}
+function draw(){if(layer==='paleo'){drawPaleo();return}
+  if(proj==='orb'){drawOrb();return}
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle=layer==='tectonic'?'#11161c':'#0c1a22';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.translate(mview.x,mview.y);ctx.scale(mview.s,mview.s);ctx.translate(ox,oy);ctx.scale(S,S);
   const inv=(sx,sy)=>[((sx-mview.x)/mview.s-ox)/S,((sy-mview.y)/mview.s-oy)/S];
@@ -273,7 +324,7 @@ function draw(){if(proj==='orb'){drawOrb();return}
   if(layer==='tectonic')drawDrift();
   drawWinds();
   renderAtlasOverlay();
-  drawLandmarks();drawVolcanoes();drawMinerals();
+  drawLandmarks();drawVolcanoes();drawMinerals();drawDigsites(false);
 }
 // peak ▲ / trough ▼ pins with named labels — both projections, only in relief mode
 function drawLandmarks(){if(layer!=='topo'||!world||peakI<0)return;
@@ -304,6 +355,67 @@ function drawMinerals(){if(layer!=='minerals'||!world||!minerals.length)return;
     ctx.beginPath();ctx.arc(p.x,p.y,3.4,0,7);ctx.fillStyle=o.col;ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(8,6,3,.85)';ctx.stroke();
     if(d.lab){ctx.font='600 10px ui-serif,Georgia,serif';ctx.textAlign='left';const t=d.name+' · '+o.label,tw=ctx.measureText(t).width,lx=p.x+5;
       ctx.fillStyle='rgba(8,6,3,.62)';ctx.fillRect(lx-2,p.y-7,tw+4,14);ctx.fillStyle=o.col;ctx.fillText(t,lx,p.y+0.5)}}}}
+// ---- PALEO time-scrub: rewind plates along their Euler poles -------------------
+// Same rotation the tectonic drift trails use, applied to EVERY cell. paleoT 0=now,
+// 1=full ageSpan back. (An evocative rewind, not a rigorous reconstruction — plates
+// rotate independently, so deep rewinds can overlap continents into a proto-Pangaea.)
+function paleoVec(v,i){const pl=world.plates[world.plate[i]];return rotAxis(v,pl.axis,-pl.speed*driftT*paleoT)}
+function paleoVecAt(v,i,g){const pl=world.plates[world.plate[i]];return rotAxis(v,pl.axis,-pl.speed*driftT*g)}
+function paleoLatAt(i,g){const p=paleoVecAt(world.V[i],i,g);return Math.asin(Math.max(-1,Math.min(1,p[2])))}
+function paleoScreen(v,i){const w=paleoVec(v,i);
+  if(proj==='orb'){const q=orbV(w);if(q[2]<=0.04)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
+  const m=mxy(w),y=mview.y+mview.s*(oy+m[1]*S);if(y<-30||y>H+30)return null;return{x:mview.x+mview.s*(ox+m[0]*S),y}}
+const _latStr=z=>{const d=Math.asin(Math.max(-1,Math.min(1,z)))*180/Math.PI;return Math.abs(d).toFixed(0)+'°'+(d>=0?'N':'S')};
+function flatLatY(latDeg){const la=Math.max(-CLAT,Math.min(CLAT,latDeg*Math.PI/180)),m=mxy([Math.cos(la),0,Math.sin(la)]);return mview.y+mview.s*(oy+m[1]*S)}
+function orbLatCircle(cx,cy,R,latDeg,style,lw,dash){const la=latDeg*Math.PI/180;ctx.save();if(dash)ctx.setLineDash(dash);ctx.strokeStyle=style;ctx.lineWidth=lw;ctx.beginPath();let st=false;
+  for(let k=0;k<=96;k++){const lo=k/96*2*Math.PI,v=[Math.cos(la)*Math.cos(lo),Math.cos(la)*Math.sin(lo),Math.sin(la)],q=orbV(v);if(q[2]>0.02){const x=cx+R*q[0],y=cy-R*q[1];if(!st){ctx.moveTo(x,y);st=true}else ctx.lineTo(x,y)}else st=false}ctx.stroke();ctx.restore()}
+function drawPaleoBandsFlat(){for(const[a,b,col]of[[-25,25,'rgba(184,124,60,.11)'],[25,55,'rgba(118,142,92,.06)'],[-55,-25,'rgba(118,142,92,.06)'],[55,90,'rgba(120,162,202,.10)'],[-90,-55,'rgba(120,162,202,.10)']]){
+  const y0=flatLatY(b),y1=flatLatY(a);ctx.fillStyle=col;ctx.fillRect(0,Math.min(y0,y1),W,Math.abs(y1-y0))}}
+function drawPaleoLinesFlat(){ctx.save();ctx.textAlign='left';ctx.textBaseline='middle';
+  for(const[d,col,lw,dash,lab]of[[0,'rgba(233,196,90,.6)',1.6,null,'equator'],[25,'rgba(220,150,90,.36)',1,[5,5],'tropic'],[-25,'rgba(220,150,90,.36)',1,[5,5],''],[55,'rgba(150,185,220,.32)',1,[3,5],'polar'],[-55,'rgba(150,185,220,.32)',1,[3,5],'']]){
+    const y=flatLatY(d);if(y<-5||y>H+5)continue;ctx.setLineDash(dash||[]);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
+    if(lab){ctx.setLineDash([]);ctx.font='600 10px ui-serif,Georgia,serif';ctx.fillStyle=col.replace(/,\.[0-9]+\)$/,',.9)');ctx.fillText(lab,8,y-7)}}
+  ctx.restore()}
+function drawPaleoGrid(cx,cy,R){drawGraticule(cx,cy,R);
+  orbLatCircle(cx,cy,R,0,'rgba(233,196,90,.62)',1.9,null);
+  orbLatCircle(cx,cy,R,25,'rgba(220,150,90,.42)',1.1,[5,5]);orbLatCircle(cx,cy,R,-25,'rgba(220,150,90,.42)',1.1,[5,5])}
+function drawPaleoReadout(){const ep=paleoT*(world.meta.age||1);
+  const txt=paleoT<0.001?'present day':('▷ deep time · −'+ep.toFixed(1)+' epoch'+(Math.abs(ep-1)<0.05?'':'s')+' · plates rewound along their Euler poles');
+  ctx.font='600 12px ui-serif,Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const tw=ctx.measureText(txt).width,x=W/2,y=64;
+  ctx.fillStyle='rgba(10,8,4,.66)';ctx.fillRect(x-tw/2-9,y-11,tw+18,22);ctx.strokeStyle='rgba(120,96,48,.5)';ctx.lineWidth=1;ctx.strokeRect(x-tw/2-9,y-11,tw+18,22);
+  ctx.fillStyle='#e8c98a';ctx.fillText(txt,x,y)}
+function drawPaleo(){if(!world)return;ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle='#05080b';ctx.fillRect(0,0,W,H);const N=world.N;
+  if(proj==='orb'){const cx=W/2,cy=H/2,R=orbR;ctx.beginPath();ctx.arc(cx,cy,R+1,0,7);ctx.fillStyle='#081820';ctx.fill();
+    const order=[];for(let i=0;i<N;i++){const n=orbV(paleoVec(world.V[i],i));if(n[2]>0.01)order.push([i,n])}order.sort((a,b)=>a[1][2]-b[1][2]);
+    for(const[i,n]of order){const nd=Math.max(0,n[0]*LIGHT[0]+n[1]*LIGHT[1]+n[2]*LIGHT[2]);
+      let[h,s,l]=cellBase[i];if(world.water[i]===0)l=Math.max(4,Math.min(96,l*(0.62+0.5*nd)+shadeOf(i)*40));else l=l*(0.6+0.55*nd);
+      ctx.fillStyle=hsl(h,s,l);ctx.beginPath();let st=false;for(const v of world.cells[i]){const q=orbV(paleoVec(v,i)),x=cx+R*q[0],y=cy-R*q[1];if(!st){ctx.moveTo(x,y);st=true}else ctx.lineTo(x,y)}ctx.closePath();ctx.fill()}
+    drawPaleoGrid(cx,cy,R);
+    const g=ctx.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R);g.addColorStop(0,'rgba(255,250,235,.08)');g.addColorStop(.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.42)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
+  }else{drawPaleoBandsFlat();
+    for(let i=0;i<N;i++){const verts=world.cells[i],sp=[];let minx=1e9,maxx=-1e9,vis=false;
+      for(const v of verts){const m=mxy(paleoVec(v,i)),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);sp.push([x,y]);if(x<minx)minx=x;if(x>maxx)maxx=x;if(y>-30&&y<H+30)vis=true}
+      if(!vis||maxx-minx>W*0.6)continue;
+      let[h,s,l]=cellBase[i];if(world.water[i]===0)l=Math.max(4,Math.min(96,l+shadeOf(i)*42));
+      ctx.fillStyle=hsl(h,s,l);ctx.beginPath();ctx.moveTo(sp[0][0],sp[0][1]);for(let k=1;k<sp.length;k++)ctx.lineTo(sp[k][0],sp[k][1]);ctx.closePath();ctx.fill()}
+    drawPaleoLinesFlat()}
+  drawDigsites(true);drawPaleoReadout();
+}
+// dig-site markers (◇) coloured by fossil category. paleoMode → drift with the plates
+// (positions rewound) and label every site; otherwise static at present positions,
+// strongest dozen labelled. A site near its deposition age gets a ring (beds forming).
+function drawDigsites(paleoMode){if((paleoMode?false:layer!=='fossils')||!digsites.length)return;ctx.textBaseline='middle';
+  for(const d of digsites){const f=FOSSILS[d.fc];
+    const pts=paleoMode?(p=>p?[p]:[])(paleoScreen(world.V[d.i],d.i)):screenCopies(world.V[d.i]);
+    const near=paleoMode&&Math.abs(paleoT-d.g)<0.06;
+    for(const p of pts){const r=4;
+      if(near){ctx.beginPath();ctx.arc(p.x,p.y,r+3,0,7);ctx.strokeStyle=f.col;ctx.lineWidth=1.4;ctx.stroke()}
+      ctx.beginPath();ctx.moveTo(p.x,p.y-r);ctx.lineTo(p.x+r,p.y);ctx.lineTo(p.x,p.y+r);ctx.lineTo(p.x-r,p.y);ctx.closePath();
+      ctx.fillStyle=f.col;ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(8,6,3,.85)';ctx.stroke();
+      if(paleoMode||d.lab){ctx.font='600 10px ui-serif,Georgia,serif';ctx.textAlign='left';
+        const t=paleoMode?f.name:(d.name+' · '+f.name),tw=ctx.measureText(t).width,lx=p.x+r+3;
+        ctx.fillStyle='rgba(8,6,3,.6)';ctx.fillRect(lx-2,p.y-7,tw+4,14);ctx.fillStyle=f.col;ctx.fillText(t,lx,p.y+0.5)}}}}
 // prevailing surface wind at a unit point, recomputed from the genome (banded model)
 const _crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const _nrm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]};
@@ -361,7 +473,7 @@ function drawOrb(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
   drawWinds();
   renderAtlasOverlay();
-  drawLandmarks();drawVolcanoes();drawMinerals();
+  drawLandmarks();drawVolcanoes();drawMinerals();drawDigsites(false);
 }
 function drawGraticule(cx,cy,R){
   for(const latDeg of[0,30,-30,60,-60]){const la=latDeg*Math.PI/180;ctx.strokeStyle=latDeg===0?'rgba(255,250,235,.20)':'rgba(255,250,235,.09)';ctx.lineWidth=latDeg===0?1.2:1;ctx.beginPath();let st=false;
@@ -411,7 +523,8 @@ function tipCity(c,px,py,t){showTip(px,py);const seam=c.w2?'border · '+wing(c.w
   tip.innerHTML='<b>'+c.n+'</b> '+(c.capital?'★':'')+'<br><span class="m">'+seam+' · founded '+(c.b||'—')+'</span>'+(c.u?'<br><span class="open">'+(t?'tap again to open ↗':'click to open ↗')+'</span>':'')}
 function tipCell(i,px,py){if(i<0){tip.style.opacity=0;return}showTip(px,py);const b=BIOMES[world.biome[i]],T=world.temperature[i],M=world.moisture[i],e=world.elev[i],ws=world.seasonality[i];
   const sub=(layer==='ethno'&&subMode&&world.water[i]===0)?'<br><span class="open">'+SUB[subMode[i]].name+'</span>':'';
-  tip.innerHTML='<b>'+b.name+'</b><br><span class="m">'+(T|0)+'°C mean · winter −'+(ws*0.5|0)+'° · moisture '+(M*100|0)+'%<br>'+(world.water[i]?'sea':(Math.max(0,e)*4000|0)+' m')+'</span>'+sub}
+  const pal=(layer==='paleo'&&paleoT>0.001)?'<br><span class="open">now '+_latStr(world.V[i][2])+' → '+_latStr(paleoVec(world.V[i],i)[2])+' at −'+(paleoT*(world.meta.age||1)).toFixed(1)+' ep</span>':'';
+  tip.innerHTML='<b>'+b.name+'</b><br><span class="m">'+(T|0)+'°C mean · winter −'+(ws*0.5|0)+'° · moisture '+(M*100|0)+'%<br>'+(world.water[i]?'sea':(Math.max(0,e)*4000|0)+' m')+'</span>'+sub+pal}
 
 const cz=s=>Math.max(0.5,Math.min(40,s));
 const ptrs=new Map();let gesture=null,tapStart=null;const di=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -445,8 +558,12 @@ document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{
   if(b.dataset.proj){ proj=b.dataset.proj; if(layer==='civ'||layer==='tectonic')layer='biome'; }
   else { layer=b.dataset.layer; if(layer==='civ'||layer==='tectonic')proj='flat'; }
   syncModeButtons();
+  const isPaleo=layer==='paleo';
+  document.getElementById('paleoScrub').style.display=isPaleo?'flex':'none';
+  document.getElementById('chronScrub').style.display=isPaleo?'none':'flex';
+  if(!isPaleo&&paleoPlaying){paleoPlaying=false;document.getElementById('paleoPlay').textContent='▶ drift'}
   tkey.classList.toggle('show',layer==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();
-  if(proj==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
+  if(proj==='orb'&&!isPaleo){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
 document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;regen()};
@@ -456,6 +573,13 @@ const eraLabel=()=>tcut>=1?'all founded':'↤ '+new Date(SITES.minB+(SITES.maxB-
 tEl.addEventListener('input',()=>{tcut=+tEl.value/1000;eraEl.textContent=eraLabel();draw()});
 document.getElementById('play').onclick=()=>{playing=!playing;if(playing){tcut=0;tEl.value=0;step()}};
 function step(){if(!playing)return;tcut=Math.min(1,tcut+0.006);tEl.value=tcut*1000;eraEl.textContent=eraLabel();draw();if(tcut>=1){playing=false;document.getElementById('play').textContent='▶ chronicle';return}document.getElementById('play').textContent='⏸';requestAnimationFrame(step)}
+// --- paleo deep-time scrub ---
+const pEl=document.getElementById('paleoT'),pEra=document.getElementById('paleoEra'),pPlay=document.getElementById('paleoPlay');
+const paleoLabel=()=>{const ep=paleoT*(world?(world.meta.age||1):1);return paleoT<0.001?'present':('−'+ep.toFixed(1)+' epochs')};
+pEl.addEventListener('input',()=>{paleoT=+pEl.value/1000;pEra.textContent=paleoLabel();if(layer==='paleo')draw()});
+pPlay.onclick=()=>{paleoPlaying=!paleoPlaying;if(paleoPlaying){pPlay.textContent='⏸';paleoStep()}else pPlay.textContent='▶ drift'};
+function paleoStep(){if(!paleoPlaying)return;paleoT+=paleoDir*0.004;if(paleoT>=1){paleoT=1;paleoDir=-1}else if(paleoT<=0){paleoT=0;paleoDir=1}
+  pEl.value=paleoT*1000;pEra.textContent=paleoLabel();draw();requestAnimationFrame(paleoStep)}
 function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
   if(layer==='topo'){
     for(const[lab,col]of[['deep',[222,60,16]],['sea',[205,56,42]],['shore',[100,44,42]],['hills',[58,38,51]],['highland',[40,28,62]],['snow',[26,12,86]]]){
@@ -467,6 +591,11 @@ function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
   if(layer==='minerals'){const seen=new Set(minerals.map(d=>d.c));
     for(let k=0;k<ORE.length;k++){if(!seen.has(k))continue;const o=ORE[k];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+o.col+'"></span>'+o.label;legendEl.appendChild(c)}
     return}
+  if(layer==='fossils'){const seen=new Set(digsites.map(d=>d.fc));
+    for(let k=0;k<FOSSILS.length;k++){if(!seen.has(k))continue;const f=FOSSILS[k];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+f.col+'"></span>'+f.name;legendEl.appendChild(c)}
+    return}
+  if(layer==='paleo'){for(const[lab,col]of[['equator','#e9c45a'],['tropics','#dc965a'],['polar circle','#96b9dc']]){const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+col+'"></span>'+lab;legendEl.appendChild(c)}
+    const n=document.createElement('span');n.className='chip';n.style.cursor='default';n.textContent='drag ▶ to rewind the plates · ◇ = dig site';legendEl.appendChild(n);return}
   if(atlasOn){for(const w of WINGS){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,55,58)+'"></span>'+w.label;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
   else{const seen=new Set();for(let i=0;i<world.N;i++)seen.add(world.biome[i]);for(let bi=3;bi<BIOMES.length;bi++){if(!seen.has(bi))continue;const b=BIOMES[bi];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(b.h,b.s,b.l)+'"></span>'+b.name;legendEl.appendChild(c)}}}
