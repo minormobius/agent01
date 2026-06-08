@@ -33,7 +33,7 @@ function unpackRust(o){const N=o.n,pos=o.positions;
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
-let world=null, atlas=null, mode='orb', atlasOn=true, topo=false, winds=false;
+let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
 let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='';
 const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null,rotationRate:null}; // null = derive from seed
 const pinned=new Set();
@@ -58,7 +58,7 @@ const CLAT=1.40,YMAX=Math.log(Math.tan(Math.PI/4+CLAT/2));
 function lonlat(v){return[Math.atan2(v[1],v[0]),Math.asin(Math.max(-1,Math.min(1,v[2])))]}
 function mxy(v){const ll=lonlat(v),la=Math.max(-CLAT,Math.min(CLAT,ll[1]));return[(ll[0]+Math.PI)/(2*Math.PI)*MW,(YMAX-Math.log(Math.tan(Math.PI/4+la/2)))/(2*YMAX)*MH]}
 function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visible
-  if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
+  if(proj==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
 function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined})}
@@ -135,22 +135,22 @@ function topoHSL(i){const e=world.elev[i];
 const CIV_SEA=[206,40,40];
 function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
   for(let i=0;i<N;i++){
-    if(mode==='tectonic'){const p=world.plate[i];cellFill[i]=world.plateType[i]===0?hsl((p*47)%360,24,world.water[i]?30:46):hsl(210,30,24+(p%4)*3);cellBase[i]=[0,0,0];continue}
-    if(mode==='civ'){ // SOVEREIGNTY: one flat sea, land coloured by country (civilisation hue family)
+    if(layer==='tectonic'){const p=world.plate[i];cellFill[i]=world.plateType[i]===0?hsl((p*47)%360,24,world.water[i]?30:46):hsl(210,30,24+(p%4)*3);cellBase[i]=[0,0,0];continue}
+    if(layer==='civ'){ // SOVEREIGNTY: one flat sea, land coloured by country (civilisation hue family)
       if(world.water[i]!==0){cellFill[i]=hsl(...CIV_SEA);cellBase[i]=CIV_SEA;continue}
       const ci=atlas.countryOf&&atlas.countryOf[i];
       if(ci>=0){const co=atlas.countries[ci],act=active.has(co.wing),l0=(act?53:33)+co.lo,s0=act?32:8,sh=shadeOf(i);
         cellFill[i]=hsl(co.hue,s0,Math.max(8,Math.min(92,l0+sh*28)));cellBase[i]=[co.hue,s0,l0]}
       else{cellFill[i]=hsl(40,6,40);cellBase[i]=[40,6,40]}
       continue}
-    if(topo){const c=topoHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm);continue}
+    if(layer==='topo'){const c=topoHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm);continue}
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
 
 // ---- Mercator / Tectonic: VECTOR render, viewport-culled ---------------------
-function draw(){if(mode==='orb'){drawOrb();return}
-  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle=mode==='tectonic'?'#11161c':'#0c1a22';ctx.fillRect(0,0,W,H);
+function draw(){if(proj==='orb'){drawOrb();return}
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle=layer==='tectonic'?'#11161c':'#0c1a22';ctx.fillRect(0,0,W,H);
   ctx.save();ctx.translate(mview.x,mview.y);ctx.scale(mview.s,mview.s);ctx.translate(ox,oy);ctx.scale(S,S);
   const inv=(sx,sy)=>[((sx-mview.x)/mview.s-ox)/S,((sy-mview.y)/mview.s-oy)/S];
   const a=inv(0,0),b=inv(W,H),vx0=Math.min(a[0],b[0])-20,vx1=Math.max(a[0],b[0])+20,vy0=Math.min(a[1],b[1])-20,vy1=Math.max(a[1],b[1])+20;
@@ -159,22 +159,22 @@ function draw(){if(mode==='orb'){drawOrb();return}
   for(let kk=kLo;kk<=kHi;kk++){const off=kk*MW, wx0=vx0-off, wx1=vx1-off;
     ctx.save();ctx.translate(off,0);
     for(let i=0;i<world.N;i++){const g=cellPoly[i],bb=g.bb;if(bb[2]<wx0||bb[0]>wx1||bb[3]<vy0||bb[1]>vy1)continue;ctx.fillStyle=cellFill[i];tracePoly(g.pts,0);ctx.fill()}
-    if(mode==='tectonic'){ctx.lineCap='round';for(const bd of world.bounds){const p=mxy(bd.a),q=mxy(bd.b);if(Math.abs(p[0]-q[0])>MW*0.5)continue;ctx.lineWidth=px(bd.c>0.18?2.4:1.6);ctx.strokeStyle=bd.c>0.18?'#e0603c':(bd.c<-0.18?'#3fb6a0':'#d8b24a');ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}
+    if(layer==='tectonic'){ctx.lineCap='round';for(const bd of world.bounds){const p=mxy(bd.a),q=mxy(bd.b);if(Math.abs(p[0]-q[0])>MW*0.5)continue;ctx.lineWidth=px(bd.c>0.18?2.4:1.6);ctx.strokeStyle=bd.c>0.18?'#e0603c':(bd.c<-0.18?'#3fb6a0':'#d8b24a');ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}
     else{ctx.strokeStyle='#3a6f8c';ctx.lineCap='round';for(const r of rivMerc){if(r.skip)continue;ctx.lineWidth=px(0.5+r.w*0.55);ctx.beginPath();ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1]);ctx.stroke()}
-      if(mode==='civ'&&atlasOn){ // sovereignty: country borders (thin) + civilisation borders (thick) + roads
+      if(layer==='civ'&&atlasOn){ // sovereignty: country borders (thin) + civilisation borders (thick) + roads
         ctx.strokeStyle='rgba(22,15,9,.42)';ctx.lineWidth=px(0.8);ctx.beginPath();for(const e of countryBordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke();
         ctx.strokeStyle='rgba(12,7,3,.72)';ctx.lineWidth=px(2.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke();
         ctx.strokeStyle='rgba(58,28,10,.85)';ctx.lineCap='round';ctx.lineWidth=px(1.4);ctx.beginPath();for(const r of roadMerc){if(r.skip)continue;ctx.moveTo(r.a[0],r.a[1]);ctx.lineTo(r.b[0],r.b[1])}ctx.stroke();
       } else if(atlasOn){ctx.strokeStyle='rgba(20,12,6,.55)';ctx.lineWidth=px(1.2);ctx.beginPath();for(const e of bordMerc){ctx.moveTo(e[0][0],e[0][1]);ctx.lineTo(e[1][0],e[1][1])}ctx.stroke()}}
     ctx.restore();}
   ctx.restore();
-  if(mode==='tectonic')drawDrift();
+  if(layer==='tectonic')drawDrift();
   drawWinds();
   renderAtlasOverlay();
   drawLandmarks();
 }
 // peak ▲ / trough ▼ pins with named labels — both projections, only in relief mode
-function drawLandmarks(){if(!topo||peakI<0||(mode!=='orb'&&mode!=='map'))return;
+function drawLandmarks(){if(layer!=='topo'||!world||peakI<0)return;
   const L=landmarkLabels();ctx.textBaseline='middle';
   for(const[idx,txt,up]of[[peakI,L.peak,1],[troughI,L.trough,0]]){
     for(const p of screenCopies(world.V[idx])){const r=5;
@@ -200,14 +200,14 @@ function windAt(p){const z=p[2],m=world.meta;
 function arrow(x,y,x2,y2){const dx=x2-x,dy=y2-y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,h=3.4;
   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);
   ctx.lineTo(x2-ux*h-uy*h*0.6,y2-uy*h+ux*h*0.6);ctx.moveTo(x2,y2);ctx.lineTo(x2-ux*h+uy*h*0.6,y2-uy*h-ux*h*0.6);ctx.stroke()}
-function drawWinds(){if(!winds||!world)return;ctx.lineWidth=1;ctx.lineCap='round';ctx.strokeStyle='rgba(190,216,240,.5)';
+function drawWinds(){if(layer!=='wind'||!world)return;ctx.lineWidth=1;ctx.lineCap='round';ctx.strokeStyle='rgba(190,216,240,.5)';
   const eps=0.05,LATS=16,LONS=34;
   for(let a=1;a<LATS;a++){const la=-Math.PI/2+a/LATS*Math.PI;
     for(let o=0;o<LONS;o++){const lo=(o+(a%2)*0.5)/LONS*2*Math.PI;
       const p=[Math.cos(la)*Math.cos(lo),Math.cos(la)*Math.sin(lo),Math.sin(la)];
       const w=windAt(p),wl=Math.hypot(w[0],w[1],w[2])||1;
       const p2=_nrm([p[0]+w[0]/wl*eps,p[1]+w[1]/wl*eps,p[2]+w[2]/wl*eps]);
-      if(mode==='orb'){const q=orbV(p);if(q[2]<=0.05)continue;const q2=orbV(p2);
+      if(proj==='orb'){const q=orbV(p);if(q[2]<=0.05)continue;const q2=orbV(p2);
         arrow(W/2+orbR*q[0],H/2-orbR*q[1],W/2+orbR*q2[0],H/2-orbR*q2[1])}
       else{const b=projVm(p),t=projVm(p2),stepX=mview.s*S*MW;if(b.y<-20||b.y>H+20)continue;
         if(Math.abs(t.x-b.x)>stepX*0.5)continue;
@@ -259,11 +259,11 @@ function dotR(c){return(c.capital?3.2:2.0)+Math.min(5.5,Math.sqrt(c.k)*0.85)}
 const overlaps=(b,arr)=>arr.some(o=>!(b[2]<o[0]||b[0]>o[2]||b[3]<o[1]||b[1]>o[3]));
 // screen position(s) of a unit vector — multiple copies across the Mercator cylinder, one on the orb
 function screenCopies(v){
-  if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return [];return [{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}]}
+  if(proj==='orb'){const q=orbV(v);if(q[2]<=0.035)return [];return [{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}]}
   const m=mxy(v),baseX=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(y<-40||y>H+40)return [];
   const stepX=mview.s*S*MW,out=[],kLo=Math.ceil((-60-baseX)/stepX),kHi=Math.floor((W+60-baseX)/stepX);
   for(let k=kLo;k<=kHi;k++)out.push({x:baseX+k*stepX,y});return out}
-function renderAtlasOverlay(){if(!atlasOn||mode==='tectonic')return;
+function renderAtlasOverlay(){if(!atlasOn||layer==='tectonic')return;
   const placed=[];ctx.textAlign='center';ctx.textBaseline='alphabetic';
   for(const w of WINGS){if(!active.has(w.id))continue;const rk=atlas.wingRegion[w.id],cc=atlas.centroids[rk];if(!cc)continue;
     const txt=w.label.toUpperCase();ctx.font='italic 12px ui-serif,Georgia,serif';const tw=ctx.measureText(txt).width;
@@ -278,13 +278,13 @@ function renderAtlasOverlay(){if(!atlasOn||mode==='tectonic')return;
     const lx=it.x,ly=it.y+r+LABEL_PX-1,box=[lx-tw/2-2,ly-LABEL_PX,lx+tw/2+2,ly+2];
     if(c===hot||!overlaps(box,placed)){ctx.textAlign='center';ctx.fillStyle='rgba(6,4,2,.92)';ctx.fillText(c.n,lx+0.4,ly+0.4);ctx.fillStyle=hsl(w.hue,46,92);ctx.fillText(c.n,lx,ly);placed.push(box)}}
 }
-function orbSpin(){if(mode!=='orb'||!spin){spinRAF=0;return}R=mMul(R,RZ(0.0015));draw();spinRAF=requestAnimationFrame(orbSpin)} // spin about the planet's own pole
+function orbSpin(){if(proj!=='orb'||!spin){spinRAF=0;return}R=mMul(R,RZ(0.0015));draw();spinRAF=requestAnimationFrame(orbSpin)} // spin about the planet's own pole
 
 // ---- picking + tooltip -------------------------------------------------------
 function pickCity(px,py,touch){if(!atlasOn)return null;let best=null,bd=1e18;
   for(const c of atlas.cities){if(!active.has(c.w)||c.f>tcut||(query&&!c.n.toLowerCase().includes(query)))continue;for(const p of screenCopies(c.v)){const d=(p.x-px)**2+(p.y-py)**2;if(d<bd){bd=d;best=c}}}return bd<(touch?22:13)**2?best:null}
 function pickCell(px,py){let dir;
-  if(mode==='orb'){const cx=W/2,cy=H/2,RR=orbR,nx=(px-cx)/RR,ny=-(py-cy)/RR,r2=nx*nx+ny*ny;if(r2>1)return -1;const nz=Math.sqrt(1-r2);dir=mVT(R,[nx,ny,nz])}
+  if(proj==='orb'){const cx=W/2,cy=H/2,RR=orbR,nx=(px-cx)/RR,ny=-(py-cy)/RR,r2=nx*nx+ny*ny;if(r2>1)return -1;const nz=Math.sqrt(1-r2);dir=mVT(R,[nx,ny,nz])}
   else{const mx=((px-mview.x)/mview.s-ox)/S,my=((py-mview.y)/mview.s-oy)/S;const lon=mx/MW*2*Math.PI-Math.PI;const t=(1-my/MH*2)*YMAX;const lat=2*Math.atan(Math.exp(t))-Math.PI/2;const cl=Math.cos(lat);dir=[cl*Math.cos(lon),cl*Math.sin(lon),Math.sin(lat)]}
   let bi=-1,bd=-2;for(let i=0;i<world.N;i++){const d=dot(world.V[i],dir);if(d>bd){bd=d;bi=i}}return bi}
 function showTip(px,py){tip.style.left=Math.max(80,Math.min(innerWidth-80,px))+'px';tip.style.top=Math.max(54,py)+'px';tip.style.opacity=1}
@@ -296,10 +296,10 @@ function tipCell(i,px,py){if(i<0){tip.style.opacity=0;return}showTip(px,py);cons
 const cz=s=>Math.max(0.5,Math.min(40,s));
 const ptrs=new Map();let gesture=null,tapStart=null;const di=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});spin=false;
-  if(ptrs.size===1){tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};gesture=mode==='orb'?{mode:'rot',x:e.clientX,y:e.clientY,R0:R}:{mode:'pan',x:e.clientX,y:e.clientY,vx:mview.x,vy:mview.y};cv.classList.add('drag')}
+  if(ptrs.size===1){tapStart={x:e.clientX,y:e.clientY,t:Date.now(),touch:e.pointerType!=='mouse'};gesture=proj==='orb'?{mode:'rot',x:e.clientX,y:e.clientY,R0:R}:{mode:'pan',x:e.clientX,y:e.clientY,vx:mview.x,vy:mview.y};cv.classList.add('drag')}
   else if(ptrs.size===2){const p=[...ptrs.values()];gesture={mode:'pinch',d:di(p[0],p[1]),s:mview.s,r:orbR,vx:mview.x,vy:mview.y};tapStart=null;tip.style.opacity=0}});
 cv.addEventListener('pointermove',e=>{if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){const p=[...ptrs.values()],f=di(p[0],p[1])/(gesture.d||1);if(mode==='orb')orbR=Math.max(120,Math.min(2400,gesture.r*f));else{const ns=cz(gesture.s*f),cmx=(p[0].x+p[1].x)/2,cmy=(p[0].y+p[1].y)/2,rx=(cmx-gesture.vx)/gesture.s,ry=(cmy-gesture.vy)/gesture.s;mview.s=ns;mview.x=cmx-rx*ns;mview.y=cmy-ry*ns}draw();return}
+  if(gesture&&gesture.mode==='pinch'&&ptrs.size>=2){const p=[...ptrs.values()],f=di(p[0],p[1])/(gesture.d||1);if(proj==='orb')orbR=Math.max(120,Math.min(2400,gesture.r*f));else{const ns=cz(gesture.s*f),cmx=(p[0].x+p[1].x)/2,cmy=(p[0].y+p[1].y)/2,rx=(cmx-gesture.vx)/gesture.s,ry=(cmy-gesture.vy)/gesture.s;mview.s=ns;mview.x=cmx-rx*ns;mview.y=cmy-ry*ns}draw();return}
   if(gesture&&gesture.mode==='rot'&&ptrs.size===1){const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;R=mMul(mMul(RX(dy*0.006),RY(dx*0.006)),gesture.R0);if(tapStart&&Math.hypot(dx,dy)>8)tapStart=null;draw();return}
   if(gesture&&gesture.mode==='pan'&&ptrs.size===1){mview.x=gesture.vx+(e.clientX-gesture.x);mview.y=gesture.vy+(e.clientY-gesture.y);if(tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)>8){tapStart=null;tip.style.opacity=0}draw();return}
   if(e.pointerType==='mouse'&&ptrs.size===0){const c=pickCity(e.clientX,e.clientY);if(c!==hot){hot=c;draw()}
@@ -310,17 +310,24 @@ function endPtr(e){ptrs.delete(e.pointerId);
       if(c){if(!tapStart.touch){if(c.u)open(c.u,'_blank')}else if(selected===c&&c.u){open(c.u,'_blank')}else{selected=c;hot=c;tipCity(c,tapStart.x,tapStart.y,true);draw()}}
       else{selected=null;hot=null;if(tapStart.touch)tipCell(pickCell(tapStart.x,tapStart.y),tapStart.x,tapStart.y);else tip.style.opacity=0;draw()}}
     gesture=null;tapStart=null}
-  else if(ptrs.size===1){const p=[...ptrs.values()][0];gesture=mode==='orb'?{mode:'rot',x:p.x,y:p.y,R0:R}:{mode:'pan',x:p.x,y:p.y,vx:mview.x,vy:mview.y};tapStart=null}}
+  else if(ptrs.size===1){const p=[...ptrs.values()][0];gesture=proj==='orb'?{mode:'rot',x:p.x,y:p.y,R0:R}:{mode:'pan',x:p.x,y:p.y,vx:mview.x,vy:mview.y};tapStart=null}}
 cv.addEventListener('pointerup',endPtr);cv.addEventListener('pointercancel',endPtr);
-cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;if(mode==='orb')orbR=Math.max(120,Math.min(2400,orbR*f));else{const ns=cz(mview.s*f),rx=(e.clientX-mview.x)/mview.s,ry=(e.clientY-mview.y)/mview.s;mview.x=e.clientX-rx*ns;mview.y=e.clientY-ry*ns;mview.s=ns}draw()},{passive:false});
+cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:1/1.12;if(proj==='orb')orbR=Math.max(120,Math.min(2400,orbR*f));else{const ns=cz(mview.s*f),rx=(e.clientX-mview.x)/mview.s,ry=(e.clientY-mview.y)/mview.s;mview.x=e.clientX-rx*ns;mview.y=e.clientY-ry*ns;mview.s=ns}draw()},{passive:false});
 
 // ---- chrome ------------------------------------------------------------------
 let hot=null,selected=null,query='',active=new Set(WINGS.map(w=>w.id)),tcut=1,playing=false;
-document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('.modes button').forEach(x=>x.classList.toggle('on',x===b));
-  tkey.classList.toggle('show',mode==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();if(mode==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
+// Mode bar = projection (Orb/Mercator, data-proj) + content layer (Relief/Wind/
+// Civ/Tectonic, data-layer). Projection and layer are independent: Relief & Wind
+// ride on either the globe or the map. Civ/Tectonic are map-designed → force flat.
+function syncModeButtons(){document.querySelectorAll('.modes button').forEach(x=>
+  x.classList.toggle('on', x.dataset.proj===proj || x.dataset.layer===layer))}
+document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{
+  if(b.dataset.proj){ proj=b.dataset.proj; if(layer==='civ'||layer==='tectonic')layer='biome'; }
+  else { layer=b.dataset.layer; if(layer==='civ'||layer==='tectonic')proj='flat'; }
+  syncModeButtons();
+  tkey.classList.toggle('show',layer==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();
+  if(proj==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
-document.getElementById('topo').onclick=e=>{topo=!topo;e.target.classList.toggle('on',topo);recolor();buildLegend();draw()};
-document.getElementById('winds').onclick=e=>{winds=!winds;e.target.classList.toggle('on',winds);draw()};
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
 document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;regen()};
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
@@ -329,8 +336,8 @@ const eraLabel=()=>tcut>=1?'all founded':'↤ '+new Date(SITES.minB+(SITES.maxB-
 tEl.addEventListener('input',()=>{tcut=+tEl.value/1000;eraEl.textContent=eraLabel();draw()});
 document.getElementById('play').onclick=()=>{playing=!playing;if(playing){tcut=0;tEl.value=0;step()}};
 function step(){if(!playing)return;tcut=Math.min(1,tcut+0.006);tEl.value=tcut*1000;eraEl.textContent=eraLabel();draw();if(tcut>=1){playing=false;document.getElementById('play').textContent='▶ chronicle';return}document.getElementById('play').textContent='⏸';requestAnimationFrame(step)}
-function buildLegend(){legendEl.innerHTML='';if(mode==='tectonic')return;
-  if(topo&&(mode==='orb'||mode==='map')){
+function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
+  if(layer==='topo'){
     for(const[lab,col]of[['deep',[222,60,16]],['sea',[205,56,42]],['shore',[100,44,42]],['hills',[58,38,51]],['highland',[40,28,62]],['snow',[26,12,86]]]){
       const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(...col)+'"></span>'+lab;legendEl.appendChild(c)}
     return}

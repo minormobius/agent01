@@ -120,7 +120,12 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <li><strong>Civ</strong> — the sovereignty map: one flat sea, land coloured by <strong>country</strong> within each civilization's hue family, with country and civilization borders, roads, and cities.</li>
     <li><strong>Tectonic</strong> — plates coloured by type, boundaries coloured by kind (convergent / divergent / transform), and <strong>drift trails</strong> showing how far and which way each plate has moved (dot = origin, ▸ = now).</li>
   </ul>
-  <p>Two overlays toggle on top of Orb and Mercator: <strong>⛰ relief</strong> swaps biome colouring for hypsometric tints (sea shaded by depth, land green→tan→brown→snow) and pins the highest peak ▲ and deepest trough ▼ with seed-derived names; <strong>wind</strong> draws the prevailing surface winds as an arrow field.</p>
+  <p>The mode bar separates <strong>projection</strong> (Orb / Mercator) from the content <strong>layer</strong>, so the layers below ride on either the globe or the map:</p>
+  <ul>
+    <li><strong>Relief</strong> — hypsometric tints (sea shaded by depth, land green→tan→brown→snow) with the highest peak ▲ and deepest trough ▼ pinned and named from the seed.</li>
+    <li><strong>Wind</strong> — the prevailing surface winds drawn as an arrow field over the biome base.</li>
+  </ul>
+  <p><strong>Civ</strong> and <strong>Tectonic</strong> are map-designed, so selecting them snaps to Mercator.</p>
   <h3>The atlas projection</h3>
   <p>The mino.mobi sites are not part of the engine — they are projected onto whatever world was generated. Land is scored for <strong>habitability</strong> (biome + elevation); spherical k-means partitions the habitable land into nine <strong>civilizations</strong> (the theme-wings), each matched to a region; every civilization is then subdivided into sovereign <strong>countries</strong> by clustering its cities (most hold one city, the largest two or three); cities place by habitability + spacing + founding age; and a road network is the least-cost path from each country's capital over land.</p>
 </div></section>
