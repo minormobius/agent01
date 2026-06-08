@@ -3,6 +3,7 @@
 
 import { AuthClient } from '/vendor/auth.js';
 import { World } from '/js/world.js';
+import { Presence } from '/js/presence.js';
 import { LocalBackend, AtprotoBackend, threadTree, placeId } from '/js/store.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -28,6 +29,7 @@ const App = {
   auth: new AuthClient(),
   backend: null,
   world: null,
+  presence: null,   // live presence socket (set when signed in)
   places: [],
   selected: null,    // place
   replyTo: null,     // message being replied to
@@ -39,6 +41,7 @@ const App = {
       onSelectPlace: (p) => this.openPlace(p),
       onStatus: (t) => this.setStatus(t),
       onDropHere: (x, y) => this.dropNode(x, y),
+      onMove: (x, y) => { if (this.presence) this.presence.move(x, y); },
     });
     this.world.start();
     this.bindChrome();
@@ -59,17 +62,51 @@ const App = {
   },
   setCrew(list) { localStorage.setItem(CREW_KEY, JSON.stringify(list)); },
 
+  // ── live presence ─────────────────────────────────────────────────────────
+  startPresence() {
+    if (this.presence) return;
+    let token = null;
+    try { token = localStorage.getItem('mino_auth_session'); } catch {}
+    this.presence = new Presence({
+      token,
+      handlers: {
+        onReset: () => this.world.clearPeers(),
+        onPeer: (p) => this.world.setPeer(p.did, p.handle, p.x, p.y),
+        onLeave: (did) => this.world.removePeer(did),
+        onCount: (n) => this.setOnline(n),
+        onState: (s) => { if (s === 'disconnected') this.setOnline(0); },
+        onEmote: (m) => this.setStatus(`@${m.handle}: ${m.text}`),
+      },
+    });
+    this.presence.x = this.world.player.x;
+    this.presence.y = this.world.player.y;
+    this.presence.connect();
+  },
+  stopPresence() {
+    if (this.presence) { this.presence.close(); this.presence = null; }
+    this.world.clearPeers();
+    this.setOnline(0);
+  },
+  setOnline(n) {
+    const pill = $('#online');
+    if (!n) { pill.style.display = 'none'; return; }
+    pill.style.display = '';
+    pill.textContent = `● ${n} on the map`;
+  },
+
   // ── identity / mode ───────────────────────────────────────────────────────
   renderIdentity(user) {
     const box = $('#identity');
     box.innerHTML = '';
     if (user) {
+      this.startPresence();
       box.append(
         el('span', { className: 'who', textContent: '@' + user.handle }),
         el('button', { className: 'btn', textContent: this.backend.mode === 'atproto' ? '● atproto' : 'use atproto', onclick: () => this.setMode('atproto') }),
         el('button', { className: 'btn ghost', textContent: 'sign out', onclick: () => this.signOut() }),
       );
     } else {
+      this.stopPresence();
       const inp = el('input', { className: 'handle-input', placeholder: 'you.bsky.social', spellcheck: false });
       inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.signIn(inp.value.trim()); });
       box.append(inp, el('button', { className: 'btn', textContent: 'sign in', onclick: () => this.signIn(inp.value.trim()) }));

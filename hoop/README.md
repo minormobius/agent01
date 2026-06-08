@@ -20,18 +20,39 @@ hoop/
 ├── index.html          # shell: topbar, canvas pane, thread rail, status bar
 ├── css/style.css       # phosphor-on-ink visual language
 ├── js/
-│   ├── app.js          # controller — wires world ⇆ store ⇆ thread rail ⇆ auth
+│   ├── app.js          # controller — wires world ⇆ store ⇆ thread rail ⇆ auth ⇆ presence
 │   ├── world.js        # the canvas adventure: deterministic glyph map, @ movement,
-│   │                   #   BFS click-to-walk, place glyphs, FOV dimming, scanlines
+│   │                   #   BFS click-to-walk, place glyphs, FOV dimming, live peers
 │   ├── store.js        # data model + two backends (Local / ATProto) + threading
-│   └── atproto.js      # minimal public read helpers (handle→DID→PDS, listRecords)
+│   ├── presence.js     # client of the live presence socket (throttled, auto-reconnect)
+│   └── atproto.js      # public read helpers (handle→DID→PDS, listRecords, profiles)
 ├── vendor/auth.js      # VERBATIM copy of /packages/oauth-client/auth.js (see banner)
 ├── lexicons/
 │   ├── place.json      # com.minomobi.hoop.place   schema
 │   └── message.json    # com.minomobi.hoop.message schema
-├── worker.js           # serves static assets (thin, room for a future API)
-└── wrangler.jsonc      # name=hoop, custom_domain route = hoop.mino.mobi
+├── worker.js           # serves static assets + exports the HoopRoom presence DO
+└── wrangler.jsonc      # name=hoop, custom_domain route, HoopRoom DO binding
 ```
+
+## Two tiers of state (the /mmo pattern)
+
+State is split by temperature — the same hybrid `/mmo` (mmopaint) uses:
+
+- **Hot / ephemeral → `HoopRoom` Durable Object** (`worker.js`). Live player
+  positions and the online list, held in memory and broadcast over WebSockets at
+  `/ws`. Nothing persists; disconnect = you fade from the map. This is what makes
+  "I see you on the map, you see me" work. Presence is deliberately **not** a
+  lexicon — you can't write a permanent firehose record on every footstep.
+  - Identity is borrowed from the shared auth worker: the client passes its
+    `mino_auth_session` token as `?session=…` (and the `.mino.mobi` SSO cookie
+    rides along as a fallback); the DO validates it against `auth.mino.mobi/api/me`.
+  - One global room (`idFromName('world')`). In-memory only — no DO storage —
+    so eviction just drops the live socket set.
+- **Cold / durable → ATProto lexicons** (`com.minomobi.hoop.place` / `.message`),
+  written to each user's PDS. User-owned, forkable, permanent.
+
+A future jetstream ghost layer (a mutable `com.minomobi.hoop.presence` record
+tailed off the firehose) could give a no-socket, ~1–3s-laggy fallback.
 
 ## Data model (ATProto)
 

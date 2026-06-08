@@ -41,6 +41,7 @@ body {
 }
 .pill.preview { color: var(--dim); }
 .pill.live { color: #0a0d0a; background: var(--green); border-color: var(--green); font-weight: 600; }
+.pill.online { color: var(--green); border-color: var(--green-dim); }
 
 .btn {
   font-family: "JetBrains Mono", monospace; font-size: 12px;

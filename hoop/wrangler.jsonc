@@ -13,5 +13,16 @@
   // changes. Verify the deploy log binds "hoop.mino.mobi (custom domain)".
   "routes": [
     { "pattern": "hoop.mino.mobi", "custom_domain": true }
+  ],
+  // HoopRoom: live presence (player positions + online list) over WebSockets.
+  // In-memory only — no storage calls — so eviction just drops the live socket
+  // set. Durable state stays in the ATProto lexicons.
+  "durable_objects": {
+    "bindings": [
+      { "name": "HOOP_ROOM", "class_name": "HoopRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["HoopRoom"] }
   ]
 }

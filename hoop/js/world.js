@@ -56,6 +56,7 @@ export class World {
     this.places = [];          // [{id,x,y,glyph,title,...}]
     this.placeAt = new Map();  // "x-y" -> place
     this.player = { x: 24, y: 14, px: 24, py: 14 }; // px/py = smoothed render pos
+    this.peers = new Map(); // did -> { handle, x, y, px, py, hue }
     this.selectedId = null;
     this.tile = 26;
     this.path = [];
@@ -77,6 +78,18 @@ export class World {
     const p = this.places.find((q) => q.id === id);
     if (p) this._pathTo(p.x, p.y, true);
   }
+  // ── live peers (presence) ────────────────────────────────────────────────
+  setPeer(did, handle, x, y) {
+    let p = this.peers.get(did);
+    if (!p) {
+      let h = 0; for (const ch of did) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      p = { handle, x, y, px: x, py: y, hue: h % 360 };
+      this.peers.set(did, p);
+    } else { p.handle = handle; p.x = x; p.y = y; }
+  }
+  removePeer(did) { this.peers.delete(did); }
+  clearPeers() { this.peers.clear(); }
+
   start() { if (!this._raf) this._loop(); }
   destroy() { cancelAnimationFrame(this._raf); this._raf = null; window.removeEventListener('resize', this._onResize); }
 
@@ -123,6 +136,7 @@ export class World {
     const nx = this.player.x + dx, ny = this.player.y + dy;
     if (!this.isFloor(nx, ny)) return false;
     this.player.x = nx; this.player.y = ny;
+    if (this.h.onMove) this.h.onMove(nx, ny);
     const pl = this.placeKey(nx, ny);
     if (pl) this._announce(pl);
     else if (this.h.onStatus) this.h.onStatus(`(${nx}, ${ny}) — empty floor. Press N to drop a node here.`);
@@ -192,6 +206,11 @@ export class World {
     // smooth camera toward player tile
     this.player.px += (this.player.x - this.player.px) * 0.25;
     this.player.py += (this.player.y - this.player.py) * 0.25;
+    // smooth peers toward their last-known tile
+    for (const p of this.peers.values()) {
+      p.px += (p.x - p.px) * 0.22;
+      p.py += (p.y - p.py) * 0.22;
+    }
     this._draw(now);
   }
 
@@ -258,6 +277,21 @@ export class World {
       ctx.strokeStyle = 'rgba(120,200,160,0.35)';
       ctx.lineWidth = 1;
       ctx.strokeRect(sx + 1, sy + 1, t - 2, t - 2);
+    }
+
+    // live peers (other logged-in players)
+    for (const p of this.peers.values()) {
+      const sx = ox + p.px * t + t / 2, sy = oy + p.py * t + t / 2;
+      ctx.save();
+      ctx.shadowColor = `hsl(${p.hue} 80% 60%)`;
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = `hsl(${p.hue} 85% 66%)`;
+      ctx.font = `${Math.floor(t * 0.78)}px "JetBrains Mono", ui-monospace, monospace`;
+      ctx.fillText('@', sx, sy);
+      ctx.restore();
+      ctx.font = `${Math.max(9, Math.floor(t * 0.4))}px ui-sans-serif, system-ui`;
+      ctx.fillStyle = `hsl(${p.hue} 60% 78%)`;
+      ctx.fillText('@' + p.handle, sx, sy - t * 0.66);
     }
 
     // player
