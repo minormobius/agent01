@@ -1,0 +1,51 @@
+{
+  "$type": "com.minomobi.music.composition",
+  "name": "Cathedral",
+  "description": "C minor sawtooth-organ ambient. Sustained chord pads with sparse sine bell, no percussion. Slow contemplative drone. ~8s loop at 60 BPM.",
+  "bpm": 60,
+  "steps": 32,
+  "tracks": [
+    {
+      "name": "Bass",
+      "instrument": "triangle",
+      "volume": 58,
+      "notes": [
+        "36,0,8,80",
+        "32,8,8,80",
+        "34,16,8,80",
+        "31,24,8,80"
+      ]
+    },
+    {
+      "name": "Organ",
+      "instrument": "sawtooth",
+      "volume": 24,
+      "notes": [
+        "48,0,8,48", "51,0,8,48", "55,0,8,48",
+        "44,8,8,48", "48,8,8,48", "51,8,8,48",
+        "46,16,8,48", "50,16,8,48", "53,16,8,48",
+        "43,24,8,48", "46,24,8,48", "50,24,8,48"
+      ]
+    },
+    {
+      "name": "Drone",
+      "instrument": "sine",
+      "volume": 18,
+      "notes": [
+        "60,0,32,32"
+      ]
+    },
+    {
+      "name": "Bell",
+      "instrument": "sine",
+      "volume": 38,
+      "notes": [
+        "67,4,3,55",
+        "63,12,3,55",
+        "70,20,3,55",
+        "67,28,3,55"
+      ]
+    }
+  ],
+  "createdAt": "2026-05-16T00:00:00.000Z"
+}

@@ -133,8 +133,9 @@ footer a:hover { color: var(--accent); }
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">music — turn the cars into dancers</span>
+        <div class="ctrl-row"><select id="tr-trackpick" style="flex:1;min-width:0;background:#11111b;color:var(--fg,#e8e8f0);border:1px solid var(--line,#2a2a3a);border-radius:6px;padding:5px 7px;font:inherit;font-size:13px"><option value="">▾ generated track (from /music)…</option></select></div>
         <div class="btn-row">
-          <button class="btn" id="tr-track">♫ track</button>
+          <button class="btn" id="tr-track">♫ file</button>
           <button class="btn" id="tr-mic">🎤 mic</button>
           <button class="btn" id="tr-pp">⏯</button>
           <button class="btn active" id="tr-moff">off</button>
@@ -254,6 +255,7 @@ self-organization: the whole vocabulary of statistical mechanics, acted out by t
 
 <script type="module">
 import { AudioField } from '../packages/audio-react/audio.js';
+import { renderComposition, loadBundledIndex, loadBundledComposition } from '../packages/music/render.js';
 // ═════════════════════════════════════════════════════════════════════
 // Tabs
 // ═════════════════════════════════════════════════════════════════════
@@ -305,7 +307,10 @@ function musicStep(){ const f=bml.music.feat, L=bml.L;
 function bmlRandomize(){ bml.grid=makeGrid(bml.L, bml.density, bml.redRatio); bml.step=0; bml.vel=0; bml.velHist=[]; }
 function drawGrid(){ const L=bml.L, W=tc.width; if(tc.width!==L){ tc.width=L; tc.height=L; }
   const img=tcx.createImageData(L,L), d=img.data, g=bml.grid;
-  const m=bml.music, br = (m.on && m.af) ? (0.55 + 0.45*Math.min(1, m.feat.loudness)) : 1;   // cars glow with loudness
+  // brightness pulses only ON A BEAT (a smoothly-decaying flash), not continuously with
+  // loudness — a per-frame loudness→brightness coupling reads as a flicker. Loudness drives
+  // the MOTION (move-probability); the beat gives the cars a gentle ~12% glow that fades.
+  const m=bml.music, br = (m.on && m.af) ? (0.88 + 0.12*m.flash) : 1;
   const bg=[10,10,18], e=[Math.round(232*br),Math.round(80*br),Math.round(110*br)], s=[Math.round(42*br),Math.round(160*br),Math.round(216*br)];
   for(let i=0;i<L*L;i++){ const v=g?g[i]:0, k=i*4, c = v===1?e : v===2?s : bg; d[k]=c[0]; d[k+1]=c[1]; d[k+2]=c[2]; d[k+3]=255; }
   tcx.putImageData(img,0,0); drawVel(); updateStats(); }
@@ -357,8 +362,25 @@ function setMusicMode(on, src){ bml.music.on=on; if(src) bml.music.src=src;
   document.getElementById('tr-track').classList.toggle('active', on && bml.music.src==='track');
   document.getElementById('tr-mic').classList.toggle('active', on && bml.music.src==='mic');
   if(on){ if(bml.ups<16){ bml.ups=18; document.getElementById('tr-speed').value=18; document.getElementById('tr-speed-val').textContent=18; }
-    if(!bml.running) simSetRun(true); } else { const dot=document.getElementById('tr-beat'); if(dot)dot.style.opacity='0.18'; }
+    if(!bml.running) simSetRun(true); } else { const dot=document.getElementById('tr-beat'); if(dot)dot.style.opacity='0.18'; const sel=document.getElementById('tr-trackpick'); if(sel)sel.value=''; }
   drawGrid(); }
+// ── generated tracks: render a /music composition → WAV blob → analyser (no file, no mic, no CORS) ──
+const COMP_BASE='../packages/music/compositions/'; let _compIndex=null;
+async function ensureCompList(){ if(_compIndex) return _compIndex;
+  const sel=document.getElementById('tr-trackpick');
+  try{ _compIndex=await loadBundledIndex(COMP_BASE);
+    for(const c of (_compIndex.compositions||[])){ const o=document.createElement('option'); o.value=c.id; o.textContent=`${c.name} — ${c.subtitle||''}`.trim(); sel.appendChild(o); }
+  }catch(err){ console.warn('composition index load failed',err); _compIndex={compositions:[]}; }
+  return _compIndex; }
+async function playComposition(id){ const sel=document.getElementById('tr-trackpick'); const idx=await ensureCompList();
+  const entry=(idx.compositions||[]).find(c=>c.id===id); if(!entry) return;
+  const prev=sel.options[sel.selectedIndex]?.textContent; if(sel.options[sel.selectedIndex]) sel.options[sel.selectedIndex].textContent='rendering '+entry.name+'…';
+  try{ const comp=await loadBundledComposition(entry, COMP_BASE); const wav=await renderComposition(comp);
+    await getAF().fromFile(wav); setMusicMode(true, entry.name); }
+  catch(err){ console.warn('composition render failed',err); alert('Could not render that track: '+(err?.message||err)); }
+  finally{ if(sel.options[sel.selectedIndex] && prev) sel.options[sel.selectedIndex].textContent=prev; } }
+document.getElementById('tr-trackpick').addEventListener('change',e=>{ const id=e.target.value; if(id) playComposition(id); });
+ensureCompList();
 document.getElementById('tr-track').addEventListener('click',()=>document.getElementById('tr-file').click());
 document.getElementById('tr-file').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
   getAF().fromFile(f).then(()=>setMusicMode(true,'track')).catch(err=>{ console.warn('audio load failed',err); alert('Could not load that audio file.'); }); });
