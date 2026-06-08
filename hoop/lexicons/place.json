@@ -1,0 +1,24 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.place",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A location on the hoop design world — a node of 'the infinite game' that anchors a conversation thread. The rkey is the deterministic place id `<x>-<y>` so collaborators converge on the same place by world coordinate.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["title", "x", "y", "createdAt"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 120, "description": "Display name of the place." },
+          "glyph": { "type": "string", "maxLength": 8, "description": "Single display glyph drawn on the canvas (e.g. ◆ ⌂ ⚙)." },
+          "kind": { "type": "string", "description": "Free-form category: hub, system, lore, sandbox, threshold…" },
+          "x": { "type": "integer", "description": "World tile column." },
+          "y": { "type": "integer", "description": "World tile row." },
+          "summary": { "type": "string", "maxLength": 2000, "description": "What this part of the game is for." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

@@ -44,6 +44,9 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
   'com.minomobi.fluoddity.rubric',
+  // hoop (collaborative design space for the infinite game)
+  'com.minomobi.hoop.place',
+  'com.minomobi.hoop.message',
   // io (atproto tracker portal)
   'com.minomobi.io.ticket',
   // labglass
