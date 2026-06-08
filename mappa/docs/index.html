@@ -107,7 +107,8 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <div class="s"><b>Sea level by volume.</b> A fixed volume of water is poured over the real topography and settles — solving <code>Σ areaᵢ · max(0, h − elevᵢ) = V</code> for the level <code>h</code>, weighted by true spherical cell area. Deep basins hold water at depth, so continents stay dry instead of flooding to a quota.</div>
     <div class="s"><b>Hydraulic erosion.</b> Drainage-area valley carving + hillslope diffusion over several iterations. Produces dendritic drainage networks (the “texture”), sharp continental divides (rivers sit in carved valleys and never cross ridges), and eroded coastlines.</div>
     <div class="s"><b>Winds &amp; climate.</b> Rotation sets the prevailing surface winds via a banded circulation model — trade easterlies, westerlies and polar easterlies, with the cell count and zonality driven by <code>rotationRate</code> and the deflection sign by its sign (retrograde reverses them). Temperature comes from latitude + altitude lapse + solar. Moisture is then <em>advected</em>: ocean humidity is carried downwind and rains out, so windward coasts are wet and lee sides / deep interiors fall into <strong>rain shadow</strong>; this is layered over the circulation's wet (rising) and dry (sinking, subtropical) bands. Seasonality from axial tilt × latitude × continentality.</div>
-    <div class="s"><b>Biomes.</b> A Whittaker classification (temperature × a growing-season-limited moisture) → tundra, taiga, steppe, temperate & tropical forests, savanna, hot & cold deserts, ice, alpine, snow.</div>
+    <div class="s"><b>Biomes &amp; cryosphere.</b> A Whittaker classification (temperature × a growing-season-limited moisture) → tundra, taiga, steppe, temperate & tropical forests, savanna, hot & cold deserts, ice, alpine, snow. The coldest land grows <strong>glaciers / ice caps</strong> and ocean below seawater freezing (~−2 °C) freezes into <strong>sea ice</strong>, so dim-sun / high-tilt worlds wear real polar caps.</div>
+    <div class="s"><b>Volcanoes.</b> Derived from the tectonics already computed: continental subduction arcs, ocean–ocean island arcs, and a sparse intraplate hotspot field. Surfaced and named on the Relief view.</div>
     <div class="s"><b>Rivers &amp; lakes.</b> Priority-flood depression filling + downhill flow accumulation on the mesh graph; channels above a flow threshold become rivers, filled basins become lakes.</div>
   </div>
 </div></section>
@@ -122,7 +123,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
   </ul>
   <p>The mode bar separates <strong>projection</strong> (Orb / Mercator) from the content <strong>layer</strong>, so the layers below ride on either the globe or the map:</p>
   <ul>
-    <li><strong>Relief</strong> — hypsometric tints (sea shaded by depth, land green→tan→brown→snow) with the highest peak ▲ and deepest trough ▼ pinned and named from the seed.</li>
+    <li><strong>Relief</strong> — hypsometric tints (sea shaded by depth, land green→tan→brown→snow; ice caps & sea ice read white) with the highest peak ▲ and deepest trough ▼ pinned and named, plus 🌋 volcanoes (subduction & island arcs, hotspots) labelled from the seed.</li>
     <li><strong>Wind</strong> — the prevailing surface winds drawn as an arrow field over the biome base.</li>
   </ul>
   <p><strong>Civ</strong> and <strong>Tectonic</strong> are map-designed, so selecting them snaps to Mercator.</p>

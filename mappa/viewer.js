@@ -10,7 +10,7 @@ import { SITES, WINGS } from './sites.js';
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=7');await m.default('./pkg/mappa_engine_bg.wasm?v=7');const v=(m.engine_version?m.engine_version():0);
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=8');await m.default('./pkg/mappa_engine_bg.wasm?v=8');const v=(m.engine_version?m.engine_version():0);
   if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
   else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
 }catch(e){rustGen=false}}
@@ -26,7 +26,7 @@ function unpackRust(o){const N=o.n,pos=o.positions;
   const bd=o.bounds,bounds=[];for(let k=0;k+6<bd.length;k+=7)bounds.push({a:[bd[k],bd[k+1],bd[k+2]],b:[bd[k+3],bd[k+4],bd[k+5]],c:bd[k+6]});
   const pp=o.plates_out,plates=[];for(let k=0;k+7<pp.length;k+=8)plates.push({center:[pp[k],pp[k+1],pp[k+2]],axis:[pp[k+3],pp[k+4],pp[k+5]],speed:pp[k+6],oceanic:pp[k+7]});
   const m=o.meta;
-  return {N,V,cells,adj,elev:o.elev,water:o.water,plate:o.plate,plateType:o.plate_type,temperature:o.temperature,moisture:o.moisture,seasonality:o.seasonality,biome:o.biome,rivers,bounds,plates,
+  return {N,V,cells,adj,elev:o.elev,water:o.water,plate:o.plate,plateType:o.plate_type,temperature:o.temperature,moisture:o.moisture,seasonality:o.seasonality,biome:o.biome,volc:o.volc,rivers,bounds,plates,
     meta:{seed:m.seed,N:m.n,plateCount:m.plate_count,oceanFraction:m.ocean_fraction,waterFrac:m.water_frac,seaCoverage:m.sea_coverage,axialTilt:m.axial_tilt,axialTiltDeg:m.axial_tilt_deg,solar:m.solar,planetRadius:m.planet_radius,age:m.age,ageSpan:m.age_span,rotationRate:m.rotation_rate,windCells:m.wind_cells,coriolisSign:m.coriolis_sign,dayLengthRel:m.day_length_rel}};
 }
 
@@ -34,7 +34,8 @@ const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
-let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='';
+let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[];
+const BIDX=Object.fromEntries(BIOMES.map((b,i)=>[b.id,i])); // biome id → index
 const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null,rotationRate:null}; // null = derive from seed
 const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
@@ -105,8 +106,16 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
   roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   countryBordMerc=[];const cof=atlas.countryOf;if(cof)for(let i=0;i<N;i++){const ci=cof[i];if(ci<0)continue;for(const j of world.adj[i]){const cj=cof[j];if(j>i&&cj>=0&&cj!==ci){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;countryBordMerc.push([a,b])}}}
-  computeLandmarks();
+  computeLandmarks();computeVolcanoes();
 }
+// pick the most prominent, spatially-separated volcanoes for labelling on relief
+function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
+  const cand=[];for(let i=0;i<world.N;i++)if(world.volc[i]>0.3)cand.push(i);
+  cand.sort((a,b)=>world.volc[b]-world.volc[a]);
+  const picked=[];for(const i of cand){if(picked.length>=10)break;
+    let ok=true;for(const j of picked)if(dot(world.V[i],world.V[j])>0.985){ok=false;break} // keep them >~10° apart
+    if(ok)picked.push(i)}
+  volcanoes=picked.map((i,k)=>({i,name:placeName(100+k)}));}
 // ---- topographic relief: extremes + hypsometric palette ----------------------
 function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
   for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
@@ -127,7 +136,11 @@ function landmarkLabels(){ // {peak,trough} display strings, computed lazily
   return{peak:'▲ Mt. '+peakName+'  ·  '+pm.toLocaleString()+' m',
          trough:'▼ '+troughName+' '+tr+'  ·  −'+dm.toLocaleString()+' m'}}
 // hypsometric tint for cell i (land: green→tan→brown→snow, sea: shallow→deep blue)
-function topoHSL(i){const e=world.elev[i];
+// the cryosphere (sea ice / glacier / ice sheet) reads white over relief regardless of depth/height
+function topoHSL(i){const e=world.elev[i],b=world.biome[i];
+  if(b===BIDX.sea_ice)return[198,16,82];
+  if(b===BIDX.glacier)return[200,12,90];
+  if(b===BIDX.ice)return[205,10,86];
   if(world.water[i]!==0){const t=Math.min(1,-e/deepMaxE);return[200+t*22,52+t*8,Math.max(13,58-t*43)]}
   const t=Math.min(1,e/landMaxE);
   if(t<0.5){const u=t/0.5;return[100-u*42,44-u*6,42+u*9]}      // green → tan
@@ -171,7 +184,7 @@ function draw(){if(proj==='orb'){drawOrb();return}
   if(layer==='tectonic')drawDrift();
   drawWinds();
   renderAtlasOverlay();
-  drawLandmarks();
+  drawLandmarks();drawVolcanoes();
 }
 // peak ▲ / trough ▼ pins with named labels — both projections, only in relief mode
 function drawLandmarks(){if(layer!=='topo'||!world||peakI<0)return;
@@ -185,6 +198,16 @@ function drawLandmarks(){if(layer!=='topo'||!world||peakI<0)return;
       ctx.font='600 11px ui-serif,Georgia,serif';ctx.textAlign='left';const tw=ctx.measureText(txt).width,lx=p.x+r+4;
       ctx.fillStyle='rgba(8,6,3,.74)';ctx.fillRect(lx-3,p.y-8,tw+6,16);
       ctx.fillStyle=up?'#fff5e0':'#d6efff';ctx.fillText(txt,lx,p.y+0.5)}}}
+// volcanoes 🌋 (subduction arcs, island arcs, hotspots) — labelled on relief only
+function drawVolcanoes(){if(layer!=='topo'||!world||!volcanoes.length)return;
+  ctx.textBaseline='middle';
+  for(const v of volcanoes){for(const p of screenCopies(world.V[v.i])){const r=4;
+    ctx.beginPath();ctx.moveTo(p.x,p.y-r);ctx.lineTo(p.x+r,p.y+r*0.85);ctx.lineTo(p.x-r,p.y+r*0.85);ctx.closePath();
+    ctx.fillStyle='#d8442a';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(20,6,3,.9)';ctx.stroke();
+    ctx.beginPath();ctx.arc(p.x,p.y-r*0.1,1.1,0,7);ctx.fillStyle='#ffd9a0';ctx.fill(); // glowing vent
+    ctx.font='500 10px ui-serif,Georgia,serif';ctx.textAlign='left';const tw=ctx.measureText(v.name).width,lx=p.x+r+3;
+    ctx.fillStyle='rgba(10,4,2,.6)';ctx.fillRect(lx-2,p.y-7,tw+4,14);
+    ctx.fillStyle='#ffceb0';ctx.fillText(v.name,lx,p.y+0.5)}}}
 // prevailing surface wind at a unit point, recomputed from the genome (banded model)
 const _crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const _nrm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]};
@@ -242,7 +265,7 @@ function drawOrb(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
   drawWinds();
   renderAtlasOverlay();
-  drawLandmarks();
+  drawLandmarks();drawVolcanoes();
 }
 function drawGraticule(cx,cy,R){
   for(const latDeg of[0,30,-30,60,-60]){const la=latDeg*Math.PI/180;ctx.strokeStyle=latDeg===0?'rgba(255,250,235,.20)':'rgba(255,250,235,.09)';ctx.lineWidth=latDeg===0?1.2:1;ctx.beginPath();let st=false;

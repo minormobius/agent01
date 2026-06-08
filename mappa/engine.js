@@ -81,11 +81,14 @@ export const BIOMES = [
   {id:'trop_rain',     name:'tropical rainforest', h:134,s:50,l:29},
   {id:'alpine',        name:'alpine / bare',       h:28, s:8, l:70},
   {id:'snow',          name:'snowcap',             h:0,  s:0, l:94},
+  {id:'sea_ice',       name:'sea ice',             h:198,s:12,l:84}, // frozen ocean surface
+  {id:'glacier',       name:'glacier / ice cap',   h:200,s:14,l:90}, // permanent land ice
 ];
 const BI = Object.fromEntries(BIOMES.map((b,i)=>[b.id,i]));
 function classify(T, M, elevAbove){ // T °C, M 0..1, elevAbove = elevation above sea
+  if(T<-14) return BI.glacier;                  // permanent ice cap (coldest land)
   if(elevAbove>0.72) return T<1?BI.snow:BI.alpine;
-  if(T<-12) return BI.ice;
+  if(T<-9) return BI.ice;                        // continental ice sheet
   if(T<0)  return M<0.30?BI.cold_desert:BI.tundra;
   if(T<7)  return M<0.25?BI.cold_desert:(M<0.5?BI.steppe:BI.taiga);
   if(T<20) return M<0.2?BI.desert:(M<0.42?BI.steppe:(M<0.7?BI.temperate_for:BI.temperate_rain));
@@ -170,15 +173,17 @@ export function generateWorld(seed, opts={}){
   const vel=i=>scl(cross(plates[plate[i]].axis,V[i]),plates[plate[i]].speed);
 
   // 4. tectonics → elevation ---------------------------------------------------
-  const conv=new Float32Array(N),mountSrc=new Float32Array(N),localF=new Float32Array(N),ridge=new Uint8Array(N);
-  for(let i=0;i<N;i++){let cs=0,nn=0,mt=0,lf=0;const oi=ptype(i),vi=vel(i);
+  const conv=new Float32Array(N),mountSrc=new Float32Array(N),localF=new Float32Array(N),ridge=new Uint8Array(N),volc=new Float32Array(N);
+  for(let i=0;i<N;i++){let cs=0,nn=0,mt=0,lf=0,vo=0;const oi=ptype(i),vi=vel(i);
     for(const j of adj[i]){if(plate[j]===plate[i])continue;const oj=ptype(j);
       const dir=norm(sub(V[j],scl(V[i],dot(V[i],V[j]))));
       const rel=dot(sub(vi,vel(j)),dir);cs+=rel;nn++;
-      if(rel>0){ if(!oi&&!oj)mt+=rel*1.0; else if(!oi&&oj)mt+=rel*0.7; else if(oi&&!oj)lf-=rel*1.15;
-        else { const volc=fbm3(V[i][0]*9.3,V[i][1]*9.3,V[i][2]*9.3,seed+71); lf+=rel*(volc>0.64?0.55:0.04); } } // ocean-ocean: SPARSE volcanic arc, not a welded strip
+      if(rel>0){ if(!oi&&!oj)mt+=rel*1.0; else if(!oi&&oj){mt+=rel*0.7;vo+=rel*0.9;} else if(oi&&!oj)lf-=rel*1.15; // continental subduction arc → volcanoes
+        else { const vn=fbm3(V[i][0]*9.3,V[i][1]*9.3,V[i][2]*9.3,seed+71); lf+=rel*(vn>0.64?0.55:0.04); if(vn>0.64)vo+=rel*0.7; } } // ocean-ocean: SPARSE volcanic island arc
       else { const dv=-rel; if(oi){lf+=dv*0.35; if(dv>0.05)ridge[i]=1;} else lf-=dv*0.45; }} // oceanic divergent = mid-ocean ridge
-    if(nn){conv[i]=cs/nn;if(!oi&&mt>0)mountSrc[i]=mt;localF[i]=lf}}
+    if(nn){conv[i]=cs/nn;if(!oi&&mt>0)mountSrc[i]=mt;localF[i]=lf;if(vo>0)volc[i]=vo}}
+  // intraplate HOTSPOTS (mantle plumes — Hawaii/Iceland): a sparse high-noise field
+  for(let i=0;i<N;i++){const p=V[i],hs=fbm3(p[0]*5.1+3,p[1]*5.1,p[2]*5.1,seed+131);if(hs>0.82)volc[i]=Math.max(volc[i],(hs-0.82)*7)}
   // multi-epoch OROGENY: as the plates drift over `age` epochs, accumulate
   // continental convergence — so mountain belts develop and WIDEN with geological
   // age (history, not a single snapshot). Boundaries are the same warped/jagged
@@ -324,8 +329,9 @@ export function generateWorld(seed, opts={}){
     const seas = (axialTilt/0.41) * (8 + 34*Math.pow(alat,1.1)) * (0.55+0.75*contl);
     seasonality[i]=seas;
     const Teff = T - 0.32*seas; // growing-season-limited temperature for biomes
-    biome[i]= water[i]===1 ? (elev[i]>-0.12?BI.ocean_shelf:BI.ocean_deep)
-            : water[i]===2 ? BI.lake
+    // sea ice: ocean surface below seawater freezing (~−2 °C) → frozen polar cap
+    biome[i]= water[i]===1 ? (T<-2?BI.sea_ice:(elev[i]>-0.12?BI.ocean_shelf:BI.ocean_deep))
+            : water[i]===2 ? (T<-6?BI.glacier:BI.lake)
             : classify(Teff,M,elev[i]);
   }
 
@@ -341,7 +347,7 @@ export function generateWorld(seed, opts={}){
       rotationRate:+rotationRate.toFixed(3),windCells,coriolisSign,dayLengthRel:+(1/aOmega).toFixed(3)},
     N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
     plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
-    elev, water, temperature, moisture, seasonality, biome, conv, bounds, rivers,
+    elev, water, temperature, moisture, seasonality, biome, conv, volc, bounds, rivers,
     _euler:{tris:tris.length, Vc:N+1},
   };
 }

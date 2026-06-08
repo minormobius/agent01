@@ -99,9 +99,11 @@ const B_OCEAN_DEEP: u8=0; const B_OCEAN_SHELF: u8=1; const B_LAKE: u8=2;
 const B_ICE: u8=3; const B_TUNDRA: u8=4; const B_TAIGA: u8=5; const B_COLD_DESERT: u8=6;
 const B_STEPPE: u8=7; const B_TEMP_FOR: u8=8; const B_TEMP_RAIN: u8=9; const B_DESERT: u8=10;
 const B_SAVANNA: u8=11; const B_TROP_SEAS: u8=12; const B_TROP_RAIN: u8=13; const B_ALPINE: u8=14; const B_SNOW: u8=15;
+const B_SEA_ICE: u8=16; const B_GLACIER: u8=17;
 fn classify(t: f64, m: f64, e_above: f64) -> u8 {
+    if t < -14.0 { return B_GLACIER; }              // permanent ice cap (coldest land)
     if e_above > 0.72 { return if t < 1.0 { B_SNOW } else { B_ALPINE }; }
-    if t < -12.0 { return B_ICE; }
+    if t < -9.0 { return B_ICE; }                   // continental ice sheet
     if t < 0.0 { return if m < 0.30 { B_COLD_DESERT } else { B_TUNDRA }; }
     if t < 7.0 { return if m < 0.25 { B_COLD_DESERT } else if m < 0.5 { B_STEPPE } else { B_TAIGA }; }
     if t < 20.0 { return if m < 0.2 { B_DESERT } else if m < 0.42 { B_STEPPE } else if m < 0.7 { B_TEMP_FOR } else { B_TEMP_RAIN }; }
@@ -130,6 +132,7 @@ struct World {
     moisture: Vec<f32>,
     seasonality: Vec<f32>,
     biome: Vec<u8>,
+    volc: Vec<f32>,
     rivers: Vec<f32>,         // 8 per: ax,ay,az,bx,by,bz,w,flow
     bounds: Vec<f32>,         // 7 per: ax,ay,az,bx,by,bz,conv
     plates_out: Vec<f32>,     // 8 per: cx,cy,cz,ax,ay,az,speed,oceanic
@@ -295,8 +298,9 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
     let mut mount_src = vec![0.0f64; n];
     let mut local_f = vec![0.0f64; n];
     let mut ridge = vec![false; n];
+    let mut volc = vec![0.0f64; n];
     for i in 0..n {
-        let (mut cs, mut nn, mut mt, mut lf) = (0.0, 0u32, 0.0, 0.0);
+        let (mut cs, mut nn, mut mt, mut lf, mut vo) = (0.0, 0u32, 0.0, 0.0, 0.0);
         let oi = ptype(i); let vi = vel(i);
         for &jj in &adj_set[i] {
             let j = jj as usize;
@@ -308,16 +312,18 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
             cs += rel; nn += 1;
             if rel > 0.0 {
                 if !oi && !oj { mt += rel*1.0; }
-                else if !oi && oj { mt += rel*0.7; }
+                else if !oi && oj { mt += rel*0.7; vo += rel*0.9; }   // continental subduction arc → volcanoes
                 else if oi && !oj { lf -= rel*1.15; }
-                else { let volc = fbm3(vv[i][0]*9.3, vv[i][1]*9.3, vv[i][2]*9.3, seed as i32+71); lf += rel*(if volc>0.64 {0.55} else {0.04}); }
+                else { let vn = fbm3(vv[i][0]*9.3, vv[i][1]*9.3, vv[i][2]*9.3, seed as i32+71); lf += rel*(if vn>0.64 {0.55} else {0.04}); if vn>0.64 { vo += rel*0.7; } } // ocean-ocean island arc
             } else {
                 let dv = -rel;
                 if oi { lf += dv*0.35; if dv > 0.05 { ridge[i] = true; } } else { lf -= dv*0.45; }
             }
         }
-        if nn > 0 { conv[i] = cs/nn as f64; if !oi && mt > 0.0 { mount_src[i] = mt; } local_f[i] = lf; }
+        if nn > 0 { conv[i] = cs/nn as f64; if !oi && mt > 0.0 { mount_src[i] = mt; } local_f[i] = lf; if vo > 0.0 { volc[i] = vo; } }
     }
+    // intraplate HOTSPOTS (mantle plumes — Hawaii/Iceland): a sparse high-noise field
+    for i in 0..n { let p = vv[i]; let hs = fbm3(p[0]*5.1+3.0, p[1]*5.1, p[2]*5.1, seed as i32+131); if hs > 0.82 { volc[i] = volc[i].max((hs-0.82)*7.0); } }
     // multi-epoch OROGENY — plates drift over `age` epochs; keep the MAX convergence
     // each cell ever saw, so belts widen with geological age (history, not a snapshot).
     let wv: Vec<V3> = (0..n).map(|i| warp(vv[i])).collect();
@@ -583,8 +589,8 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
         let seas = (axial_tilt/0.41) * (8.0 + 34.0*alat.powf(1.1)) * (0.55 + 0.75*contl);
         seasonality[i] = seas;
         let teff = t - 0.32*seas;
-        biome[i] = if water[i]==1 { if elev[i] > -0.12 { B_OCEAN_SHELF } else { B_OCEAN_DEEP } }
-                   else if water[i]==2 { B_LAKE }
+        biome[i] = if water[i]==1 { if t < -2.0 { B_SEA_ICE } else if elev[i] > -0.12 { B_OCEAN_SHELF } else { B_OCEAN_DEEP } }
+                   else if water[i]==2 { if t < -6.0 { B_GLACIER } else { B_LAKE } }
                    else { classify(teff, mm, elev[i]) };
     }
 
@@ -613,6 +619,7 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
     let temp_f: Vec<f32> = temperature.iter().map(|&x| x as f32).collect();
     let moist_f: Vec<f32> = moisture.iter().map(|&x| x as f32).collect();
     let seas_f: Vec<f32> = seasonality.iter().map(|&x| x as f32).collect();
+    let volc_f: Vec<f32> = volc.iter().map(|&x| x as f32).collect();
     let plate_type: Vec<u8> = (0..n).map(|i| if ptype(i) {1} else {0}).collect();
     let mut plates_out: Vec<f32> = Vec::new();
     for pl in &plates {
@@ -640,7 +647,7 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
         },
         positions, cell_verts, cell_offsets, adj: adj_flat, adj_offsets,
         elev: elev_f, water, plate, plate_type,
-        temperature: temp_f, moisture: moist_f, seasonality: seas_f, biome,
+        temperature: temp_f, moisture: moist_f, seasonality: seas_f, biome, volc: volc_f,
         rivers, bounds, plates_out,
     }
 }
@@ -661,4 +668,4 @@ pub fn triangulate_xy(coords: &[f64]) -> Vec<u32> {
 }
 
 #[wasm_bindgen]
-pub fn engine_version() -> u32 { 7 }
+pub fn engine_version() -> u32 { 8 }
