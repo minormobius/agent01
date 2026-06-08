@@ -5,25 +5,30 @@
 import { generateWorld } from '../../mappa/engine.js';
 import { worldSignals } from '../../mappa/lib/world-signals.js';
 import { worldName } from '../../mappa/lib/names.js';
-import { decodeConfig } from '../../mappa/lib/world-share.js';
+import { decodeConfig, loadWorld } from '../../mappa/lib/world-share.js';
 
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const w = url.searchParams.get('w'), seed = url.searchParams.get('seed');
-  const qs = w ? ('?w=' + encodeURIComponent(w)) : (seed ? ('?seed=' + encodeURIComponent(seed)) : '');
+  const at = url.searchParams.get('at') || ((url.searchParams.get('did') && url.searchParams.get('rkey'))
+    ? 'at://' + url.searchParams.get('did') + '/com.minomobi.mappa.world/' + url.searchParams.get('rkey') : null);
+  const qs = w ? ('?w=' + encodeURIComponent(w)) : seed ? ('?seed=' + encodeURIComponent(seed)) : at ? ('?at=' + encodeURIComponent(at)) : '';
   const appUrl = url.origin + '/mappa/' + qs;
   const imgUrl = url.origin + '/mappa/og' + (qs || '');
 
   let title = 'mappa — a procedural world', desc = 'An endless, deterministic planet engine: tectonics, climate, biomes, rivers, ore, fossils and deep time.';
   try {
-    const cfg = w ? decodeConfig(w) : (seed && !isNaN(+seed) ? { seed: (+seed) >>> 0, genome: {} } : null);
+    let cfg = w ? decodeConfig(w) : (seed && !isNaN(+seed) ? { seed: (+seed) >>> 0, genome: {} } : null);
+    let rec = null;
+    if (!cfg && at) { const got = await loadWorld(at); cfg = got.config; rec = got.record; }
     if (cfg) {
       const world = generateWorld(cfg.seed, { N: Math.min(4000, cfg.n || 3000), ...cfg.genome });
       const s = worldSignals(world);
-      title = worldName(world) + ' — a mappa world';
-      desc = '★ ' + s.score + '/100 · ' + s.descriptor;
+      title = (rec && rec.title ? rec.title : worldName(world)) + ' — a mappa world';
+      desc = '★ ' + (rec && typeof rec.score === 'number' ? rec.score : s.score) + '/100 · ' + (rec && rec.descriptor ? rec.descriptor : s.descriptor)
+        + (rec && rec.note ? ' · “' + rec.note + '”' : '');
     }
   } catch (e) { /* fall back to the generic card */ }
 

@@ -62,6 +62,17 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 #sharePop .brow button:hover{border-color:var(--gold)}
 #spMsg{font-size:11px;color:#8c7a5c;margin-top:8px;min-height:14px}
 #spMsg.ok{color:#8fc08a}#spMsg.err{color:#d08a6a}
+#spOpenWrap{border-top:1px solid #2c2316;margin-top:11px;padding-top:10px}
+#spOpenWrap label{display:block;font-size:10.5px;color:#8c7a5c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.sprow{display:flex;gap:6px}
+#spOpenIn{flex:1;min-width:0;background:#0d0a05;border:1px solid #3a2e1c;color:#d8c9a8;border-radius:6px;padding:6px 8px;font:11px ui-monospace,monospace;outline:none}
+#spOpenIn:focus{border-color:var(--gold)}
+#spOpenGo{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:6px;cursor:pointer;font-size:11.5px}
+#spOpenGo:hover{border-color:var(--gold)}
+#spList{margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
+.spworld{text-align:left;background:#160f08;border:1px solid #2c2316;border-radius:6px;padding:6px 8px;cursor:pointer;color:#cbb890;font-size:11.5px;line-height:1.35}
+.spworld:hover{border-color:var(--gold)}
+.spworld b{color:var(--parch);font-weight:600}.spworld .s{color:var(--gold2)}
 @media (max-width:760px){#sharePop{top:auto;bottom:120px;right:8px;left:8px;width:auto}}
 @media (max-width:760px){
   header{padding:8px 9px;gap:6px;flex-wrap:wrap}
@@ -91,6 +102,11 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <label id="spLinkLabel">share link · unfurls to a card<input id="spLink" readonly></label>
   <div class="brow"><button id="spCopy">⧉ copy link</button><button id="spPub" title="publish as com.minomobi.mappa.world to your PDS (needs a mino.mobi sign-in)">⤴ publish to my PDS</button></div>
   <div id="spMsg"></div>
+  <div id="spOpenWrap">
+    <label for="spOpenIn">open a published world</label>
+    <div class="sprow"><input id="spOpenIn" placeholder="at:// uri  ·  or  @handle"><button id="spOpenGo">open</button></div>
+    <div id="spList"></div>
+  </div>
 </div>
 <div id="builder">
   <div class="bhead"><span>world genome</span><button id="builderClose">×</button></div>

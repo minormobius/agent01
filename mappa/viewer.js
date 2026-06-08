@@ -7,9 +7,8 @@ import { generateWorld, BIOMES, setTriangulator } from './engine.js';
 import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
 import { worldSignals } from './lib/world-signals.js';
-import { encodeConfig, decodeConfig } from './lib/world-share.js';
+import { encodeConfig, decodeConfig, loadWorld, listWorlds } from './lib/world-share.js';
 import { featureName, worldName } from './lib/names.js';
-
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
@@ -40,6 +39,7 @@ let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
 let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null, minerals=[], digsites=[];
 let paleoT=0, paleoPlaying=false, paleoDir=1; // deep-time scrub: 0 = present, 1 = full drift back; dir for ping-pong play
 let signals=null, worldTitle=''; // interestingness battery output + the world's auto-name
+let loadedRecord=null; // when a world was opened from a PDS record: the publisher's note/title
 // ore commodities and where they form (filled in computeMinerals) — id, label, colour
 const ORE=[
   {id:'gold',  label:'gold',            col:'#e8c24a'},
@@ -618,17 +618,36 @@ document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;clearS
 function currentConfig(){return{seed,genome}} // shape is resolution-stable, so n is omitted from shares
 function _shareBase(){return location.origin+location.pathname.replace(/[^/]*$/,'')} // → …/mappa/
 function cardURL(){return _shareBase()+'card?w='+encodeConfig(currentConfig())}        // the unfurlable share link (OG card → bounces to the app)
-function clearShareURL(){try{history.replaceState(null,'',location.origin+location.pathname)}catch(e){}}
+function clearShareURL(){loadedRecord=null;try{history.replaceState(null,'',location.origin+location.pathname)}catch(e){}}
 function parseShareURL(){try{const p=new URLSearchParams(location.search),w=p.get('w');
   if(w){const c=decodeConfig(w);if(c){seed=c.seed;pinned.clear();for(const k in genome)genome[k]=null;
     for(const k in c.genome)if(k in genome){genome[k]=c.genome[k];pinned.add(k)}return true}}
   const s=p.get('seed');if(s!=null&&s!==''&&!isNaN(+s))seed=(+s)>>>0;
 }catch(e){}return false}
+// a published-world reference in the URL: ?at=<at-uri> (or ?did=&rkey=). Async (PDS).
+function pdsRefFromURL(){try{const p=new URLSearchParams(location.search);
+  const at=p.get('at');if(at)return at;
+  const did=p.get('did'),rkey=p.get('rkey');if(did&&rkey)return 'at://'+did+'/com.minomobi.mappa.world/'+rkey;
+}catch(e){}return null}
+// open a world from a PDS record: fetch it, adopt its config, rebuild. Keeps the
+// publisher's note/title around (the live signals recompute is authoritative).
+async function openWorldFromPDS(ref){
+  if(statusEl){statusEl.textContent='loading world…';statusEl.style.opacity=1}
+  try{const {config,record,uri}=await loadWorld(ref);
+    seed=config.seed;pinned.clear();for(const k in genome)genome[k]=null;
+    for(const k in config.genome)if(k in genome){genome[k]=config.genome[k];pinned.add(k)}
+    loadedRecord={record,uri};build();
+    if(statusEl)statusEl.style.opacity=0;return true;
+  }catch(e){loadedRecord=null;if(statusEl){statusEl.textContent='couldn’t load that world';setTimeout(()=>statusEl.style.opacity=0,1800)}
+    build();return false}
+}
 const _sp=id=>document.getElementById(id);
 function openShare(){if(!world)return;
   _sp('spTitle').textContent=worldTitle||('World '+world.meta.seed);
   _sp('spScore').textContent=signals?('★ '+signals.score+'/100 interesting'+(signals.flags.length?'  ·  '+signals.flags.slice(0,3).join(', '):'')):'';
-  _sp('spDesc').textContent=signals?signals.descriptor:'';
+  let d=signals?signals.descriptor:'';
+  if(loadedRecord&&loadedRecord.record&&loadedRecord.record.note)d+=' · “'+loadedRecord.record.note+'”';
+  _sp('spDesc').textContent=d;
   _sp('spLink').value=cardURL();_sp('spMsg').textContent='paste it anywhere — it unfurls into a card of this world';_sp('spMsg').className='';
   try{history.replaceState(null,'','?w='+encodeConfig(currentConfig()))}catch(e){} // keep the address bar on the live world
   _sp('sharePop').classList.add('show');_sp('spLink').focus();_sp('spLink').select()}
@@ -648,6 +667,20 @@ _sp('spPub').onclick=async()=>{const m=_sp('spMsg');m.textContent='publishing…
         m.textContent='redirecting to sign in… (your world is in this URL; publish again on return)';}
       catch(e2){m.textContent='sign-in failed: '+(e2&&e2.message||e2);m.className='err'}
     }else{m.textContent='publish failed: '+(e&&e.message||e);m.className='err'}}};
+// open a published world: an at:// uri opens it directly; a @handle lists their worlds
+const _esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+_sp('spOpenGo').onclick=async()=>{const v=_sp('spOpenIn').value.trim(),m=_sp('spMsg'),list=_sp('spList');
+  if(!v)return;list.innerHTML='';
+  if(v.startsWith('at://')){m.textContent='loading…';m.className='';
+    const ok=await openWorldFromPDS(v);if(ok)_sp('sharePop').classList.remove('show');else{m.textContent='couldn’t load that uri';m.className='err'}return}
+  const handle=v.replace(/^@/,'');m.textContent='fetching @'+handle+'…';m.className='';
+  try{const worlds=await listWorlds(handle);
+    m.textContent=worlds.length?(worlds.length+' world'+(worlds.length>1?'s':'')+' by @'+handle+' — tap to open'):'no published worlds for @'+handle;
+    for(const wd of worlds){const b=document.createElement('button');b.className='spworld';
+      b.innerHTML='<b>'+_esc(wd.title||('World '+(wd.config&&wd.config.seed)))+'</b>'+(wd.score!=null?' <span class="s">★'+(wd.score|0)+'</span>':'')+(wd.descriptor?'<br>'+_esc(wd.descriptor):'');
+      b.onclick=()=>{_sp('sharePop').classList.remove('show');openWorldFromPDS(wd.uri)};list.appendChild(b)}
+  }catch(e){m.textContent='lookup failed: '+(e&&e.message||e);m.className='err'}};
+_sp('spOpenIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();_sp('spOpenGo').click()}});
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
 const tEl=document.getElementById('time'),eraEl=document.getElementById('era');
 const eraLabel=()=>tcut>=1?'all founded':'↤ '+new Date(SITES.minB+(SITES.maxB-SITES.minB)*tcut).toISOString().slice(0,10);
@@ -708,6 +741,8 @@ const _br=document.getElementById('bRefine');if(_br)_br.onclick=refineDetail;
 $('builderClose').onclick=()=>$('builder').classList.remove('show');
 
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
-addEventListener('resize',resize);resize();parseShareURL();initEngine().finally(()=>regen());
+addEventListener('resize',resize);resize();
+const _pdsRef=pdsRefFromURL();parseShareURL();
+initEngine().finally(()=>{if(_pdsRef)openWorldFromPDS(_pdsRef);else regen()});
 
 // kernel: mappa/pkg built by build-mappa-engine.yml (fast Delaunay, 15k cells)

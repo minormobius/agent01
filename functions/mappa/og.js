@@ -3,21 +3,28 @@
 // biome map). Deterministic + content-addressed by the config → cached forever.
 import { generateWorld } from '../../mappa/engine.js';
 import { renderWorldCard } from '../../mappa/lib/og-render.js';
-import { decodeConfig } from '../../mappa/lib/world-share.js';
+import { decodeConfig, loadWorld } from '../../mappa/lib/world-share.js';
 
-function configFromQuery(url) {
+function atFromQuery(url) {
+  const at = url.searchParams.get('at'); if (at) return at;
+  const did = url.searchParams.get('did'), rkey = url.searchParams.get('rkey');
+  return did && rkey ? 'at://' + did + '/com.minomobi.mappa.world/' + rkey : null;
+}
+async function configFromQuery(url) {
   const w = url.searchParams.get('w');
   if (w) { const c = decodeConfig(w); if (c) return c; }
   const s = url.searchParams.get('seed');
   if (s != null && s !== '' && !isNaN(+s)) return { seed: (+s) >>> 0, genome: {} };
+  const at = atFromQuery(url);
+  if (at) { try { const { config } = await loadWorld(at); if (config) return config; } catch (e) { /* fall through */ } }
   return null;
 }
 
 export async function onRequest(context) {
   try {
     const url = new URL(context.request.url);
-    const cfg = configFromQuery(url);
-    if (!cfg) return new Response('missing ?w or ?seed', { status: 400 });
+    const cfg = await configFromQuery(url);
+    if (!cfg) return new Response('missing ?w / ?seed / ?at', { status: 400 });
     const N = Math.min(4000, cfg.n || 3000);                  // coarse mesh: fast, plenty for a card
     const world = generateWorld(cfg.seed, { N, ...cfg.genome });
     const png = await renderWorldCard(world, { width: 1200, height: 600 });

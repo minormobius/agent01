@@ -120,3 +120,20 @@ export async function loadWorld(ref, rkey) {
   const rec = data.value || data.record || data;
   return { config: recordToConfig(rec), record: rec, uri: data.uri || ref };
 }
+
+// list a repo's published worlds (newest first) — the discovery primitive.
+// Returns [{ uri, rkey, config, record, title, descriptor, score }]. Public, no auth.
+export async function listWorlds(repo, limit = 50) {
+  const did = repo.startsWith('did:') ? repo : await resolveHandle(repo);
+  const pds = await resolvePds(did);
+  const url = `${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}`
+    + `&collection=${COLLECTION}&limit=${limit}&reverse=true`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('list failed: ' + res.status);
+  const data = await res.json();
+  return (data.records || []).map(r => ({
+    uri: r.uri, rkey: (r.uri || '').split('/').pop(),
+    config: recordToConfig(r.value), record: r.value,
+    title: r.value.title, descriptor: r.value.descriptor, score: r.value.score,
+  })).filter(x => x.config);
+}
