@@ -35,6 +35,7 @@ on:
       - 'markov/**'
       - 'descent/**'
       - 'traffic/**'
+      - 'ising/**'
       - 'packages/audio-react/**'
       - 'packages/music/**'
       # static subsites still bundled under root (carve out as they encapsulate):

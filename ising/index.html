@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ising — the magnet that melts</title>
+<meta name="description" content="The Ising model: a grid of spins that each want to agree with their neighbours, fighting thermal noise. Below a critical temperature the whole sheet spontaneously magnetizes; above it, it melts into disorder. A continuous phase transition you can watch — and drive with music: loudness is temperature, so a track literally melts and re-freezes the magnet.">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #d1495b;            /* hot iron */
+  --accent-faint: rgba(209, 73, 91, 0.10);
+  --canvas-bg: #0a0a12;
+  --tag-bg: #eee; --tag-text: #555;
+  --spin-up: #e8924a; --spin-dn: #3f7fce;   /* up = warm, down = cool */
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #f06a7e; --accent-faint: rgba(240, 106, 126, 0.14);
+    --canvas-bg: #0a0a12; --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.8rem; margin-bottom: -1px; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+.grid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .grid-wrap { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; aspect-ratio: 1/1; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; image-rendering: pixelated; }
+canvas#is-phase { aspect-ratio: auto; image-rendering: auto; }
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 3.2em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; align-items: center; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.swatch { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 2px; vertical-align: middle; margin-right: 0.3em; }
+.stat-note { font-size: 0.62rem; color: var(--muted); margin-top: 0.4rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+.lead { font-family: var(--serif); font-size: 0.96rem; color: var(--muted); margin: 0 0 1rem; max-width: 64ch; }
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.88em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>ising</h1>
+  <p class="subtitle">the ising model · spontaneous magnetization · lenz 1920 · onsager 1944</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · sister of <a href="https://mino.mobi/traffic/">traffic</a> — the other phase transition you can hear</p>
+</header>
+
+<p class="lead">
+  A sheet of tiny magnets — <strong>spins</strong>, each pointing <strong style="color:var(--spin-up)">up</strong> or
+  <strong style="color:var(--spin-dn)">down</strong>. Every spin wants to agree with its four neighbours; heat
+  keeps knocking them out of line. Turn the <strong>temperature</strong> down and the whole sheet
+  <strong>spontaneously magnetizes</strong> — one opinion sweeps the lattice with nobody in charge. Turn it up
+  past a critical point and the order <strong>melts</strong> into noise. And because we wired
+  <strong>loudness to temperature</strong>, you can drop in a track and watch the music
+  <strong>melt and re-freeze</strong> the magnet — then pull an 8-bit soundtrack back out of it.
+</p>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="simulate" role="tab">simulate</button>
+  <button class="tab" data-tab="phase" role="tab">phase diagram</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────── SIMULATE PANE ─────────── -->
+<section class="pane active" data-pane="simulate">
+  <div class="grid-wrap">
+    <div><canvas id="is-canvas" width="600" height="600"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="is-run">▶ run</button>
+          <button class="btn" id="is-rand">↻ randomize</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">temperature · T (in units of J/k; T<sub>c</sub> ≈ 2.269)</span>
+        <div class="ctrl-row"><input id="is-temp" type="range" min="0.20" max="5.00" value="1.80" step="0.02"><span class="ctrl-val" id="is-temp-val">1.80</span></div>
+        <div class="btn-row" id="is-preset">
+          <button class="btn" data-t="1.20">cold</button>
+          <button class="btn" data-t="2.27">critical</button>
+          <button class="btn" data-t="3.60">hot</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">external field · H (biases up vs down)</span>
+        <div class="ctrl-row"><input id="is-field" type="range" min="-1.00" max="1.00" value="0.00" step="0.02"><span class="ctrl-val" id="is-field-val">0.00</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L</span>
+        <div class="ctrl-row"><input id="is-size" type="range" min="48" max="200" value="120" step="8"><span class="ctrl-val" id="is-size-val">120</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · sweeps / sec</span>
+        <div class="ctrl-row"><input id="is-speed" type="range" min="1" max="30" value="14" step="1"><span class="ctrl-val" id="is-speed-val">14</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">music — melt the magnet with sound (loudness = heat)</span>
+        <div class="ctrl-row"><select id="is-trackpick" style="flex:1;min-width:0;background:#11111b;color:var(--fg,#e8e8f0);border:1px solid var(--line,#2a2a3a);border-radius:6px;padding:5px 7px;font:inherit;font-size:13px"><option value="">▾ generated track (from /music)…</option></select></div>
+        <div class="btn-row">
+          <button class="btn" id="is-track">♫ file</button>
+          <button class="btn" id="is-mic">🎤 mic</button>
+          <button class="btn" id="is-pp">⏯</button>
+          <button class="btn active" id="is-moff">off</button>
+        </div>
+        <input id="is-file" type="file" accept="audio/*" style="display:none">
+        <div class="ctrl-row"><span class="ctrl-label" style="min-width:2.8em">beat</span><span id="is-beat" style="width:11px;height:11px;border-radius:50%;background:var(--accent);opacity:0.18;display:inline-block;flex:0 0 auto"></span><input id="is-sens" type="range" min="1.10" max="1.80" value="1.35" step="0.05"><span class="ctrl-val" id="is-sens-val">1.35</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">sonify — pull an 8-bit track from the magnet</span>
+        <div class="btn-row">
+          <button class="btn" id="is-sonify">♫ sonify the magnet</button>
+          <button class="btn" id="is-son-dl">⬇ .json → /music</button>
+        </div>
+        <span class="ctrl-label" id="is-son-status" style="opacity:0.72;font-weight:400;text-transform:none;letter-spacing:0;white-space:normal"></span>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">|magnetization| vs time</span>
+        <canvas id="is-mag" width="250" height="70" style="image-rendering:auto"></canvas>
+      </div>
+      <div class="stats" id="is-stats"></div>
+      <div class="stat-note">
+        <span class="swatch" style="background:var(--spin-up)"></span>up
+        <span class="swatch" style="background:var(--spin-dn)"></span>down. <strong>|Magnetization|</strong> is
+        the net alignment — the order parameter. Cold: it locks near 1 (one colour wins). Hot: it hovers
+        near 0 (salt-and-pepper). Near T<sub>c</sub> it shimmers, with domains of every size at once.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── PHASE PANE ─────────── -->
+<section class="pane" data-pane="phase">
+  <p class="lead">
+    The order parameter is the steady-state <strong>|magnetization|</strong>. Sweep the temperature up and it
+    holds near 1 (fully ordered) until the <strong>critical temperature T<sub>c</sub> = 2/ln(1+√2) ≈ 2.269</strong>,
+    where it bends down to 0 — Onsager's exact curve, |M| ~ (T<sub>c</sub>−T)<sup>1/8</sup>. Unlike traffic's
+    cliff this is a <strong>continuous</strong> transition, but the knee at T<sub>c</sub> is unmistakable.
+  </p>
+  <div class="grid-wrap">
+    <div><canvas id="is-phase" width="760" height="560"></canvas></div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="is-sweep">▶ run sweep</button>
+          <button class="btn" id="is-sweep-reset">reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">grid · L × L (smaller = faster)</span>
+        <div class="ctrl-row"><input id="is-psize" type="range" min="24" max="80" value="48" step="8"><span class="ctrl-val" id="is-psize-val">48</span></div>
+      </div>
+      <div class="stats" id="is-pstats"></div>
+      <div class="stat-note">
+        Each point: a cold-aligned grid equilibrated at that temperature, |magnetization| averaged over the
+        last sweeps. Finite grids round the knee off (the true singularity is sharp only as L→∞), and right at
+        T<sub>c</sub> critical slowing-down makes equilibration crawl — but the dashed line marks the exact T<sub>c</sub>.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+<article class="docs">
+
+<h2>The rule</h2>
+<p>The <strong>Ising model</strong> is a grid of spins <em>s<sub>i</sub></em> = ±1 on an <em>L × L</em> torus.
+The energy rewards agreement between neighbours and alignment with an external field <em>H</em>:</p>
+<blockquote>E = −J Σ<sub>⟨ij⟩</sub> s<sub>i</sub>s<sub>j</sub> − H Σ<sub>i</sub> s<sub>i</sub></blockquote>
+<p>with coupling <code>J = 1</code> (ferromagnetic — neighbours want to match). We evolve it with the
+<strong>Metropolis algorithm</strong>: pick a spin, compute the energy change ΔE of flipping it, and flip with
+probability <code>min(1, e<sup>−ΔE/T</sup>)</code>. Flips that lower the energy always happen; flips that raise it
+happen sometimes, more often when it's hot. That single rule is the whole thermostat. One <strong>sweep</strong>
+is L×L flip attempts.</p>
+
+<h2>Spontaneous magnetization</h2>
+<p>At high temperature the noise wins: spins point every which way, |magnetization| ≈ 0, the sheet is a
+<strong>paramagnet</strong>. Cool it, and the neighbour-coupling starts to win — patches of agreement grow,
+merge, and below a sharp <strong>critical temperature T<sub>c</sub></strong> a single orientation
+spontaneously takes the entire lattice even with <em>no</em> external field. The symmetry between up and down
+breaks on its own.</p>
+<blockquote>Nobody tells the spins which way to point. Below T<sub>c</sub> they simply agree — that's a
+<strong>ferromagnet</strong>, and it's why a horseshoe magnet stays magnetized.</blockquote>
+<p>In two dimensions Lars <strong>Onsager</strong> solved it exactly in 1944: the transition sits at
+<strong>T<sub>c</sub> = 2 / ln(1 + √2) ≈ 2.269</strong>, and just below it the magnetization rises as
+|M| ~ (T<sub>c</sub> − T)<sup>1/8</sup> — that 1/8 is a <strong>critical exponent</strong>, the same for every
+system in the model's universality class, magnets and liquids and alloys alike. The <strong>phase diagram</strong>
+tab draws this curve.</p>
+
+<h2>Hear it — and sonify it</h2>
+<p>We mapped <strong>loudness → temperature</strong>, so a loud passage heats the sheet past T<sub>c</sub> and
+melts the order while a quiet one lets it re-freeze; each <strong>beat</strong> fires a brief external-field
+pulse that nucleates domains. Then the arrow reverses: <strong>sonify</strong> reads the magnet's own state —
+its <strong>order</strong> sets major-vs-minor, a swept column of spins becomes the lead (a near-drone when
+frozen, a scatter when molten), and the <strong>flip-rate</strong> drives the percussion (silent when cold,
+frantic near T<sub>c</sub>). The track it emits is a real <code>com.minomobi.music.composition</code> you can
+export to <a href="https://mino.mobi/music/">/music</a> — or feed straight back in and let the magnet pulse to
+the soundtrack it just sang.</p>
+
+<h2>Why it belongs in the geometry pack</h2>
+<p>The Ising model is <em>the</em> statistical-mechanics phase transition — the same emergent-order story as
+<a href="https://mino.mobi/traffic/">traffic</a>'s gridlock and the
+<a href="https://mino.mobi/markov/">Markov thermostats</a>, but here with an exact solution and a clean order
+parameter. Criticality, broken symmetry, universality, diverging correlation length: all of it acted out by a
+sheet of ±1s.</p>
+
+<p class="meta-stamp">sources</p>
+<ul>
+  <li>Ising, E. (1925). <em>Beitrag zur Theorie des Ferromagnetismus.</em> Z. Phys. 31, 253.</li>
+  <li>Onsager, L. (1944). <em>Crystal statistics I: a two-dimensional model with an order-disorder transition.</em> Phys. Rev. 65, 117.</li>
+  <li>Metropolis, N. et al. (1953). <em>Equation of state calculations by fast computing machines.</em> J. Chem. Phys. 21, 1087.</li>
+  <li><a href="https://en.wikipedia.org/wiki/Ising_model">Wikipedia — Ising model</a></li>
+</ul>
+
+</article>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">geometry pack</a>
+  <span>·</span>
+  <a href="https://mino.mobi/traffic/">traffic</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+</footer>
+
+<script type="module">
+import { AudioField } from '../packages/audio-react/audio.js';
+import { renderComposition, loadBundledIndex, loadBundledComposition } from '../packages/music/render.js';
+import { stateToComposition } from '../packages/music/sonify.js';
+// ═════════════════════════════════════════════════════════════════════
+// Tabs
+// ═════════════════════════════════════════════════════════════════════
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane');
+const TAB_NAMES = ['simulate','phase','docs'];
+function showTab(name){ tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  panes.forEach(p=>p.classList.toggle('active',p.dataset.pane===name));
+  try{history.replaceState(null,'','#'+name);}catch{}
+  if(name==='simulate'){ drawGrid(); if(sim.running) sim.raf=requestAnimationFrame(simLoop); }
+  if(name==='phase'){ drawPhase(); if(ph.running) ph.raf=requestAnimationFrame(phTick); } }
+tabs.forEach(t=>t.addEventListener('click',()=>showTab(t.dataset.tab)));
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function activePane(){ return document.querySelector('.pane.active')?.dataset.pane; }
+
+// ═════════════════════════════════════════════════════════════════════
+// Ising engine — spins ±1 on an L×L torus, Metropolis single-spin flips
+// ═════════════════════════════════════════════════════════════════════
+const TC = 2/Math.log(1+Math.SQRT2);                       // ≈ 2.269185
+function randomSpins(L){ const n=L*L, g=new Int8Array(n); for(let i=0;i<n;i++) g[i]=Math.random()<0.5?1:-1; return g; }
+function alignedSpins(L){ const g=new Int8Array(L*L); g.fill(1); return g; }
+// one Metropolis sweep at temperature T with external field H; returns # of accepted flips
+function sweep(g, L, T, H){ let flips=0; const beta=1/Math.max(1e-4,T);
+  for(let y=0;y<L;y++){ const yu=((y-1+L)%L)*L, yd=((y+1)%L)*L, row=y*L;
+    for(let x=0;x<L;x++){ const i=row+x, s=g[i];
+      const nsum = g[yu+x] + g[yd+x] + g[row+((x-1+L)%L)] + g[row+((x+1)%L)];
+      const dE = 2*s*(nsum + H);                            // J=1
+      if(dE<=0 || Math.random() < Math.exp(-dE*beta)){ g[i]=-s; flips++; } } }
+  return flips; }
+function magnetization(g){ let s=0; for(let i=0;i<g.length;i++) s+=g[i]; return s/g.length; }
+
+// ═════════════════════════════════════════════════════════════════════
+// simulate tab
+// ═════════════════════════════════════════════════════════════════════
+const sim = { L:120, T:1.80, H:0, grid:null, step:0, running:false, raf:null, ups:14, lastT:0, M:0, flipFrac:0, mHist:[], sonLog:[], beatSign:1,
+  Tlo:1.4, Thi:3.7,
+  music:{ on:false, af:null, src:'none', feat:{loudness:0,bass:0,mid:0,treble:0,beat:false}, pendingBeat:false, flash:0, beats:0, lastComp:null } };
+const SON_STEPS = 64;
+// log one step for the sonifier: flow = order |M| (→ tempo/mode), agitation = flip-rate (→ percussion),
+// and a swept spin column read as a piano-roll (up/down rows → two lead voices).
+function logSon(){ const L=sim.L, x=sim.step % L, up=[], down=[];
+  for(let y=0;y<L;y++){ const s=sim.grid[y*L+x]; if(s>0) up.push(y/L); else down.push(y/L); }
+  const order=Math.abs(sim.M);
+  sim.sonLog.push({ flow: order, agitation: Math.min(1, sim.flipFrac*4), density: 1-order, up, down });
+  if(sim.sonLog.length>SON_STEPS) sim.sonLog.shift(); }
+const tc = document.getElementById('is-canvas'), tcx = tc.getContext('2d');
+function updateM(flips){ sim.M = magnetization(sim.grid); sim.flipFrac = flips/(sim.L*sim.L); sim.step++;
+  sim.mHist.push(Math.abs(sim.M)); if(sim.mHist.length>240) sim.mHist.shift(); logSon(); }
+// ── music choreography: loudness→temperature (melt/freeze), beat→field pulse, bass/treble→field lean ──
+function musicSweep(){ const f=sim.music.feat;
+  sim.T = sim.Tlo + (sim.Thi-sim.Tlo)*Math.min(1, f.loudness*1.12);     // loud = hot = molten
+  let H = sim.H + (f.bass - f.treble)*0.6;                              // spectral lean tilts up vs down
+  if(sim.music.pendingBeat){ sim.music.pendingBeat=false; sim.beatSign=-sim.beatSign; H += sim.beatSign*1.8; }  // kick = field pulse
+  updateM(sweep(sim.grid, sim.L, sim.T, H)); }
+function simStep(){ updateM(sweep(sim.grid, sim.L, sim.T, sim.H)); }
+function simRandomize(){ sim.grid=randomSpins(sim.L); sim.step=0; sim.M=magnetization(sim.grid); sim.flipFrac=0; sim.mHist=[]; sim.sonLog=[]; }
+function drawGrid(){ const L=sim.L; if(tc.width!==L){ tc.width=L; tc.height=L; }
+  const img=tcx.createImageData(L,L), d=img.data, g=sim.grid;
+  // beat-locked glow only (not a continuous loudness flicker); temperature drives the dynamics, not brightness.
+  const m=sim.music, br = (m.on && m.af) ? (0.88 + 0.12*m.flash) : 1;
+  const up=[Math.round(232*br),Math.round(146*br),Math.round(74*br)], dn=[Math.round(63*br),Math.round(127*br),Math.round(206*br)];
+  for(let i=0;i<L*L;i++){ const k=i*4, c = g[i]>0?up:dn; d[k]=c[0]; d[k+1]=c[1]; d[k+2]=c[2]; d[k+3]=255; }
+  tcx.putImageData(img,0,0); drawMag(); updateStats(); }
+function drawMag(){ const c=document.getElementById('is-mag'), x=c.getContext('2d'), W=c.width, H=c.height;
+  x.fillStyle='#0a0a12'; x.fillRect(0,0,W,H);
+  x.strokeStyle='rgba(255,255,255,0.15)'; x.lineWidth=1; x.beginPath(); x.moveTo(4,4); x.lineTo(W-4,4); x.stroke();
+  x.fillStyle='#888'; x.font='9px '+cssVar('--mono'); x.fillText('1',W-10,11); x.fillText('0',W-10,H-3);
+  const h=sim.mHist; if(h.length>1){ x.strokeStyle=cssVar('--accent'); x.lineWidth=1.6; x.beginPath();
+    h.forEach((v,i)=>{ const px=4+(W-8)*i/Math.max(1,h.length-1), py=4+(H-8)*(1-v); i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke(); } }
+function phaseLabel(){ if(sim.step<8) return ['equilibrating',''];
+  const o=Math.abs(sim.M);
+  if(sim.T < TC*0.92 && o>0.5) return ['ordered · ferromagnet','hot'];
+  if(sim.T > TC*1.08) return ['disordered · paramagnet','hot'];
+  return ['critical · near T_c','']; }
+function updateStats(){ const [lab,cls]=phaseLabel(); const m=sim.music;
+  document.getElementById('is-stats').innerHTML = `
+    <div class="stat-row"><span class="k">grid</span><span class="v">${sim.L} × ${sim.L}</span></div>
+    <div class="stat-row"><span class="k">temperature T</span><span class="v hot">${sim.T.toFixed(2)}${m.on?' ♫':''}</span></div>
+    <div class="stat-row"><span class="k">T / T_c</span><span class="v">${(sim.T/TC).toFixed(2)}</span></div>
+    <div class="stat-row"><span class="k">magnetization</span><span class="v hot">${sim.M>=0?'+':''}${sim.M.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">flip rate</span><span class="v">${(sim.flipFrac*100).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="k">sweep</span><span class="v">${sim.step}</span></div>
+    <div class="stat-row"><span class="k">phase</span><span class="v ${cls}">${lab}</span></div>
+    ${m.on ? `<div class="stat-row"><span class="k">♫ source</span><span class="v hot">${m.src}${m.af&&!m.af.playing()?' · paused':''}</span></div>
+    <div class="stat-row"><span class="k">loudness · beats</span><span class="v">${m.feat.loudness.toFixed(2)} · ${m.beats}</span></div>` : ''}`;
+}
+function simLoop(ts){ if(!sim.running||activePane()!=='simulate') return; if(ts==null)ts=performance.now();
+  const m=sim.music;
+  if(m.on && m.af){ const f=m.af.read(ts); m.feat=f; if(f.beat){ m.pendingBeat=true; m.flash=1; m.beats++; }
+    if(m.flash>0) m.flash*=0.82; const dot=document.getElementById('is-beat'); if(dot) dot.style.opacity=(0.18+0.82*m.flash).toFixed(2); }
+  if(ts-sim.lastT>=1000/sim.ups){ sim.lastT=ts; (m.on && m.af) ? musicSweep() : simStep(); drawGrid(); }
+  sim.raf=requestAnimationFrame(simLoop); }
+function simSetRun(on){ sim.running=on; const b=document.getElementById('is-run');
+  b.textContent=on?'⏸ pause':'▶ run'; b.classList.toggle('active',on);
+  if(on){ sim.lastT=0; sim.raf=requestAnimationFrame(simLoop); } else cancelAnimationFrame(sim.raf); }
+document.getElementById('is-run').addEventListener('click',()=>simSetRun(!sim.running));
+document.getElementById('is-rand').addEventListener('click',()=>{ simRandomize(); drawGrid(); });
+document.getElementById('is-temp').addEventListener('input',e=>{ sim.T=parseFloat(e.target.value); document.getElementById('is-temp-val').textContent=sim.T.toFixed(2);
+  document.querySelectorAll('#is-preset .btn').forEach(x=>x.classList.toggle('active',Math.abs(parseFloat(x.dataset.t)-sim.T)<0.02)); if(!sim.running) drawGrid(); });
+document.getElementById('is-preset').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(!b)return;
+  sim.T=parseFloat(b.dataset.t); document.getElementById('is-temp').value=sim.T; document.getElementById('is-temp-val').textContent=sim.T.toFixed(2);
+  document.querySelectorAll('#is-preset .btn').forEach(x=>x.classList.toggle('active',x===b)); if(!sim.running) drawGrid(); });
+document.getElementById('is-field').addEventListener('input',e=>{ sim.H=parseFloat(e.target.value); document.getElementById('is-field-val').textContent=(sim.H>=0?'+':'')+sim.H.toFixed(2); });
+document.getElementById('is-size').addEventListener('input',e=>{ sim.L=parseInt(e.target.value,10); document.getElementById('is-size-val').textContent=sim.L; simRandomize(); drawGrid(); });
+document.getElementById('is-speed').addEventListener('input',e=>{ sim.ups=parseInt(e.target.value,10); document.getElementById('is-speed-val').textContent=sim.ups; });
+// ── music: BYO track / mic → choreography ──
+function getAF(){ if(!sim.music.af){ sim.music.af=new AudioField(); sim.music.af.beat.sens=parseFloat(document.getElementById('is-sens').value); } return sim.music.af; }
+function setMusicMode(on, src){ sim.music.on=on; if(src) sim.music.src=src;
+  document.getElementById('is-moff').classList.toggle('active',!on);
+  document.getElementById('is-track').classList.toggle('active', on && sim.music.src==='track');
+  document.getElementById('is-mic').classList.toggle('active', on && sim.music.src==='mic');
+  if(on){ if(sim.ups<16){ sim.ups=18; document.getElementById('is-speed').value=18; document.getElementById('is-speed-val').textContent=18; }
+    if(!sim.running) simSetRun(true); } else { const dot=document.getElementById('is-beat'); if(dot)dot.style.opacity='0.18'; const sel=document.getElementById('is-trackpick'); if(sel)sel.value=''; }
+  drawGrid(); }
+// ── generated tracks: render a /music composition → WAV blob → analyser (no file, no mic, no CORS) ──
+const COMP_BASE='../packages/music/compositions/'; let _compIndex=null;
+async function ensureCompList(){ if(_compIndex) return _compIndex;
+  const sel=document.getElementById('is-trackpick');
+  try{ _compIndex=await loadBundledIndex(COMP_BASE);
+    for(const c of (_compIndex.compositions||[])){ const o=document.createElement('option'); o.value=c.id; o.textContent=`${c.name} — ${c.subtitle||''}`.trim(); sel.appendChild(o); }
+  }catch(err){ console.warn('composition index load failed',err); _compIndex={compositions:[]}; }
+  return _compIndex; }
+async function playComposition(id){ const sel=document.getElementById('is-trackpick'); const idx=await ensureCompList();
+  const entry=(idx.compositions||[]).find(c=>c.id===id); if(!entry) return;
+  const prev=sel.options[sel.selectedIndex]?.textContent; if(sel.options[sel.selectedIndex]) sel.options[sel.selectedIndex].textContent='rendering '+entry.name+'…';
+  try{ const comp=await loadBundledComposition(entry, COMP_BASE); const wav=await renderComposition(comp);
+    await getAF().fromFile(wav); setMusicMode(true, entry.name); }
+  catch(err){ console.warn('composition render failed',err); alert('Could not render that track: '+(err?.message||err)); }
+  finally{ if(sel.options[sel.selectedIndex] && prev) sel.options[sel.selectedIndex].textContent=prev; } }
+document.getElementById('is-trackpick').addEventListener('change',e=>{ const id=e.target.value; if(id) playComposition(id); });
+ensureCompList();
+// ── sonify: magnet state → composition → synth (the reverse of audio-react) ──
+async function sonifyGrid(){ const status=document.getElementById('is-son-status'), log=sim.sonLog;
+  if(log.length<16){ if(!sim.running) simSetRun(true); if(status) status.textContent='warming up — let it run a moment, then hit sonify again.'; return; }
+  if(status) status.textContent='rendering…';
+  const frames=log.map(f=>({ flow:f.flow, agitation:f.agitation, density:f.density,
+    voices:[ ...f.up.map(p=>({pos:p,species:0})), ...f.down.map(p=>({pos:p,species:1})) ] }));
+  const comp=stateToComposition(frames, { name:'Ising '+new Date().toTimeString().slice(0,8), steps:frames.length });
+  sim.music.lastComp=comp;
+  try{ const wav=await renderComposition(comp); await getAF().fromFile(wav); setMusicMode(true,'self ♫');
+    const sel=document.getElementById('is-trackpick'); if(sel) sel.value='';
+    if(status) status.textContent=`▸ the magnet now pulses to its own soundtrack — ${comp.bpm} BPM, ${comp.tracks.length} voices, ${comp.description.includes('major')?'major / ordered':'minor / molten'}. ⬇ to keep it.`;
+  }catch(err){ console.warn('sonify render failed',err); if(status) status.textContent='render failed: '+(err?.message||err); } }
+function downloadComp(){ const status=document.getElementById('is-son-status'), c=sim.music.lastComp;
+  if(!c){ if(status) status.textContent='sonify first, then download.'; return; }
+  const blob=new Blob([JSON.stringify(c,null,2)],{type:'application/json'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=(c.name||'ising').replace(/[^\w.-]+/g,'_')+'.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }
+document.getElementById('is-sonify').addEventListener('click',sonifyGrid);
+document.getElementById('is-son-dl').addEventListener('click',downloadComp);
+document.getElementById('is-track').addEventListener('click',()=>document.getElementById('is-file').click());
+document.getElementById('is-file').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
+  getAF().fromFile(f).then(()=>setMusicMode(true,'track')).catch(err=>{ console.warn('audio load failed',err); alert('Could not load that audio file.'); }); });
+document.getElementById('is-mic').addEventListener('click',()=>{ getAF().fromMic().then(()=>setMusicMode(true,'mic')).catch(err=>{ console.warn('mic failed',err); alert('Microphone access was denied.'); }); });
+document.getElementById('is-pp').addEventListener('click',()=>{ if(sim.music.af) sim.music.af.toggle(); drawGrid(); });
+document.getElementById('is-moff').addEventListener('click',()=>{ setMusicMode(false); });
+document.getElementById('is-sens').addEventListener('input',e=>{ const v=parseFloat(e.target.value); document.getElementById('is-sens-val').textContent=v.toFixed(2); if(sim.music.af) sim.music.af.beat.sens=v; });
+
+// ═════════════════════════════════════════════════════════════════════
+// phase diagram tab — steady-state |magnetization| vs temperature
+// ═════════════════════════════════════════════════════════════════════
+const ph = { L:48, data:[], idx:0, steps:56, eq:140, samp:80, running:false, raf:null, T0:0.6, T1:4.0 };
+const pc = document.getElementById('is-phase'), pcx = pc.getContext('2d');
+function phReset(){ ph.running=false; ph.data=[]; ph.idx=0; document.getElementById('is-sweep').textContent='▶ run sweep'; drawPhase(); }
+function phStart(){ ph.L=parseInt(document.getElementById('is-psize').value,10); ph.data=[]; ph.idx=0; ph.running=true;
+  document.getElementById('is-sweep').textContent='⏸ pause'; ph.raf=requestAnimationFrame(phTick); }
+function phActive(){ return activePane()==='phase'; }
+function phTick(){ if(!ph.running||!phActive()) return;
+  if(ph.idx>=ph.steps){ ph.running=false; document.getElementById('is-sweep').textContent='▶ re-run'; drawPhase(); return; }
+  const T = ph.T0 + (ph.T1-ph.T0)*ph.idx/(ph.steps-1);
+  let g = alignedSpins(ph.L);                              // cold-start so low-T shows full order
+  for(let t=0;t<ph.eq;t++) sweep(g, ph.L, T, 0);           // equilibrate
+  let s=0; for(let t=0;t<ph.samp;t++){ sweep(g, ph.L, T, 0); s+=Math.abs(magnetization(g)); }
+  ph.data.push({ T, m:s/ph.samp }); ph.idx++; drawPhase();
+  ph.raf=requestAnimationFrame(phTick); }
+function drawPhase(){ const W=pc.width,H=pc.height; pcx.fillStyle=cssVar('--canvas-bg'); pcx.fillRect(0,0,W,H);
+  const mL=70,mR=26,mT=30,mB=54, pw=W-mL-mR, ph2=H-mT-mB;
+  const X=t=>mL+pw*(t-ph.T0)/(ph.T1-ph.T0), Y=m=>mT+ph2*(1-m);
+  pcx.strokeStyle='rgba(150,150,160,0.5)'; pcx.lineWidth=1; pcx.strokeRect(mL,mT,pw,ph2);
+  pcx.fillStyle='#999'; pcx.font='13px '+cssVar('--mono');
+  for(let m=0;m<=1.001;m+=0.25){ const y=Y(m); pcx.globalAlpha=0.35; pcx.beginPath(); pcx.moveTo(mL,y); pcx.lineTo(mL+pw,y); pcx.stroke(); pcx.globalAlpha=1; pcx.fillText(m.toFixed(2), mL-36, y+4); }
+  for(let k=0;k<=5;k++){ const t=ph.T0+(ph.T1-ph.T0)*k/5; pcx.fillText(t.toFixed(1), X(t)-10, mT+ph2+20); }
+  // exact Tc marker
+  if(TC>=ph.T0 && TC<=ph.T1){ pcx.strokeStyle='rgba(160,160,180,0.55)'; pcx.setLineDash([5,4]); pcx.lineWidth=1.2;
+    pcx.beginPath(); pcx.moveTo(X(TC),mT); pcx.lineTo(X(TC),mT+ph2); pcx.stroke(); pcx.setLineDash([]);
+    pcx.fillStyle='#aaa'; pcx.fillText('T_c', X(TC)+4, mT+12); }
+  const d=ph.data;
+  if(d.length){ pcx.strokeStyle=cssVar('--accent'); pcx.lineWidth=2.6; pcx.beginPath();
+    d.forEach((p,i)=>{ const x=X(p.T),y=Y(p.m); i?pcx.lineTo(x,y):pcx.moveTo(x,y); }); pcx.stroke();
+    pcx.fillStyle=cssVar('--accent'); d.forEach(p=>{ pcx.beginPath(); pcx.arc(X(p.T),Y(p.m),2.4,0,7); pcx.fill(); }); }
+  pcx.fillStyle=cssVar('--fg'); pcx.font='14px '+cssVar('--mono');
+  pcx.save(); pcx.translate(18,mT+ph2/2); pcx.rotate(-Math.PI/2); pcx.fillText('|magnetization|',-58,0); pcx.restore();
+  pcx.fillText('temperature  T', mL+pw/2-46, H-18);
+  document.getElementById('is-pstats').innerHTML = `
+    <div class="stat-row"><span class="k">grid</span><span class="v">${ph.L} × ${ph.L}</span></div>
+    <div class="stat-row"><span class="k">points</span><span class="v">${d.length} / ${ph.steps}</span></div>
+    <div class="stat-row"><span class="k">T_c (exact)</span><span class="v hot">${TC.toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">last T · |M|</span><span class="v">${d.length?d[d.length-1].T.toFixed(2)+' · '+d[d.length-1].m.toFixed(3):'—'}</span></div>`;
+}
+document.getElementById('is-sweep').addEventListener('click',()=>{ if(ph.running){ ph.running=false; document.getElementById('is-sweep').textContent='▶ resume'; return; }
+  if(ph.idx>=ph.steps||!ph.data.length){ phStart(); } else { ph.running=true; document.getElementById('is-sweep').textContent='⏸ pause'; ph.raf=requestAnimationFrame(phTick); } });
+document.getElementById('is-sweep-reset').addEventListener('click',phReset);
+document.getElementById('is-psize').addEventListener('input',e=>{ ph.L=parseInt(e.target.value,10); document.getElementById('is-psize-val').textContent=ph.L; phReset(); });
+
+// Init
+simRandomize(); drawGrid(); drawPhase();
+const initialHash=(location.hash||'').replace(/^#/,'');
+if(TAB_NAMES.includes(initialHash)&&initialHash!=='simulate') setTimeout(()=>showTab(initialHash),0);
+</script>
+</body>
+</html>

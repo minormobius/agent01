@@ -20,6 +20,7 @@ on:
       - 'markov/**'
       - 'descent/**'
       - 'traffic/**'
+      - 'ising/**'
       - 'packages/audio-react/**'
       - 'packages/music/**'
       - 'erdos/**'
@@ -47,7 +48,7 @@ jobs:
         working-directory: math
         run: |
           rm -rf dist && mkdir -p dist
-          for d in geometry meander temperley-lieb aztec markov descent traffic erdos guthkatz hadwiger heilbronn kakeya runner \
+          for d in geometry meander temperley-lieb aztec markov descent traffic ising erdos guthkatz hadwiger heilbronn kakeya runner \
                    szemeredi-trotter viazovska capset borsuk elements; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
