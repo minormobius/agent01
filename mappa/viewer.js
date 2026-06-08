@@ -34,7 +34,16 @@ const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
-let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null;
+let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null, minerals=[];
+// ore commodities and where they form (filled in computeMinerals) — id, label, colour
+const ORE=[
+  {id:'gold',  label:'gold',            col:'#e8c24a'},
+  {id:'copper',label:'copper',          col:'#cf7b36'},
+  {id:'iron',  label:'iron',            col:'#a64a36'},
+  {id:'tin',   label:'tin',             col:'#9aa6b2'},
+  {id:'gems',  label:'gemstones',       col:'#c98ce8'},
+  {id:'salt',  label:'salt / evaporite',col:'#e6ebf0'},
+];
 const BIDX=Object.fromEntries(BIOMES.map((b,i)=>[b.id,i])); // biome id → index
 // ethnographic subsistence modes (the cultivation belts) — index → label + colour
 const SUB=[
@@ -117,7 +126,7 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
   roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   countryBordMerc=[];const cof=atlas.countryOf;if(cof)for(let i=0;i<N;i++){const ci=cof[i];if(ci<0)continue;for(const j of world.adj[i]){const cj=cof[j];if(j>i&&cj>=0&&cj!==ci){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;countryBordMerc.push([a,b])}}}
-  computeLandmarks();computeVolcanoes();computeAnthro();
+  computeLandmarks();computeVolcanoes();computeAnthro();computeMinerals();
 }
 // pick the most prominent, spatially-separated volcanoes for labelling on relief
 function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
@@ -151,6 +160,36 @@ function computeAnthro(){const N=world.N;subMode=new Uint8Array(N);
     else if(T<2) m=1;                                                // cold marginal → foragers
     else m=4;                                                        // temperate, arable, gentle → plough farmers
     subMode[i]=m}}
+// MINERAL DEPOSITS: ore follows plate context — porphyry Cu/Au on the subduction
+// arcs & volcanoes we already mark, Fe/Au/gems in the old stable cratonic interior,
+// Sn in granite highlands, salt in arid basins, placer Au down the rivers below them.
+function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=world.N;
+  // distance (land hops) from a plate boundary → 0 at boundary, large in the craton interior
+  const bdist=new Int32Array(N).fill(-1),q=[];
+  for(let i=0;i<N;i++){if(world.water[i]!==0)continue;let bnd=false;for(const j of world.adj[i])if(world.plate[j]!==world.plate[i]){bnd=true;break}if(bnd){bdist[i]=0;q.push(i)}}
+  for(let h=0;h<q.length;h++){const i=q[h];for(const j of world.adj[i])if(world.water[j]===0&&bdist[j]<0){bdist[j]=bdist[i]+1;q.push(j)}}
+  let bmax=1;for(let i=0;i<N;i++)if(bdist[i]>bmax)bmax=bdist[i];
+  const riverCell=new Uint8Array(N),key=p=>(Math.round(p[0]*2048)+','+Math.round(p[1]*2048)+','+Math.round(p[2]*2048));
+  const idx=new Map();for(let i=0;i<N;i++)idx.set(key(world.V[i]),i);
+  for(const r of world.rivers){const i=idx.get(key(r.a));if(i!=null)riverCell[i]=1;const j=idx.get(key(r.b));if(j!=null)riverCell[j]=1}
+  const cra=i=>bdist[i]<0?0:bdist[i]/bmax, arc=i=>world.volc[i], lakeNbr=i=>{for(const j of world.adj[i])if(world.water[j]===2)return 1;return 0};
+  const plc=i=>{if(!riverCell[i])return 0;let m=0;for(const j of world.adj[i])m=Math.max(m,arc(j),cra(j)*0.6);return m*0.7};
+  const SCORE=[ // one per ORE commodity (same order)
+    i=>Math.max(arc(i)*0.9,cra(i)*0.5,plc(i)),                                                   // gold
+    i=>arc(i),                                                                                   // copper (porphyry arc)
+    i=>cra(i),                                                                                   // iron (cratonic shield)
+    i=>world.elev[i]>0.4?(world.elev[i]/landMaxE)*(0.4+0.6*cra(i)):0,                            // tin (granite highlands)
+    i=>cra(i)>0.6?cra(i):0,                                                                       // gems (deep craton kimberlite)
+    i=>(world.moisture[i]<0.25&&world.elev[i]<0.28&&world.elev[i]>0)?(0.25-world.moisture[i])*4*(1-world.elev[i]/0.28)+lakeNbr(i)*0.4:0, // salt (arid basin)
+  ];
+  const K=[8,7,6,5,4,6]; // deposits per commodity
+  for(let c=0;c<ORE.length;c++){const sc=SCORE[c];let mx=1e-6;const raw=new Float32Array(N);
+    for(let i=0;i<N;i++){if(world.water[i]!==0)continue;const v=sc(i);raw[i]=v;if(v>mx)mx=v}
+    const cand=[];for(let i=0;i<N;i++)if(raw[i]>0.45*mx)cand.push(i);cand.sort((a,b)=>raw[b]-raw[a]);
+    let picked=0;for(const i of cand){if(picked>=K[c])break;let ok=true;
+      for(const d of minerals)if(d.c===c&&dot(world.V[i],world.V[d.i])>0.984){ok=false;break}
+      if(ok){minerals.push({i,c,score:raw[i]/mx,name:placeName(200+c*13+picked)});picked++}}}
+  minerals.sort((a,b)=>b.score-a.score);minerals.forEach((d,k)=>d.lab=k<12);} // label the strongest dozen
 // ---- topographic relief: extremes + hypsometric palette ----------------------
 function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
   for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
@@ -195,6 +234,10 @@ function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
     if(layer==='ethno'){ // ethnographic atlas: subsistence belts
       if(world.water[i]!==0){cellFill[i]=hsl(...ETHNO_SEA);cellBase[i]=ETHNO_SEA;continue}
       const c=SUB[subMode[i]].col,sh=shadeOf(i);cellBase[i]=c;cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(94,c[2]+sh*30)));continue}
+    if(layer==='minerals'){ // muted relief base; deposits drawn as markers on top
+      if(world.water[i]!==0){const c=[210,14,15];cellBase[i]=c;cellFill[i]=hsl(...c);continue}
+      const t=Math.min(1,Math.max(0,world.elev[i]/landMaxE)),c=[36,9,34+t*26];cellBase[i]=c;
+      cellFill[i]=hsl(c[0],c[1],Math.max(6,Math.min(92,c[2]+shadeOf(i)*42)));continue}
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
@@ -222,7 +265,7 @@ function draw(){if(proj==='orb'){drawOrb();return}
   if(layer==='tectonic')drawDrift();
   drawWinds();
   renderAtlasOverlay();
-  drawLandmarks();drawVolcanoes();
+  drawLandmarks();drawVolcanoes();drawMinerals();
 }
 // peak ▲ / trough ▼ pins with named labels — both projections, only in relief mode
 function drawLandmarks(){if(layer!=='topo'||!world||peakI<0)return;
@@ -246,6 +289,13 @@ function drawVolcanoes(){if(layer!=='topo'||!world||!volcanoes.length)return;
     ctx.font='500 10px ui-serif,Georgia,serif';ctx.textAlign='left';const tw=ctx.measureText(v.name).width,lx=p.x+r+3;
     ctx.fillStyle='rgba(10,4,2,.6)';ctx.fillRect(lx-2,p.y-7,tw+4,14);
     ctx.fillStyle='#ffceb0';ctx.fillText(v.name,lx,p.y+0.5)}}}
+// mineral deposits — coloured by commodity, strongest dozen labelled (relief-like base)
+function drawMinerals(){if(layer!=='minerals'||!world||!minerals.length)return;
+  ctx.textBaseline='middle';
+  for(const d of minerals){const o=ORE[d.c];for(const p of screenCopies(world.V[d.i])){
+    ctx.beginPath();ctx.arc(p.x,p.y,3.4,0,7);ctx.fillStyle=o.col;ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(8,6,3,.85)';ctx.stroke();
+    if(d.lab){ctx.font='600 10px ui-serif,Georgia,serif';ctx.textAlign='left';const t=d.name+' · '+o.label,tw=ctx.measureText(t).width,lx=p.x+5;
+      ctx.fillStyle='rgba(8,6,3,.62)';ctx.fillRect(lx-2,p.y-7,tw+4,14);ctx.fillStyle=o.col;ctx.fillText(t,lx,p.y+0.5)}}}}
 // prevailing surface wind at a unit point, recomputed from the genome (banded model)
 const _crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const _nrm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]};
@@ -303,7 +353,7 @@ function drawOrb(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
   drawWinds();
   renderAtlasOverlay();
-  drawLandmarks();drawVolcanoes();
+  drawLandmarks();drawVolcanoes();drawMinerals();
 }
 function drawGraticule(cx,cy,R){
   for(const latDeg of[0,30,-30,60,-60]){const la=latDeg*Math.PI/180;ctx.strokeStyle=latDeg===0?'rgba(255,250,235,.20)':'rgba(255,250,235,.09)';ctx.lineWidth=latDeg===0?1.2:1;ctx.beginPath();let st=false;
@@ -405,6 +455,9 @@ function buildLegend(){legendEl.innerHTML='';if(layer==='tectonic')return;
     return}
   if(layer==='ethno'){const seen=new Set();for(let i=0;i<world.N;i++)if(world.water[i]===0)seen.add(subMode[i]);
     for(let k=0;k<SUB.length;k++){if(!seen.has(k))continue;const s=SUB[k];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(...s.col)+'"></span>'+s.name;legendEl.appendChild(c)}
+    return}
+  if(layer==='minerals'){const seen=new Set(minerals.map(d=>d.c));
+    for(let k=0;k<ORE.length;k++){if(!seen.has(k))continue;const o=ORE[k];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+o.col+'"></span>'+o.label;legendEl.appendChild(c)}
     return}
   if(atlasOn){for(const w of WINGS){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,55,58)+'"></span>'+w.label;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}

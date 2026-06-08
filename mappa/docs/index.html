@@ -61,6 +61,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <a href="#views">Views</a>
     <a href="#api">API</a>
     <a href="#arch">Architecture</a>
+    <a href="#sources">Sources</a>
   </nav>
 </div></header>
 
@@ -126,6 +127,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <li><strong>Relief</strong> — hypsometric tints (sea shaded by depth, land green→tan→brown→snow; ice caps & sea ice read white) with the highest peak ▲ and deepest trough ▼ pinned and named, plus 🌋 volcanoes (subduction & island arcs, hotspots) labelled from the seed.</li>
     <li><strong>Wind</strong> — the prevailing surface winds drawn as an arrow field over the biome base.</li>
     <li><strong>Ethno</strong> — the ethnographic atlas: each land cell's <em>subsistence mode</em> (foragers, pastoralists, hoe horticulture, plough farmers, irrigation, maritime) classified from ecology — biome, temperature, moisture, slope, rivers and coast. The cultivation belts fall out of the climate, no new parameters.</li>
+    <li><strong>Ore</strong> — mineral deposits placed by <em>geology</em>: porphyry copper &amp; gold on the subduction arcs and volcanoes, iron &amp; gemstones in the old stable cratonic interiors, tin in granite highlands, salt in arid basins, and placer gold down the rivers that drain them. The same tectonics the Tectonic view shows, read for resources.</li>
   </ul>
   <p><strong>Civ</strong> and <strong>Tectonic</strong> are map-designed, so selecting them snaps to Mercator.</p>
   <h3>The atlas projection</h3>
@@ -194,9 +196,24 @@ curl -s "https://mino.mobi/api/world?seed=7" | jq .meta</code></pre>
   </ul>
 </div></section>
 
+<section id="sources"><div class="wrap">
+  <h2><span class="n">06</span>Sources &amp; further reading</h2>
+  <p class="mut">mappa is a stylized model, not a research simulator — each mechanic is a deliberately simplified take on a real body of work. These are the ideas it draws on, if you want to dig past the cartoon.</p>
+  <ul>
+    <li><strong>Spherical mesh.</strong> Fibonacci / golden-spiral sphere sampling (González, “Measurement of areas on a sphere using Fibonacci…”, 2010); Delaunay triangulation via stereographic projection with a ghost pole, dual → spherical Voronoi (standard computational geometry; the <code>delaunator</code> kernel).</li>
+    <li><strong>Plate tectonics.</strong> Plate motion as rigid rotation about an Euler pole (Cox &amp; Hart, <em>Plate Tectonics: How It Works</em>, 1986); a real global plate model for scale intuition (Bird, “An updated digital model of plate boundaries”, 2003).</li>
+    <li><strong>Seafloor bathymetry.</strong> Half-space cooling — ocean depth increasing as √(age) away from the spreading ridge (Parsons &amp; Sclater 1977; Stein &amp; Stein, “A model for the global variation in oceanic depth and heat flow…”, <em>Nature</em> 1992).</li>
+    <li><strong>Rivers &amp; erosion.</strong> Priority-flood depression filling (Barnes, Lehman &amp; Mulla, 2014) and flow accumulation on the mesh graph (O’Callaghan &amp; Mark, 1984).</li>
+    <li><strong>Winds &amp; climate.</strong> The three-cell circulation and trade winds (Holton, <em>An Introduction to Dynamic Meteorology</em>); the rotational control of how many cells/jets a planet has (Mitchell &amp; Vallis, “The transition to superrotation…”, 2010; Read, “Dynamics and circulation regimes of terrestrial planets”, 2011). Orographic rainfall &amp; rain shadow (Roe, “Orographic precipitation”, <em>Annu. Rev. Earth Planet. Sci.</em>, 2005).</li>
+    <li><strong>Biomes.</strong> The Whittaker temperature × moisture classification (Whittaker, <em>Communities and Ecosystems</em>, 1975).</li>
+    <li><strong>Subsistence belts (Ethno).</strong> The ecology→subsistence link behind the cultivation belts (Murdock, <em>Ethnographic Atlas</em>, 1967; Boserup, <em>The Conditions of Agricultural Growth</em>, 1965; Goody, <em>Technology, Tradition, and the State in Africa</em>, 1971, on hoe vs plough); the east–west diffusion / axis-orientation idea (Diamond, <em>Guns, Germs, and Steel</em>, 1997).</li>
+    <li><strong>Ore deposits (Minerals).</strong> Subduction-arc porphyry copper–gold (Sillitoe, “Porphyry Copper Systems”, <em>Economic Geology</em>, 2010); banded iron formations on Archean cratons (Klein, 2005); diamonds in deep cratonic keels via kimberlite; evaporites in arid basins (Warren, <em>Evaporites</em>, 2006); a general survey (Robb, <em>Introduction to Ore-Forming Processes</em>, 2005).</li>
+  </ul>
+</div></section>
+
 <footer><div class="wrap">
   mappa · a procedural world engine for <a href="https://mino.mobi/">mino.mobi</a>. Deterministic, open, and permissionlessly pullable.
-  <br>· <a href="../">live engine</a> · <a href="#api">API</a> ·
+  <br>· <a href="../">live engine</a> · <a href="#api">API</a> · <a href="#sources">sources</a> ·
 </div></footer>
 </body>
 </html>
