@@ -33,7 +33,8 @@ function unpackRust(o){const N=o.n,pos=o.positions;
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
-let world=null, atlas=null, mode='orb', atlasOn=true;
+let world=null, atlas=null, mode='orb', atlasOn=true, topo=false;
+let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='';
 const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null}; // null = derive from seed
 const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
@@ -104,7 +105,33 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
   roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   countryBordMerc=[];const cof=atlas.countryOf;if(cof)for(let i=0;i<N;i++){const ci=cof[i];if(ci<0)continue;for(const j of world.adj[i]){const cj=cof[j];if(j>i&&cj>=0&&cj!==ci){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;countryBordMerc.push([a,b])}}}
+  computeLandmarks();
 }
+// ---- topographic relief: extremes + hypsometric palette ----------------------
+function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
+  for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
+  landMaxE=Math.max(1e-4,hi);deepMaxE=Math.max(1e-4,-lo);
+  peakName=placeName(1);troughName=placeName(2);}
+// deterministic fantasy name from the world seed + a salt (peak=1, trough=2)
+const _ON=['ka','tor','vel','mor','bre','cal','dun','sk','far','gol','hra','ny','pra','quel','rho','syl','thal','ur','vos','wyn','zor','ar','bel','cor','dra','esh','grim','kael'],
+      _NU=['a','e','i','o','u','ae','ei','ou','y','ia'],_CO=['n','r','th','s','l','k','m','rd','sk','ng','x','','ll','st'];
+function placeName(salt){let s=(((world.meta.seed>>>0)*0x9e3779b1)^(salt*0x85ebca77))>>>0;
+  const rnd=()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296};
+  const cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
+  const syl=()=>_ON[(rnd()*_ON.length)|0]+_NU[(rnd()*_NU.length)|0]+_CO[(rnd()*_CO.length)|0];
+  let nm=cap(syl());if(rnd()<0.5)nm+=syl();return nm}
+const _TR=['Deep','Trench','Abyss','Trough','Fault'];
+function landmarkLabels(){ // {peak,trough} display strings, computed lazily
+  const pm=Math.round(landMaxE*9000), dm=Math.round(deepMaxE*9000);
+  let s=(((world.meta.seed>>>0)*0x27d4eb2d)>>>0);const tr=_TR[s%_TR.length];
+  return{peak:'▲ Mt. '+peakName+'  ·  '+pm.toLocaleString()+' m',
+         trough:'▼ '+troughName+' '+tr+'  ·  −'+dm.toLocaleString()+' m'}}
+// hypsometric tint for cell i (land: green→tan→brown→snow, sea: shallow→deep blue)
+function topoHSL(i){const e=world.elev[i];
+  if(world.water[i]!==0){const t=Math.min(1,-e/deepMaxE);return[200+t*22,52+t*8,Math.max(13,58-t*43)]}
+  const t=Math.min(1,e/landMaxE);
+  if(t<0.5){const u=t/0.5;return[100-u*42,44-u*6,42+u*9]}      // green → tan
+  const u=(t-0.5)/0.5;return[58-u*32,38-u*26,51+u*35]}          // tan → brown → snow
 const CIV_SEA=[206,40,40];
 function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
   for(let i=0;i<N;i++){
@@ -116,6 +143,7 @@ function recolor(){const N=world.N;cellFill=new Array(N);cellBase=new Array(N);
         cellFill[i]=hsl(co.hue,s0,Math.max(8,Math.min(92,l0+sh*28)));cellBase[i]=[co.hue,s0,l0]}
       else{cellFill[i]=hsl(40,6,40);cellBase[i]=[40,6,40]}
       continue}
+    if(topo){const c=topoHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm);continue}
     const c=cellHSL(i);cellBase[i]=c;let lm=c[2];if(world.water[i]===0)lm=Math.max(4,Math.min(96,c[2]+shadeOf(i)*45));cellFill[i]=hsl(c[0],c[1],lm)}
 }
 function tracePoly(pts,dx){ctx.beginPath();ctx.moveTo(pts[0][0]+dx,pts[0][1]);for(let k=1;k<pts.length;k++)ctx.lineTo(pts[k][0]+dx,pts[k][1]);ctx.closePath()}
@@ -142,7 +170,20 @@ function draw(){if(mode==='orb'){drawOrb();return}
   ctx.restore();
   if(mode==='tectonic')drawDrift();
   renderAtlasOverlay();
+  drawLandmarks();
 }
+// peak ▲ / trough ▼ pins with named labels — both projections, only in relief mode
+function drawLandmarks(){if(!topo||peakI<0||(mode!=='orb'&&mode!=='map'))return;
+  const L=landmarkLabels();ctx.textBaseline='middle';
+  for(const[idx,txt,up]of[[peakI,L.peak,1],[troughI,L.trough,0]]){
+    for(const p of screenCopies(world.V[idx])){const r=5;
+      ctx.beginPath();
+      if(up){ctx.moveTo(p.x,p.y-r);ctx.lineTo(p.x+r,p.y+r*0.8);ctx.lineTo(p.x-r,p.y+r*0.8)}
+      else{ctx.moveTo(p.x,p.y+r);ctx.lineTo(p.x+r,p.y-r*0.8);ctx.lineTo(p.x-r,p.y-r*0.8)}
+      ctx.closePath();ctx.fillStyle=up?'#f0d27a':'#4aa6d8';ctx.fill();ctx.lineWidth=1.3;ctx.strokeStyle='rgba(6,4,2,.9)';ctx.stroke();
+      ctx.font='600 11px ui-serif,Georgia,serif';ctx.textAlign='left';const tw=ctx.measureText(txt).width,lx=p.x+r+4;
+      ctx.fillStyle='rgba(8,6,3,.74)';ctx.fillRect(lx-3,p.y-8,tw+6,16);
+      ctx.fillStyle=up?'#fff5e0':'#d6efff';ctx.fillText(txt,lx,p.y+0.5)}}}
 // rotate unit vector v about unit axis a by angle phi (Rodrigues) — plate Euler motion
 function rotAxis(v,a,phi){const c=Math.cos(phi),s=Math.sin(phi),d=a[0]*v[0]+a[1]*v[1]+a[2]*v[2];
   return[v[0]*c+(a[1]*v[2]-a[2]*v[1])*s+a[0]*d*(1-c),v[1]*c+(a[2]*v[0]-a[0]*v[2])*s+a[1]*d*(1-c),v[2]*c+(a[0]*v[1]-a[1]*v[0])*s+a[2]*d*(1-c)]}
@@ -171,6 +212,7 @@ function drawOrb(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.
   const g=ctx.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R);g.addColorStop(0,'rgba(255,250,235,.10)');g.addColorStop(.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.45)');
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
   renderAtlasOverlay();
+  drawLandmarks();
 }
 function drawGraticule(cx,cy,R){
   for(const latDeg of[0,30,-30,60,-60]){const la=latDeg*Math.PI/180;ctx.strokeStyle=latDeg===0?'rgba(255,250,235,.20)':'rgba(255,250,235,.09)';ctx.lineWidth=latDeg===0?1.2:1;ctx.beginPath();let st=false;
@@ -247,6 +289,7 @@ let hot=null,selected=null,query='',active=new Set(WINGS.map(w=>w.id)),tcut=1,pl
 document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('.modes button').forEach(x=>x.classList.toggle('on',x===b));
   tkey.classList.toggle('show',mode==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();if(mode==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
+document.getElementById('topo').onclick=e=>{topo=!topo;e.target.classList.toggle('on',topo);recolor();buildLegend();draw()};
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
 document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;regen()};
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
@@ -256,6 +299,10 @@ tEl.addEventListener('input',()=>{tcut=+tEl.value/1000;eraEl.textContent=eraLabe
 document.getElementById('play').onclick=()=>{playing=!playing;if(playing){tcut=0;tEl.value=0;step()}};
 function step(){if(!playing)return;tcut=Math.min(1,tcut+0.006);tEl.value=tcut*1000;eraEl.textContent=eraLabel();draw();if(tcut>=1){playing=false;document.getElementById('play').textContent='▶ chronicle';return}document.getElementById('play').textContent='⏸';requestAnimationFrame(step)}
 function buildLegend(){legendEl.innerHTML='';if(mode==='tectonic')return;
+  if(topo&&(mode==='orb'||mode==='map')){
+    for(const[lab,col]of[['deep',[222,60,16]],['sea',[205,56,42]],['shore',[100,44,42]],['hills',[58,38,51]],['highland',[40,28,62]],['snow',[26,12,86]]]){
+      const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(...col)+'"></span>'+lab;legendEl.appendChild(c)}
+    return}
   if(atlasOn){for(const w of WINGS){const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,55,58)+'"></span>'+w.label;
     c.onclick=()=>{if(active.size===1&&active.has(w.id))active=new Set(WINGS.map(x=>x.id));else active=new Set([w.id]);for(const ch of legendEl.children)if(ch.dataset.w)ch.classList.toggle('off',!active.has(ch.dataset.w));recolor();draw()};legendEl.appendChild(c)}}
   else{const seen=new Set();for(let i=0;i<world.N;i++)seen.add(world.biome[i]);for(let bi=3;bi<BIOMES.length;bi++){if(!seen.has(bi))continue;const b=BIOMES[bi];const c=document.createElement('span');c.className='chip';c.style.cursor='default';c.innerHTML='<span class="dot" style="background:'+hsl(b.h,b.s,b.l)+'"></span>'+b.name;legendEl.appendChild(c)}}}
