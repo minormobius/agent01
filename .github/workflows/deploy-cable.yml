@@ -1,0 +1,48 @@
+name: Deploy Cable (cable.mino.mobi)
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/cable-definition-website-yrwv41'
+    paths:
+      - 'cable/**'
+      - '.github/workflows/deploy-cable.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        # Pure static site (vanilla JS, no build). wrangler uploads the worker +
+        # assets and reconciles BOTH custom domains (cable.mino.mobi on the
+        # mino.mobi zone, cable.ascential.work on the ascential.work zone) from
+        # wrangler.jsonc's routes list.
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify it's live (both mirrors)
+        continue-on-error: true
+        run: |
+          for host in cable.mino.mobi cable.ascential.work; do
+            ok=
+            for attempt in 1 2 3 4 5; do
+              if curl -fsS "https://$host/" | grep -qi 'progressive solver'; then
+                echo "✓ $host is live"; ok=1; break
+              fi
+              echo "  $host attempt $attempt: not yet, sleeping…"; sleep 4
+            done
+            [ -n "$ok" ] || echo "⚠️ $host didn't respond within 20s — new custom domains can take a few minutes to provision, continuing."
+          done
+          exit 0
