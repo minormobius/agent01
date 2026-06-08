@@ -41,14 +41,32 @@
 
 <script type="module">
 import { HORTULUS } from './data.js';
+import { CORRESPONDENCES, PLANETS, TEMPERAMENTS } from '../correspondences.js';
 
 const reader = document.getElementById('reader');
 const bednav = document.getElementById('bednav');
 const sections = HORTULUS.sections;
 const planted = s => Array.isArray(s.lines) && s.lines.length > 0;
 const bySeq = {}; sections.forEach(s => bySeq[s.seq] = s);
+const corrByH = {}; CORRESPONDENCES.plants.forEach(c => { if (c.hortulus) corrByH[c.hortulus] = c; });
 
 const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+// the correspondence overlay for a bed, keyed by Hortulus seq
+function corrBox(seq){
+  const c = corrByH[seq];
+  if (!c) return '';
+  if (!c.planet && !c.qualities)
+    return `<div class="corrbox"><div class="sig">⚗ ${esc(c.signature || 'no correspondence assigned')}</div>` +
+      `<div class="src">Correspondence overlay · CC BY-SA</div></div>`;
+  const p = c.planet ? PLANETS[c.planet] : null;
+  const t = c.qualities ? TEMPERAMENTS[c.qualities] : null;
+  const astro = p ? `<span class="ax astro"><span class="g">${p.glyph}</span><span><span class="k">rules</span> <b>${esc(c.planet)}</b> · ${esc(p.metal)}</span></span>` : '';
+  const galen = t ? `<span class="ax galen"><span class="g">${t.glyph}</span><span><span class="k">temper</span> <b>${esc(t.element)}</b> · ${esc(t.humour)} — ${esc(c.qualities)}${c.degree ? ' (' + esc(c.degree) + ')' : ''}</span></span>` : '';
+  return `<div class="corrbox"><div class="row">${astro}${galen}</div>` +
+    (c.signature ? `<div class="sig">⚗ ${esc(c.signature)}</div>` : '') +
+    `<div class="src">Planet after Culpeper (1653)${c.qSource ? ' · qualities: ' + esc(c.qSource) : ''}</div></div>`;
+}
 
 // ── the bed map: frame chips, then the 23 plant beds ─────────────────────────
 function buildNav(){
@@ -80,6 +98,8 @@ function render(s){
     `<div class="en">${esc(s.en)}</div>` +
     (s.bot ? `<div class="bot">${esc(s.bot)}</div>` : '') +
     `</div>`;
+
+  if (s.kind === 'plant') h += corrBox(s.seq);
 
   if (planted(s)){
     h += `<div class="verse">`;

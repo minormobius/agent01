@@ -55,13 +55,28 @@
 
 <script type="module">
 import { MACER } from './data.js';
+import { CORRESPONDENCES, PLANETS, TEMPERAMENTS } from '../correspondences.js';
 
 const reader = document.getElementById('reader');
 const bednav = document.getElementById('bednav');
 const sections = MACER.sections;
 const planted = s => Array.isArray(s.lines) && s.lines.length > 0;
 const bySeq = {}; sections.forEach(s => bySeq[s.seq] = s);
+const corrByMacer = {}; CORRESPONDENCES.plants.forEach(c => { if (c.macer) corrByMacer[c.macer] = c; });
 const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+// the correspondence overlay for a chapter, keyed by Macer chapter number
+function corrBox(chap){
+  const c = corrByMacer[chap];
+  if (!c || (!c.planet && !c.qualities)) return '';
+  const p = c.planet ? PLANETS[c.planet] : null;
+  const t = c.qualities ? TEMPERAMENTS[c.qualities] : null;
+  const astro = p ? `<span class="ax astro"><span class="g">${p.glyph}</span><span><span class="k">rules</span> <b>${esc(c.planet)}</b> · ${esc(p.metal)}</span></span>` : '';
+  const galen = t ? `<span class="ax galen"><span class="g">${t.glyph}</span><span><span class="k">temper</span> <b>${esc(t.element)}</b> · ${esc(t.humour)} — ${esc(c.qualities)}${c.degree ? ' (' + esc(c.degree) + ')' : ''}</span></span>` : '';
+  return `<div class="corrbox"><div class="row">${astro}${galen}</div>` +
+    (c.signature ? `<div class="sig">⚗ ${esc(c.signature)}</div>` : '') +
+    `<div class="src">Planet after Culpeper (1653) · qualities from Macer’s degrees where stated</div></div>`;
+}
 
 function buildNav(){
   let h = '<div class="beds">';
@@ -88,6 +103,7 @@ function render(s){
     `</div>`;
 
   if (s.degrees) h += `<div class="degrees">Galenic degrees — ${esc(s.degrees)}</div>`;
+  h += corrBox(s.seq);
 
   if (planted(s)){
     h += `<div class="verse">`;

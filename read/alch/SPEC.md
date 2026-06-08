@@ -134,13 +134,17 @@ and growing."
    Realia and cruxes glossed throughout (the soap-bubble melon, the Ceres-as-
    Latona slip in the poppy, Walahfrid's own doubt over *ambrosia*, the
    rose/lily martyrdom allegory, the pennyroyal "one house" digression).
-3. **Correspondence overlay.** ◻ Pending. Layer the per-plant overlay (planet ·
-   element · humoral qualities · signature) from a *named* donor — Culpeper's
-   *Complete Herbal* (1653) for planetary rulerships; the Salernitan/Dioscoridean
-   "degrees" for humoral qualities — kept visibly separate from Walahfrid. This
-   is the step that turns the faithful edition into something the downstream
-   `g.` garden app can compute on, and where the deferred downstream gets its
-   raw material.
+3. **Correspondence overlay.** ✅ **Built** — `read/alch/correspondences.js`, a
+   third layer over the 23 shared/Hortulus plants, kept visibly separate from both
+   poems. Two systems side by side: the **Galenic temperament** (hot/cold ×
+   dry/moist → element + humour), with qualities taken from **Macer's own stated
+   degrees** where he gives them (primary) and the Galenic tradition otherwise;
+   and the **planetary rule** after **Culpeper (1653)** with the **metal** each
+   planet carries (Sun–gold … Saturn–lead — the herb→planet→metal bridge). Where
+   the two diverge (e.g. hot-dry iris ruled by the cold-moist Moon) the signature
+   says so. Exports the derivation maps (`PLANETS`, `TEMPERAMENTS`) so a downstream
+   app needs no logic. Surfaced as a band on the crosswalk and a box on both
+   readers. *(Macer-only beds — mugwort, nettle, etc. — await their own records.)*
 4. **Converge.** ◻ Pending. Collate the working Latin (Canisius → Migne) against
    the MGH critical text and the St Gall manuscript; record variants in the
    notes. (The current text totals 403 lines against the ~444 sometimes cited

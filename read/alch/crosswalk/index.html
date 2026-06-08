@@ -50,6 +50,20 @@
   .leaf .taste .en{font-size:13px;line-height:1.45;color:var(--faint)}
   .leaf .more{font:12px/1 ui-monospace,monospace;color:var(--gold)}
   .leaf .more.gapnote{color:var(--faint);font-style:italic}
+
+  /* the correspondence band — the alchemical overlay between seam and leaves */
+  .corr{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:11px 20px;
+    border-bottom:1px solid var(--rule);background:rgba(216,178,90,.03)}
+  .corr-axis{display:inline-flex;align-items:baseline;gap:7px;font:12px/1.3 ui-monospace,monospace;
+    letter-spacing:.02em;color:var(--ink2)}
+  .corr-axis .gl{font-size:16px;line-height:1}
+  .corr-axis.astro .gl{color:var(--gold)}
+  .corr-axis.galen .gl{color:var(--jade)}
+  .corr-axis .k{color:var(--faint);text-transform:uppercase;font-size:9.5px;letter-spacing:.14em}
+  .corr-axis b{color:var(--ink);font-weight:400}
+  .corr-sig{padding:0 20px 12px;margin-top:-2px;font:13px/1.55 Georgia,serif;font-style:italic;
+    color:var(--faint);border-bottom:1px solid var(--rule);background:rgba(216,178,90,.03)}
+  .corr.none{color:var(--faint);font-style:italic;font-family:Georgia,serif}
 </style>
 </head>
 <body>
@@ -87,8 +101,29 @@
 <script type="module">
 import { HORTULUS } from '../hortulus/data.js';
 import { MACER } from '../macer/data.js';
+import { CORRESPONDENCES, PLANETS, TEMPERAMENTS } from '../correspondences.js';
 
 const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const corrByH = {}; CORRESPONDENCES.plants.forEach(c => { if (c.hortulus) corrByH[c.hortulus] = c; });
+
+// the alchemical band: planetary rule → metal, beside the Galenic temperament → element · humour
+function corrBand(hseq) {
+  const c = corrByH[hseq];
+  if (!c) return '';
+  if (!c.planet && !c.qualities)
+    return `<div class="corr none">⸺ ${esc(c.signature || 'no correspondence assigned')}</div>`;
+  const p = c.planet ? PLANETS[c.planet] : null;
+  const t = c.qualities ? TEMPERAMENTS[c.qualities] : null;
+  const astro = p
+    ? `<span class="corr-axis astro" title="planetary rule (Culpeper) → metal"><span class="gl">${p.glyph}</span>` +
+      `<span><span class="k">rules</span> <b>${esc(c.planet)}</b> · ${esc(p.metal)}</span></span>` : '';
+  const galen = t
+    ? `<span class="corr-axis galen" title="Galenic temperament → element · humour"><span class="gl">${t.glyph}</span>` +
+      `<span><span class="k">temper</span> <b>${esc(t.element)}</b> · ${esc(t.humour)} — ${esc(c.qualities)}` +
+      `${c.degree ? ' (' + esc(c.degree) + ')' : ''}</span></span>` : '';
+  const sig = c.signature ? `<div class="corr-sig">⚗ ${esc(c.signature)}</div>` : '';
+  return `<div class="corr">${astro}${galen}</div>${sig}`;
+}
 const planted = s => s && Array.isArray(s.lines) && s.lines.length > 0;
 const hBySeq = {}; HORTULUS.sections.forEach(s => hBySeq[s.seq] = s);
 
@@ -147,6 +182,7 @@ walk.innerHTML = pairs.map(({ m, h }) => {
       ${deg}
     </div>
     ${seam}
+    ${corrBand(h.seq)}
     <div class="leaves">
       <div class="leaf h">
         <div class="who"><b>Walahfrid · Hortulus</b> — the lyric garden</div>
