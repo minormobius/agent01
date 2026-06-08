@@ -144,7 +144,9 @@ and growing."
    the two diverge (e.g. hot-dry iris ruled by the cold-moist Moon) the signature
    says so. Exports the derivation maps (`PLANETS`, `TEMPERAMENTS`) so a downstream
    app needs no logic. Surfaced as a band on the crosswalk and a box on both
-   readers. *(Macer-only beds — mugwort, nettle, etc. — await their own records.)*
+   readers. **Now covers all 49 translated Macer beds and all 23 Hortulus plants
+   (55 records); temperament from Macer's own degree, planet where Culpeper is
+   unambiguous (left blank, not guessed, otherwise).**
 4. **Converge.** ◻ Pending. Collate the working Latin (Canisius → Migne) against
    the MGH critical text and the St Gall manuscript; record variants in the
    notes. (The current text totals 403 lines against the ~444 sometimes cited
