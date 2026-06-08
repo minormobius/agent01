@@ -6,6 +6,8 @@
 import { generateWorld, BIOMES, setTriangulator } from './engine.js';
 import { projectAtlas } from './projection.js';
 import { SITES, WINGS } from './sites.js';
+import { worldSignals } from './lib/world-signals.js';
+import { encodeConfig, decodeConfig } from './lib/world-share.js';
 
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
@@ -36,6 +38,7 @@ let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
 let world=null, atlas=null, proj='orb', layer='biome', atlasOn=true;
 let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='', volcanoes=[], subMode=null, minerals=[], digsites=[];
 let paleoT=0, paleoPlaying=false, paleoDir=1; // deep-time scrub: 0 = present, 1 = full drift back; dir for ping-pong play
+let signals=null, worldTitle=''; // interestingness battery output + the world's auto-name
 // ore commodities and where they form (filled in computeMinerals) — id, label, colour
 const ORE=[
   {id:'gold',  label:'gold',            col:'#e8c24a'},
@@ -150,8 +153,20 @@ function precomputeGeom(){const N=world.N;cellPoly=new Array(N);
   bordMerc=[];for(let i=0;i<N;i++){if(atlas.region[i]<0)continue;for(const j of world.adj[i])if(j>i&&atlas.region[j]>=0&&atlas.region[j]!==atlas.region[i]){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;bordMerc.push([a,b])}}
   roadMerc=(atlas.roads||[]).map(([i,j])=>{const a=mxy(world.V[i]),b=mxy(world.V[j]);return{a,b,skip:Math.abs(a[0]-b[0])>MW*0.5}});
   countryBordMerc=[];const cof=atlas.countryOf;if(cof)for(let i=0;i<N;i++){const ci=cof[i];if(ci<0)continue;for(const j of world.adj[i]){const cj=cof[j];if(j>i&&cj>=0&&cj!==ci){const a=mxy(world.V[i]),b=mxy(world.V[j]);if(Math.abs(a[0]-b[0])>MW*0.5)continue;countryBordMerc.push([a,b])}}}
-  computeLandmarks();computeVolcanoes();computeAnthro();computeMinerals();computeFossils();
+  computeLandmarks();computeVolcanoes();computeAnthro();computeMinerals();computeFossils();computeWorldMeta();
 }
+// interestingness battery + the world's auto-name (the largest landmass / the peak,
+// in that landmass's language). Cheap relative to generation; runs once per build.
+function computeWorldMeta(){
+  try{signals=worldSignals(world);}catch(e){signals=null}
+  const i=largestLandCell();worldTitle=featureName('world', i>=0?i:(peakI>=0?peakI:0), (world.meta.seed>>>0)*7+13);
+}
+function largestLandCell(){const N=world.N,seen=new Uint8Array(N);let bi=-1,bestA=-1;
+  for(let s=0;s<N;s++){if(seen[s]||world.water[s]!==0)continue;let a=0,rep=s;const q=[s];seen[s]=1;
+    for(let h=0;h<q.length;h++){const c=q[h];a+=world.area?world.area[c]:1;if(world.elev[c]>world.elev[rep])rep=c;
+      for(const j of world.adj[c])if(!seen[j]&&world.water[j]===0){seen[j]=1;q.push(j)}}
+    if(a>bestA){bestA=a;bi=rep}}
+  return bi}
 // pick the most prominent, spatially-separated volcanoes for labelling on relief
 function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
   const cand=[];for(let i=0;i<world.N;i++)if(world.volc[i]>0.3)cand.push(i);
@@ -628,7 +643,40 @@ document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{
   if(proj==='orb'&&!isPaleo){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
-document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;regen()};
+document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;clearShareURL();regen()};
+// ---- share: this exact world as a permalink (and optionally a PDS record) -----
+function currentConfig(){return{seed,genome,n:world?world.N:undefined}}
+function permalink(){return location.origin+location.pathname+'?w='+encodeConfig(currentConfig())}
+function clearShareURL(){try{history.replaceState(null,'',location.origin+location.pathname)}catch(e){}}
+function parseShareURL(){try{const p=new URLSearchParams(location.search),w=p.get('w');
+  if(w){const c=decodeConfig(w);if(c){seed=c.seed;pinned.clear();for(const k in genome)genome[k]=null;
+    for(const k in c.genome)if(k in genome){genome[k]=c.genome[k];pinned.add(k)}return true}}
+  const s=p.get('seed');if(s!=null&&s!==''&&!isNaN(+s))seed=(+s)>>>0;
+}catch(e){}return false}
+const _sp=id=>document.getElementById(id);
+function openShare(){if(!world)return;const link=permalink();
+  _sp('spTitle').textContent=worldTitle||('World '+world.meta.seed);
+  _sp('spScore').textContent=signals?('★ '+signals.score+'/100 interesting'+(signals.flags.length?'  ·  '+signals.flags.slice(0,3).join(', '):'')):'';
+  _sp('spDesc').textContent=signals?signals.descriptor:'';
+  _sp('spLink').value=link;_sp('spMsg').textContent='';_sp('spMsg').className='';
+  try{history.replaceState(null,'','?w='+encodeConfig(currentConfig()))}catch(e){}
+  _sp('sharePop').classList.add('show');_sp('spLink').focus();_sp('spLink').select()}
+_sp('share').onclick=()=>{const pop=_sp('sharePop');if(pop.classList.contains('show'))pop.classList.remove('show');else openShare()};
+_sp('shareClose').onclick=()=>_sp('sharePop').classList.remove('show');
+_sp('spCopy').onclick=async()=>{const m=_sp('spMsg');try{await navigator.clipboard.writeText(_sp('spLink').value);m.textContent='link copied ✓';m.className='ok'}
+  catch(e){_sp('spLink').select();m.textContent='press ⌘/Ctrl-C to copy';m.className=''}};
+_sp('spPub').onclick=async()=>{const m=_sp('spMsg');m.textContent='publishing…';m.className='';
+  const meta=()=>({title:worldTitle,descriptor:signals&&signals.descriptor,score:signals&&signals.score,flags:signals?signals.flags.concat(signals.highlights):[]});
+  try{const {publishWorld}=await import('./lib/world-share.js');
+    const res=await publishWorld(currentConfig(),meta()); // throws 'sign-in required' if no SSO session
+    m.textContent='published ✓ '+(res&&res.uri?res.uri.split('/').pop():'');m.className='ok';
+  }catch(e){
+    if(/sign-in required/.test(e&&e.message||'')){const h=prompt('Sign in to publish — your Bluesky handle:');
+      if(!h){m.textContent='cancelled';return}
+      try{const {publishWorld}=await import('./lib/world-share.js');await publishWorld(currentConfig(),meta(),h.trim());
+        m.textContent='redirecting to sign in… (your world is in this URL; publish again on return)';}
+      catch(e2){m.textContent='sign-in failed: '+(e2&&e2.message||e2);m.className='err'}
+    }else{m.textContent='publish failed: '+(e&&e.message||e);m.className='err'}}};
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
 const tEl=document.getElementById('time'),eraEl=document.getElementById('era');
 const eraLabel=()=>tcut>=1?'all founded':'↤ '+new Date(SITES.minB+(SITES.maxB-SITES.minB)*tcut).toISOString().slice(0,10);
@@ -681,14 +729,14 @@ function syncSliders(){const m=world.meta;
 }
 let regenT=0;
 for(const [p,sl,vl,fmt,toG] of sliders){
-  sl.addEventListener('input',()=>{vl.textContent=fmt(+sl.value);sl.closest('label').classList.add('pin');pinned.add(p);genome[p]=toG(+sl.value);clearTimeout(regenT);regenT=setTimeout(regen,200)});
+  sl.addEventListener('input',()=>{vl.textContent=fmt(+sl.value);sl.closest('label').classList.add('pin');pinned.add(p);genome[p]=toG(+sl.value);clearShareURL();clearTimeout(regenT);regenT=setTimeout(regen,200)});
 }
-$('bAuto').onclick=()=>{pinned.clear();for(const k in genome)genome[k]=null;regen()};
+$('bAuto').onclick=()=>{pinned.clear();for(const k in genome)genome[k]=null;clearShareURL();regen()};
 $('builderToggle').onclick=()=>$('builder').classList.toggle('show');
 const _br=document.getElementById('bRefine');if(_br)_br.onclick=refineDetail;
 $('builderClose').onclick=()=>$('builder').classList.remove('show');
 
 function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';orbR=Math.min(W,H)*0.42;if(world){fit();draw()}}
-addEventListener('resize',resize);resize();initEngine().finally(()=>regen());
+addEventListener('resize',resize);resize();parseShareURL();initEngine().finally(()=>regen());
 
 // kernel: mappa/pkg built by build-mappa-engine.yml (fast Delaunay, 15k cells)

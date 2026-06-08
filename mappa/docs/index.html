@@ -60,6 +60,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <a href="#pipeline">Pipeline</a>
     <a href="#views">Views</a>
     <a href="#api">API</a>
+    <a href="#share">Share</a>
     <a href="#arch">Architecture</a>
     <a href="#sources">Sources</a>
   </nav>
@@ -195,8 +196,31 @@ curl -s "https://mino.mobi/api/world?seed=7" | jq .meta</code></pre>
   <p class="mut">Note: the API runs the reference (JavaScript) engine; the browser viewer runs the Rust/WASM engine at higher resolution. Both are internally deterministic, but a given seed renders at a different cell count between them, so they are not pixel-identical — the API is its own self-consistent world source.</p>
 </div></section>
 
+<section id="share"><div class="wrap">
+  <h2><span class="n">05</span>Sharing &amp; interestingness</h2>
+  <p>A world is a pure function of its <strong>config</strong> — <code>{ seed, genome, n }</code> — so the config <em>is</em> the world: a few hundred bytes that regenerate the whole planet, deterministically, anywhere. That makes a world a first-class shareable artifact.</p>
+  <h3>Two transports</h3>
+  <ul>
+    <li><strong>Permalink</strong> — <code>?w=&lt;token&gt;</code>, a base64url of the config. Zero auth, works today: the <em>share</em> button copies a link that reopens this exact world. (A bare seed is an 11-byte token; a fully-tuned genome ~120 bytes.)</li>
+    <li><strong>ATProto record</strong> — publish the config to <em>your</em> PDS as <code>com.minomobi.mappa.world</code> (lexicon in <code>mappa/lexicons/</code>), via the shared <code>AuthClient</code> — the same single sign-on every <code>*.mino.mobi</code> site uses. The record stores the config plus a cached interestingness snapshot for a future discovery feed / "best worlds" shelf. DAG-CBOR has no float type, so the continuous genome knobs are stored as fixed-point integers (×1000).</li>
+  </ul>
+  <h3>What makes a world interesting?</h3>
+  <p>A board game has a free answer to "is this good?" — you <em>play</em> it, and skill-beats-chance / it-ends / it's-fair are ground truth. A <strong>world has no objective to play</strong>, so "interesting" isn't a normative, simulatable property. It's <strong>variety, contrast, structure and story-potential</strong> — and the opposite, a featureless monotone, is the degeneracy to screen out. <code>lib/world-signals.js</code> is a hand-authored <strong>signal battery</strong>: a weighted set of measurements over the engine's own fields, each 0–1, summed to a 0–100 score with degeneracy flags and an evocative one-line descriptor.</p>
+  <table>
+    <tr><th>Signal</th><th>What it measures</th><th>Weight</th></tr>
+    <tr><td><strong>structure</strong></td><td>continents vs. one Pangaea vs. archipelago — reward several substantial landmasses, no single dominant blob</td><td>22</td></tr>
+    <tr><td><strong>climate</strong></td><td>biome (Whittaker) Shannon-entropy + whether it spans tropics→temperate→poles</td><td>22</td></tr>
+    <tr><td><strong>relief</strong></td><td>real high ground, a lively plate count, a mountainous fraction</td><td>16</td></tr>
+    <tr><td><strong>habitability</strong></td><td>arable land — not barren, not wall-to-wall jungle — split into several separated homelands (the geopolitics proxy)</td><td>16</td></tr>
+    <tr><td><strong>sea</strong></td><td>land/sea balance, a goldilocks band around ~60% ocean</td><td>12</td></tr>
+    <tr><td><strong>hydrology</strong></td><td>river density, lakes, and the rare enclosed <em>inland sea</em> (a Mediterranean — story gold)</td><td>12</td></tr>
+  </table>
+  <p>Degeneracy flags — <code>waterworld</code>, <code>iceball</code>, <code>desert-world</code>, <code>monobiome</code>, <code>one-supercontinent</code>, <code>all-archipelago</code>, <code>flat-world</code> — both lower the relevant signal <em>and</em> dock the score, so the monotone extremes rank clearly below the gems. Positive highlights (<code>inland sea</code>, <code>high mountains</code>, <code>full climate range</code>, <code>great rivers</code>) feed the descriptor, e.g. <em>"A verdant cluster of three continents with a great inland sea, 73% ocean."</em></p>
+  <p class="mut"><strong>The honest posture.</strong> This is a <em>designed</em> aesthetic, not a discovered one, and the score is for <strong>ranking</strong> — surfacing the gems out of a seed line — not for claiming a world is objectively good. The closest thing a world has to a self-labeling "playtest" is the <strong>civilization projection</strong> (does the atlas k-means produce many distinct, contested, well-separated cultures?); folding that in — and training a tiny critic on the battery so millions of seeds can be screened in microseconds for the genuinely interesting ones — is the next rung. (See the Ludographer at <code>games/gen/</code> for the same ladder applied where playtesting <em>is</em> free.)</p>
+</div></section>
+
 <section id="arch"><div class="wrap">
-  <h2><span class="n">05</span>Architecture</h2>
+  <h2><span class="n">06</span>Architecture</h2>
   <ul>
     <li><strong>Two engines, one algorithm.</strong> <code>mappa/engine.js</code> is the dependency-free reference (and the API + fallback). <code>mappa/engine-rs/</code> is the same pipeline in Rust, compiled to WASM with <code>wasm-pack</code>, used by the browser at ~16k cells. The viewer loads the WASM if present and falls back to JS otherwise, so the site never breaks.</li>
     <li><strong>Deterministic core.</strong> A bit-exact <code>mulberry32</code> PRNG and integer-hash value noise. Same seed ⇒ same draws.</li>
@@ -214,7 +238,7 @@ curl -s "https://mino.mobi/api/world?seed=7" | jq .meta</code></pre>
 </div></section>
 
 <section id="sources"><div class="wrap">
-  <h2><span class="n">06</span>Sources &amp; further reading</h2>
+  <h2><span class="n">07</span>Sources &amp; further reading</h2>
   <p class="mut">mappa is a stylized model, not a research simulator — each mechanic is a deliberately simplified take on a real body of work. These are the ideas it draws on, if you want to dig past the cartoon.</p>
   <ul>
     <li><strong>Spherical mesh.</strong> Fibonacci / golden-spiral sphere sampling (González, “Measurement of areas on a sphere using Fibonacci…”, 2010); Delaunay triangulation via stereographic projection with a ghost pole, dual → spherical Voronoi (standard computational geometry; the <code>delaunator</code> kernel).</li>

@@ -1,0 +1,79 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.mappa.world",
+  "description": "A shared mappa world. The whole planet is a deterministic function of (seed, genome, n) — this record IS the world; a reader regenerates it. The interestingness fields are a cached snapshot of the signal battery for discovery/sorting; they are advisory, not authoritative (the reader can recompute).",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["seed", "createdAt"],
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295,
+            "description": "The world seed. Same seed + genome + n ⇒ the same planet, on any machine, for ever."
+          },
+          "genome": {
+            "type": "ref",
+            "ref": "#genome",
+            "description": "Overridden generation parameters. Any omitted field is derived from the seed (the 'from seed' default)."
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 600,
+            "maximum": 120000,
+            "description": "Target mesh resolution (cell count). Higher = sharper coastlines; the world shape is stable across resolutions."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "An evocative name, by default the engine's name for the world's largest landmass or highest peak."
+          },
+          "descriptor": {
+            "type": "string",
+            "maxLength": 240,
+            "description": "One-line auto-summary from the signal battery, e.g. 'A verdant cluster of three continents with a great inland sea, 73% ocean.'"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Cached interestingness score (0–100) from world-signals.js. Advisory; for sorting a discovery feed."
+          },
+          "flags": {
+            "type": "array",
+            "items": { "type": "string", "maxLength": 40 },
+            "maxLength": 12,
+            "description": "Cached degeneracy / highlight tags (e.g. 'inland sea', 'one-supercontinent', 'high mountains')."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 600,
+            "description": "Optional human note from whoever published the world."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "genome": {
+      "type": "object",
+      "description": "Generation overrides. DAG-CBOR has no float type, so the continuous knobs are stored as fixed-point integers (value × 1000); the reader divides back. A field's absence means 'derive from seed'.",
+      "properties": {
+        "oceanFraction": { "type": "integer", "minimum": 0, "maximum": 1000, "description": "Fraction of crust that is oceanic, ×1000." },
+        "waterFrac":     { "type": "integer", "minimum": 0, "maximum": 1000, "description": "Water volume fraction, ×1000." },
+        "axialTilt":     { "type": "integer", "minimum": 0, "maximum": 2000, "description": "Axial tilt in radians, ×1000." },
+        "rotationRate":  { "type": "integer", "minimum": -5000, "maximum": 5000, "description": "Spin rate (signed; − = retrograde), ×1000." },
+        "solar":         { "type": "integer", "minimum": 0, "maximum": 3000, "description": "Stellar luminosity (1× = sun-like), ×1000." },
+        "planetRadius":  { "type": "integer", "minimum": 0, "maximum": 5000, "description": "Planet radius (Earth = 1), ×1000." },
+        "plateCount":    { "type": "integer", "minimum": 2, "maximum": 60, "description": "Number of tectonic plates." },
+        "age":           { "type": "integer", "minimum": 1, "maximum": 24, "description": "Geological age in epochs (drives plate drift + orogeny)." }
+      }
+    }
+  }
+}

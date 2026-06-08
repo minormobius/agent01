@@ -48,6 +48,21 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
 #builder .brow button:hover{border-color:var(--gold)}
 #builder #bMeta{font-size:10.5px;color:#8c7a5c;font-variant-numeric:tabular-nums}
 @media (max-width:760px){#builder{top:auto;bottom:120px;right:8px;left:8px;width:auto}}
+#sharePop{position:fixed;top:52px;right:14px;z-index:8;width:280px;background:#120d07f6;border:1px solid #2c2316;border-radius:10px;padding:12px 13px 11px;display:none;pointer-events:auto}
+#sharePop.show{display:block}
+#sharePop .bhead{display:flex;justify-content:space-between;align-items:center;color:var(--gold);font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px}
+#sharePop .bhead button{background:none;border:0;color:#b7a988;cursor:pointer;font-size:15px;line-height:1}
+#spTitle{font:600 16px/1.2 ui-serif,Georgia,serif;color:var(--parch)}
+#spScore{font-size:12px;color:var(--gold2);margin:3px 0 5px;font-variant-numeric:tabular-nums}
+#spDesc{font-size:12.5px;color:#cbb890;line-height:1.45;margin-bottom:9px}
+#sharePop label{display:block;font-size:10.5px;color:#8c7a5c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+#spLink{display:block;width:100%;margin-top:3px;background:#0d0a05;border:1px solid #3a2e1c;color:#d8c9a8;border-radius:6px;padding:6px 8px;font:11px ui-monospace,monospace;outline:none}
+#sharePop .brow{display:flex;gap:8px}
+#sharePop .brow button{flex:1;background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 8px;border-radius:6px;cursor:pointer;font-size:11.5px}
+#sharePop .brow button:hover{border-color:var(--gold)}
+#spMsg{font-size:11px;color:#8c7a5c;margin-top:8px;min-height:14px}
+#spMsg.ok{color:#8fc08a}#spMsg.err{color:#d08a6a}
+@media (max-width:760px){#sharePop{top:auto;bottom:120px;right:8px;left:8px;width:auto}}
 @media (max-width:760px){
   header{padding:8px 9px;gap:6px;flex-wrap:wrap}
   .right{width:100%;margin-left:0;margin-top:2px}#q{flex:1;width:auto}
@@ -63,11 +78,20 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="./docs/" style="pointer-events:auto;color:#b7a988;font-weight:400;font-size:12.5px;text-decoration:none">docs ↗</a>
   <span class="modes"><button data-proj="orb" class="on">Orb</button><button data-proj="flat">Mercator</button><button data-layer="topo" title="topographic relief: hypsometric tints + highest peak & deepest trough">Relief</button><button data-layer="wind" title="prevailing surface winds: trade winds, westerlies, polar easterlies">Wind</button><button data-layer="ethno" title="ethnographic atlas: subsistence belts (foragers, pastoralists, hoe horticulture, plough farmers, irrigation, maritime)">Ethno</button><button data-layer="minerals" title="mineral deposits: porphyry copper/gold on arcs, iron & gems in cratons, tin in highlands, salt in arid basins, placer gold down rivers">Ore</button><button data-layer="fossils" title="fossil dig sites: where sedimentary strata are exposed in eroded badlands & coasts — each labelled with the fossils its rock records, read from where the land sat in deep time">Fossils</button><button data-layer="paleo" title="deep-time scrub: rewind the plates along their Euler poles and watch the continents drift — a present desert slides onto the paleo-equator">Paleo</button><button data-layer="civ">Civ</button><button data-layer="tectonic">Tectonic</button></span>
-  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
+  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="share" title="copy a permalink to this exact world; optionally publish it to your PDS">⤴ share</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
 </header>
 <div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">trails = how far each plate has drifted (dot = past, ▸ = now)</span></div>
 <div id="tip"></div>
 <div id="status"></div>
+<div id="sharePop">
+  <div class="bhead"><span>share this world</span><button id="shareClose">×</button></div>
+  <div id="spTitle"></div>
+  <div id="spScore"></div>
+  <div id="spDesc"></div>
+  <label id="spLinkLabel">permalink<input id="spLink" readonly></label>
+  <div class="brow"><button id="spCopy">⧉ copy link</button><button id="spPub" title="publish as com.minomobi.mappa.world to your PDS (needs a mino.mobi sign-in)">⤴ publish to my PDS</button></div>
+  <div id="spMsg"></div>
+</div>
 <div id="builder">
   <div class="bhead"><span>world genome</span><button id="builderClose">×</button></div>
   <label data-p="planetRadius">Planet radius <span id="vRadius">—</span><input type="range" id="sRadius" min="0.4" max="2.5" step="0.05" value="1"></label>
