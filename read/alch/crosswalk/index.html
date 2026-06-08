@@ -64,6 +64,19 @@
   .corr-sig{padding:0 20px 12px;margin-top:-2px;font:13px/1.55 Georgia,serif;font-style:italic;
     color:var(--faint);border-bottom:1px solid var(--rule);background:rgba(216,178,90,.03)}
   .corr.none{color:var(--faint);font-style:italic;font-family:Georgia,serif}
+
+  /* the three-source provenance strip */
+  .dip.trine{border-color:rgba(111,174,142,.34)}
+  .prov{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 20px;
+    border-bottom:1px solid var(--rule);font:10px/1 ui-monospace,monospace}
+  .prov .lbl{color:var(--faint);letter-spacing:.14em;text-transform:uppercase}
+  .ps{border:1px solid var(--rule);border-radius:999px;padding:4px 9px;letter-spacing:.05em;color:var(--ink2)}
+  .ps.w.on{color:var(--ink);border-color:var(--gold-dim)}
+  .ps.m.on{color:var(--ink);border-color:var(--jade)}
+  a.ps.c.on{color:var(--ink);border-color:var(--rose)}
+  a.ps.c.on:hover{color:var(--rose)}
+  .ps.c.off{color:var(--faint);border-style:dashed;opacity:.7}
+  .prov .trine{margin-left:auto;color:var(--jade);letter-spacing:.1em}
 </style>
 </head>
 <body>
@@ -73,10 +86,10 @@
   <div class="masthead">
     <div class="tag">The Alchemist's Garden · the Crosswalk</div>
     <div class="glyph">⇄</div>
-    <h1>One garden, read twice</h1>
-    <p class="sub">Walahfrid Strabo’s <em>Hortulus</em> and Macer Floridus’s
-    <em>De viribus herbarum</em> — two Latin herb-poems two centuries apart —
-    bed against chapter, the lyric garden beside the apothecary.</p>
+    <h1>One garden, read three ways</h1>
+    <p class="sub">Walahfrid Strabo’s <em>Hortulus</em>, Macer Floridus’s
+    <em>De viribus herbarum</em>, and Charlemagne’s <em>Capitulare de villis</em> —
+    the lyric garden, the apothecary, and the imperial decree, plant against plant.</p>
   </div>
 
   <p class="lede">Seventeen plants grow in both poems. Walahfrid (<b>c. 840</b>)
@@ -86,6 +99,13 @@
   same herb turns twice. And in one bed the two poems are not merely parallel but
   <span class="jade">in conversation</span>: Macer’s lovage chapter names
   <em>“Strabus”</em> — Walahfrid Strabo himself — and argues with him.</p>
+
+  <p class="lede">A third garden joins them: Charlemagne’s <a href="../capitulare/"><em>Capitulare
+  de villis</em></a> (<b>c. 800</b>), which commands these plants by imperial decree.
+  Each diptych below says <span class="jade">which of the three gardens</span> grows
+  its plant — most belong to all three (✦), but a few the imperial kitchen-list
+  passes over: <em>wormwood, horehound, betony</em>, medicinal herbs no estate was
+  ordered to keep.</p>
 
   <nav class="chips" id="chips"></nav>
   <main id="walk"></main>
@@ -102,6 +122,7 @@
 import { HORTULUS } from '../hortulus/data.js';
 import { MACER } from '../macer/data.js';
 import { CORRESPONDENCES, PLANETS, TEMPERAMENTS } from '../correspondences.js';
+import { CAPITULARE } from '../capitulare/data.js';
 
 const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const corrByH = {}; CORRESPONDENCES.plants.forEach(c => { if (c.hortulus) corrByH[c.hortulus] = c; });
@@ -126,6 +147,21 @@ function corrBand(hseq) {
 }
 const planted = s => s && Array.isArray(s.lines) && s.lines.length > 0;
 const hBySeq = {}; HORTULUS.sections.forEach(s => hBySeq[s.seq] = s);
+// the third axis: which Hortulus beds Charlemagne's Capitulare also commands
+const capByH = {}; CAPITULARE.herbs.forEach(p => { if (p.h) capByH[p.h] = p; });
+
+// the three-source provenance strip for one diptych (keyed by Hortulus seq)
+function provStrip(hseq) {
+  const cap = capByH[hseq];
+  return `<div class="prov"><span class="lbl">grows in</span>` +
+    `<span class="ps w on">Walahfrid</span>` +
+    `<span class="ps m on">Macer</span>` +
+    (cap
+      ? `<a class="ps c on" href="../capitulare/" title="commanded by Charlemagne — “${esc(cap.la)}”">Capitulare</a>`
+      : `<span class="ps c off" title="not in the imperial kitchen-list">Capitulare —</span>`) +
+    (cap ? `<span class="trine">✦ all three gardens</span>` : '') +
+    `</div>`;
+}
 
 // The curated seams — the specific thread that ties each shared bed together.
 const SEAMS = {
@@ -174,13 +210,14 @@ walk.innerHTML = pairs.map(({ m, h }) => {
     ? `<div class="char">${esc(m.note)}</div>${taste(m)}<a class="more" href="../macer/#c${m.seq}">Macer, ch. ${m.seq} →</a>`
     : `<div class="char">${esc(m.note || '')}</div><span class="more gapnote">${esc(m.crux || 'awaiting its source')}</span>`;
 
-  return `<section class="dip" id="${id}">
+  return `<section class="dip${capByH[h.seq] ? ' trine' : ''}" id="${id}">
     <div class="dip-head">
       <span class="en">${esc(h.en)}</span>
       <span class="names">${names}</span>
       <span class="bot">${esc(m.bot || h.bot || '')}</span>
       ${deg}
     </div>
+    ${provStrip(h.seq)}
     ${seam}
     ${corrBand(h.seq)}
     <div class="leaves">
