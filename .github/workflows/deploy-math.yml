@@ -11,7 +11,7 @@ name: Deploy Math (explainer pack)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/math-meander-patterns-MSxvk']
     paths:
       - 'geometry/**'
       - 'meander/**'
