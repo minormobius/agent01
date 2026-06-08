@@ -20,6 +20,7 @@ on:
       - 'markov/**'
       - 'descent/**'
       - 'traffic/**'
+      - 'packages/audio-react/**'
       - 'erdos/**'
       - 'guthkatz/**'
       - 'hadwiger/**'
@@ -50,6 +51,8 @@ jobs:
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
           done
+          # shared importable modules used by member pages (traffic → audio-react)
+          mkdir -p dist/packages/audio-react && cp -r ../packages/audio-react/. dist/packages/audio-react/
           # math.mino.mobi/ root serves the geometry hub (also available at /geometry/)
           cp -r ../geometry/. dist/
           ls -la dist/
