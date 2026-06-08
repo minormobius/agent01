@@ -82,9 +82,12 @@
       const bx = bConnX + bConnW, cx = cConnX;
       // fan from connector inner edge to bundle
       s += `<path d="M ${bx} ${y} L ${cableX0} ${y} L ${cableX1} ${y} L ${cx} ${y}" fill="none" stroke="${w.color}" stroke-width="2.4"/>`;
-      // pins (small circles) on each connector inner face
+      // pins (small circles) on each connector inner face, labelled with the
+      // assigned pin number (left = board, right = component)
       s += `<circle cx="${bConnX + 8}" cy="${y}" r="${pinR}" fill="${w.color}" stroke="#0d1b2a"/>`;
+      s += `<text x="${bConnX + 16}" y="${y + 3}" fill="#9fd0f5" font-size="8" text-anchor="start">${esc(w.boardPin)}</text>`;
       s += `<circle cx="${cConnX + cConnW - 8}" cy="${y}" r="${pinR}" fill="${w.color}" stroke="#0d1b2a"/>`;
+      s += `<text x="${cConnX + cConnW - 16}" y="${y + 3}" fill="#9fd0f5" font-size="8" text-anchor="end">${esc(w.compPin)}</text>`;
       // signal label centred on the run
       s += `<text x="${(cableX0 + cableX1) / 2}" y="${y - 3}" fill="#e6eef5" font-size="9" text-anchor="middle">${esc(w.signal)}</text>`;
       if (w.pair) pairColors[w.pair] = (pairColors[w.pair] || []).concat(y);

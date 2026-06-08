@@ -44,6 +44,11 @@
     }
   }
 
+  // Per-(component+board) pin assignments, so switching ends starts fresh while
+  // returning to a combo keeps its pinout edits.
+  const pinmaps = {};
+  const pinKey = () => `${$("f-component").value}|${$("f-board").value}|${$("f-conn").value}|${$("f-header").value}`;
+
   function readInput() {
     return {
       componentId: $("f-component").value,
@@ -54,7 +59,39 @@
       flex: $("f-flex").value,
       env: $("f-env").value,
       gaugeOverride: $("f-gauge").value || undefined,
+      pinmap: pinmaps[pinKey()] || {},
     };
+  }
+
+  // Build the editable pinout in the setup: one row per signal, a pin selector
+  // for each end. Defaults follow the solver's sequential assignment; changing a
+  // selector records an override and re-solves (which validates double-bookings).
+  function buildPinout(sol) {
+    const wrap = $("pinout"); wrap.innerHTML = "";
+    const conds = sol.wireList.filter((w) => w.type !== "shield");
+    const compPos = sol.ends.comp.positions, boardPos = sol.ends.board.positions;
+    const key = pinKey();
+    const head = el("div", "ph", `<span>signal / function</span><span>comp</span><span>board</span>`);
+    wrap.appendChild(head);
+    conds.forEach((w) => {
+      const row = el("div", "pr");
+      row.appendChild(el("div", "sig", `<span class="dot" style="background:${w.color}"></span>${w.signal}`));
+      row.appendChild(pinSelect(compPos, w.compPin, (v) => setPin(key, w.signal, "comp", v)));
+      row.appendChild(pinSelect(boardPos, w.boardPin, (v) => setPin(key, w.signal, "board", v)));
+      wrap.appendChild(row);
+    });
+  }
+  function pinSelect(max, current, onChange) {
+    const sel = document.createElement("select");
+    for (let p = 1; p <= max; p++) { const o = document.createElement("option"); o.value = p; o.textContent = "pin " + p; if (p === current) o.selected = true; sel.appendChild(o); }
+    sel.addEventListener("change", () => onChange(Number(sel.value)));
+    return sel;
+  }
+  function setPin(key, signal, end, value) {
+    (pinmaps[key] ||= {});
+    (pinmaps[key][signal] ||= {});
+    pinmaps[key][signal][end] = value;
+    render();
   }
 
   let lastSolution = null;
@@ -141,6 +178,8 @@
       warn.innerHTML = `<div class="ok">✓ No constraint conflicts — the stack resolves cleanly.</div>`;
       warn.style.display = "";
     }
+
+    buildPinout(sol);
   }
 
   // ── tabs ──────────────────────────────────────────────────────────────────────

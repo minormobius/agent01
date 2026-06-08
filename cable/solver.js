@@ -139,17 +139,38 @@
       if (vdrop.volts > 1) warnings.push(`Round-trip drop on ${powerLine.name} is ≈${vdrop.volts} V over ${lengthM} m at ${fmtAwg(gauge)}; bump the gauge or shorten the run if the load is voltage-sensitive.`);
     }
 
-    // ── wire list (per conductor, end-to-end) ───────────────────────────────────
-    const wireList = lines.map((l, i) => ({
-      n: i + 1,
-      signal: l.name,
-      type: l.type,
-      color: WIRE_COLORS[i % WIRE_COLORS.length],
-      pair: l.pair || "",
-      gauge: fmtAwg(gauge),
-      endA: `${compConn.name} pos ${i + 1}`,
-      endB: `${boardConn.name} pos ${i + 1}`,
-    }));
+    // ── wire list + pinout (per conductor, end-to-end) ──────────────────────────
+    // Each signal lands on a pin at each connector. Default is sequential (signal
+    // i → pin i+1), but the setup can override the function of any pin via
+    // input.pinmap = { "<signal>": { comp: <pin#>, board: <pin#> } }. We clamp to
+    // the connector's position count and flag double-booked pins.
+    const pinmap = input.pinmap || {};
+    const pinFor = (name, end, idx, max) => {
+      const v = pinmap[name] && Number(pinmap[name][end]);
+      return Number.isInteger(v) && v >= 1 && v <= max ? v : idx + 1;
+    };
+    const wireList = lines.map((l, i) => {
+      const compPin = pinFor(l.name, "comp", i, compPick.positions);
+      const boardPin = pinFor(l.name, "board", i, boardPick.positions);
+      return {
+        n: i + 1,
+        signal: l.name,
+        type: l.type,
+        color: WIRE_COLORS[i % WIRE_COLORS.length],
+        pair: l.pair || "",
+        gauge: fmtAwg(gauge),
+        compPin, boardPin,
+        endA: `${compConn.name} pin ${compPin}`,
+        endB: `${boardConn.name} pin ${boardPin}`,
+      };
+    });
+    // double-booked-pin check at each end
+    for (const [end, label, conn] of [["compPin", compConn.name, compPick], ["boardPin", boardConn.name, boardPick]]) {
+      const used = {};
+      wireList.forEach((w) => { (used[w[end]] ||= []).push(w.signal); });
+      Object.entries(used).filter(([, sigs]) => sigs.length > 1)
+        .forEach(([pin, sigs]) => warnings.push(`${label} pin ${pin} is assigned to more than one signal (${sigs.join(", ")}). Fix the pinout in the setup.`));
+    }
     if (shielded) wireList.push({ n: "S", signal: "DRAIN", type: "shield", color: "#aaa", pair: "", gauge: "drain", endA: `${compConn.name} backshell / shell`, endB: "chassis / 0 V star point" });
 
     // ── the seven-layer stack (presented component → board) ──────────────────────
