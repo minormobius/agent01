@@ -10,7 +10,7 @@ import { SITES, WINGS } from './sites.js';
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=5');await m.default('./pkg/mappa_engine_bg.wasm?v=5');const v=(m.engine_version?m.engine_version():0);
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=6');await m.default('./pkg/mappa_engine_bg.wasm?v=6');const v=(m.engine_version?m.engine_version():0);
   if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
   else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
 }catch(e){rustGen=false}}
@@ -77,9 +77,13 @@ function featurePointsOf(w){const pts=[];
   return new Float64Array(out)}
 function refineDetail(){if(!world)return;const cp=featurePointsOf(world);if(!cp.length)return;
   if(statusEl){statusEl.textContent='refining detail…';statusEl.style.opacity=1}
+  // PROGRESSIVE: each refine grows the base resolution past the present world, so
+  // repeated clicks keep climbing (capped) — the gradient injection then concentrates
+  // the new budget right on the feature borders.
+  const RN=Math.min(60000,Math.max(GEN_N(),world.N||0));
   setTimeout(()=>{const g=genome;let w=null;
-    if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
-    if(!w)w=generateWorld(seed,{N:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,refinePoints:cp,refinePer:5});
+    if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,RN,g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
+    if(!w)w=generateWorld(seed,{N:RN,oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,refinePoints:cp,refinePer:6});
     world=w;driftT=(world.meta&&world.meta.ageSpan)||0.5;atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5));
     MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw();
     if(statusEl)statusEl.style.opacity=0;},20)}

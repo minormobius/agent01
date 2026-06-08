@@ -132,9 +132,15 @@ export function generateWorld(seed, opts={}){
   // COAST REFINEMENT: inject dense jittered clusters around a supplied coastline
   // (the previous pass's emergent coast) → a high-resolution pass right at the shore.
   const refine=opts.refinePoints; // flat [x,y,z,…] unit vectors
-  if(refine&&refine.length){const per=opts.refinePer??4, jit=opts.refineJitter??0.012;
+  // PROGRESSIVE RESOLUTION GRADIENT: rather than a uniform jittered cloud, place
+  // each injected point at a radius drawn from t=rnd()*rnd() (biased toward 0), so
+  // density is highest right on the feature border and thins outward over a thicker
+  // band. Applies to all three feature kinds (coast, mountain, river).
+  if(refine&&refine.length){const per=opts.refinePer??6, jit=opts.refineJitter??0.014;
     for(let r=0;r+2<refine.length;r+=3){const rx=refine[r],ry=refine[r+1],rz=refine[r+2];
-      for(let q=0;q<per;q++){const p=norm([rx+(rnd()-0.5)*jit,ry+(rnd()-0.5)*jit,rz+(rnd()-0.5)*jit]);V.push(p);plateRaw.push(top2(warp(p))[2])}}}
+      for(let q=0;q<per;q++){const t=rnd()*rnd();const rad=jit*(0.12+t*3.0);
+        const dx=rnd()-0.5,dy=rnd()-0.5,dz=rnd()-0.5,dl=Math.hypot(dx,dy,dz)||1;
+        const p=norm([rx+dx/dl*rad,ry+dy/dl*rad,rz+dz/dl*rad]);V.push(p);plateRaw.push(top2(warp(p))[2])}}}
   const N=V.length;
 
   // 2. spherical Delaunay/Voronoi ---------------------------------------------
@@ -164,14 +170,14 @@ export function generateWorld(seed, opts={}){
   const vel=i=>scl(cross(plates[plate[i]].axis,V[i]),plates[plate[i]].speed);
 
   // 4. tectonics → elevation ---------------------------------------------------
-  const conv=new Float32Array(N),mountSrc=new Float32Array(N),localF=new Float32Array(N);
+  const conv=new Float32Array(N),mountSrc=new Float32Array(N),localF=new Float32Array(N),ridge=new Uint8Array(N);
   for(let i=0;i<N;i++){let cs=0,nn=0,mt=0,lf=0;const oi=ptype(i),vi=vel(i);
     for(const j of adj[i]){if(plate[j]===plate[i])continue;const oj=ptype(j);
       const dir=norm(sub(V[j],scl(V[i],dot(V[i],V[j]))));
       const rel=dot(sub(vi,vel(j)),dir);cs+=rel;nn++;
       if(rel>0){ if(!oi&&!oj)mt+=rel*1.0; else if(!oi&&oj)mt+=rel*0.7; else if(oi&&!oj)lf-=rel*1.15;
         else { const volc=fbm3(V[i][0]*9.3,V[i][1]*9.3,V[i][2]*9.3,seed+71); lf+=rel*(volc>0.64?0.55:0.04); } } // ocean-ocean: SPARSE volcanic arc, not a welded strip
-      else { const dv=-rel; if(oi)lf+=dv*0.35; else lf-=dv*0.45; }}
+      else { const dv=-rel; if(oi){lf+=dv*0.35; if(dv>0.05)ridge[i]=1;} else lf-=dv*0.45; }} // oceanic divergent = mid-ocean ridge
     if(nn){conv[i]=cs/nn;if(!oi&&mt>0)mountSrc[i]=mt;localF[i]=lf}}
   // multi-epoch OROGENY: as the plates drift over `age` epochs, accumulate
   // continental convergence — so mountain belts develop and WIDEN with geological
@@ -192,12 +198,20 @@ export function generateWorld(seed, opts={}){
   for(let i=0;i<N;i++)mountSrc[i]=mountAccum[i];
   let mf=Float32Array.from(mountSrc);
   for(let it=0;it<3;it++){const nf=Float32Array.from(mf);for(let i=0;i<N;i++){if(ptype(i))continue;let m=mf[i];for(const j of adj[i])if(!ptype(j))m=Math.max(m,mf[j]*0.66);nf[i]=m}mf=nf}
+  // SEAFLOOR AGE (half-space cooling bathymetry): oceanic crust is born at the
+  // mid-ocean ridges (ridge[i]) and ages as it spreads away. BFS hop-distance over
+  // oceanic cells = a proxy for crustal age; depth ∝ √age (ridges shallow, abyssal
+  // plains deep). Continental cells are skipped.
+  const sfAge=new Float32Array(N).fill(-1);
+  {const q=[];for(let i=0;i<N;i++)if(ridge[i]&&ptype(i)){sfAge[i]=0;q.push(i)}
+    for(let h=0;h<q.length;h++){const i=q[h];for(const j of adj[i])if(ptype(j)&&sfAge[j]<0){sfAge[j]=sfAge[i]+1;q.push(j)}}}
+  let sfMax=1;for(let i=0;i<N;i++)if(sfAge[i]>sfMax)sfMax=sfAge[i];
   const elevRaw=new Float32Array(N);
   for(let i=0;i<N;i++){const p=V[i],oi=ptype(i),pl=plates[plate[i]];
     const gd=Math.acos(Math.max(-1,Math.min(1,dot(p,pl.center))));
     const noise=(fbm3(p[0]*2.0,p[1]*2.0,p[2]*2.0,seed)-0.5)*(oi?0.30:0.22);
     if(!oi){const craton=pl.buoy*Math.exp(-(gd*gd)/(2*0.5*0.5));elevRaw[i]=0.10+craton+mf[i]*0.6+localF[i]*0.5+noise;}
-    else elevRaw[i]=-0.55+mf[i]*0.55+localF[i]*0.6+noise;}
+    else{const sa=sfAge[i]<0?1:Math.sqrt(sfAge[i]/sfMax);elevRaw[i]=-0.20-0.50*sa+mf[i]*0.55+localF[i]*0.55+noise;}}
   // cell areas (true spherical Voronoi area) — for water volume + drainage weight
   const triArea=(a,b,c)=>{const bc=cross(b,c);return 2*Math.atan2(Math.abs(dot(a,bc)),1+dot(a,b)+dot(b,c)+dot(c,a))};
   const area=new Float32Array(N);for(let i=0;i<N;i++){const cc2=cells[i];let s=0;for(let k=0;k<cc2.length;k++)s+=triArea(V[i],cc2[k],cc2[(k+1)%cc2.length]);area[i]=s}

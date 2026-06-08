@@ -200,16 +200,23 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
             plate_raw.push(t.2 as u32);
         }
     }
-    // COAST REFINEMENT: inject dense jittered clusters around supplied coastline points
+    // REFINEMENT with a PROGRESSIVE RESOLUTION GRADIENT: each injected point is
+    // placed at a radius drawn from t=rng*rng (biased toward 0), so density is
+    // densest right on the feature border and thins outward over a thicker band.
+    // Applies to all three feature kinds (coast, mountain, river).
     if !refine.is_empty() {
-        let per = 5usize; let jit = 0.012;
+        let per = 6usize; let jit = 0.014;
         let mut idx = 0;
         while idx + 2 < refine.len() {
             let (rx, ry, rz) = (refine[idx], refine[idx+1], refine[idx+2]);
             for _ in 0..per {
-                let p = norm([rx + (rng.next()-0.5)*jit, ry + (rng.next()-0.5)*jit, rz + (rng.next()-0.5)*jit]);
-                let t = top2(warp(p), &plates);
-                vv.push(p); plate_raw.push(t.2 as u32);
+                let t = rng.next() * rng.next();
+                let rad = jit * (0.12 + t*3.0);
+                let (dx, dy, dz) = (rng.next()-0.5, rng.next()-0.5, rng.next()-0.5);
+                let dl = (dx*dx + dy*dy + dz*dz).sqrt().max(1e-9);
+                let p = norm([rx + dx/dl*rad, ry + dy/dl*rad, rz + dz/dl*rad]);
+                let t2 = top2(warp(p), &plates);
+                vv.push(p); plate_raw.push(t2.2 as u32);
             }
             idx += 3;
         }
@@ -286,6 +293,7 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
     let mut conv = vec![0.0f64; n];
     let mut mount_src = vec![0.0f64; n];
     let mut local_f = vec![0.0f64; n];
+    let mut ridge = vec![false; n];
     for i in 0..n {
         let (mut cs, mut nn, mut mt, mut lf) = (0.0, 0u32, 0.0, 0.0);
         let oi = ptype(i); let vi = vel(i);
@@ -304,7 +312,7 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
                 else { let volc = fbm3(vv[i][0]*9.3, vv[i][1]*9.3, vv[i][2]*9.3, seed as i32+71); lf += rel*(if volc>0.64 {0.55} else {0.04}); }
             } else {
                 let dv = -rel;
-                if oi { lf += dv*0.35; } else { lf -= dv*0.45; }
+                if oi { lf += dv*0.35; if dv > 0.05 { ridge[i] = true; } } else { lf -= dv*0.45; }
             }
         }
         if nn > 0 { conv[i] = cs/nn as f64; if !oi && mt > 0.0 { mount_src[i] = mt; } local_f[i] = lf; }
@@ -354,6 +362,22 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
         mf = nf;
     }
 
+    // SEAFLOOR AGE (half-space cooling bathymetry): oceanic crust is born at the
+    // mid-ocean ridges and ages as it spreads away. BFS hop-distance over oceanic
+    // cells = a proxy for crustal age; depth ∝ √age (ridges shallow, abyss deep).
+    let mut sf_age = vec![-1.0f64; n];
+    {
+        let mut q: Vec<usize> = Vec::new();
+        for i in 0..n { if ridge[i] && ptype(i) { sf_age[i] = 0.0; q.push(i); } }
+        let mut h = 0;
+        while h < q.len() {
+            let i = q[h]; h += 1;
+            for &jj in &adj_set[i] { let j = jj as usize; if ptype(j) && sf_age[j] < 0.0 { sf_age[j] = sf_age[i] + 1.0; q.push(j); } }
+        }
+    }
+    let mut sf_max = 1.0f64;
+    for i in 0..n { if sf_age[i] > sf_max { sf_max = sf_age[i]; } }
+
     // elevation
     let mut elev_raw = vec![0.0f64; n];
     for i in 0..n {
@@ -364,7 +388,8 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
             let craton = pl.buoy*(-(gd*gd)/(2.0*0.5*0.5)).exp();
             elev_raw[i] = 0.10 + craton + mf[i]*0.6 + local_f[i]*0.5 + noise;
         } else {
-            elev_raw[i] = -0.55 + mf[i]*0.55 + local_f[i]*0.6 + noise;
+            let sa = if sf_age[i] < 0.0 { 1.0 } else { (sf_age[i]/sf_max).sqrt() };
+            elev_raw[i] = -0.20 - 0.50*sa + mf[i]*0.55 + local_f[i]*0.55 + noise;
         }
     }
 
@@ -571,4 +596,4 @@ pub fn triangulate_xy(coords: &[f64]) -> Vec<u32> {
 }
 
 #[wasm_bindgen]
-pub fn engine_version() -> u32 { 5 }
+pub fn engine_version() -> u32 { 6 }
