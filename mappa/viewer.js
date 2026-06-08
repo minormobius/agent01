@@ -46,6 +46,12 @@ const ORE=[
   {id:'salt',  label:'salt / evaporite',col:'#e6ebf0'},
   {id:'coal',  label:'coal',            col:'#2c2c33'}, // fossil fuel — paleo-swamps
   {id:'oil',   label:'oil & gas',       col:'#5d7040'}, // fossil fuel — buried anoxic marine basins
+  {id:'bauxite',label:'aluminium / bauxite',col:'#e0795a'}, // tropical laterite (climate-weathering lever)
+  {id:'lithium',label:'lithium',        col:'#7fd6c4'}, // arid endorheic volcanic brine (salar)
+  {id:'titanium',label:'titanium sands',col:'#5a7fa8'}, // coastal heavy-mineral placer
+  {id:'uranium',label:'uranium',        col:'#aacb3e'}, // sandstone roll-front below granite highlands
+  {id:'ree',   label:'rare earths',     col:'#c14fb8'}, // hotspot-on-craton carbonatite + weathered granite
+  {id:'phosphate',label:'phosphate',    col:'#cbb98a'}, // upwelling-shelf phosphorite (wind lever)
 ];
 // fossil dig-site categories — what the strata record, read from the cell's
 // PALEO-latitude (where the land sat when the beds were laid down). index → label,
@@ -150,7 +156,7 @@ function computeVolcanoes(){volcanoes=[];if(!world.volc)return;
   const picked=[];for(const i of cand){if(picked.length>=10)break;
     let ok=true;for(const j of picked)if(dot(world.V[i],world.V[j])>0.985){ok=false;break} // keep them >~10° apart
     if(ok)picked.push(i)}
-  volcanoes=picked.map((i,k)=>({i,name:placeName(100+k)}));}
+  volcanoes=picked.map((i,k)=>({i,name:featureName('volcano',i,100+k)}));}
 // ETHNOGRAPHIC ATLAS: classify each land cell's subsistence mode from ecology —
 // a Whittaker-style classifier over (biome, temp, moisture, slope, river, coast).
 function computeAnthro(){const N=world.N;subMode=new Uint8Array(N);
@@ -190,6 +196,18 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
   const cra=i=>bdist[i]<0?0:bdist[i]/bmax, arc=i=>world.volc[i], lakeNbr=i=>{for(const j of world.adj[i])if(world.water[j]===2)return 1;return 0};
   const plc=i=>{if(!riverCell[i])return 0;let m=0;for(const j of world.adj[i])m=Math.max(m,arc(j),cra(j)*0.6);return m*0.7};
   const deltaNbr=i=>{if(world.water[i]!==1)return 0;for(const j of world.adj[i])if(world.water[j]===0&&riverCell[j])return 1;return 0}; // river mouth into shelf
+  // Tier-A helpers: surface gradient, coast flag, neighbourhood maxima (volcanism,
+  // relief, craton), and an offshore-wind probe for shelf upwelling.
+  const slopeOf=i=>{let m=0;for(const j of world.adj[i]){const d=Math.abs(world.elev[i]-world.elev[j]);if(d>m)m=d}return m};
+  const coastOf=i=>{for(const j of world.adj[i])if(world.water[j]===1)return 1;return 0};
+  const arcNbr=i=>{let m=arc(i);for(const j of world.adj[i])if(arc(j)>m)m=arc(j);return m};
+  const hiNbr=i=>{let m=world.elev[i];for(const j of world.adj[i])if(world.elev[j]>m)m=world.elev[j];return m};
+  const riverNbr=i=>{if(riverCell[i])return 1;for(const j of world.adj[i])if(riverCell[j])return 1;return 0};
+  const craNbr=i=>{let m=cra(i);for(const j of world.adj[i])if(cra(j)>m)m=cra(j);return m};
+  const latOf=i=>Math.abs(Math.asin(Math.max(-1,Math.min(1,world.V[i][2]))))/(Math.PI/2);
+  const upwell=i=>{let lj=-1;for(const j of world.adj[i])if(world.water[j]===0){lj=j;break}if(lj<0)return 0; // offshore-wind probe at a shelf cell with a land neighbour
+    const w=windAt(world.V[i]),dx=world.V[i][0]-world.V[lj][0],dy=world.V[i][1]-world.V[lj][1],dz=world.V[i][2]-world.V[lj][2],dl=Math.hypot(dx,dy,dz)||1;
+    return Math.max(0,(w[0]*dx+w[1]*dy+w[2]*dz)/dl)};
   const SCORE=[ // one per ORE commodity (same order)
     i=>Math.max(arc(i)*0.9,cra(i)*0.5,plc(i)),                                                   // gold
     i=>arc(i),                                                                                   // copper (porphyry arc)
@@ -202,14 +220,27 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
     i=>{if(world.water[i]===1)return world.elev[i]>-0.22?0.4+deltaNbr(i)*0.6:0;                                                            // oil & gas: shallow shelf
         if(world.water[i]===0)return (world.elev[i]>0&&world.elev[i]<0.18)?(0.5-world.elev[i]/0.18*0.3)*(world.moisture[i]<0.5?1:0.6):0;   //   (delta-fed) + onshore
         return 0},                                                                                                                        //   low former-marine basins
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i],T=world.temperature[i],M=world.moisture[i];                                  // bauxite (Al): tropical laterite —
+        return (e>0&&e<0.45&&T>20&&M>0.56)?Math.min(1,(T-20)/12)*Math.min(1,(M-0.56)*3)*(1-Math.min(1,slopeOf(i)*6))*(1-e/0.45*0.5):0},   //   hot, wet, low-relief, stable
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i],M=world.moisture[i];                                                         // lithium: arid endorheic salar —
+        return (M<0.34&&e>0.22&&(lakeNbr(i)||arcNbr(i)>0.2))?(0.34-M)*3*(0.4+lakeNbr(i)*0.6+Math.min(0.6,arcNbr(i)))*Math.min(1,(e-0.22)/0.45):0}, // elevated basin + volcanic feed
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i];                                                                             // titanium: coastal placer sands —
+        return (coastOf(i)&&e<0.25)?0.4+riverNbr(i)*0.45+craNbr(i)*0.4:0},                                                                //   beaches fed by weathered old terrain
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i],M=world.moisture[i];if(e<=0||e>0.4)return 0;                                 // uranium: sandstone roll-front —
+        const feed=(hiNbr(i)>0.45?(hiNbr(i)-0.45)*2:0)+cra(i)*0.4;return feed*(1-e/0.4)*(M<0.5?1:0.6)},                                    //   leached granite highlands → arid basin
+    i=>{if(world.water[i]!==0)return 0;                                                                                                   // rare earths —
+        const carb=(cra(i)>0.4&&arcNbr(i)>0.12)?cra(i)*(0.4+arcNbr(i)*2):0;                                                                //   interior craton + plume/alkaline magmatism (carbonatite)
+        const mona=(coastOf(i)&&world.elev[i]<0.2&&craNbr(i)>0.3)?(0.3+craNbr(i)*0.3):0;return Math.max(carb,mona*0.85)},                  //   + monazite in coastal mineral sands
+    i=>{if(world.water[i]!==1||world.elev[i]<-0.28)return 0;                                                                              // phosphate: upwelling shelf —
+        const la=latOf(i);if(la>0.62)return 0;return (1-Math.abs(la-0.3)/0.45)*(0.45+upwell(i)*1.1)},                                      //   subtropical eastern-boundary upwelling
   ];
-  const K=[8,7,6,5,4,6,6,7]; // deposits per commodity
+  const K=[8,7,6,5,4,6,6,7,6,5,5,5,4,6]; // deposits per commodity
   for(let c=0;c<ORE.length;c++){const sc=SCORE[c];let mx=1e-6;const raw=new Float32Array(N);
     for(let i=0;i<N;i++){const v=sc(i);raw[i]=v;if(v>mx)mx=v}
     const cand=[];for(let i=0;i<N;i++)if(raw[i]>0.45*mx)cand.push(i);cand.sort((a,b)=>raw[b]-raw[a]);
     let picked=0;for(const i of cand){if(picked>=K[c])break;let ok=true;
       for(const d of minerals)if(d.c===c&&dot(world.V[i],world.V[d.i])>0.984){ok=false;break}
-      if(ok){minerals.push({i,c,score:raw[i]/mx,name:placeName(200+c*13+picked)});picked++}}}
+      if(ok){minerals.push({i,c,score:raw[i]/mx,name:featureName('ore',i,200+c*13+picked)});picked++}}}
   minerals.sort((a,b)=>b.score-a.score);minerals.forEach((d,k)=>d.lab=k<12);} // label the strongest dozen
 // FOSSIL DIG SITES: fossils survive where sedimentary strata were laid down (low
 // ground — basins, floodplains, coasts, lake beds) AND are now exposed by erosion
@@ -244,27 +275,49 @@ function computeFossils(){digsites=[];if(!world)return;const N=world.N;
     else if(alat<0.45)fc=4;                    // paleo-tropical → dinosaur floodplain
     else if(alat<0.72)fc=5;                    // paleo-temperate → mammal bone beds
     else fc=6;                                 // paleo-polar → ice-age tundra
-    digsites.push({i,fc,g,score:raw[i]/mx,name:placeName(400+picked*7),lab:false});picked++}
+    digsites.push({i,fc,g,score:raw[i]/mx,name:featureName('dig',i,400+picked*7),lab:false});picked++}
   digsites.sort((a,b)=>b.score-a.score);digsites.forEach((d,k)=>d.lab=k<12);}
 // ---- topographic relief: extremes + hypsometric palette ----------------------
 function computeLandmarks(){const N=world.N;let hi=-1e9,lo=1e9;peakI=troughI=-1;
   for(let i=0;i<N;i++){const e=world.elev[i];if(e>hi){hi=e;peakI=i}if(e<lo){lo=e;troughI=i}}
   landMaxE=Math.max(1e-4,hi);deepMaxE=Math.max(1e-4,-lo);
-  peakName=placeName(1);troughName=placeName(2);}
-// deterministic fantasy name from the world seed + a salt (peak=1, trough=2)
-const _ON=['ka','tor','vel','mor','bre','cal','dun','sk','far','gol','hra','ny','pra','quel','rho','syl','thal','ur','vos','wyn','zor','ar','bel','cor','dra','esh','grim','kael'],
-      _NU=['a','e','i','o','u','ae','ei','ou','y','ia'],_CO=['n','r','th','s','l','k','m','rd','sk','ng','x','','ll','st'];
-function placeName(salt){let s=(((world.meta.seed>>>0)*0x9e3779b1)^(salt*0x85ebca77))>>>0;
-  const rnd=()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296};
-  const cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
-  const syl=()=>_ON[(rnd()*_ON.length)|0]+_NU[(rnd()*_NU.length)|0]+_CO[(rnd()*_CO.length)|0];
-  let nm=cap(syl());if(rnd()<0.5)nm+=syl();return nm}
-const _TR=['Deep','Trench','Abyss','Trough','Fault'];
-function landmarkLabels(){ // {peak,trough} display strings, computed lazily
+  peakName=featureName('peak',peakI,1);troughName=featureName('trough',troughI,2);}
+// ---- TOPONYMY: deterministic place-names with regional linguistic coherence ----
+// A feature name = a generated SPECIFIC root + a feature-appropriate GENERIC term
+// (Mount X · X Deep · X Lode · X Beds). The root's phonotactics are onset+nucleus+
+// coda syllables drawn from one of several LANGUAGE FAMILIES — and the family is
+// chosen per TECTONIC PLATE, so every feature on a landmass shares a tongue and the
+// language borders fall along the plate sutures (mountain belts as linguistic divides,
+// as on Earth). Deterministic: same (seed, plate, salt) ⇒ same name, for ever.
+const LANGS=[
+  {id:'Varn', on:['k','kr','gr','dr','th','sk','v','t','br','d','h'],  nu:['a','o','u','au'],      co:['rk','th','n','d','k','rn','','ld']},  // harsh · northern highland
+  {id:'Lyr',  on:['l','v','s','n','th','m','el','r','ll'],             nu:['e','i','ae','ia','y'], co:['l','r','n','en','','il','th']},       // liquid · forest upland
+  {id:'Mor',  on:['m','b','h','v','d','n','br','l','r'],               nu:['o','u','a','oa'],      co:['m','l','n','r','on','','um']},        // round · lowland river
+  {id:'Kael', on:['k','q','z','sh','t','h','rh','j','s','n','kh'],     nu:['a','i','ai','u'],      co:['n','r','t','sh','d','','m']},         // bright · southern desert
+  {id:'Esh',  on:['s','sy','v','th','n','x','z','st','sh'],            nu:['y','i','e','ei'],      co:['s','x','th','','ss','n']},            // sibilant · eastern coast
+];
+const GENERIC={ // feature kind → generic toponym terms (prefix and/or suffix forms)
+  peak:   {pre:['Mount','Mt.','Pike of','Cairn'], suf:['Tor','Horn','Fell','Pike','Crag','Scaur','Spire']},
+  trough: {pre:[],                                suf:['Deep','Trench','Abyss','Trough','Fault','Sink','Gulf']},
+  volcano:{pre:['Mount'],                         suf:['Fell','Caldera','Pyre','Forge','Smokes','Ashmount']},
+  ore:    {pre:[],                                suf:['Lode','Field','Diggings','Reach','Vein','Workings','Mine','Strike']},
+  dig:    {pre:[],                                suf:['Beds','Quarry','Pits','Bonebeds','Marl','Hollow','Cutting']},
+};
+function nameRng(salt){let s=(((world.meta.seed>>>0)*0x9e3779b1)^((salt>>>0)*0x85ebca77))>>>0;
+  return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
+function langOf(i){const p=((world.plate?world.plate[i]:0)>>>0);return((p*0x9e3779b1)>>>0)%LANGS.length} // plate → language family
+function genRoot(lid,rnd){const L=LANGS[lid],cap=x=>x.charAt(0).toUpperCase()+x.slice(1);
+  const syl=first=>L.on[(rnd()*L.on.length)|0]+L.nu[(rnd()*L.nu.length)|0]+(first||rnd()<0.5?L.co[(rnd()*L.co.length)|0]:''); // open second syllables read cleaner
+  let nm=cap(syl(true));if(rnd()<0.4)nm+=syl(false);return nm}
+// full toponym for a feature of `kind` at cell `i`, salted so each feature differs
+function featureName(kind,i,salt){const rnd=nameRng(salt),lid=i>=0?langOf(i):((salt>>>3)%LANGS.length);
+  const root=genRoot(lid,rnd),g=GENERIC[kind];if(!g)return root;
+  if(g.pre.length&&(g.suf.length===0||rnd()<0.4))return g.pre[(rnd()*g.pre.length)|0]+' '+root;
+  return root+' '+g.suf[(rnd()*g.suf.length)|0]}
+function landmarkLabels(){ // {peak,trough} display strings (names already carry their generic)
   const pm=Math.round(landMaxE*9000), dm=Math.round(deepMaxE*9000);
-  let s=(((world.meta.seed>>>0)*0x27d4eb2d)>>>0);const tr=_TR[s%_TR.length];
-  return{peak:'▲ Mt. '+peakName+'  ·  '+pm.toLocaleString()+' m',
-         trough:'▼ '+troughName+' '+tr+'  ·  −'+dm.toLocaleString()+' m'}}
+  return{peak:'▲ '+peakName+'  ·  '+pm.toLocaleString()+' m',
+         trough:'▼ '+troughName+'  ·  −'+dm.toLocaleString()+' m'}}
 // hypsometric tint for cell i (land: green→tan→brown→snow, sea: shallow→deep blue)
 // the cryosphere (sea ice / glacier / ice sheet) reads white over relief regardless of depth/height
 function topoHSL(i){const e=world.elev[i],b=world.biome[i];
