@@ -260,24 +260,64 @@ export function generateWorld(seed, opts={}){
   for(const i of order){const j=down[i];if(j>=0&&water[j]!==1)flow[j]+=flow[i]}
   const rivers=[];for(const i of order){if(water[i]!==0)continue;const j=down[i];if(j>=0&&flow[i]>18)rivers.push({a:V[i],b:V[j],flow:flow[i],w:Math.min(5,0.6+Math.sqrt(flow[i])/6)})}
 
-  // 6. climate: temperature + moisture ----------------------------------------
+  // 6. atmosphere: rotation → prevailing winds → advected & orographic moisture -
+  // rotationRate Ω (Earth=1). SIGN = spin direction: + prograde, − retrograde.
+  // |Ω| sets how many circulation cells fit per hemisphere and how zonal the flow
+  // is; the sign sets the Coriolis deflection (retrograde ⇒ prevailing winds flip).
+  const _rrMag=0.5+rnd()*1.4, _rrSign=rnd()<0.12?-1:1;          // always draw (RNG stream stable under override)
+  const rotationRate = opts.rotationRate ?? (_rrMag*_rrSign);
+  const Omega = Math.abs(rotationRate)<0.05 ? (rotationRate<0?-0.05:0.05) : rotationRate;
+  const aOmega=Math.abs(Omega), coriolisSign=Omega<0?-1:1;
+  const windCells=Math.max(1,Math.min(6,Math.round(3*Math.sqrt(aOmega)))); // circulation cells per hemisphere
+  const zonalFrac=Math.max(0.30,Math.min(0.92,0.35+0.45*Math.sqrt(aOmega))); // faster spin → more east-west
   const lat=i=>Math.asin(Math.max(-1,Math.min(1,V[i][2])));
-  // distance (hops) to nearest open ocean — coastal = wet
+  // prevailing surface wind per cell (tangent 3-vector) from the banded cell model
+  const windV=new Array(N), zAx=[0,0,1];
+  for(let i=0;i<N;i++){const p=V[i],z=p[2];
+    let eE=cross(zAx,p);const le=Math.hypot(eE[0],eE[1],eE[2]);     // east basis
+    eE = le<1e-6 ? [1,0,0] : [eE[0]/le,eE[1]/le,eE[2]/le];
+    const eN=cross(p,eE);                                           // north basis (unit)
+    const alat=Math.min(0.999,Math.abs(lat(i))/(Math.PI/2));
+    const k=Math.min(windCells-1,Math.floor(alat*windCells));       // 0 = equatorial cell
+    const equatorward=(k%2===0);                                    // Hadley/Polar surface → equatorward; Ferrel → poleward
+    const zsign=coriolisSign*(equatorward?-1:1);                    // zonal east(+)/west(−), hemisphere-independent
+    const vsign=(equatorward?-1:1)*(z>=0?1:-1);                     // meridional toward/away from equator
+    const u=zsign*zonalFrac, v=vsign*(1-zonalFrac);
+    windV[i]=[eE[0]*u+eN[0]*v, eE[1]*u+eN[1]*v, eE[2]*u+eN[2]*v]}
+  // upwind neighbour (the cell the wind blows FROM) for moisture advection
+  const upwind=new Int32Array(N).fill(-1);
+  for(let i=0;i<N;i++){const w=windV[i],wl=Math.hypot(w[0],w[1],w[2])||1,wx=-w[0]/wl,wy=-w[1]/wl,wz=-w[2]/wl;
+    let bj=-1,bd=0.2;for(const j of adj[i]){let dx=V[j][0]-V[i][0],dy=V[j][1]-V[i][1],dz=V[j][2]-V[i][2];const dl=Math.hypot(dx,dy,dz)||1;const d=(dx*wx+dy*wy+dz*wz)/dl;if(d>bd){bd=d;bj=j}}upwind[i]=bj}
+  // advect ocean humidity downwind: decays over land, replenished over sea, rains
+  // out on ascent → windward coasts wet, deep interiors & lee sides dry. Directional.
+  const ocean=new Uint8Array(N);for(let i=0;i<N;i++)ocean[i]=water[i]===1?1:0;
+  let A=new Float32Array(N);for(let i=0;i<N;i++)A[i]=ocean[i]?1:0;
+  for(let it=0;it<16;it++){const An=Float32Array.from(A);
+    for(let i=0;i<N;i++){if(ocean[i]){An[i]=1;continue}const j=upwind[i];if(j<0)continue;
+      const climb=Math.max(0,elev[i]-elev[j]);                      // orographic rain-out steepens decay
+      An[i]=Math.max(An[i], A[j]*(0.93-Math.min(0.5,climb*3.0)) + (water[i]===2?0.05:0))}
+    A=An}
+  // orographic term: windward ascent wetter, lee descent (rain shadow) drier
+  const oro=new Float32Array(N);for(let i=0;i<N;i++){const j=upwind[i];oro[i]=j<0?0:Math.max(-0.5,Math.min(0.6,(elev[i]-elev[j])*4.0))}
+
+  // 6b. temperature + moisture(v2) + seasonality → biomes ----------------------
+  const temperature=new Float32Array(N), moisture=new Float32Array(N), seasonality=new Float32Array(N), biome=new Uint8Array(N);
   const distSea=new Int16Array(N).fill(-1);{const q=[];for(let i=0;i<N;i++)if(water[i]===1){distSea[i]=0;q.push(i)}
     for(let h=0;h<q.length;h++){const i=q[h];for(const j of adj[i])if(distSea[j]<0){distSea[j]=distSea[i]+1;q.push(j)}}}
   let maxD=1;for(let i=0;i<N;i++)if(distSea[i]>maxD)maxD=distSea[i];
-  const temperature=new Float32Array(N), moisture=new Float32Array(N), seasonality=new Float32Array(N), biome=new Uint8Array(N);
   for(let i=0;i<N;i++){
     const la=lat(i), alat=Math.abs(la)/(Math.PI/2);
     let T=28 - 45*Math.pow(alat,1.25) + (solar-1)*38;  // mean annual temperature (solar luminosity shifts it)
     if(water[i]===0)T-=Math.max(0,elev[i])*42;     // altitude lapse on land
     T+=(fbm3(V[i][0]*3+9,V[i][1]*3,V[i][2]*3,seed+5)-0.5)*5;
     temperature[i]=T;
-    // moisture: coastal proximity × latitude rainfall bands (+noise)
+    // moisture v2 = advected ocean air (A, directional) + a soft isotropic coastal
+    // floor + circulation rainfall bands (rising branches of the cells wet, sinking
+    // subtropics/poles dry) + orographic relief (windward wet / lee rain-shadow)
     const coast=Math.exp(-(distSea[i]/Math.max(3,maxD*0.5)));
-    const band=0.5+0.5*Math.cos((la*3.0));
-    let M=Math.max(0,Math.min(1, coast*0.6 + band*0.45 - Math.max(0,elev[i])*0.25
-        + (fbm3(V[i][0]*2-4,V[i][1]*2,V[i][2]*2,seed+11)-0.5)*0.3));
+    const band=0.5+0.5*Math.cos(windCells*Math.PI*Math.min(1,alat));
+    let M=Math.max(0,Math.min(1, A[i]*0.42 + coast*0.20 + band*0.36 + oro[i]*0.45 - Math.max(0,elev[i])*0.12
+        + (fbm3(V[i][0]*2-4,V[i][1]*2,V[i][2]*2,seed+11)-0.5)*0.22));
     moisture[i]=M;
     // seasonality: axial tilt × latitude × continentality → annual winter depth
     const contl = water[i]===1?0 : Math.min(1, distSea[i]/Math.max(3,maxD*0.5));
@@ -297,7 +337,8 @@ export function generateWorld(seed, opts={}){
     meta:{seed,N,plateCount,oceanFraction:+oceanFraction.toFixed(3),waterFrac:+waterFrac.toFixed(3),
       seaCoverage:+(oceanA/totA).toFixed(3),axialTilt:+axialTilt.toFixed(3),
       axialTiltDeg:Math.round(axialTilt*180/Math.PI),solar:+solar.toFixed(3),
-      planetRadius:+planetRadius.toFixed(3),age,ageSpan:+ageSpan.toFixed(3),seaLevelRaw:+sl.toFixed(4)},
+      planetRadius:+planetRadius.toFixed(3),age,ageSpan:+ageSpan.toFixed(3),seaLevelRaw:+sl.toFixed(4),
+      rotationRate:+rotationRate.toFixed(3),windCells,coriolisSign,dayLengthRel:+(1/aOmega).toFixed(3)},
     N, V, cells, adj, area, plate, plateType:Uint8Array.from({length:N},(_,i)=>ptype(i)),
     plates:plates.map(p=>({center:p.center,oceanic:p.oceanic,axis:p.axis,speed:p.speed})),
     elev, water, temperature, moisture, seasonality, biome, conv, bounds, rivers,

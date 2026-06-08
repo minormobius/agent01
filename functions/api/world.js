@@ -1,6 +1,6 @@
 // GET /api/world — pull a generated planet as JSON.
 //
-//   /api/world?seed=7&n=1800&radius=0.7&age=8&solar=1.1&water=22&ocean=65&plates=18&tilt=27
+//   /api/world?seed=7&n=1800&radius=0.7&age=8&solar=1.1&water=22&ocean=65&plates=18&tilt=27&rotation=1.4
 //
 // Runs the dependency-free reference engine (mappa/engine.js) server-side and
 // returns a complete, deterministic world: per-cell lon/lat, elevation, biome,
@@ -32,6 +32,7 @@ export const onRequestGet = async ({ request }) => {
   if (has('solar'))  opts.solar         = clamp(num('solar', 1), 0.5, 1.8);  // stellar luminosity (1 = sun-like)
   if (has('radius')) opts.planetRadius  = clamp(num('radius', 1), 0.3, 3.0); // Earth radii
   if (has('age'))    opts.age           = Math.round(clamp(num('age', 4), 1, 20)); // geological epochs
+  if (has('rotation')) opts.rotationRate = clamp(num('rotation', 1), -2.5, 2.5);   // planetary spin (signed: − = retrograde)
 
   let w;
   try { w = generateWorld(seed >>> 0, opts); }

@@ -63,7 +63,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <a href="https://mino.mobi/">mino.mobi</a>
   <a href="./docs/" style="pointer-events:auto;color:#b7a988;font-weight:400;font-size:12.5px;text-decoration:none">docs ↗</a>
   <span class="modes"><button data-m="orb" class="on">Orb</button><button data-m="map">Mercator</button><button data-m="civ">Civ</button><button data-m="tectonic">Tectonic</button></span>
-  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="topo" title="topographic relief: hypsometric tints + highest peak & deepest trough">⛰ relief</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
+  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="topo" title="topographic relief: hypsometric tints + highest peak & deepest trough">⛰ relief</button><button class="btn" id="winds" title="prevailing surface winds (trade winds, westerlies, polar easterlies) from the planet's rotation">wind</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
 </header>
 <div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">trails = how far each plate has drifted (dot = past, ▸ = now)</span></div>
 <div id="tip"></div>
@@ -76,6 +76,7 @@ footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items
   <label data-p="oceanFraction">Oceanic crust <span id="vOcean">—</span><input type="range" id="sOcean" min="28" max="86" step="1" value="60"></label>
   <label data-p="waterFrac">Water volume <span id="vWater">—</span><input type="range" id="sWater" min="3" max="32" step="1" value="15"></label>
   <label data-p="axialTilt">Axial tilt <span id="vTilt">—</span><input type="range" id="sTilt" min="0" max="42" step="1" value="20"></label>
+  <label data-p="rotationRate" title="planetary spin: |Ω| sets how many wind cells fit per hemisphere; sign flips the trade winds (retrograde)">Rotation (spin) <span id="vRot">—</span><input type="range" id="sRot" min="-2.5" max="2.5" step="0.05" value="1"></label>
   <label data-p="solar">Solar luminosity <span id="vSolar">—</span><input type="range" id="sSolar" min="0.70" max="1.40" step="0.01" value="1"></label>
   <div class="brow"><button id="bAuto">⟲ from seed</button><button id="bRefine" title="high-res pass on coasts, mountains & rivers">⊕ refine detail</button></div>
   <div class="brow" style="margin-top:7px"><span id="bMeta"></span></div>

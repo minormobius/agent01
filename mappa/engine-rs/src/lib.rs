@@ -110,7 +110,8 @@ fn classify(t: f64, m: f64, e_above: f64) -> u8 {
 
 #[derive(Serialize)]
 struct Meta { seed: u32, n: usize, plate_count: usize, ocean_fraction: f64,
-    water_frac: f64, sea_coverage: f64, axial_tilt: f64, axial_tilt_deg: i32, solar: f64, planet_radius: f64, age: i32, age_span: f64 }
+    water_frac: f64, sea_coverage: f64, axial_tilt: f64, axial_tilt_deg: i32, solar: f64, planet_radius: f64, age: i32, age_span: f64,
+    rotation_rate: f64, wind_cells: usize, coriolis_sign: i32, day_length_rel: f64 }
 
 #[derive(Serialize)]
 struct World {
@@ -137,7 +138,7 @@ struct World {
 struct Plate { center0: V3, center: V3, oceanic: bool, axis: V3, speed: f64, buoy: f64 }
 
 // the genome — any field can override the seed-derived value (sentinel < 0 = derive)
-struct Params { ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32 }
+struct Params { ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32, rotation_rate: f64 }
 
 fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
     let mut rng = Rng::new(seed);
@@ -490,7 +491,67 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
         }
     }
 
-    // climate
+    // 6. atmosphere: rotation → prevailing winds → advected & orographic moisture
+    // rotationRate Ω (Earth=1, signed: + prograde, − retrograde). Drawn here (after
+    // refine, before climate) so it stays orthogonal to tectonics/elevation.
+    let _rr_mag = 0.5 + rng.next()*1.4;
+    let _rr_sign = if rng.next() < 0.12 { -1.0 } else { 1.0 };
+    let rotation_rate = if p.rotation_rate.abs() < 1e-6 { _rr_mag*_rr_sign } else { p.rotation_rate };
+    let omega = if rotation_rate.abs() < 0.05 { if rotation_rate < 0.0 { -0.05 } else { 0.05 } } else { rotation_rate };
+    let a_omega = omega.abs();
+    let coriolis_sign: f64 = if omega < 0.0 { -1.0 } else { 1.0 };
+    let wind_cells = ((3.0*a_omega.sqrt()).round().max(1.0).min(6.0)) as usize;
+    let zonal_frac = (0.35 + 0.45*a_omega.sqrt()).clamp(0.30, 0.92);
+    let z_ax = [0.0, 0.0, 1.0];
+    let mut wind_v = vec![[0.0f64; 3]; n];
+    for i in 0..n {
+        let pp = vv[i]; let z = pp[2];
+        let mut e_e = cross(z_ax, pp);
+        let le = (e_e[0]*e_e[0]+e_e[1]*e_e[1]+e_e[2]*e_e[2]).sqrt();
+        if le < 1e-6 { e_e = [1.0,0.0,0.0]; } else { e_e = [e_e[0]/le, e_e[1]/le, e_e[2]/le]; }
+        let e_n = cross(pp, e_e);
+        let alat = (pp[2].clamp(-1.0,1.0).asin().abs()/(std::f64::consts::PI/2.0)).min(0.999);
+        let k = ((alat*wind_cells as f64).floor() as usize).min(wind_cells-1);
+        let equatorward = k % 2 == 0;
+        let zsign = coriolis_sign * if equatorward { -1.0 } else { 1.0 };
+        let vsign = (if equatorward { -1.0 } else { 1.0 }) * (if z >= 0.0 { 1.0 } else { -1.0 });
+        let u = zsign*zonal_frac; let v = vsign*(1.0-zonal_frac);
+        wind_v[i] = [e_e[0]*u+e_n[0]*v, e_e[1]*u+e_n[1]*v, e_e[2]*u+e_n[2]*v];
+    }
+    // upwind neighbour (the cell the wind blows FROM)
+    let mut upwind = vec![-1i32; n];
+    for i in 0..n {
+        let w = wind_v[i]; let wl = (w[0]*w[0]+w[1]*w[1]+w[2]*w[2]).sqrt().max(1e-9);
+        let (wx, wy, wz) = (-w[0]/wl, -w[1]/wl, -w[2]/wl);
+        let mut bj = -1i32; let mut bd = 0.2;
+        for &jj in &adj_set[i] { let j = jj as usize;
+            let (dx,dy,dz) = (vv[j][0]-vv[i][0], vv[j][1]-vv[i][1], vv[j][2]-vv[i][2]);
+            let dl = (dx*dx+dy*dy+dz*dz).sqrt().max(1e-9);
+            let d = (dx*wx+dy*wy+dz*wz)/dl;
+            if d > bd { bd = d; bj = j as i32; }
+        }
+        upwind[i] = bj;
+    }
+    // advect ocean humidity downwind: decays over land, replenished over sea, rains
+    // out on ascent → windward coasts wet, deep interiors & lee sides dry
+    let ocean: Vec<bool> = (0..n).map(|i| water[i]==1).collect();
+    let mut a_hum: Vec<f64> = (0..n).map(|i| if ocean[i] {1.0} else {0.0}).collect();
+    for _ in 0..16 {
+        let mut an = a_hum.clone();
+        for i in 0..n {
+            if ocean[i] { an[i] = 1.0; continue; }
+            let j = upwind[i]; if j < 0 { continue; }
+            let j = j as usize;
+            let climb = (elev[i]-elev[j]).max(0.0);
+            let val = a_hum[j]*(0.93 - (climb*3.0).min(0.5)) + if water[i]==2 {0.05} else {0.0};
+            if val > an[i] { an[i] = val; }
+        }
+        a_hum = an;
+    }
+    let mut oro = vec![0.0f64; n];
+    for i in 0..n { let j = upwind[i]; oro[i] = if j < 0 {0.0} else {((elev[i]-elev[j as usize])*4.0).clamp(-0.5,0.6)}; }
+
+    // climate: temperature + moisture(v2) + seasonality → biomes
     let mut dist_sea = vec![-1i32; n];
     let mut q: Vec<usize> = Vec::new();
     for i in 0..n { if water[i]==1 { dist_sea[i]=0; q.push(i); } }
@@ -511,10 +572,12 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
         if water[i]==0 { t -= elev[i].max(0.0)*42.0; }
         t += (fbm3(vv[i][0]*3.0+9.0, vv[i][1]*3.0, vv[i][2]*3.0, seed as i32+5)-0.5)*5.0;
         temperature[i] = t;
+        // moisture v2 = advected ocean air + soft isotropic coastal floor + circulation
+        // bands (rising branches wet, sinking subtropics/poles dry) + orographic relief
         let coast = (-(dist_sea[i] as f64/(3.0_f64).max(max_d as f64*0.5))).exp();
-        let band = 0.5 + 0.5*(la*3.0).cos();
-        let mm = (coast*0.6 + band*0.45 - elev[i].max(0.0)*0.25
-            + (fbm3(vv[i][0]*2.0-4.0, vv[i][1]*2.0, vv[i][2]*2.0, seed as i32+11)-0.5)*0.3).clamp(0.0, 1.0);
+        let band = 0.5 + 0.5*(wind_cells as f64*std::f64::consts::PI*alat.min(1.0)).cos();
+        let mm = (a_hum[i]*0.42 + coast*0.20 + band*0.36 + oro[i]*0.45 - elev[i].max(0.0)*0.12
+            + (fbm3(vv[i][0]*2.0-4.0, vv[i][1]*2.0, vv[i][2]*2.0, seed as i32+11)-0.5)*0.22).clamp(0.0, 1.0);
         moisture[i] = mm;
         let contl = if water[i]==1 { 0.0 } else { (dist_sea[i] as f64/(3.0_f64).max(max_d as f64*0.5)).min(1.0) };
         let seas = (axial_tilt/0.41) * (8.0 + 34.0*alat.powf(1.1)) * (0.55 + 0.75*contl);
@@ -572,6 +635,8 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
             axial_tilt_deg: (axial_tilt*180.0/std::f64::consts::PI).round() as i32,
             solar: (solar*1000.0).round()/1000.0,
             planet_radius: (planet_radius*1000.0).round()/1000.0, age, age_span: (age_span*1000.0).round()/1000.0,
+            rotation_rate: (rotation_rate*1000.0).round()/1000.0, wind_cells,
+            coriolis_sign: coriolis_sign as i32, day_length_rel: (1000.0/a_omega).round()/1000.0,
         },
         positions, cell_verts, cell_offsets, adj: adj_flat, adj_offsets,
         elev: elev_f, water, plate, plate_type,
@@ -582,8 +647,8 @@ fn build(seed: u32, target_n: usize, p: Params, refine: &[f64]) -> World {
 
 // ---- wasm API ---------------------------------------------------------------
 #[wasm_bindgen]
-pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32, refine: &[f64]) -> Result<JsValue, JsValue> {
-    let p = Params { ocean_fraction, axial_tilt, water_frac, plate_count, solar, planet_radius, age };
+pub fn generate_world(seed: u32, n: u32, ocean_fraction: f64, axial_tilt: f64, water_frac: f64, plate_count: i32, solar: f64, planet_radius: f64, age: i32, rotation_rate: f64, refine: &[f64]) -> Result<JsValue, JsValue> {
+    let p = Params { ocean_fraction, axial_tilt, water_frac, plate_count, solar, planet_radius, age, rotation_rate };
     let w = build(seed, (n as usize).clamp(500, 220000), p, refine);
     serde_wasm_bindgen::to_value(&w).map_err(|e| JsValue::from_str(&e.to_string()))
 }
@@ -596,4 +661,4 @@ pub fn triangulate_xy(coords: &[f64]) -> Vec<u32> {
 }
 
 #[wasm_bindgen]
-pub fn engine_version() -> u32 { 6 }
+pub fn engine_version() -> u32 { 7 }

@@ -91,6 +91,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <tr><td><code>oceanFraction</code></td><td>0.20 – 0.90</td><td>Fraction of plates that are <strong>oceanic crust</strong> (deep basins) vs continental. Shapes where the deep ocean basins are.</td></tr>
     <tr><td><code>waterFrac</code></td><td>0.02 – 0.40</td><td>The <strong>volume of water</strong> poured over the topography. Sea level is solved so the water settles into the basins — coverage is emergent, not imposed.</td></tr>
     <tr><td><code>axialTilt</code></td><td>0° – 45°</td><td>Obliquity → <strong>seasonality</strong>. Drives the depth of winter by latitude and continentality, which feeds the biome classifier (more tilt → bigger ice/taiga belts).</td></tr>
+    <tr><td><code>rotationRate</code></td><td>−2.5 – 2.5 ×Ω⊕</td><td>Planetary spin, <strong>signed</strong>. |Ω| sets how many atmospheric circulation cells fit per hemisphere (slow → 1–2 giant cells, Earth → 3, fast → up to 6 narrow jets) and how zonal the winds are; it also sets day length (1/|Ω|). The <strong>sign</strong> is the spin direction — negative is retrograde, which flips the Coriolis deflection and reverses every prevailing wind.</td></tr>
     <tr><td><code>solar</code></td><td>0.5 – 1.8 ×</td><td>Stellar luminosity. Shifts the whole temperature field → an <strong>ice world</strong> (dim) ↔ a <strong>desert world</strong> (bright).</td></tr>
   </table>
 </div></section>
@@ -105,7 +106,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <div class="s"><b>Elevation.</b> Continental cratons + accumulated orogeny + plate-type base + 3-D noise. Oceanic crust uses <em>seafloor-age bathymetry</em>: crust is born at the mid-ocean ridges and its age (a BFS hop-distance from the ridges over ocean cells) sets depth ∝ √age via half-space cooling — ridges run shallow, abyssal plains deep. Relief is scaled by gravity (from <code>planetRadius</code>) and compressed through an Earth-like hypsometry so most land is lowland and mountains are the exception.</div>
     <div class="s"><b>Sea level by volume.</b> A fixed volume of water is poured over the real topography and settles — solving <code>Σ areaᵢ · max(0, h − elevᵢ) = V</code> for the level <code>h</code>, weighted by true spherical cell area. Deep basins hold water at depth, so continents stay dry instead of flooding to a quota.</div>
     <div class="s"><b>Hydraulic erosion.</b> Drainage-area valley carving + hillslope diffusion over several iterations. Produces dendritic drainage networks (the “texture”), sharp continental divides (rivers sit in carved valleys and never cross ridges), and eroded coastlines.</div>
-    <div class="s"><b>Climate.</b> Temperature from latitude + altitude lapse + solar luminosity; moisture from coastline proximity and latitude rainfall bands; seasonality from axial tilt × latitude × continentality.</div>
+    <div class="s"><b>Winds &amp; climate.</b> Rotation sets the prevailing surface winds via a banded circulation model — trade easterlies, westerlies and polar easterlies, with the cell count and zonality driven by <code>rotationRate</code> and the deflection sign by its sign (retrograde reverses them). Temperature comes from latitude + altitude lapse + solar. Moisture is then <em>advected</em>: ocean humidity is carried downwind and rains out, so windward coasts are wet and lee sides / deep interiors fall into <strong>rain shadow</strong>; this is layered over the circulation's wet (rising) and dry (sinking, subtropical) bands. Seasonality from axial tilt × latitude × continentality.</div>
     <div class="s"><b>Biomes.</b> A Whittaker classification (temperature × a growing-season-limited moisture) → tundra, taiga, steppe, temperate & tropical forests, savanna, hot & cold deserts, ice, alpine, snow.</div>
     <div class="s"><b>Rivers &amp; lakes.</b> Priority-flood depression filling + downhill flow accumulation on the mesh graph; channels above a flow threshold become rivers, filled basins become lakes.</div>
   </div>
@@ -119,6 +120,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <li><strong>Civ</strong> — the sovereignty map: one flat sea, land coloured by <strong>country</strong> within each civilization's hue family, with country and civilization borders, roads, and cities.</li>
     <li><strong>Tectonic</strong> — plates coloured by type, boundaries coloured by kind (convergent / divergent / transform), and <strong>drift trails</strong> showing how far and which way each plate has moved (dot = origin, ▸ = now).</li>
   </ul>
+  <p>Two overlays toggle on top of Orb and Mercator: <strong>⛰ relief</strong> swaps biome colouring for hypsometric tints (sea shaded by depth, land green→tan→brown→snow) and pins the highest peak ▲ and deepest trough ▼ with seed-derived names; <strong>wind</strong> draws the prevailing surface winds as an arrow field.</p>
   <h3>The atlas projection</h3>
   <p>The mino.mobi sites are not part of the engine — they are projected onto whatever world was generated. Land is scored for <strong>habitability</strong> (biome + elevation); spherical k-means partitions the habitable land into nine <strong>civilizations</strong> (the theme-wings), each matched to a region; every civilization is then subdivided into sovereign <strong>countries</strong> by clustering its cities (most hold one city, the largest two or three); cities place by habitability + spacing + founding age; and a road network is the least-cost path from each country's capital over land.</p>
 </div></section>
@@ -138,6 +140,7 @@ footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
     <tr><td><code>ocean</code></td><td>—</td><td>Oceanic-crust % (20–90).</td></tr>
     <tr><td><code>water</code></td><td>—</td><td>Water-volume % (2–40).</td></tr>
     <tr><td><code>tilt</code></td><td>—</td><td>Axial tilt in degrees (0–45).</td></tr>
+    <tr><td><code>rotation</code></td><td>—</td><td>Planetary spin, signed (−2.5–2.5 ×Ω⊕; negative = retrograde).</td></tr>
     <tr><td><code>solar</code></td><td>—</td><td>Stellar luminosity (0.5–1.8).</td></tr>
   </table>
   <h3>Response</h3>

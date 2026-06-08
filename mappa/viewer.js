@@ -10,7 +10,7 @@ import { SITES, WINGS } from './sites.js';
 // Rust/WASM engine. v2 = the FULL generate_world (used as the canonical engine,
 // higher resolution). v1 = triangulation only. Absent = pure-JS fallback.
 let rustMod=null, rustGen=false;
-async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=6');await m.default('./pkg/mappa_engine_bg.wasm?v=6');const v=(m.engine_version?m.engine_version():0);
+async function initEngine(){try{const m=await import('./pkg/mappa_engine.js?v=7');await m.default('./pkg/mappa_engine_bg.wasm?v=7');const v=(m.engine_version?m.engine_version():0);
   if(v>=2){rustMod=m;rustGen=true;setTriangulator(xy=>m.triangulate_xy(xy))}
   else if(v>=1){setTriangulator(xy=>m.triangulate_xy(xy))}
 }catch(e){rustGen=false}}
@@ -27,15 +27,15 @@ function unpackRust(o){const N=o.n,pos=o.positions;
   const pp=o.plates_out,plates=[];for(let k=0;k+7<pp.length;k+=8)plates.push({center:[pp[k],pp[k+1],pp[k+2]],axis:[pp[k+3],pp[k+4],pp[k+5]],speed:pp[k+6],oceanic:pp[k+7]});
   const m=o.meta;
   return {N,V,cells,adj,elev:o.elev,water:o.water,plate:o.plate,plateType:o.plate_type,temperature:o.temperature,moisture:o.moisture,seasonality:o.seasonality,biome:o.biome,rivers,bounds,plates,
-    meta:{seed:m.seed,N:m.n,plateCount:m.plate_count,oceanFraction:m.ocean_fraction,waterFrac:m.water_frac,seaCoverage:m.sea_coverage,axialTilt:m.axial_tilt,axialTiltDeg:m.axial_tilt_deg,solar:m.solar,planetRadius:m.planet_radius,age:m.age,ageSpan:m.age_span}};
+    meta:{seed:m.seed,N:m.n,plateCount:m.plate_count,oceanFraction:m.ocean_fraction,waterFrac:m.water_frac,seaCoverage:m.sea_coverage,axialTilt:m.axial_tilt,axialTiltDeg:m.axial_tilt_deg,solar:m.solar,planetRadius:m.planet_radius,age:m.age,ageSpan:m.age_span,rotationRate:m.rotation_rate,windCells:m.wind_cells,coriolisSign:m.coriolis_sign,dayLengthRel:m.day_length_rel}};
 }
 
 const cv=document.getElementById('map'), ctx=cv.getContext('2d');
 const tip=document.getElementById('tip'), legendEl=document.getElementById('legend'), tkey=document.getElementById('tkey'), statusEl=document.getElementById('status');
 let DPR=Math.min(2,devicePixelRatio||1), W=0,H=0, seed=(Math.random()*1e9)|0;
-let world=null, atlas=null, mode='orb', atlasOn=true, topo=false;
+let world=null, atlas=null, mode='orb', atlasOn=true, topo=false, winds=false;
 let landMaxE=1, deepMaxE=1, peakI=-1, troughI=-1, peakName='', troughName='';
-const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null}; // null = derive from seed
+const genome={oceanFraction:null,axialTilt:null,waterFrac:null,plateCount:null,solar:null,planetRadius:null,age:null,rotationRate:null}; // null = derive from seed
 const pinned=new Set();
 let orbR=320,spin=true,spinRAF=0,R=[[1,0,0],[0,1,0],[0,0,1]]; // orb orientation matrix (free trackball)
 let driftT=0.5; // tectonic drift interval (how far back the plate trails reach)
@@ -61,9 +61,9 @@ function projV(v){ // unit vector → screen {x,y}, mode-aware, null if not visi
   if(mode==='orb'){const q=orbV(v);if(q[2]<=0.035)return null;return{x:W/2+orbR*q[0],y:H/2-orbR*q[1]}}
   const m=mxy(v),x=mview.x+mview.s*(ox+m[0]*S),y=mview.y+mview.s*(oy+m[1]*S);if(x<-60||x>W+60||y<-40||y>H+40)return null;return{x,y}}
 
-function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined})}
+function genJS(g){return generateWorld(seed,{N:rustGen?9000:GEN_N(),oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined})}
 function build(){const g=genome;let w=null;
-  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,EMPTY))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
+  if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,GEN_N(),g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,EMPTY))}catch(e){console.warn('mappa: Rust engine failed, JS fallback',e);w=null}}
   world=w||genJS(g);driftT=(world.meta&&world.meta.ageSpan)||0.5;
   atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5)); // start tilted so the poles show
   MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw()}
@@ -83,8 +83,8 @@ function refineDetail(){if(!world)return;const cp=featurePointsOf(world);if(!cp.
   // the new budget right on the feature borders.
   const RN=Math.min(60000,Math.max(GEN_N(),world.N||0));
   setTimeout(()=>{const g=genome;let w=null;
-    if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,RN,g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
-    if(!w)w=generateWorld(seed,{N:RN,oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,refinePoints:cp,refinePer:6});
+    if(rustGen){try{w=unpackRust(rustMod.generate_world(seed>>>0,RN,g.oceanFraction??-1,g.axialTilt??-1,g.waterFrac??-1,g.plateCount??0,g.solar??1.0,g.planetRadius??-1,g.age??0,g.rotationRate??0,cp))}catch(e){console.warn('refine failed',e);w=null}}
+    if(!w)w=generateWorld(seed,{N:RN,oceanFraction:g.oceanFraction??undefined,axialTilt:g.axialTilt??undefined,waterFrac:g.waterFrac??undefined,plateCount:g.plateCount??undefined,solar:g.solar??1.0,planetRadius:g.planetRadius??undefined,age:g.age??undefined,rotationRate:g.rotationRate??undefined,refinePoints:cp,refinePer:6});
     world=w;driftT=(world.meta&&world.meta.ageSpan)||0.5;atlas=projectAtlas(world,WINGS,SITES);R=mMul(RZ(world.meta.axialTilt),RX(0.5));
     MH=Math.round(MW*YMAX/Math.PI);precomputeGeom();recolor();fit();buildLegend();syncSliders();draw();
     if(statusEl)statusEl.style.opacity=0;},20)}
@@ -169,6 +169,7 @@ function draw(){if(mode==='orb'){drawOrb();return}
     ctx.restore();}
   ctx.restore();
   if(mode==='tectonic')drawDrift();
+  drawWinds();
   renderAtlasOverlay();
   drawLandmarks();
 }
@@ -184,6 +185,34 @@ function drawLandmarks(){if(!topo||peakI<0||(mode!=='orb'&&mode!=='map'))return;
       ctx.font='600 11px ui-serif,Georgia,serif';ctx.textAlign='left';const tw=ctx.measureText(txt).width,lx=p.x+r+4;
       ctx.fillStyle='rgba(8,6,3,.74)';ctx.fillRect(lx-3,p.y-8,tw+6,16);
       ctx.fillStyle=up?'#fff5e0':'#d6efff';ctx.fillText(txt,lx,p.y+0.5)}}}
+// prevailing surface wind at a unit point, recomputed from the genome (banded model)
+const _crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const _nrm=v=>{const l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]};
+function windAt(p){const z=p[2],m=world.meta;
+  let eE=_crs([0,0,1],p);const le=Math.hypot(eE[0],eE[1],eE[2]);eE=le<1e-6?[1,0,0]:[eE[0]/le,eE[1]/le,eE[2]/le];
+  const eN=_crs(p,eE);
+  const aO=Math.abs(m.rotationRate??1),zf=Math.max(0.3,Math.min(0.92,0.35+0.45*Math.sqrt(aO)));
+  const nc=m.windCells||3,cs=m.coriolisSign||1;
+  const alat=Math.min(0.999,Math.abs(Math.asin(Math.max(-1,Math.min(1,z))))/(Math.PI/2));
+  const k=Math.min(nc-1,Math.floor(alat*nc)),eq=(k%2===0);
+  const zsign=cs*(eq?-1:1),vsign=(eq?-1:1)*(z>=0?1:-1),u=zsign*zf,v=vsign*(1-zf);
+  return[eE[0]*u+eN[0]*v,eE[1]*u+eN[1]*v,eE[2]*u+eN[2]*v]}
+function arrow(x,y,x2,y2){const dx=x2-x,dy=y2-y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,h=3.4;
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);
+  ctx.lineTo(x2-ux*h-uy*h*0.6,y2-uy*h+ux*h*0.6);ctx.moveTo(x2,y2);ctx.lineTo(x2-ux*h+uy*h*0.6,y2-uy*h-ux*h*0.6);ctx.stroke()}
+function drawWinds(){if(!winds||!world)return;ctx.lineWidth=1;ctx.lineCap='round';ctx.strokeStyle='rgba(190,216,240,.5)';
+  const eps=0.05,LATS=16,LONS=34;
+  for(let a=1;a<LATS;a++){const la=-Math.PI/2+a/LATS*Math.PI;
+    for(let o=0;o<LONS;o++){const lo=(o+(a%2)*0.5)/LONS*2*Math.PI;
+      const p=[Math.cos(la)*Math.cos(lo),Math.cos(la)*Math.sin(lo),Math.sin(la)];
+      const w=windAt(p),wl=Math.hypot(w[0],w[1],w[2])||1;
+      const p2=_nrm([p[0]+w[0]/wl*eps,p[1]+w[1]/wl*eps,p[2]+w[2]/wl*eps]);
+      if(mode==='orb'){const q=orbV(p);if(q[2]<=0.05)continue;const q2=orbV(p2);
+        arrow(W/2+orbR*q[0],H/2-orbR*q[1],W/2+orbR*q2[0],H/2-orbR*q2[1])}
+      else{const b=projVm(p),t=projVm(p2),stepX=mview.s*S*MW;if(b.y<-20||b.y>H+20)continue;
+        if(Math.abs(t.x-b.x)>stepX*0.5)continue;
+        const kLo=Math.ceil((-30-b.x)/stepX),kHi=Math.floor((W+30-b.x)/stepX);
+        for(let k=kLo;k<=kHi;k++)arrow(b.x+k*stepX,b.y,t.x+k*stepX,t.y)}}}}
 // rotate unit vector v about unit axis a by angle phi (Rodrigues) — plate Euler motion
 function rotAxis(v,a,phi){const c=Math.cos(phi),s=Math.sin(phi),d=a[0]*v[0]+a[1]*v[1]+a[2]*v[2];
   return[v[0]*c+(a[1]*v[2]-a[2]*v[1])*s+a[0]*d*(1-c),v[1]*c+(a[2]*v[0]-a[0]*v[2])*s+a[1]*d*(1-c),v[2]*c+(a[0]*v[1]-a[1]*v[0])*s+a[2]*d*(1-c)]}
@@ -211,6 +240,7 @@ function drawOrb(){ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);ctx.
   drawGraticule(cx,cy,R);
   const g=ctx.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R);g.addColorStop(0,'rgba(255,250,235,.10)');g.addColorStop(.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.45)');
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
+  drawWinds();
   renderAtlasOverlay();
   drawLandmarks();
 }
@@ -290,6 +320,7 @@ document.querySelectorAll('.modes button').forEach(b=>b.onclick=()=>{mode=b.data
   tkey.classList.toggle('show',mode==='tectonic');tip.style.opacity=0;hot=selected=null;recolor();if(mode==='orb'){spin=true;if(!spinRAF)spinRAF=requestAnimationFrame(orbSpin)}else spin=false;buildLegend();draw()});
 document.getElementById('atlas').onclick=e=>{atlasOn=!atlasOn;e.target.classList.toggle('on',atlasOn);recolor();buildLegend();draw()};
 document.getElementById('topo').onclick=e=>{topo=!topo;e.target.classList.toggle('on',topo);recolor();buildLegend();draw()};
+document.getElementById('winds').onclick=e=>{winds=!winds;e.target.classList.toggle('on',winds);draw()};
 function regen(){if(statusEl){statusEl.textContent='forging world…';statusEl.style.opacity=1}setTimeout(()=>{build();if(statusEl)statusEl.style.opacity=0},20)}
 document.getElementById('reseed').onclick=()=>{seed=(Math.random()*1e9)|0;regen()};
 document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();draw()});
@@ -316,12 +347,13 @@ const sliders=[
   ['plateCount',    $('sPlates'), $('vPlates'), v=>v+' plates',          v=>v|0,           m=>m.plateCount],
   ['planetRadius',  $('sRadius'), $('vRadius'), v=>v.toFixed(2)+'×R⊕',    v=>+v,            m=>(m.planetRadius??1)],
   ['age',           $('sAge'),    $('vAge'),    v=>v+' epochs',          v=>v|0,           m=>(m.age??4)],
+  ['rotationRate',  $('sRot'),    $('vRot'),    v=>(v<0?'↺ ':'↻ ')+Math.abs(v).toFixed(2)+'×Ω⊕', v=>+v, m=>(m.rotationRate??1)],
 ];
 function syncSliders(){const m=world.meta;
   for(const [p,sl,vl,fmt,,fromMeta] of sliders){const lab=sl.closest('label');
     if(!pinned.has(p)){const mv=fromMeta(m);sl.value=mv;vl.textContent=fmt(+mv);lab.classList.remove('pin')}
     else{lab.classList.add('pin')}}
-  $('bMeta').textContent='seed '+m.seed+' · '+(m.N/1000).toFixed(1)+'k · '+Math.round(m.seaCoverage*100)+'% sea';
+  $('bMeta').textContent='seed '+m.seed+' · '+(m.N/1000).toFixed(1)+'k · '+Math.round(m.seaCoverage*100)+'% sea · '+(m.windCells??3)+'-cell '+((m.coriolisSign??1)<0?'retro':'pro')+'grade';
 }
 let regenT=0;
 for(const [p,sl,vl,fmt,toG] of sliders){
