@@ -144,6 +144,14 @@ footer a:hover { color: var(--accent); }
         <div class="ctrl-row"><span class="ctrl-label" style="min-width:2.8em">beat</span><span id="tr-beat" style="width:11px;height:11px;border-radius:50%;background:var(--accent);opacity:0.18;display:inline-block;flex:0 0 auto"></span><input id="tr-sens" type="range" min="1.10" max="1.80" value="1.35" step="0.05"><span class="ctrl-val" id="tr-sens-val">1.35</span></div>
       </div>
       <div class="ctrl-group">
+        <span class="ctrl-label">sonify — pull an 8-bit track from the traffic</span>
+        <div class="btn-row">
+          <button class="btn" id="tr-sonify">♫ sonify the grid</button>
+          <button class="btn" id="tr-son-dl">⬇ .json → /music</button>
+        </div>
+        <span class="ctrl-label" id="tr-son-status" style="opacity:0.72;font-weight:400;text-transform:none;letter-spacing:0;white-space:normal"></span>
+      </div>
+      <div class="ctrl-group">
         <span class="ctrl-label">mean velocity vs time</span>
         <canvas id="tr-vel" width="250" height="70" style="image-rendering:auto"></canvas>
       </div>
@@ -256,6 +264,7 @@ self-organization: the whole vocabulary of statistical mechanics, acted out by t
 <script type="module">
 import { AudioField } from '../packages/audio-react/audio.js';
 import { renderComposition, loadBundledIndex, loadBundledComposition } from '../packages/music/render.js';
+import { stateToComposition } from '../packages/music/sonify.js';
 // ═════════════════════════════════════════════════════════════════════
 // Tabs
 // ═════════════════════════════════════════════════════════════════════
@@ -290,8 +299,15 @@ function cycle(g, L){ const e=stepEast(g, L); const s=stepSouth(e.g, L);
 // ═════════════════════════════════════════════════════════════════════
 // simulate tab
 // ═════════════════════════════════════════════════════════════════════
-const bml = { L:120, density:0.30, redRatio:0.5, grid:null, step:0, running:false, raf:null, ups:12, lastT:0, vel:0, velHist:[],
-  music:{ on:false, af:null, src:'none', feat:{loudness:0,bass:0,mid:0,treble:0,beat:false}, pendingBeat:false, flash:0, beats:0 } };
+const bml = { L:120, density:0.30, redRatio:0.5, grid:null, step:0, running:false, raf:null, ups:12, lastT:0, vel:0, velHist:[], sonLog:[],
+  music:{ on:false, af:null, src:'none', feat:{loudness:0,bass:0,mid:0,treble:0,beat:false}, pendingBeat:false, flash:0, beats:0, lastComp:null } };
+const SON_STEPS = 64;
+// log one step of game state for the sonifier: flow (order param), congestion (= 1-flow, the
+// blocked fraction in BML), and a swept grid column read as a piano-roll (car rows → pitches).
+function logSon(g){ const L=bml.L, x=bml.step % L, red=[], blue=[];
+  for(let y=0;y<L;y++){ const v=g[y*L+x]; if(v===1) red.push(y/L); else if(v===2) blue.push(y/L); }
+  bml.sonLog.push({ flow: bml.vel, agitation: 1-bml.vel, density: bml.density, red, blue });
+  if(bml.sonLog.length>SON_STEPS) bml.sonLog.shift(); }
 const tc = document.getElementById('tr-canvas'), tcx = tc.getContext('2d');
 // ── music choreography: loudness→move-probability, bass→east surge, treble→south, beat→lurch ──
 function musicStep(){ const f=bml.music.feat, L=bml.L;
@@ -303,7 +319,7 @@ function musicStep(){ const f=bml.music.feat, L=bml.L;
   if(extraEast){ g=stepEast(g, L, 1).g; }                                            // the green-wave surge
   const s=stepSouth(g, L, ps); g=s.g; bml.grid=g;
   const cars=e.cars+s.cars; bml.vel = cars ? (e.moved+s.moved)/cars : 1; bml.step++;
-  bml.velHist.push(bml.vel); if(bml.velHist.length>240) bml.velHist.shift(); }
+  bml.velHist.push(bml.vel); if(bml.velHist.length>240) bml.velHist.shift(); logSon(bml.grid); }
 function bmlRandomize(){ bml.grid=makeGrid(bml.L, bml.density, bml.redRatio); bml.step=0; bml.vel=0; bml.velHist=[]; }
 function drawGrid(){ const L=bml.L, W=tc.width; if(tc.width!==L){ tc.width=L; tc.height=L; }
   const img=tcx.createImageData(L,L), d=img.data, g=bml.grid;
@@ -336,7 +352,7 @@ function updateStats(){ const n=bml.L*bml.L, cars=bml.grid?bml.grid.reduce((a,b)
     <div class="stat-row"><span class="k">loudness · beats</span><span class="v">${bml.music.feat.loudness.toFixed(2)} · ${bml.music.beats}</span></div>` : ''}`;
 }
 function simStep(){ const r=cycle(bml.grid, bml.L); bml.grid=r.g; bml.vel=r.vel; bml.step++;
-  bml.velHist.push(r.vel); if(bml.velHist.length>240) bml.velHist.shift(); }
+  bml.velHist.push(r.vel); if(bml.velHist.length>240) bml.velHist.shift(); logSon(bml.grid); }
 function simLoop(ts){ if(!bml.running||activePane()!=='simulate') return; if(ts==null)ts=performance.now();
   const m=bml.music;
   if(m.on && m.af){ const f=m.af.read(ts); m.feat=f; if(f.beat){ m.pendingBeat=true; m.flash=1; m.beats++; }
@@ -381,6 +397,24 @@ async function playComposition(id){ const sel=document.getElementById('tr-trackp
   finally{ if(sel.options[sel.selectedIndex] && prev) sel.options[sel.selectedIndex].textContent=prev; } }
 document.getElementById('tr-trackpick').addEventListener('change',e=>{ const id=e.target.value; if(id) playComposition(id); });
 ensureCompList();
+// ── sonify: game state → composition → synth (the reverse of audio-react) ──
+async function sonifyGrid(){ const status=document.getElementById('tr-son-status'), log=bml.sonLog;
+  if(log.length<16){ if(!bml.running) simSetRun(true); if(status) status.textContent='warming up — let it run a moment, then hit sonify again.'; return; }
+  if(status) status.textContent='rendering…';
+  const frames=log.map(f=>({ flow:f.flow, agitation:f.agitation, density:f.density,
+    voices:[ ...f.red.map(p=>({pos:p,species:0})), ...f.blue.map(p=>({pos:p,species:1})) ] }));
+  const comp=stateToComposition(frames, { name:'Traffic '+new Date().toTimeString().slice(0,8), steps:frames.length });
+  bml.music.lastComp=comp;
+  try{ const wav=await renderComposition(comp); await getAF().fromFile(wav); setMusicMode(true,'self ♫');
+    const sel=document.getElementById('tr-trackpick'); if(sel) sel.value='';
+    if(status) status.textContent=`▸ the grid now dances to its own soundtrack — ${comp.bpm} BPM, ${comp.tracks.length} voices, ${comp.description.includes('major')?'major':'minor'}. ⬇ to keep it.`;
+  }catch(err){ console.warn('sonify render failed',err); if(status) status.textContent='render failed: '+(err?.message||err); } }
+function downloadComp(){ const status=document.getElementById('tr-son-status'), c=bml.music.lastComp;
+  if(!c){ if(status) status.textContent='sonify first, then download.'; return; }
+  const blob=new Blob([JSON.stringify(c,null,2)],{type:'application/json'}), url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=(c.name||'traffic').replace(/[^\w.-]+/g,'_')+'.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); }
+document.getElementById('tr-sonify').addEventListener('click',sonifyGrid);
+document.getElementById('tr-son-dl').addEventListener('click',downloadComp);
 document.getElementById('tr-track').addEventListener('click',()=>document.getElementById('tr-file').click());
 document.getElementById('tr-file').addEventListener('change',e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return;
   getAF().fromFile(f).then(()=>setMusicMode(true,'track')).catch(err=>{ console.warn('audio load failed',err); alert('Could not load that audio file.'); }); });
