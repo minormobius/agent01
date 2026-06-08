@@ -52,6 +52,9 @@ const ORE=[
   {id:'uranium',label:'uranium',        col:'#aacb3e'}, // sandstone roll-front below granite highlands
   {id:'ree',   label:'rare earths',     col:'#c14fb8'}, // hotspot-on-craton carbonatite + weathered granite
   {id:'phosphate',label:'phosphate',    col:'#cbb98a'}, // upwelling-shelf phosphorite (wind lever)
+  {id:'nicobalt',label:'nickel & cobalt',col:'#5b63c4'}, // tropical Ni-Co laterite over ophiolite belts
+  {id:'chromium',label:'chromium',      col:'#2faa6a'}, // podiform chromite in obducted ophiolite (sutures)
+  {id:'zinclead',label:'zinc & lead',   col:'#7d8088'}, // VMS at submarine arc/back-arc volcanism
 ];
 // fossil dig-site categories — what the strata record, read from the cell's
 // PALEO-latitude (where the land sat when the beds were laid down). index → label,
@@ -233,8 +236,14 @@ function computeMinerals(){minerals=[];if(!world||!world.volc)return;const N=wor
         const mona=(coastOf(i)&&world.elev[i]<0.2&&craNbr(i)>0.3)?(0.3+craNbr(i)*0.3):0;return Math.max(carb,mona*0.85)},                  //   + monazite in coastal mineral sands
     i=>{if(world.water[i]!==1||world.elev[i]<-0.28)return 0;                                                                              // phosphate: upwelling shelf —
         const la=latOf(i);if(la>0.62)return 0;return (1-Math.abs(la-0.3)/0.45)*(0.45+upwell(i)*1.1)},                                      //   subtropical eastern-boundary upwelling
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i],T=world.temperature[i],M=world.moisture[i];                                  // nickel & cobalt: laterite —
+        return (T>19&&M>0.5&&e>0&&e<0.55&&cra(i)<0.32)?Math.min(1,(T-19)/12)*Math.min(1,(M-0.5)*2.5)*(1-cra(i)/0.32)*(0.5+Math.min(0.5,slopeOf(i)*5)):0}, // tropical weathering over ophiolite belts
+    i=>{if(world.water[i]!==0)return 0;const e=world.elev[i];                                                                             // chromium: ophiolite chromite —
+        return (cra(i)<0.13&&e>0.08)?(1-cra(i)/0.13)*Math.min(1,e/0.5)*(0.6+0.4*arcNbr(i)):0},                                            //   obducted mantle at the suture, uplifted
+    i=>{const e=world.elev[i],a=arcNbr(i);if(a<0.18)return 0;                                                                             // zinc & lead: VMS —
+        if(world.water[i]===1)return e>-0.3?a*0.9:0;if(world.water[i]===0)return e<0.25?a*(1-e/0.25):0;return 0},                         //   submarine flank of a volcanic arc
   ];
-  const K=[8,7,6,5,4,6,6,7,6,5,5,5,4,6]; // deposits per commodity
+  const K=[8,7,6,5,4,6,6,7,6,5,5,5,4,6,5,4,6]; // deposits per commodity
   for(let c=0;c<ORE.length;c++){const sc=SCORE[c];let mx=1e-6;const raw=new Float32Array(N);
     for(let i=0;i<N;i++){const v=sc(i);raw[i]=v;if(v>mx)mx=v}
     const cand=[];for(let i=0;i<N;i++)if(raw[i]>0.45*mx)cand.push(i);cand.sort((a,b)=>raw[b]-raw[a]);
