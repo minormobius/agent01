@@ -1,0 +1,56 @@
+name: Bootstrap Tangled Key (morphyx)
+
+# manual re-run marker: 2026-06-09a
+#
+# Mints a NEW tangled deploy keypair OWNED BY MORPHYX and stores the private
+# half as the secret TANGLED_SSH_KEY_MORPHYX (a separate name, so the existing
+# TANGLED_SSH_KEY — bound to the suspended minomobi identity, still used by the
+# aamaa/ai-edu mirror — is left untouched). The public half is printed to this
+# run's log to paste into the morphyx account's tangled Settings → Keys.
+#
+# Why a new key: a tangled deploy key resolves to the identity it was minted
+# under. The old key is minomobi's (now suspended) → "user not allowed" on
+# morphyx repos. A fresh key has no prior binding, so the knot maps it to
+# morphyx cleanly.
+#
+# Reuses the EXISTING SECRETS_PAT (fine-grained PAT, this repo, Secrets:write)
+# if it's still set — no need to create a new one. If it was revoked, this run
+# fails with instructions to add one (a one-time, mobile-doable step).
+#
+# Push-triggered on the working branch (workflow_dispatch isn't available until
+# a workflow reaches the default branch). Editing this file / bumping the marker
+# above re-runs it.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'claude/merge-features-update-endpoints-*'
+    paths:
+      - '.github/workflows/bootstrap-tangled-key-morphyx.yml'
+
+jobs:
+  keygen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate morphyx key, store private half as a secret, print public half
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_PAT }}
+        run: |
+          echo "SECRETS_PAT visible to this run: length=${#GH_TOKEN} (0 means not set / revoked)"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SECRETS_PAT is not set. Add a fine-grained PAT scoped to THIS repo with"
+            echo "  permission 'Secrets: write' (nothing else) as the repository secret SECRETS_PAT,"
+            echo "  then re-run (bump the marker at the top of this file). You may revoke it after."
+            exit 1
+          fi
+          tmp="$(mktemp -u)"
+          ssh-keygen -t ed25519 -N "" -C "tangled-deploy@morphyx" -f "$tmp" -q
+          # gh encrypts + uploads; the private key only ever passes over stdin.
+          gh secret set TANGLED_SSH_KEY_MORPHYX -R "$GITHUB_REPOSITORY" < "$tmp"
+          echo "::notice::TANGLED_SSH_KEY_MORPHYX secret set on $GITHUB_REPOSITORY."
+          echo ""
+          echo "──────── MORPHYX PUBLIC KEY — paste into tangled (morphyx) → Settings → Keys ────────"
+          cat "$tmp.pub"
+          echo "─────────────────────────────────────────────────────────────────────────────────────"
+          rm -f "$tmp" "$tmp.pub"
