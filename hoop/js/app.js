@@ -24,6 +24,9 @@ const fmtTime = (iso) => {
 
 const CREW_KEY = 'hoop:crew:v1';
 const PERSONA_KEY = 'hoop:persona:v1';
+// Service account that authors the canonical design map (seeded via seed-hoop.yml).
+// Always merged into the crew so the seeded ship + engines show up on read.
+const DEFAULT_CREW = ['modulo.minomobi.com'];
 
 const App = {
   auth: new AuthClient(),
@@ -58,7 +61,9 @@ const App = {
   },
 
   getCrew() {
-    try { return JSON.parse(localStorage.getItem(CREW_KEY) || '[]'); } catch { return []; }
+    let stored = [];
+    try { stored = JSON.parse(localStorage.getItem(CREW_KEY) || '[]'); } catch {}
+    return [...new Set([...DEFAULT_CREW, ...stored])];
   },
   setCrew(list) { localStorage.setItem(CREW_KEY, JSON.stringify(list)); },
 

@@ -1,0 +1,40 @@
+name: Seed Hoop design map (atproto)
+
+# Writes the canonical "infinite game" design map (the ship + its engines) to a
+# service account's PDS as com.minomobi.hoop.place + .message records, so mino
+# and hoopy read a shared scaffold for the request-for-product. Manual only —
+# seeding writes to a real repo, so it never fires on push. Idempotent
+# (deterministic rkeys → putRecord overwrites, no duplicates).
+on:
+  workflow_dispatch:
+    inputs:
+      author:
+        description: 'Which service account authors the canonical records'
+        type: choice
+        default: modulo
+        options: [modulo, morphyx, main]
+      dry:
+        description: 'Dry run (build + print records, no write)'
+        type: boolean
+        default: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Seed design map
+        env:
+          # Select the account's app-password secrets from the dispatch input.
+          HOOP_HANDLE: >-
+            ${{ inputs.author == 'morphyx' && secrets.BLUESKY_MORPHYX_HANDLE
+              || inputs.author == 'main' && secrets.BLUESKY_HANDLE
+              || secrets.BLUESKY_MODULO_HANDLE }}
+          HOOP_PASSWORD: >-
+            ${{ inputs.author == 'morphyx' && secrets.BLUESKY_MORPHYX_APP_PASSWORD
+              || inputs.author == 'main' && secrets.BLUESKY_APP_PASSWORD
+              || secrets.BLUESKY_MODULO_APP_PASSWORD }}
+        run: node scripts/seed-hoop.mjs ${{ inputs.dry && '--dry' || '' }}
