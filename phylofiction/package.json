@@ -1,0 +1,10 @@
+{
+  "name": "phylofiction",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A seeded, deterministic generator for fictional trees of life. Alien but plausible.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
