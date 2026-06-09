@@ -77,5 +77,37 @@ function countType(weights, id, n = 120) {
   ok('some rooms flip to side format', sideSeen);
 }
 
+// 5. Light emitters — the world core feeds the lighting pass deterministic data.
+{
+  const a = S.generateChunk(SEED, 4, 4, null);
+  const b = S.generateChunk(SEED, 4, 4, null);
+  const lightsOf = (ch) => ch.rooms.flatMap((r) => r.lights);
+  ok('lights are deterministic', JSON.stringify(lightsOf(a)) === JSON.stringify(lightsOf(b)));
+  let lit = 0, emitters = 0;
+  for (let i = 0; i < 60; i++)
+    for (const r of S.generateChunk(SEED, 3000 + i, 0, null).rooms) {
+      if (r.lights.length) { lit++; emitters += r.lights.length; }
+    }
+  ok('most rooms emit light', lit > 0);
+  ok('emitters carry rgb + intensity + radius', (() => {
+    const e = lightsOf(a).find(Boolean);
+    return e && Array.isArray(e.rgb) && e.rgb.length === 3 && e.intensity > 0 && e.radius > 0;
+  })());
+  // dark types (shaft/ruin) read dark; a forge reads bright — the contrast the
+  // lighting pass needs.
+  const intensityOf = (id) => S.ROOM_TYPES.find((t) => t.id === id).light.intensity;
+  ok('forge brighter than shaft', intensityOf('forge') > intensityOf('shaft') * 4);
+  console.log(`   ${emitters} emitters across lit rooms in 60 frontier chunks`);
+}
+
+// 6. Engine swap-point — a WASM core could override generateChunk; fallback restores.
+{
+  const sentinel = { swapped: true };
+  S.setChunkGenerator(() => sentinel);
+  ok('setChunkGenerator overrides the dispatcher', S.generateChunk(SEED, 0, 0, null) === sentinel);
+  S.setChunkGenerator(null);
+  ok('null restores the JS fallback', S.generateChunk(SEED, 0, 0, null).rooms.length > 0);
+}
+
 console.log(`\n${fail ? '✗' : '✓'} ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

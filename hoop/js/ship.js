@@ -38,19 +38,23 @@
   const FORMAT = { TOP: 'top', SIDE: 'side' };
 
   // ── room palette ──────────────────────────────────────────────────────────
-  // grav: relative weights over regimes for rooms of this type, BEFORE the sector
-  // field tilts them. side: chance this room flips to an edge-on format.
+  // grav:  relative weights over regimes for rooms of this type, BEFORE the
+  //        sector field tilts them.
+  // side:  chance this room flips to an edge-on format.
+  // light: the room's emission — { rgb, intensity, flicker } — consumed by the
+  //        lighting pass (the deterministic world core only PLACES emitters; a
+  //        ray-traced / radiance-cascade pass on top transports the light).
   const ROOM_TYPES = [
-    { id: 'garden',     glyph: '❀', accent: '#6fcf8e', grav: { normal: 5, spin: 1 },           side: 0 },
-    { id: 'forge',      glyph: '⚒', accent: '#e0884a', grav: { normal: 3, mag: 3 },            side: 0 },
-    { id: 'archive',    glyph: '❍', accent: '#8fb0d8', grav: { normal: 4, mag: 1 },            side: 0 },
-    { id: 'shrine',     glyph: '☥', accent: '#d8b85a', grav: { normal: 3, spin: 2 },           side: 0 },
-    { id: 'nursery',    glyph: '✿', accent: '#e89ac0', grav: { normal: 5 },                    side: 0 },
-    { id: 'observatory',glyph: '✷', accent: '#9a8fe0', grav: { none: 4, spin: 2, normal: 1 },  side: 0.35 },
-    { id: 'reactor',    glyph: '☢', accent: '#e0d24a', grav: { mag: 4, spin: 1 },              side: 0 },
-    { id: 'commons',    glyph: '⌂', accent: '#cfd8d0', grav: { normal: 6 },                    side: 0 },
-    { id: 'ruin',       glyph: '☖', accent: '#8a8f86', grav: { none: 5, spin: 1 },             side: 0.5 },
-    { id: 'shaft',      glyph: '↕', accent: '#7fd8d0', grav: { none: 6 },                      side: 0.8 },
+    { id: 'garden',     glyph: '❀', accent: '#6fcf8e', grav: { normal: 5, spin: 1 },           side: 0,    light: { rgb: [120, 210, 140], intensity: 0.70, flicker: 0.05 } },
+    { id: 'forge',      glyph: '⚒', accent: '#e0884a', grav: { normal: 3, mag: 3 },            side: 0,    light: { rgb: [240, 140, 70],  intensity: 1.00, flicker: 0.40 } },
+    { id: 'archive',    glyph: '❍', accent: '#8fb0d8', grav: { normal: 4, mag: 1 },            side: 0,    light: { rgb: [150, 180, 220], intensity: 0.50, flicker: 0.00 } },
+    { id: 'shrine',     glyph: '☥', accent: '#d8b85a', grav: { normal: 3, spin: 2 },           side: 0,    light: { rgb: [230, 200, 120], intensity: 0.60, flicker: 0.10 } },
+    { id: 'nursery',    glyph: '✿', accent: '#e89ac0', grav: { normal: 5 },                    side: 0,    light: { rgb: [240, 170, 200], intensity: 0.60, flicker: 0.05 } },
+    { id: 'observatory',glyph: '✷', accent: '#9a8fe0', grav: { none: 4, spin: 2, normal: 1 },  side: 0.35, light: { rgb: [150, 160, 230], intensity: 0.35, flicker: 0.00 } },
+    { id: 'reactor',    glyph: '☢', accent: '#e0d24a', grav: { mag: 4, spin: 1 },              side: 0,    light: { rgb: [230, 230, 90],  intensity: 1.20, flicker: 0.60 } },
+    { id: 'commons',    glyph: '⌂', accent: '#cfd8d0', grav: { normal: 6 },                    side: 0,    light: { rgb: [210, 215, 205], intensity: 0.55, flicker: 0.00 } },
+    { id: 'ruin',       glyph: '☖', accent: '#8a8f86', grav: { none: 5, spin: 1 },             side: 0.5,  light: { rgb: [120, 140, 130], intensity: 0.18, flicker: 0.20 } },
+    { id: 'shaft',      glyph: '↕', accent: '#7fd8d0', grav: { none: 6 },                      side: 0.8,  light: { rgb: [90, 200, 200],  intensity: 0.12, flicker: 0.00 } },
   ];
   const TYPE_INDEX = Object.fromEntries(ROOM_TYPES.map((t, i) => [t.id, i]));
 
@@ -149,11 +153,32 @@
     return GRAV.NORMAL;
   }
 
+  // Deterministic light emitters for a room — the input the lighting pass eats.
+  // Bigger rooms host more lamps; intensity jitters a touch so a row of forges
+  // doesn't read as one flat band. Positions are interior tiles (never on a wall).
+  function makeLights(type, rx, ry, w, h, rnd) {
+    const L = type.light;
+    if (!L || L.intensity <= 0) return [];
+    const n = 1 + (w * h > 40 ? 1 : 0) + (rnd() < 0.3 ? 1 : 0);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push({
+        x: rx + 1 + Math.floor(rnd() * Math.max(1, w - 2)),
+        y: ry + 1 + Math.floor(rnd() * Math.max(1, h - 2)),
+        rgb: L.rgb.slice(),
+        intensity: +(L.intensity * (0.8 + 0.4 * rnd())).toFixed(3),
+        flicker: L.flicker,
+        radius: 4 + Math.floor(rnd() * 5),
+      });
+    }
+    return out;
+  }
+
   // ── chunk generation ────────────────────────────────────────────────────────
   // Returns a fully-described, rasterised chunk. The corridor spine connects all
   // four seam ports through a central hub, so the infinite network is always
   // connected; rooms hang off the four quadrants, sized and typed by the genome.
-  function generateChunk(shipSeed, cx, cy, genomeWeights) {
+  function generateChunkJS(shipSeed, cx, cy, genomeWeights) {
     const genome = new ShipGenome(genomeWeights);
     const rnd = rngFor(shipSeed, 9, cx, cy);
     const tiles = new Uint8Array(CHUNK * CHUNK);
@@ -206,6 +231,7 @@
         type: type.id, glyph: type.glyph, accent: type.accent,
         x: rx, y: ry, w, h, gravity, format,
         cx: rx + (w >> 1), cy: ry + (h >> 1),
+        lights: makeLights(type, rx, ry, w, h, rnd),
       };
       rooms.push(room);
       return room;
@@ -216,6 +242,14 @@
     return { cx, cy, seed: shipSeed >>> 0, sector, ports, tiles, grav, rooms, format: FORMAT.TOP };
   }
 
+  // Engine swap-point (cf. mappa's setTriangulator): a Rust→WASM core can replace
+  // the JS generator behind this same interface — generateChunk dispatches to it,
+  // generateChunkJS stays as the always-available fallback. The contract: same
+  // (shipSeed, cx, cy, genomeWeights) ⇒ same chunk, on CPU, deterministic.
+  let _genImpl = generateChunkJS;
+  function setChunkGenerator(fn) { _genImpl = fn || generateChunkJS; }
+  function generateChunk() { return _genImpl.apply(null, arguments); }
+
   // The flagship everyone lands on: one canonical seed. Solo voyages pass their own.
   const FLAGSHIP_SEED = 0x10070ace;
   function voyageSeed(s) { return (s >>> 0) || FLAGSHIP_SEED; }
@@ -225,6 +259,7 @@
     FLAGSHIP_SEED, voyageSeed,
     mulberry32, hashInts, rngFor,
     ShipGenome, genomeFromLog,
-    edgePorts, sectorField, generateChunk,
+    edgePorts, sectorField,
+    generateChunk, generateChunkJS, setChunkGenerator,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
