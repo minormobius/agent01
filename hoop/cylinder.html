@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex" />
 <title>thinking about cylinders · hoop design tool</title>
 <style>
-  :root { --gold:#ffce78; --ink:#cfe; --bg:#05060a; --panel:#0c0f16; --line:#1d2430; --teal:#7fd8d0; }
+  :root { --gold:#ffce78; --ink:#cfe; --bg:#05060a; --panel:#0c0f16; --line:#1d2430; --teal:#7fd8d0; --ok:#7fe6a0; --bad:#ff7a6e; }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.5 ui-monospace, monospace; }
   header { padding: 10px 14px; border-bottom: 1px solid var(--line); }
@@ -18,68 +18,108 @@
   .card h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); font-weight: 600; }
   canvas { display: block; width: 100%; background: #030407; border-radius: 6px; }
   label.ctl { display: block; margin: 9px 0; }
-  label.ctl .lab { display: flex; justify-content: space-between; }
+  label.ctl .lab { display: flex; justify-content: space-between; gap: 8px; }
   label.ctl .lab b { color: var(--gold); font-weight: 600; }
   input[type=range] { width: 100%; accent-color: var(--gold); margin-top: 3px; }
+  select { width: 100%; background: #0a0e15; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 4px; font: inherit; margin-top: 3px; }
+  .two { display: flex; gap: 10px; } .two > * { flex: 1; }
   .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
   table.read { width: 100%; border-collapse: collapse; }
   table.read td { padding: 3px 4px; border-bottom: 1px solid #131922; vertical-align: top; }
   table.read td.k { color: #8aa; }
   table.read td.v { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
   table.read td.v b { color: var(--gold); }
-  .flag { color: var(--teal); }
-  .warn { color: #ff9a76; }
+  .flag { color: var(--teal); } .warn { color: #ff9a76; }
   .note { color: #8aa; font-size: 12px; margin: 8px 0 0; }
   .regime { font-size: 15px; }
-  .pillrow { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .pill { font-size:11px; padding:2px 7px; border-radius:10px; border:1px solid var(--line); }
+  .verdict { font-size: 16px; font-weight: 700; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; }
+  .verdict.ok { background: rgba(127,230,160,.12); color: var(--ok); border: 1px solid rgba(127,230,160,.4); }
+  .verdict.bad { background: rgba(255,122,110,.12); color: var(--bad); border: 1px solid rgba(255,122,110,.4); }
 </style>
 </head>
 <body>
 <header>
-  <b>◍ thinking about cylinders</b> &nbsp; <span class="sub">a design scratchpad for hoop — the O'Neill the ship is built on. honest physics; dial it and watch the consequences.</span>
+  <b>◍ thinking about cylinders</b> &nbsp; <span class="sub">a structural + radiative scratchpad for hoop. honest physics; dial it and watch the cylinder pass or tear.</span>
 </header>
 
 <div class="wrap">
-  <!-- controls + readouts -->
+  <!-- ░░ controls ░░ -->
   <div class="col">
     <div class="card">
       <h3>the cylinder</h3>
-      <label class="ctl"><span class="lab">radius <i>R</i> — axis to hull <b id="vR"></b></span><input id="R" type="range" min="2" max="5.7" step="0.01" value="5.0"></label>
+      <label class="ctl"><span class="lab">radius <i>R</i> — axis to hull <b id="vR"></b></span><input id="R" type="range" min="2" max="5.7" step="0.01" value="4.0"></label>
       <label class="ctl"><span class="lab">gravity at the rim <b id="vg"></b></span><input id="g" type="range" min="0.1" max="1.5" step="0.01" value="1.0"></label>
-      <label class="ctl"><span class="lab">structural shell — livable rind depth <b id="vshell"></b></span><input id="shell" type="range" min="1.7" max="4.7" step="0.01" value="3.0"></label>
-      <label class="ctl"><span class="lab">tile scale <b id="vtile"></b></span><input id="tile" type="range" min="0.5" max="5" step="0.1" value="2"></label>
-      <label class="ctl"><span class="lab">compartment size — bulkhead spacing <b id="vcomp"></b></span><input id="comp" type="range" min="1" max="2.9" step="0.01" value="2.1"></label>
-      <label class="ctl"><span class="lab">walk speed (for Coriolis) <b id="vwalk"></b></span><input id="walk" type="range" min="0.5" max="4" step="0.1" value="1.4"></label>
-      <hr style="border:0;border-top:1px solid var(--line);margin:12px 0">
+      <label class="ctl"><span class="lab">livable rind depth <b id="vshell"></b></span><input id="shell" type="range" min="1.7" max="4.7" step="0.01" value="3.0"></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">tile <b id="vtile"></b></span><input id="tile" type="range" min="0.5" max="5" step="0.1" value="2"></label>
+        <label class="ctl"><span class="lab">compartment <b id="vcomp"></b></span><input id="comp" type="range" min="1" max="2.9" step="0.01" value="2.1"></label>
+      </div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:10px 0">
       <label class="ctl"><span class="lab">↕ probe — where the denizen stands <b id="vprobe"></b></span><input id="probe" type="range" min="0" max="1" step="0.001" value="0.999"></label>
-      <div class="row"><input id="exag" type="checkbox" checked><label for="exag">exaggerate the shell in the cross-section (so the thin rind is visible — not to scale)</label></div>
+      <div class="row"><input id="exag" type="checkbox" checked><label for="exag">exaggerate the shell in the cross-section (not to scale)</label></div>
     </div>
 
+    <div class="card">
+      <h3>tension hull &amp; shielding</h3>
+      <label class="ctl"><span class="lab">hull material <b id="vmat"></b></span><select id="mat"></select></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">wall <b id="vtwall"></b></span><input id="twall" type="range" min="-2" max="1.7" step="0.01" value="0.0"></label>
+        <label class="ctl"><span class="lab">safety <b id="vsf"></b></span><input id="sf" type="range" min="1.2" max="4" step="0.1" value="1.5"></label>
+      </div>
+      <label class="ctl"><span class="lab">atmosphere pressure <b id="vatm"></b></span><input id="atm" type="range" min="0" max="101" step="1" value="70"></label>
+      <label class="ctl"><span class="lab">regolith shield depth <b id="vreg"></b></span><input id="reg" type="range" min="0" max="15" step="0.1" value="2"></label>
+      <p class="note">regolith ρ ≈ 1500 kg/m³ · interior/floor load ≈ 800 kg/m². both spin, so they press outward on the hull.</p>
+    </div>
+
+    <div class="card">
+      <h3>structural web (offloads the hoop)</h3>
+      <label class="ctl"><span class="lab">topology <b></b></span>
+        <select id="topo"><option value="none">none — bare hull</option><option value="radial">radial spokes → hub</option><option value="secant" selected>secant web (chords)</option></select></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">count <i>N</i> <b id="vN"></b></span><input id="N" type="range" min="3" max="60" step="1" value="18"></label>
+        <label class="ctl"><span class="lab">reach α <b id="vreach"></b></span><input id="reach" type="range" min="6" max="90" step="1" value="40"></label>
+      </div>
+      <label class="ctl"><span class="lab">load share to web φ <b id="vphi"></b></span><input id="phi" type="range" min="0" max="0.95" step="0.01" value="0.8"></label>
+      <label class="ctl"><span class="lab">cable material <b id="vtmat"></b></span><select id="tmat"></select></label>
+    </div>
+  </div>
+
+  <!-- ░░ verdict + readouts ░░ -->
+  <div class="col">
+    <div class="card">
+      <h3>does it hold?</h3>
+      <div id="verdict" class="verdict">—</div>
+      <table class="read"><tbody id="struct"></tbody></table>
+      <p class="note" id="structnote"></p>
+    </div>
+    <div class="card">
+      <h3>radiation shielding</h3>
+      <table class="read"><tbody id="rad"></tbody></table>
+      <p class="note">areal density is the honest number; the dose figure is order-of-magnitude (GCR, solar-min, secondaries hand-waved).</p>
+    </div>
     <div class="card">
       <h3>what the denizen feels — at the probe</h3>
       <div id="regime" class="regime">—</div>
       <table class="read"><tbody id="feel"></tbody></table>
       <p class="note" id="feelnote"></p>
     </div>
-
     <div class="card">
-      <h3>the ship at a glance</h3>
+      <h3>kinematics at a glance</h3>
       <table class="read"><tbody id="glance"></tbody></table>
     </div>
   </div>
 
-  <!-- the two views -->
+  <!-- ░░ views ░░ -->
   <div class="col">
     <div class="card">
-      <h3>cross-section — the whole world, perpendicular to the axis</h3>
-      <canvas id="xsec" height="380"></canvas>
-      <p class="note">The sun-line runs down the centre. Gravity points <b>outward</b> (toward the hull) and grows with radius: zero at the axis, full at the rim. Most of the cylinder is open <i>sky</i> — the livable rind is the thin band at the edge.</p>
+      <h3>cross-section — the scope of the possible</h3>
+      <canvas id="xsec" height="420"></canvas>
+      <p class="note">Sun-line at the axis; gravity points <b>outward</b>. The hull ring is tinted <span style="color:var(--ok)">green if it holds</span> / <span style="color:var(--bad)">red if it tears</span>. The web (radial spokes or secant chords) is the alternate load path; secants leave a clear core, spokes don't.</p>
     </div>
     <div class="card">
-      <h3>the play-slice — the (axial × radial) plane we'll actually generate</h3>
-      <canvas id="slice" height="300"></canvas>
-      <p class="note">Brighter toward the core (the sun-line); heavier toward the hull. Compartments are big pressure volumes behind thick bulkheads (the "void is structure"); hatches make a breach local. This strip is what the dungeon-crawl streams.</p>
+      <h3>the play-slice — (axial × radial), what we generate</h3>
+      <canvas id="slice" height="280"></canvas>
+      <p class="note">Brighter toward the core, heavier toward the hull. Compartments behind thick bulkheads; hatches make a breach local.</p>
     </div>
   </div>
 </div>
@@ -87,188 +127,228 @@
 <script>
 const G0 = 9.80665, TAU = Math.PI * 2;
 const $ = (id) => document.getElementById(id);
-const log10 = (sel) => Math.pow(10, +$(sel).value);   // several sliders are log-scaled
-const fmtm = (m) => m >= 1000 ? (m / 1000).toLocaleString(undefined, { maximumFractionDigits: m >= 1e5 ? 0 : 1 }) + ' km' : m.toFixed(m < 10 ? 1 : 0) + ' m';
+
+// strength = representative tensile strength (Pa); rho kg/m3. Allowable = strength / SF.
+const MATERIALS = {
+  'structural steel':   { s: 350e6,   r: 7850 },
+  'HSLA steel':         { s: 700e6,   r: 7850 },
+  'maraging steel':     { s: 2000e6,  r: 8000 },
+  'Ti-6Al-4V titanium': { s: 900e6,   r: 4430 },
+  'Al 7075':            { s: 500e6,   r: 2810 },
+  'Kevlar 49':          { s: 3600e6,  r: 1440 },
+  'carbon fiber T1000': { s: 6400e6,  r: 1800 },
+  'Dyneema / Spectra':  { s: 3500e6,  r: 970  },
+  'graphene/CNT (ideal)': { s: 50000e6, r: 1300 },
+};
+const RHO_REG = 1500, M_INTERIOR = 800;            // regolith density, interior areal load
+function fillMat(sel, def) { for (const k in MATERIALS) { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); } sel.value = def; }
+fillMat($('mat'), 'carbon fiber T1000'); fillMat($('tmat'), 'carbon fiber T1000');
+
+const log10 = (sel) => Math.pow(10, +$(sel).value);
+const fmtm = (m) => Math.abs(m) >= 1000 ? (m / 1000).toLocaleString(undefined, { maximumFractionDigits: Math.abs(m) >= 1e5 ? 0 : 1 }) + ' km' : m.toFixed(m < 1 ? 2 : m < 10 ? 1 : 0) + ' m';
 const fmtN = (n, d = 1) => Number(n).toLocaleString(undefined, { maximumFractionDigits: d });
 const fmtDur = (s) => s < 90 ? s.toFixed(1) + ' s' : Math.floor(s / 60) + 'm ' + Math.round(s % 60) + 's';
+const fmtStress = (pa) => pa >= 1e9 ? (pa / 1e9).toFixed(2) + ' GPa' : pa >= 1e6 ? (pa / 1e6).toFixed(pa < 1e7 ? 1 : 0) + ' MPa' : (pa / 1e3).toFixed(0) + ' kPa';
+const fmtMass = (kg) => kg >= 1e9 ? (kg / 1e9).toFixed(1) + ' Mt' : kg >= 1e6 ? (kg / 1e6).toFixed(1) + ' kt' : (kg / 1e3).toFixed(1) + ' t';
+const row = (k, v) => '<tr><td class="k">' + k + '</td><td class="v">' + v + '</td></tr>';
 
 function params() {
-  const R = log10('R');                 // m  (10^2 … 10^5.7 ≈ 100 m … 500 km)
-  const gRim = +$('g').value;           // earth-g at the rim
-  const shell = log10('shell');         // m  (livable rind depth, 50 m … 50 km)
-  const tile = +$('tile').value;        // m / tile
-  const comp = log10('comp');           // m  bulkhead spacing (10 m … ~800 m)
-  const vWalk = +$('walk').value;       // m/s
-  const probe = +$('probe').value;      // 0 = axis, 1 = rim
-  const w = Math.sqrt(gRim * G0 / R);   // ω = sqrt(g/R)
-  return { R, gRim, shell, tile, comp, vWalk, probe, w };
-}
-
-function regimeAt(frac, coriRatio, gLocalEarthg) {
-  if (frac < 0.05) return { name: 'none — zero-g core', cls: 'none', tag: 'glide' };
-  if (frac < 0.35 || coriRatio > 0.2) return { name: 'spin — Coriolis country', cls: 'spin', tag: 'drift' };
-  if (gLocalEarthg > 1.1) return { name: 'mag — heavy hull', cls: 'mag', tag: 'trudge' };
-  return { name: 'normal — the inhabited rind', cls: 'normal', tag: 'stride' };
+  return {
+    R: log10('R'), gRim: +$('g').value, shell: log10('shell'),
+    tile: +$('tile').value, comp: log10('comp'), probe: +$('probe').value,
+    mat: MATERIALS[$('mat').value], tmat: MATERIALS[$('tmat').value],
+    twall: log10('twall'), sf: +$('sf').value, atm: +$('atm').value * 1000, reg: +$('reg').value,
+    topo: $('topo').value, N: +$('N').value, reach: +$('reach').value * Math.PI / 180, phi: +$('phi').value,
+    w: Math.sqrt(+$('g').value * G0 / log10('R')),
+  };
 }
 const REG_COL = { none: '#7fd8d0', spin: '#b89cff', normal: '#bfe6c9', mag: '#ffb07a' };
+function regimeAt(frac, coriRatio, gEarthg) {
+  if (frac < 0.05) return { name: 'none — zero-g core', cls: 'none', tag: 'glide' };
+  if (frac < 0.35 || coriRatio > 0.2) return { name: 'spin — Coriolis country', cls: 'spin', tag: 'drift' };
+  if (gEarthg > 1.1) return { name: 'mag — heavy hull', cls: 'mag', tag: 'trudge' };
+  return { name: 'normal — the inhabited rind', cls: 'normal', tag: 'stride' };
+}
 
 function compute() {
-  const p = params();
-  const r = Math.max(1, p.probe * p.R);                  // probe radius (m)
-  const gLocal = p.w * p.w * r;                          // m/s²
-  const gLocalG = gLocal / G0;                           // earth-g
-  const aCor = 2 * p.w * p.vWalk;                        // Coriolis accel for a walk
-  const coriRatio = gLocal > 1e-9 ? aCor / gLocal : Infinity;
+  const p = params(), w = p.w, R = p.R, v = w * R;
+  // ── kinematics ──
+  const r = Math.max(1, p.probe * R), gLocal = w * w * r, gLocalG = gLocal / G0;
+  const aCor = 2 * w * 1.4, coriRatio = gLocal > 1e-9 ? aCor / gLocal : Infinity;
   const reg = regimeAt(p.probe, coriRatio, gLocalG);
-  // dropped-tool deflection from 1.6 m: x = (1/3) ω g t³ , t = sqrt(2h/g)
-  const h = 1.6, t = gLocal > 1e-6 ? Math.sqrt(2 * h / gLocal) : 0, drop = (1 / 3) * p.w * gLocal * t * t * t;
-  const rIn = Math.max(0, p.R - p.shell);                // inner edge of the livable shell
-  const dgShell = p.gRim * (p.shell / p.R);              // Δg across the whole shell (earth-g)
-  const coreR = 0.05 * p.R;                              // ~edge of the zero-g core
-  return { p, r, gLocal, gLocalG, aCor, coriRatio, reg, drop, rIn, dgShell, coreR };
+  const h = 1.6, t = gLocal > 1e-6 ? Math.sqrt(2 * h / gLocal) : 0, drop = (1 / 3) * w * gLocal * t * t * t;
+  const rIn = Math.max(0, R - p.shell), dgShell = p.gRim * (p.shell / R), coreR = 0.05 * R;
+
+  // ── loads at the rim (per the σ_hoop derivation) ──
+  const mReg = RHO_REG * p.reg;                          // kg/m² shielding
+  const pEff = p.atm + (mReg + M_INTERIOR) * w * w * R;  // effective outward pressure (Pa)
+  const sigmaSelf = p.mat.r * v * v;                     // ρv²  — tethers cannot reduce this
+  const sigmaPressBare = pEff * R / p.twall;             // pressure hoop term, bare hull
+  const allow = p.mat.s / p.sf;                          // hull allowable
+
+  // ── web load-share ──
+  let eta = 1, coreClear = 0, k = 0, span = R;
+  if (p.topo === 'secant') {
+    k = Math.max(1, Math.min(Math.floor(p.N / 2), Math.round(p.reach / Math.PI * p.N))); // {N/k}
+    const a = Math.PI * k / p.N;                         // half subtended angle
+    eta = Math.sin(a); coreClear = Math.cos(a); span = 2 * R * Math.sin(a);
+  } else if (p.topo === 'radial') { eta = 1; coreClear = 0; span = R; }
+  const phi = p.topo === 'none' ? 0 : p.phi;
+  const sigmaShell = sigmaSelf + (1 - phi) * sigmaPressBare;
+  // cable cost to carry φ of the diametral load (per unit axial length)
+  const tAllow = p.tmat.s / p.sf;
+  const Fcable = phi > 0 ? phi * pEff * 2 * R / Math.max(0.05, eta) : 0; // N per axial m
+  const Acable = Fcable / tAllow;                        // total cable area (m²)
+  const cableMassPerM = p.tmat.r * Acable * span;        // kg per axial m
+  const shieldMassPerM = mReg * TAU * R;                 // kg per axial m (whole ring)
+  const cableFrac = shieldMassPerM > 0 ? cableMassPerM / shieldMassPerM : Infinity;
+
+  // ── verdicts ──
+  const specific = p.mat.s / p.mat.r;                    // m²/s²
+  const vMax = Math.sqrt(specific / p.sf), Rmax1g = vMax * vMax / (p.gRim * G0);
+  const margin = allow / sigmaShell;
+  let verdict, vclass, vnote;
+  if (sigmaSelf > allow) {
+    verdict = 'MATERIAL-LIMITED'; vclass = 'bad';
+    vnote = 'The wall can\'t even hold its own spin (ρv² alone exceeds allowable). Tethers can\'t help — the hull still rotates. Need higher specific strength, a smaller R, or less g.';
+  } else if (margin < 1) {
+    verdict = 'INFEASIBLE — it tears'; vclass = 'bad';
+    vnote = 'Hull is below allowable. Thicken the wall, add/strengthen the web (raise φ), shed regolith, or lower pressure.';
+  } else {
+    verdict = 'FEASIBLE — holds (×' + margin.toFixed(2) + ')'; vclass = 'ok';
+    vnote = 'Hull stays under allowable. The self-spin term ρv² is the floor tethers can never remove — watch how close it sits to the line.';
+  }
+  return { p, r, gLocal, gLocalG, aCor, coriRatio, reg, drop, rIn, dgShell, coreR, v,
+    mReg, pEff, sigmaSelf, sigmaPressBare, allow, eta, coreClear, k, phi, sigmaShell,
+    Acable, cableMassPerM, shieldMassPerM, cableFrac, vMax, Rmax1g, margin, verdict, vclass, vnote };
 }
 
 function render() {
   const S = compute(), p = S.p;
-  // ── slider labels ──
-  $('vR').textContent = fmtm(p.R);
-  $('vg').textContent = p.gRim.toFixed(2) + ' g';
-  $('vshell').textContent = fmtm(p.shell);
-  $('vtile').textContent = p.tile.toFixed(1) + ' m/tile';
-  $('vcomp').textContent = fmtm(p.comp);
-  $('vwalk').textContent = p.vWalk.toFixed(1) + ' m/s';
-  $('vprobe').textContent = 'r = ' + fmtm(S.r) + ' (' + (p.probe * 100).toFixed(1) + '% of R)';
+  // labels
+  $('vR').textContent = fmtm(p.R); $('vg').textContent = p.gRim.toFixed(2) + ' g';
+  $('vshell').textContent = fmtm(p.shell); $('vtile').textContent = p.tile.toFixed(1) + 'm';
+  $('vcomp').textContent = fmtm(p.comp); $('vprobe').textContent = 'r=' + fmtm(S.r) + ' (' + (p.probe * 100).toFixed(1) + '%)';
+  $('vtwall').textContent = fmtm(p.twall); $('vsf').textContent = '×' + p.sf.toFixed(1);
+  $('vatm').textContent = (p.atm / 1000).toFixed(0) + ' kPa'; $('vreg').textContent = p.reg.toFixed(1) + ' m';
+  $('vN').textContent = p.N; $('vreach').textContent = (p.reach * 180 / Math.PI).toFixed(0) + '°';
+  $('vphi').textContent = (p.phi * 100).toFixed(0) + '%';
 
-  // ── "what the denizen feels" ──
-  $('regime').innerHTML = '<span class="flag" style="color:' + REG_COL[S.reg.cls] + '">● ' + S.reg.name + '</span> &nbsp;<span class="note">you ' + S.reg.tag + '</span>';
-  const spinwardPct = S.gLocal > 1e-9 ? (S.aCor / S.gLocal * 100) : Infinity;
-  $('feel').innerHTML = row('local gravity', '<b>' + S.gLocalG.toFixed(3) + ' g</b> &nbsp;(' + S.gLocal.toFixed(2) + ' m/s²)')
-    + row('Coriolis on a walk', S.aCor.toFixed(3) + ' m/s² &nbsp;(<b>' + (isFinite(spinwardPct) ? spinwardPct.toFixed(1) : '∞') + '%</b> of gravity)')
-    + row('walk spinward vs anti', '± ' + (isFinite(spinwardPct) ? spinwardPct.toFixed(1) : '∞') + '% felt weight')
+  // verdict + structure
+  $('verdict').textContent = S.verdict; $('verdict').className = 'verdict ' + S.vclass;
+  $('struct').innerHTML =
+      row('hull allowable (mat ÷ SF)', fmtStress(S.allow))
+    + row('self-spin stress ρv²', '<b>' + fmtStress(S.sigmaSelf) + '</b> · the floor')
+    + row('pressure hoop (bare)', fmtStress(S.sigmaPressBare))
+    + row('hull stress with web', (S.margin < 1 ? '<span class="warn">' : '<b>') + fmtStress(S.sigmaShell) + (S.margin < 1 ? '</span>' : '</b>'))
+    + row('specific-strength limit', fmtN(S.vMax, 0) + ' m/s rim → max ' + fmtm(S.Rmax1g) + ' @ ' + p.gRim.toFixed(1) + 'g')
+    + (p.topo !== 'none'
+        ? row('web', p.topo === 'radial' ? p.N + ' radial spokes (η=1, core blocked)' : p.N + ' chords {' + p.N + '/' + S.k + '}, η=' + S.eta.toFixed(2) + ', core ' + (S.coreClear * 100).toFixed(0) + '% clear')
+          + row('cable cross-section', fmtN(S.Acable, S.Acable < 1 ? 3 : 1) + ' m²/axial-m')
+          + row('cable mass vs shield', isFinite(S.cableFrac) ? (S.cableFrac * 100).toFixed(S.cableFrac < 0.1 ? 1 : 0) + '%' + (S.cableFrac > 1 ? ' <span class="warn">(cables outweigh the shield!)</span>' : '') : '—')
+        : row('web', 'none — bare hull'));
+  $('structnote').textContent = S.vnote;
+
+  // radiation
+  const x = S.mReg, dose = 0.6 * (0.30 + 0.70 * Math.exp(-x / 1500));
+  $('rad').innerHTML =
+      row('areal density', '<b>' + fmtN(x, 0) + ' kg/m²</b> (' + fmtN(x / 10, 0) + ' g/cm²)')
+    + row('≈ GCR dose / yr', fmtN(dose, 2) + ' Sv <span class="note">(ISS≈0.15, Earth≈0.0024)</span>')
+    + row('benchmarks', '<span class="note">Earth air 10,300 · Stanford Torus ≈2,000 · SPE shelter ≈200 kg/m²</span>')
+    + row('shield mass / axial-m', fmtMass(S.shieldMassPerM));
+
+  // feel
+  $('regime').innerHTML = '<span style="color:' + REG_COL[S.reg.cls] + '">● ' + S.reg.name + '</span> <span class="note">you ' + S.reg.tag + '</span>';
+  const spct = S.gLocal > 1e-9 ? S.aCor / S.gLocal * 100 : Infinity;
+  $('feel').innerHTML = row('local gravity', '<b>' + S.gLocalG.toFixed(3) + ' g</b>')
+    + row('Coriolis on a walk', S.aCor.toFixed(3) + ' m/s² (<b>' + (isFinite(spct) ? spct.toFixed(1) : '∞') + '%</b> of g)')
     + row('a dropped tool lands', isFinite(S.drop) ? (S.drop * 100).toFixed(S.drop < 0.1 ? 1 : 0) + ' cm spinward' : '—');
-  $('feelnote').innerHTML = S.coriRatio > 0.2
-    ? 'Coriolis is a real fraction of gravity here — moving makes "down" tilt. <b>This</b> is how a native could induce the spin.'
-    : 'Coriolis is faint here (' + (isFinite(spinwardPct) ? spinwardPct.toFixed(1) : '∞') + '%). A native would need a long, careful measurement — or a finer instrument — to feel the rotation at all.';
+  $('feelnote').textContent = S.coriRatio > 0.2
+    ? 'Coriolis is a real fraction of gravity — moving tilts "down." This is how a native could induce the spin.'
+    : 'Coriolis is faint (' + (isFinite(spct) ? spct.toFixed(1) : '∞') + '%). Inducing the rotation needs a long measurement or a fine instrument.';
 
-  // ── "ship at a glance" ──
-  const T = TAU / p.w, circRim = TAU * p.R, circLiv = TAU * S.rIn;
-  const shellTiles = p.shell / p.tile, compTiles = p.comp / p.tile;
-  const compAround = circRim / p.comp, pilgrimage = Math.max(0, S.rIn - S.coreR);
-  $('glance').innerHTML =
-      row('spin rate ω', fmtN(p.w, 4) + ' rad/s')
-    + row('one rotation takes', fmtDur(T))
-    + row('rim speed', fmtN(p.w * p.R, 0) + ' m/s &nbsp;(' + fmtN(p.w * p.R / 1000, 2) + ' km/s)')
-    + row('circumference (rim)', fmtm(circRim) + ' — <span class="note">the unseen axis you can\'t walk</span>')
-    + row('shell is this tall', '<b>' + fmtN(shellTiles, 0) + ' tiles</b> &nbsp;(' + fmtm(p.shell) + ')')
-    + row('Δgravity across the shell', (S.dgShell < 0.02 ? '<span class="warn">' : '<b>') + (S.dgShell * 100).toFixed(S.dgShell < 0.1 ? 2 : 1) + '%' + (S.dgShell < 0.02 ? ' — flat: depth won\'t be felt in a crawl</span>' : ' across the whole crawl</b>'))
-    + row('living surface → zero-g core', fmtm(pilgrimage) + ' &nbsp;(' + fmtN(pilgrimage / p.tile, 0) + ' tiles inward)')
-    + row('compartment', fmtN(compTiles, 0) + ' tiles across &nbsp;(' + fmtm(p.comp) + ')')
-    + row('compartments around the ring', fmtN(compAround, 0));
+  // glance
+  const T = TAU / p.w;
+  $('glance').innerHTML = row('spin ω / period', fmtN(p.w, 4) + ' rad/s · ' + fmtDur(T))
+    + row('rim speed', fmtN(S.v, 0) + ' m/s')
+    + row('circumference (rim)', fmtm(TAU * p.R) + ' <span class="note">the unseen axis</span>')
+    + row('Δg across the shell', (S.dgShell < 0.02 ? '<span class="warn">' : '<b>') + (S.dgShell * 100).toFixed(2) + '%' + (S.dgShell < 0.02 ? ' flat</span>' : '</b>'))
+    + row('living surface → zero-g core', fmtm(Math.max(0, S.rIn - S.coreR)));
 
   drawXsec(S); drawSlice(S);
 }
-const row = (k, v) => '<tr><td class="k">' + k + '</td><td class="v">' + v + '</td></tr>';
 
-// ── cross-section view ───────────────────────────────────────────────────────
+// ── cross-section ──
 let phase = 0;
-function fitCanvas(cv) { const w = cv.clientWidth, d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== w * d) { cv.width = w * d; } cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0); return [w, cv.height]; }
+function fitCanvas(cv) { const w = cv.clientWidth, d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(w * d)) cv.width = Math.round(w * d); cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0); return [w, cv.height]; }
+function lerpCol(a, b, t) { const p = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; const A = p(a), B = p(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; }
 function drawXsec(S) {
   const cv = $('xsec'), ctx = cv.getContext('2d'), [W, H] = fitCanvas(cv);
   ctx.clearRect(0, 0, W, H);
-  const cx = W / 2, cy = H / 2, Rpx = Math.min(W, H) * 0.44;
-  const p = S.p, exag = $('exag').checked;
-  // shell as a fraction of R, optionally exaggerated for legibility
-  let shellFrac = p.shell / p.R; if (exag) shellFrac = Math.min(0.34, Math.max(shellFrac, 0.18));
+  const cx = W / 2, cy = H / 2, Rpx = Math.min(W, H) * 0.43, p = S.p, exag = $('exag').checked;
+  let shellFrac = p.shell / p.R; if (exag) shellFrac = Math.min(0.34, Math.max(shellFrac, 0.16));
   const rInFrac = 1 - shellFrac;
-  // sky (the open central cylinder) with a sun-line glow at the axis
+  // sky + sun-line
   const sky = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rpx * rInFrac);
-  sky.addColorStop(0, 'rgba(255,238,180,0.55)'); sky.addColorStop(0.2, 'rgba(150,160,120,0.18)'); sky.addColorStop(1, 'rgba(40,46,40,0.05)');
+  sky.addColorStop(0, 'rgba(255,238,180,0.5)'); sky.addColorStop(0.25, 'rgba(150,160,120,0.16)'); sky.addColorStop(1, 'rgba(40,46,40,0.04)');
   ctx.beginPath(); ctx.arc(cx, cy, Rpx * rInFrac, 0, TAU); ctx.fillStyle = sky; ctx.fill();
-  // the livable shell, banded by gravity (outer = heavy)
-  for (let i = 0; i < 40; i++) {
-    const f0 = rInFrac + shellFrac * i / 40, f1 = rInFrac + shellFrac * (i + 1) / 40;
-    const gg = (f1) * p.gRim; // gravity ~ radius
-    const reg = gg > 1.1 ? 'mag' : gg > 0.4 ? 'normal' : gg > 0.05 ? 'spin' : 'none';
-    ctx.beginPath(); ctx.arc(cx, cy, Rpx * f1, 0, TAU); ctx.arc(cx, cy, Rpx * f0, 0, TAU, true);
-    ctx.fillStyle = REG_COL[reg] + '33'; ctx.fill();
-  }
-  // hull
-  ctx.beginPath(); ctx.arc(cx, cy, Rpx, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = '#3a4250'; ctx.stroke();
+  // hull ring tinted by feasibility (green↔red by margin)
+  const ok = Math.max(0, Math.min(1, (S.margin - 0.8) / 0.7));
+  const hullCol = S.vclass === 'bad' && S.sigmaSelf > S.allow ? '#ff7a6e' : lerpCol('#ff7a6e', '#7fe6a0', ok);
+  ctx.beginPath(); ctx.arc(cx, cy, Rpx, 0, TAU); ctx.arc(cx, cy, Rpx * rInFrac, 0, TAU, true);
+  ctx.fillStyle = hullCol + '33'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, Rpx, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = hullCol; ctx.stroke();
   ctx.beginPath(); ctx.arc(cx, cy, Rpx * rInFrac, 0, TAU); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(127,216,208,.5)'; ctx.stroke();
-  // sun-line at axis
-  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, TAU); ctx.fillStyle = '#ffeeae'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 16; ctx.fill(); ctx.shadowBlur = 0;
-  // a rotating reference mark on the hull + a denizen at the probe radius, both spinning
+  // regolith band (outside hull, indicative thickness)
+  if (p.reg > 0) { const rg = Math.min(0.12, 0.02 + p.reg / 200); ctx.beginPath(); ctx.arc(cx, cy, Rpx * (1 + rg), 0, TAU); ctx.arc(cx, cy, Rpx, 0, TAU, true); ctx.fillStyle = 'rgba(150,130,100,.35)'; ctx.fill(); }
+  // ── the web ──
+  if (p.topo !== 'none') {
+    ctx.strokeStyle = 'rgba(255,206,120,.55)'; ctx.lineWidth = Math.max(0.6, Math.min(3, p.phi * 3));
+    ctx.beginPath();
+    if (p.topo === 'radial') { for (let i = 0; i < p.N; i++) { const a = phase + i / p.N * TAU; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * Rpx * rInFrac, cy + Math.sin(a) * Rpx * rInFrac); } }
+    else { for (let i = 0; i < p.N; i++) { const a0 = phase + i / p.N * TAU, a1 = phase + ((i + S.k) % p.N) / p.N * TAU; ctx.moveTo(cx + Math.cos(a0) * Rpx * rInFrac, cy + Math.sin(a0) * Rpx * rInFrac); ctx.lineTo(cx + Math.cos(a1) * Rpx * rInFrac, cy + Math.sin(a1) * Rpx * rInFrac); } }
+    ctx.stroke();
+    if (p.topo === 'secant' && S.coreClear > 0) { ctx.beginPath(); ctx.arc(cx, cy, Rpx * rInFrac * S.coreClear, 0, TAU); ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(127,216,208,.45)'; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); }
+  }
   phase += 0.004;
-  const probeFrac = exag ? (S.p.probe >= rInFrac ? rInFrac + shellFrac * (S.p.probe - rInFrac) / (1 - rInFrac) : S.p.probe / rInFrac * rInFrac) : S.p.probe;
-  const pf = Math.max(0.02, Math.min(1, probeFrac));
+  // sun-line + spinning hull mark + denizen
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, TAU); ctx.fillStyle = '#ffeeae'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 16; ctx.fill(); ctx.shadowBlur = 0;
   const mark = (ang, f, col, rad) => { const x = cx + Math.cos(ang) * Rpx * f, y = cy + Math.sin(ang) * Rpx * f; ctx.beginPath(); ctx.arc(x, y, rad, 0, TAU); ctx.fillStyle = col; ctx.fill(); return [x, y]; };
-  mark(phase, 1, '#5b6472', 4);                                   // hull reference (shows spin)
-  const [dx, dy] = mark(phase + 1.1, pf, '#ffce78', 5);           // the denizen
-  // their "down" arrow (radially outward) + spinward arrow
-  const ux = Math.cos(phase + 1.1), uy = Math.sin(phase + 1.1);
-  arrow(ctx, dx, dy, dx + ux * 26, dy + uy * 26, '#ffce78');      // down (toward hull)
-  arrow(ctx, dx, dy, dx - uy * 20, dy + ux * 20, '#b89cff');      // spinward
-  ctx.fillStyle = '#8aa'; ctx.font = '11px ui-monospace'; ctx.textAlign = 'left';
-  ctx.fillText('sun-line', cx + 6, cy - 6);
-  ctx.fillStyle = '#ffce78'; ctx.fillText('you · down →', dx + 8, dy);
+  mark(phase, 1, '#5b6472', 4);
+  const pf = exag ? rInFrac + shellFrac * Math.max(0, (p.probe - (1 - p.shell / p.R)) / (p.shell / p.R || 1)) : p.probe;
+  const [dx, dy] = mark(phase + 1.1, Math.max(0.02, Math.min(1, pf)), '#ffce78', 5);
+  ctx.fillStyle = '#8aa'; ctx.font = '11px ui-monospace'; ctx.textAlign = 'left'; ctx.fillText('sun-line', cx + 6, cy - 6);
   if (exag) { ctx.fillStyle = '#ff9a76'; ctx.fillText('(shell exaggerated)', 8, H - 8); }
 }
-function arrow(ctx, x0, y0, x1, y1, col) {
-  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-  const a = Math.atan2(y1 - y0, x1 - x0); ctx.beginPath(); ctx.moveTo(x1, y1);
-  ctx.lineTo(x1 - 6 * Math.cos(a - .4), y1 - 6 * Math.sin(a - .4)); ctx.lineTo(x1 - 6 * Math.cos(a + .4), y1 - 6 * Math.sin(a + .4)); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
-}
 
-// ── play-slice view (unrolled shell: axial × radial) ─────────────────────────
+// ── play-slice ──
 function drawSlice(S) {
-  const cv = $('slice'), ctx = cv.getContext('2d'), [W, H] = fitCanvas(cv);
+  const cv = $('slice'), ctx = cv.getContext('2d'), [W, H] = fitCanvas(cv), p = S.p;
   ctx.clearRect(0, 0, W, H);
-  const p = S.p, pad = 28;
-  // y: top = core-ward (light, low-g), bottom = hull (dark, heavy). We show the shell
-  // plus a sliver of core-ward sky above it.
-  const skyH = 46;
-  // sky gradient (the sun-line is "up")
+  const skyH = 40;
   const sky = ctx.createLinearGradient(0, 0, 0, skyH); sky.addColorStop(0, 'rgba(255,238,180,.5)'); sky.addColorStop(1, 'rgba(40,46,40,.04)');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, skyH);
-  ctx.fillStyle = '#8aa'; ctx.font = '11px ui-monospace'; ctx.textAlign = 'left';
-  ctx.fillText('↑ toward the core / sun-line — lighter', 8, 14);
-  // shell, banded by gravity, with a depth→light falloff
-  const shellTop = skyH, shellBot = H;
-  for (let y = shellTop; y < shellBot; y++) {
-    const f = (y - shellTop) / (shellBot - shellTop);          // 0 at living surface .. 1 at hull
-    const gg = p.gRim * ((S.rIn + f * p.shell) / p.R);
-    const reg = gg > 1.1 ? 'mag' : gg > 0.4 ? 'normal' : gg > 0.05 ? 'spin' : 'none';
-    const light = 0.5 * (1 - f);                                // sun-line falls off with depth
-    ctx.fillStyle = REG_COL[reg] + Math.round((0.12 + light * 0.22) * 255).toString(16).padStart(2, '0');
-    ctx.fillRect(0, y, W, 1);
+  ctx.fillStyle = '#8aa'; ctx.font = '11px ui-monospace'; ctx.textAlign = 'left'; ctx.fillText('↑ core / sun-line — lighter', 8, 14);
+  const top = skyH, bot = H;
+  for (let y = top; y < bot; y++) {
+    const f = (y - top) / (bot - top), gg = p.gRim * ((S.rIn + f * p.shell) / p.R);
+    const reg = gg > 1.1 ? 'mag' : gg > 0.4 ? 'normal' : gg > 0.05 ? 'spin' : 'none', light = 0.5 * (1 - f);
+    ctx.fillStyle = REG_COL[reg] + Math.round((0.12 + light * 0.22) * 255).toString(16).padStart(2, '0'); ctx.fillRect(0, y, W, 1);
   }
-  // bulkhead lattice + compartments at true scale (tiles → px)
-  const tilesTall = p.shell / p.tile, pxPerTile = (shellBot - shellTop) / Math.max(1, tilesTall);
-  const compPxX = Math.max(24, (p.comp / p.tile) * pxPerTile);
-  const compPxY = Math.max(24, (p.comp / p.tile) * pxPerTile);
-  ctx.strokeStyle = 'rgba(20,26,33,.95)'; ctx.lineWidth = Math.max(3, compPxX * 0.06);
-  for (let x = (W % compPxX) / 2; x < W; x += compPxX) { ctx.beginPath(); ctx.moveTo(x, shellTop); ctx.lineTo(x, shellBot); ctx.stroke(); }
-  for (let y = shellTop; y < shellBot; y += compPxY) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  // hatches (gaps in bulkheads)
-  ctx.strokeStyle = REG_COL.none; ctx.lineWidth = Math.max(2, compPxX * 0.04);
-  for (let x = (W % compPxX) / 2; x < W; x += compPxX) for (let y = shellTop + compPxY / 2; y < shellBot; y += compPxY) { ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.stroke(); }
-  // a denizen for scale (1.7 m) at the probe depth within the shell
-  const probeY = S.p.probe >= S.rIn / p.R
-    ? shellTop + (1 - (S.p.probe - S.rIn / p.R) / Math.max(1e-6, S.p.shell / p.R)) * 0 + ((S.p.probe * p.R - S.rIn) / Math.max(1, p.shell)) * (shellBot - shellTop)
-    : shellTop;
-  const py = Math.max(shellTop + 4, Math.min(shellBot - 4, probeY));
+  const pxPerTile = (bot - top) / Math.max(1, p.shell / p.tile), compPx = Math.max(22, (p.comp / p.tile) * pxPerTile);
+  ctx.strokeStyle = 'rgba(20,26,33,.95)'; ctx.lineWidth = Math.max(3, compPx * 0.06);
+  for (let x = (W % compPx) / 2; x < W; x += compPx) { ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke(); }
+  for (let y = top; y < bot; y += compPx) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.strokeStyle = REG_COL.none; ctx.lineWidth = Math.max(2, compPx * 0.04);
+  for (let x = (W % compPx) / 2; x < W; x += compPx) for (let y = top + compPx / 2; y < bot; y += compPx) { ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.stroke(); }
   const personPx = Math.max(2, 1.7 / p.tile * pxPerTile);
-  ctx.fillStyle = '#ffce78'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 8;
-  ctx.fillRect(W / 2 - personPx * 0.2, py - personPx, personPx * 0.4, personPx); ctx.shadowBlur = 0;
-  ctx.fillStyle = '#8aa'; ctx.textAlign = 'right'; ctx.fillText('↓ toward the hull — heavier, darker', W - 8, H - 8);
-  ctx.textAlign = 'left'; ctx.fillStyle = '#ffce78';
-  ctx.fillText('you (' + (1.7 / p.tile).toFixed(1) + ' tiles tall)', W / 2 + personPx, py - personPx / 2);
+  ctx.fillStyle = '#ffce78'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 8; ctx.fillRect(W / 2 - personPx * 0.2, bot - 4 - personPx, personPx * 0.4, personPx); ctx.shadowBlur = 0;
+  ctx.fillStyle = '#8aa'; ctx.textAlign = 'right'; ctx.fillText('↓ hull — heavier, darker', W - 8, H - 8);
 }
 
-// ── wire up ──
-for (const el of document.querySelectorAll('input')) el.addEventListener('input', render);
+for (const el of document.querySelectorAll('input,select')) el.addEventListener('input', render);
 addEventListener('resize', render);
-(function loop() { render(); requestAnimationFrame(loop); })();  // the cross-section spins, so redraw continuously
+(function loop() { render(); requestAnimationFrame(loop); })();
 </script>
 </body>
 </html>
