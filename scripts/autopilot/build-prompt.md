@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-08 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-09 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, answers, antoine, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, echo, elements, empathy, emsim, erdos, feedgen, finance, flights, flow, flows, fluoddity, fodder, fractal, functions, g, games, garden, gawain, gen, geomancy, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, horned, iching, inpac, io, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, os, owain, pac, packages, paint, pds, pendragon, photo, phylo, pizza, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, ship, signal, soil, splice, src, sticks, stocks, stretch, sweat, szemeredi-trotter, tablet, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, time, torpac, torus, track, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
+**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, breeder, cable, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, dyad, echo, elements, empathy, emsim, erdos, feedgen, finance, flights, flogame, flotorus, flow, flows, fluoddity, fodder, forest, fractal, functions, g, gallery, games, garden, gawain, gen, geomancy, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, horned, hotnot, iching, inpac, io, ising, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, pizza, playground, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, splice, src, sticks, stocks, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, time, torpac, torus, track, traffic, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
-**Catalog saturation** (sites per category): bluesky 38, games 38, data 33, tools 28, work 7.
+**Catalog saturation** (sites per category): games 52, bluesky 41, data 36, tools 30, work 7.
 
-**Neighborhood spark** (bisk 2026-06-08, 100 members / 299 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: llm, atproto, norvidlike
-- Top post: "We acknowledge that manual coders and engineers, including C, Haskell, and Java speaking peoples, have stewarded through" — @segyges.bsky.social
+**Neighborhood spark** (bisk 2026-06-09, 100 members / 319 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: llm, mythos, anthropic
+- Top post: "I'd just like to interject for a moment. What you're referring to as an LLM, is in fact, Harness/LLM, or as I've recentl" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
