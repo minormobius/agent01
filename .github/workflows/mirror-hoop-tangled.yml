@@ -15,12 +15,11 @@ name: Mirror hoop to Tangled
 # What's dropped: worker.js + wrangler.jsonc (the Cloudflare backend — not
 # servable on tangled, and we don't leak infra config into a public fork).
 #
-# Auth/secrets: reuses the existing TANGLED_SSH_KEY deploy key — the SAME key
-# the erdos/ai-edu mirrors use. A deploy key is account-agnostic on the GitHub
-# side; what authorizes it for THIS account is having its PUBLIC half registered
-# under morphyxmino.bsky.social → Settings → Keys on tangled. Run the
-# "Print Tangled deploy public key" workflow once to get that public half.
-# No new PAT is needed (SECRETS_PAT was only ever for bootstrapping the secret).
+# Auth/secrets: uses TANGLED_SSH_KEY_MORPHYX — a deploy key minted FOR morphyx
+# by bootstrap-tangled-key-morphyx.yml. (The older TANGLED_SSH_KEY is bound to
+# the now-suspended minomobi identity, so the knot answers "user not allowed"
+# for it on morphyx repos; a fresh morphyx-owned key resolves cleanly.) Its
+# PUBLIC half must be registered under morphyxmino.bsky.social → Settings → Keys.
 #
 # This is a transparent mirror (keeps the functional com.minomobi.hoop.* NSIDs
 # and auth.mino.mobi URL, adds a back-reference README) — NOT the ai-edu-style
@@ -97,9 +96,9 @@ jobs:
 
       - name: Set up SSH deploy key
         run: |
-          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "✗ secret TANGLED_SSH_KEY not set"; exit 1; }
+          test -n "${{ secrets.TANGLED_SSH_KEY_MORPHYX }}" || { echo "✗ secret TANGLED_SSH_KEY_MORPHYX not set"; exit 1; }
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY_MORPHYX }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           # Force IPv4 — the knot sits behind Cloudflare (AAAA present) and the
           # runner usually has no IPv6 route → ENETUNREACH otherwise.
