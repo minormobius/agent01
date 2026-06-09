@@ -40,6 +40,7 @@
 <body>
 <header>
   <b>◍ thinking about cylinders</b> &nbsp; <span class="sub">a structural + radiative scratchpad for hoop. honest physics; dial it and watch the cylinder pass or tear.</span>
+  <span id="solverpill" style="float:right;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--line);color:#8aa">solver: loading…</span>
 </header>
 
 <div class="wrap">
@@ -80,7 +81,9 @@
         <label class="ctl"><span class="lab">reach α <b id="vreach"></b></span><input id="reach" type="range" min="6" max="90" step="1" value="40"></label>
       </div>
       <label class="ctl"><span class="lab">load share to web φ <b id="vphi"></b></span><input id="phi" type="range" min="0" max="0.95" step="0.01" value="0.8"></label>
+      <label class="ctl"><span class="lab">cable section <b id="vcarea"></b></span><input id="carea" type="range" min="-4" max="0.4" step="0.05" value="-1"></label>
       <label class="ctl"><span class="lab">cable material <b id="vtmat"></b></span><select id="tmat"></select></label>
+      <p class="note">φ feeds the closed-form estimate; the solver below sizes the real weave from the cable section.</p>
     </div>
   </div>
 
@@ -91,6 +94,12 @@
       <div id="verdict" class="verdict">—</div>
       <table class="read"><tbody id="struct"></tbody></table>
       <p class="note" id="structnote"></p>
+    </div>
+    <div class="card" id="solvedcard">
+      <h3>solved web — <span id="wasmstate" class="note">closed-form only</span></h3>
+      <table class="read"><tbody id="solved"></tbody></table>
+      <button id="search" style="margin-top:10px;width:100%;background:#10202a;color:var(--teal);border:1px solid var(--line);border-radius:6px;padding:8px;font:inherit;cursor:pointer">⟲ find lightest holding weave</button>
+      <div id="searchout" class="note"></div>
     </div>
     <div class="card">
       <h3>radiation shielding</h3>
@@ -129,16 +138,18 @@ const G0 = 9.80665, TAU = Math.PI * 2;
 const $ = (id) => document.getElementById(id);
 
 // strength = representative tensile strength (Pa); rho kg/m3. Allowable = strength / SF.
+// s = representative tensile strength (Pa); r = density (kg/m³); e = Young's modulus
+// (Pa, used by the cable-net stiffness solve).
 const MATERIALS = {
-  'structural steel':   { s: 350e6,   r: 7850 },
-  'HSLA steel':         { s: 700e6,   r: 7850 },
-  'maraging steel':     { s: 2000e6,  r: 8000 },
-  'Ti-6Al-4V titanium': { s: 900e6,   r: 4430 },
-  'Al 7075':            { s: 500e6,   r: 2810 },
-  'Kevlar 49':          { s: 3600e6,  r: 1440 },
-  'carbon fiber T1000': { s: 6400e6,  r: 1800 },
-  'Dyneema / Spectra':  { s: 3500e6,  r: 970  },
-  'graphene/CNT (ideal)': { s: 50000e6, r: 1300 },
+  'structural steel':   { s: 350e6,   r: 7850, e: 200e9 },
+  'HSLA steel':         { s: 700e6,   r: 7850, e: 200e9 },
+  'maraging steel':     { s: 2000e6,  r: 8000, e: 190e9 },
+  'Ti-6Al-4V titanium': { s: 900e6,   r: 4430, e: 114e9 },
+  'Al 7075':            { s: 500e6,   r: 2810, e: 72e9  },
+  'Kevlar 49':          { s: 3600e6,  r: 1440, e: 112e9 },
+  'carbon fiber T1000': { s: 6400e6,  r: 1800, e: 295e9 },
+  'Dyneema / Spectra':  { s: 3500e6,  r: 970,  e: 110e9 },
+  'graphene/CNT (ideal)': { s: 50000e6, r: 1300, e: 1000e9 },
 };
 const RHO_REG = 1500, M_INTERIOR = 800;            // regolith density, interior areal load
 function fillMat(sel, def) { for (const k in MATERIALS) { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); } sel.value = def; }
@@ -233,6 +244,7 @@ function render() {
   $('vatm').textContent = (p.atm / 1000).toFixed(0) + ' kPa'; $('vreg').textContent = p.reg.toFixed(1) + ' m';
   $('vN').textContent = p.N; $('vreach').textContent = (p.reach * 180 / Math.PI).toFixed(0) + '°';
   $('vphi').textContent = (p.phi * 100).toFixed(0) + '%';
+  $('vcarea').textContent = (Math.pow(10, +$('carea').value)).toFixed(4) + ' m²';
 
   // verdict + structure
   $('verdict').textContent = S.verdict; $('verdict').className = 'verdict ' + S.vclass;
@@ -303,7 +315,11 @@ function drawXsec(S) {
   if (p.reg > 0) { const rg = Math.min(0.12, 0.02 + p.reg / 200); ctx.beginPath(); ctx.arc(cx, cy, Rpx * (1 + rg), 0, TAU); ctx.arc(cx, cy, Rpx, 0, TAU, true); ctx.fillStyle = 'rgba(150,130,100,.35)'; ctx.fill(); }
   // ── the web ──
   if (p.topo !== 'none') {
-    ctx.strokeStyle = 'rgba(255,206,120,.55)'; ctx.lineWidth = Math.max(0.6, Math.min(3, p.phi * 3));
+    // colour the web by the solver's actual cable utilisation when wasm is live
+    const nr = window.NETRES;
+    ctx.strokeStyle = nr && !nr.mechanism ? lerpCol('#7fe6a0', '#ff7a6e', Math.min(1, nr.cableUtil)) + 'cc'
+      : nr && nr.mechanism ? 'rgba(255,122,110,.45)' : 'rgba(255,206,120,.55)';
+    ctx.lineWidth = Math.max(0.6, Math.min(3, p.phi * 3));
     ctx.beginPath();
     if (p.topo === 'radial') { for (let i = 0; i < p.N; i++) { const a = phase + i / p.N * TAU; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * Rpx * rInFrac, cy + Math.sin(a) * Rpx * rInFrac); } }
     else { for (let i = 0; i < p.N; i++) { const a0 = phase + i / p.N * TAU, a1 = phase + ((i + S.k) % p.N) / p.N * TAU; ctx.moveTo(cx + Math.cos(a0) * Rpx * rInFrac, cy + Math.sin(a0) * Rpx * rInFrac); ctx.lineTo(cx + Math.cos(a1) * Rpx * rInFrac, cy + Math.sin(a1) * Rpx * rInFrac); } }
@@ -346,7 +362,89 @@ function drawSlice(S) {
   ctx.fillStyle = '#8aa'; ctx.textAlign = 'right'; ctx.fillText('↓ hull — heavier, darker', W - 8, H - 8);
 }
 
-for (const el of document.querySelectorAll('input,select')) el.addEventListener('input', render);
+// ── optional wasm solver (cylinder-solver). The page is fully functional without it;
+//    the cable-net solve & weave-search light up only when pkg/ is present. ──
+let WASM = null;
+function setPill(txt, col) { const e = $('solverpill'); e.textContent = 'solver: ' + txt; e.style.color = col; }
+(async () => {
+  try {
+    const m = await import('./solver/pkg/cylinder_solver.js');
+    await m.default();
+    WASM = { hoop: m.hoop_json, net: m.solve_net_json };
+    setPill('wasm ✓', 'var(--ok)'); $('wasmstate').textContent = 'live cable-net solve';
+    $('wasmstate').className = '';
+    solveNet();
+  } catch (e) { setPill('JS fallback', '#8aa'); }
+})();
+
+const kFromReach = (p) => Math.max(1, Math.min(Math.floor(p.N / 2), Math.round(p.reach / Math.PI * p.N)));
+function netModel(p, pEff, topo, k, area) {
+  const nodes = [], members = [], arc = TAU * p.R / p.N;
+  for (let i = 0; i < p.N; i++) { const th = TAU * i / p.N; nodes.push({ pos: [p.R * Math.cos(th), p.R * Math.sin(th), 0], fix: [false, false, true], load: [pEff * arc * Math.cos(th), pEff * arc * Math.sin(th), 0] }); }
+  let hub = -1;
+  if (topo === 'radial') { hub = nodes.length; nodes.push({ pos: [0, 0, 0], fix: [true, true, true], load: [0, 0, 0] }); }
+  else { nodes[0].fix = [true, true, true]; nodes[Math.floor(p.N / 2)].fix = [false, true, true]; } // pin rigid-body
+  for (let i = 0; i < p.N; i++) {
+    members.push({ i, j: (i + 1) % p.N, area: p.twall, e: p.mat.e, tensionOnly: false });           // hull ring (even idx)
+    members.push({ i, j: topo === 'radial' ? hub : (i + k) % p.N, area, e: p.tmat.e, tensionOnly: true }); // web (odd idx)
+  }
+  return { nodes, members };
+}
+function analyzeRes(p, res, area, pEff) {
+  if (!res || res.error) return null;
+  let maxHull = 0, maxCable = 0, mass = 0;
+  res.members.forEach((m, idx) => {
+    if (idx % 2 === 0) maxHull = Math.max(maxHull, Math.abs(m.stress));
+    else { maxCable = Math.max(maxCable, Math.max(0, m.stress)); mass += p.tmat.r * area * m.length; }
+  });
+  const hullUtil = maxHull / (p.mat.s / p.sf), cableUtil = maxCable / (p.tmat.s / p.sf);
+  const shieldMass = RHO_REG * p.reg * TAU * p.R;
+  return { mechanism: res.mechanism, maxHull, maxCable, hullUtil, cableUtil, cableMassPerM: mass, shieldMass,
+    feasible: !res.mechanism && hullUtil <= 1 && cableUtil <= 1, iters: res.iters };
+}
+function pEffOf(p) { return p.atm + (RHO_REG * p.reg + M_INTERIOR) * p.w * p.w * p.R; }
+function runNet(p, topo, k, area) { try { return analyzeRes(p, JSON.parse(WASM.net(JSON.stringify(netModel(p, pEffOf(p), topo, k, area)))), area, pEffOf(p)); } catch (e) { return null; } }
+
+let solveTimer = 0;
+function solveNet() {
+  if (!WASM) return;
+  clearTimeout(solveTimer);
+  solveTimer = setTimeout(() => {
+    const p = params();
+    if (p.topo === 'none') { window.NETRES = null; $('solved').innerHTML = row('web', 'none — bare hull (nothing to solve)'); return; }
+    const area = Math.pow(10, +$('carea').value);
+    const r = runNet(p, p.topo, kFromReach(p), area);
+    window.NETRES = r;
+    if (!r) { $('solved').innerHTML = row('solver', '<span class="warn">error</span>'); return; }
+    const u = (x) => (x * 100).toFixed(0) + '%';
+    $('solved').innerHTML =
+        row('verdict', r.mechanism ? '<span class="warn">MECHANISM — weave can\'t carry load</span>' : r.feasible ? '<span style="color:var(--ok)">✓ holds (solved)</span>' : '<span class="warn">✗ overstressed</span>')
+      + row('cable utilisation', (r.cableUtil > 1 ? '<span class="warn">' : '<b>') + u(r.cableUtil) + (r.cableUtil > 1 ? '</span>' : '</b>') + ' of allowable')
+      + row('hull utilisation', (r.hullUtil > 1 ? '<span class="warn">' : '') + u(r.hullUtil) + (r.hullUtil > 1 ? '</span>' : '') + ' of allowable')
+      + row('max cable stress', fmtStress(r.maxCable))
+      + row('solved cable mass', fmtMass(r.cableMassPerM) + '/axial-m · ' + (r.cableMassPerM / r.shieldMass * 100).toFixed(1) + '% of shield')
+      + row('solve', r.iters + ' iter (tension-only)');
+  }, 60);
+}
+
+$('search').addEventListener('click', () => {
+  if (!WASM) { $('searchout').textContent = 'needs the wasm solver (not loaded).'; return; }
+  const p = params(), area = Math.pow(10, +$('carea').value), hits = [];
+  for (let k = 1; k <= Math.floor(p.N / 2); k++) {
+    const r = runNet(p, 'secant', k, area);
+    if (r && r.feasible) hits.push({ k, mass: r.cableMassPerM, cu: r.cableUtil, clear: Math.cos(Math.PI * k / p.N) });
+  }
+  const rad = runNet(p, 'radial', 0, area);
+  hits.sort((a, b) => a.mass - b.mass);
+  if (!hits.length && !(rad && rad.feasible)) { $('searchout').innerHTML = '<span class="warn">no holding weave at this cable section</span> — fatten the cable, add material, or shed load.'; return; }
+  let html = '<b style="color:var(--teal)">lightest holding weaves</b> (by cable mass):<br>';
+  if (rad && rad.feasible) html += '· radial spokes — ' + fmtMass(rad.cableMassPerM) + ', core blocked<br>';
+  hits.slice(0, 5).forEach((h, i) => { html += (i === 0 ? '<b>→ ' : '· ') + '{' + p.N + '/' + h.k + '} α=' + (180 * h.k / p.N).toFixed(0) + '° — ' + fmtMass(h.mass) + ', core ' + (h.clear * 100).toFixed(0) + '% clear, cable ' + (h.cu * 100).toFixed(0) + '%' + (i === 0 ? ' ←</b>' : '') + '<br>'; });
+  $('searchout').innerHTML = html;
+  if (hits.length) { $('topo').value = 'secant'; $('reach').value = Math.max(6, Math.min(90, Math.round(180 * hits[0].k / p.N))); solveNet(); }
+});
+
+for (const el of document.querySelectorAll('input,select')) el.addEventListener('input', () => { render(); solveNet(); });
 addEventListener('resize', render);
 (function loop() { render(); requestAnimationFrame(loop); })();
 </script>

@@ -426,6 +426,12 @@ pub mod cylinder {
                 tension_only: true,
             });
         }
+        // No hub here, so nothing grounds the in-plane rigid-body modes — pin them
+        // explicitly (node 0 fully, its antipode in y), or every secant web reads as a
+        // false mechanism. The radial load is self-equilibrated, so the reactions are ~0.
+        nodes[0].fix = [true, true, true];
+        let anti = n / 2;
+        nodes[anti].fix[1] = true;
         Model { nodes, members }
     }
 }
@@ -547,5 +553,24 @@ mod tests {
             }
         }
         assert_eq!(spokes, 24);
+    }
+
+    #[test]
+    fn secant_web_is_stable_and_carries_load() {
+        // A coprime secant web {16/5}, rigid-body pinned, should solve (not a mechanism)
+        // with at least some chord pulling in tension.
+        let m = cylinder::secant_web(
+            1000.0, 16, 5, 1.0e5, /*wall_t*/ 0.5, /*e_hull*/ 2.0e11,
+            /*cable_area*/ 0.05, /*e_cable*/ 2.95e11,
+        );
+        let s = m.solve();
+        assert!(!s.mechanism, "a coprime secant web should be stable");
+        let chord_tension = s
+            .members
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| idx % 2 == 1) // chords are the odd members
+            .any(|(_, mr)| mr.force > 1.0);
+        assert!(chord_tension, "at least one chord should carry tension");
     }
 }
