@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hoop",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // GOLDEN RULE: this `name` must be the worker that owns the live custom domain,
+  // and the domain must be declared here as a custom_domain route — otherwise
+  // wrangler silently updates a stray hoop.workers.dev and the subdomain never
+  // changes. Verify the deploy log binds "hoop.mino.mobi (custom domain)".
+  "routes": [
+    { "pattern": "hoop.mino.mobi", "custom_domain": true }
+  ],
+  // HoopRoom: live presence (player positions + online list) over WebSockets.
+  // In-memory only — no storage calls — so eviction just drops the live socket
+  // set. Durable state stays in the ATProto lexicons.
+  "durable_objects": {
+    "bindings": [
+      { "name": "HOOP_ROOM", "class_name": "HoopRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["HoopRoom"] }
+  ]
+}

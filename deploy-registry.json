@@ -390,6 +390,21 @@
       "cohesion": "integrated"
     },
     {
+      "surface": "hoop",
+      "dir": "hoop",
+      "endpoint": "hoop.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/hoop-mino-design-preview-htuxu9",
+      "uses": [],
+      "provides": null,
+      "status": "PREVIEW — collaborative design space for 'the infinite game'. Canvas glyph-world where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts).",
+      "paths": [
+        "hoop/**",
+        ".github/workflows/deploy-hoop.yml"
+      ],
+      "cohesion": "standalone"
+    },
+    {
       "surface": "scores",
       "dir": "workers/scores",
       "endpoint": "scores.mino.mobi",
