@@ -1,6 +1,6 @@
 name: Bootstrap Tangled Key (morphyx)
 
-# manual re-run marker: 2026-06-09a
+# manual re-run marker: 2026-06-09b  (PAT refreshed)
 #
 # Mints a NEW tangled deploy keypair OWNED BY MORPHYX and stores the private
 # half as the secret TANGLED_SSH_KEY_MORPHYX (a separate name, so the existing
