@@ -162,6 +162,19 @@
       ]
     },
     {
+      "surface": "cable",
+      "dir": "cable",
+      "endpoint": "cable.mino.mobi, cable.ascential.work",
+      "type": "frontend",
+      "branch": "claude/cable-definition-website-yrwv41",
+      "uses": [],
+      "provides": null,
+      "note": "Progressive cable-drawing solver for custom instrument cabling. Walks the 7-layer stack (component → connector → pin set → cable → pin → connector → board), propagating constraints across layers. Pure static (vanilla JS, no build): catalog.js → solver.js → drawing.js → app.js, attached to globalThis so the solver unit-tests in node. Worker `cable` owns cable.mino.mobi; 2nd custom_domain route cable.ascential.work (alias; separate ascential.work zone — shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ocr/ai-edu).",
+      "paths": [
+        "cable/**"
+      ]
+    },
+    {
       "surface": "cards",
       "dir": "cards",
       "endpoint": "cards.mino.mobi",
