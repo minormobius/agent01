@@ -17,6 +17,14 @@ name: Print Tangled deploy public key
 
 on:
   workflow_dispatch:
+  # Also fires when THIS file changes on the working branch, so the public key
+  # can be retrieved before the workflow reaches the default branch (where
+  # workflow_dispatch first becomes available). Printing a PUBLIC key is safe.
+  push:
+    branches:
+      - 'claude/merge-features-update-endpoints-*'
+    paths:
+      - '.github/workflows/tangled-print-pubkey.yml'
 
 jobs:
   pubkey:
