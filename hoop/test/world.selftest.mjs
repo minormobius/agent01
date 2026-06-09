@@ -45,8 +45,17 @@ const area = (poly) => { let a = 0; for (let i = 0; i < poly.length; i++) { cons
   ok('clipCell: surrounded site → bounded convex polygon', poly.length >= 3 && isConvexCCWorCW(poly) && area(poly) < 16);
   ok('clipCell: deterministic', JSON.stringify(clipCell(A, ring)) === JSON.stringify(poly));
   const far = clipCell(A, [{ x: 50, y: 50, hull: false }]);   // no near neighbours → full clip box
-  ok('clipCell: no near sites → falls back to clip box', Math.abs(area(far) - (12 * 12)) < 1e-6);
+  ok('clipCell: no near sites → falls back to clip box', Math.abs(area(far) - (6 * 6)) < 1e-6);
 }
+// point-in-polygon (ray cast) — used for the coverage proof below
+const inPoly = (px, py, poly) => {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+    if (((yi > py) !== (yj > py)) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+};
 
 // ── the mesh over the real ship ───────────────────────────────────────────────
 const field = new ChunkField(S.FLAGSHIP_SEED, null);
@@ -56,16 +65,20 @@ const TCX = Math.floor(24 / C), TCY = Math.floor(14 / C);
 {
   const m = field.mesh(TCX, TCY);
   ok('mesh: builds ok over a real chunk', m.ok === true);
-  ok('mesh: produces plates', m.cells.length > 0, `${m.cells.length} cells`);
+  ok('mesh: high resolution — one plate per floor tile', m.cells.length > 100, `${m.cells.length} cells`);
   ok('mesh: every plate is a convex polygon', m.cells.every((c) => c.poly.length >= 3 && isConvexCCWorCW(c.poly)));
-  ok('mesh: plates are bounded (≤ clip box)', m.cells.every((c) => area(c.poly) <= 12 * 12 + 1e-6));
-  // adaptive density: a plate sitting next to the hull is smaller than an open-bay plate
-  const wallCells = m.cells.filter((c) => c.edges.some((e) => e.hull));
-  const openCells = m.cells.filter((c) => !c.edges.some((e) => e.hull));
-  if (wallCells.length && openCells.length) {
-    const avg = (a) => a.reduce((s, c) => s + area(c.poly), 0) / a.length;
-    ok('mesh: resolution clusters at the hull (wall plates smaller than open plates)', avg(wallCells) < avg(openCells), `wall ${avg(wallCells).toFixed(2)} < open ${avg(openCells).toFixed(2)}`);
-  } else ok('mesh: has both wall and open plates', false, 'degenerate chunk for the test');
+  ok('mesh: plates are bounded (≤ clip box)', m.cells.every((c) => area(c.poly) <= 6 * 6 + 1e-6));
+  // THE reported bug: halls were rendering as void. Prove every floor tile in the
+  // chunk is covered by a plate (its centre lands inside some cell polygon).
+  let floorTiles = 0, covered = 0;
+  for (let ly = 0; ly < C; ly++) for (let lx = 0; lx < C; lx++) {
+    const wx = TCX * C + lx, wy = TCY * C + ly;
+    if (!field.isFloor(wx, wy)) continue;
+    floorTiles++;
+    if (m.cells.some((c) => inPoly(wx + 0.5, wy + 0.5, c.poly))) covered++;
+  }
+  ok('mesh: every floor tile is covered by a plate (no hall reads as void)', covered === floorTiles, `${covered}/${floorTiles}`);
+  ok('mesh: pre-baked seams present for batched stroking', Array.isArray(m.hullSeg) && Array.isArray(m.panelSeg) && (m.hullSeg.length + m.panelSeg.length) > 0);
 }
 // determinism: a fresh field with the same seed yields byte-identical plates
 {

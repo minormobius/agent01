@@ -27,7 +27,7 @@
 // ship.js is a global script (loaded before this module), so we read it off the
 // global rather than importing it.
 
-import { drawStalk, inkLine, stalkModel } from './ink.js';
+import { drawStalk, stalkModel } from './ink.js';
 
 const Ship = globalThis.HoopShip;
 const C = Ship.CHUNK;
@@ -35,7 +35,7 @@ const FLOOR = Ship.TILE.FLOOR, DOOR = Ship.TILE.DOOR;
 // gravity regime → a faint floor hue, so sectors read at a glance.
 const GRAV_HUE = { normal: [70, 90, 80], spin: [96, 78, 120], none: [70, 120, 128], mag: [120, 96, 60] };
 const SPAWN = { x: 24, y: 14 }; // the flagship landing — keeps the Hub thread reachable
-const CLIP_R = 6;               // max half-extent of a plate (clip-box radius, tiles)
+const CLIP_R = 3;               // max half-extent of a plate (clip-box radius, tiles)
 
 // ── pure mesh kernel (exported for the headless selftest) ─────────────────────
 // clipCell: Voronoi cell of site A as a polygon, by clipping a box against the
@@ -108,59 +108,51 @@ export class ChunkField {
   addPlaceTile(wx, wy) { this.overlay.add(wx + ',' + wy); this.sites_.clear(); this.mesh_.clear(); } // remesh: a place adds floor
 
   // ── adaptive sites (deterministic per chunk) ──────────────────────────────
-  // hull sites ring every floor│void boundary (fine plates at walls); fixture
-  // clusters densify around stalks + lights; a coarse Poisson fill takes the open
-  // bays. A site's identity depends only on its home chunk, so neighbouring chunks
-  // agree on the shared sites and the plate seams line up across chunk borders.
+  // ONE plate site per floor tile — full coverage, so no hall ever reads as void
+  // (the old sparse fill starved 1-tile corridors of plates) — plus a deduped hull
+  // site at every void tile that touches floor, which clips the tile plates crisply
+  // at the wall face and densifies plates along the hull. A site's identity depends
+  // only on its home chunk, so neighbours agree on shared sites → seamless borders.
+  // Bump SUBDIV>1 to subdivide each tile into a finer plate lattice.
   sites(cx, cy) {
     const k = this._key(cx, cy);
     let s = this.sites_.get(k);
     if (s) return s;
+    const SUBDIV = 1;                         // plate sites per tile side (resolution knob)
     const ch = this.chunk(cx, cy), bx = cx * C, by = cy * C, out = [];
-    // hull: for each floor tile, a site at each void 4-neighbour's centre
+    const jr = Ship.rngFor(this.seed, 77, cx, cy);
+    const voidSeen = new Set();
     for (let ly = 0; ly < C; ly++) for (let lx = 0; lx < C; lx++) {
       const wx = bx + lx, wy = by + ly;
       if (!this.isFloor(wx, wy)) continue;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
-        if (!this.isFloor(wx + dx, wy + dy)) out.push({ x: wx + dx + 0.5, y: wy + dy + 0.5, hull: true });
-    }
-    const nonHullStart = out.length;
-    const push = (x, y) => {
-      for (let i = 0; i < out.length; i++) { const dx = out[i].x - x, dy = out[i].y - y; if (dx * dx + dy * dy < 0.36) return; }
-      const h = Ship.hashInts(this.seed, Math.round(x * 7), Math.round(y * 7), 3);
-      out.push({ x, y, hull: false, regime: this.regime(Math.round(x - 0.5), Math.round(y - 0.5)),
-        albedo: [148 + ((h & 31) - 16), 158 + (((h >> 5) & 31) - 16), 166 + (((h >> 10) & 31) - 16)] });
-    };
-    // fixture clusters: around every garden stalk + room light
-    const fixtures = [];
-    for (const room of ch.rooms) {
-      if (room.type === 'garden') {
-        const frng = Ship.rngFor(this.seed, 55, cx * 131 + room.x, cy * 131 + room.y);
-        const n = 2 + Math.floor(frng() * Math.min(5, (room.w * room.h) / 6));
-        for (let i = 0; i < n; i++) {
-          const lx = room.x + 1 + Math.floor(frng() * Math.max(1, room.w - 2));
-          const ly = room.y + 1 + Math.floor(frng() * Math.max(1, room.h - 2));
-          fixtures.push({ kind: 'stalk', wx: bx + lx + 0.5, wy: by + ly + 0.9, ang: (frng() - 0.5) * 0.5, model: stalkModel(frng) });
-        }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const vx = wx + dx, vy = wy + dy;
+        if (!this.isFloor(vx, vy)) { const vk = vx + ',' + vy; if (!voidSeen.has(vk)) { voidSeen.add(vk); out.push({ x: vx + 0.5, y: vy + 0.5, hull: true }); } }
       }
-      for (const L of room.lights) { const fx = bx + L.x + 0.5, fy = by + L.y + 0.5; if (this.isFloor(bx + L.x, by + L.y)) push(fx, fy); }
+      const regime = this.regime(wx, wy);
+      for (let sy = 0; sy < SUBDIV; sy++) for (let sx = 0; sx < SUBDIV; sx++) {
+        const h = Ship.hashInts(this.seed, wx * SUBDIV + sx, wy * SUBDIV + sy, 3);
+        const cell = 1 / SUBDIV, jit = cell * 0.42;
+        out.push({
+          x: wx + (sx + 0.5) * cell + (jr() - 0.5) * jit,
+          y: wy + (sy + 0.5) * cell + (jr() - 0.5) * jit,
+          hull: false, regime,
+          albedo: [148 + ((h & 31) - 16), 158 + (((h >> 5) & 31) - 16), 166 + (((h >> 10) & 31) - 16)],
+        });
+      }
     }
-    const rngF = Ship.rngFor(this.seed, 909, cx, cy);
-    for (const f of fixtures) for (let i = 0; i < 3; i++) {
-      const a = rngF() * 6.283, r = 0.4 + rngF() * 0.7, x = f.wx + Math.cos(a) * r, y = f.wy + Math.sin(a) * r;
-      if (this.isFloor(Math.round(x - 0.5), Math.round(y - 0.5))) push(x, y);
+    // garden milfoil fixtures (rendered separately; not plate sites)
+    const fixtures = [];
+    for (const room of ch.rooms) if (room.type === 'garden') {
+      const frng = Ship.rngFor(this.seed, 55, cx * 131 + room.x, cy * 131 + room.y);
+      const n = 2 + Math.floor(frng() * Math.min(5, (room.w * room.h) / 6));
+      for (let i = 0; i < n; i++) {
+        const lx = room.x + 1 + Math.floor(frng() * Math.max(1, room.w - 2));
+        const ly = room.y + 1 + Math.floor(frng() * Math.max(1, room.h - 2));
+        fixtures.push({ kind: 'stalk', wx: bx + lx + 0.5, wy: by + ly + 0.9, ang: (frng() - 0.5) * 0.5, model: stalkModel(frng) });
+      }
     }
-    // coarse interior Poisson fill (big plates in open space)
-    const rngI = Ship.rngFor(this.seed, 1001, cx, cy);
-    for (let i = 0; i < 600; i++) {
-      const lx = Math.floor(rngI() * C), ly = Math.floor(rngI() * C);
-      if (!this.isFloor(bx + lx, by + ly)) continue;
-      const x = bx + lx + rngI(), y = by + ly + rngI();
-      let near = false;
-      for (let j = 0; j < out.length; j++) { const dx = out[j].x - x, dy = out[j].y - y; const lim = j < nonHullStart ? 1.1 : 2.6; if (dx * dx + dy * dy < lim * lim) { near = true; break; } }
-      if (!near) push(x, y);
-    }
-    s = { all: out, fixtures, nonHullStart };
+    s = { all: out, fixtures };
     this.sites_.set(k, s);
     return s;
   }
@@ -175,16 +167,23 @@ export class ChunkField {
     if (m) return m;
     try {
       const here = this.sites(cx, cy);
-      // gather neighbourhood sites + bucket them (bucket = 3 tiles)
-      const nb = [], buckets = new Map(), BS = 3, bkey = (x, y) => Math.floor(x / BS) + ',' + Math.floor(y / BS);
+      // gather neighbourhood sites + bucket them (bucket = 1 tile; plates are tile-sized)
+      const buckets = new Map(), bkey = (x, y) => Math.floor(x) + ',' + Math.floor(y);
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
-        for (const s of this.sites(cx + dx, cy + dy).all) { nb.push(s); const bk = bkey(s.x, s.y); (buckets.get(bk) || buckets.set(bk, []).get(bk)).push(s); }
+        for (const s of this.sites(cx + dx, cy + dy).all) { const bk = bkey(s.x, s.y); (buckets.get(bk) || buckets.set(bk, []).get(bk)).push(s); }
       const candidatesNear = (A) => {
-        const res = [], bx = Math.floor(A.x / BS), by = Math.floor(A.y / BS);
+        const res = [], bx = Math.floor(A.x), by = Math.floor(A.y);
         for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const b = buckets.get((bx + dx) + ',' + (by + dy)); if (b) for (const s of b) res.push(s); }
         return res;
       };
-      const cells = [];
+      // jittered ink polyline for one seam edge, baked in world coords (deterministic).
+      const inkSeg = (a, b, wWorld, sd) => {
+        const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, pxn = -dy / L, pyn = dx / L;
+        const segs = Math.max(2, Math.round(L * 3.6)), rng = Ship.rngFor(this.seed, 88, sd & 0xffff, (sd >>> 16) & 0xffff), pts = [];
+        for (let i = 0; i <= segs; i++) { const t = i / segs, j = (i === 0 || i === segs) ? 0 : (rng() - 0.5) * wWorld * 1.6; pts.push(a[0] + dx * t + pxn * j, a[1] + dy * t + pyn * j); }
+        return pts;
+      };
+      const cells = [], hullSeg = [], panelSeg = [];
       for (const A of here.all) {
         if (A.hull) continue;
         const cand = candidatesNear(A);
@@ -197,12 +196,14 @@ export class ChunkField {
           let nbHull = false, bd = 1e9;
           for (const s of cand) { if (s === A) continue; const d = (s.x - mx) ** 2 + (s.y - my) ** 2; if (d < bd) { bd = d; nbHull = s.hull; } }
           edges.push({ a, b, hull: nbHull });
+          const sd = (Math.round(a[0] * 64 + b[0]) ^ Math.round((a[1] * 64 + b[1]) * 131)) >>> 0;
+          (nbHull ? hullSeg : panelSeg).push(inkSeg(a, b, nbHull ? 0.09 : 0.045, sd));
         }
         cells.push({ A, poly, edges, albedo: A.albedo, regime: A.regime });
       }
-      m = { cells, fixtures: here.fixtures, ok: true };
+      m = { cells, fixtures: here.fixtures, hullSeg, panelSeg, ok: true };
     } catch (e) {
-      m = { cells: [], fixtures: [], ok: false }; // flat-fill fallback in _draw keeps the deck visible
+      m = { cells: [], fixtures: [], hullSeg: [], panelSeg: [], ok: false }; // flat-fill fallback keeps the deck visible
     }
     this.mesh_.set(k, m);
     if (this.mesh_.size > 256) for (const kk of this.mesh_.keys()) { const [x, y] = kk.split(',').map(Number); if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > 6) this.mesh_.delete(kk); }
@@ -467,23 +468,20 @@ export class World {
         ctx.closePath(); ctx.fill();
       }
     }
-    // ── seams: hull (plate│void, heavy ink) + panel (plate│plate, faint) ──
+    // ── seams: panel (plate│plate, faint) then hull (plate│void, heavy ink) ──
+    // Seams are pre-baked per chunk and stroked as ONE batched path each, so 10×ing
+    // the plate count costs ~2 strokes per visible chunk instead of thousands.
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const strokeSegs = (segs, width, style) => {
+      if (!segs.length) return;
+      ctx.beginPath();
+      for (const pl of segs) { ctx.moveTo(SX(pl[0]), SY(pl[1])); for (let i = 2; i < pl.length; i += 2) ctx.lineTo(SX(pl[i]), SY(pl[i + 1])); }
+      ctx.lineWidth = width; ctx.strokeStyle = style; ctx.stroke();
+    };
     for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
       const m = this.field.mesh(cx, cy); if (!m.ok) continue;
-      for (const cell of m.cells) {
-        const A = cell.A;
-        if (A.x < x0 - CLIP_R || A.x > x1 + CLIP_R || A.y < y0 - CLIP_R || A.y > y1 + CLIP_R) continue;
-        const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.round(A.x), Math.round(A.y));
-        const lL = Math.min(1, (lit[0] + lit[1] + lit[2]) / 1.4);
-        for (const e of cell.edges) {
-          const w = e.hull ? Math.max(1.3, t * 0.085) : Math.max(0.5, t * 0.04);
-          const col = e.hull
-            ? `rgba(${18 + (lL * 90) | 0},${24 + (lL * 90) | 0},${28 + (lL * 80) | 0},0.92)`
-            : `rgba(${70 + (lL * 80) | 0},${82 + (lL * 80) | 0},${86 + (lL * 70) | 0},0.4)`;
-          inkLine(ctx, SX(e.a[0]), SY(e.a[1]), SX(e.b[0]), SY(e.b[1]),
-            (Math.round(e.a[0] * 91 + e.b[0] * 13) ^ Math.round(e.a[1] * 71 + e.b[1] * 7)) >>> 0, w, col);
-        }
-      }
+      strokeSegs(m.panelSeg, Math.max(0.5, t * 0.04), 'rgba(120,134,138,0.34)');
+      strokeSegs(m.hullSeg, Math.max(1.4, t * 0.09), 'rgba(14,19,23,0.94)');
     }
     // ── fixtures: garden milfoil (reuses the /yarrow drawStalk) ──
     for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
