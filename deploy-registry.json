@@ -551,7 +551,7 @@
       "dir": "clock",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/geomancy-mobile-scroll-layout-SWfD9",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",
