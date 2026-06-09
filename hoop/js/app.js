@@ -26,7 +26,7 @@ const CREW_KEY = 'hoop:crew:v1';
 const PERSONA_KEY = 'hoop:persona:v1';
 // Service account that authors the canonical design map (seeded via seed-hoop.yml).
 // Always merged into the crew so the seeded ship + engines show up on read.
-const DEFAULT_CREW = ['modulo.minomobi.com'];
+const DEFAULT_CREW = ['morphyxmino.bsky.social'];
 
 const App = {
   auth: new AuthClient(),

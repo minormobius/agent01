@@ -11,12 +11,20 @@ on:
       author:
         description: 'Which service account authors the canonical records'
         type: choice
-        default: modulo
-        options: [modulo, morphyx, main]
+        default: morphyx
+        options: [morphyx, modulo, main]
       dry:
         description: 'Dry run (build + print records, no write)'
         type: boolean
         default: false
+  # Seeding is idempotent (deterministic rkeys → putRecord overwrites), so it is
+  # safe to re-run on every change to the seed script. Scoped to this branch +
+  # the seed paths only, mirroring seed-borges.yml.
+  push:
+    branches: ['claude/hoop-mino-design-preview-htuxu9']
+    paths:
+      - 'scripts/seed-hoop.mjs'
+      - '.github/workflows/seed-hoop.yml'
 
 jobs:
   seed:
@@ -29,12 +37,13 @@ jobs:
       - name: Seed design map
         env:
           # Select the account's app-password secrets from the dispatch input.
+          # Default (and the push-trigger path, where inputs are empty) → morphyx.
           HOOP_HANDLE: >-
-            ${{ inputs.author == 'morphyx' && secrets.BLUESKY_MORPHYX_HANDLE
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_HANDLE
               || inputs.author == 'main' && secrets.BLUESKY_HANDLE
-              || secrets.BLUESKY_MODULO_HANDLE }}
+              || secrets.BLUESKY_MORPHYX_HANDLE }}
           HOOP_PASSWORD: >-
-            ${{ inputs.author == 'morphyx' && secrets.BLUESKY_MORPHYX_APP_PASSWORD
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_APP_PASSWORD
               || inputs.author == 'main' && secrets.BLUESKY_APP_PASSWORD
-              || secrets.BLUESKY_MODULO_APP_PASSWORD }}
+              || secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
         run: node scripts/seed-hoop.mjs ${{ inputs.dry && '--dry' || '' }}

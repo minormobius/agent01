@@ -16,8 +16,8 @@
    migration). Reads HOOP_HANDLE + HOOP_PASSWORD (an app password) from env.
    Pass --dry to build + print the records without writing (no creds needed).
 
-   Usage:
-     HOOP_HANDLE=modulo.minomobi.com HOOP_PASSWORD=xxxx node scripts/seed-hoop.mjs
+   Usage (default service account: morphyxmino.bsky.social):
+     HOOP_HANDLE=morphyxmino.bsky.social HOOP_PASSWORD=xxxx node scripts/seed-hoop.mjs
      node scripts/seed-hoop.mjs --dry
 */
 import { resolveHandle, resolvePds, PdsClient } from '../packages/atproto/pds.js';
