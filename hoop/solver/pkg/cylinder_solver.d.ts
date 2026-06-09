@@ -3,6 +3,13 @@
 
 export function hoop_json(req: string): string;
 
+/**
+ * Solve a 2D frame (axial + bending). This is what scores closed-cell foam /
+ * honeycomb honestly — walls carry load by bending, which the pin-jointed `net`
+ * can't represent.
+ */
+export function solve_frame_json(req: string): string;
+
 export function solve_net_json(req: string): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -10,6 +17,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly hoop_json: (a: number, b: number, c: number) => void;
+    readonly solve_frame_json: (a: number, b: number, c: number) => void;
     readonly solve_net_json: (a: number, b: number, c: number) => void;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number) => number;

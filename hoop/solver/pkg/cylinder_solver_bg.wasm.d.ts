@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const hoop_json: (a: number, b: number, c: number) => void;
+export const solve_frame_json: (a: number, b: number, c: number) => void;
 export const solve_net_json: (a: number, b: number, c: number) => void;
 export const __wbindgen_add_to_stack_pointer: (a: number) => number;
 export const __wbindgen_export: (a: number, b: number) => number;
