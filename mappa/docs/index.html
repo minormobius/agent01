@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0c0a07">
+<title>mappa · docs — a procedural world engine</title>
+<meta name="description" content="Documentation for the mappa world engine: the generation pipeline (spherical tectonics, erosion, climate, biomes), the genome parameters, the views, and the permissionless world API.">
+<style>
+:root{--gold:#a9802f;--gold2:#c79a48;--parch:#e8dcc0;--ink:#0c0a07;--mut:#9c8a6c;--line:#2c2316;--card:#140f08}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#0c0a07;color:var(--parch);font:16px/1.65 ui-sans-serif,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--gold2);text-decoration:none}a:hover{text-decoration:underline}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+code{background:#1a140c;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:.88em;color:#e8c98c}
+pre{background:#100b06;border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:13.5px;line-height:1.55;color:#d8c9a8;margin:14px 0}
+pre code{background:none;border:0;padding:0;color:inherit}
+.wrap{max-width:880px;margin:0 auto;padding:0 22px}
+header.top{position:sticky;top:0;z-index:10;background:#0c0a07ee;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:54px}
+header.top a.home{color:var(--gold);font-weight:700;letter-spacing:.05em}
+header.top nav{margin-left:auto;display:flex;gap:16px;font-size:13.5px}
+header.top nav a{color:var(--mut)}header.top nav a:hover{color:var(--parch);text-decoration:none}
+.hero{padding:54px 0 34px;border-bottom:1px solid var(--line)}
+.hero h1{font:600 34px/1.1 ui-serif,'Iowan Old Style',Georgia,serif;letter-spacing:.01em}
+.hero h1 span{color:var(--gold)}
+.hero p{color:var(--mut);font-size:18px;margin-top:12px;max-width:660px}
+.hero .cta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-block;background:#1a140c;border:1px solid var(--line);color:var(--parch);padding:8px 15px;border-radius:7px;font-size:14px}
+.btn:hover{border-color:var(--gold);text-decoration:none}
+.btn.gold{background:#241a0c;border-color:#5a4a28;color:var(--gold2)}
+section{padding:38px 0;border-bottom:1px solid var(--line)}
+h2{font:600 24px/1.2 ui-serif,Georgia,serif;color:var(--parch);scroll-margin-top:70px}
+h2 .n{color:var(--gold);font-size:15px;margin-right:10px;font-family:ui-monospace,monospace}
+h3{font:600 17px/1.3 ui-sans-serif,sans-serif;color:var(--gold2);margin:24px 0 6px}
+p{margin:11px 0;color:#d7c8a8}
+ul,ol{margin:11px 0 11px 22px}li{margin:5px 0;color:#d7c8a8}
+strong{color:var(--parch)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--gold2);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em}
+td code{white-space:nowrap}
+.mut{color:var(--mut)}
+.pipe{counter-reset:step;margin:14px 0}
+.pipe .s{position:relative;padding:12px 0 12px 44px;border-bottom:1px solid #1a140c}
+.pipe .s:before{counter-increment:step;content:counter(step);position:absolute;left:0;top:12px;width:28px;height:28px;border:1px solid #5a4a28;color:var(--gold);border-radius:50%;display:grid;place-items:center;font:600 13px/1 ui-monospace,monospace;background:#1a140c}
+.pipe .s b{color:var(--parch)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+.tag{display:inline-block;background:#241a0c;border:1px solid #5a4a28;color:var(--gold2);border-radius:5px;padding:1px 7px;font-size:12px;font-family:ui-monospace,monospace}
+footer{padding:40px 0 60px;color:var(--mut);font-size:13.5px}
+.swatch{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:middle;border:1px solid #0006}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="home" href="../">↤ mappa</a>
+  <nav>
+    <a href="#genome">Genome</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#views">Views</a>
+    <a href="#api">API</a>
+    <a href="#share">Share</a>
+    <a href="#arch">Architecture</a>
+    <a href="#sources">Sources</a>
+  </nav>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <h1>mappa — a procedural <span>world engine</span></h1>
+  <p>A deterministic planet generator that runs entirely on the sphere: plate tectonics with real Euler-pole motion, hydraulic erosion, a water-volume ocean, latitude-and-altitude climate, Whittaker biomes, and a political atlas — all from a single seed and a handful of genes. Open, dependency-free, and pullable as an API.</p>
+  <div class="cta">
+    <a class="btn gold" href="../">↻ Open the live engine</a>
+    <a class="btn" href="#api">World API ↗</a>
+    <a class="btn" href="https://mino.mobi/">mino.mobi</a>
+  </div>
+</div></div>
+
+<section id="overview"><div class="wrap">
+  <h2><span class="n">00</span>What it is</h2>
+  <p>Every world is generated from an integer <strong>seed</strong> plus an optional <strong>genome</strong> — about six global scalars and a set of tectonic plates. The plates are the spine: ~90% of a world's identity lives in their positions and motions; the rest is a few knobs. The same seed and genome always produce the same planet, on any machine.</p>
+  <p>Nothing is hand-painted. The terrain, coastlines, mountain belts, rivers, climate zones, and biomes are all <em>emergent</em> from a physical-ish simulation. The mino.mobi “atlas” (civilizations, countries, cities, roads) is a separate <strong>projection</strong> laid on top of whatever world the engine produced.</p>
+</div></section>
+
+<section id="genome"><div class="wrap">
+  <h2><span class="n">01</span>The genome</h2>
+  <p>Each gene can be left to derive from the seed or pinned to a value (in the <span class="tag">⚙ genome</span> panel, or via the API). Genes are <strong>orthogonal</strong>: the RNG stream always draws the seed-derived value first, so changing one gene leaves the others — and the seed's character — intact.</p>
+  <table>
+    <tr><th>Gene</th><th>Range</th><th>What it does</th></tr>
+    <tr><td><code>planetRadius</code></td><td>0.3 – 3.0 R⊕</td><td>Two coupled effects: <strong>plate count ∝ area</strong> (r<sup>1.3</sup>) and <strong>relief ∝ 1/gravity</strong> (r<sup>−0.55</sup>). A small world has few plates but dramatic, tall terrain (Olympus Mons); a big world has many plates but flat terrain (gravity caps mountains).</td></tr>
+    <tr><td><code>age</code></td><td>1 – 20 epochs</td><td>Geological time. Plates <strong>drift</strong> about their Euler poles by <code>speed × age</code>; a multi-epoch pass keeps the strongest convergence each cell ever saw, so <strong>orogenic belts widen and develop</strong> with age. Older worlds have continents far from their origin.</td></tr>
+    <tr><td><code>plateCount</code></td><td>3 – 60</td><td>Number of tectonic plates. More plates → more boundaries → more fragmented, complex coastlines.</td></tr>
+    <tr><td><code>oceanFraction</code></td><td>0.20 – 0.90</td><td>Fraction of plates that are <strong>oceanic crust</strong> (deep basins) vs continental. Shapes where the deep ocean basins are.</td></tr>
+    <tr><td><code>waterFrac</code></td><td>0.02 – 0.40</td><td>The <strong>volume of water</strong> poured over the topography. Sea level is solved so the water settles into the basins — coverage is emergent, not imposed.</td></tr>
+    <tr><td><code>axialTilt</code></td><td>0° – 45°</td><td>Obliquity → <strong>seasonality</strong>. Drives the depth of winter by latitude and continentality, which feeds the biome classifier (more tilt → bigger ice/taiga belts).</td></tr>
+    <tr><td><code>rotationRate</code></td><td>−2.5 – 2.5 ×Ω⊕</td><td>Planetary spin, <strong>signed</strong>. |Ω| sets how many atmospheric circulation cells fit per hemisphere (slow → 1–2 giant cells, Earth → 3, fast → up to 6 narrow jets) and how zonal the winds are; it also sets day length (1/|Ω|). The <strong>sign</strong> is the spin direction — negative is retrograde, which flips the Coriolis deflection and reverses every prevailing wind.</td></tr>
+    <tr><td><code>solar</code></td><td>0.5 – 1.8 ×</td><td>Stellar luminosity. Shifts the whole temperature field → an <strong>ice world</strong> (dim) ↔ a <strong>desert world</strong> (bright).</td></tr>
+  </table>
+</div></section>
+
+<section id="pipeline"><div class="wrap">
+  <h2><span class="n">02</span>The generation pipeline</h2>
+  <p>Everything happens on the unit sphere — no map projection during generation, so there's no distortion or seam in the physics.</p>
+  <div class="pipe">
+    <div class="s"><b>Adaptive spherical mesh.</b> Points are Fibonacci-sampled, then <em>rejection-sampled</em> so density concentrates on continents and along plate boundaries (coasts, ranges, trenches) and thins in deep ocean — resolution where it counts. The dual of a Delaunay triangulation (computed via stereographic projection + a ghost north-pole vertex, Euler-verified) gives the spherical Voronoi cells.</div>
+    <div class="s"><b>Plates as Euler rotors.</b> Random plates, each with a centre, a rotation axis (Euler pole), an angular speed, and a continental/oceanic type. Surface velocity is <code>v = ω × p</code>. Boundaries are <em>domain-warped</em> by 3-D noise so they're fractal and jagged, not smooth Voronoi arcs.</div>
+    <div class="s"><b>Tectonic history.</b> Over <code>age</code> epochs the plates drift; convergence at the moving boundaries accumulates as orogeny — continent–continent collisions raise ranges, continent–ocean subduction raises coastal arcs + offshore trenches, ocean–ocean divergence makes mid-ocean ridges, and rifts pull apart. Belts widen as boundaries sweep.</div>
+    <div class="s"><b>Elevation.</b> Continental cratons + accumulated orogeny + plate-type base + 3-D noise. Oceanic crust uses <em>seafloor-age bathymetry</em>: crust is born at the mid-ocean ridges and its age (a BFS hop-distance from the ridges over ocean cells) sets depth ∝ √age via half-space cooling — ridges run shallow, abyssal plains deep. Relief is scaled by gravity (from <code>planetRadius</code>) and compressed through an Earth-like hypsometry so most land is lowland and mountains are the exception.</div>
+    <div class="s"><b>Sea level by volume.</b> A fixed volume of water is poured over the real topography and settles — solving <code>Σ areaᵢ · max(0, h − elevᵢ) = V</code> for the level <code>h</code>, weighted by true spherical cell area. Deep basins hold water at depth, so continents stay dry instead of flooding to a quota.</div>
+    <div class="s"><b>Hydraulic erosion.</b> Drainage-area valley carving + hillslope diffusion over several iterations. Produces dendritic drainage networks (the “texture”), sharp continental divides (rivers sit in carved valleys and never cross ridges), and eroded coastlines.</div>
+    <div class="s"><b>Winds &amp; climate.</b> Rotation sets the prevailing surface winds via a banded circulation model — trade easterlies, westerlies and polar easterlies, with the cell count and zonality driven by <code>rotationRate</code> and the deflection sign by its sign (retrograde reverses them). Temperature comes from latitude + altitude lapse + solar. Moisture is then <em>advected</em>: ocean humidity is carried downwind and rains out, so windward coasts are wet and lee sides / deep interiors fall into <strong>rain shadow</strong>; this is layered over the circulation's wet (rising) and dry (sinking, subtropical) bands. Seasonality from axial tilt × latitude × continentality.</div>
+    <div class="s"><b>Biomes &amp; cryosphere.</b> A Whittaker classification (temperature × a growing-season-limited moisture) → tundra, taiga, steppe, temperate & tropical forests, savanna, hot & cold deserts, ice, alpine, snow. The coldest land grows <strong>glaciers / ice caps</strong> and ocean below seawater freezing (~−2 °C) freezes into <strong>sea ice</strong>, so dim-sun / high-tilt worlds wear real polar caps.</div>
+    <div class="s"><b>Volcanoes.</b> Derived from the tectonics already computed: continental subduction arcs, ocean–ocean island arcs, and a sparse intraplate hotspot field. Surfaced and named on the Relief view.</div>
+    <div class="s"><b>Rivers &amp; lakes.</b> Priority-flood depression filling + downhill flow accumulation on the mesh graph; channels above a flow threshold become rivers, filled basins become lakes.</div>
+  </div>
+</div></section>
+
+<section id="views"><div class="wrap">
+  <h2><span class="n">03</span>Views</h2>
+  <ul>
+    <li><strong>Orb</strong> — the native spherical render. Free-trackball rotation, a graticule with N/S poles, axial-tilt lean, biome colouring, and directional sphere shading.</li>
+    <li><strong>Mercator</strong> — a true conformal projection of the spherical world, drawn as crisp vector polygons (no pixelation at any zoom).</li>
+    <li><strong>Civ</strong> — the sovereignty map: one flat sea, land coloured by <strong>country</strong> within each civilization's hue family, with country and civilization borders, roads, and cities.</li>
+    <li><strong>Tectonic</strong> — plates coloured by type, boundaries coloured by kind (convergent / divergent / transform), and <strong>drift trails</strong> showing how far and which way each plate has moved (dot = origin, ▸ = now).</li>
+  </ul>
+  <p>The mode bar separates <strong>projection</strong> (Orb / Mercator) from the content <strong>layer</strong>, so the layers below ride on either the globe or the map:</p>
+  <ul>
+    <li><strong>Relief</strong> — hypsometric tints (sea shaded by depth, land green→tan→brown→snow; ice caps & sea ice read white) with the highest peak ▲ and deepest trough ▼ pinned and named, plus 🌋 volcanoes (subduction & island arcs, hotspots) labelled from the seed.</li>
+    <li><strong>Wind</strong> — the prevailing surface winds drawn as an arrow field over the biome base.</li>
+    <li><strong>Ethno</strong> — the ethnographic atlas: each land cell's <em>subsistence mode</em> (foragers, pastoralists, hoe horticulture, plough farmers, irrigation, maritime) classified from ecology — biome, temperature, moisture, slope, rivers and coast. The cultivation belts fall out of the climate, no new parameters.</li>
+    <li><strong>Ore</strong> — 17 commodities placed by <em>geology</em>, each from the variable that actually controls it. <em>Plate &amp; magma:</em> porphyry copper &amp; gold on the subduction arcs and volcanoes, iron &amp; gemstones in the old stable cratonic interiors, tin in granite highlands, placer gold down the rivers that drain them. <em>Sutures &amp; submarine vents:</em> chromite and nickel–cobalt laterites along the obducted-ophiolite collision belts, and volcanogenic zinc &amp; lead at the submarine flanks of the volcanic arcs. <em>Climate &amp; weathering:</em> bauxite (aluminium) in hot, wet, low-relief tropical lowlands — lateritic weathering; rare-earth ion-clays and carbonatites where a plume reactivates a craton interior. <em>Basins &amp; water:</em> salt in arid basins, lithium in arid endorheic salars fed by volcanism, uranium leached from granite highlands into the arid basins below them, oil &amp; gas in delta-fed shelves and buried low basins, coal in warm-wet paleo-swamps. <em>Coast &amp; current:</em> titanium-bearing heavy-mineral sands on beaches downstream of weathered terrain, and phosphate on the subtropical upwelling shelves where prevailing winds drive offshore. The same tectonics, climate and winds the other views show, read for resources.</li>
+    <li><strong>Fossils</strong> — fossil <em>dig sites</em>, marked where sedimentary strata both <em>formed</em> (low ground — basins, floodplains, coasts, lake beds gather thick sediment) and are now <em>exposed</em> (arid badlands &amp; sea cliffs strip the cover; wet forest buries it, high peaks fuse it away). Each site is labelled with the fossils its rock records — and that type is read from <em>deep time</em>: the engine rewinds the cell to its deposition age and the paleo-latitude decides reef vs. shelf sea vs. coal forest vs. dinosaur floodplain vs. mammal bone bed vs. ice-age tundra. A desert that was a tropical shelf yields ammonites; one that sat on the equator yields coal-swamp ferns.</li>
+    <li><strong>Paleo</strong> — the deep-time scrub. Drag the slider (or press ▶ drift) to rewind every plate backward along its Euler pole — the same rotation the Tectonic drift trails draw, applied to all cells at once. The continents slide across fixed climate-zone reference lines (equator, tropics, polar circles), so you watch a present desert drift onto the paleo-equator; the dig sites drift with their rock and ring up when their beds are forming. Hover any cell for its now→then latitude. An evocative rewind rather than a rigorous reconstruction — plates rotate independently, so a deep rewind can crowd the continents into a proto-Pangaea.</li>
+  </ul>
+  <p><strong>Civ</strong> and <strong>Tectonic</strong> are map-designed, so selecting them snaps to Mercator. <strong>Fossils</strong> and <strong>Paleo</strong> ride on either the globe or the map.</p>
+  <h3>The atlas projection</h3>
+  <p>The mino.mobi sites are not part of the engine — they are projected onto whatever world was generated. Land is scored for <strong>habitability</strong> (biome + elevation); spherical k-means partitions the habitable land into nine <strong>civilizations</strong> (the theme-wings), each matched to a region; every civilization is then subdivided into sovereign <strong>countries</strong> by clustering its cities (most hold one city, the largest two or three); cities place by habitability + spacing + founding age; and a road network is the least-cost path from each country's capital over land.</p>
+
+  <h3>Names &amp; toponymy</h3>
+  <p>The map carries two kinds of name. <strong>City</strong> names come from the atlas — they are the real mino.mobi sites, projected on. Every <strong>geological</strong> feature (the highest peak, the deepest trough, the volcanoes, the ore deposits, the dig sites) is <strong>named by the engine</strong>, deterministically from the world seed — same world, same names, for ever.</p>
+  <p>A feature name is a <strong>specific root</strong> + a <strong>generic term</strong> that fits the feature — <em>Mount Kruth</em>, <em>Thauld Deep</em>, <em>Dambra Caldera</em>, <em>Naish Lode</em>, <em>Vaelele Bonebeds</em>. The root is built from syllables — an onset, a nucleus (vowel), and an optional coda — and the generic is drawn from a per-kind set:</p>
+  <table>
+    <tr><th>Feature</th><th>Generic terms</th></tr>
+    <tr><td>Peak</td><td><code>Mount</code> · <code>Pike of</code> · <code>Cairn</code> · <code>… Tor / Horn / Fell / Crag / Scaur / Spire</code></td></tr>
+    <tr><td>Trough</td><td><code>… Deep / Trench / Abyss / Trough / Fault / Sink / Gulf</code></td></tr>
+    <tr><td>Volcano</td><td><code>Mount …</code> · <code>… Fell / Caldera / Pyre / Forge / Smokes / Ashmount</code></td></tr>
+    <tr><td>Ore deposit</td><td><code>… Lode / Field / Diggings / Reach / Vein / Workings / Mine / Strike</code></td></tr>
+    <tr><td>Dig site</td><td><code>… Beds / Quarry / Pits / Bonebeds / Marl / Hollow / Cutting</code></td></tr>
+  </table>
+  <p>The point of the system is <strong>linguistic coherence</strong>: the syllable palette is one of several <strong>language families</strong> (<em>Varn</em> — harsh, northern; <em>Lyr</em> — liquid, upland; <em>Mor</em> — round, lowland; <em>Kael</em> — bright, southern; <em>Esh</em> — sibilant, coastal), and <strong>the family is chosen per tectonic plate</strong>. So every feature on one landmass shares a tongue — a mountain and a mine on the same continent rhyme — and the <strong>language borders fall along the plate sutures</strong>, exactly where Earth's real linguistic divides tend to sit (the Caucasus, the Himalaya, the Alps). Names aren't decoration here; they're another reading of the tectonics.</p>
+</div></section>
+
+<section id="api"><div class="wrap">
+  <h2><span class="n">04</span>World API</h2>
+  <p>Pull a complete, deterministic world as JSON. CORS-open, edge-cached, no key. The same <code>(seed + parameters + n)</code> always returns the same world.</p>
+  <pre><code>GET https://mino.mobi/api/world?seed=7&amp;n=1800&amp;radius=0.7&amp;age=8&amp;solar=1.1</code></pre>
+  <h3>Query parameters</h3>
+  <table>
+    <tr><th>Param</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>seed</code></td><td>1</td><td>Integer world seed.</td></tr>
+    <tr><td><code>n</code></td><td>1500</td><td>Target cell count (500–2200). The browser engine runs far higher; the API is capped by server CPU.</td></tr>
+    <tr><td><code>radius</code></td><td>—</td><td>Planet radius in R⊕ (0.3–3.0). Omit to derive.</td></tr>
+    <tr><td><code>age</code></td><td>—</td><td>Geological epochs (1–20).</td></tr>
+    <tr><td><code>plates</code></td><td>—</td><td>Plate count (3–60).</td></tr>
+    <tr><td><code>ocean</code></td><td>—</td><td>Oceanic-crust % (20–90).</td></tr>
+    <tr><td><code>water</code></td><td>—</td><td>Water-volume % (2–40).</td></tr>
+    <tr><td><code>tilt</code></td><td>—</td><td>Axial tilt in degrees (0–45).</td></tr>
+    <tr><td><code>rotation</code></td><td>—</td><td>Planetary spin, signed (−2.5–2.5 ×Ω⊕; negative = retrograde).</td></tr>
+    <tr><td><code>solar</code></td><td>—</td><td>Stellar luminosity (0.5–1.8).</td></tr>
+  </table>
+  <h3>Response</h3>
+  <pre><code>{
+  "api": "mappa.world/v1",
+  "meta": { "seed": 7, "n": 1468, "plateCount": 20, "oceanFraction": 0.58,
+            "waterFrac": 0.24, "seaCoverage": 0.55, "axialTiltDeg": 9,
+            "solar": 1.15, "planetRadius": 0.6, "age": 9, "ageSpan": 0.9 },
+  "biomes": [ { "id": "tundra", "name": "tundra", "color": [150,12,60] }, … ],
+  "n": 1468,
+  "points": [ [lon, lat], … ],          // degrees, one per cell
+  "elev":   [ … ],                      // shore = 0, + land / − sea
+  "water":  [ … ],                      // 0 land · 1 ocean · 2 lake
+  "biome":  [ … ],                      // index into `biomes`
+  "rivers": [ [lon,lat, lon,lat, flow], … ],   // downstream segments
+  "plates": [ { "lon","lat","oceanic","speed" }, … ]
+}</code></pre>
+  <p>The arrays are parallel and one entry per cell. <code>biome[i]</code> indexes the <code>biomes</code> legend; each colour is <code>[hue, saturation%, lightness%]</code>. To render: place each cell at its <code>points[i]</code> and colour by biome, or feed the points to your own Voronoi/triangulation for a polygon map.</p>
+  <h3>Examples</h3>
+  <pre><code># a small, dramatic, ancient dwarf planet
+/api/world?seed=42&amp;radius=0.5&amp;age=12
+
+# a bright, drowned ocean world
+/api/world?seed=99&amp;solar=1.3&amp;water=30&amp;ocean=80
+
+# fetch + read the genome
+curl -s "https://mino.mobi/api/world?seed=7" | jq .meta</code></pre>
+  <p class="mut">Note: the API runs the reference (JavaScript) engine; the browser viewer runs the Rust/WASM engine at higher resolution. Both are internally deterministic, but a given seed renders at a different cell count between them, so they are not pixel-identical — the API is its own self-consistent world source.</p>
+</div></section>
+
+<section id="share"><div class="wrap">
+  <h2><span class="n">05</span>Sharing &amp; interestingness</h2>
+  <p>A world is a pure function of its <strong>config</strong> — <code>{ seed, genome, n }</code> — so the config <em>is</em> the world: a few hundred bytes that regenerate the whole planet, deterministically, anywhere. That makes a world a first-class shareable artifact.</p>
+  <h3>Two transports</h3>
+  <ul>
+    <li><strong>Permalink</strong> — <code>?w=&lt;token&gt;</code>, a base64url of the config. Zero auth, works today: the <em>share</em> button copies a link that reopens this exact world. (A bare seed is an 11-byte token; a fully-tuned genome ~120 bytes.)</li>
+    <li><strong>ATProto record</strong> — publish the config to <em>your</em> PDS as <code>com.minomobi.mappa.world</code> (lexicon in <code>mappa/lexicons/</code>), via the shared <code>AuthClient</code> — the same single sign-on every <code>*.mino.mobi</code> site uses. The record stores the config plus a cached interestingness snapshot for a future discovery feed / "best worlds" shelf. DAG-CBOR has no float type, so the continuous genome knobs are stored as fixed-point integers (×1000).</li>
+  </ul>
+  <h3>Opening a published world</h3>
+  <p>Loading closes the loop. A record's canonical link — <code>/mappa/?at=&lt;at-uri&gt;</code> (or <code>?did=&amp;rkey=</code>) — opens that exact world straight from its PDS, no token needed; the share panel also takes an <code>at://</code> URI directly, or a <strong>@handle</strong> to <em>browse</em> that person's published worlds (a small gallery of name · ★score · descriptor, click to open). Reads are public and unauthenticated (<code>com.atproto.repo.getRecord</code> / <code>listRecords</code>), and an <code>?at=</code> link unfurls into the same rich card. The world still regenerates from the config — the stored interestingness is just the publisher's snapshot — so a loaded world is live and re-shareable, and any note the publisher attached rides along. (This is the discovery primitive a "best worlds" feed would sit on.)</p>
+  <h3>Rich link cards</h3>
+  <p>The share link unfurls. Two Pages Functions render the card server-side (crawlers can't run the viewer): <code>/mappa/card</code> serves per-world Open Graph / Twitter meta — the world's <strong>name</strong> (its largest landmass, in that landmass's language) and its interestingness <strong>descriptor</strong> (<em>★ 88/100 · A temperate cluster of four continents with a great inland sea, 63% ocean</em>) — and bounces a human to the live viewer; <code>/mappa/og</code> draws the planet to a <strong>PNG</strong> — an equirectangular biome map of that exact world, with no image library (nearest-cell sampling + the platform's <code>CompressionStream</code> for the PNG deflate). Both are deterministic and content-addressed by the config, so they edge-cache forever after the first render.</p>
+  <h3>What makes a world interesting?</h3>
+  <p>A board game has a free answer to "is this good?" — you <em>play</em> it, and skill-beats-chance / it-ends / it's-fair are ground truth. A <strong>world has no objective to play</strong>, so "interesting" isn't a normative, simulatable property. It's <strong>variety, contrast, structure and story-potential</strong> — and the opposite, a featureless monotone, is the degeneracy to screen out. <code>lib/world-signals.js</code> is a hand-authored <strong>signal battery</strong>: a weighted set of measurements over the engine's own fields, each 0–1, summed to a 0–100 score with degeneracy flags and an evocative one-line descriptor.</p>
+  <table>
+    <tr><th>Signal</th><th>What it measures</th><th>Weight</th></tr>
+    <tr><td><strong>structure</strong></td><td>continents vs. one Pangaea vs. archipelago — reward several substantial landmasses, no single dominant blob</td><td>22</td></tr>
+    <tr><td><strong>climate</strong></td><td>biome (Whittaker) Shannon-entropy + whether it spans tropics→temperate→poles</td><td>22</td></tr>
+    <tr><td><strong>relief</strong></td><td>real high ground, a lively plate count, a mountainous fraction</td><td>16</td></tr>
+    <tr><td><strong>habitability</strong></td><td>arable land — not barren, not wall-to-wall jungle — split into several separated homelands (the geopolitics proxy)</td><td>16</td></tr>
+    <tr><td><strong>sea</strong></td><td>land/sea balance, a goldilocks band around ~60% ocean</td><td>12</td></tr>
+    <tr><td><strong>hydrology</strong></td><td>river density, lakes, and the rare enclosed <em>inland sea</em> (a Mediterranean — story gold)</td><td>12</td></tr>
+  </table>
+  <p>Degeneracy flags — <code>waterworld</code>, <code>iceball</code>, <code>desert-world</code>, <code>monobiome</code>, <code>one-supercontinent</code>, <code>all-archipelago</code>, <code>flat-world</code> — both lower the relevant signal <em>and</em> dock the score, so the monotone extremes rank clearly below the gems. Positive highlights (<code>inland sea</code>, <code>high mountains</code>, <code>full climate range</code>, <code>great rivers</code>) feed the descriptor, e.g. <em>"A verdant cluster of three continents with a great inland sea, 73% ocean."</em></p>
+  <p class="mut"><strong>The honest posture.</strong> This is a <em>designed</em> aesthetic, not a discovered one, and the score is for <strong>ranking</strong> — surfacing the gems out of a seed line — not for claiming a world is objectively good. The closest thing a world has to a self-labeling "playtest" is the <strong>civilization projection</strong> (does the atlas k-means produce many distinct, contested, well-separated cultures?); folding that in — and training a tiny critic on the battery so millions of seeds can be screened in microseconds for the genuinely interesting ones — is the next rung. (See the Ludographer at <code>games/gen/</code> for the same ladder applied where playtesting <em>is</em> free.)</p>
+</div></section>
+
+<section id="arch"><div class="wrap">
+  <h2><span class="n">06</span>Architecture</h2>
+  <ul>
+    <li><strong>Two engines, one algorithm.</strong> <code>mappa/engine.js</code> is the dependency-free reference (and the API + fallback). <code>mappa/engine-rs/</code> is the same pipeline in Rust, compiled to WASM with <code>wasm-pack</code>, used by the browser at ~16k cells. The viewer loads the WASM if present and falls back to JS otherwise, so the site never breaks.</li>
+    <li><strong>Deterministic core.</strong> A bit-exact <code>mulberry32</code> PRNG and integer-hash value noise. Same seed ⇒ same draws.</li>
+    <li><strong>Verified topology.</strong> The spherical mesh satisfies Euler's formula (<code>triangles = 2·vertices − 4</code>) on every world — the invariant that certifies a correct sphere triangulation.</li>
+    <li><strong>Projection ≠ engine.</strong> The world engine knows nothing about mino.mobi; the atlas (civilizations / countries / cities / roads) is computed separately and laid on top.</li>
+  </ul>
+  <h3>Roadmap</h3>
+  <ul>
+    <li><strong>Neolingual generation.</strong> Grow the per-plate language families from a naming palette into actual generated <em>languages</em> — a deterministic phoneme inventory, phonotactic rules, a seed lexicon and a sound-change history per plate — so place-names, civilization names and glosses become inflected forms of a coherent tongue. Sister languages on neighbouring plates would diverge from a shared proto-language <em>along the drift history</em>: historical linguistics as one more reading of the tectonics.</li>
+    <li><strong>A fictional phylogeny</strong> (lol, but seriously). A generated tree of life seeded by the world: clades radiating to fill the Whittaker biomes, convergent body-plans evolving independently in matching climates on separated landmasses, island endemics where the Paleo drift isolates a continent, and extinctions read off the deep-time record — the dig sites would then yield <em>named species</em> from that tree instead of generic fossil categories, and the fossils at a site would belong to the clades that lived where the land sat.</li>
+    <li>Lunar parameters — tides, tidal heating (volcanism), and obliquity stabilization across epochs.</li>
+    <li>The Rust engine in the API Worker, to lift the resolution cap and unify the engines.</li>
+    <li>A “high-detail” export pass (100k+ cells, more erosion/epochs) on demand.</li>
+  </ul>
+</div></section>
+
+<section id="sources"><div class="wrap">
+  <h2><span class="n">07</span>Sources &amp; further reading</h2>
+  <p class="mut">mappa is a stylized model, not a research simulator — each mechanic is a deliberately simplified take on a real body of work. These are the ideas it draws on, if you want to dig past the cartoon.</p>
+  <ul>
+    <li><strong>Spherical mesh.</strong> Fibonacci / golden-spiral sphere sampling (González, “Measurement of areas on a sphere using Fibonacci…”, 2010); Delaunay triangulation via stereographic projection with a ghost pole, dual → spherical Voronoi (standard computational geometry; the <code>delaunator</code> kernel).</li>
+    <li><strong>Plate tectonics.</strong> Plate motion as rigid rotation about an Euler pole (Cox &amp; Hart, <em>Plate Tectonics: How It Works</em>, 1986); a real global plate model for scale intuition (Bird, “An updated digital model of plate boundaries”, 2003).</li>
+    <li><strong>Seafloor bathymetry.</strong> Half-space cooling — ocean depth increasing as √(age) away from the spreading ridge (Parsons &amp; Sclater 1977; Stein &amp; Stein, “A model for the global variation in oceanic depth and heat flow…”, <em>Nature</em> 1992).</li>
+    <li><strong>Rivers &amp; erosion.</strong> Priority-flood depression filling (Barnes, Lehman &amp; Mulla, 2014) and flow accumulation on the mesh graph (O’Callaghan &amp; Mark, 1984).</li>
+    <li><strong>Winds &amp; climate.</strong> The three-cell circulation and trade winds (Holton, <em>An Introduction to Dynamic Meteorology</em>); the rotational control of how many cells/jets a planet has (Mitchell &amp; Vallis, “The transition to superrotation…”, 2010; Read, “Dynamics and circulation regimes of terrestrial planets”, 2011). Orographic rainfall &amp; rain shadow (Roe, “Orographic precipitation”, <em>Annu. Rev. Earth Planet. Sci.</em>, 2005).</li>
+    <li><strong>Biomes.</strong> The Whittaker temperature × moisture classification (Whittaker, <em>Communities and Ecosystems</em>, 1975).</li>
+    <li><strong>Subsistence belts (Ethno).</strong> The ecology→subsistence link behind the cultivation belts (Murdock, <em>Ethnographic Atlas</em>, 1967; Boserup, <em>The Conditions of Agricultural Growth</em>, 1965; Goody, <em>Technology, Tradition, and the State in Africa</em>, 1971, on hoe vs plough); the east–west diffusion / axis-orientation idea (Diamond, <em>Guns, Germs, and Steel</em>, 1997).</li>
+    <li><strong>Ore deposits (Minerals).</strong> Subduction-arc porphyry copper–gold (Sillitoe, “Porphyry Copper Systems”, <em>Economic Geology</em>, 2010); banded iron formations on Archean cratons (Klein, 2005); diamonds in deep cratonic keels via kimberlite; evaporites in arid basins (Warren, <em>Evaporites</em>, 2006); a general survey (Robb, <em>Introduction to Ore-Forming Processes</em>, 2005). Fossil fuels: coal from tropical peat-swamp lowlands, petroleum from organic-rich marine source rock buried in subsiding basins (Tissot &amp; Welte, <em>Petroleum Formation and Occurrence</em>, 1984). The Tier-A additions follow their controlling variable: bauxite from lateritic weathering in hot, wet, low-relief tropics (Bárdossy &amp; Aleva, <em>Lateritic Bauxites</em>, 1990); lithium from arid closed-basin brines fed by volcanism (Bradley et al., USGS lithium models, 2013); sandstone-hosted uranium roll-fronts (IAEA, 2018); rare-earth carbonatites in plume-reactivated cratons (Mountain Pass / Bayan Obo; Chakhmouradian &amp; Wall, <em>Elements</em>, 2012); heavy-mineral placer sands on coasts (titanium, monazite); and phosphorite under coastal upwelling (Föllmi, “The phosphorus cycle, phosphogenesis…”, <em>Earth-Sci. Rev.</em>, 1996). Tier-B companions track plate sutures and submarine volcanism: nickel–cobalt laterites weathered from ultramafic ophiolite (Butt &amp; Cluzel, <em>Elements</em>, 2013), podiform chromite in obducted ophiolite, and volcanogenic massive-sulfide zinc–lead at submarine arcs &amp; back-arcs (Franklin, Gibson, Jonasson &amp; Galley, <em>Economic Geology</em> 100th Anniv., 2005).</li>
+    <li><strong>Fossils &amp; deep time (Fossils / Paleo).</strong> The taphonomic window — fossils need both deposition (a sedimentary basin) and later exposure (erosion / outcrop) — and the facies that decide the assemblage (Prothero, <em>Bringing Fossils to Life</em>, 2013; Behrensmeyer et al., <em>Terrestrial Ecosystems through Time</em>, 1992). Exceptional lake/lagoon preservation = Konservat-Lagerstätten (Seilacher, 1970). Reading fossils for paleolatitude is the logic of apparent polar wander &amp; paleomagnetic reconstruction (Scotese’s PALEOMAP; Torsvik &amp; Cocks, <em>Earth History and Palaeogeography</em>, 2017). The plate rewind is the Euler-pole rotation above, run backward.</li>
+  </ul>
+</div></section>
+
+<footer><div class="wrap">
+  mappa · a procedural world engine for <a href="https://mino.mobi/">mino.mobi</a>. Deterministic, open, and permissionlessly pullable.
+  <br>· <a href="../">live engine</a> · <a href="#api">API</a> · <a href="#sources">sources</a> ·
+</div></footer>
+</body>
+</html>

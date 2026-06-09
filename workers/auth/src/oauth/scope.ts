@@ -44,11 +44,16 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
   'com.minomobi.fluoddity.rubric',
+  // hoop (collaborative design space for the infinite game)
+  'com.minomobi.hoop.place',
+  'com.minomobi.hoop.message',
   // io (atproto tracker portal)
   'com.minomobi.io.ticket',
   // labglass
   'com.minomobi.labglass.cell',
   'com.minomobi.labglass.notebook',
+  // mappa (shared procedural worlds)
+  'com.minomobi.mappa.world',
   // mmopaint (poll sub-room)
   'com.minomobi.mmopaint.stroke',
   // music

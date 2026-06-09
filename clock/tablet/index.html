@@ -38,7 +38,7 @@ h1{font:600 26px/1.12 ui-serif,Georgia,serif;letter-spacing:.05em;margin:9px 0 5
 .dial{text-align:center}
 .dlabel{font:10px/1.2 ui-monospace,monospace;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;margin-bottom:8px}
 .dlabel b{color:var(--gold)}
-.disc{position:relative;width:118px;height:118px;margin:0 auto;border-radius:50%;cursor:grab;overflow:hidden;
+.disc{position:relative;width:130px;height:130px;margin:0 auto;border-radius:50%;cursor:grab;overflow:hidden;
   touch-action:none;
   background:radial-gradient(circle at 38% 32%, #6b4f22, #3a2a12 70%, #271b0c);
   border:2px solid rgba(236,198,106,.5);
@@ -54,14 +54,14 @@ h1{font:600 26px/1.12 ui-serif,Georgia,serif;letter-spacing:.05em;margin:9px 0 5
 .index{position:absolute;left:50%;top:-2px;z-index:3;transform:translateX(-50%);width:0;height:0;
   border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--gold);
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
-.disc .knob{position:absolute;left:50%;top:50%;z-index:2;width:16px;height:16px;border-radius:50%;transform:translate(-50%,-50%);
+.disc .knob{position:absolute;left:50%;top:50%;z-index:2;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);
   background:radial-gradient(circle at 40% 35%, #f1d588, #b98a36);box-shadow:0 1px 2px rgba(0,0,0,.6)}
-/* the window: shows the figure as four rows of silver points */
-.window{position:absolute;left:50%;top:11px;z-index:2;transform:translateX(-50%);width:58px;height:52px;border-radius:6px;
+/* the window: shows the figure as four rows of silver points — kept clear of the centre knob */
+.window{position:absolute;left:50%;top:9px;z-index:2;transform:translateX(-50%);width:52px;height:44px;border-radius:6px;
   background:linear-gradient(180deg,#120c04,#1d1408);border:1px solid rgba(236,198,106,.4);
-  box-shadow:0 1px 2px rgba(0,0,0,.6) inset;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:5px 0}
-.wrow{display:flex;justify-content:center;gap:7px;height:7px}
-.wrow .pt{width:6px;height:6px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,var(--silver));box-shadow:0 0 3px rgba(217,221,232,.5)}
+  box-shadow:0 1px 2px rgba(0,0,0,.6) inset;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:4px 0}
+.wrow{display:flex;justify-content:center;gap:6px;height:6px}
+.wrow .pt{width:5px;height:5px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,var(--silver));box-shadow:0 0 3px rgba(217,221,232,.5)}
 .window.empty .wrow .pt{background:rgba(236,198,106,.18);box-shadow:none}
 .dfig{margin-top:8px;font:600 12px/1.15 ui-serif,Georgia,serif;color:var(--ink);min-height:15px}
 .dfig .ar{font-size:13px;color:var(--gold);margin-left:4px}
@@ -86,10 +86,14 @@ button.ghost:hover{color:var(--gold);filter:none}
 .ctl{display:flex;align-items:center;gap:10px;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);margin-bottom:8px}
 .ctl label{width:64px} select{flex:1;background:#241a0c;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px}
 
-#shield{overflow-x:auto}
-#shield .srow{display:flex;justify-content:center;gap:7px;margin-bottom:9px}
-.fc{flex:0 0 112px;border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.2)}
-@media(max-width:760px){ .fc{flex:0 0 78px} }
+#shield{overflow-x:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:safe center;--fcw:112px;--fcg:7px}
+#shield .shield-inner{width:max-content;flex:0 0 auto}
+#shield .srow{display:flex;justify-content:center;gap:var(--fcg);margin-bottom:9px}
+/* each niece sits under the pair of figures above it that forms it; each witness under its pair of nieces */
+#shield .srow.nieces{gap:calc(var(--fcw) + 2*var(--fcg))}
+#shield .srow.witnesses{gap:calc(3*var(--fcw) + 4*var(--fcg))}
+.fc{flex:0 0 var(--fcw);border:1px solid var(--line);border-radius:7px;padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.2)}
+@media(max-width:760px){ #shield{--fcw:78px} }
 .fc[data-sel]{cursor:pointer} .fc[data-sel]:hover{border-color:var(--gold-dim)} .fc.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
 .fc .fl{font:8px/1.1 ui-monospace,monospace;letter-spacing:.04em;color:var(--faint);margin-bottom:4px}
 .fc .fl b{color:var(--gold);font-size:11px}
@@ -170,6 +174,7 @@ footer a{color:var(--ink-soft)}
   <footer>
     Al-Mawsili's tablet · the Arabic-origin counterpart to the <a href="../geocast/">sand</a>
     &nbsp;·&nbsp; the reading after <a href="https://read.mino.mobi/geomancy">Fludd</a>
+    &nbsp;·&nbsp; tinker: <a href="../tabletilt/">the rotor lab →</a>
     &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
   </footer>
 </div>
@@ -314,7 +319,7 @@ function renderShield(S){
     `<div class="gg">${glyphRows(S.judge.rows)}</div><div class="fn">${jf?jf.name:'—'}</div>`+
     `<div class="jmeta">${jp} pts${jm?` · <span class="jnat ${jm.nature.split(/[ ,(]/)[0]}">${jm.nature}</span>`:''}</div></div></div>`;
   document.getElementById('shield').innerHTML =
-    `<div class="srow">${top}</div><div class="srow">${nieces}</div><div class="srow">${wit}</div>`+judge;
+    `<div class="shield-inner"><div class="srow">${top}</div><div class="srow nieces">${nieces}</div><div class="srow witnesses">${wit}</div>`+judge+`</div>`;
 }
 function parseSel(k){ return k.startsWith('house:')?{kind:'house',house:+k.slice(6)}:{kind:k}; }
 function renderReading(){

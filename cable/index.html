@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cable — progressive cable-drawing solver</title>
+<meta name="description" content="Define a custom instrument cable end to end: component → connector → pin set → cable → pin → connector → board. The stack solves itself as you specify constraints.">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="crumb" href="https://mino.mobi">mino.mobi</a>
+  <div class="brand">
+    <h1>Cable</h1>
+    <p>A progressive solver for custom instrument cabling. Pick the two ends; the seven-layer drawing fills itself in.</p>
+  </div>
+</header>
+
+<main>
+  <!-- left: the inputs -->
+  <section class="controls">
+    <h2>Define the run</h2>
+    <label>Component <small>(field end)</small>
+      <select id="f-component"></select></label>
+    <label>Board <small>(fixed end)</small>
+      <select id="f-board"></select></label>
+    <label id="row-header" style="display:none">Board header
+      <select id="f-header"></select></label>
+    <label>Cable length (m)
+      <input id="f-length" type="number" min="0.1" step="0.1" value="2"></label>
+    <label>Routing
+      <select id="f-flex">
+        <option value="static">Static — fixed</option>
+        <option value="flexible" selected>Flexible — occasional flex</option>
+        <option value="continuous-flex">Continuous-flex — cable track</option>
+      </select></label>
+    <label>Environment
+      <select id="f-env">
+        <option value="benign">Benign — indoor bench</option>
+        <option value="industrial" selected>Industrial — plant floor</option>
+        <option value="outdoor">Outdoor — sealed</option>
+      </select></label>
+    <details class="adv">
+      <summary>Override</summary>
+      <label>Component connector
+        <select id="f-conn"></select></label>
+      <label>Conductor gauge
+        <select id="f-gauge"></select></label>
+    </details>
+    <details class="adv" id="pinout-details">
+      <summary>Pin functions (pinout)</summary>
+      <div id="pinout" class="pinout"></div>
+    </details>
+    <div class="exports">
+      <button id="dl-print">Print drawing</button>
+      <button id="dl-svg">Download SVG</button>
+      <button id="dl-json">Export JSON</button>
+    </div>
+  </section>
+
+  <!-- middle: the seven-layer stack -->
+  <section class="stackcol">
+    <h2>The seven-layer stack</h2>
+    <div id="stack" class="stack"></div>
+  </section>
+
+  <!-- right: drawing + data -->
+  <section class="output">
+    <h2>Cable drawing</h2>
+    <div id="summary" class="summary"></div>
+    <div id="drawing" class="drawing"></div>
+    <div id="warnings" class="warnbox"></div>
+    <div class="tabs">
+      <button class="tab active" data-panel="panel-wires">Wire list</button>
+      <button class="tab" data-panel="panel-bom">BOM</button>
+    </div>
+    <div id="panel-wires" class="panel active"><table id="wirelist" class="data"></table></div>
+    <div id="panel-bom" class="panel"><table id="bom" class="data"></table></div>
+  </section>
+</main>
+
+<footer>
+  <p>Reference figures only — chassis-wiring ampacity and typical contact windows. Verify against the applicable electrical code and the manufacturer datasheets before you cut copper. Mirrored at <a href="https://cable.ascential.work">cable.ascential.work</a>.</p>
+</footer>
+
+<script src="/catalog.js"></script>
+<script src="/solver.js"></script>
+<script src="/drawing.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

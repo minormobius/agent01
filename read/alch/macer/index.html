@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Macer Floridus — De viribus herbarum, an open translation</title>
+<meta name="description" content="An original, openly-licensed English translation of Macer Floridus's De viribus herbarum, the great medieval verse herbal, line for line beside the Latin — the apothecary's answer to Walahfrid's garden, with the 17 shared plants linked across. From read.mino.mobi.">
+<meta property="og:title" content="Macer Floridus — De viribus herbarum, an open translation">
+<meta property="og:description" content="The most-copied herbal of the Middle Ages, 77 plants in Latin verse, beside an original English translation — and cross-linked, plant by plant, to Walahfrid's Hortulus. CC BY-SA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://read.mino.mobi/alch/macer/">
+<meta property="og:site_name" content="Read">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>⚗️</text></svg>">
+<link rel="stylesheet" href="../garden.css">
+<style>
+  /* shared-bed marker: the 17 plants that also grow in Walahfrid's Hortulus */
+  .bed.shared{border-color:var(--jade)}
+  .bed.shared .en{color:var(--jade)}
+  .bed.on.shared .en{color:#0e0d0b}
+  .xwalk{display:inline-flex;align-items:center;gap:6px;margin:2px 0 0;
+    font:12px/1.4 ui-monospace,monospace;color:var(--jade);letter-spacing:.04em}
+  .xwalk a{color:var(--jade);border-bottom:1px dotted var(--jade-dim,rgba(111,174,142,.5))}
+  .degrees{font:12px/1.5 ui-monospace,monospace;color:var(--gold-dim);letter-spacing:.03em;
+    margin:8px 0 0;text-transform:uppercase}
+  .legend{text-align:center;font:11px/1.5 ui-monospace,monospace;color:var(--faint);margin:6px 0 0}
+  .legend b{color:var(--jade);font-weight:400}
+</style>
+</head>
+<body>
+<nav id="crumb"><a href="https://read.mino.mobi/">read</a> · <a href="../">the Alchemist's Garden</a></nav>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="tag">The Alchemist's Garden · Macer Floridus</div>
+    <div class="glyph">⚗️</div>
+    <h1><span class="la">De viribus herbarum</span> — the powers of herbs</h1>
+    <p class="sub">Macer Floridus’s verse herbal, 77 plants in the apothecary’s
+    register — the clinical answer, two centuries on, to Walahfrid’s lyric garden.
+    Original English beside the Latin, with the shared plants linked straight
+    across to the <a href="../hortulus/">Hortulus</a>.</p>
+  </div>
+
+  <nav id="bednav"></nav>
+  <div class="legend">Beds outlined in <b>jade</b> also grow in Walahfrid’s Hortulus.</div>
+  <main id="reader"></main>
+  <div class="pilot" id="pilot"></div>
+
+  <footer>
+    A transparent working translation · openly licensed ·
+    <a href="../">back to the garden</a> ·
+    <a href="../hortulus/">the Hortulus</a>
+  </footer>
+
+</div>
+
+<script type="module">
+import { MACER } from './data.js';
+import { CORRESPONDENCES, PLANETS, TEMPERAMENTS } from '../correspondences.js';
+
+const reader = document.getElementById('reader');
+const bednav = document.getElementById('bednav');
+const sections = MACER.sections;
+const planted = s => Array.isArray(s.lines) && s.lines.length > 0;
+const bySeq = {}; sections.forEach(s => bySeq[s.seq] = s);
+const corrByMacer = {}; CORRESPONDENCES.plants.forEach(c => { if (c.macer) corrByMacer[c.macer] = c; });
+const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+// the correspondence overlay for a chapter, keyed by Macer chapter number
+function corrBox(chap){
+  const c = corrByMacer[chap];
+  if (!c || (!c.planet && !c.qualities)) return '';
+  const p = c.planet ? PLANETS[c.planet] : null;
+  const t = c.qualities ? TEMPERAMENTS[c.qualities] : null;
+  const astro = p ? `<span class="ax astro"><span class="g">${p.glyph}</span><span><span class="k">rules</span> <b>${esc(c.planet)}</b> · ${esc(p.metal)}</span></span>` : '';
+  const galen = t ? `<span class="ax galen"><span class="g">${t.glyph}</span><span><span class="k">temper</span> <b>${esc(t.element)}</b> · ${esc(t.humour)} — ${esc(c.qualities)}${c.degree ? ' (' + esc(c.degree) + ')' : ''}</span></span>` : '';
+  return `<div class="corrbox"><div class="row">${astro}${galen}</div>` +
+    (c.signature ? `<div class="sig">⚗ ${esc(c.signature)}</div>` : '') +
+    `<div class="src">Planet after Culpeper (1653) · qualities from Macer’s degrees where stated</div></div>`;
+}
+
+function buildNav(){
+  let h = '<div class="beds">';
+  sections.forEach(s => {
+    const cls = [(planted(s) ? '' : 'fallow'), (s.hortulus ? 'shared' : '')].join(' ').trim();
+    h += `<button class="bed ${cls}" data-seq="${s.seq}" ${planted(s) ? '' : 'disabled'}` +
+         ` title="${esc(s.la)} — ${esc(s.en)}${s.bot ? ' · ' + esc(s.bot) : ''}${s.hortulus ? ' · also in the Hortulus' : ''}">` +
+         `<span class="roman">${s.seq}</span><span class="la">${esc(s.la)}</span>` +
+         `<span class="en">${esc(s.en)}</span></button>`;
+  });
+  h += '</div>';
+  bednav.innerHTML = h;
+  bednav.querySelectorAll('.bed[data-seq]:not([disabled])').forEach(b =>
+    b.onclick = () => { show(+b.dataset.seq); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
+
+function render(s){
+  let h = `<div class="section-head">` +
+    `<div class="roman">CHAPTER ${s.seq}</div>` +
+    `<div class="la">${esc(s.la)}</div>` +
+    `<div class="en">${esc(s.en)}</div>` +
+    (s.bot ? `<div class="bot">${esc(s.bot)}</div>` : '') +
+    (s.hortulus ? `<div class="xwalk">↔ <a href="../hortulus/#s${s.hortulus}">also in Walahfrid’s Hortulus</a></div>` : '') +
+    `</div>`;
+
+  if (s.degrees) h += `<div class="degrees">Galenic degrees — ${esc(s.degrees)}</div>`;
+  h += corrBox(s.seq);
+
+  if (planted(s)){
+    h += `<div class="verse">`;
+    s.lines.forEach((l, i) => {
+      h += `<div class="ln"><span class="num">${i + 1}</span>` +
+           `<span class="la">${esc(l.la)}</span><span class="en">${esc(l.en)}</span>` +
+           (l.n ? `<span class="note">${esc(l.n)}</span>` : '') + `</div>`;
+    });
+    h += `</div>`;
+    if (s.note) h += `<p class="bednote">${esc(s.note)}</p>`;
+  } else {
+    h += `<p class="fallownote">This chapter is turned but not yet sown` +
+         (s.crux ? ` — ${esc(s.crux)}` : '') +
+         `.<br>The Latin is being translated a chapter at a time.</p>`;
+  }
+
+  const m = MACER.meta;
+  h += `<div class="method"><h2>Method &amp; sources</h2>` +
+    `<p>${esc(m.method)}</p>` +
+    `<p><b>Working Latin:</b> ${esc(m.latinSource)}.<br>` +
+    `<b>Converging on:</b> ${esc(m.convergeOn)}.</p>` +
+    `<p class="lic">License: ${esc(m.license)}.</p>` +
+    `<div class="src">` +
+    m.sources.map(x => `· <a href="${x.url}" target="_blank" rel="noopener">${esc(x.label)}</a> — ${esc(x.host)}`).join('<br>') +
+    `</div></div>`;
+
+  reader.innerHTML = h;
+}
+
+function show(seq){
+  const s = bySeq[seq] || sections[0];
+  render(s);
+  try { history.replaceState(null, '', '#c' + s.seq); } catch (e) {}
+  bednav.querySelectorAll('.bed[data-seq]').forEach(b =>
+    b.classList.toggle('on', +b.dataset.seq === s.seq));
+}
+
+buildNav();
+const total = sections.length;
+const done = sections.filter(planted).length;
+const shared = sections.filter(s => s.hortulus).length;
+document.getElementById('pilot').textContent = done >= total
+  ? `All ${total} chapters planted — the whole herbal. · ${shared} share a bed with the Hortulus.`
+  : `${done} of ${total} chapters planted — and growing. · ${shared} share a bed with the Hortulus.`;
+
+const init = parseInt((location.hash.match(/c(\d+)/) || [])[1], 10);
+show(Number.isInteger(init) && bySeq[init] ? init : 2);
+addEventListener('hashchange', () => {
+  const n = parseInt((location.hash.match(/c(\d+)/) || [])[1], 10);
+  if (bySeq[n]) show(n);
+});
+</script>
+</body>
+</html>

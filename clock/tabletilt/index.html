@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tablet, tilted — the rotor lab</title>
+<meta name="description" content="A sandbox for the brass dial physics behind al-Mawsili's geomantic tablet. Expose the knobs the tablet hides — spin power, friction, detent bite, and a deliberate tilt — then run thousands of spins to watch the figure distribution flatten or skew. The mechanism, laid bare.">
+<style>
+:root{
+  --bg:#170f05; --plate1:#4a3617; --plate2:#2e2110; --ink:#f0e3c2; --ink-soft:rgba(240,227,194,.6); --faint:#9c855a;
+  --brass:#c9a24a; --gold:#ecc66a; --gold-dim:rgba(236,198,106,.4); --silver:#d9dde8; --clay:#c0714e;
+  --line:rgba(201,162,74,.22); --jade:#9ec27a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{min-height:100%;background:radial-gradient(130% 90% at 50% -12%, #2a1e0c 0%, var(--bg) 60%, #0b0702 100%);
+  color:var(--ink);font:15px/1.55 ui-serif,Georgia,"Songti SC",serif;-webkit-tap-highlight-color:transparent}
+a{color:var(--gold);text-decoration:none} a:hover{color:var(--clay)}
+#back{position:fixed;top:12px;left:14px;z-index:9;font:12px/1 ui-monospace,monospace;color:var(--ink-soft);letter-spacing:.06em}
+#back:hover{color:var(--gold)}
+.wrap{max-width:1040px;margin:0 auto;padding:42px 20px 64px}
+.masthead{text-align:center;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:20px}
+.kicker{font:11px/1 ui-monospace,monospace;letter-spacing:.32em;text-transform:uppercase;color:var(--faint)}
+h1{font:600 26px/1.12 ui-serif,Georgia,serif;letter-spacing:.05em;margin:9px 0 5px;color:var(--gold)}
+.sub{color:var(--ink-soft);font-size:14px;font-style:italic;max-width:66ch;margin:0 auto}
+
+.lab{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:720px){ .lab{grid-template-columns:1fr} }
+
+/* the brass plate holding the single test rotor */
+.plate{position:relative;border-radius:16px;padding:22px;text-align:center;
+  background:linear-gradient(150deg,var(--plate1),var(--plate2) 60%,#241a0c);
+  border:1px solid rgba(236,198,106,.34);
+  box-shadow:0 1px 0 rgba(255,230,170,.18) inset, 0 0 0 6px rgba(0,0,0,.18) inset, 0 22px 50px rgba(0,0,0,.5)}
+.platecap{font:11px/1.4 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:14px}
+
+.disc{position:relative;width:208px;height:208px;margin:0 auto;border-radius:50%;cursor:grab;overflow:hidden;touch-action:none;
+  background:radial-gradient(circle at 38% 32%, #6b4f22, #3a2a12 70%, #271b0c);
+  border:2px solid rgba(236,198,106,.5);
+  box-shadow:0 2px 6px rgba(0,0,0,.5), 0 0 0 4px rgba(0,0,0,.22) inset, 0 1px 0 rgba(255,230,170,.25) inset}
+.disc:active{cursor:grabbing}
+.disc:focus{outline:2px solid var(--gold);outline-offset:3px}
+.discface{position:absolute;inset:0;border-radius:50%;z-index:1;pointer-events:none;
+  background:repeating-conic-gradient(from -1.2deg, rgba(236,198,106,.55) 0deg 2.4deg, transparent 2.4deg 22.5deg);
+  box-shadow:0 0 0 4px rgba(0,0,0,.18) inset}
+.discface.hideticks{background:none}
+.index{position:absolute;left:50%;top:-2px;z-index:4;transform:translateX(-50%);width:0;height:0;
+  border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid var(--gold);
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+/* the favoured-well marker — only visible when the bench is tilted */
+.favmark{position:absolute;left:50%;top:50%;z-index:1;width:2px;height:104px;transform-origin:top center;pointer-events:none;
+  background:linear-gradient(180deg,rgba(192,113,78,.0),rgba(192,113,78,.85));opacity:0;transition:opacity .2s}
+.disc.tilted .favmark{opacity:1}
+.disc .knob{position:absolute;left:50%;top:50%;z-index:3;width:18px;height:18px;border-radius:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle at 40% 35%, #f1d588, #b98a36);box-shadow:0 1px 2px rgba(0,0,0,.6)}
+.window{position:absolute;left:50%;top:18px;z-index:2;transform:translateX(-50%);width:60px;height:48px;border-radius:6px;
+  background:linear-gradient(180deg,#120c04,#1d1408);border:1px solid rgba(236,198,106,.4);
+  box-shadow:0 1px 2px rgba(0,0,0,.6) inset;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:5px 0}
+.wrow{display:flex;justify-content:center;gap:7px;height:6px}
+.wrow .pt{width:6px;height:6px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,var(--silver));box-shadow:0 0 3px rgba(217,221,232,.5)}
+.window.empty .wrow .pt{background:rgba(236,198,106,.18);box-shadow:none}
+
+.dfig{margin-top:14px;font:700 18px/1.15 ui-serif,Georgia,serif;color:var(--ink);min-height:21px}
+.dfig .ar{font-size:13px;color:var(--gold)}
+.dgloss{font:12px/1.3 ui-monospace,monospace;color:var(--faint);min-height:15px;margin-top:2px}
+.dstat{margin-top:10px;font:10px/1.5 ui-monospace,monospace;color:var(--faint);letter-spacing:.04em}
+.dstat b{color:var(--ink-soft)}
+
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+button{font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.04em;color:#1a1206;background:linear-gradient(180deg,#f1d588,#cf9f3e);
+  border:0;border-radius:8px;padding:10px 15px;cursor:pointer;transition:filter .12s,transform .12s}
+button:hover{filter:brightness(1.07);transform:translateY(-1px)} button:active{transform:none}
+button:disabled{opacity:.45;cursor:default;filter:none;transform:none}
+button.ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+button.ghost:hover{color:var(--gold);filter:none}
+
+.panel{border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,rgba(236,198,106,.05),rgba(236,198,106,.01));margin-bottom:16px}
+.panel .cap{font:11px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);padding:11px 14px;border-bottom:1px solid var(--line)}
+.panel .cap .hint{font-size:9px;letter-spacing:.02em;color:var(--faint);text-transform:none}
+.panel .body{padding:14px}
+
+/* sliders */
+.knobs{display:flex;flex-direction:column;gap:15px}
+.kn .khead{display:flex;justify-content:space-between;align-items:baseline;font:12px/1.2 ui-monospace,monospace;color:var(--ink-soft)}
+.kn .kname{color:var(--ink)} .kn .kname small{color:var(--faint);font-size:10px;margin-left:5px}
+.kn .kval{color:var(--gold);font-weight:700}
+.kn input[type=range]{width:100%;accent-color:var(--gold);margin-top:6px}
+.kn .kdesc{font:10px/1.4 ui-monospace,monospace;color:var(--faint);margin-top:3px}
+.toggle{display:flex;align-items:center;gap:9px;font:12px/1.3 ui-monospace,monospace;color:var(--ink-soft);margin-top:4px}
+.toggle input{accent-color:var(--gold);width:15px;height:15px}
+
+/* fairness meter */
+.fair{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:rgba(0,0,0,.18)}
+.stat .sl{font:9px/1 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.stat .sv{font:700 19px/1.2 ui-serif,Georgia,serif;color:var(--ink);margin-top:4px}
+.stat .sv.good{color:var(--jade)} .stat .sv.warn{color:var(--gold)} .stat .sv.bad{color:var(--clay)}
+.stat .ss{font:10px/1.3 ui-monospace,monospace;color:var(--faint);margin-top:2px}
+.hist{display:flex;flex-direction:column;gap:3px}
+.hrow{display:grid;grid-template-columns:96px 1fr 52px;align-items:center;gap:8px;font:10px/1.3 ui-monospace,monospace}
+.hrow .hn{color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow .hb{position:relative;height:13px;background:rgba(0,0,0,.25);border-radius:3px;overflow:hidden}
+.hrow .hf{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--brass),var(--gold));border-radius:3px;transition:width .25s}
+.hrow.fav .hf{background:linear-gradient(90deg,#a85738,var(--clay))}
+.hrow .hc{text-align:right;color:var(--faint)}
+
+.diss{font-size:13.5px;color:var(--ink-soft);margin-top:24px;max-width:74ch}
+.diss h2{font:600 12px/1.2 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);margin:20px 0 8px}
+.diss p{margin:0 0 9px} .diss b{color:var(--ink)} .diss code{font:12px/1.5 ui-monospace,monospace;color:var(--gold);background:rgba(0,0,0,.25);padding:1px 5px;border-radius:4px}
+.eqn{text-align:center;font:14px/1.6 ui-monospace,monospace;color:var(--gold);background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:8px;padding:12px;margin:6px 0 12px}
+footer{border-top:1px solid var(--line);margin-top:30px;padding-top:16px;text-align:center;font:11.5px/1.7 ui-monospace,monospace;color:var(--faint)}
+footer a{color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<a id="back" href="../">&larr; gallery</a>
+<div class="wrap">
+  <div class="masthead">
+    <div class="kicker">tablet, tilted · the rotor lab</div>
+    <h1>The mechanism, laid bare</h1>
+    <p class="sub">The <a href="../tablet/">brass tablet</a> hides its physics so the divination stays honest. Here the
+    knobs are exposed: spin power, friction, the bite of the notches — and a deliberate <em>tilt</em>. Turn the dial,
+    then run a few thousand spins and watch the sixteen figures flatten into fairness, or skew under a loaded bench.</p>
+  </div>
+
+  <div class="lab">
+    <!-- the test rotor -->
+    <div>
+      <div class="plate">
+        <div class="platecap">The test rotor · 16 detents</div>
+        <div class="disc" id="disc" role="button" tabindex="0" aria-label="test dial — flick to turn">
+          <div class="index"></div>
+          <div class="favmark" id="favmark"></div>
+          <div class="discface" id="discface"></div>
+          <div class="window" id="window"></div>
+          <div class="knob"></div>
+        </div>
+        <div class="dfig" id="dfig">—</div>
+        <div class="dgloss" id="dgloss">flick the dial</div>
+        <div class="controls">
+          <button id="flick">⟳ Flick</button>
+          <button class="ghost" id="nudge">· Nudge</button>
+          <button class="ghost" id="stop">◼ Catch</button>
+        </div>
+        <div class="dstat" id="dstat">at rest · <b>0</b> turns</div>
+      </div>
+    </div>
+
+    <!-- the knobs + the meter -->
+    <div>
+      <div class="panel">
+        <div class="cap">The knobs <span class="hint">— the dial responds live</span></div>
+        <div class="body">
+          <div class="knobs">
+            <div class="kn" data-k="spin">
+              <div class="khead"><span class="kname">Spin power <small>the wrist</small></span><span class="kval" id="spinV">1.0×</span></div>
+              <input type="range" id="spin" min="0.3" max="3" step="0.1" value="1">
+              <div class="kdesc">How hard a flick launches it. A strong throw makes each cast independent of the last.</div>
+            </div>
+            <div class="kn" data-k="damp">
+              <div class="khead"><span class="kname">Friction <small>damping</small></span><span class="kval" id="dampV">2.4</span></div>
+              <input type="range" id="damp" min="0.5" max="6" step="0.1" value="2.4">
+              <div class="kdesc">How fast the rotor tires. Low = a long, luxurious coast; high = it dies in a second.</div>
+            </div>
+            <div class="kn" data-k="detent">
+              <div class="khead"><span class="kname">Detent bite <small>notch torque</small></span><span class="kval" id="detentV">42</span></div>
+              <input type="range" id="detent" min="8" max="100" step="1" value="42">
+              <div class="kdesc">The grip of the sixteen notches. Low = glassy glide; high = ratchety, snaps hard.</div>
+            </div>
+            <div class="kn" data-k="tilt">
+              <div class="khead"><span class="kname">Tilt <small>a loaded bench</small></span><span class="kval" id="tiltV">0</span></div>
+              <input type="range" id="tilt" min="0" max="36" step="1" value="0">
+              <div class="kdesc">Gravity toward a low point. Above 0 the wheel is <b>rigged</b> — it favours one figure.</div>
+            </div>
+            <div class="toggle"><input type="checkbox" id="ticks" checked><label for="ticks">show engraved notch-ticks</label></div>
+          </div>
+          <div class="controls" style="justify-content:flex-start;margin-top:14px">
+            <button class="ghost" id="reset">⟲ Reset to the tablet's settings</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="cap">The fairness meter <span class="hint">— Monte-Carlo, headless, at the current knobs</span></div>
+        <div class="body">
+          <div class="controls" style="justify-content:flex-start;margin:0 0 14px">
+            <button id="run1k">Run 1,000 spins</button>
+            <button class="ghost" id="run10k">Run 10,000</button>
+            <span class="dstat" id="runstat" style="margin:0;align-self:center">— spins tallied</span>
+          </div>
+          <div class="fair">
+            <div class="stat"><div class="sl">Fairness</div><div class="sv" id="fairV">—</div><div class="ss">Shannon evenness over 16 figures</div></div>
+            <div class="stat"><div class="sl">χ² uniformity</div><div class="sv" id="chiV">—</div><div class="ss" id="chiNote">df 15 · &lt;25 looks fair</div></div>
+          </div>
+          <div class="hist" id="hist"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diss">
+    <h2>What you're turning</h2>
+    <p>This is the <b>same rotor</b> the brass <a href="../tablet/">tablet</a> ships — a free wheel with sixteen sprung
+    detents, one seat per figure — only here its constants are sliders. Each frame the angular acceleration is</p>
+    <div class="eqn">α &nbsp;=&nbsp; −<b>D</b>·sin(16θ) &nbsp;−&nbsp; <b>f</b>·ω &nbsp;−&nbsp; <b>g</b>·sin(θ − θ★)</div>
+    <p>where <code>D</code> is detent bite, <code>f</code> is friction, and <code>g</code> is tilt toward the favoured
+    seat θ★. Flick gives it an initial ω; it coasts, ratcheting notch by notch, until its momentum is spent and it drops
+    into whichever well it last passed. With <code>g = 0</code> and a healthy spin the landing well is anyone's guess.</p>
+    <h2>Why the meter matters</h2>
+    <p>A divining instrument must be <b>fair</b>: every figure equally likely. The surprise this meter delivers is how
+    <b>robust</b> the honest knobs are. Because each cast begins wherever the last one happened to stop — an arbitrary
+    seat — spin power, friction, and detent bite barely move the distribution: it stays flat and fairness sits near
+    <b>100%</b> across their whole range. What a weak spin really costs is <em>independence</em> — a barely-travelled
+    cast lands close to the previous one, an autocorrelation the marginal histogram can't see.</p>
+    <p>The one knob that genuinely <b>loads</b> the wheel is <b>tilt</b>. A bench off level pours probability into the
+    favoured seat; run the meter and the histogram spikes (its bar turns red), fairness collapsing toward the rigged
+    figure. Honest mechanism, dishonest table. The lesson the tablet keeps quiet about — try to break it, and notice
+    which knob actually can.</p>
+  </div>
+
+  <footer>
+    The rotor lab · the honest dial lives at <a href="../tablet/">al-Mawsili's tablet</a>
+    &nbsp;·&nbsp; sand counterpart: <a href="../geocast/">geocast</a>
+    &nbsp;·&nbsp; <a href="../">g.mino.mobi</a>
+  </footer>
+</div>
+
+<script type="module">
+'use strict';
+import { FIGURES } from '../lib/geomancy.js';
+
+/* ── the rotor: identical physics to the tablet, constants exposed ── */
+const WELLS = 16, STEP = 2*Math.PI/WELLS, TAU = 2*Math.PI;
+const idxOf = th => ((Math.round(th/STEP) % WELLS) + WELLS) % WELLS;
+
+// live knob state (defaults = the tablet's shipped constants)
+const P = { detent:42, damp:2.4, tilt:0, spin:1, phase:0 };   // phase θ★ = favoured well (well 0)
+
+/* ── one headless spin → resting well index ── */
+function runToRest(th0, w0){
+  let th = th0, w = w0, t = 0;
+  for(let guard=0; guard<6000; guard++){
+    const dt = 0.02;
+    const steps = Math.max(1, Math.min(16, Math.ceil(Math.abs(w)*dt/0.05)));
+    const h = dt/steps;
+    for(let s=0;s<steps;s++){
+      const a = -P.detent*Math.sin(WELLS*th) - P.damp*w - P.tilt*Math.sin(th - P.phase);
+      w += a*h; th += w*h;
+    }
+    t += dt;
+    if((Math.abs(w)<0.06 && Math.abs(Math.sin(WELLS*th))<0.04) || t>8){ th = Math.round(th/STEP)*STEP; break; }
+  }
+  return idxOf(th);
+}
+// a flick's launch velocity at the current spin power (mirrors the tablet's randomFlick)
+const flickVel = () => (Math.random()<0.5?-1:1) * P.spin * (14 + Math.random()*16);
+
+/* ── the live dial ── */
+const disc=document.getElementById('disc'), face=document.getElementById('discface'),
+      win=document.getElementById('window'), favmark=document.getElementById('favmark'),
+      dfig=document.getElementById('dfig'), dgloss=document.getElementById('dgloss'), dstat=document.getElementById('dstat');
+const L = { th:0, w:0, moving:false };
+let turns=0, raf=0, lastT=0;
+
+function windowRows(rows){ return rows.map(v=> v===1 ? '<div class="wrow"><span class="pt"></span></div>'
+  : '<div class="wrow"><span class="pt"></span><span class="pt"></span></div>').join(''); }
+function paint(){
+  face.style.transform = `rotate(${L.th}rad)`;
+  const f = FIGURES[idxOf(L.th)], live = L.moving || turns>0;
+  win.className = 'window' + (live?'':' empty'); win.innerHTML = windowRows(f.rows);
+  dfig.innerHTML = live ? f.name : '—';
+  dgloss.textContent = live ? f.gloss : 'flick the dial';
+  dstat.innerHTML = (L.moving?'spinning':'at rest') + ` · <b>${turns}</b> turns`;
+}
+function loop(now){
+  if(!lastT) lastT=now; let dt=(now-lastT)/1000; lastT=now; if(dt>0.05) dt=0.05;
+  if(L.moving){
+    const steps = Math.max(1, Math.min(12, Math.ceil(Math.abs(L.w)*dt/0.05))), h=dt/steps;
+    for(let s=0;s<steps;s++){
+      const a = -P.detent*Math.sin(WELLS*L.th) - P.damp*L.w - P.tilt*Math.sin(L.th - P.phase);
+      L.w += a*h; L.th += L.w*h;
+    }
+    if(Math.abs(L.w)<0.06 && Math.abs(Math.sin(WELLS*L.th))<0.04){ L.th=Math.round(L.th/STEP)*STEP; L.w=0; L.moving=false; }
+    paint();
+  }
+  raf = L.moving ? requestAnimationFrame(loop) : (lastT=0, 0);
+}
+function ensure(){ if(!raf){ lastT=0; raf=requestAnimationFrame(loop); } }
+function flick(w0){ L.w=w0; L.moving=true; turns++; ensure(); }
+
+document.getElementById('flick').addEventListener('click', ()=>flick(flickVel()));
+document.getElementById('nudge').addEventListener('click', ()=>flick((Math.random()<0.5?-1:1)*P.spin*6));
+document.getElementById('stop').addEventListener('click', ()=>{ L.moving=false; L.th=Math.round(L.th/STEP)*STEP; L.w=0; paint(); });
+
+/* grab-and-throw the rotor with the cursor */
+let drag=null;
+const angleTo=(x,y)=>{ const r=disc.getBoundingClientRect(); return Math.atan2(y-(r.top+r.height/2), x-(r.left+r.width/2)); };
+disc.addEventListener('pointerdown',e=>{ L.moving=false; drag={ang:angleTo(e.clientX,e.clientY),t:performance.now(),vel:0,moved:false};
+  disc.setPointerCapture?.(e.pointerId); e.preventDefault(); });
+disc.addEventListener('pointermove',e=>{ if(!drag) return; const ang=angleTo(e.clientX,e.clientY); let da=ang-drag.ang;
+  if(da>Math.PI) da-=TAU; if(da<-Math.PI) da+=TAU; const now=performance.now(), dt=Math.max(1,now-drag.t)/1000;
+  L.th+=da; drag.vel=da/dt; drag.ang=ang; drag.t=now; if(Math.abs(da)>0.012) drag.moved=true; paint(); });
+function release(){ if(!drag) return; if(drag.moved) flick(Math.max(-40,Math.min(40, drag.vel*P.spin))); else flick(flickVel()); drag=null; }
+window.addEventListener('pointerup',release); window.addEventListener('pointercancel',release);
+disc.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ flick(flickVel()); e.preventDefault(); } });
+
+/* ── the knobs ── */
+function applyTiltVisual(){
+  disc.classList.toggle('tilted', P.tilt>0);
+  favmark.style.transform = `translate(-50%,0) rotate(${P.phase}rad)`;   // marker points at θ★ (well 0 = top)
+}
+const bind=(id, key, fmt)=>{ const el=document.getElementById(id), out=document.getElementById(id+'V');
+  const upd=()=>{ P[key]=+el.value; out.textContent=fmt(+el.value); if(key==='tilt') applyTiltVisual(); };
+  el.addEventListener('input', upd); upd(); };
+bind('spin','spin', v=>v.toFixed(1)+'×');
+bind('damp','damp', v=>v.toFixed(1));
+bind('detent','detent', v=>String(v));
+bind('tilt','tilt', v=> v===0 ? '0 · level' : v+' · favours '+FIGURES[idxOf(P.phase)].name);
+document.getElementById('ticks').addEventListener('change', e=> face.classList.toggle('hideticks', !e.target.checked));
+document.getElementById('reset').addEventListener('click', ()=>{
+  const d={spin:1,damp:2.4,detent:42,tilt:0};
+  for(const [k,v] of Object.entries(d)){ const el=document.getElementById(k); el.value=v; el.dispatchEvent(new Event('input')); }
+});
+
+/* ── the fairness meter ── */
+const hist=document.getElementById('hist'), fairV=document.getElementById('fairV'),
+      chiV=document.getElementById('chiV'), chiNote=document.getElementById('chiNote'), runstat=document.getElementById('runstat');
+function renderHist(counts, N){
+  const max=Math.max(1,...counts), exp=N/16, favIdx = P.tilt>0 ? idxOf(P.phase) : -1;
+  hist.innerHTML = FIGURES.map((f,i)=>{
+    const pct = counts[i]/max*100, share=(counts[i]/N*100);
+    return `<div class="hrow${i===favIdx?' fav':''}"><span class="hn" title="${f.name}">${f.name}</span>`+
+      `<span class="hb"><span class="hf" style="width:${pct}%"></span></span>`+
+      `<span class="hc">${share.toFixed(1)}%</span></div>`;
+  }).join('');
+}
+function run(N){
+  const counts=new Array(16).fill(0);
+  for(let i=0;i<N;i++) counts[ runToRest(Math.random()*TAU, flickVel()) ]++;
+  // Shannon evenness (entropy / log2 16) → 0..100% fairness
+  let H=0; for(const c of counts){ if(c){ const p=c/N; H -= p*Math.log2(p); } }
+  const fairness = H/4*100;
+  // χ² against uniform (df 15)
+  const exp=N/16; let chi=0; for(const c of counts) chi += (c-exp)*(c-exp)/exp;
+  fairV.textContent = fairness.toFixed(1)+'%';
+  fairV.className = 'sv ' + (fairness>=99 ? 'good' : fairness>=96 ? 'warn' : 'bad');
+  chiV.textContent = chi.toFixed(1);
+  chiV.className = 'sv ' + (chi<25 ? 'good' : chi<60 ? 'warn' : 'bad');
+  chiNote.textContent = chi<25 ? 'df 15 · consistent with fair' : 'df 15 · skewed beyond chance';
+  runstat.innerHTML = `<b>${N.toLocaleString()}</b> spins tallied`;
+  renderHist(counts, N);
+}
+document.getElementById('run1k').addEventListener('click', ()=>run(1000));
+document.getElementById('run10k').addEventListener('click', ()=>run(10000));
+
+/* ── boot ── */
+applyTiltVisual(); paint();
+renderHist(new Array(16).fill(0), 1);
+</script>
+</body>
+</html>

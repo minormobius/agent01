@@ -1,0 +1,54 @@
+{
+  "$type": "com.minomobi.music.composition",
+  "name": "Drift",
+  "description": "Original downtempo loop in A minor — walking triangle bass under sparse square-wave melody, soft pulse chord pads, hushed noise hats. ~13 second loop that tiles cleanly under a voiceover. Composed for yapchat's video mux as backing music in the spirit of late-night lo-fi voiceover scenes; tile/loop in ffmpeg via -stream_loop -1.",
+  "bpm": 76,
+  "steps": 64,
+  "tracks": [
+    {
+      "name": "Bass",
+      "instrument": "triangle",
+      "volume": 65,
+      "notes": [
+        "45,0,4,88", "45,4,4,82", "52,8,4,82", "52,12,4,76",
+        "41,16,4,88", "41,20,4,82", "45,24,4,82", "45,28,4,76",
+        "48,32,4,88", "48,36,4,82", "43,40,4,82", "43,44,4,76",
+        "40,48,4,88", "40,52,4,82", "47,56,4,82", "47,60,4,76"
+      ]
+    },
+    {
+      "name": "Lead",
+      "instrument": "square",
+      "volume": 38,
+      "notes": [
+        "69,0,4,70", "64,4,2,65", "67,6,2,65", "69,8,4,70", "72,12,4,70",
+        "69,16,8,68", "65,24,4,65", "67,28,4,65",
+        "64,32,4,68", "67,36,4,68", "72,40,4,72", "76,44,4,75",
+        "74,48,4,70", "71,52,4,68", "67,56,8,62"
+      ]
+    },
+    {
+      "name": "Pad",
+      "instrument": "pulse",
+      "volume": 22,
+      "notes": [
+        "57,0,12,52", "60,0,12,52", "64,0,12,52",
+        "53,16,12,52", "57,16,12,52", "60,16,12,52",
+        "60,32,12,52", "64,32,12,52", "67,32,12,52",
+        "52,48,12,52", "55,48,12,52", "59,48,12,52"
+      ]
+    },
+    {
+      "name": "Hat",
+      "instrument": "noise",
+      "volume": 18,
+      "notes": [
+        "60,2,1,38", "60,6,1,38", "60,10,1,38", "60,14,1,38",
+        "60,18,1,38", "60,22,1,38", "60,26,1,38", "60,30,1,38",
+        "60,34,1,38", "60,38,1,38", "60,42,1,38", "60,46,1,38",
+        "60,50,1,38", "60,54,1,38", "60,58,1,38", "60,62,1,38"
+      ]
+    }
+  ],
+  "createdAt": "2026-05-16T00:00:00.000Z"
+}

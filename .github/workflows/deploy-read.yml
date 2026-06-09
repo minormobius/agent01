@@ -2,7 +2,7 @@ name: Deploy Read
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/alchemist-garden-sources-9JYpE']
     paths:
       - 'read/**'
       - '.github/workflows/deploy-read.yml'

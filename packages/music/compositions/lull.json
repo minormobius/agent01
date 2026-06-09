@@ -1,0 +1,56 @@
+{
+  "$type": "com.minomobi.music.composition",
+  "name": "Lull",
+  "description": "D Dorian, slow and sparse. Three-chord modal vamp (Dm - G - F) with sustained sawtooth pad and a lonely sine melody. Drowsy. ~13s loop at 56 BPM.",
+  "bpm": 56,
+  "steps": 48,
+  "tracks": [
+    {
+      "name": "Bass",
+      "instrument": "triangle",
+      "volume": 62,
+      "notes": [
+        "38,0,16,84",
+        "31,16,16,82",
+        "41,32,16,80"
+      ]
+    },
+    {
+      "name": "Pad",
+      "instrument": "sawtooth",
+      "volume": 22,
+      "notes": [
+        "50,0,16,42", "53,0,16,42", "57,0,16,42",
+        "43,16,16,42", "47,16,16,42", "50,16,16,42",
+        "41,32,16,42", "45,32,16,42", "48,32,16,42"
+      ]
+    },
+    {
+      "name": "Melody",
+      "instrument": "sine",
+      "volume": 42,
+      "notes": [
+        "74,4,4,62",
+        "77,12,4,58",
+        "71,20,2,58",
+        "74,24,4,62",
+        "77,30,2,55",
+        "81,34,6,68",
+        "77,42,3,55",
+        "74,46,2,52"
+      ]
+    },
+    {
+      "name": "Echo",
+      "instrument": "triangle",
+      "volume": 18,
+      "notes": [
+        "62,8,2,40",
+        "65,18,2,38",
+        "69,32,2,42",
+        "65,40,4,38"
+      ]
+    }
+  ],
+  "createdAt": "2026-05-16T00:00:00.000Z"
+}

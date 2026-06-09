@@ -8,7 +8,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/merge-features-update-endpoints-qa2vu1",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
@@ -27,14 +27,16 @@
         "flows",
         "phylo",
         "time",
-        "wiki"
+        "wiki",
+        "mappa"
       ],
       "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other — see tension note in the chat.",
       "paths": [
         "index.html",
         "styles.css",
         "scripts/generate-search-catalog.mjs",
-        "functions/**"
+        "functions/**",
+        "mappa/**"
       ]
     },
     {
@@ -72,16 +74,18 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/follower-post-discovery-bZumw",
       "uses": [],
       "provides": null,
       "paths": [
         "b/**"
       ],
       "serves": [
-        "disk"
+        "disk",
+        "spark",
+        "dyad"
       ],
-      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
+      "note": "The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), and dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts — likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions). All permissionless, client-side over public ATProto records. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker)."
     },
     {
       "surface": "auth",
@@ -162,6 +166,19 @@
       ]
     },
     {
+      "surface": "cable",
+      "dir": "cable",
+      "endpoint": "cable.mino.mobi, cable.ascential.work",
+      "type": "frontend",
+      "branch": "claude/cable-definition-website-yrwv41",
+      "uses": [],
+      "provides": null,
+      "note": "Progressive cable-drawing solver for custom instrument cabling. Walks the 7-layer stack (component → connector → pin set → cable → pin → connector → board), propagating constraints across layers. Pure static (vanilla JS, no build): catalog.js → solver.js → drawing.js → app.js, attached to globalThis so the solver unit-tests in node. Worker `cable` owns cable.mino.mobi; 2nd custom_domain route cable.ascential.work (alias; separate ascential.work zone — shared CLOUDFLARE_API_TOKEN already has Routes:Edit there, per ocr/ai-edu).",
+      "paths": [
+        "cable/**"
+      ]
+    },
+    {
       "surface": "cards",
       "dir": "cards",
       "endpoint": "cards.mino.mobi",
@@ -173,6 +190,20 @@
         "cards/**"
       ],
       "cohesion": "integrated"
+    },
+    {
+      "surface": "ar",
+      "dir": "ar",
+      "endpoint": "ar.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/3d-crystal-diffraction-B5YhB",
+      "uses": [],
+      "provides": null,
+      "note": "Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/.",
+      "paths": [
+        "ar/**",
+        ".github/workflows/deploy-ar.yml"
+      ]
     },
     {
       "surface": "cat",
@@ -362,7 +393,7 @@
       "dir": "read",
       "endpoint": "read.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/alchemist-garden-sources-9JYpE",
       "uses": [],
       "provides": null,
       "paths": [
@@ -388,6 +419,21 @@
         "poll/apps/api/migrations/0017_signal.sql"
       ],
       "cohesion": "integrated"
+    },
+    {
+      "surface": "hoop",
+      "dir": "hoop",
+      "endpoint": "hoop.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/hoop-mino-design-preview-htuxu9",
+      "uses": [],
+      "provides": null,
+      "status": "PREVIEW — collaborative design space for 'the infinite game'. Canvas glyph-world where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts).",
+      "paths": [
+        "hoop/**",
+        ".github/workflows/deploy-hoop.yml"
+      ],
+      "cohesion": "standalone"
     },
     {
       "surface": "scores",
@@ -507,7 +553,7 @@
       "dir": "clock",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/geomancy-mobile-scroll-layout-SWfD9",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",

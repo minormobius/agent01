@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mino.mobi · the orrery</title>
+<meta name="description" content="A theme-first map of every mino.mobi surface — grouped by what you do there, with boundary-crossers placed on the seam.">
+<style>
+:root{--bg:#0b0d12;--ink:#e8e6df;--dim:#8a8f9c;--gold:#d8a657;--line:#1c2029;}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:radial-gradient(120% 90% at 50% -10%,#11151d 0%,var(--bg) 60%);color:var(--ink);
+  font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:baseline;gap:14px;
+  padding:14px 20px;background:linear-gradient(#0b0d12ee,#0b0d1200);pointer-events:none}
+header .crumb{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:600;letter-spacing:.04em}
+header h1{font:600 16px/1 ui-serif,Georgia,serif;letter-spacing:.02em}
+header .sub{color:var(--dim);font-size:13px}
+header .search{pointer-events:auto;margin-left:auto}
+header .search input{background:#0e1219;border:1px solid var(--line);color:var(--ink);
+  padding:7px 12px;border-radius:999px;width:200px;outline:none;font-size:13px}
+header .search input:focus{border-color:var(--gold)}
+#stage{position:fixed;inset:0}
+svg{width:100%;height:100%;display:block;cursor:grab}
+svg.drag{cursor:grabbing}
+.axis{fill:var(--dim);font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.5}
+.wlabel{font:600 13px/1 ui-serif,Georgia,serif;letter-spacing:.03em;fill:var(--ink);
+  paint-order:stroke;stroke:#0b0d12;stroke-width:4px;cursor:pointer;opacity:.92}
+.wblurb{fill:var(--dim);font-size:10.5px;font-style:italic;letter-spacing:.01em;opacity:.7}
+.halo{opacity:.05;transition:opacity .2s}
+.node circle{cursor:pointer;transition:opacity .15s,stroke-width .15s}
+.node text{fill:var(--ink);font-size:10px;pointer-events:none;opacity:0;transition:opacity .12s}
+.node:hover text,.node.lit text{opacity:1}
+.node.dim{opacity:.12}
+.seamring{fill:none;stroke:var(--gold);stroke-width:1;stroke-dasharray:2 2;opacity:.8}
+footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;flex-wrap:wrap;gap:6px 8px;
+  padding:12px 20px;background:linear-gradient(#0b0d1200,#0b0d12ee);pointer-events:none}
+.chip{pointer-events:auto;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+  border:1px solid var(--line);background:#0e1219cc;font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip.off{opacity:.35}
+.chip.note{margin-left:auto;border-color:transparent;background:none;cursor:default}
+#tip{position:fixed;z-index:9;pointer-events:none;opacity:0;transform:translate(-50%,-130%);
+  background:#0e1219f2;border:1px solid var(--line);border-radius:8px;padding:7px 10px;max-width:240px;
+  font-size:12px;transition:opacity .1s}
+#tip b{color:var(--gold)} #tip .ep{color:var(--dim);font-size:11px;word-break:break-all}
+</style>
+</head>
+<body>
+<header>
+  <a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>the orrery</h1>
+  <span class="sub">— surfaces by what you do there, not what they're built on</span>
+  <span class="search"><input id="q" placeholder="filter surfaces…" autocomplete="off"></span>
+</header>
+<div id="stage"><svg id="svg"></svg></div>
+<div id="tip"></div>
+<footer id="legend"></footer>
+<script>
+const D = {"wings":[{"id":"social","label":"The Social Layer","hue":205,"cx":0.13,"cy":0.3,"blurb":"ATProto apps you actually live in"},{"id":"lenses","label":"Lenses","hue":265,"cx":0.15,"cy":0.66,"blurb":"instruments that read a feed, a corpus, a person"},{"id":"bench","label":"The Workbench","hue":30,"cx":0.17,"cy":0.91,"blurb":"business, money, lab & dev tooling"},{"id":"cards","label":"The Card Table","hue":345,"cx":0.44,"cy":0.15,"blurb":"decks, draws, collectible engines"},{"id":"studio","label":"The Studio","hue":160,"cx":0.47,"cy":0.42,"blurb":"make sound, image, body, bread"},{"id":"arcade","label":"The Arcade","hue":50,"cx":0.81,"cy":0.16,"blurb":"things you actually play"},{"id":"sandbox","label":"Simulations & Sandboxes","hue":120,"cx":0.85,"cy":0.45,"blurb":"physics, chemistry, artificial life"},{"id":"math","label":"Interactive Mathematics","hue":190,"cx":0.69,"cy":0.81,"blurb":"extremal geometry, dynamics, fractals"},{"id":"reading","label":"The Reading Room","hue":18,"cx":0.92,"cy":0.82,"blurb":"deep texts, old tongues, and oracles"}],"nodes":[{"n":"poll","u":"https://poll.mino.mobi","k":75,"a":"warm","w":"social","w2":null},{"n":"airchat","u":"https://airchat.mino.mobi","k":25,"a":"hot","w":"social","w2":null},{"n":"zoom","u":"https://zoom.mino.mobi","k":23,"a":"warm","w":"social","w2":null},{"n":"weft","u":"https://mino.mobi/weft/","k":19,"a":"hot","w":"lenses","w2":"social"},{"n":"bisk","u":"https://bisk.mino.mobi","k":1,"a":"hot","w":"social","w2":null},{"n":"empathy","u":"https://empath.mino.mobi","k":1,"a":"hot","w":"lenses","w2":null},{"n":"photo","u":"https://photo.mino.mobi","k":39,"a":"hot","w":"studio","w2":null},{"n":"thread","u":"https://photo.mino.mobi/#/thread","k":3,"a":"hot","w":"studio","w2":null},{"n":"astro","u":"https://photo.mino.mobi/astro/","k":4,"a":"hot","w":"studio","w2":null},{"n":"prism","u":"https://photo.mino.mobi/prism/","k":3,"a":"hot","w":"studio","w2":null},{"n":"ternary","u":"https://mino.mobi/ternary/","k":7,"a":"warm","w":"lenses","w2":null},{"n":"judge","u":"https://mino.mobi/judge/","k":9,"a":"cold","w":"lenses","w2":null},{"n":"novelty","u":"https://mino.mobi/novelty/","k":12,"a":"cold","w":"lenses","w2":null},{"n":"echo","u":"https://mino.mobi/echo/","k":1,"a":"cold","w":"lenses","w2":null},{"n":"density","u":"https://mino.mobi/density/","k":5,"a":"cold","w":"lenses","w2":null},{"n":"seek","u":"https://mino.mobi/seek/","k":3,"a":"cold","w":"lenses","w2":null},{"n":"cluster","u":"https://mino.mobi/cluster/","k":10,"a":"cold","w":"lenses","w2":null},{"n":"wild","u":"https://mino.mobi/wild/","k":3,"a":"warm","w":"lenses","w2":null},{"n":"disk","u":"https://b.mino.mobi/disk/","k":2,"a":"warm","w":"social","w2":null},{"n":"answers","u":"https://mino.mobi/answers/","k":30,"a":"hot","w":"lenses","w2":null},{"n":"rite","u":"https://rite.mino.mobi","k":42,"a":"hot","w":"lenses","w2":null},{"n":"fodder","u":"https://rite.mino.mobi/fodder/","k":8,"a":"hot","w":"lenses","w2":null},{"n":"redact","u":"https://rite.mino.mobi/redact/","k":4,"a":"hot","w":"lenses","w2":null},{"n":"ask","u":"https://rite.mino.mobi/ask/","k":6,"a":"hot","w":"lenses","w2":null},{"n":"atlas","u":"https://rite.mino.mobi/atlas/","k":3,"a":"hot","w":"lenses","w2":null},{"n":"lexicon","u":"https://rite.mino.mobi/lexicon/","k":3,"a":"hot","w":"lenses","w2":null},{"n":"list","u":"https://rite.mino.mobi/list/","k":3,"a":"hot","w":"lenses","w2":null},{"n":"web","u":"https://rite.mino.mobi/web/","k":3,"a":"hot","w":"lenses","w2":null},{"n":"signal","u":"https://rite.mino.mobi/signal/","k":4,"a":"hot","w":"lenses","w2":null},{"n":"atmosphere","u":"https://b.mino.mobi","k":3,"a":"hot","w":"social","w2":null},{"n":"feedgen","u":"https://b.mino.mobi/feedgen/","k":1,"a":"hot","w":"social","w2":null},{"n":"tetr","u":"https://b.mino.mobi/tetr/","k":1,"a":"hot","w":"social","w2":null},{"n":"cat","u":"https://cat.mino.mobi","k":5,"a":"hot","w":"social","w2":null},{"n":"track","u":"https://mino.mobi/track/","k":15,"a":"warm","w":"lenses","w2":null},{"n":"orb","u":"https://photo.mino.mobi/orb/","k":5,"a":"hot","w":"studio","w2":null},{"n":"fractal","u":"https://photo.mino.mobi/fractal/","k":7,"a":"hot","w":"studio","w2":null},{"n":"ternary2","u":"https://mino.mobi/ternary2/","k":4,"a":"warm","w":"lenses","w2":null},{"n":"ternary3","u":"https://mino.mobi/ternary3/","k":1,"a":"warm","w":"lenses","w2":null},{"n":"org","u":"https://org.mino.mobi","k":40,"a":"hot","w":"bench","w2":null},{"n":"pm","u":"https://mino.mobi/pm/","k":17,"a":"warm","w":"bench","w2":null},{"n":"wave","u":"https://wave.mino.mobi","k":10,"a":"cold","w":"bench","w2":null},{"n":"wiki","u":"https://mino.mobi/wiki/","k":15,"a":"warm","w":"bench","w2":null},{"n":"crm","u":"https://mino.mobi/crm/","k":14,"a":"warm","w":"bench","w2":null},{"n":"bounty","u":"https://mino.mobi/bounty/","k":5,"a":"cold","w":"bench","w2":null},{"n":"io","u":"https://io.mino.mobi","k":19,"a":"hot","w":"bench","w2":null},{"n":"time","u":"https://mino.mobi/time/","k":15,"a":"cold","w":"bench","w2":null},{"n":"mega","u":"https://mino.mobi/mega/","k":11,"a":"cold","w":"bench","w2":null},{"n":"finance","u":"https://mino.mobi/finance/","k":28,"a":"hot","w":"bench","w2":null},{"n":"bogo","u":"https://mino.mobi/finance/bogo/","k":2,"a":"hot","w":"bench","w2":null},{"n":"agimet","u":"https://mino.mobi/finance/agimet/","k":2,"a":"hot","w":"bench","w2":null},{"n":"stocks","u":"https://mino.mobi/finance/stocks/","k":2,"a":"hot","w":"bench","w2":null},{"n":"wars","u":"https://mino.mobi/wars/","k":7,"a":"hot","w":"bench","w2":null},{"n":"cult","u":"https://mino.mobi/wars/cult/","k":5,"a":"hot","w":"bench","w2":null},{"n":"flows","u":"https://mino.mobi/flows/","k":5,"a":"cold","w":"bench","w2":null},{"n":"phylo","u":"https://mino.mobi/phylo/","k":28,"a":"cold","w":"bench","w2":null},{"n":"cards","u":"https://mino.mobi/cards/","k":122,"a":"hot","w":"cards","w2":null},{"n":"geometry","u":"https://mino.mobi/geometry/","k":1,"a":"hot","w":"math","w2":null},{"n":"erdos","u":"https://mino.mobi/erdos/","k":1,"a":"hot","w":"math","w2":null},{"n":"guthkatz","u":"https://mino.mobi/guthkatz/","k":1,"a":"hot","w":"math","w2":null},{"n":"hadwiger","u":"https://mino.mobi/hadwiger/","k":1,"a":"hot","w":"math","w2":null},{"n":"runner","u":"https://mino.mobi/runner/","k":1,"a":"hot","w":"math","w2":null},{"n":"meander","u":"https://mino.mobi/meander/","k":1,"a":"hot","w":"math","w2":null},{"n":"temperley-lieb","u":"https://mino.mobi/temperley-lieb/","k":1,"a":"hot","w":"math","w2":null},{"n":"aztec","u":"https://mino.mobi/aztec/","k":1,"a":"hot","w":"math","w2":null},{"n":"markov","u":"https://mino.mobi/markov/","k":1,"a":"hot","w":"math","w2":null},{"n":"descent","u":"https://mino.mobi/descent/","k":1,"a":"hot","w":"math","w2":null},{"n":"kakeya","u":"https://mino.mobi/kakeya/","k":1,"a":"hot","w":"math","w2":null},{"n":"capset","u":"https://mino.mobi/capset/","k":1,"a":"hot","w":"math","w2":null},{"n":"szemeredi-trotter","u":"https://mino.mobi/szemeredi-trotter/","k":1,"a":"hot","w":"math","w2":null},{"n":"heilbronn","u":"https://mino.mobi/heilbronn/","k":1,"a":"hot","w":"math","w2":null},{"n":"borsuk","u":"https://mino.mobi/borsuk/","k":1,"a":"hot","w":"math","w2":null},{"n":"viazovska","u":"https://mino.mobi/viazovska/","k":1,"a":"hot","w":"math","w2":null},{"n":"elements","u":"https://mino.mobi/elements/","k":1,"a":"hot","w":"math","w2":null},{"n":"techtree","u":"https://mino.mobi/cards/collection/techtree.html","k":15,"a":"warm","w":"cards","w2":null},{"n":"grow","u":"https://mino.mobi/cards/collection/grow.html","k":10,"a":"warm","w":"cards","w2":null},{"n":"recipe","u":"https://mino.mobi/cards/games/recipe.html","k":3,"a":"warm","w":"cards","w2":null},{"n":"yum","u":"https://mino.mobi/cards/games/yum.html","k":6,"a":"hot","w":"cards","w2":null},{"n":"diffract","u":"https://mino.mobi/cards/collection/diffract.html","k":1,"a":"hot","w":"cards","w2":null},{"n":"labglass","u":"https://mino.mobi/labglass/","k":25,"a":"cold","w":"bench","w2":null},{"n":"os","u":"https://os.mino.mobi","k":16,"a":"warm","w":"bench","w2":null},{"n":"ocr","u":"https://ocr.mino.mobi","k":1,"a":"hot","w":"bench","w2":null},{"n":"read","u":"https://mino.mobi/read/","k":37,"a":"hot","w":"reading","w2":null},{"n":"flow","u":"https://mino.mobi/read/flow/","k":1,"a":"warm","w":"reading","w2":null},{"n":"post01","u":"https://mino.mobi/read/post01/","k":13,"a":"hot","w":"reading","w2":null},{"n":"pendragon","u":"https://mino.mobi/read/pendragon/","k":25,"a":"hot","w":"reading","w2":null},{"n":"mabinogi","u":"https://mino.mobi/read/mabinogi/","k":1,"a":"hot","w":"reading","w2":null},{"n":"pwyll","u":"https://mino.mobi/read/pwyll/","k":16,"a":"hot","w":"reading","w2":null},{"n":"branwen","u":"https://mino.mobi/read/branwen/","k":16,"a":"hot","w":"reading","w2":null},{"n":"manawydan","u":"https://mino.mobi/read/manawydan/","k":13,"a":"hot","w":"reading","w2":null},{"n":"math","u":"https://mino.mobi/read/math/","k":10,"a":"hot","w":"reading","w2":null},{"n":"gawain","u":"https://mino.mobi/read/gawain/","k":6,"a":"warm","w":"reading","w2":null},{"n":"culhwch","u":"https://mino.mobi/read/culhwch/","k":3,"a":"warm","w":"reading","w2":null},{"n":"orfeo","u":"https://mino.mobi/read/orfeo/","k":13,"a":"warm","w":"reading","w2":null},{"n":"owain","u":"https://mino.mobi/read/owain/","k":19,"a":"hot","w":"reading","w2":null},{"n":"vitamerlini","u":"https://mino.mobi/read/vitamerlini/","k":22,"a":"hot","w":"reading","w2":null},{"n":"geomancy","u":"https://mino.mobi/read/geomancy/","k":1,"a":"hot","w":"reading","w2":null},{"n":"iching","u":"https://mino.mobi/read/iching/","k":1,"a":"hot","w":"reading","w2":null},{"n":"noise","u":"https://mino.mobi/noise/","k":6,"a":"cold","w":"studio","w2":null},{"n":"music","u":"https://mino.mobi/music/","k":17,"a":"cold","w":"studio","w2":null},{"n":"bakery","u":"https://bake.mino.mobi","k":25,"a":"cold","w":"studio","w2":null},{"n":"sweat","u":"https://mino.mobi/sweat/","k":4,"a":"cold","w":"studio","w2":null},{"n":"j","u":"https://j.mino.mobi","k":2,"a":"warm","w":"bench","w2":null},{"n":"borges","u":"https://borges.mino.mobi","k":27,"a":"hot","w":"reading","w2":"studio"},{"n":"ai-edu","u":"https://ai.mino.mobi","k":26,"a":"hot","w":"bench","w2":null},{"n":"g","u":"https://g.mino.mobi/","k":119,"a":"hot","w":"sandbox","w2":null},{"n":"emsim","u":"https://g.mino.mobi/emsim/","k":17,"a":"warm","w":"sandbox","w2":null},{"n":"stretch","u":"https://g.mino.mobi/stretch/","k":4,"a":"warm","w":"sandbox","w2":null},{"n":"globe","u":"https://g.mino.mobi/globe/","k":11,"a":"hot","w":"sandbox","w2":null},{"n":"hand","u":"https://g.mino.mobi/hand/","k":6,"a":"warm","w":"sandbox","w2":null},{"n":"scope","u":"https://g.mino.mobi/scope/","k":6,"a":"warm","w":"sandbox","w2":null},{"n":"mole","u":"https://g.mino.mobi/mole/","k":3,"a":"hot","w":"sandbox","w2":null},{"n":"ship","u":"https://g.mino.mobi/ship/","k":6,"a":"hot","w":"sandbox","w2":null},{"n":"helix","u":"https://g.mino.mobi/helix/","k":2,"a":"warm","w":"sandbox","w2":null},{"n":"corn","u":"https://g.mino.mobi/corn/","k":2,"a":"warm","w":"sandbox","w2":null},{"n":"mol","u":"https://g.mino.mobi/mol/","k":2,"a":"warm","w":"sandbox","w2":null},{"n":"antoine","u":"https://g.mino.mobi/antoine/","k":2,"a":"warm","w":"math","w2":null},{"n":"basket","u":"https://g.mino.mobi/basket/","k":9,"a":"hot","w":"math","w2":null},{"n":"garden","u":"https://g.mino.mobi/garden/","k":6,"a":"hot","w":"sandbox","w2":"arcade"},{"n":"horned","u":"https://g.mino.mobi/horned/","k":7,"a":"warm","w":"math","w2":null},{"n":"lattice","u":"https://g.mino.mobi/lattice/","k":1,"a":"warm","w":"math","w2":null},{"n":"sticks","u":"https://g.mino.mobi/sticks/","k":1,"a":"hot","w":"reading","w2":null},{"n":"tablet","u":"https://g.mino.mobi/tablet/","k":1,"a":"hot","w":"reading","w2":null},{"n":"yarrow","u":"https://g.mino.mobi/yarrow/","k":1,"a":"hot","w":"reading","w2":null},{"n":"yijing","u":"https://g.mino.mobi/yijing/","k":1,"a":"hot","w":"reading","w2":null},{"n":"soil","u":"https://g.mino.mobi/soil/","k":1,"a":"hot","w":"reading","w2":null},{"n":"torus","u":"https://torus.mino.mobi/","k":24,"a":"warm","w":"arcade","w2":null},{"n":"pac","u":"https://torus.mino.mobi/pac/","k":18,"a":"hot","w":"arcade","w2":null},{"n":"torpac","u":"https://torus.mino.mobi/torpac/","k":1,"a":"warm","w":"arcade","w2":null},{"n":"knotpac","u":"https://torus.mino.mobi/knotpac/","k":11,"a":"warm","w":"arcade","w2":null},{"n":"inpac","u":"https://torus.mino.mobi/inpac/","k":9,"a":"warm","w":"arcade","w2":null},{"n":"chess","u":"https://torus.mino.mobi/toruschess/","k":2,"a":"warm","w":"arcade","w2":null},{"n":"pokemon","u":"https://mino.mobi/pokemon/","k":22,"a":"warm","w":"arcade","w2":null},{"n":"proteus","u":"https://mino.mobi/pokemon/proteus/","k":15,"a":"hot","w":"arcade","w2":"sandbox"},{"n":"mmo","u":"https://mino.mobi/mmo/","k":18,"a":"hot","w":"arcade","w2":null},{"n":"draw","u":"https://mino.mobi/draw/","k":6,"a":"hot","w":"arcade","w2":null},{"n":"paint","u":"https://mino.mobi/paint/","k":5,"a":"hot","w":"arcade","w2":null},{"n":"range","u":"https://mino.mobi/range/","k":3,"a":"hot","w":"arcade","w2":null},{"n":"curve","u":"https://mino.mobi/curve/","k":1,"a":"hot","w":"arcade","w2":null},{"n":"splice","u":"https://splice.mino.mobi","k":25,"a":"hot","w":"arcade","w2":"sandbox"},{"n":"games","u":"https://games.mino.mobi","k":2,"a":"warm","w":"arcade","w2":null},{"n":"gen","u":"https://games.mino.mobi/gen/","k":1,"a":"hot","w":"arcade","w2":null},{"n":"canvas","u":"https://canvas.mino.mobi","k":2,"a":"warm","w":"arcade","w2":"studio"},{"n":"pizza","u":"https://canvas.mino.mobi/pizza/","k":1,"a":"hot","w":"arcade","w2":null},{"n":"fluoddity","u":"https://fluoddity.mino.mobi","k":43,"a":"hot","w":"sandbox","w2":"arcade"}]};
+const svg = document.getElementById('svg');
+const SVGNS = 'http://www.w3.org/2000/svg';
+const tip = document.getElementById('tip');
+let W=0,H=0, layout=[], view={x:0,y:0,s:1}, active=new Set(D.wings.map(w=>w.id)), query='';
+
+const hsl=(h,s,l)=>'hsl('+h+' '+s+'% '+l+'%)';
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+function computeLayout(){
+  const wc={}; for(const w of D.wings) wc[w.id]={x:w.cx*W,y:w.cy*H,n:0,members:[]};
+  // membership counts for spread sizing
+  for(const nd of D.nodes){ wc[nd.w].n++; if(nd.w2) wc[nd.w2].n++; }
+  // place: order each wing's members by weight desc, spiral out (heavy = central)
+  const groups={}; for(const w of D.wings) groups[w.id]=[];
+  for(const nd of D.nodes) groups[nd.w].push(nd);
+  layout=[];
+  const minWH=Math.min(W,H);
+  for(const w of D.wings){
+    const mem=groups[w.id].sort((a,b)=>b.k-a.k);
+    const c=wc[w.id];
+    const spread=Math.max(60, Math.sqrt(mem.length)* (minWH*0.052));
+    let i=0;
+    for(const nd of mem){
+      let cx=c.x, cy=c.y;
+      if(nd.w2){ const c2=wc[nd.w2]; cx=(c.x+c2.x)/2; cy=(c.y+c2.y)/2; }
+      const ga=2.39996323*i; const rr=spread*Math.sqrt((i+0.6)/(mem.length+1));
+      const x=cx+Math.cos(ga)*rr, y=cy+Math.sin(ga)*rr*0.82;
+      const r=4+Math.sqrt(nd.k)*2.0;
+      layout.push({nd,x,y,r,wing:w});
+      i++;
+    }
+  }
+  // gentle de-overlap (deterministic)
+  const rnd=mulberry32(20260607);
+  for(let pass=0;pass<60;pass++){
+    for(let i=0;i<layout.length;i++)for(let j=i+1;j<layout.length;j++){
+      const a=layout[i],b=layout[j]; let dx=b.x-a.x,dy=b.y-a.y; let d=Math.hypot(dx,dy)||0.01;
+      const md=a.r+b.r+3; if(d<md){ const push=(md-d)/2; if(d<0.02){dx=rnd()-0.5;dy=rnd()-0.5;d=1;} const ux=dx/d,uy=dy/d; a.x-=ux*push;a.y-=uy*push;b.x+=ux*push;b.y+=uy*push; }
+    }
+  }
+}
+
+function draw(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const g=document.createElementNS(SVGNS,'g');
+  g.setAttribute('transform','translate('+view.x+' '+view.y+') scale('+view.s+')');
+  svg.appendChild(g);
+
+  // axis hints
+  const axes=[['collective · feed',18,H/2,'start'],['solo · standalone',W-18,H/2,'end'],
+              ['play · make',W/2,26,'middle'],['study · read',W/2,H-12,'middle']];
+  for(const [t,x,y,anc] of axes){ const e=document.createElementNS(SVGNS,'text');
+    e.setAttribute('class','axis');e.setAttribute('x',x);e.setAttribute('y',y);e.setAttribute('text-anchor',anc);e.textContent=t;g.appendChild(e);}
+
+  // wing halos + labels
+  for(const w of D.wings){
+    const on=active.has(w.id);
+    const halo=document.createElementNS(SVGNS,'circle');
+    halo.setAttribute('class','halo');halo.setAttribute('cx',w.cx*W);halo.setAttribute('cy',w.cy*H);
+    halo.setAttribute('r',Math.min(W,H)*0.16);halo.setAttribute('fill',hsl(w.hue,55,55));
+    halo.style.opacity=on?0.06:0.02;g.appendChild(halo);
+    const lab=document.createElementNS(SVGNS,'text');
+    lab.setAttribute('class','wlabel');lab.setAttribute('x',w.cx*W);lab.setAttribute('y',w.cy*H- Math.min(W,H)*0.105);
+    lab.setAttribute('text-anchor','middle');lab.textContent=w.label;lab.style.fill=on?'':'var(--dim)';
+    lab.onclick=()=>{ if(active.size===1&&active.has(w.id)){active=new Set(D.wings.map(x=>x.id));} else {active=new Set([w.id]);} syncChips();draw(); };
+    g.appendChild(lab);
+    const bl=document.createElementNS(SVGNS,'text');
+    bl.setAttribute('class','wblurb');bl.setAttribute('x',w.cx*W);bl.setAttribute('y',w.cy*H- Math.min(W,H)*0.105+14);
+    bl.setAttribute('text-anchor','middle');bl.textContent=w.blurb;g.appendChild(bl);
+  }
+
+  // nodes
+  for(const L of layout){
+    const nd=L.nd; const on=active.has(nd.w)||(nd.w2&&active.has(nd.w2));
+    const match=!query||nd.n.toLowerCase().includes(query);
+    const ng=document.createElementNS(SVGNS,'g');
+    ng.setAttribute('class','node'+((on&&match)?'':' dim'));
+    ng.setAttribute('transform','translate('+L.x+' '+L.y+')');
+    if(nd.w2){ const ring=document.createElementNS(SVGNS,'circle');ring.setAttribute('class','seamring');ring.setAttribute('r',L.r+3.5);ng.appendChild(ring); }
+    const ci=document.createElementNS(SVGNS,'circle');
+    ci.setAttribute('r',L.r);
+    const fill=nd.w2? 'url(#seam-'+nd.n+')' : hsl(L.wing.hue,58,58);
+    ci.setAttribute('fill',fill);
+    ci.setAttribute('opacity',nd.a==='hot'?0.95:nd.a==='warm'?0.7:0.42);
+    ci.setAttribute('stroke',hsl(L.wing.hue,60,75));ci.setAttribute('stroke-width',nd.a==='hot'?1.2:0.4);
+    ng.appendChild(ci);
+    const tx=document.createElementNS(SVGNS,'text');tx.setAttribute('x',0);tx.setAttribute('y',L.r+11);
+    tx.setAttribute('text-anchor','middle');tx.textContent=nd.n;ng.appendChild(tx);
+    ng.onmouseenter=e=>{ ng.classList.add('lit'); showTip(e,nd); };
+    ng.onmousemove=e=>moveTip(e);
+    ng.onmouseleave=()=>{ ng.classList.remove('lit'); tip.style.opacity=0; };
+    ng.onclick=()=>{ if(nd.u) window.open(nd.u,'_blank'); };
+    g.appendChild(ng);
+  }
+
+  // seam gradients (defs)
+  const defs=document.createElementNS(SVGNS,'defs');
+  for(const nd of D.nodes) if(nd.w2){
+    const w1=D.wings.find(w=>w.id===nd.w),w2=D.wings.find(w=>w.id===nd.w2);
+    const lg=document.createElementNS(SVGNS,'linearGradient');lg.setAttribute('id','seam-'+nd.n);
+    const s1=document.createElementNS(SVGNS,'stop');s1.setAttribute('offset','0%');s1.setAttribute('stop-color',hsl(w1.hue,58,58));
+    const s2=document.createElementNS(SVGNS,'stop');s2.setAttribute('offset','100%');s2.setAttribute('stop-color',hsl(w2.hue,58,58));
+    lg.appendChild(s1);lg.appendChild(s2);defs.appendChild(lg);
+  }
+  svg.appendChild(defs);
+}
+
+function showTip(e,nd){ const seam=nd.w2?' · on the seam of '+wlabel(nd.w)+' ✕ '+wlabel(nd.w2):' · '+wlabel(nd.w);
+  tip.innerHTML='<b>'+nd.n+'</b>'+seam+'<br><span class="ep">'+nd.u.replace(/^https?:\/\//,'')+'</span>'; tip.style.opacity=1; moveTip(e); }
+function moveTip(e){ tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; }
+function wlabel(id){ const w=D.wings.find(x=>x.id===id); return w?w.label:id; }
+
+function buildLegend(){ const lg=document.getElementById('legend'); lg.innerHTML='';
+  for(const w of D.wings){ const c=document.createElement('span');c.className='chip';c.dataset.w=w.id;
+    c.innerHTML='<span class="dot" style="background:'+hsl(w.hue,58,58)+'"></span>'+w.label;
+    c.onclick=()=>{ if(active.has(w.id)&&active.size<D.wings.length){active.add(w.id);} if(active.has(w.id)){active.delete(w.id);}else{active.add(w.id);} if(active.size===0)active=new Set(D.wings.map(x=>x.id)); syncChips();draw(); };
+    lg.appendChild(c); }
+  const note=document.createElement('span');note.className='chip note';
+  note.textContent='◷ '+D.nodes.length+' surfaces · click a wing to isolate · ◌ dashed = lives on a seam';lg.appendChild(note);
+  syncChips();
+}
+function syncChips(){ for(const c of document.querySelectorAll('.chip[data-w]')) c.classList.toggle('off',!active.has(c.dataset.w)); }
+
+function resize(){ const r=svg.getBoundingClientRect(); W=r.width;H=r.height; svg.setAttribute('viewBox','0 0 '+W+' '+H); computeLayout(); draw(); }
+document.getElementById('q').addEventListener('input',e=>{ query=e.target.value.trim().toLowerCase(); draw(); });
+
+// pan + zoom
+let drag=null;
+svg.addEventListener('mousedown',e=>{ drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}; svg.classList.add('drag'); });
+window.addEventListener('mousemove',e=>{ if(!drag)return; view.x=drag.vx+(e.clientX-drag.x); view.y=drag.vy+(e.clientY-drag.y); draw(); });
+window.addEventListener('mouseup',()=>{ drag=null; svg.classList.remove('drag'); });
+svg.addEventListener('wheel',e=>{ e.preventDefault(); const f=e.deltaY<0?1.1:1/1.1; const ns=Math.max(0.5,Math.min(4,view.s*f));
+  const rx=(e.clientX-view.x)/view.s, ry=(e.clientY-view.y)/view.s; view.x=e.clientX-rx*ns; view.y=e.clientY-ry*ns; view.s=ns; draw(); },{passive:false});
+
+window.addEventListener('resize',resize);
+buildLegend(); resize();
+</script>
+</body>
+</html>
