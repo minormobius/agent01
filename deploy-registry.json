@@ -8,7 +8,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/merge-candidate-features-ciJkT",
+      "branch": "claude/merge-features-update-endpoints-qa2vu1",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
@@ -27,14 +27,16 @@
         "flows",
         "phylo",
         "time",
-        "wiki"
+        "wiki",
+        "mappa"
       ],
       "note": "Assets worker `minomobi` serving directory '.'. Bundles the landing page + ~19 pure-static subsites into ONE deploy. Currently Cloudflare git-autodeploy from main (no Action). Target: explicit deploy-root.yml. WARNING: the bundled static subsites cannot be deployed independently of each other — see tension note in the chat.",
       "paths": [
         "index.html",
         "styles.css",
         "scripts/generate-search-catalog.mjs",
-        "functions/**"
+        "functions/**",
+        "mappa/**"
       ]
     },
     {
