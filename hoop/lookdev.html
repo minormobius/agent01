@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>hoop · look-dev — the voronoi ship</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05060a; color: #cfe; font: 13px ui-monospace, monospace; overflow: hidden; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; top: 10px; left: 12px; line-height: 1.5; text-shadow: 0 1px 3px #000; pointer-events: none; }
+  #hud b { color: #ffce78; }
+  .key { color: #7fd8d0; }
+  #regime { font-size: 16px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div><b>hoop look-dev</b> · the voronoi ship (prototype — not the live engine)</div>
+  <div><span class="key">WASD</span> move · <span class="key">M</span> show mesh · <span class="key">G</span> cycle gravity-debug</div>
+  <div id="regime">gravity: —</div>
+  <div id="stat">…</div>
+</div>
+
+<script src="js/ship.js"></script>
+<script type="module">
+import { drawStalk, inkLine, stalkModel } from './js/ink.js';
+const S = globalThis.HoopShip, C = S.CHUNK;
+
+// ── 1. realise a region from the real engine ────────────────────────────────
+const SEED = S.FLAGSHIP_SEED;
+const CX0 = 0, CY0 = 0, CW = 3, CH = 2;            // 3×2 chunks of ship
+const floorSet = new Set();                         // "x,y" floor tiles
+const rooms = [], emitters = [], stalks = [];
+for (let cy = CY0; cy < CY0 + CH; cy++) for (let cx = CX0; cx < CX0 + CW; cx++) {
+  const ch = S.generateChunk(SEED, cx, cy, null), bx = cx * C, by = cy * C;
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
+    const t = ch.tiles[y * C + x]; if (t === S.TILE.FLOOR || t === S.TILE.DOOR) floorSet.add((bx + x) + ',' + (by + y));
+  }
+  for (const r of ch.rooms) {
+    const reg = r.gravity, gx = bx + r.cx, gy = by + r.cy;
+    rooms.push({ x: bx + r.x, y: by + r.y, w: r.w, h: r.h, cx: gx, cy: gy, type: r.type, gravity: reg, glyph: r.glyph, accent: r.accent });
+    for (const L of r.lights) emitters.push({ x: bx + L.x, y: by + L.y, rgb: L.rgb, intensity: L.intensity, flicker: L.flicker, radius: L.radius });
+    if (r.type === 'garden') {
+      const frng = S.rngFor(SEED, 55, cx * 131 + r.x, cy * 131 + r.y);
+      const n = 2 + Math.floor(frng() * Math.min(5, (r.w * r.h) / 6));
+      for (let i = 0; i < n; i++) stalks.push({ x: bx + r.x + 1 + Math.floor(frng() * Math.max(1, r.w - 2)) + 0.5, y: by + r.y + 1 + Math.floor(frng() * Math.max(1, r.h - 2)) + 0.9, ang: (frng() - 0.5) * 0.5, model: stalkModel(frng) });
+    }
+  }
+}
+const isFloorTile = (x, y) => floorSet.has(Math.floor(x) + ',' + Math.floor(y));
+// regime at a continuous point: the room it falls in, else 'normal'
+function regimeAt(px, py) {
+  for (const r of rooms) if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) return r.gravity;
+  return 'normal';
+}
+
+// ── 2. adaptive sites: dense at hull + fixtures, coarse in open bays ──────────
+const sites = []; // {x,y,hull}
+// hull sites: every void tile touching floor → a site at its centre (fine cells at walls)
+const seenVoid = new Set();
+for (const k of floorSet) {
+  const [x, y] = k.split(',').map(Number);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const vx = x + dx, vy = y + dy, vk = vx + ',' + vy;
+    if (!floorSet.has(vk) && !seenVoid.has(vk)) { seenVoid.add(vk); sites.push({ x: vx + 0.5, y: vy + 0.5, hull: true }); }
+  }
+}
+// fixture sites: a tight cluster around every plant + light (fine cells where detail is)
+const rngF = S.rngFor(SEED, 909, 0, 0);
+for (const f of [...stalks, ...emitters]) for (let i = 0; i < 3; i++) {
+  const a = rngF() * 6.283, r = 0.4 + rngF() * 0.7;
+  const x = f.x + Math.cos(a) * r, y = f.y + Math.sin(a) * r;
+  if (isFloorTile(x, y)) sites.push({ x, y, hull: false });
+}
+// interior fill: coarse Poisson over floor (big plates in empty space)
+const tooClose = (x, y, rad) => { for (const s of sites) { const dx = s.x - x, dy = s.y - y; if (dx * dx + dy * dy < rad * rad) return true; } return false; };
+{
+  const r = S.rngFor(SEED, 1001, 0, 0);
+  for (let i = 0; i < 4000; i++) {
+    const fk = [...floorSet][Math.floor(r() * floorSet.size)].split(',').map(Number);
+    const x = fk[0] + r(), y = fk[1] + r();
+    if (!tooClose(x, y, 3.0)) sites.push({ x, y, hull: false });
+  }
+}
+
+// ── 3. voronoi cells for the non-hull sites (half-plane clipping, k-nearest) ──
+function clipCell(A) {
+  const R = 6; let poly = [[A.x - R, A.y - R], [A.x + R, A.y - R], [A.x + R, A.y + R], [A.x - R, A.y + R]];
+  const near = sites.map((s) => [s, (s.x - A.x) ** 2 + (s.y - A.y) ** 2]).filter((p) => p[1] > 1e-9).sort((a, b) => a[1] - b[1]).slice(0, 18);
+  for (const [B] of near) {
+    const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, nx = A.x - B.x, ny = A.y - B.y; // keep side toward A
+    const inside = (p) => (p[0] - mx) * nx + (p[1] - my) * ny >= 0;
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length], ia = inside(a), ib = inside(b);
+      if (ia) out.push(a);
+      if (ia !== ib) {
+        const da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny, tt = da / (da - db);
+        out.push([a[0] + (b[0] - a[0]) * tt, a[1] + (b[1] - a[1]) * tt]);
+      }
+    }
+    poly = out; if (poly.length < 3) break;
+  }
+  return poly;
+}
+function nearestOther(mx, my, selfA) {
+  let best = null, bd = 1e9;
+  for (const s of sites) { if (s === selfA) continue; const d = (s.x - mx) ** 2 + (s.y - my) ** 2; if (d < bd) { bd = d; best = s; } }
+  return best;
+}
+const cells = [];
+for (const A of sites) {
+  if (A.hull) continue;
+  const poly = clipCell(A); if (poly.length < 3) continue;
+  // per-edge: is the neighbour across this edge a hull site?
+  const edges = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const nb = nearestOther((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, A);
+    edges.push({ a, b, hull: nb ? nb.hull : false });
+  }
+  const h = S.hashInts(SEED, Math.round(A.x * 7), Math.round(A.y * 7), 3);
+  const albedo = [148 + ((h & 31) - 16), 158 + (((h >> 5) & 31) - 16), 166 + (((h >> 10) & 31) - 16)];
+  cells.push({ A, poly, edges, albedo, regime: regimeAt(A.x, A.y) });
+}
+const GRAV_HUE = { normal: [70, 90, 80], spin: [96, 78, 120], none: [70, 120, 128], mag: [120, 96, 60] };
+
+// ── 4. continuous, gravity-aware movement (the Phase-3 preview) ───────────────
+let spawn = [36, 24];
+{ let bd = 1e9; for (const k of floorSet) { const [x, y] = k.split(',').map(Number); const d = (x - 36) ** 2 + (y - 24) ** 2; if (d < bd) { bd = d; spawn = [x + 0.5, y + 0.5]; } } }
+const player = { x: spawn[0], y: spawn[1], vx: 0, vy: 0 };
+const keys = {};
+addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; if (e.key.toLowerCase() === 'm') showMesh = !showMesh; });
+addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+let showMesh = false;
+function nearestSite(x, y) { let best = null, bd = 1e9; for (const s of sites) { const d = (s.x - x) ** 2 + (s.y - y) ** 2; if (d < bd) { bd = d; best = s; } } return best; }
+const blocked = (x, y) => !isFloorTile(x, y) || (nearestSite(x, y) || {}).hull;
+function step(dt) {
+  let ix = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+  let iy = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
+  const il = Math.hypot(ix, iy) || 1; ix /= il; iy /= il;
+  const reg = regimeAt(player.x, player.y);
+  if (reg === 'none') { player.vx += ix * 0.018 * dt; player.vy += iy * 0.018 * dt; player.vx *= 0.992; player.vy *= 0.992; }   // glide
+  else if (reg === 'spin') { player.vx += ix * 0.05 * dt; player.vy += iy * 0.05 * dt; player.vx += 0.012 * dt; player.vy += 0.006 * dt; player.vx *= 0.84; player.vy *= 0.84; } // tilt-drift
+  else if (reg === 'mag') { player.vx += ix * 0.075 * dt; player.vy += iy * 0.075 * dt; player.vx *= 0.66; player.vy *= 0.66; }   // grounded, crisp
+  else { player.vx += ix * 0.06 * dt; player.vy += iy * 0.06 * dt; player.vx *= 0.78; player.vy *= 0.78; }                        // normal
+  const sp = Math.hypot(player.vx, player.vy); if (sp > 0.5) { player.vx *= 0.5 / sp; player.vy *= 0.5 / sp; }
+  // axis-separated so you slide along hull (and glide along it in zero-g)
+  const nx = player.x + player.vx, ny = player.y + player.vy;
+  if (!blocked(nx, player.y)) player.x = nx; else player.vx = 0;
+  if (!blocked(player.x, ny)) player.y = ny; else player.vy = 0;
+}
+
+// ── 5. render ────────────────────────────────────────────────────────────────
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let VW, VH, TILE = 26;
+function resize() { const d = Math.min(devicePixelRatio || 1, 2); VW = innerWidth; VH = innerHeight; cv.width = VW * d; cv.height = VH * d; ctx.setTransform(d, 0, 0, d, 0, 0); TILE = Math.max(16, Math.min(34, Math.floor(Math.min(VW, VH) / 20))); }
+addEventListener('resize', resize); resize();
+const cam = { x: player.x, y: player.y };
+function lightAt(wx, wy, now) {
+  let r = 0.04, g = 0.04, b = 0.05;
+  for (const e of emitters) {
+    const dx = wx - e.x, dy = wy - e.y, d = Math.hypot(dx, dy); if (d > e.radius) continue;
+    const fl = e.flicker ? (1 - e.flicker * 0.5 + e.flicker * 0.5 * Math.sin(now / 130 + e.x * 1.7 + e.y)) : 1;
+    const f = e.intensity * fl * (1 - d / e.radius) ** 2;
+    r += e.rgb[0] / 255 * f; g += e.rgb[1] / 255 * f; b += e.rgb[2] / 255 * f;
+  }
+  return [r, g, b];
+}
+let last = performance.now(), frames = 0, fps = 0, facc = 0;
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(40, now - last); last = now; step(dt / 16);
+  cam.x += (player.x - cam.x) * 0.12; cam.y += (player.y - cam.y) * 0.12;
+  const ox = VW / 2 - cam.x * TILE, oy = VH / 2 - cam.y * TILE;
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, VW, VH);
+  const S2 = (x, y) => [ox + x * TILE, oy + y * TILE];
+
+  // plates (fill) — light sampled at the cell site = an adaptive GI probe
+  for (const c of cells) {
+    const [cx, cy] = S2(c.A.x, c.A.y);
+    if (cx < -40 || cx > VW + 40 || cy < -40 || cy > VH + 40) continue;
+    const lit = lightAt(c.A.x, c.A.y, now), g = GRAV_HUE[c.regime] || GRAV_HUE.normal, amb = 0.22;
+    ctx.fillStyle = `rgb(${Math.min(255, c.albedo[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205) | 0},${Math.min(255, c.albedo[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205) | 0},${Math.min(255, c.albedo[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205) | 0})`;
+    ctx.beginPath(); const p0 = S2(c.poly[0][0], c.poly[0][1]); ctx.moveTo(p0[0], p0[1]);
+    for (let i = 1; i < c.poly.length; i++) { const p = S2(c.poly[i][0], c.poly[i][1]); ctx.lineTo(p[0], p[1]); }
+    ctx.closePath(); ctx.fill();
+  }
+  // seams (ink)
+  for (const c of cells) {
+    const [cx, cy] = S2(c.A.x, c.A.y); if (cx < -40 || cx > VW + 40 || cy < -40 || cy > VH + 40) continue;
+    const lit = lightAt(c.A.x, c.A.y, now), lL = Math.min(1, (lit[0] + lit[1] + lit[2]) / 1.4);
+    for (const e of c.edges) {
+      const a = S2(e.a[0], e.a[1]), b = S2(e.b[0], e.b[1]);
+      const w = e.hull ? Math.max(1.3, TILE * 0.085) : Math.max(0.5, TILE * 0.04);
+      const col = e.hull ? `rgba(${18 + lL * 90 | 0},${24 + lL * 90 | 0},${28 + lL * 80 | 0},0.92)` : `rgba(${70 + lL * 80 | 0},${82 + lL * 80 | 0},${86 + lL * 70 | 0},0.4)`;
+      inkLine(ctx, a[0], a[1], b[0], b[1], (Math.round(e.a[0] * 91 + e.b[0] * 13) ^ Math.round(e.a[1] * 71 + e.b[1] * 7)) >>> 0, w, col);
+    }
+  }
+  // garden milfoil
+  for (const f of stalks) {
+    const [sx, sy] = S2(f.x, f.y); if (sx < -30 || sx > VW + 30 || sy < -30 || sy > VH + 30) continue;
+    const lit = lightAt(f.x, f.y, now), lL = Math.min(1.15, 0.28 + (lit[0] + lit[1] + lit[2]) / 1.2), m = f.model;
+    drawStalk(ctx, { lenPx: m.lenTiles * TILE, diaPx: m.diaFrac * TILE, col: { h: m.col.h, s: m.col.s, l: m.col.l * lL }, warp: m.warp, warpDir: m.warpDir, nodes: m.nodes, check: 0, grainSeed: m.grainSeed, taper: m.taper }, { x: sx, y: sy, ang: f.ang, detail: Math.min(1, TILE / 26), fuzz: false, ends: false });
+  }
+  // mesh debug
+  if (showMesh) { ctx.fillStyle = '#7fd8d0'; for (const s of sites) { const [x, y] = S2(s.x, s.y); ctx.globalAlpha = s.hull ? 0.5 : 0.9; ctx.beginPath(); ctx.arc(x, y, s.hull ? 1 : 1.8, 0, 7); ctx.fill(); } ctx.globalAlpha = 1; }
+  // player
+  const [px, py] = S2(player.x, player.y);
+  ctx.save(); ctx.shadowColor = 'rgba(255,206,120,0.9)'; ctx.shadowBlur = 14; ctx.fillStyle = '#ffce78';
+  ctx.beginPath(); ctx.arc(px, py, TILE * 0.28, 0, 7); ctx.fill(); ctx.restore();
+
+  frames++; facc += dt; if (facc > 500) { fps = Math.round(frames / facc * 1000); frames = 0; facc = 0; }
+  document.getElementById('regime').innerHTML = 'gravity: <b>' + regimeAt(player.x, player.y) + '</b>';
+  document.getElementById('stat').textContent = `${cells.length} cells · ${sites.length} sites · ${fps} fps`;
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
