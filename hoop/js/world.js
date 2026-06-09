@@ -16,6 +16,8 @@
 // ship.js is a global script (loaded before this module), so we read it off the
 // global rather than importing it.
 
+import { drawStalk, inkLine, stalkModel } from './ink.js';
+
 const Ship = globalThis.HoopShip;
 const C = Ship.CHUNK;
 const FLOOR = Ship.TILE.FLOOR, DOOR = Ship.TILE.DOOR;
@@ -32,6 +34,7 @@ class ChunkField {
     this.seed = Ship.voyageSeed(seed);
     this.genome = genome || null;
     this.cache = new Map();
+    this.art_ = new Map();           // per-chunk render art (voronoi plating + fixtures)
     this.overlay = new Set();        // "x,y" forced-floor tiles
     this._carveSpawn();
   }
@@ -69,6 +72,45 @@ class ChunkField {
   }
   isFloor(wx, wy) { const t = this.tile(wx, wy); return t === FLOOR || t === DOOR; }
   addPlaceTile(wx, wy) { this.overlay.add(wx + ',' + wy); }
+
+  // ── render art (deterministic, cached per chunk) ──────────────────────────
+  // A tile-resolution Voronoi (each tile → nearest scattered site) gives the deck
+  // plating; per-site albedo paints the panels; garden rooms get milfoil fixtures.
+  art(cx, cy) {
+    const k = this._key(cx, cy);
+    let a = this.art_.get(k);
+    if (a) return a;
+    const ch = this.chunk(cx, cy);
+    const rng = Ship.rngFor(this.seed, 41, cx, cy);
+    const nSites = 9 + Math.floor(rng() * 7);
+    const sites = []; for (let i = 0; i < nSites; i++) sites.push([rng() * C, rng() * C]);
+    const owner = new Uint8Array(C * C);
+    for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
+      let bi = 0, bd = 1e9;
+      for (let i = 0; i < sites.length; i++) { const dx = x + 0.5 - sites[i][0], dy = y + 0.5 - sites[i][1], d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
+      owner[y * C + x] = bi;
+    }
+    const albedo = sites.map((_, i) => {
+      const h = Ship.hashInts(this.seed, cx, cy, i + 1);
+      return [148 + ((h & 31) - 16), 158 + (((h >> 5) & 31) - 16), 166 + (((h >> 10) & 31) - 16)];
+    });
+    const fixtures = [];
+    for (const room of ch.rooms) if (room.type === 'garden') {
+      const frng = Ship.rngFor(this.seed, 55, cx * 131 + room.x, cy * 131 + room.y);
+      const n = 2 + Math.floor(frng() * Math.min(5, (room.w * room.h) / 6));
+      for (let i = 0; i < n; i++) {
+        const lx = room.x + 1 + Math.floor(frng() * Math.max(1, room.w - 2));
+        const ly = room.y + 1 + Math.floor(frng() * Math.max(1, room.h - 2));
+        fixtures.push({ kind: 'stalk', wx: cx * C + lx + 0.5, wy: cy * C + ly + 0.9, ang: (frng() - 0.5) * 0.5, model: stalkModel(frng) });
+      }
+    }
+    a = { owner, albedo, fixtures };
+    this.art_.set(k, a);
+    if (this.art_.size > 256) for (const kk of this.art_.keys()) { const [x, y] = kk.split(',').map(Number); if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > 6) this.art_.delete(kk); }
+    return a;
+  }
+  ownerAt(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); return this.art(cx, cy).owner[ly * C + lx]; }
+  albedoAt(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const a = this.art(cx, cy); return a.albedo[a.owner[ly * C + lx]]; }
 
   // A guaranteed spawn room + a corridor punched to the containing chunk's hub,
   // so the player always lands on ground with a way out into the generated ship.
@@ -274,20 +316,59 @@ export class World {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `${Math.floor(t * 0.74)}px "JetBrains Mono", ui-monospace, monospace`;
 
+    // ── deck: voronoi plating, gravity-tinted, lit ──
+    const F = (x, y) => this.field.isFloor(x, y);
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const sx = ox + x * t + t / 2, sy = oy + y * t + t / 2;
+      if (!F(x, y)) continue;
+      const a = this.field.albedoAt(x, y);
+      const g = GRAV_HUE[this.field.regime(x, y)] || GRAV_HUE.normal;
       const lit = this._lightAt(buf, x0, y0, W, x, y);
-      const L = Math.min(1, (lit[0] + lit[1] + lit[2]) / 1.6);
-      if (this.field.isFloor(x, y)) {
-        const g = GRAV_HUE[this.field.regime(x, y)] || GRAV_HUE.normal;
-        ctx.fillStyle = `rgb(${Math.round((g[0] * 0.5 + lit[0] * 180))},${Math.round((g[1] * 0.5 + lit[1] * 180))},${Math.round((g[2] * 0.5 + lit[2] * 180))})`;
-        ctx.fillText('·', sx, sy);
-      } else if (this._bordersFloor(x, y)) {
-        const b = 60 + L * 120;
-        ctx.fillStyle = `rgb(${Math.round(b * 0.7 + lit[0] * 120)},${Math.round(b + lit[1] * 120)},${Math.round(b * 0.85 + lit[2] * 120)})`;
-        ctx.fillText('#', sx, sy);
+      const amb = 0.22;
+      const r = Math.min(255, a[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205);
+      const gg = Math.min(255, a[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205);
+      const b = Math.min(255, a[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205);
+      ctx.fillStyle = `rgb(${r | 0},${gg | 0},${b | 0})`;
+      ctx.fillRect(ox + x * t, oy + y * t, t + 1, t + 1);
+    }
+    // ── seams: hull (floor|void, all 4 edges) + panel (cell boundary, R/B only) ──
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      if (!F(x, y)) continue;
+      const owner = this.field.ownerAt(x, y);
+      const lit = this._lightAt(buf, x0, y0, W, x, y);
+      const lL = Math.min(1, (lit[0] + lit[1] + lit[2]) / 1.4);
+      const ex = ox + x * t, ey = oy + y * t;
+      const seam = (ax, ay, bx, by, hull) => {
+        const w = hull ? Math.max(1.3, t * 0.085) : Math.max(0.5, t * 0.04);
+        const c = hull
+          ? `rgba(${18 + (lL * 90) | 0},${24 + (lL * 90) | 0},${28 + (lL * 80) | 0},0.92)`
+          : `rgba(${70 + (lL * 80) | 0},${82 + (lL * 80) | 0},${86 + (lL * 70) | 0},0.45)`;
+        inkLine(ctx, ax, ay, bx, by, (x * 73856093 ^ y * 19349663 ^ (hull ? 1 : 2)) >>> 0, w, c);
+      };
+      if (!F(x - 1, y)) seam(ex, ey, ex, ey + t, true);
+      if (!F(x + 1, y)) seam(ex + t, ey, ex + t, ey + t, true);
+      if (!F(x, y - 1)) seam(ex, ey, ex + t, ey, true);
+      if (!F(x, y + 1)) seam(ex, ey + t, ex + t, ey + t, true);
+      if (F(x + 1, y) && this.field.ownerAt(x + 1, y) !== owner) seam(ex + t, ey, ex + t, ey + t, false);
+      if (F(x, y + 1) && this.field.ownerAt(x, y + 1) !== owner) seam(ex, ey + t, ex + t, ey + t, false);
+    }
+    // ── fixtures: garden milfoil (reuses the /yarrow drawStalk) ──
+    {
+      const fc0 = Math.floor(x0 / C), fr0 = Math.floor(y0 / C), fc1 = Math.floor((x1 - 1) / C), fr1 = Math.floor((y1 - 1) / C);
+      for (let cy = fr0; cy <= fr1; cy++) for (let cx = fc0; cx <= fc1; cx++) {
+        for (const f of this.field.art(cx, cy).fixtures) {
+          if (f.kind !== 'stalk' || f.wx < x0 - 1 || f.wx >= x1 + 1 || f.wy < y0 - 1 || f.wy >= y1 + 1) continue;
+          const lit = this._lightAt(buf, x0, y0, W, Math.floor(f.wx), Math.floor(f.wy));
+          const lL = Math.min(1.15, 0.28 + (lit[0] + lit[1] + lit[2]) / 1.2);
+          const m = f.model;
+          drawStalk(ctx, {
+            lenPx: m.lenTiles * t, diaPx: m.diaFrac * t,
+            col: { h: m.col.h, s: m.col.s, l: m.col.l * lL },
+            warp: m.warp, warpDir: m.warpDir, nodes: m.nodes, check: 0, grainSeed: m.grainSeed, taper: m.taper,
+          }, { x: ox + f.wx * t, y: oy + f.wy * t, ang: f.ang, detail: Math.min(1, t / 26), fuzz: false, ends: false });
+        }
       }
     }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
     // ambient room-type glyphs at each visible room centre (faint, generated)
     const cx0 = Math.floor(x0 / C), cy0 = Math.floor(y0 / C), cx1 = Math.floor((x1 - 1) / C), cy1 = Math.floor((y1 - 1) / C);
