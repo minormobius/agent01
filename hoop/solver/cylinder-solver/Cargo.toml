@@ -1,0 +1,12 @@
+[package]
+name = "cylinder-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Structural feasibility + cable-net statics for spin-gravity O'Neill cylinders."
+
+# Pure std, zero dependencies, so `cargo test` runs natively offline in the sandbox.
+# The browser glue (serde + wasm-bindgen) lives in the sibling cylinder-solver-wasm
+# crate, which depends on this one and is built to wasm in CI.
+
+[lib]
+crate-type = ["rlib"]
