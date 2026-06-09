@@ -60,6 +60,9 @@
     <div id="status" class="status">Walk the @ to a glowing node, or drop your own. Every place is a thread; every thread lives on ATProto.</div>
   </footer>
 
+  <!-- ship.js is a classic global script (sets globalThis.HoopShip): it must run
+       BEFORE the module app.js, whose world.js reads the engine off the global. -->
+  <script src="/js/ship.js"></script>
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

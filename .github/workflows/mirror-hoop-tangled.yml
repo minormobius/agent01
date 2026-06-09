@@ -61,6 +61,7 @@ jobs:
           # index.html sits at the repo root:
           sed -i \
             -e 's|href="/css/style.css"|href="css/style.css"|' \
+            -e 's|src="/js/ship.js"|src="js/ship.js"|' \
             -e 's|src="/js/app.js"|src="js/app.js"|' \
             "$TMP/index.html"
           # js/app.js sits one level down (js/), importing siblings + ../vendor:
