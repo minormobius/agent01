@@ -35,6 +35,9 @@ header .tagline { color: var(--muted); font-style: italic; font-size: 14px; }
 .controls .seed-label { color: var(--muted); font-size: 13px; }
 .controls .spacer { flex: 1; }
 .controls .find { border-color: var(--gold-soft); color: var(--gold); }
+.controls .backend { font-size: 12px; color: var(--muted); padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.controls .backend.wasm { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 40%, var(--line)); }
+.controls .backend.js { color: var(--gold-soft); }
 
 .summary { display: flex; flex-wrap: wrap; gap: 18px; padding: 10px 22px; border-bottom: 1px solid var(--line); font-size: 13px; }
 .summary b { color: var(--gold); font-weight: 600; }

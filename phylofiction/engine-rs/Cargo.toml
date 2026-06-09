@@ -1,0 +1,16 @@
+[package]
+name = "phylofiction-engine"
+version = "0.1.0"
+edition = "2021"
+description = "The phylofiction simulation core in Rust → WASM. A bit-for-bit port of phylofiction/js/{prng,genome,evolve}.js: a seeded forward birth–death simulation of a microbial tree of life, where the Great-Oxidation scar emerges from environmental feedback. Zero dependencies, no wasm-bindgen — a raw wasm32-unknown-unknown module that writes a world as JSON into linear memory."
+
+[lib]
+# cdylib → the .wasm artifact; rlib → so `cargo test` can unit-test on the host.
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

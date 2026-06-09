@@ -54,12 +54,15 @@ export function Rand(seedStr) {
       for (let i = 0; i < arr.length; i++) { r -= ws[i]; if (r <= 0) return arr[i]; }
       return arr[arr.length - 1];
     },
-    // standard-normal sample (Box–Muller) — the fluoddity mutation operator needs it
+    // standard-normal sample. Irwin–Hall(12): the sum of 12 uniforms has mean 6
+    // and variance 1, so (sum − 6) ≈ N(0,1). We use this instead of Box–Muller
+    // specifically because it is transcendental-free (no log/cos) — that keeps
+    // the Rust/WASM port bit-identical to this engine (wasm32-unknown-unknown
+    // has no libm), so a permalink resolves to the same world on either backend.
     randn: () => {
-      let u = 0, v = 0;
-      while (u === 0) u = next();
-      while (v === 0) v = next();
-      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      let s = 0;
+      for (let i = 0; i < 12; i++) s += next();
+      return s - 6;
     },
     // a fresh independent sub-stream, named
     fork: (name) => Rand(seedStr + "::" + name),

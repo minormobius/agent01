@@ -181,7 +181,10 @@ export function evolveWorld(n, opts = {}) {
         gloss: `${CAPS[cap].label} evolved independently ${count}×` });
     }
   }
-  events.sort((a, b) => a.epoch - b.epoch || (a.kind === "innovation" ? -1 : 1));
+  // proper, stable comparator (kept identical in the Rust port for parity):
+  // by epoch ascending, then innovations before other kinds at the same epoch.
+  const rank = (k) => (k === "innovation" ? 0 : 1);
+  events.sort((a, b) => a.epoch - b.epoch || rank(a.kind) - rank(b.kind));
 
   const survivors = nodes.filter((nd) => !nd.extinct).length;
   const score = scoreWorld(nodes, events, env_series);

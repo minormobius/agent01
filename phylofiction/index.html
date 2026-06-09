@@ -16,11 +16,12 @@
 
 <div class="controls">
   <span class="seed-label">seed</span>
-  <input id="seed" type="number" min="0" value="1" inputmode="numeric">
+  <input id="seed" type="number" min="0" value="2" inputmode="numeric">
   <button id="prev">‹ prev</button>
   <button id="next">next ›</button>
   <button id="random">random</button>
   <span class="spacer"></span>
+  <span id="backend" class="backend" title="which engine computed this world">⏳ loading engine…</span>
   <button id="find" class="find">🔍 find a Great Oxidation</button>
 </div>
 
@@ -39,17 +40,24 @@
 </main>
 
 <footer>
-  Generated, not authored. Page <span id="n-foot">1</span> of an endless book — a forward
+  Generated, not authored. Page <span id="n-foot">2</span> of an endless book — a forward
   birth–death simulation; the mass-extinction scars <em>emerge</em>, they are not painted on.
   See <a href="SPEC.md">the design spec</a>. After <a href="https://read.mino.mobi/pendragon/">read/pendragon</a>’s
   apparatus, run forward through deep time.
 </footer>
 
 <script type="module">
-  import { evolveWorld, findSeed } from "./js/evolve.js";
+  import { initEngine } from "./js/engine.js";
   import { renderPhylogeny, renderLegend, renderEvents } from "./js/render.js";
 
   const $ = (id) => document.getElementById(id);
+
+  // pick the engine: Rust/WASM if available, JS fallback otherwise.
+  const engine = await initEngine();
+  $("backend").textContent = engine.backend === "wasm"
+    ? `⚙ Rust/WASM engine v${engine.version}`
+    : "⚙ JS engine (WASM unavailable)";
+  $("backend").classList.add(engine.backend);
   const CAP_LABEL = { chemo: "Chemotrophy", photoAnox: "Anoxygenic phototrophy",
     photoOxy: "Oxygenic phototrophy", respireOx: "Oxidant respiration",
     methanogen: "Methanogenesis", fixN: "Nitrogen fixation", thermophile: "Thermophily" };
@@ -70,7 +78,7 @@
     $("seed").value = n; $("n-foot").textContent = n;
     history.replaceState(null, "", "?n=" + n);
 
-    const w = evolveWorld(n);
+    const w = engine.evolveWorld(n);
     const s = w.summary, sc = w.score;
     $("summary").innerHTML =
       `<span><b>${s.lineages}</b> lineages</span>` +
@@ -92,16 +100,17 @@
   $("seed").onchange = () => render(+$("seed").value || 0);
   $("find").onclick = () => {
     $("find").textContent = "searching…";
-    // a taste of the interestingness filter (SPEC §6.2): the full oxygenation story
+    // a taste of the interestingness filter (SPEC §6.2): the full oxygenation
+    // story. With the WASM backend this scan runs entirely in Rust.
     const start = (+$("seed").value || 0) + 1;
-    const hit = findSeed((w) => w.summary.oxygenated && w.score.reversal > 0.2, start, 600)
-             || findSeed((w) => w.summary.oxygenated && w.score.reversal > 0.2, 0, 600);
+    const hit = engine.findOxygenation(start, 600);
+    const n = hit != null ? hit : engine.findOxygenation(0, 600);
     $("find").textContent = "🔍 find a Great Oxidation";
-    if (hit) render(hit.n);
+    if (n != null) render(n);
   };
 
   const n0 = new URLSearchParams(location.search).get("n");
-  render(n0 !== null ? +n0 : 1);
+  render(n0 !== null ? +n0 : 2);
 </script>
 </body>
 </html>

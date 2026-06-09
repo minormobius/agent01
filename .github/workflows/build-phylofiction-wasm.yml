@@ -1,0 +1,77 @@
+name: Build phylofiction engine (wasm)
+
+# Compiles phylofiction/engine-rs (the seeded tree-of-life simulation) to a raw
+# wasm32-unknown-unknown module and commits it to phylofiction/engine/. No
+# wasm-bindgen — the loader (phylofiction/js/wasm.js) marshals JSON through
+# linear memory by hand. The reader loads it as the primary engine with a JS
+# fallback, so the site works whether or not this has run. Committing the .wasm
+# wakes deploy-phylofiction (paths: phylofiction/**), so this only triggers on
+# engine-rs changes — no build loop.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/phylofiction-world-generation-3zd33u'
+    paths:
+      - 'phylofiction/engine-rs/**'
+      - '.github/workflows/build-phylofiction-wasm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            phylofiction/engine-rs/target
+          key: cargo-phylo-${{ runner.os }}-${{ hashFiles('phylofiction/engine-rs/Cargo.toml', 'phylofiction/engine-rs/src/**') }}
+          restore-keys: cargo-phylo-${{ runner.os }}-
+
+      - name: Test (host)
+        working-directory: phylofiction/engine-rs
+        run: cargo test --release
+
+      - name: Build wasm
+        working-directory: phylofiction/engine-rs
+        run: cargo build --target wasm32-unknown-unknown --release
+
+      - name: Copy artifact
+        run: cp phylofiction/engine-rs/target/wasm32-unknown-unknown/release/phylofiction_engine.wasm phylofiction/engine/phylofiction.wasm
+
+      - name: Parity check (wasm ⇄ JS)
+        working-directory: phylofiction
+        run: node --test test/parity.test.mjs
+
+      - name: Commit artifact
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f phylofiction/engine/phylofiction.wasm
+          git commit -m "build: phylofiction wasm engine" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so kick the deploy
+      # explicitly to publish the freshly-built wasm.
+      - name: Deploy the new engine (dispatch deploy-phylofiction)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-phylofiction.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"
