@@ -1,6 +1,6 @@
 name: Mirror hoop to Tangled
 
-# manual re-run marker: 2026-06-09a  (deploy key now registered on morphyx)
+# manual re-run marker: 2026-06-09b  (morphyx-owned key registered)
 # Publishes hoop's static frontend as a remixable repo on tangled at
 #   git@tangled.org:morphyxmino.bsky.social/quoopy
 # serving at <owner>.tngl.sh/quoopy (set the repo's deploy dir to root).
