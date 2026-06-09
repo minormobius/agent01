@@ -1,0 +1,27 @@
+[package]
+name = "mappa-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Fast spherical mesh kernel for mappa — Delaunay triangulation of stereographically-projected sphere points. The O(n log n) replacement for the JS Bowyer–Watson, to detail out the globes at high resolution. Pure Rust, clean WASM."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+delaunator = "1.0"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Skip wasm-opt: its bundled binaryen rejects the bulk-memory ops LLVM emits
+# (memory.fill/copy) and isn't needed — opt-level=3 + lto already yields a
+# compact module. Same approach as j/wasm in this repo.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

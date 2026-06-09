@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0c0a07">
+<title>mino.mobi · mappa — a world engine</title>
+<meta name="description" content="A procedurally-generated planet: spherical plate tectonics, climate, biomes, rivers and lakes — rendered as a globe and a true Mercator map. The mino.mobi atlas is a habitability projection on top.">
+<style>
+:root{--gold:#a9802f;--parch:#e8dcc0}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{background:#070a0c;color:var(--parch);font:14px/1.5 ui-sans-serif,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#map{position:fixed;inset:0;display:block;cursor:grab;background:#070a0c;touch-action:none}
+#map.drag{cursor:grabbing}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:10px;padding:11px 16px;pointer-events:none;background:linear-gradient(#070a0ccc,#070a0c00)}
+header a{pointer-events:auto;color:var(--gold);text-decoration:none;font-weight:700;letter-spacing:.05em}
+.modes{display:flex;flex-wrap:wrap;gap:4px;pointer-events:auto;background:#140f08aa;border:1px solid #2c2316;border-radius:8px;padding:3px}
+.modes button{background:none;border:0;color:#b7a988;padding:4px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.modes button.on{background:#2a2114;color:var(--gold)}
+.right{margin-left:auto;display:flex;gap:8px;pointer-events:auto}
+button,input{font:inherit}
+.btn{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:6px;cursor:pointer;font-size:12.5px}
+.btn:hover{border-color:var(--gold)}.btn.on{border-color:var(--gold);color:var(--gold)}
+#q{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:999px;width:132px;outline:none;font-size:12.5px}
+#q:focus{border-color:var(--gold)}
+footer{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 16px;pointer-events:none;background:linear-gradient(#070a0c00,#070a0cdd)}
+.scrub{pointer-events:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto;width:340px;max-width:42vw}
+.scrub input[type=range]{flex:1;accent-color:var(--gold)}
+.era{font-size:12px;color:#b7a988;font-variant-numeric:tabular-nums;min-width:90px}
+.legend{pointer-events:auto;display:flex;flex-wrap:wrap;gap:5px 7px;justify-content:flex-end;max-width:52vw;margin-left:auto;max-height:84px;overflow:hidden}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;border:1px solid #3a2e1c;background:#1a140ccc;font-size:11.5px;color:#b7a988;cursor:pointer}
+.chip .dot{width:8px;height:8px;border-radius:2px}.chip.off{opacity:.35}
+#tip{position:fixed;z-index:9;pointer-events:none;opacity:0;transform:translate(-50%,-135%);background:#19120bf5;border:1px solid #3a2e1c;border-radius:7px;padding:6px 9px;max-width:240px;font-size:12px;transition:opacity .1s}
+#tip b{color:var(--gold)}#tip .m{color:#9c8a6c;font-size:11px}#tip .open{color:var(--gold);font-size:10.5px}
+#tkey{position:fixed;left:16px;bottom:64px;z-index:6;background:#140f08e0;border:1px solid #2c2316;border-radius:8px;padding:8px 11px;font-size:11.5px;color:#b7a988;display:none}
+#tkey.show{display:block}#tkey b{color:var(--parch)}#tkey i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+#status{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:8;background:#140f08e8;border:1px solid #2c2316;border-radius:9px;padding:11px 18px;color:var(--gold);font-size:13px;letter-spacing:.05em;opacity:0;transition:opacity .15s;pointer-events:none}
+#builder{position:fixed;top:52px;right:14px;z-index:7;width:236px;background:#120d07f2;border:1px solid #2c2316;border-radius:10px;padding:12px 13px 11px;display:none;pointer-events:auto}
+#builder.show{display:block}
+#builder .bhead{display:flex;justify-content:space-between;align-items:center;color:var(--gold);font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px}
+#builder .bhead button{background:none;border:0;color:#b7a988;cursor:pointer;font-size:15px;line-height:1}
+#builder label{display:block;font-size:11px;color:#b7a988;margin:9px 0 2px}
+#builder label span{float:right;color:var(--parch);font-variant-numeric:tabular-nums}
+#builder label.pin span{color:var(--gold)}
+#builder input[type=range]{width:100%;accent-color:var(--gold);margin:0}
+#builder .brow{display:flex;justify-content:space-between;align-items:center;margin-top:11px;gap:8px}
+#builder .brow button{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:5px 9px;border-radius:6px;cursor:pointer;font-size:11.5px}
+#builder .brow button:hover{border-color:var(--gold)}
+#builder #bMeta{font-size:10.5px;color:#8c7a5c;font-variant-numeric:tabular-nums}
+@media (max-width:760px){#builder{top:auto;bottom:120px;right:8px;left:8px;width:auto}}
+#sharePop{position:fixed;top:52px;right:14px;z-index:8;width:280px;background:#120d07f6;border:1px solid #2c2316;border-radius:10px;padding:12px 13px 11px;display:none;pointer-events:auto}
+#sharePop.show{display:block}
+#sharePop .bhead{display:flex;justify-content:space-between;align-items:center;color:var(--gold);font:600 12px/1 ui-serif,Georgia,serif;letter-spacing:.06em;text-transform:uppercase;margin-bottom:9px}
+#sharePop .bhead button{background:none;border:0;color:#b7a988;cursor:pointer;font-size:15px;line-height:1}
+#spTitle{font:600 16px/1.2 ui-serif,Georgia,serif;color:var(--parch)}
+#spScore{font-size:12px;color:var(--gold2);margin:3px 0 5px;font-variant-numeric:tabular-nums}
+#spDesc{font-size:12.5px;color:#cbb890;line-height:1.45;margin-bottom:9px}
+#sharePop label{display:block;font-size:10.5px;color:#8c7a5c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px}
+#spLink{display:block;width:100%;margin-top:3px;background:#0d0a05;border:1px solid #3a2e1c;color:#d8c9a8;border-radius:6px;padding:6px 8px;font:11px ui-monospace,monospace;outline:none}
+#sharePop .brow{display:flex;gap:8px}
+#sharePop .brow button{flex:1;background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 8px;border-radius:6px;cursor:pointer;font-size:11.5px}
+#sharePop .brow button:hover{border-color:var(--gold)}
+#spMsg{font-size:11px;color:#8c7a5c;margin-top:8px;min-height:14px}
+#spMsg.ok{color:#8fc08a}#spMsg.err{color:#d08a6a}
+#spOpenWrap{border-top:1px solid #2c2316;margin-top:11px;padding-top:10px}
+#spOpenWrap label{display:block;font-size:10.5px;color:#8c7a5c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.sprow{display:flex;gap:6px}
+#spOpenIn{flex:1;min-width:0;background:#0d0a05;border:1px solid #3a2e1c;color:#d8c9a8;border-radius:6px;padding:6px 8px;font:11px ui-monospace,monospace;outline:none}
+#spOpenIn:focus{border-color:var(--gold)}
+#spOpenGo{background:#1a140cdd;border:1px solid #3a2e1c;color:var(--parch);padding:6px 11px;border-radius:6px;cursor:pointer;font-size:11.5px}
+#spOpenGo:hover{border-color:var(--gold)}
+#spList{margin-top:8px;display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto}
+.spworld{text-align:left;background:#160f08;border:1px solid #2c2316;border-radius:6px;padding:6px 8px;cursor:pointer;color:#cbb890;font-size:11.5px;line-height:1.35}
+.spworld:hover{border-color:var(--gold)}
+.spworld b{color:var(--parch);font-weight:600}.spworld .s{color:var(--gold2)}
+@media (max-width:760px){#sharePop{top:auto;bottom:120px;right:8px;left:8px;width:auto}}
+@media (max-width:760px){
+  header{padding:8px 9px;gap:6px;flex-wrap:wrap}
+  .right{width:100%;margin-left:0;margin-top:2px}#q{flex:1;width:auto}
+  footer{flex-direction:column;align-items:stretch;gap:8px;padding:8px 9px 12px}.scrub{width:auto;max-width:none}
+  .legend{max-width:none;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;max-height:none;padding-bottom:2px}.legend::-webkit-scrollbar{display:none}.chip{flex:0 0 auto}
+  #tkey{bottom:auto;top:96px}
+}
+</style>
+</head>
+<body>
+<canvas id="map"></canvas>
+<header>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="./docs/" style="pointer-events:auto;color:#b7a988;font-weight:400;font-size:12.5px;text-decoration:none">docs ↗</a>
+  <span class="modes"><button data-proj="orb" class="on">Orb</button><button data-proj="flat">Mercator</button><button data-layer="topo" title="topographic relief: hypsometric tints + highest peak & deepest trough">Relief</button><button data-layer="wind" title="prevailing surface winds: trade winds, westerlies, polar easterlies">Wind</button><button data-layer="ethno" title="ethnographic atlas: subsistence belts (foragers, pastoralists, hoe horticulture, plough farmers, irrigation, maritime)">Ethno</button><button data-layer="minerals" title="mineral deposits: porphyry copper/gold on arcs, iron & gems in cratons, tin in highlands, salt in arid basins, placer gold down rivers">Ore</button><button data-layer="fossils" title="fossil dig sites: where sedimentary strata are exposed in eroded badlands & coasts — each labelled with the fossils its rock records, read from where the land sat in deep time">Fossils</button><button data-layer="paleo" title="deep-time scrub: rewind the plates along their Euler poles and watch the continents drift — a present desert slides onto the paleo-equator">Paleo</button><button data-layer="civ">Civ</button><button data-layer="tectonic">Tectonic</button></span>
+  <span class="right"><input id="q" placeholder="find a city…" autocomplete="off"><button class="btn on" id="atlas">atlas</button><button class="btn" id="share" title="copy a permalink to this exact world; optionally publish it to your PDS">⤴ share</button><button class="btn" id="builderToggle">⚙ genome</button><button class="btn" id="reseed">↻ new world</button></span>
+</header>
+<div id="tkey"><b>Plate boundaries</b><br><i style="background:#e0603c"></i>convergent · ranges/trenches<br><i style="background:#3fb6a0"></i>divergent · rifts/ridges<br><i style="background:#d8b24a"></i>transform<br><span style="opacity:.7">trails = how far each plate has drifted (dot = past, ▸ = now)</span></div>
+<div id="tip"></div>
+<div id="status"></div>
+<div id="sharePop">
+  <div class="bhead"><span>share this world</span><button id="shareClose">×</button></div>
+  <div id="spTitle"></div>
+  <div id="spScore"></div>
+  <div id="spDesc"></div>
+  <label id="spLinkLabel">share link · unfurls to a card<input id="spLink" readonly></label>
+  <div class="brow"><button id="spCopy">⧉ copy link</button><button id="spPub" title="publish as com.minomobi.mappa.world to your PDS (needs a mino.mobi sign-in)">⤴ publish to my PDS</button></div>
+  <div id="spMsg"></div>
+  <div id="spOpenWrap">
+    <label for="spOpenIn">open a published world</label>
+    <div class="sprow"><input id="spOpenIn" placeholder="at:// uri  ·  or  @handle"><button id="spOpenGo">open</button></div>
+    <div id="spList"></div>
+  </div>
+</div>
+<div id="builder">
+  <div class="bhead"><span>world genome</span><button id="builderClose">×</button></div>
+  <label data-p="planetRadius">Planet radius <span id="vRadius">—</span><input type="range" id="sRadius" min="0.4" max="2.5" step="0.05" value="1"></label>
+  <label data-p="plateCount">Plates <span id="vPlates">—</span><input type="range" id="sPlates" min="7" max="40" step="1" value="16"></label>
+  <label data-p="age">Geological age <span id="vAge">—</span><input type="range" id="sAge" min="1" max="12" step="1" value="4"></label>
+  <label data-p="oceanFraction">Oceanic crust <span id="vOcean">—</span><input type="range" id="sOcean" min="28" max="86" step="1" value="60"></label>
+  <label data-p="waterFrac">Water volume <span id="vWater">—</span><input type="range" id="sWater" min="3" max="32" step="1" value="15"></label>
+  <label data-p="axialTilt">Axial tilt <span id="vTilt">—</span><input type="range" id="sTilt" min="0" max="42" step="1" value="20"></label>
+  <label data-p="rotationRate" title="planetary spin: |Ω| sets how many wind cells fit per hemisphere; sign flips the trade winds (retrograde)">Rotation (spin) <span id="vRot">—</span><input type="range" id="sRot" min="-2.5" max="2.5" step="0.05" value="1"></label>
+  <label data-p="solar">Solar luminosity <span id="vSolar">—</span><input type="range" id="sSolar" min="0.70" max="1.40" step="0.01" value="1"></label>
+  <div class="brow"><button id="bAuto">⟲ from seed</button><button id="bRefine" title="high-res pass on coasts, mountains & rivers">⊕ refine detail</button></div>
+  <div class="brow" style="margin-top:7px"><span id="bMeta"></span></div>
+</div>
+<footer>
+  <div class="scrub" id="chronScrub"><button class="btn" id="play">▶ chronicle</button>
+    <input type="range" id="time" min="0" max="1000" value="1000"><span class="era" id="era">all founded</span></div>
+  <div class="scrub" id="paleoScrub" style="display:none"><button class="btn" id="paleoPlay">▶ drift</button>
+    <input type="range" id="paleoT" min="0" max="1000" value="0"><span class="era" id="paleoEra">present</span></div>
+  <div class="legend" id="legend"></div>
+</footer>
+<script type="module" src="./viewer.js"></script>
+</body>
+</html>

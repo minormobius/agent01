@@ -49,6 +49,8 @@ const WRITE_COLLECTIONS = [
   // labglass
   'com.minomobi.labglass.cell',
   'com.minomobi.labglass.notebook',
+  // mappa (shared procedural worlds)
+  'com.minomobi.mappa.world',
   // mmopaint (poll sub-room)
   'com.minomobi.mmopaint.stroke',
   // music
