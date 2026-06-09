@@ -1,0 +1,118 @@
+name: Mirror hoop to Tangled
+
+# Publishes hoop's static frontend as a remixable repo on tangled at
+#   git@tangled.org:morphyxmino.bsky.social/quoopy
+# serving at <owner>.tngl.sh/quoopy (set the repo's deploy dir to root).
+#
+# Why hoop works as a static mirror: hoop's default backend is LocalBackend
+# (localStorage, seeded starter world) — "always works, zero network". The
+# worker-backed modes (live presence via the HoopRoom DO, ATProto writes via
+# auth.mino.mobi) simply degrade to "Local · preview" when that backend isn't
+# reachable, so the mirrored copy is a fully-usable standalone demo.
+#
+# What ships: index.html + css/ + js/ + vendor/ + lexicons/ (the static app).
+# What's dropped: worker.js + wrangler.jsonc (the Cloudflare backend — not
+# servable on tangled, and we don't leak infra config into a public fork).
+#
+# Auth/secrets: reuses the existing TANGLED_SSH_KEY deploy key — the SAME key
+# the erdos/ai-edu mirrors use. A deploy key is account-agnostic on the GitHub
+# side; what authorizes it for THIS account is having its PUBLIC half registered
+# under morphyxmino.bsky.social → Settings → Keys on tangled. Run the
+# "Print Tangled deploy public key" workflow once to get that public half.
+# No new PAT is needed (SECRETS_PAT was only ever for bootstrapping the secret).
+#
+# This is a transparent mirror (keeps the functional com.minomobi.hoop.* NSIDs
+# and auth.mino.mobi URL, adds a back-reference README) — NOT the ai-edu-style
+# provenance scrub, which would corrupt those load-bearing identifiers.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/merge-features-update-endpoints-*'
+      - 'claude/hoop-mino-design-preview-*'
+    paths:
+      - 'hoop/**'
+      - '.github/workflows/mirror-hoop-tangled.yml'
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      TANGLED_KNOT: tangled.org
+      TANGLED_HANDLE: morphyxmino.bsky.social
+      TANGLED_REPO: quoopy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage standalone build (static files, root-absolute paths → relative)
+        run: |
+          set -euo pipefail
+          TMP="$(mktemp -d)"
+          # Static app only — drop the Cloudflare backend.
+          for p in index.html css js vendor lexicons; do
+            cp -R "hoop/$p" "$TMP/"
+          done
+
+          # hoop serves at the domain root locally (paths like /css/…, /js/…),
+          # but on tangled it lives at a sub-path (<owner>.tngl.sh/quoopy/), so
+          # every root-absolute reference must become depth-correct relative.
+          # index.html sits at the repo root:
+          sed -i \
+            -e 's|href="/css/style.css"|href="css/style.css"|' \
+            -e 's|src="/js/app.js"|src="js/app.js"|' \
+            "$TMP/index.html"
+          # js/app.js sits one level down (js/), importing siblings + ../vendor:
+          sed -i \
+            -e "s|from '/vendor/auth.js'|from '../vendor/auth.js'|" \
+            -e "s|from '/js/world.js'|from './world.js'|" \
+            -e "s|from '/js/presence.js'|from './presence.js'|" \
+            -e "s|from '/js/store.js'|from './store.js'|" \
+            "$TMP/js/app.js"
+
+          # Fail loudly if any root-absolute local ref survived the rewrite.
+          if grep -rnE "(src|href)=\"/(css|js|vendor|lexicons)/|from '/(js|vendor)/" "$TMP" ; then
+            echo "✗ root-absolute references survived the rewrite — a sub-path fork would 404."
+            exit 1
+          fi
+
+          cat > "$TMP/README.md" <<'EOF'
+          # hoop
+
+          A remixable collaborative design space for "the infinite game" — a
+          glyph-grid world where every place is a forum thread, exposed to
+          ATProto (`com.minomobi.hoop.place` / `com.minomobi.hoop.message`).
+
+          This copy runs **standalone in local-preview mode** (localStorage, a
+          seeded starter world — no backend needed). Live presence and ATProto
+          writes require the companion worker; without it the app stays in
+          "Local · preview". Fork it, point it at your own worker + auth, and
+          it's yours. Deploy directory: repo root → serves at `<your-handle>.tngl.sh/quoopy`.
+          EOF
+
+          echo "TMP=$TMP" >> "$GITHUB_ENV"
+          echo "staged:"; find "$TMP" -type f | sort
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "✗ secret TANGLED_SSH_KEY not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Force IPv4 — the knot sits behind Cloudflare (AAAA present) and the
+          # runner usually has no IPv6 route → ENETUNREACH otherwise.
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Force-push to tangled
+        run: |
+          set -euo pipefail
+          cd "$TMP"
+          git init -q -b main
+          git add -A
+          git -c user.name='hoop-mirror' -c user.email='mirror@morphyxmino.bsky.social' \
+            commit -qm "mirror hoop — $(date -u +%Y-%m-%d)"
+          git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"
+          GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+            git push -f origin main
+          echo "✓ mirrored hoop → ${TANGLED_HANDLE}/${TANGLED_REPO} on ${TANGLED_KNOT}"
