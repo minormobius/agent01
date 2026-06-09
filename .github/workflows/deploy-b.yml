@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/follower-post-discovery-bZumw']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'

@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dyad — a timeline of two accounts' interactions</title>
+<meta name="description" content="A dyadic timeline: every recorded interaction between two Bluesky accounts — likes, reposts, replies, quotes, mentions, follows, blocks, list-adds — both directions, on one timeline. Permissionless, read straight off the public network.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="dyad — a timeline of two accounts' interactions">
+<meta property="og:description" content="Every recorded interaction between two Bluesky accounts, both directions, on one timeline. No login.">
+<meta property="og:url" content="https://b.mino.mobi/dyad/">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root {
+  --bg:#04060f; --panel:#0a1324; --panel2:#0c1830; --line:rgba(120,160,220,0.16);
+  --fg:#dce8fb; --muted:#8ea6c8; --sky:#5aa9ff; --gold:#ffd86b; --rose:#ff7a9c; --green:#67e0a3;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+  --rule: rgba(120,160,220,0.28); --text: var(--fg);  /* aliases for shared typeahead */
+}
+* { box-sizing: border-box; }
+body { margin:0; background: radial-gradient(120% 80% at 50% -10%, #0b1830 0%, #060d1c 50%, #04060f 100%); color: var(--fg); font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; min-height:100vh; }
+a { color: var(--sky); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.wrap { max-width: 820px; margin: 0 auto; padding: 22px 18px 80px; }
+.crumb { color: var(--muted); font-size:13px; }
+.crumb:hover { color: var(--sky); }
+h1 { margin:.7rem 0 .15rem; font-size: 30px; letter-spacing:-0.01em; }
+h1 .dot { color: var(--gold); }
+.sub { color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing:.18em; text-transform:uppercase; margin:0 0 14px; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0 0 4px; }
+.lede b { color: var(--fg); font-weight:600; }
+.lede a { color: var(--sky); }
+
+form { margin: 24px 0 6px; background: var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+.fields { display:grid; grid-template-columns: 1fr auto 1fr; gap:10px; align-items:end; }
+@media (max-width:560px){ .fields { grid-template-columns: 1fr; } .swap-wrap { order:3; } }
+.field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.flabel { font:600 10px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.flabel small { color:var(--sky); font-weight:500; letter-spacing:.04em; text-transform:none; }
+.field input { background:#060e1e; border:1px solid var(--line); color:var(--fg); border-radius:8px; padding:10px 11px; font:15px var(--mono); width:100%; }
+.field input:focus { outline:none; border-color:var(--sky); }
+.swap-wrap { display:flex; align-items:center; justify-content:center; padding-bottom:8px; }
+.swap { background:rgba(90,169,255,0.08); border:1px solid var(--line); color:var(--sky); border-radius:50%; width:34px; height:34px; cursor:pointer; font-size:15px; line-height:1; }
+.swap:hover { background:rgba(90,169,255,0.18); }
+.runrow { display:flex; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap; }
+.run { font:600 14px var(--mono); background:var(--gold); color:#1a1300; border:0; border-radius:999px; padding:10px 24px; cursor:pointer; }
+.run:hover { filter:brightness(1.06); }
+.run:disabled { opacity:.5; cursor:default; }
+.lookback { color:var(--muted); font:500 12px var(--mono); display:inline-flex; align-items:center; gap:6px; }
+.lookback select { background:#060e1e; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:4px 6px; font:500 12px var(--mono); cursor:pointer; }
+.lookback select:focus { outline:none; border-color:var(--sky); }
+.status { color:var(--muted); font:500 13px var(--mono); }
+.status.err { color:#ff9a9a; }
+
+/* relationship header */
+.rel { margin:22px 0 6px; padding:16px; background:var(--panel2); border:1px solid var(--line); border-radius:12px; }
+.rel-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.rel-actor { display:flex; align-items:center; gap:8px; }
+.rel-av { width:38px; height:38px; border-radius:50%; object-fit:cover; background:#0c1830; }
+.rel-h { font-weight:600; }
+.rel-arrows { display:flex; flex-direction:column; gap:2px; align-items:center; color:var(--muted); font:600 12px var(--mono); }
+.rel-arrows .a2b { color:var(--sky); } .rel-arrows .b2a { color:var(--rose); }
+.rel-state { margin-top:12px; color:var(--muted); font-size:13.5px; line-height:1.7; }
+.rel-state b { color:var(--fg); }
+.badge { display:inline-block; font:600 11px var(--mono); padding:1px 7px; border-radius:999px; margin-left:4px; }
+.badge.mutual { color:var(--green); background:rgba(103,224,163,0.12); }
+.badge.one { color:var(--sky); background:rgba(90,169,255,0.12); }
+.badge.none { color:var(--muted); background:rgba(120,160,220,0.10); }
+.badge.block { color:#ff9a9a; background:rgba(255,122,140,0.14); }
+
+/* filter chips */
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin:18px 0 8px; }
+.chip { font:600 11px var(--mono); letter-spacing:.04em; color:var(--muted); background:transparent; border:1px solid var(--line); border-radius:999px; padding:5px 11px; cursor:pointer; }
+.chip.on { color:var(--bg); background:var(--sky); border-color:var(--sky); }
+.chip .ct { opacity:.7; margin-left:5px; }
+.dirsel { margin-left:auto; display:flex; gap:6px; }
+
+/* timeline */
+.tl { margin-top:8px; border-left:2px solid var(--line); padding-left:0; }
+.ev { position:relative; display:grid; grid-template-columns: 92px 1fr; gap:12px; padding:11px 4px 11px 16px; border-top:1px solid rgba(120,160,220,0.08); }
+.ev:hover { background:rgba(90,169,255,0.04); }
+.ev::before { content:''; position:absolute; left:-7px; top:18px; width:10px; height:10px; border-radius:50%; background:var(--dirc,var(--muted)); border:2px solid var(--bg); }
+.ev-when { color:var(--muted); font:500 11px/1.4 var(--mono); padding-top:2px; }
+.ev-when small { display:block; opacity:.7; }
+.ev-body { min-width:0; }
+.ev-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.ev-verb { font-weight:600; color:var(--verbc,var(--fg)); }
+.ev-dir { font:600 10px var(--mono); color:var(--dirc); border:1px solid var(--dirc); border-radius:999px; padding:0 6px; opacity:.85; }
+.ev-icon { font-size:14px; }
+.ev-snip { color:#bcd0ec; margin-top:4px; white-space:pre-wrap; word-wrap:break-word; font-size:14px; }
+.ev-ctx { color:var(--muted); font-size:12px; margin-top:3px; }
+.ev a.permalink { color:var(--muted); font-size:11px; font-family:var(--mono); }
+@media (max-width:520px){ .ev { grid-template-columns: 70px 1fr; } }
+
+.note { color:var(--muted); font-size:12.5px; margin:16px 0 0; font-style:italic; line-height:1.6; }
+.empty { color:var(--muted); margin-top:18px; font-style:italic; }
+footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font:500 12px var(--mono); display:flex; gap:14px; flex-wrap:wrap; }
+footer a { color:var(--muted); } footer a:hover { color:var(--sky); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="crumb" href="/">← b.mino.mobi · the Bluesky corner</a>
+  <h1>dyad<span class="dot"> ✦</span></h1>
+  <p class="sub">a timeline of two accounts' interactions</p>
+  <p class="lede">Two handles in, and dyad reads both accounts' public records to lay out <b>every recorded interaction between them</b> on one timeline — likes, reposts, replies, quotes, mentions, follows, blocks, list-adds — in both directions, newest first. A relationship, as the open protocol remembers it. Read straight off the public network: no login, nothing written, nobody's permission needed. <a href="/spark/">spark</a> is the focused cousin — just what one liked before following.</p>
+
+  <form id="form" autocomplete="off">
+    <div class="fields">
+      <div class="field">
+        <label class="flabel" for="a">account A <small>·</small></label>
+        <input id="a" name="a" placeholder="alice.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
+      </div>
+      <div class="swap-wrap"><button type="button" class="swap" id="swap" title="swap">⇄</button></div>
+      <div class="field">
+        <label class="flabel" for="b">account B <small>·</small></label>
+        <input id="b" name="b" placeholder="bob.bsky.social" spellcheck="false" data-bsky-typeahead autocapitalize="off">
+      </div>
+    </div>
+    <div class="runrow">
+      <button class="run" id="run" type="submit">draw the dyadline</button>
+      <label class="lookback">look back
+        <select id="window">
+          <option value="7776000000" selected>3 months</option>
+          <option value="31536000000">1 year</option>
+          <option value="94608000000">3 years</option>
+          <option value="all">all time</option>
+        </select>
+      </label>
+      <span class="status" id="status"></span>
+    </div>
+  </form>
+
+  <div id="out"></div>
+
+  <footer>
+    <a href="/">b.mino.mobi</a>
+    <a href="/spark/">spark</a>
+    <a href="https://mino.mobi/">mino.mobi</a>
+    <span>permissionless · public ATProto records</span>
+  </footer>
+</div>
+
+<!-- shared Bluesky handle typeahead — same file the feedgen builder uses -->
+<script src="/feedgen/typeahead.js"></script>
+
+<script type="module">
+const PUBLIC = 'https://public.api.bsky.app';
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status'), outEl = $('out'), runBtn = $('run');
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const setStatus = (m, err = false) => { statusEl.textContent = m; statusEl.classList.toggle('err', !!err); };
+
+function fmtDate(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }); }
+function fmtTime(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }); }
+function snippet(t, n = 180) { t = String(t || '').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+function rkeyOf(uri) { return String(uri || '').split('/').pop(); }
+
+// ── identity ─────────────────────────────────────────────────────────────────
+async function resolveActor(raw) {
+  let s = raw.trim().replace(/^@/, '').replace(/^at:\/\//, '').replace(/^https?:\/\/(bsky\.app\/profile\/)?/, '').split('/')[0];
+  if (!s) throw new Error('empty handle');
+  if (s.startsWith('did:')) return s;
+  const r = await fetch(`${PUBLIC}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(s)}`);
+  if (!r.ok) throw new Error(`couldn't resolve “${s}”`);
+  const d = await r.json();
+  if (!d.did) throw new Error(`couldn't resolve “${s}”`);
+  return d.did;
+}
+async function resolvePds(did) {
+  let doc;
+  if (did.startsWith('did:plc:')) { const r = await fetch(`https://plc.directory/${did}`); if (!r.ok) throw new Error('PLC lookup failed'); doc = await r.json(); }
+  else if (did.startsWith('did:web:')) { const host = did.slice(8).replace(/:/g, '/'); const r = await fetch(`https://${host}/.well-known/did.json`); if (!r.ok) throw new Error('did:web lookup failed'); doc = await r.json(); }
+  else throw new Error('unsupported DID method');
+  const svc = (doc.service || []).find((s) => s.type === 'AtprotoPersonalDataServer' || s.id === '#atproto_pds');
+  if (!svc) throw new Error('no PDS in DID doc');
+  return svc.serviceEndpoint;
+}
+async function getProfile(did) { try { const r = await fetch(`${PUBLIC}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`); return r.ok ? await r.json() : null; } catch { return null; } }
+
+// Paginate a collection newest-first; call perRecord(rec) for each record whose
+// createdAt ≥ lowerMs, early-stopping once we drop below it (list is descending).
+async function scan(pds, did, collection, lowerMs, perRecord, onProgress) {
+  let cursor = '', n = 0;
+  for (let page = 0; page < 400; page++) {
+    const u = new URL(`${pds}/xrpc/com.atproto.repo.listRecords`);
+    u.searchParams.set('repo', did); u.searchParams.set('collection', collection); u.searchParams.set('limit', '100');
+    if (cursor) u.searchParams.set('cursor', cursor);
+    let d;
+    try { const r = await fetch(u); if (!r.ok) return n; d = await r.json(); } catch { return n; }
+    const recs = d.records || [];
+    for (const rec of recs) {
+      const t = new Date(rec.value && rec.value.createdAt).getTime();
+      if (lowerMs > -Infinity && t < lowerMs) return n;  // past window
+      n++; perRecord(rec, t);
+    }
+    if (onProgress) onProgress(n);
+    if (!d.cursor || recs.length === 0) return n;
+    cursor = d.cursor;
+  }
+  return n;
+}
+
+function quotedUri(embed) {
+  if (!embed) return null;
+  if (embed.$type === 'app.bsky.embed.record') return embed.record && embed.record.uri;
+  if (embed.$type === 'app.bsky.embed.recordWithMedia') return embed.record && embed.record.record && embed.record.record.uri;
+  return null;
+}
+function mentionsDid(facets, did) {
+  if (!Array.isArray(facets)) return false;
+  for (const f of facets) for (const ft of (f.features || [])) if (ft.$type === 'app.bsky.richtext.facet#mention' && ft.did === did) return true;
+  return false;
+}
+
+// ── hydrate referenced (liked / reposted / quoted-parent) posts for snippets ──
+async function hydrate(uris) {
+  const out = new Map(); const list = [...new Set(uris)].slice(0, 400);
+  for (let i = 0; i < list.length; i += 25) {
+    const u = new URL(`${PUBLIC}/xrpc/app.bsky.feed.getPosts`);
+    list.slice(i, i + 25).forEach((x) => u.searchParams.append('uris', x));
+    try { const r = await fetch(u); if (!r.ok) continue; const d = await r.json(); for (const p of (d.posts || [])) out.set(p.uri, p); } catch {}
+  }
+  return out;
+}
+
+// ── interaction taxonomy ──────────────────────────────────────────────────────
+const TYPES = {
+  follow:   { icon: '➜', verb: 'followed',  graph: true,  verbc: 'var(--green)' },
+  block:    { icon: '⛔', verb: 'blocked',   graph: true,  verbc: '#ff9a9a' },
+  listitem: { icon: '☰', verb: 'added to a list', graph: true, verbc: 'var(--gold)' },
+  reply:    { icon: '↩', verb: 'replied to' },
+  quote:    { icon: '❝', verb: 'quoted' },
+  mention:  { icon: '@', verb: 'mentioned' },
+  repost:   { icon: '⇄', verb: 'reposted' },
+  like:     { icon: '♥', verb: 'liked' },
+};
+const TYPE_ORDER = ['like','reply','repost','quote','mention','follow','block','listitem'];
+
+let STATE = null; // { events, A, B, dirFilter, typeFilter }
+
+async function run(aRaw, bRaw) {
+  if (STATE && STATE.running) return;
+  runBtn.disabled = true; outEl.innerHTML = '';
+  const local = STATE = { running: true };
+  try {
+    setStatus('resolving handles…');
+    const [didA, didB] = await Promise.all([resolveActor(aRaw), resolveActor(bRaw)]);
+    if (didA === didB) throw new Error('the two handles are the same account');
+
+    setStatus('locating both accounts…');
+    const [pdsA, pdsB, A, B] = await Promise.all([resolvePds(didA), resolvePds(didB), getProfile(didA), getProfile(didB)]);
+    A.did = didA; B.did = didB;
+
+    const winSel = $('window').value;
+    const windowMs = winSel === 'all' ? Infinity : (parseInt(winSel, 10) || 7776000000);
+    const lowerMs = windowMs === Infinity ? -Infinity : (Date.now() - windowMs);
+
+    const events = [];
+    let pagesSeen = 0; const tick = () => { if (++pagesSeen % 3 === 0) setStatus(`scanning both repos… ${pagesSeen} pages · ${events.length} interactions`); };
+    const push = (e) => { events.push(e); };
+
+    // dir 'AB' = A acting on B; 'BA' = B acting on A
+    function contentScans(pds, actorDid, otherDid, dir) {
+      const otherPostPrefix = `at://${otherDid}/app.bsky.feed.post/`;
+      const otherAnyPrefix = `at://${otherDid}/`;
+      return [
+        scan(pds, actorDid, 'app.bsky.feed.like', lowerMs, (rec, t) => {
+          const uri = rec.value && rec.value.subject && rec.value.subject.uri;
+          if (uri && uri.startsWith(otherPostPrefix)) push({ ts: t, type: 'like', dir, ref: uri });
+        }, tick),
+        scan(pds, actorDid, 'app.bsky.feed.repost', lowerMs, (rec, t) => {
+          const uri = rec.value && rec.value.subject && rec.value.subject.uri;
+          if (uri && uri.startsWith(otherAnyPrefix)) push({ ts: t, type: 'repost', dir, ref: uri });
+        }, tick),
+        scan(pds, actorDid, 'app.bsky.feed.post', lowerMs, (rec, t) => {
+          const v = rec.value || {}; const uri = rec.uri; const text = v.text || '';
+          const replyTo = v.reply && v.reply.parent && v.reply.parent.uri;
+          const isReply = replyTo && replyTo.startsWith(otherAnyPrefix);
+          const qUri = quotedUri(v.embed);
+          const isQuote = qUri && qUri.startsWith(otherAnyPrefix);
+          const isMention = mentionsDid(v.facets, otherDid);
+          if (isReply) push({ ts: t, type: 'reply', dir, uri, text, parent: replyTo });
+          if (isQuote) push({ ts: t, type: 'quote', dir, uri, text, ref: qUri });
+          if (isMention && !isReply && !isQuote) push({ ts: t, type: 'mention', dir, uri, text });
+        }, tick),
+      ];
+    }
+    function graphScans(pds, actorDid, otherDid, dir) {
+      return [
+        scan(pds, actorDid, 'app.bsky.graph.follow', -Infinity, (rec, t) => { if (rec.value && rec.value.subject === otherDid) push({ ts: t, type: 'follow', dir }); }),
+        scan(pds, actorDid, 'app.bsky.graph.block', -Infinity, (rec, t) => { if (rec.value && rec.value.subject === otherDid) push({ ts: t, type: 'block', dir }); }),
+        scan(pds, actorDid, 'app.bsky.graph.listitem', -Infinity, (rec, t) => { if (rec.value && rec.value.subject === otherDid) push({ ts: t, type: 'listitem', dir, list: rec.value.list }); }),
+      ];
+    }
+
+    setStatus('scanning both repos…');
+    await Promise.all([
+      ...contentScans(pdsA, didA, didB, 'AB'),
+      ...contentScans(pdsB, didB, didA, 'BA'),
+      ...graphScans(pdsA, didA, didB, 'AB'),
+      ...graphScans(pdsB, didB, didA, 'BA'),
+    ]);
+    if (STATE !== local) return; // superseded by a newer run
+
+    // hydrate the posts referenced by likes/reposts (the other party's posts)
+    setStatus('hydrating referenced posts…');
+    const refs = events.filter((e) => e.ref).map((e) => e.ref);
+    const posts = await hydrate(refs);
+    for (const e of events) if (e.ref && posts.get(e.ref)) e.refText = posts.get(e.ref).record && posts.get(e.ref).record.text;
+
+    events.sort((x, y) => y.ts - x.ts);
+    local.events = events; local.A = A; local.B = B; local.window = winSel;
+    local.typeFilter = new Set(TYPE_ORDER); local.dirFilter = 'both'; local.windowCut = winSel !== 'all';
+    render();
+    setStatus(`done — ${events.length} interactions.`);
+  } catch (e) {
+    setStatus(String(e && e.message || e), true);
+  } finally {
+    if (STATE === local) local.running = false;
+    runBtn.disabled = false;
+  }
+}
+
+// ── render ───────────────────────────────────────────────────────────────────
+function actorChip(p) {
+  const av = p && p.avatar ? `<img class="rel-av" src="${esc(p.avatar)}" alt="">` : `<span class="rel-av"></span>`;
+  return `<span class="rel-actor">${av}<span><span class="rel-h">${esc(p.displayName || p.handle)}</span><br><a href="https://bsky.app/profile/${esc(p.handle)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--muted)">@${esc(p.handle)}</a></span></span>`;
+}
+function edgeState(events, A, B) {
+  const f = (dir) => events.find((e) => e.type === 'follow' && e.dir === dir);
+  const bl = (dir) => events.find((e) => e.type === 'block' && e.dir === dir);
+  const fab = f('AB'), fba = f('BA'), bab = bl('AB'), bba = bl('BA');
+  let follow;
+  if (fab && fba) follow = `<span class="badge mutual">mutual follow</span> — @${esc(A.handle)} since <b>${esc(fmtDate(new Date(fab.ts).toISOString()))}</b>, @${esc(B.handle)} since <b>${esc(fmtDate(new Date(fba.ts).toISOString()))}</b>`;
+  else if (fab) follow = `<span class="badge one">one-way</span> @${esc(A.handle)} follows @${esc(B.handle)} since <b>${esc(fmtDate(new Date(fab.ts).toISOString()))}</b> (not back)`;
+  else if (fba) follow = `<span class="badge one">one-way</span> @${esc(B.handle)} follows @${esc(A.handle)} since <b>${esc(fmtDate(new Date(fba.ts).toISOString()))}</b> (not back)`;
+  else follow = `<span class="badge none">no follow</span> neither currently follows the other`;
+  let blocks = '';
+  if (bab) blocks += `<br><span class="badge block">block</span> @${esc(A.handle)} blocks @${esc(B.handle)}`;
+  if (bba) blocks += `<br><span class="badge block">block</span> @${esc(B.handle)} blocks @${esc(A.handle)}`;
+  return follow + blocks;
+}
+function render() {
+  const s = STATE; if (!s || !s.events) return;
+  const { events, A, B } = s;
+  const counts = {}; for (const t of TYPE_ORDER) counts[t] = 0;
+  for (const e of events) counts[e.type] = (counts[e.type] || 0) + 1;
+
+  let html = `<div class="rel"><div class="rel-top">${actorChip(A)}<div class="rel-arrows"><span class="a2b">A →</span><span class="b2a">← B</span></div>${actorChip(B)}</div><div class="rel-state">${edgeState(events, A, B)}</div></div>`;
+
+  // filter chips
+  html += `<div class="chips">`;
+  html += `<button class="chip ${s.typeFilter.size === TYPE_ORDER.length ? 'on' : ''}" data-all="1">all <span class="ct">${events.length}</span></button>`;
+  for (const t of TYPE_ORDER) {
+    if (!counts[t]) continue;
+    html += `<button class="chip ${s.typeFilter.has(t) ? 'on' : ''}" data-type="${t}">${TYPES[t].icon} ${esc(TYPES[t].verb.split(' ')[0])} <span class="ct">${counts[t]}</span></button>`;
+  }
+  html += `<span class="dirsel"><button class="chip ${s.dirFilter==='both'?'on':''}" data-dir="both">both</button><button class="chip ${s.dirFilter==='AB'?'on':''}" data-dir="AB" style="${s.dirFilter==='AB'?'background:var(--sky);border-color:var(--sky)':''}">@${esc(A.handle)} →</button><button class="chip ${s.dirFilter==='BA'?'on':''}" data-dir="BA" style="${s.dirFilter==='BA'?'background:var(--rose);border-color:var(--rose)':''}">@${esc(B.handle)} →</button></span>`;
+  html += `</div>`;
+
+  const shown = events.filter((e) => s.typeFilter.has(e.type) && (s.dirFilter === 'both' || e.dir === s.dirFilter));
+  if (!shown.length) html += `<p class="empty">No interactions match this filter${s.windowCut ? ' in the chosen window' : ''}.</p>`;
+  else {
+    html += `<div class="tl">`;
+    for (const e of shown) html += renderEvent(e, A, B);
+    html += `</div>`;
+  }
+
+  html += `<p class="note">Built from public records currently in both repos. <b>Deletions don't appear</b>: an unfollow, unblock, or unlike removes the record, so dyad shows the present edge and when it was created — not past toggles. ${s.windowCut ? 'Content interactions (likes, reposts, replies, quotes, mentions) are limited to the look-back window; follows, blocks and list-adds are always full.' : 'Content interactions are scanned in full.'}</p>`;
+  outEl.innerHTML = html;
+
+  outEl.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+    if (c.dataset.all) { s.typeFilter = new Set(TYPE_ORDER); }
+    else if (c.dataset.type) { const t = c.dataset.type; s.typeFilter.has(t) && s.typeFilter.size === 1 ? s.typeFilter = new Set(TYPE_ORDER) : (s.typeFilter.has(t) ? s.typeFilter.delete(t) : s.typeFilter.add(t)); if (s.typeFilter.size === 0) s.typeFilter = new Set(TYPE_ORDER); }
+    else if (c.dataset.dir) { s.dirFilter = c.dataset.dir; }
+    render();
+  }));
+}
+function renderEvent(e, A, B) {
+  const tdef = TYPES[e.type];
+  const actor = e.dir === 'AB' ? A : B; const other = e.dir === 'AB' ? B : A;
+  const dirc = e.dir === 'AB' ? 'var(--sky)' : 'var(--rose)';
+  const iso = new Date(e.ts).toISOString();
+  // link target: like/repost → other's post; reply/quote/mention → actor's own post
+  let link = '#';
+  if (e.type === 'like' || e.type === 'repost') link = `https://bsky.app/profile/${esc(other.handle)}/post/${esc(rkeyOf(e.ref))}`;
+  else if (e.uri) link = `https://bsky.app/profile/${esc(actor.handle)}/post/${esc(rkeyOf(e.uri))}`;
+  const snip = e.type === 'like' || e.type === 'repost' ? (e.refText != null ? snippet(e.refText) : '(post unavailable / deleted)') : snippet(e.text);
+  const showSnip = (snip && snip.length) ? `<div class="ev-snip">${esc(snip)}</div>` : '';
+  const ctx = e.type === 'listitem' ? `<div class="ev-ctx">list ${esc(rkeyOf(e.list))}</div>` : '';
+  const verb = e.type === 'listitem' ? `added @${esc(other.handle)} to a list` : `${esc(tdef.verb)} @${esc(other.handle)}`;
+  return `<div class="ev" style="--dirc:${dirc};--verbc:${tdef.verbc||'var(--fg)'}">
+    <div class="ev-when">${esc(fmtDate(iso))}<small>${esc(fmtTime(iso))}</small></div>
+    <div class="ev-body">
+      <div class="ev-head"><span class="ev-dir" style="--dirc:${dirc}">@${esc(actor.handle)}</span><span class="ev-verb"><span class="ev-icon">${tdef.icon}</span> ${verb}</span> ${link!=='#'?`<a class="permalink" href="${link}" target="_blank" rel="noopener">↗</a>`:''}</div>
+      ${showSnip}${ctx}
+    </div>
+  </div>`;
+}
+
+// ── wire up ──────────────────────────────────────────────────────────────────
+$('form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const a = $('a').value, b = $('b').value;
+  if (!a.trim() || !b.trim()) { setStatus('fill in both handles', true); return; }
+  const url = new URL(location.href);
+  url.searchParams.set('a', a.trim()); url.searchParams.set('b', b.trim()); url.searchParams.set('window', $('window').value);
+  history.replaceState(null, '', url);
+  run(a, b);
+});
+$('swap').addEventListener('click', () => { const a = $('a'), b = $('b'); [a.value, b.value] = [b.value, a.value]; });
+
+const q = new URLSearchParams(location.search);
+if (q.get('a')) $('a').value = q.get('a');
+if (q.get('b')) $('b').value = q.get('b');
+if (q.get('window') && [...$('window').options].some((o) => o.value === q.get('window'))) $('window').value = q.get('window');
+if (q.get('a') && q.get('b')) run(q.get('a'), q.get('b'));
+</script>
+</body>
+</html>
