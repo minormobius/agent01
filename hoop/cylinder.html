@@ -85,6 +85,20 @@
       <label class="ctl"><span class="lab">cable material <b id="vtmat"></b></span><select id="tmat"></select></label>
       <p class="note">φ feeds the closed-form estimate; the solver below sizes the real weave from the cable section.</p>
     </div>
+
+    <div class="card">
+      <h3>floors &amp; foam (the shell structure)</h3>
+      <div class="two">
+        <label class="ctl"><span class="lab">layers (floors) <b id="vlayers"></b></span><input id="layers" type="range" min="2" max="60" step="1" value="8"></label>
+        <label class="ctl"><span class="lab">room footprint <b id="vroom"></b></span><input id="room" type="range" min="6" max="200" step="2" value="60"></label>
+      </div>
+      <div class="two">
+        <label class="ctl"><span class="lab">wall thickness <b id="vfwall"></b></span><input id="fwall" type="range" min="-2" max="1" step="0.02" value="-0.2"></label>
+        <label class="ctl"><span class="lab">grading <b id="vgrade"></b></span><input id="grade" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+      </div>
+      <label class="ctl"><span class="lab">bracing <b></b></span><select id="brace"><option value="none">none — square (racks in shear)</option><option value="diag" selected>diagonal</option><option value="x">cross (X)</option></select></label>
+      <div class="row"><input id="deform" type="checkbox" checked><label for="deform">show deflection (exaggerated) — watch it carry load</label></div>
+    </div>
   </div>
 
   <!-- ░░ verdict + readouts ░░ -->
@@ -126,13 +140,15 @@
       <p class="note">Sun-line at the axis; gravity points <b>outward</b>. The hull ring is tinted <span style="color:var(--ok)">green if it holds</span> / <span style="color:var(--bad)">red if it tears</span>. The web (radial spokes or secant chords) is the alternate load path; secants leave a clear core, spokes don't.</p>
     </div>
     <div class="card">
-      <h3>the play-slice — (axial × radial), what we generate</h3>
-      <canvas id="slice" height="280"></canvas>
-      <p class="note">Brighter toward the core, heavier toward the hull. Compartments behind thick bulkheads; hatches make a breach local.</p>
+      <h3>the play-slice — floors of the foam, <span id="foamstate" class="note">solved</span></h3>
+      <canvas id="slice" height="340"></canvas>
+      <p class="note">Stacked floors; gravity points down (toward the hull). Walls are coloured by the frame solver's stress (<span style="color:var(--ok)">green</span>→<span style="color:var(--bad)">red</span>) and the deflection is exaggerated so you can see it carry load. Gold dots = doors within a floor; purple = stairs/ladders between floors.</p>
+      <table class="read"><tbody id="foamread"></tbody></table>
     </div>
   </div>
 </div>
 
+<script src="./foam.js"></script>
 <script>
 const G0 = 9.80665, TAU = Math.PI * 2;
 const $ = (id) => document.getElementById(id);
@@ -245,6 +261,10 @@ function render() {
   $('vN').textContent = p.N; $('vreach').textContent = (p.reach * 180 / Math.PI).toFixed(0) + '°';
   $('vphi').textContent = (p.phi * 100).toFixed(0) + '%';
   $('vcarea').textContent = (Math.pow(10, +$('carea').value)).toFixed(4) + ' m²';
+  $('vlayers').textContent = $('layers').value + ' floors';
+  $('vroom').textContent = $('room').value + ' m';
+  $('vfwall').textContent = Math.pow(10, +$('fwall').value).toFixed(2) + ' m';
+  $('vgrade').textContent = (+$('grade').value).toFixed(2);
 
   // verdict + structure
   $('verdict').textContent = S.verdict; $('verdict').className = 'verdict ' + S.vclass;
@@ -337,29 +357,93 @@ function drawXsec(S) {
   if (exag) { ctx.fillStyle = '#ff9a76'; ctx.fillText('(shell exaggerated)', 8, H - 8); }
 }
 
-// ── play-slice ──
+// ── play-slice: the foam, solved ──
 function drawSlice(S) {
   const cv = $('slice'), ctx = cv.getContext('2d'), [W, H] = fitCanvas(cv), p = S.p;
   ctx.clearRect(0, 0, W, H);
-  const skyH = 40;
+  const skyH = 28, top = skyH, bot = H;
   const sky = ctx.createLinearGradient(0, 0, 0, skyH); sky.addColorStop(0, 'rgba(255,238,180,.5)'); sky.addColorStop(1, 'rgba(40,46,40,.04)');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, skyH);
-  ctx.fillStyle = '#8aa'; ctx.font = '11px ui-monospace'; ctx.textAlign = 'left'; ctx.fillText('↑ core / sun-line — lighter', 8, 14);
-  const top = skyH, bot = H;
-  for (let y = top; y < bot; y++) {
-    const f = (y - top) / (bot - top), gg = p.gRim * ((S.rIn + f * p.shell) / p.R);
-    const reg = gg > 1.1 ? 'mag' : gg > 0.4 ? 'normal' : gg > 0.05 ? 'spin' : 'none', light = 0.5 * (1 - f);
-    ctx.fillStyle = REG_COL[reg] + Math.round((0.12 + light * 0.22) * 255).toString(16).padStart(2, '0'); ctx.fillRect(0, y, W, 1);
+  // faint gravity-band backdrop (context: where in the radial stack we are)
+  for (let y = top; y < bot; y += 2) { const f = (y - top) / (bot - top), gg = p.gRim * ((S.rIn + f * p.shell) / p.R); const reg = gg > 1.1 ? 'mag' : gg > 0.4 ? 'normal' : gg > 0.05 ? 'spin' : 'none'; ctx.fillStyle = REG_COL[reg] + '12'; ctx.fillRect(0, y, W, 2); }
+  ctx.font = '10px ui-monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#7fd8d0'; ctx.fillText('↑ core / sun-line', 6, 12);
+  const F = window.FOAM;
+  if (!F || !F.foam) { ctx.fillStyle = '#8aa'; ctx.fillText(window.HOOPFOAM ? 'generating…' : 'foam.js not loaded', 6, top + 16); return; }
+  const foam = F.foam, sol = F.sol, allow = p.mat.s / p.sf;
+  const widthM = foam.nodes[foam.meta.nx].x || 1;
+  const sx = (x) => x / widthM * W, syy = (y) => top + y / p.shell * (bot - top);
+  // exaggerate the solved deflection so the structure visibly carries load
+  let ex = 0;
+  if (sol && !sol.mechanism && !sol.error && $('deform').checked) {
+    let mx = 0; sol.disp.forEach((d) => { mx = Math.max(mx, Math.hypot(d[0], d[1])); });
+    if (mx > 1e-12) ex = 0.05 * p.shell / mx;
   }
-  const pxPerTile = (bot - top) / Math.max(1, p.shell / p.tile), compPx = Math.max(22, (p.comp / p.tile) * pxPerTile);
-  ctx.strokeStyle = 'rgba(20,26,33,.95)'; ctx.lineWidth = Math.max(3, compPx * 0.06);
-  for (let x = (W % compPx) / 2; x < W; x += compPx) { ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke(); }
-  for (let y = top; y < bot; y += compPx) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  ctx.strokeStyle = REG_COL.none; ctx.lineWidth = Math.max(2, compPx * 0.04);
-  for (let x = (W % compPx) / 2; x < W; x += compPx) for (let y = top + compPx / 2; y < bot; y += compPx) { ctx.beginPath(); ctx.moveTo(x, y - 6); ctx.lineTo(x, y + 6); ctx.stroke(); }
-  const personPx = Math.max(2, 1.7 / p.tile * pxPerTile);
-  ctx.fillStyle = '#ffce78'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 8; ctx.fillRect(W / 2 - personPx * 0.2, bot - 4 - personPx, personPx * 0.4, personPx); ctx.shadowBlur = 0;
-  ctx.fillStyle = '#8aa'; ctx.textAlign = 'right'; ctx.fillText('↓ hull — heavier, darker', W - 8, H - 8);
+  const px = (id) => { const n = foam.nodes[id], d = (ex && sol) ? sol.disp[id] : [0, 0, 0]; return [sx(n.x + d[0] * ex), syy(n.y + d[1] * ex)]; };
+  // walls coloured by the solver's stress (green holds → red overstressed)
+  foam.walls.forEach((w, idx) => {
+    const A = px(w.a), B = px(w.b);
+    let col = '#46505e';
+    if (sol && sol.mechanism) col = '#ff7a6e';
+    else if (sol && sol.members && sol.members[idx]) col = lerpCol('#7fe6a0', '#ff7a6e', Math.min(1, sol.members[idx].stress / allow));
+    ctx.strokeStyle = col; ctx.globalAlpha = w.kind === 'brace' ? 0.7 : 1; ctx.lineWidth = w.kind === 'brace' ? 0.9 : 1.8;
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+  // portals: doors within a floor, stairs/ladders between floors
+  foam.portals.forEach((pt) => {
+    const x = sx(pt.x), y = syy(pt.y);
+    if (pt.kind === 'door') { ctx.fillStyle = '#ffce78'; ctx.beginPath(); ctx.arc(x, y, 1.7, 0, TAU); ctx.fill(); }
+    else { ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(x - 3, y + 2); ctx.lineTo(x, y - 1); ctx.lineTo(x + 3, y + 2); ctx.stroke(); }
+  });
+  // gravity arrow (down = toward hull)
+  arrow(ctx, W - 16, top + 8, W - 16, top + 34, '#ffce78');
+  ctx.fillStyle = '#ffce78'; ctx.textAlign = 'right'; ctx.fillText('g ↓', W - 22, top + 24);
+  // axial scale bar (a round number of metres) — makes the true scale visceral
+  const mPerPx = widthM / W, bar = Math.pow(10, Math.round(Math.log10(70 * mPerPx))), barPx = bar / mPerPx;
+  ctx.strokeStyle = '#cfe'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(8, bot - 9); ctx.lineTo(8 + barPx, bot - 9); ctx.stroke();
+  ctx.fillStyle = '#cfe'; ctx.textAlign = 'left'; ctx.fillText(fmtm(bar), 8, bot - 13);
+  ctx.fillStyle = '#8aa'; ctx.textAlign = 'right'; ctx.fillText('↓ hull', W - 6, H - 6);
+}
+
+// ── foam: generate (JS) + solve (wasm frame solver) ──
+let foamTimer = 0;
+function updateFoamRead(foam, sol, p) {
+  const allow = p.mat.s / p.sf, st = $('foamstate');
+  const heights = foam.meta.rowY.slice(1).map((y, k) => y - foam.meta.rowY[k]);
+  const hmin = Math.min.apply(null, heights), hmax = Math.max.apply(null, heights);
+  let html = '';
+  if (sol && !sol.error) {
+    let maxS = 0; sol.members.forEach((m) => { maxS = Math.max(maxS, m.stress); });
+    const util = maxS / allow, u = (util * 100).toFixed(0) + '%';
+    if (st) st.textContent = sol.mechanism ? 'mechanism' : 'solved';
+    html += row('verdict', sol.mechanism ? '<span class="warn">MECHANISM — racks (brace it)</span>' : util <= 1 ? '<span style="color:var(--ok)">✓ holds</span>' : '<span class="warn">✗ overstressed</span>');
+    if (!sol.mechanism) { html += row('peak wall utilisation', util > 1 ? '<span class="warn">' + u + '</span>' : '<b>' + u + '</b>'); html += row('compliance (↓ stiffer)', fmtN(sol.compliance, 3)); }
+  } else { if (st) st.textContent = 'geometry only'; html += row('solver', '<span class="note">offline — geometry only</span>'); }
+  html += row('floors × rooms', foam.meta.layers + ' × ' + foam.meta.nx);
+  html += row('floor headroom', fmtm(hmin) + ' … ' + fmtm(hmax) + ' <span class="note">(thins toward hull)</span>');
+  html += row('relative density', (foam.meta.relDensity * 100).toFixed(1) + '% · ' + fmtN(foam.nav.cellCount, 0) + ' cells');
+  html += row('navigable', foam.nav.connected ? '<span style="color:var(--ok)">✓ all reachable</span> · ' + foam.nav.doors + 'd + ' + foam.nav.stairs + 's' : '<span class="warn">disconnected</span>');
+  $('foamread').innerHTML = html;
+}
+function buildFoam() {
+  if (!window.HOOPFOAM) return;
+  clearTimeout(foamTimer);
+  foamTimer = setTimeout(() => {
+    const p = params();
+    const room = +$('room').value, layers = +$('layers').value;
+    // cap node count so the dense O(n³) solve stays responsive on a slider drag.
+    // width is chosen to give that many rooms across (so roomSize stays physical).
+    const nx = Math.max(3, Math.min(40, Math.floor(420 / (layers + 1)) - 1, Math.round(p.shell * 2.4 / room)));
+    const foam = HOOPFOAM.generateFoam({
+      width: nx * room, thickness: p.shell, layers, roomSize: room,
+      wallT: Math.pow(10, +$('fwall').value), grade: +$('grade').value, brace: $('brace').value,
+      e: p.mat.e, pEff: pEffOf(p),
+    });
+    let sol = null;
+    if (WASM && WASM.frame) { try { sol = JSON.parse(WASM.frame(JSON.stringify(foam.frame))); } catch (e) { sol = null; } }
+    window.FOAM = { foam, sol, p };
+    updateFoamRead(foam, sol, p);
+  }, 60);
 }
 
 // ── optional wasm solver (cylinder-solver). The page is fully functional without it;
@@ -370,10 +454,10 @@ function setPill(txt, col) { const e = $('solverpill'); e.textContent = 'solver:
   try {
     const m = await import('./solver/pkg/cylinder_solver.js');
     await m.default();
-    WASM = { hoop: m.hoop_json, net: m.solve_net_json };
-    setPill('wasm ✓', 'var(--ok)'); $('wasmstate').textContent = 'live cable-net solve';
+    WASM = { hoop: m.hoop_json, net: m.solve_net_json, frame: m.solve_frame_json };
+    setPill('wasm ✓', 'var(--ok)'); $('wasmstate').textContent = 'live cable-net + frame solve';
     $('wasmstate').className = '';
-    solveNet();
+    solveNet(); buildFoam();
   } catch (e) { setPill('JS fallback', '#8aa'); }
 })();
 
@@ -444,8 +528,9 @@ $('search').addEventListener('click', () => {
   if (hits.length) { $('topo').value = 'secant'; $('reach').value = Math.max(6, Math.min(90, Math.round(180 * hits[0].k / p.N))); solveNet(); }
 });
 
-for (const el of document.querySelectorAll('input,select')) el.addEventListener('input', () => { render(); solveNet(); });
+for (const el of document.querySelectorAll('input,select')) el.addEventListener('input', () => { render(); solveNet(); buildFoam(); });
 addEventListener('resize', render);
+buildFoam();
 (function loop() { render(); requestAnimationFrame(loop); })();
 </script>
 </body>
