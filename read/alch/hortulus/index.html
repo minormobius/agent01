@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Hortulus — Walahfrid Strabo, an open translation</title>
+<meta name="description" content="An original, openly-licensed English translation of Walahfrid Strabo's Hortulus (Liber de cultura hortorum), the 9th-century garden poem, line for line beside the Latin, with notes on the words and the cruxes. From read.mino.mobi.">
+<meta property="og:title" content="Hortulus — Walahfrid Strabo, an open translation">
+<meta property="og:description" content="The first garden poem of the Latin Middle Ages: the labour of the plot, then 23 plants bed by bed. Original English beside the Latin, the words and cruxes shown. CC BY-SA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://read.mino.mobi/alch/hortulus/">
+<meta property="og:site_name" content="Read">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>🌿</text></svg>">
+<link rel="stylesheet" href="../garden.css">
+</head>
+<body>
+<nav id="crumb"><a href="https://read.mino.mobi/">read</a> · <a href="../">the Alchemist's Garden</a></nav>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="tag">The Alchemist's Garden · Walahfrid Strabo</div>
+    <div class="glyph">🌿</div>
+    <h1><span class="la">Hortulus</span> — the little garden</h1>
+    <p class="sub">Walahfrid Strabo's <em>Liber de cultura hortorum</em>: the
+    labour of the plot, then twenty-three plants bed by bed. An original English
+    translation, line for line beside the Latin, with the words and the cruxes
+    shown.</p>
+  </div>
+
+  <nav id="bednav"></nav>
+  <main id="reader"></main>
+  <div class="pilot" id="pilot"></div>
+
+  <footer>
+    A transparent working translation · openly licensed ·
+    <a href="../">back to the garden</a> ·
+    <a href="https://read.mino.mobi/pendragon/">the read apparatus</a>
+  </footer>
+
+</div>
+
+<script type="module">
+import { HORTULUS } from './data.js';
+import { CORRESPONDENCES, PLANETS, TEMPERAMENTS } from '../correspondences.js';
+
+const reader = document.getElementById('reader');
+const bednav = document.getElementById('bednav');
+const sections = HORTULUS.sections;
+const planted = s => Array.isArray(s.lines) && s.lines.length > 0;
+const bySeq = {}; sections.forEach(s => bySeq[s.seq] = s);
+const corrByH = {}; CORRESPONDENCES.plants.forEach(c => { if (c.hortulus) corrByH[c.hortulus] = c; });
+
+const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+// the correspondence overlay for a bed, keyed by Hortulus seq
+function corrBox(seq){
+  const c = corrByH[seq];
+  if (!c) return '';
+  if (!c.planet && !c.qualities)
+    return `<div class="corrbox"><div class="sig">⚗ ${esc(c.signature || 'no correspondence assigned')}</div>` +
+      `<div class="src">Correspondence overlay · CC BY-SA</div></div>`;
+  const p = c.planet ? PLANETS[c.planet] : null;
+  const t = c.qualities ? TEMPERAMENTS[c.qualities] : null;
+  const astro = p ? `<span class="ax astro"><span class="g">${p.glyph}</span><span><span class="k">rules</span> <b>${esc(c.planet)}</b> · ${esc(p.metal)}</span></span>` : '';
+  const galen = t ? `<span class="ax galen"><span class="g">${t.glyph}</span><span><span class="k">temper</span> <b>${esc(t.element)}</b> · ${esc(t.humour)} — ${esc(c.qualities)}${c.degree ? ' (' + esc(c.degree) + ')' : ''}</span></span>` : '';
+  return `<div class="corrbox"><div class="row">${astro}${galen}</div>` +
+    (c.signature ? `<div class="sig">⚗ ${esc(c.signature)}</div>` : '') +
+    `<div class="src">Planet after Culpeper (1653)${c.qSource ? ' · qualities: ' + esc(c.qSource) : ''}</div></div>`;
+}
+
+// ── the bed map: frame chips, then the 23 plant beds ─────────────────────────
+function buildNav(){
+  const frame = sections.filter(s => s.kind !== 'plant');
+  const plants = sections.filter(s => s.kind === 'plant');
+  let h = '<div class="beds" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">';
+  frame.forEach(s => {
+    h += `<button class="bed frame ${planted(s) ? '' : 'fallow'}" data-seq="${s.seq}" ${planted(s) ? '' : 'disabled'}>` +
+         `<span class="la">${esc(s.la)}</span><span class="en">${esc(s.en)}</span></button>`;
+  });
+  h += '</div><div class="beds">';
+  plants.forEach(s => {
+    h += `<button class="bed ${planted(s) ? '' : 'fallow'}" data-seq="${s.seq}" ${planted(s) ? '' : 'disabled'}` +
+         ` title="${esc(s.la)} — ${esc(s.en)}${s.bot ? ' · ' + esc(s.bot) : ''}">` +
+         `<span class="roman">${esc(s.roman)}</span><span class="la">${esc(s.la)}</span>` +
+         `<span class="en">${esc(s.en)}</span></button>`;
+  });
+  h += '</div>';
+  bednav.innerHTML = h;
+  bednav.querySelectorAll('.bed[data-seq]:not([disabled])').forEach(b =>
+    b.onclick = () => { show(+b.dataset.seq); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
+
+// ── render one section: header + parallel verse ──────────────────────────────
+function render(s){
+  let h = `<div class="section-head">` +
+    (s.roman ? `<div class="roman">${esc(s.roman)}</div>` : '') +
+    `<div class="la">${esc(s.la)}</div>` +
+    `<div class="en">${esc(s.en)}</div>` +
+    (s.bot ? `<div class="bot">${esc(s.bot)}</div>` : '') +
+    `</div>`;
+
+  if (s.kind === 'plant') h += corrBox(s.seq);
+
+  if (planted(s)){
+    h += `<div class="verse">`;
+    s.lines.forEach((l, i) => {
+      h += `<div class="ln"><span class="num">${i + 1}</span>` +
+           `<span class="la">${esc(l.la)}</span><span class="en">${esc(l.en)}</span>` +
+           (l.n ? `<span class="note">${esc(l.n)}</span>` : '') + `</div>`;
+    });
+    h += `</div>`;
+    if (s.note) h += `<p class="bednote">${esc(s.note)}</p>`;
+  } else {
+    h += `<p class="fallownote">This bed is turned but not yet sown` +
+         (s.crux ? ` — and waits on a crux: ${esc(s.crux)}` : '') +
+         `.<br>The Latin is being translated a bed at a time.</p>`;
+  }
+
+  // method + sources
+  const m = HORTULUS.meta;
+  h += `<div class="method"><h2>Method &amp; sources</h2>` +
+    `<p>${esc(m.method)}</p>` +
+    `<p><b>Working Latin:</b> ${esc(m.latinSource)}.<br>` +
+    `<b>Converging on:</b> ${esc(m.convergeOn)}.</p>` +
+    `<p class="lic">License: ${esc(m.license)}.</p>` +
+    `<div class="src">` +
+    m.sources.map(x => `· <a href="${x.url}" target="_blank" rel="noopener">${esc(x.label)}</a> — ${esc(x.host)}`).join('<br>') +
+    `</div></div>`;
+
+  reader.innerHTML = h;
+}
+
+function show(seq){
+  const s = bySeq[seq] || sections[0];
+  render(s);
+  try { history.replaceState(null, '', '#s' + s.seq); } catch (e) {}
+  bednav.querySelectorAll('.bed[data-seq]').forEach(b =>
+    b.classList.toggle('on', +b.dataset.seq === s.seq));
+}
+
+buildNav();
+const plantedPlants = sections.filter(s => s.kind === 'plant' && planted(s)).length;
+const totalPlants = sections.filter(s => s.kind === 'plant').length;
+document.getElementById('pilot').textContent = plantedPlants >= totalPlants
+  ? `All ${totalPlants} beds planted — the whole little garden.`
+  : `${plantedPlants} of ${totalPlants} beds planted — and growing.`;
+
+const init = parseInt((location.hash.match(/s(\d+)/) || [])[1], 10);
+show(Number.isInteger(init) && bySeq[init] ? init : 0);
+addEventListener('hashchange', () => {
+  const n = parseInt((location.hash.match(/s(\d+)/) || [])[1], 10);
+  if (bySeq[n]) show(n);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Capitulare de villis — the imperial garden (cap. 70)</title>
+<meta name="description" content="An original, openly-licensed English translation of chapter 70 of Charlemagne's Capitulare de villis — the command that every royal estate grow some 73 herbs and 16 trees — beside the Latin, with each plant cross-linked to Walahfrid's Hortulus and Macer's herbal. From read.mino.mobi.">
+<meta property="og:title" content="Capitulare de villis — the imperial garden">
+<meta property="og:description" content="Charlemagne's garden by decree, c. 800: 73 herbs and 16 trees every estate must grow — the third axis of the crosswalk, supplying the plants the poets leave out. CC BY-SA.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://read.mino.mobi/alch/capitulare/">
+<meta property="og:site_name" content="Read">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='84'>👑</text></svg>">
+<link rel="stylesheet" href="../garden.css">
+<style>
+  .command{margin:22px 0 6px;border-left:3px solid var(--gold-dim);padding:6px 0 6px 16px}
+  .command .la{font:italic 18px/1.5 Georgia,serif;color:var(--ink)}
+  .command .en{font-size:15px;line-height:1.5;color:var(--ink2);margin-top:4px}
+  .tally{text-align:center;font:11.5px/1.6 ui-monospace,monospace;color:var(--faint);margin:8px 0 0}
+  .tally b{color:var(--jade);font-weight:400}
+
+  .roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:18px 0}
+  .item{border:1px solid var(--rule);border-radius:9px;background:rgba(216,178,90,.03);padding:9px 11px;
+    display:flex;flex-direction:column;gap:3px}
+  .item.both{border-color:var(--gold-dim);background:rgba(216,178,90,.07)}
+  .item.one{border-color:var(--rule)}
+  .item.none{opacity:.62;border-style:dashed}
+  .item .la{font:600 14.5px/1.2 Georgia,serif;color:var(--gold)}
+  .item .en{font-size:13px;color:var(--ink)}
+  .item .bot{font:10.5px/1.3 ui-monospace,monospace;color:var(--faint)}
+  .item .links{display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap}
+  .item .lk{font:9.5px/1 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;
+    border:1px solid var(--rule);border-radius:999px;padding:3px 7px;color:var(--ink2)}
+  .item a.lk:hover{border-color:var(--gold-dim);color:var(--gold)}
+  .item .lk.imp{color:var(--faint);border-style:dashed}
+  .item .pl{margin-left:auto;font-size:14px;color:var(--gold)}
+  .item .n{font-size:11.5px;font-style:italic;color:var(--faint);line-height:1.4;margin-top:2px}
+
+  .gardener{margin:30px 0;border:1px solid var(--rule);border-radius:12px;background:rgba(111,174,142,.06);
+    padding:16px 20px}
+  .gardener .la{font:italic 17px/1.5 Georgia,serif;color:var(--jade)}
+  .gardener .en{font-size:14.5px;line-height:1.55;color:var(--ink);margin-top:5px}
+  .gardener .n{font-size:13px;line-height:1.55;color:var(--ink2);margin-top:8px;font-style:italic}
+
+  h2.sec{font:600 12px/1 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--gold-dim);margin:34px 0 4px;text-align:center}
+  .treetext{font:14px/1.6 Georgia,serif;color:var(--ink2);max-width:62ch;margin:6px auto 0;text-align:center;font-style:italic}
+  .trees{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:7px;margin:16px 0}
+  .tree{border:1px solid var(--rule);border-radius:8px;padding:7px 9px;background:rgba(216,178,90,.03)}
+  .tree .la{font:600 13px/1.2 Georgia,serif;color:var(--leaf)}
+  .tree .en{font-size:12px;color:var(--ink2)}
+  .cultivars{margin:22px auto 0;max-width:64ch;text-align:center}
+  .cultivars .la{font:italic 14px/1.5 Georgia,serif;color:var(--ink)}
+  .cultivars .en{font-size:13px;line-height:1.5;color:var(--ink2);margin-top:4px}
+  .cultivars .n{font-size:12px;font-style:italic;color:var(--faint);margin-top:6px}
+</style>
+</head>
+<body>
+<nav id="crumb"><a href="https://read.mino.mobi/">read</a> · <a href="../">the Alchemist's Garden</a></nav>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="tag">The Alchemist's Garden · Charlemagne</div>
+    <div class="glyph">👑</div>
+    <h1><span class="la">Capitulare de villis</span> — the imperial garden</h1>
+    <p class="sub">Chapter 70 of Charlemagne’s estate-capitulary (c. 800): the
+    command that every royal villa grow a fixed roster of herbs and trees — the
+    garden as decree, beside Walahfrid’s as poem. Each plant is linked across to
+    the <a href="../hortulus/">Hortulus</a> and <a href="../macer/">Macer</a>
+    where the poets also name it.</p>
+  </div>
+
+  <div class="command" id="command"></div>
+  <div class="tally" id="tally"></div>
+  <div class="roster" id="roster"></div>
+
+  <div class="gardener" id="gardener"></div>
+
+  <h2 class="sec">Of the trees</h2>
+  <div class="treetext" id="treetext"></div>
+  <div class="trees" id="trees"></div>
+  <div class="cultivars" id="cultivars"></div>
+
+  <div id="method"></div>
+
+  <footer>
+    A transparent working translation · openly licensed ·
+    <a href="../crosswalk/">the crosswalk</a> · <a href="../">the garden</a>
+  </footer>
+
+</div>
+
+<script type="module">
+import { CAPITULARE } from './data.js';
+import { CORRESPONDENCES, PLANETS } from '../correspondences.js';
+
+const esc = t => (t ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const corrByH = {}, corrByM = {};
+CORRESPONDENCES.plants.forEach(c => { if (c.hortulus) corrByH[c.hortulus] = c; if (c.macer) corrByM[c.macer] = c; });
+
+const C = CAPITULARE;
+document.getElementById('command').innerHTML =
+  `<div class="la">${esc(C.command.la)}</div><div class="en">${esc(C.command.en)}</div>`;
+
+// roster of herbs, each tagged by where the poems also grow it
+let shared = 0, imperialOnly = 0;
+const roster = C.herbs.map(p => {
+  const inH = !!p.h, inM = !!p.m;
+  const cls = (inH && inM) ? 'both' : (inH || inM) ? 'one' : 'none';
+  if (inH || inM) shared++; else imperialOnly++;
+  const links = [];
+  if (inH) links.push(`<a class="lk" href="../hortulus/#s${p.h}" title="Walahfrid’s Hortulus">Hortulus</a>`);
+  if (inM) links.push(`<a class="lk" href="../macer/#c${p.m}" title="Macer’s chapter ${p.m}">Macer</a>`);
+  if (!inH && !inM) links.push(`<span class="lk imp" title="commanded by Charlemagne, sung by neither poet">imperial only</span>`);
+  const corr = corrByH[p.h] || corrByM[p.m];
+  const pl = (corr && corr.planet && PLANETS[corr.planet])
+    ? `<span class="pl" title="${esc(corr.planet)} · ${esc(PLANETS[corr.planet].metal)}">${PLANETS[corr.planet].glyph}</span>` : '';
+  return `<div class="item ${cls}">` +
+    `<div class="links"><span class="la">${esc(p.la)}</span>${pl}</div>` +
+    `<div class="en">${esc(p.en)}</div>` +
+    (p.bot ? `<div class="bot">${esc(p.bot)}</div>` : '') +
+    `<div class="links">${links.join('')}</div>` +
+    (p.n ? `<div class="n">${esc(p.n)}</div>` : '') +
+    `</div>`;
+}).join('');
+document.getElementById('roster').innerHTML = roster;
+
+document.getElementById('tally').innerHTML =
+  `${C.herbs.length} herbs commanded · <b>${shared}</b> also sung by Walahfrid or Macer · ` +
+  `<b>${imperialOnly}</b> imperial-only (the kitchen vegetables neither poet sings)`;
+
+const g = C.gardener;
+document.getElementById('gardener').innerHTML =
+  `<div class="la">${esc(g.la)}</div><div class="en">${esc(g.en)}</div>` +
+  (g.n ? `<div class="n">${esc(g.n)}</div>` : '');
+
+document.getElementById('treetext').innerHTML = `${esc(C.treesIntro.en)}`;
+document.getElementById('trees').innerHTML = C.trees.map(t =>
+  `<div class="tree"><div class="la">${esc(t.la)}</div><div class="en">${esc(t.en)}</div></div>`).join('');
+document.getElementById('cultivars').innerHTML =
+  `<div class="la">${esc(C.cultivars.la)}</div><div class="en">${esc(C.cultivars.en)}</div>` +
+  (C.cultivars.n ? `<div class="n">${esc(C.cultivars.n)}</div>` : '');
+
+const m = C.meta;
+document.getElementById('method').innerHTML =
+  `<div class="method"><h2>Method &amp; sources</h2><p>${esc(m.method)}</p>` +
+  `<p><b>Working Latin:</b> ${esc(m.latinSource)}.<br><b>Converging on:</b> ${esc(m.convergeOn)}.</p>` +
+  `<p class="lic">License: ${esc(m.license)}.</p><div class="src">` +
+  m.sources.map(x => `· <a href="${x.url}" target="_blank" rel="noopener">${esc(x.label)}</a> — ${esc(x.host)}`).join('<br>') +
+  `</div></div>`;
+</script>
+</body>
+</html>
