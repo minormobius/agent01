@@ -1,17 +1,28 @@
-// hoop — the canvas world. (Phase 2: infinite.)
+// hoop — the canvas world. (Phase 2: infinite. Phase 3: continuous + gravity.)
 //
-// The fixed 48×28 room is gone. The map is now an ENDLESS ship, stitched from
-// ship.js chunks generated on demand around the camera (see ChunkField). You can
-// walk forever; the frontier generates ahead of you, its character bent by the
-// ship genome. Coordinates are unbounded world tiles — a place at (x,y) means the
-// same tile on every machine for a given voyage seed.
+// The fixed 48×28 room is gone. The map is an ENDLESS ship, stitched from ship.js
+// chunks generated on demand around the camera (see ChunkField). You can walk
+// forever; the frontier generates ahead of you, its character bent by the ship
+// genome. Coordinates are unbounded world tiles — a place at (x,y) means the same
+// tile on every machine for a given voyage seed.
 //
-// Three layers stack here, deepest first:
-//   1. the deterministic ship   — floors / doors / walls + per-tile gravity
-//   2. a CPU light pass         — emitters splatted into a light buffer (the
-//                                 placeholder the WebGPU radiance-cascade pass
-//                                 will replace; same input: ship.js light data)
-//   3. the forum layer          — places (threads) + live peers + the player
+// Two big substrates replaced the grid here (the "voronoi ship" rewrite):
+//
+//   • THE DECK IS AN ADAPTIVE VORONOI MESH, not a tile grid. Each chunk scatters
+//     sites whose DENSITY follows the detail: a fine ring of sites along every
+//     floor│void boundary (so plates hug the hull), tight clusters around fixtures
+//     and lights, and a coarse Poisson fill in open bays. Polygon cells (half-plane
+//     clipping against the 3×3-neighbour sites, so plates cross chunk seams cleanly)
+//     are the unit of plating AND of the light probe — light is sampled once per
+//     cell, previewing the radiance-cascade probe density the WebGPU pass will use.
+//
+//   • MOVEMENT IS CONTINUOUS AND GRAVITY-AWARE, not grid-stepped. The player is a
+//     point with velocity; the gravity regime of the cell under their feet sets the
+//     handling — normal (snappy), mag (crisp, planted), spin (a tilt-drift you walk
+//     against), none (zero-g: shove off and glide until a wall). The forum layer
+//     stays tile-addressed: player.x/y is always the integer tile you occupy
+//     (round of the continuous px/py), so places, drops, presence and click-to-walk
+//     are unchanged. app.js sees the same World API it always did.
 //
 // ship.js is a global script (loaded before this module), so we read it off the
 // global rather than importing it.
@@ -24,17 +35,42 @@ const FLOOR = Ship.TILE.FLOOR, DOOR = Ship.TILE.DOOR;
 // gravity regime → a faint floor hue, so sectors read at a glance.
 const GRAV_HUE = { normal: [70, 90, 80], spin: [96, 78, 120], none: [70, 120, 128], mag: [120, 96, 60] };
 const SPAWN = { x: 24, y: 14 }; // the flagship landing — keeps the Hub thread reachable
+const CLIP_R = 6;               // max half-extent of a plate (clip-box radius, tiles)
+
+// ── pure mesh kernel (exported for the headless selftest) ─────────────────────
+// clipCell: Voronoi cell of site A as a polygon, by clipping a box against the
+// perpendicular bisectors with A's nearest neighbours. `others` = [{x,y,hull},…].
+export function clipCell(A, others, R = CLIP_R) {
+  let poly = [[A.x - R, A.y - R], [A.x + R, A.y - R], [A.x + R, A.y + R], [A.x - R, A.y + R]];
+  const near = others
+    .map((s) => [s, (s.x - A.x) ** 2 + (s.y - A.y) ** 2])
+    .filter((p) => p[1] > 1e-9)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 20)
+    .map((p) => p[0]);
+  for (const B of near) {
+    const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, nx = A.x - B.x, ny = A.y - B.y; // keep side toward A
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      const da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny;
+      if (da >= 0) out.push(a);
+      if ((da >= 0) !== (db >= 0)) { const tt = da / (da - db); out.push([a[0] + (b[0] - a[0]) * tt, a[1] + (b[1] - a[1]) * tt]); }
+    }
+    poly = out;
+    if (poly.length < 3) break;
+  }
+  return poly;
+}
 
 // ── the infinite map ─────────────────────────────────────────────────────────
-// Lazily generates + caches chunks; evicts the ones far from the camera. A thin
-// "forced floor" overlay guarantees the flagship spawn room + every place tile is
-// always walkable, independent of what the generator rolled there.
-class ChunkField {
+export class ChunkField {
   constructor(seed, genome) {
     this.seed = Ship.voyageSeed(seed);
     this.genome = genome || null;
     this.cache = new Map();
-    this.art_ = new Map();           // per-chunk render art (voronoi plating + fixtures)
+    this.sites_ = new Map();         // per-chunk adaptive site list (cached)
+    this.mesh_ = new Map();          // per-chunk voronoi cells + fixtures (cached)
     this.overlay = new Set();        // "x,y" forced-floor tiles
     this._carveSpawn();
   }
@@ -50,10 +86,8 @@ class ChunkField {
     return c;
   }
   _evict(cx, cy) {
-    for (const k of this.cache.keys()) {
-      const [x, y] = k.split(',').map(Number);
-      if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > 6) this.cache.delete(k);
-    }
+    for (const map of [this.cache, this.sites_, this.mesh_])
+      for (const k of map.keys()) { const [x, y] = k.split(',').map(Number); if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > 6) map.delete(k); }
   }
   _local(wx, wy) {
     const cx = Math.floor(wx / C), cy = Math.floor(wy / C);
@@ -71,46 +105,109 @@ class ChunkField {
     return Ship.GRAV_LIST[g - 1] || 'normal';
   }
   isFloor(wx, wy) { const t = this.tile(wx, wy); return t === FLOOR || t === DOOR; }
-  addPlaceTile(wx, wy) { this.overlay.add(wx + ',' + wy); }
+  addPlaceTile(wx, wy) { this.overlay.add(wx + ',' + wy); this.sites_.clear(); this.mesh_.clear(); } // remesh: a place adds floor
 
-  // ── render art (deterministic, cached per chunk) ──────────────────────────
-  // A tile-resolution Voronoi (each tile → nearest scattered site) gives the deck
-  // plating; per-site albedo paints the panels; garden rooms get milfoil fixtures.
-  art(cx, cy) {
+  // ── adaptive sites (deterministic per chunk) ──────────────────────────────
+  // hull sites ring every floor│void boundary (fine plates at walls); fixture
+  // clusters densify around stalks + lights; a coarse Poisson fill takes the open
+  // bays. A site's identity depends only on its home chunk, so neighbouring chunks
+  // agree on the shared sites and the plate seams line up across chunk borders.
+  sites(cx, cy) {
     const k = this._key(cx, cy);
-    let a = this.art_.get(k);
-    if (a) return a;
-    const ch = this.chunk(cx, cy);
-    const rng = Ship.rngFor(this.seed, 41, cx, cy);
-    const nSites = 9 + Math.floor(rng() * 7);
-    const sites = []; for (let i = 0; i < nSites; i++) sites.push([rng() * C, rng() * C]);
-    const owner = new Uint8Array(C * C);
-    for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
-      let bi = 0, bd = 1e9;
-      for (let i = 0; i < sites.length; i++) { const dx = x + 0.5 - sites[i][0], dy = y + 0.5 - sites[i][1], d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
-      owner[y * C + x] = bi;
+    let s = this.sites_.get(k);
+    if (s) return s;
+    const ch = this.chunk(cx, cy), bx = cx * C, by = cy * C, out = [];
+    // hull: for each floor tile, a site at each void 4-neighbour's centre
+    for (let ly = 0; ly < C; ly++) for (let lx = 0; lx < C; lx++) {
+      const wx = bx + lx, wy = by + ly;
+      if (!this.isFloor(wx, wy)) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+        if (!this.isFloor(wx + dx, wy + dy)) out.push({ x: wx + dx + 0.5, y: wy + dy + 0.5, hull: true });
     }
-    const albedo = sites.map((_, i) => {
-      const h = Ship.hashInts(this.seed, cx, cy, i + 1);
-      return [148 + ((h & 31) - 16), 158 + (((h >> 5) & 31) - 16), 166 + (((h >> 10) & 31) - 16)];
-    });
+    const nonHullStart = out.length;
+    const push = (x, y) => {
+      for (let i = 0; i < out.length; i++) { const dx = out[i].x - x, dy = out[i].y - y; if (dx * dx + dy * dy < 0.36) return; }
+      const h = Ship.hashInts(this.seed, Math.round(x * 7), Math.round(y * 7), 3);
+      out.push({ x, y, hull: false, regime: this.regime(Math.round(x - 0.5), Math.round(y - 0.5)),
+        albedo: [148 + ((h & 31) - 16), 158 + (((h >> 5) & 31) - 16), 166 + (((h >> 10) & 31) - 16)] });
+    };
+    // fixture clusters: around every garden stalk + room light
     const fixtures = [];
-    for (const room of ch.rooms) if (room.type === 'garden') {
-      const frng = Ship.rngFor(this.seed, 55, cx * 131 + room.x, cy * 131 + room.y);
-      const n = 2 + Math.floor(frng() * Math.min(5, (room.w * room.h) / 6));
-      for (let i = 0; i < n; i++) {
-        const lx = room.x + 1 + Math.floor(frng() * Math.max(1, room.w - 2));
-        const ly = room.y + 1 + Math.floor(frng() * Math.max(1, room.h - 2));
-        fixtures.push({ kind: 'stalk', wx: cx * C + lx + 0.5, wy: cy * C + ly + 0.9, ang: (frng() - 0.5) * 0.5, model: stalkModel(frng) });
+    for (const room of ch.rooms) {
+      if (room.type === 'garden') {
+        const frng = Ship.rngFor(this.seed, 55, cx * 131 + room.x, cy * 131 + room.y);
+        const n = 2 + Math.floor(frng() * Math.min(5, (room.w * room.h) / 6));
+        for (let i = 0; i < n; i++) {
+          const lx = room.x + 1 + Math.floor(frng() * Math.max(1, room.w - 2));
+          const ly = room.y + 1 + Math.floor(frng() * Math.max(1, room.h - 2));
+          fixtures.push({ kind: 'stalk', wx: bx + lx + 0.5, wy: by + ly + 0.9, ang: (frng() - 0.5) * 0.5, model: stalkModel(frng) });
+        }
       }
+      for (const L of room.lights) { const fx = bx + L.x + 0.5, fy = by + L.y + 0.5; if (this.isFloor(bx + L.x, by + L.y)) push(fx, fy); }
     }
-    a = { owner, albedo, fixtures };
-    this.art_.set(k, a);
-    if (this.art_.size > 256) for (const kk of this.art_.keys()) { const [x, y] = kk.split(',').map(Number); if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > 6) this.art_.delete(kk); }
-    return a;
+    const rngF = Ship.rngFor(this.seed, 909, cx, cy);
+    for (const f of fixtures) for (let i = 0; i < 3; i++) {
+      const a = rngF() * 6.283, r = 0.4 + rngF() * 0.7, x = f.wx + Math.cos(a) * r, y = f.wy + Math.sin(a) * r;
+      if (this.isFloor(Math.round(x - 0.5), Math.round(y - 0.5))) push(x, y);
+    }
+    // coarse interior Poisson fill (big plates in open space)
+    const rngI = Ship.rngFor(this.seed, 1001, cx, cy);
+    for (let i = 0; i < 600; i++) {
+      const lx = Math.floor(rngI() * C), ly = Math.floor(rngI() * C);
+      if (!this.isFloor(bx + lx, by + ly)) continue;
+      const x = bx + lx + rngI(), y = by + ly + rngI();
+      let near = false;
+      for (let j = 0; j < out.length; j++) { const dx = out[j].x - x, dy = out[j].y - y; const lim = j < nonHullStart ? 1.1 : 2.6; if (dx * dx + dy * dy < lim * lim) { near = true; break; } }
+      if (!near) push(x, y);
+    }
+    s = { all: out, fixtures, nonHullStart };
+    this.sites_.set(k, s);
+    return s;
   }
-  ownerAt(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); return this.art(cx, cy).owner[ly * C + lx]; }
-  albedoAt(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const a = this.art(cx, cy); return a.albedo[a.owner[ly * C + lx]]; }
+
+  // ── voronoi plates for a chunk (cells whose SITE lives in this chunk) ──────
+  // Clipped against the 3×3 neighbourhood so plates are seamless across borders.
+  // A coarse bucket grid keeps the k-nearest search local. Guarded: on any failure
+  // the chunk renders via the flat-fill fallback rather than throwing.
+  mesh(cx, cy) {
+    const k = this._key(cx, cy);
+    let m = this.mesh_.get(k);
+    if (m) return m;
+    try {
+      const here = this.sites(cx, cy);
+      // gather neighbourhood sites + bucket them (bucket = 3 tiles)
+      const nb = [], buckets = new Map(), BS = 3, bkey = (x, y) => Math.floor(x / BS) + ',' + Math.floor(y / BS);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
+        for (const s of this.sites(cx + dx, cy + dy).all) { nb.push(s); const bk = bkey(s.x, s.y); (buckets.get(bk) || buckets.set(bk, []).get(bk)).push(s); }
+      const candidatesNear = (A) => {
+        const res = [], bx = Math.floor(A.x / BS), by = Math.floor(A.y / BS);
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const b = buckets.get((bx + dx) + ',' + (by + dy)); if (b) for (const s of b) res.push(s); }
+        return res;
+      };
+      const cells = [];
+      for (const A of here.all) {
+        if (A.hull) continue;
+        const cand = candidatesNear(A);
+        const poly = clipCell(A, cand);
+        if (poly.length < 3) continue;
+        const edges = [];
+        for (let i = 0; i < poly.length; i++) {
+          const a = poly[i], b = poly[(i + 1) % poly.length];
+          const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+          let nbHull = false, bd = 1e9;
+          for (const s of cand) { if (s === A) continue; const d = (s.x - mx) ** 2 + (s.y - my) ** 2; if (d < bd) { bd = d; nbHull = s.hull; } }
+          edges.push({ a, b, hull: nbHull });
+        }
+        cells.push({ A, poly, edges, albedo: A.albedo, regime: A.regime });
+      }
+      m = { cells, fixtures: here.fixtures, ok: true };
+    } catch (e) {
+      m = { cells: [], fixtures: [], ok: false }; // flat-fill fallback in _draw keeps the deck visible
+    }
+    this.mesh_.set(k, m);
+    if (this.mesh_.size > 256) for (const kk of this.mesh_.keys()) { const [x, y] = kk.split(',').map(Number); if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) > 6) this.mesh_.delete(kk); }
+    return m;
+  }
 
   // A guaranteed spawn room + a corridor punched to the containing chunk's hub,
   // so the player always lands on ground with a way out into the generated ship.
@@ -124,6 +221,28 @@ class ChunkField {
   }
 }
 
+// ── continuous gravity-aware movement (exported pure kernel for the selftest) ──
+// Integrates one frame: input + the cell's gravity regime → velocity; axis-
+// separated collision against the floor field (round() = occupied tile) so the
+// player slides along walls (and, in zero-g, glides along them). Returns the new
+// {px,py,vx,vy}; the caller maps round(px),round(py) back to the forum tile.
+export function stepMotion(P, input, regime, isFloor, dt = 1) {
+  let { px, py, vx, vy } = P;
+  let { ix, iy, arriving } = input;
+  const L = Math.hypot(ix, iy) || 1; ix /= L; iy /= L;
+  if (regime === 'none') { vx += ix * 0.016 * dt; vy += iy * 0.016 * dt; vx *= 0.99; vy *= 0.99; }          // glide
+  else if (regime === 'spin') { vx += ix * 0.05 * dt; vy += iy * 0.05 * dt; vx += 0.010 * dt; vy += 0.005 * dt; vx *= 0.85; vy *= 0.85; } // tilt-drift
+  else if (regime === 'mag') { vx += ix * 0.075 * dt; vy += iy * 0.075 * dt; vx *= 0.64; vy *= 0.64; }       // grounded, crisp
+  else { vx += ix * 0.06 * dt; vy += iy * 0.06 * dt; vx *= 0.78; vy *= 0.78; }                               // normal
+  if (arriving) { vx *= 0.6; vy *= 0.6; }                                                                    // damp final approach (taps don't overshoot)
+  const sp = Math.hypot(vx, vy), CAP = 0.2; if (sp > CAP) { vx *= CAP / sp; vy *= CAP / sp; }
+  const nx = px + vx * dt;
+  if (isFloor(Math.round(nx), Math.round(py))) px = nx; else vx = regime === 'none' ? -vx * 0.25 : 0;        // bounce in zero-g, else stop
+  const ny = py + vy * dt;
+  if (isFloor(Math.round(px), Math.round(ny))) py = ny; else vy = regime === 'none' ? -vy * 0.25 : 0;
+  return { px, py, vx, vy };
+}
+
 export class World {
   constructor(canvas, handlers = {}) {
     this.canvas = canvas;
@@ -132,13 +251,15 @@ export class World {
     this.field = new ChunkField(Ship.FLAGSHIP_SEED, null);
     this.places = [];
     this.placeAt = new Map();
-    this.player = { x: SPAWN.x, y: SPAWN.y, px: SPAWN.x, py: SPAWN.y };
+    // x/y = integer tile occupied (the forum address); px/py/vx/vy = continuous physics.
+    this.player = { x: SPAWN.x, y: SPAWN.y, px: SPAWN.x, py: SPAWN.y, vx: 0, vy: 0 };
     this.peers = new Map();
     this.selectedId = null;
     this.tile = 26;
-    this.path = [];
-    this._stepCooldown = 0;
+    this.keys = {};            // held movement keys
+    this.path = [];            // tap/click route waypoints (steered through continuously)
     this._t0 = performance.now();
+    this._last = this._t0;
     this._raf = null;
     this._hover = null;
     this._lbuf = null; this._lbw = 0; this._lbh = 0; // light buffer + dims
@@ -167,7 +288,7 @@ export class World {
   }
   removePeer(did) { this.peers.delete(did); }
   clearPeers() { this.peers.clear(); }
-  start() { if (!this._raf) this._loop(); }
+  start() { if (!this._raf) { this._last = performance.now(); this._loop(); } }
   destroy() { cancelAnimationFrame(this._raf); this._raf = null; window.removeEventListener('resize', this._onResize); }
   isFloor(x, y) { return this.field.isFloor(x, y); }
   placeKey(x, y) { return this.placeAt.get(`${x}-${y}`); }
@@ -177,22 +298,23 @@ export class World {
     this._onResize = () => this.resize();
     window.addEventListener('resize', this._onResize);
     this.canvas.tabIndex = 0;
-    this.canvas.addEventListener('keydown', (e) => this._onKey(e));
+    const MV = new Set(['arrowup', 'w', 'arrowdown', 's', 'arrowleft', 'a', 'arrowright', 'd']);
+    this.canvas.addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      if (MV.has(k)) { e.preventDefault(); this.keys[k] = true; this.path = []; }      // manual input cancels auto-walk
+      else if (k === 'n') { e.preventDefault(); this.h.onDropHere && this.h.onDropHere(this.player.x, this.player.y); }
+    });
+    this.canvas.addEventListener('keyup', (e) => { this.keys[e.key.toLowerCase()] = false; });
+    this.canvas.addEventListener('blur', () => { this.keys = {}; });
     this.canvas.addEventListener('mousemove', (e) => { this._hover = this._tileFromEvent(e); });
     this.canvas.addEventListener('mouseleave', () => { this._hover = null; });
     this.canvas.addEventListener('click', (e) => this._onClick(e));
-  }
-  _onKey(e) {
-    const k = e.key.toLowerCase();
-    const moves = { arrowup: [0, -1], w: [0, -1], arrowdown: [0, 1], s: [0, 1], arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0] };
-    if (moves[k]) { e.preventDefault(); this.path = []; this._tryStep(...moves[k]); }
-    else if (k === 'n') { e.preventDefault(); this.h.onDropHere && this.h.onDropHere(this.player.x, this.player.y); }
   }
   _tileFromEvent(e) {
     const r = this.canvas.getBoundingClientRect();
     const cx = (e.clientX - r.left), cy = (e.clientY - r.top);
     const { ox, oy } = this._camera();
-    return { x: Math.floor((cx - ox) / this.tile), y: Math.floor((cy - oy) / this.tile) };
+    return { x: Math.round((cx - ox) / this.tile - 0.5), y: Math.round((cy - oy) / this.tile - 0.5) };
   }
   _onClick(e) {
     this.canvas.focus();
@@ -203,19 +325,25 @@ export class World {
   }
 
   // ── movement ────────────────────────────────────────────────────────────
-  _tryStep(dx, dy) {
-    const nx = this.player.x + dx, ny = this.player.y + dy;
-    if (!this.isFloor(nx, ny)) return false;
-    this.player.x = nx; this.player.y = ny;
-    if (this.h.onMove) this.h.onMove(nx, ny);
-    const pl = this.placeKey(nx, ny);
-    if (pl) this._announce(pl);
-    else if (this.h.onStatus) this.h.onStatus(`(${nx}, ${ny}) · ${this.field.regime(nx, ny)} gravity — N to drop a node`);
-    return true;
-  }
   _announce(place) {
     if (this.selectedId !== place.id && this.h.onSelectPlace) this.h.onSelectPlace(place);
     this.selectedId = place.id;
+  }
+  // input vector this frame: held keys take priority; else steer toward the path.
+  _inputVector() {
+    let ix = 0, iy = 0;
+    if (this.keys.w || this.keys.arrowup) iy -= 1;
+    if (this.keys.s || this.keys.arrowdown) iy += 1;
+    if (this.keys.a || this.keys.arrowleft) ix -= 1;
+    if (this.keys.d || this.keys.arrowright) ix += 1;
+    let arriving = false;
+    if (!ix && !iy && this.path.length) {
+      const [wx, wy] = this.path[0];
+      const dx = wx - this.player.px, dy = wy - this.player.py, d = Math.hypot(dx, dy);
+      if (d < 0.32) this.path.shift();
+      else { ix = dx; iy = dy; if (this.path.length === 1 && d < 1.3) arriving = true; }
+    }
+    return { ix, iy, arriving };
   }
   // BFS bounded to a window around the player (the world is infinite).
   _pathTo(tx, ty, adjacentOk) {
@@ -260,17 +388,24 @@ export class World {
   }
   _loop() {
     this._raf = requestAnimationFrame(() => this._loop());
-    this._stepCooldown -= 16;
-    if (this.path.length && this._stepCooldown <= 0) {
-      const [nx, ny] = this.path.shift();
-      const dx = Math.sign(nx - this.player.x), dy = Math.sign(ny - this.player.y);
-      if (!this._tryStep(dx, dy)) this.path = [];
-      this._stepCooldown = 90;
+    const now = performance.now();
+    const dt = Math.min(2.2, Math.max(0.4, (now - this._last) / 16)); this._last = now;
+    // continuous physics, gravity-aware
+    const P = this.player;
+    const reg = this.field.regime(P.x, P.y);
+    const next = stepMotion(P, this._inputVector(), reg, (x, y) => this.field.isFloor(x, y), dt);
+    P.px = next.px; P.py = next.py; P.vx = next.vx; P.vy = next.vy;
+    // map the continuous position back to the forum tile; fire handlers on change
+    const tx = Math.round(P.px), ty = Math.round(P.py);
+    if (tx !== P.x || ty !== P.y) {
+      P.x = tx; P.y = ty;
+      if (this.h.onMove) this.h.onMove(tx, ty);
+      const pl = this.placeKey(tx, ty);
+      if (pl) this._announce(pl);
+      else if (this.h.onStatus) this.h.onStatus(`(${tx}, ${ty}) · ${this.field.regime(tx, ty)} gravity — N to drop a node`);
     }
-    this.player.px += (this.player.x - this.player.px) * 0.25;
-    this.player.py += (this.player.y - this.player.py) * 0.25;
     for (const p of this.peers.values()) { p.px += (p.x - p.px) * 0.22; p.py += (p.y - p.py) * 0.22; }
-    this._draw(performance.now());
+    this._draw(now);
   }
 
   // Splat every visible emitter into an additive RGB light buffer covering the
@@ -299,8 +434,9 @@ export class World {
     }
     return buf;
   }
-  _lightAt(buf, x0, y0, W, wx, wy) {
-    const bi = ((wy - y0) * W + (wx - x0)) * 3;
+  _lightAt(buf, x0, y0, x1, y1, W, wx, wy) {
+    const cx = Math.min(x1 - 1, Math.max(x0, wx)), cy = Math.min(y1 - 1, Math.max(y0, wy));
+    const bi = ((cy - y0) * W + (cx - x0)) * 3;
     return [buf[bi], buf[bi + 1], buf[bi + 2]];
   }
 
@@ -313,75 +449,68 @@ export class World {
     const x1 = Math.ceil((this._vw - ox) / t) + 1, y1 = Math.ceil((this._vh - oy) / t) + 1;
     const W = x1 - x0;
     const buf = this._buildLight(x0, y0, x1, y1, now);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `${Math.floor(t * 0.74)}px "JetBrains Mono", ui-monospace, monospace`;
+    const SX = (wx) => ox + wx * t, SY = (wy) => oy + wy * t;
+    const cx0 = Math.floor(x0 / C), cy0 = Math.floor(y0 / C), cx1 = Math.floor((x1 - 1) / C), cy1 = Math.floor((y1 - 1) / C);
 
-    // ── deck: voronoi plating, gravity-tinted, lit ──
-    const F = (x, y) => this.field.isFloor(x, y);
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      if (!F(x, y)) continue;
-      const a = this.field.albedoAt(x, y);
-      const g = GRAV_HUE[this.field.regime(x, y)] || GRAV_HUE.normal;
-      const lit = this._lightAt(buf, x0, y0, W, x, y);
-      const amb = 0.22;
-      const r = Math.min(255, a[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205);
-      const gg = Math.min(255, a[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205);
-      const b = Math.min(255, a[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205);
-      ctx.fillStyle = `rgb(${r | 0},${gg | 0},${b | 0})`;
-      ctx.fillRect(ox + x * t, oy + y * t, t + 1, t + 1);
+    // ── deck: adaptive voronoi plates, gravity-tinted, lit (light per cell = probe) ──
+    for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
+      const m = this.field.mesh(cx, cy);
+      if (!m.ok || !m.cells.length) { this._flatFill(ctx, cx, cy, x0, y0, x1, y1, W, buf, ox, oy, t); continue; }
+      for (const cell of m.cells) {
+        const A = cell.A;
+        if (A.x < x0 - CLIP_R || A.x > x1 + CLIP_R || A.y < y0 - CLIP_R || A.y > y1 + CLIP_R) continue;
+        const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.round(A.x), Math.round(A.y));
+        const g = GRAV_HUE[cell.regime] || GRAV_HUE.normal, amb = 0.22, a = cell.albedo;
+        ctx.fillStyle = `rgb(${Math.min(255, a[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205) | 0},${Math.min(255, a[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205) | 0},${Math.min(255, a[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205) | 0})`;
+        ctx.beginPath(); ctx.moveTo(SX(cell.poly[0][0]), SY(cell.poly[0][1]));
+        for (let i = 1; i < cell.poly.length; i++) ctx.lineTo(SX(cell.poly[i][0]), SY(cell.poly[i][1]));
+        ctx.closePath(); ctx.fill();
+      }
     }
-    // ── seams: hull (floor|void, all 4 edges) + panel (cell boundary, R/B only) ──
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      if (!F(x, y)) continue;
-      const owner = this.field.ownerAt(x, y);
-      const lit = this._lightAt(buf, x0, y0, W, x, y);
-      const lL = Math.min(1, (lit[0] + lit[1] + lit[2]) / 1.4);
-      const ex = ox + x * t, ey = oy + y * t;
-      const seam = (ax, ay, bx, by, hull) => {
-        const w = hull ? Math.max(1.3, t * 0.085) : Math.max(0.5, t * 0.04);
-        const c = hull
-          ? `rgba(${18 + (lL * 90) | 0},${24 + (lL * 90) | 0},${28 + (lL * 80) | 0},0.92)`
-          : `rgba(${70 + (lL * 80) | 0},${82 + (lL * 80) | 0},${86 + (lL * 70) | 0},0.45)`;
-        inkLine(ctx, ax, ay, bx, by, (x * 73856093 ^ y * 19349663 ^ (hull ? 1 : 2)) >>> 0, w, c);
-      };
-      if (!F(x - 1, y)) seam(ex, ey, ex, ey + t, true);
-      if (!F(x + 1, y)) seam(ex + t, ey, ex + t, ey + t, true);
-      if (!F(x, y - 1)) seam(ex, ey, ex + t, ey, true);
-      if (!F(x, y + 1)) seam(ex, ey + t, ex + t, ey + t, true);
-      if (F(x + 1, y) && this.field.ownerAt(x + 1, y) !== owner) seam(ex + t, ey, ex + t, ey + t, false);
-      if (F(x, y + 1) && this.field.ownerAt(x, y + 1) !== owner) seam(ex, ey + t, ex + t, ey + t, false);
-    }
-    // ── fixtures: garden milfoil (reuses the /yarrow drawStalk) ──
-    {
-      const fc0 = Math.floor(x0 / C), fr0 = Math.floor(y0 / C), fc1 = Math.floor((x1 - 1) / C), fr1 = Math.floor((y1 - 1) / C);
-      for (let cy = fr0; cy <= fr1; cy++) for (let cx = fc0; cx <= fc1; cx++) {
-        for (const f of this.field.art(cx, cy).fixtures) {
-          if (f.kind !== 'stalk' || f.wx < x0 - 1 || f.wx >= x1 + 1 || f.wy < y0 - 1 || f.wy >= y1 + 1) continue;
-          const lit = this._lightAt(buf, x0, y0, W, Math.floor(f.wx), Math.floor(f.wy));
-          const lL = Math.min(1.15, 0.28 + (lit[0] + lit[1] + lit[2]) / 1.2);
-          const m = f.model;
-          drawStalk(ctx, {
-            lenPx: m.lenTiles * t, diaPx: m.diaFrac * t,
-            col: { h: m.col.h, s: m.col.s, l: m.col.l * lL },
-            warp: m.warp, warpDir: m.warpDir, nodes: m.nodes, check: 0, grainSeed: m.grainSeed, taper: m.taper,
-          }, { x: ox + f.wx * t, y: oy + f.wy * t, ang: f.ang, detail: Math.min(1, t / 26), fuzz: false, ends: false });
+    // ── seams: hull (plate│void, heavy ink) + panel (plate│plate, faint) ──
+    for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
+      const m = this.field.mesh(cx, cy); if (!m.ok) continue;
+      for (const cell of m.cells) {
+        const A = cell.A;
+        if (A.x < x0 - CLIP_R || A.x > x1 + CLIP_R || A.y < y0 - CLIP_R || A.y > y1 + CLIP_R) continue;
+        const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.round(A.x), Math.round(A.y));
+        const lL = Math.min(1, (lit[0] + lit[1] + lit[2]) / 1.4);
+        for (const e of cell.edges) {
+          const w = e.hull ? Math.max(1.3, t * 0.085) : Math.max(0.5, t * 0.04);
+          const col = e.hull
+            ? `rgba(${18 + (lL * 90) | 0},${24 + (lL * 90) | 0},${28 + (lL * 80) | 0},0.92)`
+            : `rgba(${70 + (lL * 80) | 0},${82 + (lL * 80) | 0},${86 + (lL * 70) | 0},0.4)`;
+          inkLine(ctx, SX(e.a[0]), SY(e.a[1]), SX(e.b[0]), SY(e.b[1]),
+            (Math.round(e.a[0] * 91 + e.b[0] * 13) ^ Math.round(e.a[1] * 71 + e.b[1] * 7)) >>> 0, w, col);
         }
       }
     }
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // ── fixtures: garden milfoil (reuses the /yarrow drawStalk) ──
+    for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
+      for (const f of this.field.mesh(cx, cy).fixtures) {
+        if (f.kind !== 'stalk' || f.wx < x0 - 1 || f.wx >= x1 + 1 || f.wy < y0 - 1 || f.wy >= y1 + 1) continue;
+        const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.floor(f.wx), Math.floor(f.wy));
+        const lL = Math.min(1.15, 0.28 + (lit[0] + lit[1] + lit[2]) / 1.2), m = f.model;
+        drawStalk(ctx, {
+          lenPx: m.lenTiles * t, diaPx: m.diaFrac * t,
+          col: { h: m.col.h, s: m.col.s, l: m.col.l * lL },
+          warp: m.warp, warpDir: m.warpDir, nodes: m.nodes, check: 0, grainSeed: m.grainSeed, taper: m.taper,
+        }, { x: SX(f.wx), y: SY(f.wy), ang: f.ang, detail: Math.min(1, t / 26), fuzz: false, ends: false });
+      }
+    }
 
     // ambient room-type glyphs at each visible room centre (faint, generated)
-    const cx0 = Math.floor(x0 / C), cy0 = Math.floor(y0 / C), cx1 = Math.floor((x1 - 1) / C), cy1 = Math.floor((y1 - 1) / C);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `${Math.floor(t * 0.6)}px "JetBrains Mono", ui-monospace, monospace`;
     for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
       const ch = this.field.chunk(cx, cy), bx = cx * C, by = cy * C;
       for (const room of ch.rooms) {
         const wx = bx + room.cx, wy = by + room.cy;
         if (wx < x0 || wx >= x1 || wy < y0 || wy >= y1) continue;
-        const lit = this._lightAt(buf, x0, y0, W, wx, wy);
+        const lit = this._lightAt(buf, x0, y0, x1, y1, W, wx, wy);
         const a = Math.min(0.5, 0.12 + (lit[0] + lit[1] + lit[2]) / 4);
         ctx.fillStyle = room.accent + Math.round(a * 255).toString(16).padStart(2, '0');
-        ctx.fillText(room.glyph, ox + wx * t + t / 2, oy + wy * t + t / 2);
+        ctx.fillText(room.glyph, SX(wx) + t / 2, SY(wy) + t / 2);
       }
     }
 
@@ -389,8 +518,8 @@ export class World {
     ctx.font = `${Math.floor(t * 0.82)}px "JetBrains Mono", ui-monospace, monospace`;
     for (const p of this.places) {
       if (p.x < x0 || p.x >= x1 || p.y < y0 || p.y >= y1) continue;
-      const sx = ox + p.x * t + t / 2, sy = oy + p.y * t + t / 2;
-      const dist = Math.hypot(p.x - this.player.x, p.y - this.player.y);
+      const sx = SX(p.x) + t / 2, sy = SY(p.y) + t / 2;
+      const dist = Math.hypot(p.x - this.player.px, p.y - this.player.py);
       const sel = p.id === this.selectedId;
       if (sel) {
         ctx.strokeStyle = `rgba(244,191,98,${0.5 + 0.4 * pulse})`; ctx.lineWidth = 2;
@@ -410,13 +539,13 @@ export class World {
     }
 
     if (this._hover && this.isFloor(this._hover.x, this._hover.y)) {
-      const sx = ox + this._hover.x * t, sy = oy + this._hover.y * t;
+      const sx = SX(this._hover.x), sy = SY(this._hover.y);
       ctx.strokeStyle = 'rgba(120,200,160,0.35)'; ctx.lineWidth = 1;
       ctx.strokeRect(sx + 1, sy + 1, t - 2, t - 2);
     }
 
     for (const p of this.peers.values()) {
-      const sx = ox + p.px * t + t / 2, sy = oy + p.py * t + t / 2;
+      const sx = SX(p.px) + t / 2, sy = SY(p.py) + t / 2;
       ctx.save();
       ctx.shadowColor = `hsl(${p.hue} 80% 60%)`; ctx.shadowBlur = 10;
       ctx.fillStyle = `hsl(${p.hue} 85% 66%)`;
@@ -428,7 +557,7 @@ export class World {
       ctx.font = `${Math.floor(t * 0.82)}px "JetBrains Mono", ui-monospace, monospace`;
     }
 
-    const px = ox + this.player.px * t + t / 2, py = oy + this.player.py * t + t / 2;
+    const px = SX(this.player.px) + t / 2, py = SY(this.player.py) + t / 2;
     ctx.save();
     ctx.shadowColor = 'rgba(255,206,120,0.9)'; ctx.shadowBlur = 12 + 8 * pulse;
     ctx.fillStyle = '#ffce78';
@@ -439,9 +568,17 @@ export class World {
     for (let y = 0; y < this._vh; y += 3) ctx.fillRect(0, y, this._vw, 1);
   }
 
-  _bordersFloor(x, y) {
-    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++)
-      if (this.field.isFloor(x + dx, y + dy)) return true;
-    return false;
+  // Fallback deck for a chunk whose mesh failed to build: flat-lit floor tiles, so
+  // the world is never a black hole even if the voronoi pass throws.
+  _flatFill(ctx, cx, cy, x0, y0, x1, y1, W, buf, ox, oy, t) {
+    const bx = cx * C, by = cy * C;
+    for (let ly = 0; ly < C; ly++) for (let lx = 0; lx < C; lx++) {
+      const wx = bx + lx, wy = by + ly;
+      if (wx < x0 || wx >= x1 || wy < y0 || wy >= y1 || !this.field.isFloor(wx, wy)) continue;
+      const g = GRAV_HUE[this.field.regime(wx, wy)] || GRAV_HUE.normal;
+      const lit = this._lightAt(buf, x0, y0, x1, y1, W, wx, wy);
+      ctx.fillStyle = `rgb(${Math.min(255, 70 + g[0] * 0.16 + lit[0] * 205) | 0},${Math.min(255, 78 + g[1] * 0.16 + lit[1] * 205) | 0},${Math.min(255, 84 + g[2] * 0.16 + lit[2] * 205) | 0})`;
+      ctx.fillRect(ox + wx * t, oy + wy * t, t + 1, t + 1);
+    }
   }
 }
