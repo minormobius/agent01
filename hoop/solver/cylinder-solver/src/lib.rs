@@ -436,6 +436,253 @@ pub mod cylinder {
     }
 }
 
+// ───────────────────────────── 2D frame (bending) ──────────────────────────────
+pub mod frame {
+    use super::la;
+
+    /// A node in the plane with 3 DOF: translation (ux, uy) and in-plane rotation θ.
+    /// `fix[k]` pins DOF k; `load` is [Fx, Fy, M].
+    #[derive(Clone, Debug)]
+    pub struct Node {
+        pub pos: [f64; 2],
+        pub fix: [bool; 3],
+        pub load: [f64; 3],
+    }
+
+    /// An Euler-Bernoulli frame member: axial (EA) **and** bending (EI), so unlike the
+    /// pin-jointed `net`, a wall here resists shear by bending — which is exactly what
+    /// gives honeycomb/closed-cell foam its in-plane stiffness. `c` is the extreme-fibre
+    /// distance (half the wall depth) for the stress recovery σ = |N|/A + |M|·c/I.
+    #[derive(Clone, Debug)]
+    pub struct Member {
+        pub i: usize,
+        pub j: usize,
+        pub e: f64,
+        pub area: f64,
+        pub inertia: f64,
+        pub c: f64,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct MemberRes {
+        pub axial: f64,  // +tension
+        pub moment: f64, // max |end moment|
+        pub stress: f64, // max fibre stress
+        pub length: f64,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Solution {
+        pub disp: Vec<[f64; 3]>,
+        pub members: Vec<MemberRes>,
+        pub mechanism: bool,
+        pub compliance: f64, // external work fᵀu — a scalar stiffness (lower = stiffer)
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Model {
+        pub nodes: Vec<Node>,
+        pub members: Vec<Member>,
+    }
+
+    fn matmul6(a: &[f64; 36], b: &[f64; 36]) -> [f64; 36] {
+        let mut o = [0.0; 36];
+        for r in 0..6 {
+            for col in 0..6 {
+                let mut s = 0.0;
+                for k in 0..6 {
+                    s += a[r * 6 + k] * b[k * 6 + col];
+                }
+                o[r * 6 + col] = s;
+            }
+        }
+        o
+    }
+    fn transpose6(a: &[f64; 36]) -> [f64; 36] {
+        let mut o = [0.0; 36];
+        for r in 0..6 {
+            for col in 0..6 {
+                o[col * 6 + r] = a[r * 6 + col];
+            }
+        }
+        o
+    }
+
+    impl Model {
+        pub fn solve(&self) -> Solution {
+            let n = self.nodes.len();
+            let ndof = 3 * n;
+            let mut kg = vec![0.0; ndof * ndof];
+            let mut lengths = vec![0.0; self.members.len()];
+            // per-member local stiffness + transform, then assemble
+            let mut locals: Vec<([f64; 36], [f64; 36])> = Vec::with_capacity(self.members.len());
+            for (m, mem) in self.members.iter().enumerate() {
+                let a = self.nodes[mem.i].pos;
+                let b = self.nodes[mem.j].pos;
+                let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+                let l = (dx * dx + dy * dy).sqrt();
+                lengths[m] = l;
+                let (c, s) = (dx / l, dy / l);
+                let ea = mem.e * mem.area;
+                let ei = mem.e * mem.inertia;
+                let (l2, l3) = (l * l, l * l * l);
+                let (a0, b1, b2, b3, b4) =
+                    (ea / l, 12.0 * ei / l3, 6.0 * ei / l2, 4.0 * ei / l, 2.0 * ei / l);
+                // local stiffness, DOF order [u1x', u1y', θ1, u2x', u2y', θ2]
+                let kl: [f64; 36] = [
+                    a0, 0.0, 0.0, -a0, 0.0, 0.0,
+                    0.0, b1, b2, 0.0, -b1, b2,
+                    0.0, b2, b3, 0.0, -b2, b4,
+                    -a0, 0.0, 0.0, a0, 0.0, 0.0,
+                    0.0, -b1, -b2, 0.0, b1, -b2,
+                    0.0, b2, b4, 0.0, -b2, b3,
+                ];
+                // transform global→local: per-node [[c,s,0],[-s,c,0],[0,0,1]]
+                let t: [f64; 36] = [
+                    c, s, 0.0, 0.0, 0.0, 0.0,
+                    -s, c, 0.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                    0.0, 0.0, 0.0, c, s, 0.0,
+                    0.0, 0.0, 0.0, -s, c, 0.0,
+                    0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                ];
+                let kgt = matmul6(&transpose6(&t), &matmul6(&kl, &t)); // TᵀkT
+                let dofs = [3 * mem.i, 3 * mem.i + 1, 3 * mem.i + 2, 3 * mem.j, 3 * mem.j + 1, 3 * mem.j + 2];
+                for p in 0..6 {
+                    for q in 0..6 {
+                        kg[dofs[p] * ndof + dofs[q]] += kgt[p * 6 + q];
+                    }
+                }
+                locals.push((kl, t));
+            }
+            // BC + loads → reduce to free DOFs
+            let mut isfix = vec![false; ndof];
+            let mut f = vec![0.0; ndof];
+            for (ni, nd) in self.nodes.iter().enumerate() {
+                for a in 0..3 {
+                    f[3 * ni + a] = nd.load[a];
+                    if nd.fix[a] {
+                        isfix[3 * ni + a] = true;
+                    }
+                }
+            }
+            let free: Vec<usize> = (0..ndof).filter(|d| !isfix[*d]).collect();
+            let nf = free.len();
+            let mut kr = vec![0.0; nf * nf];
+            let mut fr = vec![0.0; nf];
+            for (a, &da) in free.iter().enumerate() {
+                fr[a] = f[da];
+                for (b, &db) in free.iter().enumerate() {
+                    kr[a * nf + b] = kg[da * ndof + db];
+                }
+            }
+            let mut disp = vec![[0.0; 3]; n];
+            let mut compliance = 0.0;
+            let mechanism = match la::solve(kr, fr.clone(), nf) {
+                None => true,
+                Some(u) => {
+                    for (a, &da) in free.iter().enumerate() {
+                        disp[da / 3][da % 3] = u[a];
+                        compliance += fr[a] * u[a];
+                    }
+                    false
+                }
+            };
+            // recover member end forces in local coords: f_local = kl · (T · u_elem)
+            let members = self
+                .members
+                .iter()
+                .enumerate()
+                .map(|(m, mem)| {
+                    if mechanism {
+                        return MemberRes { axial: 0.0, moment: 0.0, stress: 0.0, length: lengths[m] };
+                    }
+                    let (kl, t) = &locals[m];
+                    let ue = [
+                        disp[mem.i][0], disp[mem.i][1], disp[mem.i][2],
+                        disp[mem.j][0], disp[mem.j][1], disp[mem.j][2],
+                    ];
+                    let mut ul = [0.0; 6];
+                    let mut fl = [0.0; 6];
+                    for r in 0..6 {
+                        for k in 0..6 {
+                            ul[r] += t[r * 6 + k] * ue[k];
+                        }
+                    }
+                    for r in 0..6 {
+                        for k in 0..6 {
+                            fl[r] += kl[r * 6 + k] * ul[k];
+                        }
+                    }
+                    let axial = fl[3]; // +tension at node j
+                    let moment = fl[2].abs().max(fl[5].abs());
+                    let stress = axial.abs() / mem.area + moment * mem.c / mem.inertia;
+                    MemberRes { axial, moment, stress, length: lengths[m] }
+                })
+                .collect();
+            Solution { disp, members, mechanism, compliance }
+        }
+    }
+}
+
+// ───────────────────────────── lattice generators / scoring ─────────────────────
+pub mod foam {
+    use super::frame::{Member, Model, Node};
+
+    /// An nx×ny grid of square cells as frame walls (thickness `t`), bottom row pinned,
+    /// every top node pushed sideways by `shear` (an in-plane racking load). With
+    /// `braced`, each cell gets one diagonal — turning a bending-dominated grid into a
+    /// stretch-dominated truss. This is the square-vs-triangulated experiment.
+    pub fn grid(nx: usize, ny: usize, cell: f64, t: f64, e: f64, braced: bool, shear: f64) -> Model {
+        let idx = |ix: usize, iy: usize| iy * (nx + 1) + ix;
+        let mut nodes = Vec::new();
+        for iy in 0..=ny {
+            for ix in 0..=nx {
+                let fixed = iy == 0;
+                let load = if iy == ny { [shear, 0.0, 0.0] } else { [0.0, 0.0, 0.0] };
+                nodes.push(Node { pos: [ix as f64 * cell, iy as f64 * cell], fix: [fixed, fixed, fixed], load });
+            }
+        }
+        let mk = |i: usize, j: usize| Member { i, j, e, area: t, inertia: t * t * t / 12.0, c: t / 2.0 };
+        let mut members = Vec::new();
+        for iy in 0..=ny {
+            for ix in 0..=nx {
+                if ix < nx {
+                    members.push(mk(idx(ix, iy), idx(ix + 1, iy)));
+                }
+                if iy < ny {
+                    members.push(mk(idx(ix, iy), idx(ix, iy + 1)));
+                }
+                if braced && ix < nx && iy < ny {
+                    members.push(mk(idx(ix, iy), idx(ix + 1, iy + 1)));
+                }
+            }
+        }
+        Model { nodes, members }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct Score {
+        pub compliance: f64,
+        pub max_stress: f64,
+        pub mass: f64,
+        pub mechanism: bool,
+    }
+
+    /// Solve a lattice and report stiffness (compliance), peak fibre stress, and wall
+    /// mass — the ingredients of strength-to-weight.
+    pub fn score(m: &Model, density: f64) -> Score {
+        let s = m.solve();
+        let mut mass = 0.0;
+        let mut max_stress = 0.0_f64;
+        for (mi, mem) in m.members.iter().enumerate() {
+            mass += density * mem.area * s.members[mi].length;
+            max_stress = max_stress.max(s.members[mi].stress);
+        }
+        Score { compliance: s.compliance, max_stress, mass, mechanism: s.mechanism }
+    }
+}
+
 // ─────────────────────────────────── tests ──────────────────────────────────────
 #[cfg(test)]
 mod tests {
@@ -572,5 +819,49 @@ mod tests {
             .filter(|(idx, _)| idx % 2 == 1) // chords are the odd members
             .any(|(_, mr)| mr.force > 1.0);
         assert!(chord_tension, "at least one chord should carry tension");
+    }
+
+    #[test]
+    fn frame_cantilever_matches_pl3_over_3ei() {
+        // horizontal cantilever, tip transverse load P → tip deflection PL³/3EI.
+        let (l, e, inertia, area, p) = (2.0, 2.0e11, 8.0e-6, 0.01, 1000.0);
+        let m = frame::Model {
+            nodes: vec![
+                frame::Node { pos: [0.0, 0.0], fix: [true, true, true], load: [0.0, 0.0, 0.0] },
+                frame::Node { pos: [l, 0.0], fix: [false, false, false], load: [0.0, -p, 0.0] },
+            ],
+            members: vec![frame::Member { i: 0, j: 1, e, area, inertia, c: 0.05 }],
+        };
+        let s = m.solve();
+        assert!(!s.mechanism);
+        let expect = -p * l * l * l / (3.0 * e * inertia);
+        assert!(approx(s.disp[1][1], expect, 1e-4), "tip {} expect {}", s.disp[1][1], expect);
+    }
+
+    #[test]
+    fn frame_axial_matches_pl_over_ea() {
+        // same member, axial load → PL/EA, bending decoupled.
+        let (l, e, inertia, area, p) = (2.0, 2.0e11, 8.0e-6, 0.01, 1000.0);
+        let m = frame::Model {
+            nodes: vec![
+                frame::Node { pos: [0.0, 0.0], fix: [true, true, true], load: [0.0, 0.0, 0.0] },
+                frame::Node { pos: [l, 0.0], fix: [false, false, false], load: [p, 0.0, 0.0] },
+            ],
+            members: vec![frame::Member { i: 0, j: 1, e, area, inertia, c: 0.05 }],
+        };
+        let s = m.solve();
+        assert!(approx(s.disp[1][0], p * l / (e * area), 1e-6));
+        assert!(approx(s.members[0].axial, p, 1e-4), "axial {}", s.members[0].axial);
+    }
+
+    #[test]
+    fn bracing_stiffens_a_racking_grid() {
+        // The crux of "is a square grid optimal?": under shear, a bending-dominated
+        // square grid racks; one diagonal per cell (stretch-dominated) is far stiffer.
+        let un = foam::score(&foam::grid(4, 4, 1.0, 0.05, 2.0e11, false, 1.0e3), 7850.0);
+        let br = foam::score(&foam::grid(4, 4, 1.0, 0.05, 2.0e11, true, 1.0e3), 7850.0);
+        assert!(!un.mechanism && !br.mechanism, "frames have bending stiffness, so neither is a mechanism");
+        // triangulation buys an order of magnitude in shear stiffness
+        assert!(br.compliance < 0.1 * un.compliance, "braced {} vs unbraced {}", br.compliance, un.compliance);
     }
 }

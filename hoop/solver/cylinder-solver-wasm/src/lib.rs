@@ -10,7 +10,7 @@
 //! All fields camelCase. The tool loads this as an OPTIONAL accelerator with a JS
 //! fallback, exactly like mappa/pkg — the page works whether or not the wasm is present.
 
-use cylinder_solver::{analytic, net};
+use cylinder_solver::{analytic, frame, net};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -192,6 +192,88 @@ pub fn solve_net_json(req: &str) -> String {
             .collect(),
         iters: s.iters,
         mechanism: s.mechanism,
+    })
+    .unwrap_or_else(|e| format!("{{\"error\":\"{}\"}}", e))
+}
+
+// ───────────────────────────── 2D frame (bending) ───────────────────────────────
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FrameNodeDto {
+    pos: [f64; 2],
+    #[serde(default)]
+    fix: [bool; 3],
+    #[serde(default)]
+    load: [f64; 3],
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FrameMemberDto {
+    i: usize,
+    j: usize,
+    e: f64,
+    area: f64,
+    inertia: f64,
+    c: f64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FrameDto {
+    nodes: Vec<FrameNodeDto>,
+    members: Vec<FrameMemberDto>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FrameMemberOut {
+    axial: f64,
+    moment: f64,
+    stress: f64,
+    length: f64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FrameOut {
+    disp: Vec<[f64; 3]>,
+    members: Vec<FrameMemberOut>,
+    mechanism: bool,
+    compliance: f64,
+}
+
+/// Solve a 2D frame (axial + bending). This is what scores closed-cell foam /
+/// honeycomb honestly — walls carry load by bending, which the pin-jointed `net`
+/// can't represent.
+#[wasm_bindgen]
+pub fn solve_frame_json(req: &str) -> String {
+    let d: FrameDto = match serde_json::from_str(req) {
+        Ok(d) => d,
+        Err(e) => return format!("{{\"error\":\"{}\"}}", e),
+    };
+    let model = frame::Model {
+        nodes: d
+            .nodes
+            .into_iter()
+            .map(|n| frame::Node { pos: n.pos, fix: n.fix, load: n.load })
+            .collect(),
+        members: d
+            .members
+            .into_iter()
+            .map(|m| frame::Member { i: m.i, j: m.j, e: m.e, area: m.area, inertia: m.inertia, c: m.c })
+            .collect(),
+    };
+    let s = model.solve();
+    serde_json::to_string(&FrameOut {
+        disp: s.disp,
+        members: s
+            .members
+            .into_iter()
+            .map(|m| FrameMemberOut { axial: m.axial, moment: m.moment, stress: m.stress, length: m.length })
+            .collect(),
+        mechanism: s.mechanism,
+        compliance: s.compliance,
     })
     .unwrap_or_else(|e| format!("{{\"error\":\"{}\"}}", e))
 }
