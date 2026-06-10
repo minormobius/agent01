@@ -1,0 +1,75 @@
+name: Build biome stability solver (wasm)
+
+# Compiles biome/cycles/solver (the community-matrix stability kernel) to WASM with
+# wasm-pack and commits the result to biome/cycles/solver/pkg/. The stability lab loads
+# pkg/ as an OPTIONAL accelerator with a guaranteed JS fallback (cycles/sim/stability.mjs),
+# so the page works whether or not this has run. Committing solver/pkg/** wakes
+# deploy-biome (paths: biome/**), which serves it. Triggers only on solver changes, so
+# there's no build loop.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/oneill-cylinder-life-support-wqzrqn'
+    paths:
+      - 'biome/cycles/solver/src/**'
+      - 'biome/cycles/solver/Cargo.toml'
+      - '.github/workflows/build-biome-solver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            biome/cycles/solver/target
+          key: cargo-biome-solver-${{ runner.os }}-${{ hashFiles('biome/cycles/solver/Cargo.toml', 'biome/cycles/solver/src/**') }}
+          restore-keys: cargo-biome-solver-${{ runner.os }}-
+
+      - name: Native unit tests (validate the linear algebra)
+        working-directory: biome/cycles/solver
+        run: cargo test --release
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build Rust/WASM kernel
+        working-directory: biome/cycles/solver
+        run: wasm-pack build --release --target web --out-dir pkg --out-name biome_stability
+
+      - name: Commit pkg/
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f biome/cycles/solver/pkg/.gitignore biome/cycles/solver/pkg/package.json biome/cycles/solver/pkg/README.md
+          git add -f biome/cycles/solver/pkg
+          git commit -m "build: biome stability solver wasm kernel" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so kick deploy-biome
+      # explicitly to publish the freshly-built pkg/.
+      - name: Deploy the new kernel (dispatch deploy-biome)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-biome.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

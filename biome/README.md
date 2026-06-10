@@ -142,8 +142,11 @@ mineral → biomass → litter → mineralise → denitrify).
 node biome/cycles/test/cycles.selftest.mjs      # 17 checks: conservation, bounds, food-web behaviour, extensibility, determinism
 node biome/cycles/test/allometry.selftest.mjs   # 13 checks: Kleiber scaling, calibration, individuals↔biomass
 node biome/cycles/test/roster.selftest.mjs      # 13 checks: real-organism roster compiles, closes, conserves; provenance
+node biome/cycles/test/linalg.selftest.mjs      # 15 checks: inverse + symmetric/general eigenvalues vs known spectra
+node biome/cycles/test/stability.selftest.mjs   # 11 checks: stability verdict + eigenvalue/decay cross-check
 node biome/cycles/sim/enrich-roster.mjs         # (network) refresh iNat imagery + GloBI diet → roster.enriched.json
-open  biome/index.html                          # landing page → Module 1 dashboard at cycles/
+( cd biome/cycles/solver && cargo test )        # 6 checks: the Rust stability kernel vs known spectra
+open  biome/index.html                          # landing → Module 1 dashboard (cycles/) → Stability lab (cycles/stability.html)
 ```
 
 ### Knobs (all in `defaultParams()`)
@@ -223,10 +226,44 @@ The one honest stand-in: the decomposer. Real decomposition is microbial (bacter
 have no body mass to scale), so the roster represents that compartment with a springtail
 whose fast per-gram rates approximate it — flagged `microbialProxy` on the entry.
 
+### The stability solver (`cycles/sim/stability.mjs` + `cycles/solver/`, lab at `cycles/stability.html`)
+
+A 600-day run tells you *what happens*; the solver tells you the *fate* of the steady state
+directly, from its linearization — the query an ecosystem-builder needs at interactive speed.
+At equilibrium it builds the **community matrix** J (∂each species' growth / ∂every species'
+biomass, by finite-differencing the *real* nonlinear model — Monod foraging, density
+dependence, pollination gating — with the fast abiotic pools slaved but **litter kept in the
+subsystem**, since litter is the decomposer's resource). Then it reads three classic results
+off J:
+
+- **Asymptotic stability** (May 1972): stable iff every eigenvalue has negative real part.
+  The spectral abscissa α = max Re(λ) is the verdict; −1/α is the **return time**; a complex
+  rightmost pair means the return *oscillates* (predator–prey ringing) with period 2π/|Im λ|.
+- **Reactivity** (Neubert & Caswell 1997): λmax of the symmetric part (J+Jᵀ)/2 — whether a
+  stable web still *amplifies* a shock before settling.
+- **Press perturbations** (Bender 1984): a sustained nudge to species j shifts the whole
+  equilibrium by the j-th column of −J⁻¹; column magnitude ranks **keystones**.
+
+**The validation that matters:** the self-test perturbs the real model at equilibrium,
+integrates, and confirms the measured time-domain decay rate matches the eigenvalue-predicted
+α — the linear verdict is checked against the nonlinear truth it summarises. And removing the
+density-dependent self-limitation pushes α from −0.023/day to exactly **0.0** — the Hopf
+stability boundary, precisely where theory puts it. The **Stability lab** page renders the
+eigenvalue spectrum on the complex plane, the community-matrix heatmap, and the keystone
+ranking, with knobs that move the eigenvalues live (drop self-limitation to 0 and watch the
+rightmost eigenvalue cross into the unstable half-plane).
+
+Two implementations, same math: the JS kernel (`linalg.mjs`: Gauss–Jordan inverse, Jacobi
+symmetric eigenvalues, Hessenberg-QR general eigenvalues) is the guaranteed path and runs
+in the browser; the Rust crate (`cycles/solver/`, nalgebra, native-tested, WASM-built by
+`build-biome-solver.yml`) is the precision/scale sister, following the repo's beam-solver /
+flight-solver pattern. For our 6–16 dim matrices the JS path is already instant, so the lab
+ships JS-first and treats the WASM as an optional accelerator.
+
 ### Where this is going (the ecosystem-builder direction)
 
-The data-driven engine + allometry layer are the foundation for a real ecosystem-builder.
-The roadmap:
+The data-driven engine + allometry + roster + stability solver are the foundation for a real
+ecosystem-builder. The roadmap:
 
 1. ✅ **Allometry layer** — derive each species' rates from body mass (Kleiber) + feeding
    guild + thermy, so real organisms drop in with computed stat blocks. *Done.*
@@ -239,12 +276,10 @@ The roadmap:
    cross-check). The self-test confirms the GloBI record corroborates the curated edges (the
    orbweaver's observed prey include Hymenoptera, the honey bee's order) and that the
    all-real community closes the loop and conserves C/H/O/N exactly. *Done.*
-3. **Rust equilibrium/stability solver** — the analytic brain (same split as
-   `hoop/solver`): solve the fixed point directly (generalized Lotka–Volterra
-   `B* = −A⁻¹r`), then read stability off the Jacobian's eigenvalues (May's
-   complexity–stability) and press-perturbations off the inverse community matrix. Answers
-   *"will this web survive?"* without a full time-domain run — the query a builder game
-   needs. The JS simulation here stays the live cross-check.
+3. ✅ **Stability solver** — the analytic brain. Reads stability off the community matrix's
+   eigenvalues (May), reactivity off its symmetric part (Neubert), keystones off its inverse
+   (Bender). Answers *"will this web survive?"* without a full time-domain run, validated
+   against it. JS kernel + Rust/WASM sister; visible at `cycles/stability.html`. *Done.*
 4. **Radius-niche coupling to Module 2** — give each organism a preferred radius (canopy /
    floor / swamp); radius is altitude is temperature/humidity/CO₂, so the food web couples
    to the atmosphere column and the two modules become one cylinder model.
@@ -277,16 +312,24 @@ biome/
 ├── README.md                     # this file
 └── cycles/                       # MODULE 1 — resource-cycle box model
     ├── index.html                # the dashboard (vanilla, no build step)
+    ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones
     ├── sim/
     │   ├── cycles.mjs            # the data-driven box model (pure, zero-dep, node + browser)
     │   ├── allometry.mjs         # body mass → stat block (Kleiber scaling + guilds)
     │   ├── roster.mjs            # curated real-organism roster + buildCommunity() compiler
     │   ├── enrich-roster.mjs     # (network) fetch iNat imagery + GloBI diet → roster.enriched.json
-    │   └── roster.enriched.json  # committed provenance (engine never reads it)
+    │   ├── roster.enriched.json  # committed provenance (engine never reads it)
+    │   ├── linalg.mjs            # dense kernel: inverse + symmetric/general eigenvalues
+    │   └── stability.mjs         # community matrix → stability / reactivity / keystones
+    ├── solver/                   # Rust/WASM stability kernel (nalgebra) — the sister solver
+    │   ├── Cargo.toml
+    │   └── src/lib.rs            # spectrum / spectral_abscissa / reactivity / press (+ native tests)
     └── test/
         ├── cycles.selftest.mjs   # conservation + bounds + food-web behaviour + determinism
         ├── allometry.selftest.mjs# Kleiber scaling + calibration + individuals↔biomass
-        └── roster.selftest.mjs   # roster compiles, closes, conserves; provenance cross-check
+        ├── roster.selftest.mjs   # roster compiles, closes, conserves; provenance cross-check
+        ├── linalg.selftest.mjs   # inverse + eigenvalues vs matrices with known spectra
+        └── stability.selftest.mjs # stability verdict + eigenvalue/decay cross-check
 ```
 
 This directory is intentionally separate from `/hoop` (structural rind) — the two are
