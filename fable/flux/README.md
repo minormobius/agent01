@@ -62,7 +62,10 @@ nothing heavier, and it keeps the site endless and instant. The same engine is
 mirrored in **Rust** (`engine-rs/`). `.github/workflows/build-flux-catalog.yml`
 generates a catalog of seeds (node) and runs the **Rust solver to independently
 re-verify** every stored answer wins and every world is solvable — a cross-engine
-gate — then commits `fable/flux/data/catalog.json` for fast gallery loads.
+gate — then commits a published, Rust-verified catalog
+(`fable/flux/data/catalog.json` + `worldlist.txt`). Proven locally: the Rust
+engine agrees with the JS catalog on all 256 seeds (0 unsolvable, 0 answer
+misses).
 
 ## Files
 
