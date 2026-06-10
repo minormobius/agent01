@@ -15,9 +15,10 @@
         "fable/**"
       ],
       "serves": [
-        "puzz"
+        "puzz",
+        "knack"
       ],
-      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. First wing live: /puzz — an atlas of seeded, certified-unique logic puzzles (binairo + nonogram) where a real solver does triple duty: certifies uniqueness, proves fairness (no-guessing), and grades difficulty from the deduction techniques it forces. Planned wings noted on the landing: /city (extends mappa), /character (sci-fi NPC systems)."
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz — an atlas of seeded, certified-unique logic puzzles (binairo + nonogram) where a real solver certifies uniqueness, proves fairness (no-guessing), and grades difficulty from the deduction techniques it forces; /knack — canvas minigames, one composable move-engine becoming six genres (Sokoban/ice/keys/buttons/coins/hybrid), each certified solvable by a BFS solver that finds the optimal par and grades from it. Planned wings noted on the landing: /city (extends mappa), /character (sci-fi NPC systems)."
     },
     {
       "surface": "root",

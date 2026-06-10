@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knack — an atlas of tiny machine-puzzles</title>
+<meta name="description" content="An endless, deterministic atlas of canvas minigames. One composable engine becomes Sokoban, ice mazes, key-dungeons, button-relays and hybrids — and every level has already been solved by the engine that made it.">
+<meta property="og:title" content="knack — an atlas of tiny machine-puzzles">
+<meta property="og:description" content="Seeded canvas minigames, each certified solvable and graded by the BFS solver that made it.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · knack</div>
+  <header class="masthead">
+    <h1>knack<span class="dot">.</span></h1>
+    <div class="tagline">An endless, deterministic atlas of tiny canvas minigames. One composable engine becomes
+      Sokoban, ice mazes, key-dungeons, button-relays, collect-a-thons and hybrids — and a search solver has
+      <b>already found the optimal answer</b> to every one, so each is <b>certified solvable</b>, scored against
+      <b>par</b>, and graded by the route it forces. Arrow keys / WASD / swipe to move.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><label for="seed">page</label><input id="seed" type="number" min="1" value="1"><button class="btn" id="go">go</button></div>
+      <div class="sep"></div>
+      <div class="grp"><button class="btn" id="prev">‹ prev</button><button class="btn" id="next">next ›</button><button class="btn" id="random">random</button></div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn primary" id="surprise">✦ surprise me</button>
+        <label for="huntBundle">find</label>
+        <select id="huntBundle"><option value="">any genre</option>
+          <option value="depot">Depot</option><option value="frost">Frost</option><option value="vault">Vault</option>
+          <option value="relay">Relay</option><option value="forage">Forage</option><option value="tangle">Tangle</option></select>
+        <select id="huntDiff"><option value="">any difficulty</option><option value="hard">harder</option><option value="easy">gentler</option></select>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">—</span><span class="bpill" id="bundle-pill"></span></div>
+        <div class="win-banner" id="win-banner">Solved!</div>
+        <div class="board-host"><canvas id="board"></canvas></div>
+        <div class="dpad">
+          <button class="u" data-d="0">▲</button><button class="l" data-d="3">◀</button>
+          <button class="r" data-d="1">▶</button><button class="d" data-d="2">▼</button>
+        </div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:8px 0 6px;flex-wrap:wrap;">
+            <button class="btn" id="undo">undo</button>
+            <button class="btn" id="reset">reset</button>
+            <button class="btn primary" id="solve">▶ watch the engine solve it</button>
+            <span id="moves" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Solver verdict</h3>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+          <div class="descriptor" id="descriptor"></div>
+        </div>
+        <div class="panel"><h3>Mechanics on the solution path</h3><div class="chips" id="chips"></div></div>
+        <div class="panel"><h3>Interest signals</h3><div class="signals" id="signals"></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–24</span><button class="btn" id="g-next">›</button></div>
+      <div class="sep"></div>
+      <div class="grp"><label>genre</label><select id="g-bundle"><option value="">all</option>
+        <option value="depot">Depot</option><option value="frost">Frost</option><option value="vault">Vault</option>
+        <option value="relay">Relay</option><option value="forage">Forage</option><option value="tangle">Tangle</option></select>
+        <label>sort</label><select id="g-sort"><option value="interest">interest</option><option value="difficulty">difficulty</option><option value="seed">page #</option></select></div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">generating & solving…</div></div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>What this is</h2>
+      <p>knack is the second wing of <a href="/">fable</a> — after <a href="/puzz/">puzz</a>, which does static
+        logic puzzles. The recipe is the same one running across this repo (<a href="https://mino.mobi/mappa/">mappa</a>'s
+        worlds, <a href="https://games.mino.mobi/gen/">the Ludographer</a>'s board games): generate a vast space from a
+        seed, put an interestingness engine on top. But here we <b>loosen the form</b>: instead of one rigid puzzle
+        shape, a single engine takes discrete moves over a grid and resolves them under a <b>composable library of
+        mechanics</b>. Toggle which mechanics are live and the same engine becomes a different game.</p>
+
+      <h2>Why there's still an "answer"</h2>
+      <p>Looser form, but the thing that makes the interestingness engine rigorous survives: every level has a
+        <b>verifiable solution</b>. A breadth-first search over the engine's state graph either reaches a winning state
+        — proving the level <b>solvable</b> and finding its <b>optimal length (par)</b> — or it doesn't, and the level
+        is thrown away at birth. So the solver does the same triple duty as in puzz: it <b>certifies</b>, it <b>grades</b>
+        (difficulty from par + search size + how the route winds), and it <b>curates</b> (ranking seeds by an interest
+        battery). "Watch the engine solve it" replays the exact optimal path the solver found.</p>
+
+      <h2>The six genres</h2>
+      <div class="legend" id="legend"></div>
+      <p class="muted" style="color:var(--muted);font-size:14px;">Each is a coherent bundle of mechanics with its own
+        win condition. <b>Tangle</b> is the diversity dial: it throws two mechanic families together, and the engine still
+        guarantees a way through. Adding a genre — lasers, gravity, teleporters, patrols — is one bundle module plus the
+        same transition rule; the solver and grader come for free.</p>
+
+      <h2>The mechanics</h2>
+      <ul>
+        <li><b>Push</b> — shove a crate; a crate only pushes, never pulls, so a crate in a corner is lost (the solver knows).</li>
+        <li><b>Ice</b> — step onto ice and slide until a wall stops you.</li>
+        <li><b>Keys &amp; doors</b> — collect a colored key to pass its door.</li>
+        <li><b>Buttons &amp; gates</b> — a gate stays open only while a crate weighs down its button.</li>
+        <li><b>Pits</b> — block the player, but a crate pushed in fills it into floor.</li>
+        <li><b>One-way arrows</b> — a tile you can only enter moving with the arrow.</li>
+        <li><b>Coins</b> — collect them all before the exit counts.</li>
+      </ul>
+
+      <h2>Determinism</h2>
+      <p>Page <code>n</code> yields the identical level on every machine, for ever (seeded <code>xmur3 → mulberry32</code>),
+        and the search for a <i>good</i> level is seeded too — so <code>/knack/?n=42</code> is a permalink, and so is its
+        difficulty and its par.</p>
+    </div>
+  </section>
+
+  <footer>knack · fable.mino.mobi · one engine, six genres, every level pre-solved · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
