@@ -28,7 +28,7 @@
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   /* wing hues */
   --w-puzz: #0d7d74; --w-knack: #c2792e; --w-flux: #2f8fd6;
-  --w-gyre: #7a55c8; --w-morph: #b5476d; --w-drift: #2f9d6e;
+  --w-gyre: #7a55c8; --w-morph: #b5476d; --w-drift: #2f9d6e; --w-forge: #b5651d;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -38,7 +38,7 @@
     --gold: #d8b35a;
     --tag-bg: rgba(163, 155, 255, 0.12); --tag-text: #b6aeff;
     --w-puzz: #45c2b6; --w-knack: #d6975a; --w-flux: #62aee2;
-    --w-gyre: #a98fe0; --w-morph: #d2738f; --w-drift: #5cc594;
+    --w-gyre: #a98fe0; --w-morph: #d2738f; --w-drift: #5cc594; --w-forge: #d08a3a;
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -189,7 +189,7 @@ footer a:hover { color: var(--accent); }
 
 <!-- ── the ladder ── -->
 <section id="ladder">
-  <div class="section-label"><span>The ladder — what each wing broke</span><span class="count">VI</span></div>
+  <div class="section-label"><span>The ladder — what each wing broke</span><span class="count">VII</span></div>
   <p class="section-blurb">One experiment, climbing. Every rung keeps the oracle and breaks a form.</p>
   <ul class="ladder">
     <li style="--wing: var(--w-puzz)"><span class="stage">puzz</span><span class="broke">broke nothing — <b>static deduction</b> on a grid. The solver certifies a unique solution and proves no guessing is needed.</span></li>
@@ -198,6 +198,7 @@ footer a:hover { color: var(--accent); }
     <li style="--wing: var(--w-gyre)"><span class="stage">gyre</span><span class="broke">broke the boundary — a <b>closed curved surface</b>. Geodesics on a torus; the winning shot's winding numbers are part of the grade.</span></li>
     <li style="--wing: var(--w-morph)"><span class="stage">morph</span><span class="broke">broke the game itself — a <b>generator of generators</b>. Each roll samples a whole grammar: topology, law, goal, look. One oracle certifies them all.</span></li>
     <li style="--wing: var(--w-drift)"><span class="stage">drift</span><span class="broke">broke the board — the substrate is <b>meaning</b>. Words wired by embedding; crossings and groupings certified on the semantic graph.</span></li>
+    <li style="--wing: var(--w-forge)"><span class="stage">forge</span><span class="broke">broke the <b>rules</b> — a foundry that mints <b>laws no one wrote</b>, fingerprints each by behavior, and keeps only the ones measurably new and certifiably playable.</span></li>
   </ul>
 </section>
 
@@ -219,7 +220,7 @@ footer a:hover { color: var(--accent); }
 
 <!-- ── the wings ── -->
 <section id="wings">
-  <div class="section-label"><span>The wings</span><span class="count">6 live</span></div>
+  <div class="section-label"><span>The wings</span><span class="count">7 live</span></div>
   <ul class="wings">
     <li style="--wing: var(--w-puzz)">
       <canvas class="emblem" data-wing="puzz"></canvas>
@@ -275,6 +276,15 @@ footer a:hover { color: var(--accent); }
         <div class="oracle-line">oracle: BFS on the meaning-graph + margin certificates</div>
       </div>
     </li>
+    <li style="--wing: var(--w-forge)">
+      <canvas class="emblem" data-wing="forge"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/forge/">forge</a><span class="tag">meta²</span><span class="tag">novelty search</span></div>
+        <div class="desc">The rung above morph: a foundry that invents new laws of motion, fingerprints them by behavior,
+          and keeps only those measurably unlike anything known — then the generator-generator runs on a law no one wrote.</div>
+        <div class="oracle-line">oracle: closed rule-DSL · behavioral fingerprint · novelty + playability gates</div>
+      </div>
+    </li>
   </ul>
 </section>
 
@@ -316,7 +326,7 @@ let W=0,H=0,dpr=1;
 function resize(){dpr=window.devicePixelRatio||1;W=machine.clientWidth;H=machine.clientHeight;stage.width=W*dpr;stage.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
 resize(); window.addEventListener('resize',resize);
 
-const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152 };
+const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152, forge:28 };
 
 /* ---- substrate builders: each returns {nodes:[{x,y,label?}], adj:[[...]], wing} ---- */
 function gridWorld(rand,wing,wrap,hex){
@@ -551,6 +561,11 @@ function emblem(cv){
     const labels=['◻','◯','∞','⬡'];c.font='14px serif';c.textAlign='center';
     for(let k=0;k<4;k++){c.globalAlpha=0.5;c.fillText(labels[k],18+k*26,22);}
     for(let k=0;k<8;k++){c.globalAlpha=0.7;const bw=r.f()*40+8;c.fillRect(120+ (k%2)*70, 8+Math.floor(k/2)*12, bw,6);}
+  } else if(wing==='forge'){ // foundry: a lattice of candidate glyphs, one struck gold
+    c.font='13px serif';c.textAlign='center';c.textBaseline='middle';
+    const glyphs=['◻','◯','△','▢','◇','✕','∿','⬡'];
+    let gx=0;
+    for(let x=14;x<w-8;x+=22)for(let y=14;y<h-6;y+=18){const struck=(gx++ % 9===4);c.globalAlpha=struck?0.95:0.25;c.fillStyle=struck?'#d8b35a':ink;c.fillText(glyphs[r.i(glyphs.length)],x,y);}
   } else { // drift: word dust + a hop path
     c.font='9px ui-monospace,monospace';c.textAlign='center';
     const pts=[];
