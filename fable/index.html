@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fable — generative spaces, ranked by interest</title>
+<meta name="description" content="The generative wing of mino.mobi: vast combinatorial spaces generated deterministically from a seed, with an interestingness engine on top to find the points worth a second look.">
+<meta property="og:title" content="fable.mino.mobi">
+<meta property="og:description" content="Generative spaces with interestingness engines. First wing: puzz, an atlas of verified-unique logic puzzles.">
+<style>
+:root{
+  --bg:#f7f6f2;--panel:#fff;--fg:#1f1d1a;--muted:#6d6a63;--faint:#9b978d;--rule:#d9d5cb;
+  --accent:#4338ca;--accent-soft:rgba(67,56,202,.10);--accent-line:rgba(67,56,202,.28);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 6px 22px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14130f;--panel:#1c1b16;--fg:#ece7da;--muted:#9a958a;--faint:#6f6b61;--rule:#34322a;
+  --accent:#a39bff;--accent-soft:rgba(163,155,255,.12);--accent-line:rgba(163,155,255,.30);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);
+}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:880px;margin:0 auto;padding:0 22px 90px}
+.crumb{font-family:var(--mono);font-size:12px;color:var(--muted);padding:16px 0 0}
+header{padding:26px 0 22px;border-bottom:1px solid var(--rule);margin-bottom:26px}
+h1{font-family:var(--serif);font-weight:600;font-size:52px;margin:6px 0 6px;letter-spacing:-.01em}
+h1 .dot{color:var(--accent)}
+.lede{color:var(--muted);font-size:17px;max-width:62ch}
+.lede b{color:var(--fg);font-weight:600}
+.wings{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:8px}
+.wing{display:block;background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:18px;box-shadow:var(--shadow);transition:transform .08s ease,border-color .08s ease}
+a.wing:hover{transform:translateY(-2px);border-color:var(--accent-line);text-decoration:none}
+.wing .k{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent)}
+.wing.soon .k{color:var(--faint)}
+.wing h2{font-family:var(--serif);font-size:26px;margin:6px 0 6px}
+.wing p{color:var(--muted);font-size:14px;margin:0}
+.wing .tag{display:inline-block;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+.soon{opacity:.72}
+.note{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:30px;max-width:64ch}
+footer{border-top:1px solid var(--rule);margin-top:40px;padding-top:16px;color:var(--muted);font-size:13px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · fable</div>
+  <header>
+    <h1>fable<span class="dot">.</span></h1>
+    <p class="lede">The generative wing. Each surface here takes a <b>vast combinatorial space</b>, generates it
+      deterministically from a seed, and puts an <b>interestingness engine</b> on top to decide which points are
+      worth a second look — the lineage of <a href="https://mino.mobi/mappa/">mappa</a>'s worlds and
+      <a href="https://games.mino.mobi/gen/">the Ludographer</a>'s board games.</p>
+  </header>
+
+  <div class="wings">
+    <a class="wing" href="/puzz/">
+      <div class="k">live</div>
+      <h2>puzz</h2>
+      <p>An endless atlas of logic puzzles, each certified by a real solver to have exactly one solution, proven
+        fair (no guessing), and graded by the deduction it forces. The solver <i>is</i> the interestingness engine.</p>
+      <span class="tag">binairo · nonogram · seeded · no backend →</span>
+    </a>
+
+    <div class="wing soon">
+      <div class="k">planned</div>
+      <h2>city</h2>
+      <p>Zoom into a mappa tile and grow a whole city from the soil — population, energy and water flows, traffic,
+        industries shaped by the land, invented histories. A phase space of cities, ranked by which ones earn a
+        second look.</p>
+      <span class="tag">extends /mappa</span>
+    </div>
+
+    <div class="wing soon">
+      <div class="k">planned</div>
+      <h2>character</h2>
+      <p>The space of character systems for an O'Neill-cylinder sci-fi game: a randomizer that generates the most
+        interesting NPCs, and the same engine powering player creation. Talents, constructs, lore, equipment.</p>
+      <span class="tag">feeds the social layer</span>
+    </div>
+  </div>
+
+  <p class="note">Everything here is static and client-side: page number <code>n</code> yields the identical artifact
+    on every machine, for ever. Determinism is what makes a permalink mean something.</p>
+
+  <footer>fable.mino.mobi · seeded generative spaces · part of <a href="https://mino.mobi/">mino.mobi</a></footer>
+</div>
+</body>
+</html>

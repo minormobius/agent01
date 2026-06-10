@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>puzz — an atlas of deduction</title>
+<meta name="description" content="An endless, deterministic atlas of logic puzzles. Every page number is a puzzle a real solver has certified to have exactly one solution, proven fair (no guessing), and graded by the deduction techniques it forces.">
+<meta property="og:title" content="puzz — an atlas of deduction">
+<meta property="og:description" content="Seeded logic puzzles, each certified unique and graded by the solver that made it.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · puzz</div>
+  <header class="masthead">
+    <h1>puzz<span class="dot">.</span></h1>
+    <div class="tagline">An endless, deterministic atlas of logic puzzles. Every page number is a puzzle a single
+      solver has <b>certified to have exactly one solution</b>, <b>proven fair</b> — solvable by pure deduction, no
+      guessing — and <b>graded</b> by the reasoning it forces. The solver is the interestingness engine.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <!-- PLAY -->
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp">
+        <label for="seed">page</label>
+        <input id="seed" type="number" min="1" value="1">
+        <button class="btn" id="go">go</button>
+      </div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn" id="prev">‹ prev</button>
+        <button class="btn" id="next">next ›</button>
+        <button class="btn" id="random">random</button>
+      </div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn primary" id="surprise">✦ surprise me</button>
+        <label for="huntGenus">find</label>
+        <select id="huntGenus">
+          <option value="">any genus</option>
+          <option value="binairo">Binairo</option>
+          <option value="nonogram">Nonogram</option>
+        </select>
+        <select id="huntDiff">
+          <option value="">any difficulty</option>
+          <option value="hard">harder</option>
+          <option value="easy">gentler</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head">
+          <span class="title" id="board-title">—</span>
+          <span class="genus-pill" id="genus-pill"></span>
+        </div>
+        <div class="win-banner" id="win-banner">Solved by hand. ✓ The solver agrees this was the only way.</div>
+        <div class="board-host" id="board-host"></div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:10px 0 6px;">
+            <button class="btn" id="check">check</button>
+            <button class="btn" id="reset">reset</button>
+            <button class="btn" id="reveal">reveal</button>
+            <span id="progress" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Solver verdict</h3>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+          <div class="descriptor" id="descriptor"></div>
+        </div>
+        <div class="panel">
+          <h3>Techniques the solution forces</h3>
+          <div class="tech" id="tech"></div>
+        </div>
+        <div class="panel">
+          <h3>Interest signals</h3>
+          <div class="signals" id="signals"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ATLAS -->
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls gallery-controls">
+      <div class="grp">
+        <button class="btn" id="g-prev">‹</button>
+        <span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–24</span>
+        <button class="btn" id="g-next">›</button>
+      </div>
+      <div class="sep"></div>
+      <div class="grp">
+        <label>genus</label>
+        <select id="g-genus"><option value="">all</option><option value="binairo">Binairo</option><option value="nonogram">Nonogram</option></select>
+        <label>sort</label>
+        <select id="g-sort"><option value="interest">interest</option><option value="difficulty">difficulty</option><option value="seed">page #</option></select>
+      </div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">generating…</div></div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>What this is</h2>
+      <p>puzz is the puzzle wing of an experiment running across this repo: take a vast combinatorial
+        space, generate it deterministically from a seed, and put an <b>interestingness engine</b> on top to
+        decide which points are worth a second look. The atlas of worlds at <a href="https://mino.mobi/mappa/">mappa</a>
+        does it for planets; <a href="https://games.mino.mobi/gen/">the Ludographer</a> does it for board games.
+        Here the domain is logic puzzles — and the interestingness engine is something special: a real solver.</p>
+
+      <h2>Why a solver is the right oracle</h2>
+      <p>For most generated artifacts, "is this interesting?" is a matter of taste you approximate with a
+        hand-tuned battery or a learned critic. A logic puzzle is different. There is a precise, checkable
+        notion of a <i>good</i> one:</p>
+      <ul>
+        <li><b>It has exactly one solution.</b> The generator proves this by exhaustive bounded search — a puzzle
+          ships only when the solver counts exactly one solution.</li>
+        <li><b>It is fair.</b> The clues can be reached by pure deduction, with no guessing. The generator carves
+          clues only while a no-backtracking propagation engine can still finish the grid.</li>
+        <li><b>Its difficulty is earned, not asserted.</b> The same engine records <i>which</i> reasoning techniques
+          the solution forces, and how long the chain runs. The difficulty score is read off that trace.</li>
+      </ul>
+      <p>So the solver does triple duty: it <b>certifies</b>, it <b>grades</b>, and — ranking seeds by a small battery
+        of aesthetic signals built from the trace — it <b>curates</b>. Every number on the page line is a puzzle no
+        human authored; the solver vouched for each one.</p>
+
+      <h2>The genera</h2>
+      <p>Two puzzle types share a single boolean-cell deduction engine:</p>
+      <h3>Binairo</h3>
+      <p>A square grid in two colors. No three of a color in a row; each line balanced; no two lines alike.
+        The engine deduces with three named techniques — <code>no-triple</code>, <code>line balance</code>,
+        <code>unique lines</code> — and the grade reflects which a given puzzle needs.</p>
+      <h3>Nonogram</h3>
+      <p>Row and column run-length clues reconstruct a hidden picture. The engine is a real nonogram line-solver;
+        it distinguishes <code>free overlap</code> (a long run forced to overlap itself) from <code>cross-chaining</code>
+        (a cell known from one line constraining the crossing one).</p>
+
+      <h2>The space is built to grow</h2>
+      <p>The interesting claim isn't the count of puzzle types — it's that one solver certifies, grades, and ranks
+        <i>every</i> instance, turning a combinatorial space into an atlas you navigate by interestingness. Adding a
+        genus — Star Battle, Slitherlink, Akari — is one module implementing the same contract: a propagator with a
+        complete validity check, a seeded generator, and a technique-tier table. Those harder genera will populate the
+        upper difficulty tiers these two gentle ones leave open.</p>
+
+      <h2>Determinism</h2>
+      <p>Page number <code>n</code> yields the identical puzzle on every machine, for ever (seeded
+        <code>xmur3 → mulberry32</code>, the repo's standard pair). That's what makes
+        <code>/puzz/?n=42</code> a permalink rather than a fresh roll.</p>
+    </div>
+  </section>
+
+  <footer>puzz · fable.mino.mobi · seeded, certified, graded, no backend · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

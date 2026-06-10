@@ -4,6 +4,22 @@
   "hero": "claude/landing-projects-takeover-pKkmW",
   "surfaces": [
     {
+      "surface": "fable",
+      "dir": "fable",
+      "endpoint": "fable.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/phylofiction-exploration-ixjmpa",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fable/**"
+      ],
+      "serves": [
+        "puzz"
+      ],
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. First wing live: /puzz — an atlas of seeded, certified-unique logic puzzles (binairo + nonogram) where a real solver does triple duty: certifies uniqueness, proves fairness (no-guessing), and grades difficulty from the deduction techniques it forces. Planned wings noted on the landing: /city (extends mappa), /character (sci-fi NPC systems)."
+    },
+    {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
