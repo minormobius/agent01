@@ -240,6 +240,38 @@ const ROOM_TYPES = [
   { id: 'shrine', glyph: '☥', accent: '#d8b85a', reg: 1, rgb: [230, 200, 120], intensity: 0.6, flicker: 0.1 },
 ];
 const VOID = Ship.TILE.VOID;
+// dense SPD-ish solve (partial-pivot Gaussian) for the small per-chunk truss.
+function gaussSolve(A, b, n) {
+  for (let col = 0; col < n; col++) {
+    let piv = col, best = Math.abs(A[col * n + col]);
+    for (let r = col + 1; r < n; r++) { const v = Math.abs(A[r * n + col]); if (v > best) { best = v; piv = r; } }
+    if (best < 1e-9) return null;
+    if (piv !== col) { for (let k = 0; k < n; k++) { const t = A[col * n + k]; A[col * n + k] = A[piv * n + k]; A[piv * n + k] = t; } const t = b[col]; b[col] = b[piv]; b[piv] = t; }
+    const d = A[col * n + col];
+    for (let r = col + 1; r < n; r++) { const f = A[r * n + col] / d; if (f) { for (let k = col; k < n; k++) A[r * n + k] -= f * A[col * n + k]; b[r] -= f * b[col]; } }
+  }
+  const x = new Float64Array(n);
+  for (let i = n - 1; i >= 0; i--) { let s = b[i]; for (let k = i + 1; k < n; k++) s -= A[i * n + k] * x[k]; x[i] = s / A[i * n + i]; }
+  return x;
+}
+// pin-jointed 2D truss: nodes [{x,y}], members [{i,j,ea}], loads [[fx,fy]], fixed[bool].
+// Returns per-member axial force (+tension), or null if singular (a mechanism).
+function solveTruss(nodes, members, loads, fixed) {
+  const n = nodes.length, ndof = 2 * n, K = new Float64Array(ndof * ndof);
+  for (const m of members) {
+    const a = nodes[m.i], b = nodes[m.j], dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, c = dx / L, s = dy / L, k = m.ea / L;
+    m._c = c; m._s = s; m._L = L;
+    const T = [c * c, c * s, c * s, s * s], dof = [2 * m.i, 2 * m.i + 1, 2 * m.j, 2 * m.j + 1];
+    for (let p = 0; p < 4; p++) for (let q = 0; q < 4; q++) { const sg = (p < 2) === (q < 2) ? 1 : -1; K[dof[p] * ndof + dof[q]] += k * sg * T[(p % 2) * 2 + (q % 2)]; }
+  }
+  const free = []; for (let i = 0; i < n; i++) if (!fixed[i]) { free.push(2 * i); free.push(2 * i + 1); }
+  const nf = free.length; if (!nf) return members.map(() => 0);
+  const Kr = new Float64Array(nf * nf), fr = new Float64Array(nf);
+  for (let a = 0; a < nf; a++) { fr[a] = loads[free[a] >> 1][free[a] & 1]; for (let b = 0; b < nf; b++) Kr[a * nf + b] = K[free[a] * ndof + free[b]]; }
+  const u = gaussSolve(Kr, fr, nf); if (!u) return null;
+  const full = new Float64Array(ndof); for (let a = 0; a < nf; a++) full[free[a]] = u[a];
+  return members.map((m) => m.ea / m._L * (m._c * (full[2 * m.j] - full[2 * m.i]) + m._s * (full[2 * m.j + 1] - full[2 * m.i + 1])));
+}
 function foamChunk(seed, cx, cy) {
   const rng = Ship.rngFor(seed, 41, cx, cy), bx = cx * C, by = cy * C;
   // coherent gravity: a smooth field over normal / spin(slide) / mag(planted) — no
@@ -268,21 +300,38 @@ function foamChunk(seed, cx, cy) {
     const i = y * C + x;
     if (interior) { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].reg; } else { tiles[i] = VOID; grav[i] = 0; }
   }
+  const hazard = new Set();
   const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) tiles[i] = FLOOR; if (!grav[i]) grav[i] = 1 + seeds[cellOf[i]].reg; };
-  const carve = (x0, y0, x1, y1) => { let x = x0, y = y0; const sx = Math.sign(x1 - x0) || 1; while (x !== x1) { setF(x, y); x += sx; } const sy = Math.sign(y1 - y0) || 1; while (y !== y1) { setF(x, y); y += sy; } setF(x, y); };
+  const carve = (x0, y0, x1, y1, haz) => { let x = x0, y = y0; const stp = () => { setF(x, y); if (haz) hazard.add(y * C + x); }; const sx = Math.sign(x1 - x0) || 1; while (x !== x1) { stp(); x += sx; } const sy = Math.sign(y1 - y0) || 1; while (y !== y1) { stp(); y += sy; } stp(); };
   for (let s = 0; s < NS; s++) setF(cen[s].x, cen[s].y);   // every chamber keeps a walkable centre
-  // adjacency + a deterministic spanning tree (+ a few loops) → which chambers connect
+  // membrane graph + a spanning tree (always passable → the chambers stay reachable)
   const akey = (a, b) => a < b ? a + ',' + b : b + ',' + a, adj = new Map();
   for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { const a = cellOf[y * C + x]; if (x + 1 < C) { const b = cellOf[y * C + x + 1]; if (a !== b) adj.set(akey(a, b), 1); } if (y + 1 < C) { const b = cellOf[(y + 1) * C + x]; if (a !== b) adj.set(akey(a, b), 1); } }
+  const mem = [...adj.keys()].map((k) => k.split(',').map(Number)), memLen = mem.map(([a, b]) => Math.hypot(cen[a].x - cen[b].x, cen[a].y - cen[b].y) || 1);
   const par = []; for (let i = 0; i < NS; i++) par[i] = i; const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
-  const edges = [...adj.keys()].map((k) => k.split(',').map(Number)).sort((p, q) => Ship.hashInts(seed, p[0], p[1], 5) - Ship.hashInts(seed, q[0], q[1], 5));
-  // HATCHES: each connected pair gets one corridor punched between their centres, so the
-  // bulkheads read as walls and the passages read as doorways. Spanning tree = reachable.
-  for (const [a, b] of edges) {
-    const tree = find(a) !== find(b);
-    if (tree) par[find(a)] = find(b);
-    if (tree || (Ship.hashInts(seed, a, b, 6) & 7) === 0) carve(cen[a].x, cen[a].y, cen[b].x, cen[b].y);
-  }
+  const passable = new Set(), breach = new Set();
+  for (const [a, b] of mem.slice().sort((p, q) => Ship.hashInts(seed, p[0], p[1], 5) - Ship.hashInts(seed, q[0], q[1], 5))) if (find(a) !== find(b)) { par[find(a)] = find(b); passable.add(akey(a, b)); }
+  // STRUCTURAL SOLVE: a pin-jointed truss over the membrane graph (chamber centres = nodes,
+  // membranes = members), loaded toward the hull, with the chunk-boundary chambers pinned
+  // (held by the neighbours — the sector-wise, boundary-pinned solve). Member stress sets the
+  // membrane's state: low load → a doorway (hatch), high load → a solid bulkhead, and the
+  // most overloaded fail → a breach (open to vacuum).
+  let stress = null;
+  try {
+    const nodes = cen.map((c) => ({ x: c.x, y: c.y })), loads = [], fixed = [];
+    for (let s = 0; s < NS; s++) { loads.push([0, 0.002 * (cnt[s] || 1)]); const c = cen[s]; fixed.push(c.x <= 2 || c.y <= 2 || c.x >= C - 3 || c.y >= C - 3); }
+    const forces = solveTruss(nodes, mem.map(([i, j], k) => ({ i, j, ea: memLen[k] })), loads, fixed);
+    if (forces) stress = forces.map((f, k) => Math.abs(f) / memLen[k]);
+  } catch (e) { stress = null; }
+  let maxS = 0; if (stress) for (const v of stress) if (v > maxS) maxS = v;
+  if (stress && maxS > 0) {
+    mem.forEach(([a, b], k) => {
+      const r = stress[k] / maxS, key = akey(a, b);
+      if (r < 0.38) passable.add(key);                                                       // low load → hatch
+      if (r > 0.85 && ((Ship.hashInts(seed, a, b, 9) >>> 0) % 100) < 40) { breach.add(key); passable.add(key); } // overloaded → breach
+    });
+  } else { for (const [a, b] of mem) if ((Ship.hashInts(seed, a, b, 6) & 7) === 0) passable.add(akey(a, b)); } // fallback
+  for (const key of passable) { const [a, b] = key.split(',').map(Number); carve(cen[a].x, cen[a].y, cen[b].x, cen[b].y, breach.has(key)); }
   // edge ports → corridor to the local cell's centre, shared with neighbours so chunks connect
   const pE = 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)), pW = 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6));
   const pS = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)), pN = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6));
@@ -301,7 +350,7 @@ function foamChunk(seed, cx, cy) {
     const t = seeds[s].t, ccx = Math.round(sx / n), ccy = Math.round(sy / n);
     rooms.push({ x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, cx: ccx, cy: ccy, type: t.id, glyph: t.glyph, accent: t.accent, regime: Ship.GRAV_LIST[seeds[s].reg], lights: [{ x: ccx, y: ccy, intensity: t.intensity, flicker: t.flicker, rgb: t.rgb, radius: 5 + ((mxx - mnx + mxy - mny) / 3 | 0) }] });
   }
-  return { tiles, grav, rooms };
+  return { tiles, grav, rooms, hazard };
 }
 class FoamField extends ChunkField {
   chunk(cx, cy) {
@@ -312,6 +361,8 @@ class FoamField extends ChunkField {
     }
     return c;
   }
+  // a breached membrane — open, but to vacuum
+  isHazard(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const c = this.chunk(cx, cy); return !!(c.hazard && c.hazard.has(ly * C + lx)); }
 }
 
 // ── continuous gravity-aware movement (exported pure kernel for the selftest) ──
@@ -495,7 +546,7 @@ export class World {
       if (this.h.onMove) this.h.onMove(tx, ty);
       const pl = this.placeKey(tx, ty);
       if (pl) this._announce(pl);
-      else if (this.h.onStatus) this.h.onStatus(`(${tx}, ${ty}) · ${this.field.regime(tx, ty)} gravity — N to drop a node`);
+      else if (this.h.onStatus) this.h.onStatus(this.field.isHazard && this.field.isHazard(tx, ty) ? `⚠ BREACH (${tx}, ${ty}) — open to vacuum` : `(${tx}, ${ty}) · ${this.field.regime(tx, ty)} gravity — N to drop a node`);
     }
     for (const p of this.peers.values()) { p.px += (p.x - p.px) * 0.22; p.py += (p.y - p.py) * 0.22; }
     this._draw(now);
@@ -589,6 +640,20 @@ export class World {
       }
     }
 
+    // breaches — failed membranes, open to vacuum (cold glow + an X)
+    ctx.lineCap = 'round';
+    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+      const ch = this.field.chunk(cx, cy); if (!ch.hazard) continue; const bx = cx * C, by = cy * C;
+      for (const idx of ch.hazard) {
+        const wx = bx + (idx % C), wy = by + ((idx / C) | 0);
+        if (wx < x0 || wx >= x1 || wy < y0 || wy >= y1) continue;
+        const sx = SX(wx), sy = SY(wy);
+        ctx.fillStyle = 'rgba(120,220,235,0.10)'; ctx.fillRect(sx, sy, t, t);
+        ctx.strokeStyle = 'rgba(150,235,245,0.5)'; ctx.lineWidth = Math.max(1, t * 0.06);
+        ctx.beginPath(); ctx.moveTo(sx + t * 0.2, sy + t * 0.2); ctx.lineTo(sx + t * 0.8, sy + t * 0.8); ctx.moveTo(sx + t * 0.8, sy + t * 0.2); ctx.lineTo(sx + t * 0.2, sy + t * 0.8); ctx.stroke();
+      }
+    }
+
     // ambient room-type glyphs at each visible room centre (faint, generated)
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `${Math.floor(t * 0.6)}px "JetBrains Mono", ui-monospace, monospace`;
@@ -676,6 +741,7 @@ export class World {
     const sz = Math.ceil(mpp);
     for (let wy = y0; wy <= y1; wy++) for (let wx = x0; wx <= x1; wx++) {
       if (!this.field.isFloor(wx, wy)) continue;
+      if (this.field.isHazard && this.field.isHazard(wx, wy)) { ctx.fillStyle = 'rgba(255,90,90,0.95)'; ctx.fillRect(mx(wx), my(wy), sz, sz); continue; }
       const g = GRAV_HUE[this.field.regime(wx, wy)] || GRAV_HUE.normal;
       ctx.fillStyle = `rgb(${(g[0] * 0.7 + 26) | 0},${(g[1] * 0.7 + 30) | 0},${(g[2] * 0.7 + 36) | 0})`;
       ctx.fillRect(mx(wx), my(wy), sz, sz);
