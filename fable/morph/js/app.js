@@ -54,6 +54,7 @@ function load(meta, inst) {
     buildDirpad(g.inst);
     renderGenome(g.genome);
     renderVerdict(g);
+    renderRules(g);
     $('howto').innerHTML = `<span style="color:var(--faint);font-size:12px;">Goal: <b>${goalText(g.genome.goal)}</b>. ${g.inst.sub.dirs === 4 ? 'Arrow keys / WASD or the pad.' : 'Use the direction pad (6-way).'} Dashed borders are wrap seams; ½ marks a twist.</span>`;
     writeURL();
   }, 25);
@@ -158,5 +159,49 @@ function init() {
   readURL();
   load(metaN, instP);
 }
+/* fold-out rules — GENERATED from the genome. The grammar is data, so its
+   explication assembles itself: the substrate explains its topology, each
+   sampled law explains itself, the goal explains itself. */
+const SUB_RULES = {
+  grid: 'A plain grid. Edges are edges — step off and the move is refused.',
+  cylinder: 'A <b>cylinder</b>: left and right edges are glued. Walk off one side and you arrive on the other.',
+  torus: 'A <b>torus</b>: both pairs of edges are glued. There is no edge at all — every direction wraps.',
+  mobius: 'A <b>Möbius strip</b>: left and right are glued <b>with a half-twist</b>. Cross the seam (marked ½) and the world flips — up becomes down, and you re-enter mirrored.',
+  klein: 'A <b>Klein bottle</b>: top–bottom wrap like a torus, left–right wrap <b>with a half-twist</b> (marked ½). The most disorienting board in the catalogue.',
+  hex: 'A <b>hex field</b>: every cell has six neighbours, so your compass has six directions, not four.',
+};
+const LAW_RULES = {
+  slide: '<b>Slide</b> — the floor is slick: each move carries you in that direction until something stops you (and across seams, where your heading transforms with the world).',
+  push: '<b>Push</b> — walking into a block shoves it one cell; never pulls, one at a time.',
+  collect: '<b>Collect</b> — tokens are picked up by walking over them.',
+  lights: '<b>Lights</b> — entering a tile flips it AND its neighbours (in this topology). Lights-Out, walked.',
+  portal: '<b>Portals</b> — paired rings: step on one, appear at its twin.',
+};
+const GOAL_RULES = {
+  exit: 'Reach the ringed gate.',
+  cover: 'Push every block onto a diamond marker.',
+  collect: 'Gather every token{X}.',
+  lights: 'Leave every tile lit.',
+};
+function renderRules(g) {
+  const gen = g.genome;
+  const laws = [];
+  if (gen.moveModel === 'slide') laws.push(LAW_RULES.slide);
+  for (const [k, on] of Object.entries(gen.rules)) {
+    if (!on || k === 'ice') continue;
+    if (LAW_RULES[k]) laws.push(LAW_RULES[k]);
+  }
+  let goal = GOAL_RULES[gen.goal.type] || '';
+  goal = goal.replace('{X}', gen.goal.thenExit ? ', then reach the gate' : '');
+  $('rules-body').innerHTML =
+    `<div class="rrow"><span class="rk">topology</span><span class="rv">${SUB_RULES[gen.substrate.id] || ''} <span class="dim">Dashed borders mark the glued seams.</span></span></div>` +
+    `<div class="rrow"><span class="rk">laws</span><span class="rv">${laws.join('<br>') || '<span class="dim">pure walking</span>'}</span></div>` +
+    `<div class="rrow"><span class="rk">goal</span><span class="rv">${goal}</span></div>` +
+    `<div class="rrow"><span class="rk">controls</span><span class="rv">${g.inst.sub.dirs === 4 ? 'Arrow keys / WASD or the pad.' : 'The six-way pad — a hex compass.'} Undo takes a move back.</span></div>` +
+    `<div class="rrow"><span class="rk">nb</span><span class="rv"><span class="dim">This rules card wrote itself — the game's grammar is data, sampled fresh each "new game". The oracle certified this level solvable at par ${g.report.par} before you arrived.</span></span></div>`;
+  $('rules').open = false;
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+

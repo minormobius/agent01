@@ -96,3 +96,18 @@ button.btn.primary:hover{filter:brightness(1.06)}
 .legend .li{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
 .legend .sw{width:18px;height:18px;border-radius:4px;flex:none}
 footer{border-top:1px solid var(--rule);margin-top:40px;padding-top:16px;color:var(--muted);font-size:13px;font-family:var(--mono)}
+
+/* fold-out rules explication */
+details.rulesfold{margin-top:10px;border:1px solid var(--rule);border-radius:10px;background:var(--panel)}
+details.rulesfold summary{font-family:var(--mono);font-size:12px;padding:9px 13px;cursor:pointer;color:var(--accent);list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+details.rulesfold summary::before{content:"▸";transition:transform .15s ease;font-size:10px}
+details.rulesfold[open] summary::before{transform:rotate(90deg)}
+details.rulesfold summary::-webkit-details-marker{display:none}
+.rulesfold .rbody{padding:2px 14px 13px;font-size:13.5px;line-height:1.55;color:var(--fg)}
+.rulesfold .rrow{display:grid;grid-template-columns:96px 1fr;gap:4px 12px;padding:5px 0;border-top:1px solid var(--rule-soft)}
+.rulesfold .rrow:first-child{border-top:none}
+.rulesfold .rk{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding-top:2px}
+.rulesfold .rv{color:var(--fg)}
+.rulesfold .rv .dim{color:var(--muted)}
+.rulesfold .rv b{font-weight:600}
+@media (max-width:480px){.rulesfold .rrow{grid-template-columns:1fr}}

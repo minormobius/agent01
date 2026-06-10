@@ -36,7 +36,7 @@
         <button class="btn primary" id="surprise">✦ surprise me</button>
         <label for="huntBundle">find</label>
         <select id="huntBundle"><option value="">any genre</option>
-          <option value="depot">Depot</option><option value="frost">Frost</option><option value="vault">Vault</option>
+          <option value="depot">Depot</option><option value="warehouse">Warehouse</option><option value="frost">Frost</option><option value="vault">Vault</option>
           <option value="relay">Relay</option><option value="forage">Forage</option><option value="tangle">Tangle</option></select>
         <select id="huntDiff"><option value="">any difficulty</option><option value="hard">harder</option><option value="easy">gentler</option></select>
       </div>
@@ -59,6 +59,8 @@
             <span id="moves" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
           </div>
           <div id="howto"></div>
+          <details class="rulesfold" id="rules"><summary>how this game works</summary><div class="rbody" id="rules-body"></div></details>
+          
         </div>
       </div>
 
@@ -83,7 +85,7 @@
       <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–24</span><button class="btn" id="g-next">›</button></div>
       <div class="sep"></div>
       <div class="grp"><label>genre</label><select id="g-bundle"><option value="">all</option>
-        <option value="depot">Depot</option><option value="frost">Frost</option><option value="vault">Vault</option>
+        <option value="depot">Depot</option><option value="warehouse">Warehouse</option><option value="frost">Frost</option><option value="vault">Vault</option>
         <option value="relay">Relay</option><option value="forage">Forage</option><option value="tangle">Tangle</option></select>
         <label>sort</label><select id="g-sort"><option value="interest">interest</option><option value="difficulty">difficulty</option><option value="seed">page #</option></select></div>
     </div>

@@ -200,6 +200,7 @@ function load(n) {
   game = p.genus === 'ladder' ? new Ladder(p) : new Fold(p);
   $('howto').innerHTML = `<span style="color:var(--faint);font-size:12px;">${game.howto()}</span>`;
   renderVerdict(p);
+  renderRules(p);
   writeURL();
 }
 
@@ -274,5 +275,25 @@ async function init() {
   readURL();
   load(currentN);
 }
+/* fold-out rules — per genus, with the substrate explained */
+function renderRules(p) {
+  const sub = `<span class="dim">The board is a frozen embedding: 7,000 words, each wired to its twelve nearest neighbours in meaning. The map shows it flattened — your moves draw on it.</span>`;
+  if (p.genus === 'ladder') {
+    $('rules-body').innerHTML =
+      `<div class="rrow"><span class="rk">goal</span><span class="rv">Get from <b>${S.wordOf(p.start)}</b> to <b>${S.wordOf(p.target)}</b>.</span></div>` +
+      `<div class="rrow"><span class="rk">law</span><span class="rv">From your current word you may step only to one of its <b>twelve nearest neighbours</b> — the buttons below the map. Meaning is the only road.</span></div>` +
+      `<div class="rrow"><span class="rk">the answer</span><span class="rv">A BFS over the meaning-graph found the shortest crossing: <b>par ${p.par}</b>. The closeness meter shows how near your current word sits to the target.</span></div>` +
+      `<div class="rrow"><span class="rk">substrate</span><span class="rv">${sub}</span></div>`;
+  } else {
+    $('rules-body').innerHTML =
+      `<div class="rrow"><span class="rk">goal</span><span class="rv">Sort the twelve words into <b>three hidden families of four</b>.</span></div>` +
+      `<div class="rrow"><span class="rk">law</span><span class="rv">Select four words, press <b>fold</b>. Exactly right → the family locks in colour. Wrong → a miss. No partial credit.</span></div>` +
+      `<div class="rrow"><span class="rk">the answer</span><span class="rv">The grouping ships with a <b>margin certificate</b> (${p.minMargin.toFixed(2)} here): every word is measurably closer to its own family than to either other. Tight margin = wickedly confusable.</span></div>` +
+      `<div class="rrow"><span class="rk">substrate</span><span class="rv">${sub}</span></div>`;
+  }
+  $('rules').open = false;
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+

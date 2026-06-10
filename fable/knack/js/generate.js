@@ -4,7 +4,7 @@
 // level is deterministic and puzzleForSeed(n) is stable.
 
 import { compile } from './engine.js';
-import { solve, analyzePath } from './solver.js';
+import { solve, solveAStar, analyzePath } from './solver.js';
 import { grade } from './difficulty.js';
 
 const GEN_CAP = 140000;   // node cap during generation (kept modest for speed)
@@ -15,11 +15,13 @@ export function generateLevel(rand, bundle) {
   let best = null;
   for (let salt = 0; salt < ATTEMPTS; salt++) {
     const spec = bundle.build(rand.fork('lay' + salt));
+    if (!spec) continue;
     spec.bundle = bundle.id;
     spec.bundleName = bundle.name;
     spec.theme = bundle.theme;
     const level = compile(spec);
-    const sr = solve(level, { cap: GEN_CAP });
+    // deep bundles (NP-hard box-pushing) get the A* oracle; the rest BFS
+    const sr = bundle.deep ? solveAStar(level, { cap: 650000 }) : solve(level, { cap: GEN_CAP });
     if (!sr.solvable) continue;
     if (sr.par < bundle.minPar) continue;
     const pa = analyzePath(level, sr.path);
@@ -39,6 +41,7 @@ function usesHeadline(level, pa) {
   const used = new Set(pa.used);
   switch (level.bundle) {
     case 'depot': return used.has('box');
+    case 'warehouse': return used.has('box');
     case 'frost': return used.has('ice');
     case 'vault': return used.has('key') || used.has('door');
     case 'relay': return used.has('box') && (used.has('gate') || used.has('button'));

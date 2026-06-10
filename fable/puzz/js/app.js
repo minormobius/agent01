@@ -65,6 +65,7 @@ function loadPuzzle(n) {
   updateProgress(player.progress());
   renderVerdict(inst, report);
   renderHowto(inst);
+  renderRules(inst);
   writeURL();
 }
 
@@ -209,5 +210,38 @@ function init() {
   loadPuzzle(currentN);
 }
 
+/* fold-out rules explication — per genus, with the grader's technique ladder */
+const GENUS_RULES = {
+  binairo: {
+    goal: 'Fill the whole grid with the two colors.',
+    laws: [
+      '<b>No triple</b> — never three of the same color in a row, across or down.',
+      '<b>Balance</b> — every row and every column holds exactly half of each color.',
+      '<b>All lines unique</b> — no two rows identical; no two columns identical.',
+    ],
+    controls: 'Click an empty cell for color one; click again for color two; again to clear. Right-click cycles backward. Dotted cells are givens — locked.',
+  },
+  nonogram: {
+    goal: 'Reconstruct the hidden picture.',
+    laws: [
+      '<b>Run clues</b> — the numbers beside a row/column give the lengths of its consecutive filled runs, in order.',
+      '<b>Gaps</b> — between two runs there is at least one blank cell.',
+    ],
+    controls: 'Click to fill; click again to mark blank (✕); again to clear. The ✕ is a note to yourself — only filled cells are checked.',
+  },
+};
+function renderRules(inst) {
+  const R = GENUS_RULES[inst.genus]; if (!R) return;
+  const info = inst.genusDef.techniqueInfo || {};
+  const tech = Object.values(info).map((t) => `<b>${t.label}</b> <span class="dim">— ${t.hint}</span>`).join('<br>');
+  $('rules-body').innerHTML =
+    `<div class="rrow"><span class="rk">goal</span><span class="rv">${R.goal}</span></div>` +
+    `<div class="rrow"><span class="rk">laws</span><span class="rv">${R.laws.join('<br>')}</span></div>` +
+    `<div class="rrow"><span class="rk">controls</span><span class="rv">${R.controls}</span></div>` +
+    `<div class="rrow"><span class="rk">deductions</span><span class="rv">${tech}<br><span class="dim">These are the moves the grader watches for — the puzzle never requires guessing.</span></span></div>`;
+  $('rules').open = false;
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+

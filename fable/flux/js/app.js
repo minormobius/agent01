@@ -49,6 +49,7 @@ function loadWorld(n) {
   });
   updateAttempts(player.status());
   renderVerdict(world, report);
+  renderRules(world, report);
   $('howto').innerHTML = `<span style="color:var(--faint);font-size:12px;">${BUNDLE_BY_ID[world.bundle]?.blurb || ''} — drag from the ball to aim, pull back for power, release to launch.</span>`;
   writeURL();
 }
@@ -151,5 +152,24 @@ function init() {
   readURL();
   loadWorld(currentN);
 }
+/* fold-out rules — assembled from the world's forces */
+const FORCE_RULES = {
+  gravity: '<b>Gravity</b> pulls the ball down, constantly. Arc your shots.',
+  well: '<b>Wells</b> pull from anywhere — inverse-square, stronger up close. Slingshot around them.',
+  magnet: '<b>Magnets</b> come in two signs: + pulls the ball, − pushes it away.',
+  goo: '<b>Goo</b> saps speed while you are inside it. A ball that stalls in goo is finished.',
+  bumper: '<b>Bumpers</b> are springy — the ball rebounds with most of its speed.',
+};
+function renderRules(world, r) {
+  const forces = (world.mechanics || []).map((m) => FORCE_RULES[m]).filter(Boolean);
+  $('rules-body').innerHTML =
+    `<div class="rrow"><span class="rk">goal</span><span class="rv">Land the ball in the ringed goal. You get one launch per attempt — the flight does the rest.</span></div>` +
+    `<div class="rrow"><span class="rk">forces</span><span class="rv">${forces.join('<br>') || '<span class="dim">empty space — pure ballistics</span>'}<br><span class="dim">Walls and the arena edge bounce the ball with a little energy loss.</span></span></div>` +
+    `<div class="rrow"><span class="rk">controls</span><span class="rv"><b>Drag from the ball</b>: direction sets the heading, pull-distance sets power. Release to launch.</span></div>` +
+    `<div class="rrow"><span class="rk">the answer</span><span class="rv">The solver simulated <b>every possible launch</b> (96 angles × 18 powers) before you arrived: ${(r.winFrac * 100).toFixed(0)}% of launches win here, in ${r.basins} distinct basin${r.basins === 1 ? '' : 's'}. <span class="dim">Toggle the win-map to see them — angle around, power outward.</span></span></div>`;
+  $('rules').open = false;
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+

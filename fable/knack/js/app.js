@@ -50,8 +50,9 @@ function loadLevel(n) {
     onSolved: (st) => { $('win-banner').textContent = st.beat ? `Solved in ${st.moves} — you matched par (${st.par})! ✦` : `Solved in ${st.moves} moves. Par is ${st.par}.`; $('win-banner').classList.add('show'); },
   });
   updateMoves(player.status());
-  renderVerdict(level, report);
+  renderVerdict(level, report, data.solve);
   renderHowto(level);
+  renderRules(level, data.solve);
   writeURL();
 }
 function updateMoves(st) { $('moves').textContent = `${st.moves} moves · par ${st.par}`; }
@@ -60,12 +61,12 @@ function renderHowto(level) {
   $('howto').innerHTML = `<span style="color:var(--faint);font-size:12px;">${BUNDLE_BY_ID[level.bundle]?.blurb || ''}</span>`;
 }
 
-function renderVerdict(level, r) {
+function renderVerdict(level, r, sr) {
   const row = (ok, t) => `<div class="verdict-row"><span class="ico ${ok ? 'ok' : ''}">${ok ? '✓' : '·'}</span><span>${t}</span></div>`;
   $('verdict').innerHTML =
     row(true, 'Solvable — a goal state is reachable') +
     row(true, `Optimal answer found: par ${r.par}`) +
-    `<div class="verdict-row"><span class="ico">⛁</span><span>${r.nodes.toLocaleString()} states searched</span></div>`;
+    `<div class="verdict-row"><span class="ico">⛁</span><span>${r.nodes.toLocaleString()} states searched · ${sr?.algo === 'astar' ? 'A* heuristic oracle' : 'BFS oracle'}</span></div>`;
   $('diff-num').textContent = r.difficulty; $('diff-tier').textContent = r.diffTier;
   $('int-num').textContent = r.interest; $('descriptor').textContent = r.descriptor;
 
@@ -161,5 +162,36 @@ function init() {
   readURL();
   loadLevel(currentN);
 }
+/* fold-out rules — assembled from the level's actual mechanics */
+const MECH_RULES = {
+  box: '<b>Crates</b> push one cell when you walk into them — never pull, never two at once. A crate shoved into a corner is stuck for ever.',
+  ice: '<b>Ice</b> carries you: step on and you slide in that direction until a wall or crate stops you.',
+  key: '<b>Keys</b> are picked up by walking over them.',
+  door: '<b>Doors</b> block you until you hold the key of their color.',
+  button: '<b>Buttons</b> count as pressed while you or a crate stands on them.',
+  gate: '<b>Gates</b> are open only while their button is held down — step off and they close behind you.',
+  pit: '<b>Pits</b> block you, but a crate pushed in fills one into walkable floor (the crate is spent).',
+  arrow: '<b>One-way tiles</b> can only be entered moving the way the arrow points.',
+  coin: '<b>Coins</b> are collected by walking over them.',
+};
+const GOAL_TEXT = (level) => {
+  const g = level.win || {};
+  const parts = [];
+  if (g.boxesOnTargets) parts.push('push every crate onto a diamond marker');
+  if (g.coinsCollected) parts.push('collect every coin');
+  if (g.atExit) parts.push('reach the glowing exit');
+  return parts.join(', then ') + '.';
+};
+function renderRules(level, sr) {
+  const mechs = (level.mechanics || []).map((m) => MECH_RULES[m]).filter(Boolean);
+  $('rules-body').innerHTML =
+    `<div class="rrow"><span class="rk">goal</span><span class="rv">${GOAL_TEXT(level).replace(/^./, c=>c.toUpperCase())}</span></div>` +
+    `<div class="rrow"><span class="rk">mechanics</span><span class="rv">${mechs.join('<br>') || '<span class="dim">pure movement</span>'}</span></div>` +
+    `<div class="rrow"><span class="rk">controls</span><span class="rv">Arrow keys / WASD, swipe, or the pad. <b>Undo</b> takes a move back (it still counts).</span></div>` +
+    `<div class="rrow"><span class="rk">the answer</span><span class="rv">The ${sr?.algo === 'astar' ? 'A* heuristic' : 'BFS'} oracle proved this level solvable at optimal <b>par</b> (shown above the board) — match it if you can. <span class="dim">"Watch the engine" replays the oracle's exact route.</span></span></div>`;
+  $('rules').open = false;
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+

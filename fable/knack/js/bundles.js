@@ -66,6 +66,33 @@ const depot = {
   },
 };
 
+// WAREHOUSE — deep Sokoban: three crates on a bigger floor. NP-hard territory —
+// the state space dwarfs blind BFS, so this bundle is certified by the A*
+// oracle (admissible box-matching heuristic). This is the "stress the form"
+// genre: hard for the solver, satisfying for the player.
+const warehouse = {
+  id: 'warehouse', name: 'Warehouse', theme: 'crates', accent: '#8a5a22',
+  blurb: 'Three crates, one floor, no pulls. The deep end of Sokoban — every shipped layout is certified at optimal par by a heuristic-search oracle.',
+  minPar: 16,
+  deep: true,
+  build(rand) {
+    const W = size(rand, 8, 9), H = size(rand, 8, 9);
+    const sp = baseSpec(W, H); border(sp.base, W, H);
+    let pool = interiorCells(W, H);
+    sprinkleWalls(rand, sp.base, pool, 0.12);
+    pool = pool.filter((i) => sp.base[i] === FLOOR);
+    const nBoxes = 3;
+    const cells = take(rand, pool, 1 + nBoxes * 2);
+    if (cells.length < 1 + nBoxes * 2) return null;
+    sp.playerStart = cells[0];
+    sp.boxesStart = cells.slice(1, 1 + nBoxes);
+    sp.targets = cells.slice(1 + nBoxes, 1 + nBoxes * 2);
+    sp.win = { boxesOnTargets: true };
+    sp.mechanics = ['box'];
+    return sp;
+  },
+};
+
 // FROST — Ice maze: slide until something stops you; reach the exit.
 const frost = {
   id: 'frost', name: 'Frost', theme: 'ice', accent: '#2f8fd6',
@@ -202,6 +229,6 @@ const tangle = {
   },
 };
 
-export const BUNDLES = [depot, frost, vault, relay, forage, tangle];
+export const BUNDLES = [depot, warehouse, frost, vault, relay, forage, tangle];
 export const BUNDLE_BY_ID = Object.fromEntries(BUNDLES.map((b) => [b.id, b]));
-export const BUNDLE_WEIGHTS = { depot: 4, frost: 4, vault: 4, relay: 3, forage: 4, tangle: 4 };
+export const BUNDLE_WEIGHTS = { depot: 4, warehouse: 2, frost: 4, vault: 4, relay: 3, forage: 4, tangle: 4 };

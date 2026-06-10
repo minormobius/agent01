@@ -66,5 +66,24 @@ console.log('knack engine tests\n');
   console.log(`ranking: band sorted, scores in [0,100], top = #${band[0].n} ${band[0].level.bundle} (${band[0].report.interest})`);
 }
 
+// 5. Warehouse (deep tier): A* certifies, paths replay, and A* par matches BFS
+//    par on instances small enough for both — the optimality cross-check.
+{
+  const { solveAStar } = await import('../js/solver.js');
+  let made = 0, replays = 0, agree = 0, checked = 0;
+  for (let n = 1; n <= 8; n++) {
+    const p = levelForSeed(n, { bundle: 'warehouse' });
+    if (!p) continue;
+    made++;
+    if (replay(p.level, p.solve.path)) replays++; else fail(`warehouse ${n} path does not replay to a win`);
+    if (p.report.par < 16) fail(`warehouse ${n} par ${p.report.par} below the deep floor`);
+    if (p.solve.nodes < 700000) { // tractable enough to double-check with BFS
+      const b = solve(p.level, { cap: 900000 });
+      if (b.solvable) { checked++; if (b.par === p.report.par) agree++; else fail(`warehouse ${n} A* par ${p.report.par} ≠ BFS ${b.par}`); }
+    }
+  }
+  console.log(`warehouse: ${made}/8 made, ${replays} replay-verified, A*-vs-BFS optimality agreed ${agree}/${checked}`);
+}
+
 console.log(failures ? `\nFAILED: ${failures} assertion(s)` : '\nAll engine tests passed.');
 process.exit(failures ? 1 : 0);

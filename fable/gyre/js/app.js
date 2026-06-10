@@ -57,6 +57,7 @@ function loadWorld(n) {
     });
     updateAttempts(player.status());
     renderVerdict(world, report);
+    renderRules(world, report);
     $('howto').innerHTML = `<span style="color:var(--faint);font-size:12px;">${BUNDLE_BY_ID[world.bundle]?.blurb || ''} Drag near the ball to aim · drag elsewhere to rotate the world.</span>`;
     writeURL();
   }, 30);
@@ -167,5 +168,26 @@ function init() {
   readURL();
   loadWorld(currentN);
 }
+/* fold-out rules — forces + the topology, which is always a mechanic here */
+const FORCE_RULES = {
+  curvature: '<b>Curvature</b> — even with no forces, "straight" lines precess, wrap the tube, and thread the hole. The shape of the world steers the ball.',
+  gravity: '<b>Gravity</b> points down through the embedding — the underside of the ring is a valley, the top a ridge.',
+  magnet: '<b>Magnets</b> sit on the surface: + pulls, − pushes — and their reach cuts through the hole of the torus.',
+  goo: '<b>Goo</b> patches cling to the surface and bleed speed while you cross them.',
+  bumper: '<b>Bumpers</b> rebound the ball within the surface.',
+};
+function renderRules(world, r) {
+  const mech = ['curvature', ...(world.mechanics || [])];
+  const forces = [...new Set(mech)].map((m) => FORCE_RULES[m]).filter(Boolean);
+  $('rules-body').innerHTML =
+    `<div class="rrow"><span class="rk">the world</span><span class="rv">The ball lives <b>on the surface of a torus</b> — a closed world with no edges. Nothing ever falls off; it winds. The inset map (bottom-left) is the same world unwrapped flat.</span></div>` +
+    `<div class="rrow"><span class="rk">goal</span><span class="rv">Land the ball in the ringed goal. One launch per attempt.</span></div>` +
+    `<div class="rrow"><span class="rk">forces</span><span class="rv">${forces.join('<br>')}</span></div>` +
+    `<div class="rrow"><span class="rk">controls</span><span class="rv"><b>Drag near the ball</b> to aim in the surface plane (pull for power); <b>drag anywhere else</b> to turn the world in your hands.</span></div>` +
+    `<div class="rrow"><span class="rk">the answer</span><span class="rv">The solver swept every heading × power before you arrived — ${(r.winFrac * 100).toFixed(0)}% of launches win, and its best shot winds the ring ${Math.round(r.answer.windU)}× and the tube ${Math.round(r.answer.windV)}×. <span class="dim">The win-map dial shows where the winners live.</span></span></div>`;
+  $('rules').open = false;
+}
+
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
 else init();
+
