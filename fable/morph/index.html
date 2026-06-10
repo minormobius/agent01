@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>morph — a generator of puzzle generators</title>
+<meta name="description" content="One level up: instead of generating puzzles, morph generates whole games. Each roll samples a GENOME — a topology, a law, a goal, a look — and instantiates a solver-verified puzzle from it. Press 'new game' and you're somewhere born on a different planet.">
+<meta property="og:title" content="morph — a generator of puzzle generators">
+<meta property="og:description" content="Sample a game grammar: topology × law × goal × aesthetic. One BFS oracle certifies every result. New game = new planet.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · morph</div>
+  <header class="masthead">
+    <h1>morph<span class="dot">.</span></h1>
+    <div class="tagline">A level up: instead of generating puzzles, morph generates whole <b>games</b>. Each roll
+      samples a <b>genome</b> — a topology (grid, cylinder, torus, Möbius, Klein, hex), a law (push, slide, collect,
+      lights, portals), a goal, and a look — and instantiates a puzzle from it that one invariant solver has
+      <b>certified solvable</b>. <b>New game</b> rolls a fresh genome — a different planet. <b>New puzzle</b> rolls a
+      fresh level in the same game. The thing that never changes is the oracle; the game always does.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas of games</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><label for="seed">game</label><input id="seed" type="number" min="1" value="1"><button class="btn" id="go">go</button></div>
+      <div class="sep"></div>
+      <div class="grp twoknob">
+        <button class="btn primary" id="newgame">✦ new game</button>
+        <button class="btn" id="newpuzzle">↻ new puzzle</button>
+      </div>
+      <div class="sep"></div>
+      <div class="grp">
+        <label for="huntSub">find</label>
+        <select id="huntSub"><option value="">any topology</option>
+          <option value="grid">Grid</option><option value="cylinder">Cylinder</option><option value="torus">Torus</option>
+          <option value="mobius">Möbius</option><option value="klein">Klein</option><option value="hex">Hex</option></select>
+        <select id="huntPrim"><option value="">any goal</option>
+          <option value="traverse">traverse</option><option value="sokoban">push</option><option value="collect">collect</option><option value="lights">lights</option></select>
+        <button class="btn" id="weird">weirder ⟳</button>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">—</span><span class="bpill" id="prim-pill"></span></div>
+        <div class="win-banner" id="win-banner">Solved!</div>
+        <div class="board-host"><canvas id="board"></canvas></div>
+        <div class="dirpad" id="dirpad"></div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:6px 0;flex-wrap:wrap;">
+            <button class="btn" id="undo">undo</button>
+            <button class="btn" id="reset">reset</button>
+            <button class="btn primary" id="solve">▶ watch the solver</button>
+            <span id="moves" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel genome-panel">
+          <h3>The genome (this game's grammar)</h3>
+          <div id="genome"></div>
+          <div class="rich-bar"><i id="rich" style="width:0%"></i></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;">genome richness — how far from a plain grid this roll lands</div>
+        </div>
+        <div class="panel">
+          <h3>Solver verdict</h3>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+          <div class="descriptor" id="descriptor"></div>
+        </div>
+        <div class="panel"><h3>Interest signals</h3><div class="signals" id="signals"></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">games 1–12</span><button class="btn" id="g-next">›</button></div>
+      <div class="grp" style="margin-left:auto;"><span style="font-family:var(--mono);font-size:11px;color:var(--muted);">each card is a different GAME — click to play</span></div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">rolling genomes & solving an instance of each…</div></div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>One level up the ladder of abstraction</h2>
+      <p>The first four wings of <a href="/">fable</a> — <a href="/puzz/">puzz</a>, <a href="/knack/">knack</a>,
+        <a href="/flux/">flux</a>, <a href="/gyre/">gyre</a> — each generate <i>puzzles</i>. But within a wing, every
+        roll is the same game with the furniture rearranged: knack is always knack. They feel like four games, not
+        infinite games. morph asks the next question: <b>what does a generator of puzzle generators look like?</b></p>
+
+      <h2>Sample the grammar, not just the furniture</h2>
+      <p>The insight is that a game is a point in a space of <b>grammars</b>, and the axes are orthogonal:</p>
+      <ul>
+        <li><b>Substrate</b> — the topology the game lives on: grid, cylinder, torus, Möbius strip, Klein bottle, hex.
+          This is the deepest knob; a Möbius seam flips your frame mid-slide, and the solver never notices.</li>
+        <li><b>Law</b> — how you move and what the world does: walk or slide, push, collect, light-up, teleport.</li>
+        <li><b>Goal</b> — reach the gate, fill every marker, gather it all, light every tile.</li>
+        <li><b>Aesthetic</b> — sampled independently, so two games with the same grammar still look alien to each other.</li>
+      </ul>
+      <p>A roll is a <b>genome</b>. Instantiating it with an instance seed lays out a concrete level. The product of
+        these axes — six topologies × four goals × layered rules × eight motifs — is large, and because the axes are
+        independent you get combinations no one designed: Lights-Out on a Klein bottle, Sokoban across a torus seam,
+        a slick collect-a-thon on a Möbius strip.</p>
+
+      <h2>The invariant that makes it possible: one oracle</h2>
+      <p>What lets the grammar vary without limit is that the thing underneath <i>doesn't</i>. Every genome in this wing
+        compiles to a discrete state graph, and a single breadth-first search certifies any of them solvable, finds the
+        optimal length, and grades it. The games are generated; the oracle is fixed. That's the whole trick — and it's
+        why morph can reject a genome as a dud (no good instance exists) and grade a genome's <b>richness</b> before
+        you ever play it.</p>
+
+      <h2>Two knobs, named</h2>
+      <p><b>New game</b> rolls a new genome — a different planet. <b>New puzzle</b> keeps the genome and rolls a new
+        instance — the same game, a fresh level. Naming both is the point: morph is inexhaustible at the <i>genome</i>
+        level, not just the level level. <code>/morph/?n=&lt;game&gt;&amp;p=&lt;puzzle&gt;</code> is a permalink to
+        exactly one level of exactly one game.</p>
+
+      <h2>Where this goes next</h2>
+      <p>This wing's oracle is BFS over a discrete state graph, so it covers every game that is discrete, deterministic,
+        and turn-based. Other oracle <i>families</i> already exist next door — constraint-uniqueness (puzz),
+        action-space sweep (flux/gyre) — and the genome's outer axis is really <b>which family</b>. Number games, node
+        graphs, painting/symmetry, word-embedding games: each is a new substrate or a new oracle family bolted under the
+        same meta-generator. The ladder keeps going up.</p>
+    </div>
+  </section>
+
+  <footer>morph · fable.mino.mobi · a generator of puzzle generators · one oracle, endless grammars · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
