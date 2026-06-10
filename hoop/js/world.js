@@ -222,6 +222,77 @@ export class ChunkField {
   }
 }
 
+// ── FOAM map ───────────────────────────────────────────────────────────────────
+// Rooms are Voronoi cells (our foam), not ship.js rectangles. Each chunk scatters
+// seeds, assigns every tile to its nearest seed, and walls the boundaries between
+// cells that aren't door-connected (a spanning tree keeps every room reachable). Four
+// deterministic edge ports + corridors stitch chunks together, so the map stays an
+// infinite, walkable, gravity-tinted foam. Same {tiles,grav,rooms} shape as ship.js,
+// so World renders/moves/places on it unchanged.
+const ROOM_TYPES = [
+  { id: 'commons', glyph: '⌂', accent: '#cfd8d0', reg: 0, rgb: [210, 215, 205], intensity: 0.55, flicker: 0 },
+  { id: 'garden', glyph: '❀', accent: '#6fcf8e', reg: 0, rgb: [120, 210, 140], intensity: 0.70, flicker: 0.05 },
+  { id: 'forge', glyph: '⚒', accent: '#e0884a', reg: 3, rgb: [240, 140, 70], intensity: 1.0, flicker: 0.4 },
+  { id: 'archive', glyph: '❍', accent: '#8fb0d8', reg: 0, rgb: [150, 180, 220], intensity: 0.5, flicker: 0 },
+  { id: 'observatory', glyph: '✷', accent: '#9a8fe0', reg: 2, rgb: [150, 160, 230], intensity: 0.35, flicker: 0 },
+  { id: 'shaft', glyph: '↕', accent: '#7fd8d0', reg: 2, rgb: [90, 200, 200], intensity: 0.40, flicker: 0 },
+  { id: 'reactor', glyph: '☢', accent: '#e0d24a', reg: 3, rgb: [230, 230, 90], intensity: 1.1, flicker: 0.6 },
+  { id: 'shrine', glyph: '☥', accent: '#d8b85a', reg: 1, rgb: [230, 200, 120], intensity: 0.6, flicker: 0.1 },
+];
+const VOID = Ship.TILE.VOID;
+function foamChunk(seed, cx, cy) {
+  const rng = Ship.rngFor(seed, 41, cx, cy);
+  const G = 4, NS = G * G, seeds = [];
+  for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++)
+    seeds.push({ x: (gx + 0.18 + 0.64 * rng()) * C / G, y: (gy + 0.18 + 0.64 * rng()) * C / G, t: ROOM_TYPES[Math.floor(rng() * ROOM_TYPES.length)] });
+  const cellOf = new Int16Array(C * C);
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { let bi = 0, bd = 1e9; for (let s = 0; s < NS; s++) { const d = (seeds[s].x - x - 0.5) ** 2 + (seeds[s].y - y - 0.5) ** 2; if (d < bd) { bd = d; bi = s; } } cellOf[y * C + x] = bi; }
+  const akey = (a, b) => a < b ? a + ',' + b : b + ',' + a;
+  const adj = new Map();
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { const a = cellOf[y * C + x]; if (x + 1 < C) { const b = cellOf[y * C + x + 1]; if (a !== b) adj.set(akey(a, b), [a, b]); } if (y + 1 < C) { const b = cellOf[(y + 1) * C + x]; if (a !== b) adj.set(akey(a, b), [a, b]); } }
+  // doors: a deterministic spanning tree over the cell graph (+ a few extra loops)
+  const par = []; for (let i = 0; i < NS; i++) par[i] = i; const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  const edges = [...adj.values()].sort((p, q) => Ship.hashInts(seed, p[0], p[1], 5) - Ship.hashInts(seed, q[0], q[1], 5));
+  const doors = new Set();
+  for (const [a, b] of edges) { if (find(a) !== find(b)) { par[find(a)] = find(b); doors.add(akey(a, b)); } else if ((Ship.hashInts(seed, a, b, 6) & 7) === 0) doors.add(akey(a, b)); }
+  const tiles = new Uint8Array(C * C), grav = new Uint8Array(C * C);
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
+    const a = cellOf[y * C + x]; let wall = false;
+    for (let d = 0; d < 4; d++) { const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d]; if (nx < 0 || ny < 0 || nx >= C || ny >= C) continue; const b = cellOf[ny * C + nx]; if (b !== a && !doors.has(akey(a, b))) { wall = true; break; } }
+    const i = y * C + x;
+    if (wall) { tiles[i] = VOID; grav[i] = 0; } else { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].t.reg; }
+  }
+  // edge ports → corridors to the hub, shared with neighbours so chunks connect
+  const hub = C >> 1;
+  const pE = 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)), pW = 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6));
+  const pS = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)), pN = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6));
+  const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) { tiles[i] = FLOOR; grav[i] = 1 + seeds[cellOf[i]].t.reg; } };
+  for (let x = hub; x < C; x++) setF(x, pE); for (let x = 0; x <= hub; x++) setF(x, pW);
+  for (let y = hub; y < C; y++) setF(pS, y); for (let y = 0; y <= hub; y++) setF(pN, y); setF(hub, hub);
+  tiles[pE * C + (C - 1)] = DOOR; tiles[pW * C + 0] = DOOR; tiles[(C - 1) * C + pS] = DOOR; tiles[0 * C + pN] = DOOR;
+  for (const i of [pE * C + (C - 1), pW * C + 0, (C - 1) * C + pS, 0 * C + pN]) if (!grav[i]) grav[i] = 1;
+  // rooms (one per non-empty cell) — bbox, centre, type, a light
+  const rooms = [];
+  for (let s = 0; s < NS; s++) {
+    let mnx = C, mny = C, mxx = 0, mxy = 0, sx = 0, sy = 0, n = 0;
+    for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) if (cellOf[y * C + x] === s && tiles[y * C + x] !== VOID) { if (x < mnx) mnx = x; if (y < mny) mny = y; if (x > mxx) mxx = x; if (y > mxy) mxy = y; sx += x; sy += y; n++; }
+    if (n === 0) continue;
+    const t = seeds[s].t, ccx = Math.round(sx / n), ccy = Math.round(sy / n);
+    rooms.push({ x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, cx: ccx, cy: ccy, type: t.id, glyph: t.glyph, accent: t.accent, regime: Ship.GRAV_LIST[t.reg], lights: [{ x: ccx, y: ccy, intensity: t.intensity, flicker: t.flicker, rgb: t.rgb, radius: 5 + ((mxx - mnx + mxy - mny) / 3 | 0) }] });
+  }
+  return { tiles, grav, rooms };
+}
+class FoamField extends ChunkField {
+  chunk(cx, cy) {
+    const k = this._key(cx, cy); let c = this.cache.get(k);
+    if (!c) {
+      try { c = foamChunk(this.seed, cx, cy); } catch (e) { c = Ship.generateChunk(this.seed, cx, cy, this.genome); } // safety: fall back to the ship layout
+      this.cache.set(k, c); if (this.cache.size > 256) this._evict(cx, cy);
+    }
+    return c;
+  }
+}
+
 // ── continuous gravity-aware movement (exported pure kernel for the selftest) ──
 // Integrates one frame: input + the cell's gravity regime → velocity; axis-
 // separated collision against the floor field (round() = occupied tile) so the
@@ -249,7 +320,7 @@ export class World {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.h = handlers;
-    this.field = new ChunkField(Ship.FLAGSHIP_SEED, null);
+    this.field = new FoamField(Ship.FLAGSHIP_SEED, null);
     this.places = [];
     this.placeAt = new Map();
     // x/y = integer tile occupied (the forum address); px/py/vx/vy = continuous physics.
