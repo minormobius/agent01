@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>drift — puzzles in meaning-space</title>
+<meta name="description" content="The board is an embedding: 7,000 words wired by meaning. Cross a semantic gulf one nearest-neighbour at a time, or unfold margin-certified word families — every puzzle verified by an oracle over the embedding itself.">
+<meta property="og:title" content="drift — puzzles in meaning-space">
+<meta property="og:description" content="Words as cells, meaning as adjacency. BFS finds par across the semantic graph; margins certify the groupings.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · drift</div>
+  <header class="masthead">
+    <h1>drift<span class="dot">.</span></h1>
+    <div class="tagline">The board is an <b>embedding</b>. 7,000 English words, wired to their twelve nearest
+      neighbours in meaning-space — and the puzzles live on that wiring. <b>Ladder</b>: cross from one word to a
+      semantically distant one, stepping only along neighbours; a BFS over the meaning-graph has already found the
+      shortest crossing (par). <b>Fold</b>: sort twelve words into three hidden families — shipped only with a measured
+      <b>margin certificate</b> that the grouping is unambiguous. The map below is the embedding itself, flattened;
+      your solve draws a trajectory across it.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><label for="seed">page</label><input id="seed" type="number" min="1" value="3"><button class="btn" id="go">go</button></div>
+      <div class="sep"></div>
+      <div class="grp"><button class="btn" id="prev">‹ prev</button><button class="btn" id="next">next ›</button><button class="btn" id="random">random</button></div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn primary" id="surprise">✦ surprise me</button>
+        <label for="huntGenus">find</label>
+        <select id="huntGenus"><option value="">either genus</option><option value="ladder">Ladder</option><option value="fold">Fold</option></select>
+        <select id="huntDiff"><option value="">any difficulty</option><option value="hard">harder</option><option value="easy">gentler</option></select>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">loading the embedding…</span><span class="bpill" id="genus-pill"></span></div>
+        <div class="win-banner" id="win-banner">Solved!</div>
+        <div class="map-host"><canvas id="map"></canvas></div>
+        <div id="game-host"></div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:8px 0 6px;flex-wrap:wrap;">
+            <button class="btn" id="undo">undo</button>
+            <button class="btn" id="reset">reset</button>
+            <button class="btn primary" id="solve">▶ watch the solver</button>
+            <span id="moves" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Oracle verdict</h3>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+          <div class="descriptor" id="descriptor"></div>
+        </div>
+        <div class="panel"><h3>Interest signals</h3><div class="signals" id="signals"></div></div>
+        <div class="panel"><h3>The substrate</h3>
+          <div style="font-size:13px;color:var(--muted);">7,000 words · MiniLM-L6 embeddings · 12-NN graph · PCA map. Built by
+          <code style="font-family:var(--mono);font-size:11px;">build-drift-graph.mjs</code>, committed, versioned. The same
+          frozen substrate on every machine is what makes page numbers permalinks.</div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–18</span><button class="btn" id="g-next">›</button></div>
+      <div class="sep"></div>
+      <div class="grp"><label>genus</label><select id="g-genus"><option value="">both</option><option value="ladder">Ladder</option><option value="fold">Fold</option></select>
+      <label>sort</label><select id="g-sort"><option value="interest">interest</option><option value="difficulty">difficulty</option><option value="seed">page #</option></select></div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">surveying meaning-space…</div></div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>Tier four: the semantic substrate</h2>
+      <p>drift is the sixth wing of <a href="/">fable</a> and the deepest cut yet at "a game born on a different
+        planet." The earlier wings vary topology, law, physics. drift swaps the substrate itself for <b>meaning</b>:
+        the board is a k-nearest-neighbour graph over 7,000 word embeddings (MiniLM, the same model family the rest of
+        this repo uses for its embedding work). Cells are words. Adjacency is semantic proximity. The 2D map you play
+        on is the embedding flattened by PCA — geography that no one drew.</p>
+
+      <h2>The same oracle discipline, on meaning</h2>
+      <p>What carries over unchanged from the other wings is the rule that made them rigorous: <b>every puzzle ships
+        with a verifiable answer.</b></p>
+      <ul>
+        <li><b>Ladder</b> is literally <a href="/morph/">morph</a>'s BFS oracle running on a semantic substrate — the
+          graph-substrate proof made playable. The oracle certifies a crossing exists and finds the optimal one; your
+          par is measured, not asserted. The interest battery rewards the <i>gulf</i>: how dissimilar the endpoints
+          are versus how few hops the crossing needs.</li>
+        <li><b>Fold</b> uses a margin oracle: a grouping is shipped only if every word is strictly closer to its own
+          family's centroid than to any other, by a measured gap. Tight margins make wickedly confusable puzzles; the
+          margin <i>is</i> the difficulty dial, and it is a number, not a vibe.</li>
+      </ul>
+
+      <h2>Why the substrate is committed, not computed</h2>
+      <p>The embedding graph is built offline (<code>scripts/build-drift-graph.mjs</code>: vocabulary → MiniLM →
+        kNN → PCA) and committed to the repo, exactly like the Rust-verified flux catalog and the cult basis before
+        it. Frozen data is what makes <code>/drift/?n=42</code> a permalink — the same puzzle on every machine, for
+        ever — and it keeps the site static: no model in the browser, no backend, just a 1MB graph.</p>
+
+      <h2>Where this goes</h2>
+      <p>This substrate has more games in it than two: analogy walks (king − man + woman, verified by nearest
+        neighbour), semantic <i>taboo</i> paths (cross the gulf while avoiding a forbidden region of the map),
+        embedding charades. And the morph thesis says the move after that: fold the semantic substrate INTO morph's
+        genome, so "new game" can land you on a board made of meaning as easily as on a Klein bottle.</p>
+    </div>
+  </section>
+
+  <footer>drift · fable.mino.mobi · the board is an embedding · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
