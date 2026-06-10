@@ -635,6 +635,41 @@ export class World {
 
     ctx.fillStyle = 'rgba(0,0,0,0.06)';
     for (let y = 0; y < this._vh; y += 3) ctx.fillRect(0, y, this._vw, 1);
+    try { this._drawMinimap(); } catch (e) { /* a HUD glitch must never kill the world */ }
+  }
+
+  // HUD minimap: a top-down read of the foam plane around you — floor tinted by gravity
+  // regime so the sectors parse, walls left dark, with places/peers/player + the current
+  // viewport box. Helps make sense of the foam without flattening its organic walls.
+  _drawMinimap() {
+    const ctx = this.ctx, M = Math.max(120, Math.min(184, this._vw * 0.26)), pad = 12;
+    const ox = this._vw - M - pad, oy = pad, RAD = 38, mpp = M / (2 * RAD);
+    const cxp = this.player.px, cyp = this.player.py;
+    const x0 = Math.round(cxp - RAD), x1 = Math.round(cxp + RAD), y0 = Math.round(cyp - RAD), y1 = Math.round(cyp + RAD);
+    const mx = (wx) => ox + (wx - cxp + RAD) * mpp, my = (wy) => oy + (wy - cyp + RAD) * mpp;
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,6,10,0.66)'; ctx.fillRect(ox - 4, oy - 4, M + 8, M + 8);
+    ctx.strokeStyle = 'rgba(127,216,208,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(ox - 4, oy - 4, M + 8, M + 8);
+    ctx.beginPath(); ctx.rect(ox, oy, M, M); ctx.clip();
+    ctx.fillStyle = '#070a0e'; ctx.fillRect(ox, oy, M, M);
+    const sz = Math.ceil(mpp);
+    for (let wy = y0; wy <= y1; wy++) for (let wx = x0; wx <= x1; wx++) {
+      if (!this.field.isFloor(wx, wy)) continue;
+      const g = GRAV_HUE[this.field.regime(wx, wy)] || GRAV_HUE.normal;
+      ctx.fillStyle = `rgb(${(g[0] * 0.7 + 26) | 0},${(g[1] * 0.7 + 30) | 0},${(g[2] * 0.7 + 36) | 0})`;
+      ctx.fillRect(mx(wx), my(wy), sz, sz);
+    }
+    for (const p of this.places) { if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue; ctx.fillStyle = p.id === this.selectedId ? '#fff' : 'rgba(245,200,110,0.95)'; ctx.fillRect(mx(p.x) - 1.5, my(p.y) - 1.5, 3, 3); }
+    for (const p of this.peers.values()) { if (p.px < x0 || p.px > x1 || p.py < y0 || p.py > y1) continue; ctx.fillStyle = `hsl(${p.hue} 85% 66%)`; ctx.fillRect(mx(p.px) - 1, my(p.py) - 1, 2, 2); }
+    const vw = this._vw / this.tile, vh = this._vh / this.tile;
+    ctx.strokeStyle = 'rgba(207,238,238,0.45)'; ctx.lineWidth = 1; ctx.strokeRect(mx(cxp - vw / 2), my(cyp - vh / 2), vw * mpp, vh * mpp);
+    ctx.fillStyle = '#ffce78'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.arc(ox + M / 2, oy + M / 2, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle = 'rgba(127,216,208,0.75)'; ctx.font = '10px "JetBrains Mono", ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('▦ deck (' + Math.round(cxp) + ', ' + Math.round(cyp) + ')', ox + 2, oy + 2);
+    ctx.restore();
   }
 
   // Fallback deck for a chunk whose mesh failed to build: flat-lit floor tiles, so
