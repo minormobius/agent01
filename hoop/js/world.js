@@ -302,7 +302,12 @@ function foamChunk(seed, cx, cy) {
   }
   const hazard = new Set();
   const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) tiles[i] = FLOOR; if (!grav[i]) grav[i] = 1 + seeds[cellOf[i]].reg; };
-  const carve = (x0, y0, x1, y1, haz) => { let x = x0, y = y0; const stp = () => { setF(x, y); if (haz) hazard.add(y * C + x); }; const sx = Math.sign(x1 - x0) || 1; while (x !== x1) { stp(); x += sx; } const sy = Math.sign(y1 - y0) || 1; while (y !== y1) { stp(); y += sy; } stp(); };
+  const carve = (x0, y0, x1, y1, haz) => {
+    let x = x0, y = y0; const put = (a, b) => { setF(a, b); if (haz) hazard.add(b * C + a); };
+    const sx = Math.sign(x1 - x0) || 1; while (x !== x1) { put(x, y); put(x, y + 1); x += sx; }   // 2-wide so auto-walk threads it
+    const sy = Math.sign(y1 - y0) || 1; while (y !== y1) { put(x, y); put(x + 1, y); y += sy; }
+    put(x, y); put(x + 1, y); put(x, y + 1);
+  };
   for (let s = 0; s < NS; s++) setF(cen[s].x, cen[s].y);   // every chamber keeps a walkable centre
   // membrane graph + a spanning tree (always passable → the chambers stay reachable)
   const akey = (a, b) => a < b ? a + ',' + b : b + ',' + a, adj = new Map();
@@ -462,10 +467,18 @@ export class World {
   }
   _onClick(e) {
     this.canvas.focus();
-    const t = this._tileFromEvent(e);
+    let t = this._tileFromEvent(e);
     const pl = this.placeKey(t.x, t.y);
-    if (pl) { this._pathTo(t.x, t.y, true); this._announce(pl); }
-    else if (this.isFloor(t.x, t.y)) this._pathTo(t.x, t.y, false);
+    if (pl) { this._pathTo(t.x, t.y, true); this._announce(pl); return; }
+    if (!this.isFloor(t.x, t.y)) {                          // snap to the nearest floor — the foam is mostly walls
+      let best = null, bd = 1e9;
+      for (let r = 1; r <= 4; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        if (this.isFloor(t.x + dx, t.y + dy)) { const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = [t.x + dx, t.y + dy]; } }
+      }
+      if (best) t = { x: best[0], y: best[1] };
+    }
+    if (this.isFloor(t.x, t.y)) this._pathTo(t.x, t.y, false);
   }
 
   // ── movement ────────────────────────────────────────────────────────────
@@ -484,7 +497,7 @@ export class World {
     if (!ix && !iy && this.path.length) {
       const [wx, wy] = this.path[0];
       const dx = wx - this.player.px, dy = wy - this.player.py, d = Math.hypot(dx, dy);
-      if (d < 0.32) this.path.shift();
+      if (d < 0.5) this.path.shift();
       else { ix = dx; iy = dy; if (this.path.length === 1 && d < 1.3) arriving = true; }
     }
     return { ix, iy, arriving };
