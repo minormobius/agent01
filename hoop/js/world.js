@@ -355,7 +355,11 @@ function foamChunk(seed, cx, cy) {
     const t = seeds[s].t, ccx = Math.round(sx / n), ccy = Math.round(sy / n);
     rooms.push({ x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, cx: ccx, cy: ccy, type: t.id, glyph: t.glyph, accent: t.accent, regime: Ship.GRAV_LIST[seeds[s].reg], lights: [{ x: ccx, y: ccy, intensity: t.intensity, flicker: t.flicker, rgb: t.rgb, radius: 5 + ((mxx - mnx + mxy - mny) / 3 | 0) }] });
   }
-  return { tiles, grav, rooms, hazard };
+  // radial connectors: a deterministic subset of chambers hosts a chute (down, toward the
+  // hull) or a ladder (up, toward the core) — the way between best-fit planes.
+  const connectors = [];
+  for (const r of rooms) { const hv = Ship.hashInts(seed, cx * 131 + r.cx, cy * 131 + r.cy, 23) >>> 0; if (hv % 100 < 22) connectors.push({ x: r.cx, y: r.cy, dir: (hv & 1) ? 1 : -1 }); }
+  return { tiles, grav, rooms, hazard, connectors };
 }
 class FoamField extends ChunkField {
   chunk(cx, cy) {
@@ -368,6 +372,8 @@ class FoamField extends ChunkField {
   }
   // a breached membrane — open, but to vacuum
   isHazard(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const c = this.chunk(cx, cy); return !!(c.hazard && c.hazard.has(ly * C + lx)); }
+  // a radial connector at this tile: +1 chute (down/hull), -1 ladder (up/core), 0 none
+  connectorAt(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const c = this.chunk(cx, cy); if (!c.connectors) return 0; for (const k of c.connectors) if (k.x === lx && k.y === ly) return k.dir; return 0; }
 }
 
 // ── continuous gravity-aware movement (exported pure kernel for the selftest) ──
@@ -397,7 +403,9 @@ export class World {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.h = handlers;
-    this.field = new FoamField(Ship.FLAGSHIP_SEED, null);
+    this.depth = 0;                          // radial layer (0 = the flagship deck; + toward hull, − toward core)
+    this._fields = {};
+    this.field = this._fieldAt(0);
     this.places = [];
     this.placeAt = new Map();
     // x/y = integer tile occupied (the forum address); px/py/vx/vy = continuous physics.
@@ -452,6 +460,7 @@ export class World {
       const k = e.key.toLowerCase();
       if (MV.has(k)) { e.preventDefault(); this.keys[k] = true; this.path = []; }      // manual input cancels auto-walk
       else if (k === 'n') { e.preventDefault(); this.h.onDropHere && this.h.onDropHere(this.player.x, this.player.y); }
+      else if (k === 'f') { e.preventDefault(); this._useConnector(); }                  // chute / ladder
     });
     this.canvas.addEventListener('keyup', (e) => { this.keys[e.key.toLowerCase()] = false; });
     this.canvas.addEventListener('blur', () => { this.keys = {}; });
@@ -468,6 +477,8 @@ export class World {
   _onClick(e) {
     this.canvas.focus();
     let t = this._tileFromEvent(e);
+    // tap yourself while on a chute/ladder to use it (mobile-friendly)
+    if (t.x === this.player.x && t.y === this.player.y && this.field.connectorAt && this.field.connectorAt(t.x, t.y)) { this._useConnector(); return; }
     const pl = this.placeKey(t.x, t.y);
     if (pl) { this._pathTo(t.x, t.y, true); this._announce(pl); return; }
     if (!this.isFloor(t.x, t.y)) {                          // snap to the nearest floor — the foam is mostly walls
@@ -479,6 +490,25 @@ export class World {
       if (best) t = { x: best[0], y: best[1] };
     }
     if (this.isFloor(t.x, t.y)) this._pathTo(t.x, t.y, false);
+  }
+
+  // ── radial layers (chutes & ladders) ─────────────────────────────────────
+  // Each depth is an independently-generated, independently-solved foam (a different
+  // best-fit plane through the shell). Stepping on a connector swaps the layer; the 2D
+  // forum addressing (x,y) is unchanged, so places/presence still work.
+  _fieldAt(d) { if (!this._fields[d]) this._fields[d] = new FoamField((Ship.FLAGSHIP_SEED ^ (d * 0x9e3779b1)) >>> 0, null); return this._fields[d]; }
+  _nearestFloor(x, y) { for (let r = 0; r <= 14; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; if (this.field.isFloor(x + dx, y + dy)) return { x: x + dx, y: y + dy }; } return { x, y }; }
+  _useConnector() {
+    const dir = this.field.connectorAt ? this.field.connectorAt(this.player.x, this.player.y) : 0;
+    if (!dir) return;
+    this.depth += dir;
+    this.field = this._fieldAt(this.depth);
+    for (const p of this.places) this.field.addPlaceTile(p.x, p.y);     // keep threads reachable on the new layer
+    const f = this._nearestFloor(this.player.x, this.player.y);
+    Object.assign(this.player, { x: f.x, y: f.y, px: f.x, py: f.y, vx: 0, vy: 0 });
+    this.path = [];
+    if (this.h.onMove) this.h.onMove(f.x, f.y);
+    if (this.h.onStatus) this.h.onStatus(`depth ${this.depth >= 0 ? '+' + this.depth : this.depth} · ${dir > 0 ? 'descended toward the hull ↓' : 'climbed toward the core ↑'}`);
   }
 
   // ── movement ────────────────────────────────────────────────────────────
@@ -559,7 +589,12 @@ export class World {
       if (this.h.onMove) this.h.onMove(tx, ty);
       const pl = this.placeKey(tx, ty);
       if (pl) this._announce(pl);
-      else if (this.h.onStatus) this.h.onStatus(this.field.isHazard && this.field.isHazard(tx, ty) ? `⚠ BREACH (${tx}, ${ty}) — open to vacuum` : `(${tx}, ${ty}) · ${this.field.regime(tx, ty)} gravity — N to drop a node`);
+      else if (this.h.onStatus) {
+        const dir = this.field.connectorAt ? this.field.connectorAt(tx, ty) : 0;
+        this.h.onStatus(dir ? `${dir > 0 ? '⤓ chute' : '⤒ ladder'} — press F (or tap) to ${dir > 0 ? 'descend toward the hull' : 'climb toward the core'}`
+          : this.field.isHazard && this.field.isHazard(tx, ty) ? `⚠ BREACH (${tx}, ${ty}) — open to vacuum`
+          : `(${tx}, ${ty}) · ${this.field.regime(tx, ty)} gravity · depth ${this.depth >= 0 ? '+' + this.depth : this.depth} — N to drop`);
+      }
     }
     for (const p of this.peers.values()) { p.px += (p.x - p.px) * 0.22; p.py += (p.y - p.py) * 0.22; }
     this._draw(now);
@@ -682,6 +717,17 @@ export class World {
       }
     }
 
+    // radial connectors — chutes (down) and ladders (up) between best-fit planes
+    ctx.font = `${Math.floor(t * 0.7)}px "JetBrains Mono", ui-monospace, monospace`;
+    for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+      const ch = this.field.chunk(cx, cy); if (!ch.connectors) continue; const bx = cx * C, by = cy * C;
+      for (const k of ch.connectors) {
+        const wx = bx + k.x, wy = by + k.y; if (wx < x0 || wx >= x1 || wy < y0 || wy >= y1) continue;
+        ctx.fillStyle = k.dir > 0 ? 'rgba(255,180,120,0.9)' : 'rgba(150,220,255,0.9)';
+        ctx.fillText(k.dir > 0 ? '⤓' : '⤒', SX(wx) + t / 2, SY(wy) + t / 2);
+      }
+    }
+
     // places (forum threads)
     ctx.font = `${Math.floor(t * 0.82)}px "JetBrains Mono", ui-monospace, monospace`;
     for (const p of this.places) {
@@ -768,7 +814,7 @@ export class World {
     ctx.restore();
     ctx.save();
     ctx.fillStyle = 'rgba(127,216,208,0.75)'; ctx.font = '10px "JetBrains Mono", ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText('▦ deck (' + Math.round(cxp) + ', ' + Math.round(cyp) + ')', ox + 2, oy + 2);
+    ctx.fillText('▦ deck d' + (this.depth >= 0 ? '+' + this.depth : this.depth) + ' (' + Math.round(cxp) + ', ' + Math.round(cyp) + ')', ox + 2, oy + 2);
     ctx.restore();
   }
 
