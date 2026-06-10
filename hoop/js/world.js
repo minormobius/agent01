@@ -118,18 +118,19 @@ export class ChunkField {
     const k = this._key(cx, cy);
     let s = this.sites_.get(k);
     if (s) return s;
-    const SUBDIV = 1;                         // plate sites per tile side (resolution knob)
     const ch = this.chunk(cx, cy), bx = cx * C, by = cy * C, out = [];
     const jr = Ship.rngFor(this.seed, 77, cx, cy);
     const voidSeen = new Set();
     for (let ly = 0; ly < C; ly++) for (let lx = 0; lx < C; lx++) {
       const wx = bx + lx, wy = by + ly;
       if (!this.isFloor(wx, wy)) continue;
+      let nearWall = false;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const vx = wx + dx, vy = wy + dy;
-        if (!this.isFloor(vx, vy)) { const vk = vx + ',' + vy; if (!voidSeen.has(vk)) { voidSeen.add(vk); out.push({ x: vx + 0.5, y: vy + 0.5, hull: true }); } }
+        if (!this.isFloor(vx, vy)) { nearWall = true; const vk = vx + ',' + vy; if (!voidSeen.has(vk)) { voidSeen.add(vk); out.push({ x: vx + 0.5, y: vy + 0.5, hull: true }); } }
       }
       const regime = this.regime(wx, wy);
+      const SUBDIV = nearWall ? 2 : 1;       // half-size plates hug the walls; coarse in open interiors
       for (let sy = 0; sy < SUBDIV; sy++) for (let sx = 0; sx < SUBDIV; sx++) {
         const h = Ship.hashInts(this.seed, wx * SUBDIV + sx, wy * SUBDIV + sy, 3);
         const cell = 1 / SUBDIV, jit = cell * 0.42;
@@ -291,14 +292,16 @@ function foamChunk(seed, cx, cy) {
   const cellOf = new Int16Array(C * C), sumx = new Float64Array(NS), sumy = new Float64Array(NS), cnt = new Int32Array(NS);
   for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { let bi = 0, bd = 1e9; for (let s = 0; s < NS; s++) { const d = (seeds[s].x - x - 0.5) ** 2 + (seeds[s].y - y - 0.5) ** 2; if (d < bd) { bd = d; bi = s; } } cellOf[y * C + x] = bi; sumx[bi] += x; sumy[bi] += y; cnt[bi]++; }
   const cen = []; for (let s = 0; s < NS; s++) cen.push(cnt[s] ? { x: Math.min(C - 1, Math.max(0, Math.round(sumx[s] / cnt[s]))), y: Math.min(C - 1, Math.max(0, Math.round(sumy[s] / cnt[s]))) } : { x: 0, y: 0 });
-  // MEMBRANES: erode each cell to its interior — a tile is FLOOR only if all its in-chunk
-  // neighbours share its cell; the boundary ring between cells is VOID (the bulkhead).
+  // MEMBRANES: a SLIM 1-tile bulkhead on the lower-id side of every cell boundary (the
+  // other side stays floor), so the wall between chambers is one tile, not two. Corridors
+  // carve through, so connectivity holds. Sites subdivide near walls (see sites()) to keep
+  // these thin walls crisp.
   const tiles = new Uint8Array(C * C), grav = new Uint8Array(C * C);
   for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
-    const a = cellOf[y * C + x]; let interior = true;
-    for (let d = 0; d < 4; d++) { const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d]; if (nx < 0 || ny < 0 || nx >= C || ny >= C) continue; if (cellOf[ny * C + nx] !== a) { interior = false; break; } }
+    const a = cellOf[y * C + x]; let wall = false;
+    for (let d = 0; d < 4; d++) { const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d]; if (nx < 0 || ny < 0 || nx >= C || ny >= C) continue; if (cellOf[ny * C + nx] > a) { wall = true; break; } }
     const i = y * C + x;
-    if (interior) { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].reg; } else { tiles[i] = VOID; grav[i] = 0; }
+    if (wall) { tiles[i] = VOID; grav[i] = 0; } else { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].reg; }
   }
   const hazard = new Set();
   const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) tiles[i] = FLOOR; if (!grav[i]) grav[i] = 1 + seeds[cellOf[i]].reg; };
@@ -355,31 +358,11 @@ function foamChunk(seed, cx, cy) {
     const t = seeds[s].t, ccx = Math.round(sx / n), ccy = Math.round(sy / n);
     rooms.push({ x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, cx: ccx, cy: ccy, type: t.id, glyph: t.glyph, accent: t.accent, regime: Ship.GRAV_LIST[seeds[s].reg], lights: [{ x: ccx, y: ccy, intensity: t.intensity, flicker: t.flicker, rgb: t.rgb, radius: 5 + ((mxx - mnx + mxy - mny) / 3 | 0) }] });
   }
-  // angled cell polygons + classified wall edges — the organic floor plan. Walls are the
-  // real Voronoi bisectors (slim, at any angle); each edge is tagged from the solve so the
-  // renderer can draw bulkheads solid, hatches with a doorway gap, and breaches cold.
-  const clip = (poly, nx, ny, mx, my) => { const o = []; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny; if (da <= 1e-9) o.push(a); if ((da < 0) !== (db < 0)) { const t = da / (da - db); o.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); } } return o; };
-  const cellsGeo = [];
-  for (let i = 0; i < NS; i++) {
-    let poly = [[0, 0], [C, 0], [C, C], [0, C]];
-    for (let j = 0; j < NS && poly.length >= 3; j++) { if (j === i) continue; poly = clip(poly, seeds[j].x - seeds[i].x, seeds[j].y - seeds[i].y, (seeds[i].x + seeds[j].x) / 2, (seeds[i].y + seeds[j].y) / 2); }
-    if (poly.length < 3) continue;
-    const edges = [];
-    for (let k = 0; k < poly.length; k++) {
-      const a = poly[k], b = poly[(k + 1) % poly.length], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
-      const border = (a[0] < 1e-3 && b[0] < 1e-3) || (a[0] > C - 1e-3 && b[0] > C - 1e-3) || (a[1] < 1e-3 && b[1] < 1e-3) || (a[1] > C - 1e-3 && b[1] > C - 1e-3);
-      let st = 'bulk';
-      if (border) st = 'border';
-      else { let nb = -1, bd = 1e9; for (let j = 0; j < NS; j++) { if (j === i) continue; const d = (seeds[j].x - mx) ** 2 + (seeds[j].y - my) ** 2; if (d < bd) { bd = d; nb = j; } } const key = akey(i, nb); st = breach.has(key) ? 'breach' : passable.has(key) ? 'hatch' : 'bulk'; }
-      edges.push({ a, b, st });
-    }
-    cellsGeo.push({ poly, cx: cen[i].x, cy: cen[i].y, reg: seeds[i].reg, edges });
-  }
   // radial connectors: a deterministic subset of chambers hosts a chute (down, toward the
   // hull) or a ladder (up, toward the core) — the way between best-fit planes.
   const connectors = [];
   for (const r of rooms) { const hv = Ship.hashInts(seed, cx * 131 + r.cx, cy * 131 + r.cy, 23) >>> 0; if (hv % 100 < 22) connectors.push({ x: r.cx, y: r.cy, dir: (hv & 1) ? 1 : -1 }); }
-  return { tiles, grav, rooms, hazard, connectors, cellsGeo };
+  return { tiles, grav, rooms, hazard, connectors };
 }
 class FoamField extends ChunkField {
   chunk(cx, cy) {
@@ -664,32 +647,33 @@ export class World {
     const SX = (wx) => ox + wx * t, SY = (wy) => oy + wy * t;
     const cx0 = Math.floor(x0 / C), cy0 = Math.floor(y0 / C), cx1 = Math.floor((x1 - 1) / C), cy1 = Math.floor((y1 - 1) / C);
 
-    // ── deck: organic Voronoi rooms — angled cell fills + slim, classified walls ──
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // ── deck: adaptive voronoi plates, gravity-tinted, lit (light per cell = probe) ──
     for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
-      const ch = this.field.chunk(cx, cy), bx = cx * C, by = cy * C, geo = ch.cellsGeo;
-      if (!geo) { this._flatFill(ctx, cx, cy, x0, y0, x1, y1, W, buf, ox, oy, t); continue; }
-      for (const cell of geo) {                                   // angled room fills
-        const wx = bx + cell.cx, wy = by + cell.cy;
-        if (wx < x0 - CLIP_R || wx > x1 + CLIP_R || wy < y0 - CLIP_R || wy > y1 + CLIP_R) continue;
-        const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.round(wx), Math.round(wy));
-        const g = GRAV_HUE[Ship.GRAV_LIST[cell.reg]] || GRAV_HUE.normal, p = cell.poly;
-        ctx.fillStyle = `rgb(${Math.min(255, 22 + g[0] * 0.18 + lit[0] * 210) | 0},${Math.min(255, 26 + g[1] * 0.18 + lit[1] * 210) | 0},${Math.min(255, 32 + g[2] * 0.18 + lit[2] * 210) | 0})`;
-        ctx.beginPath(); ctx.moveTo(SX(bx + p[0][0]), SY(by + p[0][1]));
-        for (let i = 1; i < p.length; i++) ctx.lineTo(SX(bx + p[i][0]), SY(by + p[i][1]));
+      const m = this.field.mesh(cx, cy);
+      if (!m.ok || !m.cells.length) { this._flatFill(ctx, cx, cy, x0, y0, x1, y1, W, buf, ox, oy, t); continue; }
+      for (const cell of m.cells) {
+        const A = cell.A;
+        if (A.x < x0 - CLIP_R || A.x > x1 + CLIP_R || A.y < y0 - CLIP_R || A.y > y1 + CLIP_R) continue;
+        const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.round(A.x), Math.round(A.y));
+        const g = GRAV_HUE[cell.regime] || GRAV_HUE.normal, amb = 0.22, a = cell.albedo;
+        ctx.fillStyle = `rgb(${Math.min(255, a[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205) | 0},${Math.min(255, a[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205) | 0},${Math.min(255, a[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205) | 0})`;
+        ctx.beginPath(); ctx.moveTo(SX(cell.poly[0][0]), SY(cell.poly[0][1]));
+        for (let i = 1; i < cell.poly.length; i++) ctx.lineTo(SX(cell.poly[i][0]), SY(cell.poly[i][1]));
         ctx.closePath(); ctx.fill();
       }
-      for (const cell of geo) {                                   // slim walls, at angles
-        const wx = bx + cell.cx, wy = by + cell.cy;
-        if (wx < x0 - CLIP_R || wx > x1 + CLIP_R || wy < y0 - CLIP_R || wy > y1 + CLIP_R) continue;
-        for (const e of cell.edges) {
-          const ax = SX(bx + e.a[0]), ay = SY(by + e.a[1]), x2 = SX(bx + e.b[0]), y2 = SY(by + e.b[1]);
-          if (e.st === 'hatch') { ctx.strokeStyle = 'rgba(18,24,30,0.9)'; ctx.lineWidth = Math.max(1, t * 0.05); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ax + (x2 - ax) * 0.32, ay + (y2 - ay) * 0.32); ctx.moveTo(ax + (x2 - ax) * 0.68, ay + (y2 - ay) * 0.68); ctx.lineTo(x2, y2); ctx.stroke(); }
-          else if (e.st === 'breach') { ctx.strokeStyle = 'rgba(150,235,245,0.6)'; ctx.lineWidth = Math.max(1, t * 0.05); ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(x2, y2); ctx.stroke(); ctx.setLineDash([]); }
-          else if (e.st === 'border') { ctx.strokeStyle = 'rgba(16,21,27,0.55)'; ctx.lineWidth = Math.max(1, t * 0.05); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(x2, y2); ctx.stroke(); }
-          else { ctx.strokeStyle = 'rgba(13,18,22,0.95)'; ctx.lineWidth = Math.max(1.2, t * 0.07); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(x2, y2); ctx.stroke(); }
-        }
-      }
+    }
+    // ── seams: panel (plate│plate, faint) then hull (plate│void, slim ink) ──
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const strokeSegs = (segs, width, style) => {
+      if (!segs.length) return;
+      ctx.beginPath();
+      for (const pl of segs) { ctx.moveTo(SX(pl[0]), SY(pl[1])); for (let i = 2; i < pl.length; i += 2) ctx.lineTo(SX(pl[i]), SY(pl[i + 1])); }
+      ctx.lineWidth = width; ctx.strokeStyle = style; ctx.stroke();
+    };
+    for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
+      const m = this.field.mesh(cx, cy); if (!m.ok) continue;
+      strokeSegs(m.panelSeg, Math.max(0.5, t * 0.035), 'rgba(120,134,138,0.30)');
+      strokeSegs(m.hullSeg, Math.max(1.0, t * 0.06), 'rgba(14,19,23,0.94)');
     }
     // ── fixtures: garden milfoil (reuses the /yarrow drawStalk) ──
     for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
