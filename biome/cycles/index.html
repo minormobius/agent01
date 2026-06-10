@@ -90,33 +90,44 @@ import {
   defaultParams, defaultState, run, KNOWN_SIMPLIFICATIONS, KCAL_PER_MOL_CH2O,
 } from './sim/cycles.mjs';
 
-// knob definitions: [key, label, min, max, step, format]. Bigger sliders on purpose —
-// a real ecosystem needs a lot of area per person, so the producer ranges run high.
-const KNOBS = [
-  ['crew',                  'Crew',              10, 1000, 10, v=>v+' people'],
-  ['cropArea_m2',           'Crop area',          0,40000,500, v=>(v/1000).toFixed(1)+'k m²'],
-  ['treeArea_m2',           'Fruit-tree area',    0,60000,500, v=>(v/1000).toFixed(1)+'k m²'],
-  ['reedArea_m2',           'Swamp / reed area',  0,40000,500, v=>(v/1000).toFixed(1)+'k m²'],
-  ['photoperiod',           'Sun duty cycle',   0.2,    1,0.05, v=>Math.round(v*100)+' %'],
-  ['treeFruitPotential_perday','Fruit reliance on bees',0,0.05,0.002, v=>v.toFixed(3)+'/d'],
-  ['predatorIngest_perday', 'Predator pressure',  0,  0.5,0.02, v=>v.toFixed(2)+'/d'],
-  ['decomposerIngest_perday','Soil / decomposer activity',0.1,1.2,0.05, v=>v.toFixed(2)+'/d'],
-];
 const params = defaultParams();
 // scale per-crew defaults so the air/water box tracks crew count
 const perCrewAir = params.airVolume_m3 / params.crew;
 const perCrewWater = params.waterReservoir_L / params.crew;
 
+// The engine is data-driven now, so each knob is a get/set INTO the community data
+// (a species field or an interaction field), not a flat param. Adding an organism is
+// adding to params.species/params.interactions — these knobs would extend the same way.
+const spec = (id) => params.species.find(s => s.id === id);
+const poll = () => params.interactions.find(e => e.type === 'pollinates');
+const KNOBS = [
+  { id:'crew', label:'Crew', min:10, max:1000, step:10, fmt:v=>v+' people',
+    get:()=>params.crew, set:v=>params.crew=v },
+  { id:'crop', label:'Crop area', min:0, max:40000, step:500, fmt:v=>(v/1000).toFixed(1)+'k m²',
+    get:()=>spec('crop').area_m2, set:v=>spec('crop').area_m2=v },
+  { id:'tree', label:'Fruit-tree area', min:0, max:60000, step:500, fmt:v=>(v/1000).toFixed(1)+'k m²',
+    get:()=>spec('tree').area_m2, set:v=>spec('tree').area_m2=v },
+  { id:'reed', label:'Swamp / reed area', min:0, max:40000, step:500, fmt:v=>(v/1000).toFixed(1)+'k m²',
+    get:()=>spec('reed').area_m2, set:v=>spec('reed').area_m2=v },
+  { id:'photo', label:'Sun duty cycle', min:0.2, max:1, step:0.05, fmt:v=>Math.round(v*100)+' %',
+    get:()=>params.photoperiod, set:v=>params.photoperiod=v },
+  { id:'fruit', label:'Fruit reliance on bees', min:0, max:0.05, step:0.002, fmt:v=>v.toFixed(3)+'/d',
+    get:()=>poll().fruitPerday, set:v=>poll().fruitPerday=v },
+  { id:'pred', label:'Predator pressure', min:0, max:0.5, step:0.02, fmt:v=>v.toFixed(2)+'/d',
+    get:()=>spec('predator').ingest, set:v=>spec('predator').ingest=v },
+  { id:'soil', label:'Soil / decomposer activity', min:0.1, max:1.2, step:0.05, fmt:v=>v.toFixed(2)+'/d',
+    get:()=>spec('decomposer').ingest, set:v=>spec('decomposer').ingest=v },
+];
+
 const ctl = document.getElementById('controls');
-for (const [key,label,min,max,stepv,fmt] of KNOBS){
+for (const kn of KNOBS){
   const wrap = document.createElement('label'); wrap.className='ctl';
-  wrap.innerHTML = `<span class="row"><span>${label}</span><b id="val-${key}"></b></span>`;
+  wrap.innerHTML = `<span class="row"><span>${kn.label}</span><b id="val-${kn.id}"></b></span>`;
   const inp = document.createElement('input');
-  inp.type='range'; inp.min=min; inp.max=max; inp.step=stepv; inp.value=params[key];
-  inp.addEventListener('input', ()=>{ params[key]=parseFloat(inp.value); rerun(); });
+  inp.type='range'; inp.min=kn.min; inp.max=kn.max; inp.step=kn.step; inp.value=kn.get();
+  inp.addEventListener('input', ()=>{ kn.set(parseFloat(inp.value)); rerun(); });
   wrap.appendChild(inp);
   ctl.appendChild(wrap);
-  KNOBS.fmt = KNOBS.fmt||{};
 }
 document.getElementById('simplify').innerHTML =
   '<b>Known simplifications.</b> ' + KNOWN_SIMPLIFICATIONS.join(' ');
@@ -124,9 +135,10 @@ document.getElementById('simplify').innerHTML =
 function gauge(k,v,u,color){
   return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`;
 }
+const vegArea = () => spec('crop').area_m2 + spec('tree').area_m2 + spec('reed').area_m2;
 
 function rerun(){
-  for (const [key,,,,,fmt] of KNOBS) document.getElementById('val-'+key).textContent = fmt(params[key]);
+  for (const kn of KNOBS) document.getElementById('val-'+kn.id).textContent = kn.fmt(kn.get());
   // keep the breathing box proportional to crew
   params.airVolume_m3 = perCrewAir * params.crew;
   params.waterReservoir_L = perCrewWater * params.crew;
@@ -147,7 +159,7 @@ function rerun(){
   const v = document.getElementById('verdict');
   v.className = 'verdict ' + (closes ? 'ok' : 'bad');
   if (closes) {
-    const totalVeg = (params.cropArea_m2+params.treeArea_m2+params.reedArea_m2);
+    const totalVeg = vegArea();
     v.innerHTML = `<b>The ecosystem closes.</b> Air holds (O₂ ${last.o2_kPa.toFixed(1)} kPa, CO₂ ${Math.round(last.co2_ppm)} ppm), `
       + `pollinators persist so fruit sets at ${Math.round(last.fruitSet*100)}%, and the food store steadies near `
       + `${foodDays.toFixed(0)} days of buffer. ${Math.round(totalVeg/params.crew)} m² of vegetation per person.`;
@@ -167,7 +179,7 @@ function rerun(){
     gauge('Food buffer', foodDays.toFixed(0), 'days of intake', foodDays>3?'var(--gold)':'var(--warn)') +
     gauge('Calorie supply', Math.round(last.calorieRatio*100), '% of demand', last.calorieRatio>=1?'var(--leaf)':'var(--warn)') +
     gauge('Fruit set', Math.round(last.fruitSet*100), '% (pollinator-gated)', last.fruitSet>0.5?'var(--leaf)':'var(--warn)') +
-    gauge('Veg / person', Math.round((params.cropArea_m2+params.treeArea_m2+params.reedArea_m2)/params.crew), 'm²', 'var(--dim)');
+    gauge('Veg / person', Math.round(vegArea()/params.crew), 'm²', 'var(--dim)');
 
   drawAir(traj);
   drawWeb(traj);
