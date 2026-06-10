@@ -17,8 +17,7 @@
 (function (root) {
   'use strict';
 
-  function generateFoam(o) {
-    if ((o.mode || 'grid') === 'froth') return frothGen(o);
+  function gridGen(o) {
     const W = o.width, T = o.thickness, L = Math.max(1, o.layers | 0);
     const roomSize = Math.max(1e-3, o.roomSize), wallT = Math.max(1e-6, o.wallT);
     const grade = Math.max(0, Math.min(1, o.grade == null ? 0 : o.grade));
@@ -187,6 +186,51 @@
       frame: { nodes: fnodes, members },
       meta: { nx, layers: L, relDensity: wallLen * wallT / (W * T), wallLen, rowY: yb, mode: 'froth' },
     };
+  }
+
+  // ── annular sector: warp a flat foam into a wedge of the ring [R-T, R] × Δθ and
+  //    re-apply boundary conditions as a periodic unit cell — radial centrifugal load
+  //    on the inner face, balanced by HOOP TENSION pulled on the two angular end faces
+  //    (the rest of the ring). The solve then shows whether the *cellular* hull carries
+  //    that hoop, not just an idealised membrane. Nodes warp to (r·sinθ, r·cosθ): radial
+  //    out = +y on screen (toward the hull, "down"). ──
+  function toAnnulus(f, o) {
+    const R = o.R, T = o.thickness, rIn = Math.max(1, R - T), W = o.width, dth = W / R, half = dth / 2;
+    const pEff = o.pEff || 1e5;
+    const wn = f.nodes.map((n) => { const r = rIn + n.y, th = (n.x / W - 0.5) * dth; return { x: r * Math.sin(th), y: r * Math.cos(th), r, th }; });
+    const fnodes = wn.map((w) => ({ pos: [w.x, w.y], fix: [false, false, false], load: [0, 0, 0] }));
+    const inner = [], endP = [], endM = [];
+    f.nodes.forEach((n, i) => {
+      if (n.y <= T * 0.06) inner.push(i);
+      if (n.x <= W * 0.02) endM.push(i); else if (n.x >= W * 0.98) endP.push(i);
+    });
+    // radial centrifugal load on the inner face (outward = +radial = (sinθ, cosθ))
+    const totalRadial = pEff * W, Lr = inner.length ? totalRadial / inner.length : 0;
+    inner.forEach((i) => { const th = wn[i].th; fnodes[i].load[0] += Lr * Math.sin(th); fnodes[i].load[1] += Lr * Math.cos(th); });
+    // hoop tension on each end face (tangential = (cosθ, -sinθ)); net of the two ends
+    // is radially inward 2·T·sin(half), balancing the outward load.
+    const Thoop = totalRadial / (2 * Math.max(1e-3, Math.sin(half)));
+    const applyEnd = (arr, sgn) => { const per = arr.length ? Thoop / arr.length : 0; arr.forEach((i) => { const th = wn[i].th; fnodes[i].load[0] += sgn * per * Math.cos(th); fnodes[i].load[1] += sgn * per * (-Math.sin(th)); }); };
+    applyEnd(endP, +1); applyEnd(endM, -1);
+    // pin rigid-body modes: inner-mid (ux,uy) + outer-mid (ux, kills rotation about it)
+    const near = (tx, ty) => { let b = 0, bd = Infinity; f.nodes.forEach((n, i) => { const d = (n.x - tx) ** 2 + (n.y - ty) ** 2; if (d < bd) { bd = d; b = i; } }); return b; };
+    fnodes[near(W / 2, 0)].fix = [true, true, false];
+    fnodes[near(W / 2, T)].fix[0] = true;
+    const warpPt = (px2, py2) => { const r = rIn + py2, th = (px2 / W - 0.5) * dth; return { x: r * Math.sin(th), y: r * Math.cos(th) }; };
+    return {
+      nodes: wn.map((w) => ({ x: w.x, y: w.y })),
+      walls: f.walls,
+      cells: f.cells.map((c) => { const w = warpPt(c.cx, c.cy); return Object.assign({}, c, { cx: w.x, cy: w.y }); }),
+      portals: f.portals.map((p) => Object.assign({}, p, warpPt(p.x, p.y))),
+      nav: f.nav,
+      frame: { nodes: fnodes, members: f.frame.members },
+      meta: Object.assign({}, f.meta, { annular: true, R, rIn, dth }),
+    };
+  }
+
+  function generateFoam(o) {
+    const f = (o.mode || 'grid') === 'froth' ? frothGen(o) : gridGen(o);
+    return o.annular && o.R ? toAnnulus(f, o) : f;
   }
 
   const api = { generateFoam };
