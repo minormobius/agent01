@@ -29,6 +29,7 @@
 <div id="panel">
   <label>floor <b id="floorLabel">—</b></label>
   <button id="regen">↻ new foam</button>
+  <button id="vmode">view: both</button>
   <button id="rmode">renderer: …</button>
 </div>
 
@@ -83,6 +84,34 @@ function floorInfo() {
   document.getElementById('info').innerHTML = CELLS.length + ' cells · probe z=' + cam.probe.toFixed(0) + '/' + ZMAX + ' · <span class="r">' + n + ' on this floor</span>';
 }
 
+// ── membranes: the current floor's Voronoi cell walls, as 3D line segments on the
+//    probe plane (recomputed when you scrub). The membranes you'd run a finger along. ──
+let view = 'both';
+const showCubes = () => view !== 'walls';
+const showWalls = () => view !== 'cubes';
+let EDGES = new Float32Array(0);
+function clipHP(poly, nx, ny, mx, my) {
+  const out = [], N = poly.length, side = (p) => (p.x - mx) * nx + (p.y - my) * ny;
+  for (let i = 0; i < N; i++) { const a = poly[i], b = poly[(i + 1) % N], sa = side(a), sb = side(b); if (sa <= 1e-9) out.push(a); if ((sa < 0 && sb > 0) || (sa > 0 && sb < 0)) { const t = sa / (sa - sb); out.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) }); } }
+  return out;
+}
+function recomputeEdges() {
+  const z = cam.probe, band = cam.band, sel = [];
+  for (const p of CELLS) if (Math.abs(p.z - z) < band) sel.push(p);
+  if (sel.length < 3) { EDGES = new Float32Array(0); if (gpu) gpu.setEdges(EDGES); return; }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of sel) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+  const pad = OPT.cell * 0.6, box = { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
+  const r = Math.max(0.5, OPT.cell * 0.05), seen = new Set(), segs = [];
+  const key = (a, b) => { const ka = Math.round(a.x / r) + '_' + Math.round(a.y / r), kb = Math.round(b.x / r) + '_' + Math.round(b.y / r); return ka < kb ? ka + '|' + kb : kb + '|' + ka; };
+  for (let i = 0; i < sel.length; i++) {
+    let poly = [{ x: box.x0, y: box.y0 }, { x: box.x1, y: box.y0 }, { x: box.x1, y: box.y1 }, { x: box.x0, y: box.y1 }];
+    for (let j = 0; j < sel.length && poly.length >= 3; j++) { if (i === j) continue; poly = clipHP(poly, sel[j].x - sel[i].x, sel[j].y - sel[i].y, (sel[i].x + sel[j].x) / 2, (sel[i].y + sel[j].y) / 2); }
+    for (let k = 0; k < poly.length; k++) { const a = poly[k], b = poly[(k + 1) % poly.length]; const kk = key(a, b); if (seen.has(kk)) continue; seen.add(kk); segs.push(a.x, a.y, z, b.x, b.y, z); }
+  }
+  EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
+}
+
 // ════════════════════════ WebGPU renderer ════════════════════════
 let gpu = null;
 async function initGPU() {
@@ -124,7 +153,9 @@ async function initGPU() {
     @fragment fn fs(i: VO) -> @location(0) vec4f {
       let l = max(0.3, dot(normalize(i.nrm), normalize(u.light.xyz)));
       return vec4f(i.col * l, 1.0);
-    }` });
+    }
+    @vertex fn vsL(@location(0) p: vec3f) -> @builtin(position) vec4f { return u.vp * vec4f(p, 1.0); }
+    @fragment fn fsL() -> @location(0) vec4f { return vec4f(0.55, 0.95, 0.95, 1.0); }` });
   const pipe = device.createRenderPipeline({
     layout: 'auto',
     vertex: { module: shader, entryPoint: 'vs', buffers: [
@@ -141,10 +172,19 @@ async function initGPU() {
   let bind = null;
   const upload = () => { if (ibuf) ibuf.destroy(); nInst = CELLS.length; if (!nInst) { ibuf = null; return; } ibuf = device.createBuffer({ size: instF32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(ibuf.getMappedRange()).set(instF32); ibuf.unmap(); };
   bind = device.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  const linePipe = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: shader, entryPoint: 'vsL', buffers: [{ arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }] },
+    fragment: { module: shader, entryPoint: 'fsL', targets: [{ format: fmt }] },
+    primitive: { topology: 'line-list' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+  const lineBind = device.createBindGroup({ layout: linePipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  let lineBuf = null, nLine = 0;
+  const setEdges = (f32) => { if (lineBuf) lineBuf.destroy(); nLine = f32.length / 3; if (!nLine) { lineBuf = null; return; } lineBuf = device.createBuffer({ size: f32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(lineBuf.getMappedRange()).set(f32); lineBuf.unmap(); };
   return {
-    resize: makeDepth, upload,
+    resize: makeDepth, upload, setEdges,
     frame() {
-      if (!ibuf) return;
       const vp = viewProj(cv.width, cv.height);
       const u = new Float32Array(32); u.set(vp, 0);
       u[16] = cam.probe; u[17] = cam.band; u[18] = ZMAX; u[19] = OPT.cell;       // p
@@ -157,7 +197,9 @@ async function initGPU() {
         colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: { r: 0.02, g: 0.024, b: 0.04, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
         depthStencilAttachment: { view: depthTex.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
       });
-      pass.setPipeline(pipe); pass.setBindGroup(0, bind); pass.setVertexBuffer(0, vbuf); pass.setVertexBuffer(1, ibuf); pass.draw(36, nInst); pass.end();
+      if (showCubes() && ibuf) { pass.setPipeline(pipe); pass.setBindGroup(0, bind); pass.setVertexBuffer(0, vbuf); pass.setVertexBuffer(1, ibuf); pass.draw(36, nInst); }
+      if (showWalls() && lineBuf) { pass.setPipeline(linePipe); pass.setBindGroup(0, lineBind); pass.setVertexBuffer(0, lineBuf); pass.draw(nLine); }
+      pass.end();
       device.queue.submit([enc.finish()]);
     },
   };
@@ -176,14 +218,27 @@ function frame2D() {
     const cx = (M[0] * x + M[4] * y + M[8] * z + M[12]) / w, cy = (M[1] * x + M[5] * y + M[9] * z + M[13]) / w, cz = (M[2] * x + M[6] * y + M[10] * z + M[14]) / w;
     pts.push({ sx: (cx * 0.5 + 0.5) * W, sy: (1 - (cy * 0.5 + 0.5)) * H, depth: cz, z, w });
   }
-  pts.sort((a, b) => b.depth - a.depth);
-  for (const p of pts) {
-    const hi = Math.abs(p.z - cam.probe) < cam.band;
-    const zt = Math.max(0, Math.min(1, p.z / ZMAX));
-    const col = coreCol.map((c, i) => c + (hullCol[i] - c) * zt);
-    const a = hi ? 0.95 : 0.13, r = (hi ? 5.5 : 2.6) * Math.min(2.4, 700 / (p.w || 700));
-    ctx.fillStyle = `rgba(${col[0] * 255 | 0},${col[1] * 255 | 0},${col[2] * 255 | 0},${a})`;
-    ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(0.8, r), 0, Math.PI * 2); ctx.fill();
+  if (showCubes()) {
+    pts.sort((a, b) => b.depth - a.depth);
+    for (const p of pts) {
+      const hi = Math.abs(p.z - cam.probe) < cam.band;
+      const zt = Math.max(0, Math.min(1, p.z / ZMAX));
+      const col = coreCol.map((c, i) => c + (hullCol[i] - c) * zt);
+      const a = hi ? 0.95 : 0.13, r = (hi ? 5.5 : 2.6) * Math.min(2.4, 700 / (p.w || 700));
+      ctx.fillStyle = `rgba(${col[0] * 255 | 0},${col[1] * 255 | 0},${col[2] * 255 | 0},${a})`;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(0.8, r), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (showWalls() && EDGES.length) {
+    ctx.strokeStyle = 'rgba(140,242,242,0.8)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i < EDGES.length; i += 6) {
+      const wa = M[3] * EDGES[i] + M[7] * EDGES[i + 1] + M[11] * EDGES[i + 2] + M[15], wb = M[3] * EDGES[i + 3] + M[7] * EDGES[i + 4] + M[11] * EDGES[i + 5] + M[15];
+      if (wa <= 0 || wb <= 0) continue;
+      const ax = ((M[0] * EDGES[i] + M[4] * EDGES[i + 1] + M[8] * EDGES[i + 2] + M[12]) / wa * 0.5 + 0.5) * W, ay = (1 - ((M[1] * EDGES[i] + M[5] * EDGES[i + 1] + M[9] * EDGES[i + 2] + M[13]) / wa * 0.5 + 0.5)) * H;
+      const bx = ((M[0] * EDGES[i + 3] + M[4] * EDGES[i + 4] + M[8] * EDGES[i + 5] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * EDGES[i + 3] + M[5] * EDGES[i + 4] + M[9] * EDGES[i + 5] + M[13]) / wb * 0.5 + 0.5)) * H;
+      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+    }
+    ctx.stroke();
   }
 }
 
@@ -196,18 +251,20 @@ let drag = null, pinchD = 0;
 cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener('pointermove', (e) => { if (!drag) return; cam.yaw -= (e.clientX - drag.x) * 0.008; cam.pitch = Math.max(-1.4, Math.min(1.4, cam.pitch + (e.clientY - drag.y) * 0.008)); drag = { x: e.clientX, y: e.clientY }; });
 cv.addEventListener('pointerup', () => drag = null);
-cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.probe = Math.max(0, Math.min(ZMAX, cam.probe + Math.sign(e.deltaY) * ZMAX * 0.04)); syncProbe(); }, { passive: false });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.probe = Math.max(0, Math.min(ZMAX, cam.probe + Math.sign(e.deltaY) * ZMAX * 0.04)); syncProbe(); recomputeEdges(); }, { passive: false });
 addEventListener('keydown', (e) => { if (e.key === '+' || e.key === '=') cam.dist *= 0.9; if (e.key === '-') cam.dist *= 1.1; });
 const probeY = document.getElementById('probeY');
 function syncProbe() { probeY.value = Math.round((1 - cam.probe / ZMAX) * 1000); }
-probeY.addEventListener('input', () => { cam.probe = (1 - probeY.value / 1000) * ZMAX; });
-document.getElementById('regen').addEventListener('click', () => { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); });
+probeY.addEventListener('input', () => { cam.probe = (1 - probeY.value / 1000) * ZMAX; recomputeEdges(); });
+document.getElementById('regen').addEventListener('click', () => { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); recomputeEdges(); });
 document.getElementById('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
+document.getElementById('vmode').addEventListener('click', () => { view = view === 'both' ? 'cubes' : view === 'cubes' ? 'walls' : 'both'; document.getElementById('vmode').textContent = 'view: ' + view; });
 
 (async () => {
   resize(); regen();
+  cam.probe = ZMAX / 2; syncProbe();
   gpu = await initGPU(); if (gpu) gpu.upload(); else mode = '2d';
-  setModeLabel(); syncProbe(); cam.probe = ZMAX / 2; syncProbe();
+  setModeLabel(); recomputeEdges();
   loop();
 })();
 </script>
