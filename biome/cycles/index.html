@@ -43,11 +43,13 @@
 </head>
 <body>
 <header>
-  <h1>biome <small>· closed-loop life-support for an infinite O'Neill cylinder</small></h1>
-  <div class="sub">A non-spatial stocks-and-flows model. Before HVAC or weather, the
-  first question is <i>does the loop close</i> — can crop photosynthesis, crew metabolism
-  and soil decomposition balance, and how big must the buffers be. Carbon/oxygen/water
-  are element-exact; nitrogen rides its own conserving loop. Drag a knob; the year reruns.</div>
+  <h1>biome <small>· closed ecosystem for an infinite O'Neill cylinder</small></h1>
+  <div class="sub">A non-spatial stocks-and-flows model of the cylinder interior as a
+  living food web — fruit trees, ground crops and swamp reeds; pollinators that gate the
+  fruit and the predators that eat them; living decomposers; and the crew. The question:
+  <i>does the loop close</i> — does the web reach a steady state that feeds everyone and
+  holds the air. Every flux is paired, so carbon/oxygen/water/nitrogen conserve to machine
+  precision. Drag a knob; ~600 days re-run.</div>
 </header>
 <main>
   <section class="panel" id="controls">
@@ -57,14 +59,26 @@
     <div id="verdict" class="verdict"></div>
     <div class="gauges" id="gauges"></div>
     <div class="panel">
-      <h2>One model-year — air, water, stores</h2>
-      <canvas id="chart" width="900" height="320"></canvas>
+      <h2>Atmosphere &amp; food store over ~600 days</h2>
+      <canvas id="chartAir" width="900" height="240"></canvas>
       <div class="legend">
         <span><i style="background:var(--leaf)"></i>O₂ (kPa)</span>
         <span><i style="background:var(--warn)"></i>CO₂ (ppm)</span>
         <span><i style="background:var(--water)"></i>RH (%)</span>
-        <span><i style="background:var(--gold)"></i>food store (rel.)</span>
-        <span><i style="background:#9b7fd8"></i>standing biomass (rel.)</span>
+        <span><i style="background:var(--gold)"></i>food store</span>
+        <span><i style="background:#caa6e0"></i>calorie supply ÷ demand</span>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>The food web — populations (each scaled to its own peak)</h2>
+      <canvas id="chartWeb" width="900" height="240"></canvas>
+      <div class="legend">
+        <span><i style="background:#7bc96f"></i>crops</span>
+        <span><i style="background:#3f8f5a"></i>trees</span>
+        <span><i style="background:#5aa9d8"></i>reeds</span>
+        <span><i style="background:var(--gold)"></i>pollinators</span>
+        <span><i style="background:var(--warn)"></i>predators</span>
+        <span><i style="background:#b08968"></i>decomposers</span>
       </div>
       <div class="note" id="simplify"></div>
     </div>
@@ -73,23 +87,25 @@
 
 <script type="module">
 import {
-  defaultParams, defaultState, run, KNOWN_SIMPLIFICATIONS,
+  defaultParams, defaultState, run, KNOWN_SIMPLIFICATIONS, KCAL_PER_MOL_CH2O,
 } from './sim/cycles.mjs';
 
-// knob definitions: [key, label, min, max, step, format]
+// knob definitions: [key, label, min, max, step, format]. Bigger sliders on purpose —
+// a real ecosystem needs a lot of area per person, so the producer ranges run high.
 const KNOBS = [
-  ['crew',            'Crew',                  10,  500, 10, v=>v+' people'],
-  ['cropArea_m2',     'Crop area',           500, 8000, 100, v=>v+' m²'],
-  ['photoperiod',     'Sun duty cycle',      0.2,    1, 0.05, v=>Math.round(v*100)+' %'],
-  ['legumeFraction',  'Legume fraction',       0,  0.5, 0.01, v=>Math.round(v*100)+' %'],
-  ['harvestIndex',    'Harvest index',       0.2,  0.6, 0.01, v=>v.toFixed(2)],
-  ['litterDecay_perday','Soil decay rate', 0.002,0.06,0.002, v=>v.toFixed(3)+'/d'],
+  ['crew',                  'Crew',              10, 1000, 10, v=>v+' people'],
+  ['cropArea_m2',           'Crop area',          0,40000,500, v=>(v/1000).toFixed(1)+'k m²'],
+  ['treeArea_m2',           'Fruit-tree area',    0,60000,500, v=>(v/1000).toFixed(1)+'k m²'],
+  ['reedArea_m2',           'Swamp / reed area',  0,40000,500, v=>(v/1000).toFixed(1)+'k m²'],
+  ['photoperiod',           'Sun duty cycle',   0.2,    1,0.05, v=>Math.round(v*100)+' %'],
+  ['treeFruitPotential_perday','Fruit reliance on bees',0,0.05,0.002, v=>v.toFixed(3)+'/d'],
+  ['predatorIngest_perday', 'Predator pressure',  0,  0.5,0.02, v=>v.toFixed(2)+'/d'],
+  ['decomposerIngest_perday','Soil / decomposer activity',0.1,1.2,0.05, v=>v.toFixed(2)+'/d'],
 ];
 const params = defaultParams();
 // scale per-crew defaults so the air/water box tracks crew count
 const perCrewAir = params.airVolume_m3 / params.crew;
 const perCrewWater = params.waterReservoir_L / params.crew;
-const perCrewFood = 30 * 22; // mol C buffer per person
 
 const ctl = document.getElementById('controls');
 for (const [key,label,min,max,stepv,fmt] of KNOBS){
@@ -114,71 +130,87 @@ function rerun(){
   // keep the breathing box proportional to crew
   params.airVolume_m3 = perCrewAir * params.crew;
   params.waterReservoir_L = perCrewWater * params.crew;
-  const s0 = defaultState(params);
-  s0.food = params.crew * perCrewFood;
-  const traj = run(params, s0, 365, 2, 3);
+  const traj = run(params, defaultState(params), 600, 3, 4);   // run to steady state
   const last = traj[traj.length-1];
 
-  // Verdict. Air + water closure is the primary criterion — that's what a sealed
-  // ecology can actually achieve (BIOS-3 closed both). Calorie self-sufficiency is
-  // reported as a graded percentage, because full dietary closure is the genuinely
-  // hard part and the tool should show how far short a given design falls.
-  const o2OK = last.o2_kPa > 17 && last.o2_kPa < 24;
-  const co2OK = last.co2_ppm < 5000;
-  const airWaterClose = o2OK && co2OK;
-  const calPct = Math.round(last.calorieRatio * 100);
+  // food buffer expressed as days of crew intake
+  const crewDemand_molday = params.crew * params.human_kcal_day / KCAL_PER_MOL_CH2O;
+  const foodDays = last.food_molC / Math.max(crewDemand_molday, 1e-9);
+
+  // Ecosystem-health verdict. A closed loop needs: air in band, pollinators alive
+  // (so the trees fruit), and a food store that holds rather than collapsing.
+  const o2OK   = last.o2_kPa > 17 && last.o2_kPa < 24;
+  const co2OK  = last.co2_ppm > 150 && last.co2_ppm < 5000;
+  const beesOK = last.pollinator > 50;
+  const foodOK = foodDays > 3;
+  const closes = o2OK && co2OK && beesOK && foodOK;
   const v = document.getElementById('verdict');
-  v.className = 'verdict ' + (airWaterClose ? 'ok' : 'bad');
-  if (airWaterClose) {
-    const calNote = calPct >= 95 ? 'and the crop feeds the crew'
-      : `crops supply ${calPct}% of calories — the rest is stored/imported (full dietary closure is the hard part)`;
-    v.innerHTML = `<b>Air & water close.</b> O₂ ${last.o2_kPa.toFixed(1)} kPa, CO₂ ${Math.round(last.co2_ppm)} ppm hold after a year; ${calNote}. ${Math.round(params.cropArea_m2/params.crew)} m² crop/person.`;
+  v.className = 'verdict ' + (closes ? 'ok' : 'bad');
+  if (closes) {
+    const totalVeg = (params.cropArea_m2+params.treeArea_m2+params.reedArea_m2);
+    v.innerHTML = `<b>The ecosystem closes.</b> Air holds (O₂ ${last.o2_kPa.toFixed(1)} kPa, CO₂ ${Math.round(last.co2_ppm)} ppm), `
+      + `pollinators persist so fruit sets at ${Math.round(last.fruitSet*100)}%, and the food store steadies near `
+      + `${foodDays.toFixed(0)} days of buffer. ${Math.round(totalVeg/params.crew)} m² of vegetation per person.`;
   } else {
-    const issues = [];
-    if (!o2OK) issues.push(`O₂ off-nominal (${last.o2_kPa.toFixed(1)} kPa)`);
-    if (!co2OK) issues.push(`CO₂ runaway (${Math.round(last.co2_ppm)} ppm)`);
-    v.innerHTML = `<b>Air does not close.</b> ${issues.join('; ')}. Calorie supply ${calPct}%.`;
+    const why = [];
+    if (!co2OK) why.push(last.co2_ppm<=150 ? `CO₂ crashed (${Math.round(last.co2_ppm)} ppm — producers out-fixing the food web's resupply)` : `CO₂ runaway (${Math.round(last.co2_ppm)} ppm)`);
+    if (!o2OK) why.push(`O₂ off-nominal (${last.o2_kPa.toFixed(1)} kPa)`);
+    if (!beesOK) why.push(`pollinators collapsed (${Math.round(last.pollinator)}) — fruit set ${Math.round(last.fruitSet*100)}%`);
+    if (!foodOK) why.push(`food store collapses (${foodDays.toFixed(1)} days of buffer)`);
+    v.innerHTML = `<b>The ecosystem does not close.</b> ${why.join('; ')}.`;
   }
 
   // gauges
   document.getElementById('gauges').innerHTML =
     gauge('O₂', last.o2_kPa.toFixed(1), 'kPa  (Earth 21)', 'var(--leaf)') +
     gauge('CO₂', Math.round(last.co2_ppm), 'ppm  (Earth ~420)', 'var(--warn)') +
-    gauge('Humidity', Math.round(last.rh*100), '% RH', 'var(--water)') +
-    gauge('Calories', Math.round(last.calorieRatio*100), '% of demand', last.calorieRatio>=1?'var(--leaf)':'var(--warn)') +
-    gauge('Crop / person', Math.round(params.cropArea_m2/params.crew), 'm²', 'var(--gold)') +
-    gauge('Net O₂ flux', last.o2_net_molday.toFixed(0), 'mol/day (→0 = closed)', 'var(--dim)');
+    gauge('Food buffer', foodDays.toFixed(0), 'days of intake', foodDays>3?'var(--gold)':'var(--warn)') +
+    gauge('Calorie supply', Math.round(last.calorieRatio*100), '% of demand', last.calorieRatio>=1?'var(--leaf)':'var(--warn)') +
+    gauge('Fruit set', Math.round(last.fruitSet*100), '% (pollinator-gated)', last.fruitSet>0.5?'var(--leaf)':'var(--warn)') +
+    gauge('Veg / person', Math.round((params.cropArea_m2+params.treeArea_m2+params.reedArea_m2)/params.crew), 'm²', 'var(--dim)');
 
-  draw(traj);
+  drawAir(traj);
+  drawWeb(traj);
 }
 
-const cv = document.getElementById('chart'), cx = cv.getContext('2d');
-function draw(traj){
-  const W=cv.width, H=cv.height, pad=34;
+const col = c => getComputedStyle(document.documentElement).getPropertyValue(c.replace('var(','').replace(')',''))||c;
+function lineChart(canvasId, traj, series){
+  const cv = document.getElementById(canvasId), cx = cv.getContext('2d');
+  const W=cv.width, H=cv.height, pad=30;
   cx.clearRect(0,0,W,H);
   const x = i => pad + (W-2*pad) * i/(traj.length-1);
-  // axes
   cx.strokeStyle='#1c2a23'; cx.lineWidth=1;
   for(let g=0;g<=4;g++){ const y=pad+(H-2*pad)*g/4; cx.beginPath();cx.moveTo(pad,y);cx.lineTo(W-pad,y);cx.stroke(); }
-  // normalise each series to its own band for shape-reading
-  const series = [
-    ['o2_kPa',    'var(--leaf)', 0, 30],
-    ['co2_ppm',   'var(--warn)', 0, Math.max(1200, ...traj.map(s=>s.co2_ppm))],
-    ['rh',        'var(--water)',0, 1.2],
-    ['food_molC', 'var(--gold)', 0, Math.max(1, ...traj.map(s=>s.food_molC))],
-    ['bio_molC',  '#9b7fd8',     0, Math.max(1, ...traj.map(s=>s.bio_molC))],
-  ];
-  const col = c => getComputedStyle(document.documentElement).getPropertyValue(c.replace('var(','').replace(')',''))||c;
   for (const [key,color,lo,hi] of series){
     cx.strokeStyle = color.startsWith('var')? col(color) : color;
     cx.lineWidth=2; cx.beginPath();
-    traj.forEach((s,i)=>{ const v=(s[key]-lo)/(hi-lo);
+    traj.forEach((s,i)=>{ const v=(s[key]-lo)/((hi-lo)||1);
       const y = (H-pad) - (H-2*pad)*Math.max(0,Math.min(1,v));
       i?cx.lineTo(x(i),y):cx.moveTo(x(i),y); });
     cx.stroke();
   }
   cx.fillStyle='#5b7468'; cx.font='11px var(--mono)';
-  cx.fillText('day 0', pad, H-12); cx.fillText('day 365', W-pad-40, H-12);
+  cx.fillText('day 0', pad, H-10); cx.fillText('day '+Math.round(traj.at(-1).day), W-pad-46, H-10);
+}
+const peak = (traj,k)=>Math.max(1,...traj.map(s=>s[k]));
+function drawAir(traj){
+  lineChart('chartAir', traj, [
+    ['o2_kPa',       'var(--leaf)', 0, 30],
+    ['co2_ppm',      'var(--warn)', 0, Math.max(1200, peak(traj,'co2_ppm'))],
+    ['rh',           'var(--water)',0, 1.2],
+    ['food_molC',    'var(--gold)', 0, peak(traj,'food_molC')],
+    ['calorieRatio', '#caa6e0',     0, Math.max(1.5, peak(traj,'calorieRatio'))],
+  ]);
+}
+function drawWeb(traj){
+  lineChart('chartWeb', traj, [
+    ['crop',      '#7bc96f', 0, peak(traj,'crop')],
+    ['tree',      '#3f8f5a', 0, peak(traj,'tree')],
+    ['reed',      '#5aa9d8', 0, peak(traj,'reed')],
+    ['pollinator','var(--gold)', 0, peak(traj,'pollinator')],
+    ['predator',  'var(--warn)', 0, peak(traj,'predator')],
+    ['decomposer','#b08968', 0, peak(traj,'decomposer')],
+  ]);
 }
 
 rerun();

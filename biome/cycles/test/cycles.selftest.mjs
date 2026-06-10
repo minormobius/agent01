@@ -1,19 +1,22 @@
-// biome/cycles/test/cycles.selftest.mjs — headless proof of the closed-loop box model.
+// biome/cycles/test/cycles.selftest.mjs — headless proof of the closed-loop ecosystem model.
 // Run: node biome/cycles/test/cycles.selftest.mjs   (no deps)
 //
 // We can't open a browser or run a CFD in the sandbox, so we prove the model as
 // PURE logic over the REAL engine:
-//   • mass closure — C, H, O, N are conserved to machine precision across a long
-//     RK4 run (this validates the INTEGRATOR against the stoichiometry, since the
-//     reactions are element-balanced by construction);
-//   • physical sanity — pressures, RH and pool signs stay in-bounds;
-//   • the load-bearing INSIGHT — at steady biomass the air's net O2 gain → 0, so
-//     oxygen security is stored reduced carbon (food + biomass + litter), not the
-//     air. Banking carbon banks O2. We assert this explicitly.
-//   • response monotonicity — more crop area raises O2 net and calorie ratio;
-//     a faster soil (Biosphere-2 mode) eats O2.
+//   • mass closure — C, H, O, N conserved to machine precision across a long RK4
+//     run (validates the INTEGRATOR against the stoichiometry, since every flux —
+//     photosynthesis, respiration, eating, dying — is paired by construction);
+//   • physical sanity — pressures, RH and every pool stay in-bounds;
+//   • the food web behaves — the trophic couplings do what ecology says:
+//       - no pollinators ⇒ no fruit set (the mutualism gate),
+//       - a predator bloom crashes pollinators ⇒ fruit falls (trophic cascade),
+//       - living decomposers regenerate CO2 (kill them ⇒ litter piles up, CO2 falls);
+//   • the headline FIX — with enough ecosystem area the food store SUSTAINS instead
+//     of collapsing to zero, and a too-small ecosystem still collapses (so the
+//     slider, not a hack, is what closes it);
+//   • determinism.
 import {
-  defaultParams, defaultState, run, step, elements, derivatives, snapshot,
+  defaultParams, defaultState, run, step, derivatives, elements, snapshot, LIVING,
 } from '../sim/cycles.mjs';
 
 let pass = 0, fail = 0;
@@ -28,81 +31,93 @@ const rel = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1e-30);
   const p = defaultParams();
   const s0 = defaultState(p);
   const e0 = elements(s0);
-  // integrate one year at 1h steps without sampling overhead
   let s = s0;
-  const dt = 3600;
-  for (let i = 0; i < 365 * 24; i++) s = step(s, p, dt);
+  for (let i = 0; i < 365 * 24; i++) s = step(s, p, 3600);
   const e1 = elements(s);
   for (const el of ['C', 'H', 'O', 'N']) {
     ok(`${el} conserved over 365 d`, rel(e1[el], e0[el]) < 1e-9,
-       `drift ${(rel(e1[el], e0[el])).toExponential(2)}`);
+       `drift ${rel(e1[el], e0[el]).toExponential(2)}`);
   }
 }
 
-// ── 2. Physical bounds hold across the trajectory ────────────────────────────
+// ── 2. Physical bounds + no negative pools across the trajectory ─────────────
 {
   const p = defaultParams();
-  const traj = run(p, defaultState(p), 200, 1, 2);
+  const traj = run(p, defaultState(p), 300, 1, 2);
   let pressureOK = true, rhOK = true, poolsOK = true;
+  const keys = ['crop', 'tree', 'reed', 'pollinator', 'predator', 'decomposer', 'litter_molC', 'food_molC'];
   for (const snap of traj) {
     if (snap.totalP_kPa < 50 || snap.totalP_kPa > 200) pressureOK = false;
     if (snap.rh < 0 || snap.rh > 1.5) rhOK = false;
-    if (snap.bio_molC < 0 || snap.food_molC < 0 || snap.nMineral < 0) poolsOK = false;
+    for (const k of keys) if (snap[k] < -1e-6) poolsOK = false;
   }
   ok('total pressure stays 50–200 kPa', pressureOK);
   ok('relative humidity stays physical (0–1.5)', rhOK);
-  ok('carbon & nitrogen pools never go negative', poolsOK);
+  ok('no pool goes negative', poolsOK);
 }
 
-// ── 3. The insight: at steady biomass, net air-O2 → 0; O2 lives in stored carbon ──
+// ── 3. Pollination mutualism — no pollinators ⇒ no fruit ─────────────────────
 {
   const p = defaultParams();
-  // long run to approach steady state
-  const traj = run(p, defaultState(p), 1500, 2, 10);
-  const tail = traj.slice(-20);
-  const meanO2net = tail.reduce((a, x) => a + x.o2_net_molday, 0) / tail.length;
-  // crew O2 demand is the scale; at closure net air change is a small fraction of it
-  const crewDemand = p.human_O2_molday * p.crew;
-  ok('net air-O2 change → small vs crew demand at steady biomass',
-     Math.abs(meanO2net) < 0.15 * crewDemand,
-     `mean net ${meanO2net.toFixed(1)} mol/d vs demand ${crewDemand.toFixed(0)}`);
-
-  // stored reduced carbon (food+bio+litter) is the real O2 capacitor: it dwarfs
-  // the O2 the crew breathes in a day — that's the banked oxygen.
-  const last = traj[traj.length - 1];
-  const storedReducedC = last.bio_molC + last.food_molC + last.litter_molC; // mol; each oxidises with 1 O2
-  ok('stored reduced carbon >> daily crew O2 (oxygen is banked as carbon)',
-     storedReducedC > 10 * crewDemand,
-     `stored ${(storedReducedC/1e3).toFixed(0)}k mol vs ${crewDemand.toFixed(0)} mol/d`);
+  const s = defaultState(p);
+  s.pollinator = 0;
+  const f = derivatives(s, p).flux;
+  ok('zero pollinators ⇒ zero fruit set', f.fruitSet === 0 && f.treeFruit === 0,
+     `fruitSet ${f.fruitSet}, fruit ${f.treeFruit.toExponential(2)}`);
+  // and with pollinators present, fruit is set
+  const f2 = derivatives(defaultState(p), p).flux;
+  ok('pollinators present ⇒ fruit is set', f2.treeFruit > 0 && f2.fruitSet > 0);
 }
 
-// ── 4. Response monotonicity — the tool must move the right way ───────────────
-{
-  // more crop area -> higher calorie ratio
-  const small = defaultParams(); small.cropArea_m2 = 1500;
-  const big = defaultParams();   big.cropArea_m2 = 3500;
-  const fSmall = derivatives(defaultState(small), small).flux;
-  const fBig = derivatives(defaultState(big), big).flux;
-  ok('more crop area → more calories', fBig.calorieSupply_kcalday > fSmall.calorieSupply_kcalday);
-
-  // Biosphere-2 mode: crank soil decay, watch O2 fall (microbes eat it).
-  // Compare net O2 at the SAME state, only the decay rate differs.
-  const base = defaultParams();
-  const hot = defaultParams(); hot.litterDecay_perday = base.litterDecay_perday * 5;
-  const s = defaultState(base);
-  const o2Base = derivatives(s, base).flux.o2_net;
-  const o2Hot = derivatives(s, hot).flux.o2_net;
-  ok('faster soil respiration lowers net O2 (the Biosphere-2 failure mode)',
-     o2Hot < o2Base, `net O2 ${o2Hot.toExponential(2)} < ${o2Base.toExponential(2)} mol/s`);
-}
-
-// ── 5. Determinism ───────────────────────────────────────────────────────────
+// ── 4. Trophic cascade — a predator bloom crashes pollinators ⇒ fruit falls ──
 {
   const p = defaultParams();
-  const a = run(p, defaultState(p), 50, 1, 5);
-  const b = run(p, defaultState(p), 50, 1, 5);
-  const same = JSON.stringify(a) === JSON.stringify(b);
-  ok('run is deterministic', same);
+  // heavy predation: big predator pool + hungry predators
+  const heavy = { ...p, predatorIngest_perday: p.predatorIngest_perday * 4 };
+  const base = run(p, defaultState(p), 400, 2, 10).at(-1);
+  const s0 = defaultState(heavy); s0.predator = 800;
+  const pred = run(heavy, s0, 400, 2, 10).at(-1);
+  ok('predator bloom suppresses pollinators', pred.pollinator < base.pollinator,
+     `pollinators ${pred.pollinator.toFixed(0)} < ${base.pollinator.toFixed(0)}`);
+  ok('…and fruit set falls with them', pred.fruitSet < base.fruitSet,
+     `fruitSet ${pred.fruitSet.toFixed(2)} < ${base.fruitSet.toFixed(2)}`);
+}
+
+// ── 5. Living decomposers regenerate CO2 (kill them ⇒ litter piles, CO2 drops) ─
+{
+  const p = defaultParams();
+  const withDecomp = run(p, defaultState(p), 300, 2, 10).at(-1);
+  const dead = { ...p, decomposerIngest_perday: 0, decomposerMortality_perday: 1 };
+  const s0 = defaultState(dead); s0.decomposer = 0;
+  const noDecomp = run(dead, s0, 300, 2, 10).at(-1);
+  ok('killing decomposers makes litter pile up', noDecomp.litter_molC > withDecomp.litter_molC * 1.5,
+     `litter ${noDecomp.litter_molC.toFixed(0)} vs ${withDecomp.litter_molC.toFixed(0)}`);
+  ok('…and ambient CO2 falls (no respiratory resupply)', noDecomp.co2_ppm < withDecomp.co2_ppm,
+     `CO2 ${noDecomp.co2_ppm.toFixed(0)} < ${withDecomp.co2_ppm.toFixed(0)} ppm`);
+}
+
+// ── 6. The headline fix — area sustains food; too little area collapses it ────
+{
+  const big = defaultParams();
+  big.cropArea_m2 = 9000; big.treeArea_m2 = 18000; big.reedArea_m2 = 12000;
+  const bigEnd = run(big, defaultState(big), 600, 2, 10);
+  const bigFood = bigEnd.at(-1).food_molC;
+  ok('ample ecosystem ⇒ food store sustains (does not collapse)', bigFood > 1000,
+     `food ${bigFood.toFixed(0)} mol C after 600 d`);
+
+  const small = defaultParams();
+  small.cropArea_m2 = 600; small.treeArea_m2 = 1200; small.reedArea_m2 = 800;
+  const smallFood = run(small, defaultState(small), 600, 2, 10).at(-1).food_molC;
+  ok('starved ecosystem ⇒ food store collapses toward zero', smallFood < big.crew * 22,
+     `food ${smallFood.toFixed(0)} mol C (< one day's intake)`);
+}
+
+// ── 7. Determinism ───────────────────────────────────────────────────────────
+{
+  const p = defaultParams();
+  const a = run(p, defaultState(p), 60, 1, 5);
+  const b = run(p, defaultState(p), 60, 1, 5);
+  ok('run is deterministic', JSON.stringify(a) === JSON.stringify(b));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

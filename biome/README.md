@@ -49,77 +49,99 @@ The cylinder interior has a counterintuitive thermal layout that drives everythi
 Before any of that spatial detail matters, the **zeroth question** is whether the
 loop can close at all as stocks and flows. That's Tool 1.
 
-## Module 1 — the resource-cycle box model (`cycles/`)
+## Module 1 — the closed-ecosystem box model (`cycles/`)
 
-A non-spatial, deterministic stocks-and-flows model of the closed ecology. Zero
-dependencies, runs identically in node and the browser. Drive it from the dashboard
-(`cycles/index.html`, live at `biome.mino.mobi/cycles/`) or import `cycles/sim/cycles.mjs`.
+A non-spatial, deterministic stocks-and-flows model of the cylinder interior as a
+living **food web** — not a farm. Zero dependencies, runs identically in node and the
+browser. Drive it from the dashboard (`cycles/index.html`, live at
+`biome.mino.mobi/cycles/`) or import `cycles/sim/cycles.mjs`.
 
-### What it tracks
+### The food web
 
-| Loop | Reservoirs | Conserved |
+| Guild | Pools | Role |
 |---|---|---|
-| **Carbon / oxygen / water** | CO₂, O₂, H₂O (vapour + liquid), standing biomass, litter, food store | C, H, O — **exactly** |
-| **Nitrogen** | N₂, mineral-N, biomass-N, litter-N | N — **exactly** |
+| **Producers** | crops, fruit trees, swamp reeds | fix CO₂ → biomass; feed the food store + litter |
+| **Pollinators** | pollinator biomass | forage the producers; **gate tree fruit set** |
+| **Predators** | predator biomass | eat pollinators; top-down control |
+| **Decomposers** | living microbial/detritivore biomass | eat litter, respire it back to CO₂ |
+| **Crew** | (a count) | eat the food store, breathe |
+| **Stores** | litter, food, CO₂/O₂/N₂, water | detritus, harvest buffer, atmosphere |
 
-The trick that makes it verifiable: every heterotroph — crew breathing, plant
-respiration, soil microbes — runs the **same** reaction
+Why an ecosystem and not a crop: a single crop pool with a passive litter-decay term
+has nothing vigorously cycling carbon, so ambient CO₂ falls, productivity self-strangles,
+and the food store collapses to zero. Living decomposers and perennial standing biomass
+pump carbon around fast enough that the harvest outpaces the crew and **food accumulates**.
+
+### What makes it verifiable
+
+Every ecological interaction is either a **carbon transfer between pools** or the
+canonical respiration reaction. Eating decomposes into
 
 ```
-CH₂O + O₂ → CO₂ + H₂O          (respiration / decomposition)
+ingestion  =  egestion (→ litter)  +  respiration (→ CO₂)  +  production (→ consumer)
+```
+
+and respiration / photosynthesis are exact inverses:
+
+```
+CH₂O + O₂ → CO₂ + H₂O          (respiration of anything alive)
 CO₂ + H₂O → CH₂O + O₂          (photosynthesis, the exact reverse)
 ```
 
-Photosynthate is modelled as carbohydrate-equivalent (CH₂O), so carbon, hydrogen
-and oxygen are conserved **by construction**. The self-test then checks the RK4
-integrator against that invariant (drift < 1e-9 over a model-year), which validates
-the *numerics*, not just the algebra. Nitrogen rides a separate, independently
-conserving loop (fixation → mineral → biomass → litter → mineralise → denitrify).
+Photosynthate is carbohydrate-equivalent (CH₂O), so carbon, hydrogen and oxygen are
+conserved **by construction — no matter how many trophic levels are stacked.** The
+self-test checks the RK4 integrator against that invariant (drift < 1e-9 over a
+model-year). Nitrogen rides a separate, independently conserving loop (fixation →
+mineral → biomass → litter → mineralise → denitrify).
 
 ### The insights it's built to surface
 
-1. **Air closes easily; calories are the hard part.** At ~20 m²/person of crop the
-   air (O₂/CO₂) regenerates fine but the crew is fed only ~20–25% — exactly the
-   historical BIOS-3 result (it closed air and water, never full diet). Push crop
-   area up and calorie self-sufficiency climbs, but…
-2. **…CO₂ self-limits in a closed loop.** More leaf area divides a *fixed* respiratory
-   CO₂ flux (crew + decomposition) among more plants at lower concentration, so
-   productivity per m² falls. You can't just add greenhouse to feed more people; the
-   carbon throughput is bounded by what's being respired. Watch CO₂ fall from ~900 to
-   ~110 ppm as you drag crop area up.
-3. **Oxygen security is banked carbon, not air.** At steady biomass the *net* air-O₂
-   change → 0. The real oxygen reserve is the **stored reduced carbon** (food +
-   biomass + litter) that hasn't been oxidised yet — it dwarfs a day's breathing.
-   Lock carbon away and you bank O₂. (This is literally why Earth has an oxygen
-   atmosphere: buried carbon.) The self-test asserts both halves.
-4. **The Biosphere-2 failure mode is a slider.** Crank soil decay rate
-   (`litterDecay_perday`) and net O₂ falls as microbes out-respire the crop — the
-   real mechanism that sank Biosphere-2 (rich soil + concrete ate the oxygen).
+1. **A food web that *closes*.** Producers, pollinators, predators and decomposers
+   reach a coexisting steady state: CO₂ holds (~840 ppm), pollinators persist so fruit
+   sets, and the food store steadies at a multi-day buffer instead of collapsing.
+2. **Pollinators gate the harvest (the mutualism).** Fruit set saturates with pollinator
+   population. Crash the bees and the trees stop fruiting — a chunk of the food supply
+   vanishes even though the trees are alive.
+3. **Trophic cascade.** Crank predator pressure: predators suppress pollinators, fruit
+   set falls, food supply drops. The whole web is coupled; you feel it in the calories.
+4. **CO₂ is regenerated by the living soil.** Decomposers respiring litter are what
+   keep ambient CO₂ up. Throttle them (`decomposerIngest_perday`) and litter piles up
+   while CO₂ crashes and the producers starve — the real Biosphere-2 failure mode, now
+   an emergent population dynamic rather than a fixed rate.
+5. **Calories are the hard part; area is the lever.** Air closes easily; full dietary
+   closure needs a *lot* of ecosystem (hundreds of m²/person). The food-store-collapse
+   you see at small areas is real — push the (generous) area sliders up and the store
+   sustains. That's the fix, not a hack.
 
 ### Run it
 
 ```bash
-node biome/cycles/test/cycles.selftest.mjs   # 12 checks: conservation, bounds, the insights, determinism
+node biome/cycles/test/cycles.selftest.mjs   # 16 checks: conservation, bounds, food-web behaviour, determinism
 open  biome/index.html                       # landing page → Module 1 dashboard at cycles/
 ```
 
 ### Knobs (all in `defaultParams()`)
 
-crew · crop area · sun duty cycle (photoperiod) · legume fraction · harvest index ·
-soil decay rate · autotroph respiration fraction · biomass C:N · N fixation rate ·
-denitrification · air-box volume · water reservoir. Every number is sourced from
-closed-ecology literature (BIOS-3, MELiSSA, Biosphere-2) and NASA BVAD human factors;
-all are documented inline at their definitions.
+crew · per-guild areas (crop / fruit-tree / reed) · sun duty cycle · fruit reliance on
+pollinators · predator pressure · decomposer activity · per-guild fixation, assimilation,
+respiration, mortality and carrying-capacity fractions · N fixation/denitrification ·
+air-box volume · water reservoir. Every number is sourced from closed-ecology literature
+(BIOS-3, MELiSSA, Biosphere-2), ecological energetics, and NASA BVAD human factors; all
+are documented inline at their definitions.
 
 ### Known simplifications (also exported as `KNOWN_SIMPLIFICATIONS`)
 
-- Nitrification's O₂ cost isn't coupled to the gas balance (small vs. soil C
+- Nitrification's O₂ cost isn't coupled to the gas balance (small vs. the biotic C
   respiration, which *is* modelled).
+- All biomass shares one average C:N; per-guild stoichiometry not separated (N still
+  conserves exactly).
 - Photosynthate is carbohydrate-equivalent; lipid/protein energy density not split.
 - **Single well-mixed air box — no radial structure.** That's the whole point of
-  Tool 2. This model tells you *whether* the loop closes; it can't tell you *where*
+  Module 2. This model tells you *whether* the loop closes; it can't tell you *where*
   the fog sits or whether CO₂ stratifies into a dead zone.
-- Temperature is a fixed parameter (no thermal feedback on rates yet).
+- Temperature is a fixed parameter (no thermal feedback on metabolic rates yet).
+- Pollination is a population gate, not individual flower visitation; the predator
+  guild is lumped (one tier of "things that eat pollinators").
 - Trace-gas / ethylene buildup (a real closed-ecology hazard) not modelled.
 
 ## Module 2 — 1-D radial atmosphere column (planned)

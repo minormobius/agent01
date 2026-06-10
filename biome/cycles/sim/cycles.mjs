@@ -1,31 +1,39 @@
 // biome/cycles/sim/cycles.mjs — closed-loop life-support box model for an infinite O'Neill cylinder.
 //
-// A *non-spatial* stocks-and-flows model. It answers the question that has to be
-// answered before any HVAC or weather model matters: **does the loop close?** —
-// can crop photosynthesis, human metabolism and microbial decomposition reach a
-// steady state, how big do the atmospheric/water buffers have to be to ride out a
-// shock, and where does the nitrogen go.
+// A *non-spatial* stocks-and-flows model of the cylinder interior run as a closed
+// ECOSYSTEM (not a farm). It answers the question that has to be answered before any
+// HVAC or weather model matters: **does the loop close?** — can a food web of
+// producers, consumers and decomposers reach a steady state that feeds the crew and
+// holds the air, how big must the buffers be, and where does the nitrogen go.
+//
+// Why an ecosystem and not a crop: a single crop pool with a passive litter-decay
+// term has nothing vigorously cycling carbon, so ambient CO2 falls, productivity
+// self-strangles, and the food store collapses to zero. Living decomposers, perennial
+// standing biomass (fruit trees, swamp reeds), pollinators and their predators pump
+// carbon around fast enough that the harvest outpaces the crew and food accumulates.
 //
 // Design choices that make this verifiable offline (the cylinder-solver ethos):
 //
-//   1. Carbon/oxygen/water loop is element-exact. Every heterotroph (human,
-//      plant respiration, soil microbe) runs the SAME reaction
-//          CH2O + O2 -> CO2 + H2O
-//      and photosynthesis is its exact reverse
+//   1. The carbon/oxygen/water loop is element-exact. EVERY interaction is either a
+//      carbon transfer between pools or the canonical respiration reaction
+//          CH2O + O2 -> CO2 + H2O        (respiration of any living thing)
+//      whose exact reverse is photosynthesis
 //          CO2 + H2O -> CH2O + O2.
-//      Photosynthate is modelled as carbohydrate-equivalent (CH2O), so C, H and O
-//      are conserved BY CONSTRUCTION. The self-test checks the integrator against
-//      that invariant, not the algebra.
+//      Eating decomposes into ingestion = egestion(->litter) + respiration(->CO2) +
+//      production(->consumer biomass): I = F + R + P, paired flux by paired flux.
+//      Photosynthate is carbohydrate-equivalent (CH2O), so C, H and O conserve BY
+//      CONSTRUCTION — the self-test checks the INTEGRATOR against that invariant,
+//      not the algebra, no matter how many trophic levels are stacked.
 //
-//   2. Nitrogen is a separate, element-conserving loop (fixation -> mineral ->
-//      biomass -> litter -> mineral -> denitrify -> N2). N never enters the gas
-//      O2 balance here; the O2 cost of nitrification is a documented omission
-//      (see KNOWN_SIMPLIFICATIONS) — small next to soil C respiration, which IS
-//      modelled and is the thing that sank Biosphere-2.
+//   2. Nitrogen rides a separate, element-conserving loop: fixation -> mineral ->
+//      biomass -> litter -> mineralize -> denitrify -> N2. N moves with carbon on
+//      every transfer (at the average biomass C:N), so N conserves exactly too.
+//      The O2 cost of nitrification is a documented omission (KNOWN_SIMPLIFICATIONS)
+//      — small next to the biotic C respiration that IS modelled.
 //
 //   3. Pure functions, no deps, no DOM. Runs identically in node and the browser;
-//      the engine attaches to globalThis so a <script type=module> or a node
-//      import both see `Biome`.
+//      the engine attaches to globalThis so a <script type=module> and a node import
+//      both see `Biome`.
 //
 // Units: moles for all reactive species (so stoichiometry is trivially balanced),
 // seconds for time. Helpers convert to kg / litres / kcal / m^2 / days at the edges.
@@ -35,101 +43,147 @@
 // ─────────────────────────────────────────────────────────────────────────────
 export const M = { O2: 31.998, CO2: 44.009, H2O: 18.015, N2: 28.014, CH2O: 30.026, N: 14.007 };
 const DAY = 86400; // s
+const R_GAS = 8.314462618; // J/mol/K
 // CH2O carbohydrate energy: glucose 2805 kJ/mol / 6 C = 467.5 kJ per mol CH2O-C.
-// 1 kcal = 4.184 kJ -> 111.7 kcal per mol CH2O. (Atwater carb factor ~4 kcal/g; 30 g/mol -> ~120; agrees.)
 export const KCAL_PER_MOL_CH2O = 467.5 / 4.184; // ≈ 111.7
+
+// The living carbon pools (autotroph + heterotroph biomass) and the detritus pool.
+// Order matters only for readability; all are mol CH2O-C.
+export const PRODUCERS = ['crop', 'tree', 'reed'];           // autotroph guilds
+export const CONSUMERS = ['pollinator', 'predator'];          // animal guilds
+export const LIVING = [...PRODUCERS, ...CONSUMERS, 'decomposer'];
+// Full integrated state keys (everything that evolves).
+const KEYS = [
+  'O2', 'CO2', 'N2', 'H2Ov', 'H2Ol',
+  'crop', 'tree', 'reed', 'pollinator', 'predator', 'decomposer',
+  'litter', 'food',
+  'nMineral', 'nBiomass', 'nLitter',
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Default parameters. Sourced from closed-ecology literature (BIOS-3, MELiSSA,
-// Biosphere-2) and human-factors handbooks (NASA BVAD). Every number is a knob.
+// Biosphere-2), ecological energetics, and NASA BVAD human factors. Every number
+// is a knob; the dashboard exposes the load-bearing ones with generous ranges.
 // ─────────────────────────────────────────────────────────────────────────────
 export function defaultParams() {
   return {
-    crew: 100,                 // people
-    cropArea_m2: 2200,         // total photosynthesising leaf-equivalent area
-    legumeFraction: 0.15,      // share of crop that fixes N2
+    crew: 100,
 
-    // — Light / photosynthesis —
-    // PPFD-limited gross fixation per m^2 at full illumination. BIOS-3 wheat under
-    // intense light managed ~50 g dry mass m^-2 day^-1; carbohydrate-C is a slice
-    // of that. We use gross CH2O-C fixation; net (NPP) = gross - autotrophic resp.
-    grossFix_molC_m2_day: 1.6,     // mol CH2O-C per m^2 per (lit) day at full light (high-intensity CEA)
-    photoperiod: 0.65,             // fraction of the 24h cycle the linear sun is on
-    autotrophRespFraction: 0.35,   // plant respiration as fraction of gross fixation
-    co2_halfSat_Pa: 12,            // Michaelis CO2 partial pressure for fixation (Pa)
-    harvestIndex: 0.45,            // edible fraction of NET production (grain HI ~0.4-0.5)
+    // ── Producer guilds: area (m^2) + gross fixation (mol CH2O-C / m^2 / lit-day) ──
+    // Three guilds with different roles:
+    //   crop  — annual, fast turnover, high harvest index → grain/veg to the food store
+    //   tree  — perennial, large standing wood, fruit set GATED by pollinators
+    //   reed  — wetland/swamp, very productive, mostly feeds detritus (and processes water/N)
+    cropArea_m2: 3000,   cropFix: 1.7,
+    treeArea_m2: 6000,   treeFix: 1.1,
+    reedArea_m2: 4000,   reedFix: 2.0,
+    photoperiod: 0.7,                 // fraction of 24h the linear sun is on
+    autotrophRespFraction: 0.35,      // plant respiration as fraction of gross fixation
+    co2_halfSat_Pa: 12,               // Michaelis CO2 partial pressure for fixation (Pa)
 
-    // — Humans —
-    human_O2_molday: 26.3,         // ≈ 0.84 kg O2/person/day (BVAD)
-    human_kcal_day: 2550,          // metabolic demand
-    human_water_L_day: 3.2,        // drinking + food water turnover (hygiene water is recycled, excluded)
-    human_N_gday: 13,              // protein N intake≈excretion at N balance (~13 g N/day)
+    // crop: turnover (harvest) and allocation
+    cropTurnover_perday: 0.03,        // crop matures/cut per day (~33-day crop)
+    cropHarvestIndex: 0.5,            // edible fraction of cut crop -> food
+    cropSenescence_perday: 0.004,
 
-    // — Crop maturity / harvest —
-    // Standing biomass doesn't accumulate forever: a crop matures and is cut. This
-    // is what brings the loop to a real steady state — without it, NPP piles up as
-    // ever-growing biomass, sequesters carbon and crashes ambient CO2.
-    cropTurnover_perday: 0.03,     // fraction of standing biomass harvested per day (≈33-day crop)
+    // tree: fruiting is pollinator-gated; wood/leaf cycles slowly
+    treeFruitPotential_perday: 0.02,  // fraction of tree bio that COULD become fruit per day
+    pollinatorHalfSat: 200,           // pollinator mol-C giving half-max fruit set
+    treeLitterfall_perday: 0.006,     // leaf/branch drop -> litter
+    treeMortality_perday: 0.0008,     // whole-tree death -> litter
 
-    // — Microbial decomposition (the Biosphere-2 term) —
-    // First-order decay of the litter pool. Rich/biologically-active soil = fast.
-    litterDecay_perday: 0.012,     // fraction of litter pool oxidised per day
-    senescence_perday: 0.004,      // baseline leaf-drop to litter per day
+    // reed: detritus factory + a little harvest (reedmace/cattail are edible)
+    reedHarvestIndex: 0.1,            // small direct food contribution
+    reedTurnover_perday: 0.02,        // reed dieback -> mostly litter
 
-    // — Nitrogen loop —
-    biomassCN_molar: 30,           // whole-plant C:N (grain richer, straw poorer; 30 ≈ mix)
-    fixation_molN_m2legume_day: 0.02,  // biological N fixation per m^2 of legume per day
-    mineralizeFraction: 0.85,      // N released to mineral pool when litter decomposes (rest immobilised/lost)
-    denitrify_perday: 0.004,       // fraction of mineral-N pool returned to N2 per day (loss)
+    // ── Consumers (ecological energetics: ingestion = egestion + respiration + production) ──
+    // pollinators forage producer carbon (nectar/pollen). The carrying-capacity cap
+    // (pollinatorCapFrac × producer biomass) prevents over-grazing structurally, so
+    // ingestion is tuned for viability, not suppressed.
+    pollinatorIngest_perday: 0.25,    // max ingestion per unit pollinator bio per day
+    pollinatorForageHalfSat: 4000,    // producer bio giving half-max foraging (mol C)
+    pollinatorAssim: 0.55,            // assimilation efficiency (rest egested -> litter)
+    pollinatorResp_perday: 0.05,      // maintenance respiration per unit bio per day
+    pollinatorMortality_perday: 0.02,
+    pollinatorCapFrac: 0.012,         // carrying capacity = this × producer biomass (nesting/territory limit)
 
-    // — Atmosphere geometry (sets partial pressures & buffer sizes) —
-    // Air inventory the loop breathes against. For an infinite cylinder we model a
-    // per-crew "atmospheric column" volume; scale it to taste.
-    airVolume_m3: 100 * 50_000,    // 50,000 m^3 of air per person (a tall column under spin)
+    // predators eat pollinators (bounded Lotka-Volterra + density dependence)
+    predatorIngest_perday: 0.20,
+    predatorPreyHalfSat: 120,         // pollinator bio giving half-max predation
+    predatorAssim: 0.4,
+    predatorResp_perday: 0.04,
+    predatorMortality_perday: 0.015,
+    predatorCapFrac: 0.06,            // carrying capacity = this × pollinator biomass
+
+    // ── Decomposers: a LIVING pool that eats litter (replaces passive decay) ──
+    // This makes decomposition a population that can bloom and crash — the
+    // Biosphere-2 dynamic becomes emergent rather than a fixed rate.
+    decomposerIngest_perday: 0.6,     // max litter ingestion per unit decomposer bio per day (microbes are fast)
+    decomposerHalfSat: 10000,         // litter giving half-max decomposition (mol C)
+    decomposerAssim: 0.35,            // assimilated fraction (rest egested back to litter)
+    decomposerResp_perday: 0.04,      // of the assimilate, most is respired -> CO2 (the resupply)
+    decomposerMortality_perday: 0.025,// dead microbes return to litter
+
+    // ── Humans ── crew carbon burn derives from the calorie demand (single source of
+    // truth): kcal/day ÷ (kcal per mol CH2O) = mol C/day respired, O2 consumed to match.
+    // 2550 kcal/day ≈ 22.8 mol C/day ≈ 0.73 kg O2/day (consistent with BVAD's ~0.84).
+    human_kcal_day: 2550,
+    human_N_gday: 13,                 // protein N throughput at N balance
+    foodSpoilage_perday: 0.01,        // surplus food rots -> litter (bounds the store, closes C)
+
+    // ── Nitrogen loop ──
+    biomassCN_molar: 30,              // average whole-biomass C:N
+    nTurnover_perday: 0.01,           // biomass-N returning to litter per day (senescence/death)
+    fixation_molN_m2_day: 0.015,      // biological N fixation per m^2 of reed+legume swamp
+    fixArea_m2: 2000,                 // effective N-fixing wetland/legume area
+    mineralizeFraction: 0.85,         // N released to mineral pool as litter is decomposed
+    denitrify_perday: 0.004,          // mineral-N -> N2 (loss)
+
+    // ── Atmosphere / water reservoir (sets partial pressures + buffer sizes) ──
+    airVolume_m3: 100 * 50_000,       // 50,000 m^3 of air per person (a tall spun column)
     airTemp_K: 293.15,
-    waterReservoir_L: 100 * 8000,  // free liquid water (lakes/soil/condensate), litres
+    waterReservoir_L: 100 * 8000,     // free liquid water (lakes/swamp/soil/condensate), litres
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Initial state. All reactive inventories in mol; water split vapour/liquid.
+// Initial state. Reactive inventories in mol; water split vapour/liquid.
 // ─────────────────────────────────────────────────────────────────────────────
 export function defaultState(p = defaultParams()) {
-  // Seed the air to a roughly Earth-normal sea-level mix for the chosen volume.
-  // n = pV/RT per partial pressure.
-  const R = 8.314462618; // J/mol/K
   const V = p.airVolume_m3, T = p.airTemp_K;
-  const molAt = (Pa) => (Pa * V) / (R * T);
+  const molAt = (Pa) => (Pa * V) / (R_GAS * T);
+  const totalProducerC =
+    p.cropArea_m2 * 6 + p.treeArea_m2 * 40 + p.reedArea_m2 * 10; // trees carry far more standing C
   return {
     t: 0,
     // gases (mol)
-    O2:  molAt(21_000),   // 21 kPa
-    CO2: molAt(100),      // 100 Pa ≈ 1000 ppm — the habitat runs CO2-enriched, as controlled-environment ag does
-    N2:  molAt(79_000),   // 79 kPa
-    H2Ov: molAt(1_500),   // ~1.5 kPa vapour (≈ 55% RH at 20°C)
-    // water (mol liquid)
+    O2:  molAt(21_000),
+    CO2: molAt(100),     // 100 Pa ≈ 1000 ppm — habitat runs CO2-enriched, as controlled-env ag does
+    N2:  molAt(79_000),
+    H2Ov: molAt(1_500),
     H2Ol: (p.waterReservoir_L * 1000) / M.H2O,
-    // carbon pools (mol CH2O-C)
-    bio:  p.cropArea_m2 * 6.0,   // standing crop carbon (≈ a few hundred g C/m^2)
-    litter: p.cropArea_m2 * 4.0, // dead organic carbon
-    food: p.crew * 30 * 22,      // ~30 days of food buffer, 22 mol C/person/day
+    // living carbon pools (mol CH2O-C)
+    crop: p.cropArea_m2 * 6,
+    tree: p.treeArea_m2 * 40,
+    reed: p.reedArea_m2 * 10,
+    pollinator: 300,
+    predator: 60,
+    decomposer: 20000,
+    // detritus + food
+    litter: 6000,
+    food: p.crew * 30 * 22,   // ~30 days of food buffer, 22 mol C/person/day
     // nitrogen pools (mol N)
-    nMineral: p.cropArea_m2 * 0.5,
-    nBiomass: (p.cropArea_m2 * 6.0) / p.biomassCN_molar,
-    nLitter:  (p.cropArea_m2 * 4.0) / p.biomassCN_molar,
+    nMineral: 1500,
+    nBiomass: totalProducerC / p.biomassCN_molar,
+    nLitter: 15000 / p.biomassCN_molar,
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-const R_GAS = 8.314462618;
-// partial pressure (Pa) of a gas given its mol inventory and the air box
 export function partialPressure(mol, p) { return (mol * R_GAS * p.airTemp_K) / p.airVolume_m3; }
-export function totalPressure(s, p) {
-  return partialPressure(s.O2 + s.CO2 + s.N2 + s.H2Ov, p);
-}
-// saturation vapour pressure of water (Pa), Tetens, T in K
+export function totalPressure(s, p) { return partialPressure(s.O2 + s.CO2 + s.N2 + s.H2Ov, p); }
 export function satVaporPressure_Pa(T_K) {
   const Tc = T_K - 273.15;
   return 610.78 * Math.exp((17.27 * Tc) / (Tc + 237.3));
@@ -137,93 +191,187 @@ export function satVaporPressure_Pa(T_K) {
 export function relativeHumidity(s, p) {
   return partialPressure(s.H2Ov, p) / satVaporPressure_Pa(p.airTemp_K);
 }
+const mm = (x, half) => x / (x + half);       // Michaelis-Menten / Monod saturation
+const safe = (x) => (x > 0 ? x : 0);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Derivatives: d(state)/dt in mol/s. This is where the biology lives.
-// Returns a delta object with the same keys as state (minus t) plus a `flux`
-// breakdown for diagnostics.
+// Derivatives: d(state)/dt in mol/s. The food web lives here.
+//
+// Convention: we accumulate every pool's rate into `d`, and the gas exchange is
+// assembled from two running totals — total photosynthetic fixation (O2 out, CO2
+// in, H2O in) and total respiration carbon (O2 in, CO2 out, H2O out). Because
+// every eating event is split into egestion/respiration/production that all land
+// in tracked pools, carbon is conserved regardless of how many couplings we add.
 // ─────────────────────────────────────────────────────────────────────────────
 export function derivatives(s, p) {
-  // — Photosynthesis (gross), CO2- and light-limited —
+  const d = {}; for (const k of KEYS) d[k] = 0;
+  let fix = 0;     // total gross photosynthesis (mol C/s) — O2 produced, CO2 fixed
+  let resp = 0;    // total respiration carbon (mol C/s)    — O2 consumed, CO2 released
+  let npp = 0;     // total net primary production (mol C/s) — drives mineral-N uptake
+  const flux = {};
+
+  // ── Producers: photosynthesis, autotroph respiration, allocation ──
   const co2Pa = partialPressure(s.CO2, p);
-  const co2Lim = co2Pa / (co2Pa + p.co2_halfSat_Pa);     // Michaelis-Menten in CO2
-  const lightLim = p.photoperiod;                         // averaged duty cycle
-  const grossFix = (p.grossFix_molC_m2_day * p.cropArea_m2 * co2Lim * lightLim) / DAY; // mol C/s
-  const autoResp = grossFix * p.autotrophRespFraction;    // plant respiration (mol C/s)
-  const npp = grossFix - autoResp;                         // net primary production
+  const co2Lim = mm(co2Pa, p.co2_halfSat_Pa);
+  const light = p.photoperiod;
 
-  // — Carbon flows through the standing crop (mol C/s) —
-  // ALL net production grows standing biomass; biomass leaves by maturity (harvest)
-  // plus a small baseline senescence. Without this turnover, NPP piles up as
-  // ever-growing biomass that sequesters carbon and crashes ambient CO2 — so the
-  // loop would never reach steady state. Harvest splits by harvest index into
-  // edible food and structural residue (straw/roots) that becomes litter.
-  const toBiomass = npp;
-  const maturity = (p.cropTurnover_perday * s.bio) / DAY;       // crop cut at maturity
-  const harvest = maturity * p.harvestIndex;                    // -> food store
-  const residue = maturity * (1 - p.harvestIndex);             // -> litter
-  const senescence = (p.senescence_perday * s.bio) / DAY;      // baseline leaf-drop -> litter
-  const decomp = (p.litterDecay_perday * s.litter) / DAY;      // litter oxidised -> CO2
+  // crop
+  {
+    const gross = (p.cropFix * p.cropArea_m2 * co2Lim * light) / DAY;
+    const ar = gross * p.autotrophRespFraction;
+    const nppC = gross - ar;
+    fix += gross; resp += ar; npp += nppC;
+    const mat = (p.cropTurnover_perday * safe(s.crop)) / DAY;
+    const harvest = mat * p.cropHarvestIndex;
+    const residue = mat * (1 - p.cropHarvestIndex);
+    const sen = (p.cropSenescence_perday * safe(s.crop)) / DAY;
+    d.crop += nppC - mat - sen;
+    d.food += harvest;
+    d.litter += residue + sen;
+    flux.cropHarvest = harvest;
+  }
 
-  // humans burn food carbon at their metabolic rate (RQ≈1 for a carb diet), but
-  // can never draw the store negative: when food runs out they eat hand-to-mouth,
-  // capped at the live harvest inflow. The calorie diagnostic still reports the
-  // resulting deficit, so "the crop underfeeds the crew" shows as a number, not a
-  // crash. This smooth floor keeps RK4 from overshooting below zero.
-  const humanC = (p.human_O2_molday * p.crew) / DAY;            // demanded mol C/s
-  const foodAvail = Math.max(0, s.food);
-  const humanBurn = Math.min(humanC, harvest + foodAvail / DAY);
+  // tree — fruit set gated by pollinator population (the mutualism the user wanted)
+  {
+    const gross = (p.treeFix * p.treeArea_m2 * co2Lim * light) / DAY;
+    const ar = gross * p.autotrophRespFraction;
+    const nppC = gross - ar;
+    fix += gross; resp += ar; npp += nppC;
+    const fruitSet = mm(safe(s.pollinator), p.pollinatorHalfSat);   // 0..1
+    const fruit = (p.treeFruitPotential_perday * safe(s.tree)) / DAY * fruitSet;
+    const fall = (p.treeLitterfall_perday * safe(s.tree)) / DAY;
+    const mort = (p.treeMortality_perday * safe(s.tree)) / DAY;
+    d.tree += nppC - fruit - fall - mort;
+    d.food += fruit;
+    d.litter += fall + mort;
+    flux.treeFruit = fruit; flux.fruitSet = fruitSet;
+  }
 
-  // gas exchange (mol/s): photosynthesis fixes CO2 & releases O2; all heterotrophy reverses it
-  const o2_prod = grossFix;                                  // O2 out of photosynthesis
-  const o2_cons = autoResp + decomp + humanBurn;             // O2 into all respiration
-  const co2_cons = grossFix;                                 // CO2 fixed
-  const co2_prod = autoResp + decomp + humanBurn;            // CO2 respired
+  // reed — detritus factory, small harvest
+  {
+    const gross = (p.reedFix * p.reedArea_m2 * co2Lim * light) / DAY;
+    const ar = gross * p.autotrophRespFraction;
+    const nppC = gross - ar;
+    fix += gross; resp += ar; npp += nppC;
+    const turn = (p.reedTurnover_perday * safe(s.reed)) / DAY;
+    const harvest = turn * p.reedHarvestIndex;
+    const detritus = turn * (1 - p.reedHarvestIndex);
+    d.reed += nppC - turn;
+    d.food += harvest;
+    d.litter += detritus;
+    flux.reedHarvest = harvest;
+  }
 
-  // water: photosynthesis consumes H2O (per CH2O-C), respiration produces it.
-  // Net vapour change also gets transpiration (liquid->vapour) toward equilibrium.
-  const h2o_fromResp = o2_cons;          // 1 H2O per O2 in CH2O+O2->CO2+H2O
-  const h2o_toPhoto = grossFix;          // 1 H2O per C fixed in CO2+H2O->CH2O+O2
-  // relax vapour toward saturation·targetRH via the liquid reservoir (transpiration/condensation)
+  // ── A generic trophic transfer: ingestion split into egestion/respiration/production ──
+  // Draws `ingest` mol C/s out of source pool(s) (by share), egests (1-assim) to
+  // litter, respires `respRate*bio` of the consumer to CO2, and grows the consumer
+  // with the remainder. Conserves carbon: ingest = egest + (assim->[resp+growth]).
+  const eat = (consumerKey, ingest, assim, respPerday, sources) => {
+    const bio = safe(s[consumerKey]);
+    // pull ingestion proportionally from the source pools by their standing share
+    const totalSrc = sources.reduce((a, k) => a + safe(s[k]), 0) || 1e-9;
+    for (const k of sources) d[k] -= ingest * (safe(s[k]) / totalSrc);
+    const egest = ingest * (1 - assim);            // feces -> litter
+    const assimilated = ingest * assim;
+    const maint = (respPerday * bio) / DAY;        // maintenance respiration -> CO2
+    d.litter += egest;
+    resp += maint;
+    d[consumerKey] += assimilated - maint;         // production = net of respiration
+  };
+
+  // Density-dependent mortality: extra death as a pool approaches its carrying
+  // capacity K (nesting sites / territory / disease). Logistic, so the population
+  // saturates near K instead of blowing up and over-grazing — this is what damps
+  // the predator–prey oscillation into a coexisting steady state.
+  const crowdMort = (key, baseMortPerday, K) => {
+    const bio = safe(s[key]);
+    const mort = (baseMortPerday * bio * (1 + bio / Math.max(K, 1e-9))) / DAY;
+    d[key] -= mort; d.litter += mort;
+  };
+
+  // pollinators forage producer biomass (nectar/pollen); gate tree fruit above
+  {
+    const forageBase = safe(s.crop) + safe(s.tree) + safe(s.reed);
+    const ingest = (p.pollinatorIngest_perday * safe(s.pollinator)) / DAY
+                 * mm(forageBase, p.pollinatorForageHalfSat);
+    eat('pollinator', ingest, p.pollinatorAssim, p.pollinatorResp_perday, ['crop', 'tree', 'reed']);
+    crowdMort('pollinator', p.pollinatorMortality_perday, p.pollinatorCapFrac * forageBase);
+    flux.pollinatorIngest = ingest;
+  }
+
+  // predators eat pollinators (keep them from over-grazing / stabilise the web)
+  {
+    const ingest = (p.predatorIngest_perday * safe(s.predator)) / DAY
+                 * mm(safe(s.pollinator), p.predatorPreyHalfSat);
+    eat('predator', ingest, p.predatorAssim, p.predatorResp_perday, ['pollinator']);
+    crowdMort('predator', p.predatorMortality_perday, p.predatorCapFrac * safe(s.pollinator));
+    flux.predatorIngest = ingest;
+  }
+
+  // decomposers eat litter (the active, living decomposition term)
+  {
+    const ingest = (p.decomposerIngest_perday * safe(s.decomposer)) / DAY
+                 * mm(safe(s.litter), p.decomposerHalfSat);
+    eat('decomposer', ingest, p.decomposerAssim, p.decomposerResp_perday, ['litter']);
+    const mort = (p.decomposerMortality_perday * safe(s.decomposer)) / DAY;
+    d.decomposer -= mort; d.litter += mort;
+    flux.decompIngest = ingest;
+  }
+
+  // ── Humans: eat food, respire it, waste -> litter ──
+  const humanC = (p.human_kcal_day * p.crew / KCAL_PER_MOL_CH2O) / DAY;  // mol C/s demand (RQ≈1)
+  const foodAvail = safe(s.food);
+  const eaten = Math.min(humanC, foodAvail / DAY + Math.max(0, d.food)); // can't overdraw the store
+  const humanResp = eaten * 0.92;        // most eaten C respired to CO2
+  const humanWaste = eaten * 0.08;       // the rest egested -> litter
+  d.food -= eaten;
+  resp += humanResp;
+  d.litter += humanWaste;
+  // surplus food spoils back to the loop (bounds the store; this is what stops the
+  // old runaway/collapse — inflow now balances against consumption + spoilage)
+  const spoil = (p.foodSpoilage_perday * foodAvail) / DAY;
+  d.food -= spoil; d.litter += spoil;
+
+  // ── Gas exchange assembled from the two running totals ──
+  d.O2  += fix - resp;
+  d.CO2 += resp - fix;
+  const h2o_fromResp = resp;     // 1 H2O per O2 in CH2O+O2->CO2+H2O
+  const h2o_toPhoto = fix;       // 1 H2O per C fixed in CO2+H2O->CH2O+O2
+  // relax vapour toward target RH via the liquid reservoir (transpiration/condensation)
   const targetRH = 0.85;
   const satMol = (targetRH * satVaporPressure_Pa(p.airTemp_K) * p.airVolume_m3) / (R_GAS * p.airTemp_K);
-  const vaporRelax = (satMol - s.H2Ov) / (3 * DAY);   // 3-day relaxation time
+  const vaporRelax = (satMol - s.H2Ov) / (3 * DAY);
+  d.H2Ov += (h2o_fromResp - h2o_toPhoto) + vaporRelax;
+  d.H2Ol += -vaporRelax;
 
-  // — Nitrogen loop (mol N/s), element-conserving —
-  const fix = (p.fixation_molN_m2legume_day * p.cropArea_m2 * p.legumeFraction) / DAY; // N2 -> mineral
-  const uptake = npp / p.biomassCN_molar;                 // mineral -> biomass, tied to NPP C:N
-  // N leaves standing biomass with the carbon that leaves it (maturity + senescence).
-  // Whether via crop residue or through the crew's gut to waste, it ends in litter —
-  // at N-balance the crew retains none — so route all of it to the litter-N pool.
-  const nBioOut = ((maturity + senescence) / Math.max(s.bio, 1e-9)) * s.nBiomass;
-  const nMineralize = (p.litterDecay_perday * s.nLitter) * p.mineralizeFraction / DAY; // litter-N -> mineral
-  const denitrify = (p.denitrify_perday * s.nMineral) / DAY;   // mineral -> N2 (loss)
+  // ── Nitrogen loop — four paired transfers, conserves total N exactly ──
+  // Decoupled from the exact carbon routing (a documented simplification) but each
+  // flux is matched mineral↔biomass↔litter↔mineral, with N2 as fixation/denitrify
+  // endpoints. Uptake is driven by NPP (new tissue needs N) and limited by what's
+  // available; mineralization tracks the litter carbon decomposers actually consume.
+  const litterCN = safe(s.nLitter) > 0 ? safe(s.litter) / s.nLitter : p.biomassCN_molar;
+  const fixN = (p.fixation_molN_m2_day * p.fixArea_m2) / DAY;                 // N2 -> mineral
+  const mineralizeN = ((flux.decompIngest || 0) / Math.max(litterCN, 1e-9)) * p.mineralizeFraction; // litter -> mineral
+  const denitrify = (p.denitrify_perday * safe(s.nMineral)) / DAY;           // mineral -> N2
+  const uptakeWant = npp / p.biomassCN_molar;                                // mineral -> biomass (NPP demand)
+  const uptake = Math.min(uptakeWant, safe(s.nMineral) / DAY + fixN + mineralizeN);
+  const senescenceN = (p.nTurnover_perday * safe(s.nBiomass)) / DAY;         // biomass -> litter
 
-  // limit uptake to available mineral N (no negative pools)
-  const uptakeEff = Math.min(uptake, s.nMineral / DAY + fix + nMineralize);
+  d.nBiomass += uptake - senescenceN;
+  d.nLitter  += senescenceN - mineralizeN;
+  d.nMineral += fixN + mineralizeN - uptake - denitrify;
+  d.N2       += (denitrify - fixN) / 2;   // fluxes are mol-N atoms; N2 pool is mol-molecules
 
   return {
-    d: {
-      O2:  o2_prod - o2_cons,
-      CO2: co2_prod - co2_cons,
-      N2:  (denitrify - fix) / 2,   // fluxes are mol-N atoms; N2 pool is mol-molecules
-      // Reaction water (respiration makes it, photosynthesis consumes it) is a REAL
-      // source/sink for total water — it enters the vapour pool and is balanced by
-      // the CH2O/O2/CO2 element changes. vaporRelax is the only vapour↔liquid transfer.
-      H2Ov: (h2o_fromResp - h2o_toPhoto) + vaporRelax,
-      H2Ol: -vaporRelax,
-      bio:  toBiomass - maturity - senescence,
-      litter: residue + senescence - decomp,
-      food: harvest - humanBurn,
-      nMineral: fix + nMineralize - uptakeEff - denitrify,
-      nBiomass: uptakeEff - nBioOut,
-      nLitter: nBioOut - nMineralize,
-    },
+    d,
     flux: {
-      grossFix, autoResp, npp, decomp, humanBurn, senescence, harvest, maturity,
-      o2_net: o2_prod - o2_cons, co2_net: co2_prod - co2_cons,
-      fix, uptake: uptakeEff, denitrify, vaporRelax,
-      calorieSupply_kcalday: harvest * DAY * KCAL_PER_MOL_CH2O,
+      ...flux,
+      grossFix: fix, totalResp: resp,
+      o2_net: fix - resp, co2_net: resp - fix,
+      foodIn: (flux.cropHarvest || 0) + (flux.treeFruit || 0) + (flux.reedHarvest || 0),
+      humanDemand: humanC, eaten, spoil,
+      fixN, denitrify, uptake,
+      calorieSupply_kcalday: ((flux.cropHarvest || 0) + (flux.treeFruit || 0) + (flux.reedHarvest || 0)) * DAY * KCAL_PER_MOL_CH2O,
       calorieDemand_kcalday: p.crew * p.human_kcal_day,
     },
   };
@@ -232,14 +380,11 @@ export function derivatives(s, p) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Integrator: classic RK4. Deterministic. dt in seconds.
 // ─────────────────────────────────────────────────────────────────────────────
-const KEYS = ['O2','CO2','N2','H2Ov','H2Ol','bio','litter','food','nMineral','nBiomass','nLitter'];
-
 function addScaled(base, delta, h) {
   const out = { ...base };
   for (const k of KEYS) out[k] = base[k] + h * delta[k];
   return out;
 }
-
 export function step(s, p, dt) {
   const k1 = derivatives(s, p).d;
   const k2 = derivatives({ ...addScaled(s, k1, dt / 2), t: s.t }, p).d;
@@ -268,13 +413,13 @@ export function run(p = defaultParams(), s0 = defaultState(p), days = 365, dtHou
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Element accounting — the conservation invariant the self-test leans on.
-// Returns total mol of C, H, O, N across ALL reservoirs.
-// CH2O = 1C 2H 1O ; CO2 = 1C 2O ; O2 = 2O ; H2O = 2H 1O ; N2 = 2N.
+// Living pools + litter + food + CO2 are the carbon reservoirs; CH2O = 1C 2H 1O.
 // ─────────────────────────────────────────────────────────────────────────────
 export function elements(s) {
-  const C = s.CO2 + s.bio + s.litter + s.food;
-  const H = 2 * s.H2Ov + 2 * s.H2Ol + 2 * (s.bio + s.litter + s.food);
-  const O = 2 * s.O2 + 2 * s.CO2 + s.H2Ov + s.H2Ol + (s.bio + s.litter + s.food);
+  const orgC = LIVING.reduce((a, k) => a + s[k], 0) + s.litter + s.food;
+  const C = s.CO2 + orgC;
+  const H = 2 * s.H2Ov + 2 * s.H2Ol + 2 * orgC;
+  const O = 2 * s.O2 + 2 * s.CO2 + s.H2Ov + s.H2Ol + orgC;
   const N = 2 * s.N2 + s.nMineral + s.nBiomass + s.nLitter;
   return { C, H, O, N };
 }
@@ -282,31 +427,39 @@ export function elements(s) {
 // human-readable snapshot at a point in time
 export function snapshot(s, p) {
   const f = derivatives(s, p).flux;
+  const totalBio = LIVING.reduce((a, k) => a + s[k], 0);
   return {
     day: s.t / DAY,
     o2_kPa: partialPressure(s.O2, p) / 1000,
     co2_ppm: (partialPressure(s.CO2, p) / totalPressure(s, p)) * 1e6,
     rh: relativeHumidity(s, p),
     totalP_kPa: totalPressure(s, p) / 1000,
-    bio_molC: s.bio, litter_molC: s.litter, food_molC: s.food, waterL: (s.H2Ol * M.H2O) / 1000,
+    crop: s.crop, tree: s.tree, reed: s.reed,
+    pollinator: s.pollinator, predator: s.predator, decomposer: s.decomposer,
+    litter_molC: s.litter, food_molC: s.food, totalBio_molC: totalBio,
+    waterL: (s.H2Ol * M.H2O) / 1000,
     nMineral: s.nMineral, nBiomass: s.nBiomass, nLitter: s.nLitter,
     o2_net_molday: f.o2_net * DAY,
+    foodIn_molday: f.foodIn * DAY, foodDemand_molday: f.humanDemand * DAY,
+    fruitSet: f.fruitSet,
     calorieSupply: f.calorieSupply_kcalday, calorieDemand: f.calorieDemand_kcalday,
     calorieRatio: f.calorieSupply_kcalday / f.calorieDemand_kcalday,
   };
 }
 
 export const KNOWN_SIMPLIFICATIONS = [
-  'Nitrification O2 cost not coupled to the gas balance (small vs. soil C respiration).',
-  'Photosynthate is carbohydrate-equivalent (CH2O); lipids/protein energy density not separated.',
-  'Single well-mixed air box: no vertical (radial) structure — that lives in the 1-D column tool.',
-  'Temperature is a fixed parameter; no thermal feedback on rates yet.',
+  'Nitrification O2 cost not coupled to the gas balance (small vs. biotic C respiration).',
+  'All biomass shares one average C:N; per-guild stoichiometry not separated (N still conserves).',
+  'Photosynthate is carbohydrate-equivalent (CH2O); lipid/protein energy density not split.',
+  'Single well-mixed air box: no vertical (radial) structure — that lives in the atmosphere module.',
+  'Temperature is a fixed parameter; no thermal feedback on metabolic rates yet.',
   'Trace-gas / ethylene buildup (a real closed-ecology hazard) not modelled.',
+  'Pollination is a population gate, not individual flower visitation; predator guild is lumped.',
 ];
 
-// Attach to globalThis so a browser <script type=module> and node both see `Biome`.
 const Biome = {
-  M, KCAL_PER_MOL_CH2O, defaultParams, defaultState, derivatives, step, run,
+  M, KCAL_PER_MOL_CH2O, PRODUCERS, CONSUMERS, LIVING,
+  defaultParams, defaultState, derivatives, step, run,
   elements, snapshot, partialPressure, totalPressure, relativeHumidity,
   satVaporPressure_Pa, KNOWN_SIMPLIFICATIONS,
 };
