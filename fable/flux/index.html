@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>flux — physics puzzles with no grid</title>
+<meta name="description" content="Continuous-space physics puzzles. One launch through a contraption of gravity wells, magnets, goo and bumpers — and a solver has already swept every possible launch to map which ones win.">
+<meta property="og:title" content="flux — physics puzzles with no grid">
+<meta property="og:description" content="Aim one shot through wells, magnets and goo. A solver mapped every winning launch.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · flux</div>
+  <header class="masthead">
+    <h1>flux<span class="dot">.</span></h1>
+    <div class="tagline">Physics puzzles with <b>no grid</b>. A ball, one launch — <b>drag to aim</b>, pull for power —
+      through a contraption of gravity wells, magnets that pull and push, goo that saps speed, and springy bumpers.
+      The grid is gone, but the answer is still verifiable: a solver <b>sweeps every possible launch</b> and maps which
+      ones win, so each world is certified solvable, scored by how precise the shot must be, and graded by how the
+      winning trajectory curves and banks.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><label for="seed">page</label><input id="seed" type="number" min="1" value="1"><button class="btn" id="go">go</button></div>
+      <div class="sep"></div>
+      <div class="grp"><button class="btn" id="prev">‹ prev</button><button class="btn" id="next">next ›</button><button class="btn" id="random">random</button></div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn primary" id="surprise">✦ surprise me</button>
+        <label for="huntBundle">find</label>
+        <select id="huntBundle"><option value="">any genre</option>
+          <option value="lob">Lob</option><option value="orrery">Orrery</option><option value="magneto">Magneto</option>
+          <option value="goop">Goop</option><option value="chaos">Chaos</option></select>
+        <select id="huntDiff"><option value="">any difficulty</option><option value="hard">harder</option><option value="easy">gentler</option></select>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">—</span><span class="bpill" id="bundle-pill"></span></div>
+        <div class="win-banner" id="win-banner">Solved!</div>
+        <div class="board-host"><canvas id="board"></canvas></div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap;">
+            <button class="btn primary" id="solve">▶ watch the solver</button>
+            <button class="btn toggle" id="map">show win-map</button>
+            <button class="btn" id="reset">reset</button>
+            <span id="attempts" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Solver verdict</h3>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+          <div class="answer-line" id="answer-line"></div>
+          <div class="descriptor" id="descriptor"></div>
+        </div>
+        <div class="panel"><h3>Forces in play</h3><div class="chips" id="chips"></div></div>
+        <div class="panel"><h3>Interest signals</h3><div class="signals" id="signals"></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–12</span><button class="btn" id="g-next">›</button></div>
+      <div class="sep"></div>
+      <div class="grp"><label>genre</label><select id="g-bundle"><option value="">all</option>
+        <option value="lob">Lob</option><option value="orrery">Orrery</option><option value="magneto">Magneto</option>
+        <option value="goop">Goop</option><option value="chaos">Chaos</option></select>
+        <label>sort</label><select id="g-sort"><option value="interest">interest</option><option value="difficulty">difficulty</option><option value="seed">page #</option></select></div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">generating & sweeping launches…</div></div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>Breaking the grid</h2>
+      <p>flux is the third wing of <a href="/">fable</a>. <a href="/puzz/">puzz</a> broke nothing — static logic on a
+        grid. <a href="/knack/">knack</a> kept the grid but added time — discrete moves a BFS could search. flux throws
+        the grid away: <b>continuous space, real physics</b>. A ball launched once, flying under a sum of forces.</p>
+
+      <h2>Why there's still a verifiable answer</h2>
+      <p>The form is loose, but the discipline that makes the interestingness engine rigorous survives. The player has
+        exactly two degrees of freedom — <b>launch angle and power</b> — so the whole space of attempts is a 2D map.
+        The solver <b>sweeps that map</b>, simulating every launch, and records which ones reach the goal. From that
+        win-map it reads:</p>
+      <ul>
+        <li><b>Solvable?</b> — does any launch win. Unsolvable worlds are discarded at birth.</li>
+        <li><b>Difficulty</b> — how small and precise the winning window is (the inscribed radius of the best
+          <i>basin</i> of winning launches). A wide basin is forgiving; a sliver is a needle to thread.</li>
+        <li><b>Interest</b> — how many distinct winning basins there are, and how the canonical shot curves, banks off
+          bumpers, and threads goo.</li>
+      </ul>
+      <p>Toggle <b>show win-map</b> to see it: a polar diagram at the launch pad — angle around, power outward — lit
+        where that launch wins. "Watch the solver" replays the most robust winning shot it found. Because the simulation
+        is deterministic, that's the exact shot it scored.</p>
+
+      <h2>The five genres</h2>
+      <div class="legend" id="legend"></div>
+      <p class="muted" style="color:var(--muted);font-size:14px;"><b>Chaos</b> is the anarchy dial — wells, magnets, goo
+        and bumpers all at once — and the solver still guarantees a launch that wins. The forces are inverse-square
+        attractors (positive pulls, negative pushes), viscous drag fields, and elastic circles; adding a new one (a fan,
+        a one-way membrane, a black hole) is a few lines in the same deterministic step.</p>
+
+      <h2>One engine, two languages</h2>
+      <p>The site runs the physics in JavaScript — one ball at 60fps needs nothing heavier, and it keeps the site
+        endless and instant. The same engine is mirrored in <b>Rust</b> (<code>engine-rs/</code>); a GitHub Action runs
+        the Rust solver to pre-sweep a catalog of seeds and cross-check that the two engines agree. Because the solver
+        only keeps <i>basin-robust</i> answers, tiny floating-point differences between Rust and JS never flip a result.</p>
+
+      <h2>Determinism</h2>
+      <p>Page <code>n</code> yields the identical world — and the identical winning shot — on every machine, for ever
+        (seeded <code>xmur3 → mulberry32</code>). <code>/flux/?n=42</code> is a permalink, and so is its answer.</p>
+    </div>
+  </section>
+
+  <footer>flux · fable.mino.mobi · continuous physics, every world pre-swept · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
