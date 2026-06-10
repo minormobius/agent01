@@ -366,7 +366,7 @@ export const KNOWN_SIMPLIFICATIONS = [
   'Single well-mixed air box: no vertical (radial) structure — that lives in the atmosphere module.',
   'Temperature is a fixed parameter; no thermal feedback on metabolic rates yet.',
   'Pollination is a population gate, not individual flower visitation.',
-  'Metabolic rates are entered per-species, not yet derived from body mass (allometry layer is next).',
+  'Animal stat blocks can be hand-entered or derived from body mass (sim/allometry.mjs); tissue C:N from that layer is informational — the engine still uses one global C:N.',
 ];
 
 const Biome = {

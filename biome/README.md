@@ -166,17 +166,44 @@ are documented inline at their definitions.
 - Pollination is a population gate, not individual flower visitation; the predator
   guild is lumped (one tier of "things that eat pollinators").
 - Trace-gas / ethylene buildup (a real closed-ecology hazard) not modelled.
-- **Metabolic rates are entered per-species, not yet derived from body mass.** The next
-  step (the allometry layer) computes the stat block from one observable trait — body
-  mass, via Kleiber scaling — so a *real* organism (iNaturalist identity + GloBI diet
-  edges) auto-parameterises instead of being hand-tuned.
+- **Metabolic rates can be hand-entered or derived from body mass** via the allometry
+  layer (`cycles/sim/allometry.mjs`, below). What's still missing is the *roster* — pulling
+  real organisms (iNaturalist identity + GloBI diet edges) so masses and edges aren't
+  typed by hand.
+
+### The allometry layer (`cycles/sim/allometry.mjs`)
+
+Hand-tuning eight numbers per organism doesn't scale to a roster of real creatures. This
+layer **derives** a heterotroph's stat block from **one observable trait — body mass** —
+plus two tags: thermy (`ecto`/`endo`) and feeding guild. The physics is Kleiber's law:
+whole-organism metabolism scales as M^¾, so the *mass-specific* rates the box model needs
+(its pools are biomass, not individuals) scale as **M^(−¼)** — small things live fast, big
+things live slow. Endotherms burn ~×18 an equal-mass ectotherm. Guild sets assimilation
+efficiency and tissue C:N.
+
+```js
+import { makeAnimal } from './cycles/sim/allometry.mjs';
+const bees = makeAnimal({ id:'pollinator', mass_g:0.1, guild:'nectarivore', thermy:'ecto',
+                          count:60000, eats:['crop','tree','reed'], plant:'tree' });
+// → { species:{ ingest, assim, resp, mort, capacityFrac, initBio, … }, interactions:[…] }
+```
+
+**The validation that matters:** anchored on the honeybee (0.1 g ectotherm nectarivore →
+the tuned pollinator), the layer *reproduces the hand-tuned default predator* as a ~0.27 g
+ectotherm carnivore to within a few percent. The working community was already
+allometrically consistent — the layer recovers what we hand-fit rather than guessing. The
+self-test (`allometry.selftest.mjs`, 13 checks) proves the scaling exponents, the
+calibration, the individuals↔biomass conversion, and that a community built *entirely from
+body masses* closes the loop and conserves C/H/O/N exactly. (Producers stay area-based — a
+canopy is parameterised by area, not body mass.)
 
 ### Where this is going (the ecosystem-builder direction)
 
-The data-driven engine is the foundation for a real ecosystem-builder. The roadmap:
+The data-driven engine + allometry layer are the foundation for a real ecosystem-builder.
+The roadmap:
 
-1. **Allometry layer** — derive each species' rates from body mass (Kleiber: metabolic
-   rate ∝ mass^0.75) + feeding guild, so real organisms drop in with computed stat blocks.
+1. ✅ **Allometry layer** — derive each species' rates from body mass (Kleiber) + feeding
+   guild + thermy, so real organisms drop in with computed stat blocks. *Done.*
 2. **Real-organism roster** — identity/imagery from iNaturalist, who-eats-whom edges from
    GloBI (Global Biotic Interactions), stoichiometry from ecological-stoichiometry refs.
 3. **Rust equilibrium/stability solver** — the analytic brain (same split as
