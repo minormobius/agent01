@@ -98,6 +98,9 @@
   //    clipping, so no Delaunay needed) → cell walls. Same output shape as the grid;
   //    the Voronoi adjacency (cells sharing a wall) IS the navigation graph. ──
   function mulberry(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  // deterministic hash (FNV-1a-ish) for tileable block seeding + seam placement
+  function fnv() { let h = 2166136261 >>> 0; for (let i = 0; i < arguments.length; i++) { h ^= arguments[i] >>> 0; h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
+  function rnd(h) { return (h >>> 0) / 4294967296; }
   function clipHP(poly, nx, ny, mx, my) { // keep the half-plane closer to the seed
     const out = [], N = poly.length, side = (p) => (p.x - mx) * nx + (p.y - my) * ny;
     for (let i = 0; i < N; i++) {
@@ -132,7 +135,7 @@
     const ws = wts.reduce((a, b) => a + b, 0), yb = [0];
     for (let k = 0; k < L; k++) yb.push(yb[k] + T * wts[k] / ws);
     // seed a jittered, radially-graded grid, then Lloyd-relax toward Plateau (120°)
-    const rng = mulberry(9001 + nx * 131 + L * 17);
+    const rng = mulberry(o.blockIndex != null ? fnv(o.seed || 0, o.blockIndex, nx, L) : 9001 + nx * 131 + L * 17);
     let seeds = [];
     for (let k = 0; k < L; k++) for (let i = 0; i < nx; i++) {
       const x = (i + 0.5 + 0.7 * (rng() - 0.5)) * W / nx, y = yb[k] + (0.5 + 0.7 * (rng() - 0.5)) * (yb[k + 1] - yb[k]);
@@ -209,7 +212,9 @@
     inner.forEach((i) => { const th = wn[i].th; fnodes[i].load[0] += Lr * Math.sin(th); fnodes[i].load[1] += Lr * Math.cos(th); });
     // hoop tension on each end face (tangential = (cosθ, -sinθ)); net of the two ends
     // is radially inward 2·T·sin(half), balancing the outward load.
-    const Thoop = totalRadial / (2 * Math.max(1e-3, Math.sin(half)));
+    // hoop tension: use the analytic value from the cross-section model when provided
+    // (closes the loop — T = σ_hoop·shell = p_eff·R), else fall back to force balance.
+    const Thoop = o.hoopTension != null ? o.hoopTension : totalRadial / (2 * Math.max(1e-3, Math.sin(half)));
     const applyEnd = (arr, sgn) => { const per = arr.length ? Thoop / arr.length : 0; arr.forEach((i) => { const th = wn[i].th; fnodes[i].load[0] += sgn * per * Math.cos(th); fnodes[i].load[1] += sgn * per * (-Math.sin(th)); }); };
     applyEnd(endP, +1); applyEnd(endM, -1);
     // pin rigid-body modes: inner-mid (ux,uy) + outer-mid (ux, kills rotation about it)
@@ -228,8 +233,22 @@
     };
   }
 
+  // Cross-block continuity: a block clips to its box, so its left/right faces are
+  // straight seam bulkheads that abut the neighbour exactly. The only thing that must
+  // *match* across the seam is the connecting hatch — placed at a y derived from the
+  // SHARED seam id (block bx's right seam id = bx+1 = block bx+1's left seam id), so both
+  // neighbours put the hatch on the same floor. Deterministic from (seed, seamId).
+  function addSeamHatches(f, o) {
+    const L = f.meta.layers, yb = f.meta.rowY, seed = o.seed || 0, W = o.width;
+    const seamY = (id) => { const k = Math.floor(rnd(fnv(seed, id, 7)) * L); return (yb[k] + yb[k + 1]) / 2; };
+    f.portals.push({ kind: 'seam', side: 'L', seamId: o.blockIndex, x: 0, y: seamY(o.blockIndex) });
+    f.portals.push({ kind: 'seam', side: 'R', seamId: o.blockIndex + 1, x: W, y: seamY(o.blockIndex + 1) });
+    f.meta.blockIndex = o.blockIndex;
+  }
+
   function generateFoam(o) {
     const f = (o.mode || 'grid') === 'froth' ? frothGen(o) : gridGen(o);
+    if (o.blockIndex != null) addSeamHatches(f, o);
     return o.annular && o.R ? toAnnulus(f, o) : f;
   }
 

@@ -438,6 +438,14 @@ function updateFoamRead(foam, sol, p) {
     if (!sol.mechanism) { html += row('peak wall utilisation', util > 1 ? '<span class="warn">' + u + '</span>' : '<b>' + u + '</b>'); html += row('compliance (↓ stiffer)', fmtN(sol.compliance, 3)); }
   } else { if (st) st.textContent = 'geometry only'; html += row('solver', '<span class="note">offline — geometry only</span>'); }
   html += row('floors × rooms', foam.meta.layers + ' × ' + foam.meta.nx);
+  if (foam.meta.annular) {
+    const Th = pEffOf(p) * p.R, sigSolid = Th / p.shell; // analytic hoop: σ = p_eff·R/shell
+    html += row('hoop tension (analytic)', fmtN(Th / 1e6, 1) + ' MN/m · σ_solid ' + fmtStress(sigSolid));
+    if (sol && !sol.error && !sol.mechanism) {
+      let maxS = 0; sol.members.forEach((m) => { maxS = Math.max(maxS, m.stress); });
+      html += row('foam carries hoop at', '<b>' + (maxS / sigSolid).toFixed(1) + '×</b> the solid stress <span class="note">(relative-density penalty)</span>');
+    }
+  }
   html += row('floor headroom', fmtm(hmin) + ' … ' + fmtm(hmax) + ' <span class="note">(thins toward hull)</span>');
   html += row('relative density', (foam.meta.relDensity * 100).toFixed(1) + '% · ' + fmtN(foam.nav.cellCount, 0) + ' cells');
   html += row('navigable', foam.nav.connected ? '<span style="color:var(--ok)">✓ all reachable</span> · ' + foam.nav.doors + 'd + ' + foam.nav.stairs + 's' : '<span class="warn">disconnected</span>');
@@ -451,7 +459,7 @@ function genFoam() {
   if (!window.HOOPFOAM) return;
   const p = params(), room = +$('room').value, layers = +$('layers').value, mode = $('struct').value;
   const annular = $('annular').checked;
-  const common = { thickness: p.shell, layers, roomSize: room, wallT: Math.pow(10, +$('fwall').value), grade: +$('grade').value, e: p.mat.e, pEff: pEffOf(p), annular, R: p.R };
+  const common = { thickness: p.shell, layers, roomSize: room, wallT: Math.pow(10, +$('fwall').value), grade: +$('grade').value, e: p.mat.e, pEff: pEffOf(p), annular, R: p.R, hoopTension: pEffOf(p) * p.R };
   let opts;
   if (mode === 'froth') {
     const nx = Math.max(2, Math.min(24, Math.floor(NODE_CAP / (2 * (layers + 1)))));
