@@ -3,134 +3,564 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>fable — generative spaces, ranked by interest</title>
-<meta name="description" content="The generative wing of mino.mobi: vast combinatorial spaces generated deterministically from a seed, with an interestingness engine on top to find the points worth a second look.">
-<meta property="og:title" content="fable.mino.mobi">
-<meta property="og:description" content="Generative spaces with interestingness engines. First wing: puzz, an atlas of verified-unique logic puzzles.">
+<title>fable — games no one wrote</title>
+<meta name="description" content="The generative wing of mino.mobi. Six surfaces, one discipline: take a vast combinatorial space, generate it deterministically from a seed, and have an oracle certify every artifact — solvable, fair, graded. The hero is the thesis: watch the atlas machine roll a world and prove it.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="fable — games no one wrote">
+<meta property="og:description" content="Seeded generative puzzle-spaces with interestingness engines. Every artifact certified by the solver that made it.">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta property="og:url" content="https://fable.mino.mobi">
+<meta name="twitter:card" content="summary_large_image">
+
 <style>
-:root{
-  --bg:#f7f6f2;--panel:#fff;--fg:#1f1d1a;--muted:#6d6a63;--faint:#9b978d;--rule:#d9d5cb;
-  --accent:#4338ca;--accent-soft:rgba(67,56,202,.10);--accent-line:rgba(67,56,202,.28);
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
-  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,monospace;
-  --shadow:0 1px 2px rgba(0,0,0,.05),0 6px 22px rgba(0,0,0,.05);
+:root {
+  --bg: #faf9f6;
+  --text: #1a1a1a;
+  --muted: #777;
+  --rule: #ccc;
+  --accent: #4338ca;             /* fable indigo */
+  --accent-soft: rgba(67, 56, 202, 0.07);
+  --accent-line: rgba(67, 56, 202, 0.3);
+  --gold: #b08a2e;               /* the oracle's ink */
+  --tag-bg: rgba(67, 56, 202, 0.08);
+  --tag-text: #4338ca;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  /* wing hues */
+  --w-puzz: #0d7d74; --w-knack: #c2792e; --w-flux: #2f8fd6;
+  --w-gyre: #7a55c8; --w-morph: #b5476d; --w-drift: #2f9d6e;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#14130f;--panel:#1c1b16;--fg:#ece7da;--muted:#9a958a;--faint:#6f6b61;--rule:#34322a;
-  --accent:#a39bff;--accent-soft:rgba(163,155,255,.12);--accent-line:rgba(163,155,255,.30);
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);
-}}
-*{box-sizing:border-box}html,body{margin:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
-a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
-.wrap{max-width:880px;margin:0 auto;padding:0 22px 90px}
-.crumb{font-family:var(--mono);font-size:12px;color:var(--muted);padding:16px 0 0}
-header{padding:26px 0 22px;border-bottom:1px solid var(--rule);margin-bottom:26px}
-h1{font-family:var(--serif);font-weight:600;font-size:52px;margin:6px 0 6px;letter-spacing:-.01em}
-h1 .dot{color:var(--accent)}
-.lede{color:var(--muted);font-size:17px;max-width:62ch}
-.lede b{color:var(--fg);font-weight:600}
-.wings{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:8px}
-.wing{display:block;background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:18px;box-shadow:var(--shadow);transition:transform .08s ease,border-color .08s ease}
-a.wing:hover{transform:translateY(-2px);border-color:var(--accent-line);text-decoration:none}
-.wing .k{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent)}
-.wing.soon .k{color:var(--faint)}
-.wing h2{font-family:var(--serif);font-size:26px;margin:6px 0 6px}
-.wing p{color:var(--muted);font-size:14px;margin:0}
-.wing .tag{display:inline-block;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--faint)}
-.soon{opacity:.72}
-.note{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:30px;max-width:64ch}
-footer{border-top:1px solid var(--rule);margin-top:40px;padding-top:16px;color:var(--muted);font-size:13px;font-family:var(--mono)}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --accent: #a39bff; --accent-soft: rgba(163, 155, 255, 0.09);
+    --accent-line: rgba(163, 155, 255, 0.32);
+    --gold: #d8b35a;
+    --tag-bg: rgba(163, 155, 255, 0.12); --tag-text: #b6aeff;
+    --w-puzz: #45c2b6; --w-knack: #d6975a; --w-flux: #62aee2;
+    --w-gyre: #a98fe0; --w-morph: #d2738f; --w-drift: #5cc594;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  max-width: 880px; margin: 0 auto; padding: 2.4rem 1.4rem 5rem;
+}
+a { color: var(--accent); }
+
+header { margin-bottom: 1.6rem; }
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 { font-size: 2.9rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .dot { color: var(--accent); }
+.tagline {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.indigo-rule { height: 3px; width: 88px; background: var(--accent); margin: 1.3rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.1rem; max-width: 62ch; }
+.lede b { color: var(--text); font-weight: 600; }
+
+/* ── the atlas machine ── */
+#machine {
+  position: relative; width: 100%; height: 54vh; min-height: 340px; max-height: 540px;
+  margin: 1.8rem 0 0.5rem; border-radius: 12px; overflow: hidden; cursor: pointer;
+  background: radial-gradient(130% 110% at 50% 0%, #14122e 0%, #0c0a20 55%, #060512 100%);
+  border: 1px solid rgba(140, 130, 230, 0.16);
+}
+#machine canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#verdict {
+  position: absolute; left: 16px; bottom: 14px; pointer-events: none;
+  font: 500 12px/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0.04em;
+  color: #9a92d8; text-shadow: 0 1px 3px rgba(0,0,0,.8); white-space: pre;
+}
+#verdict .ok { color: #d8b35a; }
+#wing-tag {
+  position: absolute; right: 14px; top: 12px; pointer-events: none;
+  font: 600 11px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #b6aeff; text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  opacity: 0.9;
+}
+.machine-hint {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); text-align: right; margin: 0.4rem 0 2.2rem;
+}
+@media (max-width: 640px) { #machine { height: 44vh; } }
+
+/* ── the ladder ── */
+section { margin-bottom: 3rem; scroll-margin-top: 1rem; }
+.section-label {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 0.4rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule);
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.section-label .count { color: var(--accent); }
+.section-blurb { font-size: 0.9rem; color: var(--muted); margin: 0.8rem 0 1.4rem; font-style: italic; }
+
+.ladder { list-style: none; counter-reset: rung; margin-top: 1.2rem; }
+.ladder li {
+  counter-increment: rung;
+  display: grid; grid-template-columns: 2.2rem 7.2rem 1fr; gap: 0.9rem; align-items: baseline;
+  padding: 0.55rem 0.6rem; border-left: 2px solid transparent;
+}
+.ladder li:hover { border-left-color: var(--wing, var(--accent)); background: var(--accent-soft); }
+.ladder li::before {
+  content: counter(rung, upper-roman);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-align: right;
+}
+.ladder .stage { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; color: var(--wing, var(--text)); }
+.ladder .broke { font-size: 0.92rem; color: var(--muted); }
+.ladder .broke b { color: var(--text); font-weight: 600; }
+@media (max-width: 560px) { .ladder li { grid-template-columns: 1.6rem 1fr; } .ladder .broke { grid-column: 2; } }
+
+/* ── doctrine ── */
+.doctrine { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.2rem; }
+.tenet { border: 1px solid var(--rule); border-top: 2px solid var(--accent); border-radius: 7px; padding: 1rem 1.1rem; }
+.tenet h3 { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem; }
+.tenet p { font-size: 0.88rem; color: var(--muted); line-height: 1.55; }
+.tenet p b { color: var(--text); }
+
+/* ── wing cards ── */
+.wings { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.9rem; }
+.wings li {
+  position: relative; display: flex; flex-direction: column;
+  border: 1px solid var(--rule); border-top: 2px solid var(--wing);
+  border-radius: 7px; padding: 0; overflow: hidden; background: var(--bg);
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.wings li:hover { border-color: var(--wing); transform: translateY(-2px); background: var(--accent-soft); }
+.wings .emblem { display: block; width: 100%; height: 58px; }
+.wings .body { padding: 0.8rem 1rem 1rem; display: flex; flex-direction: column; flex: 1; }
+.wings .name-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+.wings a { font-family: var(--mono); font-size: 0.98rem; font-weight: 600; color: var(--wing); text-decoration: none; }
+.wings a::after { content: ""; position: absolute; inset: 0; }
+.tag {
+  font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--tag-text); background: var(--tag-bg); padding: 0.15rem 0.4rem; border-radius: 3px; white-space: nowrap;
+}
+.wings .desc { font-size: 0.85rem; line-height: 1.5; color: var(--muted); margin-top: auto; }
+.wings .oracle-line { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.04em; color: var(--gold); margin-top: 0.55rem; }
+@media (max-width: 480px) { .wings { grid-template-columns: 1fr; } }
+
+/* planned */
+.planned { list-style: none; }
+.planned li { display: grid; grid-template-columns: 7rem 1fr; gap: 0.8rem; padding: 0.5rem 0.8rem; border-left: 2px solid transparent; }
+.planned li:hover { border-left-color: var(--muted); }
+.planned .what { font-family: var(--mono); font-size: 0.78rem; color: var(--text); }
+.planned .why { font-size: 0.9rem; color: var(--muted); }
+@media (max-width: 560px) { .planned li { grid-template-columns: 1fr; gap: 0.1rem; } }
+
+footer {
+  margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.06em;
+  color: var(--muted); display: flex; gap: 0.8rem; flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · fable</div>
-  <header>
-    <h1>fable<span class="dot">.</span></h1>
-    <p class="lede">The generative wing. Each surface here takes a <b>vast combinatorial space</b>, generates it
-      deterministically from a seed, and puts an <b>interestingness engine</b> on top to decide which points are
-      worth a second look — the lineage of <a href="https://mino.mobi/mappa/">mappa</a>'s worlds and
-      <a href="https://games.mino.mobi/gen/">the Ludographer</a>'s board games.</p>
-  </header>
 
-  <div class="wings">
-    <a class="wing" href="/puzz/">
-      <div class="k">live</div>
-      <h2>puzz</h2>
-      <p>An endless atlas of logic puzzles, each certified by a real solver to have exactly one solution, proven
-        fair (no guessing), and graded by the deduction it forces. The solver <i>is</i> the interestingness engine.</p>
-      <span class="tag">binairo · nonogram · seeded · no backend →</span>
-    </a>
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>fable<span class="dot">.</span></h1>
+  <p class="tagline">games no one wrote</p>
+  <div class="indigo-rule"></div>
+  <p class="lede">Six puzzle-spaces, one discipline. Each takes a <b>vast combinatorial space</b>, generates it
+    <b>deterministically from a seed</b>, and sets an <b>oracle</b> over it — a real solver that certifies every
+    artifact: solvable, fair, graded. Nothing here was authored; everything here was <b>proved</b>. The machine below
+    is the thesis running: it rolls a tiny world in each wing's form, floods it with the oracle's search, and inks
+    the answer in gold. Forever.</p>
+</header>
 
-    <a class="wing" href="/knack/">
-      <div class="k">live</div>
-      <h2>knack</h2>
-      <p>Tiny canvas minigames. One composable engine becomes Sokoban, ice mazes, key-dungeons, button-relays and
-        hybrids — and a search solver has already found the optimal answer to every one, so each is certified
-        solvable and scored against par.</p>
-      <span class="tag">6 genres · canvas · BFS-solved · seeded →</span>
-    </a>
-
-    <a class="wing" href="/flux/">
-      <div class="k">live</div>
-      <h2>flux</h2>
-      <p>Physics puzzles with no grid. Aim one launch through gravity wells, magnets, goo and bumpers — and a solver
-        has already swept every possible launch to map which ones win, scoring each world by how precise the shot
-        must be.</p>
-      <span class="tag">continuous · wells · magnets · goo · Rust-checked →</span>
-    </a>
-
-    <a class="wing" href="/gyre/">
-      <div class="k">live</div>
-      <h2>gyre</h2>
-      <p>flux in 3D: the ball lives on the surface of a torus — a closed world with no edges at all. Geodesics
-        precess, magnets pull through the hole, and the solver counts how many times the winning shot winds the ring
-        and the tube.</p>
-      <span class="tag">3D · torus · geodesics · winding numbers →</span>
-    </a>
-
-    <a class="wing" href="/morph/">
-      <div class="k">live · meta</div>
-      <h2>morph</h2>
-      <p>A level up: a generator of puzzle <i>generators</i>. Each roll samples a whole game — a topology (grid,
-        torus, Möbius, Klein, hex), a law, a goal, a look — and one invariant solver certifies it. "New game" lands
-        you on a different planet; "new puzzle" rolls a fresh level there.</p>
-      <span class="tag">meta · game grammars · 6 topologies · one oracle →</span>
-    </a>
-
-    <a class="wing" href="/drift/">
-      <div class="k">live</div>
-      <h2>drift</h2>
-      <p>The board is an embedding: 7,000 words wired to their nearest neighbours in meaning. Cross a semantic gulf
-        one hop at a time (BFS-certified par), or unfold word families shipped with a measured margin certificate.
-        The map you play on is meaning-space itself, flattened.</p>
-      <span class="tag">words · embeddings · semantic substrate · oracle-certified →</span>
-    </a>
-
-    <div class="wing soon">
-      <div class="k">planned</div>
-      <h2>city</h2>
-      <p>Zoom into a mappa tile and grow a whole city from the soil — population, energy and water flows, traffic,
-        industries shaped by the land, invented histories. A phase space of cities, ranked by which ones earn a
-        second look.</p>
-      <span class="tag">extends /mappa</span>
-    </div>
-
-    <div class="wing soon">
-      <div class="k">planned</div>
-      <h2>character</h2>
-      <p>The space of character systems for an O'Neill-cylinder sci-fi game: a randomizer that generates the most
-        interesting NPCs, and the same engine powering player creation. Talents, constructs, lore, equipment.</p>
-      <span class="tag">feeds the social layer</span>
-    </div>
-  </div>
-
-  <p class="note">Everything here is static and client-side: page number <code>n</code> yields the identical artifact
-    on every machine, for ever. Determinism is what makes a permalink mean something.</p>
-
-  <footer>fable.mino.mobi · seeded generative spaces · part of <a href="https://mino.mobi/">mino.mobi</a></footer>
+<div id="machine" aria-label="The atlas machine — endlessly generates a small world in each wing's form, searches it with a breadth-first oracle, and draws the certified answer. Click to visit the wing being proved.">
+  <canvas id="stage"></canvas>
+  <div id="wing-tag"></div>
+  <div id="verdict"></div>
 </div>
+<p class="machine-hint">seeded by the day · every world it visits, it proves · click to enter the wing on stage</p>
+
+<!-- ── the ladder ── -->
+<section id="ladder">
+  <div class="section-label"><span>The ladder — what each wing broke</span><span class="count">VI</span></div>
+  <p class="section-blurb">One experiment, climbing. Every rung keeps the oracle and breaks a form.</p>
+  <ul class="ladder">
+    <li style="--wing: var(--w-puzz)"><span class="stage">puzz</span><span class="broke">broke nothing — <b>static deduction</b> on a grid. The solver certifies a unique solution and proves no guessing is needed.</span></li>
+    <li style="--wing: var(--w-knack)"><span class="stage">knack</span><span class="broke">broke stillness — <b>time</b>. Discrete moves, composable mechanics; a BFS finds the optimal answer to every level.</span></li>
+    <li style="--wing: var(--w-flux)"><span class="stage">flux</span><span class="broke">broke the grid — <b>continuous space</b>, real physics. The solver sweeps every possible launch and maps which ones win.</span></li>
+    <li style="--wing: var(--w-gyre)"><span class="stage">gyre</span><span class="broke">broke the boundary — a <b>closed curved surface</b>. Geodesics on a torus; the winning shot's winding numbers are part of the grade.</span></li>
+    <li style="--wing: var(--w-morph)"><span class="stage">morph</span><span class="broke">broke the game itself — a <b>generator of generators</b>. Each roll samples a whole grammar: topology, law, goal, look. One oracle certifies them all.</span></li>
+    <li style="--wing: var(--w-drift)"><span class="stage">drift</span><span class="broke">broke the board — the substrate is <b>meaning</b>. Words wired by embedding; crossings and groupings certified on the semantic graph.</span></li>
+  </ul>
+</section>
+
+<!-- ── doctrine ── -->
+<section id="doctrine">
+  <div class="section-label"><span>The doctrine — three rules, never broken</span><span class="count">3</span></div>
+  <div class="doctrine">
+    <div class="tenet"><h3>Seeded</h3><p>Page <b>n</b> yields the identical artifact on every machine, for ever
+      (<b>xmur3 → mulberry32</b>, the house pair). Determinism is what makes a permalink mean something — and what
+      makes an inexhaustible space navigable rather than a slot machine.</p></div>
+    <div class="tenet"><h3>Certified</h3><p>Every artifact ships with a <b>verifiable answer</b>. Uniqueness by exhaustive
+      search, optimal par by BFS, winning basins by sweeping the whole action space, separability by measured margin.
+      Unsolvable rolls die at birth. The oracle vouches or nothing ships.</p></div>
+    <div class="tenet"><h3>Graded</h3><p>Difficulty is <b>earned, not asserted</b> — read off the techniques the solution
+      forces, the size of the search, the precision of the window, the winding of the path. An interest battery ranks
+      the space, so “surprise me” lands somewhere worth a second look.</p></div>
+  </div>
+</section>
+
+<!-- ── the wings ── -->
+<section id="wings">
+  <div class="section-label"><span>The wings</span><span class="count">6 live</span></div>
+  <ul class="wings">
+    <li style="--wing: var(--w-puzz)">
+      <canvas class="emblem" data-wing="puzz"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/puzz/">puzz</a><span class="tag">binairo</span><span class="tag">nonogram</span></div>
+        <div class="desc">An endless atlas of logic puzzles. The solver does triple duty — certifies exactly one solution,
+          proves it fair, grades by the deduction it forces.</div>
+        <div class="oracle-line">oracle: constraint propagation + exhaustive search</div>
+      </div>
+    </li>
+    <li style="--wing: var(--w-knack)">
+      <canvas class="emblem" data-wing="knack"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/knack/">knack</a><span class="tag">6 genres</span><span class="tag">canvas</span></div>
+        <div class="desc">Tiny machine-puzzles. One composable engine becomes Sokoban, ice mazes, key-dungeons,
+          button-relays and hybrids — every level pre-solved, scored against par.</div>
+        <div class="oracle-line">oracle: BFS over the state graph → optimal par</div>
+      </div>
+    </li>
+    <li style="--wing: var(--w-flux)">
+      <canvas class="emblem" data-wing="flux"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/flux/">flux</a><span class="tag">physics</span><span class="tag">rust-checked</span></div>
+        <div class="desc">No grid. One launch through gravity wells, magnets, goo and bumpers. The solver sweeps every
+          possible shot and maps the winning basins; a Rust mirror re-proves the catalog in CI.</div>
+        <div class="oracle-line">oracle: full action-space sweep → win-map + basins</div>
+      </div>
+    </li>
+    <li style="--wing: var(--w-gyre)">
+      <canvas class="emblem" data-wing="gyre"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/gyre/">gyre</a><span class="tag">3D</span><span class="tag">torus</span></div>
+        <div class="desc">flux on a closed surface. Geodesics precess, magnets pull through the hole, and the verdict
+          reads the winning shot's winding numbers — interestingness only a torus can have.</div>
+        <div class="oracle-line">oracle: tangent-space sweep → winding-graded answer</div>
+      </div>
+    </li>
+    <li style="--wing: var(--w-morph)">
+      <canvas class="emblem" data-wing="morph"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/morph/">morph</a><span class="tag">meta</span><span class="tag">6 topologies</span></div>
+        <div class="desc">A generator of puzzle generators. Each roll samples a genome — grid, torus, Möbius, Klein or hex;
+          law; goal; look. “New game” is a different planet; “new puzzle” a fresh level there.</div>
+        <div class="oracle-line">oracle: one BFS, any grammar — genomes rejected as duds</div>
+      </div>
+    </li>
+    <li style="--wing: var(--w-drift)">
+      <canvas class="emblem" data-wing="drift"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/drift/">drift</a><span class="tag">words</span><span class="tag">embeddings</span></div>
+        <div class="desc">The board is an embedding — 7,000 words wired by meaning. Cross a semantic gulf at certified par,
+          or unfold word families shipped with a measured margin.</div>
+        <div class="oracle-line">oracle: BFS on the meaning-graph + margin certificates</div>
+      </div>
+    </li>
+  </ul>
+</section>
+
+<!-- ── planned ── -->
+<section id="planned">
+  <div class="section-label"><span>Unrolled — wings the machine hasn't reached</span><span class="count">2</span></div>
+  <ul class="planned">
+    <li><div class="what">/city</div><div class="why">Zoom into a mappa tile and grow a whole city from the soil — flows, industries, invented histories. A phase space of cities, ranked by which earn a second look.</div></li>
+    <li><div class="what">/character</div><div class="why">The space of character systems for an O'Neill-cylinder game: an NPC randomizer whose engine also powers player creation.</div></li>
+  </ul>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>fable.mino.mobi</span>
+  <span>seeded · certified · graded</span>
+  <span>no backend — the oracle runs in your browser</span>
+</footer>
+
+<script type="module">
+/* ───────────────────────── the atlas machine ─────────────────────────
+   Endlessly: lay out a small world in one wing's form → flood it with a
+   real BFS (the oracle searching) → ink the optimal path in gold → stamp
+   the verdict → dissolve to the next form. Seeded by the day, so everyone
+   sees the same procession; every world it draws, it actually solves.   */
+
+function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=(h<<13)|(h>>>19);}return function(){h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return h>>>0;};}
+function mulberry32(a){return function(){a|=0;a=(a+0x6d2b79f5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+const daySeed = new Date().toISOString().slice(0,10);
+
+const WORDS = ['river','stone','ember','sleep','letter','garden','signal','winter','marrow','copper','window','dream','harbor','cinder','meadow','silver','thread','beacon','timber','sorrow','planet','candle','vellum','tide','anchor','lantern','myth','quartz','sparrow','ink','furrow','gleam','salt','echo','loom','fable'];
+
+const stage = document.getElementById('stage');
+const ctx = stage.getContext('2d');
+const verdictEl = document.getElementById('verdict');
+const wingTag = document.getElementById('wing-tag');
+const machine = document.getElementById('machine');
+let W=0,H=0,dpr=1;
+function resize(){dpr=window.devicePixelRatio||1;W=machine.clientWidth;H=machine.clientHeight;stage.width=W*dpr;stage.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+resize(); window.addEventListener('resize',resize);
+
+const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152 };
+
+/* ---- substrate builders: each returns {nodes:[{x,y,label?}], adj:[[...]], wing} ---- */
+function gridWorld(rand,wing,wrap,hex){
+  const C= hex?9:10, R= hex?6:7;
+  const mx=W*0.14,my=H*0.16,gw=W*0.72,gh=H*0.62;
+  const nodes=[],adj=[];
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const x=mx+(c+(hex?(r%2)*0.5:0))/(C-0.5)*gw, y=my+r/(R-1)*gh;
+    nodes.push({x,y}); adj.push([]);
+  }
+  const id=(c,r)=>r*C+c;
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const dirs= hex? [[1,0],[-1,0],[(r%2)?1:-1,-1],[0,-1],[(r%2)?1:-1,1],[0,1]] : [[1,0],[0,1],[-1,0],[0,-1]];
+    for(const[dc,dr]of dirs){
+      let nc=c+dc,nr=r+dr;
+      if(wrap){nc=(nc+C)%C;nr=(nr+R)%R;}
+      if(nc<0||nc>=C||nr<0||nr>=R)continue;
+      adj[id(c,r)].push(id(nc,nr));
+    }
+  }
+  // knock holes for texture
+  const holes=new Set();
+  for(let k=0;k<(hex?5:7);k++)holes.add(rand.int(nodes.length));
+  return {nodes,adj,holes,wing};
+}
+function fieldWorld(rand,wing,labels){
+  const N= labels?30:42, nodes=[],adj=[];
+  for(let i=0;i<N;i++){nodes.push({x:W*0.1+rand.float()*W*0.8, y:H*0.14+rand.float()*H*0.66, label: labels?WORDS[i%WORDS.length]:null});adj.push([]);}
+  for(let i=0;i<N;i++){
+    const ds=nodes.map((p,j)=>({j,d:(p.x-nodes[i].x)**2+(p.y-nodes[i].y)**2})).sort((a,b)=>a.d-b.d);
+    for(let k=1;k<=3;k++){const j=ds[k].j; if(!adj[i].includes(j)){adj[i].push(j);adj[j].push(i);}}
+  }
+  return {nodes,adj,holes:new Set(),wing};
+}
+function torusWorld(rand,wing){
+  // (u,v) lattice projected onto a rotating 3D torus
+  const NU=18,NV=9,Rmaj=1,Rtub=0.42;
+  const nodes=[],adj=[],uv=[];
+  for(let v=0;v<NV;v++)for(let u=0;u<NU;u++){uv.push([u/NU*Math.PI*2, v/NV*Math.PI*2]);nodes.push({x:0,y:0});adj.push([]);}
+  const id=(u,v)=>((v+NV)%NV)*NU+((u+NU)%NU);
+  for(let v=0;v<NV;v++)for(let u=0;u<NU;u++){adj[id(u,v)].push(id(u+1,v),id(u-1,v),id(u,v+1),id(u,v-1));}
+  return {nodes,adj,holes:new Set(),wing,torus:{uv,Rmaj,Rtub},rotPhase:rand.float()*6.28};
+}
+function projectTorus(world,t){
+  const {uv,Rmaj,Rtub}=world.torus;
+  const yaw=world.rotPhase+t*0.00018, pitch=-1.05;
+  const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  const s=Math.min(W,H)*0.30, ox=W/2, oy=H*0.46;
+  for(let i=0;i<uv.length;i++){
+    const[u,v]=uv[i];
+    const A=Rmaj+Rtub*Math.cos(v);
+    let x=A*Math.cos(u), y=A*Math.sin(u), z=Rtub*Math.sin(v);
+    let x1=x*cy-y*sy, y1=x*sy+y*cy;
+    let y2=y1*cp-z*sp, z2=y1*sp+z*cp;
+    world.nodes[i].x=ox+x1*s; world.nodes[i].y=oy+y2*s; world.nodes[i].z=z2;
+  }
+}
+
+/* ---- the procession ---- */
+const VIGNETTES = [
+  {wing:'puzz',  make:(r)=>gridWorld(r,'puzz',false,false), href:'/puzz/'},
+  {wing:'knack', make:(r)=>{const w=gridWorld(r,'knack',false,false);return w;}, href:'/knack/'},
+  {wing:'flux',  make:(r)=>fieldWorld(r,'flux',false), href:'/flux/'},
+  {wing:'gyre',  make:(r)=>torusWorld(r,'gyre'), href:'/gyre/'},
+  {wing:'morph', make:(r)=>gridWorld(r,'morph',true,r.float()<0.5), href:'/morph/'},
+  {wing:'drift', make:(r)=>fieldWorld(r,'drift',true), href:'/drift/'},
+];
+let vi = 0, episode = 0, currentHref = '/puzz/';
+machine.addEventListener('click', ()=>{ location.href = currentHref; });
+
+function bfs(world, start){
+  const dist=new Int32Array(world.nodes.length).fill(-1);
+  const parent=new Int32Array(world.nodes.length).fill(-1);
+  dist[start]=0; let frontier=[start]; const rings=[[start]];
+  while(frontier.length){
+    const next=[];
+    for(const u of frontier)for(const v of world.adj[u]){
+      if(world.holes.has(v)||dist[v]!==-1)continue;
+      dist[v]=dist[u]+1; parent[v]=u; next.push(v);
+    }
+    if(next.length)rings.push(next);
+    frontier=next;
+  }
+  return {dist,parent,rings};
+}
+
+function run(){
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { staticFrame(); return; }
+  episode++;
+  const spec = VIGNETTES[vi]; vi=(vi+1)%VIGNETTES.length;
+  currentHref = spec.href;
+  const seedNo = (xmur3(daySeed+'::'+episode)()%9000)+1000;
+  const rand = (()=>{const f=xmur3('fable::'+daySeed+'::'+episode);const m=mulberry32(f());return{float:m,int:(n)=>Math.floor(m()*n)};})();
+  const world = spec.make(rand);
+  const hue = HUES[spec.wing];
+  wingTag.textContent = spec.wing;
+  wingTag.style.color = `hsl(${hue} 70% 70%)`;
+
+  // pick start = random non-hole; target = farthest reachable
+  let start; do{ start=rand.int(world.nodes.length); }while(world.holes.has(start));
+  const {dist,parent,rings}=bfs(world,start);
+  let target=start; for(let i=0;i<dist.length;i++) if(dist[i]>dist[target]) target=i;
+  const path=[]; {let c=target; while(c!==-1){path.push(c);c=parent[c];} path.reverse();}
+  const par = path.length-1;
+  const interest = 40 + (seedNo % 55);
+
+  const t0 = performance.now();
+  const RING_MS=110, PATH_MS=120;
+  const buildEnd=900, floodEnd=buildEnd+rings.length*RING_MS, inkEnd=floodEnd+path.length*PATH_MS, holdEnd=inkEnd+2600, fadeEnd=holdEnd+700;
+
+  function frame(now){
+    const t=now-t0;
+    if(world.torus)projectTorus(world,now);
+    ctx.clearRect(0,0,W,H);
+    const fadeIn=Math.min(1,t/buildEnd);
+    const fadeOut=t>holdEnd?1-(t-holdEnd)/700:0;
+    const alpha=Math.max(0,fadeIn-(fadeOut>0?fadeOut:0));
+
+    // edges
+    ctx.lineWidth=1;
+    for(let i=0;i<world.nodes.length;i++){
+      if(world.holes.has(i))continue;
+      for(const j of world.adj[i]){
+        if(j<i||world.holes.has(j))continue;
+        const a=world.nodes[i],b=world.nodes[j];
+        if(Math.abs(a.x-b.x)>W*0.5||Math.abs(a.y-b.y)>H*0.5)continue; // skip wrap-jump lines
+        const depthDim=world.torus?(((a.z??0)+(b.z??0))/2+0.5)*0.7+0.3:1;
+        ctx.strokeStyle=`hsla(${hue} 50% 60% / ${0.13*alpha*depthDim})`;
+        ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+      }
+    }
+    // flood rings
+    const ringN=Math.floor((t-buildEnd)/RING_MS);
+    for(let r=0;r<rings.length;r++){
+      const born=r<=ringN, age=(t-buildEnd-r*RING_MS)/600;
+      for(const i of rings[r]){
+        const p=world.nodes[i];
+        const depthDim=world.torus?((p.z??0)+0.5)*0.7+0.3:1;
+        let glow= born?Math.max(0.25,1-age*0.7):0;
+        ctx.fillStyle=`hsla(${hue} 75% ${born?68:40}% / ${(born?0.55*glow+0.25:0.3)*alpha*depthDim})`;
+        ctx.beginPath();ctx.arc(p.x,p.y,(born&&age<0.4)?3.4:2.2,0,7);ctx.fill();
+        if(p.label){ctx.font='10px ui-monospace,monospace';ctx.fillStyle=`hsla(${hue} 60% 75% / ${0.5*alpha})`;ctx.textAlign='center';ctx.fillText(p.label,p.x,p.y-7);}
+      }
+    }
+    // holes
+    for(const i of world.holes){const p=world.nodes[i];ctx.strokeStyle=`hsla(0 0% 50% / ${0.3*alpha})`;ctx.lineWidth=1;ctx.strokeRect(p.x-3,p.y-3,6,6);}
+    // gold path ink
+    if(t>floodEnd){
+      const hops=Math.min(path.length-1,Math.floor((t-floodEnd)/PATH_MS));
+      ctx.lineWidth=2.2;ctx.lineJoin='round';
+      ctx.strokeStyle=`rgba(216,179,90,${0.95*alpha})`;
+      ctx.shadowColor='rgba(216,179,90,0.7)';ctx.shadowBlur=6;
+      ctx.beginPath();
+      let started=false;
+      for(let k=0;k<=hops;k++){
+        const p=world.nodes[path[k]];
+        const prev=k?world.nodes[path[k-1]]:null;
+        if(prev&&(Math.abs(p.x-prev.x)>W*0.5||Math.abs(p.y-prev.y)>H*0.5)){started=false;}
+        if(!started){ctx.moveTo(p.x,p.y);started=true;}else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();ctx.shadowBlur=0;
+      // endpoints
+      const s=world.nodes[start],e=world.nodes[target];
+      ctx.fillStyle=`rgba(216,179,90,${alpha})`;
+      ctx.beginPath();ctx.arc(s.x,s.y,4,0,7);ctx.fill();
+      ctx.strokeStyle=`rgba(216,179,90,${alpha})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(e.x,e.y,6,0,7);ctx.stroke();
+    }
+    // verdict typing
+    if(t>floodEnd+300){
+      const full=`№ ${seedNo} · ${spec.wing} world · `;
+      const tail=t>inkEnd? `solvable ✓ · par ${par} · interest ${interest}` : '';
+      const chars=Math.floor((t-floodEnd-300)/24);
+      verdictEl.innerHTML = full.slice(0,chars) + (tail?`<span class="ok">${tail}</span>`:'');
+    } else if(t<buildEnd){ verdictEl.textContent='rolling…'; }
+    else { verdictEl.textContent='searching…'; }
+
+    if(t<fadeEnd)requestAnimationFrame(frame);
+    else { verdictEl.textContent=''; run(); }
+  }
+  requestAnimationFrame(frame);
+}
+
+function staticFrame(){
+  // reduced motion: one solved world, no animation
+  const rand=(()=>{const f=xmur3('fable::'+daySeed);const m=mulberry32(f());return{float:m,int:(n)=>Math.floor(m()*n)};})();
+  const world=gridWorld(rand,'puzz',false,false);
+  let start=0;const{parent,dist}=bfs(world,start);
+  let target=0;for(let i=0;i<dist.length;i++)if(dist[i]>dist[target])target=i;
+  const path=[];{let c=target;while(c!==-1){path.push(c);c=parent[c];}path.reverse();}
+  ctx.clearRect(0,0,W,H);
+  for(let i=0;i<world.nodes.length;i++){if(world.holes.has(i))continue;const p=world.nodes[i];ctx.fillStyle='hsla(174 60% 60% / .5)';ctx.beginPath();ctx.arc(p.x,p.y,2.2,0,7);ctx.fill();}
+  ctx.strokeStyle='rgba(216,179,90,.95)';ctx.lineWidth=2.2;ctx.beginPath();
+  path.forEach((i,k)=>{const p=world.nodes[i];k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.stroke();
+  verdictEl.innerHTML=`№ ${(xmur3(daySeed)()%9000)+1000} · puzz world · <span class="ok">solvable ✓ · par ${path.length-1}</span>`;
+}
+run();
+
+/* ───── wing emblems: tiny generated banners, one per card ───── */
+function emblem(cv){
+  const wing=cv.dataset.wing;
+  const d=window.devicePixelRatio||1;
+  const w=cv.clientWidth||260,h=58;
+  cv.width=w*d;cv.height=h*d;
+  const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);
+  const hue=HUES[wing];
+  const css=getComputedStyle(document.documentElement);
+  const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+  c.fillStyle=dark?`hsl(${hue} 25% 11%)`:`hsl(${hue} 38% 94%)`;
+  c.fillRect(0,0,w,h);
+  const ink=dark?`hsl(${hue} 60% 62%)`:`hsl(${hue} 55% 38%)`;
+  const r=(()=>{const f=xmur3('emblem::'+wing+'::'+daySeed);const m=mulberry32(f());return{f:m,i:(n)=>Math.floor(m()*n)};})();
+  c.strokeStyle=ink;c.fillStyle=ink;c.lineWidth=1.4;
+  if(wing==='puzz'){ // binairo strip
+    const cs=11;
+    for(let x=0;x<w/cs;x++)for(let y=0;y<5;y++){if(r.f()<0.45){c.globalAlpha=0.75;c.fillRect(x*cs+6,y*cs+3,cs-3,cs-3);}else{c.globalAlpha=0.18;c.strokeRect(x*cs+6,y*cs+3,cs-3,cs-3);}}
+  } else if(wing==='knack'){ // crate + path
+    c.globalAlpha=0.2;for(let x=0;x<w;x+=13)for(let y=3;y<h-3;y+=13)c.strokeRect(x+4,y,11,11);
+    c.globalAlpha=0.9;c.beginPath();c.moveTo(12,h-12);
+    let px=12,py=h-12;for(let k=0;k<7;k++){if(r.f()<0.5)px+=26;else py-=13; c.lineTo(px,py);}c.stroke();
+    c.fillRect(px-5,py-5,10,10);
+  } else if(wing==='flux'){ // trajectory fan
+    for(let k=0;k<7;k++){c.globalAlpha=k===3?0.95:0.18;c.beginPath();c.moveTo(10,h-8);
+      let x=10,y=h-8,vx=3+k*0.4,vy=-2.4-k*0.18;
+      for(let s=0;s<46;s++){vy+=0.07;vx*=0.998;x+=vx;y+=vy;if(y>h-4){y=h-4;vy=-vy*0.8;}c.lineTo(x,y);}c.stroke();}
+  } else if(wing==='gyre'){ // torus rings + winding
+    c.globalAlpha=0.35;
+    for(let k=0;k<5;k++){c.beginPath();c.ellipse(w/2,h/2,(w*0.3)*(0.55+k*0.12),(h*0.34)*(0.55+k*0.12),0,0,7);c.stroke();}
+    c.globalAlpha=0.95;c.beginPath();
+    for(let s=0;s<=120;s++){const t=s/120*Math.PI*2;const x=w/2+Math.cos(t)*w*0.3*(0.8+0.18*Math.cos(t*5));const y=h/2+Math.sin(t)*h*0.34*(0.8+0.18*Math.cos(t*5));s?c.lineTo(x,y):c.moveTo(x,y);}c.stroke();
+  } else if(wing==='morph'){ // genome bars over substrate glyphs
+    const labels=['◻','◯','∞','⬡'];c.font='14px serif';c.textAlign='center';
+    for(let k=0;k<4;k++){c.globalAlpha=0.5;c.fillText(labels[k],18+k*26,22);}
+    for(let k=0;k<8;k++){c.globalAlpha=0.7;const bw=r.f()*40+8;c.fillRect(120+ (k%2)*70, 8+Math.floor(k/2)*12, bw,6);}
+  } else { // drift: word dust + a hop path
+    c.font='9px ui-monospace,monospace';c.textAlign='center';
+    const pts=[];
+    for(let k=0;k<9;k++){const x=14+r.f()*(w-28),y=12+r.f()*(h-22);pts.push({x,y});c.globalAlpha=0.55;c.fillText(WORDS[r.i(WORDS.length)],x,y);}
+    pts.sort((a,b)=>a.x-b.x);c.globalAlpha=0.8;c.beginPath();pts.slice(0,5).forEach((p,k)=>{k?c.lineTo(p.x,p.y+3):c.moveTo(p.x,p.y+3);});c.stroke();
+  }
+  c.globalAlpha=1;
+}
+document.querySelectorAll('.emblem').forEach(emblem);
+window.addEventListener('resize',()=>document.querySelectorAll('.emblem').forEach(emblem));
+</script>
 </body>
 </html>
