@@ -28,7 +28,7 @@
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   /* wing hues */
   --w-puzz: #0d7d74; --w-knack: #c2792e; --w-flux: #2f8fd6;
-  --w-gyre: #7a55c8; --w-morph: #b5476d; --w-drift: #2f9d6e; --w-forge: #b5651d;
+  --w-gyre: #7a55c8; --w-morph: #b5476d; --w-drift: #2f9d6e; --w-forge: #b5651d; --w-deal: #8f2f4f;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -38,7 +38,7 @@
     --gold: #d8b35a;
     --tag-bg: rgba(163, 155, 255, 0.12); --tag-text: #b6aeff;
     --w-puzz: #45c2b6; --w-knack: #d6975a; --w-flux: #62aee2;
-    --w-gyre: #a98fe0; --w-morph: #d2738f; --w-drift: #5cc594; --w-forge: #d08a3a;
+    --w-gyre: #a98fe0; --w-morph: #d2738f; --w-drift: #5cc594; --w-forge: #d08a3a; --w-deal: #d06a8a;
   }
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -189,7 +189,7 @@ footer a:hover { color: var(--accent); }
 
 <!-- ── the ladder ── -->
 <section id="ladder">
-  <div class="section-label"><span>The ladder — what each wing broke</span><span class="count">VII</span></div>
+  <div class="section-label"><span>The ladder — what each wing broke</span><span class="count">VIII</span></div>
   <p class="section-blurb">One experiment, climbing. Every rung keeps the oracle and breaks a form.</p>
   <ul class="ladder">
     <li style="--wing: var(--w-puzz)"><span class="stage">puzz</span><span class="broke">broke nothing — <b>static deduction</b> on a grid. The solver certifies a unique solution and proves no guessing is needed.</span></li>
@@ -199,6 +199,7 @@ footer a:hover { color: var(--accent); }
     <li style="--wing: var(--w-morph)"><span class="stage">morph</span><span class="broke">broke the game itself — a <b>generator of generators</b>. Each roll samples a whole grammar: topology, law, goal, look. One oracle certifies them all.</span></li>
     <li style="--wing: var(--w-drift)"><span class="stage">drift</span><span class="broke">broke the board — the substrate is <b>meaning</b>. Words wired by embedding; crossings and groupings certified on the semantic graph.</span></li>
     <li style="--wing: var(--w-forge)"><span class="stage">forge</span><span class="broke">broke the <b>rules</b> — a foundry that mints <b>laws no one wrote</b>, fingerprints each by behavior, and keeps only the ones measurably new and certifiably playable.</span></li>
+    <li style="--wing: var(--w-deal)"><span class="stage">deal</span><span class="broke">broke <b>solitude</b> — card games with hidden hands and an <b>adversary</b>. No more "the answer": a tribunal of simulated opponents certifies each game terminates, rewards skill, and plays fair.</span></li>
   </ul>
 </section>
 
@@ -220,7 +221,7 @@ footer a:hover { color: var(--accent); }
 
 <!-- ── the wings ── -->
 <section id="wings">
-  <div class="section-label"><span>The wings</span><span class="count">7 live</span></div>
+  <div class="section-label"><span>The wings</span><span class="count">8 live</span></div>
   <ul class="wings">
     <li style="--wing: var(--w-puzz)">
       <canvas class="emblem" data-wing="puzz"></canvas>
@@ -285,6 +286,16 @@ footer a:hover { color: var(--accent); }
         <div class="oracle-line">oracle: closed rule-DSL · behavioral fingerprint · novelty + playability gates</div>
       </div>
     </li>
+    <li style="--wing: var(--w-deal)">
+      <canvas class="emblem" data-wing="deal"></canvas>
+      <div class="body">
+        <div class="name-row"><a href="/deal/">deal</a><span class="tag">cards</span><span class="tag">vs the bot</span></div>
+        <div class="desc">Generated two-player card games — trick-takers and shedders with trumps, poisons and wilds.
+          A tribunal of simulated opponents plays each one hundreds of times before you do; then you sit down against
+          the bot that certified it. Pure-reducer engine: multiplayer-ready.</div>
+        <div class="oracle-line">oracle: the tribunal — terminates · rewards skill · plays fair</div>
+      </div>
+    </li>
   </ul>
 </section>
 
@@ -326,7 +337,7 @@ let W=0,H=0,dpr=1;
 function resize(){dpr=window.devicePixelRatio||1;W=machine.clientWidth;H=machine.clientHeight;stage.width=W*dpr;stage.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
 resize(); window.addEventListener('resize',resize);
 
-const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152, forge:28 };
+const HUES = { puzz:174, knack:31, flux:206, gyre:262, morph:336, drift:152, forge:28, deal:340 };
 
 /* ---- substrate builders: each returns {nodes:[{x,y,label?}], adj:[[...]], wing} ---- */
 function gridWorld(rand,wing,wrap,hex){
@@ -561,6 +572,13 @@ function emblem(cv){
     const labels=['◻','◯','∞','⬡'];c.font='14px serif';c.textAlign='center';
     for(let k=0;k<4;k++){c.globalAlpha=0.5;c.fillText(labels[k],18+k*26,22);}
     for(let k=0;k<8;k++){c.globalAlpha=0.7;const bw=r.f()*40+8;c.fillRect(120+ (k%2)*70, 8+Math.floor(k/2)*12, bw,6);}
+  } else if(wing==='deal'){ // fanned cards, one struck gold
+    for(let k=0;k<7;k++){
+      c.save();c.translate(28+k*((w-56)/6),h-6);c.rotate(-0.5+k*0.16);
+      c.globalAlpha=k===4?0.95:0.5;c.fillStyle=k===4?'#d8b35a':ink;
+      c.fillRect(-9,-34,18,30);c.globalAlpha=1;c.strokeStyle=dark?'#111':'#fff';c.lineWidth=1;c.strokeRect(-9,-34,18,30);
+      c.restore();
+    }
   } else if(wing==='forge'){ // foundry: a lattice of candidate glyphs, one struck gold
     c.font='13px serif';c.textAlign='center';c.textBaseline='middle';
     const glyphs=['◻','◯','△','▢','◇','✕','∿','⬡'];

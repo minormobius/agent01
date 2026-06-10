@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deal — card games no one wrote, opponents included</title>
+<meta name="description" content="Generated two-player card games certified by a tribunal of simulated opponents: every game ships with measured proof that it terminates, rewards skill, and plays fair. Then you sit down against the bot that certified it.">
+<meta property="og:title" content="deal — card games no one wrote">
+<meta property="og:description" content="A genome rolls a card game; hundreds of bot-vs-bot games certify it; then you play the bot.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · deal</div>
+  <header class="masthead">
+    <h1>deal<span class="dot">.</span></h1>
+    <div class="tagline">Card games <b>no one wrote — opponents included</b>. Each page rolls a two-player card game
+      from a genome (deck, legality, trumps, poisons, wilds), and a <b>tribunal of simulated opponents</b> plays it
+      hundreds of times before you arrive: the game ships only with measured proof that it <b>terminates</b>,
+      <b>rewards skill</b> (the smart bot beats the random one — your decisions will matter), and <b>plays fair</b>
+      (no crushing first-seat edge). Then you sit down against the bot that certified it.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><label for="seed">page</label><input id="seed" type="number" min="1" value="4"><button class="btn" id="go">go</button></div>
+      <div class="sep"></div>
+      <div class="grp"><button class="btn" id="prev">‹ prev</button><button class="btn" id="next">next ›</button><button class="btn" id="random">random</button></div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn primary" id="surprise">✦ surprise me</button>
+        <label for="huntForm">find</label>
+        <select id="huntForm"><option value="">any form</option><option value="trick">trick-taking</option><option value="shed">shedding</option></select>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">—</span><span class="bpill" id="form-pill"></span></div>
+        <div class="win-banner" id="win-banner">Game over</div>
+        <div class="table-felt" id="felt">
+          <div class="scorebar2"><span id="opp-score"></span><span id="my-score"></span></div>
+          <div><div class="mid-lab">the bot</div><div class="opp-row" id="opp-row"></div></div>
+          <div class="mid-row" id="mid-row"></div>
+          <div class="felt-status" id="felt-status"></div>
+          <div><div class="my-row" id="my-row"></div><div class="mid-lab">your hand — click a card to play</div></div>
+        </div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:8px 0 6px;flex-wrap:wrap;">
+            <button class="btn" id="redeal">redeal</button>
+            <button class="btn primary" id="botoff">⚔ watch bot vs bot</button>
+            <span id="moves" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+          <details class="rulesfold" id="rules"><summary>how this game works</summary><div class="rbody" id="rules-body"></div></details>
+          <div class="dealog" id="dealog"></div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Tribunal certificate</h3>
+          <div class="gatec" id="gates"></div>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">bot difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+        </div>
+        <div class="panel"><h3>Interest signals</h3><div class="signals" id="signals"></div></div>
+        <div class="panel"><h3>Multiplayer-ready</h3>
+          <div style="font-size:13px;color:var(--muted);">The engine is a <b style="color:var(--fg)">pure reducer</b> —
+          state + move → state, no hidden randomness. A bot and a remote human are interchangeable move sources, so any
+          of these games can be lifted into the games.mino.mobi room system (Durable Object rooms, phone-as-controller)
+          without touching the rules. The bot is the first opponent, not the last.</div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–12</span><button class="btn" id="g-next">›</button></div>
+      <div class="sep"></div>
+      <div class="grp"><label>sort</label><select id="g-sort"><option value="interest">interest</option><option value="difficulty">bot difficulty</option><option value="seed">page #</option></select></div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">dealing &amp; running tribunals…</div></div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>A new oracle family: the tribunal</h2>
+      <p>deal is the eighth wing of <a href="/">fable</a>, and it breaks two assumptions at once: <b>hidden
+        information</b> (hands you can't see) and an <b>adversary</b>. That kills the BFS oracle — there is no "the
+        answer" when someone is playing back at you. So certification changes shape. Instead of solving the game, a
+        <b>tribunal of simulated opponents</b> plays each candidate hundreds of times (seeded, reproducible) and the
+        game ships only if three gates pass with measured evidence:</p>
+      <ul>
+        <li><b>Terminates</b> — every probe game ends. No infinite stalemates.</li>
+        <li><b>Rewards skill</b> — a heuristic bot beats a random bot by a real margin. This is the deep one: it is
+          quantified proof that the game's decisions <i>matter</i>. A coin-flip game fails this gate, and most raw
+          genomes do — roughly two-thirds are rejected here.</li>
+        <li><b>Plays fair</b> — bot-vs-bot shows no crushing first-seat advantage and a tolerable draw rate.</li>
+      </ul>
+      <p>Interest is graded from the same evidence: skill depth, <b>tension</b> (how often the lead changes hands),
+        <b>agency</b> (real choices per turn), pace. The verdict panel shows the actual numbers from this game's
+        tribunal.</p>
+      <h2>The genome</h2>
+      <p>Two structural families with a sampled deck (3–4 suits × 6–9 ranks), and family-specific grammar:
+        <b>trick-taking</b> (follow-suit or free, optional trump suit, scored by tricks, captured points, or
+        hearts-style avoidance) and <b>shedding</b> (match by suit/rank, climbing, wild ranks, skip ranks). Familiar
+        games fall out as special cases; most rolls have no family name. The rulebook is generated from the genome —
+        the rules card writes itself.</p>
+      <h2>The opponent is the point</h2>
+      <p>The greedy bot that certifies each game is the same bot you play. It knows the objective (ducks poison in
+        avoidance games, holds wilds, chains skips when ahead) but searches nothing — strong enough that beating it
+        feels earned, weak enough that you can. "Watch bot vs bot" replays a certification game so you can learn the
+        game by watching its first two players.</p>
+      <h2>Multiplayer is one room away</h2>
+      <p>The engine is a pure reducer: <code>init(genome, seed)</code>, <code>legalMoves(state)</code>,
+        <code>apply(state, move)</code>. No mutation, no hidden randomness. That is exactly the contract the
+        games.mino.mobi party platform (Durable Object rooms), hoop, and the ar/mmo transports already speak — a remote
+        human is just another move source. The bot is the first opponent, not the last.</p>
+    </div>
+  </section>
+
+  <footer>deal · fable.mino.mobi · certified by tribunal: terminates · skillful · fair · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
