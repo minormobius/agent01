@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · O'Neill cylinder life-support box model</title>
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#15231d,#0a110e 60%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:60ch}
+  main{display:grid;grid-template-columns:300px 1fr;gap:18px;padding:18px 22px;align-items:start}
+  @media(max-width:820px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:11px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--leaf);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--leaf);height:18px}
+  .verdict{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:12px;border:1px solid var(--line)}
+  .verdict.ok{background:#13241a;border-color:#2c5a3c}
+  .verdict.bad{background:#251612;border-color:#5a342c}
+  .verdict b{display:block;font-size:14px;margin-bottom:2px}
+  .gauges{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .g .k{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim)}
+  .g .v{font-size:19px;font-weight:600;margin-top:2px}
+  .g .u{font-size:11px;color:var(--dim)}
+  canvas{width:100%;display:block;background:#0b1310;border:1px solid var(--line);border-radius:8px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:3px;vertical-align:middle;margin-right:5px}
+  .note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.45}
+  a{color:var(--gold)}
+</style>
+</head>
+<body>
+<header>
+  <h1>biome <small>· closed-loop life-support for an infinite O'Neill cylinder</small></h1>
+  <div class="sub">A non-spatial stocks-and-flows model. Before HVAC or weather, the
+  first question is <i>does the loop close</i> — can crop photosynthesis, crew metabolism
+  and soil decomposition balance, and how big must the buffers be. Carbon/oxygen/water
+  are element-exact; nitrogen rides its own conserving loop. Drag a knob; the year reruns.</div>
+</header>
+<main>
+  <section class="panel" id="controls">
+    <h2>Knobs</h2>
+  </section>
+  <section>
+    <div id="verdict" class="verdict"></div>
+    <div class="gauges" id="gauges"></div>
+    <div class="panel">
+      <h2>One model-year — air, water, stores</h2>
+      <canvas id="chart" width="900" height="320"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--leaf)"></i>O₂ (kPa)</span>
+        <span><i style="background:var(--warn)"></i>CO₂ (ppm)</span>
+        <span><i style="background:var(--water)"></i>RH (%)</span>
+        <span><i style="background:var(--gold)"></i>food store (rel.)</span>
+        <span><i style="background:#9b7fd8"></i>standing biomass (rel.)</span>
+      </div>
+      <div class="note" id="simplify"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import {
+  defaultParams, defaultState, run, KNOWN_SIMPLIFICATIONS,
+} from './sim/cycles.mjs';
+
+// knob definitions: [key, label, min, max, step, format]
+const KNOBS = [
+  ['crew',            'Crew',                  10,  500, 10, v=>v+' people'],
+  ['cropArea_m2',     'Crop area',           500, 8000, 100, v=>v+' m²'],
+  ['photoperiod',     'Sun duty cycle',      0.2,    1, 0.05, v=>Math.round(v*100)+' %'],
+  ['legumeFraction',  'Legume fraction',       0,  0.5, 0.01, v=>Math.round(v*100)+' %'],
+  ['harvestIndex',    'Harvest index',       0.2,  0.6, 0.01, v=>v.toFixed(2)],
+  ['litterDecay_perday','Soil decay rate', 0.002,0.06,0.002, v=>v.toFixed(3)+'/d'],
+];
+const params = defaultParams();
+// scale per-crew defaults so the air/water box tracks crew count
+const perCrewAir = params.airVolume_m3 / params.crew;
+const perCrewWater = params.waterReservoir_L / params.crew;
+const perCrewFood = 30 * 22; // mol C buffer per person
+
+const ctl = document.getElementById('controls');
+for (const [key,label,min,max,stepv,fmt] of KNOBS){
+  const wrap = document.createElement('label'); wrap.className='ctl';
+  wrap.innerHTML = `<span class="row"><span>${label}</span><b id="val-${key}"></b></span>`;
+  const inp = document.createElement('input');
+  inp.type='range'; inp.min=min; inp.max=max; inp.step=stepv; inp.value=params[key];
+  inp.addEventListener('input', ()=>{ params[key]=parseFloat(inp.value); rerun(); });
+  wrap.appendChild(inp);
+  ctl.appendChild(wrap);
+  KNOBS.fmt = KNOBS.fmt||{};
+}
+document.getElementById('simplify').innerHTML =
+  '<b>Known simplifications.</b> ' + KNOWN_SIMPLIFICATIONS.join(' ');
+
+function gauge(k,v,u,color){
+  return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`;
+}
+
+function rerun(){
+  for (const [key,,,,,fmt] of KNOBS) document.getElementById('val-'+key).textContent = fmt(params[key]);
+  // keep the breathing box proportional to crew
+  params.airVolume_m3 = perCrewAir * params.crew;
+  params.waterReservoir_L = perCrewWater * params.crew;
+  const s0 = defaultState(params);
+  s0.food = params.crew * perCrewFood;
+  const traj = run(params, s0, 365, 2, 3);
+  const last = traj[traj.length-1];
+
+  // Verdict. Air + water closure is the primary criterion — that's what a sealed
+  // ecology can actually achieve (BIOS-3 closed both). Calorie self-sufficiency is
+  // reported as a graded percentage, because full dietary closure is the genuinely
+  // hard part and the tool should show how far short a given design falls.
+  const o2OK = last.o2_kPa > 17 && last.o2_kPa < 24;
+  const co2OK = last.co2_ppm < 5000;
+  const airWaterClose = o2OK && co2OK;
+  const calPct = Math.round(last.calorieRatio * 100);
+  const v = document.getElementById('verdict');
+  v.className = 'verdict ' + (airWaterClose ? 'ok' : 'bad');
+  if (airWaterClose) {
+    const calNote = calPct >= 95 ? 'and the crop feeds the crew'
+      : `crops supply ${calPct}% of calories — the rest is stored/imported (full dietary closure is the hard part)`;
+    v.innerHTML = `<b>Air & water close.</b> O₂ ${last.o2_kPa.toFixed(1)} kPa, CO₂ ${Math.round(last.co2_ppm)} ppm hold after a year; ${calNote}. ${Math.round(params.cropArea_m2/params.crew)} m² crop/person.`;
+  } else {
+    const issues = [];
+    if (!o2OK) issues.push(`O₂ off-nominal (${last.o2_kPa.toFixed(1)} kPa)`);
+    if (!co2OK) issues.push(`CO₂ runaway (${Math.round(last.co2_ppm)} ppm)`);
+    v.innerHTML = `<b>Air does not close.</b> ${issues.join('; ')}. Calorie supply ${calPct}%.`;
+  }
+
+  // gauges
+  document.getElementById('gauges').innerHTML =
+    gauge('O₂', last.o2_kPa.toFixed(1), 'kPa  (Earth 21)', 'var(--leaf)') +
+    gauge('CO₂', Math.round(last.co2_ppm), 'ppm  (Earth ~420)', 'var(--warn)') +
+    gauge('Humidity', Math.round(last.rh*100), '% RH', 'var(--water)') +
+    gauge('Calories', Math.round(last.calorieRatio*100), '% of demand', last.calorieRatio>=1?'var(--leaf)':'var(--warn)') +
+    gauge('Crop / person', Math.round(params.cropArea_m2/params.crew), 'm²', 'var(--gold)') +
+    gauge('Net O₂ flux', last.o2_net_molday.toFixed(0), 'mol/day (→0 = closed)', 'var(--dim)');
+
+  draw(traj);
+}
+
+const cv = document.getElementById('chart'), cx = cv.getContext('2d');
+function draw(traj){
+  const W=cv.width, H=cv.height, pad=34;
+  cx.clearRect(0,0,W,H);
+  const x = i => pad + (W-2*pad) * i/(traj.length-1);
+  // axes
+  cx.strokeStyle='#1c2a23'; cx.lineWidth=1;
+  for(let g=0;g<=4;g++){ const y=pad+(H-2*pad)*g/4; cx.beginPath();cx.moveTo(pad,y);cx.lineTo(W-pad,y);cx.stroke(); }
+  // normalise each series to its own band for shape-reading
+  const series = [
+    ['o2_kPa',    'var(--leaf)', 0, 30],
+    ['co2_ppm',   'var(--warn)', 0, Math.max(1200, ...traj.map(s=>s.co2_ppm))],
+    ['rh',        'var(--water)',0, 1.2],
+    ['food_molC', 'var(--gold)', 0, Math.max(1, ...traj.map(s=>s.food_molC))],
+    ['bio_molC',  '#9b7fd8',     0, Math.max(1, ...traj.map(s=>s.bio_molC))],
+  ];
+  const col = c => getComputedStyle(document.documentElement).getPropertyValue(c.replace('var(','').replace(')',''))||c;
+  for (const [key,color,lo,hi] of series){
+    cx.strokeStyle = color.startsWith('var')? col(color) : color;
+    cx.lineWidth=2; cx.beginPath();
+    traj.forEach((s,i)=>{ const v=(s[key]-lo)/(hi-lo);
+      const y = (H-pad) - (H-2*pad)*Math.max(0,Math.min(1,v));
+      i?cx.lineTo(x(i),y):cx.moveTo(x(i),y); });
+    cx.stroke();
+  }
+  cx.fillStyle='#5b7468'; cx.font='11px var(--mono)';
+  cx.fillText('day 0', pad, H-12); cx.fillText('day 365', W-pad-40, H-12);
+}
+
+rerun();
+</script>
+</body>
+</html>

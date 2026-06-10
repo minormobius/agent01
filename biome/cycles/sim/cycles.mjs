@@ -1,4 +1,4 @@
-// biome/sim/cycles.mjs — closed-loop life-support box model for an infinite O'Neill cylinder.
+// biome/cycles/sim/cycles.mjs — closed-loop life-support box model for an infinite O'Neill cylinder.
 //
 // A *non-spatial* stocks-and-flows model. It answers the question that has to be
 // answered before any HVAC or weather model matters: **does the loop close?** —

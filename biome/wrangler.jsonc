@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "biome",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // GOLDEN RULE: this `name` must be the worker that owns the live custom domain,
+  // and the domain must be declared here as a custom_domain route — otherwise
+  // wrangler silently updates a stray biome.workers.dev and the subdomain never
+  // changes. Verify the deploy log binds "biome.mino.mobi (custom domain)".
+  "routes": [
+    { "pattern": "biome.mino.mobi", "custom_domain": true }
+  ]
+}

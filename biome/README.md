@@ -1,14 +1,26 @@
 # biome — life-support modelling for an infinite O'Neill cylinder
 
+**Live at:** `biome.mino.mobi`
+**Stack:** Cloudflare Worker (ASSETS binding) + vanilla ES modules. No build step.
+**Deploy:** `.github/workflows/deploy-biome.yml` — `wrangler deploy` on push to `biome/**`.
+
 Tooling for thinking about the **interior** of an infinite (no end-caps) O'Neill
 cylinder run as a **bio-engine**: a linear sun on the spin axis, vegetation on the
 inner surface of the structural Voronoi rind, and the enclosed air/water/soil doing
 the work of a closed life-support loop. Companion to the structural work in
 [`/hoop`](../hoop) (which models the rind itself) — this is the volume *inside* it.
 
-> **Status:** Tool 1 (the resource-cycle box model) is built and self-verifying.
-> Tools 2 (1-D radial atmosphere column) and 3 (WebGPU interior visualiser) are
-> specified below but not yet built.
+The site is a **suite of modules**, built in dependency order — close the resource
+books first, resolve them in space second, render them third:
+
+| Module | Path | Status |
+|---|---|---|
+| **1 · Resource cycles** — closed-loop life-support box model | `cycles/` | **live** |
+| **2 · Radial atmosphere** — 1-D `r`-column (temp/humidity/CO₂ vs altitude) | — | planned |
+| **3 · Interior visualiser** — WebGPU O'Neill interior with rendered atmosphere | — | planned |
+
+The landing page (`index.html`) frames the premise and links the modules; each module
+is self-contained under its own directory.
 
 ## Why this shape of tool
 
@@ -37,11 +49,11 @@ The cylinder interior has a counterintuitive thermal layout that drives everythi
 Before any of that spatial detail matters, the **zeroth question** is whether the
 loop can close at all as stocks and flows. That's Tool 1.
 
-## Tool 1 — the resource-cycle box model (`sim/cycles.mjs`)
+## Module 1 — the resource-cycle box model (`cycles/`)
 
 A non-spatial, deterministic stocks-and-flows model of the closed ecology. Zero
 dependencies, runs identically in node and the browser. Drive it from the dashboard
-(`index.html`) or import it.
+(`cycles/index.html`, live at `biome.mino.mobi/cycles/`) or import `cycles/sim/cycles.mjs`.
 
 ### What it tracks
 
@@ -87,8 +99,8 @@ conserving loop (fixation → mineral → biomass → litter → mineralise → 
 ### Run it
 
 ```bash
-node biome/test/cycles.selftest.mjs     # 12 checks: conservation, bounds, the insights, determinism
-open  biome/index.html                  # dashboard: drag a knob, the model-year reruns live
+node biome/cycles/test/cycles.selftest.mjs   # 12 checks: conservation, bounds, the insights, determinism
+open  biome/index.html                       # landing page → Module 1 dashboard at cycles/
 ```
 
 ### Knobs (all in `defaultParams()`)
@@ -110,7 +122,7 @@ all are documented inline at their definitions.
 - Temperature is a fixed parameter (no thermal feedback on rates yet).
 - Trace-gas / ethylene buildup (a real closed-ecology hazard) not modelled.
 
-## Tool 2 — 1-D radial atmosphere column (planned)
+## Module 2 — 1-D radial atmosphere column (planned)
 
 A `r`-only profile model: temperature, pressure, humidity and CO₂ as functions of
 radius and time. This is where "up is hot", the saturation/dew profile, the
@@ -118,24 +130,28 @@ stratification, and the photoperiod mixing pump live. Cheap, deterministic, full
 testable — parameterises Coriolis/convection as a mixing coefficient rather than
 simulating it. Answers: *where is the fog, how thick, does CO₂ stratify into a dead
 zone, does pulsing the sun break the inversion enough to ventilate the canopy.*
-Feeds its surface boundary conditions from Tool 1's steady state.
+Feeds its surface boundary conditions from Module 1's steady state. Will live in `atmosphere/`.
 
-## Tool 3 — WebGPU interior visualiser (planned)
+## Module 3 — WebGPU interior visualiser (planned)
 
 The iconic O'Neill view — looking "up" and seeing more land curve overhead — but
 with the **atmosphere** rendered: the linear axial sun, the canopy on the inner
-surface, fog banding by altitude (from Tool 2), and optionally a compute-shader
-`(r,θ)` slice showing Coriolis-organised convection rolls. Fed by Tools 1 and 2, so
-it visualises validated state, not assumptions.
+surface, fog banding by altitude (from Module 2), and optionally a compute-shader
+`(r,θ)` slice showing Coriolis-organised convection rolls. Fed by Modules 1 and 2, so
+it visualises validated state, not assumptions. Will live in `interior/`.
 
 ## Layout
 
 ```
 biome/
-├── sim/cycles.mjs          # Tool 1: the box model (pure, zero-dep, node + browser)
-├── test/cycles.selftest.mjs# headless proof: conservation + bounds + insights + determinism
-├── index.html              # Tool 1 dashboard (vanilla, no build step)
-└── README.md               # this file
+├── index.html                    # landing page — the suite overview + module cards
+├── worker.js                     # assets worker (+ /health); model runs client-side
+├── wrangler.jsonc                # name=biome, custom_domain route biome.mino.mobi
+├── README.md                     # this file
+└── cycles/                       # MODULE 1 — resource-cycle box model
+    ├── index.html                # the dashboard (vanilla, no build step)
+    ├── sim/cycles.mjs            # the box model (pure, zero-dep, node + browser)
+    └── test/cycles.selftest.mjs  # headless proof: conservation + bounds + insights + determinism
 ```
 
 This directory is intentionally separate from `/hoop` (structural rind) — the two are

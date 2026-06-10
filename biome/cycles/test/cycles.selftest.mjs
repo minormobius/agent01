@@ -1,5 +1,5 @@
-// biome/test/cycles.selftest.mjs — headless proof of the closed-loop box model.
-// Run: node biome/test/cycles.selftest.mjs   (no deps)
+// biome/cycles/test/cycles.selftest.mjs — headless proof of the closed-loop box model.
+// Run: node biome/cycles/test/cycles.selftest.mjs   (no deps)
 //
 // We can't open a browser or run a CFD in the sandbox, so we prove the model as
 // PURE logic over the REAL engine:
