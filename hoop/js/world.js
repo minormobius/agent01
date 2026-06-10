@@ -292,16 +292,16 @@ function foamChunk(seed, cx, cy) {
   const cellOf = new Int16Array(C * C), sumx = new Float64Array(NS), sumy = new Float64Array(NS), cnt = new Int32Array(NS);
   for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { let bi = 0, bd = 1e9; for (let s = 0; s < NS; s++) { const d = (seeds[s].x - x - 0.5) ** 2 + (seeds[s].y - y - 0.5) ** 2; if (d < bd) { bd = d; bi = s; } } cellOf[y * C + x] = bi; sumx[bi] += x; sumy[bi] += y; cnt[bi]++; }
   const cen = []; for (let s = 0; s < NS; s++) cen.push(cnt[s] ? { x: Math.min(C - 1, Math.max(0, Math.round(sumx[s] / cnt[s]))), y: Math.min(C - 1, Math.max(0, Math.round(sumy[s] / cnt[s]))) } : { x: 0, y: 0 });
-  // MEMBRANES: a SLIM 1-tile bulkhead on the lower-id side of every cell boundary (the
-  // other side stays floor), so the wall between chambers is one tile, not two. Corridors
-  // carve through, so connectivity holds. Sites subdivide near walls (see sites()) to keep
-  // these thin walls crisp.
+  // MEMBRANES: wall BOTH sides of every cell boundary — a tile is floor only if all its
+  // in-chunk neighbours share its cell, so chambers are properly enclosed (the lower-id-only
+  // rule left it wide open). Corridors carve doorways through; the half-size plating near
+  // walls (see sites()) keeps these read crisp rather than chunky.
   const tiles = new Uint8Array(C * C), grav = new Uint8Array(C * C);
   for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
-    const a = cellOf[y * C + x]; let wall = false;
-    for (let d = 0; d < 4; d++) { const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d]; if (nx < 0 || ny < 0 || nx >= C || ny >= C) continue; if (cellOf[ny * C + nx] > a) { wall = true; break; } }
+    const a = cellOf[y * C + x]; let interior = true;
+    for (let d = 0; d < 4; d++) { const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d]; if (nx < 0 || ny < 0 || nx >= C || ny >= C) continue; if (cellOf[ny * C + nx] !== a) { interior = false; break; } }
     const i = y * C + x;
-    if (wall) { tiles[i] = VOID; grav[i] = 0; } else { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].reg; }
+    if (interior) { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].reg; } else { tiles[i] = VOID; grav[i] = 0; }
   }
   const hazard = new Set();
   const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) tiles[i] = FLOOR; if (!grav[i]) grav[i] = 1 + seeds[cellOf[i]].reg; };
