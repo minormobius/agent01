@@ -69,6 +69,51 @@ pub mod la {
     }
 }
 
+// ───────────────────────────── banded SPD solver ───────────────────────────────
+pub mod band {
+    /// Cholesky solve of a symmetric positive-definite system stored in lower-banded
+    /// form: `a[r*(bw+1) + (c + bw - r)] = A[r][c]` for `max(0,r-bw) <= c <= r`.
+    /// Returns `None` if not positive-definite (→ a mechanism). O(n·bw²) time and
+    /// O(n·bw) memory — the win over dense O(n³) for local (banded) FE systems.
+    pub fn cholesky_solve(n: usize, bw: usize, mut a: Vec<f64>, mut b: Vec<f64>) -> Option<Vec<f64>> {
+        let off = |r: usize, c: usize| r * (bw + 1) + (c + bw - r);
+        for i in 0..n {
+            let lo = i.saturating_sub(bw);
+            for j in lo..=i {
+                let mut s = a[off(i, j)];
+                for k in lo..j {
+                    s -= a[off(i, k)] * a[off(j, k)]; // both in-band: k >= i-bw >= j-bw
+                }
+                if i == j {
+                    if s <= 1e-12 {
+                        return None;
+                    }
+                    a[off(i, j)] = s.sqrt();
+                } else {
+                    a[off(i, j)] = s / a[off(j, j)];
+                }
+            }
+        }
+        for i in 0..n {
+            let lo = i.saturating_sub(bw);
+            let mut s = b[i];
+            for k in lo..i {
+                s -= a[off(i, k)] * b[k];
+            }
+            b[i] = s / a[off(i, i)];
+        }
+        for i in (0..n).rev() {
+            let hi = (i + bw).min(n.saturating_sub(1));
+            let mut s = b[i];
+            for m in (i + 1)..=hi {
+                s -= a[off(m, i)] * b[m];
+            }
+            b[i] = s / a[off(i, i)];
+        }
+        Some(b)
+    }
+}
+
 // ───────────────────────────── closed-form feasibility ──────────────────────────
 pub mod analytic {
     use super::G0;
@@ -438,7 +483,7 @@ pub mod cylinder {
 
 // ───────────────────────────── 2D frame (bending) ──────────────────────────────
 pub mod frame {
-    use super::la;
+    use super::band;
 
     /// A node in the plane with 3 DOF: translation (ux, uy) and in-plane rotation θ.
     /// `fix[k]` pins DOF k; `load` is [Fx, Fy, M].
@@ -485,6 +530,49 @@ pub mod frame {
         pub members: Vec<Member>,
     }
 
+    // Reverse Cuthill-McKee node ordering → small stiffness bandwidth for any
+    // connectivity (a grid sector, or an irregular froth). Returns pos[node] = rank.
+    fn rcm(n: usize, members: &[Member]) -> Vec<usize> {
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
+        for m in members {
+            if m.i != m.j {
+                adj[m.i].push(m.j);
+                adj[m.j].push(m.i);
+            }
+        }
+        for a in adj.iter_mut() {
+            a.sort_unstable();
+            a.dedup();
+        }
+        let mut visited = vec![false; n];
+        let mut order: Vec<usize> = Vec::with_capacity(n);
+        loop {
+            let start = (0..n).filter(|&i| !visited[i]).min_by_key(|&i| adj[i].len());
+            let start = match start {
+                Some(s) => s,
+                None => break,
+            };
+            let mut q = std::collections::VecDeque::new();
+            visited[start] = true;
+            q.push_back(start);
+            while let Some(u) = q.pop_front() {
+                order.push(u);
+                let mut nb: Vec<usize> = adj[u].iter().cloned().filter(|&v| !visited[v]).collect();
+                nb.sort_by_key(|&v| adj[v].len());
+                for v in nb {
+                    visited[v] = true;
+                    q.push_back(v);
+                }
+            }
+        }
+        order.reverse();
+        let mut pos = vec![0usize; n];
+        for (rank, &nd) in order.iter().enumerate() {
+            pos[nd] = rank;
+        }
+        pos
+    }
+
     fn matmul6(a: &[f64; 36], b: &[f64; 36]) -> [f64; 36] {
         let mut o = [0.0; 36];
         for r in 0..6 {
@@ -512,17 +600,17 @@ pub mod frame {
         pub fn solve(&self) -> Solution {
             let n = self.nodes.len();
             let ndof = 3 * n;
-            let mut kg = vec![0.0; ndof * ndof];
             let mut lengths = vec![0.0; self.members.len()];
-            // per-member local stiffness + transform, then assemble
+            // per-member local stiffness (kl), transform (t), and global element (kgt)
             let mut locals: Vec<([f64; 36], [f64; 36])> = Vec::with_capacity(self.members.len());
+            let mut kgts: Vec<[f64; 36]> = Vec::with_capacity(self.members.len());
             for (m, mem) in self.members.iter().enumerate() {
                 let a = self.nodes[mem.i].pos;
                 let b = self.nodes[mem.j].pos;
                 let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
                 let l = (dx * dx + dy * dy).sqrt();
                 lengths[m] = l;
-                let (c, s) = (dx / l, dy / l);
+                let (c, s) = if l > 1e-12 { (dx / l, dy / l) } else { (1.0, 0.0) };
                 let ea = mem.e * mem.area;
                 let ei = mem.e * mem.inertia;
                 let (l2, l3) = (l * l, l * l * l);
@@ -546,44 +634,86 @@ pub mod frame {
                     0.0, 0.0, 0.0, -s, c, 0.0,
                     0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
                 ];
-                let kgt = matmul6(&transpose6(&t), &matmul6(&kl, &t)); // TᵀkT
-                let dofs = [3 * mem.i, 3 * mem.i + 1, 3 * mem.i + 2, 3 * mem.j, 3 * mem.j + 1, 3 * mem.j + 2];
-                for p in 0..6 {
-                    for q in 0..6 {
-                        kg[dofs[p] * ndof + dofs[q]] += kgt[p * 6 + q];
-                    }
-                }
+                kgts.push(matmul6(&transpose6(&t), &matmul6(&kl, &t))); // TᵀkT
                 locals.push((kl, t));
             }
-            // BC + loads → reduce to free DOFs
-            let mut isfix = vec![false; ndof];
-            let mut f = vec![0.0; ndof];
-            for (ni, nd) in self.nodes.iter().enumerate() {
+            // Number the free DOFs in RCM (bandwidth-reducing) node order, then assemble
+            // the reduced stiffness as a lower band and Cholesky-solve it.
+            let pos = rcm(n, &self.members);
+            let mut order_nodes: Vec<usize> = (0..n).collect();
+            order_nodes.sort_by_key(|&nd| pos[nd]);
+            let mut red = vec![usize::MAX; ndof]; // dof → reduced index (MAX = fixed)
+            let mut nf = 0usize;
+            for &nd in &order_nodes {
                 for a in 0..3 {
-                    f[3 * ni + a] = nd.load[a];
-                    if nd.fix[a] {
-                        isfix[3 * ni + a] = true;
+                    if !self.nodes[nd].fix[a] {
+                        red[3 * nd + a] = nf;
+                        nf += 1;
                     }
                 }
             }
-            let free: Vec<usize> = (0..ndof).filter(|d| !isfix[*d]).collect();
-            let nf = free.len();
-            let mut kr = vec![0.0; nf * nf];
-            let mut fr = vec![0.0; nf];
-            for (a, &da) in free.iter().enumerate() {
-                fr[a] = f[da];
-                for (b, &db) in free.iter().enumerate() {
-                    kr[a * nf + b] = kg[da * ndof + db];
+            let mut bw = 0usize;
+            for mem in &self.members {
+                let dofs = [3 * mem.i, 3 * mem.i + 1, 3 * mem.i + 2, 3 * mem.j, 3 * mem.j + 1, 3 * mem.j + 2];
+                for &dp in &dofs {
+                    for &dq in &dofs {
+                        let (rp, rq) = (red[dp], red[dq]);
+                        if rp != usize::MAX && rq != usize::MAX {
+                            let d = if rp > rq { rp - rq } else { rq - rp };
+                            if d > bw {
+                                bw = d;
+                            }
+                        }
+                    }
+                }
+            }
+            let mut kband = vec![0.0; nf * (bw + 1)];
+            let mut rhs = vec![0.0; nf];
+            for (ni, nd) in self.nodes.iter().enumerate() {
+                for a in 0..3 {
+                    let r = red[3 * ni + a];
+                    if r != usize::MAX {
+                        rhs[r] = nd.load[a];
+                    }
+                }
+            }
+            let boff = |r: usize, c: usize| r * (bw + 1) + (c + bw - r);
+            for (m, mem) in self.members.iter().enumerate() {
+                if lengths[m] < 1e-12 {
+                    continue;
+                }
+                let kgt = &kgts[m];
+                let dofs = [3 * mem.i, 3 * mem.i + 1, 3 * mem.i + 2, 3 * mem.j, 3 * mem.j + 1, 3 * mem.j + 2];
+                for p in 0..6 {
+                    let rp = red[dofs[p]];
+                    if rp == usize::MAX {
+                        continue;
+                    }
+                    for q in 0..6 {
+                        let rq = red[dofs[q]];
+                        if rq != usize::MAX && rq <= rp {
+                            kband[boff(rp, rq)] += kgt[p * 6 + q]; // lower triangle
+                        }
+                    }
                 }
             }
             let mut disp = vec![[0.0; 3]; n];
             let mut compliance = 0.0;
-            let mechanism = match la::solve(kr, fr.clone(), nf) {
+            let mechanism = match band::cholesky_solve(nf, bw, kband, rhs) {
                 None => true,
-                Some(u) => {
-                    for (a, &da) in free.iter().enumerate() {
-                        disp[da / 3][da % 3] = u[a];
-                        compliance += fr[a] * u[a];
+                Some(x) => {
+                    for ni in 0..n {
+                        for a in 0..3 {
+                            let r = red[3 * ni + a];
+                            if r != usize::MAX {
+                                disp[ni][a] = x[r];
+                            }
+                        }
+                    }
+                    for (ni, nd) in self.nodes.iter().enumerate() {
+                        for a in 0..3 {
+                            compliance += nd.load[a] * disp[ni][a];
+                        }
                     }
                     false
                 }
@@ -852,6 +982,33 @@ mod tests {
         let s = m.solve();
         assert!(approx(s.disp[1][0], p * l / (e * area), 1e-6));
         assert!(approx(s.members[0].axial, p, 1e-4), "axial {}", s.members[0].axial);
+    }
+
+    #[test]
+    fn banded_solver_is_order_invariant() {
+        // The banded solve reorders nodes (RCM); the answer must not depend on the
+        // input node numbering. Solve a grid, then the same grid with nodes reversed.
+        let m = foam::grid(8, 8, 1.0, 0.05, 2.0e11, true, 1.0e3);
+        let n = m.nodes.len();
+        let rev = frame::Model {
+            nodes: m.nodes.iter().rev().cloned().collect(),
+            members: m.members.iter().map(|me| frame::Member { i: n - 1 - me.i, j: n - 1 - me.j, e: me.e, area: me.area, inertia: me.inertia, c: me.c }).collect(),
+        };
+        let (s1, s2) = (m.solve(), rev.solve());
+        assert!(!s1.mechanism && !s2.mechanism);
+        assert!(approx(s1.compliance, s2.compliance, 1e-6), "compliance {} vs {}", s1.compliance, s2.compliance);
+    }
+
+    #[test]
+    fn banded_handles_a_large_grid() {
+        // ~900 DOF — far past what the old dense path did interactively. Must solve,
+        // hold, and give a sane peak stress.
+        let m = foam::grid(18, 14, 1.0, 0.04, 2.0e11, true, 5.0e2);
+        let s = m.solve();
+        assert!(!s.mechanism, "large braced grid should be stable");
+        assert!(s.compliance > 0.0 && s.compliance.is_finite());
+        let max = s.members.iter().fold(0.0_f64, |a, mr| a.max(mr.stress));
+        assert!(max.is_finite() && max > 0.0);
     }
 
     #[test]
