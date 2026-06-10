@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#05060a" />
+<title>walk the foam · hoop</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #05060a; color: #cfe; font: 13px/1.4 ui-monospace, monospace; overflow: hidden; touch-action: none; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; top: 8px; left: 10px; color: #8aa; font-size: 12px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #hud b { color: #ffce78; } #hud .core { color: #7fd8d0; } #hud .hull { color: #ff9a76; }
+  a.home { position: fixed; top: 8px; right: 10px; color: #7fd8d0; text-decoration: none; font-size: 12px; }
+  /* touch controls */
+  .pad { position: fixed; bottom: 18px; display: flex; gap: 10px; user-select: none; }
+  .pad.l { left: 16px; } .pad.r { right: 16px; }
+  .btn { width: 58px; height: 58px; border-radius: 12px; background: rgba(127,216,208,.10); border: 1px solid #1d2430; color: #cfe; font-size: 22px; display: flex; align-items: center; justify-content: center; }
+  .btn:active { background: rgba(255,206,120,.22); border-color: #ffce78; }
+  @media (hover: hover) and (pointer: fine) { .pad { opacity: .35; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">◍ <b>walk the foam</b> — a denizen in the megastructure<br><span id="loc"></span><br><span class="core">↑ core (lighter)</span> · <span class="hull">↓ hull (heavier) ↓</span><br><span style="color:#667">←→ walk · ↑↓ climb ladders · space hop</span></div>
+<a class="home" href="/">← hoop</a>
+<div class="pad l"><div class="btn" data-k="left">◀</div><div class="btn" data-k="right">▶</div></div>
+<div class="pad r"><div class="btn" data-k="up">▲</div><div class="btn" data-k="jump">⤒</div><div class="btn" data-k="down">▼</div></div>
+
+<script src="/foam.js"></script>
+<script>
+'use strict';
+const TS = 1.0;                       // metres per collision tile
+const PARAMS = new URLSearchParams(location.search);
+const SEED = +(PARAMS.get('seed') || 1), MODE = PARAMS.get('mode') || 'grid';
+const NX = 11, LAYERS = 6, ROOM = 14, ROOMH = 11;          // the block we drop you into
+const W = NX * ROOM, T = LAYERS * ROOMH;
+const TW = Math.ceil(W / TS), TH = Math.ceil(T / TS);
+
+// ── build the map from the foam ──
+const foam = HOOPFOAM.generateFoam({
+  mode: MODE, width: W, thickness: T, layers: LAYERS, roomSize: ROOM,
+  wallT: 0.6, grade: 0, brace: 'none', e: 2e11, pEff: 1e5, blockIndex: 0, seed: SEED,
+});
+const solid = new Uint8Array(TW * TH);
+const ladder = new Uint8Array(TW * TH);
+const at = (tx, ty) => tx < 0 || ty < 0 || tx >= TW || ty >= TH ? 1 : solid[ty * TW + tx];
+const isLadder = (tx, ty) => tx >= 0 && ty >= 0 && tx < TW && ty < TH && ladder[ty * TW + tx];
+function mark(tx, ty) { if (tx >= 0 && ty >= 0 && tx < TW && ty < TH) solid[ty * TW + tx] = 1; }
+function clear(tx, ty) { if (tx >= 0 && ty >= 0 && tx < TW && ty < TH) solid[ty * TW + tx] = 0; }
+// rasterize every wall (floors + partitions; skip structural braces) into solid tiles
+for (const wll of foam.walls) {
+  if (wll.kind === 'brace') continue;
+  const A = foam.nodes[wll.a], B = foam.nodes[wll.b];
+  const steps = Math.max(2, Math.ceil(Math.hypot(B.x - A.x, B.y - A.y) / (TS * 0.5)));
+  for (let s = 0; s <= steps; s++) { const u = s / steps; mark(Math.round((A.x + (B.x - A.x) * u) / TS), Math.round((A.y + (B.y - A.y) * u) / TS)); }
+}
+// carve DOORS at floor level (walk freely along a floor) + sparse STAIR ladders
+const rowH = T / LAYERS;
+for (const p of foam.portals) {
+  const tx = Math.round(p.x / TS);
+  if (p.kind === 'door') {
+    const k = Math.min(LAYERS - 1, Math.floor(p.y / rowH)), floorTy = Math.round((k + 1) * rowH / TS);
+    for (let dy = 1; dy <= 3; dy++) clear(tx, floorTy - dy);   // gap above the floor
+  } else if (p.kind === 'stair') {
+    // staggered subset → stairwells. Floors stay SOLID; the ladder column lets you pass
+    // through a floor only while climbing (handled in step()), so you never fall through.
+    const col = Math.round(p.x / ROOM), k = Math.round(p.y / rowH);
+    if ((col + k) % 2 !== 0) continue;
+    const topTy = Math.round((p.y - 2) / TS), botTy = Math.round((p.y + rowH) / TS);
+    for (let ty = topTy; ty <= botTy; ty++) if (ty >= 0 && ty < TH) ladder[ty * TW + tx] = 1;
+  }
+}
+
+// ── player ──
+const player = { x: ROOM * 1.5, y: rowH * 1 - 2, w: 0.7, h: 1.7, vx: 0, vy: 0, onGround: false, onLadder: false, face: 1 };
+// drop onto the first solid floor beneath the spawn
+for (let ty = Math.round(player.y / TS); ty < TH; ty++) { if (at(Math.round(player.x / TS), ty)) { player.y = ty * TS - player.h; break; } }
+const input = { left: 0, right: 0, up: 0, down: 0, jump: 0 };
+
+// ── physics (AABB vs tilemap) ──
+const G = 26, WALK = 7.5, CLIMB = 5.5, JUMP = 9;
+const EPS = 1e-4; // far edges are exclusive, so resting on a tile boundary isn't "inside" it
+function overlapsSolid(x, y) {
+  const x0 = Math.floor(x / TS), x1 = Math.floor((x + player.w - EPS) / TS), y0 = Math.floor(y / TS), y1 = Math.floor((y + player.h - EPS) / TS);
+  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (at(tx, ty)) return true;
+  return false;
+}
+function ladderHere() {
+  const cx = player.x + player.w / 2, x0 = Math.floor(cx / TS), y0 = Math.floor(player.y / TS), y1 = Math.floor((player.y + player.h - EPS) / TS);
+  for (let ty = y0; ty <= y1; ty++) if (isLadder(x0, ty)) return true;
+  return false;
+}
+function step(dt) {
+  player.onLadder = ladderHere();
+  const climbing = player.onLadder && (input.up || input.down);
+  player.vx = (input.right - input.left) * WALK;
+  if (input.right) player.face = 1; if (input.left) player.face = -1;
+  if (climbing) player.vy = (input.down - input.up) * CLIMB;
+  else if (player.onLadder) player.vy = 0;              // hold position on a ladder
+  else { player.vy += G * dt; if (player.vy > 30) player.vy = 30; }
+  if (input.jump && player.onGround && !player.onLadder) { player.vy = -JUMP; }
+  // horizontal — always collides with walls
+  const nx = player.x + player.vx * dt;
+  if (!overlapsSolid(nx, player.y)) player.x = nx;
+  else { const dir = Math.sign(nx - player.x); player.vx = 0; while (Math.abs(player.x - nx) > 0.02 && !overlapsSolid(player.x + dir * 0.02, player.y)) player.x += dir * 0.02; }
+  // vertical — climbing passes through floors; otherwise collide + land
+  let ny = player.y + player.vy * dt;
+  if (climbing) {
+    player.y = Math.max(0, Math.min(T - player.h, ny));
+  } else {
+    if (!overlapsSolid(player.x, ny)) player.y = ny;
+    else { const dir = Math.sign(ny - player.y); while (Math.abs(player.y - ny) > 0.02 && !overlapsSolid(player.x, player.y + dir * 0.02)) player.y += dir * 0.02; player.vy = 0; }
+    let guard = 0; while (overlapsSolid(player.x, player.y) && guard++ < 60) player.y -= 0.05; // de-stuck after stepping off a ladder
+  }
+  player.onGround = !climbing && overlapsSolid(player.x, player.y + 0.08);
+  player.x = Math.max(0.05, Math.min(W - player.w - 0.05, player.x));
+}
+
+// ── render ──
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let SCALE = 16, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); SCALE = Math.max(11, Math.min(20, innerWidth / 26)); }
+addEventListener('resize', resize); resize();
+function draw() {
+  const vw = innerWidth / SCALE, vh = innerHeight / SCALE;
+  let camx = player.x + player.w / 2 - vw / 2, camy = player.y + player.h / 2 - vh / 2;
+  camx = Math.max(0, Math.min(W - vw, camx)); camy = Math.max(0, Math.min(T - vh, camy));
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  // ambient light: brighter toward the core (top, small y)
+  const g = ctx.createLinearGradient(0, 0, 0, innerHeight);
+  const lt = (y) => 0.5 * (1 - Math.min(1, (camy + y / SCALE) / T));
+  g.addColorStop(0, 'rgba(255,238,180,' + (0.10 * (1 - camy / T)).toFixed(3) + ')'); g.addColorStop(1, 'rgba(20,24,30,0.0)');
+  ctx.fillStyle = '#070a0e'; ctx.fillRect(0, 0, innerWidth, innerHeight);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, innerWidth, innerHeight);
+  const sx = (wx) => (wx - camx) * SCALE, sy = (wy) => (wy - camy) * SCALE;
+  // tiles
+  const tx0 = Math.max(0, Math.floor(camx / TS)), tx1 = Math.min(TW - 1, Math.ceil((camx + vw) / TS));
+  const ty0 = Math.max(0, Math.floor(camy / TS)), ty1 = Math.min(TH - 1, Math.ceil((camy + vh) / TS));
+  for (let ty = ty0; ty <= ty1; ty++) {
+    const depth = ty / TH;                                  // 0 core → 1 hull
+    for (let tx = tx0; tx <= tx1; tx++) {
+      if (solid[ty * TW + tx]) {
+        ctx.fillStyle = 'rgb(' + (58 + 36 * depth) + ',' + (66 - 16 * depth) + ',' + (78 - 26 * depth) + ')';
+        ctx.fillRect(sx(tx * TS) - 0.5, sy(ty * TS) - 0.5, SCALE + 1, SCALE + 1);
+      } else if (ladder[ty * TW + tx]) {
+        const x = sx(tx * TS), y = sy(ty * TS);
+        ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x + SCALE * 0.2, y); ctx.lineTo(x + SCALE * 0.2, y + SCALE); ctx.moveTo(x + SCALE * 0.8, y); ctx.lineTo(x + SCALE * 0.8, y + SCALE);
+        ctx.moveTo(x + SCALE * 0.2, y + SCALE * 0.5); ctx.lineTo(x + SCALE * 0.8, y + SCALE * 0.5); ctx.stroke();
+      }
+    }
+  }
+  // player
+  const pxs = sx(player.x), pys = sy(player.y), pw = player.w * SCALE, ph = player.h * SCALE;
+  ctx.fillStyle = '#ffce78'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 10;
+  ctx.fillRect(pxs, pys, pw, ph); ctx.shadowBlur = 0;
+  ctx.fillStyle = '#05060a'; ctx.fillRect(pxs + (player.face > 0 ? pw * 0.45 : pw * 0.1), pys + ph * 0.18, pw * 0.45, ph * 0.12); // facing eye
+  // HUD location
+  const col = Math.floor(player.x / ROOM), flr = Math.floor(player.y / rowH);
+  document.getElementById('loc').textContent = 'chamber ' + col + '·' + flr + (player.onLadder ? '  ⟂ on a ladder' : player.onGround ? '  · standing' : '  · falling');
+}
+
+// ── loop ──
+let last = performance.now();
+function loop(t) {
+  let dt = Math.min(0.033, (t - last) / 1000); last = t;
+  // sub-step for stable collision at speed
+  const n = Math.max(1, Math.ceil(dt / 0.012));
+  for (let i = 0; i < n; i++) step(dt / n);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── input: keyboard + touch ──
+const KMAP = { ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right', ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down', ' ': 'jump' };
+addEventListener('keydown', (e) => { const k = KMAP[e.key]; if (k) { input[k] = 1; e.preventDefault(); } });
+addEventListener('keyup', (e) => { const k = KMAP[e.key]; if (k) { input[k] = 0; e.preventDefault(); } });
+for (const b of document.querySelectorAll('.btn')) {
+  const k = b.dataset.k;
+  const on = (e) => { input[k] = 1; e.preventDefault(); }, off = (e) => { input[k] = 0; e.preventDefault(); };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
