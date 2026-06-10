@@ -139,8 +139,11 @@ mineral → biomass → litter → mineralise → denitrify).
 ### Run it
 
 ```bash
-node biome/cycles/test/cycles.selftest.mjs   # 17 checks: conservation, bounds, food-web behaviour, extensibility, determinism
-open  biome/index.html                       # landing page → Module 1 dashboard at cycles/
+node biome/cycles/test/cycles.selftest.mjs      # 17 checks: conservation, bounds, food-web behaviour, extensibility, determinism
+node biome/cycles/test/allometry.selftest.mjs   # 13 checks: Kleiber scaling, calibration, individuals↔biomass
+node biome/cycles/test/roster.selftest.mjs      # 13 checks: real-organism roster compiles, closes, conserves; provenance
+node biome/cycles/sim/enrich-roster.mjs         # (network) refresh iNat imagery + GloBI diet → roster.enriched.json
+open  biome/index.html                          # landing page → Module 1 dashboard at cycles/
 ```
 
 ### Knobs (all in `defaultParams()`)
@@ -197,6 +200,29 @@ calibration, the individuals↔biomass conversion, and that a community built *e
 body masses* closes the loop and conserves C/H/O/N exactly. (Producers stay area-based — a
 canopy is parameterised by area, not body mass.)
 
+### The real-organism roster (`cycles/sim/roster.mjs`)
+
+Where the allometry layer supplies the *rates*, the roster supplies the *organisms*: a
+curated list of real species — Western honey bee (*Apis mellifera*), cross orbweaver
+(*Araneus diadematus*), sweet potato, apple, common reed, springtail (*Folsomia
+candida*) — each with a scientific name, a body mass, a guild, and a hand-curated diet.
+`buildCommunity()` runs every animal through `makeAnimal()` (so its eight rates are
+*computed*, not typed) and resolves the diet names into the engine's trophic and
+pollination edges. Pick organisms by name → get a `{species, interactions}` that runs.
+
+The diet isn't asserted, it's **corroborated**. `enrich-roster.mjs` fetches each species'
+iNaturalist taxon id + photo (identity + imagery) and its GloBI (Global Biotic
+Interactions) observed-`eats` list, and commits `roster.enriched.json`. The engine never
+reads that file — it's documentation/imagery — but the self-test cross-checks it: the
+orbweaver's real observed prey include Hymenoptera (the order the honey bee belongs to),
+so the curated `spider → bee` edge is backed by field data. The whole all-real community
+closes the loop and conserves C/H/O/N to ~4e-15, and pulling the honey bee out still
+collapses apple fruit set — the mutualism survives the swap from abstractions to species.
+
+The one honest stand-in: the decomposer. Real decomposition is microbial (bacteria/fungi
+have no body mass to scale), so the roster represents that compartment with a springtail
+whose fast per-gram rates approximate it — flagged `microbialProxy` on the entry.
+
 ### Where this is going (the ecosystem-builder direction)
 
 The data-driven engine + allometry layer are the foundation for a real ecosystem-builder.
@@ -204,8 +230,15 @@ The roadmap:
 
 1. ✅ **Allometry layer** — derive each species' rates from body mass (Kleiber) + feeding
    guild + thermy, so real organisms drop in with computed stat blocks. *Done.*
-2. **Real-organism roster** — identity/imagery from iNaturalist, who-eats-whom edges from
-   GloBI (Global Biotic Interactions), stoichiometry from ecological-stoichiometry refs.
+2. ✅ **Real-organism roster** — identity/imagery from iNaturalist, who-eats-whom edges
+   from GloBI (Global Biotic Interactions). `cycles/sim/roster.mjs` is a curated roster of
+   real species (honey bee, cross orbweaver, sweet potato, apple, common reed, springtail);
+   `buildCommunity()` runs each animal through the allometry layer and resolves its diet into
+   engine edges. `enrich-roster.mjs` fetches the iNat taxon id + photo and the GloBI `eats`
+   list and commits `roster.enriched.json` (the engine never reads it — it's imagery + a diet
+   cross-check). The self-test confirms the GloBI record corroborates the curated edges (the
+   orbweaver's observed prey include Hymenoptera, the honey bee's order) and that the
+   all-real community closes the loop and conserves C/H/O/N exactly. *Done.*
 3. **Rust equilibrium/stability solver** — the analytic brain (same split as
    `hoop/solver`): solve the fixed point directly (generalized Lotka–Volterra
    `B* = −A⁻¹r`), then read stability off the Jacobian's eigenvalues (May's
@@ -244,8 +277,16 @@ biome/
 ├── README.md                     # this file
 └── cycles/                       # MODULE 1 — resource-cycle box model
     ├── index.html                # the dashboard (vanilla, no build step)
-    ├── sim/cycles.mjs            # the box model (pure, zero-dep, node + browser)
-    └── test/cycles.selftest.mjs  # headless proof: conservation + bounds + insights + determinism
+    ├── sim/
+    │   ├── cycles.mjs            # the data-driven box model (pure, zero-dep, node + browser)
+    │   ├── allometry.mjs         # body mass → stat block (Kleiber scaling + guilds)
+    │   ├── roster.mjs            # curated real-organism roster + buildCommunity() compiler
+    │   ├── enrich-roster.mjs     # (network) fetch iNat imagery + GloBI diet → roster.enriched.json
+    │   └── roster.enriched.json  # committed provenance (engine never reads it)
+    └── test/
+        ├── cycles.selftest.mjs   # conservation + bounds + food-web behaviour + determinism
+        ├── allometry.selftest.mjs# Kleiber scaling + calibration + individuals↔biomass
+        └── roster.selftest.mjs   # roster compiles, closes, conserves; provenance cross-check
 ```
 
 This directory is intentionally separate from `/hoop` (structural rind) — the two are
