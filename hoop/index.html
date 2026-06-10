@@ -10,8 +10,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* "fractally Voronoi": a coarse Voronoi field painted behind the whole page, so the
+       chrome shows the same tessellation the (fine) map is built from. */
+    #vbg { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
+    #topbar, #statusbar { background: rgba(7,9,12,.72) !important; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    #thread-pane { background: rgba(7,9,12,.60) !important; backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+  </style>
 </head>
 <body>
+  <canvas id="vbg" aria-hidden="true"></canvas>
   <header id="topbar">
     <div class="brand">
       <span class="logo">◍ hoop</span>
@@ -65,5 +73,36 @@
        BEFORE the module app.js, whose world.js reads the engine off the global. -->
   <script src="/js/ship.js"></script>
   <script type="module" src="/js/app.js"></script>
+  <script>
+  // Voronoi-paint the page background — a slow-drifting coarse Voronoi field, the same
+  // tessellation the map is plated from, one scale up. Self-contained; touches nothing else.
+  (function () {
+    const cv = document.getElementById('vbg'); if (!cv) return;
+    const ctx = cv.getContext('2d'); let W = 0, H = 0, sites = [];
+    function seed() {
+      const n = Math.round(Math.max(16, Math.min(46, W * H / 28000)));
+      sites = []; for (let i = 0; i < n; i++) sites.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * 5, vy: (Math.random() - .5) * 5, h: Math.random() });
+    }
+    function resize() { const d = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); seed(); }
+    function clip(poly, nx, ny, mx, my) {
+      const o = []; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], da = (a[0] - mx) * nx + (a[1] - my) * ny, db = (b[0] - mx) * nx + (b[1] - my) * ny; if (da >= 0) o.push(a); if ((da >= 0) !== (db >= 0)) { const t = da / (da - db); o.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); } } return o;
+    }
+    function draw() {
+      ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+      for (let i = 0; i < sites.length; i++) {
+        const A = sites[i]; let poly = [[0, 0], [W, 0], [W, H], [0, H]];
+        for (let j = 0; j < sites.length && poly.length >= 3; j++) { if (i === j) continue; const B = sites[j]; poly = clip(poly, A.x - B.x, A.y - B.y, (A.x + B.x) / 2, (A.y + B.y) / 2); }
+        if (poly.length < 3) continue;
+        const t = A.h;
+        ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let k = 1; k < poly.length; k++) ctx.lineTo(poly[k][0], poly[k][1]); ctx.closePath();
+        ctx.fillStyle = 'rgb(' + (7 + 12 * t).toFixed(0) + ',' + (11 + 16 * t).toFixed(0) + ',' + (16 + 24 * t).toFixed(0) + ')'; ctx.fill();
+        ctx.strokeStyle = 'rgba(127,216,208,0.045)'; ctx.lineWidth = 1; ctx.stroke();
+      }
+    }
+    let t0 = performance.now();
+    function loop(t) { const dt = Math.min(0.05, (t - t0) / 1000); t0 = t; for (const s of sites) { s.x += s.vx * dt; s.y += s.vy * dt; if (s.x < 0 || s.x > W) s.vx *= -1; if (s.y < 0 || s.y > H) s.vy *= -1; } draw(); requestAnimationFrame(loop); }
+    addEventListener('resize', resize); resize(); requestAnimationFrame(loop);
+  })();
+  </script>
 </body>
 </html>
