@@ -163,6 +163,19 @@
       ]
     },
     {
+      "surface": "biome",
+      "dir": "biome",
+      "endpoint": "biome.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/oneill-cylinder-life-support-wqzrqn",
+      "uses": [],
+      "provides": null,
+      "note": "Habitat resource-cycle suite for an infinite O'Neill cylinder interior. Assets worker `biome` serving directory 'biome'. Module 1 (cycles/) is the closed-loop life-support box model; modules 2 (radial atmosphere) and 3 (WebGPU interior) are planned. Pure static — model runs client-side, no D1/DO/secrets.",
+      "paths": [
+        "biome/**"
+      ]
+    },
+    {
       "surface": "borges",
       "dir": "borges",
       "endpoint": "borges.mino.mobi",

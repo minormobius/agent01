@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · a living O'Neill cylinder</title>
+<meta name="description" content="Tooling for modelling the interior of an infinite O'Neill cylinder run as a bio-engine for life support — closed resource cycles, radial atmosphere, and an interior visualiser." />
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --serif:Georgia,'Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);
+    color:var(--txt);font:15px/1.6 var(--serif);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:16px 22px}
+  .crumb a{color:var(--gold);text-decoration:none}
+  .wrap{max-width:880px;margin:0 auto;padding:6px 22px 60px}
+  header.hero{padding:26px 0 10px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font:600 30px/1.1 var(--mono);letter-spacing:.5px;color:var(--gold)}
+  h1 .axis{color:var(--leaf)}
+  .tag{color:var(--dim);font:13px/1.5 var(--mono);margin-top:8px;max-width:62ch}
+  .lede{font-size:17px;margin:22px 0 8px}
+  .lede b{color:var(--leaf);font-weight:600}
+  section{margin:26px 0}
+  h2{font:600 13px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim);
+    border-bottom:1px solid var(--line);padding-bottom:8px}
+  p{margin:12px 0}
+  .modules{display:grid;gap:14px;margin-top:18px}
+  .mod{display:block;text-decoration:none;color:inherit;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:16px 18px;transition:border-color .15s,transform .15s}
+  .mod.live:hover{border-color:#3c6a4c;transform:translateY(-1px)}
+  .mod.soon{opacity:.66}
+  .mod .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .mod h3{margin:0;font:600 18px/1.2 var(--mono);color:var(--txt)}
+  .mod.live h3{color:var(--leaf)}
+  .badge{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:1px;padding:4px 8px;border-radius:99px;white-space:nowrap}
+  .badge.live{background:#13241a;color:var(--leaf);border:1px solid #2c5a3c}
+  .badge.soon{background:#1a1712;color:var(--gold);border:1px solid #4a3c22}
+  .mod p{margin:9px 0 0;font-size:14.5px;color:var(--txt)}
+  .mod .meta{margin-top:10px;font:12px/1.5 var(--mono);color:var(--dim)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  .fact{background:#0e1713;border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .fact h4{margin:0 0 4px;font:600 12px/1 var(--mono);letter-spacing:.5px}
+  .fact.hot h4{color:var(--warn)} .fact.cold h4{color:var(--water)}
+  .fact.life h4{color:var(--leaf)} .fact.spin h4{color:var(--gold)}
+  .fact p{margin:0;font-size:13.5px;color:var(--dim)}
+  code{font-family:var(--mono);font-size:.88em;color:var(--gold)}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+    font:12px/1.6 var(--mono);color:var(--dim)}
+  footer a{color:var(--gold);text-decoration:none}
+  .rule{color:var(--leaf)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / biome</div>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>biome <span style="color:var(--dim)">·</span> a living <span class="axis">O'Neill cylinder</span></h1>
+    <div class="tag">tooling for thinking about the interior of an <i>infinite</i> (no end-caps)
+      O'Neill cylinder run as a bio-engine for life support</div>
+  </header>
+
+  <p class="lede">A linear sun on the spin axis. Vegetation on the inner surface of the
+  structural Voronoi rind. The enclosed air, water and soil doing the work of a closed
+  life-support loop — <b>oxygen, calories, water and nitrogen cycling in a sealed tube
+  with no way out.</b> This is the toolkit for working out whether that loop closes,
+  where the water goes, and what the inside actually looks like.</p>
+
+  <section>
+    <h2>The premise — why the inside is strange</h2>
+    <div class="grid2">
+      <div class="fact spin">
+        <h4>Gravity is a gradient</h4>
+        <p>Spin gravity <code>g(r)=ω²r</code> is full at the rim and falls to zero at the
+        axis. "Up" means "toward the centre", where you weigh nothing.</p>
+      </div>
+      <div class="fact hot">
+        <h4>Up is hot, not cold</h4>
+        <p>The sun is on the axis; the cold sink is the shell radiating to space at the rim.
+        That inverts Earth — and means warm air rises to the core and <i>stays</i> there.</p>
+      </div>
+      <div class="fact cold">
+        <h4>Fog, not rain</h4>
+        <p>Too little adiabatic range (~16 K across the whole radius) to build rain clouds.
+        Condensation happens on the cold surface: a cloud-forest of dew and canopy fog.</p>
+      </div>
+      <div class="fact life">
+        <h4>The loop must close</h4>
+        <p>No resupply. Photosynthesis, crew metabolism and soil microbes have to balance —
+        and the stagnant air that waters the plants also starves them of CO₂.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Modules</h2>
+    <p>Built in dependency order: close the books first, then resolve them in space,
+    then render them.</p>
+    <div class="modules">
+
+      <a class="mod live" href="./cycles/">
+        <div class="top">
+          <h3>1 · Resource cycles</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>A deterministic, element-exact, <i>data-driven</i> box model of the closed ecology
+        as a living <i>food web</i> — fruit trees, ground crops and swamp reeds; pollinators
+        that gate the fruit and the predators that eat them; living decomposers; and the crew.
+        The organisms and their relationships are data, so the web extends from six to twelve
+        to N. Answers: <i>does the loop close</i> — does it steady out feeding everyone and
+        holding the air. Drag a knob and ~600 days rerun live.</p>
+        <div class="meta">→ surfaces the real lessons: pollinators gate the harvest ·
+        a predator bloom cascades into the calorie supply · the living soil regenerates CO₂ ·
+        calories are hard and area is the lever. Animal stat blocks derive from body mass
+        (Kleiber allometry) and a roster of real species (iNaturalist + GloBI), and a
+        <i>stability lab</i> reads "will this web survive?" off the community matrix's
+        eigenvalues — no 600-day run needed.</div>
+      </a>
+
+      <a class="mod live" href="./atmosphere/">
+        <div class="top">
+          <h3>2 · Radial atmosphere</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>A 1-D column model along the radius: temperature, pressure, humidity and CO₂ as
+        functions of altitude and time. Where "up is hot" stops being a slogan and becomes a
+        fog-height number — the dew profile, the stratified dead-zone, and whether pulsing the
+        sun ventilates the canopy. Reproduces the Island-Three numbers (17% pressure drop,
+        ~16 K adiabat) by construction; surface fluxes take their cue from Module 1.</p>
+        <div class="meta">→ watch it run: the stable inversion traps warm air aloft · dew/fog
+        blooms at the cool surface each night · the daytime convective tide ventilates the
+        canopy's CO₂ (51% of the depletion). Drag a knob; it integrates live.</div>
+      </a>
+
+      <a class="mod live" href="./fountain/">
+        <div class="top">
+          <h3>2b · Fountain &amp; sun</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The other free dimension — <i>azimuth</i> — looking straight down the axis. A fountain
+        at the rim low point ("Fond du Lac") throws quasi-treated pond water inward; at 760× Earth's
+        spin the Coriolis force rivals gravity, so the jet <i>curves into a sheet</i> — aerating the
+        water, lofting surface air through the inversion, and laying irrigation down across the hoop,
+        all in one act. The same view carries the <i>luminous-flux budget</i>: the axial sun is a
+        line (irradiance ∝ 1/r), and flooding the canopy means a 20 MW-per-metre lamp dumping heat
+        at 100 °C — while the bare food need is 30,000× smaller.</p>
+        <div class="meta">→ one actuator for stagnant water and stagnant air · nozzle/velocity/aim
+        sliders · the "we need a LOT of light" number, made concrete.</div>
+      </a>
+
+      <a class="mod live" href="./fountain/">
+        <div class="top">
+          <h3>4 · Systems ledger</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The water and energy books that cross every module — reactors → light + jets (the only
+        loads), and a closed water loop (lake → jet → fog/dew/soil → drainage → lake) that conserves
+        to machine precision. It sizes the reactor (almost <i>all</i> light — the jets are &lt;0.1%),
+        sets the lake depth from the reservoir charge, and turns that water into <i>fish</i> — three
+        corkscrewing lakes that feed the crew's protein several times over. Surfaced in the fountain
+        view alongside the three jets and three lakes.</p>
+        <div class="meta">→ light is 900× the jets · 3 jets irrigate 3 forests · day-phased jets
+        ventilate while night fog gives free dew · lakes for a sustainable aquatic biome.</div>
+      </a>
+
+      <div class="mod soon">
+        <div class="top">
+          <h3>3 · Interior visualiser</h3>
+          <span class="badge soon">planned</span>
+        </div>
+        <p>The iconic O'Neill view — looking "up" and seeing land curve overhead — but with the
+        <i>atmosphere</i> rendered: the axial sun, the canopy on the inner surface, fog banding
+        by altitude, and a WebGPU slice of the Coriolis-organised convection. Fed by Modules 1
+        and 2, so it shows validated state, not assumptions.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span class="rule">⬡</span> companion to <a href="https://hoop.mino.mobi">hoop.mino.mobi</a>,
+    which models the structural Voronoi <i>rind</i> — biome is the volume inside it.<br>
+    source &amp; physics notes in <code>biome/README.md</code>. pure static; every model runs in your browser.
+  </footer>
+
+</div>
+</body>
+</html>

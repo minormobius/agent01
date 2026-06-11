@@ -1,0 +1,188 @@
+{
+  "generatedAt": "2026-06-10T23:31:28.145Z",
+  "source": "iNaturalist + GloBI",
+  "entries": {
+    "crop": {
+      "id": "crop",
+      "sciName": "Ipomoea batatas",
+      "common": "Sweet potato",
+      "kind": "producer",
+      "inat": {
+        "inatId": 62941,
+        "commonName": "sweet potato",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Sweet_potato",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/64415778/medium.jpeg",
+        "photoAttribution": "no rights reserved, uploaded by 葉子"
+      },
+      "globiEats": null,
+      "curatedEats": null
+    },
+    "tree": {
+      "id": "tree",
+      "sciName": "Malus domestica",
+      "common": "Apple",
+      "kind": "producer",
+      "inat": {
+        "inatId": 469472,
+        "commonName": "apple",
+        "wikipediaUrl": "https://en.wikipedia.org/wiki/Apple",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/268437/medium.jpg",
+        "photoAttribution": "(c) Vilma Bharatan, some rights reserved (CC BY-NC-ND)"
+      },
+      "globiEats": null,
+      "curatedEats": null
+    },
+    "reed": {
+      "id": "reed",
+      "sciName": "Phragmites australis",
+      "common": "Common reed",
+      "kind": "producer",
+      "inat": {
+        "inatId": 64237,
+        "commonName": "common reed",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Phragmites",
+        "photo": "https://static.inaturalist.org/photos/32409466/medium.jpg",
+        "photoAttribution": "(c) Larry Halverson, all rights reserved, uploaded by Larry Halverson"
+      },
+      "globiEats": null,
+      "curatedEats": null
+    },
+    "bee": {
+      "id": "bee",
+      "sciName": "Apis mellifera",
+      "common": "Western honey bee",
+      "kind": "animal",
+      "inat": {
+        "inatId": 47219,
+        "commonName": "Western Honey Bee",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Western_honey_bee",
+        "photo": "https://static.inaturalist.org/photos/2369526/medium.jpg",
+        "photoAttribution": "(c) Georges-Alexandre Cotnoir, all rights reserved, uploaded by Georges-Alexandre Cotnoir"
+      },
+      "globiEats": [
+        "Trifolium",
+        "Bidens",
+        "Roscheria melanochaetes",
+        "Deckenia nobilis",
+        "Psychotria pervillei",
+        "Erythroxlum sechellarum",
+        "Memecylon elaeagni",
+        "Excoecaria benthiamiana",
+        "Syzygium wrightii",
+        "Diospyros seychellarum",
+        "Pittosporum phillyraeoides",
+        "Paragenipa lancifolia",
+        "Nephentes pervillei",
+        "Nephrosperma vanhoutteanum",
+        "Pyrostria bibracteata",
+        "Dillenia ferruginea",
+        "Northia seychellana",
+        "Cinnamomum verum",
+        "Psidium cattleianum",
+        "Falcataria moluccana",
+        "Aphloia theiformis",
+        "Phoenicophorium borsigianum",
+        "Chrysobalanus icaco",
+        "Alstonia macrophylla",
+        "Medusagyne oppositifolia",
+        "Colea seychellarum",
+        "Premna serratifolia",
+        "Gastonia crassa",
+        "Euphorbia pyrifolia",
+        "Dillenia suffruticosa",
+        "Craterispermum microdon",
+        "Mimusops sechellarum",
+        "Ochna kirkii",
+        "Embryophyta",
+        "Hypochaeris radicata",
+        "Cirsium",
+        "Ocimum basilicum",
+        "Vernonia",
+        "Lavandula",
+        "Rosa"
+      ],
+      "curatedEats": [
+        "crop",
+        "tree",
+        "reed"
+      ]
+    },
+    "spider": {
+      "id": "spider",
+      "sciName": "Araneus diadematus",
+      "common": "European garden spider",
+      "kind": "animal",
+      "inat": {
+        "inatId": 52628,
+        "commonName": "Cross Orbweaver",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Araneus_diadematus",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/156036389/medium.jpg",
+        "photoAttribution": "(c) hedera.baltica, some rights reserved (CC BY-SA)"
+      },
+      "globiEats": [
+        "Paranemastoma aurigerum aurigerum",
+        "Heteroptera",
+        "Hymenoptera",
+        "Aphididae",
+        "Nematocera",
+        "Pterygota",
+        "Coleoptera",
+        "Diptera",
+        "Apidae",
+        "Sternorrhyncha",
+        "Orthotylus virescens",
+        "Asciodema obseletum (Fieber)",
+        "Arytaina genistae",
+        "Orthotylus adenocarpi",
+        "Orthotylus concolor",
+        "Arytainilla spartiophila",
+        "Araneus diadematus",
+        "Drosophila melanogaster",
+        "Aedes aegypti",
+        "Coccinella septempunctata",
+        "Acheta domestica",
+        "Harmonia axyridis",
+        "Betula pendula",
+        "Stenocranus major",
+        "Trichoptera",
+        "Lepidoptera",
+        "Hemiptera",
+        "Panorpidae",
+        "Anoecia corni",
+        "Thysanoptera",
+        "Empoasca",
+        "Lepyronia coleoptrata",
+        "Kelisia punctulum",
+        "Aphis fabae",
+        "Araneae",
+        "Aphidini",
+        "Formicidae",
+        "Cicadoidea",
+        "Aphis",
+        "Rhopalosiphum padi"
+      ],
+      "curatedEats": [
+        "bee"
+      ]
+    },
+    "springtail": {
+      "id": "springtail",
+      "sciName": "Folsomia candida",
+      "common": "Springtail",
+      "kind": "animal",
+      "inat": {
+        "inatId": 220152,
+        "commonName": "Temperate White Springtail",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Springtail",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/356749490/medium.jpg",
+        "photoAttribution": "(c) Andy Murray, some rights reserved (CC BY-SA)"
+      },
+      "globiEats": [
+        "leaf litter"
+      ],
+      "curatedEats": [
+        "litter"
+      ]
+    }
+  }
+}
