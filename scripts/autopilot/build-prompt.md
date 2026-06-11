@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-06-10 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-06-11 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, bisk, bogo, borges, borsuk, bounty, branwen, breeder, cable, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, dyad, echo, elements, empathy, emsim, erdos, feedgen, finance, flights, flogame, flotorus, flow, flows, fluoddity, fodder, forest, fractal, functions, g, gallery, games, garden, gawain, gen, geomancy, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, horned, hotnot, iching, inpac, io, ising, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, pizza, playground, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, splice, src, sticks, stocks, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, time, torpac, torus, track, traffic, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
+**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, audio, auto, aztec, b, bakery, basket, biome, bisk, bogo, borges, borsuk, bounty, branwen, breeder, cable, canvas, capset, cards, cat, chess, clock, cluster, corn, crm, culhwch, cult, curve, data, density, descent, diffract, disk, docs, draw, dyad, echo, elements, empathy, emsim, erdos, fable, feedgen, finance, flights, flogame, flotorus, flow, flows, fluoddity, fodder, forest, fractal, functions, g, gallery, games, garden, gawain, gen, geomancy, geometry, globe, grow, guthkatz, hadwiger, hand, heilbronn, helix, hoop, horned, hotnot, iching, inpac, io, ising, j, js, judge, kakeya, knotpac, labglass, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, mmo, modulo, mol, mole, morphyx, music, noise, notes, novelty, ocr, orb, orfeo, org, orrery, os, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pokemon, poll, post01, prism, proteus, pwyll, range, read, recipe, redact, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, splice, src, sticks, stocks, stretch, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, thread, tide, time, torpac, torus, track, traffic, vault, viazovska, vitamerlini, wars, wave, web, weft, wiki, wild, workers, yarrow, yijing, yum, zoom
 
-**Catalog saturation** (sites per category): games 52, bluesky 41, data 36, tools 30, work 7.
+**Catalog saturation** (sites per category): games 53, bluesky 41, data 40, tools 30, work 7.
 
-**Neighborhood spark** (bisk 2026-06-10, 100 members / 383 posts):
+**Neighborhood spark** (bisk 2026-06-11, 100 members / 275 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: fable, anthropic, opus
-- Top post: "I just got access to "Claude Cautionary Tale"?" — @gracekind.net
+- Distinctive words: fable, llm, anthropic
+- Top post: "I have zero care how handcrafted or vibecoded your software is I will decide how shit it is entirely based on "opening a" — @sneptech.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
