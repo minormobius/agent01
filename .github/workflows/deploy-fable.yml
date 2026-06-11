@@ -1,0 +1,50 @@
+name: Deploy fable
+
+# fable.mino.mobi — the generative / interestingness wing (puzz, and future
+# city/character). Static assets behind a thin Worker; no build, no secrets
+# beyond the shared Cloudflare credentials.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/phylofiction-exploration-ixjmpa'
+    paths:
+      - 'fable/**'
+      - '.github/workflows/deploy-fable.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify worker is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://fable.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"; echo "fable is live"; break
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://fable.mino.mobi/puzz/" || echo fail)
+          echo "puzz index -> $STATUS"

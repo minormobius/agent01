@@ -1,0 +1,42 @@
+name: Build drift semantic graph
+
+# Regenerates fable/drift/data/ (the committed word-embedding substrate) with
+# scripts/build-drift-graph.mjs — vocabulary → MiniLM → kNN → PCA. Mirrors the
+# cult-basis pattern (committed Xenova/MiniLM artifacts).
+#
+# ⚠ MANUAL ONLY, by design: the substrate is frozen data and every /drift/?n=
+# permalink (puzzles, pars, margins) is defined against it. Regenerating it
+# re-rolls every puzzle. Run only when you intend a substrate version bump.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install transformers.js
+        run: npm install --no-save @xenova/transformers@2.17.2
+
+      - name: Build the substrate
+        run: node scripts/build-drift-graph.mjs
+
+      - name: Verify against the test suite
+        run: node fable/drift/test/engine.test.mjs
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f fable/drift/data
+          git commit -m "build: drift semantic substrate (version bump — re-rolls all puzzles)" || exit 0
+          git push

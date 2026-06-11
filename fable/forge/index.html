@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>forge — laws no one wrote</title>
+<meta name="description" content="The level above the generator-generator. A foundry mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by how it behaves, and admits only the ones measurably unlike anything known — and playable. Then the whole generator-generator runs on the discovered law.">
+<meta property="og:title" content="forge — laws no one wrote">
+<meta property="og:description" content="An engine that invents new game forms. Novelty search over behavioral fingerprints; the one oracle certifies each discovered law is playable.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · forge</div>
+  <header class="masthead">
+    <h1>forge<span class="dot">.</span></h1>
+    <div class="tagline">The rung above <a href="/morph/">morph</a>. morph samples <b>grammars</b> — but only from laws
+      I wrote. forge mints the laws themselves. A <b>foundry</b> smelts candidate transition rules from a closed
+      rule-DSL, <b>fingerprints</b> each by how it actually behaves, and keeps only the ones that sit measurably far
+      from everything known <b>and</b> that the one oracle can certify into real puzzles. Then the whole
+      generator-generator runs on a law <b>no one wrote</b>.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="foundry" class="active">The foundry</button>
+    <button data-tab="codex">The codex</button>
+    <button data-tab="play">Play a law</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <!-- FOUNDRY: watch it smelt -->
+  <section id="tab-foundry" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><button class="btn primary" id="smelt">⚒ smelt laws</button><button class="btn" id="stop">stop</button></div>
+      <div class="sep"></div>
+      <div class="grp"><label>target</label><select id="target"><option value="6">6 laws</option><option value="10">10 laws</option><option value="16">16 laws</option></select></div>
+      <div class="grp" style="margin-left:auto;"><span style="font-family:var(--mono);font-size:11px;color:var(--muted);">three gates: alive · novel · playable</span></div>
+    </div>
+    <div class="fstat" id="fstat">press <b style="margin:0 4px">⚒ smelt</b> to watch the foundry test candidate laws against the known world</div>
+    <div class="foundry-stream" id="stream"></div>
+  </section>
+
+  <!-- CODEX: the discovered laws -->
+  <section id="tab-codex" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><span style="font-family:var(--mono);font-size:12px;color:var(--muted);">laws admitted to the codex — each is a game form the foundry discovered. Click to play it.</span></div>
+      <div class="grp" style="margin-left:auto;"><button class="btn" id="codex-refill">smelt more</button></div>
+    </div>
+    <div class="codex-grid" id="codex"><div class="loading">smelt some laws first (the foundry tab)</div></div>
+  </section>
+
+  <!-- PLAY: a puzzle on a discovered law -->
+  <section id="tab-play" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><label>law</label><select id="law-sel"></select></div>
+      <div class="sep"></div>
+      <div class="grp"><button class="btn" id="prev">‹ prev</button><button class="btn" id="next">next ›</button><span id="pnum" style="font-family:var(--mono);font-size:12px;color:var(--muted);"></span></div>
+    </div>
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">—</span><span class="bpill" id="goal-pill"></span></div>
+        <div class="law-banner" id="law-banner"></div>
+        <div class="win-banner" id="win-banner">Solved!</div>
+        <div class="board-host"><canvas id="board"></canvas></div>
+        <div class="dpad">
+          <button class="u" data-d="0">▲</button><button class="l" data-d="3">◀</button>
+          <button class="r" data-d="1">▶</button><button class="d" data-d="2">▼</button>
+        </div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:6px 0;flex-wrap:wrap;">
+            <button class="btn" id="undo">undo</button>
+            <button class="btn" id="reset">reset</button>
+            <button class="btn primary" id="solve">▶ watch the oracle</button>
+            <span id="moves" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+        </div>
+      </div>
+      <aside class="side">
+        <div class="panel"><h3>This law</h3><div id="law-detail"></div></div>
+        <div class="panel"><h3>Oracle verdict</h3><div id="verdict"></div>
+          <div class="scorebar"><div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+          <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>The ladder, one rung higher</h2>
+      <p>puzz generates puzzles. morph generates puzzle <i>generators</i> — but only by recombining a fixed vocabulary
+        of laws that a human wrote. It can pair push with a Möbius strip; it can never invent a verb it wasn't given.
+        forge is the engine that invents the verbs — and then morph's whole machine runs on top of them.</p>
+      <h2>Three ideas make it work</h2>
+      <ul>
+        <li><b>A closed rule-DSL.</b> A law is a short genome of typed primitives — a motion kind (step, slide, leap,
+          bounce), a guard, an enter-effect, a leave-effect (trails!), what a mark means, a heading rule. The language
+          is closed: <i>every</i> well-formed genome compiles to a total, deterministic transition function. That
+          closure is what keeps the invariant oracle honest — whatever the foundry mints, the same BFS certifies.</li>
+        <li><b>Behavioral fingerprinting.</b> Two genomes can read differently and be the same dynamics, so you can't
+          dedupe by text. Each law is <i>run</i> on a fixed probe world and reduced to a vector: state-space volume,
+          branching, irreversibility, world-mutation, stride, heading-drift. Dynamics become a point in space.</li>
+        <li><b>Novelty search.</b> The archive is seeded with the fingerprints of every hand-written law (walk, ice,
+          leap, paint). A minted law is admitted only if its fingerprint sits measurably far from <i>everything</i>
+          known — and only if the oracle can certify a real puzzle on it. This is the quality-diversity idea
+          (the MAP-Elites lineage): not "is it good?" but "is it <i>new</i>, and does it work?"</li>
+      </ul>
+      <h2>What you're looking at</h2>
+      <p>The foundry tab streams the smelting live: most candidates are <span style="color:var(--warn)">derivative</span>
+        (too close to a known law) or <span style="opacity:.5">inert</span> (the law barely moves) — and the rare
+        <span style="color:var(--good)">admitted</span> one is a genuinely new game form, named for its dominant
+        behavior, with a sample puzzle the oracle already certified. The codex collects them; play any one and morph's
+        inner loop generates levels on a law that did not exist until the machine found it.</p>
+      <h2>Determinism</h2>
+      <p>The candidate line is seeded, so the codex is the same on every machine: the <b>n-th discovered law</b> is a
+        permalink, just like the n-th puzzle was. The discoveries are reproducible.</p>
+    </div>
+  </section>
+
+  <footer>forge · fable.mino.mobi · an engine that invents game forms · alive · novel · playable · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>
