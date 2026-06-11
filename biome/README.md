@@ -128,6 +128,7 @@ node biome/cycles/test/allometry.selftest.mjs   # 13 checks: Kleiber scaling, ca
 node biome/cycles/test/roster.selftest.mjs      # 13 checks: real-organism roster compiles, closes, conserves; provenance
 node biome/cycles/test/linalg.selftest.mjs      # 15 checks: inverse + symmetric/general eigenvalues vs known spectra
 node biome/cycles/test/stability.selftest.mjs   # 11 checks: stability verdict + eigenvalue/decay cross-check
+node biome/cycles/test/lake.selftest.mjs        # 20 checks: harvest conserves, fish + water-treatment figures of merit, failure modes, stability
 node biome/cycles/sim/enrich-roster.mjs         # (network) refresh iNat imagery + GloBI diet → roster.enriched.json
 ( cd biome/cycles/solver && cargo test )        # 6 checks: the Rust stability kernel vs known spectra
 open  biome/index.html                          # landing → the cycles dashboard (cycles/) → Stability lab (cycles/stability.html)
@@ -244,6 +245,55 @@ in the browser; the Rust crate (`cycles/solver/`, nalgebra, native-tested, WASM-
 flight-solver pattern. For our 6–16 dim matrices the JS path is already instant, so the lab
 ships JS-first and treats the WASM as an optional accelerator.
 
+### The lake bioengine (`cycles/sim/lake.mjs`, endpoint at `cycles/lake.html`)
+
+The terrestrial web asks *does the loop close?*. The **lake** asks a sharper, dual-purpose
+question: can one body of water be **both the crew's fish farm and its water-treatment plant**?
+On Earth those are separate machines; in a closed cylinder the cheapest design fuses them — the
+fish you eat are grown on the nutrients you would otherwise have to strip out with hardware. This
+is the "living machine" / integrated-aquaculture idea (Todd's eco-machines, Chinese integrated
+poly-culture, constructed treatment wetlands), run as a trophic web. The endpoint is a new page
+on the same engine; it is **not** a server route (biome stays pure-static).
+
+**Two figures of merit**, read off the steady-state trajectory:
+
+1. **Surplus harvestable fish** — the sustainable fishery yield (the `harvest` flux at steady
+   state, since a steady stock replaces exactly what's culled), reported in kg/day, kcal/day,
+   g/person·day, and as a share of crew calorie demand.
+2. **Effective water treatment** — how clean the lake holds the water while recycling crew waste:
+   the **clearance ratio** (detrital throughput ÷ the crew's daily organic-waste loading; ≥1 means
+   the lake keeps up), the **dissolved mineral-N** per litre (the eutrophication signal, stripped
+   toward zero by plant uptake + denitrification), and the standing organic (BOD) load.
+
+**Every species is chosen for its role** in those two numbers:
+
+| Organism | Role |
+|---|---|
+| **Phytoplankton** (*Chlorella*) | base of the web + the nutrient/CO₂ sink (water treatment) |
+| **Duckweed** (*Lemna*) | the classic constructed-wetland nutrient stripper + the harvested calorie base |
+| **Water fleas** (*Daphnia*) | graze the algal bloom into clear water and into fish food |
+| **Swan mussels** (*Anodonta*) | filter-feed suspended algae/detritus out of the column + a light harvest |
+| **Benthic detritivores** | the BOD-mineralising compartment (microbial proxy) — clears the organic load |
+| **Nile tilapia** (*Oreochromis*) | the harvestable protein crop — eats across the whole web |
+
+**The one engine extension this required.** The food-web solver could route *producer* biomass into
+the food store (`harvestIndex`) but had no way to harvest an *animal* — fish could only leave as
+death or predation. `cycles.mjs` now takes an optional `harvest` (per-day specific cull) on
+heterotrophs that lands biomass in the food store. It's a paired carbon transfer (biomass C → food
+C), so it conserves by construction exactly like `harvestIndex`; communities that omit it are
+byte-for-byte unchanged. The lake self-test proves C/H/O/N still conserve to ~1e-13 over a year
+*with the harvest active*.
+
+**What it surfaces.** At the tuned default (100 crew, 15k m² plankton + 10k m² duckweed) the lake
+supports the ship: ~7 kg fish/day (≈70 g/person·day — a modest *calorie* share but a real *protein*
+ration, which is the honest closed-life-support story: plants carry the calories, fish carry the
+protein), clearing ~115× the daily waste load with dissolved N near zero, O₂ in band. The failure
+modes are real and emergent: **overfish it** (push fishing pressure past production) and the stock
+collapses; **kill the detritivores** and the organic load piles up, dissolved N spikes into
+eutrophication and CO₂ crashes (the Biosphere-2 failure); **shrink the lake** and calories fall
+short (area is the lever, as on land). The lake web is also dynamically **stable** (the stability
+solver gives α < 0) — it holds under a shock.
+
 ### Where this is going (the ecosystem-builder direction)
 
 The data-driven engine + allometry + roster + stability solver are the foundation for a real
@@ -289,10 +339,12 @@ biome/
 └── cycles/                       # the closed-ecosystem food-web box model
     ├── index.html                # the dashboard (vanilla, no build step)
     ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones
+    ├── lake.html                 # the Lake bioengine endpoint — fish + water treatment
     ├── sim/
     │   ├── cycles.mjs            # the data-driven box model (pure, zero-dep, node + browser)
     │   ├── allometry.mjs         # body mass → stat block (Kleiber scaling + guilds)
     │   ├── roster.mjs            # curated real-organism roster + buildCommunity() compiler
+    │   ├── lake.mjs              # lake community + figures of merit (fish surplus, water treatment)
     │   ├── enrich-roster.mjs     # (network) fetch iNat imagery + GloBI diet → roster.enriched.json
     │   ├── roster.enriched.json  # committed provenance (engine never reads it)
     │   ├── linalg.mjs            # dense kernel: inverse + symmetric/general eigenvalues
@@ -305,7 +357,8 @@ biome/
         ├── allometry.selftest.mjs# Kleiber scaling + calibration + individuals↔biomass
         ├── roster.selftest.mjs   # roster compiles, closes, conserves; provenance cross-check
         ├── linalg.selftest.mjs   # inverse + eigenvalues vs matrices with known spectra
-        └── stability.selftest.mjs # stability verdict + eigenvalue/decay cross-check
+        ├── stability.selftest.mjs # stability verdict + eigenvalue/decay cross-check
+        └── lake.selftest.mjs     # harvest conserves + fish/water figures of merit + failure modes
 ```
 
 The thermodynamic half (`atmosphere/`, `fountain/`, `systems/`, `shared/geometry.mjs`) moved

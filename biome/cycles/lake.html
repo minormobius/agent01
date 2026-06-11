@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · lake bioengine — fish + water treatment</title>
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#13202a,#0a110e 60%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--water);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:66ch}
+  main{display:grid;grid-template-columns:300px 1fr;gap:18px;padding:18px 22px;align-items:start}
+  @media(max-width:820px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:11px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--water);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--water);height:18px}
+  .verdict{font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:12px;border:1px solid var(--line)}
+  .verdict.ok{background:#13241f;border-color:#2c5a52}
+  .verdict.bad{background:#251612;border-color:#5a342c}
+  .verdict b{display:block;font-size:14px;margin-bottom:2px}
+  .gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .g .k{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim)}
+  .g .v{font-size:19px;font-weight:600;margin-top:2px}
+  .g .u{font-size:11px;color:var(--dim)}
+  canvas{width:100%;display:block;background:#0b1310;border:1px solid var(--line);border-radius:8px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:3px;vertical-align:middle;margin-right:5px}
+  .note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.45}
+  table.roster{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
+  table.roster th,table.roster td{text-align:left;padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.roster th{color:var(--dim);text-transform:uppercase;letter-spacing:.5px;font-size:10px}
+  table.roster .sci{color:var(--dim);font-style:italic}
+  a{color:var(--gold)}
+</style>
+</head>
+<body>
+<header>
+  <h1>biome · lake bioengine <small>— grow the protein in the sewage plant</small></h1>
+  <div class="sub">The terrestrial web asks <i>does the loop close?</i>. The lake asks a sharper,
+  dual-purpose question: can one body of water be <b>both the crew's fish farm and its water-treatment
+  plant</b>? In a closed cylinder the cheapest design makes them the same ecosystem — the fish you eat
+  are grown on the nutrients you'd otherwise strip out with hardware (Todd's eco-machines; integrated
+  poly-culture; constructed treatment wetlands). Two figures of merit: <b style="color:var(--gold)">surplus
+  harvestable fish</b> and <b style="color:var(--water)">effective water treatment</b>. Every species is
+  picked for its role in those. Same element-exact engine — carbon/oxygen/water/nitrogen conserve to machine
+  precision. &nbsp;→ <a href="./index.html">terrestrial web</a> · <a href="./stability.html">stability lab</a></div>
+</header>
+<main>
+  <section class="panel" id="controls">
+    <h2>Knobs</h2>
+  </section>
+  <section>
+    <div id="verdict" class="verdict"></div>
+    <div class="gauges" id="gauges"></div>
+    <div class="panel">
+      <h2>Water quality &amp; food supply over ~600 days</h2>
+      <canvas id="chartWater" width="900" height="240"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--water)"></i>dissolved N (mmol/L)</span>
+        <span><i style="background:#b08968"></i>organic load (mol C/L)</span>
+        <span><i style="background:var(--leaf)"></i>O₂ (kPa)</span>
+        <span><i style="background:#caa6e0"></i>calorie supply ÷ demand</span>
+        <span><i style="background:var(--gold)"></i>fish yield (kg/day)</span>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>The lake food web — populations (each scaled to its own peak)</h2>
+      <canvas id="chartWeb" width="900" height="240"></canvas>
+      <div class="legend">
+        <span><i style="background:#5fc77a"></i>phytoplankton</span>
+        <span><i style="background:#3f8f5a"></i>duckweed</span>
+        <span><i style="background:#5aa9d8"></i>water fleas</span>
+        <span><i style="background:#9bb7c9"></i>mussels</span>
+        <span><i style="background:#b08968"></i>benthic detritivores</span>
+        <span><i style="background:var(--gold)"></i>tilapia</span>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>The roster — each species earns its place</h2>
+      <table class="roster" id="roster"><thead><tr>
+        <th>Organism</th><th>Role in the two figures of merit</th><th>Yield tap</th>
+      </tr></thead><tbody></tbody></table>
+      <div class="note" id="simplify"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { run, KCAL_PER_MOL_CH2O } from './sim/cycles.mjs';
+import { lakeParams, lakeState, lakeReport, LAKE_ROSTER } from './sim/lake.mjs';
+
+const params = lakeParams();
+const perCrewAir = params.airVolume_m3 / params.crew;
+const perCrewWater = params.waterReservoir_L / params.crew;
+
+const spec = (id) => params.species.find(s => s.id === id);
+const KNOBS = [
+  { id:'crew', label:'Crew', min:10, max:600, step:10, fmt:v=>v+' people',
+    get:()=>params.crew, set:v=>params.crew=v },
+  { id:'algae', label:'Lake surface (phytoplankton)', min:0, max:40000, step:1000, fmt:v=>(v/1000).toFixed(0)+'k m²',
+    get:()=>spec('algae').area_m2, set:v=>spec('algae').area_m2=v },
+  { id:'duckweed', label:'Duckweed beds', min:0, max:30000, step:1000, fmt:v=>(v/1000).toFixed(0)+'k m²',
+    get:()=>spec('duckweed').area_m2, set:v=>spec('duckweed').area_m2=v },
+  { id:'fishHarvest', label:'Fishing pressure', min:0, max:0.04, step:0.001, fmt:v=>v.toFixed(3)+'/d',
+    get:()=>spec('fish').harvest, set:v=>spec('fish').harvest=v },
+  { id:'mussel', label:'Filter-feeding (mussels)', min:0, max:0.15, step:0.005, fmt:v=>v.toFixed(3)+'/d',
+    get:()=>spec('mussel').ingest, set:v=>spec('mussel').ingest=v },
+  { id:'microbe', label:'BOD treatment (detritivores)', min:0, max:1.5, step:0.05, fmt:v=>v.toFixed(2)+'/d',
+    get:()=>spec('microbe').ingest, set:v=>spec('microbe').ingest=v },
+  { id:'photo', label:'Sun duty cycle', min:0.2, max:1, step:0.05, fmt:v=>Math.round(v*100)+' %',
+    get:()=>params.photoperiod, set:v=>params.photoperiod=v },
+];
+
+const ctl = document.getElementById('controls');
+for (const kn of KNOBS){
+  const wrap = document.createElement('label'); wrap.className='ctl';
+  wrap.innerHTML = `<span class="row"><span>${kn.label}</span><b id="val-${kn.id}"></b></span>`;
+  const inp = document.createElement('input');
+  inp.type='range'; inp.min=kn.min; inp.max=kn.max; inp.step=kn.step; inp.value=kn.get();
+  inp.addEventListener('input', ()=>{ kn.set(parseFloat(inp.value)); rerun(); });
+  wrap.appendChild(inp);
+  ctl.appendChild(wrap);
+}
+
+// roster table
+const rbody = document.querySelector('#roster tbody');
+for (const o of LAKE_ROSTER){
+  const tap = o.override?.harvest ? `harvest ${o.override.harvest}/d`
+            : (o.harvestIndex ? `${Math.round(o.harvestIndex*100)}% harvest index` : '—');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><b>${o.common}</b><br><span class="sci">${o.sciName}</span></td>`
+    + `<td>${o.role}</td><td>${tap}</td>`;
+  rbody.appendChild(tr);
+}
+document.getElementById('simplify').innerHTML =
+  '<b>Honest framing.</b> Fish sit at the top of the web, so their sustainable yield is a modest '
+  + 'share of <i>calories</i> but a meaningful <i>protein</i> ration — exactly the closed-life-support '
+  + 'story: plants carry the calories, fish carry the protein. Push fishing pressure past the stock’s '
+  + 'production and it collapses (overfishing). Kill the detritivores and the water eutrophies and CO₂ '
+  + 'crashes (the Biosphere-2 failure). Area is the lever for both food and treatment.';
+
+function gauge(k,v,u,color){
+  return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`;
+}
+
+function rerun(){
+  for (const kn of KNOBS) document.getElementById('val-'+kn.id).textContent = kn.fmt(kn.get());
+  params.airVolume_m3 = perCrewAir * params.crew;
+  params.waterReservoir_L = perCrewWater * params.crew;
+
+  const R = lakeReport(params, { days:600, dtHours:3, sampleDays:4 });
+  const { last, fish, water } = R;
+
+  const v = document.getElementById('verdict');
+  v.className = 'verdict ' + (R.supports ? 'ok' : 'bad');
+  const detail = R.verdict
+    .replace(/^The lake bioengine supports the ship\.\s*/, '')
+    .replace(/^The lake bioengine does not yet support the ship:\s*/, '');
+  v.innerHTML = `<b>${R.supports ? 'The lake bioengine supports the ship.' : 'The lake bioengine does not yet support the ship.'}</b> ${detail}`;
+
+  document.getElementById('gauges').innerHTML =
+    gauge('Fish yield', fish.fishYield_kgday.toFixed(1), `kg/day · ${fish.perPerson_gday.toFixed(0)} g/person`, fish.fishYield_kgday>0.5?'var(--gold)':'var(--warn)') +
+    gauge('Fish stock', Math.round(fish.fishStock_kg), 'kg standing', fish.fishStock_kg>50?'var(--gold)':'var(--warn)') +
+    gauge('Calorie supply', Math.round(R.calorieRatio*100), '% of demand', R.calorieRatio>=1?'var(--leaf)':'var(--warn)') +
+    gauge('Water clearance', water.clearance.toFixed(0), '× the daily waste load', water.clearance>=1?'var(--water)':'var(--warn)') +
+    gauge('Dissolved N', water.mineralN_mmol_perL.toFixed(2), 'mmol/L (lower cleaner)', water.mineralN_mmol_perL<1.5?'var(--water)':'var(--warn)') +
+    gauge('O₂', last.o2_kPa.toFixed(1), `kPa · CO₂ ${Math.round(last.co2_ppm)} ppm`, (last.o2_kPa>17&&last.o2_kPa<24)?'var(--leaf)':'var(--warn)');
+
+  // derive per-snapshot water-quality series
+  const traj = R.traj.map(s => ({ ...s,
+    organicLoad: s.litter_molC / Math.max(s.waterL,1e-9),
+    mineralN_perL: (s.nMineral / Math.max(s.waterL,1e-9)) * 1000,
+    fishYield_kgday: (spec('fish').harvest * (s.fish||0)) * 12.011/0.15/1000,
+  }));
+  drawWater(traj);
+  drawWeb(traj);
+}
+
+const col = c => getComputedStyle(document.documentElement).getPropertyValue(c.replace('var(','').replace(')',''))||c;
+function lineChart(canvasId, traj, series){
+  const cv = document.getElementById(canvasId), cx = cv.getContext('2d');
+  const W=cv.width, H=cv.height, pad=30;
+  cx.clearRect(0,0,W,H);
+  const x = i => pad + (W-2*pad) * i/(traj.length-1);
+  cx.strokeStyle='#1c2a23'; cx.lineWidth=1;
+  for(let g=0;g<=4;g++){ const y=pad+(H-2*pad)*g/4; cx.beginPath();cx.moveTo(pad,y);cx.lineTo(W-pad,y);cx.stroke(); }
+  for (const [key,color,lo,hi] of series){
+    cx.strokeStyle = color.startsWith('var')? col(color) : color;
+    cx.lineWidth=2; cx.beginPath();
+    traj.forEach((s,i)=>{ const v=(s[key]-lo)/((hi-lo)||1);
+      const y = (H-pad) - (H-2*pad)*Math.max(0,Math.min(1,v));
+      i?cx.lineTo(x(i),y):cx.moveTo(x(i),y); });
+    cx.stroke();
+  }
+  cx.fillStyle='#5b7468'; cx.font='11px var(--mono)';
+  cx.fillText('day 0', pad, H-10); cx.fillText('day '+Math.round(traj.at(-1).day), W-pad-46, H-10);
+}
+const peak = (traj,k)=>Math.max(1,...traj.map(s=>s[k]));
+function drawWater(traj){
+  lineChart('chartWater', traj, [
+    ['mineralN_perL',  'var(--water)', 0, Math.max(2, peak(traj,'mineralN_perL'))],
+    ['organicLoad',    '#b08968',      0, Math.max(0.2, peak(traj,'organicLoad'))],
+    ['o2_kPa',         'var(--leaf)',  0, 30],
+    ['calorieRatio',   '#caa6e0',      0, Math.max(1.5, peak(traj,'calorieRatio'))],
+    ['fishYield_kgday','var(--gold)',  0, Math.max(1, peak(traj,'fishYield_kgday'))],
+  ]);
+}
+function drawWeb(traj){
+  lineChart('chartWeb', traj, [
+    ['algae',    '#5fc77a', 0, peak(traj,'algae')],
+    ['duckweed', '#3f8f5a', 0, peak(traj,'duckweed')],
+    ['daphnia',  '#5aa9d8', 0, peak(traj,'daphnia')],
+    ['mussel',   '#9bb7c9', 0, peak(traj,'mussel')],
+    ['microbe',  '#b08968', 0, peak(traj,'microbe')],
+    ['fish',     'var(--gold)', 0, peak(traj,'fish')],
+  ]);
+}
+
+rerun();
+</script>
+</body>
+</html>

@@ -12,8 +12,11 @@ stocks and flows?* Everything lives under `cycles/`:
 - `cycles/sim/cycles.mjs` — the deterministic, element-exact, data-driven box-model engine.
 - `cycles/sim/allometry.mjs` — derive an animal's stat block from body mass (Kleiber) + guild.
 - `cycles/sim/roster.mjs` — curated real-organism roster; `buildCommunity()` compiles it.
+- `cycles/sim/lake.mjs` — the **lake bioengine**: an aquatic community + two figures of merit
+  (surplus harvestable fish, effective water treatment). Reuses the engine + roster compiler.
 - `cycles/sim/{linalg,stability}.mjs` — community matrix → stability / reactivity / keystones.
-- `cycles/index.html` — the dashboard; `cycles/stability.html` — the stability lab.
+- `cycles/index.html` — the dashboard; `cycles/stability.html` — the stability lab;
+  `cycles/lake.html` — the **lake bioengine** endpoint (fish + water treatment).
 - `cycles/solver/` — the Rust/WASM stability kernel (the precision/scale sister of linalg.mjs).
 
 ## The package it belongs to
@@ -34,6 +37,7 @@ node biome/cycles/test/allometry.selftest.mjs     # 13 checks: Kleiber scaling, 
 node biome/cycles/test/roster.selftest.mjs        # 13 checks: real roster compiles, closes, conserves
 node biome/cycles/test/linalg.selftest.mjs        # 15 checks: inverse + eigenvalues vs known spectra
 node biome/cycles/test/stability.selftest.mjs     # 11 checks: stability verdict + decay cross-check
+node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves, both figures of merit, failure modes, stability
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
 for t in biome/cycles/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
@@ -62,4 +66,9 @@ The self-tests are the contract — run them before every push.
    loops over them. Adding a species is a stat block + an edge, never per-organism code.
 3. **The stability lab is JS-first.** `linalg.mjs` is the guaranteed in-browser path; the Rust
    kernel is an optional accelerator. The lab must work without the wasm.
-4. **Pure static.** No D1/DO/secrets; the worker just serves assets + `/health`.
+4. **Pure static.** No D1/DO/secrets; the worker just serves assets + `/health`. New "endpoints"
+   are pages (like `cycles/lake.html`), not server routes.
+5. **Harvest conserves like everything else.** The animal `harvest` field on cycles.mjs (used by
+   the lake to land fish in the food store) is a paired carbon transfer — biomass C → food C, the
+   exact twin of a producer's `harvestIndex`. Communities without it are byte-for-byte unchanged
+   (the lake self-test proves both). Don't add a yield path that bypasses a tracked pool.
