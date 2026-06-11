@@ -2,7 +2,7 @@ name: Deploy Tide
 
 on:
   push:
-    branches: [main, 'claude/oneill-cylinder-refactor-xjknww']
+    branches: [main, 'claude/hoop-tide-wind-jets-olcuky']
     paths:
       - 'tide/**'
       - '.github/workflows/deploy-tide.yml'

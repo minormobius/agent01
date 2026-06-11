@@ -194,7 +194,7 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "branch": "claude/hoop-tide-wind-jets-olcuky",
       "uses": [],
       "provides": null,
       "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
