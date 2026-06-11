@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · radial atmosphere column</title>
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#15231d,#0a110e 60%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:78ch}
+  .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:290px 280px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:1000px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px}
+  .panel h2{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:10px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--leaf);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--leaf);height:18px}
+  button{background:#16241c;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
+  button:hover{border-color:var(--leaf)}
+  .gauges{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .g .k{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+  .g .v{font-size:18px;font-weight:600;margin-top:2px}
+  .g .u{font-size:10px;color:var(--dim)}
+  canvas{display:block;background:#0b1310;border:1px solid var(--line);border-radius:8px;width:100%}
+  .note{font-size:11px;color:var(--dim);margin-top:9px;line-height:1.5}
+  .clock{display:flex;align-items:center;gap:10px;font-size:12px;margin-bottom:10px}
+  .sun{width:14px;height:14px;border-radius:50%;background:#3a3a2a;transition:.3s}
+  .sun.lit{background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--dim);margin-top:7px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin-right:4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>biome · radial atmosphere column <small>— Module 2</small></h1>
+  <div class="sub">The cylinder is symmetric along and around its axis, so the only gradient
+  is <b>radius</b>: from the spin axis (top, zero gravity, the linear sun) to the vegetated
+  rim (bottom, 1 g, the cold radiator). This is that 1-D column, evolving under a pulsable
+  sun. Watch the <b>inversion</b> trap warm air aloft, <b>dew/fog</b> bloom at the cool
+  surface each night, and the daytime <b>convective tide</b> ventilate the canopy's CO₂.
+  <a href="./">← resource cycles (Module 1)</a></div>
+</header>
+<main>
+  <section class="panel">
+    <h2>Forcing</h2>
+    <div class="clock"><span class="sun" id="sun"></span><span id="clock">day 0.00 · sunlit</span></div>
+    <div style="display:flex;gap:8px;margin-bottom:6px"><button id="play">⏸ pause</button><button id="reset">↺ reset</button></div>
+    <label class="ctl"><span class="row"><span>Photoperiod (sun duty)</span><b id="v-photo"></b></span>
+      <input id="photo" type="range" min="0" max="1" step="0.05"></label>
+    <label class="ctl"><span class="row"><span>Radiative inversion</span><b id="v-inv"></b></span>
+      <input id="inv" type="range" min="0" max="40" step="1"></label>
+    <label class="ctl"><span class="row"><span>Convective mixing (the pump)</span><b id="v-kc"></b></span>
+      <input id="kc" type="range" min="0" max="120" step="5"></label>
+    <label class="ctl"><span class="row"><span>Evapotranspiration</span><b id="v-et"></b></span>
+      <input id="et" type="range" min="0" max="12" step="0.5"></label>
+    <label class="ctl"><span class="row"><span>Time speed</span><b id="v-spd"></b></span>
+      <input id="spd" type="range" min="1" max="30" step="1"></label>
+    <div class="note">Drop the convective mixing to 0 and the canopy CO₂ deficit climbs — the
+    stratification starves the surface and nothing resupplies it. Push the photoperiod to 1
+    (perpetual day) and the nightly fog never forms.</div>
+  </section>
+
+  <section class="panel">
+    <h2>State</h2>
+    <div class="gauges" id="gauges"></div>
+    <div class="note" id="simplify" style="margin-top:11px"></div>
+  </section>
+
+  <section>
+    <div class="panel">
+      <h2>Radial slice — axis (top) to rim/canopy (bottom)</h2>
+      <canvas id="slice" width="900" height="300"></canvas>
+      <div class="legend">
+        <span><i style="background:#d8b25a"></i>sun (axis)</span>
+        <span><i style="background:#cfe6da"></i>fog / dew (saturated)</span>
+        <span><i style="background:#6b4f3a"></i>warm</span>
+        <span><i style="background:#2b3f6b"></i>cool</span>
+        <span><i style="background:#3f8f5a"></i>canopy (rim)</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Profiles vs altitude (0 = canopy, 3200 m = axis)</h2>
+      <canvas id="prof" width="900" height="260"></canvas>
+      <div class="legend">
+        <span><i style="background:#e0795a"></i>temperature T</span>
+        <span><i style="background:#d8b25a"></i>potential temp θ (the inversion)</span>
+        <span><i style="background:#5aa9d8"></i>relative humidity</span>
+        <span><i style="background:#b08968"></i>CO₂ ppm</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { defaultParams, buildGrid, initState, step, snapshot, profile, KNOWN_SIMPLIFICATIONS } from './sim/column.mjs';
+
+const $ = (id) => document.getElementById(id);
+let p, g, s, playing = true;
+
+function readKnobs(){
+  p = defaultParams();
+  p.photoperiod = parseFloat($('photo').value);
+  p.radInversion = parseFloat($('inv').value);
+  p.K_conv = parseFloat($('kc').value);
+  p.ET_day = parseFloat($('et').value) * 1e-5;
+  p.ET_night = p.ET_day * 0.1;
+  $('v-photo').textContent = Math.round(p.photoperiod*100)+'%';
+  $('v-inv').textContent = p.radInversion.toFixed(0)+' K';
+  $('v-kc').textContent = p.K_conv.toFixed(0)+' m²/s';
+  $('v-et').textContent = (p.ET_day*1e5).toFixed(1)+'e-5';
+  $('v-spd').textContent = $('spd').value+'×';
+}
+function reset(){ readKnobs(); g = buildGrid(p); s = initState(p, g); }
+
+function gauge(k,v,u,color){ return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`; }
+
+// colour helpers
+const lerp=(a,b,t)=>a+(b-a)*t;
+function tempColor(T){ // 285K cool-blue → 300K warm-brown
+  const t=Math.max(0,Math.min(1,(T-286)/14));
+  const r=lerp(43,107,t),gg=lerp(63,79,t),b=lerp(107,58,t); return `rgb(${r|0},${gg|0},${b|0})`;
+}
+
+function drawSlice(){
+  const cv=$('slice'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H);
+  const prof = profile(s, p, g);                       // index 0 = axis, N-1 = rim
+  const N=g.N; const top=24, bot=H-26, hgt=bot-top;
+  // altitude maps: rim (alt 0) at bottom, axis (alt R) at top
+  const yOf = (alt)=> bot - (alt/p.R)*hgt;
+  // background temperature bands (per cell)
+  for(let i=0;i<N;i++){
+    const a0 = (i===0)? p.R : (p.R - g.rf[i]);          // inner edge altitude
+    const a1 = p.R - g.rf[i+1];                          // outer edge altitude
+    const yTop=yOf(Math.max(a0,a1)), yBotc=yOf(Math.min(a0,a1));
+    ctx.fillStyle=tempColor(prof[i].T); ctx.fillRect(60,yTop,W-70,yBotc-yTop+1);
+  }
+  // fog overlay (saturated / liquid) — whitish, opacity ∝ liquid + RH proximity
+  for(let i=0;i<N;i++){
+    const a1 = p.R - g.rf[i+1], a0 = (i===0)?p.R:(p.R-g.rf[i]);
+    const yTop=yOf(Math.max(a0,a1)), yBotc=yOf(Math.min(a0,a1));
+    const liq = prof[i].liquid, rh=prof[i].RH;
+    let op = liq>0 ? Math.min(0.85, 0.2+liq*2500) : (rh>0.96? (rh-0.96)/0.04*0.25 : 0);
+    if(op>0){ ctx.fillStyle=`rgba(220,235,228,${op})`; ctx.fillRect(60,yTop,W-70,yBotc-yTop+1); }
+  }
+  // sun line at the axis (top)
+  const lit = snapshot(s,p,g).sunlit;
+  ctx.fillStyle = lit? '#d8b25a' : '#5a5436'; ctx.fillRect(60,top-3,W-70,4);
+  if(lit){ ctx.fillStyle='rgba(216,178,90,0.15)'; ctx.fillRect(60,top,W-70,30); }
+  // canopy at the rim (bottom)
+  ctx.fillStyle='#3f8f5a'; ctx.fillRect(60,bot,W-70,6);
+  // altitude axis labels
+  ctx.fillStyle='#7f9b8d'; ctx.font='10px monospace'; ctx.textAlign='right';
+  for(const alt of [0,800,1600,2400,3200]){ const y=yOf(alt); ctx.fillText(alt+'m',54,y+3);
+    ctx.strokeStyle='rgba(127,155,141,0.15)'; ctx.beginPath();ctx.moveTo(58,y);ctx.lineTo(W-10,y);ctx.stroke(); }
+  ctx.textAlign='left'; ctx.fillStyle='#d8b25a'; ctx.fillText('☉ axis / sun', 64, top-7);
+  ctx.fillStyle='#62b87a'; ctx.fillText('canopy / rim (1 g)', 64, bot+18);
+}
+
+function drawProfiles(){
+  const cv=$('prof'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H);
+  const prof=profile(s,p,g); const N=g.N; const pad=34, top=14, bot=H-22;
+  const xOf=(alt)=> pad + (alt/p.R)*(W-pad-10);
+  const line=(vals,min,max,color)=>{ ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.beginPath();
+    for(let i=0;i<N;i++){ const x=xOf(p.R-g.rc[i]); const y=bot-((vals[i]-min)/(max-min))*(bot-top);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);} ctx.stroke(); };
+  // axes
+  ctx.strokeStyle='#27362f';ctx.beginPath();ctx.moveTo(pad,bot);ctx.lineTo(W-10,bot);ctx.stroke();
+  ctx.fillStyle='#7f9b8d';ctx.font='10px monospace';ctx.textAlign='center';
+  for(const alt of [0,800,1600,2400,3200]) ctx.fillText(alt+'m',xOf(alt),bot+14);
+  // T and θ share a temperature axis
+  const Ts=prof.map(x=>x.T), THs=prof.map(x=>x.theta);
+  const tmin=Math.min(...Ts)-1, tmax=Math.max(...THs)+1;
+  line(Ts,tmin,tmax,'#e0795a'); line(THs,tmin,tmax,'#d8b25a');
+  // RH 0..1.05 and CO2 own scales
+  line(prof.map(x=>x.RH),0,1.05,'#5aa9d8');
+  const cmax=Math.max(...prof.map(x=>x.co2_ppm),700);
+  line(prof.map(x=>x.co2_ppm),0,cmax*1.1,'#b08968');
+  ctx.fillStyle='#7f9b8d';ctx.textAlign='left';
+  ctx.fillText(tmin.toFixed(0)+'–'+tmax.toFixed(0)+'K  ·  RH 0–105%  ·  CO₂ 0–'+(cmax*1.1).toFixed(0)+'ppm', pad, 10);
+}
+
+function render(){
+  const snap=snapshot(s,p,g);
+  $('sun').classList.toggle('lit', snap.sunlit===1);
+  $('clock').textContent = `day ${snap.day.toFixed(2)} · ${snap.sunlit? 'sunlit ☉':'dark ☾'}`;
+  $('gauges').innerHTML =
+    gauge('Pressure drop', (snap.P_drop*100).toFixed(1)+'%','axis vs rim','var(--gold)')+
+    gauge('Temp span', snap.T_span.toFixed(1)+'K','max−min','var(--warn)')+
+    gauge('Fog depth', snap.fogThickness.toFixed(0)+'m','saturated near rim','var(--water)')+
+    gauge('CO₂ canopy', snap.co2_canopyDeficit_ppm.toFixed(0)+'ppm', snap.co2_canopyDeficit_ppm>0?'depleted':'enriched','var(--leaf)')+
+    gauge('T axis / rim', snap.T_axis.toFixed(0)+'/'+snap.T_rim.toFixed(0)+'K','','var(--dim)')+
+    gauge('Dew collected', (snap.dewCollected/1000).toFixed(1)+'t','per m of length','var(--water)');
+  drawSlice(); drawProfiles();
+}
+
+let acc=0;
+function frame(){
+  if(playing){
+    const speed=parseFloat($('spd').value);
+    const dt=180; const stepsPerFrame=Math.max(1,Math.round(speed));
+    for(let k=0;k<stepsPerFrame;k++) s=step(s,p,g,dt);
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+
+// init
+$('photo').value=0.55; $('inv').value=26; $('kc').value=55; $('et').value=5; $('spd').value=12;
+reset();
+$('simplify').innerHTML='<b>Idealisations.</b> '+KNOWN_SIMPLIFICATIONS.slice(0,3).join(' ');
+for(const id of ['photo','inv','kc','et']) $(id).addEventListener('input', ()=>{ readKnobs(); });
+$('play').addEventListener('click',()=>{ playing=!playing; $('play').textContent=playing?'⏸ pause':'▶ play'; });
+$('reset').addEventListener('click', reset);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

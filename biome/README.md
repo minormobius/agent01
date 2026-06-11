@@ -16,7 +16,7 @@ books first, resolve them in space second, render them third:
 | Module | Path | Status |
 |---|---|---|
 | **1 · Resource cycles** — closed-loop life-support box model | `cycles/` | **live** |
-| **2 · Radial atmosphere** — 1-D `r`-column (temp/humidity/CO₂ vs altitude) | — | planned |
+| **2 · Radial atmosphere** — 1-D `r`-column (temp/humidity/CO₂ vs altitude) | `atmosphere/` | **live** |
 | **3 · Interior visualiser** — WebGPU O'Neill interior with rendered atmosphere | — | planned |
 
 The landing page (`index.html`) frames the premise and links the modules; each module
@@ -284,15 +284,50 @@ ecosystem-builder. The roadmap:
    floor / swamp); radius is altitude is temperature/humidity/CO₂, so the food web couples
    to the atmosphere column and the two modules become one cylinder model.
 
-## Module 2 — 1-D radial atmosphere column (planned)
+## Module 2 — 1-D radial atmosphere column (`atmosphere/`)
 
-A `r`-only profile model: temperature, pressure, humidity and CO₂ as functions of
-radius and time. This is where "up is hot", the saturation/dew profile, the
-stratification, and the photoperiod mixing pump live. Cheap, deterministic, fully
-testable — parameterises Coriolis/convection as a mixing coefficient rather than
-simulating it. Answers: *where is the fog, how thick, does CO₂ stratify into a dead
-zone, does pulsing the sun break the inversion enough to ventilate the canopy.*
-Feeds its surface boundary conditions from Module 1's steady state. Will live in `atmosphere/`.
+The cylinder is symmetric along and around its axis, so the only gradient is **radius**.
+This is that 1-D column — temperature, pressure, humidity and CO₂ as functions of radius
+(equivalently altitude) and time — evolving under a pulsable axial sun. Live viewer at
+`atmosphere/index.html`; kernel in `atmosphere/sim/column.mjs` (pure, zero-dep, node + browser).
+
+**It reproduces the Island-Three numbers by construction.** Centrifugal hydrostatic balance
+(`dP/dr = ρω²r`) on a cylindrical finite-volume grid gives a **17.0% pressure drop** axis→rim;
+the centrifugal adiabat (`Δ = ω²(R²−r²)/2cp`) gives a **15.6 K** offset — exactly the ~17% and
+~16 K the intro cites. Potential temperature carries that adiabat, so "well mixed" means uniform
+θ, not uniform T.
+
+**The method** (idealised, Held–Suarez spirit): radiation is a Newtonian relaxation of θ toward
+a prescribed radiative-equilibrium profile — a stable aloft inversion (warm axis) plus a diurnal
+surface signal (warm bump by day, cool by night); dynamics is an explicit, **stability-dependent
+eddy diffusion** (convective adjustment) that mixes hard where the column is statically unstable
+and barely at all under the inversion. Finite-volume in true cylindrical geometry (flux area ∝ r,
+the axis closes for free), so the diffusion operator conserves mass/heat/CO₂/water to machine
+precision and the books change only by the surface exchange — which, in the coupled system, comes
+from Module 1's steady state.
+
+**The four phenomena it answers** (all in the self-test, `column.selftest.mjs`, 13 checks):
+- *Stratification.* A stable inversion forms — θ climbs ~10 K from rim to axis — and suppresses
+  vertical mixing.
+- *Dew, not rain.* The cool nighttime surface saturates: dew accumulates ~3× faster at night than
+  by day and a fog layer blooms near the rim, burning off when the surface warms — a cloud forest,
+  exactly the dew-dominated cycle the geometry predicts.
+- *The CO₂ trap.* A photosynthesising canopy depletes its own boundary layer; under the stable lid
+  the deficit is large.
+- *The ventilation pump.* The daytime thermal tide destabilises the near-surface layer and
+  convects — relieving **51%** of the canopy CO₂ depletion vs a stagnant column. Pulsing the sun
+  is the only mixing pump available inside the symmetry, and it works.
+
+```bash
+node biome/atmosphere/test/column.selftest.mjs   # 13 checks: structure, conservation, the four phenomena, determinism
+open biome/atmosphere/index.html                 # the live radial-slice viewer
+```
+
+The visible-weather refinements (where the dew drips, banding, the water budget closing back into
+Module 1) are the natural place to return with the stability lab — they share the "what does the
+steady climate actually look like" question.
+
+## Module 3 — WebGPU interior visualiser (planned)
 
 ## Module 3 — WebGPU interior visualiser (planned)
 
