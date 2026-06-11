@@ -11,6 +11,8 @@ the canonical geometry in `shared/geometry.mjs`:
 
 - `atmosphere/` — 1-D radial column (temp / humidity / CO₂ vs altitude) + Mie fog optics.
 - `fountain/` — azimuthal cross-section: rotating-frame ballistic fountain + linear-sun flux budget.
+- `ratchet/` — lake topology: equipotential-arc surfaces (never secants) + the ratchet teeth that
+  make lakes possible and route the runoff (home, or forward into the next lake — the river).
 - `systems/` — water & energy ledger (reactors → light + jets; conserving water box; fish).
 - Module 3 (WebGPU interior visualiser) — planned.
 
@@ -31,8 +33,9 @@ block and footer cross-links in `index.html` working.
 ```bash
 node tide/atmosphere/test/column.selftest.mjs     # 16 checks
 node tide/atmosphere/test/optics.selftest.mjs     # 11 checks
-node tide/fountain/test/fountain.selftest.mjs     # 19 checks
+node tide/fountain/test/fountain.selftest.mjs     # 25 checks
 node tide/fountain/test/light.selftest.mjs        # 15 checks
+node tide/ratchet/test/ratchet.selftest.mjs       # 20 checks
 node tide/systems/test/resources.selftest.mjs     # 17 checks
 # or all at once:
 for t in tide/*/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done

@@ -49,9 +49,10 @@
   <div class="sub">The cross-section, drawn right: a <b>10 km</b> outer hull, a <b>1 km foam rind</b>,
   the <b>8 km</b> habitat wall (1 g, ω≈0.035, 480× Earth). The <b>linear sun</b> glows at the axis
   (irradiance ∝ 1/r); a <b>diurnal column</b> runs in the background, so the <b>fog ring</b> blooms
-  each night and burns off by day. A fountain at the low point throws pond water inward — at this
-  spin the Coriolis force rivals gravity, curving it into a sheet. Engage it and its momentum mixing
-  feeds back into the column. <a href="./">← M1</a> · <a href="./atmosphere/">M2 ↗</a></div>
+  each night and burns off by day. A fountain rises from inside each lake and throws pond water
+  inward — at this spin the Coriolis force rivals gravity, curving it into a sheet. The chevrons
+  trace the <b>wind it induces</b> in the air (a gale at the nozzle, a breeze at the inversion).
+  Engage it and its momentum mixing feeds back into the column. <a href="./">← M1</a> · <a href="./atmosphere/">M2 ↗</a></div>
 </header>
 <main>
   <!-- left: the jet -->
@@ -125,14 +126,15 @@
         <input id="res" type="range" min="0.4" max="4" step="0.2"></label>
       <div class="gauges" id="rgauges"></div>
       <div class="note">Power is <b>almost all light</b> — the jets are &lt;0.1%. Three jets
-      irrigate the three forests; three lakes (at the ratchet low points) buffer the water and
-      grow fish. <span id="resnote"></span></div>
+      irrigate the three forests; three lakes (at the ratchet low points — see
+      <a href="../ratchet/" style="color:var(--gold)">the ratchet topology ↗</a>) buffer the
+      water and grow fish. <span id="resnote"></span></div>
     </div>
   </section>
 </main>
 
 <script type="module">
-import { defaultParams as fountainParams, simulate, ventilationK, jetMechanics } from './sim/fountain.mjs';
+import { defaultParams as fountainParams, simulate, ventilationK, inducedWind, jetMechanics } from './sim/fountain.mjs';
 import { budget } from './sim/light.mjs';
 import { CYLINDER } from '../shared/geometry.mjs';
 import { defaultParams as colParams, buildGrid, initState, step as colStep, snapshot } from '../atmosphere/sim/column.mjs';
@@ -142,7 +144,7 @@ const $ = (id) => document.getElementById(id);
 const gauge=(k,v,u,c)=>`<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
 
 // ── fountain ──
-let fp, sim, vK;
+let fp, sim, vK, wind;
 function readJet(){
   fp = fountainParams();
   fp.nozzle=$('nozzle').value; fp.v0=parseFloat($('v0').value);
@@ -153,7 +155,7 @@ function readJet(){
   $('v-v0').textContent=fp.v0+' m/s'; $('v-ang').textContent=fp.angleDeg+'°';
   $('v-flow').textContent=(fp.flowRate*1000).toFixed(0)+' L/s';
   $('v-grav').textContent=parseFloat($('grav').value).toFixed(2)+'g (ωR='+omegaR.toFixed(0)+')';
-  sim=simulate(fp); vK=ventilationK(fp, sim);
+  sim=simulate(fp); vK=ventilationK(fp, sim); wind=inducedWind(fp, sim);
   const vd=$('fverdict'); vd.className='verdict '+(sim.clearsInversion?'ok':'bad');
   vd.innerHTML = sim.clearsInversion
     ? `✓ Plume clears the 150 m inversion (apex ${sim.apexDepth.toFixed(0)} m) — ventilates.`
@@ -164,7 +166,9 @@ function readJet(){
     gauge('Mach',mech.mach.toFixed(2),mech.sonic?'supersonic!':'subsonic',mech.sonic?'var(--warn)':'var(--leaf)')+
     gauge('Pump',mech.stagnationPressure_bar.toFixed(0)+' bar','½ρv² (cutters: 3000+)','var(--dim)')+
     gauge('Spread',sim.spreadArc.toFixed(0)+'m','irrigation','var(--leaf)')+
-    gauge('Ventilation K',vK.K.toFixed(0),'m²/s → column','var(--leaf)');
+    gauge('Ventilation K',vK.K.toFixed(0),'m²/s → column','var(--leaf)')+
+    gauge('Induced wind',wind.wInversion.toFixed(1)+' m/s','entrained air @ inversion',wind.wInversion>0?'var(--water)':'var(--dim)')+
+    gauge('Entrained air',wind.airflowInversion_m3s>=1000?(wind.airflowInversion_m3s/1000).toFixed(1)+'k':wind.airflowInversion_m3s.toFixed(0),'m³/s through inversion','var(--water)');
 }
 
 // ── light ──
@@ -216,6 +220,10 @@ function resetCol(){
   for(let k=0;k<8*288;k++) cs = colStep(cs, cp, cg, 300);  // spin up ~8 days
   colSnap = snapshot(cs, cp, cg);
 }
+// is the jet running right now? (the diurnal phase gate — shared by the gauges and the draw)
+const jetActive = () => !colSnap || $('jetmode').value==='always'
+  || ($('jetmode').value==='day' && colSnap.sunlit===1)
+  || ($('jetmode').value==='night' && colSnap.sunlit===0);
 function stepCol(){
   cp.fountainK = $('engage').checked ? vK.K : 0;
   cp.fountainDepth = vK.depth;
@@ -224,11 +232,14 @@ function stepCol(){
   colSnap = snapshot(cs, cp, cg);
   $('dot').classList.toggle('lit', colSnap.sunlit===1);
   $('clock').textContent = `day ${colSnap.day.toFixed(1)} · ${colSnap.sunlit?'sunlit ☉':'dark ☾'}`;
+  const live = jetActive();
   $('cgauges').innerHTML =
     gauge('Fog depth',(colSnap.fogThickness/1000).toFixed(1)+'km','stratus deck','var(--water)')+
     gauge('Canopy light',(colSnap.canopyLightFrac*100).toFixed(0)+'%','sun through haze',colSnap.canopyLightFrac>0.5?'var(--gold)':'var(--dim)')+
     gauge('Visibility',colSnap.visibility_m<9999?colSnap.visibility_m.toFixed(0)+'m':'clear','Mie / Koschmieder','var(--dim)')+
-    gauge('Canopy CO₂',colSnap.co2_rim_ppm.toFixed(0),'ppm at the wall','var(--leaf)');
+    gauge('Canopy CO₂',colSnap.co2_rim_ppm.toFixed(0),'ppm at the wall','var(--leaf)')+
+    gauge('Jet wind now',(live?wind.wInversion:0).toFixed(1)+' m/s','induced @ inversion',live&&wind.wInversion>0?'var(--water)':'var(--dim)')+
+    gauge('Air lofted',live?(wind.airflowInversion_m3s>=1000?(wind.airflowInversion_m3s/1000).toFixed(1)+'k':wind.airflowInversion_m3s.toFixed(0)):'0','m³/s through inversion',live?'var(--water)':'var(--dim)');
 }
 
 // ── render the cross-section ──
@@ -273,20 +284,50 @@ function draw(){
   ctx.shadowBlur=lit?(16+10*suns):4; ctx.shadowColor='#ffd866';
   ctx.beginPath(); ctx.arc(cx,cy,5+2*suns,0,7); ctx.fill(); ctx.shadowBlur=0;
   // THREE jets at 120° (one per forest/lake), each with its own lake at the ratchet low point.
-  const jetOn = !colSnap || $('jetmode').value==='always' || ($('jetmode').value==='day' && lit) || ($('jetmode').value==='night' && !lit);
+  const jetOn = jetActive();
   for(let k=0;k<3;k++){
     const a=k*2*Math.PI/3, ca=Math.cos(a), sa=Math.sin(a);
     const rot=(x,y)=>[x*ca - y*sa, x*sa + y*ca];        // rotate the launch frame by 120°·k
-    // lake at the low point (the rotated launch base) — a blue arc on the wall
     const base=rot(0,-fp.R); const bx=toX(base[0]), by=toY(base[1]);
-    ctx.fillStyle='rgba(90,150,200,0.8)'; ctx.beginPath(); ctx.arc(bx,by,5,0,7); ctx.fill();
-    ctx.strokeStyle='rgba(90,169,216,0.7)'; ctx.lineWidth=5;
-    const la=Math.atan2(base[1],base[0]); ctx.beginPath(); ctx.arc(cx,cy,PRhab,la-0.32,la+0.32); ctx.stroke();
+    // lake at the low point — the free surface of a rotating lake is an EQUIPOTENTIAL of
+    // −½ω²r²: an arc CONCENTRIC with the axis, never a chord (the terrain that makes lakes
+    // possible at all lives at ../ratchet/). Drawn as a shallow annular band hugging the
+    // wall, depth exaggerated to stay visible; angles in CANVAS space (y down) so the lake
+    // stays aligned with the launch point; the nozzle sits at the bed (Fond du Lac).
+    const laC=Math.atan2(by-cy,bx-cx), halfArc=0.30, rSurf=PRhab-7;
+    ctx.fillStyle='rgba(70,140,205,0.5)'; ctx.beginPath();
+    ctx.arc(cx,cy,PRhab,laC-halfArc,laC+halfArc);
+    ctx.arc(cx,cy,rSurf,laC+halfArc,laC-halfArc,true); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(130,195,235,0.9)'; ctx.lineWidth=1.2; ctx.beginPath();   // the level surface (an arc)
+    ctx.arc(cx,cy,rSurf,laC-halfArc,laC+halfArc); ctx.stroke();
+    ctx.fillStyle='rgba(90,150,200,0.9)'; ctx.beginPath(); ctx.arc(bx,by,4,0,7); ctx.fill(); // the nozzle
     if(jetOn) for(const st of sim.streams){
       ctx.strokeStyle='rgba(120,180,220,0.4)'; ctx.lineWidth=1; ctx.beginPath();
       st.traj.forEach((pt,i)=>{ const r=rot(pt[0],pt[1]); const X=toX(r[0]),Y=toY(r[1]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }); ctx.stroke();
       const idx=Math.floor((tphase%1)*(st.traj.length-1)); const dp=st.traj[idx];
       if(dp){ const r=rot(dp[0],dp[1]); ctx.fillStyle='#cfe6da'; ctx.beginPath(); ctx.arc(toX(r[0]),toY(r[1]),1.8,0,7); ctx.fill(); }
+    }
+    // induced wind — chevrons riding the jet sheet, sized & faded by the local entrained-air
+    // speed w(h) (a gale at the nozzle, a breeze at the inversion, calm above the plume top)
+    if(jetOn && wind && wind.wMax>0){
+      const mid=sim.streams[Math.floor(sim.streams.length/2)].traj, n=mid.length, nCh=8;
+      ctx.lineWidth=1.2;
+      for(let j=0;j<nCh;j++){
+        const u=(tphase*0.45 + j/nCh)%1, idx=Math.min(n-2, Math.floor(u*(n-1)));
+        const p0=mid[idx], p1=mid[idx+1];
+        const w=wind.wAt(fp.R-Math.hypot(p0[0],p0[1])); if(w<=0) continue;
+        const f=Math.min(1, w/20);                       // 20 m/s saturates the glyph
+        const r0=rot(p0[0],p0[1]), r1=rot(p1[0],p1[1]);
+        const X=toX(r0[0]), Y=toY(r0[1]);
+        let dx=toX(r1[0])-X, dy=toY(r1[1])-Y; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+        const len=4+9*f, px=-dy, py=dx;
+        ctx.strokeStyle=`rgba(207,230,218,${(0.12+0.5*f).toFixed(2)})`;
+        ctx.beginPath();
+        ctx.moveTo(X-dx*len+px*len*0.35, Y-dy*len+py*len*0.35);
+        ctx.lineTo(X,Y);
+        ctx.lineTo(X-dx*len-px*len*0.35, Y-dy*len-py*len*0.35);
+        ctx.stroke();
+      }
     }
   }
   ctx.fillStyle='#7f9b8d'; ctx.fillText('3 jets · 3 lakes', cx, toY(-fp.R)+16);
@@ -297,7 +338,7 @@ function frame(){ tphase+=0.012; stepCol(); draw(); requestAnimationFrame(frame)
 $('v0').value=160; $('ang').value=10; $('flow').value=120; $('grav').value=0.8; $('suns').value=0.5; $('len').value=1000;
 $('jetmode').value='day'; $('react').value=60; $('res').value=2;
 readJet(); readLight(); resetCol();
-$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 (with Mie fog burn-off) coupled via the fountain’s mixing K. Energy & water from Module 4 (systems ledger).';
+$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 (with Mie fog burn-off) coupled via the fountain’s mixing K. The wind chevrons are the jet’s momentum-conserving entrained-air plume (w(h)=√(F/ρ<sub>a</sub>πb²), b=b₀+αh). Energy & water from Module 4 (systems ledger).';
 for(const id of ['nozzle','v0','ang','flow','grav']) $(id).addEventListener('input', readJet);
 for(const id of ['react','res']) $(id).addEventListener('input', readLedger);
 for(const id of ['suns','len']) $(id).addEventListener('input', readLight);

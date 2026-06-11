@@ -139,6 +139,22 @@
     roster of real species, and an analytic stability lab on top.</p>
     <div class="modules">
 
+      <a class="mod live" href="./cycles/builder.html">
+        <div class="top">
+          <h3>Food-web builder</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The open workbench: <b>design any food web and read its stability</b>. Add producers and
+        animals, wire who-eats-whom, set a harvest — and watch live whether the loop closes (air
+        holds, the crew is fed, nobody goes extinct) and whether it <i>survives</i> a shock (the
+        community-matrix eigenvalues). Animal rates come from body mass (Kleiber allometry), so you
+        set a mass and a guild, not eight numbers. Three presets (orchard, lake, grass→rabbit→fox)
+        to start from and break.</p>
+        <div class="meta">→ your whole design rides in the URL, so <b>copy the link to display your
+        web to anyone</b> — no account, no backend. Force-drawn graph, eigenvalue spectrum,
+        community-matrix heatmap, keystone ranking and population trajectories, all live as you edit.</div>
+      </a>
+
       <a class="mod live" href="./cycles/">
         <div class="top">
           <h3>Resource cycles</h3>
@@ -173,15 +189,53 @@
         — exactly the Hopf boundary theory predicts.</div>
       </a>
 
+      <a class="mod live" href="./cycles/global.html">
+        <div class="top">
+          <h3>Global food web</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The orchard and the lake are each a closed web; this puts them in <b>one interior</b> and
+        asks the ship-scale question — does the <i>whole</i> thing close, and how much crew does it
+        carry? The two webs are <b>trophically disjoint</b> (no land animal eats a lake plankter) but
+        <b>abiotically fused</b>: they breathe one atmosphere, drain to one detritus pool, draw one
+        nitrogen pool, and feed one crew from one larder. Drawn as two trophic islands bridged only
+        through the shared-pool spine.</p>
+        <div class="meta">→ the coupling is measurable: the joined web settles at a lower CO₂ than
+        either alone (combined fixation over-draws the shared air). Water treatment becomes a
+        <i>redundant</i> service of both webs. The barrier between them is only the shoreline —
+        spatial — which this non-spatial model abstracts away (the next stake: a runoff flux to
+        <a href="https://tide.mino.mobi" style="color:var(--leaf)">tide</a>). Carries ~140 crew, ≈50/50
+        land/lake, stable.</div>
+      </a>
+
+      <a class="mod live" href="./cycles/lake.html">
+        <div class="top">
+          <h3>Lake bioengine</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The same engine pointed at one body of water asked to do two jobs at once: be the
+        crew's <b>fish farm</b> <i>and</i> its <b>water-treatment plant</b>. In a closed cylinder
+        the cheapest design fuses them — the fish you eat are grown on the nutrients you'd
+        otherwise strip with hardware (Todd's eco-machines; integrated poly-culture; constructed
+        treatment wetlands). Phytoplankton, duckweed, water fleas, mussels, benthic detritivores
+        and tilapia, each picked for its role.</p>
+        <div class="meta">→ two figures of merit: <b>surplus harvestable fish</b> (sustainable
+        yield in kg/person·day) and <b>effective water treatment</b> (the lake clears 100×+ the
+        crew's daily waste load and holds dissolved N near zero). Overfish it and the stock
+        collapses; kill the detritivores and the water eutrophies — the failure modes are real.
+        Adds an animal-harvest flux to the food-web solver, conserving by construction.</div>
+      </a>
+
       <div class="mod soon">
         <div class="top">
           <h3>Radius-niche coupling</h3>
           <span class="badge soon">planned</span>
         </div>
-        <p>Give each organism a preferred radius — canopy, floor, swamp. Radius is altitude is
-        temperature/humidity/CO₂, so the food web couples to <a href="https://tide.mino.mobi"
+        <p>Give each organism a preferred radius — canopy, floor, swamp; lake at the cylinder
+        floor. Radius is altitude is temperature/humidity/CO₂, so the food web (terrestrial and
+        aquatic) couples to <a href="https://tide.mino.mobi"
         style="color:var(--leaf)">tide</a>'s atmosphere column and the two wings become one
-        cylinder model. The aquatic biome (lake → fish) folds in here too.</p>
+        cylinder model.</p>
       </div>
 
     </div>
