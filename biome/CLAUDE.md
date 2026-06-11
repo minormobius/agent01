@@ -22,6 +22,13 @@ stocks and flows?* Everything lives under `cycles/`:
 - `cycles/index.html` — the dashboard; `cycles/stability.html` — the stability lab;
   `cycles/lake.html` — the **lake bioengine**; `cycles/global.html` — the **global food web**;
   `cycles/builder.html` — the **builder**: design any web, read its stability, share it by link.
+- `cycles/robustness.html` — the **intermingling lab**: wires *cross-web* trophic edges (an amphibian,
+  a waterbird, a chthonic soil web of earthworm/fungus/ground-beetle) and reads off the community matrix
+  whether coupling the land & lake webs makes the closed ecosystem more robust (May 1972 vs McCann/Rooney).
+  It composes these on the fly via `builder.mjs` + `stability.mjs`; the **canonical `global.mjs` stays
+  trophically disjoint** (invariant #6) — this lab *explores* the alternative, it does not change the model.
+  Finding: one weak fast–slow bridge (the frog) shortens return time; dense/strong coupling spikes
+  reactivity and erodes the margin. Pure client-side, two model runs per render.
 - `cycles/solver/` — the Rust/WASM stability kernel (the precision/scale sister of linalg.mjs).
 - `graph/index.html` — the **trophic-web force graph** at `biome.mino.mobi/graph`. The whole
   interior as one force-directed graph: each organism node wears its iNaturalist photo and is
