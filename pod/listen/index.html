@@ -38,12 +38,12 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="crumb"><a href="/">pod</a> / listen</div>
-    <h1>Listen<span class="dot">.</span></h1>
-    <p class="sub">Episodes published from the studio. Tap to play, or subscribe in any podcast app.</p>
+    <div class="crumb"><a href="/">pod</a> / <a href="/listen/" id="crumbListen">listen</a><span id="crumbWho"></span></div>
+    <h1 id="title">Listen<span class="dot">.</span></h1>
+    <p class="sub" id="pageSub">Episodes published from the studio. Tap to play, or subscribe in any podcast app.</p>
 
     <div class="subscribe">
-      <div class="lbl">Subscribe (RSS)</div>
+      <div class="lbl" id="rssLbl">Subscribe (RSS)</div>
       <div class="urlrow">
         <code id="rssUrl">https://pod.mino.mobi/feed.xml</code>
         <button id="copyRss">Copy</button>

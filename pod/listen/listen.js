@@ -2,7 +2,15 @@
 // plays the worker's stitched /enclosure URL in a sticky bottom player.
 
 const $ = (id) => document.getElementById(id);
-const RSS = 'https://pod.mino.mobi/feed.xml';
+
+// Per-publisher view when ?handle=/?did= is present: the feed + episode list are
+// sourced from that user's PDS, and the RSS URL is their PDS-owned feed.
+const params = new URLSearchParams(location.search);
+const who = params.get('handle') || params.get('did');
+const RSS = who
+  ? `https://pod.mino.mobi/u/${encodeURIComponent(who)}/feed.xml`
+  : 'https://pod.mino.mobi/feed.xml';
+const API = who ? `/api/episodes?handle=${encodeURIComponent(who)}` : '/api/episodes';
 
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -22,17 +30,36 @@ $('copyRss').addEventListener('click', () => {
   });
 });
 
+// Per-publisher header (name + avatar from their Bluesky profile).
+if (who) {
+  $('rssLbl').textContent = 'Subscribe to this show (RSS)';
+  $('crumbWho').textContent = ' / show';
+  $('title').textContent = '@' + who.replace(/^@/, '');
+  $('pageSub').textContent = 'This show lives on the publisher’s PDS. Subscribe in any podcast app.';
+  fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(who)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((p) => {
+      if (!p) return;
+      $('title').textContent = p.displayName || '@' + (p.handle || who);
+      const bits = ['@' + (p.handle || who)];
+      if (p.description) bits.push(p.description.split('\n')[0]);
+      $('pageSub').textContent = bits.join(' · ');
+    })
+    .catch(() => {});
+}
+
 let episodes = [];
 
-fetch('/api/episodes')
+fetch(API)
   .then((r) => r.json())
   .then(({ items }) => { episodes = items || []; render(); })
   .catch(() => { $('episodes').innerHTML = '<p class="empty">Feed unavailable.</p>'; });
 
 function render() {
   if (!episodes.length) {
-    $('episodes').innerHTML =
-      '<p class="empty">No episodes published yet. Record one in <a href="/room/">/room</a>, edit it in <a href="/prod/">/prod</a>, then publish.</p>';
+    $('episodes').innerHTML = who
+      ? '<p class="empty">This show has no episodes yet.</p>'
+      : '<p class="empty">No episodes published yet. Record one in <a href="/room/">/room</a>, edit it in <a href="/prod/">/prod</a>, then publish.</p>';
     return;
   }
   $('episodes').innerHTML = episodes

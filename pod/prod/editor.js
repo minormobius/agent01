@@ -488,8 +488,12 @@ async function publishEpisode() {
     const pj = await pr.json();
     if (!pr.ok) throw new Error(pj.error || 'publish failed');
     $('pubStatus').textContent = 'published ✓';
-    $('pubResult').innerHTML = `Published. → <a class="inline" href="/listen/">Listen now</a> · <a class="inline" href="${pj.audioUrl}">enclosure</a>`;
+    const who = encodeURIComponent(authUser.handle || authUser.did);
+    $('pubResult').innerHTML = `Published to your PDS. → <a class="inline" href="/listen?handle=${who}">your show</a> · ` +
+      `<a class="inline" href="/u/${who}/feed.xml">your RSS feed</a> (owned by your PDS) · ` +
+      `<a class="inline" href="/listen/">communal feed</a>`;
     log('published episode:', res.uri);
+    log('your PDS-owned feed: https://pod.mino.mobi/u/' + (authUser.handle || authUser.did) + '/feed.xml');
   } catch (e) {
     $('pubStatus').textContent = 'failed';
     log('publish error:', e.message || e);

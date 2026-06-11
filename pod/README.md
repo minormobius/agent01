@@ -140,16 +140,33 @@ consent screen covers them.
 
 | Route | Purpose |
 |---|---|
-| `GET /feed.xml` | iTunes-compatible RSS, generated from `pod_episodes` (D1) |
-| `GET /api/episodes` | JSON episode list (powers `/listen` + the landing page) |
-| `POST /api/publish` | Register a published episode: resolves the `episode` record, caches a `pod_episodes` row |
+| `GET /u/<handle-or-did>/feed.xml` | **Per-publisher RSS, owned by their PDS** — lists that repo's episode records live, no D1 (see below) |
+| `GET /feed.xml` | Communal RSS across all publishers, generated from `pod_episodes` (D1) |
+| `GET /api/episodes` | Communal JSON episode list (D1) |
+| `GET /api/episodes?handle=<h>` | One publisher's episodes, read straight from their PDS |
+| `POST /api/publish` | Add an episode to the *communal* discovery feed (resolves the record, caches a `pod_episodes` row) |
 | `GET /enclosure?uri=<at-uri>` | Streams an episode's chunked blobs as one file (Range-aware) — the RSS `<enclosure>` |
 | `GET /api/health` | `{ ok: true, surface: "pod" }` |
 | `WS /api/room/<id>/ws` | Room coordinator signaling (see the sync slice) |
-| `/`, `/room/`, `/prod/`, `/listen/`, assets | Served from the `ASSETS` binding |
+| `/`, `/room/`, `/prod/`, `/listen/`, `/listen?handle=<h>`, assets | Served from the `ASSETS` binding |
 
-Every D1 read is **guarded** — until the `pod_episodes` migration lands the feed is valid
-but empty, so the surface deploys before the schema does.
+Every D1 read is **guarded** — until the `pod_episodes` migration lands the communal feed
+is valid but empty, so the surface deploys before the schema does.
+
+### Per-publisher feeds are PDS-owned
+
+A user's podcast feed at **`/u/<handle>/feed.xml`** needs no central state. The episode
+records live in *their* repo (`com.minomobi.podcast.episode`) and the enclosure streams
+from *their* PDS, so the worker just: resolve handle → DID → PDS, `listRecords` the episode
+collection, render RSS. The channel title / artwork / summary come from the publisher's
+Bluesky profile (`getProfile`). **Writing the episode record IS publishing the feed** —
+the user's RSS updates the moment `/prod` calls `createRecord`, with no write to our D1.
+
+`POST /api/publish` and the communal `/feed.xml` are *only* for cross-user discovery: they
+add a row to `pod_episodes` so an episode also shows on the all-publishers feed and the
+`/listen` home. A publisher who never hits `/api/publish` still has a complete, working,
+self-owned feed at `/u/<handle>/feed.xml`. `/listen?handle=<h>` is the human view of one
+show, also sourced from the PDS.
 
 ## Roadmap (next slices)
 

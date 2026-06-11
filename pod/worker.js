@@ -37,7 +37,18 @@ export default {
     if (pathname === '/feed.xml' || pathname === '/feed' || pathname === '/rss') {
       return feedXml(env);
     }
+    // Per-publisher feed, owned by their PDS: /u/<handle-or-did>/feed.xml. No D1
+    // — the episode records live in the user's repo, so we list them live.
+    const userFeed = pathname.match(/^\/u\/([^/]+)\/feed(?:\.xml)?$/);
+    if (userFeed) {
+      return userFeedXml(decodeURIComponent(userFeed[1]));
+    }
     if (pathname === '/api/episodes') {
+      const who = url.searchParams.get('handle') || url.searchParams.get('did');
+      if (who) {
+        try { const { items } = await episodesFromPds(who); return json({ items, source: 'pds' }); }
+        catch (e) { return json({ items: [], error: String(e.message || e) }); }
+      }
       return json({ items: await listEpisodes(env) });
     }
     if (pathname === '/api/publish' && request.method === 'POST') {
@@ -142,6 +153,112 @@ function json(obj, status = 200) {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
+}
+
+// --- per-publisher feed (PDS-owned) ------------------------------------------
+//
+// The episode records live in each publisher's repo and the enclosure streams
+// from their PDS, so a per-user feed needs no central state: resolve identity,
+// list that repo's com.minomobi.podcast.episode records, render RSS. Publishing
+// (writing the record) IS publishing the feed — the communal /api/publish is
+// only for cross-user discovery on /feed.xml.
+async function userFeedXml(idOrHandle) {
+  let did, items;
+  try {
+    ({ did, items } = await episodesFromPds(idOrHandle));
+  } catch (e) {
+    return new Response(`<!-- could not resolve "${esc(idOrHandle)}": ${esc(e.message || '')} -->`, {
+      status: 404, headers: { 'content-type': 'application/rss+xml; charset=utf-8' },
+    });
+  }
+  const profile = await getProfileServer(did);
+  const handle = (profile && profile.handle) || idOrHandle;
+  const name = (profile && profile.displayName) || handle;
+  const desc = (profile && profile.description) || `Episodes by ${name}, published on the minomobi Podcast Studio.`;
+  const image = profile && profile.avatar;
+  const self = `${SITE.link}/u/${encodeURIComponent(handle)}/feed.xml`;
+  const imageTags = image
+    ? `    <itunes:image href="${esc(image)}"/>\n    <image><url>${esc(image)}</url><title>${esc(name)}</title><link>${esc(SITE.link)}</link></image>\n`
+    : '';
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+  xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${esc(name)}</title>
+    <link>${esc(SITE.link)}/listen?handle=${esc(handle)}</link>
+    <description>${esc(desc)}</description>
+    <language>en</language>
+    <atom:link href="${esc(self)}" rel="self" type="application/rss+xml"/>
+    <itunes:author>${esc(name)}</itunes:author>
+    <itunes:summary>${esc(desc)}</itunes:summary>
+    <itunes:owner><itunes:name>${esc(name)}</itunes:name></itunes:owner>
+    <itunes:explicit>false</itunes:explicit>
+${imageTags}${items.map(itemXml).join('\n')}
+  </channel>
+</rss>`;
+  return new Response(xml, {
+    headers: { 'content-type': 'application/rss+xml; charset=utf-8', 'cache-control': 'public, max-age=300' },
+  });
+}
+
+// List a publisher's episode records straight from their repo, newest first,
+// mapped to the same row shape the D1 feed + the /listen player consume.
+async function episodesFromPds(idOrHandle) {
+  const did = idOrHandle.startsWith('did:') ? idOrHandle : await resolveHandleServer(idOrHandle);
+  const pds = await resolvePdsServer(did);
+  const records = await listRecordsServer(pds, did, 'com.minomobi.podcast.episode', 100);
+  const items = records.map((r) => episodeRow(r.uri, r.value || {}, did));
+  items.sort((a, b) => String(b.pub_date).localeCompare(String(a.pub_date)));
+  return { did, items };
+}
+
+function episodeRow(uri, v, did) {
+  return {
+    guid: uri,
+    did,
+    title: v.title || 'Untitled',
+    description: v.description || '',
+    audio_url: `${SITE.link}/enclosure?uri=${encodeURIComponent(uri)}`,
+    mime: v.mimeType || 'audio/wav',
+    length_bytes: v.lengthBytes || 0,
+    duration_sec: v.durationSec || 0,
+    pub_date: v.pubDate || v.createdAt || '',
+    episode_number: v.episodeNumber ?? null,
+    season_number: v.seasonNumber ?? null,
+  };
+}
+
+async function resolveHandleServer(handle) {
+  const h = handle.replace(/^@/, '');
+  const res = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(h)}`);
+  if (!res.ok) throw new Error('resolveHandle HTTP ' + res.status);
+  const j = await res.json();
+  if (!j.did) throw new Error('no DID for handle');
+  return j.did;
+}
+
+async function listRecordsServer(pds, did, collection, limit) {
+  const out = [];
+  let cursor = '';
+  do {
+    const q = new URLSearchParams({ repo: did, collection, limit: String(Math.min(limit, 100)) });
+    if (cursor) q.set('cursor', cursor);
+    const res = await fetch(`${pds}/xrpc/com.atproto.repo.listRecords?${q}`);
+    if (!res.ok) throw new Error('listRecords HTTP ' + res.status);
+    const j = await res.json();
+    out.push(...(j.records || []));
+    cursor = j.cursor || '';
+  } while (cursor && out.length < limit);
+  return out.slice(0, limit);
+}
+
+async function getProfileServer(did) {
+  try {
+    const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) { return null; }
 }
 
 // --- publish + enclosure -----------------------------------------------------
