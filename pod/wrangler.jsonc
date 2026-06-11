@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pod",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "atpolls-db",
+      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
+    }
+  ],
+  "routes": [
+    { "pattern": "pod.mino.mobi", "custom_domain": true }
+  ]
+}

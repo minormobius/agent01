@@ -1,0 +1,49 @@
+name: Deploy Pod
+
+on:
+  push:
+    branches: [main, 'claude/podcast-studio-architecture-711cke']
+    paths:
+      - 'pod/**'
+      - '.github/workflows/deploy-pod.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify worker is live
+        # Best-effort: the deploy step above is the source of truth. The custom
+        # domain may still be pending attach, so don't fail on a non-200.
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            HEALTH=$(curl -fsS https://pod.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "✓ worker is live"
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet (domain may be pending attach), sleeping…"
+            sleep 4
+          done
+          echo "⚠️ /api/health didn't respond — if the domain isn't attached yet this is expected."

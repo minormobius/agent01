@@ -1,0 +1,56 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.podcast.episode",
+  "description": "A published podcast episode: the final mixdown (ordered chunked audio blobs) plus RSS metadata. Surfaced in pod.mino.mobi/feed.xml.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "audio", "pubDate", "createdAt"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 300 },
+          "description": { "type": "string", "maxLength": 5000 },
+          "audio": {
+            "type": "array",
+            "items": {
+              "type": "blob",
+              "accept": ["audio/mpeg", "audio/mp4", "audio/webm", "audio/ogg", "audio/wav"],
+              "maxSize": 52428800
+            },
+            "maxLength": 512,
+            "description": "Ordered chunks of the final mixdown. The worker stitches these behind a single /enclosure/<rkey> URL so podcast apps see one contiguous, range-seekable file."
+          },
+          "mimeType": { "type": "string" },
+          "lengthBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total byte length across all chunks (RSS <enclosure length>)."
+          },
+          "durationSec": { "type": "integer", "minimum": 0 },
+          "pubDate": { "type": "string", "format": "datetime" },
+          "episodeNumber": { "type": "integer", "minimum": 0 },
+          "seasonNumber": { "type": "integer", "minimum": 0 },
+          "explicit": { "type": "boolean", "default": false },
+          "image": {
+            "type": "blob",
+            "accept": ["image/jpeg", "image/png", "image/webp"],
+            "maxSize": 4000000,
+            "description": "Episode artwork."
+          },
+          "session": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "Source com.minomobi.podcast.session this episode was produced from."
+          },
+          "guid": {
+            "type": "string",
+            "description": "Stable RSS guid; defaults to the record AT-URI."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
