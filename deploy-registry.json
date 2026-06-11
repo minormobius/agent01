@@ -510,10 +510,11 @@
       "status": "MANAGED (domain pending) — scaffold onboarded to Actions (deploy-pod.yml). First deploy stands up worker `pod` at workers.dev; attach pod.mino.mobi in the dashboard to launch.",
       "paths": [
         "pod/**",
+        "poll/apps/api/migrations/0031_pod_episodes.sql",
         ".github/workflows/deploy-pod.yml"
       ],
       "cohesion": "integrated",
-      "note": "Podcast studio + feed. Worker serves RSS at /feed.xml; landing + /room (live recording lobby, WIP) + /prod (multitrack editor, WIP). Recordings stored as chunked atproto blobs on each speaker's PDS (com.minomobi.podcast.{track,session,episode}). audio/ rooms kept separate by decision."
+      "note": "Podcast studio + feed. /room (WebRTC recording lobby) + /prod (multitrack editor → publish) + /listen (feed player) + /feed.xml (RSS). Recordings + episodes stored as chunked atproto blobs on each speaker's PDS (com.minomobi.podcast.{track,session,episode}); the worker /enclosure route stitches episode chunks into one streamable URL. pod_episodes (D1) caches published episodes. audio/ rooms kept separate by decision."
     },
     {
       "surface": "hoop",

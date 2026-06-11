@@ -67,7 +67,53 @@ async function boot() {
     onSignedIn();
   }
   $('loginBtn').addEventListener('click', doLogin);
-  $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  setupTypeahead();
+}
+
+// Bluesky handle typeahead via the public actor-search API (no auth, CORS-open).
+function setupTypeahead() {
+  const input = $('handle');
+  const menu = $('handleMenu');
+  let timer = null, sel = -1;
+  const close = () => { menu.style.display = 'none'; menu.innerHTML = ''; sel = -1; };
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().replace(/^@/, '');
+    clearTimeout(timer);
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(() => searchActors(q, menu, (handle) => { input.value = handle; close(); }), 200);
+  });
+  input.addEventListener('keydown', (e) => {
+    const items = [...menu.querySelectorAll('.ta-item')];
+    if (menu.style.display === 'none' || !items.length) {
+      if (e.key === 'Enter') doLogin();
+      return;
+    }
+    if (e.key === 'ArrowDown') { sel = Math.min(items.length - 1, sel + 1); paintSel(items, sel); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); paintSel(items, sel); e.preventDefault(); }
+    else if (e.key === 'Enter') { e.preventDefault(); (sel >= 0 ? items[sel] : items[0]).click(); }
+    else if (e.key === 'Escape') { close(); }
+  });
+  document.addEventListener('click', (e) => { if (!menu.contains(e.target) && e.target !== input) close(); });
+  function paintSel(items, i) { items.forEach((n, k) => n.classList.toggle('sel', k === i)); }
+}
+
+async function searchActors(q, menu, onPick) {
+  try {
+    const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`);
+    if (!res.ok) return;
+    const { actors } = await res.json();
+    if (!actors || !actors.length) { menu.style.display = 'none'; return; }
+    menu.innerHTML = actors
+      .map((a) => `<div class="ta-item" data-handle="${esc(a.handle)}"><img src="${esc(a.avatar || '')}" alt="" loading="lazy"><span class="th">@${esc(a.handle)}${a.displayName ? `<span class="dn">${esc(a.displayName)}</span>` : ''}</span></div>`)
+      .join('');
+    menu.style.display = 'block';
+    menu.querySelectorAll('.ta-item').forEach((el) => el.addEventListener('click', () => onPick(el.dataset.handle)));
+  } catch (_) { /* offline — silent */ }
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 async function doLogin() {

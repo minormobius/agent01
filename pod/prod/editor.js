@@ -8,6 +8,9 @@
 
 import { getRecord, getBlob, blobCid, parseAtUri } from '../lib/atproto-read.js';
 import { BEDS, bedById, renderBed } from '../lib/chiptune.js';
+import { AuthClient } from '../lib/auth.js';
+
+const SCOPE = 'atproto transition:generic'; // matches /room; lets us write episodes + blobs
 
 const $ = (id) => document.getElementById(id);
 function log(...a) {
@@ -21,7 +24,11 @@ let tracks = [];          // { did, handle, offsetMs, durationMs, buffer, gain, 
 let minOffset = 0;
 let timelineMs = 0;
 let sessionRkey = '';
+let loadedSessionUri = '';
 let audioCtx = null;
+
+const auth = new AuthClient();
+let authUser = null;
 
 let trimInMs = 0;
 let trimOutMs = 0;
@@ -54,6 +61,10 @@ BEDS.forEach((b) => {
   $('bedSelect').appendChild(o);
 });
 $('bedSelect').addEventListener('change', () => { bed.id = $('bedSelect').value; bed.buffer = null; });
+$('publishBtn').addEventListener('click', publishEpisode);
+$('pubSignIn').addEventListener('click', pubSignIn);
+
+(async () => { try { authUser = await auth.init(); } catch (_) {} refreshAuthUi(); })();
 
 if (params.get('s')) loadSession();
 
@@ -66,7 +77,8 @@ function ensureAudioCtx() {
 async function loadSession() {
   const uri = $('sessionInput').value.trim();
   if (!uri) return;
-  $('editorPanel').style.display = $('mixPanel').style.display = $('transportPanel').style.display = 'none';
+  loadedSessionUri = uri;
+  $('editorPanel').style.display = $('mixPanel').style.display = $('transportPanel').style.display = $('publishPanel').style.display = 'none';
   tracks = [];
   bed.buffer = null;
   try {
@@ -95,7 +107,8 @@ async function loadSession() {
     $('trimOut').value = 1000;
     renderTimeline();
     onTrim();
-    $('editorPanel').style.display = $('mixPanel').style.display = $('transportPanel').style.display = '';
+    $('editorPanel').style.display = $('mixPanel').style.display = $('transportPanel').style.display = $('publishPanel').style.display = '';
+    refreshAuthUi();
   } catch (e) {
     log('ERROR:', e.message || e);
   }
@@ -257,25 +270,107 @@ function stopMix() {
   $('playHead').style.display = 'none';
 }
 
+// Render the current mix (audible tracks + bed, cropped to the trim) to a WAV
+// blob. Shared by the download and publish paths.
+async function renderMix() {
+  const sr = 44100;
+  const spanSec = (trimOutMs - trimInMs) / 1000;
+  await ensureBed(sr);
+  const off = new OfflineAudioContext(2, Math.ceil(spanSec * sr) + Math.ceil(0.2 * sr), sr);
+  scheduleMix(off, off.destination, trimInMs, trimOutMs, 0);
+  const rendered = await off.startRendering();
+  return { blob: encodeWav(rendered), durationSec: spanSec };
+}
+
 async function renderDownload() {
   if (!tracks.length) return;
   $('renderBtn').disabled = true;
   try {
-    const sr = 44100;
     const spanSec = (trimOutMs - trimInMs) / 1000;
-    await ensureBed(sr);
     log('rendering mixdown…', spanSec.toFixed(1), 's');
-    const off = new OfflineAudioContext(2, Math.ceil(spanSec * sr) + Math.ceil(0.2 * sr), sr);
-    scheduleMix(off, off.destination, trimInMs, trimOutMs, 0);
-    const rendered = await off.startRendering();
-    const wav = encodeWav(rendered);
+    const { blob } = await renderMix();
     const name = `pod-${sessionRkey}.wav`;
-    downloadBlob(wav, name);
-    log('mixdown ready:', name, `(${(wav.size / 1024 / 1024).toFixed(1)} MB)`);
+    downloadBlob(blob, name);
+    log('mixdown ready:', name, `(${(blob.size / 1024 / 1024).toFixed(1)} MB)`);
   } catch (e) {
     log('render error:', e.message || e);
   } finally {
     $('renderBtn').disabled = false;
+  }
+}
+
+// ---- publish ---------------------------------------------------------------
+function refreshAuthUi() {
+  const signedIn = !!authUser;
+  $('authRow').style.display = signedIn ? 'none' : 'flex';
+  $('pubWho').textContent = signedIn ? `publishing as @${authUser.handle || authUser.did}` : '';
+}
+
+async function pubSignIn() {
+  const handle = $('pubHandle').value.trim();
+  if (!handle) return;
+  try { await auth.login(handle, { scope: SCOPE }); } // redirects; returns to this ?s= URL
+  catch (e) { $('pubStatus').textContent = e.message || String(e); }
+}
+
+async function publishEpisode() {
+  if (!authUser) {
+    $('authRow').style.display = 'flex';
+    $('pubStatus').textContent = 'Sign in to publish.';
+    $('pubHandle').focus();
+    return;
+  }
+  if (!tracks.length) return;
+  $('publishBtn').disabled = true;
+  try {
+    $('pubStatus').textContent = 'rendering mixdown…';
+    const { blob, durationSec } = await renderMix();
+    if (blob.size > 80 * 1024 * 1024) {
+      log('⚠️ mixdown is', (blob.size / 1024 / 1024).toFixed(0), 'MB (WAV). Long episodes will be heavy on your PDS until MP3/Opus encoding lands.');
+    }
+
+    const CHUNK = 4 * 1024 * 1024;
+    const refs = [];
+    const total = Math.ceil(blob.size / CHUNK);
+    for (let i = 0; i < blob.size; i += CHUNK) {
+      const part = blob.slice(i, Math.min(i + CHUNK, blob.size));
+      const ref = await auth.pds.uploadBlob(await part.arrayBuffer(), 'audio/wav');
+      refs.push(ref);
+      $('pubStatus').textContent = `uploading ${refs.length}/${total}…`;
+    }
+
+    const record = {
+      $type: 'com.minomobi.podcast.episode',
+      title: $('epTitle').value.trim() || 'Episode ' + new Date().toISOString().slice(0, 10),
+      description: $('epDesc').value.trim() || '',
+      audio: refs,
+      mimeType: 'audio/wav',
+      lengthBytes: blob.size,
+      durationSec: Math.round(durationSec),
+      pubDate: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    if (loadedSessionUri) record.session = loadedSessionUri;
+
+    $('pubStatus').textContent = 'writing episode record…';
+    const res = await auth.pds.createRecord('com.minomobi.podcast.episode', record);
+
+    $('pubStatus').textContent = 'registering on feed…';
+    const pr = await fetch('/api/publish', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uri: res.uri }),
+    });
+    const pj = await pr.json();
+    if (!pr.ok) throw new Error(pj.error || 'publish failed');
+
+    $('pubStatus').textContent = 'published ✓';
+    $('pubResult').innerHTML = `Published. → <a class="inline" href="/listen/">Listen now</a> · <a class="inline" href="${pj.audioUrl}">enclosure</a>`;
+    log('published episode:', res.uri);
+  } catch (e) {
+    $('pubStatus').textContent = 'failed';
+    log('publish error:', e.message || e);
+  } finally {
+    $('publishBtn').disabled = false;
   }
 }
 

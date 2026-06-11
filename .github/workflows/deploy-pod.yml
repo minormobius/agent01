@@ -5,8 +5,15 @@ on:
     branches: [main, 'claude/podcast-studio-architecture-711cke']
     paths:
       - 'pod/**'
+      - 'poll/apps/api/migrations/0031_pod_episodes.sql'
       - '.github/workflows/deploy-pod.yml'
   workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   deploy:
@@ -24,6 +31,17 @@ jobs:
 
       - name: Install wrangler
         run: npm install wrangler
+
+      - name: Run D1 migration (pod_episodes on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          F=../poll/apps/api/migrations/0031_pod_episodes.sql
+          echo "Applying $F to atpolls-db…"
+          npx wrangler d1 execute atpolls-db --file="$F" --remote \
+            || echo "⚠️ migration returned non-zero (likely already applied), continuing…"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy worker + assets
         run: npx wrangler deploy

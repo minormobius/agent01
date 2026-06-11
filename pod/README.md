@@ -136,9 +136,12 @@ consent screen covers them.
 | Route | Purpose |
 |---|---|
 | `GET /feed.xml` | iTunes-compatible RSS, generated from `pod_episodes` (D1) |
-| `GET /api/episodes` | JSON episode list (powers the landing page) |
+| `GET /api/episodes` | JSON episode list (powers `/listen` + the landing page) |
+| `POST /api/publish` | Register a published episode: resolves the `episode` record, caches a `pod_episodes` row |
+| `GET /enclosure?uri=<at-uri>` | Streams an episode's chunked blobs as one file (Range-aware) — the RSS `<enclosure>` |
 | `GET /api/health` | `{ ok: true, surface: "pod" }` |
-| `/`, `/room/`, `/prod/`, assets | Served from the `ASSETS` binding |
+| `WS /api/room/<id>/ws` | Room coordinator signaling (see the sync slice) |
+| `/`, `/room/`, `/prod/`, `/listen/`, assets | Served from the `ASSETS` binding |
 
 Every D1 read is **guarded** — until the `pod_episodes` migration lands the feed is valid
 but empty, so the surface deploys before the schema does.
@@ -147,10 +150,19 @@ but empty, so the surface deploys before the schema does.
 
 1. ~~**Sync slice** — dual local recording + server epoch + chunked upload + `session`
    manifest, end-to-end for one room.~~ **Done (this build).**
-2. ~~`/prod` editing — gain/trim + music/bed tracks; render-down.~~ **Done (this build).**
-3. **Publish flow** — push the `/prod` mixdown back as a chunked
-   `com.minomobi.podcast.episode`; add the `pod_episodes` D1 migration + the
-   `/enclosure/<rkey>` chunk-stitching route so the RSS `<enclosure>` is one URL.
+2. ~~`/prod` editing — gain/trim + music/bed tracks; render-down.~~ **Done.**
+3. ~~**Publish flow** — `/prod` publishes the mixdown as a chunked
+   `com.minomobi.podcast.episode`; `pod_episodes` migration + the `/enclosure`
+   streaming route; `/listen` feed player; handle typeahead.~~ **Done (this build).**
+   - **Known limit:** episodes publish as **WAV** (what `/prod` renders). The
+     enclosure *streams* chunks so the worker never holds the whole file, but
+     WAV is heavy on the publisher's PDS for long episodes. Next: encode the
+     mixdown to MP3/Opus client-side before chunking (vendor `lamejs` or use an
+     `OfflineAudioContext`→Opus path).
+   - **Scope note:** publishing writes `com.minomobi.podcast.episode`, so it
+     needs a session minted with `transition:generic` (what `/room` + `/prod`
+     request). An existing UNIFIED-scope SSO session can't write episodes until
+     the podcast collections are added to `workers/auth/src/oauth/scope.ts`.
 4. **Drift correction** — for long sessions, periodic re-pings + resample on the measured
    per-client `clockSkewMs` (already captured).
 5. Editor polish — crossfade, per-track trim handles, waveform display, ducking the bed

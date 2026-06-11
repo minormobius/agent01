@@ -39,6 +39,7 @@
     #log { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--muted); white-space:pre-wrap; max-height:200px; overflow:auto; }
     .err { color:var(--accent); } .legend { color:var(--muted); font-size:12px; margin-top:8px; }
     .muted-btn.off { opacity:.5; }
+    a.inline { color:var(--accent); }
   </style>
 </head>
 <body>
@@ -88,7 +89,25 @@
         <button id="renderBtn">⤓ Render &amp; download WAV</button>
         <span class="sub" id="meta" style="margin:0"></span>
       </div>
-      <p class="sub" id="renderNote" style="margin:12px 0 0; font-size:13px">Render mixes the audible tracks (aligned, with your levels) plus the music bed, cropped to the trim, into a WAV. Publishing the mixdown as an episode → RSS is the next slice.</p>
+      <p class="sub" id="renderNote" style="margin:12px 0 0; font-size:13px">Render mixes the audible tracks (aligned, with your levels) plus the music bed, cropped to the trim, into a WAV — download it, or publish below.</p>
+    </div>
+
+    <div class="panel" id="publishPanel" style="display:none">
+      <h2>Publish</h2>
+      <div class="row" id="authRow" style="display:none; margin-bottom:12px">
+        <input type="text" id="pubHandle" placeholder="your handle to sign in" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="flex:1; min-width:200px" />
+        <button id="pubSignIn">Sign in</button>
+      </div>
+      <label for="epTitle" class="sub" style="display:block; margin:0 0 4px">Episode title</label>
+      <input type="text" id="epTitle" placeholder="Episode title" style="margin-bottom:12px" />
+      <label for="epDesc" class="sub" style="display:block; margin:0 0 4px">Description (optional)</label>
+      <input type="text" id="epDesc" placeholder="What's this episode about?" />
+      <div class="row" style="margin-top:14px">
+        <button class="primary" id="publishBtn">⤴ Publish to feed</button>
+        <span class="sub" id="pubStatus" style="margin:0"></span>
+      </div>
+      <p class="sub" id="pubWho" style="margin:10px 0 0; font-size:12px"></p>
+      <p class="sub" id="pubResult" style="margin:8px 0 0"></p>
     </div>
 
     <div class="panel">

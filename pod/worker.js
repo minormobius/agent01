@@ -40,6 +40,12 @@ export default {
     if (pathname === '/api/episodes') {
       return json({ items: await listEpisodes(env) });
     }
+    if (pathname === '/api/publish' && request.method === 'POST') {
+      return publishEpisode(request, env);
+    }
+    if (pathname === '/enclosure') {
+      return serveEnclosure(url.searchParams.get('uri'), request);
+    }
 
     // Room coordinator: /api/room/<roomId>/ws  (WebSocket)  and  /api/room/<roomId>  (info)
     const room = pathname.match(/^\/api\/room\/([A-Za-z0-9_-]{1,64})(\/ws)?$/);
@@ -137,6 +143,146 @@ function json(obj, status = 200) {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 }
+
+// --- publish + enclosure -----------------------------------------------------
+//
+// Publish: /prod uploads the mixdown as chunked blobs to the publisher's PDS and
+// writes a com.minomobi.podcast.episode record, then POSTs the record URI here.
+// We resolve it (public read) and cache a row in pod_episodes so the feed +
+// player can list it. Open by design for v1 — anyone who can write the record
+// can list it on the communal feed.
+async function publishEpisode(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
+  const uri = body && body.uri;
+  if (!uri || !/^at:\/\//.test(uri)) return json({ error: 'uri required' }, 400);
+
+  let rec;
+  try { rec = await getRecordServer(uri); }
+  catch (e) { return json({ error: 'could not resolve episode: ' + (e.message || e) }, 502); }
+
+  const v = rec.value || {};
+  if (v.$type && v.$type !== 'com.minomobi.podcast.episode') {
+    return json({ error: 'not a podcast episode record' }, 400);
+  }
+  const { did } = parseAtUri(uri);
+  const audioUrl = `https://pod.mino.mobi/enclosure?uri=${encodeURIComponent(uri)}`;
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO pod_episodes
+        (guid, did, title, description, audio_url, mime, length_bytes, duration_sec, pub_date, episode_number, season_number, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(
+      uri, did, v.title || 'Untitled', v.description || '', audioUrl, v.mimeType || 'audio/wav',
+      v.lengthBytes || 0, v.durationSec || 0, v.pubDate || new Date().toISOString(),
+      v.episodeNumber ?? null, v.seasonNumber ?? null, new Date().toISOString()
+    ).run();
+  } catch (e) {
+    return json({ error: 'db insert failed: ' + (e.message || e) }, 500);
+  }
+  return json({ ok: true, audioUrl, feed: 'https://pod.mino.mobi/feed.xml' });
+}
+
+// Enclosure: stitch the episode's ordered audio chunks behind one URL. STREAMS
+// the chunks (one ≤4 MB chunk in memory at a time) instead of buffering the
+// whole file, and honours Range requests so podcast players can seek.
+async function serveEnclosure(uri, request) {
+  if (!uri) return new Response('missing uri', { status: 400 });
+  let did, rec;
+  try {
+    ({ did } = parseAtUri(uri));
+    rec = await getRecordServer(uri);
+  } catch (e) {
+    return new Response('could not resolve episode', { status: 404 });
+  }
+  const v = rec.value || {};
+  const chunks = v.audio || [];
+  if (!chunks.length) return new Response('no audio', { status: 404 });
+  const mime = v.mimeType || 'audio/wav';
+  const sizes = chunks.map((c) => (c && c.size) || 0);
+  const total = sizes.reduce((a, b) => a + b, 0);
+  const haveSizes = total > 0;
+
+  let start = 0, end = haveSizes ? total - 1 : Number.MAX_SAFE_INTEGER, status = 200;
+  const range = request.headers.get('Range');
+  const rm = range && range.match(/bytes=(\d+)-(\d*)/);
+  if (rm && haveSizes) {
+    start = parseInt(rm[1], 10);
+    end = rm[2] ? Math.min(parseInt(rm[2], 10), total - 1) : total - 1;
+    if (start > end || start >= total) {
+      return new Response('range not satisfiable', { status: 416, headers: { 'Content-Range': `bytes */${total}` } });
+    }
+    status = 206;
+  }
+
+  const pds = await resolvePdsServer(did);
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        let pos = 0;
+        for (let i = 0; i < chunks.length; i++) {
+          const cStart = pos, cEnd = pos + sizes[i];
+          pos = cEnd;
+          if (haveSizes && (cEnd <= start || cStart > end)) continue; // outside range
+          const bytes = await getBlobServer(pds, did, blobCid(chunks[i]));
+          const from = haveSizes ? Math.max(0, start - cStart) : 0;
+          const to = haveSizes ? Math.min(bytes.length, end - cStart + 1) : bytes.length;
+          controller.enqueue(bytes.subarray(from, to));
+        }
+        controller.close();
+      } catch (e) {
+        controller.error(e);
+      }
+    },
+  });
+
+  const headers = {
+    'Content-Type': mime,
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=86400',
+  };
+  if (haveSizes) headers['Content-Length'] = String(end - start + 1);
+  if (status === 206) headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
+  return new Response(stream, { status, headers });
+}
+
+// --- server-side ATProto reads (public, unauthenticated) ---------------------
+const _pdsCacheServer = new Map();
+function parseAtUri(uri) {
+  const m = String(uri).match(/^at:\/\/([^/]+)\/([^/]+)\/(.+)$/);
+  if (!m) throw new Error('bad at-uri');
+  return { did: m[1], collection: m[2], rkey: m[3] };
+}
+async function resolvePdsServer(did) {
+  if (_pdsCacheServer.has(did)) return _pdsCacheServer.get(did);
+  let doc;
+  if (did.startsWith('did:web:')) {
+    const host = did.slice('did:web:'.length).replace(/:/g, '/');
+    doc = await (await fetch(`https://${host}/.well-known/did.json`)).json();
+  } else {
+    doc = await (await fetch(`https://plc.directory/${encodeURIComponent(did)}`)).json();
+  }
+  const svc = (doc.service || []).find((s) => /#atproto_pds$/.test(s.id) || s.id === '#atproto_pds');
+  if (!svc) throw new Error('no PDS in DID doc');
+  const ep = svc.serviceEndpoint.replace(/\/$/, '');
+  _pdsCacheServer.set(did, ep);
+  return ep;
+}
+async function getRecordServer(uri) {
+  const { did, collection, rkey } = parseAtUri(uri);
+  const pds = await resolvePdsServer(did);
+  const q = new URLSearchParams({ repo: did, collection, rkey });
+  const res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${q}`);
+  if (!res.ok) throw new Error('getRecord HTTP ' + res.status);
+  return res.json();
+}
+async function getBlobServer(pds, did, cid) {
+  const q = new URLSearchParams({ did, cid });
+  const res = await fetch(`${pds}/xrpc/com.atproto.sync.getBlob?${q}`);
+  if (!res.ok) throw new Error('getBlob HTTP ' + res.status);
+  return new Uint8Array(await res.arrayBuffer());
+}
+function blobCid(ref) { return ref && ref.ref && (ref.ref.$link || ref.ref['$link']); }
 
 // --- RoomCoordinator Durable Object -----------------------------------------
 //

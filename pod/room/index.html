@@ -40,6 +40,13 @@
     .stat .k { color:var(--muted); }
     a.inline { color:var(--accent); }
     .err { color:var(--accent); }
+    .ta-wrap { position:relative; }
+    .ta-menu { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#16181f; border:1px solid var(--line); border-radius:8px; max-height:260px; overflow:auto; z-index:30; display:none; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+    .ta-item { display:flex; align-items:center; gap:10px; padding:9px 11px; cursor:pointer; }
+    .ta-item:hover, .ta-item.sel { background:#21242d; }
+    .ta-item img { width:26px; height:26px; border-radius:50%; flex:none; background:#21242d; object-fit:cover; }
+    .ta-item .th { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ta-item .th .dn { color:var(--muted); margin-left:6px; }
   </style>
 </head>
 <body>
@@ -53,7 +60,10 @@
       <h2>Sign in</h2>
       <label for="handle">Bluesky handle</label>
       <div class="row">
-        <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="username" style="flex:1; min-width:220px" />
+        <div class="ta-wrap" style="flex:1; min-width:220px">
+          <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%" />
+          <div class="ta-menu" id="handleMenu"></div>
+        </div>
         <button class="primary" id="loginBtn">Sign in</button>
       </div>
       <p class="sub" style="margin:12px 0 0; font-size:13px">
