@@ -10,7 +10,7 @@
 //! All fields camelCase. The tool loads this as an OPTIONAL accelerator with a JS
 //! fallback, exactly like mappa/pkg — the page works whether or not the wasm is present.
 
-use cylinder_solver::{analytic, frame, net};
+use cylinder_solver::{analytic, frame, net, truss3d};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -276,4 +276,47 @@ pub fn solve_frame_json(req: &str) -> String {
         compliance: s.compliance,
     })
     .unwrap_or_else(|e| format!("{{\"error\":\"{}\"}}", e))
+}
+
+// ───────────────────────────── large 3D truss (PCG) ─────────────────────────────
+/// The foam-scale solve: a pin-jointed 3D truss with ~10⁵ DOF (foamview's shell
+/// sector). Typed arrays instead of JSON — at this size a JSON round-trip would cost
+/// more than the solve. `pos`/`load` are 3n long, `fixed` is 3n of 0/1 per DOF,
+/// `mi`/`mj`/`stiff` are per-member (stiff = EA/L). Returns
+/// `[converged, iters, relres, compliance, u(3n)…, force(M)…]`, or `[-1]` on a
+/// malformed call. Non-convergence (converged = 0) is the mechanism flag.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn solve_truss3d(
+    pos: &[f64],
+    fixed: &[u8],
+    load: &[f64],
+    mi: &[u32],
+    mj: &[u32],
+    stiff: &[f64],
+    tol: f64,
+    max_iter: u32,
+) -> Vec<f64> {
+    let nd = pos.len();
+    let m = mi.len();
+    let n = nd / 3;
+    if nd == 0 || nd % 3 != 0 || fixed.len() != nd || load.len() != nd || mj.len() != m || stiff.len() != m {
+        return vec![-1.0];
+    }
+    if mi.iter().chain(mj.iter()).any(|&x| x as usize >= n) {
+        return vec![-1.0];
+    }
+    let s = truss3d::solve(
+        &truss3d::Truss { pos, fixed, load, mi, mj, k: stiff },
+        tol,
+        max_iter as usize,
+    );
+    let mut out = Vec::with_capacity(4 + s.u.len() + s.force.len());
+    out.push(if s.converged { 1.0 } else { 0.0 });
+    out.push(s.iters as f64);
+    out.push(s.relres);
+    out.push(s.compliance);
+    out.extend_from_slice(&s.u);
+    out.extend_from_slice(&s.force);
+    out
 }

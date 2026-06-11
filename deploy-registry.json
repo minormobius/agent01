@@ -180,10 +180,10 @@
       "dir": "rind",
       "endpoint": "rind.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "branch": "claude/foam-spiral-ramp-wayfinding-hkgcw2",
       "uses": [],
       "provides": null,
-      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam), walk.html (walk a planar cut through the foam). Geometry generated in JS (foam.js/foam3d.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static — no D1/DO/secrets.",
+      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static — no D1/DO/secrets.",
       "paths": [
         "rind/**",
         ".github/workflows/deploy-rind.yml"
@@ -194,7 +194,7 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "branch": "claude/hoop-tide-wind-jets-olcuky",
       "uses": [],
       "provides": null,
       "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",

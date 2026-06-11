@@ -12,6 +12,7 @@
   #c { display: block; width: 100vw; height: 100vh; }
   #hud { position: fixed; top: 8px; left: 10px; color: #8aa; pointer-events: none; text-shadow: 0 1px 2px #000; }
   #hud b { color: #ffce78; } #hud .r { color: #7fd8d0; }
+  #hud .ra { color: #ffd07a; } #hud .rd { color: #80ffb0; } #hud .rb { color: #ff9ad6; }
   a.home { position: fixed; top: 8px; right: 10px; color: #7fd8d0; text-decoration: none; }
   #panel { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; background: rgba(8,11,16,.7); border: 1px solid #1d2430; border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(6px); }
   #panel label { color: #8aa; } #panel b { color: #ffce78; }
@@ -23,18 +24,21 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / pinch / +/- = zoom · right slider = radial layer · <b>scene</b> → the annular shell, solved</span></div>
+<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / pinch / +/- = zoom · right slider = radial layer · <b>scene</b> → the annular shell, solved · <b>⌁</b> → drive a spiral ramp</span></div>
 <a class="home" href="/">← rind</a>
 <div id="probe"><input id="probeY" type="range" min="0" max="1000" value="500" orient="vertical"></div>
 <div id="panel">
   <label>floor <b id="floorLabel">—</b></label>
   <button id="scene">scene: foam slab</button>
+  <button id="route">⌁ ramp route</button>
+  <button id="mat">⚙ carbon</button>
   <button id="regen">↻ new foam</button>
   <button id="vmode">view: both</button>
   <button id="rmode">renderer: …</button>
 </div>
 
 <script src="/foam3d.js"></script>
+<script src="/wayfind.js"></script>
 <script>
 'use strict';
 // ── foam (3D cell cloud in a shell slab; z = radial/thickness = the floor axis) ──
@@ -43,6 +47,8 @@ let CELLS = [], ZMAX = OPT.thickness;
 function regen() {
   CELLS = HOOFAM3D_seeds(OPT);
   ZMAX = OPT.thickness;
+  ROUTE = new Float32Array(0); routeInfo = '';   // routes live in the cylinder scene
+
   cam.center = [OPT.Lx / 2, OPT.Ly / 2, OPT.thickness / 2];
   cam.dist = Math.max(OPT.Lx, OPT.Ly) * 1.15; cam.band = 14;
   probeLo = 0; probeHi = ZMAX;
@@ -64,69 +70,127 @@ let ringMode = false;
 // not a flat cross-section. Solved 3D, matrix-free PCG, with the four solid faces pinned.
 const RING = { Ri: 250, T: 50, cell: 1, arcDeg: 18, axial: 10, grade: 0.4, seed: 1 };
 let ringStats = { nodes: 0, members: 0, layers: 0 };
-let ringRi = 0, ringRo = 0;
-// a deterministic graded 3D foam in a sector box (x=axial, y=circumferential arc, z=radial)
-function shellSeedsSector(Ri, T, arcDeg, axial, cell, grade, seed) {
-  const arcRad = arcDeg * Math.PI / 180, arcLen = Ri * arcRad, Lx = axial * cell;
-  const nx = Math.max(1, axial), ny = Math.max(4, Math.round(arcLen / cell)), nz = Math.max(2, Math.round(T / cell));
-  let a = (seed >>> 0) || 1; const rng = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const pts = [];
-  for (let iz = 0; iz < nz; iz++) { const zc = (iz + 0.5) / nz, dens = 1 + grade * zc; for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) { if (rng() > dens / (1 + grade)) continue; pts.push({ x: (ix + 0.5 + 0.5 * (rng() - 0.5)) * Lx / nx, y: (iy + 0.5 + 0.5 * (rng() - 0.5)) * arcLen / ny, z: (iz + 0.5 + 0.5 * (rng() - 0.5)) * T / nz }); } }
-  return { pts, arcLen, arcRad, Lx, layers: nz };
-}
+let ringRi = 0, ringRo = 0, ringSolve = null;
+// strut materials — the crate's own thesis (steel_is_material_limited / carbon_holds):
+// at this radius and 1 g, the steel sector tears, the carbon one carries the ship.
+const MATS = [
+  { name: 'steel', e: 200e9, rho: 7850, strength: 350e6, sf: 1.5 },
+  { name: 'carbon', e: 230e9, rho: 1800, strength: 6400e6, sf: 1.5 },
+];
+let matIdx = 1;
+// the Rust/WASM cylinder-solver — an OPTIONAL accelerator (invariant: pages must work
+// without it). An older pkg without solve_truss3d simply leaves WASMT null → JS solve.
+let WASMT = null;
+const WASM_READY = (async () => {
+  try {
+    const m = await import('./solver/pkg/cylinder_solver.js');
+    await m.default();
+    if (typeof m.solve_truss3d === 'function') WASMT = m.solve_truss3d;
+  } catch (e) { /* absent or offline — the JS fallback covers it */ }
+})();
+// the sector foam (seeds + adjacency + annulus wrap) lives in /wayfind.js — one source
+// for this scene, the route planner, and the node selftest.
 function stressColor(t) {                                   // t ∈ [−1,1]: −compression … +tension
   const a = Math.max(-1, Math.min(1, t)), mid = [0.30, 0.80, 0.80], tgt = a >= 0 ? [1.0, 0.5, 0.2] : [0.32, 0.55, 1.0], m = Math.abs(a);
   return [mid[0] + (tgt[0] - mid[0]) * m, mid[1] + (tgt[1] - mid[1]) * m, mid[2] + (tgt[2] - mid[2]) * m];
 }
 function buildCylinderShell() {
   const { Ri, T, cell, arcDeg, axial, grade } = RING, seed = RING.seed >>> 0, D = 3, Ro = Ri + T; ringRi = Ri; ringRo = Ro;
-  const { pts: raw, arcLen, arcRad, Lx, layers } = shellSeedsSector(Ri, T, arcDeg, axial, cell, grade, seed);
-  const NC = raw.length;
-  // 3D spatial-hash adjacency (catches face+edge neighbours → the net is triangulated, stiff)
-  const bs = 1.9 * cell, gi = (v) => Math.floor(v / bs), bins = new Map();
-  for (let i = 0; i < NC; i++) { const p = raw[i], k = gi(p.x) + '|' + gi(p.y) + '|' + gi(p.z); let a = bins.get(k); if (!a) { a = []; bins.set(k, a); } a.push(i); }
-  const thr = (1.85 * cell) ** 2, mi = [], mj = [];
-  for (let i = 0; i < NC; i++) { const p = raw[i], bx = gi(p.x), by = gi(p.y), bz = gi(p.z); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) { const a = bins.get((bx + dx) + '|' + (by + dy) + '|' + (bz + dz)); if (!a) continue; for (const j of a) { if (j <= i) continue; const q = raw[j], ddx = p.x - q.x, ddy = p.y - q.y, ddz = p.z - q.z; if (ddx * ddx + ddy * ddy + ddz * ddz < thr) { mi.push(i); mj.push(j); } } } }
-  const M = mi.length;
-  // wrap to the annulus sector (axis = world z = axial; arc centred on +X, radius = Ri + depth)
-  const nodes = raw.map((p) => { const th = -arcRad / 2 + (p.y / arcLen) * arcRad, r = Ri + p.z; return { x: r * Math.cos(th), y: r * Math.sin(th), z: p.x, th, rad: p.z, circ: p.y }; });
+  const foam = HOOPWAYFIND.sectorFoam({ Ri, T, cell, arcDeg, axial, grade, seed });
+  const { nodes, mi, mj, arcLen, arcRad, Lx, layers } = foam;
+  const NC = nodes.length, M = mi.length;
   // PIN the four solid faces: inner + outer hulls AND the two angular cut faces (held by the
   // neighbouring sectors — the boundary-pinned sector solve). Axial ends stay free.
   const fixed = new Uint8Array(NC); nodes.forEach((n, i) => { if (n.rad < cell || n.rad > T - cell || n.circ < cell || n.circ > arcLen - cell) fixed[i] = 1; });
-  const mcx = new Float64Array(M), mcy = new Float64Array(M), mcz = new Float64Array(M), mk = new Float64Array(M);
-  for (let m = 0; m < M; m++) { const a = nodes[mi[m]], b = nodes[mj[m]], ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z, L = Math.hypot(ex, ey, ez) || 1; mcx[m] = ex / L; mcy[m] = ey / L; mcz[m] = ez / L; mk[m] = 1 / L; }
-  // matrix-free 3D PCG, Jacobi preconditioner, radial-outward gravity on the free chambers
-  const ndof = D * NC, diag = new Float64Array(ndof);
-  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], k = mk[m], vx = k * mcx[m] * mcx[m], vy = k * mcy[m] * mcy[m], vz = k * mcz[m] * mcz[m]; diag[D * i] += vx; diag[D * i + 1] += vy; diag[D * i + 2] += vz; diag[D * j] += vx; diag[D * j + 1] += vy; diag[D * j + 2] += vz; }
-  for (let i = 0; i < ndof; i++) if (diag[i] < 1e-9) diag[i] = 1;
-  const applyK = (u, out) => {
-    out.fill(0);
-    for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], cx = mcx[m], cy = mcy[m], cz = mcz[m]; const s = mk[m] * (cx * (u[D * j] - u[D * i]) + cy * (u[D * j + 1] - u[D * i + 1]) + cz * (u[D * j + 2] - u[D * i + 2])); out[D * i] += s * cx; out[D * i + 1] += s * cy; out[D * i + 2] += s * cz; out[D * j] -= s * cx; out[D * j + 1] -= s * cy; out[D * j + 2] -= s * cz; }
-    for (let i = 0; i < NC; i++) if (fixed[i]) { out[D * i] = 0; out[D * i + 1] = 0; out[D * i + 2] = 0; }
-  };
-  const b = new Float64Array(ndof); nodes.forEach((n, i) => { if (!fixed[i]) { b[D * i] = Math.cos(n.th); b[D * i + 1] = Math.sin(n.th); } });
-  const u = new Float64Array(ndof), r = new Float64Array(ndof), z = new Float64Array(ndof), pv = new Float64Array(ndof), Ap = new Float64Array(ndof);
-  applyK(u, Ap); for (let i = 0; i < ndof; i++) r[i] = b[i] - Ap[i];
-  for (let i = 0; i < ndof; i++) z[i] = r[i] / diag[i]; pv.set(z);
-  let rz = 0; for (let i = 0; i < ndof; i++) rz += r[i] * z[i];
-  let b2 = 1e-30; for (let i = 0; i < ndof; i++) b2 += b[i] * b[i];
-  for (let it = 0; it < 1500; it++) {
-    applyK(pv, Ap); let pAp = 0; for (let i = 0; i < ndof; i++) pAp += pv[i] * Ap[i]; const al = rz / (pAp || 1e-30);
-    let rr = 0; for (let i = 0; i < ndof; i++) { u[i] += al * pv[i]; r[i] -= al * Ap[i]; rr += r[i] * r[i]; }
-    if (Math.sqrt(rr / b2) < 1e-4) break;
-    let rz2 = 0; for (let i = 0; i < ndof; i++) { z[i] = r[i] / diag[i]; rz2 += r[i] * z[i]; } const be = rz2 / rz; rz = rz2;
-    for (let i = 0; i < ndof; i++) pv[i] = z[i] + be * pv[i];
+  // ── THE LOAD OF THE SHIP (SI). Spin gravity ω²·r pulls every chamber's tributary
+  //    mass outward — the foam's own structure plus, entering at the inner floor, the
+  //    payload the shell exists to carry (decks + 2 m regolith + the atmosphere's
+  //    press) — reacted by the pinned hulls and the neighbour sectors at the cut
+  //    faces. Members are real steel struts sized so the truss is 5% relative density
+  //    (ΣA·L = 0.05·V). Solved by the Rust/WASM cylinder-solver (solve_truss3d,
+  //    matrix-free PCG) with the identical solve in JS as the required fallback. ──
+  const SCALE = 20;                                       // m per scene unit
+  const MAT = MATS[matIdx];
+  const REL_DENS = 0.05, PAYLOAD = 800 + 2 * 1500, P_ATM = 70e3;   // kg/m² decks + regolith; Pa
+  const omega2 = 9.80665 / (Ri * SCALE);                  // ω²: a full 1 g at the inner floor
+  const mlen = new Float64Array(M);
+  let sumL = 0;
+  for (let m = 0; m < M; m++) { const a = nodes[mi[m]], b = nodes[mj[m]]; mlen[m] = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) * SCALE; sumL += mlen[m]; }
+  const cellVol = Math.pow(cell * SCALE, 3), tile = Math.pow(cell * SCALE, 2);
+  const AREA = REL_DENS * NC * cellVol / sumL;            // m² of steel per strut
+  const stiff = new Float64Array(M);
+  for (let m = 0; m < M; m++) stiff[m] = MAT.e * AREA / Math.max(mlen[m], 1e-6);
+  const pos = new Float64Array(D * NC), fixedDof = new Uint8Array(D * NC), loads = new Float64Array(D * NC);
+  let shipMass = 0;
+  nodes.forEach((n, i) => {
+    pos[D * i] = n.x; pos[D * i + 1] = n.y; pos[D * i + 2] = n.z;
+    if (fixed[i]) { fixedDof[D * i] = fixedDof[D * i + 1] = fixedDof[D * i + 2] = 1; return; }
+    const rSI = (Ri + n.rad) * SCALE, inner = n.rad < 2 * cell;   // first free layer = the floor's load path
+    let F = REL_DENS * MAT.rho * cellVol * omega2 * rSI;          // the foam's own spin weight
+    if (inner) F += PAYLOAD * tile * omega2 * rSI + P_ATM * tile; // the ship it carries
+    shipMass += REL_DENS * MAT.rho * cellVol + (inner ? PAYLOAD * tile : 0);
+    loads[D * i] = F * Math.cos(n.th); loads[D * i + 1] = F * Math.sin(n.th);
+  });
+  const ndof = D * NC, miU = Uint32Array.from(mi), mjU = Uint32Array.from(mj);
+  let u = null, force = null, iters = 0, solver = 'js pcg';
+  if (WASMT) {
+    const out = WASMT(pos, fixedDof, loads, miU, mjU, stiff, 1e-5, 6000);
+    if (out.length > 4 && out[0] >= 0) {
+      solver = 'wasm pcg' + (out[0] ? '' : ' (unconverged)'); iters = out[1];
+      u = out.subarray(4, 4 + ndof); force = out.subarray(4 + ndof);
+    }
   }
-  let maxF = 1e-9; const force = new Float64Array(M);
-  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], f = mk[m] * (mcx[m] * (u[D * j] - u[D * i]) + mcy[m] * (u[D * j + 1] - u[D * i + 1]) + mcz[m] * (u[D * j + 2] - u[D * i + 2])); force[m] = f; if (Math.abs(f) > maxF) maxF = Math.abs(f); }
+  if (!u) {                                               // JS fallback — same model, same PCG
+    const mcx = new Float64Array(M), mcy = new Float64Array(M), mcz = new Float64Array(M);
+    for (let m = 0; m < M; m++) { const a = nodes[mi[m]], b = nodes[mj[m]], ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z, L = Math.hypot(ex, ey, ez) || 1; mcx[m] = ex / L; mcy[m] = ey / L; mcz[m] = ez / L; }
+    const diag = new Float64Array(ndof);
+    for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], k = stiff[m], vx = k * mcx[m] * mcx[m], vy = k * mcy[m] * mcy[m], vz = k * mcz[m] * mcz[m]; diag[D * i] += vx; diag[D * i + 1] += vy; diag[D * i + 2] += vz; diag[D * j] += vx; diag[D * j + 1] += vy; diag[D * j + 2] += vz; }
+    for (let i = 0; i < ndof; i++) if (diag[i] < 1e-9) diag[i] = 1;
+    const applyK = (uu, out) => {                         // (K·u)_i = −k·c·(c·(u_j−u_i))
+      out.fill(0);
+      for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], cx = mcx[m], cy = mcy[m], cz = mcz[m]; const s = stiff[m] * (cx * (uu[D * j] - uu[D * i]) + cy * (uu[D * j + 1] - uu[D * i + 1]) + cz * (uu[D * j + 2] - uu[D * i + 2])); out[D * i] -= s * cx; out[D * i + 1] -= s * cy; out[D * i + 2] -= s * cz; out[D * j] += s * cx; out[D * j + 1] += s * cy; out[D * j + 2] += s * cz; }
+      for (let i = 0; i < NC; i++) if (fixed[i]) { out[D * i] = 0; out[D * i + 1] = 0; out[D * i + 2] = 0; }
+    };
+    const b = new Float64Array(ndof);
+    for (let i = 0; i < ndof; i++) b[i] = fixedDof[i] ? 0 : loads[i];
+    u = new Float64Array(ndof);
+    const r = new Float64Array(ndof), z = new Float64Array(ndof), pv = new Float64Array(ndof), Ap = new Float64Array(ndof);
+    r.set(b);
+    for (let i = 0; i < ndof; i++) z[i] = r[i] / diag[i]; pv.set(z);
+    let rz = 0; for (let i = 0; i < ndof; i++) rz += r[i] * z[i];
+    let b2 = 1e-30; for (let i = 0; i < ndof; i++) b2 += b[i] * b[i];
+    for (let it = 0; it < 2500; it++) {
+      iters = it + 1;
+      applyK(pv, Ap); let pAp = 0; for (let i = 0; i < ndof; i++) pAp += pv[i] * Ap[i]; const al = rz / (pAp || 1e-30);
+      let rr = 0; for (let i = 0; i < ndof; i++) { u[i] += al * pv[i]; r[i] -= al * Ap[i]; rr += r[i] * r[i]; }
+      if (Math.sqrt(rr / b2) < 1e-4) break;
+      let rz2 = 0; for (let i = 0; i < ndof; i++) { z[i] = r[i] / diag[i]; rz2 += r[i] * z[i]; } const be = rz2 / rz; rz = rz2;
+      for (let i = 0; i < ndof; i++) pv[i] = z[i] + be * pv[i];
+    }
+    force = new Float64Array(M);
+    for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m]; force[m] = stiff[m] * (mcx[m] * (u[D * j] - u[D * i]) + mcy[m] * (u[D * j + 1] - u[D * i + 1]) + mcz[m] * (u[D * j + 2] - u[D * i + 2])); }
+  }
+  // verdict: peak fibre stress vs allowable, peak sag, the mass the foam is carrying
+  let maxF = 1e-9, maxU = 0;
+  for (let m = 0; m < M; m++) if (Math.abs(force[m]) > maxF) maxF = Math.abs(force[m]);
+  for (let i = 0; i < NC; i++) { const d = Math.hypot(u[D * i], u[D * i + 1], u[D * i + 2]); if (d > maxU) maxU = d; }
+  const allow = MAT.strength / MAT.sf, maxStress = maxF / AREA;
+  const exag = maxU > 1e-12 ? 1.2 * cell / (maxU / SCALE) : 0;    // sag, exaggerated to visible
+  ringSolve = { solver, iters, maxStress, allow, maxU, exag, shipMass, area: AREA, mat: MAT.name, holds: maxStress <= allow };
   ringStats = { nodes: NC, members: M, layers };
-  CELLS = nodes.map((n) => ({ x: n.x, y: n.y, z: n.z })); ZMAX = T; buildInstances();
+  const dn = nodes.map((n, i) => ({ x: n.x + u[D * i] / SCALE * exag, y: n.y + u[D * i + 1] / SCALE * exag, z: n.z + u[D * i + 2] / SCALE * exag }));
+  CELLS = dn; ZMAX = T; buildInstances();
   // light up EVERY beam (only drop near-zero slack); low load reads teal, load paths warm/cool
   const segs = [], cut = 0.008 * maxF;
-  for (let m = 0; m < M; m++) { if (Math.abs(force[m]) < cut) continue; const a = nodes[mi[m]], b2n = nodes[mj[m]], col = stressColor(force[m] / maxF); segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b2n.x, b2n.y, b2n.z, col[0], col[1], col[2]); }
+  for (let m = 0; m < M; m++) { if (Math.abs(force[m]) < cut) continue; const a = dn[mi[m]], b2n = dn[mj[m]], col = stressColor(force[m] / maxF); segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b2n.x, b2n.y, b2n.z, col[0], col[1], col[2]); }
   const bc = [0.36, 0.5, 0.66], arc = (rr, zc) => { const Mc = 64; for (let k = 0; k < Mc; k++) { const t0 = -arcRad / 2 + arcRad * k / Mc, t1 = -arcRad / 2 + arcRad * (k + 1) / Mc; segs.push(rr * Math.cos(t0), rr * Math.sin(t0), zc, ...bc, rr * Math.cos(t1), rr * Math.sin(t1), zc, ...bc); } };
   for (const zc of [0, Lx]) { arc(Ri, zc); arc(Ro, zc); }   // the two smooth hulls, at both axial ends
-  EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
+  EDGES = new Float32Array(segs);
+  // wayfinding: the chamber graph doubles as a road network — prove it, then drive it
+  RNAV = HOOPWAYFIND.buildNav(foam);
+  const p = HOOPWAYFIND.proveAnywhere(RNAV, { trials: 100 });
+  ringProof = 'anywhere-proof: ' + p.ok + '/' + p.trials + ' random anchors yielded a 300 m corkscrew ramp';
+  planSceneRoute(false);
   const Rmid = (Ri + Ro) / 2;
   cam.center = [Rmid, 0, Lx / 2]; cam.dist = T * 2.6; cam.band = cell * 0.8; cam.pitch = 0.5; cam.yaw = 0.4;
   probeLo = Ri; probeHi = Ro; cam.probe = Ri + T / 2; syncProbe();
@@ -134,8 +198,70 @@ function buildCylinderShell() {
 function enterScene(toCylinder) {
   ringMode = toCylinder; document.getElementById('scene').textContent = 'scene: ' + (ringMode ? 'cylinder ◍' : 'foam slab');
   document.getElementById('regen').textContent = ringMode ? '↻ new shell' : '↻ new foam';
-  if (ringMode) { document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => buildCylinderShell()); }
-  else { regen(); recomputeEdges(); }
+  if (ringMode) { document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => WASM_READY.then(() => buildCylinderShell())); }
+  else {
+    if (view === 'route') { view = 'both'; document.getElementById('vmode').textContent = 'view: both'; }   // route view is ring-only
+    regen(); recomputeEdges();
+  }
+}
+
+// ════════════════════════ WAYFINDING (cylinder scene) ════════════════════════
+// A drivable route found in the chamber adjacency graph by /wayfind.js: two spiral
+// ramps — corkscrews around a radial axis (the parking-garage spiral: loop in the
+// azimuth/axial plane, climb radially at a 12% deck) threading the full shell depth —
+// connected by a level azimuthal road every ~300 m of climb (spin gravity is radial,
+// so constant radius IS level). Drawn as road ribbons (centreline + rails + rungs)
+// through the chamber centres, with the ideal corkscrew deck dashed alongside — the
+// chain hugging the dashes is the proof made visible.
+let RNAV = null, ROUTE = new Float32Array(0), routeInfo = '', ringProof = '', routeSeed = 1;
+const M_PER_UNIT = 20;                                  // the scene is worked at 20 m/unit
+function planSceneRoute(bump) {
+  if (!RNAV) return;
+  if (bump) routeSeed++;
+  const route = HOOPWAYFIND.planRoute(RNAV, { seed: routeSeed });
+  if (!route) { ROUTE = new Float32Array(0); routeInfo = 'no route from this anchor (rare) — ⌁ tries another'; refreshEdges(); return; }
+  drawRoute(route);
+  const m = (u) => Math.round(u * M_PER_UNIT);
+  const ramp = (L) => L.turns.toFixed(1) + ' turns · ' + L.cells.length + ' chambers · climbs ' + m(Math.abs(L.climb)) + ' m at ' + (L.grade * 100).toFixed(1) + '%';
+  const roadLen = route.roads.reduce((a, r) => a + r.len, 0) / route.roads.length;
+  const roadG = Math.max.apply(null, route.roads.map((r) => r.grade));
+  const dev = Math.max(route.A.maxDev, route.B.maxDev, Math.max.apply(null, route.roads.map((r) => r.maxDev)));
+  routeInfo = '⌁ <span class="ra">ramp A — corkscrew, ' + ramp(route.A) + '</span> ⇄ <span class="rd">' + route.roads.length + ' azimuthal roads — every ~' + m(route.roadEvery) + ' m of climb · ~' + m(roadLen) + ' m each · level (worst ' + (roadG * 100).toFixed(1) + '%)</span> ⇄ <span class="rb">ramp B — corkscrew, ' + ramp(route.B) + '</span>' +
+    '<br>chamber chains stay ≤ ' + m(dev) + ' m off the ideal decks (rooms are ' + M_PER_UNIT + ' m) · ' + ringProof;
+  refreshEdges();
+}
+function drawRoute(route) {
+  const cs = RNAV.cells, c = RNAV.cell, segs = [];
+  const seg = (ax, ay, az, bx, by, bz, col) => segs.push(ax, ay, az, col[0], col[1], col[2], bx, by, bz, col[0], col[1], col[2]);
+  const world = (p) => [p.r * Math.cos(p.th), p.r * Math.sin(p.th), p.x];
+  const guide = (L) => {                                 // the ideal corkscrew deck, dashed
+    const gc = [0.45, 0.5, 0.62], step = 2 * Math.PI / 40;
+    for (let phi = 0, k = 0; phi + step <= L.phiEnd; phi += step, k++) {
+      if (k % 2) continue;
+      const a = world(HOOPWAYFIND.helixPoint(L, phi)), b = world(HOOPWAYFIND.helixPoint(L, phi + step));
+      seg(a[0], a[1], a[2], b[0], b[1], b[2], gc);
+    }
+  };
+  const ribbon = (cells, col) => {
+    const P = cells.map((i) => cs[i]), half = 0.3 * c, dim = col.map((v) => v * 0.55);
+    for (let k = 0; k < P.length - 1; k++) {
+      const a = P[k], b = P[k + 1];
+      let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+      const thm = (a.th + b.th) / 2, rx = Math.cos(thm), ry = Math.sin(thm);   // radial = local gravity
+      let lx = ry * dz, ly = -rx * dz, lz = rx * dy - ry * dx;                 // radial × travel = lateral
+      const ll = Math.hypot(lx, ly, lz); if (ll < 0.3) { lx = 0; ly = 0; lz = 1; } else { lx /= ll; ly /= ll; lz /= ll; }
+      seg(a.x, a.y, a.z, b.x, b.y, b.z, col);                                  // centreline
+      seg(a.x + lx * half, a.y + ly * half, a.z + lz * half, b.x + lx * half, b.y + ly * half, b.z + lz * half, dim);
+      seg(a.x - lx * half, a.y - ly * half, a.z - lz * half, b.x - lx * half, b.y - ly * half, b.z - lz * half, dim);
+      seg(a.x + lx * half, a.y + ly * half, a.z + lz * half, a.x - lx * half, a.y - ly * half, a.z - lz * half, dim);
+    }
+  };
+  guide(route.A); guide(route.B);
+  ribbon(route.A.cells, [1.0, 0.82, 0.48]); ribbon(route.B.cells, [1.0, 0.6, 0.84]);
+  for (const rd of route.roads) ribbon(rd.cells, [0.5, 1.0, 0.69]);
+  const post = (i) => { const q = cs[i], r0 = RNAV.Ri + q.rad - 1.4 * c, r1 = RNAV.Ri + q.rad + 1.4 * c, ct = Math.cos(q.th), st = Math.sin(q.th); seg(r0 * ct, r0 * st, q.z, r1 * ct, r1 * st, q.z, [1, 1, 1]); };
+  for (const L of [route.A, route.B]) { post(L.cells[0]); post(L.cells[L.cells.length - 1]); }   // ramp foot/head markers
+  ROUTE = new Float32Array(segs);
 }
 
 // ── camera (orbit) + probe ──
@@ -173,7 +299,17 @@ function floorInfo() {
   if (ringMode) {
     const depth = probeHi > probeLo ? Math.round((cam.probe - probeLo) / (probeHi - probeLo) * 100) : 0;
     document.getElementById('floorLabel').textContent = depth + '% out · r=' + cam.probe.toFixed(0);
-    document.getElementById('info').innerHTML = 'shell sector (' + RING.arcDeg + '°) · ' + ringStats.nodes + ' chambers · ' + ringStats.layers + ' radial × ' + RING.axial + ' axial layers · ' + ringStats.members + ' beams · <span class="r">gravity radial-out, hulls pinned</span>';
+    let solveLine = '';
+    if (ringSolve) {
+      const MPa = (x) => (x / 1e6).toFixed(0);
+      const verdict = ringSolve.holds
+        ? '<span style="color:#7fd87f">HOLDS (SF ' + (ringSolve.allow / ringSolve.maxStress).toFixed(1) + '×)</span>'
+        : '<span style="color:#ff7a6b">TEARS (' + (ringSolve.maxStress / ringSolve.allow).toFixed(1) + '× over)</span>';
+      solveLine = '<br>ship load: ' + (ringSolve.shipMass / 1e9).toFixed(1) + ' Mt spun to 1 g · ' + ringSolve.mat + ' struts ' + ringSolve.area.toFixed(2) + ' m² (5% rel. density) · ' +
+        ringSolve.solver + ', ' + ringSolve.iters + ' it · max σ ' + MPa(ringSolve.maxStress) + ' / allow ' + MPa(ringSolve.allow) + ' MPa → ' + verdict +
+        ' · sag ' + ringSolve.maxU.toFixed(2) + ' m (×' + Math.round(ringSolve.exag) + ' shown)';
+    }
+    document.getElementById('info').innerHTML = 'shell sector (' + RING.arcDeg + '°) · ' + ringStats.nodes + ' chambers · ' + ringStats.layers + ' radial × ' + RING.axial + ' axial layers · ' + ringStats.members + ' beams · <span class="r">gravity radial-out, hulls pinned</span>' + solveLine + (routeInfo ? '<br>' + routeInfo : '');
     return;
   }
   let n = 0; for (const p of CELLS) if (Math.abs(p.z - cam.probe) < cam.band) n++;
@@ -183,10 +319,17 @@ function floorInfo() {
 
 // ── membranes: the current floor's Voronoi cell walls, as 3D line segments on the
 //    probe plane (recomputed when you scrub). The membranes you'd run a finger along. ──
-let view = 'both';
-const showCubes = () => view !== 'walls';
-const showWalls = () => view !== 'cubes';
-let EDGES = new Float32Array(0);
+let view = 'both';                                  // both · cubes · walls · route (ring scene: ribbon only)
+const showCubes = () => view === 'both' || view === 'cubes';
+const showWalls = () => view === 'both' || view === 'walls' || view === 'route';
+let EDGES = new Float32Array(0);            // membranes / solved members
+let COMBINED = new Float32Array(0);         // EDGES + the route ribbon, what renderers draw
+function refreshEdges() {
+  const base = view === 'route' ? new Float32Array(0) : EDGES;   // route view: ribbon only
+  COMBINED = new Float32Array(base.length + ROUTE.length);
+  COMBINED.set(base, 0); COMBINED.set(ROUTE, base.length);
+  if (gpu) gpu.setEdges(COMBINED);
+}
 function clipHP(poly, nx, ny, mx, my) {
   const out = [], N = poly.length, side = (p) => (p.x - mx) * nx + (p.y - my) * ny;
   for (let i = 0; i < N; i++) { const a = poly[i], b = poly[(i + 1) % N], sa = side(a), sb = side(b); if (sa <= 1e-9) out.push(a); if ((sa < 0 && sb > 0) || (sa > 0 && sb < 0)) { const t = sa / (sa - sb); out.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) }); } }
@@ -196,7 +339,7 @@ function recomputeEdges() {
   if (ringMode) return;   // shell membranes are set by buildCylinderShell, not the floor cut
   const z = cam.probe, band = cam.band, sel = [];
   for (const p of CELLS) if (Math.abs(p.z - z) < band) sel.push(p);
-  if (sel.length < 3) { EDGES = new Float32Array(0); if (gpu) gpu.setEdges(EDGES); return; }
+  if (sel.length < 3) { EDGES = new Float32Array(0); refreshEdges(); return; }
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const p of sel) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
   const pad = OPT.cell * 0.6, box = { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
@@ -207,7 +350,7 @@ function recomputeEdges() {
     for (let j = 0; j < sel.length && poly.length >= 3; j++) { if (i === j) continue; poly = clipHP(poly, sel[j].x - sel[i].x, sel[j].y - sel[i].y, (sel[i].x + sel[j].x) / 2, (sel[i].y + sel[j].y) / 2); }
     for (let k = 0; k < poly.length; k++) { const a = poly[k], b = poly[(k + 1) % poly.length]; const kk = key(a, b); if (seen.has(kk)) continue; seen.add(kk); segs.push(a.x, a.y, z, 0.55, 0.95, 0.95, b.x, b.y, z, 0.55, 0.95, 0.95); }
   }
-  EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
+  EDGES = new Float32Array(segs); refreshEdges();
 }
 
 // ════════════════════════ WebGPU renderer ════════════════════════
@@ -331,14 +474,15 @@ function frame2D() {
       ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(0.8, r), 0, Math.PI * 2); ctx.fill();
     }
   }
-  if (showWalls() && EDGES.length) {
+  if (showWalls() && COMBINED.length) {
     ctx.lineWidth = 1;
-    for (let i = 0; i < EDGES.length; i += 12) {   // two verts × (pos3 + col3)
-      const wa = M[3] * EDGES[i] + M[7] * EDGES[i + 1] + M[11] * EDGES[i + 2] + M[15], wb = M[3] * EDGES[i + 6] + M[7] * EDGES[i + 7] + M[11] * EDGES[i + 8] + M[15];
+    const E = COMBINED;
+    for (let i = 0; i < E.length; i += 12) {   // two verts × (pos3 + col3)
+      const wa = M[3] * E[i] + M[7] * E[i + 1] + M[11] * E[i + 2] + M[15], wb = M[3] * E[i + 6] + M[7] * E[i + 7] + M[11] * E[i + 8] + M[15];
       if (wa <= 0 || wb <= 0) continue;
-      const ax = ((M[0] * EDGES[i] + M[4] * EDGES[i + 1] + M[8] * EDGES[i + 2] + M[12]) / wa * 0.5 + 0.5) * W, ay = (1 - ((M[1] * EDGES[i] + M[5] * EDGES[i + 1] + M[9] * EDGES[i + 2] + M[13]) / wa * 0.5 + 0.5)) * H;
-      const bx = ((M[0] * EDGES[i + 6] + M[4] * EDGES[i + 7] + M[8] * EDGES[i + 8] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * EDGES[i + 6] + M[5] * EDGES[i + 7] + M[9] * EDGES[i + 8] + M[13]) / wb * 0.5 + 0.5)) * H;
-      ctx.strokeStyle = `rgba(${EDGES[i + 3] * 255 | 0},${EDGES[i + 4] * 255 | 0},${EDGES[i + 5] * 255 | 0},0.85)`;
+      const ax = ((M[0] * E[i] + M[4] * E[i + 1] + M[8] * E[i + 2] + M[12]) / wa * 0.5 + 0.5) * W, ay = (1 - ((M[1] * E[i] + M[5] * E[i + 1] + M[9] * E[i + 2] + M[13]) / wa * 0.5 + 0.5)) * H;
+      const bx = ((M[0] * E[i + 6] + M[4] * E[i + 7] + M[8] * E[i + 8] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * E[i + 6] + M[5] * E[i + 7] + M[9] * E[i + 8] + M[13]) / wb * 0.5 + 0.5)) * H;
+      ctx.strokeStyle = `rgba(${E[i + 3] * 255 | 0},${E[i + 4] * 255 | 0},${E[i + 5] * 255 | 0},0.85)`;
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     }
   }
@@ -367,12 +511,23 @@ const probeY = document.getElementById('probeY');
 function syncProbe() { probeY.value = Math.round((1 - (cam.probe - probeLo) / pSpan()) * 1000); }
 probeY.addEventListener('input', () => { cam.probe = probeLo + (1 - probeY.value / 1000) * pSpan(); recomputeEdges(); });
 document.getElementById('scene').addEventListener('click', () => enterScene(!ringMode));
+document.getElementById('route').addEventListener('click', () => { if (!ringMode) { enterScene(true); return; } planSceneRoute(true); });
+document.getElementById('mat').addEventListener('click', () => {
+  matIdx = (matIdx + 1) % MATS.length;
+  document.getElementById('mat').textContent = '⚙ ' + MATS[matIdx].name;
+  if (ringMode) { document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => WASM_READY.then(() => buildCylinderShell())); }
+});
 document.getElementById('regen').addEventListener('click', () => {
-  if (ringMode) { RING.seed = (RING.seed * 1664525 + 1013904223) >>> 0; document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => buildCylinderShell()); }
+  if (ringMode) { RING.seed = (RING.seed * 1664525 + 1013904223) >>> 0; document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => WASM_READY.then(() => buildCylinderShell())); }
   else { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); recomputeEdges(); }
 });
 document.getElementById('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
-document.getElementById('vmode').addEventListener('click', () => { view = view === 'both' ? 'cubes' : view === 'cubes' ? 'walls' : 'both'; document.getElementById('vmode').textContent = 'view: ' + view; });
+document.getElementById('vmode').addEventListener('click', () => {
+  const order = ringMode ? ['both', 'cubes', 'walls', 'route'] : ['both', 'cubes', 'walls'];
+  view = order[(order.indexOf(view) + 1) % order.length];
+  document.getElementById('vmode').textContent = 'view: ' + view;
+  refreshEdges();
+});
 
 (async () => {
   resize(); regen();

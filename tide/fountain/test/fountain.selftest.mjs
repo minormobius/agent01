@@ -2,7 +2,7 @@
 // The trajectory is exact rotating-frame mechanics, so it's checked against conserved
 // quantities (specific energy), the no-Coriolis limit (returns to launch, apex = v₀²/2g),
 // and the Coriolis deflection direction, plus the nozzle tradeoff structure.
-import { defaultParams, simulate, integrateParcel, ventilationK, jetMechanics, NOZZLES } from '../sim/fountain.mjs';
+import { defaultParams, simulate, integrateParcel, ventilationK, inducedWind, jetMechanics, NOZZLES } from '../sim/fountain.mjs';
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -91,6 +91,27 @@ const deg = (d) => (d * Math.PI) / 180;
   ok('the conduit reaches above the inversion to bridge surface↔aloft',
      ventilationK({ ...p, v0: 150 }).depth > p.inversionDepth,
      `depth ${ventilationK({ ...p, v0: 150 }).depth.toFixed(0)} m`);
+}
+
+// ── 7c. Induced wind — the entrained-air plume the jet drags along ───────────
+{
+  const p = { ...defaultParams(), nozzle: 'jet', v0: 120, angleDeg: 0 };
+  const w = inducedWind(p);
+  ok('induced wind is capped at the water speed near the nozzle', w.wMax <= p.v0 + 1e-9,
+     `w(0) ${w.wMax.toFixed(0)} m/s vs v₀ ${p.v0} m/s`);
+  ok('the wind decays with height (entrainment spreads the momentum)',
+     w.wInversion < w.wMax && w.wApex <= w.wInversion + 1e-9 &&
+     w.profile.every((pt, i) => i === 0 || pt.w <= w.profile[i - 1].w + 1e-9),
+     `${w.wMax.toFixed(0)} → ${w.wInversion.toFixed(1)} → ${w.wApex.toFixed(1)} m/s`);
+  ok('a breeze at the inversion, not a hurricane', w.wInversion > 0.5 && w.wInversion < 30,
+     `${w.wInversion.toFixed(1)} m/s at ${p.inversionDepth} m`);
+  const wFast = inducedWind({ ...p, v0: 300 });
+  ok('induced wind grows with jet strength', wFast.wInversion > w.wInversion,
+     `${w.wInversion.toFixed(1)} → ${wFast.wInversion.toFixed(1)} m/s`);
+  ok('no flow ⇒ no wind', inducedWind({ ...p, flowRate: 0 }).wMax === 0);
+  const weak = inducedWind({ ...p, nozzle: 'mist', v0: 25 });
+  ok('a weak jet that never reaches the inversion leaves it calm', weak.wInversion === 0,
+     `plume top ${weak.top.toFixed(0)} m < inversion ${p.inversionDepth} m`);
 }
 
 // ── 7b. Jet mechanics — the engineering cost (Mach + pump pressure) ──────────

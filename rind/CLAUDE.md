@@ -10,7 +10,9 @@ solver** that scores it. Three browser tools over one structural pipeline (gener
 JS → emit a frame model → solve for stress):
 
 - `cylinder.html` — structural + radiative scratchpad; sizes the shell, live stress play-slice.
-- `foamview.html` — 3D read of the layered foam (orbit, radial probe, solved member forces).
+- `foamview.html` — 3D read of the layered foam (orbit, radial probe, solved member forces),
+  plus wayfinding: a drivable spiral ramp → azimuthal road → ramp route through the chamber
+  graph (`wayfind.js`, certified by `test/wayfind.selftest.mjs`).
 - `walk.html` — first-person walk through a planar cut of the foam.
 
 ## The package it belongs to
@@ -25,11 +27,13 @@ of hoop; it is the shell, tide/biome are the air/life inside it. Keep the cross-
 ```bash
 ( cd rind/solver/cylinder-solver && cargo test )   # the solver math, offline
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
+node rind/test/wayfind.selftest.mjs                # wayfinding certificates (no deps)
 open rind/index.html                               # the three tools
 ```
 
-There are no node self-tests in `rind/` itself — the structural correctness lives in the Rust
-crate's `cargo test`. The pages are exercised by eye (open them) and by the solver tests.
+Structural correctness lives in the Rust crate's `cargo test`; the wayfinding (spiral ramps +
+azimuthal roads through the chamber graph, `wayfind.js`) is certified by its node selftest.
+The pages themselves are exercised by eye (open them).
 
 ## Deploy
 

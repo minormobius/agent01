@@ -71,6 +71,49 @@ export function solve_net_json(req) {
         wasm.__wbindgen_export3(deferred2_0, deferred2_1, 1);
     }
 }
+
+/**
+ * The foam-scale solve: a pin-jointed 3D truss with ~10⁵ DOF (foamview's shell
+ * sector). Typed arrays instead of JSON — at this size a JSON round-trip would cost
+ * more than the solve. `pos`/`load` are 3n long, `fixed` is 3n of 0/1 per DOF,
+ * `mi`/`mj`/`stiff` are per-member (stiff = EA/L). Returns
+ * `[converged, iters, relres, compliance, u(3n)…, force(M)…]`, or `[-1]` on a
+ * malformed call. Non-convergence (converged = 0) is the mechanism flag.
+ * @param {Float64Array} pos
+ * @param {Uint8Array} fixed
+ * @param {Float64Array} load
+ * @param {Uint32Array} mi
+ * @param {Uint32Array} mj
+ * @param {Float64Array} stiff
+ * @param {number} tol
+ * @param {number} max_iter
+ * @returns {Float64Array}
+ */
+export function solve_truss3d(pos, fixed, load, mi, mj, stiff, tol, max_iter) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passArrayF64ToWasm0(pos, wasm.__wbindgen_export);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArray8ToWasm0(fixed, wasm.__wbindgen_export);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passArrayF64ToWasm0(load, wasm.__wbindgen_export);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passArray32ToWasm0(mi, wasm.__wbindgen_export);
+        const len3 = WASM_VECTOR_LEN;
+        const ptr4 = passArray32ToWasm0(mj, wasm.__wbindgen_export);
+        const len4 = WASM_VECTOR_LEN;
+        const ptr5 = passArrayF64ToWasm0(stiff, wasm.__wbindgen_export);
+        const len5 = WASM_VECTOR_LEN;
+        wasm.solve_truss3d(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, ptr5, len5, tol, max_iter);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var v7 = getArrayF64FromWasm0(r0, r1).slice();
+        wasm.__wbindgen_export3(r0, r1 * 8, 8);
+        return v7;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
@@ -81,6 +124,11 @@ function __wbg_get_imports() {
     };
 }
 
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
 let cachedDataViewMemory0 = null;
 function getDataViewMemory0() {
     if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || (cachedDataViewMemory0.buffer.detached === undefined && cachedDataViewMemory0.buffer !== wasm.memory.buffer)) {
@@ -89,8 +137,24 @@ function getDataViewMemory0() {
     return cachedDataViewMemory0;
 }
 
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
+}
+
 function getStringFromWasm0(ptr, len) {
     return decodeText(ptr >>> 0, len);
+}
+
+let cachedUint32ArrayMemory0 = null;
+function getUint32ArrayMemory0() {
+    if (cachedUint32ArrayMemory0 === null || cachedUint32ArrayMemory0.byteLength === 0) {
+        cachedUint32ArrayMemory0 = new Uint32Array(wasm.memory.buffer);
+    }
+    return cachedUint32ArrayMemory0;
 }
 
 let cachedUint8ArrayMemory0 = null;
@@ -99,6 +163,27 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function passArray32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getUint32ArrayMemory0().set(arg, ptr / 4);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArray8ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 1, 1) >>> 0;
+    getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF64ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 8, 8) >>> 0;
+    getFloat64ArrayMemory0().set(arg, ptr / 8);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
@@ -173,6 +258,8 @@ function __wbg_finalize_init(instance, module) {
     wasm = instance.exports;
     wasmModule = module;
     cachedDataViewMemory0 = null;
+    cachedFloat64ArrayMemory0 = null;
+    cachedUint32ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     return wasm;
 }

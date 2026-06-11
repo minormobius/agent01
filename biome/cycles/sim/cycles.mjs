@@ -28,6 +28,11 @@
 //                    just a heterotroph whose trophic edge points at the litter pool;
 //                    a "pollinator"/"predator" is one whose edge points at organisms.
 //
+// An animal may also carry an optional `harvest` (per-day specific rate): a cull of its
+// standing biomass straight into the `food` store — a fishery / aquaculture yield. It is
+// the exact analogue of a producer's `harvestIndex` (organic C → organic C), so it
+// conserves by construction. Communities that omit `harvest` are byte-for-byte unchanged.
+//
 // Pure functions, no deps, no DOM. Attaches to globalThis so node and a browser
 // <script type=module> both see `Biome`. Units: mol for reactive species, seconds for t.
 
@@ -54,7 +59,8 @@ const safe = (x) => (x > 0 ? x : 0);
 //   producer:    area_m2, fix(mol C/m²/lit-day), autoResp(0..1),
 //                turnover/day (->food by harvestIndex, rest ->litter), harvestIndex
 //   heterotroph: ingest/day (max, per unit biomass), assim(0..1),
-//                resp/day (maintenance), mort/day, capacityFrac (K = frac × food base)
+//                resp/day (maintenance), mort/day, capacityFrac (K = frac × food base),
+//                harvest/day (optional — specific cull of biomass into the food store)
 // interactions:
 //   {type:'trophic',     consumer, resources:[ids or 'litter'], halfSat}  // who eats whom
 //   {type:'pollinates',  animal, plant, halfSat, fruitPerday}             // gates plant fruit -> food
@@ -170,6 +176,7 @@ export function derivatives(s, p) {
   let resp = 0;      // total respiration carbon (mol C/s)   — O2 in, CO2 out
   let npp = 0;       // total net primary production -> drives mineral-N uptake
   let litterConsumed = 0;  // net C pulled out of the litter pool by detritivores
+  let foodFromAnimals = 0; // C culled from animal stocks into the food store (fishery yield)
   const flux = { perSpecies: {}, fruitSet: 0, foodIn: 0 };
   const byId = Object.fromEntries(p.species.map((sp) => [sp.id, sp]));
 
@@ -199,6 +206,14 @@ export function derivatives(s, p) {
       const maint = ((sp.resp || 0) * B) / DAY;
       resp += maint; d[sp.id] -= maint;
       f.maint = maint;
+      // optional standing-stock harvest: cull biomass into the food store. A specific
+      // rate (∝ B), so it can't drive a stock negative on its own; biomass C → food C,
+      // conserving — the animal-side twin of a producer's harvestIndex.
+      if (sp.harvest) {
+        const har = (sp.harvest * B) / DAY;
+        d[sp.id] -= har; d.food += har;
+        f.harvest = har; flux.foodIn += har; foodFromAnimals += har;
+      }
     }
   }
 
@@ -283,6 +298,8 @@ export function derivatives(s, p) {
       grossFix: fix, totalResp: resp,
       o2_net: fix - resp, co2_net: resp - fix,
       humanDemand: humanC, eaten, spoil, fixN, denitrify, uptake,
+      foodFromAnimals, litterConsumed,
+      wasteToLitter: eaten * 0.08,   // crew organic waste loading the water (mol C/s)
       calorieSupply_kcalday: flux.foodIn * DAY * KCAL_PER_MOL_CH2O,
       calorieDemand_kcalday: p.crew * p.human_kcal_day,
     },
@@ -350,6 +367,10 @@ export function snapshot(s, p) {
     nMineral: s.nMineral, nBiomass: s.nBiomass, nLitter: s.nLitter,
     o2_net_molday: f.o2_net * DAY,
     foodIn_molday: f.foodIn * DAY, foodDemand_molday: f.humanDemand * DAY,
+    fishHarvest_molday: f.foodFromAnimals * DAY,   // fishery yield into the food store
+    litterClear_molday: f.litterConsumed * DAY,    // detrital (BOD) clearance by detritivores
+    nUptake_molday: f.uptake * DAY,                // mineral-N stripped by producers
+    wasteLoad_molday: f.wasteToLitter * DAY,       // crew organic waste loaded to the water
     fruitSet: f.fruitSet,
     calorieSupply: f.calorieSupply_kcalday, calorieDemand: f.calorieDemand_kcalday,
     calorieRatio: f.calorieSupply_kcalday / f.calorieDemand_kcalday,

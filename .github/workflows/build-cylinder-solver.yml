@@ -12,6 +12,7 @@ on:
     branches:
       - main
       - 'claude/oneill-cylinder-refactor-xjknww'
+      - 'claude/foam-spiral-ramp-wayfinding-hkgcw2'
     paths:
       - 'rind/solver/cylinder-solver/**'
       - 'rind/solver/cylinder-solver-wasm/**'

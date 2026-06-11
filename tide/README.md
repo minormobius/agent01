@@ -93,7 +93,11 @@ looking straight down the axis. Two coupled pieces share one view (live at `foun
 - **Momentum coupling.** `Fountain.ventilationK()` expresses the plume's mechanical work on the
   air as an equivalent eddy diffusivity fed into Module 2's column — the night-time pump buoyant
   convection can't provide. With thermal convection off, the fountain alone **cuts the canopy CO₂
-  swing ~60%**.
+  swing ~60%**. `Fountain.inducedWind()` is the same coupling seen as a *wind*: the jet's momentum
+  flux (ρ_w·Q·v₀) handed to a momentum-conserving entrained-air plume (b = b₀ + αh, α ≈ 0.12),
+  giving w(h) = √(F/ρ_aπb²) — a gale at the nozzle, a fresh breeze at the inversion, calm above
+  the plume top. The viewer draws it as chevrons riding the jet sheet, gated by the diurnal jet
+  phase, and the jets rise from inside their lakes (the wall is the lake bed, the chord its surface).
 - **The luminous-flux budget (`fountain/sim/light.mjs`).** The axial sun is a **line**, so
   irradiance falls as **1/r**. Flooding the 8 km wall at 1 sun takes a **~50 MW-per-metre** lamp.
   All that light becomes heat, radiated from the larger 10 km outer skin — at half a sun a benign
@@ -101,9 +105,37 @@ looking straight down the axis. Two coupled pieces share one view (live at `foun
   must be actively pumped to the radiator. Half a sun is the sweet spot.
 
 ```bash
-node tide/fountain/test/fountain.selftest.mjs   # 19 checks: energy conservation, deflection, nozzles, ventilation K, jet mechanics
+node tide/fountain/test/fountain.selftest.mjs   # 25 checks: energy conservation, deflection, nozzles, ventilation K, induced wind, jet mechanics
 node tide/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 50 MW/m headline, radiator + foam heat closure
 open tide/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
+```
+
+## Module 2c — the ratchet: lake topology (`ratchet/`)
+
+Why a lake on a rotating cylinder is **not a secant line**, and the terrain that makes lakes
+possible. Live at `ratchet/index.html`; kernel in `ratchet/sim/ratchet.mjs`.
+
+- **Equipotentials are concentric arcs.** The rotating-frame potential is −½ω²r², so a liquid
+  free surface is an arc of constant radius. A chord mid-span sits r(1−cos φ) closer to the axis
+  than its ends — **~300 m of spurious head across the default 4.4 km lake** — and the water runs
+  off it. Corollary: a perfectly smooth cylinder holds no lakes at all; any water relaxes into a
+  uniform annular film (the model reproduces both limits).
+- **The ratchet teeth.** Three asymmetric teeth carved into the floor, one per lake/forest/jet:
+  a short steep **scarp** prograde of each basin, a long gentle **glide** descending into the
+  *next* basin. `fillLake()` solves the free-surface radius by bisection on the exact cylindrical
+  volume integral (closure ~1e-14); shorelines come out asymmetric — the lake leans far up the
+  glide tail and is penned by the scarp.
+- **The ratchet river.** `ratchetFlow()` couples the fountain's ballistic streams to the terrain:
+  the irrigation fan lands short of the crest and the runoff collects back home (the closed local
+  loop); a tight jet past ~180 m/s lands beyond it, so each lake feeds the **next** lake prograde
+  and the water circulates the rim for ever.
+- **The viewer exaggerates radially** (slider, capped at mid-bore) — 250 m of terrain on an 8 km
+  radius is sub-pixel at true scale — while the jets' water arcs stay true-scale; a toggleable
+  dashed overlay draws the **secant fallacy** with its sag labelled.
+
+```bash
+node tide/ratchet/test/ratchet.selftest.mjs     # 20 checks: terrain, fill closure, hydrostatics, secant sag, film limit, routing, the river
+open tide/ratchet/index.html                    # the exaggerated-landscape viewer
 ```
 
 ## Module 4 — the systems ledger: water & energy (`systems/`)
@@ -147,6 +179,8 @@ tide/
 │   ├── index.html · sim/column.mjs · sim/optics.mjs · test/{column,optics}.selftest.mjs
 ├── fountain/                     # MODULE 2b — azimuthal cross-section: fountain + light
 │   ├── index.html · sim/fountain.mjs · sim/light.mjs · test/{fountain,light}.selftest.mjs
+├── ratchet/                      # MODULE 2c — lake topology: equipotential arcs + ratchet teeth
+│   ├── index.html · sim/ratchet.mjs · test/ratchet.selftest.mjs
 └── systems/                      # MODULE 4 — water & energy ledger
     └── sim/resources.mjs · test/resources.selftest.mjs
 ```

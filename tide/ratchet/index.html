@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tide · the ratchet — lakes on a spinning floor</title>
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#15231d,#0a110e 60%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:84ch}
+  .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:262px 1fr 252px;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:1050px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px}
+  .panel h2{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:9px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--leaf);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--leaf);height:18px}
+  select{width:100%;background:#0e1713;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit}
+  canvas{display:block;background:#060b08;border:1px solid var(--line);border-radius:10px;width:100%}
+  .gauges{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+  .g .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
+  .g .v{font-size:16px;font-weight:600;margin-top:1px}
+  .g .u{font-size:9.5px;color:var(--dim)}
+  .note{font-size:11px;color:var(--dim);margin-top:9px;line-height:1.5}
+  .note b{color:var(--txt)}
+  .verdict{font-size:12px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);margin-bottom:10px}
+  .verdict.ok{background:#13241a;border-color:#2c5a3c}
+  .verdict.loop{background:#17202a;border-color:#2c4a5a}
+  .verdict.bad{background:#251612;border-color:#5a342c}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>tide · the ratchet <small>— lakes on a spinning floor (looking down the axis)</small></h1>
+  <div class="sub">In the rotating frame the potential is −½ω²r², so a liquid surface is an
+  <b>arc concentric with the axis — never a secant line</b>: a chord mid-span sits r(1−cos φ)
+  closer to the axis than its ends, spurious head the water runs off. On a smooth cylinder there
+  are no lakes at all, just a film. Lakes need carved topology: <b>ratchet teeth</b> — a steep
+  scarp prograde of each lake, a long glide descending into the next basin — so the Coriolis-drifted
+  jet sheet either drains home or <b>ratchets forward, lake to lake</b>. Terrain here is radially
+  <b>exaggerated</b> (250 m on an 8 km radius is sub-pixel at true scale); the water arcs of the
+  jets stay true-scale. <a href="../fountain/">← fountain &amp; sun</a> · <a href="../">tide ↑</a></div>
+</header>
+<main>
+  <!-- left: terrain + jet -->
+  <section>
+    <div class="panel">
+      <h2>The terrain (the ratchet)</h2>
+      <label class="ctl"><span class="row"><span>Crest height</span><b id="v-crest"></b></span>
+        <input id="crest" type="range" min="50" max="500" step="10"></label>
+      <label class="ctl"><span class="row"><span>Scarp width (of tooth)</span><b id="v-scarp"></b></span>
+        <input id="scarp" type="range" min="0.02" max="0.15" step="0.005"></label>
+      <label class="ctl"><span class="row"><span>Water per lake</span><b id="v-vol"></b></span>
+        <input id="vol" type="range" min="10" max="500" step="10"></label>
+      <div class="note">Slide the crest to 50 m and the lake spreads; in the smooth-cylinder limit
+      it becomes a film over the whole rim — <b>the terrain is what makes a lake possible</b>.
+      The scarp is the ratchet's tooth face: it pens the lake on the prograde side and decides
+      how far the jet must throw to feed the next basin.</div>
+    </div>
+    <div class="panel">
+      <h2>The jet (from the lake)</h2>
+      <label class="ctl"><span class="row"><span>Nozzle</span></span>
+        <select id="nozzle">
+          <option value="jet" selected>Jet — tight column, max reach</option>
+          <option value="fan">Fan — aimed azimuthal sheet</option>
+          <option value="fansym">Symmetric fan — balanced broadcast</option>
+          <option value="mist">Mist — fine aerating spray</option>
+        </select></label>
+      <label class="ctl"><span class="row"><span>Exit velocity</span><b id="v-v0"></b></span>
+        <input id="v0" type="range" min="40" max="240" step="5"></label>
+      <label class="ctl"><span class="row"><span>Aim (azimuthal, + = with spin)</span><b id="v-ang"></b></span>
+        <input id="ang" type="range" min="-60" max="60" step="2"></label>
+      <div id="rverdict" class="verdict"></div>
+      <div class="note">The fan irrigates its own slope and the runoff collects back home — the
+      closed local loop. A tight jet past ~180 m/s lands beyond the crest: every lake then feeds
+      the <b>next</b> lake prograde, and the water circulates the rim as a ratchet river.</div>
+    </div>
+  </section>
+
+  <!-- middle: the cross-section -->
+  <section>
+    <div class="panel">
+      <h2>Cross-section — terrain exaggerated, water arcs true-scale</h2>
+      <label class="ctl"><span class="row"><span>Radial exaggeration (terrain &amp; lakes)</span><b id="v-ex"></b></span>
+        <input id="ex" type="range" min="1" max="20" step="0.5"></label>
+      <div class="toggle"><input type="checkbox" id="secant" checked><label for="secant">Show the secant fallacy (the chord a flat-world lake would want)</label></div>
+      <canvas id="disk" width="640" height="640"></canvas>
+      <div class="note" id="simplify"></div>
+    </div>
+  </section>
+
+  <!-- right: the books -->
+  <section>
+    <div class="panel">
+      <h2>The lake (per basin)</h2>
+      <div class="gauges" id="lgauges"></div>
+      <div class="note"><b>Why not a secant?</b> A chord is an equipotential only in uniform
+      linear gravity. Here level means constant radius, so the surface is an arc — the
+      <i>secant sag</i> gauge is how far a chord would dip below level at mid-span. Bed pressure
+      is the exact rotating-frame hydrostatic ½ρω²(R²−r<sub>w</sub>²).</div>
+    </div>
+    <div class="panel">
+      <h2>The river (runoff routing)</h2>
+      <div class="gauges" id="rgauges"></div>
+      <div class="note">Landing markers on the slope: <b style="color:var(--leaf)">green</b> drains
+      back to its own lake, <b style="color:var(--gold)">gold</b> has crossed the crest and drains
+      to the next. The animated dots are the runoff finding its basin.</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { defaultParams, toothAngle, crestTheta, elevation, fillLake, drainsTo, ratchetFlow } from './sim/ratchet.mjs';
+import { defaultParams as fountainParams } from '../fountain/sim/fountain.mjs';
+import { CYLINDER } from '../shared/geometry.mjs';
+
+const $ = (id) => document.getElementById(id);
+const gauge=(k,v,u,c)=>`<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
+
+let p, fp, fill, flow;
+function read(){
+  p = defaultParams();
+  p.crest = parseFloat($('crest').value);
+  p.scarpFrac = parseFloat($('scarp').value);
+  p.lakeArea_m2pm = parseFloat($('vol').value) * 1e3;
+  fp = fountainParams();
+  fp.nozzle = $('nozzle').value; fp.v0 = parseFloat($('v0').value);
+  fp.angleDeg = parseFloat($('ang').value);
+  $('v-crest').textContent = p.crest + ' m';
+  $('v-scarp').textContent = (p.scarpFrac * 100).toFixed(1) + '% (' + (p.scarpFrac * toothAngle(p) * p.R / 1000).toFixed(1) + ' km)';
+  $('v-vol').textContent = (p.lakeArea_m2pm / 1e3).toFixed(0) + 'k m²/m';
+  $('v-v0').textContent = fp.v0 + ' m/s';
+  $('v-ang').textContent = fp.angleDeg + '°';
+  fill = fillLake(p);
+  flow = ratchetFlow(p, fp);
+  // the lake books
+  $('lgauges').innerHTML =
+    gauge('Lake depth', fill.depthMax.toFixed(0)+' m', 'at the basin floor', 'var(--water)')+
+    gauge('Mean depth', fill.meanDepth.toFixed(0)+' m', 'volume / surface', 'var(--water)')+
+    gauge('Surface', (fill.surfaceArc_m/1000).toFixed(1)+' km', 'shoreline to shoreline', 'var(--dim)')+
+    gauge('Shores', (-fill.shoreRetro*p.R/1000).toFixed(1)+' | '+(fill.shorePro*p.R/1000).toFixed(1), 'km retro | pro (asym.)', 'var(--dim)')+
+    gauge('Secant sag', fill.secantSag_m.toFixed(0)+' m', 'a chord is NOT level', 'var(--warn)')+
+    gauge('Bed pressure', (fill.bedPressure_kPa/100).toFixed(1)+' bar', '½ρω²(R²−r²)', 'var(--dim)');
+  // the river books
+  const v = $('rverdict');
+  if (fill.overflow) {
+    v.className='verdict bad';
+    v.innerHTML='✕ No lake — the water tops the crest and relaxes into a connected film. Raise the terrain or drain some water.';
+  } else if (flow.circulates) {
+    v.className='verdict ok';
+    v.innerHTML=`✓ <b>The ratchet river circulates</b> — the sheet lands ${flow.meanLandingArc_m.toFixed(0)} m out, past the ${flow.crestArc_m.toFixed(0)} m crest: each lake feeds the next, around the rim for ever.`;
+  } else {
+    v.className='verdict loop';
+    v.innerHTML=`↺ Closed local loop — the sheet lands ${flow.meanLandingArc_m.toFixed(0)} m out, short of the ${flow.crestArc_m.toFixed(0)} m crest: each lake re-collects its own runoff.`;
+  }
+  $('rgauges').innerHTML =
+    gauge('Hop fraction', (flow.hopFraction*100).toFixed(0)+'%', 'of streams pass the crest', flow.circulates?'var(--gold)':'var(--leaf)')+
+    gauge('Crest at', (flow.crestArc_m/1000).toFixed(2)+' km', 'prograde of the nozzle', 'var(--dim)')+
+    gauge('Mean landing', (flow.meanLandingArc_m/1000).toFixed(2)+' km', 'Coriolis drift arc', 'var(--dim)')+
+    gauge('Drains to', flow.circulates?'next lake →':'own lake ↺', flow.circulates?'the river ratchets':'loop closed at home', flow.circulates?'var(--gold)':'var(--leaf)');
+}
+
+// ── render — world coordinates (y up, θ=0 east, lake 0 at the bottom), converted at the blit ──
+const cv=$('disk'), ctx=cv.getContext('2d'); let tphase=0;
+function draw(){
+  const W=cv.width,H=cv.height,cx=W/2,cy=H/2; ctx.clearRect(0,0,W,H);
+  const R=p.R, R_out=CYLINDER.R_out, scale=(Math.min(W,H)/2-12)/R_out;
+  const toX=(x)=>cx+x*scale, toY=(y)=>cy-y*scale;
+  const T=toothAngle(p);
+  const ex=Math.min(parseFloat($('ex').value), 0.5*R/p.crest);   // never exaggerate past mid-bore
+  $('v-ex').textContent=ex.toFixed(1)+'×';
+  const worldOf=(th,r)=>[r*Math.cos(th), r*Math.sin(th)];
+  const TH0=-Math.PI/2;                                          // lake 0 at the bottom
+  const rEx=(th)=>R-ex*elevation(p, th-TH0);                     // exaggerated ground radius
+  // hull + rind
+  ctx.strokeStyle='#3a4a42'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R_out*scale,0,7); ctx.stroke();
+  ctx.fillStyle='rgba(120,110,90,0.14)'; ctx.beginPath();
+  ctx.arc(cx,cy,CYLINDER.rindOuter*scale,0,7); ctx.arc(cx,cy,CYLINDER.rindInner*scale,0,7,true); ctx.fill();
+  ctx.fillStyle='#7f9b8d'; ctx.font='10px monospace'; ctx.textAlign='center';
+  ctx.fillText('10 km hull', cx, cy-R_out*scale-4);
+  // sun at the axis
+  ctx.fillStyle='#ffe7a0'; ctx.shadowBlur=14; ctx.shadowColor='#ffd866';
+  ctx.beginPath(); ctx.arc(cx,cy,6,0,7); ctx.fill(); ctx.shadowBlur=0;
+  // soil: between the exaggerated terrain surface and the structural floor at R
+  const n=720;
+  ctx.beginPath();
+  for(let i=0;i<=n;i++){ const th=TH0+(i/n)*2*Math.PI; const [x,y]=worldOf(th,rEx(th)); i?ctx.lineTo(toX(x),toY(y)):ctx.moveTo(toX(x),toY(y)); }
+  for(let i=n;i>=0;i--){ const th=TH0+(i/n)*2*Math.PI; const [x,y]=worldOf(th,R); ctx.lineTo(toX(x),toY(y)); }
+  ctx.closePath(); ctx.fillStyle='rgba(122,98,62,0.45)'; ctx.fill();
+  // the canopy surface line
+  ctx.beginPath();
+  for(let i=0;i<=n;i++){ const th=TH0+(i/n)*2*Math.PI; const [x,y]=worldOf(th,rEx(th)); i?ctx.lineTo(toX(x),toY(y)):ctx.moveTo(toX(x),toY(y)); }
+  ctx.strokeStyle='#3f8f5a'; ctx.lineWidth=2; ctx.stroke();
+  // lakes: water between the terrain and the equipotential ARC at r_w (exaggerated radially)
+  const rwEx=R-ex*(R-fill.rw);
+  for(let k=0;k<p.teeth;k++){
+    const thk=TH0+k*T;
+    const a0=fill.shoreRetro, a1=fill.shorePro, m=48;
+    ctx.beginPath();
+    for(let i=0;i<=m;i++){ const lo=a0+(i/m)*(a1-a0); const [x,y]=worldOf(thk+lo, rEx(thk+lo)); i?ctx.lineTo(toX(x),toY(y)):ctx.moveTo(toX(x),toY(y)); }
+    for(let i=m;i>=0;i--){ const lo=a0+(i/m)*(a1-a0); const [x,y]=worldOf(thk+lo, rwEx); ctx.lineTo(toX(x),toY(y)); }
+    ctx.closePath(); ctx.fillStyle='rgba(70,140,205,0.55)'; ctx.fill();
+    // the level surface — an arc, concentric with the axis
+    ctx.beginPath();
+    for(let i=0;i<=m;i++){ const lo=a0+(i/m)*(a1-a0); const [x,y]=worldOf(thk+lo, rwEx); i?ctx.lineTo(toX(x),toY(y)):ctx.moveTo(toX(x),toY(y)); }
+    ctx.strokeStyle='rgba(150,205,240,0.95)'; ctx.lineWidth=1.6; ctx.stroke();
+    // the secant fallacy: the chord such a lake is too often drawn with
+    if($('secant').checked && !fill.overflow){
+      const [xa,ya]=worldOf(thk+a0,rwEx), [xb,yb]=worldOf(thk+a1,rwEx);
+      ctx.strokeStyle='rgba(224,121,90,0.8)'; ctx.setLineDash([5,4]); ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(toX(xa),toY(ya)); ctx.lineTo(toX(xb),toY(yb)); ctx.stroke(); ctx.setLineDash([]);
+      if(k===0){
+        const mid=worldOf(thk+(a0+a1)/2, rwEx*Math.cos((a1-a0)/2));
+        ctx.fillStyle='rgba(224,121,90,0.95)'; ctx.textAlign='center';
+        ctx.fillText('secant “surface” — sags '+fill.secantSag_m.toFixed(0)+' m below level at mid-span', toX(mid[0]), toY(mid[1])-8);
+      }
+    }
+    // jet from the lake bottom (true-scale water arcs)
+    const ca=Math.cos(k*T), sa=Math.sin(k*T);
+    const rot=(x,y)=>[x*ca-y*sa, x*sa+y*ca];
+    for(const st of flow.sim.streams){
+      ctx.strokeStyle='rgba(120,180,220,0.4)'; ctx.lineWidth=1; ctx.beginPath();
+      st.traj.forEach((pt,i)=>{ const r=rot(pt[0],pt[1]); i?ctx.lineTo(toX(r[0]),toY(r[1])):ctx.moveTo(toX(r[0]),toY(r[1])); }); ctx.stroke();
+      const di=Math.floor((tphase%1)*(st.traj.length-1)); const dp=st.traj[di];
+      if(dp){ const r=rot(dp[0],dp[1]); ctx.fillStyle='#cfe6da'; ctx.beginPath(); ctx.arc(toX(r[0]),toY(r[1]),1.6,0,7); ctx.fill(); }
+    }
+    // landing markers on the (exaggerated) slope, coloured by where they drain
+    for(const l of flow.lands){
+      const th=thk+l.theta; const [x,y]=worldOf(th, rEx(th));
+      ctx.fillStyle=l.target>=1?'#d8b25a':'#62b87a';
+      ctx.beginPath(); ctx.arc(toX(x),toY(y),2.6,0,7); ctx.fill();
+    }
+    // runoff: animated dots sliding along the surface to their basin
+    const land=flow.meanLandingArc_m/p.R, tgt=drainsTo(p,land);
+    const dest=tgt*T;                                           // target basin centre (local)
+    for(let j=0;j<5;j++){
+      const u=(tphase*0.35+j/5)%1;
+      const lo=land+(dest-land)*u; const th=thk+lo;
+      const [x,y]=worldOf(th, rEx(th));
+      ctx.fillStyle='rgba(90,169,216,0.85)'; ctx.beginPath(); ctx.arc(toX(x),toY(y),1.8,0,7); ctx.fill();
+    }
+    // nozzle
+    const [bx,by]=worldOf(thk,R);
+    ctx.fillStyle='rgba(90,150,200,0.9)'; ctx.beginPath(); ctx.arc(toX(bx),toY(by),3.5,0,7); ctx.fill();
+  }
+  // labels: scarp, glide, spin
+  const thScarp=TH0+crestTheta(p)*0.7, thGlide=TH0+T*0.5;
+  ctx.fillStyle='#a9845a'; ctx.textAlign='center';
+  let lp=worldOf(thScarp, rEx(thScarp)-330);                    // a touch inward of the scarp
+  ctx.fillText('scarp', toX(lp[0]), toY(lp[1]));
+  lp=worldOf(thGlide, rEx(thGlide)-330);
+  ctx.fillText('glide', toX(lp[0]), toY(lp[1]));
+  ctx.strokeStyle='rgba(127,155,141,0.5)'; ctx.lineWidth=1.4; ctx.beginPath(); ctx.arc(cx,cy,(R-600)*scale,-0.5,0.5); ctx.stroke();
+  ctx.fillStyle='rgba(127,155,141,0.7)';
+  ctx.fillText('ω ↻', cx+(R-600)*scale*Math.cos(0.5)-22, cy-(R-600)*scale*Math.sin(0.5)-6);
+  ctx.fillStyle='#7f9b8d';
+  ctx.fillText(p.teeth+' teeth · '+p.teeth+' lakes · the river runs prograde', cx, toY(-R)+18);
+}
+function frame(){ tphase+=0.012; draw(); requestAnimationFrame(frame); }
+
+// init
+$('crest').value=250; $('scarp').value=0.06; $('vol').value=150;
+$('nozzle').value='jet'; $('v0').value=190; $('ang').value=0;
+$('ex').value=8; $('secant').checked=true;
+read();
+$('simplify').innerHTML='<b>Model.</b> Exact rotating-frame hydrostatics: the lake surface is the equipotential arc that conserves the water volume (machine precision). Terrain is a sawtooth ratchet; runoff routing is topological (which side of the crest you land on). Jets are the fountain module’s ballistic streams, true-scale; terrain and lake depths are exaggerated by the slider.';
+for(const id of ['crest','scarp','vol','nozzle','v0','ang']) $(id).addEventListener('input', read);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

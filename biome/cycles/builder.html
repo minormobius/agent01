@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · food-web builder — design a web, read its stability</title>
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#15231d,#0a110e 60%);
+    color:var(--txt);font:13.5px/1.5 var(--mono);min-height:100vh}
+  header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--leaf);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:78ch}
+  .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:360px 1fr;gap:18px;padding:18px 22px;align-items:start}
+  @media(max-width:980px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+  .panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row.sb{justify-content:space-between}
+  label.fld{display:flex;flex-direction:column;font-size:10.5px;color:var(--dim);gap:2px}
+  input,select{background:#0e1713;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:5px 6px;font:inherit;font-size:12px;width:100%}
+  input[type=range]{padding:0;height:18px;accent-color:var(--leaf)}
+  button{background:#16241c;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;font-size:12px;cursor:pointer}
+  button:hover{border-color:var(--leaf)}
+  button.sm{padding:3px 7px;font-size:11px}
+  button.danger:hover{border-color:var(--warn);color:var(--warn)}
+  .sp{border:1px solid var(--line);border-radius:8px;padding:9px;margin-bottom:9px;background:#0e1713}
+  .sp .hd{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:7px}
+  .sp .hd .nm{flex:1}
+  .sp .hd .nm input{font-size:13px;font-weight:600}
+  .badge{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;padding:2px 6px;border-radius:5px;border:1px solid var(--line)}
+  .badge.prod{color:var(--leaf);border-color:#2c5a3c}
+  .badge.anim{color:var(--gold);border-color:#5a4f2c}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .eats{margin-top:6px}
+  .eats .lab{font-size:10px;color:var(--dim);margin-bottom:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:4px}
+  .chip{font-size:11px;padding:2px 7px;border:1px solid var(--line);border-radius:11px;cursor:pointer;background:#0c1410;color:var(--dim)}
+  .chip.on{background:#16241c;color:var(--leaf);border-color:#2c5a3c}
+  .verdict{font-size:13px;padding:12px 14px;border-radius:8px;margin-bottom:16px;border:1px solid var(--line)}
+  .verdict.ok{background:#13241a;border-color:#2c5a3c}
+  .verdict.warn{background:#23200f;border-color:#5a4f2c}
+  .verdict.bad{background:#251612;border-color:#5a342c}
+  .verdict b{display:block;font-size:14px;margin-bottom:3px;color:var(--txt)}
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  @media(max-width:560px){.gauges{grid-template-columns:repeat(2,1fr)}}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .g .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+  .g .v{font-size:18px;font-weight:600;margin-top:2px}
+  .g .u{font-size:10.5px;color:var(--dim)}
+  canvas{width:100%;display:block;background:#0a1310;border:1px solid var(--line);border-radius:8px}
+  .note{font-size:11px;color:var(--dim);margin-top:9px;line-height:1.5}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:860px){.twocol{grid-template-columns:1fr}}
+  .bars{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .bar{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:8px;font-size:12px}
+  .bar .track{height:12px;background:#0e1713;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .bar .fill{height:100%;background:linear-gradient(90deg,var(--leaf),var(--gold))}
+  .bar .pct{text-align:right;color:var(--dim)}
+  .problems{color:var(--warn);font-size:12px;line-height:1.6}
+  textarea{width:100%;height:120px;background:#0e1713;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:7px;font:inherit;font-size:11px}
+  details summary{cursor:pointer;color:var(--dim);font-size:12px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:8px}
+  .legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <h1>biome · food-web builder <small>— design a web, read its stability</small></h1>
+  <div class="sub">An open workbench on the same element-exact engine. <b>Add producers and
+  animals, wire who-eats-whom, set a harvest</b> — and watch, live, whether the loop closes
+  (air holds, the crew is fed, nobody goes extinct) and whether it <b>survives</b> a shock
+  (the community-matrix eigenvalues). Animal rates are derived from body mass (Kleiber
+  allometry), so you set a mass and a guild, not eight numbers. Your design rides entirely in
+  the URL — <b>copy the link to display your web to anyone</b>. &nbsp;→
+  <a href="./index.html">land web</a> · <a href="./lake.html">lake</a> ·
+  <a href="./global.html">global</a> · <a href="./stability.html">stability lab</a></div>
+</header>
+<main>
+  <section>
+    <div class="panel">
+      <h2>Design</h2>
+      <div class="row sb" style="margin-bottom:9px">
+        <label class="fld" style="flex:1"><span>Name</span><input id="dname" /></label>
+      </div>
+      <div class="grid2" style="margin-bottom:9px">
+        <label class="fld"><span>Crew (mouths to feed)</span><input id="dcrew" type="number" min="1" step="1" /></label>
+        <label class="fld"><span>Sun duty cycle</span><input id="dphoto" type="number" min="0.1" max="1" step="0.05" /></label>
+      </div>
+      <div class="row sb">
+        <div class="row">
+          <select id="preset" style="width:auto">
+            <option value="land">Preset: orchard</option>
+            <option value="lake">Preset: lake</option>
+            <option value="minimal">Preset: grass→rabbit→fox</option>
+          </select>
+          <button class="sm" id="loadPreset">Load</button>
+        </div>
+        <button class="sm" id="share">Copy share link</button>
+      </div>
+      <div id="copied" class="note" style="display:none;color:var(--leaf)">Link copied — paste it anywhere to display this web.</div>
+    </div>
+
+    <div class="panel">
+      <div class="row sb" style="margin-bottom:8px">
+        <h2 style="margin:0">Species</h2>
+        <div class="row">
+          <button class="sm" id="addProd">+ Producer</button>
+          <button class="sm" id="addAnim">+ Animal</button>
+        </div>
+      </div>
+      <div id="species"></div>
+    </div>
+
+    <div class="panel">
+      <details>
+        <summary>Advanced — edit / import the raw design (JSON)</summary>
+        <div class="note">Round-trips with the editor. Paste a design and Apply.</div>
+        <textarea id="json"></textarea>
+        <div class="row" style="margin-top:6px"><button class="sm" id="applyJson">Apply JSON</button></div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <div id="verdict" class="verdict"></div>
+    <div class="gauges" id="gauges"></div>
+    <div class="panel">
+      <h2>Your food web — node = species (size ∝ standing biomass), arrow = eats</h2>
+      <canvas id="web" width="900" height="380"></canvas>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--leaf)"></span>producer</span>
+        <span><span class="dot" style="background:var(--gold)"></span>herbivore / pollinator</span>
+        <span><span class="dot" style="background:var(--warn)"></span>carnivore</span>
+        <span><span class="dot" style="background:#b08968"></span>detritivore / detritus</span>
+        <span><span class="dot" style="background:var(--water)"></span>omnivore</span>
+      </div>
+    </div>
+    <div class="twocol">
+      <div class="panel">
+        <h2>Eigenvalue spectrum (per day)</h2>
+        <canvas id="spectrum" width="440" height="320"></canvas>
+        <div class="note">Each dot is an eigenvalue of the community matrix. <b>Left of the dashed
+        line is stable</b> (shocks decay); the rightmost dot is the verdict. Height = oscillation.</div>
+      </div>
+      <div class="panel">
+        <h2>Community matrix — ∂(growthᵢ)/∂(biomassⱼ)</h2>
+        <canvas id="heat" width="440" height="320"></canvas>
+        <div class="note"><span style="color:var(--leaf)">green +</span> (j helps i),
+        <span style="color:var(--warn)">red −</span> (j harms i). Diagonal = self-regulation.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Keystones — who moves the web when pressed (normalised)</h2>
+      <div class="bars" id="keystones"></div>
+      <div class="note">From −J⁻¹ (Bender press perturbation): a long bar ⇒ pressing that species ripples far.</div>
+    </div>
+    <div class="panel">
+      <h2>Populations over ~500 days (each scaled to its own peak)</h2>
+      <canvas id="pops" width="900" height="200"></canvas>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import {
+  presets, analyzeDesign, freshId, normalizeSpecies, validateDesign,
+  encodeDesign, decodeDesign, GUILD_NAMES,
+} from './sim/builder.mjs';
+
+const $ = (id) => document.getElementById(id);
+let design = loadInitial();
+
+function loadInitial(){
+  if (location.hash.length > 1){
+    try { return decodeDesign(location.hash.slice(1)); } catch { /* fall through */ }
+  }
+  return presets().land;
+}
+
+// ── colours ──
+const guildColor = (n) => {
+  if (n.kind === 'producer') return '#62b87a';
+  if (n.kind === 'pool') return '#b08968';
+  return ({ carnivore:'#e0795a', herbivore:'#d8b25a', nectarivore:'#d8b25a',
+            detritivore:'#b08968', omnivore:'#5aa9d8' }[n.guild]) || '#d8b25a';
+};
+
+// ── editor ──
+function renderEditor(){
+  $('dname').value = design.name || 'My web';
+  $('dcrew').value = design.crew ?? 100;
+  $('dphoto').value = design.photoperiod ?? 0.7;
+  const host = $('species'); host.innerHTML = '';
+  design.species.forEach((s, i) => host.appendChild(speciesCard(s, i)));
+  $('json').value = JSON.stringify(design, null, 1);
+}
+
+function field(label, value, attrs, on){
+  const l = document.createElement('label'); l.className = 'fld';
+  l.innerHTML = `<span>${label}</span>`;
+  const inp = document.createElement('input');
+  Object.assign(inp, attrs); inp.value = value ?? '';
+  inp.addEventListener('input', () => { on(inp.value); scheduleAnalyze(); });
+  l.appendChild(inp); return l;
+}
+
+function speciesCard(s, i){
+  const card = document.createElement('div'); card.className = 'sp';
+  const isProd = s.kind === 'producer';
+  // header: name + kind badge + remove
+  const hd = document.createElement('div'); hd.className = 'hd';
+  const nm = document.createElement('div'); nm.className = 'nm';
+  const nmInput = document.createElement('input'); nmInput.value = s.name || s.id;
+  nmInput.addEventListener('input', () => { s.name = nmInput.value; scheduleAnalyze(); });
+  nm.appendChild(nmInput);
+  const badge = document.createElement('span');
+  badge.className = 'badge ' + (isProd ? 'prod' : 'anim');
+  badge.textContent = isProd ? 'producer' : (s.guild || 'animal');
+  const del = document.createElement('button'); del.className = 'sm danger'; del.textContent = '✕';
+  del.addEventListener('click', () => removeSpecies(i));
+  hd.append(nm, badge, del); card.appendChild(hd);
+
+  if (isProd){
+    const g = document.createElement('div'); g.className = 'grid3';
+    g.append(
+      field('Area m²', s.area_m2, { type:'number', step:500, min:0 }, v => s.area_m2 = +v),
+      field('Fix (mol C/m²/d)', s.fix, { type:'number', step:0.1, min:0 }, v => s.fix = +v),
+      field('Harvest index', s.harvestIndex, { type:'number', step:0.05, min:0, max:1 }, v => s.harvestIndex = +v),
+      field('Turnover /d', s.turnover, { type:'number', step:0.005, min:0 }, v => s.turnover = +v),
+      field('Init density', s.initDensity, { type:'number', step:1, min:0 }, v => s.initDensity = +v),
+      field('Auto-resp', s.autoResp, { type:'number', step:0.05, min:0, max:1 }, v => s.autoResp = +v),
+    );
+    card.appendChild(g);
+  } else {
+    const g = document.createElement('div'); g.className = 'grid3';
+    // guild select
+    const gl = document.createElement('label'); gl.className = 'fld';
+    gl.innerHTML = '<span>Guild</span>';
+    const gsel = document.createElement('select');
+    for (const gn of GUILD_NAMES){ const o = document.createElement('option'); o.value = gn; o.textContent = gn; if (gn === s.guild) o.selected = true; gsel.appendChild(o); }
+    gsel.addEventListener('change', () => { s.guild = gsel.value; badge.textContent = s.guild; scheduleAnalyze(); });
+    gl.appendChild(gsel);
+    // thermy select
+    const tl = document.createElement('label'); tl.className = 'fld'; tl.innerHTML = '<span>Thermy</span>';
+    const tsel = document.createElement('select');
+    for (const tn of ['ecto','endo']){ const o = document.createElement('option'); o.value = tn; o.textContent = tn; if (tn === (s.thermy||'ecto')) o.selected = true; tsel.appendChild(o); }
+    tsel.addEventListener('change', () => { s.thermy = tsel.value; scheduleAnalyze(); });
+    tl.appendChild(tsel);
+    g.append(
+      field('Body mass (g)', s.mass_g, { type:'number', step:0.1, min:0.0001 }, v => s.mass_g = +v),
+      gl, tl,
+      field('Count', s.count, { type:'number', step:10, min:0 }, v => { s.count = +v; delete s.initBio; }),
+      field('Forage halfSat', s.halfSat, { type:'number', step:100, min:1 }, v => s.halfSat = +v),
+      field('Harvest /d', s.harvest, { type:'number', step:0.001, min:0 }, v => s.harvest = +v),
+    );
+    card.appendChild(g);
+    // eats chips
+    const eats = document.createElement('div'); eats.className = 'eats';
+    eats.innerHTML = '<div class="lab">Eats — click to toggle</div>';
+    const chips = document.createElement('div'); chips.className = 'chips';
+    const targets = [...design.species.filter(o => o.id !== s.id).map(o => ({ id:o.id, label:o.name||o.id })), { id:'litter', label:'detritus' }];
+    s.eats = Array.isArray(s.eats) ? s.eats : [];
+    for (const t of targets){
+      const c = document.createElement('span');
+      c.className = 'chip' + (s.eats.includes(t.id) ? ' on' : '');
+      c.textContent = t.label;
+      c.addEventListener('click', () => {
+        const k = s.eats.indexOf(t.id);
+        if (k >= 0) s.eats.splice(k,1); else s.eats.push(t.id);
+        c.classList.toggle('on'); scheduleAnalyze();
+      });
+      chips.appendChild(c);
+    }
+    eats.appendChild(chips); card.appendChild(eats);
+    // pollinates select (nectarivore-ish)
+    const pl = document.createElement('label'); pl.className = 'fld'; pl.style.marginTop = '6px';
+    pl.innerHTML = '<span>Pollinates (gates that plant\'s fruit)</span>';
+    const psel = document.createElement('select');
+    const none = document.createElement('option'); none.value = ''; none.textContent = '— none —'; psel.appendChild(none);
+    for (const o of design.species.filter(x => x.kind === 'producer')){
+      const op = document.createElement('option'); op.value = o.id; op.textContent = o.name||o.id; if (o.id === s.pollinates) op.selected = true; psel.appendChild(op);
+    }
+    psel.value = s.pollinates || '';
+    psel.addEventListener('change', () => { s.pollinates = psel.value || undefined; scheduleAnalyze(); });
+    pl.appendChild(psel); card.appendChild(pl);
+  }
+  return card;
+}
+
+function removeSpecies(i){
+  const id = design.species[i].id;
+  design.species.splice(i,1);
+  for (const s of design.species){
+    if (Array.isArray(s.eats)) s.eats = s.eats.filter(e => e !== id);
+    if (s.pollinates === id) delete s.pollinates;
+  }
+  renderEditor(); scheduleAnalyze();
+}
+function addSpecies(kind){
+  const id = freshId(kind === 'producer' ? 'p' : 'a');
+  if (kind === 'producer') design.species.push(normalizeSpecies({ id, name:'New plant', kind:'producer' }));
+  else design.species.push(normalizeSpecies({ id, name:'New animal', kind:'animal', guild:'herbivore', eats:[] }));
+  renderEditor(); scheduleAnalyze();
+}
+
+// ── analysis + render ──
+let timer = null;
+function scheduleAnalyze(){ syncTop(); clearTimeout(timer); timer = setTimeout(analyze, 160); }
+function syncTop(){
+  design.name = $('dname').value;
+  design.crew = Math.max(1, parseInt($('dcrew').value) || 1);
+  design.photoperiod = Math.min(1, Math.max(0.1, parseFloat($('dphoto').value) || 0.7));
+}
+for (const el of ['dname','dcrew','dphoto']) $(el).addEventListener('input', scheduleAnalyze);
+
+let layoutCache = { key:'', nodes:null };
+function analyze(){
+  const probs = validateDesign(design);
+  const r = analyzeDesign(design, { days: 500 });
+  const vc = $('verdict');
+  if (!r.ok){
+    vc.className = 'verdict bad';
+    vc.innerHTML = `<b>Can't run this design yet</b><div class="problems">${r.problems.map(p=>'• '+p).join('<br>')}</div>`;
+    $('gauges').innerHTML = '';
+    return;
+  }
+  const c = r.closure, s = r.stability;
+  const cls = c.closes ? (s && !s.stable ? 'warn' : 'ok') : 'bad';
+  vc.className = 'verdict ' + cls;
+  const stabLabel = !s ? '' : s.error ? '' : (!s.stable ? '✕ unstable' : s.marginal ? '~ marginal' : '✓ stable');
+  vc.innerHTML = `<b>${c.closes ? 'The loop closes' : 'The loop does not close'}${stabLabel?' · '+stabLabel:''}</b>${r.verdict}`;
+
+  $('gauges').innerHTML =
+    gauge('Closes?', c.closes?'yes':'no', `feeds ${design.crew} crew`, c.closes?'var(--leaf)':'var(--warn)') +
+    gauge('O₂ · CO₂', c.o2_kPa.toFixed(1), `kPa · ${Math.round(c.co2_ppm)} ppm`, c.o2OK?'var(--leaf)':'var(--warn)') +
+    gauge('Calorie supply', Math.round(c.calorieRatio*100), '% of demand', c.calorieRatio>=1?'var(--leaf)':'var(--warn)') +
+    gauge('Food buffer', isFinite(c.foodDays)?Math.round(c.foodDays):'—', 'days', c.foodDays>3?'var(--gold)':'var(--warn)') +
+    gauge('Stable?', s? (s.stable?(s.marginal?'marginal':'yes'):'no') : '—', s&&s.stable?`return ${isFinite(s.returnTime)?Math.round(s.returnTime):'∞'} d`:'shock grows', s&&s.stable?'var(--leaf)':'var(--warn)') +
+    gauge('Spectral α', s&&isFinite(s.spectralAbscissa)?s.spectralAbscissa.toExponential(1):'—','per day '+(s&&s.stable?'< 0':'≥ 0'), s&&s.stable?'var(--leaf)':'var(--warn)') +
+    gauge('Reactivity', s&&isFinite(s.reactivity)?s.reactivity.toFixed(2):'—', s&&s.reactive?'amplifies first':'no overshoot', s&&s.reactive?'var(--warn)':'var(--leaf)') +
+    gauge('Oscillation', s&&s.oscillatory?Math.round(s.oscillationPeriod)+'d':'none','predator–prey','var(--water)');
+
+  // graph: relayout only when the node set changes (keeps it steady during value edits)
+  const key = r.graph.nodes.map(n=>n.id).sort().join(',');
+  if (key !== layoutCache.key){ layoutCache = { key, nodes: layout(r.graph, 900, 380) }; }
+  drawWeb(layoutCache.nodes, r.graph.edges, r.last);
+  if (s && !s.error){
+    drawSpectrum($('spectrum'), s.eigenvalues, s.spectralAbscissa);
+    drawHeat($('heat'), s.speciesMatrix, s.species);
+    $('keystones').innerHTML = (s.keystone||[]).map(k=>{
+      const n = r.graph.nodes.find(x=>x.id===k.id); const col = n?guildColor(n):'var(--leaf)';
+      return `<div class="bar"><span style="color:${col}">${labelOf(r.graph,k.id)}</span><span class="track"><span class="fill" style="width:${(k.influence*100).toFixed(0)}%"></span></span><span class="pct">${k.influence.toFixed(2)}</span></div>`;
+    }).join('');
+  }
+  drawPops($('pops'), r.traj, design.species);
+  // reflect the design in the URL (so a refresh / copy keeps it) without spamming history
+  history.replaceState(null, '', '#' + encodeDesign(design));
+}
+const labelOf = (g,id) => (g.nodes.find(n=>n.id===id)?.label) || id;
+function gauge(k,v,u,color){ return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`; }
+
+// ── force layout (Fruchterman–Reingold) ──
+function layout(graph, W, H, iters=260){
+  const nodes = graph.nodes.map((n,i)=>({ ...n,
+    x: W/2 + Math.cos(i*2.39)*150 + (i%3-1)*8, y: H/2 + Math.sin(i*2.39)*120 + (i%2)*8 }));
+  const idx = Object.fromEntries(nodes.map((n,i)=>[n.id,i]));
+  const k = Math.sqrt((W*H)/Math.max(nodes.length,1))*0.42;
+  for (let it=0; it<iters; it++){
+    for (const n of nodes){ n._fx=0; n._fy=0; }
+    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++){
+      let dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y; let d=Math.hypot(dx,dy)||0.01;
+      const rep=k*k/d; const ux=dx/d, uy=dy/d;
+      nodes[i]._fx+=ux*rep; nodes[i]._fy+=uy*rep; nodes[j]._fx-=ux*rep; nodes[j]._fy-=uy*rep;
+    }
+    for (const e of graph.edges){ const a=nodes[idx[e.from]], b=nodes[idx[e.to]]; if(!a||!b) continue;
+      let dx=a.x-b.x, dy=a.y-b.y; let d=Math.hypot(dx,dy)||0.01; const att=d*d/k; const ux=dx/d, uy=dy/d;
+      a._fx-=ux*att; a._fy-=uy*att; b._fx+=ux*att; b._fy+=uy*att;
+    }
+    const temp=(1-it/iters)*k*1.4;
+    for (const n of nodes){ const d=Math.hypot(n._fx,n._fy)||0.01;
+      n.x+=n._fx/d*Math.min(d,temp); n.y+=n._fy/d*Math.min(d,temp);
+      n.x=Math.max(46,Math.min(W-46,n.x)); n.y=Math.max(34,Math.min(H-30,n.y)); }
+  }
+  return nodes;
+}
+function drawWeb(nodes, edges, last){
+  const cv=$('web'), cx=cv.getContext('2d'); cx.clearRect(0,0,cv.width,cv.height);
+  const pos = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const maxB = Math.max(1, ...nodes.map(n=>(n.kind==='pool'?0:(last[n.id]||0))));
+  const rOf = n => n.kind==='pool' ? 11 : 8 + 18*Math.sqrt((last[n.id]||0)/maxB);
+  // edges with arrowheads (prey → predator)
+  for (const e of edges){
+    const a=pos[e.from], b=pos[e.to]; if(!a||!b) continue;
+    const poll = e.type==='pollinates';
+    cx.strokeStyle = poll ? '#d8b25a' : '#3f5249'; cx.lineWidth = poll?1.4:1.4; cx.setLineDash(poll?[4,3]:[]);
+    const ang=Math.atan2(b.y-a.y,b.x-a.x), rb=rOf(b);
+    const ex=b.x-Math.cos(ang)*rb, ey=b.y-Math.sin(ang)*rb;
+    cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(ex,ey); cx.stroke();
+    // arrowhead
+    cx.setLineDash([]); cx.fillStyle = poll?'#d8b25a':'#5b7468';
+    cx.beginPath(); cx.moveTo(ex,ey);
+    cx.lineTo(ex-Math.cos(ang-0.4)*7, ey-Math.sin(ang-0.4)*7);
+    cx.lineTo(ex-Math.cos(ang+0.4)*7, ey-Math.sin(ang+0.4)*7); cx.closePath(); cx.fill();
+  }
+  cx.setLineDash([]);
+  for (const n of nodes){
+    const r=rOf(n);
+    cx.beginPath(); cx.arc(n.x,n.y,r,0,7); cx.fillStyle=guildColor(n); cx.globalAlpha=n.kind==='pool'?0.55:0.9; cx.fill(); cx.globalAlpha=1;
+    cx.lineWidth=1; cx.strokeStyle='#0a1310'; cx.stroke();
+    cx.fillStyle='#cfe6da'; cx.font='10.5px var(--mono)'; cx.textAlign='center';
+    cx.fillText(n.label, n.x, n.y - r - 4);
+  }
+  cx.textAlign='left';
+}
+
+// ── stability renderers (ported from stability.html) ──
+function drawSpectrum(cv, eig, alpha){
+  const ctx=cv.getContext('2d'); const W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H);
+  const res=Math.max(...eig.map(e=>Math.abs(e.re)),0.01), ims=Math.max(...eig.map(e=>Math.abs(e.im)),0.01);
+  const xspan=res*1.25, yspan=ims*1.25||0.05; const px=re=>W*0.12+(re+xspan)/(xspan*1.05)*(W*0.82);
+  const x0=px(0), pad=26, py=im=>H/2-(im/yspan)*(H/2-pad);
+  ctx.strokeStyle='#27362f'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  ctx.strokeStyle='#5a342c'; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,H); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#7f9b8d'; ctx.font='10px var(--mono)'; ctx.fillText('stable ←',x0-62,14); ctx.fillText('→ unstable',x0+6,14);
+  for (const e of eig){ const x=px(e.re), y=py(e.im); const rm=Math.abs(e.re-alpha)<1e-12;
+    ctx.beginPath(); ctx.arc(x,y,rm?6:4,0,7); ctx.fillStyle=e.re<0?(rm?'#62b87a':'#3f8f5a'):'#e0795a'; ctx.fill();
+    if(rm){ ctx.strokeStyle='#d8b25a'; ctx.lineWidth=1.5; ctx.stroke(); } }
+}
+function drawHeat(cv, M, ids){
+  const ctx=cv.getContext('2d'); const W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H);
+  const n=ids.length; const m=Math.min(W,H)-70; const cell=m/n; const ox=58, oy=12;
+  let mx=1e-12; for (const r of M) for (const v of r) mx=Math.max(mx,Math.abs(v));
+  for (let i=0;i<n;i++) for (let j=0;j<n;j++){ const v=M[i][j]/mx; const x=ox+j*cell, y=oy+i*cell;
+    const a=Math.min(Math.abs(v)**0.4,1); ctx.fillStyle=v>0?`rgba(98,184,122,${a})`:`rgba(224,121,90,${a})`; ctx.fillRect(x,y,cell-1,cell-1); }
+  ctx.fillStyle='#7f9b8d'; ctx.font='9px var(--mono)';
+  for (let i=0;i<n;i++){ ctx.textAlign='right'; ctx.fillText(ids[i].slice(0,7),ox-4,oy+i*cell+cell/2+3); }
+  for (let j=0;j<n;j++){ ctx.save(); ctx.textAlign='left'; ctx.translate(ox+j*cell+cell/2+3,oy+n*cell+4); ctx.rotate(Math.PI/2); ctx.fillText(ids[j].slice(0,7),0,0); ctx.restore(); }
+  ctx.textAlign='left';
+}
+function drawPops(cv, traj, species){
+  const cx=cv.getContext('2d'); const W=cv.width,H=cv.height,pad=26; cx.clearRect(0,0,W,H);
+  cx.strokeStyle='#1c2a23'; cx.lineWidth=1;
+  for(let g=0;g<=3;g++){ const y=pad+(H-2*pad)*g/3; cx.beginPath(); cx.moveTo(pad,y); cx.lineTo(W-pad,y); cx.stroke(); }
+  const x=i=>pad+(W-2*pad)*i/(traj.length-1);
+  for (const s of species){
+    const peak=Math.max(1,...traj.map(t=>t[s.id]||0));
+    cx.strokeStyle=guildColor({ kind:s.kind, guild:s.guild }); cx.lineWidth=1.6; cx.beginPath();
+    traj.forEach((t,i)=>{ const v=(t[s.id]||0)/peak; const y=(H-pad)-(H-2*pad)*Math.max(0,Math.min(1,v)); i?cx.lineTo(x(i),y):cx.moveTo(x(i),y); });
+    cx.stroke();
+  }
+  cx.fillStyle='#5b7468'; cx.font='10px var(--mono)'; cx.fillText('day 0',pad,H-9); cx.fillText('day '+Math.round(traj.at(-1).day),W-pad-44,H-9);
+}
+
+// ── top-level buttons ──
+$('addProd').addEventListener('click', () => addSpecies('producer'));
+$('addAnim').addEventListener('click', () => addSpecies('animal'));
+$('loadPreset').addEventListener('click', () => { design = presets()[$('preset').value]; renderEditor(); analyze(); });
+$('applyJson').addEventListener('click', () => {
+  try { const d = JSON.parse($('json').value); design = d; renderEditor(); analyze(); }
+  catch (e){ alert('Invalid JSON: ' + e.message); }
+});
+$('share').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + '#' + encodeDesign(design);
+  history.replaceState(null,'',url);
+  try { await navigator.clipboard.writeText(url); } catch { /* clipboard may be blocked */ }
+  const c=$('copied'); c.style.display='block'; setTimeout(()=>c.style.display='none', 2600);
+});
+
+renderEditor();
+analyze();
+</script>
+</body>
+</html>
