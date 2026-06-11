@@ -167,12 +167,40 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-life-support-wqzrqn",
+      "branch": "claude/oneill-cylinder-refactor-xjknww",
       "uses": [],
       "provides": null,
-      "note": "Habitat resource-cycle suite for an infinite O'Neill cylinder interior. Assets worker `biome` serving directory 'biome'. Module 1 (cycles/) is the closed-loop life-support box model; modules 2 (radial atmosphere) and 3 (WebGPU interior) are planned. Pure static — model runs client-side, no D1/DO/secrets.",
+      "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static — model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
       "paths": [
         "biome/**"
+      ]
+    },
+    {
+      "surface": "rind",
+      "dir": "rind",
+      "endpoint": "rind.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "uses": [],
+      "provides": null,
+      "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam), walk.html (walk a planar cut through the foam). Geometry generated in JS (foam.js/foam3d.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static — no D1/DO/secrets.",
+      "paths": [
+        "rind/**",
+        ".github/workflows/deploy-rind.yml"
+      ]
+    },
+    {
+      "surface": "tide",
+      "dir": "tide",
+      "endpoint": "tide.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "uses": [],
+      "provides": null,
+      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "paths": [
+        "tide/**",
+        ".github/workflows/deploy-tide.yml"
       ]
     },
     {
@@ -474,10 +502,10 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/merge-features-update-endpoints-qa2vu1",
+      "branch": "claude/oneill-cylinder-refactor-xjknww",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW — collaborative design space for 'the infinite game'. Canvas glyph-world where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts).",
+      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface.",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"

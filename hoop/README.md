@@ -3,6 +3,21 @@
 **Live at:** `hoop.mino.mobi`
 **Stack:** Cloudflare Worker (ASSETS binding) + vanilla ES modules. No build step.
 
+hoop is **the game**, and the **main site** of a four-part O'Neill cylinder modelling
+package. The package splits the megastructure into four independent deploy surfaces, each
+with its own subdomain, landing page and `CLAUDE.md`:
+
+| Wing | Surface | What it is |
+|---|---|---|
+| **The game** | `hoop.mino.mobi` *(this — main site)* | the infinite game: a world you walk, where every place is a forum thread |
+| **The structure** | [`rind.mino.mobi`](../rind) | the foam space-frame shell + the Rust/WASM frame solver that scores it |
+| **The thermodynamics** | [`tide.mino.mobi`](../tide) | the radial atmosphere column, fog optics, the fountain & sun, the water/energy ledger |
+| **The ecosystem** | [`biome.mino.mobi`](../biome) | the closed food-web box model + allometry + roster + stability lab |
+
+The three modelling wings are reachable from hoop's topbar; each cross-links back. hoop
+itself shed its structural half (the `cylinder.html` / foam / solver tooling) to `rind` in
+the cylinder-refactor — what remains here is purely the game.
+
 A collaborative design space for *the infinite game*. The pitch in one line:
 **the map *is* the forum.** You walk an `@` around a Caves-of-Qud-flavoured
 glyph world; every glowing node on the map is a *place* — a part of the game
@@ -97,6 +112,6 @@ walk there · **N** (or the footer button) drops a node where you stand.
 ## Deploy
 
 `.github/workflows/deploy-hoop.yml` runs `npx wrangler deploy` from `hoop/` on
-push to `main` or `claude/hoop-mino-design-preview-htuxu9` touching `hoop/**`.
+push to `main` or `claude/oneill-cylinder-refactor-xjknww` touching `hoop/**`.
 Pure static Worker — no D1, no secrets beyond the shared Cloudflare credentials.
 Verify the deploy log binds `hoop.mino.mobi (custom domain)` (the golden rule).

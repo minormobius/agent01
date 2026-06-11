@@ -11,7 +11,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/oneill-cylinder-life-support-wqzrqn'
+      - 'claude/oneill-cylinder-refactor-xjknww'
     paths:
       - 'biome/cycles/solver/src/**'
       - 'biome/cycles/solver/Cargo.toml'
