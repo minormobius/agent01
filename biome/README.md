@@ -17,6 +17,7 @@ books first, resolve them in space second, render them third:
 |---|---|---|
 | **1 · Resource cycles** — closed-loop life-support box model | `cycles/` | **live** |
 | **2 · Radial atmosphere** — 1-D `r`-column (temp/humidity/CO₂ vs altitude) | `atmosphere/` | **live** |
+| **2b · Fountain &amp; sun** — azimuthal cross-section: the water-cycle jet + luminous-flux budget | `fountain/` | **live** |
 | **3 · Interior visualiser** — WebGPU O'Neill interior with rendered atmosphere | — | planned |
 
 The landing page (`index.html`) frames the premise and links the modules; each module
@@ -327,7 +328,42 @@ The visible-weather refinements (where the dew drips, banding, the water budget 
 Module 1) are the natural place to return with the stability lab — they share the "what does the
 steady climate actually look like" question.
 
-## Module 3 — WebGPU interior visualiser (planned)
+## Module 2b — fountain & sun: the azimuthal cross-section (`fountain/`)
+
+Module 2 resolved the cylinder in radius; this resolves the other free dimension — **azimuth** —
+by looking straight down the axis. Two coupled pieces share one view (live at `fountain/index.html`):
+
+**The fountain (`fountain/sim/fountain.mjs`).** The water cycle's actuator. Reeds in the low-point
+pond ("Fond du Lac") pre-treat; a jet throws that water inward toward the axis. In the rotating
+frame a parcel in flight feels only centrifugal (`+ω²r`, outward) and Coriolis (`−2Ω×v`) — an exact
+ODE, integrated with RK4 and **conserved** (specific energy `½v²−½ω²r²` holds to ~1e-15, the test).
+The payoff is that *one* actuator answers two stagnations:
+- *Stagnant water* — spraying aerates: O₂ in (oxidises residual BOD, drives nitrification → mineral-N
+  back to Module 1), volatiles out, axial-sun UV on the droplets. The polish the reeds can't do.
+- *Stagnant air* — the plume lofts surface air; the crisp test is whether its **apex clears the
+  ~150 m inversion** from Module 2. A strong jet or a fan does; it runs at night when the thermal
+  pump is off.
+- *Distribution* — because `2ωv ~ g` here, the jet curves into a **sheet** that lays water down over
+  a broad prograde arc; the slight azimuthal grade returns the runoff to the low point. Loop closed.
+
+Nozzle presets trade off: the **jet** punches deepest as a column, the **fan** clears the inversion
+*and* spreads ~170 m of irrigation, **mist** aerates ~10× more but stalls low. Sliders for velocity,
+aim and flow.
+
+**The luminous-flux budget (`fountain/sim/light.mjs`).** The axial sun is a **line**, so irradiance
+falls as **1/r** (the same power spread over the wall `2πr`). The headline, validated in the test:
+flooding the rim canopy at **1 sun** (≈2000 µmol/m²/s, ≈105k lux) takes a **20 MW-per-metre** axial
+lamp — **20 GW** for a 1 km cylinder — and since nearly all of it becomes heat, the shell radiator
+runs at **≈101 °C** to dump it (`εσT⁴ = E`). Yet the bare **food** need from Module 1's calorie
+demand is only ~0.6 MW, lighting ~600 m² of canopy — so floodlighting the floor over-provisions the
+calories **~30,000×**. You light for area and living space, not for food, and the heat closure is the
+real constraint. That's the "we need a LOT of light" made concrete.
+
+```bash
+node biome/fountain/test/fountain.selftest.mjs   # 11 checks: energy conservation, no-Coriolis limit, deflection, nozzles
+node biome/fountain/test/light.selftest.mjs      # 13 checks: 1/r falloff, conversions, the 20 MW/m headline, heat closure
+open biome/fountain/index.html                   # the looking-down-the-axis viewer
+```
 
 ## Module 3 — WebGPU interior visualiser (planned)
 
