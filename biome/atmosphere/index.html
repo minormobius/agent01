@@ -91,7 +91,7 @@
       </div>
     </div>
     <div class="panel">
-      <h2>Profiles vs altitude (0 = canopy, 3200 m = axis)</h2>
+      <h2>Profiles vs altitude (0 = canopy wall, axis at the top)</h2>
       <canvas id="prof" width="900" height="260"></canvas>
       <div class="legend">
         <span><i style="background:#e0795a"></i>temperature T</span>
@@ -162,7 +162,8 @@ function drawSlice(){
   ctx.fillStyle='#3f8f5a'; ctx.fillRect(60,bot,W-70,6);
   // altitude axis labels
   ctx.fillStyle='#7f9b8d'; ctx.font='10px monospace'; ctx.textAlign='right';
-  for(const alt of [0,800,1600,2400,3200]){ const y=yOf(alt); ctx.fillText(alt+'m',54,y+3);
+  const ticks=[0,0.25,0.5,0.75,1].map(f=>Math.round(p.R*f));
+  for(const alt of ticks){ const y=yOf(alt); ctx.fillText((alt>=1000?(alt/1000).toFixed(1)+'k':alt)+'m',54,y+3);
     ctx.strokeStyle='rgba(127,155,141,0.15)'; ctx.beginPath();ctx.moveTo(58,y);ctx.lineTo(W-10,y);ctx.stroke(); }
   ctx.textAlign='left'; ctx.fillStyle='#d8b25a'; ctx.fillText('☉ axis / sun', 64, top-7);
   ctx.fillStyle='#62b87a'; ctx.fillText('canopy / rim (1 g)', 64, bot+18);
@@ -178,7 +179,7 @@ function drawProfiles(){
   // axes
   ctx.strokeStyle='#27362f';ctx.beginPath();ctx.moveTo(pad,bot);ctx.lineTo(W-10,bot);ctx.stroke();
   ctx.fillStyle='#7f9b8d';ctx.font='10px monospace';ctx.textAlign='center';
-  for(const alt of [0,800,1600,2400,3200]) ctx.fillText(alt+'m',xOf(alt),bot+14);
+  for(const alt of [0,0.25,0.5,0.75,1].map(f=>Math.round(p.R*f))) ctx.fillText((alt>=1000?(alt/1000).toFixed(1)+'k':alt)+'m',xOf(alt),bot+14);
   // T and θ share a temperature axis
   const Ts=prof.map(x=>x.T), THs=prof.map(x=>x.theta);
   const tmin=Math.min(...Ts)-1, tmax=Math.max(...THs)+1;

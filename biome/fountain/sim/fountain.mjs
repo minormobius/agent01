@@ -27,19 +27,19 @@
 //
 // Pure, zero-dep, deterministic; attaches to globalThis. SI units (m, s, m/s).
 
-const G_PER = (omega) => omega * omega;   // centrifugal coefficient ω²
+import { CYLINDER } from '../../shared/geometry.mjs';
 
 export function defaultParams() {
-  const R = 3200, g0 = 9.81;              // rim radius (m); rim gravity (1 g)
+  const R = CYLINDER.R_hab, g0 = CYLINDER.g0;   // habitat wall radius (m); gravity (1 g)
   return {
-    R, g0, omega: Math.sqrt(g0 / R),      // ω so the rim feels 1 g (≈0.0554 rad/s)
-    v0: 70,                                // jet exit speed, m/s
-    angleDeg: 25,                          // azimuthal aim from radial-inward (+ = prograde / with spin)
-    nozzle: 'fan',                         // 'jet' | 'fan' | 'mist'
+    R, g0, omega: CYLINDER.omega,          // ω so the wall feels 1 g (≈0.035 rad/s at 8 km)
+    v0: 120,                               // jet exit speed, m/s (axis-reaching speed ωR ≈ 280)
+    angleDeg: 15,                          // azimuthal aim from radial-inward (+ = prograde / with spin)
+    nozzle: 'fan',                         // 'jet' | 'fan' | 'fansym' | 'mist'
     flowRate: 0.1,                         // m³/s per nozzle (100 L/s)
     inversionDepth: 150,                   // m — the near-surface inversion to clear (from Module 2)
     coriolis: true,                        // toggle (off ⇒ pure radial fountain, returns to launch)
-    dt: 0.02, maxT: 60,                    // integrator step / cap (s)
+    dt: 0.02, maxT: 150,                   // integrator step / cap (s; longer for deep throws at 8 km)
   };
 }
 
@@ -48,10 +48,13 @@ export function defaultParams() {
 // folds in jet coherence + breakup. `dropMm` is the post-breakup droplet diameter, used only
 // for the aeration metric (gas exchange ∝ surface/volume ∝ 1/dropMm). `streams`/`spreadDeg`
 // fan the launch azimuthally.
+// `symmetric:true` fans the streams symmetrically about radial-inward (ignoring the aim),
+// so the spray pattern is balanced before Coriolis skews it — a fixed broadcast head.
 export const NOZZLES = {
-  jet:  { streams: 1,  spreadDeg: 0,  dropMm: 3.0,  tau: 60,  label: 'Jet — tight column, max reach' },
-  fan:  { streams: 11, spreadDeg: 50, dropMm: 1.2,  tau: 9,   label: 'Fan — azimuthal sheet' },
-  mist: { streams: 27, spreadDeg: 30, dropMm: 0.15, tau: 0.9, label: 'Mist — fine aerating spray' },
+  jet:    { streams: 1,  spreadDeg: 0,   dropMm: 3.0,  tau: 60,  label: 'Jet — tight column, max reach' },
+  fan:    { streams: 11, spreadDeg: 50,  dropMm: 1.2,  tau: 9,   label: 'Fan — aimed azimuthal sheet' },
+  fansym: { streams: 17, spreadDeg: 120, dropMm: 1.0,  tau: 7,   symmetric: true, label: 'Symmetric fan — balanced broadcast' },
+  mist:   { streams: 27, spreadDeg: 30,  dropMm: 0.15, tau: 0.9, label: 'Mist — fine aerating spray' },
 };
 
 // Specific mechanical energy in the rotating frame: ½|v|² − ½ω²r². Conserved when τ=∞
@@ -120,7 +123,8 @@ export function integrateParcel(p, v0, alphaRad, tau = Infinity) {
 // Simulate the whole nozzle: fan the streams across the spread, integrate each, aggregate.
 export function simulate(p = defaultParams()) {
   const nz = NOZZLES[p.nozzle] ?? NOZZLES.fan;
-  const v0 = p.v0, alpha0 = (p.angleDeg * Math.PI) / 180;
+  const v0 = p.v0;
+  const alpha0 = nz.symmetric ? 0 : (p.angleDeg * Math.PI) / 180;       // symmetric fan ignores the aim
   const spread = (nz.spreadDeg * Math.PI) / 180;
   const streams = [];
   for (let i = 0; i < nz.streams; i++) {
@@ -148,6 +152,23 @@ export function simulate(p = defaultParams()) {
   };
 }
 
+// MOMENTUM COUPLING — the plume's equivalent near-surface eddy diffusivity (m²/s) to feed
+// Module 2's column as a fountain mixing term. The jet does mechanical work on the air: its
+// momentum flux per nozzle ~ ρ_w·Q·v0 entrains and lofts air over the depth it reaches. We
+// express that as an eddy K, calibrated so a 100 L/s / 70 m/s inversion-clearing jet ≈ 40 m²/s,
+// and capped (a coarse but monotone, physically-scaled index — the real two-phase plume is
+// out of scope). This is the term that lets the fountain ventilate at night, when buoyant
+// convection is off. Returns { K, depth } for the column's surface mixing boost.
+export function ventilationK(p, sim = simulate(p)) {
+  const reach = Math.min(sim.apexDepth / p.inversionDepth, 5);          // how far past the inversion
+  const Lps = p.flowRate * 1000;
+  const K = Math.min(400, 0.0057 * Lps * p.v0 * reach);                 // m²/s, capped
+  // the conduit reaches as high as the plume lofts air — must punch ABOVE the surface layer
+  // and through the inversion for surface air to exchange with the free atmosphere.
+  const depth = Math.min(Math.max(sim.apexDepth, p.inversionDepth), 2500);
+  return { K, depth };
+}
+
 export const KNOWN_SIMPLIFICATIONS = [
   'Parcels are ballistic in the rotating frame with an effective drag time per nozzle; no parcel–parcel or jet–air momentum coupling (the air is treated as co-rotating).',
   'Drag τ is an effective coherence/breakup parameter, not raw Stokes — a coherent jet stays ballistic far past its droplets’ Reynolds limit.',
@@ -157,7 +178,7 @@ export const KNOWN_SIMPLIFICATIONS = [
 ];
 
 const Fountain = {
-  defaultParams, NOZZLES, specificEnergy, integrateParcel, simulate, KNOWN_SIMPLIFICATIONS,
+  defaultParams, NOZZLES, specificEnergy, integrateParcel, simulate, ventilationK, KNOWN_SIMPLIFICATIONS,
 };
 if (typeof globalThis !== 'undefined') globalThis.Fountain = Fountain;
 export default Fountain;

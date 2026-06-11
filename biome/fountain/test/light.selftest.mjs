@@ -30,23 +30,30 @@ const near = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol * (1 + Math.abs(b));
      `${ppfdFromPAR(SUN_WM2 * 0.45).toFixed(0)} µmol/m²/s`);
 }
 
-// ── 3. The headline: 1 sun at the rim is a ~20 MW/m axial lamp ────────────────
+// ── 3. The headline: 1 sun at the 8 km wall is a ~50 MW/m axial lamp ─────────
 {
-  const b = budget({ suns: 1, R: 3200, L: 1000 });
-  ok('1 sun ⇒ ≈20.1 MW per metre of length', Math.abs(b.linePower_MW_per_m - 20.106) < 0.05,
+  const b = budget({ suns: 1, L: 1000 });   // default geometry = 8 km habitat
+  ok('1 sun ⇒ ≈50.3 MW per metre of length', Math.abs(b.linePower_MW_per_m - 50.27) < 0.1,
      `${b.linePower_MW_per_m.toFixed(2)} MW/m`);
-  ok('…and ≈20.1 GW to light a 1 km cylinder', Math.abs(b.total_GW - 20.106) < 0.05,
+  ok('…and ≈50.3 GW to light a 1 km cylinder', Math.abs(b.total_GW - 50.27) < 0.1,
      `${b.total_GW.toFixed(1)} GW`);
-  ok('illuminance at the rim ≈ 105k lux', Math.abs(b.lux - 105000) < 100, `${(b.lux / 1000).toFixed(0)}k lux`);
+  ok('illuminance at the wall ≈ 105k lux', Math.abs(b.lux - 105000) < 100, `${(b.lux / 1000).toFixed(0)}k lux`);
 }
 
-// ── 4. Heat closure — the shell radiator temperature for the light load ───────
+// ── 4. Heat closure — radiate from the 10 km skin, and the foam can't conduct it ──
 {
-  const b = budget({ suns: 1, emissivity: 0.9 });
-  ok('1 sun ⇒ external radiator ≈ 101 °C (all light becomes heat)',
-     Math.abs(b.radiatorTemp_C - 101) < 2, `${b.radiatorTemp_C.toFixed(0)} °C`);
-  ok('more light ⇒ hotter radiator (T ∝ E^¼)',
-     budget({ suns: 2 }).radiatorTemp_K > budget({ suns: 1 }).radiatorTemp_K);
+  const full = budget({ suns: 1 });
+  ok('1 sun ⇒ outer radiator ≈ 81 °C (heat leaves the larger 10 km skin)',
+     Math.abs(full.radiatorTemp_C - 81) < 2, `${full.radiatorTemp_C.toFixed(0)} °C`);
+  // the design point the user flagged: half a sun is benign
+  const half = budget({ suns: 0.5 });
+  ok('half a sun ⇒ a benign ~24 °C radiator', Math.abs(half.radiatorTemp_C - 24) < 3,
+     `${half.radiatorTemp_C.toFixed(0)} °C`);
+  ok('more light ⇒ hotter radiator (T ∝ E^¼)', budget({ suns: 2 }).radiatorTemp_K > full.radiatorTemp_K);
+  // the foam insight: conduction through the rind would need millions of K ⇒ active cooling
+  ok('foam conductive ΔT is astronomical ⇒ heat must be actively pumped, not conducted',
+     full.foamConductiveDeltaT_K > 1e6 && full.activeCoolingRequired,
+     `ΔT ${full.foamConductiveDeltaT_K.toExponential(1)} K across the rind`);
 }
 
 // ── 5. Food floor vs flood — the "LOT" made explicit ─────────────────────────

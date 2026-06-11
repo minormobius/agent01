@@ -2,7 +2,7 @@
 // The trajectory is exact rotating-frame mechanics, so it's checked against conserved
 // quantities (specific energy), the no-Coriolis limit (returns to launch, apex = v₀²/2g),
 // and the Coriolis deflection direction, plus the nozzle tradeoff structure.
-import { defaultParams, simulate, integrateParcel, NOZZLES } from '../sim/fountain.mjs';
+import { defaultParams, simulate, integrateParcel, ventilationK, NOZZLES } from '../sim/fountain.mjs';
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -67,7 +67,33 @@ const deg = (d) => (d * Math.PI) / 180;
      `spread ${fan.spreadArc.toFixed(0)} m`);
 }
 
-// ── 6. Determinism ───────────────────────────────────────────────────────────
+// ── 6. Symmetric fan — balanced broadcast (near-zero net drift, wide spread) ──
+{
+  const p = defaultParams();
+  const sym = simulate({ ...p, nozzle: 'fansym', angleDeg: 40 });   // aim is ignored by a symmetric head
+  const symAimed = simulate({ ...p, nozzle: 'fansym', angleDeg: -40 });
+  ok('the symmetric fan ignores the aim (broadcast head)',
+     Math.abs(sym.meanDriftArc - symAimed.meanDriftArc) < 1e-6,
+     `drift ${sym.meanDriftArc.toFixed(0)} m both aims`);
+  ok('it lays a wide, roughly balanced sheet', sym.spreadArc > 400 && Math.abs(sym.meanDriftArc) < sym.spreadArc,
+     `spread ${sym.spreadArc.toFixed(0)} m, net drift ${sym.meanDriftArc.toFixed(0)} m`);
+}
+
+// ── 7. High-velocity regime + momentum coupling (the ventilation K) ──────────
+{
+  const p = defaultParams();
+  const reach = (v) => integrateParcel(p, v, 0, NOZZLES.jet.tau).apexDepth;
+  ok('a high-velocity jet throws kilometres inward at 8 km scale', reach(300) > 1000,
+     `apex ${reach(300).toFixed(0)} m at 300 m/s (axis-reach ωR ≈ ${(p.omega * p.R).toFixed(0)} m/s)`);
+  const k1 = ventilationK({ ...p, v0: 80 }).K, k2 = ventilationK({ ...p, v0: 200 }).K;
+  ok('momentum-coupling K grows with jet strength', k2 > k1 && k1 > 0,
+     `K ${k1.toFixed(0)} → ${k2.toFixed(0)} m²/s`);
+  ok('the conduit reaches above the inversion to bridge surface↔aloft',
+     ventilationK({ ...p, v0: 150 }).depth > p.inversionDepth,
+     `depth ${ventilationK({ ...p, v0: 150 }).depth.toFixed(0)} m`);
+}
+
+// ── 8. Determinism ───────────────────────────────────────────────────────────
 {
   const a = simulate(defaultParams()), b = simulate(defaultParams());
   ok('simulation is deterministic', a.apexDepth === b.apexDepth && a.meanDriftArc === b.meanDriftArc);

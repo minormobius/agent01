@@ -24,17 +24,19 @@ function integrate(p, g, days, dtMin = 3, sampleH = 3) {
   return { s, snaps };
 }
 
-// ── 1. Structural — the Island-Three numbers, reproduced by construction ─────
+// ── 1. Structural — the 8 km-habitat numbers, reproduced by construction ─────
+// A big cylinder has a LARGE thermodynamic span: ~37% pressure drop and a ~39 K adiabat
+// axis→rim (vs ~17%/~16 K for Island-Three scale). Both fall out of the geometry.
 {
   const p = defaultParams(), g = buildGrid(p);
   const { s } = integrate(p, g, 12);
   const snap = snapshot(s, p, g);
-  ok('pressure drop axis→rim ≈ 17%', snap.P_drop > 0.15 && snap.P_drop < 0.19,
+  ok('pressure drop axis→rim ≈ 37% (large at 8 km)', snap.P_drop > 0.30 && snap.P_drop < 0.45,
      `${(snap.P_drop * 100).toFixed(1)}%`);
-  // adiabatic offset at the axis = g0·R/(2cp) ≈ 15.6 K (θ − T at the innermost cell)
+  // adiabatic offset at the axis = g0·R/(2cp) ≈ 39 K (θ − T at the innermost cell)
   const adiabAxis = g.adiab[0], target = (p.g0 * p.R) / (2 * cp);
-  ok('centrifugal adiabat offset ≈ g0R/2cp (~16 K) at the axis',
-     Math.abs(adiabAxis - target) < 0.5 && Math.abs(target - 15.6) < 0.3,
+  ok('centrifugal adiabat offset = g0R/2cp (~39 K) at the axis',
+     Math.abs(adiabAxis - target) < 1 && Math.abs(target - 39) < 1,
      `${adiabAxis.toFixed(1)} K`);
   ok('rim feels 1 g, axis feels 0 (ω set by R)', Math.abs(p.omega * p.omega * p.R - p.g0) < 1e-9);
 }
@@ -105,6 +107,25 @@ function integrate(p, g, days, dtMin = 3, sampleH = 3) {
   const off = dayDeficit(0), on = dayDeficit(55);
   ok('daytime convection ventilates the canopy (less CO₂ depletion than stagnant)',
      on < off && on > 0, `pumped ${on.toFixed(0)} ppm < stagnant ${off.toFixed(0)} ppm`);
+}
+
+// ── 6b. Momentum coupling — the fountain ventilates when buoyancy can't (night) ──
+// With buoyant convection off (the night condition) and a thin, resolved surface layer, the
+// fountain's mechanical mixing is the SOLE pump; it should sharply cut the canopy CO₂ swing.
+{
+  const g = buildGrid(defaultParams());
+  const swing = (fountainK) => {
+    const p = { ...defaultParams(), K_conv: 0, surfaceLayer: 120, fountainK, fountainDepth: 1500 };
+    let s = initState(p, g); let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k < 24 * 720; k++) {
+      s = step(s, p, g, 120);
+      if (k > 12 * 720) { const c = snapshot(s, p, g).co2_rim_ppm; lo = Math.min(lo, c); hi = Math.max(hi, c); }
+    }
+    return hi - lo;
+  };
+  const off = swing(0), on = swing(200);
+  ok('the fountain alone (no buoyant convection) buffers the canopy CO₂ swing', on < off * 0.7,
+     `swing ${off.toFixed(0)} → ${on.toFixed(0)} ppm (${((1 - on / off) * 100).toFixed(0)}% relief)`);
 }
 
 // ── 7. Long-run boundedness — no blow-up over 40 model-days ───────────────────

@@ -29,6 +29,8 @@
 //
 // Pure, zero-dep, deterministic; attaches to globalThis. Units: SI (m, s, K, Pa, kg).
 
+import { CYLINDER } from '../../shared/geometry.mjs';
+
 const Rd = 287.05;     // dry-air specific gas constant, J/kg/K
 const Rv = 461.5;      // water-vapour specific gas constant
 const cp = 1005;       // dry-air specific heat, J/kg/K
@@ -45,10 +47,10 @@ export function eSat(T) {
 export const qSat = (T, P) => { const e = Math.min(eSat(T), 0.99 * P); return EPS * e / (P - e); };
 
 export function defaultParams() {
-  const R = 3200, g0 = 9.81;             // rim radius (m); design gravity at the rim
+  const R = CYLINDER.R_hab, g0 = CYLINDER.g0;   // habitat wall radius (m); gravity (1 g)
   return {
-    R, g0, omega: Math.sqrt(g0 / R),     // spin rate so the rim feels 1 g
-    N: 56,                               // radial cells
+    R, g0, omega: CYLINDER.omega,        // spin rate so the wall feels 1 g (≈0.035 at 8 km)
+    N: 64,                               // radial cells
     stretch: 1.8,                        // grid clustering toward the rim (1 = uniform)
 
     P_rim: 101325,                       // surface pressure at the rim, Pa
@@ -79,8 +81,15 @@ export function defaultParams() {
     co2Photo: 9e-7,                      // surface CO₂ photosynthetic sink when lit, kg/m²/s (~20 µmol/m²/s)
     co2_background_ppm: 600,             // initial well-mixed CO₂, ppmv
     RH_init: 0.6,                        // initial relative humidity
-    surfaceLayer: 80,                    // depth (m) the surface exchange is mixed into
+    surfaceLayer: 300,                   // depth (m) the surface exchange is mixed into
     dewSettle: 1.5e-4,                   // fog→surface settling rate, 1/s (gravitational fallout)
+
+    // fountain momentum coupling (Module 2b): a mechanical near-surface eddy diffusivity the
+    // jet injects, on top of buoyant convection. Active independent of stability — it is the
+    // night-time ventilation pump. Set via Fountain.ventilationK(); 0 = no fountain.
+    fountainK: 0,                        // m²/s added to faces within fountainDepth of the rim
+    fountainDepth: 300,                  // m
+    fountainNightOnly: false,            // true ⇒ only runs when the sun is off
   };
 }
 
@@ -133,14 +142,18 @@ export function hydrostaticP(p, g, T, q) {
 const sunlit = (p, t) => ((t % p.dayLength) / p.dayLength) < p.photoperiod ? 1 : 0;
 
 // Eddy diffusivity at interior faces from static stability: unstable (θ rising outward toward
-// the rim) ⇒ convective K, stable inversion ⇒ background K only.
-export function eddyK(p, g, theta) {
-  const { dr, N } = g; const K = new Array(N + 1).fill(p.K_bg);
+// the rim) ⇒ convective K, stable inversion ⇒ background K only. PLUS the fountain's mechanical
+// mixing near the surface (momentum coupling), which works regardless of stability — the
+// night-time ventilation pump.
+export function eddyK(p, g, theta, lit = 1) {
+  const { rc, dr, N } = g; const K = new Array(N + 1).fill(p.K_bg);
   K[0] = 0; K[N] = 0;                              // closed at axis & rim (surface exchange is separate)
+  const fountainOn = p.fountainK > 0 && (!p.fountainNightOnly || lit === 0);
   for (let f = 1; f < N; f++) {
     const dThetaDr = (theta[f] - theta[f - 1]) / dr[f];   // >0 ⇒ unstable (hot air under cool)
     const conv = Math.max(0, Math.tanh(dThetaDr / p.instabScale));
     K[f] = p.K_bg + p.K_conv * conv;
+    if (fountainOn && (p.R - 0.5 * (rc[f - 1] + rc[f])) <= p.fountainDepth) K[f] += p.fountainK;
   }
   return K;
 }
@@ -171,9 +184,10 @@ export function step(s, p, g, dt) {
   const rho = T.map((Ti, i) => P[i] / (Rd * Ti * (1 + 0.61 * q[i])));
   const M = g.vol.map((V, i) => rho[i] * V);                         // air mass per cell (per unit length)
   const theta = T.map((Ti, i) => Ti + g.adiab[i]);                  // carries the centrifugal adiabat
+  const lit = sunlit(p, s.t);
 
   // face conductances G_f = A_f · ρ_f · K_f / dr_f
-  const K = eddyK(p, g, theta);
+  const K = eddyK(p, g, theta, lit);
   const cond = new Array(N + 1).fill(0);
   for (let f = 1; f < N; f++) {
     const rhoF = 0.5 * (rho[f - 1] + rho[f]);
@@ -189,7 +203,6 @@ export function step(s, p, g, dt) {
   // radiative relaxation of θ toward the equilibrium profile: a stable aloft inversion (hot
   // axis, partly persistent at night) plus a diurnal surface signal (warm bump by day for
   // convection, cool by night for dew). Relaxation can't be out-run, so this is energy-safe.
-  const lit = sunlit(p, s.t);
   const relax = 1 - Math.exp(-dt / p.tau_rad);
   for (let i = 0; i < N; i++) {
     const h = p.R - g.rc[i];
@@ -203,11 +216,12 @@ export function step(s, p, g, dt) {
   // surface MASS exchange mixed into a finite-depth surface layer (robust to grid resolution;
   // each flux is shared over the layer's real mass M_sl, so the intensive change is uniform).
   const Arim = g.area[N];
-  let Msl = 0; for (let i = 0; i < N; i++) if (p.R - g.rc[i] <= p.surfaceLayer) Msl += M[i];
+  const inLayer = (i) => p.R - g.rc[i] <= p.surfaceLayer || i === N - 1;   // always include the rim cell
+  let Msl = 0; for (let i = 0; i < N; i++) if (inLayer(i)) Msl += M[i];
   const ET = lit ? p.ET_day : p.ET_night;
   const co2Flux = p.co2Resp - lit * p.co2Photo;                     // net surface CO₂ (source − sink)
   const dQ = (ET * Arim * dt) / Msl, dC = (co2Flux * Arim * dt) / Msl;
-  for (let i = 0; i < N; i++) if (p.R - g.rc[i] <= p.surfaceLayer) { q[i] += dQ; c[i] += dC; }
+  for (let i = 0; i < N; i++) if (inLayer(i)) { q[i] += dQ; c[i] += dC; }
   for (let i = 0; i < N; i++) { if (c[i] < 0) c[i] = 0; if (q[i] < 0) q[i] = 0; }
 
   // back to temperature, then a MOIST ENTHALPY adjustment: condense/evaporate to the

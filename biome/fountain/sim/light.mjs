@@ -8,6 +8,14 @@
 //
 // Conventions: "1 sun" = 1000 W/m² total surface irradiance (bright clear day). PAR is
 // the ~45% that plants use; PPFD is its photon flux. Pure, zero-dep, deterministic.
+//
+// The heat closure is geometric and it's the punchline: light is absorbed at the habitat
+// wall (R_hab = 8 km) but radiated from the larger outer skin (R_out = 10 km), and it
+// CANNOT conduct out through the 1 km foam rind (the conductive ΔT is millions of K), so
+// it must be actively pumped to the radiator. The radiator's own equilibrium temperature
+// is set by the outer area — and at half a sun it's a benign ~24 °C.
+
+import { CYLINDER } from '../../shared/geometry.mjs';
 
 export const SUN_WM2 = 1000;           // total surface irradiance of "1 sun", W/m²
 export const PAR_FRACTION = 0.45;      // fraction of solar-spectrum irradiance that is PAR
@@ -36,13 +44,17 @@ export function foodLightFloor({ crew = 100, kcalPerDay = 2550, overallEfficienc
   return { foodPower_W, minLightPower_W: foodPower_W / overallEfficiency, overallEfficiency };
 }
 
-// The full budget for flooding the rim canopy at a target light level.
-//   target: { suns } OR { ppfd } OR { E_total }   (one of)
-//   R, L:   rim radius (m), cylinder length to power (m)
-//   emissivity: external radiator emissivity (heat closure)
-export function budget({ suns, ppfd, E_total, R = 3200, L = 1000, emissivity = 0.9,
-                         food = {} } = {}) {
-  // resolve the requested surface irradiance
+// The full budget for flooding the habitat canopy at a target light level.
+//   target:  { suns } OR { ppfd } OR { E_total }     (one of)
+//   R_hab:   habitat wall radius where light is absorbed (m)
+//   R_out:   outer radiator radius where heat leaves (m)
+//   rindInner/rindOuter: foam rind faces (m); foamK: rind conductivity (W/m/K)
+//   L:       cylinder length to power (m); emissivity: radiator emissivity
+export function budget({ suns, ppfd, E_total,
+  R_hab = CYLINDER.R_hab, R_out = CYLINDER.R_out,
+  rindInner = CYLINDER.rindInner, rindOuter = CYLINDER.rindOuter, foamK = CYLINDER.foam.k,
+  L = 1000, emissivity = 0.9, food = {} } = {}) {
+  // resolve the requested habitat-wall irradiance
   let E = E_total;
   if (E == null && ppfd != null) E = parFromPPFD(ppfd) / PAR_FRACTION;   // total from PAR target
   if (E == null && suns != null) E = sunsToIrradiance(suns);
@@ -50,13 +62,19 @@ export function budget({ suns, ppfd, E_total, R = 3200, L = 1000, emissivity = 0
   const E_par = E * PAR_FRACTION;
   const ppfdOut = ppfdFromPAR(E_par);
 
-  const linePower = linePowerForIrradiance(E, R);          // W per metre of length (the axial lamp)
-  const total = linePower * L;                              // W for the whole lit length
-  const lux = E * LUM_EFFICACY;                             // illuminance at the rim
+  const linePower = linePowerForIrradiance(E, R_hab);      // W per metre of length (the axial lamp)
+  const total = linePower * L;                             // W for the whole lit length
+  const lux = E * LUM_EFFICACY;                            // illuminance at the habitat wall
 
-  // heat closure: essentially all of it becomes heat the shell must radiate. At steady
-  // state εσT⁴ = E at the rim ⇒ the external radiator equilibrium temperature.
-  const radiatorTemp_K = Math.pow(E / (emissivity * SIGMA), 0.25);
+  // Heat closure. All absorbed light becomes heat = linePower per metre of length. It is
+  // radiated from the OUTER skin (area 2πR_out per metre), so the radiator equilibrium is
+  //   εσT⁴ · 2πR_out = linePower   ⇒   εσT⁴ = E · R_hab/R_out.
+  const E_rad = E * R_hab / R_out;
+  const radiatorTemp_K = Math.pow(E_rad / (emissivity * SIGMA), 0.25);
+  // But it CANNOT conduct out through the foam rind: cylindrical conduction
+  //   ΔT = Q'·ln(rOut/rIn)/(2πk),  Q' = linePower per metre — astronomically large for foam,
+  // which is the point: the foam insulates; heat must be actively pumped to the radiator.
+  const foamConductiveDeltaT_K = (linePower * Math.log(rindOuter / rindInner)) / (2 * Math.PI * foamK);
 
   const floor = foodLightFloor(food);
   return {
@@ -65,19 +83,19 @@ export function budget({ suns, ppfd, E_total, R = 3200, L = 1000, emissivity = 0
     total_W: total, total_GW: total / 1e9,
     lux,
     radiatorTemp_K, radiatorTemp_C: radiatorTemp_K - 273.15,
+    foamConductiveDeltaT_K,                                // ≫ feasible ⇒ active heat transport required
+    activeCoolingRequired: foamConductiveDeltaT_K > 1000,
     foodFloor_W: floor.minLightPower_W,
-    // how over-built the floodlight is vs the bare food need (the "LOT" made explicit)
-    overbuildVsFood: total / floor.minLightPower_W,
-    // lit canopy area that would meet the food need at THIS irradiance
-    foodLitArea_m2: floor.minLightPower_W / E,
-    floorArea_m2: 2 * Math.PI * R * L,
+    overbuildVsFood: total / floor.minLightPower_W,        // floodlight vs bare food need
+    foodLitArea_m2: floor.minLightPower_W / E,             // lit canopy that meets the calories
+    floorArea_m2: 2 * Math.PI * R_hab * L,
   };
 }
 
 export const KNOWN_SIMPLIFICATIONS = [
   '"1 sun" = 1000 W/m² with a 45% PAR fraction and 4.57 µmol/J — a daylight-spectrum stand-in; a tuned grow-spectrum lamp shifts the PAR fraction and efficacy.',
   'The axial source is an ideal line (irradiance ∝ 1/r); a real luminous tube has finite radius and self-shadowing by the canopy/atmosphere is neglected.',
-  'Heat closure assumes all delivered light becomes heat the shell radiates (plant storage ≈1–2% is dropped); conduction/active cooling not modelled.',
+  'Heat closure assumes all delivered light becomes heat (plant storage ≈1–2% dropped); the radiator equilibrium is passive at the outer skin, and the foam conductive ΔT flags that active heat transport — not conduction — must carry it there.',
   'Food floor uses one overall light→harvest efficiency; real diets mix crops, livestock and light levels.',
 ];
 

@@ -34,11 +34,12 @@ The cylinder interior has a counterintuitive thermal layout that drives everythi
   stays there (no cold ceiling to re-densify it), so the steady state is a thin
   convective weather layer near the vegetated surface under a hot, stable core.
 - **The water cycle goes dew-dominated, not rain-dominated.** Adiabatic cooling
-  from axis to rim is tiny (gravity `g(r)=ω²r` falls to zero at the axis), so the
-  whole atmosphere spans only ~16 K and ~17% pressure drop for an Island-Three-scale
-  cylinder. Not enough thermodynamic room to build rain clouds. Condensation happens
-  within metres of the cold surface — **fog under the canopy, dew drip**, like a
-  cloud forest. Your instinct is right.
+  from axis to rim is set by the cylinder size: an Island-Three-scale habitat (3.2 km)
+  spans only ~16 K and ~17% pressure drop, while the build modelled here (an **8 km**
+  habitat wall — see `shared/geometry.mjs`) spans **~39 K and ~37%** — a colder, thinner
+  axis. Either way condensation happens near the cold surface — **fog under the canopy,
+  dew drip**, like a cloud forest (and the big cylinder runs nearly overcast). Your
+  instinct is right.
 - **The trap:** the same stratification that gives gentle dew irrigation also
   **suppresses vertical mixing of CO₂**. A photosynthesising canopy depletes CO₂ in
   its own boundary layer within minutes; on Earth wind resupplies it. Here the fog
@@ -292,11 +293,12 @@ This is that 1-D column — temperature, pressure, humidity and CO₂ as functio
 (equivalently altitude) and time — evolving under a pulsable axial sun. Live viewer at
 `atmosphere/index.html`; kernel in `atmosphere/sim/column.mjs` (pure, zero-dep, node + browser).
 
-**It reproduces the Island-Three numbers by construction.** Centrifugal hydrostatic balance
-(`dP/dr = ρω²r`) on a cylindrical finite-volume grid gives a **17.0% pressure drop** axis→rim;
-the centrifugal adiabat (`Δ = ω²(R²−r²)/2cp`) gives a **15.6 K** offset — exactly the ~17% and
-~16 K the intro cites. Potential temperature carries that adiabat, so "well mixed" means uniform
-θ, not uniform T.
+**It reproduces the geometry's numbers by construction.** Centrifugal hydrostatic balance
+(`dP/dr = ρω²r`) on a cylindrical finite-volume grid gives a **~37% pressure drop** axis→rim for
+the 8 km habitat (`shared/geometry.mjs`); the centrifugal adiabat (`Δ = ω²(R²−r²)/2cp`) gives a
+**~39 K** offset. Bigger barrel, bigger thermodynamic span (an Island-Three 3.2 km habitat would
+be ~17% / ~16 K). The axis runs near −6 °C and the column is mostly saturated — a permanently
+overcast sky. Potential temperature carries the adiabat, so "well mixed" means uniform θ, not T.
 
 **The method** (idealised, Held–Suarez spirit): radiation is a Newtonian relaxation of θ toward
 a prescribed radiative-equilibrium profile — a stable aloft inversion (warm axis) plus a diurnal
@@ -307,7 +309,7 @@ the axis closes for free), so the diffusion operator conserves mass/heat/CO₂/w
 precision and the books change only by the surface exchange — which, in the coupled system, comes
 from Module 1's steady state.
 
-**The four phenomena it answers** (all in the self-test, `column.selftest.mjs`, 13 checks):
+**The four phenomena it answers** (all in the self-test, `column.selftest.mjs`, 14 checks):
 - *Stratification.* A stable inversion forms — θ climbs ~10 K from rim to axis — and suppresses
   vertical mixing.
 - *Dew, not rain.* The cool nighttime surface saturates: dew accumulates ~3× faster at night than
@@ -320,7 +322,7 @@ from Module 1's steady state.
   is the only mixing pump available inside the symmetry, and it works.
 
 ```bash
-node biome/atmosphere/test/column.selftest.mjs   # 13 checks: structure, conservation, the four phenomena, determinism
+node biome/atmosphere/test/column.selftest.mjs   # 14 checks: structure, conservation, the four phenomena, fountain coupling, determinism
 open biome/atmosphere/index.html                 # the live radial-slice viewer
 ```
 
@@ -331,13 +333,15 @@ steady climate actually look like" question.
 ## Module 2b — fountain & sun: the azimuthal cross-section (`fountain/`)
 
 Module 2 resolved the cylinder in radius; this resolves the other free dimension — **azimuth** —
-by looking straight down the axis. Two coupled pieces share one view (live at `fountain/index.html`):
+by looking straight down the axis at the **8 km / 10 km** geometry (`shared/geometry.mjs`). Two
+coupled pieces share one view (live at `fountain/index.html`):
 
 **The fountain (`fountain/sim/fountain.mjs`).** The water cycle's actuator. Reeds in the low-point
 pond ("Fond du Lac") pre-treat; a jet throws that water inward toward the axis. In the rotating
 frame a parcel in flight feels only centrifugal (`+ω²r`, outward) and Coriolis (`−2Ω×v`) — an exact
 ODE, integrated with RK4 and **conserved** (specific energy `½v²−½ω²r²` holds to ~1e-15, the test).
-The payoff is that *one* actuator answers two stagnations:
+At 8 km the axis-reaching speed is `ωR ≈ 280 m/s`, so the velocity slider runs to 1200 — past it,
+water flies clear across the bore. The payoff is that *one* actuator answers two stagnations:
 - *Stagnant water* — spraying aerates: O₂ in (oxidises residual BOD, drives nitrification → mineral-N
   back to Module 1), volatiles out, axial-sun UV on the droplets. The polish the reeds can't do.
 - *Stagnant air* — the plume lofts surface air; the crisp test is whether its **apex clears the
@@ -346,23 +350,32 @@ The payoff is that *one* actuator answers two stagnations:
 - *Distribution* — because `2ωv ~ g` here, the jet curves into a **sheet** that lays water down over
   a broad prograde arc; the slight azimuthal grade returns the runoff to the low point. Loop closed.
 
-Nozzle presets trade off: the **jet** punches deepest as a column, the **fan** clears the inversion
-*and* spreads ~170 m of irrigation, **mist** aerates ~10× more but stalls low. Sliders for velocity,
-aim and flow.
+Four nozzles trade off: the **jet** punches deepest as a column, the **fan** clears the inversion
+*and* spreads ~600 m of irrigation, the **symmetric fan** ignores the aim and broadcasts a balanced
+1 km sheet, **mist** aerates ~10× more but stalls low.
+
+**Momentum coupling (the new bit).** The plume does mechanical work on the air, which
+`Fountain.ventilationK()` expresses as an equivalent near-surface eddy diffusivity (m²/s) fed into
+Module 2's column as a `fountainK` mixing term — the **night-time pump buoyant convection can't
+provide**. The test isolates it: with thermal convection off (the night condition), the fountain
+alone **cuts the canopy CO₂ swing by ~60%** and lifts the floor off starvation. The viewer runs the
+diurnal column live, so the **fog ring** blooms each night and the canopy CO₂ responds as you engage
+the fountain.
 
 **The luminous-flux budget (`fountain/sim/light.mjs`).** The axial sun is a **line**, so irradiance
-falls as **1/r** (the same power spread over the wall `2πr`). The headline, validated in the test:
-flooding the rim canopy at **1 sun** (≈2000 µmol/m²/s, ≈105k lux) takes a **20 MW-per-metre** axial
-lamp — **20 GW** for a 1 km cylinder — and since nearly all of it becomes heat, the shell radiator
-runs at **≈101 °C** to dump it (`εσT⁴ = E`). Yet the bare **food** need from Module 1's calorie
-demand is only ~0.6 MW, lighting ~600 m² of canopy — so floodlighting the floor over-provisions the
-calories **~30,000×**. You light for area and living space, not for food, and the heat closure is the
-real constraint. That's the "we need a LOT of light" made concrete.
+falls as **1/r**. Flooding the 8 km wall at **1 sun** takes a **~50 MW-per-metre** axial lamp (50 GW
+for a 1 km cylinder). The heat closure is geometric and is the punchline: all that light becomes heat,
+radiated from the **larger 10 km outer skin** (`εσT⁴ = E·R_hab/R_out`) — at **half a sun it's a benign
+~24 °C** radiator, at 1 sun ~81 °C. But it **cannot conduct out through the 1 km foam rind** (the
+conductive ΔT is ~10⁷ K), so heat must be **actively pumped** to the radiator: the foam insulates, it
+is not the heat path. And the bare **food** need is ~0.6 MW over ~600 m² — floodlighting over-provisions
+the calories tens of thousands of times. "We need a LOT of light," made concrete, with the boiling-sun
+heat budget that says half a sun is the sweet spot.
 
 ```bash
-node biome/fountain/test/fountain.selftest.mjs   # 11 checks: energy conservation, no-Coriolis limit, deflection, nozzles
-node biome/fountain/test/light.selftest.mjs      # 13 checks: 1/r falloff, conversions, the 20 MW/m headline, heat closure
-open biome/fountain/index.html                   # the looking-down-the-axis viewer
+node biome/fountain/test/fountain.selftest.mjs   # 16 checks: energy conservation, deflection, nozzles, symmetric fan, ventilation K
+node biome/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 50 MW/m headline, radiator + foam heat closure
+open biome/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
 ```
 
 ## Module 3 — WebGPU interior visualiser (planned)
@@ -381,6 +394,16 @@ biome/
 ├── worker.js                     # assets worker (+ /health); model runs client-side
 ├── wrangler.jsonc                # name=biome, custom_domain route biome.mino.mobi
 ├── README.md                     # this file
+├── shared/geometry.mjs           # the canonical cylinder (8 km habitat, 10 km hull, 1 km foam rind)
+├── atmosphere/                   # MODULE 2 — 1-D radial atmosphere column
+│   ├── index.html                # the diurnal column viewer
+│   ├── sim/column.mjs            # finite-volume column + eddy mixing + fountain coupling term
+│   └── test/column.selftest.mjs  # structure, conservation, four phenomena, fountain coupling
+├── fountain/                     # MODULE 2b — azimuthal cross-section: fountain + light
+│   ├── index.html                # looking-down-the-axis viewer (live diurnal column inside)
+│   ├── sim/fountain.mjs          # rotating-frame ballistic jet + nozzles + ventilationK
+│   ├── sim/light.mjs             # line-source luminous-flux + foam/radiator heat closure
+│   └── test/{fountain,light}.selftest.mjs
 └── cycles/                       # MODULE 1 — resource-cycle box model
     ├── index.html                # the dashboard (vanilla, no build step)
     ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones

@@ -16,9 +16,9 @@
   header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
   h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--gold);font-weight:600}
   h1 small{color:var(--dim);font-weight:400}
-  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:80ch}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:82ch}
   .sub a{color:var(--gold)}
-  main{display:grid;grid-template-columns:265px 1fr 250px;gap:16px;padding:16px 20px;align-items:start}
+  main{display:grid;grid-template-columns:262px 1fr 248px;gap:16px;padding:16px 20px;align-items:start}
   @media(max-width:1050px){main{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px}
   .panel h2{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
@@ -27,7 +27,7 @@
   label.ctl .row b{color:var(--leaf);font-weight:600}
   input[type=range]{width:100%;accent-color:var(--leaf);height:18px}
   select{width:100%;background:#0e1713;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit}
-  canvas{display:block;background:#070d0a;border:1px solid var(--line);border-radius:10px;width:100%}
+  canvas{display:block;background:#060b08;border:1px solid var(--line);border-radius:10px;width:100%}
   .gauges{display:grid;grid-template-columns:1fr 1fr;gap:7px}
   .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:7px 9px}
   .g .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
@@ -37,174 +37,206 @@
   .verdict{font-size:12px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);margin-bottom:10px}
   .verdict.ok{background:#13241a;border-color:#2c5a3c}
   .verdict.bad{background:#251612;border-color:#5a342c}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0}
+  .clock{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .dot{width:11px;height:11px;border-radius:50%;background:#3a3a2a;transition:.4s}
+  .dot.lit{background:var(--gold);box-shadow:0 0 10px var(--gold)}
 </style>
 </head>
 <body>
 <header>
-  <h1>biome · fountain &amp; sun <small>— looking down the axis (2-D cross-section)</small></h1>
-  <div class="sub">Module 2 resolved the cylinder in radius; this is the other free dimension —
-  <b>azimuth</b>. We're looking straight down the barrel: the <b>linear sun</b> at the axis
-  (centre), the <b>canopy</b> on the rim (edge), and a <b>fountain</b> at the low point ("Fond du
-  Lac") throwing quasi-treated pond water inward. At 760× Earth's spin the Coriolis force is
-  comparable to gravity, so the jet doesn't go straight up — it <b>curves into a sheet</b>,
-  aerating the water and lofting surface air through the inversion in one act. The sun's glow is
-  the real 1/r light falloff. <a href="./">← Module 1</a> · <a href="./atmosphere/">Module 2 ↗</a></div>
+  <h1>biome · fountain &amp; sun <small>— looking down the axis (8 km habitat, 10 km hull)</small></h1>
+  <div class="sub">The cross-section, drawn right: a <b>10 km</b> outer hull, a <b>1 km foam rind</b>,
+  the <b>8 km</b> habitat wall (1 g, ω≈0.035, 480× Earth). The <b>linear sun</b> glows at the axis
+  (irradiance ∝ 1/r); a <b>diurnal column</b> runs in the background, so the <b>fog ring</b> blooms
+  each night and burns off by day. A fountain at the low point throws pond water inward — at this
+  spin the Coriolis force rivals gravity, curving it into a sheet. Engage it and its momentum mixing
+  feeds back into the column. <a href="./">← M1</a> · <a href="./atmosphere/">M2 ↗</a></div>
 </header>
 <main>
-  <!-- ── left: the jet ── -->
+  <!-- left: the jet -->
   <section>
     <div class="panel">
       <h2>The jet (Fond du Lac)</h2>
       <label class="ctl"><span class="row"><span>Nozzle</span></span>
         <select id="nozzle">
           <option value="jet">Jet — tight column, max reach</option>
-          <option value="fan" selected>Fan — azimuthal sheet</option>
+          <option value="fan" selected>Fan — aimed azimuthal sheet</option>
+          <option value="fansym">Symmetric fan — balanced broadcast</option>
           <option value="mist">Mist — fine aerating spray</option>
         </select></label>
       <label class="ctl"><span class="row"><span>Exit velocity</span><b id="v-v0"></b></span>
-        <input id="v0" type="range" min="10" max="120" step="2"></label>
+        <input id="v0" type="range" min="20" max="1200" step="10"></label>
       <label class="ctl"><span class="row"><span>Aim (azimuthal, + = with spin)</span><b id="v-ang"></b></span>
         <input id="ang" type="range" min="-60" max="60" step="2"></label>
       <label class="ctl"><span class="row"><span>Flow rate</span><b id="v-flow"></b></span>
-        <input id="flow" type="range" min="20" max="400" step="10"></label>
+        <input id="flow" type="range" min="20" max="800" step="20"></label>
       <div id="fverdict" class="verdict"></div>
       <div class="gauges" id="fgauges"></div>
-      <div class="note">Aim straight in (0°) for max reach; the spin still curves it. The
-      <b>fan</b> clears the inversion <i>and</i> spreads water; <b>mist</b> aerates best but
-      stalls low; the <b>jet</b> punches deepest as a column. Coriolis lays it all down
-      prograde — that azimuthal smear is your irrigation.</div>
+      <div class="note">Axis-reaching speed is ωR ≈ 280 m/s — push past it and water flies clear
+      across. The <b>symmetric fan</b> ignores the aim and broadcasts a balanced sheet; the spin
+      still smears it prograde into irrigation.</div>
     </div>
   </section>
 
-  <!-- ── middle: the cross-section ── -->
+  <!-- middle: the cross-section -->
   <section>
     <div class="panel">
-      <h2>Cylinder cross-section — axis/sun at centre, canopy at the rim</h2>
-      <canvas id="disk" width="620" height="620"></canvas>
+      <h2>Cross-section — axis/sun at centre, canopy at the 8 km wall</h2>
+      <div class="clock"><span class="dot" id="dot"></span><span id="clock">day 0 · —</span></div>
+      <canvas id="disk" width="640" height="640"></canvas>
       <div class="note" id="simplify"></div>
     </div>
   </section>
 
-  <!-- ── right: the light budget ── -->
+  <!-- right: light + coupling -->
   <section>
     <div class="panel">
       <h2>The axial sun — luminous flux</h2>
       <label class="ctl"><span class="row"><span>Canopy light level</span><b id="v-suns"></b></span>
-        <input id="suns" type="range" min="0.2" max="2" step="0.1"></label>
+        <input id="suns" type="range" min="0.1" max="2" step="0.05"></label>
       <label class="ctl"><span class="row"><span>Cylinder length lit</span><b id="v-len"></b></span>
         <input id="len" type="range" min="100" max="5000" step="100"></label>
       <div class="gauges" id="lgauges"></div>
-      <div class="note">The sun is a <b>line</b>, so irradiance falls as 1/r — to flood the rim
-      you pour a colossal line power down the axis, and nearly all of it lands as heat the
-      shell must radiate. The bare <b>food</b> need is tiny by comparison: you light for area
-      and living space, not for calories.</div>
+      <div id="heatnote" class="note"></div>
+    </div>
+    <div class="panel">
+      <h2>Momentum coupling → the column</h2>
+      <div class="toggle"><input type="checkbox" id="engage" checked><label for="engage">Engage fountain (feed its mixing K into Module 2)</label></div>
+      <div class="gauges" id="cgauges"></div>
+      <div class="note">The plume's mechanical mixing (its <i>ventilation K</i>) is added to the
+      column's near-surface eddy diffusivity — the night-time pump that buoyant convection can't
+      provide. Watch the fog ring and canopy CO₂ respond as you engage it.</div>
     </div>
   </section>
 </main>
 
 <script type="module">
-import { defaultParams, simulate, NOZZLES, KNOWN_SIMPLIFICATIONS as FSIMP } from './sim/fountain.mjs';
-import { budget, irradianceAtRadius } from './sim/light.mjs';
+import { defaultParams as fountainParams, simulate, ventilationK } from './sim/fountain.mjs';
+import { budget } from './sim/light.mjs';
+import { CYLINDER } from '../shared/geometry.mjs';
+import { defaultParams as colParams, buildGrid, initState, step as colStep, snapshot } from '../atmosphere/sim/column.mjs';
 
 const $ = (id) => document.getElementById(id);
-let p, sim;
+const gauge=(k,v,u,c)=>`<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
 
+// ── fountain ──
+let fp, sim, vK;
 function readJet(){
-  p = defaultParams();
-  p.nozzle = $('nozzle').value;
-  p.v0 = parseFloat($('v0').value);
-  p.angleDeg = parseFloat($('ang').value);
-  p.flowRate = parseFloat($('flow').value)/1000;
-  $('v-v0').textContent = p.v0+' m/s';
-  $('v-ang').textContent = p.angleDeg+'°';
-  $('v-flow').textContent = (p.flowRate*1000).toFixed(0)+' L/s';
-  sim = simulate(p);
-  renderJetPanel();
-}
-function gauge(k,v,u,color){ return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`; }
-
-function renderJetPanel(){
-  const vd=$('fverdict');
-  vd.className='verdict '+(sim.clearsInversion?'ok':'bad');
+  fp = fountainParams();
+  fp.nozzle=$('nozzle').value; fp.v0=parseFloat($('v0').value);
+  fp.angleDeg=parseFloat($('ang').value); fp.flowRate=parseFloat($('flow').value)/1000;
+  $('v-v0').textContent=fp.v0+' m/s'; $('v-ang').textContent=fp.angleDeg+'°'; $('v-flow').textContent=(fp.flowRate*1000).toFixed(0)+' L/s';
+  sim=simulate(fp); vK=ventilationK(fp, sim);
+  const vd=$('fverdict'); vd.className='verdict '+(sim.clearsInversion?'ok':'bad');
   vd.innerHTML = sim.clearsInversion
-    ? `✓ Plume clears the 150 m inversion (apex ${sim.apexDepth.toFixed(0)} m) — ventilates the canopy.`
-    : `✕ Plume stalls below the inversion (apex ${sim.apexDepth.toFixed(0)} m) — aerates water but won't ventilate. Raise velocity or aim inward.`;
+    ? `✓ Plume clears the 150 m inversion (apex ${sim.apexDepth.toFixed(0)} m) — ventilates.`
+    : `✕ Apex ${sim.apexDepth.toFixed(0)} m — aerates water but won't ventilate. More velocity / aim inward.`;
   $('fgauges').innerHTML =
-    gauge('Apex depth', sim.apexDepth.toFixed(0)+'m','inward reach','var(--water)')+
-    gauge('Coriolis drift', sim.meanDriftArc.toFixed(0)+'m','azimuthal, prograde','var(--gold)')+
-    gauge('Spread', sim.spreadArc.toFixed(0)+'m','irrigation width','var(--leaf)')+
-    gauge('Aeration', sim.aerationIndex.toFixed(0)+'×','vs a jet','var(--leaf)');
+    gauge('Apex','+'+(sim.apexDepth/1000).toFixed(2)+'km','inward reach','var(--water)')+
+    gauge('Coriolis drift',sim.meanDriftArc.toFixed(0)+'m','prograde','var(--gold)')+
+    gauge('Spread',sim.spreadArc.toFixed(0)+'m','irrigation','var(--leaf)')+
+    gauge('Ventilation K',vK.K.toFixed(0),'m²/s → column','var(--leaf)');
 }
 
-let L, lb;
+// ── light ──
 function readLight(){
-  const suns=parseFloat($('suns').value); L=parseFloat($('len').value);
-  lb = budget({ suns, R: p.R, L });
-  $('v-suns').textContent = suns.toFixed(1)+' sun';
-  $('v-len').textContent = (L>=1000? (L/1000).toFixed(1)+' km' : L+' m');
+  const suns=parseFloat($('suns').value), L=parseFloat($('len').value);
+  const b=budget({ suns, L });
+  $('v-suns').textContent=suns.toFixed(2)+' sun'; $('v-len').textContent=(L>=1000?(L/1000).toFixed(1)+' km':L+' m');
   $('lgauges').innerHTML =
-    gauge('PPFD', lb.ppfd.toFixed(0),'µmol/m²/s','var(--leaf)')+
-    gauge('Illuminance', (lb.lux/1000).toFixed(0)+'k','lux at rim','var(--gold)')+
-    gauge('Axial lamp', lb.linePower_MW_per_m.toFixed(1),'MW per metre','var(--warn)')+
-    gauge('Total', lb.total_GW.toFixed(1)+' GW','to light '+(L/1000).toFixed(1)+'km','var(--warn)')+
-    gauge('Radiator', lb.radiatorTemp_C.toFixed(0)+'°C','shell to dump it','var(--water)')+
-    gauge('vs food need', lb.overbuildVsFood.toFixed(0)+'×','overbuild','var(--dim)');
+    gauge('PPFD',b.ppfd.toFixed(0),'µmol/m²/s','var(--leaf)')+
+    gauge('Axial lamp',b.linePower_MW_per_m.toFixed(0),'MW per metre','var(--warn)')+
+    gauge('Total',b.total_GW.toFixed(0)+' GW','for '+(L/1000).toFixed(1)+'km','var(--warn)')+
+    gauge('Radiator',b.radiatorTemp_C.toFixed(0)+'°C','outer 10km skin',b.radiatorTemp_C<40?'var(--leaf)':'var(--warn)');
+  $('heatnote').innerHTML = `All that light becomes heat, radiated from the 10 km skin — at
+    <b>${suns.toFixed(2)} sun</b> the radiator sits at <b>${b.radiatorTemp_C.toFixed(0)} °C</b>.
+    It <b>cannot conduct out through the foam</b> (that would need ${b.foamConductiveDeltaT_K.toExponential(0)} K) —
+    it must be actively pumped. The bare food need is ${b.overbuildVsFood.toFixed(0)}× smaller.`;
 }
 
-// ── cross-section rendering ──
-const cv=$('disk'), ctx=cv.getContext('2d');
-let tphase=0;
+// ── background diurnal column (Module 2), coupled to the fountain ──
+let cp, cg, cs, colSnap;
+function resetCol(){
+  cp = colParams();
+  cg = buildGrid(cp);
+  cs = initState(cp, cg);
+  for(let k=0;k<8*288;k++) cs = colStep(cs, cp, cg, 300);  // spin up ~8 days
+  colSnap = snapshot(cs, cp, cg);
+}
+function stepCol(){
+  cp.fountainK = $('engage').checked ? vK.K : 0;
+  cp.fountainDepth = vK.depth;
+  for(let k=0;k<3;k++) cs = colStep(cs, cp, cg, 240);
+  colSnap = snapshot(cs, cp, cg);
+  $('dot').classList.toggle('lit', colSnap.sunlit===1);
+  $('clock').textContent = `day ${colSnap.day.toFixed(1)} · ${colSnap.sunlit?'sunlit ☉':'dark ☾'}`;
+  $('cgauges').innerHTML =
+    gauge('Fog depth',(colSnap.fogThickness/1000).toFixed(1)+'km','from the wall','var(--water)')+
+    gauge('Canopy CO₂',colSnap.co2_rim_ppm.toFixed(0),'ppm at the wall','var(--leaf)')+
+    gauge('Air span',colSnap.T_span.toFixed(0)+'K','axis–wall','var(--dim)')+
+    gauge('Coupled K',($('engage').checked?vK.K.toFixed(0):'0'),'m²/s night pump',$('engage').checked?'var(--leaf)':'var(--dim)');
+}
+
+// ── render the cross-section ──
+const cv=$('disk'), ctx=cv.getContext('2d'); let tphase=0;
 function draw(){
   const W=cv.width,H=cv.height,cx=W/2,cy=H/2; ctx.clearRect(0,0,W,H);
-  const PR=Math.min(W,H)/2-26, scale=PR/p.R;
-  const toX=(x)=>cx+x*scale, toY=(y)=>cy-y*scale;
-  // light glow: irradiance ∝ 1/r from the axis (brightness floor so it's visible)
+  const R_out=CYLINDER.R_out, scaleOut=(Math.min(W,H)/2-12)/R_out;
+  const PRhab=fp.R*scaleOut;                       // habitat wall radius in px
+  const toX=(x)=>cx+x*scaleOut, toY=(y)=>cy-y*scaleOut;
   const suns=parseFloat($('suns').value);
-  const grd=ctx.createRadialGradient(cx,cy,2,cx,cy,PR);
-  grd.addColorStop(0,`rgba(255,224,150,${0.9})`);
-  grd.addColorStop(0.06,`rgba(232,196,110,${0.5*suns})`);
-  grd.addColorStop(0.4,`rgba(180,150,80,${0.16*suns})`);
-  grd.addColorStop(1,`rgba(40,60,50,0.06)`);
-  ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(cx,cy,PR,0,7); ctx.fill();
-  // rim (canopy) ring
-  ctx.strokeStyle='#3f8f5a'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(cx,cy,PR,0,7); ctx.stroke();
-  // inversion band (R-150)
-  ctx.strokeStyle='rgba(90,169,216,0.35)'; ctx.lineWidth=1; ctx.setLineDash([4,5]);
-  ctx.beginPath(); ctx.arc(cx,cy,(p.R-p.inversionDepth)*scale,0,7); ctx.stroke(); ctx.setLineDash([]);
-  // spin direction arc (counterclockwise = +ω)
-  ctx.strokeStyle='rgba(127,155,141,0.5)'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.arc(cx,cy,PR-14,-0.5,0.6); ctx.stroke();
-  ctx.fillStyle='rgba(127,155,141,0.7)'; ctx.font='10px monospace';
-  const ax=cx+(PR-14)*Math.cos(0.6), ay=cy-(PR-14)*Math.sin(0.6);
-  ctx.fillText('ω ↻', ax-26, ay-6);
-  // sun at axis
-  ctx.fillStyle='#ffe7a0'; ctx.beginPath(); ctx.arc(cx,cy,5+2*suns,0,7); ctx.fill();
-  ctx.shadowBlur=18+10*suns; ctx.shadowColor='#ffd866'; ctx.beginPath(); ctx.arc(cx,cy,3,0,7); ctx.fill(); ctx.shadowBlur=0;
-  // trajectories + animated droplets
-  for(const st of sim.streams){
-    ctx.strokeStyle='rgba(120,180,220,0.45)'; ctx.lineWidth=1.2; ctx.beginPath();
-    st.traj.forEach((pt,i)=>{ const X=toX(pt[0]),Y=toY(pt[1]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); });
-    ctx.stroke();
-    // droplet position animating along the path
-    const idx=Math.floor((tphase%1)*(st.traj.length-1));
-    const dp=st.traj[idx]; if(dp){ ctx.fillStyle='#cfe6da'; ctx.beginPath(); ctx.arc(toX(dp[0]),toY(dp[1]),2.3,0,7); ctx.fill(); }
-    // landing splash
-    const last=st.traj[st.traj.length-1]; ctx.fillStyle='rgba(90,169,216,0.8)';
-    ctx.beginPath(); ctx.arc(toX(last[0]),toY(last[1]),2.6,0,7); ctx.fill();
-  }
-  // nozzle at the low point (0,-R)
-  ctx.fillStyle='#e0795a'; ctx.beginPath(); ctx.arc(toX(0),toY(-p.R),4,0,7); ctx.fill();
+  // outer hull (10km) + foam rind band (8–9km)
+  ctx.strokeStyle='#3a4a42'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R_out*scaleOut,0,7); ctx.stroke();
+  ctx.fillStyle='rgba(120,110,90,0.14)'; ctx.beginPath();
+  ctx.arc(cx,cy,CYLINDER.rindOuter*scaleOut,0,7); ctx.arc(cx,cy,CYLINDER.rindInner*scaleOut,0,7,true); ctx.fill();
   ctx.fillStyle='#7f9b8d'; ctx.font='10px monospace'; ctx.textAlign='center';
-  ctx.fillText('Fond du Lac', cx, toY(-p.R)+18);
-  ctx.fillStyle='#d8b25a'; ctx.fillText('☉ axial sun', cx, cy-12-2*suns);
-  ctx.textAlign='left';
+  ctx.fillText('10 km hull', cx, cy-R_out*scaleOut-4);
+  ctx.fillText('1 km foam rind', cx, cy-CYLINDER.rindInner*scaleOut+12);
+  // light glow inside the habitat (∝ 1/r)
+  const grd=ctx.createRadialGradient(cx,cy,2,cx,cy,PRhab);
+  grd.addColorStop(0,`rgba(255,224,150,0.92)`);
+  grd.addColorStop(0.05,`rgba(232,196,110,${0.5*suns})`);
+  grd.addColorStop(0.4,`rgba(180,150,80,${0.15*suns})`);
+  grd.addColorStop(1,'rgba(30,50,40,0.05)');
+  ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(cx,cy,PRhab,0,7); ctx.fill();
+  // canopy wall ring
+  ctx.strokeStyle='#3f8f5a'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(cx,cy,PRhab,0,7); ctx.stroke();
+  // fog ring (from the diurnal column) — translucent band inward from the wall
+  if(colSnap && colSnap.fogThickness>0){
+    const rIn=Math.max(0,(fp.R-colSnap.fogThickness))*scaleOut;
+    ctx.fillStyle='rgba(210,228,222,0.16)'; ctx.beginPath();
+    ctx.arc(cx,cy,PRhab,0,7); ctx.arc(cx,cy,rIn,0,7,true); ctx.fill();
+  }
+  // inversion ring
+  ctx.strokeStyle='rgba(90,169,216,0.3)'; ctx.lineWidth=1; ctx.setLineDash([4,5]);
+  ctx.beginPath(); ctx.arc(cx,cy,(fp.R-fp.inversionDepth)*scaleOut,0,7); ctx.stroke(); ctx.setLineDash([]);
+  // spin arrow
+  ctx.strokeStyle='rgba(127,155,141,0.5)'; ctx.lineWidth=1.4; ctx.beginPath(); ctx.arc(cx,cy,PRhab-12,-0.5,0.5); ctx.stroke();
+  ctx.fillStyle='rgba(127,155,141,0.7)'; ctx.fillText('ω ↻', cx+(PRhab-12)*Math.cos(0.5)-22, cy-(PRhab-12)*Math.sin(0.5)-6);
+  // sun at axis, brightness pulsing with the diurnal state
+  const lit = colSnap? colSnap.sunlit : 1;
+  ctx.fillStyle = lit? '#ffe7a0':'#6b6038';
+  ctx.shadowBlur=lit?(16+10*suns):4; ctx.shadowColor='#ffd866';
+  ctx.beginPath(); ctx.arc(cx,cy,5+2*suns,0,7); ctx.fill(); ctx.shadowBlur=0;
+  // fountain trajectories + droplets
+  for(const st of sim.streams){
+    ctx.strokeStyle='rgba(120,180,220,0.45)'; ctx.lineWidth=1.1; ctx.beginPath();
+    st.traj.forEach((pt,i)=>{ const X=toX(pt[0]),Y=toY(pt[1]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }); ctx.stroke();
+    const idx=Math.floor((tphase%1)*(st.traj.length-1)); const dp=st.traj[idx];
+    if(dp){ ctx.fillStyle='#cfe6da'; ctx.beginPath(); ctx.arc(toX(dp[0]),toY(dp[1]),2.1,0,7); ctx.fill(); }
+    const last=st.traj[st.traj.length-1]; ctx.fillStyle='rgba(90,169,216,0.8)';
+    ctx.beginPath(); ctx.arc(toX(last[0]),toY(last[1]),2.4,0,7); ctx.fill();
+  }
+  ctx.fillStyle='#e0795a'; ctx.beginPath(); ctx.arc(toX(0),toY(-fp.R),4,0,7); ctx.fill();
+  ctx.fillStyle='#7f9b8d'; ctx.fillText('Fond du Lac', cx, toY(-fp.R)+16);
 }
-function frame(){ tphase+=0.012; draw(); requestAnimationFrame(frame); }
+function frame(){ tphase+=0.012; stepCol(); draw(); requestAnimationFrame(frame); }
 
 // init
-$('v0').value=70; $('ang').value=10; $('flow').value=100; $('suns').value=1; $('len').value=1000;
-readJet(); readLight();
-$('simplify').innerHTML='<b>Model.</b> '+FSIMP.slice(0,2).join(' ');
+$('v0').value=160; $('ang').value=10; $('flow').value=120; $('suns').value=0.5; $('len').value=1000;
+readJet(); readLight(); resetCol();
+$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 coupled via the fountain’s mixing K.';
 for(const id of ['nozzle','v0','ang','flow']) $(id).addEventListener('input', readJet);
 for(const id of ['suns','len']) $(id).addEventListener('input', readLight);
 requestAnimationFrame(frame);
