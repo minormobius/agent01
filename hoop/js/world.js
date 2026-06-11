@@ -399,6 +399,16 @@ class FoamField extends ChunkField {
   isHazard(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const c = this.chunk(cx, cy); return !!(c.hazard && c.hazard.has(ly * C + lx)); }
   // a radial connector at this tile: +1 chute (down/hull), -1 ladder (up/core), 0 none
   connectorAt(wx, wy) { const { cx, cy, lx, ly } = this._local(wx, wy); const c = this.chunk(cx, cy); if (!c.connectors) return 0; for (const k of c.connectors) if (k.x === lx && k.y === ly) return k.dir; return 0; }
+  // ── foam index: the chamber containing a tile. The chamber id (gid = "bx,by,i" = the
+  //    seed's home block + local index) is deterministic and identical on every machine. ──
+  chamberAt(wx, wy) {
+    const cx = Math.floor(wx / C), cy = Math.floor(wy / C), px = wx + 0.5, py = wy + 0.5;
+    let best = null, bd = 1e18;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const ss = chunkSeeds(this.seed, cx + dx, cy + dy); for (let i = 0; i < ss.length; i++) { const d = (ss[i].x - px) ** 2 + (ss[i].y - py) ** 2; if (d < bd) { bd = d; best = { gid: (cx + dx) + ',' + (cy + dy) + ',' + i, reg: ss[i].reg, type: ss[i].t.id, x: Math.round(ss[i].x), y: Math.round(ss[i].y) }; } } }
+    return best;
+  }
+  // inverse: a chamber id → a representative tile (its seed), for spawning / targeting NPCs
+  chamberLocation(gid) { const [cx, cy, i] = String(gid).split(',').map(Number); const s = chunkSeeds(this.seed, cx, cy)[i]; return s ? { x: Math.round(s.x), y: Math.round(s.y) } : null; }
 }
 
 // ── continuous gravity-aware movement (exported pure kernel for the selftest) ──
@@ -536,6 +546,17 @@ export class World {
     if (this.h.onStatus) this.h.onStatus(`depth ${this.depth >= 0 ? '+' + this.depth : this.depth} · ${dir > 0 ? 'descended toward the hull ↓' : 'climbed toward the core ↑'}`);
   }
 
+  // ── foam address (for the NPC layer) ─────────────────────────────────────
+  // The full address is "d<depth>:<chamber-gid>" — depth-aware (the foam differs per radial
+  // layer) and stable on every machine for a voyage seed. Pair with field.chamberLocation()
+  // to go the other way (spawn/target an NPC by chamber). Example: { address: "d+0:1,0,7",
+  // depth: 0, chamber: "1,0,7", room: "garden", regime: "spin", breach: false, tile: [42,17] }.
+  where() {
+    const c = this.field.chamberAt ? this.field.chamberAt(this.player.x, this.player.y) : null;
+    const dl = this.depth >= 0 ? '+' + this.depth : '' + this.depth;
+    return { address: c ? `d${dl}:${c.gid}` : null, depth: this.depth, chamber: c ? c.gid : null, room: c ? c.type : null, regime: this.field.regime(this.player.x, this.player.y), breach: !!(this.field.isHazard && this.field.isHazard(this.player.x, this.player.y)), tile: [this.player.x, this.player.y] };
+  }
+
   // ── movement ────────────────────────────────────────────────────────────
   _announce(place) {
     if (this.selectedId !== place.id && this.h.onSelectPlace) this.h.onSelectPlace(place);
@@ -616,9 +637,9 @@ export class World {
       if (pl) this._announce(pl);
       else if (this.h.onStatus) {
         const dir = this.field.connectorAt ? this.field.connectorAt(tx, ty) : 0;
-        this.h.onStatus(dir ? `${dir > 0 ? '⤓ chute' : '⤒ ladder'} — press F (or tap) to ${dir > 0 ? 'descend toward the hull' : 'climb toward the core'}`
-          : this.field.isHazard && this.field.isHazard(tx, ty) ? `⚠ BREACH (${tx}, ${ty}) — open to vacuum`
-          : `(${tx}, ${ty}) · ${this.field.regime(tx, ty)} gravity · depth ${this.depth >= 0 ? '+' + this.depth : this.depth} — N to drop`);
+        if (dir) this.h.onStatus(`${dir > 0 ? '⤓ chute' : '⤒ ladder'} — press F (or tap) to ${dir > 0 ? 'descend toward the hull' : 'climb toward the core'}`);
+        else if (this.field.isHazard && this.field.isHazard(tx, ty)) this.h.onStatus(`⚠ BREACH (${tx}, ${ty}) — open to vacuum`);
+        else { const c = this.field.chamberAt && this.field.chamberAt(tx, ty); this.h.onStatus(`▦ ${c ? c.gid + ' · ' + c.type : ''} · ${this.field.regime(tx, ty)} · depth ${this.depth >= 0 ? '+' + this.depth : this.depth}`); }
       }
     }
     for (const p of this.peers.values()) { p.px += (p.x - p.px) * 0.22; p.py += (p.y - p.py) * 0.22; }
