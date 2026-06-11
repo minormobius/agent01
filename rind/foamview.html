@@ -131,7 +131,10 @@ function enterScene(toCylinder) {
   ringMode = toCylinder; document.getElementById('scene').textContent = 'scene: ' + (ringMode ? 'cylinder ◍' : 'foam slab');
   document.getElementById('regen').textContent = ringMode ? '↻ new shell' : '↻ new foam';
   if (ringMode) { document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => buildCylinderShell()); }
-  else { regen(); recomputeEdges(); }
+  else {
+    if (view === 'route') { view = 'both'; document.getElementById('vmode').textContent = 'view: both'; }   // route view is ring-only
+    regen(); recomputeEdges();
+  }
 }
 
 // ════════════════════════ WAYFINDING (cylinder scene) ════════════════════════
@@ -233,14 +236,15 @@ function floorInfo() {
 
 // ── membranes: the current floor's Voronoi cell walls, as 3D line segments on the
 //    probe plane (recomputed when you scrub). The membranes you'd run a finger along. ──
-let view = 'both';
-const showCubes = () => view !== 'walls';
-const showWalls = () => view !== 'cubes';
+let view = 'both';                                  // both · cubes · walls · route (ring scene: ribbon only)
+const showCubes = () => view === 'both' || view === 'cubes';
+const showWalls = () => view === 'both' || view === 'walls' || view === 'route';
 let EDGES = new Float32Array(0);            // membranes / solved members
 let COMBINED = new Float32Array(0);         // EDGES + the route ribbon, what renderers draw
 function refreshEdges() {
-  COMBINED = new Float32Array(EDGES.length + ROUTE.length);
-  COMBINED.set(EDGES, 0); COMBINED.set(ROUTE, EDGES.length);
+  const base = view === 'route' ? new Float32Array(0) : EDGES;   // route view: ribbon only
+  COMBINED = new Float32Array(base.length + ROUTE.length);
+  COMBINED.set(base, 0); COMBINED.set(ROUTE, base.length);
   if (gpu) gpu.setEdges(COMBINED);
 }
 function clipHP(poly, nx, ny, mx, my) {
@@ -430,7 +434,12 @@ document.getElementById('regen').addEventListener('click', () => {
   else { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); recomputeEdges(); }
 });
 document.getElementById('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
-document.getElementById('vmode').addEventListener('click', () => { view = view === 'both' ? 'cubes' : view === 'cubes' ? 'walls' : 'both'; document.getElementById('vmode').textContent = 'view: ' + view; });
+document.getElementById('vmode').addEventListener('click', () => {
+  const order = ringMode ? ['both', 'cubes', 'walls', 'route'] : ['both', 'cubes', 'walls'];
+  view = order[(order.indexOf(view) + 1) % order.length];
+  document.getElementById('vmode').textContent = 'view: ' + view;
+  refreshEdges();
+});
 
 (async () => {
   resize(); regen();
