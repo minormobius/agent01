@@ -23,6 +23,15 @@ stocks and flows?* Everything lives under `cycles/`:
   `cycles/lake.html` — the **lake bioengine**; `cycles/global.html` — the **global food web**;
   `cycles/builder.html` — the **builder**: design any web, read its stability, share it by link.
 - `cycles/solver/` — the Rust/WASM stability kernel (the precision/scale sister of linalg.mjs).
+- `graph/index.html` — the **trophic-web force graph** at `biome.mino.mobi/graph`. The whole
+  interior as one force-directed graph: each organism node wears its iNaturalist photo and is
+  **sized by present standing biomass**, with the terrestrial web on land, the aquatic web inside a
+  drawn lake basin, and the shared abiotic pools (air/N/detritus/larder) down the shoreline drawn as
+  the explicit **land↔lake interface**. Pure client-side — it reads `buildGlobalGraph()`/`globalReport()`
+  from `cycles/sim/global.mjs` and the committed `graph/organisms.json` imagery map. That map is built
+  by `node biome/graph/build-organisms.mjs` (iNaturalist photos for BOTH rosters; the engine never
+  reads it — imagery only, same status as `roster.enriched.json`). The worker normalises the no-slash
+  `/graph` to `/graph/` — the only non-asset route, a rewrite to a page, not server compute.
 
 ## The package it belongs to
 

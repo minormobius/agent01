@@ -17,6 +17,14 @@ export default {
       });
     }
 
+    // Pretty endpoint: biome.mino.mobi/graph → the trophic-web page (graph/index.html).
+    // Cloudflare's asset handler resolves /graph/ to its index; normalise the no-slash form
+    // so the exact advertised URL serves the page rather than a 404.
+    if (url.pathname === '/graph') {
+      url.pathname = '/graph/';
+      return env.ASSETS.fetch(new Request(url, request));
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
