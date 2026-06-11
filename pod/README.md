@@ -23,12 +23,42 @@ lexicons, and deploy wiring are in place. `/room` and `/prod` are documented pla
 
 | Step | Status | Notes |
 |---|---|---|
-| 1. Multi-person lobby over the internet | **Exists** in `audio/` (WebRTC mesh + `RoomCoordinator` DO) — pod builds its own, separate | `audio/` kept separate by decision |
-| 2. Record locally per participant | To build (`/room`) | The "double-ender": each browser records **its own mic** at high fidelity; WebRTC is monitoring only |
-| 3. Send recordings to an accessible location | To build | **Chunked atproto blobs** on each speaker's own PDS (decision below) |
-| 4. Collect all recordings in one browser | To build (`/prod`) | Driven by the `session` manifest record |
-| 5. Sync tracks + edit down | To build (`/prod`) | Track sync is the hard part — see below |
+| 1. Multi-person lobby over the internet | **Built** (`/room`, own `RoomCoordinator` DO) | `audio/` kept separate by decision; pod has its own |
+| 2. Record locally per participant | **Built** (`/room`) | The "double-ender": each browser records **its own mic** at 128 kbps; WebRTC is monitoring only |
+| 3. Send recordings to an accessible location | **Built** | Chunked atproto blobs (byte-range slices) on each speaker's own PDS |
+| 4. Collect all recordings in one browser | **Built** (`/prod`) | Driven by the `session` manifest record |
+| 5. Sync tracks + edit down | **Sync built; editing pending** (`/prod`) | `/prod` verifies alignment by aligned playback; trim/mix is next |
 | 6. Bring in music tracks | To build (`/prod`) | Multitrack Web Audio mixer |
+
+## The sync slice — what this build wires end-to-end
+
+`/room` (`room/studio.js`) + the `RoomCoordinator` DO (`worker.js`) + `/prod`
+(`prod/verify.js`) form a working loop:
+
+1. **Sign in** via the shared `auth.mino.mobi` OAuth client (vendored to `pod/lib/auth.js`).
+2. **Join a room** — first opener is host; the `?r=<roomId>` link invites others. WebRTC
+   mesh (lower-DID-initiates) carries the live conversation; STUN only.
+3. **Clock sync** — 7 NTP-style pings to the DO; the smallest-RTT sample gives
+   `clockOffsetMs` (server − client).
+4. **Host arms recording** — the DO stamps one `epochMs` and broadcasts it. Every client
+   starts a high-quality local `MediaRecorder` and records
+   `localStartOffsetMs = recStart + clockOffset − epoch`.
+5. **Stop → upload** — each client byte-slices its recording into ≤4 MB chunks, uploads
+   each as an atproto blob via the auth proxy, and writes a `com.minomobi.podcast.track`
+   (chunks + sync metadata). The host maintains the `com.minomobi.podcast.session` manifest.
+6. **Verify in `/prod`** — load the session, pull every track's chunks (across PDSes),
+   reassemble + decode, and play them aligned by `localStartOffsetMs`. If sync holds, the
+   voices overlap naturally.
+
+### Prerequisites to actually run it
+
+- **`pod.mino.mobi` must be attached** (not `pod.workers.dev`): the OAuth client calls
+  `auth.mino.mobi` with credentials, which only allows `*.mino.mobi` origins, and the
+  `.mino.mobi` SSO cookie can't reach `workers.dev`.
+- **Scope:** login requests `transition:generic` for now so writes to the new podcast
+  collections work against the already-deployed auth worker. Tighten to enumerated
+  `repo:com.minomobi.podcast.*` + `blob:audio/*` once those are added to
+  `workers/auth/src/oauth/scope.ts` and auth redeploys (`SCOPE` in `room/studio.js`).
 
 ## Decisions locked in
 
@@ -92,8 +122,13 @@ but empty, so the surface deploys before the schema does.
 
 ## Roadmap (next slices)
 
-1. **Sync slice** — dual local recording + server epoch + chunked upload + `session`
-   manifest, end-to-end for one room. Prove alignment before building the editor.
-2. `pod_episodes` D1 migration + the `/enclosure/<rkey>` stitching route.
-3. `/prod` multitrack editor (lazy decode, align, music, render-down).
-4. Publish flow → `episode` record → RSS.
+1. ~~**Sync slice** — dual local recording + server epoch + chunked upload + `session`
+   manifest, end-to-end for one room.~~ **Done (this build).**
+2. **Drift correction** — for long sessions, periodic re-pings + resample on a measured
+   per-client skew (the `clockSkewMs` field is already captured).
+3. `/prod` editing — trim, gain, crossfade, and music/bed tracks on the aligned timeline;
+   render-down via chunked `OfflineAudioContext`.
+4. `pod_episodes` D1 migration + the `/enclosure/<rkey>` chunk-stitching route.
+5. Publish flow → `episode` record → RSS.
+6. Robustness: progressive (during-recording) chunk upload for crash resilience; TURN
+   relay for peers behind symmetric NAT; host-reconnect handling in the DO.

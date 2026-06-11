@@ -5,35 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prod — pod</title>
   <style>
-    body { margin: 0; font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0e0f13; color: #e9eaee; }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 64px 24px; }
-    .crumb { color: #9aa0ad; font-size: 14px; }
-    .crumb a { color: #9aa0ad; text-decoration: none; }
-    h1 { font-size: 44px; letter-spacing: -0.03em; margin: 8px 0 16px; }
-    .accent { color: #e0573e; }
-    p { color: #c7ccd6; }
-    ol { color: #9aa0ad; }
-    code { background: #16181f; padding: 2px 6px; border-radius: 6px; }
-    .pill { display: inline-block; color: #e0573e; border: 1px solid #e0573e; border-radius: 999px; font-size: 12px; padding: 2px 10px; text-transform: uppercase; letter-spacing: .08em; }
+    :root { --bg:#0e0f13; --panel:#16181f; --ink:#e9eaee; --muted:#9aa0ad; --accent:#e0573e; --green:#3ec07a; --line:#262932; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:920px; margin:0 auto; padding:40px 20px 80px; }
+    .crumb { color:var(--muted); font-size:13px; } .crumb a { color:var(--muted); text-decoration:none; }
+    h1 { font-size:34px; letter-spacing:-0.02em; margin:6px 0 4px; } h1 .dot { color:var(--accent); }
+    .sub { color:var(--muted); margin:0 0 24px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin:16px 0; }
+    .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:0 0 12px; }
+    input[type=text] { width:100%; padding:10px 12px; background:#0e0f13; border:1px solid var(--line); border-radius:8px; color:var(--ink); font-size:14px; }
+    button { font:inherit; font-weight:600; padding:10px 16px; border-radius:8px; border:1px solid var(--line); background:#21242d; color:var(--ink); cursor:pointer; }
+    button:hover:not(:disabled){ border-color:var(--accent); } button:disabled{ opacity:.45; cursor:default; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#1a0d0a; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .track { margin:10px 0; }
+    .track .name { font-weight:600; font-size:13px; margin-bottom:4px; }
+    .track .name .off { color:var(--muted); font-weight:400; margin-left:8px; }
+    .lane { position:relative; height:26px; background:#0e0f13; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+    .bar { position:absolute; top:0; bottom:0; background:linear-gradient(180deg,#3a4150,#2a2f3a); border-left:2px solid var(--green); }
+    .play-head { position:fixed; width:2px; background:var(--accent); left:0; top:0; display:none; pointer-events:none; z-index:5; }
+    code { background:#0e0f13; padding:2px 6px; border-radius:6px; font-size:12px; word-break:break-all; }
+    #log { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--muted); white-space:pre-wrap; max-height:200px; overflow:auto; }
+    .err { color:var(--accent); }
+    .legend { color:var(--muted); font-size:12px; margin-top:8px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="crumb"><a href="/">pod</a> / prod</div>
-    <h1>Prod <span class="accent">·</span> <span class="pill">work in progress</span></h1>
-    <p>The editing room. Load a <code>com.minomobi.podcast.session</code> manifest, pull every
-       participant's chunked track into this one browser, align them on the shared epoch, drop in
-       music, trim, and render the final mixdown.</p>
+    <h1>Prod<span class="dot">.</span></h1>
+    <p class="sub">Sync verifier. Loads a recorded session, pulls every participant's chunked track, and plays them aligned on the shared epoch. (Trim / mix / music come next.)</p>
 
-    <h3>What gets built here</h3>
-    <ol>
-      <li>Fetch the session manifest → resolve each track's blob chunks across participants' PDSes.</li>
-      <li>Multitrack timeline over the Web Audio API (lazy/streamed decode — full PCM won't fit in RAM).</li>
-      <li>Coarse align by <code>localStartOffsetMs</code>; fine align by sync tone / measured clock skew.</li>
-      <li>Music + bed tracks; gain, trim, crossfade.</li>
-      <li>Render down with <code>OfflineAudioContext</code> (chunked), publish as <code>com.minomobi.podcast.episode</code>.</li>
-    </ol>
-    <p style="color:#9aa0ad">Track sync is the genuinely hard part — see the design notes in <code>pod/README.md</code>.</p>
+    <div class="panel">
+      <h2>Session</h2>
+      <div class="row">
+        <input type="text" id="sessionInput" placeholder="at://did:plc:…/com.minomobi.podcast.session/…" style="flex:1; min-width:260px" />
+        <button class="primary" id="loadBtn">Load</button>
+      </div>
+      <p class="sub" style="margin:12px 0 0; font-size:13px">Finalizing a session in <a href="/room/" style="color:var(--accent)">/room</a> links straight here with <code>?s=…</code> prefilled.</p>
+    </div>
+
+    <div class="panel" id="timelinePanel" style="display:none">
+      <h2>Aligned timeline</h2>
+      <div class="row" style="margin-bottom:14px">
+        <button class="primary" id="playBtn">▶ Play aligned</button>
+        <button id="stopBtn" disabled>■ Stop</button>
+        <span class="sub" id="meta" style="margin:0"></span>
+      </div>
+      <div id="tracks"></div>
+      <div class="play-head" id="playHead"></div>
+      <p class="legend">Each lane is positioned by its captured <code>localStartOffsetMs</code> (offset from the shared recording epoch). If sync holds, speech overlaps naturally on playback.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Log</h2>
+      <div id="log"></div>
+    </div>
   </div>
+
+  <script type="module" src="./verify.js"></script>
 </body>
 </html>
