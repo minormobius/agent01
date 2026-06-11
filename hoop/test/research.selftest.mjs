@@ -2,7 +2,7 @@
 // against the numbers the three modelling wings publish. Run: node hoop/test/research.selftest.mjs
 import {
   shellStress, shellSection, materialById, columnProfile, lakeSecantSag, fountainParcel,
-  foodWebRun, foodWebDefaults,
+  ratchetParams, fillLake, drainsTo, crestTheta, elevation, foodWebRun, foodWebDefaults,
 } from '../js/research.js';
 
 let pass = 0, fail = 0;
@@ -68,6 +68,28 @@ const near = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a}, w
   ok(Math.abs(coriolis.driftArc_m) > 200, 'with Coriolis ON the jet curves into a sheet (drifts ' + Math.round(coriolis.driftArc_m) + ' m)');
   const fast = fountainParcel({ R: 8000, omega, v0: 240, alphaDeg: 0, coriolis: true });
   ok(fast.axisReachFrac > coriolis.axisReachFrac, 'a faster jet (nearer ωR) climbs closer to the axis');
+}
+
+// ── FIGURE 2c: the REAL ratchet topography (tide/ratchet, ported) ──
+{
+  const p = ratchetParams(8000);
+  // the sawtooth: basin floor at the lake centre, crest at crestTheta, glide descending after
+  ok(elevation(p, 0) === 0, 'the lake centre sits on the basin floor (e=0)');
+  near(elevation(p, crestTheta(p)), p.crest, 1, 'elevation peaks at the crest (the scarp top)');
+  ok(elevation(p, crestTheta(p) + 0.3) < p.crest, 'past the crest the long glide descends');
+
+  const L = fillLake(p);
+  ok(L.rw < p.R && L.depthMax > 0 && !L.overflow, 'the lake fills the basin as an equipotential arc below the crest');
+  ok(L.depthMax < p.crest, 'the surface stays below the crest — a lake, not an annular sea');
+  near(L.secantSag_m, 303, 25, 'the ~4.4 km default lake sags ~300 m as a secant (tide’s headline)');
+  // ASYMMETRY: the lake leans far up the gentle glide, penned short by the steep scarp
+  ok(Math.abs(L.shoreRetro) > 3 * Math.abs(L.shorePro), 'shorelines are asymmetric — the lake leans up the glide, penned by the scarp');
+
+  // THE RATCHET RIVER: a slow jet runs home; a fast one clears the crest and feeds the next lake
+  const slow = fountainParcel({ R: 8000, omega: p.omega, v0: 90, coriolis: true });
+  const quick = fountainParcel({ R: 8000, omega: p.omega, v0: 200, coriolis: true });
+  ok(drainsTo(p, slow.driftRad) === 0, 'a slow jet lands before the crest and drains back home');
+  ok(drainsTo(p, quick.driftRad) >= 1, 'a fast jet clears the crest and ratchets forward into the next lake');
 }
 
 // ── FIGURE 3: biological webbing — biome's closure, the pollinator gate, the Biosphere-2 crash ──

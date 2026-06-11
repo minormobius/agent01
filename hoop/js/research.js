@@ -167,6 +167,56 @@ export function fountainParcel({ R, omega, v0, alphaDeg = 0, coriolis = true, dt
   };
 }
 
+// THE RATCHET TOPOGRAPHY (tide/ratchet/sim/ratchet.mjs, ported faithfully). The terrain that
+// makes lakes possible at all: a periodic sawtooth of `teeth` asymmetric teeth carved into the
+// floor — going prograde from each lake, a short steep SCARP up to a crest, then a long gentle
+// GLIDE down into the next basin. elevation e(θ)≥0 is built INWARD from the structural floor at
+// r=R (ground radius = R−e). A lake is an equipotential ARC (constant r), filled by bisection;
+// its shoreline leans up the glide (asymmetric), penned by the scarp. A jet that lands past the
+// crest runs down the glide into the NEXT lake — the ratchet river; landing short runs home.
+export function ratchetParams(R = 8000, omega = Math.sqrt(9.81 / 10000)) {
+  return { R, omega, teeth: 3, crest: 250, basinFrac: 0.06, scarpFrac: 0.06, lakeArea_m2pm: 1.5e5, nTheta: 1440 };
+}
+export const toothAngle = (p) => (2 * Math.PI) / p.teeth;
+export const crestTheta = (p) => (p.basinFrac / 2 + p.scarpFrac) * toothAngle(p);
+export function elevation(p, theta) {
+  const T = toothAngle(p);
+  let u = (theta / T) % 1; if (u < 0) u += 1;             // position within the tooth, 0..1
+  const b = p.basinFrac / 2, s = p.scarpFrac;
+  if (u < b || u >= 1 - b) return 0;                      // basin floor (this lake / the next)
+  if (u < b + s) return p.crest * ((u - b) / s);          // the scarp (steep, short)
+  return p.crest * (1 - (u - b - s) / (1 - 2 * b - s));   // the glide (gentle, long)
+}
+export const groundRadius = (p, theta) => p.R - elevation(p, theta);
+
+// Fill one lake (water cross-section `area`, m²/axial-m): solve the equipotential surface radius
+// r_w by bisection on area(r_w)=∫½(r_g²−r_w²)dθ over θ where r_g>r_w. Returns surface, asymmetric
+// shorelines, depth, and the secant-fallacy sag (the chord's spurious mid-span head).
+export function fillLake(p, area = p.lakeArea_m2pm) {
+  const T = toothAngle(p), n = Math.max(96, Math.round(p.nTheta / p.teeth)), dth = T / n;
+  const thetas = Array.from({ length: n }, (_, i) => -T / 2 + (i + 0.5) * dth);
+  const rg = thetas.map((th) => groundRadius(p, th));
+  const areaAt = (rw) => { let A = 0; for (let i = 0; i < n; i++) if (rg[i] > rw) A += 0.5 * (rg[i] * rg[i] - rw * rw) * dth; return A; };
+  let lo = p.R - p.crest - (2 * area) / (p.R * T) - 1, hi = p.R;
+  const target = Math.min(area, areaAt(lo) * 0.999999);
+  for (let it = 0; it < 64; it++) { const mid = 0.5 * (lo + hi); if (areaAt(mid) > target) lo = mid; else hi = mid; }
+  const rw = 0.5 * (lo + hi), overflow = p.R - rw > p.crest;
+  const mid = Math.floor(n / 2); let iRetro = 0, iPro = n - 1;
+  for (let i = mid; i >= 0; i--) { if (rg[i] <= rw) { iRetro = i + 1; break; } }
+  for (let i = mid; i < n; i++) { if (rg[i] <= rw) { iPro = i - 1; break; } }
+  const shoreRetro = overflow ? -T / 2 : thetas[Math.max(0, iRetro)];
+  const shorePro = overflow ? T / 2 : thetas[Math.min(n - 1, iPro)];
+  const span = shorePro - shoreRetro, halfSpan = span / 2;
+  return { rw, depthMax: p.R - rw, overflow, shoreRetro, shorePro, span, secantSag_m: rw * (1 - Math.cos(halfSpan)), meanDepth: target / Math.max(rw * span, 1e-9) };
+}
+
+// Which basin does water landing at azimuth θ (prograde from a lake centre) drain into? 0 = its
+// own lake (it landed on the basin/scarp), 1 = the next lake prograde (it cleared the crest).
+export function drainsTo(p, theta) {
+  const T = toothAngle(p), k = Math.floor((theta + T / 2) / T), local = theta - k * T;
+  return local <= crestTheta(p) ? k : k + 1;
+}
+
 // ───────────────────────────────────────────────────────────────────────────────────────
 // FIGURE 3 — BIOLOGICAL WEBBING (biome): does the closed loop close?
 //
@@ -364,10 +414,12 @@ function initFigures() {
       const p = columnProfile({ R, Tfloor });
       set('f2-span', p.dT.toFixed(1) + ' K'); set('f2-drop', (p.Pdrop * 100).toFixed(0) + ' %');
       set('f2-axis', (p.Taxis - 273.15).toFixed(1) + ' °C'); set('f2-gfloor', p.gFloor.toFixed(2) + ' g');
+      // the real ratchet terrain + a filled lake; the jet couples to it (the ratchet river)
+      const rp = ratchetParams(R, p.omega), lake = fillLake(rp), T = toothAngle(rp), cTheta = crestTheta(rp);
       const jet = fountainParcel({ R, omega: p.omega, v0, alphaDeg: 0, coriolis: cori });
+      const drain = drainsTo(rp, jet.driftRad); // 0 = home, ≥1 = next lake (ratchets forward)
       set('f2-reach', Math.round(jet.axisReachFrac * 100) + ' %');
-      const lakeHalf = (16 * Math.PI) / 180, sag = lakeSecantSag(R, 2 * R * Math.sin(lakeHalf));
-      set('f2-sag', Math.round(sag) + ' m');
+      set('f2-sag', drain >= 1 ? 'next lake ⟳' : 'home');
       const { ctx, w, h } = dpiFit(f2.cv); ctx.clearRect(0, 0, w, h);
       const cx = w / 2, cy = h / 2, Rpx = Math.min(w, h) / 2 - 24;
       const n = p.r.length, Tc = p.T.map((t) => t - 273.15);
@@ -379,30 +431,54 @@ function initFigures() {
         ctx.fillStyle = mix('#274a63', '#d98a52', (Tc[idx] - tmin) / dt);
         ctx.beginPath(); ctx.arc(cx, cy, Rpx * rr, 0, TAU); ctx.fill();
       }
-      // stratus / dew deck — the cold floor annulus
-      ctx.lineWidth = Rpx * 0.08; ctx.strokeStyle = 'rgba(167,196,212,.16)'; ctx.beginPath(); ctx.arc(cx, cy, Rpx * 0.955, 0, TAU); ctx.stroke();
       // the axial sun, seen end-on
       const sun = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rpx * 0.13);
       sun.addColorStop(0, 'rgba(244,191,98,.95)'); sun.addColorStop(1, 'rgba(244,191,98,0)');
       ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(cx, cy, Rpx * 0.13, 0, TAU); ctx.fill();
-      // map kernel metres (launch at (0,−R)) → canvas
-      const MX = (x) => cx + (x / R) * Rpx, MY = (y) => cy + (y / R) * Rpx;
-      // the lake: an equipotential ARC at the floor, vs the dashed secant chord (the fallacy)
-      const baseA = Math.PI / 2, rL = Rpx * 0.985;
-      ctx.lineWidth = 3; ctx.strokeStyle = '#7fb7d8'; ctx.beginPath(); ctx.arc(cx, cy, rL, baseA - lakeHalf, baseA + lakeHalf); ctx.stroke();
-      const e1 = [cx + Math.cos(baseA - lakeHalf) * rL, cy + Math.sin(baseA - lakeHalf) * rL], e2 = [cx + Math.cos(baseA + lakeHalf) * rL, cy + Math.sin(baseA + lakeHalf) * rL];
-      ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(226,89,106,.85)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(e1[0], e1[1]); ctx.lineTo(e2[0], e2[1]); ctx.stroke(); ctx.setLineDash([]);
-      // the fountain: a fan of jets (the Coriolis sheet); faint radial reference when Coriolis is on
+      // ── geometry: terrain relief is exaggerated radially (crest ≈ 18% of Rpx) so 250 m on an
+      //    8 km radius is visible; jets stay true-scale. θ=0 lake centre at the top, +θ prograde. ──
+      const EXAG = (0.18 * R) / rp.crest;
+      const rDraw = (rM) => Rpx * (1 - EXAG * (1 - rM / R));         // r=R → rim; r=R−e → inward
+      const ang = (theta) => -Math.PI / 2 + theta;                   // top = lake centre, +θ prograde (= jet drift)
+      const ptR = (rM, theta) => [cx + Math.cos(ang(theta)) * rDraw(rM), cy + Math.sin(ang(theta)) * rDraw(rM)];
+      const MX = (x) => cx + (x / R) * Rpx, MY = (y) => cy + (y / R) * Rpx; // jet (kernel coords, true-scale)
+      // solid terrain shell: between the ground profile (inner) and the structural rim r=R (outer)
+      const STEP = TAU / 360;
+      ctx.beginPath();
+      for (let a = 0; a <= TAU + 1e-9; a += STEP) { const q = ptR(groundRadius(rp, a), a); a ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
+      for (let a = TAU; a >= -1e-9; a -= STEP) { const q = ptR(R, a); ctx.lineTo(q[0], q[1]); }
+      ctx.closePath(); ctx.fillStyle = 'rgba(120,96,72,.82)'; ctx.fill();
+      ctx.beginPath();
+      for (let a = 0; a <= TAU + 1e-9; a += STEP) { const q = ptR(groundRadius(rp, a), a); a ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
+      ctx.strokeStyle = '#caa06a'; ctx.lineWidth = 1.4; ctx.stroke();
+      // lakes: one per tooth, the equipotential arc filled over its (asymmetric) shoreline span
+      for (let t = 0; t < rp.teeth; t++) {
+        const c = t * T, a0 = c + lake.shoreRetro, a1 = c + lake.shorePro;
+        ctx.beginPath();
+        for (let a = a0; a <= a1; a += STEP) { const q = ptR(lake.rw, a); a === a0 ? ctx.moveTo(q[0], q[1]) : ctx.lineTo(q[0], q[1]); }
+        for (let a = a1; a >= a0; a -= STEP) { const q = ptR(groundRadius(rp, a), a); ctx.lineTo(q[0], q[1]); }
+        ctx.closePath(); ctx.fillStyle = 'rgba(86,150,196,.72)'; ctx.fill();
+        ctx.beginPath(); const s0 = ptR(lake.rw, a0); ctx.moveTo(s0[0], s0[1]);
+        for (let a = a0; a <= a1; a += STEP) { const q = ptR(lake.rw, a); ctx.lineTo(q[0], q[1]); }
+        ctx.strokeStyle = '#bfe0f2'; ctx.lineWidth = 1.6; ctx.stroke();
+      }
+      // the secant fallacy, drawn once: the dashed chord between one lake's shorelines
+      const sP = ptR(lake.rw, lake.shorePro), sR = ptR(lake.rw, lake.shoreRetro);
+      ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(226,89,106,.9)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(sR[0], sR[1]); ctx.lineTo(sP[0], sP[1]); ctx.stroke(); ctx.setLineDash([]);
+      // the fountain: a fan (the Coriolis sheet) from the top lake; faint radial reference when on
       const drawJet = (path, style, wdt) => { ctx.strokeStyle = style; ctx.lineWidth = wdt; ctx.beginPath(); for (let i = 0; i < path.length; i++) { const X = MX(path[i][0]), Y = MY(path[i][1]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); };
       if (cori) { const ref = fountainParcel({ R, omega: p.omega, v0, alphaDeg: 0, coriolis: false }); ctx.setLineDash([3, 3]); drawJet(ref.pts, 'rgba(190,205,210,.35)', 1); ctx.setLineDash([]); }
       for (const al of [-7, 0, 7]) { const jj = fountainParcel({ R, omega: p.omega, v0, alphaDeg: al, coriolis: cori }); drawJet(jj.pts, al === 0 ? '#9fe6ff' : 'rgba(159,230,255,.5)', al === 0 ? 2 : 1.2); }
-      ctx.fillStyle = '#9fe6ff'; ctx.beginPath(); ctx.arc(MX(0), MY(-R), 3, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#9fe6ff'; ctx.beginPath(); ctx.arc(MX(0), MY(-R), 3, 0, TAU); ctx.fill(); // launch
+      const land = ptR(R, jet.driftRad); ctx.fillStyle = drain >= 1 ? '#9fe6ff' : '#e0a85b'; // landing, coloured by where it drains
+      ctx.beginPath(); ctx.arc(land[0], land[1], 3.2, 0, TAU); ctx.fill();
       // labels
       ctx.font = '11px JetBrains Mono, monospace'; ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(244,191,98,.9)'; ctx.fillText('axial sun', cx, cy - 3);
-      ctx.fillStyle = '#9fe6ff'; ctx.fillText('fountain jet' + (cori ? ' — Coriolis sheet' : ' — radial'), cx, cy - Rpx - 11);
-      ctx.fillStyle = DIM; ctx.fillText('floor (rim) · ' + Tc[n - 1].toFixed(0) + '°C', cx, cy + Rpx + 17);
-      ctx.fillStyle = 'rgba(226,89,106,.9)'; ctx.fillText('lake is an arc, not a secant · sag ' + Math.round(sag) + ' m', cx, cy + Rpx * 0.74);
+      ctx.fillStyle = 'rgba(244,191,98,.9)'; ctx.fillText('axial sun', cx, cy + 3);
+      ctx.fillStyle = '#9fe6ff'; ctx.fillText('fountain jet' + (cori ? ' — Coriolis sheet → ' + (drain >= 1 ? 'next lake' : 'home') : ' — radial'), cx, cy - Rpx - 11);
+      ctx.fillStyle = '#caa06a'; ctx.fillText('ratchet floor · ' + rp.teeth + ' teeth (scarp ↑ glide ↘)', cx, cy + Rpx + 17);
+      ctx.fillStyle = 'rgba(226,89,106,.9)'; ctx.fillText('lake = arc, not the dashed secant · sag ' + Math.round(lake.secantSag_m) + ' m', cx, cy + Rpx * 0.62);
       ctx.textAlign = 'start';
     };
     [f2.R, f2.Tf, f2.v0].forEach((el) => el.addEventListener('input', drawF2));

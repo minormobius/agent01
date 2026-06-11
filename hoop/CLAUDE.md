@@ -21,7 +21,8 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
 - `research.html` + `js/research.js` — the **research dossier** (linked from the topbar `❖ research`
   pill): the supporting-world models from the three modelling wings, collated as a scientific report
   with three live "active figures" — the hull section + secant cable web (rind), the circular axis
-  cross-section with lake topology + Coriolis jets (tide), the closed food-web loop (biome). Note the
+  cross-section over the real ratchet topography (lakes as equipotential arcs + the ratchet river,
+  ported from tide/ratchet) (tide), the closed food-web loop (biome). Note the
   secant duality across the two circular figures: a cable IS a secant (structure), a lake is NOT one
   (the ratchet's equipotential arc). The figure kernels in `research.js` are pure/zero-dep and
   re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at

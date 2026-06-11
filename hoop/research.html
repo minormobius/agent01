@@ -284,14 +284,16 @@
       </p>
 
       <figure class="active">
-        <div class="figtop"><span class="figlabel">Figure 2 — live · the interior, looking down the axis</span></div>
+        <div class="figtop"><span class="figlabel">Figure 2 — live · the ratchet floor, looking down the axis</span></div>
         <figcaption>
           The cross-section as a <em>circle</em>: concentric rings carry the centrifugal-adiabat temperature
-          (cold axis, warm floor; the axial sun at the centre), with the cold stratus/dew deck on the rim.
-          On the floor a <b>lake</b> sits as an equipotential <em>arc</em> — and the dashed red <em>secant</em>
-          shows the chord it is <b>not</b> (the "secant fallacy", a spurious mid-span sag). A <b>fountain</b>
-          jet, integrated in the rotating frame, curves under Coriolis into the irrigation <em>sheet</em>.
-          Source models: <code>atmosphere/</code>, <code>ratchet/</code>, <code>fountain/</code> at
+          (cold axis, warm floor; the axial sun at the centre). The floor is the real <b>ratchet
+          topography</b> — three asymmetric teeth, each a short steep <em>scarp</em> and a long gentle
+          <em>glide</em> (relief exaggerated radially to be visible). Each basin holds a <b>lake</b>, solved as
+          an equipotential <em>arc</em> that leans up the glide and is penned by the scarp; the dashed red line
+          is the <em>secant</em> it is <b>not</b>. A <b>fountain</b> jet curves under Coriolis and — past the
+          crest — its runoff <em>ratchets into the next lake</em> (the circulating river). Ported from
+          <code>ratchet/</code>, <code>fountain/</code>, <code>atmosphere/</code> at
           <a href="https://tide.mino.mobi">tide.mino.mobi</a>.
         </figcaption>
         <div class="figbody">
@@ -307,7 +309,7 @@
               <span class="ro"><span class="k">axis temperature</span><span class="val" id="f2-axis">—</span></span>
               <span class="ro"><span class="k">floor gravity</span><span class="val" id="f2-gfloor">—</span></span>
               <span class="ro"><span class="k">jet axis-reach</span><span class="val" id="f2-reach">—</span></span>
-              <span class="ro"><span class="k">lake secant sag</span><span class="val" id="f2-sag">—</span></span>
+              <span class="ro"><span class="k">runoff drains →</span><span class="val" id="f2-sag">—</span></span>
             </div>
             <span class="verdict ok" style="color:var(--tide);border-color:#3b5563;background:rgba(167,196,212,.06)">"well mixed" means uniform potential temperature θ, not uniform T — the warm core is <em>stably</em> stratified, which is why weather stays at the floor.</span>
           </div>
@@ -316,8 +318,8 @@
 
       <ul class="findings">
         <li>An <b>8 km</b> build spans <b>~31 K</b> and <b>~32%</b> pressure axis→floor — a genuinely colder, thinner axis; an Island-Three-scale 3.2 km tube spans only a handful of K. Size sets the climate.</li>
-        <li><b>Topology:</b> a lake free surface is an equipotential arc of constant radius, never a chord. The secant intuition imports hundreds of metres of phantom head (~300 m on a 4.4 km lake) — get it wrong and the water runs off the model.</li>
-        <li><b>The jets do the mixing the symmetry forbids:</b> because 2ωv ≈ g here, Coriolis bends a point jet into a broad sheet (toggle it off and the radial jet just falls back to its launch). Day-phased, that sheet ventilates the CO₂-starved canopy and irrigates at once.</li>
+        <li><b>Topology makes lakes possible:</b> a perfectly smooth cylinder holds none — water relaxes to a uniform film. The ratchet teeth pen it into basins, where the free surface is an equipotential arc, not the dashed chord (~300 m of phantom head on the 4.4 km default). The shoreline leans far up the gentle glide and stops at the steep scarp — asymmetric by design.</li>
+        <li><b>The ratchet river:</b> push the jet past ~140 m/s and Coriolis carries its sheet over the crest, so the runoff drains into the <em>next</em> lake instead of home — irrigation circulates the rim and closes after one turn. Below that speed it falls back into its own basin (drop the slider and watch the landing dot flip).</li>
       </ul>
     </section>
 
