@@ -28,6 +28,7 @@
 // global rather than importing it.
 
 import { drawStalk, stalkModel } from './ink.js';
+import { route as navRoute } from './nav.js';
 
 const Ship = globalThis.HoopShip;
 const C = Ship.CHUNK;
@@ -589,30 +590,16 @@ export class World {
     }
     return { ix, iy, arriving };
   }
-  // BFS bounded to a window around the player (the world is infinite).
+  // Auto-walk path = the unified two-tier wayfinder (nav.route) over the live foam deck. No more
+  // ±48 window: coarse portal-graph A* crosses chunks (via foamPorts), fine A* threads each chunk;
+  // stepMotion still does the per-tile walk along the returned tile list. (See hoop/NAV.md.)
   _pathTo(tx, ty, adjacentOk) {
     if (!this.isFloor(tx, ty) && !adjacentOk) return;
-    if (Math.abs(tx - this.player.x) > 48 || Math.abs(ty - this.player.y) > 48) return;
-    const start = `${this.player.x}-${this.player.y}`, goal = `${tx}-${ty}`;
-    const q = [[this.player.x, this.player.y]];
-    const prev = new Map([[start, null]]);
-    let found = false, steps = 0;
-    while (q.length && steps++ < 6000) {
-      const [x, y] = q.shift();
-      if (`${x}-${y}` === goal) { found = true; break; }
-      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-        const nx = x + dx, ny = y + dy, key = `${nx}-${ny}`;
-        if (prev.has(key)) continue;
-        if (Math.abs(nx - this.player.x) > 50 || Math.abs(ny - this.player.y) > 50) continue;
-        if (this.isFloor(nx, ny) || key === goal) { prev.set(key, `${x}-${y}`); q.push([nx, ny]); }
-      }
-    }
-    if (!found) return;
-    const path = [];
-    let cur = goal;
-    while (cur && cur !== start) { const [x, y] = cur.split('-').map(Number); path.push([x, y]); cur = prev.get(cur); }
-    path.reverse();
-    this.path = path;
+    if (Math.abs(tx - this.player.x) + Math.abs(ty - this.player.y) > 400) return; // sanity cap on a very far click
+    const r = navRoute(this.field.seed, { x: this.player.x, y: this.player.y }, { x: tx, y: ty },
+      (x, y) => this.field.isFloor(x, y), { ports: foamPorts });
+    if (!r || r.tiles.length < 2) { if (r && r.tiles.length === 1) this.path = []; return; }
+    this.path = r.tiles.slice(1).map((t) => [t.x, t.y]); // drop the current tile; steer toward the rest
   }
 
   // ── render loop ───────────────────────────────────────────────────────────

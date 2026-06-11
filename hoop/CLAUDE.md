@@ -21,10 +21,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   stable, hierarchical, Merkle-able **chamber addresses** from the deterministic engine (NPCs/places
   bind to `(chunk, ordinal)` — genome-stable slots); `nav.js` is two-tier **HPA\*** routing (coarse
   portal-graph A\* + fine `isFloor` A\*), the 2-D-deck cousin of `rind/wayfind.js`. Pure + node-tested.
-  Wiring status (`NAV.md`): **step 1 done** — every place carries `{gid, addr, depth}` (the foam
-  chamber it binds to, via `store.setChamberLookup` ← `world.field.chamberAt`). Routing is
-  verified end-to-end over the **real `FoamField`** (`nav.route(…, { ports: foamPorts })`); the
-  only remaining step is swapping `world.js`'s `_pathTo` BFS for it (`stepMotion` stays).
+  Wiring status (`NAV.md`): **steps 1 & 3 done** — places carry `{gid, addr, depth}` (via
+  `store.setChamberLookup` ← `world.field.chamberAt`), and `world.js`'s click-to-walk now routes
+  through `navRoute(field.seed, …, { ports: foamPorts })` (no ±48 window; `stepMotion` still walks
+  the tiles). `nav.js` also exports **`wayfan()`** — the geodesic player→perimeter tree that is the
+  substrate for the **map overhaul** (the visible deck as a wayfinding fan, not a best-fit plane;
+  change the `cost` rule → the map morphs, up to the foamview corkscrew). Pinned by the selftests.
 - `js/store.js` — places now bind to a **chamber address** (postal): `setChamberLookup`/`withAddress`
   attach `gid`/`addr`/`depth`; the `hoop.place` lexicon gained those optional fields. Tile stays the rkey.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).

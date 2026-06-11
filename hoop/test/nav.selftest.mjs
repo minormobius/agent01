@@ -2,7 +2,7 @@
 // Run: node hoop/test/nav.selftest.mjs
 import '../js/ship.js'; // side-effect: sets globalThis.HoopShip
 import { chambersIn, chunkOf, CHUNK } from '../js/postal.js';
-import { routeChunks, doorTiles, doorBetween, fineRoute, route, makeShipFloor } from '../js/nav.js';
+import { routeChunks, doorTiles, doorBetween, fineRoute, route, wayfan, makeShipFloor } from '../js/nav.js';
 import { FoamField, foamPorts } from '../js/world.js'; // the LIVE deck, for the integration check
 
 const Ship = globalThis.HoopShip, SEED = Ship.FLAGSHIP_SEED;
@@ -85,6 +85,32 @@ const centre = (cx, cy, ord) => { const r = chambersIn(SEED, cx, cy)[ord]; retur
   ok(r && connected(r.tiles) && r.tiles.every((t) => foamFloor(t.x, t.y)), 'the foam route is a connected run of real foam-floor tiles');
   if (r) { const last = r.tiles[r.tiles.length - 1], lc = chunkOf(last.x, last.y); ok(lc.cx === 3 && lc.cy === 2, 'the foam route reaches the goal chunk'); }
   ok(JSON.stringify(route(SEED, from, to, foamFloor, { ports: foamPorts }).tiles) === JSON.stringify(r.tiles), 'foam routing is deterministic');
+}
+
+// ── THE WAYFINDING FAN: the geodesic tree that will define the visible map ──
+{
+  const o = centre(0, 0, 0);
+  const fan = wayfan(isFloor, o, { radius: 14 });
+  ok(fan.reached.size > 1, 'wayfan reaches a neighbourhood of cells from the player');
+  ok(fan.reached.get(o.x + ',' + o.y).dist === 0, 'the origin is the root of the tree');
+  // every reached cell is floor, within radius, and its parent is adjacent (a real tree)
+  let treeOk = true, withinR = true;
+  for (const n of fan.reached.values()) {
+    if (!isFloor(n.x, n.y)) treeOk = false;
+    if (n.dist > fan.radius) withinR = false;
+    if (n.parent != null) { const p = fan.reached.get(n.parent); if (!p || Math.abs(p.x - n.x) + Math.abs(p.y - n.y) !== 1) treeOk = false; }
+  }
+  ok(treeOk, 'the fan is a real tree: every cell floor, parent orthogonally adjacent');
+  ok(withinR, 'no cell exceeds the fan radius (truncated at the perimeter)');
+  // tips are the perimeter; the geodesic to each tip is a connected floor run from the origin
+  ok(fan.tips.length > 0, 'the fan has perimeter tips (the cells the routes radiate to)');
+  let tipsOk = true;
+  for (const t of fan.tips) { const path = fan.pathTo(t.x, t.y); if (!path || path.length === 0 || path[0].x !== o.x || path[0].y !== o.y || !connected(path) || !allFloor(path)) tipsOk = false; }
+  ok(tipsOk, 'pathTo(tip) is a connected floor geodesic rooted at the player');
+  ok(JSON.stringify([...wayfan(isFloor, o, { radius: 14 }).reached.keys()].sort()) === JSON.stringify([...fan.reached.keys()].sort()), 'wayfan is deterministic');
+  // ENABLEMENT: a different wayfinding rule (cost) reshapes the fan — the map morphs
+  const biased = wayfan(isFloor, o, { radius: 14, cost: (a, b) => (b.x > a.x ? 1 : 3) }); // cheap to head +x → elongated fan
+  ok(JSON.stringify([...biased.reached.keys()].sort()) !== JSON.stringify([...fan.reached.keys()].sort()), 'changing the wayfinding rule changes the fan (the map can look different)');
 }
 
 console.log(`nav.selftest: ${pass} passed, ${fail} failed`);

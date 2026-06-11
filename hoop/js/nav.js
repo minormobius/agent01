@@ -144,6 +144,43 @@ export function route(seed, from, to, isFloor, opts = {}) {
   return { tiles, portals, chunks };
 }
 
+// ── THE WAYFINDING FAN — a geodesic tree from the player out to its perimeter ──────────────
+// The substrate for the map overhaul. Instead of drawing a flat best-fit plane through the foam,
+// the visible map is the set of routes that radiate from the player to the cells on its
+// perimeter — a shortest-path tree, truncated at `radius`. Dijkstra over the same `isFloor`
+// graph nav routes on; a pluggable `cost(from,to)` shapes the tree, so the SAME player position
+// yields a different-looking map as you change the wayfinding rule (uniform/planar today; a
+// radial-or-azimuthal bias makes the fan elongate or spiral — the foamview corkscrew, once the
+// depth dimension is folded into `isFloor`/neighbours). Returns the tree (each cell → its parent),
+// the tips (the perimeter the fan reaches), and pathTo() to reconstruct any geodesic.
+export function wayfan(isFloor, origin, opts = {}) {
+  const radius = opts.radius ?? 18, maxCells = opts.maxCells ?? 6000;
+  const cost = opts.cost || (() => 1);
+  const key = (x, y) => x + ',' + y;
+  const s = { x: Math.round(origin.x), y: Math.round(origin.y) };
+  const reached = new Map();
+  const pathTo = (x, y) => { let k = key(Math.round(x), Math.round(y)), out = []; while (k != null) { const n = reached.get(k); if (!n) return null; out.push({ x: n.x, y: n.y }); k = n.parent; } return out.reverse(); };
+  if (!isFloor(s.x, s.y)) return { origin: s, reached, tips: [], maxDist: 0, radius, pathTo };
+  reached.set(key(s.x, s.y), { x: s.x, y: s.y, dist: 0, parent: null });
+  const open = heap(); open.push([0, s.x, s.y]);
+  let maxDist = 0;
+  while (open.size && reached.size < maxCells) {
+    const [d, x, y] = open.pop(), node = reached.get(key(x, y));
+    if (!node || d > node.dist || node.dist >= radius) continue; // stale or at the frontier (don't expand past the perimeter)
+    for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+      if (!isFloor(nx, ny)) continue;
+      const nd = node.dist + cost({ x, y }, { x: nx, y: ny });
+      if (nd > radius) continue;
+      const nk = key(nx, ny), ex = reached.get(nk);
+      if (!ex || nd < ex.dist) { reached.set(nk, { x: nx, y: ny, dist: nd, parent: key(x, y) }); if (nd > maxDist) maxDist = nd; open.push([nd, nx, ny]); }
+    }
+  }
+  // tips = leaves of the truncated tree (cells that parent nobody) — the perimeter the fan reaches
+  const parents = new Set(); for (const n of reached.values()) if (n.parent != null) parents.add(n.parent);
+  const tips = []; for (const [k, n] of reached) if (!parents.has(k)) tips.push(n);
+  return { origin: s, reached, tips, maxDist, radius, pathTo };
+}
+
 // ── test/integration helper: an isFloor predicate over the canonical ship.js tiles ────────
 // (the game passes world.js's own isFloor; this lets nav route headlessly over the real engine)
 export function makeShipFloor(seed, genome) {

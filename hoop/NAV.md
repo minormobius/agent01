@@ -126,6 +126,39 @@ chunks, into negative space, deterministically).
 
 ---
 
+## Part 3 — the map as a wayfinding fan (`wayfan`, the overhaul substrate)
+
+The map the player sees is being reconceived. Today a deck is a **best-fit plane** sliced through
+the 3-D foam (`foam3d.js`'s PCA cut; each radial `depth` is its own plane). The overhaul replaces
+that fixed planar cut with a **player-centric wayfinding fan**: the visible map is the set of
+routes that **radiate from the player out to the cells on its perimeter** — a shortest-path tree,
+truncated at a view radius. `wayfan(isFloor, origin, { radius, cost })` builds it:
+
+- Dijkstra over the same `isFloor` graph nav routes on, from the player out to `radius`.
+- Returns the **tree** (`reached`: each cell → its parent), the **tips** (the perimeter the fan
+  reaches — the leaves), and `pathTo(x,y)` to reconstruct any geodesic.
+- A pluggable **`cost(from,to)`** is the wayfinding *rule*: uniform today (a round planar fan);
+  a directional/azimuthal/radial bias elongates or curves it. **Same player, different rule →
+  different map.** That is the knob the overhaul turns.
+
+Why this is powerful: the layout that gets drawn is the *embedding of the tree*, not a fixed
+plane. Lay the geodesics out by `(dist, bearing)` and a uniform fan reads as a disc; bias the cost
+toward "descend a connector while winding in azimuth" and the same renderer draws the **corkscrew
+ramp** from `foamview` — because the tree now follows that structure. The corkscrew, the azimuthal
+road, a planar slice: all become *modes of the same fan*, selected by the cost/neighbour rule.
+
+**The one extension the corkscrew needs:** the radial dimension. On a single deck `isFloor` is 2-D;
+a true corkscrew threads **depths** via the connectors (`field.connectorAt` — chutes/ladders).
+Fold that into the fan's neighbour expansion (a connector cell also steps to the next depth's
+matching tile) and `wayfan` grows a 3-D tree the renderer can lay out as a spiral. The kernel is
+already shaped for it: swap the 4-neighbour step for a neighbour fn that includes connector hops.
+
+`wayfan` is pure and pinned by `nav.selftest` (the tree is all-floor with adjacent parents,
+truncated at the radius; every tip's `pathTo` is a connected geodesic rooted at the player; and a
+changed `cost` provably reshapes the fan — the map-morph property).
+
+---
+
 ## Gotchas (designed around; carry into the wiring)
 
 1. **`addPlaceTile` remeshes the local Voronoi** ("a place adds floor"), so live Voronoi cells
@@ -156,16 +189,21 @@ chunks, into negative space, deterministically).
    (or `resolve()` on the `ship.js` reference) gives its current tile for spawning/rendering;
    `chambersNear()` answers "who's around the player" via the address-prefix neighbourhood.
    Reuse the place plumbing — it's the same address space, by design.
-3. **Click-to-walk → `route()`.** Replace `world.js`'s windowed `_pathTo` BFS with
-   `nav.route(seed, player, target, field.isFloor, { ports: foamPorts })`; keep `stepMotion`
-   for the per-tile walk. **Seam-port integration — RESOLVED.** The foam stitches its seams on
-   *different* RNG streams (71/72) than `ship.js` `edgePorts` (1/2), so the coarse tier must use
-   the foam's offsets, not the engine's. `world.js` now exports `foamPorts(seed,cx,cy)` (the single
-   source `foamChunk` itself uses), and `nav` takes a pluggable `ports` fn (default = `edgePorts`,
-   the reference; pass `foamPorts` for the live deck). `nav.selftest` proves a full route over the
-   **real `FoamField`** with `foamPorts` is a connected run of foam-floor tiles to the goal. The
-   fine tier already routes over `field.isFloor`, so it was substrate-correct all along.
-4. **(Optional) sector digests** for the forum/atproto layer: a place/sector can show its
+3. **✅ Click-to-walk → `route()` — DONE.** `world.js`'s windowed `_pathTo` BFS is replaced by
+   `navRoute(field.seed, player, target, field.isFloor, { ports: foamPorts })`; `stepMotion` still
+   does the per-tile walk along the returned tile list (`this.path`). The ±48 window is gone — you
+   can now auto-walk across many chunks (a far click yields a connected route; verified end-to-end).
+   **Seam-port integration was resolved here:** the foam stitches its seams on *different* RNG
+   streams (71/72) than `ship.js` `edgePorts` (1/2), so `world.js` exports `foamPorts` (the single
+   source `foamChunk` uses) and `nav` takes a pluggable `ports` fn (default `edgePorts`; pass
+   `foamPorts` for the live deck). `nav.selftest` proves a full route over the **real `FoamField`**.
+4. **The map overhaul → `wayfan()` (Part 3).** Render the deck as the player's wayfinding fan
+   instead of a best-fit plane. The kernel is built and pinned; the work is the renderer (lay the
+   tree out by `(dist, bearing)`) plus, for the corkscrew, folding `connectorAt` depth-hops into the
+   fan's neighbour expansion. This is the active design direction.
+5. **NPC records** reuse step 1's address space (`{addr/gid, depth}`); `chamberLocation`/`resolve`
+   spawn them, `chambersNear` queries them.
+6. **(Optional) sector digests** for the forum/atproto layer: a place/sector can show its
    `blockDigest` as a verifiable "state of this region @ genome" — forkable design state.
 
 Each step is independently shippable and leaves the game working; the kernels are proven, so the
