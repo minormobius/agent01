@@ -33,8 +33,11 @@ attached.** The canvas is the engine surface; the right rail is the forum.
 ```
 hoop/
 ├── index.html          # shell: topbar, canvas pane, thread rail, status bar
+├── research.html       # the research dossier: the supporting-world models (rind/tide/biome),
+│                       #   collated as a scientific report with 3 live "active figures"
 ├── css/style.css       # phosphor-on-ink visual language
 ├── js/
+│   ├── research.js     # the dossier's figure kernels (pure + node-testable) + canvas wiring
 │   ├── app.js          # controller — wires world ⇆ store ⇆ thread rail ⇆ auth ⇆ presence
 │   ├── world.js        # the canvas adventure: deterministic glyph map, @ movement,
 │   │                   #   BFS click-to-walk, place glyphs, FOV dimming, live peers

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090c" />
+  <meta name="description" content="The supporting world of the infinite game — a research dossier collating the structural, thermodynamic and ecological models of an infinite O'Neill cylinder, with live figures." />
+  <title>hoop · research — modeling-based megastructure design</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    :root { --rind: #7fd8d0; --tide: #a7c4d4; --biome: #62b87a; --warm: #e08a5b; }
+    body { overflow: auto; display: block; }
+    #topbar { position: sticky; top: 0; z-index: 20; background: rgba(7,9,12,.82); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
+    .pill.back { color: var(--gold); border-color: var(--gold-soft); text-decoration: none; }
+    .report { max-width: 920px; margin: 0 auto; padding: 30px 22px 80px; }
+    .report p, .report li { font-family: "Spectral", Georgia, serif; font-size: 16.5px; line-height: 1.62; color: #d6ded8; }
+    .report .lead { font-size: 18px; color: #e8efe9; }
+    .report a { color: var(--accent); }
+    h1.title { font-family: "JetBrains Mono", monospace; font-size: 30px; line-height: 1.2; color: var(--gold); margin: 6px 0 4px; letter-spacing: .3px; }
+    .subtitle { font-family: "Spectral", serif; font-style: italic; color: var(--dim); font-size: 18px; margin: 0 0 18px; }
+    .docmeta { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: var(--dim); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 8px 0; margin: 0 0 26px; display: flex; flex-wrap: wrap; gap: 16px; }
+    .docmeta b { color: var(--accent); font-weight: 600; }
+    .abstract { border-left: 3px solid var(--green-dim); padding: 2px 0 2px 16px; margin: 0 0 26px; }
+    .abstract .h { font-family: "JetBrains Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--green-dim); display: block; margin-bottom: 6px; }
+    .toc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin: 0 0 34px; }
+    .toc .h { font-family: "JetBrains Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); }
+    .toc ol { margin: 8px 0 0; padding-left: 22px; }
+    .toc li { font-family: "JetBrains Mono", monospace; font-size: 13.5px; margin: 3px 0; }
+    .toc a { color: #cdd6cf; text-decoration: none; }
+    .toc a:hover { color: var(--gold); }
+    section.part { margin: 0 0 14px; padding-top: 14px; }
+    .wing-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin: 38px 0 14px; }
+    .wing-num { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--dim); }
+    h2.wing-title { font-family: "JetBrains Mono", monospace; font-size: 22px; margin: 0; }
+    .wing-sub { font-family: "Spectral", serif; font-style: italic; color: var(--dim); font-size: 15px; }
+    a.tool-link { font-family: "JetBrains Mono", monospace; font-size: 12px; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: #cdd6cf; margin-left: auto; }
+    a.tool-link:hover { border-color: currentColor; }
+    .rind h2.wing-title, .rind .wing-num { color: var(--rind); } .rind a.tool-link:hover { color: var(--rind); }
+    .tide h2.wing-title, .tide .wing-num { color: var(--tide); } .tide a.tool-link:hover { color: var(--tide); }
+    .biome h2.wing-title, .biome .wing-num { color: var(--biome); } .biome a.tool-link:hover { color: var(--biome); }
+    .problem { font-family: "JetBrains Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--dim); margin: 18px 0 2px; }
+    /* figure panels */
+    figure.active { margin: 22px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    figure.active .figtop { padding: 12px 16px 4px; }
+    figure.active .figlabel { font-family: "JetBrains Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+    .rind .figlabel { color: var(--rind); } .tide .figlabel { color: var(--tide); } .biome .figlabel { color: var(--biome); }
+    figure.active figcaption { font-family: "Spectral", serif; font-size: 14px; color: var(--dim); padding: 2px 16px 12px; line-height: 1.5; }
+    figure.active figcaption em { color: #cdd6cf; }
+    .figbody { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0; border-top: 1px solid var(--line); }
+    @media (max-width: 700px) { .figbody { grid-template-columns: 1fr; } }
+    .figcanvas-wrap { padding: 10px; min-height: 220px; }
+    figure.active canvas { width: 100%; height: 240px; display: block; }
+    .figpanel { border-left: 1px solid var(--line); padding: 14px 16px; }
+    @media (max-width: 700px) { .figpanel { border-left: 0; border-top: 1px solid var(--line); } }
+    .ctl { margin: 0 0 12px; }
+    .ctl label { display: flex; justify-content: space-between; font-family: "JetBrains Mono", monospace; font-size: 12px; color: #cdd6cf; margin-bottom: 4px; }
+    .ctl label .v { color: var(--gold); }
+    .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+    .ctl select { width: 100%; background: #0a0e12; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font-family: "JetBrains Mono", monospace; font-size: 12px; }
+    .readouts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 12px; }
+    .readouts .ro { font-family: "JetBrains Mono", monospace; }
+    .readouts .ro .k { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--dim); display: block; }
+    .readouts .ro .val { font-size: 15px; color: var(--ink); }
+    .verdict { display: block; margin-top: 12px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); }
+    .verdict.ok { color: var(--green); border-color: var(--green-dim); background: rgba(111,208,160,.06); }
+    .verdict.fail { color: #e2596a; border-color: #5a2730; background: rgba(226,89,106,.06); }
+    ul.findings { margin: 10px 0 2px; padding-left: 0; list-style: none; }
+    ul.findings li { position: relative; padding-left: 22px; margin: 7px 0; }
+    ul.findings li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); font-family: "JetBrains Mono", monospace; }
+    code, .mono { font-family: "JetBrains Mono", monospace; font-size: 13.5px; color: var(--rind); background: rgba(127,216,208,.07); padding: 1px 5px; border-radius: 4px; }
+    .refs { margin-top: 40px; border-top: 1px solid var(--line); padding-top: 16px; }
+    .refs h2 { font-family: "JetBrains Mono", monospace; font-size: 15px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.5px; }
+    .refs ol { padding-left: 22px; }
+    .refs li { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--dim); line-height: 1.6; margin: 4px 0; }
+    .refs li a { color: #9fb6ad; }
+    .endnote { font-family: "Spectral", serif; font-style: italic; color: var(--dim); font-size: 14px; margin-top: 30px; text-align: center; }
+    .wings-strip { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 24px 0 0; }
+    .wings-strip a { text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <span class="logo">◍ hoop</span>
+      <span class="tagline">· research dossier</span>
+    </div>
+    <div class="top-right">
+      <a href="/" class="pill back" title="back to the game">← the game</a>
+      <a href="https://rind.mino.mobi" class="pill" style="text-decoration:none;color:#7fd8d0;border-color:#7fd8d0">⬡ rind</a>
+      <a href="https://tide.mino.mobi" class="pill" style="text-decoration:none;color:#a7c4d4;border-color:#a7c4d4">☁ tide</a>
+      <a href="https://biome.mino.mobi" class="pill" style="text-decoration:none;color:#62b87a;border-color:#62b87a">❧ biome</a>
+    </div>
+  </header>
+
+  <main class="report">
+    <h1 class="title">The Supporting World of the Infinite Game</h1>
+    <p class="subtitle">Modeling-based design of an infinite O'Neill cylinder: structure, thermodynamics, and the closed food web.</p>
+    <div class="docmeta">
+      <span>FIELD&nbsp; <b>megastructure habitat design</b></span>
+      <span>METHOD&nbsp; <b>deterministic, conserving, self-tested models</b></span>
+      <span>WINGS&nbsp; <b>rind · tide · biome</b></span>
+      <span>FIGURES&nbsp; <b>3 live</b></span>
+    </div>
+
+    <div class="abstract">
+      <span class="h">Abstract</span>
+      <p style="margin:0">
+        The infinite game is set inside a world we are trying to build honestly. That world is an
+        <em>O'Neill cylinder</em> — a spun tube whose inner wall is the ground — taken to the limit of
+        having <em>no end-caps</em>, so it repeats for ever along its axis. A game world wants a setting;
+        a <em>habitat</em> wants a proof. This dossier collates the supporting research into one report,
+        organised around the three questions an enclosed world must answer before anyone can live in it:
+        can the <b>shell</b> carry the spin that makes gravity (structure), does the enclosed <b>air and
+        water</b> reach a livable steady state (thermodynamics), and can the <b>life inside</b> close its
+        own carbon, oxygen and nutrient loops (biological webbing). Each question is modelled in its own
+        deploy surface — <span class="mono">rind</span>, <span class="mono">tide</span>,
+        <span class="mono">biome</span> — and each section below ends in a <b>live figure</b> that runs the
+        wing's headline physics in your browser. The discipline throughout is the same: every model is
+        deterministic, conserves its books to machine precision, and is pinned by an offline self-test —
+        modeling, not hand-waving.
+      </p>
+    </div>
+
+    <nav class="toc">
+      <span class="h">Contents</span>
+      <ol>
+        <li><a href="#method">The cylinder, and the modeling discipline</a></li>
+        <li><a href="#structure">Structure — can the shell hold the spin? &nbsp;<span style="color:var(--rind)">(rind)</span></a></li>
+        <li><a href="#thermo">Thermodynamics — is the air livable? &nbsp;<span style="color:var(--tide)">(tide)</span></a></li>
+        <li><a href="#biome">Biological webbing — does the loop close? &nbsp;<span style="color:var(--biome)">(biome)</span></a></li>
+        <li><a href="#coupling">Where the wings meet</a></li>
+        <li><a href="#refs">References &amp; provenance</a></li>
+      </ol>
+    </nav>
+
+    <!-- ── §1 METHOD ─────────────────────────────────────────────────────────────────── -->
+    <section class="part" id="method">
+      <div class="wing-head"><span class="wing-num">§1</span><h2 class="wing-title" style="color:var(--gold)">The cylinder, and the modeling discipline</h2></div>
+      <p>
+        Spin a cylinder about its long axis and an object on the inner wall is flung outward; the wall
+        pushes back, and that reaction <em>is</em> apparent gravity. The gravity is purely geometric:
+        <code>g(r) = ω²r</code>. It is full strength at the rim, where the floor is, and falls to zero on
+        the axis — so "up", toward the centre, is genuinely low-gravity, and the axis is weightless. Make
+        the tube long enough and drop the end-caps and the world becomes <em>infinite</em>: a ground that
+        curves up and over your head and runs away to a vanishing point in both directions. That is the
+        stage the game walks across. It is also a machine that has to work.
+      </p>
+      <p>
+        The package splits the machine into four wings, each a standalone site with its own model and its
+        own landing page. <strong>hoop</strong> (here) is the game. The other three are the supporting
+        world, and the rest of this report is about them: <strong>rind</strong> proves the shell,
+        <strong>tide</strong> settles the climate, <strong>biome</strong> closes the ecology. The split is
+        deliberate — each is small enough to be <em>verifiable</em>. Across all of them the method is the
+        same three commitments: models are <b>deterministic</b> (same inputs, same world, on every machine —
+        the property that lets the game's chunks be reproducible and persistable); they <b>conserve</b>
+        their books (mass, carbon, energy, water) to machine precision, because a habitat that leaks a
+        tracked quantity is lying; and each ships with an <b>offline self-test</b> that is the real contract.
+        The three figures below are not decoration — each runs the same kernel the wing's self-test pins,
+        re-derived here so this page stays self-contained.
+      </p>
+    </section>
+
+    <!-- ── §2 STRUCTURE / rind ──────────────────────────────────────────────────────── -->
+    <section class="part rind" id="structure">
+      <div class="wing-head">
+        <span class="wing-num">§2</span>
+        <h2 class="wing-title">Structure — can the shell hold the spin?</h2>
+        <a class="tool-link" href="https://rind.mino.mobi">rind.mino.mobi ↗</a>
+      </div>
+      <p class="wing-sub">the foam space-frame shell + the Rust/WASM frame solver that scores it</p>
+
+      <p class="problem">Problem statement</p>
+      <p>
+        The same spin that makes the floor habitable is the load that tries to tear the shell apart. Every
+        tonne resting on the inner surface is being accelerated outward at <code>ω²r</code>, and the only
+        thing holding it in is the shell, which must take that pull as <b>hoop tension</b> — the ring stress
+        in a spinning band. There is a hard limit hiding in this: a rotating ring made of a material with
+        density ρ and strength σ can support <em>its own mass</em> only while the rim speed satisfies
+        <code>v² &lt; σ/ρ</code>. That ratio σ/ρ — <em>specific strength</em> — is a property of the material
+        alone, so the maximum rim speed (and hence the size×gravity a habitat can reach) is set by chemistry,
+        not engineering cleverness. At the build modelled here — an <b>8 km</b> floor radius spun for ~0.8 g —
+        the rim moves at ~250 m/s, and ordinary structural steel is already past its limit.
+      </p>
+      <p>
+        rind answers this without a closed-form hand-wave. It <em>generates</em> a layered, braced
+        <b>foam</b> — a Voronoi space-frame whose edges form a "monster truss" and whose plates seal
+        compartments without cutting the load path — and <em>scores</em> it with a Rust/WASM <b>frame
+        solver</b> (banded RCM reordering + Cholesky; a matrix-free PCG truss solve at ~10⁵ DOF). Dial the
+        radius, spin, material and safety factor and the walls recolour by the solver's actual stress —
+        green holds, red overstresses — with the deflection exaggerated so you can watch it carry load.
+        The same chamber-adjacency graph the solver stiffens doubles as a road network: rind's wayfinder
+        threads <b>drivable spiral ramps and level azimuthal roads</b> through the foam and certifies them
+        offline.
+      </p>
+
+      <figure class="active">
+        <div class="figtop"><span class="figlabel">Figure 1 — live · the flywheel limit</span></div>
+        <figcaption>
+          The self-support limit <em>v² &lt; σ/ρ</em> as a slider. Set the floor radius and gravity (which
+          fix ω and rim speed v), pick a material, and read whether a ring of it <em>holds its own spin</em>.
+          This is rind's "steel tears, carbon holds" in closed form; the full foam shell is scored member-by-member
+          by the frame solver at <a href="https://rind.mino.mobi">rind.mino.mobi</a>.
+        </figcaption>
+        <div class="figbody">
+          <div class="figcanvas-wrap"><canvas id="f1-canvas"></canvas></div>
+          <div class="figpanel">
+            <div class="ctl"><label>floor radius R <span class="v" id="f1-R-v"></span></label><input type="range" id="f1-R" min="500" max="10000" step="100" value="8000"></div>
+            <div class="ctl"><label>floor gravity <span class="v" id="f1-g-v"></span></label><input type="range" id="f1-g" min="0.2" max="1.0" step="0.05" value="0.8"></div>
+            <div class="ctl"><label>shell material <span class="v"></span></label><select id="f1-mat"></select></div>
+            <div class="ctl"><label>areal load <span class="v" id="f1-load-v"></span></label><input type="range" id="f1-load" min="0" max="8000" step="200" value="2000"></div>
+            <div class="readouts">
+              <span class="ro"><span class="k">spin ω</span><span class="val" id="f1-omega">—</span></span>
+              <span class="ro"><span class="k">rim speed v</span><span class="val" id="f1-v">—</span></span>
+              <span class="ro"><span class="k">specific strength</span><span class="val" id="f1-spec">—</span></span>
+              <span class="ro"><span class="k">req. shell thickness</span><span class="val" id="f1-thk">—</span></span>
+            </div>
+            <span class="verdict" id="f1-verdict">—</span>
+          </div>
+        </div>
+      </figure>
+
+      <ul class="findings">
+        <li>The limit is <b>size-dependent through v²=aR</b>: a 1 km ring of steel at 0.8 g is fine; the 8 km build is not. Bigger worlds force better materials.</li>
+        <li>Carbon fibre, aramid and PBO clear the bar with room to spare — the specific-strength ordering is exactly why rind's solver shows <em>steel tears, carbon holds</em>.</li>
+        <li>The areal-load slider gives the hoop tension a real shell must take; the required thickness is what the foam's depth and bracing actually provide in the full solve.</li>
+      </ul>
+    </section>
+
+    <!-- ── §3 THERMODYNAMICS / tide ─────────────────────────────────────────────────── -->
+    <section class="part tide" id="thermo">
+      <div class="wing-head">
+        <span class="wing-num">§3</span>
+        <h2 class="wing-title">Thermodynamics — is the air livable?</h2>
+        <a class="tool-link" href="https://tide.mino.mobi">tide.mino.mobi ↗</a>
+      </div>
+      <p class="wing-sub">the radial atmosphere column · fog optics · the fountain &amp; sun · the water/energy ledger</p>
+
+      <p class="problem">Problem statement</p>
+      <p>
+        The interior has a thermal layout that is the <em>inverse</em> of a planet's, and it drives
+        everything. The light source — a linear "sun" — runs down the axis; the cold sink is the shell,
+        radiating to space at the rim. So the warm direction is <em>up</em> (toward the centre) and the cold
+        direction is <em>down</em> (the floor). On Earth a cold ceiling re-densifies warm air and stirs the
+        column; here there is no cold ceiling, so warm air that rises to the axis simply <b>stays there</b>.
+        The steady state is <b>permanent stratification</b>: a hot, stable core over a thin weather layer
+        hugging the vegetated floor. Two consequences follow. First, condensation happens at the cold
+        surface, not aloft — the world is <b>fog-and-dew, not rain</b>, like a cloud forest. Second, and more
+        dangerous, the same stagnation that gives gentle dew also <b>suppresses vertical mixing of CO₂</b>: a
+        photosynthesising canopy strips CO₂ from its own boundary layer within minutes and nothing resupplies
+        it. The fog that waters the plants and the stillness that starves them are the same phenomenon.
+      </p>
+      <p>
+        tide resolves the interior the only way its symmetry allows — as a <b>1-D radial column</b>
+        (temperature, pressure, humidity, CO₂ vs. radius) evolving under a pulsable axial sun, in true
+        cylindrical finite-volume so the diffusion operator conserves heat, mass, CO₂ and water to machine
+        precision (the method is Held–Suarez in spirit: radiation as Newtonian relaxation, dynamics as
+        stability-dependent convective mixing). It reproduces the geometry's numbers <em>by construction</em>.
+        Layered on top: <b>Mie fog optics</b> (the stratus deck blooms to near-blackout at night and the sun
+        burns it off by day), a rotating-frame ballistic <b>fountain</b> that mechanically lofts air through
+        the inversion and curves a water jet into an irrigation sheet, the <b>1/r luminous-flux budget</b>
+        (flooding an 8 km wall at one sun takes ~50 MW per metre of axis), and a closing <b>water/energy
+        ledger</b>. The relief for the CO₂ trap is to run the fountain <em>day-phased</em> — ventilate when
+        photosynthesis needs CO₂ and the sun is burning the fog anyway, then back off at night for free dew.
+      </p>
+
+      <figure class="active">
+        <div class="figtop"><span class="figlabel">Figure 2 — live · the inverted column</span></div>
+        <figcaption>
+          Temperature and pressure from <em>axis</em> (left) to <em>floor</em> (right), from the centrifugal
+          adiabat <em>Δ(r)=ω²(R²−r²)/2c<sub>p</sub></em> and hydrostatic balance <em>dP/dr=ρω²r</em>, spun for
+          1 g at the outer skin (after <code>tide/shared/geometry.mjs</code>). The shaded band is the cold-floor
+          stratus/dew deck. The full finite-volume column with fog optics lives at
+          <a href="https://tide.mino.mobi">tide.mino.mobi</a>.
+        </figcaption>
+        <div class="figbody">
+          <div class="figcanvas-wrap"><canvas id="f2-canvas"></canvas></div>
+          <div class="figpanel">
+            <div class="ctl"><label>floor radius R <span class="v" id="f2-R-v"></span></label><input type="range" id="f2-R" min="1600" max="10000" step="100" value="8000"></div>
+            <div class="ctl"><label>floor temperature <span class="v" id="f2-T-v"></span></label><input type="range" id="f2-T" min="5" max="30" step="1" value="15"></div>
+            <div class="readouts">
+              <span class="ro"><span class="k">adiabat span (floor−axis)</span><span class="val" id="f2-span">—</span></span>
+              <span class="ro"><span class="k">pressure drop</span><span class="val" id="f2-drop">—</span></span>
+              <span class="ro"><span class="k">axis temperature</span><span class="val" id="f2-axis">—</span></span>
+              <span class="ro"><span class="k">floor gravity</span><span class="val" id="f2-gfloor">—</span></span>
+            </div>
+            <span class="verdict ok" style="color:var(--tide);border-color:#3b5563;background:rgba(167,196,212,.06)">"well mixed" means uniform potential temperature θ, not uniform T — the warm core is <em>stably</em> stratified, which is why weather stays at the floor.</span>
+          </div>
+        </div>
+      </figure>
+
+      <ul class="findings">
+        <li>An <b>8 km</b> build spans <b>~31 K</b> and <b>~32%</b> pressure axis→floor — a genuinely colder, thinner axis; an Island-Three-scale 3.2 km tube spans only a handful of K. Size sets the climate.</li>
+        <li>The axis is <em>colder</em> in raw temperature (lower pressure) yet the column is <em>radiatively</em> driven hot at the centre — the tension between the two is what locks in the stratification.</li>
+        <li>The fix for the CO₂ trap is mechanical, not passive: the day-phased fountain alone cuts the canopy CO₂ swing ~60% with thermal convection off.</li>
+      </ul>
+    </section>
+
+    <!-- ── §4 BIOLOGICAL WEBBING / biome ────────────────────────────────────────────── -->
+    <section class="part biome" id="biome">
+      <div class="wing-head">
+        <span class="wing-num">§4</span>
+        <h2 class="wing-title">Biological webbing — does the loop close?</h2>
+        <a class="tool-link" href="https://biome.mino.mobi">biome.mino.mobi ↗</a>
+      </div>
+      <p class="wing-sub">the closed food-web box model · allometry · real-organism roster · the stability lab</p>
+
+      <p class="problem">Problem statement</p>
+      <p>
+        A sealed world has to run its own life support, and the honest question is the <em>zeroth</em> one:
+        can the loop close <b>at all</b>, as stocks and flows? biome answers it by modelling the interior as
+        a living <b>food web</b> rather than a farm. The distinction is the whole point. A single crop pool
+        with a passive decay term has nothing vigorously cycling carbon, so ambient CO₂ falls, productivity
+        self-strangles, and the food store collapses to zero — the failure mode is <em>built in</em>. Put
+        living <b>decomposers</b> and perennial standing biomass into the box and carbon pumps around fast
+        enough that the harvest outpaces the crew and food <em>accumulates</em>. The model is data, not code:
+        organisms and their trophic edges are two arrays, and a derivative function loops over them, so adding
+        a species is a stat block plus an edge. Every ecological interaction is either a carbon transfer
+        between pools or the canonical respiration reaction, so <b>carbon, hydrogen, oxygen and nitrogen
+        conserve by construction</b> no matter how many trophic levels stack (drift &lt; 1e-9 over a model-year).
+      </p>
+      <p>
+        On that base biome builds the apparatus of a real ecosystem-builder: an <b>allometry layer</b> that
+        derives an animal's eight metabolic rates from a single trait — body mass — via Kleiber's law (rates
+        scale as M<sup>−¼</sup>; small things live fast), validated by recovering the hand-tuned predator from
+        first principles; a <b>real-organism roster</b> (honey bee, cross orbweaver, apple, common reed,
+        springtail…) whose diets are corroborated against the GloBI interaction database and iNaturalist
+        identity; a <b>lake bioengine</b> that fuses fish farm and water-treatment plant into one trophic web;
+        and a <b>stability lab</b> that reads the fate of the steady state straight off the community matrix's
+        eigenvalues — asymptotic stability (May), reactivity (Neubert &amp; Caswell), keystones (Bender) — at
+        interactive speed, validated against the nonlinear time-domain truth.
+      </p>
+
+      <figure class="active">
+        <div class="figtop"><span class="figlabel">Figure 3 — live · does the loop close?</span></div>
+        <figcaption>
+          A compact, element-honest carbon loop integrated live (RK4): a producer fixes CO₂, a pollinator
+          <em>gates</em> fruit into the larder, a decomposer respires litter back to CO₂, and the crew eats and
+          breathes. Every flux is paired, so carbon conserves to machine precision. Throttle the soil and watch
+          the <b>Biosphere-2</b> crash; crash the bees and watch the <b>mutualism</b> bite. The calibrated engine
+          — allometry, real roster, eigenvalue stability — is at <a href="https://biome.mino.mobi">biome.mino.mobi</a>.
+        </figcaption>
+        <div class="figbody">
+          <div class="figcanvas-wrap"><canvas id="f3-canvas"></canvas></div>
+          <div class="figpanel">
+            <div class="ctl"><label>ecosystem area <span class="v" id="f3-area-v"></span></label><input type="range" id="f3-area" min="0.5" max="3" step="0.1" value="1"></div>
+            <div class="ctl"><label>soil / decomposer activity <span class="v" id="f3-decomp-v"></span></label><input type="range" id="f3-decomp" min="0.002" max="0.12" step="0.002" value="0.06"></div>
+            <div class="ctl"><label>fruit reliance on pollinators <span class="v" id="f3-poll-v"></span></label><input type="range" id="f3-poll" min="0" max="0.95" step="0.05" value="0.6"></div>
+            <div class="ctl"><label>predator pressure <span class="v" id="f3-pred-v"></span></label><input type="range" id="f3-pred" min="0" max="0.6" step="0.02" value="0"></div>
+            <div class="readouts">
+              <span class="ro"><span class="k">steady CO₂</span><span class="val" id="f3-co2">—</span></span>
+              <span class="ro"><span class="k">larder (steady)</span><span class="val" id="f3-food">—</span></span>
+              <span class="ro"><span class="k">fruit set</span><span class="val" id="f3-fruit">—</span></span>
+              <span class="ro"><span class="k">carbon closed?</span><span class="val" style="color:var(--green)">yes · 1e-16</span></span>
+            </div>
+            <span class="verdict" id="f3-verdict">—</span>
+          </div>
+        </div>
+      </figure>
+
+      <ul class="findings">
+        <li><b>The loop closes:</b> producers, pollinators and decomposers reach a coexisting steady state with CO₂ in band and a positive larder — not the inevitable collapse of the single-crop model.</li>
+        <li><b>Pollinators gate the harvest:</b> crank predator pressure and fruit set falls, dragging the larder down even though the trees are alive — a trophic cascade you feel in the calories.</li>
+        <li><b>The soil is the lungs:</b> throttle the decomposer and litter piles up while CO₂ crashes and the producers starve — the real Biosphere-2 failure, now an emergent population dynamic.</li>
+        <li><b>Area is the lever:</b> air closes easily, calories are the hard part — full dietary closure needs a lot of ecosystem, and the area slider is the honest fix, not a hack.</li>
+      </ul>
+    </section>
+
+    <!-- ── §5 COUPLING ──────────────────────────────────────────────────────────────── -->
+    <section class="part" id="coupling">
+      <div class="wing-head"><span class="wing-num">§5</span><h2 class="wing-title" style="color:var(--gold)">Where the wings meet</h2></div>
+      <p>
+        The four wings are split for verifiability, but they are one cylinder, and the seams are where the
+        design gets interesting. <strong>rind</strong> is the shell; <strong>tide</strong> and
+        <strong>biome</strong> are the air and the life inside it. The deepest coupling is a single identity:
+        <b>radius is altitude is temperature, humidity and CO₂</b>. tide's column makes the floor warm and
+        moist and the heights cold and thin; biome's organisms each have a preferred niche — canopy, floor,
+        swamp — so giving every species a preferred radius is what fuses the climate model and the ecology
+        model into one. tide already hands biome a boundary condition (the lake surface it can sustain as a
+        fishery); biome's non-spatial box model deliberately abstracts space away to answer "does it close?"
+        and explicitly flags the radial structure as tide's job. The planned <b>radius-niche coupling</b> is
+        the stake in the ground where the two become a single interior.
+      </p>
+      <p>
+        And the structure wing is not separate from the life: rind's foam is an <em>insulator</em>, not the
+        heat path, which is exactly why tide has to pump heat to the outer skin actively; the foam's chamber
+        graph is both the load path and the road network the game walks. The supporting world is, in the end,
+        one model with three faces — and <a href="/">the game</a> is the fourth, the place you go to walk
+        around inside the thing the other three prove can exist.
+      </p>
+      <div class="wings-strip">
+        <a href="https://rind.mino.mobi" class="pill" style="color:var(--rind);border-color:var(--rind)">⬡ rind — the structure</a>
+        <a href="https://tide.mino.mobi" class="pill" style="color:var(--tide);border-color:var(--tide)">☁ tide — the thermodynamics</a>
+        <a href="https://biome.mino.mobi" class="pill" style="color:var(--biome);border-color:var(--biome)">❧ biome — the ecosystem</a>
+        <a href="/" class="pill back">◍ hoop — the game</a>
+      </div>
+    </section>
+
+    <!-- ── REFERENCES ───────────────────────────────────────────────────────────────── -->
+    <div class="refs" id="refs">
+      <h2>References &amp; provenance</h2>
+      <ol>
+        <li>O'Neill, G. K. (1976). <em>The High Frontier: Human Colonies in Space.</em> — the cylinder colony and spin gravity g(r)=ω²r.</li>
+        <li>Held, I. M. &amp; Suarez, M. J. (1994). A proposal for the intercomparison of the dynamical cores of atmospheric GCMs. <em>Bull. Amer. Meteor. Soc.</em> — the relaxation-to-radiative-equilibrium method tide's column follows.</li>
+        <li>Kleiber, M. (1932). Body size and metabolism. <em>Hilgardia.</em> — whole-organism metabolism ∝ M<sup>¾</sup>; mass-specific rates ∝ M<sup>−¼</sup> (biome's allometry layer).</li>
+        <li>May, R. M. (1972). Will a large complex system be stable? <em>Nature.</em> — asymptotic stability from the community-matrix eigenvalues (biome's stability lab).</li>
+        <li>Neubert, M. G. &amp; Caswell, H. (1997). Alternatives to resilience for measuring the responses of ecological systems to perturbations. <em>Ecology.</em> — reactivity from the symmetric part of J.</li>
+        <li>Bender, E. A., Case, T. J. &amp; Gilpin, M. E. (1984). Perturbation experiments in community ecology. <em>Ecology.</em> — press perturbations and keystone ranking from −J⁻¹.</li>
+        <li>Bron, C. &amp; Kerbosch, J. (1973). Algorithm 457: finding all cliques of an undirected graph. — maximal-clique community detection (used in the SimCluster feed lineage; the foam's Voronoi adjacency is the structural cousin).</li>
+        <li>Todd, J. &amp; Josephson, B. (1996). The design of living technologies for waste treatment. <em>Ecological Engineering.</em> — "living machines" / eco-machines; with Chinese integrated polyculture and constructed treatment wetlands, the basis for biome's lake bioengine (fish farm + water treatment fused).</li>
+        <li>Closed-ecology precedents: <em>BIOS-3</em> (Krasnoyarsk), <em>MELiSSA</em> (ESA), <em>Biosphere&nbsp;2</em> — the literature biome's parameters and the CO₂-crash failure mode are sourced from. NASA BVAD — human-factors numbers.</li>
+        <li>Global Biotic Interactions (<a href="https://www.globalbioticinteractions.org">GloBI</a>) &amp; <a href="https://www.inaturalist.org">iNaturalist</a> — the observed-diet and identity data corroborating biome's real-organism roster.</li>
+        <li>Live models &amp; source: <a href="https://rind.mino.mobi">rind.mino.mobi</a> (foam + frame solver), <a href="https://tide.mino.mobi">tide.mino.mobi</a> (atmosphere + fountain + ledger), <a href="https://biome.mino.mobi">biome.mino.mobi</a> (food-web + allometry + stability). The figures on this page re-derive each wing's headline kernel in <code>hoop/js/research.js</code>, pinned by <code>hoop/test/research.selftest.mjs</code>.</li>
+      </ol>
+    </div>
+
+    <p class="endnote">The map is the forum; the world is a model. ◍</p>
+  </main>
+
+  <script type="module" src="/js/research.js"></script>
+</body>
+</html>

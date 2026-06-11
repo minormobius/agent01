@@ -18,6 +18,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
 - `js/store.js` — data model + two backends (Local / ATProto) + threading.
 - `js/{presence,atproto,ink}.js` — presence socket client · public ATProto reads · seeded vector drawing.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).
+- `research.html` + `js/research.js` — the **research dossier** (linked from the topbar `❖ research`
+  pill): the supporting-world models from the three modelling wings, collated as a scientific report
+  with three live "active figures" — the structural flywheel limit (rind), the inverted radial column
+  (tide), the closed food-web loop (biome). The figure kernels in `research.js` are pure/zero-dep and
+  re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at
+  runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
 
 ## The package it belongs to
 
@@ -33,6 +39,7 @@ reachable from hoop's topbar pills (⬡ rind · ☁ tide · ❧ biome); keep tho
 node hoop/test/ship.selftest.mjs            # ship engine invariants (determinism, seamless chunks)
 node hoop/test/world.selftest.mjs           # the Voronoi-ship rewrite: mesh + gravity movement
 node hoop/test/cylinder-ring.selftest.mjs   # does the generated world substrate come out ROUND
+node hoop/test/research.selftest.mjs        # dossier figure kernels vs. the wings' published numbers
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 
