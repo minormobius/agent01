@@ -114,6 +114,23 @@ export function addressOf(seed, wx, wy, genome) {
   return encodeAddress({ cx: c.cx, cy: c.cy, ord: c.ord });
 }
 
+// ── bridge to the live foam-chamber id ─────────────────────────────────────────────────────
+// world.js's FoamField already mints a stable, genome-independent chamber id per tile:
+// gid = "cx,cy,i" (the seed's home chunk + local index). postal does NOT replace it — it wraps
+// that gid in a hierarchical, locality-clustered, Merkle-able address, and back. (Depth — the
+// radial layer — is tracked by the caller alongside the address; postal addresses one field.)
+// Note: the ship.js chambersIn/chamberAt above are the canonical *engine reference* (and the
+// test fixture); the live deck is the foam, reached through these two bridges.
+export function addressFromGid(gid) {
+  const p = String(gid).split(',').map(Number);
+  if (p.length !== 3 || p.some((n) => !Number.isFinite(n))) return undefined;
+  return encodeAddress({ cx: p[0], cy: p[1], ord: p[2] });
+}
+export function gidFromAddress(addr) {
+  const { cx, cy, ord } = decodeAddress(addr);
+  return cx + ',' + cy + ',' + ord;
+}
+
 // ── neighbourhood queries (for "who lives near here") ──────────────────────────────────────
 export function chunksNear(cx, cy, radius) {
   const out = [];

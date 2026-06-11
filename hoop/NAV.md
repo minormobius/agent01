@@ -28,6 +28,20 @@ genome drift.** Its physical position is *resolved at lookup time* under the cur
 (it may shift a few tiles as the room re-rolls), but its identity — "the east-garden slot of
 chunk (3,−2)" — is permanent.
 
+### Substrate: the live deck is the *foam*, and it's even more stable
+
+The game doesn't actually walk `ship.js`'s 4-rooms-per-chunk layout — `world.js` renders and
+moves over the **foam** (`FoamField` / `chunkSeeds`), and it already mints a stable chamber id
+per tile: `field.chamberAt(wx,wy) → { gid: "cx,cy,i" }` (the seed's home chunk + local index),
+with `field.chamberLocation(gid)` as the inverse "for spawning / targeting NPCs". Crucially
+**`chunkSeeds` takes no genome at all** — the foam chambers are *fully* genome-independent, so
+the live chamber id never drifts. postal does **not** replace this id; it **wraps** it: the gid
+is the raw chamber, and `addressFromGid` / `gidFromAddress` give it the hierarchical address
+below (and back). The `ship.js` `chambersIn` / `chamberAt` in `postal.js` are the canonical
+*engine reference* and the test fixture; the game reaches the foam through the gid bridge. One
+extra coordinate the foam needs and `ship.js` doesn't: **depth** (the radial layer — each depth
+is its own `FoamField` with its own seed), tracked alongside the address.
+
 ---
 
 ## Part 1 — the address (`postal.js`)
@@ -79,6 +93,7 @@ that; Merkle is purely for verifiable/forkable state.)
 | `mortonKey / unmorton / hilbertKey` | the space-filling indices |
 | `chambersNear(seed,wx,wy,radiusChunks)` | distance-sorted chambers in a neighbourhood |
 | `chunkDigest / blockDigest` | the Merkle region digests |
+| `addressFromGid / gidFromAddress` | bridge the live foam gid `"cx,cy,i"` ⇄ a hierarchical address |
 
 ---
 
@@ -126,19 +141,27 @@ chunks, into negative space, deterministically).
 
 ---
 
-## The wiring plan (next step — not done yet)
+## The wiring plan
 
-1. **Addresses for places.** `store.js` currently keys a place by `placeId = "${x}-${y}"` (raw
-   tile). Add a chamber address alongside (`addressOf`), so a place is "the thread of chamber
-   X", stable across drift. Keep the tile for back-compat / continuous drops.
-2. **NPC records.** An NPC carries a chamber address (`{cx,cy,ord}` / encoded). `resolve()` gives
-   its current tile for spawning/rendering; `chambersNear()` answers "who's around the player".
+1. **✅ Addresses for places — DONE.** Every place now carries `{ gid, addr, depth }` alongside its
+   tile: `store.js` sources the chamber from a lookup the app injects
+   (`setChamberLookup((x,y) => world.field.chamberAt(x,y))`), wraps the foam gid with
+   `addressFromGid`, and persists all three on both backends (the `com.minomobi.hoop.place`
+   lexicon gained optional `addr` / `gid` / `depth`). The tile stays the canonical drop
+   coordinate + rkey, so legacy records still load; the address is best-effort and back-fills on
+   read once the lookup is set. A place is now "the thread of chamber X", stable across drift.
+2. **NPC records.** An NPC carries the same `{ addr/gid, depth }`. `field.chamberLocation(gid)`
+   (or `resolve()` on the `ship.js` reference) gives its current tile for spawning/rendering;
+   `chambersNear()` answers "who's around the player" via the address-prefix neighbourhood.
+   Reuse the place plumbing — it's the same address space, by design.
 3. **Click-to-walk → `route()`.** Replace `world.js`'s windowed `_pathTo` BFS with
    `nav.route(seed, player, target, field.isFloor)`; keep `stepMotion` for the per-tile walk.
-   Long taps route across chunks; the path is the same `{x,y}` tile list the walker already
-   consumes.
+   **Integration check:** the coarse tier's door tiles come from `ship.js` `edgePorts`; verify the
+   *foam* seams open at the same offsets (foamChunk's "four deterministic edge ports"), or feed
+   nav the foam's port function. The fine tier already routes over `field.isFloor`, so it's
+   substrate-correct as-is.
 4. **(Optional) sector digests** for the forum/atproto layer: a place/sector can show its
    `blockDigest` as a verifiable "state of this region @ genome" — forkable design state.
 
-Each step is independently shippable and leaves the game working; the kernels are already
-proven, so the refactor is wiring, not invention.
+Each step is independently shippable and leaves the game working; the kernels are proven, so the
+refactor is wiring, not invention.

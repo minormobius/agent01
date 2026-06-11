@@ -4,7 +4,7 @@ import '../js/ship.js'; // side-effect: sets globalThis.HoopShip (classic engine
 import {
   CHUNK, chunkOf, chambersIn, chamberAt, encodeAddress, decodeAddress, blockPrefix,
   resolve, addressOf, mortonKey, unmorton, hilbertKey, chambersNear,
-  chunkDigest, blockDigest,
+  chunkDigest, blockDigest, addressFromGid, gidFromAddress,
 } from '../js/postal.js';
 
 const Ship = globalThis.HoopShip, SEED = Ship.FLAGSHIP_SEED;
@@ -89,6 +89,17 @@ ok(CHUNK === Ship.CHUNK, 'CHUNK matches the engine');
   ok(blockDigest(SEED, 0, 0, 2) !== blockDigest(SEED, 1, 0, 2), 'different regions have different digests');
   const drift = Ship.genomeFromLog([{ type: 'garden', amt: 50 }]).snapshot();
   ok(blockDigest(SEED, 0, 0, 2) !== blockDigest(SEED, 0, 0, 2, drift), 'a region digest changes when the genome drifts (forkable, verifiable state)');
+}
+
+// ── bridge to the live foam chamber id (world.js FoamField gid = "cx,cy,i") ──
+{
+  const gid = '3,-2,1', a = addressFromGid(gid);
+  ok(typeof a === 'string' && a.includes('.'), 'addressFromGid wraps a foam gid into an address');
+  ok(gidFromAddress(a) === gid, 'gidFromAddress round-trips back to the exact foam gid');
+  ok(addressFromGid('not-a-gid') === undefined && addressFromGid('1,2') === undefined, 'a malformed gid yields no address');
+  // foam chambers per chunk vary, so ordinals can exceed 0..3 — still exact
+  ok(gidFromAddress(addressFromGid('10,10,7')) === '10,10,7', 'high (foam) ordinals round-trip');
+  ok(gidFromAddress(addressFromGid('-40,128,0')) === '-40,128,0', 'negative-coord gids round-trip');
 }
 
 console.log(`postal.selftest: ${pass} passed, ${fail} failed`);

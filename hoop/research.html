@@ -132,6 +132,7 @@
         <li><a href="#thermo">Thermodynamics — is the air livable? &nbsp;<span style="color:var(--tide)">(tide)</span></a></li>
         <li><a href="#biome">Biological webbing — does the loop close? &nbsp;<span style="color:var(--biome)">(biome)</span></a></li>
         <li><a href="#coupling">Where the wings meet</a></li>
+        <li><a href="#navigation">Navigating the proven world — addresses &amp; routes</a></li>
         <li><a href="#refs">References &amp; provenance</a></li>
       </ol>
     </nav>
@@ -432,6 +433,64 @@
       </div>
     </section>
 
+    <!-- ── §6 NAVIGATION ────────────────────────────────────────────────────────────── -->
+    <section class="part" id="navigation">
+      <div class="wing-head"><span class="wing-num">§6</span><h2 class="wing-title" style="color:var(--gold)">Navigating the proven world — addresses &amp; routes</h2></div>
+      <p>
+        The three wings answer <em>can this megastructure exist?</em> The game asks the next
+        question: <em>how do you live inside it?</em> — which means two engineering problems the
+        physics never had to face. Every place must have an <b>address</b> (so a thread, an NPC, a
+        drop can be <em>found</em>), and anything must be able to <b>route</b> from one part of the
+        ship to another. Both are made tractable by the one property the game world shares with the
+        models: it is <b>deterministic</b>. The interior is generated, not stored — a pure function
+        of <code>(seed, chunk, genome)</code> — so the postal system and the wayfinder
+        <em>derive</em> their structures instead of persisting them, exactly as the models derive a
+        chunk's rooms on demand. (Engineering detail lives in <code>hoop/NAV.md</code>; this is the
+        premise.)
+      </p>
+
+      <p class="problem">The address</p>
+      <p>
+        A chamber's identity has to survive the ship <em>drifting</em> as people play. It does,
+        because the deck's chambers are a function of the <b>seed alone</b> — the genome bends what
+        a room is <em>for</em>, never whether it exists or where it sits. So a stable chamber id
+        already falls out of the generator: the chunk it lives in, plus its index within that chunk.
+        The postal layer wraps that raw id in a <b>hierarchical address</b> — a quadtree block-path
+        over chunk space (a <em>Morton</em> code), so that <b>nearby chambers share address
+        prefixes</b>. That single property is what makes the expensive questions cheap: "who is near
+        here", "everyone in this sector", and the routing heuristic below all become prefix
+        operations, not searches over an unbounded map. For a strict nearest-neighbour ordering the
+        layer also offers a <em>Hilbert</em> key (consecutive addresses land in adjacent
+        chambers — measured average step 1.07 cells, against a raw Z-order's 1.55). And because the
+        quadtree is also a <b>hash tree</b>, any region folds to a single <em>Merkle digest</em>:
+        "this sector, at this genome" has one verifiable hash — content-addressed, forkable design
+        state, which is the same atproto thesis the rest of hoop runs on.
+      </p>
+
+      <p class="problem">The route</p>
+      <p>
+        A single local search can't cross an endless ship, so wayfinding is <b>two-tier</b>,
+        mirroring how the world is built. Chunks connect only through a handful of fixed
+        <b>seam doors</b>, so the coarse tier is an A&#42; over that <em>portal graph</em> —
+        planning the sequence of chunks (and doors) to traverse, realising chunks lazily along the
+        frontier just as the renderer does. The fine tier is a bounded A&#42; <em>inside</em> each
+        chunk, from entry door to exit door (and finally to the target chamber), run over nothing
+        but a "<em>is this tile floor?</em>" test — so it is indifferent to which substrate draws
+        the deck. Stitched together, the two tiers return one continuous path from anywhere to
+        anywhere. This is hierarchical pathfinding (HPA&#42;), and it is the flat-deck twin of the
+        structure wing's own routing — <span class="mono">rind</span>'s drivable spiral ramps and
+        azimuthal roads through the foam. The same idea, once for the load-bearing shell in three
+        dimensions, once for the walkable world in two.
+      </p>
+
+      <ul class="findings">
+        <li><b>Derive, don't store.</b> A determinic world lets address and route be <em>computed</em> from the seed — no database, and the structures reproduce identically on every machine (the property that also makes them atproto-persistable).</li>
+        <li><b>The flavour drifts, the slot doesn't.</b> Genome change re-themes a chamber but never moves it, so an address (and an NPC bound to it) is permanent; its position is resolved live.</li>
+        <li><b>Locality is the lever.</b> A space-filling address turns "who/what is near here" and the routing heuristic into prefix arithmetic — the difference between a game that can place a thousand NPCs and one that can't.</li>
+        <li><b>Proven before wired.</b> The addressing and routing kernels are pure and pinned by offline self-tests (52 checks) — the same discipline as the figures above — so integrating them into the game is wiring, not invention.</li>
+      </ul>
+    </section>
+
     <!-- ── REFERENCES ───────────────────────────────────────────────────────────────── -->
     <div class="refs" id="refs">
       <h2>References &amp; provenance</h2>
@@ -446,6 +505,9 @@
         <li>Todd, J. &amp; Josephson, B. (1996). The design of living technologies for waste treatment. <em>Ecological Engineering.</em> — "living machines" / eco-machines; with Chinese integrated polyculture and constructed treatment wetlands, the basis for biome's lake bioengine (fish farm + water treatment fused).</li>
         <li>Closed-ecology precedents: <em>BIOS-3</em> (Krasnoyarsk), <em>MELiSSA</em> (ESA), <em>Biosphere&nbsp;2</em> — the literature biome's parameters and the CO₂-crash failure mode are sourced from. NASA BVAD — human-factors numbers.</li>
         <li>Global Biotic Interactions (<a href="https://www.globalbioticinteractions.org">GloBI</a>) &amp; <a href="https://www.inaturalist.org">iNaturalist</a> — the observed-diet and identity data corroborating biome's real-organism roster.</li>
+        <li>Botea, A., Müller, M. &amp; Schaeffer, J. (2004). Near optimal hierarchical path-finding (HPA*). <em>J. Game Development.</em> — the two-tier abstraction the world's wayfinder follows.</li>
+        <li>Hilbert, D. (1891). Über die stetige Abbildung einer Linie auf ein Flächenstück. <em>Math. Ann.</em>; Morton, G. M. (1966). A computer-oriented geodetic data base. — the space-filling curves behind the locality-clustered address (Hilbert order, Z-order/quadtree path).</li>
+        <li>Merkle, R. C. (1987). A digital signature based on a conventional encryption function. — the hash-tree behind the verifiable, forkable region digest.</li>
         <li>Live models &amp; source: <a href="https://rind.mino.mobi">rind.mino.mobi</a> (foam + frame solver), <a href="https://tide.mino.mobi">tide.mino.mobi</a> (atmosphere + fountain + ledger), <a href="https://biome.mino.mobi">biome.mino.mobi</a> (food-web + allometry + stability). The figures on this page re-derive each wing's headline kernel in <code>hoop/js/research.js</code>, pinned by <code>hoop/test/research.selftest.mjs</code>.</li>
       </ol>
     </div>

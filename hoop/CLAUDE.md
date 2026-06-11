@@ -20,8 +20,11 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
 - `js/postal.js` + `js/nav.js` — **the navigation plumbing** (design: `NAV.md`). `postal.js` derives
   stable, hierarchical, Merkle-able **chamber addresses** from the deterministic engine (NPCs/places
   bind to `(chunk, ordinal)` — genome-stable slots); `nav.js` is two-tier **HPA\*** routing (coarse
-  portal-graph A\* + fine `isFloor` A\*), the 2-D-deck cousin of `rind/wayfind.js`. Pure + node-tested;
-  **not wired into the game yet** — see the wiring plan in `NAV.md`.
+  portal-graph A\* + fine `isFloor` A\*), the 2-D-deck cousin of `rind/wayfind.js`. Pure + node-tested.
+  Wiring status (`NAV.md`): **step 1 done** — every place carries `{gid, addr, depth}` (the foam
+  chamber it binds to, via `store.setChamberLookup` ← `world.field.chamberAt`); routing not wired yet.
+- `js/store.js` — places now bind to a **chamber address** (postal): `setChamberLookup`/`withAddress`
+  attach `gid`/`addr`/`depth`; the `hoop.place` lexicon gained those optional fields. Tile stays the rkey.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).
 - `research.html` + `js/research.js` — the **research dossier** (linked from the topbar `❖ research`
   pill): the supporting-world models from the three modelling wings, collated as a scientific report

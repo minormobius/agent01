@@ -4,7 +4,7 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "A location on the hoop design world — a node of 'the infinite game' that anchors a conversation thread. The rkey is the deterministic place id `<x>-<y>` so collaborators converge on the same place by world coordinate.",
+      "description": "A location on the hoop design world — a node of 'the infinite game' that anchors a conversation thread. The rkey is the deterministic place id `<x>-<y>` so collaborators converge on the same place by world coordinate. A place also binds to the foam CHAMBER it sits in (gid + hierarchical address), so it survives genome drift and NPCs can share the address space (see hoop/NAV.md).",
       "key": "any",
       "record": {
         "type": "object",
@@ -13,9 +13,12 @@
           "title": { "type": "string", "maxLength": 120, "description": "Display name of the place." },
           "glyph": { "type": "string", "maxLength": 8, "description": "Single display glyph drawn on the canvas (e.g. ◆ ⌂ ⚙)." },
           "kind": { "type": "string", "description": "Free-form category: hub, system, lore, sandbox, threshold…" },
-          "x": { "type": "integer", "description": "World tile column." },
-          "y": { "type": "integer", "description": "World tile row." },
+          "x": { "type": "integer", "description": "World tile column (the canonical drop coordinate)." },
+          "y": { "type": "integer", "description": "World tile row (the canonical drop coordinate)." },
           "summary": { "type": "string", "maxLength": 2000, "description": "What this part of the game is for." },
+          "addr": { "type": "string", "maxLength": 64, "description": "Hierarchical chamber address (postal.js): a quadtree block path over chunk space + ordinal. Locality-clustered and genome-stable; optional (derived, may be absent on legacy records)." },
+          "gid": { "type": "string", "maxLength": 48, "description": "Foam chamber id 'cx,cy,i' (world.js FoamField) this place binds to. Optional." },
+          "depth": { "type": "integer", "description": "Radial layer (foam field depth) the place sits on. 0 = main deck. Optional." },
           "createdAt": { "type": "string", "format": "datetime" }
         }
       }
