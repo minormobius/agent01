@@ -290,6 +290,18 @@ export function chunkSeeds(seed, cx, cy) {
   }
   return out;
 }
+// The foam's seam ports — its own scheme (rng streams 71/72), distinct from ship.js edgePorts
+// (1/2), but seamless the same way: E(cx,cy)=W(cx+1,cy), S(cx,cy)=N(cx,cy+1). Exported as the
+// single source of truth so foamChunk AND nav.js agree on where the doors are (nav takes this as
+// its `ports` fn when routing the foam deck). Pure, deterministic, node + browser.
+export function foamPorts(seed, cx, cy) {
+  return {
+    E: 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)),
+    W: 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6)),
+    S: 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)),
+    N: 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6)),
+  };
+}
 function foamChunk(seed, cx, cy) {
   const bx = cx * C, by = cy * C, G = 4, NS = G * G;
   // GHOST SEEDS: gather this block's seeds AND its 8 neighbours', then assign every tile to
@@ -362,8 +374,7 @@ function foamChunk(seed, cx, cy) {
   } else { for (const [a, b] of mem) if ((Ship.hashInts(seed, a, b, 6) & 7) === 0) passable.add(akey(a, b)); } // fallback
   for (const key of passable) { const [a, b] = key.split(',').map(Number); carve(cen[a].x, cen[a].y, cen[b].x, cen[b].y, breach.has(key)); }
   // edge ports → corridor to the local cell's centre, shared with neighbours so chunks connect
-  const pE = 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)), pW = 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6));
-  const pS = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)), pN = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6));
+  const fp = foamPorts(seed, cx, cy), pE = fp.E, pW = fp.W, pS = fp.S, pN = fp.N;
   const nearOwn = (px, py) => { let bi = 0, bd = 1e18; for (let s = 0; s < NS; s++) { if (!cnt[s]) continue; const d = (cen[s].x - px) ** 2 + (cen[s].y - py) ** 2; if (d < bd) { bd = d; bi = s; } } return cen[bi]; };
   carve(C - 1, pE, nearOwn(C - 1, pE).x, nearOwn(C - 1, pE).y);
   carve(0, pW, nearOwn(0, pW).x, nearOwn(0, pW).y);

@@ -22,7 +22,9 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   bind to `(chunk, ordinal)` — genome-stable slots); `nav.js` is two-tier **HPA\*** routing (coarse
   portal-graph A\* + fine `isFloor` A\*), the 2-D-deck cousin of `rind/wayfind.js`. Pure + node-tested.
   Wiring status (`NAV.md`): **step 1 done** — every place carries `{gid, addr, depth}` (the foam
-  chamber it binds to, via `store.setChamberLookup` ← `world.field.chamberAt`); routing not wired yet.
+  chamber it binds to, via `store.setChamberLookup` ← `world.field.chamberAt`). Routing is
+  verified end-to-end over the **real `FoamField`** (`nav.route(…, { ports: foamPorts })`); the
+  only remaining step is swapping `world.js`'s `_pathTo` BFS for it (`stepMotion` stays).
 - `js/store.js` — places now bind to a **chamber address** (postal): `setChamberLookup`/`withAddress`
   attach `gid`/`addr`/`depth`; the `hoop.place` lexicon gained those optional fields. Tile stays the rkey.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).

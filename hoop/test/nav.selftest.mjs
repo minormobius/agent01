@@ -1,8 +1,9 @@
 // nav.selftest.mjs — pins the two-tier wayfinding kernel (hoop/js/nav.js).
 // Run: node hoop/test/nav.selftest.mjs
 import '../js/ship.js'; // side-effect: sets globalThis.HoopShip
-import { chambersIn } from '../js/postal.js';
+import { chambersIn, chunkOf, CHUNK } from '../js/postal.js';
 import { routeChunks, doorTiles, doorBetween, fineRoute, route, makeShipFloor } from '../js/nav.js';
+import { FoamField, foamPorts } from '../js/world.js'; // the LIVE deck, for the integration check
 
 const Ship = globalThis.HoopShip, SEED = Ship.FLAGSHIP_SEED;
 const isFloor = makeShipFloor(SEED);
@@ -60,6 +61,30 @@ const centre = (cx, cy, ord) => { const r = chambersIn(SEED, cx, cy)[ord]; retur
   ok(neg && connected(neg.tiles) && allFloor(neg.tiles), 'a route into negative chunk space connects');
   const longHaul = route(SEED, centre(0, 0, 0), centre(9, 7, 3), isFloor);
   ok(longHaul && connected(longHaul.tiles) && allFloor(longHaul.tiles), 'a long-haul route (16 chunks) connects start→goal');
+}
+
+// ── INTEGRATION: route over the REAL foam deck (world.js FoamField) using foamPorts ──
+{
+  // the foam uses its own seam scheme — seamless, but distinct from ship.js edgePorts
+  ok(foamPorts(SEED, 2, 1).E === foamPorts(SEED, 3, 1).W, 'foam seams agree across E↔W');
+  ok(foamPorts(SEED, 2, 1).S === foamPorts(SEED, 2, 2).N, 'foam seams agree across S↔N');
+  let diffs = 0; for (let c = 0; c < 8; c++) if (foamPorts(SEED, c, 1).E !== Ship.edgePorts(SEED, c, 1).E) diffs++;
+  ok(diffs > 0, 'foam ports are a distinct scheme from ship.js edgePorts (the integration bug)');
+
+  const ff = new FoamField(SEED);
+  const foamFloor = (x, y) => ff.isFloor(x, y);
+  // doorTiles honours the ports fn, and the foam door is real floor on both sides of the seam
+  const d = doorTiles(SEED, 2, 1, foamPorts);
+  ok(foamFloor(d.E.x, d.E.y) && foamFloor(d.E.out.x, d.E.out.y), 'the foam E door (via foamPorts) is floor on both sides');
+  // routing with the DEFAULT (ship) ports would aim at the wrong tiles; foamPorts is required.
+
+  const repTile = (cx, cy) => { const c = ff.chamberAt(cx * CHUNK + 12, cy * CHUNK + 12); return ff.chamberLocation(c.gid); };
+  const from = repTile(0, 0), to = repTile(3, 2);
+  const r = route(SEED, from, to, foamFloor, { ports: foamPorts });
+  ok(!!r, 'route() finds a path over the REAL foam deck');
+  ok(r && connected(r.tiles) && r.tiles.every((t) => foamFloor(t.x, t.y)), 'the foam route is a connected run of real foam-floor tiles');
+  if (r) { const last = r.tiles[r.tiles.length - 1], lc = chunkOf(last.x, last.y); ok(lc.cx === 3 && lc.cy === 2, 'the foam route reaches the goal chunk'); }
+  ok(JSON.stringify(route(SEED, from, to, foamFloor, { ports: foamPorts }).tiles) === JSON.stringify(r.tiles), 'foam routing is deterministic');
 }
 
 console.log(`nav.selftest: ${pass} passed, ${fail} failed`);

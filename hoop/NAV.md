@@ -105,7 +105,9 @@ structure gives the textbook hierarchical answer:
 - **Coarse — the portal graph.** Chunks connect *only* through their four seam doors, always
   open, so the inter-chunk graph is a 4-regular lattice. `routeChunks(seed, from, to)` is A\*
   over chunk coords (Manhattan heuristic), realising chunks lazily. Returns the chunk sequence;
-  `doorBetween()` gives the door tile to cross at each seam.
+  `doorBetween()` gives the door tile to cross at each seam. The seam offsets come from a
+  pluggable `ports` fn — `ship.js` `edgePorts` (the reference) or `world.js` `foamPorts` (the live
+  deck); they use different RNG streams, so the caller must pass the one matching its substrate.
 - **Fine — the chamber/tile graph.** `fineRoute(from, to, isFloor, {bound})` is a bounded A\*
   over an **`isFloor(x,y)` predicate** — so nav is decoupled from the substrate and works against
   `ship.js` tiles *or* `world.js` foam, whichever the caller exposes.
@@ -155,11 +157,14 @@ chunks, into negative space, deterministically).
    `chambersNear()` answers "who's around the player" via the address-prefix neighbourhood.
    Reuse the place plumbing — it's the same address space, by design.
 3. **Click-to-walk → `route()`.** Replace `world.js`'s windowed `_pathTo` BFS with
-   `nav.route(seed, player, target, field.isFloor)`; keep `stepMotion` for the per-tile walk.
-   **Integration check:** the coarse tier's door tiles come from `ship.js` `edgePorts`; verify the
-   *foam* seams open at the same offsets (foamChunk's "four deterministic edge ports"), or feed
-   nav the foam's port function. The fine tier already routes over `field.isFloor`, so it's
-   substrate-correct as-is.
+   `nav.route(seed, player, target, field.isFloor, { ports: foamPorts })`; keep `stepMotion`
+   for the per-tile walk. **Seam-port integration — RESOLVED.** The foam stitches its seams on
+   *different* RNG streams (71/72) than `ship.js` `edgePorts` (1/2), so the coarse tier must use
+   the foam's offsets, not the engine's. `world.js` now exports `foamPorts(seed,cx,cy)` (the single
+   source `foamChunk` itself uses), and `nav` takes a pluggable `ports` fn (default = `edgePorts`,
+   the reference; pass `foamPorts` for the live deck). `nav.selftest` proves a full route over the
+   **real `FoamField`** with `foamPorts` is a connected run of foam-floor tiles to the goal. The
+   fine tier already routes over `field.isFloor`, so it was substrate-correct all along.
 4. **(Optional) sector digests** for the forum/atproto layer: a place/sector can show its
    `blockDigest` as a verifiable "state of this region @ genome" — forkable design state.
 

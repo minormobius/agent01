@@ -35,8 +35,11 @@ function heap() {
 }
 
 // ── the four seam doors of a chunk, in world tiles + the neighbour they cross to ───────────
-export function doorTiles(seed, cx, cy) {
-  const Ship = SHIP(), p = Ship.edgePorts(seed, cx, cy), C = CHUNK, ox = cx * C, oy = cy * C;
+// `portsFn(seed,cx,cy) → {W,E,N,S}` selects the substrate's seam scheme: ship.js edgePorts (the
+// default / reference) or world.js foamPorts (the live deck). They differ in offset; everything
+// else is identical, so nav stays substrate-correct by threading the right ports through.
+export function doorTiles(seed, cx, cy, portsFn) {
+  const Ship = SHIP(), p = (portsFn || Ship.edgePorts)(seed, cx, cy), C = CHUNK, ox = cx * C, oy = cy * C;
   return {
     W: { x: ox,         y: oy + p.W, nbr: [cx - 1, cy], out: { x: ox - 1,     y: oy + p.W } },
     E: { x: ox + C - 1, y: oy + p.E, nbr: [cx + 1, cy], out: { x: ox + C,     y: oy + p.E } },
@@ -45,8 +48,8 @@ export function doorTiles(seed, cx, cy) {
   };
 }
 // the door of chunk (ax,ay) facing its lattice-adjacent neighbour (bx,by): {inTile, outTile}
-export function doorBetween(seed, ax, ay, bx, by) {
-  const d = doorTiles(seed, ax, ay);
+export function doorBetween(seed, ax, ay, bx, by, portsFn) {
+  const d = doorTiles(seed, ax, ay, portsFn);
   if (bx === ax + 1 && by === ay) return { inTile: { x: d.E.x, y: d.E.y }, outTile: d.E.out };
   if (bx === ax - 1 && by === ay) return { inTile: { x: d.W.x, y: d.W.y }, outTile: d.W.out };
   if (by === ay + 1 && bx === ax) return { inTile: { x: d.S.x, y: d.S.y }, outTile: d.S.out };
@@ -126,7 +129,7 @@ export function route(seed, from, to, isFloor, opts = {}) {
   let cursor = from;
   for (let i = 0; i < chunks.length - 1; i++) {
     const [ax, ay] = chunks[i], [bx, by] = chunks[i + 1];
-    const door = doorBetween(seed, ax, ay, bx, by);
+    const door = doorBetween(seed, ax, ay, bx, by, opts.ports);
     if (!door) return null;
     const leg = fineRoute(cursor, door.inTile, isFloor, { bound: bboxOf(ax, ay), ...opts });
     if (!leg) return null;
