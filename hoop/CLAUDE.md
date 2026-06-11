@@ -17,6 +17,11 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
 - `js/app.js` — the controller wiring world ⇆ store ⇆ thread rail ⇆ auth ⇆ presence.
 - `js/store.js` — data model + two backends (Local / ATProto) + threading.
 - `js/{presence,atproto,ink}.js` — presence socket client · public ATProto reads · seeded vector drawing.
+- `js/postal.js` + `js/nav.js` — **the navigation plumbing** (design: `NAV.md`). `postal.js` derives
+  stable, hierarchical, Merkle-able **chamber addresses** from the deterministic engine (NPCs/places
+  bind to `(chunk, ordinal)` — genome-stable slots); `nav.js` is two-tier **HPA\*** routing (coarse
+  portal-graph A\* + fine `isFloor` A\*), the 2-D-deck cousin of `rind/wayfind.js`. Pure + node-tested;
+  **not wired into the game yet** — see the wiring plan in `NAV.md`.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).
 - `research.html` + `js/research.js` — the **research dossier** (linked from the topbar `❖ research`
   pill): the supporting-world models from the three modelling wings, collated as a scientific report
@@ -43,6 +48,8 @@ node hoop/test/ship.selftest.mjs            # ship engine invariants (determinis
 node hoop/test/world.selftest.mjs           # the Voronoi-ship rewrite: mesh + gravity movement
 node hoop/test/cylinder-ring.selftest.mjs   # does the generated world substrate come out ROUND
 node hoop/test/research.selftest.mjs        # dossier figure kernels vs. the wings' published numbers
+node hoop/test/postal.selftest.mjs          # the postal system: addressing, locality, Merkle digests
+node hoop/test/nav.selftest.mjs             # two-tier HPA* routing over the real engine tiles
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 
