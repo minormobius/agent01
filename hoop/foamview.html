@@ -58,57 +58,53 @@ function HOOFAM3D_seeds(o) { return (window.HOOPFOAM3D ? window.HOOPFOAM3D.seeds
 // is reacted by hoop tension and the two pinned hulls. Membranes are coloured by member force —
 // tension warm, compression cool: you see radial struts press out, hoops pull round.
 let ringMode = false;
-// Real proportions: ~1 km of foam on a 10 km inner DIAMETER, in 20 m rooms. Worked in
-// camera units at 20 m/unit → Ri = 5000 m = 250, T = 1000 m = 50, cell = 20 m = 1. That is a
-// thin shell on a big circle with HUMAN-scale rooms: 2π·Ri/cell ≈ 1571 around, T/cell = 50
-// radial layers ≈ 64k chambers. Far too many for a dense solve, so the cross-section is solved
-// in 2D, matrix-free, by preconditioned conjugate gradient (≈0.3M braced members, ~300 iters).
-const RING = { Ri: 250, T: 50, cell: 1, grade: 0.55, seed: 1 };
+// 20 m rooms, real proportions (1 km foam on a 10 km bore), worked at 20 m/unit → Ri=250, T=50.
+// At 20 m the FULL ring in 3D is >200k chambers, so the scene is a SECTOR: a core-sample of the
+// wall with full radial depth (T/cell = 50 layers) AND real axial layers, so it is a 3D block,
+// not a flat cross-section. Solved 3D, matrix-free PCG, with the four solid faces pinned.
+const RING = { Ri: 250, T: 50, cell: 1, arcDeg: 18, axial: 10, grade: 0.4, seed: 1 };
 let ringStats = { nodes: 0, members: 0, layers: 0 };
 let ringRi = 0, ringRo = 0;
-// shell cross-section foam: a deterministic graded 2D grid (denser toward the hull)
-function shellSeeds2d(Ri, T, cell, grade, seed) {
-  const Ly = 2 * Math.PI * Ri, ny = Math.max(24, Math.round(Ly / cell)), nz = Math.max(2, Math.round(T / cell));
+// a deterministic graded 3D foam in a sector box (x=axial, y=circumferential arc, z=radial)
+function shellSeedsSector(Ri, T, arcDeg, axial, cell, grade, seed) {
+  const arcRad = arcDeg * Math.PI / 180, arcLen = Ri * arcRad, Lx = axial * cell;
+  const nx = Math.max(1, axial), ny = Math.max(4, Math.round(arcLen / cell)), nz = Math.max(2, Math.round(T / cell));
   let a = (seed >>> 0) || 1; const rng = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
   const pts = [];
-  for (let iz = 0; iz < nz; iz++) { const zc = (iz + 0.5) / nz, dens = 1 + grade * zc; for (let iy = 0; iy < ny; iy++) { if (rng() > dens / (1 + grade)) continue; pts.push({ y: (iy + 0.5 + 0.5 * (rng() - 0.5)) * Ly / ny, z: (iz + 0.5 + 0.5 * (rng() - 0.5)) * T / nz }); } }
-  return { pts, Ly, layers: nz };
+  for (let iz = 0; iz < nz; iz++) { const zc = (iz + 0.5) / nz, dens = 1 + grade * zc; for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) { if (rng() > dens / (1 + grade)) continue; pts.push({ x: (ix + 0.5 + 0.5 * (rng() - 0.5)) * Lx / nx, y: (iy + 0.5 + 0.5 * (rng() - 0.5)) * arcLen / ny, z: (iz + 0.5 + 0.5 * (rng() - 0.5)) * T / nz }); } }
+  return { pts, arcLen, arcRad, Lx, layers: nz };
 }
 function stressColor(t) {                                   // t ∈ [−1,1]: −compression … +tension
   const a = Math.max(-1, Math.min(1, t)), mid = [0.30, 0.80, 0.80], tgt = a >= 0 ? [1.0, 0.5, 0.2] : [0.32, 0.55, 1.0], m = Math.abs(a);
   return [mid[0] + (tgt[0] - mid[0]) * m, mid[1] + (tgt[1] - mid[1]) * m, mid[2] + (tgt[2] - mid[2]) * m];
 }
 function buildCylinderShell() {
-  const { Ri, T, cell, grade } = RING, seed = RING.seed >>> 0, D = 2, Ro = Ri + T; ringRi = Ri; ringRo = Ro;
-  const { pts: raw, Ly, layers } = shellSeeds2d(Ri, T, cell, grade, seed);
+  const { Ri, T, cell, arcDeg, axial, grade } = RING, seed = RING.seed >>> 0, D = 3, Ro = Ri + T; ringRi = Ri; ringRo = Ro;
+  const { pts: raw, arcLen, arcRad, Lx, layers } = shellSeedsSector(Ri, T, arcDeg, axial, cell, grade, seed);
   const NC = raw.length;
-  // membranes via a spatial hash (periodic in y); threshold catches DIAGONAL neighbours too, so
-  // the pin-jointed net is triangulated (a 4-neighbour square grid would be a shear mechanism).
-  const bs = 2.4 * cell, nyB = Math.max(1, Math.ceil(Ly / bs)), byb = (v) => ((Math.floor(v / bs) % nyB) + nyB) % nyB, gz = (v) => Math.floor(v / bs);
-  const bins = new Map();
-  for (let i = 0; i < NC; i++) { const p = raw[i], k = byb(p.y) + '|' + gz(p.z); let a = bins.get(k); if (!a) { a = []; bins.set(k, a); } a.push(i); }
-  const thr = (2.3 * cell) ** 2, mi = [], mj = [];
-  for (let i = 0; i < NC; i++) { const p = raw[i], by = byb(p.y), bz = gz(p.z); for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) { const a = bins.get((((by + dy) % nyB) + nyB) % nyB + '|' + (bz + dz)); if (!a) continue; for (const j of a) { if (j <= i) continue; const q = raw[j]; let ddy = Math.abs(p.y - q.y); if (ddy > Ly - ddy) ddy = Ly - ddy; const ddz = p.z - q.z; if (ddy * ddy + ddz * ddz < thr) { mi.push(i); mj.push(j); } } } }
+  // 3D spatial-hash adjacency (catches face+edge neighbours → the net is triangulated, stiff)
+  const bs = 1.9 * cell, gi = (v) => Math.floor(v / bs), bins = new Map();
+  for (let i = 0; i < NC; i++) { const p = raw[i], k = gi(p.x) + '|' + gi(p.y) + '|' + gi(p.z); let a = bins.get(k); if (!a) { a = []; bins.set(k, a); } a.push(i); }
+  const thr = (1.85 * cell) ** 2, mi = [], mj = [];
+  for (let i = 0; i < NC; i++) { const p = raw[i], bx = gi(p.x), by = gi(p.y), bz = gi(p.z); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) { const a = bins.get((bx + dx) + '|' + (by + dy) + '|' + (bz + dz)); if (!a) continue; for (const j of a) { if (j <= i) continue; const q = raw[j], ddx = p.x - q.x, ddy = p.y - q.y, ddz = p.z - q.z; if (ddx * ddx + ddy * ddy + ddz * ddz < thr) { mi.push(i); mj.push(j); } } } }
   const M = mi.length;
-  // wrap to the annulus cross-section (flat: world z = 0). Pin the two smooth hulls.
-  const nodes = raw.map((p) => { const th = 2 * Math.PI * p.y / Ly, r = Ri + p.z; return { x: r * Math.cos(th), y: r * Math.sin(th), th, rad: p.z }; });
-  const fixed = new Uint8Array(NC); nodes.forEach((n, i) => { if (n.rad < cell || n.rad > T - cell) fixed[i] = 1; });
-  const mcx = new Float64Array(M), mcy = new Float64Array(M), mk = new Float64Array(M);
-  for (let m = 0; m < M; m++) { const a = nodes[mi[m]], b = nodes[mj[m]], ex = b.x - a.x, ey = b.y - a.y, L = Math.hypot(ex, ey) || 1; mcx[m] = ex / L; mcy[m] = ey / L; mk[m] = 1 / L; }
-  // matrix-free PCG (2D): K is applied via the member list; Jacobi preconditioner; tiny radial
-  // bed; inner+outer pinned; radial-outward gravity load on the free chambers.
-  const ndof = D * NC, kF = 2e-3, cs = nodes.map((n) => Math.cos(n.th)), sn = nodes.map((n) => Math.sin(n.th));
-  const diag = new Float64Array(ndof);
-  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], k = mk[m], vx = k * mcx[m] * mcx[m], vy = k * mcy[m] * mcy[m]; diag[D * i] += vx; diag[D * i + 1] += vy; diag[D * j] += vx; diag[D * j + 1] += vy; }
-  for (let i = 0; i < NC; i++) { diag[D * i] += kF * cs[i] * cs[i]; diag[D * i + 1] += kF * sn[i] * sn[i]; }
+  // wrap to the annulus sector (axis = world z = axial; arc centred on +X, radius = Ri + depth)
+  const nodes = raw.map((p) => { const th = -arcRad / 2 + (p.y / arcLen) * arcRad, r = Ri + p.z; return { x: r * Math.cos(th), y: r * Math.sin(th), z: p.x, th, rad: p.z, circ: p.y }; });
+  // PIN the four solid faces: inner + outer hulls AND the two angular cut faces (held by the
+  // neighbouring sectors — the boundary-pinned sector solve). Axial ends stay free.
+  const fixed = new Uint8Array(NC); nodes.forEach((n, i) => { if (n.rad < cell || n.rad > T - cell || n.circ < cell || n.circ > arcLen - cell) fixed[i] = 1; });
+  const mcx = new Float64Array(M), mcy = new Float64Array(M), mcz = new Float64Array(M), mk = new Float64Array(M);
+  for (let m = 0; m < M; m++) { const a = nodes[mi[m]], b = nodes[mj[m]], ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z, L = Math.hypot(ex, ey, ez) || 1; mcx[m] = ex / L; mcy[m] = ey / L; mcz[m] = ez / L; mk[m] = 1 / L; }
+  // matrix-free 3D PCG, Jacobi preconditioner, radial-outward gravity on the free chambers
+  const ndof = D * NC, diag = new Float64Array(ndof);
+  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], k = mk[m], vx = k * mcx[m] * mcx[m], vy = k * mcy[m] * mcy[m], vz = k * mcz[m] * mcz[m]; diag[D * i] += vx; diag[D * i + 1] += vy; diag[D * i + 2] += vz; diag[D * j] += vx; diag[D * j + 1] += vy; diag[D * j + 2] += vz; }
   for (let i = 0; i < ndof; i++) if (diag[i] < 1e-9) diag[i] = 1;
   const applyK = (u, out) => {
     out.fill(0);
-    for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], cx = mcx[m], cy = mcy[m]; const s = mk[m] * (cx * (u[D * j] - u[D * i]) + cy * (u[D * j + 1] - u[D * i + 1])); out[D * i] += s * cx; out[D * i + 1] += s * cy; out[D * j] -= s * cx; out[D * j + 1] -= s * cy; }
-    for (let i = 0; i < NC; i++) { const ur = cs[i] * u[D * i] + sn[i] * u[D * i + 1]; out[D * i] += kF * ur * cs[i]; out[D * i + 1] += kF * ur * sn[i]; }
-    for (let i = 0; i < NC; i++) if (fixed[i]) { out[D * i] = 0; out[D * i + 1] = 0; }
+    for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], cx = mcx[m], cy = mcy[m], cz = mcz[m]; const s = mk[m] * (cx * (u[D * j] - u[D * i]) + cy * (u[D * j + 1] - u[D * i + 1]) + cz * (u[D * j + 2] - u[D * i + 2])); out[D * i] += s * cx; out[D * i + 1] += s * cy; out[D * i + 2] += s * cz; out[D * j] -= s * cx; out[D * j + 1] -= s * cy; out[D * j + 2] -= s * cz; }
+    for (let i = 0; i < NC; i++) if (fixed[i]) { out[D * i] = 0; out[D * i + 1] = 0; out[D * i + 2] = 0; }
   };
-  const b = new Float64Array(ndof); for (let i = 0; i < NC; i++) if (!fixed[i]) { b[D * i] = cs[i]; b[D * i + 1] = sn[i]; }
+  const b = new Float64Array(ndof); nodes.forEach((n, i) => { if (!fixed[i]) { b[D * i] = Math.cos(n.th); b[D * i + 1] = Math.sin(n.th); } });
   const u = new Float64Array(ndof), r = new Float64Array(ndof), z = new Float64Array(ndof), pv = new Float64Array(ndof), Ap = new Float64Array(ndof);
   applyK(u, Ap); for (let i = 0; i < ndof; i++) r[i] = b[i] - Ap[i];
   for (let i = 0; i < ndof; i++) z[i] = r[i] / diag[i]; pv.set(z);
@@ -121,19 +117,18 @@ function buildCylinderShell() {
     let rz2 = 0; for (let i = 0; i < ndof; i++) { z[i] = r[i] / diag[i]; rz2 += r[i] * z[i]; } const be = rz2 / rz; rz = rz2;
     for (let i = 0; i < ndof; i++) pv[i] = z[i] + be * pv[i];
   }
-  // member forces → colour; keep the load-bearing members (drop slack braces for a clean read)
   let maxF = 1e-9; const force = new Float64Array(M);
-  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], f = mk[m] * (mcx[m] * (u[D * j] - u[D * i]) + mcy[m] * (u[D * j + 1] - u[D * i + 1])); force[m] = f; if (Math.abs(f) > maxF) maxF = Math.abs(f); }
+  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], f = mk[m] * (mcx[m] * (u[D * j] - u[D * i]) + mcy[m] * (u[D * j + 1] - u[D * i + 1]) + mcz[m] * (u[D * j + 2] - u[D * i + 2])); force[m] = f; if (Math.abs(f) > maxF) maxF = Math.abs(f); }
   ringStats = { nodes: NC, members: M, layers };
-  CELLS = nodes.map((n) => ({ x: n.x, y: n.y, z: 0 })); ZMAX = T; buildInstances();
-  const segs = [], cut = 0.05 * maxF;
-  for (let m = 0; m < M; m++) { if (Math.abs(force[m]) < cut) continue; const a = nodes[mi[m]], b2n = nodes[mj[m]], col = stressColor(force[m] / maxF); segs.push(a.x, a.y, 0, col[0], col[1], col[2], b2n.x, b2n.y, 0, col[0], col[1], col[2]); }
-  const bc = [0.36, 0.5, 0.66], ring = (rr) => { const Mc = 200; for (let k = 0; k < Mc; k++) { const t0 = 2 * Math.PI * k / Mc, t1 = 2 * Math.PI * (k + 1) / Mc; segs.push(rr * Math.cos(t0), rr * Math.sin(t0), 0, ...bc, rr * Math.cos(t1), rr * Math.sin(t1), 0, ...bc); } };
-  ring(Ri); ring(Ro);                                              // the two smooth bounding cylinders
+  CELLS = nodes.map((n) => ({ x: n.x, y: n.y, z: n.z })); ZMAX = T; buildInstances();
+  // light up EVERY beam (only drop near-zero slack); low load reads teal, load paths warm/cool
+  const segs = [], cut = 0.008 * maxF;
+  for (let m = 0; m < M; m++) { if (Math.abs(force[m]) < cut) continue; const a = nodes[mi[m]], b2n = nodes[mj[m]], col = stressColor(force[m] / maxF); segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b2n.x, b2n.y, b2n.z, col[0], col[1], col[2]); }
+  const bc = [0.36, 0.5, 0.66], arc = (rr, zc) => { const Mc = 64; for (let k = 0; k < Mc; k++) { const t0 = -arcRad / 2 + arcRad * k / Mc, t1 = -arcRad / 2 + arcRad * (k + 1) / Mc; segs.push(rr * Math.cos(t0), rr * Math.sin(t0), zc, ...bc, rr * Math.cos(t1), rr * Math.sin(t1), zc, ...bc); } };
+  for (const zc of [0, Lx]) { arc(Ri, zc); arc(Ro, zc); }   // the two smooth hulls, at both axial ends
   EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
-  // centre on the SHELL BAND (not the axis — the bore is hollow), so zoom dives into the rooms
   const Rmid = (Ri + Ro) / 2;
-  cam.center = [Rmid, 0, 0]; cam.dist = Ro * 2.0; cam.band = cell * 2.5; cam.pitch = 1.18; cam.yaw = 0;
+  cam.center = [Rmid, 0, Lx / 2]; cam.dist = T * 2.6; cam.band = cell * 0.8; cam.pitch = 0.5; cam.yaw = 0.4;
   probeLo = Ri; probeHi = Ro; cam.probe = Ri + T / 2; syncProbe();
 }
 function enterScene(toCylinder) {
@@ -178,7 +173,7 @@ function floorInfo() {
   if (ringMode) {
     const depth = probeHi > probeLo ? Math.round((cam.probe - probeLo) / (probeHi - probeLo) * 100) : 0;
     document.getElementById('floorLabel').textContent = depth + '% out · r=' + cam.probe.toFixed(0);
-    document.getElementById('info').innerHTML = 'annular shell · ' + ringStats.nodes + ' chambers · ' + ringStats.layers + ' radial layers · ' + ringStats.members + ' membranes · <span class="r">r ∈ [' + (ringRi | 0) + ', ' + (ringRo | 0) + '], gravity outward</span>';
+    document.getElementById('info').innerHTML = 'shell sector (' + RING.arcDeg + '°) · ' + ringStats.nodes + ' chambers · ' + ringStats.layers + ' radial × ' + RING.axial + ' axial layers · ' + ringStats.members + ' beams · <span class="r">gravity radial-out, hulls pinned</span>';
     return;
   }
   let n = 0; for (const p of CELLS) if (Math.abs(p.z - cam.probe) < cam.band) n++;
