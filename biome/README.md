@@ -34,19 +34,26 @@ The cylinder interior has a counterintuitive thermal layout that drives everythi
   stays there (no cold ceiling to re-densify it), so the steady state is a thin
   convective weather layer near the vegetated surface under a hot, stable core.
 - **The water cycle goes dew-dominated, not rain-dominated.** Adiabatic cooling
-  from axis to rim is set by the cylinder size: an Island-Three-scale habitat (3.2 km)
-  spans only ~16 K and ~17% pressure drop, while the build modelled here (an **8 km**
-  habitat wall — see `shared/geometry.mjs`) spans **~39 K and ~37%** — a colder, thinner
-  axis. Either way condensation happens near the cold surface — **fog under the canopy,
-  dew drip**, like a cloud forest (and the big cylinder runs nearly overcast). Your
-  instinct is right.
+  from axis to floor is set by the cylinder size: an Island-Three-scale habitat (3.2 km)
+  spans only ~16 K and ~17% pressure drop, while the build modelled here (an **8 km** floor
+  with 1 g at the **outer** radius ⇒ ~0.8 g floor — see `shared/geometry.mjs`) spans **~31 K
+  and ~32%** — a colder, thinner axis. Either way condensation happens near the cold surface —
+  **fog under the canopy, dew drip**, like a cloud forest. Your instinct is right.
 - **The trap:** the same stratification that gives gentle dew irrigation also
   **suppresses vertical mixing of CO₂**. A photosynthesising canopy depletes CO₂ in
   its own boundary layer within minutes; on Earth wind resupplies it. Here the fog
   that waters the plants and the stagnation that starves them of CO₂ are the *same*
   phenomenon. The mixing pump has to come from within the symmetry — the photoperiod
-  thermal tide (pulse the sun) is the natural candidate, and Coriolis (ω≈0.055 rad/s,
-  ~800× Earth) is strong enough to organise any radial flow into bands/rolls.
+  thermal tide (pulse the sun) is the natural candidate, plus a **fountain** that lofts air
+  mechanically (Module 2b). Coriolis (ω≈0.031 rad/s, ~430× Earth for the modelled 8 km build)
+  is strong enough to organise any radial flow into bands/rolls — and to curve a water jet
+  into an irrigation sheet.
+- **Fog is an optical medium, and the sun can burn it.** The cold-surface stratus deck is a
+  cloud of ~10 µm droplets; the linear sun's light **Mie-scatters** through it (dimming the
+  view — low visibility) while its near-IR fraction is **absorbed**, warming the fog and
+  evaporating it. So the deck blooms dense at night (optical depth ~80–100, a near-blackout)
+  and the sun **burns it off by day**, reopening the canopy to light. That optics lives in
+  `atmosphere/sim/optics.mjs` and feeds the column.
 
 Before any of that spatial detail matters, the **zeroth question** is whether the
 loop can close at all as stocks and flows. That's Tool 1.
@@ -294,11 +301,12 @@ This is that 1-D column — temperature, pressure, humidity and CO₂ as functio
 `atmosphere/index.html`; kernel in `atmosphere/sim/column.mjs` (pure, zero-dep, node + browser).
 
 **It reproduces the geometry's numbers by construction.** Centrifugal hydrostatic balance
-(`dP/dr = ρω²r`) on a cylindrical finite-volume grid gives a **~37% pressure drop** axis→rim for
-the 8 km habitat (`shared/geometry.mjs`); the centrifugal adiabat (`Δ = ω²(R²−r²)/2cp`) gives a
-**~39 K** offset. Bigger barrel, bigger thermodynamic span (an Island-Three 3.2 km habitat would
-be ~17% / ~16 K). The axis runs near −6 °C and the column is mostly saturated — a permanently
-overcast sky. Potential temperature carries the adiabat, so "well mixed" means uniform θ, not T.
+(`dP/dr = ρω²r`) on a cylindrical finite-volume grid gives a **~32% pressure drop** axis→floor for
+the 8 km build (`shared/geometry.mjs`, 1 g at the outer radius ⇒ ~0.8 g floor); the centrifugal
+adiabat (`Δ = ω²(R²−r²)/2cp`) gives a **~31 K** offset. Bigger barrel, bigger thermodynamic span
+(an Island-Three 3.2 km habitat would be ~17% / ~16 K). The axis runs near −5 °C with a dense
+near-surface stratus deck. Potential temperature carries the adiabat, so "well mixed" means uniform
+θ, not T.
 
 **The method** (idealised, Held–Suarez spirit): radiation is a Newtonian relaxation of θ toward
 a prescribed radiative-equilibrium profile — a stable aloft inversion (warm axis) plus a diurnal
@@ -309,20 +317,21 @@ the axis closes for free), so the diffusion operator conserves mass/heat/CO₂/w
 precision and the books change only by the surface exchange — which, in the coupled system, comes
 from Module 1's steady state.
 
-**The four phenomena it answers** (all in the self-test, `column.selftest.mjs`, 14 checks):
-- *Stratification.* A stable inversion forms — θ climbs ~10 K from rim to axis — and suppresses
+**The phenomena it answers** (all in the self-test, `column.selftest.mjs`, 16 checks):
+- *Stratification.* A stable inversion forms — θ climbs ~12 K from floor to axis — and suppresses
   vertical mixing.
 - *Dew, not rain.* The cool nighttime surface saturates: dew accumulates ~3× faster at night than
-  by day and a fog layer blooms near the rim, burning off when the surface warms — a cloud forest,
-  exactly the dew-dominated cycle the geometry predicts.
-- *The CO₂ trap.* A photosynthesising canopy depletes its own boundary layer; under the stable lid
-  the deficit is large.
-- *The ventilation pump.* The daytime thermal tide destabilises the near-surface layer and
-  convects — relieving **51%** of the canopy CO₂ depletion vs a stagnant column. Pulsing the sun
-  is the only mixing pump available inside the symmetry, and it works.
+  by day, and a dense **stratus deck** (≈1.7 km, visibility ~120 m) blooms against the canopy wall.
+- *Fog is optical, and the sun burns it.* Mie scattering darkens the deck (night optical depth
+  ~80–100) while near-IR absorption heats and evaporates it, so the daytime fog burns down toward
+  optical depth ~0 and the canopy reopens to light (`atmosphere/sim/optics.mjs`, tested).
+- *The CO₂ trap + the pumps.* A photosynthesising canopy depletes its own boundary layer under the
+  stable lid; the daytime thermal tide convectively relieves it (~50%), and the **fountain** adds a
+  night-time mechanical pump — with buoyancy off it alone cuts the canopy CO₂ swing **~60%**.
 
 ```bash
-node biome/atmosphere/test/column.selftest.mjs   # 14 checks: structure, conservation, the four phenomena, fountain coupling, determinism
+node biome/atmosphere/test/column.selftest.mjs   # 16 checks: structure, conservation, phenomena, Mie fog burn-off, fountain coupling
+node biome/atmosphere/test/optics.selftest.mjs   # 11 checks: Mie extinction, Koschmieder visibility, beam march
 open biome/atmosphere/index.html                 # the live radial-slice viewer
 ```
 
@@ -340,8 +349,12 @@ coupled pieces share one view (live at `fountain/index.html`):
 pond ("Fond du Lac") pre-treat; a jet throws that water inward toward the axis. In the rotating
 frame a parcel in flight feels only centrifugal (`+ω²r`, outward) and Coriolis (`−2Ω×v`) — an exact
 ODE, integrated with RK4 and **conserved** (specific energy `½v²−½ω²r²` holds to ~1e-15, the test).
-At 8 km the axis-reaching speed is `ωR ≈ 280 m/s`, so the velocity slider runs to 1200 — past it,
-water flies clear across the bore. The payoff is that *one* actuator answers two stagnations:
+**1 g lives at the outer radius**, so the 8 km floor sits at a comfortable ~0.8 g and ω is lower —
+which makes the fountain easier (the axis-reaching speed `ωR ≈ 250 m/s` drops with ω). The velocity
+slider runs to 1200, but the honest engineering split is: **ventilation needs only ~48 m/s** (Mach
+0.14, ~12 bar — a pressure washer); near-sonic ~250 m/s is only for *crossing the whole bore*, and
+since industrial waterjet cutters run 3000–6000 bar, even that is a solved problem. The viewer shows
+the Mach number and pump pressure live. The payoff is that *one* actuator answers two stagnations:
 - *Stagnant water* — spraying aerates: O₂ in (oxidises residual BOD, drives nitrification → mineral-N
   back to Module 1), volatiles out, axial-sun UV on the droplets. The polish the reeds can't do.
 - *Stagnant air* — the plume lofts surface air; the crisp test is whether its **apex clears the
@@ -373,7 +386,7 @@ the calories tens of thousands of times. "We need a LOT of light," made concrete
 heat budget that says half a sun is the sweet spot.
 
 ```bash
-node biome/fountain/test/fountain.selftest.mjs   # 16 checks: energy conservation, deflection, nozzles, symmetric fan, ventilation K
+node biome/fountain/test/fountain.selftest.mjs   # 19 checks: energy conservation, deflection, nozzles, symmetric fan, ventilation K, jet mechanics
 node biome/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 50 MW/m headline, radiator + foam heat closure
 open biome/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
 ```
@@ -398,6 +411,7 @@ biome/
 ├── atmosphere/                   # MODULE 2 — 1-D radial atmosphere column
 │   ├── index.html                # the diurnal column viewer
 │   ├── sim/column.mjs            # finite-volume column + eddy mixing + fountain coupling term
+│   ├── sim/optics.mjs            # Mie fog optics — scattering, visibility, solar burn-off
 │   └── test/column.selftest.mjs  # structure, conservation, four phenomena, fountain coupling
 ├── fountain/                     # MODULE 2b — azimuthal cross-section: fountain + light
 │   ├── index.html                # looking-down-the-axis viewer (live diurnal column inside)

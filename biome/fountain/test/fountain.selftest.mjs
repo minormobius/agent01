@@ -2,7 +2,7 @@
 // The trajectory is exact rotating-frame mechanics, so it's checked against conserved
 // quantities (specific energy), the no-Coriolis limit (returns to launch, apex = v₀²/2g),
 // and the Coriolis deflection direction, plus the nozzle tradeoff structure.
-import { defaultParams, simulate, integrateParcel, ventilationK, NOZZLES } from '../sim/fountain.mjs';
+import { defaultParams, simulate, integrateParcel, ventilationK, jetMechanics, NOZZLES } from '../sim/fountain.mjs';
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = '') => {
@@ -91,6 +91,20 @@ const deg = (d) => (d * Math.PI) / 180;
   ok('the conduit reaches above the inversion to bridge surface↔aloft',
      ventilationK({ ...p, v0: 150 }).depth > p.inversionDepth,
      `depth ${ventilationK({ ...p, v0: 150 }).depth.toFixed(0)} m`);
+}
+
+// ── 7b. Jet mechanics — the engineering cost (Mach + pump pressure) ──────────
+{
+  // ventilation needs only ~48 m/s (clear the inversion): subsonic, low pressure
+  const vent = jetMechanics(48);
+  ok('ventilation speed is subsonic and low-pressure (a pressure washer)',
+     !vent.sonic && vent.mach < 0.2 && vent.stagnationPressure_bar < 20,
+     `Mach ${vent.mach.toFixed(2)}, ${vent.stagnationPressure_bar.toFixed(0)} bar`);
+  // crossing the bore needs ~250 m/s: near-sonic, hundreds of bar (but waterjet cutters do >3000)
+  const cross = jetMechanics(250);
+  ok('bore-crossing is near-sonic at hundreds of bar', cross.mach > 0.6 && cross.mach < 1 &&
+     cross.stagnationPressure_bar > 200, `Mach ${cross.mach.toFixed(2)}, ${cross.stagnationPressure_bar.toFixed(0)} bar`);
+  ok('pressure scales as v² (½ρv²)', Math.abs(jetMechanics(100).stagnationPressure_MPa - 4 * jetMechanics(50).stagnationPressure_MPa) < 1e-9);
 }
 
 // ── 8. Determinism ───────────────────────────────────────────────────────────

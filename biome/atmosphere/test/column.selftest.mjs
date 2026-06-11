@@ -25,20 +25,47 @@ function integrate(p, g, days, dtMin = 3, sampleH = 3) {
 }
 
 // ── 1. Structural — the 8 km-habitat numbers, reproduced by construction ─────
-// A big cylinder has a LARGE thermodynamic span: ~37% pressure drop and a ~39 K adiabat
-// axis→rim (vs ~17%/~16 K for Island-Three scale). Both fall out of the geometry.
+// A big cylinder has a LARGE thermodynamic span: ~32% pressure drop and a ~31 K adiabat
+// axis→floor (with 1 g at the outer radius ⇒ ~0.8 g floor; vs ~17%/~16 K for Island-Three).
 {
   const p = defaultParams(), g = buildGrid(p);
   const { s } = integrate(p, g, 12);
   const snap = snapshot(s, p, g);
-  ok('pressure drop axis→rim ≈ 37% (large at 8 km)', snap.P_drop > 0.30 && snap.P_drop < 0.45,
+  ok('pressure drop axis→floor ≈ 32% (large at 8 km)', snap.P_drop > 0.27 && snap.P_drop < 0.40,
      `${(snap.P_drop * 100).toFixed(1)}%`);
-  // adiabatic offset at the axis = g0·R/(2cp) ≈ 39 K (θ − T at the innermost cell)
+  // adiabatic offset at the axis = g_floor·R/(2cp) ≈ 31 K (θ − T at the innermost cell)
   const adiabAxis = g.adiab[0], target = (p.g0 * p.R) / (2 * cp);
-  ok('centrifugal adiabat offset = g0R/2cp (~39 K) at the axis',
-     Math.abs(adiabAxis - target) < 1 && Math.abs(target - 39) < 1,
+  ok('centrifugal adiabat offset = g·R/2cp (~31 K) at the axis',
+     Math.abs(adiabAxis - target) < 1 && Math.abs(target - 31) < 1.5,
      `${adiabAxis.toFixed(1)} K`);
-  ok('rim feels 1 g, axis feels 0 (ω set by R)', Math.abs(p.omega * p.omega * p.R - p.g0) < 1e-9);
+  ok('floor gravity = ω²R ≈ 0.8 g (1 g placed at the outer radius)',
+     Math.abs(p.omega * p.omega * p.R - p.g0) < 1e-9 && p.g0 / 9.81 > 0.7 && p.g0 / 9.81 < 0.9,
+     `${(p.g0 / 9.81).toFixed(2)} g`);
+}
+
+// ── 1b. Fog optics — the linear sun burns off the daytime fog (Mie absorption) ──
+{
+  const g = buildGrid(defaultParams());
+  const dayMinOD = (absFrac) => {
+    const p = { ...defaultParams(), fogSolarAbsorption: absFrac };
+    let s = initState(p, g);
+    for (let k = 0; k < 16 * 720; k++) s = step(s, p, g, 120);
+    let od = Infinity;
+    for (let k = 0; k < 3 * 720; k++) { s = step(s, p, g, 120); const sn = snapshot(s, p, g); if (sn.sunlit) od = Math.min(od, sn.fogOpticalDepth); }
+    return od;
+  };
+  const noBurn = dayMinOD(0), burn = dayMinOD(0.25);
+  ok('Mie solar absorption thins the daytime fog (the sun burns it off)', burn < noBurn * 0.5,
+     `day optical depth ${noBurn.toFixed(0)} → ${burn.toFixed(0)}`);
+  // and the fog is a real near-surface deck, dense at night
+  const p = defaultParams(); let s = initState(p, g);
+  for (let k = 0; k < 16 * 720; k++) s = step(s, p, g, 120);
+  while (((s.t % p.dayLength) / p.dayLength) < p.photoperiod) s = step(s, p, g, 120);
+  for (let k = 0; k < 60; k++) s = step(s, p, g, 120);
+  const night = snapshot(s, p, g);
+  ok('night fog is a dense near-surface deck (low visibility)',
+     night.fogThickness > 200 && night.fogThickness < 4000 && night.visibility_m < 500,
+     `fog ${(night.fogThickness / 1000).toFixed(1)} km, visibility ${night.visibility_m.toFixed(0)} m`);
 }
 
 // ── 2. Saturation thermodynamics ─────────────────────────────────────────────

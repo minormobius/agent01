@@ -30,10 +30,10 @@
 import { CYLINDER } from '../../shared/geometry.mjs';
 
 export function defaultParams() {
-  const R = CYLINDER.R_hab, g0 = CYLINDER.g0;   // habitat wall radius (m); gravity (1 g)
+  const R = CYLINDER.R_hab, g0 = CYLINDER.gFloor;   // habitat floor radius (m); floor gravity (~0.8 g)
   return {
-    R, g0, omega: CYLINDER.omega,          // ω so the wall feels 1 g (≈0.035 rad/s at 8 km)
-    v0: 120,                               // jet exit speed, m/s (axis-reaching speed ωR ≈ 280)
+    R, g0, omega: CYLINDER.omega,          // 1 g at the outer radius ⇒ ~0.8 g at the floor (ω ≈ 0.031)
+    v0: 120,                               // jet exit speed, m/s (axis-reaching speed ωR ≈ 250)
     angleDeg: 15,                          // azimuthal aim from radial-inward (+ = prograde / with spin)
     nozzle: 'fan',                         // 'jet' | 'fan' | 'fansym' | 'mist'
     flowRate: 0.1,                         // m³/s per nozzle (100 L/s)
@@ -169,6 +169,20 @@ export function ventilationK(p, sim = simulate(p)) {
   return { K, depth };
 }
 
+// Jet mechanics — the engineering cost of a given exit speed. Mach (vs ~343 m/s in the
+// cabin air) and the stagnation pressure the pump must supply (½ρv²). Context: industrial
+// waterjet cutters run 300–600 MPa, so even a sonic water jet is a solved problem.
+const SOUND_SPEED = 343, RHO_W = 1000;
+export function jetMechanics(v0) {
+  const stagnationPressure_Pa = 0.5 * RHO_W * v0 * v0;
+  return {
+    mach: v0 / SOUND_SPEED,
+    stagnationPressure_MPa: stagnationPressure_Pa / 1e6,
+    stagnationPressure_bar: stagnationPressure_Pa / 1e5,
+    sonic: v0 >= SOUND_SPEED,
+  };
+}
+
 export const KNOWN_SIMPLIFICATIONS = [
   'Parcels are ballistic in the rotating frame with an effective drag time per nozzle; no parcel–parcel or jet–air momentum coupling (the air is treated as co-rotating).',
   'Drag τ is an effective coherence/breakup parameter, not raw Stokes — a coherent jet stays ballistic far past its droplets’ Reynolds limit.',
@@ -178,7 +192,8 @@ export const KNOWN_SIMPLIFICATIONS = [
 ];
 
 const Fountain = {
-  defaultParams, NOZZLES, specificEnergy, integrateParcel, simulate, ventilationK, KNOWN_SIMPLIFICATIONS,
+  defaultParams, NOZZLES, specificEnergy, integrateParcel, simulate, ventilationK,
+  jetMechanics, KNOWN_SIMPLIFICATIONS,
 };
 if (typeof globalThis !== 'undefined') globalThis.Fountain = Fountain;
 export default Fountain;

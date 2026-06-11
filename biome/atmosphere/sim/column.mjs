@@ -30,6 +30,7 @@
 // Pure, zero-dep, deterministic; attaches to globalThis. Units: SI (m, s, K, Pa, kg).
 
 import { CYLINDER } from '../../shared/geometry.mjs';
+import { columnBeam } from './optics.mjs';
 
 const Rd = 287.05;     // dry-air specific gas constant, J/kg/K
 const Rv = 461.5;      // water-vapour specific gas constant
@@ -47,9 +48,9 @@ export function eSat(T) {
 export const qSat = (T, P) => { const e = Math.min(eSat(T), 0.99 * P); return EPS * e / (P - e); };
 
 export function defaultParams() {
-  const R = CYLINDER.R_hab, g0 = CYLINDER.g0;   // habitat wall radius (m); gravity (1 g)
+  const R = CYLINDER.R_hab, g0 = CYLINDER.gFloor;   // habitat floor radius (m); floor gravity (~0.8 g)
   return {
-    R, g0, omega: CYLINDER.omega,        // spin rate so the wall feels 1 g (≈0.035 at 8 km)
+    R, g0, omega: CYLINDER.omega,        // spin rate (1 g at the outer radius ⇒ ~0.8 g at the floor)
     N: 64,                               // radial cells
     stretch: 1.8,                        // grid clustering toward the rim (1 = uniform)
 
@@ -83,6 +84,11 @@ export function defaultParams() {
     RH_init: 0.6,                        // initial relative humidity
     surfaceLayer: 300,                   // depth (m) the surface exchange is mixed into
     dewSettle: 1.5e-4,                   // fog→surface settling rate, 1/s (gravitational fallout)
+
+    // fog optics — the linear sun burning off the fog (Mie absorption; see optics.mjs)
+    irradiance: 500,                     // canopy design irradiance, W/m² (≈half a sun)
+    fogReff: 1e-5,                       // fog droplet effective radius, m (10 µm)
+    fogSolarAbsorption: 0.2,             // fraction of fog extinction that is absorption (NIR) → burn-off
 
     // fountain momentum coupling (Module 2b): a mechanical near-surface eddy diffusivity the
     // jet injects, on top of buoyant convection. Active independent of stability — it is the
@@ -224,6 +230,14 @@ export function step(s, p, g, dt) {
   for (let i = 0; i < N; i++) if (inLayer(i)) { q[i] += dQ; c[i] += dC; }
   for (let i = 0; i < N; i++) { if (c[i] < 0) c[i] = 0; if (q[i] < 0) q[i] = 0; }
 
+  // solar fog burn-off (Mie absorption): when lit, the linear sun's beam deposits absorbed
+  // power in the fog, warming it (θ up) so the moist adjustment below evaporates the droplets.
+  // The sun eats its own fog — strongest where the fog is thickest.
+  if (lit && p.fogSolarAbsorption > 0) {
+    const { absorbed } = columnBeam(p, g, liquid, rho);
+    for (let i = 0; i < N; i++) theta[i] += (absorbed[i] * dt) / (M[i] * cp);
+  }
+
   // back to temperature, then a MOIST ENTHALPY adjustment: condense/evaporate to the
   // consistent state where q = qSat(T) accounting for the latent-heat feedback on T, in one
   // step (the linearised factor 1 + (Lv/cp)·dqSat/dT prevents the overshoot that an explicit
@@ -270,12 +284,16 @@ export function snapshot(s, p, g) {
   const prof = profile(s, p, g);
   const T = prof.map((x) => x.T), Pp = prof.map((x) => x.P);
   const rim = prof[g.N - 1], axis = prof[0];
-  // fog layer: contiguous near-rim cells at/above saturation
-  let fogCells = 0; for (let i = g.N - 1; i >= 0; i--) { if (prof[i].RH >= 0.999) fogCells++; else break; }
+  // fog layer: contiguous near-surface cells holding actual liquid water (real fog, not just
+  // saturated-but-clear air) — the depth of the stratus deck against the canopy wall.
+  let fogCells = 0; for (let i = g.N - 1; i >= 0; i--) { if (prof[i].liquid > 1e-6) fogCells++; else break; }
   const fogThickness = fogCells > 0 ? (p.R - g.rf[g.N - fogCells]) : 0;
   // canopy CO₂ deficit: rim cell vs column mean (mass-weighted) — the dead-zone metric
   const Mtot = g.vol.reduce((a, V, i) => a + prof[i].rho * V, 0);
   const co2Mean = g.vol.reduce((a, V, i) => a + prof[i].co2_ppm * prof[i].rho * V, 0) / Mtot;
+  // fog optics: how much of the sun reaches the canopy through the haze, and the visibility
+  const rho = prof.map((x) => x.rho);
+  const beam = columnBeam(p, g, s.liquid, rho);
   return {
     day: s.t / 86400, sunlit: sunlit(p, s.t),
     T_rim: rim.T, T_axis: axis.T, T_span: Math.max(...T) - Math.min(...T),
@@ -283,6 +301,8 @@ export function snapshot(s, p, g) {
     RH_rim: rim.RH, fogThickness, fogCells,
     co2_rim_ppm: rim.co2_ppm, co2_axis_ppm: axis.co2_ppm, co2_mean_ppm: co2Mean,
     co2_canopyDeficit_ppm: co2Mean - rim.co2_ppm,
+    canopyLightFrac: beam.canopyTransmittance,        // fraction of the sun reaching the plants
+    fogOpticalDepth: beam.opticalDepth, visibility_m: beam.visibilityMin,
     dewCollected: s.dewCollected, profile: prof,
   };
 }

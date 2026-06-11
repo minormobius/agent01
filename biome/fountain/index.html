@@ -71,11 +71,14 @@
         <input id="ang" type="range" min="-60" max="60" step="2"></label>
       <label class="ctl"><span class="row"><span>Flow rate</span><b id="v-flow"></b></span>
         <input id="flow" type="range" min="20" max="800" step="20"></label>
+      <label class="ctl"><span class="row"><span>Floor gravity (sets the spin)</span><b id="v-grav"></b></span>
+        <input id="grav" type="range" min="0.4" max="1" step="0.05"></label>
       <div id="fverdict" class="verdict"></div>
       <div class="gauges" id="fgauges"></div>
-      <div class="note">Axis-reaching speed is ωR ≈ 280 m/s — push past it and water flies clear
-      across. The <b>symmetric fan</b> ignores the aim and broadcasts a balanced sheet; the spin
-      still smears it prograde into irrigation.</div>
+      <div class="note">Lower the floor gravity (1 g lives at the outer radius) and the spin eases,
+      so the axis-reaching speed ωR drops — the fountain throws farther for free. Ventilation needs
+      only ~48 m/s; sonic is only for crossing the whole bore, and waterjet cutters already run
+      &gt;3000 bar. The <b>symmetric fan</b> ignores the aim and broadcasts a balanced sheet.</div>
     </div>
   </section>
 
@@ -112,7 +115,7 @@
 </main>
 
 <script type="module">
-import { defaultParams as fountainParams, simulate, ventilationK } from './sim/fountain.mjs';
+import { defaultParams as fountainParams, simulate, ventilationK, jetMechanics } from './sim/fountain.mjs';
 import { budget } from './sim/light.mjs';
 import { CYLINDER } from '../shared/geometry.mjs';
 import { defaultParams as colParams, buildGrid, initState, step as colStep, snapshot } from '../atmosphere/sim/column.mjs';
@@ -126,7 +129,12 @@ function readJet(){
   fp = fountainParams();
   fp.nozzle=$('nozzle').value; fp.v0=parseFloat($('v0').value);
   fp.angleDeg=parseFloat($('ang').value); fp.flowRate=parseFloat($('flow').value)/1000;
-  $('v-v0').textContent=fp.v0+' m/s'; $('v-ang').textContent=fp.angleDeg+'°'; $('v-flow').textContent=(fp.flowRate*1000).toFixed(0)+' L/s';
+  const gFloor=parseFloat($('grav').value)*9.81;            // floor gravity → spin
+  fp.g0=gFloor; fp.omega=Math.sqrt(gFloor/fp.R);
+  const omegaR=fp.omega*fp.R, mech=jetMechanics(fp.v0);
+  $('v-v0').textContent=fp.v0+' m/s'; $('v-ang').textContent=fp.angleDeg+'°';
+  $('v-flow').textContent=(fp.flowRate*1000).toFixed(0)+' L/s';
+  $('v-grav').textContent=parseFloat($('grav').value).toFixed(2)+'g (ωR='+omegaR.toFixed(0)+')';
   sim=simulate(fp); vK=ventilationK(fp, sim);
   const vd=$('fverdict'); vd.className='verdict '+(sim.clearsInversion?'ok':'bad');
   vd.innerHTML = sim.clearsInversion
@@ -135,6 +143,8 @@ function readJet(){
   $('fgauges').innerHTML =
     gauge('Apex','+'+(sim.apexDepth/1000).toFixed(2)+'km','inward reach','var(--water)')+
     gauge('Coriolis drift',sim.meanDriftArc.toFixed(0)+'m','prograde','var(--gold)')+
+    gauge('Mach',mech.mach.toFixed(2),mech.sonic?'supersonic!':'subsonic',mech.sonic?'var(--warn)':'var(--leaf)')+
+    gauge('Pump',mech.stagnationPressure_bar.toFixed(0)+' bar','½ρv² (cutters: 3000+)','var(--dim)')+
     gauge('Spread',sim.spreadArc.toFixed(0)+'m','irrigation','var(--leaf)')+
     gauge('Ventilation K',vK.K.toFixed(0),'m²/s → column','var(--leaf)');
 }
@@ -172,10 +182,10 @@ function stepCol(){
   $('dot').classList.toggle('lit', colSnap.sunlit===1);
   $('clock').textContent = `day ${colSnap.day.toFixed(1)} · ${colSnap.sunlit?'sunlit ☉':'dark ☾'}`;
   $('cgauges').innerHTML =
-    gauge('Fog depth',(colSnap.fogThickness/1000).toFixed(1)+'km','from the wall','var(--water)')+
-    gauge('Canopy CO₂',colSnap.co2_rim_ppm.toFixed(0),'ppm at the wall','var(--leaf)')+
-    gauge('Air span',colSnap.T_span.toFixed(0)+'K','axis–wall','var(--dim)')+
-    gauge('Coupled K',($('engage').checked?vK.K.toFixed(0):'0'),'m²/s night pump',$('engage').checked?'var(--leaf)':'var(--dim)');
+    gauge('Fog depth',(colSnap.fogThickness/1000).toFixed(1)+'km','stratus deck','var(--water)')+
+    gauge('Canopy light',(colSnap.canopyLightFrac*100).toFixed(0)+'%','sun through haze',colSnap.canopyLightFrac>0.5?'var(--gold)':'var(--dim)')+
+    gauge('Visibility',colSnap.visibility_m<9999?colSnap.visibility_m.toFixed(0)+'m':'clear','Mie / Koschmieder','var(--dim)')+
+    gauge('Canopy CO₂',colSnap.co2_rim_ppm.toFixed(0),'ppm at the wall','var(--leaf)');
 }
 
 // ── render the cross-section ──
@@ -234,10 +244,10 @@ function draw(){
 function frame(){ tphase+=0.012; stepCol(); draw(); requestAnimationFrame(frame); }
 
 // init
-$('v0').value=160; $('ang').value=10; $('flow').value=120; $('suns').value=0.5; $('len').value=1000;
+$('v0').value=160; $('ang').value=10; $('flow').value=120; $('grav').value=0.8; $('suns').value=0.5; $('len').value=1000;
 readJet(); readLight(); resetCol();
-$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 coupled via the fountain’s mixing K.';
-for(const id of ['nozzle','v0','ang','flow']) $(id).addEventListener('input', readJet);
+$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 (with Mie fog burn-off) coupled via the fountain’s mixing K.';
+for(const id of ['nozzle','v0','ang','flow','grav']) $(id).addEventListener('input', readJet);
 for(const id of ['suns','len']) $(id).addEventListener('input', readLight);
 requestAnimationFrame(frame);
 </script>

@@ -197,11 +197,11 @@ function render(){
   $('sun').classList.toggle('lit', snap.sunlit===1);
   $('clock').textContent = `day ${snap.day.toFixed(2)} · ${snap.sunlit? 'sunlit ☉':'dark ☾'}`;
   $('gauges').innerHTML =
-    gauge('Pressure drop', (snap.P_drop*100).toFixed(1)+'%','axis vs rim','var(--gold)')+
+    gauge('Pressure drop', (snap.P_drop*100).toFixed(1)+'%','axis vs floor','var(--gold)')+
     gauge('Temp span', snap.T_span.toFixed(1)+'K','max−min','var(--warn)')+
-    gauge('Fog depth', snap.fogThickness.toFixed(0)+'m','saturated near rim','var(--water)')+
-    gauge('CO₂ canopy', snap.co2_canopyDeficit_ppm.toFixed(0)+'ppm', snap.co2_canopyDeficit_ppm>0?'depleted':'enriched','var(--leaf)')+
-    gauge('T axis / rim', snap.T_axis.toFixed(0)+'/'+snap.T_rim.toFixed(0)+'K','','var(--dim)')+
+    gauge('Fog depth', (snap.fogThickness/1000).toFixed(2)+'km','stratus deck','var(--water)')+
+    gauge('Canopy light', (snap.canopyLightFrac*100).toFixed(0)+'%', snap.sunlit?'sun through fog':'(dark)', snap.canopyLightFrac>0.5?'var(--gold)':'var(--dim)')+
+    gauge('Visibility', snap.visibility_m<9999?snap.visibility_m.toFixed(0)+'m':'clear','Mie / Koschmieder','var(--dim)')+
     gauge('Dew collected', (snap.dewCollected/1000).toFixed(1)+'t','per m of length','var(--water)');
   drawSlice(); drawProfiles();
 }
