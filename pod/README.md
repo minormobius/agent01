@@ -27,13 +27,13 @@ lexicons, and deploy wiring are in place. `/room` and `/prod` are documented pla
 | 2. Record locally per participant | **Built** (`/room`) | The "double-ender": each browser records **its own mic** at 128 kbps; WebRTC is monitoring only |
 | 3. Send recordings to an accessible location | **Built** | Chunked atproto blobs (byte-range slices) on each speaker's own PDS |
 | 4. Collect all recordings in one browser | **Built** (`/prod`) | Driven by the `session` manifest record |
-| 5. Sync tracks + edit down | **Sync built; editing pending** (`/prod`) | `/prod` verifies alignment by aligned playback; trim/mix is next |
-| 6. Bring in music tracks | To build (`/prod`) | Multitrack Web Audio mixer |
+| 5. Sync tracks + edit down | **Built** (`/prod`) | Aligned timeline + per-track gain/mute/solo + master in/out trim + render-down to WAV |
+| 6. Bring in music tracks | **Built** (`/prod`) | 8-bit chiptune beds rendered from `/music`'s synth (`lib/chiptune.js`) |
 
 ## The sync slice — what this build wires end-to-end
 
 `/room` (`room/studio.js`) + the `RoomCoordinator` DO (`worker.js`) + `/prod`
-(`prod/verify.js`) form a working loop:
+(`prod/editor.js`) form a working loop:
 
 1. **Sign in** via the shared `auth.mino.mobi` OAuth client (vendored to `pod/lib/auth.js`).
 2. **Join a room** — first opener is host; the `?r=<roomId>` link invites others. WebRTC
@@ -49,6 +49,29 @@ lexicons, and deploy wiring are in place. `/room` and `/prod` are documented pla
 6. **Verify in `/prod`** — load the session, pull every track's chunks (across PDSes),
    reassemble + decode, and play them aligned by `localStartOffsetMs`. If sync holds, the
    voices overlap naturally.
+
+## The /prod editor (this build)
+
+`/prod` (`prod/editor.js`) is now a working mixer, not just a verifier:
+
+- **Load** a session → every track's chunks are pulled across PDSes, reassembled,
+  decoded, and placed on one aligned timeline (by `localStartOffsetMs`).
+- **Per-track:** gain slider, mute (`M`), solo (`S`).
+- **Master trim:** in/out sliders crop the mix; the trimmed regions are shaded on every lane.
+- **8-bit music bed:** pick a bed, set its level, preview it, and it's mixed under the
+  voices. Beds come from `lib/chiptune.js` — a self-contained extraction of `/music`'s
+  Web Audio synth (`playNote` oscillator voices + `OfflineAudioContext` render). A bed is
+  rendered one loop offline then **tiled by sample-copy**, so an hour of bed costs one
+  short render plus a memcpy, not thousands of oscillator nodes. The "8-Bit Demo" is
+  lifted verbatim from `/music`; "Mellow Loop" and "Outro Pulse" are quieter authored beds.
+- **Transport:** live preview (per-track gains/mute/bed applied via gain nodes) and
+  **render-down** — one `OfflineAudioContext` mix of the audible tracks + bed, cropped to
+  the trim, encoded to WAV (the same encoder as `/music`'s export) and downloaded.
+
+Voice buffers are decoded once and reused across the online preview context and the
+offline render context (AudioBuffers are context-independent). The render is the seam to
+the next slice: instead of (or as well as) downloading, the mixdown becomes the chunked
+`com.minomobi.podcast.episode` audio.
 
 ### Prerequisites to actually run it
 
@@ -124,11 +147,13 @@ but empty, so the surface deploys before the schema does.
 
 1. ~~**Sync slice** — dual local recording + server epoch + chunked upload + `session`
    manifest, end-to-end for one room.~~ **Done (this build).**
-2. **Drift correction** — for long sessions, periodic re-pings + resample on a measured
-   per-client skew (the `clockSkewMs` field is already captured).
-3. `/prod` editing — trim, gain, crossfade, and music/bed tracks on the aligned timeline;
-   render-down via chunked `OfflineAudioContext`.
-4. `pod_episodes` D1 migration + the `/enclosure/<rkey>` chunk-stitching route.
-5. Publish flow → `episode` record → RSS.
+2. ~~`/prod` editing — gain/trim + music/bed tracks; render-down.~~ **Done (this build).**
+3. **Publish flow** — push the `/prod` mixdown back as a chunked
+   `com.minomobi.podcast.episode`; add the `pod_episodes` D1 migration + the
+   `/enclosure/<rkey>` chunk-stitching route so the RSS `<enclosure>` is one URL.
+4. **Drift correction** — for long sessions, periodic re-pings + resample on the measured
+   per-client `clockSkewMs` (already captured).
+5. Editor polish — crossfade, per-track trim handles, waveform display, ducking the bed
+   under speech.
 6. Robustness: progressive (during-recording) chunk upload for crash resilience; TURN
    relay for peers behind symmetric NAT; host-reconnect handling in the DO.
