@@ -12,6 +12,16 @@ export function solve_frame_json(req: string): string;
 
 export function solve_net_json(req: string): string;
 
+/**
+ * The foam-scale solve: a pin-jointed 3D truss with ~10⁵ DOF (foamview's shell
+ * sector). Typed arrays instead of JSON — at this size a JSON round-trip would cost
+ * more than the solve. `pos`/`load` are 3n long, `fixed` is 3n of 0/1 per DOF,
+ * `mi`/`mj`/`stiff` are per-member (stiff = EA/L). Returns
+ * `[converged, iters, relres, compliance, u(3n)…, force(M)…]`, or `[-1]` on a
+ * malformed call. Non-convergence (converged = 0) is the mechanism flag.
+ */
+export function solve_truss3d(pos: Float64Array, fixed: Uint8Array, load: Float64Array, mi: Uint32Array, mj: Uint32Array, stiff: Float64Array, tol: number, max_iter: number): Float64Array;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -19,6 +29,7 @@ export interface InitOutput {
     readonly hoop_json: (a: number, b: number, c: number) => void;
     readonly solve_frame_json: (a: number, b: number, c: number) => void;
     readonly solve_net_json: (a: number, b: number, c: number) => void;
+    readonly solve_truss3d: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number, o: number) => void;
     readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
