@@ -385,6 +385,10 @@ async function uploadTrack(blob, durationMs) {
     chunks.push(ref);
     log(`  uploaded chunk ${chunks.length}/${total} (${(part.size / 1024).toFixed(0)} KB)`);
   }
+  // Blob GC protection: the track record below references every chunk
+  // (chunks: [...]), which is what keeps the PDS from sweeping them. Abort if
+  // any upload didn't return a blob ref rather than write a dangling record.
+  if (!chunks.length || chunks.some((r) => !r || !r.ref)) throw new Error('a chunk did not return a blob ref — aborting');
 
   const record = {
     $type: 'com.minomobi.podcast.track',

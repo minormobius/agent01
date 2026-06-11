@@ -1,21 +1,22 @@
 # pod — minomobi Podcast Studio
 
 **Live at:** `pod.mino.mobi` *(domain attach pending — first deploy stands the worker up at `pod.workers.dev`)*
-**Stack:** Cloudflare Worker (assets binding) + D1 (shared `atpolls-db`) + ATProto PDS blobs
+**Stack:** Cloudflare Worker (assets binding) + Durable Object (room signaling) + ATProto PDS records & blobs. **No database.**
 **Deploy:** `.github/workflows/deploy-pod.yml`
 
 A browser podcast studio built on ATProto. Get people talking in a room, record each
-voice locally at full quality, collect the tracks, edit them down, publish an RSS feed.
+voice locally at full quality, collect the tracks, edit them down, and publish — to your
+own PDS. The service constructs per-publisher RSS and serves blobs; it keeps no central
+index and takes no editorial position on what gets made.
 
 ```
-pod.mino.mobi/          landing + RSS feed of published episodes
-pod.mino.mobi/room/     the lobby — permalinked rooms people join to record
-pod.mino.mobi/prod/     the editor — collect tracks, align, mix, publish
-pod.mino.mobi/feed.xml  iTunes-compatible RSS
+pod.mino.mobi/                    landing
+pod.mino.mobi/room/               the lobby — permalinked rooms people join to record
+pod.mino.mobi/prod/               the editor — collect tracks, align, mix, publish
+pod.mino.mobi/listen?handle=<h>   a per-show viewer (reads that publisher's PDS)
+pod.mino.mobi/app/                a general podcast client (subscribe to any RSS)
+pod.mino.mobi/u/<handle>/feed.xml a publisher's RSS, built live from their repo
 ```
-
-This directory is currently the **scaffold**: the worker, landing page, RSS generator,
-lexicons, and deploy wiring are in place. `/room` and `/prod` are documented placeholders.
 
 ---
 
@@ -140,22 +141,23 @@ consent screen covers them.
 
 ## Worker routes (`worker.js`)
 
+## The service: RSS construction + blob serving, nothing else
+
+**There is no central index of episodes and no editorial surface.** No global feed, no
+discovery directory, no "register your episode with us" endpoint, no D1. Every episode,
+track, and subscription is a record + blobs in its author's own PDS — what they publish,
+and whether they publish, is their responsibility. The worker does exactly two jobs:
+**construct per-publisher RSS** and **serve/stitch the blobs** behind it.
+
 | Route | Purpose |
 |---|---|
-| `GET /u/<handle-or-did>/feed.xml` | **Per-publisher RSS, owned by their PDS** — lists that repo's episode records live, no D1 (see below) |
-| `GET /feed.xml` | Communal RSS across all publishers, generated from `pod_episodes` (D1) |
-| `GET /api/episodes` | Communal JSON episode list (D1) |
-| `GET /api/episodes?handle=<h>` | One publisher's episodes, read straight from their PDS |
-| `POST /api/publish` | Add an episode to the *communal* discovery feed (resolves the record, caches a `pod_episodes` row) |
-| `GET /api/shows` | Distinct publishers on the communal feed (powers the `/shows` directory) |
-| `GET /api/fetch?url=<feed>` | **Guarded** server-side RSS proxy so `/app` can read any cross-origin feed |
+| `GET /u/<handle-or-did>/feed.xml` | **Per-publisher RSS, owned by their PDS** — lists that repo's episode records live |
+| `GET /api/episodes?handle=<h>` | One publisher's episodes, read straight from their PDS (powers `/listen?handle=`) |
 | `GET /enclosure?uri=<at-uri>` | Streams an episode's chunked blobs as one file (Range-aware) — the RSS `<enclosure>` |
+| `GET /api/fetch?url=<feed>` | **Guarded** server-side RSS proxy so `/app` can read any cross-origin feed |
 | `GET /api/health` | `{ ok: true, surface: "pod" }` |
-| `WS /api/room/<id>/ws` | Room coordinator signaling (see the sync slice) |
-| `/`, `/room/`, `/prod/`, `/listen/`, `/shows/`, `/app/`, assets | Served from the `ASSETS` binding |
-
-Every D1 read is **guarded** — until the `pod_episodes` migration lands the communal feed
-is valid but empty, so the surface deploys before the schema does.
+| `WS /api/room/<id>/ws` | Room coordinator signaling (Durable Object) |
+| `/`, `/room/`, `/prod/`, `/listen/`, `/app/`, assets | Served from the `ASSETS` binding |
 
 ### Per-publisher feeds are PDS-owned
 
@@ -164,19 +166,29 @@ records live in *their* repo (`com.minomobi.podcast.episode`) and the enclosure 
 from *their* PDS, so the worker just: resolve handle → DID → PDS, `listRecords` the episode
 collection, render RSS. The channel title / artwork / summary come from the publisher's
 Bluesky profile (`getProfile`). **Writing the episode record IS publishing the feed** —
-the user's RSS updates the moment `/prod` calls `createRecord`, with no write to our D1.
+the user's RSS updates the moment `/prod` calls `createRecord`. `/listen?handle=<h>` is the
+human view of one show, also sourced entirely from the PDS; with no handle it's just a box
+to type one in.
 
-`POST /api/publish` and the communal `/feed.xml` are *only* for cross-user discovery: they
-add a row to `pod_episodes` so an episode also shows on the all-publishers feed and the
-`/listen` home. A publisher who never hits `/api/publish` still has a complete, working,
-self-owned feed at `/u/<handle>/feed.xml`. `/listen?handle=<h>` is the human view of one
-show, also sourced from the PDS.
+### Blob lifecycle — GC protection
 
-## Discovery (`/shows`) + the podcast app (`/app`)
+A PDS keeps a blob **only while a record references it** (canonical blob ref:
+`{$type:'blob', ref:{$link:cid}, mimeType, size}`); unreferenced blobs are swept. Our flow
+is safe by construction:
 
-- **`/shows`** — a directory of every publisher (`/api/shows` = `DISTINCT did` over
-  `pod_episodes`), each hydrated with their Bluesky profile and linking to their
-  PDS-owned feed + an "Add to app" deep-link (`/app/?add=<feed>`).
+- `uploadBlob` returns that canonical blob object; we push it verbatim into the record
+  (`track.chunks` / `episode.audio`) and `createRecord` in the same flow, which **pins**
+  every chunk. Both `/room` and `/prod` also **guard**: if any upload doesn't return a
+  `ref`, they abort *before* writing the record, so we never create a record with a missing
+  ref (which would orphan that blob).
+- The desirable direction still holds: if a publish fails *after* some uploads, those blobs
+  are unreferenced and get swept — no leak.
+- Deleting an episode/track record unreferences its blobs, and they're swept on the next
+  GC. That's the correct lifecycle: the blobs cost the *user* storage, so removing the
+  record frees it.
+
+## The podcast app (`/app`)
+
 - **`/app`** — a real, self-contained podcast client (no build). Subscribe to **any** RSS
   feed, parse it client-side with `DOMParser`, and play episodes in a sticky player.
   - **Subscriptions are PDS records.** Signed in, each feed is a
@@ -198,8 +210,10 @@ show, also sourced from the PDS.
    manifest, end-to-end for one room.~~ **Done (this build).**
 2. ~~`/prod` editing — gain/trim + music/bed tracks; render-down.~~ **Done.**
 3. ~~**Publish flow** — `/prod` publishes the mixdown as a chunked
-   `com.minomobi.podcast.episode`; `pod_episodes` migration + the `/enclosure`
-   streaming route; `/listen` feed player; handle typeahead.~~ **Done (this build).**
+   `com.minomobi.podcast.episode` to the publisher's PDS; per-publisher `/u/<handle>/feed.xml`
+   built live from their repo; `/enclosure` streaming route; `/listen?handle=` viewer.~~
+   **Done.** (The global feed + D1 cache that briefly existed were ripped out — the
+   service is per-publisher RSS + blob serving only, no central index.)
    - **Known limit:** episodes publish as **WAV** (what `/prod` renders). The
      enclosure *streams* chunks so the worker never holds the whole file, but
      WAV is heavy on the publisher's PDS for long episodes. Next: encode the

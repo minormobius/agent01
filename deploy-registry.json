@@ -503,18 +503,15 @@
       "endpoint": "pod.mino.mobi (pending attach)",
       "type": "fullstack",
       "branch": "claude/podcast-studio-architecture-711cke",
-      "uses": [
-        "atpolls-db"
-      ],
+      "uses": [],
       "provides": null,
       "status": "MANAGED (domain pending) — scaffold onboarded to Actions (deploy-pod.yml). First deploy stands up worker `pod` at workers.dev; attach pod.mino.mobi in the dashboard to launch.",
       "paths": [
         "pod/**",
-        "poll/apps/api/migrations/0031_pod_episodes.sql",
         ".github/workflows/deploy-pod.yml"
       ],
-      "cohesion": "integrated",
-      "note": "Podcast studio + feed. /room (WebRTC recording lobby) + /prod (multitrack editor → publish) + /listen (feed player) + /feed.xml (RSS). Recordings + episodes stored as chunked atproto blobs on each speaker's PDS (com.minomobi.podcast.{track,session,episode}); the worker /enclosure route stitches episode chunks into one streamable URL. pod_episodes (D1) caches published episodes. audio/ rooms kept separate by decision."
+      "cohesion": "self-contained",
+      "note": "Podcast studio. No central index, no editorial surface — the worker only constructs RSS and serves blobs. /room (WebRTC recording lobby) + /prod (multitrack clip editor → publish) + /listen?handle= (per-show viewer) + /app (general RSS podcast client). Per-publisher feeds at /u/<handle>/feed.xml are built live from each author's PDS; /enclosure stitches an episode's chunked blobs into one streamable URL. Everything (tracks/episodes/subscriptions) is a record+blobs on the author's own PDS — no D1. RoomCoordinator DO does signaling only."
     },
     {
       "surface": "hoop",

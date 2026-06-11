@@ -8,13 +8,6 @@
     "directory": ".",
     "binding": "ASSETS"
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "atpolls-db",
-      "database_id": "fee2f25a-8b4a-4d46-b245-9d5da93c117d"
-    }
-  ],
   "durable_objects": {
     "bindings": [
       { "name": "ROOMS", "class_name": "RoomCoordinator" }

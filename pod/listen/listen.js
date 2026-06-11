@@ -1,16 +1,10 @@
-// pod/listen — the feed player. Lists published episodes from /api/episodes and
-// plays the worker's stitched /enclosure URL in a sticky bottom player.
+// pod/listen — a per-show viewer. With ?handle=/?did=, the episode list + RSS URL
+// are sourced entirely from that publisher's PDS. With no handle, it's just a
+// box to enter one — there is no global feed, by design.
 
 const $ = (id) => document.getElementById(id);
-
-// Per-publisher view when ?handle=/?did= is present: the feed + episode list are
-// sourced from that user's PDS, and the RSS URL is their PDS-owned feed.
-const params = new URLSearchParams(location.search);
-const who = params.get('handle') || params.get('did');
-const RSS = who
-  ? `https://pod.mino.mobi/u/${encodeURIComponent(who)}/feed.xml`
-  : 'https://pod.mino.mobi/feed.xml';
-const API = who ? `/api/episodes?handle=${encodeURIComponent(who)}` : '/api/episodes';
+const who = new URLSearchParams(location.search).get('handle')
+  || new URLSearchParams(location.search).get('did');
 
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -21,18 +15,29 @@ function fmtDur(sec) {
   const p = (n) => String(n).padStart(2, '0');
   return h > 0 ? `${h}:${p(m)}:${p(s)}` : `${m}:${p(s)}`;
 }
+function goHandle() {
+  const h = $('handleInput').value.trim().replace(/^@/, '');
+  if (h) location.search = '?handle=' + encodeURIComponent(h);
+}
 
-$('rssUrl').textContent = RSS;
-$('copyRss').addEventListener('click', () => {
-  navigator.clipboard.writeText(RSS).then(() => {
-    $('copyRss').textContent = 'Copied';
-    setTimeout(() => { $('copyRss').textContent = 'Copy'; }, 1500);
+let episodes = [];
+
+if (!who) {
+  // No show selected — show the handle-entry box only.
+  $('handleBox').style.display = '';
+  $('goHandle').addEventListener('click', goHandle);
+  $('handleInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') goHandle(); });
+} else {
+  const RSS = `https://pod.mino.mobi/u/${encodeURIComponent(who)}/feed.xml`;
+  $('subscribeBox').style.display = '';
+  $('rssUrl').textContent = RSS;
+  $('rssOpen').href = RSS;
+  $('copyRss').addEventListener('click', () => {
+    navigator.clipboard.writeText(RSS).then(() => {
+      $('copyRss').textContent = 'Copied';
+      setTimeout(() => { $('copyRss').textContent = 'Copy'; }, 1500);
+    });
   });
-});
-
-// Per-publisher header (name + avatar from their Bluesky profile).
-if (who) {
-  $('rssLbl').textContent = 'Subscribe to this show (RSS)';
   $('crumbWho').textContent = ' / show';
   $('title').textContent = '@' + who.replace(/^@/, '');
   $('pageSub').textContent = 'This show lives on the publisher’s PDS. Subscribe in any podcast app.';
@@ -46,20 +51,17 @@ if (who) {
       $('pageSub').textContent = bits.join(' · ');
     })
     .catch(() => {});
+
+  $('episodes').innerHTML = '<p class="empty">Loading…</p>';
+  fetch(`/api/episodes?handle=${encodeURIComponent(who)}`)
+    .then((r) => r.json())
+    .then(({ items }) => { episodes = items || []; render(); })
+    .catch(() => { $('episodes').innerHTML = '<p class="empty">Feed unavailable.</p>'; });
 }
-
-let episodes = [];
-
-fetch(API)
-  .then((r) => r.json())
-  .then(({ items }) => { episodes = items || []; render(); })
-  .catch(() => { $('episodes').innerHTML = '<p class="empty">Feed unavailable.</p>'; });
 
 function render() {
   if (!episodes.length) {
-    $('episodes').innerHTML = who
-      ? '<p class="empty">This show has no episodes yet.</p>'
-      : '<p class="empty">No episodes published yet. Record one in <a href="/room/">/room</a>, edit it in <a href="/prod/">/prod</a>, then publish.</p>';
+    $('episodes').innerHTML = '<p class="empty">This show has no episodes yet.</p>';
     return;
   }
   $('episodes').innerHTML = episodes

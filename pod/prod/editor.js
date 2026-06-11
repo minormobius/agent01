@@ -471,6 +471,11 @@ async function publishEpisode() {
       refs.push(await auth.pds.uploadBlob(await part.arrayBuffer(), 'audio/wav'));
       $('pubStatus').textContent = `uploading ${refs.length}/${total}…`;
     }
+    // Blob GC protection: a PDS keeps a blob only while a record references it.
+    // We embed every uploaded blob ref in the episode record below (audio: refs),
+    // which pins them. Guard against a malformed upload so we never write a
+    // record with a missing ref (which would orphan that blob → swept).
+    if (!refs.length || refs.some((r) => !r || !r.ref)) throw new Error('a chunk did not return a blob ref — aborting');
     const record = {
       $type: 'com.minomobi.podcast.episode',
       title: $('epTitle').value.trim() || 'Episode ' + new Date().toISOString().slice(0, 10),
@@ -481,17 +486,13 @@ async function publishEpisode() {
     };
     if (loadedSessionUri) record.session = loadedSessionUri;
 
-    $('pubStatus').textContent = 'writing episode record…';
+    $('pubStatus').textContent = 'writing episode record to your PDS…';
     const res = await auth.pds.createRecord('com.minomobi.podcast.episode', record);
-    $('pubStatus').textContent = 'registering on feed…';
-    const pr = await fetch('/api/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uri: res.uri }) });
-    const pj = await pr.json();
-    if (!pr.ok) throw new Error(pj.error || 'publish failed');
     $('pubStatus').textContent = 'published ✓';
     const who = encodeURIComponent(authUser.handle || authUser.did);
-    $('pubResult').innerHTML = `Published to your PDS. → <a class="inline" href="/listen?handle=${who}">your show</a> · ` +
-      `<a class="inline" href="/u/${who}/feed.xml">your RSS feed</a> (owned by your PDS) · ` +
-      `<a class="inline" href="/listen/">communal feed</a>`;
+    $('pubResult').innerHTML = `Published to your PDS — your feed updated instantly. → ` +
+      `<a class="inline" href="/listen?handle=${who}">your show</a> · ` +
+      `<a class="inline" href="/u/${who}/feed.xml">your RSS feed</a> (owned by your PDS)`;
     log('published episode:', res.uri);
     log('your PDS-owned feed: https://pod.mino.mobi/u/' + (authUser.handle || authUser.did) + '/feed.xml');
   } catch (e) {

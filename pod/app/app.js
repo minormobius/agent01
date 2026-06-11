@@ -10,7 +10,6 @@ import { AuthClient } from '../lib/auth.js';
 
 const $ = (id) => document.getElementById(id);
 const SUBS_KEY = 'pod.app.subs';
-const COMMUNAL = 'https://pod.mino.mobi/feed.xml';
 const COLLECTION = 'com.minomobi.podcast.subscription';
 const SCOPE = 'atproto transition:generic';
 
@@ -24,7 +23,6 @@ const cache = {};           // url -> parsed feed
 // ---- boot ------------------------------------------------------------------
 (async function init() {
   const add = new URLSearchParams(location.search).get('add');
-  if (!subs.length) subs.push({ url: COMMUNAL, title: 'minomobi · all shows' });
   if (add) addLocal(add, add, true);
   saveLocal();
   renderSubs();
@@ -95,12 +93,11 @@ async function syncFromPds() {
   } catch (_) { updateSyncUi('PDS sync unavailable.'); return; }
 
   const remoteUrls = new Set(remote.map((r) => r.url));
-  const localOnly = subs.filter((s) => !remoteUrls.has(s.url) && s.url !== COMMUNAL);
+  const localOnly = subs.filter((s) => !remoteUrls.has(s.url));
   for (const s of localOnly) { try { await pdsPut(s.url, s.title); } catch (_) {} }
 
-  // union: remote ∪ pushed local-only, keeping the communal seed visible
+  // union: PDS records ∪ pushed local-only feeds
   const byUrl = new Map();
-  for (const s of subs.filter((x) => x.url === COMMUNAL)) byUrl.set(s.url, s);
   for (const s of remote) byUrl.set(s.url, s);
   for (const s of localOnly) byUrl.set(s.url, { ...s, rkey: rkeyFor(s.url) });
   subs = [...byUrl.values()];
@@ -147,7 +144,7 @@ function renderSubs() {
 
 // ---- feed loading ----------------------------------------------------------
 async function selectFeed(url) {
-  if (!url) { $('feedHead').style.display = 'none'; $('episodes').innerHTML = '<p class="empty">No subscriptions. Paste a feed URL above, or <a href="/shows/">discover shows</a>.</p>'; renderSubs(); return; }
+  if (!url) { $('feedHead').style.display = 'none'; $('episodes').innerHTML = '<p class="empty">No subscriptions yet. Paste any podcast RSS feed URL above to start — or <a href="/listen/">view a minomobi show</a> and add its feed.</p>'; renderSubs(); return; }
   active = url;
   renderSubs();
   hideErr();

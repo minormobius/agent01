@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Listen — pod</title>
-  <link rel="alternate" type="application/rss+xml" title="minomobi Podcast Studio" href="/feed.xml" />
   <style>
     :root { --bg:#0e0f13; --panel:#16181f; --ink:#e9eaee; --muted:#9aa0ad; --accent:#e0573e; --green:#3ec07a; --line:#262932; }
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -40,20 +39,29 @@
   <div class="wrap">
     <div class="crumb"><a href="/">pod</a> / <a href="/listen/" id="crumbListen">listen</a><span id="crumbWho"></span></div>
     <h1 id="title">Listen<span class="dot">.</span></h1>
-    <p class="sub" id="pageSub">Episodes published from the studio. Tap to play, or subscribe in any podcast app.</p>
+    <p class="sub" id="pageSub">View a show. Every feed is owned by its publisher's PDS.</p>
 
-    <div class="subscribe">
-      <div class="lbl" id="rssLbl">Subscribe (RSS)</div>
+    <div class="subscribe" id="subscribeBox" style="display:none">
+      <div class="lbl" id="rssLbl">Subscribe to this show (RSS)</div>
       <div class="urlrow">
-        <code id="rssUrl">https://pod.mino.mobi/feed.xml</code>
+        <code id="rssUrl"></code>
         <button id="copyRss">Copy</button>
-        <a href="/feed.xml"><button>Open</button></a>
+        <a id="rssOpen" href="#"><button>Open</button></a>
       </div>
     </div>
 
-    <p class="sub" style="margin:0 0 16px"><a href="/shows/" style="color:var(--accent)">All shows →</a> · <a href="/app/" style="color:var(--accent)">Open the podcast app →</a></p>
+    <div class="subscribe" id="handleBox" style="display:none">
+      <div class="lbl">View a show by handle</div>
+      <div class="urlrow">
+        <input type="text" id="handleInput" placeholder="alice.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"
+          style="flex:1; min-width:0; background:#0e0f13; border:1px solid var(--line); border-radius:8px; padding:9px 11px; color:var(--ink); font-size:14px" />
+        <button id="goHandle">View</button>
+      </div>
+    </div>
 
-    <div id="episodes"><p class="empty">Loading…</p></div>
+    <p class="sub" style="margin:0 0 16px"><a href="/app/" style="color:var(--accent)">Open the podcast app →</a></p>
+
+    <div id="episodes"></div>
   </div>
 
   <div id="player">

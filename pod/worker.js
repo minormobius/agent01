@@ -1,11 +1,20 @@
-// pod.mino.mobi — podcast studio + feed worker.
+// pod.mino.mobi — podcast studio worker.
+//
+// The service is deliberately minimal: it constructs RSS and serves blobs.
+// There is NO central index of episodes and no editorial surface — every
+// episode/track/subscription lives in its author's own PDS, and that is their
+// responsibility, not ours.
 //
 // Surfaces:
-//   /            landing + episode listing (static index.html)
-//   /room/       live recording lobby (WebRTC mesh + dual local recording)
-//   /prod/       multitrack alignment verifier / editor
-//   /feed.xml    iTunes-compatible RSS of published episodes
-//   /api/*       JSON + WebSocket endpoints
+//   /                       landing (static)
+//   /room/                  live recording lobby (WebRTC mesh + dual local recording)
+//   /prod/                  multitrack clip editor → publish (writes to YOUR PDS)
+//   /listen, /app/          per-show viewer + general podcast client (static)
+//   /u/<handle>/feed.xml    per-publisher RSS, built live from THEIR repo
+//   /enclosure?uri=         streams an episode's chunked blobs as one file
+//   /api/episodes?handle=   one publisher's episodes, read from their PDS
+//   /api/fetch?url=         guarded RSS proxy for the in-house app
+//   /api/room/<id>/ws       room signaling (Durable Object)
 //
 // The room coordinator (RoomCoordinator Durable Object) is a thin signaling
 // relay: it relays WebRTC offer/answer/ICE for the live monitoring mesh, stamps
@@ -13,18 +22,8 @@
 // time-sync pings so each client can estimate its clock skew. No audio ever
 // touches the server — each browser records its own mic locally and uploads
 // chunked atproto blobs straight to its own PDS.
-//
-// Storage model: chunked atproto blobs (see pod/README.md). Published episodes
-// are `com.minomobi.podcast.episode` records cached in D1 (`pod_episodes`).
 
-const SITE = {
-  title: 'minomobi — Podcast Studio',
-  link: 'https://pod.mino.mobi',
-  description:
-    'Record conversations in the browser, edit them down, publish a podcast — built on ATProto.',
-  language: 'en-us',
-  author: 'minomobi',
-};
+const SITE = { link: 'https://pod.mino.mobi' };
 
 export default {
   async fetch(request, env) {
@@ -34,28 +33,19 @@ export default {
     if (pathname === '/health' || pathname === '/api/health') {
       return json({ ok: true, surface: 'pod', ts: Date.now() });
     }
-    if (pathname === '/feed.xml' || pathname === '/feed' || pathname === '/rss') {
-      return feedXml(env);
-    }
-    // Per-publisher feed, owned by their PDS: /u/<handle-or-did>/feed.xml. No D1
-    // — the episode records live in the user's repo, so we list them live.
+    // Per-publisher feed, owned by their PDS: /u/<handle-or-did>/feed.xml. The
+    // episode records live in the user's repo, so we list them live — no central
+    // index, no editorial surface. This worker only builds RSS + serves blobs.
     const userFeed = pathname.match(/^\/u\/([^/]+)\/feed(?:\.xml)?$/);
     if (userFeed) {
       return userFeedXml(decodeURIComponent(userFeed[1]));
     }
+    // Per-publisher episode list (powers /listen?handle=) — read from their PDS.
     if (pathname === '/api/episodes') {
       const who = url.searchParams.get('handle') || url.searchParams.get('did');
-      if (who) {
-        try { const { items } = await episodesFromPds(who); return json({ items, source: 'pds' }); }
-        catch (e) { return json({ items: [], error: String(e.message || e) }); }
-      }
-      return json({ items: await listEpisodes(env) });
-    }
-    if (pathname === '/api/publish' && request.method === 'POST') {
-      return publishEpisode(request, env);
-    }
-    if (pathname === '/api/shows') {
-      return json({ shows: await listShows(env) });
+      if (!who) return json({ error: 'handle or did required' }, 400);
+      try { const { items } = await episodesFromPds(who); return json({ items, source: 'pds' }); }
+      catch (e) { return json({ items: [], error: String(e.message || e) }); }
     }
     if (pathname === '/api/fetch') {
       return proxyFeed(url.searchParams.get('url'));
@@ -78,46 +68,7 @@ export default {
   },
 };
 
-// --- RSS / episodes ----------------------------------------------------------
-
-async function listEpisodes(env) {
-  // Guarded: `pod_episodes` arrives in a later migration. Until then the feed is
-  // valid but empty, so the surface deploys before the schema lands.
-  try {
-    const rows = await env.DB.prepare(
-      `SELECT guid, title, description, audio_url, mime, length_bytes,
-              duration_sec, pub_date, episode_number, season_number
-         FROM pod_episodes
-        ORDER BY pub_date DESC
-        LIMIT 200`
-    ).all();
-    return rows.results || [];
-  } catch (_) {
-    return [];
-  }
-}
-
-async function feedXml(env) {
-  const items = (await listEpisodes(env)).map(itemXml).join('\n');
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"
-  xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
-  xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>${esc(SITE.title)}</title>
-    <link>${esc(SITE.link)}</link>
-    <description>${esc(SITE.description)}</description>
-    <language>${esc(SITE.language)}</language>
-    <atom:link href="${esc(SITE.link)}/feed.xml" rel="self" type="application/rss+xml"/>
-    <itunes:author>${esc(SITE.author)}</itunes:author>
-    <itunes:explicit>false</itunes:explicit>
-${items}
-  </channel>
-</rss>`;
-  return new Response(xml, {
-    headers: { 'content-type': 'application/rss+xml; charset=utf-8' },
-  });
-}
+// --- RSS item rendering ------------------------------------------------------
 
 function itemXml(e) {
   const lines = [
@@ -165,9 +116,8 @@ function json(obj, status = 200) {
 //
 // The episode records live in each publisher's repo and the enclosure streams
 // from their PDS, so a per-user feed needs no central state: resolve identity,
-// list that repo's com.minomobi.podcast.episode records, render RSS. Publishing
-// (writing the record) IS publishing the feed — the communal /api/publish is
-// only for cross-user discovery on /feed.xml.
+// list that repo's com.minomobi.podcast.episode records, render RSS. Writing the
+// record IS publishing the feed — there's nothing to register with us.
 async function userFeedXml(idOrHandle) {
   let did, items;
   try {
@@ -267,26 +217,8 @@ async function getProfileServer(did) {
   } catch (_) { return null; }
 }
 
-// --- discovery + feed proxy --------------------------------------------------
+// --- feed proxy --------------------------------------------------------------
 //
-// Distinct publishers on the communal feed, newest activity first. Each is a
-// real PDS-owned show at /u/<did>/feed.xml.
-async function listShows(env) {
-  try {
-    const rows = await env.DB.prepare(
-      `SELECT did, COUNT(*) AS episodes, MAX(pub_date) AS latest
-         FROM pod_episodes
-        WHERE did IS NOT NULL
-        GROUP BY did
-        ORDER BY latest DESC
-        LIMIT 200`
-    ).all();
-    return rows.results || [];
-  } catch (_) {
-    return [];
-  }
-}
-
 // Server-side RSS fetch so the in-house podcast app can read ANY feed (browsers
 // block cross-origin XML). Guarded against SSRF/abuse: http(s) only, private
 // hosts blocked, feed-ish content-types only, size-capped. Audio enclosures are
@@ -328,45 +260,8 @@ function isBlockedHost(h) {
   return false;
 }
 
-// --- publish + enclosure -----------------------------------------------------
+// --- enclosure ---------------------------------------------------------------
 //
-// Publish: /prod uploads the mixdown as chunked blobs to the publisher's PDS and
-// writes a com.minomobi.podcast.episode record, then POSTs the record URI here.
-// We resolve it (public read) and cache a row in pod_episodes so the feed +
-// player can list it. Open by design for v1 — anyone who can write the record
-// can list it on the communal feed.
-async function publishEpisode(request, env) {
-  let body;
-  try { body = await request.json(); } catch { return json({ error: 'bad json' }, 400); }
-  const uri = body && body.uri;
-  if (!uri || !/^at:\/\//.test(uri)) return json({ error: 'uri required' }, 400);
-
-  let rec;
-  try { rec = await getRecordServer(uri); }
-  catch (e) { return json({ error: 'could not resolve episode: ' + (e.message || e) }, 502); }
-
-  const v = rec.value || {};
-  if (v.$type && v.$type !== 'com.minomobi.podcast.episode') {
-    return json({ error: 'not a podcast episode record' }, 400);
-  }
-  const { did } = parseAtUri(uri);
-  const audioUrl = `https://pod.mino.mobi/enclosure?uri=${encodeURIComponent(uri)}`;
-  try {
-    await env.DB.prepare(
-      `INSERT OR REPLACE INTO pod_episodes
-        (guid, did, title, description, audio_url, mime, length_bytes, duration_sec, pub_date, episode_number, season_number, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).bind(
-      uri, did, v.title || 'Untitled', v.description || '', audioUrl, v.mimeType || 'audio/wav',
-      v.lengthBytes || 0, v.durationSec || 0, v.pubDate || new Date().toISOString(),
-      v.episodeNumber ?? null, v.seasonNumber ?? null, new Date().toISOString()
-    ).run();
-  } catch (e) {
-    return json({ error: 'db insert failed: ' + (e.message || e) }, 500);
-  }
-  return json({ ok: true, audioUrl, feed: 'https://pod.mino.mobi/feed.xml' });
-}
-
 // Enclosure: stitch the episode's ordered audio chunks behind one URL. STREAMS
 // the chunks (one ≤4 MB chunk in memory at a time) instead of buffering the
 // whole file, and honours Range requests so podcast players can seek.
