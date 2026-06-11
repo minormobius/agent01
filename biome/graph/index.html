@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>biome · the trophic web — a living force-directed food web over land &amp; lake</title>
-<meta name="description" content="A force-directed graph of the closed cylinder's whole trophic web: every node a real organism with its photo, sized by its present standing biomass, land and lake food webs side by side with the land↔water interface drawn explicit." />
+<title>biome · the trophic web — three contained habitats, one intermingled food web</title>
+<meta name="description" content="A force-directed graph of the cylinder's maximalist closed ecology: terrestrial, aquatic and chthonic soil webs, each held in its own basin, wired together by an amphibian and a waterbird. Every node is a real organism, sized by its present standing biomass." />
 <style>
   :root{
     --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
     --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
-    --land:#6cc27f; --lake:#5aa9d8; --pool:#caa6e0; --crew:#e0a06a;
+    --land:#6cc27f; --lake:#5aa9d8; --soil:#c39b6a; --pool:#caa6e0; --crew:#e0a06a; --bridge:#e6c14f;
     --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
@@ -21,10 +21,9 @@
   header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
   h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}
   h1 small{color:var(--dim);font-weight:400;letter-spacing:0;font-size:13px}
-  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:96ch;line-height:1.55}
-  .sub b{color:var(--txt)} .sub .l{color:var(--land)} .sub .w{color:var(--water)} .sub .p{color:var(--pool)}
-  .sub a{color:var(--gold)}
-  main{display:grid;grid-template-columns:288px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:98ch;line-height:1.55}
+  .sub b{color:var(--txt)} .sub .l{color:var(--land)} .sub .w{color:var(--water)} .sub .s{color:var(--soil)} .sub .b{color:var(--bridge)} .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:286px 1fr;gap:16px;padding:16px 20px;align-items:start}
   @media(max-width:920px){main{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px}
   .panel h2{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
@@ -44,19 +43,19 @@
     border:1px solid var(--line);border-radius:10px;touch-action:none;cursor:grab}
   canvas.grabbing{cursor:grabbing}
   .legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:9px}
+  .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:5px}
   .legend i{display:inline-block;width:15px;height:0;border-top-width:2px;border-top-style:solid;vertical-align:middle;margin-right:5px}
-  .legend .dot{width:10px;height:10px;border-radius:50%;border-top:0;display:inline-block;vertical-align:middle;margin-right:5px}
   .note{font-size:11.5px;color:var(--dim);margin-top:11px;line-height:1.55}
-  .note b{color:var(--txt)} .note .l{color:var(--land)} .note .w{color:var(--water)} .note .p{color:var(--pool)}
-  /* hover / pinned info card, floats over the canvas */
+  .note b{color:var(--txt)} .note .l{color:var(--land)} .note .w{color:var(--water)} .note .s{color:var(--soil)} .note .b{color:var(--bridge)}
+  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;border:1px solid #5a342c;
+    color:#f0c4b4;border-radius:8px;padding:10px 12px;font-size:12px;white-space:pre-wrap}
   #info{position:absolute;display:none;max-width:248px;background:rgba(12,20,17,.96);border:1px solid var(--line);
     border-radius:10px;padding:0;overflow:hidden;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.5);z-index:5}
   #info .ph{width:100%;height:104px;background:#0a1310 center/cover no-repeat;border-bottom:1px solid var(--line)}
   #info .bd{padding:10px 12px}
   #info .nm{font-weight:600;font-size:13.5px}
   #info .sci{font-style:italic;color:var(--dim);font-size:11.5px;margin-top:1px}
-  #info .tag{display:inline-block;font-size:10px;letter-spacing:.5px;text-transform:uppercase;
-    padding:2px 6px;border-radius:99px;margin-top:7px}
+  #info .tag{display:inline-block;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:99px;margin-top:7px}
   #info .big{font-size:20px;font-weight:600;margin-top:8px}
   #info .big small{font-size:11px;color:var(--dim);font-weight:400}
   #info .rel{font-size:11px;color:var(--dim);margin-top:7px;line-height:1.5}
@@ -68,26 +67,25 @@
   .g .u{font-size:10px;color:var(--dim)}
   .verdict{font-size:12px;padding:9px 11px;border-radius:8px;margin-bottom:11px;border:1px solid var(--line)}
   .verdict.ok{background:#13241a;border-color:#2c5a3c}
-  .verdict.bad{background:#251612;border-color:#5a342c}
+  .verdict.warn{background:#23200f;border-color:#5a4f2c}
   .hint{font-size:11px;color:var(--dim);margin-top:7px}
-  footer{padding:14px 20px 30px;border-top:1px solid var(--line);margin-top:6px;
-    font:11.5px/1.6 var(--mono);color:var(--dim)}
+  footer{padding:14px 20px 30px;border-top:1px solid var(--line);margin-top:6px;font:11.5px/1.6 var(--mono);color:var(--dim)}
   footer a{color:var(--gold);text-decoration:none}
 </style>
 </head>
 <body>
 <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">biome</a> / graph</div>
 <header>
-  <h1>biome · the trophic web <small>— one force-directed web, land + lake, sized by living biomass</small></h1>
-  <div class="sub">Every node is a <b>real organism</b> wearing its own photograph; its <b>area is its present
-    standing biomass</b> in the closed run. The <span class="l">terrestrial</span> food web grows on the cylinder
-    floor; the <span class="w">aquatic</span> web lives in the <b>lake</b> basin. They are
-    <b>trophically disjoint</b> — no land animal eats a lake plankter — yet <b>abiotically fused</b>: both breathe
-    one <span class="p">air</span>, draw one <span class="p">nitrogen</span> pool, drain to one
-    <span class="p">detritus</span> pool, and feed one crew from one <span class="p">larder</span>. Those shared
-    pools, drawn down the shoreline, <b>are the interface</b>. Drag nodes, scroll to zoom, hover for a card.
-    &nbsp;→ <a href="../cycles/global.html">global box model</a> · <a href="../cycles/lake.html">lake bioengine</a> ·
-    <a href="../cycles/builder.html">build your own</a></div>
+  <h1>biome · the trophic web <small>— three contained habitats, one intermingled food web</small></h1>
+  <div class="sub">The maximalist closed ecology, drawn as a living graph. Three habitats are each held in
+    their own <b>basin</b> — the <span class="l">terrestrial</span> web, the <span class="w">lake</span>, and the
+    chthonic <span class="s">soil</span> web — and the whole thing is wired together by two <span class="b">cross-web
+    couplers</span>: a <b>marsh frog</b> (tadpoles graze the lake, adults eat soil springtails) bridging
+    <span class="w">lake</span>↔<span class="s">soil</span>, and a farmed <b>duck</b> grazing duckweed and crop, bridging
+    <span class="w">lake</span>↔<span class="l">land</span>. Every node is a real organism wearing its photo, sized by its
+    <b>present standing biomass</b>; the shared pools (air · N · detritus · larder) sit in the middle, where all three
+    webs meet. Drag nodes, scroll to zoom, hover for a card.
+    &nbsp;→ <a href="../cycles/robustness.html">does this coupling help?</a> · <a href="../cycles/global.html">box model</a></div>
 </header>
 <main>
   <section class="panel" id="side">
@@ -96,7 +94,7 @@
     <h2>Living knobs — biomass re-sizes live</h2>
     <div id="controls"></div>
     <h2 style="margin-top:14px">View</h2>
-    <label class="toggle"><input type="checkbox" id="tg-interface"> <span>Highlight the land↔lake <b style="color:var(--pool)">interface</b></span></label>
+    <label class="toggle"><input type="checkbox" id="tg-interface"> <span>Highlight the <b style="color:var(--bridge)">cross-web couplers</b></span></label>
     <label class="toggle"><input type="checkbox" id="tg-labels" checked> <span>Show name labels</span></label>
     <label class="toggle"><input type="checkbox" id="tg-photos" checked> <span>Show organism photos</span></label>
     <div class="btns">
@@ -104,167 +102,149 @@
       <button id="btn-pause">⏸ pause</button>
       <button id="btn-fit">⤢ fit</button>
     </div>
-    <div class="hint">Tip: a node's <b>ring colour</b> says which web it belongs to; abiotic
-      <b style="color:var(--pool)">pools</b> are hexagons on the shoreline.</div>
+    <div class="hint">Each organism is held inside its habitat basin; the frog and duck float in the gaps,
+      tied by their diet to the basins they feed from.</div>
   </section>
 
   <section>
     <div class="stage">
-      <canvas id="web" width="1180" height="760"></canvas>
+      <canvas id="web" width="1280" height="840"></canvas>
+      <div id="err"></div>
       <div id="info"></div>
     </div>
     <div class="legend">
-      <span><span class="dot" style="background:var(--land)"></span>land organism</span>
-      <span><span class="dot" style="background:var(--lake)"></span>lake organism</span>
+      <span><span class="dot" style="background:var(--land)"></span>land</span>
+      <span><span class="dot" style="background:var(--lake)"></span>lake</span>
+      <span><span class="dot" style="background:var(--soil)"></span>soil</span>
+      <span><span class="dot" style="background:var(--bridge)"></span>coupler</span>
       <span><span class="dot" style="background:var(--pool)"></span>shared pool</span>
-      <span><span class="dot" style="background:var(--crew)"></span>crew</span>
       &nbsp;
       <span><i style="border-color:#8aa99a"></i>eats</span>
-      <span><i style="border-color:var(--gold);border-top-style:dashed"></i>pollinates</span>
-      <span><i style="border-color:var(--gold)"></i>harvest → larder</span>
+      <span><i style="border-color:var(--bridge)"></i>cross-web</span>
+      <span><i style="border-color:var(--gold)"></i>harvest</span>
       <span><i style="border-color:var(--leaf)"></i>fixes CO₂</span>
-      <span><i style="border-color:var(--water);border-top-style:dotted"></i>N uptake</span>
-      <span><i style="border-color:#b08968;border-top-style:dashed"></i>waste → detritus</span>
     </div>
     <div class="note" id="couplings"></div>
   </section>
 </main>
-
 <footer id="foot"></footer>
 
 <script type="module">
-import { globalParams, globalReport, buildGlobalGraph } from '../cycles/sim/global.mjs';
+// Everything below is wrapped so a failure shows on the page instead of a blank canvas.
+const errEl = document.getElementById('err');
+function showErr(where, e) {
+  const msg = `⚠ ${where}: ${(e && (e.stack || e.message)) || e}`;
+  errEl.textContent = msg; errEl.style.display = 'block';
+  console.error(where, e);
+}
+window.addEventListener('error', (ev) => showErr('runtime', ev.error || ev.message));
+window.addEventListener('unhandledrejection', (ev) => showErr('promise', ev.reason));
+
+import { maximalParams, maximalReport, buildMaximalGraph, containerOf } from '../cycles/sim/maximal.mjs';
 import { molCtoKgWet } from '../cycles/sim/lake.mjs';
 
-// ── Model: one params object, re-run on knob change. Standing biomass drives node size. ──
-const params = globalParams();
+const params = maximalParams();
 const perCrewAir = params.airVolume_m3 / params.crew;
 const perCrewWater = params.waterReservoir_L / params.crew;
 const spec = (id) => params.species.find((s) => s.id === id);
 
-// ── Imagery: real photos keyed by organism id (built by build-organisms.mjs from iNaturalist). ──
-let PHOTOS = {};
-const IMG = {};               // id → HTMLImageElement (or null while loading / unavailable)
+// ── imagery ──
+let PHOTOS = {}; const IMG = {};
 async function loadPhotos() {
   try {
-    const r = await fetch('./organisms.json');
-    const j = await r.json();
-    PHOTOS = j.organisms || {};
-  } catch { PHOTOS = {}; }
+    const r = await fetch('./organisms.json'); const j = await r.json(); PHOTOS = j.organisms || {};
+  } catch (e) { showErr('photos', e); PHOTOS = {}; }
   for (const [id, o] of Object.entries(PHOTOS)) {
-    const url = o.inat?.photo || o.inat?.thumb;
-    if (!url) continue;
-    const img = new Image();          // no crossOrigin: we only ever DRAW (never read pixels)
-    img.onload = () => { IMG[id] = img; };
-    img.onerror = () => { IMG[id] = null; };
+    const url = o.inat?.photo || o.inat?.thumb; if (!url) continue;
+    const img = new Image();                       // no crossOrigin — we only ever DRAW the image
+    img.onload = () => { IMG[id] = img; }; img.onerror = () => { IMG[id] = null; };
     img.src = url;
   }
 }
 
-// ── Scene geometry (world coordinates). The lake basin is a real region; pools sit on the
-//    shoreline spine between land (left) and lake (right) — that spine IS the interface. ──
-const WORLD = { w: 1180, h: 760 };
-const SPINE_X = 632;                                   // the shoreline / interface column
-const BASIN = { cx: 905, cy: 470, rx: 268, ry: 196 };  // the lake (left edge ≈ touches the spine)
-const LAND = { cx: 318, cy: 430 };
-
-// Pools are scaffolding: pinned on the shoreline (air spans the top). Crew hangs below the larder.
+// ── scene: three habitat basins + a central shared-pool zone, couplers in the gaps ──
+const WORLD = { w: 1280, h: 840 };
+const BASINS = {
+  land: { cx: 312, cy: 250, rx: 232, ry: 178, fill: ['#236b46', '#123a26', '#0b2418'], rim: 'rgba(120,205,150,0.5)', label: 'LAND', lc: 'rgba(108,194,127,0.6)' },
+  lake: { cx: 968, cy: 262, rx: 252, ry: 188, fill: ['#1f5f7e', '#143e58', '#0c2536'], rim: 'rgba(120,180,205,0.55)', label: 'THE LAKE', lc: 'rgba(90,169,216,0.65)' },
+  soil: { cx: 640, cy: 658, rx: 322, ry: 150, fill: ['#5a4326', '#3a2c18', '#241a0e'], rim: 'rgba(200,160,110,0.5)', label: 'THE SOIL', lc: 'rgba(195,155,106,0.62)' },
+};
 const POOL_POS = {
-  air:      { x: SPINE_X, y: 70 },
-  nMineral: { x: SPINE_X, y: 286 },
-  litter:   { x: SPINE_X, y: 452 },   // detritus, at the waterline — leaf-litter ↔ benthic mud
-  food:     { x: SPINE_X, y: 600 },
-  crew:     { x: SPINE_X, y: 694 },
+  air:      { x: 640, y: 70 },
+  nMineral: { x: 520, y: 408 },
+  litter:   { x: 640, y: 372 },   // detritus — every web drains here
+  food:     { x: 760, y: 408 },
+  crew:     { x: 640, y: 470 },
 };
-// Per-organism anchor offsets from their region centre, arranged by trophic height so the web
-// reads vertically: pollinators/predators up, producers at grade, decomposers/benthos at the floor.
-const LAND_OFF = {
-  bee:        { x: -36, y: -150 },
-  spider:     { x:  64, y: -86 },
-  tree:       { x: -98, y: -6 },
-  crop:       { x: -20, y: 86 },
-  reed:       { x: 104, y: 110 },     // reeds at the wet shore edge
-  springtail: { x: -70, y: 176 },     // soil litter, below grade
-};
-const LAKE_OFF = {
-  duckweed:   { x:  44, y: -150 },    // floating macrophyte, at the surface
-  algae:      { x: -150, y: -118 },   // phytoplankton, near surface
-  daphnia:    { x: -36, y: -28 },     // zooplankton, mid-water
-  fish:       { x:  74, y:  18 },     // tilapia, mid/deep
-  mussel:     { x: -126, y: 120 },    // benthic filter feeder
-  microbe:    { x:  60, y: 138 },     // benthic detritus community
+const BRIDGE_POS = { duck: { x: 640, y: 210 }, frog: { x: 832, y: 470 } };  // gaps between the basins
+// per-organism offset from its basin centre, by trophic height (predators up, producers grade, decomposers low)
+const OFF = {
+  bee:{x:-30,y:-118}, spider:{x:70,y:-66}, tree:{x:-104,y:-8}, crop:{x:-10,y:84}, reed:{x:108,y:78},
+  duckweed:{x:48,y:-128}, algae:{x:-150,y:-104}, daphnia:{x:-26,y:-18}, fish:{x:78,y:26}, mussel:{x:-130,y:104}, microbe:{x:54,y:120},
+  springtail:{x:-180,y:-30}, worm:{x:30,y:32}, fungus:{x:170,y:-26},
 };
 
-// ── Edge styling. ──
 const EDGE_STYLE = {
-  trophic:    { color:'#8aa99a', w:1.4, dash:[],     alpha:.78 },
-  pollinates: { color:'#d8b25a', w:1.5, dash:[5,4],  alpha:.85 },
-  harvest:    { color:'#d8b25a', w:2.1, dash:[],     alpha:.9  },
-  fix:        { color:'#62b87a', w:1.2, dash:[],     alpha:.55 },
-  uptake:     { color:'#5aa9d8', w:1.1, dash:[2,3],  alpha:.55 },
-  respire:    { color:'#3f5249', w:0.9, dash:[1,4],  alpha:.5  },
-  eat:        { color:'#e0a06a', w:2.0, dash:[],     alpha:.8  },
-  waste:      { color:'#b08968', w:1.5, dash:[3,3],  alpha:.7  },
+  trophic:    { color:'#8aa99a', w:1.4, dash:[],    alpha:.72 },
+  pollinates: { color:'#d8b25a', w:1.5, dash:[5,4], alpha:.85 },
+  harvest:    { color:'#d8b25a', w:2.0, dash:[],    alpha:.9  },
+  fix:        { color:'#62b87a', w:1.2, dash:[],    alpha:.5  },
+  uptake:     { color:'#5aa9d8', w:1.1, dash:[2,3], alpha:.5  },
+  respire:    { color:'#3f5249', w:0.9, dash:[1,4], alpha:.45 },
+  eat:        { color:'#e0a06a', w:2.0, dash:[],    alpha:.8  },
+  waste:      { color:'#b08968', w:1.5, dash:[3,3], alpha:.7  },
 };
-// Edges that cross between an organism web and a shared pool are the COUPLING (the interface).
 const POOL_IDS = new Set(['air','nMineral','litter','food','crew']);
-const groupColor = (g) => g==='land'?'#6cc27f':g==='lake'?'#5aa9d8':g==='crew'?'#e0a06a':'#caa6e0';
+const contColor = (c) => c==='land'?'#6cc27f':c==='lake'?'#5aa9d8':c==='soil'?'#c39b6a':c==='bridge'?'#e6c14f':c==='crew'?'#e0a06a':'#caa6e0';
 
-// ── Node graph. nodes[] mirror buildGlobalGraph, augmented with sim state + biomass. ──
 let nodes = [], edges = [], byId = {};
 function buildNodes() {
-  const g = buildGlobalGraph(params);
-  const prev = byId;                                   // preserve positions across re-runs
-  nodes = []; byId = {};
+  const g = buildMaximalGraph(params);
+  const prev = byId; nodes = []; byId = {};
   for (const n of g.nodes) {
     const old = prev[n.id];
-    const isPool = n.group === 'pool' || n.group === 'crew';
-    let x, y, anchor;
-    if (isPool) { anchor = POOL_POS[n.id] || { x: SPINE_X, y: 400 }; x = anchor.x; y = anchor.y; }
-    else if (n.group === 'land') { const o = LAND_OFF[n.id] || {x:0,y:0}; anchor = { x: LAND.cx+o.x, y: LAND.cy+o.y }; x = anchor.x; y = anchor.y; }
-    else { const o = LAKE_OFF[n.id] || {x:0,y:0}; anchor = { x: BASIN.cx+o.x, y: BASIN.cy+o.y }; x = anchor.x; y = anchor.y; }
-    const node = {
-      ...n, isPool, anchor,
-      x: old ? old.x : x + (Math.random()-.5)*30,
-      y: old ? old.y : y + (Math.random()-.5)*30,
-      vx: 0, vy: 0, r: 22, targetR: 22, fixed: false,
-    };
-    nodes.push(node); byId[n.id] = node;
+    const isPool = n.container === 'pool' || n.container === 'crew';
+    const isBridge = n.container === 'bridge';
+    let ax, ay;
+    if (isPool) { const p = POOL_POS[n.id] || { x:640, y:420 }; ax = p.x; ay = p.y; }
+    else if (isBridge) { const p = BRIDGE_POS[n.id] || { x:640, y:420 }; ax = p.x; ay = p.y; }
+    else { const b = BASINS[n.container]; const o = OFF[n.id] || {x:0,y:0}; ax = b.cx + o.x; ay = b.cy + o.y; }
+    nodes.push({ ...n, isPool, isBridge, ax, ay,
+      x: old ? old.x : ax + (Math.random()-.5)*24, y: old ? old.y : ay + (Math.random()-.5)*24,
+      vx:0, vy:0, r:20, targetR:20, fixed:false });
   }
-  edges = g.edges.map((e) => ({ ...e, coupling: POOL_IDS.has(e.from) !== POOL_IDS.has(e.to) }));
+  for (const n of nodes) byId[n.id] = n;
+  edges = g.edges.map((e) => ({ ...e }));
 }
 
-// ── Run the model, set each node's target radius from standing biomass (sqrt scale). ──
 let lastRun = null;
-const R_MIN = 17, R_MAX = 58;
+const R_MIN = 16, R_MAX = 54;
 function rerun() {
-  params.airVolume_m3 = perCrewAir * params.crew;
-  params.waterReservoir_L = perCrewWater * params.crew;
-  const R = globalReport(params, { days: 600, dtHours: 3, sampleDays: 8 });
-  lastRun = R;
-  if (!nodes.length) buildNodes();
-  const bios = params.species.map((s) => R.last[s.id] || 0);
-  const maxB = Math.max(1, ...bios);
-  for (const s of params.species) {
-    const node = byId[s.id]; if (!node) continue;
-    node.biomass_molC = R.last[s.id] || 0;
-    node.biomass_kg = molCtoKgWet(node.biomass_molC);
-    node.targetR = R_MIN + (R_MAX - R_MIN) * Math.sqrt((R.last[s.id] || 0) / maxB);
-  }
-  for (const n of nodes) if (n.isPool) n.targetR = n.id === 'air' ? 26 : 21;
-  renderSidebar(R);
+  try {
+    params.airVolume_m3 = perCrewAir * params.crew;
+    params.waterReservoir_L = perCrewWater * params.crew;
+    const R = maximalReport(params, { days: 700, dtHours: 3, sampleDays: 8 });
+    lastRun = R;
+    if (!nodes.length) buildNodes();
+    const bios = params.species.map((s) => R.last[s.id] || 0);
+    const maxB = Math.max(1, ...bios);
+    for (const s of params.species) {
+      const node = byId[s.id]; if (!node) continue;
+      node.biomass_molC = R.last[s.id] || 0;
+      node.biomass_kg = molCtoKgWet(node.biomass_molC);
+      node.targetR = R_MIN + (R_MAX - R_MIN) * Math.sqrt(Math.max(0, R.last[s.id] || 0) / maxB);
+    }
+    for (const n of nodes) if (n.isPool) n.targetR = n.id === 'air' ? 24 : 20;
+    renderSidebar(R);
+  } catch (e) { showErr('model', e); }
 }
 
-// ── Sidebar: verdict + headline gauges + knobs. ──
+// ── sidebar ──
 const KNOBS = [
-  { id:'crew',  label:'Crew',                 min:40, max:300, step:10,    fmt:v=>v+' people',
-    get:()=>params.crew, set:v=>params.crew=v },
-  { id:'fish',  label:'Fishing pressure',     min:0,  max:0.04, step:0.001, fmt:v=>v.toFixed(3)+'/d',
-    get:()=>spec('fish').harvest, set:v=>spec('fish').harvest=v },
-  { id:'algae', label:'Lake surface',         min:2000, max:30000, step:1000, fmt:v=>(v/1000).toFixed(0)+'k m²',
-    get:()=>spec('algae').area_m2, set:v=>spec('algae').area_m2=v },
-  { id:'crop',  label:'Crop area (land)',     min:0,  max:12000, step:500,  fmt:v=>(v/1000).toFixed(1)+'k m²',
-    get:()=>spec('crop').area_m2, set:v=>spec('crop').area_m2=v },
+  { id:'crew',  label:'Crew',             min:40, max:260, step:10,    fmt:v=>v+' people', get:()=>params.crew, set:v=>params.crew=v },
+  { id:'fish',  label:'Fishing pressure', min:0,  max:0.04, step:0.001, fmt:v=>v.toFixed(3)+'/d', get:()=>spec('fish').harvest, set:v=>spec('fish').harvest=v },
+  { id:'duck',  label:'Duck farming',     min:0,  max:0.16, step:0.005, fmt:v=>v.toFixed(3)+'/d', get:()=>spec('duck').harvest, set:v=>spec('duck').harvest=v },
+  { id:'algae', label:'Lake surface',     min:3000, max:30000, step:1000, fmt:v=>(v/1000).toFixed(0)+'k m²', get:()=>spec('algae').area_m2, set:v=>spec('algae').area_m2=v },
 ];
 function buildControls() {
   const ctl = document.getElementById('controls');
@@ -279,369 +259,239 @@ function buildControls() {
 }
 function renderSidebar(R) {
   for (const kn of KNOBS) { const el = document.getElementById('val-'+kn.id); if (el) el.textContent = kn.fmt(kn.get()); }
-  const { last, fish, water, food } = R;
+  const { last, fish } = R;
   const v = document.getElementById('verdict');
-  v.className = 'verdict ' + (R.supports ? 'ok' : 'bad');
+  v.className = 'verdict ' + (R.supports ? 'ok' : 'warn');
   v.innerHTML = R.supports
-    ? `<b>The interior closes.</b> It carries ${R.crew} crew on both webs — ${Math.round(food.landShare*100)}% land : ${Math.round(food.lakeShare*100)}% lake food.`
-    : `<b>The interior does not close for ${R.crew} crew.</b> ${R.verdict.replace(/^[^:]*:\s*/, '')}`;
-  const gOK = (b) => b ? 'var(--leaf)' : 'var(--warn)';
+    ? `<b>The maximalist interior closes</b> — carries ${R.crew} crew on all three webs, ${Math.round(R.calorieRatio*100)}% fed.`
+    : `<b>Carries ${R.crew} crew at ${Math.round(R.calorieRatio*100)}% of food demand.</b> All ${params.species.length} species persist — the tangled web holds together.`;
   document.getElementById('gauges').innerHTML =
-    g('Crew', R.crew, `${Math.round(R.calorieRatio*100)}% fed`, gOK(R.fedOK)) +
-    g('Fish yield', fish.fishYield_kgday.toFixed(1), 'kg/day', gOK(fish.fishYield_kgday>0.5)) +
-    g('O₂ · CO₂', last.o2_kPa.toFixed(1), `kPa · ${Math.round(last.co2_ppm)}ppm`, gOK(R.o2OK&&R.co2OK)) +
-    g('Water', water.clearance.toFixed(0)+'×', `N ${water.mineralN_mmol_perL.toFixed(2)}`, gOK(water.treated));
+    g('Species alive', `${params.species.filter(s=>(last[s.id]||0)>10).length}/${params.species.length}`, 'none extinct', 'var(--leaf)') +
+    g('Fish yield', fish.fishYield_kgday.toFixed(1), 'kg/day', 'var(--gold)') +
+    g('O₂ · CO₂', last.o2_kPa.toFixed(1), `kPa · ${Math.round(last.co2_ppm)}ppm`, (R.o2OK&&R.co2OK)?'var(--leaf)':'var(--warn)') +
+    g('Crew', R.crew, `${Math.round(R.calorieRatio*100)}% fed`, R.fedOK?'var(--leaf)':'var(--warn)');
 }
 const g = (k,v,u,c) => `<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
 
 document.getElementById('couplings').innerHTML =
-  '<b>The interface, made explicit.</b> The two webs never share a trophic edge — yet down the '
-  + 'shoreline spine they share four pools, and that is the whole coupling. Both producer sets draw the '
-  + 'same <span class="p">air</span> (the joined web settles at a <i>lower</i> CO₂ than either alone — combined '
-  + 'fixation over-draws it); both compete for one <span class="p">nitrogen</span> pool; both the soil '
-  + 'springtail and the lake&rsquo;s mussels + benthos mineralise one <span class="p">detritus</span> pool, so '
-  + 'waste-treatment is a <i>redundant</i> service; and one crew eats one <span class="p">larder</span> filled by '
-  + 'crops, fruit and reeds on the <span class="l">land</span> side and duckweed + fish on the <span class="w">lake</span> '
-  + 'side. <b>Toggle “Highlight the interface”</b> to dim the within-web edges and light up only the bridges. '
-  + 'The single real barrier between the webs is the <i>shoreline</i> — spatial — which this non-spatial box model '
-  + 'abstracts away.';
+  '<b>Three containers, two bridges.</b> The webs would be disjoint islands but for the couplers down the middle. '
+  + 'The <span class="b">frog</span> wires <span class="w">lake</span> daphnia to <span class="s">soil</span> springtails; the '
+  + '<span class="b">duck</span> wires <span class="w">lake</span> duckweed to <span class="l">land</span> crop. Everything else '
+  + 'couples only through the <span class="p" style="color:var(--pool)">shared pools</span> in the centre — one air, one nitrogen, one '
+  + 'detritus, one larder — which is why losing a whole web’s decomposers is survivable: another web’s cover the same pool. '
+  + 'Toggle <b>Highlight the cross-web couplers</b> to see just the bridges. (Want to know if all this tangling helps or hurts? '
+  + 'The <a href="../cycles/robustness.html">intermingling lab</a> reads it off the community matrix.)';
 
-// ── Force-directed layout. Trophic edges are the springs; pools are weak scaffolding; region
-//    anchors keep land left / lake in the basin / pools on the shoreline. Containment keeps the
-//    aquatic web inside the visible lake. ──
+// ── force layout ──
 let temperature = 1, paused = false;
 const reheat = (t=1) => { temperature = Math.max(temperature, t); paused = false; updatePauseBtn(); };
-
-function springRest(e) {
-  if (e.type === 'trophic' || e.type === 'eat') return 96;
-  if (e.type === 'pollinates') return 80;
-  return 150;                              // pool edges: loose
-}
-function springK(e) {
-  if (e.coupling) return 0.004;            // pool/bridge edges barely pull — they're scaffolding
-  if (e.type === 'pollinates') return 0.02;
-  return 0.022;                            // organism↔organism trophic springs do the work
-}
+function springRest(e){ return (e.type==='trophic'||e.type==='eat') ? 92 : e.type==='pollinates' ? 78 : 150; }
+function springK(e){ const pool = POOL_IDS.has(e.from)||POOL_IDS.has(e.to); return pool ? 0.004 : (e.type==='pollinates'?0.02:0.024); }
 function step() {
-  const KREP = 560, KANCHOR = 0.014, DAMP = 0.86, MAXV = 14;
-  // repulsion (size-aware) between all non-pool nodes
-  for (let i = 0; i < nodes.length; i++) {
-    const a = nodes[i]; if (a.isPool) continue;
-    for (let j = i+1; j < nodes.length; j++) {
-      const b = nodes[j]; if (b.isPool) continue;
-      let dx = a.x-b.x, dy = a.y-b.y; let d2 = dx*dx+dy*dy; if (d2 < 1) d2 = 1;
-      const d = Math.sqrt(d2);
-      const want = (a.r+b.r+26);
-      const f = KREP * (want*want) / d2 / d;
-      const fx = dx*f, fy = dy*f;
-      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
-    }
-  }
-  // springs along edges
-  for (const e of edges) {
-    const a = byId[e.from], b = byId[e.to]; if (!a || !b) continue;
-    let dx = b.x-a.x, dy = b.y-a.y; const d = Math.hypot(dx,dy) || 1;
-    const f = springK(e) * (d - springRest(e));
-    const fx = dx/d*f, fy = dy/d*f;
-    if (!a.isPool) { a.vx += fx; a.vy += fy; }
-    if (!b.isPool) { b.vx -= fx; b.vy -= fy; }
-  }
-  // region anchors + containment + integrate
-  for (const n of nodes) {
-    if (n.isPool) { n.x = n.anchor.x; n.y = n.anchor.y; n.r += (n.targetR-n.r)*0.2; continue; }
-    n.vx += (n.anchor.x - n.x) * KANCHOR;
-    n.vy += (n.anchor.y - n.y) * KANCHOR;
-    if (!n.fixed) {
-      n.vx *= DAMP; n.vy *= DAMP;
-      n.vx = Math.max(-MAXV, Math.min(MAXV, n.vx));
-      n.vy = Math.max(-MAXV, Math.min(MAXV, n.vy));
-      n.x += n.vx * temperature; n.y += n.vy * temperature;
-    }
-    // keep the lake web inside the basin; keep the land web on the land side of the spine
-    if (n.group === 'lake') containInBasin(n);
-    else if (n.group === 'land') { const lim = SPINE_X - n.r - 8; if (n.x > lim) { n.x = lim; n.vx *= -0.3; } }
-    n.r += (n.targetR - n.r) * 0.2;
+  const KREP = 540, KANCHOR = 0.016, DAMP = 0.86, MAXV = 14;
+  for (let i=0;i<nodes.length;i++){ const a=nodes[i]; if(a.isPool)continue;
+    for (let j=i+1;j<nodes.length;j++){ const b=nodes[j]; if(b.isPool)continue;
+      let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<1)d2=1; const d=Math.sqrt(d2);
+      const want=a.r+b.r+24, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
+  for (const e of edges){ const a=byId[e.from], b=byId[e.to]; if(!a||!b)continue;
+    let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const f=springK(e)*(d-springRest(e));
+    const fx=dx/d*f, fy=dy/d*f; if(!a.isPool){a.vx+=fx;a.vy+=fy;} if(!b.isPool){b.vx-=fx;b.vy-=fy;} }
+  for (const n of nodes){
+    if (n.isPool){ n.x=n.ax; n.y=n.ay; n.r+=(n.targetR-n.r)*0.2; continue; }
+    n.vx += (n.ax-n.x)*KANCHOR*(n.isBridge?1.6:1); n.vy += (n.ay-n.y)*KANCHOR*(n.isBridge?1.6:1);
+    if (!n.fixed){ n.vx*=DAMP; n.vy*=DAMP;
+      n.vx=Math.max(-MAXV,Math.min(MAXV,n.vx)); n.vy=Math.max(-MAXV,Math.min(MAXV,n.vy));
+      n.x+=n.vx*temperature; n.y+=n.vy*temperature; }
+    if (!n.isBridge && BASINS[n.container]) containInBasin(n, BASINS[n.container]);
+    else if (n.isBridge) keepOutOfBasins(n);
+    n.r += (n.targetR-n.r)*0.2;
   }
   temperature *= 0.992; if (temperature < 0.02) temperature = 0.02;
 }
-function containInBasin(n) {
-  const m = n.r + 6;                       // keep the whole node within the waterline
-  const nx = (n.x - BASIN.cx) / (BASIN.rx - m);
-  const ny = (n.y - BASIN.cy) / (BASIN.ry - m);
-  const rr = nx*nx + ny*ny;
-  if (rr > 1) { const s = 1/Math.sqrt(rr); n.x = BASIN.cx + nx*(BASIN.rx-m)*s; n.y = BASIN.cy + ny*(BASIN.ry-m)*s; n.vx *= 0.4; n.vy *= 0.4; }
+function containInBasin(n, b){
+  const m = n.r + 6;
+  const nx=(n.x-b.cx)/(b.rx-m), ny=(n.y-b.cy)/(b.ry-m), rr=nx*nx+ny*ny;
+  if (rr>1){ const s=1/Math.sqrt(rr); n.x=b.cx+nx*(b.rx-m)*s; n.y=b.cy+ny*(b.ry-m)*s; n.vx*=0.4; n.vy*=0.4; }
+}
+function keepOutOfBasins(n){          // couplers float in the gaps — push them off any basin they drift into
+  for (const b of Object.values(BASINS)){
+    const m=n.r+10, nx=(n.x-b.cx)/(b.rx+m), ny=(n.y-b.cy)/(b.ry+m), rr=nx*nx+ny*ny;
+    if (rr<1 && rr>1e-6){ const s=1/Math.sqrt(rr); n.x=b.cx+nx*(b.rx+m)*s; n.y=b.cy+ny*(b.ry+m)*s; n.vx*=0.5; n.vy*=0.5; }
+  }
 }
 
-// ── Camera (pan / zoom) + canvas DPR. ──
+// ── camera ──
 const cv = document.getElementById('web'), cx = cv.getContext('2d');
-let cam = { x: 0, y: 0, s: 1 }, DPR = 1, CSSW = 1180, CSSH = 760;
-function resize() {
+let cam = { x:0, y:0, s:1 }, DPR = 1, CSSW = 1280, CSSH = 840;
+function resize(){
   DPR = Math.min(2, window.devicePixelRatio || 1);
   const rect = cv.getBoundingClientRect();
-  CSSW = rect.width; CSSH = rect.width * (WORLD.h / WORLD.w);
-  cv.style.height = CSSH + 'px';
-  cv.width = Math.round(CSSW*DPR); cv.height = Math.round(CSSH*DPR);
+  CSSW = rect.width || 960; CSSH = CSSW * (WORLD.h / WORLD.w);
+  cv.style.height = CSSH + 'px'; cv.width = Math.max(1, Math.round(CSSW*DPR)); cv.height = Math.max(1, Math.round(CSSH*DPR));
 }
-function fit() {
-  const pad = 16;
-  cam.s = Math.min((CSSW-pad*2)/WORLD.w, (CSSH-pad*2)/WORLD.h);
-  cam.x = (CSSW - WORLD.w*cam.s)/2; cam.y = (CSSH - WORLD.h*cam.s)/2;
-}
-const toWorld = (sx, sy) => ({ x:(sx-cam.x)/cam.s, y:(sy-cam.y)/cam.s });
+function fit(){ const pad=16; cam.s = Math.min((CSSW-pad*2)/WORLD.w, (CSSH-pad*2)/WORLD.h);
+  cam.x=(CSSW-WORLD.w*cam.s)/2; cam.y=(CSSH-WORLD.h*cam.s)/2; }
+const toWorld = (sx,sy) => ({ x:(sx-cam.x)/cam.s, y:(sy-cam.y)/cam.s });
 
-// ── Toggles / hover state. ──
 const TG = { interface:false, labels:true, photos:true };
-document.getElementById('tg-interface').addEventListener('change', e => TG.interface = e.target.checked);
-document.getElementById('tg-labels').addEventListener('change',   e => TG.labels = e.target.checked);
-document.getElementById('tg-photos').addEventListener('change',   e => TG.photos = e.target.checked);
-let hover = null, pinned = null;
+document.getElementById('tg-interface').addEventListener('change', e=>TG.interface=e.target.checked);
+document.getElementById('tg-labels').addEventListener('change', e=>TG.labels=e.target.checked);
+document.getElementById('tg-photos').addEventListener('change', e=>TG.photos=e.target.checked);
+let hover=null, pinned=null;
+const MONO = "'SF Mono',ui-monospace,Menlo,Consolas,monospace";
 
-// ── Draw. ──
-function draw() {
-  cx.save();
-  cx.setTransform(DPR,0,0,DPR,0,0);
-  cx.clearRect(0,0,CSSW,CSSH);
+function draw(){
+  cx.setTransform(DPR,0,0,DPR,0,0); cx.clearRect(0,0,CSSW,CSSH);
   cx.translate(cam.x, cam.y); cx.scale(cam.s, cam.s);
-
-  drawScene();
-
-  const focus = pinned || hover;
-  const lit = focus ? incidentSet(focus) : null;
-
-  // edges
-  for (const e of edges) {
-    const a = byId[e.from], b = byId[e.to]; if (!a || !b) continue;
+  drawBasins();
+  const focus = pinned || hover; const lit = focus ? incidentSet(focus) : null;
+  for (const e of edges){
+    const a=byId[e.from], b=byId[e.to]; if(!a||!b)continue;
     const st = EDGE_STYLE[e.type] || EDGE_STYLE.trophic;
-    let alpha = st.alpha;
-    if (TG.interface) alpha = e.coupling ? Math.min(1, st.alpha+0.2) : st.alpha*0.12;
-    if (lit) alpha = (lit.edges.has(e)) ? Math.min(1, st.alpha+0.25) : st.alpha*0.12;
-    cx.strokeStyle = st.color; cx.lineWidth = st.w/Math.sqrt(cam.s); cx.setLineDash(st.dash.map(d=>d));
-    cx.globalAlpha = alpha;
-    cx.beginPath(); cx.moveTo(a.x, a.y);
-    // bow edges that touch the shoreline spine, for legibility
-    if (POOL_IDS.has(e.from) || POOL_IDS.has(e.to)) {
-      const mx=(a.x+b.x)/2, my=(a.y+b.y)/2 + (a.y<b.y?16:-16); cx.quadraticCurveTo(mx,my,b.x,b.y);
-    } else cx.lineTo(b.x, b.y);
+    let alpha = st.alpha, color = st.color, w = st.w;
+    if (e.cross){ color = '#e6c14f'; w = Math.max(w, 2.0); }     // cross-container trophic edge
+    if (TG.interface) alpha = e.cross ? 0.95 : alpha*0.12;
+    if (lit) alpha = lit.edges.has(e) ? Math.min(1, st.alpha+0.25) : st.alpha*0.12;
+    cx.strokeStyle = color; cx.lineWidth = w/Math.sqrt(cam.s); cx.setLineDash(st.dash); cx.globalAlpha = alpha;
+    cx.beginPath(); cx.moveTo(a.x,a.y);
+    if (POOL_IDS.has(e.from)||POOL_IDS.has(e.to)){ const mx=(a.x+b.x)/2, my=(a.y+b.y)/2+(a.y<b.y?14:-14); cx.quadraticCurveTo(mx,my,b.x,b.y); }
+    else cx.lineTo(b.x,b.y);
     cx.stroke();
   }
-  cx.setLineDash([]); cx.globalAlpha = 1;
-
-  // nodes
-  for (const n of nodes) {
-    const dim = lit && !lit.nodes.has(n.id);
-    cx.globalAlpha = dim ? 0.32 : 1;
+  cx.setLineDash([]); cx.globalAlpha=1;
+  for (const n of nodes){
+    const dim = lit && !lit.nodes.has(n.id); cx.globalAlpha = dim ? 0.3 : 1;
     if (n.isPool) drawPool(n); else drawOrganism(n, focus===n);
     cx.globalAlpha = 1;
   }
-  cx.restore();
 }
-
-function drawScene() {
-  // ground plane under the land side
-  const gnd = cx.createLinearGradient(0, 300, 0, WORLD.h);
-  gnd.addColorStop(0, 'rgba(40,58,40,0.0)'); gnd.addColorStop(1, 'rgba(34,48,32,0.5)');
-  cx.fillStyle = gnd;
-  cx.beginPath(); cx.moveTo(0, 360);
-  cx.bezierCurveTo(220, 330, 470, 360, SPINE_X, 408);
-  cx.lineTo(SPINE_X, WORLD.h); cx.lineTo(0, WORLD.h); cx.closePath(); cx.fill();
-
-  // the lake basin — water body, gradient deep, with a surface waterline + ripples
-  cx.save();
-  cx.beginPath(); cx.ellipse(BASIN.cx, BASIN.cy, BASIN.rx, BASIN.ry, 0, 0, Math.PI*2); cx.clip();
-  const wat = cx.createLinearGradient(0, BASIN.cy-BASIN.ry, 0, BASIN.cy+BASIN.ry);
-  wat.addColorStop(0, '#1f5f7e'); wat.addColorStop(0.5, '#143e58'); wat.addColorStop(1, '#0c2536');
-  cx.fillStyle = wat; cx.fillRect(BASIN.cx-BASIN.rx, BASIN.cy-BASIN.ry, BASIN.rx*2, BASIN.ry*2);
-  // ripples
-  cx.strokeStyle = 'rgba(150,205,230,0.12)'; cx.lineWidth = 1.2;
-  for (let i=1;i<=5;i++){ const yy = BASIN.cy-BASIN.ry + i*(BASIN.ry*2/6); cx.beginPath();
-    for (let xx=BASIN.cx-BASIN.rx; xx<=BASIN.cx+BASIN.rx; xx+=14) cx.lineTo(xx, yy+Math.sin((xx+i*30)/26)*2.5); cx.stroke(); }
-  cx.restore();
-  // basin rim (shoreline)
-  cx.strokeStyle = 'rgba(120,180,205,0.5)'; cx.lineWidth = 2;
-  cx.beginPath(); cx.ellipse(BASIN.cx, BASIN.cy, BASIN.rx, BASIN.ry, 0, 0, Math.PI*2); cx.stroke();
-  // surface highlight near the top of the basin
-  cx.strokeStyle = 'rgba(180,225,245,0.5)'; cx.lineWidth = 1.6;
-  cx.beginPath(); cx.ellipse(BASIN.cx, BASIN.cy-BASIN.ry*0.72, BASIN.rx*0.82, BASIN.ry*0.22, 0, Math.PI*0.05, Math.PI*0.95); cx.stroke();
-
-  // the interface band on the shoreline spine
-  const band = cx.createLinearGradient(SPINE_X-30, 0, SPINE_X+30, 0);
-  band.addColorStop(0, 'rgba(108,194,127,0.10)'); band.addColorStop(0.5, 'rgba(202,166,224,0.16)'); band.addColorStop(1, 'rgba(90,169,216,0.12)');
-  cx.fillStyle = band; cx.fillRect(SPINE_X-30, 30, 60, WORLD.h-50);
-  if (TG.interface) { cx.fillStyle='rgba(202,166,224,0.06)'; cx.fillRect(SPINE_X-30,30,60,WORLD.h-50); }
-
-  // captions
-  cx.textAlign='center'; cx.font='600 15px '+MONO;
-  cx.fillStyle='rgba(108,194,127,0.5)'; cx.fillText('TERRESTRIAL WEB', LAND.cx, 46);
-  cx.fillStyle='rgba(90,169,216,0.62)'; cx.fillText('THE LAKE', BASIN.cx, BASIN.cy-BASIN.ry+22);
-  cx.fillStyle='rgba(202,166,224,0.55)'; cx.save(); cx.translate(SPINE_X, WORLD.h-18);
-  cx.font='600 11px '+MONO; cx.fillText('↑ THE INTERFACE — shared pools couple the two webs ↑', 0, 0); cx.restore();
-  cx.textAlign='left';
+function drawBasins(){
+  for (const [key, b] of Object.entries(BASINS)){
+    cx.save();
+    cx.beginPath(); cx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, Math.PI*2); cx.clip();
+    const grd = cx.createLinearGradient(0, b.cy-b.ry, 0, b.cy+b.ry);
+    grd.addColorStop(0, b.fill[0]); grd.addColorStop(0.5, b.fill[1]); grd.addColorStop(1, b.fill[2]);
+    cx.fillStyle = grd; cx.fillRect(b.cx-b.rx, b.cy-b.ry, b.rx*2, b.ry*2);
+    cx.strokeStyle = 'rgba(255,255,255,0.06)'; cx.lineWidth = 1.1;
+    for (let i=1;i<=5;i++){ const yy=b.cy-b.ry+i*(b.ry*2/6); cx.beginPath();
+      for (let xx=b.cx-b.rx; xx<=b.cx+b.rx; xx+=14) cx.lineTo(xx, yy+Math.sin((xx+i*30)/26)*2.2); cx.stroke(); }
+    cx.restore();
+    cx.strokeStyle = b.rim; cx.lineWidth = 2; cx.beginPath(); cx.ellipse(b.cx,b.cy,b.rx,b.ry,0,0,Math.PI*2); cx.stroke();
+    cx.fillStyle = b.lc; cx.font = '600 14px '+MONO; cx.textAlign='center';
+    cx.fillText(b.label, b.cx, b.cy-b.ry+20); cx.textAlign='left';
+  }
+  cx.fillStyle = 'rgba(202,166,224,0.5)'; cx.font = '600 11px '+MONO; cx.textAlign='center';
+  cx.fillText('· shared pools — where the three webs meet ·', 640, 516); cx.textAlign='left';
 }
-const MONO = "'SF Mono',ui-monospace,Menlo,Consolas,monospace";
-
-function drawOrganism(n, isFocus) {
+function drawOrganism(n, isFocus){
   const img = TG.photos ? IMG[n.id] : null;
   cx.save();
-  // node disc
   cx.beginPath(); cx.arc(n.x, n.y, n.r, 0, Math.PI*2);
-  if (img) {
-    cx.save(); cx.clip();
-    // cover-fit the photo into the circle
-    const d = n.r*2, ar = img.width/img.height; let sw, sh;
-    if (ar > 1) { sh = d; sw = d*ar; } else { sw = d; sh = d/ar; }
-    cx.drawImage(img, n.x - sw/2, n.y - sh/2, sw, sh);
+  if (img){ cx.save(); cx.clip();
+    const d=n.r*2, ar=(img.width||1)/(img.height||1); let sw, sh; if(ar>1){sh=d;sw=d*ar;}else{sw=d;sh=d/ar;}
+    try { cx.drawImage(img, n.x-sw/2, n.y-sh/2, sw, sh); } catch { /* not yet decodable */ }
     cx.restore();
   } else {
-    cx.fillStyle = n.group==='lake' ? '#16313f' : '#15281b'; cx.fill();
-    // a glyph for the photo-less decomposer proxy
-    cx.fillStyle = groupColor(n.group); cx.globalAlpha=.8; cx.font=`600 ${Math.round(n.r)}px ${MONO}`;
-    cx.textAlign='center'; cx.fillText('⁘', n.x, n.y + n.r*0.34); cx.textAlign='left'; cx.globalAlpha=1;
+    cx.fillStyle = n.container==='lake'?'#16313f':n.container==='soil'?'#2a2012':'#15281b'; cx.fill();
+    cx.fillStyle = contColor(n.container); cx.globalAlpha=.8; cx.font=`600 ${Math.max(8,Math.round(n.r))}px ${MONO}`;
+    cx.textAlign='center'; cx.fillText('⁘', n.x, n.y+n.r*0.34); cx.textAlign='left'; cx.globalAlpha=1;
   }
-  // ring by web, thicker by trophic kind; gold when focused
-  cx.lineWidth = isFocus ? 4 : (n.kind==='producer' ? 2.4 : 3);
-  cx.strokeStyle = isFocus ? '#d8b25a' : groupColor(n.group);
-  cx.beginPath(); cx.arc(n.x, n.y, n.r, 0, Math.PI*2); cx.stroke();
+  cx.lineWidth = isFocus ? 4 : (n.isBridge ? 3.4 : n.kind==='producer' ? 2.2 : 3);
+  cx.strokeStyle = isFocus ? '#d8b25a' : contColor(n.container);
+  if (n.isBridge && !isFocus) cx.setLineDash([5,4]);
+  cx.beginPath(); cx.arc(n.x,n.y,n.r,0,Math.PI*2); cx.stroke(); cx.setLineDash([]);
   cx.restore();
-  // label
-  if (TG.labels) {
-    cx.font = '11px '+MONO; cx.textAlign='center';
-    cx.lineWidth = 3; cx.strokeStyle = 'rgba(8,16,12,0.85)';
-    cx.strokeText(n.label, n.x, n.y + n.r + 13);
-    cx.fillStyle = '#dcefe1'; cx.fillText(n.label, n.x, n.y + n.r + 13);
-    cx.textAlign='left';
+  if (TG.labels){
+    cx.font='11px '+MONO; cx.textAlign='center'; cx.lineWidth=3; cx.strokeStyle='rgba(8,16,12,0.85)';
+    cx.strokeText(n.label, n.x, n.y+n.r+13); cx.fillStyle='#dcefe1'; cx.fillText(n.label, n.x, n.y+n.r+13); cx.textAlign='left';
   }
 }
-function drawPool(n) {
-  const c = groupColor(n.group), w = n.id==='crew'?108:128, h=30;
-  // hexagon-ish rounded badge
+function drawPool(n){
+  const c = contColor(n.container), w = n.id==='crew'?104:126, h=28;
   roundRect(n.x-w/2, n.y-h/2, w, h, 8);
-  cx.fillStyle = n.group==='crew' ? '#231a12' : '#1a1428'; cx.fill();
-  cx.lineWidth = 1.8; cx.strokeStyle = c; cx.stroke();
-  cx.fillStyle = c; cx.font='600 11.5px '+MONO; cx.textAlign='center';
-  cx.fillText(n.label, n.x, n.y+4); cx.textAlign='left';
+  cx.fillStyle = n.container==='crew' ? '#231a12' : '#1a1428'; cx.fill();
+  cx.lineWidth=1.8; cx.strokeStyle=c; cx.stroke();
+  cx.fillStyle=c; cx.font='600 11.5px '+MONO; cx.textAlign='center'; cx.fillText(n.label, n.x, n.y+4); cx.textAlign='left';
 }
 function roundRect(x,y,w,h,r){ cx.beginPath(); cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r);
   cx.arcTo(x+w,y+h,x,y+h,r); cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath(); }
+function incidentSet(n){ const ns=new Set([n.id]), es=new Set();
+  for (const e of edges) if (e.from===n.id||e.to===n.id){ es.add(e); ns.add(e.from); ns.add(e.to); } return { nodes:ns, edges:es }; }
 
-// nodes + edges incident to a focused node (for hover highlight)
-function incidentSet(n) {
-  const ns = new Set([n.id]); const es = new Set();
-  for (const e of edges) if (e.from===n.id || e.to===n.id) { es.add(e); ns.add(e.from); ns.add(e.to); }
-  return { nodes: ns, edges: es };
-}
-
-// ── Info card on hover / pin. ──
+// ── info card ──
 const info = document.getElementById('info');
-function relations(n) {
-  const eats = [], eatenBy = [], poll = [];
-  for (const e of edges) {
-    if (e.type==='trophic' && e.to===n.id) eats.push(label(e.from));
-    if (e.type==='trophic' && e.from===n.id) eatenBy.push(label(e.to));
-    if (e.type==='pollinates' && e.from===n.id) poll.push(label(e.to));
-  }
-  return { eats, eatenBy, poll };
-}
 const label = (id) => byId[id]?.label || id;
-function showInfo(n, sx, sy) {
-  if (n.isPool) {
+function relations(n){ const eats=[],eatenBy=[],poll=[];
+  for (const e of edges){
+    if (e.type==='trophic'&&e.to===n.id) eats.push(label(e.from));
+    if (e.type==='trophic'&&e.from===n.id) eatenBy.push(label(e.to));
+    if (e.type==='pollinates'&&e.from===n.id) poll.push(label(e.to));
+  } return { eats, eatenBy, poll }; }
+const fmtKg = (kg) => kg>=1000?(kg/1000).toFixed(1)+' t':kg>=1?kg.toFixed(0)+' kg':(kg*1000).toFixed(0)+' g';
+function showInfo(n, sx, sy){
+  if (n.isPool){
     info.innerHTML = `<div class="bd"><div class="nm">${n.label}</div>`
       + `<span class="tag" style="background:#1a1428;color:var(--pool)">shared pool · the interface</span>`
-      + `<div class="rel">A reservoir both webs touch — this is where the <b>land and lake couple</b>, with no trophic edge between them.</div></div>`;
+      + `<div class="rel">A reservoir all three webs touch — this is where land, lake and soil couple without a trophic edge.</div></div>`;
   } else {
-    const meta = PHOTOS[n.id] || {};
-    const r = relations(n);
-    const col = groupColor(n.group);
+    const meta = PHOTOS[n.id] || {}; const r = relations(n); const col = contColor(n.container);
     const ph = (TG.photos && meta.inat?.photo) ? `<div class="ph" style="background-image:url('${meta.inat.photo}')"></div>` : '';
     info.innerHTML = ph + `<div class="bd"><div class="nm">${n.label}</div>`
       + `<div class="sci">${meta.sciName || ''}</div>`
-      + `<span class="tag" style="background:rgba(0,0,0,.3);color:${col}">${n.group} · ${n.role||n.kind}</span>`
-      + `<div class="big" style="color:${col}">${fmtKg(n.biomass_kg)} <small>standing biomass</small></div>`
-      + (r.eats.length ? `<div class="rel"><b>eats:</b> ${r.eats.join(', ')}</div>` : '')
-      + (r.eatenBy.length ? `<div class="rel"><b>eaten by:</b> ${r.eatenBy.join(', ')}</div>` : '')
-      + (r.poll.length ? `<div class="rel"><b>pollinates:</b> ${r.poll.join(', ')}</div>` : '')
+      + `<span class="tag" style="background:rgba(0,0,0,.3);color:${col}">${n.isBridge?'cross-web coupler':n.container} · ${n.role||n.kind}</span>`
+      + `<div class="big" style="color:${col}">${fmtKg(n.biomass_kg||0)} <small>standing biomass</small></div>`
+      + (r.eats.length?`<div class="rel"><b>eats:</b> ${r.eats.join(', ')}</div>`:'')
+      + (r.eatenBy.length?`<div class="rel"><b>eaten by:</b> ${r.eatenBy.join(', ')}</div>`:'')
+      + (r.poll.length?`<div class="rel"><b>pollinates:</b> ${r.poll.join(', ')}</div>`:'')
       + `</div>`;
   }
-  info.style.display = 'block';
-  const pad = 14, w = 248;
-  let x = sx + pad, y = sy + pad;
-  if (x + w > CSSW) x = sx - w - pad;
-  if (y + info.offsetHeight > CSSH) y = Math.max(4, CSSH - info.offsetHeight - 4);
-  info.style.left = Math.max(2,x) + 'px'; info.style.top = Math.max(2,y) + 'px';
+  info.style.display='block';
+  let x=sx+14, y=sy+14; if (x+248>CSSW) x=sx-262; if (y+info.offsetHeight>CSSH) y=Math.max(4,CSSH-info.offsetHeight-4);
+  info.style.left=Math.max(2,x)+'px'; info.style.top=Math.max(2,y)+'px';
 }
 const hideInfo = () => { if (!pinned) info.style.display='none'; };
-const fmtKg = (kg) => kg>=1000 ? (kg/1000).toFixed(1)+' t' : kg>=1 ? kg.toFixed(0)+' kg' : (kg*1000).toFixed(0)+' g';
 
-// ── Pointer interaction: hover, drag node, pan background, zoom. ──
-let drag = null, panning = null;
-function pick(wx, wy) {
-  let best = null, bd = Infinity;
-  for (const n of nodes) {
-    const rr = n.isPool ? 64*64 : (n.r+4)*(n.r+4);
-    const d2 = (n.x-wx)**2 + (n.y-wy)**2;
-    if (d2 < rr && d2 < bd) { bd = d2; best = n; }
-  }
-  return best;
-}
-function screenPt(ev){ const r=cv.getBoundingClientRect(); return { sx:ev.clientX-r.left, sy:ev.clientY-r.top }; }
-cv.addEventListener('pointerdown', (ev) => {
-  cv.setPointerCapture(ev.pointerId);
-  const { sx, sy } = screenPt(ev); const w = toWorld(sx, sy); const n = pick(w.x, w.y);
-  if (n && !n.isPool) { drag = { n, dx: n.x-w.x, dy: n.y-w.y }; n.fixed = true; cv.classList.add('grabbing'); }
-  else { panning = { sx, sy, cx0: cam.x, cy0: cam.y }; cv.classList.add('grabbing');
-         if (n && n.isPool) { pinned = (pinned===n?null:n); if(!pinned) hideInfo(); }
-         else { pinned = null; hideInfo(); } }
-});
-cv.addEventListener('pointermove', (ev) => {
-  const { sx, sy } = screenPt(ev); const w = toWorld(sx, sy);
-  if (drag) { drag.n.x = w.x + drag.dx; drag.n.y = w.y + drag.dy; drag.n.vx=0; drag.n.vy=0; reheat(0.4);
-    showInfo(drag.n, sx, sy); return; }
-  if (panning) { cam.x = panning.cx0 + (sx-panning.sx); cam.y = panning.cy0 + (sy-panning.sy); return; }
-  const n = pick(w.x, w.y);
-  hover = n;
-  if (n) { cv.style.cursor='pointer'; if (!pinned) showInfo(n, sx, sy); }
-  else { cv.style.cursor='grab'; if (!pinned) hideInfo(); }
-});
-function endPointer(){ if (drag){ drag.n.fixed=false; drag=null; } panning=null; cv.classList.remove('grabbing'); }
-cv.addEventListener('pointerup', (ev) => {
-  const { sx, sy } = screenPt(ev); const w = toWorld(sx, sy); const n = pick(w.x, w.y);
-  if (!drag && n && !n.isPool) { pinned = (pinned===n? null : n); if (pinned) showInfo(n, sx, sy); else hideInfo(); }
-  endPointer();
-});
+// ── pointer ──
+let drag=null, panning=null;
+function pick(wx,wy){ let best=null,bd=Infinity;
+  for (const n of nodes){ const rr=n.isPool?64*64:(n.r+4)*(n.r+4); const d2=(n.x-wx)**2+(n.y-wy)**2; if(d2<rr&&d2<bd){bd=d2;best=n;} } return best; }
+const screenPt = (ev) => { const r=cv.getBoundingClientRect(); return { sx:ev.clientX-r.left, sy:ev.clientY-r.top }; };
+cv.addEventListener('pointerdown', (ev)=>{ cv.setPointerCapture(ev.pointerId);
+  const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
+  if (n && !n.isPool){ drag={n,dx:n.x-w.x,dy:n.y-w.y}; n.fixed=true; cv.classList.add('grabbing'); }
+  else { panning={sx,sy,cx0:cam.x,cy0:cam.y}; cv.classList.add('grabbing'); pinned=null; hideInfo(); } });
+cv.addEventListener('pointermove', (ev)=>{ const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy);
+  if (drag){ drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0; reheat(0.4); showInfo(drag.n,sx,sy); return; }
+  if (panning){ cam.x=panning.cx0+(sx-panning.sx); cam.y=panning.cy0+(sy-panning.sy); return; }
+  const n=pick(w.x,w.y); hover=n;
+  if (n){ cv.style.cursor='pointer'; if(!pinned) showInfo(n,sx,sy); } else { cv.style.cursor='grab'; if(!pinned) hideInfo(); } });
+function endPointer(){ if(drag){drag.n.fixed=false;drag=null;} panning=null; cv.classList.remove('grabbing'); }
+cv.addEventListener('pointerup', (ev)=>{ const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
+  if (!drag && n){ pinned=(pinned===n?null:n); if(pinned) showInfo(n,sx,sy); else hideInfo(); } endPointer(); });
 cv.addEventListener('pointercancel', endPointer);
-cv.addEventListener('pointerleave', () => { hover=null; if(!pinned) hideInfo(); });
-cv.addEventListener('wheel', (ev) => {
-  ev.preventDefault();
-  const { sx, sy } = screenPt(ev); const w = toWorld(sx, sy);
-  const f = Math.exp(-ev.deltaY * 0.0015); const ns = Math.max(0.35, Math.min(3, cam.s*f));
-  cam.x = sx - w.x*ns; cam.y = sy - w.y*ns; cam.s = ns;
-}, { passive:false });
+cv.addEventListener('pointerleave', ()=>{ hover=null; if(!pinned) hideInfo(); });
+cv.addEventListener('wheel', (ev)=>{ ev.preventDefault(); const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy);
+  const f=Math.exp(-ev.deltaY*0.0015); const ns=Math.max(0.3,Math.min(3,cam.s*f));
+  cam.x=sx-w.x*ns; cam.y=sy-w.y*ns; cam.s=ns; }, { passive:false });
 
-// ── Buttons. ──
-document.getElementById('btn-reheat').addEventListener('click', () => reheat(1));
+document.getElementById('btn-reheat').addEventListener('click', ()=>reheat(1));
 const pauseBtn = document.getElementById('btn-pause');
-function updatePauseBtn(){ pauseBtn.textContent = paused ? '▶ resume' : '⏸ pause'; pauseBtn.classList.toggle('on', paused); }
-pauseBtn.addEventListener('click', () => { paused = !paused; updatePauseBtn(); });
-document.getElementById('btn-fit').addEventListener('click', () => { fit(); });
+function updatePauseBtn(){ pauseBtn.textContent = paused?'▶ resume':'⏸ pause'; pauseBtn.classList.toggle('on', paused); }
+pauseBtn.addEventListener('click', ()=>{ paused=!paused; updatePauseBtn(); });
+document.getElementById('btn-fit').addEventListener('click', ()=>fit());
 
 document.getElementById('foot').innerHTML =
-  'node size ∝ √(standing biomass) from a 600-day closed run · organism photos &amp; identity from '
-  + '<a href="https://www.inaturalist.org">iNaturalist</a> · the box model conserves C/H/O/N by construction. '
-  + 'pure static, every model runs in your browser. → <a href="../">biome</a>';
+  'node size ∝ √(standing biomass) from a 700-day closed run of the maximalist web (land + lake + soil + couplers, conserving C/H/O/N). '
+  + 'organism photos from <a href="https://www.inaturalist.org">iNaturalist</a>. pure static. → <a href="../">biome</a>';
 
-// ── Boot. ──
-function loop() {
-  if (!paused) { for (let i=0;i<2;i++) step(); }
-  draw();
-  requestAnimationFrame(loop);
-}
-window.addEventListener('resize', () => { resize(); fit(); });
-buildControls();
-rerun();                 // builds nodes (lazily) + runs the model + sizes nodes + sidebar
-resize(); fit();
-loadPhotos();
-reheat(1);
-updatePauseBtn();
-loop();
+function loop(){ try { if(!paused){ for(let i=0;i<2;i++) step(); } draw(); }
+  catch(e){ showErr('draw', e); return; }   // stop the loop on a draw error instead of spamming
+  requestAnimationFrame(loop); }
+window.addEventListener('resize', ()=>{ resize(); fit(); });
+
+try {
+  buildControls(); rerun(); resize(); fit(); loadPhotos(); reheat(1); updatePauseBtn(); loop();
+} catch (e) { showErr('boot', e); }
 </script>
 </body>
 </html>

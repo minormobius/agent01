@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-11T20:17:03.051Z",
+  "generatedAt": "2026-06-11T21:10:39.615Z",
   "source": "iNaturalist",
   "organisms": {
     "crop": {
       "id": "crop",
-      "web": "land",
+      "container": "land",
       "kind": "producer",
       "sciName": "Ipomoea batatas",
       "common": "Sweet potato",
@@ -19,7 +19,7 @@
     },
     "tree": {
       "id": "tree",
-      "web": "land",
+      "container": "land",
       "kind": "producer",
       "sciName": "Malus domestica",
       "common": "Apple",
@@ -34,7 +34,7 @@
     },
     "reed": {
       "id": "reed",
-      "web": "land",
+      "container": "land",
       "kind": "producer",
       "sciName": "Phragmites australis",
       "common": "Common reed",
@@ -49,7 +49,7 @@
     },
     "bee": {
       "id": "bee",
-      "web": "land",
+      "container": "land",
       "kind": "animal",
       "sciName": "Apis mellifera",
       "common": "Western honey bee",
@@ -64,7 +64,7 @@
     },
     "spider": {
       "id": "spider",
-      "web": "land",
+      "container": "land",
       "kind": "animal",
       "sciName": "Araneus diadematus",
       "common": "European garden spider",
@@ -79,7 +79,7 @@
     },
     "springtail": {
       "id": "springtail",
-      "web": "land",
+      "container": "soil",
       "kind": "animal",
       "sciName": "Folsomia candida",
       "common": "Springtail",
@@ -94,7 +94,7 @@
     },
     "algae": {
       "id": "algae",
-      "web": "lake",
+      "container": "lake",
       "kind": "producer",
       "sciName": "Chlorella vulgaris",
       "common": "Phytoplankton",
@@ -109,7 +109,7 @@
     },
     "duckweed": {
       "id": "duckweed",
-      "web": "lake",
+      "container": "lake",
       "kind": "producer",
       "sciName": "Lemna minor",
       "common": "Duckweed",
@@ -124,7 +124,7 @@
     },
     "daphnia": {
       "id": "daphnia",
-      "web": "lake",
+      "container": "lake",
       "kind": "animal",
       "sciName": "Daphnia magna",
       "common": "Water flea",
@@ -139,7 +139,7 @@
     },
     "mussel": {
       "id": "mussel",
-      "web": "lake",
+      "container": "lake",
       "kind": "animal",
       "sciName": "Anodonta cygnea",
       "common": "Swan mussel",
@@ -154,7 +154,7 @@
     },
     "microbe": {
       "id": "microbe",
-      "web": "lake",
+      "container": "lake",
       "kind": "animal",
       "sciName": "aquatic detritus community",
       "common": "Benthic detritivores",
@@ -162,7 +162,7 @@
     },
     "fish": {
       "id": "fish",
-      "web": "lake",
+      "container": "lake",
       "kind": "animal",
       "sciName": "Oreochromis niloticus",
       "common": "Nile tilapia",
@@ -173,6 +173,66 @@
         "photo": "https://static.inaturalist.org/photos/104437442/medium.jpg",
         "thumb": "https://static.inaturalist.org/photos/104437442/square.jpg",
         "attribution": "(c) species_spotlight, all rights reserved, uploaded by species_spotlight"
+      }
+    },
+    "worm": {
+      "id": "worm",
+      "container": "soil",
+      "kind": "animal",
+      "sciName": "Lumbricus terrestris",
+      "common": "Earthworm",
+      "inat": {
+        "inatId": 81545,
+        "commonName": "Nightcrawler",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Lumbricus_terrestris",
+        "photo": "https://static.inaturalist.org/photos/6813438/medium.jpg",
+        "thumb": "https://static.inaturalist.org/photos/6813438/square.jpg",
+        "attribution": "(c) KL Burke, all rights reserved, uploaded by KL Burke"
+      }
+    },
+    "fungus": {
+      "id": "fungus",
+      "container": "soil",
+      "kind": "animal",
+      "sciName": "Pleurotus ostreatus",
+      "common": "Saprotroph fungus",
+      "inat": {
+        "inatId": 48494,
+        "commonName": "Oyster Mushroom",
+        "wikipediaUrl": "https://en.wikipedia.org/wiki/Pleurotus_ostreatus",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/166311914/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/166311914/square.jpg",
+        "attribution": "(c) Federico Calledda, some rights reserved (CC BY-NC), uploaded by Federico Calledda"
+      }
+    },
+    "frog": {
+      "id": "frog",
+      "container": "bridge",
+      "kind": "animal",
+      "sciName": "Pelophylax ridibundus",
+      "common": "Marsh frog",
+      "inat": {
+        "inatId": 1319807,
+        "commonName": "Marsh Frog",
+        "wikipediaUrl": "https://en.wikipedia.org/wiki/Marsh_frog",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/11067279/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/11067279/square.jpg",
+        "attribution": "(c) Ioana Mita, some rights reserved (CC BY-NC), uploaded by Ioana Mita"
+      }
+    },
+    "duck": {
+      "id": "duck",
+      "container": "bridge",
+      "kind": "animal",
+      "sciName": "Anas platyrhynchos",
+      "common": "Dabbling duck",
+      "inat": {
+        "inatId": 6930,
+        "commonName": "Mallard",
+        "wikipediaUrl": "http://en.wikipedia.org/wiki/Mallard",
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/95268822/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/95268822/square.jpg",
+        "attribution": "(c) anonymous, some rights reserved (CC BY-SA)"
       }
     }
   }

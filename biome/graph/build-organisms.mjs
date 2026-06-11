@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { ROSTER } from '../cycles/sim/roster.mjs';
 import { LAKE_ROSTER } from '../cycles/sim/lake.mjs';
+import { SOIL_ROSTER, COUPLER_ROSTER, containerOf } from '../cycles/sim/maximal.mjs';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), 'organisms.json');
 const DRY = process.argv.includes('--dry');
@@ -50,17 +51,18 @@ async function inat(sciName) {
   };
 }
 
-const both = [
-  ...ROSTER.map((o) => ({ ...o, web: 'land' })),
-  ...LAKE_ROSTER.map((o) => ({ ...o, web: 'lake' })),
-];
+// Every organism across the maximalist web — land + lake + chthonic soil + the cross-web couplers.
+// `container` (land/lake/soil/bridge) is the habitat the /graph view buckets it into.
+const all = [
+  ...ROSTER, ...LAKE_ROSTER, ...SOIL_ROSTER, ...COUPLER_ROSTER,
+].map((o) => ({ ...o, container: containerOf(o.id) }));
 
 const out = { generatedAt: new Date().toISOString(), source: 'iNaturalist', organisms: {} };
-for (const o of both) {
-  process.stderr.write(`· [${o.web}] ${o.sciName} … `);
+for (const o of all) {
+  process.stderr.write(`· [${o.container}] ${o.sciName} … `);
   const id = await inat(o.sciName);
   out.organisms[o.id] = {
-    id: o.id, web: o.web, kind: o.kind, sciName: o.sciName, common: o.common,
+    id: o.id, container: o.container, kind: o.kind, sciName: o.sciName, common: o.common,
     inat: id ?? null,
   };
   process.stderr.write(`${id?.photo ? 'iNat#' + id.inatId : 'no-photo'}\n`);

@@ -30,15 +30,24 @@ stocks and flows?* Everything lives under `cycles/`:
   Finding: one weak fast–slow bridge (the frog) shortens return time; dense/strong coupling spikes
   reactivity and erodes the margin. Pure client-side, two model runs per render.
 - `cycles/solver/` — the Rust/WASM stability kernel (the precision/scale sister of linalg.mjs).
-- `graph/index.html` — the **trophic-web force graph** at `biome.mino.mobi/graph`. The whole
-  interior as one force-directed graph: each organism node wears its iNaturalist photo and is
-  **sized by present standing biomass**, with the terrestrial web on land, the aquatic web inside a
-  drawn lake basin, and the shared abiotic pools (air/N/detritus/larder) down the shoreline drawn as
-  the explicit **land↔lake interface**. Pure client-side — it reads `buildGlobalGraph()`/`globalReport()`
-  from `cycles/sim/global.mjs` and the committed `graph/organisms.json` imagery map. That map is built
-  by `node biome/graph/build-organisms.mjs` (iNaturalist photos for BOTH rosters; the engine never
-  reads it — imagery only, same status as `roster.enriched.json`). The worker normalises the no-slash
-  `/graph` to `/graph/` — the only non-asset route, a rewrite to a page, not server compute.
+- `cycles/sim/maximal.mjs` — the **maximalist intermingled web**: land ∪ lake ∪ a chthonic soil web
+  (earthworm + saprotroph fungus + the springtail) wired together by real CROSS-WEB couplers — a frog
+  (lake↔soil) and a farmed duck (lake↔land). Unlike `global.mjs` it HAS cross-web trophic edges (that
+  is the point). Tuned (weak-coupling regime: few couplers, prey refuges, the duck heavily harvested)
+  so **every species persists** and C/H/O/N still conserve — both pinned by `cycles/test/maximal.selftest.mjs`.
+  Exposes `CONTAINERS` (land/lake/soil/bridge) + `buildMaximalGraph()` (edges tagged `.cross` when they
+  bridge containers). NB: a fast soil predator (a ground beetle) is intentionally omitted — it over-eats
+  the worm and collapses the brown web (the reactivity spike the intermingling lab flags).
+- `graph/index.html` — the **trophic-web force graph** at `biome.mino.mobi/graph`. The **maximalist**
+  web as one force-directed graph: each organism wears its iNaturalist photo, **sized by present
+  standing biomass**, and the three habitats are each held in their own **basin** (LAND · LAKE · SOIL),
+  with the couplers (frog, duck) floating in the gaps and the shared pools (air/N/detritus/larder) in the
+  centre where all three webs meet. Cross-container edges are drawn gold; a toggle isolates them. Reads
+  `buildMaximalGraph()`/`maximalReport()` from `cycles/sim/maximal.mjs` + the committed `graph/organisms.json`
+  imagery (built by `node biome/graph/build-organisms.mjs` over land+lake+soil+coupler rosters; engine never
+  reads it). **The whole script is wrapped in an error overlay** (`#err`) — any throw shows on the page
+  instead of blanking the canvas; keep it that way. The worker normalises the no-slash `/graph` to `/graph/`
+  — the only non-asset route, a rewrite to a page, not server compute.
 
 ## The package it belongs to
 
@@ -60,6 +69,7 @@ node biome/cycles/test/linalg.selftest.mjs        # 15 checks: inverse + eigenva
 node biome/cycles/test/stability.selftest.mjs     # 11 checks: stability verdict + decay cross-check
 node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves, both figures of merit, failure modes, stability
 node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
+node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web conserves, every species persists, couplers bridge containers
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
