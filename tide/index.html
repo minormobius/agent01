@@ -139,6 +139,22 @@
     <i>radius</i> and <i>azimuth</i>. Resolve each in turn, then close the books that cross them.</p>
     <div class="modules">
 
+      <a class="mod live" href="./profile/">
+        <div class="top">
+          <h3>Pressure &amp; gravity profile</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The smallest honest model: give it a radius, a spin, and how much air is inside (its
+        non-spinning pressure) and it draws the two profiles every other module sits on —
+        gravity <code>g(r)=ω²r</code> (zero at the axis, full at the rim) and the isothermal
+        centrifugal barometer <code>P(r)=P_axis·e^{S(r/R)²}</code>. One dimensionless number
+        <code>S = v²_rim/2c²</code> sets the rim/axis pressure ratio (exactly e^S); the
+        "non-spinning pressure" can be read as the same air at rest (mass-conserving) or held
+        on the axis.</p>
+        <div class="meta">→ a desk calculator for the build: dial R, Ω, P₀, temperature and gas ·
+        read axis/rim pressure, rim gravity, the 1 g radius, air-per-metre · hover the curves.</div>
+      </a>
+
       <a class="mod live" href="./atmosphere/">
         <div class="top">
           <h3>Radial atmosphere</h3>

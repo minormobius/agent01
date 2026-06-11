@@ -194,10 +194,10 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-tide-wind-jets-olcuky",
+      "branch": "claude/oneill-cylinder-solver-djdpdm",
       "uses": [],
       "provides": null,
-      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer — radial gravity g(r)=ω²r + isothermal pressure P(r)=P_axis·e^{S(r/R)²} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "tide/**",
         ".github/workflows/deploy-tide.yml"
