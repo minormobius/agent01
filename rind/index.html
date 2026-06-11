@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>rind · the structure of an O'Neill cylinder</title>
+<meta name="description" content="The structure wing of the O'Neill cylinder modelling package — the layered foam space-frame that forms the cylinder's shell, sized and scored by a Rust/WASM frame solver, and navigable in 3D and on foot." />
+<style>
+  :root{
+    --ink:#05060a; --panel:#0c0f16; --line:#1d2430; --txt:#cfe3e0;
+    --dim:#8aa; --gold:#ffce78; --teal:#7fd8d0; --ok:#7fe6a0; --bad:#ff7a6e; --warn:#ff9a76;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --serif:Georgia,'Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#0b1118,#05060a 62%);
+    color:var(--txt);font:15px/1.6 var(--serif);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:16px 22px}
+  .crumb a{color:var(--gold);text-decoration:none}
+  .wrap{max-width:880px;margin:0 auto;padding:6px 22px 60px}
+  header.hero{padding:26px 0 10px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font:600 30px/1.1 var(--mono);letter-spacing:.5px;color:var(--gold)}
+  h1 .axis{color:var(--teal)}
+  .tag{color:var(--dim);font:13px/1.5 var(--mono);margin-top:8px;max-width:62ch}
+  .lede{font-size:17px;margin:22px 0 8px}
+  .lede b{color:var(--teal);font-weight:600}
+  section{margin:26px 0}
+  h2{font:600 13px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim);
+    border-bottom:1px solid var(--line);padding-bottom:8px}
+  p{margin:12px 0}
+  .modules{display:grid;gap:14px;margin-top:18px}
+  .mod{display:block;text-decoration:none;color:inherit;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:16px 18px;transition:border-color .15s,transform .15s}
+  .mod.live:hover{border-color:#3a5e5a;transform:translateY(-1px)}
+  .mod.soon{opacity:.66}
+  .mod .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .mod h3{margin:0;font:600 18px/1.2 var(--mono);color:var(--txt)}
+  .mod.live h3{color:var(--teal)}
+  .badge{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:1px;padding:4px 8px;border-radius:99px;white-space:nowrap}
+  .badge.live{background:#10201f;color:var(--teal);border:1px solid #2c5350}
+  .badge.soon{background:#1a1510;color:var(--gold);border:1px solid #4a3c22}
+  .mod p{margin:9px 0 0;font-size:14.5px;color:var(--txt)}
+  .mod .meta{margin-top:10px;font:12px/1.5 var(--mono);color:var(--dim)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  .fact{background:#080c12;border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .fact h4{margin:0 0 4px;font:600 12px/1 var(--mono);letter-spacing:.5px}
+  .fact.load h4{color:var(--bad)} .fact.spin h4{color:var(--gold)}
+  .fact.foam h4{color:var(--teal)} .fact.solve h4{color:var(--ok)}
+  .fact p{margin:0;font-size:13.5px;color:var(--dim)}
+  code{font-family:var(--mono);font-size:.88em;color:var(--gold)}
+  .wings{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+  @media(max-width:640px){.wings{grid-template-columns:1fr 1fr}}
+  .wing{display:block;text-decoration:none;background:#080c12;border:1px solid var(--line);
+    border-radius:10px;padding:12px 13px;transition:border-color .15s,transform .15s}
+  .wing:hover{border-color:#3a5e5a;transform:translateY(-1px)}
+  .wing .g{font-size:17px}
+  .wing .n{font:600 14px/1.2 var(--mono);margin-top:6px;color:var(--txt)}
+  .wing .d{font:11.5px/1.4 var(--mono);color:var(--dim);margin-top:3px}
+  .wing.here{border-color:#3a5e5a;background:#10201f}
+  .wing.here .n{color:var(--teal)}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+    font:12px/1.6 var(--mono);color:var(--dim)}
+  footer a{color:var(--gold);text-decoration:none}
+  .rule{color:var(--teal)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / rind</div>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>rind <span style="color:var(--dim)">·</span> the <span class="axis">structure</span></h1>
+    <div class="tag">the structure wing of the O'Neill cylinder modelling package — the shell
+      that holds the air in, and the solver that proves it carries the load</div>
+  </header>
+
+  <p class="lede">An infinite (no end-caps) O'Neill cylinder is held together by its
+  <b>rind</b>: a thick, layered, braced <b>foam</b> — a Voronoi space-frame whose edges form
+  a "monster truss" and whose plates seal compartments without cutting the load path. The
+  spin that gives the interior its gravity also tries to tear the shell apart in hoop
+  tension. rind is the toolkit for sizing that shell, <b>scoring it with a real frame
+  solver</b>, and walking through the structure it generates.</p>
+
+  <section>
+    <h2>One package, four wings</h2>
+    <p>The O'Neill cylinder model is built as four independent surfaces. rind is the
+    <b>structure</b>; its siblings model the air inside, the ecology the air sustains, and
+    the game played within.</p>
+    <div class="wings">
+      <a class="wing" href="https://hoop.mino.mobi">
+        <div class="g">◍</div><div class="n">hoop</div>
+        <div class="d">the game — a world you walk, where each place is a forum thread</div>
+      </a>
+      <a class="wing here">
+        <div class="g">⬡</div><div class="n">rind</div>
+        <div class="d">the structure — the foam shell + frame solver · you are here</div>
+      </a>
+      <a class="wing" href="https://tide.mino.mobi">
+        <div class="g">☁</div><div class="n">tide</div>
+        <div class="d">the thermodynamics — radial atmosphere, fog, fountain &amp; sun</div>
+      </a>
+      <a class="wing" href="https://biome.mino.mobi">
+        <div class="g">❧</div><div class="n">biome</div>
+        <div class="d">the ecosystem — the closed food web inside the shell</div>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>The premise — why the shell is the hard part</h2>
+    <div class="grid2">
+      <div class="fact spin">
+        <h4>Gravity is a gradient</h4>
+        <p>Spin gravity <code>g(r)=ω²r</code> is full at the rim and falls to zero at the
+        axis. The same spin that makes the floor habitable loads the shell.</p>
+      </div>
+      <div class="fact load">
+        <h4>The shell carries the spin</h4>
+        <p>Every tonne on the inner surface pulls outward. The rind must take that as hoop
+        tension and radial compression — at huge radius, a shell patch is a near-flat slab.</p>
+      </div>
+      <div class="fact foam">
+        <h4>The shell is a foam</h4>
+        <p>A layered Voronoi cell-cloud: the <i>edges</i> are the space-frame, the <i>plates</i>
+        seal compartments. Doors and stairs are openings in plates, never cuts in edges —
+        so every chamber is reachable without weakening the skeleton.</p>
+      </div>
+      <div class="fact solve">
+        <h4>Honest physics, solved</h4>
+        <p>The geometry is generated in JS; the structural scoring is a real Rust/WASM frame
+        solver (banded RCM + Cholesky). Dial it and watch the cylinder pass or tear.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Modules</h2>
+    <p>Size the cylinder, generate the foam, solve it for stress, then read it in 3D — or
+    walk through it on foot.</p>
+    <div class="modules">
+
+      <a class="mod live" href="./cylinder.html">
+        <div class="top">
+          <h3>Thinking about cylinders</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The structural + radiative scratchpad. Dial the radius, spin, material and safety
+        factor; the closed-form estimate sizes the cable weave, and the <i>frame solver</i>
+        sizes the real foam shell from its cell section. A live play-slice shows stacked floors
+        of the foam coloured by the solver's actual stress — green holds, red overstresses —
+        with the deflection exaggerated so you can see it carry load.</p>
+        <div class="meta">→ honest physics: dial it and watch the cylinder pass or tear · the
+        optional WASM solver accelerates it with a pure-JS fallback, so the page always works.</div>
+      </a>
+
+      <a class="mod live" href="./foamview.html">
+        <div class="top">
+          <h3>Foam viewer</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>A 3D read of the layered foam: the annular shell slab as a cell cloud, density graded
+        toward the hull where the spin-load lands. Orbit it, zoom, and slide a radial probe
+        through the thickness to watch the structure change layer by layer — the same foam the
+        cylinder tool solves, seen in the round.</p>
+        <div class="meta">→ drag to orbit · radial layer slider · the annular shell, solved.</div>
+      </a>
+
+      <a class="mod live" href="./walk.html">
+        <div class="top">
+          <h3>Walk the foam</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>Drop in as a denizen of the megastructure and walk a planar cut through the foam — a
+        roguelike level extracted from the 3D cell-cloud by fitting a best-fit plane (PCA) through
+        a region of cells and projecting the rooms and doors it passes. Climb ladders radially and
+        the gravity shifts: lighter toward the core, heavier toward the hull.</p>
+        <div class="meta">→ ←→ walk · ↑↓ climb · space hop · the structure as a place you inhabit.</div>
+      </a>
+
+    </div>
+  </section>
+
+  <footer>
+    <span class="rule">⬡</span> the structure wing of an O'Neill cylinder modelling package.
+    thermodynamics → <a href="https://tide.mino.mobi">tide</a> ·
+    ecosystem → <a href="https://biome.mino.mobi">biome</a> ·
+    the game → <a href="https://hoop.mino.mobi">hoop</a>.<br>
+    source &amp; solver notes in <code>rind/README.md</code>. pure static; geometry in JS, scoring in an optional WASM solver.
+  </footer>
+
+</div>
+</body>
+</html>

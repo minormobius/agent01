@@ -1,65 +1,39 @@
-# biome — life-support modelling for an infinite O'Neill cylinder
+# biome — the closed ecology of an infinite O'Neill cylinder
 
 **Live at:** `biome.mino.mobi`
 **Stack:** Cloudflare Worker (ASSETS binding) + vanilla ES modules. No build step.
 **Deploy:** `.github/workflows/deploy-biome.yml` — `wrangler deploy` on push to `biome/**`.
 
-Tooling for thinking about the **interior** of an infinite (no end-caps) O'Neill
-cylinder run as a **bio-engine**: a linear sun on the spin axis, vegetation on the
-inner surface of the structural Voronoi rind, and the enclosed air/water/soil doing
-the work of a closed life-support loop. Companion to the structural work in
-[`/hoop`](../hoop) (which models the rind itself) — this is the volume *inside* it.
+The **ecosystem** wing of a four-part O'Neill cylinder modelling package. It models the
+**interior** of an infinite (no end-caps) cylinder run as a **bio-engine**: a linear sun
+on the spin axis, vegetation on the inner surface of the structural rind, and the enclosed
+air/water/soil doing the work of a closed life-support loop. The question biome answers is
+the **zeroth** one — *can the loop close at all as stocks and flows?* — by modelling the
+interior as a living **food web** rather than a farm.
 
-The site is a **suite of modules**, built in dependency order — close the resource
-books first, resolve them in space second, render them third:
+### One package, four wings
 
-| Module | Path | Status |
+The full O'Neill cylinder model is split into four independent deploy surfaces, each with
+its own subdomain, landing page and `CLAUDE.md`:
+
+| Wing | Surface | What it models |
 |---|---|---|
-| **1 · Resource cycles** — closed-loop life-support box model | `cycles/` | **live** |
-| **2 · Radial atmosphere** — 1-D `r`-column (temp/humidity/CO₂ vs altitude) | `atmosphere/` | **live** |
-| **2b · Fountain &amp; sun** — azimuthal cross-section: the water-cycle jet + luminous-flux budget | `fountain/` | **live** |
-| **4 · Systems ledger** — water & energy books: reactors → light + jets, lake → fog → lake, fish | `systems/` | **live** |
-| **3 · Interior visualiser** — WebGPU O'Neill interior with rendered atmosphere | — | planned |
+| **The game** | [`hoop.mino.mobi`](../hoop) | the infinite game — a world you walk, where every place is a forum thread |
+| **The structure** | [`rind.mino.mobi`](../rind) | the foam space-frame shell + the Rust/WASM frame solver that scores it |
+| **The thermodynamics** | [`tide.mino.mobi`](../tide) | the radial atmosphere column, fog optics, the fountain & sun, the water/energy ledger |
+| **The ecosystem** | `biome.mino.mobi` *(this)* | the closed food-web box model + allometry + roster + stability lab |
 
-The landing page (`index.html`) frames the premise and links the modules; each module
-is self-contained under its own directory.
+biome is the volume *inside* the rind, and it shares the cylinder with tide: **radius is
+altitude is temperature/humidity/CO₂**, so the planned radius-niche coupling (below) is
+where biome and tide become one cylinder model. The thermodynamic premise that makes the
+interior strange — *up is hot not cold; fog not rain; the CO₂ trap* — lives in
+[`tide/README.md`](../tide/README.md); biome takes the climate as a boundary condition and
+asks whether the carbon, oxygen, water and nitrogen books balance under it.
 
-## Why this shape of tool
+The landing page (`index.html`) frames the premise and links the modules; each module is
+self-contained under its own directory.
 
-The cylinder interior has a counterintuitive thermal layout that drives everything:
-
-- **"Up" (toward the axis) wants to be hot, not cold.** The linear sun is on the
-  axis; the cold sink is the shell radiating to space at the rim. That's the
-  *inverse* of Earth, where up is cold. The consequence isn't just "condensation on
-  the edges" — it's **permanent stratification**: warm air rises to the axis and
-  stays there (no cold ceiling to re-densify it), so the steady state is a thin
-  convective weather layer near the vegetated surface under a hot, stable core.
-- **The water cycle goes dew-dominated, not rain-dominated.** Adiabatic cooling
-  from axis to floor is set by the cylinder size: an Island-Three-scale habitat (3.2 km)
-  spans only ~16 K and ~17% pressure drop, while the build modelled here (an **8 km** floor
-  with 1 g at the **outer** radius ⇒ ~0.8 g floor — see `shared/geometry.mjs`) spans **~31 K
-  and ~32%** — a colder, thinner axis. Either way condensation happens near the cold surface —
-  **fog under the canopy, dew drip**, like a cloud forest. Your instinct is right.
-- **The trap:** the same stratification that gives gentle dew irrigation also
-  **suppresses vertical mixing of CO₂**. A photosynthesising canopy depletes CO₂ in
-  its own boundary layer within minutes; on Earth wind resupplies it. Here the fog
-  that waters the plants and the stagnation that starves them of CO₂ are the *same*
-  phenomenon. The mixing pump has to come from within the symmetry — the photoperiod
-  thermal tide (pulse the sun) is the natural candidate, plus a **fountain** that lofts air
-  mechanically (Module 2b). Coriolis (ω≈0.031 rad/s, ~430× Earth for the modelled 8 km build)
-  is strong enough to organise any radial flow into bands/rolls — and to curve a water jet
-  into an irrigation sheet.
-- **Fog is an optical medium, and the sun can burn it.** The cold-surface stratus deck is a
-  cloud of ~10 µm droplets; the linear sun's light **Mie-scatters** through it (dimming the
-  view — low visibility) while its near-IR fraction is **absorbed**, warming the fog and
-  evaporating it. So the deck blooms dense at night (optical depth ~80–100, a near-blackout)
-  and the sun **burns it off by day**, reopening the canopy to light. That optics lives in
-  `atmosphere/sim/optics.mjs` and feeds the column.
-
-Before any of that spatial detail matters, the **zeroth question** is whether the
-loop can close at all as stocks and flows. That's Tool 1.
-
-## Module 1 — the closed-ecosystem box model (`cycles/`)
+## The closed-ecosystem box model (`cycles/`)
 
 A non-spatial, deterministic, **data-driven** stocks-and-flows model of the cylinder
 interior as a living **food web** — not a farm. Zero dependencies, runs identically in
@@ -156,7 +130,7 @@ node biome/cycles/test/linalg.selftest.mjs      # 15 checks: inverse + symmetric
 node biome/cycles/test/stability.selftest.mjs   # 11 checks: stability verdict + eigenvalue/decay cross-check
 node biome/cycles/sim/enrich-roster.mjs         # (network) refresh iNat imagery + GloBI diet → roster.enriched.json
 ( cd biome/cycles/solver && cargo test )        # 6 checks: the Rust stability kernel vs known spectra
-open  biome/index.html                          # landing → Module 1 dashboard (cycles/) → Stability lab (cycles/stability.html)
+open  biome/index.html                          # landing → the cycles dashboard (cycles/) → Stability lab (cycles/stability.html)
 ```
 
 ### Knobs (all in `defaultParams()`)
@@ -176,7 +150,7 @@ are documented inline at their definitions.
   conserves exactly).
 - Photosynthate is carbohydrate-equivalent; lipid/protein energy density not split.
 - **Single well-mixed air box — no radial structure.** That's the whole point of
-  Module 2. This model tells you *whether* the loop closes; it can't tell you *where*
+  the `tide` wing. This model tells you *whether* the loop closes; it can't tell you *where*
   the fog sits or whether CO₂ stratifies into a dead zone.
 - Temperature is a fixed parameter (no thermal feedback on metabolic rates yet).
 - Pollination is a population gate, not individual flower visitation; the predator
@@ -290,170 +264,29 @@ ecosystem-builder. The roadmap:
    eigenvalues (May), reactivity off its symmetric part (Neubert), keystones off its inverse
    (Bender). Answers *"will this web survive?"* without a full time-domain run, validated
    against it. JS kernel + Rust/WASM sister; visible at `cycles/stability.html`. *Done.*
-4. **Radius-niche coupling to Module 2** — give each organism a preferred radius (canopy /
+4. **Radius-niche coupling to `tide`** — give each organism a preferred radius (canopy /
    floor / swamp); radius is altitude is temperature/humidity/CO₂, so the food web couples
-   to the atmosphere column and the two modules become one cylinder model.
+   to tide's atmosphere column and the two wings become one cylinder model.
 
-## Module 2 — 1-D radial atmosphere column (`atmosphere/`)
+## The thermodynamics moved to `tide`
 
-The cylinder is symmetric along and around its axis, so the only gradient is **radius**.
-This is that 1-D column — temperature, pressure, humidity and CO₂ as functions of radius
-(equivalently altitude) and time — evolving under a pulsable axial sun. Live viewer at
-`atmosphere/index.html`; kernel in `atmosphere/sim/column.mjs` (pure, zero-dep, node + browser).
-
-**It reproduces the geometry's numbers by construction.** Centrifugal hydrostatic balance
-(`dP/dr = ρω²r`) on a cylindrical finite-volume grid gives a **~32% pressure drop** axis→floor for
-the 8 km build (`shared/geometry.mjs`, 1 g at the outer radius ⇒ ~0.8 g floor); the centrifugal
-adiabat (`Δ = ω²(R²−r²)/2cp`) gives a **~31 K** offset. Bigger barrel, bigger thermodynamic span
-(an Island-Three 3.2 km habitat would be ~17% / ~16 K). The axis runs near −5 °C with a dense
-near-surface stratus deck. Potential temperature carries the adiabat, so "well mixed" means uniform
-θ, not T.
-
-**The method** (idealised, Held–Suarez spirit): radiation is a Newtonian relaxation of θ toward
-a prescribed radiative-equilibrium profile — a stable aloft inversion (warm axis) plus a diurnal
-surface signal (warm bump by day, cool by night); dynamics is an explicit, **stability-dependent
-eddy diffusion** (convective adjustment) that mixes hard where the column is statically unstable
-and barely at all under the inversion. Finite-volume in true cylindrical geometry (flux area ∝ r,
-the axis closes for free), so the diffusion operator conserves mass/heat/CO₂/water to machine
-precision and the books change only by the surface exchange — which, in the coupled system, comes
-from Module 1's steady state.
-
-**The phenomena it answers** (all in the self-test, `column.selftest.mjs`, 16 checks):
-- *Stratification.* A stable inversion forms — θ climbs ~12 K from floor to axis — and suppresses
-  vertical mixing.
-- *Dew, not rain.* The cool nighttime surface saturates: dew accumulates ~3× faster at night than
-  by day, and a dense **stratus deck** (≈1.7 km, visibility ~120 m) blooms against the canopy wall.
-- *Fog is optical, and the sun burns it.* Mie scattering darkens the deck (night optical depth
-  ~80–100) while near-IR absorption heats and evaporates it, so the daytime fog burns down toward
-  optical depth ~0 and the canopy reopens to light (`atmosphere/sim/optics.mjs`, tested).
-- *The CO₂ trap + the pumps.* A photosynthesising canopy depletes its own boundary layer under the
-  stable lid; the daytime thermal tide convectively relieves it (~50%), and the **fountain** adds a
-  night-time mechanical pump — with buoyancy off it alone cuts the canopy CO₂ swing **~60%**.
-
-```bash
-node biome/atmosphere/test/column.selftest.mjs   # 16 checks: structure, conservation, phenomena, Mie fog burn-off, fountain coupling
-node biome/atmosphere/test/optics.selftest.mjs   # 11 checks: Mie extinction, Koschmieder visibility, beam march
-open biome/atmosphere/index.html                 # the live radial-slice viewer
-```
-
-The visible-weather refinements (where the dew drips, banding, the water budget closing back into
-Module 1) are the natural place to return with the stability lab — they share the "what does the
-steady climate actually look like" question.
-
-## Module 2b — fountain & sun: the azimuthal cross-section (`fountain/`)
-
-Module 2 resolved the cylinder in radius; this resolves the other free dimension — **azimuth** —
-by looking straight down the axis at the **8 km / 10 km** geometry (`shared/geometry.mjs`). Two
-coupled pieces share one view (live at `fountain/index.html`):
-
-**The fountain (`fountain/sim/fountain.mjs`).** The water cycle's actuator. Reeds in the low-point
-pond ("Fond du Lac") pre-treat; a jet throws that water inward toward the axis. In the rotating
-frame a parcel in flight feels only centrifugal (`+ω²r`, outward) and Coriolis (`−2Ω×v`) — an exact
-ODE, integrated with RK4 and **conserved** (specific energy `½v²−½ω²r²` holds to ~1e-15, the test).
-**1 g lives at the outer radius**, so the 8 km floor sits at a comfortable ~0.8 g and ω is lower —
-which makes the fountain easier (the axis-reaching speed `ωR ≈ 250 m/s` drops with ω). The velocity
-slider runs to 1200, but the honest engineering split is: **ventilation needs only ~48 m/s** (Mach
-0.14, ~12 bar — a pressure washer); near-sonic ~250 m/s is only for *crossing the whole bore*, and
-since industrial waterjet cutters run 3000–6000 bar, even that is a solved problem. The viewer shows
-the Mach number and pump pressure live. The payoff is that *one* actuator answers two stagnations:
-- *Stagnant water* — spraying aerates: O₂ in (oxidises residual BOD, drives nitrification → mineral-N
-  back to Module 1), volatiles out, axial-sun UV on the droplets. The polish the reeds can't do.
-- *Stagnant air* — the plume lofts surface air; the crisp test is whether its **apex clears the
-  ~150 m inversion** from Module 2. A strong jet or a fan does; it runs at night when the thermal
-  pump is off.
-- *Distribution* — because `2ωv ~ g` here, the jet curves into a **sheet** that lays water down over
-  a broad prograde arc; the slight azimuthal grade returns the runoff to the low point. Loop closed.
-
-Four nozzles trade off: the **jet** punches deepest as a column, the **fan** clears the inversion
-*and* spreads ~600 m of irrigation, the **symmetric fan** ignores the aim and broadcasts a balanced
-1 km sheet, **mist** aerates ~10× more but stalls low.
-
-**Momentum coupling (the new bit).** The plume does mechanical work on the air, which
-`Fountain.ventilationK()` expresses as an equivalent near-surface eddy diffusivity (m²/s) fed into
-Module 2's column as a `fountainK` mixing term — the **night-time pump buoyant convection can't
-provide**. The test isolates it: with thermal convection off (the night condition), the fountain
-alone **cuts the canopy CO₂ swing by ~60%** and lifts the floor off starvation. The viewer runs the
-diurnal column live, so the **fog ring** blooms each night and the canopy CO₂ responds as you engage
-the fountain.
-
-**The luminous-flux budget (`fountain/sim/light.mjs`).** The axial sun is a **line**, so irradiance
-falls as **1/r**. Flooding the 8 km wall at **1 sun** takes a **~50 MW-per-metre** axial lamp (50 GW
-for a 1 km cylinder). The heat closure is geometric and is the punchline: all that light becomes heat,
-radiated from the **larger 10 km outer skin** (`εσT⁴ = E·R_hab/R_out`) — at **half a sun it's a benign
-~24 °C** radiator, at 1 sun ~81 °C. But it **cannot conduct out through the 1 km foam rind** (the
-conductive ΔT is ~10⁷ K), so heat must be **actively pumped** to the radiator: the foam insulates, it
-is not the heat path. And the bare **food** need is ~0.6 MW over ~600 m² — floodlighting over-provisions
-the calories tens of thousands of times. "We need a LOT of light," made concrete, with the boiling-sun
-heat budget that says half a sun is the sweet spot.
-
-```bash
-node biome/fountain/test/fountain.selftest.mjs   # 19 checks: energy conservation, deflection, nozzles, symmetric fan, ventilation K, jet mechanics
-node biome/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 50 MW/m headline, radiator + foam heat closure
-open biome/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
-```
-
-## Module 4 — the systems ledger: water & energy (`systems/`)
-
-The spatial modules each conserve their own books; this closes the two that cross all of them —
-**energy** and **water** (`systems/sim/resources.mjs`, surfaced in the fountain view). Reactors are
-the only source; light and jets the only loads.
-
-- **Energy** is instantaneous accounting on the light budget. The headline: lighting **dwarfs
-  everything mechanical by ~1000×** (half-sun over 1 km ≈ 50 GW electrical at 50% lamp efficiency vs
-  ~55 MW for three irrigation jets), so the reactor is sized *entirely* by light — ~17 × 3 GW units.
-  The jets are a rounding error.
-- **Water** is a four-box model (lake / soil / vapour / fog) with every flow paired, so total water
-  **conserves to ~1e-16** (the Module 1 discipline). The loop: jets pull from the lakes and spray
-  (some evaporates, the rest irrigates), evapotranspiration and night condensation feed the fog, the
-  Mie sun burns it back by day, dew settles to soil, and drainage returns it to the lakes. **Lake
-  depth** falls out of the reservoir charge ÷ footprint; **residence time** (volume ÷ throughput,
-  ~40 days) is the treatment + thermal buffer.
-- **Three jets, three lakes.** One jet wets up to a third of the circle, so three at 120° irrigate
-  the whole forest; three lakes sit at the ratchet low points (beach-to-cliff reservoirs). Irrigation
-  flow (~3 m³/s, matching evapotranspiration) is ~10× the aeration flow.
-- **Phase separation** (the design answer the column confirms): run the jet **day-phased** — it
-  ventilates the canopy when photosynthesis needs CO₂ and the sun is burning the fog anyway, then
-  backs off at night so the cool surface breeds **free dew irrigation**. An always-on jet kills the
-  fog; a day-phased one keeps it *and* gives the best daytime ventilation.
-- **The aquatic biome.** `aquaticCapacity()` turns lake surface into a sustainable fish stock — the
-  three lakes feed the crew's protein several times over. The natural next step is to make the fish a
-  Module 1 roster food web living in the reservoir.
-
-```bash
-node biome/systems/test/resources.selftest.mjs   # 17 checks: water conservation, lake depth, energy, jet phase, fish
-```
-
-## Module 3 — WebGPU interior visualiser (planned)
-
-The iconic O'Neill view — looking "up" and seeing more land curve overhead — but
-with the **atmosphere** rendered: the linear axial sun, the canopy on the inner
-surface, fog banding by altitude (from Module 2), and optionally a compute-shader
-`(r,θ)` slice showing Coriolis-organised convection rolls. Fed by Modules 1 and 2, so
-it visualises validated state, not assumptions. Will live in `interior/`.
+The spatial atmosphere/water/energy modules that used to live here — the 1-D radial
+atmosphere column (`atmosphere/`), the fountain & sun azimuthal cross-section (`fountain/`),
+the water & energy systems ledger (`systems/`), and the planned WebGPU interior visualiser —
+are now the **`tide`** wing at [`tide.mino.mobi`](../tide). They model the *climate* of the
+interior; biome models the *ecology* that lives in it. The two couple through radius (see
+"radius-niche coupling" in the roadmap above): radius is altitude is temperature/humidity/CO₂.
 
 ## Layout
 
 ```
 biome/
-├── index.html                    # landing page — the suite overview + module cards
+├── index.html                    # landing page — the premise + module cards + four wings
 ├── worker.js                     # assets worker (+ /health); model runs client-side
 ├── wrangler.jsonc                # name=biome, custom_domain route biome.mino.mobi
 ├── README.md                     # this file
-├── shared/geometry.mjs           # the canonical cylinder (8 km habitat, 10 km hull, 1 km foam rind)
-├── atmosphere/                   # MODULE 2 — 1-D radial atmosphere column
-│   ├── index.html                # the diurnal column viewer
-│   ├── sim/column.mjs            # finite-volume column + eddy mixing + fountain coupling term
-│   ├── sim/optics.mjs            # Mie fog optics — scattering, visibility, solar burn-off
-│   └── test/column.selftest.mjs  # structure, conservation, four phenomena, fountain coupling
-├── fountain/                     # MODULE 2b — azimuthal cross-section: fountain + light
-│   ├── index.html                # looking-down-the-axis viewer (3 jets, 3 lakes, ledger)
-│   ├── sim/fountain.mjs          # rotating-frame ballistic jet + nozzles + ventilationK + jetMechanics
-│   ├── sim/light.mjs             # line-source luminous-flux + foam/radiator heat closure
-│   └── test/{fountain,light}.selftest.mjs
-├── systems/                      # MODULE 4 — water & energy ledger
-│   ├── sim/resources.mjs         # energy accounting + conserving water box model + fish
-│   └── test/resources.selftest.mjs
-└── cycles/                       # MODULE 1 — resource-cycle box model
+├── CLAUDE.md                     # operational guide for this surface
+└── cycles/                       # the closed-ecosystem food-web box model
     ├── index.html                # the dashboard (vanilla, no build step)
     ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones
     ├── sim/
@@ -475,5 +308,6 @@ biome/
         └── stability.selftest.mjs # stability verdict + eigenvalue/decay cross-check
 ```
 
-This directory is intentionally separate from `/hoop` (structural rind) — the two are
-complementary halves of the same habitat and shouldn't collide on files.
+The thermodynamic half (`atmosphere/`, `fountain/`, `systems/`, `shared/geometry.mjs`) moved
+to the **`tide`** surface in the cylinder-refactor. biome is the **ecosystem** wing; its
+siblings are the game (`hoop`), the structure (`rind`) and the thermodynamics (`tide`).

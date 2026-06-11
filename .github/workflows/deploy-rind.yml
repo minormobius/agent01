@@ -1,11 +1,11 @@
-name: Deploy Hoop
+name: Deploy Rind
 
 on:
   push:
     branches: [main, 'claude/oneill-cylinder-refactor-xjknww']
     paths:
-      - 'hoop/**'
-      - '.github/workflows/deploy-hoop.yml'
+      - 'rind/**'
+      - '.github/workflows/deploy-rind.yml'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: hoop
+        working-directory: rind
 
     steps:
       - uses: actions/checkout@v4

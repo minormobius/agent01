@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tide · the thermodynamics of an O'Neill cylinder</title>
+<meta name="description" content="The thermodynamics wing of the O'Neill cylinder modelling package — the radial atmosphere column, fog optics, the fountain &amp; linear sun, and the water/energy ledger that closes across them." />
+<style>
+  :root{
+    --ink:#0b1016; --panel:#101a22; --line:#243440; --txt:#cfe1ea;
+    --dim:#7f97a6; --gold:#d8b25a; --water:#5aa9d8; --warn:#e0795a; --leaf:#62b87a; --fog:#a7c4d4;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --serif:Georgia,'Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#152530,#0a1116 62%);
+    color:var(--txt);font:15px/1.6 var(--serif);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:16px 22px}
+  .crumb a{color:var(--gold);text-decoration:none}
+  .wrap{max-width:880px;margin:0 auto;padding:6px 22px 60px}
+  header.hero{padding:26px 0 10px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font:600 30px/1.1 var(--mono);letter-spacing:.5px;color:var(--water)}
+  h1 .axis{color:var(--gold)}
+  .tag{color:var(--dim);font:13px/1.5 var(--mono);margin-top:8px;max-width:62ch}
+  .lede{font-size:17px;margin:22px 0 8px}
+  .lede b{color:var(--water);font-weight:600}
+  section{margin:26px 0}
+  h2{font:600 13px/1 var(--mono);text-transform:uppercase;letter-spacing:1.4px;color:var(--dim);
+    border-bottom:1px solid var(--line);padding-bottom:8px}
+  p{margin:12px 0}
+  .modules{display:grid;gap:14px;margin-top:18px}
+  .mod{display:block;text-decoration:none;color:inherit;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:16px 18px;transition:border-color .15s,transform .15s}
+  .mod.live:hover{border-color:#3a6a86;transform:translateY(-1px)}
+  .mod.soon{opacity:.66}
+  .mod .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .mod h3{margin:0;font:600 18px/1.2 var(--mono);color:var(--txt)}
+  .mod.live h3{color:var(--water)}
+  .badge{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:1px;padding:4px 8px;border-radius:99px;white-space:nowrap}
+  .badge.live{background:#11242e;color:var(--water);border:1px solid #2c526a}
+  .badge.soon{background:#1a1712;color:var(--gold);border:1px solid #4a3c22}
+  .mod p{margin:9px 0 0;font-size:14.5px;color:var(--txt)}
+  .mod .meta{margin-top:10px;font:12px/1.5 var(--mono);color:var(--dim)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  .fact{background:#0d161d;border:1px solid var(--line);border-radius:10px;padding:13px 15px}
+  .fact h4{margin:0 0 4px;font:600 12px/1 var(--mono);letter-spacing:.5px}
+  .fact.hot h4{color:var(--warn)} .fact.cold h4{color:var(--water)}
+  .fact.life h4{color:var(--leaf)} .fact.spin h4{color:var(--gold)}
+  .fact p{margin:0;font-size:13.5px;color:var(--dim)}
+  code{font-family:var(--mono);font-size:.88em;color:var(--gold)}
+  .wings{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}
+  @media(max-width:640px){.wings{grid-template-columns:1fr 1fr}}
+  .wing{display:block;text-decoration:none;background:#0d161d;border:1px solid var(--line);
+    border-radius:10px;padding:12px 13px;transition:border-color .15s,transform .15s}
+  .wing:hover{border-color:#3a6a86;transform:translateY(-1px)}
+  .wing .g{font-size:17px}
+  .wing .n{font:600 14px/1.2 var(--mono);margin-top:6px;color:var(--txt)}
+  .wing .d{font:11.5px/1.4 var(--mono);color:var(--dim);margin-top:3px}
+  .wing.here{border-color:#3a6a86;background:#11242e}
+  .wing.here .n{color:var(--water)}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);
+    font:12px/1.6 var(--mono);color:var(--dim)}
+  footer a{color:var(--gold);text-decoration:none}
+  .rule{color:var(--water)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / tide</div>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>tide <span style="color:var(--dim)">·</span> the <span class="axis">thermodynamics</span></h1>
+    <div class="tag">the thermodynamics wing of the O'Neill cylinder modelling package — the
+      air, the fog, the water cycle and the heat books of the interior</div>
+  </header>
+
+  <p class="lede">The cylinder interior has a counterintuitive thermal layout that drives
+  everything: <b>"up" — toward the axis — wants to be hot, not cold.</b> The linear sun is
+  on the axis; the cold sink is the shell radiating to space at the rim. That inverts Earth
+  and produces <b>permanent stratification</b>: warm air rises to the core and stays there,
+  the water cycle goes <b>dew-dominated, not rain-dominated</b>, and the same stagnation that
+  waters the plants starves them of CO₂. tide is the toolkit for that physics.</p>
+
+  <section>
+    <h2>One package, four wings</h2>
+    <p>The O'Neill cylinder model is built as four independent surfaces. tide is the
+    <b>thermodynamics</b>; its siblings model the structure that holds the air in, the
+    ecology the air sustains, and the game played inside.</p>
+    <div class="wings">
+      <a class="wing" href="https://hoop.mino.mobi">
+        <div class="g">◍</div><div class="n">hoop</div>
+        <div class="d">the game — a world you walk, where each place is a forum thread</div>
+      </a>
+      <a class="wing" href="https://rind.mino.mobi">
+        <div class="g">⬡</div><div class="n">rind</div>
+        <div class="d">the structure — the foam space-frame shell + frame solver</div>
+      </a>
+      <a class="wing here">
+        <div class="g">☁</div><div class="n">tide</div>
+        <div class="d">the thermodynamics — atmosphere, fog, fountain · you are here</div>
+      </a>
+      <a class="wing" href="https://biome.mino.mobi">
+        <div class="g">❧</div><div class="n">biome</div>
+        <div class="d">the ecosystem — the closed food web that the climate sustains</div>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>The premise — why the air is strange</h2>
+    <div class="grid2">
+      <div class="fact hot">
+        <h4>Up is hot, not cold</h4>
+        <p>The sun is on the axis; the cold sink is the shell radiating to space at the rim.
+        That inverts Earth — warm air rises to the core and <i>stays</i> there.</p>
+      </div>
+      <div class="fact cold">
+        <h4>Fog, not rain</h4>
+        <p>Condensation happens on the cold surface: a cloud-forest of dew and canopy fog.
+        The 8 km build spans ~31 K and ~32% pressure drop, axis to floor.</p>
+      </div>
+      <div class="fact spin">
+        <h4>Fog is optical — the sun burns it</h4>
+        <p>The cold-surface stratus Mie-scatters the axial sun (a near-blackout at night),
+        while its near-IR fraction is absorbed and evaporates the deck by day.</p>
+      </div>
+      <div class="fact life">
+        <h4>The CO₂ trap, and the pumps</h4>
+        <p>Stratification suppresses mixing; a canopy depletes its own CO₂ boundary layer.
+        The thermal tide and a mechanical fountain are the pumps that relieve it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Modules</h2>
+    <p>The cylinder is symmetric along and around its axis, so the only gradients are
+    <i>radius</i> and <i>azimuth</i>. Resolve each in turn, then close the books that cross them.</p>
+    <div class="modules">
+
+      <a class="mod live" href="./atmosphere/">
+        <div class="top">
+          <h3>Radial atmosphere</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>A 1-D column model along the radius: temperature, pressure, humidity and CO₂ as
+        functions of altitude and time, under a pulsable axial sun. Where "up is hot" stops
+        being a slogan and becomes a fog-height number — the dew profile, the stratified
+        dead-zone, and whether pulsing the sun ventilates the canopy. Centrifugal hydrostatic
+        balance and the centrifugal adiabat reproduce the geometry's numbers by construction.</p>
+        <div class="meta">→ watch it run: the stable inversion traps warm air aloft · dew/fog
+        blooms at the cool surface each night (optical depth ~80–100) · the daytime convective
+        tide ventilates the canopy's CO₂. Mie fog optics in <code>sim/optics.mjs</code>.</div>
+      </a>
+
+      <a class="mod live" href="./fountain/">
+        <div class="top">
+          <h3>Fountain &amp; sun</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The other free dimension — <i>azimuth</i> — looking straight down the axis. A fountain
+        at the rim low point ("Fond du Lac") throws pond water inward; at ~430× Earth's spin the
+        Coriolis force rivals gravity, so the jet <i>curves into a sheet</i> — aerating the water,
+        lofting surface air through the inversion, and laying irrigation down across the hoop, all
+        in one act. The same view carries the <i>luminous-flux budget</i>: the axial sun is a line
+        (irradiance ∝ 1/r), so flooding the 8 km wall takes a ~50 MW-per-metre lamp — with a
+        boiling-sun heat closure that says half a sun is the sweet spot.</p>
+        <div class="meta">→ one actuator for stagnant water and stagnant air · nozzle/velocity/aim
+        sliders · with buoyancy off, the fountain alone cuts the canopy CO₂ swing ~60%.</div>
+      </a>
+
+      <a class="mod live" href="./fountain/">
+        <div class="top">
+          <h3>Systems ledger</h3>
+          <span class="badge live">live</span>
+        </div>
+        <p>The water and energy books that cross every module — reactors → light + jets (the only
+        loads), and a closed water loop (lake → jet → fog/dew/soil → drainage → lake) that conserves
+        to machine precision. It sizes the reactor (almost <i>all</i> light — the jets are &lt;0.1%),
+        sets the lake depth from the reservoir charge, and turns that water into <i>fish</i> — three
+        corkscrewing lakes that feed the crew's protein several times over. Surfaced in the fountain
+        view alongside the three jets and three lakes.</p>
+        <div class="meta">→ light is ~1000× the jets · 3 jets irrigate 3 forests · day-phased jets
+        ventilate while night fog gives free dew · lakes for a sustainable aquatic biome.</div>
+      </a>
+
+      <div class="mod soon">
+        <div class="top">
+          <h3>Interior visualiser</h3>
+          <span class="badge soon">planned</span>
+        </div>
+        <p>The iconic O'Neill view — looking "up" and seeing land curve overhead — but with the
+        <i>atmosphere</i> rendered: the axial sun, the canopy on the inner surface, fog banding
+        by altitude, and a WebGPU slice of the Coriolis-organised convection. Fed by this wing's
+        validated state, so it shows physics, not assumptions.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span class="rule">☁</span> the thermodynamics wing of an O'Neill cylinder modelling package.
+    structure → <a href="https://rind.mino.mobi">rind</a> ·
+    ecosystem → <a href="https://biome.mino.mobi">biome</a> ·
+    the game → <a href="https://hoop.mino.mobi">hoop</a>.<br>
+    source &amp; physics notes in <code>tide/README.md</code>. pure static; every model runs in your browser.
+  </footer>
+
+</div>
+</body>
+</html>
