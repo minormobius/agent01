@@ -169,6 +169,42 @@ export function ventilationK(p, sim = simulate(p)) {
   return { K, depth };
 }
 
+// INDUCED WIND — the air the jet drags along. The water jet is a momentum source in the
+// air: its momentum flux F = ρ_w·Q·v₀ is handed to an entrained-air plume that conserves
+// it while spreading by entrainment, b(h) = b₀ + α·h (α ≈ 0.12, the classic turbulent-jet
+// constant; b₀ from the nozzle area Q/v₀). Conserving F = ρ_a·w²·πb² gives the centreline
+// induced wind speed
+//   w(h) = √( F / (ρ_a π b(h)²) ),   capped at the water speed near the nozzle,
+// and zero above the plume top (air is lofted only as far as the water carries it, the
+// apex). The result is the wind the canopy feels when the fountain runs — a gale at the
+// nozzle, a fresh breeze at the inversion, calm aloft — and it follows the jet's diurnal
+// phase. Returns the profile plus the entrained airflow through the inversion.
+const RHO_AIR = 1.2, ENTRAIN_ALPHA = 0.12;
+export function inducedWind(p, sim = simulate(p)) {
+  const Q = p.flowRate, F = RHO_W * Q * p.v0;                  // momentum flux, N
+  const b0 = Math.sqrt(Math.max(Q / Math.max(p.v0, 1e-9), 1e-9) / Math.PI);
+  const top = sim.apexDepth;                                   // plume height (m)
+  const wAt = (h) => {
+    if (F <= 0 || h < 0 || h > top) return 0;
+    const b = b0 + ENTRAIN_ALPHA * h;
+    return Math.min(p.v0, Math.sqrt(F / (RHO_AIR * Math.PI * b * b)));
+  };
+  const NPTS = 25;
+  const profile = Array.from({ length: NPTS }, (_, i) => {
+    const h = (top * i) / (NPTS - 1);
+    return { h, w: wAt(h) };
+  });
+  const bInv = b0 + ENTRAIN_ALPHA * p.inversionDepth;
+  const wInversion = wAt(p.inversionDepth);
+  return {
+    profile, top, wAt,
+    wMax: wAt(0),                                              // at the nozzle (capped at v₀)
+    wInversion,                                                // the breeze where it matters
+    wApex: wAt(top),
+    airflowInversion_m3s: wInversion * Math.PI * bInv * bInv,  // entrained air through the inversion
+  };
+}
+
 // Jet mechanics — the engineering cost of a given exit speed. Mach (vs ~343 m/s in the
 // cabin air) and the stagnation pressure the pump must supply (½ρv²). Context: industrial
 // waterjet cutters run 300–600 MPa, so even a sonic water jet is a solved problem.
@@ -189,11 +225,12 @@ export const KNOWN_SIMPLIFICATIONS = [
   'Aeration and ventilation are relative indices (gas-exchange ∝ surface×time; lofted air ∝ jet momentum×reach), not a resolved two-phase plume.',
   '2-D cross-section: axial structure is out of plane; the parcel never leaves its (r,θ) slice.',
   'No evaporation in flight; the water-mass handoff to Module 2’s humidity/dew is left to the coupling layer.',
+  'Induced wind is a momentum-conserving entrained-air plume (b = b₀ + αh, α ≈ 0.12) capped at the water speed; the return-flow circulation that feeds it is not resolved.',
 ];
 
 const Fountain = {
   defaultParams, NOZZLES, specificEnergy, integrateParcel, simulate, ventilationK,
-  jetMechanics, KNOWN_SIMPLIFICATIONS,
+  inducedWind, jetMechanics, KNOWN_SIMPLIFICATIONS,
 };
 if (typeof globalThis !== 'undefined') globalThis.Fountain = Fountain;
 export default Fountain;

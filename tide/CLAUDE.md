@@ -31,7 +31,7 @@ block and footer cross-links in `index.html` working.
 ```bash
 node tide/atmosphere/test/column.selftest.mjs     # 16 checks
 node tide/atmosphere/test/optics.selftest.mjs     # 11 checks
-node tide/fountain/test/fountain.selftest.mjs     # 19 checks
+node tide/fountain/test/fountain.selftest.mjs     # 25 checks
 node tide/fountain/test/light.selftest.mjs        # 15 checks
 node tide/systems/test/resources.selftest.mjs     # 17 checks
 # or all at once:

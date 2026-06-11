@@ -93,7 +93,11 @@ looking straight down the axis. Two coupled pieces share one view (live at `foun
 - **Momentum coupling.** `Fountain.ventilationK()` expresses the plume's mechanical work on the
   air as an equivalent eddy diffusivity fed into Module 2's column — the night-time pump buoyant
   convection can't provide. With thermal convection off, the fountain alone **cuts the canopy CO₂
-  swing ~60%**.
+  swing ~60%**. `Fountain.inducedWind()` is the same coupling seen as a *wind*: the jet's momentum
+  flux (ρ_w·Q·v₀) handed to a momentum-conserving entrained-air plume (b = b₀ + αh, α ≈ 0.12),
+  giving w(h) = √(F/ρ_aπb²) — a gale at the nozzle, a fresh breeze at the inversion, calm above
+  the plume top. The viewer draws it as chevrons riding the jet sheet, gated by the diurnal jet
+  phase, and the jets rise from inside their lakes (the wall is the lake bed, the chord its surface).
 - **The luminous-flux budget (`fountain/sim/light.mjs`).** The axial sun is a **line**, so
   irradiance falls as **1/r**. Flooding the 8 km wall at 1 sun takes a **~50 MW-per-metre** lamp.
   All that light becomes heat, radiated from the larger 10 km outer skin — at half a sun a benign
@@ -101,7 +105,7 @@ looking straight down the axis. Two coupled pieces share one view (live at `foun
   must be actively pumped to the radiator. Half a sun is the sweet spot.
 
 ```bash
-node tide/fountain/test/fountain.selftest.mjs   # 19 checks: energy conservation, deflection, nozzles, ventilation K, jet mechanics
+node tide/fountain/test/fountain.selftest.mjs   # 25 checks: energy conservation, deflection, nozzles, ventilation K, induced wind, jet mechanics
 node tide/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 50 MW/m headline, radiator + foam heat closure
 open tide/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
 ```
