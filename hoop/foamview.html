@@ -23,19 +23,21 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / right slider = probe floor · pinch or +/- = zoom</span></div>
+<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / right slider = probe floor · pinch or +/- = zoom · <b>scene</b> → the closed cylinder, solved</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="probe"><input id="probeY" type="range" min="0" max="1000" value="500" orient="vertical"></div>
 <div id="panel">
   <label>floor <b id="floorLabel">—</b></label>
+  <button id="scene">scene: foam slab</button>
   <button id="regen">↻ new foam</button>
   <button id="vmode">view: both</button>
   <button id="rmode">renderer: …</button>
 </div>
 
+<script src="/js/ship.js"></script>
 <script src="/foam3d.js"></script>
-<script>
-'use strict';
+<script type="module">
+import { chunkSeeds } from '/js/world.js';   // the REAL foam generator (ship.js loaded above)
 // ── foam (3D cell cloud in a shell slab; z = radial/thickness = the floor axis) ──
 const OPT = { Lx: 360, Ly: 300, thickness: 160, cell: 24, grade: 0.5, seed: 1 };
 let CELLS = [], ZMAX = OPT.thickness;
@@ -47,6 +49,73 @@ function regen() {
   buildInstances();
 }
 function HOOFAM3D_seeds(o) { return (window.HOOPFOAM3D ? window.HOOPFOAM3D.seeds3d(o) : []); }
+
+// ════════════════════════ CYLINDER SCENE ════════════════════════
+// "The whole thing": one axial chunk × FULL circumference, closed into a hoop, solved as one
+// prestressed ring (the substrate the cylinder-ring selftest verifies). Chambers ride the real
+// cylinder; membranes are coloured by the load-induced hoop force — tension warm, compression
+// cool. This is the closed loop the live map (an unbounded plane) never forms.
+let ringMode = false;
+const RING = { N: 18, seed: 1, C: 24 };
+let ringStats = { nodes: 0, members: 0, hoop: 0 };
+function stressColor(t) {                                   // t ∈ [−1,1]: −compression … +tension
+  const a = Math.max(-1, Math.min(1, t)), mid = [0.30, 0.80, 0.80], tgt = a >= 0 ? [1.0, 0.5, 0.2] : [0.32, 0.55, 1.0], m = Math.abs(a);
+  return [mid[0] + (tgt[0] - mid[0]) * m, mid[1] + (tgt[1] - mid[1]) * m, mid[2] + (tgt[2] - mid[2]) * m];
+}
+function gsolveRing(A, b, n) {
+  for (let col = 0; col < n; col++) {
+    let piv = col, best = Math.abs(A[col * n + col]); for (let r = col + 1; r < n; r++) { const v = Math.abs(A[r * n + col]); if (v > best) { best = v; piv = r; } }
+    if (best < 1e-12) return null;
+    if (piv !== col) { for (let k = 0; k < n; k++) { const t = A[col * n + k]; A[col * n + k] = A[piv * n + k]; A[piv * n + k] = t; } const t = b[col]; b[col] = b[piv]; b[piv] = t; }
+    const d = A[col * n + col];
+    for (let r = col + 1; r < n; r++) { const f = A[r * n + col] / d; if (f) { for (let k = col; k < n; k++) A[r * n + k] -= f * A[col * n + k]; b[r] -= f * b[col]; } }
+  }
+  const x = new Float64Array(n); for (let i = n - 1; i >= 0; i--) { let s = b[i]; for (let k = i + 1; k < n; k++) s -= A[i * n + k] * x[k]; x[i] = s / A[i * n + i]; } return x;
+}
+function buildCylinderRing() {
+  const N = RING.N, seed = RING.seed >>> 0, C = RING.C, CIRC = N * C, R = CIRC / (2 * Math.PI), N0 = 8;
+  // nodes + the periodic nearest-seed field → membrane adjacency (wraps at the seam)
+  const nodes = [], gidIndex = new Map(), RS = [];
+  for (let cy = 0; cy < N; cy++) { const ss = chunkSeeds(seed, 0, cy); ss.forEach((s, i) => { const gid = '0,' + cy + ',' + i; gidIndex.set(gid, nodes.length); nodes.push({ u: s.y, v: s.x }); RS.push({ gid, x: s.x, y: s.y }); }); }
+  const NC = nodes.length, D = 3, ndof = D * NC;
+  const nearestGid = (v, u) => { let bg = null, bd = 1e18; for (const s of RS) for (const off of [-CIRC, 0, CIRC]) { const dy = s.y + off - u, dx = s.x - v, d = dx * dx + dy * dy; if (d < bd) { bd = d; bg = s.gid; } } return bg; };
+  const field = []; for (let v = 0; v < C; v++) { field[v] = new Array(CIRC); for (let u = 0; u < CIRC; u++) field[v][u] = nearestGid(v + 0.5, u + 0.5); }
+  const adj = new Set(), akey = (a, b) => a < b ? a + '|' + b : b + '|' + a;
+  for (let v = 0; v < C; v++) for (let u = 0; u < CIRC; u++) { const g = field[v][u], rt = field[v][(u + 1) % CIRC]; if (rt !== g) adj.add(akey(g, rt)); if (v + 1 < C) { const dn = field[v + 1][u]; if (dn !== g) adj.add(akey(g, dn)); } }
+  const members = [...adj].map((k) => k.split('|')).filter(([a, b]) => gidIndex.has(a) && gidIndex.has(b)).map(([a, b]) => [gidIndex.get(a), gidIndex.get(b)]);
+  // ride the cylinder (axis = z): hoop lies in the x–y plane, so orbiting shows it round
+  nodes.forEach((n) => { const th = 2 * Math.PI * n.u / CIRC; n.x = R * Math.cos(th); n.y = R * Math.sin(th); n.z = n.v; n.th = th; });
+  // assemble elastic + geometric (spin prestress) + tiny regolith bed, then minimal-pin solve
+  const K = new Float64Array(ndof * ndof), mlen = [], mdir = [];
+  for (const [i, j] of members) {
+    const a = nodes[i], b = nodes[j], e = [b.x - a.x, b.y - a.y, b.z - a.z], L = Math.hypot(e[0], e[1], e[2]) || 1, c = [e[0] / L, e[1] / L, e[2] / L];
+    mlen.push(L); mdir.push(c); const k = 1 / L, dof = [D * i, D * i + 1, D * i + 2, D * j, D * j + 1, D * j + 2];
+    for (let p = 0; p < 6; p++) for (let q = 0; q < 6; q++) { const sg = (p < 3) === (q < 3) ? 1 : -1, ke = k * c[p % 3] * c[q % 3], kg = (N0 / L) * ((p % 3 === q % 3 ? 1 : 0) - c[p % 3] * c[q % 3]); K[dof[p] * ndof + dof[q]] += sg * (ke + kg); }
+  }
+  const kF = 1e-4; nodes.forEach((n, i) => { const r = [Math.cos(n.th), Math.sin(n.th), 0]; for (let p = 0; p < 3; p++) for (let q = 0; q < 3; q++) K[(D * i + p) * ndof + (D * i + q)] += kF * r[p] * r[q]; });
+  const Q = Math.floor(NC / 3), P = Math.floor(2 * NC / 3), fixed = new Set([D * 0, D * 0 + 1, D * 0 + 2, D * Q + 1, D * Q + 2, D * P + 2]);
+  const free = []; for (let d = 0; d < ndof; d++) if (!fixed.has(d)) free.push(d);
+  const nf = free.length, Kr = new Float64Array(nf * nf), fr = new Float64Array(nf), load = new Float64Array(ndof);
+  nodes.forEach((n, i) => { load[D * i] = Math.cos(n.th); load[D * i + 1] = Math.sin(n.th); });   // outward centripetal
+  for (let a = 0; a < nf; a++) { fr[a] = load[free[a]]; for (let b = 0; b < nf; b++) Kr[a * nf + b] = K[free[a] * ndof + free[b]]; }
+  const sol = gsolveRing(Kr, fr, nf), full = new Float64Array(ndof); if (sol) for (let a = 0; a < nf; a++) full[free[a]] = sol[a];
+  // per-member load-induced force; hoop fraction (vs bed)
+  const force = members.map(([i, j], k) => { const c = mdir[k]; return 1 / mlen[k] * (c[0] * (full[D * j] - full[D * i]) + c[1] * (full[D * j + 1] - full[D * i + 1]) + c[2] * (full[D * j + 2] - full[D * i + 2])); });
+  let maxF = 1e-9; for (const f of force) if (Math.abs(f) > maxF) maxF = Math.abs(f);
+  let bedAbs = 0; nodes.forEach((n, i) => { const ur = Math.cos(n.th) * full[D * i] + Math.sin(n.th) * full[D * i + 1]; bedAbs += Math.abs(kF * ur); });
+  ringStats = { nodes: NC, members: members.length, hoop: Math.round(100 * (1 - bedAbs / NC)) };
+  // hand geometry to the renderer: chambers → CELLS (cubes); membranes → EDGES (pos3+col3)
+  CELLS = nodes; ZMAX = C; buildInstances();
+  const segs = []; members.forEach(([i, j], k) => { const a = nodes[i], b = nodes[j], col = stressColor(force[k] / maxF); segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b.x, b.y, b.z, col[0], col[1], col[2]); });
+  EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
+  cam.center = [0, 0, C / 2]; cam.dist = R * 2.6;
+}
+function enterScene(toCylinder) {
+  ringMode = toCylinder; document.getElementById('scene').textContent = 'scene: ' + (ringMode ? 'cylinder ◍' : 'foam slab');
+  document.getElementById('regen').textContent = ringMode ? '↻ new ring' : '↻ new foam';
+  if (ringMode) { document.getElementById('info').textContent = 'solving cylinder ring…'; requestAnimationFrame(() => buildCylinderRing()); }
+  else { regen(); recomputeEdges(); }
+}
 
 // ── camera (orbit) + probe ──
 const cam = { yaw: 0.7, pitch: 0.5, dist: 500, center: [180, 150, 80], probe: 80, band: 14 };
@@ -79,6 +148,11 @@ let instF32 = new Float32Array(0);
 function buildInstances() { instF32 = new Float32Array(CELLS.length * 3); CELLS.forEach((p, i) => { instF32[i * 3] = p.x; instF32[i * 3 + 1] = p.y; instF32[i * 3 + 2] = p.z; }); if (gpu) gpu.upload(); }
 
 function floorInfo() {
+  if (ringMode) {
+    document.getElementById('floorLabel').textContent = RING.N + ' chunks round';
+    document.getElementById('info').innerHTML = 'cylinder ring · ' + ringStats.nodes + ' chambers · ' + ringStats.members + ' membranes · <span class="r">hoop tension carries ' + ringStats.hoop + '%</span>';
+    return;
+  }
   let n = 0; for (const p of CELLS) if (Math.abs(p.z - cam.probe) < cam.band) n++;
   document.getElementById('floorLabel').textContent = (cam.probe / ZMAX * 100 | 0) + '% deep · ' + n + ' rooms';
   document.getElementById('info').innerHTML = CELLS.length + ' cells · probe z=' + cam.probe.toFixed(0) + '/' + ZMAX + ' · <span class="r">' + n + ' on this floor</span>';
@@ -96,6 +170,7 @@ function clipHP(poly, nx, ny, mx, my) {
   return out;
 }
 function recomputeEdges() {
+  if (ringMode) return;   // ring membranes are set by buildCylinderRing, not the floor cut
   const z = cam.probe, band = cam.band, sel = [];
   for (const p of CELLS) if (Math.abs(p.z - z) < band) sel.push(p);
   if (sel.length < 3) { EDGES = new Float32Array(0); if (gpu) gpu.setEdges(EDGES); return; }
@@ -107,7 +182,7 @@ function recomputeEdges() {
   for (let i = 0; i < sel.length; i++) {
     let poly = [{ x: box.x0, y: box.y0 }, { x: box.x1, y: box.y0 }, { x: box.x1, y: box.y1 }, { x: box.x0, y: box.y1 }];
     for (let j = 0; j < sel.length && poly.length >= 3; j++) { if (i === j) continue; poly = clipHP(poly, sel[j].x - sel[i].x, sel[j].y - sel[i].y, (sel[i].x + sel[j].x) / 2, (sel[i].y + sel[j].y) / 2); }
-    for (let k = 0; k < poly.length; k++) { const a = poly[k], b = poly[(k + 1) % poly.length]; const kk = key(a, b); if (seen.has(kk)) continue; seen.add(kk); segs.push(a.x, a.y, z, b.x, b.y, z); }
+    for (let k = 0; k < poly.length; k++) { const a = poly[k], b = poly[(k + 1) % poly.length]; const kk = key(a, b); if (seen.has(kk)) continue; seen.add(kk); segs.push(a.x, a.y, z, 0.55, 0.95, 0.95, b.x, b.y, z, 0.55, 0.95, 0.95); }
   }
   EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
 }
@@ -142,7 +217,8 @@ async function initGPU() {
     @group(0) @binding(0) var<uniform> u: U;
     struct VO { @builtin(position) pos: vec4f, @location(0) col: vec3f, @location(1) nrm: vec3f };
     @vertex fn vs(@location(0) vp: vec3f, @location(1) nm: vec3f, @location(2) inst: vec3f) -> VO {
-      let hi = select(0.0, 1.0, abs(inst.z - u.p.x) < u.p.y);
+      let ring = u.core.w;                                            // 1 = cylinder scene
+      let hi = select(select(0.0, 1.0, abs(inst.z - u.p.x) < u.p.y), 1.0, ring > 0.5);
       let sc = u.p.w * mix(0.22, 0.46, hi);
       let world = inst + vp * sc;
       let zt = clamp(inst.z / u.p.z, 0.0, 1.0);
@@ -154,8 +230,9 @@ async function initGPU() {
       let l = max(0.3, dot(normalize(i.nrm), normalize(u.light.xyz)));
       return vec4f(i.col * l, 1.0);
     }
-    @vertex fn vsL(@location(0) p: vec3f) -> @builtin(position) vec4f { return u.vp * vec4f(p, 1.0); }
-    @fragment fn fsL() -> @location(0) vec4f { return vec4f(0.55, 0.95, 0.95, 1.0); }` });
+    struct LO { @builtin(position) pos: vec4f, @location(0) col: vec3f };
+    @vertex fn vsL(@location(0) p: vec3f, @location(1) col: vec3f) -> LO { var o: LO; o.pos = u.vp * vec4f(p, 1.0); o.col = col; return o; }
+    @fragment fn fsL(i: LO) -> @location(0) vec4f { return vec4f(i.col, 1.0); }` });
   const pipe = device.createRenderPipeline({
     layout: 'auto',
     vertex: { module: shader, entryPoint: 'vs', buffers: [
@@ -174,14 +251,14 @@ async function initGPU() {
   bind = device.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
   const linePipe = device.createRenderPipeline({
     layout: 'auto',
-    vertex: { module: shader, entryPoint: 'vsL', buffers: [{ arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }] },
+    vertex: { module: shader, entryPoint: 'vsL', buffers: [{ arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] }] },
     fragment: { module: shader, entryPoint: 'fsL', targets: [{ format: fmt }] },
     primitive: { topology: 'line-list' },
     depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
   });
   const lineBind = device.createBindGroup({ layout: linePipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
-  let lineBuf = null, nLine = 0;
-  const setEdges = (f32) => { if (lineBuf) lineBuf.destroy(); nLine = f32.length / 3; if (!nLine) { lineBuf = null; return; } lineBuf = device.createBuffer({ size: f32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(lineBuf.getMappedRange()).set(f32); lineBuf.unmap(); };
+  let lineBuf = null, nLine = 0;   // f32 layout per vertex: pos3 + col3 (stride 6 floats)
+  const setEdges = (f32) => { if (lineBuf) lineBuf.destroy(); nLine = f32.length / 6; if (!nLine) { lineBuf = null; return; } lineBuf = device.createBuffer({ size: f32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(lineBuf.getMappedRange()).set(f32); lineBuf.unmap(); };
   return {
     resize: makeDepth, upload, setEdges,
     frame() {
@@ -189,7 +266,7 @@ async function initGPU() {
       const u = new Float32Array(32); u.set(vp, 0);
       u[16] = cam.probe; u[17] = cam.band; u[18] = ZMAX; u[19] = OPT.cell;       // p
       u[20] = 0.5; u[21] = 0.8; u[22] = 0.6; u[23] = 0;                           // light dir
-      u[24] = coreCol[0]; u[25] = coreCol[1]; u[26] = coreCol[2]; u[27] = 0;      // core colour
+      u[24] = coreCol[0]; u[25] = coreCol[1]; u[26] = coreCol[2]; u[27] = ringMode ? 1 : 0;  // core colour (.w = cylinder scene flag)
       u[28] = hullCol[0]; u[29] = hullCol[1]; u[30] = hullCol[2]; u[31] = 0;      // hull colour
       device.queue.writeBuffer(ubuf, 0, u.buffer, 0, 128);
       const enc = device.createCommandEncoder();
@@ -230,15 +307,15 @@ function frame2D() {
     }
   }
   if (showWalls() && EDGES.length) {
-    ctx.strokeStyle = 'rgba(140,242,242,0.8)'; ctx.lineWidth = 1; ctx.beginPath();
-    for (let i = 0; i < EDGES.length; i += 6) {
-      const wa = M[3] * EDGES[i] + M[7] * EDGES[i + 1] + M[11] * EDGES[i + 2] + M[15], wb = M[3] * EDGES[i + 3] + M[7] * EDGES[i + 4] + M[11] * EDGES[i + 5] + M[15];
+    ctx.lineWidth = 1;
+    for (let i = 0; i < EDGES.length; i += 12) {   // two verts × (pos3 + col3)
+      const wa = M[3] * EDGES[i] + M[7] * EDGES[i + 1] + M[11] * EDGES[i + 2] + M[15], wb = M[3] * EDGES[i + 6] + M[7] * EDGES[i + 7] + M[11] * EDGES[i + 8] + M[15];
       if (wa <= 0 || wb <= 0) continue;
       const ax = ((M[0] * EDGES[i] + M[4] * EDGES[i + 1] + M[8] * EDGES[i + 2] + M[12]) / wa * 0.5 + 0.5) * W, ay = (1 - ((M[1] * EDGES[i] + M[5] * EDGES[i + 1] + M[9] * EDGES[i + 2] + M[13]) / wa * 0.5 + 0.5)) * H;
-      const bx = ((M[0] * EDGES[i + 3] + M[4] * EDGES[i + 4] + M[8] * EDGES[i + 5] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * EDGES[i + 3] + M[5] * EDGES[i + 4] + M[9] * EDGES[i + 5] + M[13]) / wb * 0.5 + 0.5)) * H;
-      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      const bx = ((M[0] * EDGES[i + 6] + M[4] * EDGES[i + 7] + M[8] * EDGES[i + 8] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * EDGES[i + 6] + M[5] * EDGES[i + 7] + M[9] * EDGES[i + 8] + M[13]) / wb * 0.5 + 0.5)) * H;
+      ctx.strokeStyle = `rgba(${EDGES[i + 3] * 255 | 0},${EDGES[i + 4] * 255 | 0},${EDGES[i + 5] * 255 | 0},0.85)`;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     }
-    ctx.stroke();
   }
 }
 
@@ -256,7 +333,11 @@ addEventListener('keydown', (e) => { if (e.key === '+' || e.key === '=') cam.dis
 const probeY = document.getElementById('probeY');
 function syncProbe() { probeY.value = Math.round((1 - cam.probe / ZMAX) * 1000); }
 probeY.addEventListener('input', () => { cam.probe = (1 - probeY.value / 1000) * ZMAX; recomputeEdges(); });
-document.getElementById('regen').addEventListener('click', () => { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); recomputeEdges(); });
+document.getElementById('scene').addEventListener('click', () => enterScene(!ringMode));
+document.getElementById('regen').addEventListener('click', () => {
+  if (ringMode) { RING.seed = (RING.seed * 1664525 + 1013904223) >>> 0; document.getElementById('info').textContent = 'solving cylinder ring…'; requestAnimationFrame(() => buildCylinderRing()); }
+  else { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); recomputeEdges(); }
+});
 document.getElementById('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
 document.getElementById('vmode').addEventListener('click', () => { view = view === 'both' ? 'cubes' : view === 'cubes' ? 'walls' : 'both'; document.getElementById('vmode').textContent = 'view: ' + view; });
 
