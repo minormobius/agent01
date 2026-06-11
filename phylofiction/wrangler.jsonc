@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "phylofiction",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // Golden rule: the worker name owns the live custom domain, declared here so
+  // `wrangler deploy` binds phylofiction.mino.mobi (not a stray *.workers.dev).
+  "routes": [
+    { "pattern": "phylofiction.mino.mobi", "custom_domain": true }
+  ]
+}

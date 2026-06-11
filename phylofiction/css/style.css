@@ -1,0 +1,87 @@
+/* phylofiction — earthy palette, after read/ and borges. */
+:root {
+  --bg: #14110d;
+  --panel: #1d1812;
+  --ink: #e8e0d2;
+  --muted: #9a9082;
+  --gold: #e0c178;
+  --gold-soft: #b39a5a;
+  --line: #332b20;
+  --crimson: #c0584e;
+  --teal: #57b3a0;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+header {
+  padding: 18px 22px 12px; border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px;
+}
+header h1 { margin: 0; font-size: 21px; letter-spacing: .3px; }
+header h1 .star { color: var(--gold); }
+header .tagline { color: var(--muted); font-style: italic; font-size: 14px; }
+.crumb { color: var(--gold-soft); text-decoration: none; font-size: 13px; }
+.crumb:hover { color: var(--gold); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 22px; border-bottom: 1px solid var(--line); }
+.controls button, .controls input {
+  font: inherit; font-size: 14px; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer;
+}
+.controls button:hover { border-color: var(--gold-soft); color: var(--gold); }
+.controls input { width: 90px; cursor: text; }
+.controls .seed-label { color: var(--muted); font-size: 13px; }
+.controls .spacer { flex: 1; }
+.controls .find { border-color: var(--gold-soft); color: var(--gold); }
+.controls .backend { font-size: 12px; color: var(--muted); padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.controls .backend.wasm { color: var(--teal); border-color: color-mix(in srgb, var(--teal) 40%, var(--line)); }
+.controls .backend.js { color: var(--gold-soft); }
+
+.summary { display: flex; flex-wrap: wrap; gap: 18px; padding: 10px 22px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.summary b { color: var(--gold); font-weight: 600; }
+.summary .badge { color: var(--teal); }
+.summary .badge.no { color: var(--muted); }
+
+main { display: grid; grid-template-columns: 1fr 300px; gap: 0; }
+@media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+
+#tree-host { overflow: hidden; height: calc(100vh - 210px); min-height: 440px; cursor: grab; background:
+  radial-gradient(1200px 500px at 30% 0%, #1a160f 0%, var(--bg) 70%); }
+#tree-host:active { cursor: grabbing; }
+svg.phylo { display: block; }
+svg.phylo text { fill: var(--muted); font: 10px/1 ui-sans-serif, system-ui, sans-serif; }
+.axis-lbl { fill: var(--muted); font-size: 10px; }
+.tick { stroke: var(--line); stroke-width: 1; }
+.lineage { stroke-width: 2.4; stroke-linecap: round; opacity: .92; }
+.lineage.extinct { opacity: .55; stroke-dasharray: 1 0; }
+.lineage.hot { stroke-width: 4; opacity: 1; }
+.branch-link { fill: none; stroke-width: 1.2; opacity: .4; }
+.tip-extinct { stroke: var(--muted); stroke-width: 1.3; }
+.tip-extinct.poisoned { stroke: var(--crimson); stroke-width: 1.6; }
+.tip-survivor { opacity: .95; }
+.ox-area { fill: var(--teal); opacity: .14; stroke: var(--teal); stroke-opacity: .5; stroke-width: 1; }
+.band-extinction { fill: var(--crimson); opacity: .1; }
+.band-goe { stroke: var(--gold); stroke-width: 1.4; stroke-dasharray: 4 3; opacity: .8; }
+.goe-lbl { fill: var(--gold); font-size: 11px; }
+
+aside { border-left: 1px solid var(--line); padding: 14px 16px; overflow-y: auto; height: calc(100vh - 210px); min-height: 440px; }
+aside h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--gold-soft); margin: 4px 0 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 16px; }
+.leg { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.leg .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+#inspect { font-size: 13px; color: var(--ink); margin-bottom: 16px; min-height: 40px; }
+#inspect .muted, .muted { color: var(--muted); font-style: italic; }
+#inspect .caps { color: var(--gold); }
+
+.ev { display: grid; grid-template-columns: 34px 86px 1fr; gap: 6px; align-items: baseline; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.ev-epoch { color: var(--muted); }
+.ev-kind { color: var(--gold-soft); text-transform: uppercase; font-size: 10px; letter-spacing: .5px; }
+.ev-gloss { color: var(--ink); }
+.ev-extinction .ev-kind { color: var(--crimson); }
+.ev-great-oxygenation .ev-kind { color: var(--gold); }
+.ev-convergence .ev-kind { color: var(--teal); }
+
+footer { padding: 12px 22px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+footer a { color: var(--gold-soft); }
