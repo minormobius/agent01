@@ -23,7 +23,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / right slider = probe the radial layer · pinch or +/- = zoom · <b>scene</b> → the annular shell, solved</span></div>
+<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / pinch / +/- = zoom · right slider = radial layer · <b>scene</b> → the annular shell, solved</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="probe"><input id="probeY" type="range" min="0" max="1000" value="500" orient="vertical"></div>
 <div id="panel">
@@ -131,7 +131,9 @@ function buildCylinderShell() {
   const bc = [0.36, 0.5, 0.66], ring = (rr) => { const Mc = 200; for (let k = 0; k < Mc; k++) { const t0 = 2 * Math.PI * k / Mc, t1 = 2 * Math.PI * (k + 1) / Mc; segs.push(rr * Math.cos(t0), rr * Math.sin(t0), 0, ...bc, rr * Math.cos(t1), rr * Math.sin(t1), 0, ...bc); } };
   ring(Ri); ring(Ro);                                              // the two smooth bounding cylinders
   EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
-  cam.center = [0, 0, 0]; cam.dist = Ro * 2.3; cam.band = cell * 2.5; cam.pitch = 1.25; cam.yaw = 0.4;
+  // centre on the SHELL BAND (not the axis — the bore is hollow), so zoom dives into the rooms
+  const Rmid = (Ri + Ro) / 2;
+  cam.center = [Rmid, 0, 0]; cam.dist = Ro * 2.0; cam.band = cell * 2.5; cam.pitch = 1.18; cam.yaw = 0;
   probeLo = Ri; probeHi = Ro; cam.probe = Ri + T / 2; syncProbe();
 }
 function enterScene(toCylinder) {
@@ -352,13 +354,20 @@ let mode = 'webgpu';
 function loop() { floorInfo(); if (gpu && mode === 'webgpu') { try { gpu.frame(); } catch (e) { mode = '2d'; setModeLabel(); } } else frame2D(); requestAnimationFrame(loop); }
 function setModeLabel() { document.getElementById('rmode').textContent = 'renderer: ' + (gpu && mode === 'webgpu' ? 'WebGPU' : '2D'); }
 
-let drag = null, pinchD = 0;
-cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
-cv.addEventListener('pointermove', (e) => { if (!drag) return; cam.yaw -= (e.clientX - drag.x) * 0.008; cam.pitch = Math.max(-1.4, Math.min(1.4, cam.pitch + (e.clientY - drag.y) * 0.008)); drag = { x: e.clientX, y: e.clientY }; });
-cv.addEventListener('pointerup', () => drag = null);
+// orbit with one pointer, pinch-zoom with two; wheel zooms. (Probe lives on the right slider.)
+const DMIN = 2, DMAX = 6000, zoom = (f) => { cam.dist = Math.max(DMIN, Math.min(DMAX, cam.dist * f)); };
+const ptrs = new Map(); let drag = null, lastPinch = 0;
+cv.addEventListener('pointerdown', (e) => { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); cv.setPointerCapture(e.pointerId); if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY }; else { drag = null; lastPinch = 0; } });
+cv.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (lastPinch) zoom(lastPinch / d); lastPinch = d; return; }
+  if (drag) { cam.yaw -= (e.clientX - drag.x) * 0.008; cam.pitch = Math.max(-1.4, Math.min(1.4, cam.pitch + (e.clientY - drag.y) * 0.008)); drag = { x: e.clientX, y: e.clientY }; }
+});
+const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) lastPinch = 0; const r = [...ptrs.values()][0]; drag = r ? { x: r.x, y: r.y } : null; };
+cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
 const pSpan = () => (probeHi - probeLo) || 1;
-cv.addEventListener('wheel', (e) => { e.preventDefault(); cam.probe = Math.max(probeLo, Math.min(probeHi, cam.probe + Math.sign(e.deltaY) * pSpan() * 0.04)); syncProbe(); recomputeEdges(); }, { passive: false });
-addEventListener('keydown', (e) => { if (e.key === '+' || e.key === '=') cam.dist *= 0.9; if (e.key === '-') cam.dist *= 1.1; });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom(1 + Math.sign(e.deltaY) * 0.12); }, { passive: false });
+addEventListener('keydown', (e) => { if (e.key === '+' || e.key === '=') zoom(0.9); if (e.key === '-') zoom(1.1); });
 const probeY = document.getElementById('probeY');
 function syncProbe() { probeY.value = Math.round((1 - (cam.probe - probeLo) / pSpan()) * 1000); }
 probeY.addEventListener('input', () => { cam.probe = probeLo + (1 - probeY.value / 1000) * pSpan(); recomputeEdges(); });
