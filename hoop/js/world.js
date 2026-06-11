@@ -273,38 +273,59 @@ function solveTruss(nodes, members, loads, fixed) {
   const full = new Float64Array(ndof); for (let a = 0; a < nf; a++) full[free[a]] = u[a];
   return members.map((m) => m.ea / m._L * (m._c * (full[2 * m.j] - full[2 * m.i]) + m._s * (full[2 * m.j + 1] - full[2 * m.i + 1])));
 }
-function foamChunk(seed, cx, cy) {
-  const rng = Ship.rngFor(seed, 41, cx, cy), bx = cx * C, by = cy * C;
-  // coherent gravity: a smooth field over normal / spin(slide) / mag(planted) — no
-  // random zero-g rooms. Sampled at the cell centre so neighbouring rooms agree.
-  const regAt = (wx, wy) => {
-    const S = 9, gx = Math.floor(wx / S), gy = Math.floor(wy / S), fx = wx / S - gx, fy = wy / S - gy;
-    const h = (i, j) => ((Ship.hashInts(seed, 99, i, j) >>> 0) % 1024) / 1024;
-    const a = h(gx, gy), b = h(gx + 1, gy), c = h(gx, gy + 1), d = h(gx + 1, gy + 1);
-    const v = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
-    return v < 0.52 ? 0 : v < 0.84 ? 1 : 3;   // 0 normal · 1 spin(slide) · 3 mag
-  };
-  const G = 4, NS = G * G, seeds = [];
+function regimeField(seed, wx, wy) {
+  const S = 9, gx = Math.floor(wx / S), gy = Math.floor(wy / S), fx = wx / S - gx, fy = wy / S - gy;
+  const h = (i, j) => ((Ship.hashInts(seed, 99, i, j) >>> 0) % 1024) / 1024;
+  const a = h(gx, gy), b = h(gx + 1, gy), c = h(gx, gy + 1), d = h(gx + 1, gy + 1);
+  const v = (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+  return v < 0.52 ? 0 : v < 0.84 ? 1 : 3;          // 0 normal · 1 spin(slide) · 3 mag
+}
+// a chunk's seeds in WORLD coords — deterministic, so a block and its neighbours agree on
+// the shared seeds and the Voronoi (hence the walls) is continuous across every seam.
+function chunkSeeds(seed, cx, cy) {
+  const rng = Ship.rngFor(seed, 41, cx, cy), bx = cx * C, by = cy * C, G = 4, out = [];
   for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
-    const x = (gx + 0.18 + 0.64 * rng()) * C / G, y = (gy + 0.18 + 0.64 * rng()) * C / G;
-    seeds.push({ x, y, t: ROOM_TYPES[Math.floor(rng() * ROOM_TYPES.length)], reg: regAt(bx + x, by + y) });
+    const x = bx + (gx + 0.18 + 0.64 * rng()) * C / G, y = by + (gy + 0.18 + 0.64 * rng()) * C / G;
+    out.push({ x, y, t: ROOM_TYPES[Math.floor(rng() * ROOM_TYPES.length)], reg: regimeField(seed, x, y) });
   }
-  const cellOf = new Int16Array(C * C), sumx = new Float64Array(NS), sumy = new Float64Array(NS), cnt = new Int32Array(NS);
-  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { let bi = 0, bd = 1e9; for (let s = 0; s < NS; s++) { const d = (seeds[s].x - x - 0.5) ** 2 + (seeds[s].y - y - 0.5) ** 2; if (d < bd) { bd = d; bi = s; } } cellOf[y * C + x] = bi; sumx[bi] += x; sumy[bi] += y; cnt[bi]++; }
+  return out;
+}
+function foamChunk(seed, cx, cy) {
+  const bx = cx * C, by = cy * C, G = 4, NS = G * G;
+  // GHOST SEEDS: gather this block's seeds AND its 8 neighbours', then assign every tile to
+  // the nearest over ALL of them. Cells (and the walls between them) are now computed from
+  // the same global Voronoi on both sides of every seam → continuous across blocks, no
+  // awkward fits. `gcell` is the global cell; `lcell` is the own-cell index (−1 = a
+  // neighbour's chamber spilling across the seam, which we render but the neighbour owns).
+  const all = []; let ownBase = 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (dx === 0 && dy === 0) ownBase = all.length; const ss = chunkSeeds(seed, cx + dx, cy + dy); for (let idx = 0; idx < ss.length; idx++) { ss[idx].gid = (cx + dx) + ',' + (cy + dy) + ',' + idx; all.push(ss[idx]); } }   // gid = stable global cell id
+  const NA = all.length, ownSeeds = all.slice(ownBase, ownBase + NS);
+  const gcell = new Int16Array(C * C), lcell = new Int16Array(C * C);
+  const sumx = new Float64Array(NS), sumy = new Float64Array(NS), cnt = new Int32Array(NS);
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
+    const wx = bx + x + 0.5, wy = by + y + 0.5; let bi = 0, bd = 1e18;
+    for (let s = 0; s < NA; s++) { const d = (all[s].x - wx) ** 2 + (all[s].y - wy) ** 2; if (d < bd) { bd = d; bi = s; } }
+    gcell[y * C + x] = bi; const lc = bi >= ownBase && bi < ownBase + NS ? bi - ownBase : -1; lcell[y * C + x] = lc;
+    if (lc >= 0) { sumx[lc] += x; sumy[lc] += y; cnt[lc]++; }
+  }
   const cen = []; for (let s = 0; s < NS; s++) cen.push(cnt[s] ? { x: Math.min(C - 1, Math.max(0, Math.round(sumx[s] / cnt[s]))), y: Math.min(C - 1, Math.max(0, Math.round(sumy[s] / cnt[s]))) } : { x: 0, y: 0 });
-  // MEMBRANES: wall BOTH sides of every cell boundary — a tile is floor only if all its
-  // in-chunk neighbours share its cell, so chambers are properly enclosed (the lower-id-only
-  // rule left it wide open). Corridors carve doorways through; the half-size plating near
-  // walls (see sites()) keeps these read crisp rather than chunky.
+  // MEMBRANES: wall both sides of every GLOBAL cell boundary. The boundary check reaches
+  // ACROSS the chunk edge (computing the neighbour tile's global cell id from the same
+  // seeds), so a seam tile and its mirror in the next block agree — walls are continuous.
+  const gidAt = (wx, wy) => { let bi = 0, bd = 1e18; for (let s = 0; s < NA; s++) { const d = (all[s].x - wx) ** 2 + (all[s].y - wy) ** 2; if (d < bd) { bd = d; bi = s; } } return all[bi].gid; };
   const tiles = new Uint8Array(C * C), grav = new Uint8Array(C * C);
   for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) {
-    const a = cellOf[y * C + x]; let interior = true;
-    for (let d = 0; d < 4; d++) { const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d]; if (nx < 0 || ny < 0 || nx >= C || ny >= C) continue; if (cellOf[ny * C + nx] !== a) { interior = false; break; } }
+    const a = gcell[y * C + x], myGid = all[a].gid; let interior = true;
+    for (let d = 0; d < 4; d++) {
+      const nx = x + [1, -1, 0, 0][d], ny = y + [0, 0, 1, -1][d];
+      const nbGid = nx >= 0 && ny >= 0 && nx < C && ny < C ? all[gcell[ny * C + nx]].gid : gidAt(bx + nx + 0.5, by + ny + 0.5);
+      if (nbGid !== myGid) { interior = false; break; }
+    }
     const i = y * C + x;
-    if (interior) { tiles[i] = FLOOR; grav[i] = 1 + seeds[a].reg; } else { tiles[i] = VOID; grav[i] = 0; }
+    if (interior) { tiles[i] = FLOOR; grav[i] = 1 + all[a].reg; } else { tiles[i] = VOID; grav[i] = 0; }
   }
   const hazard = new Set();
-  const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) tiles[i] = FLOOR; if (!grav[i]) grav[i] = 1 + seeds[cellOf[i]].reg; };
+  const setF = (x, y) => { if (x < 0 || y < 0 || x >= C || y >= C) return; const i = y * C + x; if (tiles[i] === VOID) tiles[i] = FLOOR; if (!grav[i]) grav[i] = 1 + all[gcell[i]].reg; };
   const carve = (x0, y0, x1, y1, haz) => {
     let x = x0, y = y0; const put = (a, b) => { setF(a, b); if (haz) hazard.add(b * C + a); };
     const sx = Math.sign(x1 - x0) || 1; while (x !== x1) { put(x, y); put(x, y + 1); x += sx; }   // 2-wide so auto-walk threads it
@@ -314,7 +335,7 @@ function foamChunk(seed, cx, cy) {
   for (let s = 0; s < NS; s++) setF(cen[s].x, cen[s].y);   // every chamber keeps a walkable centre
   // membrane graph + a spanning tree (always passable → the chambers stay reachable)
   const akey = (a, b) => a < b ? a + ',' + b : b + ',' + a, adj = new Map();
-  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { const a = cellOf[y * C + x]; if (x + 1 < C) { const b = cellOf[y * C + x + 1]; if (a !== b) adj.set(akey(a, b), 1); } if (y + 1 < C) { const b = cellOf[(y + 1) * C + x]; if (a !== b) adj.set(akey(a, b), 1); } }
+  for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { const a = lcell[y * C + x]; if (a < 0) continue; if (x + 1 < C) { const b = lcell[y * C + x + 1]; if (b >= 0 && a !== b) adj.set(akey(a, b), 1); } if (y + 1 < C) { const b = lcell[(y + 1) * C + x]; if (b >= 0 && a !== b) adj.set(akey(a, b), 1); } }
   const mem = [...adj.keys()].map((k) => k.split(',').map(Number)), memLen = mem.map(([a, b]) => Math.hypot(cen[a].x - cen[b].x, cen[a].y - cen[b].y) || 1);
   const par = []; for (let i = 0; i < NS; i++) par[i] = i; const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
   const passable = new Set(), breach = new Set();
@@ -343,20 +364,21 @@ function foamChunk(seed, cx, cy) {
   // edge ports → corridor to the local cell's centre, shared with neighbours so chunks connect
   const pE = 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)), pW = 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6));
   const pS = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)), pN = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6));
-  carve(C - 1, pE, cen[cellOf[pE * C + (C - 1)]].x, cen[cellOf[pE * C + (C - 1)]].y);
-  carve(0, pW, cen[cellOf[pW * C + 0]].x, cen[cellOf[pW * C + 0]].y);
-  carve(pS, C - 1, cen[cellOf[(C - 1) * C + pS]].x, cen[cellOf[(C - 1) * C + pS]].y);
-  carve(pN, 0, cen[cellOf[0 * C + pN]].x, cen[cellOf[0 * C + pN]].y);
+  const nearOwn = (px, py) => { let bi = 0, bd = 1e18; for (let s = 0; s < NS; s++) { if (!cnt[s]) continue; const d = (cen[s].x - px) ** 2 + (cen[s].y - py) ** 2; if (d < bd) { bd = d; bi = s; } } return cen[bi]; };
+  carve(C - 1, pE, nearOwn(C - 1, pE).x, nearOwn(C - 1, pE).y);
+  carve(0, pW, nearOwn(0, pW).x, nearOwn(0, pW).y);
+  carve(pS, C - 1, nearOwn(pS, C - 1).x, nearOwn(pS, C - 1).y);
+  carve(pN, 0, nearOwn(pN, 0).x, nearOwn(pN, 0).y);
   tiles[pE * C + (C - 1)] = DOOR; tiles[pW * C + 0] = DOOR; tiles[(C - 1) * C + pS] = DOOR; tiles[0 * C + pN] = DOOR;
   for (const i of [pE * C + (C - 1), pW * C + 0, (C - 1) * C + pS, 0 * C + pN]) if (!grav[i]) grav[i] = 1;
   // rooms (one per non-empty cell) — bbox, centre, type for glyph/light, field regime
   const rooms = [];
   for (let s = 0; s < NS; s++) {
     let mnx = C, mny = C, mxx = 0, mxy = 0, sx = 0, sy = 0, n = 0;
-    for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) if (cellOf[y * C + x] === s && tiles[y * C + x] !== VOID) { if (x < mnx) mnx = x; if (y < mny) mny = y; if (x > mxx) mxx = x; if (y > mxy) mxy = y; sx += x; sy += y; n++; }
+    for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) if (lcell[y * C + x] === s && tiles[y * C + x] !== VOID) { if (x < mnx) mnx = x; if (y < mny) mny = y; if (x > mxx) mxx = x; if (y > mxy) mxy = y; sx += x; sy += y; n++; }
     if (n === 0) continue;
-    const t = seeds[s].t, ccx = Math.round(sx / n), ccy = Math.round(sy / n);
-    rooms.push({ x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, cx: ccx, cy: ccy, type: t.id, glyph: t.glyph, accent: t.accent, regime: Ship.GRAV_LIST[seeds[s].reg], lights: [{ x: ccx, y: ccy, intensity: t.intensity, flicker: t.flicker, rgb: t.rgb, radius: 5 + ((mxx - mnx + mxy - mny) / 3 | 0) }] });
+    const t = ownSeeds[s].t, ccx = Math.round(sx / n), ccy = Math.round(sy / n);
+    rooms.push({ x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, cx: ccx, cy: ccy, type: t.id, glyph: t.glyph, accent: t.accent, regime: Ship.GRAV_LIST[ownSeeds[s].reg], lights: [{ x: ccx, y: ccy, intensity: t.intensity, flicker: t.flicker, rgb: t.rgb, radius: 5 + ((mxx - mnx + mxy - mny) / 3 | 0) }] });
   }
   // radial connectors: a deterministic subset of chambers hosts a chute (down, toward the
   // hull) or a ladder (up, toward the core) — the way between best-fit planes.
