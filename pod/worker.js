@@ -54,6 +54,12 @@ export default {
     if (pathname === '/api/publish' && request.method === 'POST') {
       return publishEpisode(request, env);
     }
+    if (pathname === '/api/shows') {
+      return json({ shows: await listShows(env) });
+    }
+    if (pathname === '/api/fetch') {
+      return proxyFeed(url.searchParams.get('url'));
+    }
     if (pathname === '/enclosure') {
       return serveEnclosure(url.searchParams.get('uri'), request);
     }
@@ -259,6 +265,67 @@ async function getProfileServer(did) {
     if (!res.ok) return null;
     return await res.json();
   } catch (_) { return null; }
+}
+
+// --- discovery + feed proxy --------------------------------------------------
+//
+// Distinct publishers on the communal feed, newest activity first. Each is a
+// real PDS-owned show at /u/<did>/feed.xml.
+async function listShows(env) {
+  try {
+    const rows = await env.DB.prepare(
+      `SELECT did, COUNT(*) AS episodes, MAX(pub_date) AS latest
+         FROM pod_episodes
+        WHERE did IS NOT NULL
+        GROUP BY did
+        ORDER BY latest DESC
+        LIMIT 200`
+    ).all();
+    return rows.results || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+// Server-side RSS fetch so the in-house podcast app can read ANY feed (browsers
+// block cross-origin XML). Guarded against SSRF/abuse: http(s) only, private
+// hosts blocked, feed-ish content-types only, size-capped. Audio enclosures are
+// played directly by the <audio> element and do NOT go through here.
+async function proxyFeed(target) {
+  if (!target) return new Response('missing url', { status: 400 });
+  let u;
+  try { u = new URL(target); } catch { return new Response('bad url', { status: 400 }); }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return new Response('bad scheme', { status: 400 });
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, ''); // unwrap [::1] etc.
+  if (isBlockedHost(host)) return new Response('blocked host', { status: 403 });
+  let res;
+  try {
+    res = await fetch(u.toString(), {
+      redirect: 'follow',
+      headers: { 'user-agent': 'minomobi-pod/1.0 (+https://pod.mino.mobi)', accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' },
+    });
+  } catch (_) { return new Response('fetch failed', { status: 502 }); }
+  const ct = res.headers.get('content-type') || '';
+  if (!/xml|rss|atom|text|html/i.test(ct)) return new Response('not a feed', { status: 415 });
+  const text = await res.text();
+  if (text.length > 5_000_000) return new Response('feed too large', { status: 413 });
+  return new Response(text, {
+    headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=300' },
+  });
+}
+
+function isBlockedHost(h) {
+  if (h === 'localhost' || h.endsWith('.local') || h.endsWith('.internal') || h === 'metadata.google.internal') return true;
+  const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (m) {
+    const a = +m[1], b = +m[2];
+    if (a === 127 || a === 10 || a === 0) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+  }
+  if (h === '::1' || h.startsWith('fd') || h.startsWith('fe80')) return true;
+  return false;
 }
 
 // --- publish + enclosure -----------------------------------------------------

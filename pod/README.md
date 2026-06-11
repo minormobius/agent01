@@ -145,10 +145,12 @@ consent screen covers them.
 | `GET /api/episodes` | Communal JSON episode list (D1) |
 | `GET /api/episodes?handle=<h>` | One publisher's episodes, read straight from their PDS |
 | `POST /api/publish` | Add an episode to the *communal* discovery feed (resolves the record, caches a `pod_episodes` row) |
+| `GET /api/shows` | Distinct publishers on the communal feed (powers the `/shows` directory) |
+| `GET /api/fetch?url=<feed>` | **Guarded** server-side RSS proxy so `/app` can read any cross-origin feed |
 | `GET /enclosure?uri=<at-uri>` | Streams an episode's chunked blobs as one file (Range-aware) — the RSS `<enclosure>` |
 | `GET /api/health` | `{ ok: true, surface: "pod" }` |
 | `WS /api/room/<id>/ws` | Room coordinator signaling (see the sync slice) |
-| `/`, `/room/`, `/prod/`, `/listen/`, `/listen?handle=<h>`, assets | Served from the `ASSETS` binding |
+| `/`, `/room/`, `/prod/`, `/listen/`, `/shows/`, `/app/`, assets | Served from the `ASSETS` binding |
 
 Every D1 read is **guarded** — until the `pod_episodes` migration lands the communal feed
 is valid but empty, so the surface deploys before the schema does.
@@ -167,6 +169,19 @@ add a row to `pod_episodes` so an episode also shows on the all-publishers feed 
 `/listen` home. A publisher who never hits `/api/publish` still has a complete, working,
 self-owned feed at `/u/<handle>/feed.xml`. `/listen?handle=<h>` is the human view of one
 show, also sourced from the PDS.
+
+## Discovery (`/shows`) + the podcast app (`/app`)
+
+- **`/shows`** — a directory of every publisher (`/api/shows` = `DISTINCT did` over
+  `pod_episodes`), each hydrated with their Bluesky profile and linking to their
+  PDS-owned feed + an "Add to app" deep-link (`/app/?add=<feed>`).
+- **`/app`** — a real, self-contained podcast client (no build). Subscribe to **any** RSS
+  feed (stored in `localStorage`), parse it client-side with `DOMParser`, and play
+  episodes in a sticky player. Same-origin feeds (our PDS feeds) are fetched directly;
+  cross-origin feeds go through **`/api/fetch`**, a guarded server-side proxy — `http(s)`
+  only, private/loopback hosts blocked (basic SSRF defense), feed-ish content-types only,
+  5 MB cap, 5-min cache. Audio enclosures are played straight from their host by the
+  `<audio>` element and never touch the proxy.
 
 ## Roadmap (next slices)
 

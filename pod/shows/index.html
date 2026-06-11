@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Shows — pod</title>
+  <style>
+    :root { --bg:#0e0f13; --panel:#16181f; --ink:#e9eaee; --muted:#9aa0ad; --accent:#e0573e; --line:#262932; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { margin:0; font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:680px; margin:0 auto; padding:28px 16px 40px; }
+    .crumb { color:var(--muted); font-size:13px; } .crumb a { color:var(--muted); text-decoration:none; }
+    h1 { font-size:30px; letter-spacing:-0.02em; margin:6px 0 4px; } h1 .dot { color:var(--accent); }
+    .sub { color:var(--muted); margin:0 0 20px; font-size:14px; }
+    .sub a { color:var(--accent); }
+    .show { display:flex; gap:13px; align-items:center; padding:14px; background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:11px; }
+    .show img { width:52px; height:52px; border-radius:12px; flex:none; background:#21242d; object-fit:cover; }
+    .show .meta { min-width:0; flex:1; }
+    .show .nm { font-weight:600; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .show .hd { color:var(--muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .show .ct { color:var(--muted); font-size:12px; margin-top:3px; }
+    .show .acts { display:flex; gap:7px; flex-wrap:wrap; margin-top:8px; }
+    .show .acts a { font-size:12px; font-weight:600; text-decoration:none; padding:6px 10px; border-radius:7px; border:1px solid var(--line); background:#21242d; color:var(--ink); }
+    .show .acts a.primary { background:var(--accent); border-color:var(--accent); color:#1a0d0a; }
+    .empty { color:var(--muted); padding:28px 4px; } .empty a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/">pod</a> / shows</div>
+    <h1>Shows<span class="dot">.</span></h1>
+    <p class="sub">Everyone publishing on the studio. Each show is a feed <strong>owned by that person's PDS</strong> — subscribe in <a href="/app/">the podcast app</a> or any external app.</p>
+    <div id="shows"><p class="empty">Loading…</p></div>
+  </div>
+  <script src="./shows.js"></script>
+</body>
+</html>
