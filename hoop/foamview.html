@@ -58,9 +58,21 @@ function HOOFAM3D_seeds(o) { return (window.HOOPFOAM3D ? window.HOOPFOAM3D.seeds
 // is reacted by hoop tension and the two pinned hulls. Membranes are coloured by member force —
 // tension warm, compression cool: you see radial struts press out, hoops pull round.
 let ringMode = false;
-const RING = { Lx: 66, Ly: 520, T: 110, cell: 22, grade: 0.6, seed: 1 };   // unrolled shell box
+// Real proportions: ~1 km foam on a 10 km inner DIAMETER → Ri = 5 Ro... Ri:T = 5:1 (T/Ri = 0.2),
+// a thin shell on a big circle. Worked in camera-friendly units (same ratios). cell ≪ Ri so the
+// chambers read small: 2π·Ri/cell ≈ 126 around, T/cell = 4 radial layers.
+const RING = { Ri: 250, T: 50, Lx: 14, cell: 12.5, grade: 0.6, seed: 1 };
 let ringStats = { nodes: 0, members: 0, layers: 0 };
 let ringRi = 0, ringRo = 0;
+// shell foam: a deterministic graded 3D grid (denser toward the hull) that — unlike the slab
+// generator — allows a single axial layer, so a thin-shell cross-section stays light to solve.
+function shellSeeds3d(Ri, T, Lx, cell, grade, seed) {
+  const Ly = 2 * Math.PI * Ri, nx = Math.max(1, Math.round(Lx / cell)), ny = Math.max(12, Math.round(Ly / cell)), nz = Math.max(2, Math.round(T / cell));
+  let a = (seed >>> 0) || 1; const rng = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pts = [];
+  for (let iz = 0; iz < nz; iz++) { const zc = (iz + 0.5) / nz, dens = 1 + grade * zc; for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) { if (rng() > dens / (1 + grade)) continue; pts.push({ x: (ix + 0.5 + 0.55 * (rng() - 0.5)) * Lx / nx, y: (iy + 0.5 + 0.55 * (rng() - 0.5)) * Ly / ny, z: (iz + 0.5 + 0.55 * (rng() - 0.5)) * T / nz }); } }
+  return { pts, Ly };
+}
 function stressColor(t) {                                   // t ∈ [−1,1]: −compression … +tension
   const a = Math.max(-1, Math.min(1, t)), mid = [0.30, 0.80, 0.80], tgt = a >= 0 ? [1.0, 0.5, 0.2] : [0.32, 0.55, 1.0], m = Math.abs(a);
   return [mid[0] + (tgt[0] - mid[0]) * m, mid[1] + (tgt[1] - mid[1]) * m, mid[2] + (tgt[2] - mid[2]) * m];
@@ -76,10 +88,9 @@ function gsolveRing(A, b, n) {
   const x = new Float64Array(n); for (let i = n - 1; i >= 0; i--) { let s = b[i]; for (let k = i + 1; k < n; k++) s -= A[i * n + k] * x[k]; x[i] = s / A[i * n + i]; } return x;
 }
 function buildCylinderShell() {
-  const { Lx, Ly, T, cell, grade } = RING, seed = RING.seed >>> 0, D = 3;
-  const Ri = Ly / (2 * Math.PI), Ro = Ri + T; ringRi = Ri; ringRo = Ro;
+  const { Ri, T, Lx, cell, grade } = RING, seed = RING.seed >>> 0, D = 3, Ro = Ri + T; ringRi = Ri; ringRo = Ro;
   // 3D foam in the UNROLLED shell box (x=axial, y=circumferential, z=radial 0..T, graded → hull)
-  const raw = window.HOOPFOAM3D ? window.HOOPFOAM3D.seeds3d({ Lx, Ly, thickness: T, cell, grade, seed }) : [];
+  const { pts: raw, Ly } = shellSeeds3d(Ri, T, Lx, cell, grade, seed);
   const NC = raw.length, ndof = D * NC;
   // membranes: near-neighbours in the unrolled box, PERIODIC in y (so they wrap at the seam)
   const members = [], thr = (1.55 * cell) ** 2;
