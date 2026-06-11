@@ -18,6 +18,7 @@ books first, resolve them in space second, render them third:
 | **1 · Resource cycles** — closed-loop life-support box model | `cycles/` | **live** |
 | **2 · Radial atmosphere** — 1-D `r`-column (temp/humidity/CO₂ vs altitude) | `atmosphere/` | **live** |
 | **2b · Fountain &amp; sun** — azimuthal cross-section: the water-cycle jet + luminous-flux budget | `fountain/` | **live** |
+| **4 · Systems ledger** — water & energy books: reactors → light + jets, lake → fog → lake, fish | `systems/` | **live** |
 | **3 · Interior visualiser** — WebGPU O'Neill interior with rendered atmosphere | — | planned |
 
 The landing page (`index.html`) frames the premise and links the modules; each module
@@ -391,6 +392,37 @@ node biome/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 5
 open biome/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
 ```
 
+## Module 4 — the systems ledger: water & energy (`systems/`)
+
+The spatial modules each conserve their own books; this closes the two that cross all of them —
+**energy** and **water** (`systems/sim/resources.mjs`, surfaced in the fountain view). Reactors are
+the only source; light and jets the only loads.
+
+- **Energy** is instantaneous accounting on the light budget. The headline: lighting **dwarfs
+  everything mechanical by ~1000×** (half-sun over 1 km ≈ 50 GW electrical at 50% lamp efficiency vs
+  ~55 MW for three irrigation jets), so the reactor is sized *entirely* by light — ~17 × 3 GW units.
+  The jets are a rounding error.
+- **Water** is a four-box model (lake / soil / vapour / fog) with every flow paired, so total water
+  **conserves to ~1e-16** (the Module 1 discipline). The loop: jets pull from the lakes and spray
+  (some evaporates, the rest irrigates), evapotranspiration and night condensation feed the fog, the
+  Mie sun burns it back by day, dew settles to soil, and drainage returns it to the lakes. **Lake
+  depth** falls out of the reservoir charge ÷ footprint; **residence time** (volume ÷ throughput,
+  ~40 days) is the treatment + thermal buffer.
+- **Three jets, three lakes.** One jet wets up to a third of the circle, so three at 120° irrigate
+  the whole forest; three lakes sit at the ratchet low points (beach-to-cliff reservoirs). Irrigation
+  flow (~3 m³/s, matching evapotranspiration) is ~10× the aeration flow.
+- **Phase separation** (the design answer the column confirms): run the jet **day-phased** — it
+  ventilates the canopy when photosynthesis needs CO₂ and the sun is burning the fog anyway, then
+  backs off at night so the cool surface breeds **free dew irrigation**. An always-on jet kills the
+  fog; a day-phased one keeps it *and* gives the best daytime ventilation.
+- **The aquatic biome.** `aquaticCapacity()` turns lake surface into a sustainable fish stock — the
+  three lakes feed the crew's protein several times over. The natural next step is to make the fish a
+  Module 1 roster food web living in the reservoir.
+
+```bash
+node biome/systems/test/resources.selftest.mjs   # 17 checks: water conservation, lake depth, energy, jet phase, fish
+```
+
 ## Module 3 — WebGPU interior visualiser (planned)
 
 The iconic O'Neill view — looking "up" and seeing more land curve overhead — but
@@ -414,10 +446,13 @@ biome/
 │   ├── sim/optics.mjs            # Mie fog optics — scattering, visibility, solar burn-off
 │   └── test/column.selftest.mjs  # structure, conservation, four phenomena, fountain coupling
 ├── fountain/                     # MODULE 2b — azimuthal cross-section: fountain + light
-│   ├── index.html                # looking-down-the-axis viewer (live diurnal column inside)
-│   ├── sim/fountain.mjs          # rotating-frame ballistic jet + nozzles + ventilationK
+│   ├── index.html                # looking-down-the-axis viewer (3 jets, 3 lakes, ledger)
+│   ├── sim/fountain.mjs          # rotating-frame ballistic jet + nozzles + ventilationK + jetMechanics
 │   ├── sim/light.mjs             # line-source luminous-flux + foam/radiator heat closure
 │   └── test/{fountain,light}.selftest.mjs
+├── systems/                      # MODULE 4 — water & energy ledger
+│   ├── sim/resources.mjs         # energy accounting + conserving water box model + fish
+│   └── test/resources.selftest.mjs
 └── cycles/                       # MODULE 1 — resource-cycle box model
     ├── index.html                # the dashboard (vanilla, no build step)
     ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones

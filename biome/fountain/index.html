@@ -106,10 +106,27 @@
     <div class="panel">
       <h2>Momentum coupling → the column</h2>
       <div class="toggle"><input type="checkbox" id="engage" checked><label for="engage">Engage fountain (feed its mixing K into Module 2)</label></div>
+      <label class="ctl"><span class="row"><span>Jet phase</span></span>
+        <select id="jetmode">
+          <option value="day">Day-phased — ventilate by day, let fog form at night</option>
+          <option value="always">Always on — max ventilation, kills the fog</option>
+          <option value="night">Night-phased — night pump only</option>
+        </select></label>
       <div class="gauges" id="cgauges"></div>
-      <div class="note">The plume's mechanical mixing (its <i>ventilation K</i>) is added to the
-      column's near-surface eddy diffusivity — the night-time pump that buoyant convection can't
-      provide. Watch the fog ring and canopy CO₂ respond as you engage it.</div>
+      <div class="note">Day-phased is the sweet spot: the jet ventilates the canopy when
+      photosynthesis needs CO₂ (and the sun is burning the fog anyway), then backs off at night
+      so the cool surface breeds <b>free dew irrigation</b>. That is the phase separation.</div>
+    </div>
+    <div class="panel">
+      <h2>Systems ledger — reactors &amp; water</h2>
+      <label class="ctl"><span class="row"><span>Reactor capacity</span><b id="v-react"></b></span>
+        <input id="react" type="range" min="10" max="120" step="5"></label>
+      <label class="ctl"><span class="row"><span>Reservoir charge (lake depth)</span><b id="v-res"></b></span>
+        <input id="res" type="range" min="0.4" max="4" step="0.2"></label>
+      <div class="gauges" id="rgauges"></div>
+      <div class="note">Power is <b>almost all light</b> — the jets are &lt;0.1%. Three jets
+      irrigate the three forests; three lakes (at the ratchet low points) buffer the water and
+      grow fish. <span id="resnote"></span></div>
     </div>
   </section>
 </main>
@@ -119,6 +136,7 @@ import { defaultParams as fountainParams, simulate, ventilationK, jetMechanics }
 import { budget } from './sim/light.mjs';
 import { CYLINDER } from '../shared/geometry.mjs';
 import { defaultParams as colParams, buildGrid, initState, step as colStep, snapshot } from '../atmosphere/sim/column.mjs';
+import { defaultParams as resParams, energyLedger, lakeMetrics, aquaticCapacity, lakeArea } from '../systems/sim/resources.mjs';
 
 const $ = (id) => document.getElementById(id);
 const gauge=(k,v,u,c)=>`<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
@@ -163,6 +181,30 @@ function readLight(){
     <b>${suns.toFixed(2)} sun</b> the radiator sits at <b>${b.radiatorTemp_C.toFixed(0)} °C</b>.
     It <b>cannot conduct out through the foam</b> (that would need ${b.foamConductiveDeltaT_K.toExponential(0)} K) —
     it must be actively pumped. The bare food need is ${b.overbuildVsFood.toFixed(0)}× smaller.`;
+  readLedger();
+}
+
+// ── systems ledger: reactors + water + fish ──
+function readLedger(){
+  const rp = resParams();
+  rp.suns = parseFloat($('suns').value); rp.litLength = parseFloat($('len').value);
+  rp.jetV0 = fp.v0; rp.jetFlow_m3s = Math.max(0.1, fp.flowRate * 10);   // irrigation-scale flow
+  rp.reactorCapacity_GW = parseFloat($('react').value);
+  const depth = parseFloat($('res').value);                            // target mean lake depth (m)
+  const lakeVol = depth * lakeArea(rp);
+  rp.totalWater_m3 = lakeVol / 0.9;
+  const e = energyLedger(rp), lm = lakeMetrics(rp, lakeVol), fish = aquaticCapacity(rp, lakeVol);
+  $('v-react').textContent = rp.reactorCapacity_GW + ' GW';
+  $('v-res').textContent = depth.toFixed(1) + ' m deep';
+  const over = e.total_GW > rp.reactorCapacity_GW;
+  $('rgauges').innerHTML =
+    gauge('Power demand', e.total_GW.toFixed(1)+' GW', e.reactorsNeeded_3GW+'× 3GW reactors', over?'var(--warn)':'var(--leaf)')+
+    gauge('Light share', (e.lightFraction*100).toFixed(1)+'%', 'jets '+e.jet_MW.toFixed(0)+' MW','var(--gold)')+
+    gauge('Lake depth', lm.meanDepth_m.toFixed(1)+'m', (lm.area_m2/1e6).toFixed(1)+'km² · 3 lakes','var(--water)')+
+    gauge('Residence', lm.residenceTime_days.toFixed(0)+'d', 'water cycle / treatment','var(--water)')+
+    gauge('Fish', fish.standing_t.toFixed(0)+'t', fish.yield_t_yr.toFixed(0)+'t/yr sustainable','var(--leaf)')+
+    gauge('Feeds crew', (fish.feedsCrewFraction*100).toFixed(0)+'%', 'of protein need',fish.feedsCrewFraction>1?'var(--leaf)':'var(--warn)');
+  $('resnote').innerHTML = `At ${rp.reactorCapacity_GW} GW installed you ${over?'<b style="color:var(--warn)">exceed capacity</b> — dim the sun or shorten the lit length':'have '+e.margin_GW.toFixed(0)+' GW of margin'}.`;
 }
 
 // ── background diurnal column (Module 2), coupled to the fountain ──
@@ -177,6 +219,7 @@ function resetCol(){
 function stepCol(){
   cp.fountainK = $('engage').checked ? vK.K : 0;
   cp.fountainDepth = vK.depth;
+  cp.fountainMode = $('jetmode').value;
   for(let k=0;k<3;k++) cs = colStep(cs, cp, cg, 240);
   colSnap = snapshot(cs, cp, cg);
   $('dot').classList.toggle('lit', colSnap.sunlit===1);
@@ -229,25 +272,34 @@ function draw(){
   ctx.fillStyle = lit? '#ffe7a0':'#6b6038';
   ctx.shadowBlur=lit?(16+10*suns):4; ctx.shadowColor='#ffd866';
   ctx.beginPath(); ctx.arc(cx,cy,5+2*suns,0,7); ctx.fill(); ctx.shadowBlur=0;
-  // fountain trajectories + droplets
-  for(const st of sim.streams){
-    ctx.strokeStyle='rgba(120,180,220,0.45)'; ctx.lineWidth=1.1; ctx.beginPath();
-    st.traj.forEach((pt,i)=>{ const X=toX(pt[0]),Y=toY(pt[1]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }); ctx.stroke();
-    const idx=Math.floor((tphase%1)*(st.traj.length-1)); const dp=st.traj[idx];
-    if(dp){ ctx.fillStyle='#cfe6da'; ctx.beginPath(); ctx.arc(toX(dp[0]),toY(dp[1]),2.1,0,7); ctx.fill(); }
-    const last=st.traj[st.traj.length-1]; ctx.fillStyle='rgba(90,169,216,0.8)';
-    ctx.beginPath(); ctx.arc(toX(last[0]),toY(last[1]),2.4,0,7); ctx.fill();
+  // THREE jets at 120° (one per forest/lake), each with its own lake at the ratchet low point.
+  const jetOn = !colSnap || $('jetmode').value==='always' || ($('jetmode').value==='day' && lit) || ($('jetmode').value==='night' && !lit);
+  for(let k=0;k<3;k++){
+    const a=k*2*Math.PI/3, ca=Math.cos(a), sa=Math.sin(a);
+    const rot=(x,y)=>[x*ca - y*sa, x*sa + y*ca];        // rotate the launch frame by 120°·k
+    // lake at the low point (the rotated launch base) — a blue arc on the wall
+    const base=rot(0,-fp.R); const bx=toX(base[0]), by=toY(base[1]);
+    ctx.fillStyle='rgba(90,150,200,0.8)'; ctx.beginPath(); ctx.arc(bx,by,5,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(90,169,216,0.7)'; ctx.lineWidth=5;
+    const la=Math.atan2(base[1],base[0]); ctx.beginPath(); ctx.arc(cx,cy,PRhab,la-0.32,la+0.32); ctx.stroke();
+    if(jetOn) for(const st of sim.streams){
+      ctx.strokeStyle='rgba(120,180,220,0.4)'; ctx.lineWidth=1; ctx.beginPath();
+      st.traj.forEach((pt,i)=>{ const r=rot(pt[0],pt[1]); const X=toX(r[0]),Y=toY(r[1]); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); }); ctx.stroke();
+      const idx=Math.floor((tphase%1)*(st.traj.length-1)); const dp=st.traj[idx];
+      if(dp){ const r=rot(dp[0],dp[1]); ctx.fillStyle='#cfe6da'; ctx.beginPath(); ctx.arc(toX(r[0]),toY(r[1]),1.8,0,7); ctx.fill(); }
+    }
   }
-  ctx.fillStyle='#e0795a'; ctx.beginPath(); ctx.arc(toX(0),toY(-fp.R),4,0,7); ctx.fill();
-  ctx.fillStyle='#7f9b8d'; ctx.fillText('Fond du Lac', cx, toY(-fp.R)+16);
+  ctx.fillStyle='#7f9b8d'; ctx.fillText('3 jets · 3 lakes', cx, toY(-fp.R)+16);
 }
 function frame(){ tphase+=0.012; stepCol(); draw(); requestAnimationFrame(frame); }
 
 // init
 $('v0').value=160; $('ang').value=10; $('flow').value=120; $('grav').value=0.8; $('suns').value=0.5; $('len').value=1000;
+$('jetmode').value='day'; $('react').value=60; $('res').value=2;
 readJet(); readLight(); resetCol();
-$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 (with Mie fog burn-off) coupled via the fountain’s mixing K.';
+$('simplify').innerHTML='<b>Model.</b> All ballistic in the rotating frame; the background column is Module 2 (with Mie fog burn-off) coupled via the fountain’s mixing K. Energy & water from Module 4 (systems ledger).';
 for(const id of ['nozzle','v0','ang','flow','grav']) $(id).addEventListener('input', readJet);
+for(const id of ['react','res']) $(id).addEventListener('input', readLedger);
 for(const id of ['suns','len']) $(id).addEventListener('input', readLight);
 requestAnimationFrame(frame);
 </script>

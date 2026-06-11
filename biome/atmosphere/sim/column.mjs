@@ -95,7 +95,8 @@ export function defaultParams() {
     // night-time ventilation pump. Set via Fountain.ventilationK(); 0 = no fountain.
     fountainK: 0,                        // m²/s added to faces within fountainDepth of the rim
     fountainDepth: 300,                  // m
-    fountainNightOnly: false,            // true ⇒ only runs when the sun is off
+    fountainMode: 'always',              // 'always' | 'day' | 'night' — when the jet runs (phase vs the light)
+    fountainNightOnly: false,            // (back-compat) true ⇒ same as fountainMode:'night'
   };
 }
 
@@ -154,7 +155,9 @@ const sunlit = (p, t) => ((t % p.dayLength) / p.dayLength) < p.photoperiod ? 1 :
 export function eddyK(p, g, theta, lit = 1) {
   const { rc, dr, N } = g; const K = new Array(N + 1).fill(p.K_bg);
   K[0] = 0; K[N] = 0;                              // closed at axis & rim (surface exchange is separate)
-  const fountainOn = p.fountainK > 0 && (!p.fountainNightOnly || lit === 0);
+  const mode = p.fountainNightOnly ? 'night' : (p.fountainMode || 'always');
+  const fountainOn = p.fountainK > 0 &&
+    (mode === 'always' || (mode === 'day' && lit === 1) || (mode === 'night' && lit === 0));
   for (let f = 1; f < N; f++) {
     const dThetaDr = (theta[f] - theta[f - 1]) / dr[f];   // >0 ⇒ unstable (hot air under cool)
     const conv = Math.max(0, Math.tanh(dThetaDr / p.instabScale));
