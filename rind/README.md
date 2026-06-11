@@ -43,7 +43,7 @@ and the deflection is exaggerated so you can see it carry load.
 |---|---|
 | `index.html` | the landing page — the premise, the four wings, the three tools |
 | `cylinder.html` | **thinking about cylinders** — the structural + radiative scratchpad. Sizes the cable weave (closed form) and the real foam shell (frame solver) from the cylinder parameters; live play-slice of stacked floors coloured by stress. |
-| `foamview.html` | **foam viewer** — a 3D read of the layered foam slab: orbit it, slide a radial probe through the thickness, see the annular shell solved with member forces (tension warm, compression cool). |
+| `foamview.html` | **foam viewer** — a 3D read of the layered foam slab: orbit it, slide a radial probe through the thickness, see the annular shell solved with member forces (tension warm, compression cool). The cylinder scene also finds and draws a **drivable route** through the chamber graph: a 12% spiral ramp → a level azimuthal road → a second ramp (see *Wayfinding* below). |
 | `walk.html` | **walk the foam** — drop in as a denizen and walk a planar cut through the foam (a roguelike level extracted by fitting a best-fit plane through the 3D cell-cloud). Climb radially and the gravity shifts: lighter core-ward, heavier hull-ward. |
 
 ## How it's built
@@ -57,6 +57,9 @@ rind/
 ├── foam.js             # layered, braced, navigable cellular structure generator
 │                       #   → emits a ready-to-solve frame model; runs in node + browser
 ├── foam3d.js           # top-down level extractor: 3D seeds → PCA best-fit plane → 2D rooms
+├── wayfind.js          # wayfinding: sector foam + spiral-ramp / azimuthal-road planner
+│                       #   (single source for foamview's cylinder scene; node + browser)
+├── test/wayfind.selftest.mjs   # certifies the wayfinding claims offline (node, no deps)
 ├── solver/             # the Rust frame solver (the structural scoring kernel)
 │   ├── cylinder-solver/        # native crate (hoop_json / solve_net_json / solve_frame_json)
 │   ├── cylinder-solver-wasm/   # wasm-bindgen wrapper
@@ -86,8 +89,34 @@ beam-solver / flight-solver pattern (native-tested, wasm-built in CI):
 ```bash
 ( cd rind/solver/cylinder-solver && cargo test )   # the math, offline
 node rind/solver/foam-preview.mjs                  # headless foam → frame model preview
+node rind/test/wayfind.selftest.mjs                # wayfinding certificates (see below)
 open rind/index.html                               # landing → the three tools
 ```
+
+## Wayfinding (`wayfind.js`) — roads through the foam
+
+The chamber adjacency graph (the same one the solver stiffens) doubles as a road network.
+`wayfind.js` finds **drivable routes** through it and foamview's cylinder scene draws them:
+
+- **Spiral ramp** — a helix of constant grade *g*: climb radially while sweeping azimuth,
+  `r(θ) = r₀ ± g·r₀·(θ−θ₀)`. Spin gravity points along +r̂, so grade = dr/ds is exactly the
+  slope a vehicle feels (hull-ward = downhill, core-ward = uphill).
+- **Azimuthal road** — constant radius = a level street around the ring.
+
+`findLeg()` is an A* over the chamber graph confined to a corridor around the ideal deck,
+strictly monotone in azimuth. A found chain is a **constructive certificate**: every chamber
+centre within tolerance of the deck (≤ ~1 cell, and rooms are a cell wide), consecutive
+chambers share a wall — so the smooth deck provably threads the chain. Why it works *just
+about anywhere*: seeds are a jittered grid (each site holds ≤ 1 seed, displaced ≤ ¼ cell per
+axis) and the adjacency threshold 1.85·cell exceeds the worst face-adjacent distance
+(≈ 1.66·cell), so wherever thinning spares the sites, grid connectivity survives and a
+two-cell corridor holds several parallel candidate chains. `proveAnywhere()` measures the
+realised rate (100% of 300 random anchors on the default 33k-chamber sector).
+
+foamview composes the demo — **ramp A → level azimuthal road → ramp B** (≈ 700 m legs at
+~11% with 20 m rooms) — drawn as a road ribbon with the ideal deck dashed alongside; the
+`⌁ ramp route` button re-anchors it somewhere new. `node rind/test/wayfind.selftest.mjs`
+certifies determinism, the per-leg certificate, and the anywhere-rate offline.
 
 **Deploy of the wasm:** `.github/workflows/build-cylinder-solver.yml` compiles
 `cylinder-solver-wasm` and commits `rind/solver/pkg/**` (which lands under `rind/**`), then
