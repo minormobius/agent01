@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · stability lab — will this web survive?</title>
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#15231d,#0a110e 60%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  header{padding:18px 22px 6px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sub{color:var(--dim);font-size:12px;margin-top:3px;max-width:74ch}
+  .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:300px 1fr;gap:18px;padding:18px 22px;align-items:start}
+  @media(max-width:860px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+  .panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:11px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--leaf);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--leaf);height:18px}
+  select{width:100%;background:#0e1713;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit}
+  .verdict{font-size:13px;padding:12px 14px;border-radius:8px;margin-bottom:16px;border:1px solid var(--line)}
+  .verdict.ok{background:#13241a;border-color:#2c5a3c}
+  .verdict.warn{background:#23200f;border-color:#5a4f2c}
+  .verdict.bad{background:#251612;border-color:#5a342c}
+  .verdict b{display:block;font-size:14px;margin-bottom:3px;color:var(--txt)}
+  .gauges{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .g .k{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim)}
+  .g .v{font-size:19px;font-weight:600;margin-top:2px}
+  .g .u{font-size:11px;color:var(--dim)}
+  canvas{width:100%;display:block;background:#0b1310;border:1px solid var(--line);border-radius:8px}
+  .note{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.5}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:860px){.twocol{grid-template-columns:1fr}}
+  .bars{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .bar{display:grid;grid-template-columns:90px 1fr 42px;align-items:center;gap:8px;font-size:12px}
+  .bar .track{height:12px;background:#0e1713;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .bar .fill{height:100%;background:linear-gradient(90deg,var(--leaf),var(--gold))}
+  .bar .pct{text-align:right;color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+  <h1>biome · stability lab <small>— will this web survive?</small></h1>
+  <div class="sub">The <a href="./">box-model dashboard</a> shows what happens over 600 days.
+  This reads the <i>fate</i> of the steady state straight from its linearization — the
+  <b>community matrix</b> (how each species' growth responds to every species' biomass at
+  equilibrium). Its eigenvalues decide stability (May 1972); its symmetric part decides
+  reactivity (Neubert &amp; Caswell 1997); its inverse ranks keystones (Bender 1984). No
+  600-day run — the verdict is analytic. <a href="./README.md">How it works ↗</a></div>
+</header>
+<main>
+  <section>
+    <div class="panel">
+      <h2>Community</h2>
+      <label class="ctl"><span class="row"><span>Roster</span></span>
+        <select id="community">
+          <option value="roster">Real organisms (bee · spider · springtail · apple · sweet potato · reed)</option>
+          <option value="default">Default web (abstract guilds)</option>
+        </select>
+      </label>
+      <label class="ctl"><span class="row"><span>Predator pressure</span><b id="v-pred"></b></span>
+        <input id="pred" type="range" min="0" max="0.6" step="0.02" />
+      </label>
+      <label class="ctl"><span class="row"><span>Decomposer activity</span><b id="v-dec"></b></span>
+        <input id="dec" type="range" min="0.1" max="1.2" step="0.05" />
+      </label>
+      <label class="ctl"><span class="row"><span>Self-limitation (density dep.)</span><b id="v-cap"></b></span>
+        <input id="cap" type="range" min="0" max="2" step="0.1" />
+      </label>
+      <div class="note">Drag a knob and the eigenvalues move. Push self-limitation to 0 and
+      watch the rightmost eigenvalue cross into the unstable half-plane — a Hopf bifurcation,
+      the predator–prey loop breaking into oscillation.</div>
+    </div>
+  </section>
+  <section>
+    <div id="verdict" class="verdict"></div>
+    <div class="gauges" id="gauges"></div>
+    <div class="twocol">
+      <div class="panel">
+        <h2>Eigenvalue spectrum (per day)</h2>
+        <canvas id="spectrum" width="440" height="360"></canvas>
+        <div class="note">Each dot is an eigenvalue of the community matrix on the complex
+        plane. <b>Left of the dashed line is stable</b> (perturbations decay); the rightmost
+        dot is the verdict. Height = oscillation frequency (predator–prey ringing).</div>
+      </div>
+      <div class="panel">
+        <h2>Community matrix — ∂(growthᵢ)/∂(biomassⱼ)</h2>
+        <canvas id="heat" width="440" height="360"></canvas>
+        <div class="note"><span style="color:var(--leaf)">green = +</span> (j helps i),
+        <span style="color:var(--warn)">red = −</span> (j harms i). The diagonal is
+        self-regulation; the predator row/column shows top-down control.</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Keystones — who moves the web when pressed (normalised)</h2>
+      <div class="bars" id="keystones"></div>
+      <div class="note">From −J⁻¹: a sustained nudge to a species shifts the whole
+      equilibrium by its column. Long bar ⇒ pressing it ripples far (Bender press perturbation).</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { defaultParams } from './sim/cycles.mjs';
+import { rosterParams } from './sim/roster.mjs';
+import { analyzeStability } from './sim/stability.mjs';
+
+const $ = (id) => document.getElementById(id);
+const SP_COLORS = { crop:'#7bc96f', tree:'#3f8f5a', reed:'#5aa9d8', pollinator:'#d8b25a',
+  predator:'#e0795a', decomposer:'#b08968', bee:'#d8b25a', spider:'#e0795a', springtail:'#b08968' };
+
+function buildParams(){
+  const which = $('community').value;
+  const p = which === 'roster' ? rosterParams() : defaultParams();
+  const pred = parseFloat($('pred').value);
+  const dec = parseFloat($('dec').value);
+  const cap = parseFloat($('cap').value);
+  const sp = (id) => p.species.find((s) => s.id === id);
+  // map knobs onto whichever ids this community uses
+  const predId = which === 'roster' ? 'spider' : 'predator';
+  const decId  = which === 'roster' ? 'springtail' : 'decomposer';
+  if (sp(predId)) sp(predId).ingest = pred;
+  if (sp(decId)) sp(decId).ingest = dec;
+  // scale every heterotroph's self-limitation by the knob (1× = as designed, 0 = none)
+  for (const s of p.species) if (s.kind === 'heterotroph') s.capacityFrac = (DEFAULT_CAP[which]?.[s.id] ?? 0) * cap;
+  $('v-pred').textContent = pred.toFixed(2) + '/d';
+  $('v-dec').textContent = dec.toFixed(2) + '/d';
+  $('v-cap').textContent = cap.toFixed(1) + '×';
+  return p;
+}
+
+// capture the designed capacityFrac per community so the knob scales relative to it
+const DEFAULT_CAP = {};
+for (const [k, mk] of [['default', defaultParams], ['roster', rosterParams]]){
+  DEFAULT_CAP[k] = {}; for (const s of mk().species) if (s.kind === 'heterotroph') DEFAULT_CAP[k][s.id] = s.capacityFrac ?? 0;
+}
+
+function gauge(k,v,u,color){ return `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div></div>`; }
+
+function drawSpectrum(cv, eig, alpha){
+  const ctx = cv.getContext('2d'); const W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H);
+  const res = Math.max(...eig.map(e=>Math.abs(e.re)), 0.01);
+  const ims = Math.max(...eig.map(e=>Math.abs(e.im)), 0.01);
+  const xspan = res*1.25, yspan = ims*1.25 || 0.05;
+  const px = (re)=> W*0.12 + (re + xspan)/(xspan*1.05) * (W*0.82);   // map [-xspan, ~0+] across
+  const x0 = px(0), pad=30;
+  const py = (im)=> H/2 - (im/yspan)*(H/2 - pad);
+  // axes
+  ctx.strokeStyle='#27362f'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  // stability boundary Re=0
+  ctx.strokeStyle='#5a342c'; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,H); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle='#7f9b8d'; ctx.font='10px monospace';
+  ctx.fillText('stable ←', x0-66, 14); ctx.fillText('→ unstable', x0+6, 14);
+  ctx.fillText('Re λ', W-34, H/2-6); ctx.fillText('Im λ', x0+6, 14+0);
+  // eigenvalues
+  for (const e of eig){
+    const x=px(e.re), y=py(e.im);
+    const rightmost = Math.abs(e.re - alpha) < 1e-12;
+    ctx.beginPath(); ctx.arc(x,y, rightmost?6:4, 0, 7);
+    ctx.fillStyle = e.re < 0 ? (rightmost?'#62b87a':'#3f8f5a') : '#e0795a';
+    ctx.fill();
+    if (rightmost){ ctx.strokeStyle='#d8b25a'; ctx.lineWidth=1.5; ctx.stroke(); }
+  }
+}
+
+function drawHeat(cv, M, ids){
+  const ctx=cv.getContext('2d'); const W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H);
+  const n=ids.length; const m=Math.min(W,H)-70; const cell=m/n; const ox=58, oy=12;
+  let mx=1e-12; for (const r of M) for (const v of r) mx=Math.max(mx,Math.abs(v));
+  for (let i=0;i<n;i++) for (let j=0;j<n;j++){
+    const v=M[i][j]/mx; const x=ox+j*cell, y=oy+i*cell;
+    const g = v>0, a=Math.min(Math.abs(v)**0.4,1);
+    ctx.fillStyle = g ? `rgba(98,184,122,${a})` : `rgba(224,121,90,${a})`;
+    ctx.fillRect(x,y,cell-1,cell-1);
+  }
+  ctx.fillStyle='#7f9b8d'; ctx.font='10px monospace';
+  for (let i=0;i<n;i++){ ctx.textAlign='right'; ctx.fillText(ids[i].slice(0,7), ox-4, oy+i*cell+cell/2+3); }
+  ctx.save(); ctx.textAlign='left';
+  for (let j=0;j<n;j++){ ctx.save(); ctx.translate(ox+j*cell+cell/2+3, oy+n*cell+4); ctx.rotate(Math.PI/2); ctx.fillText(ids[j].slice(0,7),0,0); ctx.restore(); }
+  ctx.restore();
+}
+
+function render(){
+  const p = buildParams();
+  const a = analyzeStability(p);
+  const vc = $('verdict');
+  vc.className = 'verdict ' + (!a.stable ? 'bad' : a.marginal ? 'warn' : 'ok');
+  vc.innerHTML = `<b>${!a.stable?'✕ Unstable':a.marginal?'~ Marginally stable':'✓ Stable'}</b>${a.verdict}`;
+  $('gauges').innerHTML =
+    gauge('Spectral abscissa α', a.spectralAbscissa.toExponential(2), 'per day · '+(a.stable?'< 0 ✓':'> 0 ✕'), a.stable?'var(--leaf)':'var(--warn)') +
+    gauge('Return time', isFinite(a.returnTime)?Math.round(a.returnTime):'∞', 'days for a shock to fade', 'var(--gold)') +
+    gauge('Reactivity', a.reactivity.toFixed(3), 'per day · '+(a.reactive?'amplifies first':'no overshoot'), a.reactive?'var(--warn)':'var(--leaf)') +
+    gauge('Oscillation', a.oscillatory?Math.round(a.oscillationPeriod)+'d':'none', a.oscillatory?'predator–prey period':'monotone return','var(--water)');
+  drawSpectrum($('spectrum'), a.eigenvalues, a.spectralAbscissa);
+  drawHeat($('heat'), a.speciesMatrix, a.species);
+  $('keystones').innerHTML = (a.keystone||[]).map(k=>{
+    const c = SP_COLORS[k.id]||'var(--leaf)';
+    return `<div class="bar"><span style="color:${c}">${k.id}</span><span class="track"><span class="fill" style="width:${(k.influence*100).toFixed(0)}%"></span></span><span class="pct">${k.influence.toFixed(2)}</span></div>`;
+  }).join('');
+}
+
+// init knob positions
+$('community').value = 'roster';
+$('pred').value = 0.20; $('dec').value = 0.6; $('cap').value = 1;
+for (const el of ['community','pred','dec','cap']) $(el).addEventListener('input', render);
+render();
+</script>
+</body>
+</html>

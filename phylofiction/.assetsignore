@@ -1,0 +1,9 @@
+# Keep the deployed asset bundle to the website itself — not the Rust crate,
+# the test harness, or node bookkeeping. (SPEC.md / README.md stay; index.html
+# links to them.)
+engine-rs/
+test/
+node_modules/
+package.json
+package-lock.json
+.assetsignore

@@ -1,0 +1,76 @@
+name: Build flux catalog (Rust cross-check)
+
+# Generates the flux catalog in JS, then has the Rust engine (fable/flux/engine-rs)
+# INDEPENDENTLY re-verify every world is solvable and its stored answer wins — a
+# cross-engine gate. On success it commits the catalog and kicks deploy-fable.
+# The live site works with or without the committed catalog (it generates worlds
+# client-side); this is the "puzzles by rust solver" verification + a published,
+# Rust-verified catalog of pre-solved worlds.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/phylofiction-exploration-ixjmpa'
+    paths:
+      - 'fable/flux/js/**'
+      - 'fable/flux/engine-rs/**'
+      - 'scripts/build-flux-catalog.mjs'
+      - '.github/workflows/build-flux-catalog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            fable/flux/engine-rs/target
+          key: cargo-flux-${{ runner.os }}-${{ hashFiles('fable/flux/engine-rs/Cargo.toml', 'fable/flux/engine-rs/src/**') }}
+          restore-keys: cargo-flux-${{ runner.os }}-
+
+      - name: Generate catalog (JS) + world list
+        run: node scripts/build-flux-catalog.mjs 256
+
+      - name: Rust unit tests
+        working-directory: fable/flux/engine-rs
+        run: cargo test --release
+
+      - name: Cross-engine verify (Rust re-solves every world)
+        working-directory: fable/flux/engine-rs
+        run: cargo run --release --quiet -- ../data/worldlist.txt
+
+      - name: Commit catalog
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f fable/flux/data/catalog.json fable/flux/data/worldlist.txt
+          git commit -m "build: flux catalog (Rust-verified)" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows; kick deploy-fable so
+      # the freshly-verified catalog publishes.
+      - name: Deploy (dispatch deploy-fable)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-fable.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

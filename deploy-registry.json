@@ -4,6 +4,29 @@
   "hero": "claude/landing-projects-takeover-pKkmW",
   "surfaces": [
     {
+      "surface": "fable",
+      "dir": "fable",
+      "endpoint": "fable.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/phylofiction-exploration-ixjmpa",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fable/**"
+      ],
+      "serves": [
+        "puzz",
+        "knack",
+        "flux",
+        "gyre",
+        "morph",
+        "drift",
+        "forge",
+        "deal"
+      ],
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets. Live wings: /puzz — seeded, certified-unique logic puzzles (binairo + nonogram), a real solver certifying uniqueness, fairness, and grading from deduction techniques; /knack — canvas minigames, one composable discrete-move engine -> six genres, each certified solvable by a BFS solver that finds optimal par; /flux — continuous-space physics puzzles (no grid): aim one launch through gravity wells/magnets/goo/bumpers, a solver sweeps the 2D launch space to map winning basins, grading by shot precision; /gyre — flux in 3D: the ball constrained to a torus surface (intrinsic-coordinate geodesic integration + tangent-projected forces, hand-rolled 3D canvas in the torus-pack style), winding numbers of the winning shot are part of the interest battery. flux JS engine is mirrored in fable/flux/engine-rs (Rust) and cross-checked in CI by build-flux-catalog.yml, which commits fable/flux/data/catalog.json. /morph — a generator of puzzle GENERATORS (one level up): samples a game GENOME (substrate/topology incl. torus/Möbius/Klein/hex × law × goal × aesthetic) and instantiates a concrete puzzle a single invariant BFS oracle certifies solvable; two knobs (new game = new genome, new puzzle = new instance). /drift — puzzles in MEANING-space (tier-4 substrate): the board is a committed kNN graph over 7k MiniLM word embeddings (built by scripts/build-drift-graph.mjs, cult-basis pattern; regenerate ONLY via manual build-drift-graph.yml — it re-rolls every permalink); Ladder = BFS-certified semantic crossings with measured par, Fold = margin-certified word families. /forge — the rung above morph: a FOUNDRY that mints new LAWS OF MOTION from a closed rule-DSL, fingerprints each by behaviour (state-space/branching/irreversibility/mutation/stride/drift), and admits only laws measurably novel vs the hand-written ones AND certifiable into playable puzzles by the one BFS oracle (novelty-search / MAP-Elites lineage). The generator-generator then runs on a law no one wrote. /deal — generated 2-player CARD GAMES certified by a TRIBUNAL of simulated opponents (the adversarial/hidden-info oracle family: seeded bot-vs-bot playouts prove terminates + rewards-skill + fair before shipping); the engine is a pure reducer (init/legalMoves/apply) so any game lifts into the games.mino.mobi DO rooms / hoop / ar transports for human-vs-human later — the certifying bot is also your opponent. Planned: /city (extends mappa), /character (sci-fi NPC systems)."
+    },
+    {
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
@@ -137,6 +160,19 @@
       "provides": null,
       "paths": [
         "bisk/**"
+      ]
+    },
+    {
+      "surface": "biome",
+      "dir": "biome",
+      "endpoint": "biome.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/oneill-cylinder-life-support-wqzrqn",
+      "uses": [],
+      "provides": null,
+      "note": "Habitat resource-cycle suite for an infinite O'Neill cylinder interior. Assets worker `biome` serving directory 'biome'. Module 1 (cycles/) is the closed-loop life-support box model; modules 2 (radial atmosphere) and 3 (WebGPU interior) are planned. Pure static — model runs client-side, no D1/DO/secrets.",
+      "paths": [
+        "biome/**"
       ]
     },
     {
@@ -362,6 +398,19 @@
       "cohesion": "integrated"
     },
     {
+      "surface": "phylofiction",
+      "dir": "phylofiction",
+      "endpoint": "phylofiction.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/phylofiction-world-generation-3zd33u",
+      "uses": [],
+      "provides": null,
+      "note": "Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces identically. Static reader (assets worker `phylofiction` owns phylofiction.mino.mobi); all computation client-side, no D1/DO/secrets. JS engine mirrored against the wasm in test/parity.test.mjs.",
+      "paths": [
+        "phylofiction/**"
+      ]
+    },
+    {
       "surface": "ocr",
       "dir": "ocr",
       "endpoint": "ocr.mino.mobi, ocr.ascential.work",
@@ -425,7 +474,7 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-mino-design-preview-htuxu9",
+      "branch": "claude/merge-features-update-endpoints-qa2vu1",
       "uses": [],
       "provides": null,
       "status": "PREVIEW — collaborative design space for 'the infinite game'. Canvas glyph-world where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts).",

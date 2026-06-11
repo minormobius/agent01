@@ -1,0 +1,175 @@
+// Glue: routing, controls, the canvas board, the solver-verdict panel, gallery.
+import { worldForSeed, hunt } from './atlas.js';
+import { Renderer, drawThumb } from './render.js';
+import { Player } from './play.js';
+import { BUNDLE_BY_ID, BUNDLES } from './bundles.js';
+
+const $ = (id) => document.getElementById(id);
+const accent = (b) => (BUNDLE_BY_ID[b] ? BUNDLE_BY_ID[b].accent : 'var(--accent)');
+const cache = new Map();
+function getWorld(n) { if (!cache.has(n)) cache.set(n, worldForSeed(n)); return cache.get(n); }
+
+let player = null, renderer = null, currentN = 1;
+
+function readURL() {
+  const p = new URLSearchParams(location.search);
+  const n = parseInt(p.get('n'), 10);
+  if (Number.isFinite(n) && n > 0) currentN = n;
+  if (p.get('tab')) showTab(p.get('tab'), false);
+}
+function writeURL() {
+  const p = new URLSearchParams(); p.set('n', currentN);
+  const tab = document.querySelector('.tabs button.active')?.dataset.tab;
+  if (tab && tab !== 'play') p.set('tab', tab);
+  history.replaceState(null, '', '?' + p.toString());
+}
+function showTab(name, push = true) {
+  document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tabpanel').forEach((s) => s.classList.toggle('active', s.id === 'tab-' + name));
+  if (name === 'atlas') ensureGallery();
+  if (push) writeURL();
+}
+
+function loadWorld(n) {
+  currentN = n; $('seed').value = n;
+  const data = getWorld(n);
+  if (player) player.destroy();
+  if (!data) { $('board-title').textContent = 'no world here'; return; }
+  const { world, solve, report } = data;
+  $('board-title').textContent = `${world.bundleName}`;
+  const pill = $('bundle-pill'); pill.textContent = world.bundle; pill.style.background = accent(world.bundle);
+  $('win-banner').classList.remove('show');
+  $('map').classList.remove('on'); $('map').textContent = 'show win-map';
+
+  renderer = new Renderer($('board'), world);
+  renderer.setSolutionMap(solve.grid, solve.na, solve.np);
+  player = new Player(world, renderer, report, {
+    onChange: (st) => updateAttempts(st),
+    onSolved: (st) => { $('win-banner').textContent = st.isSolver ? 'The solver’s shot lands. ✦' : `Sunk it in ${st.attempts} attempt${st.attempts > 1 ? 's' : ''}! ✦`; $('win-banner').classList.add('show'); },
+  });
+  updateAttempts(player.status());
+  renderVerdict(world, report);
+  renderRules(world, report);
+  $('howto').innerHTML = `<span style="color:var(--faint);font-size:12px;">${BUNDLE_BY_ID[world.bundle]?.blurb || ''} — drag from the ball to aim, pull back for power, release to launch.</span>`;
+  writeURL();
+}
+function updateAttempts(st) { $('attempts').textContent = `${st.attempts} attempt${st.attempts === 1 ? '' : 's'}`; }
+
+function renderVerdict(w, r) {
+  const a = r.answer;
+  $('verdict').innerHTML =
+    `<div class="verdict-row"><span class="ico ok">✓</span><span>Solvable — at least one launch wins</span></div>` +
+    `<div class="verdict-row"><span class="ico ok">✓</span><span>Win-map swept (${(r.winFrac * 100).toFixed(0)}% of launches win)</span></div>` +
+    `<div class="verdict-row"><span class="ico">◎</span><span>${r.basins} distinct winning basin${r.basins === 1 ? '' : 's'}</span></div>`;
+  $('diff-num').textContent = r.difficulty; $('diff-tier').textContent = r.diffTier;
+  $('int-num').textContent = r.interest;
+  $('answer-line').innerHTML = `solver's shot: <b>${(a.angle * 180 / Math.PI + 360) % 360 | 0}°</b> at power <b>${a.power.toFixed(0)}</b>, ${a.bounces} bounce${a.bounces === 1 ? '' : 's'}`;
+  $('descriptor').textContent = r.descriptor;
+
+  const ALL = ['gravity', 'well', 'magnet', 'goo', 'bumper'];
+  const have = new Set(w.mechanics || []);
+  $('chips').innerHTML = ALL.map((m) => `<span class="chip ${have.has(m) ? 'on' : ''}">${m}</span>`).join('');
+
+  const order = ['precision', 'craft', 'multiplicity', 'patience', 'openness'];
+  $('signals').innerHTML = order.map((k) => {
+    const v = r.signals[k] ?? 0;
+    return `<div class="sig"><span class="name">${k}</span><span class="track"><i style="width:${Math.round(v * 100)}%"></i></span><span class="val">${v.toFixed(2)}</span></div>`;
+  }).join('');
+}
+
+function randomSeed() { return 1 + Math.floor(Math.random() * 100000); }
+function doSurprise() {
+  const bundle = $('huntBundle').value || undefined;
+  const diff = $('huntDiff').value;
+  const want = { minInterest: 66 };
+  if (bundle) want.bundle = bundle;
+  if (diff === 'hard') want.minDifficulty = 60;
+  if (diff === 'easy') want.maxDifficulty = 42;
+  const start = randomSeed();
+  const found = hunt(start, 90, want) || hunt(start, 90, { bundle });
+  if (found) { cache.set(found.n, found); loadWorld(found.n); }
+}
+
+let galleryStart = 1; const GAL = 12; let built = false;
+function ensureGallery() { if (!built) { built = true; buildGallery(); } }
+async function buildGallery() {
+  const host = $('gallery'); host.innerHTML = '<div class="loading">generating & sweeping launches…</div>';
+  const bf = $('g-bundle').value, sort = $('g-sort').value;
+  const items = [];
+  for (let n = galleryStart; n < galleryStart + GAL; n++) {
+    const d = getWorld(n); if (!d) continue;
+    if (bf && d.world.bundle !== bf) continue;
+    items.push(d);
+    await new Promise((r) => setTimeout(r, 0)); // yield each (generation is heavy)
+  }
+  if (sort === 'interest') items.sort((a, b) => b.report.interest - a.report.interest);
+  else if (sort === 'difficulty') items.sort((a, b) => b.report.difficulty - a.report.difficulty);
+  else items.sort((a, b) => a.n - b.n);
+  $('g-page').textContent = `pages ${galleryStart}–${galleryStart + GAL - 1}`;
+  host.innerHTML = '';
+  if (!items.length) { host.innerHTML = '<div class="loading">nothing matches that filter here</div>'; return; }
+  for (const d of items) host.appendChild(card(d));
+}
+function card(d) {
+  const { n, world, solve, report } = d;
+  const el = document.createElement('div'); el.className = 'card';
+  const tw = document.createElement('div'); tw.className = 'thumb';
+  const cv = document.createElement('canvas'); tw.appendChild(cv); el.appendChild(tw);
+  drawThumb(cv, world, solve, 150);
+  const top = document.createElement('div'); top.className = 'meta-top';
+  top.innerHTML = `<span class="bp" style="background:${accent(world.bundle)}">${world.bundle}</span><span class="seedno">#${n}</span>`;
+  el.appendChild(top);
+  const stats = document.createElement('div'); stats.className = 'cardstats';
+  stats.innerHTML = `<span>${report.diffTier}</span><span class="istar">✦ ${report.interest}</span>`;
+  el.appendChild(stats);
+  el.addEventListener('click', () => { loadWorld(n); showTab('play'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  return el;
+}
+
+function buildLegend() {
+  $('legend').innerHTML = BUNDLES.map((b) =>
+    `<div class="li"><span class="sw" style="background:${b.accent}"></span><span><b style="color:var(--fg)">${b.name}</b> — ${b.blurb}</span></div>`).join('');
+}
+
+function init() {
+  document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('go').addEventListener('click', () => loadWorld(Math.max(1, parseInt($('seed').value, 10) || 1)));
+  $('seed').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('go').click(); });
+  $('prev').addEventListener('click', () => loadWorld(Math.max(1, currentN - 1)));
+  $('next').addEventListener('click', () => loadWorld(currentN + 1));
+  $('random').addEventListener('click', () => loadWorld(randomSeed()));
+  $('surprise').addEventListener('click', doSurprise);
+  $('solve').addEventListener('click', () => player?.watchSolver());
+  $('reset').addEventListener('click', () => player?.reset());
+  $('map').addEventListener('click', () => { const on = player?.toggleMap(); $('map').classList.toggle('on', on); $('map').textContent = on ? 'hide win-map' : 'show win-map'; });
+  $('g-prev').addEventListener('click', () => { galleryStart = Math.max(1, galleryStart - GAL); buildGallery(); });
+  $('g-next').addEventListener('click', () => { galleryStart += GAL; buildGallery(); });
+  $('g-bundle').addEventListener('change', buildGallery);
+  $('g-sort').addEventListener('change', buildGallery);
+  window.addEventListener('resize', () => { if (renderer && player) { renderer.layout(); player._redraw(); } });
+  $('ver').textContent = 'v1 · 5 genres';
+  buildLegend();
+  readURL();
+  loadWorld(currentN);
+}
+/* fold-out rules — assembled from the world's forces */
+const FORCE_RULES = {
+  gravity: '<b>Gravity</b> pulls the ball down, constantly. Arc your shots.',
+  well: '<b>Wells</b> pull from anywhere — inverse-square, stronger up close. Slingshot around them.',
+  magnet: '<b>Magnets</b> come in two signs: + pulls the ball, − pushes it away.',
+  goo: '<b>Goo</b> saps speed while you are inside it. A ball that stalls in goo is finished.',
+  bumper: '<b>Bumpers</b> are springy — the ball rebounds with most of its speed.',
+};
+function renderRules(world, r) {
+  const forces = (world.mechanics || []).map((m) => FORCE_RULES[m]).filter(Boolean);
+  $('rules-body').innerHTML =
+    `<div class="rrow"><span class="rk">goal</span><span class="rv">Land the ball in the ringed goal. You get one launch per attempt — the flight does the rest.</span></div>` +
+    `<div class="rrow"><span class="rk">forces</span><span class="rv">${forces.join('<br>') || '<span class="dim">empty space — pure ballistics</span>'}<br><span class="dim">Walls and the arena edge bounce the ball with a little energy loss.</span></span></div>` +
+    `<div class="rrow"><span class="rk">controls</span><span class="rv"><b>Drag from the ball</b>: direction sets the heading, pull-distance sets power. Release to launch.</span></div>` +
+    `<div class="rrow"><span class="rk">the answer</span><span class="rv">The solver simulated <b>every possible launch</b> (96 angles × 18 powers) before you arrived: ${(r.winFrac * 100).toFixed(0)}% of launches win here, in ${r.basins} distinct basin${r.basins === 1 ? '' : 's'}. <span class="dim">Toggle the win-map to see them — angle around, power outward.</span></span></div>`;
+  $('rules').open = false;
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+

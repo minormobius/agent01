@@ -1,0 +1,18 @@
+[package]
+name = "flux-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Rust mirror of the flux physics engine + action-space solver. Used in CI to independently re-verify every catalog world is solvable and its stored answer wins — a cross-engine gate. No dependencies."
+
+[[bin]]
+name = "flux-verify"
+path = "src/main.rs"
+
+[lib]
+name = "flux_engine"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"

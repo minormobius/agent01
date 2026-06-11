@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gyre — physics puzzles on a torus</title>
+<meta name="description" content="Flux in 3D: a ball constrained to the surface of a torus, launched once through magnets, goo and bumpers on a world with no boundary at all. A solver sweeps every launch; the answer's winding numbers are part of the grade.">
+<meta property="og:title" content="gyre — physics puzzles on a torus">
+<meta property="og:description" content="One launch on a closed curved surface. The solver maps every winning heading — and counts how many times the answer winds the ring.">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> · <a href="/">fable</a> · gyre</div>
+  <header class="masthead">
+    <h1>gyre<span class="dot">.</span></h1>
+    <div class="tagline">Physics puzzles <b>on the surface of a torus</b>. flux broke the grid; gyre takes away the
+      edges too — the world is a closed curved surface, so nothing ever hits a wall, it just <b>winds</b>. Drag near
+      the ball to aim in the tangent plane, pull for power, release; drag anywhere else to turn the world. Geodesics
+      precess, magnets reach through the hole, and the solver has already swept every launch — it certifies each world
+      solvable, grades the precision of the winning window, and counts <b>how many times the answer wraps the ring and
+      the tube</b>.</div>
+  </header>
+
+  <div class="tabs">
+    <button data-tab="play" class="active">Play</button>
+    <button data-tab="atlas">Atlas</button>
+    <button data-tab="about">About</button>
+  </div>
+
+  <section id="tab-play" class="tabpanel active">
+    <div class="controls">
+      <div class="grp"><label for="seed">page</label><input id="seed" type="number" min="1" value="1"><button class="btn" id="go">go</button></div>
+      <div class="sep"></div>
+      <div class="grp"><button class="btn" id="prev">‹ prev</button><button class="btn" id="next">next ›</button><button class="btn" id="random">random</button></div>
+      <div class="sep"></div>
+      <div class="grp">
+        <button class="btn primary" id="surprise">✦ surprise me</button>
+        <label for="huntBundle">find</label>
+        <select id="huntBundle"><option value="">any genre</option>
+          <option value="meridian">Meridian</option><option value="polar">Polar</option><option value="slick">Slick</option>
+          <option value="heavy">Heavy</option><option value="maelstrom">Maelstrom</option></select>
+        <select id="huntDiff"><option value="">any difficulty</option><option value="hard">harder</option><option value="easy">gentler</option></select>
+      </div>
+    </div>
+
+    <div class="play-grid">
+      <div class="board-card">
+        <div class="board-head"><span class="title" id="board-title">—</span><span class="bpill" id="bundle-pill"></span></div>
+        <div class="win-banner" id="win-banner">Solved!</div>
+        <div class="board-host"><canvas id="board"></canvas></div>
+        <div class="board-foot">
+          <div class="grp" style="display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap;">
+            <button class="btn primary" id="solve">▶ watch the solver</button>
+            <button class="btn toggle" id="map">show win-map</button>
+            <button class="btn" id="reset">reset</button>
+            <span id="attempts" style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="howto"></div>
+          <details class="rulesfold" id="rules"><summary>how this game works</summary><div class="rbody" id="rules-body"></div></details>
+          
+        </div>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <h3>Solver verdict</h3>
+          <div id="verdict"></div>
+          <div class="scorebar">
+            <div class="score"><div class="num" id="diff-num">—</div><div class="lbl">difficulty</div><span class="tier-chip" id="diff-tier"></span></div>
+            <div class="score"><div class="num" id="int-num">—</div><div class="lbl">interest</div></div>
+          </div>
+          <div class="answer-line" id="answer-line"></div>
+          <div class="descriptor" id="descriptor"></div>
+        </div>
+        <div class="panel"><h3>Forces in play</h3><div class="chips" id="chips"></div></div>
+        <div class="panel"><h3>Interest signals</h3><div class="signals" id="signals"></div></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="tab-atlas" class="tabpanel">
+    <div class="controls">
+      <div class="grp"><button class="btn" id="g-prev">‹</button><span id="g-page" style="font-family:var(--mono);font-size:12px;color:var(--muted);">pages 1–8</span><button class="btn" id="g-next">›</button></div>
+      <div class="sep"></div>
+      <div class="grp"><label>genre</label><select id="g-bundle"><option value="">all</option>
+        <option value="meridian">Meridian</option><option value="polar">Polar</option><option value="slick">Slick</option>
+        <option value="heavy">Heavy</option><option value="maelstrom">Maelstrom</option></select>
+        <label>sort</label><select id="g-sort"><option value="interest">interest</option><option value="difficulty">difficulty</option><option value="seed">page #</option></select></div>
+    </div>
+    <div id="gallery" class="gallery"><div class="loading">generating worlds & sweeping launches… (each one is a full physics survey)</div></div>
+  </section>
+
+  <section id="tab-about" class="tabpanel">
+    <div class="prose">
+      <h2>Into the third dimension — by way of a surface</h2>
+      <p>gyre is the fourth wing of <a href="/">fable</a>, and the 3D answer to <a href="/flux/">flux</a>. The
+        progression so far: <a href="/puzz/">puzz</a> broke nothing; <a href="/knack/">knack</a> kept the grid but
+        added time; flux dropped the grid for continuous space. gyre drops the <i>boundary</i>: the ball lives on the
+        surface of a torus, a closed 2-manifold embedded in 3D. There are no walls because there is no edge — a shot
+        that "leaves" simply comes around.</p>
+      <p>Constraining the ball to a surface is what keeps the whole apparatus honest. The player still has exactly two
+        degrees of freedom — a heading in the tangent plane and a power — so the solver's win-map machinery carries
+        over from flux <i>unchanged in shape</i>, while the physics underneath becomes genuinely non-Euclidean:
+        free motion follows the geodesics of the torus metric (they precess, wrap the tube, and thread the hole), and
+        magnets exert force through the embedding — a magnet can pull you across the hole of the donut.</p>
+
+      <h2>Winding numbers — interestingness only a torus can have</h2>
+      <p>Because the surface is closed, every trajectory has a topological signature: how many times it wraps the ring
+        (around the hole) and the tube (through the hole). The solver records the winding of its canonical answer, and
+        the interest battery rewards it — a shot that winds twice around and three times through is structurally more
+        interesting than a straight dash, and the difference is <i>measured, not asserted</i>. The verdict panel reads
+        it out: "winds 2× around, 3× through".</p>
+
+      <h2>The five genres</h2>
+      <div class="legend" id="legend"></div>
+      <p class="muted" style="color:var(--muted);font-size:14px;"><b>Meridian</b> is the purest statement of the wing:
+        no forces at all — the curvature of the world is the only mechanic, and it is enough. <b>Maelstrom</b> is the
+        anarchy dial, as always.</p>
+
+      <h2>How it's drawn</h2>
+      <p>Hand-rolled 3D in the house style of the <a href="https://torus.mino.mobi">torus pack</a>: no three.js, no
+        build step. The torus is a painter's-algorithm shaded quad mesh on canvas 2D; goo and the goal are painted onto
+        the surface itself; the trajectory dims where it passes the far side. The inset map bottom-left is the same
+        world unwrapped into its (u,v) square — the torus pack's favourite trick, both views of one trajectory.</p>
+
+      <h2>Determinism</h2>
+      <p>Page <code>n</code> yields the identical torus, the identical forces, and the identical winning shot on every
+        machine, for ever. <code>/gyre/?n=42</code> is a permalink — including its winding numbers.</p>
+    </div>
+  </section>
+
+  <footer>gyre · fable.mino.mobi · a closed world, every launch pre-swept · <span id="ver"></span></footer>
+</div>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

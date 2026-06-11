@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>thinking about cylinders · hoop design tool</title>
+<style>
+  :root { --gold:#ffce78; --ink:#cfe; --bg:#05060a; --panel:#0c0f16; --line:#1d2430; --teal:#7fd8d0; --ok:#7fe6a0; --bad:#ff7a6e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.5 ui-monospace, monospace; }
+  header { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  header b { color: var(--gold); }
+  header .sub { color: #8aa; font-size: 12px; }
+  .wrap { display: flex; flex-wrap: wrap; gap: 14px; padding: 14px; align-items: flex-start; }
+  .col { flex: 1 1 360px; min-width: 300px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+  .card h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); font-weight: 600; }
+  canvas { display: block; width: 100%; background: #030407; border-radius: 6px; }
+  label.ctl { display: block; margin: 9px 0; }
+  label.ctl .lab { display: flex; justify-content: space-between; gap: 8px; }
+  label.ctl .lab b { color: var(--gold); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--gold); margin-top: 3px; }
+  select { width: 100%; background: #0a0e15; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 4px; font: inherit; margin-top: 3px; }
+  .two { display: flex; gap: 10px; } .two > * { flex: 1; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
+  table.read { width: 100%; border-collapse: collapse; }
+  table.read td { padding: 3px 4px; border-bottom: 1px solid #131922; vertical-align: top; }
+  table.read td.k { color: #8aa; }
+  table.read td.v { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  table.read td.v b { color: var(--gold); }
+  .flag { color: var(--teal); } .warn { color: #ff9a76; }
+  .note { color: #8aa; font-size: 12px; margin: 8px 0 0; }
+  .regime { font-size: 15px; }
+  .verdict { font-size: 16px; font-weight: 700; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; }
+  .verdict.ok { background: rgba(127,230,160,.12); color: var(--ok); border: 1px solid rgba(127,230,160,.4); }
+  .verdict.bad { background: rgba(255,122,110,.12); color: var(--bad); border: 1px solid rgba(255,122,110,.4); }
+</style>
+</head>
+<body>
+<header>
+  <b>◍ thinking about cylinders</b> &nbsp; <span class="sub">a structural + radiative scratchpad for hoop. honest physics; dial it and watch the cylinder pass or tear.</span>
+  <span id="solverpill" style="float:right;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid var(--line);color:#8aa">solver: loading…</span>
+</header>
+
+<div class="wrap">
+  <!-- ░░ controls ░░ -->
+  <div class="col">
+    <div class="card">
+      <h3>the cylinder</h3>
+      <label class="ctl"><span class="lab">radius <i>R</i> — axis to hull <b id="vR"></b></span><input id="R" type="range" min="2" max="5.7" step="0.01" value="4.0"></label>
+      <label class="ctl"><span class="lab">gravity at the rim <b id="vg"></b></span><input id="g" type="range" min="0.1" max="1.5" step="0.01" value="1.0"></label>
+      <label class="ctl"><span class="lab">livable rind depth <b id="vshell"></b></span><input id="shell" type="range" min="1.7" max="4.7" step="0.01" value="3.0"></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">tile <b id="vtile"></b></span><input id="tile" type="range" min="0.5" max="5" step="0.1" value="2"></label>
+        <label class="ctl"><span class="lab">compartment <b id="vcomp"></b></span><input id="comp" type="range" min="1" max="2.9" step="0.01" value="2.1"></label>
+      </div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:10px 0">
+      <label class="ctl"><span class="lab">↕ probe — where the denizen stands <b id="vprobe"></b></span><input id="probe" type="range" min="0" max="1" step="0.001" value="0.999"></label>
+      <div class="row"><input id="exag" type="checkbox" checked><label for="exag">exaggerate the shell in the cross-section (not to scale)</label></div>
+    </div>
+
+    <div class="card">
+      <h3>tension hull &amp; shielding</h3>
+      <label class="ctl"><span class="lab">hull material <b id="vmat"></b></span><select id="mat"></select></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">wall <b id="vtwall"></b></span><input id="twall" type="range" min="-2" max="1.7" step="0.01" value="0.0"></label>
+        <label class="ctl"><span class="lab">safety <b id="vsf"></b></span><input id="sf" type="range" min="1.2" max="4" step="0.1" value="1.5"></label>
+      </div>
+      <label class="ctl"><span class="lab">atmosphere pressure <b id="vatm"></b></span><input id="atm" type="range" min="0" max="101" step="1" value="70"></label>
+      <label class="ctl"><span class="lab">regolith shield depth <b id="vreg"></b></span><input id="reg" type="range" min="0" max="15" step="0.1" value="2"></label>
+      <p class="note">regolith ρ ≈ 1500 kg/m³ · interior/floor load ≈ 800 kg/m². both spin, so they press outward on the hull.</p>
+    </div>
+
+    <div class="card">
+      <h3>structural web (offloads the hoop)</h3>
+      <label class="ctl"><span class="lab">topology <b></b></span>
+        <select id="topo"><option value="none">none — bare hull</option><option value="radial">radial spokes → hub</option><option value="secant" selected>secant web (chords)</option></select></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">count <i>N</i> <b id="vN"></b></span><input id="N" type="range" min="3" max="60" step="1" value="18"></label>
+        <label class="ctl"><span class="lab">reach α <b id="vreach"></b></span><input id="reach" type="range" min="6" max="90" step="1" value="40"></label>
+      </div>
+      <label class="ctl"><span class="lab">load share to web φ <b id="vphi"></b></span><input id="phi" type="range" min="0" max="0.95" step="0.01" value="0.8"></label>
+      <label class="ctl"><span class="lab">cable section <b id="vcarea"></b></span><input id="carea" type="range" min="-4" max="0.4" step="0.05" value="-1"></label>
+      <label class="ctl"><span class="lab">cable material <b id="vtmat"></b></span><select id="tmat"></select></label>
+      <p class="note">φ feeds the closed-form estimate; the solver below sizes the real weave from the cable section.</p>
+    </div>
+
+    <div class="card">
+      <h3>floors &amp; foam (the shell structure)</h3>
+      <label class="ctl"><span class="lab">structure <b></b></span><select id="struct"><option value="grid" selected>braced grid (layered)</option><option value="froth">organic froth (Voronoi)</option></select></label>
+      <div class="two">
+        <label class="ctl"><span class="lab">layers (floors) <b id="vlayers"></b></span><input id="layers" type="range" min="2" max="60" step="1" value="8"></label>
+        <label class="ctl"><span class="lab">room footprint <b id="vroom"></b></span><input id="room" type="range" min="6" max="200" step="2" value="60"></label>
+      </div>
+      <div class="two">
+        <label class="ctl"><span class="lab">wall thickness <b id="vfwall"></b></span><input id="fwall" type="range" min="-2" max="1" step="0.02" value="-0.2"></label>
+        <label class="ctl"><span class="lab">grading <b id="vgrade"></b></span><input id="grade" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+      </div>
+      <label class="ctl"><span class="lab">bracing <b></b></span><select id="brace"><option value="none">none — square (racks in shear)</option><option value="diag" selected>diagonal</option><option value="x">cross (X)</option></select></label>
+      <div class="row"><input id="annular" type="checkbox"><label for="annular">annular sector — wrap into the ring + hoop BC (the annular solve)</label></div>
+      <div class="row"><input id="deform" type="checkbox" checked><label for="deform">show deflection (exaggerated) — watch it carry load</label></div>
+    </div>
+  </div>
+
+  <!-- ░░ verdict + readouts ░░ -->
+  <div class="col">
+    <div class="card">
+      <h3>does it hold?</h3>
+      <div id="verdict" class="verdict">—</div>
+      <table class="read"><tbody id="struct"></tbody></table>
+      <p class="note" id="structnote"></p>
+    </div>
+    <div class="card" id="solvedcard">
+      <h3>solved web — <span id="wasmstate" class="note">closed-form only</span></h3>
+      <table class="read"><tbody id="solved"></tbody></table>
+      <button id="search" style="margin-top:10px;width:100%;background:#10202a;color:var(--teal);border:1px solid var(--line);border-radius:6px;padding:8px;font:inherit;cursor:pointer">⟲ find lightest holding weave</button>
+      <div id="searchout" class="note"></div>
+    </div>
+    <div class="card">
+      <h3>radiation shielding</h3>
+      <table class="read"><tbody id="rad"></tbody></table>
+      <p class="note">areal density is the honest number; the dose figure is order-of-magnitude (GCR, solar-min, secondaries hand-waved).</p>
+    </div>
+    <div class="card">
+      <h3>what the denizen feels — at the probe</h3>
+      <div id="regime" class="regime">—</div>
+      <table class="read"><tbody id="feel"></tbody></table>
+      <p class="note" id="feelnote"></p>
+    </div>
+    <div class="card">
+      <h3>kinematics at a glance</h3>
+      <table class="read"><tbody id="glance"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ░░ views ░░ -->
+  <div class="col">
+    <div class="card">
+      <h3>cross-section — the scope of the possible</h3>
+      <canvas id="xsec" height="420"></canvas>
+      <p class="note">Sun-line at the axis; gravity points <b>outward</b>. The hull ring is tinted <span style="color:var(--ok)">green if it holds</span> / <span style="color:var(--bad)">red if it tears</span>. The web (radial spokes or secant chords) is the alternate load path; secants leave a clear core, spokes don't.</p>
+    </div>
+    <div class="card">
+      <h3>the play-slice — floors of the foam, <span id="foamstate" class="note">solved</span></h3>
+      <canvas id="slice" height="340"></canvas>
+      <p class="note">Stacked floors; gravity points down (toward the hull). Walls are coloured by the frame solver's stress (<span style="color:var(--ok)">green</span>→<span style="color:var(--bad)">red</span>) and the deflection is exaggerated so you can see it carry load. Gold dots = doors within a floor; purple = stairs/ladders between floors.</p>
+      <table class="read"><tbody id="foamread"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script src="./foam.js"></script>
+<script>
+const G0 = 9.80665, TAU = Math.PI * 2;
+const $ = (id) => document.getElementById(id);
+
+// strength = representative tensile strength (Pa); rho kg/m3. Allowable = strength / SF.
+// s = representative tensile strength (Pa); r = density (kg/m³); e = Young's modulus
+// (Pa, used by the cable-net stiffness solve).
+const MATERIALS = {
+  'structural steel':   { s: 350e6,   r: 7850, e: 200e9 },
+  'HSLA steel':         { s: 700e6,   r: 7850, e: 200e9 },
+  'maraging steel':     { s: 2000e6,  r: 8000, e: 190e9 },
+  'Ti-6Al-4V titanium': { s: 900e6,   r: 4430, e: 114e9 },
+  'Al 7075':            { s: 500e6,   r: 2810, e: 72e9  },
+  'Kevlar 49':          { s: 3600e6,  r: 1440, e: 112e9 },
+  'carbon fiber T1000': { s: 6400e6,  r: 1800, e: 295e9 },
+  'Dyneema / Spectra':  { s: 3500e6,  r: 970,  e: 110e9 },
+  'graphene/CNT (ideal)': { s: 50000e6, r: 1300, e: 1000e9 },
+};
+const RHO_REG = 1500, M_INTERIOR = 800;            // regolith density, interior areal load
+function fillMat(sel, def) { for (const k in MATERIALS) { const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o); } sel.value = def; }
+fillMat($('mat'), 'carbon fiber T1000'); fillMat($('tmat'), 'carbon fiber T1000');
+
+const log10 = (sel) => Math.pow(10, +$(sel).value);
+const fmtm = (m) => Math.abs(m) >= 1000 ? (m / 1000).toLocaleString(undefined, { maximumFractionDigits: Math.abs(m) >= 1e5 ? 0 : 1 }) + ' km' : m.toFixed(m < 1 ? 2 : m < 10 ? 1 : 0) + ' m';
+const fmtN = (n, d = 1) => Number(n).toLocaleString(undefined, { maximumFractionDigits: d });
+const fmtDur = (s) => s < 90 ? s.toFixed(1) + ' s' : Math.floor(s / 60) + 'm ' + Math.round(s % 60) + 's';
+const fmtStress = (pa) => pa >= 1e9 ? (pa / 1e9).toFixed(2) + ' GPa' : pa >= 1e6 ? (pa / 1e6).toFixed(pa < 1e7 ? 1 : 0) + ' MPa' : (pa / 1e3).toFixed(0) + ' kPa';
+const fmtMass = (kg) => kg >= 1e9 ? (kg / 1e9).toFixed(1) + ' Mt' : kg >= 1e6 ? (kg / 1e6).toFixed(1) + ' kt' : (kg / 1e3).toFixed(1) + ' t';
+const row = (k, v) => '<tr><td class="k">' + k + '</td><td class="v">' + v + '</td></tr>';
+
+function params() {
+  return {
+    R: log10('R'), gRim: +$('g').value, shell: log10('shell'),
+    tile: +$('tile').value, comp: log10('comp'), probe: +$('probe').value,
+    mat: MATERIALS[$('mat').value], tmat: MATERIALS[$('tmat').value],
+    twall: log10('twall'), sf: +$('sf').value, atm: +$('atm').value * 1000, reg: +$('reg').value,
+    topo: $('topo').value, N: +$('N').value, reach: +$('reach').value * Math.PI / 180, phi: +$('phi').value,
+    w: Math.sqrt(+$('g').value * G0 / log10('R')),
+  };
+}
+const REG_COL = { none: '#7fd8d0', spin: '#b89cff', normal: '#bfe6c9', mag: '#ffb07a' };
+function regimeAt(frac, coriRatio, gEarthg) {
+  if (frac < 0.05) return { name: 'none — zero-g core', cls: 'none', tag: 'glide' };
+  if (frac < 0.35 || coriRatio > 0.2) return { name: 'spin — Coriolis country', cls: 'spin', tag: 'drift' };
+  if (gEarthg > 1.1) return { name: 'mag — heavy hull', cls: 'mag', tag: 'trudge' };
+  return { name: 'normal — the inhabited rind', cls: 'normal', tag: 'stride' };
+}
+
+function compute() {
+  const p = params(), w = p.w, R = p.R, v = w * R;
+  // ── kinematics ──
+  const r = Math.max(1, p.probe * R), gLocal = w * w * r, gLocalG = gLocal / G0;
+  const aCor = 2 * w * 1.4, coriRatio = gLocal > 1e-9 ? aCor / gLocal : Infinity;
+  const reg = regimeAt(p.probe, coriRatio, gLocalG);
+  const h = 1.6, t = gLocal > 1e-6 ? Math.sqrt(2 * h / gLocal) : 0, drop = (1 / 3) * w * gLocal * t * t * t;
+  const rIn = Math.max(0, R - p.shell), dgShell = p.gRim * (p.shell / R), coreR = 0.05 * R;
+
+  // ── loads at the rim (per the σ_hoop derivation) ──
+  const mReg = RHO_REG * p.reg;                          // kg/m² shielding
+  const pEff = p.atm + (mReg + M_INTERIOR) * w * w * R;  // effective outward pressure (Pa)
+  const sigmaSelf = p.mat.r * v * v;                     // ρv²  — tethers cannot reduce this
+  const sigmaPressBare = pEff * R / p.twall;             // pressure hoop term, bare hull
+  const allow = p.mat.s / p.sf;                          // hull allowable
+
+  // ── web load-share ──
+  let eta = 1, coreClear = 0, k = 0, span = R;
+  if (p.topo === 'secant') {
+    k = Math.max(1, Math.min(Math.floor(p.N / 2), Math.round(p.reach / Math.PI * p.N))); // {N/k}
+    const a = Math.PI * k / p.N;                         // half subtended angle
+    eta = Math.sin(a); coreClear = Math.cos(a); span = 2 * R * Math.sin(a);
+  } else if (p.topo === 'radial') { eta = 1; coreClear = 0; span = R; }
+  const phi = p.topo === 'none' ? 0 : p.phi;
+  const sigmaShell = sigmaSelf + (1 - phi) * sigmaPressBare;
+  // cable cost to carry φ of the diametral load (per unit axial length)
+  const tAllow = p.tmat.s / p.sf;
+  const Fcable = phi > 0 ? phi * pEff * 2 * R / Math.max(0.05, eta) : 0; // N per axial m
+  const Acable = Fcable / tAllow;                        // total cable area (m²)
+  const cableMassPerM = p.tmat.r * Acable * span;        // kg per axial m
+  const shieldMassPerM = mReg * TAU * R;                 // kg per axial m (whole ring)
+  const cableFrac = shieldMassPerM > 0 ? cableMassPerM / shieldMassPerM : Infinity;
+
+  // ── verdicts ──
+  const specific = p.mat.s / p.mat.r;                    // m²/s²
+  const vMax = Math.sqrt(specific / p.sf), Rmax1g = vMax * vMax / (p.gRim * G0);
+  const margin = allow / sigmaShell;
+  let verdict, vclass, vnote;
+  if (sigmaSelf > allow) {
+    verdict = 'MATERIAL-LIMITED'; vclass = 'bad';
+    vnote = 'The wall can\'t even hold its own spin (ρv² alone exceeds allowable). Tethers can\'t help — the hull still rotates. Need higher specific strength, a smaller R, or less g.';
+  } else if (margin < 1) {
+    verdict = 'INFEASIBLE — it tears'; vclass = 'bad';
+    vnote = 'Hull is below allowable. Thicken the wall, add/strengthen the web (raise φ), shed regolith, or lower pressure.';
+  } else {
+    verdict = 'FEASIBLE — holds (×' + margin.toFixed(2) + ')'; vclass = 'ok';
+    vnote = 'Hull stays under allowable. The self-spin term ρv² is the floor tethers can never remove — watch how close it sits to the line.';
+  }
+  return { p, r, gLocal, gLocalG, aCor, coriRatio, reg, drop, rIn, dgShell, coreR, v,
+    mReg, pEff, sigmaSelf, sigmaPressBare, allow, eta, coreClear, k, phi, sigmaShell,
+    Acable, cableMassPerM, shieldMassPerM, cableFrac, vMax, Rmax1g, margin, verdict, vclass, vnote };
+}
+
+function render() {
+  const S = compute(), p = S.p;
+  // labels
+  $('vR').textContent = fmtm(p.R); $('vg').textContent = p.gRim.toFixed(2) + ' g';
+  $('vshell').textContent = fmtm(p.shell); $('vtile').textContent = p.tile.toFixed(1) + 'm';
+  $('vcomp').textContent = fmtm(p.comp); $('vprobe').textContent = 'r=' + fmtm(S.r) + ' (' + (p.probe * 100).toFixed(1) + '%)';
+  $('vtwall').textContent = fmtm(p.twall); $('vsf').textContent = '×' + p.sf.toFixed(1);
+  $('vatm').textContent = (p.atm / 1000).toFixed(0) + ' kPa'; $('vreg').textContent = p.reg.toFixed(1) + ' m';
+  $('vN').textContent = p.N; $('vreach').textContent = (p.reach * 180 / Math.PI).toFixed(0) + '°';
+  $('vphi').textContent = (p.phi * 100).toFixed(0) + '%';
+  $('vcarea').textContent = (Math.pow(10, +$('carea').value)).toFixed(4) + ' m²';
+  $('vlayers').textContent = $('layers').value + ' floors';
+  $('vroom').textContent = $('room').value + ' m';
+  $('vfwall').textContent = Math.pow(10, +$('fwall').value).toFixed(2) + ' m';
+  $('vgrade').textContent = (+$('grade').value).toFixed(2);
+
+  // verdict + structure
+  $('verdict').textContent = S.verdict; $('verdict').className = 'verdict ' + S.vclass;
+  $('struct').innerHTML =
+      row('hull allowable (mat ÷ SF)', fmtStress(S.allow))
+    + row('self-spin stress ρv²', '<b>' + fmtStress(S.sigmaSelf) + '</b> · the floor')
+    + row('pressure hoop (bare)', fmtStress(S.sigmaPressBare))
+    + row('hull stress with web', (S.margin < 1 ? '<span class="warn">' : '<b>') + fmtStress(S.sigmaShell) + (S.margin < 1 ? '</span>' : '</b>'))
+    + row('specific-strength limit', fmtN(S.vMax, 0) + ' m/s rim → max ' + fmtm(S.Rmax1g) + ' @ ' + p.gRim.toFixed(1) + 'g')
+    + (p.topo !== 'none'
+        ? row('web', p.topo === 'radial' ? p.N + ' radial spokes (η=1, core blocked)' : p.N + ' chords {' + p.N + '/' + S.k + '}, η=' + S.eta.toFixed(2) + ', core ' + (S.coreClear * 100).toFixed(0) + '% clear')
+          + row('cable cross-section', fmtN(S.Acable, S.Acable < 1 ? 3 : 1) + ' m²/axial-m')
+          + row('cable mass vs shield', isFinite(S.cableFrac) ? (S.cableFrac * 100).toFixed(S.cableFrac < 0.1 ? 1 : 0) + '%' + (S.cableFrac > 1 ? ' <span class="warn">(cables outweigh the shield!)</span>' : '') : '—')
+        : row('web', 'none — bare hull'));
+  $('structnote').textContent = S.vnote;
+
+  // radiation
+  const x = S.mReg, dose = 0.6 * (0.30 + 0.70 * Math.exp(-x / 1500));
+  $('rad').innerHTML =
+      row('areal density', '<b>' + fmtN(x, 0) + ' kg/m²</b> (' + fmtN(x / 10, 0) + ' g/cm²)')
+    + row('≈ GCR dose / yr', fmtN(dose, 2) + ' Sv <span class="note">(ISS≈0.15, Earth≈0.0024)</span>')
+    + row('benchmarks', '<span class="note">Earth air 10,300 · Stanford Torus ≈2,000 · SPE shelter ≈200 kg/m²</span>')
+    + row('shield mass / axial-m', fmtMass(S.shieldMassPerM));
+
+  // feel
+  $('regime').innerHTML = '<span style="color:' + REG_COL[S.reg.cls] + '">● ' + S.reg.name + '</span> <span class="note">you ' + S.reg.tag + '</span>';
+  const spct = S.gLocal > 1e-9 ? S.aCor / S.gLocal * 100 : Infinity;
+  $('feel').innerHTML = row('local gravity', '<b>' + S.gLocalG.toFixed(3) + ' g</b>')
+    + row('Coriolis on a walk', S.aCor.toFixed(3) + ' m/s² (<b>' + (isFinite(spct) ? spct.toFixed(1) : '∞') + '%</b> of g)')
+    + row('a dropped tool lands', isFinite(S.drop) ? (S.drop * 100).toFixed(S.drop < 0.1 ? 1 : 0) + ' cm spinward' : '—');
+  $('feelnote').textContent = S.coriRatio > 0.2
+    ? 'Coriolis is a real fraction of gravity — moving tilts "down." This is how a native could induce the spin.'
+    : 'Coriolis is faint (' + (isFinite(spct) ? spct.toFixed(1) : '∞') + '%). Inducing the rotation needs a long measurement or a fine instrument.';
+
+  // glance
+  const T = TAU / p.w;
+  $('glance').innerHTML = row('spin ω / period', fmtN(p.w, 4) + ' rad/s · ' + fmtDur(T))
+    + row('rim speed', fmtN(S.v, 0) + ' m/s')
+    + row('circumference (rim)', fmtm(TAU * p.R) + ' <span class="note">the unseen axis</span>')
+    + row('Δg across the shell', (S.dgShell < 0.02 ? '<span class="warn">' : '<b>') + (S.dgShell * 100).toFixed(2) + '%' + (S.dgShell < 0.02 ? ' flat</span>' : '</b>'))
+    + row('living surface → zero-g core', fmtm(Math.max(0, S.rIn - S.coreR)));
+
+  drawXsec(S); drawSlice(S);
+}
+
+// ── cross-section ──
+let phase = 0;
+function fitCanvas(cv) { const w = cv.clientWidth, d = Math.min(devicePixelRatio || 1, 2); if (cv.width !== Math.round(w * d)) cv.width = Math.round(w * d); cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0); return [w, cv.height]; }
+function lerpCol(a, b, t) { const p = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; const A = p(a), B = p(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',') + ')'; }
+function arrow(ctx, x0, y0, x1, y1, col) {
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  const a = Math.atan2(y1 - y0, x1 - x0); ctx.beginPath(); ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - 6 * Math.cos(a - .4), y1 - 6 * Math.sin(a - .4)); ctx.lineTo(x1 - 6 * Math.cos(a + .4), y1 - 6 * Math.sin(a + .4)); ctx.closePath(); ctx.fillStyle = col; ctx.fill();
+}
+function drawXsec(S) {
+  const cv = $('xsec'), ctx = cv.getContext('2d'), [W, H] = fitCanvas(cv);
+  ctx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2, Rpx = Math.min(W, H) * 0.43, p = S.p, exag = $('exag').checked;
+  let shellFrac = p.shell / p.R; if (exag) shellFrac = Math.min(0.34, Math.max(shellFrac, 0.16));
+  const rInFrac = 1 - shellFrac;
+  // sky + sun-line
+  const sky = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rpx * rInFrac);
+  sky.addColorStop(0, 'rgba(255,238,180,0.5)'); sky.addColorStop(0.25, 'rgba(150,160,120,0.16)'); sky.addColorStop(1, 'rgba(40,46,40,0.04)');
+  ctx.beginPath(); ctx.arc(cx, cy, Rpx * rInFrac, 0, TAU); ctx.fillStyle = sky; ctx.fill();
+  // hull ring tinted by feasibility (green↔red by margin)
+  const ok = Math.max(0, Math.min(1, (S.margin - 0.8) / 0.7));
+  const hullCol = S.vclass === 'bad' && S.sigmaSelf > S.allow ? '#ff7a6e' : lerpCol('#ff7a6e', '#7fe6a0', ok);
+  ctx.beginPath(); ctx.arc(cx, cy, Rpx, 0, TAU); ctx.arc(cx, cy, Rpx * rInFrac, 0, TAU, true);
+  ctx.fillStyle = hullCol + '33'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, Rpx, 0, TAU); ctx.lineWidth = 3; ctx.strokeStyle = hullCol; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, Rpx * rInFrac, 0, TAU); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(127,216,208,.5)'; ctx.stroke();
+  // regolith band (outside hull, indicative thickness)
+  if (p.reg > 0) { const rg = Math.min(0.12, 0.02 + p.reg / 200); ctx.beginPath(); ctx.arc(cx, cy, Rpx * (1 + rg), 0, TAU); ctx.arc(cx, cy, Rpx, 0, TAU, true); ctx.fillStyle = 'rgba(150,130,100,.35)'; ctx.fill(); }
+  // ── the web ──
+  if (p.topo !== 'none') {
+    // colour the web by the solver's actual cable utilisation when wasm is live
+    const nr = window.NETRES;
+    ctx.strokeStyle = nr && !nr.mechanism ? lerpCol('#7fe6a0', '#ff7a6e', Math.min(1, nr.cableUtil)) + 'cc'
+      : nr && nr.mechanism ? 'rgba(255,122,110,.45)' : 'rgba(255,206,120,.55)';
+    ctx.lineWidth = Math.max(0.6, Math.min(3, p.phi * 3));
+    ctx.beginPath();
+    if (p.topo === 'radial') { for (let i = 0; i < p.N; i++) { const a = phase + i / p.N * TAU; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * Rpx * rInFrac, cy + Math.sin(a) * Rpx * rInFrac); } }
+    else { for (let i = 0; i < p.N; i++) { const a0 = phase + i / p.N * TAU, a1 = phase + ((i + S.k) % p.N) / p.N * TAU; ctx.moveTo(cx + Math.cos(a0) * Rpx * rInFrac, cy + Math.sin(a0) * Rpx * rInFrac); ctx.lineTo(cx + Math.cos(a1) * Rpx * rInFrac, cy + Math.sin(a1) * Rpx * rInFrac); } }
+    ctx.stroke();
+    if (p.topo === 'secant' && S.coreClear > 0) { ctx.beginPath(); ctx.arc(cx, cy, Rpx * rInFrac * S.coreClear, 0, TAU); ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(127,216,208,.45)'; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); }
+  }
+  phase += 0.004;
+  // sun-line + spinning hull mark + denizen
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, TAU); ctx.fillStyle = '#ffeeae'; ctx.shadowColor = '#ffce78'; ctx.shadowBlur = 16; ctx.fill(); ctx.shadowBlur = 0;
+  const mark = (ang, f, col, rad) => { const x = cx + Math.cos(ang) * Rpx * f, y = cy + Math.sin(ang) * Rpx * f; ctx.beginPath(); ctx.arc(x, y, rad, 0, TAU); ctx.fillStyle = col; ctx.fill(); return [x, y]; };
+  mark(phase, 1, '#5b6472', 4);
+  const pf = exag ? rInFrac + shellFrac * Math.max(0, (p.probe - (1 - p.shell / p.R)) / (p.shell / p.R || 1)) : p.probe;
+  const [dx, dy] = mark(phase + 1.1, Math.max(0.02, Math.min(1, pf)), '#ffce78', 5);
+  ctx.fillStyle = '#8aa'; ctx.font = '11px ui-monospace'; ctx.textAlign = 'left'; ctx.fillText('sun-line', cx + 6, cy - 6);
+  if (exag) { ctx.fillStyle = '#ff9a76'; ctx.fillText('(shell exaggerated)', 8, H - 8); }
+}
+
+// ── play-slice: the foam, solved ──
+function drawSlice(S) {
+  const cv = $('slice'), ctx = cv.getContext('2d'), [W, H] = fitCanvas(cv), p = S.p;
+  ctx.clearRect(0, 0, W, H);
+  const skyH = 28, top = skyH, bot = H;
+  const sky = ctx.createLinearGradient(0, 0, 0, skyH); sky.addColorStop(0, 'rgba(255,238,180,.5)'); sky.addColorStop(1, 'rgba(40,46,40,.04)');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, skyH);
+  // faint gravity-band backdrop (context: where in the radial stack we are)
+  for (let y = top; y < bot; y += 2) { const f = (y - top) / (bot - top), gg = p.gRim * ((S.rIn + f * p.shell) / p.R); const reg = gg > 1.1 ? 'mag' : gg > 0.4 ? 'normal' : gg > 0.05 ? 'spin' : 'none'; ctx.fillStyle = REG_COL[reg] + '12'; ctx.fillRect(0, y, W, 2); }
+  ctx.font = '10px ui-monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#7fd8d0'; ctx.fillText('↑ core / sun-line', 6, 12);
+  const F = window.FOAM;
+  if (!F || !F.foam) { ctx.fillStyle = '#8aa'; ctx.fillText(window.HOOPFOAM ? 'generating…' : 'foam.js not loaded', 6, top + 16); return; }
+  const foam = F.foam, allow = p.mat.s / p.sf;
+  const sol = (F.sol && F.sol.members && F.sol.members.length === foam.walls.length) ? F.sol : null;
+  let sx, syy, mPerPx;
+  if (foam.meta.annular) {
+    // fit the warped wedge's world bounds (uniform scale; +y = radial out = hull, down)
+    let mnx = Infinity, mxx = -Infinity, mny = Infinity, mxy = -Infinity;
+    for (const n of foam.nodes) { if (n.x < mnx) mnx = n.x; if (n.x > mxx) mxx = n.x; if (n.y < mny) mny = n.y; if (n.y > mxy) mxy = n.y; }
+    const m = 12, sc = Math.min((W - 2 * m) / (mxx - mnx || 1), (bot - top - 2 * m) / (mxy - mny || 1));
+    const ox = (W - (mxx - mnx) * sc) / 2 - mnx * sc, oy = top + m - mny * sc;
+    sx = (x) => ox + x * sc; syy = (y) => oy + y * sc; mPerPx = 1 / sc;
+  } else {
+    const widthM = foam.nodes[foam.meta.nx].x || 1;
+    sx = (x) => x / widthM * W; syy = (y) => top + y / p.shell * (bot - top); mPerPx = widthM / W;
+  }
+  // exaggerate the solved deflection so the structure visibly carries load
+  let ex = 0;
+  if (sol && !sol.mechanism && !sol.error && $('deform').checked) {
+    let mx = 0; sol.disp.forEach((d) => { mx = Math.max(mx, Math.hypot(d[0], d[1])); });
+    if (mx > 1e-12) ex = 0.05 * p.shell / mx;
+  }
+  const px = (id) => { const n = foam.nodes[id], d = (ex && sol) ? sol.disp[id] : [0, 0, 0]; return [sx(n.x + d[0] * ex), syy(n.y + d[1] * ex)]; };
+  // walls coloured by the solver's stress (green holds → red overstressed)
+  foam.walls.forEach((w, idx) => {
+    const A = px(w.a), B = px(w.b);
+    let col = '#46505e';
+    if (sol && sol.mechanism) col = '#ff7a6e';
+    else if (sol && sol.members && sol.members[idx]) col = lerpCol('#7fe6a0', '#ff7a6e', Math.min(1, sol.members[idx].stress / allow));
+    ctx.strokeStyle = col; ctx.globalAlpha = w.kind === 'brace' ? 0.7 : 1; ctx.lineWidth = w.kind === 'brace' ? 0.9 : 1.8;
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+  // portals: doors within a floor, stairs/ladders between floors
+  foam.portals.forEach((pt) => {
+    const x = sx(pt.x), y = syy(pt.y);
+    if (pt.kind === 'door') { ctx.fillStyle = '#ffce78'; ctx.beginPath(); ctx.arc(x, y, 1.7, 0, TAU); ctx.fill(); }
+    else { ctx.strokeStyle = '#b89cff'; ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(x - 3, y + 2); ctx.lineTo(x, y - 1); ctx.lineTo(x + 3, y + 2); ctx.stroke(); }
+  });
+  // gravity arrow (down = toward hull)
+  arrow(ctx, W - 16, top + 8, W - 16, top + 34, '#ffce78');
+  ctx.fillStyle = '#ffce78'; ctx.textAlign = 'right'; ctx.fillText('g ↓', W - 22, top + 24);
+  // scale bar (a round number of metres) — makes the true scale visceral
+  const bar = Math.pow(10, Math.round(Math.log10(70 * mPerPx))), barPx = bar / mPerPx;
+  ctx.strokeStyle = '#cfe'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(8, bot - 9); ctx.lineTo(8 + barPx, bot - 9); ctx.stroke();
+  ctx.fillStyle = '#cfe'; ctx.textAlign = 'left'; ctx.fillText(fmtm(bar), 8, bot - 13);
+  ctx.fillStyle = '#8aa'; ctx.textAlign = 'right'; ctx.fillText('↓ hull', W - 6, H - 6);
+}
+
+// ── foam: generate (JS) + solve (wasm frame solver) ──
+let foamTimer = 0;
+function updateFoamRead(foam, sol, p) {
+  const allow = p.mat.s / p.sf, st = $('foamstate');
+  const heights = foam.meta.rowY.slice(1).map((y, k) => y - foam.meta.rowY[k]);
+  const hmin = Math.min.apply(null, heights), hmax = Math.max.apply(null, heights);
+  let html = '';
+  if (sol && !sol.error) {
+    let maxS = 0; sol.members.forEach((m) => { maxS = Math.max(maxS, m.stress); });
+    const util = maxS / allow, u = (util * 100).toFixed(0) + '%';
+    if (st) st.textContent = sol.mechanism ? 'mechanism' : 'solved';
+    html += row('verdict', sol.mechanism ? '<span class="warn">MECHANISM — racks (brace it)</span>' : util <= 1 ? '<span style="color:var(--ok)">✓ holds</span>' : '<span class="warn">✗ overstressed</span>');
+    if (!sol.mechanism) { html += row('peak wall utilisation', util > 1 ? '<span class="warn">' + u + '</span>' : '<b>' + u + '</b>'); html += row('compliance (↓ stiffer)', fmtN(sol.compliance, 3)); }
+  } else { if (st) st.textContent = 'geometry only'; html += row('solver', '<span class="note">offline — geometry only</span>'); }
+  html += row('floors × rooms', foam.meta.layers + ' × ' + foam.meta.nx);
+  if (foam.meta.annular) {
+    const Th = pEffOf(p) * p.R, sigSolid = Th / p.shell; // analytic hoop: σ = p_eff·R/shell
+    html += row('hoop tension (analytic)', fmtN(Th / 1e6, 1) + ' MN/m · σ_solid ' + fmtStress(sigSolid));
+    if (sol && !sol.error && !sol.mechanism) {
+      let maxS = 0; sol.members.forEach((m) => { maxS = Math.max(maxS, m.stress); });
+      html += row('foam carries hoop at', '<b>' + (maxS / sigSolid).toFixed(1) + '×</b> the solid stress <span class="note">(relative-density penalty)</span>');
+    }
+  }
+  html += row('floor headroom', fmtm(hmin) + ' … ' + fmtm(hmax) + ' <span class="note">(thins toward hull)</span>');
+  html += row('relative density', (foam.meta.relDensity * 100).toFixed(1) + '% · ' + fmtN(foam.nav.cellCount, 0) + ' cells');
+  html += row('navigable', foam.nav.connected ? '<span style="color:var(--ok)">✓ all reachable</span> · ' + foam.nav.doors + 'd + ' + foam.nav.stairs + 's' : '<span class="warn">disconnected</span>');
+  $('foamread').innerHTML = html;
+}
+// Geometry is generated INSTANTLY on every input (cheap) so the slice is responsive;
+// the O(n³) dense solve is debounced + run after, then recolours the walls. Node count
+// is capped so a solve is ~100 ms (the earlier ~1100-DOF solve blocked for seconds).
+const NODE_CAP = 900; // banded solver (RCM + Cholesky) handles this in ~0.1-0.3 s
+function genFoam() {
+  if (!window.HOOPFOAM) return;
+  const p = params(), room = +$('room').value, layers = +$('layers').value, mode = $('struct').value;
+  const annular = $('annular').checked;
+  const common = { thickness: p.shell, layers, roomSize: room, wallT: Math.pow(10, +$('fwall').value), grade: +$('grade').value, e: p.mat.e, pEff: pEffOf(p), annular, R: p.R, hoopTension: pEffOf(p) * p.R };
+  let opts;
+  if (mode === 'froth') {
+    const nx = Math.max(2, Math.min(24, Math.floor(NODE_CAP / (2 * (layers + 1)))));
+    opts = Object.assign({ mode: 'froth', width: nx * room }, common);
+  } else {
+    const nx = Math.max(3, Math.min(64, Math.floor(NODE_CAP / (layers + 1)) - 1, Math.round(p.shell * 2.4 / room)));
+    opts = Object.assign({ mode: 'grid', width: nx * room, brace: $('brace').value }, common);
+  }
+  const foam = HOOPFOAM.generateFoam(opts);
+  window.FOAM = { foam, sol: null, p };              // draw geometry now; colours follow
+  updateFoamRead(foam, null, p);
+  clearTimeout(foamTimer);
+  foamTimer = setTimeout(solveFoam, 130);
+}
+function solveFoam() {
+  const F = window.FOAM;
+  if (!F || !WASM || !WASM.frame) return;
+  let sol = null;
+  try { sol = JSON.parse(WASM.frame(JSON.stringify(F.foam.frame))); } catch (e) { sol = null; }
+  if (sol && sol.members && sol.members.length === F.foam.walls.length) { F.sol = sol; updateFoamRead(F.foam, sol, F.p); }
+}
+
+// ── optional wasm solver (cylinder-solver). The page is fully functional without it;
+//    the cable-net solve & weave-search light up only when pkg/ is present. ──
+let WASM = null;
+function setPill(txt, col) { const e = $('solverpill'); e.textContent = 'solver: ' + txt; e.style.color = col; }
+(async () => {
+  try {
+    const m = await import('./solver/pkg/cylinder_solver.js');
+    await m.default();
+    WASM = { hoop: m.hoop_json, net: m.solve_net_json, frame: m.solve_frame_json };
+    setPill('wasm ✓', 'var(--ok)'); $('wasmstate').textContent = 'live cable-net + frame solve';
+    $('wasmstate').className = '';
+    solveNet(); genFoam();
+  } catch (e) { setPill('JS fallback', '#8aa'); }
+})();
+
+const kFromReach = (p) => Math.max(1, Math.min(Math.floor(p.N / 2), Math.round(p.reach / Math.PI * p.N)));
+function netModel(p, pEff, topo, k, area) {
+  const nodes = [], members = [], arc = TAU * p.R / p.N;
+  for (let i = 0; i < p.N; i++) { const th = TAU * i / p.N; nodes.push({ pos: [p.R * Math.cos(th), p.R * Math.sin(th), 0], fix: [false, false, true], load: [pEff * arc * Math.cos(th), pEff * arc * Math.sin(th), 0] }); }
+  let hub = -1;
+  if (topo === 'radial') { hub = nodes.length; nodes.push({ pos: [0, 0, 0], fix: [true, true, true], load: [0, 0, 0] }); }
+  else { nodes[0].fix = [true, true, true]; nodes[Math.floor(p.N / 2)].fix = [false, true, true]; } // pin rigid-body
+  for (let i = 0; i < p.N; i++) {
+    members.push({ i, j: (i + 1) % p.N, area: p.twall, e: p.mat.e, tensionOnly: false });           // hull ring (even idx)
+    members.push({ i, j: topo === 'radial' ? hub : (i + k) % p.N, area, e: p.tmat.e, tensionOnly: true }); // web (odd idx)
+  }
+  return { nodes, members };
+}
+function analyzeRes(p, res, area, pEff) {
+  if (!res || res.error) return null;
+  let maxHull = 0, maxCable = 0, mass = 0;
+  res.members.forEach((m, idx) => {
+    if (idx % 2 === 0) maxHull = Math.max(maxHull, Math.abs(m.stress));
+    else { maxCable = Math.max(maxCable, Math.max(0, m.stress)); mass += p.tmat.r * area * m.length; }
+  });
+  const hullUtil = maxHull / (p.mat.s / p.sf), cableUtil = maxCable / (p.tmat.s / p.sf);
+  const shieldMass = RHO_REG * p.reg * TAU * p.R;
+  return { mechanism: res.mechanism, maxHull, maxCable, hullUtil, cableUtil, cableMassPerM: mass, shieldMass,
+    feasible: !res.mechanism && hullUtil <= 1 && cableUtil <= 1, iters: res.iters };
+}
+function pEffOf(p) { return p.atm + (RHO_REG * p.reg + M_INTERIOR) * p.w * p.w * p.R; }
+function runNet(p, topo, k, area) { try { return analyzeRes(p, JSON.parse(WASM.net(JSON.stringify(netModel(p, pEffOf(p), topo, k, area)))), area, pEffOf(p)); } catch (e) { return null; } }
+
+let solveTimer = 0;
+function solveNet() {
+  if (!WASM) return;
+  clearTimeout(solveTimer);
+  solveTimer = setTimeout(() => {
+    const p = params();
+    if (p.topo === 'none') { window.NETRES = null; $('solved').innerHTML = row('web', 'none — bare hull (nothing to solve)'); return; }
+    const area = Math.pow(10, +$('carea').value);
+    const r = runNet(p, p.topo, kFromReach(p), area);
+    window.NETRES = r;
+    if (!r) { $('solved').innerHTML = row('solver', '<span class="warn">error</span>'); return; }
+    const u = (x) => (x * 100).toFixed(0) + '%';
+    $('solved').innerHTML =
+        row('verdict', r.mechanism ? '<span class="warn">MECHANISM — weave can\'t carry load</span>' : r.feasible ? '<span style="color:var(--ok)">✓ holds (solved)</span>' : '<span class="warn">✗ overstressed</span>')
+      + row('cable utilisation', (r.cableUtil > 1 ? '<span class="warn">' : '<b>') + u(r.cableUtil) + (r.cableUtil > 1 ? '</span>' : '</b>') + ' of allowable')
+      + row('hull utilisation', (r.hullUtil > 1 ? '<span class="warn">' : '') + u(r.hullUtil) + (r.hullUtil > 1 ? '</span>' : '') + ' of allowable')
+      + row('max cable stress', fmtStress(r.maxCable))
+      + row('solved cable mass', fmtMass(r.cableMassPerM) + '/axial-m · ' + (r.cableMassPerM / r.shieldMass * 100).toFixed(1) + '% of shield')
+      + row('solve', r.iters + ' iter (tension-only)');
+  }, 60);
+}
+
+$('search').addEventListener('click', () => {
+  if (!WASM) { $('searchout').textContent = 'needs the wasm solver (not loaded).'; return; }
+  const p = params(), area = Math.pow(10, +$('carea').value), hits = [];
+  for (let k = 1; k <= Math.floor(p.N / 2); k++) {
+    const r = runNet(p, 'secant', k, area);
+    if (r && r.feasible) hits.push({ k, mass: r.cableMassPerM, cu: r.cableUtil, clear: Math.cos(Math.PI * k / p.N) });
+  }
+  const rad = runNet(p, 'radial', 0, area);
+  hits.sort((a, b) => a.mass - b.mass);
+  if (!hits.length && !(rad && rad.feasible)) { $('searchout').innerHTML = '<span class="warn">no holding weave at this cable section</span> — fatten the cable, add material, or shed load.'; return; }
+  let html = '<b style="color:var(--teal)">lightest holding weaves</b> (by cable mass):<br>';
+  if (rad && rad.feasible) html += '· radial spokes — ' + fmtMass(rad.cableMassPerM) + ', core blocked<br>';
+  hits.slice(0, 5).forEach((h, i) => { html += (i === 0 ? '<b>→ ' : '· ') + '{' + p.N + '/' + h.k + '} α=' + (180 * h.k / p.N).toFixed(0) + '° — ' + fmtMass(h.mass) + ', core ' + (h.clear * 100).toFixed(0) + '% clear, cable ' + (h.cu * 100).toFixed(0) + '%' + (i === 0 ? ' ←</b>' : '') + '<br>'; });
+  $('searchout').innerHTML = html;
+  if (hits.length) { $('topo').value = 'secant'; $('reach').value = Math.max(6, Math.min(90, Math.round(180 * hits[0].k / p.N))); solveNet(); }
+});
+
+for (const el of document.querySelectorAll('input,select')) el.addEventListener('input', () => { render(); solveNet(); genFoam(); });
+addEventListener('resize', render);
+genFoam();
+(function loop() { render(); requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>

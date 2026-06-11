@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phylofiction — generated trees of life</title>
+<meta name="description" content="A seeded, deterministic generator for fictional trees of life. Every page number grows the same tree of life, forever — scars of mass extinction and all.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <h1><span class="star">❦</span> Phylofiction</h1>
+  <span class="tagline">a seeded tree of life — alien but plausible</span>
+  <a class="crumb" href="https://mino.mobi">↩ mino.mobi</a>
+</header>
+
+<div class="controls">
+  <span class="seed-label">seed</span>
+  <input id="seed" type="number" min="0" value="2" inputmode="numeric">
+  <button id="prev">‹ prev</button>
+  <button id="next">next ›</button>
+  <button id="random">random</button>
+  <span class="spacer"></span>
+  <span id="backend" class="backend" title="which engine computed this world">⏳ loading engine…</span>
+  <button id="find" class="find">🔍 find a Great Oxidation</button>
+</div>
+
+<div class="summary" id="summary"></div>
+
+<main>
+  <div id="tree-host"></div>
+  <aside>
+    <h2>Metabolisms</h2>
+    <div class="legend" id="legend"></div>
+    <h2>Lineage</h2>
+    <div id="inspect"><span class="muted">Hover a lineage to inspect it.</span></div>
+    <h2>The scars — events ledger</h2>
+    <div id="events"></div>
+  </aside>
+</main>
+
+<footer>
+  Generated, not authored. Page <span id="n-foot">2</span> of an endless book — a forward
+  birth–death simulation; the mass-extinction scars <em>emerge</em>, they are not painted on.
+  See <a href="SPEC.md">the design spec</a>. After <a href="https://read.mino.mobi/pendragon/">read/pendragon</a>’s
+  apparatus, run forward through deep time.
+</footer>
+
+<script type="module">
+  import { initEngine } from "./js/engine.js";
+  import { renderPhylogeny, renderLegend, renderEvents } from "./js/render.js";
+
+  const $ = (id) => document.getElementById(id);
+
+  // pick the engine: Rust/WASM if available, JS fallback otherwise.
+  const engine = await initEngine();
+  $("backend").textContent = engine.backend === "wasm"
+    ? `⚙ Rust/WASM engine v${engine.version}`
+    : "⚙ JS engine (WASM unavailable)";
+  $("backend").classList.add(engine.backend);
+  const CAP_LABEL = { chemo: "Chemotrophy", photoAnox: "Anoxygenic phototrophy",
+    photoOxy: "Oxygenic phototrophy", respireOx: "Oxidant respiration",
+    methanogen: "Methanogenesis", fixN: "Nitrogen fixation", thermophile: "Thermophily" };
+
+  renderLegend($("legend"));
+
+  function inspect(node) {
+    if (!node) { $("inspect").innerHTML = '<span class="muted">Hover a lineage to inspect it.</span>'; return; }
+    $("inspect").innerHTML =
+      `<div><b>lineage ${node.id}</b> · epochs ${node.birth}–${node.last}</div>` +
+      `<div class="caps">${node.caps.map((c) => CAP_LABEL[c]).join(" · ")}</div>` +
+      `<div class="muted">${node.extinct ? "died — " + node.deathCause : "survives to the present"} · ` +
+      `O₂-tolerance ${node.genome.oxidantTolerance.toFixed(2)} · growth ${node.genome.growthRate.toFixed(2)}</div>`;
+  }
+
+  function render(n) {
+    n = Math.max(0, n | 0);
+    $("seed").value = n; $("n-foot").textContent = n;
+    history.replaceState(null, "", "?n=" + n);
+
+    const w = engine.evolveWorld(n);
+    const s = w.summary, sc = w.score;
+    $("summary").innerHTML =
+      `<span><b>${s.lineages}</b> lineages</span>` +
+      `<span><b>${s.survivors}</b> survive</span>` +
+      `<span>peak oxidant <b>${s.maxOxidant.toFixed(2)}</b></span>` +
+      `<span class="badge ${s.oxygenated ? "" : "no"}">${s.oxygenated ? "● oxygenated" : "○ anoxic world"}</span>` +
+      `<span>disparity <b>${sc.disparity}</b></span>` +
+      `<span>convergences <b>${sc.convergence}</b></span>` +
+      `<span>reversal <b>${sc.reversal.toFixed(2)}</b></span>`;
+
+    renderPhylogeny(w, $("tree-host"), { onSelect: inspect });
+    renderEvents(w, $("events"));
+    inspect(null);
+  }
+
+  $("prev").onclick = () => render((+$("seed").value || 0) - 1);
+  $("next").onclick = () => render((+$("seed").value || 0) + 1);
+  $("random").onclick = () => render(Math.floor(Math.random() * 100000)); // the only allowed unseeded roll
+  $("seed").onchange = () => render(+$("seed").value || 0);
+  $("find").onclick = () => {
+    $("find").textContent = "searching…";
+    // a taste of the interestingness filter (SPEC §6.2): the full oxygenation
+    // story. With the WASM backend this scan runs entirely in Rust.
+    const start = (+$("seed").value || 0) + 1;
+    const hit = engine.findOxygenation(start, 600);
+    const n = hit != null ? hit : engine.findOxygenation(0, 600);
+    $("find").textContent = "🔍 find a Great Oxidation";
+    if (n != null) render(n);
+  };
+
+  const n0 = new URLSearchParams(location.search).get("n");
+  render(n0 !== null ? +n0 : 2);
+</script>
+</body>
+</html>
