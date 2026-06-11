@@ -398,6 +398,19 @@
       "cohesion": "integrated"
     },
     {
+      "surface": "phylofiction",
+      "dir": "phylofiction",
+      "endpoint": "phylofiction.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/phylofiction-world-generation-3zd33u",
+      "uses": [],
+      "provides": null,
+      "note": "Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces identically. Static reader (assets worker `phylofiction` owns phylofiction.mino.mobi); all computation client-side, no D1/DO/secrets. JS engine mirrored against the wasm in test/parity.test.mjs.",
+      "paths": [
+        "phylofiction/**"
+      ]
+    },
+    {
       "surface": "ocr",
       "dir": "ocr",
       "endpoint": "ocr.mino.mobi, ocr.ascential.work",
