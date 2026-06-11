@@ -130,6 +130,7 @@ node biome/cycles/test/linalg.selftest.mjs      # 15 checks: inverse + symmetric
 node biome/cycles/test/stability.selftest.mjs   # 11 checks: stability verdict + eigenvalue/decay cross-check
 node biome/cycles/test/lake.selftest.mjs        # 20 checks: harvest conserves, fish + water-treatment figures of merit, failure modes, stability
 node biome/cycles/test/global.selftest.mjs      # 18 checks: union conserves, land↔lake coupling (shared air/detritus), interior closes, stable
+node biome/cycles/test/builder.selftest.mjs     # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 node biome/cycles/sim/enrich-roster.mjs         # (network) refresh iNat imagery + GloBI diet → roster.enriched.json
 ( cd biome/cycles/solver && cargo test )        # 6 checks: the Rust stability kernel vs known spectra
 open  biome/index.html                          # landing → the cycles dashboard (cycles/) → Stability lab (cycles/stability.html)
@@ -337,6 +338,34 @@ dissolved N near zero, and the whole web dynamically **stable** (α < 0). The en
 trophic islands (land left, lake right) bridged only through the shared-pool spine down the centre,
 with node size ∝ standing biomass and edges typed by flux.
 
+### The food-web builder — design any web, read its stability (`cycles/sim/builder.mjs`, endpoint at `cycles/builder.html`)
+
+The dashboard, lake and global pages each *display* one hard-wired web. The builder is the open
+workbench: **anyone can design a food web from data, run it, read its stability, and share it in a
+link** — no backend, the whole design rides in the URL (biome stays pure-static).
+
+A "design" reuses the same species shape the rosters use, so everything the engine, allometry and
+stability solver already do applies unchanged. A producer is area-based (fixes CO₂, turns over into
+food + litter); an animal is **mass-based** — you set a body mass + a feeding guild + thermy and the
+allometry layer *derives* its eight rates (Kleiber), so nobody hand-types ingestion/respiration/
+mortality. Wire `eats` (who-eats-whom), optionally `pollinates` a plant, optionally a `harvest` tap,
+and the compiler resolves it into engine edges.
+
+`analyzeDesign(design)` compiles → runs to steady state → analyses stability, returning a plain
+verdict on both questions at once: does the loop **close** (air in band, crew fed, nobody extinct)
+and does it **survive** a shock (the community-matrix spectral abscissa α < 0, return time, reactivity,
+keystones). The page renders it live as you edit: a force-drawn graph (node size ∝ standing biomass,
+arrows = who-eats-whom), the eigenvalue spectrum and community-matrix heatmap (ported from the
+stability lab), the keystone ranking, and the population trajectories. Three presets ship as starting
+points — the orchard, the lake, and a `grass → rabbit → fox` minimal chain — each of which compiles,
+closes, conserves C/H/O/N and is stable (the self-test proves it).
+
+The compiler is conservative by construction (it's the same paired-flux engine), validates designs
+with human-readable errors (no producer, duplicate id, an animal eating a missing species), and never
+throws on a pathological web — a runaway is reported as "does not close", not a crash. The share codec
+round-trips a design to a URL-safe string carried in the page hash, so **copying the link displays your
+web to anyone**.
+
 ### Where this is going (the ecosystem-builder direction)
 
 The data-driven engine + allometry + roster + stability solver are the foundation for a real
@@ -384,12 +413,14 @@ biome/
     ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones
     ├── lake.html                 # the Lake bioengine endpoint — fish + water treatment
     ├── global.html               # the Global food web endpoint — land + lake drawn in one box
+    ├── builder.html              # the Food-web BUILDER — design any web, read its stability, share it
     ├── sim/
     │   ├── cycles.mjs            # the data-driven box model (pure, zero-dep, node + browser)
     │   ├── allometry.mjs         # body mass → stat block (Kleiber scaling + guilds)
     │   ├── roster.mjs            # curated real-organism roster + buildCommunity() compiler
     │   ├── lake.mjs              # lake community + figures of merit (fish surplus, water treatment)
     │   ├── global.mjs            # land+lake union: shared-box coupling + drawable graph
+    │   ├── builder.mjs           # compile/validate/run/share an arbitrary user-designed web
     │   ├── enrich-roster.mjs     # (network) fetch iNat imagery + GloBI diet → roster.enriched.json
     │   ├── roster.enriched.json  # committed provenance (engine never reads it)
     │   ├── linalg.mjs            # dense kernel: inverse + symmetric/general eigenvalues
@@ -404,7 +435,8 @@ biome/
         ├── linalg.selftest.mjs   # inverse + eigenvalues vs matrices with known spectra
         ├── stability.selftest.mjs # stability verdict + eigenvalue/decay cross-check
         ├── lake.selftest.mjs     # harvest conserves + fish/water figures of merit + failure modes
-        └── global.selftest.mjs   # union conserves + trophic-disjoint/abiotic-fused coupling + closes
+        ├── global.selftest.mjs   # union conserves + trophic-disjoint/abiotic-fused coupling + closes
+        └── builder.selftest.mjs  # presets compile/close/conserve/stable + validation + codec + graceful failure
 ```
 
 The thermodynamic half (`atmosphere/`, `fountain/`, `systems/`, `shared/geometry.mjs`) moved
