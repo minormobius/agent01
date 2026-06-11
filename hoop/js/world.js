@@ -273,7 +273,7 @@ function solveTruss(nodes, members, loads, fixed) {
   const full = new Float64Array(ndof); for (let a = 0; a < nf; a++) full[free[a]] = u[a];
   return members.map((m) => m.ea / m._L * (m._c * (full[2 * m.j] - full[2 * m.i]) + m._s * (full[2 * m.j + 1] - full[2 * m.i + 1])));
 }
-function regimeField(seed, wx, wy) {
+export function regimeField(seed, wx, wy) {
   const S = 9, gx = Math.floor(wx / S), gy = Math.floor(wy / S), fx = wx / S - gx, fy = wy / S - gy;
   const h = (i, j) => ((Ship.hashInts(seed, 99, i, j) >>> 0) % 1024) / 1024;
   const a = h(gx, gy), b = h(gx + 1, gy), c = h(gx, gy + 1), d = h(gx + 1, gy + 1);
@@ -282,7 +282,7 @@ function regimeField(seed, wx, wy) {
 }
 // a chunk's seeds in WORLD coords — deterministic, so a block and its neighbours agree on
 // the shared seeds and the Voronoi (hence the walls) is continuous across every seam.
-function chunkSeeds(seed, cx, cy) {
+export function chunkSeeds(seed, cx, cy) {
   const rng = Ship.rngFor(seed, 41, cx, cy), bx = cx * C, by = cy * C, G = 4, out = [];
   for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) {
     const x = bx + (gx + 0.18 + 0.64 * rng()) * C / G, y = by + (gy + 0.18 + 0.64 * rng()) * C / G;
@@ -386,7 +386,7 @@ function foamChunk(seed, cx, cy) {
   for (const r of rooms) { const hv = Ship.hashInts(seed, cx * 131 + r.cx, cy * 131 + r.cy, 23) >>> 0; if (hv % 100 < 22) connectors.push({ x: r.cx, y: r.cy, dir: (hv & 1) ? 1 : -1 }); }
   return { tiles, grav, rooms, hazard, connectors };
 }
-class FoamField extends ChunkField {
+export class FoamField extends ChunkField {
   chunk(cx, cy) {
     const k = this._key(cx, cy); let c = this.cache.get(k);
     if (!c) {
