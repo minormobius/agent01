@@ -43,7 +43,7 @@ and the deflection is exaggerated so you can see it carry load.
 |---|---|
 | `index.html` | the landing page — the premise, the four wings, the three tools |
 | `cylinder.html` | **thinking about cylinders** — the structural + radiative scratchpad. Sizes the cable weave (closed form) and the real foam shell (frame solver) from the cylinder parameters; live play-slice of stacked floors coloured by stress. |
-| `foamview.html` | **foam viewer** — a 3D read of the layered foam slab: orbit it, slide a radial probe through the thickness, see the annular shell solved with member forces (tension warm, compression cool). The cylinder scene also finds and draws a **drivable route** through the chamber graph: a 12% spiral ramp → a level azimuthal road → a second ramp (see *Wayfinding* below). |
+| `foamview.html` | **foam viewer** — a 3D read of the layered foam slab: orbit it, slide a radial probe through the thickness, see the annular shell solved with member forces (tension warm, compression cool). The cylinder scene solves **the load of the ship** — spin gravity on every chamber's tributary mass plus the payload entering at the inner floor — through the Rust/WASM `solve_truss3d` (matrix-free PCG, ~100k DOF; identical JS solve as fallback), reports max stress vs allowable (steel tears, carbon holds — toggle with ⚙), and shows the exaggerated sag. It also finds and draws a **drivable route** through the chamber graph: two full-depth corkscrew spiral ramps joined by a level azimuthal road every ~300 m of climb (see *Wayfinding* below). |
 | `walk.html` | **walk the foam** — drop in as a denizen and walk a planar cut through the foam (a roguelike level extracted by fitting a best-fit plane through the 3D cell-cloud). Climb radially and the gravity shifts: lighter core-ward, heavier hull-ward. |
 
 ## How it's built
@@ -78,8 +78,11 @@ A small structural-mechanics kernel in Rust, mirrored to WASM, following the rep
 beam-solver / flight-solver pattern (native-tested, wasm-built in CI):
 
 - **`cylinder-solver/`** — the native crate. `hoop_json` (analytic hoop tension), `solve_net_json`
-  (cable net), `solve_frame_json` (the foam space-frame — banded RCM reordering + Cholesky).
-  `cargo test` checks the math offline.
+  (cable net), `solve_frame_json` (the foam space-frame — banded RCM reordering + Cholesky), and
+  `truss3d` / `solve_truss3d` (the foam-scale pin-jointed 3D truss — matrix-free Jacobi-PCG,
+  ~10⁵ DOF, typed-array ABI instead of JSON; non-convergence is its mechanism flag).
+  `cargo test` checks the math offline — including PCG-vs-dense agreement and a mini sector foam
+  in equilibrium.
 - **`cylinder-solver-wasm/`** — the `wasm-bindgen` wrapper; `wasm-pack build --target web` emits
   `solver/pkg/`.
 - **`solver/pkg/`** — the committed wasm build the pages import as an optional accelerator.

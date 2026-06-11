@@ -755,6 +755,143 @@ pub mod frame {
     }
 }
 
+// ───────────────────────────── large 3D truss (PCG) ────────────────────────────
+pub mod truss3d {
+    //! The foam-scale solver: a pin-jointed 3D truss with ~10⁵ DOF (foamview's shell
+    //! sector is ~34k chambers / ~336k members), far past what the dense [`super::net`]
+    //! or banded [`super::frame`] paths can assemble. Matrix-free preconditioned
+    //! conjugate gradients: K is never formed — each iteration streams over the members
+    //! — with a Jacobi (diagonal) preconditioner. Supports (pinned DOFs) are enforced by
+    //! projection, which keeps the operator SPD on the free subspace. A structure that
+    //! cannot carry its load (a floating block, an unbalanced resultant) shows up as
+    //! non-convergence: `converged = false` is this solver's `mechanism` flag.
+
+    /// Borrowed, flat-array problem statement (mirrors the wasm ABI):
+    /// `pos`/`load` are `3n` long, `fixed` is `3n` of 0/1 per DOF,
+    /// `mi`/`mj`/`k` are per-member (k = EA/L, N/m).
+    pub struct Truss<'a> {
+        pub pos: &'a [f64],
+        pub fixed: &'a [u8],
+        pub load: &'a [f64],
+        pub mi: &'a [u32],
+        pub mj: &'a [u32],
+        pub k: &'a [f64],
+    }
+
+    pub struct Solution {
+        pub u: Vec<f64>,     // 3n displacements (same units as load/k: m for N & N/m)
+        pub force: Vec<f64>, // per-member axial force, +tension
+        pub iters: usize,
+        pub relres: f64,     // ‖b − K·u‖ / ‖b‖ at exit
+        pub converged: bool,
+        pub compliance: f64, // fᵀu — external work, a scalar stiffness
+    }
+
+    pub fn solve(t: &Truss, tol: f64, max_iter: usize) -> Solution {
+        let nd = t.pos.len();
+        let m = t.mi.len();
+        // member direction cosines (geometry only — units cancel)
+        let (mut cx, mut cy, mut cz) = (vec![0.0; m], vec![0.0; m], vec![0.0; m]);
+        for e in 0..m {
+            let (i, j) = (3 * t.mi[e] as usize, 3 * t.mj[e] as usize);
+            let d = [t.pos[j] - t.pos[i], t.pos[j + 1] - t.pos[i + 1], t.pos[j + 2] - t.pos[i + 2]];
+            let l = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt().max(1e-30);
+            cx[e] = d[0] / l;
+            cy[e] = d[1] / l;
+            cz[e] = d[2] / l;
+        }
+        // K·u, streaming over members, then project out the pinned DOFs
+        let apply = |u: &[f64], out: &mut [f64]| {
+            out.iter_mut().for_each(|v| *v = 0.0);
+            for e in 0..m {
+                let (i, j) = (3 * t.mi[e] as usize, 3 * t.mj[e] as usize);
+                let s = t.k[e]
+                    * (cx[e] * (u[j] - u[i]) + cy[e] * (u[j + 1] - u[i + 1]) + cz[e] * (u[j + 2] - u[i + 2]));
+                // (K·u)_i = −k·c·(c·(u_j−u_i)) — a stretched member pulls its ends together
+                out[i] -= s * cx[e];
+                out[i + 1] -= s * cy[e];
+                out[i + 2] -= s * cz[e];
+                out[j] += s * cx[e];
+                out[j + 1] += s * cy[e];
+                out[j + 2] += s * cz[e];
+            }
+            for d in 0..nd {
+                if t.fixed[d] != 0 {
+                    out[d] = 0.0;
+                }
+            }
+        };
+        // Jacobi preconditioner from the assembled diagonal
+        let mut diag = vec![0.0; nd];
+        for e in 0..m {
+            let (i, j) = (3 * t.mi[e] as usize, 3 * t.mj[e] as usize);
+            let (vx, vy, vz) = (t.k[e] * cx[e] * cx[e], t.k[e] * cy[e] * cy[e], t.k[e] * cz[e] * cz[e]);
+            diag[i] += vx;
+            diag[i + 1] += vy;
+            diag[i + 2] += vz;
+            diag[j] += vx;
+            diag[j + 1] += vy;
+            diag[j + 2] += vz;
+        }
+        for d in diag.iter_mut() {
+            if *d < 1e-30 {
+                *d = 1.0;
+            }
+        }
+        // PCG on the projected system
+        let mut b = t.load.to_vec();
+        for d in 0..nd {
+            if t.fixed[d] != 0 {
+                b[d] = 0.0;
+            }
+        }
+        let b2: f64 = b.iter().map(|v| v * v).sum::<f64>().max(1e-300);
+        let mut u = vec![0.0; nd];
+        let mut r = b.clone();
+        let mut z: Vec<f64> = r.iter().zip(diag.iter()).map(|(ri, di)| ri / di).collect();
+        let mut p = z.clone();
+        let mut ap = vec![0.0; nd];
+        let mut rz: f64 = r.iter().zip(z.iter()).map(|(a, c)| a * c).sum();
+        let mut relres = 1.0;
+        let mut iters = 0;
+        for it in 0..max_iter {
+            iters = it + 1;
+            apply(&p, &mut ap);
+            let pap: f64 = p.iter().zip(ap.iter()).map(|(a, c)| a * c).sum();
+            let alpha = rz / if pap.abs() > 1e-300 { pap } else { 1e-300 };
+            let mut rr = 0.0;
+            for d in 0..nd {
+                u[d] += alpha * p[d];
+                r[d] -= alpha * ap[d];
+                rr += r[d] * r[d];
+            }
+            relres = (rr / b2).sqrt();
+            if relres < tol {
+                break;
+            }
+            let mut rz2 = 0.0;
+            for d in 0..nd {
+                z[d] = r[d] / diag[d];
+                rz2 += r[d] * z[d];
+            }
+            let beta = rz2 / if rz.abs() > 1e-300 { rz } else { 1e-300 };
+            rz = rz2;
+            for d in 0..nd {
+                p[d] = z[d] + beta * p[d];
+            }
+        }
+        // member axial forces + external work
+        let mut force = vec![0.0; m];
+        for e in 0..m {
+            let (i, j) = (3 * t.mi[e] as usize, 3 * t.mj[e] as usize);
+            force[e] = t.k[e]
+                * (cx[e] * (u[j] - u[i]) + cy[e] * (u[j + 1] - u[i + 1]) + cz[e] * (u[j + 2] - u[i + 2]));
+        }
+        let compliance: f64 = b.iter().zip(u.iter()).map(|(a, c)| a * c).sum();
+        Solution { u, force, iters, relres, converged: relres < tol, compliance }
+    }
+}
+
 // ───────────────────────────── lattice generators / scoring ─────────────────────
 pub mod foam {
     use super::frame::{Member, Model, Node};
@@ -1009,6 +1146,147 @@ mod tests {
         assert!(s.compliance > 0.0 && s.compliance.is_finite());
         let max = s.members.iter().fold(0.0_f64, |a, mr| a.max(mr.stress));
         assert!(max.is_finite() && max > 0.0);
+    }
+
+    // flatten a net::Model into the truss3d ABI (per-DOF pins, EA/L stiffness)
+    fn to_truss(m: &net::Model) -> (Vec<f64>, Vec<u8>, Vec<f64>, Vec<u32>, Vec<u32>, Vec<f64>) {
+        let mut pos = Vec::new();
+        let mut fixed = Vec::new();
+        let mut load = Vec::new();
+        for nd in &m.nodes {
+            pos.extend_from_slice(&nd.pos);
+            for a in 0..3 {
+                fixed.push(nd.fix[a] as u8);
+                load.push(nd.load[a]);
+            }
+        }
+        let (mut mi, mut mj, mut k) = (Vec::new(), Vec::new(), Vec::new());
+        for mem in &m.members {
+            let (a, b) = (m.nodes[mem.i].pos, m.nodes[mem.j].pos);
+            let l = ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2) + (b[2] - a[2]).powi(2)).sqrt();
+            mi.push(mem.i as u32);
+            mj.push(mem.j as u32);
+            k.push(mem.e * mem.area / l);
+        }
+        (pos, fixed, load, mi, mj, k)
+    }
+
+    #[test]
+    fn truss3d_matches_the_dense_net_solver() {
+        // a braced cube: bottom 4 corners pinned, top face loaded sideways + down.
+        // truss3d (matrix-free PCG) must reproduce the dense direct-stiffness forces.
+        let mut nodes = Vec::new();
+        for z in [0.0, 1.0] {
+            for (x, y) in [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] {
+                let top = z > 0.5;
+                nodes.push(net::Node {
+                    pos: [x, y, z],
+                    fix: [!top; 3],
+                    load: if top { [300.0, 150.0, -1000.0] } else { [0.0; 3] },
+                });
+            }
+        }
+        let mut members = Vec::new();
+        let mut add = |i: usize, j: usize| {
+            members.push(net::Member { i, j, area: 0.01, e: 2.0e11, tension_only: false })
+        };
+        for i in 0..4 {
+            add(i, (i + 1) % 4);              // bottom ring
+            add(4 + i, 4 + (i + 1) % 4);      // top ring
+            add(i, 4 + i);                    // verticals
+            add(i, 4 + (i + 1) % 4);          // diagonals
+        }
+        let model = net::Model { nodes, members };
+        let dense = model.solve();
+        assert!(!dense.mechanism);
+        let (pos, fixed, load, mi, mj, k) = to_truss(&model);
+        let s = truss3d::solve(
+            &truss3d::Truss { pos: &pos, fixed: &fixed, load: &load, mi: &mi, mj: &mj, k: &k },
+            1e-10,
+            2000,
+        );
+        assert!(s.converged, "PCG should converge, relres {}", s.relres);
+        for (e, mr) in dense.members.iter().enumerate() {
+            assert!(
+                approx(s.force[e], mr.force, 1e-5),
+                "member {}: pcg {} vs dense {}",
+                e, s.force[e], mr.force
+            );
+        }
+    }
+
+    #[test]
+    fn truss3d_flags_a_floating_structure() {
+        // no pins at all + a net resultant → no static solution → PCG must NOT converge.
+        let pos = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let fixed = vec![0u8; 6];
+        let load = vec![0.0, 1.0, 0.0, 0.0, 1.0, 0.0];
+        let (mi, mj, k) = (vec![0u32], vec![1u32], vec![1.0e6]);
+        let s = truss3d::solve(
+            &truss3d::Truss { pos: &pos, fixed: &fixed, load: &load, mi: &mi, mj: &mj, k: &k },
+            1e-8,
+            500,
+        );
+        assert!(!s.converged, "a floating loaded bar has no equilibrium");
+    }
+
+    #[test]
+    fn truss3d_carries_a_sector_foam_in_equilibrium() {
+        // a mini version of foamview's shell sector: a jittered-grid 3D block,
+        // distance-threshold adjacency, four faces pinned, radial-ish outward load.
+        // Must converge, do positive external work, and satisfy K·u = b.
+        let (nx, ny, nz) = (6usize, 14usize, 10usize);
+        let mut state = 12345u64;
+        let mut rng = move || {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((state >> 33) as f64) / ((1u64 << 31) as f64)
+        };
+        let mut pos = Vec::new();
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    pos.extend_from_slice(&[
+                        ix as f64 + 0.5 * (rng() - 0.5),
+                        iy as f64 + 0.5 * (rng() - 0.5),
+                        iz as f64 + 0.5 * (rng() - 0.5),
+                    ]);
+                }
+            }
+        }
+        let n = pos.len() / 3;
+        let (mut mi, mut mj, mut k) = (Vec::new(), Vec::new(), Vec::new());
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let d2: f64 = (0..3).map(|a| (pos[3 * i + a] - pos[3 * j + a]).powi(2)).sum();
+                if d2 < 1.85f64 * 1.85 {
+                    mi.push(i as u32);
+                    mj.push(j as u32);
+                    k.push(1.0e6 / d2.sqrt());
+                }
+            }
+        }
+        let mut fixed = vec![0u8; 3 * n];
+        let mut load = vec![0.0; 3 * n];
+        for i in 0..n {
+            let (y, z) = (pos[3 * i + 1], pos[3 * i + 2]);
+            let pinned = z < 1.0 || z > (nz - 2) as f64 || y < 1.0 || y > (ny - 2) as f64;
+            if pinned {
+                for a in 0..3 {
+                    fixed[3 * i + a] = 1;
+                }
+            } else {
+                load[3 * i + 2] = 1000.0; // "outward" along the block's radial axis
+            }
+        }
+        let s = truss3d::solve(
+            &truss3d::Truss { pos: &pos, fixed: &fixed, load: &load, mi: &mi, mj: &mj, k: &k },
+            1e-8,
+            4000,
+        );
+        assert!(s.converged, "sector foam should reach equilibrium, relres {}", s.relres);
+        assert!(s.compliance > 0.0 && s.compliance.is_finite());
+        let maxf = s.force.iter().fold(0.0f64, |a, f| a.max(f.abs()));
+        assert!(maxf > 0.0 && maxf.is_finite());
     }
 
     #[test]
