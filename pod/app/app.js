@@ -1,64 +1,145 @@
-// pod/app — a small, real podcast client. Subscribe to any RSS feed (stored in
-// localStorage), parse it client-side, and play episodes. Cross-origin feeds go
-// through the worker's guarded /api/fetch proxy; same-origin (our own PDS feeds)
-// are fetched directly. Audio enclosures play straight from their host.
+// pod/app — a small, real podcast client.
+//
+// Subscribe to any RSS feed, parse it client-side, and play episodes.
+// Subscriptions are PDS records (com.minomobi.podcast.subscription) when signed
+// in — they sync across every device — and fall back to localStorage when not.
+// Cross-origin feeds go through the worker's guarded /api/fetch proxy; same-
+// origin (our PDS feeds) are fetched directly. Audio plays straight from its host.
+
+import { AuthClient } from '../lib/auth.js';
 
 const $ = (id) => document.getElementById(id);
 const SUBS_KEY = 'pod.app.subs';
 const COMMUNAL = 'https://pod.mino.mobi/feed.xml';
+const COLLECTION = 'com.minomobi.podcast.subscription';
+const SCOPE = 'atproto transition:generic';
 
-let subs = loadSubs();      // [{ url, title }]
+const auth = new AuthClient();
+let authUser = null;
+
+let subs = loadLocal();     // [{ url, title, rkey? }]
 let active = null;          // active feed url
 const cache = {};           // url -> parsed feed
-let current = -1;           // playing episode index in the active feed
 
 // ---- boot ------------------------------------------------------------------
-(function init() {
+(async function init() {
   const add = new URLSearchParams(location.search).get('add');
   if (!subs.length) subs.push({ url: COMMUNAL, title: 'minomobi · all shows' });
-  if (add) addSub(add, true);
-  saveSubs();
+  if (add) addLocal(add, add, true);
+  saveLocal();
   renderSubs();
   selectFeed(active || (subs[0] && subs[0].url));
+
+  try { authUser = await auth.init(); } catch (_) {}
+  updateSyncUi();
+  if (authUser) syncFromPds();
 })();
 
-$('addBtn').addEventListener('click', () => {
+$('addBtn').addEventListener('click', onAdd);
+$('addUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') onAdd(); });
+$('syncBtn').addEventListener('click', () => {
+  if (authUser) { auth.logout().then(() => location.reload()); return; }
+  $('authRow').style.display = $('authRow').style.display === 'none' ? 'flex' : 'none';
+});
+$('authBtn').addEventListener('click', signIn);
+$('authHandle').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn(); });
+
+async function onAdd() {
   const v = $('addUrl').value.trim();
   if (!v) return;
   let url;
   try { url = new URL(v, location.href).toString(); }
   catch { return showErr('That doesn’t look like a URL.'); }
+  hideErr();
   $('addUrl').value = '';
-  addSub(url, false);
-  saveSubs();
+  addLocal(url, url, false);
+  saveLocal();
   renderSubs();
   selectFeed(url);
-});
-$('addUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('addBtn').click(); });
+  if (authUser) { try { await pdsPut(url, url); } catch (e) { showErr('Saved locally, but PDS sync failed: ' + (e.message || e)); } }
+}
 
-// ---- subscriptions ---------------------------------------------------------
-function loadSubs() { try { return JSON.parse(localStorage.getItem(SUBS_KEY)) || []; } catch { return []; } }
-function saveSubs() { localStorage.setItem(SUBS_KEY, JSON.stringify(subs)); }
-function addSub(url, setActive) {
-  if (!subs.find((s) => s.url === url)) subs.push({ url, title: url });
+async function signIn() {
+  const handle = $('authHandle').value.trim();
+  if (!handle) return;
+  try { await auth.login(handle, { scope: SCOPE }); } // redirects back here
+  catch (e) { showErr(e.message || String(e)); }
+}
+
+// ---- subscription store ----------------------------------------------------
+function loadLocal() { try { return JSON.parse(localStorage.getItem(SUBS_KEY)) || []; } catch { return []; } }
+function saveLocal() { localStorage.setItem(SUBS_KEY, JSON.stringify(subs)); }
+function addLocal(url, title, setActive) {
+  const ex = subs.find((s) => s.url === url);
+  if (!ex) subs.push({ url, title });
   if (setActive) active = url;
 }
-function removeSub(url) {
-  subs = subs.filter((s) => s.url !== url);
-  saveSubs();
+function removeLocal(url) { subs = subs.filter((s) => s.url !== url); }
+
+async function removeSub(url) {
+  const sub = subs.find((s) => s.url === url);
+  removeLocal(url);
+  saveLocal();
   if (active === url) { active = null; selectFeed(subs[0] && subs[0].url); }
   renderSubs();
+  if (authUser) { try { await auth.pds.deleteRecord(COLLECTION, sub.rkey || rkeyFor(url)); } catch (_) {} }
+}
+
+// Merge local + PDS, then treat the PDS as source of truth. Any local-only feed
+// (e.g. added before signing in) is pushed up so it follows you to other devices.
+async function syncFromPds() {
+  let remote = [];
+  try {
+    const res = await auth.pds.listRecords(COLLECTION, 100);
+    remote = (res.records || []).map((r) => ({ url: r.value.url, title: r.value.title || r.value.url, rkey: rkeyOf(r.uri) }));
+  } catch (_) { updateSyncUi('PDS sync unavailable.'); return; }
+
+  const remoteUrls = new Set(remote.map((r) => r.url));
+  const localOnly = subs.filter((s) => !remoteUrls.has(s.url) && s.url !== COMMUNAL);
+  for (const s of localOnly) { try { await pdsPut(s.url, s.title); } catch (_) {} }
+
+  // union: remote ∪ pushed local-only, keeping the communal seed visible
+  const byUrl = new Map();
+  for (const s of subs.filter((x) => x.url === COMMUNAL)) byUrl.set(s.url, s);
+  for (const s of remote) byUrl.set(s.url, s);
+  for (const s of localOnly) byUrl.set(s.url, { ...s, rkey: rkeyFor(s.url) });
+  subs = [...byUrl.values()];
+  saveLocal();
+  renderSubs();
+  updateSyncUi();
+}
+
+async function pdsPut(url, title) {
+  await auth.pds.putRecord(COLLECTION, rkeyFor(url), {
+    $type: COLLECTION, url, title: title || url, createdAt: new Date().toISOString(),
+  });
+}
+
+// ---- ui: sync + saved list -------------------------------------------------
+function updateSyncUi(override) {
+  const bar = $('syncBar');
+  if (authUser) {
+    bar.classList.add('synced');
+    $('syncState').textContent = override || `Synced to @${authUser.handle || authUser.did}’s PDS.`;
+    $('syncBtn').textContent = 'Sign out';
+    $('authRow').style.display = 'none';
+  } else {
+    bar.classList.remove('synced');
+    $('syncState').textContent = override || 'Saved on this device. Sign in to sync across devices.';
+    $('syncBtn').textContent = 'Sign in to sync';
+  }
 }
 
 function renderSubs() {
-  $('subsRow').innerHTML = subs.map((s) => `
-    <div class="chip ${s.url === active ? 'active' : ''}" data-url="${escAttr(s.url)}">
-      <span class="ct">${esc(s.title || s.url)}</span>
-      <span class="x" data-x="${escAttr(s.url)}">✕</span>
+  $('subsCount').textContent = subs.length ? `${subs.length} feed${subs.length === 1 ? '' : 's'}` : '';
+  $('subsList').innerHTML = subs.map((s) => `
+    <div class="srow ${s.url === active ? 'active' : ''}" data-url="${esc(s.url)}">
+      <span class="st">${esc(s.title || s.url)}</span>
+      <button class="rm" data-x="${esc(s.url)}" title="Remove">✕</button>
     </div>`).join('');
-  $('subsRow').querySelectorAll('.chip').forEach((el) => {
+  $('subsList').querySelectorAll('.srow').forEach((el) => {
     el.addEventListener('click', (e) => {
-      if (e.target.dataset.x !== undefined) { removeSub(el.dataset.url); return; }
+      if (e.target.classList.contains('rm')) { removeSub(el.dataset.url); return; }
       selectFeed(el.dataset.url);
     });
   });
@@ -92,7 +173,10 @@ async function loadFeed(url) {
   const feed = parseFeed(await res.text(), url);
   cache[url] = feed;
   const sub = subs.find((s) => s.url === url);
-  if (sub && feed.title) { sub.title = feed.title; saveSubs(); renderSubs(); }
+  if (sub && feed.title && sub.title !== feed.title) {
+    sub.title = feed.title; saveLocal(); renderSubs();
+    if (authUser) { try { await pdsPut(url, feed.title); } catch (_) {} }
+  }
   return feed;
 }
 
@@ -142,7 +226,6 @@ function renderEpisodes(feed) {
 function play(feed, i) {
   const e = feed.items[i];
   if (!e || !e.audio) return;
-  current = i;
   const audio = $('audio');
   audio.src = e.audio;
   audio.play().catch(() => {});
@@ -162,19 +245,22 @@ function syncIcon(playing) {
 }
 
 // ---- util ------------------------------------------------------------------
+// Deterministic rkey per feed URL (FNV-1a hex) so the same feed is one record.
+function rkeyFor(url) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < url.length; i++) { h ^= url.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return 'u' + (h >>> 0).toString(16).padStart(8, '0');
+}
+function rkeyOf(uri) { return uri.split('/').pop(); }
 function childText(el, tag) { const n = el.querySelector(tag); return n ? n.textContent.trim() : ''; }
 function nsEl(el, qname) { return el.getElementsByTagName(qname)[0] || null; }
 function nsText(el, qname) { const n = nsEl(el, qname); return n ? n.textContent.trim() : ''; }
 function stripHtml(s) { return String(s).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(); }
 function fmtDur(d) {
   if (!d) return '';
-  if (/^\d+$/.test(d)) {
-    const s = +d, m = Math.floor(s / 60), sec = s % 60;
-    return `${m}:${String(sec).padStart(2, '0')}`;
-  }
+  if (/^\d+$/.test(d)) { const s = +d, m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, '0')}`; }
   return d;
 }
 function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-function escAttr(s) { return esc(s); }
 function showErr(m) { $('addErr').textContent = m; $('addErr').style.display = ''; }
 function hideErr() { $('addErr').style.display = 'none'; }

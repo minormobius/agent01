@@ -131,6 +131,8 @@ path behind preview, download, and publish.
   the AT-URIs of every track. The manifest `/prod` loads.
 - `com.minomobi.podcast.episode` — a published episode: the mixdown as ordered `audio`
   chunks + RSS metadata (`pubDate`, `episodeNumber`, `durationSec`, `image`, `guid`).
+- `com.minomobi.podcast.subscription` — one feed the user follows in `/app` (`url`, cached
+  `title`, `createdAt`). rkey = deterministic hash of the URL (idempotent, no dupes).
 
 When these collections are wired to writes, add them to `WRITE_COLLECTIONS` in
 `workers/auth/src/oauth/scope.ts` (and a `blob:audio/*` allowance) so the shared OAuth
@@ -176,12 +178,19 @@ show, also sourced from the PDS.
   `pod_episodes`), each hydrated with their Bluesky profile and linking to their
   PDS-owned feed + an "Add to app" deep-link (`/app/?add=<feed>`).
 - **`/app`** — a real, self-contained podcast client (no build). Subscribe to **any** RSS
-  feed (stored in `localStorage`), parse it client-side with `DOMParser`, and play
-  episodes in a sticky player. Same-origin feeds (our PDS feeds) are fetched directly;
-  cross-origin feeds go through **`/api/fetch`**, a guarded server-side proxy — `http(s)`
-  only, private/loopback hosts blocked (basic SSRF defense), feed-ish content-types only,
-  5 MB cap, 5-min cache. Audio enclosures are played straight from their host by the
-  `<audio>` element and never touch the proxy.
+  feed, parse it client-side with `DOMParser`, and play episodes in a sticky player.
+  - **Subscriptions are PDS records.** Signed in, each feed is a
+    `com.minomobi.podcast.subscription` record in *your* repo, so subscriptions sync
+    across every device. The rkey is a deterministic FNV-1a hash of the feed URL, so the
+    same feed is never duplicated (`putRecord` is idempotent). Signed out, they live in
+    `localStorage`; on sign-in, local-only feeds are pushed up and the PDS becomes the
+    source of truth. Auth is the shared OAuth client (SSO cookie, so a session from any
+    `*.mino.mobi` site is picked up automatically).
+  - **Saved feeds** render in a bounded, **scrollable** list (not an overflowing chip row).
+  - Same-origin feeds (our PDS feeds) are fetched directly; cross-origin feeds go through
+    **`/api/fetch`**, a guarded server-side proxy — `http(s)` only, private/loopback hosts
+    blocked (basic SSRF defense), feed-ish content-types only, 5 MB cap, 5-min cache. Audio
+    enclosures play straight from their host by the `<audio>` element, never via the proxy.
 
 ## Roadmap (next slices)
 
