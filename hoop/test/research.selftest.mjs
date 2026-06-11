@@ -1,7 +1,8 @@
 // research.selftest.mjs — pins the dossier's active-figure kernels (hoop/js/research.js)
 // against the numbers the three modelling wings publish. Run: node hoop/test/research.selftest.mjs
 import {
-  shellStress, materialById, columnProfile, foodWebRun, foodWebDefaults,
+  shellStress, shellSection, materialById, columnProfile, lakeSecantSag, fountainParcel,
+  foodWebRun, foodWebDefaults,
 } from '../js/research.js';
 
 let pass = 0, fail = 0;
@@ -22,6 +23,24 @@ const near = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a}, w
   ok(small.holds, 'a small 1 km steel ring at 0.8 g holds (v² scales with R)');
 }
 
+// ── FIGURE 1b: the SECANT CABLE WEB — the alternate load path ──
+{
+  const carbon = materialById('cfrp');
+  const bare = shellSection({ R: 8000, g: 0.8, mat: carbon, phi: 0 });
+  const webbed = shellSection({ R: 8000, g: 0.8, mat: carbon, phi: 0.7 });
+  ok(webbed.sigmaShell < bare.sigmaShell, 'a secant web carrying φ of the load drops hull stress');
+  near(webbed.sigmaSelf, bare.sigmaSelf, 1, 'ρv² is unchanged by the web — the floor cables cannot remove');
+  ok(!bare.holds && webbed.holds, 'a bare 8 km carbon hull tears; the secant web saves it');
+  // the {N/k} clear core = R·cos(πk/N): tighter chords (low reach) leave a bigger open core
+  const tight = shellSection({ R: 8000, g: 0.8, mat: carbon, phi: 0.5, reach: 0.15 });
+  const wide = shellSection({ R: 8000, g: 0.8, mat: carbon, phi: 0.5, reach: 1.0 });
+  ok(tight.coreClear > wide.coreClear, 'rim-hugging chords leave a clearer core than diametral ones');
+  near(tight.coreClear, Math.cos(Math.PI * tight.k / tight.N), 1e-9, 'clear core = cos(πk/N)');
+  // steel is material-limited at 8 km: ρv² alone is over the line, so NO web can save it
+  const steelWeb = shellSection({ R: 8000, g: 0.8, mat: materialById('steel'), phi: 0.9 });
+  ok(steelWeb.materialLimited && !steelWeb.holds, 'steel is ρv²-limited at 8 km — even a 90% web cannot hold it');
+}
+
 // ── FIGURE 2: thermodynamics — tide's ~31 K adiabat and ~32% pressure drop at 8 km ──
 {
   const p = columnProfile({ R: 8000, Tfloor: 288 });
@@ -33,6 +52,22 @@ const near = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a}, w
   const small = columnProfile({ R: 3200, Tfloor: 288 });
   ok(small.dT < p.dT && small.Pdrop < p.Pdrop, 'a smaller cylinder spans less (Island-Three is gentler)');
   ok(small.dT > 6 && small.dT < 18, 'Island-Three-scale span is a handful of K, not tens (got ' + small.dT.toFixed(1) + ')');
+}
+
+// ── FIGURE 2b: the lake topology (NOT a secant) + the fountain jet ──
+{
+  near(lakeSecantSag(8000, 4400), 308, 12, 'a 4.4 km lake on an 8 km radius sags ~300 m as a secant');
+  ok(lakeSecantSag(8000, 1000) < lakeSecantSag(8000, 6000), 'the secant fallacy grows with lake span');
+
+  const omega = Math.sqrt(9.81 / 10000); // 1 g at the 10 km skin (~0.031 rad/s)
+  const ballistic = fountainParcel({ R: 8000, omega, v0: 120, alphaDeg: 0, coriolis: false });
+  ok(ballistic.energyDrift < 1e-3, 'the ballistic jet conserves specific energy (½v²−½ω²r², drift ' + ballistic.energyDrift.toExponential(1) + ')');
+  ok(Math.abs(ballistic.driftArc_m) < 50, 'with Coriolis OFF a radial jet returns to its launch (no drift)');
+  const coriolis = fountainParcel({ R: 8000, omega, v0: 120, alphaDeg: 0, coriolis: true });
+  ok(coriolis.energyDrift < 1e-3, 'the Coriolis jet still conserves energy (it does no work)');
+  ok(Math.abs(coriolis.driftArc_m) > 200, 'with Coriolis ON the jet curves into a sheet (drifts ' + Math.round(coriolis.driftArc_m) + ' m)');
+  const fast = fountainParcel({ R: 8000, omega, v0: 240, alphaDeg: 0, coriolis: true });
+  ok(fast.axisReachFrac > coriolis.axisReachFrac, 'a faster jet (nearer ωR) climbs closer to the axis');
 }
 
 // ── FIGURE 3: biological webbing — biome's closure, the pollinator gate, the Biosphere-2 crash ──

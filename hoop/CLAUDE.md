@@ -20,8 +20,10 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).
 - `research.html` + `js/research.js` — the **research dossier** (linked from the topbar `❖ research`
   pill): the supporting-world models from the three modelling wings, collated as a scientific report
-  with three live "active figures" — the structural flywheel limit (rind), the inverted radial column
-  (tide), the closed food-web loop (biome). The figure kernels in `research.js` are pure/zero-dep and
+  with three live "active figures" — the hull section + secant cable web (rind), the circular axis
+  cross-section with lake topology + Coriolis jets (tide), the closed food-web loop (biome). Note the
+  secant duality across the two circular figures: a cable IS a secant (structure), a lake is NOT one
+  (the ratchet's equipotential arc). The figure kernels in `research.js` are pure/zero-dep and
   re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at
   runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
 

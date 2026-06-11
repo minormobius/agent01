@@ -52,6 +52,35 @@ export function shellStress({ R, g, mat, arealLoad = 0 }) {
   return { a, omega, v, v2, S, selfUtil, holds: selfUtil < 1, N, reqThk };
 }
 
+// The SECANT CABLE WEB — rind's alternate load path (cf. rind/cylinder.html). Instead of a wall
+// thick enough to take all the hoop tension, string a tension net of CHORDS (secants) across the
+// bore: an {N/k} star polygon of N anchors each joined to the k-th. It carries a fraction φ of the
+// pressure/payload load, leaving the hull only (1−φ) of it — but the self-spin term ρv² is the
+// floor a cable can never remove (the hull still rotates). Geometry: half-subtended angle a=πk/N,
+// efficiency η=sin a (the chord's radial pull), clear navigable core = R·cos a (a secant web leaves
+// the core open; radial spokes to a hub do not), chord span = 2R·sin a.
+export function shellSection({ R, g, mat, phi = 0, reach = 0.5, arealLoad = 2000,
+                              N = 18, twall = 1.0, sf = 1.5, cable = materialById('kevlar') }) {
+  const a = g * G0, v = Math.sqrt(a * R);
+  const ATM = 101325;
+  const pEff = ATM + arealLoad * a;                 // effective outward pressure at the rim, Pa
+  const sigmaSelf = mat.rho * v * v;                // ρv² — the floor cables cannot touch
+  const sigmaPressBare = pEff * R / twall;          // pressure hoop stress on a bare hull, Pa
+  const allow = mat.sigma / sf;                     // hull allowable, Pa
+  const k = Math.max(1, Math.min(Math.floor(N / 2), Math.round(reach * (N / 2)))); // {N/k}
+  const ang = Math.PI * k / N;
+  const eta = Math.sin(ang), coreClear = Math.cos(ang), span = 2 * R * Math.sin(ang);
+  const sigmaShell = sigmaSelf + (1 - phi) * sigmaPressBare;
+  const Fcable = phi > 0 ? (phi * pEff * 2 * R) / Math.max(0.05, eta) : 0; // cable force, N/axial-m
+  const Acable = Fcable / (cable.sigma / sf);       // total cable cross-section, m²/axial-m
+  const materialLimited = sigmaSelf > allow;        // ρv² alone over the line ⇒ a web can't save it
+  return {
+    v, a, sigmaSelf, sigmaPressBare, allow, pEff, N, k, ang, eta, coreClear, span,
+    sigmaShell, Acable, margin: allow / sigmaShell, hullUtil: sigmaShell / allow,
+    holds: !materialLimited && sigmaShell <= allow, materialLimited, phi,
+  };
+}
+
 // ───────────────────────────────────────────────────────────────────────────────────────
 // FIGURE 2 — THERMODYNAMICS (tide): the inverted radial column.
 //
@@ -94,6 +123,47 @@ export function columnProfile({ R, Tfloor = 288, Prim = 101325, n = 220 } = {}) 
     dT: T[n] - T[0],                     // floor minus axis (positive: axis is colder)
     Pdrop: 1 - P[0] / P[n],             // fractional pressure drop axis vs floor
     gFloor: w2 * R / G0,                // floor gravity in g
+  };
+}
+
+// THE LAKE IS NOT A SECANT (tide/ratchet). In the rotating frame the potential is Φ=−½ω²r², so
+// equipotentials are circles concentric with the axis and a liquid free surface is an ARC of
+// constant radius — never a chord. A chord (the flat-world intuition) sits R·(1−cos φ) closer to
+// the axis at mid-span: spurious "head" a real arc surface doesn't have (~300 m on a 4.4 km lake).
+export function lakeSecantSag(R, chord_m) {
+  const halfSpan = Math.asin(Math.min(1, chord_m / (2 * R)));
+  return R * (1 - Math.cos(halfSpan)); // metres of secant-fallacy sag at mid-span
+}
+
+// THE FOUNTAIN JET (tide/fountain). A water parcel launched inward from the rim feels only the
+// rotating frame's fictitious forces — centrifugal (+ω²r, outward) and Coriolis (−2Ω×v). Because
+// 2ωv is comparable to gravity here, a point jet curves into a SHEET that lays irrigation across a
+// broad arc. The ODE (launch at the rim low point (0,−R), +y points to the axis):
+//   ax = ω²x + 2ω·vy ,  ay = ω²y − 2ω·vx     (ballistic; Coriolis does no work, so ½v²−½ω²r² holds)
+export function fountainParcel({ R, omega, v0, alphaDeg = 0, coriolis = true, dt = 0.08, maxT = 1200 }) {
+  const a = (alphaDeg * Math.PI) / 180, c = coriolis ? 1 : 0;
+  let s = { x: 0, y: -R, vx: v0 * Math.sin(a), vy: v0 * Math.cos(a) };
+  const E = (q) => 0.5 * (q.vx * q.vx + q.vy * q.vy) - 0.5 * omega * omega * (q.x * q.x + q.y * q.y);
+  const E0 = E(s);
+  const d = (q) => ({ x: q.vx, y: q.vy, vx: omega * omega * q.x + c * 2 * omega * q.vy, vy: omega * omega * q.y - c * 2 * omega * q.vx });
+  const add = (q, k, h) => ({ x: q.x + k.x * h, y: q.y + k.y * h, vx: q.vx + k.vx * h, vy: q.vy + k.vy * h });
+  const pts = [[s.x, s.y]];
+  let minR = R;
+  const steps = Math.round(maxT / dt);
+  for (let i = 1; i <= steps; i++) {
+    const k1 = d(s), k2 = d(add(s, k1, dt / 2)), k3 = d(add(s, k2, dt / 2)), k4 = d(add(s, k3, dt));
+    s = { x: s.x + (dt / 6) * (k1.x + 2 * k2.x + 2 * k3.x + k4.x), y: s.y + (dt / 6) * (k1.y + 2 * k2.y + 2 * k3.y + k4.y),
+          vx: s.vx + (dt / 6) * (k1.vx + 2 * k2.vx + 2 * k3.vx + k4.vx), vy: s.vy + (dt / 6) * (k1.vy + 2 * k2.vy + 2 * k3.vy + k4.vy) };
+    const r = Math.hypot(s.x, s.y);
+    minR = Math.min(minR, r);
+    pts.push([s.x, s.y]);
+    if (r >= R && i > 3) break; // landed back on the floor
+  }
+  const launchAng = -Math.PI / 2, landAng = Math.atan2(s.y, s.x);
+  let drift = landAng - launchAng; while (drift > Math.PI) drift -= 2 * Math.PI; while (drift < -Math.PI) drift += 2 * Math.PI;
+  return {
+    pts, minR, axisReachFrac: 1 - minR / R, driftRad: drift, driftArc_m: drift * R,
+    energyDrift: Math.abs(E(s) - E0) / Math.max(1, Math.abs(E0)),
   };
 }
 
@@ -217,6 +287,13 @@ if (typeof document !== 'undefined') initFigures();
 function initFigures() {
   const $ = (id) => document.getElementById(id);
   const PHOS = '#7fd8d0', WARM = '#e08a5b', GREEN = '#62b87a', SKY = '#a7c4d4', DIM = 'rgba(190,205,210,.55)';
+  const TAU = Math.PI * 2;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const mix = (c1, c2, t) => { // blend two #rrggbb colours
+    const h = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+    const A = h(c1), B = h(c2);
+    return `rgb(${Math.round(lerp(A[0], B[0], t))},${Math.round(lerp(A[1], B[1], t))},${Math.round(lerp(A[2], B[2], t))})`;
+  };
 
   function dpiFit(cv) {
     const d = Math.min(devicePixelRatio || 1, 2);
@@ -226,90 +303,110 @@ function initFigures() {
     return { ctx, w, h };
   }
 
-  // ── Figure 1: structure ──────────────────────────────────────────────────────────────
-  const f1 = { R: $('f1-R'), g: $('f1-g'), mat: $('f1-mat'), load: $('f1-load'), cv: $('f1-canvas') };
+  // ── Figure 1: structure — circular hull section + the secant cable web ────────────────
+  const f1 = { R: $('f1-R'), g: $('f1-g'), mat: $('f1-mat'), phi: $('f1-phi'), reach: $('f1-reach'), cv: $('f1-canvas') };
   if (f1.cv) {
     MATERIALS.forEach((m) => { const o = document.createElement('option'); o.value = m.id; o.textContent = m.name; f1.mat.appendChild(o); });
-    f1.mat.value = 'steel';
+    f1.mat.value = 'cfrp';
     const drawF1 = () => {
-      const R = +f1.R.value, g = +f1.g.value, load = +f1.load.value, mat = materialById(f1.mat.value);
-      $('f1-R-v').textContent = (R / 1000).toFixed(1) + ' km';
-      $('f1-g-v').textContent = g.toFixed(2) + ' g';
-      $('f1-load-v').textContent = load.toLocaleString() + ' kg/m²';
-      const s = shellStress({ R, g, mat, arealLoad: load });
-      // readouts
+      const R = +f1.R.value, g = +f1.g.value, phi = +f1.phi.value, reach = +f1.reach.value, mat = materialById(f1.mat.value);
       const set = (id, t) => { const e = $(id); if (e) e.textContent = t; };
-      set('f1-omega', s.omega.toFixed(4) + ' rad/s');
+      set('f1-R-v', (R / 1000).toFixed(1) + ' km'); set('f1-g-v', g.toFixed(2) + ' g'); set('f1-phi-v', Math.round(phi * 100) + ' %');
+      const s = shellSection({ R, g, mat, phi, reach });
+      set('f1-reach-v', '{' + s.N + '/' + s.k + '}');
       set('f1-v', Math.round(s.v).toLocaleString() + ' m/s');
-      set('f1-spec', (s.S / 1e3).toFixed(1) + ' kJ/kg');
-      set('f1-thk', s.reqThk < 0.01 ? (s.reqThk * 1000).toFixed(1) + ' mm' : s.reqThk.toFixed(2) + ' m');
-      // the bar: self-support utilisation v²/S on a fixed 0..2 scale, failure line at ×1.0 (midpoint).
-      const { ctx, w, h } = dpiFit(f1.cv);
-      ctx.clearRect(0, 0, w, h);
-      const pad = 14, barY = h - 42, barH = 26, barW = w - pad * 2;
-      const SCALE = 2, util = s.selfUtil, frac = Math.min(1, util / SCALE);
-      const col = s.holds ? GREEN : WARM, failX = pad + barW * (1 / SCALE);
-      ctx.fillStyle = DIM; ctx.font = '11px JetBrains Mono, monospace';
-      ctx.fillText('self-support utilisation  v² / (σ/ρ)', pad, barY - 12);
-      ctx.fillStyle = 'rgba(127,216,208,.08)'; ctx.fillRect(pad, barY, barW, barH);     // track
-      ctx.fillStyle = col; ctx.fillRect(pad, barY, barW * frac, barH);                  // fill
-      ctx.strokeStyle = '#e2596a'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);          // ×1.0 line
-      ctx.beginPath(); ctx.moveTo(failX, barY - 6); ctx.lineTo(failX, barY + barH + 6); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = '#e2596a'; ctx.fillText('×1.0 tears →', failX + 5, barY - 12);
-      ctx.fillStyle = col; ctx.font = '600 13px JetBrains Mono, monospace';
-      ctx.fillText((s.holds ? 'HOLDS' : 'TEARS') + '  ×' + util.toFixed(2) + ' of limit', pad, barY + barH + 26);
-      // verdict pill text
-      const vp = $('f1-verdict'); if (vp) { vp.textContent = s.holds ? 'shell holds its own spin' : 'shell tears under its own spin'; vp.className = 'verdict ' + (s.holds ? 'ok' : 'fail'); }
+      set('f1-self', (s.sigmaSelf / 1e6).toFixed(0) + ' / ' + (s.allow / 1e6).toFixed(0) + ' MPa');
+      set('f1-margin', s.materialLimited ? '— ρv² over' : '×' + s.margin.toFixed(2));
+      set('f1-core', phi > 0 ? Math.round(s.coreClear * 100) + ' %' : '—');
+      const { ctx, w, h } = dpiFit(f1.cv); ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2, Rpx = Math.min(w, h) / 2 - 28;
+      // faint outward "gravity points to the rim" ticks
+      ctx.strokeStyle = 'rgba(190,205,210,.08)'; ctx.lineWidth = 1;
+      for (let i = 0; i < 24; i++) { const a = (i / 24) * TAU; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * Rpx * 0.84, cy + Math.sin(a) * Rpx * 0.84); ctx.lineTo(cx + Math.cos(a) * Rpx, cy + Math.sin(a) * Rpx); ctx.stroke(); }
+      // the secant web {N/k} — chords across the bore
+      if (phi > 0) {
+        const N = s.N, k = s.k, P = [];
+        for (let i = 0; i < N; i++) { const a = -Math.PI / 2 + (i / N) * TAU; P.push([cx + Math.cos(a) * Rpx, cy + Math.sin(a) * Rpx]); }
+        ctx.strokeStyle = 'rgba(127,216,208,' + (0.18 + 0.5 * phi).toFixed(2) + ')'; ctx.lineWidth = 1.2;
+        for (let i = 0; i < N; i++) { const j = (i + k) % N; ctx.beginPath(); ctx.moveTo(P[i][0], P[i][1]); ctx.lineTo(P[j][0], P[j][1]); ctx.stroke(); }
+        if (s.coreClear > 0.02) { ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(127,216,208,.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, Rpx * s.coreClear, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+      }
+      // the hull ring, tinted by the verdict
+      const ringCol = s.materialLimited ? '#e2596a' : (s.holds ? GREEN : WARM);
+      ctx.strokeStyle = ringCol; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, cy, Rpx, 0, TAU); ctx.stroke();
+      ctx.fillStyle = 'rgba(190,205,210,.5)'; ctx.beginPath(); ctx.arc(cx, cy, 2, 0, TAU); ctx.fill(); // axis
+      ctx.font = '11px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = DIM; ctx.fillText('hull · ' + mat.name, cx, cy - Rpx - 11);
+      if (phi > 0) { ctx.fillStyle = 'rgba(127,216,208,.85)'; ctx.fillText('secant web {' + s.N + '/' + s.k + '}', cx, cy + Rpx + 18); }
+      if (phi > 0 && s.coreClear > 0.08) { ctx.fillStyle = 'rgba(127,216,208,.6)'; ctx.fillText('clear core', cx, cy - 6); }
+      ctx.textAlign = 'start';
+      const vp = $('f1-verdict');
+      if (vp) {
+        let msg;
+        if (s.materialLimited) msg = 'material-limited — ρv² alone exceeds allowable; no web can save it';
+        else if (s.holds) msg = 'holds — the secant web takes ' + Math.round(phi * 100) + '% of the load · hull ×' + s.margin.toFixed(2);
+        else msg = 'tears — thicken the wall or raise the web load-share φ';
+        vp.textContent = msg; vp.className = 'verdict ' + (s.holds ? 'ok' : 'fail');
+      }
     };
-    [f1.R, f1.g, f1.load].forEach((el) => el.addEventListener('input', drawF1));
+    [f1.R, f1.g, f1.phi, f1.reach].forEach((el) => el.addEventListener('input', drawF1));
     f1.mat.addEventListener('change', drawF1);
     addEventListener('resize', drawF1); drawF1();
   }
 
-  // ── Figure 2: thermodynamics ─────────────────────────────────────────────────────────
-  const f2 = { R: $('f2-R'), Tf: $('f2-T'), cv: $('f2-canvas') };
+  // ── Figure 2: thermodynamics — circular axis section: rings + the lake (topology) + jets ──
+  const f2 = { R: $('f2-R'), Tf: $('f2-T'), v0: $('f2-v0'), cori: $('f2-cori'), cv: $('f2-canvas') };
   if (f2.cv) {
     const drawF2 = () => {
-      const R = +f2.R.value, Tfloor = +f2.Tf.value + 273.15;
-      $('f2-R-v').textContent = (R / 1000).toFixed(1) + ' km';
-      $('f2-T-v').textContent = (+f2.Tf.value).toFixed(0) + ' °C';
-      const p = columnProfile({ R, Tfloor });
+      const R = +f2.R.value, Tfloor = +f2.Tf.value + 273.15, v0 = +f2.v0.value, cori = f2.cori.checked;
       const set = (id, t) => { const e = $(id); if (e) e.textContent = t; };
-      set('f2-span', p.dT.toFixed(1) + ' K');
-      set('f2-drop', (p.Pdrop * 100).toFixed(0) + ' %');
-      set('f2-axis', (p.Taxis - 273.15).toFixed(1) + ' °C');
-      set('f2-gfloor', p.gFloor.toFixed(2) + ' g');
-      const { ctx, w, h } = dpiFit(f2.cv);
-      ctx.clearRect(0, 0, w, h);
-      const L = 44, Rp = 44, top = 18, bot = h - 26, plotW = w - L - Rp, plotH = bot - top;
-      const n = p.r.length;
-      const X = (i) => L + (i / (n - 1)) * plotW; // axis(left) → floor(right)
-      // temperature curve (°C), own scale
-      const Tc = p.T.map((t) => t - 273.15);
-      let tmin = Math.min(...Tc), tmax = Math.max(...Tc); const tpad = (tmax - tmin) * 0.12 + 0.5; tmin -= tpad; tmax += tpad;
-      const Yt = (v) => bot - ((v - tmin) / (tmax - tmin)) * plotH;
-      // pressure curve (% of floor), own scale 0..100 mapped to plot
-      const Pp = p.P.map((v) => (v / p.P[n - 1]) * 100);
-      const Yp = (v) => bot - (v / 100) * plotH;
-      // grid
-      ctx.strokeStyle = 'rgba(190,205,210,.10)'; ctx.lineWidth = 1;
-      for (let k = 0; k <= 4; k++) { const y = top + (k / 4) * plotH; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + plotW, y); ctx.stroke(); }
-      // stratus / dew band near the floor (right ~18%)
-      ctx.fillStyle = 'rgba(167,196,212,.10)'; ctx.fillRect(L + plotW * 0.82, top, plotW * 0.18, plotH);
-      // pressure (sky, dashed)
-      ctx.strokeStyle = SKY; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]); ctx.beginPath();
-      for (let i = 0; i < n; i++) { const x = X(i), y = Yp(Pp[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); ctx.setLineDash([]);
-      // temperature (warm, solid)
-      ctx.strokeStyle = WARM; ctx.lineWidth = 2.2; ctx.beginPath();
-      for (let i = 0; i < n; i++) { const x = X(i), y = Yt(Tc[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
+      set('f2-R-v', (R / 1000).toFixed(1) + ' km'); set('f2-T-v', (+f2.Tf.value).toFixed(0) + ' °C'); set('f2-v0-v', v0 + ' m/s');
+      const p = columnProfile({ R, Tfloor });
+      set('f2-span', p.dT.toFixed(1) + ' K'); set('f2-drop', (p.Pdrop * 100).toFixed(0) + ' %');
+      set('f2-axis', (p.Taxis - 273.15).toFixed(1) + ' °C'); set('f2-gfloor', p.gFloor.toFixed(2) + ' g');
+      const jet = fountainParcel({ R, omega: p.omega, v0, alphaDeg: 0, coriolis: cori });
+      set('f2-reach', Math.round(jet.axisReachFrac * 100) + ' %');
+      const lakeHalf = (16 * Math.PI) / 180, sag = lakeSecantSag(R, 2 * R * Math.sin(lakeHalf));
+      set('f2-sag', Math.round(sag) + ' m');
+      const { ctx, w, h } = dpiFit(f2.cv); ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2, Rpx = Math.min(w, h) / 2 - 24;
+      const n = p.r.length, Tc = p.T.map((t) => t - 273.15);
+      let tmin = Math.min(...Tc), tmax = Math.max(...Tc); const dt = Math.max(1e-6, tmax - tmin);
+      // temperature rings: paint discs from rim inward (cold axis blue → warm floor amber)
+      const RINGS = 44;
+      for (let j = RINGS; j >= 1; j--) {
+        const rr = j / RINGS, idx = Math.min(n - 1, Math.round(rr * (n - 1)));
+        ctx.fillStyle = mix('#274a63', '#d98a52', (Tc[idx] - tmin) / dt);
+        ctx.beginPath(); ctx.arc(cx, cy, Rpx * rr, 0, TAU); ctx.fill();
+      }
+      // stratus / dew deck — the cold floor annulus
+      ctx.lineWidth = Rpx * 0.08; ctx.strokeStyle = 'rgba(167,196,212,.16)'; ctx.beginPath(); ctx.arc(cx, cy, Rpx * 0.955, 0, TAU); ctx.stroke();
+      // the axial sun, seen end-on
+      const sun = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rpx * 0.13);
+      sun.addColorStop(0, 'rgba(244,191,98,.95)'); sun.addColorStop(1, 'rgba(244,191,98,0)');
+      ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(cx, cy, Rpx * 0.13, 0, TAU); ctx.fill();
+      // map kernel metres (launch at (0,−R)) → canvas
+      const MX = (x) => cx + (x / R) * Rpx, MY = (y) => cy + (y / R) * Rpx;
+      // the lake: an equipotential ARC at the floor, vs the dashed secant chord (the fallacy)
+      const baseA = Math.PI / 2, rL = Rpx * 0.985;
+      ctx.lineWidth = 3; ctx.strokeStyle = '#7fb7d8'; ctx.beginPath(); ctx.arc(cx, cy, rL, baseA - lakeHalf, baseA + lakeHalf); ctx.stroke();
+      const e1 = [cx + Math.cos(baseA - lakeHalf) * rL, cy + Math.sin(baseA - lakeHalf) * rL], e2 = [cx + Math.cos(baseA + lakeHalf) * rL, cy + Math.sin(baseA + lakeHalf) * rL];
+      ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(226,89,106,.85)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(e1[0], e1[1]); ctx.lineTo(e2[0], e2[1]); ctx.stroke(); ctx.setLineDash([]);
+      // the fountain: a fan of jets (the Coriolis sheet); faint radial reference when Coriolis is on
+      const drawJet = (path, style, wdt) => { ctx.strokeStyle = style; ctx.lineWidth = wdt; ctx.beginPath(); for (let i = 0; i < path.length; i++) { const X = MX(path[i][0]), Y = MY(path[i][1]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); };
+      if (cori) { const ref = fountainParcel({ R, omega: p.omega, v0, alphaDeg: 0, coriolis: false }); ctx.setLineDash([3, 3]); drawJet(ref.pts, 'rgba(190,205,210,.35)', 1); ctx.setLineDash([]); }
+      for (const al of [-7, 0, 7]) { const jj = fountainParcel({ R, omega: p.omega, v0, alphaDeg: al, coriolis: cori }); drawJet(jj.pts, al === 0 ? '#9fe6ff' : 'rgba(159,230,255,.5)', al === 0 ? 2 : 1.2); }
+      ctx.fillStyle = '#9fe6ff'; ctx.beginPath(); ctx.arc(MX(0), MY(-R), 3, 0, TAU); ctx.fill();
       // labels
-      ctx.font = '11px JetBrains Mono, monospace'; ctx.fillStyle = DIM;
-      ctx.fillText('axis', L - 4, bot + 16); ctx.fillText('floor', L + plotW - 28, bot + 16);
-      ctx.fillStyle = WARM; ctx.fillText('T  ' + Tc[0].toFixed(0) + '°→' + Tc[n - 1].toFixed(0) + '°C', L + 4, top + 12);
-      ctx.fillStyle = SKY; ctx.fillText('P  ' + (Pp[0]).toFixed(0) + '%→100%', L + 4, top + 26);
-      ctx.fillStyle = 'rgba(167,196,212,.8)'; ctx.fillText('stratus/dew', L + plotW * 0.82 + 2, bot - 4);
+      ctx.font = '11px JetBrains Mono, monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(244,191,98,.9)'; ctx.fillText('axial sun', cx, cy - 3);
+      ctx.fillStyle = '#9fe6ff'; ctx.fillText('fountain jet' + (cori ? ' — Coriolis sheet' : ' — radial'), cx, cy - Rpx - 11);
+      ctx.fillStyle = DIM; ctx.fillText('floor (rim) · ' + Tc[n - 1].toFixed(0) + '°C', cx, cy + Rpx + 17);
+      ctx.fillStyle = 'rgba(226,89,106,.9)'; ctx.fillText('lake is an arc, not a secant · sag ' + Math.round(sag) + ' m', cx, cy + Rpx * 0.74);
+      ctx.textAlign = 'start';
     };
-    [f2.R, f2.Tf].forEach((el) => el.addEventListener('input', drawF2));
+    [f2.R, f2.Tf, f2.v0].forEach((el) => el.addEventListener('input', drawF2));
+    f2.cori.addEventListener('change', drawF2);
     addEventListener('resize', drawF2); drawF2();
   }
 

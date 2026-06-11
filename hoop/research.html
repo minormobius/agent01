@@ -195,14 +195,30 @@
         threads <b>drivable spiral ramps and level azimuthal roads</b> through the foam and certifies them
         offline.
       </p>
+      <p>
+        There is a second load path the foam doesn't have to walk alone: the <b>secant cable web</b>. Rather
+        than thicken the wall until it can take the whole hoop tension, string a tension net of straight
+        cables <em>across the bore</em> — each cable a <b>chord</b> (a secant of the ring), the set arranged
+        as an <code>{N/k}</code> star polygon of N anchors each joined to the k-th. The web carries a chosen
+        fraction φ of the pressure-and-payload load in pure tension, leaving the hull only the remaining
+        (1−φ); its efficiency is η = sin(πk/N) (the chord's radial pull), and — this is the design payoff —
+        it leaves a <b>clear navigable core</b> of radius R·cos(πk/N), where radial spokes to a central hub
+        would block the axis entirely. The catch is the one term cables can <em>never</em> remove: the
+        self-spin stress <code>ρv²</code>. The hull is still a spinning ring of material, and no internal
+        tether changes that — so a material whose ρv² alone exceeds its allowable is beyond saving at that
+        size, web or no web. The cable web buys down the <em>payload</em> term; the <em>flywheel</em> term is
+        a property of the chosen material and rim speed.
+      </p>
 
       <figure class="active">
-        <div class="figtop"><span class="figlabel">Figure 1 — live · the flywheel limit</span></div>
+        <div class="figtop"><span class="figlabel">Figure 1 — live · hull section + the secant cable web</span></div>
         <figcaption>
-          The self-support limit <em>v² &lt; σ/ρ</em> as a slider. Set the floor radius and gravity (which
-          fix ω and rim speed v), pick a material, and read whether a ring of it <em>holds its own spin</em>.
-          This is rind's "steel tears, carbon holds" in closed form; the full foam shell is scored member-by-member
-          by the frame solver at <a href="https://rind.mino.mobi">rind.mino.mobi</a>.
+          An axis cross-section of the ring. The <em>hull</em> recolours by verdict; raise the
+          <em>web load-share φ</em> and a <code>{N/k}</code> secant web is strung across the bore, taking φ of
+          the load and leaving a <em>clear core</em> (the dashed circle). The hull still carries
+          <em>ρv²</em>, the self-spin floor a cable can't remove — so steel stays red at 8 km however hard the
+          web pulls. The full foam shell + cable-net is solved member-by-member at
+          <a href="https://rind.mino.mobi">rind.mino.mobi</a>.
         </figcaption>
         <div class="figbody">
           <div class="figcanvas-wrap"><canvas id="f1-canvas"></canvas></div>
@@ -210,12 +226,13 @@
             <div class="ctl"><label>floor radius R <span class="v" id="f1-R-v"></span></label><input type="range" id="f1-R" min="500" max="10000" step="100" value="8000"></div>
             <div class="ctl"><label>floor gravity <span class="v" id="f1-g-v"></span></label><input type="range" id="f1-g" min="0.2" max="1.0" step="0.05" value="0.8"></div>
             <div class="ctl"><label>shell material <span class="v"></span></label><select id="f1-mat"></select></div>
-            <div class="ctl"><label>areal load <span class="v" id="f1-load-v"></span></label><input type="range" id="f1-load" min="0" max="8000" step="200" value="2000"></div>
+            <div class="ctl"><label>web load-share φ <span class="v" id="f1-phi-v"></span></label><input type="range" id="f1-phi" min="0" max="0.9" step="0.05" value="0.5"></div>
+            <div class="ctl"><label>chord reach <span class="v" id="f1-reach-v"></span></label><input type="range" id="f1-reach" min="0.1" max="1.0" step="0.05" value="0.5"></div>
             <div class="readouts">
-              <span class="ro"><span class="k">spin ω</span><span class="val" id="f1-omega">—</span></span>
               <span class="ro"><span class="k">rim speed v</span><span class="val" id="f1-v">—</span></span>
-              <span class="ro"><span class="k">specific strength</span><span class="val" id="f1-spec">—</span></span>
-              <span class="ro"><span class="k">req. shell thickness</span><span class="val" id="f1-thk">—</span></span>
+              <span class="ro"><span class="k">ρv² / allowable</span><span class="val" id="f1-self">—</span></span>
+              <span class="ro"><span class="k">hull margin</span><span class="val" id="f1-margin">—</span></span>
+              <span class="ro"><span class="k">clear core</span><span class="val" id="f1-core">—</span></span>
             </div>
             <span class="verdict" id="f1-verdict">—</span>
           </div>
@@ -223,9 +240,9 @@
       </figure>
 
       <ul class="findings">
-        <li>The limit is <b>size-dependent through v²=aR</b>: a 1 km ring of steel at 0.8 g is fine; the 8 km build is not. Bigger worlds force better materials.</li>
-        <li>Carbon fibre, aramid and PBO clear the bar with room to spare — the specific-strength ordering is exactly why rind's solver shows <em>steel tears, carbon holds</em>.</li>
-        <li>The areal-load slider gives the hoop tension a real shell must take; the required thickness is what the foam's depth and bracing actually provide in the full solve.</li>
+        <li>The flywheel term is <b>size-dependent through v²=aR</b>: a 1 km ring of steel at 0.8 g is fine; the 8 km build is not, and <b>no cable web changes that</b> — ρv² is the material's own floor.</li>
+        <li>A <b>bare</b> carbon hull at 8 km is marginal; a secant web carrying ~30–50% of the load takes it from <em>tears</em> to <em>holds</em> — the cable net is what makes the big build close.</li>
+        <li>The <code>{N/k}</code> choice trades <b>efficiency for a clear core</b>: rim-hugging chords leave a wide-open axis but pull less per cable; near-diametral chords pull hard but crowd the core. Secants leave the centre walkable — spokes-to-a-hub don't.</li>
       </ul>
     </section>
 
@@ -267,12 +284,14 @@
       </p>
 
       <figure class="active">
-        <div class="figtop"><span class="figlabel">Figure 2 — live · the inverted column</span></div>
+        <div class="figtop"><span class="figlabel">Figure 2 — live · the interior, looking down the axis</span></div>
         <figcaption>
-          Temperature and pressure from <em>axis</em> (left) to <em>floor</em> (right), from the centrifugal
-          adiabat <em>Δ(r)=ω²(R²−r²)/2c<sub>p</sub></em> and hydrostatic balance <em>dP/dr=ρω²r</em>, spun for
-          1 g at the outer skin (after <code>tide/shared/geometry.mjs</code>). The shaded band is the cold-floor
-          stratus/dew deck. The full finite-volume column with fog optics lives at
+          The cross-section as a <em>circle</em>: concentric rings carry the centrifugal-adiabat temperature
+          (cold axis, warm floor; the axial sun at the centre), with the cold stratus/dew deck on the rim.
+          On the floor a <b>lake</b> sits as an equipotential <em>arc</em> — and the dashed red <em>secant</em>
+          shows the chord it is <b>not</b> (the "secant fallacy", a spurious mid-span sag). A <b>fountain</b>
+          jet, integrated in the rotating frame, curves under Coriolis into the irrigation <em>sheet</em>.
+          Source models: <code>atmosphere/</code>, <code>ratchet/</code>, <code>fountain/</code> at
           <a href="https://tide.mino.mobi">tide.mino.mobi</a>.
         </figcaption>
         <div class="figbody">
@@ -280,11 +299,15 @@
           <div class="figpanel">
             <div class="ctl"><label>floor radius R <span class="v" id="f2-R-v"></span></label><input type="range" id="f2-R" min="1600" max="10000" step="100" value="8000"></div>
             <div class="ctl"><label>floor temperature <span class="v" id="f2-T-v"></span></label><input type="range" id="f2-T" min="5" max="30" step="1" value="15"></div>
+            <div class="ctl"><label>jet exit speed v₀ <span class="v" id="f2-v0-v"></span></label><input type="range" id="f2-v0" min="60" max="240" step="10" value="150"></div>
+            <div class="ctl"><label style="cursor:pointer"><span>Coriolis on (jet → sheet)</span><input type="checkbox" id="f2-cori" checked style="accent-color:var(--tide)"></label></div>
             <div class="readouts">
               <span class="ro"><span class="k">adiabat span (floor−axis)</span><span class="val" id="f2-span">—</span></span>
               <span class="ro"><span class="k">pressure drop</span><span class="val" id="f2-drop">—</span></span>
               <span class="ro"><span class="k">axis temperature</span><span class="val" id="f2-axis">—</span></span>
               <span class="ro"><span class="k">floor gravity</span><span class="val" id="f2-gfloor">—</span></span>
+              <span class="ro"><span class="k">jet axis-reach</span><span class="val" id="f2-reach">—</span></span>
+              <span class="ro"><span class="k">lake secant sag</span><span class="val" id="f2-sag">—</span></span>
             </div>
             <span class="verdict ok" style="color:var(--tide);border-color:#3b5563;background:rgba(167,196,212,.06)">"well mixed" means uniform potential temperature θ, not uniform T — the warm core is <em>stably</em> stratified, which is why weather stays at the floor.</span>
           </div>
@@ -293,8 +316,8 @@
 
       <ul class="findings">
         <li>An <b>8 km</b> build spans <b>~31 K</b> and <b>~32%</b> pressure axis→floor — a genuinely colder, thinner axis; an Island-Three-scale 3.2 km tube spans only a handful of K. Size sets the climate.</li>
-        <li>The axis is <em>colder</em> in raw temperature (lower pressure) yet the column is <em>radiatively</em> driven hot at the centre — the tension between the two is what locks in the stratification.</li>
-        <li>The fix for the CO₂ trap is mechanical, not passive: the day-phased fountain alone cuts the canopy CO₂ swing ~60% with thermal convection off.</li>
+        <li><b>Topology:</b> a lake free surface is an equipotential arc of constant radius, never a chord. The secant intuition imports hundreds of metres of phantom head (~300 m on a 4.4 km lake) — get it wrong and the water runs off the model.</li>
+        <li><b>The jets do the mixing the symmetry forbids:</b> because 2ωv ≈ g here, Coriolis bends a point jet into a broad sheet (toggle it off and the radial jet just falls back to its launch). Day-phased, that sheet ventilates the CO₂-starved canopy and irrigates at once.</li>
       </ul>
     </section>
 
@@ -389,6 +412,15 @@
         graph is both the load path and the road network the game walks. The supporting world is, in the end,
         one model with three faces — and <a href="/">the game</a> is the fourth, the place you go to walk
         around inside the thing the other three prove can exist.
+      </p>
+      <p>
+        One small geometry runs through both circular figures above, with opposite morals — a tell that the
+        same rotating frame governs the whole interior. In <b>structure</b>, the <em>secant</em> is the
+        answer: a chord across the bore is a cable in pure tension, and a clever star of them offloads the
+        hull while leaving a clear core. In <b>thermodynamics</b>, the <em>secant</em> is the trap: a lake
+        surface that <em>looks</em> like a level chord is actually an equipotential arc, and mistaking one for
+        the other invents hundreds of metres of head that isn't there. Same chord, drawn on the same circle —
+        load-bearing truth on the structural side, optical illusion on the fluid side.
       </p>
       <div class="wings-strip">
         <a href="https://rind.mino.mobi" class="pill" style="color:var(--rind);border-color:var(--rind)">⬡ rind — the structure</a>
