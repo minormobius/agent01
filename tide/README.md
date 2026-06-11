@@ -110,6 +110,34 @@ node tide/fountain/test/light.selftest.mjs      # 15 checks: 1/r falloff, the 50
 open tide/fountain/index.html                   # the looking-down-the-axis viewer, with the live diurnal column
 ```
 
+## Module 2c — the ratchet: lake topology (`ratchet/`)
+
+Why a lake on a rotating cylinder is **not a secant line**, and the terrain that makes lakes
+possible. Live at `ratchet/index.html`; kernel in `ratchet/sim/ratchet.mjs`.
+
+- **Equipotentials are concentric arcs.** The rotating-frame potential is −½ω²r², so a liquid
+  free surface is an arc of constant radius. A chord mid-span sits r(1−cos φ) closer to the axis
+  than its ends — **~300 m of spurious head across the default 4.4 km lake** — and the water runs
+  off it. Corollary: a perfectly smooth cylinder holds no lakes at all; any water relaxes into a
+  uniform annular film (the model reproduces both limits).
+- **The ratchet teeth.** Three asymmetric teeth carved into the floor, one per lake/forest/jet:
+  a short steep **scarp** prograde of each basin, a long gentle **glide** descending into the
+  *next* basin. `fillLake()` solves the free-surface radius by bisection on the exact cylindrical
+  volume integral (closure ~1e-14); shorelines come out asymmetric — the lake leans far up the
+  glide tail and is penned by the scarp.
+- **The ratchet river.** `ratchetFlow()` couples the fountain's ballistic streams to the terrain:
+  the irrigation fan lands short of the crest and the runoff collects back home (the closed local
+  loop); a tight jet past ~180 m/s lands beyond it, so each lake feeds the **next** lake prograde
+  and the water circulates the rim for ever.
+- **The viewer exaggerates radially** (slider, capped at mid-bore) — 250 m of terrain on an 8 km
+  radius is sub-pixel at true scale — while the jets' water arcs stay true-scale; a toggleable
+  dashed overlay draws the **secant fallacy** with its sag labelled.
+
+```bash
+node tide/ratchet/test/ratchet.selftest.mjs     # 20 checks: terrain, fill closure, hydrostatics, secant sag, film limit, routing, the river
+open tide/ratchet/index.html                    # the exaggerated-landscape viewer
+```
+
 ## Module 4 — the systems ledger: water & energy (`systems/`)
 
 The spatial modules each conserve their own books; this closes the two that cross all of them —
@@ -151,6 +179,8 @@ tide/
 │   ├── index.html · sim/column.mjs · sim/optics.mjs · test/{column,optics}.selftest.mjs
 ├── fountain/                     # MODULE 2b — azimuthal cross-section: fountain + light
 │   ├── index.html · sim/fountain.mjs · sim/light.mjs · test/{fountain,light}.selftest.mjs
+├── ratchet/                      # MODULE 2c — lake topology: equipotential arcs + ratchet teeth
+│   ├── index.html · sim/ratchet.mjs · test/ratchet.selftest.mjs
 └── systems/                      # MODULE 4 — water & energy ledger
     └── sim/resources.mjs · test/resources.selftest.mjs
 ```

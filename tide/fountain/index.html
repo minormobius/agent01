@@ -126,8 +126,9 @@
         <input id="res" type="range" min="0.4" max="4" step="0.2"></label>
       <div class="gauges" id="rgauges"></div>
       <div class="note">Power is <b>almost all light</b> — the jets are &lt;0.1%. Three jets
-      irrigate the three forests; three lakes (at the ratchet low points) buffer the water and
-      grow fish. <span id="resnote"></span></div>
+      irrigate the three forests; three lakes (at the ratchet low points — see
+      <a href="../ratchet/" style="color:var(--gold)">the ratchet topology ↗</a>) buffer the
+      water and grow fish. <span id="resnote"></span></div>
     </div>
   </section>
 </main>
@@ -288,16 +289,17 @@ function draw(){
     const a=k*2*Math.PI/3, ca=Math.cos(a), sa=Math.sin(a);
     const rot=(x,y)=>[x*ca - y*sa, x*sa + y*ca];        // rotate the launch frame by 120°·k
     const base=rot(0,-fp.R); const bx=toX(base[0]), by=toY(base[1]);
-    // lake at the low point — a water LENS inside the wall: the wall is the lake bed, the
-    // chord its surface. Angles in CANVAS space (y down) so the lake stays aligned with the
-    // launch point; the nozzle sits at the bed (Fond du Lac), the jets rise from inside it.
-    const laC=Math.atan2(by-cy,bx-cx), halfArc=0.30, rLake=PRhab-1.5;
-    ctx.fillStyle='rgba(70,140,205,0.45)'; ctx.beginPath();
-    ctx.arc(cx,cy,rLake,laC-halfArc,laC+halfArc); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle='rgba(130,195,235,0.8)'; ctx.lineWidth=1.2; ctx.beginPath();   // the surface
-    ctx.moveTo(cx+rLake*Math.cos(laC-halfArc), cy+rLake*Math.sin(laC-halfArc));
-    ctx.lineTo(cx+rLake*Math.cos(laC+halfArc), cy+rLake*Math.sin(laC+halfArc));
-    ctx.stroke();
+    // lake at the low point — the free surface of a rotating lake is an EQUIPOTENTIAL of
+    // −½ω²r²: an arc CONCENTRIC with the axis, never a chord (the terrain that makes lakes
+    // possible at all lives at ../ratchet/). Drawn as a shallow annular band hugging the
+    // wall, depth exaggerated to stay visible; angles in CANVAS space (y down) so the lake
+    // stays aligned with the launch point; the nozzle sits at the bed (Fond du Lac).
+    const laC=Math.atan2(by-cy,bx-cx), halfArc=0.30, rSurf=PRhab-7;
+    ctx.fillStyle='rgba(70,140,205,0.5)'; ctx.beginPath();
+    ctx.arc(cx,cy,PRhab,laC-halfArc,laC+halfArc);
+    ctx.arc(cx,cy,rSurf,laC+halfArc,laC-halfArc,true); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(130,195,235,0.9)'; ctx.lineWidth=1.2; ctx.beginPath();   // the level surface (an arc)
+    ctx.arc(cx,cy,rSurf,laC-halfArc,laC+halfArc); ctx.stroke();
     ctx.fillStyle='rgba(90,150,200,0.9)'; ctx.beginPath(); ctx.arc(bx,by,4,0,7); ctx.fill(); // the nozzle
     if(jetOn) for(const st of sim.streams){
       ctx.strokeStyle='rgba(120,180,220,0.4)'; ctx.lineWidth=1; ctx.beginPath();
