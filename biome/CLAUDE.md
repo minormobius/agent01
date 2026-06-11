@@ -14,9 +14,12 @@ stocks and flows?* Everything lives under `cycles/`:
 - `cycles/sim/roster.mjs` — curated real-organism roster; `buildCommunity()` compiles it.
 - `cycles/sim/lake.mjs` — the **lake bioengine**: an aquatic community + two figures of merit
   (surplus harvestable fish, effective water treatment). Reuses the engine + roster compiler.
+- `cycles/sim/global.mjs` — the **global food web**: land roster ∪ lake roster in one box.
+  Composes both, reports whole-ship figures of merit, and exposes a drawable typed graph.
 - `cycles/sim/{linalg,stability}.mjs` — community matrix → stability / reactivity / keystones.
 - `cycles/index.html` — the dashboard; `cycles/stability.html` — the stability lab;
-  `cycles/lake.html` — the **lake bioengine** endpoint (fish + water treatment).
+  `cycles/lake.html` — the **lake bioengine**; `cycles/global.html` — the **global food web**
+  (land + lake drawn in one box, with the shared-pool spine that couples them).
 - `cycles/solver/` — the Rust/WASM stability kernel (the precision/scale sister of linalg.mjs).
 
 ## The package it belongs to
@@ -38,6 +41,7 @@ node biome/cycles/test/roster.selftest.mjs        # 13 checks: real roster compi
 node biome/cycles/test/linalg.selftest.mjs        # 15 checks: inverse + eigenvalues vs known spectra
 node biome/cycles/test/stability.selftest.mjs     # 11 checks: stability verdict + decay cross-check
 node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves, both figures of merit, failure modes, stability
+node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
 for t in biome/cycles/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
@@ -72,3 +76,8 @@ The self-tests are the contract — run them before every push.
    the lake to land fish in the food store) is a paired carbon transfer — biomass C → food C, the
    exact twin of a producer's `harvestIndex`. Communities without it are byte-for-byte unchanged
    (the lake self-test proves both). Don't add a yield path that bypasses a tracked pool.
+6. **Land and lake are trophically disjoint by design.** The global web (global.mjs) unions the two
+   rosters; they couple only through shared abiotic pools (air, N, detritus, larder), never through a
+   cross-web trophic edge. That's the model's coupling thesis, not a missing edge — don't "fix" it by
+   wiring a land animal to a lake species unless you mean to (and update the self-test if so). The
+   only barrier between the webs is spatial, and this box model is non-spatial on purpose.

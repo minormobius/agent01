@@ -129,6 +129,7 @@ node biome/cycles/test/roster.selftest.mjs      # 13 checks: real-organism roste
 node biome/cycles/test/linalg.selftest.mjs      # 15 checks: inverse + symmetric/general eigenvalues vs known spectra
 node biome/cycles/test/stability.selftest.mjs   # 11 checks: stability verdict + eigenvalue/decay cross-check
 node biome/cycles/test/lake.selftest.mjs        # 20 checks: harvest conserves, fish + water-treatment figures of merit, failure modes, stability
+node biome/cycles/test/global.selftest.mjs      # 18 checks: union conserves, land↔lake coupling (shared air/detritus), interior closes, stable
 node biome/cycles/sim/enrich-roster.mjs         # (network) refresh iNat imagery + GloBI diet → roster.enriched.json
 ( cd biome/cycles/solver && cargo test )        # 6 checks: the Rust stability kernel vs known spectra
 open  biome/index.html                          # landing → the cycles dashboard (cycles/) → Stability lab (cycles/stability.html)
@@ -294,6 +295,48 @@ eutrophication and CO₂ crashes (the Biosphere-2 failure); **shrink the lake** 
 short (area is the lever, as on land). The lake web is also dynamically **stable** (the stability
 solver gives α < 0) — it holds under a shock.
 
+### The global food web — land + lake in one box (`cycles/sim/global.mjs`, endpoint at `cycles/global.html`)
+
+The orchard (`roster.mjs`) and the lake (`lake.mjs`) are each a closed web. The **global** model
+composes them into **one community in one abiotic box** and asks the ship-scale question: does the
+*whole* interior close, and how much crew does it carry? This is the stake in the ground for "how do
+the two ecosystems interact".
+
+**They are trophically disjoint but abiotically fused.** No land animal eats a lake plankter in this
+model — the two rosters share no trophic edge (the compiler only wires an edge when both endpoints
+are in the roster, and none cross). Yet the webs are tightly coupled through every shared reservoir
+the box model tracks:
+
+- **The air** — one well-mixed CO₂/O₂/H₂O box. *This is the dominant coupling, and it's measurable:*
+  the union's steady-state CO₂ settles **below either web alone in the same box** (≈240 ppm vs. ~870
+  land-only, ~410 lake-only), because the combined producer area over-draws the one air pool.
+- **The nitrogen** — one mineral-N pool that land legumes and lake plants both replenish and strip.
+- **The detritus** — one litter pool. The orchard's springtail and the lake's benthic detritivores,
+  mussels and tilapia all mineralise the same standing detritus, which makes the ship's water
+  treatment a **joint, redundant service**: knock out the lake's mineralisers alone and the land
+  springtail covers it (dissolved N stays near zero); knock out *every* detritivore and the water
+  eutrophies and CO₂ crashes (the Biosphere-2 failure). The self-test proves both.
+- **The larder + the crew** — one food store fed by both webs, one crew whose waste loads the shared
+  detritus and N pools that both webs then process. The crew is the knot that ties them together.
+
+**What is the barrier?** In this model, *none that is abiotic* — both webs breathe the same air and
+drain to the same pools. The only real barrier is **spatial**: land is the cylinder floor, the lake a
+basin in it, and a shoreline separates leaf-litter-on-soil from benthic-detritus-in-water. This
+non-spatial box model deliberately abstracts space away (its stated zeroth-order premise), so it runs
+the fully-mixed limit and the barrier is null **by construction** — which is the honest statement of
+this model's resolution. Putting the shoreline back (splitting litter/N into land vs. lake
+compartments joined by a one-way **runoff** flux — what turns the lake into the ship's *kidney*,
+stripping the land's leached nutrients) is the next stake, and it lands naturally on the planned
+radius-niche coupling to `tide` (radius is altitude is where the water pools).
+
+**What it surfaces.** At the tuned default the joined interior carries **140 crew** (more than either
+web feeds alone — land ~100, lake ~100 — because they share one air box, one reservoir and one larder,
+so the surpluses stack): food supply ~142% of demand split **≈50/50 land/lake** (≈98% plant calories,
+≈2% fish protein), CO₂ in band, fruit set ~81%, the lake clearing the *combined* waste load ~105× with
+dissolved N near zero, and the whole web dynamically **stable** (α < 0). The endpoint *draws* it: two
+trophic islands (land left, lake right) bridged only through the shared-pool spine down the centre,
+with node size ∝ standing biomass and edges typed by flux.
+
 ### Where this is going (the ecosystem-builder direction)
 
 The data-driven engine + allometry + roster + stability solver are the foundation for a real
@@ -340,11 +383,13 @@ biome/
     ├── index.html                # the dashboard (vanilla, no build step)
     ├── stability.html            # the Stability lab — eigenvalues, heatmap, keystones
     ├── lake.html                 # the Lake bioengine endpoint — fish + water treatment
+    ├── global.html               # the Global food web endpoint — land + lake drawn in one box
     ├── sim/
     │   ├── cycles.mjs            # the data-driven box model (pure, zero-dep, node + browser)
     │   ├── allometry.mjs         # body mass → stat block (Kleiber scaling + guilds)
     │   ├── roster.mjs            # curated real-organism roster + buildCommunity() compiler
     │   ├── lake.mjs              # lake community + figures of merit (fish surplus, water treatment)
+    │   ├── global.mjs            # land+lake union: shared-box coupling + drawable graph
     │   ├── enrich-roster.mjs     # (network) fetch iNat imagery + GloBI diet → roster.enriched.json
     │   ├── roster.enriched.json  # committed provenance (engine never reads it)
     │   ├── linalg.mjs            # dense kernel: inverse + symmetric/general eigenvalues
@@ -358,7 +403,8 @@ biome/
         ├── roster.selftest.mjs   # roster compiles, closes, conserves; provenance cross-check
         ├── linalg.selftest.mjs   # inverse + eigenvalues vs matrices with known spectra
         ├── stability.selftest.mjs # stability verdict + eigenvalue/decay cross-check
-        └── lake.selftest.mjs     # harvest conserves + fish/water figures of merit + failure modes
+        ├── lake.selftest.mjs     # harvest conserves + fish/water figures of merit + failure modes
+        └── global.selftest.mjs   # union conserves + trophic-disjoint/abiotic-fused coupling + closes
 ```
 
 The thermodynamic half (`atmosphere/`, `fountain/`, `systems/`, `shared/geometry.mjs`) moved
