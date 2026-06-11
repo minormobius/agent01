@@ -50,28 +50,33 @@ lexicons, and deploy wiring are in place. `/room` and `/prod` are documented pla
    reassemble + decode, and play them aligned by `localStartOffsetMs`. If sync holds, the
    voices overlap naturally.
 
-## The /prod editor (this build)
+## The /prod editor (clip-based, mobile-first)
 
-`/prod` (`prod/editor.js`) is now a working mixer, not just a verifier:
+`/prod` (`prod/editor.js`) is a clip timeline, not a fixed mixer:
 
-- **Load** a session → every track's chunks are pulled across PDSes, reassembled,
-  decoded, and placed on one aligned timeline (by `localStartOffsetMs`).
-- **Per-track:** gain slider, mute (`M`), solo (`S`).
-- **Master trim:** in/out sliders crop the mix; the trimmed regions are shaded on every lane.
-- **8-bit music bed:** pick a bed, set its level, preview it, and it's mixed under the
-  voices. Beds come from `lib/chiptune.js` — a self-contained extraction of `/music`'s
-  Web Audio synth (`playNote` oscillator voices + `OfflineAudioContext` render). A bed is
-  rendered one loop offline then **tiled by sample-copy**, so an hour of bed costs one
-  short render plus a memcpy, not thousands of oscillator nodes. The "8-Bit Demo" is
-  lifted verbatim from `/music`; "Mellow Loop" and "Outro Pulse" are quieter authored beds.
-- **Transport:** live preview (per-track gains/mute/bed applied via gain nodes) and
-  **render-down** — one `OfflineAudioContext` mix of the audible tracks + bed, cropped to
-  the trim, encoded to WAV (the same encoder as `/music`'s export) and downloaded.
+- **Load** a session → every track's chunks are pulled across PDSes, reassembled and
+  decoded into one **clip per track**, positioned on its own lane by the recorded
+  `localStartOffsetMs` (the captured alignment is the starting layout).
+- **Clips** are the unit of editing: **drag the body to move**, **drag an edge to crop**
+  (trim head/tail), **duplicate**, **delete**, set **gain**, **mute**. Selecting a clip
+  opens an inspector with all of it plus ±100 ms nudge.
+- **Music as blocks:** *+ Music* renders an 8-bit bed (`lib/chiptune.js`) to a short clip
+  you place, crop, and duplicate **freely against the voices** — not a fixed full-length
+  bed. Music lives on its own lane.
+- **Voice filters:** per voice clip — Warm, Phone, Bright, Robot, Chipmunk, Deep. Ported
+  from `airchat/lib/filters.js` to `lib/filters.js` (offline `AudioBuffer→AudioBuffer`
+  renders, no external deps). Applying a filter recomputes the clip's effective buffer;
+  pitch filters change length, so the crop re-clamps.
+- **Timeline:** fixed px/second with zoom ±, horizontal scroll, a left lane gutter — built
+  **mobile-first** (the controls no longer run off-screen). Drag is pointer-events, so
+  touch and mouse both work.
+- **Transport / export:** live preview and **render-down** — one `OfflineAudioContext`
+  pass over all clips (`scheduleClips`) → WAV (same encoder as `/music`'s export) →
+  download or publish.
 
-Voice buffers are decoded once and reused across the online preview context and the
-offline render context (AudioBuffers are context-independent). The render is the seam to
-the next slice: instead of (or as well as) downloading, the mixdown becomes the chunked
-`com.minomobi.podcast.episode` audio.
+Decoded voice buffers and filtered/bed buffers are reused across the preview and offline
+render contexts (AudioBuffers are context-independent). `scheduleClips()` is the single
+path behind preview, download, and publish.
 
 ### Prerequisites to actually run it
 
@@ -163,9 +168,12 @@ but empty, so the surface deploys before the schema does.
      needs a session minted with `transition:generic` (what `/room` + `/prod`
      request). An existing UNIFIED-scope SSO session can't write episodes until
      the podcast collections are added to `workers/auth/src/oauth/scope.ts`.
-4. **Drift correction** — for long sessions, periodic re-pings + resample on the measured
+4. ~~**Clip editor** — move/crop/duplicate/delete clips, music as placeable blocks,
+   per-clip voice filters (ported from airchat), mobile-first timeline.~~ **Done (this build).**
+5. **Drift correction** — for long sessions, periodic re-pings + resample on the measured
    per-client `clockSkewMs` (already captured).
-5. Editor polish — crossfade, per-track trim handles, waveform display, ducking the bed
-   under speech.
-6. Robustness: progressive (during-recording) chunk upload for crash resilience; TURN
-   relay for peers behind symmetric NAT; host-reconnect handling in the DO.
+6. Editor polish — waveform display in clips, snapping/magnetic edges, crossfade on
+   overlap, ducking the music bed under speech, auto-scroll the playhead.
+7. Robustness: progressive (during-recording) chunk upload for crash resilience; TURN
+   relay for peers behind symmetric NAT; host-reconnect handling in the DO; MP3/Opus
+   episode encoding (the WAV limit above).
