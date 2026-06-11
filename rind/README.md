@@ -98,25 +98,33 @@ open rind/index.html                               # landing → the three tools
 The chamber adjacency graph (the same one the solver stiffens) doubles as a road network.
 `wayfind.js` finds **drivable routes** through it and foamview's cylinder scene draws them:
 
-- **Spiral ramp** — a helix of constant grade *g*: climb radially while sweeping azimuth,
-  `r(θ) = r₀ ± g·r₀·(θ−θ₀)`. Spin gravity points along +r̂, so grade = dr/ds is exactly the
-  slope a vehicle feels (hull-ward = downhill, core-ward = uphill).
+- **Spiral ramp** — a corkscrew around a **radial axis** (the parking-garage spiral): loop
+  in the (azimuthal, axial) plane at loop radius ρ while climbing radially at deck grade
+  *g* — the radius advances g·ρ per radian of winding. Spin gravity points along +r̂, so
+  grade = dr/ds is exactly the slope a vehicle feels (hull-ward = downhill, core-ward =
+  uphill). One ramp threads the full 900 m usable depth in ~20 turns at 12%.
 - **Azimuthal road** — constant radius = a level street around the ring.
 
-`findLeg()` is an A* over the chamber graph confined to a corridor around the ideal deck,
-strictly monotone in azimuth. A found chain is a **constructive certificate**: every chamber
-centre within tolerance of the deck (≤ ~1 cell, and rooms are a cell wide), consecutive
-chambers share a wall — so the smooth deck provably threads the chain. Why it works *just
-about anywhere*: seeds are a jittered grid (each site holds ≤ 1 seed, displaced ≤ ¼ cell per
-axis) and the adjacency threshold 1.85·cell exceeds the worst face-adjacent distance
-(≈ 1.66·cell), so wherever thinning spares the sites, grid connectivity survives and a
-two-cell corridor holds several parallel candidate chains. `proveAnywhere()` measures the
-realised rate (100% of 300 random anchors on the default 33k-chamber sector).
+`findSpiralRamp()` walks the ideal corkscrew waypoint by waypoint (16 per turn), chaining
+each to the next through a bounded local search over graph-adjacent chambers near the deck.
+`findRoad()` is a corridor-confined A* between a chamber **on** one ramp's chain and a
+chamber **on** the other's, strictly monotone in azimuth at near-constant radius. A found
+chain is a **constructive certificate**: every chamber centre within ~1.4 cells of the deck
+(rooms are a cell = 20 m wide), consecutive chambers share a wall — so the smooth deck
+provably threads the chain. Why it works *just about anywhere*: seeds are a jittered grid
+(each site holds ≤ 1 seed, displaced ≤ ¼ cell per axis) and the adjacency threshold
+1.85·cell exceeds the worst face-adjacent distance (≈ 1.66·cell), so wherever thinning
+spares the sites, grid connectivity survives and the deck's corridor holds parallel
+candidate chains. `proveAnywhere()` measures the realised rate (~99% of 300 random anchors
+for a 300 m corkscrew on the default 33k-chamber sector — the misses are real thinning
+gaps near the core, the "just about").
 
-foamview composes the demo — **ramp A → level azimuthal road → ramp B** (≈ 700 m legs at
-~11% with 20 m rooms) — drawn as a road ribbon with the ideal deck dashed alongside; the
-`⌁ ramp route` button re-anchors it somewhere new. `node rind/test/wayfind.selftest.mjs`
-certifies determinism, the per-leg certificate, and the anywhere-rate offline.
+foamview composes the demo — **two full-depth corkscrew ramps at opposite ends of the
+sector, connected by a level azimuthal road every ~300 m of climb** (4 roads, ~1.2 km each,
+worst grade ~2%) — drawn as road ribbons with the ideal corkscrew decks dashed alongside;
+the `⌁ ramp route` button re-anchors it somewhere new, and the `view: route` state shows
+the route alone. `node rind/test/wayfind.selftest.mjs` certifies determinism, the per-chain
+certificates, the road spacing, and the anywhere-rate offline.
 
 **Deploy of the wasm:** `.github/workflows/build-cylinder-solver.yml` compiles
 `cylinder-solver-wasm` and commits `rind/solver/pkg/**` (which lands under `rind/**`), then

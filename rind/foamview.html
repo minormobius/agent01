@@ -121,7 +121,7 @@ function buildCylinderShell() {
   // wayfinding: the chamber graph doubles as a road network — prove it, then drive it
   RNAV = HOOPWAYFIND.buildNav(foam);
   const p = HOOPWAYFIND.proveAnywhere(RNAV, { trials: 100 });
-  ringProof = 'anywhere-proof: ' + p.ok + '/' + p.trials + ' random anchors yielded a 12% spiral ramp';
+  ringProof = 'anywhere-proof: ' + p.ok + '/' + p.trials + ' random anchors yielded a 300 m corkscrew ramp';
   planSceneRoute(false);
   const Rmid = (Ri + Ro) / 2;
   cam.center = [Rmid, 0, Lx / 2]; cam.dist = T * 2.6; cam.band = cell * 0.8; cam.pitch = 0.5; cam.yaw = 0.4;
@@ -138,11 +138,13 @@ function enterScene(toCylinder) {
 }
 
 // ════════════════════════ WAYFINDING (cylinder scene) ════════════════════════
-// A drivable route found in the chamber adjacency graph by /wayfind.js: spiral ramp A
-// (a 12% helical deck — climb radially while sweeping azimuth) → a level azimuthal road
-// (constant radius; spin gravity is radial, so constant r IS level) → spiral ramp B.
-// Drawn as a road ribbon (centreline + rails + rungs) through the chamber centres, with
-// the ideal deck dashed alongside — the chain hugging the dashes is the proof made visible.
+// A drivable route found in the chamber adjacency graph by /wayfind.js: two spiral
+// ramps — corkscrews around a radial axis (the parking-garage spiral: loop in the
+// azimuth/axial plane, climb radially at a 12% deck) threading the full shell depth —
+// connected by a level azimuthal road every ~300 m of climb (spin gravity is radial,
+// so constant radius IS level). Drawn as road ribbons (centreline + rails + rungs)
+// through the chamber centres, with the ideal corkscrew deck dashed alongside — the
+// chain hugging the dashes is the proof made visible.
 let RNAV = null, ROUTE = new Float32Array(0), routeInfo = '', ringProof = '', routeSeed = 1;
 const M_PER_UNIT = 20;                                  // the scene is worked at 20 m/unit
 function planSceneRoute(bump) {
@@ -152,31 +154,33 @@ function planSceneRoute(bump) {
   if (!route) { ROUTE = new Float32Array(0); routeInfo = 'no route from this anchor (rare) — ⌁ tries another'; refreshEdges(); return; }
   drawRoute(route);
   const m = (u) => Math.round(u * M_PER_UNIT);
-  const dirTxt = (d) => d > 0 ? 'descends hull-ward' : 'climbs core-ward';   // spin gravity points outward
-  const leg = (L, d) => L.cells.length + ' chambers, ' + (d ? dirTxt(d) + ' ' + m(Math.abs(L.climb)) + ' m over ' + m(L.len) + ' m (' + (Math.abs(L.climb) / L.len * 100).toFixed(1) + '%)' : 'level, ' + m(L.len) + ' m (Δr ' + m(Math.abs(L.climb)) + ' m)');
-  const dev = Math.max(route.A.maxDev, route.R.maxDev, route.B.maxDev);
-  routeInfo = '⌁ <span class="ra">ramp A — ' + leg(route.A, route.dirA) + '</span> → <span class="rd">azimuthal road — ' + leg(route.R, 0) + '</span> → <span class="rb">ramp B — ' + leg(route.B, route.dirB) + '</span>' +
-    '<br>chamber chain stays ≤ ' + m(dev) + ' m off the ideal deck (rooms are ' + M_PER_UNIT + ' m) · ' + ringProof;
+  const ramp = (L) => L.turns.toFixed(1) + ' turns · ' + L.cells.length + ' chambers · climbs ' + m(Math.abs(L.climb)) + ' m at ' + (L.grade * 100).toFixed(1) + '%';
+  const roadLen = route.roads.reduce((a, r) => a + r.len, 0) / route.roads.length;
+  const roadG = Math.max.apply(null, route.roads.map((r) => r.grade));
+  const dev = Math.max(route.A.maxDev, route.B.maxDev, Math.max.apply(null, route.roads.map((r) => r.maxDev)));
+  routeInfo = '⌁ <span class="ra">ramp A — corkscrew, ' + ramp(route.A) + '</span> ⇄ <span class="rd">' + route.roads.length + ' azimuthal roads — every ~' + m(route.roadEvery) + ' m of climb · ~' + m(roadLen) + ' m each · level (worst ' + (roadG * 100).toFixed(1) + '%)</span> ⇄ <span class="rb">ramp B — corkscrew, ' + ramp(route.B) + '</span>' +
+    '<br>chamber chains stay ≤ ' + m(dev) + ' m off the ideal decks (rooms are ' + M_PER_UNIT + ' m) · ' + ringProof;
   refreshEdges();
 }
 function drawRoute(route) {
   const cs = RNAV.cells, c = RNAV.cell, segs = [];
   const seg = (ax, ay, az, bx, by, bz, col) => segs.push(ax, ay, az, col[0], col[1], col[2], bx, by, bz, col[0], col[1], col[2]);
-  const guide = (L) => {                                 // the ideal deck, dashed
-    const N = 36, gc = [0.45, 0.5, 0.62];
-    for (let k = 0; k < N; k += 2) {
-      const t0 = L.th0 + (L.th1 - L.th0) * k / N, t1 = L.th0 + (L.th1 - L.th0) * (k + 1) / N;
-      const r0 = HOOPWAYFIND.idealR(L, t0), r1 = HOOPWAYFIND.idealR(L, t1);
-      seg(r0 * Math.cos(t0), r0 * Math.sin(t0), route.x0, r1 * Math.cos(t1), r1 * Math.sin(t1), route.x0, gc);
+  const world = (p) => [p.r * Math.cos(p.th), p.r * Math.sin(p.th), p.x];
+  const guide = (L) => {                                 // the ideal corkscrew deck, dashed
+    const gc = [0.45, 0.5, 0.62], step = 2 * Math.PI / 40;
+    for (let phi = 0, k = 0; phi + step <= L.phiEnd; phi += step, k++) {
+      if (k % 2) continue;
+      const a = world(HOOPWAYFIND.helixPoint(L, phi)), b = world(HOOPWAYFIND.helixPoint(L, phi + step));
+      seg(a[0], a[1], a[2], b[0], b[1], b[2], gc);
     }
   };
-  const ribbon = (L, col) => {
-    const P = L.cells.map((i) => cs[i]), half = 0.3 * c, dim = col.map((v) => v * 0.55);
+  const ribbon = (cells, col) => {
+    const P = cells.map((i) => cs[i]), half = 0.3 * c, dim = col.map((v) => v * 0.55);
     for (let k = 0; k < P.length - 1; k++) {
       const a = P[k], b = P[k + 1];
       let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
       const thm = (a.th + b.th) / 2, rx = Math.cos(thm), ry = Math.sin(thm);   // radial = local gravity
-      let lx = ry * dz, ly = -rx * dz, lz = rx * dy - ry * dx;                 // radial × travel = lateral (≈ axial)
+      let lx = ry * dz, ly = -rx * dz, lz = rx * dy - ry * dx;                 // radial × travel = lateral
       const ll = Math.hypot(lx, ly, lz); if (ll < 0.3) { lx = 0; ly = 0; lz = 1; } else { lx /= ll; ly /= ll; lz /= ll; }
       seg(a.x, a.y, a.z, b.x, b.y, b.z, col);                                  // centreline
       seg(a.x + lx * half, a.y + ly * half, a.z + lz * half, b.x + lx * half, b.y + ly * half, b.z + lz * half, dim);
@@ -184,10 +188,11 @@ function drawRoute(route) {
       seg(a.x + lx * half, a.y + ly * half, a.z + lz * half, a.x - lx * half, a.y - ly * half, a.z - lz * half, dim);
     }
   };
-  guide(route.A); guide(route.R); guide(route.B);
-  ribbon(route.A, [1.0, 0.82, 0.48]); ribbon(route.R, [0.5, 1.0, 0.69]); ribbon(route.B, [1.0, 0.6, 0.84]);
+  guide(route.A); guide(route.B);
+  ribbon(route.A.cells, [1.0, 0.82, 0.48]); ribbon(route.B.cells, [1.0, 0.6, 0.84]);
+  for (const rd of route.roads) ribbon(rd.cells, [0.5, 1.0, 0.69]);
   const post = (i) => { const q = cs[i], r0 = RNAV.Ri + q.rad - 1.4 * c, r1 = RNAV.Ri + q.rad + 1.4 * c, ct = Math.cos(q.th), st = Math.sin(q.th); seg(r0 * ct, r0 * st, q.z, r1 * ct, r1 * st, q.z, [1, 1, 1]); };
-  post(route.A.cells[0]); post(route.B.cells[route.B.cells.length - 1]);       // start / end markers
+  for (const L of [route.A, route.B]) { post(L.cells[0]); post(L.cells[L.cells.length - 1]); }   // ramp foot/head markers
   ROUTE = new Float32Array(segs);
 }
 
