@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-mino-design-preview-htuxu9']
+    branches: [main, 'claude/merge-features-update-endpoints-qa2vu1']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'

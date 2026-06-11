@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#05060a" />
+<meta name="robots" content="noindex" />
+<title>foam viewer · hoop</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #05060a; color: #cfe; font: 12px/1.4 ui-monospace, monospace; overflow: hidden; touch-action: none; }
+  #c { display: block; width: 100vw; height: 100vh; }
+  #hud { position: fixed; top: 8px; left: 10px; color: #8aa; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #hud b { color: #ffce78; } #hud .r { color: #7fd8d0; }
+  a.home { position: fixed; top: 8px; right: 10px; color: #7fd8d0; text-decoration: none; }
+  #panel { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; background: rgba(8,11,16,.7); border: 1px solid #1d2430; border-radius: 10px; padding: 8px 12px; backdrop-filter: blur(6px); }
+  #panel label { color: #8aa; } #panel b { color: #ffce78; }
+  input[type=range] { width: 42vw; max-width: 360px; accent-color: #ffce78; }
+  button { background: #10202a; color: #7fd8d0; border: 1px solid #1d2430; border-radius: 6px; padding: 6px 9px; font: inherit; cursor: pointer; }
+  #probe { position: fixed; right: 14px; top: 50%; transform: translateY(-50%); height: 46vh; }
+  #probe input { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 100%; accent-color: #7fd8d0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">◍ <b>foam viewer</b> — a 3D read of the layered foam<br><span id="info"></span><br><span style="color:#667">drag to orbit · wheel / pinch / +/- = zoom · right slider = radial layer · <b>scene</b> → the annular shell, solved</span></div>
+<a class="home" href="/">← hoop</a>
+<div id="probe"><input id="probeY" type="range" min="0" max="1000" value="500" orient="vertical"></div>
+<div id="panel">
+  <label>floor <b id="floorLabel">—</b></label>
+  <button id="scene">scene: foam slab</button>
+  <button id="regen">↻ new foam</button>
+  <button id="vmode">view: both</button>
+  <button id="rmode">renderer: …</button>
+</div>
+
+<script src="/foam3d.js"></script>
+<script>
+'use strict';
+// ── foam (3D cell cloud in a shell slab; z = radial/thickness = the floor axis) ──
+const OPT = { Lx: 360, Ly: 300, thickness: 160, cell: 24, grade: 0.5, seed: 1 };
+let CELLS = [], ZMAX = OPT.thickness;
+function regen() {
+  CELLS = HOOFAM3D_seeds(OPT);
+  ZMAX = OPT.thickness;
+  cam.center = [OPT.Lx / 2, OPT.Ly / 2, OPT.thickness / 2];
+  cam.dist = Math.max(OPT.Lx, OPT.Ly) * 1.15; cam.band = 14;
+  probeLo = 0; probeHi = ZMAX;
+  buildInstances();
+}
+function HOOFAM3D_seeds(o) { return (window.HOOPFOAM3D ? window.HOOPFOAM3D.seeds3d(o) : []); }
+
+// ════════════════════════ CYLINDER SCENE ════════════════════════
+// "The whole thing": the foam fills the annular SHELL between two titanic, coaxial cylinders —
+// a smooth inner surface (radius Ri) and the smooth outer hull (Ro). The layers run RADIALLY,
+// not axially: each floor is a concentric shell, and the probe scrubs inner→outer. Gravity is
+// radial (O'Neill spin throws mass outward), so the load on every chamber points along +r̂ and
+// is reacted by hoop tension and the two pinned hulls. Membranes are coloured by member force —
+// tension warm, compression cool: you see radial struts press out, hoops pull round.
+let ringMode = false;
+// 20 m rooms, real proportions (1 km foam on a 10 km bore), worked at 20 m/unit → Ri=250, T=50.
+// At 20 m the FULL ring in 3D is >200k chambers, so the scene is a SECTOR: a core-sample of the
+// wall with full radial depth (T/cell = 50 layers) AND real axial layers, so it is a 3D block,
+// not a flat cross-section. Solved 3D, matrix-free PCG, with the four solid faces pinned.
+const RING = { Ri: 250, T: 50, cell: 1, arcDeg: 18, axial: 10, grade: 0.4, seed: 1 };
+let ringStats = { nodes: 0, members: 0, layers: 0 };
+let ringRi = 0, ringRo = 0;
+// a deterministic graded 3D foam in a sector box (x=axial, y=circumferential arc, z=radial)
+function shellSeedsSector(Ri, T, arcDeg, axial, cell, grade, seed) {
+  const arcRad = arcDeg * Math.PI / 180, arcLen = Ri * arcRad, Lx = axial * cell;
+  const nx = Math.max(1, axial), ny = Math.max(4, Math.round(arcLen / cell)), nz = Math.max(2, Math.round(T / cell));
+  let a = (seed >>> 0) || 1; const rng = () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pts = [];
+  for (let iz = 0; iz < nz; iz++) { const zc = (iz + 0.5) / nz, dens = 1 + grade * zc; for (let iy = 0; iy < ny; iy++) for (let ix = 0; ix < nx; ix++) { if (rng() > dens / (1 + grade)) continue; pts.push({ x: (ix + 0.5 + 0.5 * (rng() - 0.5)) * Lx / nx, y: (iy + 0.5 + 0.5 * (rng() - 0.5)) * arcLen / ny, z: (iz + 0.5 + 0.5 * (rng() - 0.5)) * T / nz }); } }
+  return { pts, arcLen, arcRad, Lx, layers: nz };
+}
+function stressColor(t) {                                   // t ∈ [−1,1]: −compression … +tension
+  const a = Math.max(-1, Math.min(1, t)), mid = [0.30, 0.80, 0.80], tgt = a >= 0 ? [1.0, 0.5, 0.2] : [0.32, 0.55, 1.0], m = Math.abs(a);
+  return [mid[0] + (tgt[0] - mid[0]) * m, mid[1] + (tgt[1] - mid[1]) * m, mid[2] + (tgt[2] - mid[2]) * m];
+}
+function buildCylinderShell() {
+  const { Ri, T, cell, arcDeg, axial, grade } = RING, seed = RING.seed >>> 0, D = 3, Ro = Ri + T; ringRi = Ri; ringRo = Ro;
+  const { pts: raw, arcLen, arcRad, Lx, layers } = shellSeedsSector(Ri, T, arcDeg, axial, cell, grade, seed);
+  const NC = raw.length;
+  // 3D spatial-hash adjacency (catches face+edge neighbours → the net is triangulated, stiff)
+  const bs = 1.9 * cell, gi = (v) => Math.floor(v / bs), bins = new Map();
+  for (let i = 0; i < NC; i++) { const p = raw[i], k = gi(p.x) + '|' + gi(p.y) + '|' + gi(p.z); let a = bins.get(k); if (!a) { a = []; bins.set(k, a); } a.push(i); }
+  const thr = (1.85 * cell) ** 2, mi = [], mj = [];
+  for (let i = 0; i < NC; i++) { const p = raw[i], bx = gi(p.x), by = gi(p.y), bz = gi(p.z); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) { const a = bins.get((bx + dx) + '|' + (by + dy) + '|' + (bz + dz)); if (!a) continue; for (const j of a) { if (j <= i) continue; const q = raw[j], ddx = p.x - q.x, ddy = p.y - q.y, ddz = p.z - q.z; if (ddx * ddx + ddy * ddy + ddz * ddz < thr) { mi.push(i); mj.push(j); } } } }
+  const M = mi.length;
+  // wrap to the annulus sector (axis = world z = axial; arc centred on +X, radius = Ri + depth)
+  const nodes = raw.map((p) => { const th = -arcRad / 2 + (p.y / arcLen) * arcRad, r = Ri + p.z; return { x: r * Math.cos(th), y: r * Math.sin(th), z: p.x, th, rad: p.z, circ: p.y }; });
+  // PIN the four solid faces: inner + outer hulls AND the two angular cut faces (held by the
+  // neighbouring sectors — the boundary-pinned sector solve). Axial ends stay free.
+  const fixed = new Uint8Array(NC); nodes.forEach((n, i) => { if (n.rad < cell || n.rad > T - cell || n.circ < cell || n.circ > arcLen - cell) fixed[i] = 1; });
+  const mcx = new Float64Array(M), mcy = new Float64Array(M), mcz = new Float64Array(M), mk = new Float64Array(M);
+  for (let m = 0; m < M; m++) { const a = nodes[mi[m]], b = nodes[mj[m]], ex = b.x - a.x, ey = b.y - a.y, ez = b.z - a.z, L = Math.hypot(ex, ey, ez) || 1; mcx[m] = ex / L; mcy[m] = ey / L; mcz[m] = ez / L; mk[m] = 1 / L; }
+  // matrix-free 3D PCG, Jacobi preconditioner, radial-outward gravity on the free chambers
+  const ndof = D * NC, diag = new Float64Array(ndof);
+  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], k = mk[m], vx = k * mcx[m] * mcx[m], vy = k * mcy[m] * mcy[m], vz = k * mcz[m] * mcz[m]; diag[D * i] += vx; diag[D * i + 1] += vy; diag[D * i + 2] += vz; diag[D * j] += vx; diag[D * j + 1] += vy; diag[D * j + 2] += vz; }
+  for (let i = 0; i < ndof; i++) if (diag[i] < 1e-9) diag[i] = 1;
+  const applyK = (u, out) => {
+    out.fill(0);
+    for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], cx = mcx[m], cy = mcy[m], cz = mcz[m]; const s = mk[m] * (cx * (u[D * j] - u[D * i]) + cy * (u[D * j + 1] - u[D * i + 1]) + cz * (u[D * j + 2] - u[D * i + 2])); out[D * i] += s * cx; out[D * i + 1] += s * cy; out[D * i + 2] += s * cz; out[D * j] -= s * cx; out[D * j + 1] -= s * cy; out[D * j + 2] -= s * cz; }
+    for (let i = 0; i < NC; i++) if (fixed[i]) { out[D * i] = 0; out[D * i + 1] = 0; out[D * i + 2] = 0; }
+  };
+  const b = new Float64Array(ndof); nodes.forEach((n, i) => { if (!fixed[i]) { b[D * i] = Math.cos(n.th); b[D * i + 1] = Math.sin(n.th); } });
+  const u = new Float64Array(ndof), r = new Float64Array(ndof), z = new Float64Array(ndof), pv = new Float64Array(ndof), Ap = new Float64Array(ndof);
+  applyK(u, Ap); for (let i = 0; i < ndof; i++) r[i] = b[i] - Ap[i];
+  for (let i = 0; i < ndof; i++) z[i] = r[i] / diag[i]; pv.set(z);
+  let rz = 0; for (let i = 0; i < ndof; i++) rz += r[i] * z[i];
+  let b2 = 1e-30; for (let i = 0; i < ndof; i++) b2 += b[i] * b[i];
+  for (let it = 0; it < 1500; it++) {
+    applyK(pv, Ap); let pAp = 0; for (let i = 0; i < ndof; i++) pAp += pv[i] * Ap[i]; const al = rz / (pAp || 1e-30);
+    let rr = 0; for (let i = 0; i < ndof; i++) { u[i] += al * pv[i]; r[i] -= al * Ap[i]; rr += r[i] * r[i]; }
+    if (Math.sqrt(rr / b2) < 1e-4) break;
+    let rz2 = 0; for (let i = 0; i < ndof; i++) { z[i] = r[i] / diag[i]; rz2 += r[i] * z[i]; } const be = rz2 / rz; rz = rz2;
+    for (let i = 0; i < ndof; i++) pv[i] = z[i] + be * pv[i];
+  }
+  let maxF = 1e-9; const force = new Float64Array(M);
+  for (let m = 0; m < M; m++) { const i = mi[m], j = mj[m], f = mk[m] * (mcx[m] * (u[D * j] - u[D * i]) + mcy[m] * (u[D * j + 1] - u[D * i + 1]) + mcz[m] * (u[D * j + 2] - u[D * i + 2])); force[m] = f; if (Math.abs(f) > maxF) maxF = Math.abs(f); }
+  ringStats = { nodes: NC, members: M, layers };
+  CELLS = nodes.map((n) => ({ x: n.x, y: n.y, z: n.z })); ZMAX = T; buildInstances();
+  // light up EVERY beam (only drop near-zero slack); low load reads teal, load paths warm/cool
+  const segs = [], cut = 0.008 * maxF;
+  for (let m = 0; m < M; m++) { if (Math.abs(force[m]) < cut) continue; const a = nodes[mi[m]], b2n = nodes[mj[m]], col = stressColor(force[m] / maxF); segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b2n.x, b2n.y, b2n.z, col[0], col[1], col[2]); }
+  const bc = [0.36, 0.5, 0.66], arc = (rr, zc) => { const Mc = 64; for (let k = 0; k < Mc; k++) { const t0 = -arcRad / 2 + arcRad * k / Mc, t1 = -arcRad / 2 + arcRad * (k + 1) / Mc; segs.push(rr * Math.cos(t0), rr * Math.sin(t0), zc, ...bc, rr * Math.cos(t1), rr * Math.sin(t1), zc, ...bc); } };
+  for (const zc of [0, Lx]) { arc(Ri, zc); arc(Ro, zc); }   // the two smooth hulls, at both axial ends
+  EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
+  const Rmid = (Ri + Ro) / 2;
+  cam.center = [Rmid, 0, Lx / 2]; cam.dist = T * 2.6; cam.band = cell * 0.8; cam.pitch = 0.5; cam.yaw = 0.4;
+  probeLo = Ri; probeHi = Ro; cam.probe = Ri + T / 2; syncProbe();
+}
+function enterScene(toCylinder) {
+  ringMode = toCylinder; document.getElementById('scene').textContent = 'scene: ' + (ringMode ? 'cylinder ◍' : 'foam slab');
+  document.getElementById('regen').textContent = ringMode ? '↻ new shell' : '↻ new foam';
+  if (ringMode) { document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => buildCylinderShell()); }
+  else { regen(); recomputeEdges(); }
+}
+
+// ── camera (orbit) + probe ──
+let probeLo = 0, probeHi = 0;   // probe sweep range: 0..ZMAX (foam) or Ri..Ro (shell)
+const cam = { yaw: 0.7, pitch: 0.5, dist: 500, center: [180, 150, 80], probe: 80, band: 14 };
+function eye() {
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+  return [cam.center[0] + cam.dist * cp * cy, cam.center[1] + cam.dist * cp * sy, cam.center[2] + cam.dist * sp];
+}
+
+// ── mat4 (column-major) ──
+function mPersp(fovy, asp, n, f) { const t = 1 / Math.tan(fovy / 2), o = new Float32Array(16); o[0] = t / asp; o[5] = t; o[10] = (f + n) / (n - f); o[11] = -1; o[14] = 2 * f * n / (n - f); return o; }
+function mLookAt(e, c, up) {
+  let zx = e[0] - c[0], zy = e[1] - c[1], zz = e[2] - c[2]; let zl = Math.hypot(zx, zy, zz) || 1; zx /= zl; zy /= zl; zz /= zl;
+  let xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx; let xl = Math.hypot(xx, xy, xz) || 1; xx /= xl; xy /= xl; xz /= xl;
+  let yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+  const o = new Float32Array(16);
+  o[0] = xx; o[1] = yx; o[2] = zx; o[4] = xy; o[5] = yy; o[6] = zy; o[8] = xz; o[9] = yz; o[10] = zz;
+  o[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); o[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); o[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); o[15] = 1; return o;
+}
+function mMul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; }
+function viewProj(W, H) { return mMul(mPersp(0.9, W / H, 1, 8000), mLookAt(eye(), cam.center, [0, 0, 1])); }
+const coreCol = [0.42, 0.85, 0.85], hullCol = [0.98, 0.55, 0.32];
+
+const cv = document.getElementById('c');
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; cv.style.width = W + 'px'; cv.style.height = H + 'px'; if (gpu) gpu.resize(); }
+addEventListener('resize', resize);
+
+// ── instance positions (rebuilt on regen) ──
+let instF32 = new Float32Array(0);
+function buildInstances() { instF32 = new Float32Array(CELLS.length * 3); CELLS.forEach((p, i) => { instF32[i * 3] = p.x; instF32[i * 3 + 1] = p.y; instF32[i * 3 + 2] = p.z; }); if (gpu) gpu.upload(); }
+
+function floorInfo() {
+  if (ringMode) {
+    const depth = probeHi > probeLo ? Math.round((cam.probe - probeLo) / (probeHi - probeLo) * 100) : 0;
+    document.getElementById('floorLabel').textContent = depth + '% out · r=' + cam.probe.toFixed(0);
+    document.getElementById('info').innerHTML = 'shell sector (' + RING.arcDeg + '°) · ' + ringStats.nodes + ' chambers · ' + ringStats.layers + ' radial × ' + RING.axial + ' axial layers · ' + ringStats.members + ' beams · <span class="r">gravity radial-out, hulls pinned</span>';
+    return;
+  }
+  let n = 0; for (const p of CELLS) if (Math.abs(p.z - cam.probe) < cam.band) n++;
+  document.getElementById('floorLabel').textContent = (cam.probe / ZMAX * 100 | 0) + '% deep · ' + n + ' rooms';
+  document.getElementById('info').innerHTML = CELLS.length + ' cells · probe z=' + cam.probe.toFixed(0) + '/' + ZMAX + ' · <span class="r">' + n + ' on this floor</span>';
+}
+
+// ── membranes: the current floor's Voronoi cell walls, as 3D line segments on the
+//    probe plane (recomputed when you scrub). The membranes you'd run a finger along. ──
+let view = 'both';
+const showCubes = () => view !== 'walls';
+const showWalls = () => view !== 'cubes';
+let EDGES = new Float32Array(0);
+function clipHP(poly, nx, ny, mx, my) {
+  const out = [], N = poly.length, side = (p) => (p.x - mx) * nx + (p.y - my) * ny;
+  for (let i = 0; i < N; i++) { const a = poly[i], b = poly[(i + 1) % N], sa = side(a), sb = side(b); if (sa <= 1e-9) out.push(a); if ((sa < 0 && sb > 0) || (sa > 0 && sb < 0)) { const t = sa / (sa - sb); out.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) }); } }
+  return out;
+}
+function recomputeEdges() {
+  if (ringMode) return;   // shell membranes are set by buildCylinderShell, not the floor cut
+  const z = cam.probe, band = cam.band, sel = [];
+  for (const p of CELLS) if (Math.abs(p.z - z) < band) sel.push(p);
+  if (sel.length < 3) { EDGES = new Float32Array(0); if (gpu) gpu.setEdges(EDGES); return; }
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of sel) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+  const pad = OPT.cell * 0.6, box = { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
+  const r = Math.max(0.5, OPT.cell * 0.05), seen = new Set(), segs = [];
+  const key = (a, b) => { const ka = Math.round(a.x / r) + '_' + Math.round(a.y / r), kb = Math.round(b.x / r) + '_' + Math.round(b.y / r); return ka < kb ? ka + '|' + kb : kb + '|' + ka; };
+  for (let i = 0; i < sel.length; i++) {
+    let poly = [{ x: box.x0, y: box.y0 }, { x: box.x1, y: box.y0 }, { x: box.x1, y: box.y1 }, { x: box.x0, y: box.y1 }];
+    for (let j = 0; j < sel.length && poly.length >= 3; j++) { if (i === j) continue; poly = clipHP(poly, sel[j].x - sel[i].x, sel[j].y - sel[i].y, (sel[i].x + sel[j].x) / 2, (sel[i].y + sel[j].y) / 2); }
+    for (let k = 0; k < poly.length; k++) { const a = poly[k], b = poly[(k + 1) % poly.length]; const kk = key(a, b); if (seen.has(kk)) continue; seen.add(kk); segs.push(a.x, a.y, z, 0.55, 0.95, 0.95, b.x, b.y, z, 0.55, 0.95, 0.95); }
+  }
+  EDGES = new Float32Array(segs); if (gpu) gpu.setEdges(EDGES);
+}
+
+// ════════════════════════ WebGPU renderer ════════════════════════
+let gpu = null;
+async function initGPU() {
+  if (!navigator.gpu) return null;
+  let adapter, device;
+  try { adapter = await navigator.gpu.requestAdapter(); device = adapter && await adapter.requestDevice(); } catch (e) { return null; }
+  if (!device) return null;
+  const ctx = cv.getContext('webgpu'); const fmt = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format: fmt, alphaMode: 'opaque' });
+  // unit cube (pos3 + nrm3), 36 verts
+  const F = [[0, 0, -1], [0, 0, 1], [-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0]];
+  const cube = [];
+  const quad = (a, b, c, d, n) => { for (const v of [a, b, c, a, c, d]) cube.push(v[0], v[1], v[2], n[0], n[1], n[2]); };
+  const s = 0.5;
+  quad([-s, -s, -s], [-s, s, -s], [s, s, -s], [s, -s, -s], F[0]);
+  quad([-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s], F[1]);
+  quad([-s, -s, -s], [-s, -s, s], [-s, s, s], [-s, s, -s], F[2]);
+  quad([s, -s, -s], [s, s, -s], [s, s, s], [s, -s, s], F[3]);
+  quad([-s, -s, -s], [s, -s, -s], [s, -s, s], [-s, -s, s], F[4]);
+  quad([-s, s, -s], [-s, s, s], [s, s, s], [s, s, -s], F[5]);
+  const cubeF32 = new Float32Array(cube);
+  const vbuf = device.createBuffer({ size: cubeF32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true });
+  new Float32Array(vbuf.getMappedRange()).set(cubeF32); vbuf.unmap();
+  let ibuf = null, nInst = 0;
+  const ubuf = device.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const shader = device.createShaderModule({ code: `
+    struct U { vp: mat4x4f, p: vec4f, light: vec4f, core: vec4f, hull: vec4f };
+    @group(0) @binding(0) var<uniform> u: U;
+    struct VO { @builtin(position) pos: vec4f, @location(0) col: vec3f, @location(1) nrm: vec3f };
+    @vertex fn vs(@location(0) vp: vec3f, @location(1) nm: vec3f, @location(2) inst: vec3f) -> VO {
+      let ring = u.core.w;                                            // 1 = cylinder shell scene
+      let rad = length(inst.xy);                                      // radius (the shell depth axis)
+      let metric = select(inst.z, rad, ring > 0.5);                  // probe by z (foam) or radius (shell)
+      let hi = select(0.0, 1.0, abs(metric - u.p.x) < u.p.y);
+      let sc = u.p.w * mix(0.2, 0.42, hi);
+      let world = inst + vp * sc;
+      let zt = clamp((select(inst.z, rad - u.light.w, ring > 0.5)) / u.p.z, 0.0, 1.0);   // inner→outer gradient
+      var o: VO; o.pos = u.vp * vec4f(world, 1.0); o.nrm = nm;
+      o.col = mix(u.core.xyz, u.hull.xyz, zt) * select(0.18, 1.0, hi > 0.5);
+      return o;
+    }
+    @fragment fn fs(i: VO) -> @location(0) vec4f {
+      let l = max(0.3, dot(normalize(i.nrm), normalize(u.light.xyz)));
+      return vec4f(i.col * l, 1.0);
+    }
+    struct LO { @builtin(position) pos: vec4f, @location(0) col: vec3f };
+    @vertex fn vsL(@location(0) p: vec3f, @location(1) col: vec3f) -> LO { var o: LO; o.pos = u.vp * vec4f(p, 1.0); o.col = col; return o; }
+    @fragment fn fsL(i: LO) -> @location(0) vec4f { return vec4f(i.col, 1.0); }` });
+  const pipe = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: shader, entryPoint: 'vs', buffers: [
+      { arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] },
+      { arrayStride: 12, stepMode: 'instance', attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x3' }] },
+    ] },
+    fragment: { module: shader, entryPoint: 'fs', targets: [{ format: fmt }] },
+    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+  let depthTex = null;
+  const makeDepth = () => { if (depthTex) depthTex.destroy(); depthTex = device.createTexture({ size: [cv.width, cv.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT }); };
+  makeDepth();
+  let bind = null;
+  const upload = () => { if (ibuf) ibuf.destroy(); nInst = CELLS.length; if (!nInst) { ibuf = null; return; } ibuf = device.createBuffer({ size: instF32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(ibuf.getMappedRange()).set(instF32); ibuf.unmap(); };
+  bind = device.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  const linePipe = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: shader, entryPoint: 'vsL', buffers: [{ arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] }] },
+    fragment: { module: shader, entryPoint: 'fsL', targets: [{ format: fmt }] },
+    primitive: { topology: 'line-list' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+  const lineBind = device.createBindGroup({ layout: linePipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  let lineBuf = null, nLine = 0;   // f32 layout per vertex: pos3 + col3 (stride 6 floats)
+  const setEdges = (f32) => { if (lineBuf) lineBuf.destroy(); nLine = f32.length / 6; if (!nLine) { lineBuf = null; return; } lineBuf = device.createBuffer({ size: f32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(lineBuf.getMappedRange()).set(f32); lineBuf.unmap(); };
+  return {
+    resize: makeDepth, upload, setEdges,
+    frame() {
+      const vp = viewProj(cv.width, cv.height);
+      const u = new Float32Array(32); u.set(vp, 0);
+      u[16] = cam.probe; u[17] = cam.band; u[18] = ringMode ? RING.T : ZMAX; u[19] = ringMode ? RING.cell : OPT.cell;  // p: probe, band, gradient span, cell
+      u[20] = 0.5; u[21] = 0.8; u[22] = 0.6; u[23] = ringMode ? ringRi : 0;       // light dir (.w = inner radius, shell)
+      u[24] = coreCol[0]; u[25] = coreCol[1]; u[26] = coreCol[2]; u[27] = ringMode ? 1 : 0;  // core colour (.w = cylinder scene flag)
+      u[28] = hullCol[0]; u[29] = hullCol[1]; u[30] = hullCol[2]; u[31] = 0;      // hull colour
+      device.queue.writeBuffer(ubuf, 0, u.buffer, 0, 128);
+      const enc = device.createCommandEncoder();
+      const pass = enc.beginRenderPass({
+        colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: { r: 0.02, g: 0.024, b: 0.04, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+        depthStencilAttachment: { view: depthTex.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
+      });
+      if (showCubes() && ibuf) { pass.setPipeline(pipe); pass.setBindGroup(0, bind); pass.setVertexBuffer(0, vbuf); pass.setVertexBuffer(1, ibuf); pass.draw(36, nInst); }
+      if (showWalls() && lineBuf) { pass.setPipeline(linePipe); pass.setBindGroup(0, lineBind); pass.setVertexBuffer(0, lineBuf); pass.draw(nLine); }
+      pass.end();
+      device.queue.submit([enc.finish()]);
+    },
+  };
+}
+// note: core/hull colors are written via a 96-byte uniform; extend the writeBuffer to include them.
+
+// ════════════════════════ 2D fallback renderer ════════════════════════
+function frame2D() {
+  const ctx = cv.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+  const M = viewProj(W, H);
+  const pts = [];
+  for (const p of CELLS) {
+    const x = p.x, y = p.y, z = p.z;
+    const w = M[3] * x + M[7] * y + M[11] * z + M[15]; if (w <= 0) continue;
+    const cx = (M[0] * x + M[4] * y + M[8] * z + M[12]) / w, cy = (M[1] * x + M[5] * y + M[9] * z + M[13]) / w, cz = (M[2] * x + M[6] * y + M[10] * z + M[14]) / w;
+    pts.push({ sx: (cx * 0.5 + 0.5) * W, sy: (1 - (cy * 0.5 + 0.5)) * H, depth: cz, z, w });
+  }
+  if (showCubes()) {
+    pts.sort((a, b) => b.depth - a.depth);
+    for (const p of pts) {
+      const hi = Math.abs(p.z - cam.probe) < cam.band;
+      const zt = Math.max(0, Math.min(1, p.z / ZMAX));
+      const col = coreCol.map((c, i) => c + (hullCol[i] - c) * zt);
+      const a = hi ? 0.95 : 0.13, r = (hi ? 5.5 : 2.6) * Math.min(2.4, 700 / (p.w || 700));
+      ctx.fillStyle = `rgba(${col[0] * 255 | 0},${col[1] * 255 | 0},${col[2] * 255 | 0},${a})`;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(0.8, r), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  if (showWalls() && EDGES.length) {
+    ctx.lineWidth = 1;
+    for (let i = 0; i < EDGES.length; i += 12) {   // two verts × (pos3 + col3)
+      const wa = M[3] * EDGES[i] + M[7] * EDGES[i + 1] + M[11] * EDGES[i + 2] + M[15], wb = M[3] * EDGES[i + 6] + M[7] * EDGES[i + 7] + M[11] * EDGES[i + 8] + M[15];
+      if (wa <= 0 || wb <= 0) continue;
+      const ax = ((M[0] * EDGES[i] + M[4] * EDGES[i + 1] + M[8] * EDGES[i + 2] + M[12]) / wa * 0.5 + 0.5) * W, ay = (1 - ((M[1] * EDGES[i] + M[5] * EDGES[i + 1] + M[9] * EDGES[i + 2] + M[13]) / wa * 0.5 + 0.5)) * H;
+      const bx = ((M[0] * EDGES[i + 6] + M[4] * EDGES[i + 7] + M[8] * EDGES[i + 8] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * EDGES[i + 6] + M[5] * EDGES[i + 7] + M[9] * EDGES[i + 8] + M[13]) / wb * 0.5 + 0.5)) * H;
+      ctx.strokeStyle = `rgba(${EDGES[i + 3] * 255 | 0},${EDGES[i + 4] * 255 | 0},${EDGES[i + 5] * 255 | 0},0.85)`;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    }
+  }
+}
+
+// ── loop + interaction ──
+let mode = 'webgpu';
+function loop() { floorInfo(); if (gpu && mode === 'webgpu') { try { gpu.frame(); } catch (e) { mode = '2d'; setModeLabel(); } } else frame2D(); requestAnimationFrame(loop); }
+function setModeLabel() { document.getElementById('rmode').textContent = 'renderer: ' + (gpu && mode === 'webgpu' ? 'WebGPU' : '2D'); }
+
+// orbit with one pointer, pinch-zoom with two; wheel zooms. (Probe lives on the right slider.)
+const DMIN = 2, DMAX = 6000, zoom = (f) => { cam.dist = Math.max(DMIN, Math.min(DMAX, cam.dist * f)); };
+const ptrs = new Map(); let drag = null, lastPinch = 0;
+cv.addEventListener('pointerdown', (e) => { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); cv.setPointerCapture(e.pointerId); if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY }; else { drag = null; lastPinch = 0; } });
+cv.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (lastPinch) zoom(lastPinch / d); lastPinch = d; return; }
+  if (drag) { cam.yaw -= (e.clientX - drag.x) * 0.008; cam.pitch = Math.max(-1.4, Math.min(1.4, cam.pitch + (e.clientY - drag.y) * 0.008)); drag = { x: e.clientX, y: e.clientY }; }
+});
+const endPtr = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) lastPinch = 0; const r = [...ptrs.values()][0]; drag = r ? { x: r.x, y: r.y } : null; };
+cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
+const pSpan = () => (probeHi - probeLo) || 1;
+cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom(1 + Math.sign(e.deltaY) * 0.12); }, { passive: false });
+addEventListener('keydown', (e) => { if (e.key === '+' || e.key === '=') zoom(0.9); if (e.key === '-') zoom(1.1); });
+const probeY = document.getElementById('probeY');
+function syncProbe() { probeY.value = Math.round((1 - (cam.probe - probeLo) / pSpan()) * 1000); }
+probeY.addEventListener('input', () => { cam.probe = probeLo + (1 - probeY.value / 1000) * pSpan(); recomputeEdges(); });
+document.getElementById('scene').addEventListener('click', () => enterScene(!ringMode));
+document.getElementById('regen').addEventListener('click', () => {
+  if (ringMode) { RING.seed = (RING.seed * 1664525 + 1013904223) >>> 0; document.getElementById('info').textContent = 'solving the shell…'; requestAnimationFrame(() => buildCylinderShell()); }
+  else { OPT.seed = (OPT.seed * 1664525 + 1013904223) >>> 0; regen(); recomputeEdges(); }
+});
+document.getElementById('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
+document.getElementById('vmode').addEventListener('click', () => { view = view === 'both' ? 'cubes' : view === 'cubes' ? 'walls' : 'both'; document.getElementById('vmode').textContent = 'view: ' + view; });
+
+(async () => {
+  resize(); regen();
+  cam.probe = ZMAX / 2; syncProbe();
+  gpu = await initGPU(); if (gpu) gpu.upload(); else mode = '2d';
+  setModeLabel(); recomputeEdges();
+  loop();
+})();
+</script>
+</body>
+</html>

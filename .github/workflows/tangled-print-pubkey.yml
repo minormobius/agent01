@@ -1,0 +1,40 @@
+name: Print Tangled deploy public key
+
+# Recovers the PUBLIC half of the existing TANGLED_SSH_KEY deploy key and
+# prints it to this run's log, so you can paste it into a tangled account's
+#   Settings → Keys
+# to authorize that account's repos for Action pushes.
+#
+# Why this exists: the keypair was generated in a throwaway runner that printed
+# the public half once and deleted it — so the public key isn't stored anywhere.
+# But it's deterministically derivable from the private half with `ssh-keygen -y`.
+#
+# This needs NO access token. Deriving/printing the PUBLIC half is a read of an
+# existing secret, which any workflow may do. The SECRETS_PAT was only ever
+# required to *write* a new secret during the original bootstrap — not for this.
+#
+# The private key is never printed; only `ssh-keygen -y` (public half) is shown.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pubkey:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive and print the public key
+        run: |
+          set -euo pipefail
+          test -n "${{ secrets.TANGLED_SSH_KEY }}" || { echo "✗ secret TANGLED_SSH_KEY not set"; exit 1; }
+          tmp="$(mktemp)"
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY }}" > "$tmp"
+          chmod 600 "$tmp"
+          echo ""
+          echo "──────── DEPLOY PUBLIC KEY — paste into tangled → Settings → Keys ────────"
+          ssh-keygen -y -f "$tmp"
+          echo "─────────────────────────────────────────────────────────────────────────"
+          echo ""
+          echo "Register this under the account that owns the target repo"
+          echo "(e.g. morphyxmino.bsky.social for the 'quoopy' repo), then run"
+          echo "'Mirror hoop to Tangled'."
+          rm -f "$tmp"
