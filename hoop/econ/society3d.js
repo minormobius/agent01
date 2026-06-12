@@ -111,8 +111,9 @@ function sectorNav({ Ri = 250, T = 50, cell = 1, arcDeg = 18, axial = 10, grade 
 
 // ── ASSEMBLE: a right-of-way (however obtained) + the genome → the full city. Buildings claim
 //    the chambers off the row, the supply web wires by road-aware Dijkstra, access is measured.
-//    Deterministic from (genome, seed, row). Both buildFoamCity and the grower's finalize use it. ──
-function assembleCity(foam, nav, row, {
+//    Deterministic from (genome, seed, row). buildFoamCity, the grower's finalize, AND the
+//    per-region solve of record (record.js) all use it — exported for that third consumer.
+export function assembleCity(foam, nav, row, {
   Ri = 250, T = 50, seed = 1, genome = DEFAULT_GENOME, vert = 6, roadDiscount = 0.6, accessRef = 30,
   route = null,
 } = {}) {

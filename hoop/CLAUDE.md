@@ -155,6 +155,7 @@ node hoop/test/flux.selftest.mjs            # desire-line roads: streets as the 
 node hoop/test/econroads.selftest.mjs       # the same grower fed by the REAL econ society (stepwise, the carve)
 node hoop/test/foamroads.selftest.mjs       # the grown 3D foam city — THE CLIMB EMERGES (no imposed corkscrew)
 node hoop/test/region.selftest.mjs          # the tiled foam's SEAM CONTRACT (leg-6 gate): borders bit-identical, ring closes
+node hoop/test/record.selftest.mjs          # THE SOLVE OF RECORD: frozen coarse arterials + regional streets that meet at the gates
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

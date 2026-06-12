@@ -39,8 +39,10 @@ export function ringLattice({ Ri = 250, T = 50, cell = 1, regionsPerRing = 36 } 
   return { Ri, T, cell, regionsPerRing, nyR, nyRing, nz, dTheta: 2 * Math.PI / nyRing, dz: T / nz };
 }
 
-// does the chamber at global (gx, gy, gz) exist, and where exactly — the one shared function
-function chamberAt(L, seed, grade, gx, gyRaw, gz) {
+// does the chamber at global (gx, gy, gz) exist, and where exactly — the one shared function.
+// Exported: record.js's seam GATES must use this very function, never a copy (a drifted copy
+// would let two regions disagree about whether a gate chamber exists).
+export function chamberAt(L, seed, grade, gx, gyRaw, gz) {
   const gy = ((gyRaw % L.nyRing) + L.nyRing) % L.nyRing;          // the ring closes
   const zc = (gz + 0.5) / L.nz, dens = 1 + grade * zc;
   if (roll(seed, gx, gy, gz, 0) > dens / (1 + grade)) return null;

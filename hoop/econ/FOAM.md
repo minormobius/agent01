@@ -173,15 +173,21 @@ because it is deterministic in the chamber index. The design (to execute next):
   the neighbour. Geometry matches sectorFoam (same thinning, jitter, 1.85·cell adjacency), so
   buildings/grower/viewer port by swapping the foam source. Chamber identity: `gid = "gx|gy|gz"`,
   stable for ever — the postal binding keys off it.
-- **The solve of record.** A region's `(genome, seed, regionKey)` deterministically fixes its
-  society AND its grown roads — but roads are a *global* flux field, and the player only ever has a
-  neighbourhood loaded. Resolution: grow roads at TWO scales. A coarse, cheap **arterial solve** runs
-  on a downsampled region-graph (region centroids + seam crossings) to fix the trunk network for all
-  time (the "solve of record", persisted as `(genome, seed)` → a small arterial graph). Fine streets
-  are grown **locally per loaded region**, seeded to join the coarse arterials at the seams — so they
-  regenerate identically whenever the player returns, and stitch across seams because both sides
-  share the arterial boundary condition. (This is the multi-scale answer to "the Laplace field is
-  global but I can't solve 34k× the world every step".)
+- **The solve of record — SHIPPED.** `econ/record.js` + `test/record.selftest.mjs` (20 checks).
+  Two scales: `coarseSolve()` runs the desire-line kernel on the REGION LATTICE itself (nodes =
+  regions, edges = seams, azimuth wrapping; gravity demand over hashed masses + hub regions) and
+  records a conductance + arterial tier per seam — the trunk network, persistable as just
+  `(genome, seed, extent)`. `extendRecord()` grows the settled band **append-only with history
+  frozen** (pinned: every previously recorded seam stays bit-identical — extending the world
+  cannot rewrite a road anyone has walked). `gatesFor()` picks each seam's crossing chambers as a
+  symmetric pure function of the shared border (the seam contract makes both sides see identical
+  candidates), so two regions choose the SAME gates without communicating. `solveRegion()` grows
+  one region's streets locally — its own provisional society's trips + gate through-demand
+  weighted by the record's tiers — and forces its gates into the right-of-way. Pinned:
+  **ROADS MEET AT THE SEAM** (adjacent regions solved independently each carry their side of
+  every active gate), regional solves deterministic (regenerate a year later, same streets),
+  single connected network, closure + access intact. ~2 s per ~3.7 k-chamber region; the coarse
+  pass is ~50 ms — viable as the game's lazy on-wander solve.
 - **Wander rules.** Keep a ring of loaded regions around the player (the HPA\* coarse graph hoop's
   `nav.js` already builds is the lattice). Entering a new region: generate its foam from the key,
   claim buildings, grow local streets to the cached arterial boundary, splice into the live nav
@@ -193,6 +199,47 @@ because it is deterministic in the chamber index. The design (to execute next):
   generation slots in beside it), `js/world.js` (the `@`-walk + foam render — the society colours the
   cells it already draws), `js/nav.js` (HPA\* — the arterial graph IS its coarse tier), `js/postal.js`
   (the durable keys). The pieces exist; leg 6 is the assembly, and the seam contract is the gate.
+
+## Leg 7 — refactor the MAIN GAME onto the solved map (CHARTED)
+
+The destination: hoop's game world (`js/ship.js` chunks + `js/world.js` Voronoi-foam render)
+becomes a *projection of the solved city* — a stable, expandable map whose look is `/paint`'s
+membrane language. The pieces now all exist; this leg is their assembly, in order:
+
+1. **The deck projection.** The game plays ONE radial shell of the annulus (the stack-of-2-D-cities
+   model): a `gz` band (1–2 layers, the mid-shell deck where the gates already live) of the region
+   lattice, unrolled to the (azimuth × axial) plane. `world.js`'s field swaps its ship.js chunk foam
+   for `regionFoam` slices; a game "tile" is a chamber; the chamber `gid` is the world coordinate.
+   Walking +x forever is the infinite axis; walking +y forever wraps the ring and brings you home —
+   a world fact the game gets for free from the seam contract.
+2. **The render: paint's 8/24 membrane language.** Today world.js draws bare Voronoi cells. The
+   upgrade is `/paint`'s two-knob look applied per loaded region: **room seeds = the deck band's
+   chambers** (room spacing, the ~24 knob), **walls membrane-seeded fine** (the ~8 knob, wall
+   thickness ≈ spacing), density-graded interiors (big centre cell, fining toward walls), and the
+   flux classification deciding what a membrane IS: same-building neighbours → interior wall with
+   doors; chamber on the right-of-way → **zero-wall concourse** (`classifyPaint`'s rule, already
+   node-tested in paint/flux.js); building↔road → wall with the building's ONE door cut where
+   `solveRegion` placed it. `buildScene` already accepts the geometry; the port is feeding it
+   regionFoam seeds instead of its own jittered grid, region by region, cached per region key.
+3. **The stable solved map.** The world IS `(genome, seed, record)`. The record starts at a fixed
+   settled band; the landing experience is a *solved* city (no first-visit jank), loaded region by
+   region as `solveRegion` outputs (~2 s each, in a worker, behind the fog of unexplored seams).
+   Persist the record as an ATProto object (`com.minomobi.hoop.record`, first-write-wins — the
+   borges frozen-telling pattern); regional solves are pure functions of it, so they need no
+   storage at all. Places bind by postal: a building's rkey ← the `gid` of its door chamber.
+4. **Expansion on wander.** When the player crosses into an unsolved axial band, `extendRecord`
+   appends new coarse bands (history frozen — pinned), and frontier regions solve lazily. The
+   loaded set is a ring of regions around the player (the HPA\* coarse tier in `nav.js` IS the
+   region lattice; its portals ARE the gates). Eviction is free: everything regenerates.
+5. **The society is the NPC layer.** Each region's `assembleCity`+`buildSociety` output gives the
+   places (forum anchors), the people (ambient NPCs whose hats say where they walk — the flux
+   field animates them along real desire lines), and the inspector content the thread rail shows.
+   Later: player movement accumulates into the demand of future record extensions — the city
+   responds to where people actually go (the desire-line thesis closing its last loop).
+6. **Migration.** Ship behind a world-version flag: `world.js` keeps the legacy ship.js field as
+   v1; v2 boots from `(genome, seed, record)`. Existing `hoop.place` records remap by nearest
+   chamber gid. The selftest gate for the flip: nav parity (HPA\* routes exist between any two
+   loaded gates) + render parity (every loaded region draws through buildScene without seam tears).
 
 ## Leg 4 — wayfinding for PEOPLE (commutes close the loop)
 
