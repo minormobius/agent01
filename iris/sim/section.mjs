@@ -50,6 +50,35 @@ const W_MIN = 0.2;                 // residual mixing velocity, m/s
 const N_MIN = 1e-3;                // floor on the Brunt–Väisälä frequency, 1/s
 const HQ_MIN = 40, HQ_MAX = 6000;  // clamp on the vapour scale height, m
 
+// diurnal forcing
+const DAY_S = 86400;               // seconds in a day
+const RHO_W = 1000, C_W = 4186;    // water density, heat capacity (for the lakes' thermal mass)
+
+// Photoperiod: a smooth day/night shape, 1 at noon (t=12 h), 0 at night; `dayLength` is the lit
+// fraction of the day. (dayLength=1 ⇒ perpetual day, the steady case.)
+function sunShape(tHour, dayLength) {
+  if (dayLength >= 1) return 1;
+  if (dayLength <= 0) return 0;
+  const raw = Math.cos((2 * Math.PI * (tHour - 12)) / 24);   // +1 noon … −1 midnight
+  const thr = Math.cos(Math.PI * dayLength);                 // lit when raw > thr
+  return Math.max(0, (raw - thr) / (1 - thr));
+}
+// daily mean of the shape, so we can normalise the instantaneous flux to a fixed daily mean
+function meanSunShape(dayLength, nS = 96) {
+  let s = 0; for (let i = 0; i < nS; i++) s += sunShape(((i + 0.5) / nS) * 24, dayLength);
+  return Math.max(s / nS, 1e-6);
+}
+// normalised instantaneous sun: averages to 1 over a day, so F_light keeps its "daily-mean" meaning
+const sunNow = (tHour, dayLength) => sunShape(tHour, dayLength) / meanSunShape(dayLength);
+// when do the fountains run? night = ventilate the stagnant dark hours (the tide insight)
+function jetsScheduled(mode, tHour, dayLength) {
+  const sf = sunShape(tHour, dayLength);
+  if (mode === 'always') return true;
+  if (mode === 'off') return false;
+  if (mode === 'day') return sf > 0.4;
+  return sf < 0.15;                  // 'night' (default)
+}
+
 // Saturation vapour pressure (Tetens), Pa; T in K.
 export function eSat(T) {
   const Tc = T - 273.15;
@@ -67,15 +96,19 @@ export function defaultParams() {
     R_skin: CIRCLE.R_skin,      // outer radiator skin, m
     gFloor: CIRCLE.G0,          // target gravity at the floor (sets ω), m/s²
 
-    F_light: 400,               // light flux delivered to the floor — the ONLY heat in, W/m²
+    F_light: 400,               // DAILY-MEAN light flux to the floor — the heat in, W/m²
     emissivity: 0.92,           // radiator emissivity
     T_space: 3,                 // deep-space sink, K
     pipeDeltaT: 5,              // reservoir above radiator: heat-pipe + shell drop, K
     floorDeltaT: 8,             // floor air above the reservoir sink, K
 
+    timeHour: 12,               // time of day, h (0–24) — noon by default
+    dayLength: 0.5,             // lit fraction of the day (photoperiod); 1 ⇒ perpetual day
+    jetMode: 'night',           // when the fountains run: 'night'|'day'|'always'|'off'
+
     P_floor: 101325,            // habitat pressure at the floor, Pa
 
-    jets: false,                // fountain jets on/off
+    jets: true,                 // fountains enabled (they then run per jetMode)
     jetExitSpeed: 120,          // jet WATER exit speed at the nozzle, m/s (axis-reach is ωR≈198)
     jetFlowRate: 0.1,           // m³/s per lake nozzle (100 L/s) — sets the induced breeze
     teeth: 3,                   // lakes / ratchet basins
@@ -97,21 +130,50 @@ export function solveSection(input = {}) {
   const omega = omegaFor(p.gFloor, R_floor);
   const w2 = omega * omega;
 
-  // ── energy: in == out pins the temperatures ────────────────────────────────
-  // F_light over the floor circumference radiates out over the (larger) skin circumference.
-  const radFlux = (p.F_light * R_floor) / R_skin;     // W/m² the skin must shed
-  const T_skin = Math.pow(p.T_space ** 4 + radFlux / (p.emissivity * SIGMA), 0.25);
-  const T_reservoir = T_skin + p.pipeDeltaT;
-  const T_floor = T_reservoir + p.floorDeltaT;
-  const powerIn = p.F_light * 2 * Math.PI * R_floor;                                  // W/m
-  const powerOut = p.emissivity * SIGMA * (T_skin ** 4 - p.T_space ** 4) * 2 * Math.PI * R_skin;
-
   // ── lakes: fill the ratchet basins with the water volume; topology sets the area ────
   const rp = { ...ratchetParams(), R_floor, teeth: p.teeth };
   const areaPerLength = p.waterVolume / Math.max(p.cylinderLength, 1);   // m² (cross-section)
   const fill = fillBasin(rp, areaPerLength / p.teeth);                   // one basin's share
   const lakeSurfaceArea = fill.surfaceArc * p.teeth * p.cylinderLength;  // m² of open water
   const lakeFrac = Math.min(1, (fill.surfaceArc * p.teeth) / (2 * Math.PI * R_floor)); // wetted floor
+
+  // ── diurnal energy balance: the floor temperature LAGS the day/night sun ────────────
+  // The daily-mean light still pins the mean temperature (the radiator sheds the daily mean),
+  // but the floor has real thermal mass — the air column + the lake water — so its temperature
+  // is a damped, phase-lagged diurnal wave, not an instant tracker. We integrate the floor
+  // energy balance C·dT/dt = F(t) − radiate(T) to its periodic steady state. (dayLength=1 ⇒
+  // constant sun ⇒ this reduces to the old in==out steady state.)
+  const dTtot = p.pipeDeltaT + p.floorDeltaT;
+  const Fnow = p.F_light * sunNow(p.timeHour, p.dayLength);             // instantaneous flux now
+  const radOutFlux = (Tf) => p.emissivity * SIGMA * ((Tf - dTtot) ** 4 - p.T_space ** 4) * (R_skin / R_floor);
+  const radMean = (p.F_light * R_floor) / R_skin;                      // mean flux the skin sheds
+  const TfloorMean = Math.pow(p.T_space ** 4 + radMean / (p.emissivity * SIGMA), 0.25) + dTtot;
+  // heat capacity per floor area: air column (P/g·cp) + lake water (depth·ρ·c over its area)
+  const Cheat = (p.P_floor / p.gFloor) * cp + lakeFrac * fill.depthMax * RHO_W * C_W;
+  const nStep = 96, dtStep = DAY_S / nStep;
+  let Tf = TfloorMean, T_floor = TfloorMean;
+  for (let day = 0; day < 3; day++) {                                  // settle to the periodic cycle
+    for (let k = 0; k < nStep; k++) {
+      const th = ((k + 0.5) / nStep) * 24;
+      Tf += (((p.F_light * sunNow(th, p.dayLength)) - radOutFlux(Tf)) / Cheat) * dtStep;
+      if (day === 2 && Math.abs(th - p.timeHour) <= 12 / nStep) T_floor = Tf;  // sample at the time
+    }
+  }
+  const T_skin = T_floor - dTtot;
+  const T_reservoir = T_floor - p.floorDeltaT;
+  const powerIn = Fnow * 2 * Math.PI * R_floor;                        // instantaneous in, W/m
+  const powerOut = radOutFlux(T_floor) * 2 * Math.PI * R_floor;        // instantaneous out, W/m
+  const jetsOn = p.jets && jetsScheduled(p.jetMode, p.timeHour, p.dayLength);
+
+  // ── the fountain (borrowed ballistic solver) — computed early so its induced breeze can
+  // set the night-time mixing depth (when convection is off, the jets are the mixer) ──────
+  const fp = {
+    R: R_floor, omega, v0: p.jetExitSpeed, angleDeg: 12, nozzle: 'jet',
+    flowRate: p.jetFlowRate, inversionDepth: 150, coriolis: true, dt: 0.08, maxT: 220,
+  };
+  const fsim = fountainSim(fp);
+  const iw = inducedWind(fp, fsim);
+  const breeze = jetsOn ? iw.wInversion : 0;          // the ambient fountain breeze, m/s
 
   // ── humidity SOURCE — solved, not set: the lakes ARE the cold reservoir water ──────
   // The lakes are the reservoir water that feeds the heat pipes, so their surface sits at the
@@ -137,7 +199,7 @@ export function solveSection(input = {}) {
   const adiabatSpan = (w2 * R_floor * R_floor) / (2 * cp);     // floor→axis adiabatic cooling, K
   const Tadiabat = (rr) => T_floor - (w2 * (R_floor * R_floor - rr * rr)) / (2 * cp);
   const rhoFloor = p.P_floor / (Rd * T_floor);
-  const buoyFlux = (p.gFloor / T_floor) * (p.F_light / (rhoFloor * cp));   // m²/s³
+  const buoyFlux = (p.gFloor / T_floor) * (Fnow / (rhoFloor * cp));        // m²/s³ (uses the sun NOW)
   const wStar = Math.cbrt(Math.max(0, buoyFlux) * R_floor);               // convective scale, m/s
   const integ2pi = (fn) => { let a = 0; for (let i = 1; i < N; i++) a += 0.5 * (fn(i - 1) + fn(i)) * (r[i] - r[i - 1]); return 2 * Math.PI * a; };
 
@@ -158,13 +220,15 @@ export function solveSection(input = {}) {
     for (let i = 0; i < N; i++) rho[i] = P[i] / (Rd * T[i]);
     const stab = 1 / (1 + inv / Math.max(1, adiabatSpan));
     const Nbv = Math.sqrt(Math.max(0, (p.gFloor / T_floor) * (inv / R_floor)));   // Brunt–Väisälä
-    const Hq = Math.max(HQ_MIN, Math.min(HQ_MAX, (MIX_EFF * (wStar * stab + W_MIN)) / Math.max(Nbv, N_MIN)));
+    // mixing velocity: convective (day) + the fountain breeze (the night mixer) + a residual
+    const wMix = wStar * stab + (jetsOn ? 0.5 * breeze : 0) + W_MIN;
+    const Hq = Math.max(HQ_MIN, Math.min(HQ_MAX, (MIX_EFF * wMix) / Math.max(Nbv, N_MIN)));
     for (let i = 0; i < N; i++) qStrat[i] = qFloor * Math.exp(-(R_floor - r[i]) / Hq);
     const tv = integ2pi((i) => qStrat[i] * rho[i] * r[i]);
     const W = tv / (2 * Math.PI * R_floor);                  // precipitable water, kg/m²
     const tau = KAPPA_SW * W + TAU_BASE;
     const absFrac = 1 - Math.exp(-tau);                      // sunlight absorbed in the air
-    const Taxis = Math.pow(T_floor ** 4 + (absFrac * p.F_light) / SIGMA, 0.25);
+    const Taxis = Math.pow(T_floor ** 4 + (absFrac * Fnow) / SIGMA, 0.25);   // sun absorbed NOW
     const invNew = Math.max(0, Taxis - (T_floor - adiabatSpan));
     return { stab, Nbv, Hq, totalVapor: tv, W, tau, absFrac, invNew };
   };
@@ -176,7 +240,7 @@ export function solveSection(input = {}) {
   const dryMass = integ2pi((i) => rho[i] * r[i]);            // ∫ρ·2πr dr, to spread vapour when mixed
 
   const q = new Float64Array(N);
-  if (p.jets) {
+  if (jetsOn) {
     const qMixed = totalVapor / dryMass;             // well-mixed, conserves the same water
     for (let i = 0; i < N; i++) q[i] = qMixed;
   } else {
@@ -212,19 +276,6 @@ export function solveSection(input = {}) {
     : (mist ? R_floor - mistDepth : null);
   const condOuter = hasFog ? fogOuter : (mist ? R_floor : null);
 
-  // ── the fountain (borrowed ballistic solver) ───────────────────────────────
-  // The jet's ballistic trajectory tells us whether it escapes to the axis (it does NOT
-  // unless v0 ≥ the axis-reach speed ωR), and `inducedWind` tells us the AMBIENT breeze the
-  // fountain drives — a few m/s, spread over a widening entrained-air plume — NOT the water's
-  // exit speed. (The old model piped v0 straight into the wind field: that was the 140 m/s.)
-  const fp = {
-    R: R_floor, omega, v0: p.jetExitSpeed, angleDeg: 12, nozzle: 'jet',
-    flowRate: p.jetFlowRate, inversionDepth: 150, coriolis: true, dt: 0.08, maxT: 220,
-  };
-  const fsim = fountainSim(fp);
-  const iw = inducedWind(fp, fsim);
-  const breeze = p.jets ? iw.wInversion : 0;          // the ambient fountain breeze, m/s
-
   // ── wind ───────────────────────────────────────────────────────────────────
   // wStar (convective scale) and stability come from the solve above; the inversion that chokes
   // convection is the SOLVED one.
@@ -256,9 +307,14 @@ export function solveSection(input = {}) {
       period: (2 * Math.PI) / omega,
       gFloorActual: gravityAt(omega, R_floor),
       vRim: axisReachSpeed(omega, R_floor),
-      // energy
-      powerIn, powerOut,
-      energyResidual: Math.abs(powerIn - powerOut),   // ~0 by construction
+      // time / diurnal forcing
+      timeHour: p.timeHour, dayLength: p.dayLength, jetMode: p.jetMode,
+      sunNow: sunNow(p.timeHour, p.dayLength), isDay: sunShape(p.timeHour, p.dayLength) > 0.15,
+      F_inst: Fnow, jetsOn,
+      // energy — INSTANTANEOUS in/out; the imbalance is stored/released by the floor's mass
+      powerIn, powerOut, powerStored: powerIn - powerOut,
+      energyResidual: Math.abs(powerIn - powerOut),   // ≠0 off-peak (storage); the daily mean closes
+      TfloorMean,
       T_skin, T_reservoir, T_floor, T_axis: T[0],
       adiabatSpan, upIsHot: T[0] > T_floor,
       // the SOLVED inversion (radiative greenhouse) + its vapour scale height (turbulent mixing)
@@ -272,7 +328,7 @@ export function solveSection(input = {}) {
       RH_axis: RH[0], RH_floor_actual: RH[N - 1],
       // wind (ambient: convective + the fountain's induced breeze — never the jet exit speed)
       wStar, stability, fCor, RossbyFloor,
-      maxWind, windFloor: U[N - 1], windAxis: U[0], jets: p.jets, breeze,
+      maxWind, windFloor: U[N - 1], windAxis: U[0], jets: jetsOn, breeze,
       // the fountain itself (water mechanics, kept separate from the weather)
       jetExitSpeed: p.jetExitSpeed, jetMach: jm.mach, jetSonic: jm.sonic,
       jetApexDepth: fsim.apexDepth, jetApexRadius: fsim.apexRadius,
@@ -289,7 +345,7 @@ export function solveSection(input = {}) {
 // Attach for headless tests / inline page use without a bundler.
 const API = {
   Rd, Rv, cp, EPS, SIGMA,
-  eSat, qSat, defaultParams, solveSection,
+  eSat, qSat, sunShape, sunNow, meanSunShape, jetsScheduled, defaultParams, solveSection,
 };
 if (typeof globalThis !== 'undefined') globalThis.IrisSection = API;
 export default API;

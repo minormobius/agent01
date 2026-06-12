@@ -59,6 +59,13 @@ The inner rim carries the **ratchet** topography (`sim/ratchet.mjs`): asymmetric
 scarp, a long glide — that let lakes sit as constant-radius (equipotential) arcs at all, and route
 the fountain runoff prograde around the rim.
 
+- **Time** — the sun is a photoperiod (peak at noon, dark at night) carrying a fixed daily-mean
+  flux. Convection and the greenhouse follow the instantaneous sun, so at night both collapse and
+  the bore goes isothermal; the floor temperature is a damped, lagged diurnal wave (real thermal
+  mass — air + lake water). The jets run on a schedule (default: at night, to ventilate the
+  stagnant dark hours). Energy closes over the day, not each instant (the floor stores heat by day,
+  releases it by night). "Play the day" animates it.
+
 ## Files
 
 | File | Role |
@@ -67,14 +74,14 @@ the fountain runoff prograde around the rim.
 | `sim/section.mjs` | the coupled solve — energy, temperature, pressure, humidity, wind |
 | `sim/fountain.mjs` | vendored rotating-frame ballistic jet solver — trajectory + induced wind |
 | `sim/ratchet.mjs` | inner-rim topography (3 teeth) + the topology-aware lake fill |
-| `index.html` | the circular renderer — 4 views, fog + jets toggles, reservoirs/heat pipes/radiator |
-| `test/*.selftest.mjs` | the contract (50 checks) |
+| `index.html` | the circular renderer — 4 views, fog toggle, the diurnal clock (play the day), a line graph along two draggable angle cuts |
+| `test/*.selftest.mjs` | the contract (55 checks) |
 | `worker.js`, `wrangler.jsonc` | assets worker for `iris.mino.mobi` |
 
 ## Run / test
 
 ```bash
-node iris/test/section.selftest.mjs    # 41 checks
+node iris/test/section.selftest.mjs    # 46 checks
 node iris/test/ratchet.selftest.mjs    # 9 checks
 open iris/index.html                    # the viewer
 ```

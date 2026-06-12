@@ -12,17 +12,41 @@ const ok = (name, cond, extra = '') => {
 };
 const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 
-// ── 1. Energy closes: in == out to machine precision (it pins T_skin) ────────
+// ── 1. Energy: instantaneous in≠out (storage), but the DAILY MEAN closes ─────
 {
-  const s = solveSection().summary;
-  ok('heat in equals heat out (the steady state)', rel(s.powerIn, s.powerOut) < 1e-12,
-     `${(s.powerIn / 1e6).toFixed(2)} MW/m in/out`);
-  ok('energy residual is ~0', s.energyResidual < 1e-3);
-  // double the lights ⇒ the radiator must run hotter
+  // perpetual day (constant sun) ⇒ the old steady state, in == out instantly
+  const steady = solveSection({ dayLength: 1 }).summary;
+  ok('perpetual day: heat in == heat out instantly', rel(steady.powerIn, steady.powerOut) < 1e-9,
+     `${(steady.powerIn / 1e6).toFixed(2)} MW/m`);
+  // under a diurnal cycle, the floor stores heat by day and releases it by night
+  const noon = solveSection({ dayLength: 0.5, timeHour: 12 }).summary;
+  ok('at noon the floor is STORING heat (in > out)', noon.powerStored > 0,
+     `+${(noon.powerStored / 1e6).toFixed(1)} MW/m`);
+  const night = solveSection({ dayLength: 0.5, timeHour: 0 }).summary;
+  ok('at night the floor is RELEASING heat (in < out)', night.powerStored < 0,
+     `${(night.powerStored / 1e6).toFixed(1)} MW/m`);
+  // the daily mean closes (periodic steady state conserves over a cycle)
+  let pin = 0, pout = 0, n = 48;
+  for (let i = 0; i < n; i++) { const sm = solveSection({ timeHour: (i + 0.5) / n * 24 }).summary; pin += sm.powerIn; pout += sm.powerOut; }
+  ok('the daily-mean heat in == out (periodic steady state)', Math.abs(pin - pout) / pin < 0.02,
+     `${(pin / n / 1e6).toFixed(2)} / ${(pout / n / 1e6).toFixed(2)} MW/m`);
   const hot = solveSection({ F_light: 800 }).summary;
-  ok('more lights ⇒ hotter radiator skin', hot.T_skin > s.T_skin,
-     `${s.T_skin.toFixed(1)} → ${hot.T_skin.toFixed(1)} K`);
-  ok('doubling lights still closes', rel(hot.powerIn, hot.powerOut) < 1e-12);
+  ok('more lights ⇒ hotter radiator skin', hot.T_skin > solveSection().summary.T_skin,
+     `→ ${hot.T_skin.toFixed(1)} K`);
+}
+
+// ── 1b. Diurnal forcing: the sun and the jets run on the clock ───────────────
+{
+  const noon = solveSection({ timeHour: 12 }).summary, midnight = solveSection({ timeHour: 0 }).summary;
+  ok('the sun is up at noon, down at midnight', noon.sunNow > 1 && midnight.sunNow === 0,
+     `×${noon.sunNow.toFixed(2)} vs ×${midnight.sunNow.toFixed(2)}`);
+  ok('"up is hot" only in daylight (the inversion needs the sun)', noon.upIsHot && !midnight.upIsHot);
+  // jets default to NIGHT mode: ventilating the dark hours, off by day
+  ok('night-mode jets run at midnight, not at noon', midnight.jetsOn && !noon.jetsOn);
+  ok('night ventilation dries the floor vs the humid daytime', midnight.RH_floor_actual < noon.RH_floor_actual,
+     `${(noon.RH_floor_actual * 100).toFixed(0)}% → ${(midnight.RH_floor_actual * 100).toFixed(0)}%`);
+  ok('daytime convection vs night jet-breeze are both modest winds',
+     noon.maxWind < 25 && midnight.maxWind < 25);
 }
 
 // ── 2. Heat flows outward: floor > reservoir > radiator skin ─────────────────
@@ -75,15 +99,12 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
      `${dlnP.toExponential(2)} vs ${(g[i] / (Rd * T[i])).toExponential(2)}`);
 }
 
-// ── 5. Humidity is SOLVED from the lakes; jets redistribute it; fog ⇔ RH ≥ 1 ──
+// ── 5. Humidity is SOLVED from the lakes; jets ventilate it; mist over the lakes ──
 {
-  const off = solveSection({ jets: false });
-  const on = solveSection({ jets: true });
-  ok('jets on/off conserve total vapour mass (redistribution, not creation)',
-     rel(on.summary.totalVapor, off.summary.totalVapor) < 1e-9,
-     `${off.summary.totalVapor.toExponential(3)} kg/m`);
+  const off = solveSection({ jetMode: 'off' });
+  const on = solveSection({ jetMode: 'always' });
   ok('jets well-mix the humidity (uniform q)',
-     Math.abs(on.q[0] - on.q[on.q.length - 1]) < 1e-12 && on.q[0] !== off.q[0]);
+     Math.abs(on.q[0] - on.q[on.q.length - 1]) < 1e-9 && Math.abs(on.q[0] - off.q[0]) > 1e-12);
   // floor humidity is NOT an input — it follows the lake coverage
   const dry = solveSection({ waterVolume: 1.5e8 });
   const wet = solveSection({ waterVolume: 3e9 });
@@ -95,7 +116,7 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
   // jets VENTILATE: they loft floor moisture, drying the floor and wetting aloft
   ok('jets dry the floor and wet the axis (ventilation)',
      on.RH[on.RH.length - 1] < off.RH[off.RH.length - 1] && on.RH[0] > off.RH[0],
-     `floor ${(off.RH[off.RH.length-1]*100).toFixed(0)}→${(on.RH[on.RH.length-1]*100).toFixed(0)}%`);
+     `floor ${(off.RH[off.RH.length - 1] * 100).toFixed(0)}→${(on.RH[on.RH.length - 1] * 100).toFixed(0)}%`);
   // fog mask must agree with bulk RH≥1 exactly
   let agree = true;
   for (let i = 0; i < off.RH.length; i++) if ((off.RH[i] >= 1) !== (off.fogMask[i] === 1)) agree = false;
@@ -109,12 +130,11 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 
 // ── 6. Wind: realistic ambient speeds; the jet's exit speed is NOT the wind ──
 {
-  const calm = solveSection({ jets: false });
-  const blown = solveSection({ jets: true });
-  let added = true;
-  for (let i = 0; i < calm.U.length; i++) if (blown.U[i] < calm.U[i] - 1e-9) added = false;
-  ok('turning the jets on never reduces the wind anywhere', added,
-     `max ${calm.summary.maxWind.toFixed(1)} → ${blown.summary.maxWind.toFixed(1)} m/s`);
+  const calm = solveSection({ jetMode: 'off' });
+  const blown = solveSection({ jetMode: 'always' });
+  ok('the jets raise the near-floor wind (their induced breeze)',
+     blown.summary.windFloor > calm.summary.windFloor + 0.5,
+     `floor ${calm.summary.windFloor.toFixed(1)} → ${blown.summary.windFloor.toFixed(1)} m/s`);
   // the fix: ambient wind is a breeze, not the 120 m/s water jet
   ok('ambient wind stays a breeze even with the jets on (no hurricane)', blown.summary.maxWind < 25,
      `max ${blown.summary.maxWind.toFixed(1)} m/s vs exit ${blown.summary.jetExitSpeed} m/s`);

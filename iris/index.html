@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>iris · the O'Neill cylinder, end-on — gradients across the circle</title>
-<meta name="description" content="The end-on cross-section of a small O'Neill ring habitat (4 km floor, 5 km radiator skin). Switch views — temperature, pressure, humidity, wind — over the circle; toggle the fog and the fountain jets; watch the heat leave through the reservoirs and heat pipes. Lights in, radiator out, every temperature pinned by the energy balance." />
+<meta name="description" content="The end-on cross-section of a small O'Neill ring habitat (4 km floor, 5 km radiator skin). Switch views — temperature, pressure, humidity, wind — over the circle; toggle the fog, play the diurnal day cycle (sun + night-ventilating jets), and read the profile along two draggable angle cuts. Lights in, radiator out, the floor temperature a lagged diurnal wave." />
 <style>
   :root{
     --ink:#0b1016; --panel:#101a22; --line:#243440; --txt:#cfe1ea;
@@ -38,7 +38,12 @@
     border-radius:7px;padding:8px 4px;font:inherit;font-size:12px;cursor:pointer}
   .toggles button.on{color:#0b1016;font-weight:600}
   .toggles button#tFog.on{background:#cfe1ea;border-color:#cfe1ea}
-  .toggles button#tJet.on{background:var(--leaf);border-color:var(--leaf)}
+  .seg{display:flex;gap:6px}
+  .seg button{background:#0e1620;color:var(--dim);border:1px solid var(--line);border-radius:7px;
+    padding:8px 4px;font:inherit;font-size:12px;cursor:pointer}
+  .seg button.on{background:#11242e;color:var(--water);border-color:#3a6a86}
+  select{width:100%;background:#0e1620;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit;font-size:12px;margin-top:4px}
+  .hint{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.45}
   .stage{display:flex;flex-direction:column;align-items:center}
   canvas{display:block;background:#05080c;border:1px solid var(--line);border-radius:14px;width:100%;max-width:600px}
   .bar{width:100%;max-width:600px;margin-top:10px}
@@ -66,7 +71,8 @@
   <div class="sub">Looking straight down the axis of a small O'Neill ring — a <b>4 km</b> habitat
     floor inside a <b>5 km</b> radiator skin. The lights are the only heat in; the skin is the only
     heat out; the habitat's warmth gets there through the floor's <b>water reservoirs and heat
-    pipes</b>. Switch the gradient you're looking at, and toggle the fog and the fountain jets.
+    pipes</b>. Switch the gradient, <b>play the day</b> (the sun and the night-ventilating jets run
+    on the clock), and read the profile along two draggable angle cuts.
     <a href="https://tide.mino.mobi">↔ tide</a></div>
 </header>
 
@@ -83,9 +89,24 @@
       </div>
       <h2 style="margin-top:14px">Observables</h2>
       <div class="toggles">
-        <button id="tFog">fog</button>
-        <button id="tJet">jets</button>
+        <button id="tFog">fog / mist</button>
       </div>
+    </div>
+
+    <div class="panel">
+      <h2>Time &amp; sun</h2>
+      <label class="ctl"><div class="row"><span id="clockLbl">noon · day</span><b><span id="vTime">12:00</span></b></div>
+        <input type="range" id="timeHour" min="0" max="24" step="0.25" value="12"></label>
+      <div class="seg"><button id="play" style="flex:1">▶ play the day</button></div>
+      <label class="ctl" style="margin-top:10px"><div class="row"><span>day length</span><b><span id="vDay">50</span> %</b></div>
+        <input type="range" id="dayLength" min="0" max="100" step="5" value="50"></label>
+      <label class="ctl"><div class="row"><span>fountains run</span></div>
+        <select id="jetMode">
+          <option value="night">at night (ventilate)</option>
+          <option value="day">by day</option>
+          <option value="always">always</option>
+          <option value="off">off</option>
+        </select></label>
     </div>
 
     <div class="panel">
@@ -123,13 +144,17 @@
       <div class="grad" id="barGrad"></div>
       <div class="ends"><span id="barLo">—</span><span id="barHi">—</span></div>
     </div>
+    <div class="bar" style="margin-top:16px">
+      <div class="ttl" id="lgTtl">profile vs radius — drag the cursor, drag angles <b style="color:var(--gold)">A</b>/<b style="color:var(--leaf)">B</b> on the disk</div>
+      <canvas id="lg" width="600" height="210"></canvas>
+    </div>
   </div>
 
   <!-- ── readouts ───────────────────────────────────────────── -->
   <div class="col">
     <div class="energy">
-      <div class="big" id="ePower">— MW/m</div>
-      <div class="lbl">heat in = heat out (closed)</div>
+      <div class="big" id="ePower" style="font-size:14px">— MW/m</div>
+      <div class="lbl" id="ePowerLbl">heat in = heat out</div>
     </div>
     <div class="panel">
       <h2>Temperature</h2>
@@ -164,10 +189,10 @@
     <div class="panel" style="margin-bottom:0">
       <h2>At the cursor</h2>
       <div class="read">
-        <div class="r"><span>radius</span><b id="hR">— hover the disk</b></div>
-        <div class="r"><span>gravity</span><b id="hG">—</b></div>
+        <div class="r"><span>radius · g</span><b id="hR">— drag me</b></div>
+        <div class="r"><span>this view, A / B</span><b id="hG">—</b></div>
         <div class="r"><span>T · P</span><b id="hTP">—</b></div>
-        <div class="r"><span>RH · wind</span><b id="hRW">—</b></div>
+        <div class="r"><span>RH · wind (A)</span><b id="hRW">—</b></div>
       </div>
     </div>
   </div>
@@ -176,8 +201,15 @@
 <footer>
   <details>
     <summary>what the circle is showing</summary>
-    <p>One steady state. <b>Energy:</b> the light flux over the floor circumference must leave as
-    <code>εσT⁴</code> over the (larger) skin circumference — that single balance fixes the radiator
+    <p><b>Time:</b> the sun is a photoperiod (peak at noon, dark at night) carrying a fixed
+    daily-mean flux; the floor has real thermal mass (air + lake water), so its temperature is a
+    damped, lagged diurnal wave (it stores heat by day, releases it by night — the energy closes
+    over the day, not each instant). Convection follows the sun; the night-mode jets ventilate the
+    stagnant dark hours. The <b>line graph</b> is the active field vs radius along the two draggable
+    angle cuts (A/B) — temperature and pressure are axisymmetric so they coincide, while humidity
+    and wind vary with the lakes/jets beneath each cut; the dashed line marks the half-scale
+    figure-of-merit. <b>Energy:</b> the daily-mean light over the floor circumference leaves as
+    <code>εσT⁴</code> over the (larger) skin circumference — that balance fixes the mean radiator
     temperature, and the reservoir/floor sit above it by the heat-pipe and contact ΔTs (heat flows
     <i>outward</i>, so the floor is always the warm end). <b>Temperature</b> hangs a dry centrifugal
     adiabat (<code>cp·T+Φ=const</code>, <code>Φ=−½ω²r²</code>) off the floor; the <b>inversion is
@@ -196,7 +228,7 @@
     <b>ratchet</b> topography — asymmetric teeth that let lakes (constant-radius arcs) sit at all.</p>
   </details>
   <p style="margin-top:14px">solver in <code>iris/sim/section.mjs</code> + <code>iris/sim/ratchet.mjs</code>
-  · contracts in <code>iris/test/*.selftest.mjs</code> (50 checks) · the end-on companion to the
+  · contracts in <code>iris/test/*.selftest.mjs</code> (55 checks) · the end-on companion to the
   <a href="https://tide.mino.mobi">tide</a> thermodynamics wing. pure static; runs in your browser.</p>
 </footer>
 
@@ -208,8 +240,11 @@ const $ = (id) => document.getElementById(id);
 const C = {
   F_light: $('F_light'), gFloor: $('gFloor'), pipeDeltaT: $('pipeDeltaT'),
   P_floor: $('P_floor'), waterVolume: $('waterVolume'), jetExitSpeed: $('jetExitSpeed'),
+  timeHour: $('timeHour'), dayLength: $('dayLength'),
 };
-let view = 'temp', fog = false, jets = false, sol = null, geo = null;
+let view = 'temp', fog = false, jetMode = 'night', sol = null, geo = null;
+// two angle cuts (rad) and the shared radial cursor (fraction axis→floor); all draggable
+let angA = -Math.PI / 2, angB = Math.PI / 6, cursorFrac = 0.62, dragging = null, playing = false;
 const dpr = Math.min(2, window.devicePixelRatio || 1);
 
 // ── colour ramps ─────────────────────────────────────────────
@@ -236,13 +271,32 @@ const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
 function fieldFor(v, s) {
   const sm = s.summary;
   if (v === 'temp')  return { arr: s.T, lo: Math.min(sm.T_skin, ...s.T), hi: Math.max(...s.T),
-    label: 'temperature', fmt: (x) => (x - 273.15).toFixed(0) + ' °C' };
+    label: 'temperature', fmt: (x) => (x - 273.15).toFixed(0) + ' °C', azim: false };
   if (v === 'press') return { arr: s.P, lo: sm.P_axis, hi: sm.P_floor,
-    label: 'pressure', fmt: (x) => (x / 1000).toFixed(0) + ' kPa' };
-  if (v === 'humid') return { arr: s.RH, lo: 0, hi: Math.max(1, ...s.RH),
-    label: 'relative humidity', fmt: (x) => (x * 100).toFixed(0) + ' %' };
-  return { arr: s.U, lo: 0, hi: Math.max(0.1, sm.maxWind),
-    label: 'wind speed', fmt: (x) => x.toFixed(1) + ' m/s' };
+    label: 'pressure', fmt: (x) => (x / 1000).toFixed(0) + ' kPa', azim: false };
+  if (v === 'humid') return { arr: s.RH, lo: 0, hi: Math.max(1, ...s.RH) * 1.1,
+    label: 'relative humidity', fmt: (x) => (x * 100).toFixed(0) + ' %', azim: true };
+  return { arr: s.U, lo: 0, hi: Math.max(0.1, sm.maxWind) * 1.15,
+    label: 'wind speed', fmt: (x) => x.toFixed(1) + ' m/s', azim: true };
+}
+
+// proximity (0..1) of an azimuth to the nearest lake/jet centre (lakes & jets share azimuths)
+function lakeProx(theta, teeth) {
+  const Tn = (2 * Math.PI) / teeth;
+  let d = ((theta % Tn) + Tn) % Tn; d = Math.min(d, Tn - d);   // angular dist to nearest centre
+  const half = 0.34 * Tn;
+  return Math.max(0, 1 - d / half);
+}
+// the field value at radial index i along azimuth θ. Temperature & pressure are axisymmetric
+// (the two angle cuts coincide); humidity & wind vary with the lakes/jets below you: the breeze
+// is localised over the fountains, and the air is more humid over the open water.
+function fieldAt(v, s, i, theta) {
+  if (v === 'temp') return s.T[i];
+  if (v === 'press') return s.P[i];
+  const prox = lakeProx(theta, s.summary.teeth);
+  const x = s.r[i] / s.params.R_floor;
+  if (v === 'humid') return Math.min(1.6, s.RH[i] * (1 + 0.5 * prox * x * x * x));
+  return Math.hypot(s.Uconv[i], s.Ujet[i] * prox);   // wind: breeze scaled by jet proximity
 }
 
 function readInputs() {
@@ -253,7 +307,9 @@ function readInputs() {
     P_floor: +C.P_floor.value * 1000,
     waterVolume: +C.waterVolume.value * 1e9,        // km³ → m³
     jetExitSpeed: +C.jetExitSpeed.value,
-    jets,
+    timeHour: +C.timeHour.value,
+    dayLength: +C.dayLength.value / 100,
+    jetMode,
     N: 200,
   };
 }
@@ -372,7 +428,7 @@ function draw() {
   // the lake and is integrated in the rotating frame (centrifugal + Coriolis), so it arcs back
   // to the rim rather than escaping (unless the exit speed exceeds the axis-reach speed ωR).
   // The template path (launched at azimuth −90°) is rotated onto each of the three lakes.
-  if (jets && sol.jetTraj && sol.jetTraj.length > 1) {
+  if (sol.summary.jetsOn && sol.jetTraj && sol.jetTraj.length > 1) {
     const traj = sol.jetTraj;
     ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (let k = 0; k < rp.teeth; k++) {
@@ -391,10 +447,84 @@ function draw() {
     ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
   }
 
-  // 6. the axial sun (the lamp on the axis — the only heat in)
-  const sun = ctx.createRadialGradient(cx, cy, 0, cx, cy, PX(Rfl) * 0.16);
-  sun.addColorStop(0, 'rgba(255,246,210,0.95)'); sun.addColorStop(1, 'rgba(255,246,210,0)');
-  ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(cx, cy, PX(Rfl) * 0.16, 0, 2 * Math.PI); ctx.fill();
+  // 6. the axial sun (the lamp on the axis) — its brightness follows the time of day
+  const lit = Math.min(1, sm.sunNow / 1.5);
+  const sunR = PX(Rfl) * (0.10 + 0.07 * lit);
+  const sun = ctx.createRadialGradient(cx, cy, 0, cx, cy, sunR);
+  sun.addColorStop(0, `rgba(255,246,210,${0.25 + 0.7 * lit})`); sun.addColorStop(1, 'rgba(255,246,210,0)');
+  ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(cx, cy, sunR, 0, 2 * Math.PI); ctx.fill();
+
+  // 7. the two angle cuts (A gold, B leaf) + the shared radial cursor — all draggable
+  geo.handleR = Rsk * 1.02;
+  const cursorR = cursorFrac * Rfl;
+  for (const [ang, col, lbl] of [[angA, '#d8b25a', 'A'], [angB, '#62b87a', 'B']]) {
+    const ux = Math.cos(ang), uy = Math.sin(ang);
+    ctx.strokeStyle = col + 'cc'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + ux * PX(Rfl), cy + uy * PX(Rfl)); ctx.stroke();
+    ctx.setLineDash([]);
+    // cursor dot where this ray crosses the cursor radius
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx + ux * PX(cursorR), cy + uy * PX(cursorR), 4, 0, 2 * Math.PI); ctx.fill();
+    // draggable handle just outside the rim
+    const hx = cx + ux * PX(geo.handleR), hy = cy + uy * PX(geo.handleR);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(hx, hy, 7, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#0b1016'; ctx.font = '700 9px ui-monospace,monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(lbl, hx, hy);
+  }
+}
+
+// ── the line graph: the active field vs radius along cuts A and B, with the figure-of-merit
+// midline and the draggable radial cursor ──────────────────────────────────────────────────
+function drawLineGraph() {
+  const cv = $('lg'), ctx = cv.getContext('2d');
+  const W = cv.clientWidth, H = 210;
+  cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const padL = 52, padR = 12, padT = 12, padB = 24;
+  const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
+  const fld = fieldFor(view, sol), Rfl = sol.params.R_floor, n = sol.r.length;
+  const lo = fld.lo, hi = fld.hi, span = (hi - lo) || 1;
+  const X = (rr) => x0 + (rr / Rfl) * (x1 - x0);
+  const Y = (val) => y0 + ((val - lo) / span) * (y1 - y0);
+
+  ctx.strokeStyle = '#16222c'; ctx.fillStyle = '#5f7686'; ctx.font = '10px ui-monospace,monospace';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {                       // y grid + ticks
+    const val = lo + (span * i) / 4, y = Y(val);
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText(fld.fmt(val), x0 - 5, y);
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('axis', x0, y0 + 5); ctx.textAlign = 'right'; ctx.fillText('rim', x1, y0 + 5);
+
+  // figure-of-merit: a dashed line at the half-way point of the scale
+  const fomVal = lo + span / 2, fy = Y(fomVal);
+  ctx.strokeStyle = '#8aa0ad'; ctx.setLineDash([6, 4]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, fy); ctx.lineTo(x1, fy); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#8aa0ad'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText('½-scale · ' + fld.fmt(fomVal), x0 + 4, fy - 2);
+
+  // the two cuts
+  for (const [ang, col] of [[angA, '#d8b25a'], [angB, '#62b87a']]) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = X(sol.r[i]), y = Y(fieldAt(view, sol, i, ang));
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+  if (!fld.azim) {                                     // note when the cuts coincide
+    ctx.fillStyle = '#5f7686'; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('(axisymmetric — A and B coincide)', x1, y1);
+  }
+
+  // the draggable radial cursor
+  const cx = X(cursorFrac * Rfl);
+  ctx.strokeStyle = '#cfe1ea'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, y1); ctx.lineTo(cx, y0); ctx.stroke();
+  const ci = Math.min(n - 1, Math.round(cursorFrac * (n - 1)));
+  for (const [ang, col] of [[angA, '#d8b25a'], [angB, '#62b87a']]) {
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, Y(fieldAt(view, sol, ci, ang)), 4, 0, 2 * Math.PI); ctx.fill();
+  }
+  geo.lg = { x0, x1, W };
 }
 
 function render() {
@@ -406,6 +536,10 @@ function render() {
   $('vG').textContent = (sm.gFloorActual / 9.80665).toFixed(2);
   $('vPipe').textContent = (+C.pipeDeltaT.value).toFixed(0);
   $('vP').textContent = (+C.P_floor.value).toFixed(1);
+  const hh = Math.floor(sm.timeHour), mm = Math.round((sm.timeHour - hh) * 60);
+  $('vTime').textContent = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  $('vDay').textContent = (+C.dayLength.value).toFixed(0);
+  $('clockLbl').textContent = (sm.isDay ? '☀ day' : '☾ night') + ' · ' + (sm.jetsOn ? 'jets on' : 'jets off');
   $('climateHint').textContent = 'solved climate · inversion ' + sm.invStrength.toFixed(0)
     + ' K (axis ' + (sm.T_axis - sm.T_floor >= 0 ? '+' : '') + (sm.T_axis - sm.T_floor).toFixed(0)
     + ' K) · greenhouse τ ' + sm.opticalDepth.toFixed(2) + ' · vapour scale ' + (sm.vaporScaleHeight / 1000).toFixed(1) + ' km';
@@ -417,7 +551,9 @@ function render() {
     + 'floor RH ' + (sm.RH_floor_actual * 100).toFixed(0) + '% (solved from ' + (sm.lakeFrac * 100).toFixed(0) + '% wet floor)';
 
   // readouts
-  $('ePower').textContent = (sm.powerIn / 1e6).toFixed(2) + ' MW/m';
+  $('ePower').textContent = (sm.powerIn / 1e6).toFixed(1) + ' in / ' + (sm.powerOut / 1e6).toFixed(1) + ' out MW/m';
+  $('ePowerLbl').textContent = Math.abs(sm.powerStored) < 0.05e6 ? 'heat in = out (daily mean closes)'
+    : (sm.powerStored > 0 ? '▲ storing ' : '▼ releasing ') + Math.abs(sm.powerStored / 1e6).toFixed(1) + ' MW/m';
   const K = (k) => (k - 273.15).toFixed(1) + ' °C';
   $('oTskin').textContent = K(sm.T_skin);
   $('oTres').textContent = K(sm.T_reservoir);
@@ -431,44 +567,75 @@ function render() {
       + (sm.condOuter / 1000).toFixed(1) + ' km' + (fog ? '' : ' (off)')
     : 'none (dew)';
   $('oRH').textContent = (sm.RH_axis * 100).toFixed(0) + ' / ' + (sm.RH_floor_actual * 100).toFixed(0) + ' %';
-  $('oWind').textContent = sm.maxWind.toFixed(1) + ' m/s' + (jets ? ' (jets)' : '');
+  $('oWind').textContent = sm.maxWind.toFixed(1) + ' m/s' + (sm.jetsOn ? ' (jets)' : '');
   $('oRo').textContent = sm.RossbyFloor.toFixed(3);
   // lakes & fountain
   $('oLakeArea').textContent = (sm.lakeSurfaceArea / 1e6).toFixed(1) + ' km²'
     + (sm.lakeOverflow ? ' (sea)' : '');
   $('oLakeDepth').textContent = sm.lakeDepthMax.toFixed(0) + ' m';
   $('oJetV').textContent = sm.jetExitSpeed.toFixed(0) + ' m/s · M' + sm.jetMach.toFixed(2);
-  $('oJetApex').textContent = jets
+  $('oJetApex').textContent = sm.jetsOn
     ? 'r ' + (sm.jetApexRadius / 1000).toFixed(2) + ' km' + (sm.jetReachesAxis ? ' (axis!)' : '')
     : '— (off)';
-  $('oBreeze').textContent = jets ? sm.breeze.toFixed(1) + ' m/s' : '— (off)';
+  $('oBreeze').textContent = sm.jetsOn ? sm.breeze.toFixed(1) + ' m/s' : '— (off)';
 
   // colour bar
   const fld = fieldFor(view, sol);
-  $('barTtl').textContent = fld.label + (view === 'wind' && jets ? ' · jets on' : '');
+  $('barTtl').textContent = fld.label + (view === 'wind' && sm.jetsOn ? ' · jets on' : '');
   const stops = RAMPS[view].map(([p, c]) => `${rgb(c)} ${(p * 100).toFixed(0)}%`).join(',');
   $('barGrad').style.background = `linear-gradient(90deg,${stops})`;
   $('barLo').textContent = fld.fmt(fld.lo);
   $('barHi').textContent = fld.fmt(fld.hi);
 
-  draw();
+  redraw();
+}
+// redraw without re-solving (angle/cursor drags don't change the physics)
+function redraw() { if (sol) { draw(); drawLineGraph(); updateCursorReadout(); } }
+
+// the cursor panel: the active field at A and B, plus the full state at the cursor radius
+function updateCursorReadout() {
+  if (!sol) return;
+  const n = sol.r.length, i = Math.min(n - 1, Math.round(cursorFrac * (n - 1)));
+  const fld = fieldFor(view, sol);
+  $('hR').textContent = (sol.r[i] / 1000).toFixed(2) + ' km · ' + (sol.g[i] / 9.80665).toFixed(2) + ' g';
+  $('hG').innerHTML = '<span style="color:#d8b25a">A ' + fld.fmt(fieldAt(view, sol, i, angA))
+    + '</span> · <span style="color:#62b87a">B ' + fld.fmt(fieldAt(view, sol, i, angB)) + '</span>';
+  $('hTP').textContent = (sol.T[i] - 273.15).toFixed(1) + ' °C · ' + (sol.P[i] / 1000).toFixed(1) + ' kPa';
+  $('hRW').textContent = (fieldAt('humid', sol, i, angA) * 100).toFixed(0) + ' % · '
+    + fieldAt('wind', sol, i, angA).toFixed(1) + ' m/s';
 }
 
-// hover the disk
-$('cv').addEventListener('mousemove', (e) => {
-  if (!sol || !geo) return;
-  const rect = e.target.getBoundingClientRect();
-  const x = e.clientX - rect.left, y = e.clientY - rect.top;       // CSS px, same units as geo
-  const rm = Math.hypot(x - geo.cx, y - geo.cy) / geo.scale;        // → metres
-  if (rm > geo.Rfl) { $('hR').textContent = 'in the shell'; $('hG').textContent = $('hTP').textContent = $('hRW').textContent = '—'; return; }
-  const i = Math.min(sol.r.length - 1, Math.round((rm / geo.Rfl) * (sol.r.length - 1)));
-  $('hR').textContent = (sol.r[i] / 1000).toFixed(2) + ' km';
-  $('hG').textContent = (sol.g[i] / 9.80665).toFixed(2) + ' g';
-  $('hTP').textContent = (sol.T[i] - 273.15).toFixed(1) + ' °C · ' + (sol.P[i] / 1000).toFixed(1) + ' kPa';
-  $('hRW').textContent = (sol.RH[i] * 100).toFixed(0) + ' % · ' + sol.U[i].toFixed(1) + ' m/s';
+// ── dragging: angle handles A/B on the disk, the radial cursor on either canvas ──
+const relAng = (e) => { const r = $('cv').getBoundingClientRect(); return Math.atan2((e.clientY - r.top) - geo.cy, (e.clientX - r.left) - geo.cx); };
+const relRadFrac = (e) => { const r = $('cv').getBoundingClientRect(); return Math.max(0, Math.min(1, (Math.hypot((e.clientX - r.left) - geo.cx, (e.clientY - r.top) - geo.cy) / geo.scale) / geo.Rfl)); };
+const angClose = (a, b) => Math.abs(((a - b + Math.PI) % (2 * Math.PI)) - Math.PI) < 0.3;
+$('cv').addEventListener('pointerdown', (e) => {
+  if (!geo) return; e.target.setPointerCapture(e.pointerId);
+  const a = relAng(e), frac = relRadFrac(e), outer = frac > 0.72;
+  if (outer && angClose(a, angA)) dragging = 'A';
+  else if (outer && angClose(a, angB)) dragging = 'B';
+  else { dragging = 'cur'; cursorFrac = frac; redraw(); }
 });
+$('cv').addEventListener('pointermove', (e) => {
+  if (!dragging || !geo) return;
+  if (dragging === 'A') angA = relAng(e);
+  else if (dragging === 'B') angB = relAng(e);
+  else cursorFrac = relRadFrac(e);
+  redraw();
+});
+$('lg').addEventListener('pointerdown', (e) => {
+  if (!geo || !geo.lg) return; e.target.setPointerCapture(e.pointerId); dragging = 'curL';
+  const x = e.clientX - $('lg').getBoundingClientRect().left;
+  cursorFrac = Math.max(0, Math.min(1, (x - geo.lg.x0) / (geo.lg.x1 - geo.lg.x0))); redraw();
+});
+$('lg').addEventListener('pointermove', (e) => {
+  if (dragging !== 'curL') return;
+  const x = e.clientX - $('lg').getBoundingClientRect().left;
+  cursorFrac = Math.max(0, Math.min(1, (x - geo.lg.x0) / (geo.lg.x1 - geo.lg.x0))); redraw();
+});
+window.addEventListener('pointerup', () => { dragging = null; });
 
-// view / toggle wiring
+// view wiring + fog toggle + jet schedule
 for (const b of $('views').querySelectorAll('button')) {
   b.addEventListener('click', () => {
     view = b.dataset.v;
@@ -476,10 +643,28 @@ for (const b of $('views').querySelectorAll('button')) {
     render();
   });
 }
-$('tFog').addEventListener('click', () => { fog = !fog; $('tFog').classList.toggle('on', fog); render(); });
-$('tJet').addEventListener('click', () => { jets = !jets; $('tJet').classList.toggle('on', jets); render(); });
+$('tFog').addEventListener('click', () => { fog = !fog; $('tFog').classList.toggle('on', fog); redraw(); });
+$('jetMode').addEventListener('change', () => { jetMode = $('jetMode').value; render(); });
 for (const k in C) C[k].addEventListener('input', render);
 window.addEventListener('resize', render);
+
+// play the day: advance the clock and re-solve
+let lastTs = 0;
+function playStep(ts) {
+  if (!playing) return;
+  if (!lastTs) lastTs = ts;
+  let t = +C.timeHour.value + ((ts - lastTs) / 1000) * 2.5;   // 2.5 sim-hours per real second
+  lastTs = ts; if (t >= 24) t -= 24;
+  C.timeHour.value = t.toFixed(2); render();
+  requestAnimationFrame(playStep);
+}
+$('play').addEventListener('click', () => {
+  playing = !playing;
+  $('play').textContent = playing ? '❚❚ pause' : '▶ play the day';
+  $('play').classList.toggle('on', playing);
+  lastTs = 0; if (playing) requestAnimationFrame(playStep);
+});
+
 render();
 </script>
 </body>

@@ -38,6 +38,12 @@ temperature (`T_floor > T_reservoir > T_skin`, because heat flows outward). Hung
   **The jet's water exit speed (~120 m/s) is NOT the wind** — that was an early bug. The ambient
   breeze comes from `inducedWind()` (momentum spread over an entrained-air plume); the exit speed
   lives only in the jet-mechanics readouts.
+- **time / diurnal** — the sun is a photoperiod (`sunShape`, peak at noon) carrying a fixed
+  daily-mean flux; convection (`buoyFlux`) and the greenhouse use the instantaneous `Fnow`, so at
+  night both collapse and the bore goes isothermal. The floor temperature is a damped, lagged
+  diurnal wave from a 1-ODE thermal-mass integration (air + lake water) run to its periodic steady
+  state. Jets run on a schedule (`jetMode`, default 'night') and set the mixing depth when
+  convection is off. Instantaneous in≠out (the floor stores/releases); the DAILY MEAN closes.
 
 `sim/fountain.mjs` is the vendored rotating-frame ballistic jet solver (RK4 of centrifugal +
 Coriolis): the trajectory (it arcs back unless `v0 ≥ ωR`, so jets don't escape) and the induced
@@ -49,7 +55,7 @@ drives it.
 ## Run / test (all run from the sandbox; deploy does not)
 
 ```bash
-node iris/test/section.selftest.mjs    # 41 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
+node iris/test/section.selftest.mjs    # 46 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
 node iris/test/ratchet.selftest.mjs    # 9 checks: tooth periodicity + asymmetry, inward build, lake arc
 ```
 
@@ -66,12 +72,14 @@ The self-tests are the contract — run them before every push.
 
 ## Invariants — do not break
 
-1. **Energy closes by construction.** `T_skin` is solved FROM the in==out balance; never set it
-   independently. The `energyResidual` must stay ~0.
+1. **Energy closes over the DAY, not each instant.** With the diurnal sun the floor stores heat
+   by day and releases it at night (`powerStored ≠ 0`); the daily mean of in−out must be ~0, and
+   perpetual day (`dayLength=1`) closes instantaneously. Don't "fix" the instantaneous imbalance.
 2. **Heat flows outward.** `T_floor > T_reservoir > T_skin` always. If you add a thermal layer,
    keep the ordering.
-3. **Water is conserved across the jets toggle.** On/off only redistribute vapour
-   (`totalVapor` identical); they never create or destroy it.
+3. **The lakes are the water reservoir, not the airborne vapour.** Jets VENTILATE — they draw
+   moisture from the lakes and loft it (column vapour is NOT conserved across the jet toggle; the
+   lakes are). What's conserved is the lake water (the slider).
 3b. **The climate is solved, never dialed.** Floor humidity (lake coverage + cold-sink ceiling),
    the inversion (greenhouse radiative balance), and the vapour scale height (buoyancy length) are
    all OUTPUTS — there are no `RH_floor`, `invStrength`, or `humidityScale` knobs. The scenario
