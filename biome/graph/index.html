@@ -76,15 +76,16 @@
 <body>
 <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">biome</a> / graph</div>
 <header>
-  <h1>biome · the trophic web <small>— three contained habitats, one intermingled food web</small></h1>
-  <div class="sub">The maximalist closed ecology, drawn as a living graph. Three habitats are each held in
-    their own <b>basin</b> — the <span class="l">terrestrial</span> web, the <span class="w">lake</span>, and the
-    chthonic <span class="s">soil</span> web — and the whole thing is wired together by two <span class="b">cross-web
-    couplers</span>: a <b>marsh frog</b> (tadpoles graze the lake, adults eat soil springtails) bridging
-    <span class="w">lake</span>↔<span class="s">soil</span>, and a farmed <b>duck</b> grazing duckweed and crop, bridging
-    <span class="w">lake</span>↔<span class="l">land</span>. Every node is a real organism wearing its photo, sized by its
-    <b>present standing biomass</b>; the shared pools (air · N · detritus · larder) sit in the middle, where all three
-    webs meet. Drag nodes, scroll to zoom, hover for a card.
+  <h1>biome · the trophic web <small>— a Venn of three habitats, one intermingled food web</small></h1>
+  <div class="sub">The maximalist closed ecology, drawn as a living graph — a <b>Venn diagram</b> of three
+    overlapping habitats: the <span class="l">terrestrial</span> web, the <span class="w">lake</span>, and the
+    chthonic <span class="s">soil</span> web. Each web's organisms sit in its private crescent; the two
+    <span class="b">cross-web couplers</span> live in the overlap lenses — a <b>marsh frog</b> (tadpoles graze the
+    lake, adults eat soil springtails) in <span class="w">lake</span>∩<span class="s">soil</span>, and a farmed
+    <b>duck</b> (duckweed + crop) in <span class="w">lake</span>∩<span class="l">land</span> — and the shared pools
+    (air · N · detritus · larder) cluster in the triple-overlap centre, where all three webs meet. Every node is a
+    real organism wearing its photo, sized by its <b>present standing biomass</b>. Drag nodes, scroll to zoom,
+    hover for a card — and grab the duck. 🦆
     &nbsp;→ <a href="../cycles/robustness.html">does this coupling help?</a> · <a href="../cycles/global.html">box model</a></div>
 </header>
 <main>
@@ -102,8 +103,9 @@
       <button id="btn-pause">⏸ pause</button>
       <button id="btn-fit">⤢ fit</button>
     </div>
-    <div class="hint">Each organism is held inside its habitat basin; the frog and duck float in the gaps,
-      tied by their diet to the basins they feed from.</div>
+    <div class="hint">A <b>Venn diagram</b> of three overlapping habitats: each web's organisms sit in
+      its private crescent, the couplers live in the overlap lenses, and the shared pools cluster where all
+      three meet. <b>🦆 grab the duck</b> — it won't hold still.</div>
   </section>
 
   <section>
@@ -162,21 +164,29 @@ async function loadPhotos() {
   }
 }
 
-// ── scene: three habitat basins + a central shared-pool zone, couplers in the gaps ──
+// ── scene: a VENN diagram of three overlapping habitats. Each web's private organisms sit in
+//    its outer crescent; the cross-web couplers live in the pairwise-overlap lenses; the shared
+//    abiotic pools cluster in the triple-overlap centre, where all three webs meet. ──
 const WORLD = { w: 1280, h: 840 };
+const VENN_C = { x: 640, y: 420 };       // the triple-overlap centre
+const OUTWARD = 120;                      // how far organisms are biased into their private crescent
 const BASINS = {
-  land: { cx: 312, cy: 250, rx: 232, ry: 178, fill: ['#236b46', '#123a26', '#0b2418'], rim: 'rgba(120,205,150,0.5)', label: 'LAND', lc: 'rgba(108,194,127,0.6)' },
-  lake: { cx: 968, cy: 262, rx: 252, ry: 188, fill: ['#1f5f7e', '#143e58', '#0c2536'], rim: 'rgba(120,180,205,0.55)', label: 'THE LAKE', lc: 'rgba(90,169,216,0.65)' },
-  soil: { cx: 640, cy: 658, rx: 322, ry: 150, fill: ['#5a4326', '#3a2c18', '#241a0e'], rim: 'rgba(200,160,110,0.5)', label: 'THE SOIL', lc: 'rgba(195,155,106,0.62)' },
+  land: { cx: 450, cy: 312, rx: 300, ry: 256, glow:['rgba(46,128,74,0.40)','rgba(20,58,38,0.02)'],
+          rim:'rgba(120,205,150,0.5)', label:'LAND',     lc:'rgba(108,194,127,0.7)', labelX:330, labelY:96 },
+  lake: { cx: 830, cy: 312, rx: 300, ry: 256, glow:['rgba(40,124,166,0.40)','rgba(18,60,84,0.02)'],
+          rim:'rgba(120,180,205,0.55)', label:'THE LAKE', lc:'rgba(90,169,216,0.75)', labelX:952, labelY:96 },
+  soil: { cx: 640, cy: 612, rx: 322, ry: 232, glow:['rgba(156,114,62,0.38)','rgba(60,44,24,0.02)'],
+          rim:'rgba(200,160,110,0.5)',  label:'THE SOIL', lc:'rgba(195,155,106,0.72)', labelX:640, labelY:820 },
 };
-const POOL_POS = {
-  air:      { x: 640, y: 70 },
-  nMineral: { x: 520, y: 408 },
-  litter:   { x: 640, y: 372 },   // detritus — every web drains here
-  food:     { x: 760, y: 408 },
-  crew:     { x: 640, y: 470 },
+const POOL_POS = {                        // the triple-overlap core
+  air:      { x: 640, y: 392 },
+  nMineral: { x: 566, y: 430 },
+  food:     { x: 714, y: 430 },
+  litter:   { x: 640, y: 462 },   // detritus — every web drains here
+  crew:     { x: 640, y: 506 },
 };
-const BRIDGE_POS = { duck: { x: 640, y: 210 }, frog: { x: 832, y: 470 } };  // gaps between the basins
+// couplers live in the pairwise-overlap lenses: duck in land∩lake (top), frog in lake∩soil (lower-right)
+const BRIDGE_POS = { duck: { x: 640, y: 246 }, frog: { x: 748, y: 472 } };
 // per-organism offset from its basin centre, by trophic height (predators up, producers grade, decomposers low)
 const OFF = {
   bee:{x:-30,y:-118}, spider:{x:70,y:-66}, tree:{x:-104,y:-8}, crop:{x:-10,y:84}, reed:{x:108,y:78},
@@ -208,7 +218,10 @@ function buildNodes() {
     let ax, ay;
     if (isPool) { const p = POOL_POS[n.id] || { x:640, y:420 }; ax = p.x; ay = p.y; }
     else if (isBridge) { const p = BRIDGE_POS[n.id] || { x:640, y:420 }; ax = p.x; ay = p.y; }
-    else { const b = BASINS[n.container]; const o = OFF[n.id] || {x:0,y:0}; ax = b.cx + o.x; ay = b.cy + o.y; }
+    else { const b = BASINS[n.container]; const o = OFF[n.id] || {x:0,y:0};
+      // bias into the private crescent: push away from the Venn centre
+      const ox = b.cx - VENN_C.x, oy = b.cy - VENN_C.y, om = Math.hypot(ox, oy) || 1;
+      ax = b.cx + (ox/om)*OUTWARD + o.x; ay = b.cy + (oy/om)*OUTWARD + o.y; }
     nodes.push({ ...n, isPool, isBridge, ax, ay,
       x: old ? old.x : ax + (Math.random()-.5)*24, y: old ? old.y : ay + (Math.random()-.5)*24,
       vx:0, vy:0, r:20, targetR:20, fixed:false });
@@ -274,13 +287,15 @@ function renderSidebar(R) {
 const g = (k,v,u,c) => `<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
 
 document.getElementById('couplings').innerHTML =
-  '<b>Three containers, two bridges.</b> The webs would be disjoint islands but for the couplers down the middle. '
-  + 'The <span class="b">frog</span> wires <span class="w">lake</span> daphnia to <span class="s">soil</span> springtails; the '
-  + '<span class="b">duck</span> wires <span class="w">lake</span> duckweed to <span class="l">land</span> crop. Everything else '
-  + 'couples only through the <span class="p" style="color:var(--pool)">shared pools</span> in the centre — one air, one nitrogen, one '
-  + 'detritus, one larder — which is why losing a whole web’s decomposers is survivable: another web’s cover the same pool. '
-  + 'Toggle <b>Highlight the cross-web couplers</b> to see just the bridges. (Want to know if all this tangling helps or hurts? '
-  + 'The <a href="../cycles/robustness.html">intermingling lab</a> reads it off the community matrix.)';
+  '<b>Three sets, two intersections.</b> Read it as a Venn: the three webs would be disjoint sets but for what '
+  + 'sits in their overlaps. In <span class="w">lake</span>∩<span class="s">soil</span> the <span class="b">frog</span> '
+  + 'wires lake daphnia to soil springtails; in <span class="w">lake</span>∩<span class="l">land</span> the '
+  + '<span class="b">duck</span> wires lake duckweed to land crop. Everything else couples only through the '
+  + '<span class="p" style="color:var(--pool)">shared pools</span> in the triple-overlap centre — one air, one nitrogen, '
+  + 'one detritus, one larder — which is why losing a whole web’s decomposers is survivable: another web’s cover the same pool. '
+  + 'Toggle <b>Highlight the cross-web couplers</b> to see just the bridge edges. '
+  + '(And yes — catch the duck and it flies off. It comes back; it lives here. 🦆 '
+  + 'Curious whether all this tangling helps or hurts? The <a href="../cycles/robustness.html">intermingling lab</a> reads it off the community matrix.)';
 
 // ── force layout ──
 let temperature = 1, paused = false;
@@ -289,21 +304,21 @@ function springRest(e){ return (e.type==='trophic'||e.type==='eat') ? 92 : e.typ
 function springK(e){ const pool = POOL_IDS.has(e.from)||POOL_IDS.has(e.to); return pool ? 0.004 : (e.type==='pollinates'?0.02:0.024); }
 function step() {
   const KREP = 540, KANCHOR = 0.016, DAMP = 0.86, MAXV = 14;
-  for (let i=0;i<nodes.length;i++){ const a=nodes[i]; if(a.isPool)continue;
-    for (let j=i+1;j<nodes.length;j++){ const b=nodes[j]; if(b.isPool)continue;
+  for (let i=0;i<nodes.length;i++){ const a=nodes[i]; if(a.isPool||a.flying)continue;
+    for (let j=i+1;j<nodes.length;j++){ const b=nodes[j]; if(b.isPool||b.flying)continue;
       let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<1)d2=1; const d=Math.sqrt(d2);
       const want=a.r+b.r+24, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
-  for (const e of edges){ const a=byId[e.from], b=byId[e.to]; if(!a||!b)continue;
+  for (const e of edges){ const a=byId[e.from], b=byId[e.to]; if(!a||!b||a.flying||b.flying)continue;  // a flying duck slips its trophic tethers
     let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const f=springK(e)*(d-springRest(e));
     const fx=dx/d*f, fy=dy/d*f; if(!a.isPool){a.vx+=fx;a.vy+=fy;} if(!b.isPool){b.vx-=fx;b.vy-=fy;} }
   for (const n of nodes){
     if (n.isPool){ n.x=n.ax; n.y=n.ay; n.r+=(n.targetR-n.r)*0.2; continue; }
-    n.vx += (n.ax-n.x)*KANCHOR*(n.isBridge?1.6:1); n.vy += (n.ay-n.y)*KANCHOR*(n.isBridge?1.6:1);
+    if (n.flying){ flightStep(n); n.r+=(n.targetR-n.r)*0.2; continue; }   // the duck is airborne
+    n.vx += (n.ax-n.x)*KANCHOR*(n.isBridge?1.7:1); n.vy += (n.ay-n.y)*KANCHOR*(n.isBridge?1.7:1);
     if (!n.fixed){ n.vx*=DAMP; n.vy*=DAMP;
       n.vx=Math.max(-MAXV,Math.min(MAXV,n.vx)); n.vy=Math.max(-MAXV,Math.min(MAXV,n.vy));
       n.x+=n.vx*temperature; n.y+=n.vy*temperature; }
-    if (!n.isBridge && BASINS[n.container]) containInBasin(n, BASINS[n.container]);
-    else if (n.isBridge) keepOutOfBasins(n);
+    if (!n.isBridge && BASINS[n.container]) containInBasin(n, BASINS[n.container]);  // organisms stay in their crescent; couplers float free in their lens
     n.r += (n.targetR-n.r)*0.2;
   }
   temperature *= 0.992; if (temperature < 0.02) temperature = 0.02;
@@ -313,11 +328,24 @@ function containInBasin(n, b){
   const nx=(n.x-b.cx)/(b.rx-m), ny=(n.y-b.cy)/(b.ry-m), rr=nx*nx+ny*ny;
   if (rr>1){ const s=1/Math.sqrt(rr); n.x=b.cx+nx*(b.rx-m)*s; n.y=b.cy+ny*(b.ry-m)*s; n.vx*=0.4; n.vy*=0.4; }
 }
-function keepOutOfBasins(n){          // couplers float in the gaps — push them off any basin they drift into
-  for (const b of Object.values(BASINS)){
-    const m=n.r+10, nx=(n.x-b.cx)/(b.rx+m), ny=(n.y-b.cy)/(b.ry+m), rr=nx*nx+ny*ny;
-    if (rr<1 && rr>1e-6){ const s=1/Math.sqrt(rr); n.x=b.cx+nx*(b.rx+m)*s; n.y=b.cy+ny*(b.ry+m)*s; n.vx*=0.5; n.vy*=0.5; }
-  }
+// 🦆 the duck flies off when you let go of it: ballistic arc, slips its tethers, then the anchor
+// reels it home. (frogs can't fly — only the duck does this.)
+function launchDuck(d){
+  const n = d.n; n.flying = true; n.flightT = 0; n.fixed = false; n.quackT = 42; n.flapPhase = 0;
+  const GAIN = 2.4, CAP = 26;
+  let vx = (d.vx||0)*GAIN + (Math.random()-0.5)*5;
+  let vy = Math.min(-7, (d.vy||0)*GAIN) - 7;        // always a flap of upward lift
+  n.vx = Math.max(-CAP, Math.min(CAP, vx)); n.vy = Math.max(-CAP, Math.min(CAP, vy));
+  reheat(0.8);
+}
+function flightStep(n){
+  n.flapPhase += 0.6;
+  n.vy += 0.22;                  // gravity → it arcs
+  n.vx *= 0.99; n.vy *= 0.99;
+  n.x += n.vx; n.y += n.vy;
+  n.flightT++; if (n.quackT > 0) n.quackT--;
+  const off = n.x < -120 || n.x > WORLD.w+120 || n.y < -150 || n.y > WORLD.h+150;
+  if (n.flightT > 175 || (off && n.flightT > 16)) { n.flying = false; n.flightT = 0; reheat(1); }  // home it comes
 }
 
 // ── camera ──
@@ -366,22 +394,23 @@ function draw(){
   }
 }
 function drawBasins(){
-  for (const [key, b] of Object.entries(BASINS)){
-    cx.save();
-    cx.beginPath(); cx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, Math.PI*2); cx.clip();
-    const grd = cx.createLinearGradient(0, b.cy-b.ry, 0, b.cy+b.ry);
-    grd.addColorStop(0, b.fill[0]); grd.addColorStop(0.5, b.fill[1]); grd.addColorStop(1, b.fill[2]);
-    cx.fillStyle = grd; cx.fillRect(b.cx-b.rx, b.cy-b.ry, b.rx*2, b.ry*2);
-    cx.strokeStyle = 'rgba(255,255,255,0.06)'; cx.lineWidth = 1.1;
-    for (let i=1;i<=5;i++){ const yy=b.cy-b.ry+i*(b.ry*2/6); cx.beginPath();
-      for (let xx=b.cx-b.rx; xx<=b.cx+b.rx; xx+=14) cx.lineTo(xx, yy+Math.sin((xx+i*30)/26)*2.2); cx.stroke(); }
-    cx.restore();
-    cx.strokeStyle = b.rim; cx.lineWidth = 2; cx.beginPath(); cx.ellipse(b.cx,b.cy,b.rx,b.ry,0,0,Math.PI*2); cx.stroke();
-    cx.fillStyle = b.lc; cx.font = '600 14px '+MONO; cx.textAlign='center';
-    cx.fillText(b.label, b.cx, b.cy-b.ry+20); cx.textAlign='left';
+  // VENN: three translucent overlapping discs, additively blended so the overlap lenses (where
+  // the couplers live) and the triple-overlap centre (the shared pools) glow brighter.
+  cx.save();
+  cx.globalCompositeOperation = 'lighter';
+  for (const b of Object.values(BASINS)){
+    const grd = cx.createRadialGradient(b.cx, b.cy, 8, b.cx, b.cy, Math.max(b.rx, b.ry));
+    grd.addColorStop(0, b.glow[0]); grd.addColorStop(1, b.glow[1]);
+    cx.fillStyle = grd; cx.beginPath(); cx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, Math.PI*2); cx.fill();
   }
-  cx.fillStyle = 'rgba(202,166,224,0.5)'; cx.font = '600 11px '+MONO; cx.textAlign='center';
-  cx.fillText('· shared pools — where the three webs meet ·', 640, 516); cx.textAlign='left';
+  cx.restore();
+  for (const b of Object.values(BASINS)){
+    cx.strokeStyle = b.rim; cx.lineWidth = 2; cx.beginPath(); cx.ellipse(b.cx,b.cy,b.rx,b.ry,0,0,Math.PI*2); cx.stroke();
+    cx.fillStyle = b.lc; cx.font = '600 15px '+MONO; cx.textAlign='center';
+    cx.fillText(b.label, b.labelX, b.labelY); cx.textAlign='left';
+  }
+  cx.fillStyle = 'rgba(202,166,224,0.6)'; cx.font = '600 10.5px '+MONO; cx.textAlign='center';
+  cx.fillText('shared pools — all three webs meet', VENN_C.x, VENN_C.y-42); cx.textAlign='left';
 }
 function drawOrganism(n, isFocus){
   const img = TG.photos ? IMG[n.id] : null;
@@ -401,9 +430,27 @@ function drawOrganism(n, isFocus){
   if (n.isBridge && !isFocus) cx.setLineDash([5,4]);
   cx.beginPath(); cx.arc(n.x,n.y,n.r,0,Math.PI*2); cx.stroke(); cx.setLineDash([]);
   cx.restore();
+  if (n.flying) drawWings(n);
   if (TG.labels){
     cx.font='11px '+MONO; cx.textAlign='center'; cx.lineWidth=3; cx.strokeStyle='rgba(8,16,12,0.85)';
     cx.strokeText(n.label, n.x, n.y+n.r+13); cx.fillStyle='#dcefe1'; cx.fillText(n.label, n.x, n.y+n.r+13); cx.textAlign='left';
+  }
+}
+function drawWings(n){           // two flapping wings + a QUACK! while the duck is airborne
+  const flap = Math.sin(n.flapPhase) * 0.5;     // -0.5 (down) … +0.5 (up)
+  cx.strokeStyle = '#f2d98a'; cx.lineWidth = 3; cx.lineCap = 'round';
+  for (const s of [-1, 1]){
+    cx.beginPath();
+    cx.moveTo(n.x + s*n.r*0.45, n.y - n.r*0.15);
+    cx.quadraticCurveTo(n.x + s*(n.r+20), n.y - n.r*0.6 - flap*30,
+                        n.x + s*(n.r+34), n.y - n.r*0.1 - flap*16);
+    cx.stroke();
+  }
+  cx.lineCap = 'butt';
+  if (n.quackT > 0){
+    cx.font = '700 14px '+MONO; cx.textAlign='center';
+    cx.lineWidth = 3; cx.strokeStyle = 'rgba(8,16,12,0.85)'; cx.strokeText('QUACK!', n.x, n.y - n.r - 16);
+    cx.fillStyle = '#ffe08a'; cx.fillText('QUACK!', n.x, n.y - n.r - 16); cx.textAlign='left';
   }
 }
 function drawPool(n){
@@ -458,16 +505,21 @@ function pick(wx,wy){ let best=null,bd=Infinity;
 const screenPt = (ev) => { const r=cv.getBoundingClientRect(); return { sx:ev.clientX-r.left, sy:ev.clientY-r.top }; };
 cv.addEventListener('pointerdown', (ev)=>{ cv.setPointerCapture(ev.pointerId);
   const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
-  if (n && !n.isPool){ drag={n,dx:n.x-w.x,dy:n.y-w.y}; n.fixed=true; cv.classList.add('grabbing'); }
+  if (n && !n.isPool){ if(n.flying) n.flying=false;            // you can re-catch the duck mid-flight
+    drag={n,dx:n.x-w.x,dy:n.y-w.y,vx:0,vy:0,px:w.x,py:w.y}; n.fixed=true; cv.classList.add('grabbing'); }
   else { panning={sx,sy,cx0:cam.x,cy0:cam.y}; cv.classList.add('grabbing'); pinned=null; hideInfo(); } });
 cv.addEventListener('pointermove', (ev)=>{ const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy);
-  if (drag){ drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0; reheat(0.4); showInfo(drag.n,sx,sy); return; }
+  if (drag){ drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0;
+    drag.vx=w.x-drag.px; drag.vy=w.y-drag.py; drag.px=w.x; drag.py=w.y;   // track fling velocity
+    reheat(0.4); showInfo(drag.n,sx,sy); return; }
   if (panning){ cam.x=panning.cx0+(sx-panning.sx); cam.y=panning.cy0+(sy-panning.sy); return; }
   const n=pick(w.x,w.y); hover=n;
   if (n){ cv.style.cursor='pointer'; if(!pinned) showInfo(n,sx,sy); } else { cv.style.cursor='grab'; if(!pinned) hideInfo(); } });
 function endPointer(){ if(drag){drag.n.fixed=false;drag=null;} panning=null; cv.classList.remove('grabbing'); }
 cv.addEventListener('pointerup', (ev)=>{ const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
-  if (!drag && n){ pinned=(pinned===n?null:n); if(pinned) showInfo(n,sx,sy); else hideInfo(); } endPointer(); });
+  if (drag && drag.n.id==='duck'){ launchDuck(drag); hideInfo(); }   // 🦆 catch the duck → it flies off
+  else if (!drag && n){ pinned=(pinned===n?null:n); if(pinned) showInfo(n,sx,sy); else hideInfo(); }
+  endPointer(); });
 cv.addEventListener('pointercancel', endPointer);
 cv.addEventListener('pointerleave', ()=>{ hover=null; if(!pinned) hideInfo(); });
 cv.addEventListener('wheel', (ev)=>{ ev.preventDefault(); const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy);
