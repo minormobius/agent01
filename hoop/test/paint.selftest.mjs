@@ -92,6 +92,39 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   ok(tdoors.length === tree.roomSeeds.length - 1, 'the room-adjacency graph is connected (spanning tree = rooms − 1)');
 }
 
+// ── ZONES: agglomerate cells into sized super-regions, hierarchy in the connectivity ──
+{
+  const sc = buildScene({ W: 900, H: 640, wallSpacing: 8, roomSpacing: 24, roomSize: 80, zoneSize: 12, mixed: false, interLoops: 0, loops: 0, seed: 4 });
+  ok(sc.zoneCount > 1 && sc.zoneCount < sc.roomSeeds.length, 'rooms are grouped into several zones');
+  ok(Math.abs(sc.roomSeeds.length / sc.zoneCount - 12) < 9, 'average zone size tracks the zone-size knob (~12)');
+  // every zone is internally connected (a graph-Voronoi region)
+  const adj = Array.from({ length: sc.roomSeeds.length }, () => []);
+  for (const e of sc.adjEdges) { adj[e.a].push(e.b); adj[e.b].push(e.a); }
+  let allConn = true;
+  for (let z = 0; z < sc.zoneCount; z++) {
+    const idx = []; for (let i = 0; i < sc.zoneOf.length; i++) if (sc.zoneOf[i] === z) idx.push(i);
+    if (!idx.length) continue;
+    const seen = new Set([idx[0]]), q = [idx[0]]; while (q.length) { const u = q.shift(); for (const v of adj[u]) if (sc.zoneOf[v] === z && !seen.has(v)) { seen.add(v); q.push(v); } }
+    if (seen.size !== idx.length) allConn = false;
+  }
+  ok(allConn, 'every zone is internally connected (a graph-Voronoi region)');
+  // the zoned door network still connects EVERY room
+  const par = Array.from({ length: sc.roomSeeds.length }, (_, i) => i), find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  for (const d of sc.doors) par[find(d.a)] = find(d.b);
+  ok(new Set(sc.roomSeeds.map((s) => find(s.id))).size === 1, 'the zoned door network still connects every room');
+  // sparse arterials: inter-zone doors = a spanning tree over the zones (zoneCount − 1) at interLoops 0
+  ok(sc.doors.filter((d) => d.inter).length === sc.zoneCount - 1, 'inter-zone doors form a spanning tree over the zones (sparse arterials)');
+}
+
+// ── a mixed program gives varied zone sizes (housing + hospital) ──
+{
+  const sizesOf = (sc) => { const m = new Map(); for (const z of sc.zoneOf) m.set(z, (m.get(z) || 0) + 1); return [...m.values()]; };
+  const variance = (a) => { const mu = a.reduce((s, x) => s + x, 0) / a.length; return a.reduce((s, x) => s + (x - mu) ** 2, 0) / a.length; };
+  const uni = buildScene({ W: 900, H: 640, wallSpacing: 8, roomSpacing: 24, roomSize: 80, zoneSize: 12, mixed: false, seed: 4 });
+  const mix = buildScene({ W: 900, H: 640, wallSpacing: 8, roomSpacing: 24, roomSize: 80, zoneSize: 12, mixed: true, seed: 4 });
+  ok(variance(sizesOf(mix)) > variance(sizesOf(uni)), 'a mixed program gives more varied zone sizes (housing + hospital)');
+}
+
 // ── determinism ──
 {
   const p = { W: 400, H: 300, wallSpacing: 8, roomSpacing: 16, roomSize: 60 };

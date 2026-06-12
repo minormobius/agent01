@@ -46,10 +46,14 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
   fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
   big seed at each room centre, fining toward the walls (**room spacing** ⇒ interior coarseness) — so
-  detail goes where it's needed and the cells fit between the two. Sliders for wall/room spacing +
-  room size; toggle for the exact floor plan. Geometry kernel is pure + node-tested
-  (`test/paint.selftest.mjs`, 21 checks); the page only draws what `buildScene()` returns. A sandbox
-  to iterate the look before it feeds back into world.js.
+  detail goes where it's needed and the cells fit between the two. **Doors** are two-nuclei-wide gaps
+  cut in the wall + floor-bridged (a spanning tree keeps every room connected; `loops` adds roads).
+  **Zones** force higher-order structure: rooms agglomerate into sized super-regions (graph-Voronoi,
+  weighted so a "program" can mix housing-16 + hospital-64) — dense doors inside a zone, a sparse
+  arterial tree between zones. Sliders for wall/room spacing, room size, loops, zone size; mixed-
+  program + tint/floor-plan/roads/nuclei toggles. Geometry kernel is pure + node-tested
+  (`test/paint.selftest.mjs`, 34 checks: grading, door connectivity, zone connectivity + arterials);
+  the page only draws what `buildScene()` returns. A sandbox to iterate the look before world.js.
 
 ## The package it belongs to
 

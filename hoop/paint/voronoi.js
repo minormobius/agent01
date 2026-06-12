@@ -106,13 +106,68 @@ export function chooseDoors(edges, roomCount, seed, loops) {
   return tree.concat(rest.slice(0, Math.round(rest.length * Math.max(0, Math.min(1, loops || 0)))));
 }
 
+// ── ZONES: force higher-order structure on the rooms ──────────────────────────────────────
+// Agglomerate the room cells into sized super-regions (a housing unit = 16 cells, a hospital = 64).
+// Graph-Voronoi over the room-adjacency graph from well-spread seeds; weights let zones target
+// different sizes (size ∝ weight), so a "program" of mixed sizes drops straight in. Returns
+// zoneOf[roomId]. Connected by construction (each zone is a graph-Voronoi cell).
+function tinyHeap() {
+  const a = [];
+  return { size: () => a.length, push(e) { a.push(e); let k = a.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (a[p][0] <= a[k][0]) break;[a[p], a[k]] = [a[k], a[p]]; k = p; } }, pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < a.length && a[L][0] < a[m][0]) m = L; if (R < a.length && a[R][0] < a[m][0]) m = R; if (m === k) break;[a[m], a[k]] = [a[k], a[m]]; k = m; } } return t; } };
+}
+export function assignZones(roomCount, adjEdges, weights, seed) {
+  const adj = Array.from({ length: roomCount }, () => []);
+  for (const e of adjEdges) { adj[e.a].push(e.b); adj[e.b].push(e.a); }
+  const nZones = Math.max(1, Math.min(weights.length, roomCount));
+  // greedy farthest-point seeding (well-spread zone centres)
+  const rnd = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+  const dmin = new Int32Array(roomCount).fill(1e9);
+  const bfs = (src) => { const q = [src], dist = new Int32Array(roomCount).fill(-1); dist[src] = 0; let h = 0; while (h < q.length) { const u = q[h++]; if (dist[u] < dmin[u]) dmin[u] = dist[u]; for (const v of adj[u]) if (dist[v] < 0) { dist[v] = dist[u] + 1; q.push(v); } } };
+  const seeds = [Math.floor(rnd() * roomCount)]; bfs(seeds[0]);
+  while (seeds.length < nZones) { let best = -1, bd = -1; for (let i = 0; i < roomCount; i++) if (dmin[i] < 1e9 && dmin[i] > bd) { bd = dmin[i]; best = i; } if (best < 0) break; seeds.push(best); bfs(best); }
+  // weighted multi-source Dijkstra: step cost 1/weight ⇒ region size ∝ weight
+  const cost = new Float64Array(roomCount).fill(Infinity), zoneOf = new Int32Array(roomCount).fill(-1), heap = tinyHeap();
+  seeds.forEach((s, zi) => { cost[s] = 0; zoneOf[s] = zi; heap.push([0, s, zi]); });
+  while (heap.size()) { const [c, u, zi] = heap.pop(); if (c > cost[u]) continue; const inc = 1 / Math.max(1e-6, weights[zi]); for (const v of adj[u]) { const nc = c + inc; if (nc < cost[v]) { cost[v] = nc; zoneOf[v] = zi; heap.push([nc, v, zi]); } } }
+  for (let i = 0; i < roomCount; i++) if (zoneOf[i] === -1) { let z = -1; for (const v of adj[i]) if (zoneOf[v] >= 0) { z = zoneOf[v]; break; } zoneOf[i] = z >= 0 ? z : 0; }
+  return zoneOf;
+}
+// a "program": mostly unit zones (weight 1 ≈ `zoneSize` rooms), a spread of `mixed` larger ones (×4).
+export function programWeights(roomCount, zoneSize, mixed, seed) {
+  const n = Math.max(1, Math.round(roomCount / Math.max(1, zoneSize))), w = new Array(n).fill(1);
+  if (mixed && n > 2) { const nBig = Math.max(1, Math.round(n * 0.18)), step = Math.floor(n / nBig); for (let i = 0; i < nBig; i++) w[(i * step) % n] = 4; }
+  return w;
+}
+
+// Zone-aware doors: a spanning tree WITHIN each zone (dense local connectivity, + `loops`), and a
+// sparse spanning tree BETWEEN zones (one arterial door per adjacent zone pair, + `interLoops`).
+// Inter-zone doors are flagged `inter`. Everything stays connected; the hierarchy is in the density.
+export function chooseDoorsZoned(adjEdges, zoneOf, roomCount, seed, loops, interLoops) {
+  const intra = [], pair = new Map();
+  for (const e of adjEdges) {
+    if (zoneOf[e.a] === zoneOf[e.b]) intra.push(e);
+    else { const za = Math.min(zoneOf[e.a], zoneOf[e.b]), zb = Math.max(zoneOf[e.a], zoneOf[e.b]), k = za + ',' + zb, p = pair.get(k); if (!p || e.len > p.len) pair.set(k, e); }
+  }
+  const intraDoors = chooseDoors(intra, roomCount, seed, loops); // spanning forest = one tree per zone
+  const inter = [...pair.values()];
+  const zoneCount = roomCount ? Math.max(...zoneOf) + 1 : 0;
+  const hash = (e) => { let x = (seed ^ Math.imul(zoneOf[e.a] + 1, 40503) ^ Math.imul(zoneOf[e.b] + 1, 57089)) >>> 0; x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; return x >>> 0; };
+  const ord = inter.slice().sort((p, q) => hash(p) - hash(q));
+  const par = Array.from({ length: zoneCount }, (_, i) => i), find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  const tree = [], rest = [];
+  for (const e of ord) { const za = find(zoneOf[e.a]), zb = find(zoneOf[e.b]); if (za !== zb) { par[za] = zb; tree.push(e); } else rest.push(e); }
+  const interDoors = tree.concat(rest.slice(0, Math.round(rest.length * Math.max(0, Math.min(1, interLoops || 0)))));
+  for (const e of interDoors) e.inter = true;
+  return intraDoors.concat(interDoors);
+}
+
 // Build the whole scene: room seeds + room cells (the exact floor plan), the membrane-seeded wall
 // nuclei (fine, at `wallSpacing`) with DOORS cut where rooms connect, and DENSITY-GRADED floor
 // nuclei — a big seed at each room centre, fining toward the walls — so detail goes where it's
 // needed (crisp thin walls) and the interiors stay coarse. Doors are two-nuclei-wide gaps in the
 // wall, bridged with floor so the rooms connect; `loops` adds extra doors past the spanning tree.
 // Knobs: `wallSpacing` (wall thickness ≈ it), `roomSpacing` (interior coarseness), `loops` (roads).
-export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, loops = 0, seed = 1 }) {
+export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, loops = 0, zoneSize = 1e9, mixed = false, interLoops = 0.1, seed = 1 }) {
   const rng = mulberry32(seed >>> 0);
   const band = wallSpacing * 0.5;
   // 1. the floor plan: jittered-grid room seeds → room Voronoi cells
@@ -120,9 +175,12 @@ export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, loops = 0
   const roomGrid = bucketGrid(roomSeeds, roomSize * 1.4);
   const roomCells = roomSeeds.map((s) => ({ id: s.id, x: s.x, y: s.y, poly: clipCell(s, roomGrid.near(s.x, s.y), roomSize * 2.2) }));
 
-  // 1b. DOORS: a spanning tree of the room-adjacency graph (every room connected) + `loops` extras.
+  // 1b. ZONES + DOORS: agglomerate rooms into sized zones, then connect — dense inside a zone, a
+  //     sparse arterial tree between zones; everything stays one connected network.
   const adjEdges = adjacency(roomCells, roomSeeds, roomGrid, wallSpacing * 0.6);
-  const doors = chooseDoors(adjEdges, roomSeeds.length, seed >>> 0, loops);
+  const weights = programWeights(roomSeeds.length, zoneSize, mixed, seed >>> 0);
+  const zoneOf = assignZones(roomSeeds.length, adjEdges, weights, seed >>> 0);
+  const doors = chooseDoorsZoned(adjEdges, zoneOf, roomSeeds.length, seed >>> 0, loops, interLoops);
   const doorHalf = wallSpacing;                 // gap along the wall = 2·wallSpacing (two nuclei wide)
   const doorGrid = bucketGrid(doors.map((d) => ({ x: d.m[0], y: d.m[1] })), Math.max(roomSize, doorHalf * 2));
   const atDoor = (x, y) => { for (const q of doorGrid.near(x, y)) if ((q.x - x) ** 2 + (q.y - y) ** 2 < doorHalf * doorHalf) return true; return false; };
@@ -181,8 +239,8 @@ export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, loops = 0
   // 4. paint: the Voronoi of all nuclei (neighbour search sized for the coarsest cells)
   const nuclei = wallNuclei.concat(floorNuclei);
   const paintGrid = bucketGrid(nuclei, Math.max(roomSpacing, wallSpacing) * 1.6);
-  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), roomSpacing * 3) }));
+  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, zone: (nu.wall || nu.room == null) ? -1 : zoneOf[nu.room], door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), roomSpacing * 3) }));
 
-  return { W, H, wallSpacing, roomSpacing, roomSize, band, loops, roomSeeds, roomCells, adjEdges, doors, wallNuclei, floorNuclei, nuclei, paintCells };
+  return { W, H, wallSpacing, roomSpacing, roomSize, band, loops, zoneSize, mixed, zoneCount: weights.length, roomSeeds, roomCells, adjEdges, zoneOf, doors, wallNuclei, floorNuclei, nuclei, paintCells };
 }
 

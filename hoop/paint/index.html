@@ -63,6 +63,8 @@
         the two. Paint the Voronoi of them all: wall cells = wall, the rest = floor.
         <b>Doors</b> are two-nuclei-wide gaps cut in the wall and bridged with floor; a spanning tree
         of them keeps <b>every room connected</b>, and <b>loops</b> adds extra doors — generated roads.
+        <b>Zones</b> force higher-order structure: rooms agglomerate into sized super-regions (a
+        housing unit, a hospital) — dense doors inside a zone, sparse arterials between them.
       </p>
 
       <div class="ctl">
@@ -81,17 +83,24 @@
         <label>loops / roads <span class="v" id="v-lp">15%</span></label>
         <input type="range" id="lp" min="0" max="100" step="5" value="15">
       </div>
+      <div class="ctl">
+        <label>zone size (cells) <span class="v" id="v-zn">12</span></label>
+        <input type="range" id="zn" min="4" max="64" step="1" value="12">
+      </div>
 
+      <label class="row"><input type="checkbox" id="t-mix"> mixed program (housing + hospital)</label>
+      <label class="row"><input type="checkbox" id="t-zone" checked> tint zones</label>
       <label class="row"><input type="checkbox" id="t-plan"> show the exact floor plan</label>
       <label class="row"><input type="checkbox" id="t-roads"> show the roads (door graph)</label>
       <label class="row"><input type="checkbox" id="t-nuc"> show the nuclei</label>
-      <label class="row"><input type="checkbox" id="t-room" checked> tint rooms</label>
+      <label class="row"><input type="checkbox" id="t-room"> tint rooms</label>
       <button id="regen">⟲ regenerate plan</button>
 
       <div class="readouts">
         <span class="ro"><span class="k">wall thickness ≈</span><span class="val" id="r-thick">—</span></span>
         <span class="ro"><span class="k">rooms / doors</span><span class="val" id="r-rooms">—</span></span>
         <span class="ro"><span class="k">paint cells</span><span class="val" id="r-cells">—</span></span>
+        <span class="ro"><span class="k">zones</span><span class="val" id="r-zones">—</span></span>
         <span class="ro"><span class="k">wall / floor nuclei</span><span class="val" id="r-nuc">—</span></span>
       </div>
     </aside>
@@ -104,31 +113,40 @@
     const $ = (id) => document.getElementById(id);
     let scene = null, seed = 1, W = 0, H = 0, dpr = 1;
 
-    const params = () => ({ W, H, wallSpacing: +$('ws').value, roomSpacing: +$('rs').value, roomSize: +$('rm').value, loops: +$('lp').value / 100, seed });
+    const params = () => ({ W, H, wallSpacing: +$('ws').value, roomSpacing: +$('rs').value, roomSize: +$('rm').value, loops: +$('lp').value / 100, zoneSize: +$('zn').value, mixed: $('t-mix').checked, interLoops: 0.12, seed });
 
     function roomColor(id, lit) {
       const h = ((id * 73) % 90) + 110;            // 110..200 → green↔teal phosphor band
       const l = (16 + (lit ? 10 : 0)) + ((id * 31) % 7);
       return `hsl(${h} 26% ${l}%)`;
     }
+    function zoneColor(z) { return `hsl(${((z * 137.508) % 360).toFixed(0)} 26% ${(19 + (z % 5)).toFixed(0)}%)`; } // golden-angle hues
     function poly(p) { if (p.length < 3) return; ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); }
 
     function draw() {
       if (!scene) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
-      const tintRooms = $('t-room').checked;
+      const tintRooms = $('t-room').checked, tintZones = $('t-zone').checked;
       // paint cells
       for (const c of scene.paintCells) {
         if (c.poly.length < 3) continue;
         if (c.wall) ctx.fillStyle = '#0a0e12';
-        else if (c.door) ctx.fillStyle = tintRooms ? 'hsl(44 16% 24%)' : '#1b242a'; // a threshold-lit doorway
-        else ctx.fillStyle = tintRooms ? roomColor(c.room || 0, true) : '#11181c';
+        else if (c.door) ctx.fillStyle = (tintZones || tintRooms) ? 'hsl(44 16% 24%)' : '#1b242a'; // a threshold-lit doorway
+        else if (tintZones && c.zone >= 0) ctx.fillStyle = zoneColor(c.zone);
+        else if (tintRooms) ctx.fillStyle = roomColor(c.room || 0, true);
+        else ctx.fillStyle = '#11181c';
         poly(c.poly); ctx.fill();
       }
       // a hair of cell definition so the foam reads
       ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(20,28,34,0.55)';
       for (const c of scene.paintCells) { if (c.wall || c.poly.length < 3) continue; poly(c.poly); ctx.stroke(); }
+      // zone boundaries: the inter-zone membranes, drawn thick so the super-regions read
+      if (tintZones && scene.zoneOf) {
+        ctx.lineWidth = Math.max(2, scene.wallSpacing * 0.6); ctx.strokeStyle = 'rgba(5,7,10,0.95)'; ctx.lineCap = 'round'; ctx.beginPath();
+        for (const e of scene.adjEdges) { if (scene.zoneOf[e.a] === scene.zoneOf[e.b]) continue; const hl = e.len / 2; ctx.moveTo(e.m[0] - e.along[0] * hl, e.m[1] - e.along[1] * hl); ctx.lineTo(e.m[0] + e.along[0] * hl, e.m[1] + e.along[1] * hl); }
+        ctx.stroke();
+      }
 
       // overlay: the exact floor plan (room voronoi cells = the membranes) + seeds
       if ($('t-plan').checked) {
@@ -137,14 +155,15 @@
         ctx.fillStyle = 'rgba(244,191,98,0.95)';
         for (const s of scene.roomSeeds) { ctx.beginPath(); ctx.arc(s.x, s.y, 2.4, 0, Math.PI * 2); ctx.fill(); }
       }
-      // overlay: the roads — the door graph (room centre → door → room centre = the routes)
+      // overlay: the roads — the door graph (room centre → door → room centre). Local streets
+      // (within a zone) faint teal; arterials (between zones) gold.
       if ($('t-roads').checked) {
         const byId = new Map(scene.roomSeeds.map((s) => [s.id, s]));
-        ctx.strokeStyle = 'rgba(121,200,160,0.7)'; ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.beginPath();
-        for (const d of scene.doors) { const a = byId.get(d.a), b = byId.get(d.b); if (!a || !b) continue; ctx.moveTo(a.x, a.y); ctx.lineTo(d.m[0], d.m[1]); ctx.lineTo(b.x, b.y); }
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(127,216,208,0.95)';
-        for (const d of scene.doors) { ctx.beginPath(); ctx.arc(d.m[0], d.m[1], 2.2, 0, Math.PI * 2); ctx.fill(); }
+        const drawSet = (inter, style, w) => { ctx.strokeStyle = style; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); for (const d of scene.doors) { if (!!d.inter !== inter) continue; const a = byId.get(d.a), b = byId.get(d.b); if (!a || !b) continue; ctx.moveTo(a.x, a.y); ctx.lineTo(d.m[0], d.m[1]); ctx.lineTo(b.x, b.y); } ctx.stroke(); };
+        drawSet(false, 'rgba(121,200,160,0.5)', 1.2);   // local streets
+        drawSet(true, 'rgba(244,191,98,0.9)', 2.2);     // arterials
+        ctx.fillStyle = 'rgba(127,216,208,0.9)';
+        for (const d of scene.doors) { ctx.beginPath(); ctx.arc(d.m[0], d.m[1], 2, 0, Math.PI * 2); ctx.fill(); }
       }
       // overlay: the nuclei themselves
       if ($('t-nuc').checked) {
@@ -162,10 +181,11 @@
       requestAnimationFrame(() => {
         scene = buildScene(p);
         $('v-ws').textContent = p.wallSpacing; $('v-rs').textContent = p.roomSpacing; $('v-rm').textContent = p.roomSize;
-        $('v-lp').textContent = Math.round(p.loops * 100) + '%';
+        $('v-lp').textContent = Math.round(p.loops * 100) + '%'; $('v-zn').textContent = p.zoneSize;
         $('r-thick').textContent = Math.round(scene.band * 2) + ' px';
         $('r-rooms').textContent = scene.roomSeeds.length + ' / ' + scene.doors.length;
         $('r-cells').textContent = scene.paintCells.length.toLocaleString();
+        $('r-zones').textContent = scene.zoneCount;
         $('r-nuc').textContent = scene.wallNuclei.length + ' / ' + scene.floorNuclei.length;
         draw();
         $('busy').classList.remove('on');
@@ -187,6 +207,9 @@
     $('rs').addEventListener('input', () => { $('v-rs').textContent = $('rs').value; schedule(); });
     $('rm').addEventListener('input', () => { $('v-rm').textContent = $('rm').value; schedule(); });
     $('lp').addEventListener('input', () => { $('v-lp').textContent = $('lp').value + '%'; schedule(); });
+    $('zn').addEventListener('input', () => { $('v-zn').textContent = $('zn').value; schedule(); });
+    $('t-mix').addEventListener('change', schedule);
+    $('t-zone').addEventListener('change', draw);
     $('t-plan').addEventListener('change', draw);
     $('t-roads').addEventListener('change', draw);
     $('t-nuc').addEventListener('change', draw);
