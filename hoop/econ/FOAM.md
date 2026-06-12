@@ -106,3 +106,7 @@ demand-routing is where the research interest is. Leg 4 is cheap after 3 (all ma
 Leg 5 should land before any ATProto write. Keep `rind/wayfind.js → hoop/vendor/wayfind.js` a
 verbatim re-sync (same rule as vendor/auth.js); if the two drift, the certificate the kernel
 relies on is no longer the one foamview draws.
+
+> Deploy note: a Cloudflare API 504 ate the first leg-2 deploy (run 27421574156) — transient,
+> re-fired by commit. If a hoop deploy fails at "Deploy Worker + Assets" with a 504, re-push; the
+> sandbox cannot dispatch workflows.
