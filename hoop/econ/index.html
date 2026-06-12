@@ -42,22 +42,22 @@
     <div class="top"><span class="logo">▦ econ</span><span class="tag">economies as ecosystems</span><a class="back" href="/">◍ hoop</a></div>
     <label class="fld">places <span class="v" id="v-n">1600</span><input type="range" id="n" min="300" max="4000" step="100" value="1600"></label>
     <label class="fld">colour by
-      <select id="by"><option value="role" selected>role (the verb)</option><option value="domain">domain (the matter)</option><option value="tier">tier (central-place rank)</option><option value="social">social thickness (members)</option></select>
+      <select id="by"><option value="role" selected>role (the verb)</option><option value="domain">domain (the matter)</option><option value="tier">tier (central-place rank)</option><option value="social">social thickness (members)</option><option value="bridging">bridges vs bonds (weak ties)</option></select>
     </label>
     <label class="row"><input type="checkbox" id="t-flow"> show the supply web</label>
     <label class="row"><input type="checkbox" id="t-fab"> show the social fabric (shared places)</label>
     <label class="row"><input type="checkbox" id="t-glyph"> show glyphs</label>
     <button id="regen">⟲ regenerate economy</button>
-    <div class="read">places <b id="r-n">—</b> · web <b id="r-e">—</b> edges · closure <b id="r-c">—</b> <span id="r-cn"></span><br>people <b id="r-p">—</b> · avg hats <b id="r-h">—</b> · third-place <b id="r-t">—</b></div>
+    <div class="read">places <b id="r-n">—</b> · web <b id="r-e">—</b> edges · closure <b id="r-c">—</b> <span id="r-cn"></span><br>people <b id="r-p">—</b> · avg hats <b id="r-h">—</b> · third-place <b id="r-t">—</b> · reach <b id="r-r">—</b></div>
     <div class="read" id="inspect">click a place to see who's there</div>
     <div class="legend" id="legend"></div>
   </div>
   <div id="stage"><canvas id="cv"></canvas><div id="busy">building…</div></div>
 
   <script type="module">
-    import { buildField, buildSociety, ROLES, DOMAINS } from './econ.js';
+    import { buildField, buildSociety, socialMetrics, removeImpact, ROLES, DOMAINS } from './econ.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
-    let field = null, society = null, seed = 1, W = 0, H = 0, dpr = 1;
+    let field = null, society = null, metrics = null, seed = 1, W = 0, H = 0, dpr = 1;
 
     const roleColor = (r) => (ROLES[r] || {}).color || '#888';
     const domHue = {}; DOMAINS.forEach((d, i) => domHue[d.id] = (i * 36) % 360);
@@ -66,6 +66,13 @@
       if (by === 'role') return c.color;
       if (by === 'domain') return c.domain ? `hsl(${domHue[c.domain]} 55% 45%)` : '#2a2f35';
       if (by === 'social') { const m = (society && society.placeMembers.get(c.id)) ? society.placeMembers.get(c.id).length : 0; const t = Math.min(1, Math.log2(1 + m) / 4); return `hsl(28 ${(20 + t * 60).toFixed(0)}% ${(10 + t * 40).toFixed(0)}%)`; }
+      if (by === 'bridging') {
+        if (c.role === 'dwell') return '#161d2a';                       // homes are bonds, not bridges
+        const b = metrics && metrics.bridging.get(c.id);
+        if (!b || b.members < 2) return '#13171c';
+        const v = b.bridging;                                            // 0 bond (blue) → 1 bridge (gold)
+        return `hsl(${(212 - v * 182).toFixed(0)} ${(34 + v * 38).toFixed(0)}% ${(20 + v * 24).toFixed(0)}%)`;
+      }
       return ['#2a2f35', '#7a6a3a', '#b04a2a', '#cfd2c8'][c.tier] || '#444'; // tier 1/2/3
     }
     function poly(p) { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); }
@@ -104,6 +111,7 @@
       requestAnimationFrame(() => {
         field = buildField({ W, H, count: +$('n').value, seed });
         society = buildSociety(field, { seed });
+        metrics = socialMetrics(field, society);
         $('v-n').textContent = $('n').value;
         $('r-n').textContent = field.places.length.toLocaleString();
         $('r-e').textContent = field.edges.length.toLocaleString();
@@ -112,6 +120,7 @@
         $('r-p').textContent = society.people.length.toLocaleString();
         $('r-h').textContent = society.avgHats.toFixed(2);
         $('r-t').textContent = (society.thirdsFrac * 100).toFixed(0) + '%';
+        $('r-r').textContent = metrics ? '~' + Math.round(metrics.avgReach) : '—';
         // legend with live counts
         $('legend').innerHTML = Object.keys(ROLES).map((r) => `<span><span class="sw" style="background:${roleColor(r)}"></span>${ROLES[r].glyph} ${r} <span class="n">${field.counts[r] || 0}</span></span>`).join('');
         draw();
@@ -129,8 +138,13 @@
       if (!best) return;
       const mem = society.placeMembers.get(best.id) || [];
       const head = `${best.glyph} ${best.role}${best.domain ? '·' + best.domain : ''} — ${mem.length} ${mem.length === 1 ? 'person' : 'people'}`;
-      const lines = mem.slice(0, 7).map((i) => `· ${society.people[i].name}: ${hatStr(society.people[i])}`);
-      $('inspect').innerHTML = '<b>' + head + '</b><br>' + (lines.join('<br>') || 'a quiet place');
+      const lines = mem.slice(0, 6).map((i) => `· ${society.people[i].name}: ${hatStr(society.people[i])}`);
+      const b = metrics && metrics.bridging.get(best.id);
+      let tie = '';
+      if (b && b.members >= 2) { const v = (b.bridging * 100).toFixed(0); tie = `<br>weave: ${v}% ${b.bridging > 0.7 ? '— a BRIDGE (weak ties, strangers meet)' : b.bridging < 0.35 ? '— a BOND (tight circle)' : '— mixed'}`; }
+      let shock = '';
+      if (metrics && best.role !== 'dwell') { const imp = removeImpact(field, society, metrics, best.id); shock = `<br>⚠ if removed: ${imp.ties} ties break · ${imp.orphaned} orphaned · ${imp.needsAtRisk} needs at risk (${imp.rerouted} reroute)`; }
+      $('inspect').innerHTML = '<b>' + head + '</b>' + tie + '<br>' + (lines.join('<br>') || 'a quiet place') + shock;
     });
 
     $('n').addEventListener('input', () => { $('v-n').textContent = $('n').value; schedule(); });

@@ -73,7 +73,7 @@ export function buildField({ W, H, count, seed = 1 }) {
     if (best) { met++; edges.push({ from: pl.id, to: best.id, r, fx: pl.x, fy: pl.y, tx: best.x, ty: best.y }); }
   }
   const counts = {}; for (const pl of places) counts[pl.role] = (counts[pl.role] || 0) + 1;
-  return { W, H, spacing, places, cells, edges, counts, need, met, closure: need ? met / need : 1 };
+  return { W, H, spacing, places, cells, edges, counts, byRes, need, met, closure: need ? met / need : 1 };
 }
 
 // ── PEOPLE WEAR MANY HATS — the thing that makes the web THICK ─────────────────────────────
@@ -94,21 +94,26 @@ export function buildSociety(field, { hh = 3, seed = 1 } = {}) {
   const clubs = places.filter((p) => p.role === 'learn' || p.role === 'serve');
   const sports = places.filter((p) => p.role === 'play');
   const nearest = (list, x, y) => { let best = null, bd = Infinity; for (const p of list) { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = p; } } return best; };
-  const people = [], placeMembers = new Map();
+  const people = [], placeMembers = new Map(), homeLocals = new Map();
   const join = (person, place, role, kind) => { person.hats.push({ place: place.id, role, kind, x: place.x, y: place.y, domain: place.domain }); let m = placeMembers.get(place.id); if (!m) { m = []; placeMembers.set(place.id, m); } m.push(person.idx); };
+  // each home has a parish / local club / pitch (shared by the household → BONDS)
+  const localsFor = (home) => { let L = homeLocals.get(home.id); if (!L) { L = { par: nearest(worship, home.x, home.y), club: nearest(clubs, home.x, home.y), pitch: nearest(sports, home.x, home.y) }; homeLocals.set(home.id, L); } return L; };
   let idx = 0;
   for (const home of places) {
     if (home.role !== 'dwell') continue;
-    const n = 1 + Math.floor(rng() * (2 * hh - 1));
+    const L = localsFor(home), n = 1 + Math.floor(rng() * (2 * hh - 1));
     for (let k = 0; k < n; k++) {
       const person = { idx: idx++, name: NAMES[Math.floor(rng() * NAMES.length)], home: home.id, x: home.x, y: home.y, hats: [] };
-      // occupation: nearest among a random handful of working places (locality + variety)
+      // occupation: nearest among a random handful of working places (each household member works
+      // somewhere different → workplaces become BRIDGES of coworkers from many homes)
       if (working.length) { let pick = null, bd = Infinity; for (let t = 0; t < 6; t++) { const w = working[Math.floor(rng() * working.length)]; const d = (w.x - home.x) ** 2 + (w.y - home.y) ** 2; if (d < bd) { bd = d; pick = w; } } if (pick) join(person, pick, pick.role, 'work'); }
-      // avocations — the other hats
       if (rng() < 0.45) join(person, home, 'grow', 'home garden');                                   // Jim's garden
-      if (worship.length && rng() < 0.30) { const c = nearest(worship, home.x, home.y); if (c) join(person, c, c.role, 'worship'); }
-      if (clubs.length && rng() < 0.45) { const c = nearest(clubs, home.x, home.y); if (c) join(person, c, c.role, 'club'); }  // toastmasters
-      if (sports.length && rng() < 0.30) { const c = nearest(sports, home.x, home.y); if (c) join(person, c, c.role, 'sport'); }
+      // the household's shared locals — neighbours overlap here, so these BOND
+      if (L.par && rng() < 0.55) join(person, L.par, L.par.role, 'worship');
+      if (L.club && rng() < 0.45) join(person, L.club, L.club.role, 'club');
+      if (L.pitch && rng() < 0.30) join(person, L.pitch, L.pitch.role, 'sport');
+      // an eclectic tie somewhere across town — a weak-tie BRIDGE to a far circle
+      if (clubs.length && rng() < 0.22) { const c = clubs[Math.floor(rng() * clubs.length)]; join(person, c, c.role, 'club'); }
       people.push(person);
     }
   }
@@ -116,4 +121,58 @@ export function buildSociety(field, { hh = 3, seed = 1 } = {}) {
   const thirds = people.filter((p) => p.hats.some((h) => THIRD_KINDS.has(h.kind))).length;
   return { people, placeMembers, affiliations: aff, avgHats: people.length ? aff / people.length : 0, thirdsFrac: people.length ? thirds / people.length : 0 };
 }
+
+// ── WEAK TIES vs BONDS — where the fabric is actually THICK ────────────────────────────────
+// Granovetter: a place that introduces people who'd otherwise never meet is a BRIDGE (weak-tie
+// rich, the connective tissue); a place whose members already overlap everywhere else is BONDING
+// (redundant). Per non-home place, `bridging` = the share of its member-pairs for whom it is their
+// ONLY shared social place. `avgReach` is the global thickness: how many others the average person
+// rubs shoulders with through their hats. (Homes are bonds by definition — excluded from bridging.)
+export function socialMetrics(field, society) {
+  const people = society.people;
+  const social = people.map((p) => { const s = new Set(); for (const h of p.hats) if (h.place !== p.home) s.add(h.place); return s; });
+  const placeById = new Map(field.places.map((p) => [p.id, p]));
+  const bridging = new Map();
+  for (const [pid, members] of society.placeMembers) {
+    const pl = placeById.get(pid); if (!pl || pl.role === 'dwell') continue;
+    const M = members.filter((i) => people[i].home !== pid);
+    if (M.length < 2) { bridging.set(pid, { members: M.length, bridging: M.length ? 1 : 0 }); continue; }
+    let sole = 0, pairs = 0;
+    for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++) {
+      pairs++; const A = social[M[i]], B = social[M[j]]; let other = false;
+      for (const x of A) { if (x !== pid && B.has(x)) { other = true; break; } }
+      if (!other) sole++;
+    }
+    bridging.set(pid, { members: M.length, bridging: pairs ? sole / pairs : 1 });
+  }
+  let reach = 0;
+  for (let i = 0; i < people.length; i++) { const seen = new Set(); for (const pid of social[i]) { const m = society.placeMembers.get(pid); if (m) for (const j of m) if (j !== i) seen.add(j); } reach += seen.size; }
+  return { bridging, social, avgReach: people.length ? reach / people.length : 0 };
+}
+
+// Removing a place strikes TWO webs at once: the supply web (who loses a supplier — and can they
+// reroute to another producer nearby?) and the social fabric (whose ties break — pairs whose only
+// shared place was this — and who is orphaned, losing their last social place). The thesis in a click.
+export function removeImpact(field, society, metrics, placeId) {
+  const placeById = new Map(field.places.map((p) => [p.id, p]));
+  const r2 = (field.spacing * 4.5) ** 2;
+  let needsAtRisk = 0, rerouted = 0;
+  for (const e of field.edges) if (e.to === placeId) {
+    const cons = placeById.get(e.from), list = field.byRes.get(e.r) || [];
+    let alt = false; for (const q of list) { if (q.id === placeId || q.id === e.from) continue; if ((q.x - cons.x) ** 2 + (q.y - cons.y) ** 2 <= r2) { alt = true; break; } }
+    if (alt) rerouted++; else needsAtRisk++;
+  }
+  const atP = []; for (let i = 0; i < society.people.length; i++) if (metrics.social[i].has(placeId)) atP.push(i);
+  let ties = 0, orphaned = 0;
+  for (let a = 0; a < atP.length; a++) {
+    const i = atP[a]; if (metrics.social[i].size === 1) orphaned++;
+    for (let b = a + 1; b < atP.length; b++) {
+      const A = metrics.social[i], B = metrics.social[atP[b]]; let other = false;
+      for (const x of A) { if (x !== placeId && B.has(x)) { other = true; break; } }
+      if (!other) ties++;
+    }
+  }
+  return { members: atP.length, needsAtRisk, rerouted, ties, orphaned };
+}
+
 

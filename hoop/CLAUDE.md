@@ -61,10 +61,14 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   a **supply web** you read like a food web (closure %, gaps, keystones). `buildSociety()` lays
   **people who wear many hats** over it — Jim = mend@chopshop + grow@home + worship + learn@toastmasters
   — the multiplex affiliation graph whose **interaction thickness** (avg hats/person) is the economic
-  cousin of ecological connectance (thin webs are brittle). Post-scarcity tell: the real output is
+  cousin of ecological connectance (thin webs are brittle). `socialMetrics()` scores each place
+  **bridge vs bond** (Granovetter weak ties: does it introduce strangers, or just re-link an
+  overlapping clique) + global `avgReach`; households share a parish/local club (bonds) with eclectic
+  far ties (bridges). `removeImpact()` is the two-web shock — remove a place, see ties break +
+  orphaned (people) AND needs at risk + rerouted (materials). Post-scarcity tell: the real output is
   `regard` (the ATProto economy of esteem). Brutalist render (flat cells, thin lines, supply web +
-  social fabric as faint edges, click a place to see who's there); colour by role/domain/tier/social.
-  Pure + node-tested (`test/econ.selftest.mjs`, 24 checks incl. multi-hat thickness).
+  social fabric as faint edges; click a place → who's there, its weave %, and the shock); colour by
+  role/domain/tier/social/bridging. Pure + node-tested (`test/econ.selftest.mjs`, 32 checks).
   **Ideation stage** — the real build is intended for a fresh `main` later; this is the sketchpad.
 
 ## The package it belongs to

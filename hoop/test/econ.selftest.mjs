@@ -1,6 +1,6 @@
 // econ.selftest.mjs — pins the economy-as-ecosystem kernel (hoop/econ/econ.js).
 // Run: node hoop/test/econ.selftest.mjs
-import { buildField, buildSociety, makePlace, ROLES, ROLE_MIX, DOMAINS } from '../econ/econ.js';
+import { buildField, buildSociety, socialMetrics, removeImpact, makePlace, ROLES, ROLE_MIX, DOMAINS } from '../econ/econ.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -65,11 +65,29 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   ok(shared > 0, 'places gather overlapping memberships (the fabric weaves)');
 }
 
-// ── society is deterministic ──
+// ── WEAK TIES vs BONDS — bridging + the two-web shock ──
+{
+  const f = buildField({ W: 1200, H: 800, count: 1500, seed: 5 });
+  const s = buildSociety(f, { seed: 5 });
+  const m = socialMetrics(f, s);
+  ok(m.avgReach > 0, 'the average person reaches others through their hats (global thickness)');
+  ok([...m.bridging.values()].every((b) => b.bridging >= 0 && b.bridging <= 1), 'bridging is a fraction per place');
+  ok([...m.bridging.values()].some((b) => b.members >= 2 && b.bridging > 0.5), 'some places are real bridges (introduce otherwise-unconnected people)');
+  ok(!m.bridging.has(s.people[0].home) || f.places.find((p) => p.id === s.people[0].home).role !== 'dwell', 'homes are not scored for bridging (they are bonds)');
+  // the shock: remove the busiest social place — both webs feel it
+  let busiest = null, bm = -1; for (const [pid, mem] of s.placeMembers) { const pl = f.places.find((p) => p.id === pid); if (pl && pl.role !== 'dwell' && mem.length > bm) { bm = mem.length; busiest = pid; } }
+  const imp = removeImpact(f, s, m, busiest);
+  ok(imp.members > 0, 'removing a hub strikes the people who met there');
+  ok(imp.ties >= 0 && imp.orphaned >= 0 && imp.needsAtRisk >= 0 && imp.rerouted >= 0, 'the shock reports both cascades (ties broken / orphaned · needs at risk / rerouted)');
+  ok(imp.ties + imp.rerouted + imp.needsAtRisk + imp.orphaned > 0, 'removing a hub actually costs something');
+}
+
+// ── society + metrics are deterministic ──
 {
   const f = buildField({ W: 800, H: 600, count: 900, seed: 7 });
   const a = buildSociety(f, { seed: 7 }), b = buildSociety(f, { seed: 7 });
   ok(a.people.length === b.people.length && a.affiliations === b.affiliations && a.avgHats === b.avgHats, 'buildSociety is deterministic');
+  ok(socialMetrics(f, a).avgReach === socialMetrics(f, b).avgReach, 'socialMetrics is deterministic');
 }
 
 console.log(`econ.selftest: ${pass} passed, ${fail} failed`);
