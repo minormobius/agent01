@@ -54,6 +54,13 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   program + tint/floor-plan/roads/nuclei toggles. Geometry kernel is pure + node-tested
   (`test/paint.selftest.mjs`, 34 checks: grading, door connectivity, zone connectivity + arterials);
   the page only draws what `buildScene()` returns. A sandbox to iterate the look before world.js.
+  **Desire-line roads** (`paint/flux.js`, `test/flux.selftest.mjs`, 20 checks) is the naturalistic
+  road-growth proto (FOAM.md leg 3): roads as the **superlevel set of the NPC traffic field** — the
+  stationary flux of trips is the Laplace transform of NPC motion, so one solve gives streets +
+  hierarchy + one-door-per-building + the ambient foot-traffic glow. Computed biologically (Physarum
+  flux-reinforcement over the room graph); **μ** dials grid↔tree; roads render as zero-wall concourse,
+  buildings glow by traffic. The `/paint` "desire-line roads" toggle drives it. Port target: replace
+  the foam kernel's imposed `planRoute` with this grown network.
 - `econ/` (`econ/index.html` + `econ/econ.js`) — **economies as ecosystems**, the ideation canvas at
   `hoop.mino.mobi/econ/`. A place is the economic cousin of a biome species: a **role** (verb) × a
   **domain** (matter) × **flows** (`in`/`out` resource tokens). The kernel mirrors biome/gacha's
@@ -134,6 +141,7 @@ node hoop/test/nav.selftest.mjs             # two-tier HPA* routing over the rea
 node hoop/test/econ.selftest.mjs            # economies-as-ecosystems kernel (genome, footprints, oracle)
 node hoop/test/econ3d.selftest.mjs          # the FOAM SOCIETY kernel over rind's 3D chamber graph
 node hoop/test/econfoam.selftest.mjs        # the /econ/foam/ worker contract (what the page renders)
+node hoop/test/flux.selftest.mjs            # desire-line roads: streets as the traffic field's superlevel set
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

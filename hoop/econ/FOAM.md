@@ -62,22 +62,57 @@ The page at `hoop.mino.mobi/econ/foam/` — foamview.html's instanced rendering 
   shock, access (dwellings) — answered by the worker, displayed in the corner panel.
 - **Permalinks**: `?seed=&n=` reproduces the whole society (leg 5's contract, prefigured).
 
-## Leg 3 — roads and ramps interact WITH the city (both directions)
+## Leg 3 — roads that GROW (the desire-line / Laplace reframe) · PROTO SHIPPED in `/paint`
 
-Today infrastructure shapes the city (right-of-way, access). The reverse coupling is the
-interesting leg:
+The corkscrew-plus-connectors of leg 1 is a *highway system* with no *streets*, and it is imposed
+top-down — at odds with the generated ethos of everything else. The fix is not "more roads" but a
+different category of road. In spin gravity there are two, with opposite generation logic:
 
-- **Demand-routed roads.** After the society lands, re-run wayfind with junction anchors biased
-  to the highest-traffic supply corridors (the edges array carries cost·volume); iterate
-  infrastructure ↔ city to a fixed point (2–3 rounds — it converges fast because right-of-way
-  is small). The town centre then *emerges* where the math wants it.
-- **Junction towns.** Score each building by road-network betweenness of its door chamber; the
-  oracle's `bridges` signal should correlate with junction proximity — the Granovetter weak-tie
-  thesis acquiring a *spatial cause*. Pin that correlation in the selftest (it is a falsifiable
-  model prediction, the first one the society makes about geography).
-- **Ramp-foot gravity.** Footprint targets near ramp foots shift toward trade/serve (the genome
-  gains a `junctionBias` gene). A dormitory genome with a strong junctionBias is a transit
-  suburb; the archetypes acquire geography.
+- **Level circulation** (azimuthal *and* axial — both constant-radius, constant-g): cheap, dense,
+  and should EMERGE from where people actually go. This is the missing capillary layer.
+- **Radial circulation** (changing floors — climbing): expensive, sparse, legitimately engineered.
+  The corkscrew is the *vehicle elevator*, not the road network.
+
+So the right mental model is **a stack of 2-D cities**: each radial shell is a flat city with its
+own street grid on the unrolled (azimuth × axial) plane, threaded by a few vertical cores. (That
+also *defines the 2-D game*: one unrolled shell — and "one road entrance per floor" is a building
+punching up the stack and opening onto each shell's grid once.)
+
+**The mechanism (the user's framing):** the stationary flux of NPC trips is the **Laplace transform
+of NPC motion** — the resolvent / graph Green's function, the time-integrated chamber occupancy
+under the ensemble of journeys. Solve that field once and **roads are its superlevel set**: the
+chambers the most journeys cross become open concourse; everything below the waterline stays
+sequestered building. One solve = streets + hierarchy + doors + the ambient traffic to animate.
+
+We compute it biologically (Physarum / ant-trail / current-flow betweenness): place only attractors
+(home/work/basket) + trip demand, route, accumulate flux, let conductance follow flux (cost =
+length/conductance), iterate to a fixed point. The feedback exponent **μ** is the one knob —
+**μ<1 keeps parallel streets (a grid), μ>1 collapses to one arterial (a tree)** — i.e. μ *is* "do
+I have enough roads". The corkscrew need not be imposed: vehicular trips that must change radius
+concentrate onto the cheapest helix, so the ramp can FALL OUT as a measured object.
+
+**Proto (shipped):** `paint/flux.js` + `test/flux.selftest.mjs` (20 checks) + the **desire-line
+roads** mode in `/paint`. It grows streets over the room-adjacency graph, renders roads as
+zero-wall concourse + buildings glowing by their ambient traffic (the Laplace field) + a 3-tier
+network + one door per building, with μ and street-fraction dials. Invariants pinned: the network
+is one connected component, every building fronts a road with exactly one door, opened walls only
+ever sit between two road rooms, and μ is monotone (grid↔tree).
+
+**Still to port to the foam (`society3d.js`):** run the grower over the chamber graph in place of
+`planRoute`; keep the radial cores sparse; let the helix emerge. Then **junction towns** — score a
+building by the road betweenness of its door chamber and pin that the oracle's `bridges` signal
+correlates with junction proximity (the Granovetter weak-tie thesis acquiring a *spatial cause* —
+the first falsifiable prediction the society makes about geography). Watch the two cautions:
+flux can over-concentrate into one mega-artery (the μ/decay tuning, asserted via a road-size
+*distribution*, not just "roads exist"); and door assignment must be inside the fixed-point loop,
+not a post-step, or a building strands when its nearest road moves.
+
+**Sectors + density (the room to spread).** At ~5 k in the sample sector against a 1 M design
+you are ~200× under-packed — a gift: sparser settlement leaves voids for generous concourse and
+plazas, and road-per-capita rises on its own. Reserve azimuthal/axial sectors for reactors, water
+treatment, farms; give each a per-sector *program* (a genome gene): residential = dense pedestrian
+streets + one sequestered door; industry/utility = sparse freight roads + docks + restricted
+access; market = porous, many doors. Sector boundaries become the natural arterials.
 
 ## Leg 4 — wayfinding for PEOPLE (commutes close the loop)
 
