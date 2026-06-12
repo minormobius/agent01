@@ -497,7 +497,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/font-generator-demo-f3pdfa",
       "uses": [
         "atpolls-db"
       ],
