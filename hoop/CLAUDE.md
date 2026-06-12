@@ -81,6 +81,18 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
     dormitory). *Calibration TODO (cf. biome's): natural rolls cluster Healthy/Thriving because the
     generation is structurally robust; breeding Fragile/Failing archetypes + tuning the tier bands is
     the next pass.*
+  - **`society3d.js` — the FOAM SOCIETY kernel (the 3D leg).** The genome run over rind's actual
+    annular chamber foam (the 33k-chamber foamview scene), **infrastructure-first**: wayfind's
+    certified ramps+roads become reserved RIGHT-OF-WAY, buildings claim the remaining chambers as
+    connected clumps (chamber-indexed — painting the society = colouring chambers by `chamberOwner`),
+    supply is wired by **anisotropic road-distance Dijkstra** (climb ×6 off-deck, decks discounted;
+    ~50% of suppliers differ from crow-flight), and an **access** signal (median dwelling→basket road
+    cost) joins the oracle via `scoreFoamSociety`. `buildSociety`/`socialMetrics`/`removeImpact` run
+    over the city unchanged. Imports `vendor/wayfind.js` — a **verbatim copy of `rind/wayfind.js`**
+    (same rule as vendor/auth.js: re-sync, never fork; if they drift the certificate the kernel
+    reserves is not the one foamview draws). Full 33k sector ≈ 5.5 s in node, deterministic from
+    `(genome, seed)`. **The course to the painted foamview is charted in [`econ/FOAM.md`](econ/FOAM.md)**
+    — read it before extending the 3D side.
 
   `buildSociety()` lays **people who wear many hats** — Jim = mend@chopshop + grow@home + worship +
   learn@toastmasters — the multiplex affiliation graph whose **interaction thickness** (avg hats/person)
@@ -111,6 +123,8 @@ node hoop/test/cylinder-ring.selftest.mjs   # does the generated world substrate
 node hoop/test/research.selftest.mjs        # dossier figure kernels vs. the wings' published numbers
 node hoop/test/postal.selftest.mjs          # the postal system: addressing, locality, Merkle digests
 node hoop/test/nav.selftest.mjs             # two-tier HPA* routing over the real engine tiles
+node hoop/test/econ.selftest.mjs            # economies-as-ecosystems kernel (genome, footprints, oracle)
+node hoop/test/econ3d.selftest.mjs          # the FOAM SOCIETY kernel over rind's 3D chamber graph
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

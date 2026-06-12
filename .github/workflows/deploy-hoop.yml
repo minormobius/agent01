@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-game-docs-research-x5p1jx']
+    branches: [main, 'claude/hoop-economy-generation-jjx7j0']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
