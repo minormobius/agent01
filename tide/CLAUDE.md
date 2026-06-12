@@ -9,6 +9,9 @@ The **climate** of the cylinder interior: the air, the fog, the water cycle and 
 books. Three live modules + one planned, each self-contained under its own directory, all over
 the canonical geometry in `shared/geometry.mjs`:
 
+- `profile/` — the centrifugal barometer: a small standalone solver for the two profiles every
+  other module sits on — gravity `g(r)=ω²r` and the isothermal pressure `P(r)=P_axis·e^{S(r/R)²}`
+  from just radius, spin, and the non-spinning pressure. One closed form, no time-stepping.
 - `atmosphere/` — 1-D radial column (temp / humidity / CO₂ vs altitude) + Mie fog optics.
 - `fountain/` — azimuthal cross-section: rotating-frame ballistic fountain + linear-sun flux budget.
 - `ratchet/` — lake topology: equipotential-arc surfaces (never secants) + the ratchet teeth that
@@ -31,6 +34,7 @@ block and footer cross-links in `index.html` working.
 ## Run / test (all run from the sandbox; deploy does not)
 
 ```bash
+node tide/profile/test/profile.selftest.mjs       # 24 checks
 node tide/atmosphere/test/column.selftest.mjs     # 16 checks
 node tide/atmosphere/test/optics.selftest.mjs     # 11 checks
 node tide/fountain/test/fountain.selftest.mjs     # 25 checks
@@ -45,7 +49,7 @@ The self-tests are the contract — run them before every push.
 
 ## Deploy
 
-- Push `tide/**` on `main` or `claude/oneill-cylinder-refactor-xjknww` → `deploy-tide.yml`
+- Push `tide/**` on `main` or `claude/oneill-cylinder-solver-djdpdm` → `deploy-tide.yml`
   runs `wrangler deploy`. The sandbox cannot deploy; push and let the Action run. Verify the
   log binds `tide.mino.mobi (custom domain)` (the golden rule).
 - Ownership is in `deploy-registry.json` (surface `tide`). Edit the registry, then

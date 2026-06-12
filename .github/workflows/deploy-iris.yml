@@ -1,11 +1,11 @@
-name: Deploy Tide
+name: Deploy Iris
 
 on:
   push:
     branches: [main, 'claude/oneill-cylinder-solver-djdpdm']
     paths:
-      - 'tide/**'
-      - '.github/workflows/deploy-tide.yml'
+      - 'iris/**'
+      - '.github/workflows/deploy-iris.yml'
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: tide
+        working-directory: iris
 
     steps:
       - uses: actions/checkout@v4

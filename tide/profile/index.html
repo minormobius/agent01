@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tide · pressure &amp; gravity vs radius — the centrifugal barometer</title>
+<meta name="description" content="A small solver for the radial gravity and pressure profiles of an O'Neill cylinder: give it radius, spin, and non-spinning pressure, and it draws g(r)=ω²r and the isothermal centrifugal barometer P(r)=P_axis·e^{S(r/R)²}." />
+<style>
+  :root{
+    --ink:#0b1016; --panel:#101a22; --line:#243440; --txt:#cfe1ea;
+    --dim:#7f97a6; --gold:#d8b25a; --water:#5aa9d8; --warn:#e0795a; --leaf:#62b87a;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#152530,#0a1116 62%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:6px 20px 14px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.5px;color:var(--water);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:90ch}
+  .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:268px 1fr 254px;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:1060px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px}
+  .panel h2{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:11px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;gap:8px}
+  label.ctl .row span{color:var(--dim)}
+  label.ctl .row b{color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--water);height:18px}
+  select,input[type=number]{width:100%;background:#0e1620;color:var(--txt);border:1px solid var(--line);
+    border-radius:6px;padding:6px;font:inherit}
+  .seg{display:flex;gap:6px;margin-top:4px}
+  .seg button{flex:1;background:#0e1620;color:var(--dim);border:1px solid var(--line);border-radius:6px;
+    padding:7px 4px;font:inherit;font-size:11.5px;cursor:pointer}
+  .seg button.on{background:#11242e;color:var(--water);border-color:#3a6a86}
+  .hint{font-size:11px;color:var(--dim);margin-top:6px;line-height:1.45}
+  canvas{display:block;background:#070d13;border:1px solid var(--line);border-radius:10px;width:100%}
+  .plot+.plot{margin-top:14px}
+  .plot .cap{font-size:11px;color:var(--dim);margin:8px 2px 0;display:flex;justify-content:space-between}
+  .read{display:grid;grid-template-columns:1fr;gap:0}
+  .read .r{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #1b2833;font-size:12.5px}
+  .read .r:last-child{border-bottom:0}
+  .read .r span{color:var(--dim)}
+  .read .r b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+  .read .r b.hi{color:var(--gold)} .read .r b.w{color:var(--water)} .read .r b.warn{color:var(--warn)}
+  .kbox{background:#0d161d;border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:12px}
+  .kbox .big{font-size:21px;color:var(--water);font-weight:600;font-variant-numeric:tabular-nums}
+  .kbox .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+  .kbox .eq{font-size:11px;color:var(--dim);margin-top:5px}
+  footer{padding:18px 20px 40px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);margin-top:8px}
+  footer a{color:var(--gold);text-decoration:none}
+  details{margin-top:10px}
+  details summary{cursor:pointer;color:var(--gold);font-size:12px}
+  details p{font-size:12px;color:var(--dim);line-height:1.55}
+  code{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">tide</a> / pressure &amp; gravity</div>
+<header>
+  <h1>Pressure &amp; gravity vs radius <small>· the centrifugal barometer</small></h1>
+  <div class="sub">The smallest honest model of the cylinder's air. Give it a <b>radius</b>, a
+    <b>spin</b>, and how much air is inside (its <b>non-spinning pressure</b>) — it draws gravity
+    <code>g(r)=ω²r</code> and the isothermal pressure profile <code>P(r)=P<sub>axis</sub>·e^{S(r/R)²}</code>
+    from the axis out to the rim. <a href="/">↩ tide</a></div>
+</header>
+
+<main>
+  <!-- ── controls ───────────────────────────────────────────── -->
+  <div class="col">
+    <div class="panel">
+      <h2>Cylinder</h2>
+      <label class="ctl"><div class="row"><span>radius R</span><b><span id="vR">8.00</span> km</b></div>
+        <input type="range" id="R" min="100" max="16000" step="50" value="8000"></label>
+      <label class="ctl"><div class="row"><span>spin Ω</span><b><span id="vRpm">0.299</span> rpm</b></div>
+        <input type="range" id="rpm" min="0" max="3" step="0.001" value="0.2991"></label>
+      <div class="hint">rim speed <b id="vRim">—</b> · one turn every <b id="vPer">—</b> ·
+        Ω = <b id="vOmega">—</b> rad/s</div>
+    </div>
+
+    <div class="panel">
+      <h2>Air</h2>
+      <label class="ctl"><div class="row"><span>non-spinning pressure P₀</span><b><span id="vP0">101.3</span> kPa</b></div>
+        <input type="range" id="P0" min="1" max="200" step="0.5" value="101.3"></label>
+      <label class="ctl"><div class="row"><span>temperature</span><b><span id="vT">20.0</span> °C</b></div>
+        <input type="range" id="T" min="-60" max="60" step="0.5" value="20"></label>
+      <label class="ctl"><div class="row"><span>gas</span></div>
+        <select id="gas">
+          <option value="0.0289647">Earth air (28.96 g/mol)</option>
+          <option value="0.028">N₂-rich (28.0)</option>
+          <option value="0.032">pure O₂ (32.0)</option>
+          <option value="0.044">CO₂ (44.0)</option>
+          <option value="0.004">helium (4.0)</option>
+        </select></label>
+      <label class="ctl"><div class="row"><span>P₀ means…</span></div>
+        <div class="seg" id="mode">
+          <button data-mode="conserve" class="on">same air, at rest</button>
+          <button data-mode="axis">held on axis</button>
+        </div>
+        <div class="hint" id="modeHint"></div></label>
+    </div>
+  </div>
+
+  <!-- ── plots ──────────────────────────────────────────────── -->
+  <div class="col">
+    <div class="plot">
+      <canvas id="cG" width="900" height="300"></canvas>
+      <div class="cap"><span>gravity g(r) = ω²r — axis (left) → rim (right)</span><span id="capG"></span></div>
+    </div>
+    <div class="plot">
+      <canvas id="cP" width="900" height="340"></canvas>
+      <div class="cap"><span>pressure P(r) — the air pools at the rim</span><span id="capP"></span></div>
+    </div>
+  </div>
+
+  <!-- ── readouts ───────────────────────────────────────────── -->
+  <div class="col">
+    <div class="kbox">
+      <div class="big" id="kS">—</div>
+      <div class="lbl">profile number S</div>
+      <div class="eq">= Mω²R²/2RT = v²<sub>rim</sub>/2c² · rim/axis ratio = e^S</div>
+    </div>
+    <div class="panel">
+      <h2>Gravity</h2>
+      <div class="read">
+        <div class="r"><span>at the rim</span><b class="hi" id="oGrim">—</b></div>
+        <div class="r"><span>1 g radius</span><b id="oR1g">—</b></div>
+        <div class="r"><span>rim speed</span><b id="oVrim">—</b></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Pressure</h2>
+      <div class="read">
+        <div class="r"><span>on the axis</span><b class="w" id="oPaxis">—</b></div>
+        <div class="r"><span>at the rim</span><b class="hi" id="oPrim">—</b></div>
+        <div class="r"><span>rim ÷ axis</span><b id="oRatio">—</b></div>
+        <div class="r"><span>axis below rim</span><b id="oDrop">—</b></div>
+        <div class="r"><span>area-mean</span><b id="oMean">—</b></div>
+        <div class="r"><span>air per metre</span><b id="oMass">—</b></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:0">
+      <h2>At the cursor</h2>
+      <div class="read">
+        <div class="r"><span>radius</span><b id="hR">— hover a plot</b></div>
+        <div class="r"><span>gravity</span><b id="hG">—</b></div>
+        <div class="r"><span>pressure</span><b id="hP">—</b></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <details>
+    <summary>the model, in three lines</summary>
+    <p><b>Gravity</b> is pure kinematics of the spin: <code>g(r)=ω²r</code>, zero on the axis,
+    full at the rim. Nothing the air does changes it.<br>
+    <b>Pressure</b> comes from hydrostatic balance in the rotating frame — effective gravity points
+    outward, so <code>dP/dr = ρ·ω²r</code>. For an isothermal ideal gas this integrates to
+    <code>P(r) = P_axis·exp(S·(r/R)²)</code> with <code>S = Mω²R²/(2RT) = v²_rim/(2c²)</code>; the
+    rim/axis ratio is exactly <code>e^S</code>.<br>
+    <b>"Non-spinning pressure" P₀</b> fixes the amount of air. <i>Same air, at rest</i> conserves
+    total moles — the area-weighted mean stays P₀, the axis drops and the rim rises. <i>Held on
+    axis</i> instead pins the centreline at P₀. Isothermal, single-gas; the full GCM-style column
+    (sun, fog, convection, the centrifugal adiabat) lives in <a href="/atmosphere/">atmosphere</a>.</p>
+  </details>
+  <p style="margin-top:14px">solver in <code>profile/sim/profile.mjs</code> · contract in
+  <code>profile/test/profile.selftest.mjs</code> (24 checks) · part of the
+  <a href="/">tide</a> thermodynamics wing. pure static; runs in your browser.</p>
+</footer>
+
+<script type="module">
+import { solveProfile, omegaFromRpm } from './sim/profile.mjs';
+
+const $ = (id) => document.getElementById(id);
+const C = { R: $('R'), rpm: $('rpm'), P0: $('P0'), T: $('T'), gas: $('gas') };
+let mode = 'conserve';
+let sol = null;            // last solution (for cursor lookups)
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+
+const fmtP = (pa) => pa >= 1000 ? (pa / 1000).toFixed(1) + ' kPa' : pa.toFixed(0) + ' Pa';
+const fmtKm = (m) => (m / 1000).toFixed(2) + ' km';
+const fmtG = (g) => g.toFixed(3) + ' g';
+
+function readInputs() {
+  return {
+    R: +C.R.value,
+    omega: omegaFromRpm(+C.rpm.value),
+    P0: +C.P0.value * 1000,            // kPa → Pa
+    T: +C.T.value + 273.15,            // °C → K
+    M: +C.gas.value,
+    mode,
+    N: 320,
+  };
+}
+
+// generic line plot: axis (r=0) at left, rim at right
+function plot(canvas, sol, key, color, fmtY, yLabel) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 64, padR = 16, padT = 14, padB = 26;
+  const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
+  const arr = sol[key], r = sol.r, R = r[r.length - 1];
+  let ymax = 0; for (const v of arr) if (v > ymax) ymax = v;
+  ymax = ymax * 1.08 || 1;
+  const X = (rr) => x0 + (rr / R) * (x1 - x0);
+  const Y = (v) => y0 + (v / ymax) * (y1 - y0);
+
+  // grid + y ticks
+  ctx.strokeStyle = '#16222c'; ctx.fillStyle = '#5f7686';
+  ctx.font = '10px ui-monospace,monospace'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const v = (ymax * i) / 4, y = Y(v);
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText(fmtY(v), x0 - 6, y);
+  }
+  // x ticks (radius in km)
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i <= 4; i++) {
+    const rr = (R * i) / 4, x = X(rr);
+    ctx.fillText((rr / 1000).toFixed(rr >= 1000 ? 0 : 1), x, y0 + 6);
+  }
+  ctx.fillStyle = '#48606f'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('axis', x0, y0 + 6); ctx.textAlign = 'right'; ctx.fillText('rim', x1, y0 + 6);
+
+  // the curve
+  ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+  for (let i = 0; i < arr.length; i++) {
+    const x = X(r[i]), y = Y(arr[i]);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.stroke();
+  // soft fill under curve
+  ctx.lineTo(X(R), y0); ctx.lineTo(x0, y0); ctx.closePath();
+  ctx.fillStyle = color + '18'; ctx.fill();
+
+  // y-axis label
+  ctx.save(); ctx.translate(13, (y0 + y1) / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#5f7686'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(yLabel, 0, 0); ctx.restore();
+
+  return { X, Y, x0, x1, ymax, R };
+}
+
+let geoG = null, geoP = null;
+function render() {
+  const inp = readInputs();
+  sol = solveProfile(inp);
+  const s = sol.summary;
+
+  // control labels
+  $('vR').textContent = (inp.R / 1000).toFixed(2);
+  $('vRpm').textContent = (+C.rpm.value).toFixed(3);
+  $('vP0').textContent = (inp.P0 / 1000).toFixed(1);
+  $('vT').textContent = (+C.T.value).toFixed(1);
+  $('vRim').textContent = s.vRim.toFixed(0) + ' m/s';
+  $('vPer').textContent = s.period < 600 ? s.period.toFixed(0) + ' s' : (s.period / 60).toFixed(1) + ' min';
+  $('vOmega').textContent = s.omega.toFixed(4);
+
+  // key number
+  $('kS').textContent = 'S = ' + s.S.toFixed(3);
+
+  // gravity readouts
+  $('oGrim').textContent = fmtG(s.gRimG) + ' (' + s.gRim.toFixed(2) + ' m/s²)';
+  $('oR1g').textContent = isFinite(s.rGravUnity)
+    ? (s.rGravUnity <= inp.R ? fmtKm(s.rGravUnity) : fmtKm(s.rGravUnity) + ' (beyond rim)')
+    : '∞ (no spin)';
+  $('oVrim').textContent = s.vRim.toFixed(0) + ' m/s';
+
+  // pressure readouts
+  $('oPaxis').textContent = fmtP(s.PAxis);
+  $('oPrim').textContent = fmtP(s.PRim);
+  $('oRatio').textContent = s.ratio.toFixed(3) + '×';
+  $('oDrop').textContent = s.dropPct.toFixed(1) + '%';
+  $('oMean').textContent = fmtP(s.meanP);
+  $('oMass').textContent = s.massPerLength.toExponential(2) + ' kg/m';
+
+  $('capG').textContent = 'rim ' + fmtG(s.gRimG);
+  $('capP').textContent = 'axis ' + fmtP(s.PAxis) + ' → rim ' + fmtP(s.PRim);
+
+  geoG = plot($('cG'), sol, 'gG', '#d8b25a', (v) => v.toFixed(2) + 'g', 'gravity (g)');
+  geoP = plot($('cP'), sol, 'P', '#5aa9d8', (v) => (v / 1000).toFixed(0), 'pressure (kPa)');
+}
+
+// cursor lookup over either plot
+function hover(canvas, geo, ev) {
+  if (!sol || !geo) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (ev.clientX - rect.left);
+  const frac = Math.max(0, Math.min(1, (x - geo.x0) / (geo.x1 - geo.x0)));
+  const rr = frac * geo.R;
+  const i = Math.round(frac * (sol.r.length - 1));
+  $('hR').textContent = fmtKm(rr);
+  $('hG').textContent = fmtG(sol.gG[i]) + ' (' + sol.g[i].toFixed(2) + ' m/s²)';
+  $('hP').textContent = fmtP(sol.P[i]);
+}
+for (const [cv, getGeo] of [[$('cG'), () => geoG], [$('cP'), () => geoP]]) {
+  cv.addEventListener('mousemove', (e) => hover(cv, getGeo(), e));
+}
+
+// mode segmented control
+const MODE_HINT = {
+  conserve: 'P₀ is the uniform pressure this air would have at rest. Spinning conserves total ' +
+            'moles — the area-weighted mean stays P₀, the axis drops, the rim rises.',
+  axis: 'P₀ is pinned to the axis (a vented core). The rim climbs from there; the bore holds more air.',
+};
+for (const b of $('mode').querySelectorAll('button')) {
+  b.addEventListener('click', () => {
+    mode = b.dataset.mode;
+    for (const x of $('mode').querySelectorAll('button')) x.classList.toggle('on', x === b);
+    $('modeHint').textContent = MODE_HINT[mode];
+    render();
+  });
+}
+$('modeHint').textContent = MODE_HINT.conserve;
+
+for (const k in C) C[k].addEventListener('input', render);
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>

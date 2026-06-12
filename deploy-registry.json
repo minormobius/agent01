@@ -194,13 +194,27 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-tide-wind-jets-olcuky",
+      "branch": "claude/oneill-cylinder-solver-djdpdm",
       "uses": [],
       "provides": null,
-      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer — radial gravity g(r)=ω²r + isothermal pressure P(r)=P_axis·e^{S(r/R)²} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "tide/**",
         ".github/workflows/deploy-tide.yml"
+      ]
+    },
+    {
+      "surface": "iris",
+      "dir": "iris",
+      "endpoint": "iris.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/oneill-cylinder-solver-djdpdm",
+      "uses": [],
+      "provides": null,
+      "note": "The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'. One coupled steady-state solve (iris/sim/section.mjs): the lights are the only heat in, the radiator skin the only heat out, the habitat's heat carried there through the floor's water reservoirs + heat pipes — that balance pins every temperature. Switchable gradient views over the circle (temperature / pressure / humidity / wind), toggleable fog (RH≥1) and fountain jets, the inner-rim ratchet topography (iris/sim/ratchet.mjs). Companion to the tide thermodynamics wing; its own geometry (iris/shared/geometry.mjs), not tide's. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "paths": [
+        "iris/**",
+        ".github/workflows/deploy-iris.yml"
       ]
     },
     {
