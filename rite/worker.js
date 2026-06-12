@@ -30,13 +30,14 @@ export default {
       if (url.pathname === '/api/health') {
         return json({
           ok: true,
-          version: 'ask-map-v2',
+          version: 'wc-odds-v1',
           routes: [
             '/api/sentence', '/api/grade',
             '/api/fodder/next', '/api/fodder/vote', '/api/fodder/promoted',
             '/api/fodder/stats', '/api/fodder/admin/mine',
             '/api/ask/check', '/api/ask/index', '/api/ask/query', '/api/ask/map', '/api/ask/thread',
             '/api/signal/check', '/api/signal/index', '/api/signal/query', '/api/signal/map', '/api/signal/target',
+            '/api/wc/odds',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
         });
@@ -65,6 +66,11 @@ export default {
       if (url.pathname === '/api/signal/query' && request.method === 'POST') return signalQuery(request, env);
       if (url.pathname === '/api/signal/map')                             return signalMap(env, url);
       if (url.pathname === '/api/signal/target')                          return signalTarget(env, url);
+
+      // World Cup: prediction-market odds for each team to advance from its
+      // group (served at /wc/). Proxies + normalizes Polymarket's per-team
+      // "advance to knockout stages" market so the page dodges CORS.
+      if (url.pathname === '/api/wc/odds')                                return wcOdds(env);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -346,12 +352,13 @@ function buildComment({ fidelityScaled, brevity, clarity, timeBonus, userWords, 
   return bits.join(' ');
 }
 
-function json(obj, status = 200) {
+function json(obj, status = 200, extraHeaders = null) {
   return new Response(JSON.stringify(obj), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
+      ...(extraHeaders || {}),
     },
   });
 }
@@ -2041,4 +2048,82 @@ async function signalQuery(request, env) {
     hits: scored.slice(0, k),
     time_ms: Date.now() - t0,
   });
+}
+
+// ============================================================================
+// WORLD CUP — prediction-market advancement odds (served at /wc/)
+// ============================================================================
+//
+// Polymarket publishes one Yes/No market per nation under the event
+// "World Cup: Team to advance to Knockout Stages". The Yes price is the
+// implied probability that the team escapes its group (the 2026 format takes
+// the top two of each group plus the eight best third-placed sides into the
+// Round of 32). We fetch the event server-side, flatten it to a name→price
+// map, and cache it per isolate so the page can hammer it cheaply.
+
+const WC_EVENT_SLUG = 'world-cup-team-to-advance-to-knockout-stages';
+const WC_TTL_MS = 5 * 60 * 1000;        // refresh upstream at most every 5 min
+let _wcCache = null;                    // { at, data }
+
+async function wcOdds(env) {
+  const now = Date.now();
+  if (_wcCache && now - _wcCache.at < WC_TTL_MS) {
+    return json(_wcCache.data, 200, { 'Cache-Control': 'public, max-age=120' });
+  }
+
+  let ev = null;
+  try {
+    const r = await fetch(
+      `https://gamma-api.polymarket.com/events?slug=${WC_EVENT_SLUG}`,
+      { headers: { accept: 'application/json' } },
+    );
+    if (r.ok) {
+      const events = await r.json();
+      ev = Array.isArray(events) ? events[0] : events;
+    }
+  } catch (e) {
+    // fall through to stale-cache / error handling below
+  }
+
+  if (!ev || !Array.isArray(ev.markets)) {
+    if (_wcCache) {
+      return json({ ...(_wcCache.data), stale: true }, 200,
+        { 'Cache-Control': 'public, max-age=60' });
+    }
+    return json({ error: 'odds upstream unavailable', source: 'polymarket' }, 502);
+  }
+
+  const odds = {};
+  for (const m of ev.markets) {
+    const name = m.groupItemTitle || m.question;
+    if (!name) continue;
+    let prices = m.outcomePrices, outcomes = m.outcomes;
+    if (typeof prices === 'string')   { try { prices = JSON.parse(prices); }     catch { prices = null; } }
+    if (typeof outcomes === 'string') { try { outcomes = JSON.parse(outcomes); } catch { outcomes = null; } }
+    let yes = null;
+    if (Array.isArray(prices) && Array.isArray(outcomes)) {
+      const i = outcomes.findIndex((o) => String(o).toLowerCase() === 'yes');
+      yes = Number(prices[i >= 0 ? i : 0]);
+    } else if (Array.isArray(prices)) {
+      yes = Number(prices[0]);
+    }
+    if (yes == null || Number.isNaN(yes)) continue;
+    odds[name] = {
+      yes,
+      bid:  m.bestBid != null ? Number(m.bestBid) : null,
+      last: m.lastTradePrice != null ? Number(m.lastTradePrice) : null,
+      closed: !!m.closed,
+    };
+  }
+
+  const data = {
+    updatedAt: new Date().toISOString(),
+    source: 'polymarket',
+    eventSlug: WC_EVENT_SLUG,
+    eventTitle: ev.title || null,
+    count: Object.keys(odds).length,
+    odds,
+  };
+  _wcCache = { at: now, data };
+  return json(data, 200, { 'Cache-Control': 'public, max-age=120' });
 }
