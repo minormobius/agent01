@@ -18,6 +18,8 @@ pub struct Morph {
     pub bowl: f64,      // a/b/d/p/q bowl wrap (deg): how far the arc closes before
                         // attaching to the stem (0 = open D, larger = enclosed)
     pub apex_flat: bool, // A: flat-topped (truncated apex) vs pointed "chopstick"
+    pub modulation: f64, // nib contrast: 0 = monoline, 1 = high thick/thin ratio
+                         // (how strongly weight varies with stroke angle)
 }
 
 pub struct Params {
@@ -76,6 +78,7 @@ impl Params {
             bar: r.range(0.42, 0.60),
             bowl: r.range(0.0, 34.0),
             apex_flat: r.chance(0.45),
+            modulation: r.range(0.0, 1.0),
         };
 
         let weight_class =

@@ -63,6 +63,14 @@ struct Nib {
     hf: f64, // half-extent across the edge (≈ thin weight / 2)
 }
 
+/// The pen's thin weight, driven by the `modulation` gene rather than the legacy
+/// metric `thin` — this is the knob for how strongly weight varies with stroke
+/// angle: 0 = monoline (thin = thick), 1 = high contrast. Every pen dimension
+/// (nib, bowl/box insets, bar thickness) reads this so they stay consistent.
+fn nib_thin(p: &Params) -> f64 {
+    (p.stem * (1.0 - 0.85 * p.morph.modulation)).max(8.0)
+}
+
 impl Nib {
     fn from(p: &Params) -> Self {
         let a = p.pen_angle;
@@ -70,7 +78,7 @@ impl Nib {
             e: (a.cos(), a.sin()),
             n: (-a.sin(), a.cos()),
             he: p.stem / 2.0,
-            hf: (p.thin / 2.0).max(6.0),
+            hf: (nib_thin(p) / 2.0).max(6.0),
         }
     }
 
@@ -277,28 +285,49 @@ impl<'a> Skel<'a> {
         self.rect(cx - r, cy - r, cx + r, cy + r);
     }
 
+    /// How far the nib reaches vertically from a stamp point (its slanted cut's
+    /// half-height). A serif slab must be at least this tall to bury the cut.
+    fn nib_vreach(&self) -> f64 {
+        self.nib.he * self.nib.e.1.abs() + self.nib.hf * self.nib.n.1.abs()
+    }
+
+    /// Serif slab height — tall enough to cover the stem's angled nib terminal so
+    /// it doesn't poke through (the "crossed serif").
+    fn serif_h(&self) -> f64 {
+        self.p.serif_th.max(self.nib_vreach() + 6.0)
+    }
+
     fn base_serif(&mut self, x: f64) {
         if self.p.serif {
             let half = self.p.stem / 2.0 + self.p.serif_len * 0.5;
-            self.rect(x - half, 0.0, x + half, self.p.serif_th);
+            let sh = self.serif_h();
+            self.rect(x - half, 0.0, x + half, sh);
         }
     }
 
     fn cap_serif(&mut self, x: f64) {
         if self.p.serif {
             let half = self.p.stem / 2.0 + self.p.serif_len * 0.5;
-            self.rect(x - half, self.p.cap - self.p.serif_th, x + half, self.p.cap);
+            let sh = self.serif_h();
+            self.rect(x - half, self.p.cap - sh, x + half, self.p.cap);
         }
     }
 
     /// A vertical stem, with slab serifs auto-added at any end on the baseline
-    /// (y≈0) or the cap line (y≈cap).
+    /// (y≈0) or the cap line (y≈cap). A serifed end is tucked *under* its slab
+    /// (the stem centerline stops at the slab's inner edge) so the nib's angled
+    /// terminal stays buried instead of crossing through the serif.
     fn vstem(&mut self, x: f64, y0: f64, y1: f64) {
-        self.line((x, y0), (x, y1));
-        if y0.abs() <= 1.0 {
+        let foot = self.p.serif && y0.abs() <= 1.0;
+        let head = self.p.serif && y1 >= self.p.cap - 1.0;
+        let sh = self.serif_h();
+        let a = if foot { y0 + sh } else { y0 };
+        let b = if head { y1 - sh } else { y1 };
+        self.line((x, a.min(b)), (x, a.max(b)));
+        if foot {
             self.base_serif(x);
         }
-        if y1 >= self.p.cap - 1.0 {
+        if head {
             self.cap_serif(x);
         }
     }
@@ -313,7 +342,7 @@ impl<'a> Skel<'a> {
         let wr = deg(wrap);
         let rx = ((x_edge - xstem) / (1.0 + wr.sin())).max(8.0);
         let cx = x_edge - rx;
-        let ry = (top / 2.0 - self.p.thin / 2.0).max(8.0);
+        let ry = (top / 2.0 - nib_thin(self.p) / 2.0).max(8.0);
         self.open(&[Seg::Arc {
             c: (cx, top / 2.0),
             rx,
@@ -329,7 +358,7 @@ impl<'a> Skel<'a> {
         let wr = deg(wrap);
         let rx = ((xstem - x_edge) / (1.0 + wr.sin())).max(8.0);
         let cx = x_edge + rx;
-        let ry = (top / 2.0 - self.p.thin / 2.0).max(8.0);
+        let ry = (top / 2.0 - nib_thin(self.p) / 2.0).max(8.0);
         self.open(&[Seg::Arc {
             c: (cx, top / 2.0),
             rx,
@@ -370,7 +399,7 @@ fn box_radii(p: &Params, x0: f64, x1: f64, y0: f64, y1: f64) -> (P2, f64, f64) {
     let cx = (x0 + x1) / 2.0;
     let cy = (y0 + y1) / 2.0;
     let rx = ((x1 - x0) / 2.0 - p.stem / 2.0).max(8.0);
-    let ry = ((y1 - y0) / 2.0 - p.thin / 2.0).max(8.0);
+    let ry = ((y1 - y0) / 2.0 - nib_thin(p) / 2.0).max(8.0);
     ((cx, cy), rx, ry)
 }
 
@@ -396,7 +425,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
     let xh = p.xheight;
     let wf = p.width;
     let s = p.stem;
-    let t = p.thin;
+    let t = nib_thin(p); // modulation-driven thin — keeps bars/insets matching the nib
     let sb = 0.07 * h;
     let dd = 0.22 * h; // descender depth below baseline
 

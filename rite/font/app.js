@@ -60,7 +60,7 @@ function renderMeta(info, size) {
     ["Weight", info.weightClass ?? "—"],
     ["Stem", info.stem ?? "—"],
     ["Thin", info.thin ?? "—"],
-    ["Contrast", info.contrast ?? "—"],
+    ["Modulation", info.modulation ?? "—"],
     ["Width", info.width ?? "—"],
     ["Slant°", info.slant ?? "—"],
     ["Pen°", info.pen ?? "—"],

@@ -94,10 +94,14 @@ Next layers (the seed/permalink foundation is built for them):
    stay full, and terminals get the nib's angled cut for free.
 6. **Construction genome (`Morph` in `params.rs`)** — the seed rolls the
    *gestures*, not just the metrics, so rolls differ in morphology rather than
-   only weight/width. Genes: `aperture` (how open `C c e G` counters are),
-   `overshoot` (round letters spilling past baseline/cap), `arch` (round-humanist
-   ↔ flat/squared shoulder on `n m h u`), `bar` (crossbar height of `A E F H e`),
-   `bowl` (how far the `a b d p q` arc closes before attaching), and the first
-   structural gene `apex_flat` (`A` flat-topped vs pointed). Next layer:
+   only weight/width. Genes: `modulation` (nib contrast — how strongly weight
+   varies with stroke angle, monoline→high-contrast), `aperture` (how open
+   `C c e G` counters are), `overshoot` (round letters spilling past
+   baseline/cap), `arch` (round-humanist ↔ flat/squared shoulder on `n m h u`),
+   `bar` (crossbar height of `A E F H e`), `bowl` (how far the `a b d p q` arc
+   closes before attaching), and the first structural gene `apex_flat` (`A`
+   flat-topped vs pointed). Serifed stem ends are tucked under a slab tall enough
+   to bury the nib's angled terminal, so the serif caps the stem cleanly instead
+   of the stem crossing through it. Next layer:
    correlated *archetypes* (humanist / geometric / grotesque) and more structural
    genes (single- vs double-story `a`/`g`, alternative `R`/`K` legs).
