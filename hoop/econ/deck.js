@@ -68,6 +68,30 @@ export function deckScene({
     if (!cur || h < cur.h) best.set(bo, { e, h });
   }
   for (const [, v] of best) kind.set(eKey(v.e.a, v.e.b), 'door');
+  const streetDoorKeys = new Set([...best.values()].map((v) => eKey(v.e.a, v.e.b)));
+
+  // ── UNIVERSAL NAVIGABILITY (the hard requirement): every room reaches every room, torturous
+  //    paths allowed. The deck slice fragments the 3D right-of-way and seals landlocked buildings;
+  //    restore the foam's navigability invariant with SERVICE DOORS — the fewest extra doors (a
+  //    spanning set over the walk components), class-weighted so easements run through concourse
+  //    and workshops before they ever run through a home, and kept categorically distinct from the
+  //    ONE street door (the civic fact stands; these are the back passages every habitat needs). ──
+  const par = Array.from({ length: band.length }, (_, i) => i);
+  const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  for (const e of adjE) { const k = kind.get(eKey(e.a, e.b)); if (k === 'door' || k === 'open') par[find(e.a)] = find(e.b); }
+  const cls = (i) => owner[i] === -1 ? 0 : role[i] === 'dwell' ? 2 : 1;   // concourse 0 · work/void 1 · home 2
+  const cand = adjE
+    .filter((e) => !kind.has(eKey(e.a, e.b)))
+    .map((e) => ({ e, w: cls(e.a) + cls(e.b), h: ehash((seed ^ 0x51515151) >>> 0, e.a, e.b) }))
+    .sort((p, q) => p.w - q.w || p.h - q.h);
+  const serviceEdges = [];
+  for (const c of cand) {
+    const a = find(c.e.a), b = find(c.e.b);
+    if (a === b) continue;
+    par[a] = b;
+    kind.set(eKey(c.e.a, c.e.b), 'door');
+    serviceEdges.push({ a: c.e.a, b: c.e.b });
+  }
 
   const scene = buildSceneCustom({
     W, H, wallSpacing, roomSpacing, seeds,
@@ -86,10 +110,11 @@ export function deckScene({
 
   const stats = {
     rooms: band.length, roadRooms: role.filter((r) => r === 'road').length,
-    buildings: glyphs.size, streetDoors: best.size, gates: isGate.size,
+    buildings: glyphs.size, streetDoors: best.size, serviceDoors: serviceEdges.length, gates: isGate.size,
     closure: city.closure, access: city.access,
   };
-  return { scene, band, owner, role, bill, isGate, seeds, stats, solved: s, frame: { W, H } };
+  return { scene, band, owner, role, bill, isGate, seeds, stats, solved: s, frame: { W, H },
+    streetDoorKeys, serviceEdges };
 }
 
 export const ROLE_COLOR = Object.fromEntries(Object.entries(ROLES).map(([k, R]) => [k, R.color]));

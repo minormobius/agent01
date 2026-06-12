@@ -152,7 +152,7 @@ function show() {
     const s = d.stats;
     $('info').innerHTML = 'region <b>(' + az + ', ' + ax + ')</b> of ' + L.regionsPerRing + '×[' + record.axMin + '..' + record.axMax + '] · ' +
       s.rooms + ' rooms on this deck · <b>' + s.buildings + '</b> buildings · ' + s.roadRooms + ' concourse · ' +
-      s.streetDoors + ' street doors · closure ' + (s.closure * 100).toFixed(0) + '% · access ' + s.access.toFixed(2);
+      s.streetDoors + ' street doors + ' + s.serviceDoors + ' easements · closure ' + (s.closure * 100).toFixed(0) + '% · access ' + s.access.toFixed(2);
     legend(); draw();
   };
   if (cache.has(key)) { go(cache.get(key)); return; }

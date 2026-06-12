@@ -40,11 +40,13 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(d.stats.rooms > 200 && d.scene.paintCells.length > 3000, 'a deck band projects to a real paint scene (' + d.stats.rooms + ' rooms, ' + d.scene.paintCells.length + ' cells)');
   ok(d.stats.roadRooms > 0 && d.scene.opens.length > 0, 'the right-of-way reaches this deck as zero-wall concourse');
   ok(d.scene.opens.every((e) => d.owner[e.a] === -1 && d.owner[e.b] === -1), 'opens ONLY ever join two road rooms');
-  // exactly one street door per road-fronting building; none for landlocked ones
+  // exactly one STREET door per road-fronting building (service doors are a separate category)
+  const ek = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
   const doored = new Map();
-  for (const e of d.scene.doors) {
-    const bo = d.owner[e.a] >= 0 && d.owner[e.b] === -1 ? d.owner[e.a] : d.owner[e.b] >= 0 && d.owner[e.a] === -1 ? d.owner[e.b] : -1;
-    if (bo >= 0) doored.set(bo, (doored.get(bo) || 0) + 1);
+  for (const k of d.streetDoorKeys) {
+    const [a, b] = k.split(',').map(Number);
+    const bo = d.owner[a] >= 0 ? d.owner[a] : d.owner[b];
+    doored.set(bo, (doored.get(bo) || 0) + 1);
   }
   ok([...doored.values()].every((n) => n === 1), 'every street-doored building has EXACTLY one street door (sequestration)');
   const fronting = new Set();
@@ -53,6 +55,17 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
     if (bo >= 0) fronting.add(bo);
   }
   ok(doored.size === fronting.size, 'every building that fronts the street on this deck gets its door (' + doored.size + '/' + fronting.size + ')');
+  // UNIVERSAL NAVIGABILITY: every room reaches every room (the hard requirement)
+  const walkAdj = Array.from({ length: d.seeds.length }, () => []);
+  for (const e of d.scene.doors.concat(d.scene.opens)) { walkAdj[e.a].push(e.b); walkAdj[e.b].push(e.a); }
+  const seenW = new Set([0]), qW = [0];
+  while (qW.length) { const u = qW.pop(); for (const v of walkAdj[u]) if (!seenW.has(v)) { seenW.add(v); qW.push(v); } }
+  ok(seenW.size === d.seeds.length, 'EVERY room is navigable to every other room (' + seenW.size + '/' + d.seeds.length + ')');
+  ok(d.serviceEdges.length > 0 && d.serviceEdges.length < d.seeds.length * 0.25, 'service doors are few — easements, not a second road network (' + d.serviceEdges.length + ')');
+  ok(d.serviceEdges.every((e) => !d.streetDoorKeys.has(ek(e.a, e.b))), 'service doors and street doors are disjoint categories');
+  // class weighting: easements prefer not to run through homes
+  const dwellTouch = d.serviceEdges.filter((e) => d.role[e.a] === 'dwell' || d.role[e.b] === 'dwell').length;
+  ok(dwellTouch < d.serviceEdges.length * 0.6, 'most easements avoid homes (' + dwellTouch + '/' + d.serviceEdges.length + ' touch a dwelling)');
   // interior doors connect each building's band footprint exactly as far as geometry allows
   const comps = (edges, members) => {
     const par = new Map([...members].map((i) => [i, i]));
@@ -88,25 +101,31 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   for (const e of d.scene.doors.concat(d.scene.opens)) passable.add(Math.min(e.a, e.b) + ',' + Math.max(e.a, e.b));
   const legal = (r) => r.rooms.every((u, k) => k === 0 || passable.has(Math.min(u, r.rooms[k - 1]) + ',' + Math.max(u, r.rooms[k - 1])));
   ok(legal(roadRoute), 'every crossing in a route is a door or an open membrane (walls are walls)');
-  // a probe INSIDE a building exits through its ONE street door
-  const doorEdgeOf = new Map();
-  for (const e of d.scene.doors) {
-    const bo = d.owner[e.a] >= 0 && d.owner[e.b] === -1 ? d.owner[e.a] : d.owner[e.b] >= 0 && d.owner[e.a] === -1 ? d.owner[e.b] : -1;
-    if (bo >= 0) doorEdgeOf.set(bo, Math.min(e.a, e.b) + ',' + Math.max(e.a, e.b));
-  }
+  // a probe INSIDE a building with no easements exits through its ONE street door
+  const ek2 = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
+  const serviceTouch = new Set();
+  for (const e of d.serviceEdges) { if (d.owner[e.a] >= 0) serviceTouch.add(d.owner[e.a]); if (d.owner[e.b] >= 0) serviceTouch.add(d.owner[e.b]); }
   let funnel = null;
-  for (const [bo, dk] of doorEdgeOf) {
+  for (const k of d.streetDoorKeys) {
+    const [a, b] = k.split(',').map(Number);
+    const bo = d.owner[a] >= 0 ? d.owner[a] : d.owner[b];
+    if (serviceTouch.has(bo)) continue;                    // pick a building whose only exit is the street door
     const inside = []; d.owner.forEach((o, i) => { if (o === bo) inside.push(i); });
     if (!inside.length || !roads.length) continue;
     const r = walkRoute(d, inside[0], roads[0]);
     if (!r) continue;
-    // find where the route leaves the building: that crossing must BE the street door
     let exit = null;
-    for (let k = 1; k < r.rooms.length; k++) if (d.owner[r.rooms[k - 1]] === bo && d.owner[r.rooms[k]] !== bo) { exit = Math.min(r.rooms[k - 1], r.rooms[k]) + ',' + Math.max(r.rooms[k - 1], r.rooms[k]); break; }
-    funnel = exit === dk; break;
+    for (let j = 1; j < r.rooms.length; j++) if (d.owner[r.rooms[j - 1]] === bo && d.owner[r.rooms[j]] !== bo) { exit = ek2(r.rooms[j - 1], r.rooms[j]); break; }
+    funnel = exit === k; break;
   }
-  ok(funnel === true, 'a journey out of a building funnels through its ONE street door (sequestration, visible)');
-  ok(legal(walkRoute(d, roads[0], roads[0]) || { rooms: [roads[0]] }), 'a self-route is trivial and legal');
+  ok(funnel === true, 'a journey out of an easement-free building funnels through its ONE street door');
+  // and now the original complaint: random probe pairs ALWAYS route
+  let allRoute = true;
+  for (let t = 0; t < 30; t++) {
+    const a = (t * 7919) % d.seeds.length, b = (t * 104729 + 13) % d.seeds.length;
+    if (a !== b && !walkRoute(d, a, b)) { allRoute = false; break; }
+  }
+  ok(allRoute, 'NO MORE "no path": 30 random probe pairs all route');
 }
 
 console.log(`deck.selftest: ${pass} passed, ${fail} failed`);
