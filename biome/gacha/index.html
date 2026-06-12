@@ -115,8 +115,10 @@
       <div class="seedline">seed <input id="seed-in" type="text" inputmode="numeric" placeholder="e.g. 4823" />
         <button id="btn-go" style="flex:0 0 auto;padding:8px 12px">go</button></div>
       <div class="row" style="margin-top:2px">
-        <button id="btn-reheat" style="font-size:11px;padding:7px">↻ reheat</button>
+        <button id="btn-zin" style="font-size:13px;padding:7px" title="zoom in">＋</button>
+        <button id="btn-zout" style="font-size:13px;padding:7px" title="zoom out">－</button>
         <button id="btn-fit" style="font-size:11px;padding:7px">⤢ fit</button>
+        <button id="btn-reheat" style="font-size:11px;padding:7px">↻ reheat</button>
       </div>
     </div>
   </section>
@@ -331,7 +333,7 @@ function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); const r=cv.getBou
 function fit(){ const p=16; cam.s=Math.min((CSSW-p*2)/WORLD.w,(CSSH-p*2)/WORLD.h); cam.x=(CSSW-WORLD.w*cam.s)/2; cam.y=(CSSH-WORLD.h*cam.s)/2; }
 const toWorld=(sx,sy)=>({x:(sx-cam.x)/cam.s,y:(sy-cam.y)/cam.s});
 const MONO="'SF Mono',ui-monospace,Menlo,Consolas,monospace";
-let hover=null;
+let hover=null, pinned=null;
 
 function draw(){
   cx.setTransform(DPR,0,0,DPR,0,0); cx.clearRect(0,0,CSSW,CSSH);
@@ -343,14 +345,15 @@ function draw(){
     cx.fillStyle=g; cx.beginPath(); cx.arc(a.x,a.y,180,0,7); cx.fill();
     cx.fillStyle=hexA(col,0.6); cx.font='600 13px '+MONO; cx.textAlign='center'; cx.fillText(h.toUpperCase(), a.x, a.y-150); cx.textAlign='left';
   }
-  const lit = hover ? incident(hover) : null;
+  const focus = pinned || hover; const lit = focus ? incident(focus) : null;
   for (const e of edges){ const a=nById[e.from], b=nById[e.to]; if(!a||!b)continue; const st=EDGE[e.type]||EDGE.trophic;
     let al=st.a; if(lit) al = lit.edges.has(e)?Math.min(1,st.a+0.25):st.a*0.12;
     cx.strokeStyle=st.c; cx.lineWidth=st.w/Math.sqrt(cam.s); cx.setLineDash(st.dash||[]); cx.globalAlpha=al;
     cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y); cx.stroke(); }
   cx.setLineDash([]); cx.globalAlpha=1;
   for (const n of nodes){ const dim=lit&&!lit.nodes.has(n.id); cx.globalAlpha=dim?0.3:1;
-    if (n.pool) drawPool(n); else drawNode(n, hover===n); cx.globalAlpha=1; }
+    if (n.pool) drawPool(n); else drawNode(n, focus===n); cx.globalAlpha=1; }
+  if (pinned) placeTip(pinned);          // keep a pinned card anchored to its node
 }
 function drawNode(n, foc){
   const img = IMG[n.id]; cx.save(); cx.beginPath(); cx.arc(n.x,n.y,n.r,0,7);
@@ -373,23 +376,43 @@ const tip = document.getElementById('tip');
 let drag=null, panning=null;
 function pick(wx,wy){ let best=null,bd=Infinity; for(const n of nodes){ const rr=(n.r+4)*(n.r+4); const d2=(n.x-wx)**2+(n.y-wy)**2; if(d2<rr&&d2<bd){bd=d2;best=n;} } return best; }
 const sp_=(ev)=>{ const r=cv.getBoundingClientRect(); return {sx:ev.clientX-r.left, sy:ev.clientY-r.top}; };
-function showTip(n,sx,sy){ if(n.pool){ tip.innerHTML=`<div class="bd"><div class="nm">${n.label}</div><div class="rel">shared abiotic pool — closure runs through here.</div></div>`; }
+function showTip(n){ if(n.pool){ tip.innerHTML=`<div class="bd"><div class="nm">${n.label}</div><div class="rel">shared abiotic pool — closure runs through here.</div></div>`; }
   else { const cat=byId[n.id]||{}; const ph=cat.inat?.photo; const ins=[],outs=[];
     for(const e of edges){ if(e.type==='trophic'&&e.to===n.id) ins.push(nById[e.from]?.label||e.from); if(e.type==='trophic'&&e.from===n.id) outs.push(nById[e.to]?.label||e.to); }
     tip.innerHTML=(ph?`<div class="ph" style="background-image:url('${ph}')"></div>`:'')+`<div class="bd"><div class="nm">${n.label}</div><div class="sci">${cat.sciName||''} · ${n.guild}</div>`+
       (ins.length?`<div class="rel"><b>eats:</b> ${ins.join(', ')}</div>`:'')+(outs.length?`<div class="rel"><b>eaten by:</b> ${outs.join(', ')}</div>`:'')+`</div>`; }
-  tip.style.display='block'; let x=sx+14,y=sy+14; if(x+230>CSSW)x=sx-244; tip.style.left=Math.max(2,x)+'px'; tip.style.top=Math.max(2,y)+'px'; }
-const hideTip=()=>{ tip.style.display='none'; };
-cv.addEventListener('pointerdown',(ev)=>{ cv.setPointerCapture(ev.pointerId); const {sx,sy}=sp_(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
-  if(n){ drag={n,dx:n.x-w.x,dy:n.y-w.y}; n.fixed=true; cv.classList.add('grabbing'); } else { panning={sx,sy,cx0:cam.x,cy0:cam.y}; cv.classList.add('grabbing'); } });
-cv.addEventListener('pointermove',(ev)=>{ const {sx,sy}=sp_(ev); const w=toWorld(sx,sy);
-  if(drag){ drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0; reheat(0.4); showTip(drag.n,sx,sy); return; }
-  if(panning){ cam.x=panning.cx0+(sx-panning.sx); cam.y=panning.cy0+(sy-panning.sy); return; }
-  const n=pick(w.x,w.y); hover=n; if(n){ cv.style.cursor='pointer'; showTip(n,sx,sy); } else { cv.style.cursor='grab'; hideTip(); } });
-function endP(){ if(drag){drag.n.fixed=false;drag=null;} panning=null; cv.classList.remove('grabbing'); }
-cv.addEventListener('pointerup',endP); cv.addEventListener('pointercancel',endP);
-cv.addEventListener('pointerleave',()=>{ hover=null; hideTip(); });
-cv.addEventListener('wheel',(ev)=>{ ev.preventDefault(); const {sx,sy}=sp_(ev); const w=toWorld(sx,sy); const f=Math.exp(-ev.deltaY*0.0015); const ns=Math.max(0.4,Math.min(3,cam.s*f)); cam.x=sx-w.x*ns; cam.y=sy-w.y*ns; cam.s=ns; }, {passive:false});
+  tip.style.display='block'; placeTip(n); }
+function placeTip(n){ const nx=n.x*cam.s+cam.x, ny=n.y*cam.s+cam.y, rr=(n.r||14)*cam.s; const w=230, h=tip.offsetHeight||130;
+  let x=nx+rr+12; if(x+w>CSSW-4) x=nx-rr-12-w; x=Math.max(4,Math.min(Math.max(4,CSSW-w-4),x));
+  let y= ny>CSSH*0.52 ? ny-rr-10-h : ny+rr+10; y=Math.max(4,Math.min(Math.max(4,CSSH-h-4),y));
+  tip.style.left=x+'px'; tip.style.top=y+'px'; }
+const hideTip=()=>{ if(!pinned) tip.style.display='none'; };
+
+// ── pointer: drag a node, TAP to pin its card, pan / pinch / wheel to zoom ──
+const pointers = new Map(); let pinch=null; const ZMIN=0.4, ZMAX=6;
+const _d=(a,b)=>Math.hypot(a.sx-b.sx,a.sy-b.sy), _m=(a,b)=>({sx:(a.sx+b.sx)/2,sy:(a.sy+b.sy)/2});
+function zoomAround(sx,sy,ns){ const w=toWorld(sx,sy); cam.s=Math.max(ZMIN,Math.min(ZMAX,ns)); cam.x=sx-w.x*cam.s; cam.y=sy-w.y*cam.s; }
+function zoomBy(f){ zoomAround(CSSW/2,CSSH/2,cam.s*f); }
+function clearGrab(){ if(drag) drag.n.fixed=false; drag=null; panning=null; cv.classList.remove('grabbing'); }
+cv.addEventListener('pointerdown',(ev)=>{ cv.setPointerCapture(ev.pointerId); const sp=sp_(ev); pointers.set(ev.pointerId, sp);
+  if(pointers.size===2){ clearGrab(); const p=[...pointers.values()]; pinch={ d:_d(p[0],p[1])||1, s0:cam.s }; return; }
+  const w=toWorld(sp.sx,sp.sy); const n=pick(w.x,w.y);
+  if(n){ drag={n,dx:n.x-w.x,dy:n.y-w.y,sx0:sp.sx,sy0:sp.sy,moved:false}; n.fixed=true; cv.classList.add('grabbing'); }
+  else { panning={sx:sp.sx,sy:sp.sy,cx0:cam.x,cy0:cam.y,moved:false}; cv.classList.add('grabbing'); } });
+cv.addEventListener('pointermove',(ev)=>{ const sp=sp_(ev); if(pointers.has(ev.pointerId)) pointers.set(ev.pointerId, sp);
+  if(pinch && pointers.size>=2){ const p=[...pointers.values()]; const m=_m(p[0],p[1]); zoomAround(m.sx,m.sy, pinch.s0*_d(p[0],p[1])/pinch.d); return; }
+  const w=toWorld(sp.sx,sp.sy);
+  if(drag){ if(Math.hypot(sp.sx-drag.sx0,sp.sy-drag.sy0)>4) drag.moved=true;
+    drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0; reheat(0.4); if(drag.moved&&!pinned) showTip(drag.n); return; }
+  if(panning){ if(Math.hypot(sp.sx-panning.sx,sp.sy-panning.sy)>4) panning.moved=true; cam.x=panning.cx0+(sp.sx-panning.sx); cam.y=panning.cy0+(sp.sy-panning.sy); return; }
+  const n=pick(w.x,w.y); hover=n; if(n){ cv.style.cursor='pointer'; if(!pinned) showTip(n); } else { cv.style.cursor='grab'; if(!pinned) hideTip(); } });
+cv.addEventListener('pointerup',(ev)=>{ if(!pinch){
+    if(drag){ if(!drag.moved){ pinned=(pinned===drag.n?null:drag.n); if(pinned) showTip(drag.n); else hideTip(); } }
+    else if(panning && !panning.moved){ pinned=null; hideTip(); } }
+  pointers.delete(ev.pointerId); if(pointers.size<2) pinch=null; clearGrab(); });
+cv.addEventListener('pointercancel',(ev)=>{ pointers.delete(ev.pointerId); if(pointers.size<2) pinch=null; clearGrab(); });
+cv.addEventListener('pointerleave',()=>{ hover=null; if(!pinned) hideTip(); });
+cv.addEventListener('wheel',(ev)=>{ ev.preventDefault(); const sp=sp_(ev); zoomAround(sp.sx,sp.sy, cam.s*Math.exp(-ev.deltaY*0.0015)); }, {passive:false});
 
 // ── buttons ──
 document.getElementById('btn-roll').addEventListener('click', ()=>doRoll(randomSeed()));
@@ -400,6 +423,8 @@ document.getElementById('btn-share').addEventListener('click', async ()=>{ const
   try{ await navigator.clipboard.writeText(u.toString()); document.getElementById('hunt-status').textContent='link copied — '+u.searchParams.get('n'); }catch{ document.getElementById('hunt-status').textContent=u.toString(); } });
 document.getElementById('btn-reheat').addEventListener('click', ()=>reheat(1));
 document.getElementById('btn-fit').addEventListener('click', fit);
+document.getElementById('btn-zin').addEventListener('click', ()=>zoomBy(1.35));
+document.getElementById('btn-zout').addEventListener('click', ()=>zoomBy(1/1.35));
 window.addEventListener('resize', ()=>{ resize(); fit(); });
 
 document.getElementById('foot').innerHTML = 'each roll: a seed → a food web (60-organism deck, diets by body-size + habitat) → the box model runs it ~600 days → a viability score. '

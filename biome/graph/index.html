@@ -99,9 +99,11 @@
     <label class="toggle"><input type="checkbox" id="tg-labels" checked> <span>Show name labels</span></label>
     <label class="toggle"><input type="checkbox" id="tg-photos" checked> <span>Show organism photos</span></label>
     <div class="btns">
+      <button id="btn-zin" title="zoom in">＋</button>
+      <button id="btn-zout" title="zoom out">－</button>
+      <button id="btn-fit">⤢ fit</button>
       <button id="btn-reheat">↻ reheat</button>
       <button id="btn-pause">⏸ pause</button>
-      <button id="btn-fit">⤢ fit</button>
     </div>
     <div class="hint">A <b>Venn diagram</b> of three overlapping habitats: each web's organisms sit in
       its private crescent, the couplers live in the overlap lenses, and the shared pools cluster where all
@@ -392,6 +394,7 @@ function draw(){
     if (n.isPool) drawPool(n); else drawOrganism(n, focus===n);
     cx.globalAlpha = 1;
   }
+  if (pinned) placeInfo(pinned);          // keep a pinned card anchored to its node as the sim drifts
 }
 function drawBasins(){
   // VENN: three translucent overlapping discs, additively blended so the overlap lenses (where
@@ -493,44 +496,72 @@ function showInfo(n, sx, sy){
       + `</div>`;
   }
   info.style.display='block';
-  let x=sx+14, y=sy+14; if (x+248>CSSW) x=sx-262; if (y+info.offsetHeight>CSSH) y=Math.max(4,CSSH-info.offsetHeight-4);
-  info.style.left=Math.max(2,x)+'px'; info.style.top=Math.max(2,y)+'px';
+  placeInfo(n);
+}
+// anchor the card beside the node, flipping above/below + left/right to stay on-canvas
+function placeInfo(n){
+  const nx = n.x*cam.s + cam.x, ny = n.y*cam.s + cam.y, rr = (n.r||14)*cam.s;
+  const w = 248, h = info.offsetHeight || 150;
+  let x = nx + rr + 12; if (x + w > CSSW - 4) x = nx - rr - 12 - w;
+  x = Math.max(4, Math.min(Math.max(4, CSSW - w - 4), x));
+  let y = ny > CSSH*0.52 ? ny - rr - 10 - h : ny + rr + 10;   // node in lower half → pop ABOVE, else BELOW
+  y = Math.max(4, Math.min(Math.max(4, CSSH - h - 4), y));
+  info.style.left = x+'px'; info.style.top = y+'px';
 }
 const hideInfo = () => { if (!pinned) info.style.display='none'; };
 
-// ── pointer ──
-let drag=null, panning=null;
+// ── pointer: drag a node, TAP to pin its metadata card, pan / pinch / wheel to zoom ──
+let drag=null, panning=null, pinch=null;
+const pointers = new Map();
+const ZMIN = 0.3, ZMAX = 6;
+const dist = (a,b)=>Math.hypot(a.sx-b.sx, a.sy-b.sy);
+const mid = (a,b)=>({ sx:(a.sx+b.sx)/2, sy:(a.sy+b.sy)/2 });
 function pick(wx,wy){ let best=null,bd=Infinity;
   for (const n of nodes){ const rr=n.isPool?64*64:(n.r+4)*(n.r+4); const d2=(n.x-wx)**2+(n.y-wy)**2; if(d2<rr&&d2<bd){bd=d2;best=n;} } return best; }
 const screenPt = (ev) => { const r=cv.getBoundingClientRect(); return { sx:ev.clientX-r.left, sy:ev.clientY-r.top }; };
+function zoomAround(sx, sy, ns){ const w=toWorld(sx,sy); cam.s=Math.max(ZMIN,Math.min(ZMAX,ns)); cam.x=sx-w.x*cam.s; cam.y=sy-w.y*cam.s; }
+function zoomBy(f){ zoomAround(CSSW/2, CSSH/2, cam.s*f); }
+function clearGrab(){ if(drag) drag.n.fixed=false; drag=null; panning=null; cv.classList.remove('grabbing'); }
+
 cv.addEventListener('pointerdown', (ev)=>{ cv.setPointerCapture(ev.pointerId);
-  const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
+  const sp=screenPt(ev); pointers.set(ev.pointerId, sp);
+  if (pointers.size===2){ clearGrab(); const p=[...pointers.values()]; pinch={ d:dist(p[0],p[1])||1, s0:cam.s }; return; }
+  const w=toWorld(sp.sx,sp.sy); const n=pick(w.x,w.y);
   if (n && !n.isPool){ if(n.flying) n.flying=false;            // you can re-catch the duck mid-flight
-    drag={n,dx:n.x-w.x,dy:n.y-w.y,vx:0,vy:0,px:w.x,py:w.y}; n.fixed=true; cv.classList.add('grabbing'); }
-  else { panning={sx,sy,cx0:cam.x,cy0:cam.y}; cv.classList.add('grabbing'); pinned=null; hideInfo(); } });
-cv.addEventListener('pointermove', (ev)=>{ const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy);
-  if (drag){ drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0;
-    drag.vx=w.x-drag.px; drag.vy=w.y-drag.py; drag.px=w.x; drag.py=w.y;   // track fling velocity
-    reheat(0.4); showInfo(drag.n,sx,sy); return; }
-  if (panning){ cam.x=panning.cx0+(sx-panning.sx); cam.y=panning.cy0+(sy-panning.sy); return; }
+    drag={ n, dx:n.x-w.x, dy:n.y-w.y, vx:0, vy:0, px:w.x, py:w.y, sx0:sp.sx, sy0:sp.sy, moved:false }; n.fixed=true; cv.classList.add('grabbing'); }
+  else { panning={ sx:sp.sx, sy:sp.sy, cx0:cam.x, cy0:cam.y, moved:false }; cv.classList.add('grabbing'); } });
+
+cv.addEventListener('pointermove', (ev)=>{ const sp=screenPt(ev); if(pointers.has(ev.pointerId)) pointers.set(ev.pointerId, sp);
+  if (pinch && pointers.size>=2){ const p=[...pointers.values()]; const m=mid(p[0],p[1]); zoomAround(m.sx, m.sy, pinch.s0 * dist(p[0],p[1]) / pinch.d); return; }
+  const w=toWorld(sp.sx,sp.sy);
+  if (drag){ if (Math.hypot(sp.sx-drag.sx0, sp.sy-drag.sy0) > 4) drag.moved=true;
+    drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0;
+    drag.vx=w.x-drag.px; drag.vy=w.y-drag.py; drag.px=w.x; drag.py=w.y;
+    reheat(0.4); if (drag.moved && !pinned) showInfo(drag.n); return; }
+  if (panning){ if (Math.hypot(sp.sx-panning.sx, sp.sy-panning.sy) > 4) panning.moved=true;
+    cam.x=panning.cx0+(sp.sx-panning.sx); cam.y=panning.cy0+(sp.sy-panning.sy); return; }
   const n=pick(w.x,w.y); hover=n;
-  if (n){ cv.style.cursor='pointer'; if(!pinned) showInfo(n,sx,sy); } else { cv.style.cursor='grab'; if(!pinned) hideInfo(); } });
-function endPointer(){ if(drag){drag.n.fixed=false;drag=null;} panning=null; cv.classList.remove('grabbing'); }
-cv.addEventListener('pointerup', (ev)=>{ const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
-  if (drag && drag.n.id==='duck'){ launchDuck(drag); hideInfo(); }   // 🦆 catch the duck → it flies off
-  else if (!drag && n){ pinned=(pinned===n?null:n); if(pinned) showInfo(n,sx,sy); else hideInfo(); }
-  endPointer(); });
-cv.addEventListener('pointercancel', endPointer);
+  if (n){ cv.style.cursor='pointer'; if(!pinned) showInfo(n); } else { cv.style.cursor='grab'; if(!pinned) hideInfo(); } });
+
+cv.addEventListener('pointerup', (ev)=>{
+  if (!pinch){
+    if (drag){
+      if (drag.moved){ if (drag.n.id==='duck') launchDuck(drag); }            // dragged → reposition / fling the duck
+      else { pinned = (pinned===drag.n ? null : drag.n); if(pinned) showInfo(drag.n); else hideInfo(); }  // TAPPED → pin/unpin its card
+    } else if (panning && !panning.moved){ pinned=null; hideInfo(); }          // tap empty space → dismiss
+  }
+  pointers.delete(ev.pointerId); if (pointers.size<2) pinch=null; clearGrab(); });
+cv.addEventListener('pointercancel', (ev)=>{ pointers.delete(ev.pointerId); if(pointers.size<2) pinch=null; clearGrab(); });
 cv.addEventListener('pointerleave', ()=>{ hover=null; if(!pinned) hideInfo(); });
-cv.addEventListener('wheel', (ev)=>{ ev.preventDefault(); const {sx,sy}=screenPt(ev); const w=toWorld(sx,sy);
-  const f=Math.exp(-ev.deltaY*0.0015); const ns=Math.max(0.3,Math.min(3,cam.s*f));
-  cam.x=sx-w.x*ns; cam.y=sy-w.y*ns; cam.s=ns; }, { passive:false });
+cv.addEventListener('wheel', (ev)=>{ ev.preventDefault(); const sp=screenPt(ev); zoomAround(sp.sx, sp.sy, cam.s*Math.exp(-ev.deltaY*0.0015)); }, { passive:false });
 
 document.getElementById('btn-reheat').addEventListener('click', ()=>reheat(1));
 const pauseBtn = document.getElementById('btn-pause');
 function updatePauseBtn(){ pauseBtn.textContent = paused?'▶ resume':'⏸ pause'; pauseBtn.classList.toggle('on', paused); }
 pauseBtn.addEventListener('click', ()=>{ paused=!paused; updatePauseBtn(); });
 document.getElementById('btn-fit').addEventListener('click', ()=>fit());
+document.getElementById('btn-zin').addEventListener('click', ()=>zoomBy(1.35));
+document.getElementById('btn-zout').addEventListener('click', ()=>zoomBy(1/1.35));
 
 document.getElementById('foot').innerHTML =
   'node size ∝ √(standing biomass) from a 700-day closed run of the maximalist web (land + lake + soil + couplers, conserving C/H/O/N). '
