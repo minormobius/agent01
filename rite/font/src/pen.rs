@@ -5,10 +5,13 @@
 //! has uniform thickness and zero contrast, and an arch is a square `rect`
 //! shoulder bolted onto a stem. This module takes the type-designer's approach:
 //! a glyph is a **centerline skeleton**, and a **broad-nib pen** is swept along
-//! it. The nib's perpendicular thickness modulates with the stroke's direction —
-//! thick where the stroke crosses the nib edge, thin where it runs along it — so
-//! round forms get real, calligraphic contrast and stems meet arches with a
-//! smooth join, all from one `pen_angle` + `stem`/`thin` genome.
+//! it. Rather than offset the centerline (which pinches wherever the tangent
+//! turns — fading a W's interior peak, thinning an A's apex), the nib is
+//! *simulated*: a fixed, oriented rectangle is stamped along the stroke (`Nib`),
+//! one convex blob per segment. Apparent weight then falls out of the geometry —
+//! thick across the nib edge, thin along it — and corners/apices stay full
+//! because the nib stamped at the vertex fills them. Terminals get the nib's
+//! angled cut for free. All from one `pen_angle` + `stem`/`thin` genome.
 //!
 //! Coverage is the whole Latin alphabet (upper + lower); space and the three
 //! punctuation marks stay on the primitive builder (`glyph_for` returns `None`).
@@ -16,17 +19,16 @@
 //! Construction conventions:
 //!   * A glyph's black body spans `x ∈ [0, w]`; advance folds in the sidebearings.
 //!   * Stems are centerlines inset by `stem/2` from the visual edge.
-//!   * Sharp-cornered limbs (V apex, K junction, diagonals) are emitted as
-//!     separate strokes that overlap at the joint — same-winding contours union
-//!     under TrueType's nonzero fill, so no boolean geometry is needed. Smooth
-//!     joins (stem→arch, U bowl) are a single multi-segment stroke.
-//!   * Caps and bars are flat (butt) terminals; slab serifs are added to upright
-//!     stem ends that sit on the baseline / cap line / x-height baseline.
+//!   * Every stroke is a chain of segments; each segment emits one convex blob
+//!     (the nib hull at its two ends). Overlapping same-winding blobs union under
+//!     TrueType's nonzero fill, so corners fill, joints merge, and a closed loop
+//!     leaves its counter empty — no boolean geometry, no explicit holes.
+//!   * Slab serifs / dots are solid rects added on top.
 //!
-//! Refinements still open: edged-pen corners on terminals, mitred apexes on the
-//! diagonal letters, and Bézier-refitting the dense offset polylines.
+//! Refinements still open: mitred (vs nib-blunt) apexes if a sharper point is
+//! wanted, and Bézier-refitting the stamped outline to cut point count.
 
-use crate::geom::{orient, signed_area, Glyph, Pt};
+use crate::geom::{orient, Glyph, Pt};
 use crate::params::Params;
 use std::f64::consts::{PI, TAU};
 
@@ -45,35 +47,84 @@ enum Seg {
     },
 }
 
-/// The broad nib. Perpendicular stroke width runs from `thin` (centerline tangent
-/// parallel to the nib edge) to `thick` (tangent crossing it); `angle` is the nib
-/// edge direction — the stress axis.
+/// The pen nib: a fixed, oriented rectangle dragged along the stroke (a real
+/// broad-nib *simulator*, not a direction-keyed offset). `e` is the unit vector
+/// along the nib edge (the stress axis), `n` is perpendicular; `he`/`hf` are the
+/// half-extents along each. Because the nib is a real shape stamped at every
+/// point, the apparent stroke weight falls out of the geometry — thick across
+/// the edge, thin along it — and, crucially, corners and apices stay full
+/// (the nib stamped at the vertex fills them), instead of pinching the way a
+/// centerline offset does where the tangent turns. Terminals get the nib's
+/// angled cut for free.
 struct Nib {
-    thick: f64,
-    thin: f64,
-    angle: f64,
+    e: P2,  // unit vector along the nib edge
+    n: P2,  // unit perpendicular
+    he: f64, // half-extent along the edge  (≈ thick weight / 2)
+    hf: f64, // half-extent across the edge (≈ thin weight / 2)
 }
 
 impl Nib {
     fn from(p: &Params) -> Self {
+        let a = p.pen_angle;
         Nib {
-            thick: p.stem,
-            thin: p.thin,
-            angle: p.pen_angle,
+            e: (a.cos(), a.sin()),
+            n: (-a.sin(), a.cos()),
+            he: p.stem / 2.0,
+            hf: (p.thin / 2.0).max(6.0),
         }
     }
 
-    /// Half the stroke width for a centerline tangent at angle `dir` (radians).
-    fn half(&self, dir: f64) -> f64 {
-        let m = (dir - self.angle).sin().abs(); // 0 ∥ edge, 1 ⟂ edge
-        0.5 * (self.thin + (self.thick - self.thin) * m)
+    /// The four nib corners stamped at point `p`.
+    fn corners(&self, p: P2) -> [P2; 4] {
+        let (ex, ey) = self.e;
+        let (nx, ny) = self.n;
+        let ev = (self.he * ex, self.he * ey);
+        let nv = (self.hf * nx, self.hf * ny);
+        [
+            (p.0 + ev.0 + nv.0, p.1 + ev.1 + nv.1),
+            (p.0 + ev.0 - nv.0, p.1 + ev.1 - nv.1),
+            (p.0 - ev.0 - nv.0, p.1 - ev.1 - nv.1),
+            (p.0 - ev.0 + nv.0, p.1 - ev.1 + nv.1),
+        ]
     }
+}
+
+/// Convex hull (monotone chain), returned CCW. Used to wrap the nib stamped at
+/// the two ends of a segment into one convex blob.
+fn convex_hull(mut pts: Vec<P2>) -> Vec<P2> {
+    pts.sort_by(|a, b| {
+        a.0.partial_cmp(&b.0)
+            .unwrap()
+            .then(a.1.partial_cmp(&b.1).unwrap())
+    });
+    pts.dedup_by(|a, b| (a.0 - b.0).abs() < 1e-7 && (a.1 - b.1).abs() < 1e-7);
+    let n = pts.len();
+    if n < 3 {
+        return pts;
+    }
+    let cross = |o: P2, a: P2, b: P2| (a.0 - o.0) * (b.1 - o.1) - (a.1 - o.1) * (b.0 - o.0);
+    let mut hull: Vec<P2> = Vec::with_capacity(2 * n);
+    for &p in &pts {
+        while hull.len() >= 2 && cross(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0.0 {
+            hull.pop();
+        }
+        hull.push(p);
+    }
+    let lower = hull.len() + 1;
+    for &p in pts.iter().rev() {
+        while hull.len() >= lower && cross(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0.0 {
+            hull.pop();
+        }
+        hull.push(p);
+    }
+    hull.pop();
+    hull
 }
 
 fn push_pt(pts: &mut Vec<P2>, p: P2) {
     if let Some(&last) = pts.last() {
         if (last.0 - p.0).hypot(last.1 - p.1) < 1e-6 {
-            return; // drop coincident join points so tangents stay sane
+            return; // drop coincident points so we don't stamp zero-length segments
         }
     }
     pts.push(p);
@@ -110,42 +161,15 @@ fn ellipse_pts(c: P2, rx: f64, ry: f64, n: usize) -> Vec<P2> {
         .collect()
 }
 
-/// Per-vertex tangent angle (radians) via central differences. `closed` wraps.
-fn tangents(pts: &[P2], closed: bool) -> Vec<f64> {
-    let n = pts.len();
-    (0..n)
-        .map(|i| {
-            let (prev, next) = if closed {
-                (pts[(i + n - 1) % n], pts[(i + 1) % n])
-            } else {
-                let p = if i == 0 { pts[0] } else { pts[i - 1] };
-                let q = if i == n - 1 { pts[n - 1] } else { pts[i + 1] };
-                (p, q)
-            };
-            (next.1 - prev.1).atan2(next.0 - prev.0)
-        })
-        .collect()
-}
-
-/// Left/right offsets of a polyline by the nib's half-width at each vertex.
-fn offsets(pts: &[P2], tans: &[f64], nib: &Nib) -> (Vec<P2>, Vec<P2>) {
-    let mut left = Vec::with_capacity(pts.len());
-    let mut right = Vec::with_capacity(pts.len());
-    for (i, &(px, py)) in pts.iter().enumerate() {
-        let hw = nib.half(tans[i]);
-        let (nx, ny) = (-tans[i].sin(), tans[i].cos()); // unit normal = tangent+90°
-        left.push((px + nx * hw, py + ny * hw));
-        right.push((px - nx * hw, py - ny * hw));
-    }
-    (left, right)
-}
-
 fn deg(d: f64) -> f64 {
     d.to_radians()
 }
 
-/// Accumulates pen-stroked contours into a `Glyph`, applying the seed's oblique
-/// shear and fixing winding — same conventions as `glyphs.rs::Pen`.
+/// Accumulates pen-stroked contours into a `Glyph`. Each stroke is rendered by
+/// stamping the nib along its centerline and emitting one convex blob per
+/// segment; overlapping same-winding blobs union under TrueType's nonzero fill,
+/// so corners fill and a closed loop leaves its counter empty — no explicit
+/// hole, no offset math.
 struct Skel<'a> {
     p: &'a Params,
     nib: Nib,
@@ -171,34 +195,40 @@ impl<'a> Skel<'a> {
         self.g.contours.push(orient(sheared, cw));
     }
 
-    /// Stroke an open centerline (a chain of segments) → one filled contour,
-    /// butt-capped at both ends.
-    fn open(&mut self, segs: &[Seg]) {
-        let pts = flatten(segs);
-        if pts.len() < 2 {
+    /// Stamp the nib along a polyline, one convex blob per segment.
+    fn stamp(&mut self, pts: &[P2], closed: bool) {
+        let n = pts.len();
+        if n == 0 {
             return;
         }
-        let tans = tangents(&pts, false);
-        let (left, right) = offsets(&pts, &tans, &self.nib);
-        let mut contour: Vec<Pt> = right.iter().map(|&(x, y)| (x, y, true)).collect();
-        contour.extend(left.iter().rev().map(|&(x, y)| (x, y, true)));
-        self.emit(contour, true);
+        if n == 1 {
+            let blob = self.nib.corners(pts[0]).to_vec();
+            self.emit(blob.into_iter().map(|(x, y)| (x, y, true)).collect(), true);
+            return;
+        }
+        let segs = if closed { n } else { n - 1 };
+        for i in 0..segs {
+            let a = pts[i];
+            let b = pts[(i + 1) % n];
+            let mut corners = self.nib.corners(a).to_vec();
+            corners.extend_from_slice(&self.nib.corners(b));
+            let hull = convex_hull(corners);
+            if hull.len() >= 3 {
+                self.emit(hull.into_iter().map(|(x, y)| (x, y, true)).collect(), true);
+            }
+        }
     }
 
-    /// Stroke a closed ellipse centerline → outer fill + inner counter.
+    /// Stroke an open centerline (a chain of segments).
+    fn open(&mut self, segs: &[Seg]) {
+        let pts = flatten(segs);
+        self.stamp(&pts, false);
+    }
+
+    /// Stroke a closed ellipse centerline; the nib band leaves the counter empty.
     fn ring(&mut self, c: P2, rx: f64, ry: f64) {
-        let pts = ellipse_pts(c, rx.max(8.0), ry.max(8.0), 48);
-        let tans = tangents(&pts, true);
-        let (left, right) = offsets(&pts, &tans, &self.nib);
-        let a: Vec<Pt> = left.iter().map(|&(x, y)| (x, y, true)).collect();
-        let b: Vec<Pt> = right.iter().map(|&(x, y)| (x, y, true)).collect();
-        if signed_area(&a).abs() >= signed_area(&b).abs() {
-            self.emit(a, true);
-            self.emit(b, false);
-        } else {
-            self.emit(b, true);
-            self.emit(a, false);
-        }
+        let pts = ellipse_pts(c, rx.max(8.0), ry.max(8.0), 44);
+        self.stamp(&pts, true);
     }
 
     /// A filled axis-aligned rectangle (caps, bars, serifs, dots).
@@ -394,12 +424,22 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'A' => {
             let w = wn;
             let mut k = Skel::new(p, adv(w));
-            // both diagonals as ONE stroke through the apex, so the inside of the
-            // apex fills instead of leaving the two butt caps' indent.
-            k.open(&[
-                Seg::Line((s / 2.0, 0.0), (w / 2.0, h)),
-                Seg::Line((w / 2.0, h), (w - s / 2.0, 0.0)),
-            ]);
+            // One continuous stroke so the apex fills cleanly. The genome picks a
+            // flat (truncated) apex or a pointed "chopstick" one — so the pointed
+            // form is a roll, not universal.
+            if mo.apex_flat {
+                let aw = w * 0.10; // half-width of the flat top
+                k.open(&[
+                    Seg::Line((s / 2.0, 0.0), (w / 2.0 - aw, h)),
+                    Seg::Line((w / 2.0 - aw, h), (w / 2.0 + aw, h)),
+                    Seg::Line((w / 2.0 + aw, h), (w - s / 2.0, 0.0)),
+                ]);
+            } else {
+                k.open(&[
+                    Seg::Line((s / 2.0, 0.0), (w / 2.0, h)),
+                    Seg::Line((w / 2.0, h), (w - s / 2.0, 0.0)),
+                ]);
+            }
             let by = h * (0.20 + 0.28 * mo.bar); // crossbar height tracks the genome
             k.hbar(w * 0.18, w * 0.82, by);
             k

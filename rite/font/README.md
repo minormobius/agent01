@@ -86,14 +86,18 @@ Next layers (the seed/permalink foundation is built for them):
    from the genome). Curves get real contrast, arches join their stems for free,
    and `S`/`s` are a tangent-continuous two-bowl spine. Space + punctuation stay
    on the primitive builder.
-5. **Construction genome (`Morph` in `params.rs`)** — the seed now rolls the
+5. **Pen simulator (`Nib` in `pen.rs`)** — strokes are no longer a
+   direction-keyed centerline offset (which pinched wherever the tangent turned —
+   a faded `W` peak, a thin `A` apex). Instead a fixed oriented nib rectangle is
+   *stamped* along each stroke, one convex blob per segment; overlapping blobs
+   union under nonzero fill. Weight falls out of the geometry, corners/apices
+   stay full, and terminals get the nib's angled cut for free.
+6. **Construction genome (`Morph` in `params.rs`)** — the seed rolls the
    *gestures*, not just the metrics, so rolls differ in morphology rather than
-   only weight/width. v1 genes: `aperture` (how open `C c e G` counters are),
+   only weight/width. Genes: `aperture` (how open `C c e G` counters are),
    `overshoot` (round letters spilling past baseline/cap), `arch` (round-humanist
-   ↔ flat/squared shoulder on `n m h u`), and `bar` (crossbar height of
-   `A E F H e`). Each gene is independent for now; correlated *archetypes*
-   (humanist / geometric / grotesque) and structural genes (single- vs
-   double-story `a`/`g`, alternative `R`/`K` legs) are the next layer.
-   Open refinements (driven by eyeballing live rolls): edged-pen corners on
-   terminals, mitred apexes on the diagonal caps (`A V W M N K X Y Z`), and
-   Bézier-refitting the dense offset polylines.
+   ↔ flat/squared shoulder on `n m h u`), `bar` (crossbar height of `A E F H e`),
+   `bowl` (how far the `a b d p q` arc closes before attaching), and the first
+   structural gene `apex_flat` (`A` flat-topped vs pointed). Next layer:
+   correlated *archetypes* (humanist / geometric / grotesque) and more structural
+   genes (single- vs double-story `a`/`g`, alternative `R`/`K` legs).

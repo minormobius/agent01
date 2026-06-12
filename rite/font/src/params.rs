@@ -17,6 +17,7 @@ pub struct Morph {
     pub bar: f64,       // crossbar height as a fraction of the relevant height
     pub bowl: f64,      // a/b/d/p/q bowl wrap (deg): how far the arc closes before
                         // attaching to the stem (0 = open D, larger = enclosed)
+    pub apex_flat: bool, // A: flat-topped (truncated apex) vs pointed "chopstick"
 }
 
 pub struct Params {
@@ -74,6 +75,7 @@ impl Params {
             arch: r.range(0.0, 1.0),
             bar: r.range(0.42, 0.60),
             bowl: r.range(0.0, 34.0),
+            apex_flat: r.chance(0.45),
         };
 
         let weight_class =
