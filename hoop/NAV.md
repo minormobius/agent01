@@ -197,10 +197,13 @@ changed `cost` provably reshapes the fan — the map-morph property).
    streams (71/72) than `ship.js` `edgePorts` (1/2), so `world.js` exports `foamPorts` (the single
    source `foamChunk` uses) and `nav` takes a pluggable `ports` fn (default `edgePorts`; pass
    `foamPorts` for the live deck). `nav.selftest` proves a full route over the **real `FoamField`**.
-4. **The map overhaul → `wayfan()` (Part 3).** Render the deck as the player's wayfinding fan
-   instead of a best-fit plane. The kernel is built and pinned; the work is the renderer (lay the
-   tree out by `(dist, bearing)`) plus, for the corkscrew, folding `connectorAt` depth-hops into the
-   fan's neighbour expansion. This is the active design direction.
+4. **The map overhaul → `wayfan()` (Part 3). ✅ PLANAR FAN RENDERED.** `world.js`'s `_draw` now
+   computes the player's fan (`_ensureFan`, bounded to ~the viewport so the recompute stays a few
+   ms and never gen-hitches), **dims deck cells the fan doesn't reach**, and draws the **geodesic
+   routes + perimeter tips** over the deck (`_drawFan`). So the map already reads as "where you can
+   go" — a planar fan, not a fixed slice — with the base deck intact underneath. Still to come (a
+   dedicated rendering pass): lay the tree out by `(dist, bearing)` for a true fan layout, and fold
+   `connectorAt` depth-hops + a radial/azimuthal `cost` into the fan for the foamview corkscrew.
 5. **NPC records** reuse step 1's address space (`{addr/gid, depth}`); `chamberLocation`/`resolve`
    spawn them, `chambersNear` queries them.
 6. **(Optional) sector digests** for the forum/atproto layer: a place/sector can show its
