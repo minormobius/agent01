@@ -284,25 +284,37 @@ function draw() {
     disk(sol.r[i], rgb(ramp(RAMPS[view], t)));
   }
 
-  // 3. ratchet inner-rim topography + lakes
+  // 3. ratchet inner-rim topography + lakes. Terrain is tiny (~150 m) on a 4 km radius, so
+  // exaggerate it radially to read — like tide's ratchet view. The scarp is near-vertical:
+  // a cliff cut in hard structure, not a ramp.
   const rp = ratchet.defaultParams(); rp.R_floor = Rfl;
-  const Tn = ratchet.toothAngle(rp), steps = 720;
+  const Tn = ratchet.toothAngle(rp), steps = 2400, EXAG = 3.0;
+  const terrR = (a) => Rfl - ratchet.elevation(rp, a) * EXAG;   // exaggerated ground radius
+  // metal terrain band: between the floor circle and the toothed inner edge (evenodd donut)
+  ctx.beginPath();
+  ctx.arc(cx, cy, PX(Rfl), 0, 2 * Math.PI);
+  ctx.moveTo(cx + PX(terrR(0)), cy);
+  for (let k = steps; k >= 0; k--) {
+    const a = (k / steps) * 2 * Math.PI, gr = terrR(a);
+    ctx.lineTo(cx + Math.cos(a) * PX(gr), cy + Math.sin(a) * PX(gr));
+  }
+  ctx.closePath(); ctx.fillStyle = 'rgba(64,72,84,0.92)'; ctx.fill('evenodd');   // hard structure
+  // crisp lit cliff edge
   ctx.beginPath();
   for (let k = 0; k <= steps; k++) {
-    const a = (k / steps) * 2 * Math.PI;
-    const gr = ratchet.groundRadius(rp, a);
+    const a = (k / steps) * 2 * Math.PI, gr = terrR(a);
     const x = cx + Math.cos(a) * PX(gr), y = cy + Math.sin(a) * PX(gr);
     k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
   }
-  ctx.closePath(); ctx.strokeStyle = 'rgba(120,90,55,0.9)'; ctx.lineWidth = 1.4; ctx.stroke();
-  // lakes: constant-radius arcs in each basin
-  const lr = ratchet.lakeRadius(rp);
-  ctx.strokeStyle = 'rgba(90,169,216,0.95)'; ctx.lineWidth = 3;
+  ctx.closePath(); ctx.strokeStyle = 'rgba(166,176,190,0.95)'; ctx.lineWidth = 1.2; ctx.stroke();
+  // lakes: constant-radius arcs sitting in each basin (depth exaggerated to match the terrain)
+  const lr = Rfl - rp.lakeDepth * EXAG;
+  ctx.strokeStyle = 'rgba(90,169,216,0.95)'; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
   for (let k = 0; k < rp.teeth; k++) {
     const c = k * Tn, half = (rp.basinFrac / 2) * Tn;
     ctx.beginPath(); ctx.arc(cx, cy, PX(lr), c - half, c + half); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx, cy, PX(lr), c + 2 * Math.PI - half, c + 2 * Math.PI + half); ctx.stroke();
   }
+  ctx.lineCap = 'butt';
 
   // 4. fog overlay (where RH ≥ 1)
   if (fog && sm.hasFog) {
@@ -313,21 +325,38 @@ function draw() {
     ctx.fill('evenodd');
   }
 
-  // 5. jet sheets (Coriolis-curved, from each basin toward the axis)
+  // 5. fountain jets — they EMIT FROM THE LAKE (the basin water surface) and climb inward only
+  // as far as their launch speed carries them against the centrifugal potential: an apex at
+  // r_apex² = R_floor² − (v/ω)², NOT the axis (so they don't converge at the centre). Coriolis
+  // drifts the rising sheet prograde.
   if (jets) {
-    ctx.strokeStyle = 'rgba(98,184,122,0.85)'; ctx.lineWidth = 2;
+    const v = sol.params.jetLaunch, w = sol.omega;
+    // apex of the climb against the centrifugal potential; clamp at the lake (if the launch
+    // speed can't overcome the gravity, the fountain barely rises).
+    const apex = Math.min(lr, Math.sqrt(Math.max(0, Rfl * Rfl - (v / w) * (v / w))));
+    const climbs = lr - apex > 2;
+    ctx.lineWidth = 2.4; ctx.lineCap = 'round';
     for (let k = 0; k < rp.teeth; k++) {
-      const base = k * Tn;
-      ctx.beginPath();
-      for (let j = 0; j <= 40; j++) {
-        const f = j / 40;
-        const rr = Rfl * (1 - f);                         // climb inward
-        const a = base + f * 0.9;                          // prograde Coriolis drift
-        const x = cx + Math.cos(a) * PX(rr), y = cy + Math.sin(a) * PX(rr);
-        j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      const base = k * Tn;                                  // lake-centre azimuth
+      const x0 = cx + Math.cos(base) * PX(lr), y0 = cy + Math.sin(base) * PX(lr);
+      // a touch of glow at the nozzle where it leaves the lake
+      ctx.fillStyle = 'rgba(160,220,180,0.95)';
+      ctx.beginPath(); ctx.arc(x0, y0, 3, 0, 2 * Math.PI); ctx.fill();
+      if (!climbs) continue;                                // too little speed to fountain
+      const grad = ctx.createRadialGradient(cx, cy, PX(apex), cx, cy, PX(lr));
+      grad.addColorStop(0, 'rgba(98,184,122,0.15)');        // dispersing at the apex
+      grad.addColorStop(1, 'rgba(120,210,150,0.95)');       // dense at the lake
+      ctx.strokeStyle = grad;
+      ctx.beginPath(); ctx.moveTo(x0, y0);
+      for (let j = 1; j <= 48; j++) {
+        const f = j / 48;
+        const rr = lr + (apex - lr) * f;                    // from the lake inward to the apex
+        const a = base + f * f * 0.7;                        // prograde Coriolis drift, growing
+        ctx.lineTo(cx + Math.cos(a) * PX(rr), cy + Math.sin(a) * PX(rr));
       }
       ctx.stroke();
     }
+    ctx.lineCap = 'butt';
   }
 
   // 6. the axial sun (the lamp on the axis — the only heat in)

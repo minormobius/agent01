@@ -18,9 +18,10 @@ export function defaultParams() {
   return {
     R_floor: 4000,     // rim radius, m
     teeth: 4,          // ratchet teeth = lakes = forests = jets
-    crest: 120,        // crest height above the basin floor, m
+    crest: 150,        // crest height above the basin floor, m
     basinFrac: 0.10,   // fraction of a tooth that is flat basin floor (centred on the lake)
-    scarpFrac: 0.08,   // fraction that is the steep prograde scarp
+    scarpFrac: 0.01,   // fraction that is the steep prograde scarp — near-vertical: this is a
+                       // cliff cut in hard structure, not a ramp (steeper = sharper cliff)
     lakeDepth: 40,     // lake water depth at the basin centre, m
   };
 }
