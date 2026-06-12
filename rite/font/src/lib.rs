@@ -11,6 +11,7 @@
 mod geom;
 mod glyphs;
 mod params;
+mod pen;
 mod prng;
 mod sfnt;
 
@@ -50,7 +51,7 @@ pub fn roll(seed: &str) -> Vec<u8> {
 pub fn describe(seed: &str) -> String {
     let p = Params::from_seed(seed);
     format!(
-        "{{\"family\":\"{}\",\"stem\":{:.0},\"thin\":{:.0},\"contrast\":{:.2},\"width\":{:.2},\"slant\":{:.1},\"serif\":{},\"weightClass\":{},\"widthClass\":{}}}",
-        p.family, p.stem, p.thin, p.contrast, p.width, p.slant_deg, p.serif, p.weight_class, p.width_class
+        "{{\"family\":\"{}\",\"stem\":{:.0},\"thin\":{:.0},\"contrast\":{:.2},\"width\":{:.2},\"slant\":{:.1},\"pen\":{:.0},\"serif\":{},\"weightClass\":{},\"widthClass\":{}}}",
+        p.family, p.stem, p.thin, p.contrast, p.width, p.slant_deg, p.pen_angle.to_degrees(), p.serif, p.weight_class, p.width_class
     )
 }

@@ -137,6 +137,13 @@ pub fn notdef(p: &Params) -> Glyph {
 }
 
 pub fn glyph_for(c: char, p: &Params) -> Glyph {
+    // Prototype: a handful of glyphs are built by the skeleton-stroke "pen model"
+    // (real contrast on curves, joined arches). Everything else falls through to
+    // the primitive builder below.
+    if let Some(g) = crate::pen::glyph_for(c, p) {
+        return g;
+    }
+
     let h = p.cap;
     let s = p.stem;
     let t = p.thin;

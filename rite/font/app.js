@@ -63,6 +63,7 @@ function renderMeta(info, size) {
     ["Contrast", info.contrast ?? "—"],
     ["Width", info.width ?? "—"],
     ["Slant°", info.slant ?? "—"],
+    ["Pen°", info.pen ?? "—"],
     ["Serif", info.serif ? "yes" : "no"],
     ["Bytes", size],
   ];

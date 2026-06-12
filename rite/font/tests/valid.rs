@@ -71,12 +71,39 @@ fn is_deterministic_and_seed_sensitive() {
 fn every_charset_glyph_maps_and_outlines() {
     let bytes = minofont::build_font("coverage");
     let face = Face::parse(&bytes, 0).unwrap();
-    for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.,-".chars() {
+    for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,-".chars() {
         let gid = face
             .glyph_index(c)
             .unwrap_or_else(|| panic!("no cmap entry for {c:?}"));
         let mut counter = Counter::default();
         face.outline_glyph(gid, &mut counter);
         assert!(counter.segments > 0, "{c:?} produced an empty outline");
+    }
+}
+
+#[test]
+fn pen_model_glyphs_outline_across_seeds() {
+    // The skeleton-stroke glyphs (O C o c e n) must stay valid across the whole
+    // genome range — heavy/light weight, high/low contrast, every pen angle and
+    // slant a seed can roll. Sweep a spread of seeds and assert each still maps
+    // and outlines (a degenerate offset would collapse to an empty contour).
+    for seed in [
+        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
+        "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa",
+    ] {
+        let bytes = minofont::build_font(seed);
+        let face = Face::parse(&bytes, 0)
+            .unwrap_or_else(|_| panic!("seed {seed:?} did not parse"));
+        for c in "OCocen".chars() {
+            let gid = face
+                .glyph_index(c)
+                .unwrap_or_else(|| panic!("seed {seed:?}: no cmap entry for {c:?}"));
+            let mut counter = Counter::default();
+            face.outline_glyph(gid, &mut counter);
+            assert!(
+                counter.segments > 0,
+                "seed {seed:?}: pen glyph {c:?} produced an empty outline"
+            );
+        }
     }
 }

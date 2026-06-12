@@ -19,6 +19,7 @@ pub struct Params {
     pub serif: bool,
     pub serif_len: f64,
     pub serif_th: f64,
+    pub pen_angle: f64, // broad-nib stress axis (radians) for the pen-model glyphs
     pub weight_class: u16,
     pub width_class: u16,
     pub family: String,
@@ -42,6 +43,11 @@ impl Params {
         let serif = r.chance(0.45);
         let serif_len = stem * r.range(0.7, 1.4);
         let serif_th = (stem * 0.32).max(18.0);
+        // Broad-nib stress axis for the pen-model glyphs. Drawn LAST so adding it
+        // doesn't perturb the earlier draws — every existing seed keeps its other
+        // params (and thus its non-pen glyphs) byte-for-byte. 0° = vertical stress
+        // (thins on the horizontals), up to a humanist ~32° tilt.
+        let pen_angle = r.range(0.0, 32.0).to_radians();
 
         let weight_class =
             (((stem - 58.0) / (168.0 - 58.0)) * 700.0 + 200.0).round().clamp(100.0, 900.0) as u16;
@@ -73,6 +79,7 @@ impl Params {
             serif,
             serif_len,
             serif_th,
+            pen_angle,
             weight_class,
             width_class,
             family,
