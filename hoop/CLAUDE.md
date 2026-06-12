@@ -25,10 +25,11 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   `store.setChamberLookup` ← `world.field.chamberAt`), and `world.js`'s click-to-walk now routes
   through `navRoute(field.seed, …, { ports: foamPorts })` (no ±48 window; `stepMotion` still walks
   the tiles). `nav.js` also exports **`wayfan()`** — the geodesic player→perimeter tree that is the
-  substrate for the **map overhaul**: `world.js`'s `_draw` now renders the **planar fan** — it dims
-  deck cells the player's fan can't reach and draws the geodesic routes + perimeter tips over the
-  deck (`_ensureFan`/`_drawFan`, bounded to the viewport, ~4 ms on tile-cross). The base deck stays
-  intact underneath; a dedicated rendering pass (and the corkscrew via `cost`/`connectorAt`) is next.
+  substrate for the **map overhaul**: `world.js`'s `_draw` renders a **light planar-fan overlay** —
+  `_ensureFan` recomputes the player's fan only on tile/depth change (radius ~26, ~3 ms) and bakes
+  flat arrays so `_drawFan` is one stroke (routes) + one fill (tips) per frame. (Per-cell dimming
+  was tried and reverted — it tanked the framerate.) A dedicated rendering pass + the corkscrew
+  (`cost`/`connectorAt`) are next.
 - `js/store.js` — places now bind to a **chamber address** (postal): `setChamberLookup`/`withAddress`
   attach `gid`/`addr`/`depth`; the `hoop.place` lexicon gained those optional fields. Tile stays the rkey.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).

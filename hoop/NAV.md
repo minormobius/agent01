@@ -197,13 +197,15 @@ changed `cost` provably reshapes the fan — the map-morph property).
    streams (71/72) than `ship.js` `edgePorts` (1/2), so `world.js` exports `foamPorts` (the single
    source `foamChunk` uses) and `nav` takes a pluggable `ports` fn (default `edgePorts`; pass
    `foamPorts` for the live deck). `nav.selftest` proves a full route over the **real `FoamField`**.
-4. **The map overhaul → `wayfan()` (Part 3). ✅ PLANAR FAN RENDERED.** `world.js`'s `_draw` now
-   computes the player's fan (`_ensureFan`, bounded to ~the viewport so the recompute stays a few
-   ms and never gen-hitches), **dims deck cells the fan doesn't reach**, and draws the **geodesic
-   routes + perimeter tips** over the deck (`_drawFan`). So the map already reads as "where you can
-   go" — a planar fan, not a fixed slice — with the base deck intact underneath. Still to come (a
-   dedicated rendering pass): lay the tree out by `(dist, bearing)` for a true fan layout, and fold
-   `connectorAt` depth-hops + a radial/azimuthal `cost` into the fan for the foamview corkscrew.
+4. **The map overhaul → `wayfan()` (Part 3). ✅ PLANAR FAN OVERLAY (light).** `world.js`'s `_draw`
+   computes the player's fan only on tile/depth change (`_ensureFan`, modest radius ~26, ~3 ms) and
+   **bakes it into flat world-coord arrays**, so the per-FRAME draw (`_drawFan`) is exactly **one
+   stroke** (the geodesic routes) **+ one fill** (the perimeter tips) — no per-cell work, no Map
+   walk, no string churn. (An earlier cut dimmed every deck cell against the fan each frame and drew
+   a fill per tip — that tanked the framerate; reverted.) The base deck renders unchanged underneath.
+   The dedicated **rendering pass** can layer effects back on cheaply (e.g. dim by *chamber* once a
+   chamber-level fan exists), lay the tree out by `(dist, bearing)`, and fold `connectorAt` depth-
+   hops + a radial/azimuthal `cost` in for the foamview corkscrew.
 5. **NPC records** reuse step 1's address space (`{addr/gid, depth}`); `chamberLocation`/`resolve`
    spawn them, `chambersNear` queries them.
 6. **(Optional) sector digests** for the forum/atproto layer: a place/sector can show its

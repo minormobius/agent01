@@ -680,38 +680,35 @@ export class World {
   //    player out to its perimeter, not a fixed planar slice. Recomputed only when the player
   //    changes tile / depth (cheap), so it's effectively free per frame. Planar (uniform cost)
   //    for now — the cost rule is where non-planar wayfinding (the corkscrew) plugs in later. ──
+  // Recompute the player's fan only when the player changes tile/depth, and bake it into two flat
+  // arrays in world coords (tree segments, perimeter tips) so the per-FRAME draw is one stroke +
+  // one fill — no Map walk, no per-cell work, no string churn. A modest radius keeps the node
+  // count (and so the cost) small; the recompute is ~1 ms and occasional.
   _ensureFan() {
-    const t = this.tile || 24, vw = this._vw || 900, vh = this._vh || 600;
-    // bound the fan to ~the viewport (a box around the player), so the search only ever touches
-    // chunks the renderer already generates → the recompute stays warm + cheap (a few ms), and
-    // no off-screen chunk-gen hitch when you walk into new territory.
-    const hx = Math.ceil(vw / t / 2) + 3, hy = Math.ceil(vh / t / 2) + 3;
-    const px = this.player.x, py = this.player.y;
-    const key = px + ',' + py + ':' + this.depth + ':' + hx + 'x' + hy;
-    if (this._fanKey === key && this._fan) return;
+    const key = this.player.x + ',' + this.player.y + ':' + this.depth;
+    if (this._fanKey === key) return;
     this._fanKey = key;
-    const inBox = (x, y) => x >= px - hx && x <= px + hx && y >= py - hy && y <= py + hy;
+    const px = this.player.x, py = this.player.y, R = 26;
+    const inBox = (x, y) => Math.abs(x - px) <= R && Math.abs(y - py) <= R;
     try {
-      this._fan = wayfan((x, y) => inBox(x, y) && this.field.isFloor(x, y), { x: px, y: py }, { radius: 240, maxCells: 9000 });
-      this._fanSet = new Set(this._fan.reached.keys());
-    } catch (e) { this._fan = null; this._fanSet = null; }
+      const fan = wayfan((x, y) => inBox(x, y) && this.field.isFloor(x, y), { x: px, y: py }, { radius: R, maxCells: 2400 });
+      const seg = [], tip = [];
+      for (const n of fan.reached.values()) { if (n.parent == null) continue; const p = fan.reached.get(n.parent); if (p) { seg.push(n.x + 0.5, n.y + 0.5, p.x + 0.5, p.y + 0.5); } }
+      for (const tp of fan.tips) tip.push(tp.x + 0.5, tp.y + 0.5);
+      this._fanSeg = seg; this._fanTip = tip;
+    } catch (e) { this._fanSeg = null; this._fanTip = null; }
   }
-  _drawFan(ctx, SX, SY, t, x0, y0, x1, y1) {
-    const fan = this._fan; if (!fan || fan.reached.size < 2) return;
+  _drawFan(ctx, SX, SY, t) {
+    const seg = this._fanSeg; if (!seg || !seg.length) return;
     ctx.lineCap = 'round';
-    // the geodesic tree — faint phosphor routes tracing every reachable corridor from the @
     ctx.beginPath();
-    for (const n of fan.reached.values()) {
-      if (n.parent == null || n.x < x0 - 1 || n.x > x1 + 1 || n.y < y0 - 1 || n.y > y1 + 1) continue;
-      const p = fan.reached.get(n.parent); if (!p) continue;
-      ctx.moveTo(SX(n.x) + t / 2, SY(n.y) + t / 2); ctx.lineTo(SX(p.x) + t / 2, SY(p.y) + t / 2);
-    }
-    ctx.strokeStyle = 'rgba(121,200,160,0.16)'; ctx.lineWidth = Math.max(1, t * 0.055); ctx.stroke();
-    // the perimeter — where the fan reaches (the cells the routes radiate to)
-    ctx.fillStyle = 'rgba(121,200,160,0.45)';
-    for (const tip of fan.tips) {
-      if (tip.x < x0 || tip.x > x1 || tip.y < y0 || tip.y > y1) continue;
-      ctx.beginPath(); ctx.arc(SX(tip.x) + t / 2, SY(tip.y) + t / 2, Math.max(1.1, t * 0.085), 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < seg.length; i += 4) { ctx.moveTo(SX(seg[i]), SY(seg[i + 1])); ctx.lineTo(SX(seg[i + 2]), SY(seg[i + 3])); }
+    ctx.strokeStyle = 'rgba(121,200,160,0.16)'; ctx.lineWidth = Math.max(1, t * 0.05); ctx.stroke();
+    const tip = this._fanTip;
+    if (tip && tip.length) {
+      const r = Math.max(1.1, t * 0.075); ctx.beginPath();
+      for (let i = 0; i < tip.length; i += 2) { const sx = SX(tip[i]), sy = SY(tip[i + 1]); ctx.moveTo(sx + r, sy); ctx.arc(sx, sy, r, 0, Math.PI * 2); }
+      ctx.fillStyle = 'rgba(121,200,160,0.4)'; ctx.fill();
     }
   }
 
@@ -727,10 +724,7 @@ export class World {
     const SX = (wx) => ox + wx * t, SY = (wy) => oy + wy * t;
     const cx0 = Math.floor(x0 / C), cy0 = Math.floor(y0 / C), cx1 = Math.floor((x1 - 1) / C), cy1 = Math.floor((y1 - 1) / C);
 
-    // the wayfinding fan: the map is what the player can reach. Cells outside the fan recede.
     this._ensureFan();
-    const fanSet = this._fanSet, fanOn = !!(fanSet && fanSet.size > 1);
-    const reach = (rx, ry) => !fanOn || fanSet.has(rx + ',' + ry);
 
     // ── deck: adaptive voronoi plates, gravity-tinted, lit (light per cell = probe) ──
     for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
@@ -741,8 +735,7 @@ export class World {
         if (A.x < x0 - CLIP_R || A.x > x1 + CLIP_R || A.y < y0 - CLIP_R || A.y > y1 + CLIP_R) continue;
         const lit = this._lightAt(buf, x0, y0, x1, y1, W, Math.round(A.x), Math.round(A.y));
         const g = GRAV_HUE[cell.regime] || GRAV_HUE.normal, amb = 0.22, a = cell.albedo;
-        const k = reach(Math.round(A.x), Math.round(A.y)) ? 1 : 0.4; // off-fan cells recede
-        ctx.fillStyle = `rgb(${Math.min(255, (a[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205) * k) | 0},${Math.min(255, (a[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205) * k) | 0},${Math.min(255, (a[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205) * k) | 0})`;
+        ctx.fillStyle = `rgb(${Math.min(255, a[0] * amb * 0.5 + g[0] * 0.16 + lit[0] * 205) | 0},${Math.min(255, a[1] * amb * 0.5 + g[1] * 0.16 + lit[1] * 205) | 0},${Math.min(255, a[2] * amb * 0.5 + g[2] * 0.16 + lit[2] * 205) | 0})`;
         ctx.beginPath(); ctx.moveTo(SX(cell.poly[0][0]), SY(cell.poly[0][1]));
         for (let i = 1; i < cell.poly.length; i++) ctx.lineTo(SX(cell.poly[i][0]), SY(cell.poly[i][1]));
         ctx.closePath(); ctx.fill();
@@ -776,7 +769,7 @@ export class World {
     }
 
     // ── the wayfinding fan: routes radiating from the player to its perimeter ──
-    this._drawFan(ctx, SX, SY, t, x0, y0, x1, y1);
+    this._drawFan(ctx, SX, SY, t);
 
     // breaches — failed membranes, open to vacuum (cold glow + an X)
     ctx.lineCap = 'round';
