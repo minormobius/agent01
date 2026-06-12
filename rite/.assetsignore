@@ -1,0 +1,11 @@
+# The font generator's Rust crate lives in font/. Only its built browser
+# artifacts (font/index.html, font/app.js, font/pkg/*) should be uploaded as
+# static assets — never the source tree or the (potentially huge) build dir.
+font/target
+font/src
+font/tests
+font/examples
+font/Cargo.toml
+font/Cargo.lock
+font/.gitignore
+font/README.md

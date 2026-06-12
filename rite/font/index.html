@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Roll — an open, unique font generator</title>
+    <meta
+      name="description"
+      content="Roll a brand-new typeface from a seed. Every font is unique, deterministic, and yours — CC0 / public domain, free to use, embed, sell. Outlines drawn in Rust, compiled to WebAssembly."
+    />
+    <style>
+      :root {
+        --bg: #1a1714;
+        --panel: #221d18;
+        --ink: #efe7da;
+        --muted: #b7a892;
+        --gold: #d8a657;
+        --gold-soft: #e9c88c;
+        --line: #3a322a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+      }
+      header {
+        padding: 22px clamp(16px, 4vw, 48px) 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .crumb { color: var(--muted); font-size: 13px; letter-spacing: 0.04em; }
+      .crumb a { color: var(--gold); text-decoration: none; }
+      h1 { margin: 6px 0 2px; font-size: clamp(26px, 5vw, 40px); }
+      h1 .accent { color: var(--gold); }
+      .tag { color: var(--muted); max-width: 60ch; }
+      main { padding: clamp(16px, 4vw, 48px); }
+      .controls {
+        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        margin-bottom: 22px;
+      }
+      button, .btn {
+        font: inherit; font-weight: 600; cursor: pointer;
+        border: 1px solid var(--gold); color: var(--bg); background: var(--gold);
+        padding: 10px 18px; border-radius: 8px; text-decoration: none;
+      }
+      button.ghost, .btn.ghost { background: transparent; color: var(--gold-soft); }
+      button:disabled { opacity: 0.5; cursor: progress; }
+      input[type="text"] {
+        font: inherit; background: var(--panel); color: var(--ink);
+        border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+        min-width: 220px;
+      }
+      .specimen {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+        padding: clamp(16px, 3vw, 34px); margin-bottom: 18px; overflow-wrap: anywhere;
+      }
+      .display { font-family: var(--rolled), serif; }
+      .big { font-size: clamp(40px, 9vw, 104px); line-height: 1.05; margin: 0 0 6px; }
+      .mid { font-size: clamp(24px, 4vw, 40px); margin: 0 0 6px; color: var(--gold-soft); }
+      .alpha { font-size: clamp(20px, 3.4vw, 34px); letter-spacing: 0.04em; margin: 8px 0 0; }
+      .meta {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px; margin-top: 6px;
+      }
+      .chip {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .chip b { display: block; color: var(--gold-soft); font-size: 20px; }
+      .chip span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+      footer { padding: 24px clamp(16px, 4vw, 48px); color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+      footer a { color: var(--gold); }
+      code { background: #000; padding: 1px 5px; border-radius: 5px; color: var(--gold-soft); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> · type</div>
+      <h1>Roll<span class="accent">.</span></h1>
+      <p class="tag">
+        Roll a brand-new typeface from a seed. Every roll is unique and
+        deterministic; the one you keep is <strong>CC0 / public domain</strong> —
+        free to use, embed, modify and sell, no attribution. Outlines drawn in
+        Rust, compiled to WebAssembly, rendered in your browser.
+      </p>
+    </header>
+
+    <main>
+      <div class="controls">
+        <button id="roll">Roll a new font</button>
+        <input id="seed" type="text" aria-label="seed" placeholder="seed" />
+        <button id="apply" class="ghost">Use seed</button>
+        <a id="download" class="btn ghost" download>Download .ttf</a>
+      </div>
+
+      <div class="specimen">
+        <p class="big display" contenteditable="true" spellcheck="false">HANDGLOVES</p>
+        <p class="mid display">THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG</p>
+        <p class="alpha display">ABCDEFGHIJKLMNOPQRSTUVWXYZ . , -</p>
+      </div>
+
+      <div class="meta" id="meta"></div>
+    </main>
+
+    <footer>
+      <span id="status">Loading the engine…</span> ·
+      The generator is open source and the fonts it makes are unencumbered: in
+      most jurisdictions a typeface <em>design</em> isn't copyrightable, and this
+      engine + its output are released into the public domain. Phylogeny &amp;
+      breeding view coming next. <a href="https://mino.mobi">↩ home</a>
+    </footer>
+
+    <script type="module" src="/font/app.js"></script>
+  </body>
+</html>
