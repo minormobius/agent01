@@ -161,6 +161,83 @@ export function chooseDoorsZoned(adjEdges, zoneOf, roomCount, seed, loops, inter
   return intraDoors.concat(interDoors);
 }
 
+// ── CUSTOM scene: the same membrane-seeded painter, but the caller brings the floor plan ───────
+// `seeds` are the room sites (the deck render feeds solved-city chambers); `edgeKind(a,b)` says
+// what each shared membrane IS: 'wall' (solid), 'door' (a two-nuclei gap), or 'open' (the wall
+// REMOVED along its whole length — the zero-wall concourse). Geometry identical to buildScene;
+// this is the leg-7 bridge from the solved city to /paint's 8/24 look.
+export function buildSceneCustom({ W, H, wallSpacing, roomSpacing, seeds, edgeKind, seed = 1 }) {
+  const rng = mulberry32(seed >>> 0);
+  const band = wallSpacing * 0.5;
+  const roomSeeds = seeds.map((p, i) => ({ x: p.x, y: p.y, id: i }));
+  const roomSize = Math.max(roomSpacing * 2, Math.sqrt((W * H) / Math.max(1, roomSeeds.length)));
+  const roomGrid = bucketGrid(roomSeeds, roomSize * 1.4);
+  const roomCells = roomSeeds.map((s) => ({ id: s.id, x: s.x, y: s.y, poly: clipCell(s, roomGrid.near(s.x, s.y), roomSize * 2.2) }));
+  const adjEdges = adjacency(roomCells, roomSeeds, roomGrid, wallSpacing * 0.6);
+  const doors = [], opens = [];
+  for (const e of adjEdges) { const k = edgeKind(e.a, e.b); if (k === 'door') doors.push(e); else if (k === 'open') opens.push(e); }
+  // door points (per-point radius): one per door; a chain covering the whole edge for an 'open'
+  const doorPts = doors.map((d) => ({ x: d.m[0], y: d.m[1], half: wallSpacing }));
+  for (const e of opens) {
+    const n = Math.max(1, Math.round(e.len / (wallSpacing * 1.5)));
+    for (let j = 0; j <= n; j++) { const t = j / n - 0.5; doorPts.push({ x: e.m[0] + e.along[0] * e.len * t, y: e.m[1] + e.along[1] * e.len * t, half: wallSpacing * 1.15 }); }
+  }
+  const doorGrid = bucketGrid(doorPts, Math.max(roomSize, wallSpacing * 2.3));
+  const atDoor = (x, y) => { for (const q of doorGrid.near(x, y)) if ((q.x - x) ** 2 + (q.y - y) ** 2 < q.half * q.half) return true; return false; };
+  // wall nuclei on the membranes, skipping gaps (as buildScene step 2)
+  const wallNuclei = [], seen = new Set(), snap = wallSpacing * 0.45;
+  const addWall = (x, y) => {
+    if (x < 0 || y < 0 || x > W || y > H || atDoor(x, y)) return;
+    const k = Math.round(x / snap) + ',' + Math.round(y / snap);
+    if (seen.has(k)) return; seen.add(k);
+    wallNuclei.push({ x, y, wall: true });
+  };
+  for (const c of roomCells) {
+    const v = c.poly;
+    for (let i = 0; i < v.length; i++) {
+      const a = v[i], b = v[(i + 1) % v.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const n = Math.max(1, Math.round(L / wallSpacing));
+      for (let j = 0; j <= n; j++) { const t = j / n; addWall(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t); }
+    }
+  }
+  // floor nuclei: graded fill + door bridges + a nuclei line along each opened membrane
+  const refDepth = Math.max(band + 1, roomSize * 0.45);
+  const localSpacing = (edge) => { const f = Math.max(0, Math.min(1, (edge - band) / (refDepth - band))); return wallSpacing + (roomSpacing - wallSpacing) * f; };
+  const hashCell = Math.max(roomSpacing, wallSpacing);
+  const acc = new Map(), akey = (x, y) => Math.floor(x / hashCell) + ',' + Math.floor(y / hashCell);
+  const floorNuclei = [];
+  const place = (x, y, room, door = false) => { const n = { x, y, wall: false, room, door }; floorNuclei.push(n); const k = akey(x, y); let b = acc.get(k); if (!b) { b = []; acc.set(k, b); } b.push(n); return n; };
+  const clearOf = (x, y, r) => { const cx = Math.floor(x / hashCell), cy = Math.floor(y / hashCell), r2 = r * r; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const b = acc.get((cx + dx) + ',' + (cy + dy)); if (!b) continue; for (const q of b) if ((q.x - x) ** 2 + (q.y - y) ** 2 < r2) return false; } return true; };
+  for (const s of roomSeeds) { const e = roomOf(s, roomGrid).edgeDist; if (e > band) place(s.x, s.y, s.id); }
+  for (const d of doors) {
+    const [mx, my] = d.m, [ax, ay] = d.across, [tx, ty] = d.along;
+    for (const du of [-wallSpacing * 0.5, wallSpacing * 0.5]) {
+      for (let dv = -(band + wallSpacing); dv <= band + wallSpacing + 1e-6; dv += wallSpacing) {
+        const x = mx + tx * du + ax * dv, y = my + ty * du + ay * dv;
+        if (x < 0 || y < 0 || x > W || y > H) continue;
+        place(x, y, roomOf({ x, y }, roomGrid).room, true);
+      }
+    }
+  }
+  for (const e of opens) {                                 // the concourse reads continuous
+    const n = Math.max(1, Math.round(e.len / (wallSpacing * 1.2)));
+    for (let j = 0; j <= n; j++) {
+      const t = j / n - 0.5, x = e.m[0] + e.along[0] * e.len * t, y = e.m[1] + e.along[1] * e.len * t;
+      if (x < 0 || y < 0 || x > W || y > H) continue;
+      if (clearOf(x, y, wallSpacing * 0.8)) place(x, y, roomOf({ x, y }, roomGrid).room, true);
+    }
+  }
+  for (const p of jitterGrid(W, H, wallSpacing, 0.6, rng)) {
+    const r = roomOf(p, roomGrid);
+    if (r.edgeDist <= band && !atDoor(p.x, p.y)) continue;
+    if (clearOf(p.x, p.y, localSpacing(Math.max(r.edgeDist, band)))) place(p.x, p.y, r.room);
+  }
+  const nuclei = wallNuclei.concat(floorNuclei);
+  const paintGrid = bucketGrid(nuclei, Math.max(roomSpacing, wallSpacing) * 1.6);
+  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), roomSpacing * 3) }));
+  return { W, H, wallSpacing, roomSpacing, roomSize, band, roomSeeds, roomCells, adjEdges, doors, opens, wallNuclei, floorNuclei, nuclei, paintCells };
+}
+
 // Build the whole scene: room seeds + room cells (the exact floor plan), the membrane-seeded wall
 // nuclei (fine, at `wallSpacing`) with DOORS cut where rooms connect, and DENSITY-GRADED floor
 // nuclei — a big seed at each room centre, fining toward the walls — so detail goes where it's

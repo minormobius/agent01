@@ -156,6 +156,7 @@ node hoop/test/econroads.selftest.mjs       # the same grower fed by the REAL ec
 node hoop/test/foamroads.selftest.mjs       # the grown 3D foam city — THE CLIMB EMERGES (no imposed corkscrew)
 node hoop/test/region.selftest.mjs          # the tiled foam's SEAM CONTRACT (leg-6 gate): borders bit-identical, ring closes
 node hoop/test/record.selftest.mjs          # THE SOLVE OF RECORD: frozen coarse arterials + regional streets that meet at the gates
+node hoop/test/deck.selftest.mjs            # THE DECK: a solved region rendered in paint's 8/24 membrane language
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

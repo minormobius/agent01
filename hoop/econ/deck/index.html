@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="econ/deck — the game's-eye view: a solved region of the foam city rendered in paint's 8/24 membrane language. Arrow keys wander the region lattice; roads meet at the seams." />
+<title>the deck · a solved region, painted · econ · hoop</title>
+<style>
+  :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
+  #stage { position: fixed; inset: 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #hud { position: fixed; top: 8px; left: 10px; max-width: 60vw; color: var(--dim); text-shadow: 0 1px 2px #000; pointer-events: none; }
+  #hud b { color: var(--gold); }
+  a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; }
+  #panel { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(8,11,16,.75); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; backdrop-filter: blur(6px); }
+  button { background: #10202a; color: var(--teal); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  #busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(5,6,10,.78); color: var(--gold); font-size: 14px; z-index: 9; }
+  #legend { position: fixed; bottom: 12px; left: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 11px; color: var(--dim); background: rgba(8,11,16,.6); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; }
+  #legend .sw { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
+  #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="hud">▦ <b>the deck</b> — a solved region in paint's 8/24 membrane language<br><span id="info">…</span><br><span style="color:#667">arrow keys / buttons = wander the region lattice (← → wraps the ring · ↑ ↓ walks the axis) · every region regenerates identically · roads meet at the seams</span></div>
+<a class="home" href="../">← econ</a>
+<div id="panel">
+  <button id="west">←</button>
+  <button id="north">↑</button>
+  <button id="south">↓</button>
+  <button id="east">→</button>
+  <span id="key" style="color:var(--gold)">—</span>
+</div>
+<div id="legend"></div>
+<div id="busy">solving the region… (~3 s — deterministic: this exact city, every time)</div>
+<div id="err"></div>
+
+<script type="module">
+import { ringLattice } from '../region.js';
+import { coarseSolve, extendRecord } from '../record.js';
+import { deckScene, ROLE_COLOR } from '../deck.js';
+
+const $ = (id) => document.getElementById(id);
+addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
+
+// the world: one lattice + one record, fixed by (seed) — the game's stable solved map in miniature
+const qs = new URLSearchParams(location.search);
+const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
+const L = ringLattice({ Ri: 150, T: 12, cell: 1, regionsPerRing: 36 });
+let record = coarseSolve({ lattice: L, seed: SEED, axMin: 0, axMax: 5 });
+let az = parseInt(qs.get('az'), 10) || 3, ax = parseInt(qs.get('ax'), 10) || 1;
+const cache = new Map();                                   // regionKey → deck (evict-free: it regenerates)
+
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, deck = null;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; draw(); }
+addEventListener('resize', resize);
+
+const ROAD = '#2c463c', DOOR = 'hsl(44 40% 30%)', WALLC = '#0a0e12', VOIDC = '#070a0d';
+function draw() {
+  if (!deck) return;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+  const f = Math.min(W / deck.frame.W, H / deck.frame.H) * 0.97;
+  const ox = (W - deck.frame.W * f) / 2, oy = (H - deck.frame.H * f) / 2;
+  ctx.setTransform(DPR * f, 0, 0, DPR * f, DPR * ox, DPR * oy);
+  const colorOf = (c) => {
+    if (c.wall) return WALLC;
+    if (c.room == null) return VOIDC;
+    const o = deck.owner[c.room];
+    if (o === -1) return ROAD;
+    if (o === -2) return VOIDC;
+    if (c.door) return DOOR;
+    return ROLE_COLOR[deck.role[c.room]] || '#3a4248';
+  };
+  for (const c of deck.scene.paintCells) {
+    if (c.poly.length < 3) continue;
+    ctx.fillStyle = colorOf(c);
+    ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]);
+    for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]);
+    ctx.closePath(); ctx.fill();
+  }
+  // a hair of cell definition on the floors (not the concourse — it should read as one open space)
+  ctx.lineWidth = 0.5 / f; ctx.strokeStyle = 'rgba(16,24,28,0.5)';
+  for (const c of deck.scene.paintCells) {
+    if (c.wall || c.poly.length < 3 || (c.room != null && deck.owner[c.room] === -1)) continue;
+    ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]);
+    for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]);
+    ctx.closePath(); ctx.stroke();
+  }
+  // gates (where this deck's streets continue into the neighbour region)
+  ctx.fillStyle = 'rgba(244,191,98,0.95)';
+  deck.band.forEach((c, i) => { if (!deck.isGate.has(i)) return; const p = deck.seeds[i]; ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill(); });
+  // building glyphs, LOD-gated by footprint on this deck
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(10,14,18,0.85)';
+  for (const g of deck.bill) { if (g.n < 3) continue; ctx.font = Math.min(30, 10 + g.n * 2) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
+}
+
+function show() {
+  const key = az + ',' + ax;
+  $('key').textContent = 'region ' + key;
+  history.replaceState(null, '', '?seed=' + SEED + '&az=' + az + '&ax=' + ax);
+  const go = (d) => {
+    deck = d;
+    const s = d.stats;
+    $('info').innerHTML = 'region <b>(' + az + ', ' + ax + ')</b> of ' + L.regionsPerRing + '×[' + record.axMin + '..' + record.axMax + '] · ' +
+      s.rooms + ' rooms on this deck · <b>' + s.buildings + '</b> buildings · ' + s.roadRooms + ' concourse · ' +
+      s.streetDoors + ' street doors · closure ' + (s.closure * 100).toFixed(0) + '% · access ' + s.access.toFixed(2);
+    legend(); draw();
+  };
+  if (cache.has(key)) { go(cache.get(key)); return; }
+  $('busy').style.display = 'flex';
+  setTimeout(() => {
+    try {
+      const d = deckScene({ lattice: L, seed: SEED, record, az, ax, axSpan: 14 });
+      cache.set(key, d);
+      go(d);
+    } catch (e) { $('err').style.display = 'block'; $('err').textContent = 'solve: ' + (e && e.stack || e); }
+    $('busy').style.display = 'none';
+  }, 30);
+}
+function legend() {
+  const seenRoles = new Set(deck.role.filter((r) => r !== 'road' && r !== 'void'));
+  $('legend').innerHTML = '<span><span class="sw" style="background:' + ROAD + '"></span>concourse</span>' +
+    [...seenRoles].map((r) => '<span><span class="sw" style="background:' + (ROLE_COLOR[r] || '#888') + '"></span>' + r + '</span>').join('');
+}
+
+function move(dAz, dAx) {
+  az = ((az + dAz) % L.regionsPerRing + L.regionsPerRing) % L.regionsPerRing;
+  ax = Math.max(record.axMin, ax + dAx);
+  if (ax > record.axMax) record = extendRecord(record, ax + 2);    // the frontier: history stays frozen
+  show();
+}
+$('west').addEventListener('click', () => move(-1, 0));
+$('east').addEventListener('click', () => move(1, 0));
+$('north').addEventListener('click', () => move(0, 1));
+$('south').addEventListener('click', () => move(0, -1));
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') move(-1, 0); else if (e.key === 'ArrowRight') move(1, 0);
+  else if (e.key === 'ArrowUp') move(0, 1); else if (e.key === 'ArrowDown') move(0, -1);
+  else return; e.preventDefault();
+});
+
+resize(); show();
+</script>
+</body>
+</html>

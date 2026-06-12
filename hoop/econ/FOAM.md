@@ -212,15 +212,21 @@ membrane language. The pieces now all exist; this leg is their assembly, in orde
    for `regionFoam` slices; a game "tile" is a chamber; the chamber `gid` is the world coordinate.
    Walking +x forever is the infinite axis; walking +y forever wraps the ring and brings you home —
    a world fact the game gets for free from the seam contract.
-2. **The render: paint's 8/24 membrane language.** Today world.js draws bare Voronoi cells. The
-   upgrade is `/paint`'s two-knob look applied per loaded region: **room seeds = the deck band's
-   chambers** (room spacing, the ~24 knob), **walls membrane-seeded fine** (the ~8 knob, wall
-   thickness ≈ spacing), density-graded interiors (big centre cell, fining toward walls), and the
-   flux classification deciding what a membrane IS: same-building neighbours → interior wall with
-   doors; chamber on the right-of-way → **zero-wall concourse** (`classifyPaint`'s rule, already
-   node-tested in paint/flux.js); building↔road → wall with the building's ONE door cut where
-   `solveRegion` placed it. `buildScene` already accepts the geometry; the port is feeding it
-   regionFoam seeds instead of its own jittered grid, region by region, cached per region key.
+2. **The render: paint's 8/24 membrane language — FIRST PASS SHIPPED.** `econ/deck.js` +
+   `voronoi.js buildSceneCustom` + the page at **`/econ/deck/`** (+ `test/deck.selftest.mjs`,
+   13 checks). `buildSceneCustom` is the additive painter variant that takes EXTERNAL room seeds
+   + an `edgeKind(a,b)` callback ('wall' · 'door' · 'open' — the zero-wall concourse, realised as
+   a door-point chain covering the whole membrane). `deckScene` slices a solved region's
+   mid-shell band, unrolls it to px, and classifies every membrane from the city: row↔row →
+   open; same building → doors on a per-building spanning tree (+ loops); building↔row → **one
+   street door per building** (hash-min among its frontage, pinned); else wall. Missing lattice
+   sites read as solid mass. The page wanders the region lattice on arrow keys — ←→ wraps the
+   ring, ↑↓ walks the axis, crossing the frontier extends the record (history frozen) and solves
+   lazily (~3 s, cached; eviction is free because everything regenerates). Pinned: opens only on
+   roads, exactly one street door per fronting building, interior trees connect each building
+   exactly as far as its geometry allows, deterministic. *This is the game's look meeting the
+   solved city.* Remaining for the full step: the world.js integration itself (the `@`, HPA\*
+   over deck rooms, the thread rail).
 3. **The stable solved map.** The world IS `(genome, seed, record)`. The record starts at a fixed
    settled band; the landing experience is a *solved* city (no first-visit jank), loaded region by
    region as `solveRegion` outputs (~2 s each, in a worker, behind the fog of unexplored seams).
