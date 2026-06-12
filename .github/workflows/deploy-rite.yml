@@ -30,6 +30,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # --- Font generator (rite.mino.mobi/font): build the Rust→WASM engine ---
+      - name: Install Rust (font generator)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Font validity gate (cargo test)
+        run: cargo test --manifest-path font/Cargo.toml --release
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build font wasm → font/pkg
+        run: wasm-pack build font --target web --release --out-dir pkg
+      # --- end font generator build ---
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

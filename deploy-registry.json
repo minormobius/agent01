@@ -167,7 +167,7 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "branch": "claude/biome-trophic-web-graph-u7ha55",
       "uses": [],
       "provides": null,
       "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static — model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
@@ -194,13 +194,27 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-tide-wind-jets-olcuky",
+      "branch": "claude/oneill-cylinder-solver-djdpdm",
       "uses": [],
       "provides": null,
-      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer — radial gravity g(r)=ω²r + isothermal pressure P(r)=P_axis·e^{S(r/R)²} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column — temp/humidity/CO₂ vs altitude, Mie fog optics), fountain/ (azimuthal cross-section — rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger — reactors→light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Pure static — every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "tide/**",
         ".github/workflows/deploy-tide.yml"
+      ]
+    },
+    {
+      "surface": "iris",
+      "dir": "iris",
+      "endpoint": "iris.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/oneill-cylinder-solver-djdpdm",
+      "uses": [],
+      "provides": null,
+      "note": "The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'. One coupled steady-state solve (iris/sim/section.mjs): the lights are the only heat in, the radiator skin the only heat out, the habitat's heat carried there through the floor's water reservoirs + heat pipes — that balance pins every temperature. Switchable gradient views over the circle (temperature / pressure / humidity / wind), toggleable fog (RH≥1) and fountain jets, the inner-rim ratchet topography (iris/sim/ratchet.mjs). Companion to the tide thermodynamics wing; its own geometry (iris/shared/geometry.mjs), not tide's. Pure static — every model runs client-side, no D1/DO/secrets.",
+      "paths": [
+        "iris/**",
+        ".github/workflows/deploy-iris.yml"
       ]
     },
     {
@@ -498,11 +512,27 @@
       "cohesion": "integrated"
     },
     {
+      "surface": "pod",
+      "dir": "pod",
+      "endpoint": "pod.mino.mobi (pending attach)",
+      "type": "fullstack",
+      "branch": "claude/podcast-studio-architecture-711cke",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED (domain pending) — scaffold onboarded to Actions (deploy-pod.yml). First deploy stands up worker `pod` at workers.dev; attach pod.mino.mobi in the dashboard to launch.",
+      "paths": [
+        "pod/**",
+        ".github/workflows/deploy-pod.yml"
+      ],
+      "cohesion": "self-contained",
+      "note": "Podcast studio. No central index, no editorial surface — the worker only constructs RSS and serves blobs. /room (WebRTC recording lobby) + /prod (multitrack clip editor → publish) + /listen?handle= (per-show viewer) + /app (general RSS podcast client). Per-publisher feeds at /u/<handle>/feed.xml are built live from each author's PDS; /enclosure stitches an episode's chunked blobs into one streamable URL. Everything (tracks/episodes/subscriptions) is a record+blobs on the author's own PDS — no D1. RoomCoordinator DO does signaling only."
+    },
+    {
       "surface": "hoop",
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "branch": "claude/hoop-game-docs-research-x5p1jx",
       "uses": [],
       "provides": null,
       "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface.",

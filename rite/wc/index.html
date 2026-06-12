@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Cup 2026 &mdash; who advances? (prediction-market odds)</title>
+<meta name="description" content="The 2026 FIFA World Cup opening bracket with live prediction-market odds for each team to advance from its group.">
+<meta property="og:title" content="World Cup 2026 — who advances?">
+<meta property="og:description" content="The opening bracket with live prediction-market odds for each team to escape its group.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/wc/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #00674f; --accent-faint: rgba(0, 103, 79, 0.07);
+  --gold: #b8860b;
+  --good: #2a7a2a; --bad: #a03030;
+  --card-bg: #fff;
+  --in: #00674f; --edge: #b8860b; --out: #b0b0b0;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --accent: #4cb89a; --accent-faint: rgba(76, 184, 154, 0.1);
+    --gold: #d0a850;
+    --good: #6abf6a; --bad: #d07070;
+    --card-bg: #1a1a1a;
+    --in: #4cb89a; --edge: #d0a850; --out: #555;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); font-size: 17px; line-height: 1.5;
+  padding: 1.5rem 1rem 4rem; min-height: 100vh;
+}
+.wrap { max-width: 1100px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.2rem; }
+.crumb { font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.crumb a { color: var(--muted); text-decoration: none; }
+.crumb a:hover { color: var(--accent); }
+h1 { font-size: 2rem; margin: 0.4rem 0 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+
+.meta { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-top: 0.8rem; display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center; }
+.meta b { color: var(--text); font-weight: 600; }
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
+
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 1rem; margin-top: 1.3rem; }
+.group {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.85rem 0.95rem 0.95rem;
+}
+.group h2 {
+  font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--muted); margin: 0 0 0.6rem;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.group h2 .gid { color: var(--accent); font-weight: 700; font-size: 0.95rem; }
+
+.team { display: grid; grid-template-columns: 1.6rem 1fr auto; align-items: center; gap: 0.5rem; padding: 0.32rem 0; position: relative; }
+.team + .team { border-top: 1px solid var(--accent-faint); }
+.flag { font-size: 1.2rem; line-height: 1; text-align: center; }
+.tname { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.tname .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rankpill { font-family: var(--mono); font-size: 0.6rem; padding: 0.05rem 0.3rem; border-radius: 3px; color: var(--bg); flex: none; }
+.rankpill.in { background: var(--in); }
+.rankpill.edge { background: var(--edge); }
+.pct { font-family: var(--mono); font-size: 0.9rem; font-weight: 600; text-align: right; min-width: 3.2rem; }
+.pct.na { color: var(--muted); font-weight: 400; }
+
+.bar { grid-column: 1 / -1; height: 4px; background: var(--accent-faint); border-radius: 2px; overflow: hidden; margin-top: 0.1rem; }
+.bar > i { display: block; height: 100%; border-radius: 2px; }
+
+.note { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
+.note a { color: var(--accent); }
+.status { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); margin-top: 1rem; }
+.status.err { color: var(--bad); }
+button.reload {
+  font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.3rem 0.7rem; background: transparent; color: var(--accent);
+  border: 1px solid var(--rule); border-radius: 4px; cursor: pointer;
+}
+button.reload:hover { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> &nbsp;/&nbsp; <a href="/">rite</a> &nbsp;/&nbsp; wc</div>
+    <h1>World Cup 2026<span class="dot">.</span></h1>
+    <p class="subtitle">The opening bracket &mdash; prediction-market odds for each side to escape its group.</p>
+    <div class="meta">
+      <span class="legend">
+        <span><i class="swatch" style="background:var(--in)"></i> top&nbsp;2 (auto-advance)</span>
+        <span><i class="swatch" style="background:var(--edge)"></i> 3rd (8 best advance)</span>
+      </span>
+      <span id="updated"></span>
+      <button class="reload" id="reload">refresh</button>
+    </div>
+  </header>
+
+  <div id="status" class="status">Loading odds&hellip;</div>
+  <div class="groups" id="groups"></div>
+
+  <p class="note">
+    The 2026 finals run 48 teams across 12 groups of four. The top two of every group plus
+    the eight best third-placed sides reach the Round of 32. Percentages are the implied
+    probability (mid-price) that a team advances to the knockout stage, pulled live from
+    <a href="https://polymarket.com" target="_blank" rel="noopener">Polymarket</a>'s
+    &ldquo;team to advance&rdquo; market via <code>/api/wc/odds</code>. Prediction-market prices, not a forecast model.
+  </p>
+</div>
+
+<script>
+// 2026 World Cup groups (final draw, 5 Dec 2025). Each team carries a flag and
+// the set of names Polymarket might key it under, so the odds join survives
+// spelling/diacritic differences ("Korea Republic" vs "South Korea").
+const GROUPS = {
+  A: [
+    { name: 'Mexico',        flag: '🇲🇽', aliases: ['mexico'] },
+    { name: 'South Africa',  flag: '🇿🇦', aliases: ['south africa'] },
+    { name: 'Korea Republic',flag: '🇰🇷', aliases: ['south korea', 'korea republic', 'korea'] },
+    { name: 'Czechia',       flag: '🇨🇿', aliases: ['czechia', 'czech republic'] },
+  ],
+  B: [
+    { name: 'Canada',                 flag: '🇨🇦', aliases: ['canada'] },
+    { name: 'Bosnia & Herzegovina',   flag: '🇧🇦', aliases: ['bosnia and herzegovina', 'bosnia & herzegovina', 'bosnia'] },
+    { name: 'Qatar',                  flag: '🇶🇦', aliases: ['qatar'] },
+    { name: 'Switzerland',            flag: '🇨🇭', aliases: ['switzerland'] },
+  ],
+  C: [
+    { name: 'Brazil',   flag: '🇧🇷', aliases: ['brazil'] },
+    { name: 'Morocco',  flag: '🇲🇦', aliases: ['morocco'] },
+    { name: 'Haiti',    flag: '🇭🇹', aliases: ['haiti'] },
+    { name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', aliases: ['scotland'] },
+  ],
+  D: [
+    { name: 'United States', flag: '🇺🇸', aliases: ['usa', 'united states', 'united states of america', 'us'] },
+    { name: 'Paraguay',      flag: '🇵🇾', aliases: ['paraguay'] },
+    { name: 'Australia',     flag: '🇦🇺', aliases: ['australia'] },
+    { name: 'Türkiye',       flag: '🇹🇷', aliases: ['turkiye', 'turkey', 'türkiye'] },
+  ],
+  E: [
+    { name: 'Germany',     flag: '🇩🇪', aliases: ['germany'] },
+    { name: 'Curaçao',     flag: '🇨🇼', aliases: ['curacao', 'curaçao'] },
+    { name: 'Ivory Coast', flag: '🇨🇮', aliases: ['ivory coast', 'cote divoire', "côte d'ivoire"] },
+    { name: 'Ecuador',     flag: '🇪🇨', aliases: ['ecuador'] },
+  ],
+  F: [
+    { name: 'Netherlands', flag: '🇳🇱', aliases: ['netherlands', 'holland'] },
+    { name: 'Japan',       flag: '🇯🇵', aliases: ['japan'] },
+    { name: 'Sweden',      flag: '🇸🇪', aliases: ['sweden'] },
+    { name: 'Tunisia',     flag: '🇹🇳', aliases: ['tunisia'] },
+  ],
+  G: [
+    { name: 'Belgium',     flag: '🇧🇪', aliases: ['belgium'] },
+    { name: 'Egypt',       flag: '🇪🇬', aliases: ['egypt'] },
+    { name: 'Iran',        flag: '🇮🇷', aliases: ['iran'] },
+    { name: 'New Zealand', flag: '🇳🇿', aliases: ['new zealand'] },
+  ],
+  H: [
+    { name: 'Spain',        flag: '🇪🇸', aliases: ['spain'] },
+    { name: 'Cape Verde',   flag: '🇨🇻', aliases: ['cape verde', 'cabo verde'] },
+    { name: 'Saudi Arabia', flag: '🇸🇦', aliases: ['saudi arabia', 'saudi'] },
+    { name: 'Uruguay',      flag: '🇺🇾', aliases: ['uruguay'] },
+  ],
+  I: [
+    { name: 'France',  flag: '🇫🇷', aliases: ['france'] },
+    { name: 'Senegal', flag: '🇸🇳', aliases: ['senegal'] },
+    { name: 'Iraq',    flag: '🇮🇶', aliases: ['iraq'] },
+    { name: 'Norway',  flag: '🇳🇴', aliases: ['norway'] },
+  ],
+  J: [
+    { name: 'Argentina', flag: '🇦🇷', aliases: ['argentina'] },
+    { name: 'Algeria',   flag: '🇩🇿', aliases: ['algeria'] },
+    { name: 'Austria',   flag: '🇦🇹', aliases: ['austria'] },
+    { name: 'Jordan',    flag: '🇯🇴', aliases: ['jordan'] },
+  ],
+  K: [
+    { name: 'Portugal',   flag: '🇵🇹', aliases: ['portugal'] },
+    { name: 'DR Congo',   flag: '🇨🇩', aliases: ['dr congo', 'drc', 'democratic republic of congo', 'congo dr'] },
+    { name: 'Uzbekistan', flag: '🇺🇿', aliases: ['uzbekistan'] },
+    { name: 'Colombia',   flag: '🇨🇴', aliases: ['colombia'] },
+  ],
+  L: [
+    { name: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', aliases: ['england'] },
+    { name: 'Croatia', flag: '🇭🇷', aliases: ['croatia'] },
+    { name: 'Ghana',   flag: '🇬🇭', aliases: ['ghana'] },
+    { name: 'Panama',  flag: '🇵🇦', aliases: ['panama'] },
+  ],
+};
+
+const norm = (s) => String(s || '').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, '');
+
+// Build normalized-alias -> team lookup is done per-render against the odds keys.
+function matchOdds(team, oddsByNorm) {
+  for (const a of team.aliases) {
+    const hit = oddsByNorm[norm(a)];
+    if (hit) return hit;
+  }
+  return null;
+}
+
+const statusEl = document.getElementById('status');
+const groupsEl = document.getElementById('groups');
+const updatedEl = document.getElementById('updated');
+
+function barColor(rank, prob) {
+  if (rank === 0 || rank === 1) return 'var(--in)';
+  if (rank === 2) return 'var(--edge)';
+  return 'var(--out)';
+}
+
+function render(data) {
+  const oddsByNorm = {};
+  for (const [k, v] of Object.entries(data.odds || {})) oddsByNorm[norm(k)] = v;
+
+  groupsEl.innerHTML = '';
+  for (const [gid, teams] of Object.entries(GROUPS)) {
+    const enriched = teams.map((t) => {
+      const o = matchOdds(t, oddsByNorm);
+      return { ...t, prob: o && typeof o.yes === 'number' ? o.yes : null };
+    });
+    // Sort by advancement probability, unknowns last.
+    enriched.sort((a, b) => (b.prob ?? -1) - (a.prob ?? -1));
+
+    const card = document.createElement('div');
+    card.className = 'group';
+    const rows = enriched.map((t, i) => {
+      const pct = t.prob == null ? '—' : Math.round(t.prob * 100) + '%';
+      const pctCls = t.prob == null ? 'pct na' : 'pct';
+      const w = t.prob == null ? 0 : Math.max(2, Math.round(t.prob * 100));
+      const pill = i < 2 ? '<span class="rankpill in">IN</span>'
+                 : i === 2 ? '<span class="rankpill edge">3RD</span>' : '';
+      return `<div class="team">
+        <span class="flag">${t.flag}</span>
+        <span class="tname"><span class="nm">${t.name}</span>${pill}</span>
+        <span class="${pctCls}">${pct}</span>
+        <span class="bar"><i style="width:${w}%;background:${barColor(i, t.prob)}"></i></span>
+      </div>`;
+    }).join('');
+    card.innerHTML = `<h2><span class="gid">Group ${gid}</span></h2>${rows}`;
+    groupsEl.appendChild(card);
+  }
+
+  const n = data.count || 0;
+  const when = data.updatedAt ? new Date(data.updatedAt) : null;
+  updatedEl.innerHTML = when
+    ? `updated <b>${when.toLocaleString()}</b>${data.stale ? ' (cached)' : ''} · ${n} markets`
+    : '';
+  statusEl.textContent = '';
+  statusEl.className = 'status';
+}
+
+async function load() {
+  statusEl.textContent = 'Loading odds…';
+  statusEl.className = 'status';
+  try {
+    const r = await fetch('/api/wc/odds', { headers: { accept: 'application/json' } });
+    if (!r.ok) throw new Error('odds endpoint returned ' + r.status);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    render(data);
+  } catch (e) {
+    statusEl.textContent = 'Could not load odds — ' + e.message + '. The bracket is shown without prices.';
+    statusEl.className = 'status err';
+    render({ odds: {}, count: 0 });
+  }
+}
+
+document.getElementById('reload').addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

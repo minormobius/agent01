@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pod — minomobi podcast studio</title>
+  <style>
+    :root {
+      --bg: #0e0f13;
+      --panel: #16181f;
+      --ink: #e9eaee;
+      --muted: #9aa0ad;
+      --accent: #e0573e;
+      --line: #262932;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    header {
+      padding: 64px 24px 40px;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    .crumb { color: var(--muted); font-size: 14px; }
+    .crumb a { color: var(--muted); text-decoration: none; }
+    .crumb a:hover { color: var(--ink); }
+    h1 {
+      font-size: clamp(40px, 8vw, 72px);
+      margin: 8px 0 12px;
+      letter-spacing: -0.03em;
+    }
+    h1 .dot { color: var(--accent); }
+    .tag { color: var(--muted); font-size: 18px; max-width: 620px; }
+    main { max-width: 920px; margin: 0 auto; padding: 0 24px 96px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 40px 0; }
+    .card {
+      display: block;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 22px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color .15s, transform .15s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card h3 { margin: 0 0 6px; font-size: 19px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14px; }
+    .card .wip { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+    .ep { padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .ep h3 { margin: 0 0 4px; font-size: 18px; }
+    .ep p { margin: 0; color: var(--muted); font-size: 14px; }
+    .empty { color: var(--muted); padding: 24px 0; }
+    footer { max-width: 920px; margin: 0 auto; padding: 32px 24px 64px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+    a.inline { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / pod</div>
+    <h1>pod<span class="dot">.</span></h1>
+    <p class="tag">A browser podcast studio on ATProto. Get people talking in a room, record each voice locally at full quality, collect the tracks, edit them down, publish a feed.</p>
+  </header>
+
+  <main>
+    <div class="cards">
+      <a class="card" href="/room/">
+        <span class="wip">live</span>
+        <h3>Room →</h3>
+        <p>Permalinked lobbies. Join over WebRTC, monitor the conversation, record your own track locally.</p>
+      </a>
+      <a class="card" href="/prod/">
+        <span class="wip">studio</span>
+        <h3>Prod →</h3>
+        <p>Pull every participant's track into one browser, align on the shared epoch, mix in an 8-bit bed, render down.</p>
+      </a>
+      <a class="card" href="/listen/">
+        <h3>Listen →</h3>
+        <p>Play any show by handle. Every feed is owned by its publisher's PDS — grab the RSS for any podcast app.</p>
+      </a>
+      <a class="card" href="/app/">
+        <h3>Podcast app →</h3>
+        <p>A real podcast client: subscribe to any RSS feed, on or off minomobi, and listen.</p>
+      </a>
+    </div>
+
+    <section>
+      <h2>How it works</h2>
+      <p class="empty" style="text-align:left">
+        There is no central catalogue here, on purpose. Record in <a class="inline" href="/room/">/room</a>,
+        edit in <a class="inline" href="/prod/">/prod</a>, and publish — the episode and its audio blobs are
+        written to <strong>your own PDS</strong>. Your feed at <code>/u/&lt;handle&gt;/feed.xml</code> is built
+        live from your repo, so it updates the instant you publish. The only thing this service does is
+        construct that RSS and stream your blobs. What you publish, and whether you publish, is yours.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    Built on the same ATProto plumbing as airchat and the audio rooms — recordings, episodes and
+    subscriptions all live as records + chunked blobs on each user's own PDS. Architecture notes in
+    <code>pod/README.md</code>.
+  </footer>
+</body>
+</html>

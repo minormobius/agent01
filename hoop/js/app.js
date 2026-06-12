@@ -4,7 +4,7 @@
 import { AuthClient } from '/vendor/auth.js';
 import { World } from '/js/world.js';
 import { Presence } from '/js/presence.js';
-import { LocalBackend, AtprotoBackend, threadTree, placeId } from '/js/store.js';
+import { LocalBackend, AtprotoBackend, threadTree, placeId, setChamberLookup } from '/js/store.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const el = (tag, props = {}, kids = []) => {
@@ -47,6 +47,12 @@ const App = {
       onMove: (x, y) => { if (this.presence) this.presence.move(x, y); },
     });
     this.world.start();
+    // bind the store's chamber lookup to the live foam field, so every place (and later, every
+    // NPC) carries a stable chamber address (postal.js) — not just a raw tile.
+    setChamberLookup((x, y) => {
+      const ch = this.world.field?.chamberAt?.(x, y);
+      return ch ? { gid: ch.gid, depth: this.world.depth || 0 } : null;
+    });
     this.bindChrome();
 
     await this.refreshPlaces();

@@ -52,6 +52,33 @@ The cylinder interior has a counterintuitive thermal layout that drives everythi
   blooms dense at night (optical depth ~80–100, a near-blackout) and the sun **burns it off by
   day**, reopening the canopy to light. That optics lives in `atmosphere/sim/optics.mjs`.
 
+## Module 1 — pressure & gravity vs radius: the centrifugal barometer (`profile/`)
+
+The smallest honest model of the cylinder's air, and the two profiles every other module sits
+on. Give it a **radius**, a **spin**, and the **non-spinning pressure** (how much air is in the
+bore) and it solves, in closed form, the **gravity** and **pressure** through the radius. Live
+viewer at `profile/index.html`; kernel in `profile/sim/profile.mjs` (pure, zero-dep, node +
+browser).
+
+- **Gravity** is pure kinematics: `g(r) = ω²r` — zero on the axis, full at the rim.
+- **Pressure** is hydrostatic balance in the rotating frame, `dP/dr = ρω²r`. For an isothermal
+  ideal gas this integrates to `P(r) = P_axis·exp(S·(r/R)²)` with **one** dimensionless number
+  `S = Mω²R²/(2RT) = v²_rim/(2c²)` (rim speed in isothermal sound speeds). The rim/axis pressure
+  ratio is exactly `e^S`; air pools at the rim.
+- **"Non-spinning pressure" P₀** fixes the amount of air, read two ways: *same air at rest*
+  (mass-conserving — the area-weighted mean stays P₀, `P_axis = P₀·S/(e^S−1)`), or *held on the
+  axis* (`P_axis = P₀`). The mass-conserving closure is exact: total moles per metre equal a
+  static bore at P₀, to machine precision.
+
+For the canonical 8 km build (1 g at the 10 km outer skin) this gives a **0.80 g** floor, an
+axis at **~83.6 kPa** and a rim at **~121.4 kPa** from a 101.3 kPa fill — the same ~32% span the
+full column reproduces from first principles, here as a one-line solver you can dial.
+
+```bash
+node tide/profile/test/profile.selftest.mjs     # 24 checks: g=ω²r, the e^S ratio, mass conservation, the no-spin limit, unit round-trips
+open tide/profile/index.html                     # dial R, Ω, P₀, T, gas; read the profiles + hover the curves
+```
+
 ## Module 2 — 1-D radial atmosphere column (`atmosphere/`)
 
 The cylinder is symmetric along and around its axis, so the only gradient is **radius**. This is

@@ -28,6 +28,7 @@
 // global rather than importing it.
 
 import { drawStalk, stalkModel } from './ink.js';
+import { route as navRoute, wayfan } from './nav.js';
 
 const Ship = globalThis.HoopShip;
 const C = Ship.CHUNK;
@@ -290,6 +291,18 @@ export function chunkSeeds(seed, cx, cy) {
   }
   return out;
 }
+// The foam's seam ports — its own scheme (rng streams 71/72), distinct from ship.js edgePorts
+// (1/2), but seamless the same way: E(cx,cy)=W(cx+1,cy), S(cx,cy)=N(cx,cy+1). Exported as the
+// single source of truth so foamChunk AND nav.js agree on where the doors are (nav takes this as
+// its `ports` fn when routing the foam deck). Pure, deterministic, node + browser.
+export function foamPorts(seed, cx, cy) {
+  return {
+    E: 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)),
+    W: 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6)),
+    S: 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)),
+    N: 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6)),
+  };
+}
 function foamChunk(seed, cx, cy) {
   const bx = cx * C, by = cy * C, G = 4, NS = G * G;
   // GHOST SEEDS: gather this block's seeds AND its 8 neighbours', then assign every tile to
@@ -362,8 +375,7 @@ function foamChunk(seed, cx, cy) {
   } else { for (const [a, b] of mem) if ((Ship.hashInts(seed, a, b, 6) & 7) === 0) passable.add(akey(a, b)); } // fallback
   for (const key of passable) { const [a, b] = key.split(',').map(Number); carve(cen[a].x, cen[a].y, cen[b].x, cen[b].y, breach.has(key)); }
   // edge ports → corridor to the local cell's centre, shared with neighbours so chunks connect
-  const pE = 3 + Math.floor(Ship.rngFor(seed, 71, cx, cy)() * (C - 6)), pW = 3 + Math.floor(Ship.rngFor(seed, 71, cx - 1, cy)() * (C - 6));
-  const pS = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy)() * (C - 6)), pN = 3 + Math.floor(Ship.rngFor(seed, 72, cx, cy - 1)() * (C - 6));
+  const fp = foamPorts(seed, cx, cy), pE = fp.E, pW = fp.W, pS = fp.S, pN = fp.N;
   const nearOwn = (px, py) => { let bi = 0, bd = 1e18; for (let s = 0; s < NS; s++) { if (!cnt[s]) continue; const d = (cen[s].x - px) ** 2 + (cen[s].y - py) ** 2; if (d < bd) { bd = d; bi = s; } } return cen[bi]; };
   carve(C - 1, pE, nearOwn(C - 1, pE).x, nearOwn(C - 1, pE).y);
   carve(0, pW, nearOwn(0, pW).x, nearOwn(0, pW).y);
@@ -578,30 +590,16 @@ export class World {
     }
     return { ix, iy, arriving };
   }
-  // BFS bounded to a window around the player (the world is infinite).
+  // Auto-walk path = the unified two-tier wayfinder (nav.route) over the live foam deck. No more
+  // ±48 window: coarse portal-graph A* crosses chunks (via foamPorts), fine A* threads each chunk;
+  // stepMotion still does the per-tile walk along the returned tile list. (See hoop/NAV.md.)
   _pathTo(tx, ty, adjacentOk) {
     if (!this.isFloor(tx, ty) && !adjacentOk) return;
-    if (Math.abs(tx - this.player.x) > 48 || Math.abs(ty - this.player.y) > 48) return;
-    const start = `${this.player.x}-${this.player.y}`, goal = `${tx}-${ty}`;
-    const q = [[this.player.x, this.player.y]];
-    const prev = new Map([[start, null]]);
-    let found = false, steps = 0;
-    while (q.length && steps++ < 6000) {
-      const [x, y] = q.shift();
-      if (`${x}-${y}` === goal) { found = true; break; }
-      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
-        const nx = x + dx, ny = y + dy, key = `${nx}-${ny}`;
-        if (prev.has(key)) continue;
-        if (Math.abs(nx - this.player.x) > 50 || Math.abs(ny - this.player.y) > 50) continue;
-        if (this.isFloor(nx, ny) || key === goal) { prev.set(key, `${x}-${y}`); q.push([nx, ny]); }
-      }
-    }
-    if (!found) return;
-    const path = [];
-    let cur = goal;
-    while (cur && cur !== start) { const [x, y] = cur.split('-').map(Number); path.push([x, y]); cur = prev.get(cur); }
-    path.reverse();
-    this.path = path;
+    if (Math.abs(tx - this.player.x) + Math.abs(ty - this.player.y) > 400) return; // sanity cap on a very far click
+    const r = navRoute(this.field.seed, { x: this.player.x, y: this.player.y }, { x: tx, y: ty },
+      (x, y) => this.field.isFloor(x, y), { ports: foamPorts });
+    if (!r || r.tiles.length < 2) { if (r && r.tiles.length === 1) this.path = []; return; }
+    this.path = r.tiles.slice(1).map((t) => [t.x, t.y]); // drop the current tile; steer toward the rest
   }
 
   // ── render loop ───────────────────────────────────────────────────────────
@@ -678,6 +676,42 @@ export class World {
     return [buf[bi], buf[bi + 1], buf[bi + 2]];
   }
 
+  // ── the wayfinding fan (hoop/NAV.md Part 3): the visible map is the geodesic tree from the
+  //    player out to its perimeter, not a fixed planar slice. Recomputed only when the player
+  //    changes tile / depth (cheap), so it's effectively free per frame. Planar (uniform cost)
+  //    for now — the cost rule is where non-planar wayfinding (the corkscrew) plugs in later. ──
+  // Recompute the player's fan only when the player changes tile/depth, and bake it into two flat
+  // arrays in world coords (tree segments, perimeter tips) so the per-FRAME draw is one stroke +
+  // one fill — no Map walk, no per-cell work, no string churn. A modest radius keeps the node
+  // count (and so the cost) small; the recompute is ~1 ms and occasional.
+  _ensureFan() {
+    const key = this.player.x + ',' + this.player.y + ':' + this.depth;
+    if (this._fanKey === key) return;
+    this._fanKey = key;
+    const px = this.player.x, py = this.player.y, R = 26;
+    const inBox = (x, y) => Math.abs(x - px) <= R && Math.abs(y - py) <= R;
+    try {
+      const fan = wayfan((x, y) => inBox(x, y) && this.field.isFloor(x, y), { x: px, y: py }, { radius: R, maxCells: 2400 });
+      const seg = [], tip = [];
+      for (const n of fan.reached.values()) { if (n.parent == null) continue; const p = fan.reached.get(n.parent); if (p) { seg.push(n.x + 0.5, n.y + 0.5, p.x + 0.5, p.y + 0.5); } }
+      for (const tp of fan.tips) tip.push(tp.x + 0.5, tp.y + 0.5);
+      this._fanSeg = seg; this._fanTip = tip;
+    } catch (e) { this._fanSeg = null; this._fanTip = null; }
+  }
+  _drawFan(ctx, SX, SY, t) {
+    const seg = this._fanSeg; if (!seg || !seg.length) return;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < seg.length; i += 4) { ctx.moveTo(SX(seg[i]), SY(seg[i + 1])); ctx.lineTo(SX(seg[i + 2]), SY(seg[i + 3])); }
+    ctx.strokeStyle = 'rgba(121,200,160,0.16)'; ctx.lineWidth = Math.max(1, t * 0.05); ctx.stroke();
+    const tip = this._fanTip;
+    if (tip && tip.length) {
+      const r = Math.max(1.1, t * 0.075); ctx.beginPath();
+      for (let i = 0; i < tip.length; i += 2) { const sx = SX(tip[i]), sy = SY(tip[i + 1]); ctx.moveTo(sx + r, sy); ctx.arc(sx, sy, r, 0, Math.PI * 2); }
+      ctx.fillStyle = 'rgba(121,200,160,0.4)'; ctx.fill();
+    }
+  }
+
   _draw(now) {
     const ctx = this.ctx, t = this.tile;
     const pulse = 0.5 + 0.5 * Math.sin((now - this._t0) / 600);
@@ -689,6 +723,8 @@ export class World {
     const buf = this._buildLight(x0, y0, x1, y1, now);
     const SX = (wx) => ox + wx * t, SY = (wy) => oy + wy * t;
     const cx0 = Math.floor(x0 / C), cy0 = Math.floor(y0 / C), cx1 = Math.floor((x1 - 1) / C), cy1 = Math.floor((y1 - 1) / C);
+
+    this._ensureFan();
 
     // ── deck: adaptive voronoi plates, gravity-tinted, lit (light per cell = probe) ──
     for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
@@ -731,6 +767,9 @@ export class World {
         }, { x: SX(f.wx), y: SY(f.wy), ang: f.ang, detail: Math.min(1, t / 26), fuzz: false, ends: false });
       }
     }
+
+    // ── the wayfinding fan: routes radiating from the player to its perimeter ──
+    this._drawFan(ctx, SX, SY, t);
 
     // breaches — failed membranes, open to vacuum (cold glow + an X)
     ctx.lineCap = 'round';

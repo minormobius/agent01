@@ -17,7 +17,59 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
 - `js/app.js` — the controller wiring world ⇆ store ⇆ thread rail ⇆ auth ⇆ presence.
 - `js/store.js` — data model + two backends (Local / ATProto) + threading.
 - `js/{presence,atproto,ink}.js` — presence socket client · public ATProto reads · seeded vector drawing.
+- `js/postal.js` + `js/nav.js` — **the navigation plumbing** (design: `NAV.md`). `postal.js` derives
+  stable, hierarchical, Merkle-able **chamber addresses** from the deterministic engine (NPCs/places
+  bind to `(chunk, ordinal)` — genome-stable slots); `nav.js` is two-tier **HPA\*** routing (coarse
+  portal-graph A\* + fine `isFloor` A\*), the 2-D-deck cousin of `rind/wayfind.js`. Pure + node-tested.
+  Wiring status (`NAV.md`): **steps 1 & 3 done** — places carry `{gid, addr, depth}` (via
+  `store.setChamberLookup` ← `world.field.chamberAt`), and `world.js`'s click-to-walk now routes
+  through `navRoute(field.seed, …, { ports: foamPorts })` (no ±48 window; `stepMotion` still walks
+  the tiles). `nav.js` also exports **`wayfan()`** — the geodesic player→perimeter tree that is the
+  substrate for the **map overhaul**: `world.js`'s `_draw` renders a **light planar-fan overlay** —
+  `_ensureFan` recomputes the player's fan only on tile/depth change (radius ~26, ~3 ms) and bakes
+  flat arrays so `_drawFan` is one stroke (routes) + one fill (tips) per frame. (Per-cell dimming
+  was tried and reverted — it tanked the framerate.) A dedicated rendering pass + the corkscrew
+  (`cost`/`connectorAt`) are next.
+- `js/store.js` — places now bind to a **chamber address** (postal): `setChamberLookup`/`withAddress`
+  attach `gid`/`addr`/`depth`; the `hoop.place` lexicon gained those optional fields. Tile stays the rkey.
 - `worker.js` — assets + the **HoopRoom** presence Durable Object (live positions over WebSockets).
+- `research.html` + `js/research.js` — the **research dossier** (linked from the topbar `❖ research`
+  pill): the supporting-world models from the three modelling wings, collated as a scientific report
+  with three live "active figures" — the hull section + secant cable web (rind), the circular axis
+  cross-section over the real ratchet topography (lakes as equipotential arcs + the ratchet river,
+  ported from tide/ratchet) (tide), the closed food-web loop (biome). Note the
+  secant duality across the two circular figures: a cable IS a secant (structure), a lake is NOT one
+  (the ratchet's equipotential arc). The figure kernels in `research.js` are pure/zero-dep and
+  re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at
+  runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
+- `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
+  `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
+  fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
+  big seed at each room centre, fining toward the walls (**room spacing** ⇒ interior coarseness) — so
+  detail goes where it's needed and the cells fit between the two. **Doors** are two-nuclei-wide gaps
+  cut in the wall + floor-bridged (a spanning tree keeps every room connected; `loops` adds roads).
+  **Zones** force higher-order structure: rooms agglomerate into sized super-regions (graph-Voronoi,
+  weighted so a "program" can mix housing-16 + hospital-64) — dense doors inside a zone, a sparse
+  arterial tree between zones. Sliders for wall/room spacing, room size, loops, zone size; mixed-
+  program + tint/floor-plan/roads/nuclei toggles. Geometry kernel is pure + node-tested
+  (`test/paint.selftest.mjs`, 34 checks: grading, door connectivity, zone connectivity + arterials);
+  the page only draws what `buildScene()` returns. A sandbox to iterate the look before world.js.
+- `econ/` (`econ/index.html` + `econ/econ.js`) — **economies as ecosystems**, the ideation canvas at
+  `hoop.mino.mobi/econ/`. A place is the economic cousin of a biome species: a **role** (verb) × a
+  **domain** (matter) × **flows** (`in`/`out` resource tokens). `buildField()` scatters a big field,
+  Voronoi-tiles it (reuses `paint/voronoi.js` primitives) and wires each `in` to its nearest `out` —
+  a **supply web** you read like a food web (closure %, gaps, keystones). `buildSociety()` lays
+  **people who wear many hats** over it — Jim = mend@chopshop + grow@home + worship + learn@toastmasters
+  — the multiplex affiliation graph whose **interaction thickness** (avg hats/person) is the economic
+  cousin of ecological connectance (thin webs are brittle). `socialMetrics()` scores each place
+  **bridge vs bond** (Granovetter weak ties: does it introduce strangers, or just re-link an
+  overlapping clique) + global `avgReach`; households share a parish/local club (bonds) with eclectic
+  far ties (bridges). `removeImpact()` is the two-web shock — remove a place, see ties break +
+  orphaned (people) AND needs at risk + rerouted (materials). Post-scarcity tell: the real output is
+  `regard` (the ATProto economy of esteem). Brutalist render (flat cells, thin lines, supply web +
+  social fabric as faint edges; click a place → who's there, its weave %, and the shock); colour by
+  role/domain/tier/social/bridging. Pure + node-tested (`test/econ.selftest.mjs`, 32 checks).
+  **Ideation stage** — the real build is intended for a fresh `main` later; this is the sketchpad.
 
 ## The package it belongs to
 
@@ -33,6 +85,9 @@ reachable from hoop's topbar pills (⬡ rind · ☁ tide · ❧ biome); keep tho
 node hoop/test/ship.selftest.mjs            # ship engine invariants (determinism, seamless chunks)
 node hoop/test/world.selftest.mjs           # the Voronoi-ship rewrite: mesh + gravity movement
 node hoop/test/cylinder-ring.selftest.mjs   # does the generated world substrate come out ROUND
+node hoop/test/research.selftest.mjs        # dossier figure kernels vs. the wings' published numbers
+node hoop/test/postal.selftest.mjs          # the postal system: addressing, locality, Merkle digests
+node hoop/test/nav.selftest.mjs             # two-tier HPA* routing over the real engine tiles
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

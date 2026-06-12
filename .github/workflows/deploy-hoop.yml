@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/oneill-cylinder-refactor-xjknww']
+    branches: [main, 'claude/hoop-game-docs-research-x5p1jx']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'

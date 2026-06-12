@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · the intermingling lab — does coupling the food webs make them more robust?</title>
+<meta name="description" content="The land and lake food webs are trophically disjoint by default. Wire cross-web trophic edges — an amphibian, a waterbird, a chthonic soil web — and read off the community matrix whether intermingling makes the closed ecosystem more or less robust." />
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --land:#6cc27f; --lake:#5aa9d8; --pool:#caa6e0;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(140% 120% at 50% -10%,#15231d,#0a110e 60%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 22px 0}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 22px 8px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;letter-spacing:.5px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:94ch;line-height:1.55}
+  .sub b{color:var(--txt)} .sub .l{color:var(--land)} .sub .w{color:var(--water)} .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:312px 1fr;gap:18px;padding:18px 22px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px}
+  .panel h2{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:6px}
+  .chip{font:600 11px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);
+    border-radius:99px;padding:7px 11px;cursor:pointer;transition:.12s}
+  .chip:hover{border-color:#3c6a4c}
+  .chip.on{background:#13241a;border-color:#2c5a3c;color:var(--leaf)}
+  .tog{display:flex;align-items:center;gap:9px;margin:9px 0;font-size:12.5px;cursor:pointer;user-select:none}
+  .tog input{accent-color:var(--leaf);width:16px;height:16px}
+  .tog .tag{font-size:10px;padding:2px 6px;border-radius:99px;margin-left:auto}
+  label.ctl{display:block;margin:11px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--leaf);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--leaf);height:16px}
+  .note{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.55}
+  .note b{color:var(--txt)} .note .l{color:var(--land)} .note .w{color:var(--water)}
+  .verdict{font-size:13px;padding:12px 14px;border-radius:8px;margin-bottom:14px;border:1px solid var(--line)}
+  .verdict.ok{background:#13241a;border-color:#2c5a3c}
+  .verdict.warn{background:#23200f;border-color:#5a4f2c}
+  .verdict.bad{background:#251612;border-color:#5a342c}
+  .verdict b{display:block;font-size:14px;margin-bottom:3px;color:var(--txt)}
+  .verdict .base{color:var(--dim);font-size:12px;margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  @media(max-width:620px){.gauges{grid-template-columns:repeat(2,1fr)}}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .g .k{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+  .g .v{font-size:18px;font-weight:600;margin-top:2px}
+  .g .u{font-size:10.5px;color:var(--dim)}
+  .g .d{font-size:11px;margin-top:3px;font-weight:600}
+  .up{color:var(--leaf)} .down{color:var(--warn)} .flat{color:var(--dim)}
+  canvas{width:100%;display:block;background:#0b1310;border:1px solid var(--line);border-radius:8px}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:920px){.twocol{grid-template-columns:1fr}}
+  .bars{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+  .bar{display:grid;grid-template-columns:84px 1fr 38px;align-items:center;gap:8px;font-size:12px}
+  .bar .track{height:12px;background:#0e1713;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .bar .fill{height:100%;background:linear-gradient(90deg,var(--leaf),var(--gold))}
+  .bar .pct{text-align:right;color:var(--dim)}
+  .edges{font-size:12px;line-height:1.7}
+  .edges .e{display:block}
+  .pill{display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;border:1px solid var(--line);margin-right:6px}
+  .pill.ll{color:var(--water);border-color:#2c4a5a} .pill.gb{color:var(--gold);border-color:#4a3c22}
+  footer{padding:6px 22px 30px;font:11.5px/1.6 var(--mono);color:var(--dim)}
+  footer a{color:var(--gold);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">biome</a> / intermingling lab</div>
+<header>
+  <h1>biome · the intermingling lab <small>— does coupling the food webs make them more robust?</small></h1>
+  <div class="sub">By default the <span class="l">terrestrial</span> and <span class="w">aquatic</span> webs are
+    <b>trophically disjoint</b> — they share pools, not prey. Here you can <b>wire real cross-web trophic edges</b>
+    — an amphibian whose larvae graze the lake and adults eat soil springtails, a generalist waterbird coupling
+    three channels, a chthonic soil web (earthworm · fungus · ground-beetle) that links the green and brown
+    energy channels — and read off the <b>community matrix</b> whether intermingling helps. Every config is
+    compared against the disjoint baseline. The classic tension: <b>May 1972</b> (more coupling destabilises)
+    vs <b>McCann/Rooney</b> (weak fast–slow channel coupling by a mobile generalist <i>stabilises</i>).
+    &nbsp;→ <a href="./stability.html">stability lab</a> · <a href="./global.html">global web</a> · <a href="../graph/">force graph</a></div>
+</header>
+<main>
+  <section>
+    <div class="panel">
+      <h2>Scenarios</h2>
+      <div class="chips" id="chips"></div>
+      <div class="note">Step through the story, or build your own with the switches below.</div>
+    </div>
+    <div class="panel">
+      <h2>Cross-web couplers</h2>
+      <label class="tog"><input type="checkbox" id="t-frog"><span>🐸 Amphibian (marsh frog)</span><span class="tag" style="background:#13241a;color:var(--leaf)">land↔lake</span></label>
+      <label class="tog"><input type="checkbox" id="t-duck"><span>🦆 Waterbird (dabbling duck)</span><span class="tag" style="background:#1a1428;color:var(--pool)">3 channels</span></label>
+      <label class="tog"><input type="checkbox" id="t-soil"><span>🪱 Chthonic soil web (worm·fungus·beetle)</span><span class="tag" style="background:#231a12;color:var(--gold)">green↔brown</span></label>
+      <label class="tog"><input type="checkbox" id="t-dense"><span>🎲 Dense random cross-links</span><span class="tag" style="background:#251612;color:var(--warn)">the May case</span></label>
+    </div>
+    <div class="panel">
+      <h2>Knobs</h2>
+      <label class="ctl"><span class="row"><span>Coupler abundance</span><b id="v-ab"></b></span>
+        <input id="ab" type="range" min="0.1" max="6" step="0.1" value="1"></label>
+      <label class="ctl"><span class="row"><span>Crew</span><b id="v-crew"></b></span>
+        <input id="crew" type="range" min="40" max="240" step="10" value="100"></label>
+      <label class="ctl"><span class="row"><span>Producer area</span><b id="v-area"></b></span>
+        <input id="area" type="range" min="0.6" max="2" step="0.05" value="1"></label>
+      <div class="note">Abundance scales how many of the coupler organisms you stock — push it up and
+      the slow detrital modes pile toward zero (marginal). Producer area is the feeding lever:
+      endotherms (the duck) are calorie-expensive, so a consumer-heavy web needs more leaf to keep
+      the crew fed.</div>
+    </div>
+  </section>
+  <section>
+    <div id="verdict" class="verdict"></div>
+    <div class="gauges" id="gauges"></div>
+    <div class="twocol">
+      <div class="panel">
+        <h2>Eigenvalue spectrum (per day) — baseline ghosted</h2>
+        <canvas id="spectrum" width="460" height="340"></canvas>
+        <div class="note"><b>Left of the dashed line is stable.</b> Filled dots = this web; faint rings =
+        the disjoint baseline. Watch the <b style="color:var(--leaf)">rightmost</b> dot (the verdict) and how
+        far it sits from zero — that distance is the return rate.</div>
+      </div>
+      <div class="panel">
+        <h2>Active cross-web bridges</h2>
+        <div class="edges" id="bridges"></div>
+        <div class="note" id="interpret"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Keystones — who moves the web when pressed (normalised)</h2>
+      <div class="bars" id="keystones"></div>
+      <div class="note">From −J⁻¹ (Bender press perturbation). Intermingling often shifts the keystone:
+      add the soil predator and <i>it</i> becomes the lever the whole web hangs on.</div>
+    </div>
+  </section>
+</main>
+<footer id="foot"></footer>
+
+<script type="module">
+import { globalRoster, LAND_IDS, LAKE_IDS } from './sim/global.mjs';
+import { analyzeDesign } from './sim/builder.mjs';
+
+const $ = (id) => document.getElementById(id);
+const LAKE = new Set(LAKE_IDS);
+
+// ── the disjoint baseline roster, design-shaped ──
+const baseSpecies = () => globalRoster().map((o) => ({
+  ...o, name: o.common || o.name || o.id, harvest: o.override?.harvest ?? o.harvest,
+}));
+const clone = (a) => JSON.parse(JSON.stringify(a));
+
+// ── coupler organisms (allometric stat blocks; abundance n scales the stock) ──
+const couplerDefs = (n) => ({
+  frog: { id:'frog', name:'Marsh frog', kind:'animal', mass_g:30, guild:'carnivore', thermy:'ecto',
+    count:Math.round(700*n), eats:['daphnia','springtail'], halfSat:4000 },                 // tadpole→lake, adult→soil
+  duck: { id:'duck', name:'Dabbling duck', kind:'animal', mass_g:1000, guild:'omnivore', thermy:'endo',
+    count:Math.round(160*n), eats:['duckweed','daphnia','crop','springtail'], halfSat:5000, harvest:0.002 },
+  worm: { id:'worm', name:'Earthworm', kind:'animal', mass_g:0.5, guild:'detritivore', thermy:'ecto',
+    initBio:Math.round(50000*n), eats:['litter'], halfSat:9000 },
+  fungus: { id:'fungus', name:'Saprotroph fungus', kind:'animal', mass_g:0.001, guild:'detritivore', thermy:'ecto',
+    initBio:Math.round(30000*n), eats:['litter'], halfSat:9000 },
+  beetle: { id:'beetle', name:'Ground beetle', kind:'animal', mass_g:0.2, guild:'carnivore', thermy:'ecto',
+    count:Math.round(2500*n), eats:['springtail','worm'], halfSat:8000 },                   // the brown-web predator
+});
+
+const state = { frog:false, duck:false, soil:false, dense:false };
+
+// ── compose the current design from the toggles ──
+function buildSpecies() {
+  const n = parseFloat($('ab').value);
+  const area = parseFloat($('area').value);
+  const sp = clone(baseSpecies());
+  for (const s of sp) if (s.kind === 'producer') s.area_m2 = Math.round(s.area_m2 * area);
+  const C = couplerDefs(n);
+  if (state.soil) {
+    sp.push(C.worm, C.fungus, C.beetle);
+    const spider = sp.find((s) => s.id === 'spider');                 // green↔brown: spider also takes springtails
+    if (spider && !spider.eats.includes('springtail')) spider.eats = [...spider.eats, 'springtail'];
+  }
+  if (state.frog) sp.push(C.frog);
+  if (state.duck) sp.push(C.duck);
+  if (state.dense) {                                                  // ecologically-arbitrary strong cross edges
+    const e = (id, ...prey) => { const s = sp.find((x) => x.id === id); if (s) s.eats = [...new Set([...s.eats, ...prey])]; };
+    e('spider', 'daphnia', 'fish'); e('fish', 'bee', 'spider'); e('mussel', 'reed');
+  }
+  return sp;
+}
+
+// ── analysis (memoised baseline) ──
+let baseline = null;
+function analyzeBaseline() {
+  if (baseline) return baseline;
+  const area = parseFloat($('area').value), crew = parseFloat($('crew').value);
+  const sp = clone(baseSpecies());
+  for (const s of sp) if (s.kind === 'producer') s.area_m2 = Math.round(s.area_m2 * area);
+  baseline = analyzeDesign({ name:'disjoint', crew, photoperiod:0.7, waterPerCrew:11000, species: sp }, { days:500 });
+  return baseline;
+}
+
+// ── small helpers ──
+const fmtRet = (s) => (s.stable ? (isFinite(s.returnTime) ? Math.round(s.returnTime) + ' d' : '∞') : '—');
+const deltaTag = (cur, base, betterWhenLower=true) => {
+  if (base == null || cur == null || !isFinite(cur) || !isFinite(base)) return ['', 'flat'];
+  const d = cur - base; if (Math.abs(d) / Math.max(Math.abs(base), 1e-9) < 0.02) return ['≈ baseline', 'flat'];
+  const better = betterWhenLower ? d < 0 : d > 0;
+  const arrow = d < 0 ? '▼' : '▲';
+  const txt = `${arrow} ${Math.abs(d) >= 100 ? Math.round(Math.abs(d)) : Math.abs(d).toFixed(2)} vs base`;
+  return [txt, better ? 'up' : 'down'];
+};
+const g = (k, v, u, dtxt, dcls, color) =>
+  `<div class="g"><div class="k">${k}</div><div class="v" style="color:${color}">${v}</div><div class="u">${u}</div><div class="d ${dcls}">${dtxt}</div></div>`;
+
+// ── spectrum: current filled + baseline ghost rings, shared axes ──
+function drawSpectrum(cv, cur, base) {
+  const ctx = cv.getContext('2d'); const W = cv.width, H = cv.height; ctx.clearRect(0,0,W,H);
+  const all = [...cur, ...(base||[])];
+  const res = Math.max(...all.map((e) => Math.abs(e.re)), 0.01);
+  const ims = Math.max(...all.map((e) => Math.abs(e.im)), 0.01);
+  const xspan = res * 1.25, yspan = ims * 1.25 || 0.05;
+  const px = (re) => W*0.12 + (re + xspan)/(xspan*1.05) * (W*0.82);
+  const x0 = px(0), pad = 28;
+  const py = (im) => H/2 - (im/yspan)*(H/2 - pad);
+  ctx.strokeStyle = '#27362f'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  ctx.strokeStyle = '#5a342c'; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,H); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#7f9b8d'; ctx.font = '10px monospace';
+  ctx.fillText('stable ←', x0-64, 13); ctx.fillText('→ unstable', x0+6, 13);
+  if (base) for (const e of base) {            // ghost baseline
+    ctx.beginPath(); ctx.arc(px(e.re), py(e.im), 4.5, 0, 7);
+    ctx.strokeStyle = 'rgba(127,155,141,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  const alpha = Math.max(...cur.map((e) => e.re));
+  for (const e of cur) {
+    const rightmost = Math.abs(e.re - alpha) < 1e-12;
+    ctx.beginPath(); ctx.arc(px(e.re), py(e.im), rightmost?6:4, 0, 7);
+    ctx.fillStyle = e.re < 0 ? (rightmost?'#62b87a':'#3f8f5a') : '#e0795a'; ctx.fill();
+    if (rightmost) { ctx.strokeStyle = '#d8b25a'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+}
+
+// ── which active trophic edges bridge land↔lake or green↔brown ──
+function bridges(params) {
+  const web = (id) => LAKE.has(id) ? 'lake' : 'land';
+  const out = [];
+  for (const e of params.interactions) {
+    if (e.type !== 'trophic') continue;
+    for (const r of e.resources) {
+      if (r === 'litter') continue;
+      if (web(r) !== web(e.consumer)) out.push({ from:r, to:e.consumer, kind:'ll' });
+    }
+  }
+  // green↔brown: a carnivore eating both a herbivore/nectarivore AND a detritivore (or litter chain)
+  const byId = Object.fromEntries(params.species.map((s) => [s.id, s]));
+  for (const e of params.interactions) {
+    if (e.type !== 'trophic') continue;
+    const prey = e.resources.map((r) => byId[r]?.role || (r==='litter'?'detritivore':''));
+    const green = prey.some((r) => r==='herbivore' || r==='nectarivore');
+    const brown = prey.some((r) => r==='detritivore') || e.resources.includes('litter');
+    if (green && brown) out.push({ from:'green+brown', to:e.consumer, kind:'gb' });
+  }
+  return out;
+}
+
+// ── interpretation text adapts to the active couplers + the measured deltas ──
+function interpret(cur, base) {
+  const sC = cur.stability, sB = base.stability;
+  if (!sC || sC.error) return 'Stability analysis unavailable for this configuration.';
+  const bits = [];
+  const dRet = (sC.returnTime||0) - (sB.returnTime||0);
+  const dReact = (sC.reactivity||0) - (sB.reactivity||0);
+  if (!state.frog && !state.duck && !state.soil && !state.dense) {
+    return 'This is the disjoint baseline — land and lake share pools, not prey. Toggle a coupler to wire a real cross-web trophic edge and watch the spectrum move.';
+  }
+  if (state.frog && !state.duck && !state.soil && !state.dense)
+    bits.push('One weak, structured bridge (the frog grazes the lake as a tadpole, eats soil springtails as an adult). ' + (dRet < 0 ? 'Return time <b>shortened</b> — the web snaps back faster. This is the McCann "weak interactions stabilise" result.' : 'Return time barely moved.'));
+  if (state.duck)
+    bits.push('The waterbird is a mobile generalist coupling a <b>fast</b> aquatic channel to a <b>slow</b> detrital one — ' + (dReact < -0.02 ? 'it <b>damps reactivity</b> (fewer wild transients), exactly Rooney\'s fast–slow stabiliser.' : 'but as an endotherm it is calorie-expensive, so watch closure.'));
+  if (state.soil)
+    bits.push('The chthonic soil web adds a fast ectotherm predator (the beetle) over the brown channel — ' + (dReact > 0.5 ? 'the web turns <b>much more reactive</b> (twitchy: big transient amplification) and a near-neutral slow mode appears, pushing toward marginal.' : 'reshaping the keystone toward the soil predator.'));
+  if (state.dense)
+    bits.push('<b>Dense random cross-links</b> with no ecological logic — the May 1972 case: coupling for its own sake erodes the margin and amplifies shocks.');
+  bits.push(`<b>Net:</b> return time ${dRet<0?'down '+Math.round(-dRet)+' d (better)':dRet>0?'up '+Math.round(dRet)+' d (slower)':'≈ baseline'}, reactivity ${dReact<-0.02?'down (calmer)':dReact>0.02?'up (twitchier)':'≈ baseline'}. Robustness ${(dRet<0||dReact<-0.02)&&!(dReact>0.5)?'<span class="up">improved</span>':dReact>0.5||dRet>2000?'<span class="down">eroded</span>':'≈ unchanged'} — intermingling is not free, and not uniformly good.`);
+  return bits.join(' ');
+}
+
+const SP_COLOR = (id) => LAKE.has(id) ? 'var(--water)' : (['frog','duck'].includes(id)?'var(--pool)':'var(--land)');
+
+function render() {
+  $('v-ab').textContent = parseFloat($('ab').value).toFixed(1) + '×';
+  $('v-crew').textContent = $('crew').value + ' people';
+  $('v-area').textContent = parseFloat($('area').value).toFixed(2) + '×';
+  const crew = parseFloat($('crew').value);
+
+  const base = analyzeBaseline();
+  const cur = analyzeDesign({ name:'web', crew, photoperiod:0.7, waterPerCrew:11000, species: buildSpecies() }, { days:500 });
+
+  const vc = $('verdict');
+  if (!cur.ok) { vc.className = 'verdict bad'; vc.innerHTML = `<b>This web won't compile / run</b>${cur.problems.join('; ')}`; return; }
+  const s = cur.stability || {};
+  vc.className = 'verdict ' + (s.marginal ? 'warn' : (!s.stable ? 'bad' : (cur.closure.closes ? 'ok' : 'warn')));
+  vc.innerHTML = `<b>${s.marginal?'~ Marginally stable (on the edge)':!s.stable?'✕ Unstable':'✓ Stable'}${cur.closure.closes?' · closes':' · does not close'}</b>`
+    + `${cur.verdict}`
+    + `<div class="base">vs disjoint baseline: ${base.stability.stable?(base.stability.marginal?'marginally stable':'stable'):'unstable'}, return ${fmtRet(base.stability)}, reactivity ${base.stability.reactivity.toFixed(2)}, ${base.closure.closes?'closes':'does not close'}.</div>`;
+
+  const [dRetTxt, dRetCls] = deltaTag(s.returnTime, base.stability.returnTime, true);
+  const [dReTxt, dReCls] = deltaTag(s.reactivity, base.stability.reactivity, true);
+  $('gauges').innerHTML =
+    g('Return time', fmtRet(s), 'shock decay', s.stable?dRetTxt:'unstable', s.stable?dRetCls:'down', 'var(--gold)') +
+    g('Reactivity', (s.reactivity??NaN).toFixed(2), s.reactive?'amplifies first':'absorbs', dReTxt, dReCls, s.reactive?'var(--warn)':'var(--leaf)') +
+    g('Stable?', s.marginal?'marg':s.stable?'yes':'no', 'eigenvalues', `base: ${base.stability.marginal?'marg':base.stability.stable?'yes':'no'}`, 'flat', s.marginal?'var(--gold)':s.stable?'var(--leaf)':'var(--warn)') +
+    g('Feeds crew?', cur.closure.closes?'yes':'no', `${Math.round(cur.closure.calorieRatio*100)}% of demand`, `base: ${base.closure.closes?'yes':'no'}`, 'flat', cur.closure.closes?'var(--leaf)':'var(--warn)');
+
+  drawSpectrum($('spectrum'), s.eigenvalues || [], base.stability.eigenvalues || []);
+
+  const br = bridges(cur.params);
+  $('bridges').innerHTML = br.length
+    ? br.map((e) => `<span class="e"><span class="pill ${e.kind}">${e.kind==='ll'?'land↔lake':'green↔brown'}</span>${e.from} → <b>${e.to}</b></span>`).join('')
+    : '<span style="color:var(--dim)">none — the webs are disjoint (they share pools, not prey).</span>';
+  $('interpret').innerHTML = interpret(cur, base);
+
+  $('keystones').innerHTML = (s.keystone || []).slice(0, 8).map((k) =>
+    `<div class="bar"><span style="color:${SP_COLOR(k.id)}">${k.id}</span><span class="track"><span class="fill" style="width:${(k.influence*100).toFixed(0)}%"></span></span><span class="pct">${k.influence.toFixed(2)}</span></div>`
+  ).join('');
+}
+
+// ── scenarios ──
+const SCENARIOS = {
+  'Disjoint':            { frog:false, duck:false, soil:false, dense:false, ab:1,   area:1 },
+  '+ Frog (weak bridge)':{ frog:true,  duck:false, soil:false, dense:false, ab:1,   area:1 },
+  '+ Waterbird':         { frog:false, duck:true,  soil:false, dense:false, ab:1,   area:1.25 },
+  '+ Soil web':          { frog:false, duck:false, soil:true,  dense:false, ab:1,   area:1.1 },
+  'Full intermingle':    { frog:true,  duck:true,  soil:true,  dense:false, ab:1,   area:1.35 },
+  'Dense random (May)':  { frog:false, duck:false, soil:false, dense:true,  ab:1,   area:1.25 },
+};
+function applyScenario(name) {
+  const sc = SCENARIOS[name];
+  state.frog = sc.frog; state.duck = sc.duck; state.soil = sc.soil; state.dense = sc.dense;
+  $('t-frog').checked = sc.frog; $('t-duck').checked = sc.duck; $('t-soil').checked = sc.soil; $('t-dense').checked = sc.dense;
+  $('ab').value = sc.ab; $('area').value = sc.area;
+  for (const c of document.querySelectorAll('.chip')) c.classList.toggle('on', c.dataset.name === name);
+  render();
+}
+const chips = $('chips');
+for (const name of Object.keys(SCENARIOS)) {
+  const b = document.createElement('button'); b.className = 'chip'; b.textContent = name; b.dataset.name = name;
+  b.addEventListener('click', () => applyScenario(name)); chips.appendChild(b);
+}
+
+// toggles + knobs clear the active scenario chip (you've gone off-script)
+for (const [id, key] of [['t-frog','frog'],['t-duck','duck'],['t-soil','soil'],['t-dense','dense']])
+  $(id).addEventListener('change', (e) => { state[key] = e.target.checked; for (const c of document.querySelectorAll('.chip')) c.classList.remove('on'); render(); });
+for (const id of ['ab','crew','area']) $(id).addEventListener('input', () => {
+  if (id === 'crew' || id === 'area') baseline = null;   // baseline depends on crew + area
+  render();
+});
+
+$('foot').innerHTML = 'stability read off the real model\'s community matrix (May 1972 · Neubert &amp; Caswell 1997 · Bender 1984). '
+  + 'the canonical <a href="./global.html">global web</a> stays disjoint by design — this lab explores the alternative. → <a href="../">biome</a>';
+
+// open on the clean affirmative result — the chips walk you into the tradeoffs (Full intermingle,
+// Dense random) where the richest coupling reveals its precariousness.
+applyScenario('+ Frog (weak bridge)');

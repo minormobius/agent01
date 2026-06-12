@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.podcast.subscription",
+  "description": "A podcast feed the user follows in the /app client. One record per feed, stored in the user's own repo so subscriptions sync across devices. The record key is a deterministic hash of the feed URL, so the same feed is never duplicated (putRecord is idempotent).",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["url", "createdAt"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The podcast RSS feed URL."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Cached feed title for display before the feed is fetched."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

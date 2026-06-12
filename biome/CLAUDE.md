@@ -22,7 +22,32 @@ stocks and flows?* Everything lives under `cycles/`:
 - `cycles/index.html` — the dashboard; `cycles/stability.html` — the stability lab;
   `cycles/lake.html` — the **lake bioengine**; `cycles/global.html` — the **global food web**;
   `cycles/builder.html` — the **builder**: design any web, read its stability, share it by link.
+- `cycles/robustness.html` — the **intermingling lab**: wires *cross-web* trophic edges (an amphibian,
+  a waterbird, a chthonic soil web of earthworm/fungus/ground-beetle) and reads off the community matrix
+  whether coupling the land & lake webs makes the closed ecosystem more robust (May 1972 vs McCann/Rooney).
+  It composes these on the fly via `builder.mjs` + `stability.mjs`; the **canonical `global.mjs` stays
+  trophically disjoint** (invariant #6) — this lab *explores* the alternative, it does not change the model.
+  Finding: one weak fast–slow bridge (the frog) shortens return time; dense/strong coupling spikes
+  reactivity and erodes the margin. Pure client-side, two model runs per render.
 - `cycles/solver/` — the Rust/WASM stability kernel (the precision/scale sister of linalg.mjs).
+- `cycles/sim/maximal.mjs` — the **maximalist intermingled web**: land ∪ lake ∪ a chthonic soil web
+  (earthworm + saprotroph fungus + the springtail) wired together by real CROSS-WEB couplers — a frog
+  (lake↔soil) and a farmed duck (lake↔land). Unlike `global.mjs` it HAS cross-web trophic edges (that
+  is the point). Tuned (weak-coupling regime: few couplers, prey refuges, the duck heavily harvested)
+  so **every species persists** and C/H/O/N still conserve — both pinned by `cycles/test/maximal.selftest.mjs`.
+  Exposes `CONTAINERS` (land/lake/soil/bridge) + `buildMaximalGraph()` (edges tagged `.cross` when they
+  bridge containers). NB: a fast soil predator (a ground beetle) is intentionally omitted — it over-eats
+  the worm and collapses the brown web (the reactivity spike the intermingling lab flags).
+- `graph/index.html` — the **trophic-web force graph** at `biome.mino.mobi/graph`. The **maximalist**
+  web as one force-directed graph: each organism wears its iNaturalist photo, **sized by present
+  standing biomass**, and the three habitats are each held in their own **basin** (LAND · LAKE · SOIL),
+  with the couplers (frog, duck) floating in the gaps and the shared pools (air/N/detritus/larder) in the
+  centre where all three webs meet. Cross-container edges are drawn gold; a toggle isolates them. Reads
+  `buildMaximalGraph()`/`maximalReport()` from `cycles/sim/maximal.mjs` + the committed `graph/organisms.json`
+  imagery (built by `node biome/graph/build-organisms.mjs` over land+lake+soil+coupler rosters; engine never
+  reads it). **The whole script is wrapped in an error overlay** (`#err`) — any throw shows on the page
+  instead of blanking the canvas; keep it that way. The worker normalises the no-slash `/graph` to `/graph/`
+  — the only non-asset route, a rewrite to a page, not server compute.
 
 ## The package it belongs to
 
@@ -44,6 +69,8 @@ node biome/cycles/test/linalg.selftest.mjs        # 15 checks: inverse + eigenva
 node biome/cycles/test/stability.selftest.mjs     # 11 checks: stability verdict + decay cross-check
 node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves, both figures of merit, failure modes, stability
 node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
+node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web conserves, every species persists, couplers bridge containers
+node biome/gacha/test/gacha.selftest.mjs          # 13 checks: ECOSYSTEM GACHA engine — catalog, deterministic rolls, conservation, valid wiring, rarity spread
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
@@ -62,6 +89,41 @@ The self-tests are the contract — run them before every push.
   committed `pkg/`.
 - Ownership is in `deploy-registry.json` (surface `biome`). Edit the registry, then
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
+
+## The ecosystem gacha (`gacha/`) — live at `biome.mino.mobi/gacha` (Phases 0–1)
+
+A procedural ecosystem **generator + viability oracle** that turns the trophic solver into a
+roll-and-discover game (pattern borrowed from `/fable` + `/mappa`: seeded determinism → an oracle
+scores → rarity emerges from the oracle, not RNG). Phase 0 (engine, fully sandbox-tested) is in:
+
+- `gacha/prng.js` — the shared `xmur3→mulberry32` `Rand` (copied from fable/mappa/borges). A roll
+  number `n` must reproduce the identical ecosystem for ever — the `/gacha/?n=<n>` permalink contract.
+- `gacha/catalog.json` — ~60 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
+  (curated traits + iNaturalist photos). Each carries the traits the assembler needs: guild, mass_g,
+  thermy, habitats[], producer growth params / per-guild starting biomass, flags (pollinator, harvestable).
+- `gacha/sim/assemble.mjs` — `rollDesign(n, catalog)`: seed → a valid food web in the **builder's
+  `design` shape**, wiring diets by **guild + body-size + habitat rules** (carnivores eat present
+  animals in a prey-mass window; species spanning two habitats become couplers automatically), with
+  prune-the-starvers + reject-and-reroll (salt 0..7). Output compiles through `builder.designToParams`.
+- `gacha/sim/score.mjs` — `evaluateRoll(roll)`: runs `analyzeDesign` (closure + community-matrix
+  stability) and returns one `interest` 0..100 + a rarity tier. **Rarity = VIABILITY** (closes · persists ·
+  stable · fed · air · robust · crew carried), minus degeneracy penalties (collapse/monoculture/runaway).
+  Legendary = a self-closing, stable, crew-carrying world. (Axis chosen by the user; not "interestingness".)
+
+- `gacha/index.html` — the **page** (Phase 1): a ROLL button → reveal → the rolled web drawn in a
+  habitat-clustered force graph (photo nodes sized by biomass, shared pools in the centre) + a
+  collectible **card** (rarity foil + stars, procedural name, the viability readout, the species cast).
+  `⛏ Hunt a gem` searches the seed-space forward (budgeted, yields to the UI) for an Epic+. Every roll is
+  a permalink `/gacha/?n=<n>` (deterministic). Pure client-side; wrapped in the same `#err` overlay as
+  `/graph`. The worker normalises no-slash `/gacha` → `/gacha/`.
+
+Roadmap: ✅ Phase 0 (engine) · ✅ Phase 1 (page). Next: Phase 2 = filters + an Atlas gallery of the
+best seeds (move the hunt to a Web Worker if it janks); Phase 3 = keep/publish pulls to PDS
+(`com.minomobi.biome.ecosystem`) + OG cards; Phase 4 = automated iNat+GloBI harvest to deepen the deck.
+Calibration TODO: confirm Legendaries (≥88) are reachable across a big sweep and tune the tier bands.
+NB the gacha runs the box model at dt=3h (fast, interactive) — conservation is exact by flux
+construction; a few stiff random webs show ~1e-7 numerical drift at that step (negligible; the
+self-test proves machine precision at dt=0.5h).
 
 ## Invariants — do not break
 

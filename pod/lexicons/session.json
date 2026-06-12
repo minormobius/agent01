@@ -1,0 +1,45 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.podcast.session",
+  "description": "A studio recording session: a room plus the manifest of per-participant tracks captured in it. The producer loads this in /prod to collect every track in one browser, align them, and mix down.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["roomId", "host", "epochMs", "startedAt"],
+        "properties": {
+          "roomId": {
+            "type": "string",
+            "description": "Permalink room id (pod.mino.mobi/room/<roomId>)."
+          },
+          "title": { "type": "string", "maxLength": 300 },
+          "host": { "type": "string", "format": "did" },
+          "participants": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "com.minomobi.podcast.track#participant" },
+            "maxLength": 32
+          },
+          "tracks": {
+            "type": "array",
+            "items": { "type": "string", "format": "at-uri" },
+            "maxLength": 32,
+            "description": "AT-URIs of com.minomobi.podcast.track records. Each track may live on its own author's PDS — every participant uploads their own."
+          },
+          "epochMs": {
+            "type": "integer",
+            "description": "Shared recording epoch broadcast to all participants when recording armed."
+          },
+          "startedAt": { "type": "string", "format": "datetime" },
+          "endedAt": { "type": "string", "format": "datetime" },
+          "status": {
+            "type": "string",
+            "enum": ["recording", "stopped", "published"],
+            "default": "stopped"
+          }
+        }
+      }
+    }
+  }
+}

@@ -14,14 +14,37 @@
 //   putPlace(place)                    -> Place      (deterministic rkey `${x}-${y}`)
 //   listMessages(placeId)              -> Message[]
 //   postMessage({placeId,text,parentId}) -> Message
+//
+// Every place also carries a CHAMBER ADDRESS (the postal system): the foam chamber it sits in
+// (`gid`), that gid wrapped in a hierarchical address (`addr`), and the radial layer (`depth`).
+// The address is sourced from a chamber lookup the app injects (setChamberLookup) — store stays
+// free of world.js. A place is therefore "the thread of chamber X", not just a raw tile; NPCs
+// will bind to the same addresses. Tile (x,y) stays as the canonical drop coordinate + rkey.
 
 import { listRepoRecords, resolveDid, profileForDid } from './atproto.js';
+import { addressFromGid } from './postal.js';
 
 export const PLACE_NSID = 'com.minomobi.hoop.place';
 export const MESSAGE_NSID = 'com.minomobi.hoop.message';
 
 export const placeId = (x, y) => `${x}-${y}`;
 const nowISO = () => new Date().toISOString();
+
+// ── chamber lookup (injected by the app from world.js's FoamField) ────────────────────────
+// fn(x,y) -> { gid:"cx,cy,i", depth } | null. Kept out of store's hard deps so the model and
+// both backends stay world-agnostic and testable.
+let _chamberLookup = null;
+export function setChamberLookup(fn) { _chamberLookup = fn; }
+// attach gid / addr / depth to a place if missing and a lookup is available (best-effort, pure)
+export function withAddress(place) {
+  if (place && place.addr && place.gid) return place;
+  try {
+    const ch = (_chamberLookup && place && place.x != null) ? (_chamberLookup(place.x, place.y) || {}) : {};
+    const gid = place.gid ?? ch.gid;
+    if (gid == null) return place;
+    return { ...place, gid, depth: place.depth ?? ch.depth ?? 0, addr: place.addr ?? addressFromGid(gid) };
+  } catch { return place; }
+}
 
 // ── Starter world ────────────────────────────────────────────────────────────
 // A small constellation of design nodes for "the infinite game", with a seed
@@ -89,12 +112,12 @@ export class LocalBackend {
     this._write(LS_MSGS, made);
   }
 
-  async listPlaces() { return this._read(LS_PLACES); }
+  async listPlaces() { return this._read(LS_PLACES).map(withAddress); }
 
   async putPlace(place) {
     const places = this._read(LS_PLACES);
     const id = placeId(place.x, place.y);
-    const rec = { id, createdAt: nowISO(), ...place, id };
+    const rec = withAddress({ id, createdAt: nowISO(), ...place, id });
     const i = places.findIndex((p) => p.id === id);
     if (i >= 0) places[i] = { ...places[i], ...rec }; else places.push(rec);
     this._write(LS_PLACES, places);
@@ -144,7 +167,7 @@ export class AtprotoBackend {
       const v = r.value || {};
       const id = placeId(v.x, v.y);
       const prof = await this._profile(r._did);
-      const place = { id, title: v.title, glyph: v.glyph, kind: v.kind, x: v.x, y: v.y, summary: v.summary, createdAt: v.createdAt, author: prof.handle, authorDid: prof.did, avatar: prof.avatar };
+      const place = withAddress({ id, title: v.title, glyph: v.glyph, kind: v.kind, x: v.x, y: v.y, summary: v.summary, addr: v.addr, gid: v.gid, depth: v.depth, createdAt: v.createdAt, author: prof.handle, authorDid: prof.did, avatar: prof.avatar });
       const prev = byId.get(id);
       if (!prev || (place.createdAt && place.createdAt < prev.createdAt)) byId.set(id, place);
     }
@@ -153,15 +176,19 @@ export class AtprotoBackend {
 
   async putPlace(place) {
     const id = placeId(place.x, place.y);
+    const e = withAddress({ ...place });
     const value = {
       $type: PLACE_NSID,
-      title: place.title, glyph: place.glyph || '◆', kind: place.kind || 'node',
-      x: place.x, y: place.y, summary: place.summary || '', createdAt: nowISO(),
+      title: e.title, glyph: e.glyph || '◆', kind: e.kind || 'node',
+      x: e.x, y: e.y, summary: e.summary || '', createdAt: nowISO(),
     };
+    if (e.addr) value.addr = e.addr;            // the chamber address (postal)
+    if (e.gid) value.gid = e.gid;               // the foam chamber it binds to
+    if (e.depth != null) value.depth = e.depth; // the radial layer
     // Deterministic rkey so both designers converge on one place per coordinate.
     await this.auth.pds.putRecord(PLACE_NSID, id, value);
     const me = this.auth.getUser();
-    return { id, ...place, author: me?.handle || 'you', createdAt: value.createdAt };
+    return { id, ...e, author: me?.handle || 'you', createdAt: value.createdAt };
   }
 
   async listMessages(pid) {

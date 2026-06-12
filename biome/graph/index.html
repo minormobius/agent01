@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · the trophic web — three contained habitats, one intermingled food web</title>
+<meta name="description" content="A force-directed graph of the cylinder's maximalist closed ecology: terrestrial, aquatic and chthonic soil webs, each held in its own basin, wired together by an amphibian and a waterbird. Every node is a real organism, sized by its present standing biomass." />
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --land:#6cc27f; --lake:#5aa9d8; --soil:#c39b6a; --pool:#caa6e0; --crew:#e0a06a; --bridge:#e6c14f;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px 0}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:98ch;line-height:1.55}
+  .sub b{color:var(--txt)} .sub .l{color:var(--land)} .sub .w{color:var(--water)} .sub .s{color:var(--soil)} .sub .b{color:var(--bridge)} .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:286px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px}
+  .panel h2{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:10px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+  label.ctl .row b{color:var(--gold);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--gold);height:16px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  button{font:600 11px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);
+    border-radius:7px;padding:7px 10px;cursor:pointer;transition:border-color .12s,background .12s}
+  button:hover{border-color:#3c6a4c}
+  button.on{background:#13241a;border-color:#2c5a3c;color:var(--leaf)}
+  .toggle{display:flex;align-items:center;gap:8px;margin:9px 0;font-size:12px;cursor:pointer;user-select:none}
+  .toggle input{accent-color:var(--gold);width:15px;height:15px}
+  .stage{position:relative}
+  canvas{width:100%;display:block;background:linear-gradient(180deg,#0c1a22 0%,#0a1310 46%);
+    border:1px solid var(--line);border-radius:10px;touch-action:none;cursor:grab}
+  canvas.grabbing{cursor:grabbing}
+  .legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:9px}
+  .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:5px}
+  .legend i{display:inline-block;width:15px;height:0;border-top-width:2px;border-top-style:solid;vertical-align:middle;margin-right:5px}
+  .note{font-size:11.5px;color:var(--dim);margin-top:11px;line-height:1.55}
+  .note b{color:var(--txt)} .note .l{color:var(--land)} .note .w{color:var(--water)} .note .s{color:var(--soil)} .note .b{color:var(--bridge)}
+  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;border:1px solid #5a342c;
+    color:#f0c4b4;border-radius:8px;padding:10px 12px;font-size:12px;white-space:pre-wrap}
+  #info{position:absolute;display:none;max-width:248px;background:rgba(12,20,17,.96);border:1px solid var(--line);
+    border-radius:10px;padding:0;overflow:hidden;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.5);z-index:5}
+  #info .ph{width:100%;height:104px;background:#0a1310 center/cover no-repeat;border-bottom:1px solid var(--line)}
+  #info .bd{padding:10px 12px}
+  #info .nm{font-weight:600;font-size:13.5px}
+  #info .sci{font-style:italic;color:var(--dim);font-size:11.5px;margin-top:1px}
+  #info .tag{display:inline-block;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:99px;margin-top:7px}
+  #info .big{font-size:20px;font-weight:600;margin-top:8px}
+  #info .big small{font-size:11px;color:var(--dim);font-weight:400}
+  #info .rel{font-size:11px;color:var(--dim);margin-top:7px;line-height:1.5}
+  #info .rel b{color:var(--txt)}
+  .gauges{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin:0 0 11px}
+  .g{background:#0e1713;border:1px solid var(--line);border-radius:8px;padding:8px 9px}
+  .g .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+  .g .v{font-size:16px;font-weight:600;margin-top:2px}
+  .g .u{font-size:10px;color:var(--dim)}
+  .verdict{font-size:12px;padding:9px 11px;border-radius:8px;margin-bottom:11px;border:1px solid var(--line)}
+  .verdict.ok{background:#13241a;border-color:#2c5a3c}
+  .verdict.warn{background:#23200f;border-color:#5a4f2c}
+  .hint{font-size:11px;color:var(--dim);margin-top:7px}
+  footer{padding:14px 20px 30px;border-top:1px solid var(--line);margin-top:6px;font:11.5px/1.6 var(--mono);color:var(--dim)}
+  footer a{color:var(--gold);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">biome</a> / graph</div>
+<header>
+  <h1>biome · the trophic web <small>— a Venn of three habitats, one intermingled food web</small></h1>
+  <div class="sub">The maximalist closed ecology, drawn as a living graph — a <b>Venn diagram</b> of three
+    overlapping habitats: the <span class="l">terrestrial</span> web, the <span class="w">lake</span>, and the
+    chthonic <span class="s">soil</span> web. Each web's organisms sit in its private crescent; the two
+    <span class="b">cross-web couplers</span> live in the overlap lenses — a <b>marsh frog</b> (tadpoles graze the
+    lake, adults eat soil springtails) in <span class="w">lake</span>∩<span class="s">soil</span>, and a farmed
+    <b>duck</b> (duckweed + crop) in <span class="w">lake</span>∩<span class="l">land</span> — and the shared pools
+    (air · N · detritus · larder) cluster in the triple-overlap centre, where all three webs meet. Every node is a
+    real organism wearing its photo, sized by its <b>present standing biomass</b>. Drag nodes, scroll to zoom,
+    hover for a card — and grab the duck. 🦆
+    &nbsp;→ <a href="../gacha/">roll a random one ✦</a> · <a href="../cycles/robustness.html">does this coupling help?</a> · <a href="../cycles/global.html">box model</a></div>
+</header>
+<main>
+  <section class="panel" id="side">
+    <div id="verdict" class="verdict"></div>
+    <div class="gauges" id="gauges"></div>
+    <h2>Living knobs — biomass re-sizes live</h2>
+    <div id="controls"></div>
+    <h2 style="margin-top:14px">View</h2>
+    <label class="toggle"><input type="checkbox" id="tg-interface"> <span>Highlight the <b style="color:var(--bridge)">cross-web couplers</b></span></label>
+    <label class="toggle"><input type="checkbox" id="tg-labels" checked> <span>Show name labels</span></label>
+    <label class="toggle"><input type="checkbox" id="tg-photos" checked> <span>Show organism photos</span></label>
+    <div class="btns">
+      <button id="btn-zin" title="zoom in">＋</button>
+      <button id="btn-zout" title="zoom out">－</button>
+      <button id="btn-fit">⤢ fit</button>
+      <button id="btn-reheat">↻ reheat</button>
+      <button id="btn-pause">⏸ pause</button>
+    </div>
+    <div class="hint">A <b>Venn diagram</b> of three overlapping habitats: each web's organisms sit in
+      its private crescent, the couplers live in the overlap lenses, and the shared pools cluster where all
+      three meet. <b>🦆 grab the duck</b> — it won't hold still.</div>
+  </section>
+
+  <section>
+    <div class="stage">
+      <canvas id="web" width="1280" height="840"></canvas>
+      <div id="err"></div>
+      <div id="info"></div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--land)"></span>land</span>
+      <span><span class="dot" style="background:var(--lake)"></span>lake</span>
+      <span><span class="dot" style="background:var(--soil)"></span>soil</span>
+      <span><span class="dot" style="background:var(--bridge)"></span>coupler</span>
+      <span><span class="dot" style="background:var(--pool)"></span>shared pool</span>
+      &nbsp;
+      <span><i style="border-color:#8aa99a"></i>eats</span>
+      <span><i style="border-color:var(--bridge)"></i>cross-web</span>
+      <span><i style="border-color:var(--gold)"></i>harvest</span>
+      <span><i style="border-color:var(--leaf)"></i>fixes CO₂</span>
+    </div>
+    <div class="note" id="couplings"></div>
+  </section>
+</main>
+<footer id="foot"></footer>
+
+<script type="module">
+// Everything below is wrapped so a failure shows on the page instead of a blank canvas.
+const errEl = document.getElementById('err');
+function showErr(where, e) {
+  const msg = `⚠ ${where}: ${(e && (e.stack || e.message)) || e}`;
+  errEl.textContent = msg; errEl.style.display = 'block';
+  console.error(where, e);
+}
+window.addEventListener('error', (ev) => showErr('runtime', ev.error || ev.message));
+window.addEventListener('unhandledrejection', (ev) => showErr('promise', ev.reason));
+
+import { maximalParams, maximalReport, buildMaximalGraph, containerOf } from '../cycles/sim/maximal.mjs';
+import { molCtoKgWet } from '../cycles/sim/lake.mjs';
+
+const params = maximalParams();
+const perCrewAir = params.airVolume_m3 / params.crew;
+const perCrewWater = params.waterReservoir_L / params.crew;
+const spec = (id) => params.species.find((s) => s.id === id);
+
+// ── imagery ──
+let PHOTOS = {}; const IMG = {};
+async function loadPhotos() {
+  try {
+    const r = await fetch('./organisms.json'); const j = await r.json(); PHOTOS = j.organisms || {};
+  } catch (e) { showErr('photos', e); PHOTOS = {}; }
+  for (const [id, o] of Object.entries(PHOTOS)) {
+    const url = o.inat?.photo || o.inat?.thumb; if (!url) continue;
+    const img = new Image();                       // no crossOrigin — we only ever DRAW the image
+    img.onload = () => { IMG[id] = img; }; img.onerror = () => { IMG[id] = null; };
+    img.src = url;
+  }
+}
+
+// ── scene: a VENN diagram of three overlapping habitats. Each web's private organisms sit in
+//    its outer crescent; the cross-web couplers live in the pairwise-overlap lenses; the shared
+//    abiotic pools cluster in the triple-overlap centre, where all three webs meet. ──
+const WORLD = { w: 1280, h: 840 };
+const VENN_C = { x: 640, y: 420 };       // the triple-overlap centre
+const OUTWARD = 120;                      // how far organisms are biased into their private crescent
+const BASINS = {
+  land: { cx: 450, cy: 312, rx: 300, ry: 256, glow:['rgba(46,128,74,0.40)','rgba(20,58,38,0.02)'],
+          rim:'rgba(120,205,150,0.5)', label:'LAND',     lc:'rgba(108,194,127,0.7)', labelX:330, labelY:96 },
+  lake: { cx: 830, cy: 312, rx: 300, ry: 256, glow:['rgba(40,124,166,0.40)','rgba(18,60,84,0.02)'],
+          rim:'rgba(120,180,205,0.55)', label:'THE LAKE', lc:'rgba(90,169,216,0.75)', labelX:952, labelY:96 },
+  soil: { cx: 640, cy: 612, rx: 322, ry: 232, glow:['rgba(156,114,62,0.38)','rgba(60,44,24,0.02)'],
+          rim:'rgba(200,160,110,0.5)',  label:'THE SOIL', lc:'rgba(195,155,106,0.72)', labelX:640, labelY:820 },
+};
+const POOL_POS = {                        // the triple-overlap core
+  air:      { x: 640, y: 392 },
+  nMineral: { x: 566, y: 430 },
+  food:     { x: 714, y: 430 },
+  litter:   { x: 640, y: 462 },   // detritus — every web drains here
+  crew:     { x: 640, y: 506 },
+};
+// couplers live in the pairwise-overlap lenses: duck in land∩lake (top), frog in lake∩soil (lower-right)
+const BRIDGE_POS = { duck: { x: 640, y: 246 }, frog: { x: 748, y: 472 } };
+// per-organism offset from its basin centre, by trophic height (predators up, producers grade, decomposers low)
+const OFF = {
+  bee:{x:-30,y:-118}, spider:{x:70,y:-66}, tree:{x:-104,y:-8}, crop:{x:-10,y:84}, reed:{x:108,y:78},
+  duckweed:{x:48,y:-128}, algae:{x:-150,y:-104}, daphnia:{x:-26,y:-18}, fish:{x:78,y:26}, mussel:{x:-130,y:104}, microbe:{x:54,y:120},
+  springtail:{x:-180,y:-30}, worm:{x:30,y:32}, fungus:{x:170,y:-26},
+};
+
+const EDGE_STYLE = {
+  trophic:    { color:'#8aa99a', w:1.4, dash:[],    alpha:.72 },
+  pollinates: { color:'#d8b25a', w:1.5, dash:[5,4], alpha:.85 },
+  harvest:    { color:'#d8b25a', w:2.0, dash:[],    alpha:.9  },
+  fix:        { color:'#62b87a', w:1.2, dash:[],    alpha:.5  },
+  uptake:     { color:'#5aa9d8', w:1.1, dash:[2,3], alpha:.5  },
+  respire:    { color:'#3f5249', w:0.9, dash:[1,4], alpha:.45 },
+  eat:        { color:'#e0a06a', w:2.0, dash:[],    alpha:.8  },
+  waste:      { color:'#b08968', w:1.5, dash:[3,3], alpha:.7  },
+};
+const POOL_IDS = new Set(['air','nMineral','litter','food','crew']);
+const contColor = (c) => c==='land'?'#6cc27f':c==='lake'?'#5aa9d8':c==='soil'?'#c39b6a':c==='bridge'?'#e6c14f':c==='crew'?'#e0a06a':'#caa6e0';
+
+let nodes = [], edges = [], byId = {};
+function buildNodes() {
+  const g = buildMaximalGraph(params);
+  const prev = byId; nodes = []; byId = {};
+  for (const n of g.nodes) {
+    const old = prev[n.id];
+    const isPool = n.container === 'pool' || n.container === 'crew';
+    const isBridge = n.container === 'bridge';
+    let ax, ay;
+    if (isPool) { const p = POOL_POS[n.id] || { x:640, y:420 }; ax = p.x; ay = p.y; }
+    else if (isBridge) { const p = BRIDGE_POS[n.id] || { x:640, y:420 }; ax = p.x; ay = p.y; }
+    else { const b = BASINS[n.container]; const o = OFF[n.id] || {x:0,y:0};
+      // bias into the private crescent: push away from the Venn centre
+      const ox = b.cx - VENN_C.x, oy = b.cy - VENN_C.y, om = Math.hypot(ox, oy) || 1;
+      ax = b.cx + (ox/om)*OUTWARD + o.x; ay = b.cy + (oy/om)*OUTWARD + o.y; }
+    nodes.push({ ...n, isPool, isBridge, ax, ay,
+      x: old ? old.x : ax + (Math.random()-.5)*24, y: old ? old.y : ay + (Math.random()-.5)*24,
+      vx:0, vy:0, r:20, targetR:20, fixed:false });
+  }
+  for (const n of nodes) byId[n.id] = n;
+  edges = g.edges.map((e) => ({ ...e }));
+}
+
+let lastRun = null;
+const R_MIN = 16, R_MAX = 54;
+function rerun() {
+  try {
+    params.airVolume_m3 = perCrewAir * params.crew;
+    params.waterReservoir_L = perCrewWater * params.crew;
+    const R = maximalReport(params, { days: 700, dtHours: 3, sampleDays: 8 });
+    lastRun = R;
+    if (!nodes.length) buildNodes();
+    const bios = params.species.map((s) => R.last[s.id] || 0);
+    const maxB = Math.max(1, ...bios);
+    for (const s of params.species) {
+      const node = byId[s.id]; if (!node) continue;
+      node.biomass_molC = R.last[s.id] || 0;
+      node.biomass_kg = molCtoKgWet(node.biomass_molC);
+      node.targetR = R_MIN + (R_MAX - R_MIN) * Math.sqrt(Math.max(0, R.last[s.id] || 0) / maxB);
+    }
+    for (const n of nodes) if (n.isPool) n.targetR = n.id === 'air' ? 24 : 20;
+    renderSidebar(R);
+  } catch (e) { showErr('model', e); }
+}
+
+// ── sidebar ──
+const KNOBS = [
+  { id:'crew',  label:'Crew',             min:40, max:260, step:10,    fmt:v=>v+' people', get:()=>params.crew, set:v=>params.crew=v },
+  { id:'fish',  label:'Fishing pressure', min:0,  max:0.04, step:0.001, fmt:v=>v.toFixed(3)+'/d', get:()=>spec('fish').harvest, set:v=>spec('fish').harvest=v },
+  { id:'duck',  label:'Duck farming',     min:0,  max:0.16, step:0.005, fmt:v=>v.toFixed(3)+'/d', get:()=>spec('duck').harvest, set:v=>spec('duck').harvest=v },
+  { id:'algae', label:'Lake surface',     min:3000, max:30000, step:1000, fmt:v=>(v/1000).toFixed(0)+'k m²', get:()=>spec('algae').area_m2, set:v=>spec('algae').area_m2=v },
+];
+function buildControls() {
+  const ctl = document.getElementById('controls');
+  for (const kn of KNOBS) {
+    const wrap = document.createElement('label'); wrap.className = 'ctl';
+    wrap.innerHTML = `<span class="row"><span>${kn.label}</span><b id="val-${kn.id}"></b></span>`;
+    const inp = document.createElement('input');
+    inp.type='range'; inp.min=kn.min; inp.max=kn.max; inp.step=kn.step; inp.value=kn.get();
+    inp.addEventListener('input', () => { kn.set(parseFloat(inp.value)); rerun(); reheat(0.5); });
+    wrap.appendChild(inp); ctl.appendChild(wrap);
+  }
+}
+function renderSidebar(R) {
+  for (const kn of KNOBS) { const el = document.getElementById('val-'+kn.id); if (el) el.textContent = kn.fmt(kn.get()); }
+  const { last, fish } = R;
+  const v = document.getElementById('verdict');
+  v.className = 'verdict ' + (R.supports ? 'ok' : 'warn');
+  v.innerHTML = R.supports
+    ? `<b>The maximalist interior closes</b> — carries ${R.crew} crew on all three webs, ${Math.round(R.calorieRatio*100)}% fed.`
+    : `<b>Carries ${R.crew} crew at ${Math.round(R.calorieRatio*100)}% of food demand.</b> All ${params.species.length} species persist — the tangled web holds together.`;
+  document.getElementById('gauges').innerHTML =
+    g('Species alive', `${params.species.filter(s=>(last[s.id]||0)>10).length}/${params.species.length}`, 'none extinct', 'var(--leaf)') +
+    g('Fish yield', fish.fishYield_kgday.toFixed(1), 'kg/day', 'var(--gold)') +
+    g('O₂ · CO₂', last.o2_kPa.toFixed(1), `kPa · ${Math.round(last.co2_ppm)}ppm`, (R.o2OK&&R.co2OK)?'var(--leaf)':'var(--warn)') +
+    g('Crew', R.crew, `${Math.round(R.calorieRatio*100)}% fed`, R.fedOK?'var(--leaf)':'var(--warn)');
+}
+const g = (k,v,u,c) => `<div class="g"><div class="k">${k}</div><div class="v" style="color:${c}">${v}</div><div class="u">${u}</div></div>`;
+
+document.getElementById('couplings').innerHTML =
+  '<b>Three sets, two intersections.</b> Read it as a Venn: the three webs would be disjoint sets but for what '
+  + 'sits in their overlaps. In <span class="w">lake</span>∩<span class="s">soil</span> the <span class="b">frog</span> '
+  + 'wires lake daphnia to soil springtails; in <span class="w">lake</span>∩<span class="l">land</span> the '
+  + '<span class="b">duck</span> wires lake duckweed to land crop. Everything else couples only through the '
+  + '<span class="p" style="color:var(--pool)">shared pools</span> in the triple-overlap centre — one air, one nitrogen, '
+  + 'one detritus, one larder — which is why losing a whole web’s decomposers is survivable: another web’s cover the same pool. '
+  + 'Toggle <b>Highlight the cross-web couplers</b> to see just the bridge edges. '
+  + '(And yes — catch the duck and it flies off. It comes back; it lives here. 🦆 '
+  + 'Curious whether all this tangling helps or hurts? The <a href="../cycles/robustness.html">intermingling lab</a> reads it off the community matrix.)';
+
+// ── force layout ──
+let temperature = 1, paused = false;
+const reheat = (t=1) => { temperature = Math.max(temperature, t); paused = false; updatePauseBtn(); };
+function springRest(e){ return (e.type==='trophic'||e.type==='eat') ? 52 : e.type==='pollinates' ? 48 : 90; }
+function springK(e){ const pool = POOL_IDS.has(e.from)||POOL_IDS.has(e.to); return pool ? 0.006 : (e.type==='pollinates'?0.026:0.032); }
+function step() {
+  const KREP = 215, KANCHOR = 0.024, DAMP = 0.86, MAXV = 14;
+  for (let i=0;i<nodes.length;i++){ const a=nodes[i]; if(a.isPool||a.flying)continue;
+    for (let j=i+1;j<nodes.length;j++){ const b=nodes[j]; if(b.isPool||b.flying)continue;
+      let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<1)d2=1; const d=Math.sqrt(d2);
+      const want=a.r+b.r+7, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
+  for (const e of edges){ const a=byId[e.from], b=byId[e.to]; if(!a||!b||a.flying||b.flying)continue;  // a flying duck slips its trophic tethers
+    let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const f=springK(e)*(d-springRest(e));
+    const fx=dx/d*f, fy=dy/d*f; if(!a.isPool){a.vx+=fx;a.vy+=fy;} if(!b.isPool){b.vx-=fx;b.vy-=fy;} }
+  for (const n of nodes){
+    if (n.isPool){ n.x=n.ax; n.y=n.ay; n.r+=(n.targetR-n.r)*0.2; continue; }
+    if (n.flying){ flightStep(n); n.r+=(n.targetR-n.r)*0.2; continue; }   // the duck is airborne
+    n.vx += (n.ax-n.x)*KANCHOR*(n.isBridge?1.7:1); n.vy += (n.ay-n.y)*KANCHOR*(n.isBridge?1.7:1);
+    if (!n.fixed){ n.vx*=DAMP; n.vy*=DAMP;
+      n.vx=Math.max(-MAXV,Math.min(MAXV,n.vx)); n.vy=Math.max(-MAXV,Math.min(MAXV,n.vy));
+      n.x+=n.vx*temperature; n.y+=n.vy*temperature; }
+    if (!n.isBridge && BASINS[n.container]) containInBasin(n, BASINS[n.container]);  // organisms stay in their crescent; couplers float free in their lens
+    n.r += (n.targetR-n.r)*0.2;
+  }
+  temperature *= 0.992; if (temperature < 0.02) temperature = 0.02;
+}
+function containInBasin(n, b){
+  const m = n.r + 6;
+  const nx=(n.x-b.cx)/(b.rx-m), ny=(n.y-b.cy)/(b.ry-m), rr=nx*nx+ny*ny;
+  if (rr>1){ const s=1/Math.sqrt(rr); n.x=b.cx+nx*(b.rx-m)*s; n.y=b.cy+ny*(b.ry-m)*s; n.vx*=0.4; n.vy*=0.4; }
+}
+// 🦆 the duck flies off when you let go of it: ballistic arc, slips its tethers, then the anchor
+// reels it home. (frogs can't fly — only the duck does this.)
+function launchDuck(d){
+  const n = d.n; n.flying = true; n.flightT = 0; n.fixed = false; n.quackT = 42; n.flapPhase = 0;
+  const GAIN = 2.4, CAP = 26;
+  let vx = (d.vx||0)*GAIN + (Math.random()-0.5)*5;
+  let vy = Math.min(-7, (d.vy||0)*GAIN) - 7;        // always a flap of upward lift
+  n.vx = Math.max(-CAP, Math.min(CAP, vx)); n.vy = Math.max(-CAP, Math.min(CAP, vy));
+  reheat(0.8);
+}
+function flightStep(n){
+  n.flapPhase += 0.6;
+  n.vy += 0.22;                  // gravity → it arcs
+  n.vx *= 0.99; n.vy *= 0.99;
+  n.x += n.vx; n.y += n.vy;
+  n.flightT++; if (n.quackT > 0) n.quackT--;
+  const off = n.x < -120 || n.x > WORLD.w+120 || n.y < -150 || n.y > WORLD.h+150;
+  if (n.flightT > 175 || (off && n.flightT > 16)) { n.flying = false; n.flightT = 0; reheat(1); }  // home it comes
+}
+
+// ── camera ──
+const cv = document.getElementById('web'), cx = cv.getContext('2d');
+let cam = { x:0, y:0, s:1 }, DPR = 1, CSSW = 1280, CSSH = 840;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const rect = cv.getBoundingClientRect();
+  CSSW = rect.width || 960; CSSH = CSSW * (WORLD.h / WORLD.w);
+  cv.style.height = CSSH + 'px'; cv.width = Math.max(1, Math.round(CSSW*DPR)); cv.height = Math.max(1, Math.round(CSSH*DPR));
+}
+function fit(){ const pad=16; cam.s = Math.min((CSSW-pad*2)/WORLD.w, (CSSH-pad*2)/WORLD.h);
+  cam.x=(CSSW-WORLD.w*cam.s)/2; cam.y=(CSSH-WORLD.h*cam.s)/2; }
+const toWorld = (sx,sy) => ({ x:(sx-cam.x)/cam.s, y:(sy-cam.y)/cam.s });
+
+const TG = { interface:false, labels:true, photos:true };
+document.getElementById('tg-interface').addEventListener('change', e=>TG.interface=e.target.checked);
+document.getElementById('tg-labels').addEventListener('change', e=>TG.labels=e.target.checked);
+document.getElementById('tg-photos').addEventListener('change', e=>TG.photos=e.target.checked);
+let hover=null, pinned=null;
+const MONO = "'SF Mono',ui-monospace,Menlo,Consolas,monospace";
+
+function draw(){
+  cx.setTransform(DPR,0,0,DPR,0,0); cx.clearRect(0,0,CSSW,CSSH);
+  cx.translate(cam.x, cam.y); cx.scale(cam.s, cam.s);
+  drawBasins();
+  const focus = pinned || hover; const lit = focus ? incidentSet(focus) : null;
+  for (const e of edges){
+    const a=byId[e.from], b=byId[e.to]; if(!a||!b)continue;
+    const st = EDGE_STYLE[e.type] || EDGE_STYLE.trophic;
+    let alpha = st.alpha, color = st.color, w = st.w;
+    if (e.cross){ color = '#e6c14f'; w = Math.max(w, 2.0); }     // cross-container trophic edge
+    if (TG.interface) alpha = e.cross ? 0.95 : alpha*0.12;
+    if (lit) alpha = lit.edges.has(e) ? Math.min(1, st.alpha+0.25) : st.alpha*0.12;
+    cx.strokeStyle = color; cx.lineWidth = w/Math.sqrt(cam.s); cx.setLineDash(st.dash); cx.globalAlpha = alpha;
+    cx.beginPath(); cx.moveTo(a.x,a.y);
+    if (POOL_IDS.has(e.from)||POOL_IDS.has(e.to)){ const mx=(a.x+b.x)/2, my=(a.y+b.y)/2+(a.y<b.y?14:-14); cx.quadraticCurveTo(mx,my,b.x,b.y); }
+    else cx.lineTo(b.x,b.y);
+    cx.stroke();
+  }
+  cx.setLineDash([]); cx.globalAlpha=1;
+  for (const n of nodes){
+    const dim = lit && !lit.nodes.has(n.id); cx.globalAlpha = dim ? 0.3 : 1;
+    if (n.isPool) drawPool(n); else drawOrganism(n, focus===n);
+    cx.globalAlpha = 1;
+  }
+  if (pinned) placeInfo(pinned);          // keep a pinned card anchored to its node as the sim drifts
+}
+function drawBasins(){
+  // VENN: three translucent overlapping discs, additively blended so the overlap lenses (where
+  // the couplers live) and the triple-overlap centre (the shared pools) glow brighter.
+  cx.save();
+  cx.globalCompositeOperation = 'lighter';
+  for (const b of Object.values(BASINS)){
+    const grd = cx.createRadialGradient(b.cx, b.cy, 8, b.cx, b.cy, Math.max(b.rx, b.ry));
+    grd.addColorStop(0, b.glow[0]); grd.addColorStop(1, b.glow[1]);
+    cx.fillStyle = grd; cx.beginPath(); cx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, Math.PI*2); cx.fill();
+  }
+  cx.restore();
+  for (const b of Object.values(BASINS)){
+    cx.strokeStyle = b.rim; cx.lineWidth = 2; cx.beginPath(); cx.ellipse(b.cx,b.cy,b.rx,b.ry,0,0,Math.PI*2); cx.stroke();
+    cx.fillStyle = b.lc; cx.font = '600 15px '+MONO; cx.textAlign='center';
+    cx.fillText(b.label, b.labelX, b.labelY); cx.textAlign='left';
+  }
+  cx.fillStyle = 'rgba(202,166,224,0.6)'; cx.font = '600 10.5px '+MONO; cx.textAlign='center';
+  cx.fillText('shared pools — all three webs meet', VENN_C.x, VENN_C.y-42); cx.textAlign='left';
+}
+function drawOrganism(n, isFocus){
+  const img = TG.photos ? IMG[n.id] : null;
+  cx.save();
+  cx.beginPath(); cx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+  if (img){ cx.save(); cx.clip();
+    const d=n.r*2, ar=(img.width||1)/(img.height||1); let sw, sh; if(ar>1){sh=d;sw=d*ar;}else{sw=d;sh=d/ar;}
+    try { cx.drawImage(img, n.x-sw/2, n.y-sh/2, sw, sh); } catch { /* not yet decodable */ }
+    cx.restore();
+  } else {
+    cx.fillStyle = n.container==='lake'?'#16313f':n.container==='soil'?'#2a2012':'#15281b'; cx.fill();
+    cx.fillStyle = contColor(n.container); cx.globalAlpha=.8; cx.font=`600 ${Math.max(8,Math.round(n.r))}px ${MONO}`;
+    cx.textAlign='center'; cx.fillText('⁘', n.x, n.y+n.r*0.34); cx.textAlign='left'; cx.globalAlpha=1;
+  }
+  cx.lineWidth = isFocus ? 4 : (n.isBridge ? 3.4 : n.kind==='producer' ? 2.2 : 3);
+  cx.strokeStyle = isFocus ? '#d8b25a' : contColor(n.container);
+  if (n.isBridge && !isFocus) cx.setLineDash([5,4]);
+  cx.beginPath(); cx.arc(n.x,n.y,n.r,0,Math.PI*2); cx.stroke(); cx.setLineDash([]);
+  cx.restore();
+  if (n.flying) drawWings(n);
+  if (TG.labels){
+    cx.font='11px '+MONO; cx.textAlign='center'; cx.lineWidth=3; cx.strokeStyle='rgba(8,16,12,0.85)';
+    cx.strokeText(n.label, n.x, n.y+n.r+13); cx.fillStyle='#dcefe1'; cx.fillText(n.label, n.x, n.y+n.r+13); cx.textAlign='left';
+  }
+}
+function drawWings(n){           // two flapping wings + a QUACK! while the duck is airborne
+  const flap = Math.sin(n.flapPhase) * 0.5;     // -0.5 (down) … +0.5 (up)
+  cx.strokeStyle = '#f2d98a'; cx.lineWidth = 3; cx.lineCap = 'round';
+  for (const s of [-1, 1]){
+    cx.beginPath();
+    cx.moveTo(n.x + s*n.r*0.45, n.y - n.r*0.15);
+    cx.quadraticCurveTo(n.x + s*(n.r+20), n.y - n.r*0.6 - flap*30,
+                        n.x + s*(n.r+34), n.y - n.r*0.1 - flap*16);
+    cx.stroke();
+  }
+  cx.lineCap = 'butt';
+  if (n.quackT > 0){
+    cx.font = '700 14px '+MONO; cx.textAlign='center';
+    cx.lineWidth = 3; cx.strokeStyle = 'rgba(8,16,12,0.85)'; cx.strokeText('QUACK!', n.x, n.y - n.r - 16);
+    cx.fillStyle = '#ffe08a'; cx.fillText('QUACK!', n.x, n.y - n.r - 16); cx.textAlign='left';
+  }
+}
+function drawPool(n){
+  const c = contColor(n.container), w = n.id==='crew'?104:126, h=28;
+  roundRect(n.x-w/2, n.y-h/2, w, h, 8);
+  cx.fillStyle = n.container==='crew' ? '#231a12' : '#1a1428'; cx.fill();
+  cx.lineWidth=1.8; cx.strokeStyle=c; cx.stroke();
+  cx.fillStyle=c; cx.font='600 11.5px '+MONO; cx.textAlign='center'; cx.fillText(n.label, n.x, n.y+4); cx.textAlign='left';
+}
+function roundRect(x,y,w,h,r){ cx.beginPath(); cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r);
+  cx.arcTo(x+w,y+h,x,y+h,r); cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath(); }
+function incidentSet(n){ const ns=new Set([n.id]), es=new Set();
+  for (const e of edges) if (e.from===n.id||e.to===n.id){ es.add(e); ns.add(e.from); ns.add(e.to); } return { nodes:ns, edges:es }; }
+
+// ── info card ──
+const info = document.getElementById('info');
+const label = (id) => byId[id]?.label || id;
+function relations(n){ const eats=[],eatenBy=[],poll=[];
+  for (const e of edges){
+    if (e.type==='trophic'&&e.to===n.id) eats.push(label(e.from));
+    if (e.type==='trophic'&&e.from===n.id) eatenBy.push(label(e.to));
+    if (e.type==='pollinates'&&e.from===n.id) poll.push(label(e.to));
+  } return { eats, eatenBy, poll }; }
+const fmtKg = (kg) => kg>=1000?(kg/1000).toFixed(1)+' t':kg>=1?kg.toFixed(0)+' kg':(kg*1000).toFixed(0)+' g';
+function showInfo(n, sx, sy){
+  if (n.isPool){
+    info.innerHTML = `<div class="bd"><div class="nm">${n.label}</div>`
+      + `<span class="tag" style="background:#1a1428;color:var(--pool)">shared pool · the interface</span>`
+      + `<div class="rel">A reservoir all three webs touch — this is where land, lake and soil couple without a trophic edge.</div></div>`;
+  } else {
+    const meta = PHOTOS[n.id] || {}; const r = relations(n); const col = contColor(n.container);
+    const ph = (TG.photos && meta.inat?.photo) ? `<div class="ph" style="background-image:url('${meta.inat.photo}')"></div>` : '';
+    info.innerHTML = ph + `<div class="bd"><div class="nm">${n.label}</div>`
+      + `<div class="sci">${meta.sciName || ''}</div>`
+      + `<span class="tag" style="background:rgba(0,0,0,.3);color:${col}">${n.isBridge?'cross-web coupler':n.container} · ${n.role||n.kind}</span>`
+      + `<div class="big" style="color:${col}">${fmtKg(n.biomass_kg||0)} <small>standing biomass</small></div>`
+      + (r.eats.length?`<div class="rel"><b>eats:</b> ${r.eats.join(', ')}</div>`:'')
+      + (r.eatenBy.length?`<div class="rel"><b>eaten by:</b> ${r.eatenBy.join(', ')}</div>`:'')
+      + (r.poll.length?`<div class="rel"><b>pollinates:</b> ${r.poll.join(', ')}</div>`:'')
+      + `</div>`;
+  }
+  info.style.display='block';
+  placeInfo(n);
+}
+// anchor the card beside the node, flipping above/below + left/right to stay on-canvas
+function placeInfo(n){
+  const nx = n.x*cam.s + cam.x, ny = n.y*cam.s + cam.y, rr = (n.r||14)*cam.s;
+  const w = 248, h = info.offsetHeight || 150;
+  let x = nx + rr + 12; if (x + w > CSSW - 4) x = nx - rr - 12 - w;
+  x = Math.max(4, Math.min(Math.max(4, CSSW - w - 4), x));
+  let y = ny > CSSH*0.52 ? ny - rr - 10 - h : ny + rr + 10;   // node in lower half → pop ABOVE, else BELOW
+  y = Math.max(4, Math.min(Math.max(4, CSSH - h - 4), y));
+  info.style.left = x+'px'; info.style.top = y+'px';
+}
+const hideInfo = () => { if (!pinned) info.style.display='none'; };
+
+// ── pointer: drag a node, TAP to pin its metadata card, pan / pinch / wheel to zoom ──
+let drag=null, panning=null, pinch=null;
+const pointers = new Map();
+const ZMIN = 0.3, ZMAX = 6;
+const dist = (a,b)=>Math.hypot(a.sx-b.sx, a.sy-b.sy);
+const mid = (a,b)=>({ sx:(a.sx+b.sx)/2, sy:(a.sy+b.sy)/2 });
+function pick(wx,wy){ let best=null,bd=Infinity;
+  for (const n of nodes){ const rr=n.isPool?64*64:(n.r+4)*(n.r+4); const d2=(n.x-wx)**2+(n.y-wy)**2; if(d2<rr&&d2<bd){bd=d2;best=n;} } return best; }
+const screenPt = (ev) => { const r=cv.getBoundingClientRect(); return { sx:ev.clientX-r.left, sy:ev.clientY-r.top }; };
+function zoomAround(sx, sy, ns){ const w=toWorld(sx,sy); cam.s=Math.max(ZMIN,Math.min(ZMAX,ns)); cam.x=sx-w.x*cam.s; cam.y=sy-w.y*cam.s; }
+function zoomBy(f){ zoomAround(CSSW/2, CSSH/2, cam.s*f); }
+function clearGrab(){ if(drag) drag.n.fixed=false; drag=null; panning=null; cv.classList.remove('grabbing'); }
+
+cv.addEventListener('pointerdown', (ev)=>{ cv.setPointerCapture(ev.pointerId);
+  const sp=screenPt(ev); pointers.set(ev.pointerId, sp);
+  if (pointers.size===2){ clearGrab(); const p=[...pointers.values()]; pinch={ d:dist(p[0],p[1])||1, s0:cam.s }; return; }
+  const w=toWorld(sp.sx,sp.sy); const n=pick(w.x,w.y);
+  if (n && !n.isPool){ if(n.flying) n.flying=false;            // you can re-catch the duck mid-flight
+    drag={ n, dx:n.x-w.x, dy:n.y-w.y, vx:0, vy:0, px:w.x, py:w.y, sx0:sp.sx, sy0:sp.sy, moved:false }; n.fixed=true; cv.classList.add('grabbing'); }
+  else { panning={ sx:sp.sx, sy:sp.sy, cx0:cam.x, cy0:cam.y, moved:false }; cv.classList.add('grabbing'); } });
+
+cv.addEventListener('pointermove', (ev)=>{ const sp=screenPt(ev); if(pointers.has(ev.pointerId)) pointers.set(ev.pointerId, sp);
+  if (pinch && pointers.size>=2){ const p=[...pointers.values()]; const m=mid(p[0],p[1]); zoomAround(m.sx, m.sy, pinch.s0 * dist(p[0],p[1]) / pinch.d); return; }
+  const w=toWorld(sp.sx,sp.sy);
+  if (drag){ if (Math.hypot(sp.sx-drag.sx0, sp.sy-drag.sy0) > 4) drag.moved=true;
+    drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0;
+    drag.vx=w.x-drag.px; drag.vy=w.y-drag.py; drag.px=w.x; drag.py=w.y;
+    reheat(0.4); if (drag.moved && !pinned) showInfo(drag.n); return; }
+  if (panning){ if (Math.hypot(sp.sx-panning.sx, sp.sy-panning.sy) > 4) panning.moved=true;
+    cam.x=panning.cx0+(sp.sx-panning.sx); cam.y=panning.cy0+(sp.sy-panning.sy); return; }
+  const n=pick(w.x,w.y); hover=n;
+  if (n){ cv.style.cursor='pointer'; if(!pinned) showInfo(n); } else { cv.style.cursor='grab'; if(!pinned) hideInfo(); } });
+
+cv.addEventListener('pointerup', (ev)=>{
+  if (!pinch){
+    if (drag){
+      if (drag.moved){ if (drag.n.id==='duck') launchDuck(drag); }            // dragged → reposition / fling the duck
+      else { pinned = (pinned===drag.n ? null : drag.n); if(pinned) showInfo(drag.n); else hideInfo(); }  // TAPPED → pin/unpin its card
+    } else if (panning && !panning.moved){ pinned=null; hideInfo(); }          // tap empty space → dismiss
+  }
+  pointers.delete(ev.pointerId); if (pointers.size<2) pinch=null; clearGrab(); });
+cv.addEventListener('pointercancel', (ev)=>{ pointers.delete(ev.pointerId); if(pointers.size<2) pinch=null; clearGrab(); });
+cv.addEventListener('pointerleave', ()=>{ hover=null; if(!pinned) hideInfo(); });
+cv.addEventListener('wheel', (ev)=>{ ev.preventDefault(); const sp=screenPt(ev); zoomAround(sp.sx, sp.sy, cam.s*Math.exp(-ev.deltaY*0.0015)); }, { passive:false });
+
+document.getElementById('btn-reheat').addEventListener('click', ()=>reheat(1));
+const pauseBtn = document.getElementById('btn-pause');
+function updatePauseBtn(){ pauseBtn.textContent = paused?'▶ resume':'⏸ pause'; pauseBtn.classList.toggle('on', paused); }
+pauseBtn.addEventListener('click', ()=>{ paused=!paused; updatePauseBtn(); });
+document.getElementById('btn-fit').addEventListener('click', ()=>fit());
+document.getElementById('btn-zin').addEventListener('click', ()=>zoomBy(1.35));
+document.getElementById('btn-zout').addEventListener('click', ()=>zoomBy(1/1.35));
+
+document.getElementById('foot').innerHTML =
+  'node size ∝ √(standing biomass) from a 700-day closed run of the maximalist web (land + lake + soil + couplers, conserving C/H/O/N). '
+  + 'organism photos from <a href="https://www.inaturalist.org">iNaturalist</a>. pure static. → <a href="../">biome</a>';
+
+function loop(){ try { if(!paused){ for(let i=0;i<2;i++) step(); } draw(); }
+  catch(e){ showErr('draw', e); return; }   // stop the loop on a draw error instead of spamming
+  requestAnimationFrame(loop); }
+window.addEventListener('resize', ()=>{ resize(); fit(); });
+
+try {
+  buildControls(); rerun(); resize(); fit(); loadPhotos(); reheat(1); updatePauseBtn(); loop();
+} catch (e) { showErr('boot', e); }
+</script>
+</body>
+</html>

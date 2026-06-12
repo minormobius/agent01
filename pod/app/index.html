@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Podcasts — pod</title>
+  <style>
+    :root { --bg:#0e0f13; --panel:#16181f; --ink:#e9eaee; --muted:#9aa0ad; --accent:#e0573e; --green:#3ec07a; --line:#262932; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body { margin:0; font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); padding-bottom:112px; }
+    .wrap { max-width:680px; margin:0 auto; padding:26px 14px 24px; }
+    .crumb { color:var(--muted); font-size:13px; } .crumb a { color:var(--muted); text-decoration:none; }
+    .top { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+    h1 { font-size:30px; letter-spacing:-0.02em; margin:6px 0 4px; } h1 .dot { color:var(--accent); }
+    .top a.disc { color:var(--accent); text-decoration:none; font-size:14px; font-weight:600; white-space:nowrap; }
+    .sub { color:var(--muted); margin:0 0 16px; font-size:14px; }
+    input[type=text] { width:100%; padding:11px 12px; background:#0e0f13; border:1px solid var(--line); border-radius:8px; color:var(--ink); font-size:15px; }
+    button { font:inherit; font-weight:600; padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:#21242d; color:var(--ink); cursor:pointer; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#1a0d0a; }
+    button:active { transform:scale(.97); }
+    .addrow { display:flex; gap:8px; margin-bottom:12px; }
+    .addrow input { flex:1; }
+
+    /* sync / auth */
+    .syncbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; font-size:13px; color:var(--muted); }
+    .syncbar .dotg { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none; }
+    .syncbar.synced .dotg { background:var(--green); }
+    .syncbar .grow { flex:1; min-width:0; }
+    .authrow { display:flex; gap:8px; margin-bottom:14px; }
+    .authrow input { flex:1; }
+
+    /* saved feeds — bounded, scrollable list */
+    .savedhead { display:flex; align-items:baseline; justify-content:space-between; margin:4px 0 8px; }
+    .savedhead h2 { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:0; }
+    .savedhead .cnt { color:var(--muted); font-size:12px; }
+    .saved { max-height:40vh; overflow-y:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:12px; background:#101218; }
+    .saved:empty::after { content:'No saved feeds yet.'; display:block; color:var(--muted); font-size:13px; padding:16px; }
+    .srow { display:flex; align-items:center; gap:10px; padding:11px 12px; border-bottom:1px solid var(--line); cursor:pointer; }
+    .srow:last-child { border-bottom:0; }
+    .srow.active { background:#1b1e26; box-shadow:inset 3px 0 0 var(--accent); }
+    .srow .st { flex:1; min-width:0; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .srow .rm { flex:none; color:var(--muted); background:transparent; border:0; font-size:15px; padding:4px 6px; cursor:pointer; }
+    .srow .rm:hover { color:var(--accent); }
+    .err { color:var(--accent); font-size:13px; margin:8px 0; }
+
+    .feedhead { display:flex; gap:12px; align-items:center; margin:16px 0 12px; }
+    .feedhead img { width:54px; height:54px; border-radius:12px; background:#21242d; object-fit:cover; flex:none; }
+    .feedhead .ft { font-size:18px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .ep { display:flex; gap:12px; align-items:center; padding:13px 12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; cursor:pointer; }
+    .ep.playing { border-color:var(--accent); }
+    .ep .play { flex:none; width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; background:#21242d; border:1px solid var(--line); }
+    .ep.playing .play { background:var(--accent); border-color:var(--accent); color:#1a0d0a; }
+    .ep .meta { min-width:0; flex:1; }
+    .ep .t { font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ep .d { color:var(--muted); font-size:13px; margin-top:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .ep .sub2 { color:var(--muted); font-size:12px; margin-top:4px; }
+    .empty { color:var(--muted); padding:22px 4px; } .empty a { color:var(--accent); }
+
+    #player { position:fixed; left:0; right:0; bottom:0; background:#121419; border-top:1px solid var(--line); padding:10px 14px calc(10px + env(safe-area-inset-bottom)); transform:translateY(150%); transition:transform .22s ease; z-index:50; }
+    #player.on { transform:none; }
+    #pTitle { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #pShow { color:var(--muted); font-size:12px; margin:1px 0 8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #audio { width:100%; height:38px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/">pod</a> / app</div>
+    <div class="top">
+      <h1>Podcasts<span class="dot">.</span></h1>
+      <a class="disc" href="/listen/">View a show →</a>
+    </div>
+    <p class="sub">Subscribe to any podcast RSS feed and listen. Sign in and your subscriptions sync across devices — they live in your own PDS.</p>
+
+    <div class="addrow">
+      <input type="text" id="addUrl" placeholder="Paste an RSS feed URL…" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
+      <button class="primary" id="addBtn">Add</button>
+    </div>
+    <div id="addErr" class="err" style="display:none"></div>
+
+    <div class="syncbar" id="syncBar">
+      <span class="dotg"></span>
+      <span class="grow" id="syncState">Saved on this device.</span>
+      <button id="syncBtn">Sign in to sync</button>
+    </div>
+    <div class="authrow" id="authRow" style="display:none">
+      <input type="text" id="authHandle" placeholder="your handle (e.g. you.bsky.social)" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" />
+      <button class="primary" id="authBtn">Sign in</button>
+    </div>
+
+    <div class="savedhead">
+      <h2>Saved feeds</h2>
+      <span class="cnt" id="subsCount"></span>
+    </div>
+    <div class="saved" id="subsList"></div>
+
+    <div class="feedhead" id="feedHead" style="display:none; margin-top:18px">
+      <img id="feedImg" src="" alt="" />
+      <div class="ft" id="feedTitle"></div>
+    </div>
+
+    <div id="episodes"></div>
+  </div>
+
+  <div id="player">
+    <div id="pTitle"></div>
+    <div id="pShow"></div>
+    <audio id="audio" controls preload="none"></audio>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
