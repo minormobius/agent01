@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c10" />
+  <meta name="description" content="econ — economies as ecosystems. A big brutalist Voronoi of places (roles × domains) wired into a supply web. Ideation canvas." />
+  <title>econ — economies as ecosystems</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0c10; --ink:#dfe7e2; --dim:#7d8a84; --line:#1a2128; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--ink); font-family: "JetBrains Mono", ui-monospace, monospace; display: flex; overflow: hidden; }
+    #rail { width: 240px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    #stage { flex: 1; min-width: 0; position: relative; }
+    canvas { width: 100%; height: 100%; display: block; }
+    @media (max-width: 720px) { body { flex-direction: column; } #rail { width: auto; height: 42vh; border-right: 0; border-bottom: 1px solid var(--line); } }
+    .top { display: flex; align-items: baseline; gap: 8px; }
+    .logo { color: #e0772f; font-weight: 600; font-size: 15px; }
+    .tag { color: var(--dim); font-size: 11px; }
+    a.back { margin-left: auto; color: #3bb0c9; text-decoration: none; font-size: 11px; border: 1px solid var(--line); padding: 2px 7px; }
+    label.fld { display: block; font-size: 12px; }
+    label.fld .v { float: right; color: #d9b24a; }
+    input[type=range] { width: 100%; accent-color: #5aa845; }
+    select { width: 100%; background: #0d1116; color: var(--ink); border: 1px solid var(--line); padding: 4px 6px; font: inherit; font-size: 12px; }
+    .row { display: flex; gap: 8px; align-items: center; font-size: 12px; cursor: pointer; }
+    .row input { accent-color: #3bb0c9; }
+    button { width: 100%; background: #11161c; color: var(--ink); border: 1px solid var(--line); padding: 8px; font: inherit; font-size: 12px; cursor: pointer; }
+    button:hover { border-color: #e0772f; color: #e0772f; }
+    .read { font-size: 12px; color: var(--dim); border-top: 1px solid var(--line); padding-top: 10px; }
+    .read b { color: var(--ink); }
+    .legend { border-top: 1px solid var(--line); padding-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 11px; }
+    .legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+    .legend .n { color: var(--dim); }
+    #busy { position: absolute; top: 8px; left: 10px; font-size: 11px; color: #d9b24a; background: rgba(10,12,16,.7); padding: 2px 7px; opacity: 0; transition: opacity .12s; }
+    #busy.on { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="rail">
+    <div class="top"><span class="logo">▦ econ</span><span class="tag">economies as ecosystems</span><a class="back" href="/">◍ hoop</a></div>
+    <label class="fld">places <span class="v" id="v-n">1600</span><input type="range" id="n" min="300" max="4000" step="100" value="1600"></label>
+    <label class="fld">colour by
+      <select id="by"><option value="role" selected>role (the verb)</option><option value="domain">domain (the matter)</option><option value="tier">tier (central-place rank)</option></select>
+    </label>
+    <label class="row"><input type="checkbox" id="t-flow"> show the supply web</label>
+    <label class="row"><input type="checkbox" id="t-glyph"> show glyphs</label>
+    <button id="regen">⟲ regenerate economy</button>
+    <div class="read">places <b id="r-n">—</b> · web <b id="r-e">—</b> edges<br>closure <b id="r-c">—</b> <span id="r-cn"></span></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas><div id="busy">building…</div></div>
+
+  <script type="module">
+    import { buildField, ROLES, DOMAINS } from './econ.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+    let field = null, seed = 1, W = 0, H = 0, dpr = 1;
+
+    const roleColor = (r) => (ROLES[r] || {}).color || '#888';
+    const domHue = {}; DOMAINS.forEach((d, i) => domHue[d.id] = (i * 36) % 360);
+    function cellColor(c) {
+      const by = $('by').value;
+      if (by === 'role') return c.color;
+      if (by === 'domain') return c.domain ? `hsl(${domHue[c.domain]} 55% 45%)` : '#2a2f35';
+      return ['#2a2f35', '#7a6a3a', '#b04a2a', '#cfd2c8'][c.tier] || '#444'; // tier 1/2/3
+    }
+    function poly(p) { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); }
+
+    function draw() {
+      if (!field) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
+      // flat cells
+      for (const c of field.cells) { if (c.poly.length < 3) continue; ctx.fillStyle = cellColor(c); poly(c.poly); ctx.fill(); }
+      // thin brutalist cell lines
+      ctx.lineWidth = 0.6; ctx.strokeStyle = '#0a0c10';
+      for (const c of field.cells) { if (c.poly.length < 3) continue; poly(c.poly); ctx.stroke(); }
+      // the supply web
+      if ($('t-flow').checked) {
+        ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(223,231,226,0.16)'; ctx.beginPath();
+        for (const e of field.edges) { ctx.moveTo(e.fx, e.fy); ctx.lineTo(e.tx, e.ty); }
+        ctx.stroke();
+      }
+      // glyphs (only when cells are big enough to read)
+      if ($('t-glyph').checked && field.spacing > 16) {
+        ctx.fillStyle = 'rgba(10,12,16,0.8)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = Math.floor(field.spacing * 0.5) + 'px "JetBrains Mono", monospace';
+        for (const c of field.cells) ctx.fillText((ROLES[c.role] || {}).glyph || '', c.x, c.y);
+      }
+    }
+
+    function rebuild() {
+      $('busy').classList.add('on');
+      requestAnimationFrame(() => {
+        field = buildField({ W, H, count: +$('n').value, seed });
+        $('v-n').textContent = $('n').value;
+        $('r-n').textContent = field.places.length.toLocaleString();
+        $('r-e').textContent = field.edges.length.toLocaleString();
+        $('r-c').textContent = (field.closure * 100).toFixed(0) + '%';
+        $('r-cn').textContent = '(' + field.met + '/' + field.need + ' needs)';
+        // legend with live counts
+        $('legend').innerHTML = Object.keys(ROLES).map((r) => `<span><span class="sw" style="background:${roleColor(r)}"></span>${ROLES[r].glyph} ${r} <span class="n">${field.counts[r] || 0}</span></span>`).join('');
+        draw();
+        $('busy').classList.remove('on');
+      });
+    }
+    let deb = null; const schedule = () => { clearTimeout(deb); deb = setTimeout(rebuild, 120); };
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); const r = cv.parentElement.getBoundingClientRect(); W = Math.max(160, Math.floor(r.width)); H = Math.max(160, Math.floor(r.height)); cv.width = W * dpr; cv.height = H * dpr; schedule(); }
+
+    $('n').addEventListener('input', () => { $('v-n').textContent = $('n').value; schedule(); });
+    $('by').addEventListener('change', draw);
+    $('t-flow').addEventListener('change', draw);
+    $('t-glyph').addEventListener('change', draw);
+    $('regen').addEventListener('click', () => { seed = (seed * 1664525 + 1013904223) >>> 0; rebuild(); });
+    window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 120); });
+    resize();
+  </script>
+</body>
+</html>

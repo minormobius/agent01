@@ -54,6 +54,14 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   program + tint/floor-plan/roads/nuclei toggles. Geometry kernel is pure + node-tested
   (`test/paint.selftest.mjs`, 34 checks: grading, door connectivity, zone connectivity + arterials);
   the page only draws what `buildScene()` returns. A sandbox to iterate the look before world.js.
+- `econ/` (`econ/index.html` + `econ/econ.js`) — **economies as ecosystems**, the ideation canvas at
+  `hoop.mino.mobi/econ/`. A place is the economic cousin of a biome species: a **role** (verb) × a
+  **domain** (matter) × **flows** (`in`/`out` resource tokens). `buildField()` scatters a big field,
+  Voronoi-tiles it (reuses `paint/voronoi.js` primitives) and wires each `in` to its nearest `out` —
+  a **supply web** you read like a food web (closure %, gaps, keystones). Post-scarcity tell: the
+  real output is `regard` (the ATProto economy of esteem). Brutalist render (flat cells, thin lines,
+  the web as faint edges); colour by role/domain/tier. Pure + node-tested (`test/econ.selftest.mjs`).
+  **Ideation stage** — the real build is intended for a fresh `main` later; this is the sketchpad.
 
 ## The package it belongs to
 
