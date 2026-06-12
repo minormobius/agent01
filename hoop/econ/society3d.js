@@ -3,30 +3,29 @@
 // econ.js v1 lived on a flat rectangle with crow-flight supply wiring. The real world is the
 // annular sector foam (rind/wayfind.js sectorFoam — the 33k-chamber foamview scene): a chamber
 // GRAPH where gravity is radial and travel is ANISOTROPIC — azimuthal is level street, radial is
-// climb, and climb is only cheap where a certified spiral ramp exists. This module inverts the
-// v1 order of operations into the one a load-bearing foam forces:
+// climb, and climb is only cheap where a ramp exists. Two ways to get the roads:
 //
-//   1. INFRASTRUCTURE FIRST. wayfind's planRoute() finds two certified corkscrew ramps + level
-//      azimuthal roads through the chamber graph; those chambers become RIGHT-OF-WAY — reserved,
-//      unbuildable, the city yields to them.
-//   2. BUILDINGS CLAIM THE REMAINDER. The buildable chambers agglomerate into buildings sized by
-//      function (the econ genome's FOOTPRINT), via weighted graph-Voronoi over chamber adjacency —
-//      so a building is a connected clump of real chambers, keyed by chamber index (the foamview's
-//      own id space; painting the society IS colouring chambers by owner).
-//   3. SUPPLY MOVES ON ROADS, NOT THROUGH WALLS. Each resource's supplier assignment is a
-//      label-propagating Dijkstra over the chamber graph with anisotropic edge costs: level run at
-//      cost 1, radial climb at VERT× (hauling through stair-holes in plates), right-of-way edges
-//      discounted (an engineered drivable deck). The "nearest" baker is nearest BY ROAD.
-//   4. THE ORACLE LEARNS GEOGRAPHY. `access` — median road-cost from a dwelling to the nearest of
-//      each everyday basket role (serve/heal/learn/worship/play/trade) — joins the vitality score.
-//      Move the ramps and the score moves: wayfinding and society are finally one model.
+//   · buildFoamCity() — the CERTIFIED route: wayfind's planRoute() corkscrew ramps + azimuthal
+//     roads become reserved right-of-way before anything is built (leg 1 of FOAM.md).
+//   · createFoamGrower() — the GROWN route (leg 3): no imposed route at all. A provisional city is
+//     assembled with no roads, a society settles it, and its lived trips (hats + freight) become
+//     the demand for the desire-line kernel (paint/flux.js) over the chamber graph with the
+//     anisotropic base costs. The stationary traffic field is the Laplace transform of THIS town's
+//     NPC motion; the right-of-way is its superlevel set — and because climbing is dear, the climb
+//     demand concentrates onto a few reinforced radial threads: the ramp EMERGES (or measurably
+//     fails to — emergent stats report the radial span the network actually threads). Then the
+//     city is assembled FRESH around the carved right-of-way (grow-then-settle), so every
+//     downstream invariant — doors on the road, supply discount on decks, access, the oracle —
+//     works unchanged.
 //
-// buildSociety / socialMetrics / removeImpact from econ.js run over the result unchanged (places
-// expose planar (x, y) = (arc, axial); their radial blindness for hat-picking is a charted next
-// leg — see FOAM.md). Deterministic from (genome, seed); pure; node + browser (no DOM).
+// In both cases buildings claim the remaining chambers as connected clumps keyed by chamber index
+// (painting the society IS colouring chambers), supply is wired by road-aware Dijkstra, and the
+// access signal joins the oracle via scoreFoamSociety. Deterministic from (genome, seed); pure;
+// node + browser (no DOM).
 
-import { ROLES, DOMAINS, DEFAULT_GENOME, makePlace } from './econ.js';
+import { ROLES, DOMAINS, DEFAULT_GENOME, makePlace, buildSociety } from './econ.js';
 import { mulberry32 } from '../paint/voronoi.js';
+import { makeGraph, createGrower, finalizeField } from '../paint/flux.js';
 import '../vendor/wayfind.js';                       // UMD → globalThis.HOOPWAYFIND (verbatim rind copy)
 
 const WAYFIND = globalThis.HOOPWAYFIND;
@@ -104,26 +103,20 @@ function dijkstra1(N, adjC, sources) {
   return dist;
 }
 
-// ── the headline call: a seeded sector of the foam → a full city with a scored society shape ──
-// Returns the same shape buildWorld() produces (places/edges/byRes/counts/closure/…) PLUS the
-// foam-specific layer: chambers (positions), chamberOwner (chamber → building | -1 row | -2 void),
-// rightOfWay, route (wayfind's certificate, drawable as ribbons), access (0..1), travel costs.
-export function buildFoamCity({
-  Ri = 250, T = 50, cell = 1, arcDeg = 18, axial = 10, grade = 0.4, seed = 1,
-  genome = DEFAULT_GENOME, vert = 6, roadDiscount = 0.6, accessRef = 30,
-} = {}) {
+// the foam + its nav graph for a sector (shared by both road regimes)
+function sectorNav({ Ri = 250, T = 50, cell = 1, arcDeg = 18, axial = 10, grade = 0.4, seed = 1 } = {}) {
   const foam = WAYFIND.sectorFoam({ Ri, T, cell, arcDeg, axial, grade, seed });
-  const nav = WAYFIND.buildNav(foam);
-  const N = nav.n, cells = nav.cells, rBar = Ri + T / 2;
+  return { foam, nav: WAYFIND.buildNav(foam) };
+}
 
-  // 1. RIGHT-OF-WAY: the certified ramp + road chains come first; the city yields to them.
-  const route = WAYFIND.planRoute(nav, { seed });
-  const row = new Set();
-  if (route) {
-    for (const c of route.A.cells) row.add(c);
-    for (const c of route.B.cells) row.add(c);
-    for (const rd of route.roads) for (const c of rd.cells) row.add(c);
-  }
+// ── ASSEMBLE: a right-of-way (however obtained) + the genome → the full city. Buildings claim
+//    the chambers off the row, the supply web wires by road-aware Dijkstra, access is measured.
+//    Deterministic from (genome, seed, row). Both buildFoamCity and the grower's finalize use it. ──
+function assembleCity(foam, nav, row, {
+  Ri = 250, T = 50, seed = 1, genome = DEFAULT_GENOME, vert = 6, roadDiscount = 0.6, accessRef = 30,
+  route = null,
+} = {}) {
+  const N = nav.n, cells = nav.cells, rBar = Ri + T / 2;
 
   // anisotropic edge costs over the chamber graph: level run cheap, climb dear, decks discounted
   const E = foam.mi.length, adjC = Array.from({ length: N }, () => []);
@@ -135,7 +128,7 @@ export function buildFoamCity({
     adjC[i].push([j, w]); adjC[j].push([i, w]);
   }
 
-  // 2. BUILDINGS CLAIM THE REMAINDER: buildable = chambers off the right-of-way
+  // BUILDINGS CLAIM THE REMAINDER: buildable = chambers off the right-of-way
   const c2b = new Int32Array(N).fill(-1), buildable = [];
   for (let i = 0; i < N; i++) if (!row.has(i)) { c2b[i] = buildable.length; buildable.push(i); }
   const NB = buildable.length;
@@ -174,8 +167,8 @@ export function buildFoamCity({
     places.push(pl);
   }
 
-  // 3. SUPPLY MOVES ON ROADS: per resource, 2-label Dijkstra from every producer's chambers; each
-  //    consumer reads (distance, supplier) at its door — skipping itself via the runner-up label.
+  // SUPPLY MOVES ON ROADS: per resource, 2-label Dijkstra from every producer's chambers; each
+  // consumer reads (distance, supplier) at its door — skipping itself via the runner-up label.
   const byRes = new Map();
   for (const pl of places) for (const r of pl.out) { let a = byRes.get(r); if (!a) { a = []; byRes.set(r, a); } a.push(pl); }
   const edges = []; let need = 0, met = 0;
@@ -195,7 +188,7 @@ export function buildFoamCity({
     }
   }
 
-  // 4. ACCESS: median road-cost from each dwelling's door to the nearest of each basket role.
+  // ACCESS: median road-cost from each dwelling's door to the nearest of each basket role.
   const dwellings = places.filter((p) => p.role === 'dwell');
   const perDwelling = new Float64Array(dwellings.length);
   let basketsFound = 0;
@@ -225,6 +218,90 @@ export function buildFoamCity({
     chambers: cells, chamberOwner, adjC, rightOfWay: row, route, foam,
     access, accessMedianCost: medCost, avgFootprint: places.length ? NB / places.length : 0,
     voids: NB - places.reduce((s, p) => s + p.footprint, 0),
+  };
+}
+
+// ── the CERTIFIED city: wayfind's proven ramps + roads reserved first (FOAM.md leg 1) ──
+export function buildFoamCity(opts = {}) {
+  const { seed = 1 } = opts;
+  const { foam, nav } = sectorNav(opts);
+  const route = WAYFIND.planRoute(nav, { seed });
+  const row = new Set();
+  if (route) {
+    for (const c of route.A.cells) row.add(c);
+    for (const c of route.B.cells) row.add(c);
+    for (const rd of route.roads) for (const c of rd.cells) row.add(c);
+  }
+  return assembleCity(foam, nav, row, { ...opts, route });
+}
+
+// ── the GROWN city (FOAM.md leg 3): desire-line right-of-way from the lived society ─────────────
+// Steppable so the 3D page can animate the field forming. The provisional no-road city + society
+// exist only to source demand; finalize() reassembles the city fresh around the emergent streets.
+export function createFoamGrower(opts = {}) {
+  const { Ri = 250, T = 50, seed = 1, genome = DEFAULT_GENOME, vert = 6,
+    wWork = 1.0, wThird = 0.6, wSupply = 0.4 } = opts;
+  const { foam, nav } = sectorNav(opts);
+  const N = nav.n, cells = nav.cells;
+  // the provisional settlement: no roads at all — everyone climbs raw stair-holes
+  const base = assembleCity(foam, nav, new Set(), { ...opts, route: null });
+  const society = buildSociety(base, { seed, genome });
+  // demand at door chambers: every hat a recurring trip, every supply edge a freight run. Trips
+  // are stored HUB-FIRST (workplace/parish/club/supplier as the routing source): flux on an
+  // undirected graph is symmetric, so the field is identical — but hubs are ~6× fewer than homes,
+  // so the per-round Dijkstra count (grouped by source) drops by the same factor.
+  const agg = new Map();
+  const add = (a, b, w) => { if (a < 0 || b < 0 || a === b) return; const k = a + ',' + b; agg.set(k, (agg.get(k) || 0) + w); };
+  const door = (id) => base.places[id].door;
+  for (const p of society.people) {
+    const home = door(p.home);
+    for (const h of p.hats) { if (h.place === p.home) continue; add(door(h.place), home, h.kind === 'work' ? wWork : wThird); }
+  }
+  for (const e of base.edges) add(door(e.to), door(e.from), wSupply);
+  const trips = [];
+  for (const [k, w] of agg) { const [a, b] = k.split(','); trips.push({ a: +a, b: +b, w }); }
+  // the field grows over ANISOTROPIC base lengths — climbing is dear, so climb demand concentrates
+  // onto few reinforced radial threads (conductance = the deck being worn into existence). The
+  // ROUTING graph keeps only face/edge neighbours (3D run < 1.5·cell): the corner-diagonals the
+  // 1.85·cell adjacency admits add ~half the edges and nothing to travel — halving step time.
+  const cellU = opts.cell ?? 1, routeFilter = opts.routeFilter ?? 1.3;   // ≈6-neighbourhood
+  const edgeList = [];
+  for (let m = 0; m < foam.mi.length; m++) {
+    const a = cells[foam.mi[m]], b = cells[foam.mj[m]], rm = Ri + (a.rad + b.rad) / 2;
+    const horiz = Math.hypot(rm * (b.th - a.th), b.z - a.z), dr = Math.abs(b.rad - a.rad);
+    if (Math.hypot(horiz, dr) > routeFilter * cellU) continue;
+    edgeList.push({ a: foam.mi[m], b: foam.mj[m], len: horiz + vert * dr });
+  }
+  const graph = makeGraph(N, edgeList);
+  // batch origins so one step stays interactive at full 33k scale (~700 origin searches per round)
+  const nOrigins = new Set(trips.map((t) => t.a)).size;
+  const originBatches = opts.originBatches ?? Math.max(1, Math.ceil(nOrigins / 700));
+  const grower = createGrower(graph, trips, { ...opts, originBatches });
+  return {
+    foam, nav, graph, grower, base, society, trips,
+    get iter() { return grower.iter; },
+    state: grower.state,
+    step: () => grower.step(),
+    finalize({ roadFrac = 0.05 } = {}) {
+      const ff = finalizeField(graph, grower.state, { roadFrac });
+      const row = new Set();
+      for (let i = 0; i < N; i++) if (ff.isRoad[i]) row.add(i);
+      const city = assembleCity(foam, nav, row, { ...opts, route: null });
+      // emergent stats: did the climb emerge? how far does the grown network thread the shell?
+      let rLo = Infinity, rHi = -Infinity, rampSegs = 0, levelSegs = 0;
+      for (const c of row) { const q = cells[c]; if (q.rad < rLo) rLo = q.rad; if (q.rad > rHi) rHi = q.rad; }
+      for (let i = 0; i < graph.E; i++) {
+        if (!ff.roadEdge[i]) continue;
+        const dr = Math.abs(cells[graph.ea[i]].rad - cells[graph.eb[i]].rad);
+        if (dr > 0.5) rampSegs++; else levelSegs++;
+      }
+      city.emergent = {
+        chambers: row.size, rampSegs, levelSegs,
+        radialSpanFrac: row.size ? (rHi - rLo) / T : 0,
+        tier: ff.tier, roadEdge: ff.roadEdge, ea: graph.ea, eb: graph.eb,
+      };
+      return city;
+    },
   };
 }
 

@@ -98,8 +98,13 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
     over the city unchanged. Imports `vendor/wayfind.js` — a **verbatim copy of `rind/wayfind.js`**
     (same rule as vendor/auth.js: re-sync, never fork; if they drift the certificate the kernel
     reserves is not the one foamview draws). Full 33k sector ≈ 5.5 s in node, deterministic from
-    `(genome, seed)`. **The course to the painted foamview is charted in [`econ/FOAM.md`](econ/FOAM.md)**
-    — read it before extending the 3D side.
+    `(genome, seed)`. **GROWN roads (leg 3, shipped):** `createFoamGrower()` replaces the imposed
+    corkscrew with desire-line right-of-way grown from the lived society's trips — grow-then-settle:
+    a provisional no-road city sources demand, the field grows over the chamber graph, `finalize()`
+    reassembles the city around the emergent streets. `test/foamroads.selftest.mjs` pins that the
+    climb network EMERGES (92–99% radial span from demand alone). `buildFoamCity()` (certified
+    planRoute) is kept verbatim for comparison. **The course is charted in
+    [`econ/FOAM.md`](econ/FOAM.md)** — read it before extending the 3D side.
   - **`econ/foam/` — the painted foamview (FOAM.md leg 2), live at `/econ/foam/`.** WebGPU instanced
     chambers (2D canvas fallback) coloured by owning building under four lenses (role · size ·
     bridging · access); right-of-way always road-grey; glyph billboards LOD-gated by screen-space
@@ -148,6 +153,7 @@ node hoop/test/econ3d.selftest.mjs          # the FOAM SOCIETY kernel over rind'
 node hoop/test/econfoam.selftest.mjs        # the /econ/foam/ worker contract (what the page renders)
 node hoop/test/flux.selftest.mjs            # desire-line roads: streets as the traffic field's superlevel set
 node hoop/test/econroads.selftest.mjs       # the same grower fed by the REAL econ society (stepwise, the carve)
+node hoop/test/foamroads.selftest.mjs       # the grown 3D foam city — THE CLIMB EMERGES (no imposed corkscrew)
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

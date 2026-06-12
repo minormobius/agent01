@@ -80,6 +80,7 @@ export function makeGraph(n, edgeList) {
 
 export function createGrower(graph, demand, {
   mu = 0.75, grow = 1.0, decay = 0.35, baseline = 1, condGain = 6, condMax = 60,
+  originBatches = 1,
 } = {}) {
   const { n, E, adj, len, ea, eb } = graph;
   const cond = new Float64Array(E).fill(baseline);
@@ -122,7 +123,12 @@ export function createGrower(graph, demand, {
       const cost = new Float64Array(E);
       for (let i = 0; i < E; i++) cost[i] = len[i] / cond[i];
       flux.fill(0); traffic.fill(0);
+      // origin batching (stochastic relaxation): each round routes a deterministic rotating subset
+      // of origins — decay smooths the field across rounds; what keeps a 33k-chamber step live
+      let k = -1;
       for (const [src, trips] of bySrc) {
+        k++;
+        if (originBatches > 1 && k % originBatches !== iter % originBatches) continue;
         const v = dijkstra(src, cost);
         for (const t of trips) {
           if (doneAt[t.b] !== v) continue;            // unreachable this round

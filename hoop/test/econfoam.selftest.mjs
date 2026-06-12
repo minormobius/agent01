@@ -76,5 +76,22 @@ ok(!!city && !outbox.some((m) => m.type === 'error'), 'build produces a city mes
   ok(c2.stats.buildings !== city.stats.buildings || c2.stats.people !== city.stats.people, 'the rolled genome builds a different town');
 }
 
+// ── the GROWN build: foam first, one message per round, then the same city payload ──
+{
+  outbox.length = 0;
+  send({ type: 'build', seed: 1, n: 0, grow: true, opt: { arcDeg: 5, axial: 8, iters: 3 } });
+  ok(outbox[0] && outbox[0].type === 'foam' && outbox[0].pos instanceof Float32Array && outbox[0].pos.length === 3 * outbox[0].N, 'growth opens with the bare foam (positions first, so the page can watch)');
+  const grows = outbox.filter((m) => m.type === 'grow');
+  ok(grows.length === 3 && grows.every((m, i) => m.iter === i + 1 && m.total === 3), 'one grow message per reinforcement round, in order');
+  ok(grows.every((m) => m.segs instanceof Float32Array && m.segs.length % 12 === 0), 'each round carries the flux field as drawable segments');
+  ok(grows[2].segs.length > 0, 'the field has visible desire lines by the last round');
+  const gc = outbox.find((m) => m.type === 'city');
+  ok(!!gc && gc.stats.route.startsWith('EMERGENT'), 'the grown city reports its emergent network (' + (gc && gc.stats.route) + ')');
+  ok(gc.routeSegs instanceof Float32Array && gc.routeSegs.length > 0, 'the emergent tier hierarchy ships as the route ribbons');
+  let roads = 0; for (let i = 0; i < gc.N; i++) if (gc.owner[i] === -1) roads++;
+  ok(roads === gc.stats.row && roads > 50, 'the grown right-of-way is carved into the owner map (' + roads + ' chambers)');
+  ok(gc.stats.closure > 0.9 && gc.stats.vitality > 0, 'the grown city closes its supply web and scores');
+}
+
 console.log(`econfoam.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

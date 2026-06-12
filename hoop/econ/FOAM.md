@@ -107,8 +107,23 @@ cross, every surviving building keeps frontage + one door, fully-eaten buildings
 The kernel is shared with /paint (`makeGraph`/`createGrower`/`finalizeField` in `paint/flux.js`,
 now steppable + early-exit/flat-heap optimised: ~0.45 s per round at 8 k cells, 11× the naive).
 
-**Still to port to the foam (`society3d.js`):** run the same grower over the chamber graph in
-place of `planRoute`; keep the radial cores sparse; let the helix emerge. Then **junction towns** — score a
+**Ported to the foam (3D) — THE CLIMB EMERGES.** `createFoamGrower()` in `society3d.js`
+(+ `test/foamroads.selftest.mjs`, 21 checks) grows the right-of-way over the 33k-chamber graph
+with no imposed route at all, by **grow-then-settle**: a provisional no-road city + society exist
+only to source demand (hats + freight at door chambers, hub-first since flux is symmetric); the
+field grows over the anisotropic base costs (climb ×6); `finalize()` takes its superlevel set and
+**reassembles the city fresh** around the emergent streets — so every downstream invariant (doors
+on road, supply discount on decks, access, the oracle) works unchanged. Measured: the grown
+network threads **96–99% of the shell's radial depth** with hundreds of ramp segments — climb
+infrastructure grown from demand alone — and access matches the certified corkscrew (0.79 ≈ 0.79).
+`buildFoamCity()` (the certified planRoute path) is kept verbatim for comparison; the selftest
+pins that grown ≠ certified on the same seed. The /econ/foam/ page's **⛗ grow streets** button
+runs it as a cinematic: the bare foam posts first, then one message per reinforcement round (the
+flux field as gold segments, sharpening live, ~5 s/round at full 33k — orbit while it grows), then
+the carved city in the usual lenses with the emergent tier hierarchy as its ribbons.
+Perf notes: routing graph keeps face/edge neighbours only (`routeFilter`), origins are batched
+per round (`originBatches`, stochastic relaxation — decay smooths it); the step cost is dominated
+by each hub's farthest member, so further speedups need hierarchical routing, not tuning. Then **junction towns** — score a
 building by the road betweenness of its door chamber and pin that the oracle's `bridges` signal
 correlates with junction proximity (the Granovetter weak-tie thesis acquiring a *spatial cause* —
 the first falsifiable prediction the society makes about geography). Watch the two cautions:

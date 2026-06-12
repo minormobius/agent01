@@ -35,6 +35,7 @@
   <select id="lens"><option value="role" selected>lens: role</option><option value="footprint">lens: building size</option><option value="bridging">lens: bridges vs bonds</option><option value="access">lens: access (dwellings)</option></select>
   <button id="vmode">view: city + routes</button>
   <button id="glyphs">glyphs: auto</button>
+  <button id="growb" style="color:#ffd07a">⛗ grow streets</button>
   <button id="regen">↻ reseed</button>
   <button id="roll">🧬 roll genome</button>
   <button id="rmode">renderer: …</button>
@@ -57,21 +58,38 @@ const syncURL = () => history.replaceState(null, '', '?seed=' + seed + (rollN ? 
 let N = 0, POS = new Float32Array(0), OWNER = new Int32Array(0), LAYERS = null, ROUTE = new Float32Array(0);
 let BILL = [], DIMS = { Ri: 250, T: 50, cell: 1, Lx: 10, arcRad: 0.314 }, STATS = null, ARCH = 'wild type';
 let FRAME = new Float32Array(0);                                   // the two hull arcs
-let lens = 'role';
+let lens = 'role', growing = false, NEUTRAL = null;
 const worker = new Worker('./builder.js', { type: 'module' });
-worker.onerror = (e) => { $('busy').style.display = 'none'; showErr('worker: ' + e.message); };
+worker.onerror = (e) => { $('busy').style.display = 'none'; growing = false; showErr('worker: ' + e.message); };
 worker.onmessage = (e) => {
   const m = e.data;
-  if (m.type === 'error') { $('busy').style.display = 'none'; showErr('build: ' + m.message); return; }
+  if (m.type === 'error') { $('busy').style.display = 'none'; growing = false; showErr('build: ' + m.message); return; }
   if (m.type === 'inspect') { renderInspect(m); return; }
+  if (m.type === 'foam') {                                          // the grown build opens with the bare foam
+    N = m.N; POS = m.pos; DIMS = m.dims;
+    OWNER = new Int32Array(0); LAYERS = null; BILL = []; ROUTE = new Float32Array(0); STATS = null;
+    NEUTRAL = new Float32Array(3 * N);
+    for (let i = 0; i < N; i++) { NEUTRAL[3 * i] = 0.16; NEUTRAL[3 * i + 1] = 0.19; NEUTRAL[3 * i + 2] = 0.21; }
+    bakeFrame(); resetCam();
+    if (gpu) { gpu.upload(); gpu.setColors(NEUTRAL); refreshLines(); }
+    $('busy').style.display = 'none';
+    $('info').innerHTML = '🜨 the bare foam — ' + N.toLocaleString() + ' chambers · a provisional society settled it; now its trips grow the streets…';
+    return;
+  }
+  if (m.type === 'grow') {                                          // one reinforcement round = one frame
+    ROUTE = m.segs; refreshLines();
+    $('info').innerHTML = '⛗ desire lines sharpening — round <b>' + m.iter + '/' + m.total + '</b> · every hat + freight trip rerouted; conductance follows flux; streets will be the field’s superlevel set';
+    return;
+  }
   if (m.type !== 'city') return;
+  growing = false;
   N = m.N; POS = m.pos; OWNER = m.owner; LAYERS = m.layers; ROUTE = m.routeSegs; BILL = m.bill; DIMS = m.dims; STATS = m.stats; ARCH = m.genome.archetype;
   bakeFrame(); resetCam();
   if (gpu) { gpu.upload(); gpu.setColors(LAYERS[lens]); refreshLines(); }
   $('busy').style.display = 'none';
   hudInfo();
 };
-function rebuild() { $('busy').style.display = 'flex'; $('inspect').style.display = 'none'; syncURL(); worker.postMessage({ type: 'build', seed, n: rollN }); }
+function rebuild() { $('busy').style.display = 'flex'; $('busy').textContent = 'assembling the society… (~6 s, in a worker)'; $('inspect').style.display = 'none'; syncURL(); worker.postMessage({ type: 'build', seed, n: rollN }); }
 
 function bakeFrame() {                                             // the two smooth hulls at both axial ends
   const { Ri, T, arcRad, Lx } = DIMS, Ro = Ri + T, bc = [0.36, 0.5, 0.66], segs = [];
@@ -237,7 +255,7 @@ async function initGPU() {
 function frame2D() {
   const ctx = cv.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
-  const M = viewProj(W, H), L = LAYERS && LAYERS[lens];
+  const M = viewProj(W, H), L = (LAYERS && LAYERS[lens]) || NEUTRAL;
   if (view !== 'routes' && L) {
     const pts = [];
     for (let i = 0; i < N; i++) {
@@ -317,7 +335,7 @@ cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom(1 + Math.sign(e.d
 
 // click → nearest projected chamber (favouring the probe band) → its building → ask the worker
 function pick(px, py) {
-  if (!N) return;
+  if (!N || growing || !OWNER.length) return;
   const M = viewProj(W, H);
   let best = -1, bd = 18 * 18;
   for (let i = 0; i < N; i++) {
@@ -349,6 +367,15 @@ $('vmode').addEventListener('click', () => {
 $('glyphs').addEventListener('click', () => { glyphMode = glyphMode === 'auto' ? 'off' : 'auto'; $('glyphs').textContent = 'glyphs: ' + glyphMode; });
 $('regen').addEventListener('click', () => { seed = (seed * 1664525 + 1013904223) >>> 0; rebuild(); });
 $('roll').addEventListener('click', () => { rollN = 1 + Math.floor(Math.random() * 1e6); rebuild(); });
+$('growb').addEventListener('click', () => {
+  if (growing) return;
+  growing = true;
+  $('busy').style.display = 'flex';
+  $('busy').textContent = 'settling the provisional society… (~15 s, then the growth runs live — orbit while it grows)';
+  $('inspect').style.display = 'none';
+  syncURL();
+  worker.postMessage({ type: 'build', seed, n: rollN, grow: true });
+});
 $('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
 
 (async () => {

@@ -2,7 +2,7 @@
 // sector) OFF the render thread, bakes per-chamber colour layers + the route-ribbon geometry, and
 // stays alive holding {city, society, metrics} to answer click inspections. The page only ever
 // receives transferable typed arrays + small JSON — it never touches the model.
-import { buildFoamCity, scoreFoamSociety } from '../society3d.js';
+import { buildFoamCity, createFoamGrower, scoreFoamSociety } from '../society3d.js';
 import { buildSociety, socialMetrics, scoreSociety, removeImpact, rollGenome, DEFAULT_GENOME, ROLES } from '../econ.js';
 
 let city = null, society = null, metrics = null;
@@ -70,17 +70,71 @@ function bakeRoute() {
   return new Float32Array(segs);
 }
 
+// the emergent network's tier hierarchy as drawable segments (the grown city's "routeSegs")
+function bakeEmergent(c) {
+  const e = c.emergent; if (!e) return new Float32Array(0);
+  const cs = c.chambers, segs = [];
+  const TIER_RGB = [null, [0.5, 0.85, 0.82], [0.47, 0.78, 0.63], [1.0, 0.82, 0.48]];   // footpath · street · arterial
+  for (let i = 0; i < e.tier.length; i++) {
+    const t = e.tier[i]; if (!t) continue;
+    const a = cs[e.ea[i]], b = cs[e.eb[i]], col = TIER_RGB[t];
+    segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b.x, b.y, b.z, col[0], col[1], col[2]);
+  }
+  return new Float32Array(segs);
+}
+
+// the flux field mid-growth, as gold segments scaled by intensity (one frame of the cinematic)
+function bakeFlux(g) {
+  const { flux } = g.state, cs = g.nav.cells, { ea, eb, E } = g.graph;
+  let mx = 0; for (let i = 0; i < E; i++) if (flux[i] > mx) mx = flux[i];
+  if (mx <= 0) return new Float32Array(0);
+  const segs = [];
+  for (let i = 0; i < E; i++) {
+    const t = flux[i] / mx; if (t < 0.025) continue;
+    const s = 0.18 + 0.82 * Math.sqrt(t);                          // intensity in the colour (lines have no alpha)
+    const a = cs[ea[i]], b = cs[eb[i]];
+    segs.push(a.x, a.y, a.z, s, s * 0.78, s * 0.36, b.x, b.y, b.z, s, s * 0.78, s * 0.36);
+  }
+  return new Float32Array(segs);
+}
+
+// THE GROWN BUILD (FOAM.md leg 3 in 3D): post the bare foam, then one message per reinforcement
+// round (the desire lines sharpening), then finalize → the same 'city' payload as the certified
+// path. The page orbits the foam while the streets grow.
+function buildGrown({ seed, n, opt }) {
+  const genome = n > 0 ? rollGenome(n) : DEFAULT_GENOME;
+  const iters = (opt && opt.iters) || 10;
+  const g = createFoamGrower({ ...(opt || {}), seed, genome });
+  const N = g.nav.n, pos = new Float32Array(3 * N);
+  for (let i = 0; i < N; i++) { const q = g.nav.cells[i]; pos[3 * i] = q.x; pos[3 * i + 1] = q.y; pos[3 * i + 2] = q.z; }
+  postMessage({ type: 'foam', N, pos, total: iters,
+    dims: { Ri: 250, T: 50, cell: g.foam.cell, Lx: g.foam.Lx, arcRad: g.foam.arcRad } }, [pos.buffer]);
+  for (let i = 0; i < iters; i++) {
+    g.step();
+    const segs = bakeFlux(g);
+    postMessage({ type: 'grow', iter: g.iter, total: iters, segs }, [segs.buffer]);
+  }
+  city = g.finalize();
+  society = buildSociety(city, { seed, genome });
+  metrics = socialMetrics(city, society);
+  postCity({ seed, n, genome });
+}
+
 function build({ seed, n, opt }) {
   const genome = n > 0 ? rollGenome(n) : DEFAULT_GENOME;
   city = buildFoamCity({ ...(opt || {}), seed, genome });
   society = buildSociety(city, { seed, genome });
   metrics = socialMetrics(city, society);
+  postCity({ seed, n, genome });
+}
+
+function postCity({ seed, n, genome }) {
   const score = scoreFoamSociety(city, scoreSociety(city, society, metrics));
   const N = city.chambers.length;
   const pos = new Float32Array(3 * N);
   for (let i = 0; i < N; i++) { const q = city.chambers[i]; pos[3 * i] = q.x; pos[3 * i + 1] = q.y; pos[3 * i + 2] = q.z; }
   const owner = Int32Array.from(city.chamberOwner);
-  const layers = bakeColors(), routeSegs = bakeRoute();
+  const layers = bakeColors(), routeSegs = city.route ? bakeRoute() : bakeEmergent(city);
   // building billboards: centroid world position + glyph + a world-space radius for LOD gating
   const bill = city.places.map((p) => { const r = 250 + p.rad; return { x: r * Math.cos(p.th), y: r * Math.sin(p.th), z: p.zax, g: p.glyph, fp: p.footprint, road: !!p.onRoad }; });
   const m = (u) => Math.round(u * 20);
@@ -93,7 +147,9 @@ function build({ seed, n, opt }) {
       buildings: city.places.length, row: city.rightOfWay.size, voids: city.voids,
       closure: city.closure, access: city.access, people: society.people.length,
       avgHats: society.avgHats, vitality: score.vitality, tier: score.tier,
-      route: route ? `ramp A ${route.A.turns.toFixed(1)} turns · ${route.roads.length} roads · ramp B ${route.B.turns.toFixed(1)} turns · climbs ${m(Math.abs(route.A.climb))} m` : 'none found',
+      route: route ? `certified: ramp A ${route.A.turns.toFixed(1)} turns · ${route.roads.length} roads · ramp B ${route.B.turns.toFixed(1)} turns · climbs ${m(Math.abs(route.A.climb))} m`
+        : city.emergent ? `EMERGENT: ${city.emergent.chambers} chambers grown from the society's own trips · ${city.emergent.rampSegs} ramp segs · threads ${(city.emergent.radialSpanFrac * 100).toFixed(0)}% of shell depth`
+        : 'none found',
     },
   }, [pos.buffer, owner.buffer, layers.role.buffer, layers.footprint.buffer, layers.bridging.buffer, layers.access.buffer, routeSegs.buffer]);
 }
@@ -117,7 +173,7 @@ function inspect(placeId) {
 onmessage = (e) => {
   const msg = e.data;
   try {
-    if (msg.type === 'build') build(msg);
+    if (msg.type === 'build') { if (msg.grow) buildGrown(msg); else build(msg); }
     else if (msg.type === 'inspect') inspect(msg.placeId);
   } catch (err) {
     postMessage({ type: 'error', message: String(err && err.stack || err) });
