@@ -52,6 +52,11 @@
       <button id="regen" style="flex:1">⟲ reseed</button>
       <button id="roll" style="flex:1">🧬 roll genome</button>
     </div>
+    <div class="row" style="gap:6px">
+      <button id="grow" style="flex:1">⛗ grow roads (desire lines)</button>
+      <button id="rclear" style="flex:0 0 38px" title="clear roads">✕</button>
+    </div>
+    <div class="read">roads <b id="r-road">—</b><br><span style="font-size:11px">each step routes every hat + supply trip; conductance follows flux; streets are the field's superlevel set</span></div>
     <div class="read" id="vital">vitality <b>—</b></div>
     <div class="read">cells <b id="r-n">—</b> · buildings <b id="r-b">—</b> · ⌀ footprint <b id="r-f">—</b><br>web <b id="r-e">—</b> edges · closure <b id="r-c">—</b> <span id="r-cn"></span><br>people <b id="r-p">—</b> · avg hats <b id="r-h">—</b> · third-place <b id="r-t">—</b> · reach <b id="r-r">—</b></div>
     <div class="read" id="inspect">click a building to see who's there</div>
@@ -61,9 +66,12 @@
 
   <script type="module">
     import { buildWorld, buildSociety, socialMetrics, removeImpact, scoreSociety, rollGenome, DEFAULT_GENOME, ROLES, DOMAINS } from './econ.js';
+    import { createRoadGrower, finalizeRoads } from './roads.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
     let world = null, society = null, metrics = null, vital = null, byId = null;
     let seed = 1, genome = DEFAULT_GENOME, rollN = 0, W = 0, H = 0, dpr = 1;
+    let roadsGrower = null, roadsResult = null, growTimer = null;
+    const ROAD_ITERS = 14;
 
     const roleColor = (r) => (ROLES[r] || {}).color || '#888';
     const domHue = {}; DOMAINS.forEach((d, i) => domHue[d.id] = (i * 36) % 360);
@@ -96,6 +104,10 @@
       // faint cell texture so the substrate reads under the clumps
       ctx.lineWidth = 0.3; ctx.strokeStyle = 'rgba(10,12,16,0.55)';
       for (const c of world.cells) { if (c.poly.length < 3) continue; poly(c.poly); ctx.stroke(); }
+      // desire lines forming (during growth): the flux field, alpha-binned so it batches
+      if (roadsGrower && !roadsResult) drawFluxField();
+      // grown roads: open concourse cells + the tier hierarchy + every building's door
+      if (roadsResult) drawRoads();
       // the path network (mechanical pathing between buildings)
       if ($('t-path').checked) {
         ctx.lineWidth = 0.7; ctx.strokeStyle = 'rgba(110,122,130,0.5)'; ctx.beginPath();
@@ -126,7 +138,51 @@
       }
     }
 
+    // ── desire-line roads: the society's trips, watched becoming streets ──────────────────
+    function drawFluxField() {
+      const g = roadsGrower, S = world.sites, flux = g.state.flux;
+      let mx = 0; for (const f of flux) if (f > mx) mx = f;
+      if (mx <= 0) return;
+      const bins = [[], [], [], [], []];
+      for (let i = 0; i < g.graph.E; i++) { const t = flux[i] / mx; if (t < 0.02) continue; bins[Math.min(4, Math.floor(t * 5))].push(i); }
+      bins.forEach((list, b) => {
+        if (!list.length) return;
+        ctx.strokeStyle = `rgba(244,191,98,${(0.10 + b * 0.18).toFixed(2)})`; ctx.lineWidth = 0.4 + b * 0.7; ctx.beginPath();
+        for (const i of list) { ctx.moveTo(S[g.graph.ea[i]].x, S[g.graph.ea[i]].y); ctx.lineTo(S[g.graph.eb[i]].x, S[g.graph.eb[i]].y); }
+        ctx.stroke();
+      });
+    }
+    function drawRoads() {
+      const r = roadsResult, S = world.sites, g = roadsGrower.graph;
+      ctx.fillStyle = '#37413c';                                       // the open concourse
+      for (const c of world.cells) { if (!r.isRoad[c.id] || c.poly.length < 3) continue; poly(c.poly); ctx.fill(); }
+      const styles = [null, ['rgba(127,216,208,0.4)', 0.8], ['rgba(121,200,160,0.7)', 1.6], ['rgba(244,191,98,0.95)', 2.8]];
+      for (let t = 1; t <= 3; t++) {
+        ctx.strokeStyle = styles[t][0]; ctx.lineWidth = styles[t][1]; ctx.lineCap = 'round'; ctx.beginPath();
+        for (let i = 0; i < g.E; i++) { if (r.tier[i] !== t) continue; ctx.moveTo(S[g.ea[i]].x, S[g.ea[i]].y); ctx.lineTo(S[g.eb[i]].x, S[g.eb[i]].y); }
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(244,191,98,0.9)';                          // one door per building
+      for (const d of r.doors) { const a = S[d.a], b = S[d.b]; ctx.beginPath(); ctx.arc((a.x + b.x) / 2, (a.y + b.y) / 2, 1.6, 0, Math.PI * 2); ctx.fill(); }
+    }
+    function stopGrow() { if (growTimer) { clearTimeout(growTimer); growTimer = null; } }
+    function clearRoads(redraw) { stopGrow(); roadsGrower = null; roadsResult = null; $('r-road').textContent = '—'; if (redraw) draw(); }
+    function growStepLoop() {
+      growTimer = setTimeout(() => {
+        const s = roadsGrower.step();
+        $('r-road').textContent = 'growing… step ' + s.iter + '/' + ROAD_ITERS;
+        draw();
+        if (s.iter >= ROAD_ITERS) {
+          roadsResult = finalizeRoads(roadsGrower, world);
+          const st = roadsResult.stats;
+          $('r-road').textContent = st.roadCells.toLocaleString() + ' cells (' + (st.roadFrac * 100).toFixed(0) + '% of floor) · ' + st.doored + ' doors · ' + st.expropriated + ' expropriated · ' + st.absorbed + ' absorbed';
+          growTimer = null; draw();
+        } else growStepLoop();
+      }, 40);
+    }
+
     function rebuild() {
+      clearRoads(false);
       $('busy').classList.add('on');
       requestAnimationFrame(() => {
         world = buildWorld({ W, H, cells: +$('n').value, seed, genome });
@@ -182,6 +238,14 @@
     $('t-glyph').addEventListener('change', draw);
     $('regen').addEventListener('click', () => { seed = (seed * 1664525 + 1013904223) >>> 0; rebuild(); });
     $('roll').addEventListener('click', () => { rollN = (Math.random() * 1e6) | 0; genome = rollGenome(rollN); rebuild(); });
+    $('grow').addEventListener('click', () => {
+      if (growTimer) { stopGrow(); $('r-road').textContent += ' · paused'; return; }   // toggle pause
+      if (!world || !society) return;
+      if (roadsResult) clearRoads(true);
+      if (!roadsGrower) roadsGrower = createRoadGrower(world, society);
+      growStepLoop();
+    });
+    $('rclear').addEventListener('click', () => clearRoads(true));
     window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 120); });
     resize();
   </script>

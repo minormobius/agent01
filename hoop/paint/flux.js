@@ -67,65 +67,91 @@ export function tripDemand(scene, attractors, { seed = 1, kWork = 2, kBasket = 2
   return demand;
 }
 
-// ── THE FIELD: route demand, accumulate flux, adapt conductance to a fixed point. Returns the
-//    traffic field (the Laplace transform), per-edge flux + conductance, road rooms (the superlevel
-//    set, made connected + every building given frontage), one door per building, and edge tiers. ──
-export function growNetwork(scene, demand, {
-  iters = 14, mu = 0.75, grow = 1.0, decay = 0.35, baseline = 1, condGain = 6, condMax = 60,
-  roadFrac = 0.32, seed = 1,
-} = {}) {
-  const seeds = scene.roomSeeds, n = seeds.length, edges = scene.adjEdges, E = edges.length;
-  const adj = Array.from({ length: n }, () => []);
-  const len = new Float64Array(E);
-  for (let i = 0; i < E; i++) { const e = edges[i]; len[i] = Math.max(1e-6, e.len); adj[e.a].push([e.b, i]); adj[e.b].push([e.a, i]); }
+// ── THE FIELD, STEPPABLE: the generic kernel both /paint and /econ drive. makeGraph builds the
+//    routing graph; createGrower exposes ONE flux-reinforcement round per step() so a page can
+//    animate the field forming; finalizeField takes the converged state to its superlevel set.
+//    growNetwork (below) is the one-shot orchestration /paint uses — same math, same outputs. ──
+export function makeGraph(n, edgeList) {
+  const E = edgeList.length, adj = Array.from({ length: n }, () => []);
+  const len = new Float64Array(E), ea = new Int32Array(E), eb = new Int32Array(E);
+  for (let i = 0; i < E; i++) { const e = edgeList[i]; ea[i] = e.a; eb[i] = e.b; len[i] = Math.max(1e-6, e.len); adj[e.a].push([e.b, i]); adj[e.b].push([e.a, i]); }
+  return { n, E, adj, len, ea, eb };
+}
 
+export function createGrower(graph, demand, {
+  mu = 0.75, grow = 1.0, decay = 0.35, baseline = 1, condGain = 6, condMax = 60,
+} = {}) {
+  const { n, E, adj, len, ea, eb } = graph;
   const cond = new Float64Array(E).fill(baseline);
-  let flux = new Float64Array(E);
-  const traffic = new Float64Array(n);
-  // group demand by source so one Dijkstra serves all that home's trips
+  const flux = new Float64Array(E), traffic = new Float64Array(n);
   const bySrc = new Map();
   for (const t of demand) { let a = bySrc.get(t.a); if (!a) { a = []; bySrc.set(t.a, a); } a.push(t); }
-
-  const dist = new Float64Array(n), prevE = new Int32Array(n), done = new Uint8Array(n);
+  // each origin's search may stop once all ITS destinations are settled — demand is gravity-local,
+  // so most searches explore a small ball, not the whole graph (the difference between usable and
+  // unusable at /econ's 8k-cell scale)
+  const destsOf = new Map();
+  for (const [src, trips] of bySrc) destsOf.set(src, new Set(trips.map((t) => t.b)));
+  // hot loop: flat-array heap + visit stamps (no per-source fills, no tuple garbage) — together
+  // with early exit this is what keeps a step interactive at /econ's 8k-cell scale
+  const dist = new Float64Array(n), prevE = new Int32Array(n);
+  const seenAt = new Int32Array(n), doneAt = new Int32Array(n); let visit = 0;
+  const hKey = new Float64Array(E + 8), hVal = new Int32Array(E + 8); let hN = 0;
+  const hpush = (k, v) => { let i = hN++; hKey[i] = k; hVal[i] = v; while (i > 0) { const p = (i - 1) >> 1; if (hKey[p] <= hKey[i]) break; const tk = hKey[p]; hKey[p] = hKey[i]; hKey[i] = tk; const tv = hVal[p]; hVal[p] = hVal[i]; hVal[i] = tv; i = p; } };
+  const hpop = () => { const v = hVal[0]; hN--; if (hN > 0) { hKey[0] = hKey[hN]; hVal[0] = hVal[hN]; let i = 0; for (;;) { const L = 2 * i + 1, R = L + 1; let m = i; if (L < hN && hKey[L] < hKey[m]) m = L; if (R < hN && hKey[R] < hKey[m]) m = R; if (m === i) break; const tk = hKey[m]; hKey[m] = hKey[i]; hKey[i] = tk; const tv = hVal[m]; hVal[m] = hVal[i]; hVal[i] = tv; i = m; } } return v; };
   const dijkstra = (src, cost) => {
-    dist.fill(Infinity); prevE.fill(-1); done.fill(0);
-    const h = heap(); dist[src] = 0; h.push([0, src]);
-    while (h.size()) {
-      const [d, u] = h.pop(); if (done[u]) continue; done[u] = 1;
-      for (const [v, ei] of adj[u]) { const nd = d + cost[ei]; if (nd < dist[v]) { dist[v] = nd; prevE[v] = ei; h.push([nd, v]); } }
-    }
-  };
-
-  for (let it = 0; it < iters; it++) {
-    const cost = new Float64Array(E);
-    for (let i = 0; i < E; i++) cost[i] = len[i] / cond[i];
-    const fIter = new Float64Array(E), last = it === iters - 1;
-    if (last) traffic.fill(0);
-    for (const [src, trips] of bySrc) {
-      dijkstra(src, cost);
-      for (const t of trips) {
-        if (!isFinite(dist[t.b])) continue;
-        let u = t.b;
-        if (last) traffic[u] += t.w;
-        while (u !== src) { const ei = prevE[u]; if (ei < 0) break; fIter[ei] += t.w; const e = edges[ei]; u = (e.a === u) ? e.b : e.a; if (last) traffic[u] += t.w; }
+    visit++; hN = 0;
+    const dests = destsOf.get(src); let remaining = dests.size;
+    dist[src] = 0; seenAt[src] = visit; prevE[src] = -1; hpush(0, src);
+    while (hN > 0) {
+      const u = hpop(); if (doneAt[u] === visit) continue; doneAt[u] = visit;
+      if (dests.has(u) && --remaining === 0) break;
+      const d = dist[u];
+      for (const [v, ei] of adj[u]) {
+        if (doneAt[v] === visit) continue;
+        const nd = d + cost[ei];
+        if (seenAt[v] !== visit || nd < dist[v]) { dist[v] = nd; prevE[v] = ei; seenAt[v] = visit; hpush(nd, v); }
       }
     }
-    let maxF = 0; for (let i = 0; i < E; i++) if (fIter[i] > maxF) maxF = fIter[i];
-    for (let i = 0; i < E; i++) {
-      const fN = maxF > 0 ? fIter[i] / maxF : 0, tgt = Math.pow(fN, mu);
-      cond[i] = Math.min(condMax, baseline + (cond[i] - baseline) * (1 - decay) + grow * condGain * tgt);
-    }
-    flux = fIter;
-  }
+    return visit;
+  };
+  let iter = 0;
+  return {
+    get iter() { return iter; },
+    state: { cond, flux, traffic },
+    step() {                                            // one reinforcement round; returns a snapshot
+      const cost = new Float64Array(E);
+      for (let i = 0; i < E; i++) cost[i] = len[i] / cond[i];
+      flux.fill(0); traffic.fill(0);
+      for (const [src, trips] of bySrc) {
+        const v = dijkstra(src, cost);
+        for (const t of trips) {
+          if (doneAt[t.b] !== v) continue;            // unreachable this round
+          let u = t.b;
+          traffic[u] += t.w;
+          while (u !== src) { const ei = prevE[u]; if (ei < 0) break; flux[ei] += t.w; u = (ea[ei] === u) ? eb[ei] : ea[ei]; traffic[u] += t.w; }
+        }
+      }
+      let maxF = 0; for (let i = 0; i < E; i++) if (flux[i] > maxF) maxF = flux[i];
+      for (let i = 0; i < E; i++) {
+        const fN = maxF > 0 ? flux[i] / maxF : 0, tgt = Math.pow(fN, mu);
+        cond[i] = Math.min(condMax, baseline + (cond[i] - baseline) * (1 - decay) + grow * condGain * tgt);
+      }
+      iter++;
+      return { iter, maxFlux: maxF };
+    },
+  };
+}
 
-  // ── roads = the superlevel set of the traffic field ──
+// the converged field → its connected superlevel set + the 3-tier edge hierarchy (group-agnostic;
+// per-building frontage/doors are the caller's job — /paint does rooms, /econ does cell clumps).
+export function finalizeField(graph, { traffic, cond }, { roadFrac = 0.32 } = {}) {
+  const { n, E, adj, len, ea, eb } = graph;
   const sorted = [...traffic].sort((a, b) => a - b);
   const thresh = sorted[Math.min(n - 1, Math.floor(n * (1 - roadFrac)))] || 0;
   const isRoad = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (traffic[i] >= thresh && traffic[i] > 0) isRoad[i] = 1;
-
-  // connect the road components: promote the cheapest path between each stray component and the
-  // largest one (still naturalistic — we ride existing conductance, just guarantee one network).
+  // connect stray road components to the largest, riding existing conductance
+  const dist = new Float64Array(n), prevE = new Int32Array(n), done = new Uint8Array(n);
   const roadComponents = () => {
     const comp = new Int32Array(n).fill(-1); let c = 0;
     for (let s = 0; s < n; s++) { if (!isRoad[s] || comp[s] >= 0) continue; comp[s] = c; const q = [s]; while (q.length) { const u = q.pop(); for (const [v] of adj[u]) if (isRoad[v] && comp[v] < 0) { comp[v] = c; q.push(v); } } c++; }
@@ -137,7 +163,6 @@ export function growNetwork(scene, demand, {
     const size = new Array(count).fill(0); for (let i = 0; i < n; i++) if (comp[i] >= 0) size[comp[i]]++;
     const main = size.indexOf(Math.max(...size));
     const cost = new Float64Array(E); for (let i = 0; i < E; i++) cost[i] = len[i] / cond[i];
-    // multi-source Dijkstra from every chamber of the main component
     dist.fill(Infinity); prevE.fill(-1); done.fill(0);
     const h = heap(); for (let i = 0; i < n; i++) if (comp[i] === main) { dist[i] = 0; h.push([0, i]); }
     while (h.size()) { const [d, u] = h.pop(); if (done[u]) continue; done[u] = 1; for (const [v, ei] of adj[u]) { const nd = d + cost[ei]; if (nd < dist[v]) { dist[v] = nd; prevE[v] = ei; h.push([nd, v]); } } }
@@ -145,9 +170,32 @@ export function growNetwork(scene, demand, {
       if (cc === main) continue;
       let best = -1, bd = Infinity; for (let i = 0; i < n; i++) if (comp[i] === cc && dist[i] < bd) { bd = dist[i]; best = i; }
       if (best < 0) continue;
-      let u = best; while (u >= 0 && comp[u] !== main) { isRoad[u] = 1; const ei = prevE[u]; if (ei < 0) break; const e = edges[ei]; u = (e.a === u) ? e.b : e.a; }
+      let u = best; while (u >= 0 && comp[u] !== main) { isRoad[u] = 1; const ei = prevE[u]; if (ei < 0) break; u = (ea[ei] === u) ? eb[ei] : ea[ei]; }
     }
   }
+  // road edges + the hierarchy by conductance quantiles
+  const roadEdge = new Uint8Array(E), roadConds = [];
+  for (let i = 0; i < E; i++) if (isRoad[ea[i]] && isRoad[eb[i]]) { roadEdge[i] = 1; roadConds.push(cond[i]); }
+  roadConds.sort((a, b) => a - b);
+  const q = (f) => roadConds.length ? roadConds[Math.floor(roadConds.length * f)] : Infinity;
+  const tHi = q(0.85), tMid = q(0.55);
+  const tier = new Int8Array(E);
+  for (let i = 0; i < E; i++) if (roadEdge[i]) tier[i] = cond[i] >= tHi ? 3 : cond[i] >= tMid ? 2 : 1;
+  return { isRoad, roadEdge, tier, thresh };
+}
+
+// ── THE FIELD: route demand, accumulate flux, adapt conductance to a fixed point. Returns the
+//    traffic field (the Laplace transform), per-edge flux + conductance, road rooms (the superlevel
+//    set, made connected + every building given frontage), one door per building, and edge tiers. ──
+export function growNetwork(scene, demand, opts = {}) {
+  const { iters = 14, mu = 0.75, roadFrac = 0.32 } = opts;
+  const seeds = scene.roomSeeds, n = seeds.length, edges = scene.adjEdges, E = edges.length;
+  const graph = makeGraph(n, edges);
+  const { adj } = graph;
+  const grower = createGrower(graph, demand, opts);
+  for (let it = 0; it < iters; it++) grower.step();
+  const { cond, flux, traffic } = grower.state;
+  const { isRoad } = finalizeField(graph, grower.state, { roadFrac });   // frontage below mutates isRoad, so roads/tiers are recomputed after
 
   // frontage: every building must touch a road (its one door). Orphans promote the shortest hop.
   const nearestRoadPath = (b) => {

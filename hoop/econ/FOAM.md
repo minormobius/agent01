@@ -98,8 +98,17 @@ network + one door per building, with μ and street-fraction dials. Invariants p
 is one connected component, every building fronts a road with exactly one door, opened walls only
 ever sit between two road rooms, and μ is monotone (grid↔tree).
 
-**Still to port to the foam (`society3d.js`):** run the grower over the chamber graph in place of
-`planRoute`; keep the radial cores sparse; let the helix emerge. Then **junction towns** — score a
+**Ported to /econ (2D):** `econ/roads.js` + `test/econroads.selftest.mjs` + the **⛗ grow roads**
+button on `/econ/`. The demand is no longer synthetic — it is the LIVED society: every hat is a
+recurring trip (home→work/parish/club), every supply edge a freight run, aggregated into desire
+lines. The page animates the field stepwise (one reinforcement round per frame: faint desire lines
+sharpening into a hierarchy), then the CARVE: road cells are expropriated from the buildings they
+cross, every surviving building keeps frontage + one door, fully-eaten buildings are absorbed.
+The kernel is shared with /paint (`makeGraph`/`createGrower`/`finalizeField` in `paint/flux.js`,
+now steppable + early-exit/flat-heap optimised: ~0.45 s per round at 8 k cells, 11× the naive).
+
+**Still to port to the foam (`society3d.js`):** run the same grower over the chamber graph in
+place of `planRoute`; keep the radial cores sparse; let the helix emerge. Then **junction towns** — score a
 building by the road betweenness of its door chamber and pin that the oracle's `bridges` signal
 correlates with junction proximity (the Granovetter weak-tie thesis acquiring a *spatial cause* —
 the first falsifiable prediction the society makes about geography). Watch the two cautions:

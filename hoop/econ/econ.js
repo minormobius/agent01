@@ -210,7 +210,7 @@ export function buildWorld({ W, H, cells = 6000, seed = 1, genome = DEFAULT_GENO
   }
   const counts = {}; for (const pl of places) counts[pl.role] = (counts[pl.role] || 0) + 1;
   return {
-    W, H, cells: cellPolys, cellSpacing, spacing: bSpacing, sites, buildingOf,
+    W, H, cells: cellPolys, cellSpacing, spacing: bSpacing, sites, buildingOf, cellAdj,
     places, adj, paths, edges, byRes, counts, need, met,
     closure: need ? met / need : 1, avgFootprint: places.length ? N / places.length : 0,
   };

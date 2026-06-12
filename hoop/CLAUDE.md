@@ -117,7 +117,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   real output is `regard`. Brutalist render (cell substrate filled by owning-building colour so clumps
   read; supply web · social fabric · path network as faint overlays; click a building → who's there,
   its footprint, weave %, and the shock); colour by role/domain/tier/**footprint**/social/bridging; a
-  **🧬 roll genome** button pulls a new town + live vitality readout. Pure + node-tested
+  **🧬 roll genome** button pulls a new town + live vitality readout. **⛗ grow roads** animates
+  desire-line streets STEPWISE from the lived society (`econ/roads.js` over paint/flux.js's
+  steppable kernel): every hat + supply edge is trip demand, each frame is one flux-reinforcement
+  round (desire lines sharpening into a 3-tier hierarchy), then the carve — road cells expropriated
+  from buildings, frontage + one door per survivor, absorbed buildings counted
+  (`test/econroads.selftest.mjs`, 16 checks). Pure + node-tested
   (`test/econ.selftest.mjs`, 65 checks). **Ideation stage** — the real build is intended for a fresh
   `main` later; this is the sketchpad.
 
@@ -142,6 +147,7 @@ node hoop/test/econ.selftest.mjs            # economies-as-ecosystems kernel (ge
 node hoop/test/econ3d.selftest.mjs          # the FOAM SOCIETY kernel over rind's 3D chamber graph
 node hoop/test/econfoam.selftest.mjs        # the /econ/foam/ worker contract (what the page renders)
 node hoop/test/flux.selftest.mjs            # desire-line roads: streets as the traffic field's superlevel set
+node hoop/test/econroads.selftest.mjs       # the same grower fed by the REAL econ society (stepwise, the carve)
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 
