@@ -154,6 +154,7 @@ node hoop/test/econfoam.selftest.mjs        # the /econ/foam/ worker contract (w
 node hoop/test/flux.selftest.mjs            # desire-line roads: streets as the traffic field's superlevel set
 node hoop/test/econroads.selftest.mjs       # the same grower fed by the REAL econ society (stepwise, the carve)
 node hoop/test/foamroads.selftest.mjs       # the grown 3D foam city — THE CLIMB EMERGES (no imposed corkscrew)
+node hoop/test/region.selftest.mjs          # the tiled foam's SEAM CONTRACT (leg-6 gate): borders bit-identical, ring closes
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

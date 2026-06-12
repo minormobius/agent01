@@ -163,13 +163,16 @@ The destination item 3 asks for: the foam-society stops being a viewer and becom
 world**, generated locally as the player walks off-screen in any direction, globally consistent
 because it is deterministic in the chamber index. The design (to execute next):
 
-- **Tile the foam.** Today `sectorFoam` is ONE arc sector centred on +X. Generalise it to a
-  `regionFoam(regionKey)` over a lattice of (azimuthal × axial) sectors, each independently
-  generable from `(shipSeed, az, ax)` — the ship engine's chunk pattern, now in the annulus. The
-  **seam contract** (mirroring `ship.selftest`'s seamless-chunks invariant): two adjacent regions
-  must agree on their shared boundary chambers + the cross-seam adjacency, so a road or a building
-  that straddles a seam is identical computed from either side. This is the one hard kernel piece;
-  pin it with a `region.selftest` before any rendering.
+- **Tile the foam — GATE PASSED.** `econ/region.js` + `test/region.selftest.mjs` (18 checks).
+  The generative basis changed from a sequential RNG stream to **chambers as pure functions of
+  global lattice coordinates** `(gx axial ∈ ℤ, gy mod the ring, gz radial)` + the ship seed — so
+  the seam contract is *free*: any region reproduces its neighbours' border chambers bit-for-bit,
+  both sides derive the identical cross-seam edge set (pinned), the ring CLOSES at the wrap seam
+  (pinned), and the axis is unbounded in both directions, negative regions included (pinned).
+  Each region carries a 2-deep ghost rim + cross-seam edges so nav graphs splice without loading
+  the neighbour. Geometry matches sectorFoam (same thinning, jitter, 1.85·cell adjacency), so
+  buildings/grower/viewer port by swapping the foam source. Chamber identity: `gid = "gx|gy|gz"`,
+  stable for ever — the postal binding keys off it.
 - **The solve of record.** A region's `(genome, seed, regionKey)` deterministically fixes its
   society AND its grown roads — but roads are a *global* flux field, and the player only ever has a
   neighbourhood loaded. Resolution: grow roads at TWO scales. A coarse, cheap **arterial solve** runs
