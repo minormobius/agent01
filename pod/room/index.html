@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room — pod</title>
+  <style>
+    :root { --bg:#0e0f13; --panel:#16181f; --ink:#e9eaee; --muted:#9aa0ad; --accent:#e0573e; --green:#3ec07a; --line:#262932; }
+    * { box-sizing: border-box; }
+    body { margin:0; font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width:860px; margin:0 auto; padding:40px 20px 80px; }
+    .crumb { color:var(--muted); font-size:13px; }
+    .crumb a { color:var(--muted); text-decoration:none; }
+    h1 { font-size:34px; letter-spacing:-0.02em; margin:6px 0 4px; }
+    h1 .dot { color:var(--accent); }
+    .sub { color:var(--muted); margin:0 0 24px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin:16px 0; }
+    .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:0 0 12px; }
+    label { display:block; font-size:13px; color:var(--muted); margin:0 0 6px; }
+    input[type=text] { width:100%; padding:10px 12px; background:#0e0f13; border:1px solid var(--line); border-radius:8px; color:var(--ink); font-size:15px; }
+    button { font:inherit; font-weight:600; padding:10px 16px; border-radius:8px; border:1px solid var(--line); background:#21242d; color:var(--ink); cursor:pointer; }
+    button:hover:not(:disabled) { border-color:var(--accent); }
+    button:disabled { opacity:.45; cursor:default; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#1a0d0a; }
+    button.danger { background:#3a1d18; border-color:var(--accent); color:var(--accent); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .hidden { display:none !important; }
+    .pill { display:inline-block; font-size:12px; padding:2px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+    .pill.live { color:var(--accent); border-color:var(--accent); }
+    .pill.rec { color:#fff; background:var(--accent); border-color:var(--accent); }
+    .peer { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+    .peer:last-child { border-bottom:0; }
+    .dotind { width:9px; height:9px; border-radius:50%; background:var(--muted); flex:none; }
+    .dotind.on { background:var(--green); }
+    .who { font-weight:600; }
+    .who .role { color:var(--muted); font-weight:400; font-size:12px; margin-left:6px; }
+    code { background:#0e0f13; padding:2px 6px; border-radius:6px; font-size:13px; }
+    #log { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; color:var(--muted); white-space:pre-wrap; max-height:220px; overflow:auto; }
+    .stat { display:flex; justify-content:space-between; padding:4px 0; font-size:13px; }
+    .stat .k { color:var(--muted); }
+    a.inline { color:var(--accent); }
+    .err { color:var(--accent); }
+    .ta-wrap { position:relative; }
+    .ta-menu { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#16181f; border:1px solid var(--line); border-radius:8px; max-height:260px; overflow:auto; z-index:30; display:none; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+    .ta-item { display:flex; align-items:center; gap:10px; padding:9px 11px; cursor:pointer; }
+    .ta-item:hover, .ta-item.sel { background:#21242d; }
+    .ta-item img { width:26px; height:26px; border-radius:50%; flex:none; background:#21242d; object-fit:cover; }
+    .ta-item .th { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ta-item .th .dn { color:var(--muted); margin-left:6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumb"><a href="/">pod</a> / room</div>
+    <h1>Studio<span class="dot">.</span></h1>
+    <p class="sub">A recording lobby. Talk over WebRTC; each browser records its own mic locally and uploads a chunked track to your PDS.</p>
+
+    <!-- LOGIN -->
+    <div class="panel" id="loginPanel">
+      <h2>Sign in</h2>
+      <label for="handle">Bluesky handle</label>
+      <div class="row">
+        <div class="ta-wrap" style="flex:1; min-width:220px">
+          <input type="text" id="handle" placeholder="alice.bsky.social" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%" />
+          <div class="ta-menu" id="handleMenu"></div>
+        </div>
+        <button class="primary" id="loginBtn">Sign in</button>
+      </div>
+      <p class="sub" style="margin:12px 0 0; font-size:13px">
+        Uses the shared <code>auth.mino.mobi</code> OAuth worker. Recording writes to your own repo
+        (<code>com.minomobi.podcast.*</code>) and uploads audio blobs to your PDS.
+      </p>
+      <p class="err" id="loginErr"></p>
+    </div>
+
+    <!-- STUDIO -->
+    <div id="studio" class="hidden">
+      <div class="panel">
+        <h2>Room</h2>
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <span class="pill live" id="roomState">connecting…</span>
+            <span class="pill" id="recState">idle</span>
+          </div>
+          <div class="row">
+            <span class="who" id="meLabel"></span>
+            <button id="copyLink">Copy invite link</button>
+          </div>
+        </div>
+        <p class="sub" style="margin:12px 0 0; font-size:13px">Share the invite link so others can join this room. The link encodes <code>?r=&lt;roomId&gt;</code>.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Participants</h2>
+        <div id="peers"></div>
+      </div>
+
+      <div class="panel" id="recPanel">
+        <h2>Recording</h2>
+        <div class="row">
+          <button class="primary" id="armBtn">Start recording</button>
+          <button class="danger hidden" id="stopBtn">Stop recording</button>
+          <button id="finalizeBtn" class="hidden">Finalize session</button>
+        </div>
+        <div style="margin-top:14px">
+          <div class="stat"><span class="k">Clock skew vs server</span><span id="skewVal">measuring…</span></div>
+          <div class="stat"><span class="k">My start offset from epoch</span><span id="offsetVal">—</span></div>
+          <div class="stat"><span class="k">Tracks uploaded (this session)</span><span id="trackCount">0</span></div>
+          <div class="stat"><span class="k">Session</span><span id="sessionUriVal">—</span></div>
+        </div>
+        <p class="sub" id="prodLink" style="margin:14px 0 0"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Log</h2>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./studio.js"></script>
+</body>
+</html>

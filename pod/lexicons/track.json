@@ -1,0 +1,66 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.podcast.track",
+  "description": "One participant's local high-fidelity recording from a studio session, stored as ordered audio chunks. This is the 'double-ender' keeper track (each browser records its own mic at full quality), NOT the lossy WebRTC mesh used for live monitoring.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["session", "chunks", "mimeType", "epochMs", "createdAt"],
+        "properties": {
+          "session": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of the com.minomobi.podcast.session this track belongs to."
+          },
+          "participant": { "type": "ref", "ref": "#participant" },
+          "chunks": {
+            "type": "array",
+            "items": {
+              "type": "blob",
+              "accept": ["audio/webm", "audio/ogg", "audio/mp4", "audio/wav", "audio/mpeg"],
+              "maxSize": 52428800
+            },
+            "maxLength": 512,
+            "description": "Ordered audio chunks. Concatenate in array order to reconstruct the track. Chunked because a full session exceeds a single PDS blob limit, and so partial uploads survive a mid-record crash."
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "MIME of the chunks, e.g. 'audio/webm;codecs=opus'."
+          },
+          "sampleRate": { "type": "integer", "description": "Hz, e.g. 48000." },
+          "channelCount": { "type": "integer", "minimum": 1, "maximum": 2 },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total track duration in milliseconds (DAG-CBOR has no float type)."
+          },
+          "epochMs": {
+            "type": "integer",
+            "description": "Shared recording epoch the room broadcast when recording armed (server ms since Unix epoch). The common zero all tracks in a session align to."
+          },
+          "localStartOffsetMs": {
+            "type": "integer",
+            "description": "Milliseconds between the shared epoch and when THIS track actually began capturing. Coarse alignment key for /prod."
+          },
+          "clockSkewMs": {
+            "type": "integer",
+            "description": "Estimated drift of this client's audio clock vs the server, from NTP-style round-trips through the room coordinator. Fine drift correction (resample) in /prod."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    },
+    "participant": {
+      "type": "object",
+      "required": ["did"],
+      "properties": {
+        "did": { "type": "string", "format": "did" },
+        "handle": { "type": "string", "format": "handle" },
+        "displayName": { "type": "string", "maxLength": 256 }
+      }
+    }
+  }
+}

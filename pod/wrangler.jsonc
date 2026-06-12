@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pod",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "RoomCoordinator" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RoomCoordinator"] }
+  ],
+  "routes": [
+    { "pattern": "pod.mino.mobi", "custom_domain": true }
+  ]
+}
