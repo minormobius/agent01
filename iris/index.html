@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iris · the O'Neill cylinder, end-on — gradients across the circle</title>
+<meta name="description" content="The end-on cross-section of a small O'Neill ring habitat (4 km floor, 5 km radiator skin). Switch views — temperature, pressure, humidity, wind — over the circle; toggle the fog and the fountain jets; watch the heat leave through the reservoirs and heat pipes. Lights in, radiator out, every temperature pinned by the energy balance." />
+<style>
+  :root{
+    --ink:#0b1016; --panel:#101a22; --line:#243440; --txt:#cfe1ea;
+    --dim:#7f97a6; --gold:#d8b25a; --water:#5aa9d8; --warn:#e0795a; --leaf:#62b87a;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(150% 130% at 50% -20%,#152530,#0a1116 62%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:6px 20px 14px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.5px;color:var(--water);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:96ch}
+  .sub a{color:var(--gold)} .sub b{color:var(--txt);font-weight:600}
+  main{display:grid;grid-template-columns:262px 1fr 250px;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:1080px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px}
+  .panel h2{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+  label.ctl{display:block;margin:11px 0}
+  label.ctl .row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;gap:8px}
+  label.ctl .row span{color:var(--dim)}
+  label.ctl .row b{color:var(--gold);font-weight:600;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--water);height:18px}
+  .views,.toggles{display:flex;gap:6px;flex-wrap:wrap}
+  .views button{flex:1 1 46%;background:#0e1620;color:var(--dim);border:1px solid var(--line);
+    border-radius:7px;padding:8px 4px;font:inherit;font-size:12px;cursor:pointer}
+  .views button.on{background:#11242e;color:var(--water);border-color:#3a6a86}
+  .toggles button{flex:1;background:#0e1620;color:var(--dim);border:1px solid var(--line);
+    border-radius:7px;padding:8px 4px;font:inherit;font-size:12px;cursor:pointer}
+  .toggles button.on{color:#0b1016;font-weight:600}
+  .toggles button#tFog.on{background:#cfe1ea;border-color:#cfe1ea}
+  .toggles button#tJet.on{background:var(--leaf);border-color:var(--leaf)}
+  .stage{display:flex;flex-direction:column;align-items:center}
+  canvas{display:block;background:#05080c;border:1px solid var(--line);border-radius:14px;width:100%;max-width:600px}
+  .bar{width:100%;max-width:600px;margin-top:10px}
+  .bar .grad{height:12px;border-radius:6px;border:1px solid var(--line)}
+  .bar .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:3px}
+  .bar .ttl{font-size:11px;color:var(--dim);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:1px}
+  .read .r{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #1b2833;font-size:12.5px}
+  .read .r:last-child{border-bottom:0}
+  .read .r span{color:var(--dim)} .read .r b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+  .read .r b.w{color:var(--water)} .read .r b.hi{color:var(--gold)} .read .r b.warn{color:var(--warn)} .read .r b.leaf{color:var(--leaf)}
+  .energy{background:#0d161d;border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin-bottom:12px;text-align:center}
+  .energy .big{font-size:18px;color:var(--leaf);font-weight:600}
+  .energy .lbl{font-size:11px;color:var(--dim);margin-top:2px}
+  footer{padding:18px 20px 40px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);margin-top:8px}
+  footer a{color:var(--gold);text-decoration:none}
+  details summary{cursor:pointer;color:var(--gold);font-size:12px}
+  details p{font-size:12px;color:var(--dim);line-height:1.55}
+  code{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / iris</div>
+<header>
+  <h1>iris <small>· the cylinder, end-on</small></h1>
+  <div class="sub">Looking straight down the axis of a small O'Neill ring — a <b>4 km</b> habitat
+    floor inside a <b>5 km</b> radiator skin. The lights are the only heat in; the skin is the only
+    heat out; the habitat's warmth gets there through the floor's <b>water reservoirs and heat
+    pipes</b>. Switch the gradient you're looking at, and toggle the fog and the fountain jets.
+    <a href="https://tide.mino.mobi">↔ tide</a></div>
+</header>
+
+<main>
+  <!-- ── controls ───────────────────────────────────────────── -->
+  <div class="col">
+    <div class="panel">
+      <h2>View</h2>
+      <div class="views" id="views">
+        <button data-v="temp" class="on">temperature</button>
+        <button data-v="press">pressure</button>
+        <button data-v="humid">humidity</button>
+        <button data-v="wind">wind</button>
+      </div>
+      <h2 style="margin-top:14px">Observables</h2>
+      <div class="toggles">
+        <button id="tFog">fog</button>
+        <button id="tJet">jets</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Energy &amp; spin</h2>
+      <label class="ctl"><div class="row"><span>light flux (heat in)</span><b><span id="vF">400</span> W/m²</b></div>
+        <input type="range" id="F_light" min="80" max="900" step="10" value="400"></label>
+      <label class="ctl"><div class="row"><span>floor gravity</span><b><span id="vG">1.00</span> g</b></div>
+        <input type="range" id="gFloor" min="1" max="14" step="0.05" value="9.80665"></label>
+      <label class="ctl"><div class="row"><span>heat-pipe ΔT</span><b><span id="vPipe">5</span> K</b></div>
+        <input type="range" id="pipeDeltaT" min="1" max="40" step="1" value="5"></label>
+    </div>
+
+    <div class="panel">
+      <h2>Air &amp; water</h2>
+      <label class="ctl"><div class="row"><span>floor pressure</span><b><span id="vP">101.3</span> kPa</b></div>
+        <input type="range" id="P_floor" min="40" max="120" step="0.5" value="101.325"></label>
+      <label class="ctl"><div class="row"><span>axis inversion</span><b><span id="vInv">25</span> K</b></div>
+        <input type="range" id="invStrength" min="0" max="60" step="1" value="25"></label>
+      <label class="ctl"><div class="row"><span>floor humidity</span><b><span id="vRH">70</span> %</b></div>
+        <input type="range" id="RH_floor" min="10" max="100" step="1" value="70"></label>
+      <label class="ctl"><div class="row"><span>vapour scale height</span><b><span id="vHq">2.0</span> km</b></div>
+        <input type="range" id="humidityScale" min="300" max="6000" step="100" value="2000"></label>
+    </div>
+  </div>
+
+  <!-- ── the circle ─────────────────────────────────────────── -->
+  <div class="stage">
+    <canvas id="cv" width="600" height="600"></canvas>
+    <div class="bar">
+      <div class="ttl" id="barTtl">temperature</div>
+      <div class="grad" id="barGrad"></div>
+      <div class="ends"><span id="barLo">—</span><span id="barHi">—</span></div>
+    </div>
+  </div>
+
+  <!-- ── readouts ───────────────────────────────────────────── -->
+  <div class="col">
+    <div class="energy">
+      <div class="big" id="ePower">— MW/m</div>
+      <div class="lbl">heat in = heat out (closed)</div>
+    </div>
+    <div class="panel">
+      <h2>Temperature</h2>
+      <div class="read">
+        <div class="r"><span>radiator skin</span><b class="w" id="oTskin">—</b></div>
+        <div class="r"><span>reservoir</span><b id="oTres">—</b></div>
+        <div class="r"><span>floor air</span><b class="hi" id="oTfloor">—</b></div>
+        <div class="r"><span>axis</span><b id="oTaxis">—</b></div>
+        <div class="r"><span>"up" is</span><b id="oUp">—</b></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Pressure · water · wind</h2>
+      <div class="read">
+        <div class="r"><span>floor → axis</span><b id="oP">—</b></div>
+        <div class="r"><span>fog band</span><b id="oFog">—</b></div>
+        <div class="r"><span>RH axis / floor</span><b id="oRH">—</b></div>
+        <div class="r"><span>max wind</span><b class="leaf" id="oWind">—</b></div>
+        <div class="r"><span>Rossby no.</span><b id="oRo">—</b></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:0">
+      <h2>At the cursor</h2>
+      <div class="read">
+        <div class="r"><span>radius</span><b id="hR">— hover the disk</b></div>
+        <div class="r"><span>gravity</span><b id="hG">—</b></div>
+        <div class="r"><span>T · P</span><b id="hTP">—</b></div>
+        <div class="r"><span>RH · wind</span><b id="hRW">—</b></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <details>
+    <summary>what the circle is showing</summary>
+    <p>One steady state. <b>Energy:</b> the light flux over the floor circumference must leave as
+    <code>εσT⁴</code> over the (larger) skin circumference — that single balance fixes the radiator
+    temperature, and the reservoir/floor sit above it by the heat-pipe and contact ΔTs (heat flows
+    <i>outward</i>, so the floor is always the warm end). <b>Temperature</b> hangs a dry centrifugal
+    adiabat (<code>cp·T+Φ=const</code>, <code>Φ=−½ω²r²</code>) off the floor and adds a radiative
+    inversion that warms the axis — crank it and "up" flips cold→hot. <b>Pressure</b> is centrifugal
+    hydrostatic balance <code>dP/dr=ρω²r</code> with the local temperature. <b>Humidity</b> hangs off
+    the floor; with the <b>jets</b> off it stratifies and traps under the inversion, with them on the
+    fountain well-mixes it (conserving the water); <b>fog</b> is wherever RH≥1. <b>Wind</b> is a
+    convective scale <code>(B·z_i)^⅓</code> choked by the inversion's stability, plus the jet sheet,
+    in a frame where Coriolis (<code>f=2ω</code>) dominates (Rossby ≪ 1). The inner rim carries the
+    <b>ratchet</b> topography — asymmetric teeth that let lakes (constant-radius arcs) sit at all.</p>
+  </details>
+  <p style="margin-top:14px">solver in <code>iris/sim/section.mjs</code> + <code>iris/sim/ratchet.mjs</code>
+  · contracts in <code>iris/test/*.selftest.mjs</code> (32 checks) · the end-on companion to the
+  <a href="https://tide.mino.mobi">tide</a> thermodynamics wing. pure static; runs in your browser.</p>
+</footer>
+
+<script type="module">
+import { solveSection } from './sim/section.mjs';
+import * as ratchet from './sim/ratchet.mjs';
+
+const $ = (id) => document.getElementById(id);
+const C = {
+  F_light: $('F_light'), gFloor: $('gFloor'), pipeDeltaT: $('pipeDeltaT'),
+  P_floor: $('P_floor'), invStrength: $('invStrength'), RH_floor: $('RH_floor'),
+  humidityScale: $('humidityScale'),
+};
+let view = 'temp', fog = false, jets = false, sol = null, geo = null;
+const dpr = Math.min(2, window.devicePixelRatio || 1);
+
+// ── colour ramps ─────────────────────────────────────────────
+const RAMPS = {
+  temp:  [[0,[46,96,184]],[0.5,[206,206,214]],[1,[214,84,52]]],
+  press: [[0,[12,28,52]],[1,[122,182,226]]],
+  humid: [[0,[150,112,72]],[0.55,[96,142,150]],[1,[70,184,202]]],
+  wind:  [[0,[16,30,46]],[0.5,[60,140,150]],[1,[236,222,120]]],
+};
+function ramp(stops, t) {
+  t = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const [p0, c0] = stops[i - 1], [p1, c1] = stops[i];
+      const f = (t - p0) / (p1 - p0 || 1);
+      return [0, 1, 2].map((k) => Math.round(c0[k] + (c1[k] - c0[k]) * f));
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+// active field + its label/range
+function fieldFor(v, s) {
+  const sm = s.summary;
+  if (v === 'temp')  return { arr: s.T, lo: Math.min(sm.T_skin, ...s.T), hi: Math.max(...s.T),
+    label: 'temperature', fmt: (x) => (x - 273.15).toFixed(0) + ' °C' };
+  if (v === 'press') return { arr: s.P, lo: sm.P_axis, hi: sm.P_floor,
+    label: 'pressure', fmt: (x) => (x / 1000).toFixed(0) + ' kPa' };
+  if (v === 'humid') return { arr: s.RH, lo: 0, hi: Math.max(1, ...s.RH),
+    label: 'relative humidity', fmt: (x) => (x * 100).toFixed(0) + ' %' };
+  return { arr: s.U, lo: 0, hi: Math.max(0.1, sm.maxWind),
+    label: 'wind speed', fmt: (x) => x.toFixed(1) + ' m/s' };
+}
+
+function readInputs() {
+  return {
+    F_light: +C.F_light.value,
+    gFloor: +C.gFloor.value,
+    pipeDeltaT: +C.pipeDeltaT.value,
+    P_floor: +C.P_floor.value * 1000,
+    invStrength: +C.invStrength.value,
+    RH_floor: +C.RH_floor.value / 100,
+    humidityScale: +C.humidityScale.value,
+    jets,
+    N: 200,
+  };
+}
+
+function draw() {
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const W = cv.clientWidth; cv.width = W * dpr; cv.height = W * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, W);
+  const cx = W / 2, cy = W / 2;
+  const Rsk = sol.params.R_skin, Rfl = sol.params.R_floor;
+  const scale = (W * 0.46) / Rsk;          // m → px
+  const PX = (m) => m * scale;
+  geo = { cx, cy, scale, Rfl, Rsk };
+
+  const disk = (rm, color) => { ctx.beginPath(); ctx.arc(cx, cy, PX(rm), 0, 2 * Math.PI); ctx.fillStyle = color; ctx.fill(); };
+
+  // 1. shell [R_floor, R_skin]: the outward heat gradient (floor warm → skin cool)
+  const sm = sol.summary;
+  const nShell = 28;
+  for (let i = nShell; i >= 0; i--) {
+    const rm = Rfl + (Rsk - Rfl) * (i / nShell);
+    const t = (rm - Rfl) / (Rsk - Rfl);                 // 0 at floor, 1 at skin
+    const Tloc = sm.T_floor + (sm.T_skin - sm.T_floor) * t;
+    const tc = (Tloc - 250) / (320 - 250);
+    disk(rm, rgb(ramp(RAMPS.temp, tc).map((v) => Math.round(v * 0.55 + 14))));  // dimmed structure
+  }
+  // heat pipes through the shell
+  ctx.strokeStyle = 'rgba(224,150,90,0.5)'; ctx.lineWidth = 1.5;
+  for (let k = 0; k < 24; k++) {
+    const a = (k / 24) * 2 * Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * PX(Rfl), cy + Math.sin(a) * PX(Rfl));
+    ctx.lineTo(cx + Math.cos(a) * PX(Rsk), cy + Math.sin(a) * PX(Rsk));
+    ctx.stroke();
+  }
+  // radiator skin rim
+  ctx.beginPath(); ctx.arc(cx, cy, PX(Rsk), 0, 2 * Math.PI);
+  ctx.strokeStyle = rgb(ramp(RAMPS.temp, (sm.T_skin - 250) / 70)); ctx.lineWidth = 2.5; ctx.stroke();
+
+  // 2. the bore [0, R_floor]: the active gradient, concentric rings outer→inner
+  const fld = fieldFor(view, sol);
+  const span = (fld.hi - fld.lo) || 1;
+  for (let i = sol.r.length - 1; i >= 0; i--) {
+    const t = (fld.arr[i] - fld.lo) / span;
+    disk(sol.r[i], rgb(ramp(RAMPS[view], t)));
+  }
+
+  // 3. ratchet inner-rim topography + lakes
+  const rp = ratchet.defaultParams(); rp.R_floor = Rfl;
+  const Tn = ratchet.toothAngle(rp), steps = 720;
+  ctx.beginPath();
+  for (let k = 0; k <= steps; k++) {
+    const a = (k / steps) * 2 * Math.PI;
+    const gr = ratchet.groundRadius(rp, a);
+    const x = cx + Math.cos(a) * PX(gr), y = cy + Math.sin(a) * PX(gr);
+    k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.strokeStyle = 'rgba(120,90,55,0.9)'; ctx.lineWidth = 1.4; ctx.stroke();
+  // lakes: constant-radius arcs in each basin
+  const lr = ratchet.lakeRadius(rp);
+  ctx.strokeStyle = 'rgba(90,169,216,0.95)'; ctx.lineWidth = 3;
+  for (let k = 0; k < rp.teeth; k++) {
+    const c = k * Tn, half = (rp.basinFrac / 2) * Tn;
+    ctx.beginPath(); ctx.arc(cx, cy, PX(lr), c - half, c + half); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, PX(lr), c + 2 * Math.PI - half, c + 2 * Math.PI + half); ctx.stroke();
+  }
+
+  // 4. fog overlay (where RH ≥ 1)
+  if (fog && sm.hasFog) {
+    ctx.fillStyle = 'rgba(220,232,240,0.34)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, PX(sm.fogOuter), 0, 2 * Math.PI);
+    ctx.arc(cx, cy, PX(sm.fogInner), 0, 2 * Math.PI, true);
+    ctx.fill('evenodd');
+  }
+
+  // 5. jet sheets (Coriolis-curved, from each basin toward the axis)
+  if (jets) {
+    ctx.strokeStyle = 'rgba(98,184,122,0.85)'; ctx.lineWidth = 2;
+    for (let k = 0; k < rp.teeth; k++) {
+      const base = k * Tn;
+      ctx.beginPath();
+      for (let j = 0; j <= 40; j++) {
+        const f = j / 40;
+        const rr = Rfl * (1 - f);                         // climb inward
+        const a = base + f * 0.9;                          // prograde Coriolis drift
+        const x = cx + Math.cos(a) * PX(rr), y = cy + Math.sin(a) * PX(rr);
+        j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // 6. the axial sun (the lamp on the axis — the only heat in)
+  const sun = ctx.createRadialGradient(cx, cy, 0, cx, cy, PX(Rfl) * 0.16);
+  sun.addColorStop(0, 'rgba(255,246,210,0.95)'); sun.addColorStop(1, 'rgba(255,246,210,0)');
+  ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(cx, cy, PX(Rfl) * 0.16, 0, 2 * Math.PI); ctx.fill();
+}
+
+function render() {
+  sol = solveSection(readInputs());
+  const sm = sol.summary;
+
+  // labels
+  $('vF').textContent = (+C.F_light.value).toFixed(0);
+  $('vG').textContent = (sm.gFloorActual / 9.80665).toFixed(2);
+  $('vPipe').textContent = (+C.pipeDeltaT.value).toFixed(0);
+  $('vP').textContent = (+C.P_floor.value).toFixed(1);
+  $('vInv').textContent = (+C.invStrength.value).toFixed(0);
+  $('vRH').textContent = (+C.RH_floor.value).toFixed(0);
+  $('vHq').textContent = (+C.humidityScale.value / 1000).toFixed(1);
+
+  // readouts
+  $('ePower').textContent = (sm.powerIn / 1e6).toFixed(2) + ' MW/m';
+  const K = (k) => (k - 273.15).toFixed(1) + ' °C';
+  $('oTskin').textContent = K(sm.T_skin);
+  $('oTres').textContent = K(sm.T_reservoir);
+  $('oTfloor').textContent = K(sm.T_floor);
+  $('oTaxis').textContent = K(sm.T_axis);
+  $('oUp').textContent = sm.upIsHot ? 'hot (axis ' + (sm.T_axis - sm.T_floor > 0 ? '+' : '') + (sm.T_axis - sm.T_floor).toFixed(1) + ' K)' : 'cold';
+  $('oUp').className = sm.upIsHot ? 'warn' : 'w';
+  $('oP').textContent = (sm.P_floor / 1000).toFixed(1) + ' → ' + (sm.P_axis / 1000).toFixed(1) + ' kPa';
+  $('oFog').textContent = sm.hasFog ? (sm.fogInner / 1000).toFixed(1) + '–' + (sm.fogOuter / 1000).toFixed(1) + ' km'
+    + (fog ? '' : ' (off)') : 'none';
+  $('oRH').textContent = (sm.RH_axis * 100).toFixed(0) + ' / ' + (sm.RH_floor_actual * 100).toFixed(0) + ' %';
+  $('oWind').textContent = sm.maxWind.toFixed(1) + ' m/s' + (jets ? ' (jets)' : '');
+  $('oRo').textContent = sm.RossbyFloor.toFixed(3);
+
+  // colour bar
+  const fld = fieldFor(view, sol);
+  $('barTtl').textContent = fld.label + (view === 'wind' && jets ? ' · jets on' : '');
+  const stops = RAMPS[view].map(([p, c]) => `${rgb(c)} ${(p * 100).toFixed(0)}%`).join(',');
+  $('barGrad').style.background = `linear-gradient(90deg,${stops})`;
+  $('barLo').textContent = fld.fmt(fld.lo);
+  $('barHi').textContent = fld.fmt(fld.hi);
+
+  draw();
+}
+
+// hover the disk
+$('cv').addEventListener('mousemove', (e) => {
+  if (!sol || !geo) return;
+  const rect = e.target.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;       // CSS px, same units as geo
+  const rm = Math.hypot(x - geo.cx, y - geo.cy) / geo.scale;        // → metres
+  if (rm > geo.Rfl) { $('hR').textContent = 'in the shell'; $('hG').textContent = $('hTP').textContent = $('hRW').textContent = '—'; return; }
+  const i = Math.min(sol.r.length - 1, Math.round((rm / geo.Rfl) * (sol.r.length - 1)));
+  $('hR').textContent = (sol.r[i] / 1000).toFixed(2) + ' km';
+  $('hG').textContent = (sol.g[i] / 9.80665).toFixed(2) + ' g';
+  $('hTP').textContent = (sol.T[i] - 273.15).toFixed(1) + ' °C · ' + (sol.P[i] / 1000).toFixed(1) + ' kPa';
+  $('hRW').textContent = (sol.RH[i] * 100).toFixed(0) + ' % · ' + sol.U[i].toFixed(1) + ' m/s';
+});
+
+// view / toggle wiring
+for (const b of $('views').querySelectorAll('button')) {
+  b.addEventListener('click', () => {
+    view = b.dataset.v;
+    for (const x of $('views').querySelectorAll('button')) x.classList.toggle('on', x === b);
+    render();
+  });
+}
+$('tFog').addEventListener('click', () => { fog = !fog; $('tFog').classList.toggle('on', fog); render(); });
+$('tJet').addEventListener('click', () => { jets = !jets; $('tJet').classList.toggle('on', jets); render(); });
+for (const k in C) C[k].addEventListener('input', render);
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>
