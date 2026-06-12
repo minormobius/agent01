@@ -42,6 +42,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   (the ratchet's equipotential arc). The figure kernels in `research.js` are pure/zero-dep and
   re-derive each wing's headline physics (hoop is pure-static and can't import a sibling wing at
   runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
+- `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
+  `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
+  Voronoi nuclei spaced `s`, hold the floor nuclei out of a `~s/2` band, paint the Voronoi of all of
+  them — so **nucleus spacing directly sets wall thickness**. Slider for spacing, toggle for the
+  exact floor plan. Geometry kernel is pure + node-tested (`test/paint.selftest.mjs`); the page only
+  draws what `buildScene()` returns. A sandbox to iterate the look before it feeds back into world.js.
 
 ## The package it belongs to
 
