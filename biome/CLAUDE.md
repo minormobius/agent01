@@ -90,7 +90,7 @@ The self-tests are the contract — run them before every push.
 - Ownership is in `deploy-registry.json` (surface `biome`). Edit the registry, then
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
 
-## The ecosystem gacha (`gacha/`) — Phase 0 engine landed; page pending
+## The ecosystem gacha (`gacha/`) — live at `biome.mino.mobi/gacha` (Phases 0–1)
 
 A procedural ecosystem **generator + viability oracle** that turns the trophic solver into a
 roll-and-discover game (pattern borrowed from `/fable` + `/mappa`: seeded determinism → an oracle
@@ -110,9 +110,17 @@ scores → rarity emerges from the oracle, not RNG). Phase 0 (engine, fully sand
   stable · fed · air · robust · crew carried), minus degeneracy penalties (collapse/monoculture/runaway).
   Legendary = a self-closing, stable, crew-carrying world. (Axis chosen by the user; not "interestingness".)
 
-Roadmap: Phase 1 = the `/gacha` page (ROLL → reveal → render via the `/graph` renderer → collectible
-card → share-by-seed); Phase 2 = hunt + filters + Atlas gallery; Phase 3 = keep/publish pulls to PDS
+- `gacha/index.html` — the **page** (Phase 1): a ROLL button → reveal → the rolled web drawn in a
+  habitat-clustered force graph (photo nodes sized by biomass, shared pools in the centre) + a
+  collectible **card** (rarity foil + stars, procedural name, the viability readout, the species cast).
+  `⛏ Hunt a gem` searches the seed-space forward (budgeted, yields to the UI) for an Epic+. Every roll is
+  a permalink `/gacha/?n=<n>` (deterministic). Pure client-side; wrapped in the same `#err` overlay as
+  `/graph`. The worker normalises no-slash `/gacha` → `/gacha/`.
+
+Roadmap: ✅ Phase 0 (engine) · ✅ Phase 1 (page). Next: Phase 2 = filters + an Atlas gallery of the
+best seeds (move the hunt to a Web Worker if it janks); Phase 3 = keep/publish pulls to PDS
 (`com.minomobi.biome.ecosystem`) + OG cards; Phase 4 = automated iNat+GloBI harvest to deepen the deck.
+Calibration TODO: confirm Legendaries (≥88) are reachable across a big sweep and tune the tier bands.
 NB the gacha runs the box model at dt=3h (fast, interactive) — conservation is exact by flux
 construction; a few stiff random webs show ~1e-7 numerical drift at that step (negligible; the
 self-test proves machine precision at dt=0.5h).

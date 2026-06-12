@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>biome · ecosystem gacha — roll a closed world</title>
+<meta name="description" content="Roll a random closed ecosystem from a deck of 60 real organisms. The trophic solver scores each one on viability — does the loop close, stay stable, and carry a crew — and rarity is the oracle's verdict. Pull for a Legendary." />
+<style>
+  :root{
+    --ink:#0d1411; --panel:#121c18; --line:#27362f; --txt:#cfe6da;
+    --dim:#7f9b8d; --gold:#d8b25a; --leaf:#62b87a; --warn:#e0795a; --water:#5aa9d8;
+    --t-leg:#f0c860; --t-epic:#b07be0; --t-rare:#5aa9d8; --t-unc:#62b87a; --t-com:#8a9b92;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(150% 130% at 50% -20%,#16261f,#0a110e 62%);
+    color:var(--txt);font:14px/1.5 var(--mono);min-height:100vh}
+  .crumb{font:12px/1 var(--mono);color:var(--dim);padding:14px 20px 0}
+  .crumb a{color:var(--gold);text-decoration:none}
+  header{padding:10px 20px 12px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:18px;letter-spacing:.4px;color:var(--gold);font-weight:600}
+  h1 small{color:var(--dim);font-weight:400;letter-spacing:0;font-size:13px}
+  .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:96ch;line-height:1.55}
+  .sub b{color:var(--txt)} .sub a{color:var(--gold)}
+  main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px 20px;align-items:start}
+  @media(max-width:920px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  /* ── the collectible card ── */
+  .card{border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;position:relative;background:#0e1713}
+  .card .foil{height:6px;background:var(--tier,#8a9b92)}
+  .card .hd{padding:13px 15px 10px;position:relative}
+  .card .tier{display:inline-block;font:700 11px/1 var(--mono);letter-spacing:1.5px;text-transform:uppercase;
+    color:#0c130f;background:var(--tier,#8a9b92);border-radius:99px;padding:5px 10px}
+  .card .stars{color:var(--tier,#8a9b92);letter-spacing:2px;font-size:13px;margin-left:8px}
+  .card .interest{float:right;font-weight:700;font-size:22px;color:var(--tier,#8a9b92)}
+  .card .interest small{font-size:11px;color:var(--dim);font-weight:400}
+  .card .nm{font-size:18px;font-weight:600;margin-top:10px;color:var(--txt)}
+  .card .roll{font-size:11px;color:var(--dim)}
+  .card .head{font-size:12.5px;color:var(--txt);margin-top:8px;line-height:1.5;min-height:34px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:4px 15px 12px}
+  .chip{font-size:11px;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#0b1310}
+  .chip b{color:var(--txt)} .chip .ok{color:var(--leaf)} .chip .no{color:var(--warn)} .chip .mid{color:var(--gold)}
+  .cast{display:flex;flex-wrap:wrap;gap:4px;padding:0 15px 14px}
+  .cast .t{width:30px;height:30px;border-radius:50%;background:#0a1310 center/cover no-repeat;border:1.5px solid var(--line)}
+  .cast .t.prod{border-color:#3f8f5a} .cast .t.anim{border-color:#5a6b62}
+  /* ── controls ── */
+  .controls{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+  button{font:600 13px/1 var(--mono);color:var(--txt);background:#0e1713;border:1px solid var(--line);
+    border-radius:9px;padding:11px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:#3c6a4c}
+  button.roll{font-size:15px;background:linear-gradient(180deg,#1a3a28,#13241a);border-color:#2c5a3c;color:#dff3e6;padding:14px}
+  button.roll:hover{border-color:#4a8a5c}
+  button:disabled{opacity:.5;cursor:wait}
+  .row{display:flex;gap:8px}
+  .row button{flex:1}
+  .seedline{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--dim)}
+  .seedline input{flex:1;background:#0b1310;border:1px solid var(--line);border-radius:7px;color:var(--txt);
+    font:inherit;padding:8px;min-width:0}
+  .hunt-status{font-size:11.5px;color:var(--dim);min-height:16px}
+  /* ── stage ── */
+  .stage{position:relative}
+  canvas{width:100%;display:block;background:linear-gradient(180deg,#0c1a22 0%,#0a1310 46%);
+    border:1px solid var(--line);border-radius:12px;touch-action:none;cursor:grab}
+  canvas.grabbing{cursor:grabbing}
+  #err{display:none;position:absolute;left:10px;right:10px;top:10px;z-index:9;background:#2a1410;border:1px solid #5a342c;
+    color:#f0c4b4;border-radius:8px;padding:10px 12px;font-size:12px;white-space:pre-wrap}
+  #tip{position:absolute;display:none;max-width:230px;background:rgba(12,20,17,.96);border:1px solid var(--line);
+    border-radius:10px;padding:0;overflow:hidden;pointer-events:none;box-shadow:0 8px 28px rgba(0,0,0,.5);z-index:5}
+  #tip .ph{width:100%;height:92px;background:#0a1310 center/cover no-repeat;border-bottom:1px solid var(--line)}
+  #tip .bd{padding:8px 11px}
+  #tip .nm{font-weight:600;font-size:13px} #tip .sci{font-style:italic;color:var(--dim);font-size:11px}
+  #tip .rel{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.5} #tip .rel b{color:var(--txt)}
+  .legend{display:flex;gap:13px;flex-wrap:wrap;font-size:11px;color:var(--dim);margin-top:9px}
+  .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:5px}
+  .legend i{display:inline-block;width:15px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+  footer{padding:12px 20px 30px;font:11.5px/1.6 var(--mono);color:var(--dim);border-top:1px solid var(--line);margin-top:6px}
+  footer a{color:var(--gold);text-decoration:none}
+  .rolling{animation:pulse 0.7s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">biome</a> / gacha</div>
+<header>
+  <h1>biome · ecosystem gacha <small>— roll a closed world</small></h1>
+  <div class="sub">Pull a random ecosystem from a deck of <b>60 real organisms</b>. The assembler wires a
+    food web by body-size + habitat; the <b>trophic solver</b> runs it ~600 days and scores it on
+    <b>viability</b> — does the loop close, hold the air, stay stable, and carry a crew? <b>Rarity is the
+    solver's verdict</b>, not luck: most pulls are degenerate mush, a <b style="color:var(--t-rare)">Rare</b> one
+    actually lives, and a <b style="color:var(--t-leg)">Legendary</b> is a self-closing, stable, crew-carrying
+    world. Every roll is a permalink. &nbsp;→ <a href="../graph/">the maximal web</a> · <a href="../cycles/robustness.html">stability</a></div>
+</header>
+<main>
+  <section>
+    <div class="card" id="card">
+      <div class="foil"></div>
+      <div class="hd">
+        <span class="interest" id="c-int">—</span>
+        <span class="tier" id="c-tier">—</span><span class="stars" id="c-stars"></span>
+        <div class="nm" id="c-name">press ROLL</div>
+        <div class="roll" id="c-roll">a deck of 60 organisms awaits</div>
+        <div class="head" id="c-head"></div>
+      </div>
+      <div class="chips" id="c-chips"></div>
+      <div class="cast" id="c-cast"></div>
+    </div>
+    <div class="controls">
+      <button class="roll" id="btn-roll">✦ ROLL</button>
+      <div class="row">
+        <button id="btn-hunt">⛏ Hunt a gem</button>
+        <button id="btn-share">⧉ Copy link</button>
+      </div>
+      <div class="hunt-status" id="hunt-status"></div>
+      <div class="seedline">seed <input id="seed-in" type="text" inputmode="numeric" placeholder="e.g. 4823" />
+        <button id="btn-go" style="flex:0 0 auto;padding:8px 12px">go</button></div>
+      <div class="row" style="margin-top:2px">
+        <button id="btn-reheat" style="font-size:11px;padding:7px">↻ reheat</button>
+        <button id="btn-fit" style="font-size:11px;padding:7px">⤢ fit</button>
+      </div>
+    </div>
+  </section>
+  <section>
+    <div class="stage">
+      <canvas id="web" width="1180" height="720"></canvas>
+      <div id="err"></div>
+      <div id="tip"></div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:#6cc27f"></span>producer</span>
+      <span><span class="dot" style="background:#d8b25a"></span>pollinator</span>
+      <span><span class="dot" style="background:#8aa99a"></span>herbivore</span>
+      <span><span class="dot" style="background:#e0795a"></span>carnivore</span>
+      <span><span class="dot" style="background:#b08968"></span>decomposer</span>
+      <span><span class="dot" style="background:#caa6e0"></span>pool</span>
+      &nbsp;<span>node size ∝ biomass</span>
+    </div>
+    <div class="legend" id="habitats"></div>
+  </section>
+</main>
+<footer id="foot"></footer>
+
+<script type="module">
+const errEl = document.getElementById('err');
+const showErr = (where, e) => { errEl.textContent = `⚠ ${where}: ${(e && (e.stack||e.message)) || e}`; errEl.style.display='block'; console.error(where, e); };
+window.addEventListener('error', (ev)=>showErr('runtime', ev.error||ev.message));
+window.addEventListener('unhandledrejection', (ev)=>showErr('promise', ev.reason));
+
+import { rollDesign } from './sim/assemble.mjs';
+import { evaluateRoll, tierOf } from './sim/score.mjs';
+
+// ── data ──
+let CATALOG = [], byId = {};
+async function loadCatalog(){
+  const r = await fetch('./catalog.json'); const j = await r.json();
+  CATALOG = Object.values(j.organisms); byId = j.organisms;
+}
+const IMG = {};
+function preload(ids){ for (const id of ids){ const o = byId[id]; const url = o?.inat?.photo; if(!url||IMG[id]!==undefined) continue;
+  const im = new Image(); im.onload=()=>{IMG[id]=im;}; im.onerror=()=>{IMG[id]=null;}; IMG[id]=null; im.src=url; } }
+
+// ── evaluate a seed → {n, design, meta, interest, tier, signals, depth, headline, report} or null ──
+function evalSeed(n){ const roll = rollDesign(n, CATALOG); if(!roll) return null; return evaluateRoll(roll, { days: 500 }); }
+
+// ── tier visuals ──
+const TIER = {
+  Legendary:{ c:'var(--t-leg)', s:'★★★★★' }, Epic:{ c:'var(--t-epic)', s:'★★★★' },
+  Rare:{ c:'var(--t-rare)', s:'★★★' }, Uncommon:{ c:'var(--t-unc)', s:'★★' }, Common:{ c:'var(--t-com)', s:'★' },
+};
+const GUILD_COLOR = { producer:'#6cc27f', nectarivore:'#d8b25a', herbivore:'#8aa99a', carnivore:'#e0795a', omnivore:'#e0a06a', detritivore:'#b08968' };
+const HAB_COLOR = { land:'#6cc27f', lake:'#5aa9d8', soil:'#c39b6a', shore:'#7fc2b0', air:'#bcd0e0' };
+
+let current = null;
+
+// ── the card ──
+function renderCard(ev){
+  const t = TIER[ev.tier] || TIER.Common; const root = document.documentElement;
+  const card = document.getElementById('card'); card.style.setProperty('--tier', t.c);
+  document.getElementById('c-int').innerHTML = `${ev.interest}<small>/100</small>`;
+  document.getElementById('c-tier').textContent = ev.tier;
+  document.getElementById('c-stars').textContent = t.s;
+  document.getElementById('c-name').textContent = ev.design.name;
+  document.getElementById('c-roll').textContent = `roll #${ev.n} · ${ev.meta.theme} · ${ev.meta.nSpecies} species`;
+  document.getElementById('c-head').textContent = ev.headline;
+  const c = ev.report.closure, st = ev.report.stability || {};
+  const chip = (k, v, cls='') => `<span class="chip">${k} <b class="${cls}">${v}</b></span>`;
+  document.getElementById('c-chips').innerHTML =
+    chip('closes', c.closes?'yes':'no', c.closes?'ok':'no') +
+    chip('stable', st.stable?(st.marginal?'marginal':'yes'):'no', st.stable?(st.marginal?'mid':'ok'):'no') +
+    chip('fed', Math.round((c.calorieRatio||0)*100)+'%', c.fedOK?'ok':'no') +
+    chip('crew', ev.design.crew) +
+    chip('depth', ev.depth) +
+    chip('O₂', (c.o2_kPa>0&&c.o2_kPa<100?c.o2_kPa.toFixed(1):'—')+' kPa', c.o2OK?'ok':'no');
+  // cast: producers first, then by biomass
+  const sp = [...ev.design.species].sort((a,b)=> (a.kind==='producer'?-1:0)-(b.kind==='producer'?-1:0));
+  document.getElementById('c-cast').innerHTML = sp.map((s)=>{
+    const ph = byId[s.id]?.inat?.photo; const cls = s.kind==='producer'?'prod':'anim';
+    return `<div class="t ${cls}" title="${s.name}" ${ph?`style="background-image:url('${ph}')"`:''}></div>`;
+  }).join('');
+  // habitat legend
+  document.getElementById('habitats').innerHTML = 'habitats: ' + ev.meta.habitats.map((h)=>
+    `<span><span class="dot" style="background:${HAB_COLOR[h]||'#888'}"></span>${h}</span>`).join('');
+}
+
+// ── load a roll: evaluate, render card + graph, update URL ──
+function load(n, { push=true } = {}){
+  let ev; try { ev = evalSeed(n); } catch(e){ showErr('roll', e); return; }
+  if (!ev){ document.getElementById('hunt-status').textContent = `seed ${n} rolled an empty web — try another`; return; }
+  current = ev;
+  preload(ev.design.species.map((s)=>s.id));
+  renderCard(ev);
+  buildGraph(ev);
+  document.getElementById('seed-in').value = n;
+  if (push){ const u = new URL(location); u.searchParams.set('n', n); history.replaceState(null,'',u); }
+  reheat(1);
+}
+
+// ── ROLL (with a tiny reveal beat so the UI paints "rolling") ──
+let rolling = false;
+function doRoll(n){
+  if (rolling) return; rolling = true;
+  const card = document.getElementById('card'); card.classList.add('rolling');
+  document.getElementById('c-name').textContent = 'rolling…';
+  document.getElementById('c-tier').textContent = '···';
+  document.getElementById('hunt-status').textContent = '';
+  setTimeout(()=>{ try { load(n); } finally { card.classList.remove('rolling'); rolling = false; } }, 90);
+}
+const randomSeed = () => Math.floor(Math.random()*1e6) + 1;
+
+// ── HUNT: search forward for a gem, yielding so the UI stays alive ──
+let hunting = false;
+function doHunt(){
+  if (hunting || rolling) return; hunting = true;
+  const status = document.getElementById('hunt-status'); const btn = document.getElementById('btn-hunt'); btn.disabled = true;
+  let n = randomSeed(), budget = 80, tried = 0, best = null;
+  const TARGET = 72;   // Epic+
+  const tick = () => {
+    const t0 = performance.now();
+    while (performance.now() - t0 < 60 && tried < budget){
+      tried++; const ev = evalSeed(n); n++;
+      if (ev){ if (!best || ev.interest > best.interest) best = ev; if (ev.interest >= TARGET) break; }
+    }
+    status.textContent = `hunting… ${tried}/${budget} · best so far: ${best?best.tier+' '+best.interest:'—'}`;
+    if ((best && best.interest >= TARGET) || tried >= budget){
+      hunting = false; btn.disabled = false;
+      if (best){ status.textContent = `found ${best.tier} (${best.interest}) at seed ${best.n} after ${tried} rolls`; load(best.n); }
+      else status.textContent = 'no gem this run — hunt again';
+      return;
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ───────────────────────────── the force-graph renderer ─────────────────────────────
+const cv = document.getElementById('web'), cx = cv.getContext('2d');
+const WORLD = { w: 1180, h: 720 };
+const POOLS = [{id:'air',label:'Air · CO₂/O₂'},{id:'litter',label:'Detritus'},{id:'food',label:'Larder'},{id:'crew',label:'Crew'}];
+const POOL_SET = new Set(POOLS.map(p=>p.id));
+let nodes = [], edges = [], nById = {}, habAnchors = {};
+
+function buildGraph(ev){
+  const sp = ev.design.species, last = ev.report.last || {};
+  // habitats present → anchors on a ring
+  const habs = ev.meta.habitats;
+  habAnchors = {};
+  const cxw = WORLD.w/2, cyw = WORLD.h/2, R = Math.min(WORLD.w, WORLD.h)*0.34;
+  habs.forEach((h,i)=>{ const a = -Math.PI/2 + i*2*Math.PI/habs.length; habAnchors[h] = { x: cxw + Math.cos(a)*R, y: cyw + Math.sin(a)*R, hab:h }; });
+  const anchorFor = (cat) => {
+    const hs = (cat.habitats||[]).filter(h=>habAnchors[h]); if(!hs.length) return {x:cxw,y:cyw};
+    let x=0,y=0; for(const h of hs){ x+=habAnchors[h].x; y+=habAnchors[h].y; } return { x:x/hs.length, y:y/hs.length };
+  };
+  const bios = sp.map(s=>last[s.id]||0); const maxB = Math.max(1, ...bios);
+  const prev = nById; nodes = []; nById = {};
+  for (const s of sp){
+    const cat = byId[s.id] || { habitats:['land'] };
+    const a = anchorFor(cat); const old = prev[s.id];
+    const r = 14 + 34*Math.sqrt(Math.max(0,(last[s.id]||0))/maxB);
+    nodes.push({ id:s.id, label:s.name||s.id, kind:s.kind, guild:s.guild||'producer', habitats:cat.habitats||['land'],
+      bio:last[s.id]||0, ax:a.x, ay:a.y, x: old?old.x:a.x+(Math.random()-.5)*40, y: old?old.y:a.y+(Math.random()-.5)*40,
+      vx:0, vy:0, r, targetR:r, fixed:false, pool:false });
+  }
+  for (const p of POOLS) nodes.push({ id:p.id, label:p.label, pool:true, ax:cxw, ay:cyw, x:cxw+(Math.random()-.5)*30, y:cyw+(Math.random()-.5)*30, vx:0, vy:0, r:14, targetR:14 });
+  for (const n of nodes) nById[n.id] = n;
+  // pool anchors: cluster near centre
+  const pc = [[ -60,-46],[60,-46],[-60,46],[60,46]];
+  POOLS.forEach((p,i)=>{ const n=nById[p.id]; n.ax=cxw+pc[i][0]; n.ay=cyw+pc[i][1]; });
+
+  edges = [];
+  const add=(f,t,type)=>{ if(nById[f]&&nById[t]) edges.push({from:f,to:t,type}); };
+  for (const s of sp){
+    if (s.kind==='producer'){ add(s.id,'air','fix'); if(s.harvestIndex) add(s.id,'food','harvest'); }
+    else {
+      add(s.id,'air','respire'); if(s.harvest) add(s.id,'food','harvest');
+      for (const e of (s.eats||[])) add(e==='litter'?'litter':e, s.id, 'trophic');
+      if (s.pollinates) add(s.id, s.pollinates, 'pollinates');
+    }
+  }
+  add('food','crew','eat'); add('crew','air','respire'); add('crew','litter','waste');
+}
+
+const EDGE = { trophic:{c:'#8aa99a',w:1.3,a:.7}, fix:{c:'#62b87a',w:1.1,a:.45}, harvest:{c:'#d8b25a',w:1.8,a:.85},
+  respire:{c:'#3f5249',w:0.8,a:.4}, pollinates:{c:'#d8b25a',w:1.3,a:.8,dash:[4,3]}, eat:{c:'#e0a06a',w:1.9,a:.8}, waste:{c:'#b08968',w:1.3,a:.6,dash:[3,3]} };
+const nodeColor = (n)=> n.pool ? '#caa6e0' : (n.guild==='nectarivore'&&isPoll(n)?'#d8b25a':GUILD_COLOR[n.guild]||'#8aa99a');
+function isPoll(n){ return false; }
+
+let temp = 1, paused = false;
+const reheat = (t=1)=>{ temp = Math.max(temp, t); };
+function step(){
+  const KREP=520, KANCH=0.02, DAMP=0.85, MAXV=16;
+  for (let i=0;i<nodes.length;i++){ const a=nodes[i];
+    for (let j=i+1;j<nodes.length;j++){ const b=nodes[j];
+      let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<1)d2=1; const d=Math.sqrt(d2);
+      const want=a.r+b.r+18, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
+  for (const e of edges){ const a=nById[e.from], b=nById[e.to]; if(!a||!b)continue;
+    let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const rest = (e.type==='trophic')?108:150;
+    const k = POOL_SET.has(e.from)||POOL_SET.has(e.to) ? 0.006 : 0.02; const f=k*(d-rest);
+    a.vx+=dx/d*f; a.vy+=dy/d*f; b.vx-=dx/d*f; b.vy-=dy/d*f; }
+  for (const n of nodes){
+    n.vx += (n.ax-n.x)*KANCH*(n.pool?2.4:1); n.vy += (n.ay-n.y)*KANCH*(n.pool?2.4:1);
+    if (!n.fixed){ n.vx*=DAMP; n.vy*=DAMP; n.vx=Math.max(-MAXV,Math.min(MAXV,n.vx)); n.vy=Math.max(-MAXV,Math.min(MAXV,n.vy));
+      n.x+=n.vx*temp; n.y+=n.vy*temp; }
+    n.r += (n.targetR-n.r)*0.2;
+  }
+  temp *= 0.99; if (temp<0.03) temp=0.03;
+}
+
+let cam = {x:0,y:0,s:1}, DPR=1, CSSW=1180, CSSH=720;
+function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); const r=cv.getBoundingClientRect();
+  CSSW=r.width||900; CSSH=CSSW*(WORLD.h/WORLD.w); cv.style.height=CSSH+'px'; cv.width=Math.max(1,Math.round(CSSW*DPR)); cv.height=Math.max(1,Math.round(CSSH*DPR)); }
+function fit(){ const p=16; cam.s=Math.min((CSSW-p*2)/WORLD.w,(CSSH-p*2)/WORLD.h); cam.x=(CSSW-WORLD.w*cam.s)/2; cam.y=(CSSH-WORLD.h*cam.s)/2; }
+const toWorld=(sx,sy)=>({x:(sx-cam.x)/cam.s,y:(sy-cam.y)/cam.s});
+const MONO="'SF Mono',ui-monospace,Menlo,Consolas,monospace";
+let hover=null;
+
+function draw(){
+  cx.setTransform(DPR,0,0,DPR,0,0); cx.clearRect(0,0,CSSW,CSSH);
+  cx.translate(cam.x,cam.y); cx.scale(cam.s,cam.s);
+  // habitat halos
+  for (const h in habAnchors){ const a=habAnchors[h];
+    const g=cx.createRadialGradient(a.x,a.y,8,a.x,a.y,180); const col=HAB_COLOR[h]||'#888';
+    g.addColorStop(0, hexA(col,0.16)); g.addColorStop(1, hexA(col,0));
+    cx.fillStyle=g; cx.beginPath(); cx.arc(a.x,a.y,180,0,7); cx.fill();
+    cx.fillStyle=hexA(col,0.6); cx.font='600 13px '+MONO; cx.textAlign='center'; cx.fillText(h.toUpperCase(), a.x, a.y-150); cx.textAlign='left';
+  }
+  const lit = hover ? incident(hover) : null;
+  for (const e of edges){ const a=nById[e.from], b=nById[e.to]; if(!a||!b)continue; const st=EDGE[e.type]||EDGE.trophic;
+    let al=st.a; if(lit) al = lit.edges.has(e)?Math.min(1,st.a+0.25):st.a*0.12;
+    cx.strokeStyle=st.c; cx.lineWidth=st.w/Math.sqrt(cam.s); cx.setLineDash(st.dash||[]); cx.globalAlpha=al;
+    cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y); cx.stroke(); }
+  cx.setLineDash([]); cx.globalAlpha=1;
+  for (const n of nodes){ const dim=lit&&!lit.nodes.has(n.id); cx.globalAlpha=dim?0.3:1;
+    if (n.pool) drawPool(n); else drawNode(n, hover===n); cx.globalAlpha=1; }
+}
+function drawNode(n, foc){
+  const img = IMG[n.id]; cx.save(); cx.beginPath(); cx.arc(n.x,n.y,n.r,0,7);
+  if (img){ cx.save(); cx.clip(); const d=n.r*2, ar=(img.width||1)/(img.height||1); let sw,sh; if(ar>1){sh=d;sw=d*ar;}else{sw=d;sh=d/ar;}
+    try{ cx.drawImage(img,n.x-sw/2,n.y-sh/2,sw,sh); }catch{} cx.restore(); }
+  else { cx.fillStyle='#15281b'; cx.fill(); }
+  cx.lineWidth=foc?4:(n.kind==='producer'?2.2:2.8); cx.strokeStyle=foc?'#d8b25a':nodeColor(n);
+  cx.beginPath(); cx.arc(n.x,n.y,n.r,0,7); cx.stroke(); cx.restore();
+  if (n.r*cam.s>11 || foc){ cx.font='10.5px '+MONO; cx.textAlign='center'; cx.lineWidth=3; cx.strokeStyle='rgba(8,16,12,.85)';
+    cx.strokeText(n.label,n.x,n.y+n.r+12); cx.fillStyle='#dcefe1'; cx.fillText(n.label,n.x,n.y+n.r+12); cx.textAlign='left'; }
+}
+function drawPool(n){ const w=120,h=26; rr(n.x-w/2,n.y-h/2,w,h,7); cx.fillStyle='#1a1428'; cx.fill(); cx.lineWidth=1.6; cx.strokeStyle='#caa6e0'; cx.stroke();
+  cx.fillStyle='#caa6e0'; cx.font='600 11px '+MONO; cx.textAlign='center'; cx.fillText(n.label,n.x,n.y+4); cx.textAlign='left'; }
+function rr(x,y,w,h,r){ cx.beginPath(); cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r); cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath(); }
+function hexA(hex,a){ const m=hex.replace('#',''); const r=parseInt(m.slice(0,2),16),g=parseInt(m.slice(2,4),16),b=parseInt(m.slice(4,6),16); return `rgba(${r},${g},${b},${a})`; }
+function incident(n){ const ns=new Set([n.id]), es=new Set(); for(const e of edges) if(e.from===n.id||e.to===n.id){ es.add(e); ns.add(e.from); ns.add(e.to); } return {nodes:ns,edges:es}; }
+
+// ── pointer ──
+const tip = document.getElementById('tip');
+let drag=null, panning=null;
+function pick(wx,wy){ let best=null,bd=Infinity; for(const n of nodes){ const rr=(n.r+4)*(n.r+4); const d2=(n.x-wx)**2+(n.y-wy)**2; if(d2<rr&&d2<bd){bd=d2;best=n;} } return best; }
+const sp_=(ev)=>{ const r=cv.getBoundingClientRect(); return {sx:ev.clientX-r.left, sy:ev.clientY-r.top}; };
+function showTip(n,sx,sy){ if(n.pool){ tip.innerHTML=`<div class="bd"><div class="nm">${n.label}</div><div class="rel">shared abiotic pool — closure runs through here.</div></div>`; }
+  else { const cat=byId[n.id]||{}; const ph=cat.inat?.photo; const ins=[],outs=[];
+    for(const e of edges){ if(e.type==='trophic'&&e.to===n.id) ins.push(nById[e.from]?.label||e.from); if(e.type==='trophic'&&e.from===n.id) outs.push(nById[e.to]?.label||e.to); }
+    tip.innerHTML=(ph?`<div class="ph" style="background-image:url('${ph}')"></div>`:'')+`<div class="bd"><div class="nm">${n.label}</div><div class="sci">${cat.sciName||''} · ${n.guild}</div>`+
+      (ins.length?`<div class="rel"><b>eats:</b> ${ins.join(', ')}</div>`:'')+(outs.length?`<div class="rel"><b>eaten by:</b> ${outs.join(', ')}</div>`:'')+`</div>`; }
+  tip.style.display='block'; let x=sx+14,y=sy+14; if(x+230>CSSW)x=sx-244; tip.style.left=Math.max(2,x)+'px'; tip.style.top=Math.max(2,y)+'px'; }
+const hideTip=()=>{ tip.style.display='none'; };
+cv.addEventListener('pointerdown',(ev)=>{ cv.setPointerCapture(ev.pointerId); const {sx,sy}=sp_(ev); const w=toWorld(sx,sy); const n=pick(w.x,w.y);
+  if(n){ drag={n,dx:n.x-w.x,dy:n.y-w.y}; n.fixed=true; cv.classList.add('grabbing'); } else { panning={sx,sy,cx0:cam.x,cy0:cam.y}; cv.classList.add('grabbing'); } });
+cv.addEventListener('pointermove',(ev)=>{ const {sx,sy}=sp_(ev); const w=toWorld(sx,sy);
+  if(drag){ drag.n.x=w.x+drag.dx; drag.n.y=w.y+drag.dy; drag.n.vx=0; drag.n.vy=0; reheat(0.4); showTip(drag.n,sx,sy); return; }
+  if(panning){ cam.x=panning.cx0+(sx-panning.sx); cam.y=panning.cy0+(sy-panning.sy); return; }
+  const n=pick(w.x,w.y); hover=n; if(n){ cv.style.cursor='pointer'; showTip(n,sx,sy); } else { cv.style.cursor='grab'; hideTip(); } });
+function endP(){ if(drag){drag.n.fixed=false;drag=null;} panning=null; cv.classList.remove('grabbing'); }
+cv.addEventListener('pointerup',endP); cv.addEventListener('pointercancel',endP);
+cv.addEventListener('pointerleave',()=>{ hover=null; hideTip(); });
+cv.addEventListener('wheel',(ev)=>{ ev.preventDefault(); const {sx,sy}=sp_(ev); const w=toWorld(sx,sy); const f=Math.exp(-ev.deltaY*0.0015); const ns=Math.max(0.4,Math.min(3,cam.s*f)); cam.x=sx-w.x*ns; cam.y=sy-w.y*ns; cam.s=ns; }, {passive:false});
+
+// ── buttons ──
+document.getElementById('btn-roll').addEventListener('click', ()=>doRoll(randomSeed()));
+document.getElementById('btn-hunt').addEventListener('click', doHunt);
+document.getElementById('btn-go').addEventListener('click', ()=>{ const v=parseInt(document.getElementById('seed-in').value,10); if(Number.isFinite(v)) doRoll(v); });
+document.getElementById('seed-in').addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ const v=parseInt(e.target.value,10); if(Number.isFinite(v)) doRoll(v); } });
+document.getElementById('btn-share').addEventListener('click', async ()=>{ const u=new URL(location); if(current) u.searchParams.set('n',current.n);
+  try{ await navigator.clipboard.writeText(u.toString()); document.getElementById('hunt-status').textContent='link copied — '+u.searchParams.get('n'); }catch{ document.getElementById('hunt-status').textContent=u.toString(); } });
+document.getElementById('btn-reheat').addEventListener('click', ()=>reheat(1));
+document.getElementById('btn-fit').addEventListener('click', fit);
+window.addEventListener('resize', ()=>{ resize(); fit(); });
+
+document.getElementById('foot').innerHTML = 'each roll: a seed → a food web (60-organism deck, diets by body-size + habitat) → the box model runs it ~600 days → a viability score. '
+  + 'rarity is the solver\'s verdict. deterministic + shareable; runs entirely in your browser. → <a href="../">biome</a>';
+
+function loop(){ try { if(!paused){ for(let i=0;i<2;i++) step(); } draw(); } catch(e){ showErr('draw', e); return; } requestAnimationFrame(loop); }
+
+// ── boot ──
+(async ()=>{
+  try {
+    await loadCatalog();
+    resize(); fit(); loop();
+    const n0 = parseInt(new URL(location).searchParams.get('n'), 10);
+    if (Number.isFinite(n0)) load(n0, { push:false }); else doRoll(randomSeed());
+  } catch(e){ showErr('boot', e); }
+})();
+</script>
+</body>
+</html>
