@@ -7,6 +7,7 @@ use crate::prng::{xmur3, Rng};
 pub struct Params {
     pub upm: f64,
     pub cap: f64,
+    pub xheight: f64,
     pub ascent: f64,
     pub descent: f64,
     pub stem: f64,      // thick stroke weight
@@ -31,6 +32,7 @@ impl Params {
         let upm = 1000.0;
         let cap = 700.0;
 
+        let xheight = cap * r.range(0.62, 0.74); // lowercase x-height / cap ratio
         let contrast = r.range(0.0, 0.82);
         let stem = r.range(58.0, 168.0);
         let thin = (stem * (1.0 - contrast * 0.7)).max(20.0);
@@ -59,6 +61,7 @@ impl Params {
         Params {
             upm,
             cap,
+            xheight,
             ascent: 780.0,
             descent: -220.0,
             stem,

@@ -281,7 +281,7 @@ fn os2_table(p: &Params, first: u16, last: u16) -> Vec<u8> {
     pu16(&mut b, (-p.descent) as u16); // usWinDescent
     pu32(&mut b, 1); // ulCodePageRange1 (bit 0: Latin 1)
     pu32(&mut b, 0);
-    pi16(&mut b, (p.cap * 0.7) as i16); // sxHeight
+    pi16(&mut b, p.xheight as i16); // sxHeight
     pi16(&mut b, p.cap as i16); // sCapHeight
     pu16(&mut b, 0); // usDefaultChar
     pu16(&mut b, 0x20); // usBreakChar

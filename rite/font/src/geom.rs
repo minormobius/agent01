@@ -82,8 +82,14 @@ pub fn arc(cx: f64, cy: f64, rx: f64, ry: f64, a1: f64, a2: f64, segs: usize) ->
 /// A stroked open arc (crescent): outer arc forward, inner arc back. Encloses
 /// only the stroke, so counters between it and a stem stay empty automatically.
 pub fn strap(cx: f64, cy: f64, r: f64, t: f64, a1: f64, a2: f64, segs: usize) -> Vec<Pt> {
-    let mut outer = arc(cx, cy, r, r, a1, a2, segs);
-    let mut inner = arc(cx, cy, r - t, r - t, a2, a1, segs);
+    estrap(cx, cy, r, r, t, a1, a2, segs)
+}
+
+/// Elliptical stroked open arc — like `strap` but with independent x/y radii,
+/// so a letter can be a given width and a given (full cap) height at once.
+pub fn estrap(cx: f64, cy: f64, rx: f64, ry: f64, t: f64, a1: f64, a2: f64, segs: usize) -> Vec<Pt> {
+    let mut outer = arc(cx, cy, rx, ry, a1, a2, segs);
+    let mut inner = arc(cx, cy, rx - t, ry - t, a2, a1, segs);
     outer.append(&mut inner);
     outer
 }

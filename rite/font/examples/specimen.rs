@@ -48,28 +48,33 @@ fn line(face: &Face, text: &str) -> (String, f32) {
 
 fn main() {
     let seeds = ["sunrise", "brutal-9", "whisper-x", "geode", "ribbon", "240612"];
+    let texts = [
+        "Hamburgefonts CGOQ",
+        "the quick brown fox jumps lazy vw pqgyj",
+    ];
     let upm = 1000.0f32;
-    let row_h = upm * 1.25;
+    let line_h = upm * 1.35;
+    let row_h = line_h * texts.len() as f32 + upm * 0.4;
     let mut rows = String::new();
     let mut max_w = 0.0f32;
 
     for (i, seed) in seeds.iter().enumerate() {
         let bytes = minofont::build_font(seed);
         let face = Face::parse(&bytes, 0).expect("valid font");
-        let (paths, w) = line(&face, "HAMBURGEVONS");
-        max_w = max_w.max(w);
-        let y = i as f32 * row_h;
-        // glyf is y-up; flip into SVG's y-down space and drop to a baseline.
+        let y0 = i as f32 * row_h;
+        for (j, text) in texts.iter().enumerate() {
+            let (paths, w) = line(&face, text);
+            max_w = max_w.max(w);
+            let baseline = y0 + (j as f32 + 1.0) * line_h;
+            // glyf is y-up; flip into SVG's y-down space and drop to the baseline.
+            rows.push_str(&format!(
+                "<g transform=\"translate(0,{baseline:.1}) scale(1,-1)\" fill=\"#efe7da\">{paths}</g>",
+            ));
+        }
         rows.push_str(&format!(
-            "<g transform=\"translate(0,{:.1}) scale(1,-1) translate(0,{:.1})\" fill=\"#efe7da\">{}</g>",
-            y + upm,
-            -0.0,
-            paths
-        ));
-        rows.push_str(&format!(
-            "<text x=\"{:.1}\" y=\"{:.1}\" fill=\"#d8a657\" font-family=\"sans-serif\" font-size=\"90\">{}</text>",
-            w + 120.0,
-            y + upm * 0.6,
+            "<text x=\"{:.1}\" y=\"{:.1}\" fill=\"#d8a657\" font-family=\"sans-serif\" font-size=\"110\">{}</text>",
+            max_w + 160.0,
+            y0 + line_h,
             seed
         ));
     }
