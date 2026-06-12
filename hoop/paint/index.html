@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#07090c" />
+  <meta name="description" content="paint — a rendering playground for membrane-seeded Voronoi rooms. Seed the walls with nuclei, paint the tiling off them, control wall thickness with nucleus spacing." />
+  <title>paint — membrane-seeded voronoi playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#05060a; --panel:#0c1014; --line:#1c2530; --ink:#dfe7e2; --dim:#8a978f; --gold:#f4bf62; --green:#79c8a0; --teal:#7fd8d0; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--ink); font-family: "JetBrains Mono", ui-monospace, monospace; display: flex; flex-direction: column; overflow: hidden; }
+    header { display: flex; align-items: baseline; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: rgba(7,9,12,.8); flex-wrap: wrap; }
+    .logo { color: var(--gold); font-weight: 600; font-size: 16px; }
+    .tag { color: var(--dim); font-size: 12px; }
+    a.back { color: var(--teal); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 12px; margin-left: auto; }
+    a.back:hover { border-color: var(--teal); }
+    main { flex: 1; display: flex; min-height: 0; }
+    #stage { flex: 1; position: relative; min-width: 0; }
+    canvas { width: 100%; height: 100%; display: block; }
+    aside { width: 300px; flex-shrink: 0; border-left: 1px solid var(--line); background: var(--panel); padding: 14px 16px; overflow-y: auto; }
+    @media (max-width: 720px) { main { flex-direction: column; } aside { width: auto; border-left: 0; border-top: 1px solid var(--line); max-height: 44vh; } }
+    h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--dim); margin: 0 0 4px; }
+    .note { font-size: 12px; color: var(--dim); line-height: 1.5; margin: 0 0 16px; }
+    .note b { color: var(--ink); }
+    .ctl { margin: 0 0 16px; }
+    .ctl label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .ctl label .v { color: var(--gold); }
+    .ctl input[type=range] { width: 100%; accent-color: var(--green); }
+    .row { display: flex; gap: 10px; align-items: center; margin: 0 0 12px; font-size: 13px; cursor: pointer; }
+    .row input { accent-color: var(--teal); width: 16px; height: 16px; }
+    button { width: 100%; background: #121a20; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 9px; font: inherit; font-size: 13px; cursor: pointer; }
+    button:hover { border-color: var(--gold); color: var(--gold); }
+    .readouts { border-top: 1px dashed var(--line); margin-top: 14px; padding-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+    .ro .k { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--dim); display: block; }
+    .ro .val { font-size: 15px; color: var(--ink); }
+    #busy { position: absolute; top: 10px; left: 12px; font-size: 11px; color: var(--gold); background: rgba(7,9,12,.7); padding: 3px 8px; border-radius: 6px; opacity: 0; transition: opacity .15s; }
+    #busy.on { opacity: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">▦ paint</span>
+    <span class="tag">membrane-seeded voronoi · a rendering playground</span>
+    <a class="back" href="/">◍ hoop</a>
+  </header>
+  <main>
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <div id="busy">building…</div>
+    </div>
+    <aside>
+      <h2>the idea</h2>
+      <p class="note">
+        Seed the floor plan's <b>membranes</b> (the walls) with Voronoi nuclei at <b>wall spacing</b>,
+        so walls are fine and crisp — <b>thickness ≈ wall spacing</b>. The interiors don't need that
+        detail, so the floor nuclei are <b>density-graded</b>: a big seed at each room centre, fining
+        toward the walls (<b>room spacing</b> sets how coarse the middle gets). The cells fit between
+        the two. Paint the Voronoi of them all: wall cells = wall, the rest = floor.
+        <b>Doors</b> are two-nuclei-wide gaps cut in the wall and bridged with floor; a spanning tree
+        of them keeps <b>every room connected</b>, and <b>loops</b> adds extra doors — generated roads.
+        <b>Zones</b> force higher-order structure: rooms agglomerate into sized super-regions (a
+        housing unit, a hospital) — dense doors inside a zone, sparse arterials between them.
+      </p>
+
+      <div class="ctl">
+        <label>wall spacing <span class="v" id="v-ws">8</span></label>
+        <input type="range" id="ws" min="5" max="32" step="1" value="8">
+      </div>
+      <div class="ctl">
+        <label>room spacing <span class="v" id="v-rs">18</span></label>
+        <input type="range" id="rs" min="10" max="60" step="1" value="18">
+      </div>
+      <div class="ctl">
+        <label>room size (floor plan) <span class="v" id="v-rm">90</span></label>
+        <input type="range" id="rm" min="50" max="200" step="2" value="90">
+      </div>
+      <div class="ctl">
+        <label>loops / roads <span class="v" id="v-lp">15%</span></label>
+        <input type="range" id="lp" min="0" max="100" step="5" value="15">
+      </div>
+      <div class="ctl">
+        <label>zone size (cells) <span class="v" id="v-zn">12</span></label>
+        <input type="range" id="zn" min="4" max="64" step="1" value="12">
+      </div>
+
+      <label class="row"><input type="checkbox" id="t-mix"> mixed program (housing + hospital)</label>
+      <label class="row"><input type="checkbox" id="t-zone" checked> tint zones</label>
+      <label class="row"><input type="checkbox" id="t-plan"> show the exact floor plan</label>
+      <label class="row"><input type="checkbox" id="t-roads"> show the roads (door graph)</label>
+      <label class="row"><input type="checkbox" id="t-nuc"> show the nuclei</label>
+      <label class="row"><input type="checkbox" id="t-room"> tint rooms</label>
+      <button id="regen">⟲ regenerate plan</button>
+
+      <div class="readouts">
+        <span class="ro"><span class="k">wall thickness ≈</span><span class="val" id="r-thick">—</span></span>
+        <span class="ro"><span class="k">rooms / doors</span><span class="val" id="r-rooms">—</span></span>
+        <span class="ro"><span class="k">paint cells</span><span class="val" id="r-cells">—</span></span>
+        <span class="ro"><span class="k">zones</span><span class="val" id="r-zones">—</span></span>
+        <span class="ro"><span class="k">wall / floor nuclei</span><span class="val" id="r-nuc">—</span></span>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    import { buildScene } from './voronoi.js';
+
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+    const $ = (id) => document.getElementById(id);
+    let scene = null, seed = 1, W = 0, H = 0, dpr = 1;
+
+    const params = () => ({ W, H, wallSpacing: +$('ws').value, roomSpacing: +$('rs').value, roomSize: +$('rm').value, loops: +$('lp').value / 100, zoneSize: +$('zn').value, mixed: $('t-mix').checked, interLoops: 0.12, seed });
+
+    function roomColor(id, lit) {
+      const h = ((id * 73) % 90) + 110;            // 110..200 → green↔teal phosphor band
+      const l = (16 + (lit ? 10 : 0)) + ((id * 31) % 7);
+      return `hsl(${h} 26% ${l}%)`;
+    }
+    function zoneColor(z) { return `hsl(${((z * 137.508) % 360).toFixed(0)} 26% ${(19 + (z % 5)).toFixed(0)}%)`; } // golden-angle hues
+    function poly(p) { if (p.length < 3) return; ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); }
+
+    function draw() {
+      if (!scene) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+      const tintRooms = $('t-room').checked, tintZones = $('t-zone').checked;
+      // paint cells
+      for (const c of scene.paintCells) {
+        if (c.poly.length < 3) continue;
+        if (c.wall) ctx.fillStyle = '#0a0e12';
+        else if (c.door) ctx.fillStyle = (tintZones || tintRooms) ? 'hsl(44 16% 24%)' : '#1b242a'; // a threshold-lit doorway
+        else if (tintZones && c.zone >= 0) ctx.fillStyle = zoneColor(c.zone);
+        else if (tintRooms) ctx.fillStyle = roomColor(c.room || 0, true);
+        else ctx.fillStyle = '#11181c';
+        poly(c.poly); ctx.fill();
+      }
+      // a hair of cell definition so the foam reads
+      ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(20,28,34,0.55)';
+      for (const c of scene.paintCells) { if (c.wall || c.poly.length < 3) continue; poly(c.poly); ctx.stroke(); }
+      // zone boundaries: the inter-zone membranes, drawn thick so the super-regions read
+      if (tintZones && scene.zoneOf) {
+        ctx.lineWidth = Math.max(2, scene.wallSpacing * 0.6); ctx.strokeStyle = 'rgba(5,7,10,0.95)'; ctx.lineCap = 'round'; ctx.beginPath();
+        for (const e of scene.adjEdges) { if (scene.zoneOf[e.a] === scene.zoneOf[e.b]) continue; const hl = e.len / 2; ctx.moveTo(e.m[0] - e.along[0] * hl, e.m[1] - e.along[1] * hl); ctx.lineTo(e.m[0] + e.along[0] * hl, e.m[1] + e.along[1] * hl); }
+        ctx.stroke();
+      }
+
+      // overlay: the exact floor plan (room voronoi cells = the membranes) + seeds
+      if ($('t-plan').checked) {
+        ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(244,191,98,0.85)';
+        for (const c of scene.roomCells) { poly(c.poly); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(244,191,98,0.95)';
+        for (const s of scene.roomSeeds) { ctx.beginPath(); ctx.arc(s.x, s.y, 2.4, 0, Math.PI * 2); ctx.fill(); }
+      }
+      // overlay: the roads — the door graph (room centre → door → room centre). Local streets
+      // (within a zone) faint teal; arterials (between zones) gold.
+      if ($('t-roads').checked) {
+        const byId = new Map(scene.roomSeeds.map((s) => [s.id, s]));
+        const drawSet = (inter, style, w) => { ctx.strokeStyle = style; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); for (const d of scene.doors) { if (!!d.inter !== inter) continue; const a = byId.get(d.a), b = byId.get(d.b); if (!a || !b) continue; ctx.moveTo(a.x, a.y); ctx.lineTo(d.m[0], d.m[1]); ctx.lineTo(b.x, b.y); } ctx.stroke(); };
+        drawSet(false, 'rgba(121,200,160,0.5)', 1.2);   // local streets
+        drawSet(true, 'rgba(244,191,98,0.9)', 2.2);     // arterials
+        ctx.fillStyle = 'rgba(127,216,208,0.9)';
+        for (const d of scene.doors) { ctx.beginPath(); ctx.arc(d.m[0], d.m[1], 2, 0, Math.PI * 2); ctx.fill(); }
+      }
+      // overlay: the nuclei themselves
+      if ($('t-nuc').checked) {
+        ctx.fillStyle = 'rgba(232,140,91,0.9)';
+        for (const n of scene.wallNuclei) { ctx.fillRect(n.x - 1, n.y - 1, 2, 2); }
+        ctx.fillStyle = 'rgba(121,200,160,0.7)';
+        for (const n of scene.floorNuclei) { ctx.fillRect(n.x - 0.8, n.y - 0.8, 1.6, 1.6); }
+      }
+    }
+
+    function rebuild() {
+      const p = params();
+      $('busy').classList.add('on');
+      // let the "building…" paint before the (sync) heavy build
+      requestAnimationFrame(() => {
+        scene = buildScene(p);
+        $('v-ws').textContent = p.wallSpacing; $('v-rs').textContent = p.roomSpacing; $('v-rm').textContent = p.roomSize;
+        $('v-lp').textContent = Math.round(p.loops * 100) + '%'; $('v-zn').textContent = p.zoneSize;
+        $('r-thick').textContent = Math.round(scene.band * 2) + ' px';
+        $('r-rooms').textContent = scene.roomSeeds.length + ' / ' + scene.doors.length;
+        $('r-cells').textContent = scene.paintCells.length.toLocaleString();
+        $('r-zones').textContent = scene.zoneCount;
+        $('r-nuc').textContent = scene.wallNuclei.length + ' / ' + scene.floorNuclei.length;
+        draw();
+        $('busy').classList.remove('on');
+      });
+    }
+
+    let deb = null;
+    const schedule = () => { clearTimeout(deb); deb = setTimeout(rebuild, 130); };
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const r = cv.parentElement.getBoundingClientRect();
+      W = Math.max(120, Math.floor(r.width)); H = Math.max(120, Math.floor(r.height));
+      cv.width = W * dpr; cv.height = H * dpr;
+      schedule();
+    }
+
+    $('ws').addEventListener('input', () => { $('v-ws').textContent = $('ws').value; schedule(); });
+    $('rs').addEventListener('input', () => { $('v-rs').textContent = $('rs').value; schedule(); });
+    $('rm').addEventListener('input', () => { $('v-rm').textContent = $('rm').value; schedule(); });
+    $('lp').addEventListener('input', () => { $('v-lp').textContent = $('lp').value + '%'; schedule(); });
+    $('zn').addEventListener('input', () => { $('v-zn').textContent = $('zn').value; schedule(); });
+    $('t-mix').addEventListener('change', schedule);
+    $('t-zone').addEventListener('change', draw);
+    $('t-plan').addEventListener('change', draw);
+    $('t-roads').addEventListener('change', draw);
+    $('t-nuc').addEventListener('change', draw);
+    $('t-room').addEventListener('change', draw);
+    $('regen').addEventListener('click', () => { seed = (seed * 1664525 + 1013904223) >>> 0; rebuild(); });
+    window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 120); });
+
+    resize();
+  </script>
+</body>
+</html>
