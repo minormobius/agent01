@@ -18,42 +18,61 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   ok(w <= 12, 'four neighbours 10 away clip the cell to ~one spacing wide');
 }
 
-// ── buildScene: a full membrane-seeded scene ──
+// ── buildScene: a full membrane-seeded, density-graded scene ──
 {
-  const sc = buildScene({ W: 600, H: 400, spacing: 14, roomSize: 70, seed: 7 });
+  const sc = buildScene({ W: 600, H: 400, wallSpacing: 8, roomSpacing: 18, roomSize: 70, seed: 7 });
   ok(sc.roomSeeds.length > 10, 'the floor plan has rooms');
   ok(sc.roomCells.every((c) => c.poly.length >= 3), 'every room is a valid polygon');
   ok(sc.wallNuclei.length > 0 && sc.floorNuclei.length > 0, 'both wall and floor nuclei are seeded');
   ok(sc.paintCells.length === sc.nuclei.length, 'one paint cell per nucleus');
   ok(sc.paintCells.every((c) => c.poly.length >= 3), 'every paint cell is a valid polygon');
 
-  // wall nuclei sit ON the membranes (their distance to a room boundary is ~0)
   const rg = bucketGrid(sc.roomSeeds, sc.roomSize * 1.4);
+  // wall nuclei sit ON the membranes (distance to a room boundary ≈ 0)
   const wallEdge = sc.wallNuclei.slice(0, 200).map((n) => roomOf(n, rg).edgeDist);
-  const medWall = wallEdge.sort((a, b) => a - b)[wallEdge.length >> 1];
-  ok(medWall < 2.0, 'wall nuclei lie on the membranes (median edge-distance ≈ 0, got ' + medWall.toFixed(2) + ')');
-  // floor nuclei are held off the membranes by the band (= spacing/2)
+  ok(wallEdge.sort((a, b) => a - b)[wallEdge.length >> 1] < 2.0, 'wall nuclei lie on the membranes');
+  // floor nuclei held out of the band (= wallSpacing/2)
   ok(sc.floorNuclei.every((n) => roomOf(n, rg).edgeDist > sc.band - 1e-6), 'floor nuclei are kept out of the wall band');
-  ok(Math.abs(sc.band - sc.spacing * 0.5) < 1e-9, 'the wall band scales with the spacing knob');
+  ok(Math.abs(sc.band - sc.wallSpacing * 0.5) < 1e-9, 'the wall band scales with the wall-spacing knob');
+  // the room-centre seeds are forced in (the big middle cells)
+  const anchored = sc.roomSeeds.filter((s) => sc.floorNuclei.some((n) => Math.abs(n.x - s.x) < 1e-6 && Math.abs(n.y - s.y) < 1e-6));
+  ok(anchored.length > sc.roomSeeds.length * 0.6, 'most room centres get an anchoring big seed');
 }
 
-// ── the knob: nucleus spacing controls the wall (thickness + density) ──
+// ── the GRADING: cells fine at the walls, coarse toward the centre ──
 {
-  const fine = buildScene({ W: 600, H: 400, spacing: 9, roomSize: 70, seed: 3 });
-  const coarse = buildScene({ W: 600, H: 400, spacing: 22, roomSize: 70, seed: 3 });
-  ok(fine.band < coarse.band, 'smaller spacing → thinner wall band (the thickness knob)');
-  ok(fine.wallNuclei.length > coarse.wallNuclei.length, 'smaller spacing → denser wall seeding');
-  ok(fine.paintCells.length > coarse.paintCells.length, 'smaller spacing → more, smaller cells');
-  // same plan either way (room layer is independent of the paint spacing)
-  ok(fine.roomSeeds.length === coarse.roomSeeds.length, 'the floor plan is the same regardless of paint spacing');
+  const sc = buildScene({ W: 700, H: 500, wallSpacing: 8, roomSpacing: 22, roomSize: 80, seed: 5 });
+  const rg = bucketGrid(sc.roomSeeds, sc.roomSize * 1.4);
+  const fg = bucketGrid(sc.floorNuclei, sc.roomSpacing * 1.6);
+  // nearest-neighbour distance among floor nuclei, grouped by distance-from-wall
+  const nn = (n) => { let d = Infinity; for (const q of fg.near(n.x, n.y)) { if (q === n) continue; const dd = (q.x - n.x) ** 2 + (q.y - n.y) ** 2; if (dd < d) d = dd; } return Math.sqrt(d); };
+  let nearSum = 0, nearN = 0, farSum = 0, farN = 0;
+  for (const n of sc.floorNuclei) { const e = roomOf(n, rg).edgeDist; const d = nn(n); if (!isFinite(d)) continue; if (e < 14) { nearSum += d; nearN++; } else if (e > 28) { farSum += d; farN++; } }
+  const nearAvg = nearSum / Math.max(1, nearN), farAvg = farSum / Math.max(1, farN);
+  ok(nearN > 0 && farN > 0, 'there are both wall-adjacent and deep-interior floor nuclei');
+  ok(nearAvg < farAvg, `cells coarsen with distance from the wall (near ${nearAvg.toFixed(1)} < far ${farAvg.toFixed(1)})`);
+  // grading is cheaper than a uniform fine fill: far fewer floor nuclei than W*H / wallSpacing²
+  ok(sc.floorNuclei.length < (700 * 500) / (sc.wallSpacing * sc.wallSpacing) * 0.5, 'grading uses far fewer interior cells than a uniform fine grid');
+}
+
+// ── the two knobs ──
+{
+  const thinWall = buildScene({ W: 600, H: 400, wallSpacing: 8, roomSpacing: 18, roomSize: 70, seed: 3 });
+  const thickWall = buildScene({ W: 600, H: 400, wallSpacing: 18, roomSpacing: 18, roomSize: 70, seed: 3 });
+  ok(thinWall.band < thickWall.band, 'wall-spacing is the wall-thickness knob');
+  ok(thinWall.wallNuclei.length > thickWall.wallNuclei.length, 'smaller wall-spacing → denser wall seeding');
+  const fineRoom = buildScene({ W: 600, H: 400, wallSpacing: 8, roomSpacing: 12, roomSize: 70, seed: 3 });
+  const coarseRoom = buildScene({ W: 600, H: 400, wallSpacing: 8, roomSpacing: 30, roomSize: 70, seed: 3 });
+  ok(fineRoom.floorNuclei.length > coarseRoom.floorNuclei.length, 'room-spacing is the interior-coarseness knob');
+  ok(fineRoom.wallNuclei.length === coarseRoom.wallNuclei.length, 'room-spacing leaves the walls untouched');
 }
 
 // ── determinism ──
 {
-  const a = buildScene({ W: 400, H: 300, spacing: 12, roomSize: 60, seed: 42 });
-  const b = buildScene({ W: 400, H: 300, spacing: 12, roomSize: 60, seed: 42 });
+  const p = { W: 400, H: 300, wallSpacing: 8, roomSpacing: 16, roomSize: 60 };
+  const a = buildScene({ ...p, seed: 42 }), b = buildScene({ ...p, seed: 42 });
   ok(a.nuclei.length === b.nuclei.length && a.paintCells.length === b.paintCells.length, 'buildScene is deterministic for a given seed');
-  const c = buildScene({ W: 400, H: 300, spacing: 12, roomSize: 60, seed: 43 });
+  const c = buildScene({ ...p, seed: 43 });
   ok(c.nuclei.length !== a.nuclei.length || JSON.stringify(c.roomSeeds[0]) !== JSON.stringify(a.roomSeeds[0]), 'a different seed gives a different scene');
 }
 

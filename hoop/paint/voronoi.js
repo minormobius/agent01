@@ -70,17 +70,21 @@ export function roomOf(p, roomGrid) {
 }
 
 // Build the whole scene: room seeds + room cells (the exact floor plan), the membrane-seeded wall
-// nuclei + the band-excluded floor nuclei, and the painted Voronoi of them all.
-export function buildScene({ W, H, spacing, roomSize, seed = 1 }) {
+// nuclei (fine, at `wallSpacing`), and DENSITY-GRADED floor nuclei — a big seed at each room
+// centre, fining toward the walls — so detail goes where it's needed (crisp thin walls) and the
+// interiors stay coarse. Two knobs: `wallSpacing` (wall thickness ≈ it) and `roomSpacing` (how
+// coarse the interior gets). The cells "fit between" the two, graded by distance from the wall.
+export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, seed = 1 }) {
   const rng = mulberry32(seed >>> 0);
+  const band = wallSpacing * 0.5;
   // 1. the floor plan: jittered-grid room seeds → room Voronoi cells
   const roomSeeds = jitterGrid(W, H, roomSize, 0.55, rng).map((p, i) => ({ ...p, id: i }));
   const roomGrid = bucketGrid(roomSeeds, roomSize * 1.4);
   const roomCells = roomSeeds.map((s) => ({ id: s.id, x: s.x, y: s.y, poly: clipCell(s, roomGrid.near(s.x, s.y), roomSize * 2.2) }));
 
-  // 2. WALL nuclei: sample every room-cell edge (the membranes) at `spacing`; dedupe coincident
+  // 2. WALL nuclei: sample every room-cell edge (the membranes) at `wallSpacing`; dedupe coincident
   //    samples of shared edges by snapping to a fine grid.
-  const wallNuclei = [], seen = new Set(), snap = spacing * 0.45;
+  const wallNuclei = [], seen = new Set(), snap = wallSpacing * 0.45;
   const addWall = (x, y) => {
     if (x < 0 || y < 0 || x > W || y > H) return;
     const k = Math.round(x / snap) + ',' + Math.round(y / snap);
@@ -91,24 +95,38 @@ export function buildScene({ W, H, spacing, roomSize, seed = 1 }) {
     const v = c.poly;
     for (let i = 0; i < v.length; i++) {
       const a = v[i], b = v[(i + 1) % v.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const n = Math.max(1, Math.round(L / spacing));
+      const n = Math.max(1, Math.round(L / wallSpacing));
       for (let j = 0; j <= n; j++) { const t = j / n; addWall(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t); }
     }
   }
 
-  // 3. FLOOR nuclei: a jittered grid, but keep only those a clear distance off any membrane
-  //    (edgeDist > band). `band` = the wall half-thickness, tied to spacing — the knob.
-  const band = spacing * 0.5;
+  // 3. FLOOR nuclei: variable-radius dart-throwing. Local target spacing grows with distance from
+  //    the wall — `wallSpacing` at the band edge, ramping to `roomSpacing` by mid-room — so cells
+  //    coarsen toward the centre. Room-centre seeds are forced first to anchor a big middle cell.
+  const refDepth = Math.max(band + 1, roomSize * 0.45);
+  const localSpacing = (edge) => {
+    const f = Math.max(0, Math.min(1, (edge - band) / (refDepth - band)));
+    return wallSpacing + (roomSpacing - wallSpacing) * f;
+  };
+  const hashCell = Math.max(roomSpacing, wallSpacing);
+  const acc = new Map(), akey = (x, y) => Math.floor(x / hashCell) + ',' + Math.floor(y / hashCell);
   const floorNuclei = [];
-  for (const p of jitterGrid(W, H, spacing, 0.5, rng)) {
+  const place = (x, y, room) => { const n = { x, y, wall: false, room }; floorNuclei.push(n); const k = akey(x, y); let b = acc.get(k); if (!b) { b = []; acc.set(k, b); } b.push(n); return n; };
+  const clearOf = (x, y, r) => { const cx = Math.floor(x / hashCell), cy = Math.floor(y / hashCell), r2 = r * r; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const b = acc.get((cx + dx) + ',' + (cy + dy)); if (!b) continue; for (const q of b) if ((q.x - x) ** 2 + (q.y - y) ** 2 < r2) return false; } return true; };
+  // forced room-centre seeds (the big middle cell)
+  for (const s of roomSeeds) { const e = roomOf(s, roomGrid).edgeDist; if (e > band) place(s.x, s.y, s.id); }
+  // graded fill from a fine candidate grid (densest = wallSpacing), accepted by the local radius
+  for (const p of jitterGrid(W, H, wallSpacing, 0.6, rng)) {
     const r = roomOf(p, roomGrid);
-    if (r.edgeDist > band) floorNuclei.push({ x: p.x, y: p.y, wall: false, room: r.room });
+    if (r.edgeDist <= band) continue;            // keep out of the wall band
+    if (clearOf(p.x, p.y, localSpacing(r.edgeDist))) place(p.x, p.y, r.room);
   }
 
-  // 4. paint: the Voronoi of all nuclei
+  // 4. paint: the Voronoi of all nuclei (neighbour search sized for the coarsest cells)
   const nuclei = wallNuclei.concat(floorNuclei);
-  const paintGrid = bucketGrid(nuclei, spacing * 1.8);
-  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), spacing * 3) }));
+  const paintGrid = bucketGrid(nuclei, Math.max(roomSpacing, wallSpacing) * 1.6);
+  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), roomSpacing * 3) }));
 
-  return { W, H, spacing, roomSize, band, roomSeeds, roomCells, wallNuclei, floorNuclei, nuclei, paintCells };
+  return { W, H, wallSpacing, roomSpacing, roomSize, band, roomSeeds, roomCells, wallNuclei, floorNuclei, nuclei, paintCells };
 }
+

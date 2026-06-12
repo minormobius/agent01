@@ -44,10 +44,12 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   runtime); they're pinned by `test/research.selftest.mjs` against the numbers the wings publish.
 - `paint/` (`paint/index.html` + `paint/voronoi.js`) — a **rendering playground** at
   `hoop.mino.mobi/paint/` for how the foam rooms are drawn: seed the floor-plan **membranes** with
-  Voronoi nuclei spaced `s`, hold the floor nuclei out of a `~s/2` band, paint the Voronoi of all of
-  them — so **nucleus spacing directly sets wall thickness**. Slider for spacing, toggle for the
-  exact floor plan. Geometry kernel is pure + node-tested (`test/paint.selftest.mjs`); the page only
-  draws what `buildScene()` returns. A sandbox to iterate the look before it feeds back into world.js.
+  fine Voronoi nuclei (**wall spacing** ⇒ wall thickness), and **density-grade** the floor nuclei — a
+  big seed at each room centre, fining toward the walls (**room spacing** ⇒ interior coarseness) — so
+  detail goes where it's needed and the cells fit between the two. Sliders for wall/room spacing +
+  room size; toggle for the exact floor plan. Geometry kernel is pure + node-tested
+  (`test/paint.selftest.mjs`, 21 checks); the page only draws what `buildScene()` returns. A sandbox
+  to iterate the look before it feeds back into world.js.
 
 ## The package it belongs to
 

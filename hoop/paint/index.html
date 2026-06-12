@@ -56,20 +56,24 @@
     <aside>
       <h2>the idea</h2>
       <p class="note">
-        Take the floor plan's <b>membranes</b> (the walls between rooms) and seed them with Voronoi
-        nuclei spaced <b>s</b>. Hold the floor nuclei a clear band of <b>~s/2</b> off the walls, then
-        paint the Voronoi of all of them. Wall-seeded cells = the wall; the rest = floor. Because the
-        floor is held off by ~s/2, <b>wall thickness ≈ s</b> — so the one knob, nucleus spacing,
-        directly sets the wall.
+        Seed the floor plan's <b>membranes</b> (the walls) with Voronoi nuclei at <b>wall spacing</b>,
+        so walls are fine and crisp — <b>thickness ≈ wall spacing</b>. The interiors don't need that
+        detail, so the floor nuclei are <b>density-graded</b>: a big seed at each room centre, fining
+        toward the walls (<b>room spacing</b> sets how coarse the middle gets). The cells fit between
+        the two. Paint the Voronoi of them all: wall cells = wall, the rest = floor.
       </p>
 
       <div class="ctl">
-        <label>nucleus spacing <span class="v" id="v-sp">16</span></label>
-        <input type="range" id="sp" min="8" max="48" step="1" value="16">
+        <label>wall spacing <span class="v" id="v-ws">8</span></label>
+        <input type="range" id="ws" min="5" max="32" step="1" value="8">
       </div>
       <div class="ctl">
-        <label>room size (floor plan) <span class="v" id="v-rm">80</span></label>
-        <input type="range" id="rm" min="40" max="180" step="2" value="80">
+        <label>room spacing <span class="v" id="v-rs">18</span></label>
+        <input type="range" id="rs" min="10" max="60" step="1" value="18">
+      </div>
+      <div class="ctl">
+        <label>room size (floor plan) <span class="v" id="v-rm">90</span></label>
+        <input type="range" id="rm" min="50" max="200" step="2" value="90">
       </div>
 
       <label class="row"><input type="checkbox" id="t-plan"> show the exact floor plan</label>
@@ -93,7 +97,7 @@
     const $ = (id) => document.getElementById(id);
     let scene = null, seed = 1, W = 0, H = 0, dpr = 1;
 
-    const params = () => ({ W, H, spacing: +$('sp').value, roomSize: +$('rm').value, seed });
+    const params = () => ({ W, H, wallSpacing: +$('ws').value, roomSpacing: +$('rs').value, roomSize: +$('rm').value, seed });
 
     function roomColor(id, lit) {
       const h = ((id * 73) % 90) + 110;            // 110..200 → green↔teal phosphor band
@@ -139,16 +143,14 @@
       $('busy').classList.add('on');
       // let the "building…" paint before the (sync) heavy build
       requestAnimationFrame(() => {
-        const t0 = performance.now();
         scene = buildScene(p);
-        $('v-sp').textContent = p.spacing; $('v-rm').textContent = p.roomSize;
+        $('v-ws').textContent = p.wallSpacing; $('v-rs').textContent = p.roomSpacing; $('v-rm').textContent = p.roomSize;
         $('r-thick').textContent = Math.round(scene.band * 2) + ' px';
         $('r-rooms').textContent = scene.roomSeeds.length;
         $('r-cells').textContent = scene.paintCells.length.toLocaleString();
         $('r-nuc').textContent = scene.wallNuclei.length + ' / ' + scene.floorNuclei.length;
         draw();
         $('busy').classList.remove('on');
-        void t0;
       });
     }
 
@@ -163,7 +165,8 @@
       schedule();
     }
 
-    $('sp').addEventListener('input', () => { $('v-sp').textContent = $('sp').value; schedule(); });
+    $('ws').addEventListener('input', () => { $('v-ws').textContent = $('ws').value; schedule(); });
+    $('rs').addEventListener('input', () => { $('v-rs').textContent = $('rs').value; schedule(); });
     $('rm').addEventListener('input', () => { $('v-rm').textContent = $('rm').value; schedule(); });
     $('t-plan').addEventListener('change', draw);
     $('t-nuc').addEventListener('change', draw);
