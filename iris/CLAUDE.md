@@ -26,15 +26,23 @@ temperature (`T_floor > T_reservoir > T_skin`, because heat flows outward). Hung
 - **pressure** — centrifugal hydrostatic balance `dP/dr=ρω²r` with the local T.
 - **humidity** — vapour off the floor; jets OFF stratifies it, jets ON well-mixes it
   (conserving total water); fog is exactly where RH≥1.
-- **wind** — convective scale `(B·z_i)^⅓` choked by the inversion's stability + the jet sheet,
-  in a Coriolis-dominated frame (`f=2ω`, Rossby≪1).
+- **wind** — convective scale `(B·z_i)^⅓` choked by the inversion's stability, plus the
+  fountain's **induced breeze** (a few m/s), in a Coriolis-dominated frame (`f=2ω`, Rossby≪1).
+  **The jet's water exit speed (~120 m/s) is NOT the wind** — that was an early bug. The ambient
+  breeze comes from `inducedWind()` (momentum spread over an entrained-air plume); the exit speed
+  lives only in the jet-mechanics readouts.
 
-`sim/ratchet.mjs` is the inner-rim topography (asymmetric teeth → lakes as constant-radius arcs).
+`sim/fountain.mjs` is the vendored rotating-frame ballistic jet solver (RK4 of centrifugal +
+Coriolis): the trajectory (it arcs back unless `v0 ≥ ωR`, so jets don't escape) and the induced
+wind. `sim/ratchet.mjs` is the inner-rim topography — **3** asymmetric teeth → lakes as
+constant-radius equipotential arcs — and `fillBasin()`, which maps a water volume to a lake
+surface area/depth (and flags overflow into an annular sea). The renderer's water-volume slider
+drives it.
 
 ## Run / test (all run from the sandbox; deploy does not)
 
 ```bash
-node iris/test/section.selftest.mjs    # 23 checks: energy closure, hydrostatics, vapour conservation, wind
+node iris/test/section.selftest.mjs    # 33 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
 node iris/test/ratchet.selftest.mjs    # 9 checks: tooth periodicity + asymmetry, inward build, lake arc
 ```
 

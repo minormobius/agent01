@@ -30,6 +30,8 @@
 // Pure, zero-dep, deterministic; runs identically in node and the browser. SI throughout.
 
 import { CIRCLE, gravityAt, omegaFor, axisReachSpeed } from '../shared/geometry.mjs';
+import { simulate as fountainSim, inducedWind, jetMechanics } from './fountain.mjs';
+import { defaultParams as ratchetParams, fillBasin } from './ratchet.mjs';
 
 export const Rd = 287.05;          // dry-air gas constant, J/kg/K
 export const Rv = 461.5;           // water-vapour gas constant
@@ -66,7 +68,12 @@ export function defaultParams() {
     humidityScale: 2000,        // vapour e-folding height when stratified (jets off), m
 
     jets: false,                // fountain jets on/off
-    jetLaunch: 140,             // jet launch speed at the floor, m/s
+    jetExitSpeed: 120,          // jet WATER exit speed at the nozzle, m/s (axis-reach is ωR≈198)
+    jetFlowRate: 0.1,           // m³/s per lake nozzle (100 L/s) — sets the induced breeze
+    teeth: 3,                   // lakes / ratchet basins
+
+    waterVolume: 1.5e9,         // total habitat water, m³ (slider) — filled into the basins
+    cylinderLength: 8000,       // axial length, m (turns per-metre areas into real km²)
 
     N: 200,                     // radial samples across the bore (axis→floor)
   };
@@ -167,29 +174,52 @@ export function solveSection(input = {}) {
   }
   const hasFog = fogOuter >= fogInner;
 
+  // ── the fountain (borrowed ballistic solver) ───────────────────────────────
+  // The jet's ballistic trajectory tells us whether it escapes to the axis (it does NOT
+  // unless v0 ≥ the axis-reach speed ωR), and `inducedWind` tells us the AMBIENT breeze the
+  // fountain drives — a few m/s, spread over a widening entrained-air plume — NOT the water's
+  // exit speed. (The old model piped v0 straight into the wind field: that was the 140 m/s.)
+  const fp = {
+    R: R_floor, omega, v0: p.jetExitSpeed, angleDeg: 12, nozzle: 'jet',
+    flowRate: p.jetFlowRate, inversionDepth: 150, coriolis: true, dt: 0.08, maxT: 220,
+  };
+  const fsim = fountainSim(fp);
+  const iw = inducedWind(fp, fsim);
+  const breeze = p.jets ? iw.wInversion : 0;          // the ambient fountain breeze, m/s
+
   // ── wind ───────────────────────────────────────────────────────────────────
   const rhoFloor = p.P_floor / (Rd * T_floor);
   const buoyFlux = (p.gFloor / T_floor) * (p.F_light / (rhoFloor * cp));    // m²/s³
   const wStar = Math.cbrt(Math.max(0, buoyFlux) * R_floor);                 // convective scale, m/s
   const stability = 1 / (1 + p.invStrength / Math.max(1, adiabatSpan));     // inversion chokes convection
   const fCor = 2 * omega;                                                   // Coriolis parameter, 1/s
+  const breezeScale = Math.max(150, fsim.apexDepth);   // breeze decays over the plume's reach
 
   const Uconv = new Float64Array(N);
-  const Ujet = new Float64Array(N);
+  const Ujet = new Float64Array(N);     // the ambient fountain-induced breeze (NOT the jet speed)
   const U = new Float64Array(N);
   let maxWind = 0;
   for (let i = 0; i < N; i++) {
     const x = r[i] / R_floor;
-    Uconv[i] = wStar * stability * 4 * x * (1 - x);                  // 0 at axis & floor, peak mid-bore
-    Ujet[i] = p.jets ? p.jetLaunch * x : 0;                          // fast at floor, decelerating inward
+    Uconv[i] = wStar * stability * 4 * x * (1 - x);                 // 0 at axis & floor, peak mid-bore
+    Ujet[i] = breeze * Math.exp(-(R_floor - r[i]) / breezeScale);  // strongest near the lakes, decays up
     U[i] = Math.hypot(Uconv[i], Ujet[i]);
     if (U[i] > maxWind) maxWind = U[i];
   }
   const RossbyFloor = maxWind / (fCor * R_floor);     // ≪1 here: rotation dominates
 
+  // ── lakes: fill the ratchet basins with the water volume; topology sets the area ────
+  const rp = { ...ratchetParams(), R_floor, teeth: p.teeth };
+  const areaPerLength = p.waterVolume / Math.max(p.cylinderLength, 1);   // m² (cross-section)
+  const fill = fillBasin(rp, areaPerLength / p.teeth);                   // one basin's share
+  const lakeSurfaceArea = fill.surfaceArc * p.teeth * p.cylinderLength;  // m² of open water
+  const jm = jetMechanics(p.jetExitSpeed);
+
   return {
     params: p, omega,
     r, g, T, P, rho, q, RH, fogWater, fogMask, Uconv, Ujet, U,
+    jetTraj: fsim.streams[0].traj,    // rotating-frame [x,y] path for one lake (rotate per lake)
+    lake: fill,                       // { rw, span, surfaceArc, depthMax, overflow }
     summary: {
       omega,
       rpm: (omega * 60) / (2 * Math.PI),
@@ -207,9 +237,18 @@ export function solveSection(input = {}) {
       qFloor, totalVapor, hasFog,
       fogInner: hasFog ? fogInner : null, fogOuter: hasFog ? fogOuter : null,
       RH_axis: RH[0], RH_floor_actual: RH[N - 1],
-      // wind
+      // wind (ambient: convective + the fountain's induced breeze — never the jet exit speed)
       wStar, stability, fCor, RossbyFloor,
-      maxWind, windFloor: U[N - 1], windAxis: U[0], jets: p.jets,
+      maxWind, windFloor: U[N - 1], windAxis: U[0], jets: p.jets, breeze,
+      // the fountain itself (water mechanics, kept separate from the weather)
+      jetExitSpeed: p.jetExitSpeed, jetMach: jm.mach, jetSonic: jm.sonic,
+      jetApexDepth: fsim.apexDepth, jetApexRadius: fsim.apexRadius,
+      jetReachesAxis: fsim.reachesAxis, axisReachSpeed: axisReachSpeed(omega, R_floor),
+      jetInducedCore: iw.wMax,        // in-plume speed at the nozzle (≈ v0) — for contrast
+      // lakes (topology-aware fill)
+      teeth: p.teeth, lakeSurfaceRadius: fill.rw, lakeDepthMax: fill.depthMax,
+      lakeSpan: fill.span, lakeSurfaceArea, lakeOverflow: fill.overflow,
+      waterVolume: p.waterVolume, lakeAreaFull: fill.areaFull * p.teeth * p.cylinderLength,
     },
   };
 }

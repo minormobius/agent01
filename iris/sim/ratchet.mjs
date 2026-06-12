@@ -17,7 +17,7 @@
 export function defaultParams() {
   return {
     R_floor: 4000,     // rim radius, m
-    teeth: 4,          // ratchet teeth = lakes = forests = jets
+    teeth: 3,          // ratchet teeth = lakes = forests = jets
     crest: 150,        // crest height above the basin floor, m
     basinFrac: 0.10,   // fraction of a tooth that is flat basin floor (centred on the lake)
     scarpFrac: 0.01,   // fraction that is the steep prograde scarp — near-vertical: this is a
@@ -55,4 +55,44 @@ export function inBasin(p, theta) {
 // The lake free surface is an equipotential arc: a single constant radius across each basin.
 export const lakeRadius = (p) => p.R_floor - p.lakeDepth;
 
-export default { defaultParams, toothAngle, crestTheta, elevation, groundRadius, inBasin, lakeRadius };
+// Fill ONE basin with a water cross-section `area` (m² per metre of axial length) and let the
+// topology decide the shape. The free surface is an equipotential ARC at constant radius r_w,
+// solved by bisection on  area(r_w) = ∫ ½(r_g(θ)² − r_w²) dθ  over θ where the ground r_g(θ)
+// lies below the surface (r_g > r_w). Returns the surface radius, the angular span of open
+// water, the max depth, the surface arc length (m per m of length — the lake's WIDTH), and an
+// overflow flag: once the surface tops the crest the basins join into one annular sea.
+//
+// This is why topology matters: the basin's shape (its flat floor, its steep scarp, its long
+// glide) sets how fast surface area grows with volume, and exactly where it overflows.
+export function fillBasin(p, area) {
+  const Tn = toothAngle(p);
+  const n = 600;
+  const dth = Tn / n;
+  // one tooth centred on the basin: θ ∈ [−Tn/2, +Tn/2)
+  const rg = new Float64Array(n);
+  for (let i = 0; i < n; i++) rg[i] = groundRadius(p, -Tn / 2 + (i + 0.5) * dth);
+  const areaAt = (rw) => {
+    let A = 0;
+    for (let i = 0; i < n; i++) if (rg[i] > rw) A += 0.5 * (rg[i] * rg[i] - rw * rw) * dth;
+    return A;
+  };
+  // bracket the surface radius between "dry" (R_floor) and "brim-full at the crest"
+  let lo = p.R_floor - p.crest, hi = p.R_floor;
+  const areaFull = areaAt(lo);                 // most this basin can hold before overflow
+  const overflow = area >= areaFull;
+  const target = Math.min(area, areaFull);
+  for (let it = 0; it < 64; it++) { const mid = 0.5 * (lo + hi); if (areaAt(mid) > target) lo = mid; else hi = mid; }
+  const rw = 0.5 * (lo + hi);
+  // angular span of open water (where the ground is below the surface)
+  let span = 0;
+  for (let i = 0; i < n; i++) if (rg[i] > rw) span += dth;
+  const surfaceArc = rw * span;                // m of surface per m of axial length (the width)
+  return {
+    rw, depthMax: p.R_floor - rw, span, surfaceArc, overflow,
+    areaTarget: target, areaSolved: areaAt(rw), areaFull,
+  };
+}
+
+export default {
+  defaultParams, toothAngle, crestTheta, elevation, groundRadius, inBasin, lakeRadius, fillBasin,
+};

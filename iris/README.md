@@ -59,15 +59,16 @@ the fountain runoff prograde around the rim.
 |---|---|
 | `shared/geometry.mjs` | the circle: `R_floor`, `R_skin`, `ω` |
 | `sim/section.mjs` | the coupled solve — energy, temperature, pressure, humidity, wind |
-| `sim/ratchet.mjs` | inner-rim topography + lakes |
+| `sim/fountain.mjs` | vendored rotating-frame ballistic jet solver — trajectory + induced wind |
+| `sim/ratchet.mjs` | inner-rim topography (3 teeth) + the topology-aware lake fill |
 | `index.html` | the circular renderer — 4 views, fog + jets toggles, reservoirs/heat pipes/radiator |
-| `test/*.selftest.mjs` | the contract (32 checks) |
+| `test/*.selftest.mjs` | the contract (42 checks) |
 | `worker.js`, `wrangler.jsonc` | assets worker for `iris.mino.mobi` |
 
 ## Run / test
 
 ```bash
-node iris/test/section.selftest.mjs    # 23 checks
+node iris/test/section.selftest.mjs    # 33 checks
 node iris/test/ratchet.selftest.mjs    # 9 checks
 open iris/index.html                    # the viewer
 ```

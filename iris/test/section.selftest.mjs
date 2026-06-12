@@ -83,7 +83,7 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
   ok('a cold, well-stocked column condenses fog', wet.summary.hasFog);
 }
 
-// ── 6. Wind: jets only add speed; the inversion chokes convection ────────────
+// ── 6. Wind: realistic ambient speeds; the jet's exit speed is NOT the wind ──
 {
   const calm = solveSection({ jets: false });
   const blown = solveSection({ jets: true });
@@ -91,6 +91,11 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
   for (let i = 0; i < calm.U.length; i++) if (blown.U[i] < calm.U[i] - 1e-9) added = false;
   ok('turning the jets on never reduces the wind anywhere', added,
      `max ${calm.summary.maxWind.toFixed(1)} → ${blown.summary.maxWind.toFixed(1)} m/s`);
+  // the fix: ambient wind is a breeze, not the 120 m/s water jet
+  ok('ambient wind stays a breeze even with the jets on (no hurricane)', blown.summary.maxWind < 25,
+     `max ${blown.summary.maxWind.toFixed(1)} m/s vs exit ${blown.summary.jetExitSpeed} m/s`);
+  ok('the in-jet core speed is ~the exit speed, kept SEPARATE from the wind',
+     blown.summary.jetInducedCore > 10 * blown.summary.maxWind);
   const weak = solveSection({ invStrength: 60 });
   const strong = solveSection({ invStrength: 0 });
   ok('a stronger inversion chokes the convective wind', weak.summary.wStar * weak.summary.stability
@@ -99,6 +104,34 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
      `Ro ≈ ${calm.summary.RossbyFloor.toFixed(3)}`);
   ok('wind is zero at the axis and at the floor with jets off',
      calm.U[0] < 1e-9 && calm.U[calm.U.length - 1] < 1e-9);
+}
+
+// ── 6b. The jet is ballistic & Coriolis-bound: it arcs back, deeper with more speed ──
+{
+  const slow = solveSection({ jets: true, jetExitSpeed: 120 });
+  ok('a sub-ωR jet does NOT reach the axis (it arcs back)', !slow.summary.jetReachesAxis
+     && slow.summary.jetApexRadius > 100,
+     `apex at r=${(slow.summary.jetApexRadius / 1000).toFixed(2)} km, ωR=${slow.summary.axisReachSpeed.toFixed(0)} m/s`);
+  const fast = solveSection({ jets: true, jetExitSpeed: 180 });
+  ok('a faster jet penetrates deeper (smaller apex radius)',
+     fast.summary.jetApexRadius < slow.summary.jetApexRadius,
+     `${(slow.summary.jetApexRadius / 1000).toFixed(2)} → ${(fast.summary.jetApexRadius / 1000).toFixed(2)} km`);
+  ok('the axis-reach speed is ωR and the jet stays below it by default',
+     slow.summary.jetExitSpeed < slow.summary.axisReachSpeed);
+}
+
+// ── 6c. Lakes: water volume fills the basins; topology sets the surface area ──
+{
+  const dry = solveSection({ waterVolume: 2e8 });
+  const wet = solveSection({ waterVolume: 1.5e9 });
+  ok('more water ⇒ larger lake surface area', wet.summary.lakeSurfaceArea > dry.summary.lakeSurfaceArea,
+     `${(dry.summary.lakeSurfaceArea / 1e6).toFixed(1)} → ${(wet.summary.lakeSurfaceArea / 1e6).toFixed(1)} km²`);
+  ok('more water ⇒ deeper lakes', wet.summary.lakeDepthMax > dry.summary.lakeDepthMax,
+     `${dry.summary.lakeDepthMax.toFixed(0)} → ${wet.summary.lakeDepthMax.toFixed(0)} m`);
+  ok('lakes are three (the ratchet basins)', wet.summary.teeth === 3);
+  const flood = solveSection({ waterVolume: 1e11 });
+  ok('past the basin capacity the lakes overflow into an annular sea', flood.summary.lakeOverflow);
+  ok('a moderate fill does NOT overflow (topology holds it)', !wet.summary.lakeOverflow);
 }
 
 // ── 7. Determinism + spin geometry ───────────────────────────────────────────

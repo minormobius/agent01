@@ -109,6 +109,15 @@
       <label class="ctl"><div class="row"><span>vapour scale height</span><b><span id="vHq">2.0</span> km</b></div>
         <input type="range" id="humidityScale" min="300" max="6000" step="100" value="2000"></label>
     </div>
+
+    <div class="panel">
+      <h2>Lakes &amp; jets</h2>
+      <label class="ctl"><div class="row"><span>water volume</span><b><span id="vVol">1.50</span> km³</b></div>
+        <input type="range" id="waterVolume" min="0.05" max="6" step="0.05" value="1.5"></label>
+      <label class="ctl"><div class="row"><span>jet exit speed</span><b><span id="vJet">120</span> m/s</b></div>
+        <input type="range" id="jetExitSpeed" min="20" max="320" step="5" value="120"></label>
+      <div class="hint" id="lakeHint"></div>
+    </div>
   </div>
 
   <!-- ── the circle ─────────────────────────────────────────── -->
@@ -147,6 +156,16 @@
         <div class="r"><span>Rossby no.</span><b id="oRo">—</b></div>
       </div>
     </div>
+    <div class="panel">
+      <h2>Lakes &amp; fountain</h2>
+      <div class="read">
+        <div class="r"><span>lake surface</span><b class="w" id="oLakeArea">—</b></div>
+        <div class="r"><span>lake depth</span><b id="oLakeDepth">—</b></div>
+        <div class="r"><span>jet exit speed</span><b id="oJetV">—</b></div>
+        <div class="r"><span>jet apex</span><b id="oJetApex">—</b></div>
+        <div class="r"><span>fountain breeze</span><b class="leaf" id="oBreeze">—</b></div>
+      </div>
+    </div>
     <div class="panel" style="margin-bottom:0">
       <h2>At the cursor</h2>
       <div class="read">
@@ -176,7 +195,7 @@
     <b>ratchet</b> topography — asymmetric teeth that let lakes (constant-radius arcs) sit at all.</p>
   </details>
   <p style="margin-top:14px">solver in <code>iris/sim/section.mjs</code> + <code>iris/sim/ratchet.mjs</code>
-  · contracts in <code>iris/test/*.selftest.mjs</code> (32 checks) · the end-on companion to the
+  · contracts in <code>iris/test/*.selftest.mjs</code> (42 checks) · the end-on companion to the
   <a href="https://tide.mino.mobi">tide</a> thermodynamics wing. pure static; runs in your browser.</p>
 </footer>
 
@@ -188,7 +207,7 @@ const $ = (id) => document.getElementById(id);
 const C = {
   F_light: $('F_light'), gFloor: $('gFloor'), pipeDeltaT: $('pipeDeltaT'),
   P_floor: $('P_floor'), invStrength: $('invStrength'), RH_floor: $('RH_floor'),
-  humidityScale: $('humidityScale'),
+  humidityScale: $('humidityScale'), waterVolume: $('waterVolume'), jetExitSpeed: $('jetExitSpeed'),
 };
 let view = 'temp', fog = false, jets = false, sol = null, geo = null;
 const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -235,6 +254,8 @@ function readInputs() {
     invStrength: +C.invStrength.value,
     RH_floor: +C.RH_floor.value / 100,
     humidityScale: +C.humidityScale.value,
+    waterVolume: +C.waterVolume.value * 1e9,        // km³ → m³
+    jetExitSpeed: +C.jetExitSpeed.value,
     jets,
     N: 200,
   };
@@ -307,14 +328,21 @@ function draw() {
     k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
   }
   ctx.closePath(); ctx.strokeStyle = 'rgba(166,176,190,0.95)'; ctx.lineWidth = 1.2; ctx.stroke();
-  // lakes: constant-radius arcs sitting in each basin (depth exaggerated to match the terrain)
-  const lr = Rfl - rp.lakeDepth * EXAG;
-  ctx.strokeStyle = 'rgba(90,169,216,0.95)'; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+  // lakes: filled equipotential arcs from the topology-aware fill solver. Surface radius and
+  // angular span come from how the water volume sits in the basins (depth exaggerated to match
+  // the terrain). Past basin capacity the fill overflows into an annular sea.
+  const lk = sol.lake;                                  // { rw, span, depthMax, overflow }
+  const lrDraw = Rfl - (Rfl - lk.rw) * EXAG;                   // exaggerated surface radius
+  ctx.fillStyle = 'rgba(74,150,200,0.85)'; ctx.strokeStyle = 'rgba(150,205,235,0.95)'; ctx.lineWidth = 1.6;
   for (let k = 0; k < rp.teeth; k++) {
-    const c = k * Tn, half = (rp.basinFrac / 2) * Tn;
-    ctx.beginPath(); ctx.arc(cx, cy, PX(lr), c - half, c + half); ctx.stroke();
+    const c = k * Tn, half = (lk.overflow ? Tn / 2 : lk.span / 2);
+    // water sector: surface arc at lrDraw, closed down to the exaggerated terrain band edge
+    ctx.beginPath();
+    ctx.arc(cx, cy, PX(lrDraw), c - half, c + half);
+    ctx.arc(cx, cy, PX(Rfl), c + half, c - half, true);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, PX(lrDraw), c - half, c + half); ctx.stroke();   // glint on the surface
   }
-  ctx.lineCap = 'butt';
 
   // 4. fog overlay (where RH ≥ 1)
   if (fog && sm.hasFog) {
@@ -325,38 +353,27 @@ function draw() {
     ctx.fill('evenodd');
   }
 
-  // 5. fountain jets — they EMIT FROM THE LAKE (the basin water surface) and climb inward only
-  // as far as their launch speed carries them against the centrifugal potential: an apex at
-  // r_apex² = R_floor² − (v/ω)², NOT the axis (so they don't converge at the centre). Coriolis
-  // drifts the rising sheet prograde.
-  if (jets) {
-    const v = sol.params.jetLaunch, w = sol.omega;
-    // apex of the climb against the centrifugal potential; clamp at the lake (if the launch
-    // speed can't overcome the gravity, the fountain barely rises).
-    const apex = Math.min(lr, Math.sqrt(Math.max(0, Rfl * Rfl - (v / w) * (v / w))));
-    const climbs = lr - apex > 2;
-    ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+  // 5. fountain jets — the REAL ballistic trajectory from the borrowed solver. It launches at
+  // the lake and is integrated in the rotating frame (centrifugal + Coriolis), so it arcs back
+  // to the rim rather than escaping (unless the exit speed exceeds the axis-reach speed ωR).
+  // The template path (launched at azimuth −90°) is rotated onto each of the three lakes.
+  if (jets && sol.jetTraj && sol.jetTraj.length > 1) {
+    const traj = sol.jetTraj;
+    ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (let k = 0; k < rp.teeth; k++) {
-      const base = k * Tn;                                  // lake-centre azimuth
-      const x0 = cx + Math.cos(base) * PX(lr), y0 = cy + Math.sin(base) * PX(lr);
-      // a touch of glow at the nozzle where it leaves the lake
-      ctx.fillStyle = 'rgba(160,220,180,0.95)';
-      ctx.beginPath(); ctx.arc(x0, y0, 3, 0, 2 * Math.PI); ctx.fill();
-      if (!climbs) continue;                                // too little speed to fountain
-      const grad = ctx.createRadialGradient(cx, cy, PX(apex), cx, cy, PX(lr));
-      grad.addColorStop(0, 'rgba(98,184,122,0.15)');        // dispersing at the apex
-      grad.addColorStop(1, 'rgba(120,210,150,0.95)');       // dense at the lake
-      ctx.strokeStyle = grad;
-      ctx.beginPath(); ctx.moveTo(x0, y0);
-      for (let j = 1; j <= 48; j++) {
-        const f = j / 48;
-        const rr = lr + (apex - lr) * f;                    // from the lake inward to the apex
-        const a = base + f * f * 0.7;                        // prograde Coriolis drift, growing
-        ctx.lineTo(cx + Math.cos(a) * PX(rr), cy + Math.sin(a) * PX(rr));
-      }
+      const D = k * Tn + Math.PI / 2;                       // rotate template (−90° launch) to lake k
+      const cosD = Math.cos(D), sinD = Math.sin(D);
+      const px = (p) => cx + (p[0] * cosD - p[1] * sinD) * scale;
+      const py = (p) => cy + (p[0] * sinD + p[1] * cosD) * scale;
+      ctx.strokeStyle = 'rgba(120,210,150,0.9)';
+      ctx.beginPath(); ctx.moveTo(px(traj[0]), py(traj[0]));
+      for (let j = 1; j < traj.length; j++) ctx.lineTo(px(traj[j]), py(traj[j]));
       ctx.stroke();
+      // nozzle glow at the lake where it launches
+      ctx.fillStyle = 'rgba(170,225,185,0.95)';
+      ctx.beginPath(); ctx.arc(px(traj[0]), py(traj[0]), 3, 0, 2 * Math.PI); ctx.fill();
     }
-    ctx.lineCap = 'butt';
+    ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
   }
 
   // 6. the axial sun (the lamp on the axis — the only heat in)
@@ -377,6 +394,11 @@ function render() {
   $('vInv').textContent = (+C.invStrength.value).toFixed(0);
   $('vRH').textContent = (+C.RH_floor.value).toFixed(0);
   $('vHq').textContent = (+C.humidityScale.value / 1000).toFixed(1);
+  $('vVol').textContent = (+C.waterVolume.value).toFixed(2);
+  $('vJet').textContent = (+C.jetExitSpeed.value).toFixed(0);
+  $('lakeHint').textContent = sm.lakeOverflow
+    ? '⚠ basins overflowed — one annular sea (topology can\'t hold this much)'
+    : 'three lakes held by the ratchet basins · ' + (sm.lakeDepthMax).toFixed(0) + ' m deep';
 
   // readouts
   $('ePower').textContent = (sm.powerIn / 1e6).toFixed(2) + ' MW/m';
@@ -393,6 +415,15 @@ function render() {
   $('oRH').textContent = (sm.RH_axis * 100).toFixed(0) + ' / ' + (sm.RH_floor_actual * 100).toFixed(0) + ' %';
   $('oWind').textContent = sm.maxWind.toFixed(1) + ' m/s' + (jets ? ' (jets)' : '');
   $('oRo').textContent = sm.RossbyFloor.toFixed(3);
+  // lakes & fountain
+  $('oLakeArea').textContent = (sm.lakeSurfaceArea / 1e6).toFixed(1) + ' km²'
+    + (sm.lakeOverflow ? ' (sea)' : '');
+  $('oLakeDepth').textContent = sm.lakeDepthMax.toFixed(0) + ' m';
+  $('oJetV').textContent = sm.jetExitSpeed.toFixed(0) + ' m/s · M' + sm.jetMach.toFixed(2);
+  $('oJetApex').textContent = jets
+    ? 'r ' + (sm.jetApexRadius / 1000).toFixed(2) + ' km' + (sm.jetReachesAxis ? ' (axis!)' : '')
+    : '— (off)';
+  $('oBreeze').textContent = jets ? sm.breeze.toFixed(1) + ' m/s' : '— (off)';
 
   // colour bar
   const fld = fieldFor(view, sol);
