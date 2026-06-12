@@ -300,14 +300,14 @@ document.getElementById('couplings').innerHTML =
 // ── force layout ──
 let temperature = 1, paused = false;
 const reheat = (t=1) => { temperature = Math.max(temperature, t); paused = false; updatePauseBtn(); };
-function springRest(e){ return (e.type==='trophic'||e.type==='eat') ? 92 : e.type==='pollinates' ? 78 : 150; }
-function springK(e){ const pool = POOL_IDS.has(e.from)||POOL_IDS.has(e.to); return pool ? 0.004 : (e.type==='pollinates'?0.02:0.024); }
+function springRest(e){ return (e.type==='trophic'||e.type==='eat') ? 52 : e.type==='pollinates' ? 48 : 90; }
+function springK(e){ const pool = POOL_IDS.has(e.from)||POOL_IDS.has(e.to); return pool ? 0.006 : (e.type==='pollinates'?0.026:0.032); }
 function step() {
-  const KREP = 540, KANCHOR = 0.016, DAMP = 0.86, MAXV = 14;
+  const KREP = 215, KANCHOR = 0.024, DAMP = 0.86, MAXV = 14;
   for (let i=0;i<nodes.length;i++){ const a=nodes[i]; if(a.isPool||a.flying)continue;
     for (let j=i+1;j<nodes.length;j++){ const b=nodes[j]; if(b.isPool||b.flying)continue;
       let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<1)d2=1; const d=Math.sqrt(d2);
-      const want=a.r+b.r+24, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
+      const want=a.r+b.r+7, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
   for (const e of edges){ const a=byId[e.from], b=byId[e.to]; if(!a||!b||a.flying||b.flying)continue;  // a flying duck slips its trophic tethers
     let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const f=springK(e)*(d-springRest(e));
     const fx=dx/d*f, fy=dy/d*f; if(!a.isPool){a.vx+=fx;a.vy+=fy;} if(!b.isPool){b.vx-=fx;b.vy-=fy;} }

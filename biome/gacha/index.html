@@ -264,7 +264,7 @@ function buildGraph(ev){
   // habitats present → anchors on a ring
   const habs = ev.meta.habitats;
   habAnchors = {};
-  const cxw = WORLD.w/2, cyw = WORLD.h/2, R = Math.min(WORLD.w, WORLD.h)*0.34;
+  const cxw = WORLD.w/2, cyw = WORLD.h/2, R = Math.min(WORLD.w, WORLD.h)*0.24;
   habs.forEach((h,i)=>{ const a = -Math.PI/2 + i*2*Math.PI/habs.length; habAnchors[h] = { x: cxw + Math.cos(a)*R, y: cyw + Math.sin(a)*R, hab:h }; });
   const anchorFor = (cat) => {
     const hs = (cat.habitats||[]).filter(h=>habAnchors[h]); if(!hs.length) return {x:cxw,y:cyw};
@@ -307,14 +307,14 @@ function isPoll(n){ return false; }
 let temp = 1, paused = false;
 const reheat = (t=1)=>{ temp = Math.max(temp, t); };
 function step(){
-  const KREP=520, KANCH=0.02, DAMP=0.85, MAXV=16;
+  const KREP=185, KANCH=0.032, DAMP=0.85, MAXV=16;
   for (let i=0;i<nodes.length;i++){ const a=nodes[i];
     for (let j=i+1;j<nodes.length;j++){ const b=nodes[j];
       let dx=a.x-b.x, dy=a.y-b.y, d2=dx*dx+dy*dy; if(d2<1)d2=1; const d=Math.sqrt(d2);
-      const want=a.r+b.r+18, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
+      const want=a.r+b.r+5, f=KREP*(want*want)/d2/d; a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f; } }
   for (const e of edges){ const a=nById[e.from], b=nById[e.to]; if(!a||!b)continue;
-    let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const rest = (e.type==='trophic')?108:150;
-    const k = POOL_SET.has(e.from)||POOL_SET.has(e.to) ? 0.006 : 0.02; const f=k*(d-rest);
+    let dx=b.x-a.x, dy=b.y-a.y; const d=Math.hypot(dx,dy)||1; const rest = (e.type==='trophic')?52:88;
+    const k = POOL_SET.has(e.from)||POOL_SET.has(e.to) ? 0.009 : 0.032; const f=k*(d-rest);
     a.vx+=dx/d*f; a.vy+=dy/d*f; b.vx-=dx/d*f; b.vy-=dy/d*f; }
   for (const n of nodes){
     n.vx += (n.ax-n.x)*KANCH*(n.pool?2.4:1); n.vy += (n.ay-n.y)*KANCH*(n.pool?2.4:1);
