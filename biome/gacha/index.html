@@ -78,6 +78,23 @@
   footer a{color:var(--gold);text-decoration:none}
   .rolling{animation:pulse 0.7s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  /* ── the solver section (show our work) ── */
+  .solver{padding:4px 20px 10px}
+  .solver h2{font:600 12px/1 var(--mono);text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);
+    border-top:1px solid var(--line);padding-top:16px;margin:8px 0 11px}
+  .sv-verdict{font-size:12.5px;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 13px;line-height:1.55}
+  .sv-verdict b{color:var(--gold)}
+  .sv-gauges{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+  .sv-gauges .chip{font-size:11px;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:#0b1310;color:var(--dim)}
+  .sv-gauges .chip b{color:var(--txt)}
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  @media(max-width:820px){.charts{grid-template-columns:1fr}}
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .chartbox h3{margin:0 0 8px;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.6px;color:var(--dim)}
+  .chartbox canvas{width:100%;display:block;background:#0b1310;border:1px solid var(--line);border-radius:6px}
+  .cleg{display:flex;flex-wrap:wrap;gap:11px;font-size:10.5px;color:var(--dim);margin-top:8px}
+  .cleg .dot{width:9px;height:9px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:5px}
+  .chartbox .note{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5} .chartbox .note b{color:var(--txt)}
 </style>
 </head>
 <body>
@@ -140,6 +157,29 @@
     <div class="legend" id="habitats"></div>
   </section>
 </main>
+
+<section class="solver" id="solver" style="display:none">
+  <h2>▾ the solver — show our work · why this rarity</h2>
+  <div class="sv-verdict" id="sv-verdict"></div>
+  <div class="sv-gauges" id="sv-gauges"></div>
+  <div class="charts">
+    <div class="chartbox">
+      <h3>population trajectories · the ~600-day closed run</h3>
+      <canvas id="pops" width="1100" height="340"></canvas>
+      <div class="cleg" id="pops-leg"></div>
+      <div class="note">Each line is one species' biomass over the run (log scale). A line that flat-lines
+      persists; one that dives to the floor goes <b>extinct</b>; ringing means predator–prey oscillation.</div>
+    </div>
+    <div class="chartbox">
+      <h3>eigenvalue map · community-matrix stability</h3>
+      <canvas id="eigen" width="1100" height="340"></canvas>
+      <div class="note">Each dot is an eigenvalue of the linearised web on the complex plane (May 1972).
+      <b>Left of the dashed line is stable</b> — a shock decays; the gold dot is the rightmost (the verdict).
+      Height = oscillation frequency. This is the same community matrix the rarity score reads.</div>
+    </div>
+  </div>
+</section>
+
 <footer id="foot"></footer>
 
 <script type="module">
@@ -205,6 +245,60 @@ function renderCard(ev){
 }
 
 // ── load a roll: evaluate, render card + graph, update URL ──
+// ── the solver section: verdict + population trajectories + eigenvalue map ──
+const SOLVER_MONO = "'SF Mono',ui-monospace,Menlo,Consolas,monospace";
+function renderSolver(ev){
+  document.getElementById('solver').style.display = 'block';
+  const st = ev.report.stability || {}, c = ev.report.closure;
+  document.getElementById('sv-verdict').innerHTML = `<b>${ev.tier} · ${ev.interest}/100.</b> ${ev.report.verdict}`;
+  const aliveN = ev.design.species.filter((s)=>(ev.report.last?.[s.id]||0)>10).length;
+  const chip = (k,v)=>`<span class="chip">${k} <b>${v}</b></span>`;
+  document.getElementById('sv-gauges').innerHTML =
+    chip('species alive', `${aliveN}/${ev.design.species.length}`) +
+    chip('return time', st.stable ? (isFinite(st.returnTime)?Math.round(st.returnTime)+' d':'∞') : '— (unstable)') +
+    chip('reactivity', (st.reactivity!=null?st.reactivity.toFixed(2):'—')) +
+    chip('spectral α', (st.spectralAbscissa!=null?st.spectralAbscissa.toExponential(1):'—')+'/d') +
+    chip('keystone', st.keystone?.[0]?.id || '—') +
+    chip('O₂·CO₂', `${c.o2_kPa>0&&c.o2_kPa<100?c.o2_kPa.toFixed(1):'—'} kPa · ${Math.round(Math.min(99999,Math.max(0,c.co2_ppm||0)))} ppm`);
+  drawPops(document.getElementById('pops'), ev.report.traj || [], ev.design.species);
+  document.getElementById('pops-leg').innerHTML = ['producer','herbivore','nectarivore','carnivore','omnivore','detritivore']
+    .map((g)=>`<span><span class="dot" style="background:${GUILD_COLOR[g]}"></span>${g}</span>`).join('');
+  drawEigen(document.getElementById('eigen'), st.eigenvalues, st.spectralAbscissa);
+}
+function drawPops(cv, traj, species){
+  const ctx = cv.getContext('2d'); const W = cv.width, H = cv.height; ctx.clearRect(0,0,W,H);
+  if (!traj.length){ return; }
+  const pad = { l:46, r:10, t:10, b:22 };
+  const maxDay = Math.max(...traj.map((t)=>t.day), 1);
+  let lo = Infinity, hi = 0;
+  for (const t of traj) for (const s of species){ const v = t[s.id]||0; if (v>hi) hi=v; if (v>0 && v<lo) lo=v; }
+  if (!isFinite(lo)) lo = 1; hi = Math.max(hi, 10); lo = Math.max(lo, 1e-2);
+  const ylo = Math.log10(lo), yhi = Math.log10(hi*1.4);
+  const X = (d)=> pad.l + (d/maxDay)*(W-pad.l-pad.r);
+  const Y = (v)=>{ const lv = Math.log10(Math.max(v,1e-6)); return H-pad.b - ((lv-ylo)/(yhi-ylo||1))*(H-pad.t-pad.b); };
+  ctx.strokeStyle = '#1c2722'; ctx.fillStyle = '#5d7468'; ctx.font = '10px '+SOLVER_MONO; ctx.lineWidth = 1;
+  for (let e=Math.ceil(ylo); e<=Math.floor(yhi); e++){ const y = Y(Math.pow(10,e));
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke(); ctx.fillText('1e'+e, 6, y+3); }
+  for (const s of species){ const col = GUILD_COLOR[s.guild] || (s.kind==='producer'?'#6cc27f':'#8aa99a');
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.92; ctx.beginPath();
+    traj.forEach((t,i)=>{ const x=X(t.day), y=Y(t[s.id]||0); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke(); }
+  ctx.globalAlpha = 1; ctx.fillStyle = '#5d7468'; ctx.font = '10px '+SOLVER_MONO;
+  ctx.fillText('day 0', pad.l, H-7); ctx.fillText(Math.round(maxDay)+' d', W-pad.r-34, H-7);
+}
+function drawEigen(cv, eig, alpha){
+  const ctx = cv.getContext('2d'); const W = cv.width, H = cv.height; ctx.clearRect(0,0,W,H);
+  if (!eig || !eig.length){ ctx.fillStyle='#5d7468'; ctx.font='13px '+SOLVER_MONO; ctx.fillText('eigenvalues unavailable for this web', 18, H/2); return; }
+  const res = Math.max(...eig.map((e)=>Math.abs(e.re)), 0.001), ims = Math.max(...eig.map((e)=>Math.abs(e.im)), 0.001);
+  const xs = res*1.3, ys = ims*1.3 || 0.05;
+  const px = (re)=> W*0.14 + (re+xs)/(xs*1.08)*(W*0.8); const x0 = px(0), pad = 26; const py = (im)=> H/2 - (im/ys)*(H/2-pad);
+  ctx.strokeStyle = '#27362f'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  ctx.strokeStyle = '#5a342c'; ctx.setLineDash([5,4]); ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0,H); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = '#7f9b8d'; ctx.font = '11px '+SOLVER_MONO; ctx.fillText('stable ←', x0-62, 14); ctx.fillText('→ unstable', x0+6, 14);
+  for (const e of eig){ const x = px(e.re), y = py(e.im); const rm = alpha!=null && Math.abs(e.re-alpha) < 1e-12;
+    ctx.beginPath(); ctx.arc(x, y, rm?6:4, 0, 7); ctx.fillStyle = e.re<0 ? (rm?'#62b87a':'#3f8f5a') : '#e0795a'; ctx.fill();
+    if (rm){ ctx.strokeStyle = '#d8b25a'; ctx.lineWidth = 1.5; ctx.stroke(); } }
+}
+
 function load(n, { push=true } = {}){
   let ev; try { ev = evalSeed(n); } catch(e){ showErr('roll', e); return; }
   if (!ev){ document.getElementById('hunt-status').textContent = `seed ${n} rolled an empty web — try another`; return; }
@@ -212,6 +306,7 @@ function load(n, { push=true } = {}){
   preload(ev.design.species.map((s)=>s.id));
   renderCard(ev);
   buildGraph(ev);
+  renderSolver(ev);
   document.getElementById('seed-in').value = n;
   if (push){ const u = new URL(location); u.searchParams.set('n', n); history.replaceState(null,'',u); }
   reheat(1);
