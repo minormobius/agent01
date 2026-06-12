@@ -1,0 +1,51 @@
+name: Deploy Font
+
+on:
+  push:
+    branches:
+      - main
+      - "claude/open-source-font-generator-*"
+    paths:
+      - "font/**"
+      - ".github/workflows/deploy-font.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: font
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            font/target
+          key: font-cargo-${{ hashFiles('font/Cargo.toml') }}
+
+      - name: Validity gate (cargo test)
+        run: cargo test --release
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build wasm
+        run: wasm-pack build --release --target web --out-dir site/pkg
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: font
+          command: deploy

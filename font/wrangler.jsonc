@@ -1,0 +1,12 @@
+{
+  // Golden rule: `name` must own the live custom domain, declared as a
+  // custom_domain route, or wrangler ships green into a stray *.workers.dev.
+  "name": "mino-font",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": "site",
+    "binding": "ASSETS"
+  },
+  "routes": [{ "pattern": "font.mino.mobi", "custom_domain": true }]
+}
