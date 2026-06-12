@@ -93,6 +93,14 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
     reserves is not the one foamview draws). Full 33k sector ≈ 5.5 s in node, deterministic from
     `(genome, seed)`. **The course to the painted foamview is charted in [`econ/FOAM.md`](econ/FOAM.md)**
     — read it before extending the 3D side.
+  - **`econ/foam/` — the painted foamview (FOAM.md leg 2), live at `/econ/foam/`.** WebGPU instanced
+    chambers (2D canvas fallback) coloured by owning building under four lenses (role · size ·
+    bridging · access); right-of-way always road-grey; glyph billboards LOD-gated by screen-space
+    footprint; road frontage brightened + gold glyphs; route ribbons ported from rind foamview;
+    radial probe = street-level cut; click → the worker answers the building dossier (weave, shock,
+    access). The model lives in a module Worker (`foam/builder.js`) that posts transferable typed
+    arrays — that worker contract is pinned headlessly by `test/econfoam.selftest.mjs` (the page
+    itself is proofed by eye on deploy). Permalinks: `?seed=&n=`.
 
   `buildSociety()` lays **people who wear many hats** — Jim = mend@chopshop + grow@home + worship +
   learn@toastmasters — the multiplex affiliation graph whose **interaction thickness** (avg hats/person)
@@ -125,6 +133,7 @@ node hoop/test/postal.selftest.mjs          # the postal system: addressing, loc
 node hoop/test/nav.selftest.mjs             # two-tier HPA* routing over the real engine tiles
 node hoop/test/econ.selftest.mjs            # economies-as-ecosystems kernel (genome, footprints, oracle)
 node hoop/test/econ3d.selftest.mjs          # the FOAM SOCIETY kernel over rind's 3D chamber graph
+node hoop/test/econfoam.selftest.mjs        # the /econ/foam/ worker contract (what the page renders)
 for t in hoop/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 ```
 

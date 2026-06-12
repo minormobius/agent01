@@ -41,25 +41,26 @@ Output is econ.js-shape (places/edges/closure…) so `buildSociety` / `socialMet
 move the ramps and the score moves. Full 33k sector: ~5.5 s in node, deterministic from
 `(genome, seed)`.
 
-## Leg 2 — paint the foamview (the legible society)
+## Leg 2 — paint the foamview (SHIPPED: `econ/foam/` + `test/econfoam.selftest.mjs`)
 
-A new page `hoop/econ/foam/` (hoop is the game wing — the society viewer belongs here), reusing
-foamview.html's instanced-WebGL approach but colouring by **society, not stress**:
+The page at `hoop.mino.mobi/econ/foam/` — foamview.html's instanced rendering (WebGPU + the same
+2D-fallback contract, orbit/pinch/probe controls) colouring by **society, not stress**:
 
-- **Chamber instancing by owner**: `chamberOwner` → per-instance colour = owning building's role
-  hue (the brutalist econ palette). Right-of-way chambers in road grey; voids dark. The radial
-  probe (foamview's scrub) becomes the *street-level cut*: scrub inner→outer and watch dwell
-  give way to industry near the hull.
-- **Legibility is aggregation, not labels.** At 33k chambers, glyphs drown. Render building
-  glyph billboards only above a screen-space footprint threshold (the hospital reads from orbit,
-  the dwelling only up close) — the cartographic generalisation rule.
-- **Routes as ribbons** (already solved in foamview's `drawRoute`) — but now they are *streets
-  with frontage*: tint buildings whose door is on the right-of-way (`onRoad`) a half-step
-  brighter. The eye should find the high street instantly.
-- **Click a chamber → the econ inspector**: owner building, who's there, weave %, the two-web
-  shock — the same rail the 2D page has. One `chamberOwner` lookup is the whole hit test.
-- Perf note: build the city in a Worker (5.5 s) and post `chamberOwner` + colours as transferable
-  arrays; the render thread never blocks.
+- **A module Worker** (`foam/builder.js`) builds the city off the render thread (~6 s full
+  sector), bakes FOUR colour layers (role · building size · bridges-vs-bonds · access heat on
+  dwellings) + the route-ribbon geometry, posts them as transferable arrays, then *stays alive
+  holding {city, society, metrics}* to answer click inspections. The page never touches the
+  model — its whole input is typed arrays + small JSON, and that contract is what the selftest
+  pins (32 checks, headless via a worker-global shim).
+- **Chamber instancing by owner**: per-instance colour = owning building under the active lens;
+  right-of-way chambers road-grey under EVERY lens (the streets always read); voids dark. The
+  radial probe is the street-level cut.
+- **Legibility is aggregation**: glyph billboards render only above a 13 px screen-space
+  footprint (the hospital reads from orbit, the dwelling up close); road-fronting buildings get
+  brighter colour (+18%) and gold glyphs — the eye finds the high street.
+- **Click a chamber → the econ dossier**: owner, footprint, who's there, weave %, the two-web
+  shock, access (dwellings) — answered by the worker, displayed in the corner panel.
+- **Permalinks**: `?seed=&n=` reproduces the whole society (leg 5's contract, prefigured).
 
 ## Leg 3 — roads and ramps interact WITH the city (both directions)
 

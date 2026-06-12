@@ -208,8 +208,10 @@ export function buildFoamCity({
   }
   let access = 0, medCost = Infinity;
   if (dwellings.length && basketsFound) {
-    const per = [...perDwelling].map((s) => s / basketsFound).sort((a, b) => a - b);
-    medCost = per[per.length >> 1];
+    const per = [...perDwelling].map((s) => s / basketsFound);
+    for (let i = 0; i < dwellings.length; i++) dwellings[i].accessCost = per[i];   // painted by /econ/foam/
+    const sorted = per.slice().sort((a, b) => a - b);
+    medCost = sorted[sorted.length >> 1];
     access = Math.max(0, Math.min(1, 1 - medCost / (accessRef * 1.0)));
   }
 

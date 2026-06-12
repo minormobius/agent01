@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="econ/foam — the 33k-chamber sector of the O'Neill shell painted with a legible society: every chamber coloured by the building that owns it, the certified ramps and roads threading the city as its streets." />
+<title>foam society · econ · hoop</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #05060a; color: #cfe; font: 12px/1.45 ui-monospace, monospace; overflow: hidden; touch-action: none; }
+  canvas.full { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #ov { pointer-events: none; }
+  #hud { position: fixed; top: 8px; left: 10px; max-width: 46vw; color: #8aa; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #hud b { color: #e0a94f; } #hud .ok { color: #7fd87f; } #hud .vt { font-size: 14px; }
+  a.home { position: fixed; top: 8px; right: 10px; color: #7fd8d0; text-decoration: none; }
+  #inspect { position: fixed; bottom: 64px; left: 10px; max-width: 44vw; background: rgba(8,11,16,.78); border: 1px solid #1d2430; border-radius: 10px; padding: 8px 11px; backdrop-filter: blur(6px); display: none; }
+  #inspect b { color: #e0a94f; } #inspect .w { color: #7fd8d0; } #inspect .s { color: #ff9a7a; } #inspect .a { color: #9fd87f; }
+  #panel { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(8,11,16,.7); border: 1px solid #1d2430; border-radius: 10px; padding: 7px 10px; backdrop-filter: blur(6px); flex-wrap: wrap; justify-content: center; max-width: 96vw; }
+  button, select { background: #10202a; color: #7fd8d0; border: 1px solid #1d2430; border-radius: 6px; padding: 6px 9px; font: inherit; cursor: pointer; }
+  #probe { position: fixed; right: 14px; top: 50%; transform: translateY(-50%); height: 46vh; }
+  #probe input { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 100%; accent-color: #7fd8d0; }
+  #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.82); color: #e0a94f; font-size: 14px; z-index: 9; }
+  #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+</style>
+</head>
+<body>
+<canvas id="c" class="full"></canvas>
+<canvas id="ov" class="full"></canvas>
+<div id="hud">▦ <b>foam society</b> — the shell sector painted with a legible society<br><span id="info">…</span><br><span style="color:#667">drag to orbit · wheel/pinch = zoom · right slider = radial cut · click a chamber → its building</span></div>
+<a class="home" href="../">← econ</a>
+<div id="inspect"></div>
+<div id="probe"><input id="probeY" type="range" min="0" max="1000" value="500" orient="vertical"></div>
+<div id="panel">
+  <select id="lens"><option value="role" selected>lens: role</option><option value="footprint">lens: building size</option><option value="bridging">lens: bridges vs bonds</option><option value="access">lens: access (dwellings)</option></select>
+  <button id="vmode">view: city + routes</button>
+  <button id="glyphs">glyphs: auto</button>
+  <button id="regen">↻ reseed</button>
+  <button id="roll">🧬 roll genome</button>
+  <button id="rmode">renderer: …</button>
+</div>
+<div id="busy">assembling the society… (~6 s, in a worker)</div>
+<div id="err"></div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const showErr = (m) => { $('err').style.display = 'block'; $('err').textContent = m; };
+addEventListener('error', (e) => showErr('page: ' + e.message));
+
+// ── state from the URL (the permalink contract: ?seed=&n=) ──
+const qs = new URLSearchParams(location.search);
+let seed = (parseInt(qs.get('seed'), 10) || 1) >>> 0;
+let rollN = Math.max(0, parseInt(qs.get('n'), 10) || 0);          // 0 = wild-type genome
+const syncURL = () => history.replaceState(null, '', '?seed=' + seed + (rollN ? '&n=' + rollN : ''));
+
+// ── the worker holds the model; the page only holds typed arrays ──
+let N = 0, POS = new Float32Array(0), OWNER = new Int32Array(0), LAYERS = null, ROUTE = new Float32Array(0);
+let BILL = [], DIMS = { Ri: 250, T: 50, cell: 1, Lx: 10, arcRad: 0.314 }, STATS = null, ARCH = 'wild type';
+let FRAME = new Float32Array(0);                                   // the two hull arcs
+let lens = 'role';
+const worker = new Worker('./builder.js', { type: 'module' });
+worker.onerror = (e) => { $('busy').style.display = 'none'; showErr('worker: ' + e.message); };
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === 'error') { $('busy').style.display = 'none'; showErr('build: ' + m.message); return; }
+  if (m.type === 'inspect') { renderInspect(m); return; }
+  if (m.type !== 'city') return;
+  N = m.N; POS = m.pos; OWNER = m.owner; LAYERS = m.layers; ROUTE = m.routeSegs; BILL = m.bill; DIMS = m.dims; STATS = m.stats; ARCH = m.genome.archetype;
+  bakeFrame(); resetCam();
+  if (gpu) { gpu.upload(); gpu.setColors(LAYERS[lens]); refreshLines(); }
+  $('busy').style.display = 'none';
+  hudInfo();
+};
+function rebuild() { $('busy').style.display = 'flex'; $('inspect').style.display = 'none'; syncURL(); worker.postMessage({ type: 'build', seed, n: rollN }); }
+
+function bakeFrame() {                                             // the two smooth hulls at both axial ends
+  const { Ri, T, arcRad, Lx } = DIMS, Ro = Ri + T, bc = [0.36, 0.5, 0.66], segs = [];
+  const arc = (rr, zc) => { const M = 64; for (let k = 0; k < M; k++) { const t0 = -arcRad / 2 + arcRad * k / M, t1 = -arcRad / 2 + arcRad * (k + 1) / M; segs.push(rr * Math.cos(t0), rr * Math.sin(t0), zc, ...bc, rr * Math.cos(t1), rr * Math.sin(t1), zc, ...bc); } };
+  for (const zc of [0, Lx]) { arc(Ri, zc); arc(Ro, zc); }
+  FRAME = new Float32Array(segs);
+}
+
+function hudInfo() {
+  if (!STATS) return;
+  const depth = probeHi > probeLo ? Math.round((cam.probe - probeLo) / (probeHi - probeLo) * 100) : 0;
+  const tcol = { Thriving: '#7fd87f', Healthy: '#b8d86f', Stable: '#e0c94f', Fragile: '#e0884f', Failing: '#e05a4f' }[STATS.tier] || '#cfe';
+  $('info').innerHTML =
+    N.toLocaleString() + ' chambers · <b>' + STATS.buildings.toLocaleString() + ' buildings</b> · ' + STATS.row + ' right-of-way · ' +
+    STATS.people.toLocaleString() + ' people (' + STATS.avgHats.toFixed(2) + ' hats)<br>' +
+    'closure ' + (STATS.closure * 100).toFixed(0) + '% · access ' + STATS.access.toFixed(2) + ' · ' +
+    '<span class="vt" style="color:' + tcol + '">vitality ' + STATS.vitality + ' · ' + STATS.tier + '</span> · genome: ' + ARCH + (rollN ? ' #' + rollN : '') + ' · seed ' + seed + '<br>' +
+    '<span style="color:#9a8">⌁ ' + STATS.route + '</span> · cut at r=' + cam.probe.toFixed(0) + ' (' + depth + '% out)';
+}
+
+function renderInspect(m) {
+  let html = '<b>' + m.head + '</b>';
+  if (m.weave) html += '<br><span class="w">weave ' + (m.weave.v * 100).toFixed(0) + '% — ' + m.weave.label + '</span>';
+  if (m.access != null) html += '<br><span class="a">access: basket within ~' + Math.round(m.access * 20) + ' m of road-walk</span>';
+  html += '<br>' + (m.people.join('<br>') || 'a quiet place');
+  if (m.shock) html += '<br><span class="s">⚠ if removed: ' + m.shock.ties + ' ties break · ' + m.shock.orphaned + ' orphaned · ' + m.shock.needsAtRisk + ' needs at risk (' + m.shock.rerouted + ' reroute)</span>';
+  $('inspect').innerHTML = html; $('inspect').style.display = 'block';
+}
+
+// ── camera (orbit) + probe — foamview's controls, ring scene only ──
+let probeLo = 250, probeHi = 300;
+const cam = { yaw: 0.4, pitch: 0.5, dist: 130, center: [275, 0, 5], probe: 275, band: 0.8 };
+function resetCam() {
+  const { Ri, T, Lx, cell } = DIMS;
+  cam.center = [Ri + T / 2, 0, Lx / 2]; cam.dist = T * 2.6; cam.band = cell * 0.8;
+  probeLo = Ri; probeHi = Ri + T; cam.probe = Ri + T / 2; syncProbe();
+}
+function eye() {
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+  return [cam.center[0] + cam.dist * cp * cy, cam.center[1] + cam.dist * cp * sy, cam.center[2] + cam.dist * sp];
+}
+function mPersp(fovy, asp, n, f) { const t = 1 / Math.tan(fovy / 2), o = new Float32Array(16); o[0] = t / asp; o[5] = t; o[10] = (f + n) / (n - f); o[11] = -1; o[14] = 2 * f * n / (n - f); return o; }
+function mLookAt(e, c, up) {
+  let zx = e[0] - c[0], zy = e[1] - c[1], zz = e[2] - c[2]; let zl = Math.hypot(zx, zy, zz) || 1; zx /= zl; zy /= zl; zz /= zl;
+  let xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx; let xl = Math.hypot(xx, xy, xz) || 1; xx /= xl; xy /= xl; xz /= xl;
+  let yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+  const o = new Float32Array(16);
+  o[0] = xx; o[1] = yx; o[2] = zx; o[4] = xy; o[5] = yy; o[6] = zy; o[8] = xz; o[9] = yz; o[10] = zz;
+  o[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); o[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); o[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); o[15] = 1; return o;
+}
+function mMul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; }
+function viewProj(Wp, Hp) { return mMul(mPersp(0.9, Wp / Hp, 1, 8000), mLookAt(eye(), cam.center, [0, 0, 1])); }
+
+const cv = $('c'), ov = $('ov');
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; for (const k of [cv, ov]) { k.width = W * DPR; k.height = H * DPR; k.style.width = W + 'px'; k.style.height = H + 'px'; } if (gpu) gpu.resize(); }
+addEventListener('resize', resize);
+
+// ── view modes + line geometry (route ribbons + hull frame) ──
+let view = 'city+routes';                                          // city+routes · city · routes
+let LINES = new Float32Array(0);
+function refreshLines() {
+  const parts = [];
+  if (view !== 'city') parts.push(ROUTE);
+  parts.push(FRAME);
+  let len = 0; for (const p of parts) len += p.length;
+  LINES = new Float32Array(len); let o = 0;
+  for (const p of parts) { LINES.set(p, o); o += p.length; }
+  if (gpu) gpu.setEdges(LINES);
+}
+
+// ════════ WebGPU renderer — foamview's instanced cubes + per-instance SOCIETY colour ════════
+let gpu = null;
+async function initGPU() {
+  if (!navigator.gpu) return null;
+  let adapter, device;
+  try { adapter = await navigator.gpu.requestAdapter(); device = adapter && await adapter.requestDevice(); } catch (e) { return null; }
+  if (!device) return null;
+  const ctx = cv.getContext('webgpu'); const fmt = navigator.gpu.getPreferredCanvasFormat();
+  ctx.configure({ device, format: fmt, alphaMode: 'opaque' });
+  const F = [[0, 0, -1], [0, 0, 1], [-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0]], cube = [];
+  const quad = (a, b, c, d, n) => { for (const v of [a, b, c, a, c, d]) cube.push(v[0], v[1], v[2], n[0], n[1], n[2]); };
+  const s = 0.5;
+  quad([-s, -s, -s], [-s, s, -s], [s, s, -s], [s, -s, -s], F[0]);
+  quad([-s, -s, s], [s, -s, s], [s, s, s], [-s, s, s], F[1]);
+  quad([-s, -s, -s], [-s, -s, s], [-s, s, s], [-s, s, -s], F[2]);
+  quad([s, -s, -s], [s, s, -s], [s, s, s], [s, -s, s], F[3]);
+  quad([-s, -s, -s], [s, -s, -s], [s, -s, s], [-s, -s, s], F[4]);
+  quad([-s, s, -s], [-s, s, s], [s, s, s], [s, s, -s], F[5]);
+  const cubeF32 = new Float32Array(cube);
+  const vbuf = device.createBuffer({ size: cubeF32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true });
+  new Float32Array(vbuf.getMappedRange()).set(cubeF32); vbuf.unmap();
+  let pbuf = null, cbuf = null, nInst = 0;
+  const ubuf = device.createBuffer({ size: 96, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const shader = device.createShaderModule({ code: `
+    struct U { vp: mat4x4f, p: vec4f, light: vec4f };
+    @group(0) @binding(0) var<uniform> u: U;
+    struct VO { @builtin(position) pos: vec4f, @location(0) col: vec3f, @location(1) nrm: vec3f };
+    @vertex fn vs(@location(0) vp: vec3f, @location(1) nm: vec3f, @location(2) ip: vec3f, @location(3) ic: vec3f) -> VO {
+      let rad = length(ip.xy);
+      let hi = select(0.0, 1.0, abs(rad - u.p.x) < u.p.y);
+      let sc = u.p.w * mix(0.26, 0.46, hi);
+      var o: VO; o.pos = u.vp * vec4f(ip + vp * sc, 1.0); o.nrm = nm;
+      o.col = ic * select(0.15, 1.0, hi > 0.5);
+      return o;
+    }
+    @fragment fn fs(i: VO) -> @location(0) vec4f {
+      let l = max(0.32, dot(normalize(i.nrm), normalize(u.light.xyz)));
+      return vec4f(i.col * l, 1.0);
+    }
+    struct LO { @builtin(position) pos: vec4f, @location(0) col: vec3f };
+    @vertex fn vsL(@location(0) p: vec3f, @location(1) col: vec3f) -> LO { var o: LO; o.pos = u.vp * vec4f(p, 1.0); o.col = col; return o; }
+    @fragment fn fsL(i: LO) -> @location(0) vec4f { return vec4f(i.col, 1.0); }` });
+  const pipe = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: shader, entryPoint: 'vs', buffers: [
+      { arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] },
+      { arrayStride: 12, stepMode: 'instance', attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x3' }] },
+      { arrayStride: 12, stepMode: 'instance', attributes: [{ shaderLocation: 3, offset: 0, format: 'float32x3' }] },
+    ] },
+    fragment: { module: shader, entryPoint: 'fs', targets: [{ format: fmt }] },
+    primitive: { topology: 'triangle-list', cullMode: 'back' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+  const linePipe = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: shader, entryPoint: 'vsL', buffers: [{ arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] }] },
+    fragment: { module: shader, entryPoint: 'fsL', targets: [{ format: fmt }] },
+    primitive: { topology: 'line-list' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+  let depthTex = null;
+  const makeDepth = () => { if (depthTex) depthTex.destroy(); depthTex = device.createTexture({ size: [cv.width, cv.height], format: 'depth24plus', usage: GPUTextureUsage.RENDER_ATTACHMENT }); };
+  makeDepth();
+  const bind = device.createBindGroup({ layout: pipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  const lineBind = device.createBindGroup({ layout: linePipe.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  let lineBuf = null, nLine = 0;
+  const mk = (f32, old) => { if (old) old.destroy(); if (!f32.length) return null; const b = device.createBuffer({ size: f32.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true }); new Float32Array(b.getMappedRange()).set(f32); b.unmap(); return b; };
+  return {
+    resize: makeDepth,
+    upload() { nInst = N; pbuf = mk(POS, pbuf); },
+    setColors(f32) { cbuf = mk(f32, cbuf); },
+    setEdges(f32) { nLine = f32.length / 6; lineBuf = mk(f32, lineBuf); },
+    frame() {
+      const u = new Float32Array(24); u.set(viewProj(cv.width, cv.height), 0);
+      u[16] = cam.probe; u[17] = cam.band; u[18] = 0; u[19] = DIMS.cell;
+      u[20] = 0.5; u[21] = 0.8; u[22] = 0.6; u[23] = 0;
+      device.queue.writeBuffer(ubuf, 0, u.buffer, 0, 96);
+      const enc = device.createCommandEncoder();
+      const pass = enc.beginRenderPass({
+        colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: { r: 0.02, g: 0.024, b: 0.04, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
+        depthStencilAttachment: { view: depthTex.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' },
+      });
+      if (view !== 'routes' && pbuf && cbuf) { pass.setPipeline(pipe); pass.setBindGroup(0, bind); pass.setVertexBuffer(0, vbuf); pass.setVertexBuffer(1, pbuf); pass.setVertexBuffer(2, cbuf); pass.draw(36, nInst); }
+      if (lineBuf) { pass.setPipeline(linePipe); pass.setBindGroup(0, lineBind); pass.setVertexBuffer(0, lineBuf); pass.draw(nLine); }
+      pass.end();
+      device.queue.submit([enc.finish()]);
+    },
+  };
+}
+
+// ════════ 2D fallback — coloured dots, same probe contract ════════
+function frame2D() {
+  const ctx = cv.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+  const M = viewProj(W, H), L = LAYERS && LAYERS[lens];
+  if (view !== 'routes' && L) {
+    const pts = [];
+    for (let i = 0; i < N; i++) {
+      const x = POS[3 * i], y = POS[3 * i + 1], z = POS[3 * i + 2];
+      const w = M[3] * x + M[7] * y + M[11] * z + M[15]; if (w <= 0) continue;
+      const cx = (M[0] * x + M[4] * y + M[8] * z + M[12]) / w, cy = (M[1] * x + M[5] * y + M[9] * z + M[13]) / w;
+      pts.push({ sx: (cx * 0.5 + 0.5) * W, sy: (1 - (cy * 0.5 + 0.5)) * H, d: (M[2] * x + M[6] * y + M[10] * z + M[14]) / w, i, w, rad: Math.hypot(x, y) });
+    }
+    pts.sort((a, b) => b.d - a.d);
+    for (const p of pts) {
+      const hi = Math.abs(p.rad - cam.probe) < cam.band;
+      const a = hi ? 0.95 : 0.10, r = (hi ? 5.0 : 2.2) * Math.min(2.4, 700 / (p.w || 700));
+      ctx.fillStyle = `rgba(${L[3 * p.i] * 255 | 0},${L[3 * p.i + 1] * 255 | 0},${L[3 * p.i + 2] * 255 | 0},${a})`;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(0.7, r), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.lineWidth = 1;
+  const E = LINES;
+  for (let i = 0; i < E.length; i += 12) {
+    const wa = M[3] * E[i] + M[7] * E[i + 1] + M[11] * E[i + 2] + M[15], wb = M[3] * E[i + 6] + M[7] * E[i + 7] + M[11] * E[i + 8] + M[15];
+    if (wa <= 0 || wb <= 0) continue;
+    const ax = ((M[0] * E[i] + M[4] * E[i + 1] + M[8] * E[i + 2] + M[12]) / wa * 0.5 + 0.5) * W, ay = (1 - ((M[1] * E[i] + M[5] * E[i + 1] + M[9] * E[i + 2] + M[13]) / wa * 0.5 + 0.5)) * H;
+    const bx = ((M[0] * E[i + 6] + M[4] * E[i + 7] + M[8] * E[i + 8] + M[12]) / wb * 0.5 + 0.5) * W, by = (1 - ((M[1] * E[i + 6] + M[5] * E[i + 7] + M[9] * E[i + 8] + M[13]) / wb * 0.5 + 0.5)) * H;
+    ctx.strokeStyle = `rgba(${E[i + 3] * 255 | 0},${E[i + 4] * 255 | 0},${E[i + 5] * 255 | 0},0.85)`;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+}
+
+// ── glyph overlay: cartographic generalisation — a building labels itself only when its
+//    screen-space footprint earns it (the hospital reads from orbit, the dwelling up close) ──
+let glyphMode = 'auto';                                            // auto · off
+function drawGlyphs() {
+  const ctx = ov.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (glyphMode === 'off' || view === 'routes' || !BILL.length) return;
+  const M = viewProj(W, H), f = 1 / Math.tan(0.45);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const b of BILL) {
+    const w = M[3] * b.x + M[7] * b.y + M[11] * b.z + M[15]; if (w <= 0) continue;
+    const worldR = 0.62 * Math.sqrt(b.fp) * DIMS.cell;
+    const px = worldR * f * (H / 2) / w;
+    if (px < 13) continue;
+    const cx = ((M[0] * b.x + M[4] * b.y + M[8] * b.z + M[12]) / w * 0.5 + 0.5) * W;
+    const cy = (1 - ((M[1] * b.x + M[5] * b.y + M[9] * b.z + M[13]) / w * 0.5 + 0.5)) * H;
+    ctx.font = Math.min(26, px) + 'px ui-monospace, monospace';
+    ctx.fillStyle = b.road ? 'rgba(255,214,122,.92)' : 'rgba(225,236,232,.85)';
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+    ctx.fillText(b.g, cx, cy);
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ── loop + interaction ──
+let mode = 'webgpu';
+function setModeLabel() { $('rmode').textContent = 'renderer: ' + (gpu && mode === 'webgpu' ? 'WebGPU' : '2D'); }
+function loop() {
+  if (gpu && mode === 'webgpu') { try { gpu.frame(); } catch (e) { mode = '2d'; setModeLabel(); } } else frame2D();
+  drawGlyphs();
+  requestAnimationFrame(loop);
+}
+
+const DMIN = 2, DMAX = 6000, zoom = (f) => { cam.dist = Math.max(DMIN, Math.min(DMAX, cam.dist * f)); };
+const ptrs = new Map(); let drag = null, lastPinch = 0, down = null;
+cv.addEventListener('pointerdown', (e) => { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); cv.setPointerCapture(e.pointerId); down = { x: e.clientX, y: e.clientY, moved: 0 }; if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY }; else { drag = null; lastPinch = 0; } });
+cv.addEventListener('pointermove', (e) => {
+  if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (down) down.moved += Math.abs(e.movementX || 0) + Math.abs(e.movementY || 0);
+  if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (lastPinch) zoom(lastPinch / d); lastPinch = d; return; }
+  if (drag) { cam.yaw -= (e.clientX - drag.x) * 0.008; cam.pitch = Math.max(-1.4, Math.min(1.4, cam.pitch + (e.clientY - drag.y) * 0.008)); drag = { x: e.clientX, y: e.clientY }; hudInfo(); }
+});
+const endPtr = (e) => {
+  if (down && down.moved < 6 && ptrs.size === 1) pick(e.clientX, e.clientY);
+  ptrs.delete(e.pointerId); if (ptrs.size < 2) lastPinch = 0; const r = [...ptrs.values()][0]; drag = r ? { x: r.x, y: r.y } : null; down = null;
+};
+cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
+cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom(1 + Math.sign(e.deltaY) * 0.12); }, { passive: false });
+
+// click → nearest projected chamber (favouring the probe band) → its building → ask the worker
+function pick(px, py) {
+  if (!N) return;
+  const M = viewProj(W, H);
+  let best = -1, bd = 18 * 18;
+  for (let i = 0; i < N; i++) {
+    const x = POS[3 * i], y = POS[3 * i + 1], z = POS[3 * i + 2];
+    const w = M[3] * x + M[7] * y + M[11] * z + M[15]; if (w <= 0) continue;
+    const sx = ((M[0] * x + M[4] * y + M[8] * z + M[12]) / w * 0.5 + 0.5) * W;
+    const sy = (1 - ((M[1] * x + M[5] * y + M[9] * z + M[13]) / w * 0.5 + 0.5)) * H;
+    let d = (sx - px) * (sx - px) + (sy - py) * (sy - py);
+    if (Math.abs(Math.hypot(x, y) - cam.probe) > cam.band) d *= 4;   // prefer the lit floor
+    if (d < bd) { bd = d; best = i; }
+  }
+  if (best < 0) { $('inspect').style.display = 'none'; return; }
+  const owner = OWNER[best];
+  if (owner === -1) { $('inspect').innerHTML = '<b>⌁ right-of-way</b> — a reserved chamber of the ramp/road network'; $('inspect').style.display = 'block'; return; }
+  if (owner < 0) { $('inspect').innerHTML = '<b>· void</b> — an unclaimed pocket of the foam'; $('inspect').style.display = 'block'; return; }
+  worker.postMessage({ type: 'inspect', placeId: owner });
+}
+
+const probeY = $('probeY'), pSpan = () => (probeHi - probeLo) || 1;
+function syncProbe() { probeY.value = Math.round((1 - (cam.probe - probeLo) / pSpan()) * 1000); }
+probeY.addEventListener('input', () => { cam.probe = probeLo + (1 - probeY.value / 1000) * pSpan(); hudInfo(); });
+$('lens').addEventListener('change', () => { lens = $('lens').value; if (gpu && LAYERS) gpu.setColors(LAYERS[lens]); });
+$('vmode').addEventListener('click', () => {
+  const order = ['city+routes', 'city', 'routes'];
+  view = order[(order.indexOf(view) + 1) % order.length];
+  $('vmode').textContent = 'view: ' + view.replace('+', ' + ');
+  refreshLines();
+});
+$('glyphs').addEventListener('click', () => { glyphMode = glyphMode === 'auto' ? 'off' : 'auto'; $('glyphs').textContent = 'glyphs: ' + glyphMode; });
+$('regen').addEventListener('click', () => { seed = (seed * 1664525 + 1013904223) >>> 0; rebuild(); });
+$('roll').addEventListener('click', () => { rollN = 1 + Math.floor(Math.random() * 1e6); rebuild(); });
+$('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
+
+(async () => {
+  resize();
+  gpu = await initGPU(); if (!gpu) mode = '2d';
+  setModeLabel();
+  rebuild();
+  loop();
+})();
+</script>
+</body>
+</html>
