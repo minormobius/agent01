@@ -69,12 +69,50 @@ export function roomOf(p, roomGrid) {
   return { room: A.id, edgeDist: edge };
 }
 
+// The room-adjacency graph: which rooms share a membrane, with that membrane's midpoint and the
+// across/along unit vectors (across = seed→seed, perpendicular to the wall). Border edges (a cell
+// edge on the canvas frame, not a real bisector between two rooms) are filtered out.
+export function adjacency(roomCells, roomSeeds, roomGrid, tol) {
+  const byId = new Map(roomSeeds.map((s) => [s.id, s]));
+  const edges = new Map();
+  for (const c of roomCells) {
+    const A = byId.get(c.id), v = c.poly;
+    for (let i = 0; i < v.length; i++) {
+      const p = v[i], q = v[(i + 1) % v.length], mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+      let B = null, dB = Infinity;
+      for (const s of roomGrid.near(mx, my)) { if (s.id === A.id) continue; const d = (s.x - mx) ** 2 + (s.y - my) ** 2; if (d < dB) { dB = d; B = s; } }
+      if (!B) continue;
+      const dA = Math.hypot(A.x - mx, A.y - my);
+      if (Math.abs(dA - Math.sqrt(dB)) > tol) continue; // not equidistant ⇒ a frame edge, not a shared wall
+      const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      const a = Math.min(A.id, B.id), b = Math.max(A.id, B.id), key = a + ',' + b, prev = edges.get(key);
+      if (!prev || len > prev.len) {
+        const nx = B.x - A.x, ny = B.y - A.y, n = Math.hypot(nx, ny) || 1;
+        edges.set(key, { a, b, m: [mx, my], len, across: [nx / n, ny / n], along: [-ny / n, nx / n] });
+      }
+    }
+  }
+  return [...edges.values()];
+}
+
+// Choose the doors: a deterministic spanning tree (every room connected) + a `loops` fraction of
+// the remaining adjacencies (extra doors → road-network loops). Union-find over room ids.
+export function chooseDoors(edges, roomCount, seed, loops) {
+  const hash = (e) => { let x = (seed ^ Math.imul(e.a + 1, 73856093) ^ Math.imul(e.b + 1, 19349663)) >>> 0; x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; return x >>> 0; };
+  const ord = edges.slice().sort((p, q) => hash(p) - hash(q));
+  const par = Array.from({ length: roomCount }, (_, i) => i), find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  const tree = [], rest = [];
+  for (const e of ord) { if (find(e.a) !== find(e.b)) { par[find(e.a)] = find(e.b); tree.push(e); } else rest.push(e); }
+  return tree.concat(rest.slice(0, Math.round(rest.length * Math.max(0, Math.min(1, loops || 0)))));
+}
+
 // Build the whole scene: room seeds + room cells (the exact floor plan), the membrane-seeded wall
-// nuclei (fine, at `wallSpacing`), and DENSITY-GRADED floor nuclei — a big seed at each room
-// centre, fining toward the walls — so detail goes where it's needed (crisp thin walls) and the
-// interiors stay coarse. Two knobs: `wallSpacing` (wall thickness ≈ it) and `roomSpacing` (how
-// coarse the interior gets). The cells "fit between" the two, graded by distance from the wall.
-export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, seed = 1 }) {
+// nuclei (fine, at `wallSpacing`) with DOORS cut where rooms connect, and DENSITY-GRADED floor
+// nuclei — a big seed at each room centre, fining toward the walls — so detail goes where it's
+// needed (crisp thin walls) and the interiors stay coarse. Doors are two-nuclei-wide gaps in the
+// wall, bridged with floor so the rooms connect; `loops` adds extra doors past the spanning tree.
+// Knobs: `wallSpacing` (wall thickness ≈ it), `roomSpacing` (interior coarseness), `loops` (roads).
+export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, loops = 0, seed = 1 }) {
   const rng = mulberry32(seed >>> 0);
   const band = wallSpacing * 0.5;
   // 1. the floor plan: jittered-grid room seeds → room Voronoi cells
@@ -82,11 +120,18 @@ export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, seed = 1 
   const roomGrid = bucketGrid(roomSeeds, roomSize * 1.4);
   const roomCells = roomSeeds.map((s) => ({ id: s.id, x: s.x, y: s.y, poly: clipCell(s, roomGrid.near(s.x, s.y), roomSize * 2.2) }));
 
-  // 2. WALL nuclei: sample every room-cell edge (the membranes) at `wallSpacing`; dedupe coincident
-  //    samples of shared edges by snapping to a fine grid.
+  // 1b. DOORS: a spanning tree of the room-adjacency graph (every room connected) + `loops` extras.
+  const adjEdges = adjacency(roomCells, roomSeeds, roomGrid, wallSpacing * 0.6);
+  const doors = chooseDoors(adjEdges, roomSeeds.length, seed >>> 0, loops);
+  const doorHalf = wallSpacing;                 // gap along the wall = 2·wallSpacing (two nuclei wide)
+  const doorGrid = bucketGrid(doors.map((d) => ({ x: d.m[0], y: d.m[1] })), Math.max(roomSize, doorHalf * 2));
+  const atDoor = (x, y) => { for (const q of doorGrid.near(x, y)) if ((q.x - x) ** 2 + (q.y - y) ** 2 < doorHalf * doorHalf) return true; return false; };
+
+  // 2. WALL nuclei: sample every room-cell edge (the membranes) at `wallSpacing`, but SKIP the
+  //    door gaps; dedupe coincident samples of shared edges by snapping to a fine grid.
   const wallNuclei = [], seen = new Set(), snap = wallSpacing * 0.45;
   const addWall = (x, y) => {
-    if (x < 0 || y < 0 || x > W || y > H) return;
+    if (x < 0 || y < 0 || x > W || y > H || atDoor(x, y)) return;
     const k = Math.round(x / snap) + ',' + Math.round(y / snap);
     if (seen.has(k)) return; seen.add(k);
     wallNuclei.push({ x, y, wall: true });
@@ -111,22 +156,33 @@ export function buildScene({ W, H, wallSpacing, roomSpacing, roomSize, seed = 1 
   const hashCell = Math.max(roomSpacing, wallSpacing);
   const acc = new Map(), akey = (x, y) => Math.floor(x / hashCell) + ',' + Math.floor(y / hashCell);
   const floorNuclei = [];
-  const place = (x, y, room) => { const n = { x, y, wall: false, room }; floorNuclei.push(n); const k = akey(x, y); let b = acc.get(k); if (!b) { b = []; acc.set(k, b); } b.push(n); return n; };
+  const place = (x, y, room, door = false) => { const n = { x, y, wall: false, room, door }; floorNuclei.push(n); const k = akey(x, y); let b = acc.get(k); if (!b) { b = []; acc.set(k, b); } b.push(n); return n; };
   const clearOf = (x, y, r) => { const cx = Math.floor(x / hashCell), cy = Math.floor(y / hashCell), r2 = r * r; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const b = acc.get((cx + dx) + ',' + (cy + dy)); if (!b) continue; for (const q of b) if ((q.x - x) ** 2 + (q.y - y) ** 2 < r2) return false; } return true; };
   // forced room-centre seeds (the big middle cell)
   for (const s of roomSeeds) { const e = roomOf(s, roomGrid).edgeDist; if (e > band) place(s.x, s.y, s.id); }
+  // DOOR bridges: a two-wide line of floor nuclei crossing each door, so the rooms connect through it
+  for (const d of doors) {
+    const [mx, my] = d.m, [ax, ay] = d.across, [tx, ty] = d.along;
+    for (const du of [-wallSpacing * 0.5, wallSpacing * 0.5]) {
+      for (let dv = -(band + wallSpacing); dv <= band + wallSpacing + 1e-6; dv += wallSpacing) {
+        const x = mx + tx * du + ax * dv, y = my + ty * du + ay * dv;
+        if (x < 0 || y < 0 || x > W || y > H) continue;
+        place(x, y, roomOf({ x, y }, roomGrid).room, true);
+      }
+    }
+  }
   // graded fill from a fine candidate grid (densest = wallSpacing), accepted by the local radius
   for (const p of jitterGrid(W, H, wallSpacing, 0.6, rng)) {
     const r = roomOf(p, roomGrid);
-    if (r.edgeDist <= band) continue;            // keep out of the wall band
-    if (clearOf(p.x, p.y, localSpacing(r.edgeDist))) place(p.x, p.y, r.room);
+    if (r.edgeDist <= band && !atDoor(p.x, p.y)) continue;   // keep out of the wall band — except at doors
+    if (clearOf(p.x, p.y, localSpacing(Math.max(r.edgeDist, band)))) place(p.x, p.y, r.room);
   }
 
   // 4. paint: the Voronoi of all nuclei (neighbour search sized for the coarsest cells)
   const nuclei = wallNuclei.concat(floorNuclei);
   const paintGrid = bucketGrid(nuclei, Math.max(roomSpacing, wallSpacing) * 1.6);
-  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), roomSpacing * 3) }));
+  const paintCells = nuclei.map((nu) => ({ wall: nu.wall, room: nu.room, door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), roomSpacing * 3) }));
 
-  return { W, H, wallSpacing, roomSpacing, roomSize, band, roomSeeds, roomCells, wallNuclei, floorNuclei, nuclei, paintCells };
+  return { W, H, wallSpacing, roomSpacing, roomSize, band, loops, roomSeeds, roomCells, adjEdges, doors, wallNuclei, floorNuclei, nuclei, paintCells };
 }
 

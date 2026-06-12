@@ -1,6 +1,6 @@
 // paint.selftest.mjs — pins the membrane-seeded Voronoi painter (hoop/paint/voronoi.js).
 // Run: node hoop/test/paint.selftest.mjs
-import { clipCell, buildScene, roomOf, bucketGrid, jitterGrid, mulberry32 } from '../paint/voronoi.js';
+import { clipCell, buildScene, roomOf, bucketGrid, jitterGrid, mulberry32, adjacency, chooseDoors } from '../paint/voronoi.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -31,8 +31,8 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   // wall nuclei sit ON the membranes (distance to a room boundary ≈ 0)
   const wallEdge = sc.wallNuclei.slice(0, 200).map((n) => roomOf(n, rg).edgeDist);
   ok(wallEdge.sort((a, b) => a - b)[wallEdge.length >> 1] < 2.0, 'wall nuclei lie on the membranes');
-  // floor nuclei held out of the band (= wallSpacing/2)
-  ok(sc.floorNuclei.every((n) => roomOf(n, rg).edgeDist > sc.band - 1e-6), 'floor nuclei are kept out of the wall band');
+  // non-door floor nuclei held out of the band (= wallSpacing/2); door bridges are the exception
+  ok(sc.floorNuclei.every((n) => n.door || roomOf(n, rg).edgeDist > sc.band - 1e-6), 'non-door floor nuclei are kept out of the wall band');
   ok(Math.abs(sc.band - sc.wallSpacing * 0.5) < 1e-9, 'the wall band scales with the wall-spacing knob');
   // the room-centre seeds are forced in (the big middle cells)
   const anchored = sc.roomSeeds.filter((s) => sc.floorNuclei.some((n) => Math.abs(n.x - s.x) < 1e-6 && Math.abs(n.y - s.y) < 1e-6));
@@ -65,6 +65,31 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   const coarseRoom = buildScene({ W: 600, H: 400, wallSpacing: 8, roomSpacing: 30, roomSize: 70, seed: 3 });
   ok(fineRoom.floorNuclei.length > coarseRoom.floorNuclei.length, 'room-spacing is the interior-coarseness knob');
   ok(fineRoom.wallNuclei.length === coarseRoom.wallNuclei.length, 'room-spacing leaves the walls untouched');
+}
+
+// ── DOORS: a spanning tree keeps every room connected ──
+{
+  const sc = buildScene({ W: 820, H: 600, wallSpacing: 8, roomSpacing: 24, roomSize: 90, loops: 0, seed: 9 });
+  ok(sc.doors.length >= sc.roomSeeds.length - 1, 'a spanning tree has ≥ (rooms − 1) doors');
+  // union-find over the doors → every room is one connected component
+  const par = Array.from({ length: sc.roomSeeds.length }, (_, i) => i), find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  for (const d of sc.doors) par[find(d.a)] = find(d.b);
+  ok(new Set(sc.roomSeeds.map((s) => find(s.id))).size === 1, 'every room is reachable through the doors (one component)');
+  // each door is a real cut in the wall, bridged by floor
+  ok(sc.floorNuclei.some((n) => n.door) && sc.paintCells.some((c) => c.door), 'doors are bridged with floor nuclei');
+  const d0 = sc.doors[0];
+  ok(sc.wallNuclei.filter((w) => Math.hypot(w.x - d0.m[0], w.y - d0.m[1]) < sc.wallSpacing * 0.9).length === 0, 'the wall is cut at the door (no wall nuclei in the gap)');
+}
+
+// ── loops add roads beyond the tree (still all connected) ──
+{
+  const tree = buildScene({ W: 820, H: 600, wallSpacing: 8, roomSpacing: 24, roomSize: 90, loops: 0, seed: 9 });
+  const roads = buildScene({ W: 820, H: 600, wallSpacing: 8, roomSpacing: 24, roomSize: 90, loops: 0.6, seed: 9 });
+  ok(roads.doors.length > tree.doors.length, 'loops add extra doors past the spanning tree (the road network)');
+  ok(roads.doors.length <= tree.adjEdges.length, 'never more doors than there are adjacencies');
+  // chooseDoors directly: tree is exactly rooms−components edges over a connected graph
+  const tdoors = chooseDoors(tree.adjEdges, tree.roomSeeds.length, 9, 0);
+  ok(tdoors.length === tree.roomSeeds.length - 1, 'the room-adjacency graph is connected (spanning tree = rooms − 1)');
 }
 
 // ── determinism ──
