@@ -15,6 +15,8 @@ pub struct Morph {
     pub overshoot: f64, // font units round letters spill past the baseline / cap
     pub arch: f64,      // 0 round-humanist shoulder .. 1 flat/squared shoulder
     pub bar: f64,       // crossbar height as a fraction of the relevant height
+    pub bowl: f64,      // a/b/d/p/q bowl wrap (deg): how far the arc closes before
+                        // attaching to the stem (0 = open D, larger = enclosed)
 }
 
 pub struct Params {
@@ -61,15 +63,17 @@ impl Params {
         // doesn't perturb the earlier draws — every existing seed keeps its other
         // params (and thus its non-pen glyphs) byte-for-byte. 0° = vertical stress
         // (thins on the horizontals), up to a humanist ~32° tilt.
-        let pen_angle = r.range(0.0, 32.0).to_radians();
+        let pen_angle = r.range(0.0, 36.0).to_radians();
 
         // Construction genome — also drawn after the metric params so it never
         // perturbs them. These reshape the letters themselves across rolls.
+        // Ranges are deliberately wide so rolls read as different designs.
         let morph = Morph {
-            aperture: r.range(0.80, 1.20),
-            overshoot: r.range(0.0, 0.016) * cap,
+            aperture: r.range(0.70, 1.32),
+            overshoot: r.range(0.0, 0.022) * cap,
             arch: r.range(0.0, 1.0),
-            bar: r.range(0.45, 0.57),
+            bar: r.range(0.42, 0.60),
+            bowl: r.range(0.0, 34.0),
         };
 
         let weight_class =
