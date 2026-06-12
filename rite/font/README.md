@@ -1,7 +1,9 @@
 # Roll — an open, unique font generator
 
-**Live at:** `font.mino.mobi`
-**Stack:** Rust → WebAssembly (engine) + thin Cloudflare assets worker (no build step for the page, no server, no secrets)
+**Live at:** `rite.mino.mobi/font`
+**Stack:** Rust → WebAssembly (engine), served as a sub-surface of the rite
+Worker's ASSETS binding (no server, no secrets). Deployed by `deploy-rite.yml`,
+which builds the wasm into `font/pkg/` before `wrangler deploy`.
 
 Roll a brand-new typeface from a seed. Every roll is unique and deterministic;
 the font you keep is **CC0 / public domain** — free to use, embed, modify and
@@ -44,16 +46,21 @@ seed string ──xmur3──► u32 ──mulberry32──► Params (the genom
 | `src/sfnt.rs` | Dependency-free TrueType serializer → `.ttf` bytes |
 | `src/lib.rs` | `roll(seed) → Uint8Array`, `describe(seed) → JSON` (wasm-bindgen) |
 | `tests/valid.rs` | Validity gate (parses output with `ttf-parser`) |
-| `site/` | The roll-a-font page; `pkg/` is the wasm-pack output (CI-built) |
-| `worker.js` + `wrangler.jsonc` | Assets worker for `font.mino.mobi` |
+| `index.html` + `app.js` | The roll-a-font page (served at `/font`) |
+| `pkg/` | wasm-pack output (CI-built into here, gitignored) |
+
+Hosting: this is a sub-surface of the rite Worker. `rite/worker.js` passes any
+non-`/api/*` path to its ASSETS binding, so `/font/` serves `font/index.html`.
+`rite/.assetsignore` keeps the Rust source and `target/` out of the upload.
 
 ## Build / test locally
 
 ```bash
-cd font
+cd rite/font
 cargo test                                   # validity gate (native)
-wasm-pack build --release --target web --out-dir site/pkg
-python3 -m http.server -d site 8080          # then open localhost:8080
+wasm-pack build . --release --target web --out-dir pkg
+# serve the rite root so /font/pkg/... resolves like in production:
+python3 -m http.server -d .. 8080            # then open localhost:8080/font/
 ```
 
 ## Status & roadmap

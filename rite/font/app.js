@@ -5,7 +5,7 @@
 // The seed lives in the URL (?s=...), so every roll is a shareable permalink —
 // the same determinism the breeding/phylogeny view will build on next.
 
-import init, { roll, describe } from "/pkg/minofont.js";
+import init, { roll, describe } from "/font/pkg/minofont.js";
 
 const $ = (id) => document.getElementById(id);
 const status = $("status");
