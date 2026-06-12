@@ -69,6 +69,29 @@
       }
       .chip b { display: block; color: var(--gold-soft); font-size: 20px; }
       .chip span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .shaper {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+        padding: 8px 16px 16px; margin-bottom: 18px;
+      }
+      .shaper > summary {
+        cursor: pointer; padding: 8px 0; color: var(--gold-soft); font-weight: 600;
+        list-style: none;
+      }
+      .shaper > summary::-webkit-details-marker { display: none; }
+      .shaper > summary::before { content: "▸ "; color: var(--gold); }
+      .shaper[open] > summary::before { content: "▾ "; }
+      .sliders {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px 22px; margin-top: 8px;
+      }
+      .ctl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
+      .ctl label { color: var(--muted); font-size: 13px; }
+      .ctl output { color: var(--gold-soft); font-variant-numeric: tabular-nums; font-size: 13px; min-width: 3.2em; text-align: right; }
+      .ctl input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); }
+      .ctl.toggle { grid-template-columns: 1fr auto; }
+      .ctl.toggle input { accent-color: var(--gold); width: 18px; height: 18px; }
+      .shaper-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+      .shaper-note { color: var(--muted); font-size: 12px; }
       footer { padding: 24px clamp(16px, 4vw, 48px); color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
       footer a { color: var(--gold); }
       code { background: #000; padding: 1px 5px; border-radius: 5px; color: var(--gold-soft); }
@@ -93,6 +116,19 @@
         <button id="apply" class="ghost">Use seed</button>
         <a id="download" class="btn ghost" download>Download .ttf</a>
       </div>
+
+      <details class="shaper" id="shaper">
+        <summary>Shape it — live sliders</summary>
+        <div class="sliders" id="sliders"></div>
+        <div class="shaper-row">
+          <button id="reset" class="ghost">Reset to seed</button>
+          <span class="shaper-note">
+            Sliders reshape this roll live. <em>Roll a new font</em> picks a fresh
+            seed and resets them. (The <code>?s=</code> permalink saves the seed,
+            not the slider tweaks — yet.)
+          </span>
+        </div>
+      </details>
 
       <div class="specimen">
         <p class="big display" contenteditable="true" spellcheck="false">HANDGLOVES</p>

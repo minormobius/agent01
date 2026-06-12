@@ -21,13 +21,18 @@ use wasm_bindgen::prelude::*;
 /// Build the `.ttf` bytes for a seed. Native-callable (used by tests) as well as
 /// exported to JS.
 pub fn build_font(seed: &str) -> Vec<u8> {
-    let p = Params::from_seed(seed);
+    build_font_params(&Params::from_seed(seed))
+}
+
+/// Build the `.ttf` bytes from an explicit parameter set — the path the live
+/// slider UI drives (a seed gives a starting genome, sliders override fields).
+pub fn build_font_params(p: &Params) -> Vec<u8> {
     let chars = glyphs::charset();
 
     let mut gds: Vec<sfnt::GlyphData> = Vec::with_capacity(chars.len() + 1);
-    gds.push(sfnt::to_data(glyphs::notdef(&p))); // gid 0
+    gds.push(sfnt::to_data(glyphs::notdef(p))); // gid 0
     for &c in chars {
-        gds.push(sfnt::to_data(glyphs::glyph_for(c, &p)));
+        gds.push(sfnt::to_data(glyphs::glyph_for(c, p)));
     }
 
     let names = sfnt::Names {
@@ -37,7 +42,7 @@ pub fn build_font(seed: &str) -> Vec<u8> {
         ps: p.ps_name.clone(),
         unique: format!("MinoRoll;1.0;{}", p.ps_name),
     };
-    sfnt::build_ttf(&gds, &names, &p, chars)
+    sfnt::build_ttf(&gds, &names, p, chars)
 }
 
 /// Roll a font: seed string → `.ttf` bytes (Uint8Array in JS).
@@ -46,12 +51,42 @@ pub fn roll(seed: &str) -> Vec<u8> {
     build_font(seed)
 }
 
-/// A compact JSON summary of the rolled font's parameters, for the UI.
+/// Roll from a seed, then apply a `key=value;…` override string (the live
+/// sliders). Unknown keys are ignored; see `Params::apply_spec`.
+#[wasm_bindgen]
+pub fn roll_params(seed: &str, spec: &str) -> Vec<u8> {
+    let mut p = Params::from_seed(seed);
+    p.apply_spec(spec);
+    build_font_params(&p)
+}
+
+/// A JSON summary of the rolled font's full genome, for seeding the UI sliders.
 #[wasm_bindgen]
 pub fn describe(seed: &str) -> String {
-    let p = Params::from_seed(seed);
+    genome_json(&Params::from_seed(seed))
+}
+
+fn genome_json(p: &Params) -> String {
     format!(
-        "{{\"family\":\"{}\",\"stem\":{:.0},\"thin\":{:.0},\"modulation\":{:.2},\"contrast\":{:.2},\"width\":{:.2},\"slant\":{:.1},\"pen\":{:.0},\"aperture\":{:.2},\"arch\":{:.2},\"wrap\":{:.0},\"serif\":{},\"weightClass\":{},\"widthClass\":{}}}",
-        p.family, p.stem, (p.stem * (1.0 - 0.85 * p.morph.modulation)).max(8.0), p.morph.modulation, p.contrast, p.width, p.slant_deg, p.pen_angle.to_degrees(), p.morph.aperture, p.morph.arch, p.morph.bowl, p.serif, p.weight_class, p.width_class
+        "{{\"family\":\"{}\",\"stem\":{:.0},\"thin\":{:.0},\"mod\":{:.2},\"contrast\":{:.2},\"width\":{:.2},\"slant\":{:.1},\"pen\":{:.0},\"aperture\":{:.2},\"arch\":{:.2},\"bar\":{:.2},\"bowl\":{:.0},\"xh\":{:.2},\"serif\":{},\"apex\":{},\"seriflen\":{:.0},\"serifth\":{:.0},\"weightClass\":{},\"widthClass\":{}}}",
+        p.family,
+        p.stem,
+        pen::nib_thin(p),
+        p.morph.modulation,
+        p.contrast,
+        p.width,
+        p.slant_deg,
+        p.pen_angle.to_degrees(),
+        p.morph.aperture,
+        p.morph.arch,
+        p.morph.bar,
+        p.morph.bowl,
+        p.xheight / p.cap,
+        p.serif,
+        p.morph.apex_flat,
+        p.serif_len,
+        p.serif_th,
+        p.weight_class,
+        p.width_class
     )
 }

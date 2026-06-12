@@ -30,6 +30,10 @@ seed string ──xmur3──► u32 ──mulberry32──► Params (the genom
   same `xmur3 + mulberry32` pair borges uses). That's what makes `?s=<seed>` a
   permalink and what will let the evolutionary breeder reproduce any lineage from
   its seeds alone.
+- **Live sliders.** Beyond the seed, the page exposes a slider panel that
+  overrides individual genome fields in real time via `roll_params(seed, spec)`
+  (`spec` is a `key=value;…` string parsed by `Params::apply_spec`). A seed gives
+  a starting genome; sliders reshape it live. The seed is still the permalink.
 - **Real fonts.** `src/sfnt.rs` writes a genuine TrueType file (OS/2, cmap, glyf,
   head, hhea, hmtx, loca, maxp, name, post). `tests/valid.rs` round-trips every
   rolled font through `ttf-parser` to prove it parses, maps its cmap, and

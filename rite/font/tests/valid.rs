@@ -54,6 +54,30 @@ fn produces_a_valid_installable_face() {
 }
 
 #[test]
+fn slider_overrides_apply_and_stay_valid() {
+    // The live-slider path: a seed gives a base genome, a key=value spec
+    // overrides fields. The override must change the font yet still parse, and
+    // an empty / unknown spec must be a no-op.
+    let base = minofont::roll_params("seed-a", "");
+    assert_eq!(base, minofont::build_font("seed-a"), "empty spec == plain roll");
+    assert_eq!(
+        base,
+        minofont::roll_params("seed-a", "nonsense=1;=;bogus"),
+        "unknown keys are ignored"
+    );
+
+    let heavy = minofont::roll_params("seed-a", "stem=220;mod=0.95;serif=1;pen=28");
+    assert_ne!(heavy, base, "overrides must change the font");
+    let face = ttf_parser::Face::parse(&heavy, 0).expect("overridden font must parse");
+    for c in "HOgne".chars() {
+        let gid = face.glyph_index(c).expect("cmap");
+        let mut counter = Counter::default();
+        face.outline_glyph(gid, &mut counter);
+        assert!(counter.segments > 0, "{c:?} empty under overrides");
+    }
+}
+
+#[test]
 fn is_deterministic_and_seed_sensitive() {
     assert_eq!(
         minofont::build_font("seed-a"),

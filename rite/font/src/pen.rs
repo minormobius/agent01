@@ -65,10 +65,11 @@ struct Nib {
 
 /// The pen's thin weight, driven by the `modulation` gene rather than the legacy
 /// metric `thin` — this is the knob for how strongly weight varies with stroke
-/// angle: 0 = monoline (thin = thick), 1 = high contrast. Every pen dimension
-/// (nib, bowl/box insets, bar thickness) reads this so they stay consistent.
-fn nib_thin(p: &Params) -> f64 {
-    (p.stem * (1.0 - 0.85 * p.morph.modulation)).max(8.0)
+/// angle: 0 = monoline (thin = thick), 1 = near-hairline (high contrast). Every
+/// pen dimension (nib, bowl/box insets, bar thickness) reads this so they stay
+/// consistent.
+pub(crate) fn nib_thin(p: &Params) -> f64 {
+    (p.stem * (1.0 - 0.92 * p.morph.modulation)).max(5.0)
 }
 
 impl Nib {
@@ -78,7 +79,7 @@ impl Nib {
             e: (a.cos(), a.sin()),
             n: (-a.sin(), a.cos()),
             he: p.stem / 2.0,
-            hf: (nib_thin(p) / 2.0).max(6.0),
+            hf: (nib_thin(p) / 2.0).max(4.0),
         }
     }
 
@@ -371,12 +372,16 @@ impl<'a> Skel<'a> {
     /// An arch springing from the top of a left stem at `xl`, over to a right
     /// stem at `xr`, then straight down to `ybot`. `archf` flattens the shoulder
     /// (1.0 = round/humanist, →0.55 = squared/grotesque). The caller emits the
-    /// left stem; the arch overlaps it at the spring point.
+    /// left stem; the arch overlaps it at the spring point. When `ybot` is the
+    /// baseline and serifs are on, the right foot is tucked under its slab (so the
+    /// nib's terminal doesn't poke below the baseline) and the serif is drawn.
     fn arch(&mut self, xl: f64, xr: f64, top: f64, ybot: f64, archf: f64) {
         let rx = (xr - xl) / 2.0;
         let ry = rx * archf;
         let cx = (xl + xr) / 2.0;
         let spring = top - ry;
+        let footed = self.p.serif && ybot.abs() <= 1.0;
+        let foot = if footed { self.serif_h() } else { ybot };
         self.open(&[
             Seg::Arc {
                 c: (cx, spring),
@@ -385,8 +390,11 @@ impl<'a> Skel<'a> {
                 a1: deg(180.0),
                 a2: deg(0.0),
             },
-            Seg::Line((xr, spring), (xr, ybot)),
+            Seg::Line((xr, spring), (xr, foot)),
         ]);
+        if footed {
+            self.base_serif(xr);
+        }
     }
 
     fn finish(self) -> Glyph {
@@ -810,7 +818,6 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.vstem(xl, 0.0, h); // ascender stem
             k.arch(xl, xr, xh, 0.0, archf);
-            k.base_serif(xr);
             k
         }
         'i' => {
@@ -862,9 +869,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.vstem(x0, 0.0, xh);
             k.arch(x0, x1, xh, 0.0, archf);
-            k.base_serif(x1);
             k.arch(x1, x2, xh, 0.0, archf);
-            k.base_serif(x2);
             k
         }
         'n' => {
@@ -873,7 +878,6 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.vstem(xl, 0.0, xh);
             k.arch(xl, xr, xh, 0.0, archf);
-            k.base_serif(xr);
             k
         }
         'o' => {

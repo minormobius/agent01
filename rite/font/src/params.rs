@@ -120,6 +120,45 @@ impl Params {
             style,
         }
     }
+
+    /// Override fields from a `key=value;key=value` string — the live sliders.
+    /// Unknown keys are ignored; values out of range are clamped. Derived fields
+    /// (slant tangent, weight class) are recomputed so the override is coherent.
+    pub fn apply_spec(&mut self, spec: &str) {
+        for kv in spec.split(';') {
+            let mut it = kv.splitn(2, '=');
+            let (k, v) = match (it.next(), it.next()) {
+                (Some(k), Some(v)) => (k.trim(), v.trim()),
+                _ => continue,
+            };
+            let f: f64 = match v.parse() {
+                Ok(x) => x,
+                Err(_) => continue,
+            };
+            match k {
+                "stem" => self.stem = f.clamp(16.0, 280.0),
+                "mod" => self.morph.modulation = f.clamp(0.0, 1.0),
+                "pen" => self.pen_angle = f.clamp(-20.0, 50.0).to_radians(),
+                "width" => self.width = f.clamp(0.55, 1.7),
+                "slant" => self.slant_deg = f.clamp(-12.0, 30.0),
+                "xh" => self.xheight = f.clamp(0.40, 0.95) * self.cap,
+                "aperture" => self.morph.aperture = f.clamp(0.40, 1.70),
+                "arch" => self.morph.arch = f.clamp(0.0, 1.0),
+                "bar" => self.morph.bar = f.clamp(0.28, 0.72),
+                "bowl" => self.morph.bowl = f.clamp(0.0, 55.0),
+                "seriflen" => self.serif_len = f.clamp(0.0, 300.0),
+                "serifth" => self.serif_th = f.clamp(2.0, 140.0),
+                "serif" => self.serif = f != 0.0,
+                "apex" => self.morph.apex_flat = f != 0.0,
+                _ => {}
+            }
+        }
+        // recompute derived bits so the override stays self-consistent
+        self.slant_tan = self.slant_deg.to_radians().tan();
+        self.thin = (self.stem * (1.0 - self.contrast * 0.7)).max(20.0);
+        self.weight_class =
+            (((self.stem - 58.0) / (168.0 - 58.0)) * 700.0 + 200.0).round().clamp(100.0, 900.0) as u16;
+    }
 }
 
 /// A short, stable, filename-safe identifier derived from the seed.
