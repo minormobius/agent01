@@ -4,6 +4,19 @@
 
 use crate::prng::{xmur3, Rng};
 
+/// The construction genome: discrete-ish *drawing-style* genes that change how a
+/// glyph is built (not just how thick/wide it is). Where `Params` rolls the
+/// metrics, `Morph` rolls the gestures — aperture, overshoot, arch character,
+/// crossbar height — so two rolls differ in morphology, not only in weight.
+/// Each field is independent in v1; correlated "archetypes" (humanist /
+/// geometric / grotesque) are a later layer.
+pub struct Morph {
+    pub aperture: f64,  // opening of C/c/e/G counters: <1 closed, >1 open
+    pub overshoot: f64, // font units round letters spill past the baseline / cap
+    pub arch: f64,      // 0 round-humanist shoulder .. 1 flat/squared shoulder
+    pub bar: f64,       // crossbar height as a fraction of the relevant height
+}
+
 pub struct Params {
     pub upm: f64,
     pub cap: f64,
@@ -20,6 +33,7 @@ pub struct Params {
     pub serif_len: f64,
     pub serif_th: f64,
     pub pen_angle: f64, // broad-nib stress axis (radians) for the pen-model glyphs
+    pub morph: Morph,   // construction genome (see above)
     pub weight_class: u16,
     pub width_class: u16,
     pub family: String,
@@ -48,6 +62,15 @@ impl Params {
         // params (and thus its non-pen glyphs) byte-for-byte. 0° = vertical stress
         // (thins on the horizontals), up to a humanist ~32° tilt.
         let pen_angle = r.range(0.0, 32.0).to_radians();
+
+        // Construction genome — also drawn after the metric params so it never
+        // perturbs them. These reshape the letters themselves across rolls.
+        let morph = Morph {
+            aperture: r.range(0.80, 1.20),
+            overshoot: r.range(0.0, 0.016) * cap,
+            arch: r.range(0.0, 1.0),
+            bar: r.range(0.45, 0.57),
+        };
 
         let weight_class =
             (((stem - 58.0) / (168.0 - 58.0)) * 700.0 + 200.0).round().clamp(100.0, 900.0) as u16;
@@ -80,6 +103,7 @@ impl Params {
             serif_len,
             serif_th,
             pen_angle,
+            morph,
             weight_class,
             width_class,
             family,

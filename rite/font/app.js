@@ -64,6 +64,8 @@ function renderMeta(info, size) {
     ["Width", info.width ?? "—"],
     ["Slant°", info.slant ?? "—"],
     ["Pen°", info.pen ?? "—"],
+    ["Aperture", info.aperture ?? "—"],
+    ["Arch", info.arch ?? "—"],
     ["Serif", info.serif ? "yes" : "no"],
     ["Bytes", size],
   ];

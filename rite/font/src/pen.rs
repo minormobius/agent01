@@ -273,6 +273,51 @@ impl<'a> Skel<'a> {
         }
     }
 
+    /// A bowl bulging RIGHT of a stem at `xstem`, its arc springing from the
+    /// stem at the baseline and at `top` so the stem closes it — no gap between
+    /// bowl and shaft. `reach` is the horizontal centerline radius.
+    fn bowl_right(&mut self, xstem: f64, reach: f64, top: f64) {
+        self.open(&[Seg::Arc {
+            c: (xstem, top / 2.0),
+            rx: reach.max(8.0),
+            ry: (top / 2.0 - self.p.thin / 2.0).max(8.0),
+            a1: deg(90.0),
+            a2: deg(-90.0),
+        }]);
+    }
+
+    /// A bowl bulging LEFT of a stem at `xstem` (mirror of `bowl_right`).
+    fn bowl_left(&mut self, xstem: f64, reach: f64, top: f64) {
+        self.open(&[Seg::Arc {
+            c: (xstem, top / 2.0),
+            rx: reach.max(8.0),
+            ry: (top / 2.0 - self.p.thin / 2.0).max(8.0),
+            a1: deg(90.0),
+            a2: deg(270.0),
+        }]);
+    }
+
+    /// An arch springing from the top of a left stem at `xl`, over to a right
+    /// stem at `xr`, then straight down to `ybot`. `archf` flattens the shoulder
+    /// (1.0 = round/humanist, →0.55 = squared/grotesque). The caller emits the
+    /// left stem; the arch overlaps it at the spring point.
+    fn arch(&mut self, xl: f64, xr: f64, top: f64, ybot: f64, archf: f64) {
+        let rx = (xr - xl) / 2.0;
+        let ry = rx * archf;
+        let cx = (xl + xr) / 2.0;
+        let spring = top - ry;
+        self.open(&[
+            Seg::Arc {
+                c: (cx, spring),
+                rx,
+                ry,
+                a1: deg(180.0),
+                a2: deg(0.0),
+            },
+            Seg::Line((xr, spring), (xr, ybot)),
+        ]);
+    }
+
     fn finish(self) -> Glyph {
         self.g
     }
@@ -313,6 +358,13 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
     let sb = 0.07 * h;
     let dd = 0.22 * h; // descender depth below baseline
 
+    // construction genome
+    let mo = &p.morph;
+    let ov = mo.overshoot; // round overshoot past baseline / cap
+    let hg = 55.0 * mo.aperture; // half-gap (deg) for the open counters C/c/e/G
+    // Arch arcs: vertical-radius factor from round (1.0) to flat/squared (~0.55).
+    let archf = 1.0 - 0.45 * mo.arch;
+
     // black widths
     let wn = 0.64 * h * wf; // normal cap
     let wr = 0.74 * h * wf; // round cap
@@ -331,7 +383,8 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.line((s / 2.0, 0.0), (w / 2.0, h)); // left diagonal
             k.line((w - s / 2.0, 0.0), (w / 2.0, h)); // right diagonal
-            k.hbar(w * 0.18, w * 0.82, 0.34 * h); // crossbar
+            let by = h * (0.20 + 0.28 * mo.bar); // crossbar height tracks the genome
+            k.hbar(w * 0.18, w * 0.82, by);
             k
         }
         'B' => {
@@ -346,7 +399,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'C' => {
             let w = wr;
             let mut k = Skel::new(p, adv(w));
-            k.arc_box(0.0, w, 0.0, h, 55.0, 305.0);
+            k.arc_box(0.0, w, -ov, h + ov, hg, 360.0 - hg);
             k
         }
         'D' => {
@@ -367,7 +420,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.vstem(s / 2.0, 0.0, h);
             k.hbar(s / 2.0, w, h - t / 2.0); // top arm
-            k.hbar(s / 2.0, w * 0.86, h / 2.0); // middle arm
+            k.hbar(s / 2.0, w * 0.86, h * mo.bar); // middle arm (genome height)
             if c == 'E' {
                 k.hbar(s / 2.0, w, t / 2.0); // bottom arm
             }
@@ -376,7 +429,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'G' => {
             let w = wr;
             let mut k = Skel::new(p, adv(w));
-            k.arc_box(0.0, w, 0.0, h, 55.0, 305.0);
+            k.arc_box(0.0, w, -ov, h + ov, hg, 360.0 - hg);
             k.vstem(w - s / 2.0, 0.10 * h, 0.48 * h); // inner upright
             k.hbar(w * 0.55, w - s / 2.0, 0.46 * h); // spur bar
             k
@@ -386,7 +439,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.vstem(s / 2.0, 0.0, h);
             k.vstem(w - s / 2.0, 0.0, h);
-            k.hbar(s / 2.0, w - s / 2.0, h / 2.0);
+            k.hbar(s / 2.0, w - s / 2.0, h * mo.bar); // crossbar (genome height)
             k
         }
         'I' => {
@@ -449,7 +502,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'O' => {
             let w = wr;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w, 0.0, h);
+            k.ring_box(0.0, w, -ov, h + ov);
             k
         }
         'P' => {
@@ -462,7 +515,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'Q' => {
             let w = wr;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w, 0.0, h);
+            k.ring_box(0.0, w, -ov, h + ov);
             k.line((w * 0.58, 0.22 * h), (w * 0.95, -0.06 * h)); // tail
             k
         }
@@ -569,39 +622,42 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
 
         // ---- lowercase ------------------------------------------------------
         'a' => {
+            // Single-story: bowl whose arc springs from the right stem at the
+            // top and bottom of the x-height, so the stem closes it (no gap).
             let w = wl;
             let xr = w - s / 2.0;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, xr, 0.0, xh);
             k.vstem(xr, 0.0, xh);
+            k.bowl_left(xr, w - s, xh);
             k
         }
         'b' => {
             let w = wl;
             let mut k = Skel::new(p, adv(w));
             k.vstem(s / 2.0, 0.0, h);
-            k.ring_box(s / 2.0, w, 0.0, xh);
+            k.bowl_right(s / 2.0, w - s, xh);
             k
         }
         'c' => {
             let w = wl;
             let mut k = Skel::new(p, adv(w));
-            k.arc_box(0.0, w, 0.0, xh, 55.0, 305.0);
+            k.arc_box(0.0, w, -ov, xh + ov, hg, 360.0 - hg);
             k
         }
         'd' => {
             let w = wl;
+            let xr = w - s / 2.0;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w - s / 2.0, 0.0, xh);
-            k.vstem(w - s / 2.0, 0.0, h);
+            k.vstem(xr, 0.0, h);
+            k.bowl_left(xr, w - s, xh);
             k
         }
         'e' => {
             let w = wl;
-            let (c0, rx, _) = box_radii(p, 0.0, w, 0.0, xh);
+            let (c0, rx, _) = box_radii(p, 0.0, w, -ov, xh + ov);
             let mut k = Skel::new(p, adv(w));
-            k.arc_box(0.0, w, 0.0, xh, 0.0, 305.0);
-            k.hbar(0.0, c0.0 + rx, xh / 2.0); // crossbar through the eye
+            k.arc_box(0.0, w, -ov, xh + ov, 0.0, 360.0 - hg); // aperture-controlled opening
+            k.hbar(0.0, c0.0 + rx, xh * mo.bar); // crossbar through the eye (genome height)
             k
         }
         'f' => {
@@ -623,18 +679,22 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k
         }
         'g' => {
+            // Single-story: bowl + a descending tail that hooks LEFT. The arc
+            // sweeps clockwise *down through the bottom* (0°→-150°); the earlier
+            // version swept up first, which read as a backwards curl.
             let w = wl;
             let xr = w - s / 2.0;
+            let cy = -0.5 * dd;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w, 0.0, xh);
+            k.ring_box(0.0, w, -ov, xh + ov);
             k.open(&[
-                Seg::Line((xr, xh), (xr, -0.45 * dd)),
+                Seg::Line((xr, xh), (xr, cy)),
                 Seg::Arc {
-                    c: (xr - 0.30 * w, -0.45 * dd),
-                    rx: 0.30 * w,
-                    ry: 0.55 * dd,
+                    c: (xr - 0.28 * w, cy),
+                    rx: 0.28 * w,
+                    ry: 0.5 * dd,
                     a1: deg(0.0),
-                    a2: deg(215.0),
+                    a2: deg(-150.0),
                 },
             ]);
             k
@@ -642,19 +702,9 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'h' => {
             let w = wl;
             let (xl, xr) = (s / 2.0, w - s / 2.0);
-            let r = (xr - xl) / 2.0;
             let mut k = Skel::new(p, adv(w));
             k.vstem(xl, 0.0, h); // ascender stem
-            k.open(&[
-                Seg::Arc {
-                    c: ((xl + xr) / 2.0, xh - r),
-                    rx: r,
-                    ry: r,
-                    a1: deg(180.0),
-                    a2: deg(0.0),
-                },
-                Seg::Line((xr, xh - r), (xr, 0.0)),
-            ]);
+            k.arch(xl, xr, xh, 0.0, archf);
             k.base_serif(xr);
             k
         }
@@ -667,8 +717,10 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k
         }
         'j' => {
-            let w = wln * 1.2;
-            let x = w * 0.55;
+            // Stem + a fishhook that dips through the bottom and curls up-left.
+            // Sweep clockwise (0°→-200°); the earlier +205° curled the wrong way.
+            let w = wln * 1.3;
+            let x = w * 0.5;
             let r = 0.24 * h;
             let mut k = Skel::new(p, adv(w));
             k.open(&[
@@ -678,7 +730,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
                     rx: r,
                     ry: r,
                     a1: deg(0.0),
-                    a2: deg(205.0),
+                    a2: deg(-200.0),
                 },
             ]);
             k.dot(x, xh + 0.17 * h, s * 0.55);
@@ -704,59 +756,39 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let (x0, x1, x2) = (s / 2.0, w / 2.0, w - s / 2.0);
             let mut k = Skel::new(p, adv(w));
             k.vstem(x0, 0.0, xh);
-            for &(xa, xb) in &[(x0, x1), (x1, x2)] {
-                let r = (xb - xa) / 2.0;
-                k.open(&[
-                    Seg::Arc {
-                        c: ((xa + xb) / 2.0, xh - r),
-                        rx: r,
-                        ry: r,
-                        a1: deg(180.0),
-                        a2: deg(0.0),
-                    },
-                    Seg::Line((xb, xh - r), (xb, 0.0)),
-                ]);
-                k.base_serif(xb);
-            }
+            k.arch(x0, x1, xh, 0.0, archf);
+            k.base_serif(x1);
+            k.arch(x1, x2, xh, 0.0, archf);
+            k.base_serif(x2);
             k
         }
         'n' => {
             let w = wl;
             let (xl, xr) = (s / 2.0, w - s / 2.0);
-            let r = (xr - xl) / 2.0;
             let mut k = Skel::new(p, adv(w));
             k.vstem(xl, 0.0, xh);
-            k.open(&[
-                Seg::Arc {
-                    c: ((xl + xr) / 2.0, xh - r),
-                    rx: r,
-                    ry: r,
-                    a1: deg(180.0),
-                    a2: deg(0.0),
-                },
-                Seg::Line((xr, xh - r), (xr, 0.0)),
-            ]);
+            k.arch(xl, xr, xh, 0.0, archf);
             k.base_serif(xr);
             k
         }
         'o' => {
             let w = wl;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w, 0.0, xh);
+            k.ring_box(0.0, w, -ov, xh + ov);
             k
         }
         'p' => {
             let w = wl;
             let mut k = Skel::new(p, adv(w));
             k.line((s / 2.0, -dd), (s / 2.0, xh)); // descender stem
-            k.ring_box(s / 2.0, w, 0.0, xh);
+            k.bowl_right(s / 2.0, w - s, xh);
             k
         }
         'q' => {
             let w = wl;
             let xr = w - s / 2.0;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, xr, 0.0, xh);
+            k.bowl_left(xr, w - s, xh);
             k.line((xr, -dd), (xr, xh)); // descender stem
             k
         }
@@ -807,22 +839,24 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k
         }
         'u' => {
+            // An inverted arch: stems down each side, joined by a bottom bowl
+            // that flattens with the same `archf` as n/m/h.
             let w = wl;
             let (xl, xr) = (s / 2.0, w - s / 2.0);
-            let r = (xr - xl) / 2.0;
+            let rx = (xr - xl) / 2.0;
+            let ry = rx * archf;
             let mut k = Skel::new(p, adv(w));
             k.open(&[
-                Seg::Line((xl, xh), (xl, r)),
+                Seg::Line((xl, xh), (xl, ry)),
                 Seg::Arc {
-                    c: ((xl + xr) / 2.0, r),
-                    rx: r,
-                    ry: r,
+                    c: ((xl + xr) / 2.0, ry),
+                    rx,
+                    ry,
                     a1: deg(180.0),
                     a2: deg(360.0),
                 },
-                Seg::Line((xr, r), (xr, xh)),
+                Seg::Line((xr, ry), (xr, xh)),
             ]);
-            k.vstem(xr, 0.0, r); // small inner foot on the right stem
             k
         }
         'v' => {
@@ -849,10 +883,18 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k
         }
         'y' => {
+            // The short (left) leg must die *on* the long arm, not run past it to
+            // the baseline — otherwise its butt cap pokes out below the junction.
             let w = wl;
+            let top_r = (w - s / 2.0, xh);
+            let tail = (w * 0.14, -dd);
+            // junction = the point on the long arm at ~30% x-height
+            let u = (xh - 0.30 * xh) / (xh + dd);
+            let jx = top_r.0 + u * (tail.0 - top_r.0);
+            let jy = top_r.1 + u * (tail.1 - top_r.1);
             let mut k = Skel::new(p, adv(w));
-            k.line((s / 2.0, xh), (w / 2.0, 0.0));
-            k.line((w - s / 2.0, xh), (w * 0.18, -dd)); // long arm into the descender
+            k.line((s / 2.0, xh), (jx, jy)); // left leg ends on the long arm
+            k.line(top_r, tail); // long arm + descender, one stroke
             k
         }
         'z' => {

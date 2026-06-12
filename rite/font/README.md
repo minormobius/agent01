@@ -85,6 +85,15 @@ Next layers (the seed/permalink foundation is built for them):
    whose thickness modulates with stroke direction (`pen_angle` + `stem`/`thin`
    from the genome). Curves get real contrast, arches join their stems for free,
    and `S`/`s` are a tangent-continuous two-bowl spine. Space + punctuation stay
-   on the primitive builder. Open refinements (driven by eyeballing live rolls):
-   edged-pen corners on terminals, mitred apexes on the diagonal caps
-   (`A V W M N K X Y Z`), and Bézier-refitting the dense offset polylines.
+   on the primitive builder.
+5. **Construction genome (`Morph` in `params.rs`)** — the seed now rolls the
+   *gestures*, not just the metrics, so rolls differ in morphology rather than
+   only weight/width. v1 genes: `aperture` (how open `C c e G` counters are),
+   `overshoot` (round letters spilling past baseline/cap), `arch` (round-humanist
+   ↔ flat/squared shoulder on `n m h u`), and `bar` (crossbar height of
+   `A E F H e`). Each gene is independent for now; correlated *archetypes*
+   (humanist / geometric / grotesque) and structural genes (single- vs
+   double-story `a`/`g`, alternative `R`/`K` legs) are the next layer.
+   Open refinements (driven by eyeballing live rolls): edged-pen corners on
+   terminals, mitred apexes on the diagonal caps (`A V W M N K X Y Z`), and
+   Bézier-refitting the dense offset polylines.

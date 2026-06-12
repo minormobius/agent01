@@ -90,6 +90,8 @@ fn pen_model_glyphs_outline_across_seeds() {
     for seed in [
         "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
         "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa",
+        "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whiskey",
+        "xray", "yankee", "zulu", "0", "1", "42", "morph-test", "humanist",
     ] {
         let bytes = minofont::build_font(seed);
         let face = Face::parse(&bytes, 0)
