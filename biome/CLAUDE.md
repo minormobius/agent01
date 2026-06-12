@@ -70,6 +70,7 @@ node biome/cycles/test/stability.selftest.mjs     # 11 checks: stability verdict
 node biome/cycles/test/lake.selftest.mjs          # 20 checks: harvest conserves, both figures of merit, failure modes, stability
 node biome/cycles/test/global.selftest.mjs        # 18 checks: union conserves, land↔lake coupling, interior closes, stable
 node biome/cycles/test/maximal.selftest.mjs       # 14 checks: intermingled web conserves, every species persists, couplers bridge containers
+node biome/gacha/test/gacha.selftest.mjs          # 13 checks: ECOSYSTEM GACHA engine — catalog, deterministic rolls, conservation, valid wiring, rarity spread
 node biome/cycles/test/builder.selftest.mjs       # 23 checks: presets compile/close/conserve/stable, validation, share codec, graceful failure
 ( cd biome/cycles/solver && cargo test )          # 6 checks: the Rust stability kernel
 # or all the node tests at once:
@@ -88,6 +89,33 @@ The self-tests are the contract — run them before every push.
   committed `pkg/`.
 - Ownership is in `deploy-registry.json` (surface `biome`). Edit the registry, then
   `node scripts/gen-deploy-triggers.mjs --write` + `node scripts/lint-deploy-registry.mjs`.
+
+## The ecosystem gacha (`gacha/`) — Phase 0 engine landed; page pending
+
+A procedural ecosystem **generator + viability oracle** that turns the trophic solver into a
+roll-and-discover game (pattern borrowed from `/fable` + `/mappa`: seeded determinism → an oracle
+scores → rarity emerges from the oracle, not RNG). Phase 0 (engine, fully sandbox-tested) is in:
+
+- `gacha/prng.js` — the shared `xmur3→mulberry32` `Rand` (copied from fable/mappa/borges). A roll
+  number `n` must reproduce the identical ecosystem for ever — the `/gacha/?n=<n>` permalink contract.
+- `gacha/catalog.json` — ~60 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
+  (curated traits + iNaturalist photos). Each carries the traits the assembler needs: guild, mass_g,
+  thermy, habitats[], producer growth params / per-guild starting biomass, flags (pollinator, harvestable).
+- `gacha/sim/assemble.mjs` — `rollDesign(n, catalog)`: seed → a valid food web in the **builder's
+  `design` shape**, wiring diets by **guild + body-size + habitat rules** (carnivores eat present
+  animals in a prey-mass window; species spanning two habitats become couplers automatically), with
+  prune-the-starvers + reject-and-reroll (salt 0..7). Output compiles through `builder.designToParams`.
+- `gacha/sim/score.mjs` — `evaluateRoll(roll)`: runs `analyzeDesign` (closure + community-matrix
+  stability) and returns one `interest` 0..100 + a rarity tier. **Rarity = VIABILITY** (closes · persists ·
+  stable · fed · air · robust · crew carried), minus degeneracy penalties (collapse/monoculture/runaway).
+  Legendary = a self-closing, stable, crew-carrying world. (Axis chosen by the user; not "interestingness".)
+
+Roadmap: Phase 1 = the `/gacha` page (ROLL → reveal → render via the `/graph` renderer → collectible
+card → share-by-seed); Phase 2 = hunt + filters + Atlas gallery; Phase 3 = keep/publish pulls to PDS
+(`com.minomobi.biome.ecosystem`) + OG cards; Phase 4 = automated iNat+GloBI harvest to deepen the deck.
+NB the gacha runs the box model at dt=3h (fast, interactive) — conservation is exact by flux
+construction; a few stiff random webs show ~1e-7 numerical drift at that step (negligible; the
+self-test proves machine precision at dt=0.5h).
 
 ## Invariants — do not break
 
