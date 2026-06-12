@@ -22,10 +22,10 @@ function ehash(seed, a, b) { let x = (seed ^ Math.imul(a + 1, 73856093) ^ Math.i
 
 export function deckScene({
   lattice, seed = 1, grade = 0.4, genome, record, az = 0, ax = 0, axSpan = 14, iters = 5,
-  pxPerCell = 64, wallSpacing = 8, roomSpacing = 22, gz, loops = 0.15, solved,
+  pxPerCell = 64, wallSpacing = 8, roomSpacing = 22, gz, loops = 0.15, solved, solveOpts = {},
 } = {}) {
   const L = lattice, gzDeck = gz ?? Math.floor(L.nz / 2);
-  const s = solved || solveRegion({ lattice, seed, grade, genome, record, az, ax, axSpan, iters });
+  const s = solved || solveRegion({ lattice, seed, grade, genome, record, az, ax, axSpan, iters, ...solveOpts });
   const { rf, city } = s;
 
   // the band: this deck's chambers, projected to px (unrolled arc × axial)

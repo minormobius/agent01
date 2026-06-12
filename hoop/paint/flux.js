@@ -80,7 +80,7 @@ export function makeGraph(n, edgeList) {
 
 export function createGrower(graph, demand, {
   mu = 0.75, grow = 1.0, decay = 0.35, baseline = 1, condGain = 6, condMax = 60,
-  originBatches = 1,
+  originBatches = 1, condCap = null,                       // optional per-edge ceiling (Float64Array[E])
 } = {}) {
   const { n, E, adj, len, ea, eb } = graph;
   const cond = new Float64Array(E).fill(baseline);
@@ -140,7 +140,12 @@ export function createGrower(graph, demand, {
       let maxF = 0; for (let i = 0; i < E; i++) if (flux[i] > maxF) maxF = flux[i];
       for (let i = 0; i < E; i++) {
         const fN = maxF > 0 ? flux[i] / maxF : 0, tgt = Math.pow(fN, mu);
-        cond[i] = Math.min(condMax, baseline + (cond[i] - baseline) * (1 - decay) + grow * condGain * tgt);
+        // condCap caps the ceiling AND scales the wear rate (cap/condMax): an edge that can never
+        // get as good also wears in slower — the foam grower caps CLIMB edges low (you can pave a
+        // road level; you cannot pave away gravity), which is what makes the bias bind inside the
+        // conductance operating range, not just at a ceiling reinforcement never reaches
+        const capI = condCap ? condCap[i] : condMax;
+        cond[i] = Math.min(capI, baseline + (cond[i] - baseline) * (1 - decay) + grow * condGain * (capI / condMax) * tgt);
       }
       iter++;
       return { iter, maxFlux: maxF };

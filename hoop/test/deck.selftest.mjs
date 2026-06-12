@@ -128,5 +128,19 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(allRoute, 'NO MORE "no path": 30 random probe pairs all route');
 }
 
+// ── GRAVITY'S BIAS: planar conductance caps consolidate streets onto the deck ──
+{
+  const frag = (dd) => {
+    const par = new Map(); const find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
+    dd.owner.forEach((o, i) => { if (o === -1) par.set(i, i); });
+    for (const e of dd.scene.opens) if (par.has(e.a) && par.has(e.b)) par.set(find(e.a), find(e.b));
+    return new Set([...par.keys()].map(find)).size;
+  };
+  const iso = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14, solveOpts: { planarBias: 1, bandBias: 1 } });
+  ok(frag(d) < frag(iso), 'the planar bias CONSOLIDATES the deck street network (' + frag(d) + ' fragments vs ' + frag(iso) + ' unbiased)');
+  ok(d.stats.roadRooms > iso.stats.roadRooms, 'more street lands ON the playable deck under gravity\'s bias (' + d.stats.roadRooms + ' vs ' + iso.stats.roadRooms + ' rooms)');
+  ok(d.stats.serviceDoors < iso.stats.serviceDoors, 'fewer easements are needed when streets run in-plane (' + d.stats.serviceDoors + ' vs ' + iso.stats.serviceDoors + ')');
+}
+
 console.log(`deck.selftest: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

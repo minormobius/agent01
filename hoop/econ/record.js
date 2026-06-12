@@ -131,7 +131,7 @@ export function gatesFor(lattice, seed, grade, A, B, axSpan, K = 3) {
 export function solveRegion({
   lattice, seed = 1, grade = 0.4, genome = DEFAULT_GENOME, record,
   az = 0, ax = 0, axSpan = 20, iters = 6, vert = 6, roadFrac = 0.06, mu = 0.75,
-  gateW = 4, wWork = 1.0, wThird = 0.6, wSupply = 0.4,
+  gateW = 4, wWork = 1.0, wThird = 0.6, wSupply = 0.4, planarBias = 6, bandBias = 4, condMax = 60,
 } = {}) {
   const L = lattice, R = L.regionsPerRing, azN = normAz(az, R);
   const rf = regionFoam({ lattice: L, seed, grade, az: azN, ax, axSpan });
@@ -175,17 +175,26 @@ export function solveRegion({
   for (let g = 0; g < myGates.length; g++) for (let k = 0; k < 3 && doors.length; k++)
     trips.push({ a: myGates[g].idx, b: doors[Math.floor(roll(seedR, g, k, 0, 31) * doors.length)], w: gateW * 0.5 });
 
-  // grow over anisotropic lengths (face/edge neighbours, as the foam grower)
-  const rBar = L.Ri + L.T / 2, edgeList = [];
+  // grow over anisotropic lengths (face/edge neighbours, as the foam grower), with GRAVITY'S
+  // BIAS on the wear pattern, two parts: (1) climb edges cap planarBias× lower — a worn-in stair
+  // never gets as cheap as a worn-in street; (2) level edges OUTSIDE the gate band cap mildly
+  // lower than inside it — the deck the record routes its gates through is the natural street
+  // level, so cross-region traffic consolidates onto one planar concourse instead of thin
+  // streets smeared over every layer. Flux still decides WHERE streets run; gravity decides on
+  // which deck.
+  const rBar = L.Ri + L.T / 2, edgeList = [], capList = [];
+  const gzMid = Math.floor(L.nz / 2);
   for (let m = 0; m < rf.mi.length; m++) {
-    const a = cells[rf.mi[m]], b = cells[rf.mj[m]];
+    const ia = rf.mi[m], ib = rf.mj[m], a = cells[ia], b = cells[ib];
     const horiz = Math.hypot(rBar * (b.th - a.th), b.z - a.z), dr = Math.abs(b.rad - a.rad);
     if (Math.hypot(horiz, dr) > 1.3 * L.cell) continue;
-    edgeList.push({ a: rf.mi[m], b: rf.mj[m], len: horiz + vert * dr });
+    edgeList.push({ a: ia, b: ib, len: horiz + vert * dr });
+    const inBand = Math.abs(rf.nodes[ia].gz - gzMid) <= 1 && Math.abs(rf.nodes[ib].gz - gzMid) <= 1;
+    capList.push(dr > 0.35 * L.cell ? condMax / planarBias : inBand ? condMax : condMax / bandBias);
   }
   const graph = makeGraph(cells.length, edgeList);
   const nOrigins = new Set(trips.map((t) => t.a)).size;
-  const grower = createGrower(graph, trips, { mu, originBatches: Math.max(1, Math.ceil(nOrigins / 700)) });
+  const grower = createGrower(graph, trips, { mu, originBatches: Math.max(1, Math.ceil(nOrigins / 700)), condCap: Float64Array.from(capList) });
   for (let k = 0; k < iters; k++) grower.step();
   const ff = finalizeField(graph, grower.state, { roadFrac });
   const row = new Set();

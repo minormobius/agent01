@@ -266,18 +266,24 @@ export function createFoamGrower(opts = {}) {
   // ROUTING graph keeps only face/edge neighbours (3D run < 1.5·cell): the corner-diagonals the
   // 1.85·cell adjacency admits add ~half the edges and nothing to travel — halving step time.
   const cellU = opts.cell ?? 1, routeFilter = opts.routeFilter ?? 1.3;   // ≈6-neighbourhood
-  const edgeList = [];
+  // planarBias: gravity's thumb on the wear pattern. Reinforcement caps CLIMB edges planarBias×
+  // lower than level ones, so a worn-in stair never gets as cheap as a worn-in street — flux runs
+  // along decks and concentrates climbs into few true shafts (the stack-of-2D-cities, emergent).
+  const planarBias = opts.planarBias ?? 6, condMax = opts.condMax ?? 60;
+  const edgeList = [], capList = [];
   for (let m = 0; m < foam.mi.length; m++) {
     const a = cells[foam.mi[m]], b = cells[foam.mj[m]], rm = Ri + (a.rad + b.rad) / 2;
     const horiz = Math.hypot(rm * (b.th - a.th), b.z - a.z), dr = Math.abs(b.rad - a.rad);
     if (Math.hypot(horiz, dr) > routeFilter * cellU) continue;
     edgeList.push({ a: foam.mi[m], b: foam.mj[m], len: horiz + vert * dr });
+    capList.push(dr > 0.35 * cellU ? condMax / planarBias : condMax);
   }
   const graph = makeGraph(N, edgeList);
+  const condCap = Float64Array.from(capList);
   // batch origins so one step stays interactive at full 33k scale (~700 origin searches per round)
   const nOrigins = new Set(trips.map((t) => t.a)).size;
   const originBatches = opts.originBatches ?? Math.max(1, Math.ceil(nOrigins / 700));
-  const grower = createGrower(graph, trips, { ...opts, originBatches });
+  const grower = createGrower(graph, trips, { ...opts, originBatches, condCap });
   return {
     foam, nav, graph, grower, base, society, trips,
     get iter() { return grower.iter; },
