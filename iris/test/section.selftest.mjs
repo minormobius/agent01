@@ -36,18 +36,28 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
      rel(s.T_reservoir - s.T_skin, defaultParams().pipeDeltaT) < 1e-12);
 }
 
-// ── 3. Temperature: the adiabat cools inward; the inversion can flip "up" ────
+// ── 3. Temperature: the inversion is SOLVED from the greenhouse, not set ─────
 {
-  const cold = solveSection({ invStrength: 0 });          // pure adiabat
-  ok('no inversion ⇒ axis is colder than the floor (adiabatic)',
-     cold.T[0] < cold.summary.T_floor && !cold.summary.upIsHot,
-     `axis ${cold.T[0].toFixed(1)} vs floor ${cold.summary.T_floor.toFixed(1)} K`);
-  ok('adiabatic span matches ω²R²/2cp',
-     rel(cold.summary.T_floor - cold.T[0], cold.summary.adiabatSpan) < 1e-9,
-     `${cold.summary.adiabatSpan.toFixed(1)} K`);
-  const hot = solveSection({ invStrength: 40 });
-  ok('a strong inversion makes "up" hot (axis above floor)', hot.summary.upIsHot,
-     `axis ${hot.T[0].toFixed(1)} vs floor ${hot.summary.T_floor.toFixed(1)} K`);
+  const s = solveSection();
+  ok('axis temp = adiabatic axis + the solved inversion (consistent)',
+     rel(s.T[0], s.summary.T_floor - s.summary.adiabatSpan + s.summary.invStrength) < 1e-9);
+  ok('the adiabatic span is ω²R²/2cp (~19.5 K)',
+     Math.abs(s.summary.adiabatSpan - 19.5) < 1.5, `${s.summary.adiabatSpan.toFixed(1)} K`);
+  // the axial sun absorbed in the greenhouse lifts the axis above the cold adiabat → "up is hot"
+  ok('"up is hot": the solved axis sits above the floor', s.summary.upIsHot && s.T[0] > s.summary.T_floor,
+     `axis ${(s.T[0] - 273.15).toFixed(0)} vs floor ${(s.summary.T_floor - 273.15).toFixed(0)} °C`);
+  const dim = solveSection({ F_light: 150 }).summary, bright = solveSection({ F_light: 800 }).summary;
+  ok('more lights ⇒ more absorbed solar ⇒ a stronger inversion', bright.invStrength > dim.invStrength,
+     `${dim.invStrength.toFixed(1)} → ${bright.invStrength.toFixed(1)} K`);
+  // the greenhouse couples to the SOLVED water vapour: more water ⇒ deeper optical depth
+  const dry = solveSection({ waterVolume: 1e8 }).summary, wet = solveSection({ waterVolume: 5e9 }).summary;
+  ok('more water vapour ⇒ deeper greenhouse optical depth', wet.opticalDepth > dry.opticalDepth,
+     `τ ${dry.opticalDepth.toFixed(3)} → ${wet.opticalDepth.toFixed(3)}`);
+  ok('the vapour scale height is solved within bounds (a buoyancy length)',
+     s.summary.vaporScaleHeight > 40 && s.summary.vaporScaleHeight <= 6000,
+     `${s.summary.vaporScaleHeight.toFixed(0)} m`);
+  ok('a stronger inversion is more stratified (higher Brunt–Väisälä N)', bright.BruntN > dim.BruntN,
+     `N ${dim.BruntN.toFixed(4)} → ${bright.BruntN.toFixed(4)} /s`);
 }
 
 // ── 4. Pressure: centrifugal hydrostatic balance with the local temperature ──
@@ -86,13 +96,15 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
   ok('jets dry the floor and wet the axis (ventilation)',
      on.RH[on.RH.length - 1] < off.RH[off.RH.length - 1] && on.RH[0] > off.RH[0],
      `floor ${(off.RH[off.RH.length-1]*100).toFixed(0)}→${(on.RH[on.RH.length-1]*100).toFixed(0)}%`);
-  // fog mask must agree with RH≥1 exactly
+  // fog mask must agree with bulk RH≥1 exactly
   let agree = true;
   for (let i = 0; i < off.RH.length; i++) if ((off.RH[i] >= 1) !== (off.fogMask[i] === 1)) agree = false;
-  ok('fog mask is exactly the RH ≥ 1 set', agree);
-  // big lakes + a cold axis (no inversion) + jets lofting vapour to it ⇒ fog aloft
-  const foggy = solveSection({ jets: true, invStrength: 0, waterVolume: 5e9 });
-  ok('a humid column with a cold axis condenses fog', foggy.summary.hasFog);
+  ok('fog mask is exactly the bulk RH ≥ 1 set', agree);
+  // the design's real fog is mist over the cold lakes: it appears as the lakes grow, not before
+  const misty = solveSection({ waterVolume: 5e9 }).summary;
+  ok('big lakes ⇒ mist over the cold lake water (the design\'s fog)', misty.mist && misty.hasCond);
+  const arid = solveSection({ waterVolume: 4e7 }).summary;
+  ok('few lakes ⇒ no condensation (dry, no mist)', !arid.hasCond);
 }
 
 // ── 6. Wind: realistic ambient speeds; the jet's exit speed is NOT the wind ──
@@ -108,10 +120,11 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
      `max ${blown.summary.maxWind.toFixed(1)} m/s vs exit ${blown.summary.jetExitSpeed} m/s`);
   ok('the in-jet core speed is ~the exit speed, kept SEPARATE from the wind',
      blown.summary.jetInducedCore > 10 * blown.summary.maxWind);
-  const weak = solveSection({ invStrength: 60 });
-  const strong = solveSection({ invStrength: 0 });
-  ok('a stronger inversion chokes the convective wind', weak.summary.wStar * weak.summary.stability
-     < strong.summary.wStar * strong.summary.stability);
+  const moreInv = solveSection({ F_light: 800 }).summary;   // brighter ⇒ stronger solved inversion
+  const lessInv = solveSection({ F_light: 150 }).summary;
+  ok('a stronger (solved) inversion lowers the convective stability factor',
+     moreInv.stability < lessInv.stability,
+     `${lessInv.stability.toFixed(2)} → ${moreInv.stability.toFixed(2)}`);
   ok('rotation dominates (Rossby number ≪ 1)', calm.summary.RossbyFloor < 0.2,
      `Ro ≈ ${calm.summary.RossbyFloor.toFixed(3)}`);
   ok('wind is zero at the axis and at the floor with jets off',

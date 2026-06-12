@@ -21,13 +21,18 @@ The spine is **energy: heat in == heat out**. The lights are the only input; the
 the only output; the path between is reservoirs → heat pipes → skin. That balance pins every
 temperature (`T_floor > T_reservoir > T_skin`, because heat flows outward). Hung off it:
 
-- **temperature** — dry centrifugal adiabat from the floor + a radiative inversion that warms
-  the axis (crank `invStrength` and "up" flips cold→hot).
+- **temperature** — dry centrifugal adiabat from the floor + a radiative inversion that is
+  SOLVED, not set: the axial sun absorbed by the greenhouse (`τ=κW+τ₀`, chiefly the solved water
+  vapour) is radiated from the warm axis to the cold floor, `σ(T_axis⁴−T_floor⁴)=(1−e^−τ)F`. More
+  lights or more water ⇒ stronger inversion. "Up is hot" is an outcome, not a knob.
 - **pressure** — centrifugal hydrostatic balance `dP/dr=ρω²r` with the local T.
-- **humidity** — SOLVED, not an input: the lakes are the vapour source (saturation over the open
-  water), the cold reservoir-cooled floor is the dew sink, and the floor RH follows the lake
-  coverage `λ(lakeFrac)`. Jets OFF stratifies it; jets ON ventilates (lofts floor moisture up,
-  drying the floor / wetting the axis), conserving total water. Fog is exactly where RH≥1.
+- **humidity** — SOLVED, not an input: the lakes ARE the cold reservoir water, so they both
+  source the vapour and cap it at saturation over cold water; the floor RH follows the lake
+  coverage `λ(lakeFrac)`. The **vapour scale height is solved too**, as a buoyancy length
+  `H_q≈MIX·w/N` from the mixing against the inversion's stability. Jets ventilate (loft floor
+  moisture up, dry the floor / wet the axis), conserving total water. Fog here is **mist over the
+  cold lakes** (the warm-floored bore is sub-saturated — dew, not rain); `hasFog` is the rare bulk
+  RH≥1 case, `hasCond`/`mist` the lake mist.
 - **wind** — convective scale `(B·z_i)^⅓` choked by the inversion's stability, plus the
   fountain's **induced breeze** (a few m/s), in a Coriolis-dominated frame (`f=2ω`, Rossby≪1).
   **The jet's water exit speed (~120 m/s) is NOT the wind** — that was an early bug. The ambient
@@ -44,7 +49,7 @@ drives it.
 ## Run / test (all run from the sandbox; deploy does not)
 
 ```bash
-node iris/test/section.selftest.mjs    # 36 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
+node iris/test/section.selftest.mjs    # 41 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
 node iris/test/ratchet.selftest.mjs    # 9 checks: tooth periodicity + asymmetry, inward build, lake arc
 ```
 
@@ -67,8 +72,12 @@ The self-tests are the contract — run them before every push.
    keep the ordering.
 3. **Water is conserved across the jets toggle.** On/off only redistribute vapour
    (`totalVapor` identical); they never create or destroy it.
-3b. **Floor humidity is solved, never an input.** It comes from the lake coverage (source) and
-   the cold-sink dew point — there is no `RH_floor` knob. Don't re-add one.
+3b. **The climate is solved, never dialed.** Floor humidity (lake coverage + cold-sink ceiling),
+   the inversion (greenhouse radiative balance), and the vapour scale height (buoyancy length) are
+   all OUTPUTS — there are no `RH_floor`, `invStrength`, or `humidityScale` knobs. The scenario
+   knobs are lights/water/spin/geometry/pressure; the climate emerges. Don't re-add solved
+   quantities as inputs. The greenhouse↔humidity↔scale-height coupling is a small fixed point
+   (`state(inv)` relaxed ~12×); keep it converging.
 4. **Determinism, zero deps, node + browser.** `sim/*.mjs` run identically headless and in the
    page. No build step, no secrets; the worker just serves assets + `/health`.
 5. **iris owns its geometry.** It does not import tide's `shared/geometry.mjs` — this is a

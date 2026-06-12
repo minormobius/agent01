@@ -38,16 +38,18 @@ pins the radiator temperature, and the reservoir/floor sit above it by the heat-
 Everything else is a gradient hung off that:
 
 - **Temperature** — a dry centrifugal adiabat from the floor (`cp·T+Φ=const`, `Φ=−½ω²r²`, so it
-  cools toward the axis) plus a radiative **inversion** that warms the axis (the sun is on the
-  axis). Crank the inversion and "up" flips from cold to hot — the signature O'Neill inversion.
+  cools toward the axis) plus a radiative **inversion that is solved, not set**: the axial sun
+  absorbed by the greenhouse gases (chiefly the solved water vapour, `τ=κW+τ₀`) is radiated from
+  the warm axis to the cold floor, `σ(T_axis⁴−T_floor⁴)=(1−e^−τ)F`. More lights or more water →
+  stronger inversion → "up" flips hot. It's an outcome of the energy/water, not a dial.
 - **Pressure** — centrifugal hydrostatic balance `dP/dr=ρω²r` integrated with the *local*
   temperature. Air pools at the rim; the bore runs ~80 kPa at the axis to 101 kPa at the floor.
-- **Humidity** — *solved, not set.* The lakes are the vapour source (saturation over the open
-  water) and the cold, reservoir-cooled floor is the dew sink; how humid the floor runs follows
-  the **lake coverage** (more open water → closer to saturation). **Jets off:** the vapour
-  stratifies and traps under the inversion. **Jets on:** the fountain ventilates — lofting floor
-  moisture upward (drying the floor, wetting the axis), *conserving* total water. **Fog** is
-  wherever RH≥1 — a toggleable observable band.
+- **Humidity** — *solved, not set.* The lakes ARE the cold reservoir water, so they both source
+  the vapour and cap it (saturation over cold water); the floor RH follows the **lake coverage**.
+  The **vapour scale height is solved too** — a buoyancy length `H_q≈MIX·w/N` set by the mixing
+  against the inversion's stability. **Jets** ventilate — lofting floor moisture upward (drying
+  the floor, wetting the axis), *conserving* total water. **Fog** here is **mist over the cold
+  lakes** (the warm-floored bore is sub-saturated — dew, not rain) — a toggleable observable.
 - **Wind** — a convective velocity scale `w*=(B·z_i)^⅓` from the surface heat flux, choked by the
   inversion's stability, plus the fountain's **induced breeze** (a few m/s — the entrained air the
   jet drags, *not* the 120 m/s water exit speed). The frame is strongly rotating (`f=2ω`, Rossby
@@ -66,13 +68,13 @@ the fountain runoff prograde around the rim.
 | `sim/fountain.mjs` | vendored rotating-frame ballistic jet solver — trajectory + induced wind |
 | `sim/ratchet.mjs` | inner-rim topography (3 teeth) + the topology-aware lake fill |
 | `index.html` | the circular renderer — 4 views, fog + jets toggles, reservoirs/heat pipes/radiator |
-| `test/*.selftest.mjs` | the contract (45 checks) |
+| `test/*.selftest.mjs` | the contract (50 checks) |
 | `worker.js`, `wrangler.jsonc` | assets worker for `iris.mino.mobi` |
 
 ## Run / test
 
 ```bash
-node iris/test/section.selftest.mjs    # 36 checks
+node iris/test/section.selftest.mjs    # 41 checks
 node iris/test/ratchet.selftest.mjs    # 9 checks
 open iris/index.html                    # the viewer
 ```

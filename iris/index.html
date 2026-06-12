@@ -99,13 +99,10 @@
     </div>
 
     <div class="panel">
-      <h2>Air &amp; water</h2>
+      <h2>Air</h2>
       <label class="ctl"><div class="row"><span>floor pressure</span><b><span id="vP">101.3</span> kPa</b></div>
         <input type="range" id="P_floor" min="40" max="120" step="0.5" value="101.325"></label>
-      <label class="ctl"><div class="row"><span>axis inversion</span><b><span id="vInv">25</span> K</b></div>
-        <input type="range" id="invStrength" min="0" max="60" step="1" value="25"></label>
-      <label class="ctl"><div class="row"><span>vapour scale height</span><b><span id="vHq">2.0</span> km</b></div>
-        <input type="range" id="humidityScale" min="300" max="6000" step="100" value="2000"></label>
+      <div class="hint" id="climateHint"></div>
     </div>
 
     <div class="panel">
@@ -183,19 +180,23 @@
     <code>εσT⁴</code> over the (larger) skin circumference — that single balance fixes the radiator
     temperature, and the reservoir/floor sit above it by the heat-pipe and contact ΔTs (heat flows
     <i>outward</i>, so the floor is always the warm end). <b>Temperature</b> hangs a dry centrifugal
-    adiabat (<code>cp·T+Φ=const</code>, <code>Φ=−½ω²r²</code>) off the floor and adds a radiative
-    inversion that warms the axis — crank it and "up" flips cold→hot. <b>Pressure</b> is centrifugal
-    hydrostatic balance <code>dP/dr=ρω²r</code> with the local temperature. <b>Humidity is solved,
-    not set:</b> the lakes are the vapour source (saturation over the open water), the cold
-    reservoir-cooled floor is the dew sink, and how humid the floor runs follows the <b>lake
-    coverage</b>; the <b>jets</b> don't make vapour, they ventilate — lofting floor moisture upward
-    (drying the floor, wetting the axis), conserving the water. <b>Fog</b> is wherever RH≥1. <b>Wind</b> is a
-    convective scale <code>(B·z_i)^⅓</code> choked by the inversion's stability, plus the jet sheet,
-    in a frame where Coriolis (<code>f=2ω</code>) dominates (Rossby ≪ 1). The inner rim carries the
+    adiabat (<code>cp·T+Φ=const</code>, <code>Φ=−½ω²r²</code>) off the floor; the <b>inversion is
+    solved, not set</b> — the axial sun absorbed by the greenhouse gases (chiefly the solved water
+    vapour, <code>τ=κW+τ₀</code>) is radiated from the warm axis to the cold floor,
+    <code>σ(T_axis⁴−T_floor⁴)=(1−e^−τ)F</code>, which is what makes "up" hot. <b>Pressure</b> is
+    centrifugal hydrostatic balance <code>dP/dr=ρω²r</code> with the local temperature. <b>Humidity
+    is solved, not set:</b> the lakes ARE the cold reservoir water, so they both source the vapour
+    and cap it (saturation over cold water) — the floor humidity follows the <b>lake coverage</b>;
+    the <b>vapour scale height is solved too</b>, as a buoyancy length <code>H_q≈MIX·w/N</code> set
+    by the mixing against the inversion's stability. The <b>jets</b> ventilate — lofting floor
+    moisture upward, conserving the water. <b>Fog</b> here is <b>mist over the cold lakes</b> (the
+    warm-floored bore is sub-saturated, so it's dew, not rain). <b>Wind</b> is a
+    convective scale <code>(B·z_i)^⅓</code> choked by the inversion's stability, plus the fountain's
+    induced breeze, in a frame where Coriolis (<code>f=2ω</code>) dominates (Rossby ≪ 1). The inner rim carries the
     <b>ratchet</b> topography — asymmetric teeth that let lakes (constant-radius arcs) sit at all.</p>
   </details>
   <p style="margin-top:14px">solver in <code>iris/sim/section.mjs</code> + <code>iris/sim/ratchet.mjs</code>
-  · contracts in <code>iris/test/*.selftest.mjs</code> (45 checks) · the end-on companion to the
+  · contracts in <code>iris/test/*.selftest.mjs</code> (50 checks) · the end-on companion to the
   <a href="https://tide.mino.mobi">tide</a> thermodynamics wing. pure static; runs in your browser.</p>
 </footer>
 
@@ -206,8 +207,7 @@ import * as ratchet from './sim/ratchet.mjs';
 const $ = (id) => document.getElementById(id);
 const C = {
   F_light: $('F_light'), gFloor: $('gFloor'), pipeDeltaT: $('pipeDeltaT'),
-  P_floor: $('P_floor'), invStrength: $('invStrength'),
-  humidityScale: $('humidityScale'), waterVolume: $('waterVolume'), jetExitSpeed: $('jetExitSpeed'),
+  P_floor: $('P_floor'), waterVolume: $('waterVolume'), jetExitSpeed: $('jetExitSpeed'),
 };
 let view = 'temp', fog = false, jets = false, sol = null, geo = null;
 const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -251,8 +251,6 @@ function readInputs() {
     gFloor: +C.gFloor.value,
     pipeDeltaT: +C.pipeDeltaT.value,
     P_floor: +C.P_floor.value * 1000,
-    invStrength: +C.invStrength.value,
-    humidityScale: +C.humidityScale.value,
     waterVolume: +C.waterVolume.value * 1e9,        // km³ → m³
     jetExitSpeed: +C.jetExitSpeed.value,
     jets,
@@ -361,12 +359,12 @@ function draw() {
     ctx.stroke();
   }
 
-  // 4. fog overlay (where RH ≥ 1)
-  if (fog && sm.hasFog) {
+  // 4. condensation overlay — bulk fog (RH≥1) or, the design's real fog, mist over the cold lakes
+  if (fog && sm.hasCond) {
     ctx.fillStyle = 'rgba(220,232,240,0.34)';
     ctx.beginPath();
-    ctx.arc(cx, cy, PX(sm.fogOuter), 0, 2 * Math.PI);
-    ctx.arc(cx, cy, PX(sm.fogInner), 0, 2 * Math.PI, true);
+    ctx.arc(cx, cy, PX(sm.condOuter), 0, 2 * Math.PI);
+    ctx.arc(cx, cy, PX(sm.condInner), 0, 2 * Math.PI, true);
     ctx.fill('evenodd');
   }
 
@@ -408,8 +406,9 @@ function render() {
   $('vG').textContent = (sm.gFloorActual / 9.80665).toFixed(2);
   $('vPipe').textContent = (+C.pipeDeltaT.value).toFixed(0);
   $('vP').textContent = (+C.P_floor.value).toFixed(1);
-  $('vInv').textContent = (+C.invStrength.value).toFixed(0);
-  $('vHq').textContent = (+C.humidityScale.value / 1000).toFixed(1);
+  $('climateHint').textContent = 'solved climate · inversion ' + sm.invStrength.toFixed(0)
+    + ' K (axis ' + (sm.T_axis - sm.T_floor >= 0 ? '+' : '') + (sm.T_axis - sm.T_floor).toFixed(0)
+    + ' K) · greenhouse τ ' + sm.opticalDepth.toFixed(2) + ' · vapour scale ' + (sm.vaporScaleHeight / 1000).toFixed(1) + ' km';
   $('vVol').textContent = (+C.waterVolume.value).toFixed(2);
   $('vJet').textContent = (+C.jetExitSpeed.value).toFixed(0);
   $('lakeHint').textContent = (sm.lakeOverflow
@@ -427,8 +426,10 @@ function render() {
   $('oUp').textContent = sm.upIsHot ? 'hot (axis ' + (sm.T_axis - sm.T_floor > 0 ? '+' : '') + (sm.T_axis - sm.T_floor).toFixed(1) + ' K)' : 'cold';
   $('oUp').className = sm.upIsHot ? 'warn' : 'w';
   $('oP').textContent = (sm.P_floor / 1000).toFixed(1) + ' → ' + (sm.P_axis / 1000).toFixed(1) + ' kPa';
-  $('oFog').textContent = sm.hasFog ? (sm.fogInner / 1000).toFixed(1) + '–' + (sm.fogOuter / 1000).toFixed(1) + ' km'
-    + (fog ? '' : ' (off)') : 'none';
+  $('oFog').textContent = sm.hasCond
+    ? (sm.mist && !sm.hasFog ? 'lake mist' : 'fog') + ' ' + (sm.condInner / 1000).toFixed(1) + '–'
+      + (sm.condOuter / 1000).toFixed(1) + ' km' + (fog ? '' : ' (off)')
+    : 'none (dew)';
   $('oRH').textContent = (sm.RH_axis * 100).toFixed(0) + ' / ' + (sm.RH_floor_actual * 100).toFixed(0) + ' %';
   $('oWind').textContent = sm.maxWind.toFixed(1) + ' m/s' + (jets ? ' (jets)' : '');
   $('oRo').textContent = sm.RossbyFloor.toFixed(3);

@@ -40,6 +40,16 @@ export const cp = 1005;            // dry-air heat capacity, J/kg/K
 export const EPS = Rd / Rv;        // 0.622
 export const SIGMA = 5.670374419e-8; // Stefan–Boltzmann, W/m²/K⁴
 
+// material/empirical constants for the SOLVED inversion (greenhouse) + vapour scale height
+// (turbulent mixing). These are physical properties, not design dials — the scenario knobs
+// (lights, water, spin, geometry) drive the climate through them.
+const KAPPA_SW = 0.012;            // sunlight absorbed per unit column water, m²/kg
+const TAU_BASE = 0.02;             // CO₂ + dry-air baseline absorption optical depth
+const MIX_EFF = 12;                // turbulent mixing efficiency (buoyancy-length multiplier)
+const W_MIN = 0.2;                 // residual mixing velocity, m/s
+const N_MIN = 1e-3;                // floor on the Brunt–Väisälä frequency, 1/s
+const HQ_MIN = 40, HQ_MAX = 6000;  // clamp on the vapour scale height, m
+
 // Saturation vapour pressure (Tetens), Pa; T in K.
 export function eSat(T) {
   const Tc = T - 273.15;
@@ -63,9 +73,7 @@ export function defaultParams() {
     pipeDeltaT: 5,              // reservoir above radiator: heat-pipe + shell drop, K
     floorDeltaT: 8,             // floor air above the reservoir sink, K
 
-    invStrength: 25,            // radiative inversion: extra warmth at the axis vs adiabat, K
     P_floor: 101325,            // habitat pressure at the floor, Pa
-    humidityScale: 2000,        // vapour e-folding height when stratified (jets off), m
 
     jets: false,                // fountain jets on/off
     jetExitSpeed: 120,          // jet WATER exit speed at the nozzle, m/s (axis-reach is ωR≈198)
@@ -98,33 +106,6 @@ export function solveSection(input = {}) {
   const powerIn = p.F_light * 2 * Math.PI * R_floor;                                  // W/m
   const powerOut = p.emissivity * SIGMA * (T_skin ** 4 - p.T_space ** 4) * 2 * Math.PI * R_skin;
 
-  // ── radial grids ───────────────────────────────────────────────────────────
-  const r = new Float64Array(N);
-  const g = new Float64Array(N);      // gravity, m/s²
-  const T = new Float64Array(N);      // temperature, K
-  const P = new Float64Array(N);      // pressure, Pa
-  const rho = new Float64Array(N);    // density, kg/m³
-  const adiabatSpan = (w2 * R_floor * R_floor) / (2 * cp);   // floor→axis adiabatic cooling, K
-
-  for (let i = 0; i < N; i++) {
-    const rr = (R_floor * i) / (N - 1);
-    r[i] = rr;
-    g[i] = gravityAt(omega, rr);
-    const Tad = T_floor - (w2 * (R_floor * R_floor - rr * rr)) / (2 * cp);  // cooler inward
-    T[i] = Tad + p.invStrength * (1 - rr / R_floor);                       // inversion warms axis
-  }
-
-  // pressure: integrate d(lnP)/dr = g/(Rd·T) inward from the floor (trapezoid in ln P)
-  const f = new Float64Array(N);
-  for (let i = 0; i < N; i++) f[i] = g[i] / (Rd * T[i]);
-  let lnP = Math.log(p.P_floor);
-  P[N - 1] = p.P_floor;
-  for (let i = N - 2; i >= 0; i--) {
-    lnP -= 0.5 * (f[i] + f[i + 1]) * (r[i + 1] - r[i]);   // r decreases ⇒ lnP decreases
-    P[i] = Math.exp(lnP);
-  }
-  for (let i = 0; i < N; i++) rho[i] = P[i] / (Rd * T[i]);
-
   // ── lakes: fill the ratchet basins with the water volume; topology sets the area ────
   const rp = { ...ratchetParams(), R_floor, teeth: p.teeth };
   const areaPerLength = p.waterVolume / Math.max(p.cylinderLength, 1);   // m² (cross-section)
@@ -132,39 +113,67 @@ export function solveSection(input = {}) {
   const lakeSurfaceArea = fill.surfaceArc * p.teeth * p.cylinderLength;  // m² of open water
   const lakeFrac = Math.min(1, (fill.surfaceArc * p.teeth) / (2 * Math.PI * R_floor)); // wetted floor
 
-  // ── humidity — SOLVED, not set: the lakes are the source, the cold floor the sink ──
-  // The floor air sits between two ceilings: saturation over the lakes (e_sat at the floor
-  // temperature — the wet source) and the dew point on the cold reservoir-cooled floor
-  // structures (e_sat at T_reservoir — the condensation sink). How close to saturation it
-  // runs is set by how much of the floor is open water: a coupling λ(lakeFrac). Jets don't
-  // enter here — they REDISTRIBUTE this vapour vertically (below), they don't make it.
+  // ── humidity SOURCE — solved, not set: the lakes ARE the cold reservoir water ──────
+  // The lakes are the reservoir water that feeds the heat pipes, so their surface sits at the
+  // cold reservoir temperature. They are therefore BOTH the evaporation source AND the
+  // condenser: floor vapour can't exceed saturation over that cold water, e_sat(T_reservoir) —
+  // the ceiling. With no open water the air is dry; more open water (lakeFrac) fills the floor
+  // air toward that cold-water ceiling. (The vertical PROFILE is solved below; jets redistribute.)
   const eSatFloor = eSat(T_floor);
-  const eDew = eSat(T_reservoir);                       // cold-sink dew pin (floor − floorDeltaT)
-  const coupling = 2.6 * lakeFrac;                      // more open water ⇒ closer to saturation
-  const lambda = coupling / (1 + coupling);
-  const eSource = lambda * eSatFloor + (1 - lambda) * eDew;
-  const RH_source = eSource / eSatFloor;                // the near-lake floor RH before mixing
+  const eCeiling = eSat(T_reservoir);                   // saturation over the cold lake water
+  const lambda = (10 * lakeFrac) / (1 + 10 * lakeFrac); // approach to the ceiling vs open-water area
+  const eSource = lambda * eCeiling;
+  const RH_source = eSource / eSatFloor;                // ≤ e_sat(T_reservoir)/e_sat(T_floor)
   const qFloor = (EPS * eSource) / (p.P_floor - eSource);
 
-  // stratified profile (jets off): vapour e-folds upward and is trapped near the floor
-  const qStrat = new Float64Array(N);
-  for (let i = 0; i < N; i++) qStrat[i] = qFloor * Math.exp(-(R_floor - r[i]) / p.humidityScale);
+  // ── radial grids + the convective scale (independent of the inversion) ──────────────
+  const r = new Float64Array(N);      // radius, m
+  const g = new Float64Array(N);      // gravity, m/s²
+  const T = new Float64Array(N);      // temperature, K
+  const P = new Float64Array(N);      // pressure, Pa
+  const rho = new Float64Array(N);    // density, kg/m³
+  const qStrat = new Float64Array(N); // stratified specific humidity, kg/kg
+  for (let i = 0; i < N; i++) { r[i] = (R_floor * i) / (N - 1); g[i] = gravityAt(omega, r[i]); }
+  const adiabatSpan = (w2 * R_floor * R_floor) / (2 * cp);     // floor→axis adiabatic cooling, K
+  const Tadiabat = (rr) => T_floor - (w2 * (R_floor * R_floor - rr * rr)) / (2 * cp);
+  const rhoFloor = p.P_floor / (Rd * T_floor);
+  const buoyFlux = (p.gFloor / T_floor) * (p.F_light / (rhoFloor * cp));   // m²/s³
+  const wStar = Math.cbrt(Math.max(0, buoyFlux) * R_floor);               // convective scale, m/s
+  const integ2pi = (fn) => { let a = 0; for (let i = 1; i < N; i++) a += 0.5 * (fn(i - 1) + fn(i)) * (r[i] - r[i - 1]); return 2 * Math.PI * a; };
 
-  // total vapour mass per unit length (∫ q·ρ·2πr dr) — the conserved quantity
-  const vaporMass = (arr) => {
-    let acc = 0;
-    for (let i = 1; i < N; i++) {
-      const a = arr[i - 1] * rho[i - 1] * r[i - 1], b = arr[i] * rho[i] * r[i];
-      acc += 0.5 * (a + b) * (r[i] - r[i - 1]);
+  // ── SOLVE the inversion AND the vapour scale height together (a small fixed point) ──
+  // The axial sun is partly absorbed by the greenhouse gases — chiefly the water vapour iris
+  // just solved — and that absorbed flux must be radiated from the warm axis to the cold floor,
+  // which sets the INVERSION: σ(T_axis⁴ − T_floor⁴) = (1−e^−τ)·F_light, τ = κ·W + τ_base. The
+  // same inversion's stability sets how deep turbulence carries the moisture — the VAPOUR SCALE
+  // HEIGHT as a buoyancy length H_q ≈ MIX·w_mix/N — which sets the water column W, which sets τ.
+  // Deeper moist layers thin as the inversion strengthens (negative feedback), so it converges.
+  const state = (inv) => {
+    for (let i = 0; i < N; i++) T[i] = Tadiabat(r[i]) + inv * (1 - r[i] / R_floor);
+    let lnP = Math.log(p.P_floor); P[N - 1] = p.P_floor;
+    for (let i = N - 2; i >= 0; i--) {
+      const f0 = g[i] / (Rd * T[i]), f1 = g[i + 1] / (Rd * T[i + 1]);
+      lnP -= 0.5 * (f0 + f1) * (r[i + 1] - r[i]); P[i] = Math.exp(lnP);
     }
-    return 2 * Math.PI * acc;
+    for (let i = 0; i < N; i++) rho[i] = P[i] / (Rd * T[i]);
+    const stab = 1 / (1 + inv / Math.max(1, adiabatSpan));
+    const Nbv = Math.sqrt(Math.max(0, (p.gFloor / T_floor) * (inv / R_floor)));   // Brunt–Väisälä
+    const Hq = Math.max(HQ_MIN, Math.min(HQ_MAX, (MIX_EFF * (wStar * stab + W_MIN)) / Math.max(Nbv, N_MIN)));
+    for (let i = 0; i < N; i++) qStrat[i] = qFloor * Math.exp(-(R_floor - r[i]) / Hq);
+    const tv = integ2pi((i) => qStrat[i] * rho[i] * r[i]);
+    const W = tv / (2 * Math.PI * R_floor);                  // precipitable water, kg/m²
+    const tau = KAPPA_SW * W + TAU_BASE;
+    const absFrac = 1 - Math.exp(-tau);                      // sunlight absorbed in the air
+    const Taxis = Math.pow(T_floor ** 4 + (absFrac * p.F_light) / SIGMA, 0.25);
+    const invNew = Math.max(0, Taxis - (T_floor - adiabatSpan));
+    return { stab, Nbv, Hq, totalVapor: tv, W, tau, absFrac, invNew };
   };
-  const dryMass = (() => {           // ∫ ρ·2πr dr, to spread vapour over when well-mixed
-    let acc = 0;
-    for (let i = 1; i < N; i++) acc += 0.5 * (rho[i - 1] * r[i - 1] + rho[i] * r[i]) * (r[i] - r[i - 1]);
-    return 2 * Math.PI * acc;
-  })();
-  const totalVapor = vaporMass(qStrat);
+  let inv = 0, st = state(0);
+  for (let it = 0; it < 12; it++) { st = state(inv); inv = inv + 0.6 * (st.invNew - inv); }
+  st = state(inv);                                           // final consistent pass
+  const invStrength = inv, stability = st.stab, BruntN = st.Nbv, humidityScale = st.Hq;
+  const totalVapor = st.totalVapor, precipWater = st.W, opticalDepth = st.tau, absorbedFraction = st.absFrac;
+  const dryMass = integ2pi((i) => rho[i] * r[i]);            // ∫ρ·2πr dr, to spread vapour when mixed
 
   const q = new Float64Array(N);
   if (p.jets) {
@@ -191,6 +200,18 @@ export function solveSection(input = {}) {
   }
   const hasFog = fogOuter >= fogInner;
 
+  // Lake mist — the design's real fog. The bore air is sub-saturated against the WARM floor, so
+  // bulk fog is rare; but the air over the COLD lake water nears saturation as the lakes grow
+  // (its RH measured against the lake/reservoir temperature is λ). Above ~0.8 it condenses as
+  // advection mist in a shallow layer hugging the lakes — dew/mist, not rain.
+  const mist = lambda > 0.78;
+  const mistDepth = mist ? Math.min(0.3 * humidityScale, 500) : 0;
+  // condensation band for the observable = bulk fog ∪ lake mist
+  const hasCond = hasFog || mist;
+  const condInner = hasFog ? (mist ? Math.min(fogInner, R_floor - mistDepth) : fogInner)
+    : (mist ? R_floor - mistDepth : null);
+  const condOuter = hasFog ? fogOuter : (mist ? R_floor : null);
+
   // ── the fountain (borrowed ballistic solver) ───────────────────────────────
   // The jet's ballistic trajectory tells us whether it escapes to the axis (it does NOT
   // unless v0 ≥ the axis-reach speed ωR), and `inducedWind` tells us the AMBIENT breeze the
@@ -205,10 +226,8 @@ export function solveSection(input = {}) {
   const breeze = p.jets ? iw.wInversion : 0;          // the ambient fountain breeze, m/s
 
   // ── wind ───────────────────────────────────────────────────────────────────
-  const rhoFloor = p.P_floor / (Rd * T_floor);
-  const buoyFlux = (p.gFloor / T_floor) * (p.F_light / (rhoFloor * cp));    // m²/s³
-  const wStar = Math.cbrt(Math.max(0, buoyFlux) * R_floor);                 // convective scale, m/s
-  const stability = 1 / (1 + p.invStrength / Math.max(1, adiabatSpan));     // inversion chokes convection
+  // wStar (convective scale) and stability come from the solve above; the inversion that chokes
+  // convection is the SOLVED one.
   const fCor = 2 * omega;                                                   // Coriolis parameter, 1/s
   const breezeScale = Math.max(150, fsim.apexDepth);   // breeze decays over the plume's reach
 
@@ -242,10 +261,13 @@ export function solveSection(input = {}) {
       energyResidual: Math.abs(powerIn - powerOut),   // ~0 by construction
       T_skin, T_reservoir, T_floor, T_axis: T[0],
       adiabatSpan, upIsHot: T[0] > T_floor,
+      // the SOLVED inversion (radiative greenhouse) + its vapour scale height (turbulent mixing)
+      invStrength, opticalDepth, absorbedFraction, precipWater, BruntN, vaporScaleHeight: humidityScale,
       // pressure
       P_floor: p.P_floor, P_axis: P[0], pRatio: P[N - 1] / P[0],
       // humidity (solved from lakes + redistributed by jets — not an input)
-      qFloor, totalVapor, hasFog, lakeFrac, RH_source,
+      qFloor, totalVapor, hasFog, lakeFrac, RH_source, lakeSatApproach: lambda,
+      hasCond, mist, condInner, condOuter,
       fogInner: hasFog ? fogInner : null, fogOuter: hasFog ? fogOuter : null,
       RH_axis: RH[0], RH_floor_actual: RH[N - 1],
       // wind (ambient: convective + the fountain's induced breeze — never the jet exit speed)
