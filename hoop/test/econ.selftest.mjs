@@ -1,6 +1,6 @@
 // econ.selftest.mjs — pins the economy-as-ecosystem kernel (hoop/econ/econ.js).
 // Run: node hoop/test/econ.selftest.mjs
-import { buildField, makePlace, ROLES, ROLE_MIX, DOMAINS } from '../econ/econ.js';
+import { buildField, buildSociety, makePlace, ROLES, ROLE_MIX, DOMAINS } from '../econ/econ.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -45,6 +45,31 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   ok(a.places.length === b.places.length && a.edges.length === b.edges.length && a.closure === b.closure, 'buildField is deterministic for a given seed');
   const c = buildField({ W: 800, H: 600, count: 900, seed: 10 });
   ok(c.places.length !== a.places.length || c.places[0].role !== a.places[0].role || c.closure !== a.closure, 'a different seed gives a different economy');
+}
+
+// ── PEOPLE WEAR MANY HATS — interaction thickness ──
+{
+  const f = buildField({ W: 1200, H: 800, count: 1500, seed: 5 });
+  const s = buildSociety(f, { hh: 3, seed: 5 });
+  ok(s.people.length > 100, 'a society of people forms over the dwellings');
+  ok(s.people.every((p) => p.hats.length >= 1 && p.home != null && p.name), 'every person has a home, a name and at least one hat');
+  ok(s.avgHats > 1.6, 'the average person wears several hats (multiplexity, got ' + s.avgHats.toFixed(2) + ')');
+  ok(s.thirdsFrac > 0 && s.thirdsFrac < 1, 'a fraction keep a "third place" (worship/club/sport) — the social-capital tell');
+  // a Jim exists: someone with work + garden + a third place (≥3 hats)
+  ok(s.people.some((p) => p.hats.length >= 3 && p.hats.some((h) => h.kind === 'work') && p.hats.some((h) => h.kind === 'home garden')), 'a "Jim" exists — work + home garden + more');
+  // every affiliation points at a real place
+  const ids = new Set(f.places.map((p) => p.id));
+  ok(s.people.every((p) => p.hats.every((h) => ids.has(h.place))), 'every hat references a real place');
+  // thickness ⇒ shared membership: third places have multiple members (overlap, not atomised)
+  const shared = [...s.placeMembers.values()].filter((m) => m.length >= 2).length;
+  ok(shared > 0, 'places gather overlapping memberships (the fabric weaves)');
+}
+
+// ── society is deterministic ──
+{
+  const f = buildField({ W: 800, H: 600, count: 900, seed: 7 });
+  const a = buildSociety(f, { seed: 7 }), b = buildSociety(f, { seed: 7 });
+  ok(a.people.length === b.people.length && a.affiliations === b.affiliations && a.avgHats === b.avgHats, 'buildSociety is deterministic');
 }
 
 console.log(`econ.selftest: ${pass} passed, ${fail} failed`);

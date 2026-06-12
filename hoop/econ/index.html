@@ -42,20 +42,22 @@
     <div class="top"><span class="logo">▦ econ</span><span class="tag">economies as ecosystems</span><a class="back" href="/">◍ hoop</a></div>
     <label class="fld">places <span class="v" id="v-n">1600</span><input type="range" id="n" min="300" max="4000" step="100" value="1600"></label>
     <label class="fld">colour by
-      <select id="by"><option value="role" selected>role (the verb)</option><option value="domain">domain (the matter)</option><option value="tier">tier (central-place rank)</option></select>
+      <select id="by"><option value="role" selected>role (the verb)</option><option value="domain">domain (the matter)</option><option value="tier">tier (central-place rank)</option><option value="social">social thickness (members)</option></select>
     </label>
     <label class="row"><input type="checkbox" id="t-flow"> show the supply web</label>
+    <label class="row"><input type="checkbox" id="t-fab"> show the social fabric (shared places)</label>
     <label class="row"><input type="checkbox" id="t-glyph"> show glyphs</label>
     <button id="regen">⟲ regenerate economy</button>
-    <div class="read">places <b id="r-n">—</b> · web <b id="r-e">—</b> edges<br>closure <b id="r-c">—</b> <span id="r-cn"></span></div>
+    <div class="read">places <b id="r-n">—</b> · web <b id="r-e">—</b> edges · closure <b id="r-c">—</b> <span id="r-cn"></span><br>people <b id="r-p">—</b> · avg hats <b id="r-h">—</b> · third-place <b id="r-t">—</b></div>
+    <div class="read" id="inspect">click a place to see who's there</div>
     <div class="legend" id="legend"></div>
   </div>
   <div id="stage"><canvas id="cv"></canvas><div id="busy">building…</div></div>
 
   <script type="module">
-    import { buildField, ROLES, DOMAINS } from './econ.js';
+    import { buildField, buildSociety, ROLES, DOMAINS } from './econ.js';
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
-    let field = null, seed = 1, W = 0, H = 0, dpr = 1;
+    let field = null, society = null, seed = 1, W = 0, H = 0, dpr = 1;
 
     const roleColor = (r) => (ROLES[r] || {}).color || '#888';
     const domHue = {}; DOMAINS.forEach((d, i) => domHue[d.id] = (i * 36) % 360);
@@ -63,6 +65,7 @@
       const by = $('by').value;
       if (by === 'role') return c.color;
       if (by === 'domain') return c.domain ? `hsl(${domHue[c.domain]} 55% 45%)` : '#2a2f35';
+      if (by === 'social') { const m = (society && society.placeMembers.get(c.id)) ? society.placeMembers.get(c.id).length : 0; const t = Math.min(1, Math.log2(1 + m) / 4); return `hsl(28 ${(20 + t * 60).toFixed(0)}% ${(10 + t * 40).toFixed(0)}%)`; }
       return ['#2a2f35', '#7a6a3a', '#b04a2a', '#cfd2c8'][c.tier] || '#444'; // tier 1/2/3
     }
     function poly(p) { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); }
@@ -76,10 +79,16 @@
       // thin brutalist cell lines
       ctx.lineWidth = 0.6; ctx.strokeStyle = '#0a0c10';
       for (const c of field.cells) { if (c.poly.length < 3) continue; poly(c.poly); ctx.stroke(); }
-      // the supply web
+      // the supply web (materials)
       if ($('t-flow').checked) {
         ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(223,231,226,0.16)'; ctx.beginPath();
         for (const e of field.edges) { ctx.moveTo(e.fx, e.fy); ctx.lineTo(e.tx, e.ty); }
+        ctx.stroke();
+      }
+      // the social fabric (people: home → each hat). The overlap IS the thickness.
+      if ($('t-fab').checked && society) {
+        ctx.lineWidth = 0.4; ctx.strokeStyle = 'rgba(200,83,160,0.12)'; ctx.beginPath();
+        for (const p of society.people) for (const h of p.hats) { if (h.x === p.x && h.y === p.y) continue; ctx.moveTo(p.x, p.y); ctx.lineTo(h.x, h.y); }
         ctx.stroke();
       }
       // glyphs (only when cells are big enough to read)
@@ -94,11 +103,15 @@
       $('busy').classList.add('on');
       requestAnimationFrame(() => {
         field = buildField({ W, H, count: +$('n').value, seed });
+        society = buildSociety(field, { seed });
         $('v-n').textContent = $('n').value;
         $('r-n').textContent = field.places.length.toLocaleString();
         $('r-e').textContent = field.edges.length.toLocaleString();
         $('r-c').textContent = (field.closure * 100).toFixed(0) + '%';
         $('r-cn').textContent = '(' + field.met + '/' + field.need + ' needs)';
+        $('r-p').textContent = society.people.length.toLocaleString();
+        $('r-h').textContent = society.avgHats.toFixed(2);
+        $('r-t').textContent = (society.thirdsFrac * 100).toFixed(0) + '%';
         // legend with live counts
         $('legend').innerHTML = Object.keys(ROLES).map((r) => `<span><span class="sw" style="background:${roleColor(r)}"></span>${ROLES[r].glyph} ${r} <span class="n">${field.counts[r] || 0}</span></span>`).join('');
         draw();
@@ -108,9 +121,22 @@
     let deb = null; const schedule = () => { clearTimeout(deb); deb = setTimeout(rebuild, 120); };
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); const r = cv.parentElement.getBoundingClientRect(); W = Math.max(160, Math.floor(r.width)); H = Math.max(160, Math.floor(r.height)); cv.width = W * dpr; cv.height = H * dpr; schedule(); }
 
+    const hatStr = (p) => p.hats.map((h) => (h.kind === 'work' ? h.role + (h.domain ? '·' + h.domain : '') : h.kind)).join(', ');
+    cv.addEventListener('click', (e) => {
+      if (!field || !society) return;
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      let best = null, bd = Infinity; for (const pl of field.places) { const d = (pl.x - x) ** 2 + (pl.y - y) ** 2; if (d < bd) { bd = d; best = pl; } }
+      if (!best) return;
+      const mem = society.placeMembers.get(best.id) || [];
+      const head = `${best.glyph} ${best.role}${best.domain ? '·' + best.domain : ''} — ${mem.length} ${mem.length === 1 ? 'person' : 'people'}`;
+      const lines = mem.slice(0, 7).map((i) => `· ${society.people[i].name}: ${hatStr(society.people[i])}`);
+      $('inspect').innerHTML = '<b>' + head + '</b><br>' + (lines.join('<br>') || 'a quiet place');
+    });
+
     $('n').addEventListener('input', () => { $('v-n').textContent = $('n').value; schedule(); });
     $('by').addEventListener('change', draw);
     $('t-flow').addEventListener('change', draw);
+    $('t-fab').addEventListener('change', draw);
     $('t-glyph').addEventListener('change', draw);
     $('regen').addEventListener('click', () => { seed = (seed * 1664525 + 1013904223) >>> 0; rebuild(); });
     window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 120); });

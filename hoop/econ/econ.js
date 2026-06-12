@@ -75,3 +75,45 @@ export function buildField({ W, H, count, seed = 1 }) {
   const counts = {}; for (const pl of places) counts[pl.role] = (counts[pl.role] || 0) + 1;
   return { W, H, spacing, places, cells, edges, counts, need, met, closure: need ? met / need : 1 };
 }
+
+// ── PEOPLE WEAR MANY HATS — the thing that makes the web THICK ─────────────────────────────
+// A person isn't a role; they're a bundle of affiliations across places & time: Jim = mend@chopshop
+// + grow@home + worship@chapel + learn@toastmasters. Interaction thickness (avg hats/person, how
+// memberships overlap) is the economic cousin of ecological CONNECTANCE — thin webs are brittle,
+// thick ones hold (the Biosphere-2 lesson). buildSociety lays people over a field and gives each a
+// home, an occupation near it, and a spread of avocations (a "third place" or two). Deterministic.
+const NAMES = ['Jim', 'Mara', 'Otto', 'Lena', 'Cy', 'Wren', 'Bo', 'Ada', 'Tomas', 'Ines', 'Hal', 'Rosa', 'Gus', 'Pia', 'Ned', 'Suki', 'Cole', 'Mir', 'Vale', 'Ruth', 'Sol', 'Nova', 'Bram', 'Esa', 'Jun', 'Liv', 'Cato', 'Wynn', 'Dax', 'Fenn'];
+const WORKING = ['make', 'mend', 'trade', 'grow', 'serve', 'heal', 'learn', 'store', 'move', 'govern'];
+const THIRD_KINDS = new Set(['worship', 'club', 'sport']);
+
+export function buildSociety(field, { hh = 3, seed = 1 } = {}) {
+  const rng = mulberry32((seed ^ 0x5bd1e995) >>> 0);
+  const places = field.places;
+  const working = places.filter((p) => WORKING.includes(p.role));
+  const worship = places.filter((p) => p.role === 'worship');
+  const clubs = places.filter((p) => p.role === 'learn' || p.role === 'serve');
+  const sports = places.filter((p) => p.role === 'play');
+  const nearest = (list, x, y) => { let best = null, bd = Infinity; for (const p of list) { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = p; } } return best; };
+  const people = [], placeMembers = new Map();
+  const join = (person, place, role, kind) => { person.hats.push({ place: place.id, role, kind, x: place.x, y: place.y, domain: place.domain }); let m = placeMembers.get(place.id); if (!m) { m = []; placeMembers.set(place.id, m); } m.push(person.idx); };
+  let idx = 0;
+  for (const home of places) {
+    if (home.role !== 'dwell') continue;
+    const n = 1 + Math.floor(rng() * (2 * hh - 1));
+    for (let k = 0; k < n; k++) {
+      const person = { idx: idx++, name: NAMES[Math.floor(rng() * NAMES.length)], home: home.id, x: home.x, y: home.y, hats: [] };
+      // occupation: nearest among a random handful of working places (locality + variety)
+      if (working.length) { let pick = null, bd = Infinity; for (let t = 0; t < 6; t++) { const w = working[Math.floor(rng() * working.length)]; const d = (w.x - home.x) ** 2 + (w.y - home.y) ** 2; if (d < bd) { bd = d; pick = w; } } if (pick) join(person, pick, pick.role, 'work'); }
+      // avocations — the other hats
+      if (rng() < 0.45) join(person, home, 'grow', 'home garden');                                   // Jim's garden
+      if (worship.length && rng() < 0.30) { const c = nearest(worship, home.x, home.y); if (c) join(person, c, c.role, 'worship'); }
+      if (clubs.length && rng() < 0.45) { const c = nearest(clubs, home.x, home.y); if (c) join(person, c, c.role, 'club'); }  // toastmasters
+      if (sports.length && rng() < 0.30) { const c = nearest(sports, home.x, home.y); if (c) join(person, c, c.role, 'sport'); }
+      people.push(person);
+    }
+  }
+  const aff = people.reduce((s, p) => s + p.hats.length, 0);
+  const thirds = people.filter((p) => p.hats.some((h) => THIRD_KINDS.has(h.kind))).length;
+  return { people, placeMembers, affiliations: aff, avgHats: people.length ? aff / people.length : 0, thirdsFrac: people.length ? thirds / people.length : 0 };
+}
+

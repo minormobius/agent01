@@ -58,9 +58,13 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   `hoop.mino.mobi/econ/`. A place is the economic cousin of a biome species: a **role** (verb) × a
   **domain** (matter) × **flows** (`in`/`out` resource tokens). `buildField()` scatters a big field,
   Voronoi-tiles it (reuses `paint/voronoi.js` primitives) and wires each `in` to its nearest `out` —
-  a **supply web** you read like a food web (closure %, gaps, keystones). Post-scarcity tell: the
-  real output is `regard` (the ATProto economy of esteem). Brutalist render (flat cells, thin lines,
-  the web as faint edges); colour by role/domain/tier. Pure + node-tested (`test/econ.selftest.mjs`).
+  a **supply web** you read like a food web (closure %, gaps, keystones). `buildSociety()` lays
+  **people who wear many hats** over it — Jim = mend@chopshop + grow@home + worship + learn@toastmasters
+  — the multiplex affiliation graph whose **interaction thickness** (avg hats/person) is the economic
+  cousin of ecological connectance (thin webs are brittle). Post-scarcity tell: the real output is
+  `regard` (the ATProto economy of esteem). Brutalist render (flat cells, thin lines, supply web +
+  social fabric as faint edges, click a place to see who's there); colour by role/domain/tier/social.
+  Pure + node-tested (`test/econ.selftest.mjs`, 24 checks incl. multi-hat thickness).
   **Ideation stage** — the real build is intended for a fresh `main` later; this is the sketchpad.
 
 ## The package it belongs to
