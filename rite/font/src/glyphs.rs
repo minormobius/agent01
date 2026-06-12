@@ -137,9 +137,10 @@ pub fn notdef(p: &Params) -> Glyph {
 }
 
 pub fn glyph_for(c: char, p: &Params) -> Glyph {
-    // Prototype: a handful of glyphs are built by the skeleton-stroke "pen model"
-    // (real contrast on curves, joined arches). Everything else falls through to
-    // the primitive builder below.
+    // The whole Latin alphabet is now built by the skeleton-stroke "pen model"
+    // (`pen.rs`) — real contrast on curves, joined arches. The primitive builder
+    // below is kept as the fallback for space + punctuation (and as a reference
+    // implementation) and is reached only for those.
     if let Some(g) = crate::pen::glyph_for(c, p) {
         return g;
     }

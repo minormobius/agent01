@@ -94,7 +94,7 @@ fn pen_model_glyphs_outline_across_seeds() {
         let bytes = minofont::build_font(seed);
         let face = Face::parse(&bytes, 0)
             .unwrap_or_else(|_| panic!("seed {seed:?} did not parse"));
-        for c in "OCocen".chars() {
+        for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".chars() {
             let gid = face
                 .glyph_index(c)
                 .unwrap_or_else(|| panic!("seed {seed:?}: no cmap entry for {c:?}"));

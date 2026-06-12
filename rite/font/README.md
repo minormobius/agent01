@@ -42,8 +42,8 @@ seed string ──xmur3──► u32 ──mulberry32──► Params (the genom
 | `src/prng.rs` | `xmur3` + `mulberry32` — deterministic seed → numbers |
 | `src/params.rs` | The design space: seed → parameter vector (the "genome") |
 | `src/geom.rs` | Outline primitives (rects, ellipses, stroked arcs, winding) |
-| `src/glyphs.rs` | Parametric letterforms (primitive builder: rects/quads/rings/straps) |
-| `src/pen.rs` | Skeleton-stroke "pen model" — centerline swept by a broad nib (prototype: `O C o c e n`) |
+| `src/glyphs.rs` | Primitive builder (rects/quads/rings/straps) — now only space + punctuation + `.notdef`; the letter arms remain as reference/fallback |
+| `src/pen.rs` | Skeleton-stroke "pen model" — centerline swept by a broad nib; builds the **whole Latin alphabet** (upper + lower) |
 | `src/sfnt.rs` | Dependency-free TrueType serializer → `.ttf` bytes |
 | `src/lib.rs` | `roll(seed) → Uint8Array`, `describe(seed) → JSON` (wasm-bindgen) |
 | `tests/valid.rs` | Validity gate (parses output with `ttf-parser`) |
@@ -79,10 +79,12 @@ Next layers (the seed/permalink foundation is built for them):
 3. **Phylogeny view** — render the lineage tree of a breeding session (reusing
    `read/pendragon`'s SVG phylogeny + `phylo/`), plus the historical Vox-ATypI
    placement of where a given roll sits in type history.
-4. **Pen-model letterforms** — *prototype landed* in `src/pen.rs`. Instead of
-   bolting filled primitives together, a glyph is a centerline skeleton swept by
-   a broad nib whose thickness modulates with stroke direction (`pen_angle` +
-   `stem`/`thin` from the genome). Curves get real contrast and arches join
-   their stems for free. Currently wired to `O C o c e n` so the difference
-   shows next to the primitive letters; next is converting the rest of the
-   alphabet, edged-pen corners/terminals, and serifs on curved stems.
+4. **Pen-model letterforms** — *landed* in `src/pen.rs`, now covering the
+   **whole Latin alphabet** (upper + lower). Instead of bolting filled
+   primitives together, a glyph is a centerline skeleton swept by a broad nib
+   whose thickness modulates with stroke direction (`pen_angle` + `stem`/`thin`
+   from the genome). Curves get real contrast, arches join their stems for free,
+   and `S`/`s` are a tangent-continuous two-bowl spine. Space + punctuation stay
+   on the primitive builder. Open refinements (driven by eyeballing live rolls):
+   edged-pen corners on terminals, mitred apexes on the diagonal caps
+   (`A V W M N K X Y Z`), and Bézier-refitting the dense offset polylines.
