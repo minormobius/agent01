@@ -5,8 +5,6 @@ on:
     branches:
       - main
       - 'claude/landing-projects-takeover-pKkmW'
-      - 'claude/world-cup-odds-bracket-alrup4'
-      - 'claude/open-source-font-generator-yfmr0c'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'
