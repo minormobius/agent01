@@ -56,20 +56,43 @@ message is an ATProto record. The canvas is the engine surface; the right rail i
   the page only draws what `buildScene()` returns. A sandbox to iterate the look before world.js.
 - `econ/` (`econ/index.html` + `econ/econ.js`) — **economies as ecosystems**, the ideation canvas at
   `hoop.mino.mobi/econ/`. A place is the economic cousin of a biome species: a **role** (verb) × a
-  **domain** (matter) × **flows** (`in`/`out` resource tokens). `buildField()` scatters a big field,
-  Voronoi-tiles it (reuses `paint/voronoi.js` primitives) and wires each `in` to its nearest `out` —
-  a **supply web** you read like a food web (closure %, gaps, keystones). `buildSociety()` lays
-  **people who wear many hats** over it — Jim = mend@chopshop + grow@home + worship + learn@toastmasters
-  — the multiplex affiliation graph whose **interaction thickness** (avg hats/person) is the economic
-  cousin of ecological connectance (thin webs are brittle). `socialMetrics()` scores each place
-  **bridge vs bond** (Granovetter weak ties: does it introduce strangers, or just re-link an
-  overlapping clique) + global `avgReach`; households share a parish/local club (bonds) with eclectic
-  far ties (bridges). `removeImpact()` is the two-web shock — remove a place, see ties break +
-  orphaned (people) AND needs at risk + rerouted (materials). Post-scarcity tell: the real output is
-  `regard` (the ATProto economy of esteem). Brutalist render (flat cells, thin lines, supply web +
-  social fabric as faint edges; click a place → who's there, its weave %, and the shock); colour by
-  role/domain/tier/social/bridging. Pure + node-tested (`test/econ.selftest.mjs`, 32 checks).
-  **Ideation stage** — the real build is intended for a fresh `main` later; this is the sketchpad.
+  **domain** (matter) × **flows** (`in`/`out` resource tokens). The kernel mirrors biome/gacha's
+  **deck → roll → oracle** arc: a *genome* breeds a town from a seed, and a viability oracle scores it.
+  - **`buildWorld()` — buildings are CLUMPS of cells, sized by function.** The world is a *fine cell
+    field* (far more cells than people — rooms, yards, corridors); cells agglomerate up into
+    **buildings** whose **footprint** (cell count) is set by role: a dwelling ≈ 4 cells, a parish ≈ 18,
+    a hospital ≈ 40, a council hall ≈ 46. Done with paint's graph-Voronoi (`assignZones`), weights
+    `fp^0.65` (linearises its super-linear sizing so footprints track targets). Each building owns a
+    connected clump + a centroid; a **building-adjacency graph + spanning-tree path network** makes it
+    **mechanically pathable** (`route(world, a, b)` BFS = home→clinic). Buildings ARE the "places" the
+    supply web and society run over, so `buildSociety`/`socialMetrics`/`removeImpact` consume the same
+    shape `buildField` produced and work unchanged. (Legacy `buildField()` — one cell per place — stays
+    for back-compat.)
+  - **The social genome.** `DEFAULT_GENOME` (wild type) + `rollGenome(n)` (the "pull"): a seed-stable
+    parameter bundle — role mix (the programme), `FOOTPRINT` (building size by function), households,
+    affiliation propensities. A society is fully determined by `(genome, seed)` ⇒ atproto-stable.
+    Rolls pick a **society archetype** (`ARCHETYPES`: balanced · dormitory · company · commons) that
+    pulls *correlated* genes — independent jitter is mean-preserving (the multiplex web is robust to
+    noise), so archetypes are how the genome breeds genuinely different towns.
+  - **The vitality oracle.** `scoreSociety()` → one `vitality` 0..100 + a tier (Thriving · Healthy ·
+    Stable · Fragile · Failing), the econ cousin of biome `score.mjs`. Sub-signals: supply closure ·
+    thickness (multiplexity) · weave (reach) · bridges (weak-tie share) · third-places · employment ·
+    resilience (avg hub-removal damage). It ranks the archetypes (commons > balanced > company >
+    dormitory). *Calibration TODO (cf. biome's): natural rolls cluster Healthy/Thriving because the
+    generation is structurally robust; breeding Fragile/Failing archetypes + tuning the tier bands is
+    the next pass.*
+
+  `buildSociety()` lays **people who wear many hats** — Jim = mend@chopshop + grow@home + worship +
+  learn@toastmasters — the multiplex affiliation graph whose **interaction thickness** (avg hats/person)
+  is the cousin of ecological connectance. `socialMetrics()` scores each place **bridge vs bond**
+  (Granovetter weak ties) + global `avgReach`. `removeImpact()` is the two-web shock — remove a place,
+  see ties break + orphaned (people) AND needs at risk + rerouted (materials). Post-scarcity tell: the
+  real output is `regard`. Brutalist render (cell substrate filled by owning-building colour so clumps
+  read; supply web · social fabric · path network as faint overlays; click a building → who's there,
+  its footprint, weave %, and the shock); colour by role/domain/tier/**footprint**/social/bridging; a
+  **🧬 roll genome** button pulls a new town + live vitality readout. Pure + node-tested
+  (`test/econ.selftest.mjs`, 65 checks). **Ideation stage** — the real build is intended for a fresh
+  `main` later; this is the sketchpad.
 
 ## The package it belongs to
 
