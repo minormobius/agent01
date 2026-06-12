@@ -76,6 +76,27 @@ ok(!!city && !outbox.some((m) => m.type === 'error'), 'build produces a city mes
   ok(c2.stats.buildings !== city.stats.buildings || c2.stats.people !== city.stats.people, 'the rolled genome builds a different town');
 }
 
+// ── shapes + the role-isolation lens payload ──
+{
+  ok(city.roleIdx instanceof Int8Array && city.roleIdx.length === city.N, 'a per-chamber role index ships (the role-isolation lens)');
+  ok(Array.isArray(city.roles) && city.roles.length > 5, 'the role list ships with it');
+  let coherent = true;
+  for (let i = 0; i < city.N; i++) {
+    const ri = city.roleIdx[i], o = city.owner[i];
+    if (o === -1 && ri !== -1) coherent = false;
+    if (o === -2 && ri !== -2) coherent = false;
+    if (o >= 0 && (ri < 0 || ri >= city.roles.length)) coherent = false;
+  }
+  ok(coherent, 'roleIdx is coherent with the owner map (road/void/building)');
+  ok(city.bill.every((b) => typeof b.role === 'string'), 'billboards carry their role (glyph filtering)');
+  // a different SHAPE flows through: shallower shell, thicker axially
+  outbox.length = 0;
+  send({ type: 'build', seed: 1, n: 0, opt: { arcDeg: 5, T: 24, axial: 12 } });
+  const cs = outbox.find((m) => m.type === 'city');
+  ok(!!cs && cs.dims.T === 24 && cs.dims.Ri === 250, 'a custom foamslice shape flows through to the dims (T=' + (cs && cs.dims.T) + ')');
+  ok(cs.N !== city.N, 'a different shape is a different foam');
+}
+
 // ── the GROWN build: foam first, one message per round, then the same city payload ──
 {
   outbox.length = 0;

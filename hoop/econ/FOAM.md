@@ -138,6 +138,59 @@ treatment, farms; give each a per-sector *program* (a genome gene): residential 
 streets + one sequestered door; industry/utility = sparse freight roads + docks + restricted
 access; market = porous, many doors. Sector boundaries become the natural arterials.
 
+## Sector shapes + role isolation (SHIPPED on /econ/foam/)
+
+The `/econ/foam/` page now carries a **shape** selector (`?shape=`): `core` (the canonical foamview
+core-sample, 18°·50r·10ax), `block` (volumetric — 10°·28r·28ax, trading arc + outer-hull depth for
+axial thickness so it reads as a true 3-D block, not a wall slice), `petite` (8°·20r·16ax, small
+enough that even the grown build is quick). The kernel already took arbitrary `{Ri,T,arcDeg,axial}`;
+this is page/worker plumbing (the worker now reports the real `foam.{Ri,T}` instead of hardcoded
+250/50). A **role-isolation lens** (`show: only <role>`) ghosts every other role to 5% and lifts the
+probe band to the whole shell, so one role's DISTRIBUTION THROUGH THE VOLUME reads at a glance —
+dwellings filling the core-ward shells, industry pressed to the hull, civic punctuating. Per-chamber
+`roleIdx` ships as a transferable array; billboards filter by role too.
+
+## Report (SHIPPED) — `econ/report.html`
+
+A standalone technical dossier on the whole method — the seed-and-oracle pattern, biome/gacha,
+the social genome, the foam city, and desire-line roads as the Laplace transform of NPC motion —
+with the emergence result tabulated and the advancement pathways enumerated. Linked from /econ and
+/econ/foam. Pure static; figures reproduce from the self-tests.
+
+## Leg 6 — into the game: a solve of record + unbounded outward growth (CHARTED)
+
+The destination item 3 asks for: the foam-society stops being a viewer and becomes the **playable
+world**, generated locally as the player walks off-screen in any direction, globally consistent
+because it is deterministic in the chamber index. The design (to execute next):
+
+- **Tile the foam.** Today `sectorFoam` is ONE arc sector centred on +X. Generalise it to a
+  `regionFoam(regionKey)` over a lattice of (azimuthal × axial) sectors, each independently
+  generable from `(shipSeed, az, ax)` — the ship engine's chunk pattern, now in the annulus. The
+  **seam contract** (mirroring `ship.selftest`'s seamless-chunks invariant): two adjacent regions
+  must agree on their shared boundary chambers + the cross-seam adjacency, so a road or a building
+  that straddles a seam is identical computed from either side. This is the one hard kernel piece;
+  pin it with a `region.selftest` before any rendering.
+- **The solve of record.** A region's `(genome, seed, regionKey)` deterministically fixes its
+  society AND its grown roads — but roads are a *global* flux field, and the player only ever has a
+  neighbourhood loaded. Resolution: grow roads at TWO scales. A coarse, cheap **arterial solve** runs
+  on a downsampled region-graph (region centroids + seam crossings) to fix the trunk network for all
+  time (the "solve of record", persisted as `(genome, seed)` → a small arterial graph). Fine streets
+  are grown **locally per loaded region**, seeded to join the coarse arterials at the seams — so they
+  regenerate identically whenever the player returns, and stitch across seams because both sides
+  share the arterial boundary condition. (This is the multi-scale answer to "the Laplace field is
+  global but I can't solve 34k× the world every step".)
+- **Wander rules.** Keep a ring of loaded regions around the player (the HPA\* coarse graph hoop's
+  `nav.js` already builds is the lattice). Entering a new region: generate its foam from the key,
+  claim buildings, grow local streets to the cached arterial boundary, splice into the live nav
+  graph. Leaving: evict, keeping only the arterial record + any player-touched ATProto records.
+- **Identity.** A building's durable key = the postal `(chunk, ordinal)` of its door chamber (leg 5),
+  so it survives eviction/reload and can carry a `com.minomobi.hoop.place` thread. The econ place and
+  the hoop forum place finally become one record.
+- **Integration points** in the existing game: `js/ship.js` (the deterministic chunk engine — region
+  generation slots in beside it), `js/world.js` (the `@`-walk + foam render — the society colours the
+  cells it already draws), `js/nav.js` (HPA\* — the arterial graph IS its coarse tier), `js/postal.js`
+  (the durable keys). The pieces exist; leg 6 is the assembly, and the seam contract is the gate.
+
 ## Leg 4 — wayfinding for PEOPLE (commutes close the loop)
 
 - Hats already know home and workplace. Route them: `commute(person)` = door→door anisotropic

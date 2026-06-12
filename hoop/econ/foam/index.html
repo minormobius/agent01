@@ -28,11 +28,13 @@
 <canvas id="c" class="full"></canvas>
 <canvas id="ov" class="full"></canvas>
 <div id="hud">▦ <b>foam society</b> — the shell sector painted with a legible society<br><span id="info">…</span><br><span style="color:#667">drag to orbit · wheel/pinch = zoom · right slider = radial cut · click a chamber → its building</span></div>
-<a class="home" href="../">← econ</a>
+<a class="home" href="../report.html" style="margin-right:14px">▤ report</a><a class="home" href="../">← econ</a>
 <div id="inspect"></div>
 <div id="probe"><input id="probeY" type="range" min="0" max="1000" value="500" orient="vertical"></div>
 <div id="panel">
+  <select id="shape"><option value="core" selected>shape: core sample 18°·50r·10ax</option><option value="block">shape: volumetric 10°·28r·28ax</option><option value="petite">shape: petite 8°·20r·16ax (fast)</option></select>
   <select id="lens"><option value="role" selected>lens: role</option><option value="footprint">lens: building size</option><option value="bridging">lens: bridges vs bonds</option><option value="access">lens: access (dwellings)</option></select>
+  <select id="rfilt"><option value="-1" selected>show: all roles</option></select>
   <button id="vmode">view: city + routes</button>
   <button id="glyphs">glyphs: auto</button>
   <button id="growb" style="color:#ffd07a">⛗ grow streets</button>
@@ -48,17 +50,43 @@ const $ = (id) => document.getElementById(id);
 const showErr = (m) => { $('err').style.display = 'block'; $('err').textContent = m; };
 addEventListener('error', (e) => showErr('page: ' + e.message));
 
-// ── state from the URL (the permalink contract: ?seed=&n=) ──
+// ── state from the URL (the permalink contract: ?seed=&n=&shape=) ──
+// SHAPES: the foamslice geometries. `core` is the canonical foamview core-sample; `block` trades
+// arc + outer-hull depth for axial thickness (the volumetric read — chambers ≈ same count but
+// 44×28×28, a true 3D block); `petite` is small enough that even the grown build is quick.
+const SHAPES = {
+  core: {},
+  block: { arcDeg: 10, T: 28, axial: 28 },
+  petite: { arcDeg: 8, T: 20, axial: 16 },
+};
 const qs = new URLSearchParams(location.search);
 let seed = (parseInt(qs.get('seed'), 10) || 1) >>> 0;
 let rollN = Math.max(0, parseInt(qs.get('n'), 10) || 0);          // 0 = wild-type genome
-const syncURL = () => history.replaceState(null, '', '?seed=' + seed + (rollN ? '&n=' + rollN : ''));
+let shape = SHAPES[qs.get('shape')] ? qs.get('shape') : 'core';
+const syncURL = () => history.replaceState(null, '', '?seed=' + seed + (rollN ? '&n=' + rollN : '') + (shape !== 'core' ? '&shape=' + shape : ''));
 
 // ── the worker holds the model; the page only holds typed arrays ──
 let N = 0, POS = new Float32Array(0), OWNER = new Int32Array(0), LAYERS = null, ROUTE = new Float32Array(0);
 let BILL = [], DIMS = { Ri: 250, T: 50, cell: 1, Lx: 10, arcRad: 0.314 }, STATS = null, ARCH = 'wild type';
 let FRAME = new Float32Array(0);                                   // the two hull arcs
 let lens = 'role', growing = false, NEUTRAL = null;
+let ROLEIDX = new Int8Array(0), ROLES = [], roleFilter = -1, CURCOL = null;
+// the active colour array = lens layer × role filter (others ghosted). Filtered views also lift
+// the probe band to the whole shell so the role's DISTRIBUTION THROUGH THE VOLUME reads at once.
+function applyLens() {
+  if (!LAYERS) { CURCOL = NEUTRAL; }
+  else if (roleFilter < 0) { CURCOL = LAYERS[lens]; }
+  else {
+    const base = LAYERS[lens];
+    CURCOL = new Float32Array(base.length);
+    for (let i = 0; i < N; i++) {
+      const ri = ROLEIDX[i], f = ri === roleFilter ? 1 : ri === -1 ? 0.30 : 0.05;   // keep the streets faintly legible
+      CURCOL[3 * i] = base[3 * i] * f; CURCOL[3 * i + 1] = base[3 * i + 1] * f; CURCOL[3 * i + 2] = base[3 * i + 2] * f;
+    }
+  }
+  cam.band = roleFilter >= 0 ? DIMS.T : DIMS.cell * 0.8;            // filter on → light the whole volume
+  if (gpu && CURCOL) gpu.setColors(CURCOL);
+}
 const worker = new Worker('./builder.js', { type: 'module' });
 worker.onerror = (e) => { $('busy').style.display = 'none'; growing = false; showErr('worker: ' + e.message); };
 worker.onmessage = (e) => {
@@ -70,8 +98,8 @@ worker.onmessage = (e) => {
     OWNER = new Int32Array(0); LAYERS = null; BILL = []; ROUTE = new Float32Array(0); STATS = null;
     NEUTRAL = new Float32Array(3 * N);
     for (let i = 0; i < N; i++) { NEUTRAL[3 * i] = 0.16; NEUTRAL[3 * i + 1] = 0.19; NEUTRAL[3 * i + 2] = 0.21; }
-    bakeFrame(); resetCam();
-    if (gpu) { gpu.upload(); gpu.setColors(NEUTRAL); refreshLines(); }
+    bakeFrame(); resetCam(); applyLens();
+    if (gpu) { gpu.upload(); gpu.setColors(CURCOL); refreshLines(); }
     $('busy').style.display = 'none';
     $('info').innerHTML = '🜨 the bare foam — ' + N.toLocaleString() + ' chambers · a provisional society settled it; now its trips grow the streets…';
     return;
@@ -84,12 +112,18 @@ worker.onmessage = (e) => {
   if (m.type !== 'city') return;
   growing = false;
   N = m.N; POS = m.pos; OWNER = m.owner; LAYERS = m.layers; ROUTE = m.routeSegs; BILL = m.bill; DIMS = m.dims; STATS = m.stats; ARCH = m.genome.archetype;
-  bakeFrame(); resetCam();
-  if (gpu) { gpu.upload(); gpu.setColors(LAYERS[lens]); refreshLines(); }
+  ROLEIDX = m.roleIdx; ROLES = m.roles;
+  if ($('rfilt').options.length !== ROLES.length + 1) {              // populate the role-isolation lens
+    $('rfilt').innerHTML = '<option value="-1" selected>show: all roles</option>' +
+      ROLES.map((r, i) => '<option value="' + i + '">show: only ' + r + '</option>').join('');
+    roleFilter = -1;
+  }
+  bakeFrame(); resetCam(); applyLens();
+  if (gpu) { gpu.upload(); refreshLines(); }
   $('busy').style.display = 'none';
   hudInfo();
 };
-function rebuild() { $('busy').style.display = 'flex'; $('busy').textContent = 'assembling the society… (~6 s, in a worker)'; $('inspect').style.display = 'none'; syncURL(); worker.postMessage({ type: 'build', seed, n: rollN }); }
+function rebuild() { $('busy').style.display = 'flex'; $('busy').textContent = 'assembling the society… (in a worker)'; $('inspect').style.display = 'none'; syncURL(); worker.postMessage({ type: 'build', seed, n: rollN, opt: SHAPES[shape] }); }
 
 function bakeFrame() {                                             // the two smooth hulls at both axial ends
   const { Ri, T, arcRad, Lx } = DIMS, Ro = Ri + T, bc = [0.36, 0.5, 0.66], segs = [];
@@ -255,7 +289,7 @@ async function initGPU() {
 function frame2D() {
   const ctx = cv.getContext('2d'); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
-  const M = viewProj(W, H), L = (LAYERS && LAYERS[lens]) || NEUTRAL;
+  const M = viewProj(W, H), L = CURCOL || NEUTRAL;
   if (view !== 'routes' && L) {
     const pts = [];
     for (let i = 0; i < N; i++) {
@@ -294,6 +328,7 @@ function drawGlyphs() {
   const M = viewProj(W, H), f = 1 / Math.tan(0.45);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const b of BILL) {
+    if (roleFilter >= 0 && b.role !== ROLES[roleFilter]) continue;
     const w = M[3] * b.x + M[7] * b.y + M[11] * b.z + M[15]; if (w <= 0) continue;
     const worldR = 0.62 * Math.sqrt(b.fp) * DIMS.cell;
     const px = worldR * f * (H / 2) / w;
@@ -357,7 +392,9 @@ function pick(px, py) {
 const probeY = $('probeY'), pSpan = () => (probeHi - probeLo) || 1;
 function syncProbe() { probeY.value = Math.round((1 - (cam.probe - probeLo) / pSpan()) * 1000); }
 probeY.addEventListener('input', () => { cam.probe = probeLo + (1 - probeY.value / 1000) * pSpan(); hudInfo(); });
-$('lens').addEventListener('change', () => { lens = $('lens').value; if (gpu && LAYERS) gpu.setColors(LAYERS[lens]); });
+$('lens').addEventListener('change', () => { lens = $('lens').value; applyLens(); });
+$('rfilt').addEventListener('change', () => { roleFilter = +$('rfilt').value; applyLens(); });
+$('shape').addEventListener('change', () => { shape = $('shape').value; rebuild(); });
 $('vmode').addEventListener('click', () => {
   const order = ['city+routes', 'city', 'routes'];
   view = order[(order.indexOf(view) + 1) % order.length];
@@ -371,14 +408,15 @@ $('growb').addEventListener('click', () => {
   if (growing) return;
   growing = true;
   $('busy').style.display = 'flex';
-  $('busy').textContent = 'settling the provisional society… (~15 s, then the growth runs live — orbit while it grows)';
+  $('busy').textContent = 'settling the provisional society… (then the growth runs live — orbit while it grows)';
   $('inspect').style.display = 'none';
   syncURL();
-  worker.postMessage({ type: 'build', seed, n: rollN, grow: true });
+  worker.postMessage({ type: 'build', seed, n: rollN, grow: true, opt: SHAPES[shape] });
 });
 $('rmode').addEventListener('click', () => { if (gpu) { mode = mode === 'webgpu' ? '2d' : 'webgpu'; setModeLabel(); } });
 
 (async () => {
+  $('shape').value = shape;
   resize();
   gpu = await initGPU(); if (!gpu) mode = '2d';
   setModeLabel();

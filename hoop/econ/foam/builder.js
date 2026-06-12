@@ -47,7 +47,7 @@ function bakeColors() {
 // road ribbons (centreline + rails + rungs) through the chamber centres + ramp foot/head posts.
 function bakeRoute() {
   const route = city.route; if (!route) return new Float32Array(0);
-  const cs = city.chambers, c = city.foam.cell, Ri = 250, segs = [];
+  const cs = city.chambers, c = city.foam.cell, Ri = city.foam.Ri, segs = [];
   const seg = (a, b, col) => segs.push(a[0], a[1], a[2], col[0], col[1], col[2], b[0], b[1], b[2], col[0], col[1], col[2]);
   const ribbon = (cells, col) => {
     const P = cells.map((i) => cs[i]), half = 0.3 * c, dim = col.map((v) => v * 0.55);
@@ -108,7 +108,7 @@ function buildGrown({ seed, n, opt }) {
   const N = g.nav.n, pos = new Float32Array(3 * N);
   for (let i = 0; i < N; i++) { const q = g.nav.cells[i]; pos[3 * i] = q.x; pos[3 * i + 1] = q.y; pos[3 * i + 2] = q.z; }
   postMessage({ type: 'foam', N, pos, total: iters,
-    dims: { Ri: 250, T: 50, cell: g.foam.cell, Lx: g.foam.Lx, arcRad: g.foam.arcRad } }, [pos.buffer]);
+    dims: { Ri: g.foam.Ri, T: g.foam.T, cell: g.foam.cell, Lx: g.foam.Lx, arcRad: g.foam.arcRad } }, [pos.buffer]);
   for (let i = 0; i < iters; i++) {
     g.step();
     const segs = bakeFlux(g);
@@ -135,14 +135,19 @@ function postCity({ seed, n, genome }) {
   for (let i = 0; i < N; i++) { const q = city.chambers[i]; pos[3 * i] = q.x; pos[3 * i + 1] = q.y; pos[3 * i + 2] = q.z; }
   const owner = Int32Array.from(city.chamberOwner);
   const layers = bakeColors(), routeSegs = city.route ? bakeRoute() : bakeEmergent(city);
+  // per-chamber role index (the role-isolation lens): -2 void, -1 road, else index into `roles`
+  const roles = Object.keys(ROLES);
+  const roleIdx = new Int8Array(N).fill(-2);
+  for (let i = 0; i < N; i++) { const o = city.chamberOwner[i]; roleIdx[i] = o === -1 ? -1 : o < 0 ? -2 : roles.indexOf(city.places[o].role); }
   // building billboards: centroid world position + glyph + a world-space radius for LOD gating
-  const bill = city.places.map((p) => { const r = 250 + p.rad; return { x: r * Math.cos(p.th), y: r * Math.sin(p.th), z: p.zax, g: p.glyph, fp: p.footprint, road: !!p.onRoad }; });
+  const Ri = city.foam.Ri;
+  const bill = city.places.map((p) => { const r = Ri + p.rad; return { x: r * Math.cos(p.th), y: r * Math.sin(p.th), z: p.zax, g: p.glyph, fp: p.footprint, road: !!p.onRoad, role: p.role }; });
   const m = (u) => Math.round(u * 20);
   const route = city.route;
   postMessage({
     type: 'city', seed, n, genome: { archetype: genome.archetype || 'wild type' },
-    N, pos, owner, layers, routeSegs, bill,
-    dims: { Ri: 250, T: 50, cell: city.foam.cell, Lx: city.foam.Lx, arcRad: city.foam.arcRad },
+    N, pos, owner, layers, routeSegs, bill, roleIdx, roles,
+    dims: { Ri: city.foam.Ri, T: city.foam.T, cell: city.foam.cell, Lx: city.foam.Lx, arcRad: city.foam.arcRad },
     stats: {
       buildings: city.places.length, row: city.rightOfWay.size, voids: city.voids,
       closure: city.closure, access: city.access, people: society.people.length,
@@ -151,7 +156,7 @@ function postCity({ seed, n, genome }) {
         : city.emergent ? `EMERGENT: ${city.emergent.chambers} chambers grown from the society's own trips · ${city.emergent.rampSegs} ramp segs · threads ${(city.emergent.radialSpanFrac * 100).toFixed(0)}% of shell depth`
         : 'none found',
     },
-  }, [pos.buffer, owner.buffer, layers.role.buffer, layers.footprint.buffer, layers.bridging.buffer, layers.access.buffer, routeSegs.buffer]);
+  }, [pos.buffer, owner.buffer, layers.role.buffer, layers.footprint.buffer, layers.bridging.buffer, layers.access.buffer, routeSegs.buffer, roleIdx.buffer]);
 }
 
 function inspect(placeId) {
