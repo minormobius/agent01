@@ -2,7 +2,7 @@ name: Deploy Biome
 
 on:
   push:
-    branches: [main, 'claude/oneill-cylinder-refactor-xjknww']
+    branches: [main, 'claude/biome-trophic-web-graph-u7ha55']
     paths:
       - 'biome/**'
       - '.github/workflows/deploy-biome.yml'

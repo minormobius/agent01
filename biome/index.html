@@ -34,11 +34,15 @@
   .mod.live:hover{border-color:#3c6a4c;transform:translateY(-1px)}
   .mod.soon{opacity:.66}
   .mod .top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .mod .heads{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
   .mod h3{margin:0;font:600 18px/1.2 var(--mono);color:var(--txt)}
   .mod.live h3{color:var(--leaf)}
+  .path{font:600 11px/1 var(--mono);color:var(--gold);background:#0e1713;border:1px solid var(--line);
+    border-radius:6px;padding:4px 7px;white-space:nowrap}
   .badge{font:600 10px/1 var(--mono);text-transform:uppercase;letter-spacing:1px;padding:4px 8px;border-radius:99px;white-space:nowrap}
   .badge.live{background:#13241a;color:var(--leaf);border:1px solid #2c5a3c}
   .badge.soon{background:#1a1712;color:var(--gold);border:1px solid #4a3c22}
+  .grouplede{color:var(--dim);font:13px/1.5 var(--mono);margin:10px 0 0}
   .mod p{margin:9px 0 0;font-size:14.5px;color:var(--txt)}
   .mod .meta{margin-top:10px;font:12px/1.5 var(--mono);color:var(--dim)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
@@ -134,83 +138,45 @@
   </section>
 
   <section>
-    <h2>Modules</h2>
-    <p>A data-driven engine, an allometry layer that derives rates from body mass, a
-    roster of real species, and an analytic stability lab on top.</p>
+    <h2>The ecosystems — closed webs you can run</h2>
+    <p class="grouplede">Each is one modelled community in one sealed box. Drag a knob and ~600
+    days re-run live; the question is always the same — <i>does the loop close</i>, feeding the
+    crew and holding the air. They build up in scope: the land web, the lake, the two together,
+    the whole maximalist web drawn as a graph — and then <i>infinitely many</i>, rolled at random.</p>
     <div class="modules">
 
-      <a class="mod live" href="./cycles/builder.html">
+      <a class="mod live" href="./gacha/">
         <div class="top">
-          <h3>Food-web builder</h3>
+          <div class="heads"><h3>Ecosystem gacha</h3><span class="path">/gacha</span></div>
           <span class="badge live">live</span>
         </div>
-        <p>The open workbench: <b>design any food web and read its stability</b>. Add producers and
-        animals, wire who-eats-whom, set a harvest — and watch live whether the loop closes (air
-        holds, the crew is fed, nobody goes extinct) and whether it <i>survives</i> a shock (the
-        community-matrix eigenvalues). Animal rates come from body mass (Kleiber allometry), so you
-        set a mass and a guild, not eight numbers. Three presets (orchard, lake, grass→rabbit→fox)
-        to start from and break.</p>
-        <div class="meta">→ your whole design rides in the URL, so <b>copy the link to display your
-        web to anyone</b> — no account, no backend. Force-drawn graph, eigenvalue spectrum,
-        community-matrix heatmap, keystone ranking and population trajectories, all live as you edit.</div>
+        <p><b>Roll a random closed world</b> from a deck of 60 real organisms. The assembler wires a food
+        web by body-size + habitat; the trophic solver runs it ~600 days and scores it on <b>viability</b> —
+        does the loop close, hold the air, stay stable, carry a crew? <b>Rarity is the solver's verdict</b>,
+        not luck: most pulls are degenerate mush, a <b style="color:var(--water)">Rare</b> one actually lives,
+        and a <b style="color:var(--gold)">Legendary</b> is a self-closing, stable, crew-carrying world.</p>
+        <div class="meta">→ pull for a gem, hunt the seed-space for one, drag the web around, share any roll
+        by its permalink (<code>/gacha/?n=4823</code>). Every roll is deterministic and runs in your browser.</div>
       </a>
 
       <a class="mod live" href="./cycles/">
         <div class="top">
-          <h3>Resource cycles</h3>
+          <div class="heads"><h3>Resource cycles</h3><span class="path">/cycles/</span></div>
           <span class="badge live">live</span>
         </div>
-        <p>A deterministic, element-exact, <i>data-driven</i> box model of the closed ecology
-        as a living <i>food web</i> — fruit trees, ground crops and swamp reeds; pollinators
-        that gate the fruit and the predators that eat them; living decomposers; and the crew.
-        The organisms and their relationships are data, so the web extends from six to twelve
-        to N. Answers: <i>does the loop close</i> — does it steady out feeding everyone and
-        holding the air. Drag a knob and ~600 days rerun live.</p>
+        <p>The foundational model: the <b>terrestrial</b> closed ecology as a living <i>food web</i> —
+        fruit trees, ground crops and swamp reeds; pollinators that gate the fruit and the predators
+        that eat them; living decomposers; and the crew. The organisms and their relationships are
+        data, so the web extends from six to twelve to N. Answers: <i>does the loop close</i> — does it
+        steady out feeding everyone and holding the air.</p>
         <div class="meta">→ carbon, hydrogen, oxygen and nitrogen conserve by construction
-        (drift &lt; 1e-9 over a model-year), no matter how many trophic levels stack. Animal
-        stat blocks derive from body mass (Kleiber allometry) and a roster of real species
-        (iNaturalist identity + GloBI diet edges).</div>
-      </a>
-
-      <a class="mod live" href="./cycles/stability.html">
-        <div class="top">
-          <h3>Stability lab</h3>
-          <span class="badge live">live</span>
-        </div>
-        <p>A 600-day run tells you <i>what happens</i>; the lab tells you the <i>fate</i> of the
-        steady state directly, from its linearization. It builds the <b>community matrix</b> by
-        finite-differencing the real nonlinear model at equilibrium, then reads three classic
-        results off it: asymptotic stability (May — every eigenvalue's real part negative),
-        reactivity (Neubert — does a stable web still amplify a shock first), and keystone
-        ranking (Bender — press perturbations off the inverse).</p>
-        <div class="meta">→ the eigenvalue spectrum on the complex plane, the community-matrix
-        heatmap, and the keystone ranking, with knobs that move the eigenvalues live. Drop
-        self-limitation to 0 and watch the rightmost eigenvalue cross into the unstable half-plane
-        — exactly the Hopf boundary theory predicts.</div>
-      </a>
-
-      <a class="mod live" href="./cycles/global.html">
-        <div class="top">
-          <h3>Global food web</h3>
-          <span class="badge live">live</span>
-        </div>
-        <p>The orchard and the lake are each a closed web; this puts them in <b>one interior</b> and
-        asks the ship-scale question — does the <i>whole</i> thing close, and how much crew does it
-        carry? The two webs are <b>trophically disjoint</b> (no land animal eats a lake plankter) but
-        <b>abiotically fused</b>: they breathe one atmosphere, drain to one detritus pool, draw one
-        nitrogen pool, and feed one crew from one larder. Drawn as two trophic islands bridged only
-        through the shared-pool spine.</p>
-        <div class="meta">→ the coupling is measurable: the joined web settles at a lower CO₂ than
-        either alone (combined fixation over-draws the shared air). Water treatment becomes a
-        <i>redundant</i> service of both webs. The barrier between them is only the shoreline —
-        spatial — which this non-spatial model abstracts away (the next stake: a runoff flux to
-        <a href="https://tide.mino.mobi" style="color:var(--leaf)">tide</a>). Carries ~140 crew, ≈50/50
-        land/lake, stable.</div>
+        (drift &lt; 1e-9 over a model-year), no matter how many trophic levels stack. Animal stat blocks
+        derive from body mass (Kleiber allometry) and a roster of real species (iNaturalist + GloBI).</div>
       </a>
 
       <a class="mod live" href="./cycles/lake.html">
         <div class="top">
-          <h3>Lake bioengine</h3>
+          <div class="heads"><h3>Lake bioengine</h3><span class="path">/cycles/lake.html</span></div>
           <span class="badge live">live</span>
         </div>
         <p>The same engine pointed at one body of water asked to do two jobs at once: be the
@@ -222,13 +188,98 @@
         <div class="meta">→ two figures of merit: <b>surplus harvestable fish</b> (sustainable
         yield in kg/person·day) and <b>effective water treatment</b> (the lake clears 100×+ the
         crew's daily waste load and holds dissolved N near zero). Overfish it and the stock
-        collapses; kill the detritivores and the water eutrophies — the failure modes are real.
-        Adds an animal-harvest flux to the food-web solver, conserving by construction.</div>
+        collapses; kill the detritivores and the water eutrophies — the failure modes are real.</div>
+      </a>
+
+      <a class="mod live" href="./cycles/global.html">
+        <div class="top">
+          <div class="heads"><h3>Global food web</h3><span class="path">/cycles/global.html</span></div>
+          <span class="badge live">live</span>
+        </div>
+        <p>The orchard and the lake are each a closed web; this puts them in <b>one interior</b> and
+        asks the ship-scale question — does the <i>whole</i> thing close, and how much crew does it
+        carry? The two webs are <b>trophically disjoint</b> (no land animal eats a lake plankter) but
+        <b>abiotically fused</b>: they breathe one atmosphere, drain to one detritus pool, draw one
+        nitrogen pool, and feed one crew from one larder. Drawn as two trophic islands bridged only
+        through the shared-pool spine.</p>
+        <div class="meta">→ the coupling is measurable: the joined web settles at a lower CO₂ than
+        either alone (combined fixation over-draws the shared air). Water treatment becomes a
+        <i>redundant</i> service of both webs. Carries ~140 crew, ≈50/50 land/lake, stable.</div>
+      </a>
+
+      <a class="mod live" href="./graph/">
+        <div class="top">
+          <div class="heads"><h3>The trophic web — force graph</h3><span class="path">/graph</span></div>
+          <span class="badge live">live</span>
+        </div>
+        <p>The <b>maximalist</b> closed ecology as <b>one living force-directed graph</b>: every node a
+        real organism wearing its photograph, <b>sized by its present standing biomass</b>. Three habitats
+        are each held in their own <b>basin</b> — the <b style="color:var(--leaf)">terrestrial</b> web, the
+        <b style="color:var(--water)">lake</b>, and the chthonic <b style="color:#c39b6a">soil</b> web — and
+        the whole thing is wired together by two cross-web couplers: a <b>frog</b> (lake↔soil) and a farmed
+        <b>duck</b> (lake↔land). The shared pools sit in the middle, where all three webs meet.</p>
+        <div class="meta">→ drag nodes, scroll to zoom, hover for a card; turn a knob (crew, fishing, duck
+        farming, lake area) and watch every organism's node swell or shrink as the closed model re-runs.
+        All 16 species persist and C/H/O/N conserve. Imagery from iNaturalist.</div>
+      </a>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>The labs — analysis on any web</h2>
+    <p class="grouplede">A 600-day run tells you <i>what happens</i>; the labs read the <i>fate</i> of
+    the steady state directly — its stability, its response to coupling, and any web you care to design
+    yourself. Each works on the same engine, no backend.</p>
+    <div class="modules">
+
+      <a class="mod live" href="./cycles/stability.html">
+        <div class="top">
+          <div class="heads"><h3>Stability lab</h3><span class="path">/cycles/stability.html</span></div>
+          <span class="badge live">live</span>
+        </div>
+        <p>Reads the fate of the steady state from its linearization. It builds the <b>community matrix</b>
+        by finite-differencing the real nonlinear model at equilibrium, then reads three classic results
+        off it: asymptotic stability (May — every eigenvalue's real part negative), reactivity (Neubert —
+        does a stable web still amplify a shock first), and keystone ranking (Bender — press perturbations
+        off the inverse).</p>
+        <div class="meta">→ the eigenvalue spectrum on the complex plane, the community-matrix heatmap,
+        and the keystone ranking, with knobs that move the eigenvalues live. Drop self-limitation to 0 and
+        watch the rightmost eigenvalue cross into the unstable half-plane — the Hopf boundary theory predicts.</div>
+      </a>
+
+      <a class="mod live" href="./cycles/robustness.html">
+        <div class="top">
+          <div class="heads"><h3>Intermingling lab</h3><span class="path">/cycles/robustness.html</span></div>
+          <span class="badge live">live</span>
+        </div>
+        <p>Does coupling the webs help? The land and lake webs are <b>trophically disjoint</b> by default;
+        this lab lets you <b>wire real cross-web trophic edges</b> — an amphibian, a generalist waterbird, a
+        chthonic soil web (earthworm · fungus · ground-beetle) — and reads off the <b>community matrix</b>
+        whether intermingling makes the closed ecosystem more or less robust, against the disjoint baseline.</p>
+        <div class="meta">→ the answer is a knife-edge: one weak fast–slow bridge (the frog) <i>shortens
+        return time</i> (McCann/Rooney), but dense or strong coupling spikes reactivity and erodes the margin
+        (May 1972). Eigenvalue spectrum, return time, reactivity and keystone shift, all live as you toggle.</div>
+      </a>
+
+      <a class="mod live" href="./cycles/builder.html">
+        <div class="top">
+          <div class="heads"><h3>Food-web builder</h3><span class="path">/cycles/builder.html</span></div>
+          <span class="badge live">live</span>
+        </div>
+        <p>The open workbench: <b>design any food web and read its stability</b>. Add producers and
+        animals, wire who-eats-whom, set a harvest — and watch live whether the loop closes (air holds,
+        the crew is fed, nobody goes extinct) and whether it <i>survives</i> a shock (the community-matrix
+        eigenvalues). Animal rates come from body mass (Kleiber allometry), so you set a mass and a guild,
+        not eight numbers. Three presets (orchard, lake, grass→rabbit→fox) to start from and break.</p>
+        <div class="meta">→ your whole design rides in the URL, so <b>copy the link to display your web to
+        anyone</b> — no account, no backend. Force-drawn graph, eigenvalue spectrum, community-matrix heatmap,
+        keystone ranking and population trajectories, all live as you edit.</div>
       </a>
 
       <div class="mod soon">
         <div class="top">
-          <h3>Radius-niche coupling</h3>
+          <div class="heads"><h3>Radius-niche coupling</h3></div>
           <span class="badge soon">planned</span>
         </div>
         <p>Give each organism a preferred radius — canopy, floor, swamp; lake at the cylinder

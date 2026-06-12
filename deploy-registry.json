@@ -167,7 +167,7 @@
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-refactor-xjknww",
+      "branch": "claude/biome-trophic-web-graph-u7ha55",
       "uses": [],
       "provides": null,
       "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Pure static — model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",

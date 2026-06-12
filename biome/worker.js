@@ -17,6 +17,13 @@ export default {
       });
     }
 
+    // Pretty endpoints: normalise the no-slash form so the advertised URLs serve the page
+    // rather than a 404 (Cloudflare's asset handler resolves the trailing-slash dir index).
+    if (url.pathname === '/graph' || url.pathname === '/gacha') {
+      url.pathname += '/';
+      return env.ASSETS.fetch(new Request(url, request));
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
