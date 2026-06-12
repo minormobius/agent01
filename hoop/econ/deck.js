@@ -93,3 +93,38 @@ export function deckScene({
 }
 
 export const ROLE_COLOR = Object.fromEntries(Object.entries(ROLES).map(([k, R]) => [k, R.color]));
+
+// ── WAYFINDING on the deck: the walkable graph IS the membrane classification — you can cross a
+//    door or an open concourse membrane, never a wall. Routes thread room-centre → door midpoint →
+//    room-centre, so a journey out of a building visibly funnels through its ONE street door. ──
+export function buildWalk(d) {
+  const walk = Array.from({ length: d.seeds.length }, () => []);
+  const addE = (e) => {
+    const a = d.seeds[e.a], b = d.seeds[e.b], m = e.m;
+    const w = Math.hypot(a.x - m[0], a.y - m[1]) + Math.hypot(b.x - m[0], b.y - m[1]);
+    walk[e.a].push({ to: e.b, w, m }); walk[e.b].push({ to: e.a, w, m });
+  };
+  for (const e of d.scene.doors) addE(e);
+  for (const e of d.scene.opens) addE(e);
+  return walk;
+}
+
+export function walkRoute(d, a, b) {
+  const walk = d._walk || (d._walk = buildWalk(d));
+  const n = d.seeds.length;
+  const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), done = new Uint8Array(n);
+  const prevM = new Array(n).fill(null);
+  dist[a] = 0;
+  for (;;) {                                               // O(n²) scan — a deck is a few hundred rooms
+    let u = -1, du = Infinity;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < du) { du = dist[i]; u = i; }
+    if (u < 0 || u === b) break;
+    done[u] = 1;
+    for (const e of walk[u]) { const nd = du + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = u; prevM[e.to] = e.m; } }
+  }
+  if (!isFinite(dist[b])) return null;
+  const rooms = [], pts = [[d.seeds[b].x, d.seeds[b].y]];
+  for (let u = b; u !== a; u = prev[u]) { rooms.push(u); pts.push(prevM[u]); pts.push([d.seeds[prev[u]].x, d.seeds[prev[u]].y]); }
+  rooms.push(a); rooms.reverse(); pts.reverse();
+  return { rooms, pts, length: dist[b] };
+}

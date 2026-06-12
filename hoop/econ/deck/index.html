@@ -26,7 +26,7 @@
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
-<div id="hud">▦ <b>the deck</b> — a solved region in paint's 8/24 membrane language<br><span id="info">…</span><br><span style="color:#667">arrow keys / buttons = wander the region lattice (← → wraps the ring · ↑ ↓ walks the axis) · every region regenerates identically · roads meet at the seams</span></div>
+<div id="hud">▦ <b>the deck</b> — a solved region in paint's 8/24 membrane language<br><span id="info">…</span><br><span style="color:#667">arrow keys / buttons = wander the lattice (← → wraps the ring · ↑ ↓ walks the axis) · click two rooms = probes A→B, the route threads the doors · regions regenerate identically</span></div>
 <a class="home" href="../">← econ</a>
 <div id="panel">
   <button id="west">←</button>
@@ -42,7 +42,7 @@
 <script type="module">
 import { ringLattice } from '../region.js';
 import { coarseSolve, extendRecord } from '../record.js';
-import { deckScene, ROLE_COLOR } from '../deck.js';
+import { deckScene, ROLE_COLOR, walkRoute } from '../deck.js';
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -57,6 +57,8 @@ const cache = new Map();                                   // regionKey → deck
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1, deck = null;
+let probeA = -1, probeB = -1, route = null;                // the wayfinding map: two probes + a path
+let VF = 1, VOX = 0, VOY = 0;                              // the current fit transform (for clicks)
 function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; draw(); }
 addEventListener('resize', resize);
 
@@ -67,6 +69,7 @@ function draw() {
   ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
   const f = Math.min(W / deck.frame.W, H / deck.frame.H) * 0.97;
   const ox = (W - deck.frame.W * f) / 2, oy = (H - deck.frame.H * f) / 2;
+  VF = f; VOX = ox; VOY = oy;
   ctx.setTransform(DPR * f, 0, 0, DPR * f, DPR * ox, DPR * oy);
   const colorOf = (c) => {
     if (c.wall) return WALLC;
@@ -98,6 +101,46 @@ function draw() {
   // building glyphs, LOD-gated by footprint on this deck
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(10,14,18,0.85)';
   for (const g of deck.bill) { if (g.n < 3) continue; ctx.font = Math.min(30, 10 + g.n * 2) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
+  // the wayfinding map: the route (room-centre → door → room-centre), then the two probes
+  if (route) {
+    ctx.strokeStyle = 'rgba(244,191,98,0.95)'; ctx.lineWidth = 3.2 / f; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(route.pts[0][0], route.pts[0][1]);
+    for (let i = 1; i < route.pts.length; i++) ctx.lineTo(route.pts[i][0], route.pts[i][1]);
+    ctx.stroke();
+  }
+  const probe = (i, col, label) => {
+    if (i < 0) return;
+    const p = deck.seeds[i];
+    ctx.fillStyle = col; ctx.strokeStyle = '#05060a'; ctx.lineWidth = 2 / f;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 9 / f, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#05060a'; ctx.font = (11 / f) + 'px ui-monospace, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, p.x, p.y);
+  };
+  probe(probeA, '#7fd8d0', 'A'); probe(probeB, '#f4bf62', 'B');
+}
+
+// drop probes: first click = A, second = B (routes), third starts over
+cv.addEventListener('click', (e) => {
+  if (!deck) return;
+  const x = (e.clientX - VOX) / VF, y = (e.clientY - VOY) / VF;
+  let best = -1, bd = (40 / VF) ** 2;
+  deck.seeds.forEach((p, i) => { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = i; } });
+  if (best < 0) return;
+  if (probeA < 0 || probeB >= 0) { probeA = best; probeB = -1; route = null; }
+  else if (best !== probeA) {
+    probeB = best;
+    route = walkRoute(deck, probeA, probeB);
+  }
+  routeInfo(); draw();
+});
+function routeInfo() {
+  const el = $('route') || (() => { const d = document.createElement('div'); d.id = 'route'; d.style.cssText = 'position:fixed;top:84px;left:10px;color:#f4bf62;text-shadow:0 1px 2px #000;pointer-events:none;font-size:12px'; document.body.appendChild(d); return d; })();
+  if (probeA < 0) { el.textContent = ''; return; }
+  if (probeB < 0) { el.textContent = '⊕ probe A set — click a second room to route'; return; }
+  if (!route) { el.innerHTML = '<span style="color:#ff9a8a">⊘ no path — those rooms are sequestered from each other on this deck</span>'; return; }
+  const doorsCrossed = route.rooms.length - 1;
+  const wallsOf = (i) => deck.owner[i] >= 0 ? (deck.role[i] || '') : deck.owner[i] === -1 ? 'concourse' : '';
+  el.textContent = '⊕ route: ' + route.rooms.length + ' rooms · ' + doorsCrossed + ' crossings · ' + Math.round(route.length) + ' px (' + wallsOf(probeA) + ' → ' + wallsOf(probeB) + ') — click again to re-probe';
 }
 
 function show() {
@@ -133,6 +176,7 @@ function move(dAz, dAx) {
   az = ((az + dAz) % L.regionsPerRing + L.regionsPerRing) % L.regionsPerRing;
   ax = Math.max(record.axMin, ax + dAx);
   if (ax > record.axMax) record = extendRecord(record, ax + 2);    // the frontier: history stays frozen
+  probeA = -1; probeB = -1; route = null; routeInfo();             // probes are per-deck
   show();
 }
 $('west').addEventListener('click', () => move(-1, 0));

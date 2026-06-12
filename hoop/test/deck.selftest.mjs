@@ -3,8 +3,8 @@
 // deciding what every membrane is. Run: node hoop/test/deck.selftest.mjs
 import { ringLattice } from '../econ/region.js';
 import { coarseSolve } from '../econ/record.js';
-import { deckScene } from '../econ/deck.js';
-import { buildSceneCustom } from '../paint/voronoi.js';
+import { deckScene, walkRoute } from '../econ/deck.js';
+import { buildSceneCustom, bucketGrid, roomOf } from '../paint/voronoi.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -26,6 +26,10 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   const walled = sc.adjEdges.find((e) => { const k = e.a < e.b ? e.a + ',' + e.b : e.b + ',' + e.a; return k !== '0,1' && k !== '1,2'; });
   ok(onMembrane(walled) > 0, 'a WALL membrane keeps its nuclei');
   ok(sc.floorNuclei.some((n) => n.door), 'doors and opens are floor-bridged');
+  // THE DOORMAT TRIM: every door-tagged nucleus sits inside the wall band — thresholds read as
+  // doorways, never as brown mats extending into the room
+  const rg2 = bucketGrid(sc.roomSeeds, sc.roomSize * 1.4);
+  ok(sc.floorNuclei.filter((n) => n.door).every((n) => roomOf(n, rg2).edgeDist <= sc.band + 1e-6), 'door-tagged nuclei stay inside the wall band (no doormats)');
 }
 
 // ── the deck of a solved region ──
@@ -70,6 +74,39 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   // determinism (the regenerate-a-year-later contract, at the render layer)
   const d2 = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14 });
   ok(d2.scene.paintCells.length === d.scene.paintCells.length && d2.scene.doors.length === d.scene.doors.length && d2.scene.opens.length === d.scene.opens.length, 'the deck render is deterministic');
+}
+
+// ── WAYFINDING between probes: routes obey the membranes, and a building's exit IS its one door ──
+{
+  // two concourse rooms route (the street network is one component on this deck or close to it)
+  const roads = []; d.owner.forEach((o, i) => { if (o === -1) roads.push(i); });
+  let roadRoute = null;
+  outer: for (let i = 0; i < roads.length; i++) for (let j = roads.length - 1; j > i; j--) { roadRoute = walkRoute(d, roads[i], roads[j]); if (roadRoute) break outer; }
+  ok(!!roadRoute && roadRoute.rooms.length >= 2 && roadRoute.length > 0, 'two probes on the concourse route (' + (roadRoute && roadRoute.rooms.length) + ' rooms, ' + Math.round(roadRoute ? roadRoute.length : 0) + ' px)');
+  // every step of a route crosses a door or an open membrane — never a wall
+  const passable = new Set();
+  for (const e of d.scene.doors.concat(d.scene.opens)) passable.add(Math.min(e.a, e.b) + ',' + Math.max(e.a, e.b));
+  const legal = (r) => r.rooms.every((u, k) => k === 0 || passable.has(Math.min(u, r.rooms[k - 1]) + ',' + Math.max(u, r.rooms[k - 1])));
+  ok(legal(roadRoute), 'every crossing in a route is a door or an open membrane (walls are walls)');
+  // a probe INSIDE a building exits through its ONE street door
+  const doorEdgeOf = new Map();
+  for (const e of d.scene.doors) {
+    const bo = d.owner[e.a] >= 0 && d.owner[e.b] === -1 ? d.owner[e.a] : d.owner[e.b] >= 0 && d.owner[e.a] === -1 ? d.owner[e.b] : -1;
+    if (bo >= 0) doorEdgeOf.set(bo, Math.min(e.a, e.b) + ',' + Math.max(e.a, e.b));
+  }
+  let funnel = null;
+  for (const [bo, dk] of doorEdgeOf) {
+    const inside = []; d.owner.forEach((o, i) => { if (o === bo) inside.push(i); });
+    if (!inside.length || !roads.length) continue;
+    const r = walkRoute(d, inside[0], roads[0]);
+    if (!r) continue;
+    // find where the route leaves the building: that crossing must BE the street door
+    let exit = null;
+    for (let k = 1; k < r.rooms.length; k++) if (d.owner[r.rooms[k - 1]] === bo && d.owner[r.rooms[k]] !== bo) { exit = Math.min(r.rooms[k - 1], r.rooms[k]) + ',' + Math.max(r.rooms[k - 1], r.rooms[k]); break; }
+    funnel = exit === dk; break;
+  }
+  ok(funnel === true, 'a journey out of a building funnels through its ONE street door (sequestration, visible)');
+  ok(legal(walkRoute(d, roads[0], roads[0]) || { rooms: [roads[0]] }), 'a self-route is trivial and legal');
 }
 
 console.log(`deck.selftest: ${pass} passed, ${fail} failed`);

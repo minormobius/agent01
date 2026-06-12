@@ -215,7 +215,9 @@ export function buildSceneCustom({ W, H, wallSpacing, roomSpacing, seeds, edgeKi
       for (let dv = -(band + wallSpacing); dv <= band + wallSpacing + 1e-6; dv += wallSpacing) {
         const x = mx + tx * du + ax * dv, y = my + ty * du + ay * dv;
         if (x < 0 || y < 0 || x > W || y > H) continue;
-        place(x, y, roomOf({ x, y }, roomGrid).room, true);
+        // the outer bridge rows merge with the room fill as PLAIN floor — only nuclei inside the
+        // wall gap keep the door tag, so the threshold reads as a doorway, not a doormat
+        place(x, y, roomOf({ x, y }, roomGrid).room, Math.abs(dv) <= band + 1e-6);
       }
     }
   }
