@@ -24,8 +24,10 @@ temperature (`T_floor > T_reservoir > T_skin`, because heat flows outward). Hung
 - **temperature** — dry centrifugal adiabat from the floor + a radiative inversion that warms
   the axis (crank `invStrength` and "up" flips cold→hot).
 - **pressure** — centrifugal hydrostatic balance `dP/dr=ρω²r` with the local T.
-- **humidity** — vapour off the floor; jets OFF stratifies it, jets ON well-mixes it
-  (conserving total water); fog is exactly where RH≥1.
+- **humidity** — SOLVED, not an input: the lakes are the vapour source (saturation over the open
+  water), the cold reservoir-cooled floor is the dew sink, and the floor RH follows the lake
+  coverage `λ(lakeFrac)`. Jets OFF stratifies it; jets ON ventilates (lofts floor moisture up,
+  drying the floor / wetting the axis), conserving total water. Fog is exactly where RH≥1.
 - **wind** — convective scale `(B·z_i)^⅓` choked by the inversion's stability, plus the
   fountain's **induced breeze** (a few m/s), in a Coriolis-dominated frame (`f=2ω`, Rossby≪1).
   **The jet's water exit speed (~120 m/s) is NOT the wind** — that was an early bug. The ambient
@@ -42,7 +44,7 @@ drives it.
 ## Run / test (all run from the sandbox; deploy does not)
 
 ```bash
-node iris/test/section.selftest.mjs    # 33 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
+node iris/test/section.selftest.mjs    # 36 checks: energy, hydrostatics, vapour conservation, wind, jets, lakes
 node iris/test/ratchet.selftest.mjs    # 9 checks: tooth periodicity + asymmetry, inward build, lake arc
 ```
 
@@ -65,6 +67,8 @@ The self-tests are the contract — run them before every push.
    keep the ordering.
 3. **Water is conserved across the jets toggle.** On/off only redistribute vapour
    (`totalVapor` identical); they never create or destroy it.
+3b. **Floor humidity is solved, never an input.** It comes from the lake coverage (source) and
+   the cold-sink dew point — there is no `RH_floor` knob. Don't re-add one.
 4. **Determinism, zero deps, node + browser.** `sim/*.mjs` run identically headless and in the
    page. No build step, no secrets; the worker just serves assets + `/health`.
 5. **iris owns its geometry.** It does not import tide's `shared/geometry.mjs` — this is a

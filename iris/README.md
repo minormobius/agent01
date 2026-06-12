@@ -42,12 +42,16 @@ Everything else is a gradient hung off that:
   axis). Crank the inversion and "up" flips from cold to hot — the signature O'Neill inversion.
 - **Pressure** — centrifugal hydrostatic balance `dP/dr=ρω²r` integrated with the *local*
   temperature. Air pools at the rim; the bore runs ~80 kPa at the axis to 101 kPa at the floor.
-- **Humidity** — vapour hung off the floor's relative humidity. **Jets off:** it stratifies and
-  traps under the inversion. **Jets on:** the fountain well-mixes the column, *conserving* total
-  water. **Fog** is wherever RH≥1 — a toggleable observable band.
+- **Humidity** — *solved, not set.* The lakes are the vapour source (saturation over the open
+  water) and the cold, reservoir-cooled floor is the dew sink; how humid the floor runs follows
+  the **lake coverage** (more open water → closer to saturation). **Jets off:** the vapour
+  stratifies and traps under the inversion. **Jets on:** the fountain ventilates — lofting floor
+  moisture upward (drying the floor, wetting the axis), *conserving* total water. **Fog** is
+  wherever RH≥1 — a toggleable observable band.
 - **Wind** — a convective velocity scale `w*=(B·z_i)^⅓` from the surface heat flux, choked by the
-  inversion's stability, plus the jet sheet when the jets are on. The frame is strongly rotating
-  (`f=2ω`, Rossby number ≪ 1), so rotation organises the flow.
+  inversion's stability, plus the fountain's **induced breeze** (a few m/s — the entrained air the
+  jet drags, *not* the 120 m/s water exit speed). The frame is strongly rotating (`f=2ω`, Rossby
+  number ≪ 1), so rotation organises the flow.
 
 The inner rim carries the **ratchet** topography (`sim/ratchet.mjs`): asymmetric teeth — a steep
 scarp, a long glide — that let lakes sit as constant-radius (equipotential) arcs at all, and route
@@ -62,13 +66,13 @@ the fountain runoff prograde around the rim.
 | `sim/fountain.mjs` | vendored rotating-frame ballistic jet solver — trajectory + induced wind |
 | `sim/ratchet.mjs` | inner-rim topography (3 teeth) + the topology-aware lake fill |
 | `index.html` | the circular renderer — 4 views, fog + jets toggles, reservoirs/heat pipes/radiator |
-| `test/*.selftest.mjs` | the contract (42 checks) |
+| `test/*.selftest.mjs` | the contract (45 checks) |
 | `worker.js`, `wrangler.jsonc` | assets worker for `iris.mino.mobi` |
 
 ## Run / test
 
 ```bash
-node iris/test/section.selftest.mjs    # 33 checks
+node iris/test/section.selftest.mjs    # 36 checks
 node iris/test/ratchet.selftest.mjs    # 9 checks
 open iris/index.html                    # the viewer
 ```

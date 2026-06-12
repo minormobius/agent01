@@ -104,8 +104,6 @@
         <input type="range" id="P_floor" min="40" max="120" step="0.5" value="101.325"></label>
       <label class="ctl"><div class="row"><span>axis inversion</span><b><span id="vInv">25</span> K</b></div>
         <input type="range" id="invStrength" min="0" max="60" step="1" value="25"></label>
-      <label class="ctl"><div class="row"><span>floor humidity</span><b><span id="vRH">70</span> %</b></div>
-        <input type="range" id="RH_floor" min="10" max="100" step="1" value="70"></label>
       <label class="ctl"><div class="row"><span>vapour scale height</span><b><span id="vHq">2.0</span> km</b></div>
         <input type="range" id="humidityScale" min="300" max="6000" step="100" value="2000"></label>
     </div>
@@ -187,15 +185,17 @@
     <i>outward</i>, so the floor is always the warm end). <b>Temperature</b> hangs a dry centrifugal
     adiabat (<code>cp·T+Φ=const</code>, <code>Φ=−½ω²r²</code>) off the floor and adds a radiative
     inversion that warms the axis — crank it and "up" flips cold→hot. <b>Pressure</b> is centrifugal
-    hydrostatic balance <code>dP/dr=ρω²r</code> with the local temperature. <b>Humidity</b> hangs off
-    the floor; with the <b>jets</b> off it stratifies and traps under the inversion, with them on the
-    fountain well-mixes it (conserving the water); <b>fog</b> is wherever RH≥1. <b>Wind</b> is a
+    hydrostatic balance <code>dP/dr=ρω²r</code> with the local temperature. <b>Humidity is solved,
+    not set:</b> the lakes are the vapour source (saturation over the open water), the cold
+    reservoir-cooled floor is the dew sink, and how humid the floor runs follows the <b>lake
+    coverage</b>; the <b>jets</b> don't make vapour, they ventilate — lofting floor moisture upward
+    (drying the floor, wetting the axis), conserving the water. <b>Fog</b> is wherever RH≥1. <b>Wind</b> is a
     convective scale <code>(B·z_i)^⅓</code> choked by the inversion's stability, plus the jet sheet,
     in a frame where Coriolis (<code>f=2ω</code>) dominates (Rossby ≪ 1). The inner rim carries the
     <b>ratchet</b> topography — asymmetric teeth that let lakes (constant-radius arcs) sit at all.</p>
   </details>
   <p style="margin-top:14px">solver in <code>iris/sim/section.mjs</code> + <code>iris/sim/ratchet.mjs</code>
-  · contracts in <code>iris/test/*.selftest.mjs</code> (42 checks) · the end-on companion to the
+  · contracts in <code>iris/test/*.selftest.mjs</code> (45 checks) · the end-on companion to the
   <a href="https://tide.mino.mobi">tide</a> thermodynamics wing. pure static; runs in your browser.</p>
 </footer>
 
@@ -206,7 +206,7 @@ import * as ratchet from './sim/ratchet.mjs';
 const $ = (id) => document.getElementById(id);
 const C = {
   F_light: $('F_light'), gFloor: $('gFloor'), pipeDeltaT: $('pipeDeltaT'),
-  P_floor: $('P_floor'), invStrength: $('invStrength'), RH_floor: $('RH_floor'),
+  P_floor: $('P_floor'), invStrength: $('invStrength'),
   humidityScale: $('humidityScale'), waterVolume: $('waterVolume'), jetExitSpeed: $('jetExitSpeed'),
 };
 let view = 'temp', fog = false, jets = false, sol = null, geo = null;
@@ -252,7 +252,6 @@ function readInputs() {
     pipeDeltaT: +C.pipeDeltaT.value,
     P_floor: +C.P_floor.value * 1000,
     invStrength: +C.invStrength.value,
-    RH_floor: +C.RH_floor.value / 100,
     humidityScale: +C.humidityScale.value,
     waterVolume: +C.waterVolume.value * 1e9,        // km³ → m³
     jetExitSpeed: +C.jetExitSpeed.value,
@@ -328,20 +327,38 @@ function draw() {
     k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
   }
   ctx.closePath(); ctx.strokeStyle = 'rgba(166,176,190,0.95)'; ctx.lineWidth = 1.2; ctx.stroke();
-  // lakes: filled equipotential arcs from the topology-aware fill solver. Surface radius and
-  // angular span come from how the water volume sits in the basins (depth exaggerated to match
-  // the terrain). Past basin capacity the fill overflows into an annular sea.
+  // lakes: the actual water body, bounded by the terrain so it stops AT the cliff (and follows
+  // the basin's scarp/glide asymmetry — it hugs the steep cliff, laps up the gentle glide). The
+  // surface is an equipotential arc at the solved radius; water exists only where the terrain
+  // sits below it (elevation < depth), so it never extends under the designed cliff edge.
   const lk = sol.lake;                                  // { rw, span, depthMax, overflow }
-  const lrDraw = Rfl - (Rfl - lk.rw) * EXAG;                   // exaggerated surface radius
+  const depthTrue = Rfl - lk.rw, lrDraw = Rfl - depthTrue * EXAG;
   ctx.fillStyle = 'rgba(74,150,200,0.85)'; ctx.strokeStyle = 'rgba(150,205,235,0.95)'; ctx.lineWidth = 1.6;
+  const NB = 360;
   for (let k = 0; k < rp.teeth; k++) {
-    const c = k * Tn, half = (lk.overflow ? Tn / 2 : lk.span / 2);
-    // water sector: surface arc at lrDraw, closed down to the exaggerated terrain band edge
+    const c = k * Tn;
+    const wet = [];
+    for (let j = 0; j <= NB; j++) {
+      const lt = -Tn / 2 + (j / NB) * Tn;               // local azimuth within the tooth
+      if (ratchet.elevation(rp, lt) < depthTrue) wet.push(lt);   // submerged terrain only
+    }
+    if (!wet.length) continue;
     ctx.beginPath();
-    ctx.arc(cx, cy, PX(lrDraw), c - half, c + half);
-    ctx.arc(cx, cy, PX(Rfl), c + half, c - half, true);
+    for (let j = 0; j < wet.length; j++) {              // inner edge: the surface arc
+      const a = c + wet[j], x = cx + Math.cos(a) * PX(lrDraw), y = cy + Math.sin(a) * PX(lrDraw);
+      j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    for (let j = wet.length - 1; j >= 0; j--) {         // outer edge: back along the terrain
+      const a = c + wet[j], gr = Rfl - ratchet.elevation(rp, wet[j]) * EXAG;
+      ctx.lineTo(cx + Math.cos(a) * PX(gr), cy + Math.sin(a) * PX(gr));
+    }
     ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.arc(cx, cy, PX(lrDraw), c - half, c + half); ctx.stroke();   // glint on the surface
+    ctx.beginPath();                                    // glint on the open surface
+    for (let j = 0; j < wet.length; j++) {
+      const a = c + wet[j], x = cx + Math.cos(a) * PX(lrDraw), y = cy + Math.sin(a) * PX(lrDraw);
+      j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.stroke();
   }
 
   // 4. fog overlay (where RH ≥ 1)
@@ -392,13 +409,13 @@ function render() {
   $('vPipe').textContent = (+C.pipeDeltaT.value).toFixed(0);
   $('vP').textContent = (+C.P_floor.value).toFixed(1);
   $('vInv').textContent = (+C.invStrength.value).toFixed(0);
-  $('vRH').textContent = (+C.RH_floor.value).toFixed(0);
   $('vHq').textContent = (+C.humidityScale.value / 1000).toFixed(1);
   $('vVol').textContent = (+C.waterVolume.value).toFixed(2);
   $('vJet').textContent = (+C.jetExitSpeed.value).toFixed(0);
-  $('lakeHint').textContent = sm.lakeOverflow
-    ? '⚠ basins overflowed — one annular sea (topology can\'t hold this much)'
-    : 'three lakes held by the ratchet basins · ' + (sm.lakeDepthMax).toFixed(0) + ' m deep';
+  $('lakeHint').textContent = (sm.lakeOverflow
+    ? '⚠ basins overflowed — one annular sea · '
+    : 'three lakes · ' + sm.lakeDepthMax.toFixed(0) + ' m deep · ')
+    + 'floor RH ' + (sm.RH_floor_actual * 100).toFixed(0) + '% (solved from ' + (sm.lakeFrac * 100).toFixed(0) + '% wet floor)';
 
   // readouts
   $('ePower').textContent = (sm.powerIn / 1e6).toFixed(2) + ' MW/m';

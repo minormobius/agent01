@@ -65,22 +65,34 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
      `${dlnP.toExponential(2)} vs ${(g[i] / (Rd * T[i])).toExponential(2)}`);
 }
 
-// ── 5. Humidity: the jets toggle conserves total water; fog ⇔ RH ≥ 1 ─────────
+// ── 5. Humidity is SOLVED from the lakes; jets redistribute it; fog ⇔ RH ≥ 1 ──
 {
-  const off = solveSection({ jets: false, RH_floor: 0.9 });
-  const on = solveSection({ jets: true, RH_floor: 0.9 });
+  const off = solveSection({ jets: false });
+  const on = solveSection({ jets: true });
   ok('jets on/off conserve total vapour mass (redistribution, not creation)',
      rel(on.summary.totalVapor, off.summary.totalVapor) < 1e-9,
      `${off.summary.totalVapor.toExponential(3)} kg/m`);
   ok('jets well-mix the humidity (uniform q)',
      Math.abs(on.q[0] - on.q[on.q.length - 1]) < 1e-12 && on.q[0] !== off.q[0]);
+  // floor humidity is NOT an input — it follows the lake coverage
+  const dry = solveSection({ waterVolume: 1.5e8 });
+  const wet = solveSection({ waterVolume: 3e9 });
+  ok('bigger lakes ⇒ a more humid floor (solved, not set)',
+     wet.summary.RH_floor_actual > dry.summary.RH_floor_actual,
+     `${(dry.summary.RH_floor_actual * 100).toFixed(0)}% → ${(wet.summary.RH_floor_actual * 100).toFixed(0)}%`);
+  ok('floor RH sits between the cold-sink dew point and saturation',
+     wet.summary.RH_source > 0.4 && wet.summary.RH_source <= 1);
+  // jets VENTILATE: they loft floor moisture, drying the floor and wetting aloft
+  ok('jets dry the floor and wet the axis (ventilation)',
+     on.RH[on.RH.length - 1] < off.RH[off.RH.length - 1] && on.RH[0] > off.RH[0],
+     `floor ${(off.RH[off.RH.length-1]*100).toFixed(0)}→${(on.RH[on.RH.length-1]*100).toFixed(0)}%`);
   // fog mask must agree with RH≥1 exactly
   let agree = true;
   for (let i = 0; i < off.RH.length; i++) if ((off.RH[i] >= 1) !== (off.fogMask[i] === 1)) agree = false;
   ok('fog mask is exactly the RH ≥ 1 set', agree);
-  // a saturated cold axis under stratification should fog somewhere
-  const wet = solveSection({ jets: false, RH_floor: 1.0, invStrength: 0, humidityScale: 1e9 });
-  ok('a cold, well-stocked column condenses fog', wet.summary.hasFog);
+  // big lakes + a cold axis (no inversion) + jets lofting vapour to it ⇒ fog aloft
+  const foggy = solveSection({ jets: true, invStrength: 0, waterVolume: 5e9 });
+  ok('a humid column with a cold axis condenses fog', foggy.summary.hasFog);
 }
 
 // ── 6. Wind: realistic ambient speeds; the jet's exit speed is NOT the wind ──

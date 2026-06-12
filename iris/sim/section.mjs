@@ -19,7 +19,8 @@
 //   PRESSURE  centrifugal hydrostatic balance dP/dr = ρ·ω²r with the LOCAL temperature:
 //             d(lnP)/dr = ω²r/(Rd·T(r)). Integrated inward from the floor pressure.
 //
-//   HUMIDITY  vapour hung off the floor (RH_floor). Jets OFF → it stratifies (e-folds upward,
+//   HUMIDITY  SOLVED from the lakes (source) + the cold-sink dew point, not set. Jets OFF → it
+//             stratifies (e-folds upward,
 //             trapped under the inversion). Jets ON → the fountain mixes the column: vapour
 //             goes well-mixed, CONSERVING total water. Fog is wherever RH ≥ 1.
 //
@@ -64,7 +65,6 @@ export function defaultParams() {
 
     invStrength: 25,            // radiative inversion: extra warmth at the axis vs adiabat, K
     P_floor: 101325,            // habitat pressure at the floor, Pa
-    RH_floor: 0.7,              // relative humidity at the floor (0..1)
     humidityScale: 2000,        // vapour e-folding height when stratified (jets off), m
 
     jets: false,                // fountain jets on/off
@@ -125,9 +125,26 @@ export function solveSection(input = {}) {
   }
   for (let i = 0; i < N; i++) rho[i] = P[i] / (Rd * T[i]);
 
-  // ── humidity ───────────────────────────────────────────────────────────────
-  const eFloor = p.RH_floor * eSat(T_floor);
-  const qFloor = (EPS * eFloor) / (p.P_floor - eFloor);
+  // ── lakes: fill the ratchet basins with the water volume; topology sets the area ────
+  const rp = { ...ratchetParams(), R_floor, teeth: p.teeth };
+  const areaPerLength = p.waterVolume / Math.max(p.cylinderLength, 1);   // m² (cross-section)
+  const fill = fillBasin(rp, areaPerLength / p.teeth);                   // one basin's share
+  const lakeSurfaceArea = fill.surfaceArc * p.teeth * p.cylinderLength;  // m² of open water
+  const lakeFrac = Math.min(1, (fill.surfaceArc * p.teeth) / (2 * Math.PI * R_floor)); // wetted floor
+
+  // ── humidity — SOLVED, not set: the lakes are the source, the cold floor the sink ──
+  // The floor air sits between two ceilings: saturation over the lakes (e_sat at the floor
+  // temperature — the wet source) and the dew point on the cold reservoir-cooled floor
+  // structures (e_sat at T_reservoir — the condensation sink). How close to saturation it
+  // runs is set by how much of the floor is open water: a coupling λ(lakeFrac). Jets don't
+  // enter here — they REDISTRIBUTE this vapour vertically (below), they don't make it.
+  const eSatFloor = eSat(T_floor);
+  const eDew = eSat(T_reservoir);                       // cold-sink dew pin (floor − floorDeltaT)
+  const coupling = 2.6 * lakeFrac;                      // more open water ⇒ closer to saturation
+  const lambda = coupling / (1 + coupling);
+  const eSource = lambda * eSatFloor + (1 - lambda) * eDew;
+  const RH_source = eSource / eSatFloor;                // the near-lake floor RH before mixing
+  const qFloor = (EPS * eSource) / (p.P_floor - eSource);
 
   // stratified profile (jets off): vapour e-folds upward and is trapped near the floor
   const qStrat = new Float64Array(N);
@@ -207,12 +224,6 @@ export function solveSection(input = {}) {
     if (U[i] > maxWind) maxWind = U[i];
   }
   const RossbyFloor = maxWind / (fCor * R_floor);     // ≪1 here: rotation dominates
-
-  // ── lakes: fill the ratchet basins with the water volume; topology sets the area ────
-  const rp = { ...ratchetParams(), R_floor, teeth: p.teeth };
-  const areaPerLength = p.waterVolume / Math.max(p.cylinderLength, 1);   // m² (cross-section)
-  const fill = fillBasin(rp, areaPerLength / p.teeth);                   // one basin's share
-  const lakeSurfaceArea = fill.surfaceArc * p.teeth * p.cylinderLength;  // m² of open water
   const jm = jetMechanics(p.jetExitSpeed);
 
   return {
@@ -233,8 +244,8 @@ export function solveSection(input = {}) {
       adiabatSpan, upIsHot: T[0] > T_floor,
       // pressure
       P_floor: p.P_floor, P_axis: P[0], pRatio: P[N - 1] / P[0],
-      // humidity
-      qFloor, totalVapor, hasFog,
+      // humidity (solved from lakes + redistributed by jets — not an input)
+      qFloor, totalVapor, hasFog, lakeFrac, RH_source,
       fogInner: hasFog ? fogInner : null, fogOuter: hasFog ? fogOuter : null,
       RH_axis: RH[0], RH_floor_actual: RH[N - 1],
       // wind (ambient: convective + the fountain's induced breeze — never the jet exit speed)
