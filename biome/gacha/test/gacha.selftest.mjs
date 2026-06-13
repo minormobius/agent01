@@ -54,12 +54,13 @@ const rel = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1e-30);
     const noStarvers = sp.every((s) => s.kind === 'producer' || (s.eats || []).every((e) => e === 'litter' || present.has(e)) && (s.eats || []).length > 0);
     if (prod && dec && noStarvers) validWiring++;
     // conservation is exact by flux construction; prove it at fine resolution (a few stiff random
-    // webs need a small step for the RK integrator to *show* machine precision — at dt=0.5h all do).
+    // webs need a small step for the RK integrator to *show* machine precision — at dt=0.25h all do,
+    // and the stiffest of the enlarged deck collapse from ~5e-8 at dt=0.5h to ~1e-14 at dt=0.25h).
     if (checked < 12) {
       checked++;
       const p = designToParams(roll.design);
       let s = defaultState(p); const e0 = elements(s, p);
-      const dt = 0.5 * 3600, steps = Math.round(180 * 86400 / dt);
+      const dt = 0.25 * 3600, steps = Math.round(180 * 86400 / dt);
       for (let i = 0; i < steps; i++) s = step(s, p, dt);
       const e1 = elements(s, p);
       const drift = Math.max(...['C','H','O','N'].map((el) => rel(e1[el], e0[el])));

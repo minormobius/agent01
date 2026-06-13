@@ -98,7 +98,7 @@ scores → rarity emerges from the oracle, not RNG). Phase 0 (engine, fully sand
 
 - `gacha/prng.js` — the shared `xmur3→mulberry32` `Rand` (copied from fable/mappa/borges). A roll
   number `n` must reproduce the identical ecosystem for ever — the `/gacha/?n=<n>` permalink contract.
-- `gacha/catalog.json` — ~60 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
+- `gacha/catalog.json` — ~85 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
   (curated traits + iNaturalist photos). Each carries the traits the assembler needs: guild, mass_g,
   thermy, habitats[], producer growth params / per-guild starting biomass, flags (pollinator, harvestable).
 - `gacha/sim/assemble.mjs` — `rollDesign(n, catalog)`: seed → a valid food web in the **builder's
@@ -123,7 +123,8 @@ best seeds (move the hunt to a Web Worker if it janks); Phase 3 = keep/publish p
 Calibration TODO: confirm Legendaries (≥88) are reachable across a big sweep and tune the tier bands.
 NB the gacha runs the box model at dt=3h (fast, interactive) — conservation is exact by flux
 construction; a few stiff random webs show ~1e-7 numerical drift at that step (negligible; the
-self-test proves machine precision at dt=0.5h).
+self-test proves machine precision at dt=0.25h — the deck-85 expansion pushed the
+stiffest sampled webs from ~5e-8 at dt=0.5h to ~1e-14 at dt=0.25h, still exact-by-construction).
 
 ## Invariants — do not break
 

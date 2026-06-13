@@ -1,5 +1,5 @@
 // biome/gacha/build-catalog.mjs — author the gacha's organism pool ("the deck") and enrich it
-// with iNaturalist photos, writing catalog.json. ~60 real organisms across every guild and
+// with iNaturalist photos, writing catalog.json. ~85 real organisms across every guild and
 // habitat, each with the traits the assembler needs (mass, guild, thermy, habitats) to wire a
 // random food web by body-size + guild rules. Producers carry growth params; animals carry a
 // per-guild starting biomass. iNat photo resolution mirrors graph/build-organisms.mjs.
@@ -48,8 +48,14 @@ const CATALOG = [
   P('duckweed',  'Duckweed',       'Lemna minor',         ['lake'],         { fix:2.0, turn:0.060, hi:0.40, area:10000, dens:10 }),
   P('waterlily', 'Water lily',     'Nymphaea alba',       ['lake'],         { fix:1.3, turn:0.020, hi:0,    area:3000, dens:8, poll:true }),
   P('eelgrass',  'Eelgrass',       'Vallisneria americana',['lake'],        { fix:1.6, turn:0.030, hi:0.05, area:4000, dens:7 }),
+  P('maize',     'Maize',          'Zea mays',             ['land'],         { fix:2.0, turn:0.032, hi:0.45, area:3000, dens:7 }),
+  P('soybean',   'Soybean',        'Glycine max',          ['land'],         { fix:1.7, turn:0.035, hi:0.35, area:2800, dens:8 }),
+  P('strawberry','Wild strawberry','Fragaria vesca',       ['land'],         { fix:1.2, turn:0.040, hi:0.30, area:1500, dens:12, poll:true }),
+  P('lavender',  'Lavender',       'Lavandula angustifolia',['land'],        { fix:1.1, turn:0.025, hi:0,    area:1800, dens:9,  poll:true }),
+  P('hornwort',  'Hornwort',       'Ceratophyllum demersum',['lake'],        { fix:2.2, turn:0.050, hi:0,    area:8000, dens:6 }),
+  P('lotus',     'Sacred lotus',   'Nelumbo nucifera',     ['shore','lake'], { fix:1.4, turn:0.020, hi:0.10, area:3000, dens:7,  poll:true }),
 
-  // ── HERBIVORES (9) ──────────────────────────────────────────────────────────────────────
+  // ── HERBIVORES (14) ─────────────────────────────────────────────────────────────────────
   A('rabbit',     'Rabbit',         'Oryctolagus cuniculus',  'herbivore', 1500,   ['land'],         { thermy:'endo', harv:true }),
   A('grasshopper','Grasshopper',    'Chorthippus brunneus',   'herbivore', 0.3,    ['land'] ),
   A('aphid',      'Pea aphid',      'Acyrthosiphon pisum',    'herbivore', 0.002,  ['land'] ),
@@ -59,14 +65,22 @@ const CATALOG = [
   A('waterflea',  'Water flea',     'Daphnia magna',          'herbivore', 0.0006, ['lake'] ),
   A('pondsnail',  'Pond snail',     'Lymnaea stagnalis',      'herbivore', 3,      ['lake','shore'] ),
   A('grasscarp',  'Grass carp',     'Ctenopharyngodon idella','herbivore', 3000,   ['lake'],         { harv:true }),
+  A('cow',        'Cattle',         'Bos taurus',             'herbivore', 400000, ['land'],         { thermy:'endo', harv:true }),
+  A('vole',       'Field vole',     'Microtus agrestis',      'herbivore', 30,     ['land','soil'],  { thermy:'endo' }),
+  A('locust',     'Migratory locust','Locusta migratoria',    'herbivore', 2,      ['land'] ),
+  A('mayfly',     'Mayfly nymph',   'Cloeon dipterum',        'herbivore', 0.01,   ['lake'] ),
+  A('ramshorn',   'Ramshorn snail', 'Planorbarius corneus',   'herbivore', 4,      ['lake','shore'] ),
 
-  // ── NECTARIVORES / POLLINATORS (4) ──────────────────────────────────────────────────────
+  // ── NECTARIVORES / POLLINATORS (7) ──────────────────────────────────────────────────────
   A('bee',        'Honey bee',      'Apis mellifera',         'nectarivore', 0.1,  ['air','land'],   { poll:true }),
   A('bumblebee',  'Bumblebee',      'Bombus terrestris',      'nectarivore', 0.2,  ['air','land'],   { poll:true }),
   A('hoverfly',   'Hoverfly',       'Episyrphus balteatus',   'nectarivore', 0.02, ['air','land'],   { poll:true }),
   A('butterfly',  'Painted lady',   'Vanessa cardui',         'nectarivore', 0.5,  ['air','land'],   { poll:true }),
+  A('masonbee',   'Mason bee',      'Osmia bicornis',         'nectarivore', 0.12, ['air','land'],   { poll:true }),
+  A('hawkmoth',   'Hawk-moth',      'Macroglossum stellatarum','nectarivore',0.3,  ['air','land'],   { poll:true }),
+  A('chafer',     'Rose chafer',    'Cetonia aurata',         'nectarivore', 0.8,  ['air','land'],   { poll:true }),
 
-  // ── CARNIVORES (17) ─────────────────────────────────────────────────────────────────────
+  // ── CARNIVORES (21) ─────────────────────────────────────────────────────────────────────
   A('spider',     'Garden spider',  'Araneus diadematus',     'carnivore', 0.27,  ['land'] ),
   A('ladybird',   'Ladybird',       'Coccinella septempunctata','carnivore',0.04, ['land','air'] ),
   A('beetle',     'Ground beetle',  'Pterostichus melanarius','carnivore', 0.2,   ['soil','land'] ),
@@ -84,8 +98,12 @@ const CATALOG = [
   A('heron',      'Grey heron',     'Ardea cinerea',          'carnivore', 1500,  ['lake','shore','air'], { thermy:'endo' }),
   A('kingfisher', 'Kingfisher',     'Alcedo atthis',          'carnivore', 40,    ['lake','air'],   { thermy:'endo' }),
   A('frogfish',   'Anglerfish',     'Lophius piscatorius',    'carnivore', 800,   ['lake'] ),
+  A('stoat',      'Stoat',          'Mustela erminea',        'carnivore', 250,   ['land','soil'],  { thermy:'endo' }),
+  A('kestrel',    'Kestrel',        'Falco tinnunculus',      'carnivore', 200,   ['air','land'],   { thermy:'endo' }),
+  A('divingbeetle','Diving beetle', 'Dytiscus marginalis',    'carnivore', 1.2,   ['lake'] ),
+  A('catfish',    'Wels catfish',   'Silurus glanis',         'carnivore', 15000, ['lake'],         { harv:true }),
 
-  // ── OMNIVORES (7) ───────────────────────────────────────────────────────────────────────
+  // ── OMNIVORES (11) ──────────────────────────────────────────────────────────────────────
   A('carp',       'Common carp',    'Cyprinus carpio',        'omnivore', 1500,   ['lake'],         { harv:true }),
   A('tilapia',    'Nile tilapia',   'Oreochromis niloticus',  'omnivore', 400,    ['lake'],         { harv:true }),
   A('duck',       'Mallard duck',   'Anas platyrhynchos',     'omnivore', 1000,   ['lake','land','air'], { thermy:'endo', harv:true }),
@@ -93,8 +111,12 @@ const CATALOG = [
   A('frog',       'Marsh frog',     'Pelophylax ridibundus',  'omnivore', 30,     ['lake','shore','soil'] ),
   A('chicken',    'Chicken',        'Gallus gallus',          'omnivore', 2000,   ['land'],         { thermy:'endo', harv:true }),
   A('pig',        'Pig',            'Sus scrofa',             'omnivore', 80000,  ['land','soil'],  { thermy:'endo', harv:true }),
+  A('rat',        'Brown rat',      'Rattus norvegicus',      'omnivore', 300,    ['land','soil'],  { thermy:'endo' }),
+  A('hedgehog',   'Hedgehog',       'Erinaceus europaeus',    'omnivore', 800,    ['land','soil'],  { thermy:'endo' }),
+  A('goose',      'Greylag goose',  'Anser anser',            'omnivore', 3500,   ['lake','land','air'], { thermy:'endo', harv:true }),
+  A('terrapin',   'Pond terrapin',  'Emys orbicularis',       'omnivore', 800,    ['lake','shore','land'] ),
 
-  // ── DETRITIVORES / DECOMPOSERS (8) ──────────────────────────────────────────────────────
+  // ── DETRITIVORES / DECOMPOSERS (11) ─────────────────────────────────────────────────────
   A('worm',       'Earthworm',      'Lumbricus terrestris',   'detritivore', 0.5,   ['soil'] ),
   A('springtail', 'Springtail',     'Folsomia candida',       'detritivore', 0.0008,['soil'],        { micro:true }),
   A('fungus',     'Oyster fungus',  'Pleurotus ostreatus',    'detritivore', 0.001, ['soil'],        { micro:true }),
@@ -103,6 +125,9 @@ const CATALOG = [
   A('benthos',    'Benthic microbes','aquatic detritus community','detritivore',0.0008,['lake'],     { micro:true }),
   A('dungbeetle', 'Dung beetle',    'Geotrupes stercorarius', 'detritivore', 0.5,   ['soil'] ),
   A('millipede',  'Millipede',      'Cylindroiulus londinensis','detritivore',0.1,  ['soil'] ),
+  A('soldierfly', 'Black soldier fly','Hermetia illucens',    'detritivore', 0.2,  ['soil'],        { harv:true }),
+  A('mealworm',   'Mealworm',       'Tenebrio molitor',       'detritivore', 0.1,  ['soil'],        { harv:true }),
+  A('waterhoglouse','Water hoglouse','Asellus aquaticus',     'detritivore', 0.07, ['lake','shore'] ),
 ];
 
 async function getJSON(url, ms = 20000) {
