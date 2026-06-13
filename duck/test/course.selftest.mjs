@@ -21,9 +21,23 @@ function check(name, cond, extra = '') {
   check('earth course is deterministic for a seed', JSON.stringify(a) === JSON.stringify(b));
   const c = generateCourse({ mode: 'earth', seed: 6 });
   check('a different seed gives a different course', JSON.stringify(a) !== JSON.stringify(c));
-  check('12 gates + a pad', a.gates.length === 12 && a.pad && a.pad.r > 0);
+  check('8 gates + a pad', a.gates.length === 8 && a.pad && a.pad.r > 0);
   check('every gate fwd is a unit vector', a.gates.every((g) => approx(vec3.len(g.fwd), 1, 1e-6)));
   check('every gate has positive radius', a.gates.every((g) => g.r > 0));
+}
+
+// ── the first gate is dead ahead of the spawn ──
+{
+  const sp = [0, 240, 0], sf = [0, 0, -1];
+  const { gates } = generateCourse({ mode: 'earth', seed: 2, start: { pos: sp, fwd: sf } });
+  const to = vec3.normalize([0, 0, 0], vec3.sub([0, 0, 0], gates[0].pos, sp));
+  check('first gate lies along the spawn heading', vec3.dot(to, sf) > 0.98, `dot=${vec3.dot(to, sf).toFixed(3)}`);
+  check('first gate is at the spawn altitude', approx(gates[0].pos[1], sp[1], 1e-6));
+  // cylinder: spawn facing +z, first gate ahead in +z at the same radius
+  const R = 900, len = 1400, csp = [0, -(R - 60), len * 0.15], csf = [0, 0, 1];
+  const cc = generateCourse({ mode: 'cylinder', R, len, seed: 2, start: { pos: csp, fwd: csf } });
+  check('cyl first gate is ahead (+z) of the spawn', cc.gates[0].pos[2] > csp[2]);
+  check('cyl first gate keeps the spawn radius', approx(Math.hypot(cc.gates[0].pos[0], cc.gates[0].pos[1]), R - 60, 1e-6));
 }
 
 // ── cylinder course sits inside the hull, above the floor ──
@@ -69,7 +83,7 @@ function check(name, cond, extra = '') {
       prev = cur;
     }
   }
-  check('flying through every centre clears all 12 gates in order', idx === gates.length, `cleared ${idx}`);
+  check('flying through every centre clears all gates in order', idx === gates.length, `cleared ${idx}`);
 }
 
 console.log(`\nduck/course: ${pass} passed, ${fail} failed`);

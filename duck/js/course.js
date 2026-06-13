@@ -11,34 +11,47 @@
 import { vec3 } from './math.js';
 import { mulberry32 } from './geometry.js';
 
-// Generate a course for the active world.
-//   opts: { mode, R, len, seed, scale }   (R/len ignored for earth)
-export function generateCourse({ mode, R = 0, len = 0, seed = 1, scale = 1 } = {}) {
-  const rnd = mulberry32(seed * 2654435761 >>> 0);
-  const N = 12;
-  const r = 16 * scale;                 // gate radius (duck ≈ 4 m)
+// Generate a course for the active world. The first gate is placed DEAD AHEAD of
+// the spawn (start.pos + start.fwd · gap, same altitude) so you see it the moment
+// you spawn; the rest march forward with a gentle meander.
+//   opts: { mode, R, len, seed, scale, start:{pos,fwd} }
+export function generateCourse({ mode, R = 0, len = 0, seed = 1, scale = 1, start } = {}) {
+  const rnd = mulberry32((seed * 2654435761) >>> 0);
+  const N = 8;
+  const r = 18 * scale;                 // gate radius (duck ≈ 4 m)
+  const gap = 120 * scale;              // spacing
+  const sp = (start && start.pos) || (mode === 'cylinder' ? [0, -(R - 60), len * 0.15] : [0, 240, 0]);
+  const sf = (start && start.fwd) || (mode === 'cylinder' ? [0, 0, 1] : [0, 0, -1]);
   const pts = [];
 
   if (mode === 'cylinder') {
-    const startZ = len * 0.3 + 70, endZ = len * 0.92;
-    const step = (endZ - startZ) / (N - 1);
-    let th = -Math.PI / 2;              // start at the "bottom" (matches the spawn)
-    const altMax = Math.min(R * 0.45, 360);
+    const th0 = Math.atan2(sp[1], sp[0]);
+    const baseAlt = R - Math.hypot(sp[0], sp[1]);
+    const z0 = sp[2] + gap;
+    const zEnd = Math.min(len * 0.9, z0 + (N - 1) * gap * 1.2);
+    const stepZ = (zEnd - z0) / Math.max(1, N - 1);
+    const altMax = Math.min(R * 0.4, 320);
+    let th = th0;
     for (let i = 0; i < N; i++) {
-      th += (rnd() - 0.5) * 0.8;        // meander around the circumference
-      const alt = 40 + rnd() * altMax;  // height above the floor
+      let alt, z;
+      if (i === 0) { alt = baseAlt; z = z0; }                  // dead ahead, same height
+      else { th += (rnd() - 0.5) * 0.7; alt = 40 + rnd() * altMax; z = z0 + stepZ * i; }
       const rho = R - alt;
-      const z = startZ + step * i;
       pts.push([Math.cos(th) * rho, Math.sin(th) * rho, z]);
     }
   } else {
-    let ang = Math.PI;                  // heading −Z (matches earth spawn facing)
-    let p = [0, 120, -140];
-    for (let i = 0; i < N; i++) {
-      ang += (rnd() - 0.5) * 0.9;
-      const y = 55 + rnd() * 200;
+    // a 2D heading walk on the ground, anchored at the spawn (dir = [sin a, 0, −cos a])
+    let a = Math.atan2(sf[0], -sf[2]);
+    const dir = (ang) => [Math.sin(ang), 0, -Math.cos(ang)];
+    const baseY = sp[1];
+    let p = [sp[0] + dir(a)[0] * gap, baseY, sp[2] + dir(a)[2] * gap]; // first gate ahead
+    pts.push([p[0], baseY, p[2]]);
+    for (let i = 1; i < N; i++) {
+      a += (rnd() - 0.5) * 0.8;
+      const y = Math.max(70, baseY + (rnd() - 0.5) * 160);
+      const d = dir(a);
+      p = [p[0] + d[0] * gap * 1.15, y, p[2] + d[2] * gap * 1.15];
       pts.push([p[0], y, p[2]]);
-      p = [p[0] + Math.sin(ang) * 135, 0, p[2] - Math.cos(ang) * 135];
     }
   }
 

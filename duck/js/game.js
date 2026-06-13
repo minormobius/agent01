@@ -93,20 +93,26 @@ export async function start(canvas, hud) {
 
   function makeCourse() {
     const { R, len } = state.cyl;
-    const c = generateCourse({ mode: state.mode, R, len, seed: state.courseSeed, scale: worldScale() });
+    const d = state.duck;
+    const start = { pos: vec3.clone(d.pos), fwd: vec3.transformQuat([0, 0, 0], [0, 0, -1], d.q) };
+    const c = generateCourse({ mode: state.mode, R, len, seed: state.courseSeed, scale: worldScale(), start });
     state.course = { ...c, idx: 0, done: false, t0: state.time, finishT: 0 };
     state.onGround = false;
   }
 
   function resetDuck() {
     const d = state.duck;
-    quat.identity(d.q); d.throttle = 0.6; d.vel = [0, 0, -55];
+    d.throttle = 0.6;
     state.crumbs.length = 0;
     if (state.mode === 'cylinder') {
       const { R, len } = state.cyl;
-      d.pos = [0, -(R - 60), len * 0.3];     // 60 m above the "bottom" floor → down ≈ −Y
+      d.pos = [0, -(R - 60), len * 0.15];                  // 60 m above the floor
+      quat.rotateLocal(quat.identity(d.q), d.q, [0, 1, 0], Math.PI); // face +z, down the length
+      d.vel = vec3.scale([0, 0, 0], vec3.transformQuat([0, 0, 0], [0, 0, -1], d.q), 55);
     } else {
+      quat.identity(d.q);
       d.pos = [0, 240, 0];
+      d.vel = [0, 0, -55];
     }
     makeCourse();
   }

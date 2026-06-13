@@ -25,11 +25,11 @@ and centrifugal drags it down to the floor.
 
 ## The course + landing
 
-Each world has a **procedurally generated 12-gate course** ("barriers" to navigate)
+Each world has a **procedurally generated 8-gate course** ("barriers" to navigate)
 plus a **landing pad** at the end. The course winds over the ground on Earth and
 **spirals down the curved interior** in the cylinder. Fly through the **gold** (next)
 gate — the HUD shows distance and a bearing arrow — then chase the **cyan** ones.
-Clear all 12 and **land gently on the pad**: touchdowns are graded on descent rate
+Clear them all and **land gently on the pad**: touchdowns are graded on descent rate
 and how level the duck is (smooth / bumpy / rough), with a bonus for the pad. `N`
 rolls a fresh course; it's deterministic per seed.
 
@@ -74,7 +74,7 @@ integral** (rotating frame) and **specific energy** (Earth).
 
 ```bash
 node duck/test/physics.selftest.mjs   # 22 checks
-node duck/test/course.selftest.mjs    # 17 checks (course determinism + gate crossing)
+node duck/test/course.selftest.mjs    # 21 checks (course determinism + gate crossing)
 ```
 
 ## Deploy

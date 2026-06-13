@@ -43,14 +43,7 @@
   <button id="btnHelp" onclick="document.getElementById('help').classList.toggle('hidden')">? controls <kbd>H</kbd></button>
 </div>
 
-<!-- bottom: the pitch -->
-<div class="panel bottom">
-  Fly the <b>gold gate</b> next, then chase the <b>cyan</b> ones — clear all 12 and <b>land on the
-  pad</b>. <b>Tap / drag</b> to flap + steer. Hold <kbd>SPACE</kbd> or 🍞 for <b>breadcrumbs</b>:
-  straight fall on Earth, <b>Coriolis</b>-bent in the cylinder.
-</div>
-
-<!-- controls overlay -->
+<!-- controls overlay (opt-in via the ? button — never auto-opens) -->
 <div id="help" class="overlay hidden">
   <div class="card">
     <h1>🦆 spin-gravity duck</h1>
@@ -66,7 +59,7 @@
     <p>The default cylinder is <b>hoop</b> — the 8 km / 0.8 g hull from the
     <a href="https://hoop.mino.mobi" target="_blank" rel="noopener">hoop</a> O'Neill model
     (ω ≈ 0.031 rad/s). Press <kbd>C</kbd> to cycle to tighter rings where Coriolis is wild.</p>
-    <p><b>The course.</b> A procedurally generated run of 12 gates winds through each world —
+    <p><b>The course.</b> A procedurally generated run of 8 gates winds through each world —
     over the ground on Earth, spiralling down the curved interior in the cylinder. Fly through the
     <b>gold</b> (next) gate, follow the bearing in the HUD, clear them all, then <b>set down gently
     on the landing pad</b> — touchdowns are graded on descent rate and how level you are. <kbd>N</kbd>
@@ -112,8 +105,6 @@
     btnCrumb: id('btnCrumb'), tapdot: id('tapdot'),
     course: id('course'), toast: id('toast'),
   };
-  // show the controls card once on first load
-  if (!localStorage.getItem('duck.seen')) { id('help').classList.remove('hidden'); localStorage.setItem('duck.seen', '1'); }
   start(canvas, hud).catch((err) => {
     console.error(err);
     id('nogpu').classList.remove('hidden');
