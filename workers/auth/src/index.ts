@@ -24,6 +24,7 @@ const ALLOWED_ORIGINS = [
   'https://minomobi.com',
   'https://www.minomobi.com',
   'https://mino.mobi',
+  'https://mega.mino.mobi',
   'https://bakery.mino.mobi',
   'https://photo.mino.mobi',
   'https://labglass.minomobi.com',

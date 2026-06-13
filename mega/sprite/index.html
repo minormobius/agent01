@@ -50,6 +50,7 @@
   input[type=range]{width:100%;accent-color:var(--gold)}
   select{background:#0c0d11;border:1px solid var(--line);color:var(--ink);font-family:var(--mono);
          font-size:12px;padding:4px 6px;border-radius:6px}
+  .dim{color:var(--dim)} code{font-family:var(--mono);font-size:.85em;background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
   .row{display:flex;gap:8px;flex-wrap:wrap}
   button{font-family:var(--sans);font-size:13px;background:var(--gold);color:#0f1014;border:0;
          padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600}
@@ -90,7 +91,7 @@
 </nav>
 
 <header class="hero">
-  <p class="kicker">Sprite Lab · Stage 2 — civic genome</p>
+  <p class="kicker">Sprite Lab · portable — module · API · PDS</p>
   <h1><span class="g">◓</span> Sprite Lab</h1>
   <p class="lede">A <b>seed-deterministic</b> sprite generator driven by hoop's
      <a href="https://hoop.mino.mobi/econ/">civic genome</a>: roll a town and each NPC's
@@ -179,6 +180,31 @@
   <section aria-label="gallery">
     <div class="galhead"><h2>The street</h2><span class="note" id="galnote"></span></div>
     <div class="gallery" id="gallery"></div>
+
+    <section class="panel" style="margin-top:22px" aria-label="save to PDS">
+      <h2>Portable — save to your PDS</h2>
+      <div id="pdsauth">
+        <p class="dim" style="font-size:13px;margin:0 0 10px">Sign in with Bluesky to save sets of
+          sprites to your own repo as <code>com.minomobi.sprite.set</code> records — tiny, regenerable,
+          and yours. A set stores genomes, not pixels.</p>
+        <div class="row">
+          <input id="pdshandle" type="text" placeholder="you.bsky.social" spellcheck="false" style="flex:1">
+          <button id="pdslogin">Sign in</button>
+        </div>
+      </div>
+      <div id="pdsin" style="display:none">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <span id="pdswho" class="dim" style="font-size:13px"></span>
+          <button id="pdslogout" class="ghost">Sign out</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="pdssave">＋ Save this town</button>
+          <button id="pdsrefresh" class="ghost">↻ My sets</button>
+        </div>
+        <div id="pdssets" style="margin-top:10px"></div>
+      </div>
+      <div id="pdsmsg" class="dim" style="font-size:12px;margin-top:8px"></div>
+    </section>
   </section>
 </main>
 
@@ -194,6 +220,7 @@
 <script type="module">
 import { buildGenome, frameRects, mulberry32, sharedClothFor,
          DIR8, DIR_OF, ARCHETYPES } from './core.js';
+import { AuthClient } from './vendor/auth.js';
 
 // ── thin renderers over the pure kernel ──
 function drawCanvas(canvas, g, scale, dir, phase){
@@ -306,11 +333,54 @@ $("apilink") && ($("apilink").onclick=e=>{ const g=window._g;
   e.target.href=`/sprite/api/sprite.svg?seed=${encodeURIComponent(g.seed)}&size=${g.size}&arch=${g.opts.arch}&dir=S&scale=16`; });
 function copy(t){ if(navigator.clipboard) navigator.clipboard.writeText(t); }
 
-// expose a tiny handle for the PDS layer + console tinkering
-window.SpriteLab={ get base(){return base;}, get opts(){return {...opts};},
-  setState(b,o){ base=b||base; if(o)opts={...opts,...o}; selectedIdx=0; renderAll(); } };
+// keep the widgets in sync with state (so a loaded set updates the controls too)
+function syncControls(){
+  $("seed").value=base;
+  $("size").value=opts.size; $("sizeval").textContent=opts.size;
+  $("dens").value=opts.dens; $("densval").textContent=(+opts.dens).toFixed(2);
+  $("frames").value=String(opts.frames);
+  [...$("arch").children].forEach(x=>x.classList.toggle("on",x.dataset.v===opts.arch));
+  ["head","legs","eyes","item","sym"].forEach(k=>{ $(k).checked=!!opts[k]; });
+  $("walk").checked=animOn;
+}
 
-renderAll();
+// ── PDS: portable sets (sign in via the shared auth worker; sprites stored as genomes) ──
+const auth=new AuthClient();
+const SET="com.minomobi.sprite.set";
+const pmsg=t=>{ $("pdsmsg").textContent=t||""; };
+function pdsUI(){ const u=auth.getUser();
+  $("pdsauth").style.display=u?"none":"block"; $("pdsin").style.display=u?"block":"none";
+  if(u){ $("pdswho").textContent="@"+u.handle; loadSets(); } }
+$("pdslogin").onclick=async()=>{ const h=$("pdshandle").value.trim(); if(!h){pmsg("enter your handle");return;}
+  pmsg("redirecting to Bluesky…"); try{ await auth.login(h); }catch(e){ pmsg("sign-in failed: "+e.message); } };
+$("pdslogout").onclick=async()=>{ try{ await auth.logout(); }catch(e){} pdsUI(); pmsg(""); };
+$("pdsrefresh").onclick=()=>loadSets();
+$("pdssave").onclick=async()=>{ if(!auth.getUser()){ pmsg("sign in first"); return; }
+  const name=(prompt("Name this set",base)||base).slice(0,200);
+  const rec={ name, createdAt:new Date().toISOString(), base,
+    opts:{ size:opts.size, dens:String(opts.dens), arch:opts.arch, frames:opts.frames,
+           sym:opts.sym, head:opts.head, legs:opts.legs, eyes:opts.eyes, item:opts.item },
+    sprites:Array.from({length:GAL},(_,i)=>({seed:seedFor(i)})) };
+  pmsg("saving…");
+  try{ await auth.pds.createRecord(SET, rec); pmsg("saved “"+name+"” to your PDS"); loadSets(); }
+  catch(e){ pmsg("save failed: "+e.message); } };
+async function loadSets(){ const box=$("pdssets"); box.innerHTML='<span class="dim">loading…</span>';
+  try{ const res=await auth.pds.listRecords(SET,100); const recs=(res.records||[]).slice().reverse();
+    if(!recs.length){ box.innerHTML='<span class="dim">no saved sets yet</span>'; return; }
+    box.innerHTML="";
+    for(const r of recs){ const v=r.value||{}; const b=document.createElement("button"); b.className="ghost";
+      b.style.cssText="display:block;width:100%;text-align:left;margin:4px 0;font-size:12.5px";
+      b.textContent=`${v.name||"(unnamed)"} · ${(v.sprites||[]).length} sprites · ${(v.opts&&v.opts.arch)||""}`;
+      b.onclick=()=>applySet(v); box.appendChild(b); }
+  }catch(e){ box.innerHTML=""; pmsg("load failed: "+e.message); } }
+function applySet(v){ const o=v.opts||{}; base=v.base||base;
+  opts={ ...opts, size:+o.size||opts.size, dens:+o.dens||opts.dens, arch:o.arch||opts.arch,
+         frames:+o.frames||opts.frames, sym:o.sym!==false, head:o.head!==false, legs:o.legs!==false,
+         eyes:o.eyes!==false, item:o.item!==false };
+  selectedIdx=0; syncControls(); renderAll(); pmsg("loaded “"+(v.name||"set")+"”"); }
+
+renderAll(); syncControls();
+auth.init().then(pdsUI).catch(()=>pdsUI());
 </script>
 </body>
 </html>

@@ -341,7 +341,8 @@ parts, palette archetypes, export); the kernel below is its seed. Click any figu
 <tr><td>2 · Bind</td><td><strong>Shipping in the lab:</strong> the body now reads off the civic genome — archetype (balanced/dormitory/company/commons) biases the role mix, role sets accent colour + held item + glyph, domain roles dress in their material's hue. Plus anatomy: rounded head, legs + pants, a pareidolia face. <em>Pending:</em> consume hoop's <em>live</em> rolled genome rather than a faithful embedded copy.</td><td><span class="pill now">now</span></td></tr>
 <tr><td>3 · Facing + animate</td><td><strong>Shipped:</strong> 8-way facing (front/¾/profile/back via face + hairline + item side; west = mirror of east) <em>and</em> a derived walk cycle per direction — legs scissor (profile) or alternate-lift (front/back), torso bobs, item counter-swings; live in the compass grid, with an 8×N-frame walk-atlas export. <em>Pending:</em> wire the gait speed to the NPC's real motion in <code>world.js</code>.</td><td><span class="pill now">now</span></td></tr>
 <tr><td>4 · Port</td><td>Drop the renderer into hoop <code>world.js</code> — the <code>@</code> and ambient NPCs become sprites; degrade to glyph.</td><td><span class="pill">later</span></td></tr>
-<tr><td>5 · Persist</td><td>Genome as an ATProto record so an NPC's face is stable &amp; portable across repos.</td><td><span class="pill">later</span></td></tr>
+<tr><td>4½ · Portable</td><td><strong>Shipped:</strong> the kernel is now a pure ESM module (<code>core.js</code>) with a node selftest; an <strong>HTTP API</strong> (<code>/sprite/api/sprite.svg|.json|walk.json</code>) renders it canvas-free (SVG = a scalable portable asset); and you can <strong>save/load sets to your PDS</strong> as <code>com.minomobi.sprite.set</code> (genomes, not pixels) via the shared auth worker. <em>Deploy note:</em> PDS writes need the auth worker redeployed with the new scope (see below).</td><td><span class="pill now">now</span></td></tr>
+<tr><td>5 · Hoop</td><td>Port the renderer into hoop's <code>world.js</code> — NPCs become sprites, gait keyed to real motion; bind seeds to chamber-address <code>gid</code>.</td><td><span class="pill">later</span></td></tr>
 </table>
 <p class="dim">Stages 1–2 are the kernel and the payoff; everything after is polish. The kernel lives
 here at <code>mega/sprite/</code> as a sandbox (the way <code>hoop/paint/</code> and
@@ -355,10 +356,10 @@ hoop once it's right.</p>
 <ol>
 <li><strong>Render target:</strong> true pixel-art raster (image-rendering: pixelated) vs. an SDF/vector
 figure that suits hoop's glyph-world aesthetic better. The PoC is raster; hoop's look might want vector.</li>
-<li><strong>Where the kernel finally lives:</strong> sandbox here at <code>mega/sprite/</code> then copy
-into <code>hoop/js/</code> (the paint→world.js precedent), or a shared module both import. (hoop is
-pure-static and can't import a sibling at runtime — likely a vendored copy, like
-<code>hoop/vendor/wayfind.js</code>.)</li>
+<li><strong>Where the kernel finally lives:</strong> <em>resolved</em> — it's now a pure ESM module at
+<code>mega/sprite/core.js</code> (browser, API worker, and node selftest all import it). To reach hoop,
+vendor a copy into <code>hoop/js/</code> (hoop is pure-static and can't import a sibling at runtime — the
+<code>hoop/vendor/wayfind.js</code> rule).</li>
 <li><strong>Persistence shape:</strong> a dedicated <code>com.minomobi.hoop.sprite</code> lexicon, or
 just a <code>spriteGenome</code> field on the existing person/place record, or nothing on the wire at
 all (regenerate purely from <code>gid</code>). Cheapest is the last — decide whether players ever

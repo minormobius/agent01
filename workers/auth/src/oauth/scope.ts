@@ -58,6 +58,8 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.mmopaint.stroke',
   // music
   'com.minomobi.music.composition',
+  // sprite — portable NPC sprite sets (mega.mino.mobi/sprite)
+  'com.minomobi.sprite.set',
   // poll
   'com.minomobi.poll.ballot',
   'com.minomobi.poll.def',
