@@ -276,6 +276,19 @@ export function losSimplify(dense, walls, gridCell) {
   return out;
 }
 
+// an OCCLUDER over wall segments: occ(ax,ay,bx,by) → true if the segment crosses any wall. The same
+// wall-grid the string-pull uses, exposed for the lighting pass (a light ray is blocked by a wall —
+// so a building lights its hall and spills out its one door, but not through its back wall).
+export function makeOccluder(walls, gridCell) {
+  const grid = wallGrid(walls || [], gridCell || 64);
+  return (ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay, ln = Math.hypot(dx, dy) || 1, ux = dx / ln, uy = dy / ln;   // inset 1px off the endpoints
+    const a0 = ax + ux, a1 = ay + uy, b0 = bx - ux, b1 = by - uy;
+    for (const i of grid.near([a0, a1], [b0, b1])) { const w = walls[i]; if (segCross(a0, a1, b0, b1, w[0], w[1], w[2], w[3])) return true; }
+    return false;
+  };
+}
+
 
 // ── GATE LINKS: which deck rooms are border crossings, and where they lead. A gate pair shares
 //    its gz, so a deck-band gate's partner is always a deck-band room of the neighbour — walking

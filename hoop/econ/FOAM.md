@@ -383,9 +383,19 @@ sources are now MEANINGFUL. Phased:
   an albedo + light-response gain — walls and void are dark stone that still catch a neighbour's
   glow (reduced gain), floors/roads/buildings take full light; denser street lamps, brighter
   emitters. Pinned numerically: 100% of cells lit, no pure-black anywhere.
-- **Phase 3 — occlusion that uses the city's walls (the real leg-8 payoff).** Replace the
-  wall-ignoring splat with light that flows through the walk graph (door/open membranes spill,
-  walls block) — reuses `buildWalk`, no per-cell raytrace.
+- **Phase 3 — OCCLUSION that uses the city's walls (SHIPPED, the leg-8 payoff).** Light now respects
+  the walls: a building lights its open hall and **spills out its one door** (a door/open membrane
+  is not a wall) but not through its back wall; street lamps pool along the concourse and cast
+  building shadows. Occlusion is STATIC (walls + emitters never move), so each region's occluded
+  light field is **precomputed once** (`precomputeLight`, ray-vs-wall via the exported `makeOccluder`
+  over `d.walls`) and only sampled per frame — no per-frame raytracing. Per-emitter flicker survives
+  exactly via a **sin/cos decomposition**: the steady part bakes into one buffer, the oscillating
+  part into `A=Σ amp·cosφ` / `B=Σ amp·sinφ`, so a frame is `steady + sinωt·A + cosωt·B`. Open halls
+  get a few **farthest-point-spread lamps** (a single centroid light can't fill a non-convex hall).
+  Verified headlessly: ~94% of cross-building light is wall-blocked, hall coverage ~90% (the rest is
+  realistic shadow in non-convex halls), flicker reproduction exact (1e-16). *Follow-ups: cross-seam
+  light spill (each region occludes with its own walls only), and evicting `_lit`/`_walk` buffers for
+  far regions (memory grows without eviction).*
 - **Phase 4 — movement + slide (DEFERRED with inter-deck stairs).** v1's slide is free-movement
   physics; v3 is click-to-walk, and the spin-gravity slope is ~flat on a single deck — real slope
   only appears at inter-deck connectors. Park until the stairs leg lands (needs `rad` per chamber in
