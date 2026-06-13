@@ -16,6 +16,14 @@
   a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; }
   #rail { position: fixed; bottom: 12px; left: 10px; max-width: 46vw; background: rgba(8,11,16,.8); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; backdrop-filter: blur(6px); display: none; }
   #rail b { color: var(--gold); } #rail .w { color: var(--teal); }
+  #rail .tabs { display: flex; gap: 4px; margin: -2px 0 7px; border-bottom: 1px solid var(--line); }
+  #rail .tab { color: var(--dim); cursor: pointer; padding: 2px 9px 5px; border-bottom: 2px solid transparent; user-select: none; }
+  #rail .tab.on { color: var(--ink); border-bottom-color: var(--gold); }
+  #rail .says { color: var(--ink); margin: 4px 0 7px; font-style: italic; }
+  #rail .choice { color: var(--teal); cursor: pointer; padding: 3px 0 3px 14px; text-indent: -10px; }
+  #rail .choice:hover { color: var(--gold); }
+  #rail .end { color: #667; padding-top: 4px; }
+  #rail .meta { color: var(--dim); font-size: 11px; }
   #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.85); color: var(--gold); font-size: 14px; z-index: 9; }
   #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
   #decks { position: fixed; right: 10px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; z-index: 8; }
@@ -26,7 +34,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one to see who they are &amp; who they know · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
@@ -37,6 +45,7 @@
 import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
+import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose } from '../story/engine.js';   // the inference-free story hot path
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -495,16 +504,63 @@ function npcAt(wx, wy) {
   for (const v of visibleRegions()) { const off = offsetOf(v); for (const n of v._npcs || []) { const dx = n.x + off.x - wx, dy = n.y + off.y - wy, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = n; } } }
   return best;
 }
-function inspectNpc(n) {
-  selNpc = n;
+// ── inspecting a resident: a forum/story tabbed card — the §5-D split made literal on ONE figure ──
+// FORUM = the social layer (who they are + the multiplay social web). STORY = the narrative layer:
+// the inference-free engine crystallizes a role-tagged NPC dialogue onto this resident's stable chamber
+// identity (the role→tag bridge), keeping the resident's solved name + web and gaining a tree + YOUR
+// private standing. Most residents stay ambient (forum only); the few you engage become characters.
+const PLAYER = 'local';                                     // session-local player id (durable D1 store comes later)
+let railTab = 'forum';
+let storyStore = null, _storyLoading = null;
+function ensureStory() {
+  if (storyStore) return Promise.resolve(storyStore);
+  if (!_storyLoading) _storyLoading = fetch('../story/pool.json').then((r) => r.json())
+    .then((pool) => (storyStore = new MemoryStore(flattenPool(pool), { features: [] })));
+  return _storyLoading;
+}
+function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }
+function renderRail() {
+  const n = selNpc; if (!n) return;
+  const tab = (k) => '<span class="tab ' + (railTab === k ? 'on' : '') + '" data-tab="' + k + '">' + k + '</span>';
+  rail('<div class="tabs">' + tab('forum') + tab('story') + '</div><b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><div id="railbody"></div>');
+  $('rail').querySelectorAll('[data-tab]').forEach((el) => el.addEventListener('click', () => { railTab = el.dataset.tab; renderRail(); }));
+  if (railTab === 'forum') renderForum(n); else renderStory(n);
+}
+function renderForum(n) {
   const where = n.where === 'home' ? 'heading home' : n.where === 'work' ? 'off to work' : n.where === 'out' ? 'out for the evening' : 'about the deck';
   const rv = n.reg || active, byPi = rv._byPi || (rv._byPi = new Map((rv._npcs || []).map((m) => [m.pi, m])));
-  const known = n.ties.map((tj) => byPi.get(tj)).filter(Boolean);              // acquaintances who are residents of THIS deck
+  const known = n.ties.map((tj) => byPi.get(tj)).filter(Boolean);
   const web = known.length
-    ? '<br><span style="color:#8a978f">knows ' + known.slice(0, 6).map((m) => '<span class="w" style="cursor:pointer" data-pi="' + m.pi + '">' + m.name + '</span>').join(', ') + (known.length > 6 ? ' +' + (known.length - 6) + ' more' : '') + '</span>'
-    : '<br><span style="color:#667">keeps to themselves on this deck</span>';
-  rail('<b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><br><span style="color:#8a978f">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</span>' + web);
+    ? '<div class="meta">knows ' + known.slice(0, 6).map((m) => '<span class="w" style="cursor:pointer" data-pi="' + m.pi + '">' + m.name + '</span>').join(', ') + (known.length > 6 ? ' +' + (known.length - 6) + ' more' : '') + '</div>'
+    : '<div class="end">keeps to themselves on this deck</div>';
+  $('railbody').innerHTML = '<div class="meta">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</div>' + web;
   $('rail').querySelectorAll('[data-pi]').forEach((el) => el.addEventListener('click', () => { const m = byPi.get(+el.dataset.pi); if (m) inspectNpc(m); dirty = true; }));   // hop along the web
+}
+async function renderStory(n) {
+  const body = $('railbody'); body.innerHTML = '<div class="meta">…</div>';
+  let store; try { store = await ensureStory(); } catch (e) { body.innerHTML = '<div class="end">story layer offline</div>'; return; }
+  if (selNpc !== n || railTab !== 'story') return;          // selection changed while the pool loaded
+  store.addFeature({ key: n.seed, type: 'npc', label: n.name + ', a ' + n.role, tag: n.role });   // chamber identity = feature_key; role = bridge tag
+  const res = storyInteract(store, PLAYER, n.seed);
+  if (!res.item) { body.innerHTML = '<div class="end">an ordinary resident — no tale has crystallized here</div>'; return; }
+  n._npcId = res.item.content_item_id;
+  drawDialogue(n, body);
+}
+function drawDialogue(n, body, note) {
+  const store = storyStore, t = storyTalk(store, PLAYER, n._npcId);
+  let h = '';
+  if (note) h += '<div class="w">✦ ' + note + '</div>';
+  h += '<div class="says">“' + (t.says || 'They regard you in silence.') + '”</div>';
+  if (t.no_tree) { body.innerHTML = h + '<div class="end">— they have nothing to say —</div>'; return; }
+  if (t.choices.length) for (const c of t.choices) h += '<div class="choice" data-c="' + c.id + '">› ' + c.text + '</div>';
+  else h += '<div class="end">— the exchange is over —</div>';
+  h += '<div class="meta">standing ' + (t.standing >= 0 ? '+' : '') + t.standing + ' · your story, not the world\'s</div>';
+  body.innerHTML = h;
+  body.querySelectorAll('[data-c]').forEach((el) => el.addEventListener('click', () => {
+    const r = storyChoose(store, PLAYER, n._npcId, el.dataset.c);
+    const got = (r.gave_items || []).map((id) => (store.contentById(id) || { content: {} }).content.name).filter(Boolean);
+    drawDialogue(n, body, got.length ? 'received ' + got.join(', ') : null);
+  }));
 }
 
 // ── click-to-walk anywhere on this deck — interruptible, always from the @'s LIVE position ──

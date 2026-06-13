@@ -109,6 +109,22 @@ ok('min_rep gate', !meetsState({ facts: { 'rep.keepers': 1 }, items: new Set() }
   ok('unavailable choice rejected', choose(s, 'pd', 'np-keeper', 'ask_help').error === undefined || true);
 }
 
+// 7b. THE ROLE→TAG BRIDGE — a feature tagged with a resident's econ role crystallizes a
+//     role-appropriate NPC; an unmapped role still gets *a* figure (graceful fallback).
+{
+  const s = newStore();
+  s.addFeature({ key: 'res:heal:gus', type: 'npc', label: 'Gus, a medic', tag: 'heal' });
+  const r = interact(s, 'pb', 'res:heal:gus');
+  ok('heal resident crystallizes a heal-tagged NPC', r.status === 'crystallized' && content.find((c) => c.id === r.item.content_item_id).tags.includes('heal'));
+  const s2 = newStore();
+  s2.addFeature({ key: 'res:govern:ada', type: 'npc', label: 'Ada, of the council', tag: 'govern' });
+  ok('govern resident gets the Keeper tree', interact(s2, 'pb', 'res:govern:ada').item.content_item_id === 'np-keeper');
+  const s3 = newStore();
+  s3.addFeature({ key: 'res:trade:jo', type: 'npc', label: 'Jo, a trader', tag: 'trade' });   // no trade-tagged NPC in pool
+  const fb = interact(s3, 'pb', 'res:trade:jo');
+  ok('unmapped role falls back to some NPC', fb.status === 'crystallized' && fb.item.type === 'npc');
+}
+
 // 8. dialogue_validate — every NPC tree in the pool is clean (no ERRORs)
 {
   let totalWarn = 0, bad = [];

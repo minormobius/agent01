@@ -29,7 +29,7 @@
       "content": { "name": "Below the Floor", "description": "Behind the warm hatch: a second console, unlogged, still counting up. Only opens to someone who has been below." } }
   ],
   "npcs": [
-    { "id": "np-keeper", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["keeper", "authority"],
+    { "id": "np-keeper", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["govern", "keeper", "authority"],
       "content": { "name": "The Keeper", "description": "Grey from collar to glove, a closed-eye sigil at the breast. Watches without blinking.",
         "dialogue": { "start": "greet", "nodes": {
           "greet": { "says": "You are not on my manifest. Speak, then — quickly.", "choices": [
@@ -47,7 +47,7 @@
             { "id": "back2", "text": "(not yet)", "goto": "greet" }
           ] }
         } } } },
-    { "id": "np-steward", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["crew", "survivor"],
+    { "id": "np-steward", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["serve", "crew", "survivor"],
       "content": { "name": "The Steward", "description": "Faded blue coveralls, hands that won't stay still. The last of the galley shift.",
         "dialogue": { "start": "s0", "nodes": {
           "s0": { "says": "You're not grey. Thank the dark for that. What do you want?", "choices": [
@@ -58,8 +58,41 @@
             { "id": "done", "text": "(nod, and go)", "effects": { "end": true } }
           ] }
         } } } },
-    { "id": "np-glassfigure", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["observation", "void"],
-      "content": { "name": "Figure at the Glass", "description": "Standing at the observation window, back to you, watching the wrong stars." } }
+    { "id": "np-glassfigure", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["learn", "observation", "void"],
+      "content": { "name": "Figure at the Glass", "description": "Standing at the observation window, back to you, watching the wrong stars." } },
+    { "id": "np-neighbour", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["dwell", "resident"],
+      "content": { "name": "A Neighbour", "description": "Someone who lives here, paused on their own errand to take your measure.",
+        "dialogue": { "start": "n0", "nodes": {
+          "n0": { "says": "Don't think we've met. You lost, or just looking?", "choices": [
+            { "id": "greet", "text": "Just looking. Who keeps this deck?", "effects": { "set_facts": { "flag.met_neighbour": true } }, "goto": "n1" },
+            { "id": "leave", "text": "(nod and move on)", "effects": { "end": true } }
+          ] },
+          "n1": { "says": "We keep ourselves. The Keepers keep the rest. Mind which doors are warm.", "choices": [
+            { "id": "done", "text": "(thank them)", "effects": { "end": true } }
+          ] }
+        } } } },
+    { "id": "np-maker", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["make", "forge"],
+      "content": { "name": "A Maker at the Bench", "description": "Sleeves rolled, hands scarred, a half-finished thing clamped in front of them.",
+        "dialogue": { "start": "m0", "nodes": {
+          "m0": { "says": "Mind the swarf. You here to watch or to carry?", "choices": [
+            { "id": "carry", "text": "To carry. What do you need?", "effects": { "adjust_rep": { "makers": 1 }, "set_facts": { "flag.helped_maker": true } }, "goto": "m1" },
+            { "id": "watch", "text": "Just to watch.", "goto": "m1" }
+          ] },
+          "m1": { "says": "Then learn this: nothing here was built to last forever, and it lasted anyway.", "choices": [
+            { "id": "done", "text": "(leave them to it)", "effects": { "end": true } }
+          ] }
+        } } } },
+    { "id": "np-medic", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["heal", "clinic"],
+      "content": { "name": "A Medic", "description": "White coat gone grey at the cuffs, calm in the way of someone who has run out of panic.",
+        "dialogue": { "start": "h0", "nodes": {
+          "h0": { "says": "You're walking, so it's not urgent. Sit if you need to.", "choices": [
+            { "id": "ask", "text": "What happened to the crew?", "effects": { "set_facts": { "flag.asked_medic": true } }, "goto": "h1" },
+            { "id": "leave", "text": "I'm fine. Thank you.", "effects": { "end": true } }
+          ] },
+          "h1": { "says": "Triage was suspended. Not by me. After that, I just kept the lights on in here.", "choices": [
+            { "id": "done", "text": "(let them rest)", "effects": { "end": true } }
+          ] }
+        } } } }
   ],
   "creatures": [
     { "id": "cr-lurker", "type": "creature", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["storage", "hostile"],

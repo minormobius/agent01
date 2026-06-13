@@ -58,13 +58,17 @@ export function selectWithVariety(candidates, n) {
   }
   return out;
 }
-export function dispatch(store, playerId, contentType, n = 1) {
+export function dispatch(store, playerId, contentType, n = 1, opts = {}) {
   const p = store.getPlayerState(playerId);
   const seen = new Set(p.seen_ids || []);
   let candidates = store.queryContent({ type: contentType, revTier: p.revelation_tier, narTier: p.narrative_tier, powTier: p.power_tier })
     .filter((c) => !seen.has(c.id));
   const gstate = loadGateState(store, playerId);
   candidates = candidates.filter((c) => meetsState(gstate, c.requires || {}));
+  // THE ROLE→TAG BRIDGE: when a feature carries a tag (a resident's econ role, a building's domain),
+  // prefer pool content authored for it. Graceful: if nothing matches the tag we fall back to the
+  // whole tier-legal set, so an unmapped role still gets *a* figure rather than silence.
+  if (opts.tag) { const tagged = candidates.filter((c) => (c.tags || []).includes(opts.tag)); if (tagged.length) candidates = tagged; }
   const selected = selectWithVariety(candidates, n);
   for (const item of selected) store.markSeen(playerId, item.id);
   return selected;
@@ -86,9 +90,10 @@ function bindAndLevel(store, playerId, featureKey, item) {
   if (after > before) out.leveled = { from: before, to: after };
   return out;
 }
-export function interact(store, playerId, featureKey, context = '') {
+export function interact(store, playerId, featureKey, context = '', opts = {}) {
   const feature = store.featureByKey(featureKey);
   if (!feature) return { feature_key: featureKey, status: 'unknown_feature', item: null };
+  const tag = opts.tag || feature.tag || null;            // a live resident/building feature carries its role/domain as the bridge tag
 
   const existing = store.getPlacement(playerId, featureKey);
   if (existing) {                                            // RECALL — same item, forever
@@ -98,7 +103,7 @@ export function interact(store, playerId, featureKey, context = '') {
     return { feature_key: featureKey, label: feature.label, status: 'recalled',
              interaction_count: count + 1, retired: !ci || ci.status !== 'active', item: ci ? renderItem(ci) : null };
   }
-  const items = dispatch(store, playerId, feature.type, 1);   // FIRST TOUCH — crystallize
+  const items = dispatch(store, playerId, feature.type, 1, { tag });   // FIRST TOUCH — crystallize (role/domain-biased)
   if (!items.length) return { feature_key: featureKey, label: feature.label, status: 'withheld', content_type: feature.type, item: null };
   const item = items[0], leveled = bindAndLevel(store, playerId, featureKey, item);
   return { feature_key: featureKey, label: feature.label, status: 'crystallized', item: renderItem(item), leveled };
@@ -231,6 +236,7 @@ export class MemoryStore {
     });
   }
   featureByKey(key) { return this.features.get(key) || null; }
+  addFeature(f) { this.features.set(f.key, f); return f; }   // register a live hoop feature (resident chamber / building) before interact
   // inventory
   _inv(id) { let a = this.inv.get(id); if (!a) { a = []; this.inv.set(id, a); } return a; }
   addInventory(id, cid, qty = 1) { const row = { id: ++this._invSeq, content_item_id: cid, qty }; this._inv(id).push(row); return row; }
