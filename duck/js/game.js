@@ -23,6 +23,10 @@ const FLIGHT = {
   pitchRate: 1.15, rollRate: 2.1, yawRate: 0.7, grip: 1.4, duckScale: 1.5,
 };
 const CRUMB = { interval: 0.05, life: 12, max: 700 };
+// Touch / pointer flight: a tap is a wingbeat (impulse along forward + body-up),
+// and where you tap relative to screen centre steers (above = nose up, right =
+// bank right). Holding keeps flapping so you can sustain a climb on a phone.
+const FLAP = { fwd: 9, up: 8, interval: 0.34, deadzone: 0.12 };
 
 export async function start(canvas, hud) {
   const renderer = await initRenderer(canvas);
@@ -46,10 +50,13 @@ export async function start(canvas, hud) {
     crumbs: [],
     crumbTimer: 0,
     keys: new Set(),
+    pointer: { active: false, nx: 0, ny: 0, flaps: 0, flapTimer: 0 },
+    crumbHold: false,
     cam: { eye: [0, 230, 30], center: [0, 220, 0] },
     paused: false,
     time: 0,
   };
+  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
   // ── world (re)build ──
   function buildWorld() {
@@ -87,11 +94,21 @@ export async function start(canvas, hud) {
 
   // ── per-frame physics ──
   function flightStep(dt) {
-    const d = state.duck, k = state.keys;
-    // controls → orientation
-    const pitch = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0);
-    const roll = (k.has('a') || k.has('arrowleft') ? 1 : 0) - (k.has('d') || k.has('arrowright') ? 1 : 0);
+    const d = state.duck, k = state.keys, pt = state.pointer;
+    // controls → orientation (keyboard is ±1; pointer/touch adds continuous steer)
+    let pitch = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0);
+    let roll = (k.has('a') || k.has('arrowleft') ? 1 : 0) - (k.has('d') || k.has('arrowright') ? 1 : 0);
     const yaw = (k.has('q') ? 1 : 0) - (k.has('e') ? 1 : 0);
+    if (pt.active) {
+      const dz = FLAP.deadzone;
+      const axis = (n) => (Math.abs(n) < dz ? 0 : (n - Math.sign(n) * dz) / (1 - dz));
+      pitch += -axis(clamp(pt.ny, -1, 1));   // tap above centre → nose up
+      roll += -axis(clamp(pt.nx, -1, 1));    // tap right of centre → bank right
+      // hold to keep flapping
+      pt.flapTimer -= dt;
+      if (pt.flapTimer <= 0) { pt.flaps++; pt.flapTimer = FLAP.interval; }
+    }
+    pitch = clamp(pitch, -1, 1); roll = clamp(roll, -1, 1);
     if (pitch) quat.rotateLocal(d.q, d.q, [1, 0, 0], pitch * FLIGHT.pitchRate * dt);
     if (roll) quat.rotateLocal(d.q, d.q, [0, 0, 1], roll * FLIGHT.rollRate * dt);
     if (yaw) quat.rotateLocal(d.q, d.q, [0, 1, 0], yaw * FLIGHT.yawRate * dt);
@@ -100,6 +117,13 @@ export async function start(canvas, hud) {
 
     const fwd = vec3.transformQuat([0, 0, 0], [0, 0, -1], d.q);
     const up = vec3.transformQuat([0, 0, 0], [0, 1, 0], d.q);
+    // wingbeats: each queued flap is an impulse forward + along body-up
+    if (pt.flaps > 0) {
+      const n = Math.min(pt.flaps, 3);
+      vec3.scaleAndAdd(d.vel, d.vel, fwd, FLAP.fwd * n);
+      vec3.scaleAndAdd(d.vel, d.vel, up, FLAP.up * n);
+      pt.flaps = 0;
+    }
     const speed = vec3.len(d.vel);
 
     // aerodynamic acceleration
@@ -148,7 +172,7 @@ export async function start(canvas, hud) {
   }
 
   function spawnCrumbs(dt) {
-    if (!state.keys.has(' ')) { state.crumbTimer = 0; return; }
+    if (!state.keys.has(' ') && !state.crumbHold) { state.crumbTimer = 0; return; }
     state.crumbTimer -= dt;
     if (state.crumbTimer <= 0) {
       state.crumbTimer = CRUMB.interval;
@@ -302,12 +326,51 @@ export async function start(canvas, hud) {
     state.keys.add(k);
   });
   window.addEventListener('keyup', (e) => state.keys.delete(norm(e)));
-  window.addEventListener('blur', () => state.keys.clear());
+  window.addEventListener('blur', () => { state.keys.clear(); endPointer(); });
 
-  // expose a couple of buttons for touch / discoverability
-  hud.btnMode.addEventListener('click', () => { state.mode = state.mode === 'earth' ? 'cylinder' : 'earth'; buildWorld(); });
-  hud.btnPreset.addEventListener('click', () => { state.cylIdx = (state.cylIdx + 1) % CYLINDERS.length; state.cyl = makeCylinder(CYLINDERS[state.cylIdx]); state.mode = 'cylinder'; buildWorld(); });
+  // ── pointer / touch flight: tap = flap, tap position = steer ──
+  const pt = state.pointer;
+  function setPointer(e) {
+    const r = canvas.getBoundingClientRect();
+    pt.nx = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1);
+    pt.ny = clamp(((e.clientY - r.top) / r.height) * 2 - 1, -1, 1);
+    if (hud.tapdot) {
+      hud.tapdot.style.left = `${e.clientX}px`;
+      hud.tapdot.style.top = `${e.clientY}px`;
+    }
+  }
+  function endPointer() {
+    pt.active = false; pt.flaps = 0; pt.flapTimer = 0;
+    document.body.classList.remove('flying');
+  }
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    canvas.setPointerCapture?.(e.pointerId);
+    pt.active = true; setPointer(e);
+    pt.flaps++; pt.flapTimer = FLAP.interval;        // an immediate wingbeat on tap
+    document.body.classList.add('flying');
+    if (hud.tapdot) { hud.tapdot.classList.remove('ping'); void hud.tapdot.offsetWidth; hud.tapdot.classList.add('ping'); }
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', (e) => { if (pt.active) setPointer(e); });
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', (e) => { if (pt.active && e.pointerType !== 'touch') endPointer(); });
+
+  // buttons (mode / preset / reset are taps; breadcrumbs is hold-to-drop)
+  const cycleMode = () => { state.mode = state.mode === 'earth' ? 'cylinder' : 'earth'; buildWorld(); };
+  const cyclePreset = () => { state.cylIdx = (state.cylIdx + 1) % CYLINDERS.length; state.cyl = makeCylinder(CYLINDERS[state.cylIdx]); state.mode = 'cylinder'; buildWorld(); };
+  hud.btnMode.addEventListener('click', cycleMode);
+  hud.btnPreset.addEventListener('click', cyclePreset);
   hud.btnReset.addEventListener('click', () => resetDuck());
+  if (hud.btnCrumb) {
+    const on = (e) => { state.crumbHold = true; e.preventDefault(); };
+    const off = () => { state.crumbHold = false; };
+    hud.btnCrumb.addEventListener('pointerdown', on);
+    hud.btnCrumb.addEventListener('pointerup', off);
+    hud.btnCrumb.addEventListener('pointerleave', off);
+    hud.btnCrumb.addEventListener('pointercancel', off);
+  }
 
   buildWorld();
   requestAnimationFrame(frame);

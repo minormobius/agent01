@@ -10,6 +10,16 @@
 <body>
 <canvas id="view"></canvas>
 
+<!-- steering reference (visible while a finger/cursor is down) + tap ping -->
+<div id="crosshair" aria-hidden="true">
+  <span class="ch-dot"></span>
+  <span class="ch-up">▲ nose up</span>
+  <span class="ch-down">▼ nose down</span>
+  <span class="ch-left">bank ◀</span>
+  <span class="ch-right">▶ bank</span>
+</div>
+<div id="tapdot" aria-hidden="true"></div>
+
 <!-- top-left: live readout -->
 <div id="hud" class="panel tl">
   <div id="mode" class="mode earth">EARTH</div>
@@ -26,14 +36,16 @@
 <div class="panel tr btns">
   <button id="btnMode">⇄ Earth / Cylinder <kbd>G</kbd></button>
   <button id="btnPreset">◷ cycle cylinder <kbd>C</kbd></button>
+  <button id="btnCrumb">🍞 hold: breadcrumbs <kbd>Space</kbd></button>
   <button id="btnReset">⟲ reset <kbd>R</kbd></button>
   <button id="btnHelp" onclick="document.getElementById('help').classList.toggle('hidden')">? controls <kbd>H</kbd></button>
 </div>
 
 <!-- bottom: the pitch -->
 <div class="panel bottom">
-  Hold <kbd>SPACE</kbd> to drop <b>breadcrumbs</b> — ballistic, no wings. On Earth they fall
-  straight. In the cylinder, <b>Coriolis</b> bends the stream and centrifugal pulls it to the floor.
+  <b>Tap / click &amp; drag</b> to fly: each tap is a <b>flap</b>, and where you tap steers
+  (up = nose up, sides = bank). Hold <kbd>SPACE</kbd> or 🍞 to drop
+  <b>breadcrumbs</b> — ballistic, no wings: straight fall on Earth, <b>Coriolis</b>-bent in the cylinder.
 </div>
 
 <!-- controls overlay -->
@@ -52,7 +64,11 @@
     <p>The default cylinder is <b>hoop</b> — the 8 km / 0.8 g hull from the
     <a href="https://hoop.mino.mobi" target="_blank" rel="noopener">hoop</a> O'Neill model
     (ω ≈ 0.031 rad/s). Press <kbd>C</kbd> to cycle to tighter rings where Coriolis is wild.</p>
+    <p><b>Touch / mouse:</b> <b>tap to flap</b> (a wingbeat — forward + up), and where you tap
+    relative to the centre <b>steers</b> — above centre pitches the nose up, the sides bank you into
+    a turn. Hold to keep flapping and climb.</p>
     <table>
+      <tr><td>tap / drag</td><td>flap + steer (touch &amp; mouse)</td></tr>
       <tr><td><kbd>W</kbd>/<kbd>S</kbd></td><td>pitch (nose up / down)</td></tr>
       <tr><td><kbd>A</kbd>/<kbd>D</kbd></td><td>roll (bank to turn)</td></tr>
       <tr><td><kbd>Q</kbd>/<kbd>E</kbd></td><td>yaw (rudder)</td></tr>
@@ -85,6 +101,7 @@
     glocal: id('glocal'), coriolis: id('coriolis'), ship: id('ship'),
     shipRow: id('shipRow'), coriolisRow: id('coriolisRow'), throttle: id('throttle'),
     help: id('help'), btnMode: id('btnMode'), btnPreset: id('btnPreset'), btnReset: id('btnReset'),
+    btnCrumb: id('btnCrumb'), tapdot: id('tapdot'),
   };
   // show the controls card once on first load
   if (!localStorage.getItem('duck.seen')) { id('help').classList.remove('hidden'); localStorage.setItem('duck.seen', '1'); }

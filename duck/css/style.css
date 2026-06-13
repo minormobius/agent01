@@ -59,6 +59,36 @@ kbd {
 }
 .bottom b { color: var(--gold); }
 
+/* steering reference — fades in while a finger / cursor is down */
+#crosshair {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  opacity: 0; transition: opacity 0.18s ease;
+  color: rgba(180, 240, 215, 0.7);
+  font-size: 11px; letter-spacing: 0.3px;
+}
+body.flying #crosshair { opacity: 1; }
+#crosshair .ch-dot {
+  position: absolute; left: 50%; top: 50%; width: 10px; height: 10px;
+  margin: -5px 0 0 -5px; border: 1px solid rgba(180, 240, 215, 0.7); border-radius: 50%;
+}
+#crosshair span:not(.ch-dot) { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; }
+#crosshair .ch-up { left: 50%; top: calc(50% - 64px); }
+#crosshair .ch-down { left: 50%; top: calc(50% + 64px); }
+#crosshair .ch-left { left: calc(50% - 110px); top: 50%; }
+#crosshair .ch-right { left: calc(50% + 110px); top: 50%; }
+
+/* tap ping at the touch point */
+#tapdot {
+  position: fixed; z-index: 4; pointer-events: none;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+  border: 2px solid var(--phos); opacity: 0;
+}
+#tapdot.ping { animation: ping 0.45s ease-out; }
+@keyframes ping {
+  from { opacity: 0.8; transform: scale(0.4); }
+  to { opacity: 0; transform: scale(1.3); }
+}
+
 .overlay {
   position: fixed; inset: 0; z-index: 20;
   display: grid; place-items: center;
