@@ -826,11 +826,12 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             if mo.two_story_g {
                 // Double-story (looped 'g'): an upper bowl in the x-height and a
-                // closed loop hanging below the baseline, overlapping into a
-                // figure-eight, plus a small ear off the upper right.
-                k.ring_box(0.0, w, 0.10 * xh, xh + ov);
-                k.ring_box(w * 0.05, w * 0.95, -dd, 0.30 * xh);
-                k.open(&[Seg::Line((w - s / 2.0, 0.82 * xh), (w + 0.02 * w, xh))]); // ear
+                // closed loop sitting *entirely below the baseline*, joined by a
+                // short neck so the two stories never collide. Plus a small ear.
+                k.ring_box(0.0, w, 0.0, xh);
+                k.ring_box(w * 0.12, w * 0.88, -dd, -0.06 * xh);
+                k.line((w * 0.5, 0.0), (w * 0.5, -0.06 * xh)); // neck linking the bowls
+                k.open(&[Seg::Line((w - s / 2.0, 0.84 * xh), (w + 0.03 * w, xh))]); // ear
             } else {
                 // Single-story: bowl + a descending tail that hooks LEFT (sweeps
                 // clockwise down through the bottom).
@@ -1058,6 +1059,96 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k.hbar(0.0, w, xh - t / 2.0);
             k.hbar(0.0, w, t / 2.0);
             k.line((w - s / 2.0, xh - t), (s / 2.0, t));
+            k
+        }
+
+        // ---- figures (cap-height lining numerals) ---------------------------
+        '0' => {
+            let w = 0.58 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.ring_box(0.0, w, -ov, h + ov);
+            k
+        }
+        '1' => {
+            let w = 0.44 * h * wf;
+            let cx = w * 0.54;
+            let mut k = Skel::new(p, adv(w));
+            k.line((cx, 0.0), (cx, h)); // stem
+            k.line((cx - 0.34 * w, h - 0.18 * h), (cx, h)); // flag
+            k.hbar(cx - 0.34 * w, cx + 0.34 * w, t / 2.0); // foot
+            k
+        }
+        '2' => {
+            let w = 0.56 * h * wf;
+            let rx = (w / 2.0 - s / 2.0).max(8.0);
+            let ry = (h * 0.26).max(8.0);
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Arc { c: (w / 2.0, h * 0.72), rx, ry, a1: deg(165.0), a2: deg(-70.0) }]);
+            let (ex, ey) = (w / 2.0 + rx * deg(-70.0).cos(), h * 0.72 + ry * deg(-70.0).sin());
+            k.line((ex, ey), (s / 2.0, t)); // sweep down to the baseline-left
+            k.hbar(0.0, w, t / 2.0); // foot bar
+            k
+        }
+        '3' => {
+            let w = 0.54 * h * wf;
+            let rx = (w * 0.5 - s / 2.0).max(8.0);
+            let ry = (h * 0.25).max(8.0);
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Arc { c: (w * 0.42, h * 0.74), rx, ry, a1: deg(135.0), a2: deg(-120.0) }]);
+            k.open(&[Seg::Arc { c: (w * 0.42, h * 0.26), rx, ry, a1: deg(120.0), a2: deg(-135.0) }]);
+            k
+        }
+        '4' => {
+            let w = 0.58 * h * wf;
+            let xr = w * 0.70;
+            let mut k = Skel::new(p, adv(w));
+            k.line((xr, 0.0), (xr, h)); // right stem
+            k.line((xr, h), (s / 2.0, h * 0.30)); // diagonal
+            k.hbar(0.0, w, h * 0.30); // crossbar
+            k
+        }
+        '5' => {
+            let w = 0.54 * h * wf;
+            let rx = (w * 0.5 - s / 2.0).max(8.0);
+            let ry = (h * 0.30).max(8.0);
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(s / 2.0, w, h - t / 2.0); // top bar
+            k.line((s / 2.0, h - t), (s / 2.0, h * 0.56)); // upper-left stem
+            k.open(&[Seg::Arc { c: (w * 0.46, h * 0.30), rx, ry, a1: deg(80.0), a2: deg(-205.0) }]);
+            k
+        }
+        '6' => {
+            let w = 0.56 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.ring_box(0.0, w, -ov, 0.60 * h);
+            k.open(&[Seg::Arc {
+                c: (w * 0.5, h * 0.42),
+                rx: (w * 0.46).max(8.0),
+                ry: (h * 0.46).max(8.0),
+                a1: deg(58.0),
+                a2: deg(182.0),
+            }]);
+            k
+        }
+        '7' => {
+            let w = 0.54 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(0.0, w, h - t / 2.0); // top bar
+            k.line((w - s / 2.0, h - t), (w * 0.30, 0.0)); // diagonal
+            k
+        }
+        '8' => {
+            let w = 0.56 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.ring_box(w * 0.05, w * 0.95, -ov, 0.52 * h); // lower (wider) bowl
+            k.ring_box(w * 0.13, w * 0.87, 0.48 * h, h + ov); // upper (narrower) bowl
+            k
+        }
+        '9' => {
+            let w = 0.56 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.ring_box(0.0, w, 0.40 * h, h + ov);
+            k.line((w - s / 2.0, 0.58 * h), (w * 0.30, 0.0)); // tail
             k
         }
 
