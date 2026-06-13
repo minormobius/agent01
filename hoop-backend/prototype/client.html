@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ashveil Station — terminal</title>
+  <link rel="stylesheet" href="/client.css">
+</head>
+<body>
+  <header>
+    <div class="title">▚ ASHVEIL STATION <span class="sub">// world-engine terminal</span></div>
+    <div id="status" class="status">
+      <span class="tiers">
+        rev <b id="t-rev">1</b> · nar <b id="t-nar">1</b> · pow <b id="t-pow">1</b>
+        · xp <b id="t-xp">0</b> · known <b id="t-known">0</b>
+      </span>
+    </div>
+  </header>
+
+  <div class="playerbar">
+    <label>player</label>
+    <input id="player-input" list="known-players" spellcheck="false" autocomplete="off">
+    <datalist id="known-players"></datalist>
+    <button id="switch" title="play as this id (open another tab for a second player)">switch</button>
+    <button id="newgame" class="ghost" title="random new player">new</button>
+    <span class="chips" id="known-chips"></span>
+    <span class="tabhint">tip: each browser tab can hold a different player (the id lives in the URL).</span>
+  </div>
+
+  <main>
+    <div class="stage">
+      <div class="col col-left">
+        <section class="map-wrap">
+          <pre id="map" class="map" tabindex="0" aria-label="station map"></pre>
+          <div class="legend" id="legend"></div>
+          <div class="pool" id="pool"></div>
+        </section>
+
+        <section class="gear" id="gear" aria-label="inventory and equipment">
+          <div class="panel-head">gear <span id="gear-stats" class="gear-stats"></span></div>
+          <div id="gear-equip" class="gear-equip"></div>
+          <ul id="gear-inv" class="gear-inv"></ul>
+        </section>
+
+        <section class="facts" id="facts" aria-label="what you've done">
+          <div class="panel-head">state <span class="dim">— flags &amp; standing the world reads</span></div>
+          <div id="facts-body" class="facts-body"></div>
+        </section>
+      </div>
+
+      <div class="col col-right">
+        <section id="dialogue" class="dialogue" aria-label="conversation" hidden>
+          <div class="dlg-head">
+            <span id="dlg-name" class="dlg-name"></span>
+            <span id="dlg-standing" class="dlg-standing"></span>
+            <button id="dlg-close" class="ghost" title="end the conversation (Esc)">leave ✕</button>
+          </div>
+          <div id="dlg-says" class="dlg-says"></div>
+          <div id="dlg-choices" class="dlg-choices"></div>
+        </section>
+
+        <section id="log" class="log" aria-live="polite"></section>
+      </div>
+    </div>
+
+    <div class="rest-row">
+      <input id="rest" placeholder="rest on a thought / attempt something the world must adjudicate…" spellcheck="false">
+      <button id="submit-rest" title="queue a freeform action for long-rest resolution">attempt ⏃</button>
+      <button id="longrest" title="long rest — let your agent weigh what you've learned">long rest ⏾</button>
+    </div>
+
+    <div class="rest-row">
+      <input id="rumor" placeholder="spread a rumor… (submit the same belief as several players to watch drift cluster)" spellcheck="false">
+      <button id="spread" title="submit a rumor — clusters into collective drift across players">spread rumor ☍</button>
+    </div>
+
+    <div class="hint">
+      arrows / WASD to move · <b>Enter</b> to look / talk · <b>t</b> to take an item ·
+      <b>R</b> to long rest · <b>Esc</b> to leave a conversation. each thing you touch
+      crystallizes — it's the same thing next time.
+    </div>
+  </main>
+
+  <script src="/client.js"></script>
+</body>
+</html>
