@@ -254,7 +254,7 @@ function buildGenome(seed, o, sharedCloth){
   } cells.push(row);}
   return {seed, size:N, half:HALF, headBottom, role, glyph:R.glyph, tier:R.tier,
           item:R.item, domain:domain?domain.id:null, good:domain?domain.good:null,
-          ramps, opts:{...o}};
+          ramps, cells, opts:{...o}};
 }
 
 // ── Render ──
