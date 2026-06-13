@@ -25,6 +25,8 @@ pub struct Morph {
     pub ball: bool,        // ball terminals on c / r (vs the nib's sheared cut)
     pub ascender: f64,     // ascender height as a fraction of cap (b d f h k l)
     pub descender: f64,    // descender depth as a fraction of cap (g j p q y)
+    pub tracking: f64,     // side-bearing multiplier (overall letter spacing)
+    pub roundwidth: f64,   // width multiplier for round letters / bowls
 }
 
 pub struct Params {
@@ -89,6 +91,8 @@ impl Params {
             ball: r.chance(0.28),
             ascender: r.range(0.94, 1.12),
             descender: r.range(0.16, 0.28),
+            tracking: r.range(0.82, 1.28),
+            roundwidth: r.range(0.92, 1.12),
         };
 
         let weight_class =
@@ -159,6 +163,8 @@ impl Params {
                 "over" => self.morph.overshoot = f.clamp(0.0, 0.06) * self.cap,
                 "asc" => self.morph.ascender = f.clamp(0.85, 1.25),
                 "desc" => self.morph.descender = f.clamp(0.08, 0.40),
+                "track" => self.morph.tracking = f.clamp(0.5, 1.8),
+                "round" => self.morph.roundwidth = f.clamp(0.78, 1.30),
                 "seriflen" => self.serif_len = f.clamp(0.0, 300.0),
                 "serifth" => self.serif_th = f.clamp(2.0, 140.0),
                 "serif" => self.serif = f != 0.0,

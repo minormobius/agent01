@@ -192,8 +192,10 @@ machine roll the space fast and let a human steer.
 Latin upper + lower, figures 0–9, common punctuation (`! ? : ; ( ) / ' " + =`
 plus `. , -`), accented Latin via base+combining-mark composition (acute, grave,
 circumflex, caron, tilde, diaeresis, ring, cedilla → French/German/Spanish/
-Portuguese/Czech coverage), and the Greek/Cyrillic letters that share a Latin
-skeleton (a starter — the script-specific letters are a future batch). A single
+Portuguese/Czech coverage), and **full Greek + Cyrillic** (uppercase + lowercase;
+the shared shapes alias to Latin, the script-specific caps are constructed, and
+Cyrillic lowercase is built as small-caps of the capitals; the organic Greek
+lowercase are first-pass). ~234 glyphs total. A single
 TrueType font caps at 65,535 glyphs, so "all of Unicode" is by definition
 multi-font; CJK and cursive/contextual scripts (Arabic/Indic) need their own
 construction logic and a shaping engine, so they're out of scope for this

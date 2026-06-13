@@ -110,7 +110,9 @@ fn every_charset_glyph_maps_and_outlines() {
     let bytes = minofont::build_font("coverage");
     let face = Face::parse(&bytes, 0).unwrap();
     for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-\
-              !?:;()/'\"+=àáâãäåèéêëìíîïñòóôõöùúûüçčšžěÀÉÑÇŠÁΑΒΟХÄÖÜ"
+              !?:;()/'\"+=àáâãäåèéêëìíîïñòóôõöùúûüçčšžěÀÉÑÇŠÁÄÖÜ\
+              ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρςστυφχψω\
+              АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя"
         .chars()
     {
         let gid = face
