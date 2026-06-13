@@ -16,7 +16,7 @@
 
 import { solveRegion, gatesFor, seamKey } from './record.js';
 import { ROLES } from './econ.js';
-import { buildSceneCustom, adjacency, bucketGrid, clipCell, chooseDoors } from '../paint/voronoi.js';
+import { buildSceneCustom, adjacency, bucketGrid, clipCell } from '../paint/voronoi.js';
 
 function ehash(seed, a, b) { let x = (seed ^ Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663)) >>> 0; x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; return x >>> 0; }
 
@@ -78,9 +78,13 @@ export function deckScene({
   const adjE = adjE0.filter((e) => e.a < nReal && e.b < nReal);    // real-real: the city's own fabric
   const eKey = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
   const kind = new Map();
-  // interior doors: a spanning tree (+ loops) per building over its intra-building band edges
+  // OPEN HALLS: a building is ONE open room. Every membrane INSIDE a building is removed — only its
+  // exterior shell stands (onto the street, the void, or a neighbouring building), pierced by the
+  // single street door below. (This replaced a per-building interior door-tree: the warren of 15 m
+  // cells read as a maze; the big coherent room is the building. The chamber substrate still tiles
+  // the floor — it just carries no interior walls.)
   const intra = adjE.filter((e) => owner[e.a] >= 0 && owner[e.a] === owner[e.b]);
-  for (const e of chooseDoors(intra, band.length, seed >>> 0, loops)) kind.set(eKey(e.a, e.b), 'door');
+  for (const e of intra) kind.set(eKey(e.a, e.b), 'open');
   // streets: open every row↔row membrane
   for (const e of adjE) if (owner[e.a] === -1 && owner[e.b] === -1) kind.set(eKey(e.a, e.b), 'open');
   // ONE street door per building: its hash-min road-fronting band membrane

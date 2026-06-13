@@ -297,6 +297,32 @@ regions away, and the `@` crosses every gate to get there (the wrap and axial di
 v2 only handled an immediate neighbour. The seamless one-cell threshold step (walk into the ghost
 partner, swap the active region at that exact point) is unchanged; v3 just chains it.
 
+## Leg 10 — OPEN HALLS + the vertical (stairs) leg
+
+**Open halls (SHIPPED, `deck.js`).** A building used to be a clump of ~15 m chambers walled off from
+each other and stitched by a per-building interior door-tree — so a workshop read as a *warren* of
+tiny cells. It now reads as architecture: **every membrane INSIDE a building is removed (classified
+`open`); only the exterior shell stands — onto the street, the void, or a neighbouring building —
+pierced by the single street door.** The chamber substrate still tiles the floor (and carries the
+lighting + role colour), it just has no interior walls. The change is one line in the membrane
+classifier; sequestration (one street door), service doors (landlocked buildings), and sealed
+pockets all keep working at building granularity. Pinned in `deck.selftest` (OPEN HALLS: interior
+membranes removed, zero interior doors; real opens join road↔road OR same-building). Shared kernel,
+so v2, v3, and `/econ/deck` all get it. *Tunable later: the largest civic buildings (council ≈46,
+hospital ≈40 cells) become one big hall; if that reads cavernous, reintroduce light internal
+partitions for tier-3 buildings via paint's `assignZones` — default stays fully open.*
+
+**The vertical leg (CHARTED — the "stairs between floors").** The deck we render is one mid-shell
+layer (`gz = gzMid`). A building's *other floors* are its chambers on `gz±1` (the foam is a 3-D
+chamber graph; `region.js` already generates every `gz`). "Stairs" are **intra-building inter-deck
+connectors** — chambers where a vertical move is cheap (the cousin of `society3d`'s climb edges).
+The leg: (1) ship `rad`/`gz` per chamber in `trim`; (2) render a building's floors (stacked, or a
+floor selector), each an open hall; (3) place stairs where a building spans decks and let the
+walk graph cross them; (4) the camera/▼ either cuts between floors or shows them in light isometric.
+This is the same vertical move the `@` will need for the inter-deck easements the deck slice seals
+(the rare sealed pockets vanish once stairs exist). Bundles naturally with art Phase 4 (the
+gradient slide only has slope across decks).
+
 ## Leg 8 — the v1 art style on the solved map (PHASE 1 SHIPPED on v3)
 
 v2 rendered the brutalist flat-cell look. v1's feel — **room lighting and sliding at steep floor

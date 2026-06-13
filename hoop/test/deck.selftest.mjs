@@ -40,7 +40,7 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(d.stats.rooms > 200 && d.scene.paintCells.length > 3000, 'a deck band projects to a real paint scene (' + d.stats.rooms + ' rooms, ' + d.scene.paintCells.length + ' cells)');
   ok(d.stats.roadRooms > 0 && d.scene.opens.length > 0, 'the right-of-way reaches this deck as zero-wall concourse');
   const rrOpens = d.scene.opens.filter((e) => e.a < d.nReal && e.b < d.nReal);
-  ok(rrOpens.every((e) => d.owner[e.a] === -1 && d.owner[e.b] === -1), 'real opens ONLY ever join two road rooms');
+  ok(rrOpens.every((e) => (d.owner[e.a] === -1 && d.owner[e.b] === -1) || (d.owner[e.a] >= 0 && d.owner[e.a] === d.owner[e.b])), 'real opens join two road rooms OR two rooms of the SAME building (open halls)');
   ok(d.scene.opens.filter((e) => e.a >= d.nReal || e.b >= d.nReal).every((e) => d.isGate.has(Math.min(e.a, e.b))), 'the only membranes opened into the ghost rim are the GATES (the street continues through the seam)');
   // exactly one STREET door per road-fronting building (service doors are a separate category)
   const ek = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
@@ -71,23 +71,19 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   // class weighting: easements prefer not to run through homes
   const dwellTouch = d.serviceEdges.filter((e) => d.role[e.a] === 'dwell' || d.role[e.b] === 'dwell').length;
   ok(dwellTouch < d.serviceEdges.length * 0.6, 'most easements avoid homes (' + dwellTouch + '/' + d.serviceEdges.length + ' touch a dwelling)');
-  // interior doors connect each building's band footprint exactly as far as geometry allows
-  const comps = (edges, members) => {
-    const par = new Map([...members].map((i) => [i, i]));
-    const find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
-    for (const e of edges) if (par.has(e.a) && par.has(e.b)) par.set(find(e.a), find(e.b));
-    return new Set([...members].map(find)).size;
-  };
-  let treeOK = true;
-  const byB = new Map();
-  d.owner.forEach((o, i) => { if (o >= 0) { let s = byB.get(o); if (!s) { s = new Set(); byB.set(o, s); } s.add(i); } });
-  for (const [b, members] of byB) {
-    if (members.size < 2) continue;
-    const geo = d.scene.adjEdges.filter((e) => members.has(e.a) && members.has(e.b));
-    const dr = d.scene.doors.filter((e) => members.has(e.a) && members.has(e.b));
-    if (comps(dr, members) !== comps(geo, members)) { treeOK = false; break; }
+  // OPEN HALLS: every membrane INSIDE a building is removed — the building is one room bounded only
+  // by its exterior shell (+ its one street door). No interior walls, no interior doors.
+  const openSet = new Set(d.scene.opens.map((e) => ek(e.a, e.b)));
+  const doorSet = new Set(d.scene.doors.map((e) => ek(e.a, e.b)));
+  let hallsOK = true, interiorDoors = 0;
+  for (const e of d.scene.adjEdges) {
+    if (e.a >= d.nReal || e.b >= d.nReal) continue;
+    if (d.owner[e.a] >= 0 && d.owner[e.a] === d.owner[e.b]) {     // a same-building membrane
+      if (!openSet.has(ek(e.a, e.b))) hallsOK = false;           // must be removed (open)
+      if (doorSet.has(ek(e.a, e.b))) interiorDoors++;            // and never a door
+    }
   }
-  ok(treeOK, 'interior door trees connect each building exactly as far as its geometry allows');
+  ok(hallsOK && interiorDoors === 0, 'every building is one OPEN HALL — interior membranes removed, no interior walls or doors (' + interiorDoors + ' interior doors)');
   ok(d.bill.length === d.stats.buildings && d.bill.every((g) => g.glyph && g.n >= 1), 'every deck-present building gets a glyph anchor');
   // determinism (the regenerate-a-year-later contract, at the render layer)
   const d2 = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14 });
