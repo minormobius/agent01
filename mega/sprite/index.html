@@ -3,493 +3,340 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sprite — procedural NPC sprite generation · mega.mino.mobi</title>
-<meta name="description" content="Planning document for procedural sprite generation: devour the world of what a sprite is, then pare back to seed-deterministic, atproto-persistable NPC sprites for the hoop O'Neill-cylinder game.">
+<title>Sprite Lab · mega.mino.mobi/sprite</title>
+<meta name="description" content="A seed-deterministic procedural sprite lab — roll, tune, and read NPC sprites for the hoop O'Neill-cylinder game. Same seed, same person, everywhere.">
 <style>
   :root{
     --bg:#0f1014; --panel:#16181f; --panel2:#1c1f28; --ink:#e7e3d8; --dim:#a39c8b;
-    --faint:#6f6a5d; --gold:#d8b25a; --gold-soft:#caa24a; --line:#2a2d38;
-    --skin:#d9a06b; --cloth:#5a86b8; --metal:#9aa3ad; --accent:#8fd6a0;
+    --faint:#6f6a5d; --gold:#d8b25a; --gold-soft:#caa24a; --line:#2a2d38; --accent:#8fd6a0;
     --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
     --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--serif);
-       font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
-  a{color:var(--gold);text-decoration:none}
-  a:hover{text-decoration:underline}
-  .crumb{font-family:var(--sans);font-size:13px;color:var(--faint);
-         border-bottom:1px solid var(--line);padding:10px 22px;position:sticky;top:0;
-         background:rgba(15,16,20,.92);backdrop-filter:blur(6px);z-index:10}
-  .crumb a{color:var(--dim)}
-  .wrap{max-width:880px;margin:0 auto;padding:0 22px 120px}
-  header.hero{padding:64px 0 28px;border-bottom:1px solid var(--line);margin-bottom:8px}
-  .kicker{font-family:var(--sans);letter-spacing:.22em;text-transform:uppercase;
-          font-size:12px;color:var(--gold-soft);margin:0 0 14px}
-  h1{font-size:46px;line-height:1.04;margin:0 0 18px;font-weight:600;letter-spacing:-.01em}
-  h1 .glyph{color:var(--gold)}
-  .lede{font-size:20px;color:var(--dim);max-width:62ch;margin:0}
-  .meta{font-family:var(--sans);font-size:12.5px;color:var(--faint);margin-top:22px;
-        display:flex;gap:18px;flex-wrap:wrap}
-  .meta b{color:var(--dim);font-weight:600}
-  h2{font-size:15px;font-family:var(--sans);letter-spacing:.16em;text-transform:uppercase;
-     color:var(--gold-soft);margin:58px 0 6px;padding-top:10px;border-top:1px solid var(--line)}
-  h2 .num{color:var(--faint);margin-right:10px}
-  h3{font-size:22px;margin:34px 0 8px;font-weight:600;color:var(--ink)}
-  h4{font-size:16px;font-family:var(--sans);margin:22px 0 4px;color:var(--gold-soft);letter-spacing:.02em}
-  p{margin:12px 0}
-  .dim{color:var(--dim)}
-  strong{color:#f3efe4}
-  em{color:var(--ink)}
-  code{font-family:var(--mono);font-size:.86em;background:var(--panel2);padding:.12em .4em;
-       border-radius:4px;color:#e9d9a8}
-  pre{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
-      overflow:auto;font-family:var(--mono);font-size:13px;line-height:1.55;color:#cfd6cf}
-  pre code{background:none;padding:0;color:inherit}
-  blockquote{margin:18px 0;padding:8px 20px;border-left:3px solid var(--gold-soft);
-             color:var(--dim);font-style:italic}
-  ul,ol{margin:12px 0;padding-left:22px}
-  li{margin:6px 0}
-  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px}
-  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{font-family:var(--sans);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-     color:var(--gold-soft);font-weight:600}
-  td:first-child{color:#f3efe4;white-space:nowrap;font-family:var(--sans);font-size:13px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:20px 0}
-  .card.q{border-left:3px solid var(--gold)}
-  .pill{display:inline-block;font-family:var(--sans);font-size:11px;letter-spacing:.08em;
-        text-transform:uppercase;padding:2px 9px;border-radius:999px;border:1px solid var(--line);
-        color:var(--dim);margin-right:6px}
-  .pill.now{color:#0f1014;background:var(--gold);border-color:var(--gold)}
-  .pill.soon{color:var(--accent);border-color:#2f4a38}
-  .toc{font-family:var(--sans);font-size:14px;columns:2;column-gap:34px;margin:24px 0 10px;
-       background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 24px}
-  .toc a{color:var(--dim);display:block;padding:3px 0}
-  .toc a:hover{color:var(--gold)}
-  /* demo */
-  .demo{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;margin:26px 0}
-  .demo h4{margin-top:0}
-  .controls{font-family:var(--sans);font-size:14px;display:flex;gap:14px;align-items:center;
-            flex-wrap:wrap;margin:14px 0}
-  .controls input[type=text]{background:#0c0d11;border:1px solid var(--line);color:var(--ink);
-            font-family:var(--mono);padding:7px 10px;border-radius:7px;width:160px;font-size:13px}
-  .controls button{font-family:var(--sans);font-size:13px;background:var(--gold);color:#0f1014;
-            border:0;padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:600}
-  .controls button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
-  .controls label{color:var(--dim);display:flex;gap:7px;align-items:center}
-  .gallery{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
-  .npc{text-align:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
-  .npc canvas{display:block;background:#0a0b0e;border:1px solid var(--line);border-radius:8px;
-              image-rendering:pixelated;margin-bottom:5px;cursor:pointer}
-  .hint{font-family:var(--sans);font-size:12.5px;color:var(--faint);margin-top:12px}
-  footer{margin-top:70px;padding-top:22px;border-top:1px solid var(--line);
-         font-family:var(--sans);font-size:13px;color:var(--faint)}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;color:var(--faint);border-bottom:1px solid var(--line);
+         padding:10px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .crumb a{color:var(--dim)} .crumb .here{color:var(--gold)}
+  .crumb .spacer{flex:1}
+  header.hero{max-width:1100px;margin:0 auto;padding:38px 22px 10px}
+  .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:var(--gold-soft);margin:0 0 10px}
+  h1{font-family:var(--serif);font-size:40px;line-height:1.05;margin:0 0 10px;font-weight:600;letter-spacing:-.01em}
+  h1 .g{color:var(--gold)}
+  .lede{font-family:var(--serif);font-size:18px;color:var(--dim);max-width:64ch;margin:0}
+  .lede b{color:#f3efe4}
+  main{max-width:1100px;margin:0 auto;padding:24px 22px 90px;
+       display:grid;grid-template-columns:320px 1fr;gap:26px;align-items:start}
+  @media(max-width:820px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .panel h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);
+            margin:0 0 14px;font-weight:600}
+  /* hero sprite */
+  .stage{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px}
+  #hero{background:#0a0b0e;border:1px solid var(--line);border-radius:10px;image-rendering:pixelated;
+        box-shadow:0 0 0 1px #000 inset}
+  .heroname{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center}
+  .heroname b{color:var(--gold)}
+  /* controls */
+  .ctl{margin:14px 0}
+  .ctl label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px;letter-spacing:.02em}
+  .ctl .val{color:var(--gold-soft);font-family:var(--mono)}
+  input[type=text]{width:100%;background:#0c0d11;border:1px solid var(--line);color:var(--ink);
+       font-family:var(--mono);padding:8px 10px;border-radius:8px;font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  button{font-family:var(--sans);font-size:13px;background:var(--gold);color:#0f1014;border:0;
+         padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  button.ghost:hover{color:var(--ink);border-color:var(--gold-soft)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:transparent;color:var(--dim);border:0;border-radius:0;flex:1;font-weight:500;padding:7px 6px}
+  .seg button.on{background:var(--gold);color:#0f1014;font-weight:600}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer}
+  .check input{accent-color:var(--gold);width:16px;height:16px}
+  /* genome readout */
+  .genome{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.7}
+  .genome b{color:#f3efe4}
+  .ramps{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .ramp{display:flex;align-items:center;gap:8px}
+  .ramp .nm{width:46px;color:var(--faint)}
+  .ramp .sw{display:flex;border-radius:4px;overflow:hidden;border:1px solid #000}
+  .ramp .sw span{width:18px;height:14px;display:block}
+  /* gallery */
+  .galhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .galhead .note{font-size:12px;color:var(--faint)}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px}
+  .npc{text-align:center;cursor:pointer}
+  .npc canvas{display:block;width:100%;background:#0a0b0e;border:1px solid var(--line);
+       border-radius:8px;image-rendering:pixelated;transition:border-color .12s}
+  .npc:hover canvas{border-color:var(--gold-soft)}
+  .npc.sel canvas{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .npc .cap{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .npc .cap b{color:var(--dim)}
+  .foot{max-width:1100px;margin:0 auto;padding:0 22px 60px;color:var(--faint);font-size:12.5px}
+  .foot code{font-family:var(--mono);background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
 </style>
 </head>
 <body>
 <nav class="crumb">
-  <a href="https://mino.mobi">mino.mobi</a> &nbsp;/&nbsp;
-  <a href="/">mega</a> &nbsp;/&nbsp; <span style="color:var(--gold)">sprite</span>
+  <a href="https://mino.mobi">mino.mobi</a> / <a href="/">mega</a> /
+  <span class="here">sprite</span>
+  <span class="spacer"></span>
+  <a href="/sprite/docs/">docs &amp; design notes →</a>
+  &nbsp;·&nbsp; <a href="https://hoop.mino.mobi">hoop ↗</a>
 </nav>
 
-<div class="wrap">
 <header class="hero">
-  <p class="kicker">Planning Document · the /sprite wing</p>
-  <h1><span class="glyph">◓</span> Sprite</h1>
-  <p class="lede">Procedural sprite generation for the people of <a href="https://hoop.mino.mobi">hoop</a> —
-     the NPCs the econ society already breeds, made visible. We <strong>devour the world</strong> of
-     what a sprite is, then <strong>pare back</strong> to the one application: seed-deterministic,
-     atproto-persistable little figures that walk an O'Neill cylinder.</p>
-  <div class="meta">
-    <span><b>Surface</b> mega.mino.mobi/sprite</span>
-    <span><b>Owning branch</b> claude/npc-sprite-generation-aeh9e1</span>
-    <span><b>Status</b> Stage 0 — plan + proof-of-concept</span>
-    <span><b>Consumer</b> hoop (the game wing)</span>
-  </div>
+  <p class="kicker">Sprite Lab · Stage 1</p>
+  <h1><span class="g">◓</span> Sprite Lab</h1>
+  <p class="lede">A <b>seed-deterministic</b> procedural sprite generator for the people of
+     <a href="https://hoop.mino.mobi">hoop</a>. Roll a street, tune the genome, read the crowd.
+     Same seed → same person, on every machine, for ever. <a href="/sprite/docs/">Why &amp; how →</a></p>
 </header>
 
-<nav class="toc">
-  <a href="#thesis">The thesis</a>
-  <a href="#what">I · What is a sprite?</a>
-  <a href="#components">II · Components (anatomy)</a>
-  <a href="#constraints">III · Constraints</a>
-  <a href="#apply">IV · Pare back: hoop NPCs</a>
-  <a href="#engine">V · The engine</a>
-  <a href="#demo">VI · Proof of concept</a>
-  <a href="#roadmap">VII · Roadmap</a>
-  <a href="#open">Open questions</a>
-  <a href="#refs">References</a>
-</nav>
+<main>
+  <!-- LEFT: the bench -->
+  <section class="panel" aria-label="controls">
+    <h2>The bench</h2>
+    <div class="stage">
+      <canvas id="hero" width="312" height="312"></canvas>
+      <div class="heroname" id="heroname"></div>
+    </div>
 
-<section id="thesis">
-<h2><span class="num">§0</span> The thesis</h2>
-<p>hoop already <em>has</em> NPCs. The econ kernel breeds whole societies from a seed — people who
-"wear many hats" (<code>Jim = mend@chopshop + grow@home + worship</code>), each bound to a stable
-chamber-address slot <code>(chunk, ordinal)</code> in the deterministic ship engine. What it does
-<em>not</em> have is a way to <strong>look</strong> at one of them. Today an NPC is an abstract glyph.
-This wing closes that gap: it turns a social genome into a picture.</p>
+    <div class="ctl">
+      <label for="seed">Seed <span class="val" id="seedshow"></span></label>
+      <input id="seed" type="text" value="hoop:0:0" spellcheck="false">
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <button id="roll">⚄ Roll a street</button>
+      <button id="prev" class="ghost">↻ Redraw (proof)</button>
+    </div>
 
-<p>The house method is to <strong>devour the world, then pare back</strong> — the same arc as fable's
-wings, the read/ apparatus, and the borges engine. So this document first takes the broadest possible
-view of what a sprite is, what it is made of, and what limits it; <em>then</em> it collapses that whole
-space onto the single, sharply-constrained application: an NPC in hoop. The three questions the brief
-asked — <em>what is a sprite, what are its components, what are its constraints</em> — are answered in
-Parts&nbsp;I–III at full breadth, and re-answered for our case in Part&nbsp;IV.</p>
-</section>
+    <div class="ctl">
+      <label>Symmetry</label>
+      <div class="seg" id="sym">
+        <button data-v="mirror" class="on">mirror</button>
+        <button data-v="free">free</button>
+      </div>
+    </div>
 
-<section id="what">
-<h2><span class="num">§I</span> What is a sprite? — devour</h2>
+    <div class="ctl">
+      <label>Palette archetype</label>
+      <div class="seg" id="arch">
+        <button data-v="commons" class="on">commons (varied)</button>
+        <button data-v="company">company (uniform)</button>
+      </div>
+    </div>
 
-<p>A <strong>sprite</strong> is a two-dimensional image — historically a bitmap — that is composited
-<em>into</em> a larger scene as an independent, movable object, most often in a 2D game. It floats on
-top of the background without overwriting it. That "floating" is the etymology: the term was coined
-around 1979 by Dave Ackley at Texas Instruments for the <strong>TMS9918</strong> video display
-processor, because the figures hover over the backdrop "like a ghost or mythological sprite."</p>
+    <div class="ctl">
+      <label>Build size <span class="val" id="sizeval">13</span></label>
+      <input id="size" type="range" min="9" max="17" step="2" value="13">
+    </div>
+    <div class="ctl">
+      <label>Density <span class="val" id="densval">0.80</span></label>
+      <input id="dens" type="range" min="0.55" max="0.95" step="0.05" value="0.80">
+    </div>
+    <div class="ctl row" style="gap:18px">
+      <label class="check"><input type="checkbox" id="item" checked> held item</label>
+      <label class="check"><input type="checkbox" id="eyes" checked> eyes</label>
+    </div>
 
-<h4>The hardware → software arc (why the word means two things)</h4>
-<p>Originally a sprite was a <em>hardware</em> trick, not an image format. Early consoles and home
-computers had no full-screen framebuffer to spare. Instead, dedicated video hardware composited a
-handful of small bitmaps <strong>per scanline, on the fly</strong>, as the CRT beam swept — no CPU,
-no backing buffer. The TMS9918 (1979) gave the TI-99/4 up to 32 sprites of 8×8 or 16×16 px; the same
-idea shows up in the Atari VCS (1977), Commodore 64 (1982), NES/Famicom (1983), Genesis, MSX, Amiga.</p>
-<p>As machines got framebuffers and fill rate to burn, the optimization stopped mattering and the word
-<strong>migrated to the image itself</strong>: today a "sprite" is just a 2D image (and its animation
-frames) drawn into a scene, whether by GPU, by canvas <code>drawImage</code>, or by a game engine's
-sprite batcher. Both senses are alive — and, crucially for us, the <em>old</em> hardware sense is a
-ready-made <strong>generative grammar</strong> (see §III): its limits are exactly the kind of tight
-rules that make procedural output cohere.</p>
+    <div class="ctl">
+      <label>Genome</label>
+      <div class="genome" id="genome"></div>
+    </div>
+    <div class="row">
+      <button id="copyseed" class="ghost">Copy seed</button>
+      <button id="copygenome" class="ghost">Copy genome</button>
+      <button id="png" class="ghost">⤓ PNG</button>
+    </div>
+  </section>
 
-<h4>A taxonomy (the whole world, before we cut)</h4>
-<table>
-<tr><th>Kind</th><th>What it is</th><th>Relevant to us?</th></tr>
-<tr><td>Static</td><td>One frame, no animation (an icon, a tree).</td><td>baseline</td></tr>
-<tr><td>Animated</td><td>An ordered set of frames + timing (walk cycle, idle bob).</td><td>yes — motion</td></tr>
-<tr><td>Directional</td><td>Distinct frames per facing (4-way / 8-way), often mirrored.</td><td>yes — they walk</td></tr>
-<tr><td>Layered / "paper-doll"</td><td>Composited parts (body + head + equipment) with z-order &amp; attach points.</td><td><strong>core</strong> — this is how we vary by role</td></tr>
-<tr><td>Billboard</td><td>A 2D sprite always faced at the camera inside a 3D scene.</td><td>maybe — econ/foam 3D</td></tr>
-<tr><td>Vector / SDF</td><td>Resolution-independent (signed-distance, glyph-like).</td><td>fits hoop's glyph-world</td></tr>
-<tr><td>Procedural / parametric</td><td>Generated from a seed or genome rather than drawn by hand.</td><td><strong>the whole point</strong></td></tr>
-</table>
-</section>
+  <!-- RIGHT: the street -->
+  <section aria-label="gallery">
+    <div class="galhead">
+      <h2 style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);margin:0">The street</h2>
+      <span class="note" id="galnote"></span>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+</main>
 
-<section id="components">
-<h2><span class="num">§II</span> Components — the anatomy of a sprite</h2>
-<p>Pull any sprite apart and you find the same organs. This is the full parts list; Part&nbsp;IV keeps
-only the ones an NPC needs.</p>
-<table>
-<tr><th>Component</th><th>What it is</th></tr>
-<tr><td>Raster grid</td><td>The pixel matrix — width × height. Defines the silhouette and detail budget.</td></tr>
-<tr><td>Palette</td><td>The set of colours, often <em>indexed</em> (each pixel is an index, not an RGB). Indexing makes recolouring free — swap the palette, keep the pixels. Usually organized into <strong>ramps</strong> (a dark→light run per material: cloth, metal, skin).</td></tr>
-<tr><td>Transparency key</td><td>One palette index (or alpha channel) reserved as "see through," so the sprite is a shape, not a rectangle.</td></tr>
-<tr><td>Pivot / anchor / origin</td><td>The point the sprite is positioned and rotated <em>about</em> — feet for a walker, centre for a projectile. Wrong pivots = jittery animation and bad placement.</td></tr>
-<tr><td>Frames</td><td>The individual still images of an animation, each with a duration.</td></tr>
-<tr><td>Animation clips</td><td>Named, ordered runs of frames (<code>idle</code>, <code>walk</code>, <code>talk</code>) with loop rules.</td></tr>
-<tr><td>Spritesheet / texture atlas</td><td>Many sprites/frames packed into one image so the engine loads &amp; binds <em>one</em> file. Comes with a <strong>metadata sidecar</strong> (JSON/XML): per-frame rectangles, pivots, durations.</td></tr>
-<tr><td>Hitbox / collision shape</td><td>The interaction bounds — deliberately <em>not</em> the visual bounds (usually tighter). A separate datum from the picture.</td></tr>
-<tr><td>Parts &amp; z-order</td><td>For layered sprites: the sub-images and their stacking order (body behind shirt behind held-item).</td></tr>
-<tr><td>Attachment sockets</td><td>Named points where other sprites mount (hand → tool, head → hat) — this is how one body wears many roles.</td></tr>
-<tr><td>Facing / orientation</td><td>Which way it looks; often one authored side + a horizontal mirror for the other.</td></tr>
-<tr><td>Identity / metadata</td><td>The non-visual record: name, seed, kind, the parameters it was generated from. For us this is the durable part.</td></tr>
-</table>
-</section>
-
-<section id="constraints">
-<h2><span class="num">§III</span> Constraints — the limits (and why we want them)</h2>
-
-<h4>Historical hardware limits — a found grammar</h4>
-<p>The classic machines were brutally constrained, and those constraints are <em>famous</em> precisely
-because they shaped a coherent look:</p>
-<ul>
-<li><strong>NES:</strong> 64 sprites total, but only <strong>8 per scanline</strong> (the 9th vanished
-— the source of 1980s sprite <em>flicker</em>). Each 8×8 tile drew from a <strong>3-colour palette + 1
-transparency</strong>. Big characters were faked by tiling several sprites (metasprites).</li>
-<li><strong>Commodore 64:</strong> 8 hardware sprites, multiplexed by racing the beam to show more; a
-fixed cycle budget per scanline (64 NTSC / 63 PAL).</li>
-<li><strong>TMS9918:</strong> 32 sprites, 8×8 or 16×16, with similar per-line ceilings.</li>
-</ul>
-<p>These aren't just trivia. <strong>A limited palette, a small grid, a transparency key, and
-mirror-symmetry are exactly the rules that make <em>random</em> output read as a believable
-character</strong> instead of noise. The retro constraints are our procedural cohesion engine — we
-adopt them on purpose, not for nostalgia.</p>
-
-<h4>Modern limits</h4>
-<ul>
-<li><strong>Atlasing &amp; draw calls:</strong> pack into one texture; each material/texture switch is a
-GPU draw call. Batch or pay.</li>
-<li><strong>Power-of-two &amp; fill rate / memory:</strong> texture dimensions, overdraw, mipmaps.</li>
-<li><strong>Readability:</strong> at small on-screen size the <em>silhouette</em> carries the meaning;
-a limited palette (16–64 colours) keeps it legible.</li>
-</ul>
-
-<h4>Our constraints — the pare-back (these are non-negotiable)</h4>
-<table>
-<tr><th>Constraint</th><th>Why</th></tr>
-<tr><td>Determinism</td><td>hoop invariant #1: <code>(seed, slot, genome)</code> → identical output on every machine and across ATProto repos. <strong>No <code>Date.now()</code>, no unseeded <code>Math.random()</code> in the generator</strong>, ever. A sprite must be reproducible from its seed alone.</td></tr>
-<tr><td>Persistable as a genome, not a blob</td><td>An NPC sprite should travel as a <em>compact parameter record</em> (a few bytes of genome) that regenerates the pixels — not a stored PNG. This is what makes it atproto-cheap and identity-stable. Baking to a spritesheet is an output cache, never the source of truth.</td></tr>
-<tr><td>Canvas-2D, no build step</td><td>hoop is pure-static vanilla JS drawn on a 2D canvas at glyph scale. The renderer must run client-side with zero deps and degrade to the current glyph.</td></tr>
-<tr><td>Slot-bound</td><td>A sprite's seed derives from its chamber address <code>gid</code>, so the <em>same</em> NPC is the <em>same</em> face wherever and whenever you meet it.</td></tr>
-<tr><td>Crowd-cheap</td><td>Many NPCs visible at once. Generation must be fast and cacheable; baked frames per distinct genome, reused across identical NPCs.</td></tr>
-</table>
-</section>
-
-<section id="apply">
-<h2><span class="num">§IV</span> Pare back — the application: hoop's people</h2>
-<p>Now collapse the whole space onto one job. A hoop NPC is not decoration; it is a <strong>reading of
-the social genome</strong>. The econ kernel already gives every person a structure — we just need the
-sprite to <em>express</em> it.</p>
-
-<h4>Where NPCs come from (already built, in <code>hoop/econ/</code>)</h4>
-<ul>
-<li><strong>A genome breeds a town</strong> from a seed: a role mix, building footprints, household and
-affiliation propensities, an <em>archetype</em> (balanced · dormitory · company · commons).</li>
-<li><strong>People wear hats</strong> — a multiplex of <code>verb@place</code> affiliations
-(<code>mend@chopshop</code>, <code>grow@home</code>, <code>worship</code>). Their hats say where they walk;
-the "desire-line roads" are literally the Laplace transform of that NPC motion.</li>
-<li><strong>Each is slot-bound</strong> via <code>postal.js</code> to a stable
-<code>(chunk, ordinal)</code> chamber address.</li>
-</ul>
-
-<h4>What the sprite must express</h4>
-<p>The mapping is the design. The sprite's <em>parts and palette are functions of the genome</em>:</p>
-<table>
-<tr><th>Social datum (input)</th><th>Sprite channel (output)</th></tr>
-<tr><td>Primary role / dominant hat (the verb)</td><td>Held item &amp; head-gear at the attachment sockets (mender → tool, grower → basket, cleric → cowl)</td></tr>
-<tr><td>Domain / material they work (matter)</td><td>Palette ramp bias (metal worker → cool metals; gardener → greens)</td></tr>
-<tr><td>Society archetype</td><td>Silhouette family &amp; uniformity (company town → uniform palettes; commons → varied)</td></tr>
-<tr><td>Affiliation count (how many hats)</td><td>Accessory density / trim detail</td></tr>
-<tr><td>Chamber-address <code>gid</code></td><td>The base seed — fixes body shape, skin ramp, face. Same person, same face, forever.</td></tr>
-</table>
-<blockquote>The win condition: you glance at a street in hoop and can <em>read the economy</em> off the
-crowd — clusters of like-dressed workers near the chopshop, mixed dress in the commons — without a
-single label. The sprite layer makes the econ genome legible at a glance.</blockquote>
-</section>
-
-<section id="engine">
-<h2><span class="num">§V</span> The engine — genome → sprite</h2>
-<p>A pure, deterministic pipeline mirroring <code>ship.js</code> / the econ genome / borges' generator.
-Five stages, each a pure function of the one seed:</p>
-<ol>
-<li><strong>Seed.</strong> Hash the NPC's <code>gid</code> (chamber address) to a 32-bit seed with the
-house PRNG (<code>xmur3</code> → <code>mulberry32</code>, as in <code>borges/js/prng.js</code>). All
-later randomness draws from this one stream — determinism by construction.</li>
-<li><strong>Genome.</strong> Roll a small parameter bundle: body proportions, the per-material colour
-ramps (skin / cloth / metal), symmetry axis, and the part selections (head, torso, legs, held-item,
-head-gear). Where it exists, <em>override</em> rolled genes with the econ society's data (role → item,
-domain → ramp). This is the "pull" — a genome fully determines a figure.</li>
-<li><strong>Compose (paper-doll).</strong> Stack the indexed-colour parts on the raster grid in z-order,
-mounting accessories at sockets. Use <strong>vertical mirror symmetry</strong> for the body so a single
-seeded half-grid yields a coherent whole — the cheapest path to "this looks like a creature, not
-noise" (the classic random-sprite technique).</li>
-<li><strong>Palette.</strong> Generate ramps in HSL (a hue per material, a dark→light run), then map
-indices → RGB. Recolour = swap ramps; pixels untouched.</li>
-<li><strong>Animate (later stage).</strong> Derive — don't author — a small set of clips: an idle bob
-and a 2–4 frame walk keyed to the NPC's actual motion vector, with an 8-way (mirrored to 4-authored)
-facing set.</li>
-</ol>
-
-<h4>Output forms</h4>
-<ul>
-<li><strong>Live draw</strong> — the renderer paints directly to hoop's canvas at the <code>@</code>'s
-position (Stage-0 path; replaces the glyph).</li>
-<li><strong>Baked atlas</strong> — for crowds, bake each distinct genome once to an offscreen
-spritesheet + a metadata sidecar (frame rects, pivots, durations), reused across identical NPCs. The
-bake is a <em>cache</em>, regenerable from the genome — never the source of truth.</li>
-<li><strong>ATProto record</strong> — durability is the <em>genome</em>, not the image: a few bytes that
-regenerate the figure anywhere. (Lexicon shape is an open question, §Open.)</li>
-</ul>
-
-<h4>Determinism contract &amp; tests</h4>
-<p>Follow the hoop pattern: a pure, zero-dep kernel with a node selftest
-(<code>sprite.selftest.mjs</code>) asserting <strong>same seed → byte-identical pixels</strong>, palette
-ramps monotonic in lightness, and symmetry exact. The kernel must run in plain node (attach to
-<code>globalThis</code> like borges) so it tests headless; the page only draws what the kernel returns.</p>
-</section>
-
-<section id="demo">
-<h2><span class="num">§VI</span> Proof of concept — determinism, live</h2>
-<p>A deliberately tiny Stage-0 sketch, not the engine: a seeded, vertically-mirrored,
-ramp-palette pixel figure. Its only job is to prove the load-bearing claim — <strong>the same seed
-always yields the same NPC</strong> — and to make this page something you can poke. Click any figure
-to copy its seed; the row regenerates identically on every machine.</p>
-
-<div class="demo">
-  <h4>Seeded NPC generator <span class="dim" style="font-weight:400;font-family:var(--serif)">— mulberry32, mirrored, 3-ramp palette</span></h4>
-  <div class="controls">
-    <label>seed <input id="seed" type="text" value="hoop:0:0" spellcheck="false"></label>
-    <button id="roll">Roll a street →</button>
-    <button id="same" class="ghost">Prove determinism (redraw same)</button>
-  </div>
-  <div class="gallery" id="gallery"></div>
-  <p class="hint">Same seed string → identical figure, here and in node. Roll changes the base seed;
-     each figure in the row is <code>seed#i</code>. This is the symmetry + ramp + seed core only — no
-     parts library, no econ binding, no animation yet (those are Stages 1–3).</p>
-</div>
-</section>
-
-<section id="roadmap">
-<h2><span class="num">§VII</span> Roadmap — devour, then pare</h2>
-<p><span class="pill now">now</span> <span class="pill soon">next</span>
-<span class="pill">later</span></p>
-<table>
-<tr><th>Stage</th><th>What ships</th><th></th></tr>
-<tr><td>0 · Plan</td><td>This document + the seeded proof-of-concept at <code>/sprite</code>. Deploy surface taken over.</td><td><span class="pill now">now</span></td></tr>
-<tr><td>1 · Parts</td><td>Pure kernel: parts library (head/torso/legs/item/gear), normalized material palettes &amp; ramps, symmetry, sockets. <code>sprite.selftest.mjs</code>.</td><td><span class="pill soon">next</span></td></tr>
-<tr><td>2 · Bind</td><td>Map econ society genome → sprite params (role→item, domain→ramp, archetype→family). A street of econ NPCs you can <em>read</em>.</td><td><span class="pill soon">next</span></td></tr>
-<tr><td>3 · Animate</td><td>Derived idle + walk clips, 8-way facing keyed to motion.</td><td><span class="pill">later</span></td></tr>
-<tr><td>4 · Port</td><td>Drop the renderer into hoop <code>world.js</code> — the <code>@</code> and ambient NPCs become sprites; degrade to glyph.</td><td><span class="pill">later</span></td></tr>
-<tr><td>5 · Persist</td><td>Genome as an ATProto record so an NPC's face is stable &amp; portable across repos.</td><td><span class="pill">later</span></td></tr>
-</table>
-<p class="dim">Stages 1–2 are the kernel and the payoff; everything after is polish. The kernel lives
-here at <code>mega/sprite/</code> as a sandbox (the way <code>hoop/paint/</code> and
-<code>hoop/econ/</code> iterate the look before <code>world.js</code> consumes it), then ports into
-hoop once it's right.</p>
-</section>
-
-<section id="open">
-<h2>Open questions — decisions to make</h2>
-<div class="card q">
-<ol>
-<li><strong>Render target:</strong> true pixel-art raster (image-rendering: pixelated) vs. an SDF/vector
-figure that suits hoop's glyph-world aesthetic better. The PoC is raster; hoop's look might want vector.</li>
-<li><strong>Where the kernel finally lives:</strong> sandbox here at <code>mega/sprite/</code> then copy
-into <code>hoop/js/</code> (the paint→world.js precedent), or a shared module both import. (hoop is
-pure-static and can't import a sibling at runtime — likely a vendored copy, like
-<code>hoop/vendor/wayfind.js</code>.)</li>
-<li><strong>Persistence shape:</strong> a dedicated <code>com.minomobi.hoop.sprite</code> lexicon, or
-just a <code>spriteGenome</code> field on the existing person/place record, or nothing on the wire at
-all (regenerate purely from <code>gid</code>). Cheapest is the last — decide whether players ever
-<em>customise</em> a sprite (which would force a stored override).</li>
-<li><strong>Authored anchors:</strong> fully procedural parts, or a small hand-drawn parts library the
-generator recombines (the Gen-Jam approach). Hand parts read better; pure-procedural is more "infinite."</li>
-</ol>
-</div>
-</section>
-
-<section id="refs">
-<h2>References — what we devoured</h2>
-<ul>
-<li><a href="https://en.wikipedia.org/wiki/Sprite_(computer_graphics)">Sprite (computer graphics)</a> — definition, the TMS9918 origin, hardware→software arc (Wikipedia).</li>
-<li><a href="https://www.liquisearch.com/sprite_computer_graphics/history/hardware_sprites">Hardware sprites — history</a> — per-scanline composition without a framebuffer.</li>
-<li><a href="https://megacatstudios.com/blogs/retro-development/creating-nes-graphics">Creating NES Graphics</a> &amp; <a href="https://snes.nesdev.org/wiki/Sprites">NESdev / SNESdev wiki</a> — 64 sprites / 8 per scanline / 3+1 colour palette, metasprites, flicker.</li>
-<li><a href="https://bumbershootsoft.wordpress.com/2019/07/01/c64-fat-sprite-workarounds/">C64 sprite workarounds</a> — 8 sprites, multiplexing, per-scanline cycle budget.</li>
-<li><a href="https://www.codeandweb.com/texturepacker">TexturePacker</a> &amp; <a href="https://www.codeandweb.com/texturepacker/tutorials/using-spritesheets-with-unity">atlas/pivot/frame metadata</a> — components: atlases, pivots, frame rects, durations, hitboxes.</li>
-<li><a href="https://www.gamedeveloper.com/programming/gen-jam-2016---procedurally-generating-sprites">Gen Jam 2016: procedurally generating sprites</a> — parts + normalized palettes + recombination + colour ramps.</li>
-<li><a href="https://lospec.com/procedural-pixel-art-generator/">Lospec procedural pixel-art generator</a> &amp; <a href="https://arxiv.org/pdf/2208.06413">Generating Pixel-Art Character Sprites using GANs</a> — symmetry/mirroring, limited palettes, pose generation; the ML frontier (out of scope but noted).</li>
-</ul>
-</section>
-
-<footer>
-  <p><strong>Lives at</strong> mega.mino.mobi/sprite · static asset under Worker <code>mega</code>
-     (directory <code>.</code>), no build, no D1/DO/secrets.
-     <strong>Deploys</strong> via <code>deploy-mega.yml</code> on push to <code>mega/**</code> from
-     <code>main</code> or <code>claude/npc-sprite-generation-aeh9e1</code> (this branch now owns the
-     surface in <code>deploy-registry.json</code>).</p>
-  <p>Sibling sandboxes that set the precedent: <a href="https://hoop.mino.mobi/paint/">hoop/paint</a>
-     (iterate the look before world.js), <a href="https://hoop.mino.mobi/econ/">hoop/econ</a>
-     (the society genome these sprites visualize), <a href="https://fable.mino.mobi">fable</a>
-     (the generative wing pattern).</p>
-</footer>
+<div class="foot">
+  Stage 1 of the <a href="/sprite/docs/">plan</a>: a pure, deterministic kernel — roles, parts,
+  mirror symmetry, material palette ramps, palette archetypes, export. Next: bind the genome to hoop's
+  <a href="https://hoop.mino.mobi/econ/">econ society</a> (role→item, domain→ramp) and port the renderer
+  into <code>world.js</code>. The one allowed unseeded roll is the dice that pick <em>which</em> seed to
+  open — everything downstream is pure <code>f(seed)</code>.
 </div>
 
 <script>
-// ── House PRNG: xmur3 string-hash → mulberry32 (same family as borges/js/prng.js) ──
-function xmur3(str){
-  let h=1779033703^str.length;
-  for(let i=0;i<str.length;i++){h=Math.imul(h^str.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
-  return function(){h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return (h^=h>>>16)>>>0;};
-}
-function mulberry32(a){
-  return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
-    t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
-}
-function rngFor(seedStr){return mulberry32(xmur3(seedStr)());}
+"use strict";
+// ── House PRNG: xmur3 → mulberry32 (borges/js/prng.js family) ──
+function xmur3(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0;};}
+function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function rngFor(s){return mulberry32(xmur3(s)());}
 
-// ── Stage-0 figure: seeded, vertically mirrored, 3-ramp indexed palette ──
-const GRID=11, HALF=Math.ceil(GRID/2), SCALE=12, PAD=1;
+// ── Roles: dominant-hat flavour (a nod to hoop econ; full binding is Stage 2) ──
+const ROLES=[
+  {id:"mender",  hue:24,  item:"tool"},
+  {id:"grower",  hue:104, item:"sprig"},
+  {id:"cleric",  hue:268, item:"none"},
+  {id:"smith",   hue:18,  item:"hammer"},
+  {id:"clerk",   hue:210, item:"scroll"},
+  {id:"warden",  hue:0,   item:"staff"},
+];
 
-function ramp(rnd, hueBase, satBase){
-  // dark→light run of 4 shades for one material
-  const hue=(hueBase + rnd()*40 - 20 + 360)%360;
-  const sat=satBase + rnd()*18;
-  const out=[];
-  for(let i=0;i<4;i++){
-    const l=22 + i*16 + rnd()*4;
-    out.push(`hsl(${hue.toFixed(0)} ${sat.toFixed(0)}% ${l.toFixed(0)}%)`);
-  }
+// ── Palette: a dark→light run for one material ──
+function ramp(rnd,hue,sat){
+  hue=((hue + rnd()*30-15)%360+360)%360;
+  const s=sat+rnd()*16, out=[];
+  for(let i=0;i<4;i++) out.push(`hsl(${hue.toFixed(0)} ${s.toFixed(0)}% ${(20+i*17+rnd()*4).toFixed(0)}%)`);
   return out;
 }
 
-function genome(seedStr){
-  const rnd=rngFor(seedStr);
-  return {
-    skin: ramp(rnd, 25, 45),                    // warm skin ramp
-    cloth: ramp(rnd, rnd()*360, 55),            // any-hue clothing
-    metal: ramp(rnd, 210, 12),                  // cool desaturated trim
-    // half-grid occupancy + material index (0 empty,1 skin,2 cloth,3 metal)
-    cells:(function(){
-      const c=[];
-      for(let y=0;y<GRID;y++){const row=[];for(let x=0;x<HALF;x++){
-        // bias: head region skin, torso cloth, edges sparse, a little metal trim
-        const edge = x===0 ? .35 : .82;
-        let v=0;
-        if(rnd()<edge){
-          if(y<3) v=1;                 // head → skin
-          else if(y>GRID-3 && rnd()<.7) v=3; // feet → metal-ish
-          else v = rnd()<.18 ? 3 : 2;  // torso → cloth, some trim
-        }
-        row.push(v);
-      } c.push(row);} return c;
-    })()
+// ── Genome: pure f(seed, opts, sharedCloth?) ──
+// In a "company town" every coat is the SAME ramp (passed in, derived once per street),
+// so a uniform crowd is visibly uniform; "commons" rolls each coat off the NPC's own stream.
+function buildGenome(seed, o, sharedCloth){
+  const rnd=rngFor(seed);
+  const N=o.size, HALF=Math.ceil(N/2);
+  const role=ROLES[Math.floor(rnd()*ROLES.length)];
+  const ramps={
+    skin: ramp(rnd, 26, 42),
+    cloth:(o.arch==="company" && sharedCloth) ? sharedCloth : ramp(rnd, rnd()*360, 50),
+    metal:ramp(rnd, 212, 10),
+    accent:ramp(rnd, role.hue, 62),
   };
+  // half-grid material codes: 0 empty · 1 skin · 2 cloth · 3 metal · 4 accent
+  const cells=[];
+  for(let y=0;y<N;y++){const row=[];for(let x=0;x<HALF;x++){
+    const edge = x===0 ? o.dens-0.45 : o.dens;        // taper at the mirror seam edge
+    let v=0;
+    if(rnd()<edge){
+      if(y < N*0.27) v=1;                              // head → skin
+      else if(y > N-3 && rnd()<.75) v=3;               // feet → metal
+      else if(rnd()<.16) v = rnd()<.5?3:4;             // trim → metal/accent
+      else v=2;                                        // body → cloth
+    }
+    row.push(v);
+  } cells.push(row);}
+  const headRows=[]; for(let y=0;y<N;y++) if(y<N*0.27) headRows.push(y);
+  const eyeY = headRows.length? headRows[Math.floor(headRows.length*0.6)] : 1;
+  return {seed, size:N, half:HALF, role:role.id, item:role.item, ramps, cells, eyeY,
+          opts:{sym:o.sym, arch:o.arch, dens:o.dens, eyes:o.eyes, withItem:o.item}};
 }
 
-function draw(canvas, seedStr){
-  const g=genome(seedStr);
-  const W=GRID*SCALE+PAD*2*SCALE, H=GRID*SCALE+PAD*2*SCALE;
-  canvas.width=W; canvas.height=H;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,W,H);
-  const mats=[null,g.skin,g.cloth,g.metal];
-  for(let y=0;y<GRID;y++){
-    for(let x=0;x<GRID;x++){
-      const hx = x<HALF ? x : (GRID-1-x);     // mirror
-      const v=g.cells[y][hx];
-      if(!v)continue;
-      // shade by vertical position within the figure for a little form
-      const shade = Math.min(3, Math.max(0, Math.floor((y/GRID)*4)));
-      ctx.fillStyle=mats[v][shade];
-      ctx.fillRect((x+PAD)*SCALE,(y+PAD)*SCALE,SCALE,SCALE);
+// ── Render a genome to a canvas at a given cell scale ──
+function drawGenome(canvas, g, scale){
+  const N=g.size, PAD=1, side=(N+PAD*2)*scale;
+  canvas.width=side; canvas.height=side;
+  const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  ctx.clearRect(0,0,side,side);
+  const mats=[null,g.ramps.skin,g.ramps.cloth,g.ramps.metal,g.ramps.accent];
+  const px=(cx,cy,col)=>{ctx.fillStyle=col;ctx.fillRect((cx+PAD)*scale,(cy+PAD)*scale,scale,scale);};
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N;x++){
+      let hx;
+      if(g.opts.sym) hx = x<g.half ? x : (N-1-x);     // mirror
+      else { hx = x<g.half ? x : (x-g.half); if(hx>=g.half) hx=g.half-1; } // free-ish: reuse halves shifted
+      const v=g.cells[y][hx]; if(!v)continue;
+      const shade=Math.min(3,Math.max(0,Math.floor((y/N)*4)));
+      px(x,y,mats[v][shade]);
     }
   }
-}
-
-const gallery=document.getElementById('gallery');
-function render(base){
-  gallery.innerHTML='';
-  for(let i=0;i<8;i++){
-    const seed=`${base}#${i}`;
-    const wrap=document.createElement('div'); wrap.className='npc';
-    const cv=document.createElement('canvas');
-    cv.title='click to copy seed: '+seed;
-    cv.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(seed);
-      document.getElementById('seed').value=base;};
-    draw(cv,seed);
-    const lbl=document.createElement('div'); lbl_set(lbl,'#'+i);
-    wrap.appendChild(cv); wrap.appendChild(lbl); gallery.appendChild(wrap);
+  // eyes (two dark symmetric pixels on the head)
+  if(g.opts.eyes){
+    const cx=(N-1)/2, ey=g.eyeY, off=N>=13?2:1;
+    ctx.fillStyle="#0a0b0e";
+    px(Math.round(cx-off),ey,"#0a0b0e"); px(Math.round(cx+off),ey,"#0a0b0e");
+  }
+  // held item — breaks symmetry on purpose (the socket concept), Stage-2 will key it to the real hat
+  if(g.opts.withItem && g.item!=="none"){
+    const handY=Math.floor(N*0.6), handX=N-2, top=g.ramps.accent[3], mid=g.ramps.accent[1];
+    if(g.item==="staff"||g.item==="hammer"){ for(let k=0;k<Math.min(4,N-handY);k++) px(handX,handY-2+k,k===0?top:mid); }
+    else if(g.item==="sprig"){ px(handX,handY,g.ramps.accent[2]); px(handX,handY-1,top); px(handX-1,handY-1,top); }
+    else if(g.item==="scroll"){ px(handX,handY,top); px(handX,handY+1,mid); }
+    else { px(handX,handY,top); } // tool / default: a single bright bit
   }
 }
-function lbl_set(el,t){el.textContent=t;}
 
-document.getElementById('roll').onclick=()=>{
-  const r=mulberry32(Date.now()>>>0)();           // the ONE allowed unseeded roll: which seed to open
-  document.getElementById('seed').value='hoop:'+Math.floor(r*1e6).toString(36);
-  render(document.getElementById('seed').value);
-};
-document.getElementById('same').onclick=()=>render(document.getElementById('seed').value);
-document.getElementById('seed').addEventListener('change',e=>render(e.target.value));
-render('hoop:0:0');
+// ── State + wiring ──
+const $=id=>document.getElementById(id);
+let base="hoop:0:0";
+let opts={size:13, sym:"mirror"==="mirror", dens:0.80, arch:"commons", item:true, eyes:true};
+opts.sym=true;
+let selectedIdx=0;
+const GAL=12;
+
+function archSharedCloth(){ const rnd=rngFor(base+"::cloth"); return ramp(rnd, rnd()*360, 50); } // one coat per street
+
+function seedFor(i){ return `${base}#${i}`; }
+
+function renderHero(){
+  const g=buildGenome(seedFor(selectedIdx), genOpts(), archSharedCloth());
+  drawGenome($("hero"), g, Math.floor(312/(g.size+2)));
+  $("heroname").innerHTML=`<b>${g.seed}</b> · ${g.role}`;
+  $("seedshow").textContent="";
+  // genome readout
+  const rampHtml=Object.entries(g.ramps).map(([k,r])=>
+    `<div class="ramp"><span class="nm">${k}</span><span class="sw">${r.map(c=>`<span style="background:${c}"></span>`).join("")}</span></div>`).join("");
+  $("genome").innerHTML=
+    `<b>role</b> ${g.role} &nbsp; <b>item</b> ${g.item}<br>`+
+    `<b>size</b> ${g.size}×${g.size} &nbsp; <b>sym</b> ${g.opts.sym?"mirror":"free"} &nbsp; <b>arch</b> ${g.opts.arch}<br>`+
+    `<div class="ramps">${rampHtml}</div>`;
+  window._g=g; // for PNG/copy
+}
+
+function genOpts(){ return {size:opts.size, sym:opts.sym, dens:opts.dens, arch:opts.arch, item:opts.item, eyes:opts.eyes}; }
+
+function renderGallery(){
+  const gal=$("gallery"); gal.innerHTML="";
+  const shared=archSharedCloth();
+  for(let i=0;i<GAL;i++){
+    const g=buildGenome(seedFor(i), genOpts(), shared);
+    const wrap=document.createElement("div"); wrap.className="npc"+(i===selectedIdx?" sel":"");
+    const cv=document.createElement("canvas");
+    drawGenome(cv, g, 8);
+    const cap=document.createElement("div"); cap.className="cap"; cap.innerHTML=`<b>#${i}</b> ${g.role}`;
+    wrap.appendChild(cv); wrap.appendChild(cap);
+    wrap.onclick=()=>{ selectedIdx=i; renderHero(); markSel(); };
+    gal.appendChild(wrap);
+  }
+  $("galnote").textContent = opts.arch==="company" ? "company town — shared uniform palette" : "commons — every coat its own";
+}
+function markSel(){ [...$("gallery").children].forEach((el,i)=>el.classList.toggle("sel",i===selectedIdx)); }
+
+function renderAll(){ $("seed").value=base; renderGallery(); renderHero(); }
+
+// controls
+$("seed").addEventListener("change",e=>{ base=e.target.value.trim()||"hoop:0:0"; selectedIdx=0; renderAll(); });
+$("roll").onclick=()=>{ const r=mulberry32((Date.now()^(Math.random()*1e9))>>>0)();  // the one allowed unseeded roll
+  base="hoop:"+Math.floor(r*1e7).toString(36); selectedIdx=0; renderAll(); };
+$("prev").onclick=()=>renderAll();
+$("sym").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; opts.sym=b.dataset.v==="mirror";
+  segOn("sym",b); renderAll(); };
+$("arch").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; opts.arch=b.dataset.v;
+  segOn("arch",b); renderAll(); };
+function segOn(id,btn){ [...$(id).children].forEach(x=>x.classList.toggle("on",x===btn)); }
+$("size").oninput=e=>{ opts.size=+e.target.value; $("sizeval").textContent=opts.size; renderAll(); };
+$("dens").oninput=e=>{ opts.dens=+e.target.value; $("densval").textContent=opts.dens.toFixed(2); renderAll(); };
+$("item").onchange=e=>{ opts.item=e.target.checked; renderAll(); };
+$("eyes").onchange=e=>{ opts.eyes=e.target.checked; renderAll(); };
+
+$("copyseed").onclick=()=>copy(window._g.seed);
+$("copygenome").onclick=()=>{ const g=window._g; copy(JSON.stringify({
+  seed:g.seed, size:g.size, role:g.role, item:g.item, opts:g.opts, ramps:g.ramps },null,2)); };
+$("png").onclick=()=>{ const g=window._g, c=document.createElement("canvas");
+  drawGenome(c,g,24); const a=document.createElement("a");
+  a.download=g.seed.replace(/[^\w]+/g,"_")+".png"; a.href=c.toDataURL("image/png"); a.click(); };
+function copy(t){ if(navigator.clipboard) navigator.clipboard.writeText(t); }
+
+renderAll();
 </script>
 </body>
 </html>
