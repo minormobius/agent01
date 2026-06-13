@@ -323,6 +323,37 @@ This is the same vertical move the `@` will need for the inter-deck easements th
 (the rare sealed pockets vanish once stairs exist). Bundles naturally with art Phase 4 (the
 gradient slide only has slope across decks).
 
+## Leg 11 — PATHFINDING AS A FUNCTION OF WALLS (SHIPPED) + the oblong stitch cells
+
+Open halls exposed a flaw: `walkRoute` routed over the Voronoi **cell-adjacency graph**, threading
+`centre → membrane-midpoint → centre` through every cell — so in a big open hall (or the concourse)
+the path zigzagged through dozens of centroids instead of cutting straight. The router didn't know
+the space was open; it only knew adjacency.
+
+**The fix (shipped, `deck.js`): line-of-sight string-pull against the actual walls.** Dijkstra still
+picks the corridor (its `centre→midpoint→centre` path is wall-free by construction); then
+`losSimplify` greedily skips waypoints whenever the straight shot stays clear of the **wall
+segments** (`d.walls`, bucket-gridded). The path now runs dead straight across open space and corners
+only where a real wall or doorway forces it — *a function of the walls, not the centroids.* Measured:
+**0 wall crossings, 82% fewer corners** (929→164 turns over 49 probes). `deck.js` exports the wall
+segments; both solvers ship `walls` in the trimmed view; pinned in `deck.selftest` (no route crosses
+a wall; LOS has far fewer points than Dijkstra cells). An SSF *funnel* was tried first and abandoned —
+it only works on simple channels and cut corners through the exterior walls of non-convex halls.
+
+**The oblong stitch cells.** Two causes, both addressed:
+- *Edge-of-map oblongs* — a frontier nucleus with no outboard neighbour gets a Voronoi cell that
+  sprawls to `clipCell`'s box. Fixed: every paint cell is now **frame-clipped** to the region + a
+  seam margin (Sutherland–Hodgman), pinned in `deck.selftest`.
+- *Interior oblong artifacts* — a sparse-foam cell's over-long edge (≳1.6 cells, ~3% of membranes)
+  doesn't line up with the convex walk graph, so it's **excluded from the wall set** for the
+  string-pull (real walls are tiled by short membranes, so coverage is unaffected). These rare
+  interior oblongs can still *render*; fully dissolving them is a `clipCell` robustness follow-up.
+
+**Next — the graceful cross-region stitch (CHARTED).** The string-pull is per-region; v3 still
+gate-hops between regions. The graceful end-state is a **unified navmesh across loaded regions**,
+joined at the gate portals, so one taut LOS path flows straight through a seam — retiring the
+gate-hop state machine. The wall segments + LOS land that's needed are now in place.
+
 ## Leg 8 — the v1 art style on the solved map (PHASE 1 SHIPPED on v3)
 
 v2 rendered the brutalist flat-cell look. v1's feel — **room lighting and sliding at steep floor

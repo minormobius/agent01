@@ -20,6 +20,25 @@ import { buildSceneCustom, adjacency, bucketGrid, clipCell } from '../paint/voro
 
 function ehash(seed, a, b) { let x = (seed ^ Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663)) >>> 0; x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; return x >>> 0; }
 
+// clip a convex polygon to the axis-aligned rect [x0,x1]×[y0,y1] (Sutherland–Hodgman, four planes)
+function clipRect(poly, x0, y0, x1, y1) {
+  const planes = [
+    (p) => p[0] - x0, (p) => x1 - p[0], (p) => p[1] - y0, (p) => y1 - p[1],
+  ];
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  let out = poly;
+  for (const f of planes) {
+    const inp = out; out = [];
+    for (let i = 0; i < inp.length; i++) {
+      const a = inp[i], b = inp[(i + 1) % inp.length], da = f(a), db = f(b);
+      if (da >= 0) out.push(a);
+      if ((da >= 0) !== (db >= 0)) out.push(lerp(a, b, da / (da - db)));
+    }
+    if (out.length < 3) return [];
+  }
+  return out;
+}
+
 export function deckScene({
   lattice, seed = 1, grade = 0.4, genome, record, az = 0, ax = 0, axSpan = 14, iters = 5,
   pxPerCell = 64, wallSpacing, roomSpacing, gz, loops = 0.15, solved, solveOpts = {},
@@ -141,6 +160,12 @@ export function deckScene({
       return kind.get(eKey(a, b)) || 'wall';
     },
   });
+  // FRAME-CLIP: a nucleus at the loaded-world edge has no neighbour on its outboard side, so its
+  // Voronoi cell sprawls to clipCell's box — the oblong, unanchored "stitch cells" at the map edge.
+  // Bound every cell to the region frame + a small seam margin (the ghost overlap the neighbour
+  // fills). Cells fully outside are dropped. Cheap Sutherland–Hodgman against four planes.
+  const M = K * 1.5;                                        // ~1.5 cells of seam overlap (K = px per cell)
+  scene.paintCells = scene.paintCells.map((c) => ({ ...c, poly: clipRect(c.poly, -M, -M, W + M, H + M) })).filter((c) => c.poly.length >= 3);
 
   // building glyph anchors (band centroid per building present on this deck)
   const glyphs = new Map();
@@ -151,13 +176,33 @@ export function deckScene({
   });
   const bill = [...glyphs.values()].map((g) => ({ x: g.x / g.n, y: g.y / g.n, n: g.n, glyph: g.glyph, role: g.role }));
 
+  // WALL SEGMENTS — every membrane that ISN'T passable (not a door, an open, or a gate): the input
+  // to wayfinding's line-of-sight string-pull. Includes the region's exterior boundary (non-gate
+  // real↔ghost membranes) so a taut path can't shortcut off the deck except through a gate.
+  // Oblong outliers (a sparse-foam cell's over-long edge, ≳1.6 cells — the same clipping artifact
+  // that draws the unanchored "stitch cells") are excluded: they aren't real architecture and they
+  // don't line up with the convex walk graph, so they'd false-block the string-pull. Real walls are
+  // tiled by many short membranes (median ≈ 0.8 cell), so coverage is unaffected.
+  const wallMax = K * 1.6;
+  const walls = [];
+  for (const e of adjE0) {
+    const ga = e.a >= nReal, gb = e.b >= nReal;
+    if (ga && gb) continue;                                  // both ghost — the neighbour's fabric
+    let passable;
+    if (ga || gb) passable = openGhost.has((ga ? e.b : e.a) + '|' + (ga ? e.a : e.b));
+    else { const k = kind.get(eKey(e.a, e.b)); passable = (k === 'door' || k === 'open'); }
+    if (passable || e.len > wallMax) continue;
+    const hl = e.len * 0.5;
+    walls.push([e.m[0] - e.along[0] * hl, e.m[1] - e.along[1] * hl, e.m[0] + e.along[0] * hl, e.m[1] + e.along[1] * hl]);
+  }
+
   const stats = {
     rooms: band.length, roadRooms: role.filter((r) => r === 'road').length,
     buildings: glyphs.size, streetDoors: best.size, serviceDoors: serviceEdges.length, gates: isGate.size,
     closure: city.closure, access: city.access,
   };
   stats.sealed = sealed.size;
-  return { scene, band, ghostBand, nReal, owner, role, bill, isGate, seeds, stats, solved: s,
+  return { scene, walls, band, ghostBand, nReal, owner, role, bill, isGate, seeds, stats, solved: s,
     frame: { W, H }, K, streetDoorKeys, serviceEdges, sealed };
 }
 
@@ -165,8 +210,11 @@ export const ROLE_COLOR = Object.fromEntries(Object.entries(ROLES).map(([k, R]) 
 export const M_PER_CELL = 15;     // the declared room scale: one lattice cell = a spacious ~15 m room
 
 // ── WAYFINDING on the deck: the walkable graph IS the membrane classification — you can cross a
-//    door or an open concourse membrane, never a wall. Routes thread room-centre → door midpoint →
-//    room-centre, so a journey out of a building visibly funnels through its ONE street door. ──
+//    door or an open concourse membrane, never a wall. Dijkstra picks the corridor of cells; the
+//    centre→portal-midpoint→centre path it yields is wall-free by construction. walkRoute then
+//    pulls that string TAUT with line-of-sight against the actual WALL SEGMENTS (`d.walls`), so the
+//    path runs dead straight across an open hall and bends only at real wall corners + doorways —
+//    the path is a function of the walls, not of the Voronoi centroids. ──
 export function buildWalk(d) {
   const nR = d.nReal ?? d.seeds.length;
   const walk = Array.from({ length: d.seeds.length }, () => []);
@@ -180,6 +228,52 @@ export function buildWalk(d) {
   for (const e of d.scene.opens) addE(e);
   return walk;
 }
+
+// proper segment intersection (shared endpoints / collinear touches don't count)
+function segCross(ax, ay, bx, by, cx, cy, dx, dy) {
+  const d1 = (cx - ax) * (dy - ay) - (cy - ay) * (dx - ax);
+  const d2 = (cx - bx) * (dy - by) - (cy - by) * (dx - bx);
+  const d3 = (ax - cx) * (by - cy) - (ay - cy) * (bx - cx);
+  const d4 = (ax - dx) * (by - dy) - (ay - dy) * (bx - dx);
+  return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+}
+// a bucket-grid over the wall segments (each [x1,y1,x2,y2]); each wall is filed in EVERY bucket its
+// bounding box touches, and near(A,B) gathers every bucket the query segment's bbox touches — so a
+// wall that could intersect the query is never missed (bbox overlap is necessary for a crossing).
+function wallGrid(walls, cell) {
+  const m = new Map();
+  const put = (bx, by, i) => { const k = bx + '|' + by; let b = m.get(k); if (!b) { b = []; m.set(k, b); } b.push(i); };
+  for (let i = 0; i < walls.length; i++) {
+    const w = walls[i];
+    const bx0 = Math.floor(Math.min(w[0], w[2]) / cell), bx1 = Math.floor(Math.max(w[0], w[2]) / cell);
+    const by0 = Math.floor(Math.min(w[1], w[3]) / cell), by1 = Math.floor(Math.max(w[1], w[3]) / cell);
+    for (let bx = bx0; bx <= bx1; bx++) for (let by = by0; by <= by1; by++) put(bx, by, i);
+  }
+  return { near(A, B) {
+    const out = new Set();
+    const bx0 = Math.floor(Math.min(A[0], B[0]) / cell), bx1 = Math.floor(Math.max(A[0], B[0]) / cell);
+    const by0 = Math.floor(Math.min(A[1], B[1]) / cell), by1 = Math.floor(Math.max(A[1], B[1]) / cell);
+    for (let bx = bx0; bx <= bx1; bx++) for (let by = by0; by <= by1; by++) { const b = m.get(bx + '|' + by); if (b) for (const i of b) out.add(i); }
+    return out;
+  } };
+}
+// LINE-OF-SIGHT string-pull: greedily skip waypoints while the straight shot stays clear of walls,
+// so the path goes straight where the space is open and corners only where a wall forces it.
+function losSimplify(dense, d) {
+  const walls = d.walls; if (!walls || !walls.length || dense.length <= 2) return dense;
+  const grid = d._wallGrid || (d._wallGrid = wallGrid(walls, ((d.scene && d.scene.wallSpacing) || 8) * 4));
+  const blocked = (A, B) => {                               // inset the shot so door-jamb endpoints don't false-positive
+    const dx = B[0] - A[0], dy = B[1] - A[1], ln = Math.hypot(dx, dy) || 1, ux = dx / ln * 0.8, uy = dy / ln * 0.8;
+    const a = [A[0] + ux, A[1] + uy], b = [B[0] - ux, B[1] - uy];
+    for (const i of grid.near(a, b)) { const w = walls[i]; if (segCross(a[0], a[1], b[0], b[1], w[0], w[1], w[2], w[3])) return true; }
+    return false;
+  };
+  const out = [dense[0]]; let anchor = 0;
+  for (let i = 2; i < dense.length; i++) if (blocked(dense[anchor], dense[i])) { out.push(dense[i - 1]); anchor = i - 1; }
+  out.push(dense[dense.length - 1]);
+  return out;
+}
+
 
 // ── GATE LINKS: which deck rooms are border crossings, and where they lead. A gate pair shares
 //    its gz, so a deck-band gate's partner is always a deck-band room of the neighbour — walking
@@ -208,18 +302,22 @@ export function walkRoute(d, a, b) {
   const walk = d._walk || (d._walk = buildWalk(d));
   const n = d.seeds.length;
   const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), done = new Uint8Array(n);
-  const prevM = new Array(n).fill(null);
+  const prevE = new Array(n).fill(null);                    // the portal edge used to reach each cell
   dist[a] = 0;
-  for (;;) {                                               // O(n²) scan — a deck is a few hundred rooms
+  for (;;) {                                                // O(n²) scan — a deck is a few hundred rooms
     let u = -1, du = Infinity;
     for (let i = 0; i < n; i++) if (!done[i] && dist[i] < du) { du = dist[i]; u = i; }
     if (u < 0 || u === b) break;
     done[u] = 1;
-    for (const e of walk[u]) { const nd = du + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = u; prevM[e.to] = e.m; } }
+    for (const e of walk[u]) { const nd = du + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = u; prevE[e.to] = e; } }
   }
   if (!isFinite(dist[b])) return null;
-  const rooms = [], pts = [[d.seeds[b].x, d.seeds[b].y]];
-  for (let u = b; u !== a; u = prev[u]) { rooms.push(u); pts.push(prevM[u]); pts.push([d.seeds[prev[u]].x, d.seeds[prev[u]].y]); }
-  rooms.push(a); rooms.reverse(); pts.reverse();
-  return { rooms, pts, length: dist[b] };
+  // the wall-free dense path: centre → portal midpoint → centre, all the way back
+  const rooms = [], dense = [[d.seeds[b].x, d.seeds[b].y]];
+  for (let u = b; u !== a; u = prev[u]) { rooms.push(u); dense.push(prevE[u].m); dense.push([d.seeds[prev[u]].x, d.seeds[prev[u]].y]); }
+  rooms.push(a); rooms.reverse(); dense.reverse();
+  // pull it taut against the walls — straight across open space, cornering only where a wall forces it
+  const pts = losSimplify(dense, d);
+  let length = 0; for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  return { rooms, pts, length };
 }

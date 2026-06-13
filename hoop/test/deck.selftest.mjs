@@ -130,6 +130,40 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(allRoute, 'NO MORE "no path": 30 random probe pairs all route');
 }
 
+// ── PATHFINDING IS A FUNCTION OF WALLS: the LOS-pulled route never crosses a wall, and runs
+//    straight across open space (far fewer corners than the dense centre-to-centre path) ──
+{
+  const segX = (ax, ay, bx, by, cx, cy, dx, dy) => {
+    const s1 = (cx - ax) * (dy - ay) - (cy - ay) * (dx - ax), s2 = (cx - bx) * (dy - by) - (cy - by) * (dx - bx);
+    const s3 = (ax - cx) * (by - cy) - (ay - cy) * (bx - cx), s4 = (ax - dx) * (by - dy) - (ay - dy) * (bx - dx);
+    return ((s1 > 0) !== (s2 > 0)) && ((s3 > 0) !== (s4 > 0));
+  };
+  const hitsWall = (A, B) => {                              // inset so door-jamb endpoints don't false-positive
+    const vx = B[0] - A[0], vy = B[1] - A[1], ln = Math.hypot(vx, vy) || 1, ux = vx / ln * 0.8, uy = vy / ln * 0.8;
+    const a = [A[0] + ux, A[1] + uy], b = [B[0] - ux, B[1] - uy];
+    return d.walls.some((w) => segX(a[0], a[1], b[0], b[1], w[0], w[1], w[2], w[3]));
+  };
+  const probes = []; for (let i = 0; i < d.nReal; i++) if (!d.sealed.has(i)) probes.push(i);
+  let routes = 0, crossings = 0, corners = 0, dijCells = 0;
+  for (let t = 0; t < 40; t++) {
+    const a = probes[(t * 7919) % probes.length], b = probes[(t * 104729 + 13) % probes.length];
+    if (a === b) continue;
+    const r = walkRoute(d, a, b); if (!r) continue;
+    routes++; dijCells += r.rooms.length; corners += r.pts.length;
+    for (let i = 1; i < r.pts.length; i++) if (hitsWall(r.pts[i - 1], r.pts[i])) { crossings++; break; }
+  }
+  ok(d.walls && d.walls.length > 100, 'the deck ships its wall segments for line-of-sight (' + (d.walls && d.walls.length) + ')');
+  ok(crossings === 0, 'NO route crosses a wall — the path is a function of the walls (' + crossings + '/' + routes + ')');
+  ok(corners < dijCells, 'LOS pulls the path taut — far fewer corners than Dijkstra cells (' + corners + ' pts vs ' + dijCells + ' cells)');
+}
+
+// ── FRAME-CLIP: no oblong stitch cells — every paint cell is bounded to the region frame + margin ──
+{
+  const M = d.K * 1.5 + 1e-6;
+  const outOfBounds = d.scene.paintCells.filter((c) => c.poly.some((p) => p[0] < -M || p[1] < -M || p[0] > d.frame.W + M || p[1] > d.frame.H + M));
+  ok(outOfBounds.length === 0, 'every paint cell is clipped to the frame + seam margin — no unanchored oblongs (' + outOfBounds.length + ' stray)');
+}
+
 // ── GRAVITY'S BIAS: planar conductance caps consolidate streets onto the deck ──
 {
   const frag = (dd) => {

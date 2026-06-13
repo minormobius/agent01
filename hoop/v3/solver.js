@@ -22,7 +22,9 @@ function trim(d, links, az, ax) {
   return {
     az, ax, frame: d.frame, K: d.K, nReal: d.nReal,
     seeds: d.seeds, bandGid: d.band.map((c) => c.gid), ghostGid: d.ghostBand.map((c) => c.gid),
+    walls: d.walls,
     scene: {
+      wallSpacing: d.scene.wallSpacing,
       paintCells: d.scene.paintCells.map((c) => ({ wall: c.wall, room: c.room, door: c.door, poly: c.poly })),
       doors: d.scene.doors.map((e) => ({ a: e.a, b: e.b, m: e.m })),
       opens: d.scene.opens.map((e) => ({ a: e.a, b: e.b, m: e.m })),
