@@ -59,6 +59,17 @@ kbd {
 }
 .bottom b { color: var(--gold); }
 
+/* zen toggle — hides every panel (stat block + controls); stays visible itself */
+.zen-toggle {
+  position: fixed; right: 12px; bottom: 12px; z-index: 9;
+  font: inherit; color: var(--phos);
+  background: rgba(10, 14, 20, 0.55); border: 1px solid var(--edge);
+  border-radius: 7px; padding: 6px 10px; cursor: pointer; opacity: 0.6;
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+}
+.zen-toggle:hover { opacity: 1; }
+body.zen .panel { display: none !important; }
+
 /* steering reference — fades in while a finger / cursor is down */
 #crosshair {
   position: fixed; inset: 0; z-index: 3; pointer-events: none;

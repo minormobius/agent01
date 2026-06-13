@@ -23,7 +23,7 @@
 
 <!-- top-left: live readout -->
 <div id="hud" class="panel tl">
-  <div id="mode" class="mode earth">EARTH</div>
+  <div id="mode" class="mode cylinder">O’NEILL CYLINDER</div>
   <div class="row"><span class="k">course</span><span id="course" class="v">—</span></div>
   <div class="row"><span class="k">craft</span><span id="preset" class="v">—</span></div>
   <div class="row"><span class="k">airspeed</span><span id="speed" class="v">—</span></div>
@@ -42,6 +42,9 @@
   <button id="btnReset">⟲ reset <kbd>R</kbd></button>
   <button id="btnHelp" onclick="document.getElementById('help').classList.toggle('hidden')">? controls <kbd>H</kbd></button>
 </div>
+
+<!-- zen toggle: hides the stat block + controls (stays visible itself) -->
+<button id="btnZen" class="zen-toggle" title="hide UI">⤢ hide UI</button>
 
 <!-- controls overlay (opt-in via the ? button — never auto-opens) -->
 <div id="help" class="overlay hidden">
@@ -77,6 +80,7 @@
       <tr><td><kbd>G</kbd></td><td>toggle Earth ⇄ cylinder</td></tr>
       <tr><td><kbd>C</kbd></td><td>cycle cylinder size</td></tr>
       <tr><td><kbd>N</kbd></td><td>new procedural course</td></tr>
+      <tr><td><kbd>U</kbd></td><td>hide UI (zen — just the game)</td></tr>
       <tr><td><kbd>R</kbd> · <kbd>P</kbd></td><td>reset · pause</td></tr>
     </table>
     <button onclick="document.getElementById('help').classList.add('hidden')">fly →</button>
@@ -103,7 +107,7 @@
     shipRow: id('shipRow'), coriolisRow: id('coriolisRow'), throttle: id('throttle'),
     help: id('help'), btnMode: id('btnMode'), btnPreset: id('btnPreset'), btnReset: id('btnReset'),
     btnCrumb: id('btnCrumb'), tapdot: id('tapdot'),
-    course: id('course'), toast: id('toast'),
+    course: id('course'), toast: id('toast'), btnZen: id('btnZen'),
   };
   start(canvas, hud).catch((err) => {
     console.error(err);

@@ -45,7 +45,7 @@ export async function start(canvas, hud) {
   };
 
   const state = {
-    mode: 'earth',
+    mode: 'cylinder',
     cylIdx: 0,
     cyl: makeCylinder(CYLINDERS[0]),
     duck: { pos: [0, 220, 0], vel: [0, 0, -55], q: quat.create(), throttle: 0.6 },
@@ -67,6 +67,12 @@ export async function start(canvas, hud) {
     const t = hud.toast; if (!t) return;
     t.textContent = msg; t.classList.remove('show'); void t.offsetWidth;
     t.className = `toast show ${kind}`;
+  }
+
+  // "zen" hides all the UI chrome (stat block + controls) — just the game.
+  function toggleZen() {
+    const z = document.body.classList.toggle('zen');
+    if (hud.btnZen) { hud.btnZen.textContent = z ? '⤢' : '⤢ hide UI'; hud.btnZen.title = z ? 'show UI' : 'hide UI'; }
   }
 
   // ── world (re)build ──
@@ -437,6 +443,7 @@ export async function start(canvas, hud) {
     if (k === 'r') { resetDuck(); return; }
     if (k === 'n') { state.courseSeed = (state.courseSeed + 1) >>> 0; makeCourse(); toast('new course', 'good'); return; }
     if (k === 'p') { state.paused = !state.paused; last = performance.now(); return; }
+    if (k === 'u') { toggleZen(); return; }
     if (k === 'h') { hud.help.classList.toggle('hidden'); return; }
     state.keys.add(k);
   });
@@ -478,6 +485,7 @@ export async function start(canvas, hud) {
   hud.btnMode.addEventListener('click', cycleMode);
   hud.btnPreset.addEventListener('click', cyclePreset);
   hud.btnReset.addEventListener('click', () => resetDuck());
+  if (hud.btnZen) hud.btnZen.addEventListener('click', toggleZen);
   if (hud.btnCrumb) {
     const on = (e) => { state.crumbHold = true; e.preventDefault(); };
     const off = () => { state.crumbHold = false; };
