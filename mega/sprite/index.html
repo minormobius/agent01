@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sprite Lab · mega.mino.mobi/sprite</title>
-<meta name="description" content="A seed-deterministic procedural sprite lab — roll, tune, and read NPC sprites for the hoop O'Neill-cylinder game. Same seed, same person, everywhere.">
+<meta name="description" content="A seed-deterministic procedural sprite lab driven by hoop's civic genome — roll a town, tune the body, read the crowd. Same seed, same person, everywhere.">
 <style>
   :root{
     --bg:#0f1014; --panel:#16181f; --panel2:#1c1f28; --ink:#e7e3d8; --dim:#a39c8b;
@@ -19,28 +19,25 @@
   a{color:var(--gold);text-decoration:none} a:hover{text-decoration:underline}
   .crumb{font-size:13px;color:var(--faint);border-bottom:1px solid var(--line);
          padding:10px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .crumb a{color:var(--dim)} .crumb .here{color:var(--gold)}
-  .crumb .spacer{flex:1}
-  header.hero{max-width:1100px;margin:0 auto;padding:38px 22px 10px}
+  .crumb a{color:var(--dim)} .crumb .here{color:var(--gold)} .crumb .spacer{flex:1}
+  header.hero{max-width:1100px;margin:0 auto;padding:34px 22px 8px}
   .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:var(--gold-soft);margin:0 0 10px}
   h1{font-family:var(--serif);font-size:40px;line-height:1.05;margin:0 0 10px;font-weight:600;letter-spacing:-.01em}
   h1 .g{color:var(--gold)}
-  .lede{font-family:var(--serif);font-size:18px;color:var(--dim);max-width:64ch;margin:0}
+  .lede{font-family:var(--serif);font-size:18px;color:var(--dim);max-width:66ch;margin:0}
   .lede b{color:#f3efe4}
-  main{max-width:1100px;margin:0 auto;padding:24px 22px 90px;
-       display:grid;grid-template-columns:320px 1fr;gap:26px;align-items:start}
+  main{max-width:1100px;margin:0 auto;padding:22px 22px 80px;
+       display:grid;grid-template-columns:330px 1fr;gap:26px;align-items:start}
   @media(max-width:820px){main{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
-  .panel h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);
+  .panel h2,.galhead h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);
             margin:0 0 14px;font-weight:600}
-  /* hero sprite */
-  .stage{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:18px}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:16px}
   #hero{background:#0a0b0e;border:1px solid var(--line);border-radius:10px;image-rendering:pixelated;
         box-shadow:0 0 0 1px #000 inset}
   .heroname{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center}
-  .heroname b{color:var(--gold)}
-  /* controls */
-  .ctl{margin:14px 0}
+  .heroname b{color:var(--gold)} .heroname .gl{font-size:15px;color:var(--ink)}
+  .ctl{margin:13px 0}
   .ctl label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px;letter-spacing:.02em}
   .ctl .val{color:var(--gold-soft);font-family:var(--mono)}
   input[type=text]{width:100%;background:#0c0d11;border:1px solid var(--line);color:var(--ink);
@@ -52,95 +49,94 @@
   button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
   button.ghost:hover{color:var(--ink);border-color:var(--gold-soft)}
   .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-  .seg button{background:transparent;color:var(--dim);border:0;border-radius:0;flex:1;font-weight:500;padding:7px 6px}
+  .seg button{background:transparent;color:var(--dim);border:0;border-radius:0;flex:1;font-weight:500;padding:7px 4px;font-size:12px}
   .seg button.on{background:var(--gold);color:#0f1014;font-weight:600}
+  .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
   .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer}
   .check input{accent-color:var(--gold);width:16px;height:16px}
-  /* genome readout */
   .genome{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.7}
   .genome b{color:#f3efe4}
   .ramps{display:flex;flex-direction:column;gap:6px;margin-top:8px}
   .ramp{display:flex;align-items:center;gap:8px}
-  .ramp .nm{width:46px;color:var(--faint)}
+  .ramp .nm{width:48px;color:var(--faint)}
   .ramp .sw{display:flex;border-radius:4px;overflow:hidden;border:1px solid #000}
   .ramp .sw span{width:18px;height:14px;display:block}
-  /* gallery */
-  .galhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .galhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:6px}
   .galhead .note{font-size:12px;color:var(--faint)}
-  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:14px}
   .npc{text-align:center;cursor:pointer}
   .npc canvas{display:block;width:100%;background:#0a0b0e;border:1px solid var(--line);
        border-radius:8px;image-rendering:pixelated;transition:border-color .12s}
   .npc:hover canvas{border-color:var(--gold-soft)}
   .npc.sel canvas{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
   .npc .cap{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .npc .cap b{color:var(--dim)}
+  .npc .cap b{color:var(--dim)} .npc .cap .gl{color:var(--gold-soft)}
   .foot{max-width:1100px;margin:0 auto;padding:0 22px 60px;color:var(--faint);font-size:12.5px}
   .foot code{font-family:var(--mono);background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
 </style>
 </head>
 <body>
 <nav class="crumb">
-  <a href="https://mino.mobi">mino.mobi</a> / <a href="/">mega</a> /
-  <span class="here">sprite</span>
+  <a href="https://mino.mobi">mino.mobi</a> / <a href="/">mega</a> / <span class="here">sprite</span>
   <span class="spacer"></span>
-  <a href="/sprite/docs/">docs &amp; design notes →</a>
-  &nbsp;·&nbsp; <a href="https://hoop.mino.mobi">hoop ↗</a>
+  <a href="/sprite/docs/">docs &amp; design notes →</a> &nbsp;·&nbsp; <a href="https://hoop.mino.mobi">hoop ↗</a>
 </nav>
 
 <header class="hero">
-  <p class="kicker">Sprite Lab · Stage 1</p>
+  <p class="kicker">Sprite Lab · Stage 2 — civic genome</p>
   <h1><span class="g">◓</span> Sprite Lab</h1>
-  <p class="lede">A <b>seed-deterministic</b> procedural sprite generator for the people of
-     <a href="https://hoop.mino.mobi">hoop</a>. Roll a street, tune the genome, read the crowd.
-     Same seed → same person, on every machine, for ever. <a href="/sprite/docs/">Why &amp; how →</a></p>
+  <p class="lede">A <b>seed-deterministic</b> sprite generator driven by hoop's
+     <a href="https://hoop.mino.mobi/econ/">civic genome</a>: roll a town and each NPC's
+     <b>role</b> (the verb of their place), <b>domain</b> (the matter they work), and the town
+     <b>archetype</b> shape the body and the dress. Same seed → same person, everywhere.
+     <a href="/sprite/docs/">Why &amp; how →</a></p>
 </header>
 
 <main>
-  <!-- LEFT: the bench -->
   <section class="panel" aria-label="controls">
     <h2>The bench</h2>
     <div class="stage">
-      <canvas id="hero" width="312" height="312"></canvas>
+      <canvas id="hero" width="360" height="360"></canvas>
       <div class="heroname" id="heroname"></div>
     </div>
 
     <div class="ctl">
-      <label for="seed">Seed <span class="val" id="seedshow"></span></label>
+      <label for="seed">Seed</label>
       <input id="seed" type="text" value="hoop:0:0" spellcheck="false">
     </div>
     <div class="row" style="margin-bottom:6px">
-      <button id="roll">⚄ Roll a street</button>
+      <button id="roll">⚄ Roll a town</button>
       <button id="prev" class="ghost">↻ Redraw (proof)</button>
     </div>
 
     <div class="ctl">
-      <label>Symmetry</label>
-      <div class="seg" id="sym">
-        <button data-v="mirror" class="on">mirror</button>
-        <button data-v="free">free</button>
-      </div>
-    </div>
-
-    <div class="ctl">
-      <label>Palette archetype</label>
+      <label>Town archetype <span class="val" id="archnote"></span></label>
       <div class="seg" id="arch">
-        <button data-v="commons" class="on">commons (varied)</button>
-        <button data-v="company">company (uniform)</button>
+        <button data-v="balanced" class="on">balanced</button>
+        <button data-v="dormitory">dorm</button>
+        <button data-v="company">company</button>
+        <button data-v="commons">commons</button>
       </div>
     </div>
 
     <div class="ctl">
-      <label>Build size <span class="val" id="sizeval">13</span></label>
-      <input id="size" type="range" min="9" max="17" step="2" value="13">
+      <label>Build size <span class="val" id="sizeval">15</span> px</label>
+      <input id="size" type="range" min="9" max="33" step="2" value="15">
     </div>
     <div class="ctl">
       <label>Density <span class="val" id="densval">0.80</span></label>
-      <input id="dens" type="range" min="0.55" max="0.95" step="0.05" value="0.80">
+      <input id="dens" type="range" min="0.50" max="0.98" step="0.02" value="0.80">
     </div>
-    <div class="ctl row" style="gap:18px">
-      <label class="check"><input type="checkbox" id="item" checked> held item</label>
-      <label class="check"><input type="checkbox" id="eyes" checked> eyes</label>
+
+    <div class="ctl">
+      <label>Anatomy <span class="val">(all on by default)</span></label>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="head" checked> rounded head</label>
+        <label class="check"><input type="checkbox" id="legs" checked> legs + pants</label>
+        <label class="check"><input type="checkbox" id="eyes" checked> face (eyes/mouth)</label>
+        <label class="check"><input type="checkbox" id="item" checked> held item</label>
+        <label class="check"><input type="checkbox" id="sym" checked> mirror symmetry</label>
+      </div>
     </div>
 
     <div class="ctl">
@@ -154,22 +150,19 @@
     </div>
   </section>
 
-  <!-- RIGHT: the street -->
   <section aria-label="gallery">
-    <div class="galhead">
-      <h2 style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);margin:0">The street</h2>
-      <span class="note" id="galnote"></span>
-    </div>
+    <div class="galhead"><h2>The street</h2><span class="note" id="galnote"></span></div>
     <div class="gallery" id="gallery"></div>
   </section>
 </main>
 
 <div class="foot">
-  Stage 1 of the <a href="/sprite/docs/">plan</a>: a pure, deterministic kernel — roles, parts,
-  mirror symmetry, material palette ramps, palette archetypes, export. Next: bind the genome to hoop's
-  <a href="https://hoop.mino.mobi/econ/">econ society</a> (role→item, domain→ramp) and port the renderer
-  into <code>world.js</code>. The one allowed unseeded roll is the dice that pick <em>which</em> seed to
-  open — everything downstream is pure <code>f(seed)</code>.
+  Stage 2 of the <a href="/sprite/docs/">plan</a>: the body is now read off hoop's civic genome — the
+  archetype biases the <a href="https://hoop.mino.mobi/econ/">role mix</a> (a company town is full of
+  makers; a commons leans civic), the role sets the accent colour, held item &amp; glyph, and a
+  domain role dresses in its material's hue. Everything is pure <code>f(seed)</code>; the one unseeded
+  roll is the die that picks <em>which</em> town to open. Next: lift this kernel into a module +
+  <code>sprite.selftest.mjs</code> and port the renderer into hoop's <code>world.js</code>.
 </div>
 
 <script>
@@ -181,57 +174,90 @@ function mulberry32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15
   t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function rngFor(s){return mulberry32(xmur3(s)());}
 
-// ── Roles: dominant-hat flavour (a nod to hoop econ; full binding is Stage 2) ──
-const ROLES=[
-  {id:"mender",  hue:24,  item:"tool"},
-  {id:"grower",  hue:104, item:"sprig"},
-  {id:"cleric",  hue:268, item:"none"},
-  {id:"smith",   hue:18,  item:"hammer"},
-  {id:"clerk",   hue:210, item:"scroll"},
-  {id:"warden",  hue:0,   item:"staff"},
+// ── THE CIVIC GENOME — a faithful, trimmed copy of hoop/econ/econ.js (standalone, no runtime import).
+// ROLES = the verbs of place (glyph + brutalist land-use colour + tier + domain-parameterised flag).
+const ROLES={
+  dwell:  {glyph:'⌂',color:'#d9b24a',tier:1,dom:false,item:'none'},
+  grow:   {glyph:'❀',color:'#5aa845',tier:1,dom:true, item:'sprig'},
+  make:   {glyph:'⚒',color:'#e0772f',tier:1,dom:true, item:'hammer'},
+  mend:   {glyph:'⚙',color:'#9b6b3a',tier:1,dom:true, item:'tool'},
+  trade:  {glyph:'⇄',color:'#cf3b3b',tier:1,dom:true, item:'scroll'},
+  serve:  {glyph:'☕',color:'#c853a0',tier:1,dom:true, item:'tool'},
+  play:   {glyph:'◍',color:'#3bb0c9',tier:2,dom:false,item:'none'},
+  heal:   {glyph:'✚',color:'#dfe7e2',tier:2,dom:false,item:'staff'},
+  learn:  {glyph:'❍',color:'#5570d8',tier:2,dom:false,item:'scroll'},
+  worship:{glyph:'☥',color:'#b39bd8',tier:2,dom:false,item:'staff'},
+  govern: {glyph:'⛬',color:'#33408f',tier:3,dom:false,item:'staff'},
+  move:   {glyph:'↕',color:'#6b7a82',tier:3,dom:false,item:'none'},
+  store:  {glyph:'▣',color:'#566066',tier:2,dom:true, item:'tool'},
+};
+const ROLE_MIX=[['dwell',46],['make',12],['trade',9],['grow',7],['serve',6],['mend',4],['play',4],['store',3],['learn',3],['heal',2],['worship',1],['govern',1],['move',2]];
+// domains pair a raw with the good a `make` turns it into; each carries a material hue for dress.
+const DOMAINS=[
+  {id:'grain',good:'bread',hue:45},  {id:'fiber',good:'cloth',hue:200},
+  {id:'metal',good:'tools',hue:212}, {id:'wood', good:'furniture',hue:28},
+  {id:'glass',good:'glass',hue:180}, {id:'brew', good:'brew',hue:300},
+  {id:'clay', good:'pottery',hue:20},{id:'oil',  good:'oil',hue:50},
+  {id:'paper',good:'paper',hue:48},  {id:'spice',good:'spice',hue:8},
 ];
+// the four society archetypes — correlated multipliers on the programme (mix). aff omitted (no econ here).
+const ARCHETYPES={
+  balanced: {mix:{}, note:'a working middle, a few civic anchors'},
+  dormitory:{mix:{dwell:1.3,learn:0.5,worship:0.4,play:0.5}, note:'mostly dwellings — a sleeper suburb'},
+  company:  {mix:{make:1.7,trade:1.4,store:1.4,learn:0.5,worship:0.4,play:0.5}, note:'work-centric — uniform coats'},
+  commons:  {mix:{learn:1.6,serve:1.5,play:1.6,worship:1.5}, note:'rich in third places'},
+};
+function effectiveMix(arc){ const m=ARCHETYPES[arc].mix; return ROLE_MIX.map(([k,w])=>[k,Math.max(1,w*(m[k]||1))]); }
+function pickRole(rnd,mix){ const tot=mix.reduce((s,m)=>s+m[1],0); let r=rnd()*tot; for(const[k,w]of mix){r-=w;if(r<=0)return k;} return 'dwell'; }
 
-// ── Palette: a dark→light run for one material ──
-function ramp(rnd,hue,sat){
-  hue=((hue + rnd()*30-15)%360+360)%360;
-  const s=sat+rnd()*16, out=[];
-  for(let i=0;i<4;i++) out.push(`hsl(${hue.toFixed(0)} ${s.toFixed(0)}% ${(20+i*17+rnd()*4).toFixed(0)}%)`);
-  return out;
-}
+// ── colour helpers ──
+function hexHue(hex){ const n=parseInt(hex.slice(1),16),r=(n>>16&255)/255,g=(n>>8&255)/255,b=(n&255)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(!d)return 0;
+  let h; if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; return (h*60+360)%360; }
+function ramp(rnd,hue,sat,jit){ jit=jit==null?15:jit; hue=((hue+rnd()*jit*2-jit)%360+360)%360; const s=sat+rnd()*14,out=[];
+  for(let i=0;i<4;i++) out.push(`hsl(${hue.toFixed(0)} ${s.toFixed(0)}% ${(20+i*17+rnd()*4).toFixed(0)}%)`); return out; }
 
 // ── Genome: pure f(seed, opts, sharedCloth?) ──
-// In a "company town" every coat is the SAME ramp (passed in, derived once per street),
-// so a uniform crowd is visibly uniform; "commons" rolls each coat off the NPC's own stream.
 function buildGenome(seed, o, sharedCloth){
   const rnd=rngFor(seed);
-  const N=o.size, HALF=Math.ceil(N/2);
-  const role=ROLES[Math.floor(rnd()*ROLES.length)];
+  const N=o.size, HALF=Math.ceil(N/2), headBottom=Math.round(N*0.30);
+  const role=pickRole(rnd, effectiveMix(o.arch));
+  const R=ROLES[role];
+  const domain=R.dom ? DOMAINS[Math.floor(rnd()*DOMAINS.length)] : null;
+  // cloth: company town = the same coat for everyone (passed in); a domain role wears its material's
+  // hue; otherwise a free roll. (matches the plan: archetype→uniformity, domain→ramp.)
+  const cloth = (o.arch==='company' && sharedCloth) ? sharedCloth
+              : domain ? ramp(rnd, domain.hue, 46)
+              : ramp(rnd, rnd()*360, 50);
   const ramps={
-    skin: ramp(rnd, 26, 42),
-    cloth:(o.arch==="company" && sharedCloth) ? sharedCloth : ramp(rnd, rnd()*360, 50),
-    metal:ramp(rnd, 212, 10),
-    accent:ramp(rnd, role.hue, 62),
+    skin: ramp(rnd, 26, 40, 10),
+    cloth,
+    pants: ramp(rnd, 222, 26, 10),               // denim-ish lower body
+    metal: ramp(rnd, 212, 10),
+    accent: ramp(rnd, hexHue(R.color), 58, 8),   // the role's land-use colour → identity
   };
-  // half-grid material codes: 0 empty · 1 skin · 2 cloth · 3 metal · 4 accent
+  // half-grid material codes: 0 empty · 1 skin · 2 cloth · 3 metal · 4 accent.
+  // head rows are SOLID skin (the rounding mask shapes them at draw — a face needs a face to sit on).
   const cells=[];
   for(let y=0;y<N;y++){const row=[];for(let x=0;x<HALF;x++){
-    const edge = x===0 ? o.dens-0.45 : o.dens;        // taper at the mirror seam edge
     let v=0;
-    if(rnd()<edge){
-      if(y < N*0.27) v=1;                              // head → skin
-      else if(y > N-3 && rnd()<.75) v=3;               // feet → metal
-      else if(rnd()<.16) v = rnd()<.5?3:4;             // trim → metal/accent
-      else v=2;                                        // body → cloth
+    if(y<headBottom){ v=1; }                       // solid head
+    else {
+      const edge = x===0 ? o.dens-0.40 : o.dens;
+      if(rnd()<edge){
+        if(y>N-3 && rnd()<.75) v=3;                // feet → metal
+        else if(rnd()<.16) v = rnd()<.5?3:4;       // trim → metal/accent
+        else v=2;                                  // body → cloth
+      }
     }
     row.push(v);
   } cells.push(row);}
-  const headRows=[]; for(let y=0;y<N;y++) if(y<N*0.27) headRows.push(y);
-  const eyeY = headRows.length? headRows[Math.floor(headRows.length*0.6)] : 1;
-  return {seed, size:N, half:HALF, role:role.id, item:role.item, ramps, cells, eyeY,
-          opts:{sym:o.sym, arch:o.arch, dens:o.dens, eyes:o.eyes, withItem:o.item}};
+  return {seed, size:N, half:HALF, headBottom, role, glyph:R.glyph, tier:R.tier,
+          item:R.item, domain:domain?domain.id:null, good:domain?domain.good:null,
+          ramps, opts:{...o}};
 }
 
-// ── Render a genome to a canvas at a given cell scale ──
+// ── Render ──
 function drawGenome(canvas, g, scale){
   const N=g.size, PAD=1, side=(N+PAD*2)*scale;
   canvas.width=side; canvas.height=side;
@@ -239,101 +265,105 @@ function drawGenome(canvas, g, scale){
   ctx.clearRect(0,0,side,side);
   const mats=[null,g.ramps.skin,g.ramps.cloth,g.ramps.metal,g.ramps.accent];
   const px=(cx,cy,col)=>{ctx.fillStyle=col;ctx.fillRect((cx+PAD)*scale,(cy+PAD)*scale,scale,scale);};
-  for(let y=0;y<N;y++){
-    for(let x=0;x<N;x++){
-      let hx;
-      if(g.opts.sym) hx = x<g.half ? x : (N-1-x);     // mirror
-      else { hx = x<g.half ? x : (x-g.half); if(hx>=g.half) hx=g.half-1; } // free-ish: reuse halves shifted
-      const v=g.cells[y][hx]; if(!v)continue;
-      const shade=Math.min(3,Math.max(0,Math.floor((y/N)*4)));
-      px(x,y,mats[v][shade]);
-    }
+  const o=g.opts, center=(N-1)/2, hb=g.headBottom;
+  const rr=Math.max(1,Math.round(hb*0.75));              // head-rounding radius (NE/NW blank zones)
+  const legTop=Math.round(N*0.66);                       // legs region
+  const gapHalf=N>=23?1:0;                               // south blank zone (between the legs)
+
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const hx = o.sym ? (x<g.half?x:(N-1-x)) : Math.min(g.half-1, x<g.half?x:(x-g.half));
+    let v=g.cells[y][hx]; if(!v) continue;
+    if(o.head && y<rr && Math.min(x,N-1-x) < (rr-y)) continue;          // round the head's top corners
+    if(o.legs && y>=legTop && Math.abs(x-center)<=gapHalf) continue;     // split the legs
+    let r=mats[v];
+    if(o.legs && y>=legTop && v===2) r=g.ramps.pants;                   // pants on the lower body
+    const shade = v===1 ? 2 : Math.min(3,Math.max(0,Math.floor((y/N)*4))); // face light; body form-shaded
+    px(x,y,r[shade]);
   }
-  // eyes (two dark symmetric pixels on the head)
-  if(g.opts.eyes){
-    const cx=(N-1)/2, ey=g.eyeY, off=N>=13?2:1;
-    ctx.fillStyle="#0a0b0e";
-    px(Math.round(cx-off),ey,"#0a0b0e"); px(Math.round(cx+off),ey,"#0a0b0e");
+
+  // FACE — pareidolia: two eyes + a mouth (brow on big builds) on the solid head
+  if(o.eyes && hb>=2){
+    const dark="#0a0b0e";
+    const eyeRow=Math.max(0,Math.min(hb-2, Math.round(hb*0.40)));
+    const eyeDX=Math.max(1,Math.round(N*0.16));
+    const lx=Math.round(center-eyeDX), rx=Math.round(center+eyeDX);
+    px(lx,eyeRow,dark); px(rx,eyeRow,dark);
+    if(N>=15){ px(lx,eyeRow+1,dark); px(rx,eyeRow+1,dark);                 // taller eyes
+               px(lx,eyeRow-1,g.ramps.skin[1]); px(rx,eyeRow-1,g.ramps.skin[1]); } // brow
+    const mouthRow=Math.min(hb-1, eyeRow + Math.max(1,Math.round(N*0.13)));
+    const mc=g.ramps.skin[0];
+    px(Math.round(center),mouthRow,mc);
+    if(N>=13){ px(Math.round(center-1),mouthRow,mc); px(Math.round(center+1),mouthRow,mc); }
   }
-  // held item — breaks symmetry on purpose (the socket concept), Stage-2 will key it to the real hat
-  if(g.opts.withItem && g.item!=="none"){
-    const handY=Math.floor(N*0.6), handX=N-2, top=g.ramps.accent[3], mid=g.ramps.accent[1];
+
+  // HELD ITEM — breaks symmetry on purpose (the role's tool, on one hand)
+  if(o.item && g.item!=="none"){
+    const handY=Math.round(N*0.54), handX=N-2, top=g.ramps.accent[3], mid=g.ramps.accent[1];
     if(g.item==="staff"||g.item==="hammer"){ for(let k=0;k<Math.min(4,N-handY);k++) px(handX,handY-2+k,k===0?top:mid); }
     else if(g.item==="sprig"){ px(handX,handY,g.ramps.accent[2]); px(handX,handY-1,top); px(handX-1,handY-1,top); }
     else if(g.item==="scroll"){ px(handX,handY,top); px(handX,handY+1,mid); }
-    else { px(handX,handY,top); } // tool / default: a single bright bit
+    else px(handX,handY,top);
   }
 }
 
 // ── State + wiring ──
 const $=id=>document.getElementById(id);
-let base="hoop:0:0";
-let opts={size:13, sym:"mirror"==="mirror", dens:0.80, arch:"commons", item:true, eyes:true};
-opts.sym=true;
-let selectedIdx=0;
+let base="hoop:0:0", selectedIdx=0;
 const GAL=12;
+let opts={size:15, dens:0.80, arch:"balanced", sym:true, head:true, legs:true, eyes:true, item:true};
 
-function archSharedCloth(){ const rnd=rngFor(base+"::cloth"); return ramp(rnd, rnd()*360, 50); } // one coat per street
-
+function sharedCloth(){ const rnd=rngFor(base+"::cloth"); return ramp(rnd, rnd()*360, 46); } // one coat per company street
 function seedFor(i){ return `${base}#${i}`; }
 
 function renderHero(){
-  const g=buildGenome(seedFor(selectedIdx), genOpts(), archSharedCloth());
-  drawGenome($("hero"), g, Math.floor(312/(g.size+2)));
-  $("heroname").innerHTML=`<b>${g.seed}</b> · ${g.role}`;
-  $("seedshow").textContent="";
-  // genome readout
-  const rampHtml=Object.entries(g.ramps).map(([k,r])=>
-    `<div class="ramp"><span class="nm">${k}</span><span class="sw">${r.map(c=>`<span style="background:${c}"></span>`).join("")}</span></div>`).join("");
+  const g=buildGenome(seedFor(selectedIdx), {...opts}, sharedCloth());
+  drawGenome($("hero"), g, Math.max(3,Math.floor(360/(g.size+2))));
+  $("heroname").innerHTML=`<b>${g.seed}</b> · <span class="gl">${g.glyph}</span> ${g.role}${g.domain?` · ${g.good}`:""}`;
+  const rampHtml=["skin","cloth","pants","accent"].map(k=>
+    `<div class="ramp"><span class="nm">${k}</span><span class="sw">${g.ramps[k].map(c=>`<span style="background:${c}"></span>`).join("")}</span></div>`).join("");
   $("genome").innerHTML=
-    `<b>role</b> ${g.role} &nbsp; <b>item</b> ${g.item}<br>`+
-    `<b>size</b> ${g.size}×${g.size} &nbsp; <b>sym</b> ${g.opts.sym?"mirror":"free"} &nbsp; <b>arch</b> ${g.opts.arch}<br>`+
+    `<b>archetype</b> ${g.opts.arch} &nbsp; <b>tier</b> ${g.tier}<br>`+
+    `<b>role</b> ${g.glyph} ${g.role} &nbsp; <b>item</b> ${g.item}<br>`+
+    `<b>domain</b> ${g.domain||"—"} &nbsp; <b>size</b> ${g.size}×${g.size}<br>`+
     `<div class="ramps">${rampHtml}</div>`;
-  window._g=g; // for PNG/copy
+  window._g=g;
 }
-
-function genOpts(){ return {size:opts.size, sym:opts.sym, dens:opts.dens, arch:opts.arch, item:opts.item, eyes:opts.eyes}; }
-
 function renderGallery(){
-  const gal=$("gallery"); gal.innerHTML="";
-  const shared=archSharedCloth();
+  const gal=$("gallery"); gal.innerHTML=""; const shared=sharedCloth();
+  const gscale=Math.max(3,Math.min(9,Math.round(96/(opts.size+2))));
   for(let i=0;i<GAL;i++){
-    const g=buildGenome(seedFor(i), genOpts(), shared);
+    const g=buildGenome(seedFor(i), {...opts}, shared);
     const wrap=document.createElement("div"); wrap.className="npc"+(i===selectedIdx?" sel":"");
-    const cv=document.createElement("canvas");
-    drawGenome(cv, g, 8);
-    const cap=document.createElement("div"); cap.className="cap"; cap.innerHTML=`<b>#${i}</b> ${g.role}`;
+    const cv=document.createElement("canvas"); drawGenome(cv,g,gscale);
+    const cap=document.createElement("div"); cap.className="cap";
+    cap.innerHTML=`<b>#${i}</b> <span class="gl">${g.glyph}</span> ${g.role}`;
     wrap.appendChild(cv); wrap.appendChild(cap);
     wrap.onclick=()=>{ selectedIdx=i; renderHero(); markSel(); };
     gal.appendChild(wrap);
   }
-  $("galnote").textContent = opts.arch==="company" ? "company town — shared uniform palette" : "commons — every coat its own";
+  $("galnote").textContent = opts.arch==="company"
+    ? "company town — one uniform coat" : `${opts.arch} — ${ARCHETYPES[opts.arch].note}`;
 }
 function markSel(){ [...$("gallery").children].forEach((el,i)=>el.classList.toggle("sel",i===selectedIdx)); }
+function renderAll(){ $("seed").value=base; $("archnote").textContent=ARCHETYPES[opts.arch].note;
+  renderGallery(); renderHero(); }
 
-function renderAll(){ $("seed").value=base; renderGallery(); renderHero(); }
-
-// controls
 $("seed").addEventListener("change",e=>{ base=e.target.value.trim()||"hoop:0:0"; selectedIdx=0; renderAll(); });
 $("roll").onclick=()=>{ const r=mulberry32((Date.now()^(Math.random()*1e9))>>>0)();  // the one allowed unseeded roll
   base="hoop:"+Math.floor(r*1e7).toString(36); selectedIdx=0; renderAll(); };
 $("prev").onclick=()=>renderAll();
-$("sym").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; opts.sym=b.dataset.v==="mirror";
-  segOn("sym",b); renderAll(); };
-$("arch").onclick=e=>{ const b=e.target.closest("button"); if(!b)return; opts.arch=b.dataset.v;
-  segOn("arch",b); renderAll(); };
-function segOn(id,btn){ [...$(id).children].forEach(x=>x.classList.toggle("on",x===btn)); }
+$("arch").onclick=e=>{ const b=e.target.closest("button"); if(!b)return;
+  opts.arch=b.dataset.v; [...$("arch").children].forEach(x=>x.classList.toggle("on",x===b)); renderAll(); };
 $("size").oninput=e=>{ opts.size=+e.target.value; $("sizeval").textContent=opts.size; renderAll(); };
 $("dens").oninput=e=>{ opts.dens=+e.target.value; $("densval").textContent=opts.dens.toFixed(2); renderAll(); };
-$("item").onchange=e=>{ opts.item=e.target.checked; renderAll(); };
-$("eyes").onchange=e=>{ opts.eyes=e.target.checked; renderAll(); };
+["head","legs","eyes","item","sym"].forEach(k=>$(k).onchange=e=>{ opts[k]=e.target.checked; renderAll(); });
 
 $("copyseed").onclick=()=>copy(window._g.seed);
 $("copygenome").onclick=()=>{ const g=window._g; copy(JSON.stringify({
-  seed:g.seed, size:g.size, role:g.role, item:g.item, opts:g.opts, ramps:g.ramps },null,2)); };
-$("png").onclick=()=>{ const g=window._g, c=document.createElement("canvas");
-  drawGenome(c,g,24); const a=document.createElement("a");
-  a.download=g.seed.replace(/[^\w]+/g,"_")+".png"; a.href=c.toDataURL("image/png"); a.click(); };
+  seed:g.seed,size:g.size,archetype:g.opts.arch,role:g.role,glyph:g.glyph,tier:g.tier,
+  item:g.item,domain:g.domain,good:g.good,ramps:g.ramps},null,2)); };
+$("png").onclick=()=>{ const g=window._g,c=document.createElement("canvas"); drawGenome(c,g,24);
+  const a=document.createElement("a"); a.download=g.seed.replace(/[^\w]+/g,"_")+".png"; a.href=c.toDataURL("image/png"); a.click(); };
 function copy(t){ if(navigator.clipboard) navigator.clipboard.writeText(t); }
 
 renderAll();
