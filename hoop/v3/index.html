@@ -26,7 +26,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the dots are residents — click one to see who they are · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one to see who they are &amp; who they know · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
@@ -36,6 +36,7 @@
 <script type="module">
 import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
+import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -231,6 +232,32 @@ const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0)
 // presence); the deterministic WORLD is untouched.
 const NPC_CAP = 52, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
 const NPC_SPEED = 16;                                       // px/s — a slow amble
+const STRIDE = 14;                                          // world units per leg-swing frame
+const SPR_N = 15, SPR_SCALE = 2, SPR_WORLD = 17;            // 15-cell genome · 2 px/cell offscreen · ~17 world-units tall on the deck
+
+// ── PROCEDURAL NPC SPRITES (vendored mega/sprite kernel) ──────────────────────────────────────────
+// Each resident wears a top-down figure deterministically grown from a stable seed, its role PINNED to
+// the job econ's society solved for them (so the sprite's accent/emblem/tool agree with the building
+// light + inspector). A genome is built once per resident; each (dir,phase) frame is rasterised once to
+// a tiny offscreen canvas and cached, then blitted. Pure client-side; the deterministic world is untouched.
+const dir8Of = (dx, dy) => { const a = Math.atan2(dy, dx); const k = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8; return ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'][k]; };
+const DIR_BY_KEY = Object.fromEntries(DIR8.map((d) => [d.k, d]));
+const spriteFrames = new Map();                            // "seed|dir|phase" → offscreen canvas (LRU-capped)
+function npcGenome(n) { return n._g || (n._g = buildGenome(n.seed, { size: SPR_N, role: n.role, frames: 4 }, null)); }
+function spriteFrame(n) {
+  const phaseK = n.phase == null ? 'x' : (n.phase % 4);
+  const fk = n.seed + '|' + n.dir + '|' + phaseK;
+  let cv = spriteFrames.get(fk);
+  if (cv) { spriteFrames.delete(fk); spriteFrames.set(fk, cv); return cv; }   // touch (LRU)
+  cv = document.createElement('canvas'); cv.width = cv.height = SPR_N * SPR_SCALE;
+  const c = cv.getContext('2d');
+  for (const r of frameRects(npcGenome(n), DIR_BY_KEY[n.dir] || DIR_BY_KEY.S, n.phase == null ? null : (n.phase % 4))) {
+    c.fillStyle = r.c; c.fillRect(r.x * SPR_SCALE, r.y * SPR_SCALE, SPR_SCALE, SPR_SCALE);
+  }
+  spriteFrames.set(fk, cv);
+  while (spriteFrames.size > 1400) spriteFrames.delete(spriteFrames.keys().next().value);
+  return cv;
+}
 const dayPhase = () => (performance.now() / DAYLEN) % 1;    // 0..1; ~night when < .26 or > .80
 function buildCells(v) {
   if (v._buildCells) return v._buildCells;
@@ -241,12 +268,14 @@ function buildCells(v) {
 function npcsOf(v) {
   if (v._npcs) return v._npcs;
   const byB = buildCells(v), npcs = [];
-  for (const pn of v.people || []) {
-    if (npcs.length >= NPC_CAP) break;
-    const hc = byB.get(pn.home); if (!hc || !hc.length) continue;
+  v.people.forEach((pn, pi) => {
+    if (npcs.length >= NPC_CAP) return;
+    const hc = byB.get(pn.home); if (!hc || !hc.length) return;
     const cell = hc[(npcs.length * 13 + 7) % hc.length];
-    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
-  }
+    // a stable, deterministic sprite seed — same resident regenerates the same figure on every machine
+    const seed = SEED + ':' + v.az + ':' + v.ax + ':' + pn.home + ':' + pn.name;
+    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, ties: pn.ties || [], pi, reg: v, seed, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dir: 'S', phase: null, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
+  });
   return (v._npcs = npcs);
 }
 function npcRepath(v, n) {                                  // schedule-driven intention
@@ -272,19 +301,31 @@ function updateNpcs(v, dt) {                                // returns true if a
     if (n.path) {
       moved = true; n.t += n.speed * dt;
       const { pts, seg, total } = n.path;
-      if (n.t >= total) { n.x = pts[pts.length - 1][0]; n.y = pts[pts.length - 1][1]; n.path = null; n.cell = n.goalCell; n.dwell = 1.5 + Math.random() * 5; }
-      else { let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < n.t) { acc += seg[i - 1]; i++; } const f = (n.t - acc) / seg[i - 1]; n.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; n.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f; }
-    } else { n.dwell -= dt; if (n.dwell <= 0) npcRepath(v, n); }
+      if (n.t >= total) { n.x = pts[pts.length - 1][0]; n.y = pts[pts.length - 1][1]; n.path = null; n.cell = n.goalCell; n.dwell = 1.5 + Math.random() * 5; n.phase = null; }
+      else {
+        let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < n.t) { acc += seg[i - 1]; i++; }
+        const f = (n.t - acc) / seg[i - 1]; n.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; n.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
+        n.dir = dir8Of(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);   // face the way they walk
+        n.phase = (n.t / STRIDE) | 0;                                            // step the legs along the route
+      }
+    } else { n.dwell -= dt; if (n.dwell <= 0) npcRepath(v, n); n.phase = null; }   // standing → neutral pose
   }
   return moved;
 }
 function drawNpcs(v) {
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px ui-monospace, monospace';
-  for (const n of v._npcs || []) { const c = roleRGB(n.role); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.fillText(NPC_GLYPH, n.x, n.y); }
-  if (selNpc && (v._npcs || []).includes(selNpc)) {         // the inspected resident: ring + name
-    const n = selNpc;
-    ctx.strokeStyle = 'rgba(127,216,208,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = 'rgba(223,231,226,0.95)'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(n.name, n.x, n.y - 14);
+  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;   // crisp pixels on the upscale
+  const half = SPR_WORLD / 2;
+  for (const n of v._npcs || []) {
+    try { ctx.drawImage(spriteFrame(n), n.x - half, n.y - SPR_WORLD * 0.78, SPR_WORLD, SPR_WORLD); }   // feet ≈ ground point
+    catch (e) { const c = roleRGB(n.role); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px ui-monospace, monospace'; ctx.fillText(NPC_GLYPH, n.x, n.y); }
+  }
+  ctx.imageSmoothingEnabled = sm;
+  if (selNpc && (v._npcs || []).includes(selNpc)) {         // the inspected resident: tie-lines + ring + name
+    const n = selNpc, byPi = v._byPi || (v._byPi = new Map((v._npcs || []).map((m) => [m.pi, m])));
+    ctx.strokeStyle = 'rgba(127,216,208,0.30)'; ctx.lineWidth = 1.1;          // the live social web — who they know, here, now
+    for (const tj of n.ties) { const m = byPi.get(tj); if (!m) continue; ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(m.x, m.y); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(127,216,208,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(n.x, n.y - SPR_WORLD * 0.28, 11, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(223,231,226,0.95)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(n.name, n.x, n.y - SPR_WORLD - 4);
   }
 }
 
@@ -457,7 +498,13 @@ function npcAt(wx, wy) {
 function inspectNpc(n) {
   selNpc = n;
   const where = n.where === 'home' ? 'heading home' : n.where === 'work' ? 'off to work' : n.where === 'out' ? 'out for the evening' : 'about the deck';
-  rail('<b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><br><span style="color:#8a978f">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</span>');
+  const rv = n.reg || active, byPi = rv._byPi || (rv._byPi = new Map((rv._npcs || []).map((m) => [m.pi, m])));
+  const known = n.ties.map((tj) => byPi.get(tj)).filter(Boolean);              // acquaintances who are residents of THIS deck
+  const web = known.length
+    ? '<br><span style="color:#8a978f">knows ' + known.slice(0, 6).map((m) => '<span class="w" style="cursor:pointer" data-pi="' + m.pi + '">' + m.name + '</span>').join(', ') + (known.length > 6 ? ' +' + (known.length - 6) + ' more' : '') + '</span>'
+    : '<br><span style="color:#667">keeps to themselves on this deck</span>';
+  rail('<b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><br><span style="color:#8a978f">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</span>' + web);
+  $('rail').querySelectorAll('[data-pi]').forEach((el) => el.addEventListener('click', () => { const m = byPi.get(+el.dataset.pi); if (m) inspectNpc(m); dirty = true; }));   // hop along the web
 }
 
 // ── click-to-walk anywhere on this deck — interruptible, always from the @'s LIVE position ──
