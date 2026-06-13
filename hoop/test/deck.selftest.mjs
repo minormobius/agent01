@@ -164,6 +164,21 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(outOfBounds.length === 0, 'every paint cell is clipped to the frame + seam margin — no unanchored oblongs (' + outOfBounds.length + ' stray)');
 }
 
+// ── STAIRS & LADDERS: the vertical right-of-way emerges from the 3D solve ──
+{
+  ok(d.stairs.length > 0, 'the deck has stairs/ladders — vertical right-of-way (' + d.stairs.length + ')');
+  ok(d.stairs.every((s) => d.owner[s.cell] === -1), 'every stair sits on the concourse (a road cell)');
+  ok(d.stairs.every((s) => s.dir === 1 || s.dir === -1), 'each connector goes up (−1) or down (+1)');
+  // the floor below (gz+1): each down-stair lands on a road cell there (reuse the same 3D solve)
+  const below = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14, gz: d.gz + 1, solved: d.solved });
+  const bGid = new Map(); below.band.forEach((c, i) => bGid.set(c.gid, i));
+  const downs = d.stairs.filter((s) => s.dir === 1);
+  ok(downs.length > 0 && downs.every((s) => { const pr = bGid.get(s.partnerGid); return pr != null && below.owner[pr] === -1; }), 'down-stairs land on a road cell of the deck below (' + downs.length + ')');
+  // determinism
+  const d2 = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14, solved: d.solved });
+  ok(JSON.stringify(d2.stairs) === JSON.stringify(d.stairs), 'the stair set is deterministic');
+}
+
 // ── GRAVITY'S BIAS: planar conductance caps consolidate streets onto the deck ──
 {
   const frag = (dd) => {

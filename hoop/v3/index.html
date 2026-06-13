@@ -18,12 +18,17 @@
   #rail b { color: var(--gold); } #rail .w { color: var(--teal); }
   #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.85); color: var(--gold); font-size: 14px; z-index: 9; }
   #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+  #decks { position: fixed; right: 10px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; z-index: 8; }
+  #decks button { font: 16px/1 ui-monospace, monospace; color: var(--gold); background: rgba(8,11,16,.82); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; cursor: pointer; backdrop-filter: blur(6px); }
+  #decks button:active { background: rgba(244,191,98,.18); }
+  #deck { text-align: center; color: var(--dim); font-size: 11px; }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk the @ anywhere you can see — one taut path straight across the seams (tap again mid-stride to redirect) · buildings glow from within and spill light out their doors · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk anywhere on this deck (tap mid-stride to redirect) · ▲▼ or click a gold/teal stair = change decks · the concourse (mid-deck) stitches to neighbours · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
+<div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
 <div id="busy">waking the world…</div>
 <div id="err"></div>
@@ -38,44 +43,45 @@ addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').te
 const qs = new URLSearchParams(location.search);
 const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
 const PX = 120;                                            // px per cell at zoom 1 (a 15 m room)
-let R = 36;                                                // regionsPerRing (from the worker's ready)
+let R = 36, NZ = 12, GZMID = 6;                            // ring size · radial layers · main deck (from ready)
 
-// ── the world: regions stream from the worker; the camera rides the @ ──
-const regions = new Map(), solving = new Set();            // key → view
-let active = null;                                         // the region the @ stands in (camera anchor)
-// The @ walks ONE continuous trajectory through a UNIFIED navmesh stitched across every loaded
-// region at the gates — `path.pts` are in ACTIVE-LOCAL world coords, so crossing a seam is just a
-// coordinate rebase (no gate-hop). Repathing always starts from the @'s LIVE position, so a tap
-// mid-transit re-routes from where it actually is.
-const AT = { room: -1, x: 0, y: 0, path: null, t: 0 };
+// ── the world: floor tiles (az,ax,gz) stream from the worker; the camera rides the @ ──
+// MULTI-FLOOR: the ship's shell is NZ radial decks. The main concourse is GZMID; regions stitch
+// horizontally there (gates). A region's other floors are reached by STAIRS/LADDERS (the vertical
+// right-of-way) and are interior to the region. The @ carries a `floor` (gz); cross-region travel
+// happens on GZMID, vertical travel via stairs.
+const regions = new Map(), solving = new Set();            // "az,ax,gz" → view
+let active = null;                                         // the floor tile the @ stands in (camera anchor)
+const AT = { room: -1, x: 0, y: 0, path: null, t: 0, floor: 6, useStair: null };
 const SPEED = 300;                                         // px/s ≈ 37 m/s of brisk station walking... a stride
 let zoom = 0.85, dirty = true;
 
 const worker = new Worker('./solver.js', { type: 'module' });
 worker.onerror = (e) => { showErr('worker: ' + e.message); };
 function showErr(m) { $('err').style.display = 'block'; $('err').textContent = m; $('busy').style.display = 'none'; }
-const key = (az, ax) => (((az % R) + R) % R) + ',' + ax;
-function requestRegion(az, ax) {
-  const k = key(az, ax);
+const key = (az, ax, gz) => (((az % R) + R) % R) + ',' + ax + ',' + gz;
+function requestRegion(az, ax, gz) {
+  if (gz < 0 || gz >= NZ) return;
+  const k = key(az, ax, gz);
   if (regions.has(k) || solving.has(k)) return;
   solving.add(k);
-  worker.postMessage({ type: 'solve', az, ax });
+  worker.postMessage({ type: 'solve', az, ax, gz });
 }
 worker.onmessage = (e) => {
   const m = e.data;
   if (m.type === 'error') { showErr('solve: ' + m.message); return; }
   if (m.type === 'ready') {
-    R = m.R;
+    R = m.R; NZ = m.nz; GZMID = m.gzMid; AT.floor = GZMID;
     let az = parseInt(qs.get('az'), 10), ax = parseInt(qs.get('ax'), 10);
     if (!Number.isFinite(az)) { az = m.hubs[0].az; ax = m.hubs[0].ax; }
-    requestRegion(az, ax);
+    requestRegion(az, ax, GZMID);
     return;
   }
   if (m.type !== 'region') return;
-  const v = m.view, k = key(v.az, v.ax);
+  const v = m.view, k = key(v.az, v.ax, v.gz);
   solving.delete(k);
   regions.set(k, v);
-  if (!active) {                                           // first region: spawn the @
+  if (!active) {                                           // first tile: spawn the @ on the main deck
     setActive(v);
     let spawn = -1, bd = Infinity;
     v.owner.forEach((o, i) => { if (o !== -1) return; const p = v.seeds[i]; const d = (p.x - v.frame.W / 2) ** 2 + (p.y - v.frame.H / 2) ** 2; if (d < bd) { bd = d; spawn = i; } });
@@ -86,11 +92,12 @@ worker.onmessage = (e) => {
   dirty = true;
 };
 function setActive(v) {
-  active = v;
+  active = v; AT.floor = v.gz;
   history.replaceState(null, '', '?seed=' + SEED + '&az=' + v.az + '&ax=' + v.ax);
   const s = v.stats;
-  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · ' + s.rooms + ' rooms (~' + M_PER_CELL + ' m each) · ' +
-    s.buildings + ' buildings · ' + v.links.length + ' gates · access ' + s.access.toFixed(2) + ' · loaded regions: ' + regions.size;
+  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · deck <b>' + (v.gz + 1) + '/' + NZ + '</b>' + (v.gz === GZMID ? ' (concourse)' : '') + ' · ' +
+    s.rooms + ' rooms · ' + s.buildings + ' buildings · ' + v.stairs.length + ' stairs · access ' + s.access.toFixed(2);
+  $('deck').textContent = '▮ deck ' + (v.gz + 1) + '/' + NZ;
 }
 
 // region offset in the shared world frame, relative to the ACTIVE region (the ring wraps)
@@ -163,11 +170,14 @@ function emittersOf(v) {
   return (v._emit = { build, street });
 }
 
-// the regions that intersect the view (active first) — shared by the light build and the draw pass
+// the floor tiles that intersect the view (active first), ON THE @'s CURRENT FLOOR. Off the main
+// deck the neighbours aren't loaded (upper/lower floors are interior to the region), so it's just
+// the active tile; on the concourse the same-floor neighbours stitch in.
 function visibleRegions() {
   const z = zoom, out = [active];
+  if (AT.floor !== GZMID) return out;
   for (const [, v] of regions) {
-    if (v === active) continue;
+    if (v === active || v.gz !== GZMID) continue;
     const off = offsetOf(v);
     if (Math.abs(off.x + v.frame.W / 2 - AT.x) > W / z / 2 + v.frame.W && Math.abs(off.y + v.frame.H / 2 - AT.y) > H / z / 2 + v.frame.H) continue;
     out.push(v);
@@ -240,6 +250,13 @@ function paintRegion(v, off, ghostsAsFog, pulse) {
   // building glyphs
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(238,230,205,0.88)';
   for (const g of v.bill) { if (g.n < 3) continue; ctx.font = Math.min(44, 16 + g.n * 3) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
+  // stairs & ladders — the vertical right-of-way (▲ up toward the axis, ▼ down toward the hull)
+  ctx.font = '20px ui-monospace, monospace';
+  for (const s of v.stairs || []) {
+    const p = v.seeds[s.cell];
+    ctx.fillStyle = s.type === 'ladder' ? 'rgba(127,216,208,0.92)' : 'rgba(244,191,98,0.92)';
+    ctx.fillText(s.dir < 0 ? '▲' : '▼', p.x, p.y - (s.dir < 0 ? 7 : -7));
+  }
   ctx.restore();
 }
 
@@ -276,14 +293,18 @@ function draw() {
   for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
 }
 
-// ── periphery streaming: when the view reaches into a neighbour's box, ask the worker for it ──
-function streamPeriphery() {
+// ── streaming: the floors above/below (for the stairs) + same-floor neighbours on the concourse ──
+function streamFloors() {
   if (!active) return;
-  const z = zoom, vw = W / z / 2, vh = H / z / 2, m = PX * 2;     // a 2-room look-ahead margin
-  if (AT.x - vw < m) requestRegion(active.az - 1, active.ax);
-  if (AT.x + vw > active.frame.W - m) requestRegion(active.az + 1, active.ax);
-  if (AT.y - vh < m) requestRegion(active.az, active.ax - 1);
-  if (AT.y + vh > active.frame.H - m) requestRegion(active.az, active.ax + 1);
+  requestRegion(active.az, active.ax, active.gz - 1);            // the decks the stairs reach
+  requestRegion(active.az, active.ax, active.gz + 1);
+  if (active.gz === GZMID) {                                     // the concourse stitches horizontally
+    const z = zoom, vw = W / z / 2, vh = H / z / 2, m = PX * 2;  // a 2-room look-ahead margin
+    if (AT.x - vw < m) requestRegion(active.az - 1, active.ax, GZMID);
+    if (AT.x + vw > active.frame.W - m) requestRegion(active.az + 1, active.ax, GZMID);
+    if (AT.y - vh < m) requestRegion(active.az, active.ax - 1, GZMID);
+    if (AT.y + vh > active.frame.H - m) requestRegion(active.az, active.ax + 1, GZMID);
+  }
 }
 
 // the @'s live cell: the nearest real seed to its position IS the Voronoi cell it stands in
@@ -313,21 +334,22 @@ function minHeap() {
     pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < a.length && a[L][0] < a[m][0]) m = L; if (R < a.length && a[R][0] < a[m][0]) m = R; if (m === k) break; [a[m], a[k]] = [a[k], a[m]]; k = m; } } return t; } };
 }
 function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
-  const id = new Map(), nodes = [], adj = [], walls = [];
+  const id = new Map(), nodes = [], adj = [], walls = [], gz = AT.floor;
   const nid = (v, i) => {
-    const k = key(v.az, v.ax) + ':' + i; let n = id.get(k);
+    const k = key(v.az, v.ax, v.gz) + ':' + i; let n = id.get(k);
     if (n == null) { const off = offsetOf(v); n = nodes.length; id.set(k, n); nodes.push([v.seeds[i].x + off.x, v.seeds[i].y + off.y]); adj.push([]); }
     return n;
   };
   for (const [, v] of regions) {
+    if (v.gz !== gz) continue;                              // the navmesh is the CURRENT floor (stairs are separate)
     const off = offsetOf(v);
     const walk = v._walk || (v._walk = buildWalk(v));
     for (let i = 0; i < v.nReal; i++) for (const e of walk[i]) if (e.to > i) {
       const a = nid(v, i), b = nid(v, e.to), w = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]), m = [e.m[0] + off.x, e.m[1] + off.y];
       adj[a].push({ to: b, w, m }); adj[b].push({ to: a, w, m });
     }
-    for (const lk of v.links) {                            // stitch across the gate into a loaded neighbour
-      const nv = regions.get(key(lk.to.az, lk.to.ax)); if (!nv) continue;
+    for (const lk of v.links) {                            // stitch across the gate into a loaded neighbour (same floor)
+      const nv = regions.get(key(lk.to.az, lk.to.ax, v.gz)); if (!nv) continue;
       const pr = nv.bandGid.indexOf(lk.partner); if (pr < 0) continue;
       const a = nid(v, lk.room), b = nid(nv, pr), m = [(nodes[a][0] + nodes[b][0]) / 2, (nodes[a][1] + nodes[b][1]) / 2];
       const w = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]) + 1;
@@ -348,7 +370,17 @@ function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
   return losSimplify(dense, walls, ws);                     // straight where open, cornering only at walls
 }
 
-// ── click-to-walk anywhere you can see — interruptible, always from the @'s LIVE position ──
+// route the @ from its LIVE position to (tgt tile, best cell); optional stair to ride on arrival
+function goTo(tgt, best, useStair) {
+  const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best);
+  if (!pts || pts.length < 2) { rail('<b>⊘ no path</b> on this deck — try the stairs or walk closer'); return false; }
+  const seg = []; let total = 0;
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  AT.path = { pts, seg, total }; AT.t = 0; AT.useStair = useStair || null; dirty = true;   // interruptible
+  return true;
+}
+
+// ── click-to-walk anywhere on this deck — interruptible, always from the @'s LIVE position ──
 cv.addEventListener('click', (e) => {
   if (!active || AT.room < 0) return;
   const z = zoom;
@@ -356,7 +388,7 @@ cv.addEventListener('click', (e) => {
   let tgt = active, lx = wx, ly = wy;
   if (wx < 0 || wy < 0 || wx > active.frame.W || wy > active.frame.H) {
     tgt = null;
-    for (const [, v] of regions) {
+    for (const v of visibleRegions()) {                    // only same-floor tiles in view
       if (v === active) continue;
       const off = offsetOf(v);
       if (wx >= off.x && wx <= off.x + v.frame.W && wy >= off.y && wy <= off.y + v.frame.H) { tgt = v; lx = wx - off.x; ly = wy - off.y; break; }
@@ -366,13 +398,25 @@ cv.addEventListener('click', (e) => {
   let best = -1, bd = (60 / z) ** 2;
   for (let i = 0; i < tgt.nReal; i++) { const p = tgt.seeds[i]; const d = (p.x - lx) ** 2 + (p.y - ly) ** 2; if (d < bd) { bd = d; best = i; } }
   if (best < 0) return;
-  const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best);   // from where the @ IS right now
-  if (!pts || pts.length < 2) { rail('<b>⊘ no path</b> through the loaded world yet — walk closer'); return; }
-  const seg = []; let total = 0;
-  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
-  AT.path = { pts, seg, total }; AT.t = 0; dirty = true;    // replaces any path in flight — interruptible
-  inspect(tgt, best);
+  // clicked a stair? walk to it and ride it (a cell may host an up and/or down stair)
+  const st = tgt === active ? (active.stairs || []).find((s) => s.cell === best) : null;
+  if (st && goTo(tgt, best, { dir: st.dir, partnerGid: st.partnerGid })) { inspect(tgt, best); return; }
+  if (goTo(tgt, best, null)) inspect(tgt, best);
 });
+
+// ride a stair/ladder to the floor above (−1, toward the axis) or below (+1, toward the hull): walk
+// to the nearest such connector on this deck, then change floor on arrival.
+function rideStair(dir) {
+  if (!active) return;
+  let best = -1, bd = Infinity, st = null;
+  for (const s of active.stairs || []) { if (s.dir !== dir) continue; const p = active.seeds[s.cell]; const d = (p.x - AT.x) ** 2 + (p.y - AT.y) ** 2; if (d < bd) { bd = d; best = s.cell; st = s; } }
+  if (best < 0) { rail('<b>⊘ no ' + (dir < 0 ? 'way up' : 'way down') + '</b> from this deck nearby'); return; }
+  requestRegion(active.az, active.ax, active.gz + dir);    // make sure the destination floor is loading
+  goTo(active, best, { dir, partnerGid: st.partnerGid });
+}
+$('up').addEventListener('click', () => rideStair(-1));
+$('down').addEventListener('click', () => rideStair(1));
+addEventListener('keydown', (e) => { if (e.key === 'PageUp' || e.key === '[') rideStair(-1); else if (e.key === 'PageDown' || e.key === ']') rideStair(1); });
 
 function inspect(v, roomIdx) {
   const o = v.owner[roomIdx];
@@ -394,7 +438,13 @@ function tick(ts) {
     AT.t += SPEED * dt;
     const { pts, seg, total } = AT.path;
     if (AT.t >= total) {
-      AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1]; AT.path = null; AT.room = currentRoom();
+      AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1]; AT.path = null;
+      if (AT.useStair) {                                    // arrived at a stair/ladder — change decks
+        const us = AT.useStair; AT.useStair = null;
+        const nv = regions.get(key(active.az, active.ax, active.gz + us.dir)), pr = nv ? nv.bandGid.indexOf(us.partnerGid) : -1;
+        if (nv && pr >= 0) { setActive(nv); AT.room = pr; AT.x = nv.seeds[pr].x; AT.y = nv.seeds[pr].y; rail('<b>▮ deck ' + (nv.gz + 1) + '/' + NZ + '</b>' + (nv.gz === GZMID ? ' — the concourse' : '')); }
+        else { AT.room = currentRoom(); requestRegion(active.az, active.ax, active.gz + us.dir); rail('the deck is still loading — try the stair again'); }
+      } else { AT.room = currentRoom(); }
     } else {
       let acc = 0, i = 1;
       while (i < pts.length && acc + seg[i - 1] < AT.t) { acc += seg[i - 1]; i++; }
@@ -402,17 +452,17 @@ function tick(ts) {
       AT.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f2;
       AT.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f2;
     }
-    // crossed into a loaded neighbour's frame? hand off the camera (the trajectory is rebased, not cut)
+    // crossed into a loaded same-floor neighbour's frame? hand off the camera (trajectory rebased, not cut)
     if (AT.x < 0 || AT.y < 0 || AT.x > active.frame.W || AT.y > active.frame.H) {
       for (const [, v] of regions) {
-        if (v === active) continue;
+        if (v === active || v.gz !== active.gz) continue;
         const off = offsetOf(v);
         if (AT.x >= off.x && AT.x <= off.x + v.frame.W && AT.y >= off.y && AT.y <= off.y + v.frame.H) { setActiveRebase(v); break; }
       }
     }
     dirty = true;
   }
-  streamPeriphery();
+  streamFloors();
   if (dirty) { draw(); dirty = false; }
 }
 addEventListener('wheel', (e) => { zoom = Math.max(0.3, Math.min(2.5, zoom * (1 - Math.sign(e.deltaY) * 0.1))); dirty = true; }, { passive: true });

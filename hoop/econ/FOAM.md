@@ -312,16 +312,24 @@ so v2, v3, and `/econ/deck` all get it. *Tunable later: the largest civic buildi
 hospital ≈40 cells) become one big hall; if that reads cavernous, reintroduce light internal
 partitions for tier-3 buildings via paint's `assignZones` — default stays fully open.*
 
-**The vertical leg (CHARTED — the "stairs between floors").** The deck we render is one mid-shell
-layer (`gz = gzMid`). A building's *other floors* are its chambers on `gz±1` (the foam is a 3-D
-chamber graph; `region.js` already generates every `gz`). "Stairs" are **intra-building inter-deck
-connectors** — chambers where a vertical move is cheap (the cousin of `society3d`'s climb edges).
-The leg: (1) ship `rad`/`gz` per chamber in `trim`; (2) render a building's floors (stacked, or a
-floor selector), each an open hall; (3) place stairs where a building spans decks and let the
-walk graph cross them; (4) the camera/▼ either cuts between floors or shows them in light isometric.
-This is the same vertical move the `@` will need for the inter-deck easements the deck slice seals
-(the rare sealed pockets vanish once stairs exist). Bundles naturally with art Phase 4 (the
-gradient slide only has slope across decks).
+**The vertical leg — STAIRS & LADDERS (SHIPPED).** The ship's shell is `NZ` radial decks. We now
+slice **any** `gz` (not just `gzMid`), and **stairs emerge from the 3-D solve**: a stair is a
+road chamber whose radial neighbour (`gz±1`, same `gx,gy`) is ALSO road — i.e. the vertical
+right-of-way that `society3d`'s climb network already grows. `deckScene` returns `stairs`
+(`{cell, partnerGid, dir, type}`; a deterministic third are `ladder`s). The worker solves a region
+in 3-D ONCE (cached) and serves per-`(az,ax,gz)` floor slices; the page keys tiles by `az,ax,gz`,
+carries `AT.floor`, streams the decks above/below for the stairs (+ same-floor neighbours on the
+concourse), and rides a stair with the ▲/▼ controls (or click it) — walk to the connector, change
+deck on arrival at the same `(x,y)` (`gx,gy` fix `x,y`; only `rad` changes, so no camera jump).
+**Cross-region travel is on the concourse (`gzMid`)**; upper/lower decks are interior to the region
+(gates only sit at `gzMid`). Pinned in `deck.selftest` (stairs emerge, sit on the concourse, land on
+a road cell of the deck below, deterministic). *Follow-ups: auto-routing a single path THROUGH stairs
+(currently ride-then-route), per-floor gates for cross-region travel off the concourse, and the art
+Phase 4 slide (slope only exists across decks).*
+
+**NEXT: NPCs.** The society already lays people who wear many hats; the next leg renders them moving
+on the decks. Sprite brief for the generation pass is in [`../NPC-SPRITES.md`](../NPC-SPRITES.md)
+(top-down, 32 px, role-coloured, the canon palette/emblems).
 
 ## Leg 11 — PATHFINDING AS A FUNCTION OF WALLS (SHIPPED) + the oblong stitch cells
 

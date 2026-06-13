@@ -70,6 +70,21 @@ export function deckScene({
   const role = band.map((_, i) => owner[i] >= 0 ? city.places[owner[i]].role : owner[i] === -1 ? 'road' : 'void');
   const isGate = new Set();
   { const gs = new Set(s.gates); band.forEach((c, i) => { if (gs.has(c.gid)) isGate.add(i); }); }
+  // STAIRS & LADDERS — the vertical right-of-way: a road chamber on this floor whose radial neighbour
+  // (gz±1, same gx,gy) is ALSO road. These climb links EMERGE from the 3D solve (society3d's grown
+  // climb network), so they aren't imposed. `partnerGid` is resolved to the neighbouring floor's cell
+  // index once that floor is sliced. A deterministic third are tagged 'ladder' (steep maintenance
+  // shafts) vs 'stair'.
+  const stairs = [];
+  { const byGid = new Map(rf.nodes.map((c) => [c.gid, c]));
+    band.forEach((c, i) => {
+      if (city.chamberOwner[c.idx] !== -1) return;          // a stairwell sits on the concourse
+      for (const dir of [-1, 1]) {
+        const pg = c.gx + '|' + c.gy + '|' + (c.gz + dir), pc = byGid.get(pg);
+        if (pc && city.chamberOwner[pc.idx] === -1) stairs.push({ cell: i, partnerGid: pg, dir, type: (ehash(seed, c.gx, c.gy) % 3) === 0 ? 'ladder' : 'stair' });
+      }
+    });
+  }
   // gate membranes into the ghost rim open (the street continues through the seam, visibly)
   const ghostIdx = new Map(); ghostBand.forEach((c, i) => ghostIdx.set(c.gid, nReal + i));
   const openGhost = new Set();
@@ -202,7 +217,7 @@ export function deckScene({
     closure: city.closure, access: city.access,
   };
   stats.sealed = sealed.size;
-  return { scene, walls, band, ghostBand, nReal, owner, role, bill, isGate, seeds, stats, solved: s,
+  return { scene, walls, band, ghostBand, nReal, owner, role, bill, isGate, stairs, gz: gzDeck, seeds, stats, solved: s,
     frame: { W, H }, K, streetDoorKeys, serviceEdges, sealed };
 }
 
