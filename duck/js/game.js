@@ -14,6 +14,7 @@ import {
 } from './physics.js';
 import { initRenderer } from './webgpu.js';
 import * as geo from './geometry.js';
+import { generateCourse, crossedGate } from './course.js';
 
 const TAU = Math.PI * 2;
 
@@ -38,6 +39,7 @@ export async function start(canvas, hud) {
     tree: renderer.mesh(geo.buildTree(), 400),
     pylon: renderer.mesh(geo.buildPylon(), 64),
     ground: renderer.mesh(geo.buildGround(), 1),
+    ring: renderer.mesh(geo.buildRing(), 16),  // course gates + landing pad
     sun: null,        // built per cylinder
     shell: null,      // built per cylinder
   };
@@ -53,10 +55,19 @@ export async function start(canvas, hud) {
     pointer: { active: false, nx: 0, ny: 0, flaps: 0, flapTimer: 0 },
     crumbHold: false,
     cam: { eye: [0, 230, 30], center: [0, 220, 0] },
+    course: null, courseSeed: 1,        // { gates, pad, idx, done, t0, finishT, pulse }
+    onGround: false,                     // landing-event edge detector
     paused: false,
     time: 0,
   };
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+  const worldScale = () => (state.mode === 'cylinder' ? Math.max(1, state.cyl.R / 320) ** 0.35 : 1);
+
+  function toast(msg, kind = '') {
+    const t = hud.toast; if (!t) return;
+    t.textContent = msg; t.classList.remove('show'); void t.offsetWidth;
+    t.className = `toast show ${kind}`;
+  }
 
   // ── world (re)build ──
   function buildWorld() {
@@ -80,6 +91,13 @@ export async function start(canvas, hud) {
     resetDuck();
   }
 
+  function makeCourse() {
+    const { R, len } = state.cyl;
+    const c = generateCourse({ mode: state.mode, R, len, seed: state.courseSeed, scale: worldScale() });
+    state.course = { ...c, idx: 0, done: false, t0: state.time, finishT: 0 };
+    state.onGround = false;
+  }
+
   function resetDuck() {
     const d = state.duck;
     quat.identity(d.q); d.throttle = 0.6; d.vel = [0, 0, -55];
@@ -90,6 +108,7 @@ export async function start(canvas, hud) {
     } else {
       d.pos = [0, 240, 0];
     }
+    makeCourse();
   }
 
   // ── per-frame physics ──
@@ -145,29 +164,70 @@ export async function start(canvas, hud) {
     const grip = Math.min(FLIGHT.grip * dt, 1);
     const want = vec3.scale([0, 0, 0], fwd, speed);
     vec3.lerp(d.vel, d.vel, want, grip);
+    const prev = vec3.clone(d.pos);
     vec3.scaleAndAdd(d.pos, d.pos, d.vel, dt);
 
-    collide(d);
+    courseStep(prev, d.pos);
+    collide(d, up);
     spawnCrumbs(dt);
   }
 
-  function collide(d) {
+  // returns { contact, vDown, vHoriz } so landing can be graded on the impact
+  function collide(d, up) {
+    let contact = false, vDown = 0, vHoriz = 0;
     if (state.mode === 'cylinder') {
       const { R, len } = state.cyl;
-      let rho = Math.hypot(d.pos[0], d.pos[1]);
+      const rho = Math.hypot(d.pos[0], d.pos[1]);
       const floorR = R - 1.6;
       if (rho > floorR) {
         const ux = d.pos[0] / rho, uy = d.pos[1] / rho;
+        const vr = d.vel[0] * ux + d.vel[1] * uy;        // outward (descent) speed
+        contact = true; vDown = Math.max(0, vr);
+        vHoriz = Math.sqrt(Math.max(0, vec3.dot(d.vel, d.vel) - vr * vr));
         d.pos[0] = ux * floorR; d.pos[1] = uy * floorR;
-        const vr = d.vel[0] * ux + d.vel[1] * uy;
         if (vr > 0) { d.vel[0] -= ux * vr * 1.3; d.vel[1] -= uy * vr * 1.3; }
       }
       const core = Math.max(14, R * 0.004);
-      if (rho < core) { const ux = d.pos[0] / (rho || 1), uy = d.pos[1] / (rho || 1); d.pos[0] = ux * core; d.pos[1] = uy * core; }
+      if (rho < core && rho > 0) { const ux = d.pos[0] / rho, uy = d.pos[1] / rho; d.pos[0] = ux * core; d.pos[1] = uy * core; }
       if (d.pos[2] < 8) { d.pos[2] = 8; if (d.vel[2] < 0) d.vel[2] *= -0.4; }
       if (d.pos[2] > len - 8) { d.pos[2] = len - 8; if (d.vel[2] > 0) d.vel[2] *= -0.4; }
-    } else {
-      if (d.pos[1] < 1.6) { d.pos[1] = 1.6; if (d.vel[1] < 0) { d.vel[1] *= -0.25; d.vel[0] *= 0.96; d.vel[2] *= 0.96; } }
+    } else if (d.pos[1] < 1.6) {
+      contact = true; vDown = Math.max(0, -d.vel[1]); vHoriz = Math.hypot(d.vel[0], d.vel[2]);
+      d.pos[1] = 1.6;
+      if (d.vel[1] < 0) { d.vel[1] *= -0.25; d.vel[0] *= 0.96; d.vel[2] *= 0.96; }
+    }
+    landingEdge(contact, vDown, vHoriz, up, d);
+  }
+
+  // fire a graded landing message on the airborne→ground transition only
+  function landingEdge(contact, vDown, vHoriz, up, d) {
+    if (contact && !state.onGround) {
+      const down = downDir([0, 0, 0], state.mode, d.pos);
+      const level = -(up[0] * down[0] + up[1] * down[1] + up[2] * down[2]) > 0.82;
+      const pad = state.course && state.course.pad;
+      const onPad = pad && vec3.len(vec3.sub([0, 0, 0], d.pos, pad.pos)) < pad.r;
+      let kind, msg;
+      if (vDown < 4 && vHoriz < 22 && level) { kind = 'good'; msg = '🦆 smooth landing'; }
+      else if (vDown < 9 && level) { kind = ''; msg = '🦆 bumpy landing'; }
+      else { kind = 'rough'; msg = '💥 rough touchdown'; }
+      msg += `  ·  ${vDown.toFixed(1)} m/s down`;
+      if (onPad) { msg += '  —  ON THE PAD ✓'; kind = 'gold'; }
+      toast(msg, kind);
+    }
+    state.onGround = contact && vHoriz < 30;   // stay grounded while slow; lift-off rearms the edge
+  }
+
+  function courseStep(prev, cur) {
+    const c = state.course;
+    if (!c || c.done || c.idx >= c.gates.length) return;
+    if (crossedGate(prev, cur, c.gates[c.idx])) {
+      c.idx++;
+      if (c.idx >= c.gates.length) {
+        c.done = true; c.finishT = state.time - c.t0;
+        toast(`COURSE CLEAR · ${c.finishT.toFixed(1)} s — now land on the pad`, 'gold');
+      } else {
+        toast(`gate ${c.idx}/${c.gates.length} ✓`, 'good');
+      }
     }
   }
 
@@ -202,7 +262,7 @@ export async function start(canvas, hud) {
     const down = downDir([0, 0, 0], state.mode, d.pos);
     const up = vec3.scale([0, 0, 0], down, -1);
     const fwd = vec3.transformQuat([0, 0, 0], [0, 0, -1], d.q);
-    const scale = state.mode === 'cylinder' ? Math.max(1, state.cyl.R / 320) ** 0.35 : 1;
+    const scale = worldScale();
     const back = 9 * scale, high = 3.2 * scale, ahead = 7 * scale;
     const eye = [
       d.pos[0] - fwd[0] * back + up[0] * high,
@@ -252,10 +312,39 @@ export async function start(canvas, hud) {
       renderer.setInstances(M.crumb, data);
     } else { M.crumb.count = 0; }
 
+    // course gates + landing pad
+    renderer.setInstances(M.ring, courseInstances());
+
     const list = state.mode === 'cylinder'
-      ? [M.shell, M.sun, M.tree, M.pylon, M.crumb, M.duck]
-      : [M.ground, M.tree, M.pylon, M.crumb, M.duck];
+      ? [M.shell, M.sun, M.tree, M.pylon, M.ring, M.crumb, M.duck]
+      : [M.ground, M.tree, M.pylon, M.ring, M.crumb, M.duck];
     renderer.render(list, sky);
+  }
+
+  // gate + pad instances (≤13), tinted by status; the next gate glows + pulses
+  const _ring = mat4.create(), _q = [0, 0, 0, 1];
+  function courseInstances() {
+    const c = state.course;
+    if (!c) { M.ring.count = 0; return new Float32Array(0); }
+    const g = c.gates, data = new Float32Array((g.length + 1) * 20);
+    const pulse = 1 + 0.08 * Math.sin(state.time * 5);
+    for (let i = 0; i < g.length; i++) {
+      quat.fromTo(_q, [0, 0, 1], g[i].fwd);
+      let col, emit, sc = g[i].r;
+      if (i < c.idx) { col = [0.3, 0.9, 0.45]; emit = 0.35; }           // cleared
+      else if (i === c.idx) { col = [1, 0.82, 0.2]; emit = 1; sc *= pulse; } // next
+      else { col = [0.4, 0.78, 1]; emit = 0.55; }                       // upcoming
+      mat4.fromRTS(_ring, _q, g[i].pos, [sc, sc, sc]);
+      data.set(_ring, i * 20);
+      data[i * 20 + 16] = col[0]; data[i * 20 + 17] = col[1]; data[i * 20 + 18] = col[2]; data[i * 20 + 19] = emit;
+    }
+    const p = c.pad, o = g.length * 20;
+    quat.fromTo(_q, [0, 0, 1], p.up);
+    mat4.fromRTS(_ring, _q, p.pos, [p.r, p.r, p.r]);
+    data.set(_ring, o);
+    const lit = c.done ? 1 : 0.5, pc = c.done ? [1, 0.85, 0.3] : [0.55, 0.7, 0.85];
+    data[o + 16] = pc[0]; data[o + 17] = pc[1]; data[o + 18] = pc[2]; data[o + 19] = lit;
+    return data;
   }
 
   // ── HUD ──
@@ -266,6 +355,25 @@ export async function start(canvas, hud) {
     hud.mode.className = 'mode ' + state.mode;
     hud.speed.textContent = `${speed.toFixed(1)} m/s · ${(speed * 3.6).toFixed(0)} km/h`;
     hud.throttle.textContent = `${(d.throttle * 100).toFixed(0)}%`;
+
+    // course progress + a bearing to the next gate
+    const co = state.course;
+    if (co && hud.course) {
+      if (co.done) {
+        hud.course.textContent = `✓ clear · ${co.finishT.toFixed(1)} s · land on the pad`;
+      } else {
+        const g = co.gates[co.idx];
+        const to = vec3.normalize([0, 0, 0], vec3.sub([0, 0, 0], g.pos, d.pos));
+        const dist = vec3.len(vec3.sub([0, 0, 0], g.pos, d.pos));
+        const fwd = vec3.transformQuat([0, 0, 0], [0, 0, -1], d.q);
+        const right = vec3.transformQuat([0, 0, 0], [1, 0, 0], d.q);
+        const upv = vec3.transformQuat([0, 0, 0], [0, 1, 0], d.q);
+        const ah = vec3.dot(to, fwd), lr = vec3.dot(to, right), ud = vec3.dot(to, upv);
+        let arrow = ah < -0.1 ? '↺ turn around' : ah > 0.9 ? '▲ dead ahead'
+          : `${lr > 0.12 ? '▶' : lr < -0.12 ? '◀' : ''}${ud > 0.12 ? '▲' : ud < -0.12 ? '▼' : ''}` || '•';
+        hud.course.textContent = `gate ${co.idx + 1}/${co.gates.length} · ${dist.toFixed(0)} m  ${arrow}`;
+      }
+    }
 
     if (state.mode === 'cylinder') {
       const rho = Math.hypot(d.pos[0], d.pos[1]);
@@ -321,6 +429,7 @@ export async function start(canvas, hud) {
     if (k === 'g') { state.mode = state.mode === 'earth' ? 'cylinder' : 'earth'; buildWorld(); return; }
     if (k === 'c') { state.cylIdx = (state.cylIdx + 1) % CYLINDERS.length; state.cyl = makeCylinder(CYLINDERS[state.cylIdx]); state.mode = 'cylinder'; buildWorld(); return; }
     if (k === 'r') { resetDuck(); return; }
+    if (k === 'n') { state.courseSeed = (state.courseSeed + 1) >>> 0; makeCourse(); toast('new course', 'good'); return; }
     if (k === 'p') { state.paused = !state.paused; last = performance.now(); return; }
     if (k === 'h') { hud.help.classList.toggle('hidden'); return; }
     state.keys.add(k);

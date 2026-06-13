@@ -23,11 +23,23 @@ up and over your head, the way an inhabitant experiences it. The headline demo i
 falls straight down behind you. In the cylinder, Coriolis bends the stream sideways
 and centrifugal drags it down to the floor.
 
+## The course + landing
+
+Each world has a **procedurally generated 12-gate course** ("barriers" to navigate)
+plus a **landing pad** at the end. The course winds over the ground on Earth and
+**spirals down the curved interior** in the cylinder. Fly through the **gold** (next)
+gate — the HUD shows distance and a bearing arrow — then chase the **cyan** ones.
+Clear all 12 and **land gently on the pad**: touchdowns are graded on descent rate
+and how level the duck is (smooth / bumpy / rough), with a bonus for the pad. `N`
+rolls a fresh course; it's deterministic per seed.
+
 ## Controls
 
-`W`/`S` pitch · `A`/`D` roll · `Q`/`E` yaw · `Shift`/`Ctrl` throttle · `Space`
-breadcrumbs · `G` toggle Earth⇄cylinder · `C` cycle cylinder size · `R` reset ·
-`P` pause · `H` help.
+**Touch / mouse:** tap to **flap** (a wingbeat), where you tap **steers** (above
+center = nose up, sides = bank), hold to keep flapping; the 🍞 button holds-to-drop
+breadcrumbs. **Keyboard:** `W`/`S` pitch · `A`/`D` roll · `Q`/`E` yaw · `Shift`/`Ctrl`
+throttle · `Space` breadcrumbs · `G` toggle Earth⇄cylinder · `C` cycle cylinder size ·
+`N` new course · `R` reset · `P` pause · `H` help.
 
 ## Layout
 
@@ -38,10 +50,12 @@ duck/
 ├── js/
 │   ├── math.js       # vec3 / mat4 (perspectiveZO for WebGPU's [0,1] depth) / quat
 │   ├── physics.js    # THE TWO FRAMES — earthAccel, cylinderAccel, invariants  (pure)
-│   ├── geometry.js   # procedural meshes: duck, ground, cylinder shell, props   (pure)
+│   ├── geometry.js   # procedural meshes: duck, ground, cylinder shell, gates, props (pure)
+│   ├── course.js     # procedural gate course + landing pad + pass detection      (pure)
 │   ├── webgpu.js     # the renderer: one instanced pipeline, hemi+sun light, fog
-│   └── game.js       # flight model, chase camera, breadcrumbs, HUD, loop
+│   └── game.js       # flight model, chase camera, breadcrumbs, course, landing, HUD, loop
 ├── test/physics.selftest.mjs   # proves the rotating-frame integrator (see below)
+├── test/course.selftest.mjs    # course determinism + gate pass detection
 ├── worker.js         # thin asset server (deep-link fallback to index.html)
 └── wrangler.jsonc    # name=duck, custom_domain duck.mino.mobi
 ```
@@ -60,6 +74,7 @@ integral** (rotating frame) and **specific energy** (Earth).
 
 ```bash
 node duck/test/physics.selftest.mjs   # 22 checks
+node duck/test/course.selftest.mjs    # 17 checks (course determinism + gate crossing)
 ```
 
 ## Deploy

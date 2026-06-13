@@ -19,10 +19,12 @@
   <span class="ch-right">▶ bank</span>
 </div>
 <div id="tapdot" aria-hidden="true"></div>
+<div id="toast" class="toast" aria-live="polite"></div>
 
 <!-- top-left: live readout -->
 <div id="hud" class="panel tl">
   <div id="mode" class="mode earth">EARTH</div>
+  <div class="row"><span class="k">course</span><span id="course" class="v">—</span></div>
   <div class="row"><span class="k">craft</span><span id="preset" class="v">—</span></div>
   <div class="row"><span class="k">airspeed</span><span id="speed" class="v">—</span></div>
   <div class="row"><span class="k">altitude</span><span id="alt" class="v">—</span></div>
@@ -43,9 +45,9 @@
 
 <!-- bottom: the pitch -->
 <div class="panel bottom">
-  <b>Tap / click &amp; drag</b> to fly: each tap is a <b>flap</b>, and where you tap steers
-  (up = nose up, sides = bank). Hold <kbd>SPACE</kbd> or 🍞 to drop
-  <b>breadcrumbs</b> — ballistic, no wings: straight fall on Earth, <b>Coriolis</b>-bent in the cylinder.
+  Fly the <b>gold gate</b> next, then chase the <b>cyan</b> ones — clear all 12 and <b>land on the
+  pad</b>. <b>Tap / drag</b> to flap + steer. Hold <kbd>SPACE</kbd> or 🍞 for <b>breadcrumbs</b>:
+  straight fall on Earth, <b>Coriolis</b>-bent in the cylinder.
 </div>
 
 <!-- controls overlay -->
@@ -64,6 +66,11 @@
     <p>The default cylinder is <b>hoop</b> — the 8 km / 0.8 g hull from the
     <a href="https://hoop.mino.mobi" target="_blank" rel="noopener">hoop</a> O'Neill model
     (ω ≈ 0.031 rad/s). Press <kbd>C</kbd> to cycle to tighter rings where Coriolis is wild.</p>
+    <p><b>The course.</b> A procedurally generated run of 12 gates winds through each world —
+    over the ground on Earth, spiralling down the curved interior in the cylinder. Fly through the
+    <b>gold</b> (next) gate, follow the bearing in the HUD, clear them all, then <b>set down gently
+    on the landing pad</b> — touchdowns are graded on descent rate and how level you are. <kbd>N</kbd>
+    rolls a new course.</p>
     <p><b>Touch / mouse:</b> <b>tap to flap</b> (a wingbeat — forward + up), and where you tap
     relative to the centre <b>steers</b> — above centre pitches the nose up, the sides bank you into
     a turn. Hold to keep flapping and climb.</p>
@@ -76,6 +83,7 @@
       <tr><td><kbd>Space</kbd></td><td>drop breadcrumbs</td></tr>
       <tr><td><kbd>G</kbd></td><td>toggle Earth ⇄ cylinder</td></tr>
       <tr><td><kbd>C</kbd></td><td>cycle cylinder size</td></tr>
+      <tr><td><kbd>N</kbd></td><td>new procedural course</td></tr>
       <tr><td><kbd>R</kbd> · <kbd>P</kbd></td><td>reset · pause</td></tr>
     </table>
     <button onclick="document.getElementById('help').classList.add('hidden')">fly →</button>
@@ -102,6 +110,7 @@
     shipRow: id('shipRow'), coriolisRow: id('coriolisRow'), throttle: id('throttle'),
     help: id('help'), btnMode: id('btnMode'), btnPreset: id('btnPreset'), btnReset: id('btnReset'),
     btnCrumb: id('btnCrumb'), tapdot: id('tapdot'),
+    course: id('course'), toast: id('toast'),
   };
   // show the controls card once on first load
   if (!localStorage.getItem('duck.seen')) { id('help').classList.remove('hidden'); localStorage.setItem('duck.seen', '1'); }

@@ -59,6 +59,23 @@ export const quat = {
     const l = Math.hypot(a[0], a[1], a[2], a[3]) || 1;
     o[0] = a[0] / l; o[1] = a[1] / l; o[2] = a[2] / l; o[3] = a[3] / l; return o;
   },
+  // shortest-arc quaternion rotating unit vector `a` onto unit vector `b`.
+  fromTo: (o, a, b) => {
+    const d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    if (d > 0.999999) { o[0] = 0; o[1] = 0; o[2] = 0; o[3] = 1; return o; }
+    if (d < -0.999999) {
+      // antiparallel: rotate 180° about any axis ⟂ a
+      let ax = [a[1], -a[0], 0];
+      if (ax[0] * ax[0] + ax[1] * ax[1] < 1e-9) ax = [0, a[2], -a[1]];
+      const l = Math.hypot(ax[0], ax[1], ax[2]) || 1;
+      o[0] = ax[0] / l; o[1] = ax[1] / l; o[2] = ax[2] / l; o[3] = 0; return o;
+    }
+    o[0] = a[1] * b[2] - a[2] * b[1];
+    o[1] = a[2] * b[0] - a[0] * b[2];
+    o[2] = a[0] * b[1] - a[1] * b[0];
+    o[3] = 1 + d;
+    return quat.normalize(o, o);
+  },
   // Shortest-arc slerp-ish nlerp, good enough for camera/orientation smoothing.
   nlerp: (o, a, b, t) => {
     let bx = b[0], by = b[1], bz = b[2], bw = b[3];

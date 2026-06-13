@@ -21,8 +21,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Physics selftest (the two-frame kernel must stay honest)
-        run: node test/physics.selftest.mjs
+      - name: Selftests (physics kernel + procedural course must stay honest)
+        run: |
+          node test/physics.selftest.mjs
+          node test/course.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets

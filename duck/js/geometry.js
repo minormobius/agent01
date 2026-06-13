@@ -165,6 +165,28 @@ export function buildPylon() {
 
 // ── worlds ──
 
+// A ring / torus, major radius 1, axis = +Z (you fly THROUGH along Z). Used for
+// the course gates and — laid flat — the landing pad. Vertex colour white so the
+// per-instance tint picks the status colour.
+export function buildRing(tube = 0.09, ringSeg = 44, tubeSeg = 9) {
+  const positions = [], normals = [], colors = [], indices = [];
+  for (let i = 0; i <= ringSeg; i++) {
+    const u = (i / ringSeg) * Math.PI * 2, cu = Math.cos(u), su = Math.sin(u);
+    for (let j = 0; j <= tubeSeg; j++) {
+      const v = (j / tubeSeg) * Math.PI * 2, cv = Math.cos(v), sv = Math.sin(v);
+      positions.push((1 + tube * cv) * cu, (1 + tube * cv) * su, tube * sv);
+      normals.push(cv * cu, cv * su, sv);
+      colors.push(1, 1, 1);
+    }
+  }
+  const row = tubeSeg + 1;
+  for (let i = 0; i < ringSeg; i++) for (let j = 0; j < tubeSeg; j++) {
+    const a = i * row + j, b = a + row;
+    indices.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  return interleave(positions, normals, colors, indices);
+}
+
 // EARTH: a big checkered ground plane at y=0.
 export function buildGround(half = 9000, seg = 120) {
   const positions = [], normals = [], colors = [], indices = [];

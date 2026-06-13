@@ -89,6 +89,25 @@ body.flying #crosshair { opacity: 1; }
   to { opacity: 0; transform: scale(1.3); }
 }
 
+/* centre toast: gate clears, course complete, landing grades */
+.toast {
+  position: fixed; z-index: 8; left: 50%; top: 20%; transform: translateX(-50%);
+  padding: 9px 18px; border-radius: 10px; pointer-events: none; white-space: nowrap;
+  font-size: 16px; font-weight: 700; letter-spacing: 0.3px;
+  background: rgba(10, 16, 22, 0.82); border: 1px solid var(--edge); color: var(--phos);
+  opacity: 0;
+}
+.toast.show { animation: toast 2.4s ease-out forwards; }
+.toast.good { color: #aef0c0; border-color: rgba(120, 240, 170, 0.5); }
+.toast.gold { color: #ffe08a; border-color: rgba(240, 210, 110, 0.6); }
+.toast.rough { color: #ff9a8a; border-color: rgba(240, 130, 110, 0.6); }
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(0.96); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+
 .overlay {
   position: fixed; inset: 0; z-index: 20;
   display: grid; place-items: center;
