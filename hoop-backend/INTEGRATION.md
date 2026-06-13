@@ -95,30 +95,29 @@ What his backend already answers, and what's still open:
 So the synthesis gives us a working Story-Arc + Character + crystallization spine
 for free, and a clear, named backlog (Director loop + Quest/Dungeon/Minigame/Creep).
 
-## 5. Decisions to settle together
+## 5. Decisions — settled 2026-06-13
 
-**A. Durable player-state store.** His hot path is pure SQL but assumes Postgres.
-   - *D1 (recommended)* — SQLite port; native to this stack (cf. `atpolls-db`,
-     `mino-scores`), keeps the hot path on-Worker, no external DB. pgvector stays
-     offline (not in the hot path), so nothing is lost.
-   - *Neon Postgres* — run his code nearly verbatim; adds a non-Cloudflare DB +
-     latency from the Worker.
-   - *ATProto-per-user* — fits hoop's "user owns their data" ethos, but
-     crystallization writes-per-interaction are too chatty for the firehose (same
-     reason presence isn't a lexicon). Best as a **hybrid**: D1 for player/game
-     state, ATProto kept for the *forum* (place/message) layer only.
+**A. Durable player-state store → Cloudflare D1.** Port his pure-SQL Postgres
+   schema to SQLite/D1 — native to this stack (`atpolls-db`, `mino-scores`), hot
+   path stays on-Worker, no external DB. pgvector is **offline-only** (bible
+   embeddings, never in the hot path), so the SQLite port loses nothing. Phase 2
+   writes new migrations in his schema, SQLite dialect. *(ATProto stays the home of
+   the forum layer only — see D.)*
 
-**B. Where the LLM content pipeline runs, and on which model.** His repo uses local
-   llama.cpp (Qwen) + recently OpenRouter; embeddings via nomic. This repo's
-   pipelines use GitHub Actions with Workers AI / OpenAI keys. Pick: model +
-   host for `ingestion/`, and where the approved pool is stored for the Worker to read.
+**B. Content pipeline model/host → decide later.** Design the Phase-3 pool loader
+   **source-agnostic**: it ingests approved `content_items` (+ offline bible
+   embeddings) from a well-defined artifact, regardless of whether they were minted
+   by his local llama.cpp/OpenRouter run or a future GitHub Action (Workers
+   AI/OpenAI). Don't hard-wire a model or host until we pick one.
 
-**C. Scope of *this* merge candidate.** Recommended: **vendor + strategy only**
-   (this PR stays a clean, mergeable synthesis of the hoop branches + the
-   collaborator's code), and Phases 1+ land on a fresh branch. Alternative: land
-   the Phase-1 offline adapter spike here too.
+**C. Scope of *this* merge candidate → vendor + strategy only.** This branch stays a
+   clean, mergeable synthesis (hoop branches folded in + the collaborator's code
+   vendored + this doc). **Phases 1+ land on a fresh branch.** No integration code
+   here.
 
-**D. Two narrative layers on one place.** Human forum thread *and* authored NPC
-   dialogue can share a place. Do we want them visibly distinct (a "story" tab vs a
-   "forum" tab on the rail), blended, or single-player story only in some regions?
+**D. Two narrative layers on one place → distinct tabs on the rail.** A place can
+   carry both a human forum thread (ATProto `hoop.message`) and an authored NPC
+   dialogue/lore. The right rail gets a **"forum" tab** (the multiplayer-social
+   layer) and a **"story" tab** (the single-player-narrative layer) — cleanly
+   separated, both anchored to the same chamber address.
 </content>
