@@ -265,11 +265,158 @@ membrane language. The pieces now all exist; this leg is their assembly, in orde
    stairs, the v1 ART STYLE PORT (function-matched raytraced lights, gradient sliding — its own
    leg, see below), and the eventual flip of `/` to v2 once nav + render parity are pinned.
 
-## Leg 8 — the v1 art style on the solved map (CHARTED)
+## Leg 9 — v3: THE STITCH (gates on the deck, walk anywhere you can see) — SHIPPED
 
-v2 currently renders the brutalist flat-cell look. v1's feel — **raytraced room lighting and
-sliding at steep floor gradients** — is the next aesthetic leg, and the solved map makes it
-*better* than v1 because the light sources are now MEANINGFUL:
+v2 was *so close*, but two stitching bugs broke the seamless promise — and they were the same bug
+wearing two coats:
+
+- **"⊘ no gate on this deck toward region."** Gates were only placed on seams the coarse solve
+  tiered ≥1, so the bottom ~45% of seams (tier 0) had **no crossing at all** — yet the seamless
+  render still drew both regions' streets meeting at the seam. The player saw a continuous street
+  and hit an invisible wall.
+- **Gates scattered off the walkable deck.** `gatesFor` spread its K picks across three radial
+  layers (`gzMid±1`), but the game only ever walks the **mid-shell deck** (`gzMid`). Measured on
+  seed 7: **79% of seams had no gate on the deck**, even where a deck-level candidate existed.
+
+**The fix is two invariants, both kept symmetric by the seam contract (so the two regions still
+agree without communicating):**
+1. **Floor K to ≥1.** Every adjacent region pair is connected; the coarse tier now only sets road
+   *prominence* (1 gate for a back-street seam, up to 3 for a trunk), never connectivity. Applied
+   at all three call sites that gate (`solveRegion`'s `myGates`, `deckScene`'s `openGhost`,
+   `gateLinks`).
+2. **The deck guarantee in `gatesFor`.** If the K spread missed the deck, append the hash-minimum
+   `gz = gzMid` candidate. A deck candidate effectively always exists (the foam is thick at
+   mid-shell), so **every seam gets a walkable crossing** — verified 0/432 seams un-gated, down from
+   79%. Pinned in `record.selftest` (THE STITCHING CONTRACT: every band seam has a deck gate, and
+   the guarantee stays symmetric across all seams).
+
+**v3 SHIPPED at `hoop/v3/`** (linked from the topbar; v1 and v2 untouched). It rides the fixed
+kernel and upgrades navigation: click-to-walk now BFS-routes a **region path** across the whole
+loaded world and threads the gates **seam by seam** — so you can click any room you can see, several
+regions away, and the `@` crosses every gate to get there (the wrap and axial directions included).
+v2 only handled an immediate neighbour. The seamless one-cell threshold step (walk into the ghost
+partner, swap the active region at that exact point) is unchanged; v3 just chains it.
+
+## Leg 10 — OPEN HALLS + the vertical (stairs) leg
+
+**Open halls (SHIPPED, `deck.js`).** A building used to be a clump of ~15 m chambers walled off from
+each other and stitched by a per-building interior door-tree — so a workshop read as a *warren* of
+tiny cells. It now reads as architecture: **every membrane INSIDE a building is removed (classified
+`open`); only the exterior shell stands — onto the street, the void, or a neighbouring building —
+pierced by the single street door.** The chamber substrate still tiles the floor (and carries the
+lighting + role colour), it just has no interior walls. The change is one line in the membrane
+classifier; sequestration (one street door), service doors (landlocked buildings), and sealed
+pockets all keep working at building granularity. Pinned in `deck.selftest` (OPEN HALLS: interior
+membranes removed, zero interior doors; real opens join road↔road OR same-building). Shared kernel,
+so v2, v3, and `/econ/deck` all get it. *Tunable later: the largest civic buildings (council ≈46,
+hospital ≈40 cells) become one big hall; if that reads cavernous, reintroduce light internal
+partitions for tier-3 buildings via paint's `assignZones` — default stays fully open.*
+
+**The vertical leg — STAIRS & LADDERS (SHIPPED).** The ship's shell is `NZ` radial decks. We now
+slice **any** `gz` (not just `gzMid`), and **stairs emerge from the 3-D solve**: a stair is a
+road chamber whose radial neighbour (`gz±1`, same `gx,gy`) is ALSO road — i.e. the vertical
+right-of-way that `society3d`'s climb network already grows. `deckScene` returns `stairs`
+(`{cell, partnerGid, dir, type}`; a deterministic third are `ladder`s). The worker solves a region
+in 3-D ONCE (cached) and serves per-`(az,ax,gz)` floor slices; the page keys tiles by `az,ax,gz`,
+carries `AT.floor`, streams the decks above/below for the stairs (+ same-floor neighbours on the
+concourse), and rides a stair with the ▲/▼ controls (or click it) — walk to the connector, change
+deck on arrival at the same `(x,y)` (`gx,gy` fix `x,y`; only `rad` changes, so no camera jump).
+**Cross-region travel is on the concourse (`gzMid`)**; upper/lower decks are interior to the region
+(gates only sit at `gzMid`). Pinned in `deck.selftest` (stairs emerge, sit on the concourse, land on
+a road cell of the deck below, deterministic). *Follow-ups: auto-routing a single path THROUGH stairs
+(currently ride-then-route), per-floor gates for cross-region travel off the concourse, and the art
+Phase 4 slide (slope only exists across decks).*
+
+**NPCs (iteration 2 SHIPPED — IDed residents + schedule + click-to-inspect).** Each NPC is now a
+REAL named resident of the deck (the worker ships `people` per slice: people whose home building has
+chambers here, with their on-deck hats mapped to building indices + kinds). They're coloured by
+their OCCUPATION (a maker walks orange) and the intention engine is **schedule-driven** on the
+day/night clock — home at night, to WORK by day, to a third place (worship/club/sport) in the
+evening — over navmesh-correct paths. **Click a `●` to inspect** the resident (name, role, where
+they're headed, ties on this deck); the selected one gets a ring + name label. Pinned headlessly: 57
+residents on the main deck, scheduled trips route with 0 wall-crossings. *Follow-ups: cross-deck/
+cross-seam commuting (a resident whose workplace is on another deck stays home for now), richer
+schedules, and the sprites ([`../NPC-SPRITES.md`](../NPC-SPRITES.md)).*
+
+## Leg 11 — PATHFINDING AS A FUNCTION OF WALLS (SHIPPED) + the oblong stitch cells
+
+Open halls exposed a flaw: `walkRoute` routed over the Voronoi **cell-adjacency graph**, threading
+`centre → membrane-midpoint → centre` through every cell — so in a big open hall (or the concourse)
+the path zigzagged through dozens of centroids instead of cutting straight. The router didn't know
+the space was open; it only knew adjacency.
+
+**The fix (shipped, `deck.js`): line-of-sight string-pull against the actual walls.** Dijkstra still
+picks the corridor (its `centre→midpoint→centre` path is wall-free by construction); then
+`losSimplify` greedily skips waypoints whenever the straight shot stays clear of the **wall
+segments** (`d.walls`, bucket-gridded). The path now runs dead straight across open space and corners
+only where a real wall or doorway forces it — *a function of the walls, not the centroids.* Measured:
+**0 wall crossings, 82% fewer corners** (929→164 turns over 49 probes). `deck.js` exports the wall
+segments; both solvers ship `walls` in the trimmed view; pinned in `deck.selftest` (no route crosses
+a wall; LOS has far fewer points than Dijkstra cells). An SSF *funnel* was tried first and abandoned —
+it only works on simple channels and cut corners through the exterior walls of non-convex halls.
+
+**The oblong stitch cells.** Two causes, both addressed:
+- *Edge-of-map oblongs* — a frontier nucleus with no outboard neighbour gets a Voronoi cell that
+  sprawls to `clipCell`'s box. Fixed: every paint cell is now **frame-clipped** to the region + a
+  seam margin (Sutherland–Hodgman), pinned in `deck.selftest`.
+- *Interior oblong artifacts* — a sparse-foam cell's over-long edge (≳1.6 cells, ~3% of membranes)
+  doesn't line up with the convex walk graph, so it's **excluded from the wall set** for the
+  string-pull (real walls are tiled by short membranes, so coverage is unaffected). These rare
+  interior oblongs can still *render*; fully dissolving them is a `clipCell` robustness follow-up.
+
+**The graceful cross-region stitch (SHIPPED, `v3/index.html`).** The gate-hop state machine is gone.
+`unifiedRoute` builds ONE walkable graph stitched across every loaded region at the gate links, plus
+the union of all their wall segments, in active-local world coords; Dijkstra (binary heap) from the
+@'s LIVE position to the target cell, then a SINGLE `losSimplify` over the combined walls. The result
+is one taut trajectory that flows **straight through the seams** — verified headlessly: 20/20
+cross-region routes span >1 region with 0 wall crossings. Crossing a seam is now just a **coordinate
+rebase** (`setActiveRebase`): when the @ walks into a loaded neighbour's frame, the @ and the
+remaining trajectory are shifted into that region's local frame — nothing teleports, the camera
+hands off seamlessly. **Repathing is live + interruptible:** every click routes from the @'s actual
+position (`currentRoom` = nearest seed to the live `AT.x,AT.y`), so a tap mid-stride redirects from
+where it is — fixing the long-standing "repath from the original start" bug.
+
+## Leg 8 — the v1 art style on the solved map (PHASE 1 SHIPPED on v3)
+
+v2 rendered the brutalist flat-cell look. v1's feel — **room lighting and sliding at steep floor
+gradients** — is the aesthetic leg, and the solved map makes it *better* than v1 because the light
+sources are now MEANINGFUL. Phased:
+
+- **Phase 1 — the light buffer (SHIPPED, `hoop/v3/`).** v1's `_buildLight` ported: a CPU float
+  light buffer of additive quadratic splats, sampled per paint cell, composited `albedo·AMB +
+  light·GAIN`. **Function-matched emission** (`ROLE_LIGHT` in `v3/index.html`, the cousin of v1's
+  `ROOM_TYPES`): a building lights by what it IS — a forge flickers warm, an observatory is dim, a
+  clinic a steady white — and the concourse carries cool street lamps. Walls + void stay unlit dark
+  mass so structure reads. Emitters are cached per region (`emittersOf`); the buffer is built in
+  active-local world coords over the viewport and shared by every rendered region (offset), so the
+  light is continuous across the stitched seams. No occlusion yet (v1 had none either). The `@` gets
+  a pulsing gold glow. **Proof is live (canvas) — sanity-pinned numerically off a real region.**
+- **Phase 2 — the finishing devices (SHIPPED) + every-cell light.** Plate seams (a faint inked
+  stroke per floor cell — the hand-drawn feel; true `ink.js` jitter is a later refinement),
+  `shadowBlur` pulsing glow on the gold gates, the scanline overlay, palette alignment. And the
+  lighting went **generous**: a warm ambient floor washes the whole deck and EVERY cell type is now
+  an albedo + light-response gain — walls and void are dark stone that still catch a neighbour's
+  glow (reduced gain), floors/roads/buildings take full light; denser street lamps, brighter
+  emitters. Pinned numerically: 100% of cells lit, no pure-black anywhere.
+- **Phase 3 — OCCLUSION that uses the city's walls (SHIPPED, the leg-8 payoff).** Light now respects
+  the walls: a building lights its open hall and **spills out its one door** (a door/open membrane
+  is not a wall) but not through its back wall; street lamps pool along the concourse and cast
+  building shadows. Occlusion is STATIC (walls + emitters never move), so each region's occluded
+  light field is **precomputed once** (`precomputeLight`, ray-vs-wall via the exported `makeOccluder`
+  over `d.walls`) and only sampled per frame — no per-frame raytracing. Per-emitter flicker survives
+  exactly via a **sin/cos decomposition**: the steady part bakes into one buffer, the oscillating
+  part into `A=Σ amp·cosφ` / `B=Σ amp·sinφ`, so a frame is `steady + sinωt·A + cosωt·B`. Open halls
+  get a few **farthest-point-spread lamps** (a single centroid light can't fill a non-convex hall).
+  Verified headlessly: ~94% of cross-building light is wall-blocked, hall coverage ~90% (the rest is
+  realistic shadow in non-convex halls), flicker reproduction exact (1e-16). *Follow-ups: cross-seam
+  light spill (each region occludes with its own walls only), and evicting `_lit`/`_walk` buffers for
+  far regions (memory grows without eviction).*
+- **Phase 4 — movement + slide (DEFERRED with inter-deck stairs).** v1's slide is free-movement
+  physics; v3 is click-to-walk, and the spin-gravity slope is ~flat on a single deck — real slope
+  only appears at inter-deck connectors. Park until the stairs leg lands (needs `rad` per chamber in
+  `trim`).
+
+The phase-1 detail, kept for the record:
 
 - **Function-matched light.** v1 lit rooms generically; here a room's light comes from what it IS.
   Each building's role carries an emission (a hearth-warm dwelling, a cold-blue workshop, a civic

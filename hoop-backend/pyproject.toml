@@ -1,0 +1,23 @@
+[project]
+name = "world-engine"
+version = "0.1.0"
+description = "Procedurally-generated persistent world engine"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "python-dotenv>=1.0",
+    "requests>=2.32",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "letta-client>=0.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "hypothesis>=6"]
+
+[tool.setuptools]
+packages = ["ingestion", "storage", "runtime", "poller", "agents", "review", "lib"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

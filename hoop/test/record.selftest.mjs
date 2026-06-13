@@ -53,6 +53,33 @@ for (let az = 0; az < 36 && !GA; az++) for (let ax = 1; ax <= 4 && !GA; ax++) {
   ok(gw.length >= 1, 'the azimuthal WRAP seam yields gates (' + gw.length + ')');
 }
 
+// ── THE STITCHING CONTRACT (v3): every seam is crossable ON THE DECK ─────────────────────────────
+// The game walks only the mid-shell deck. A seam whose gates all land on gz±1 reads as a wall the
+// player can see a street through — the "no gate on this deck toward region" bug. With K floored to
+// ≥1 (every adjacent region pair connected) and gatesFor's deck guarantee, EVERY band seam must put
+// a gate on gz = gzMid. Symmetric, so both regions agree on that crossing.
+{
+  const gzMid = Math.floor(L.nz / 2), gzOf = (g) => +g.split('|')[2], R = L.regionsPerRing;
+  let seams = 0, noDeck = 0, asym = 0;
+  for (let ax = 0; ax <= 5; ax++) for (let az = 0; az < R; az++) {
+    for (const nb of [{ az: az + 1, ax }, { az, ax: ax + 1 }]) {
+      const s = ext.seams.get(seamKey({ az, ax }, nb, R)), K = Math.max(1, s ? s.tier : 0);
+      const g = gatesFor(L, SEED, GRADE, { az, ax }, nb, AXSPAN, K);
+      seams++;
+      if (!g.some((p) => gzOf(p.a) === gzMid)) noDeck++;
+      const gr = gatesFor(L, SEED, GRADE, nb, { az, ax }, AXSPAN, K);   // reversed args
+      if (JSON.stringify(g) !== JSON.stringify(gr)) asym++;
+    }
+  }
+  ok(noDeck === 0, 'EVERY band seam has a deck-level gate — no "no gate toward region" (' + noDeck + '/' + seams + ' missing)');
+  ok(asym === 0, 'the deck guarantee stays symmetric across all ' + seams + ' seams (both regions agree)');
+  // a genuinely tier-0 seam still gets a walkable deck crossing
+  let z = null;
+  for (let ax = 0; ax <= 5 && !z; ax++) for (let az = 0; az < R && !z; az++) { const s = ext.seams.get(seamKey({ az, ax }, { az: az + 1, ax }, R)); if (s && s.tier === 0) z = { az, ax }; }
+  if (z) { const g = gatesFor(L, SEED, GRADE, z, { az: z.az + 1, ax: z.ax }, AXSPAN, 1); ok(g.some((p) => gzOf(p.a) === gzMid), 'a tier-0 seam is still crossable on the deck (the floor connects the quiet streets)'); }
+  else ok(true, '(no tier-0 azimuthal seam in band to probe)');
+}
+
 // ── the fine pass: deterministic regional streets that MEET at the seams ──
 const sA = solveRegion({ lattice: L, seed: SEED, grade: GRADE, record: ext, az: GA.az, ax: GA.ax, axSpan: AXSPAN, iters: 5 });
 const sB = solveRegion({ lattice: L, seed: SEED, grade: GRADE, record: ext, az: GB.az, ax: GB.ax, axSpan: AXSPAN, iters: 5 });
