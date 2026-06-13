@@ -26,7 +26,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk anywhere on this deck (tap mid-stride to redirect) · ▲▼ or click a stair = change decks · the dots are residents going about their day · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the dots are residents — click one to see who they are · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
@@ -223,43 +223,45 @@ function sampleLit(v, x, y) {
 const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0) + ',' + Math.min(255, a[1] * AMB + L[1] * gain | 0) + ',' + Math.min(255, a[2] * AMB + L[2] * gain | 0) + ')';
 
 // ── NPCs — the society, moving on the deck ───────────────────────────────────────────────────────
-// Typeset role-coloured figures (the cousin of the player @), synthesised per deck from the REAL
-// buildings, with an intention engine: each NPC keeps a few HAUNTS (its home + the nearest couple of
-// buildings) and wanders between them on a slow day/night rhythm, pausing (dwelling) at each. They
-// move along navmesh-correct paths (walkRoute → through doors, never walls). NPC decisions use
-// Math.random freely — they're ephemeral, like presence; the deterministic WORLD is untouched. Real
-// named society members + sprites come later; this is the engine, calibratable.
+// Typeset role-coloured figures (the cousin of the player @), each one a REAL RESIDENT of the deck
+// (name + home + hats shipped from the solved society). The intention engine is schedule-driven: on
+// a slow day/night clock an NPC heads home at night, to WORK by day, and to a third place (worship /
+// club / sport) in the evening — moving along navmesh-correct paths (walkRoute → through doors,
+// never walls). Click one to inspect who they are. NPC decisions use Math.random (ephemeral, like
+// presence); the deterministic WORLD is untouched.
 const NPC_CAP = 52, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
-const NPC_SPEED = 16;                                       // px/s — a slow amble (calibrated down ~10×)
-const dayPhase = () => (performance.now() / DAYLEN) % 1;    // 0..1; ~night when < .22 or > .78
-function npcsOf(v) {
-  if (v._npcs) return v._npcs;
+const NPC_SPEED = 16;                                       // px/s — a slow amble
+const dayPhase = () => (performance.now() / DAYLEN) % 1;    // 0..1; ~night when < .26 or > .80
+function buildCells(v) {
+  if (v._buildCells) return v._buildCells;
   const byB = new Map();
   for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0) { let s = byB.get(o); if (!s) { s = []; byB.set(o, s); } s.push(i); } }
-  v._buildCells = byB;
-  const ids = [...byB.keys()], cent = new Map();
-  for (const [o, cells] of byB) { let x = 0, y = 0; for (const i of cells) { x += v.seeds[i].x; y += v.seeds[i].y; } cent.set(o, [x / cells.length, y / cells.length]); }
-  const haunts = new Map();
-  for (const o of ids) { const c = cent.get(o); const near = ids.filter((x) => x !== o).sort((a, b) => { const ca = cent.get(a), cb = cent.get(b); return ((ca[0] - c[0]) ** 2 + (ca[1] - c[1]) ** 2) - ((cb[0] - c[0]) ** 2 + (cb[1] - c[1]) ** 2); }).slice(0, 2); haunts.set(o, [o, ...near]); }
-  const npcs = [];
-  for (const o of ids) {
+  return (v._buildCells = byB);
+}
+function npcsOf(v) {
+  if (v._npcs) return v._npcs;
+  const byB = buildCells(v), npcs = [];
+  for (const pn of v.people || []) {
     if (npcs.length >= NPC_CAP) break;
-    const cells = byB.get(o), role = v.role[cells[0]], cnt = Math.min(3, 1 + Math.floor(cells.length / 12));
-    for (let k = 0; k < cnt && npcs.length < NPC_CAP; k++) {
-      const hc = cells[(o * 7 + k * 13) % cells.length];
-      npcs.push({ role, home: o, haunts: haunts.get(o), cell: hc, goalCell: hc, x: v.seeds[hc].x, y: v.seeds[hc].y, path: null, t: 0, dwell: Math.random() * 4, speed: NPC_SPEED * (0.8 + Math.random() * 0.45) });
-    }
+    const hc = byB.get(pn.home); if (!hc || !hc.length) continue;
+    const cell = hc[(npcs.length * 13 + 7) % hc.length];
+    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
   }
   return (v._npcs = npcs);
 }
-function npcRepath(v, n) {                                  // intention: choose a haunt, path to a cell in it
-  const night = dayPhase() < 0.22 || dayPhase() > 0.78;
-  const goalB = (night && Math.random() < 0.72) ? n.home : n.haunts[(Math.random() * n.haunts.length) | 0];
-  const cells = v._buildCells.get(goalB); if (!cells) { n.dwell = 1; return; }
+function npcRepath(v, n) {                                  // schedule-driven intention
+  const p = dayPhase(); let pool, where;
+  if (p < 0.26 || p > 0.80) { pool = [n.home]; where = 'home'; }                                         // night → home
+  else if (p < 0.60) { pool = n.hats.filter((h) => h.kind === 'work').map((h) => h.b); where = 'work'; }  // day → work
+  else { pool = n.hats.filter((h) => h.kind !== 'work').map((h) => h.b); where = 'out'; }                 // evening → third place
+  if (!pool.length) { pool = [n.home]; where = 'home'; }
+  n.where = where;
+  const goalB = pool[(Math.random() * pool.length) | 0], cells = v._buildCells.get(goalB);
+  if (!cells) { n.dwell = 1; return; }
   const gc = cells[(Math.random() * cells.length) | 0];
-  if (gc === n.cell) { n.dwell = 0.5 + Math.random(); return; }
+  if (gc === n.cell) { n.dwell = 1 + Math.random() * 3; return; }
   const r = walkRoute(v, n.cell, gc);
-  if (!r || r.pts.length < 2) { n.dwell = 0.5; return; }
+  if (!r || r.pts.length < 2) { n.dwell = 0.6; return; }
   const seg = []; let total = 0;
   for (let i = 1; i < r.pts.length; i++) { const d = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); seg.push(d); total += d; }
   n.path = { pts: r.pts, seg, total }; n.t = 0; n.goalCell = gc;
@@ -279,6 +281,11 @@ function updateNpcs(v, dt) {                                // returns true if a
 function drawNpcs(v) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px ui-monospace, monospace';
   for (const n of v._npcs || []) { const c = roleRGB(n.role); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.fillText(NPC_GLYPH, n.x, n.y); }
+  if (selNpc && (v._npcs || []).includes(selNpc)) {         // the inspected resident: ring + name
+    const n = selNpc;
+    ctx.strokeStyle = 'rgba(127,216,208,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(223,231,226,0.95)'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(n.name, n.x, n.y - 14);
+  }
 }
 
 function paintRegion(v, off, ghostsAsFog, pulse) {
@@ -440,11 +447,27 @@ function goTo(tgt, best, useStair) {
   return true;
 }
 
+// who is this resident? a click near an NPC inspects them instead of walking
+let selNpc = null;
+function npcAt(wx, wy) {
+  const r2 = (16 / zoom) ** 2; let best = null, bd = r2;
+  for (const v of visibleRegions()) { const off = offsetOf(v); for (const n of v._npcs || []) { const dx = n.x + off.x - wx, dy = n.y + off.y - wy, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = n; } } }
+  return best;
+}
+function inspectNpc(n) {
+  selNpc = n;
+  const where = n.where === 'home' ? 'heading home' : n.where === 'work' ? 'off to work' : n.where === 'out' ? 'out for the evening' : 'about the deck';
+  rail('<b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><br><span style="color:#8a978f">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</span>');
+}
+
 // ── click-to-walk anywhere on this deck — interruptible, always from the @'s LIVE position ──
 cv.addEventListener('click', (e) => {
   if (!active || AT.room < 0) return;
   const z = zoom;
   const wx = (e.clientX - W / 2) / z + AT.x, wy = (e.clientY - H / 2) / z + AT.y;   // world → active-local
+  const who = npcAt(wx, wy);
+  if (who) { inspectNpc(who); return; }                    // tapped a resident — show their card, don't walk
+  selNpc = null;
   let tgt = active, lx = wx, ly = wy;
   if (wx < 0 || wy < 0 || wx > active.frame.W || wy > active.frame.H) {
     tgt = null;

@@ -327,16 +327,16 @@ a road cell of the deck below, deterministic). *Follow-ups: auto-routing a singl
 (currently ride-then-route), per-floor gates for cross-region travel off the concourse, and the art
 Phase 4 slide (slope only exists across decks).*
 
-**NEXT: NPCs (iteration 1 SHIPPED — typeset figures + intention engine).** The society is
-represented on the deck as **role-coloured `●` figures** (the cousin of the player `@`), synthesised
-per deck from the real buildings. Each NPC keeps a few **haunts** (its home + the nearest couple of
-buildings) and runs a simple **intention engine** — wander between haunts on a slow day/night rhythm
-(home-biased at night), pausing (dwelling) at each — moving along **navmesh-correct paths**
-(`walkRoute`, through doors not walls). NPC decisions use `Math.random` (ephemeral, like presence;
-the deterministic world is untouched). Pinned headlessly: 46 NPCs, ~9 trips each / 60 s, 0
-wall-crossings. *Calibrate/next: wire the REAL named society members + their hat schedules, sprites
-(brief in [`../NPC-SPRITES.md`](../NPC-SPRITES.md)), NPCs across the seam, click-to-inspect a
-resident, and throttle the always-on redraw.*
+**NPCs (iteration 2 SHIPPED — IDed residents + schedule + click-to-inspect).** Each NPC is now a
+REAL named resident of the deck (the worker ships `people` per slice: people whose home building has
+chambers here, with their on-deck hats mapped to building indices + kinds). They're coloured by
+their OCCUPATION (a maker walks orange) and the intention engine is **schedule-driven** on the
+day/night clock — home at night, to WORK by day, to a third place (worship/club/sport) in the
+evening — over navmesh-correct paths. **Click a `●` to inspect** the resident (name, role, where
+they're headed, ties on this deck); the selected one gets a ring + name label. Pinned headlessly: 57
+residents on the main deck, scheduled trips route with 0 wall-crossings. *Follow-ups: cross-deck/
+cross-seam commuting (a resident whose workplace is on another deck stays home for now), richer
+schedules, and the sprites ([`../NPC-SPRITES.md`](../NPC-SPRITES.md)).*
 
 ## Leg 11 — PATHFINDING AS A FUNCTION OF WALLS (SHIPPED) + the oblong stitch cells
 

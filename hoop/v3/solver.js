@@ -30,10 +30,24 @@ function trim(d, links, az, ax) {
     inspect[i] = '<b>' + p.glyph + ' ' + p.role + (p.domain ? '·' + p.domain : '') + '</b> — ' + p.footprint + ' chambers' + (p.onRoad ? ' · fronts the street' : '') +
       (mem.length ? '<br>' + mem.map((j) => '· ' + soc.people[j].name + ' <span class="w">(' + hatStr(soc.people[j]) + ')</span>').join('<br>') : '<br>a quiet place');
   }
+  // REAL RESIDENTS of this deck: people whose home building has chambers here, with their on-deck
+  // hats mapped to deck building indices + kinds (the substrate for IDed, schedule-driven NPCs).
+  const onDeck = new Set(d.owner.filter((o) => o >= 0));
+  const idOf = new Map(); city.places.forEach((p, i) => idOf.set(p.id, i));
+  const people = [];
+  for (const person of soc.people) {
+    const home = idOf.get(person.home);
+    if (home == null || !onDeck.has(home)) continue;
+    const hats = [];
+    for (const h of person.hats) { const b = idOf.get(h.place); if (b != null && b !== home && onDeck.has(b)) hats.push({ b, kind: h.kind, role: h.role }); }
+    const work = person.hats.find((h) => h.kind === 'work');
+    people.push({ name: person.name, home, role: work ? work.role : 'dwell', hats });
+    if (people.length >= 90) break;
+  }
   return {
     az, ax, gz: d.gz, frame: d.frame, K: d.K, nReal: d.nReal,
     seeds: d.seeds, bandGid: d.band.map((c) => c.gid), ghostGid: d.ghostBand.map((c) => c.gid),
-    walls: d.walls, stairs: d.stairs,
+    walls: d.walls, stairs: d.stairs, people,
     scene: {
       wallSpacing: d.scene.wallSpacing,
       paintCells: d.scene.paintCells.map((c) => ({ wall: c.wall, room: c.room, door: c.door, poly: c.poly })),
