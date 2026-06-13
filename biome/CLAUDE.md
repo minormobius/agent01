@@ -98,7 +98,8 @@ scores → rarity emerges from the oracle, not RNG). Phase 0 (engine, fully sand
 
 - `gacha/prng.js` — the shared `xmur3→mulberry32` `Rand` (copied from fable/mappa/borges). A roll
   number `n` must reproduce the identical ecosystem for ever — the `/gacha/?n=<n>` permalink contract.
-- `gacha/catalog.json` — ~85 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
+- `gacha/catalog.json` — ~110 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
+  (the build throttles + retries iNat lookups, so a big run still resolves ~all photos)
   (curated traits + iNaturalist photos). Each carries the traits the assembler needs: guild, mass_g,
   thermy, habitats[], producer growth params / per-guild starting biomass, flags (pollinator, harvestable).
 - `gacha/sim/assemble.mjs` — `rollDesign(n, catalog)`: seed → a valid food web in the **builder's

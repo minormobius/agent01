@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-06-13T05:20:17.387Z",
+  "generatedAt": "2026-06-13T15:26:19.876Z",
   "source": "curated + iNaturalist",
-  "count": 85,
+  "count": 109,
   "organisms": {
     "crop": {
       "id": "crop",
@@ -511,6 +511,152 @@
         "attribution": "(c) Inessa, some rights reserved (CC BY-NC), uploaded by Inessa"
       }
     },
+    "rice": {
+      "id": "rice",
+      "common": "Rice",
+      "sciName": "Oryza sativa",
+      "kind": "producer",
+      "guild": "producer",
+      "habitats": [
+        "shore",
+        "lake"
+      ],
+      "area_m2": 3200,
+      "fix": 1.9,
+      "autoResp": 0.35,
+      "turnover": 0.034,
+      "harvestIndex": 0.42,
+      "initDensity": 8,
+      "pollinatable": false,
+      "harvestable": true,
+      "inat": {
+        "inatId": 61381,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/48742632/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/48742632/square.jpg",
+        "attribution": "(c) Luis Mata, some rights reserved (CC BY-NC), uploaded by Luis Mata"
+      }
+    },
+    "barley": {
+      "id": "barley",
+      "common": "Barley",
+      "sciName": "Hordeum vulgare",
+      "kind": "producer",
+      "guild": "producer",
+      "habitats": [
+        "land"
+      ],
+      "area_m2": 3500,
+      "fix": 1.6,
+      "autoResp": 0.35,
+      "turnover": 0.03,
+      "harvestIndex": 0.4,
+      "initDensity": 8,
+      "pollinatable": false,
+      "harvestable": true,
+      "inat": {
+        "inatId": 57182,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/76716288/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/76716288/square.jpg",
+        "attribution": "(c) sebastianv, some rights reserved (CC BY-NC)"
+      }
+    },
+    "alfalfa": {
+      "id": "alfalfa",
+      "common": "Alfalfa",
+      "sciName": "Medicago sativa",
+      "kind": "producer",
+      "guild": "producer",
+      "habitats": [
+        "land"
+      ],
+      "area_m2": 2500,
+      "fix": 1.9,
+      "autoResp": 0.35,
+      "turnover": 0.045,
+      "harvestIndex": 0.15,
+      "initDensity": 10,
+      "pollinatable": true,
+      "harvestable": true,
+      "inat": {
+        "inatId": 57057,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/604247569/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/604247569/square.jpg",
+        "attribution": "(c) Wolfgang Bacher, some rights reserved (CC BY-NC), uploaded by Wolfgang Bacher"
+      }
+    },
+    "pumpkin": {
+      "id": "pumpkin",
+      "common": "Pumpkin",
+      "sciName": "Cucurbita pepo",
+      "kind": "producer",
+      "guild": "producer",
+      "habitats": [
+        "land"
+      ],
+      "area_m2": 2500,
+      "fix": 1.4,
+      "autoResp": 0.35,
+      "turnover": 0.03,
+      "harvestIndex": 0.35,
+      "initDensity": 4,
+      "pollinatable": true,
+      "harvestable": true,
+      "inat": {
+        "inatId": 76541,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/101476279/medium.png",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/101476279/square.png",
+        "attribution": "(c) psullivan22, some rights reserved (CC BY-NC)"
+      }
+    },
+    "stonewort": {
+      "id": "stonewort",
+      "common": "Stonewort",
+      "sciName": "Chara vulgaris",
+      "kind": "producer",
+      "guild": "producer",
+      "habitats": [
+        "lake"
+      ],
+      "area_m2": 6000,
+      "fix": 1.7,
+      "autoResp": 0.35,
+      "turnover": 0.04,
+      "harvestIndex": 0,
+      "initDensity": 7,
+      "pollinatable": false,
+      "harvestable": false,
+      "inat": {
+        "inatId": 486261,
+        "photo": "https://static.inaturalist.org/photos/490307317/medium.jpg",
+        "thumb": "https://static.inaturalist.org/photos/490307317/square.jpg",
+        "attribution": "(c) František Bednár, all rights reserved, uploaded by František Bednár"
+      }
+    },
+    "nettle": {
+      "id": "nettle",
+      "common": "Stinging nettle",
+      "sciName": "Urtica dioica",
+      "kind": "producer",
+      "guild": "producer",
+      "habitats": [
+        "shore",
+        "land"
+      ],
+      "area_m2": 2000,
+      "fix": 1.6,
+      "autoResp": 0.35,
+      "turnover": 0.035,
+      "harvestIndex": 0.1,
+      "initDensity": 9,
+      "pollinatable": false,
+      "harvestable": true,
+      "inat": {
+        "inatId": 51884,
+        "photo": "https://static.inaturalist.org/photos/600736605/medium.jpg",
+        "thumb": "https://static.inaturalist.org/photos/600736605/square.jpg",
+        "attribution": "(c) Christine Roussel, all rights reserved, uploaded by Christine Roussel"
+      }
+    },
     "rabbit": {
       "id": "rabbit",
       "common": "Rabbit",
@@ -823,6 +969,119 @@
         "attribution": "(c) Almantas Kulbis, some rights reserved (CC BY-NC), uploaded by Almantas Kulbis"
       }
     },
+    "horse": {
+      "id": "horse",
+      "common": "Horse",
+      "sciName": "Equus caballus",
+      "kind": "animal",
+      "guild": "herbivore",
+      "mass_g": 450000,
+      "habitats": [
+        "land"
+      ],
+      "thermy": "endo",
+      "initBio": 200,
+      "pollinator": false,
+      "harvestable": true,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 209233,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/23672580/medium.jpeg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/23672580/square.jpeg",
+        "attribution": "(c) copper, some rights reserved (CC BY-NC), uploaded by copper"
+      }
+    },
+    "goat": {
+      "id": "goat",
+      "common": "Goat",
+      "sciName": "Capra hircus",
+      "kind": "animal",
+      "guild": "herbivore",
+      "mass_g": 60000,
+      "habitats": [
+        "land"
+      ],
+      "thermy": "endo",
+      "initBio": 200,
+      "pollinator": false,
+      "harvestable": true,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 123070,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/6035700/medium.jpeg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/6035700/square.jpeg",
+        "attribution": "(c) Jakob Fahr, some rights reserved (CC BY-NC), uploaded by Jakob Fahr"
+      }
+    },
+    "woodpigeon": {
+      "id": "woodpigeon",
+      "common": "Wood pigeon",
+      "sciName": "Columba palumbus",
+      "kind": "animal",
+      "guild": "herbivore",
+      "mass_g": 500,
+      "habitats": [
+        "land",
+        "air"
+      ],
+      "thermy": "endo",
+      "initBio": 200,
+      "pollinator": false,
+      "harvestable": true,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 3048,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/108521205/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/108521205/square.jpg",
+        "attribution": "(c) hedera.baltica, some rights reserved (CC BY-SA)"
+      }
+    },
+    "coot": {
+      "id": "coot",
+      "common": "Eurasian coot",
+      "sciName": "Fulica atra",
+      "kind": "animal",
+      "guild": "herbivore",
+      "mass_g": 800,
+      "habitats": [
+        "lake",
+        "shore",
+        "air"
+      ],
+      "thermy": "endo",
+      "initBio": 200,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 482,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/123574818/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/123574818/square.jpg",
+        "attribution": "(c) Wei Li Jiang, some rights reserved (CC BY-NC), uploaded by Wei Li Jiang"
+      }
+    },
+    "leafhopper": {
+      "id": "leafhopper",
+      "common": "Leafhopper",
+      "sciName": "Cicadella viridis",
+      "kind": "animal",
+      "guild": "herbivore",
+      "mass_g": 0.01,
+      "habitats": [
+        "land"
+      ],
+      "thermy": "ecto",
+      "initBio": 200,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 52447,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/59824645/medium.jpeg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/59824645/square.jpeg",
+        "attribution": "(c) Felix Riegel, some rights reserved (CC BY-NC), uploaded by Felix Riegel"
+      }
+    },
     "bee": {
       "id": "bee",
       "common": "Honey bee",
@@ -982,6 +1241,52 @@
         "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/141237136/medium.jpeg",
         "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/141237136/square.jpeg",
         "attribution": "(c) Izabella Farr, some rights reserved (CC BY-NC), uploaded by Izabella Farr"
+      }
+    },
+    "carpenterbee": {
+      "id": "carpenterbee",
+      "common": "Carpenter bee",
+      "sciName": "Xylocopa violacea",
+      "kind": "animal",
+      "guild": "nectarivore",
+      "mass_g": 0.7,
+      "habitats": [
+        "air",
+        "land"
+      ],
+      "thermy": "ecto",
+      "initBio": 60,
+      "pollinator": true,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 124145,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/59098865/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/59098865/square.jpg",
+        "attribution": "(c) Gianfrs, some rights reserved (CC BY-NC-ND), uploaded by Gianfrs"
+      }
+    },
+    "beefly": {
+      "id": "beefly",
+      "common": "Bee-fly",
+      "sciName": "Bombylius major",
+      "kind": "animal",
+      "guild": "nectarivore",
+      "mass_g": 0.06,
+      "habitats": [
+        "air",
+        "land"
+      ],
+      "thermy": "ecto",
+      "initBio": 60,
+      "pollinator": true,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 51557,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/368517415/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/368517415/square.jpg",
+        "attribution": "(c) M. Whitson, some rights reserved (CC BY), uploaded by M. Whitson"
       }
     },
     "spider": {
@@ -1458,6 +1763,98 @@
         "attribution": "(c) gernotkunz, all rights reserved, uploaded by gernotkunz"
       }
     },
+    "buzzard": {
+      "id": "buzzard",
+      "common": "Common buzzard",
+      "sciName": "Buteo buteo",
+      "kind": "animal",
+      "guild": "carnivore",
+      "mass_g": 800,
+      "habitats": [
+        "air",
+        "land"
+      ],
+      "thermy": "endo",
+      "initBio": 40,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 5212,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/101327658/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/101327658/square.jpg",
+        "attribution": "(c) Craig K. Hunt, some rights reserved (CC BY-NC), uploaded by Craig K. Hunt"
+      }
+    },
+    "zander": {
+      "id": "zander",
+      "common": "Zander",
+      "sciName": "Sander lucioperca",
+      "kind": "animal",
+      "guild": "carnivore",
+      "mass_g": 3000,
+      "habitats": [
+        "lake"
+      ],
+      "thermy": "ecto",
+      "initBio": 40,
+      "pollinator": false,
+      "harvestable": true,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 48156,
+        "photo": "https://static.inaturalist.org/photos/60903772/medium.jpg",
+        "thumb": "https://static.inaturalist.org/photos/60903772/square.jpg",
+        "attribution": "(c) gernotkunz, all rights reserved, uploaded by gernotkunz"
+      }
+    },
+    "otter": {
+      "id": "otter",
+      "common": "Otter",
+      "sciName": "Lutra lutra",
+      "kind": "animal",
+      "guild": "carnivore",
+      "mass_g": 9000,
+      "habitats": [
+        "lake",
+        "shore",
+        "land"
+      ],
+      "thermy": "endo",
+      "initBio": 40,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 41777,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/172440134/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/172440134/square.jpg",
+        "attribution": "no rights reserved, uploaded by Adam Jackson"
+      }
+    },
+    "adder": {
+      "id": "adder",
+      "common": "Adder",
+      "sciName": "Vipera berus",
+      "kind": "animal",
+      "guild": "carnivore",
+      "mass_g": 100,
+      "habitats": [
+        "land",
+        "shore"
+      ],
+      "thermy": "ecto",
+      "initBio": 40,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 966698,
+        "photo": "https://static.inaturalist.org/photos/223270931/medium.jpg",
+        "thumb": "https://static.inaturalist.org/photos/223270931/square.jpg",
+        "attribution": "(c) Malgoire Pavel, all rights reserved, uploaded by Malgoire Pavel"
+      }
+    },
     "carp": {
       "id": "carp",
       "common": "Common carp",
@@ -1712,6 +2109,98 @@
         "attribution": "(c) Laurent Barthe, some rights reserved (CC BY-NC), uploaded by Laurent Barthe"
       }
     },
+    "badger": {
+      "id": "badger",
+      "common": "Badger",
+      "sciName": "Meles meles",
+      "kind": "animal",
+      "guild": "omnivore",
+      "mass_g": 11000,
+      "habitats": [
+        "land",
+        "soil"
+      ],
+      "thermy": "endo",
+      "initBio": 120,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 855297,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/172054371/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/172054371/square.jpg",
+        "attribution": "(c) caroline legg, some rights reserved (CC BY)"
+      }
+    },
+    "magpie": {
+      "id": "magpie",
+      "common": "Magpie",
+      "sciName": "Pica pica",
+      "kind": "animal",
+      "guild": "omnivore",
+      "mass_g": 220,
+      "habitats": [
+        "land",
+        "air"
+      ],
+      "thermy": "endo",
+      "initBio": 120,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 792988,
+        "photo": "https://static.inaturalist.org/photos/25544008/medium.jpeg",
+        "thumb": "https://static.inaturalist.org/photos/25544008/square.jpeg",
+        "attribution": "(c) César Andrés Castillo, all rights reserved, uploaded by César Andrés Castillo"
+      }
+    },
+    "moorhen": {
+      "id": "moorhen",
+      "common": "Moorhen",
+      "sciName": "Gallinula chloropus",
+      "kind": "animal",
+      "guild": "omnivore",
+      "mass_g": 320,
+      "habitats": [
+        "lake",
+        "shore",
+        "air"
+      ],
+      "thermy": "endo",
+      "initBio": 120,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 201282,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/171773229/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/171773229/square.jpg",
+        "attribution": "(c) Alexis Lours, some rights reserved (CC BY), uploaded by Alexis Lours"
+      }
+    },
+    "sturgeon": {
+      "id": "sturgeon",
+      "common": "Sturgeon",
+      "sciName": "Acipenser sturio",
+      "kind": "animal",
+      "guild": "omnivore",
+      "mass_g": 20000,
+      "habitats": [
+        "lake"
+      ],
+      "thermy": "ecto",
+      "initBio": 120,
+      "pollinator": false,
+      "harvestable": true,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 93193,
+        "photo": "https://static.inaturalist.org/photos/187936378/medium.jpg",
+        "thumb": "https://static.inaturalist.org/photos/187936378/square.jpg",
+        "attribution": "(c) Elisa Roche, all rights reserved, uploaded by Elisa Roche"
+      }
+    },
     "worm": {
       "id": "worm",
       "common": "Earthworm",
@@ -1949,6 +2438,73 @@
         "photo": "https://static.inaturalist.org/photos/15300968/medium.jpg",
         "thumb": "https://static.inaturalist.org/photos/15300968/square.jpg",
         "attribution": "(c) Henk Wallays, all rights reserved"
+      }
+    },
+    "gammarus": {
+      "id": "gammarus",
+      "common": "Freshwater shrimp",
+      "sciName": "Gammarus pulex",
+      "kind": "animal",
+      "guild": "detritivore",
+      "mass_g": 0.05,
+      "habitats": [
+        "lake",
+        "shore"
+      ],
+      "thermy": "ecto",
+      "initBio": 15000,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 59805,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/14875940/medium.jpeg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/14875940/square.jpeg",
+        "attribution": "(c) Nicola Simoncini, some rights reserved (CC BY), uploaded by Nicola Simoncini"
+      }
+    },
+    "chironomus": {
+      "id": "chironomus",
+      "common": "Bloodworm",
+      "sciName": "Chironomus plumosus",
+      "kind": "animal",
+      "guild": "detritivore",
+      "mass_g": 0.01,
+      "habitats": [
+        "lake"
+      ],
+      "thermy": "ecto",
+      "initBio": 15000,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": false,
+      "inat": {
+        "inatId": 367431,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/483669195/medium.jpg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/483669195/square.jpg",
+        "attribution": "(c) Janet Graham, some rights reserved (CC BY)"
+      }
+    },
+    "potworm": {
+      "id": "potworm",
+      "common": "Potworm",
+      "sciName": "Enchytraeus albidus",
+      "kind": "animal",
+      "guild": "detritivore",
+      "mass_g": 0.005,
+      "habitats": [
+        "soil"
+      ],
+      "thermy": "ecto",
+      "initBio": 15000,
+      "pollinator": false,
+      "harvestable": false,
+      "microbialProxy": true,
+      "inat": {
+        "inatId": 780817,
+        "photo": "https://inaturalist-open-data.s3.amazonaws.com/photos/42142039/medium.jpeg",
+        "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/42142039/square.jpeg",
+        "attribution": "(c) Diogo Luiz, some rights reserved (CC BY), uploaded by Diogo Luiz"
       }
     }
   }
