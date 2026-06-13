@@ -1,0 +1,186 @@
+// builder.js — the /econ/foam/ module Worker. Builds the foam city (≈5.5 s for the full 33k-chamber
+// sector) OFF the render thread, bakes per-chamber colour layers + the route-ribbon geometry, and
+// stays alive holding {city, society, metrics} to answer click inspections. The page only ever
+// receives transferable typed arrays + small JSON — it never touches the model.
+import { buildFoamCity, createFoamGrower, scoreFoamSociety } from '../society3d.js';
+import { buildSociety, socialMetrics, scoreSociety, removeImpact, rollGenome, DEFAULT_GENOME, ROLES } from '../econ.js';
+
+let city = null, society = null, metrics = null;
+
+const hex = (h) => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+const ROLE_RGB = Object.fromEntries(Object.entries(ROLES).map(([k, R]) => [k, hex(R.color)]));
+const ROAD_RGB = [0.62, 0.66, 0.70], VOID_RGB = [0.055, 0.065, 0.085];
+
+// one colour layer = Float32Array(3N), chamber i coloured by its owner under that lens
+function bakeColors() {
+  const N = city.chambers.length, places = city.places, owner = city.chamberOwner;
+  const layers = { role: new Float32Array(3 * N), footprint: new Float32Array(3 * N), bridging: new Float32Array(3 * N), access: new Float32Array(3 * N) };
+  const maxFp = Math.max(...places.map((p) => p.footprint));
+  const bridge = new Map();                                  // placeId → bridging fraction
+  for (const [pid, b] of metrics.bridging) if (b.members >= 2) bridge.set(pid, b.bridging);
+  const hsl = (h, s, l) => {                                 // tiny hsl→rgb for the gradient lenses
+    const a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+    return [f(0), f(8), f(4)];
+  };
+  const put = (L, i, c, m = 1) => { L[3 * i] = c[0] * m; L[3 * i + 1] = c[1] * m; L[3 * i + 2] = c[2] * m; };
+  for (let i = 0; i < N; i++) {
+    const o = owner[i];
+    if (o === -1) { for (const k in layers) put(layers[k], i, ROAD_RGB); continue; }
+    if (o < 0) { for (const k in layers) put(layers[k], i, VOID_RGB); continue; }
+    const p = places[o];
+    const lift = p.onRoad ? 1.18 : 1.0;                      // frontage reads a half-step brighter
+    put(layers.role, i, ROLE_RGB[p.role] || [0.5, 0.5, 0.5], lift);
+    const tf = Math.min(1, Math.log2(1 + p.footprint) / Math.log2(1 + maxFp));
+    put(layers.footprint, i, hsl(210 - tf * 180, 0.3 + tf * 0.45, 0.16 + tf * 0.34), lift);
+    if (p.role === 'dwell') put(layers.bridging, i, [0.086, 0.11, 0.16]);
+    else if (!bridge.has(p.id)) put(layers.bridging, i, [0.075, 0.09, 0.11]);
+    else { const v = bridge.get(p.id); put(layers.bridging, i, hsl(212 - v * 182, 0.34 + v * 0.38, 0.20 + v * 0.24)); }
+    if (p.role === 'dwell' && isFinite(p.accessCost)) {      // green = the 15-minute dwelling, red = stranded
+      const t = Math.max(0, Math.min(1, p.accessCost / 30));
+      put(layers.access, i, hsl(120 - t * 120, 0.55, 0.30));
+    } else put(layers.access, i, [0.10, 0.11, 0.13]);
+  }
+  return layers;
+}
+
+// the route as drawable line segments [x,y,z,r,g,b ×2 per seg] — foamview's drawRoute, ported:
+// road ribbons (centreline + rails + rungs) through the chamber centres + ramp foot/head posts.
+function bakeRoute() {
+  const route = city.route; if (!route) return new Float32Array(0);
+  const cs = city.chambers, c = city.foam.cell, Ri = city.foam.Ri, segs = [];
+  const seg = (a, b, col) => segs.push(a[0], a[1], a[2], col[0], col[1], col[2], b[0], b[1], b[2], col[0], col[1], col[2]);
+  const ribbon = (cells, col) => {
+    const P = cells.map((i) => cs[i]), half = 0.3 * c, dim = col.map((v) => v * 0.55);
+    for (let k = 0; k < P.length - 1; k++) {
+      const a = P[k], b = P[k + 1];
+      let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z; const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+      const thm = (a.th + b.th) / 2, rx = Math.cos(thm), ry = Math.sin(thm);
+      let lx = ry * dz, ly = -rx * dz, lz = rx * dy - ry * dx;
+      const ll = Math.hypot(lx, ly, lz); if (ll < 0.3) { lx = 0; ly = 0; lz = 1; } else { lx /= ll; ly /= ll; lz /= ll; }
+      seg([a.x, a.y, a.z], [b.x, b.y, b.z], col);
+      seg([a.x + lx * half, a.y + ly * half, a.z + lz * half], [b.x + lx * half, b.y + ly * half, b.z + lz * half], dim);
+      seg([a.x - lx * half, a.y - ly * half, a.z - lz * half], [b.x - lx * half, b.y - ly * half, b.z - lz * half], dim);
+      seg([a.x + lx * half, a.y + ly * half, a.z + lz * half], [a.x - lx * half, a.y - ly * half, a.z - lz * half], dim);
+    }
+  };
+  ribbon(route.A.cells, [1.0, 0.82, 0.48]); ribbon(route.B.cells, [1.0, 0.6, 0.84]);
+  for (const rd of route.roads) ribbon(rd.cells, [0.5, 1.0, 0.69]);
+  const post = (i) => { const q = cs[i], r0 = Ri + q.rad - 1.4 * c, r1 = Ri + q.rad + 1.4 * c, ct = Math.cos(q.th), st = Math.sin(q.th); seg([r0 * ct, r0 * st, q.z], [r1 * ct, r1 * st, q.z], [1, 1, 1]); };
+  for (const L of [route.A, route.B]) { post(L.cells[0]); post(L.cells[L.cells.length - 1]); }
+  return new Float32Array(segs);
+}
+
+// the emergent network's tier hierarchy as drawable segments (the grown city's "routeSegs")
+function bakeEmergent(c) {
+  const e = c.emergent; if (!e) return new Float32Array(0);
+  const cs = c.chambers, segs = [];
+  const TIER_RGB = [null, [0.5, 0.85, 0.82], [0.47, 0.78, 0.63], [1.0, 0.82, 0.48]];   // footpath · street · arterial
+  for (let i = 0; i < e.tier.length; i++) {
+    const t = e.tier[i]; if (!t) continue;
+    const a = cs[e.ea[i]], b = cs[e.eb[i]], col = TIER_RGB[t];
+    segs.push(a.x, a.y, a.z, col[0], col[1], col[2], b.x, b.y, b.z, col[0], col[1], col[2]);
+  }
+  return new Float32Array(segs);
+}
+
+// the flux field mid-growth, as gold segments scaled by intensity (one frame of the cinematic)
+function bakeFlux(g) {
+  const { flux } = g.state, cs = g.nav.cells, { ea, eb, E } = g.graph;
+  let mx = 0; for (let i = 0; i < E; i++) if (flux[i] > mx) mx = flux[i];
+  if (mx <= 0) return new Float32Array(0);
+  const segs = [];
+  for (let i = 0; i < E; i++) {
+    const t = flux[i] / mx; if (t < 0.025) continue;
+    const s = 0.18 + 0.82 * Math.sqrt(t);                          // intensity in the colour (lines have no alpha)
+    const a = cs[ea[i]], b = cs[eb[i]];
+    segs.push(a.x, a.y, a.z, s, s * 0.78, s * 0.36, b.x, b.y, b.z, s, s * 0.78, s * 0.36);
+  }
+  return new Float32Array(segs);
+}
+
+// THE GROWN BUILD (FOAM.md leg 3 in 3D): post the bare foam, then one message per reinforcement
+// round (the desire lines sharpening), then finalize → the same 'city' payload as the certified
+// path. The page orbits the foam while the streets grow.
+function buildGrown({ seed, n, opt }) {
+  const genome = n > 0 ? rollGenome(n) : DEFAULT_GENOME;
+  const iters = (opt && opt.iters) || 10;
+  const g = createFoamGrower({ ...(opt || {}), seed, genome });
+  const N = g.nav.n, pos = new Float32Array(3 * N);
+  for (let i = 0; i < N; i++) { const q = g.nav.cells[i]; pos[3 * i] = q.x; pos[3 * i + 1] = q.y; pos[3 * i + 2] = q.z; }
+  postMessage({ type: 'foam', N, pos, total: iters,
+    dims: { Ri: g.foam.Ri, T: g.foam.T, cell: g.foam.cell, Lx: g.foam.Lx, arcRad: g.foam.arcRad } }, [pos.buffer]);
+  for (let i = 0; i < iters; i++) {
+    g.step();
+    const segs = bakeFlux(g);
+    postMessage({ type: 'grow', iter: g.iter, total: iters, segs }, [segs.buffer]);
+  }
+  city = g.finalize();
+  society = buildSociety(city, { seed, genome });
+  metrics = socialMetrics(city, society);
+  postCity({ seed, n, genome });
+}
+
+function build({ seed, n, opt }) {
+  const genome = n > 0 ? rollGenome(n) : DEFAULT_GENOME;
+  city = buildFoamCity({ ...(opt || {}), seed, genome });
+  society = buildSociety(city, { seed, genome });
+  metrics = socialMetrics(city, society);
+  postCity({ seed, n, genome });
+}
+
+function postCity({ seed, n, genome }) {
+  const score = scoreFoamSociety(city, scoreSociety(city, society, metrics));
+  const N = city.chambers.length;
+  const pos = new Float32Array(3 * N);
+  for (let i = 0; i < N; i++) { const q = city.chambers[i]; pos[3 * i] = q.x; pos[3 * i + 1] = q.y; pos[3 * i + 2] = q.z; }
+  const owner = Int32Array.from(city.chamberOwner);
+  const layers = bakeColors(), routeSegs = city.route ? bakeRoute() : bakeEmergent(city);
+  // per-chamber role index (the role-isolation lens): -2 void, -1 road, else index into `roles`
+  const roles = Object.keys(ROLES);
+  const roleIdx = new Int8Array(N).fill(-2);
+  for (let i = 0; i < N; i++) { const o = city.chamberOwner[i]; roleIdx[i] = o === -1 ? -1 : o < 0 ? -2 : roles.indexOf(city.places[o].role); }
+  // building billboards: centroid world position + glyph + a world-space radius for LOD gating
+  const Ri = city.foam.Ri;
+  const bill = city.places.map((p) => { const r = Ri + p.rad; return { x: r * Math.cos(p.th), y: r * Math.sin(p.th), z: p.zax, g: p.glyph, fp: p.footprint, road: !!p.onRoad, role: p.role }; });
+  const m = (u) => Math.round(u * 20);
+  const route = city.route;
+  postMessage({
+    type: 'city', seed, n, genome: { archetype: genome.archetype || 'wild type' },
+    N, pos, owner, layers, routeSegs, bill, roleIdx, roles,
+    dims: { Ri: city.foam.Ri, T: city.foam.T, cell: city.foam.cell, Lx: city.foam.Lx, arcRad: city.foam.arcRad },
+    stats: {
+      buildings: city.places.length, row: city.rightOfWay.size, voids: city.voids,
+      closure: city.closure, access: city.access, people: society.people.length,
+      avgHats: society.avgHats, vitality: score.vitality, tier: score.tier,
+      route: route ? `certified: ramp A ${route.A.turns.toFixed(1)} turns · ${route.roads.length} roads · ramp B ${route.B.turns.toFixed(1)} turns · climbs ${m(Math.abs(route.A.climb))} m`
+        : city.emergent ? `EMERGENT: ${city.emergent.chambers} chambers grown from the society's own trips · ${city.emergent.rampSegs} ramp segs · threads ${(city.emergent.radialSpanFrac * 100).toFixed(0)}% of shell depth`
+        : 'none found',
+    },
+  }, [pos.buffer, owner.buffer, layers.role.buffer, layers.footprint.buffer, layers.bridging.buffer, layers.access.buffer, routeSegs.buffer, roleIdx.buffer]);
+}
+
+function inspect(placeId) {
+  const p = city.places[placeId]; if (!p) return;
+  const mem = society.placeMembers.get(p.id) || [];
+  const hatStr = (q) => q.hats.map((h) => (h.kind === 'work' ? h.role + (h.domain ? '·' + h.domain : '') : h.kind)).join(', ');
+  const lines = mem.slice(0, 6).map((i) => `· ${society.people[i].name}: ${hatStr(society.people[i])}`);
+  const b = metrics.bridging.get(p.id);
+  const imp = p.role !== 'dwell' ? removeImpact(city, society, metrics, p.id) : null;
+  postMessage({
+    type: 'inspect', placeId,
+    head: `${p.glyph} ${p.role}${p.domain ? '·' + p.domain : ''} — ${p.footprint} chambers · ${mem.length} ${mem.length === 1 ? 'person' : 'people'}${p.onRoad ? ' · ON THE ROAD' : ''}`,
+    weave: (b && b.members >= 2) ? { v: b.bridging, label: b.bridging > 0.7 ? 'a BRIDGE (strangers meet)' : b.bridging < 0.35 ? 'a BOND (tight circle)' : 'mixed' } : null,
+    people: lines, shock: imp,
+    access: p.role === 'dwell' && isFinite(p.accessCost) ? p.accessCost : null,
+  });
+}
+
+onmessage = (e) => {
+  const msg = e.data;
+  try {
+    if (msg.type === 'build') { if (msg.grow) buildGrown(msg); else build(msg); }
+    else if (msg.type === 'inspect') inspect(msg.placeId);
+  } catch (err) {
+    postMessage({ type: 'error', message: String(err && err.stack || err) });
+  }
+};
