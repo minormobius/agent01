@@ -98,7 +98,7 @@ scores → rarity emerges from the oracle, not RNG). Phase 0 (engine, fully sand
 
 - `gacha/prng.js` — the shared `xmur3→mulberry32` `Rand` (copied from fable/mappa/borges). A roll
   number `n` must reproduce the identical ecosystem for ever — the `/gacha/?n=<n>` permalink contract.
-- `gacha/catalog.json` — ~110 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
+- `gacha/catalog.json` — ~150 real organisms ("the deck"), built by `node biome/gacha/build-catalog.mjs`
   (the build throttles + retries iNat lookups, so a big run still resolves ~all photos)
   (curated traits + iNaturalist photos). Each carries the traits the assembler needs: guild, mass_g,
   thermy, habitats[], producer growth params / per-guild starting biomass, flags (pollinator, harvestable).
@@ -123,9 +123,13 @@ best seeds (move the hunt to a Web Worker if it janks); Phase 3 = keep/publish p
 (`com.minomobi.biome.ecosystem`) + OG cards; Phase 4 = automated iNat+GloBI harvest to deepen the deck.
 Calibration TODO: confirm Legendaries (≥88) are reachable across a big sweep and tune the tier bands.
 NB the gacha runs the box model at dt=3h (fast, interactive) — conservation is exact by flux
-construction; a few stiff random webs show ~1e-7 numerical drift at that step (negligible; the
-self-test proves machine precision at dt=0.25h — the deck-85 expansion pushed the
-stiffest sampled webs from ~5e-8 at dt=0.5h to ~1e-14 at dt=0.25h, still exact-by-construction).
+construction. As the deck grew (~150 organisms), dense random rolls can be too stiff for the explicit
+integrator at that coarse step: the run overshoots into a numerical blow-up (negative biomass, CO₂ →
+~1e10 ppm). We do NOT chase these with a finer step (one run is ~1s; the dt a stiff web needs is ~12s
+— too slow for the reveal). Instead `evaluateRoll` (score.mjs `blewUp`) detects the blow-up and scores
+it honestly as a **runaway** (rarity = viability, and an un-integrable web isn't viable), sanitising
+`last` so the biomass graph never renders a negative/NaN node. The self-test still proves element
+conservation at a step where the integrator is stable (dt=0.1h) and asserts no scored roll diverges.
 
 ## Invariants — do not break
 

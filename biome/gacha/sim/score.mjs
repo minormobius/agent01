@@ -38,10 +38,41 @@ export function trophicDepth(species) {
   return d;
 }
 
+// A dense random web can be too stiff for the explicit integrator at the fast interactive step
+// (dtHours 3): it overshoots into nonsense — biomass goes NEGATIVE, CO₂ runs to ~1e10 ppm. That's a
+// numerical blow-up, not an ecological verdict, and left alone it poisons both the score and the
+// biomass-sized graph. We don't chase it with a finer step (a single run is already ~1s; refining to
+// the dt a stiff web needs is ~12s — unacceptable on the interactive reveal). Instead we detect the
+// blow-up and score it honestly as a RUNAWAY: the rarity axis is viability, and a web the model can't
+// hold together is not viable. `last` is sanitised so the graph never renders a negative/NaN node.
+function blewUp(R, species) {
+  if (!R || !R.ok) return false;                     // an invalid design is a real verdict, handled above
+  const L = R.last || {};
+  for (const k in L) { const v = L[k]; if (typeof v === 'number' && !Number.isFinite(v)) return true; }
+  const co2 = L.co2_ppm;
+  if (co2 != null && (co2 < 0 || co2 > 1e6)) return true;            // >1e6 ppm = 100% CO₂ is impossible
+  for (const s of species) { const b = L[s.id]; if (typeof b === 'number' && b < -1) return true; } // biomass can't be negative
+  return false;
+}
+function sanitizeLast(last, species) {
+  const L = { ...(last || {}) };
+  for (const k in L) if (typeof L[k] === 'number' && !Number.isFinite(L[k])) L[k] = 0;
+  for (const s of species) if (typeof L[s.id] === 'number' && L[s.id] < 0) L[s.id] = 0;  // no negative nodes
+  if (typeof L.co2_ppm === 'number') L.co2_ppm = Math.max(0, Math.min(L.co2_ppm, 1e6));
+  if (typeof L.o2_kPa === 'number') L.o2_kPa = Math.max(0, L.o2_kPa);
+  return L;
+}
+
 // ── evaluate a roll: run the solver, compute signals, return interest + tier + everything. ──
 export function evaluateRoll(roll, { days = 500 } = {}) {
   const R = analyzeDesign(roll.design, { days });
   if (!R.ok) return { ...roll, ok: false, interest: 0, tier: 'Common', problems: R.problems, report: R };
+  if (blewUp(R, roll.design.species)) {              // numerically un-integrable at the standard step → runaway
+    return { ...roll, ok: true, degenerate: true, interest: 6, tier: 'Common', depth: 0,
+      signals: { closes: 0, persist: 0, stable: 0, fed: 0, air: 0, robust: 0, buffer: 0 },
+      headline: 'A runaway web — too violent for the model to hold together.',
+      report: { ...R, last: sanitizeLast(R.last, roll.design.species) } };
+  }
 
   const sp = roll.design.species, n = sp.length;
   const c = R.closure, st = R.stability || {};

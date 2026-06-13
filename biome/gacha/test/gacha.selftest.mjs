@@ -53,14 +53,16 @@ const rel = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1e-30);
     const present = new Set(sp.map((s) => s.id));
     const noStarvers = sp.every((s) => s.kind === 'producer' || (s.eats || []).every((e) => e === 'litter' || present.has(e)) && (s.eats || []).length > 0);
     if (prod && dec && noStarvers) validWiring++;
-    // conservation is exact by flux construction; prove it at fine resolution (a few stiff random
-    // webs need a small step for the RK integrator to *show* machine precision — at dt=0.25h all do,
-    // and the stiffest of the enlarged deck collapse from ~5e-8 at dt=0.5h to ~1e-14 at dt=0.25h).
+    // conservation is exact by flux construction; prove it at fine resolution. A few stiff random
+    // webs need a small step for the explicit RK integrator to stay STABLE enough to *show* machine
+    // precision — at dt=0.1h all do. (The deck-149 expansion can roll dense webs that blow up at the
+    // coarse interactive step; the gacha oracle detects that and scores them as runaways rather than
+    // trusting the garbage — see score.mjs blewUp. Here we just integrate finely to show conservation.)
     if (checked < 12) {
       checked++;
       const p = designToParams(roll.design);
       let s = defaultState(p); const e0 = elements(s, p);
-      const dt = 0.25 * 3600, steps = Math.round(180 * 86400 / dt);
+      const dt = 0.1 * 3600, steps = Math.round(180 * 86400 / dt);
       for (let i = 0; i < steps; i++) s = step(s, p, dt);
       const e1 = elements(s, p);
       const drift = Math.max(...['C','H','O','N'].map((el) => rel(e1[el], e0[el])));
@@ -81,17 +83,24 @@ const rel = (a, b) => Math.abs(a - b) / (Math.abs(b) + 1e-30);
   ok('tier matches the interest band', a.tier === tierOf(a.interest));
 
   const tiers = {};
-  let topInterest = 0, topSeed = 0;
+  let topInterest = 0, topSeed = 0, insane = 0, insaneSeed = 0;
   for (let n = 1; n <= 60; n++) {
     const roll = rollDesign(n, catalog); if (!roll) continue;
     const ev = evaluateRoll(roll, { days: 360 });
     tiers[ev.tier] = (tiers[ev.tier] || 0) + 1;
     if (ev.interest > topInterest) { topInterest = ev.interest; topSeed = n; }
+    // the oracle must never hand back a numerically blown-up run (negative biomass / impossible CO₂):
+    // a dense roll can be stiff at the interactive step, so evaluateRoll detects + sanitises it — verify.
+    const L = ev.report?.last || {};
+    const blown = !Number.isFinite(L.co2_ppm) || L.co2_ppm > 1e6
+      || roll.design.species.some((s) => Number.isFinite(L[s.id]) && L[s.id] < -1);
+    if (blown) { insane++; insaneSeed = n; }
   }
   console.log('   rarity spread over seeds 1..60:', JSON.stringify(tiers), '| best:', topInterest, '@seed', topSeed);
   const distinct = Object.keys(tiers).length;
   ok('the sweep produces a spread of rarities (not one tier)', distinct >= 3, `${distinct} tiers`);
   ok('at least one genuinely viable (Rare+) ecosystem exists', topInterest >= 55, `best ${topInterest}`);
+  ok('no scored roll diverges (adaptive step keeps every web finite)', insane === 0, insane ? `${insane} insane, e.g. seed ${insaneSeed}` : '');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
