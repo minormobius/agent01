@@ -69,6 +69,48 @@
       }
       .chip b { display: block; color: var(--gold-soft); font-size: 20px; }
       .chip span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .shaper {
+        background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+        padding: 8px 16px 16px; margin-bottom: 18px;
+      }
+      .shaper > summary {
+        cursor: pointer; padding: 8px 0; color: var(--gold-soft); font-weight: 600;
+        list-style: none;
+      }
+      .shaper > summary::-webkit-details-marker { display: none; }
+      .shaper > summary::before { content: "▸ "; color: var(--gold); }
+      .shaper[open] > summary::before { content: "▾ "; }
+      .sliders {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px 22px; margin-top: 8px;
+      }
+      .ctl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
+      .ctl label { color: var(--muted); font-size: 13px; }
+      .ctl output { color: var(--gold-soft); font-variant-numeric: tabular-nums; font-size: 13px; min-width: 3.2em; text-align: right; }
+      .ctl input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); }
+      .ctl.toggle { grid-template-columns: 1fr auto; }
+      .ctl.toggle input { accent-color: var(--gold); width: 18px; height: 18px; }
+      .shaper-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+      .shaper-note { color: var(--muted); font-size: 12px; }
+      .compass-wrap { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+      .compass {
+        position: relative; width: 240px; height: 240px; flex: 0 0 auto;
+        border: 1px solid var(--line); border-radius: 12px; cursor: crosshair;
+        background:
+          radial-gradient(circle at 0% 100%, rgba(216,166,87,0.16), transparent 60%),
+          radial-gradient(circle at 100% 0%, rgba(233,200,140,0.14), transparent 60%),
+          var(--bg);
+        touch-action: none;
+      }
+      .cmp-lbl { position: absolute; color: var(--muted); font-size: 11px; letter-spacing: 0.03em; }
+      .cmp-lbl.tl { top: 6px; left: 8px; } .cmp-lbl.tr { top: 6px; right: 8px; }
+      .cmp-lbl.bl { bottom: 6px; left: 8px; } .cmp-lbl.br { bottom: 6px; right: 8px; }
+      .cmp-handle {
+        position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+        border-radius: 50%; background: var(--gold); border: 2px solid var(--bg);
+        box-shadow: 0 0 0 1px var(--gold); pointer-events: none;
+      }
+      .compass-ctls { flex: 1 1 220px; min-width: 200px; display: grid; gap: 10px; }
       footer { padding: 24px clamp(16px, 4vw, 48px); color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
       footer a { color: var(--gold); }
       code { background: #000; padding: 1px 5px; border-radius: 5px; color: var(--gold-soft); }
@@ -94,10 +136,50 @@
         <a id="download" class="btn ghost" download>Download .ttf</a>
       </div>
 
+      <details class="shaper" id="compass-panel" open>
+        <summary>Archetype compass — coarse navigation</summary>
+        <div class="compass-wrap">
+          <div class="compass" id="compass">
+            <span class="cmp-lbl tl">geometric · serif</span>
+            <span class="cmp-lbl tr">humanist · serif</span>
+            <span class="cmp-lbl bl">geometric · sans</span>
+            <span class="cmp-lbl br">humanist · sans</span>
+            <div class="cmp-handle" id="cmp-handle"></div>
+          </div>
+          <div class="compass-ctls">
+            <div class="ctl"><label for="sl-z">Contrast (→ Didone)</label><output id="out-z">—</output><input id="sl-z" type="range" min="0" max="1" step="0.01" /></div>
+            <div class="ctl"><label for="sl-spread">Spread (hypersphere)</label><output id="out-spread">—</output><input id="sl-spread" type="range" min="0" max="1" step="0.02" /></div>
+            <span class="shaper-note">Drag the dot to blend the four corner archetypes; <em>Roll</em> re-jitters inside the spread radius. Tune the result with the sliders below.</span>
+          </div>
+        </div>
+      </details>
+
+      <details class="shaper" id="shaper">
+        <summary>Shape it — live sliders</summary>
+        <div class="sliders" id="sliders"></div>
+        <div class="shaper-row">
+          <button id="reset" class="ghost">Reset to seed</button>
+          <span class="shaper-note">
+            Sliders reshape this roll live. <em>Roll a new font</em> picks a fresh
+            seed and resets them. (The <code>?s=</code> permalink saves the seed,
+            not the slider tweaks — yet.)
+          </span>
+        </div>
+      </details>
+
       <div class="specimen">
         <p class="big display" contenteditable="true" spellcheck="false">HANDGLOVES</p>
         <p class="mid display">THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG</p>
-        <p class="alpha display">ABCDEFGHIJKLMNOPQRSTUVWXYZ . , -</p>
+        <p class="alpha display">ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 . , -</p>
+      </div>
+
+      <div class="specimen">
+        <p class="big display" contenteditable="true" spellcheck="false">handgloves</p>
+        <p class="mid display">the quick brown fox jumps over the lazy dog</p>
+        <p class="alpha display">abcdefghijklmnopqrstuvwxyz 0123456789 . , -</p>
+        <p class="alpha display">! ? : ; ( ) / ' " + = &nbsp; café señor déjà Č š ž</p>
+        <p class="alpha display">ΑΒΓΔ ΘΛΞΠΣ ΦΨΩ αβγδεθλμπσφω &nbsp; БДЖИ ЛПФЦ ШЩЭЮЯ джклмшщя</p>
+        <p class="alpha display">∀ε&gt;0 ∃δ : ∑ ∏ ∫ √ ∂ ∇ ∞ ≤ ≥ ≠ ≈ ± × ÷ ∈ ∉ ⊂ ∪ ∩ ∅ → ↔ ¬ ∧ ∨</p>
       </div>
 
       <div class="meta" id="meta"></div>

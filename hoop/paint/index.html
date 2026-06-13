@@ -66,6 +66,15 @@
         <b>Zones</b> force higher-order structure: rooms agglomerate into sized super-regions (a
         housing unit, a hospital) — dense doors inside a zone, sparse arterials between them.
       </p>
+      <p class="note">
+        <b>Desire-line roads</b> grow streets the naturalistic way: place attractors (homes, work,
+        the daily basket), route the trips, and let conductance follow flux. Roads are the
+        <b>superlevel set of the traffic field</b> — the chambers the most journeys cross become open
+        concourse (zero walls); the rest stay sequestered buildings with <b>one door each</b>. That
+        traffic field is the Laplace transform of NPC motion, so the same solve gives the streets and
+        the foot-traffic glow at once. <b>μ</b> dials grid (sublinear, many parallel streets) ↔ tree
+        (superlinear, one arterial).
+      </p>
 
       <div class="ctl">
         <label>wall spacing <span class="v" id="v-ws">8</span></label>
@@ -88,6 +97,16 @@
         <input type="range" id="zn" min="4" max="64" step="1" value="12">
       </div>
 
+      <label class="row"><input type="checkbox" id="t-flux"> <b style="color:var(--gold)">desire-line roads</b> (grown from traffic)</label>
+      <div class="ctl">
+        <label>road braiding μ (grid ↔ tree) <span class="v" id="v-mu">0.75</span></label>
+        <input type="range" id="mu" min="30" max="220" step="5" value="75">
+      </div>
+      <div class="ctl">
+        <label>street fraction <span class="v" id="v-rf">32%</span></label>
+        <input type="range" id="rf" min="10" max="60" step="2" value="32">
+      </div>
+
       <label class="row"><input type="checkbox" id="t-mix"> mixed program (housing + hospital)</label>
       <label class="row"><input type="checkbox" id="t-zone" checked> tint zones</label>
       <label class="row"><input type="checkbox" id="t-plan"> show the exact floor plan</label>
@@ -102,16 +121,19 @@
         <span class="ro"><span class="k">paint cells</span><span class="val" id="r-cells">—</span></span>
         <span class="ro"><span class="k">zones</span><span class="val" id="r-zones">—</span></span>
         <span class="ro"><span class="k">wall / floor nuclei</span><span class="val" id="r-nuc">—</span></span>
+        <span class="ro"><span class="k">streets (rooms · seg)</span><span class="val" id="r-roads2">—</span></span>
       </div>
     </aside>
   </main>
 
   <script type="module">
     import { buildScene } from './voronoi.js';
+    import { growRoads } from './flux.js';
 
     const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
     const $ = (id) => document.getElementById(id);
     let scene = null, seed = 1, W = 0, H = 0, dpr = 1;
+    let flux = null;                                   // the desire-line model (when the mode is on)
 
     const params = () => ({ W, H, wallSpacing: +$('ws').value, roomSpacing: +$('rs').value, roomSize: +$('rm').value, loops: +$('lp').value / 100, zoneSize: +$('zn').value, mixed: $('t-mix').checked, interLoops: 0.12, seed });
 
@@ -123,10 +145,45 @@
     function zoneColor(z) { return `hsl(${((z * 137.508) % 360).toFixed(0)} 26% ${(19 + (z % 5)).toFixed(0)}%)`; } // golden-angle hues
     function poly(p) { if (p.length < 3) return; ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); }
 
+    // ── desire-line mode: the street network as the superlevel set of the NPC traffic field.
+    //    Roads are drawn as continuous open concourse (zero walls for the shot); buildings glow by
+    //    their ambient traffic (the Laplace field); the network reads in a tier hierarchy; each
+    //    building shows its single door. One solve gave us roads AND the NPC motion at once. ──
+    function drawFlux() {
+      const m = flux.model, cls = flux.paintClass, traffic = m.traffic;
+      let peak = 1e-9; for (const t of traffic) if (t > peak) peak = t;
+      const heat = (room) => { const x = room != null ? Math.min(1, traffic[room] / peak) : 0; return `hsl(${(34 - x * 16).toFixed(0)} ${(18 + x * 60).toFixed(0)}% ${(11 + x * 30).toFixed(0)}%)`; };
+      const ROAD = '#243a33', OPEN = '#2c463c';
+      for (let i = 0; i < scene.paintCells.length; i++) {
+        const c = scene.paintCells[i]; if (c.poly.length < 3) continue;
+        const k = cls[i];
+        ctx.fillStyle = k === 1 ? OPEN : k === 4 ? ROAD : k === 3 ? 'hsl(44 40% 30%)' : k === 2 ? '#0a0e12' : heat(c.room);
+        poly(c.poly); ctx.fill();
+      }
+      // building cell definition (skip road cells so the concourse reads as one open space)
+      ctx.lineWidth = 0.5; ctx.strokeStyle = 'rgba(20,28,34,0.5)';
+      for (let i = 0; i < scene.paintCells.length; i++) { const c = scene.paintCells[i]; const k = cls[i]; if (k === 1 || k === 4 || c.poly.length < 3) continue; poly(c.poly); ctx.stroke(); }
+      // the road network, by tier: footpath (faint teal) · street (green) · arterial (gold)
+      const byId = new Map(scene.roomSeeds.map((s) => [s.id, s]));
+      const tierStyle = [null, ['rgba(127,216,208,0.45)', 1.2], ['rgba(121,200,160,0.75)', 2.2], ['rgba(244,191,98,0.95)', 3.6]];
+      for (let t = 1; t <= 3; t++) {
+        ctx.strokeStyle = tierStyle[t][0]; ctx.lineWidth = tierStyle[t][1]; ctx.lineCap = 'round'; ctx.beginPath();
+        for (let i = 0; i < scene.adjEdges.length; i++) { if (m.tier[i] !== t) continue; const e = scene.adjEdges[i], a = byId.get(e.a), b = byId.get(e.b); if (!a || !b) continue; ctx.moveTo(a.x, a.y); ctx.lineTo(e.m[0], e.m[1]); ctx.lineTo(b.x, b.y); }
+        ctx.stroke();
+      }
+      // each building's single door — a threshold dot on the opened wall
+      ctx.fillStyle = 'rgba(244,191,98,0.9)';
+      for (let b = 0; b < m.n; b++) { const ei = m.doorEdge[b]; if (ei < 0) continue; const e = scene.adjEdges[ei]; ctx.beginPath(); ctx.arc(e.m[0], e.m[1], 1.8, 0, Math.PI * 2); ctx.fill(); }
+      // the attractors that forced the field: work (warm), basket (cool), civic (violet)
+      const pcol = { work: 'rgba(231,140,91,0.9)', basket: 'rgba(127,180,216,0.9)', civic: 'rgba(180,140,216,0.9)' };
+      for (const s of scene.roomSeeds) { const p = flux.attractors.program[s.id], col = pcol[p]; if (!col) continue; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(s.x, s.y, 2.6, 0, Math.PI * 2); ctx.fill(); }
+    }
+
     function draw() {
       if (!scene) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+      if (flux) { drawFlux(); return; }
       const tintRooms = $('t-room').checked, tintZones = $('t-zone').checked;
       // paint cells
       for (const c of scene.paintCells) {
@@ -180,6 +237,7 @@
       // let the "building…" paint before the (sync) heavy build
       requestAnimationFrame(() => {
         scene = buildScene(p);
+        computeFlux();
         $('v-ws').textContent = p.wallSpacing; $('v-rs').textContent = p.roomSpacing; $('v-rm').textContent = p.roomSize;
         $('v-lp').textContent = Math.round(p.loops * 100) + '%'; $('v-zn').textContent = p.zoneSize;
         $('r-thick').textContent = Math.round(scene.band * 2) + ' px';
@@ -191,6 +249,15 @@
         $('busy').classList.remove('on');
       });
     }
+
+    // compute (or clear) the desire-line model for the current scene + dials; refresh the readouts.
+    function computeFlux() {
+      if (!scene || !$('t-flux').checked) { flux = null; $('r-roads2').textContent = '—'; return; }
+      flux = growRoads(scene, { seed, mu: +$('mu').value / 100, roadFrac: +$('rf').value / 100 });
+      const s = flux.model.stats;
+      $('r-roads2').textContent = s.roadRooms + ' rm · ' + s.roadEdgeCount + ' seg';
+    }
+    function recolor() { computeFlux(); draw(); }
 
     let deb = null;
     const schedule = () => { clearTimeout(deb); deb = setTimeout(rebuild, 130); };
@@ -208,6 +275,9 @@
     $('rm').addEventListener('input', () => { $('v-rm').textContent = $('rm').value; schedule(); });
     $('lp').addEventListener('input', () => { $('v-lp').textContent = $('lp').value + '%'; schedule(); });
     $('zn').addEventListener('input', () => { $('v-zn').textContent = $('zn').value; schedule(); });
+    $('mu').addEventListener('input', () => { $('v-mu').textContent = (+$('mu').value / 100).toFixed(2); recolor(); });
+    $('rf').addEventListener('input', () => { $('v-rf').textContent = $('rf').value + '%'; recolor(); });
+    $('t-flux').addEventListener('change', recolor);
     $('t-mix').addEventListener('change', schedule);
     $('t-zone').addEventListener('change', draw);
     $('t-plan').addEventListener('change', draw);

@@ -4,6 +4,31 @@
 
 use crate::prng::{xmur3, Rng};
 
+/// The construction genome: discrete-ish *drawing-style* genes that change how a
+/// glyph is built (not just how thick/wide it is). Where `Params` rolls the
+/// metrics, `Morph` rolls the gestures — aperture, overshoot, arch character,
+/// crossbar height — so two rolls differ in morphology, not only in weight.
+/// Each field is independent in v1; correlated "archetypes" (humanist /
+/// geometric / grotesque) are a later layer.
+pub struct Morph {
+    pub aperture: f64,  // opening of C/c/e/G counters: <1 closed, >1 open
+    pub overshoot: f64, // font units round letters spill past the baseline / cap
+    pub arch: f64,      // 0 round-humanist shoulder .. 1 flat/squared shoulder
+    pub bar: f64,       // crossbar height as a fraction of the relevant height
+    pub bowl: f64,      // a/b/d/p/q bowl wrap (deg): how far the arc closes before
+                        // attaching to the stem (0 = open D, larger = enclosed)
+    pub apex_flat: bool, // A: flat-topped (truncated apex) vs pointed "chopstick"
+    pub modulation: f64, // nib contrast: 0 = monoline, 1 = high thick/thin ratio
+                         // (how strongly weight varies with stroke angle)
+    pub two_story_a: bool, // double-story 'a' (text) vs single-story (geometric)
+    pub two_story_g: bool, // double-story 'g' (looped) vs single-story (open tail)
+    pub ball: bool,        // ball terminals on c / r (vs the nib's sheared cut)
+    pub ascender: f64,     // ascender height as a fraction of cap (b d f h k l)
+    pub descender: f64,    // descender depth as a fraction of cap (g j p q y)
+    pub tracking: f64,     // side-bearing multiplier (overall letter spacing)
+    pub roundwidth: f64,   // width multiplier for round letters / bowls
+}
+
 pub struct Params {
     pub upm: f64,
     pub cap: f64,
@@ -19,6 +44,8 @@ pub struct Params {
     pub serif: bool,
     pub serif_len: f64,
     pub serif_th: f64,
+    pub pen_angle: f64, // broad-nib stress axis (radians) for the pen-model glyphs
+    pub morph: Morph,   // construction genome (see above)
     pub weight_class: u16,
     pub width_class: u16,
     pub family: String,
@@ -42,6 +69,31 @@ impl Params {
         let serif = r.chance(0.45);
         let serif_len = stem * r.range(0.7, 1.4);
         let serif_th = (stem * 0.32).max(18.0);
+        // Broad-nib stress axis for the pen-model glyphs. Drawn LAST so adding it
+        // doesn't perturb the earlier draws — every existing seed keeps its other
+        // params (and thus its non-pen glyphs) byte-for-byte. 0° = vertical stress
+        // (thins on the horizontals), up to a humanist ~32° tilt.
+        let pen_angle = r.range(0.0, 36.0).to_radians();
+
+        // Construction genome — also drawn after the metric params so it never
+        // perturbs them. These reshape the letters themselves across rolls.
+        // Ranges are deliberately wide so rolls read as different designs.
+        let morph = Morph {
+            aperture: r.range(0.70, 1.32),
+            overshoot: r.range(0.0, 0.022) * cap,
+            arch: r.range(0.0, 1.0),
+            bar: r.range(0.42, 0.60),
+            bowl: r.range(0.0, 34.0),
+            apex_flat: r.chance(0.45),
+            modulation: r.range(0.0, 1.0),
+            two_story_a: r.chance(0.5),
+            two_story_g: r.chance(0.5),
+            ball: r.chance(0.28),
+            ascender: r.range(0.94, 1.12),
+            descender: r.range(0.16, 0.28),
+            tracking: r.range(0.82, 1.28),
+            roundwidth: r.range(0.92, 1.12),
+        };
 
         let weight_class =
             (((stem - 58.0) / (168.0 - 58.0)) * 700.0 + 200.0).round().clamp(100.0, 900.0) as u16;
@@ -73,12 +125,61 @@ impl Params {
             serif,
             serif_len,
             serif_th,
+            pen_angle,
+            morph,
             weight_class,
             width_class,
             family,
             ps_name,
             style,
         }
+    }
+
+    /// Override fields from a `key=value;key=value` string — the live sliders.
+    /// Unknown keys are ignored; values out of range are clamped. Derived fields
+    /// (slant tangent, weight class) are recomputed so the override is coherent.
+    pub fn apply_spec(&mut self, spec: &str) {
+        for kv in spec.split(';') {
+            let mut it = kv.splitn(2, '=');
+            let (k, v) = match (it.next(), it.next()) {
+                (Some(k), Some(v)) => (k.trim(), v.trim()),
+                _ => continue,
+            };
+            let f: f64 = match v.parse() {
+                Ok(x) => x,
+                Err(_) => continue,
+            };
+            match k {
+                "stem" => self.stem = f.clamp(16.0, 280.0),
+                "mod" => self.morph.modulation = f.clamp(0.0, 1.0),
+                "pen" => self.pen_angle = f.clamp(-20.0, 50.0).to_radians(),
+                "width" => self.width = f.clamp(0.55, 1.7),
+                "slant" => self.slant_deg = f.clamp(-12.0, 30.0),
+                "xh" => self.xheight = f.clamp(0.40, 0.95) * self.cap,
+                "aperture" => self.morph.aperture = f.clamp(0.40, 1.70),
+                "arch" => self.morph.arch = f.clamp(0.0, 1.0),
+                "bar" => self.morph.bar = f.clamp(0.28, 0.72),
+                "bowl" => self.morph.bowl = f.clamp(0.0, 55.0),
+                "over" => self.morph.overshoot = f.clamp(0.0, 0.06) * self.cap,
+                "asc" => self.morph.ascender = f.clamp(0.85, 1.25),
+                "desc" => self.morph.descender = f.clamp(0.08, 0.40),
+                "track" => self.morph.tracking = f.clamp(0.5, 1.8),
+                "round" => self.morph.roundwidth = f.clamp(0.78, 1.30),
+                "seriflen" => self.serif_len = f.clamp(0.0, 300.0),
+                "serifth" => self.serif_th = f.clamp(2.0, 140.0),
+                "serif" => self.serif = f != 0.0,
+                "apex" => self.morph.apex_flat = f != 0.0,
+                "a2" => self.morph.two_story_a = f != 0.0,
+                "g2" => self.morph.two_story_g = f != 0.0,
+                "ball" => self.morph.ball = f != 0.0,
+                _ => {}
+            }
+        }
+        // recompute derived bits so the override stays self-consistent
+        self.slant_tan = self.slant_deg.to_radians().tan();
+        self.thin = (self.stem * (1.0 - self.contrast * 0.7)).max(20.0);
+        self.weight_class =
+            (((self.stem - 58.0) / (168.0 - 58.0)) * 700.0 + 200.0).round().clamp(100.0, 900.0) as u16;
     }
 }
 

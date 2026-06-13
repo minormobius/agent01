@@ -1,6 +1,6 @@
 // econ.selftest.mjs — pins the economy-as-ecosystem kernel (hoop/econ/econ.js).
 // Run: node hoop/test/econ.selftest.mjs
-import { buildField, buildSociety, socialMetrics, removeImpact, makePlace, ROLES, ROLE_MIX, DOMAINS } from '../econ/econ.js';
+import { buildField, buildWorld, buildSociety, socialMetrics, removeImpact, scoreSociety, vitalityTier, rollGenome, route, makePlace, ROLES, ROLE_MIX, DOMAINS, DEFAULT_GENOME, FOOTPRINT, ARCHETYPES } from '../econ/econ.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -88,6 +88,95 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m)
   const a = buildSociety(f, { seed: 7 }), b = buildSociety(f, { seed: 7 });
   ok(a.people.length === b.people.length && a.affiliations === b.affiliations && a.avgHats === b.avgHats, 'buildSociety is deterministic');
   ok(socialMetrics(f, a).avgReach === socialMetrics(f, b).avgReach, 'socialMetrics is deterministic');
+}
+
+// ── BUILDINGS AS CLUMPS OF CELLS — function → size → footprint ──
+{
+  const w = buildWorld({ W: 1400, H: 900, cells: 8000, seed: 5 });
+  ok(w.cells.length > 6000, 'a fine cell substrate (many cells)');
+  ok(w.places.length > 200 && w.places.length < w.cells.length, 'cells agglomerate up into far fewer buildings');
+  ok(w.cells.length > w.places.length * 3, 'far more cells than buildings (buildings are clumps)');
+  ok(w.places.every((p) => p.footprint >= 1 && Array.isArray(p.cells) && p.cells.length === p.footprint), 'every building owns a clump of cells (footprint = cell count)');
+  // every cell belongs to exactly one building (a partition)
+  const owned = w.places.reduce((s, p) => s + p.footprint, 0);
+  ok(owned === w.cells.filter((c) => c.building >= 0).length, 'the cell→building map is a partition (cells sum to footprints)');
+  ok(w.closure > 0.8, 'the supply web over buildings largely closes (got ' + (w.closure * 100).toFixed(0) + '%)');
+
+  // FUNCTION SETS SIZE: civic anchors are big, dwellings are small — the right ordering, and tracking the targets
+  const avgFp = {}; for (const role of Object.keys(ROLES)) { const a = w.places.filter((p) => p.role === role).map((p) => p.footprint); if (a.length) avgFp[role] = a.reduce((s, x) => s + x, 0) / a.length; }
+  ok(avgFp.govern > avgFp.dwell * 3, 'a council hall is many times a dwelling (function → size)');
+  ok(avgFp.heal > avgFp.make && avgFp.learn > avgFp.make, 'civic buildings (hospital, school) dwarf a workshop');
+  ok(avgFp.dwell >= 2, 'a dwelling is still a real clump of cells, not a single cell (got ' + avgFp.dwell.toFixed(1) + ')');
+  // footprints track the genome targets (within the graph-Voronoi tolerance)
+  ok(Math.abs(avgFp.dwell - FOOTPRINT.dwell) < 3 && Math.abs(avgFp.worship - FOOTPRINT.worship) < 8, 'footprints track the FOOTPRINT targets');
+}
+
+// ── PATHING: the building-adjacency graph routes building → building ──
+{
+  const w = buildWorld({ W: 1200, H: 800, cells: 6000, seed: 3 });
+  ok(w.adj.size > 0 && w.paths.length >= w.places.length - 1, 'a path network spans the buildings (≥ buildings − 1 trunk edges)');
+  // the trunk paths connect every building into one component
+  const par = Array.from({ length: w.places.length }, (_, i) => i), find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  for (const e of w.paths) par[find(e.a)] = find(e.b);
+  ok(new Set(w.places.map((p) => p.id)).size && new Set(w.places.map((p) => find(p.id))).size === 1, 'the trunk path network connects every building (one component)');
+  const r = route(w, 0, w.places.length - 1);
+  ok(Array.isArray(r) && r[0] === 0 && r[r.length - 1] === w.places.length - 1, 'route() returns a building→building path (home to clinic)');
+  ok(r.every((id, i) => i === 0 || w.adj.get(r[i - 1]).includes(id)), 'every step in the route crosses a real adjacency (mechanically walkable)');
+}
+
+// ── THE SOCIAL GENOME — a seed breeds a whole society, deterministically ──
+{
+  ok(Object.keys(DEFAULT_GENOME.roleMix).length === Object.keys(ROLES).length || DEFAULT_GENOME.roleMix.dwell, 'the wild-type genome carries the programme (role mix)');
+  ok(DEFAULT_GENOME.footprint.govern > DEFAULT_GENOME.footprint.dwell, 'the genome encodes building size by function');
+  const g1 = rollGenome(42), g2 = rollGenome(42), g3 = rollGenome(99);
+  ok(JSON.stringify(g1) === JSON.stringify(g2), 'rollGenome is deterministic for a given roll number');
+  ok(JSON.stringify(g1) !== JSON.stringify(g3), 'a different roll breeds a different genome');
+  ok(g1.roleMix.dwell >= 1 && g1.footprint.dwell >= 1 && g1.household.mean >= 1, 'a rolled genome stays in sane bounds');
+  // the genome actually steers the world: a roll with a different programme builds a different town
+  const wA = buildWorld({ W: 1000, H: 700, cells: 5000, seed: 7 });
+  const wB = buildWorld({ W: 1000, H: 700, cells: 5000, seed: 7, genome: g3 });
+  ok(wA.places.length !== wB.places.length || wA.counts.dwell !== wB.counts.dwell, 'the genome steers what gets built (a roll changes the town)');
+  // world generation is deterministic from (genome, seed)
+  const wC = buildWorld({ W: 1000, H: 700, cells: 5000, seed: 7, genome: g3 });
+  ok(wB.places.length === wC.places.length && wB.closure === wC.closure, 'buildWorld is deterministic from (genome, seed)');
+}
+
+// ── THE VITALITY ORACLE — score a society, the thing we test the genome against ──
+{
+  const w = buildWorld({ W: 1400, H: 900, cells: 8000, seed: 5 });
+  const s = buildSociety(w, { seed: 5 });
+  const m = socialMetrics(w, s);
+  const sc = scoreSociety(w, s, m);
+  ok(sc.vitality >= 0 && sc.vitality <= 100, 'vitality is a 0..100 score');
+  ok(['Thriving', 'Healthy', 'Stable', 'Fragile', 'Failing'].includes(sc.tier), 'a society gets a vitality tier');
+  ok(sc.tier === vitalityTier(sc.vitality), 'the tier matches the score');
+  ok(Object.values(sc.signals).every((v) => v >= 0 && v <= 1), 'every viability sub-signal is a 0..1 fraction');
+  ok(typeof sc.headline === 'string' && sc.headline.length > 0, 'the oracle writes a headline verdict');
+  ok(sc.vitality > 55, 'a well-formed default town scores at least Stable (got ' + sc.vitality + ' ' + sc.tier + ')');
+  // determinism
+  const sc2 = scoreSociety(w, buildSociety(w, { seed: 5 }), socialMetrics(w, s));
+  ok(sc.vitality === sc2.vitality, 'scoreSociety is deterministic');
+  // an ATOMISED society (no third places, no bridges) scores worse than the rich default — the oracle has teeth
+  const thin = rollGenome(1, { ...DEFAULT_GENOME, affinity: { garden: 0.05, worship: 0.02, club: 0.02, sport: 0.0, bridge: 0.0, workTries: 6 } });
+  const ws = buildWorld({ W: 1400, H: 900, cells: 8000, seed: 5 });
+  const ss = buildSociety(ws, { seed: 5, genome: { ...DEFAULT_GENOME, affinity: { garden: 0.05, worship: 0.02, club: 0.02, sport: 0.0, bridge: 0.0, workTries: 6 } } });
+  const scThin = scoreSociety(ws, ss, socialMetrics(ws, ss));
+  ok(scThin.vitality < sc.vitality, 'a thin, atomised society scores worse than the rich default (oracle discriminates: ' + scThin.vitality + ' < ' + sc.vitality + ')');
+}
+
+// ── ARCHETYPES — the genome expresses different societies, and the oracle ranks them ──
+{
+  ok(ARCHETYPES.some((a) => a.id === 'dormitory') && ARCHETYPES.some((a) => a.id === 'commons'), 'the genome carries society archetypes (dormitory … commons)');
+  const rollArc = (id) => { for (let n = 1; n < 5000; n++) { const g = rollGenome(n); if (g.archetype === id) return g; } return null; };
+  const gC = rollArc('commons'), gD = rollArc('dormitory');
+  ok(gC && gD, 'both a commons and a dormitory genome are reachable by rolling');
+  const score = (g) => { const w = buildWorld({ W: 1300, H: 850, cells: 7000, seed: 5, genome: g }); const s = buildSociety(w, { seed: 5, genome: g }); return scoreSociety(w, s, socialMetrics(w, s)); };
+  // a commons (rich third places + bridges) out-scores a dormitory (starved third places) — the gradient is real
+  ok(score(gC).vitality > score(gD).vitality, 'a commons out-scores a dormitory (the oracle ranks society types: ' + score(gC).vitality + ' > ' + score(gD).vitality + ')');
+  // the dormitory really does have a thinner social fabric (fewer third-placers)
+  const wD = buildWorld({ W: 1300, H: 850, cells: 7000, seed: 5, genome: gD });
+  const wC = buildWorld({ W: 1300, H: 850, cells: 7000, seed: 5, genome: gC });
+  ok(buildSociety(wD, { seed: 5, genome: gD }).thirdsFrac < buildSociety(wC, { seed: 5, genome: gC }).thirdsFrac, 'a dormitory keeps fewer third places than a commons (the archetype bites)');
 }
 
 console.log(`econ.selftest: ${pass} passed, ${fail} failed`);
