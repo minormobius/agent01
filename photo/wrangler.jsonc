@@ -6,5 +6,12 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
+  },
+  // /dm posts uploaded pictures as the morphyx service account and DMs them
+  // into morphyx's group chat. The app password is a secret (set out-of-band):
+  //   wrangler secret put MORPHYX_APP_PASSWORD   (must be a DM-enabled app pw)
+  // Optional: wrangler secret put MORPHYX_CONVO_ID  (pin a specific group chat)
+  "vars": {
+    "MORPHYX_HANDLE": "morphyxmino.bsky.social"
   }
 }

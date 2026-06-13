@@ -15,12 +15,18 @@
 //   "Uploading a Pages _worker.js file as an asset"
 // from wrangler is the giveaway: _worker.js is for Pages, not Workers.
 //
+// /api/dm/post is the backend for the /dm group-chat picture sender — it
+// posts an uploaded image as the morphyx service account and DMs it into
+// morphyx's group chat. See dm-worker.js for the full flow.
+//
 // /api/img is a same-origin image proxy used by the orb (and anything
 // else needing canvas/WebGPU access to cross-origin Bluesky images).
 // cdn.bsky.app appears to Origin-check cross-origin browser fetches and
 // returns 403; server-side fetch doesn't send a browser Origin header,
 // so the upstream returns 200, and we re-emit with permissive CORS so
 // canvas/WebGPU can read the bytes.
+
+import { handleDmPost } from './dm-worker.js';
 
 const ALLOWED_HOST_SUFFIXES = ['.bsky.app', '.bsky.network'];
 const PROXY_VERSION = 'orb-img-proxy-v4-worker-main';
@@ -129,6 +135,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/img') return handleImgProxy(request);
     if (url.pathname === '/api/model') return handleModelProxy(request);
+    if (url.pathname === '/api/dm/post') return handleDmPost(request, env);
     // Everything else: serve the Vite build output as-is.
     return env.ASSETS.fetch(request);
   },

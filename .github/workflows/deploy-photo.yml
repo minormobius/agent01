@@ -2,7 +2,7 @@ name: Deploy ATPhoto
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/photo-deploy-surface-hwkjhf']
     paths:
       - 'photo/**'
       - '.github/workflows/deploy-photo.yml'

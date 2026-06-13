@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>photo · dm</title>
+  <meta name="description" content="Send a picture into the morphyx group chat — posted to Bluesky, dropped in the DM, no commentary." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✉️</text></svg>" />
+  <style>
+    :root {
+      --bg: #0e1116;
+      --panel: #161b22;
+      --panel-2: #1c232d;
+      --line: #2a323d;
+      --ink: #e6edf3;
+      --muted: #8b97a6;
+      --accent: #4c8dff;
+      --accent-ink: #fff;
+      --ok: #3fb950;
+      --err: #f85149;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #18202b, var(--bg));
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 60px;
+    }
+    a { color: var(--accent); }
+    .wrap { width: 100%; max-width: 440px; }
+    header { text-align: center; margin: 18px 0 22px; }
+    header .crumb { font-size: 13px; color: var(--muted); letter-spacing: .04em; }
+    header .crumb a { text-decoration: none; }
+    header h1 { font-size: 26px; margin: 8px 0 6px; letter-spacing: -.01em; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .row { display: flex; align-items: center; gap: 10px; }
+    .grow { flex: 1; }
+    .muted { color: var(--muted); font-size: 13px; }
+    button {
+      font: inherit;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:disabled { opacity: .5; cursor: default; }
+    .btn-primary { background: var(--accent); color: var(--accent-ink); width: 100%; }
+    .btn-ghost { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
+    input[type="text"] {
+      font: inherit;
+      width: 100%;
+      padding: 11px 13px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--ink);
+    }
+    input[type="text"]:focus { outline: none; border-color: var(--accent); }
+    label.field { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    .drop {
+      border: 2px dashed var(--line);
+      border-radius: var(--radius);
+      padding: 34px 16px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      background: var(--panel-2);
+    }
+    .drop.hot { border-color: var(--accent); background: #19222f; color: var(--ink); }
+    .drop .big { font-size: 30px; display: block; margin-bottom: 6px; }
+    .preview { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+    .preview img { display: block; width: 100%; max-height: 420px; object-fit: contain; background: #000; }
+    .preview .change {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,.6); color: #fff; border: 1px solid rgba(255,255,255,.2);
+      padding: 6px 10px; font-size: 12px;
+    }
+    .stack > * + * { margin-top: 14px; }
+    .hidden { display: none !important; }
+    .status { font-size: 14px; border-radius: 10px; padding: 12px 14px; line-height: 1.5; }
+    .status.ok { background: rgba(63,185,80,.12); border: 1px solid rgba(63,185,80,.4); }
+    .status.err { background: rgba(248,81,73,.12); border: 1px solid rgba(248,81,73,.4); }
+    .status.info { background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      display: inline-block; vertical-align: -3px; margin-right: 8px;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    footer { margin-top: 22px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">photo</a> · dm</div>
+      <h1>✉️ Drop a picture in the chat</h1>
+      <p>Sign in, pick one image. <strong>morphyx</strong> posts it to Bluesky with no commentary and shares it straight into the group DM.</p>
+    </header>
+
+    <!-- Signed out -->
+    <div id="auth-card" class="card stack hidden">
+      <div>
+        <label class="field" for="handle">Your Bluesky handle</label>
+        <input id="handle" type="text" placeholder="you.bsky.social" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      </div>
+      <button id="login-btn" class="btn-primary">Sign in with Bluesky</button>
+      <p class="muted">Identity only — we never get write access to your account. The picture is posted by the morphyx service account.</p>
+    </div>
+
+    <!-- Signed in -->
+    <div id="app-card" class="card stack hidden">
+      <div class="row">
+        <span class="grow muted">Signed in as <strong id="who"></strong></span>
+        <button id="logout-btn" class="btn-ghost" style="padding:7px 12px;font-size:13px;">Sign out</button>
+      </div>
+
+      <div id="drop" class="drop">
+        <span class="big">🖼️</span>
+        Tap to choose an image, or drop one here
+        <div class="muted" style="margin-top:6px;">A single picture · JPG, PNG, WebP, GIF</div>
+      </div>
+
+      <div id="preview-wrap" class="preview hidden">
+        <img id="preview-img" alt="" />
+        <button id="change-btn" class="btn-ghost change">Change</button>
+      </div>
+
+      <button id="send-btn" class="btn-primary" disabled>Send to the group</button>
+
+      <div id="status" class="status info hidden"></div>
+
+      <input id="file" type="file" accept="image/*" class="hidden" />
+    </div>
+
+    <div id="boot" class="status info">Loading…</div>
+
+    <footer class="muted">Posts appear at <a href="https://bsky.app/profile/morphyxmino.bsky.social" target="_blank" rel="noopener">@morphyxmino.bsky.social</a></footer>
+  </div>
+
+  <script type="module" src="./dm.js"></script>
+</body>
+</html>
