@@ -22,7 +22,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk the @ anywhere you can see — it threads the gold gates across every seam (rooms are ~15 m) · buildings glow by what they are · the world streams in at the edge of view · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk the @ anywhere you can see — it threads the gold gates across every seam (rooms are ~15 m) · buildings glow by what they are, the whole deck is lit · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="rail"></div>
 <div id="busy">waking the world…</div>
@@ -107,33 +107,40 @@ function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H 
 addEventListener('resize', resize);
 const ROAD = '#2c463c', DOOR = 'hsl(44 40% 30%)', WALLC = '#0a0e12', VOIDC = '#070a0d', FOG = '#0b0f12';
 const ROAD_RGB = [44, 70, 60], DOOR_RGB = [120, 92, 50];
+// every cell type is an albedo + a light-response gain — NOTHING renders pure-black: walls and void
+// are dark stone that still catch a neighbour's glow, floors/roads/buildings take full light.
+const WALL_RGB = [22, 28, 34], VOID_RGB = [12, 16, 20], FOG_RGB = [18, 24, 30];
+const SEAM_INK = 'rgba(7,10,13,0.42)';                     // faint plate seam (the hand-inked look)
 
-// ── LIGHTING (v3 art leg, phase 1: v1's room-light buffer ported to the stitched deck) ──────────
+// ── LIGHTING (v3 art leg: v1's room-light buffer ported to the stitched deck) ────────────────────
 // A CPU float light buffer (additive quadratic splats, the cousin of v1 world.js _buildLight),
 // sampled per paint cell. Function-matched emission: a building lights by what it IS — a forge
 // flickers warm, an observatory is dim, a clinic is a steady white — and the concourse carries cool
-// street lamps. No occlusion yet (v1 had none either; the walk-graph-occluded version is a later
-// leg). Walls + void stay unlit dark mass so structure still reads.
+// street lamps. A warm ambient floor washes every cell so the whole deck is lit; walls/void take a
+// reduced gain so structure still reads. No occlusion yet (the walk-graph-occluded version is later).
 const ROLE_LIGHT = {                                       // [intensity, flicker, baseRadius·cells]
-  dwell: [0.55, 0.18, 0.9], grow: [0.42, 0.05, 1.0], make: [0.95, 0.45, 1.0], mend: [0.70, 0.30, 0.9],
-  trade: [0.80, 0.10, 1.0], serve: [0.85, 0.20, 0.9], play: [0.90, 0.25, 1.0], heal: [0.85, 0.04, 1.1],
-  learn: [0.65, 0.05, 1.0], worship: [0.45, 0.08, 1.1], govern: [0.78, 0.06, 1.2], move: [0.35, 0.04, 0.8],
-  store: [0.30, 0.03, 0.8], _default: [0.50, 0.10, 0.9],
+  dwell: [0.62, 0.18, 1.0], grow: [0.50, 0.05, 1.1], make: [1.05, 0.45, 1.1], mend: [0.80, 0.30, 1.0],
+  trade: [0.90, 0.10, 1.1], serve: [0.95, 0.20, 1.0], play: [1.00, 0.25, 1.1], heal: [0.95, 0.04, 1.2],
+  learn: [0.75, 0.05, 1.1], worship: [0.55, 0.08, 1.2], govern: [0.88, 0.06, 1.3], move: [0.45, 0.04, 0.9],
+  store: [0.40, 0.03, 0.9], _default: [0.60, 0.10, 1.0],
 };
-const STREET_RGB = [150, 180, 206], STREET_I = 0.46, STREET_RAD = PX * 1.7;
-const AMB = 0.14, GAIN = 210, AMBIENT_FLOOR = 0.04;        // composite: albedo·AMB + light·GAIN
+const STREET_RGB = [156, 184, 210], STREET_I = 0.6, STREET_RAD = PX * 2.1;
+const AMB = 0.16, GAIN = 235;                              // composite: albedo·AMB + light·gain
+const WALL_GAIN = GAIN * 0.6, VOID_GAIN = GAIN * 0.45;     // dark mass still catches the glow
+const AMBIENT_RGB = [0.105, 0.097, 0.085];                // warm base wash — EVERY cell gets light
+const BUILD_MULT = 1.18;                                   // overall brighten on building emitters
 const hexRGB = (h) => { const n = parseInt(h.slice(1), 16); return h.length >= 7 ? [n >> 16 & 255, n >> 8 & 255, n & 255] : [136, 136, 136]; };
 const ROLE_RGB_CACHE = {};
 const roleRGB = (role) => ROLE_RGB_CACHE[role] || (ROLE_RGB_CACHE[role] = hexRGB(ROLE_COLOR[role] || '#3a4248'));
 
 // per-region emitter list (static — cached on the view): one light per building (role-tuned, sized
-// by footprint) + cool street lamps sampled along the concourse.
+// by footprint) + cool street lamps sampled densely along the concourse.
 function emittersOf(v) {
   if (v._emit) return v._emit;
   const build = [], street = [];
-  for (const g of v.bill) { const lt = ROLE_LIGHT[g.role] || ROLE_LIGHT._default; build.push({ x: g.x, y: g.y, rgb: roleRGB(g.role), I: lt[0], fl: lt[1], rad: PX * (lt[2] + 0.32 * Math.sqrt(g.n)) }); }
+  for (const g of v.bill) { const lt = ROLE_LIGHT[g.role] || ROLE_LIGHT._default; build.push({ x: g.x, y: g.y, rgb: roleRGB(g.role), I: lt[0] * BUILD_MULT, fl: lt[1], rad: PX * (lt[2] + 0.32 * Math.sqrt(g.n)) }); }
   let c = 0;
-  for (let i = 0; i < v.nReal && street.length < 48; i++) { if (v.owner[i] !== -1) continue; if ((c++ % 5) !== 0) continue; const p = v.seeds[i]; street.push({ x: p.x, y: p.y }); }
+  for (let i = 0; i < v.nReal && street.length < 110; i++) { if (v.owner[i] !== -1) continue; if ((c++ % 3) !== 0) continue; const p = v.seeds[i]; street.push({ x: p.x, y: p.y }); }
   return (v._emit = { build, street });
 }
 
@@ -157,7 +164,7 @@ function buildLight() {
   const x0 = AT.x - hx - pad, y0 = AT.y - hy - pad, N = bw * bh * 3;
   let data = LBUF.data;
   if (!data || data.length < N) data = new Float32Array(N);
-  for (let i = 0; i < N; i++) data[i] = AMBIENT_FLOOR;
+  for (let i = 0; i < N; i += 3) { data[i] = AMBIENT_RGB[0]; data[i + 1] = AMBIENT_RGB[1]; data[i + 2] = AMBIENT_RGB[2]; }
   const now = performance.now();
   const splat = (wx, wy, rgb, I, fl, rad) => {
     const flick = fl ? (1 - fl * 0.5 + fl * 0.5 * Math.sin(now / 130 + wx * 0.013 + wy * 0.017)) : 1;
@@ -181,33 +188,35 @@ function lightAt(wx, wy) {
   const bx = Math.max(0, Math.min(LBUF.bw - 1, (wx - LBUF.x0) / LBUF.LS | 0)), by = Math.max(0, Math.min(LBUF.bh - 1, (wy - LBUF.y0) / LBUF.LS | 0));
   const bi = (by * LBUF.bw + bx) * 3, d = LBUF.data; return [d[bi], d[bi + 1], d[bi + 2]];
 }
-const lit = (a, L) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * GAIN | 0) + ',' + Math.min(255, a[1] * AMB + L[1] * GAIN | 0) + ',' + Math.min(255, a[2] * AMB + L[2] * GAIN | 0) + ')';
+const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0) + ',' + Math.min(255, a[1] * AMB + L[1] * gain | 0) + ',' + Math.min(255, a[2] * AMB + L[2] * gain | 0) + ')';
 
-function paintRegion(v, off, ghostsAsFog) {
-  ctx.save(); ctx.translate(off.x, off.y);
+function paintRegion(v, off, ghostsAsFog, pulse) {
+  ctx.save(); ctx.translate(off.x, off.y); ctx.lineJoin = 'round';
   for (const c of v.scene.paintCells) {
     if (c.poly.length < 3) continue;
-    let col;
-    if (c.wall) col = WALLC;                                // walls: unlit dark mass (structure reads)
-    else if (c.room == null) col = VOIDC;
-    else if (c.room >= v.nReal) { if (!ghostsAsFog) continue; col = FOG; }
+    let base, gain, floorCell = false;
+    if (c.wall) { base = WALL_RGB; gain = WALL_GAIN; }     // dark stone, catches the glow
+    else if (c.room == null) { base = VOID_RGB; gain = VOID_GAIN; }
+    else if (c.room >= v.nReal) { if (!ghostsAsFog) continue; base = FOG_RGB; gain = VOID_GAIN; }
     else {
       const o = v.owner[c.room];
-      if (o === -2) col = VOIDC;
-      else {
-        const base = o === -1 ? ROAD_RGB : c.door ? DOOR_RGB : roleRGB(v.role[c.room]);
-        col = lit(base, lightAt(c.poly[0][0] + off.x, c.poly[0][1] + off.y));
-      }
+      if (o === -2) { base = VOID_RGB; gain = VOID_GAIN; }
+      else { base = o === -1 ? ROAD_RGB : c.door ? DOOR_RGB : roleRGB(v.role[c.room]); gain = GAIN; floorCell = true; }
     }
-    ctx.fillStyle = col;
+    ctx.fillStyle = lit(base, lightAt(c.poly[0][0] + off.x, c.poly[0][1] + off.y), gain);
     ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]);
     for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]);
     ctx.closePath(); ctx.fill();
+    if (floorCell) { ctx.strokeStyle = SEAM_INK; ctx.lineWidth = 0.6; ctx.stroke(); }   // plate seam
   }
-  // gates + glyphs
+  // gates — gold with a pulsing glow
+  ctx.save();
+  ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 9 + pulse * 7;
   ctx.fillStyle = 'rgba(244,191,98,0.95)';
-  for (const i of v.isGate) { const p = v.seeds[i]; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill(); }
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(232,224,198,0.82)';
+  for (const i of v.isGate) { const p = v.seeds[i]; ctx.beginPath(); ctx.arc(p.x, p.y, 7 + pulse * 1.6, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+  // building glyphs
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(238,230,205,0.88)';
   for (const g of v.bill) { if (g.n < 3) continue; ctx.font = Math.min(44, 16 + g.n * 3) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
   ctx.restore();
 }
@@ -218,11 +227,11 @@ function draw() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
   // camera: the @ at screen centre, always (THE recentre — chunking hidden)
-  const z = zoom;
+  const z = zoom, pulse = 0.5 + 0.5 * Math.sin(performance.now() / 600);
   ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.x * z), DPR * (H / 2 - AT.y * z));
   // active first (its ghost rim as fog), then neighbours over it (their reals replace the fog)
-  paintRegion(active, { x: 0, y: 0 }, true);
-  for (const v of visibleRegions()) { if (v === active) continue; paintRegion(v, offsetOf(v), false); }
+  paintRegion(active, { x: 0, y: 0 }, true, pulse);
+  for (const v of visibleRegions()) { if (v === active) continue; paintRegion(v, offsetOf(v), false, pulse); }
   // the route remaining
   if (AT.path && AT.t < AT.path.total) {
     ctx.strokeStyle = 'rgba(244,191,98,0.55)'; ctx.lineWidth = 2.6 / z; ctx.setLineDash([8 / z, 7 / z]); ctx.lineJoin = 'round';
@@ -232,13 +241,16 @@ function draw() {
     ctx.stroke(); ctx.setLineDash([]);
   }
   // the @ — gold with a soft pulsing glow so it reads against the dark ship
-  const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 600);
   ctx.save();
   ctx.shadowColor = 'rgba(255,206,120,0.9)'; ctx.shadowBlur = (12 + pulse * 8) / z;
   ctx.fillStyle = '#0b1014'; ctx.beginPath(); ctx.arc(AT.x, AT.y, 11 / Math.sqrt(z), 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ffce78'; ctx.font = 'bold ' + (16 / Math.sqrt(z)) + 'px ui-monospace, monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.x, AT.y + 0.5);
   ctx.restore();
+  // scanline overlay — the CRT/print finish (screen space)
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
 }
 
 // ── periphery streaming: when the view reaches into a neighbour's box, ask the worker for it ──

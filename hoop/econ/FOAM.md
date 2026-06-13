@@ -312,8 +312,13 @@ sources are now MEANINGFUL. Phased:
   active-local world coords over the viewport and shared by every rendered region (offset), so the
   light is continuous across the stitched seams. No occlusion yet (v1 had none either). The `@` gets
   a pulsing gold glow. **Proof is live (canvas) — sanity-pinned numerically off a real region.**
-- **Phase 2 — the finishing devices (NEXT).** Hand-ink seams (`ink.js` jitter on hull/panel edges),
-  `shadowBlur` glow on gates + place glyphs, the scanline overlay, palette alignment to v1.
+- **Phase 2 — the finishing devices (SHIPPED) + every-cell light.** Plate seams (a faint inked
+  stroke per floor cell — the hand-drawn feel; true `ink.js` jitter is a later refinement),
+  `shadowBlur` pulsing glow on the gold gates, the scanline overlay, palette alignment. And the
+  lighting went **generous**: a warm ambient floor washes the whole deck and EVERY cell type is now
+  an albedo + light-response gain — walls and void are dark stone that still catch a neighbour's
+  glow (reduced gain), floors/roads/buildings take full light; denser street lamps, brighter
+  emitters. Pinned numerically: 100% of cells lit, no pure-black anywhere.
 - **Phase 3 — occlusion that uses the city's walls (the real leg-8 payoff).** Replace the
   wall-ignoring splat with light that flows through the walk graph (door/open membranes spill,
   walls block) — reuses `buildWalk`, no per-cell raytrace.
