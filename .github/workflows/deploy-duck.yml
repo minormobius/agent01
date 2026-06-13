@@ -1,0 +1,42 @@
+name: Deploy Duck (spin-gravity flight sim)
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/duck-flight-simulator-webgpu-2jcwj4'
+    paths:
+      - 'duck/**'
+      - '.github/workflows/deploy-duck.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: duck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Physics selftest (the two-frame kernel must stay honest)
+        run: node test/physics.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the duck is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://duck.mino.mobi/ | grep -qi 'flight sim'; then
+              echo "✓ duck is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ duck didn't respond within 20s — edge propagation may be slow, continuing."

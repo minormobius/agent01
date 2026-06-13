@@ -230,6 +230,19 @@
       ]
     },
     {
+      "surface": "duck",
+      "dir": "duck",
+      "endpoint": "duck.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/duck-flight-simulator-webgpu-2jcwj4",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "duck/**"
+      ],
+      "note": "Spin-gravity duck flight simulator (worker `duck`, custom_domain duck.mino.mobi). Pure-static WebGPU game, no build, no secrets. Flies one aerodynamic duck under two reference frames — uniform Earth gravity vs. the co-rotating frame of an O'Neill cylinder (centrifugal ω²r + Coriolis −2Ω×v), using hoop's canonical 8 km/0.8 g hull. Physics kernel is pure + node-tested (duck/test/physics.selftest.mjs proves the rotating-frame integrator by transforming a free trajectory back to a straight inertial line)."
+    },
+    {
       "surface": "bounty",
       "dir": "bounty",
       "endpoint": "bounty-minomobi",
