@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/merge-features-update-endpoints-qa2vu1']
+    branches: [main, 'claude/merge-candidate-docs-update-8e2nns']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -60,6 +60,8 @@ on:
       # mappa: the world engine (engine.js + viewer.js + projection.js + sites.js)
       - 'mappa/**'
       - 'scripts/build-mappa.mjs'
+      # crucible: the "overgenerate, then judge" page (bundled static subsite)
+      - 'crucible/**'
       - '.github/workflows/deploy-root.yml'
   workflow_dispatch:
     inputs:
