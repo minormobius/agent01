@@ -8,8 +8,9 @@
     "binding": "ASSETS"
   },
   // /dm posts uploaded pictures as the morphyx service account and DMs them
-  // into morphyx's group chat. The app password is a secret (set out-of-band):
-  //   wrangler secret put MORPHYX_APP_PASSWORD   (must be a DM-enabled app pw)
+  // into morphyx's group chat. The MORPHYX_APP_PASSWORD runtime secret (a
+  // DM-enabled app password) is pushed onto the worker by deploy-photo.yml
+  // from the BLUESKY_MORPHYX_APP_PASSWORD GitHub Actions secret.
   // Optional: wrangler secret put MORPHYX_CONVO_ID  (pin a specific group chat)
   "vars": {
     "MORPHYX_HANDLE": "morphyxmino.bsky.social"
