@@ -26,7 +26,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk anywhere on this deck (tap mid-stride to redirect) · ▲▼ or click a gold/teal stair = change decks · the concourse (mid-deck) stitches to neighbours · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk anywhere on this deck (tap mid-stride to redirect) · ▲▼ or click a stair = change decks · the dots are residents going about their day · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
@@ -34,7 +34,7 @@
 <div id="err"></div>
 
 <script type="module">
-import { buildWalk, losSimplify, makeOccluder } from '../econ/deck.js';
+import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 
 const $ = (id) => document.getElementById(id);
@@ -222,6 +222,65 @@ function sampleLit(v, x, y) {
 }
 const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0) + ',' + Math.min(255, a[1] * AMB + L[1] * gain | 0) + ',' + Math.min(255, a[2] * AMB + L[2] * gain | 0) + ')';
 
+// ── NPCs — the society, moving on the deck ───────────────────────────────────────────────────────
+// Typeset role-coloured figures (the cousin of the player @), synthesised per deck from the REAL
+// buildings, with an intention engine: each NPC keeps a few HAUNTS (its home + the nearest couple of
+// buildings) and wanders between them on a slow day/night rhythm, pausing (dwelling) at each. They
+// move along navmesh-correct paths (walkRoute → through doors, never walls). NPC decisions use
+// Math.random freely — they're ephemeral, like presence; the deterministic WORLD is untouched. Real
+// named society members + sprites come later; this is the engine, calibratable.
+const NPC_CAP = 46, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
+const NPC_SPEED = 165;                                      // px/s — a touch slower than the player's stride
+const dayPhase = () => (performance.now() / DAYLEN) % 1;    // 0..1; ~night when < .22 or > .78
+function npcsOf(v) {
+  if (v._npcs) return v._npcs;
+  const byB = new Map();
+  for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0) { let s = byB.get(o); if (!s) { s = []; byB.set(o, s); } s.push(i); } }
+  v._buildCells = byB;
+  const ids = [...byB.keys()], cent = new Map();
+  for (const [o, cells] of byB) { let x = 0, y = 0; for (const i of cells) { x += v.seeds[i].x; y += v.seeds[i].y; } cent.set(o, [x / cells.length, y / cells.length]); }
+  const haunts = new Map();
+  for (const o of ids) { const c = cent.get(o); const near = ids.filter((x) => x !== o).sort((a, b) => { const ca = cent.get(a), cb = cent.get(b); return ((ca[0] - c[0]) ** 2 + (ca[1] - c[1]) ** 2) - ((cb[0] - c[0]) ** 2 + (cb[1] - c[1]) ** 2); }).slice(0, 2); haunts.set(o, [o, ...near]); }
+  const npcs = [];
+  for (const o of ids) {
+    if (npcs.length >= NPC_CAP) break;
+    const cells = byB.get(o), role = v.role[cells[0]], cnt = Math.min(3, 1 + Math.floor(cells.length / 12));
+    for (let k = 0; k < cnt && npcs.length < NPC_CAP; k++) {
+      const hc = cells[(o * 7 + k * 13) % cells.length];
+      npcs.push({ role, home: o, haunts: haunts.get(o), cell: hc, goalCell: hc, x: v.seeds[hc].x, y: v.seeds[hc].y, path: null, t: 0, dwell: Math.random() * 4, speed: NPC_SPEED * (0.8 + Math.random() * 0.45) });
+    }
+  }
+  return (v._npcs = npcs);
+}
+function npcRepath(v, n) {                                  // intention: choose a haunt, path to a cell in it
+  const night = dayPhase() < 0.22 || dayPhase() > 0.78;
+  const goalB = (night && Math.random() < 0.72) ? n.home : n.haunts[(Math.random() * n.haunts.length) | 0];
+  const cells = v._buildCells.get(goalB); if (!cells) { n.dwell = 1; return; }
+  const gc = cells[(Math.random() * cells.length) | 0];
+  if (gc === n.cell) { n.dwell = 0.5 + Math.random(); return; }
+  const r = walkRoute(v, n.cell, gc);
+  if (!r || r.pts.length < 2) { n.dwell = 0.5; return; }
+  const seg = []; let total = 0;
+  for (let i = 1; i < r.pts.length; i++) { const d = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); seg.push(d); total += d; }
+  n.path = { pts: r.pts, seg, total }; n.t = 0; n.goalCell = gc;
+}
+function updateNpcs(v, dt) {                                // returns true if anything moved (→ redraw)
+  let moved = false;
+  for (const n of npcsOf(v)) {
+    if (n.path) {
+      moved = true; n.t += n.speed * dt;
+      const { pts, seg, total } = n.path;
+      if (n.t >= total) { n.x = pts[pts.length - 1][0]; n.y = pts[pts.length - 1][1]; n.path = null; n.cell = n.goalCell; n.dwell = 1.5 + Math.random() * 5; }
+      else { let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < n.t) { acc += seg[i - 1]; i++; } const f = (n.t - acc) / seg[i - 1]; n.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; n.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f; }
+    } else { n.dwell -= dt; if (n.dwell <= 0) npcRepath(v, n); }
+  }
+  return moved;
+}
+function drawNpcs(v) {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px ui-monospace, monospace';
+  for (const n of v._npcs || []) { const c = roleRGB(n.role); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.fillText(NPC_GLYPH, n.x, n.y); }
+}
+
 function paintRegion(v, off, ghostsAsFog, pulse) {
   ctx.save(); ctx.translate(off.x, off.y); ctx.lineJoin = 'round';
   for (const c of v.scene.paintCells) {
@@ -257,6 +316,7 @@ function paintRegion(v, off, ghostsAsFog, pulse) {
     ctx.fillStyle = s.type === 'ladder' ? 'rgba(127,216,208,0.92)' : 'rgba(244,191,98,0.92)';
     ctx.fillText(s.dir < 0 ? '▲' : '▼', p.x, p.y - (s.dir < 0 ? 7 : -7));
   }
+  drawNpcs(v);                                              // the society, moving on the deck
   ctx.restore();
 }
 
@@ -462,6 +522,7 @@ function tick(ts) {
     }
     dirty = true;
   }
+  if (active) { let m = false; for (const v of visibleRegions()) if (updateNpcs(v, dt)) m = true; if (m) dirty = true; }
   streamFloors();
   if (dirty) { draw(); dirty = false; }
 }
