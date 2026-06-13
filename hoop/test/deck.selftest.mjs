@@ -3,7 +3,7 @@
 // deciding what every membrane is. Run: node hoop/test/deck.selftest.mjs
 import { ringLattice } from '../econ/region.js';
 import { coarseSolve } from '../econ/record.js';
-import { deckScene, walkRoute } from '../econ/deck.js';
+import { deckScene, walkRoute, gateLinks } from '../econ/deck.js';
 import { buildSceneCustom, bucketGrid, roomOf } from '../paint/voronoi.js';
 
 let pass = 0, fail = 0;
@@ -140,6 +140,29 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(frag(d) < frag(iso), 'the planar bias CONSOLIDATES the deck street network (' + frag(d) + ' fragments vs ' + frag(iso) + ' unbiased)');
   ok(d.stats.roadRooms > iso.stats.roadRooms, 'more street lands ON the playable deck under gravity\'s bias (' + d.stats.roadRooms + ' vs ' + iso.stats.roadRooms + ' rooms)');
   ok(d.stats.serviceDoors < iso.stats.serviceDoors, 'fewer easements are needed when streets run in-plane (' + d.stats.serviceDoors + ' vs ' + iso.stats.serviceDoors + ')');
+}
+
+// ── GATE LINKS (the game's border crossings): symmetric, landing in the neighbour's right-of-way ──
+{
+  let tested = false;
+  for (let az = 0; az < 36 && !tested; az++) {
+    const da = deckScene({ lattice: L, seed: 7, record: rec, az, ax: 1, axSpan: 14 });
+    const la = gateLinks(da, { lattice: L, seed: 7, record: rec, az, ax: 1, axSpan: 14 });
+    if (!la.length) continue;
+    tested = true;
+    ok(la.every((lk) => da.owner[lk.room] === -1 && da.isGate.has(lk.room)), 'every crossing sits on a gate room in OUR right-of-way');
+    const lk = la[0];
+    const db = deckScene({ lattice: L, seed: 7, record: rec, az: lk.to.az, ax: lk.to.ax, axSpan: 14 });
+    const partnerRoom = db.band.findIndex((c) => c.gid === lk.partner);
+    ok(partnerRoom >= 0, 'the partner chamber is a deck room of the neighbour (gates pair within a gz)');
+    ok(db.owner[partnerRoom] === -1, 'the landing room is in the NEIGHBOUR\'s right-of-way (seam continuity, playable)');
+    const lb = gateLinks(db, { lattice: L, seed: 7, record: rec, az: lk.to.az, ax: lk.to.ax, axSpan: 14 });
+    const back = lb.find((b) => b.gid === lk.partner);
+    ok(!!back && back.partner === lk.gid, 'the neighbour links BACK through the same gate (crossings are symmetric)');
+    // the settled society rides along for the game's inspector
+    ok(da.solved.society && da.solved.society.people.length > 200, 'the final settled society ships with the solve (' + da.solved.society.people.length + ' residents)');
+  }
+  ok(tested, 'at least one region on the test ring has deck-level crossings');
 }
 
 console.log(`deck.selftest: ${pass} passed, ${fail} failed`);

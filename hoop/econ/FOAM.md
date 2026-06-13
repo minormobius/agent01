@@ -242,10 +242,17 @@ membrane language. The pieces now all exist; this leg is their assembly, in orde
    field animates them along real desire lines), and the inspector content the thread rail shows.
    Later: player movement accumulates into the demand of future record extensions — the city
    responds to where people actually go (the desire-line thesis closing its last loop).
-6. **Migration.** Ship behind a world-version flag: `world.js` keeps the legacy ship.js field as
-   v1; v2 boots from `(genome, seed, record)`. Existing `hoop.place` records remap by nearest
-   chamber gid. The selftest gate for the flip: nav parity (HPA\* routes exist between any two
-   loaded gates) + render parity (every loaded region draws through buildScene without seam tears).
+6. **Migration — v2 SHIPPED as a parallel entry (`hoop/v2/`, linked from the v1 topbar).** The
+   rebuilt game lives at `/v2/` rather than behind a flag in world.js — v1 at `/` stays untouched
+   (don't break what's working). What v2 has: the `@` walking the solved deck by click-to-walk
+   (`walkRoute`, routes threading the doors, animated along the polyline), **gate crossings** —
+   step onto a gold gate room and the seam loads the neighbour region, landing the `@` on the
+   partner chamber (`deck.js gateLinks`, pinned: symmetric, landing in the neighbour's
+   right-of-way), arrows as fast travel with the record extending at the frontier, and the
+   settled society as the inspector (click a building → who lives/works there; `solveRegion` now
+   returns the final society). Spawn is at the record's first hub region. STILL TO MIGRATE: the
+   thread rail + ATProto places (postal gid as rkey), presence (the HoopRoom DO), inter-deck
+   stairs, and the eventual flip of `/` to v2 once nav + render parity are pinned.
 
 ## Leg 4 — wayfinding for PEOPLE (commutes close the loop)
 

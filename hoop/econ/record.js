@@ -209,7 +209,8 @@ export function solveRegion({
     for (let u = hit; u >= 0 && par[u] !== -1; u = par[u]) row.add(u);
   }
   const city = assembleCity(foamA, nav, row, o);
-  return { key: { az: azN, ax }, rf, city, society: null /* re-settle downstream */, base,
+  const settled = buildSociety(city, { seed: seedR, genome });   // the FINAL society (grow-then-settle)
+  return { key: { az: azN, ax }, rf, city, society: settled, base,
     gates: myGates.map((g) => g.gid), graph, state: grower.state,
-    stats: { chambers: cells.length, row: row.size, gates: myGates.length, closure: city.closure, access: city.access } };
+    stats: { chambers: cells.length, row: row.size, gates: myGates.length, closure: city.closure, access: city.access, people: settled.people.length } };
 }

@@ -14,7 +14,7 @@
 // Missing lattice sites (the foam's thinning) simply have no room — neighbouring rooms swallow
 // the space, which reads as solid mass. Deterministic from (lattice, seed, genome, record, key).
 
-import { solveRegion } from './record.js';
+import { solveRegion, gatesFor, seamKey } from './record.js';
 import { ROLES } from './econ.js';
 import { buildSceneCustom, adjacency, bucketGrid, clipCell, chooseDoors } from '../paint/voronoi.js';
 
@@ -132,6 +132,30 @@ export function buildWalk(d) {
   for (const e of d.scene.doors) addE(e);
   for (const e of d.scene.opens) addE(e);
   return walk;
+}
+
+// ── GATE LINKS: which deck rooms are border crossings, and where they lead. A gate pair shares
+//    its gz, so a deck-band gate's partner is always a deck-band room of the neighbour — walking
+//    onto the gate room and stepping through lands you on the partner room, both provably in each
+//    region's right-of-way (the seam-continuity guarantee made playable). Pure function of
+//    (lattice, seed, grade, record, key); both regions derive the same crossings. ──
+export function gateLinks(d, { lattice, seed = 1, grade = 0.4, record, az, ax, axSpan = 14 } = {}) {
+  const L = lattice, R = L.regionsPerRing;
+  const azN = ((az % R) + R) % R;
+  const byGid = new Map(); d.band.forEach((c, i) => byGid.set(c.gid, i));
+  const links = [];
+  for (const nb of [{ az: azN + 1, ax }, { az: azN - 1, ax }, { az: azN, ax: ax + 1 }, { az: azN, ax: ax - 1 }]) {
+    const rec = record && record.seams.get(seamKey({ az: azN, ax }, nb, R));
+    const tier = rec ? rec.tier : 0;
+    if (!tier) continue;
+    const nbN = { az: ((nb.az % R) + R) % R, ax: nb.ax };
+    for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, tier)) {
+      const mine = byGid.has(pair.a) ? pair.a : byGid.has(pair.b) ? pair.b : null;
+      if (!mine) continue;                                  // this gate lives off-deck (gz ±1)
+      links.push({ room: byGid.get(mine), gid: mine, to: nbN, partner: mine === pair.a ? pair.b : pair.a });
+    }
+  }
+  return links;
 }
 
 export function walkRoute(d, a, b) {
