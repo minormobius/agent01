@@ -257,11 +257,13 @@ function wallGrid(walls, cell) {
     return out;
   } };
 }
-// LINE-OF-SIGHT string-pull: greedily skip waypoints while the straight shot stays clear of walls,
-// so the path goes straight where the space is open and corners only where a wall forces it.
-function losSimplify(dense, d) {
-  const walls = d.walls; if (!walls || !walls.length || dense.length <= 2) return dense;
-  const grid = d._wallGrid || (d._wallGrid = wallGrid(walls, ((d.scene && d.scene.wallSpacing) || 8) * 4));
+// LINE-OF-SIGHT string-pull: greedily skip waypoints while the straight shot stays clear of the
+// `walls` segments, so the path goes straight where the space is open and corners only where a wall
+// forces it. `gridCell` sizes the bucket index. Walls are explicit so the v3 page can pull a path
+// taut over the COMBINED walls of several stitched regions (one continuous trajectory across seams).
+export function losSimplify(dense, walls, gridCell) {
+  if (!walls || !walls.length || dense.length <= 2) return dense;
+  const grid = wallGrid(walls, gridCell || 64);
   const blocked = (A, B) => {                               // inset the shot so door-jamb endpoints don't false-positive
     const dx = B[0] - A[0], dy = B[1] - A[1], ln = Math.hypot(dx, dy) || 1, ux = dx / ln * 0.8, uy = dy / ln * 0.8;
     const a = [A[0] + ux, A[1] + uy], b = [B[0] - ux, B[1] - uy];
@@ -317,7 +319,7 @@ export function walkRoute(d, a, b) {
   for (let u = b; u !== a; u = prev[u]) { rooms.push(u); dense.push(prevE[u].m); dense.push([d.seeds[prev[u]].x, d.seeds[prev[u]].y]); }
   rooms.push(a); rooms.reverse(); dense.reverse();
   // pull it taut against the walls — straight across open space, cornering only where a wall forces it
-  const pts = losSimplify(dense, d);
+  const pts = losSimplify(dense, d.walls, ((d.scene && d.scene.wallSpacing) || 8) * 4);
   let length = 0; for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
   return { rooms, pts, length };
 }

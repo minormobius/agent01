@@ -349,10 +349,17 @@ it only works on simple channels and cut corners through the exterior walls of n
   string-pull (real walls are tiled by short membranes, so coverage is unaffected). These rare
   interior oblongs can still *render*; fully dissolving them is a `clipCell` robustness follow-up.
 
-**Next — the graceful cross-region stitch (CHARTED).** The string-pull is per-region; v3 still
-gate-hops between regions. The graceful end-state is a **unified navmesh across loaded regions**,
-joined at the gate portals, so one taut LOS path flows straight through a seam — retiring the
-gate-hop state machine. The wall segments + LOS land that's needed are now in place.
+**The graceful cross-region stitch (SHIPPED, `v3/index.html`).** The gate-hop state machine is gone.
+`unifiedRoute` builds ONE walkable graph stitched across every loaded region at the gate links, plus
+the union of all their wall segments, in active-local world coords; Dijkstra (binary heap) from the
+@'s LIVE position to the target cell, then a SINGLE `losSimplify` over the combined walls. The result
+is one taut trajectory that flows **straight through the seams** — verified headlessly: 20/20
+cross-region routes span >1 region with 0 wall crossings. Crossing a seam is now just a **coordinate
+rebase** (`setActiveRebase`): when the @ walks into a loaded neighbour's frame, the @ and the
+remaining trajectory are shifted into that region's local frame — nothing teleports, the camera
+hands off seamlessly. **Repathing is live + interruptible:** every click routes from the @'s actual
+position (`currentRoom` = nearest seed to the live `AT.x,AT.y`), so a tap mid-stride redirects from
+where it is — fixing the long-standing "repath from the original start" bug.
 
 ## Leg 8 — the v1 art style on the solved map (PHASE 1 SHIPPED on v3)
 
