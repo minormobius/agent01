@@ -36,6 +36,9 @@ const CONTROLS = [
 const TOGGLES = [
   { k: "serif", label: "Serifs" },
   { k: "apex", label: "Flat-top A" },
+  { k: "a2", label: "Double-story a" },
+  { k: "g2", label: "Double-story g" },
+  { k: "ball", label: "Ball terminals" },
 ];
 
 function seedFromUrl() {

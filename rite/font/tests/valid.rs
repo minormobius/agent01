@@ -75,6 +75,20 @@ fn slider_overrides_apply_and_stay_valid() {
         face.outline_glyph(gid, &mut counter);
         assert!(counter.segments > 0, "{c:?} empty under overrides");
     }
+
+    // Both letterform alternates (single/double-story a & g, ball terminals)
+    // must produce valid, non-empty outlines either way.
+    for spec in ["a2=1;g2=1;ball=1", "a2=0;g2=0;ball=0"] {
+        let bytes = minofont::roll_params("seed-x", spec);
+        let f = ttf_parser::Face::parse(&bytes, 0)
+            .unwrap_or_else(|_| panic!("spec {spec:?} did not parse"));
+        for c in "agcr".chars() {
+            let gid = f.glyph_index(c).expect("cmap");
+            let mut counter = Counter::default();
+            f.outline_glyph(gid, &mut counter);
+            assert!(counter.segments > 0, "{c:?} empty under {spec:?}");
+        }
+    }
 }
 
 #[test]

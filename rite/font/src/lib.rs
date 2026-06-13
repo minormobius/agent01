@@ -68,7 +68,7 @@ pub fn describe(seed: &str) -> String {
 
 fn genome_json(p: &Params) -> String {
     format!(
-        "{{\"family\":\"{}\",\"stem\":{:.0},\"thin\":{:.0},\"mod\":{:.2},\"contrast\":{:.2},\"width\":{:.2},\"slant\":{:.1},\"pen\":{:.0},\"aperture\":{:.2},\"arch\":{:.2},\"bar\":{:.2},\"bowl\":{:.0},\"xh\":{:.2},\"serif\":{},\"apex\":{},\"seriflen\":{:.0},\"serifth\":{:.0},\"weightClass\":{},\"widthClass\":{}}}",
+        "{{\"family\":\"{}\",\"stem\":{:.0},\"thin\":{:.0},\"mod\":{:.2},\"contrast\":{:.2},\"width\":{:.2},\"slant\":{:.1},\"pen\":{:.0},\"aperture\":{:.2},\"arch\":{:.2},\"bar\":{:.2},\"bowl\":{:.0},\"xh\":{:.2},\"serif\":{},\"apex\":{},\"a2\":{},\"g2\":{},\"ball\":{},\"seriflen\":{:.0},\"serifth\":{:.0},\"weightClass\":{},\"widthClass\":{}}}",
         p.family,
         p.stem,
         pen::nib_thin(p),
@@ -84,6 +84,9 @@ fn genome_json(p: &Params) -> String {
         p.xheight / p.cap,
         p.serif,
         p.morph.apex_flat,
+        p.morph.two_story_a,
+        p.morph.two_story_g,
+        p.morph.ball,
         p.serif_len,
         p.serif_th,
         p.weight_class,

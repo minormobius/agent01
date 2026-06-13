@@ -286,6 +286,17 @@ impl<'a> Skel<'a> {
         self.rect(cx - r, cy - r, cx + r, cy + r);
     }
 
+    /// A filled disk (octagon) — a ball terminal.
+    fn disk(&mut self, cx: f64, cy: f64, r: f64) {
+        let pts: Vec<Pt> = (0..8)
+            .map(|i| {
+                let a = TAU * (i as f64) / 8.0;
+                (cx + r * a.cos(), cy + r * a.sin(), true)
+            })
+            .collect();
+        self.emit(pts, true);
+    }
+
     /// How far the nib reaches vertically from a stamp point (its slanted cut's
     /// half-height). A serif slab must be at least this tall to bury the cut.
     fn nib_vreach(&self) -> f64 {
@@ -735,13 +746,27 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
 
         // ---- lowercase ------------------------------------------------------
         'a' => {
-            // Single-story: bowl whose arc springs from the right stem at the
-            // top and bottom of the x-height, so the stem closes it (no gap).
             let w = wl;
             let xr = w - s / 2.0;
             let mut k = Skel::new(p, adv(w));
-            k.vstem(xr, 0.0, xh);
-            k.bowl_left(xr, s / 2.0, xh, wrap);
+            if mo.two_story_a {
+                // Double-story (text 'a'): right stem full x-height, a closed bowl
+                // in the lower portion, and a small arm hooking left over the open
+                // aperture above the bowl.
+                k.vstem(xr, 0.0, xh);
+                k.ring_box(0.0, w, -ov, 0.58 * xh);
+                k.open(&[Seg::Arc {
+                    c: (xr - 0.17 * w, 0.86 * xh),
+                    rx: 0.17 * w,
+                    ry: 0.14 * xh,
+                    a1: deg(-6.0),
+                    a2: deg(86.0),
+                }]);
+            } else {
+                // Single-story (geometric): bowl springing from the stem.
+                k.vstem(xr, 0.0, xh);
+                k.bowl_left(xr, s / 2.0, xh, wrap);
+            }
             k
         }
         'b' => {
@@ -755,6 +780,11 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let w = wl;
             let mut k = Skel::new(p, adv(w));
             k.arc_box(0.0, w, -ov, xh + ov, hg, 360.0 - hg);
+            if mo.ball {
+                let (c0, rx, ry) = box_radii(p, 0.0, w, -ov, xh + ov);
+                let a = deg(hg); // upper terminal
+                k.disk(c0.0 + rx * a.cos(), c0.1 + ry * a.sin(), s * 0.62);
+            }
             k
         }
         'd' => {
@@ -792,24 +822,32 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k
         }
         'g' => {
-            // Single-story: bowl + a descending tail that hooks LEFT. The arc
-            // sweeps clockwise *down through the bottom* (0°→-150°); the earlier
-            // version swept up first, which read as a backwards curl.
             let w = wl;
-            let xr = w - s / 2.0;
-            let cy = -0.5 * dd;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w, -ov, xh + ov);
-            k.open(&[
-                Seg::Line((xr, xh), (xr, cy)),
-                Seg::Arc {
-                    c: (xr - 0.28 * w, cy),
-                    rx: 0.28 * w,
-                    ry: 0.5 * dd,
-                    a1: deg(0.0),
-                    a2: deg(-150.0),
-                },
-            ]);
+            if mo.two_story_g {
+                // Double-story (looped 'g'): an upper bowl in the x-height and a
+                // closed loop hanging below the baseline, overlapping into a
+                // figure-eight, plus a small ear off the upper right.
+                k.ring_box(0.0, w, 0.10 * xh, xh + ov);
+                k.ring_box(w * 0.05, w * 0.95, -dd, 0.30 * xh);
+                k.open(&[Seg::Line((w - s / 2.0, 0.82 * xh), (w + 0.02 * w, xh))]); // ear
+            } else {
+                // Single-story: bowl + a descending tail that hooks LEFT (sweeps
+                // clockwise down through the bottom).
+                let xr = w - s / 2.0;
+                let cy = -0.5 * dd;
+                k.ring_box(0.0, w, -ov, xh + ov);
+                k.open(&[
+                    Seg::Line((xr, xh), (xr, cy)),
+                    Seg::Arc {
+                        c: (xr - 0.28 * w, cy),
+                        rx: 0.28 * w,
+                        ry: 0.5 * dd,
+                        a1: deg(0.0),
+                        a2: deg(-150.0),
+                    },
+                ]);
+            }
             k
         }
         'h' => {
@@ -907,13 +945,17 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let r = (w - xl) * 0.72;
             let mut k = Skel::new(p, adv(w));
             k.vstem(xl, 0.0, xh);
+            let (ac, arx, ary, a2) = ((xl + r, xh - r), r, r, deg(72.0));
             k.open(&[Seg::Arc {
-                c: (xl + r, xh - r),
-                rx: r,
-                ry: r,
+                c: ac,
+                rx: arx,
+                ry: ary,
                 a1: deg(180.0),
-                a2: deg(72.0),
+                a2,
             }]);
+            if mo.ball {
+                k.disk(ac.0 + arx * a2.cos(), ac.1 + ary * a2.sin(), s * 0.6);
+            }
             k
         }
         's' => {

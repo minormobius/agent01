@@ -20,6 +20,9 @@ pub struct Morph {
     pub apex_flat: bool, // A: flat-topped (truncated apex) vs pointed "chopstick"
     pub modulation: f64, // nib contrast: 0 = monoline, 1 = high thick/thin ratio
                          // (how strongly weight varies with stroke angle)
+    pub two_story_a: bool, // double-story 'a' (text) vs single-story (geometric)
+    pub two_story_g: bool, // double-story 'g' (looped) vs single-story (open tail)
+    pub ball: bool,        // ball terminals on c / r (vs the nib's sheared cut)
 }
 
 pub struct Params {
@@ -79,6 +82,9 @@ impl Params {
             bowl: r.range(0.0, 34.0),
             apex_flat: r.chance(0.45),
             modulation: r.range(0.0, 1.0),
+            two_story_a: r.chance(0.5),
+            two_story_g: r.chance(0.5),
+            ball: r.chance(0.28),
         };
 
         let weight_class =
@@ -150,6 +156,9 @@ impl Params {
                 "serifth" => self.serif_th = f.clamp(2.0, 140.0),
                 "serif" => self.serif = f != 0.0,
                 "apex" => self.morph.apex_flat = f != 0.0,
+                "a2" => self.morph.two_story_a = f != 0.0,
+                "g2" => self.morph.two_story_g = f != 0.0,
+                "ball" => self.morph.ball = f != 0.0,
                 _ => {}
             }
         }

@@ -103,9 +103,12 @@ Next layers (the seed/permalink foundation is built for them):
    `C c e G` counters are), `overshoot` (round letters spilling past
    baseline/cap), `arch` (round-humanist ↔ flat/squared shoulder on `n m h u`),
    `bar` (crossbar height of `A E F H e`), `bowl` (how far the `a b d p q` arc
-   closes before attaching), and the first structural gene `apex_flat` (`A`
-   flat-topped vs pointed). Serifed stem ends are tucked under a slab tall enough
-   to bury the nib's angled terminal, so the serif caps the stem cleanly instead
-   of the stem crossing through it. Next layer:
-   correlated *archetypes* (humanist / geometric / grotesque) and more structural
-   genes (single- vs double-story `a`/`g`, alternative `R`/`K` legs).
+   closes before attaching), and structural genes: `apex_flat` (`A`),
+   `two_story_a` / `two_story_g` (double-story text vs single-story geometric
+   construction), and `ball` terminals on `c`/`r`. Serifed stem ends are tucked
+   under a slab tall enough to bury the nib's angled terminal, so the serif caps
+   the stem cleanly instead of the stem crossing through it. The design space and
+   its sources are mapped in [`GENOME.md`](GENOME.md). Next layer: correlated
+   *archetypes* (humanist / geometric / grotesque / didone — the Vox regions) so
+   one control moves the genes together coherently; an expansion (pointed-pen)
+   contrast mode; per-letter overshoot; and bracketed-vs-slab serif structure.
