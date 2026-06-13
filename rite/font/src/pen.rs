@@ -317,21 +317,27 @@ impl<'a> Skel<'a> {
         }
     }
 
-    fn cap_serif(&mut self, x: f64) {
+    /// A head serif slab placed at the stem's *actual* top `ytop` (so it works
+    /// for ascenders that rise above the cap line, not just cap-height stems).
+    fn head_serif(&mut self, x: f64, ytop: f64) {
         if self.p.serif {
             let half = self.p.stem / 2.0 + self.p.serif_len * 0.5;
             let sh = self.serif_h();
-            self.rect(x - half, self.p.cap - sh, x + half, self.p.cap);
+            self.rect(x - half, ytop - sh, x + half, ytop);
         }
     }
 
+    fn cap_serif(&mut self, x: f64) {
+        self.head_serif(x, self.p.cap);
+    }
+
     /// A vertical stem, with slab serifs auto-added at any end on the baseline
-    /// (y≈0) or the cap line (y≈cap). A serifed end is tucked *under* its slab
-    /// (the stem centerline stops at the slab's inner edge) so the nib's angled
-    /// terminal stays buried instead of crossing through the serif.
+    /// (y≈0) or at a tall (cap / ascender) terminal. A serifed end is tucked
+    /// *under* its slab (the stem centerline stops at the slab's inner edge) so
+    /// the nib's angled terminal stays buried instead of crossing the serif.
     fn vstem(&mut self, x: f64, y0: f64, y1: f64) {
         let foot = self.p.serif && y0.abs() <= 1.0;
-        let head = self.p.serif && y1 >= self.p.cap - 1.0;
+        let head = self.p.serif && y1 >= self.p.xheight + 1.0; // a cap/ascender top
         let sh = self.serif_h();
         let a = if foot { y0 + sh } else { y0 };
         let b = if head { y1 - sh } else { y1 };
@@ -340,7 +346,7 @@ impl<'a> Skel<'a> {
             self.base_serif(x);
         }
         if head {
-            self.cap_serif(x);
+            self.head_serif(x, y1);
         }
     }
 
@@ -437,19 +443,161 @@ fn upper_bowl(k: &mut Skel, xstem: f64, ylo: f64, yhi: f64, xright: f64) {
     }]);
 }
 
-/// Pen-model builder for the whole Latin alphabet. Returns `None` for space and
-/// punctuation, which stay on the primitive builder.
+/// A combining diacritic. Drawn centered over (or, for the cedilla, under) a base
+/// letter so accented glyphs compose from a base + a mark instead of being
+/// hand-drawn — the way real fonts build their Latin-1/Latin-Extended coverage.
+#[derive(Clone, Copy)]
+enum Mark {
+    Acute,
+    Grave,
+    Circumflex,
+    Caron,
+    Tilde,
+    Diaeresis,
+    Ring,
+    Cedilla,
+}
+
+/// Draw `mark` centered at x=`cx`, sitting just above `top` (cap or x-height),
+/// scaled by cap height `h`. The cedilla hangs below the baseline instead.
+fn draw_mark(k: &mut Skel, mark: Mark, cx: f64, top: f64, h: f64) {
+    let y = top + 0.06 * h; // clearance above the letter
+    let mw = 0.13 * h;
+    let mh = 0.12 * h;
+    match mark {
+        Mark::Acute => k.line((cx - 0.6 * mw, y), (cx + 0.6 * mw, y + mh)),
+        Mark::Grave => k.line((cx - 0.6 * mw, y + mh), (cx + 0.6 * mw, y)),
+        Mark::Circumflex => {
+            k.line((cx - mw, y), (cx, y + mh));
+            k.line((cx, y + mh), (cx + mw, y));
+        }
+        Mark::Caron => {
+            k.line((cx - mw, y + mh), (cx, y));
+            k.line((cx, y), (cx + mw, y + mh));
+        }
+        Mark::Tilde => k.open(&[
+            Seg::Line((cx - mw, y + 0.3 * mh), (cx - 0.35 * mw, y + mh)),
+            Seg::Line((cx - 0.35 * mw, y + mh), (cx + 0.35 * mw, y)),
+            Seg::Line((cx + 0.35 * mw, y), (cx + mw, y + 0.7 * mh)),
+        ]),
+        Mark::Diaeresis => {
+            let r = 0.05 * h;
+            k.disk(cx - 0.7 * mw, y + 0.5 * mh, r);
+            k.disk(cx + 0.7 * mw, y + 0.5 * mh, r);
+        }
+        Mark::Ring => k.ring((cx, y + 0.55 * mh), 0.07 * h, 0.07 * h),
+        Mark::Cedilla => k.open(&[Seg::Arc {
+            c: (cx, -0.10 * h),
+            rx: 0.07 * h,
+            ry: 0.07 * h,
+            a1: deg(90.0),
+            a2: deg(-120.0),
+        }]),
+    }
+}
+
+/// Compose an accented glyph: the base letter plus a mark over it (the cedilla
+/// hangs below). Reuses the base's pen construction and advance.
+fn accented(base: char, mark: Mark, p: &Params) -> Option<Glyph> {
+    let mut g = glyph_for(base, p)?;
+    let sb = 0.07 * p.cap;
+    let cx = (g.advance - 2.0 * sb) / 2.0;
+    let top = if base.is_uppercase() { p.cap } else { p.xheight };
+    let mut mk = Skel::new(p, g.advance);
+    draw_mark(&mut mk, mark, cx, top, p.cap);
+    g.contours.extend(mk.finish().contours);
+    Some(g)
+}
+
+/// Pen-model builder. Covers the Latin alphabet, figures, common punctuation,
+/// accented Latin (via `accented`), and the Greek/Cyrillic letters that share
+/// Latin shapes. Returns `None` for space and the few marks left to the
+/// primitive builder.
 pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
+    // Accented Latin — base letter + combining mark.
+    match c {
+        'à' => return accented('a', Mark::Grave, p),
+        'á' => return accented('a', Mark::Acute, p),
+        'â' => return accented('a', Mark::Circumflex, p),
+        'ã' => return accented('a', Mark::Tilde, p),
+        'ä' => return accented('a', Mark::Diaeresis, p),
+        'å' => return accented('a', Mark::Ring, p),
+        'è' => return accented('e', Mark::Grave, p),
+        'é' => return accented('e', Mark::Acute, p),
+        'ê' => return accented('e', Mark::Circumflex, p),
+        'ë' => return accented('e', Mark::Diaeresis, p),
+        'ì' => return accented('i', Mark::Grave, p),
+        'í' => return accented('i', Mark::Acute, p),
+        'î' => return accented('i', Mark::Circumflex, p),
+        'ï' => return accented('i', Mark::Diaeresis, p),
+        'ñ' => return accented('n', Mark::Tilde, p),
+        'ò' => return accented('o', Mark::Grave, p),
+        'ó' => return accented('o', Mark::Acute, p),
+        'ô' => return accented('o', Mark::Circumflex, p),
+        'õ' => return accented('o', Mark::Tilde, p),
+        'ö' => return accented('o', Mark::Diaeresis, p),
+        'ù' => return accented('u', Mark::Grave, p),
+        'ú' => return accented('u', Mark::Acute, p),
+        'û' => return accented('u', Mark::Circumflex, p),
+        'ü' => return accented('u', Mark::Diaeresis, p),
+        'ç' => return accented('c', Mark::Cedilla, p),
+        'ý' => return accented('y', Mark::Acute, p),
+        'č' => return accented('c', Mark::Caron, p),
+        'š' => return accented('s', Mark::Caron, p),
+        'ž' => return accented('z', Mark::Caron, p),
+        'ě' => return accented('e', Mark::Caron, p),
+        'Č' => return accented('C', Mark::Caron, p),
+        'Š' => return accented('S', Mark::Caron, p),
+        'Ž' => return accented('Z', Mark::Caron, p),
+        'À' => return accented('A', Mark::Grave, p),
+        'Á' => return accented('A', Mark::Acute, p),
+        'Â' => return accented('A', Mark::Circumflex, p),
+        'Ä' => return accented('A', Mark::Diaeresis, p),
+        'Ñ' => return accented('N', Mark::Tilde, p),
+        'É' => return accented('E', Mark::Acute, p),
+        'È' => return accented('E', Mark::Grave, p),
+        'Ö' => return accented('O', Mark::Diaeresis, p),
+        'Ü' => return accented('U', Mark::Diaeresis, p),
+        'Ç' => return accented('C', Mark::Cedilla, p),
+        _ => {}
+    }
+    // Greek / Cyrillic letters that share a Latin skeleton (a starter set; the
+    // script-specific letters are a future batch).
+    match c {
+        'Α' | 'А' => return glyph_for('A', p),
+        'Β' | 'В' => return glyph_for('B', p),
+        'Ε' | 'Е' => return glyph_for('E', p),
+        'Ζ' | 'З' => return glyph_for('Z', p),
+        'Η' | 'Н' => return glyph_for('H', p),
+        'Ι' | 'І' => return glyph_for('I', p),
+        'Κ' | 'К' => return glyph_for('K', p),
+        'Μ' | 'М' => return glyph_for('M', p),
+        'Ν' => return glyph_for('N', p),
+        'Ο' | 'О' => return glyph_for('O', p),
+        'Ρ' | 'Р' => return glyph_for('P', p),
+        'Τ' | 'Т' => return glyph_for('T', p),
+        'Υ' | 'Ү' => return glyph_for('Y', p),
+        'Χ' | 'Х' => return glyph_for('X', p),
+        'с' => return glyph_for('c', p),
+        'е' => return glyph_for('e', p),
+        'о' | 'ο' => return glyph_for('o', p),
+        'р' => return glyph_for('p', p),
+        'у' => return glyph_for('y', p),
+        'х' => return glyph_for('x', p),
+        'а' => return glyph_for('a', p),
+        _ => {}
+    }
     let h = p.cap;
     let xh = p.xheight;
     let wf = p.width;
     let s = p.stem;
     let t = nib_thin(p); // modulation-driven thin — keeps bars/insets matching the nib
     let sb = 0.07 * h;
-    let dd = 0.22 * h; // descender depth below baseline
 
     // construction genome
     let mo = &p.morph;
+    let dd = mo.descender * h; // descender depth below baseline (gene)
+    let asc = mo.ascender * h; // ascender height above baseline (gene)
     let ov = mo.overshoot; // round overshoot past baseline / cap
     let hg = 55.0 * mo.aperture; // half-gap (deg) for the open counters C/c/e/G
     // Arch arcs: vertical-radius factor from round (1.0) to flat/squared (~0.55).
@@ -772,7 +920,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'b' => {
             let w = wl;
             let mut k = Skel::new(p, adv(w));
-            k.vstem(s / 2.0, 0.0, h);
+            k.vstem(s / 2.0, 0.0, asc);
             k.bowl_right(s / 2.0, w - s / 2.0, xh, wrap);
             k
         }
@@ -791,7 +939,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let w = wl;
             let xr = w - s / 2.0;
             let mut k = Skel::new(p, adv(w));
-            k.vstem(xr, 0.0, h);
+            k.vstem(xr, 0.0, asc);
             k.bowl_left(xr, s / 2.0, xh, wrap);
             k
         }
@@ -806,11 +954,12 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'f' => {
             let w = wln * 1.2;
             let xc = w * 0.42;
+            let top = asc - 0.10 * h;
             let mut k = Skel::new(p, adv(w));
             k.open(&[
-                Seg::Line((xc, 0.0), (xc, h - 0.10 * h)),
+                Seg::Line((xc, 0.0), (xc, top)),
                 Seg::Arc {
-                    c: (xc + 0.16 * h, h - 0.10 * h),
+                    c: (xc + 0.16 * h, top),
                     rx: 0.16 * h,
                     ry: 0.16 * h,
                     a1: deg(180.0),
@@ -855,7 +1004,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let w = wl;
             let (xl, xr) = (s / 2.0, w - s / 2.0);
             let mut k = Skel::new(p, adv(w));
-            k.vstem(xl, 0.0, h); // ascender stem
+            k.vstem(xl, 0.0, asc); // ascender stem
             k.arch(xl, xr, xh, 0.0, archf);
             k
         }
@@ -891,7 +1040,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let w = wl;
             let j = (s, xh * 0.42);
             let mut k = Skel::new(p, adv(w));
-            k.vstem(s / 2.0, 0.0, h); // ascender stem
+            k.vstem(s / 2.0, 0.0, asc); // ascender stem
             k.line(j, (w - s / 2.0, xh));
             k.line(j, (w - s / 2.0, 0.0));
             k
@@ -899,7 +1048,7 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'l' => {
             let w = wln;
             let mut k = Skel::new(p, adv(w));
-            k.vstem(w / 2.0, 0.0, h);
+            k.vstem(w / 2.0, 0.0, asc);
             k
         }
         'm' => {
@@ -1149,6 +1298,107 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             let mut k = Skel::new(p, adv(w));
             k.ring_box(0.0, w, 0.40 * h, h + ov);
             k.line((w - s / 2.0, 0.58 * h), (w * 0.30, 0.0)); // tail
+            k
+        }
+
+        // ---- punctuation & symbols ------------------------------------------
+        '!' => {
+            let w = 0.30 * h * wf;
+            let cx = w / 2.0;
+            let mut k = Skel::new(p, adv(w));
+            k.line((cx, 0.30 * h), (cx, h));
+            k.disk(cx, 0.09 * h, s * 0.55);
+            k
+        }
+        '?' => {
+            let w = 0.50 * h * wf;
+            let cx = w * 0.5;
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Arc {
+                c: (w * 0.5, h * 0.74),
+                rx: (w * 0.5 - s / 2.0).max(8.0),
+                ry: (h * 0.22).max(8.0),
+                a1: deg(200.0),
+                a2: deg(-15.0),
+            }]);
+            k.line((cx, 0.52 * h), (cx, 0.34 * h)); // stalk
+            k.disk(cx, 0.09 * h, s * 0.55);
+            k
+        }
+        ':' => {
+            let w = 0.28 * h * wf;
+            let cx = w / 2.0;
+            let mut k = Skel::new(p, adv(w));
+            k.disk(cx, xh * 0.66, s * 0.55);
+            k.disk(cx, xh * 0.12, s * 0.55);
+            k
+        }
+        ';' => {
+            let w = 0.28 * h * wf;
+            let cx = w / 2.0;
+            let mut k = Skel::new(p, adv(w));
+            k.disk(cx, xh * 0.66, s * 0.55);
+            k.disk(cx, xh * 0.12, s * 0.55);
+            k.line((cx, xh * 0.10), (cx - 0.09 * h, -0.10 * h)); // tail
+            k
+        }
+        '(' => {
+            let w = 0.30 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Arc {
+                c: (w * 0.92, 0.42 * h),
+                rx: (w * 0.64).max(8.0),
+                ry: (0.62 * h).max(8.0),
+                a1: deg(128.0),
+                a2: deg(232.0),
+            }]);
+            k
+        }
+        ')' => {
+            let w = 0.30 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Arc {
+                c: (w * 0.08, 0.42 * h),
+                rx: (w * 0.64).max(8.0),
+                ry: (0.62 * h).max(8.0),
+                a1: deg(-52.0),
+                a2: deg(52.0),
+            }]);
+            k
+        }
+        '/' => {
+            let w = 0.40 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.line((s / 2.0, -0.12 * h), (w - s / 2.0, h));
+            k
+        }
+        '\'' => {
+            let w = 0.22 * h * wf;
+            let cx = w / 2.0;
+            let mut k = Skel::new(p, adv(w));
+            k.line((cx, 0.66 * h), (cx - 0.05 * h, h));
+            k
+        }
+        '"' => {
+            let w = 0.36 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.line((w * 0.34, 0.66 * h), (w * 0.34 - 0.05 * h, h));
+            k.line((w * 0.66, 0.66 * h), (w * 0.66 - 0.05 * h, h));
+            k
+        }
+        '+' => {
+            let w = 0.52 * h * wf;
+            let (cx, cy) = (w / 2.0, 0.42 * h);
+            let mut k = Skel::new(p, adv(w));
+            k.line((w * 0.16, cy), (w * 0.84, cy));
+            k.line((cx, cy - 0.26 * h), (cx, cy + 0.26 * h));
+            k
+        }
+        '=' => {
+            let w = 0.52 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(w * 0.14, w * 0.86, 0.50 * h);
+            k.hbar(w * 0.14, w * 0.86, 0.30 * h);
             k
         }
 

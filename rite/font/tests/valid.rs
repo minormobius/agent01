@@ -109,7 +109,10 @@ fn is_deterministic_and_seed_sensitive() {
 fn every_charset_glyph_maps_and_outlines() {
     let bytes = minofont::build_font("coverage");
     let face = Face::parse(&bytes, 0).unwrap();
-    for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-".chars() {
+    for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-\
+              !?:;()/'\"+=àáâãäåèéêëìíîïñòóôõöùúûüçčšžěÀÉÑÇŠÁΑΒΟХÄÖÜ"
+        .chars()
+    {
         let gid = face
             .glyph_index(c)
             .unwrap_or_else(|| panic!("no cmap entry for {c:?}"));

@@ -30,6 +30,9 @@ const CONTROLS = [
   { k: "arch", label: "Arch", min: 0, max: 1, step: 0.01, fmt: (v) => v.toFixed(2) },
   { k: "bar", label: "Bar height", min: 0.3, max: 0.7, step: 0.01, fmt: (v) => v.toFixed(2) },
   { k: "bowl", label: "Bowl wrap°", min: 0, max: 50, step: 1, fmt: (v) => v.toFixed(0) },
+  { k: "over", label: "Overshoot", min: 0, max: 0.06, step: 0.002, fmt: (v) => v.toFixed(3) },
+  { k: "asc", label: "Ascender", min: 0.85, max: 1.25, step: 0.01, fmt: (v) => v.toFixed(2) },
+  { k: "desc", label: "Descender", min: 0.08, max: 0.4, step: 0.01, fmt: (v) => v.toFixed(2) },
   { k: "seriflen", label: "Serif length", min: 0, max: 260, step: 2, fmt: (v) => v.toFixed(0) },
   { k: "serifth", label: "Serif height", min: 4, max: 130, step: 2, fmt: (v) => v.toFixed(0) },
 ];

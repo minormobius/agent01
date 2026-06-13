@@ -23,6 +23,8 @@ pub struct Morph {
     pub two_story_a: bool, // double-story 'a' (text) vs single-story (geometric)
     pub two_story_g: bool, // double-story 'g' (looped) vs single-story (open tail)
     pub ball: bool,        // ball terminals on c / r (vs the nib's sheared cut)
+    pub ascender: f64,     // ascender height as a fraction of cap (b d f h k l)
+    pub descender: f64,    // descender depth as a fraction of cap (g j p q y)
 }
 
 pub struct Params {
@@ -85,6 +87,8 @@ impl Params {
             two_story_a: r.chance(0.5),
             two_story_g: r.chance(0.5),
             ball: r.chance(0.28),
+            ascender: r.range(0.94, 1.12),
+            descender: r.range(0.16, 0.28),
         };
 
         let weight_class =
@@ -152,6 +156,9 @@ impl Params {
                 "arch" => self.morph.arch = f.clamp(0.0, 1.0),
                 "bar" => self.morph.bar = f.clamp(0.28, 0.72),
                 "bowl" => self.morph.bowl = f.clamp(0.0, 55.0),
+                "over" => self.morph.overshoot = f.clamp(0.0, 0.06) * self.cap,
+                "asc" => self.morph.ascender = f.clamp(0.85, 1.25),
+                "desc" => self.morph.descender = f.clamp(0.08, 0.40),
                 "seriflen" => self.serif_len = f.clamp(0.0, 300.0),
                 "serifth" => self.serif_th = f.clamp(2.0, 140.0),
                 "serif" => self.serif = f != 0.0,

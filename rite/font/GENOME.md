@@ -187,6 +187,18 @@ machine roll the space fast and let a human steer.
 
 ---
 
+## Coverage today
+
+Latin upper + lower, figures 0–9, common punctuation (`! ? : ; ( ) / ' " + =`
+plus `. , -`), accented Latin via base+combining-mark composition (acute, grave,
+circumflex, caron, tilde, diaeresis, ring, cedilla → French/German/Spanish/
+Portuguese/Czech coverage), and the Greek/Cyrillic letters that share a Latin
+skeleton (a starter — the script-specific letters are a future batch). A single
+TrueType font caps at 65,535 glyphs, so "all of Unicode" is by definition
+multi-font; CJK and cursive/contextual scripts (Arabic/Indic) need their own
+construction logic and a shaping engine, so they're out of scope for this
+skeleton+pen approach.
+
 ## How this maps onto our genome today
 
 Implemented (continuous, sliders): weight (`stem`), `modulation` (translation-pen
