@@ -721,11 +721,11 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/npc-sprite-generation-aeh9e1",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — FIXED (zoom-bucket): config renamed mega-minomobi -> mega + custom_domain route (mega.mino.mobi). Was deploying stray worker mega-minomobi. CLEANUP: delete the orphan `mega-minomobi` worker.",
-      "note": "Megaproject dashboard — global infrastructure tracker. Static worker-assets (Worker `mega-minomobi`).",
+      "status": "MANAGED — ownership moved to claude/npc-sprite-generation-aeh9e1 to host the /sprite wing (procedural NPC sprite generation for hoop). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP (historical): delete the orphan `mega-minomobi` worker.",
+      "note": "Static worker-assets (Worker `mega`, directory '.'). Two wings: `/` — megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` — procedural sprite generation: a seed-deterministic, atproto-persistable engine that breeds NPC sprites for the hoop O'Neill-cylinder game (sprites bound to chamber-address slots; the econ society's people made visible). Planning doc + reference renderer live client-side; no D1/DO/secrets.",
       "paths": [
         "mega/**"
       ]
