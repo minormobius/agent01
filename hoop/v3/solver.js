@@ -8,7 +8,7 @@ import { coarseSolve, extendRecord, solveRegion } from '../econ/record.js';
 import { deckScene, gateLinks } from '../econ/deck.js';
 
 let L = null, record = null, SEED = 7;
-const AXSPAN = 14, PX = 120, GRADE = 0.4;                   // 120 px per 15 m room — spacious
+const AXSPAN = 16, PX = 120, GRADE = 0.4;                   // 120 px per 15 m room — spacious; bigger chunk = fewer seams
 const solveCache = new Map();                              // "az,ax" -> solved (3D); LRU-capped
 function getSolved(az, ax) {
   const k = az + ',' + ax; let s = solveCache.get(k);
@@ -50,7 +50,7 @@ onmessage = (e) => {
   try {
     if (m.type === 'init') {
       SEED = m.seed >>> 0;
-      L = ringLattice({ Ri: 150, T: 12, cell: 1, regionsPerRing: 36 });
+      L = ringLattice({ Ri: 150, T: 12, cell: 1, regionsPerRing: 30 });   // fewer, wider regions → fewer seams
       record = coarseSolve({ lattice: L, seed: SEED, axMin: 0, axMax: 5 });
       postMessage({ type: 'ready', hubs: record.hubs, axMin: record.axMin, axMax: record.axMax, R: L.regionsPerRing, nz: L.nz, gzMid: Math.floor(L.nz / 2) });
       return;

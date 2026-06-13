@@ -229,8 +229,8 @@ const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0)
 // move along navmesh-correct paths (walkRoute → through doors, never walls). NPC decisions use
 // Math.random freely — they're ephemeral, like presence; the deterministic WORLD is untouched. Real
 // named society members + sprites come later; this is the engine, calibratable.
-const NPC_CAP = 46, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
-const NPC_SPEED = 165;                                      // px/s — a touch slower than the player's stride
+const NPC_CAP = 52, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
+const NPC_SPEED = 16;                                       // px/s — a slow amble (calibrated down ~10×)
 const dayPhase = () => (performance.now() / DAYLEN) % 1;    // 0..1; ~night when < .22 or > .78
 function npcsOf(v) {
   if (v._npcs) return v._npcs;
@@ -359,9 +359,9 @@ function streamFloors() {
   requestRegion(active.az, active.ax, active.gz - 1);            // the decks the stairs reach
   requestRegion(active.az, active.ax, active.gz + 1);
   if (active.gz === GZMID) {                                     // the concourse stitches horizontally
-    const z = zoom, vw = W / z / 2, vh = H / z / 2, m = PX * 2;  // a 2-room look-ahead margin
-    if (AT.x - vw < m) requestRegion(active.az - 1, active.ax, GZMID);
-    if (AT.x + vw > active.frame.W - m) requestRegion(active.az + 1, active.ax, GZMID);
+    const z = zoom, vw = W / z / 2, vh = H / z / 2, m = PX * 10; // a big look-ahead margin — the solve is
+    if (AT.x - vw < m) requestRegion(active.az - 1, active.ax, GZMID);   // heavy (~5 s), so request neighbours
+    if (AT.x + vw > active.frame.W - m) requestRegion(active.az + 1, active.ax, GZMID);   // early to hide it
     if (AT.y - vh < m) requestRegion(active.az, active.ax - 1, GZMID);
     if (AT.y + vh > active.frame.H - m) requestRegion(active.az, active.ax + 1, GZMID);
   }
