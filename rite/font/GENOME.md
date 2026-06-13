@@ -195,7 +195,14 @@ circumflex, caron, tilde, diaeresis, ring, cedilla → French/German/Spanish/
 Portuguese/Czech coverage), and **full Greek + Cyrillic** (uppercase + lowercase;
 the shared shapes alias to Latin, the script-specific caps are constructed, and
 Cyrillic lowercase is built as small-caps of the capitals; the organic Greek
-lowercase are first-pass). ~234 glyphs total. A single
+lowercase are first-pass), and a **math starter pack** (operators, relations,
+arrows, set/logic, and large operators: `× ÷ ± ≤ ≥ ≠ ≈ ≡ ∞ √ ∇ ∂ ∫ ∑ ∏ ∈ ∉ ∀ ∃
+¬ ∧ ∨ ∪ ∩ ⊂ ⊃ ∅ → ← ↔ · ° | [ ]`). ~269 glyphs total. Note: a *math
+typesetting* font (stretchy delimiters, size variants, the OpenType MATH table,
+sub/superscript metrics) is a much larger effort than the symbols themselves; and
+the styled math alphabets (𝔸 double-struck, 𝐀 bold, 𝑨 italic…) live in Unicode
+plane 1, which would need a cmap format-12 subtable in the serializer (the common
+ℝ ℕ ℤ ℚ ℂ are in the BMP and reachable). A single
 TrueType font caps at 65,535 glyphs, so "all of Unicode" is by definition
 multi-font; CJK and cursive/contextual scripts (Arabic/Indic) need their own
 construction logic and a shaping engine, so they're out of scope for this

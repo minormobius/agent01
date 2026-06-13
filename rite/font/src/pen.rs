@@ -592,6 +592,9 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
         'Υ' | 'Ү' | 'У' => return glyph_for('Y', p),
         'Χ' | 'Х' => return glyph_for('X', p),
         'С' => return glyph_for('C', p),
+        // big operators that are just Greek caps
+        '∑' => return glyph_for('Σ', p),
+        '∏' => return glyph_for('Π', p),
         // Latin-shaped Cyrillic/Greek lowercase
         'с' => return glyph_for('c', p),
         'е' => return glyph_for('e', p),
@@ -1791,27 +1794,28 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
             k
         }
         'β' => {
-            // tall stem (rises above x-height, descends below baseline) with two
-            // stacked lobes on the right.
+            // Tall stem (rises above x-height, descends below) with two stacked
+            // lobes that meet at a waist near mid x-height — like a rounded B.
             let w = wl;
-            let top = (xh + asc) / 2.0;
             let mut k = Skel::new(p, adv(w));
             k.line((s / 2.0, -dd), (s / 2.0, asc));
-            k.bowl_right(s / 2.0, w - s / 2.0, xh, wrap); // lower lobe
-            k.open(&[Seg::Arc {
-                c: (s / 2.0, (xh + top) / 2.0),
-                rx: (w - s).max(8.0) * 0.78,
-                ry: ((top - xh) / 2.0 + xh / 2.0).max(8.0),
-                a1: deg(90.0),
-                a2: deg(-90.0),
-            }]); // upper lobe
+            upper_bowl(&mut k, s / 2.0, xh * 0.46, xh, s / 2.0 + 0.26 * h); // upper lobe
+            upper_bowl(&mut k, s / 2.0, 0.0, xh * 0.54, s / 2.0 + 0.30 * h); // lower lobe
             k
         }
         'δ' => {
+            // Lower bowl with a CURVED top wrapping over and to the left (an open
+            // counter at the top-left) — not a straight diagonal, which read as ó.
             let w = wl;
             let mut k = Skel::new(p, adv(w));
-            k.ring_box(0.0, w, -ov, xh + ov);
-            k.line((w * 0.5, xh), (w - s / 2.0, asc)); // top curl
+            k.ring_box(0.0, w, -ov, xh * 0.72);
+            k.open(&[Seg::Arc {
+                c: (w * 0.5, xh * 0.60),
+                rx: (w * 0.40).max(8.0),
+                ry: (xh * 0.34).max(8.0),
+                a1: deg(8.0),
+                a2: deg(205.0),
+            }]);
             k
         }
         'ε' => {
@@ -1851,6 +1855,236 @@ pub fn glyph_for(c: char, p: &Params) -> Option<Glyph> {
                 Seg::Arc { c: (w / 2.0, xh * 0.45), rx: (w / 2.0 - s / 2.0).max(8.0), ry: (xh * 0.30).max(8.0), a1: deg(180.0), a2: deg(360.0) },
                 Seg::Line((xr, xh * 0.45), (xr, xh)),
             ]);
+            k
+        }
+
+        // ---- math symbols (starter pack) ------------------------------------
+        '×' => {
+            let w = 0.52 * h * wf;
+            let cy = 0.46 * h;
+            let mut k = Skel::new(p, adv(w));
+            k.line((w * 0.22, cy - 0.18 * h), (w * 0.78, cy + 0.18 * h));
+            k.line((w * 0.78, cy - 0.18 * h), (w * 0.22, cy + 0.18 * h));
+            k
+        }
+        '÷' => {
+            let w = 0.54 * h * wf;
+            let cy = 0.46 * h;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(w * 0.14, w * 0.86, cy);
+            k.disk(w / 2.0, cy + 0.20 * h, s * 0.55);
+            k.disk(w / 2.0, cy - 0.20 * h, s * 0.55);
+            k
+        }
+        '±' => {
+            let w = 0.54 * h * wf;
+            let (cx, cy) = (w / 2.0, 0.50 * h);
+            let mut k = Skel::new(p, adv(w));
+            k.line((w * 0.16, cy), (w * 0.84, cy));
+            k.line((cx, cy - 0.22 * h), (cx, cy + 0.22 * h));
+            k.hbar(w * 0.16, w * 0.84, 0.12 * h);
+            k
+        }
+        '≤' | '≥' => {
+            let w = 0.54 * h * wf;
+            let (a, b) = if c == '≤' { (w * 0.82, w * 0.18) } else { (w * 0.18, w * 0.82) };
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Line((a, 0.66 * h), (b, 0.42 * h)), Seg::Line((b, 0.42 * h), (a, 0.18 * h))]);
+            k.hbar(w * 0.18, w * 0.82, 0.08 * h);
+            k
+        }
+        '≠' => {
+            let w = 0.52 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(w * 0.14, w * 0.86, 0.52 * h);
+            k.hbar(w * 0.14, w * 0.86, 0.34 * h);
+            k.line((w * 0.34, 0.18 * h), (w * 0.66, 0.68 * h));
+            k
+        }
+        '≈' => {
+            let w = 0.54 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            for cy in [0.52 * h, 0.34 * h] {
+                k.open(&[
+                    Seg::Line((w * 0.14, cy), (w * 0.38, cy + 0.06 * h)),
+                    Seg::Line((w * 0.38, cy + 0.06 * h), (w * 0.62, cy - 0.06 * h)),
+                    Seg::Line((w * 0.62, cy - 0.06 * h), (w * 0.86, cy)),
+                ]);
+            }
+            k
+        }
+        '≡' => {
+            let w = 0.54 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            for cy in [0.58 * h, 0.44 * h, 0.30 * h] {
+                k.hbar(w * 0.14, w * 0.86, cy);
+            }
+            k
+        }
+        '∞' => {
+            let w = 0.66 * h * wf;
+            let cy = 0.46 * h;
+            let r = 0.17 * h;
+            let mut k = Skel::new(p, adv(w));
+            k.ring((w * 0.30, cy), r, r);
+            k.ring((w * 0.70, cy), r, r);
+            k
+        }
+        '√' => {
+            let w = 0.60 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[
+                Seg::Line((0.0, 0.42 * h), (w * 0.18, 0.30 * h)),
+                Seg::Line((w * 0.18, 0.30 * h), (w * 0.36, h)),
+                Seg::Line((w * 0.36, h), (w, h)),
+            ]);
+            k
+        }
+        '∇' => {
+            let w = wr;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(0.0, w, h - t / 2.0);
+            k.open(&[Seg::Line((s / 2.0, h - t), (w / 2.0, 0.0)), Seg::Line((w / 2.0, 0.0), (w - s / 2.0, h - t))]);
+            k
+        }
+        '∂' => {
+            let w = wl;
+            let mut k = Skel::new(p, adv(w));
+            k.ring_box(0.0, w, -ov, xh * 0.70);
+            k.open(&[Seg::Arc {
+                c: (w * 0.5, xh * 0.62),
+                rx: (w * 0.40).max(8.0),
+                ry: (xh * 0.5).max(8.0),
+                a1: deg(150.0),
+                a2: deg(20.0),
+            }]);
+            k
+        }
+        '∫' => {
+            // an elongated S spine spanning ascender to descender
+            let w = 0.34 * h * wf;
+            let cx = w / 2.0;
+            let r = 0.10 * h;
+            let mut k = Skel::new(p, adv(w));
+            k.line((cx, -dd + r), (cx, h - r)); // long stalk
+            k.open(&[Seg::Arc { c: (cx + r, h - r), rx: r, ry: r, a1: deg(180.0), a2: deg(20.0) }]); // top hook
+            k.open(&[Seg::Arc { c: (cx - r, -dd + r), rx: r, ry: r, a1: deg(0.0), a2: deg(200.0) }]); // bottom hook
+            k
+        }
+        '∈' | '∉' => {
+            let w = wl;
+            let mut k = Skel::new(p, adv(w));
+            k.arc_box(0.0, w, 0.12 * h, 0.84 * h, 55.0, 305.0);
+            k.hbar(w * 0.12, w * 0.72, 0.48 * h);
+            if c == '∉' {
+                k.line((w * 0.3, 0.04 * h), (w * 0.7, 0.92 * h));
+            }
+            k
+        }
+        '∀' => {
+            let w = wn;
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Line((s / 2.0, h), (w / 2.0, 0.0)), Seg::Line((w / 2.0, 0.0), (w - s / 2.0, h))]);
+            k.hbar(w * 0.22, w * 0.78, 0.42 * h);
+            k
+        }
+        '∃' => {
+            let w = wn * 0.9;
+            let mut k = Skel::new(p, adv(w));
+            k.vstem(w - s / 2.0, 0.0, h);
+            k.hbar(w * 0.1, w - s / 2.0, h - t / 2.0);
+            k.hbar(w * 0.1, w - s / 2.0, h / 2.0);
+            k.hbar(w * 0.1, w - s / 2.0, t / 2.0);
+            k
+        }
+        '¬' => {
+            let w = 0.56 * h * wf;
+            let cy = 0.56 * h;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(w * 0.1, w * 0.9, cy);
+            k.line((w * 0.9, cy), (w * 0.9, cy - 0.16 * h));
+            k
+        }
+        '∧' | '∨' => {
+            let w = 0.5 * h * wf;
+            let (lo, hi) = if c == '∧' { (0.28 * h, 0.78 * h) } else { (0.78 * h, 0.28 * h) };
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[Seg::Line((s / 2.0, lo), (w / 2.0, hi)), Seg::Line((w / 2.0, hi), (w - s / 2.0, lo))]);
+            k
+        }
+        '∪' | '∩' => {
+            let w = 0.5 * h * wf;
+            let (xl, xr) = (s / 2.0, w - s / 2.0);
+            let r = (xr - xl) / 2.0;
+            let (y_stem, y_bowl, a1, a2) = if c == '∪' {
+                (0.74 * h, 0.26 * h + r, 180.0, 360.0)
+            } else {
+                (0.26 * h, 0.74 * h - r, 180.0, 0.0)
+            };
+            let mut k = Skel::new(p, adv(w));
+            k.open(&[
+                Seg::Line((xl, y_stem), (xl, y_bowl)),
+                Seg::Arc { c: ((xl + xr) / 2.0, y_bowl), rx: r, ry: r, a1: deg(a1), a2: deg(a2) },
+                Seg::Line((xr, y_bowl), (xr, y_stem)),
+            ]);
+            k
+        }
+        '⊂' | '⊃' => {
+            let w = wl;
+            let mut k = Skel::new(p, adv(w));
+            if c == '⊂' {
+                k.arc_box(0.0, w, 0.16 * h, 0.80 * h, 60.0, 300.0);
+            } else {
+                k.arc_box(0.0, w, 0.16 * h, 0.80 * h, -120.0, 120.0);
+            }
+            k
+        }
+        '∅' => {
+            let w = wr;
+            let mut k = Skel::new(p, adv(w));
+            k.ring_box(0.0, w, 0.06 * h, 0.94 * h);
+            k.line((s / 2.0, 0.0), (w - s / 2.0, h));
+            k
+        }
+        '→' | '←' | '↔' => {
+            let w = 0.74 * h * wf;
+            let cy = 0.46 * h;
+            let hd = 0.16 * h;
+            let mut k = Skel::new(p, adv(w));
+            k.hbar(0.0, w, cy);
+            if c != '←' {
+                k.open(&[Seg::Line((w - hd, cy + hd * 0.7), (w, cy)), Seg::Line((w, cy), (w - hd, cy - hd * 0.7))]);
+            }
+            if c != '→' {
+                k.open(&[Seg::Line((hd, cy + hd * 0.7), (0.0, cy)), Seg::Line((0.0, cy), (hd, cy - hd * 0.7))]);
+            }
+            k
+        }
+        '·' => {
+            let w = 0.24 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.disk(w / 2.0, 0.44 * h, s * 0.55);
+            k
+        }
+        '°' => {
+            let w = 0.30 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.ring((w / 2.0, 0.80 * h), 0.09 * h, 0.09 * h);
+            k
+        }
+        '|' => {
+            let w = 0.20 * h * wf;
+            let mut k = Skel::new(p, adv(w));
+            k.line((w / 2.0, -0.10 * h), (w / 2.0, h));
+            k
+        }
+        '[' | ']' => {
+            let w = 0.28 * h * wf;
+            let (xstem, x1) = if c == '[' { (w * 0.38, w * 0.85) } else { (w * 0.62, w * 0.15) };
+            let mut k = Skel::new(p, adv(w));
+            k.line((xstem, -0.08 * h), (xstem, h));
+            k.hbar(xstem.min(x1), xstem.max(x1), h - t / 2.0);
+            k.hbar(xstem.min(x1), xstem.max(x1), -0.08 * h + t / 2.0);
             k
         }
 
