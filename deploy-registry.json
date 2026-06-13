@@ -115,7 +115,7 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/npc-sprite-generation-aeh9e1",
       "uses": [
         "mino-auth-db"
       ],
