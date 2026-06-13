@@ -89,6 +89,15 @@ export function extendRecord(record, newAxMax, { iters = 24 } = {}) {
 // Axial seam (B = A's +x neighbour): pairs ((gxLine−1, gy, gz) in A, (gxLine, gy, gz) in B).
 // Both regions evaluate the identical function: gatesFor(A,B) ≡ gatesFor(B,A). Gates live in the
 // mid-shell deck band; a candidate needs BOTH chambers to exist (region.js's own existence law).
+//
+// THE DECK GUARANTEE (v3 stitching fix). The game only ever walks the mid-shell deck (gz = gzMid),
+// so a seam whose K picks all land on gz±1 reads as a WALL the player can see a street through —
+// the "no gate on this deck toward region" bug. Two invariants restore continuity, and the seam
+// contract keeps them symmetric (both regions compute identical candidates ⇒ identical gates):
+//   (1) callers floor K to ≥1 — every adjacent region pair is connected, tier only sets prominence;
+//   (2) gatesFor itself appends the hash-minimum DECK candidate if the spread missed the deck. A
+//       deck candidate effectively always exists (the foam is thick at mid-shell), so every seam
+//       gets a walkable crossing.
 export function gatesFor(lattice, seed, grade, A, B, axSpan, K = 3) {
   const L = lattice, R = L.regionsPerRing;
   // canonical orientation: lo → hi along the seam normal (handles the azimuth wrap)
@@ -97,8 +106,8 @@ export function gatesFor(lattice, seed, grade, A, B, axSpan, K = 3) {
   if (A.ax === B.ax && (azD === 1 || azD === R - 1)) { kind = 'az'; [lo, hi] = azD === 1 ? [A, B] : [B, A]; }
   else if (normAz(A.az, R) === normAz(B.az, R) && Math.abs(A.ax - B.ax) === 1) { kind = 'ax'; [lo, hi] = A.ax < B.ax ? [A, B] : [B, A]; }
   else return [];
-  const gzs = [];
   const gzMid = Math.floor(L.nz / 2);
+  const gzs = [];
   for (const gz of [gzMid - 1, gzMid, gzMid + 1]) if (gz >= 0 && gz < L.nz) gzs.push(gz);
   const cands = [];
   if (kind === 'az') {
@@ -106,7 +115,7 @@ export function gatesFor(lattice, seed, grade, A, B, axSpan, K = 3) {
     const gx0 = lo.ax * axSpan, gx1 = gx0 + axSpan;
     for (let gx = gx0; gx < gx1; gx++) for (const gz of gzs) {
       if (!chamberAt(L, seed, grade, gx, gyLine - 1, gz) || !chamberAt(L, seed, grade, gx, gyLine, gz)) continue;
-      cands.push({ a: gx + '|' + normAz(gyLine - 1, L.nyRing) + '|' + gz, b: gx + '|' + normAz(gyLine, L.nyRing) + '|' + gz, t: (gx - gx0) / axSpan, h: roll(seed, gx, gyLine, gz, 21) });
+      cands.push({ a: gx + '|' + normAz(gyLine - 1, L.nyRing) + '|' + gz, b: gx + '|' + normAz(gyLine, L.nyRing) + '|' + gz, gz, t: (gx - gx0) / axSpan, h: roll(seed, gx, gyLine, gz, 21) });
     }
   } else {
     const gxLine = hi.ax * axSpan;
@@ -114,17 +123,25 @@ export function gatesFor(lattice, seed, grade, A, B, axSpan, K = 3) {
     for (let k = 0; k < L.nyR; k++) for (const gz of gzs) {
       const gy = gy0 + k;
       if (!chamberAt(L, seed, grade, gxLine - 1, gy, gz) || !chamberAt(L, seed, grade, gxLine, gy, gz)) continue;
-      cands.push({ a: (gxLine - 1) + '|' + normAz(gy, L.nyRing) + '|' + gz, b: gxLine + '|' + normAz(gy, L.nyRing) + '|' + gz, t: k / L.nyR, h: roll(seed, gxLine, gy, gz, 22) });
+      cands.push({ a: (gxLine - 1) + '|' + normAz(gy, L.nyRing) + '|' + gz, b: gxLine + '|' + normAz(gy, L.nyRing) + '|' + gz, gz, t: k / L.nyR, h: roll(seed, gxLine, gy, gz, 22) });
     }
   }
   // K well-spread picks: the hash-minimum of each of K equal segments along the seam
   const out = [];
+  const has = (c) => out.some((o) => o.a === c.a && o.b === c.b);
   for (let k = 0; k < K; k++) {
     let best = null;
     for (const c of cands) if (c.t >= k / K && c.t < (k + 1) / K && (!best || c.h < best.h)) best = c;
-    if (best) out.push({ a: best.a, b: best.b });
+    if (best && !has(best)) out.push(best);
   }
-  return out;
+  // (2) guarantee a deck-level crossing: append the hash-min deck candidate if none picked landed
+  // on the deck. Deterministic + symmetric — both regions see the same cands and pick the same one.
+  if (!out.some((c) => c.gz === gzMid)) {
+    let best = null;
+    for (const c of cands) if (c.gz === gzMid && (!best || c.h < best.h)) best = c;
+    if (best && !has(best)) out.push(best);
+  }
+  return out.map((c) => ({ a: c.a, b: c.b }));
 }
 
 // ── THE FINE PASS: one region's streets, grown to meet its neighbours at the gates ──────────────
@@ -159,11 +176,10 @@ export function solveRegion({
   const myGates = [];
   for (const nb of [{ az: azN + 1, ax }, { az: azN - 1, ax }, { az: azN, ax: ax + 1 }, { az: azN, ax: ax - 1 }]) {
     const rec = record && record.seams.get(seamKey({ az: azN, ax }, nb, R));
-    const tier = rec ? rec.tier : 0;
-    if (!tier) continue;
-    for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, tier)) {
+    const K = Math.max(1, rec ? rec.tier : 0);              // floor to ≥1 — every seam is crossable
+    for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, K)) {
       const mine = byGid.has(pair.a) ? pair.a : byGid.has(pair.b) ? pair.b : null;
-      if (mine) myGates.push({ idx: byGid.get(mine), gid: mine, tier });
+      if (mine) myGates.push({ idx: byGid.get(mine), gid: mine, tier: K });
     }
   }
   // gate demand: through-traffic between gates + each gate into a few deterministic local doors
