@@ -265,6 +265,38 @@ membrane language. The pieces now all exist; this leg is their assembly, in orde
    stairs, the v1 ART STYLE PORT (function-matched raytraced lights, gradient sliding — its own
    leg, see below), and the eventual flip of `/` to v2 once nav + render parity are pinned.
 
+## Leg 9 — v3: THE STITCH (gates on the deck, walk anywhere you can see) — SHIPPED
+
+v2 was *so close*, but two stitching bugs broke the seamless promise — and they were the same bug
+wearing two coats:
+
+- **"⊘ no gate on this deck toward region."** Gates were only placed on seams the coarse solve
+  tiered ≥1, so the bottom ~45% of seams (tier 0) had **no crossing at all** — yet the seamless
+  render still drew both regions' streets meeting at the seam. The player saw a continuous street
+  and hit an invisible wall.
+- **Gates scattered off the walkable deck.** `gatesFor` spread its K picks across three radial
+  layers (`gzMid±1`), but the game only ever walks the **mid-shell deck** (`gzMid`). Measured on
+  seed 7: **79% of seams had no gate on the deck**, even where a deck-level candidate existed.
+
+**The fix is two invariants, both kept symmetric by the seam contract (so the two regions still
+agree without communicating):**
+1. **Floor K to ≥1.** Every adjacent region pair is connected; the coarse tier now only sets road
+   *prominence* (1 gate for a back-street seam, up to 3 for a trunk), never connectivity. Applied
+   at all three call sites that gate (`solveRegion`'s `myGates`, `deckScene`'s `openGhost`,
+   `gateLinks`).
+2. **The deck guarantee in `gatesFor`.** If the K spread missed the deck, append the hash-minimum
+   `gz = gzMid` candidate. A deck candidate effectively always exists (the foam is thick at
+   mid-shell), so **every seam gets a walkable crossing** — verified 0/432 seams un-gated, down from
+   79%. Pinned in `record.selftest` (THE STITCHING CONTRACT: every band seam has a deck gate, and
+   the guarantee stays symmetric across all seams).
+
+**v3 SHIPPED at `hoop/v3/`** (linked from the topbar; v1 and v2 untouched). It rides the fixed
+kernel and upgrades navigation: click-to-walk now BFS-routes a **region path** across the whole
+loaded world and threads the gates **seam by seam** — so you can click any room you can see, several
+regions away, and the `@` crosses every gate to get there (the wrap and axial directions included).
+v2 only handled an immediate neighbour. The seamless one-cell threshold step (walk into the ghost
+partner, swap the active region at that exact point) is unchanged; v3 just chains it.
+
 ## Leg 8 — the v1 art style on the solved map (CHARTED)
 
 v2 currently renders the brutalist flat-cell look. v1's feel — **raytraced room lighting and

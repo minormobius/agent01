@@ -59,9 +59,8 @@ export function deckScene({
     const bandGid = new Map(); band.forEach((c, i) => bandGid.set(c.gid, i));
     for (const nb of [{ az: azN + 1, ax }, { az: azN - 1, ax }, { az: azN, ax: ax + 1 }, { az: azN, ax: ax - 1 }]) {
       const rec = record && record.seams.get(seamKey({ az: azN, ax }, nb, R));
-      const tier = rec ? rec.tier : 0;
-      if (!tier) continue;
-      for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, tier)) {
+      const K = Math.max(1, rec ? rec.tier : 0);            // floor: open every seam's deck gate
+      for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, K)) {
         const mine = bandGid.has(pair.a) ? pair.a : bandGid.has(pair.b) ? pair.b : null;
         if (!mine) continue;
         const other = mine === pair.a ? pair.b : pair.a;
@@ -190,10 +189,9 @@ export function gateLinks(d, { lattice, seed = 1, grade = 0.4, record, az, ax, a
   const links = [];
   for (const nb of [{ az: azN + 1, ax }, { az: azN - 1, ax }, { az: azN, ax: ax + 1 }, { az: azN, ax: ax - 1 }]) {
     const rec = record && record.seams.get(seamKey({ az: azN, ax }, nb, R));
-    const tier = rec ? rec.tier : 0;
-    if (!tier) continue;
+    const K = Math.max(1, rec ? rec.tier : 0);              // floor: every neighbour has a deck crossing
     const nbN = { az: ((nb.az % R) + R) % R, ax: nb.ax };
-    for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, tier)) {
+    for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, K)) {
       const mine = byGid.has(pair.a) ? pair.a : byGid.has(pair.b) ? pair.b : null;
       if (!mine) continue;                                  // this gate lives off-deck (gz ±1)
       links.push({ room: byGid.get(mine), gid: mine, to: nbN, partner: mine === pair.a ? pair.b : pair.a });
