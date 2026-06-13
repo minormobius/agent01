@@ -22,35 +22,61 @@ function ehash(seed, a, b) { let x = (seed ^ Math.imul(a + 1, 73856093) ^ Math.i
 
 export function deckScene({
   lattice, seed = 1, grade = 0.4, genome, record, az = 0, ax = 0, axSpan = 14, iters = 5,
-  pxPerCell = 64, wallSpacing = 8, roomSpacing = 22, gz, loops = 0.15, solved, solveOpts = {},
+  pxPerCell = 64, wallSpacing, roomSpacing, gz, loops = 0.15, solved, solveOpts = {},
 } = {}) {
   const L = lattice, gzDeck = gz ?? Math.floor(L.nz / 2);
+  // 8/24 proportions scale with the room size so the paint density per room stays constant
+  if (wallSpacing == null) wallSpacing = pxPerCell * 0.125;
+  if (roomSpacing == null) roomSpacing = pxPerCell * 0.345;
   const s = solved || solveRegion({ lattice, seed, grade, genome, record, az, ax, axSpan, iters, ...solveOpts });
   const { rf, city } = s;
 
-  // the band: this deck's chambers, projected to px (unrolled arc × axial)
-  const band = [];
+  // the band: this deck's chambers — REAL first, then the GHOST RIM (the neighbours' first two
+  // lattice columns, bit-identical by the seam contract). Ghosts join the Voronoi so boundary
+  // rooms compute the SAME polygons from both sides: regions tile a continuous world with no
+  // seam, mathematically. Coordinates are LATTICE-ANCHORED (region origin = its gy0/gx0 corner),
+  // so a region's px frame drops into the world at offset (dAz·frameW, dAx·frameH), exactly.
+  const band = [], ghostBand = [];
   for (const c of rf.nodes) if (c.gz === gzDeck) band.push(c);
+  for (const c of rf.ghosts) if (c.gz === gzDeck) ghostBand.push(c);
+  const nReal = band.length;
   const rBar = L.Ri + L.T / 2, K = pxPerCell / L.cell;
-  let thMin = Infinity, zMin = Infinity;
-  for (const c of band) { if (c.thU < thMin) thMin = c.thU; if (c.z < zMin) zMin = c.z; }
-  const pad = pxPerCell;
-  const seeds = band.map((c) => ({ x: (c.thU - thMin) * rBar * K + pad, y: (c.z - zMin) * K + pad }));
-  let W = 0, H = 0; for (const p of seeds) { if (p.x > W) W = p.x; if (p.y > H) H = p.y; }
-  W += pad; H += pad;
+  const ox = rf.gy0 * L.dTheta, oz = rf.gx0 * L.cell;
+  const toPx = (c) => ({ x: (c.thU - ox) * rBar * K, y: (c.z - oz) * K });
+  const seeds = band.concat(ghostBand).map(toPx);
+  const W = L.nyR * L.dTheta * rBar * K, H = axSpan * L.cell * K;
 
-  // per-room city facts
+  // per-room city facts (REAL rooms only; ghosts belong to the neighbour's solve)
   const owner = band.map((c) => city.chamberOwner[c.idx]);
   const role = band.map((_, i) => owner[i] >= 0 ? city.places[owner[i]].role : owner[i] === -1 ? 'road' : 'void');
   const isGate = new Set();
   { const gs = new Set(s.gates); band.forEach((c, i) => { if (gs.has(c.gid)) isGate.add(i); }); }
+  // gate membranes into the ghost rim open (the street continues through the seam, visibly)
+  const ghostIdx = new Map(); ghostBand.forEach((c, i) => ghostIdx.set(c.gid, nReal + i));
+  const openGhost = new Set();
+  {
+    const R = L.regionsPerRing, azN = ((az % R) + R) % R;
+    const bandGid = new Map(); band.forEach((c, i) => bandGid.set(c.gid, i));
+    for (const nb of [{ az: azN + 1, ax }, { az: azN - 1, ax }, { az: azN, ax: ax + 1 }, { az: azN, ax: ax - 1 }]) {
+      const rec = record && record.seams.get(seamKey({ az: azN, ax }, nb, R));
+      const tier = rec ? rec.tier : 0;
+      if (!tier) continue;
+      for (const pair of gatesFor(L, seed, grade, { az: azN, ax }, nb, axSpan, tier)) {
+        const mine = bandGid.has(pair.a) ? pair.a : bandGid.has(pair.b) ? pair.b : null;
+        if (!mine) continue;
+        const other = mine === pair.a ? pair.b : pair.a;
+        if (ghostIdx.has(other)) openGhost.add(bandGid.get(mine) + '|' + ghostIdx.get(other));
+      }
+    }
+  }
 
   // classify the membranes: same geometric adjacency buildSceneCustom will recompute
   const roomSeeds = seeds.map((p, i) => ({ x: p.x, y: p.y, id: i }));
-  const roomSize = Math.max(roomSpacing * 2, Math.sqrt((W * H) / Math.max(1, roomSeeds.length)));
+  const roomSize = Math.max(roomSpacing * 2, Math.sqrt((W * H) / Math.max(1, roomSeeds.length)));   // EXACTLY buildSceneCustom's law, so the classified adjacency is the painted adjacency
   const rg = bucketGrid(roomSeeds, roomSize * 1.4);
   const cellsPoly = roomSeeds.map((q) => ({ id: q.id, x: q.x, y: q.y, poly: clipCell(q, rg.near(q.x, q.y), roomSize * 2.2) }));
-  const adjE = adjacency(cellsPoly, roomSeeds, rg, wallSpacing * 0.6);
+  const adjE0 = adjacency(cellsPoly, roomSeeds, rg, wallSpacing * 0.6);
+  const adjE = adjE0.filter((e) => e.a < nReal && e.b < nReal);    // real-real: the city's own fabric
   const eKey = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
   const kind = new Map();
   // interior doors: a spanning tree (+ loops) per building over its intra-building band edges
@@ -92,11 +118,25 @@ export function deckScene({
     kind.set(eKey(c.e.a, c.e.b), 'door');
     serviceEdges.push({ a: c.e.a, b: c.e.b });
   }
+  // SEALED border pockets: rooms outside the giant walkable component — islands whose whole
+  // perimeter is the ghost rim, so no in-region door can ever reach them without breaching the
+  // seam. Honestly sealed on this deck; their connectivity is the 3D foam (the stairs leg). Rare.
+  const compSize = new Map();
+  for (let i = 0; i < nReal; i++) { const r = find(i); compSize.set(r, (compSize.get(r) || 0) + 1); }
+  let mainRoot = -1, mainN = -1;
+  for (const [r, n] of compSize) if (n > mainN) { mainN = n; mainRoot = r; }
+  const sealed = new Set();
+  for (let i = 0; i < nReal; i++) if (find(i) !== mainRoot) sealed.add(i);
 
   const scene = buildSceneCustom({
     W, H, wallSpacing, roomSpacing, seeds,
     seed: (seed ^ Math.imul(((az % L.regionsPerRing) + L.regionsPerRing) % L.regionsPerRing + 1, 0x68bc21) ^ Math.imul((ax + 0x4000) | 0, 0x2c9277)) >>> 0,
-    edgeKind: (a, b) => kind.get(eKey(a, b)) || 'wall',
+    edgeKind: (a, b) => {
+      const ga = a >= nReal, gb = b >= nReal;
+      if (ga && gb) return 'wall';                          // the neighbour's own fabric — not ours to cut
+      if (ga || gb) return openGhost.has((ga ? b : a) + '|' + (ga ? a : b)) ? 'open' : 'wall';
+      return kind.get(eKey(a, b)) || 'wall';
+    },
   });
 
   // building glyph anchors (band centroid per building present on this deck)
@@ -113,18 +153,22 @@ export function deckScene({
     buildings: glyphs.size, streetDoors: best.size, serviceDoors: serviceEdges.length, gates: isGate.size,
     closure: city.closure, access: city.access,
   };
-  return { scene, band, owner, role, bill, isGate, seeds, stats, solved: s, frame: { W, H },
-    streetDoorKeys, serviceEdges };
+  stats.sealed = sealed.size;
+  return { scene, band, ghostBand, nReal, owner, role, bill, isGate, seeds, stats, solved: s,
+    frame: { W, H }, K, streetDoorKeys, serviceEdges, sealed };
 }
 
 export const ROLE_COLOR = Object.fromEntries(Object.entries(ROLES).map(([k, R]) => [k, R.color]));
+export const M_PER_CELL = 15;     // the declared room scale: one lattice cell = a spacious ~15 m room
 
 // ── WAYFINDING on the deck: the walkable graph IS the membrane classification — you can cross a
 //    door or an open concourse membrane, never a wall. Routes thread room-centre → door midpoint →
 //    room-centre, so a journey out of a building visibly funnels through its ONE street door. ──
 export function buildWalk(d) {
+  const nR = d.nReal ?? d.seeds.length;
   const walk = Array.from({ length: d.seeds.length }, () => []);
   const addE = (e) => {
+    if (e.a >= nR || e.b >= nR) return;                     // ghost crossings are the page's portals, not walks
     const a = d.seeds[e.a], b = d.seeds[e.b], m = e.m;
     const w = Math.hypot(a.x - m[0], a.y - m[1]) + Math.hypot(b.x - m[0], b.y - m[1]);
     walk[e.a].push({ to: e.b, w, m }); walk[e.b].push({ to: e.a, w, m });

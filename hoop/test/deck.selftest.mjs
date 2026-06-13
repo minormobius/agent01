@@ -39,7 +39,9 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
 {
   ok(d.stats.rooms > 200 && d.scene.paintCells.length > 3000, 'a deck band projects to a real paint scene (' + d.stats.rooms + ' rooms, ' + d.scene.paintCells.length + ' cells)');
   ok(d.stats.roadRooms > 0 && d.scene.opens.length > 0, 'the right-of-way reaches this deck as zero-wall concourse');
-  ok(d.scene.opens.every((e) => d.owner[e.a] === -1 && d.owner[e.b] === -1), 'opens ONLY ever join two road rooms');
+  const rrOpens = d.scene.opens.filter((e) => e.a < d.nReal && e.b < d.nReal);
+  ok(rrOpens.every((e) => d.owner[e.a] === -1 && d.owner[e.b] === -1), 'real opens ONLY ever join two road rooms');
+  ok(d.scene.opens.filter((e) => e.a >= d.nReal || e.b >= d.nReal).every((e) => d.isGate.has(Math.min(e.a, e.b))), 'the only membranes opened into the ghost rim are the GATES (the street continues through the seam)');
   // exactly one STREET door per road-fronting building (service doors are a separate category)
   const ek = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
   const doored = new Map();
@@ -51,16 +53,19 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok([...doored.values()].every((n) => n === 1), 'every street-doored building has EXACTLY one street door (sequestration)');
   const fronting = new Set();
   for (const e of d.scene.adjEdges) {
+    if (e.a >= d.nReal || e.b >= d.nReal) continue;          // frontage is onto OUR road, not the neighbour's
     const bo = d.owner[e.a] >= 0 && d.owner[e.b] === -1 ? d.owner[e.a] : d.owner[e.b] >= 0 && d.owner[e.a] === -1 ? d.owner[e.b] : -1;
     if (bo >= 0) fronting.add(bo);
   }
   ok(doored.size === fronting.size, 'every building that fronts the street on this deck gets its door (' + doored.size + '/' + fronting.size + ')');
   // UNIVERSAL NAVIGABILITY: every room reaches every room (the hard requirement)
-  const walkAdj = Array.from({ length: d.seeds.length }, () => []);
-  for (const e of d.scene.doors.concat(d.scene.opens)) { walkAdj[e.a].push(e.b); walkAdj[e.b].push(e.a); }
-  const seenW = new Set([0]), qW = [0];
+  const walkAdj = Array.from({ length: d.nReal }, () => []);
+  for (const e of d.scene.doors.concat(d.scene.opens)) { if (e.a >= d.nReal || e.b >= d.nReal) continue; walkAdj[e.a].push(e.b); walkAdj[e.b].push(e.a); }
+  let start0 = 0; while (d.sealed.has(start0)) start0++;
+  const seenW = new Set([start0]), qW = [start0];
   while (qW.length) { const u = qW.pop(); for (const v of walkAdj[u]) if (!seenW.has(v)) { seenW.add(v); qW.push(v); } }
-  ok(seenW.size === d.seeds.length, 'EVERY room is navigable to every other room (' + seenW.size + '/' + d.seeds.length + ')');
+  ok(seenW.size === d.nReal - d.sealed.size, 'EVERY unsealed room is navigable to every other (' + seenW.size + '/' + (d.nReal - d.sealed.size) + ')');
+  ok(d.sealed.size <= d.nReal * 0.03, 'sealed border pockets are rare (' + d.sealed.size + '/' + d.nReal + ' — their connectivity is the 3D stairs leg)');
   ok(d.serviceEdges.length > 0 && d.serviceEdges.length < d.seeds.length * 0.25, 'service doors are few — easements, not a second road network (' + d.serviceEdges.length + ')');
   ok(d.serviceEdges.every((e) => !d.streetDoorKeys.has(ek(e.a, e.b))), 'service doors and street doors are disjoint categories');
   // class weighting: easements prefer not to run through homes
@@ -92,7 +97,7 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
 // ── WAYFINDING between probes: routes obey the membranes, and a building's exit IS its one door ──
 {
   // two concourse rooms route (the street network is one component on this deck or close to it)
-  const roads = []; d.owner.forEach((o, i) => { if (o === -1) roads.push(i); });
+  const roads = []; d.owner.forEach((o, i) => { if (o === -1 && !d.sealed.has(i)) roads.push(i); });
   let roadRoute = null;
   outer: for (let i = 0; i < roads.length; i++) for (let j = roads.length - 1; j > i; j--) { roadRoute = walkRoute(d, roads[i], roads[j]); if (roadRoute) break outer; }
   ok(!!roadRoute && roadRoute.rooms.length >= 2 && roadRoute.length > 0, 'two probes on the concourse route (' + (roadRoute && roadRoute.rooms.length) + ' rooms, ' + Math.round(roadRoute ? roadRoute.length : 0) + ' px)');
@@ -120,9 +125,10 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   }
   ok(funnel === true, 'a journey out of an easement-free building funnels through its ONE street door');
   // and now the original complaint: random probe pairs ALWAYS route
+  const open = []; for (let i = 0; i < d.nReal; i++) if (!d.sealed.has(i)) open.push(i);
   let allRoute = true;
   for (let t = 0; t < 30; t++) {
-    const a = (t * 7919) % d.seeds.length, b = (t * 104729 + 13) % d.seeds.length;
+    const a = open[(t * 7919) % open.length], b = open[(t * 104729 + 13) % open.length];
     if (a !== b && !walkRoute(d, a, b)) { allRoute = false; break; }
   }
   ok(allRoute, 'NO MORE "no path": 30 random probe pairs all route');
@@ -163,6 +169,23 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
     ok(da.solved.society && da.solved.society.people.length > 200, 'the final settled society ships with the solve (' + da.solved.society.people.length + ' residents)');
   }
   ok(tested, 'at least one region on the test ring has deck-level crossings');
+}
+
+// ── THE CONTINUITY PIN: regions tile a continuous world — A's ghosts ARE B's reals, same world px ──
+{
+  const b2 = deckScene({ lattice: L, seed: 7, record: rec, az: 4, ax: 1, axSpan: 14 });
+  const bByGid = new Map(); b2.band.forEach((c, i) => bByGid.set(c.gid, i));
+  let checked = 0, maxErr = 0;
+  d.ghostBand.forEach((g, gi) => {
+    const bi = bByGid.get(g.gid);
+    if (bi == null) return;
+    checked++;
+    const aw = d.seeds[d.nReal + gi], bw = b2.seeds[bi];
+    const err = Math.hypot(aw.x - (bw.x + d.frame.W), aw.y - bw.y);   // B sits one region +az of A
+    if (err > maxErr) maxErr = err;
+  });
+  ok(checked > 10, 'A sees a populated shared strip with B (' + checked + ' chambers)');
+  ok(maxErr < 1e-6, 'GHOSTS ARE THE NEIGHBOUR, bit-for-bit: max world-position error ' + maxErr.toExponential(1) + ' px — the seam does not exist');
 }
 
 console.log(`deck.selftest: ${pass} passed, ${fail} failed`);

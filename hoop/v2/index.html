@@ -4,182 +4,221 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#05060a" />
-<meta name="description" content="hoop v2 — the game rebuilt on the solved world: walk the @ through a deterministic city grown from a social genome, cross the gates into neighbouring regions, meet the society that lives there." />
+<meta name="description" content="hoop v2 — the seamless solved world: the camera rides the @ through a continuous city; regions solve lazily at the edge of view; the seams are mathematically invisible." />
 <title>hoop v2 · the solved world</title>
 <style>
-  :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; --green:#79c8a0; }
+  :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
   canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   #hud { position: fixed; top: 8px; left: 10px; max-width: 58vw; color: var(--dim); text-shadow: 0 1px 2px #000; pointer-events: none; }
   #hud b { color: var(--gold); }
   a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; }
-  #rail { position: fixed; bottom: 56px; left: 10px; max-width: 46vw; background: rgba(8,11,16,.8); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; backdrop-filter: blur(6px); display: none; }
+  #rail { position: fixed; bottom: 12px; left: 10px; max-width: 46vw; background: rgba(8,11,16,.8); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; backdrop-filter: blur(6px); display: none; }
   #rail b { color: var(--gold); } #rail .w { color: var(--teal); }
-  #panel { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: rgba(8,11,16,.75); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; backdrop-filter: blur(6px); }
-  button { background: #10202a; color: var(--teal); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
-  button:hover { border-color: var(--gold); }
-  #busy { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(5,6,10,.8); color: var(--gold); font-size: 14px; z-index: 9; }
+  #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.85); color: var(--gold); font-size: 14px; z-index: 9; }
   #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v2</b> — the solved world<br><span id="info">…</span><br><span style="color:#667">click = walk the @ there (routes thread the doors) · step onto a gold gate to cross regions · arrows = fast travel · the same world, every time</span></div>
+<div id="hud">◍ <b>hoop v2</b> — the seamless solved world<br><span id="info">…</span><br><span style="color:#667">click = walk the @ (rooms are ~15 m — places where things happen) · the world streams in at the edge of view · cross the gold gates without noticing · scroll = zoom</span></div>
 <a class="home" href="/">← hoop v1</a>
 <div id="rail"></div>
-<div id="panel">
-  <button id="west">←</button><button id="north">↑</button><button id="south">↓</button><button id="east">→</button>
-  <span id="key" style="color:var(--gold)">—</span>
-</div>
-<div id="busy">solving the region…</div>
+<div id="busy">waking the world…</div>
 <div id="err"></div>
 
 <script type="module">
-import { ringLattice } from '../econ/region.js';
-import { coarseSolve, extendRecord } from '../econ/record.js';
-import { deckScene, gateLinks, walkRoute, ROLE_COLOR } from '../econ/deck.js';
+import { walkRoute } from '../econ/deck.js';
+import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
 
-// ── the world: one lattice + one record = the stable solved map. Everything regenerates. ──
 const qs = new URLSearchParams(location.search);
 const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
-const L = ringLattice({ Ri: 150, T: 12, cell: 1, regionsPerRing: 36 });
-let record = coarseSolve({ lattice: L, seed: SEED, axMin: 0, axMax: 5 });
-let az = parseInt(qs.get('az'), 10), ax = parseInt(qs.get('ax'), 10);
-if (!Number.isFinite(az)) { az = record.hubs[0].az; ax = record.hubs[0].ax; }   // spawn at a hub: the lively part of town
-const cache = new Map();
+const PX = 120;                                            // px per cell at zoom 1 (a 15 m room)
+let R = 36;                                                // regionsPerRing (from the worker's ready)
 
+// ── the world: regions stream from the worker; the camera rides the @ ──
+const regions = new Map(), solving = new Set();            // key → view
+let active = null;                                         // the region the @ stands in
+const AT = { room: -1, x: 0, y: 0, path: null, t: 0, dest: -1, queued: null, crossStage: null, crossTo: null };
+const SPEED = 300;                                         // px/s ≈ 37 m/s of brisk station walking... a stride
+let zoom = 0.85, dirty = true;
+
+const worker = new Worker('./solver.js', { type: 'module' });
+worker.onerror = (e) => { showErr('worker: ' + e.message); };
+function showErr(m) { $('err').style.display = 'block'; $('err').textContent = m; $('busy').style.display = 'none'; }
+const key = (az, ax) => (((az % R) + R) % R) + ',' + ax;
+function requestRegion(az, ax) {
+  const k = key(az, ax);
+  if (regions.has(k) || solving.has(k)) return;
+  solving.add(k);
+  worker.postMessage({ type: 'solve', az, ax });
+}
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === 'error') { showErr('solve: ' + m.message); return; }
+  if (m.type === 'ready') {
+    R = m.R;
+    let az = parseInt(qs.get('az'), 10), ax = parseInt(qs.get('ax'), 10);
+    if (!Number.isFinite(az)) { az = m.hubs[0].az; ax = m.hubs[0].ax; }
+    requestRegion(az, ax);
+    return;
+  }
+  if (m.type !== 'region') return;
+  const v = m.view, k = key(v.az, v.ax);
+  solving.delete(k);
+  regions.set(k, v);
+  if (!active) {                                           // first region: spawn the @
+    setActive(v);
+    let spawn = -1, bd = Infinity;
+    v.owner.forEach((o, i) => { if (o !== -1) return; const p = v.seeds[i]; const d = (p.x - v.frame.W / 2) ** 2 + (p.y - v.frame.H / 2) ** 2; if (d < bd) { bd = d; spawn = i; } });
+    if (spawn < 0) spawn = 0;
+    AT.room = spawn; AT.x = v.seeds[spawn].x; AT.y = v.seeds[spawn].y;
+    $('busy').style.display = 'none';
+  }
+  dirty = true;
+};
+function setActive(v) {
+  active = v;
+  history.replaceState(null, '', '?seed=' + SEED + '&az=' + v.az + '&ax=' + v.ax);
+  const s = v.stats;
+  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · ' + s.rooms + ' rooms (~' + M_PER_CELL + ' m each) · ' +
+    s.buildings + ' buildings · ' + v.links.length + ' gates · access ' + s.access.toFixed(2) + ' · loaded regions: ' + regions.size;
+}
+
+// region offset in the shared world frame, relative to the ACTIVE region (the ring wraps)
+function offsetOf(v) {
+  let dAz = ((v.az - active.az) % R + R) % R;
+  if (dAz > R / 2) dAz -= R;
+  return { x: dAz * active.frame.W, y: (v.ax - active.ax) * active.frame.H };
+}
+
+// ── render: every loaded region that intersects the view, in one continuous frame ──
 const cv = $('cv'), ctx = cv.getContext('2d');
-let W = 0, H = 0, DPR = 1, deck = null, links = [], linkAt = new Map();
-let VF = 1, VOX = 0, VOY = 0, dirty = true;
-// the @ — room index + px position + the path it is walking
-const AT = { room: -1, x: 0, y: 0, path: null, t: 0, dest: -1, crossing: null };
-const SPEED = 230;                                          // px/s along the route
-
+let W = 0, H = 0, DPR = 1;
 function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; dirty = true; }
 addEventListener('resize', resize);
+const ROAD = '#2c463c', DOOR = 'hsl(44 40% 30%)', WALLC = '#0a0e12', VOIDC = '#070a0d', FOG = '#0b0f12';
 
-const ROAD = '#2c463c', DOOR = 'hsl(44 40% 30%)', WALLC = '#0a0e12', VOIDC = '#070a0d';
-function draw() {
-  if (!deck) return;
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
-  const f = Math.min(W / deck.frame.W, H / deck.frame.H) * 0.97;
-  VF = f; VOX = (W - deck.frame.W * f) / 2; VOY = (H - deck.frame.H * f) / 2;
-  ctx.setTransform(DPR * f, 0, 0, DPR * f, DPR * VOX, DPR * VOY);
-  const colorOf = (c) => {
-    if (c.wall) return WALLC;
-    if (c.room == null) return VOIDC;
-    const o = deck.owner[c.room];
-    if (o === -1) return ROAD;
-    if (o === -2) return VOIDC;
-    if (c.door) return DOOR;
-    return ROLE_COLOR[deck.role[c.room]] || '#3a4248';
-  };
-  for (const c of deck.scene.paintCells) {
+function paintRegion(v, off, ghostsAsFog) {
+  ctx.save(); ctx.translate(off.x, off.y);
+  for (const c of v.scene.paintCells) {
     if (c.poly.length < 3) continue;
-    ctx.fillStyle = colorOf(c);
+    let col;
+    if (c.wall) col = WALLC;
+    else if (c.room == null) col = VOIDC;
+    else if (c.room >= v.nReal) { if (!ghostsAsFog) continue; col = FOG; }
+    else {
+      const o = v.owner[c.room];
+      col = o === -1 ? ROAD : o === -2 ? VOIDC : c.door ? DOOR : (ROLE_COLOR[v.role[c.room]] || '#3a4248');
+    }
+    ctx.fillStyle = col;
     ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]);
     for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]);
     ctx.closePath(); ctx.fill();
   }
-  ctx.lineWidth = 0.5 / f; ctx.strokeStyle = 'rgba(16,24,28,0.5)';
-  for (const c of deck.scene.paintCells) {
-    if (c.wall || c.poly.length < 3 || (c.room != null && deck.owner[c.room] === -1)) continue;
-    ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]);
-    for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]);
-    ctx.closePath(); ctx.stroke();
-  }
-  // gates: the border crossings, pulsing gold
+  // gates + glyphs
   ctx.fillStyle = 'rgba(244,191,98,0.95)';
-  for (const lk of links) { const p = deck.seeds[lk.room]; ctx.beginPath(); ctx.arc(p.x, p.y, 7, 0, Math.PI * 2); ctx.fill(); }
-  ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#05060a';
-  for (const lk of links) { const p = deck.seeds[lk.room]; ctx.fillText('⇄', p.x, p.y); }
-  // building glyphs
-  ctx.fillStyle = 'rgba(10,14,18,0.85)';
-  for (const g of deck.bill) { if (g.n < 3) continue; ctx.font = Math.min(30, 10 + g.n * 2) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
-  // the remaining route
+  for (const i of v.isGate) { const p = v.seeds[i]; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill(); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(10,14,18,0.85)';
+  for (const g of v.bill) { if (g.n < 3) continue; ctx.font = Math.min(44, 16 + g.n * 3) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
+  ctx.restore();
+}
+
+function draw() {
+  if (!active) return;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+  // camera: the @ at screen centre, always (THE recentre — chunking hidden)
+  const z = zoom;
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.x * z), DPR * (H / 2 - AT.y * z));
+  // active first (its ghost rim as fog), then neighbours over it (their reals replace the fog)
+  paintRegion(active, { x: 0, y: 0 }, true);
+  for (const [, v] of regions) {
+    if (v === active) continue;
+    const off = offsetOf(v);
+    if (Math.abs(off.x + v.frame.W / 2 - AT.x) > W / z / 2 + v.frame.W && Math.abs(off.y + v.frame.H / 2 - AT.y) > H / z / 2 + v.frame.H) continue;
+    paintRegion(v, off, false);
+  }
+  // the route remaining
   if (AT.path && AT.t < AT.path.total) {
-    ctx.strokeStyle = 'rgba(244,191,98,0.55)'; ctx.lineWidth = 2.2 / f; ctx.lineJoin = 'round'; ctx.setLineDash([6 / f, 5 / f]);
+    ctx.strokeStyle = 'rgba(244,191,98,0.55)'; ctx.lineWidth = 2.6 / z; ctx.setLineDash([8 / z, 7 / z]); ctx.lineJoin = 'round';
     ctx.beginPath(); ctx.moveTo(AT.x, AT.y);
     let acc = 0;
     for (let i = 1; i < AT.path.pts.length; i++) { acc += AT.path.seg[i - 1]; if (acc > AT.t) ctx.lineTo(AT.path.pts[i][0], AT.path.pts[i][1]); }
     ctx.stroke(); ctx.setLineDash([]);
   }
   // the @
-  ctx.fillStyle = '#0b1014'; ctx.beginPath(); ctx.arc(AT.x, AT.y, 8.5 / Math.sqrt(f), 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#7fd8d0'; ctx.font = 'bold ' + (13 / Math.sqrt(f)) + 'px ui-monospace, monospace';
-  ctx.fillText('@', AT.x, AT.y + 0.5);
+  ctx.fillStyle = '#0b1014'; ctx.beginPath(); ctx.arc(AT.x, AT.y, 11 / Math.sqrt(z), 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7fd8d0'; ctx.font = 'bold ' + (16 / Math.sqrt(z)) + 'px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.x, AT.y + 0.5);
 }
 
-// ── region loading + the @ spawn ──
-function loadRegion(spawnGid) {
-  const key = az + ',' + ax;
-  $('key').textContent = 'region ' + key;
-  history.replaceState(null, '', '?seed=' + SEED + '&az=' + az + '&ax=' + ax);
-  const place = (d) => {
-    deck = d;
-    links = gateLinks(d, { lattice: L, seed: SEED, record, az, ax, axSpan: 14 });
-    linkAt = new Map(links.map((lk) => [lk.room, lk]));
-    let spawn = -1;
-    if (spawnGid != null) spawn = d.band.findIndex((c) => c.gid === spawnGid);
-    if (spawn < 0) {                                        // nearest road room to centre
-      let bd = Infinity;
-      d.owner.forEach((o, i) => { if (o !== -1) return; const p = d.seeds[i]; const dd = (p.x - d.frame.W / 2) ** 2 + (p.y - d.frame.H / 2) ** 2; if (dd < bd) { bd = dd; spawn = i; } });
-      if (spawn < 0) spawn = 0;
-    }
-    AT.room = spawn; AT.x = d.seeds[spawn].x; AT.y = d.seeds[spawn].y; AT.path = null; AT.crossing = null;
-    const s = d.stats, soc = d.solved.society;
-    $('info').innerHTML = 'region <b>(' + az + ', ' + ax + ')</b> · ' + s.rooms + ' rooms · ' + s.buildings + ' buildings · ' +
-      soc.people.length + ' residents (' + soc.avgHats.toFixed(1) + ' hats) · ' + links.length + ' gates on this deck · access ' + s.access.toFixed(2);
-    dirty = true;
-  };
-  if (cache.has(key)) { place(cache.get(key)); return; }
-  $('busy').style.display = 'flex';
-  setTimeout(() => {
-    try { const d = deckScene({ lattice: L, seed: SEED, record, az, ax, axSpan: 14 }); cache.set(key, d); place(d); }
-    catch (e) { $('err').style.display = 'block'; $('err').textContent = 'solve: ' + (e && e.stack || e); }
-    $('busy').style.display = 'none';
-  }, 30);
+// ── periphery streaming: when the view reaches into a neighbour's box, ask the worker for it ──
+function streamPeriphery() {
+  if (!active) return;
+  const z = zoom, vw = W / z / 2, vh = H / z / 2, m = PX * 2;     // a 2-room look-ahead margin
+  if (AT.x - vw < m) requestRegion(active.az - 1, active.ax);
+  if (AT.x + vw > active.frame.W - m) requestRegion(active.az + 1, active.ax);
+  if (AT.y - vh < m) requestRegion(active.az, active.ax - 1);
+  if (AT.y + vh > active.frame.H - m) requestRegion(active.az, active.ax + 1);
 }
 
-// ── click-to-walk: route, animate, and report on the destination (the inspector rail) ──
+// ── click-to-walk, across regions: clicking into a loaded neighbour routes via the gates ──
 cv.addEventListener('click', (e) => {
-  if (!deck || AT.crossing) return;
-  const x = (e.clientX - VOX) / VF, y = (e.clientY - VOY) / VF;
-  let best = -1, bd = (44 / VF) ** 2;
-  deck.seeds.forEach((p, i) => { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = i; } });
-  if (best < 0 || best === AT.room) return;
-  const r = walkRoute(deck, AT.room, best);
-  if (!r) { rail('<b>⊘ no path</b> — that room is sequestered from here'); return; }
+  if (!active || AT.room < 0) return;
+  const z = zoom;
+  const wx = (e.clientX - W / 2) / z + AT.x, wy = (e.clientY - H / 2) / z + AT.y;   // world → active-local
+  // which region was clicked?
+  let tgt = active, lx = wx, ly = wy;
+  if (wx < 0 || wy < 0 || wx > active.frame.W || wy > active.frame.H) {
+    tgt = null;
+    for (const [, v] of regions) {
+      if (v === active) continue;
+      const off = offsetOf(v);
+      if (wx >= off.x && wx <= off.x + v.frame.W && wy >= off.y && wy <= off.y + v.frame.H) { tgt = v; lx = wx - off.x; ly = wy - off.y; break; }
+    }
+    if (!tgt) return;                                       // unloaded fog — keep walking, it will stream in
+  }
+  let best = -1, bd = (60 / z) ** 2;
+  for (let i = 0; i < tgt.nReal; i++) { const p = tgt.seeds[i]; const d = (p.x - lx) ** 2 + (p.y - ly) ** 2; if (d < bd) { bd = d; best = i; } }
+  if (best < 0) return;
+  if (tgt === active) { AT.queued = null; walkTo(best); }
+  else {
+    // route to the nearest gate that leads to the clicked region, then continue there
+    const leads = active.links.filter((l) => l.to.az === tgt.az && l.to.ax === tgt.ax);
+    if (!leads.length) { rail('<b>⊘ no gate</b> on this deck toward region (' + tgt.az + ', ' + tgt.ax + ')'); return; }
+    let pick = null, pd = Infinity;
+    for (const l of leads) { const p = active.seeds[l.room]; const d = (p.x - AT.x) ** 2 + (p.y - AT.y) ** 2; if (d < pd) { pd = d; pick = l; } }
+    AT.queued = { key: key(tgt.az, tgt.ax), room: best };
+    walkTo(pick.room);
+  }
+  inspect(tgt, best);
+});
+function walkTo(room) {
+  if (room === AT.room) return;
+  const r = walkRoute(active, AT.room, room);
+  if (!r) { rail('<b>⊘ no path</b>'); return; }
   const seg = []; let total = 0;
   for (let i = 1; i < r.pts.length; i++) { const d = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); seg.push(d); total += d; }
-  AT.path = { pts: r.pts, seg, total }; AT.t = 0; AT.dest = best;
-  inspect(best, r);
+  AT.path = { pts: r.pts, seg, total }; AT.t = 0; AT.dest = room;
   dirty = true;
-});
-
-function inspect(roomIdx, r) {
-  const o = deck.owner[roomIdx], city = deck.solved.city, soc = deck.solved.society;
-  let html = '';
-  if (o === -1) html = '<b>⌁ the concourse</b> — open street, ' + (linkAt.has(roomIdx) ? 'a GATE to region (' + linkAt.get(roomIdx).to.az + ', ' + linkAt.get(roomIdx).to.ax + ')' : 'public ground');
+}
+function inspect(v, roomIdx) {
+  const o = v.owner[roomIdx];
+  let html;
+  if (o === -1) html = '<b>⌁ the concourse</b>' + (v.isGate.includes(roomIdx) ? ' — a gate' : '');
   else if (o === -2) html = '<b>· unclaimed foam</b>';
-  else {
-    const p = city.places[o];
-    const mem = (soc.placeMembers.get(p.id) || []).slice(0, 4);
-    const hatStr = (q) => q.hats.map((h) => (h.kind === 'work' ? h.role : h.kind)).join(', ');
-    html = '<b>' + p.glyph + ' ' + p.role + (p.domain ? '·' + p.domain : '') + '</b> — ' + p.footprint + ' chambers' + (p.onRoad ? ' · fronts the street' : '') +
-      (mem.length ? '<br>' + mem.map((i) => '· ' + soc.people[i].name + ' <span class="w">(' + hatStr(soc.people[i]) + ')</span>').join('<br>') : '<br>a quiet place');
-  }
-  if (r) html += '<br><span style="color:#8a978f">walk: ' + r.rooms.length + ' rooms · ' + Math.round(r.length) + ' px</span>';
+  else html = v.inspect[o] || '<b>a building</b>';
+  if (AT.path) html += '<br><span style="color:#8a978f">walk ~' + Math.round(AT.path.total / PX * M_PER_CELL) + ' m</span>';
   rail(html);
 }
 function rail(html) { $('rail').innerHTML = html; $('rail').style.display = 'block'; }
 
-// ── the loop: advance the @ along its path; arriving on a gate crosses the seam ──
+// ── the loop ──
 let last = 0;
 function tick(ts) {
   requestAnimationFrame(tick);
@@ -189,16 +228,29 @@ function tick(ts) {
     const { pts, seg, total } = AT.path;
     if (AT.t >= total) {
       AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1];
-      AT.room = AT.dest; AT.path = null;
-      const lk = linkAt.get(AT.room);
-      if (lk) {                                            // step through the gate
-        AT.crossing = lk;
-        rail('<b>⇄ crossing the seam</b> → region (' + lk.to.az + ', ' + lk.to.ax + ')…');
-        setTimeout(() => {
-          az = lk.to.az; ax = Math.max(record.axMin, lk.to.ax);
-          if (lk.to.ax > record.axMax) record = extendRecord(record, lk.to.ax + 2);
-          loadRegion(lk.partner);
-        }, 350);
+      if (AT.crossStage === 'into') {
+        // phase 2: the @ has walked into the ghost partner — its world point. Swap the active
+        // region to the neighbour; the partner is the SAME world point, so the camera never moves.
+        const ct = AT.crossTo; AT.crossStage = null; AT.crossTo = null; AT.path = null;
+        const pr = ct.nv.bandGid.indexOf(ct.partner);
+        if (pr >= 0) {
+          setActive(ct.nv); AT.room = pr; AT.x = ct.nv.seeds[pr].x; AT.y = ct.nv.seeds[pr].y;
+          if (ct.queued && ct.queued.key === key(ct.nv.az, ct.nv.ax)) { const q = ct.queued.room; AT.queued = null; walkTo(q); }
+        }
+      } else {
+        AT.room = AT.dest; AT.path = null;
+        // standing on a gate with the neighbour loaded: walk one cell INTO its ghost (phase 1),
+        // then swap at that point — the threshold step is animated, the seam never shows.
+        const lk = active.links.find((l) => l.room === AT.room);
+        if (lk) {
+          const nv = regions.get(key(lk.to.az, lk.to.ax));
+          const gi = nv ? active.ghostGid.indexOf(lk.partner) : -1;
+          if (nv && gi >= 0) {
+            const gp = active.seeds[active.nReal + gi], dl = Math.hypot(gp.x - AT.x, gp.y - AT.y) || 1;
+            AT.path = { pts: [[AT.x, AT.y], [gp.x, gp.y]], seg: [dl], total: dl }; AT.t = 0;
+            AT.crossStage = 'into'; AT.crossTo = { nv, partner: lk.partner, queued: AT.queued };
+          } else if (!nv) requestRegion(lk.to.az, lk.to.ax);
+        }
       }
     } else {
       let acc = 0, i = 1;
@@ -209,27 +261,14 @@ function tick(ts) {
     }
     dirty = true;
   }
+  streamPeriphery();
   if (dirty) { draw(); dirty = false; }
 }
+addEventListener('wheel', (e) => { zoom = Math.max(0.3, Math.min(2.5, zoom * (1 - Math.sign(e.deltaY) * 0.1))); dirty = true; }, { passive: true });
 
-function move(dAz, dAx) {
-  az = ((az + dAz) % L.regionsPerRing + L.regionsPerRing) % L.regionsPerRing;
-  ax = Math.max(record.axMin, ax + dAx);
-  if (ax > record.axMax) record = extendRecord(record, ax + 2);
-  $('rail').style.display = 'none';
-  loadRegion();
-}
-$('west').addEventListener('click', () => move(-1, 0));
-$('east').addEventListener('click', () => move(1, 0));
-$('north').addEventListener('click', () => move(0, 1));
-$('south').addEventListener('click', () => move(0, -1));
-addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowLeft') move(-1, 0); else if (e.key === 'ArrowRight') move(1, 0);
-  else if (e.key === 'ArrowUp') move(0, 1); else if (e.key === 'ArrowDown') move(0, -1);
-  else return; e.preventDefault();
-});
-
-resize(); loadRegion(); requestAnimationFrame(tick);
+resize();
+worker.postMessage({ type: 'init', seed: SEED });
+requestAnimationFrame(tick);
 </script>
 </body>
 </html>

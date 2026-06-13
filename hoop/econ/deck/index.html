@@ -74,6 +74,7 @@ function draw() {
   const colorOf = (c) => {
     if (c.wall) return WALLC;
     if (c.room == null) return VOIDC;
+    if (c.room >= deck.nReal) return '#0b0f12';            // the ghost rim: the neighbour, unloaded fog
     const o = deck.owner[c.room];
     if (o === -1) return ROAD;
     if (o === -2) return VOIDC;
@@ -124,7 +125,7 @@ cv.addEventListener('click', (e) => {
   if (!deck) return;
   const x = (e.clientX - VOX) / VF, y = (e.clientY - VOY) / VF;
   let best = -1, bd = (40 / VF) ** 2;
-  deck.seeds.forEach((p, i) => { const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = i; } });
+  deck.seeds.forEach((p, i) => { if (i >= deck.nReal) return; const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = i; } });
   if (best < 0) return;
   if (probeA < 0 || probeB >= 0) { probeA = best; probeB = -1; route = null; }
   else if (best !== probeA) {

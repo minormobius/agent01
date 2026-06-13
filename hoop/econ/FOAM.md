@@ -244,15 +244,44 @@ membrane language. The pieces now all exist; this leg is their assembly, in orde
    responds to where people actually go (the desire-line thesis closing its last loop).
 6. **Migration — v2 SHIPPED as a parallel entry (`hoop/v2/`, linked from the v1 topbar).** The
    rebuilt game lives at `/v2/` rather than behind a flag in world.js — v1 at `/` stays untouched
-   (don't break what's working). What v2 has: the `@` walking the solved deck by click-to-walk
-   (`walkRoute`, routes threading the doors, animated along the polyline), **gate crossings** —
-   step onto a gold gate room and the seam loads the neighbour region, landing the `@` on the
-   partner chamber (`deck.js gateLinks`, pinned: symmetric, landing in the neighbour's
-   right-of-way), arrows as fast travel with the record extending at the frontier, and the
-   settled society as the inspector (click a building → who lives/works there; `solveRegion` now
-   returns the final society). Spawn is at the record's first hub region. STILL TO MIGRATE: the
+   (don't break what's working). v2 is the **seamless** solved world: the camera rides the `@`
+   (recentred every frame, so chunking is invisible), regions stream from a worker (`v2/solver.js`,
+   the record's sole authority) and **lazy-load at the edge of view** (`streamPeriphery`), and the
+   seams are *mathematically* gone — `deckScene` now seeds each region's Voronoi with its **ghost
+   rim** (the neighbours' first two lattice columns, bit-identical by the seam contract), so a
+   boundary room computes the SAME polygon from either side. Pinned: a region's ghost chambers sit
+   at the **exact world position** of the neighbour's reals (max error ~1e-12 px — the seam does
+   not exist). Coordinates are lattice-anchored, so a region drops into the world frame at offset
+   `(dAz·frameW, dAx·frameH)`. **Gate crossings are invisible**: the `@` walks one cell into the
+   ghost partner, then the active region swaps at that exact point — the camera never moves. The
+   society is the inspector (click a building → residents + hats; `solveRegion` returns the final
+   settled society). Spawn at the record's first hub. **Room scale:** one lattice cell is a
+   declared **~15 m room** (`M_PER_CELL`, in the user's 10–20 m band; foamview narrates 20 m),
+   rendered at 120 px/cell so rooms read spacious — places where things happen; walk distances
+   report in metres. **Sealed pockets:** a deck slice can strand a room whose whole perimeter is
+   ghost (its connectivity lives in the 3D foam); these are classified, excluded from the door
+   passes, and pinned rare (≤3% — they vanish with inter-deck stairs). STILL TO MIGRATE: the
    thread rail + ATProto places (postal gid as rkey), presence (the HoopRoom DO), inter-deck
-   stairs, and the eventual flip of `/` to v2 once nav + render parity are pinned.
+   stairs, the v1 ART STYLE PORT (function-matched raytraced lights, gradient sliding — its own
+   leg, see below), and the eventual flip of `/` to v2 once nav + render parity are pinned.
+
+## Leg 8 — the v1 art style on the solved map (CHARTED)
+
+v2 currently renders the brutalist flat-cell look. v1's feel — **raytraced room lighting and
+sliding at steep floor gradients** — is the next aesthetic leg, and the solved map makes it
+*better* than v1 because the light sources are now MEANINGFUL:
+
+- **Function-matched light.** v1 lit rooms generically; here a room's light comes from what it IS.
+  Each building's role carries an emission (a hearth-warm dwelling, a cold-blue workshop, a civic
+  hall's lantern); the concourse is lit by the street. Raytrace/raymarch per-room emission against
+  the membrane geometry `buildSceneCustom` already returns (walls occlude, doorways spill light
+  into the concourse) — the SAME walls the city built, so light and structure are one model.
+- **Gradient sliding.** v1 slid the `@` at extreme floor gradients (the spin-gravity slope). On the
+  deck that is the **radial** component of a move: walking a ramp-fed room near a shaft, or the
+  rare cross-deck easement, imparts slide. The deck already knows each room's `rad`; the gradient
+  between adjacent rooms is the slope. Port v1's slide physics keyed off that.
+- This is a renderer swap, not a model change — `deckScene`'s output is unchanged; v2's `draw()`
+  grows a lighting pass. Charted as its own session: it deserves the focus v1's renderer got.
 
 ## Leg 4 — wayfinding for PEOPLE (commutes close the loop)
 
