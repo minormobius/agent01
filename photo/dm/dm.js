@@ -1,7 +1,8 @@
-// photo.mino.mobi/dm — sign in, pick one picture, and morphyx posts it to
-// Bluesky (no commentary) and drops it into the group DM. All the posting and
-// DMing happens server-side in the worker (see ../dm-worker.js); this page only
-// authenticates the user and ships the (compressed) image bytes.
+// photo.mino.mobi/dm — sign in, pick the group chat(s) you share with morphyx,
+// pick one picture, and morphyx posts it to Bluesky (no commentary) and drops
+// it into each selected group DM. All posting/DMing happens server-side in the
+// worker (see ../dm-worker.js); this page authenticates the user, lets them
+// choose targets, and ships the (compressed) image bytes.
 
 import { AuthClient } from '../../packages/oauth-client/auth.js';
 
@@ -20,6 +21,8 @@ const els = {
   loginBtn: $('login-btn'),
   logoutBtn: $('logout-btn'),
   who: $('who'),
+  convosList: $('convos-list'),
+  refreshConvos: $('refresh-convos'),
   drop: $('drop'),
   file: $('file'),
   previewWrap: $('preview-wrap'),
@@ -30,6 +33,7 @@ const els = {
 };
 
 let selectedFile = null;
+const selectedConvos = new Set();
 let sending = false;
 
 function show(el, on) { el.classList.toggle('hidden', !on); }
@@ -41,12 +45,17 @@ function setStatus(kind, html) {
   show(els.status, true);
 }
 
+function updateSendEnabled() {
+  els.sendBtn.disabled = sending || !selectedFile || selectedConvos.size === 0;
+}
+
 function renderAuth(user) {
   show(els.boot, false);
   if (user) {
     els.who.textContent = '@' + (user.handle || user.did);
     show(els.authCard, false);
     show(els.appCard, true);
+    loadConvos();
   } else {
     show(els.appCard, false);
     show(els.authCard, true);
@@ -73,21 +82,84 @@ async function doLogin() {
 async function doLogout() {
   await auth.logout();
   selectedFile = null;
+  selectedConvos.clear();
   renderAuth(null);
+}
+
+// ── Group chats (the whitelist) ───────────────────────────────────
+function authHeaders() {
+  const headers = {};
+  const token = auth.getToken();
+  if (token) headers['authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
+async function loadConvos() {
+  els.convosList.innerHTML = '<div class="muted">Loading your group chats…</div>';
+  try {
+    const res = await fetch('/api/dm/convos', { credentials: 'include', headers: authHeaders() });
+    if (res.status === 401) { await auth.logout(); renderAuth(null); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || `request failed (${res.status})`);
+    renderConvos(data.convos || []);
+  } catch (e) {
+    els.convosList.innerHTML = `<div class="status err">Couldn’t load chats: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderConvos(convos) {
+  // Drop selections that no longer exist.
+  const ids = new Set(convos.map((c) => c.id));
+  for (const id of [...selectedConvos]) if (!ids.has(id)) selectedConvos.delete(id);
+
+  if (convos.length === 0) {
+    els.convosList.innerHTML =
+      '<div class="muted">No group chats with morphyx yet. Add <strong>@morphyxmino.bsky.social</strong> to a Bluesky group DM, then hit Refresh.</div>';
+    updateSendEnabled();
+    return;
+  }
+
+  // Convenience: if there's exactly one and nothing chosen yet, pre-select it.
+  if (convos.length === 1 && selectedConvos.size === 0) selectedConvos.add(convos[0].id);
+
+  els.convosList.innerHTML = '';
+  for (const c of convos) {
+    const row = document.createElement('label');
+    row.className = 'convo' + (selectedConvos.has(c.id) ? ' on' : '');
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = selectedConvos.has(c.id);
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedConvos.add(c.id);
+      else selectedConvos.delete(c.id);
+      row.classList.toggle('on', cb.checked);
+      updateSendEnabled();
+    });
+
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = c.label;
+
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = `${c.memberCount} members`;
+
+    row.append(cb, label, count);
+    els.convosList.appendChild(row);
+  }
+  updateSendEnabled();
 }
 
 // ── Image selection ───────────────────────────────────────────────
 function pickFile(file) {
   if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    setStatus('err', 'That’s not an image file.');
-    return;
-  }
+  if (!file.type.startsWith('image/')) { setStatus('err', 'That’s not an image file.'); return; }
   selectedFile = file;
   els.previewImg.src = URL.createObjectURL(file);
   show(els.drop, false);
   show(els.previewWrap, true);
-  els.sendBtn.disabled = false;
+  updateSendEnabled();
   setStatus(null);
 }
 
@@ -98,7 +170,7 @@ function clearFile() {
   els.previewImg.removeAttribute('src');
   show(els.previewWrap, false);
   show(els.drop, true);
-  els.sendBtn.disabled = true;
+  updateSendEnabled();
 }
 
 // Decode, downscale, and compress to stay under Bluesky's blob ceiling.
@@ -108,9 +180,8 @@ async function prepareImage(file) {
   const natW = bitmap.naturalWidth || bitmap.width;
   const natH = bitmap.naturalHeight || bitmap.height;
 
-  const fitsRaw = file.size <= TARGET_BYTES && Math.max(natW, natH) <= MAX_DIM;
-  if (fitsRaw) {
-    return { blob: file, mime: file.type, width: natW, height: natH };
+  if (file.size <= TARGET_BYTES && Math.max(natW, natH) <= MAX_DIM) {
+    return { blob: file, width: natW, height: natH };
   }
 
   let scale = Math.min(1, MAX_DIM / Math.max(natW, natH));
@@ -120,13 +191,9 @@ async function prepareImage(file) {
     const h = Math.max(1, Math.round(natH * scale));
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(bitmap, 0, 0, w, h);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
     const blob = await canvasToBlob(canvas, 'image/jpeg', quality);
-    if (blob && blob.size <= TARGET_BYTES) {
-      return { blob, mime: 'image/jpeg', width: w, height: h };
-    }
-    // Too big: drop quality first, then dimensions.
+    if (blob && blob.size <= TARGET_BYTES) return { blob, width: w, height: h };
     if (quality > 0.5) quality -= 0.12;
     else scale *= 0.82;
   }
@@ -137,7 +204,7 @@ function loadImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-    img.onload = () => { resolve(img); };
+    img.onload = () => resolve(img);
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('could not read that image')); };
     img.src = url;
   });
@@ -149,9 +216,9 @@ function canvasToBlob(canvas, type, quality) {
 
 // ── Send ──────────────────────────────────────────────────────────
 async function doSend() {
-  if (!selectedFile || sending) return;
+  if (!selectedFile || selectedConvos.size === 0 || sending) return;
   sending = true;
-  els.sendBtn.disabled = true;
+  updateSendEnabled();
   els.changeBtn.disabled = true;
   els.sendBtn.innerHTML = '<span class="spinner"></span>Preparing…';
   setStatus(null);
@@ -164,15 +231,12 @@ async function doSend() {
     fd.append('image', blob, 'image');
     fd.append('width', String(width));
     fd.append('height', String(height));
-
-    const headers = {};
-    const token = auth.getToken();
-    if (token) headers['authorization'] = `Bearer ${token}`;
+    fd.append('convoIds', JSON.stringify([...selectedConvos]));
 
     const res = await fetch('/api/dm/post', {
       method: 'POST',
       credentials: 'include',
-      headers,
+      headers: authHeaders(),
       body: fd,
     });
     const data = await res.json().catch(() => ({}));
@@ -183,11 +247,12 @@ async function doSend() {
       renderAuth(null);
       return;
     }
-    if (!res.ok || !data.ok) {
-      throw new Error(data.error || `request failed (${res.status})`);
-    }
+    if (!res.ok || !data.ok) throw new Error(data.error || `request failed (${res.status})`);
 
-    setStatus('ok', `Done — it’s in the group chat. <a href="${data.post.url}" target="_blank" rel="noopener">View the post →</a>`);
+    const n = (data.sent || []).length;
+    let msg = `Done — sent to ${n} group${n === 1 ? '' : 's'}. <a href="${data.post.url}" target="_blank" rel="noopener">View the post →</a>`;
+    if ((data.failed || []).length) msg += `<br><span class="muted">${data.failed.length} couldn’t be delivered.</span>`;
+    setStatus('ok', msg);
     clearFile();
   } catch (e) {
     setStatus('err', `Couldn’t send: ${escapeHtml(e.message)}`);
@@ -195,7 +260,7 @@ async function doSend() {
     sending = false;
     els.changeBtn.disabled = false;
     els.sendBtn.textContent = 'Send to the group';
-    els.sendBtn.disabled = !selectedFile;
+    updateSendEnabled();
   }
 }
 
@@ -208,6 +273,7 @@ function bindUI() {
   els.loginBtn.addEventListener('click', doLogin);
   els.handle.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
   els.logoutBtn.addEventListener('click', doLogout);
+  els.refreshConvos.addEventListener('click', loadConvos);
 
   els.drop.addEventListener('click', () => els.file.click());
   els.changeBtn.addEventListener('click', () => els.file.click());
