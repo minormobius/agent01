@@ -36,7 +36,7 @@ export async function start(canvas, hud) {
   const M = {
     duck: renderer.mesh(geo.buildDuck(), 1),
     crumb: renderer.mesh(geo.buildCrumb(), CRUMB.max),
-    tree: renderer.mesh(geo.buildTree(), 400),
+    trees: geo.TREE_KIT.map((m) => renderer.mesh(m, 256)),  // one instanced batch per species
     pylon: renderer.mesh(geo.buildPylon(), 64),
     ground: renderer.mesh(geo.buildGround(), 1),
     ring: renderer.mesh(geo.buildRing(), 16),  // course gates + landing pad
@@ -86,12 +86,12 @@ export async function start(canvas, hud) {
       renderer.setInstances(M.shell, instOne(I(), [1, 1, 1, 0]));
       renderer.setInstances(M.sun, instOne(I(), [1, 1, 1, 1]));
       const s = geo.scatterCylinder(R, len);
-      renderer.setInstances(M.tree, instMany(s.trees));
+      s.trees.forEach((list, v) => renderer.setInstances(M.trees[v], instMany(list)));
       renderer.setInstances(M.pylon, instMany(s.pylons));
     } else {
       renderer.setInstances(M.ground, instOne(I(), [1, 1, 1, 0]));
       const s = geo.scatterEarth();
-      renderer.setInstances(M.tree, instMany(s.trees));
+      s.trees.forEach((list, v) => renderer.setInstances(M.trees[v], instMany(list)));
       renderer.setInstances(M.pylon, instMany(s.pylons));
     }
     resetDuck();
@@ -328,8 +328,8 @@ export async function start(canvas, hud) {
     renderer.setInstances(M.ring, courseInstances());
 
     const list = state.mode === 'cylinder'
-      ? [M.shell, M.sun, M.tree, M.pylon, M.ring, M.crumb, M.duck]
-      : [M.ground, M.tree, M.pylon, M.ring, M.crumb, M.duck];
+      ? [M.shell, M.sun, ...M.trees, M.pylon, M.ring, M.crumb, M.duck]
+      : [M.ground, ...M.trees, M.pylon, M.ring, M.crumb, M.duck];
     renderer.render(list, sky);
   }
 

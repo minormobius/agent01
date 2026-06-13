@@ -148,9 +148,10 @@ class Renderer {
   // instData: Float32Array, 20 floats per instance (mat4 model + vec4 tint).
   setInstances(r, instData) {
     const count = instData.length / 20;
+    r.count = count;
+    if (count === 0) return;            // nothing to upload (e.g. an empty species batch)
     this._ensureInstances(r, count);
     this.device.queue.writeBuffer(r.instBuf, 0, instData);
-    r.count = count;
   }
 
   // frame uniform: {viewProj Float32Array(16), camPos[3], fogFar, lightDir[3], sky[3]}

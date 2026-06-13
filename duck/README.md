@@ -50,7 +50,8 @@ duck/
 ├── js/
 │   ├── math.js       # vec3 / mat4 (perspectiveZO for WebGPU's [0,1] depth) / quat
 │   ├── physics.js    # THE TWO FRAMES — earthAccel, cylinderAccel, invariants  (pure)
-│   ├── geometry.js   # procedural meshes: duck, ground, cylinder shell, gates, props (pure)
+│   ├── geometry.js   # procedural meshes: duck, ground, cylinder shell, gates, + a
+│   │                 #   seeded tree KIT (yarrow-style golden-angle recursion) + forest scatter
 │   ├── course.js     # procedural gate course + landing pad + pass detection      (pure)
 │   ├── webgpu.js     # the renderer: one instanced pipeline, hemi+sun light, fog
 │   └── game.js       # flight model, chase camera, breadcrumbs, course, landing, HUD, loop
@@ -91,3 +92,8 @@ deploy log binds `duck.mino.mobi (custom domain)` (the golden rule).
   page shows a graceful "WebGPU required" card otherwise.
 - **Determinism.** Prop fields are seeded (mulberry32), so a world is identical every
   load and stable across the mode toggle — the repo's reproducibility habit.
+- **Trees, the yarrow way.** After `clock/yarrow` (a plant grown from one number),
+  each species in the tree KIT is a seeded recursive growth — limbs placed around the
+  parent at the **golden angle** (137.5°), tapering each generation, with low-poly
+  foliage clumps at the tips. Six species (fir, spruce, oak, broadleaf, birch, bush)
+  are built once and instanced into clustered **groves** so the ground reads as forest.
