@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World Engine — Review</title>
+  <link rel="stylesheet" href="/review_ui.css">
+</head>
+<body>
+  <header>
+    <h1>World Engine — Content Review</h1>
+    <div id="stats" class="stats"></div>
+  </header>
+
+  <main class="layout">
+    <aside class="list-pane">
+      <details id="reach" class="reach">
+        <summary>⚠ <span id="reach-count">0</span> reachability issues</summary>
+        <div id="reach-list" class="reach-list" aria-label="orphaned gates"></div>
+      </details>
+      <div class="list-head"><span id="list-count">0</span> pending</div>
+      <input id="search" class="search-box" placeholder="search name / type / tags…" spellcheck="false" autocomplete="off">
+      <div id="list" class="list" aria-label="pending items"></div>
+    </aside>
+
+    <section class="detail">
+      <section id="card" class="card hidden">
+        <div class="card-head">
+          <span id="type" class="badge"></span>
+          <span id="tiers" class="tiers"></span>
+          <span id="review-flag" class="flag hidden">needs review</span>
+        </div>
+        <h2 id="name"></h2>
+        <p id="description" class="description"></p>
+        <div class="meta">
+          <div><strong>tags:</strong> <span id="tags"></span></div>
+          <div><strong>world_refs:</strong> <span id="world-refs"></span></div>
+          <div id="gate-line" class="hidden"><strong>requires:</strong> <span id="gate"></span></div>
+        </div>
+
+        <div id="produces" class="produces hidden"></div>
+        <div id="issues" class="issues hidden"></div>
+        <section id="tree" class="tree hidden" aria-label="dialogue tree"></section>
+
+        <details class="edit">
+          <summary>Edit content + requires JSON</summary>
+          <label class="edit-label">content</label>
+          <textarea id="content-json" spellcheck="false"></textarea>
+          <label class="edit-label">requires (the gate)</label>
+          <textarea id="requires-json" class="requires-box" spellcheck="false"></textarea>
+          <p class="hint">Save persists both and re-renders the card (no approval). Approve also merges content edits.</p>
+          <button id="save" class="save">Save edits</button>
+        </details>
+
+        <div class="actions">
+          <button id="approve" class="approve">Approve</button>
+          <button id="reject" class="reject">Reject</button>
+          <button id="skip" class="skip">Skip</button>
+        </div>
+      </section>
+
+      <section id="empty" class="empty hidden">
+        <p>No pending items. The pool is clear. 🎉</p>
+      </section>
+
+      <p id="status" class="status-line"></p>
+    </section>
+  </main>
+
+  <script src="/review_ui.js"></script>
+</body>
+</html>

@@ -40,7 +40,7 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   ok(d.stats.rooms > 200 && d.scene.paintCells.length > 3000, 'a deck band projects to a real paint scene (' + d.stats.rooms + ' rooms, ' + d.scene.paintCells.length + ' cells)');
   ok(d.stats.roadRooms > 0 && d.scene.opens.length > 0, 'the right-of-way reaches this deck as zero-wall concourse');
   const rrOpens = d.scene.opens.filter((e) => e.a < d.nReal && e.b < d.nReal);
-  ok(rrOpens.every((e) => d.owner[e.a] === -1 && d.owner[e.b] === -1), 'real opens ONLY ever join two road rooms');
+  ok(rrOpens.every((e) => (d.owner[e.a] === -1 && d.owner[e.b] === -1) || (d.owner[e.a] >= 0 && d.owner[e.a] === d.owner[e.b])), 'real opens join two road rooms OR two rooms of the SAME building (open halls)');
   ok(d.scene.opens.filter((e) => e.a >= d.nReal || e.b >= d.nReal).every((e) => d.isGate.has(Math.min(e.a, e.b))), 'the only membranes opened into the ghost rim are the GATES (the street continues through the seam)');
   // exactly one STREET door per road-fronting building (service doors are a separate category)
   const ek = (a, b) => (a < b ? a + ',' + b : b + ',' + a);
@@ -71,23 +71,19 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
   // class weighting: easements prefer not to run through homes
   const dwellTouch = d.serviceEdges.filter((e) => d.role[e.a] === 'dwell' || d.role[e.b] === 'dwell').length;
   ok(dwellTouch < d.serviceEdges.length * 0.6, 'most easements avoid homes (' + dwellTouch + '/' + d.serviceEdges.length + ' touch a dwelling)');
-  // interior doors connect each building's band footprint exactly as far as geometry allows
-  const comps = (edges, members) => {
-    const par = new Map([...members].map((i) => [i, i]));
-    const find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
-    for (const e of edges) if (par.has(e.a) && par.has(e.b)) par.set(find(e.a), find(e.b));
-    return new Set([...members].map(find)).size;
-  };
-  let treeOK = true;
-  const byB = new Map();
-  d.owner.forEach((o, i) => { if (o >= 0) { let s = byB.get(o); if (!s) { s = new Set(); byB.set(o, s); } s.add(i); } });
-  for (const [b, members] of byB) {
-    if (members.size < 2) continue;
-    const geo = d.scene.adjEdges.filter((e) => members.has(e.a) && members.has(e.b));
-    const dr = d.scene.doors.filter((e) => members.has(e.a) && members.has(e.b));
-    if (comps(dr, members) !== comps(geo, members)) { treeOK = false; break; }
+  // OPEN HALLS: every membrane INSIDE a building is removed — the building is one room bounded only
+  // by its exterior shell (+ its one street door). No interior walls, no interior doors.
+  const openSet = new Set(d.scene.opens.map((e) => ek(e.a, e.b)));
+  const doorSet = new Set(d.scene.doors.map((e) => ek(e.a, e.b)));
+  let hallsOK = true, interiorDoors = 0;
+  for (const e of d.scene.adjEdges) {
+    if (e.a >= d.nReal || e.b >= d.nReal) continue;
+    if (d.owner[e.a] >= 0 && d.owner[e.a] === d.owner[e.b]) {     // a same-building membrane
+      if (!openSet.has(ek(e.a, e.b))) hallsOK = false;           // must be removed (open)
+      if (doorSet.has(ek(e.a, e.b))) interiorDoors++;            // and never a door
+    }
   }
-  ok(treeOK, 'interior door trees connect each building exactly as far as its geometry allows');
+  ok(hallsOK && interiorDoors === 0, 'every building is one OPEN HALL — interior membranes removed, no interior walls or doors (' + interiorDoors + ' interior doors)');
   ok(d.bill.length === d.stats.buildings && d.bill.every((g) => g.glyph && g.n >= 1), 'every deck-present building gets a glyph anchor');
   // determinism (the regenerate-a-year-later contract, at the render layer)
   const d2 = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14 });
@@ -132,6 +128,55 @@ const d = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14
     if (a !== b && !walkRoute(d, a, b)) { allRoute = false; break; }
   }
   ok(allRoute, 'NO MORE "no path": 30 random probe pairs all route');
+}
+
+// ── PATHFINDING IS A FUNCTION OF WALLS: the LOS-pulled route never crosses a wall, and runs
+//    straight across open space (far fewer corners than the dense centre-to-centre path) ──
+{
+  const segX = (ax, ay, bx, by, cx, cy, dx, dy) => {
+    const s1 = (cx - ax) * (dy - ay) - (cy - ay) * (dx - ax), s2 = (cx - bx) * (dy - by) - (cy - by) * (dx - bx);
+    const s3 = (ax - cx) * (by - cy) - (ay - cy) * (bx - cx), s4 = (ax - dx) * (by - dy) - (ay - dy) * (bx - dx);
+    return ((s1 > 0) !== (s2 > 0)) && ((s3 > 0) !== (s4 > 0));
+  };
+  const hitsWall = (A, B) => {                              // inset so door-jamb endpoints don't false-positive
+    const vx = B[0] - A[0], vy = B[1] - A[1], ln = Math.hypot(vx, vy) || 1, ux = vx / ln * 0.8, uy = vy / ln * 0.8;
+    const a = [A[0] + ux, A[1] + uy], b = [B[0] - ux, B[1] - uy];
+    return d.walls.some((w) => segX(a[0], a[1], b[0], b[1], w[0], w[1], w[2], w[3]));
+  };
+  const probes = []; for (let i = 0; i < d.nReal; i++) if (!d.sealed.has(i)) probes.push(i);
+  let routes = 0, crossings = 0, corners = 0, dijCells = 0;
+  for (let t = 0; t < 40; t++) {
+    const a = probes[(t * 7919) % probes.length], b = probes[(t * 104729 + 13) % probes.length];
+    if (a === b) continue;
+    const r = walkRoute(d, a, b); if (!r) continue;
+    routes++; dijCells += r.rooms.length; corners += r.pts.length;
+    for (let i = 1; i < r.pts.length; i++) if (hitsWall(r.pts[i - 1], r.pts[i])) { crossings++; break; }
+  }
+  ok(d.walls && d.walls.length > 100, 'the deck ships its wall segments for line-of-sight (' + (d.walls && d.walls.length) + ')');
+  ok(crossings === 0, 'NO route crosses a wall — the path is a function of the walls (' + crossings + '/' + routes + ')');
+  ok(corners < dijCells, 'LOS pulls the path taut — far fewer corners than Dijkstra cells (' + corners + ' pts vs ' + dijCells + ' cells)');
+}
+
+// ── FRAME-CLIP: no oblong stitch cells — every paint cell is bounded to the region frame + margin ──
+{
+  const M = d.K * 1.5 + 1e-6;
+  const outOfBounds = d.scene.paintCells.filter((c) => c.poly.some((p) => p[0] < -M || p[1] < -M || p[0] > d.frame.W + M || p[1] > d.frame.H + M));
+  ok(outOfBounds.length === 0, 'every paint cell is clipped to the frame + seam margin — no unanchored oblongs (' + outOfBounds.length + ' stray)');
+}
+
+// ── STAIRS & LADDERS: the vertical right-of-way emerges from the 3D solve ──
+{
+  ok(d.stairs.length > 0, 'the deck has stairs/ladders — vertical right-of-way (' + d.stairs.length + ')');
+  ok(d.stairs.every((s) => d.owner[s.cell] === -1), 'every stair sits on the concourse (a road cell)');
+  ok(d.stairs.every((s) => s.dir === 1 || s.dir === -1), 'each connector goes up (−1) or down (+1)');
+  // the floor below (gz+1): each down-stair lands on a road cell there (reuse the same 3D solve)
+  const below = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14, gz: d.gz + 1, solved: d.solved });
+  const bGid = new Map(); below.band.forEach((c, i) => bGid.set(c.gid, i));
+  const downs = d.stairs.filter((s) => s.dir === 1);
+  ok(downs.length > 0 && downs.every((s) => { const pr = bGid.get(s.partnerGid); return pr != null && below.owner[pr] === -1; }), 'down-stairs land on a road cell of the deck below (' + downs.length + ')');
+  // determinism
+  const d2 = deckScene({ lattice: L, seed: 7, record: rec, az: 3, ax: 1, axSpan: 14, solved: d.solved });
+  ok(JSON.stringify(d2.stairs) === JSON.stringify(d.stairs), 'the stair set is deterministic');
 }
 
 // ── GRAVITY'S BIAS: planar conductance caps consolidate streets onto the deck ──
