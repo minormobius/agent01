@@ -37,6 +37,11 @@
         box-shadow:0 0 0 1px #000 inset}
   .heroname{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center}
   .heroname b{color:var(--gold)} .heroname .gl{font-size:15px;color:var(--ink)}
+  #dirgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:248px;margin:2px auto 0}
+  #dirgrid .cell{position:relative}
+  #dirgrid canvas{display:block;width:100%;background:#0a0b0e;border:1px solid var(--line);border-radius:6px;image-rendering:pixelated}
+  #dirgrid .lbl{position:absolute;top:2px;left:4px;font:10px/1 var(--mono);color:var(--gold-soft);text-shadow:0 0 3px #000,0 0 3px #000}
+  #dirgrid .mid{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:18px;border:1px dashed var(--line);border-radius:6px}
   .ctl{margin:13px 0}
   .ctl label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px;letter-spacing:.02em}
   .ctl .val{color:var(--gold-soft);font-family:var(--mono)}
@@ -110,6 +115,11 @@
     </div>
 
     <div class="ctl">
+      <label>8 directions <span class="val">— the selected NPC</span></label>
+      <div id="dirgrid"></div>
+    </div>
+
+    <div class="ctl">
       <label>Town archetype <span class="val" id="archnote"></span></label>
       <div class="seg" id="arch">
         <button data-v="balanced" class="on">balanced</button>
@@ -147,6 +157,7 @@
       <button id="copyseed" class="ghost">Copy seed</button>
       <button id="copygenome" class="ghost">Copy genome</button>
       <button id="png" class="ghost">⤓ PNG</button>
+      <button id="sheet" class="ghost">⤓ 8-dir sheet</button>
     </div>
   </section>
 
@@ -231,6 +242,7 @@ function buildGenome(seed, o, sharedCloth){
               : ramp(rnd, rnd()*360, 50);
   const ramps={
     skin: ramp(rnd, 26, 40, 10),
+    hair: ramp(rnd, 30, 34, 26),                 // a brown-ish cap; reads as hairline (front) / back-of-head (rear views)
     cloth,
     pants: ramp(rnd, 222, 26, 10),               // denim-ish lower body
     metal: ramp(rnd, 212, 10),
@@ -257,53 +269,94 @@ function buildGenome(seed, o, sharedCloth){
           ramps, cells, opts:{...o}};
 }
 
-// ── Render ──
-function drawGenome(canvas, g, scale){
+// ── Render ── 8-WAY DIRECTIONAL. A direction is {dx,dy} ∈ {-1,0,1}²; west views (dx<0) are the
+// horizontal MIRROR of their east twin (the author-one-side-mirror-the-other convention), so the
+// figure is only ever authored facing forward or east. dy is the facing-the-camera axis:
+//   dy=+1 front (full face) · dy=0 profile (one eye) · dy=-1 back (no face, hair cap). Pure f(genome,dir).
+const DIR8=[
+  {k:"S", dx:0,dy:1}, {k:"SE",dx:1,dy:1}, {k:"E",dx:1,dy:0}, {k:"NE",dx:1,dy:-1},
+  {k:"N", dx:0,dy:-1},{k:"NW",dx:-1,dy:-1},{k:"W",dx:-1,dy:0},{k:"SW",dx:-1,dy:1},
+];
+const DIR_OF={}; DIR8.forEach(d=>DIR_OF[d.k]=d);
+
+function drawGenome(canvas, g, scale, dir){
+  dir = dir || {dx:0,dy:1};
   const N=g.size, PAD=1, side=(N+PAD*2)*scale;
   canvas.width=side; canvas.height=side;
   const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false;
   ctx.clearRect(0,0,side,side);
+  const flip = dir.dx<0, turn = Math.abs(dir.dx), face = dir.dy;   // turn∈{0,1} right; face∈{-1,0,1}
   const mats=[null,g.ramps.skin,g.ramps.cloth,g.ramps.metal,g.ramps.accent];
-  const px=(cx,cy,col)=>{ctx.fillStyle=col;ctx.fillRect((cx+PAD)*scale,(cy+PAD)*scale,scale,scale);};
-  const o=g.opts, center=(N-1)/2, hb=g.headBottom;
-  const rr=Math.max(1,Math.round(hb*0.75));              // head-rounding radius (NE/NW blank zones)
+  // px() folds the west-mirror into the x coordinate — body is symmetric, only the asymmetric
+  // overlays (turned face, held item) actually move.
+  const px=(cx,cy,col)=>{ if(cy<0||cy>=N)return; const X=flip?(N-1-cx):cx;
+    ctx.fillStyle=col; ctx.fillRect((X+PAD)*scale,(cy+PAD)*scale,scale,scale); };
+  const o=g.opts, center=Math.round((N-1)/2), hb=g.headBottom;
+  const rr=Math.max(1,Math.round(hb*0.75));              // head-rounding radius (NE/NW blank corners)
   const legTop=Math.round(N*0.66);                       // legs region
   const gapHalf=N>=23?1:0;                               // south blank zone (between the legs)
+  const hairLine = face<=0 ? Math.round(hb*0.62) : Math.round(hb*0.30);  // back/side → more hair shows
 
   for(let y=0;y<N;y++) for(let x=0;x<N;x++){
     const hx = o.sym ? (x<g.half?x:(N-1-x)) : Math.min(g.half-1, x<g.half?x:(x-g.half));
     let v=g.cells[y][hx]; if(!v) continue;
     if(o.head && y<rr && Math.min(x,N-1-x) < (rr-y)) continue;          // round the head's top corners
     if(o.legs && y>=legTop && Math.abs(x-center)<=gapHalf) continue;     // split the legs
-    let r=mats[v];
-    if(o.legs && y>=legTop && v===2) r=g.ramps.pants;                   // pants on the lower body
-    const shade = v===1 ? 2 : Math.min(3,Math.max(0,Math.floor((y/N)*4))); // face light; body form-shaded
+    let r;
+    if(v===1 && y<hairLine) r=g.ramps.hair;                            // hair cap (hairline / back of head)
+    else if(o.legs && y>=legTop && v===2) r=g.ramps.pants;             // pants on the lower body
+    else r=mats[v];
+    const shade = (v===1 && y>=hairLine) ? 2 : Math.min(3,Math.max(0,Math.floor((y/N)*4))); // face light
     px(x,y,r[shade]);
   }
 
-  // FACE — pareidolia: two eyes + a mouth (brow on big builds) on the solid head
-  if(o.eyes && hb>=2){
-    const dark="#0a0b0e";
-    const eyeRow=Math.max(0,Math.min(hb-2, Math.round(hb*0.40)));
-    const eyeDX=Math.max(1,Math.round(N*0.16));
-    const lx=Math.round(center-eyeDX), rx=Math.round(center+eyeDX);
-    px(lx,eyeRow,dark); px(rx,eyeRow,dark);
-    if(N>=15){ px(lx,eyeRow+1,dark); px(rx,eyeRow+1,dark);                 // taller eyes
-               px(lx,eyeRow-1,g.ramps.skin[1]); px(rx,eyeRow-1,g.ramps.skin[1]); } // brow
-    const mouthRow=Math.min(hb-1, eyeRow + Math.max(1,Math.round(N*0.13)));
-    const mc=g.ramps.skin[0];
-    px(Math.round(center),mouthRow,mc);
-    if(N>=13){ px(Math.round(center-1),mouthRow,mc); px(Math.round(center+1),mouthRow,mc); }
-  }
+  if(o.eyes && hb>=2) drawFace(px, g, N, hb, turn, face, center);
 
-  // HELD ITEM — breaks symmetry on purpose (the role's tool, on one hand)
-  if(o.item && g.item!=="none"){
+  // HELD ITEM — the role's tool, on the leading (east) hand; hidden when facing straight away
+  if(o.item && g.item!=="none" && !(face===-1 && turn===0)){
     const handY=Math.round(N*0.54), handX=N-2, top=g.ramps.accent[3], mid=g.ramps.accent[1];
     if(g.item==="staff"||g.item==="hammer"){ for(let k=0;k<Math.min(4,N-handY);k++) px(handX,handY-2+k,k===0?top:mid); }
     else if(g.item==="sprig"){ px(handX,handY,g.ramps.accent[2]); px(handX,handY-1,top); px(handX-1,handY-1,top); }
     else if(g.item==="scroll"){ px(handX,handY,top); px(handX,handY+1,mid); }
     else px(handX,handY,top);
   }
+}
+
+// Face overlay, authored facing forward / to the EAST (right); px() mirrors it for west views.
+function drawFace(px, g, N, hb, turn, face, center){
+  if(face===-1) return;                          // back & back-¾: hair cap carries it, no face
+  const dark="#0a0b0e", big=N>=15;
+  const eyeRow=Math.max(0,Math.min(hb-2, Math.round(hb*0.42)));
+  const eyeDX=Math.max(1,Math.round(N*0.16));
+  const mr=Math.min(hb-1, eyeRow + Math.max(1,Math.round(N*0.13)));
+  if(turn===0){                                   // S — front: two eyes + mouth
+    const lx=center-eyeDX, rx=center+eyeDX;
+    px(lx,eyeRow,dark); px(rx,eyeRow,dark);
+    if(big){ px(lx,eyeRow+1,dark); px(rx,eyeRow+1,dark);
+             px(lx,eyeRow-1,g.ramps.hair[1]); px(rx,eyeRow-1,g.ramps.hair[1]); }   // brow
+    px(center,mr,g.ramps.skin[0]);
+    if(N>=13){ px(center-1,mr,g.ramps.skin[0]); px(center+1,mr,g.ramps.skin[0]); }
+  } else if(face===1){                            // SE — ¾ front, turned right: near eye full, far eye single
+    const nearX=center+eyeDX, farX=center-(eyeDX>1?1:0);
+    px(nearX,eyeRow,dark); if(big) px(nearX,eyeRow+1,dark);
+    px(farX,eyeRow,dark);
+    px(nearX+1,eyeRow+1,g.ramps.skin[1]);         // cheek/nose hint
+    px(center+1,mr,g.ramps.skin[0]); if(N>=13) px(center,mr,g.ramps.skin[0]);
+  } else {                                        // E — profile, facing right: one eye + nose past the edge
+    const ex=center+eyeDX;
+    px(ex,eyeRow,dark); if(big) px(ex,eyeRow+1,dark);
+    px(ex+1,eyeRow+1,g.ramps.skin[2]);            // nose poking past the face edge
+    px(ex,mr,g.ramps.skin[0]);
+  }
+}
+
+// Bake the 8 directions into one horizontal strip — the directional spritesheet (atlas frames).
+function drawSheet(canvas, g, scale){
+  const N=g.size, cell=(N+2)*scale;
+  canvas.width=cell*8; canvas.height=cell;
+  const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  const tmp=document.createElement("canvas");
+  DIR8.forEach((d,i)=>{ drawGenome(tmp,g,scale,d); ctx.drawImage(tmp,i*cell,0); });
 }
 
 // ── State + wiring ──
@@ -327,6 +380,19 @@ function renderHero(){
     `<b>domain</b> ${g.domain||"—"} &nbsp; <b>size</b> ${g.size}×${g.size}<br>`+
     `<div class="ramps">${rampHtml}</div>`;
   window._g=g;
+  renderDirGrid(g);
+}
+function renderDirGrid(g){
+  const grid=$("dirgrid"); grid.innerHTML="";
+  const layout=[["NW","N","NE"],["W","·","E"],["SW","S","SE"]];
+  const s=Math.max(2,Math.min(6,Math.round(74/(g.size+2))));
+  layout.flat().forEach(k=>{
+    if(k==="·"){ const c=document.createElement("div"); c.className="mid"; c.textContent="◓"; grid.appendChild(c); return; }
+    const cell=document.createElement("div"); cell.className="cell";
+    const cv=document.createElement("canvas"); drawGenome(cv,g,s,DIR_OF[k]);
+    const lbl=document.createElement("div"); lbl.className="lbl"; lbl.textContent=k;
+    cell.appendChild(cv); cell.appendChild(lbl); grid.appendChild(cell);
+  });
 }
 function renderGallery(){
   const gal=$("gallery"); gal.innerHTML=""; const shared=sharedCloth();
@@ -362,8 +428,11 @@ $("copyseed").onclick=()=>copy(window._g.seed);
 $("copygenome").onclick=()=>{ const g=window._g; copy(JSON.stringify({
   seed:g.seed,size:g.size,archetype:g.opts.arch,role:g.role,glyph:g.glyph,tier:g.tier,
   item:g.item,domain:g.domain,good:g.good,ramps:g.ramps},null,2)); };
+function dl(canvas,name){ const a=document.createElement("a"); a.download=name; a.href=canvas.toDataURL("image/png"); a.click(); }
 $("png").onclick=()=>{ const g=window._g,c=document.createElement("canvas"); drawGenome(c,g,24);
-  const a=document.createElement("a"); a.download=g.seed.replace(/[^\w]+/g,"_")+".png"; a.href=c.toDataURL("image/png"); a.click(); };
+  dl(c, g.seed.replace(/[^\w]+/g,"_")+".png"); };
+$("sheet").onclick=()=>{ const g=window._g,c=document.createElement("canvas"); drawSheet(c,g,16);
+  dl(c, g.seed.replace(/[^\w]+/g,"_")+"_8dir.png"); };
 function copy(t){ if(navigator.clipboard) navigator.clipboard.writeText(t); }
 
 renderAll();
