@@ -54,6 +54,73 @@ fn produces_a_valid_installable_face() {
 }
 
 #[test]
+fn slider_overrides_apply_and_stay_valid() {
+    // The live-slider path: a seed gives a base genome, a key=value spec
+    // overrides fields. The override must change the font yet still parse, and
+    // an empty / unknown spec must be a no-op.
+    let base = minofont::roll_params("seed-a", "");
+    assert_eq!(base, minofont::build_font("seed-a"), "empty spec == plain roll");
+    assert_eq!(
+        base,
+        minofont::roll_params("seed-a", "nonsense=1;=;bogus"),
+        "unknown keys are ignored"
+    );
+
+    let heavy = minofont::roll_params("seed-a", "stem=220;mod=0.95;serif=1;pen=28");
+    assert_ne!(heavy, base, "overrides must change the font");
+    let face = ttf_parser::Face::parse(&heavy, 0).expect("overridden font must parse");
+    for c in "HOgne".chars() {
+        let gid = face.glyph_index(c).expect("cmap");
+        let mut counter = Counter::default();
+        face.outline_glyph(gid, &mut counter);
+        assert!(counter.segments > 0, "{c:?} empty under overrides");
+    }
+
+    // Both letterform alternates (single/double-story a & g, ball terminals)
+    // must produce valid, non-empty outlines either way.
+    for spec in ["a2=1;g2=1;ball=1", "a2=0;g2=0;ball=0"] {
+        let bytes = minofont::roll_params("seed-x", spec);
+        let f = ttf_parser::Face::parse(&bytes, 0)
+            .unwrap_or_else(|_| panic!("spec {spec:?} did not parse"));
+        for c in "agcr".chars() {
+            let gid = f.glyph_index(c).expect("cmap");
+            let mut counter = Counter::default();
+            f.outline_glyph(gid, &mut counter);
+            assert!(counter.segments > 0, "{c:?} empty under {spec:?}");
+        }
+    }
+}
+
+#[test]
+fn archetypes_blend_and_roll_valid() {
+    // Every corner, the centre, and a high-contrast point must yield a font that
+    // parses and outlines — the archetype compass can't produce a broken roll.
+    for &(x, y, z) in &[
+        (0.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (1.0, 1.0, 0.0),
+        (0.5, 0.5, 0.5),
+        (1.0, 1.0, 1.0),
+    ] {
+        let bytes = minofont::roll_archetype(x, y, z, 0.4, "compass-seed");
+        let face = ttf_parser::Face::parse(&bytes, 0)
+            .unwrap_or_else(|_| panic!("archetype ({x},{y},{z}) did not parse"));
+        for c in "Haegno0".chars() {
+            let gid = face.glyph_index(c).expect("cmap");
+            let mut counter = Counter::default();
+            face.outline_glyph(gid, &mut counter);
+            assert!(counter.segments > 0, "{c:?} empty at archetype ({x},{y},{z})");
+        }
+    }
+    // spread = 0 is deterministic from the seed; spread > 0 perturbs it.
+    assert_eq!(
+        minofont::archetype_genome(0.3, 0.7, 0.2, 0.0, "s"),
+        minofont::archetype_genome(0.3, 0.7, 0.2, 0.0, "s"),
+    );
+}
+
+#[test]
 fn is_deterministic_and_seed_sensitive() {
     assert_eq!(
         minofont::build_font("seed-a"),
@@ -71,12 +138,47 @@ fn is_deterministic_and_seed_sensitive() {
 fn every_charset_glyph_maps_and_outlines() {
     let bytes = minofont::build_font("coverage");
     let face = Face::parse(&bytes, 0).unwrap();
-    for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ.,-".chars() {
+    for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-\
+              !?:;()/'\"+=àáâãäåèéêëìíîïñòóôõöùúûüçčšžěÀÉÑÇŠÁÄÖÜ\
+              ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩαβγδεζηθικλμνξοπρςστυφχψω\
+              АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя\
+              ×÷±≤≥≠≈≡∞√∇∂∫∑∏∈∉∀∃¬∧∨∪∩⊂⊃∅→←↔·°|[]"
+        .chars()
+    {
         let gid = face
             .glyph_index(c)
             .unwrap_or_else(|| panic!("no cmap entry for {c:?}"));
         let mut counter = Counter::default();
         face.outline_glyph(gid, &mut counter);
         assert!(counter.segments > 0, "{c:?} produced an empty outline");
+    }
+}
+
+#[test]
+fn pen_model_glyphs_outline_across_seeds() {
+    // The skeleton-stroke glyphs (O C o c e n) must stay valid across the whole
+    // genome range — heavy/light weight, high/low contrast, every pen angle and
+    // slant a seed can roll. Sweep a spread of seeds and assert each still maps
+    // and outlines (a degenerate offset would collapse to an empty contour).
+    for seed in [
+        "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
+        "india", "juliet", "kilo", "lima", "mike", "november", "oscar", "papa",
+        "quebec", "romeo", "sierra", "tango", "uniform", "victor", "whiskey",
+        "xray", "yankee", "zulu", "0", "1", "42", "morph-test", "humanist",
+    ] {
+        let bytes = minofont::build_font(seed);
+        let face = Face::parse(&bytes, 0)
+            .unwrap_or_else(|_| panic!("seed {seed:?} did not parse"));
+        for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".chars() {
+            let gid = face
+                .glyph_index(c)
+                .unwrap_or_else(|| panic!("seed {seed:?}: no cmap entry for {c:?}"));
+            let mut counter = Counter::default();
+            face.outline_glyph(gid, &mut counter);
+            assert!(
+                counter.segments > 0,
+                "seed {seed:?}: pen glyph {c:?} produced an empty outline"
+            );
+        }
     }
 }

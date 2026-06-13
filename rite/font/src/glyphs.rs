@@ -19,7 +19,28 @@ pub fn charset() -> &'static [char] {
         ' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q',
         'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '.', ',', '-', 'a', 'b', 'c', 'd', 'e', 'f',
         'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
-        'y', 'z',
+        'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        // punctuation & symbols
+        '!', '?', ':', ';', '(', ')', '/', '\'', '"', '+', '=',
+        // accented Latin (base + combining mark)
+        'à', 'á', 'â', 'ã', 'ä', 'å', 'è', 'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô',
+        'õ', 'ö', 'ù', 'ú', 'û', 'ü', 'ç', 'ý', 'č', 'š', 'ž', 'ě', 'À', 'Á', 'Â', 'Ä', 'Ñ', 'É',
+        'È', 'Ö', 'Ü', 'Ç', 'Č', 'Š', 'Ž',
+        // Greek uppercase
+        'Α', 'Β', 'Γ', 'Δ', 'Ε', 'Ζ', 'Η', 'Θ', 'Ι', 'Κ', 'Λ', 'Μ', 'Ν', 'Ξ', 'Ο', 'Π', 'Ρ', 'Σ',
+        'Τ', 'Υ', 'Φ', 'Χ', 'Ψ', 'Ω',
+        // Greek lowercase
+        'α', 'β', 'γ', 'δ', 'ε', 'ζ', 'η', 'θ', 'ι', 'κ', 'λ', 'μ', 'ν', 'ξ', 'ο', 'π', 'ρ', 'ς',
+        'σ', 'τ', 'υ', 'φ', 'χ', 'ψ', 'ω',
+        // Cyrillic uppercase
+        'А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З', 'И', 'Й', 'К', 'Л', 'М', 'Н', 'О', 'П', 'Р', 'С',
+        'Т', 'У', 'Ф', 'Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Ъ', 'Ы', 'Ь', 'Э', 'Ю', 'Я',
+        // Cyrillic lowercase
+        'а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'й', 'к', 'л', 'м', 'н', 'о', 'п', 'р', 'с',
+        'т', 'у', 'ф', 'х', 'ц', 'ч', 'ш', 'щ', 'ъ', 'ы', 'ь', 'э', 'ю', 'я',
+        // math symbols (starter pack)
+        '×', '÷', '±', '≤', '≥', '≠', '≈', '≡', '∞', '√', '∇', '∂', '∫', '∑', '∏', '∈', '∉', '∀',
+        '∃', '¬', '∧', '∨', '∪', '∩', '⊂', '⊃', '∅', '→', '←', '↔', '·', '°', '|', '[', ']',
     ]
 }
 
@@ -137,6 +158,14 @@ pub fn notdef(p: &Params) -> Glyph {
 }
 
 pub fn glyph_for(c: char, p: &Params) -> Glyph {
+    // The whole Latin alphabet is now built by the skeleton-stroke "pen model"
+    // (`pen.rs`) — real contrast on curves, joined arches. The primitive builder
+    // below is kept as the fallback for space + punctuation (and as a reference
+    // implementation) and is reached only for those.
+    if let Some(g) = crate::pen::glyph_for(c, p) {
+        return g;
+    }
+
     let h = p.cap;
     let s = p.stem;
     let t = p.thin;

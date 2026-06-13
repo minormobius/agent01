@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/font-generator-demo-f3pdfa'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'

@@ -30,6 +30,10 @@ seed string ──xmur3──► u32 ──mulberry32──► Params (the genom
   same `xmur3 + mulberry32` pair borges uses). That's what makes `?s=<seed>` a
   permalink and what will let the evolutionary breeder reproduce any lineage from
   its seeds alone.
+- **Live sliders.** Beyond the seed, the page exposes a slider panel that
+  overrides individual genome fields in real time via `roll_params(seed, spec)`
+  (`spec` is a `key=value;…` string parsed by `Params::apply_spec`). A seed gives
+  a starting genome; sliders reshape it live. The seed is still the permalink.
 - **Real fonts.** `src/sfnt.rs` writes a genuine TrueType file (OS/2, cmap, glyf,
   head, hhea, hmtx, loca, maxp, name, post). `tests/valid.rs` round-trips every
   rolled font through `ttf-parser` to prove it parses, maps its cmap, and
@@ -42,7 +46,8 @@ seed string ──xmur3──► u32 ──mulberry32──► Params (the genom
 | `src/prng.rs` | `xmur3` + `mulberry32` — deterministic seed → numbers |
 | `src/params.rs` | The design space: seed → parameter vector (the "genome") |
 | `src/geom.rs` | Outline primitives (rects, ellipses, stroked arcs, winding) |
-| `src/glyphs.rs` | Parametric letterforms (uppercase + space + `. , -`) |
+| `src/glyphs.rs` | Primitive builder (rects/quads/rings/straps) — now only space + punctuation + `.notdef`; the letter arms remain as reference/fallback |
+| `src/pen.rs` | Skeleton-stroke "pen model" — centerline swept by a broad nib; builds the **whole Latin alphabet** (upper + lower) |
 | `src/sfnt.rs` | Dependency-free TrueType serializer → `.ttf` bytes |
 | `src/lib.rs` | `roll(seed) → Uint8Array`, `describe(seed) → JSON` (wasm-bindgen) |
 | `tests/valid.rs` | Validity gate (parses output with `ttf-parser`) |
@@ -78,5 +83,32 @@ Next layers (the seed/permalink foundation is built for them):
 3. **Phylogeny view** — render the lineage tree of a breeding session (reusing
    `read/pendragon`'s SVG phylogeny + `phylo/`), plus the historical Vox-ATypI
    placement of where a given roll sits in type history.
-4. **Pen-model weight expansion / serif families** — richer, more "designed"
-   letterforms.
+4. **Pen-model letterforms** — *landed* in `src/pen.rs`, now covering the
+   **whole Latin alphabet** (upper + lower). Instead of bolting filled
+   primitives together, a glyph is a centerline skeleton swept by a broad nib
+   whose thickness modulates with stroke direction (`pen_angle` + `stem`/`thin`
+   from the genome). Curves get real contrast, arches join their stems for free,
+   and `S`/`s` are a tangent-continuous two-bowl spine. Space + punctuation stay
+   on the primitive builder.
+5. **Pen simulator (`Nib` in `pen.rs`)** — strokes are no longer a
+   direction-keyed centerline offset (which pinched wherever the tangent turned —
+   a faded `W` peak, a thin `A` apex). Instead a fixed oriented nib rectangle is
+   *stamped* along each stroke, one convex blob per segment; overlapping blobs
+   union under nonzero fill. Weight falls out of the geometry, corners/apices
+   stay full, and terminals get the nib's angled cut for free.
+6. **Construction genome (`Morph` in `params.rs`)** — the seed rolls the
+   *gestures*, not just the metrics, so rolls differ in morphology rather than
+   only weight/width. Genes: `modulation` (nib contrast — how strongly weight
+   varies with stroke angle, monoline→high-contrast), `aperture` (how open
+   `C c e G` counters are), `overshoot` (round letters spilling past
+   baseline/cap), `arch` (round-humanist ↔ flat/squared shoulder on `n m h u`),
+   `bar` (crossbar height of `A E F H e`), `bowl` (how far the `a b d p q` arc
+   closes before attaching), and structural genes: `apex_flat` (`A`),
+   `two_story_a` / `two_story_g` (double-story text vs single-story geometric
+   construction), and `ball` terminals on `c`/`r`. Serifed stem ends are tucked
+   under a slab tall enough to bury the nib's angled terminal, so the serif caps
+   the stem cleanly instead of the stem crossing through it. The design space and
+   its sources are mapped in [`GENOME.md`](GENOME.md). Next layer: correlated
+   *archetypes* (humanist / geometric / grotesque / didone — the Vox regions) so
+   one control moves the genes together coherently; an expansion (pointed-pen)
+   contrast mode; per-letter overshoot; and bracketed-vs-slab serif structure.
