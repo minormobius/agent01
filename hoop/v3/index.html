@@ -22,7 +22,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world<br><span id="info">…</span><br><span style="color:#667">click = walk the @ anywhere you can see — it threads the gold gates across every seam (rooms are ~15 m) · the world streams in at the edge of view · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk the @ anywhere you can see — it threads the gold gates across every seam (rooms are ~15 m) · buildings glow by what they are · the world streams in at the edge of view · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
 <div id="rail"></div>
 <div id="busy">waking the world…</div>
@@ -106,18 +106,98 @@ let W = 0, H = 0, DPR = 1;
 function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; dirty = true; }
 addEventListener('resize', resize);
 const ROAD = '#2c463c', DOOR = 'hsl(44 40% 30%)', WALLC = '#0a0e12', VOIDC = '#070a0d', FOG = '#0b0f12';
+const ROAD_RGB = [44, 70, 60], DOOR_RGB = [120, 92, 50];
+
+// ── LIGHTING (v3 art leg, phase 1: v1's room-light buffer ported to the stitched deck) ──────────
+// A CPU float light buffer (additive quadratic splats, the cousin of v1 world.js _buildLight),
+// sampled per paint cell. Function-matched emission: a building lights by what it IS — a forge
+// flickers warm, an observatory is dim, a clinic is a steady white — and the concourse carries cool
+// street lamps. No occlusion yet (v1 had none either; the walk-graph-occluded version is a later
+// leg). Walls + void stay unlit dark mass so structure still reads.
+const ROLE_LIGHT = {                                       // [intensity, flicker, baseRadius·cells]
+  dwell: [0.55, 0.18, 0.9], grow: [0.42, 0.05, 1.0], make: [0.95, 0.45, 1.0], mend: [0.70, 0.30, 0.9],
+  trade: [0.80, 0.10, 1.0], serve: [0.85, 0.20, 0.9], play: [0.90, 0.25, 1.0], heal: [0.85, 0.04, 1.1],
+  learn: [0.65, 0.05, 1.0], worship: [0.45, 0.08, 1.1], govern: [0.78, 0.06, 1.2], move: [0.35, 0.04, 0.8],
+  store: [0.30, 0.03, 0.8], _default: [0.50, 0.10, 0.9],
+};
+const STREET_RGB = [150, 180, 206], STREET_I = 0.46, STREET_RAD = PX * 1.7;
+const AMB = 0.14, GAIN = 210, AMBIENT_FLOOR = 0.04;        // composite: albedo·AMB + light·GAIN
+const hexRGB = (h) => { const n = parseInt(h.slice(1), 16); return h.length >= 7 ? [n >> 16 & 255, n >> 8 & 255, n & 255] : [136, 136, 136]; };
+const ROLE_RGB_CACHE = {};
+const roleRGB = (role) => ROLE_RGB_CACHE[role] || (ROLE_RGB_CACHE[role] = hexRGB(ROLE_COLOR[role] || '#3a4248'));
+
+// per-region emitter list (static — cached on the view): one light per building (role-tuned, sized
+// by footprint) + cool street lamps sampled along the concourse.
+function emittersOf(v) {
+  if (v._emit) return v._emit;
+  const build = [], street = [];
+  for (const g of v.bill) { const lt = ROLE_LIGHT[g.role] || ROLE_LIGHT._default; build.push({ x: g.x, y: g.y, rgb: roleRGB(g.role), I: lt[0], fl: lt[1], rad: PX * (lt[2] + 0.32 * Math.sqrt(g.n)) }); }
+  let c = 0;
+  for (let i = 0; i < v.nReal && street.length < 48; i++) { if (v.owner[i] !== -1) continue; if ((c++ % 5) !== 0) continue; const p = v.seeds[i]; street.push({ x: p.x, y: p.y }); }
+  return (v._emit = { build, street });
+}
+
+// the regions that intersect the view (active first) — shared by the light build and the draw pass
+function visibleRegions() {
+  const z = zoom, out = [active];
+  for (const [, v] of regions) {
+    if (v === active) continue;
+    const off = offsetOf(v);
+    if (Math.abs(off.x + v.frame.W / 2 - AT.x) > W / z / 2 + v.frame.W && Math.abs(off.y + v.frame.H / 2 - AT.y) > H / z / 2 + v.frame.H) continue;
+    out.push(v);
+  }
+  return out;
+}
+
+const LBUF = { bw: 0, bh: 0, x0: 0, y0: 0, LS: 16, data: null };
+function buildLight() {
+  const z = zoom, hx = W / z / 2, hy = H / z / 2, pad = PX * 4;
+  let LS = 16, bw = Math.ceil((2 * hx + 2 * pad) / LS), bh = Math.ceil((2 * hy + 2 * pad) / LS);
+  while (bw * bh > 220000) { LS *= 1.6; bw = Math.ceil((2 * hx + 2 * pad) / LS); bh = Math.ceil((2 * hy + 2 * pad) / LS); }   // bound when zoomed out
+  const x0 = AT.x - hx - pad, y0 = AT.y - hy - pad, N = bw * bh * 3;
+  let data = LBUF.data;
+  if (!data || data.length < N) data = new Float32Array(N);
+  for (let i = 0; i < N; i++) data[i] = AMBIENT_FLOOR;
+  const now = performance.now();
+  const splat = (wx, wy, rgb, I, fl, rad) => {
+    const flick = fl ? (1 - fl * 0.5 + fl * 0.5 * Math.sin(now / 130 + wx * 0.013 + wy * 0.017)) : 1;
+    const Ie = I * flick, inv = 1 / rad;
+    const bx0 = Math.max(0, Math.floor((wx - rad - x0) / LS)), bx1 = Math.min(bw - 1, Math.ceil((wx + rad - x0) / LS));
+    const by0 = Math.max(0, Math.floor((wy - rad - y0) / LS)), by1 = Math.min(bh - 1, Math.ceil((wy + rad - y0) / LS));
+    for (let by = by0; by <= by1; by++) { const sy = y0 + by * LS; for (let bx = bx0; bx <= bx1; bx++) {
+      const dx = (x0 + bx * LS) - wx, dy = sy - wy, d = Math.sqrt(dx * dx + dy * dy); if (d > rad) continue;
+      const t = 1 - d * inv, f = Ie * t * t, bi = (by * bw + bx) * 3;
+      data[bi] += rgb[0] / 255 * f; data[bi + 1] += rgb[1] / 255 * f; data[bi + 2] += rgb[2] / 255 * f;
+    } }
+  };
+  for (const v of visibleRegions()) {
+    const off = offsetOf(v), em = emittersOf(v);
+    for (const e of em.build) splat(e.x + off.x, e.y + off.y, e.rgb, e.I, e.fl, e.rad);
+    for (const e of em.street) splat(e.x + off.x, e.y + off.y, STREET_RGB, STREET_I, 0, STREET_RAD);
+  }
+  LBUF.bw = bw; LBUF.bh = bh; LBUF.x0 = x0; LBUF.y0 = y0; LBUF.LS = LS; LBUF.data = data;
+}
+function lightAt(wx, wy) {
+  const bx = Math.max(0, Math.min(LBUF.bw - 1, (wx - LBUF.x0) / LBUF.LS | 0)), by = Math.max(0, Math.min(LBUF.bh - 1, (wy - LBUF.y0) / LBUF.LS | 0));
+  const bi = (by * LBUF.bw + bx) * 3, d = LBUF.data; return [d[bi], d[bi + 1], d[bi + 2]];
+}
+const lit = (a, L) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * GAIN | 0) + ',' + Math.min(255, a[1] * AMB + L[1] * GAIN | 0) + ',' + Math.min(255, a[2] * AMB + L[2] * GAIN | 0) + ')';
 
 function paintRegion(v, off, ghostsAsFog) {
   ctx.save(); ctx.translate(off.x, off.y);
   for (const c of v.scene.paintCells) {
     if (c.poly.length < 3) continue;
     let col;
-    if (c.wall) col = WALLC;
+    if (c.wall) col = WALLC;                                // walls: unlit dark mass (structure reads)
     else if (c.room == null) col = VOIDC;
     else if (c.room >= v.nReal) { if (!ghostsAsFog) continue; col = FOG; }
     else {
       const o = v.owner[c.room];
-      col = o === -1 ? ROAD : o === -2 ? VOIDC : c.door ? DOOR : (ROLE_COLOR[v.role[c.room]] || '#3a4248');
+      if (o === -2) col = VOIDC;
+      else {
+        const base = o === -1 ? ROAD_RGB : c.door ? DOOR_RGB : roleRGB(v.role[c.room]);
+        col = lit(base, lightAt(c.poly[0][0] + off.x, c.poly[0][1] + off.y));
+      }
     }
     ctx.fillStyle = col;
     ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]);
@@ -127,13 +207,14 @@ function paintRegion(v, off, ghostsAsFog) {
   // gates + glyphs
   ctx.fillStyle = 'rgba(244,191,98,0.95)';
   for (const i of v.isGate) { const p = v.seeds[i]; ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill(); }
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(10,14,18,0.85)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(232,224,198,0.82)';
   for (const g of v.bill) { if (g.n < 3) continue; ctx.font = Math.min(44, 16 + g.n * 3) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
   ctx.restore();
 }
 
 function draw() {
   if (!active) return;
+  buildLight();                                            // the light buffer feeds the deck pass
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
   // camera: the @ at screen centre, always (THE recentre — chunking hidden)
@@ -141,12 +222,7 @@ function draw() {
   ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.x * z), DPR * (H / 2 - AT.y * z));
   // active first (its ghost rim as fog), then neighbours over it (their reals replace the fog)
   paintRegion(active, { x: 0, y: 0 }, true);
-  for (const [, v] of regions) {
-    if (v === active) continue;
-    const off = offsetOf(v);
-    if (Math.abs(off.x + v.frame.W / 2 - AT.x) > W / z / 2 + v.frame.W && Math.abs(off.y + v.frame.H / 2 - AT.y) > H / z / 2 + v.frame.H) continue;
-    paintRegion(v, off, false);
-  }
+  for (const v of visibleRegions()) { if (v === active) continue; paintRegion(v, offsetOf(v), false); }
   // the route remaining
   if (AT.path && AT.t < AT.path.total) {
     ctx.strokeStyle = 'rgba(244,191,98,0.55)'; ctx.lineWidth = 2.6 / z; ctx.setLineDash([8 / z, 7 / z]); ctx.lineJoin = 'round';
@@ -155,10 +231,14 @@ function draw() {
     for (let i = 1; i < AT.path.pts.length; i++) { acc += AT.path.seg[i - 1]; if (acc > AT.t) ctx.lineTo(AT.path.pts[i][0], AT.path.pts[i][1]); }
     ctx.stroke(); ctx.setLineDash([]);
   }
-  // the @
+  // the @ — gold with a soft pulsing glow so it reads against the dark ship
+  const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 600);
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,206,120,0.9)'; ctx.shadowBlur = (12 + pulse * 8) / z;
   ctx.fillStyle = '#0b1014'; ctx.beginPath(); ctx.arc(AT.x, AT.y, 11 / Math.sqrt(z), 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#7fd8d0'; ctx.font = 'bold ' + (16 / Math.sqrt(z)) + 'px ui-monospace, monospace';
+  ctx.fillStyle = '#ffce78'; ctx.font = 'bold ' + (16 / Math.sqrt(z)) + 'px ui-monospace, monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.x, AT.y + 0.5);
+  ctx.restore();
 }
 
 // ── periphery streaming: when the view reaches into a neighbour's box, ask the worker for it ──
@@ -319,6 +399,7 @@ addEventListener('wheel', (e) => { zoom = Math.max(0.3, Math.min(2.5, zoom * (1 
 
 resize();
 worker.postMessage({ type: 'init', seed: SEED });
+setInterval(() => { dirty = true; }, 110);                 // keep the hearth/forge flicker alive while idle
 requestAnimationFrame(tick);
 </script>
 </body>

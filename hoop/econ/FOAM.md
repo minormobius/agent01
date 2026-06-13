@@ -297,11 +297,32 @@ regions away, and the `@` crosses every gate to get there (the wrap and axial di
 v2 only handled an immediate neighbour. The seamless one-cell threshold step (walk into the ghost
 partner, swap the active region at that exact point) is unchanged; v3 just chains it.
 
-## Leg 8 — the v1 art style on the solved map (CHARTED)
+## Leg 8 — the v1 art style on the solved map (PHASE 1 SHIPPED on v3)
 
-v2 currently renders the brutalist flat-cell look. v1's feel — **raytraced room lighting and
-sliding at steep floor gradients** — is the next aesthetic leg, and the solved map makes it
-*better* than v1 because the light sources are now MEANINGFUL:
+v2 rendered the brutalist flat-cell look. v1's feel — **room lighting and sliding at steep floor
+gradients** — is the aesthetic leg, and the solved map makes it *better* than v1 because the light
+sources are now MEANINGFUL. Phased:
+
+- **Phase 1 — the light buffer (SHIPPED, `hoop/v3/`).** v1's `_buildLight` ported: a CPU float
+  light buffer of additive quadratic splats, sampled per paint cell, composited `albedo·AMB +
+  light·GAIN`. **Function-matched emission** (`ROLE_LIGHT` in `v3/index.html`, the cousin of v1's
+  `ROOM_TYPES`): a building lights by what it IS — a forge flickers warm, an observatory is dim, a
+  clinic a steady white — and the concourse carries cool street lamps. Walls + void stay unlit dark
+  mass so structure reads. Emitters are cached per region (`emittersOf`); the buffer is built in
+  active-local world coords over the viewport and shared by every rendered region (offset), so the
+  light is continuous across the stitched seams. No occlusion yet (v1 had none either). The `@` gets
+  a pulsing gold glow. **Proof is live (canvas) — sanity-pinned numerically off a real region.**
+- **Phase 2 — the finishing devices (NEXT).** Hand-ink seams (`ink.js` jitter on hull/panel edges),
+  `shadowBlur` glow on gates + place glyphs, the scanline overlay, palette alignment to v1.
+- **Phase 3 — occlusion that uses the city's walls (the real leg-8 payoff).** Replace the
+  wall-ignoring splat with light that flows through the walk graph (door/open membranes spill,
+  walls block) — reuses `buildWalk`, no per-cell raytrace.
+- **Phase 4 — movement + slide (DEFERRED with inter-deck stairs).** v1's slide is free-movement
+  physics; v3 is click-to-walk, and the spin-gravity slope is ~flat on a single deck — real slope
+  only appears at inter-deck connectors. Park until the stairs leg lands (needs `rad` per chamber in
+  `trim`).
+
+The phase-1 detail, kept for the record:
 
 - **Function-matched light.** v1 lit rooms generically; here a room's light comes from what it IS.
   Each building's role carries an emission (a hearth-warm dwelling, a cold-blue workshop, a civic

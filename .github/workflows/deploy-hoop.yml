@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-economy-generation-jjx7j0']
+    branches: [main, 'claude/hoop-economy-generation-jjx7j0', 'claude/hoop-v3-stitching-n1opyy']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
