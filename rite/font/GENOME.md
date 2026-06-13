@@ -216,6 +216,18 @@ contrast), `pen` angle (stress), `width`, `slant`, `xheight`, `aperture`, `arch`
 Implemented (discrete, toggles): `serif`, `apex_flat` (A), **`two_story_a`**,
 **`two_story_g`**, **`ball`** terminals.
 
+**Archetypes (the navigable map).** The ~20-gene genome is too high-dimensional
+to roll coherently gene-by-gene, so `archetype_genome(x, y, z, spread, seed)`
+(in `lib.rs`) anchors four classic designs at the corners of a square —
+x = geometric↔humanist, y = modern-sans↔classical-serif — bilinearly blends
+them, adds a z axis pushing toward Didone (contrast up, stress vertical, serifs
+thin, ball terminals), then **rolls inside a hypersphere** of radius `spread`
+around that point (a seeded random direction × a radius inside the ball). It's a
+"political compass for type": named poles over a continuous space, every interior
+point a coherent blend, and a roll a coherent *neighbour* rather than an
+independent vector. The UI exposes it as a draggable 2D pad + contrast/spread
+sliders; the per-gene sliders then fine-tune the blended result.
+
 Gaps worth adding next (from §2–§5): an **expansion** contrast mode (pointed pen)
 alongside translation; **per-letter overshoot** instead of one global value;
 **bracketed vs slab** serif structure; **terminal style** as a 3-way (sheared /

@@ -6,7 +6,7 @@
 // On top of that, a panel of live sliders overrides individual genome fields
 // via roll_params(seed, spec) — reshaping the current roll in real time.
 
-import init, { roll, roll_params, describe } from "/font/pkg/minofont.js";
+import init, { roll, roll_params, describe, archetype_genome } from "/font/pkg/minofont.js";
 
 const $ = (id) => document.getElementById(id);
 const status = $("status");
@@ -38,6 +38,11 @@ const CONTROLS = [
   { k: "seriflen", label: "Serif length", min: 0, max: 260, step: 2, fmt: (v) => v.toFixed(0) },
   { k: "serifth", label: "Serif height", min: 4, max: 130, step: 2, fmt: (v) => v.toFixed(0) },
 ];
+const TOGGLE_KEYS = new Set(["serif", "apex", "a2", "g2", "ball"]);
+// Compass position over the archetype space (x: geo→humanist, y: sans→serif,
+// z: contrast, spread: hypersphere radius for the seeded jitter).
+let compass = { x: 0.5, y: 0.35, z: 0.2, spread: 0.3 };
+
 const TOGGLES = [
   { k: "serif", label: "Serifs" },
   { k: "apex", label: "Flat-top A" },
@@ -86,20 +91,27 @@ async function render() {
   ).toFixed(1)} KB.`;
 }
 
-// Pull a fresh genome from a seed into `spec` and sync the sliders to it.
-function loadGenome(s) {
-  seed = s;
-  let g;
-  try {
-    g = JSON.parse(describe(seed));
-  } catch {
-    g = {};
-  }
+// Parse a "k=v;k=v" spec string into the working `spec` object.
+function parseSpec(str) {
   spec = {};
-  for (const c of CONTROLS) if (g[c.k] != null) spec[c.k] = +g[c.k];
-  for (const t of TOGGLES) if (g[t.k] != null) spec[t.k] = !!g[t.k];
+  for (const kv of str.split(";")) {
+    const [k, v] = kv.split("=");
+    if (!k) continue;
+    spec[k] = TOGGLE_KEYS.has(k) ? v === "1" : +v;
+  }
+}
+
+// Drive the genome from the compass: blend the corner archetypes at the current
+// point, jitter inside the spread, sync the sliders, and render.
+function applyCompass() {
+  const str = archetype_genome(compass.x, compass.y, compass.z, compass.spread, seed);
+  parseSpec(str);
   syncControls();
-  renderMeta(g);
+  let family = seed;
+  try {
+    family = JSON.parse(describe(seed)).family ?? seed;
+  } catch {}
+  renderMeta({ family, ...spec, serif: spec.serif });
   $("seed").value = seed;
 }
 
@@ -182,8 +194,59 @@ function go(s, push) {
   url.searchParams.set("s", s);
   if (push) history.pushState({}, "", url);
   else history.replaceState({}, "", url);
-  loadGenome(s);
+  seed = s;
+  applyCompass();
   render().catch((e) => (status.textContent = "Error: " + e.message));
+}
+
+// Wire the 2D archetype pad + the contrast / spread sliders.
+function buildCompass() {
+  const pad = $("compass");
+  const handle = $("cmp-handle");
+  const place = () => {
+    handle.style.left = compass.x * 100 + "%";
+    handle.style.top = (1 - compass.y) * 100 + "%";
+  };
+  $("sl-z").value = compass.z;
+  $("out-z").textContent = compass.z.toFixed(2);
+  $("sl-spread").value = compass.spread;
+  $("out-spread").textContent = compass.spread.toFixed(2);
+  place();
+
+  let raf = 0;
+  const schedule = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      applyCompass();
+      render().catch((e) => (status.textContent = "Error: " + e.message));
+    });
+  };
+  const fromEvent = (e) => {
+    const r = pad.getBoundingClientRect();
+    compass.x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    compass.y = Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height));
+    place();
+    schedule();
+  };
+  let dragging = false;
+  pad.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    pad.setPointerCapture(e.pointerId);
+    fromEvent(e);
+  });
+  pad.addEventListener("pointermove", (e) => dragging && fromEvent(e));
+  pad.addEventListener("pointerup", () => (dragging = false));
+  $("sl-z").addEventListener("input", (e) => {
+    compass.z = +e.target.value;
+    $("out-z").textContent = compass.z.toFixed(2);
+    schedule();
+  });
+  $("sl-spread").addEventListener("input", (e) => {
+    compass.spread = +e.target.value;
+    $("out-spread").textContent = compass.spread.toFixed(2);
+    schedule();
+  });
 }
 
 async function main() {
@@ -194,6 +257,7 @@ async function main() {
     return;
   }
   buildControls();
+  buildCompass();
   $("roll").addEventListener("click", () => go(randomSeed(), true));
   $("apply").addEventListener("click", () => {
     const s = $("seed").value.trim();
@@ -203,7 +267,7 @@ async function main() {
     if (e.key === "Enter") $("apply").click();
   });
   $("reset").addEventListener("click", () => {
-    loadGenome(seed);
+    applyCompass();
     render().catch((e) => (status.textContent = "Error: " + e.message));
   });
   window.addEventListener("popstate", () => {

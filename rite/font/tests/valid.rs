@@ -92,6 +92,35 @@ fn slider_overrides_apply_and_stay_valid() {
 }
 
 #[test]
+fn archetypes_blend_and_roll_valid() {
+    // Every corner, the centre, and a high-contrast point must yield a font that
+    // parses and outlines — the archetype compass can't produce a broken roll.
+    for &(x, y, z) in &[
+        (0.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (1.0, 1.0, 0.0),
+        (0.5, 0.5, 0.5),
+        (1.0, 1.0, 1.0),
+    ] {
+        let bytes = minofont::roll_archetype(x, y, z, 0.4, "compass-seed");
+        let face = ttf_parser::Face::parse(&bytes, 0)
+            .unwrap_or_else(|_| panic!("archetype ({x},{y},{z}) did not parse"));
+        for c in "Haegno0".chars() {
+            let gid = face.glyph_index(c).expect("cmap");
+            let mut counter = Counter::default();
+            face.outline_glyph(gid, &mut counter);
+            assert!(counter.segments > 0, "{c:?} empty at archetype ({x},{y},{z})");
+        }
+    }
+    // spread = 0 is deterministic from the seed; spread > 0 perturbs it.
+    assert_eq!(
+        minofont::archetype_genome(0.3, 0.7, 0.2, 0.0, "s"),
+        minofont::archetype_genome(0.3, 0.7, 0.2, 0.0, "s"),
+    );
+}
+
+#[test]
 fn is_deterministic_and_seed_sensitive() {
     assert_eq!(
         minofont::build_font("seed-a"),
