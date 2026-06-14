@@ -36,7 +36,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · click a resident for who they know (forum) &amp; their tale (story) · click a building to examine the place — it crystallizes what you find · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
 <a class="home" href="/">← hoop</a>
 <div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
@@ -48,7 +48,7 @@
 import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
-import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, listInventory as storyInventory, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
+import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, take as storyTake, listInventory as storyInventory, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
 import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
 import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
 import { readSummary, PULSE_NSID } from '../story/director.js';   // the cross-player "world pulse" (a disposable projection)
@@ -734,6 +734,58 @@ $('up').addEventListener('click', () => rideStair(-1));
 $('down').addEventListener('click', () => rideStair(1));
 addEventListener('keydown', (e) => { if (e.key === 'PageUp' || e.key === '[') rideStair(-1); else if (e.key === 'PageDown' || e.key === ']') rideStair(1); });
 
+// ── PLACES — the vendor's content-reveal tied into the hoop city ─────────────────────────────────
+// Residents are the NPC layer; this is the rest of the vendor taxonomy laid onto the BUILDINGS. Each
+// building is a feature anchored to its chamber address (gid); walking to it crystallizes ONE pool item
+// of a type matched to the building's civic role — lore at places of record (learn/worship/govern/heal),
+// items at places of stuff (make/store/trade/mend), with rare creatures/plot-beats seeded deterministically
+// from the gid. Gated + withheld exactly as the vendor intends: a sealed place "holds something back"
+// until you're ready (you hold the key / have the standing) — that is where YOUR key finally bites.
+const PLACE_TYPE_BY_ROLE = { make: 'item', store: 'item', trade: 'item', mend: 'item', learn: 'lore_fragment', worship: 'lore_fragment', govern: 'lore_fragment', heal: 'lore_fragment' };
+const PLACE_LABEL = { make: 'a workbench', store: 'a stores cache', trade: 'a trade counter', mend: 'a repair nook', learn: 'an archive console', worship: 'a quiet shrine', govern: 'a council record', heal: 'a clinic log', _creature: 'something stirs in the dark', _plot: 'a place that matters' };
+const PLACE_GLYPH = { lore_fragment: '✎', item: '◈', creature: '☣', plot_beat: '✦' };
+const hashGid = (g) => { let h = 2166136261 >>> 0; for (let i = 0; i < g.length; i++) { h ^= g.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+function placeFeatureOf(v, b) {
+  const cells = buildCells(v).get(b); if (!cells || !cells.length) return null;
+  const gid = chamberGid(v, cells); if (!gid) return null;
+  const role = v.role[cells[0]], h = hashGid(gid + ':place');
+  let type = h % 41 === 0 ? 'plot_beat' : h % 17 === 0 ? 'creature' : PLACE_TYPE_BY_ROLE[role] || null;
+  if (!type) return null;
+  const label = type === 'creature' ? PLACE_LABEL._creature : type === 'plot_beat' ? PLACE_LABEL._plot : (PLACE_LABEL[role] || 'a place');
+  return { key: gid, type, tag: role, label, role };
+}
+let selPlace = null;
+async function renderPlace(v, b) {
+  selPlace = { v, b };
+  const feature = placeFeatureOf(v, b), el = $('placebody'); if (!el) return;
+  if (!feature) { el.innerHTML = '<div class="end">a quiet place — nothing of note stirs here</div>'; return; }
+  el.innerHTML = '<div class="meta">…</div>';
+  let store; try { store = await ensureStory(); } catch (e) { el.innerHTML = ''; return; }
+  if (!selPlace || selPlace.v !== v || selPlace.b !== b) return;       // walked on while the pool loaded
+  store.addFeature(feature);
+  const res = storyInteract(store, PLAYER, feature.key); persistStory();
+  drawPlace(el, feature, res, store);
+}
+function drawPlace(el, feature, res, store) {
+  if (res.status === 'withheld') {   // the vendor's sealed feeling — gated or the pool not yet deep enough
+    el.innerHTML = '<div class="end">⊘ ' + feature.label + ' — it holds something back. You\'re not yet ready to know what it is.</div><div class="meta">⌂ ' + feature.key + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>';
+    wireNuke(el); return;
+  }
+  const item = res.item, kind = item.type;
+  let h = '<b>' + (PLACE_GLYPH[kind] || '◦') + ' ' + (item.name || feature.label) + '</b>';
+  if (res.status === 'recalled') h += ' <span style="color:#667">(the same as before · ×' + res.interaction_count + ')</span>';
+  if (res.retired) h += ' <span class="end">(only your memory of it remains)</span>';
+  h += '<div class="says">' + (kind === 'lore_fragment' ? '“' + item.description + '”' : item.description) + '</div>';
+  if (kind === 'item') {
+    const held = storyInventory(store, PLAYER).some((r) => r.content_item_id === item.content_item_id);
+    h += held ? '<div class="meta">✓ taken — it\'s in your hands now</div>' : '<div class="choice" data-take="' + item.content_item_id + '">› take it</div>';
+  }
+  h += '<div class="meta">⌂ ' + feature.key + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>';
+  el.innerHTML = h; wireNuke(el);
+  const tk = el.querySelector('[data-take]');
+  if (tk) tk.addEventListener('click', () => { storyTake(store, PLAYER, tk.dataset.take); persistStory(); renderMe(); drawPlace(el, feature, res, store); });
+}
+
 function inspect(v, roomIdx) {
   const o = v.owner[roomIdx];
   let html;
@@ -741,7 +793,10 @@ function inspect(v, roomIdx) {
   else if (o === -2) html = '<b>· unclaimed foam</b>';
   else html = v.inspect[o] || '<b>a building</b>';
   if (AT.path) html += '<br><span style="color:#8a978f">walk ~' + Math.round(AT.path.total / PX * M_PER_CELL) + ' m</span>';
-  rail(html);
+  selNpc = null;
+  rail(html + (o >= 0 ? '<div id="placebody" style="margin-top:6px"></div>' : ''));
+  if (o >= 0) renderPlace(v, o);                            // crystallize this building's place-content
+  else selPlace = null;
 }
 function rail(html) { $('rail').innerHTML = html; $('rail').style.display = 'block'; }
 
