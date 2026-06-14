@@ -142,5 +142,22 @@ ok('min_rep gate', !meetsState({ facts: { 'rep.keepers': 1 }, items: new Set() }
   ok('validator flags unreachable node', warnings(unreachable).some((w) => w.code === 'unreachable_node'));
 }
 
+// 9. persistence — snapshot → JSON round-trip → restore reproduces player state exactly (nukeable proto)
+{
+  const s = newStore();
+  interact(s, 'pp', 'medbay.shelf.a');                       // crystallize (placement + xp + seen)
+  take(s, 'pp', 'it-prybar'); s.setFact('pp', 'flag.x', true);
+  s.addFeature({ key: 'res:heal:gus', type: 'npc', tag: 'heal' }); interact(s, 'pp', 'res:heal:gus');
+  const snap = JSON.parse(JSON.stringify(s.snapshot()));     // exactly what localStorage stores
+  const s2 = newStore().restore(snap);
+  s2.addFeature({ key: 'medbay.shelf.a', type: 'item', label: 'shelf' });   // world re-added on inspect (as v3 does)
+  const recalled = interact(s2, 'pp', 'medbay.shelf.a');
+  ok('restored placement recalls (not re-crystallizes)', recalled.status === 'recalled');
+  ok('restored facts survive', s2.getFact('pp', 'flag.x') === true);
+  ok('restored inventory survives', listInventory(s2, 'pp').some((r) => r.content_item_id === 'it-prybar'));
+  ok('restored xp/tier survives', s2.getPlayerState('pp').xp === s.getPlayerState('pp').xp);
+  ok('empty/bad snapshot is a no-op', newStore().restore(null) && newStore().restore({ v: 99 }).getFacts('z') !== undefined);
+}
+
 console.log(`\n${fail ? '✗ FAIL' : '✓ PASS'} — ${pass} ok, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -253,4 +253,23 @@ export class MemoryStore {
   _np(id) { let m = this.npc.get(id); if (!m) { m = new Map(); this.npc.set(id, m); } return m; }
   getNpcState(id, npcId, start) { const m = this._np(id); let s = m.get(npcId); if (!s) { s = { standing: 0, flags: {}, current_node: start }; m.set(npcId, s); } return s; }
   setNpcState(id, npcId, s) { this._np(id).set(npcId, { ...this.getNpcState(id, npcId, s.current_node), ...s }); }
+
+  // ── persistence: a JSON snapshot of PLAYER state only (content + features are the world, reloaded
+  // fresh). Backend-agnostic — localStorage now, a DuckDB-WASM or D1 store later, same shape. The
+  // proto is meant to be nukeable: drop the snapshot and a fresh store rebuilds from the pool. ──
+  snapshot() {
+    const mm = (m) => [...m.entries()].map(([k, v]) => [k, [...v.entries()]]);   // Map(id → Map) → entries
+    return { v: 1, invSeq: this._invSeq, players: [...this.players.entries()],
+             facts: mm(this.facts), placements: mm(this.placements), equip: mm(this.equip), npc: mm(this.npc),
+             inv: [...this.inv.entries()] };
+  }
+  restore(s) {
+    if (!s || s.v !== 1) return this;
+    this._invSeq = s.invSeq || 0;
+    this.players = new Map(s.players || []);
+    const rm = (arr) => new Map((arr || []).map(([k, v]) => [k, new Map(v)]));
+    this.facts = rm(s.facts); this.placements = rm(s.placements); this.equip = rm(s.equip); this.npc = rm(s.npc);
+    this.inv = new Map(s.inv || []);
+    return this;
+  }
 }

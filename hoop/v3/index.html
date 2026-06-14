@@ -274,16 +274,29 @@ function buildCells(v) {
   for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0) { let s = byB.get(o); if (!s) { s = []; byB.set(o, s); } s.push(i); } }
   return (v._buildCells = byB);
 }
+// The canonical CHAMBER ADDRESS of a building: the smallest-tuple gid among the chambers it owns.
+// gid = "gx|gy|gz" is a pure function of global lattice coords + ship seed (econ/region.js) — stable
+// for ever, hierarchical, the same addressing the postal layer is built on. This is "the right room
+// index": a resident's story binds to <homeChamberGid>#<ordinal> (postal's (chunk, ordinal) slot),
+// not to an ad-hoc name string — so the binding survives re-solves and is portable across machines.
+const gidLess = (a, b) => { for (let k = 0; k < 3; k++) { if (a[k] !== b[k]) return a[k] < b[k]; } return false; };
+function chamberGid(v, cells) {
+  let best = null, bestT = null;
+  for (const i of cells) { const g = v.bandGid[i]; if (!g) continue; const t = g.split('|').map(Number); if (!bestT || gidLess(t, bestT)) { bestT = t; best = g; } }
+  return best;
+}
 function npcsOf(v) {
   if (v._npcs) return v._npcs;
-  const byB = buildCells(v), npcs = [];
+  const byB = buildCells(v), npcs = [], ordinal = new Map();
   v.people.forEach((pn, pi) => {
     if (npcs.length >= NPC_CAP) return;
     const hc = byB.get(pn.home); if (!hc || !hc.length) return;
     const cell = hc[(npcs.length * 13 + 7) % hc.length];
+    const gid = chamberGid(v, hc), ord = ordinal.get(gid) || 0; ordinal.set(gid, ord + 1);
+    const addr = gid + '#' + ord;                            // the resident's stable chamber-anchored slot — their story's feature_key
     // a stable, deterministic sprite seed — same resident regenerates the same figure on every machine
     const seed = SEED + ':' + v.az + ':' + v.ax + ':' + pn.home + ':' + pn.name;
-    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, ties: pn.ties || [], pi, reg: v, seed, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dir: 'S', phase: null, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
+    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, ties: pn.ties || [], pi, reg: v, seed, addr, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dir: 'S', phase: null, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
   });
   return (v._npcs = npcs);
 }
@@ -512,12 +525,21 @@ function npcAt(wx, wy) {
 const PLAYER = 'local';                                     // session-local player id (durable D1 store comes later)
 let railTab = 'forum';
 let storyStore = null, _storyLoading = null;
+// Nukeable browser persistence: player story-state (facts/placements/inventory/standing) snapshots to
+// localStorage. Tiny, zero-dep, no COOP/COEP. Swappable for a DuckDB-WASM/D1 backend later (same
+// snapshot shape). Bump STORY_KEY to invalidate old saves; the ⟲ reset control wipes it on demand.
+const STORY_KEY = 'hoop.story.v1';
 function ensureStory() {
   if (storyStore) return Promise.resolve(storyStore);
-  if (!_storyLoading) _storyLoading = fetch('../story/pool.json').then((r) => r.json())
-    .then((pool) => (storyStore = new MemoryStore(flattenPool(pool), { features: [] })));
+  if (!_storyLoading) _storyLoading = fetch('../story/pool.json').then((r) => r.json()).then((pool) => {
+    storyStore = new MemoryStore(flattenPool(pool), { features: [] });
+    try { const s = localStorage.getItem(STORY_KEY); if (s) storyStore.restore(JSON.parse(s)); } catch (e) { /* fresh */ }
+    return storyStore;
+  });
   return _storyLoading;
 }
+function persistStory() { try { localStorage.setItem(STORY_KEY, JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode — stays in-memory */ } }
+function nukeStory() { try { localStorage.removeItem(STORY_KEY); } catch (e) { /* */ } storyStore = null; _storyLoading = null; if (selNpc) { selNpc._npcId = null; renderRail(); } }
 function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }
 function renderRail() {
   const n = selNpc; if (!n) return;
@@ -540,9 +562,9 @@ async function renderStory(n) {
   const body = $('railbody'); body.innerHTML = '<div class="meta">…</div>';
   let store; try { store = await ensureStory(); } catch (e) { body.innerHTML = '<div class="end">story layer offline</div>'; return; }
   if (selNpc !== n || railTab !== 'story') return;          // selection changed while the pool loaded
-  store.addFeature({ key: n.seed, type: 'npc', label: n.name + ', a ' + n.role, tag: n.role });   // chamber identity = feature_key; role = bridge tag
-  const res = storyInteract(store, PLAYER, n.seed);
-  if (!res.item) { body.innerHTML = '<div class="end">an ordinary resident — no tale has crystallized here</div>'; return; }
+  store.addFeature({ key: n.addr, type: 'npc', label: n.name + ', a ' + n.role, tag: n.role });   // chamber address = feature_key; role = bridge tag
+  const res = storyInteract(store, PLAYER, n.addr); persistStory();   // crystallize/recall mutates → save
+  if (!res.item) { body.innerHTML = '<div class="end">an ordinary resident — no tale has crystallized here</div><div class="meta">⌂ ' + n.addr + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>'; wireNuke(body); return; }
   n._npcId = res.item.content_item_id;
   drawDialogue(n, body);
 }
@@ -554,14 +576,16 @@ function drawDialogue(n, body, note) {
   if (t.no_tree) { body.innerHTML = h + '<div class="end">— they have nothing to say —</div>'; return; }
   if (t.choices.length) for (const c of t.choices) h += '<div class="choice" data-c="' + c.id + '">› ' + c.text + '</div>';
   else h += '<div class="end">— the exchange is over —</div>';
-  h += '<div class="meta">standing ' + (t.standing >= 0 ? '+' : '') + t.standing + ' · your story, not the world\'s</div>';
+  h += '<div class="meta">standing ' + (t.standing >= 0 ? '+' : '') + t.standing + ' · ⌂ ' + n.addr + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>';
   body.innerHTML = h;
+  wireNuke(body);
   body.querySelectorAll('[data-c]').forEach((el) => el.addEventListener('click', () => {
-    const r = storyChoose(store, PLAYER, n._npcId, el.dataset.c);
+    const r = storyChoose(store, PLAYER, n._npcId, el.dataset.c); persistStory();   // choice effects mutate → save
     const got = (r.gave_items || []).map((id) => (store.contentById(id) || { content: {} }).content.name).filter(Boolean);
     drawDialogue(n, body, got.length ? 'received ' + got.join(', ') : null);
   }));
 }
+function wireNuke(body) { const nk = body.querySelector('[data-nuke]'); if (nk) nk.addEventListener('click', nukeStory); }
 
 // ── click-to-walk anywhere on this deck — interruptible, always from the @'s LIVE position ──
 cv.addEventListener('click', (e) => {
