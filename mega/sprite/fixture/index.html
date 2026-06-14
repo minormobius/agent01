@@ -60,7 +60,7 @@
     <button id="prev">‹</button><button id="next">›</button>
     <span class="seedbox"><label>seed</label><input id="seed" inputmode="numeric"></span>
     <button id="forge">go</button>
-    <span class="knob">lights <input type="range" id="den" min="1" max="5" value="3"></span>
+    <span class="knob">lights <input type="range" id="den" min="1" max="5" value="4"></span>
     <span class="knob">reach <input type="range" id="reach" min="14" max="42" value="24"></span>
     <span class="knob">sat <input type="range" id="sat" min="0" max="100" value="72"></span>
     <span class="knob">size <input type="range" id="size" min="7" max="20" value="12"></span>
@@ -92,11 +92,11 @@ const ROLES = Object.keys(ROLE);
 const VOCAB = ['all', ...LIGHT_KINDS];
 function hexHue(hex) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16) / 255, g = parseInt(c.slice(2, 4), 16) / 255, b = parseInt(c.slice(4, 6), 16) / 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0; if (mx !== mn) { const d = mx - mn; h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return h; }
 
-const state = { seed: 1, den: 3, reach: 24, sat: 0.72, size: 0.12, voc: 'all', built: null };
+const state = { seed: 1, den: 4, reach: 24, sat: 0.72, size: 0.12, voc: 'all', built: null };
 
 function fromURL() {
   const p = new URLSearchParams(location.search), gi = (k, d) => { const v = parseInt(p.get(k), 10); return Number.isFinite(v) ? v : d; };
-  state.seed = (gi('seed', 1)) >>> 0; state.den = gi('den', 3); state.reach = gi('reach', 24);
+  state.seed = (gi('seed', 1)) >>> 0; state.den = gi('den', 4); state.reach = gi('reach', 24);
   state.sat = gi('sat', 72) / 100; state.size = gi('size', 12) / 100; if (VOCAB.includes(p.get('voc'))) state.voc = p.get('voc');
   $('seed').value = state.seed; $('den').value = state.den; $('reach').value = state.reach; $('sat').value = state.sat * 100; $('size').value = state.size * 100;
 }
@@ -111,16 +111,18 @@ function build() {
   tintLights(lights, (room) => hexHue(ROLE[roleOf(scene, room)]));
   const occ = occlusionGrid(scene);
   const baked = bakeFloorRGB(scene, lights, occ, { ambient: 0.04, strength: 1, reach: state.reach / 10 });
-  // per-room component, placed in the lit zone
   const tips = {}; for (const L of lights) (tips[L.room] = tips[L.room] || []).push(L.tip);
-  const comps = scene.roomSeeds.map((s) => {
-    const t = tips[s.id] || []; let cx = s.x, cy = s.y;
-    if (t.length) { cx = (s.x + t.reduce((a, p) => a + p.x, 0) / t.length) / 2; cy = (s.y + t.reduce((a, p) => a + p.y, 0) / t.length) / 2; }
-    return { cx, cy, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
-  });
-  // a SECOND wall fixture per room — grown FROM the tiling (claims + re-attributes wall cells)
+  // the SECOND wall fixture — grown FROM the tiling, away from the lights
   const consoles = growWallFixtures(scene, mulberry32((state.seed * 40503 + 7) >>> 0), { avoid: tips, kindOf: (room) => ROLE_CONSOLE[roleOf(scene, room)] });
   for (const c of consoles) c.accent = ROLE[roleOf(scene, c.room)];
+  // central component placed LAST: at the floor cell FARTHEST from every placed object (max spacing)
+  const occBy = {}; for (const L of lights) (occBy[L.room] = occBy[L.room] || []).push(L.tip);
+  for (const C of consoles) { (occBy[C.room] = occBy[C.room] || []).push(C.tip, C.anchor); }
+  const comps = scene.roomSeeds.map((s) => {
+    const op = occBy[s.id] || []; let bp = null, bd = -1;
+    for (const c of scene.paintCells) { if (c.wall || c.room !== s.id || c.poly.length < 3) continue; let d = op.length ? Infinity : 1; for (const p of op) d = Math.min(d, (p.x - c.x) ** 2 + (p.y - c.y) ** 2); if (d > bd) { bd = d; bp = c; } }
+    return { cx: bp ? bp.x : s.x, cy: bp ? bp.y : s.y, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
+  });
   state.built = { scene, lights, occ, baked, comps, consoles };
 }
 

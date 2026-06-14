@@ -99,18 +99,37 @@ function tileGraph(claimed, cells) {
 }
 
 const TAU = Math.PI * 2, GA = 2.39996323;   // golden angle — the phyllotaxis of Romanesco
-// a self-similar floret: a golden-angle spiral of cones, each recursing into a smaller spiral.
-function floret(ctx, cx, cy, r, ang, acc, lit, depth) {
+// ── a VARIETY of ornamentation math — one per fixture (chosen from F.seedN) ──────────────────────
+function o_romanesco(ctx, cx, cy, r, ang, acc, lit, depth) {     // golden-angle spiral of cones, recursive
   const n = depth > 0 ? 12 : 8;
   for (let i = 0; i < n; i++) {
-    const a = i * GA + ang, t = (i + 0.5) / n, rr = r * Math.sqrt(t);
-    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr, sz = r * 0.17 * (1 - 0.4 * t);
-    ctx.fillStyle = css(mix(acc, GOLD, 0.22 + 0.62 * t), lit * (0.7 + 0.4 * t));
-    ctx.beginPath(); ctx.arc(x, y, sz, 0, TAU); ctx.fill();
-    if (depth > 0 && i % 2 === 0 && t > 0.32) floret(ctx, x, y, sz * 1.5, a, acc, lit, depth - 1);
+    const a = i * GA + ang, t = (i + 0.5) / n, rr = r * Math.sqrt(t), x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr, sz = r * 0.17 * (1 - 0.4 * t);
+    ctx.fillStyle = css(mix(acc, GOLD, 0.22 + 0.62 * t), lit * (0.7 + 0.4 * t)); ctx.beginPath(); ctx.arc(x, y, sz, 0, TAU); ctx.fill();
+    if (depth > 0 && i % 2 === 0 && t > 0.32) o_romanesco(ctx, x, y, sz * 1.5, a, acc, lit, depth - 1);
   }
   ctx.fillStyle = css(mix(acc, GOLD, 0.55), lit); ctx.beginPath(); ctx.arc(cx, cy, r * 0.16, 0, TAU); ctx.fill();
 }
+function o_rose(ctx, cx, cy, r, ang, acc, lit) {                 // a rhodonea (rose) curve — petals
+  ctx.beginPath(); for (let i = 0; i <= 120; i++) { const th = i / 120 * TAU, rr = r * Math.abs(Math.cos(3 * th)), x = cx + Math.cos(th + ang) * rr, y = cy + Math.sin(th + ang) * rr; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.closePath();
+  ctx.fillStyle = css(mix(acc, GOLD, 0.32), lit * 0.85); ctx.fill(); ctx.strokeStyle = goldS(lit, 0.6); ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.fillStyle = css(mix(acc, GOLD, 0.6), lit); ctx.beginPath(); ctx.arc(cx, cy, r * 0.16, 0, TAU); ctx.fill();
+}
+function o_branch(ctx, cx, cy, r, ang, acc, lit) {               // recursive Y branching (an L-system bush)
+  const rec = (x, y, a, len, d) => { const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len; ctx.strokeStyle = css(mix(acc, GOLD, 0.3 + 0.3 * (3 - d) / 3), lit); ctx.lineWidth = Math.max(0.6, len * 0.13); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke(); if (d <= 0) { ctx.fillStyle = css(mix(acc, GOLD, 0.6), lit); ctx.beginPath(); ctx.arc(x2, y2, len * 0.22, 0, TAU); ctx.fill(); return; } rec(x2, y2, a - 0.5, len * 0.72, d - 1); rec(x2, y2, a + 0.5, len * 0.72, d - 1); };
+  rec(cx, cy, ang, r * 0.85, 3);
+}
+function o_gasket(ctx, cx, cy, r, ang, acc, lit, depth) {        // nested circles (Apollonian-ish)
+  ctx.strokeStyle = goldS(lit, 0.5); ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
+  const n = 6; for (let i = 0; i < n; i++) { const a = ang + i / n * TAU, x = cx + Math.cos(a) * r * 0.55, y = cy + Math.sin(a) * r * 0.55, rr = r * 0.32; ctx.fillStyle = css(mix(acc, GOLD, 0.25 + 0.35 * (i / n)), lit * 0.8); ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.fill(); ctx.strokeStyle = goldS(lit, 0.4); ctx.stroke(); if (depth > 0) o_gasket(ctx, x, y, rr * 0.66, a, acc, lit, depth - 1); }
+  ctx.fillStyle = css(mix(acc, GOLD, 0.55), lit); ctx.beginPath(); ctx.arc(cx, cy, r * 0.2, 0, TAU); ctx.fill();
+}
+function o_spokes(ctx, cx, cy, r, ang, acc, lit) {               // a deco sunburst + concentric rings
+  const n = 12; ctx.strokeStyle = goldS(lit, 0.5); ctx.lineWidth = 0.8;
+  for (let i = 0; i < n; i++) { const a = ang + i / n * TAU; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r * 0.25, cy + Math.sin(a) * r * 0.25); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.stroke(); }
+  for (const rr of [r * 0.45, r * 0.8]) { ctx.strokeStyle = goldS(lit, 0.4); ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.stroke(); }
+  ctx.fillStyle = css(mix(acc, GOLD, 0.55), lit); ctx.beginPath(); ctx.arc(cx, cy, r * 0.2, 0, TAU); ctx.fill();
+}
+const ORNAMENTS = [o_romanesco, o_rose, o_branch, o_gasket, o_spokes];
 
 // EXTRUDE + ORNAMENT over the tile graph: height by graph distance, tops shaded by a continuous
 // vertex field (tiles blend across shared corners), and a Romanesco floret per cell oriented along
@@ -126,7 +145,9 @@ export function drawWallFixture(ctx, scene, F, { accent = '#888', hue = 40, litA
   const vval = (p) => { const a = vV.get(vkey(p[0], p[1])); return a ? a[0] / a[1] : 0; };
   const vlit = (p) => { const a = vL.get(vkey(p[0], p[1])); return a ? a[0] / a[1] : 1; };
   const rampCol = (f) => mix(mix(GROUND, acc, 0.5), mix(acc, GOLD, 0.5), clamp(f, 0, 1));
-  const sideDark = mix(GROUND, acc, 0.14);
+  const sideDark = mix(GROUND, acc, 0.14), oi = F.seedN % ORNAMENTS.length, ornament = ORNAMENTS[oi], uiList = [];
+  const UI_F = 0.72;                                                            // cells past this field are the room-facing UI screen
+  const path = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); };
   const topCent = (li) => { const v = cells[F.cells[li].idx].poly, z = zOf(li); let x = 0, y = 0; for (const p of v) { x += p[0]; y += p[1]; } return [x / v.length, y / v.length - z]; };
   const order = F.cells.map((_, li) => li).sort((a, b) => topCent(a)[1] - topCent(b)[1]);   // back → front
   // faint stalks along the spanning tree (the broccoli branching)
@@ -144,12 +165,22 @@ export function drawWallFixture(ctx, scene, F, { accent = '#888', hue = 40, litA
       ctx.fillStyle = css(col, lt * 0.66 + 0.2);
       ctx.beginPath(); ctx.moveTo(tc[0], tc[1]); ctx.lineTo(top[i][0], top[i][1]); ctx.lineTo(top[(i + 1) % top.length][0], top[(i + 1) % top.length][1]); ctx.closePath(); ctx.fill();
     }
-    // the ORNAMENT: a Romanesco floret on the tile top, oriented outward along the tree
+    // ORNAMENT on the structure; but the room-facing tip cells are deferred to one black UI surface
     if (!cl.base) {
-      let r = 0; for (const p of v) r += Math.hypot(p[0] - c.x, p[1] - c.y); r /= v.length;
-      const pa = F.parent[li]; let ang = Math.atan2(F.ny, F.nx); if (pa >= 0) { const B = topCent(pa); ang = Math.atan2(tc[1] - B[1], tc[0] - B[0]); }
-      floret(ctx, tc[0], tc[1], r * (0.62 + 0.45 * cf), ang, acc, clt * 0.8 + 0.25, cf > 0.5 ? 1 : 0);
+      if (cf >= UI_F) uiList.push({ top, tc });
+      else {
+        let r = 0; for (const p of v) r += Math.hypot(p[0] - c.x, p[1] - c.y); r /= v.length;
+        const pa = F.parent[li]; let ang = Math.atan2(F.ny, F.nx); if (pa >= 0) { const B = topCent(pa); ang = Math.atan2(tc[1] - B[1], tc[0] - B[0]); }
+        ornament(ctx, tc[0], tc[1], r * (0.7 + 0.5 * cf), ang, acc, clt * 0.8 + 0.25, cf > 0.5 ? 1 : 0);
+      }
     }
+  }
+  // a COHERENT BLACK SURFACE toward room centre — implies a user interface (drawn last, on top)
+  if (uiList.length) {
+    for (const u of uiList) { ctx.fillStyle = `hsl(${hue} 26% 5%)`; path(u.top); ctx.fill(); }
+    for (const u of uiList) { ctx.strokeStyle = `hsla(${hue} 70% 55% / 0.22)`; ctx.lineWidth = 0.8; path(u.top); ctx.stroke(); }
+    ctx.strokeStyle = `hsla(${hue} 85% 72% / 0.2)`; ctx.lineWidth = 0.6;   // short scanlines (bounded to each cell)
+    for (const u of uiList) { let r = 0; for (const p of u.top) r += Math.hypot(p[0] - u.tc[0], p[1] - u.tc[1]); r /= u.top.length; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(u.tc[0] - r * 0.55, u.tc[1] + k * r * 0.42); ctx.lineTo(u.tc[0] + r * 0.55, u.tc[1] + k * r * 0.42); ctx.stroke(); } }
   }
   // emissive crown at the lifted tip
   const tipZ = (0.14 + 0.72) * maxH, tx = F.tip.x, ty = F.tip.y - tipZ;
