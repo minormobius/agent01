@@ -534,7 +534,7 @@ const STORY_KEY = 'hoop.story.v1';
 // seeding (hoop/scripts/seed-story-pool.mjs) to source the pool LIVE via public listRecords; until
 // then the bundled pool.json is the offline fallback. Either way the engine is unchanged — the pool
 // is just records in. A worker/KV cache over this would be a disposable projection, never truth.
-const STORY_SERVICE = { did: '', pds: 'https://bsky.social' };
+const STORY_SERVICE = { did: 'did:plc:yivyyp54vddf7qf2lpsikhe4', pds: 'https://chalciporus.us-west.host.bsky.network' };   // morphyx — seeded by seed-story.yml
 function ensureStory() {
   if (storyStore) return Promise.resolve(storyStore);
   if (!_storyLoading) _storyLoading = (async () => {

@@ -1,0 +1,36 @@
+name: Seed Story pool (atproto)
+
+# Publishes the hand-authored story pool (hoop/story/pool.json) to the morphyx
+# service account's repo as com.minomobi.hoop.story.content records. This makes
+# ATProto the source of truth for the pool; the engine reads it via listRecords
+# (the bundled pool.json stays as the offline fallback). Idempotent — putRecord
+# (rkey = content id) overwrites, so re-running re-publishes in place.
+on:
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "Dry run (build + print records, no write)"
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'claude/hoop-feature-pr-00evd0'
+    paths:
+      - 'hoop/story/pool.json'
+      - 'hoop/story/atproto.js'
+      - 'hoop/scripts/seed-story-pool.mjs'
+      - '.github/workflows/seed-story.yml'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Seed story pool
+        env:
+          HOOP_STORY_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          HOOP_STORY_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node hoop/scripts/seed-story-pool.mjs ${{ inputs.dry && '--dry' || '' }}
