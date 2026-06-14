@@ -16,18 +16,29 @@
   a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; }
   #rail { position: fixed; bottom: 12px; left: 10px; max-width: 46vw; background: rgba(8,11,16,.8); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; backdrop-filter: blur(6px); display: none; }
   #rail b { color: var(--gold); } #rail .w { color: var(--teal); }
+  #rail .tabs { display: flex; gap: 4px; margin: -2px 0 7px; border-bottom: 1px solid var(--line); }
+  #rail .tab { color: var(--dim); cursor: pointer; padding: 2px 9px 5px; border-bottom: 2px solid transparent; user-select: none; }
+  #rail .tab.on { color: var(--ink); border-bottom-color: var(--gold); }
+  #rail .says { color: var(--ink); margin: 4px 0 7px; font-style: italic; }
+  #rail .choice { color: var(--teal); cursor: pointer; padding: 3px 0 3px 14px; text-indent: -10px; }
+  #rail .choice:hover { color: var(--gold); }
+  #rail .end { color: #667; padding-top: 4px; }
+  #rail .meta { color: var(--dim); font-size: 11px; }
   #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,6,10,.85); color: var(--gold); font-size: 14px; z-index: 9; }
   #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
   #decks { position: fixed; right: 10px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; align-items: stretch; z-index: 8; }
   #decks button { font: 16px/1 ui-monospace, monospace; color: var(--gold); background: rgba(8,11,16,.82); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; cursor: pointer; backdrop-filter: blur(6px); }
   #decks button:active { background: rgba(244,191,98,.18); }
   #deck { text-align: center; color: var(--dim); font-size: 11px; }
+  #auth { position: fixed; top: 28px; right: 10px; color: var(--dim); font-size: 11px; text-align: right; z-index: 8; max-width: 42vw; }
+  #auth .act { color: var(--teal); cursor: pointer; } #auth .act:hover { color: var(--gold); }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the dots are residents — click one to see who they are · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · click a resident for who they know (forum) &amp; their tale (story) · click a building to examine the place — it crystallizes what you find · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
 <a class="home" href="/">← hoop</a>
+<div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
 <div id="busy">waking the world…</div>
@@ -36,6 +47,11 @@
 <script type="module">
 import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
+import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
+import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, take as storyTake, listInventory as storyInventory, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
+import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
+import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
+import { readSummary, PULSE_NSID } from '../story/director.js';   // the cross-player "world pulse" (a disposable projection)
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -231,6 +247,32 @@ const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0)
 // presence); the deterministic WORLD is untouched.
 const NPC_CAP = 52, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
 const NPC_SPEED = 16;                                       // px/s — a slow amble
+const STRIDE = 14;                                          // world units per leg-swing frame
+const SPR_N = 15, SPR_SCALE = 2, SPR_WORLD = 17;            // 15-cell genome · 2 px/cell offscreen · ~17 world-units tall on the deck
+
+// ── PROCEDURAL NPC SPRITES (vendored mega/sprite kernel) ──────────────────────────────────────────
+// Each resident wears a top-down figure deterministically grown from a stable seed, its role PINNED to
+// the job econ's society solved for them (so the sprite's accent/emblem/tool agree with the building
+// light + inspector). A genome is built once per resident; each (dir,phase) frame is rasterised once to
+// a tiny offscreen canvas and cached, then blitted. Pure client-side; the deterministic world is untouched.
+const dir8Of = (dx, dy) => { const a = Math.atan2(dy, dx); const k = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8; return ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'][k]; };
+const DIR_BY_KEY = Object.fromEntries(DIR8.map((d) => [d.k, d]));
+const spriteFrames = new Map();                            // "seed|dir|phase" → offscreen canvas (LRU-capped)
+function npcGenome(n) { return n._g || (n._g = buildGenome(n.seed, { size: SPR_N, role: n.role, frames: 4 }, null)); }
+function spriteFrame(n) {
+  const phaseK = n.phase == null ? 'x' : (n.phase % 4);
+  const fk = n.seed + '|' + n.dir + '|' + phaseK;
+  let cv = spriteFrames.get(fk);
+  if (cv) { spriteFrames.delete(fk); spriteFrames.set(fk, cv); return cv; }   // touch (LRU)
+  cv = document.createElement('canvas'); cv.width = cv.height = SPR_N * SPR_SCALE;
+  const c = cv.getContext('2d');
+  for (const r of frameRects(npcGenome(n), DIR_BY_KEY[n.dir] || DIR_BY_KEY.S, n.phase == null ? null : (n.phase % 4))) {
+    c.fillStyle = r.c; c.fillRect(r.x * SPR_SCALE, r.y * SPR_SCALE, SPR_SCALE, SPR_SCALE);
+  }
+  spriteFrames.set(fk, cv);
+  while (spriteFrames.size > 1400) spriteFrames.delete(spriteFrames.keys().next().value);
+  return cv;
+}
 const dayPhase = () => (performance.now() / DAYLEN) % 1;    // 0..1; ~night when < .26 or > .80
 function buildCells(v) {
   if (v._buildCells) return v._buildCells;
@@ -238,15 +280,30 @@ function buildCells(v) {
   for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0) { let s = byB.get(o); if (!s) { s = []; byB.set(o, s); } s.push(i); } }
   return (v._buildCells = byB);
 }
+// The canonical CHAMBER ADDRESS of a building: the smallest-tuple gid among the chambers it owns.
+// gid = "gx|gy|gz" is a pure function of global lattice coords + ship seed (econ/region.js) — stable
+// for ever, hierarchical, the same addressing the postal layer is built on. This is "the right room
+// index": a resident's story binds to <homeChamberGid>#<ordinal> (postal's (chunk, ordinal) slot),
+// not to an ad-hoc name string — so the binding survives re-solves and is portable across machines.
+const gidLess = (a, b) => { for (let k = 0; k < 3; k++) { if (a[k] !== b[k]) return a[k] < b[k]; } return false; };
+function chamberGid(v, cells) {
+  let best = null, bestT = null;
+  for (const i of cells) { const g = v.bandGid[i]; if (!g) continue; const t = g.split('|').map(Number); if (!bestT || gidLess(t, bestT)) { bestT = t; best = g; } }
+  return best;
+}
 function npcsOf(v) {
   if (v._npcs) return v._npcs;
-  const byB = buildCells(v), npcs = [];
-  for (const pn of v.people || []) {
-    if (npcs.length >= NPC_CAP) break;
-    const hc = byB.get(pn.home); if (!hc || !hc.length) continue;
+  const byB = buildCells(v), npcs = [], ordinal = new Map();
+  v.people.forEach((pn, pi) => {
+    if (npcs.length >= NPC_CAP) return;
+    const hc = byB.get(pn.home); if (!hc || !hc.length) return;
     const cell = hc[(npcs.length * 13 + 7) % hc.length];
-    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
-  }
+    const gid = chamberGid(v, hc), ord = ordinal.get(gid) || 0; ordinal.set(gid, ord + 1);
+    const addr = gid + '#' + ord;                            // the resident's stable chamber-anchored slot — their story's feature_key
+    // a stable, deterministic sprite seed — same resident regenerates the same figure on every machine
+    const seed = SEED + ':' + v.az + ':' + v.ax + ':' + pn.home + ':' + pn.name;
+    npcs.push({ name: pn.name, role: pn.role, home: pn.home, hats: pn.hats, ties: pn.ties || [], pi, reg: v, seed, addr, cell, goalCell: cell, x: v.seeds[cell].x, y: v.seeds[cell].y, path: null, t: 0, dir: 'S', phase: null, dwell: Math.random() * 5, speed: NPC_SPEED * (0.78 + Math.random() * 0.5), where: 'home' });
+  });
   return (v._npcs = npcs);
 }
 function npcRepath(v, n) {                                  // schedule-driven intention
@@ -272,19 +329,31 @@ function updateNpcs(v, dt) {                                // returns true if a
     if (n.path) {
       moved = true; n.t += n.speed * dt;
       const { pts, seg, total } = n.path;
-      if (n.t >= total) { n.x = pts[pts.length - 1][0]; n.y = pts[pts.length - 1][1]; n.path = null; n.cell = n.goalCell; n.dwell = 1.5 + Math.random() * 5; }
-      else { let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < n.t) { acc += seg[i - 1]; i++; } const f = (n.t - acc) / seg[i - 1]; n.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; n.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f; }
-    } else { n.dwell -= dt; if (n.dwell <= 0) npcRepath(v, n); }
+      if (n.t >= total) { n.x = pts[pts.length - 1][0]; n.y = pts[pts.length - 1][1]; n.path = null; n.cell = n.goalCell; n.dwell = 1.5 + Math.random() * 5; n.phase = null; }
+      else {
+        let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < n.t) { acc += seg[i - 1]; i++; }
+        const f = (n.t - acc) / seg[i - 1]; n.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; n.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
+        n.dir = dir8Of(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);   // face the way they walk
+        n.phase = (n.t / STRIDE) | 0;                                            // step the legs along the route
+      }
+    } else { n.dwell -= dt; if (n.dwell <= 0) npcRepath(v, n); n.phase = null; }   // standing → neutral pose
   }
   return moved;
 }
 function drawNpcs(v) {
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px ui-monospace, monospace';
-  for (const n of v._npcs || []) { const c = roleRGB(n.role); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.fillText(NPC_GLYPH, n.x, n.y); }
-  if (selNpc && (v._npcs || []).includes(selNpc)) {         // the inspected resident: ring + name
-    const n = selNpc;
-    ctx.strokeStyle = 'rgba(127,216,208,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(n.x, n.y, 9, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = 'rgba(223,231,226,0.95)'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(n.name, n.x, n.y - 14);
+  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;   // crisp pixels on the upscale
+  const half = SPR_WORLD / 2;
+  for (const n of v._npcs || []) {
+    try { ctx.drawImage(spriteFrame(n), n.x - half, n.y - SPR_WORLD * 0.78, SPR_WORLD, SPR_WORLD); }   // feet ≈ ground point
+    catch (e) { const c = roleRGB(n.role); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 12px ui-monospace, monospace'; ctx.fillText(NPC_GLYPH, n.x, n.y); }
+  }
+  ctx.imageSmoothingEnabled = sm;
+  if (selNpc && (v._npcs || []).includes(selNpc)) {         // the inspected resident: tie-lines + ring + name
+    const n = selNpc, byPi = v._byPi || (v._byPi = new Map((v._npcs || []).map((m) => [m.pi, m])));
+    ctx.strokeStyle = 'rgba(127,216,208,0.30)'; ctx.lineWidth = 1.1;          // the live social web — who they know, here, now
+    for (const tj of n.ties) { const m = byPi.get(tj); if (!m) continue; ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(m.x, m.y); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(127,216,208,0.95)'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(n.x, n.y - SPR_WORLD * 0.28, 11, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(223,231,226,0.95)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(n.name, n.x, n.y - SPR_WORLD - 4);
   }
 }
 
@@ -454,11 +523,175 @@ function npcAt(wx, wy) {
   for (const v of visibleRegions()) { const off = offsetOf(v); for (const n of v._npcs || []) { const dx = n.x + off.x - wx, dy = n.y + off.y - wy, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = n; } } }
   return best;
 }
-function inspectNpc(n) {
-  selNpc = n;
-  const where = n.where === 'home' ? 'heading home' : n.where === 'work' ? 'off to work' : n.where === 'out' ? 'out for the evening' : 'about the deck';
-  rail('<b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><br><span style="color:#8a978f">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</span>');
+// ── inspecting a resident: a forum/story tabbed card — the §5-D split made literal on ONE figure ──
+// FORUM = the social layer (who they are + the multiplay social web). STORY = the narrative layer:
+// the inference-free engine crystallizes a role-tagged NPC dialogue onto this resident's stable chamber
+// identity (the role→tag bridge), keeping the resident's solved name + web and gaining a tree + YOUR
+// private standing. Most residents stay ambient (forum only); the few you engage become characters.
+// (PLAYER — the engine player id, 'local' when anonymous or the DID when signed in — is declared with
+// the save-lane wiring below.)
+let railTab = 'forum';
+let storyStore = null, _storyLoading = null;
+// Nukeable browser persistence: player story-state (facts/placements/inventory/standing) snapshots to
+// localStorage. Tiny, zero-dep, no COOP/COEP. Swappable for a DuckDB-WASM/D1 backend later (same
+// snapshot shape). Bump STORY_KEY to invalidate old saves; the ⟲ reset control wipes it on demand.
+const STORY_KEY = 'hoop.story.v1';
+// THE POOL'S SOURCE OF TRUTH is an ATProto service repo, not a DB (ARCHITECTURE.md). Set `did` after
+// seeding (hoop/scripts/seed-story-pool.mjs) to source the pool LIVE via public listRecords; until
+// then the bundled pool.json is the offline fallback. Either way the engine is unchanged — the pool
+// is just records in. A worker/KV cache over this would be a disposable projection, never truth.
+const STORY_SERVICE = { did: 'did:plc:yivyyp54vddf7qf2lpsikhe4', pds: 'https://chalciporus.us-west.host.bsky.network' };   // morphyx — seeded by seed-story.yml
+
+// ── identity + the per-player SAVE LANE ──────────────────────────────────────────────────────────
+// Sign in → your story syncs to YOUR OWN repo (com.minomobi.hoop.story.save), durable + cross-device +
+// user-owned. Anonymous → localStorage only. Either way localStorage is the hot-path buffer; the repo
+// write is BATCHED (debounced ~4s + on unload) — never a record per action. Same snapshot shape.
+const auth = new AuthClient();
+let storyUser = null;                                       // { did, handle } when signed in
+let PLAYER = 'local';                                       // engine player id = the DID when authed
+const WORLD_KEY = String(SEED);                             // save rkey = ship seed (one save per world)
+const storyKeyFor = (p) => STORY_KEY + ':' + p;            // localStorage namespaced by identity
+let _saveTimer = null;
+
+function ensureStory() {
+  if (storyStore) return Promise.resolve(storyStore);
+  if (!_storyLoading) _storyLoading = (async () => {
+    let content = null;
+    if (STORY_SERVICE.did) {
+      try { const c = await loadPool(publicClient(STORY_SERVICE.pds), STORY_SERVICE.did); if (c && c.length) content = c; }
+      catch (e) { /* repo unreachable → bundled seed */ }
+    }
+    if (!content) content = flattenPool(await fetch('../story/pool.json').then((r) => r.json()));
+    storyStore = new MemoryStore(content, { features: [] });
+    let snap = null;                                        // restore: your repo (durable truth) if signed in, else localStorage
+    if (storyUser) { try { snap = await loadOwnSave(auth.pds, WORLD_KEY); } catch (e) { /* fall through */ } }
+    if (!snap) { try { const s = localStorage.getItem(storyKeyFor(PLAYER)); if (s) snap = JSON.parse(s); } catch (e) { /* fresh */ } }
+    if (snap) storyStore.restore(snap);
+    return storyStore;
+  })();
+  return _storyLoading;
 }
+function persistStory() {
+  try { localStorage.setItem(storyKeyFor(PLAYER), JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode */ }
+  if (storyUser) scheduleRepoSave();                        // batched checkpoint to the player's repo
+  renderMe();
+}
+// ── "you": the progression the engine already earns — meeting residents crystallizes them and grants
+// XP → power-tier; dialogue can hand you items. Surfaced so the loop reads as a game, not just a walk.
+function renderMe() {
+  const el = $('me'); if (!el) return;
+  if (!storyStore) { el.innerHTML = ''; return; }
+  const p = storyStore.getPlayerState(PLAYER);
+  const inv = storyInventory(storyStore, PLAYER).map((r) => r.name).filter(Boolean);
+  const next = POWER_THRESHOLDS[p.power_tier];              // index = current tier ⇒ xp for the next
+  const known = storyStore.listPlacements(PLAYER).length;
+  el.innerHTML = '<span style="color:var(--gold)">▤ tier ' + p.power_tier + '</span> · ✦ ' + p.xp + ' xp'
+    + (next != null ? ' <span style="color:#667">(' + Math.max(0, next - p.xp) + ' to tier ' + (p.power_tier + 1) + ')</span>' : '')
+    + ' · ' + known + ' met'
+    + (inv.length ? ' · <span style="color:var(--teal)">🎒 ' + inv.join(', ') + '</span>' : '');
+}
+function scheduleRepoSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => { _saveTimer = null; if (storyStore && storyUser) putSave(auth.pds, WORLD_KEY, storyStore.snapshot()).catch(() => {}); }, 4000);
+}
+addEventListener('beforeunload', () => { if (storyStore && storyUser) { try { putSave(auth.pds, WORLD_KEY, storyStore.snapshot()); } catch (e) { /* best effort */ } } });
+function resetStory() { storyStore = null; _storyLoading = null; if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; } }
+function nukeStory() {
+  try { localStorage.removeItem(storyKeyFor(PLAYER)); } catch (e) { /* */ }
+  if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, WORLD_KEY).catch(() => {}); } catch (e) { /* */ } }
+  resetStory();
+  if (selNpc) { selNpc._npcId = null; renderRail(); }
+}
+
+// ── auth UI + lifecycle ──
+function renderAuth() {
+  const el = $('auth'); if (!el) return;
+  el.innerHTML = storyUser
+    ? '<span style="color:var(--teal)">@' + storyUser.handle + '</span> — story saved to your repo · <span class="act" data-logout>sign out</span>'
+    : '<span class="act" data-login>sign in</span> to save your story to your own repo';
+  const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
+  const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+}
+async function signIn() {
+  const handle = prompt('Bluesky handle — signs in and saves your story to your own repo:');
+  if (!handle) return;
+  try { await auth.login(handle.trim()); }   // default UNIFIED scope (includes com.minomobi.hoop.story.save) → OAuth, returns here
+  catch (e) { showErr('sign-in: ' + (e && e.message || e)); }
+}
+async function signOut() { try { await auth.logout(); } catch (e) { /* */ } setUser(null); }
+function setUser(u) {
+  storyUser = u ? { did: u.did, handle: u.handle } : null;
+  PLAYER = storyUser ? storyUser.did : 'local';
+  resetStory(); renderAuth();
+  ensureStory().then(renderMe).catch(() => {});            // re-warm for this identity → show their progress
+  if (selNpc) { selNpc._npcId = null; if (railTab === 'story') renderRail(); }
+}
+renderAuth();
+ensureStory().then(renderMe).catch(() => {});               // returning players see their progress on load
+auth.init().then(() => { const u = auth.getUser(); if (u) setUser(u); }).catch(() => { /* anonymous */ });
+
+// ── the world pulse: what the whole playerbase is doing (read the Director's projection off morphyx) ──
+async function renderPulse() {
+  const el = $('pulse'); if (!el || !STORY_SERVICE.did) return;
+  try {
+    const rec = await publicClient(STORY_SERVICE.pds).getRecordFrom(STORY_SERVICE.did, PULSE_NSID, 'self');
+    const sum = rec && readSummary(rec.value); if (!sum || !sum.travellers) return;
+    const store = await ensureStory();
+    const name = (id) => { const ci = store.contentById(id); return (ci && ci.content && ci.content.name) || id; };
+    const top = sum.topContent && sum.topContent[0];
+    el.innerHTML = '🌐 ' + sum.travellers + ' traveller' + (sum.travellers === 1 ? '' : 's') + ' afoot'
+      + (top ? ' · most-met: ' + name(top[0]) : '')
+      + (sum.topChambers && sum.topChambers[0] ? ' · busiest chamber ⌂ ' + sum.topChambers[0][0] : '');
+  } catch (e) { /* no pulse yet → nothing shown */ }
+}
+renderPulse();
+function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }
+function renderRail() {
+  const n = selNpc; if (!n) return;
+  const tab = (k) => '<span class="tab ' + (railTab === k ? 'on' : '') + '" data-tab="' + k + '">' + k + '</span>';
+  rail('<div class="tabs">' + tab('forum') + tab('story') + '</div><b>☻ ' + n.name + '</b> — a <span class="w">' + n.role + '</span><div id="railbody"></div>');
+  $('rail').querySelectorAll('[data-tab]').forEach((el) => el.addEventListener('click', () => { railTab = el.dataset.tab; renderRail(); }));
+  if (railTab === 'forum') renderForum(n); else renderStory(n);
+}
+function renderForum(n) {
+  const where = n.where === 'home' ? 'heading home' : n.where === 'work' ? 'off to work' : n.where === 'out' ? 'out for the evening' : 'about the deck';
+  const rv = n.reg || active, byPi = rv._byPi || (rv._byPi = new Map((rv._npcs || []).map((m) => [m.pi, m])));
+  const known = n.ties.map((tj) => byPi.get(tj)).filter(Boolean);
+  const web = known.length
+    ? '<div class="meta">knows ' + known.slice(0, 6).map((m) => '<span class="w" style="cursor:pointer" data-pi="' + m.pi + '">' + m.name + '</span>').join(', ') + (known.length > 6 ? ' +' + (known.length - 6) + ' more' : '') + '</div>'
+    : '<div class="end">keeps to themselves on this deck</div>';
+  $('railbody').innerHTML = '<div class="meta">' + where + ' · ' + n.hats.length + ' tie' + (n.hats.length === 1 ? '' : 's') + ' on this deck</div>' + web;
+  $('rail').querySelectorAll('[data-pi]').forEach((el) => el.addEventListener('click', () => { const m = byPi.get(+el.dataset.pi); if (m) inspectNpc(m); dirty = true; }));   // hop along the web
+}
+async function renderStory(n) {
+  const body = $('railbody'); body.innerHTML = '<div class="meta">…</div>';
+  let store; try { store = await ensureStory(); } catch (e) { body.innerHTML = '<div class="end">story layer offline</div>'; return; }
+  if (selNpc !== n || railTab !== 'story') return;          // selection changed while the pool loaded
+  store.addFeature({ key: n.addr, type: 'npc', label: n.name + ', a ' + n.role, tag: n.role });   // chamber address = feature_key; role = bridge tag
+  const res = storyInteract(store, PLAYER, n.addr); persistStory();   // crystallize/recall mutates → save
+  if (!res.item) { body.innerHTML = '<div class="end">an ordinary resident — no tale has crystallized here</div><div class="meta">⌂ ' + n.addr + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>'; wireNuke(body); return; }
+  n._npcId = res.item.content_item_id;
+  const up = res.leveled && res.leveled.leveled;            // crystallizing a new resident granted a tier
+  drawDialogue(n, body, up ? '▲ reached tier ' + up.to : null);
+}
+function drawDialogue(n, body, note) {
+  const store = storyStore, t = storyTalk(store, PLAYER, n._npcId);
+  let h = '';
+  if (note) h += '<div class="w">✦ ' + note + '</div>';
+  h += '<div class="says">“' + (t.says || 'They regard you in silence.') + '”</div>';
+  if (t.no_tree) { body.innerHTML = h + '<div class="end">— they have nothing to say —</div>'; return; }
+  if (t.choices.length) for (const c of t.choices) h += '<div class="choice" data-c="' + c.id + '">› ' + c.text + '</div>';
+  else h += '<div class="end">— the exchange is over —</div>';
+  h += '<div class="meta">standing ' + (t.standing >= 0 ? '+' : '') + t.standing + ' · ⌂ ' + n.addr + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>';
+  body.innerHTML = h;
+  wireNuke(body);
+  body.querySelectorAll('[data-c]').forEach((el) => el.addEventListener('click', () => {
+    const r = storyChoose(store, PLAYER, n._npcId, el.dataset.c); persistStory();   // choice effects mutate → save
+    const got = (r.gave_items || []).map((id) => (store.contentById(id) || { content: {} }).content.name).filter(Boolean);
+    drawDialogue(n, body, got.length ? 'received ' + got.join(', ') : null);
+  }));
+}
+function wireNuke(body) { const nk = body.querySelector('[data-nuke]'); if (nk) nk.addEventListener('click', nukeStory); }
 
 // ── click-to-walk anywhere on this deck — interruptible, always from the @'s LIVE position ──
 cv.addEventListener('click', (e) => {
@@ -501,6 +734,58 @@ $('up').addEventListener('click', () => rideStair(-1));
 $('down').addEventListener('click', () => rideStair(1));
 addEventListener('keydown', (e) => { if (e.key === 'PageUp' || e.key === '[') rideStair(-1); else if (e.key === 'PageDown' || e.key === ']') rideStair(1); });
 
+// ── PLACES — the vendor's content-reveal tied into the hoop city ─────────────────────────────────
+// Residents are the NPC layer; this is the rest of the vendor taxonomy laid onto the BUILDINGS. Each
+// building is a feature anchored to its chamber address (gid); walking to it crystallizes ONE pool item
+// of a type matched to the building's civic role — lore at places of record (learn/worship/govern/heal),
+// items at places of stuff (make/store/trade/mend), with rare creatures/plot-beats seeded deterministically
+// from the gid. Gated + withheld exactly as the vendor intends: a sealed place "holds something back"
+// until you're ready (you hold the key / have the standing) — that is where YOUR key finally bites.
+const PLACE_TYPE_BY_ROLE = { make: 'item', store: 'item', trade: 'item', mend: 'item', learn: 'lore_fragment', worship: 'lore_fragment', govern: 'lore_fragment', heal: 'lore_fragment' };
+const PLACE_LABEL = { make: 'a workbench', store: 'a stores cache', trade: 'a trade counter', mend: 'a repair nook', learn: 'an archive console', worship: 'a quiet shrine', govern: 'a council record', heal: 'a clinic log', _creature: 'something stirs in the dark', _plot: 'a place that matters' };
+const PLACE_GLYPH = { lore_fragment: '✎', item: '◈', creature: '☣', plot_beat: '✦' };
+const hashGid = (g) => { let h = 2166136261 >>> 0; for (let i = 0; i < g.length; i++) { h ^= g.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+function placeFeatureOf(v, b) {
+  const cells = buildCells(v).get(b); if (!cells || !cells.length) return null;
+  const gid = chamberGid(v, cells); if (!gid) return null;
+  const role = v.role[cells[0]], h = hashGid(gid + ':place');
+  let type = h % 41 === 0 ? 'plot_beat' : h % 17 === 0 ? 'creature' : PLACE_TYPE_BY_ROLE[role] || null;
+  if (!type) return null;
+  const label = type === 'creature' ? PLACE_LABEL._creature : type === 'plot_beat' ? PLACE_LABEL._plot : (PLACE_LABEL[role] || 'a place');
+  return { key: gid, type, tag: role, label, role };
+}
+let selPlace = null;
+async function renderPlace(v, b) {
+  selPlace = { v, b };
+  const feature = placeFeatureOf(v, b), el = $('placebody'); if (!el) return;
+  if (!feature) { el.innerHTML = '<div class="end">a quiet place — nothing of note stirs here</div>'; return; }
+  el.innerHTML = '<div class="meta">…</div>';
+  let store; try { store = await ensureStory(); } catch (e) { el.innerHTML = ''; return; }
+  if (!selPlace || selPlace.v !== v || selPlace.b !== b) return;       // walked on while the pool loaded
+  store.addFeature(feature);
+  const res = storyInteract(store, PLAYER, feature.key); persistStory();
+  drawPlace(el, feature, res, store);
+}
+function drawPlace(el, feature, res, store) {
+  if (res.status === 'withheld') {   // the vendor's sealed feeling — gated or the pool not yet deep enough
+    el.innerHTML = '<div class="end">⊘ ' + feature.label + ' — it holds something back. You\'re not yet ready to know what it is.</div><div class="meta">⌂ ' + feature.key + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>';
+    wireNuke(el); return;
+  }
+  const item = res.item, kind = item.type;
+  let h = '<b>' + (PLACE_GLYPH[kind] || '◦') + ' ' + (item.name || feature.label) + '</b>';
+  if (res.status === 'recalled') h += ' <span style="color:#667">(the same as before · ×' + res.interaction_count + ')</span>';
+  if (res.retired) h += ' <span class="end">(only your memory of it remains)</span>';
+  h += '<div class="says">' + (kind === 'lore_fragment' ? '“' + item.description + '”' : item.description) + '</div>';
+  if (kind === 'item') {
+    const held = storyInventory(store, PLAYER).some((r) => r.content_item_id === item.content_item_id);
+    h += held ? '<div class="meta">✓ taken — it\'s in your hands now</div>' : '<div class="choice" data-take="' + item.content_item_id + '">› take it</div>';
+  }
+  h += '<div class="meta">⌂ ' + feature.key + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>';
+  el.innerHTML = h; wireNuke(el);
+  const tk = el.querySelector('[data-take]');
+  if (tk) tk.addEventListener('click', () => { storyTake(store, PLAYER, tk.dataset.take); persistStory(); renderMe(); drawPlace(el, feature, res, store); });
+}
+
 function inspect(v, roomIdx) {
   const o = v.owner[roomIdx];
   let html;
@@ -508,7 +793,10 @@ function inspect(v, roomIdx) {
   else if (o === -2) html = '<b>· unclaimed foam</b>';
   else html = v.inspect[o] || '<b>a building</b>';
   if (AT.path) html += '<br><span style="color:#8a978f">walk ~' + Math.round(AT.path.total / PX * M_PER_CELL) + ' m</span>';
-  rail(html);
+  selNpc = null;
+  rail(html + (o >= 0 ? '<div id="placebody" style="margin-top:6px"></div>' : ''));
+  if (o >= 0) renderPlace(v, o);                            // crystallize this building's place-content
+  else selPlace = null;
 }
 function rail(html) { $('rail').innerHTML = html; $('rail').style.display = 'block'; }
 

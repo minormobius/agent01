@@ -47,6 +47,7 @@ const WRITE_COLLECTIONS = [
   // hoop (collaborative design space for the infinite game)
   'com.minomobi.hoop.place',
   'com.minomobi.hoop.message',
+  'com.minomobi.hoop.story.save',
   // io (atproto tracker portal)
   'com.minomobi.io.ticket',
   // labglass

@@ -34,7 +34,7 @@ function trim(d, links, az, ax) {
   // hats mapped to deck building indices + kinds (the substrate for IDed, schedule-driven NPCs).
   const onDeck = new Set(d.owner.filter((o) => o >= 0));
   const idOf = new Map(); city.places.forEach((p, i) => idOf.set(p.id, i));
-  const people = [];
+  const people = [], placeSets = [];                      // placeSets[i] = every place id person i belongs to (home + hats)
   for (const person of soc.people) {
     const home = idOf.get(person.home);
     if (home == null || !onDeck.has(home)) continue;
@@ -42,7 +42,18 @@ function trim(d, links, az, ax) {
     for (const h of person.hats) { const b = idOf.get(h.place); if (b != null && b !== home && onDeck.has(b)) hats.push({ b, kind: h.kind, role: h.role }); }
     const work = person.hats.find((h) => h.kind === 'work');
     people.push({ name: person.name, home, role: work ? work.role : 'dwell', hats });
+    placeSets.push(new Set([person.home, ...person.hats.map((h) => h.place)]));
     if (people.length >= 90) break;
+  }
+  // THE SOCIAL WEB among the residents you can meet on this deck: two people are tied if they share any
+  // place (home/work/club) — Granovetter co-membership. Ship each one a capped list of acquaintance
+  // indices so the inspector can name who they know (and the renderer can draw the live tie-lines).
+  const placeToPeople = new Map();
+  placeSets.forEach((set, i) => { for (const pid of set) { let a = placeToPeople.get(pid); if (!a) { a = []; placeToPeople.set(pid, a); } a.push(i); } });
+  for (let i = 0; i < people.length; i++) {
+    const seen = new Set();
+    for (const pid of placeSets[i]) for (const j of placeToPeople.get(pid)) if (j !== i) seen.add(j);
+    people[i].ties = [...seen].slice(0, 8);
   }
   return {
     az, ax, gz: d.gz, frame: d.frame, K: d.K, nReal: d.nReal,

@@ -1,0 +1,20 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.story.save",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A player's durable story state for one world — the per-player source of truth, written to the PLAYER'S OWN repo (user-owned, $0 to us). The engine's MemoryStore is the in-process projection: on load we restore() this save; at checkpoints (long-rest / session end / every N actions) we putRecord the snapshot. NOT written per micro-action — localStorage buffers the hot path; ATProto is the batched durable target (the 'never a record per footstep' rule). rkey = the world key (ship seed). The state is a serialized snapshot string so the save can evolve without re-versioning this lexicon; an event-sourced variant (append-only) is the scale path, with this aggregate as its periodic fold.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["world", "stateJson", "updatedAt"],
+        "properties": {
+          "world": { "type": "string", "maxLength": 64, "description": "World key (ship seed) this save belongs to." },
+          "stateJson": { "type": "string", "maxLength": 100000, "description": "Serialized MemoryStore.snapshot(): facts, placements, inventory, equipment, npc standing, xp/tier. A projection of play, durable here." },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
