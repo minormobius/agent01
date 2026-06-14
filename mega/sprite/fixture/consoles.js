@@ -1,100 +1,114 @@
-// consoles.js — a SECOND active fixture per chamber: a wall-mounted interaction point (storage /
-// bookshelf / arcade / vendor). Mounts on a wall like the light sconces but is an interactable, not
-// an emitter — drawn in the deco-painterly hand (faceted fbm body + gold trim + a kind-specific
-// face), lit by the ray-traced field (value contrast; hue owned by the chamber light). One per room,
-// placed on the wall edge farthest from that room's lights so the two fixtures don't crowd.
+// consoles.js — wall fixtures that EMERGE FROM THE VORONOI TILING (not plopped on top).
 //
-// Pure, deterministic. placeConsoles(scene, rng, {avoid}) → consoles[]; drawConsole(ctx, C, opts).
+// The previous cabinets read as decals. These instead CLAIM a cluster of the chamber's own cells at
+// a wall and RE-ATTRIBUTE them: the wall-side cells stay continuous with the membrane (HALF ROOM —
+// where we interface with the environment), and the room-side cells ERUPT into a distinctive, gold-
+// seamed, emissive form (HALF ASSET). The fixture is therefore part of the tiling — same cells, same
+// ray-traced light — only with alternate attributes. One per chamber, on the wall away from the
+// lights; the kind (storage / bookshelf / arcade / vendor) flavours the eruption.
+//
+// growWallFixtures(scene, rng, {avoid, kindOf}) → fixtures (each = claimed cell indices + tiers);
+// drawWallFixture(ctx, scene, F, {accent, hue, litAt}) repaints those cells.
 
-import { fbm, mulberry32 } from './deco.js';
+import { bucketGrid } from './voronoi.js';   // to find the nearest wall by marching from the seed
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const hex2rgb = (h) => { const c = h.replace('#', ''); return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)]; };
 const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const css = (c, l) => `rgb(${clamp(c[0] * l, 0, 255) | 0},${clamp(c[1] * l, 0, 255) | 0},${clamp(c[2] * l, 0, 255) | 0})`;
-const GROUND = [11, 13, 17], GOLD = [244, 191, 98];
+const GROUND = [10, 12, 16], GOLD = [244, 191, 98], WALLC = [9, 11, 15];
 const goldS = (l, a) => `rgba(${(244 * l) | 0},${(191 * l) | 0},${(98 * l) | 0},${a})`;
 
 export const CONSOLE_KINDS = ['storage', 'shelf', 'arcade', 'vendor'];
-// the chamber's role suggests the apt console (a second interaction that suits the place)
 export const ROLE_CONSOLE = {
   store: 'storage', move: 'storage', make: 'storage', mend: 'storage',
   learn: 'shelf', govern: 'shelf', worship: 'shelf',
   play: 'arcade', serve: 'arcade',
   heal: 'vendor', grow: 'vendor', trade: 'vendor', dwell: 'vendor',
 };
-export function consoleGenome(rng, kind) {
-  return {
-    kind: kind || CONSOLE_KINDS[(rng() * CONSOLE_KINDS.length) | 0],
-    w: 0.9 + rng() * 0.5,           // × roomSpacing, along the wall
-    depth: 0.34 + rng() * 0.16,     // × roomSpacing, into the room
-    cols: 3 + ((rng() * 3) | 0), rows: 2 + ((rng() * 2) | 0),
-    seed: (rng() * 1e9) >>> 0,
-  };
+// the eruption envelope: half-width fraction (0..~1.1) at tier u (0 at wall → 1 at the tip).
+export function profile(u, kind) {
+  switch (kind) {
+    case 'arcade': return 0.66 + 0.5 * Math.sin(Math.PI * clamp(u, 0, 1));   // bulges mid (a screen)
+    case 'shelf': return 1.02 - 0.18 * u;                                    // near-rectangular bays
+    case 'vendor': return 1.0 - 0.34 * u;                                    // broad, gridded
+    default: return 1.0 - 0.5 * u;                                           // storage: blocky taper
+  }
 }
 
-// one console per room, on the wall edge whose midpoint is farthest from `avoid[room]` (the lights).
-export function placeConsoles(scene, rng, { avoid = {}, kindOf } = {}) {
-  const out = [], sp = scene.roomSpacing || 40;
+export function growWallFixtures(scene, rng, { avoid = {}, kindOf } = {}) {
+  const sp = scene.roomSpacing || 40, cells = scene.paintCells, out = [];
+  const grid = bucketGrid(scene.nuclei, Math.max(scene.roomSpacing, scene.wallSpacing) * 1.7);
+  const cellAt = (x, y) => { let best = null, bd = Infinity; for (const q of grid.near(x, y)) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } } return best; };
   for (const rc of scene.roomCells) {
     const seed = scene.roomSeeds[rc.id]; if (!seed) continue;
-    const v = rc.poly; if (!v || v.length < 3) continue;
     const av = avoid[rc.id] || [];
-    let best = null, bestScore = -1;
-    for (let i = 0; i < v.length; i++) {
-      const a = v[i], b = v[(i + 1) % v.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (L < sp * 0.9) continue;                       // need room for the cabinet
-      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
-      let near = Infinity; for (const p of av) near = Math.min(near, (p.x - mx) ** 2 + (p.y - my) ** 2);
-      const score = (av.length ? near : L) + L;          // prefer far-from-lights, long-enough edges
-      if (score > bestScore) { bestScore = score; best = { a, b, mx, my, L }; }
+    // march outward from the seed in several directions to the NEAREST wall on this room's membrane;
+    // pick the wall hit farthest from this room's lights (so the fixture sits opposite the sconces).
+    const rot = rng() * Math.PI / 6, DIRS = 14; let best = null, bestScore = -1;
+    for (let k = 0; k < DIRS; k++) {
+      const ang = rot + k / DIRS * Math.PI * 2, cx = Math.cos(ang), cy = Math.sin(ang);
+      let hit = null;
+      for (let r = sp * 0.5; r < (scene.roomSize || 200) * 0.95; r += scene.wallSpacing * 0.7) {
+        const x = seed.x + cx * r, y = seed.y + cy * r; if (x < 1 || y < 1 || x > scene.W - 1 || y > scene.H - 1) break;
+        const nu = cellAt(x, y); if (nu && (nu.wall || nu.room !== rc.id)) { hit = { x: seed.x + cx * (r - scene.wallSpacing * 0.5), y: seed.y + cy * (r - scene.wallSpacing * 0.5), cx, cy }; break; }
+      }
+      if (!hit) continue;
+      let near = Infinity; for (const p of av) near = Math.min(near, (p.x - hit.x) ** 2 + (p.y - hit.y) ** 2);
+      const score = av.length ? near : 1; if (score > bestScore) { bestScore = score; best = hit; }
     }
     if (!best) continue;
-    let nx = seed.x - best.mx, ny = seed.y - best.my; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
-    const kind = kindOf ? kindOf(rc.id) : null, g = consoleGenome(rng, kind);
-    const dep = sp * g.depth;
-    out.push({ x: best.mx, y: best.my, nx, ny, model: g, room: rc.id, face: { x: best.mx + nx * dep, y: best.my + ny * dep } });
+    best.mx = best.x; best.my = best.y;
+    const nx = -best.cx, ny = -best.cy, tx = -ny, ty = nx;     // inward = back toward the seed
+    const kind = kindOf ? kindOf(rc.id) : CONSOLE_KINDS[(rng() * CONSOLE_KINDS.length) | 0];
+    const reach = sp * (1.7 + rng() * 0.8), halfW = sp * (1.15 + rng() * 0.55), seedN = (rng() * 1e9) >>> 0;
+    // claim cells: wall cells at the base (continuous with the membrane) + floor cells inside the
+    // eruption envelope (the asset). u = inward distance, w = lateral.
+    const claimed = [];
+    for (let idx = 0; idx < cells.length; idx++) {
+      const c = cells[idx]; if (c.poly.length < 3) continue;
+      const u = (c.x - best.mx) * nx + (c.y - best.my) * ny, w = Math.abs((c.x - best.mx) * tx + (c.y - best.my) * ty);
+      if (c.wall) { if (u > -sp * 0.5 && u < sp * 0.4 && w < halfW) claimed.push({ idx, tier: 0, base: true, w }); }
+      else if (c.room === rc.id && u > 0 && u <= reach && w <= halfW * profile(u / reach, kind)) claimed.push({ idx, tier: u / reach, base: false, w });
+    }
+    if (claimed.filter((c) => !c.base).length < 1) continue;     // needs a real eruption
+    claimed.sort((a, b2) => a.tier - b2.tier);                   // base → tip draw order
+    const tipCells = claimed.filter((c) => c.tier > 0.7); const tip = tipCells.length
+      ? { x: tipCells.reduce((s, c) => s + cells[c.idx].x, 0) / tipCells.length, y: tipCells.reduce((s, c) => s + cells[c.idx].y, 0) / tipCells.length }
+      : { x: best.mx + nx * reach * 0.7, y: best.my + ny * reach * 0.7 };
+    out.push({ room: rc.id, kind, nx, ny, tx, ty, halfW, reach, seedN, anchor: best, cells: claimed, tip });
   }
   return out;
 }
 
-// ── draw — a wall cabinet seen top-down: extends inward (+x), spans the wall (±y) ────────────────
-export function drawConsole(ctx, C, { hue = 40, lit = 1, accent = '#888', sp = 40 } = {}) {
-  const g = C.model, w = g.w * sp, dep = g.depth * sp, acc = hex2rgb(accent), rng = mulberry32(g.seed);
-  const body = [mix(GROUND, acc, 0.16), mix(GROUND, acc, 0.45), mix(GROUND, acc, 0.7)];
-  ctx.save(); ctx.translate(C.x, C.y); ctx.rotate(Math.atan2(C.ny, C.nx)); ctx.lineJoin = 'round'; ctx.lineCap = 'round';   // +x = inward
-  // dark backing flush to the wall (so it reads as mounted, against the lit floor)
-  ctx.fillStyle = 'rgba(4,5,9,0.8)'; ctx.fillRect(-2, -w / 2 - 2, dep + 2, w + 4);
-  // faceted painterly body (grid of facets tinted by fBm)
-  for (let cx = 0; cx < g.cols; cx++) for (let cy = 0; cy < g.rows; cy++) {
-    const x0 = (cx / g.cols) * dep, x1 = ((cx + 1) / g.cols) * dep, y0 = -w / 2 + (cy / g.rows) * w, y1 = -w / 2 + ((cy + 1) / g.rows) * w;
-    const n = fbm((cx + 0.5) * 1.7 + 2, (cy + 0.5) * 1.7 + 2, g.seed, 3);
-    let col = mix(body[0], body[2], clamp(n * 1.1, 0, 1)); col = mix(col, [0, 0, 0], 0.12);
-    ctx.fillStyle = css(col, lit); ctx.fillRect(x0, y0, x1 - x0 + 0.4, y1 - y0 + 0.4);
+// repaint the claimed cells with the fixture's alternate attributes, lit by the ray-traced field.
+export function drawWallFixture(ctx, scene, F, { accent = '#888', hue = 40, litAt = () => 1 } = {}) {
+  const acc = hex2rgb(accent), cells = scene.paintCells, peak = hue;
+  const poly = (p) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); };
+  for (const cl of F.cells) {
+    const c = cells[cl.idx], lit = clamp(litAt(c.x, c.y), 0.22, 1.2), t = cl.tier;
+    let col;
+    if (cl.base) col = mix(WALLC, acc, 0.4);                                   // HALF ROOM — wall, marked
+    else {
+      col = mix(mix(GROUND, acc, 0.45), mix(acc, GOLD, 0.4), t);               // HALF ASSET — rises to gold
+      if (F.kind === 'shelf') col = mix(col, GOLD, (Math.floor(cl.w / (scene.roomSpacing * 0.18)) % 2) ? 0.35 : 0);   // shelved bands
+      if (F.kind === 'storage') col = mix(col, [0, 0, 0], 0.12);
+    }
+    ctx.fillStyle = (cl.base) ? css(col, lit * 0.8 + 0.06) : css(col, lit * 0.7 + 0.18);
+    poly(c.poly); ctx.fill();
+    // gold seams trace the asset's cell facets
+    if (!cl.base) { ctx.strokeStyle = goldS(lit, 0.25 + t * 0.45); ctx.lineWidth = 0.7; poly(c.poly); ctx.stroke(); }
   }
-  // gold trim on the room-facing edge + corners
-  ctx.strokeStyle = goldS(lit, 0.85); ctx.lineWidth = sp * 0.03; ctx.strokeRect(0, -w / 2, dep, w);
-  ctx.strokeStyle = goldS(lit, 0.5); ctx.lineWidth = sp * 0.016; ctx.beginPath(); ctx.moveTo(dep, -w / 2); ctx.lineTo(dep, w / 2); ctx.stroke();
-  // kind-specific face
-  const faceX = dep * 0.58;
-  if (g.kind === 'storage') {                              // drawers + handles
-    ctx.strokeStyle = goldS(lit, 0.5); ctx.lineWidth = sp * 0.012;
-    for (let i = 1; i < g.rows + 1; i++) { const y = -w / 2 + (i / (g.rows + 1)) * w; ctx.beginPath(); ctx.moveTo(dep * 0.12, y); ctx.lineTo(dep * 0.92, y); ctx.stroke(); ctx.fillStyle = goldS(lit, 0.8); ctx.beginPath(); ctx.arc(faceX, y, sp * 0.03, 0, 6.283); ctx.fill(); }
-  } else if (g.kind === 'shelf') {                         // shelves of small faceted goods
-    for (let i = 0; i < g.rows; i++) { const y = -w / 2 + (i + 0.5) / g.rows * w; let x = dep * 0.12; while (x < dep * 0.9) { const bw = sp * (0.05 + rng() * 0.07); ctx.fillStyle = css(mix(acc, GOLD, rng() * 0.5), lit * (0.7 + rng() * 0.4)); ctx.fillRect(x, y - sp * 0.07, bw, sp * 0.13); x += bw + sp * 0.02; } }
-  } else if (g.kind === 'arcade') {                        // an emissive screen + a control nub
-    ctx.fillStyle = `hsla(${hue} 80% ${(38 + 22 * lit).toFixed(0)}% / 0.95)`; ctx.fillRect(dep * 0.18, -w * 0.32, dep * 0.64, w * 0.5);
-    ctx.strokeStyle = `hsla(${hue} 80% 70% / 0.5)`; ctx.lineWidth = sp * 0.01; for (let i = 0; i < 4; i++) { const y = -w * 0.32 + (i / 4) * w * 0.5; ctx.beginPath(); ctx.moveTo(dep * 0.18, y); ctx.lineTo(dep * 0.82, y); ctx.stroke(); }
-    ctx.fillStyle = goldS(lit, 0.9); ctx.beginPath(); ctx.arc(faceX, w * 0.34, sp * 0.05, 0, 6.283); ctx.fill();
-  } else {                                                  // vendor: a grid of compartments + a slot
-    for (let i = 0; i < g.cols; i++) for (let j = 0; j < g.rows; j++) { ctx.strokeStyle = goldS(lit, 0.4); ctx.lineWidth = sp * 0.01; ctx.strokeRect(dep * (0.12 + 0.76 * i / g.cols), -w * 0.36 + w * 0.7 * j / g.rows, dep * 0.7 / g.cols, w * 0.62 / g.rows); }
-    ctx.fillStyle = `hsla(${hue} 70% ${(30 + 18 * lit).toFixed(0)}% / 0.85)`; ctx.fillRect(dep * 0.2, w * 0.3, dep * 0.6, w * 0.1);
+  // the eruption FACE — kind-specific emissive treatment near the tip
+  const tipCells = F.cells.filter((c) => c.tier > 0.72);
+  if (F.kind === 'arcade' || F.kind === 'vendor') {
+    for (const cl of tipCells) { const c = cells[cl.idx]; ctx.fillStyle = `hsla(${peak} 82% ${(46 + 16 * clamp(litAt(c.x, c.y), 0, 1)).toFixed(0)}% / 0.9)`; poly(c.poly); ctx.fill(); ctx.strokeStyle = goldS(1, 0.5); ctx.lineWidth = 0.8; poly(c.poly); ctx.stroke(); }
   }
-  // interaction indicator — a soft bright node so it reads as ACTIVE (cousin of the component)
-  ctx.fillStyle = goldS(1, 0.18); ctx.beginPath(); ctx.arc(dep * 0.5, 0, sp * 0.14, 0, 6.283); ctx.fill();
-  ctx.fillStyle = `hsla(${hue} 75% 82% / 0.95)`; ctx.beginPath(); ctx.arc(dep * 0.5, 0, sp * 0.045, 0, 6.283); ctx.fill();
-  ctx.restore();
+  // a soft emissive halo + a bright interaction node at the tip (reads as ACTIVE)
+  const sp = scene.roomSpacing || 40;
+  for (let i = 3; i >= 1; i--) { ctx.beginPath(); ctx.arc(F.tip.x, F.tip.y, sp * 0.18 * i / 1.7, 0, 6.283); ctx.fillStyle = `hsla(${peak} 85% 62% / ${0.05 + (3 - i) * 0.04})`; ctx.fill(); }
+  ctx.beginPath(); ctx.arc(F.tip.x, F.tip.y, sp * 0.08, 0, 6.283); ctx.fillStyle = `hsla(${peak} 75% 84% / 0.95)`; ctx.fill();
 }
 
-const CONSOLES = { CONSOLE_KINDS, ROLE_CONSOLE, consoleGenome, placeConsoles, drawConsole };
+const CONSOLES = { CONSOLE_KINDS, ROLE_CONSOLE, growWallFixtures, drawWallFixture, profile };
 if (typeof globalThis !== 'undefined') globalThis.CONSOLES = CONSOLES;
 export default CONSOLES;

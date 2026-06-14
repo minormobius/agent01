@@ -83,7 +83,7 @@
 import { deviceGenome, drawDevice, mulberry32 } from './deco.js';
 import { buildScene } from './voronoi.js';
 import { placeWallLights, tintLights, occlusionGrid, bakeFloorRGB, lightAtRGB, drawWallLight, LIGHT_KINDS } from './lights.js';
-import { placeConsoles, drawConsole, ROLE_CONSOLE } from './consoles.js';
+import { growWallFixtures, drawWallFixture, ROLE_CONSOLE } from './consoles.js';
 
 const $ = (id) => document.getElementById(id);
 const SW = 1200, SH = 820;
@@ -118,8 +118,8 @@ function build() {
     if (t.length) { cx = (s.x + t.reduce((a, p) => a + p.x, 0) / t.length) / 2; cy = (s.y + t.reduce((a, p) => a + p.y, 0) / t.length) / 2; }
     return { cx, cy, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
   });
-  // a SECOND wall fixture per room — a console interaction point, on the wall away from the lights
-  const consoles = placeConsoles(scene, mulberry32((state.seed * 40503 + 7) >>> 0), { avoid: tips, kindOf: (room) => ROLE_CONSOLE[roleOf(scene, room)] });
+  // a SECOND wall fixture per room — grown FROM the tiling (claims + re-attributes wall cells)
+  const consoles = growWallFixtures(scene, mulberry32((state.seed * 40503 + 7) >>> 0), { avoid: tips, kindOf: (room) => ROLE_CONSOLE[roleOf(scene, room)] });
   for (const c of consoles) c.accent = ROLE[roleOf(scene, c.room)];
   state.built = { scene, lights, occ, baked, comps, consoles };
 }
@@ -141,10 +141,11 @@ function render() {
     poly(c.poly); ctx.fill();
     if (!c.wall && c.room != null) { ctx.strokeStyle = 'rgba(16,24,30,0.4)'; ctx.lineWidth = 0.5; poly(c.poly); ctx.stroke(); }
   }
+  // wall fixtures — repaint the claimed tiling cells (they erupt from the wall), lit by the field
+  const litLum = (x, y) => { const rgb = lightAtRGB(lights, occ, x, y, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); return 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; };
+  for (const C of consoles) drawWallFixture(ctx, scene, C, { accent: C.accent, hue: hexHue(C.accent), litAt: litLum });
   // components (lit by the field's luminance — value contrast)
   for (const cp of comps) { const rgb = lightAtRGB(lights, occ, cp.cx, cp.cy, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); const lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; drawDevice(ctx, cp.cx, cp.cy, state.size * 280, cp.g, { lit: Math.max(0.38, Math.min(1.2, lum * 1.25 + 0.18)), accent: cp.accent }); }
-  // the second fixture — wall consoles (lit by the field; hue from the chamber light)
-  for (const C of consoles) { const rgb = lightAtRGB(lights, occ, C.face.x, C.face.y, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); const lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; drawConsole(ctx, C, { hue: hexHue(C.accent), lit: Math.max(0.4, Math.min(1.18, lum * 1.25 + 0.2)), accent: C.accent, sp: scene.roomSpacing }); }
   // wall lights last so the glows overlay
   for (const L of lights) { const rgb = lightAtRGB(lights, occ, L.tip.x, L.tip.y, { ambient: 0.1, strength: 1, reach: state.reach / 10 }); drawWallLight(ctx, L, { hue: L.hue, lit: Math.max(0.7, Math.min(1.15, 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2] + 0.5)) }); }
   $('seedtag').textContent = 'seed ' + state.seed;
