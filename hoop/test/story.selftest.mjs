@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import { MemoryStore, flattenPool, dispatch, interact, take, listInventory, drop,
          equip, unequip, deriveStats, talk, choose, powerTierForXp, meetsState } from '../story/engine.js';
 import { validateTree, errors, warnings } from '../story/validate.js';
+import { analyzePool, orphans } from '../story/gates.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POOL = JSON.parse(readFileSync(join(HERE, '../story/pool.json'), 'utf8'));
@@ -61,14 +62,13 @@ ok('min_rep gate', !meetsState({ facts: { 'rep.keepers': 1 }, items: new Set() }
   const b = dispatch(s, 'pq', 'lore_fragment', 1)[0];
   ok('dispatch returns lore', a && a.type === 'lore_fragment');
   ok('dispatch never repeats seen', a.id !== b.id);
-  // gated lore (requires flag.opened_hatch) is withheld until the fact is set
-  const seenIds = new Set();
+  // gated lore (lo-reactor requires the Keeper Key) is withheld until you hold the key
   let gotGated = false; const s3 = newStore();
   for (let i = 0; i < 20; i++) { const r = dispatch(s3, 'pg', 'lore_fragment', 1)[0]; if (!r) break; if (r.id === 'lo-reactor') gotGated = true; }
-  ok('gated lore withheld without fact', !gotGated);
-  const s4 = newStore(); s4.setFact('pg2', 'flag.opened_hatch', true);
+  ok('gated lore withheld without the key', !gotGated);
+  const s4 = newStore(); take(s4, 'pg2', 'it-keeperkey');
   let gotGated2 = false; for (let i = 0; i < 20; i++) { const r = dispatch(s4, 'pg2', 'lore_fragment', 1)[0]; if (!r) break; if (r.id === 'lo-reactor') gotGated2 = true; }
-  ok('gated lore appears once fact set', gotGated2);
+  ok('gated lore appears once the key is held', gotGated2);
 }
 
 // 6. inventory + equipment + derived stats
@@ -157,6 +157,26 @@ ok('min_rep gate', !meetsState({ facts: { 'rep.keepers': 1 }, items: new Set() }
   ok('restored inventory survives', listInventory(s2, 'pp').some((r) => r.content_item_id === 'it-prybar'));
   ok('restored xp/tier survives', s2.getPlayerState('pp').xp === s.getPlayerState('pp').xp);
   ok('empty/bad snapshot is a no-op', newStore().restore(null) && newStore().restore({ v: 99 }).getFacts('z') !== undefined);
+}
+
+// 11. QUEST COMPLETABILITY — pool-wide gate reachability (the orphan-quest detector). No gated
+//     content may require state nothing produces — i.e. every authored quest chain can actually close.
+{
+  const issues = analyzePool(content, WORLD.features);
+  ok('the seed pool has zero orphan gates (every quest can close)', orphans(issues).length === 0);
+  if (orphans(issues).length) console.log('     ' + orphans(issues).map((i) => i.message).join(' | '));
+  // the Keeper quest closes: holding the Keeper Key (given by the Keeper at standing≥1) unlocks the
+  // reactor lore. Prove the chain end-to-end through the engine.
+  const s = newStore();
+  s.addFeature({ key: 'res:keeper', type: 'npc', tag: 'govern' });
+  interact(s, 'q', 'res:keeper');                          // crystallize the Keeper (np-keeper)
+  choose(s, 'q', 'np-keeper', 'who'); choose(s, 'q', 'np-keeper', 'kind');   // standing → 1
+  choose(s, 'q', 'np-keeper', 'ask_help'); choose(s, 'q', 'np-keeper', 'accept');   // get the Keeper Key
+  const gated = dispatch(s, 'q', 'lore_fragment', 30).map((c) => c.id);
+  ok('reward gated until the key is held → now dispatchable', gated.includes('lo-reactor'));
+  // and the analyzer actually catches a planted orphan
+  const planted = analyzePool([...content, { id: 'x', type: 'lore_fragment', approved: true, status: 'active', tags: [], requires: { facts: { 'flag.nope': true } }, content: { name: 'x' } }], WORLD.features);
+  ok('analyzer flags a planted orphan gate', orphans(planted).some((i) => i.key === 'flag.nope'));
 }
 
 console.log(`\n${fail ? '✗ FAIL' : '✓ PASS'} — ${pass} ok, ${fail} failed`);

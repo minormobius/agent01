@@ -25,8 +25,8 @@
       "content": { "name": "Wrong Stars", "description": "Through the glass the constellations are subtly wrong — as if the ship is somewhere it was never meant to reach." } },
     { "id": "lo-threshold", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["door", "keeper"],
       "content": { "name": "A Mark on the Frame", "description": "A closed eye scratched into the hatch frame, then half scratched out again." } },
-    { "id": "lo-reactor", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["reactor", "secret"], "requires": { "facts": { "flag.opened_hatch": true } },
-      "content": { "name": "Below the Floor", "description": "Behind the warm hatch: a second console, unlogged, still counting up. Only opens to someone who has been below." } }
+    { "id": "lo-reactor", "type": "lore_fragment", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["reactor", "secret"], "requires": { "items": ["keeper key"] },
+      "content": { "name": "Below the Floor", "description": "Behind the warm hatch: a second console, unlogged, still counting up. Only the Keepers' key opens the way below." } }
   ],
   "npcs": [
     { "id": "np-keeper", "type": "npc", "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1, "approved": true, "status": "active", "tags": ["govern", "keeper", "authority"],
