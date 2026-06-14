@@ -1,71 +1,81 @@
-// sprite.selftest.mjs — pins the procedural sprite renderer (mega/sprite/item/sprite.js).
+// sprite.selftest.mjs — pins the two-mode renderer (mega/sprite/item/sprite.js).
 // The renderer never reads the canvas, only issues ctx calls/prop-sets, so we record the call log
-// against a stub context and assert: (1) drawing is deterministic per item, (2) different items
-// draw differently, (3) every kind renders without throwing. Run: node …/test/sprite.selftest.mjs
-import { drawItem, contactSheet, FORMS } from '../sprite.js';
-import { rollItem, KIND_ORDER, KINDS, rollMany } from '../items.js';
+// against a stub and assert: (1) both modes are deterministic, (2) different body-plans draw
+// differently, (3) every phylum renders without throwing. Run: node …/test/sprite.selftest.mjs
+import { drawSprite, drawGlyph, PRIMS } from '../sprite.js';
+import { rollItem, rollMany, assemble } from '../genome.js';
+import { PHYLA, PHYLUM_ORDER, materialsAt } from '../taxa.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
 
-// A recording Canvas2D stub: methods log their calls; property sets are logged in order too.
 function recCtx() {
   const log = [];
-  const methods = ['save', 'restore', 'translate', 'scale', 'beginPath', 'moveTo', 'lineTo',
-    'arc', 'ellipse', 'rect', 'fillRect', 'strokeRect', 'closePath', 'fill', 'stroke', 'quadraticCurveTo'];
+  const methods = ['save', 'restore', 'translate', 'scale', 'beginPath', 'moveTo', 'lineTo', 'arc', 'ellipse',
+    'rect', 'fillRect', 'strokeRect', 'closePath', 'fill', 'stroke', 'quadraticCurveTo', 'fillText'];
   const target = {};
   for (const m of methods) target[m] = (...a) => log.push(m + '(' + a.map((x) => (typeof x === 'number' ? +x.toFixed(3) : x)).join(',') + ')');
-  const ctx = new Proxy(target, {
-    set(o, k, v) { log.push('@' + String(k) + '=' + v); o[k] = v; return true; },
-    get(o, k) { return o[k]; },
-  });
+  const ctx = new Proxy(target, { set(o, k, v) { log.push('@' + String(k) + '=' + v); o[k] = v; return true; }, get(o, k) { return o[k]; } });
   return { ctx, log };
 }
-const render = (item, opts) => { const { ctx, log } = recCtx(); drawItem(ctx, item, opts); return log; };
-
-// ── the form table covers every kind ──
-{
-  ok(KIND_ORDER.every((k) => typeof FORMS[KINDS[k].form] === 'function'), 'a draw form exists for every kind');
+const sprite = (it, o) => { const { ctx, log } = recCtx(); drawSprite(ctx, it, o); return log; };
+const glyph = (it, o) => { const { ctx, log } = recCtx(); drawGlyph(ctx, it, o); return log; };
+// build a canonical item for a phylum with neutral genes (covers every primitive + its params)
+function specimen(ph, genes = {}) {
+  const kingdom = PHYLA[ph].kingdom;
+  const material = materialsAt(ph, genes.tech ?? 0.5)[0][0];
+  const g = { durability: 0.5, potency: 0.5, mass: 0.5, value: 0.5, tech: 0.5, ornament: 0.5, complexity: 0.5, provenance: 0.5, ...genes };
+  return assemble({ kingdom, phylum: ph, species: PHYLA[ph].species[0], material, genes: g });
 }
 
-// ── determinism: same item ⇒ identical call log ──
+// ── every phylum maps to a known primitive ──
 {
-  let same = true, nonEmpty = true;
-  for (const n of [0, 3, 17, 88, 250]) {
-    const it = rollItem(n);
-    const a = render(it), b = render(it);
-    same = same && a.join('\n') === b.join('\n');
-    nonEmpty = nonEmpty && a.length > 5;
+  const prims = new Set(Object.keys(PRIMS));
+  ok(PHYLUM_ORDER.every((ph) => prims.has(PHYLA[ph].prim)), 'every phylum uses a defined sprite primitive');
+}
+
+// ── determinism, both modes ──
+{
+  let s = true, gl = true, ne = true;
+  for (const n of [0, 5, 31, 140, 999]) { const it = rollItem(n);
+    s = s && sprite(it).join('\n') === sprite(it).join('\n');
+    gl = gl && glyph(it).join('\n') === glyph(it).join('\n');
+    ne = ne && sprite(it).length > 5 && glyph(it).length > 5;
   }
-  ok(same, 'drawItem is deterministic for a fixed item');
-  ok(nonEmpty, 'drawing issues a non-trivial number of ops');
+  ok(s, 'drawSprite is deterministic'); ok(gl, 'drawGlyph is deterministic'); ok(ne, 'both modes issue real ops');
 }
 
-// ── different kinds draw differently ──
+// ── every phylum renders (both modes) without throwing, and produces ops ──
 {
-  // pick one item per kind by scanning seeds
-  const perKind = {};
-  for (let n = 0; n < 4000 && Object.keys(perKind).length < 8; n++) { const it = rollItem(n); perKind[it.kind] ||= it; }
-  const logs = Object.values(perKind).map((it) => render(it, { frame: false }).join('\n'));
-  ok(new Set(logs).size === logs.length, 'every kind produces a distinct silhouette');
-  ok(Object.values(perKind).every((it) => { try { render(it); return true; } catch { return false; } }), 'every kind renders without throwing');
+  let threw = false, drew = true;
+  for (const ph of PHYLUM_ORDER) { try { const it = specimen(ph); drew = drew && sprite(it).length > 4 && glyph(it).length > 4; } catch (e) { threw = true; console.error('   ' + ph + ': ' + e.message); } }
+  ok(!threw, 'all 31 phyla render in both modes without throwing');
+  ok(drew, 'every phylum produces a non-trivial sprite + glyph');
 }
 
-// ── material/affix changes alter the log (frame off, so only the body/cues vary) ──
+// ── different body-plans draw differently (one specimen per primitive) ──
 {
-  const a = rollItem(11), b = rollItem(11);
-  ok(render(a).join('\n') === render(b).join('\n'), 'identical seeds ⇒ identical render');
-  // an item with affixes draws more than the same kind with none (find a pair sharing a kind)
-  const withAffix = rollMany([...Array(2000).keys()]).find((i) => i.affixCues.length > 0);
-  ok(withAffix && render(withAffix).some((l) => /^@(fillStyle|strokeStyle)/.test(l)), 'affixed item issues cue strokes/fills');
+  const byPrim = {}; for (const ph of PHYLUM_ORDER) byPrim[PHYLA[ph].prim] ||= ph;
+  const logs = Object.values(byPrim).map((ph) => sprite(specimen(ph), { frame: false }).join('\n'));
+  ok(new Set(logs).size === logs.length, 'each primitive yields a distinct silhouette');
+  // and distinct phyla sharing a primitive still differ by params (blade vs haft are both `long`)
+  ok(sprite(specimen('blade'), { frame: false }).join('\n') !== sprite(specimen('haft'), { frame: false }).join('\n'), 'blade and haft (both `long`) differ by params');
 }
 
-// ── contactSheet tiles without throwing ──
+// ── traits modulate the phenotype: tech spike adds rivets, ornament spike adds filigree ──
 {
-  const { ctx } = recCtx();
-  let threw = false;
-  try { contactSheet(ctx, rollMany([...Array(16).keys()]), { cols: 4 }); } catch { threw = true; }
-  ok(!threw, 'contactSheet renders a grid without throwing');
+  const plain = specimen('plate', { ornament: 0.1, tech: 0.4 });
+  const wrought = specimen('plate', { ornament: 0.95, tech: 0.95 });
+  ok(sprite(plain, { frame: false }).join('\n') !== sprite(wrought, { frame: false }).join('\n'), 'a plain vs an ornate/high-tech plate render differently (genes modulate)');
+  // glyph signifiers respond to tech (more pips at higher tech)
+  ok(glyph(specimen('blade', { tech: 0.1 })).join('\n') !== glyph(specimen('blade', { tech: 0.95 })).join('\n'), 'glyph signifiers track tech');
+}
+
+// ── map sprite and inventory glyph are different renderings of the same item ──
+{
+  const it = rollItem(7);
+  ok(sprite(it).join('\n') !== glyph(it).join('\n'), 'map sprite ≠ inventory glyph');
+  ok(glyph(it).some((l) => /^fillText\(/.test(l)), 'the glyph mode actually stamps the verb glyph');
 }
 
 console.log(`sprite.selftest: ${pass} passed, ${fail} failed`);
