@@ -3,208 +3,142 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0a1f24" />
+<meta name="theme-color" content="#13241a" />
 <title>hoop · level zero — the overworld</title>
 <style>
   :root { --ink:#eaf6f2; --dim:#9fbdb6; --gold:#ffd98a; --teal:#7fe8d8; }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; background: #06141a; color: var(--ink); font: 13px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
+  html, body { height: 100%; margin: 0; background: #0e1d14; color: var(--ink); font: 13px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
   canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   #hud { position: fixed; top: 8px; left: 10px; max-width: 60vw; color: var(--dim); text-shadow: 0 1px 3px #000; pointer-events: none; }
   #hud b { color: var(--gold); }
-  a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; }
-  #info { position: fixed; bottom: 12px; left: 10px; color: var(--dim); background: rgba(8,24,28,.6); border: 1px solid #16343a; border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(5px); max-width: 56vw; }
+  a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; text-shadow: 0 1px 3px #000; }
+  #info { position: fixed; bottom: 12px; left: 10px; color: var(--dim); background: rgba(10,28,18,.6); border: 1px solid #1d3a28; border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(5px); }
   #info b { color: var(--teal); }
-  #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,20,26,.9); color: var(--teal); z-index: 9; }
   #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">❀ <b>level zero</b> — the central airmass, the ship's living core<br><span style="color:#6f8e87">you climbed to the axis: open ground, groves and lakes, the food-web. click = walk · scroll = zoom · the little ones are fauna</span></div>
+<div id="hud">❀ <b>level zero</b> — the living floor: groves, mega-lakes, the streams that feed them<br><span style="color:#7da890">click = walk · scroll = zoom · cross water at the ⌇ bridges · weave between the trees</span></div>
 <a class="home" href="/v3/">↧ the decks</a>
 <div id="info">…</div>
-<div id="busy">waking the core…</div>
 <div id="err"></div>
 <script type="module">
+import { makeEden } from './eden.js';
 import { buildGenome, frameRects, DIR8 } from '../v3/sprite-core.js';
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
 const qs = new URLSearchParams(location.search);
 const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
-let R = 30, NZ = 12;
-const FLOOR = 0;                                            // THE OVERWORLD: gz=0, the axis / open airmass
-
-const regions = new Map(), solving = new Set();
-let active = null, zoom = 0.8, dirty = true;
-const AT = { x: 0, y: 0 };
-let target = null;                                          // where you're walking to (active-local)
-const SPEED = 230;                                          // px/s
-const hashGid = (g) => { let h = 2166136261 >>> 0; for (let i = 0; i < g.length; i++) { h ^= g.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
-
-const worker = new Worker('../v3/solver.js', { type: 'module' });   // reuse the deck solver (gz=0 slice)
-worker.onerror = (e) => showErr('worker: ' + e.message);
-function showErr(m) { $('err').style.display = 'block'; $('err').textContent = m; $('busy').style.display = 'none'; }
-const key = (az, ax) => (((az % R) + R) % R) + ',' + ax + ',' + FLOOR;
-function requestRegion(az, ax) { const k = key(az, ax); if (regions.has(k) || solving.has(k)) return; solving.add(k); worker.postMessage({ type: 'solve', az, ax, gz: FLOOR }); }
-worker.postMessage({ type: 'init', seed: SEED });
-worker.onmessage = (e) => {
-  const m = e.data;
-  if (m.type === 'error') return showErr('solve: ' + m.message);
-  if (m.type === 'ready') { R = m.R; NZ = m.nz; requestRegion(m.hubs[0].az, m.hubs[0].ax); return; }
-  if (m.type !== 'region') return;
-  const v = m.view, k = key(v.az, v.ax); solving.delete(k); regions.set(k, v);
-  if (!active) {
-    active = v;
-    let spawn = -1, bd = Infinity;                          // spawn on open ground near the sector centre
-    for (let i = 0; i < v.nReal; i++) { if (isWater(v, i)) continue; const p = v.seeds[i]; const d = (p.x - v.frame.W / 2) ** 2 + (p.y - v.frame.H / 2) ** 2; if (d < bd) { bd = d; spawn = i; } }
-    if (spawn < 0) spawn = 0;
-    AT.x = v.seeds[spawn].x; AT.y = v.seeds[spawn].y; setInfo(v); $('busy').style.display = 'none';
-  }
-  dirty = true;
-};
-function setInfo(v) { const l = lakesOf(v); $('info').innerHTML = 'airmass sector <b>(' + v.az + ', ' + v.ax + ')</b> · ' + (v.stats.buildings - l.size) + ' groves · ' + l.size + ' lakes · ' + (v._creatures ? v._creatures.length : '…') + ' fauna'; }
-
-// ── the ecology of the cell field: groves + meadow (land) bounded by LAKES (water). No walls. ──
-// A building floods into a lake by its chamber hash (~1 in 4); unclaimed foam + the sector rim are deep
-// water too. Lakes are the only bound, as on iris's floor.
-function lakesOf(v) {
-  if (v._lakes) return v._lakes;
-  const gidOf = new Map();                                  // first chamber gid per building (deterministic)
-  for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0 && !gidOf.has(o)) gidOf.set(o, v.bandGid[i]); }
-  const lakes = new Set();
-  for (const [b, gid] of gidOf) if (hashGid(gid + ':lake') % 4 === 0) lakes.add(b);   // ~1 in 4 buildings floods
-  return (v._lakes = lakes);
-}
-function isWater(v, i) { const o = v.owner[i]; return o === -2 || (o >= 0 && lakesOf(v).has(o)); }
-function isWaterCell(v, room) { return room == null || room >= v.nReal || isWater(v, room); }
-// nearest real cell to a world point (active-local) → is it land?
-function landAt(v, x, y) {
-  let best = -1, bd = Infinity; for (let i = 0; i < v.nReal; i++) { const p = v.seeds[i]; const d = (p.x - x) ** 2 + (p.y - y) ** 2; if (d < bd) { bd = d; best = i; } }
-  return best >= 0 && !isWater(v, best);
-}
+const E = makeEden(SEED), TILE = E.TILE;
+const sp = E.spawn();
+const AT = { gx: sp.gx, gy: sp.gy };                        // global world coords
+let target = null, zoom = 0.7;
+const SPEED = 240;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
 let W = 0, H = 0, DPR = 1;
-function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; dirty = true; }
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; }
 addEventListener('resize', resize); resize();
-function offsetOf(v) { let dAz = ((v.az - active.az) % R + R) % R; if (dAz > R / 2) dAz -= R; return { x: dAz * active.frame.W, y: (v.ax - active.ax) * active.frame.H }; }
-function visibleRegions() { const out = [], hw = W / zoom / 2 + active.frame.W, hh = H / zoom / 2 + active.frame.H; for (const [, v] of regions) { const o = offsetOf(v); if (Math.abs(o.x + v.frame.W / 2 - AT.x) < hw && Math.abs(o.y + v.frame.H / 2 - AT.y) < hh) out.push(v); } return out; }
-
-// ── palette ──
-const GROVE = [37, 86, 52], GROVE2 = [46, 102, 60], MEADOW = [78, 120, 70], WATER = [38, 96, 120], DEEP = [22, 64, 92], SHORE = 'rgba(150,210,200,.30)';
-function paintRegion(v, off) {
-  ctx.save(); ctx.translate(off.x, off.y); ctx.lineJoin = 'round';
-  for (const c of v.scene.paintCells) {
-    if (c.wall || c.poly.length < 3) continue;              // NO WALLS — open ground
-    let rgb;
-    if (c.room == null || c.room >= v.nReal) rgb = DEEP;     // sector rim → deep water
-    else if (isWater(v, c.room)) rgb = (v.owner[c.room] === -2) ? DEEP : WATER;
-    else { const o = v.owner[c.room]; rgb = o === -1 ? MEADOW : (hashGid(v.bandGid[c.room]) & 1 ? GROVE2 : GROVE); }
-    ctx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
-    ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]); for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]); ctx.closePath(); ctx.fill();
-    // shoreline: a land cell touching water gets a soft rim
-    if (!isWaterCell(v, c.room)) { /* land */ } else { ctx.strokeStyle = SHORE; ctx.lineWidth = 1; ctx.stroke(); }
-  }
-  // TREES — scattered on the groves (deterministic per chamber, so they don't twinkle)
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (let i = 0; i < v.nReal; i++) {
-    if (v.owner[i] < 0 || isWater(v, i)) continue;
-    const h = hashGid(v.bandGid[i] + ':tree'); if (h % 5 >= 2) continue;   // ~40% of grove cells wooded
-    const p = v.seeds[i], big = h % 7 === 0;
-    ctx.font = (big ? 17 : 12) + 'px ui-monospace, monospace'; ctx.fillStyle = big ? 'rgba(180,235,170,.85)' : 'rgba(150,210,150,.7)';
-    ctx.fillText(h & 8 ? '♣' : '❦', p.x, p.y - 2);
-  }
-  drawCreatures(v);
-  ctx.restore();
-}
-
-// ── fauna — drifting critters (procedural sprites, role-tinted; critters proper come later) ──
-const SPR_N = 13, SPR_SCALE = 2, SPR_WORLD = 16;
-const spriteCache = new Map();
-function creatureSprite(seed, role, phase) {
-  const fk = seed + '|' + (phase % 4); let cvs = spriteCache.get(fk); if (cvs) return cvs;
-  cvs = document.createElement('canvas'); cvs.width = cvs.height = SPR_N * SPR_SCALE; const c = cvs.getContext('2d');
-  const g = buildGenome(seed, { size: SPR_N, role, frames: 4 }, null);
-  for (const r of frameRects(g, DIR8[2], phase % 4)) { c.fillStyle = r.c; c.fillRect(r.x * SPR_SCALE, r.y * SPR_SCALE, SPR_SCALE, SPR_SCALE); }
-  if (spriteCache.size > 800) spriteCache.delete(spriteCache.keys().next().value);
-  spriteCache.set(fk, cvs); return cvs;
-}
-function creaturesOf(v) {
-  if (v._creatures) return v._creatures;
-  const byB = new Map(); for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0 && !isWater(v, i)) { let s = byB.get(o); if (!s) { s = []; byB.set(o, s); } s.push(i); } }
-  const cr = [];
-  (v.people || []).forEach((pn) => { if (cr.length >= 40) return; const hc = byB.get(pn.home); if (!hc || !hc.length) return; const p = v.seeds[hc[(cr.length * 7 + 3) % hc.length]]; cr.push({ role: pn.role, seed: SEED + ':' + v.az + ':' + v.ax + ':' + pn.home + ':' + pn.name, x: p.x, y: p.y, hx: p.x, hy: p.y, ph: Math.random() * 6, ang: Math.random() * 6.28 }); });
-  return (v._creatures = cr);
-}
-function drawCreatures(v) {
-  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-  for (const n of creaturesOf(v)) ctx.drawImage(creatureSprite(n.seed, n.role, n.ph | 0), n.x - SPR_WORLD / 2, n.y - SPR_WORLD * 0.7, SPR_WORLD, SPR_WORLD);
-  ctx.imageSmoothingEnabled = sm;
-}
-function driftCreatures(v, dt) {
-  for (const n of creaturesOf(v)) { n.ph += dt * 3; n.ang += (Math.random() - 0.5) * dt * 2; const tx = n.hx + Math.cos(n.ang) * 22, ty = n.hy + Math.sin(n.ang) * 22; if (landAt(v, tx, ty)) { n.x += (tx - n.x) * Math.min(1, dt * 0.6); n.y += (ty - n.y) * Math.min(1, dt * 0.6); } }
-}
+const tileOf = (g) => Math.floor(g / TILE);
 
 // ── render ──
+const GROUND = '#15301d', MEADOW = [70, 116, 64], GROVE = [34, 78, 46], WATER = '#2f6f8c', DEEP = '#1f5273', SHORE = 'rgba(160,220,210,.35)', BRIDGE = '#8a6a44';
+function lerpC(a, b, t) { return [a[0] + (b[0] - a[0]) * t | 0, a[1] + (b[1] - a[1]) * t | 0, a[2] + (b[2] - a[2]) * t | 0]; }
 function draw() {
-  if (!active) return;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const grad = ctx.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, '#0c2a30'); grad.addColorStop(0.55, '#08202a'); grad.addColorStop(1, '#0a2622');
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = 'rgba(120,200,190,0.16)'; ctx.lineWidth = 1.4;   // the far inner surface overhead
-  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(W / 2, -H * (1.6 - i * 0.12), W * (1.1 - i * 0.06), H * (0.7 - i * 0.04), 0, 0, Math.PI); ctx.stroke(); }
-  ctx.globalAlpha = 0.4; ctx.fillStyle = 'rgba(180,230,220,0.5)';
-  for (let i = 0; i < 60; i++) ctx.fillRect((i * 137.5) % W, (Math.sin(i * 2.3) * 0.5 + 0.5) * H * 0.22, 1.4, 1.4);
-  ctx.restore();
+  ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
+  const z = zoom, viewR = Math.max(W, H) / z;
+  // ground: coarse wetness tint (grove vs meadow) in screen space, cheap
+  const G = 46;
+  for (let sy = 0; sy < H; sy += G) for (let sx = 0; sx < W; sx += G) { const gx = (sx + G / 2 - W / 2) / z + AT.gx, gy = (sy + G / 2 - H / 2) / z + AT.gy; const w = E.wetness(gx, gy); const c = lerpC(MEADOW, GROVE, Math.min(1, w * 1.1)); ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; ctx.fillRect(sx, sy, G + 1, G + 1); }
 
-  const z = zoom;
-  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.x * z), DPR * (H / 2 - AT.y * z));
-  paintRegion(active, { x: 0, y: 0 });
-  for (const v of visibleRegions()) { if (v === active) continue; paintRegion(v, offsetOf(v)); }
-  if (target) { ctx.strokeStyle = 'rgba(255,217,138,.4)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 6 / z]); ctx.beginPath(); ctx.moveTo(AT.x, AT.y); ctx.lineTo(target.x, target.y); ctx.stroke(); ctx.setLineDash([]); }
-  ctx.fillStyle = '#ffd98a'; ctx.shadowColor = 'rgba(255,217,138,0.8)'; ctx.shadowBlur = 10; ctx.font = 'bold 16px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.x, AT.y); ctx.shadowBlur = 0;
-  dirty = false;
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.gx * z), DPR * (H / 2 - AT.gy * z));
+  // water: lakes (controlled surfaces) + the streams that feed them
+  const lakes = E.lakesNear(AT.gx, AT.gy, viewR + TILE * 1.7);
+  for (const l of lakes) { const ring = E.lakeRing(l, 54); ctx.beginPath(); ctx.moveTo(ring[0][0], ring[0][1]); for (let i = 1; i < ring.length; i++) ctx.lineTo(ring[i][0], ring[i][1]); ctx.closePath(); const g = ctx.createRadialGradient(l.cx, l.cy, l.r * 0.2, l.cx, l.cy, l.r); g.addColorStop(0, DEEP); g.addColorStop(1, WATER); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = SHORE; ctx.lineWidth = 3 / z; ctx.stroke(); }
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const streams = [];
+  for (const l of lakes) for (const st of E.lakeStreams(l)) streams.push(st);
+  for (const st of streams) { const P = st.pts; ctx.strokeStyle = WATER; ctx.lineWidth = st.width * 2; ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]); for (let i = 1; i < P.length; i++) ctx.lineTo(P[i][0], P[i][1]); ctx.stroke(); ctx.strokeStyle = 'rgba(150,210,225,.4)'; ctx.lineWidth = Math.max(0.6, st.width * 0.7); ctx.stroke(); }
+  // bridges over the streams
+  for (const st of streams) { const P = st.pts; for (let i = 16; i < P.length - 8; i += 24) { const x = P[i][0], y = P[i][1], a = Math.atan2(P[i][1] - P[i - 1][1], P[i][0] - P[i - 1][0]) + Math.PI / 2, len = st.width * 2.4 + 8; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = BRIDGE; ctx.fillRect(-len, -3, len * 2, 6); ctx.strokeStyle = 'rgba(40,26,14,.6)'; ctx.lineWidth = 0.8; for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(k / 3 * len, -3); ctx.lineTo(k / 3 * len, 3); ctx.stroke(); } ctx.restore(); } }
+
+  // trees — the forest as a density field; cull to the viewport
+  const x0 = AT.gx - viewR / 2 - 60, x1 = AT.gx + viewR / 2 + 60, y0 = AT.gy - viewR / 2 - 60, y1 = AT.gy + viewR / 2 + 60;
+  for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++) {
+    for (const t of E.tileTrees(az, ax)) {
+      if (t[0] < x0 || t[0] > x1 || t[1] < y0 || t[1] > y1) continue;
+      ctx.fillStyle = 'rgba(8,20,12,.5)'; ctx.beginPath(); ctx.arc(t[0] + t[2] * 0.3, t[1] + t[2] * 0.5, t[2] * 0.9, 0, 7); ctx.fill();   // shadow
+      ctx.fillStyle = (Math.floor(t[0] + t[1]) & 3) ? '#2f6e3a' : '#367c42'; ctx.beginPath(); ctx.arc(t[0], t[1], t[2], 0, 7); ctx.fill();   // canopy
+      ctx.fillStyle = '#1d4527'; ctx.beginPath(); ctx.arc(t[0] - t[2] * 0.3, t[1] - t[2] * 0.3, t[2] * 0.45, 0, 7); ctx.fill();             // shade
+    }
+  }
+  drawCritters(x0, x1, y0, y1);
+  // route hint + you
+  if (target) { ctx.strokeStyle = 'rgba(255,217,138,.4)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 6 / z]); ctx.beginPath(); ctx.moveTo(AT.gx, AT.gy); ctx.lineTo(target.gx, target.gy); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.fillStyle = '#ffe9a8'; ctx.shadowColor = 'rgba(255,217,138,.9)'; ctx.shadowBlur = 12; ctx.font = 'bold 17px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.gx, AT.gy); ctx.shadowBlur = 0;
 }
 
-// ── open movement: walk freely on land, blocked only by water (slide along the shore) ──
-cv.addEventListener('click', (e) => {
-  if (!active) return;
-  let x = (e.clientX - W / 2) / zoom + AT.x, y = (e.clientY - H / 2) / zoom + AT.y;   // active-local world
-  // allow clicking onto a visible neighbour: convert to active-local
-  if (x < 0 || y < 0 || x > active.frame.W || y > active.frame.H) {
-    for (const v of visibleRegions()) { if (v === active) continue; const o = offsetOf(v); if (x >= o.x && x <= o.x + v.frame.W && y >= o.y && y <= o.y + v.frame.H) break; }
+// ── critters — a few per tile, drifting on land (placeholder fauna; biome species later) ──
+const ROLES = ['grow', 'heal', 'play', 'move', 'serve', 'learn'];
+const critterCache = new Map(), spriteCache = new Map();
+function crittersOf(az, ax) {
+  const tk = az + ',' + ax; if (critterCache.has(tk)) return critterCache.get(tk);
+  const ox = az * TILE, oy = ax * TILE, out = [];
+  for (let k = 0; k < 9; k++) {
+    let gx, gy, ok = false; for (let t = 0; t < 24 && !ok; t++) { gx = ox + (0.1 + 0.8 * h2(az, ax, k * 7 + t)) * TILE; gy = oy + (0.1 + 0.8 * h2(ax, az, k * 11 + t + 99)) * TILE; ok = E.passable(gx, gy); }
+    if (!ok) continue;
+    out.push({ gx, gy, hx: gx, hy: gy, role: ROLES[(h2(az, ax, k) * ROLES.length) | 0], seed: 'crit:' + az + ':' + ax + ':' + k, ph: Math.random() * 6, ang: Math.random() * 6.28 });
   }
-  target = { x, y };
-});
-addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); dirty = true; }, { passive: false });
+  return (critterCache.set(tk, out), out);
+}
+function h2(x, y, k) { let n = Math.imul((x | 0) ^ 0x9e37, 0x2c1b3c6d) ^ Math.imul((y | 0) ^ 0x85eb, 0x27d4eb2f) ^ Math.imul(k | 0, 0x165667b1) ^ SEED; n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n ^= n >>> 13; return (n >>> 0) / 4294967296; }
+function critterSprite(seed, role, phase) {
+  const fk = seed + '|' + (phase % 4); let c = spriteCache.get(fk); if (c) return c;
+  c = document.createElement('canvas'); c.width = c.height = 24; const x = c.getContext('2d'); const g = buildGenome(seed, { size: 12, role, frames: 4 }, null);
+  for (const r of frameRects(g, DIR8[2], phase % 4)) { x.fillStyle = r.c; x.fillRect(r.x * 2, r.y * 2, 2, 2); }
+  if (spriteCache.size > 600) spriteCache.delete(spriteCache.keys().next().value); spriteCache.set(fk, c); return c;
+}
+function drawCritters(x0, x1, y0, y1) {
+  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++) for (const n of crittersOf(az, ax)) { if (n.gx < x0 || n.gx > x1 || n.gy < y0 || n.gy > y1) continue; ctx.drawImage(critterSprite(n.seed, n.role, n.ph | 0), n.gx - 8, n.gy - 11, 16, 16); }
+  ctx.imageSmoothingEnabled = sm;
+}
+function driftCritters(dt, x0, x1, y0, y1) {
+  for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++) for (const n of crittersOf(az, ax)) { n.ph += dt * 3; n.ang += (Math.random() - 0.5) * dt * 2; const tx = n.hx + Math.cos(n.ang) * 30, ty = n.hy + Math.sin(n.ang) * 30; if (E.passable(tx, ty)) { n.gx += (tx - n.gx) * Math.min(1, dt * 0.5); n.gy += (ty - n.gy) * Math.min(1, dt * 0.5); } }
+}
 
+// ── input + open movement (free; blocked only by water/trees; slide along edges) ──
+cv.addEventListener('click', (e) => { target = { gx: (e.clientX - W / 2) / zoom + AT.gx, gy: (e.clientY - H / 2) / zoom + AT.gy }; });
+addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.25, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
 function step(dt) {
   if (!target) return;
-  const dx = target.x - AT.x, dy = target.y - AT.y, d = Math.hypot(dx, dy);
-  if (d < 4) { target = null; return; }
+  const dx = target.gx - AT.gx, dy = target.gy - AT.gy, d = Math.hypot(dx, dy);
+  if (d < 5) { target = null; return; }
   const s = Math.min(d, SPEED * dt), ux = dx / d, uy = dy / d;
-  if (landAt(active, AT.x + ux * s, AT.y + uy * s)) { AT.x += ux * s; AT.y += uy * s; }
-  else if (landAt(active, AT.x + ux * s, AT.y)) AT.x += ux * s;       // slide along the shore
-  else if (landAt(active, AT.x, AT.y + uy * s)) AT.y += uy * s;
-  else { target = null; return; }                                    // beached
-  rebase();
-  dirty = true;
-}
-function rebase() {
-  if (AT.x >= 0 && AT.x <= active.frame.W && AT.y >= 0 && AT.y <= active.frame.H) return;
-  for (const v of visibleRegions()) { if (v === active) continue; const o = offsetOf(v); if (AT.x - o.x >= 0 && AT.x - o.x <= v.frame.W && AT.y - o.y >= 0 && AT.y - o.y <= v.frame.H) { AT.x -= o.x; AT.y -= o.y; if (target) { target.x -= o.x; target.y -= o.y; } active = v; setInfo(v); break; } }
+  if (E.passable(AT.gx + ux * s, AT.gy + uy * s)) { AT.gx += ux * s; AT.gy += uy * s; }
+  else if (E.passable(AT.gx + ux * s, AT.gy)) AT.gx += ux * s;        // slide along the edge (shore / treeline)
+  else if (E.passable(AT.gx, AT.gy + uy * s)) AT.gy += uy * s;
+  else target = null;
 }
 
-let last = 0, prefetchT = 0;
+// ── prefetch tiles ahead so the 60ms forest-gen never lands mid-frame ──
+const warmed = new Set();
+let warmQ = [];
+function queueWarm() { const a = tileOf(AT.gx), b = tileOf(AT.gy); for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const k = (a + i) + ',' + (b + j); if (!warmed.has(k)) { warmed.add(k); warmQ.push([a + i, b + j]); } } }
+let last = 0, warmT = 0, infoT = 0;
 function tick(ts) {
   const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
-  if (!active) { requestAnimationFrame(tick); return; }
   step(dt);
-  for (const v of visibleRegions()) driftCreatures(v, dt);
-  if (ts - prefetchT > 250) { prefetchT = ts; for (const d of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) requestRegion(active.az + d[0], active.ax + d[1]); }
-  dirty = true; draw(); requestAnimationFrame(tick);
+  const viewR = Math.max(W, H) / zoom, x0 = AT.gx - viewR / 2 - 60, x1 = AT.gx + viewR / 2 + 60, y0 = AT.gy - viewR / 2 - 60, y1 = AT.gy + viewR / 2 + 60;
+  driftCritters(dt, x0, x1, y0, y1);
+  draw();
+  if (ts - warmT > 120) { warmT = ts; queueWarm(); if (warmQ.length) { const [a, b] = warmQ.shift(); E.tileTrees(a, b); } }   // one tile per ~120ms
+  if (ts - infoT > 500) { infoT = ts; const a = tileOf(AT.gx), b = tileOf(AT.gy); $('info').innerHTML = 'sector <b>(' + a + ', ' + b + ')</b> · ' + E.lakesNear(AT.gx, AT.gy, TILE).length + ' lakes near · ' + (E.passable(AT.gx, AT.gy) ? 'on open ground' : 'at the water’s edge'); }
+  requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 </script>
