@@ -11,6 +11,7 @@
 
 const PI = Math.PI, TAU = PI * 2;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+import { bucketGrid } from './voronoi.js';   // ray-trace through the SAME tiling the chamber paints
 export function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 export const LIGHT_KINDS = ['sconce', 'coral', 'crystal'];
@@ -90,6 +91,62 @@ export function drawWallLight(ctx, L, { hue = 40, lit = 1 } = {}) {
   ctx.restore();
 }
 
-const LIGHTS = { mulberry32, LIGHT_KINDS, lightGenome, placeWallLights, lightField, drawWallLight };
+// ── RAY-TRACED OCCLUSION through the voronoi tiling ─────────────────────────────────────────────
+// Rasterise the tiling into a wall occupancy grid (nearest-nucleus → wall?), then for each light→
+// point ray do an Amanatides-Woo voxel walk: a wall cell between source and target blocks it. Light
+// therefore POOLS in its room and SPILLS THROUGH DOORWAYS (door cells are floor, not wall) — the
+// dark-ship occluded look, physically. Colours accumulate per emitter hue, so a doorway catches a
+// neighbour chamber's tint.
+export function hslToRgb(h, s, l) { h /= 360; const a = s * Math.min(l, 1 - l); const f = (n) => { const k = (n + h * 12) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; }
+export function tintLights(lights, hueOf, { sat = 0.72, lum = 0.6 } = {}) { for (const L of lights) { L.hue = hueOf(L.room); L.rgb = hslToRgb(L.hue, sat, lum); } return lights; }
+
+export function occlusionGrid(scene, step) {
+  step = step || (scene.wallSpacing || 10) * 0.5;
+  const nx = Math.ceil(scene.W / step) + 1, ny = Math.ceil(scene.H / step) + 1;
+  const grid = bucketGrid(scene.nuclei, Math.max(scene.roomSpacing, scene.wallSpacing) * 1.7);
+  const wall = new Uint8Array(nx * ny);
+  for (let gy = 0; gy < ny; gy++) for (let gx = 0; gx < nx; gx++) {
+    const x = gx * step, y = gy * step; let best = null, bd = Infinity;
+    for (const q of grid.near(x, y)) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } }
+    if (best && best.wall) wall[gy * nx + gx] = 1;
+  }
+  return { step, nx, ny, wall };
+}
+const isWallG = (occ, gx, gy) => (gx < 0 || gy < 0 || gx >= occ.nx || gy >= occ.ny ? 0 : occ.wall[gy * occ.nx + gx]);
+export function visible(occ, x0, y0, x1, y1) {
+  const s = occ.step; let gx = Math.floor(x0 / s), gy = Math.floor(y0 / s);
+  const gx1 = Math.floor(x1 / s), gy1 = Math.floor(y1 / s), dx = x1 - x0, dy = y1 - y0;
+  const sx = Math.sign(dx), sy = Math.sign(dy);
+  const tdx = dx !== 0 ? Math.abs(s / dx) : Infinity, tdy = dy !== 0 ? Math.abs(s / dy) : Infinity;
+  let tmx = dx !== 0 ? (sx > 0 ? (gx + 1) * s - x0 : x0 - gx * s) / Math.abs(dx) : Infinity;
+  let tmy = dy !== 0 ? (sy > 0 ? (gy + 1) * s - y0 : y0 - gy * s) / Math.abs(dy) : Infinity;
+  let guard = 0;
+  while (!(gx === gx1 && gy === gy1) && guard++ < 8192) {
+    if (tmx < tmy) { gx += sx; tmx += tdx; } else { gy += sy; tmy += tdy; }
+    if (gx === gx1 && gy === gy1) break;
+    if (isWallG(occ, gx, gy)) return 0;     // a wall lies between → occluded
+  }
+  return 1;
+}
+
+// accumulate colour from every VISIBLE emitter at a point (inverse-square-ish falloff × hue).
+export function lightAtRGB(lights, occ, x, y, { ambient = 0.05, strength = 1, reach = 2.4 } = {}) {
+  let r = ambient, g = ambient, b = ambient;
+  for (const L of lights) {
+    const dx = x - L.tip.x, dy = y - L.tip.y, R = L.len * reach, fall = strength / (1 + (dx * dx + dy * dy) / (R * R));
+    if (fall < 0.015 || !visible(occ, L.tip.x, L.tip.y, x, y)) continue;
+    r += L.rgb[0] * fall; g += L.rgb[1] * fall; b += L.rgb[2] * fall;
+  }
+  return [r, g, b];
+}
+// bake a colour per FLOOR paint-cell (walls/void → null).
+export function bakeFloorRGB(scene, lights, occ, opts = {}) {
+  const out = new Array(scene.paintCells.length).fill(null);
+  for (let i = 0; i < scene.paintCells.length; i++) { const c = scene.paintCells[i]; if (c.wall || c.room == null) continue; out[i] = lightAtRGB(lights, occ, c.x, c.y, opts); }
+  return out;
+}
+
+const LIGHTS = { mulberry32, LIGHT_KINDS, lightGenome, placeWallLights, lightField, drawWallLight,
+  hslToRgb, occlusionGrid, visible, tintLights, bakeFloorRGB, lightAtRGB };
 if (typeof globalThis !== 'undefined') globalThis.LIGHTS = LIGHTS;
 export default LIGHTS;

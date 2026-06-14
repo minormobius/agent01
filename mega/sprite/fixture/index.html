@@ -3,160 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chamber Fixtures — the drawn-furniture engine</title>
-<meta name="description" content="Procedural, deterministic chamber fixtures in the /yarrow hand — genome→model→draw set dressing (hearths, anvils, looms, altars…) whose configuration implies variety and whose kind is tied to place. Built to vendor into hoop.">
+<title>Chambers — ray-traced art-deco rooms</title>
+<meta name="description" content="Procedural ship chambers: foam voronoi rooms, art-deco component interactables (superformula + fBm), and physical light sources grown from the walls — with the light RAY-TRACED through the tiling so it pools and spills through doorways. Roll the combinatorics.">
 <style>
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
   :root{
-    --void:#05060a;--panel:#0a0e12;--panel2:#0f141a;--border:#1b2530;
+    --void:#04050a;--panel:#0a0e12;--panel2:#0f141a;--border:#1b2530;
     --ink:#dfe7e2;--dim:#7a8894;--gold:#f4bf62;--teal:#7fd8d0;
     --mono:'SF Mono','Cascadia Code','Fira Code',ui-monospace,monospace;
     --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   }
   html,body{height:100%}
-  body{background:radial-gradient(120% 120% at 50% -10%,#0b1117 0%,var(--void) 60%);color:var(--ink);font-family:var(--sans);
-    background-attachment:fixed;-webkit-font-smoothing:antialiased;line-height:1.5;
-    background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,0.012) 0 1px,transparent 1px 3px)}
+  body{background:var(--void);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5;
+    background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,0.01) 0 1px,transparent 1px 3px)}
   a{color:var(--teal);text-decoration:none}a:hover{text-decoration:underline}
-  .wrap{max-width:1040px;margin:0 auto;padding:22px 20px 64px}
-  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:18px}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 18px 56px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:14px}
   .crumb{font-family:var(--mono);font-size:12px;color:var(--dim)}.crumb a{color:var(--dim)}
   .spacer{flex:1}.tag{font-family:var(--mono);font-size:11px;color:var(--dim);border:1px solid var(--border);padding:3px 8px;border-radius:6px}
-  h1{font-size:24px;font-weight:800;letter-spacing:.2px;margin-bottom:6px}
-  .lede{color:var(--dim);font-size:13.5px;max-width:820px;margin:0 0 20px}.lede code{font-family:var(--mono);color:var(--teal);font-size:12.5px}
-  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-  button{background:var(--panel2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;font-family:var(--mono);font-size:13px;transition:.12s}
-  button:hover{border-color:var(--teal);color:#fff}button.primary{background:linear-gradient(180deg,#3a2a14,#241a0c);border-color:#5a431f;color:var(--gold)}
-  .roles{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-  .pill{font-family:var(--mono);font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer;color:var(--ink)}
-  .pill.on{border-color:var(--gold);color:var(--gold)}
-  .techctl{display:flex;align-items:center;gap:7px;color:var(--dim);font-family:var(--mono);font-size:12px}
-  .techctl input[type=range]{width:120px;accent-color:var(--teal)}
-  .chamber{background:#070a0e;border:1px solid var(--border);border-radius:12px;display:block;width:100%;image-rendering:pixelated}
-  .cap{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin:8px 0 22px}
-  h2{font-size:14px;font-weight:600;letter-spacing:.3px;margin:18px 0 10px}
-  .gallery{background:#070a0e;border:1px solid var(--border);border-radius:12px;display:block;width:100%;image-rendering:pixelated}
-  .foot{margin-top:30px;border-top:1px solid var(--border);padding-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}.foot b{color:var(--ink)}
+  h1{font-size:22px;font-weight:800;letter-spacing:.2px;margin-bottom:5px}
+  .lede{color:var(--dim);font-size:13px;max-width:880px;margin:0 0 16px}.lede code{font-family:var(--mono);color:var(--teal);font-size:12px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-bottom:12px}
+  button,.seedbox input{font-family:var(--mono);font-size:13px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--teal);color:#fff}
+  button.primary{background:linear-gradient(180deg,#3a2a14,#241a0c);border-color:#5a431f;color:var(--gold)}
+  .seedbox{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:2px 4px 2px 10px}
+  .seedbox label{font-family:var(--mono);font-size:11px;color:var(--dim)}.seedbox input{width:104px;background:transparent;border:0;color:var(--ink);padding:7px 4px;outline:none}
+  .knob{display:flex;align-items:center;gap:6px;color:var(--dim);font-family:var(--mono);font-size:11.5px}
+  .knob input[type=range]{width:96px;accent-color:var(--teal)}
+  .voc{display:flex;gap:5px}.voc .pill{font-family:var(--mono);font-size:11px;padding:4px 9px;border:1px solid var(--border);border-radius:999px;cursor:pointer;color:var(--ink)}
+  .voc .pill.on{border-color:var(--gold);color:var(--gold)}
+  #chamber{background:var(--void);border:1px solid var(--border);border-radius:12px;display:block;width:100%;image-rendering:auto}
+  .cap{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin:8px 0 0}
+  .foot{margin-top:22px;border-top:1px solid var(--border);padding-top:14px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}.foot b{color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / sprite / <span style="color:var(--ink)">fixture</span></div>
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / sprite / <span style="color:var(--ink)">chamber</span></div>
     <div class="spacer"></div>
     <span class="tag" id="seedtag">seed —</span>
-    <span class="tag">fixture engine · v1</span>
+    <span class="tag">chamber engine · v1</span>
   </header>
 
-  <h1>Chamber Fixtures</h1>
-  <p class="lede">Drawn set-dressing in the <a href="https://mino.mobi/clock/yarrow/">/yarrow</a> hand —
-    a <b>genome → model → drawing</b>, pure Canvas2D, seed-driven, feature density scaled to size. Where
-    yarrow grows a milfoil stalk, this grows the rest of the furniture: hearths, anvils, looms, altars,
-    barrels, shelves. The <b>configuration implies variety</b> (no two anvils alike) and the <b>kind is tied
-    to place</b> — a forge gets anvils + a furnace, a temple an altar + a brazier — keyed to the same civic
-    verbs the item engine uses. Built to vendor into hoop's <code>ink.js</code> beside <code>drawStalk</code>.</p>
+  <h1>Chambers</h1>
+  <p class="lede">Ship chambers, fully procedural: foam <b>voronoi rooms</b>, an art-deco <b>component</b> per room
+    (<code>superformula</code> + fBm value-noise, dark jewel body + gold so it reads by value), and physical
+    <b>light sources grown from the walls</b> (sconce / coral / crystal) glowing the chamber hue. The light is
+    <b>ray-traced through the tiling</b> — it pools in its room and spills through doorways, with real wall shadow.
+    Roll the combinatorics.</p>
 
   <div class="controls">
-    <button class="primary" id="reroll">🎲 reroll</button>
-    <span class="techctl">zoom <input type="range" id="zoom" min="70" max="190" value="110"><span id="zoomlab"></span></span>
-    <span class="techctl">light <input type="range" id="light" min="40" max="120" value="95"><span id="lightlab"></span></span>
+    <button class="primary" id="roll">🎲 roll</button>
+    <button id="prev">‹</button><button id="next">›</button>
+    <span class="seedbox"><label>seed</label><input id="seed" inputmode="numeric"></span>
+    <button id="forge">go</button>
+    <span class="knob">lights <input type="range" id="den" min="1" max="5" value="3"></span>
+    <span class="knob">reach <input type="range" id="reach" min="14" max="42" value="24"></span>
+    <span class="knob">sat <input type="range" id="sat" min="0" max="100" value="72"></span>
+    <span class="knob">size <input type="range" id="size" min="7" max="20" value="12"></span>
+    <span class="voc" id="voc"></span>
     <button id="copy">⧉ link</button>
   </div>
-  <div class="roles" id="roles"></div>
-  <canvas id="chamber" class="chamber"></canvas>
+  <canvas id="chamber" width="1200" height="820"></canvas>
   <div class="cap" id="cap"></div>
 
-  <h2>Every fixture, four seeds</h2>
-  <canvas id="gallery" class="gallery"></canvas>
-
   <div class="foot">
-    <b>The piece.</b> <code>fixtures.js</code> is the library (14 detailed types: <code>fixtureModel</code> + <code>draw</code> +
-    a zoom-gated detail pass), the <code>FURNISH</code> place→fixtures matrix, and <code>furnishScene(role, rng, scene)</code> —
-    which places fixtures on the <b>real foam floor</b> from <code>voronoi.js</code> (vendored verbatim from hoop/paint, the
-    same cells v3 paints). Node-tested (<code>test/fixtures.selftest.mjs</code>, 26 checks). The drop-in for hoop: vendor
-    <code>fixtures.js</code> into <code>ink.js</code> and call <code>furnishScene</code> + <code>drawFixture</code> beside
-    <code>drawStalk</code> over the chamber's existing <code>paintCells</code>.
+    <b>The pieces.</b> <code>voronoi.js</code> (vendored foam painter) · <code>deco.js</code> (superformula + fBm
+    components) · <code>lights.js</code> (wall-grown emitters + <b>ray-traced occlusion</b>: an Amanatides-Woo voxel
+    walk over a rasterised wall grid; colour accumulates per visible emitter so doorways catch a neighbour's hue).
+    Hue correlates per chamber (light ↔ component); contrast is value + shape + gold. Pure & node-tested
+    (<code>test/lights.selftest.mjs</code>). Drop-in for hoop: bake over the chamber's existing <code>paintCells</code>.
   </div>
 </div>
 
 <script type="module">
-import { FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnishScene } from './fixtures.js';
-import { buildScene } from './voronoi.js';   // vendored from hoop/paint — the real foam-cell painter
-const $ = (id) => document.getElementById(id);
-const ROLES = Object.keys(FURNISH);
-const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-const SW = 560, SH = 380;                     // chamber scene size (px)
-// canonical hoop civic-role colours (NPC-SPRITES / econ ROLES) — the floor tints by role like v3
-const ROLE_COLOR = { dwell: '#d9b24a', grow: '#5aa845', make: '#e0772f', mend: '#9b6b3a', trade: '#cf3b3b', serve: '#c853a0', play: '#3bb0c9', heal: '#dfe7e2', learn: '#5570d8', worship: '#b39bd8', govern: '#33408f', move: '#6b7a82', store: '#566066' };
-function hex2hsl(hex) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16) / 255, g = parseInt(c.slice(2, 4), 16) / 255, b = parseInt(c.slice(4, 6), 16) / 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s = 0, l = (mx + mn) / 2; if (mx !== mn) { const d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, s * 100, l * 100]; }
+import { deviceGenome, drawDevice, mulberry32 } from './deco.js';
+import { buildScene } from './voronoi.js';
+import { placeWallLights, tintLights, occlusionGrid, bakeFloorRGB, lightAtRGB, drawWallLight, LIGHT_KINDS } from './lights.js';
 
-const state = { role: 'make', seed: 1, zoom: 1.1, light: 0.95 };
+const $ = (id) => document.getElementById(id);
+const SW = 1200, SH = 820;
+const ROLE = { dwell: '#d9b24a', grow: '#5aa845', make: '#e0772f', mend: '#9b6b3a', trade: '#cf3b3b', serve: '#c853a0', play: '#3bb0c9', heal: '#9fb4c2', learn: '#5570d8', worship: '#b39bd8', govern: '#33408f', move: '#6b7a82', store: '#566066' };
+const ROLES = Object.keys(ROLE);
+const VOCAB = ['all', ...LIGHT_KINDS];
+function hexHue(hex) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16) / 255, g = parseInt(c.slice(2, 4), 16) / 255, b = parseInt(c.slice(4, 6), 16) / 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0; if (mx !== mn) { const d = mx - mn; h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return h; }
+
+const state = { seed: 1, den: 3, reach: 24, sat: 0.72, size: 0.12, voc: 'all', built: null };
 
 function fromURL() {
-  const p = new URLSearchParams(location.search);
-  if (ROLES.includes(p.get('role'))) state.role = p.get('role');
-  const s = parseInt(p.get('seed'), 10); if (Number.isFinite(s)) state.seed = s >>> 0;
-  const z = parseInt(p.get('z'), 10); if (Number.isFinite(z)) { state.zoom = z / 100; $('zoom').value = z; }
+  const p = new URLSearchParams(location.search), gi = (k, d) => { const v = parseInt(p.get(k), 10); return Number.isFinite(v) ? v : d; };
+  state.seed = (gi('seed', 1)) >>> 0; state.den = gi('den', 3); state.reach = gi('reach', 24);
+  state.sat = gi('sat', 72) / 100; state.size = gi('size', 12) / 100; if (VOCAB.includes(p.get('voc'))) state.voc = p.get('voc');
+  $('seed').value = state.seed; $('den').value = state.den; $('reach').value = state.reach; $('sat').value = state.sat * 100; $('size').value = state.size * 100;
 }
-function toURL() { const p = new URLSearchParams(); p.set('role', state.role); p.set('seed', state.seed); p.set('z', Math.round(state.zoom * 100)); history.replaceState({}, '', location.pathname + '?' + p.toString()); }
+function toURL() { const p = new URLSearchParams(); p.set('seed', state.seed); p.set('den', state.den); p.set('reach', state.reach); p.set('sat', Math.round(state.sat * 100)); p.set('size', Math.round(state.size * 100)); p.set('voc', state.voc); history.replaceState({}, '', location.pathname + '?' + p.toString()); }
+const roleOf = (scene, room) => ROLES[(((scene.zoneOf[room] || 0) * 4 + 2) % ROLES.length + ROLES.length) % ROLES.length];
 
-function setCanvas(cv, w, h) { const dpr = window.devicePixelRatio || 1; cv.width = w * dpr; cv.height = h * dpr; cv.style.maxWidth = w + 'px'; const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false; return ctx; }
-const polyPath = (ctx, p) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); };
-
-function renderChamber() {
-  // build the REAL foam chamber (hoop v3's voronoi cells), tint by role, furnish in situ
-  const scene = buildScene({ W: SW, H: SH, wallSpacing: 9, roomSpacing: 26, roomSize: 130, loops: 0.15, seed: state.seed >>> 0 });
-  const placed = furnishScene(state.role, mulberry32((state.seed * 13 + 1) >>> 0), scene);
-  const Z = state.zoom, ctx = setCanvas($('chamber'), SW * Z, SH * Z); ctx.scale(Z, Z);
-  const [rh, rs] = hex2hsl(ROLE_COLOR[state.role] || '#888');
-  const cx = SW * 0.5, cy = SH * 0.46;
-  const litAt = (x, y) => Math.max(0.18, Math.min(1, state.light * (1.12 - Math.hypot((x - cx) / (SW * 0.55), (y - cy) / (SH * 0.5)))));
-  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, SW, SH);
-  for (const c of scene.paintCells) {
-    if (c.poly.length < 3) continue;
-    const lf = litAt(c.x, c.y);
-    if (c.wall) ctx.fillStyle = `hsl(${rh} 10% 4%)`;
-    else if (c.door) ctx.fillStyle = `hsl(44 30% ${(12 + 10 * lf).toFixed(0)}%)`;
-    else if (c.room == null) ctx.fillStyle = '#070a0e';
-    else ctx.fillStyle = `hsl(${rh} ${Math.min(34, rs * 0.5).toFixed(0)}% ${(6.5 + 10 * lf).toFixed(1)}%)`;
-    polyPath(ctx, c.poly); ctx.fill();
-    if (!c.wall && c.room != null) { ctx.strokeStyle = 'rgba(20,28,34,0.5)'; ctx.lineWidth = 0.5; polyPath(ctx, c.poly); ctx.stroke(); }   // plate seam
-  }
-  const t = scene.roomSpacing * 1.7, detail = Math.min(1, scene.roomSpacing * Z / 30);
-  for (const p of placed) drawFixture(ctx, p, { x: p.x, y: p.y, t, ang: p.ang, detail, lit: Math.max(0.5, Math.min(1.15, litAt(p.x, p.y) * 1.05)) });
-  $('seedtag').textContent = 'seed ' + state.seed;
-  $('cap').textContent = `${state.role} chamber · real foam cells (vendored voronoi) · ${placed.length} fixtures · ${[...new Set(placed.map((p) => p.type))].join(', ')}`;
-  $('roles').querySelectorAll('.pill').forEach((el) => el.classList.toggle('on', el.dataset.role === state.role));
-  $('zoomlab').textContent = Math.round(state.zoom * 100) + '%'; $('lightlab').textContent = Math.round(state.light * 100);
-}
-
-function renderGallery() {
-  const cell = 88, gapX = 8, gapY = 24, padX = 80, padY = 14, t = 60, seeds = 4;
-  const W = padX + seeds * (cell + gapX), H = padY + FIXTURE_TYPES.length * (cell + gapY);
-  const ctx = setCanvas($('gallery'), W, H);
-  ctx.fillStyle = '#070a0e'; ctx.fillRect(0, 0, W, H);
-  FIXTURE_TYPES.forEach((ty, ri) => {
-    const y = padY + ri * (cell + gapY);
-    ctx.fillStyle = '#9aa6b2'; ctx.font = '11px ' + getComputedStyle(document.body).fontFamily; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(ty, 8, y + cell * 0.55);
-    for (let s = 0; s < seeds; s++) {
-      const gx = padX + s * (cell + gapX) + cell / 2, gy = y + cell - 10;
-      ctx.fillStyle = 'rgba(244,210,150,0.05)'; ctx.beginPath(); ctx.ellipse(gx, gy, cell * 0.42, cell * 0.18, 0, 0, Math.PI * 2); ctx.fill();
-      drawFixture(ctx, { type: ty, model: fixtureModel(ty, mulberry32(ri * 97 + s * 13 + 1)) }, { x: gx, y: gy, t, detail: 1, lit: 1 });
-    }
+// build the chamber: foam → roles → wall lights → occlusion → RAY-TRACED colour bake
+function build() {
+  const scene = buildScene({ W: SW, H: SH, wallSpacing: 14, roomSpacing: 66, roomSize: 400, loops: 0.1, zoneSize: 2, seed: state.seed >>> 0 });
+  let lights = placeWallLights(scene, mulberry32((state.seed * 2654435761) >>> 0), { perRoom: state.den });
+  if (state.voc !== 'all') lights = lights.filter((L) => L.model.kind === state.voc);
+  tintLights(lights, (room) => hexHue(ROLE[roleOf(scene, room)]));
+  const occ = occlusionGrid(scene);
+  const baked = bakeFloorRGB(scene, lights, occ, { ambient: 0.04, strength: 1, reach: state.reach / 10 });
+  // per-room component, placed in the lit zone
+  const tips = {}; for (const L of lights) (tips[L.room] = tips[L.room] || []).push(L.tip);
+  const comps = scene.roomSeeds.map((s) => {
+    const t = tips[s.id] || []; let cx = s.x, cy = s.y;
+    if (t.length) { cx = (s.x + t.reduce((a, p) => a + p.x, 0) / t.length) / 2; cy = (s.y + t.reduce((a, p) => a + p.y, 0) / t.length) / 2; }
+    return { cx, cy, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
   });
+  state.built = { scene, lights, occ, baked, comps };
 }
 
-function render() { renderChamber(); toURL(); }
+const tone = (v, e) => 1 - Math.exp(-v * e);
+function render() {
+  const { scene, lights, occ, baked, comps } = state.built;
+  const dpr = window.devicePixelRatio || 1, cv = $('chamber');
+  cv.width = SW * dpr; cv.height = SH * dpr; cv.style.maxWidth = SW + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, SW, SH);
+  const poly = (p) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); };
+  // floor cells: tonemap the ray-traced colour, pull saturation toward the knob
+  for (let i = 0; i < scene.paintCells.length; i++) {
+    const c = scene.paintCells[i]; if (c.poly.length < 3) continue;
+    if (c.wall) ctx.fillStyle = '#080a0e';
+    else if (baked[i]) { let r = tone(baked[i][0], 1.15) * 255, g = tone(baked[i][1], 1.15) * 255, b = tone(baked[i][2], 1.15) * 255; const L = 0.3 * r + 0.6 * g + 0.1 * b; r = L + (r - L) * state.sat; g = L + (g - L) * state.sat; b = L + (b - L) * state.sat; ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`; }
+    else ctx.fillStyle = '#04050a';
+    poly(c.poly); ctx.fill();
+    if (!c.wall && c.room != null) { ctx.strokeStyle = 'rgba(16,24,30,0.4)'; ctx.lineWidth = 0.5; poly(c.poly); ctx.stroke(); }
+  }
+  // components (lit by the field's luminance — value contrast)
+  for (const cp of comps) { const rgb = lightAtRGB(lights, occ, cp.cx, cp.cy, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); const lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; drawDevice(ctx, cp.cx, cp.cy, state.size * 280, cp.g, { lit: Math.max(0.38, Math.min(1.2, lum * 1.25 + 0.18)), accent: cp.accent }); }
+  // wall lights last so the glows overlay
+  for (const L of lights) { const rgb = lightAtRGB(lights, occ, L.tip.x, L.tip.y, { ambient: 0.1, strength: 1, reach: state.reach / 10 }); drawWallLight(ctx, L, { hue: L.hue, lit: Math.max(0.7, Math.min(1.15, 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2] + 0.5)) }); }
+  $('seedtag').textContent = 'seed ' + state.seed;
+  $('cap').textContent = `${scene.roomSeeds.length} rooms · ${lights.length} wall lights (${state.voc}) · ray-traced through ${scene.paintCells.length} cells`;
+  $('voc').querySelectorAll('.pill').forEach((el) => el.classList.toggle('on', el.dataset.v === state.voc));
+}
 
-$('roles').innerHTML = ROLES.map((r) => `<span class="pill" data-role="${r}">${r}</span>`).join('');
-$('roles').querySelectorAll('.pill').forEach((el) => el.onclick = () => { state.role = el.dataset.role; render(); });
-$('reroll').onclick = () => { state.seed = (Math.random() * 2 ** 32) >>> 0; render(); };
-$('zoom').oninput = () => { state.zoom = (+$('zoom').value) / 100; render(); };
-$('light').oninput = () => { state.light = (+$('light').value) / 100; render(); };
+function rebuild() { build(); render(); toURL(); }
+function rerender() { render(); toURL(); }
+
+$('voc').innerHTML = VOCAB.map((v) => `<span class="pill" data-v="${v}">${v}</span>`).join('');
+$('voc').querySelectorAll('.pill').forEach((el) => el.onclick = () => { state.voc = el.dataset.v; rebuild(); });
+$('roll').onclick = () => { state.seed = (Math.random() * 2 ** 32) >>> 0; $('seed').value = state.seed; rebuild(); };
+$('prev').onclick = () => { state.seed = (state.seed - 1) >>> 0; $('seed').value = state.seed; rebuild(); };
+$('next').onclick = () => { state.seed = (state.seed + 1) >>> 0; $('seed').value = state.seed; rebuild(); };
+$('forge').onclick = () => { const v = parseInt($('seed').value, 10); if (Number.isFinite(v)) { state.seed = v >>> 0; rebuild(); } };
+$('seed').onkeydown = (e) => { if (e.key === 'Enter') $('forge').click(); };
+$('den').oninput = () => { state.den = +$('den').value; rebuild(); };
+$('reach').oninput = () => { state.reach = +$('reach').value; rebuild(); };
+$('sat').oninput = () => { state.sat = (+$('sat').value) / 100; rerender(); };
+$('size').oninput = () => { state.size = (+$('size').value) / 100; rerender(); };
 $('copy').onclick = async () => { try { await navigator.clipboard.writeText(location.href); $('copy').textContent = '✓'; setTimeout(() => $('copy').textContent = '⧉ link', 1000); } catch {} };
+window.onpopstate = () => { fromURL(); rebuild(); };
 
-fromURL(); renderGallery(); render();
-window.onpopstate = () => { fromURL(); render(); };
+fromURL(); rebuild();
 </script>
 </body>
 </html>
