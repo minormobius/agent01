@@ -36,7 +36,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span><div id="me" style="margin-top:5px"></div></div>
 <a class="home" href="/">← hoop</a>
 <div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
@@ -48,7 +48,7 @@
 import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
-import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose } from '../story/engine.js';   // the inference-free story hot path
+import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, listInventory as storyInventory, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
 import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
 import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
 
@@ -551,9 +551,6 @@ let PLAYER = 'local';                                       // engine player id 
 const WORLD_KEY = String(SEED);                             // save rkey = ship seed (one save per world)
 const storyKeyFor = (p) => STORY_KEY + ':' + p;            // localStorage namespaced by identity
 let _saveTimer = null;
-// TODO(minimum-privilege): tighten the scope to `repo:com.minomobi.hoop.story.save blob:` once that
-// collection is added to workers/auth scope.ts + the auth worker redeploys. transition:generic unblocks now.
-const STORY_SCOPE = 'atproto transition:generic';
 
 function ensureStory() {
   if (storyStore) return Promise.resolve(storyStore);
@@ -576,6 +573,21 @@ function ensureStory() {
 function persistStory() {
   try { localStorage.setItem(storyKeyFor(PLAYER), JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode */ }
   if (storyUser) scheduleRepoSave();                        // batched checkpoint to the player's repo
+  renderMe();
+}
+// ── "you": the progression the engine already earns — meeting residents crystallizes them and grants
+// XP → power-tier; dialogue can hand you items. Surfaced so the loop reads as a game, not just a walk.
+function renderMe() {
+  const el = $('me'); if (!el) return;
+  if (!storyStore) { el.innerHTML = ''; return; }
+  const p = storyStore.getPlayerState(PLAYER);
+  const inv = storyInventory(storyStore, PLAYER).map((r) => r.name).filter(Boolean);
+  const next = POWER_THRESHOLDS[p.power_tier];              // index = current tier ⇒ xp for the next
+  const known = storyStore.listPlacements(PLAYER).length;
+  el.innerHTML = '<span style="color:var(--gold)">▤ tier ' + p.power_tier + '</span> · ✦ ' + p.xp + ' xp'
+    + (next != null ? ' <span style="color:#667">(' + Math.max(0, next - p.xp) + ' to tier ' + (p.power_tier + 1) + ')</span>' : '')
+    + ' · ' + known + ' met'
+    + (inv.length ? ' · <span style="color:var(--teal)">🎒 ' + inv.join(', ') + '</span>' : '');
 }
 function scheduleRepoSave() {
   if (_saveTimer) clearTimeout(_saveTimer);
@@ -602,7 +614,7 @@ function renderAuth() {
 async function signIn() {
   const handle = prompt('Bluesky handle — signs in and saves your story to your own repo:');
   if (!handle) return;
-  try { await auth.login(handle.trim(), { scope: STORY_SCOPE }); }   // redirects to OAuth, returns here
+  try { await auth.login(handle.trim()); }   // default UNIFIED scope (includes com.minomobi.hoop.story.save) → OAuth, returns here
   catch (e) { showErr('sign-in: ' + (e && e.message || e)); }
 }
 async function signOut() { try { await auth.logout(); } catch (e) { /* */ } setUser(null); }
@@ -610,9 +622,11 @@ function setUser(u) {
   storyUser = u ? { did: u.did, handle: u.handle } : null;
   PLAYER = storyUser ? storyUser.did : 'local';
   resetStory(); renderAuth();
+  ensureStory().then(renderMe).catch(() => {});            // re-warm for this identity → show their progress
   if (selNpc) { selNpc._npcId = null; if (railTab === 'story') renderRail(); }
 }
 renderAuth();
+ensureStory().then(renderMe).catch(() => {});               // returning players see their progress on load
 auth.init().then(() => { const u = auth.getUser(); if (u) setUser(u); }).catch(() => { /* anonymous */ });
 function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }
 function renderRail() {
@@ -640,7 +654,8 @@ async function renderStory(n) {
   const res = storyInteract(store, PLAYER, n.addr); persistStory();   // crystallize/recall mutates → save
   if (!res.item) { body.innerHTML = '<div class="end">an ordinary resident — no tale has crystallized here</div><div class="meta">⌂ ' + n.addr + ' · <span class="w" data-nuke style="cursor:pointer">⟲ reset</span></div>'; wireNuke(body); return; }
   n._npcId = res.item.content_item_id;
-  drawDialogue(n, body);
+  const up = res.leveled && res.leveled.leveled;            // crystallizing a new resident granted a tier
+  drawDialogue(n, body, up ? '▲ reached tier ' + up.to : null);
 }
 function drawDialogue(n, body, note) {
   const store = storyStore, t = storyTalk(store, PLAYER, n._npcId);
