@@ -35,7 +35,7 @@ const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
 const E = makeEden(SEED), TILE = E.TILE;
 const sp = E.spawn();
 const AT = { gx: sp.gx, gy: sp.gy };                        // global world coords
-let target = null, zoom = 0.7;
+let path = null, zoom = 0.7;                                // path = {pts, seg, total, t}
 const SPEED = 240;
 
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -78,7 +78,7 @@ function draw() {
   }
   drawCritters(x0, x1, y0, y1);
   // route hint + you
-  if (target) { ctx.strokeStyle = 'rgba(255,217,138,.4)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 6 / z]); ctx.beginPath(); ctx.moveTo(AT.gx, AT.gy); ctx.lineTo(target.gx, target.gy); ctx.stroke(); ctx.setLineDash([]); }
+  if (path) { ctx.strokeStyle = 'rgba(255,217,138,.45)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 6 / z]); ctx.beginPath(); ctx.moveTo(AT.gx, AT.gy); let acc = 0; for (let i = 1; i < path.pts.length; i++) { acc += path.seg[i - 1]; if (acc > path.t) ctx.lineTo(path.pts[i][0], path.pts[i][1]); } ctx.stroke(); ctx.setLineDash([]); }
   ctx.fillStyle = '#ffe9a8'; ctx.shadowColor = 'rgba(255,217,138,.9)'; ctx.shadowBlur = 12; ctx.font = 'bold 17px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.gx, AT.gy); ctx.shadowBlur = 0;
 }
 
@@ -111,18 +111,39 @@ function driftCritters(dt, x0, x1, y0, y1) {
   for (let az = tileOf(x0); az <= tileOf(x1); az++) for (let ax = tileOf(y0); ax <= tileOf(y1); ax++) for (const n of crittersOf(az, ax)) { n.ph += dt * 3; n.ang += (Math.random() - 0.5) * dt * 2; const tx = n.hx + Math.cos(n.ang) * 30, ty = n.hy + Math.sin(n.ang) * 30; if (E.passable(tx, ty)) { n.gx += (tx - n.gx) * Math.min(1, dt * 0.5); n.gy += (ty - n.gy) * Math.min(1, dt * 0.5); } }
 }
 
-// ── input + open movement (free; blocked only by water/trees; slide along edges) ──
-cv.addEventListener('click', (e) => { target = { gx: (e.clientX - W / 2) / zoom + AT.gx, gy: (e.clientY - H / 2) / zoom + AT.gy }; });
+// ── input + grid-A* movement: autoroute BETWEEN the trees and around water (to the bridges) ──
+cv.addEventListener('click', (e) => pathTo((e.clientX - W / 2) / zoom + AT.gx, (e.clientY - H / 2) / zoom + AT.gy));
 addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.25, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); }, { passive: false });
+function minHeap() { const a = []; const up = (i) => { while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break;[a[p], a[i]] = [a[i], a[p]]; i = p; } }; const down = (i) => { for (;;) { let l = i * 2 + 1, r = l + 1, s = i; if (l < a.length && a[l][0] < a[s][0]) s = l; if (r < a.length && a[r][0] < a[s][0]) s = r; if (s === i) break;[a[s], a[i]] = [a[i], a[s]]; i = s; } }; return { push(d, n) { a.push([d, n]); up(a.length - 1); }, pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; down(0); } return t; }, size: () => a.length }; }
+function clearLine(a, b) { const d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.ceil(d / 6); for (let i = 1; i < n; i++) { const t = i / n; if (!E.passable(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; }
+function stringPull(pts) { if (pts.length < 3) return pts; const out = [pts[0]]; let anchor = 0; for (let i = 2; i < pts.length; i++) if (!clearLine(pts[anchor], pts[i])) { out.push(pts[i - 1]); anchor = i - 1; } out.push(pts[pts.length - 1]); return out; }
+function pathTo(tx, ty) {
+  const CELL = 8, MAR = 6 * CELL, CAP = 1500;
+  let gx = tx, gy = ty; const dd = Math.hypot(tx - AT.gx, ty - AT.gy) || 1; if (dd > CAP) { gx = AT.gx + (tx - AT.gx) / dd * CAP; gy = AT.gy + (ty - AT.gy) / dd * CAP; }
+  const minx = Math.min(AT.gx, gx) - MAR, miny = Math.min(AT.gy, gy) - MAR, maxx = Math.max(AT.gx, gx) + MAR, maxy = Math.max(AT.gy, gy) + MAR;
+  const C = Math.ceil((maxx - minx) / CELL), Rr = Math.ceil((maxy - miny) / CELL), N = C * Rr;
+  const pass = new Uint8Array(N); for (let cy = 0; cy < Rr; cy++) for (let cx = 0; cx < C; cx++) pass[cy * C + cx] = E.passable(minx + (cx + 0.5) * CELL, miny + (cy + 0.5) * CELL) ? 1 : 0;
+  const snap = (wx, wy) => { let cx = Math.min(C - 1, Math.max(0, Math.floor((wx - minx) / CELL))), cy = Math.min(Rr - 1, Math.max(0, Math.floor((wy - miny) / CELL))); if (pass[cy * C + cx]) return cy * C + cx; for (let r = 1; r < 16; r++) for (let a = -r; a <= r; a++) for (let b = -r; b <= r; b++) { const nx = cx + a, ny = cy + b; if (nx >= 0 && ny >= 0 && nx < C && ny < Rr && pass[ny * C + nx]) return ny * C + nx; } return cy * C + cx; };
+  const S = snap(AT.gx, AT.gy), T = snap(gx, gy), ex = T % C, ey = T / C | 0;
+  const g = new Float64Array(N).fill(Infinity), came = new Int32Array(N).fill(-1), heur = (u) => Math.hypot(u % C - ex, (u / C | 0) - ey) * CELL;
+  const open = minHeap(); g[S] = 0; open.push(heur(S), S);
+  const D = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4142], [1, -1, 1.4142], [-1, 1, 1.4142], [-1, -1, 1.4142]];
+  let found = false, exp = 0;
+  while (open.size()) { const u = open.pop()[1]; if (u === T) { found = true; break; } if (++exp > 90000) break; const ux = u % C, uy = u / C | 0;
+    for (const [dx, dy, w] of D) { const nx = ux + dx, ny = uy + dy; if (nx < 0 || ny < 0 || nx >= C || ny >= Rr) continue; const v = ny * C + nx; if (!pass[v]) continue; if (dx && dy && (!pass[uy * C + nx] || !pass[ny * C + ux])) continue; const ng = g[u] + w * CELL; if (ng < g[v]) { g[v] = ng; came[v] = u; open.push(ng + heur(v), v); } } }
+  let end = T; if (!found) { let bd = Infinity; for (let u = 0; u < N; u++) if (g[u] < Infinity) { const d = Math.hypot(u % C - ex, (u / C | 0) - ey); if (d < bd) { bd = d; end = u; } } }
+  const cells = []; for (let u = end; u >= 0; u = came[u]) cells.push(u); cells.reverse();
+  if (cells.length < 2) { path = null; return; }
+  let pts = cells.map((u) => [minx + (u % C + 0.5) * CELL, miny + ((u / C | 0) + 0.5) * CELL]); pts[0] = [AT.gx, AT.gy];
+  pts = stringPull(pts);
+  const seg = []; let total = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  path = { pts, seg, total, t: 0 };
+}
 function step(dt) {
-  if (!target) return;
-  const dx = target.gx - AT.gx, dy = target.gy - AT.gy, d = Math.hypot(dx, dy);
-  if (d < 5) { target = null; return; }
-  const s = Math.min(d, SPEED * dt), ux = dx / d, uy = dy / d;
-  if (E.passable(AT.gx + ux * s, AT.gy + uy * s)) { AT.gx += ux * s; AT.gy += uy * s; }
-  else if (E.passable(AT.gx + ux * s, AT.gy)) AT.gx += ux * s;        // slide along the edge (shore / treeline)
-  else if (E.passable(AT.gx, AT.gy + uy * s)) AT.gy += uy * s;
-  else target = null;
+  if (!path) return; path.t += SPEED * dt; const { pts, seg, total } = path;
+  if (path.t >= total) { AT.gx = pts[pts.length - 1][0]; AT.gy = pts[pts.length - 1][1]; path = null; return; }
+  let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < path.t) { acc += seg[i - 1]; i++; }
+  const f = (path.t - acc) / seg[i - 1]; AT.gx = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; AT.gy = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f;
 }
 
 // ── prefetch tiles ahead so the 60ms forest-gen never lands mid-frame ──
