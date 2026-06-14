@@ -721,11 +721,11 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/item-sprites-characteristics-xfxyd1",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — FIXED (zoom-bucket): config renamed mega-minomobi -> mega + custom_domain route (mega.mino.mobi). Was deploying stray worker mega-minomobi. CLEANUP: delete the orphan `mega-minomobi` worker.",
-      "note": "Megaproject dashboard — global infrastructure tracker. Static worker-assets (Worker `mega-minomobi`).",
+      "status": "MANAGED — owned by claude/item-sprites-characteristics-xfxyd1 (sprite-engine takeover). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
+      "note": "Megaproject dashboard + the sprite engine (procedural item sprites + characteristics engine at /sprite/item/, consumed by hoop). Static worker-assets (Worker `mega`).",
       "paths": [
         "mega/**"
       ]

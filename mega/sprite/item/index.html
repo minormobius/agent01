@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Item Sprites — the sprite engine</title>
+<meta name="description" content="Procedural, deterministic item sprites + an item characteristics engine. Roll a seed; get a kind × material × quality × affixes item, scored and drawn. Consumed by hoop.">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --void:#05060a; --panel:#0a0e12; --panel2:#0f141a; --border:#1b2530;
+    --ink:#dfe7e2; --dim:#7a8894; --gold:#f4bf62; --teal:#7fd8d0; --accent:#e0772f;
+    --mono:'SF Mono','Cascadia Code','Fira Code',ui-monospace,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  html,body{height:100%}
+  body{background:radial-gradient(120% 120% at 50% -10%,#0b1117 0%,var(--void) 60%);color:var(--ink);font-family:var(--sans);
+    background-attachment:fixed; -webkit-font-smoothing:antialiased; line-height:1.5;
+    /* faint scanline overlay — the dark-ship aesthetic */
+    background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,0.012) 0 1px,transparent 1px 3px);}
+  a{color:var(--teal);text-decoration:none} a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 20px 60px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:20px}
+  header h1{font-size:20px;font-weight:700;letter-spacing:.3px}
+  header .crumb{font-family:var(--mono);font-size:12px;color:var(--dim)}
+  header .crumb a{color:var(--dim)}
+  header .spacer{flex:1}
+  header .tag{font-family:var(--mono);font-size:11px;color:var(--dim);border:1px solid var(--border);padding:3px 8px;border-radius:6px}
+  .lede{color:var(--dim);font-size:13.5px;max-width:760px;margin:-6px 0 22px}
+  .lede code{font-family:var(--mono);color:var(--teal);font-size:12.5px}
+
+  .stage{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
+  @media(max-width:780px){.stage{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--border);border-radius:12px}
+
+  /* hero */
+  .hero{padding:18px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .hero canvas{image-rendering:pixelated;border-radius:10px;background:
+     radial-gradient(60% 60% at 50% 42%,rgba(255,255,255,.04),transparent 70%),#070a0e;
+     border:1px solid var(--border)}
+  .hero .nm{font-size:17px;font-weight:700;text-align:center;line-height:1.25}
+  .hero .sub{font-family:var(--mono);font-size:11.5px;color:var(--dim);text-align:center}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .badge{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid}
+  .grade{font-weight:700}
+  .worth{font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .head{font-size:12.5px;color:var(--dim);text-align:center;font-style:italic;min-height:34px}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 18px;align-items:center}
+  button,.seedbox input{font-family:var(--mono);font-size:13px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--teal);color:#fff}
+  button.primary{background:linear-gradient(180deg,#3a2a14,#241a0c);border-color:#5a431f;color:var(--gold)}
+  button.primary:hover{border-color:var(--gold)}
+  .seedbox{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:2px 4px 2px 10px}
+  .seedbox label{font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .seedbox input{width:120px;background:transparent;border:0;color:var(--ink);padding:7px 4px;outline:none}
+
+  .hoard{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .hoard .pill{padding:5px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer;color:var(--ink)}
+  .hoard .pill.on{border-color:var(--gold);color:var(--gold)}
+  .hoard .info{color:var(--dim)}
+
+  /* stat bars */
+  .stats{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-family:var(--mono);font-size:12px;margin-top:4px}
+  .stats .lab{color:var(--dim);text-transform:capitalize}
+  .bar{height:8px;background:#0c1218;border:1px solid var(--border);border-radius:4px;overflow:hidden}
+  .bar > i{display:block;height:100%}
+  .stats .val{color:var(--ink);text-align:right;min-width:42px}
+  .affix{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .affix .a{font-family:var(--mono);font-size:11px;color:var(--gold);border:1px solid #5a431f;background:#1a130a;border-radius:6px;padding:3px 8px}
+  .affix .none{color:var(--dim);font-size:11.5px;font-family:var(--mono)}
+
+  /* grid */
+  .gridhead{display:flex;align-items:baseline;gap:10px;margin:26px 0 10px}
+  .gridhead h2{font-size:14px;font-weight:600;letter-spacing:.3px}
+  .gridhead .meta{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .gridhead .spacer{flex:1}
+  #grid{background:#070a0e;border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;width:100%;display:block}
+  .foot{margin-top:34px;border-top:1px solid var(--border);padding-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .foot b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / sprite / <span style="color:var(--ink)">item</span></div>
+    <div class="spacer"></div>
+    <span class="tag" id="seedtag">seed —</span>
+    <span class="tag">sprite engine · v1</span>
+  </header>
+
+  <h1 style="font-size:24px;font-weight:800;letter-spacing:.2px;margin-bottom:6px">Item Sprites</h1>
+  <p class="lede">A procedural, deterministic item engine. A seed rolls a <b>kind × material × quality × affixes</b>
+    item — appraised by an oracle into a <code>worth</code> and a grade — and drawn as a 32&times;32 sprite, no AI, no
+    network. Same seed, same item, for ever (so <code>?n=</code> is a permalink). The catalog mirrors hoop's
+    <code>econ</code> deck → roll → oracle → genome arc; <b>hoards</b> are the item-genome groundwork. Built to feed
+    <a href="https://hoop.mino.mobi">/hoop</a>.</p>
+
+  <div class="stage">
+    <!-- HERO -->
+    <div class="card hero">
+      <canvas id="hero" width="240" height="240"></canvas>
+      <div class="nm" id="nm">—</div>
+      <div class="sub" id="sub">—</div>
+      <div class="badges" id="badges"></div>
+      <div class="head" id="head"></div>
+    </div>
+
+    <!-- INSPECTOR -->
+    <div>
+      <div class="controls">
+        <button class="primary" id="roll">🎲 Roll</button>
+        <button id="prev">‹ prev</button>
+        <button id="next">next ›</button>
+        <span class="seedbox"><label>seed</label><input id="seed" inputmode="numeric" /></span>
+        <button id="forge">forge</button>
+        <button id="copy">⧉ link</button>
+      </div>
+
+      <div class="hoard">
+        <span>Hoard:</span>
+        <span class="pill" id="hoard-wild" data-h="wild">⌂ wild</span>
+        <span class="pill" id="hoard-roll">🧬 roll hoard</span>
+        <span class="info" id="hoardinfo"></span>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="affix" id="affix"></div>
+
+      <div class="gridhead">
+        <h2>The hoard</h2>
+        <span class="meta" id="gridmeta"></span>
+        <span class="spacer"></span>
+        <button id="gprev" style="padding:5px 10px">‹</button>
+        <button id="gnext" style="padding:5px 10px">›</button>
+      </div>
+      <canvas id="grid" width="1000" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>How it works.</b> <code>items.js</code> is the characteristics engine (the deck of KINDS, MATERIALS, QUALITY,
+    AFFIXES + <code>rollItem</code> + the <code>scoreItem</code> oracle + <code>rollGenome</code>); <code>sprite.js</code>
+    draws each kind's silhouette tinted by material, framed by rarity, decorated by affix. Both are pure and
+    node-tested (<code>test/*.selftest.mjs</code>). Next: per-kind silhouette <b>genes</b>, mutation, and lineage —
+    item genomes.
+  </div>
+</div>
+
+<script type="module">
+import { rollItem, rollGenome, DEFAULT_GENOME, KINDS, MATERIALS, QUALITY, GRADES, AXES } from './items.js';
+import { drawItem } from './sprite.js';
+
+const $ = (id) => document.getElementById(id);
+const REF = { weight: 8, value: 150, durability: 120, potency: 130, lore: 140 };
+const GRID_N = 40, COLS = 10;
+
+const state = {
+  n: 1, genomeSeed: null /* null = wild type */,
+  get genome() { return this.genomeSeed == null ? DEFAULT_GENOME : rollGenome(this.genomeSeed); },
+};
+
+function fromURL() {
+  const p = new URLSearchParams(location.search);
+  const n = parseInt(p.get('n'), 10); if (Number.isFinite(n)) state.n = n >>> 0;
+  const h = p.get('hoard'); if (h === 'wild' || h == null) state.genomeSeed = null;
+  else { const hs = parseInt(h, 10); if (Number.isFinite(hs)) state.genomeSeed = hs >>> 0; }
+}
+function toURL(replace) {
+  const p = new URLSearchParams();
+  p.set('n', state.n);
+  if (state.genomeSeed != null) p.set('hoard', state.genomeSeed);
+  const url = location.pathname + '?' + p.toString();
+  history[replace ? 'replaceState' : 'pushState']({}, '', url);
+}
+
+function gradeColor(id) { return (GRADES.find((g) => g.id === id) || {}).color || '#888'; }
+
+function renderHero(it) {
+  const cv = $('hero'), ctx = cv.getContext('2d'); ctx.clearRect(0, 0, cv.width, cv.height);
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== 240 * dpr) { cv.width = cv.height = 240 * dpr; cv.style.width = cv.style.height = '240px'; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, 240, 240);
+  ctx.imageSmoothingEnabled = false;
+  drawItem(ctx, it, { x: 20, y: 20, size: 200 });
+
+  $('nm').textContent = it.name;
+  $('nm').style.color = QUALITY.find((q) => q.id === it.quality).frame;
+  $('sub').textContent = `${it.glyph}  ${cap(it.kind)} · ${MATERIALS[it.material].name} · ${KINDS[it.kind].slot}`;
+  $('seedtag').textContent = 'seed ' + it.n;
+
+  const q = QUALITY.find((x) => x.id === it.quality);
+  $('badges').innerHTML =
+    `<span class="badge" style="color:${q.frame};border-color:${q.frame}">${q.label}</span>` +
+    `<span class="badge grade" style="color:${gradeColor(it.grade)};border-color:${gradeColor(it.grade)}">${it.gradeLabel}</span>` +
+    `<span class="badge worth" style="border-color:var(--border)">worth ${it.worth}</span>`;
+  $('head').textContent = it.headline;
+
+  // stat bars
+  $('stats').innerHTML = AXES.map((a) => {
+    const v = it.stats[a], frac = Math.max(0.03, Math.min(1, v / REF[a]));
+    const col = a === 'weight' ? '#6b7a82' : it.accent;
+    return `<span class="lab">${a}</span><span class="bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${col}"></i></span><span class="val">${v}</span>`;
+  }).join('');
+
+  $('affix').innerHTML = it.affixes.length
+    ? it.affixes.map((a) => `<span class="a">${a}</span>`).join('')
+    : `<span class="none">no affixes — a plain piece</span>`;
+
+  $('seed').value = it.n;
+}
+
+function renderGrid() {
+  const base = Math.floor(state.n / GRID_N) * GRID_N;
+  const items = []; for (let i = 0; i < GRID_N; i++) items.push(rollItem(base + i, state.genome));
+  const cv = $('grid'); const cell = 84, gap = 6, pad = 8;
+  const rows = Math.ceil(GRID_N / COLS);
+  const dpr = window.devicePixelRatio || 1;
+  const W = COLS * (cell + gap) + pad * 2, H = rows * (cell + gap) + pad * 2;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.maxWidth = W + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#070a0e'; ctx.fillRect(0, 0, W, H);
+  items.forEach((it, i) => {
+    const cx = pad + (i % COLS) * (cell + gap), cy = pad + Math.floor(i / COLS) * (cell + gap);
+    if (base + i === state.n) { ctx.fillStyle = 'rgba(244,191,98,.10)'; ctx.fillRect(cx - 2, cy - 2, cell + 4, cell + 4);
+      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 1.5; ctx.strokeRect(cx - 2, cy - 2, cell + 4, cell + 4); }
+    drawItem(ctx, it, { x: cx, y: cy, size: cell });
+  });
+  cv._meta = { base, cell, gap, pad };
+  $('gridmeta').textContent = `seeds ${base}–${base + GRID_N - 1}`;
+  $('hoardinfo').textContent = state.genomeSeed == null ? '· wild type (the hand-tuned mix)' : `· #${state.genomeSeed} — ${state.genome.archetype}`;
+  $('hoard-wild').classList.toggle('on', state.genomeSeed == null);
+}
+
+function render(push) {
+  const it = rollItem(state.n, state.genome);
+  renderHero(it); renderGrid(); toURL(!push);
+}
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const rand32 = () => (Math.random() * 2 ** 32) >>> 0;   // the only unseeded roll: picks WHICH deterministic page
+
+// events
+$('roll').onclick = () => { state.n = rand32(); render(true); };
+$('prev').onclick = () => { state.n = (state.n - 1) >>> 0; render(true); };
+$('next').onclick = () => { state.n = (state.n + 1) >>> 0; render(true); };
+$('forge').onclick = () => { const v = parseInt($('seed').value, 10); if (Number.isFinite(v)) { state.n = v >>> 0; render(true); } };
+$('seed').onkeydown = (e) => { if (e.key === 'Enter') $('forge').click(); };
+$('copy').onclick = async () => { try { await navigator.clipboard.writeText(location.href); $('copy').textContent = '✓ copied'; setTimeout(() => $('copy').textContent = '⧉ link', 1200); } catch {} };
+$('hoard-wild').onclick = () => { state.genomeSeed = null; render(true); };
+$('hoard-roll').onclick = () => { state.genomeSeed = rand32(); render(true); };
+$('gprev').onclick = () => { state.n = Math.max(0, Math.floor(state.n / GRID_N) * GRID_N - GRID_N) >>> 0; render(true); };
+$('gnext').onclick = () => { state.n = (Math.floor(state.n / GRID_N) * GRID_N + GRID_N) >>> 0; render(true); };
+
+$('grid').onclick = (e) => {
+  const cv = $('grid'), m = cv._meta; if (!m) return;
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (parseFloat(cv.style.maxWidth) / r.width || 1);
+  const y = (e.clientY - r.top) * (parseFloat(cv.style.maxWidth) / r.width || 1);
+  const col = Math.floor((x - m.pad) / (m.cell + m.gap)), row = Math.floor((y - m.pad) / (m.cell + m.gap));
+  if (col < 0 || col >= COLS || row < 0) return;
+  const idx = row * COLS + col; if (idx >= GRID_N) return;
+  state.n = (m.base + idx) >>> 0; render(true);
+};
+window.onpopstate = () => { fromURL(); render(false); };
+
+fromURL(); render(false);
+</script>
+</body>
+</html>
