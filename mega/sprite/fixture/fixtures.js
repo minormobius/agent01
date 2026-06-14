@@ -34,6 +34,7 @@ const jcol = (rng, base, dh = 8, dl = 8) => ({ h: base.h + (rng() - 0.5) * dh, s
 function box(ctx, x, y, w, h, col, lit, lw) { ctx.fillStyle = hsl(col.h, col.s, col.l * lit); ctx.fillRect(x, y, w, h); ctx.strokeStyle = hsl(MAT.dark.h, MAT.dark.s, MAT.dark.l * lit * 0.8); ctx.lineWidth = lw; ctx.strokeRect(x, y, w, h); }
 function poly(ctx, pts, col, lit, lw) { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); ctx.fillStyle = hsl(col.h, col.s, col.l * lit); ctx.fill(); if (lw) { ctx.strokeStyle = hsl(MAT.dark.h, MAT.dark.s, MAT.dark.l * lit * 0.8); ctx.lineWidth = lw; ctx.stroke(); } }
 function disc(ctx, cx, cy, r, col, lit) { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = hsl(col.h, col.s, col.l * lit); ctx.fill(); }
+function circleFill(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }   // fill at the current fillStyle
 function glow(ctx, cx, cy, r, hue) { for (let i = 3; i >= 1; i--) { ctx.beginPath(); ctx.arc(cx, cy, r * i / 1.6, 0, Math.PI * 2); ctx.fillStyle = hsl(hue, 95, 58, 0.14 + (3 - i) * 0.05); ctx.fill(); } }
 function contact(ctx, w, lit) { ctx.beginPath(); ctx.ellipse(0, 0, w, w * 0.34, 0, 0, Math.PI * 2); ctx.fillStyle = `rgba(0,0,0,${0.22 * lit})`; ctx.fill(); }   // soft ground ellipse
 
@@ -155,12 +156,37 @@ export const FIXTURE_TYPES = Object.keys(FIXTURES);
 
 export function fixtureModel(type, rng) { const f = FIXTURES[type]; return f ? f.model(rng) : null; }
 
+// ── DETAIL PASS — first-order embellishment drawn over the base body at higher zoom, so fixtures ──
+// read against the busy painted foam floor. Seeded off a separate stream (grainSeed^0x55) so it
+// doesn't disturb the base body's own seeded features; gated on `detail` so it's free when small.
+function grainV(ctx, x, w, y0, y1, col, lit, rng, n) { ctx.strokeStyle = hsl(col.h, col.s, (col.l - 12) * lit, 0.5); ctx.lineWidth = LW * 0.6; for (let i = 0; i < n; i++) { const gx = x + rng() * w; ctx.beginPath(); ctx.moveTo(gx, y0); ctx.lineTo(gx, y1); ctx.stroke(); } }
+function mottle(ctx, cx, cy, r, col, lit, rng, n) { for (let i = 0; i < n; i++) { const a = rng() * 6.28, d = rng() * r; ctx.fillStyle = hsl(col.h, col.s, (col.l + (rng() - 0.5) * 22) * lit, 0.5); disc(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d, r * 0.09, { h: col.h, s: col.s, l: (col.l + (rng() - 0.5) * 22) }, lit); } }
+function rivets(ctx, pts, lit) { ctx.fillStyle = hsl(0, 0, 78 * lit, 0.8); for (const [x, y] of pts) circleFill(ctx, x, y, LW * 1.1); }
+const DETAIL = {
+  barrel(ctx, m, lit, d) { const w = m.w, h = m.h, rng = mulberry32((m.grainSeed ^ 0x55) >>> 0); grainV(ctx, -w * 0.4, w * 0.8, -h * 0.1, -h * 0.9, m.col, lit, rng, 3 + Math.round(d * 3)); ctx.fillStyle = hsl(MAT.dark.h, MAT.dark.s, MAT.dark.l * lit); circleFill(ctx, w * 0.18, -h * 0.16, LW * 1.4); },   // grain + a tap
+  crate(ctx, m, lit) { rivets(ctx, [[-m.w / 2 + LW, -m.h + LW], [m.w / 2 - LW, -m.h + LW], [-m.w / 2 + LW, -LW], [m.w / 2 - LW, -LW]], lit); ctx.strokeStyle = hsl(MAT.pale.h, 20, 60 * lit, 0.5); ctx.lineWidth = LW * 0.6; ctx.strokeRect(-m.w * 0.18, -m.h * 0.66, m.w * 0.36, m.h * 0.28); },   // nailheads + stencil
+  shelf(ctx, m, lit, d) { const rng = mulberry32((m.grainSeed ^ 0x55) >>> 0); grainV(ctx, -m.w / 2, LW * 2, -m.h, 0, m.col, lit, rng, 1); ctx.strokeStyle = hsl(MAT.pale.h, 20, 64 * lit, 0.5); ctx.lineWidth = LW * 0.7; ctx.beginPath(); ctx.moveTo(-m.w / 2, -m.h); ctx.lineTo(m.w / 2, -m.h); ctx.stroke(); },   // post grain + top highlight
+  loom(ctx, m, lit) { disc(ctx, m.w * 0.05, -m.h * 0.6, LW * 2, MAT.dark, lit); ctx.strokeStyle = hsl(m.cloth.h, m.cloth.s, (m.cloth.l + 16) * lit, 0.6); ctx.lineWidth = LW * 0.6; ctx.beginPath(); ctx.moveTo(-m.w * 0.4, -m.h * 0.2); ctx.lineTo(m.w * 0.4, -m.h * 0.2); ctx.stroke(); },   // a shuttle + weft line
+  anvil(ctx, m, lit) { const w = m.w; ctx.strokeStyle = hsl(MAT.wood.h, MAT.wood.s, MAT.wood.l * lit); ctx.lineWidth = LW * 1.8; ctx.beginPath(); ctx.moveTo(-w * 0.42, -0.02); ctx.lineTo(-w * 0.5, -0.5); ctx.stroke(); ctx.fillStyle = hsl(MAT.iron.h, MAT.iron.s, MAT.iron.l * lit); ctx.fillRect(-w * 0.56, -0.56, w * 0.16, 0.08); ctx.fillStyle = hsl(0, 0, 82 * lit, 0.7); ctx.fillRect(-w * 0.3, -0.71, w * 0.4, 0.02); },   // a leaning hammer + face sheen
+  furnace(ctx, m, lit, d) { const w = m.w, h = m.h, rng = mulberry32((m.grainSeed ^ 0x55) >>> 0); ctx.strokeStyle = hsl(m.col.h, m.col.s, (m.col.l - 14) * lit, 0.6); ctx.lineWidth = LW * 0.7; for (let k = 1; k <= 2 + Math.round(d * 2); k++) { const yy = -h * k / 4; ctx.beginPath(); ctx.moveTo(-w * 0.36 + h * k / 8, yy); ctx.lineTo(w * 0.36 - h * k / 8, yy); ctx.stroke(); } mottle(ctx, 0, -h * 0.7, w * 0.3, m.col, lit, rng, 4); },   // brick courses + soot
+  hearth(ctx, m, lit) { const w = m.w, h = m.h, rng = mulberry32((m.grainSeed ^ 0x55) >>> 0); mottle(ctx, 0, -h * 0.5, w * 0.4, m.col, lit, rng, 5); ctx.strokeStyle = hsl(MAT.iron.h, MAT.iron.s, MAT.iron.l * lit); ctx.lineWidth = LW; ctx.beginPath(); ctx.moveTo(0, -h); ctx.lineTo(0, -h - 0.2); ctx.stroke(); disc(ctx, 0, -h - 0.14, LW * 2.2, MAT.dark, lit); },   // stone mottle + a pot-hook
+  brazier(ctx, m, lit) { const R = m.r, H = m.legH; rivets(ctx, [[-R * 0.7, -0.02], [R * 0.7, -0.02], [0, -H + R * 0.4]], lit); ctx.strokeStyle = hsl(m.col.h, m.col.s, (m.col.l + 18) * lit, 0.6); ctx.lineWidth = LW * 0.7; ctx.beginPath(); ctx.moveTo(-R, -H); ctx.lineTo(R, -H); ctx.stroke(); },   // foot caps + bowl rim
+  altar(ctx, m, lit, d) { const w = m.w, h = m.h, rng = mulberry32((m.grainSeed ^ 0x55) >>> 0); mottle(ctx, 0, -h * 0.5, w * 0.42, m.col, lit, rng, 4); ctx.strokeStyle = hsl(m.cloth.h, m.cloth.s, (m.cloth.l - 12) * lit, 0.7); ctx.lineWidth = LW * 0.7; ctx.beginPath(); ctx.moveTo(-w * 0.3, -h * 0.5); ctx.lineTo(w * 0.3, -h * 0.5); ctx.stroke(); },   // carved face + runner seam
+  lectern(ctx, m, lit) { ctx.save(); ctx.translate(0, -m.h * 0.7); ctx.rotate(-0.5); ctx.strokeStyle = hsl(MAT.cloth.h, MAT.cloth.s, MAT.cloth.l * lit); ctx.lineWidth = LW * 0.6; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-0.16, 0.04 + i * 0.06); ctx.lineTo(0.16, 0.04 + i * 0.06); ctx.stroke(); } ctx.strokeStyle = hsl(350, 50, 46 * lit); ctx.lineWidth = LW; ctx.beginPath(); ctx.moveTo(0.1, 0); ctx.lineTo(0.12, 0.18); ctx.stroke(); ctx.restore(); },   // text lines + a page ribbon
+  cot(ctx, m, lit, d) { const w = m.w, rng = mulberry32((m.grainSeed ^ 0x55) >>> 0); grainV(ctx, -w / 2, w, -0.24, -0.02, m.col, lit, rng, 2); ctx.strokeStyle = hsl(m.sheet.h, m.sheet.s, (m.sheet.l - 14) * lit, 0.6); ctx.lineWidth = LW * 0.7; ctx.beginPath(); ctx.moveTo(-w * 0.1, -0.34); ctx.lineTo(w * 0.4, -0.34); ctx.stroke(); },   // frame grain + blanket fold
+  planter(ctx, m, lit) { const w = m.w; ctx.fillStyle = hsl(24, 30, 22 * lit, 0.8); ctx.fillRect(-w * 0.4, -0.26, w * 0.8, 0.05); ctx.strokeStyle = hsl(m.col.h, m.col.s, (m.col.l + 12) * lit, 0.6); ctx.lineWidth = LW * 0.7; ctx.beginPath(); ctx.moveTo(-w * 0.42, -0.28); ctx.lineTo(w * 0.42, -0.28); ctx.stroke(); },   // soil line + rim
+  stool(ctx, m, lit) { const w = m.w, h = m.h; ctx.strokeStyle = hsl(m.col.h, m.col.s, (m.col.l - 10) * lit, 0.7); ctx.lineWidth = LW * 1.1; ctx.beginPath(); ctx.moveTo(-w * 0.32, -h * 0.5); ctx.lineTo(w * 0.32, -h * 0.5); ctx.stroke(); },   // a cross-stretcher
+  banner(ctx, m, lit) { const h = m.h, w = m.w; ctx.strokeStyle = hsl(m.col.h, m.col.s, (m.col.l - 16) * lit, 0.6); ctx.lineWidth = LW * 0.6; for (const fx of [w * 0.25, w * 0.5, w * 0.75]) { ctx.beginPath(); ctx.moveTo(fx, -h); ctx.lineTo(fx, -h * 0.35); ctx.stroke(); } },   // pennon folds
+};
+
 // drawFixture — dispatch + frame setup (translate to ground point, scale to tile px, lean, light).
 export function drawFixture(ctx, fx, { x = 0, y = 0, t = 32, ang = 0, detail = 1, lit = 1 } = {}) {
   const f = FIXTURES[fx.type]; if (!f) return;
+  const L = cl(lit, 0.2, 1.25), d = cl(detail, 0, 1);
   ctx.save(); ctx.translate(x, y); if (ang) ctx.rotate(ang); ctx.scale(t, t);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  f.draw(ctx, fx.model, cl(lit, 0.2, 1.25), cl(detail, 0, 1));
+  f.draw(ctx, fx.model, L, d);
+  if (d > 0.45 && DETAIL[fx.type]) DETAIL[fx.type](ctx, fx.model, L, d);
   ctx.restore();
 }
 
@@ -198,6 +224,30 @@ export function furnish(role, rng, { w = 6, h = 6 } = {}) {
   return out;
 }
 
-const FIX = { FIXTURES, FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnish };
+// furnishScene(role, rng, scene) — IN SITU: place fixtures on the REAL foam floor cells produced by
+// voronoi.js buildScene (the same cells hoop v3 paints). Returns placements with PIXEL ground points
+// {type, model, x, y, ang}, spaced off each other and depth-sorted. `scene.floorNuclei` are the
+// non-wall seeds; we keep clear of doors and hold a minimum gap so furniture doesn't pile up.
+export function furnishScene(role, rng, scene, { fill = 1 } = {}) {
+  const F = FURNISH[role] || FURNISH.dwell;
+  const floors = (scene.floorNuclei || []).filter((p) => !p.door && p.room != null);
+  if (!floors.length) return [];
+  const target = Math.max(1, Math.round(floors.length * F.density * 0.7 * fill));
+  const order = floors.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = order[i]; order[i] = order[j]; order[j] = t; }
+  const minGap = (scene.roomSpacing || 12) * 1.05, g2 = minGap * minGap, used = [], out = [];
+  for (const i of order) {
+    if (out.length >= target) break;
+    const p = floors[i];
+    if (used.some((q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < g2)) continue;
+    used.push(p);
+    const type = wpick(rng, F.types);
+    out.push({ type, model: fixtureModel(type, rng), x: p.x, y: p.y, ang: (rng() - 0.5) * 0.12 });
+  }
+  out.sort((a, b) => a.y - b.y);
+  return out;
+}
+
+const FIX = { FIXTURES, FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnish, furnishScene };
 if (typeof globalThis !== 'undefined') globalThis.FIX = FIX;
 export default FIX;

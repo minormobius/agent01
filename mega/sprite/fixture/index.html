@@ -58,7 +58,7 @@
 
   <div class="controls">
     <button class="primary" id="reroll">🎲 reroll</button>
-    <span class="techctl">zoom <input type="range" id="zoom" min="20" max="64" value="40"><span id="zoomlab"></span></span>
+    <span class="techctl">zoom <input type="range" id="zoom" min="70" max="190" value="110"><span id="zoomlab"></span></span>
     <span class="techctl">light <input type="range" id="light" min="40" max="120" value="95"><span id="lightlab"></span></span>
     <button id="copy">⧉ link</button>
   </div>
@@ -70,51 +70,64 @@
   <canvas id="gallery" class="gallery"></canvas>
 
   <div class="foot">
-    <b>The piece.</b> <code>fixtures.js</code> is the library (14 types: <code>fixtureModel</code> + <code>draw</code>),
-    the <code>FURNISH</code> place→fixtures matrix, and <code>furnish(role, rng, {w,h})</code>. Zero imports — self-contained
-    to vendor. Node-tested (<code>test/fixtures.selftest.mjs</code>, 17 checks). The drop-in for hoop: place
-    <code>{type,model}</code> per chamber and call <code>drawFixture</code> beside <code>drawStalk</code>.
+    <b>The piece.</b> <code>fixtures.js</code> is the library (14 detailed types: <code>fixtureModel</code> + <code>draw</code> +
+    a zoom-gated detail pass), the <code>FURNISH</code> place→fixtures matrix, and <code>furnishScene(role, rng, scene)</code> —
+    which places fixtures on the <b>real foam floor</b> from <code>voronoi.js</code> (vendored verbatim from hoop/paint, the
+    same cells v3 paints). Node-tested (<code>test/fixtures.selftest.mjs</code>, 26 checks). The drop-in for hoop: vendor
+    <code>fixtures.js</code> into <code>ink.js</code> and call <code>furnishScene</code> + <code>drawFixture</code> beside
+    <code>drawStalk</code> over the chamber's existing <code>paintCells</code>.
   </div>
 </div>
 
 <script type="module">
-import { FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnish } from './fixtures.js';
+import { FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnishScene } from './fixtures.js';
+import { buildScene } from './voronoi.js';   // vendored from hoop/paint — the real foam-cell painter
 const $ = (id) => document.getElementById(id);
 const ROLES = Object.keys(FURNISH);
 const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-const RW = 9, RH = 6;
+const SW = 560, SH = 380;                     // chamber scene size (px)
+// canonical hoop civic-role colours (NPC-SPRITES / econ ROLES) — the floor tints by role like v3
+const ROLE_COLOR = { dwell: '#d9b24a', grow: '#5aa845', make: '#e0772f', mend: '#9b6b3a', trade: '#cf3b3b', serve: '#c853a0', play: '#3bb0c9', heal: '#dfe7e2', learn: '#5570d8', worship: '#b39bd8', govern: '#33408f', move: '#6b7a82', store: '#566066' };
+function hex2hsl(hex) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16) / 255, g = parseInt(c.slice(2, 4), 16) / 255, b = parseInt(c.slice(4, 6), 16) / 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s = 0, l = (mx + mn) / 2; if (mx !== mn) { const d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return [h, s * 100, l * 100]; }
 
-const state = { role: 'make', seed: 1, t: 40, light: 0.95 };
+const state = { role: 'make', seed: 1, zoom: 1.1, light: 0.95 };
 
 function fromURL() {
   const p = new URLSearchParams(location.search);
   if (ROLES.includes(p.get('role'))) state.role = p.get('role');
   const s = parseInt(p.get('seed'), 10); if (Number.isFinite(s)) state.seed = s >>> 0;
-  const z = parseInt(p.get('t'), 10); if (Number.isFinite(z)) { state.t = z; $('zoom').value = z; }
+  const z = parseInt(p.get('z'), 10); if (Number.isFinite(z)) { state.zoom = z / 100; $('zoom').value = z; }
 }
-function toURL() { const p = new URLSearchParams(); p.set('role', state.role); p.set('seed', state.seed); p.set('t', state.t); history.replaceState({}, '', location.pathname + '?' + p.toString()); }
+function toURL() { const p = new URLSearchParams(); p.set('role', state.role); p.set('seed', state.seed); p.set('z', Math.round(state.zoom * 100)); history.replaceState({}, '', location.pathname + '?' + p.toString()); }
 
 function setCanvas(cv, w, h) { const dpr = window.devicePixelRatio || 1; cv.width = w * dpr; cv.height = h * dpr; cv.style.maxWidth = w + 'px'; const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false; return ctx; }
+const polyPath = (ctx, p) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); };
 
 function renderChamber() {
-  const t = state.t, pad = 14, W = RW * t + pad * 2, H = RH * t + pad * 2;
-  const ctx = setCanvas($('chamber'), W, H);
-  ctx.fillStyle = '#070a0e'; ctx.fillRect(0, 0, W, H);
-  // chamber floor + a warm occluded light pool (brighter mid-room, falling off to the walls)
-  ctx.fillStyle = '#0b1014'; ctx.fillRect(pad, pad, RW * t, RH * t);
-  const cx = pad + RW * t * 0.5, cy = pad + RH * t * 0.46;
-  ctx.fillStyle = `rgba(244,200,140,${0.05 * state.light})`; ctx.beginPath(); ctx.ellipse(cx, cy, RW * t * 0.5, RH * t * 0.42, 0, 0, Math.PI * 2); ctx.fill();
-  const placed = furnish(state.role, mulberry32(state.seed >>> 0), { w: RW, h: RH });
-  for (const p of placed) {
-    const fx = pad + p.tx * t, fy = pad + p.ty * t;
-    const d = Math.hypot((p.tx / RW - 0.5) * 1.4, (p.ty / RH - 0.46) * 1.2);   // distance from light center
-    const lit = Math.max(0.45, Math.min(1.18, (state.light) * (1.05 - d)));
-    drawFixture(ctx, p, { x: fx, y: fy, t, ang: p.ang, detail: Math.min(1, t / 44), lit });
+  // build the REAL foam chamber (hoop v3's voronoi cells), tint by role, furnish in situ
+  const scene = buildScene({ W: SW, H: SH, wallSpacing: 9, roomSpacing: 26, roomSize: 130, loops: 0.15, seed: state.seed >>> 0 });
+  const placed = furnishScene(state.role, mulberry32((state.seed * 13 + 1) >>> 0), scene);
+  const Z = state.zoom, ctx = setCanvas($('chamber'), SW * Z, SH * Z); ctx.scale(Z, Z);
+  const [rh, rs] = hex2hsl(ROLE_COLOR[state.role] || '#888');
+  const cx = SW * 0.5, cy = SH * 0.46;
+  const litAt = (x, y) => Math.max(0.18, Math.min(1, state.light * (1.12 - Math.hypot((x - cx) / (SW * 0.55), (y - cy) / (SH * 0.5)))));
+  ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, SW, SH);
+  for (const c of scene.paintCells) {
+    if (c.poly.length < 3) continue;
+    const lf = litAt(c.x, c.y);
+    if (c.wall) ctx.fillStyle = `hsl(${rh} 10% 4%)`;
+    else if (c.door) ctx.fillStyle = `hsl(44 30% ${(12 + 10 * lf).toFixed(0)}%)`;
+    else if (c.room == null) ctx.fillStyle = '#070a0e';
+    else ctx.fillStyle = `hsl(${rh} ${Math.min(34, rs * 0.5).toFixed(0)}% ${(6.5 + 10 * lf).toFixed(1)}%)`;
+    polyPath(ctx, c.poly); ctx.fill();
+    if (!c.wall && c.room != null) { ctx.strokeStyle = 'rgba(20,28,34,0.5)'; ctx.lineWidth = 0.5; polyPath(ctx, c.poly); ctx.stroke(); }   // plate seam
   }
+  const t = scene.roomSpacing * 1.7, detail = Math.min(1, scene.roomSpacing * Z / 30);
+  for (const p of placed) drawFixture(ctx, p, { x: p.x, y: p.y, t, ang: p.ang, detail, lit: Math.max(0.5, Math.min(1.15, litAt(p.x, p.y) * 1.05)) });
   $('seedtag').textContent = 'seed ' + state.seed;
-  $('cap').textContent = `${state.role} chamber · ${placed.length} fixtures · ${[...new Set(placed.map((p) => p.type))].join(', ')}`;
+  $('cap').textContent = `${state.role} chamber · real foam cells (vendored voronoi) · ${placed.length} fixtures · ${[...new Set(placed.map((p) => p.type))].join(', ')}`;
   $('roles').querySelectorAll('.pill').forEach((el) => el.classList.toggle('on', el.dataset.role === state.role));
-  $('zoomlab').textContent = state.t + 'px'; $('lightlab').textContent = Math.round(state.light * 100);
+  $('zoomlab').textContent = Math.round(state.zoom * 100) + '%'; $('lightlab').textContent = Math.round(state.light * 100);
 }
 
 function renderGallery() {
@@ -138,7 +151,7 @@ function render() { renderChamber(); toURL(); }
 $('roles').innerHTML = ROLES.map((r) => `<span class="pill" data-role="${r}">${r}</span>`).join('');
 $('roles').querySelectorAll('.pill').forEach((el) => el.onclick = () => { state.role = el.dataset.role; render(); });
 $('reroll').onclick = () => { state.seed = (Math.random() * 2 ** 32) >>> 0; render(); };
-$('zoom').oninput = () => { state.t = +$('zoom').value; render(); };
+$('zoom').oninput = () => { state.zoom = (+$('zoom').value) / 100; render(); };
 $('light').oninput = () => { state.light = (+$('light').value) / 100; render(); };
 $('copy').onclick = async () => { try { await navigator.clipboard.writeText(location.href); $('copy').textContent = '✓'; setTimeout(() => $('copy').textContent = '⧉ link', 1000); } catch {} };
 

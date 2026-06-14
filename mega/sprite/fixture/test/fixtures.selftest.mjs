@@ -1,6 +1,7 @@
 // fixtures.selftest.mjs — pins the chamber-fixture library (mega/sprite/fixture/fixtures.js).
 // Pure-w.r.t.-ctx renderer, so we record the call log against a stub. Run: node …/fixtures.selftest.mjs
-import { FIXTURES, FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnish } from '../fixtures.js';
+import { FIXTURES, FIXTURE_TYPES, fixtureModel, drawFixture, FURNISH, furnish, furnishScene } from '../fixtures.js';
+import { buildScene } from '../voronoi.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -70,6 +71,28 @@ const render = (fx, o) => { const { ctx, log } = recCtx(); drawFixture(ctx, fx, 
   ok(furnish('store', mk(3), { w: 12, h: 12 }).length > furnish('store', mk(3), { w: 4, h: 4 }).length, 'a bigger chamber gets more fixtures');
   const p = furnish('make', mk(8), { w: 8, h: 8 });
   ok(p.every((x, i) => i === 0 || p[i - 1].ty <= x.ty), 'placements are depth-sorted back-to-front');
+}
+
+// ── the vendored voronoi kernel paints a real foam chamber ──
+{
+  const scene = buildScene({ W: 520, H: 360, wallSpacing: 9, roomSpacing: 26, roomSize: 120, seed: 1 });
+  ok(scene.paintCells.length > 50 && scene.paintCells.some((c) => c.wall) && scene.paintCells.some((c) => !c.wall && c.room != null), 'buildScene yields foam cells with walls + floor');
+  ok(Array.isArray(scene.floorNuclei) && scene.floorNuclei.length > 0, 'scene exposes floorNuclei to furnish on');
+  const a = buildScene({ W: 520, H: 360, wallSpacing: 9, roomSpacing: 26, roomSize: 120, seed: 1 });
+  ok(a.paintCells.length === scene.paintCells.length, 'buildScene is deterministic for a seed');
+}
+
+// ── furnishScene places fixtures IN SITU on the real foam floor ──
+{
+  const scene = buildScene({ W: 520, H: 360, wallSpacing: 9, roomSpacing: 26, roomSize: 120, seed: 3 });
+  const floorSet = new Set(scene.floorNuclei.filter((p) => !p.door && p.room != null).map((p) => p.x + ',' + p.y));
+  const placed = furnishScene('make', mk(5), scene);
+  ok(placed.length > 0, 'furnishScene places fixtures on the chamber floor');
+  ok(placed.every((p) => FURNISH.make.types.some((e) => e[0] === p.type)), 'furnishScene honours the role furniture set');
+  ok(placed.every((p) => floorSet.has(p.x + ',' + p.y)), 'every fixture sits on a real floor nucleus (never a wall/door)');
+  ok(placed.every((p) => typeof p.x === 'number' && typeof p.y === 'number'), 'placements carry pixel ground points');
+  ok(placed.every((p, i) => i === 0 || placed[i - 1].y <= p.y), 'in-situ placements are depth-sorted');
+  ok(JSON.stringify(furnishScene('worship', mk(9), scene)) === JSON.stringify(furnishScene('worship', mk(9), scene)), 'furnishScene is deterministic');
 }
 
 console.log(`fixtures.selftest: ${pass} passed, ${fail} failed`);
