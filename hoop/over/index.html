@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a1f24" />
+<title>hoop · level zero — the overworld</title>
+<style>
+  :root { --ink:#eaf6f2; --dim:#9fbdb6; --gold:#ffd98a; --teal:#7fe8d8; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #06141a; color: var(--ink); font: 13px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  #hud { position: fixed; top: 8px; left: 10px; max-width: 60vw; color: var(--dim); text-shadow: 0 1px 3px #000; pointer-events: none; }
+  #hud b { color: var(--gold); }
+  a.home { position: fixed; top: 8px; right: 10px; color: var(--teal); text-decoration: none; }
+  #info { position: fixed; bottom: 12px; left: 10px; color: var(--dim); background: rgba(8,24,28,.6); border: 1px solid #16343a; border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(5px); max-width: 56vw; }
+  #info b { color: var(--teal); }
+  #busy { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(6,20,26,.9); color: var(--teal); z-index: 9; }
+  #err { position: fixed; inset: auto 10px 10px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">❀ <b>level zero</b> — the central airmass, the ship's living core<br><span style="color:#6f8e87">you climbed to the axis: zero-g, open sky, the food-web. click = drift · scroll = zoom · the little ones are fauna</span></div>
+<a class="home" href="/v3/">↧ the decks</a>
+<div id="info">…</div>
+<div id="busy">waking the core…</div>
+<div id="err"></div>
+<script type="module">
+import { buildWalk, losSimplify } from '../econ/deck.js';
+import { buildGenome, frameRects, DIR8 } from '../v3/sprite-core.js';
+
+const $ = (id) => document.getElementById(id);
+addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
+const qs = new URLSearchParams(location.search);
+const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
+const PX = 120;
+let R = 30, NZ = 12;
+const FLOOR = 0;                                            // THE OVERWORLD: gz=0, the axis / open airmass
+
+const regions = new Map(), solving = new Set();
+let active = null, zoom = 0.8, dirty = true;
+const AT = { room: -1, x: 0, y: 0, path: null, t: 0 };
+const SPEED = 240;                                          // px/s — a slow drift
+
+const worker = new Worker('../v3/solver.js', { type: 'module' });   // reuse the deck solver (gz=0 slice)
+worker.onerror = (e) => showErr('worker: ' + e.message);
+function showErr(m) { $('err').style.display = 'block'; $('err').textContent = m; $('busy').style.display = 'none'; }
+const key = (az, ax) => (((az % R) + R) % R) + ',' + ax + ',' + FLOOR;
+function requestRegion(az, ax) {
+  const k = key(az, ax); if (regions.has(k) || solving.has(k)) return;
+  solving.add(k); worker.postMessage({ type: 'solve', az, ax, gz: FLOOR });
+}
+worker.postMessage({ type: 'init', seed: SEED });
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === 'error') return showErr('solve: ' + m.message);
+  if (m.type === 'ready') { R = m.R; NZ = m.nz; requestRegion(m.hubs[0].az, m.hubs[0].ax); return; }
+  if (m.type !== 'region') return;
+  const v = m.view, k = key(v.az, v.ax); solving.delete(k); regions.set(k, v);
+  if (!active) {
+    active = v;
+    let spawn = -1, bd = Infinity;
+    v.owner.forEach((o, i) => { if (o !== -1) return; const p = v.seeds[i]; const d = (p.x - v.frame.W / 2) ** 2 + (p.y - v.frame.H / 2) ** 2; if (d < bd) { bd = d; spawn = i; } });
+    if (spawn < 0) spawn = 0;
+    AT.room = spawn; AT.x = v.seeds[spawn].x; AT.y = v.seeds[spawn].y;
+    setInfo(v); $('busy').style.display = 'none';
+  }
+  dirty = true;
+};
+function setInfo(v) { $('info').innerHTML = 'airmass sector <b>(' + v.az + ', ' + v.ax + ')</b> · ' + v.stats.buildings + ' habitats · ' + (v._creatures ? v._creatures.length : '…') + ' fauna · drifting the currents at the axis'; }
+
+// ── camera ──
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; dirty = true; }
+addEventListener('resize', resize); resize();
+
+function offsetOf(v) { let dAz = ((v.az - active.az) % R + R) % R; if (dAz > R / 2) dAz -= R; return { x: dAz * active.frame.W, y: (v.ax - active.ax) * active.frame.H }; }
+function visibleRegions() {
+  const out = []; const halfW = W / zoom / 2 + active.frame.W, halfH = H / zoom / 2 + active.frame.H;
+  for (const [, v] of regions) { const o = offsetOf(v); const cx = o.x + v.frame.W / 2 - AT.x, cy = o.y + v.frame.H / 2 - AT.y; if (Math.abs(cx) < halfW && Math.abs(cy) < halfH) out.push(v); }
+  return out;
+}
+
+// ── THE ECOLOGY SKIN — habitats by role, currents for concourse, sky for void ──
+const ECO = {   // role → habitat hue (lush): producers green, browsers amber, the rest teal/violet
+  grow: '#4fae53', learn: '#6fd1a6', worship: '#8fb6e6', heal: '#a7e8c8', dwell: '#7bbf7a',
+  make: '#caa24a', store: '#b9893f', trade: '#d08a4a', mend: '#9c7b46', serve: '#cf7fb0', play: '#5fd0d8', govern: '#6f8fd8', move: '#8aa39c',
+};
+const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const ecoRGB = {}; const ecoOf = (role) => ecoRGB[role] || (ecoRGB[role] = hexRGB(ECO[role] || '#5fbf9f'));
+const SKY = [12, 34, 40], CURRENT = [38, 110, 110], HAB_DIM = [16, 44, 46];
+
+function paintRegion(v, off) {
+  ctx.save(); ctx.translate(off.x, off.y); ctx.lineJoin = 'round';
+  for (const c of v.scene.paintCells) {
+    if (c.poly.length < 3) continue;
+    let rgb, a = 1;
+    if (c.wall) { rgb = HAB_DIM; a = 0.5; }                 // habitat edges — soft in the open air
+    else if (c.room == null || c.room >= v.nReal) { rgb = SKY; a = 0.0; }   // open sky → let the backdrop show
+    else { const o = v.owner[c.room]; rgb = o === -1 ? CURRENT : o === -2 ? SKY : ecoOf(v.role[c.room]); a = o === -1 ? 0.5 : o === -2 ? 0 : 0.82; }
+    if (a <= 0) continue;
+    ctx.fillStyle = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')';
+    ctx.beginPath(); ctx.moveTo(c.poly[0][0], c.poly[0][1]); for (let i = 1; i < c.poly.length; i++) ctx.lineTo(c.poly[i][0], c.poly[i][1]); ctx.closePath(); ctx.fill();
+  }
+  // habitat glyphs (a frond for each patch)
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(230,255,240,0.5)';
+  for (const g of v.bill || []) { if (g.n < 4) continue; ctx.font = Math.min(34, 12 + g.n * 2) + 'px ui-monospace, monospace'; ctx.fillText('❀', g.x, g.y); }
+  drawCreatures(v);
+  ctx.restore();
+}
+
+// ── fauna — the society reskinned as drifting creatures (procedural sprites, role-tinted) ──
+const SPR_N = 13, SPR_SCALE = 2, SPR_WORLD = 16;
+const spriteCache = new Map();
+function creatureSprite(seed, role, phase) {
+  const fk = seed + '|' + (phase % 4);
+  let cvs = spriteCache.get(fk); if (cvs) return cvs;
+  cvs = document.createElement('canvas'); cvs.width = cvs.height = SPR_N * SPR_SCALE; const c = cvs.getContext('2d');
+  const g = buildGenome(seed, { size: SPR_N, role, frames: 4 }, null);
+  for (const r of frameRects(g, DIR8[2], phase % 4)) { c.fillStyle = r.c; c.fillRect(r.x * SPR_SCALE, r.y * SPR_SCALE, SPR_SCALE, SPR_SCALE); }
+  if (spriteCache.size > 800) spriteCache.delete(spriteCache.keys().next().value);
+  spriteCache.set(fk, cvs); return cvs;
+}
+function creaturesOf(v) {
+  if (v._creatures) return v._creatures;
+  const byB = new Map();
+  for (let i = 0; i < v.nReal; i++) { const o = v.owner[i]; if (o >= 0) { let s = byB.get(o); if (!s) { s = []; byB.set(o, s); } s.push(i); } }
+  const cr = [];
+  (v.people || []).forEach((pn, pi) => {
+    if (cr.length >= 40) return; const hc = byB.get(pn.home); if (!hc || !hc.length) return;
+    const cell = hc[(cr.length * 7 + 3) % hc.length], p = v.seeds[cell];
+    cr.push({ role: pn.role, seed: SEED + ':' + v.az + ':' + v.ax + ':' + pn.home + ':' + pn.name, x: p.x, y: p.y, hx: p.x, hy: p.y, ph: Math.random() * 6, sp: 5 + Math.random() * 9, ang: Math.random() * 6.28 });
+  });
+  return (v._creatures = cr);
+}
+function drawCreatures(v) {
+  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  for (const n of creaturesOf(v)) ctx.drawImage(creatureSprite(n.seed, n.role, n.ph | 0), n.x - SPR_WORLD / 2, n.y - SPR_WORLD * 0.7, SPR_WORLD, SPR_WORLD);
+  ctx.imageSmoothingEnabled = sm;
+}
+function driftCreatures(v, dt) {   // low-g wander around the home patch
+  for (const n of creaturesOf(v)) {
+    n.ph += dt * 3; n.ang += (Math.random() - 0.5) * dt * 2;
+    const tx = n.hx + Math.cos(n.ang) * 26, ty = n.hy + Math.sin(n.ang) * 26;
+    n.x += (tx - n.x) * Math.min(1, dt * 0.6); n.y += (ty - n.y) * Math.min(1, dt * 0.6);
+  }
+}
+
+// ── render loop ──
+function draw() {
+  if (!active) return;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  // the airmass backdrop: a vertical sky gradient + the far inner surface curving overhead
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0c2a30'); grad.addColorStop(0.55, '#08202a'); grad.addColorStop(1, '#0a2622');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = 'rgba(120,200,190,0.18)'; ctx.lineWidth = 1.4;   // the opposite inner surface arching over
+  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(W / 2, -H * (1.6 - i * 0.12), W * (1.1 - i * 0.06), H * (0.7 - i * 0.04), 0, 0, Math.PI); ctx.stroke(); }
+  ctx.globalAlpha = 0.4; ctx.fillStyle = 'rgba(180,230,220,0.5)';   // distant habitat lights across the far surface
+  for (let i = 0; i < 60; i++) { const x = (i * 137.5) % W, y = (Math.sin(i * 2.3) * 0.5 + 0.5) * H * 0.22; ctx.fillRect(x, y, 1.4, 1.4); }
+  ctx.restore();
+
+  const z = zoom;
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - AT.x * z), DPR * (H / 2 - AT.y * z));
+  paintRegion(active, { x: 0, y: 0 });
+  for (const v of visibleRegions()) { if (v === active) continue; paintRegion(v, offsetOf(v)); }
+  if (AT.path && AT.t < AT.path.total) {   // the drift line
+    ctx.strokeStyle = 'rgba(127,232,216,0.5)'; ctx.lineWidth = 2.2 / z; ctx.setLineDash([7 / z, 6 / z]); ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(AT.x, AT.y); let acc = 0; for (let i = 1; i < AT.path.pts.length; i++) { acc += AT.path.seg[i - 1]; if (acc > AT.t) ctx.lineTo(AT.path.pts[i][0], AT.path.pts[i][1]); } ctx.stroke(); ctx.setLineDash([]);
+  }
+  // the @ — you, adrift in the core
+  ctx.fillStyle = '#ffd98a'; ctx.shadowColor = 'rgba(255,217,138,0.8)'; ctx.shadowBlur = 12 / z * z;
+  ctx.font = 'bold 16px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.x, AT.y); ctx.shadowBlur = 0;
+  dirty = false;
+}
+
+// ── walk: single-floor route over the habitat/current navmesh (reuses deck.js) ──
+function minHeap() { const a = []; const up = (i) => { while (i) { const p = (i - 1) >> 1; if (a[p][0] <= a[i][0]) break;[a[p], a[i]] = [a[i], a[p]]; i = p; } }; const down = (i) => { for (;;) { let l = i * 2 + 1, r = l + 1, s = i; if (l < a.length && a[l][0] < a[s][0]) s = l; if (r < a.length && a[r][0] < a[s][0]) s = r; if (s === i) break;[a[s], a[i]] = [a[i], a[s]]; i = s; } }; return { push(d, n) { a.push([d, n]); up(a.length - 1); }, pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; down(0); } return t; }, size: () => a.length }; }
+function currentRoom() { let best = AT.room, bd = Infinity; for (let i = 0; i < active.nReal; i++) { const p = active.seeds[i]; const d = (p.x - AT.x) ** 2 + (p.y - AT.y) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
+function route(sx, sy, startV, startCell, tgtV, tgtCell) {
+  const id = new Map(), nodes = [], adj = [], walls = [];
+  const nid = (v, i) => { const k = v.az + ',' + v.ax + ':' + i; let n = id.get(k); if (n == null) { const off = offsetOf(v); n = nodes.length; id.set(k, n); nodes.push([v.seeds[i].x + off.x, v.seeds[i].y + off.y]); adj.push([]); } return n; };
+  for (const [, v] of regions) {
+    const off = offsetOf(v), walk = v._walk || (v._walk = buildWalk(v));
+    for (let i = 0; i < v.nReal; i++) for (const e of walk[i]) if (e.to > i) { const a = nid(v, i), b = nid(v, e.to), w = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]), m = [e.m[0] + off.x, e.m[1] + off.y]; adj[a].push({ to: b, w, m }); adj[b].push({ to: a, w, m }); }
+    for (const lk of v.links || []) { const nv = regions.get(key(lk.to.az, lk.to.ax)); if (!nv) continue; const pr = nv.bandGid.indexOf(lk.partner); if (pr < 0) continue; const a = nid(v, lk.room), b = nid(nv, pr), m = [(nodes[a][0] + nodes[b][0]) / 2, (nodes[a][1] + nodes[b][1]) / 2], w = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]) + 1; adj[a].push({ to: b, w, m }); adj[b].push({ to: a, w, m }); }
+    if (v.walls) for (const s of v.walls) walls.push([s[0] + off.x, s[1] + off.y, s[2] + off.x, s[3] + off.y]);
+  }
+  const S = nid(startV, startCell), T = nid(tgtV, tgtCell), n = nodes.length;
+  const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), pm = new Array(n).fill(null), done = new Uint8Array(n);
+  dist[S] = 0; const heap = minHeap(); heap.push(0, S);
+  while (heap.size()) { const [du, u] = heap.pop(); if (done[u]) continue; done[u] = 1; if (u === T) break; for (const e of adj[u]) { const nd = du + e.w; if (nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = u; pm[e.to] = e.m; heap.push(nd, e.to); } } }
+  if (!isFinite(dist[T])) return null;
+  const seq = []; for (let u = T; u !== -1; u = prev[u]) seq.push(u); seq.reverse();
+  const dense = [[sx, sy]]; for (let k = 1; k < seq.length; k++) { dense.push(pm[seq[k]]); dense.push(nodes[seq[k]]); }
+  return losSimplify(dense, walls, ((active.scene && active.scene.wallSpacing) || 8) * 4);
+}
+function goTo(tgt, best) {
+  const pts = route(AT.x, AT.y, active, currentRoom(), tgt, best);
+  if (!pts || pts.length < 2) return;
+  const seg = []; let total = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
+  AT.path = { pts, seg, total }; AT.t = 0; dirty = true;
+}
+cv.addEventListener('click', (e) => {
+  if (!active || AT.room < 0) return;
+  const wx = (e.clientX - W / 2) / zoom + AT.x, wy = (e.clientY - H / 2) / zoom + AT.y;
+  let tgt = active, lx = wx, ly = wy;
+  if (wx < 0 || wy < 0 || wx > active.frame.W || wy > active.frame.H) {
+    tgt = null;
+    for (const v of visibleRegions()) { if (v === active) continue; const o = offsetOf(v); if (wx >= o.x && wx <= o.x + v.frame.W && wy >= o.y && wy <= o.y + v.frame.H) { tgt = v; lx = wx - o.x; ly = wy - o.y; break; } }
+    if (!tgt) return;
+  }
+  let best = -1, bd = (70 / zoom) ** 2; for (let i = 0; i < tgt.nReal; i++) { const p = tgt.seeds[i]; const d = (p.x - lx) ** 2 + (p.y - ly) ** 2; if (d < bd) { bd = d; best = i; } }
+  if (best >= 0) goTo(tgt, best);
+});
+addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(2.2, zoom * (e.deltaY < 0 ? 1.1 : 0.9))); dirty = true; }, { passive: false });
+
+// ── tick: drift the @, wander the fauna, stream neighbours ──
+let last = 0, prefetchT = 0;
+function tick(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  if (AT.path) {
+    AT.t += SPEED * dt; const { pts, seg, total } = AT.path;
+    if (AT.t >= total) { AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1]; AT.path = null; AT.room = currentRoom(); rebase(); }
+    else { let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < AT.t) { acc += seg[i - 1]; i++; } const f = (AT.t - acc) / seg[i - 1]; AT.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f; AT.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f; }
+    dirty = true;
+  }
+  for (const v of visibleRegions()) driftCreatures(v, dt);
+  if (ts - prefetchT > 250) { prefetchT = ts; for (const d of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) requestRegion(active.az + d[0], active.ax + d[1]); }
+  dirty = true; draw(); requestAnimationFrame(tick);
+}
+function rebase() {   // when the @ drifts into a neighbour sector, make it active (keeps coords local)
+  if (AT.x >= 0 && AT.x <= active.frame.W && AT.y >= 0 && AT.y <= active.frame.H) return;
+  for (const v of visibleRegions()) { if (v === active) continue; const o = offsetOf(v); if (AT.x - o.x >= 0 && AT.x - o.x <= v.frame.W && AT.y - o.y >= 0 && AT.y - o.y <= v.frame.H) { AT.x -= o.x; AT.y -= o.y; active = v; AT.room = currentRoom(); setInfo(v); break; } }
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
