@@ -75,7 +75,7 @@ export function chokeForZone(g, centerIdx, radius) {
 
 // Deterministic lock layer for a region: pick a building-sized bridge (a single-door vault) by hash and
 // seal it behind `requires`. Never seals a gate cell (would soft-lock the chunk crossing). Pure (view, seed).
-export function deterministicLocks(view, { seed = 0, requires = { items: ['keeper key'] }, label = 'a sealed vault', minZone = 4, maxZone = 30, max = 1 } = {}) {
+export function deterministicLocks(view, { seed = 0, requires = null, label = 'a sealed vault', minZone = 4, maxZone = 30, max = 1 } = {}) {
   const g = navGraph(view), gateCells = new Set(view.isGate || []);
   const cands = [];
   for (const br of bridges(g)) {
@@ -87,10 +87,12 @@ export function deterministicLocks(view, { seed = 0, requires = { items: ['keepe
     cands.push({ br, zone, h: hashStr(seed + ':' + br.k) });
   }
   cands.sort((p, q) => p.h - q.h);
-  return cands.slice(0, max).map(({ br, zone }) => ({
-    key: br.k, doorCells: [br.a, br.b], requires, label,
-    zone: [...zone], doorMid: midOf(view, br.a, br.b), centerGid: view.bandGid[[...zone][0]],
-  }));
+  return cands.slice(0, max).map(({ br, zone }) => {
+    const cells = [...zone], centerGid = view.bandGid[cells[0]], factKey = 'flag.forge.' + centerGid;
+    // default lock = a per-vault fact the in-world forge puzzle sets on solve (the minigame IS the lock-pick)
+    return { key: br.k, doorCells: [br.a, br.b], requires: requires || { facts: { [factKey]: true } }, factKey,
+             label, zone: cells, doorMid: midOf(view, br.a, br.b), centerGid };
+  });
 }
 function midOf(view, a, b) { const p = view.seeds[a], q = view.seeds[b]; return [(p.x + q.x) / 2, (p.y + q.y) / 2]; }
 

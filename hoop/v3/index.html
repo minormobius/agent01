@@ -36,7 +36,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · click a resident for who they know (forum) &amp; their tale (story) · click a building to examine the place · <span style="color:#e88c8c">⊘ a sealed vault needs a key you find in the world</span> · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · click a resident for who they know (forum) &amp; their tale (story) · click a building to examine the place · <span style="color:#e88c8c">⊘ a sealed vault — solve its forge-puzzle to enter</span> · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
 <a class="home" href="/">← hoop</a>
 <div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
@@ -50,6 +50,7 @@ import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
 import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, take as storyTake, listInventory as storyInventory, meetsState as storyMeets, loadGateState as storyGate, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
 import { deterministicLocks, memKey } from '../story/locks.js';   // puzzle-gated map progression (#5)
+import { openMinigame } from '../minigame/play.js';   // forge puzzles as in-world lock-picks
 import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
 import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
 import { readSummary, PULSE_NSID } from '../story/director.js';   // the cross-player "world pulse" (a disposable projection)
@@ -526,14 +527,26 @@ function goTo(tgt, best, useStair) {
   const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best);
   if (!pts || pts.length < 2) {
     const lk = locksOf(tgt).find((l) => lockBlocked.has(l.key) && l.zone.includes(best));   // walked into a sealed vault?
-    if (lk) rail('<b>⊘ sealed</b> — ' + lk.label + ' is locked. It needs <span class="w">' + ((lk.requires.items || []).join(', ') || 'a key') + '</span>.');
-    else rail('<b>⊘ no path</b> on this deck — try the stairs or walk closer');
+    if (lk) {
+      rail('<b>⊘ sealed</b> — ' + lk.label + ', locked by a forging-law. <span class="act" id="pick-lock" style="color:var(--teal);cursor:pointer">⚙ attempt the lock</span>');
+      const pk = $('pick-lock'); if (pk) pk.onclick = () => attemptLock(lk, tgt, best);
+    } else rail('<b>⊘ no path</b> on this deck — try the stairs or walk closer');
     return false;
   }
   const seg = []; let total = 0;
   for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
   AT.path = { pts, seg, total }; AT.t = 0; AT.useStair = useStair || null; dirty = true;   // interruptible
   return true;
+}
+// the forge lock-pick: a vault's seal is a minted movement-law puzzle, seeded by its chamber. Solve it
+// → set the per-vault unlock fact → the door opens (recomputeLocks) → walk on in. Zero inference.
+async function attemptLock(lk, tgt, best) {
+  try { await ensureStory(); } catch (e) { return; }
+  let won = false; try { won = await openMinigame(lk.centerGid, { title: 'the seal' }); } catch (e) { showErr('minigame: ' + (e && e.message || e)); return; }
+  if (!won) { rail('<b>⊘ the seal holds.</b> The law beat you — attempt it again.'); return; }
+  storyStore.setFact(PLAYER, lk.factKey, true); persistStory();   // solving IS the key
+  rail('<b>✦ the seal yields</b> — ' + lk.label + ' opens to you.');
+  goTo(tgt, best, null);                                          // and walk on in
 }
 
 // who is this resident? a click near an NPC inspects them instead of walking
