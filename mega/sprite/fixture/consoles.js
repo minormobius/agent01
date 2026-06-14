@@ -72,58 +72,89 @@ export function growWallFixtures(scene, rng, { avoid = {}, kindOf } = {}) {
     }
     if (claimed.filter((c) => !c.base).length < 1) continue;     // needs a real eruption
     claimed.sort((a, b2) => a.tier - b2.tier);                   // base → tip draw order
+    // THE ENDPOINT-COHERENT GRAPH of the assigned tile set: connect cells that share a voronoi edge,
+    // then BFS from the wall (base) cells → a spanning tree with a topological distance per cell. The
+    // fixture's ornament + shading ride this graph, so they're provably coherent across the tiles.
+    const graph = tileGraph(claimed, cells);
     const tipCells = claimed.filter((c) => c.tier > 0.7); const tip = tipCells.length
       ? { x: tipCells.reduce((s, c) => s + cells[c.idx].x, 0) / tipCells.length, y: tipCells.reduce((s, c) => s + cells[c.idx].y, 0) / tipCells.length }
       : { x: best.mx + nx * reach * 0.7, y: best.my + ny * reach * 0.7 };
-    out.push({ room: rc.id, kind, nx, ny, tx, ty, halfW, reach, seedN, anchor: best, cells: claimed, tip });
+    out.push({ room: rc.id, kind, nx, ny, tx, ty, halfW, reach, seedN, anchor: best, cells: claimed, tip, dist: graph.dist, parent: graph.parent, maxDist: graph.maxDist });
   }
   return out;
 }
 
-const smooth = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
-// tilingZ — the per-cell height profile (× maxH). Base (wall) cells stay low (hug the membrane);
-// eruption cells rise toward the room-facing tip, shaped by kind.
-function heightZ(t, base, kind) {
-  if (base) return 0.1;
-  switch (kind) {
-    case 'arcade': return 0.18 + 0.95 * smooth(t * 1.25);     // a tall flat screen leaping up at the front
-    case 'shelf': return 0.16 + 0.78 * (Math.round(t * 3) / 3); // terraced shelves
-    case 'vendor': return 0.14 + 0.72 * t;
-    default: return 0.14 + 0.62 * t;                          // storage — a blocky rise
-  }
+// adjacency (shared voronoi edge) + BFS distance/parent from the base (wall) cells.
+const vkey = (x, y) => Math.round(x / 2) + ',' + Math.round(y / 2);
+function tileGraph(claimed, cells) {
+  const edgeMap = new Map();
+  claimed.forEach((cl, li) => { const v = cells[cl.idx].poly; for (let i = 0; i < v.length; i++) { const a = v[i], b = v[(i + 1) % v.length]; const ka = vkey(a[0], a[1]), kb = vkey(b[0], b[1]); const k = ka < kb ? ka + '|' + kb : kb + '|' + ka; let l = edgeMap.get(k); if (!l) edgeMap.set(k, l = []); l.push(li); } });
+  const adj = claimed.map(() => new Set());
+  for (const l of edgeMap.values()) if (l.length >= 2) for (let i = 0; i < l.length; i++) for (let j = i + 1; j < l.length; j++) { if (l[i] !== l[j]) { adj[l[i]].add(l[j]); adj[l[j]].add(l[i]); } }
+  const dist = claimed.map(() => -1), parent = claimed.map(() => -1), q = [];
+  claimed.forEach((c, i) => { if (c.base) { dist[i] = 0; q.push(i); } });
+  for (let h = 0; h < q.length; h++) { const u = q[h]; for (const w of adj[u]) if (dist[w] < 0) { dist[w] = dist[u] + 1; parent[w] = u; q.push(w); } }
+  let maxDist = 0; for (let i = 0; i < dist.length; i++) { if (dist[i] < 0) dist[i] = Math.round(claimed[i].tier * 4) + 1; if (dist[i] > maxDist) maxDist = dist[i]; }   // isolated cells fall back to tier
+  return { dist, parent, maxDist: maxDist || 1 };
 }
 
-// EXTRUDE the claimed cells into a faceted solid (tilingZ): the tiling itself becomes the fixture's
-// volume — shadowed side walls + lit tops + gold top-edges, drawn back-to-front. Lit by the field.
-export function drawWallFixture(ctx, scene, F, { accent = '#888', hue = 40, litAt = () => 1 } = {}) {
-  const acc = hex2rgb(accent), cells = scene.paintCells, sp = scene.roomSpacing || 40, maxH = sp * 0.62;
-  const sideDark = mix(GROUND, acc, 0.16);
-  const order = F.cells.slice().sort((a, b) => cells[a.idx].y - cells[b.idx].y);   // painter's: back → front
-  const path = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); };
-  for (const cl of order) {
-    const c = cells[cl.idx], v = c.poly, t = cl.tier;
-    const z = heightZ(t, cl.base, F.kind) * maxH, lit = clamp(litAt(c.x, c.y), 0.22, 1.2);
-    const top = v.map((p) => [p[0], p[1] - z]);
-    // side walls — every edge, darker; the front (lower) faces a touch lighter to catch the light
-    for (let i = 0; i < v.length; i++) {
-      const a = v[i], b = v[(i + 1) % v.length], ta = top[i], tb = top[(i + 1) % v.length];
-      const front = (a[1] + b[1]) / 2 > c.y;
-      ctx.fillStyle = css(sideDark, lit * (front ? 0.5 : 0.32) + 0.04);
-      path([a, b, tb, ta]); ctx.fill();
-    }
-    // top face — the lit deco surface (base=wall-tinted; eruption rises dark→accent→gold; tips emit)
-    let col;
-    if (cl.base) col = mix(WALLC, acc, 0.42);
-    else { col = mix(mix(GROUND, acc, 0.5), mix(acc, GOLD, 0.45), t); if (F.kind === 'shelf') col = mix(col, GOLD, (Math.round(t * 3) % 2) ? 0.3 : 0); }
-    const emit = !cl.base && (F.kind === 'arcade' || F.kind === 'vendor') && t > 0.62;
-    ctx.fillStyle = emit ? `hsl(${hue} 82% ${(46 + 16 * Math.min(1, lit)).toFixed(0)}%)` : css(col, lit * 0.7 + 0.2);
-    path(top); ctx.fill();
-    if (!cl.base) { ctx.strokeStyle = goldS(lit, 0.3 + t * 0.45); ctx.lineWidth = 0.7; path(top); ctx.stroke(); }   // gold top-edge seam
+const TAU = Math.PI * 2, GA = 2.39996323;   // golden angle — the phyllotaxis of Romanesco
+// a self-similar floret: a golden-angle spiral of cones, each recursing into a smaller spiral.
+function floret(ctx, cx, cy, r, ang, acc, lit, depth) {
+  const n = depth > 0 ? 12 : 8;
+  for (let i = 0; i < n; i++) {
+    const a = i * GA + ang, t = (i + 0.5) / n, rr = r * Math.sqrt(t);
+    const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr, sz = r * 0.17 * (1 - 0.4 * t);
+    ctx.fillStyle = css(mix(acc, GOLD, 0.22 + 0.62 * t), lit * (0.7 + 0.4 * t));
+    ctx.beginPath(); ctx.arc(x, y, sz, 0, TAU); ctx.fill();
+    if (depth > 0 && i % 2 === 0 && t > 0.32) floret(ctx, x, y, sz * 1.5, a, acc, lit, depth - 1);
   }
-  // emissive crown + interaction node, lifted to the top of the tallest tip
-  const tipZ = heightZ(1, false, F.kind) * maxH, tx = F.tip.x, ty = F.tip.y - tipZ;
-  for (let i = 3; i >= 1; i--) { ctx.beginPath(); ctx.arc(tx, ty, sp * 0.16 * i / 1.7, 0, 6.283); ctx.fillStyle = `hsla(${hue} 85% 64% / ${0.06 + (3 - i) * 0.05})`; ctx.fill(); }
-  ctx.beginPath(); ctx.arc(tx, ty, sp * 0.07, 0, 6.283); ctx.fillStyle = `hsla(${hue} 75% 86% / 0.95)`; ctx.fill();
+  ctx.fillStyle = css(mix(acc, GOLD, 0.55), lit); ctx.beginPath(); ctx.arc(cx, cy, r * 0.16, 0, TAU); ctx.fill();
+}
+
+// EXTRUDE + ORNAMENT over the tile graph: height by graph distance, tops shaded by a continuous
+// vertex field (tiles blend across shared corners), and a Romanesco floret per cell oriented along
+// the spanning tree (parent → child). The whole fixture is one provably-coherent fractal of tiles.
+export function drawWallFixture(ctx, scene, F, { accent = '#888', hue = 40, litAt = () => 1 } = {}) {
+  const acc = hex2rgb(accent), cells = scene.paintCells, sp = scene.roomSpacing || 40, maxH = sp * 0.7, maxD = F.maxDist || 1;
+  const fieldOf = (li) => (F.cells[li].base ? 0 : F.dist[li] / maxD);          // topological 0..1
+  const zOf = (li) => (F.cells[li].base ? 0.1 : 0.14 + 0.72 * fieldOf(li)) * maxH;
+  const litC = (li) => clamp(litAt(cells[F.cells[li].idx].x, cells[F.cells[li].idx].y), 0.22, 1.2);
+  // ── coherent shading field: each vertex = the mean field + mean light of the cells that share it ──
+  const vV = new Map(), vL = new Map();
+  F.cells.forEach((cl, li) => { const c = cells[cl.idx], f = fieldOf(li), lt = litC(li); for (const p of c.poly) { const k = vkey(p[0], p[1]); let a = vV.get(k); if (!a) vV.set(k, a = [0, 0]); a[0] += f; a[1]++; let b = vL.get(k); if (!b) vL.set(k, b = [0, 0]); b[0] += lt; b[1]++; } });
+  const vval = (p) => { const a = vV.get(vkey(p[0], p[1])); return a ? a[0] / a[1] : 0; };
+  const vlit = (p) => { const a = vL.get(vkey(p[0], p[1])); return a ? a[0] / a[1] : 1; };
+  const rampCol = (f) => mix(mix(GROUND, acc, 0.5), mix(acc, GOLD, 0.5), clamp(f, 0, 1));
+  const sideDark = mix(GROUND, acc, 0.14);
+  const topCent = (li) => { const v = cells[F.cells[li].idx].poly, z = zOf(li); let x = 0, y = 0; for (const p of v) { x += p[0]; y += p[1]; } return [x / v.length, y / v.length - z]; };
+  const order = F.cells.map((_, li) => li).sort((a, b) => topCent(a)[1] - topCent(b)[1]);   // back → front
+  // faint stalks along the spanning tree (the broccoli branching)
+  ctx.strokeStyle = goldS(0.6, 0.18); ctx.lineWidth = 1;
+  for (let li = 0; li < F.cells.length; li++) { const pa = F.parent[li]; if (pa < 0) continue; const A = topCent(li), B = topCent(pa); ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); }
+  for (const li of order) {
+    const cl = F.cells[li], c = cells[cl.idx], v = c.poly, z = zOf(li), top = v.map((p) => [p[0], p[1] - z]);
+    // side walls
+    for (let i = 0; i < v.length; i++) { const a = v[i], b = v[(i + 1) % v.length], ta = top[i], tb = top[(i + 1) % v.length], front = (a[1] + b[1]) / 2 > c.y; ctx.fillStyle = css(sideDark, litC(li) * (front ? 0.5 : 0.3) + 0.04); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(tb[0], tb[1]); ctx.lineTo(ta[0], ta[1]); ctx.closePath(); ctx.fill(); }
+    // top: Gouraud-ish fan, colours interpolated through shared vertices ⇒ tiles shade into each other
+    const tc = [top.reduce((s, p) => s + p[0], 0) / top.length, top.reduce((s, p) => s + p[1], 0) / top.length], cf = fieldOf(li), clt = litC(li);
+    for (let i = 0; i < top.length; i++) {
+      const va = v[i], vb = v[(i + 1) % v.length], f = (cf + vval(va) + vval(vb)) / 3, lt = (clt + vlit(va) + vlit(vb)) / 3;
+      const col = cl.base ? mix(WALLC, acc, 0.42) : rampCol(f);
+      ctx.fillStyle = css(col, lt * 0.66 + 0.2);
+      ctx.beginPath(); ctx.moveTo(tc[0], tc[1]); ctx.lineTo(top[i][0], top[i][1]); ctx.lineTo(top[(i + 1) % top.length][0], top[(i + 1) % top.length][1]); ctx.closePath(); ctx.fill();
+    }
+    // the ORNAMENT: a Romanesco floret on the tile top, oriented outward along the tree
+    if (!cl.base) {
+      let r = 0; for (const p of v) r += Math.hypot(p[0] - c.x, p[1] - c.y); r /= v.length;
+      const pa = F.parent[li]; let ang = Math.atan2(F.ny, F.nx); if (pa >= 0) { const B = topCent(pa); ang = Math.atan2(tc[1] - B[1], tc[0] - B[0]); }
+      floret(ctx, tc[0], tc[1], r * (0.62 + 0.45 * cf), ang, acc, clt * 0.8 + 0.25, cf > 0.5 ? 1 : 0);
+    }
+  }
+  // emissive crown at the lifted tip
+  const tipZ = (0.14 + 0.72) * maxH, tx = F.tip.x, ty = F.tip.y - tipZ;
+  for (let i = 3; i >= 1; i--) { ctx.beginPath(); ctx.arc(tx, ty, sp * 0.16 * i / 1.7, 0, TAU); ctx.fillStyle = `hsla(${hue} 85% 64% / ${0.05 + (3 - i) * 0.05})`; ctx.fill(); }
+  ctx.beginPath(); ctx.arc(tx, ty, sp * 0.06, 0, TAU); ctx.fillStyle = `hsla(${hue} 75% 88% / 0.95)`; ctx.fill();
 }
 
 const CONSOLES = { CONSOLE_KINDS, ROLE_CONSOLE, growWallFixtures, drawWallFixture, profile };

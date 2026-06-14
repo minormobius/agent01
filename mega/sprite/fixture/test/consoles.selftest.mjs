@@ -56,5 +56,17 @@ const scene = buildScene({ W: 820, H: 560, wallSpacing: 13, roomSpacing: 50, roo
   ok(drawLog('vendor').join(',') === drawLog('vendor').join(','), 'drawWallFixture is deterministic');
 }
 
+// ── the ENDPOINT-COHERENT GRAPH: an adjacency tree rooted at the wall (base) cells ──
+{
+  const F = growWallFixtures(scene, mk(7), { kindOf: () => 'storage' })[0];
+  ok(F.dist.length === F.cells.length && F.parent.length === F.cells.length && F.maxDist >= 1, 'graph carries a dist + parent per cell + a maxDist');
+  ok(F.cells.every((c, i) => (c.base ? F.dist[i] === 0 : F.dist[i] >= 0)), 'base (wall) cells root the graph at distance 0');
+  // every BFS-connected cell traces through parents to a base cell — no cycles, no orphan trees
+  let coherent = true;
+  for (let i = 0; i < F.cells.length; i++) { if (F.parent[i] < 0) continue; let cur = i, steps = 0; while (F.parent[cur] >= 0 && steps++ < F.cells.length + 1) cur = F.parent[cur]; if (!F.cells[cur].base) coherent = false; }
+  ok(coherent, 'every connected cell traces through the spanning tree to a wall cell (endpoint-coherent)');
+  ok(F.cells.some((c, i) => F.dist[i] >= 2), 'the graph has depth (the broccoli branches inward)');
+}
+
 console.log(`consoles.selftest: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
