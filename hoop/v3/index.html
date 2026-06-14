@@ -80,7 +80,7 @@ worker.onerror = (e) => { showErr('worker: ' + e.message); };
 function showErr(m) { $('err').style.display = 'block'; $('err').textContent = m; $('busy').style.display = 'none'; }
 const key = (az, ax, gz) => (((az % R) + R) % R) + ',' + ax + ',' + gz;
 function requestRegion(az, ax, gz) {
-  if (gz < 0 || gz >= NZ) return;
+  if (gz < 1 || gz >= NZ) return;                           // gz=0 is reserved — it's the OVERWORLD (level zero), not a foam deck
   const k = key(az, ax, gz);
   if (regions.has(k) || solving.has(k)) return;
   solving.add(k);
@@ -115,7 +115,7 @@ function setActive(v) {
   active = v; AT.floor = v.gz;
   history.replaceState(null, '', '?seed=' + SEED + '&az=' + v.az + '&ax=' + v.ax);
   const s = v.stats;
-  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · deck <b>' + (v.gz + 1) + '/' + NZ + '</b>' + (v.gz === GZMID ? ' (concourse)' : '') + ' · ' +
+  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · deck <b>' + (v.gz + 1) + '/' + NZ + '</b>' + (v.gz === GZMID ? ' (concourse)' : v.gz === 1 ? ' (top deck — <span class="w">⊛ ▲ ascends to the overworld</span>)' : '') + ' · ' +
     s.rooms + ' rooms · ' + s.buildings + ' buildings · ' + v.stairs.length + ' stairs · access ' + s.access.toFixed(2);
   $('deck').textContent = '▮ deck ' + (v.gz + 1) + '/' + NZ;
   recomputeLocks();                                         // this floor's seals, against your inventory
@@ -390,11 +390,12 @@ function paintRegion(v, off, ghostsAsFog, pulse) {
   // building glyphs
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(238,230,205,0.88)';
   for (const g of v.bill) { if (g.n < 3) continue; ctx.font = Math.min(44, 16 + g.n * 3) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
-  // stairs & ladders — the vertical right-of-way (▲ up toward the axis, ▼ down toward the hull)
-  ctx.font = '20px ui-monospace, monospace';
+  // stairs & ladders (▲ up toward the axis, ▼ down toward the hull) — and on level 1, up-stairs are
+  // the CONTROLLED HATCHES to level zero (the overworld): drawn as a glowing ⊛.
   for (const s of v.stairs || []) {
-    const p = v.seeds[s.cell];
-    ctx.fillStyle = s.type === 'ladder' ? 'rgba(127,216,208,0.92)' : 'rgba(244,191,98,0.92)';
+    const p = v.seeds[s.cell], hatch = s.dir < 0 && v.gz === 1;
+    if (hatch) { ctx.save(); ctx.shadowColor = 'rgba(127,232,200,0.9)'; ctx.shadowBlur = 10 + pulse * 6; ctx.fillStyle = 'rgba(150,240,205,0.95)'; ctx.font = '22px ui-monospace, monospace'; ctx.fillText('⊛', p.x, p.y - 6); ctx.restore(); continue; }
+    ctx.font = '20px ui-monospace, monospace'; ctx.fillStyle = s.type === 'ladder' ? 'rgba(127,216,208,0.92)' : 'rgba(244,191,98,0.92)';
     ctx.fillText(s.dir < 0 ? '▲' : '▼', p.x, p.y - (s.dir < 0 ? 7 : -7));
   }
   // locked doors — a seal on the single choke into a sealed vault (drawn only while you lack the key)
@@ -759,7 +760,7 @@ cv.addEventListener('click', (e) => {
   if (best < 0) return;
   // clicked a stair? walk to it and ride it (a cell may host an up and/or down stair)
   const st = tgt === active ? (active.stairs || []).find((s) => s.cell === best) : null;
-  if (st && goTo(tgt, best, { dir: st.dir, partnerGid: st.partnerGid })) { inspect(tgt, best); return; }
+  if (st && goTo(tgt, best, { dir: st.dir, partnerGid: st.partnerGid, hatch: st.dir < 0 && active.gz === 1 })) { inspect(tgt, best); return; }
   if (goTo(tgt, best, null)) inspect(tgt, best);
 });
 
@@ -767,12 +768,15 @@ cv.addEventListener('click', (e) => {
 // to the nearest such connector on this deck, then change floor on arrival.
 function rideStair(dir) {
   if (!active) return;
+  const hatch = dir < 0 && active.gz === 1;                 // up from level 1 = a CONTROLLED HATCH to the overworld
   let best = -1, bd = Infinity, st = null;
   for (const s of active.stairs || []) { if (s.dir !== dir) continue; const p = active.seeds[s.cell]; const d = (p.x - AT.x) ** 2 + (p.y - AT.y) ** 2; if (d < bd) { bd = d; best = s.cell; st = s; } }
-  if (best < 0) { rail('<b>⊘ no ' + (dir < 0 ? 'way up' : 'way down') + '</b> from this deck nearby'); return; }
-  requestRegion(active.az, active.ax, active.gz + dir);    // make sure the destination floor is loading
-  goTo(active, best, { dir, partnerGid: st.partnerGid });
+  if (best < 0) { rail('<b>⊘ no ' + (dir < 0 ? (active.gz === 1 ? 'hatch to the overworld' : 'way up') : 'way down') + '</b> from here nearby'); return; }
+  if (!hatch) requestRegion(active.az, active.ax, active.gz + dir);   // the destination foam deck (hatches don't load one)
+  goTo(active, best, { dir, partnerGid: st.partnerGid, hatch });
 }
+// the controlled ascent: a hatch on level 1 opens onto level zero — the central airmass (the Eden overworld)
+function toOverworld() { location.href = '/over/?seed=' + SEED + '&from=' + active.az + ',' + active.ax; }
 $('up').addEventListener('click', () => rideStair(-1));
 $('down').addEventListener('click', () => rideStair(1));
 addEventListener('keydown', (e) => { if (e.key === 'PageUp' || e.key === '[') rideStair(-1); else if (e.key === 'PageDown' || e.key === ']') rideStair(1); });
@@ -853,8 +857,9 @@ function tick(ts) {
     const { pts, seg, total } = AT.path;
     if (AT.t >= total) {
       AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1]; AT.path = null;
-      if (AT.useStair) {                                    // arrived at a stair/ladder — change decks
+      if (AT.useStair) {                                    // arrived at a stair/ladder — change decks (or ascend a hatch)
         const us = AT.useStair; AT.useStair = null;
+        if (us.hatch) { rail('<b>⊛ the hatch cycles open</b> — you rise into the airmass…'); toOverworld(); return; }
         const nv = regions.get(key(active.az, active.ax, active.gz + us.dir)), pr = nv ? nv.bandGid.indexOf(us.partnerGid) : -1;
         if (nv && pr >= 0) { setActive(nv); AT.room = pr; AT.x = nv.seeds[pr].x; AT.y = nv.seeds[pr].y; rail('<b>▮ deck ' + (nv.gz + 1) + '/' + NZ + '</b>' + (nv.gz === GZMID ? ' — the concourse' : '')); }
         else { AT.room = currentRoom(); requestRegion(active.az, active.ax, active.gz + us.dir); rail('the deck is still loading — try the stair again'); }

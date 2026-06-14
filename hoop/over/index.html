@@ -21,7 +21,7 @@
 <body>
 <canvas id="cv"></canvas>
 <div id="hud">❀ <b>level zero</b> — the living floor: groves, mega-lakes, the streams that feed them<br><span style="color:#7da890">click = walk · scroll = zoom · cross water at the ⌇ bridges · weave between the trees</span></div>
-<a class="home" href="/v3/">↧ the decks</a>
+<a class="home" id="back" href="/v3/">↧ the decks</a>
 <div id="info">…</div>
 <div id="err"></div>
 <script type="module">
@@ -33,6 +33,8 @@ addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').te
 const qs = new URLSearchParams(location.search);
 const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
 const E = makeEden(SEED), TILE = E.TILE;
+{ const from = (qs.get('from') || '').split(','); const az = +from[0], ax = +from[1];   // ↧ return to the deck you climbed from (level 1)
+  $('back').href = '/v3/?seed=' + SEED + (Number.isFinite(az) && Number.isFinite(ax) ? '&az=' + az + '&ax=' + ax : ''); }
 const sp = E.spawn();
 const AT = { gx: sp.gx, gy: sp.gy };                        // global world coords
 let path = null, zoom = 0.7;                                // path = {pts, seg, total, t}
