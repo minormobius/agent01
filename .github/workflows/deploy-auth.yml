@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW', 'claude/hoop-feature-pr-00evd0']
+    branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'
