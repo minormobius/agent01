@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.story.pulse",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "The cross-player rollup — 'the world pulse'. A DISPOSABLE PROJECTION written to the service repo by the Director (a Jetstream consumer that folds the firehose of player com.minomobi.hoop.story.save records). NOT a source of truth: rebuildable by replaying Jetstream from cursor 0. rkey = 'self' (a singleton, last-write-wins). The truth stays in players' own repos; this only aggregates them so 'how many travellers have met the Keeper / been to chamber X' is one read instead of scanning everyone.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": ["summaryJson", "updatedAt"],
+        "properties": {
+          "summaryJson": { "type": "string", "maxLength": 20000, "description": "Readable rollup the client shows: {travellers, totalMet, topContent, topChambers, tierDist, xpSum}." },
+          "playersJson": { "type": "string", "maxLength": 900000, "description": "The Director's working state: {did → {met, chambers, tier, xp}}, latest-wins per player. Recomputed each round; not for clients." },
+          "cursor": { "type": "string", "maxLength": 32, "description": "Jetstream cursor (unix microseconds) of the last folded event — where the next replay resumes." },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

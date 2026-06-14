@@ -78,12 +78,16 @@ so sealing it is a drop-in.
 
 | Piece | State |
 |---|---|
-| Lexicons `story.content` / `story.save` | ✅ `hoop/lexicons/` |
-| Bridge `story/atproto.js` (pool ⇄ records, save ⇄ record, publicClient) | ✅ mock-tested, 11 checks |
-| Seeder `scripts/seed-story-pool.mjs` | ✅ (`--dry` works; needs `HOOP_STORY_*` creds to write) |
-| v3 sources the pool from the service repo (set `STORY_SERVICE.did`), bundled fallback | ✅ guarded |
-| Per-player **save → player repo** via `AuthClient.pds` | ⏳ needs v3 auth wiring; `putSave` ready + tested |
-| **Jetstream** consumer (Director rollup) + **Constellation** chamber index | ⏳ the global lane (next) |
+| Lexicons `story.content` / `story.save` / `story.pulse` | ✅ `hoop/lexicons/` |
+| Bridge `story/atproto.js` (pool ⇄ records, save ⇄ record, own-repo read, publicClient) | ✅ mock-tested, 13 checks |
+| Seeder `scripts/seed-story-pool.mjs` | ✅ **live** — 23 records on morphyx |
+| v3 sources the pool from morphyx (public `listRecords`), bundled fallback | ✅ **live** |
+| Per-player **save → player's repo** via `AuthClient.pds` (sign-in, batched, ⟲ reset) | ✅ wired; verify OAuth/write on deploy |
+| Auth scope: `com.minomobi.hoop.story.save` in `workers/auth` `scope.ts` | ✅ deployed (one-shot) |
+| **Director** — global lane: `story/director.js` fold kernel (cross-player pulse) | ✅ node-tested, 11 checks |
+| Director live shell: `scripts/hoop-director.mjs` (Jetstream replay) + `hoop-director.yml` cron | ✅ wired; cron fires on `main` only; verify on deploy |
+| v3 reads the pulse → "🌐 world pulse" HUD line | ✅ guarded (shows once the Director has run) |
+| **Constellation** chamber backlinks (place at-uri → "who's been here") | ⏳ optional (the pulse already covers chamber heat via folded saves) |
 
 The procedural + localStorage path is the guaranteed fallback: with no service repo and no auth, the
 story tab still works fully. ATProto is additive truth, never a hard dependency (the borges discipline).

@@ -36,7 +36,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span><div id="me" style="margin-top:5px"></div></div>
+<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
 <a class="home" href="/">← hoop</a>
 <div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
@@ -51,6 +51,7 @@ import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the proce
 import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, listInventory as storyInventory, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
 import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
 import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
+import { readSummary, PULSE_NSID } from '../story/director.js';   // the cross-player "world pulse" (a disposable projection)
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -628,6 +629,22 @@ function setUser(u) {
 renderAuth();
 ensureStory().then(renderMe).catch(() => {});               // returning players see their progress on load
 auth.init().then(() => { const u = auth.getUser(); if (u) setUser(u); }).catch(() => { /* anonymous */ });
+
+// ── the world pulse: what the whole playerbase is doing (read the Director's projection off morphyx) ──
+async function renderPulse() {
+  const el = $('pulse'); if (!el || !STORY_SERVICE.did) return;
+  try {
+    const rec = await publicClient(STORY_SERVICE.pds).getRecordFrom(STORY_SERVICE.did, PULSE_NSID, 'self');
+    const sum = rec && readSummary(rec.value); if (!sum || !sum.travellers) return;
+    const store = await ensureStory();
+    const name = (id) => { const ci = store.contentById(id); return (ci && ci.content && ci.content.name) || id; };
+    const top = sum.topContent && sum.topContent[0];
+    el.innerHTML = '🌐 ' + sum.travellers + ' traveller' + (sum.travellers === 1 ? '' : 's') + ' afoot'
+      + (top ? ' · most-met: ' + name(top[0]) : '')
+      + (sum.topChambers && sum.topChambers[0] ? ' · busiest chamber ⌂ ' + sum.topChambers[0][0] : '');
+  } catch (e) { /* no pulse yet → nothing shown */ }
+}
+renderPulse();
 function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }
 function renderRail() {
   const n = selNpc; if (!n) return;

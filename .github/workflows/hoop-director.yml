@@ -1,0 +1,39 @@
+name: hoop Director (world pulse)
+
+# Folds the firehose of player com.minomobi.hoop.story.save records into the cross-player
+# "world pulse" (com.minomobi.hoop.story.pulse on morphyx). A windowed Jetstream replay,
+# resumed from the pulse's stored cursor — rebuildable, no source-of-truth DB.
+#
+# NOTE: schedule: only fires from the DEFAULT branch (main), so the cron is dormant until this
+# lands on main. Use the manual "Run workflow" (workflow_dispatch) to run it meanwhile.
+on:
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "Dry run (fold + print, no write)"
+        type: boolean
+        default: false
+      window:
+        description: "Jetstream collection window (seconds)"
+        default: "40"
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 min (default branch only)
+
+# Avoid overlapping runs racing on the singleton pulse record.
+concurrency:
+  group: hoop-director
+  cancel-in-progress: false
+
+jobs:
+  pulse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fold the world pulse
+        env:
+          MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          MORPHYX_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node scripts/hoop-director.mjs --window=${{ inputs.window || '40' }} ${{ inputs.dry && '--dry' || '' }}
