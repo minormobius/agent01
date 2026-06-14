@@ -80,33 +80,50 @@ export function growWallFixtures(scene, rng, { avoid = {}, kindOf } = {}) {
   return out;
 }
 
-// repaint the claimed cells with the fixture's alternate attributes, lit by the ray-traced field.
+const smooth = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+// tilingZ — the per-cell height profile (× maxH). Base (wall) cells stay low (hug the membrane);
+// eruption cells rise toward the room-facing tip, shaped by kind.
+function heightZ(t, base, kind) {
+  if (base) return 0.1;
+  switch (kind) {
+    case 'arcade': return 0.18 + 0.95 * smooth(t * 1.25);     // a tall flat screen leaping up at the front
+    case 'shelf': return 0.16 + 0.78 * (Math.round(t * 3) / 3); // terraced shelves
+    case 'vendor': return 0.14 + 0.72 * t;
+    default: return 0.14 + 0.62 * t;                          // storage — a blocky rise
+  }
+}
+
+// EXTRUDE the claimed cells into a faceted solid (tilingZ): the tiling itself becomes the fixture's
+// volume — shadowed side walls + lit tops + gold top-edges, drawn back-to-front. Lit by the field.
 export function drawWallFixture(ctx, scene, F, { accent = '#888', hue = 40, litAt = () => 1 } = {}) {
-  const acc = hex2rgb(accent), cells = scene.paintCells, peak = hue;
-  const poly = (p) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); };
-  for (const cl of F.cells) {
-    const c = cells[cl.idx], lit = clamp(litAt(c.x, c.y), 0.22, 1.2), t = cl.tier;
-    let col;
-    if (cl.base) col = mix(WALLC, acc, 0.4);                                   // HALF ROOM — wall, marked
-    else {
-      col = mix(mix(GROUND, acc, 0.45), mix(acc, GOLD, 0.4), t);               // HALF ASSET — rises to gold
-      if (F.kind === 'shelf') col = mix(col, GOLD, (Math.floor(cl.w / (scene.roomSpacing * 0.18)) % 2) ? 0.35 : 0);   // shelved bands
-      if (F.kind === 'storage') col = mix(col, [0, 0, 0], 0.12);
+  const acc = hex2rgb(accent), cells = scene.paintCells, sp = scene.roomSpacing || 40, maxH = sp * 0.62;
+  const sideDark = mix(GROUND, acc, 0.16);
+  const order = F.cells.slice().sort((a, b) => cells[a.idx].y - cells[b.idx].y);   // painter's: back → front
+  const path = (pts) => { ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); };
+  for (const cl of order) {
+    const c = cells[cl.idx], v = c.poly, t = cl.tier;
+    const z = heightZ(t, cl.base, F.kind) * maxH, lit = clamp(litAt(c.x, c.y), 0.22, 1.2);
+    const top = v.map((p) => [p[0], p[1] - z]);
+    // side walls — every edge, darker; the front (lower) faces a touch lighter to catch the light
+    for (let i = 0; i < v.length; i++) {
+      const a = v[i], b = v[(i + 1) % v.length], ta = top[i], tb = top[(i + 1) % v.length];
+      const front = (a[1] + b[1]) / 2 > c.y;
+      ctx.fillStyle = css(sideDark, lit * (front ? 0.5 : 0.32) + 0.04);
+      path([a, b, tb, ta]); ctx.fill();
     }
-    ctx.fillStyle = (cl.base) ? css(col, lit * 0.8 + 0.06) : css(col, lit * 0.7 + 0.18);
-    poly(c.poly); ctx.fill();
-    // gold seams trace the asset's cell facets
-    if (!cl.base) { ctx.strokeStyle = goldS(lit, 0.25 + t * 0.45); ctx.lineWidth = 0.7; poly(c.poly); ctx.stroke(); }
+    // top face — the lit deco surface (base=wall-tinted; eruption rises dark→accent→gold; tips emit)
+    let col;
+    if (cl.base) col = mix(WALLC, acc, 0.42);
+    else { col = mix(mix(GROUND, acc, 0.5), mix(acc, GOLD, 0.45), t); if (F.kind === 'shelf') col = mix(col, GOLD, (Math.round(t * 3) % 2) ? 0.3 : 0); }
+    const emit = !cl.base && (F.kind === 'arcade' || F.kind === 'vendor') && t > 0.62;
+    ctx.fillStyle = emit ? `hsl(${hue} 82% ${(46 + 16 * Math.min(1, lit)).toFixed(0)}%)` : css(col, lit * 0.7 + 0.2);
+    path(top); ctx.fill();
+    if (!cl.base) { ctx.strokeStyle = goldS(lit, 0.3 + t * 0.45); ctx.lineWidth = 0.7; path(top); ctx.stroke(); }   // gold top-edge seam
   }
-  // the eruption FACE — kind-specific emissive treatment near the tip
-  const tipCells = F.cells.filter((c) => c.tier > 0.72);
-  if (F.kind === 'arcade' || F.kind === 'vendor') {
-    for (const cl of tipCells) { const c = cells[cl.idx]; ctx.fillStyle = `hsla(${peak} 82% ${(46 + 16 * clamp(litAt(c.x, c.y), 0, 1)).toFixed(0)}% / 0.9)`; poly(c.poly); ctx.fill(); ctx.strokeStyle = goldS(1, 0.5); ctx.lineWidth = 0.8; poly(c.poly); ctx.stroke(); }
-  }
-  // a soft emissive halo + a bright interaction node at the tip (reads as ACTIVE)
-  const sp = scene.roomSpacing || 40;
-  for (let i = 3; i >= 1; i--) { ctx.beginPath(); ctx.arc(F.tip.x, F.tip.y, sp * 0.18 * i / 1.7, 0, 6.283); ctx.fillStyle = `hsla(${peak} 85% 62% / ${0.05 + (3 - i) * 0.04})`; ctx.fill(); }
-  ctx.beginPath(); ctx.arc(F.tip.x, F.tip.y, sp * 0.08, 0, 6.283); ctx.fillStyle = `hsla(${peak} 75% 84% / 0.95)`; ctx.fill();
+  // emissive crown + interaction node, lifted to the top of the tallest tip
+  const tipZ = heightZ(1, false, F.kind) * maxH, tx = F.tip.x, ty = F.tip.y - tipZ;
+  for (let i = 3; i >= 1; i--) { ctx.beginPath(); ctx.arc(tx, ty, sp * 0.16 * i / 1.7, 0, 6.283); ctx.fillStyle = `hsla(${hue} 85% 64% / ${0.06 + (3 - i) * 0.05})`; ctx.fill(); }
+  ctx.beginPath(); ctx.arc(tx, ty, sp * 0.07, 0, 6.283); ctx.fillStyle = `hsla(${hue} 75% 86% / 0.95)`; ctx.fill();
 }
 
 const CONSOLES = { CONSOLE_KINDS, ROLE_CONSOLE, growWallFixtures, drawWallFixture, profile };
