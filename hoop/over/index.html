@@ -221,6 +221,7 @@ addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math
 let last = 0, prefetchT = 0;
 function tick(ts) {
   const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+  if (!active) { requestAnimationFrame(tick); return; }     // wait for the first sector to stream in
   if (AT.path) {
     AT.t += SPEED * dt; const { pts, seg, total } = AT.path;
     if (AT.t >= total) { AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1]; AT.path = null; AT.room = currentRoom(); rebase(); }
