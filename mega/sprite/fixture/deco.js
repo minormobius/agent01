@@ -45,14 +45,16 @@ function ramp(st, t) { t = clamp(t, 0, 1) * 3; const i = Math.min(2, Math.floor(
 
 // ── a device genome — the small bundle a seed mints (drives the deco variety) ───────────────────
 const SYMS = [3, 4, 5, 6, 8];
-export function deviceGenome(rng) {
-  const k = SYMS[(rng() * SYMS.length) | 0];
+export function deviceGenome(rng, opts = {}) {
+  // `sharp` → spikier, higher-symmetry crests for the SMALL interactables (more dramatic as they shrink)
+  const syms = opts.sharp ? [5, 6, 8, 10, 12] : SYMS;
+  const k = syms[(rng() * syms.length) | 0];
   return {
-    m: k, sym: k, n1: 0.3 + rng() * 1.5, n2: 0.4 + rng() * 2.4, n3: 0.4 + rng() * 2.4,
-    rings: 5 + ((rng() * 3) | 0), sectors: k * (3 + ((rng() * 3) | 0)),
+    m: k, sym: k, n1: opts.sharp ? 0.2 + rng() * 0.5 : 0.3 + rng() * 1.5, n2: 0.4 + rng() * 2.4, n3: 0.4 + rng() * 2.4,
+    rings: opts.sharp ? 4 + ((rng() * 2) | 0) : 5 + ((rng() * 3) | 0), sectors: k * (opts.sharp ? 2 + ((rng() * 2) | 0) : 3 + ((rng() * 3) | 0)),
     rosM: SYMS[(rng() * SYMS.length) | 0], rosN1: 0.3 + rng() * 1.2,
     freq: 1.6 + rng() * 2.6, noiseSeed: (rng() * 1e9) >>> 0,
-    flute: rng() > 0.35, sun: rng() > 0.6, rosette: rng() > 0.25, spin: (rng() - 0.5) * 0.5,
+    flute: rng() > 0.3, sun: rng() > 0.55, rosette: rng() > 0.2, spin: (rng() - 0.5) * 0.5,
   };
 }
 
@@ -62,13 +64,16 @@ export function drawDevice(ctx, cx, cy, R, g, { lit = 1, accent = '#e0772f' } = 
   const SR = (th) => superR(th + spin, g.m, g.n1, g.n2, g.n3) / norm;
   const P = (r, th) => [cx + Math.cos(th) * r * SR(th) * R, cy + Math.sin(th) * r * SR(th) * R];
   const quad = (A, B, C, D, fill) => { ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.lineTo(C[0], C[1]); ctx.lineTo(D[0], D[1]); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); };
-  // 1. faceted painterly body — polar lattice scaled by the superformula, tinted by fBm
+  // 0. a dark halo just outside the rim so the component reads as a silhouette against the lit floor
+  { ctx.beginPath(); for (let i = 0; i <= 96; i++) { const th = i / 96 * TAU, p = P(1.08, th); i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]); } ctx.closePath(); ctx.fillStyle = 'rgba(5,6,9,0.85)'; ctx.fill(); }
+  // 1. faceted painterly body — polar lattice scaled by the superformula, tinted by fBm. Biased DARK
+  //    (the chamber light owns the hue; the body contrasts by VALUE, not colour).
   for (let i = 0; i < g.rings; i++) for (let j = 0; j < g.sectors; j++) {
     const th0 = j / g.sectors * TAU, th1 = (j + 1) / g.sectors * TAU, r0 = i / g.rings, r1 = (i + 1) / g.rings;
     const cr = (r0 + r1) / 2, cth = (th0 + th1) / 2;
     const n = fbm(Math.cos(cth) * cr * g.freq + 4, Math.sin(cth) * cr * g.freq + 4, g.noiseSeed, 4);
-    let col = ramp(st, n * 1.12);
-    col = mix(col, [0, 0, 0], (1 - cr) * 0.14);           // a touch of depth toward the rim
+    let col = ramp(st, n * 0.8);
+    col = mix(col, [0, 0, 0], 0.18 + (1 - cr) * 0.24);    // depth + a dark, jewel-like body
     quad(P(r0, th0), P(r1, th0), P(r1, th1), P(r0, th1), litRGB(col, lit));
   }
   // 2. nested superformula rims (gold) — the deco frame
