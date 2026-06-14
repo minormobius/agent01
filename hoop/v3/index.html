@@ -46,6 +46,7 @@ import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
 import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose } from '../story/engine.js';   // the inference-free story hot path
+import { loadPool, publicClient } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -529,15 +530,28 @@ let storyStore = null, _storyLoading = null;
 // localStorage. Tiny, zero-dep, no COOP/COEP. Swappable for a DuckDB-WASM/D1 backend later (same
 // snapshot shape). Bump STORY_KEY to invalidate old saves; the ⟲ reset control wipes it on demand.
 const STORY_KEY = 'hoop.story.v1';
+// THE POOL'S SOURCE OF TRUTH is an ATProto service repo, not a DB (ARCHITECTURE.md). Set `did` after
+// seeding (hoop/scripts/seed-story-pool.mjs) to source the pool LIVE via public listRecords; until
+// then the bundled pool.json is the offline fallback. Either way the engine is unchanged — the pool
+// is just records in. A worker/KV cache over this would be a disposable projection, never truth.
+const STORY_SERVICE = { did: '', pds: 'https://bsky.social' };
 function ensureStory() {
   if (storyStore) return Promise.resolve(storyStore);
-  if (!_storyLoading) _storyLoading = fetch('../story/pool.json').then((r) => r.json()).then((pool) => {
-    storyStore = new MemoryStore(flattenPool(pool), { features: [] });
+  if (!_storyLoading) _storyLoading = (async () => {
+    let content = null;
+    if (STORY_SERVICE.did) {
+      try { const c = await loadPool(publicClient(STORY_SERVICE.pds), STORY_SERVICE.did); if (c && c.length) content = c; }
+      catch (e) { /* repo unreachable → bundled seed */ }
+    }
+    if (!content) content = flattenPool(await fetch('../story/pool.json').then((r) => r.json()));
+    storyStore = new MemoryStore(content, { features: [] });
     try { const s = localStorage.getItem(STORY_KEY); if (s) storyStore.restore(JSON.parse(s)); } catch (e) { /* fresh */ }
     return storyStore;
-  });
+  })();
   return _storyLoading;
 }
+// Per-player durable truth lands in the PLAYER'S repo (putSave) once auth is wired into v3; today the
+// hot-path buffer is localStorage — the projection. Same snapshot shape either way (story/atproto.js).
 function persistStory() { try { localStorage.setItem(STORY_KEY, JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode — stays in-memory */ } }
 function nukeStory() { try { localStorage.removeItem(STORY_KEY); } catch (e) { /* */ } storyStore = null; _storyLoading = null; if (selNpc) { selNpc._npcId = null; renderRail(); } }
 function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }

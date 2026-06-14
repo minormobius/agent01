@@ -120,4 +120,23 @@ for free, and a clear, named backlog (Director loop + Quest/Dungeon/Minigame/Cre
    dialogue/lore. The right rail gets a **"forum" tab** (the multiplayer-social
    layer) and a **"story" tab** (the single-player-narrative layer) — cleanly
    separated, both anchored to the same chamber address.
-</content>
+
+## 6. Decision — supersede A: the backend is ATProto-native, DB-as-projection (2026-06-14)
+
+**§5-A (durable store → D1) is downgraded.** There is **no source-of-truth DB.**
+Truth lives in ATProto repos; any D1/KV is one possible *projection* — disposable,
+rebuildable from the firehose. The cut: a database bundles a durable store (repos
+give it), transactions (single-player turns don't need cross-repo ACID), and an
+index (the only irreducible part — and a small-set scan dissolves it). Run the test
+on the engine's queries and they're all point lookups or small-set scans, except
+the cross-player Director aggregate — which is a rebuildable rollup, not truth.
+
+Three lanes: **pool** → a service repo (`com.minomobi.hoop.story.content`); **per-
+player save** → the player's own repo (`com.minomobi.hoop.story.save`, batched —
+localStorage buffers the hot path, never a record per footstep); **global views**
+→ a Jetstream consumer (Director rollup) + Constellation (the chamber address, bound
+via `hoop.place` at-uris, becomes a queryable spatial index — "who crystallized
+chamber X"). Full design + build status: **`hoop/story/ARCHITECTURE.md`**. The
+engine is unchanged — pool-from-`pool.json` and pool-from-repo are byte-identical to
+it; the procedural + localStorage path stays the guaranteed fallback (no ATProto, no
+auth required to play). D1 is no longer a planned dependency, only a fallback option.

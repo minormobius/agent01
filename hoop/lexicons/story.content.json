@@ -1,0 +1,27 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.story.content",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "An authored story-pool item (NPC / item / lore_fragment / creature / plot_beat) — the SHARED, read-mostly content the inference-free engine dispatches from. Lives in a SERVICE repo and is the source of truth for the pool: the engine loads it with listRecords and caches it (a worker/KV cache is a disposable projection, rebuildable from this collection). The offline pregen lane WRITES these; the hot path only reads. rkey = the stable content id (e.g. 'np-keeper'). Field names mirror the engine's content_item shape so a record loads with no transform.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["type", "content"],
+        "properties": {
+          "type": { "type": "string", "enum": ["npc", "item", "lore_fragment", "creature", "plot_beat"], "description": "Which pool a feature dispatches from." },
+          "content": { "type": "unknown", "description": "The renderable payload: {name, description, mechanics?, dialogue?}. Open-shaped (dialogue trees vary)." },
+          "revelation_tier": { "type": "integer", "minimum": 1, "maximum": 3, "description": "Hard tier gate: a player never sees content above their revelation_tier." },
+          "narrative_tier": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "power_tier": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "tags": { "type": "array", "items": { "type": "string" }, "description": "World/role tags. The role→tag bridge biases dispatch toward a resident's econ role." },
+          "requires": { "type": "unknown", "description": "Gate blob {facts, items, min_rep} — the reactive layer. Empty/absent = always available." },
+          "approved": { "type": "boolean", "description": "Only approved items dispatch." },
+          "status": { "type": "string", "enum": ["active", "retired"], "description": "Retired items stay bound to existing placements but never re-dispatch." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
