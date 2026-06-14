@@ -1,9 +1,9 @@
 // genome.selftest.mjs — pins the object phylogeny (taxa.js) + the genome engine (genome.js).
 // Run: node mega/sprite/item/test/genome.selftest.mjs
-import { KINGDOMS, KINGDOM_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, MATERIALS, materialsAt } from '../taxa.js';
+import { KINGDOMS, KINGDOM_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, MATTER, MATERIALS, MATERIAL_ORDER, materialsByClass, materialsAt, eraSpecies } from '../taxa.js';
 import {
   TRAIT_ORDER, GRADES, express, scoreItem, assemble, rollGenome, rollItem, rollMany,
-  splice, mutate, DEFAULT_HOARD, HOARD_ARCHETYPES, rollHoard, eraOf,
+  splice, mutate, DEFAULT_HOARD, HOARD_ARCHETYPES, rollHoard, eraOf, hoardWithTech,
 } from '../genome.js';
 
 let pass = 0, fail = 0;
@@ -116,6 +116,40 @@ const PRIMS = new Set(['long', 'vessel', 'panel', 'disc', 'garment', 'compound']
   ok(avg(foundry, (i) => i.stats.tech) > avg(midden, (i) => i.stats.tech), 'a foundry rolls higher tech than a midden');
 }
 function findHoard(id) { for (let n = 0; n < 5000; n++) { const h = rollHoard(n); if (h.archetype === id) return h; } throw new Error('no ' + id); }
+
+// ── the matter mini-tree: classes, leaves, tech-banded coverage ──
+{
+  ok(Object.keys(MATTER).length === 5, 'five matter classes');
+  ok(MATERIAL_ORDER.every((m) => MATTER[MATERIALS[m].class]), 'every material belongs to a real matter class');
+  ok(['organic', 'mineral', 'metal', 'synthetic', 'exotic'].every((c) => materialsByClass(c).length >= 2), 'every class has ≥2 materials');
+  ok(materialsByClass('exotic').includes('plasma') && materialsByClass('synthetic').includes('composite'), 'the sci-fi end is populated (plasma, composite)');
+  // the matter-class affinity shows up: a high-tech strike-thing leans metal/synthetic, not exotic-soft
+  const strikePh = phylaOf('strike')[0];
+  const hiMats = materialsAt(strikePh, 0.95);
+  ok(hiMats.length && hiMats.every(([m]) => MATERIALS[m].tech[0] <= 0.95), 'high-tech strike still has in-band materials');
+}
+
+// ── the era lexicon skin: same genome, different vocabulary by tech ──
+{
+  ok(eraSpecies('blade', 0, 'forge-age') !== eraSpecies('blade', 0, 'ship-grade'), 'a blade renames between forge-age and ship-grade');
+  const base = rollGenome(3);
+  const med = assemble({ ...base, genes: { ...base.genes, tech: 0.1 } });
+  const sf = assemble({ ...base, genes: { ...base.genes, tech: 0.95 } });
+  ok(med.species === sf.species, 'the canonical species (tree identity) is era-invariant');
+  ok(med.era !== sf.era, 'low vs high tech land in different eras');
+  ok(typeof med.speciesName === 'string' && typeof sf.speciesName === 'string', 'every item carries a skinned speciesName');
+  ok(med.matter && MATTER[med.matter], 'every item reports its matter class');
+}
+
+// ── the scifiward dial slides the whole hoard toward ship-grade ──
+{
+  const seeds = [...Array(800).keys()];
+  const lo = rollMany(seeds, hoardWithTech(DEFAULT_HOARD, 0.1));
+  const hi = rollMany(seeds, hoardWithTech(DEFAULT_HOARD, 0.95));
+  const avg = (a) => a.reduce((s, x) => s + x.stats.tech, 0) / a.length;
+  ok(avg(hi) > avg(lo) + 30, 'hoardWithTech(0.95) rolls far higher tech than (0.1)');
+  ok(hi.some((i) => MATERIALS[i.material].class === 'exotic'), 'the high-tech dial surfaces exotic materials');
+}
 
 console.log(`genome.selftest: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

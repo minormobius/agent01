@@ -59,6 +59,10 @@
   .row2{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;font-family:var(--mono);font-size:12px;color:var(--dim)}
   .pill{padding:5px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer;color:var(--ink)}
   .pill.on{border-color:var(--gold);color:var(--gold)}
+  .techctl{display:flex;align-items:center;gap:7px;color:var(--dim)}
+  .techctl input[type=range]{width:128px;accent-color:var(--teal);cursor:pointer}
+  .places{display:flex;flex-wrap:wrap;gap:6px}
+  .places .pill{font-size:11px;padding:4px 9px}
   .bench{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);border-radius:8px;padding:6px 10px}
   .bench canvas{image-rendering:pixelated;border-radius:6px;background:#070a0e;border:1px solid var(--border)}
   .bench .lab{font-family:var(--mono);font-size:10px;color:var(--dim)}
@@ -132,7 +136,13 @@
         <span>Hoard:</span>
         <span class="pill" id="hoard-wild">⌂ wild</span>
         <span class="pill" id="hoard-roll">🧬 roll hoard</span>
+        <span class="techctl" title="slide the whole hoard medieval ↔ ship-grade">⏣<input type="range" id="tech" min="0" max="100" value="45"><span id="techlab">tech</span></span>
         <span id="hoardinfo"></span>
+      </div>
+
+      <div class="row2">
+        <span>From a place:</span>
+        <span class="places" id="places"></span>
       </div>
 
       <div class="row2">
@@ -168,27 +178,48 @@
 </div>
 
 <script type="module">
-import { rollItem, rollHoard, DEFAULT_HOARD, splice, mutate } from './genome.js';
+import { rollItem, rollHoard, DEFAULT_HOARD, splice, mutate, hoardWithTech } from './genome.js';
+import { hoardForPlace } from './bindings.js';
 import { drawSprite, drawGlyph } from './sprite.js';
 
 const $ = (id) => document.getElementById(id);
 const GRID_N = 40, COLS = 10;
 // display refs for stat bars
 const BAR = { durability: 125, potency: 135, mass: 8, value: 320 };
+// a few evocative civic places (the affinity matrix in action — bindings.hoardForPlace)
+const PLACES = [
+  { id: 'forge', label: '⚒ forge', role: 'make', domain: 'metal' },
+  { id: 'weaver', label: '☷ weaver', role: 'make', domain: 'fiber' },
+  { id: 'glazier', label: '⚱ glazier', role: 'make', domain: 'glass' },
+  { id: 'temple', label: '☥ temple', role: 'worship' },
+  { id: 'library', label: '❍ library', role: 'learn' },
+  { id: 'council', label: '⛬ council', role: 'govern' },
+  { id: 'market', label: '⇄ market', role: 'trade' },
+  { id: 'clinic', label: '✚ clinic', role: 'heal' },
+  { id: 'farm', label: '❀ farm', role: 'grow' },
+];
 
 const state = {
-  n: 1, hoardSeed: null, current: null, derived: false, pinned: null,
-  get hoard() { return this.hoardSeed == null ? DEFAULT_HOARD : rollHoard(this.hoardSeed); },
+  n: 1, hoardSeed: null, place: null, techOverride: null, current: null, derived: false, pinned: null,
+  get hoard() {
+    if (this.place) return hoardForPlace({ role: this.place.role, domain: this.place.domain, techMean: this.techOverride ?? 0.45 });
+    const base = this.hoardSeed == null ? DEFAULT_HOARD : rollHoard(this.hoardSeed);
+    return this.techOverride == null ? base : hoardWithTech(base, this.techOverride);
+  },
 };
 
 function fromURL() {
   const p = new URLSearchParams(location.search);
   const n = parseInt(p.get('n'), 10); if (Number.isFinite(n)) state.n = n >>> 0;
   const h = p.get('hoard'); if (h && h !== 'wild') { const hs = parseInt(h, 10); if (Number.isFinite(hs)) state.hoardSeed = hs >>> 0; }
+  const pl = p.get('place'); if (pl) { const [role, domain] = pl.split(':'); state.place = PLACES.find((x) => x.role === role && (x.domain || '') === (domain || '')) || { role, domain }; }
+  const t = parseInt(p.get('tech'), 10); if (Number.isFinite(t)) { state.techOverride = Math.max(0, Math.min(1, t / 100)); $('tech').value = t; }
 }
 function toURL(replace) {
   const p = new URLSearchParams(); p.set('n', state.n);
-  if (state.hoardSeed != null) p.set('hoard', state.hoardSeed);
+  if (state.place) p.set('place', state.place.role + (state.place.domain ? ':' + state.place.domain : ''));
+  else if (state.hoardSeed != null) p.set('hoard', state.hoardSeed);
+  if (state.techOverride != null) p.set('tech', Math.round(state.techOverride * 100));
   history[replace ? 'replaceState' : 'pushState']({}, '', location.pathname + '?' + p.toString());
 }
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
@@ -206,7 +237,7 @@ function renderInspector(it) {
   drawInto('hero', it, 'sprite', 200);
   drawInto('glyph', it, 'glyph', 64);
   $('nm').textContent = it.name; $('nm').style.color = it.frame;
-  $('clade').innerHTML = `${it.glyph} <b>${cap(it.kingdom)}</b> › ${it.phylum} › <b>${it.species}</b> · ${it.material}`;
+  $('clade').innerHTML = `${it.glyph} <b>${cap(it.kingdom)}</b> › ${it.phylum} › <b>${it.species}</b> · ${it.material} <span style="opacity:.6">(${it.matter})</span>`;
   $('does').textContent = `“${it.does}”`;
   $('seedtag').textContent = it.derived ? 'derived' : 'seed ' + it.n;
   $('badges').innerHTML =
@@ -257,13 +288,28 @@ function renderGrid() {
   });
   cv._meta = { base, cell, gap, pad };
   $('gridmeta').textContent = `seeds ${base}–${base + GRID_N - 1}`;
-  $('hoardinfo').textContent = state.hoardSeed == null ? '· wild type' : `· #${state.hoardSeed} — ${hoard.archetype}`;
-  $('hoard-wild').classList.toggle('on', state.hoardSeed == null);
+  const src = state.place ? `place · ${state.place.role}${state.place.domain ? '×' + state.place.domain : ''}`
+    : state.hoardSeed == null ? 'wild type' : `#${state.hoardSeed} — ${hoard.archetype}`;
+  $('hoardinfo').textContent = '· ' + src;
+  updateChips();
+}
+const samePlace = (a, b) => a && b && a.role === b.role && (a.domain || '') === (b.domain || '');
+function updateChips() {
+  $('hoard-wild').classList.toggle('on', state.hoardSeed == null && !state.place);
+  $('places').querySelectorAll('.pill').forEach((el) => el.classList.toggle('on', samePlace(state.place, PLACES.find((x) => x.id === el.dataset.id))));
+  $('techlab').textContent = state.techOverride == null ? 'tech (auto)' : 'tech ' + Math.round(state.techOverride * 100);
 }
 
 function setSeed(n, push) { state.n = n >>> 0; state.current = rollItem(state.n, state.hoard); state.derived = false; $('seed').value = state.n; render(push); }
 function setDerived(item) { state.current = item; state.derived = true; render(true); }
 function render(push) { renderInspector(state.current); renderGrid(); if (!state.derived) toURL(!push); }
+
+// place pills (the affinity matrix, live)
+$('places').innerHTML = PLACES.map((pl) => `<span class="pill" data-id="${pl.id}">${pl.label}</span>`).join('');
+$('places').querySelectorAll('.pill').forEach((el) => el.onclick = () => {
+  const pl = PLACES.find((x) => x.id === el.dataset.id);
+  state.place = samePlace(state.place, pl) ? null : pl; state.hoardSeed = null; setSeed(state.n, true);
+});
 
 // events
 $('roll').onclick = () => setSeed(rand32(), true);
@@ -272,8 +318,10 @@ $('next').onclick = () => setSeed((state.n + 1) >>> 0, true);
 $('forge').onclick = () => { const v = parseInt($('seed').value, 10); if (Number.isFinite(v)) setSeed(v >>> 0, true); };
 $('seed').onkeydown = (e) => { if (e.key === 'Enter') $('forge').click(); };
 $('copy').onclick = async () => { if (state.derived) return; try { await navigator.clipboard.writeText(location.href); $('copy').textContent = '✓'; setTimeout(() => $('copy').textContent = '⧉ link', 1000); } catch {} };
-$('hoard-wild').onclick = () => { state.hoardSeed = null; setSeed(state.n, true); };
-$('hoard-roll').onclick = () => { state.hoardSeed = rand32(); setSeed(state.n, true); };
+$('hoard-wild').onclick = () => { state.hoardSeed = null; state.place = null; setSeed(state.n, true); };
+$('hoard-roll').onclick = () => { state.hoardSeed = rand32(); state.place = null; setSeed(state.n, true); };
+$('tech').oninput = () => { state.techOverride = (+$('tech').value) / 100; setSeed(state.n, true); };
+$('techlab').onclick = () => { state.techOverride = null; $('tech').value = 45; setSeed(state.n, true); };
 $('mutate').onclick = () => setDerived(mutate(state.current, rand32()));
 $('pin').onclick = () => {
   state.pinned = state.current; $('splice').disabled = false; $('benchwrap').style.display = '';

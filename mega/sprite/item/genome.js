@@ -16,7 +16,7 @@
 // Determinism is load-bearing: (n, hoard) ⇒ the same item everywhere, so /?n= is a permalink.
 
 import { rng, R } from './prng.js';
-import { KINGDOMS, KINGDOM_ORDER, PHYLA, phylaOf, MATERIALS, materialsAt } from './taxa.js';
+import { KINGDOMS, KINGDOM_ORDER, PHYLA, phylaOf, MATERIALS, materialsAt, eraSpecies } from './taxa.js';
 
 // ── TRAITS — the orthogonal genes. label + the [lo,hi] display range each gene expresses into. ──
 export const TRAITS = {
@@ -107,10 +107,10 @@ function headlineOf(grade, sig, s) {
   return `A serviceable ${grade} piece.`;
 }
 
-// ── NAMING — material × species, dressed by the strongest spikes; high provenance earns a relic name ──
+// ── NAMING — material × (era-skinned) species, dressed by spikes; high provenance earns a relic name ──
 const RELIC_ADJ = ['Ashen', 'Hollow', 'Sunken', 'Forgotten', 'Elder', 'Riven', 'Gilded', 'Pale'];
-export function nameItem(genome, stats, spikes) {
-  const species = pickSpecies(genome);
+export function nameItem(genome, stats, spikes, era) {
+  const species = speciesName(genome, era);                     // medieval or sci-fi skin per tech
   const pre = spikes.find((s) => s.dir === 'hi' && ['potency', 'durability', 'value', 'ornament', 'tech', 'mass'].includes(s.trait));
   const matName = MATERIALS[genome.material].name;
   let s = `${matName} ${species}`;
@@ -121,9 +121,11 @@ export function nameItem(genome, stats, spikes) {
   } else if (genome.genes.complexity >= HI) s = `${s} Mechanism`;
   return s;
 }
-function pickSpecies(genome) {
+const canonSpecies = (genome) => { const list = PHYLA[genome.phylum].species; return genome.species && list.includes(genome.species) ? genome.species : list[0]; };
+function speciesName(genome, era) {
   const list = PHYLA[genome.phylum].species;
-  return genome.species && list.includes(genome.species) ? genome.species : list[0];
+  const idx = Math.max(0, list.indexOf(canonSpecies(genome)));
+  return eraSpecies(genome.phylum, idx, era || eraOf(genome.genes.tech));
 }
 
 // ── ASSEMBLE — genome → the full item object the sprite engine + page consume ────────────────────
@@ -132,13 +134,15 @@ export function assemble(genome, meta = {}) {
   const stats = express(genome);
   const spikes = spikesOf(genome.genes);
   const o = scoreItem(stats);
+  const era = eraOf(genome.genes.tech);
   return {
     ...meta, genome,
-    kingdom: genome.kingdom, phylum: genome.phylum, species: pickSpecies(genome), material: genome.material,
-    glyph: K.glyph, accent: K.accent, does: K.does, color: M.color, sheen: M.sheen, era: eraOf(genome.genes.tech),
+    kingdom: genome.kingdom, phylum: genome.phylum, species: canonSpecies(genome), speciesName: speciesName(genome, era),
+    material: genome.material, matter: M.class,
+    glyph: K.glyph, accent: K.accent, does: K.does, color: M.color, sheen: M.sheen, era,
     stats, spikes, cues: spikes.map((s) => s.cue).filter(Boolean),
     worth: o.worth, grade: o.grade, gradeLabel: o.gradeLabel, signals: o.signals, headline: o.headline,
-    frame: GRADES.find((g) => g.id === o.grade).color, name: nameItem(genome, stats, spikes),
+    frame: GRADES.find((g) => g.id === o.grade).color, name: nameItem(genome, stats, spikes, era),
   };
 }
 
@@ -230,6 +234,9 @@ export function rollHoard(n) {
   return { n, archetype: arc.id, kingdomMix, traitMeans, techMean: clamp01(arc.tech[0] + (rnd() - 0.5) * 0.1), techSpread: arc.tech[1], spread: 0.28 + rnd() * 0.08 };
 }
 
-const GENOME = { TRAITS, TRAIT_ORDER, GRADES, eraOf, express, scoreItem, nameItem, assemble, rollGenome, rollItem, forge, rollMany, splice, mutate, DEFAULT_HOARD, HOARD_ARCHETYPES, rollHoard };
+// the SCIFIWARD dial: override a hoard's tech mean (so the whole hoard slides medieval↔ship-grade).
+export function hoardWithTech(hoard, techMean, techSpread = 0.14) { return { ...hoard, techMean: Math.max(0, Math.min(1, techMean)), techSpread }; }
+
+const GENOME = { TRAITS, TRAIT_ORDER, GRADES, eraOf, express, scoreItem, nameItem, assemble, rollGenome, rollItem, forge, rollMany, splice, mutate, DEFAULT_HOARD, HOARD_ARCHETYPES, rollHoard, hoardWithTech };
 if (typeof globalThis !== 'undefined') globalThis.GENOME = GENOME;
 export default GENOME;

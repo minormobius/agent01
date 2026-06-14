@@ -80,34 +80,97 @@ export const phylaOf = (kingdom) => PHYLUM_ORDER.filter((p) => PHYLA[p].kingdom 
 
 // ── MATERIALS — the categorical trait, GATED BY TECH. `tech:[lo,hi]` is the era band in which the ──
 // material is available (stone is primitive; alloy is ship-grade), so the tech gene shapes what a
-// thing can be made of. factors scale the stat axes; color+sheen drive the sprite.
+// thing can be made of. factors scale the stat axes; color+sheen drive the sprite. Each material
+// belongs to a MATTER CLASS (a third little phylogeny) — expand a class by adding leaves and the
+// tech gate sorts them in automatically. The high-tech classes (synthetic, exotic) populate the
+// sci-fi end so the medieval↔ship-grade dial has somewhere to go.
+export const MATTER = {
+  organic:   { label: 'Organic',   note: 'grown / worked from life' },
+  mineral:   { label: 'Mineral',   note: 'earth, fired & cut' },
+  metal:     { label: 'Metal',     note: 'smelted & forged' },
+  synthetic: { label: 'Synthetic', note: 'engineered composites' },
+  exotic:    { label: 'Exotic',    note: 'ship-grade / barely-matter' },
+};
 export const MATERIALS = {
-  stone:   { name: 'Stone',   color: '#566066', sheen: 0.20, tech: [0.00, 0.32], weight: 1.8, value: 0.6, durability: 1.4, potency: 0.9 },
-  bone:    { name: 'Bone',    color: '#d8cbb0', sheen: 0.25, tech: [0.00, 0.36], weight: 0.7, value: 0.8, durability: 0.7, potency: 1.0 },
-  wood:    { name: 'Wood',    color: '#9b6b3a', sheen: 0.10, tech: [0.00, 0.52], weight: 0.6, value: 0.7, durability: 0.8, potency: 0.7 },
-  clay:    { name: 'Clay',    color: '#b5734a', sheen: 0.15, tech: [0.04, 0.42], weight: 0.9, value: 0.5, durability: 0.5, potency: 0.6 },
-  leather: { name: 'Leather', color: '#7a5230', sheen: 0.20, tech: [0.08, 0.56], weight: 0.5, value: 0.8, durability: 0.9, potency: 0.7 },
-  cloth:   { name: 'Cloth',   color: '#b0607f', sheen: 0.18, tech: [0.10, 0.60], weight: 0.4, value: 0.7, durability: 0.5, potency: 0.5 },
-  paper:   { name: 'Paper',   color: '#e8dcc0', sheen: 0.10, tech: [0.15, 0.70], weight: 0.3, value: 0.6, durability: 0.3, potency: 0.4 },
-  bronze:  { name: 'Bronze',  color: '#c08a3e', sheen: 0.50, tech: [0.24, 0.70], weight: 1.2, value: 1.1, durability: 1.1, potency: 1.1 },
-  iron:    { name: 'Iron',    color: '#6b7a82', sheen: 0.32, tech: [0.30, 0.76], weight: 1.4, value: 0.9, durability: 1.3, potency: 1.2 },
-  glass:   { name: 'Glass',   color: '#7fd8d0', sheen: 0.85, tech: [0.35, 0.86], weight: 0.7, value: 1.0, durability: 0.4, potency: 0.8 },
-  silver:  { name: 'Silver',  color: '#dfe7e2', sheen: 0.80, tech: [0.40, 0.90], weight: 1.1, value: 1.6, durability: 1.0, potency: 1.1 },
-  gold:    { name: 'Gold',    color: '#f4bf62', sheen: 0.95, tech: [0.45, 0.95], weight: 1.6, value: 2.4, durability: 0.7, potency: 0.9 },
-  steel:   { name: 'Steel',   color: '#aeb8c2', sheen: 0.62, tech: [0.55, 0.95], weight: 1.3, value: 1.3, durability: 1.5, potency: 1.4 },
-  crystal: { name: 'Crystal', color: '#b39bd8', sheen: 0.92, tech: [0.60, 1.00], weight: 0.9, value: 2.0, durability: 0.6, potency: 1.5 },
-  alloy:   { name: 'Alloy',   color: '#8fa0b0', sheen: 0.70, tech: [0.80, 1.00], weight: 0.9, value: 1.7, durability: 1.6, potency: 1.5 },
+  // organic
+  bone:    { name: 'Bone',    class: 'organic',   color: '#d8cbb0', sheen: 0.25, tech: [0.00, 0.36], weight: 0.7, value: 0.8, durability: 0.7, potency: 1.0 },
+  wood:    { name: 'Wood',    class: 'organic',   color: '#9b6b3a', sheen: 0.10, tech: [0.00, 0.52], weight: 0.6, value: 0.7, durability: 0.8, potency: 0.7 },
+  leather: { name: 'Leather', class: 'organic',   color: '#7a5230', sheen: 0.20, tech: [0.08, 0.56], weight: 0.5, value: 0.8, durability: 0.9, potency: 0.7 },
+  cloth:   { name: 'Cloth',   class: 'organic',   color: '#b0607f', sheen: 0.18, tech: [0.10, 0.60], weight: 0.4, value: 0.7, durability: 0.5, potency: 0.5 },
+  paper:   { name: 'Paper',   class: 'organic',   color: '#e8dcc0', sheen: 0.10, tech: [0.15, 0.70], weight: 0.3, value: 0.6, durability: 0.3, potency: 0.4 },
+  // mineral
+  stone:   { name: 'Stone',   class: 'mineral',   color: '#566066', sheen: 0.20, tech: [0.00, 0.32], weight: 1.8, value: 0.6, durability: 1.4, potency: 0.9 },
+  clay:    { name: 'Clay',    class: 'mineral',   color: '#b5734a', sheen: 0.15, tech: [0.04, 0.42], weight: 0.9, value: 0.5, durability: 0.5, potency: 0.6 },
+  glass:   { name: 'Glass',   class: 'mineral',   color: '#7fd8d0', sheen: 0.85, tech: [0.35, 0.86], weight: 0.7, value: 1.0, durability: 0.4, potency: 0.8 },
+  crystal: { name: 'Crystal', class: 'mineral',   color: '#b39bd8', sheen: 0.92, tech: [0.60, 1.00], weight: 0.9, value: 2.0, durability: 0.6, potency: 1.5 },
+  // metal
+  bronze:  { name: 'Bronze',  class: 'metal',     color: '#c08a3e', sheen: 0.50, tech: [0.24, 0.70], weight: 1.2, value: 1.1, durability: 1.1, potency: 1.1 },
+  iron:    { name: 'Iron',    class: 'metal',     color: '#6b7a82', sheen: 0.32, tech: [0.30, 0.76], weight: 1.4, value: 0.9, durability: 1.3, potency: 1.2 },
+  silver:  { name: 'Silver',  class: 'metal',     color: '#dfe7e2', sheen: 0.80, tech: [0.40, 0.90], weight: 1.1, value: 1.6, durability: 1.0, potency: 1.1 },
+  gold:    { name: 'Gold',    class: 'metal',     color: '#f4bf62', sheen: 0.95, tech: [0.45, 0.95], weight: 1.6, value: 2.4, durability: 0.7, potency: 0.9 },
+  steel:   { name: 'Steel',   class: 'metal',     color: '#aeb8c2', sheen: 0.62, tech: [0.55, 0.95], weight: 1.3, value: 1.3, durability: 1.5, potency: 1.4 },
+  // synthetic
+  ceramic:   { name: 'Ceramic',   class: 'synthetic', color: '#e0e6ea', sheen: 0.55, tech: [0.55, 0.92], weight: 0.7, value: 1.0, durability: 1.2, potency: 1.1 },
+  polymer:   { name: 'Polymer',   class: 'synthetic', color: '#c9c4b8', sheen: 0.40, tech: [0.58, 0.92], weight: 0.4, value: 0.8, durability: 1.0, potency: 0.8 },
+  alloy:     { name: 'Alloy',     class: 'synthetic', color: '#8fa0b0', sheen: 0.70, tech: [0.72, 1.00], weight: 0.9, value: 1.7, durability: 1.6, potency: 1.5 },
+  composite: { name: 'Composite', class: 'synthetic', color: '#4a5a64', sheen: 0.60, tech: [0.78, 1.00], weight: 0.7, value: 1.3, durability: 1.7, potency: 1.3 },
+  // exotic
+  aerogel:   { name: 'Aerogel',   class: 'exotic',    color: '#cfe6ea', sheen: 0.50, tech: [0.82, 1.00], weight: 0.2, value: 1.4, durability: 0.5, potency: 0.9 },
+  nanoweave: { name: 'Nanoweave', class: 'exotic',    color: '#6a7a86', sheen: 0.66, tech: [0.84, 1.00], weight: 0.3, value: 1.8, durability: 1.7, potency: 1.2 },
+  photonic:  { name: 'Photonic',  class: 'exotic',    color: '#8fe0ff', sheen: 0.95, tech: [0.86, 1.00], weight: 0.3, value: 2.2, durability: 0.7, potency: 1.7 },
+  plasma:    { name: 'Plasma',    class: 'exotic',    color: '#b388ff', sheen: 0.98, tech: [0.90, 1.00], weight: 0.4, value: 2.6, durability: 0.6, potency: 2.1 },
 };
 export const MATERIAL_ORDER = Object.keys(MATERIALS);
-// materials available at a tech level (band contains tech), with their phylum-affinity weight.
+export const materialsByClass = (cls) => MATERIAL_ORDER.filter((m) => MATERIALS[m].class === cls);
+
+// per-kingdom affinity for whole MATTER CLASSES — so when the tech gate opens the sci-fi end, a
+// blade still leans metal/synthetic and a charm leans exotic/mineral (no need to author per-leaf).
+export const MATTER_AFFINITY = {
+  strike:  { metal: 2.0, synthetic: 1.6, exotic: 1.2, mineral: 0.7, organic: 0.4 },
+  craft:   { metal: 1.8, synthetic: 1.4, organic: 1.0, mineral: 0.8, exotic: 0.9 },
+  ward:    { metal: 1.6, synthetic: 1.6, exotic: 1.3, organic: 1.2, mineral: 0.6 },
+  hold:    { mineral: 1.6, synthetic: 1.1, metal: 1.0, organic: 0.9, exotic: 1.0 },
+  adorn:   { metal: 1.8, mineral: 1.6, exotic: 1.6, synthetic: 0.8, organic: 0.6 },
+  lore:    { organic: 1.8, synthetic: 1.2, exotic: 1.2, mineral: 1.0, metal: 0.6 },
+  channel: { exotic: 1.8, mineral: 1.6, synthetic: 1.1, metal: 1.0, organic: 0.8 },
+  light:   { exotic: 1.8, mineral: 1.4, synthetic: 1.4, metal: 1.1, organic: 0.5 },
+  sustain: { organic: 1.4, mineral: 1.1, synthetic: 0.9, exotic: 0.7, metal: 0.6 },
+  sound:   { organic: 1.6, metal: 1.2, synthetic: 1.0, exotic: 1.0, mineral: 0.8 },
+};
+// materials available at a tech level (band contains tech), weighted by phylum affinity × the
+// kingdom's matter-class affinity (so the sci-fi end still rolls sensible materials).
 export function materialsAt(phylumId, tech) {
-  const aff = PHYLA[phylumId].mats;
+  const P = PHYLA[phylumId], aff = P.mats, kc = MATTER_AFFINITY[P.kingdom] || {};
   return MATERIAL_ORDER
     .filter((m) => tech >= MATERIALS[m].tech[0] && tech <= MATERIALS[m].tech[1])
-    .map((m) => [m, aff[m] || 0.5])       // off-affinity materials are still possible, just rarer
+    .map((m) => [m, (aff[m] || 0.5) * (kc[MATERIALS[m].class] || 1)])
     .filter(([, w]) => w > 0);
 }
 
-const TAXA = { KINGDOMS, KINGDOM_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, MATERIALS, MATERIAL_ORDER, materialsAt };
+// ── ERA LEXICON SKIN — the SAME genome reads medieval at low tech, sci-fi at high tech ──────────
+// The tree (verb → body-plan) is invariant; only the displayed species VOCABULARY shifts with the
+// tech gene, so a strike/blade is a "Sword" at forge-age and a "Vibroblade" at ship-grade. Indexed
+// by the same species slot, so a given genome maps to a stable medieval↔sci-fi pair. Medieval & the
+// far-future are two skins of one genotype — the Tabard conceit (robots telling medieval tales).
+export const SF_SPECIES = {
+  blade: ['Shiv', 'Vibroblade', 'Monosword', 'Edge'], haft: ['Pile-Driver', 'Servo-Maul', 'Stun-Mace'], point: ['Pike-Lance', 'Rivet-Gun', 'Harpoon'],
+  percussor: ['Driver', 'Servo-Mallet'], graver: ['Laser-Scribe', 'Bore', 'Etcher'], gauge: ['Caliper-Unit', 'Sense-Square', 'Micrometer'],
+  worn: ['Coversuit', 'Field-Wrap', 'Underlayer'], plate: ['Carapace', 'Pauldron-Mk'], shield: ['Buckler-Field', 'Deflector', 'Kite-Screen'],
+  open: ['Tray-Unit', 'Beaker', 'Basin-Unit'], necked: ['Canister', 'Flask-Unit', 'Decanter'], chest: ['Locker', 'Stasis-Case', 'Crate-Unit'],
+  pendant: ['ID-Tag', 'Locket-Cell', 'Talis-Chip'], band: ['Band-Loop', 'Circlet-Mk', 'Torc-Ring'], gemset: ['Sensor-Brooch', 'Core-Jewel', 'Sigil-Chip'],
+  codex: ['Dataslate', 'Codex-Drive', 'Ledger-Unit'], scroll: ['Filmreel', 'Map-Chip', 'Charter-Card'], tablet: ['Slate-Unit', 'Sigil-Plate'],
+  rod: ['Conductor', 'Wand-Emitter', 'Scepter-Rod'], focus: ['Lens-Core', 'Optic', 'Prism-Cell'], sigil: ['Beacon-Chip', 'Charm-Cell', 'Ward-Key'],
+  lantern: ['Lumen', 'Lamp-Cell'], torch: ['Flare', 'Plasma-Brand'], beacon: ['Pulse-Beacon', 'Signal-Array'],
+  ration: ['Nutripack', 'Loaf-Bar', 'Cake-Ration'], draught: ['Ampoule', 'Tonic-Vial', 'Stim'], salve: ['Medgel', 'Patch', 'Balm-Unit'],
+  string: ['Synthlute', 'Wave-Harp', 'Lyre-Unit'], wind: ['Resonator', 'Sona-Flute', 'Pipe-Emitter'], percussion: ['Pulse-Drum', 'Gong-Unit', 'Chime'],
+};
+// the SF lexicon takes over at the two top eras (fine-works, ship-grade); below that, the medieval name.
+export function eraSpecies(phylumId, idx, era) {
+  const sf = SF_SPECIES[phylumId];
+  if ((era === 'fine-works' || era === 'ship-grade') && sf && sf.length) return sf[idx % sf.length];
+  const med = PHYLA[phylumId].species; return med[idx % med.length];
+}
+
+const TAXA = { KINGDOMS, KINGDOM_ORDER, PHYLA, PHYLUM_ORDER, phylaOf, MATTER, MATERIALS, MATERIAL_ORDER, materialsByClass, MATTER_AFFINITY, materialsAt, SF_SPECIES, eraSpecies };
 if (typeof globalThis !== 'undefined') globalThis.TAXA = TAXA;
 export default TAXA;
