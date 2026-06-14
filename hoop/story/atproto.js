@@ -45,6 +45,14 @@ export async function loadSave(client, playerDid, world) {
   if (!rec || !rec.value || !rec.value.stateJson) return null;
   try { return JSON.parse(rec.value.stateJson); } catch (e) { return null; }
 }
+// Own-repo variant for the authed browser client (AuthClient.pds.getRecord — no did, the worker scopes
+// to the logged-in user). Tolerates both {value:{…}} and bare-value record shapes.
+export async function loadOwnSave(client, world) {
+  const rec = await client.getRecord(SAVE_NSID, world);
+  const v = rec && (rec.value || rec);
+  if (!v || !v.stateJson) return null;
+  try { return JSON.parse(v.stateJson); } catch (e) { return null; }
+}
 // `client` here must be authed for the player's repo (PdsClient session, or AuthClient.pds).
 export async function putSave(client, world, snapshot) {
   return client.putRecord(SAVE_NSID, world, {

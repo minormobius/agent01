@@ -30,12 +30,15 @@
   #decks button { font: 16px/1 ui-monospace, monospace; color: var(--gold); background: rgba(8,11,16,.82); border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; cursor: pointer; backdrop-filter: blur(6px); }
   #decks button:active { background: rgba(244,191,98,.18); }
   #deck { text-align: center; color: var(--dim); font-size: 11px; }
+  #auth { position: fixed; top: 28px; right: 10px; color: var(--dim); font-size: 11px; text-align: right; z-index: 8; max-width: 42vw; }
+  #auth .act { color: var(--teal); cursor: pointer; } #auth .act:hover { color: var(--gold); }
 </style>
 </head>
 <body>
 <canvas id="cv"></canvas>
 <div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · the little figures are residents — click one for who they know (forum) &amp; their tale (story) · scroll = zoom</span></div>
 <a class="home" href="/">← hoop</a>
+<div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
 <div id="rail"></div>
 <div id="busy">waking the world…</div>
@@ -46,7 +49,8 @@ import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
 import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose } from '../story/engine.js';   // the inference-free story hot path
-import { loadPool, publicClient } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
+import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
+import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
 
 const $ = (id) => document.getElementById(id);
 addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = 'page: ' + e.message; });
@@ -523,7 +527,8 @@ function npcAt(wx, wy) {
 // the inference-free engine crystallizes a role-tagged NPC dialogue onto this resident's stable chamber
 // identity (the role→tag bridge), keeping the resident's solved name + web and gaining a tree + YOUR
 // private standing. Most residents stay ambient (forum only); the few you engage become characters.
-const PLAYER = 'local';                                     // session-local player id (durable D1 store comes later)
+// (PLAYER — the engine player id, 'local' when anonymous or the DID when signed in — is declared with
+// the save-lane wiring below.)
 let railTab = 'forum';
 let storyStore = null, _storyLoading = null;
 // Nukeable browser persistence: player story-state (facts/placements/inventory/standing) snapshots to
@@ -535,6 +540,21 @@ const STORY_KEY = 'hoop.story.v1';
 // then the bundled pool.json is the offline fallback. Either way the engine is unchanged — the pool
 // is just records in. A worker/KV cache over this would be a disposable projection, never truth.
 const STORY_SERVICE = { did: 'did:plc:yivyyp54vddf7qf2lpsikhe4', pds: 'https://chalciporus.us-west.host.bsky.network' };   // morphyx — seeded by seed-story.yml
+
+// ── identity + the per-player SAVE LANE ──────────────────────────────────────────────────────────
+// Sign in → your story syncs to YOUR OWN repo (com.minomobi.hoop.story.save), durable + cross-device +
+// user-owned. Anonymous → localStorage only. Either way localStorage is the hot-path buffer; the repo
+// write is BATCHED (debounced ~4s + on unload) — never a record per action. Same snapshot shape.
+const auth = new AuthClient();
+let storyUser = null;                                       // { did, handle } when signed in
+let PLAYER = 'local';                                       // engine player id = the DID when authed
+const WORLD_KEY = String(SEED);                             // save rkey = ship seed (one save per world)
+const storyKeyFor = (p) => STORY_KEY + ':' + p;            // localStorage namespaced by identity
+let _saveTimer = null;
+// TODO(minimum-privilege): tighten the scope to `repo:com.minomobi.hoop.story.save blob:` once that
+// collection is added to workers/auth scope.ts + the auth worker redeploys. transition:generic unblocks now.
+const STORY_SCOPE = 'atproto transition:generic';
+
 function ensureStory() {
   if (storyStore) return Promise.resolve(storyStore);
   if (!_storyLoading) _storyLoading = (async () => {
@@ -545,15 +565,55 @@ function ensureStory() {
     }
     if (!content) content = flattenPool(await fetch('../story/pool.json').then((r) => r.json()));
     storyStore = new MemoryStore(content, { features: [] });
-    try { const s = localStorage.getItem(STORY_KEY); if (s) storyStore.restore(JSON.parse(s)); } catch (e) { /* fresh */ }
+    let snap = null;                                        // restore: your repo (durable truth) if signed in, else localStorage
+    if (storyUser) { try { snap = await loadOwnSave(auth.pds, WORLD_KEY); } catch (e) { /* fall through */ } }
+    if (!snap) { try { const s = localStorage.getItem(storyKeyFor(PLAYER)); if (s) snap = JSON.parse(s); } catch (e) { /* fresh */ } }
+    if (snap) storyStore.restore(snap);
     return storyStore;
   })();
   return _storyLoading;
 }
-// Per-player durable truth lands in the PLAYER'S repo (putSave) once auth is wired into v3; today the
-// hot-path buffer is localStorage — the projection. Same snapshot shape either way (story/atproto.js).
-function persistStory() { try { localStorage.setItem(STORY_KEY, JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode — stays in-memory */ } }
-function nukeStory() { try { localStorage.removeItem(STORY_KEY); } catch (e) { /* */ } storyStore = null; _storyLoading = null; if (selNpc) { selNpc._npcId = null; renderRail(); } }
+function persistStory() {
+  try { localStorage.setItem(storyKeyFor(PLAYER), JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode */ }
+  if (storyUser) scheduleRepoSave();                        // batched checkpoint to the player's repo
+}
+function scheduleRepoSave() {
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => { _saveTimer = null; if (storyStore && storyUser) putSave(auth.pds, WORLD_KEY, storyStore.snapshot()).catch(() => {}); }, 4000);
+}
+addEventListener('beforeunload', () => { if (storyStore && storyUser) { try { putSave(auth.pds, WORLD_KEY, storyStore.snapshot()); } catch (e) { /* best effort */ } } });
+function resetStory() { storyStore = null; _storyLoading = null; if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; } }
+function nukeStory() {
+  try { localStorage.removeItem(storyKeyFor(PLAYER)); } catch (e) { /* */ }
+  if (storyUser) { try { auth.pds.deleteRecord(SAVE_NSID, WORLD_KEY).catch(() => {}); } catch (e) { /* */ } }
+  resetStory();
+  if (selNpc) { selNpc._npcId = null; renderRail(); }
+}
+
+// ── auth UI + lifecycle ──
+function renderAuth() {
+  const el = $('auth'); if (!el) return;
+  el.innerHTML = storyUser
+    ? '<span style="color:var(--teal)">@' + storyUser.handle + '</span> — story saved to your repo · <span class="act" data-logout>sign out</span>'
+    : '<span class="act" data-login>sign in</span> to save your story to your own repo';
+  const lo = el.querySelector('[data-logout]'); if (lo) lo.onclick = signOut;
+  const li = el.querySelector('[data-login]'); if (li) li.onclick = signIn;
+}
+async function signIn() {
+  const handle = prompt('Bluesky handle — signs in and saves your story to your own repo:');
+  if (!handle) return;
+  try { await auth.login(handle.trim(), { scope: STORY_SCOPE }); }   // redirects to OAuth, returns here
+  catch (e) { showErr('sign-in: ' + (e && e.message || e)); }
+}
+async function signOut() { try { await auth.logout(); } catch (e) { /* */ } setUser(null); }
+function setUser(u) {
+  storyUser = u ? { did: u.did, handle: u.handle } : null;
+  PLAYER = storyUser ? storyUser.did : 'local';
+  resetStory(); renderAuth();
+  if (selNpc) { selNpc._npcId = null; if (railTab === 'story') renderRail(); }
+}
+renderAuth();
+auth.init().then(() => { const u = auth.getUser(); if (u) setUser(u); }).catch(() => { /* anonymous */ });
 function inspectNpc(n) { selNpc = n; railTab = 'forum'; renderRail(); }
 function renderRail() {
   const n = selNpc; if (!n) return;

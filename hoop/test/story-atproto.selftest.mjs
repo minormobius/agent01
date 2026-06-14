@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { MemoryStore, flattenPool, interact, talk, choose } from '../story/engine.js';
-import { poolToRecords, recordsToPool, loadPool, loadSave, putSave,
+import { poolToRecords, recordsToPool, loadPool, loadSave, loadOwnSave, putSave,
          contentToRecord, recordToContent, CONTENT_NSID, SAVE_NSID } from '../story/atproto.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +32,10 @@ function mockClient(did = 'did:plc:service') {
     getRecordFrom(d, collection, rkey) {
       const v = col(d, collection).get(rkey);
       return Promise.resolve(v ? { uri: `at://${d}/${collection}/${rkey}`, value: v } : null);
+    },
+    getRecord(collection, rkey) {   // own-repo (AuthClient.pds shape): scoped to this.did
+      const v = col(this.did, collection).get(rkey);
+      return Promise.resolve(v ? { uri: `at://${this.did}/${collection}/${rkey}`, value: v } : null);
     },
     putRecord(collection, rkey, value) { this._put(this.did, collection, rkey, value); return Promise.resolve({ uri: `at://${this.did}/${collection}/${rkey}` }); },
   };
@@ -77,6 +81,10 @@ ok('a loaded NPC keeps its dialogue tree', (loaded.find((c) => c.id === 'np-keep
   ok('restored save recalls (not re-crystallizes)', recalled.status === 'recalled');
   ok('restored save keeps facts', s2.getFact('did:plc:alice', 'flag.opened_hatch') === true);
   ok('missing save loads as null', (await loadSave(player, player.did, 'nope')) === null);
+  // own-repo read (the browser AuthClient.pds path): getRecord(no did) → same snapshot
+  const own = await loadOwnSave(player, '7');
+  ok('loadOwnSave reads the player\'s own save', own && own.players && own.players.length > 0);
+  ok('loadOwnSave missing → null', (await loadOwnSave(player, 'nope')) === null);
 }
 
 console.log(`\n${fail ? '✗ FAIL' : '✓ PASS'} — ${pass} ok, ${fail} failed`);
