@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "duck",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // GOLDEN RULE (docs/DEPLOYS.md §4): this `name` must be the worker that owns the
+  // live custom domain, declared here as a custom_domain route, or wrangler ships
+  // green into a stray *.workers.dev and duck.mino.mobi never updates.
+  "routes": [
+    { "pattern": "duck.mino.mobi", "custom_domain": true }
+  ]
+}
