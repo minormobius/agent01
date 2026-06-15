@@ -40,7 +40,19 @@ export function solveChunk(opts = {}) {
   interior.forEach((cid, i) => { if (sol.road[cid]) road[i] = 1; roomOf[i] = rm.roomOf[cid]; });
   const adj = cells.map(() => []);
   for (const e of foam.edges) { const a = local.get(e.a), b = local.get(e.b); if (a != null && b != null) { adj[a].push(b); adj[b].push(a); } }
-  const rooms = cast.rooms.map((r) => ({ cells: r.cells.map((c) => local.get(c)), door: r.door >= 0 ? local.get(r.door) : -1, doorRoad: r.doorRoad >= 0 ? local.get(r.doorRoad) : -1, x: r.x, y: r.y, role: r.role, glyph: r.glyph, color: r.color, domain: r.domain, people: r.people }));
+  const rooms = cast.rooms.map((r) => {
+    const door = r.door >= 0 ? local.get(r.door) : -1, doorRoad = r.doorRoad >= 0 ? local.get(r.doorRoad) : -1;
+    const doorPairs = [];
+    if (door >= 0 && doorRoad >= 0) {
+      doorPairs.push([door, doorRoad]);
+      // widen the doorway to ~two cells: a same-room neighbour of the door cell that also fronts the
+      // concourse, nearest the door — opened too, so the opening reads as a doorway not a slit
+      let best = -1, bestRoad = -1, bd = Infinity;
+      for (const nb of foam.adj[r.door]) { if (rm.roomOf[nb] !== r.id) continue; for (const rd of foam.adj[nb]) if (sol.road[rd]) { const d = (foam.cells[nb].x - foam.cells[r.door].x) ** 2 + (foam.cells[nb].y - foam.cells[r.door].y) ** 2; if (d < bd) { bd = d; best = nb; bestRoad = rd; } break; } }
+      if (best >= 0 && local.has(best) && local.has(bestRoad)) doorPairs.push([local.get(best), local.get(bestRoad)]);
+    }
+    return { cells: r.cells.map((c) => local.get(c)), door, doorRoad, doorPairs, x: r.x, y: r.y, role: r.role, glyph: r.glyph, color: r.color, domain: r.domain, people: r.people };
+  });
   const ports = def.ports.map((p) => ({ x: p.x, y: p.y, edge: p.edge, inherited: !!p.inherited, cell: local.get(p.cell) }));
   return { poly: def.poly, shape: def.shape, region, cells, adj, road, roomOf, rooms, ports, served: sol.servedFrac, cellSize: foam.cellSize };
 }

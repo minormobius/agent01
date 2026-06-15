@@ -13,6 +13,7 @@ ok(A.shape === 'hex' && A.poly.length === 6, 'chunk #0 is a hex');
 ok(A.cells.length > 500 && A.cells.every((c) => c.poly.length >= 3 && typeof c.gid === 'string'), `record has cells with polys + gids (${A.cells.length})`);
 ok(A.road.length === A.cells.length && A.roomOf.length === A.cells.length, 'road/roomOf are per-cell typed arrays');
 ok(A.rooms.length > 6 && A.rooms.every((r) => r.door >= 0 && r.doorRoad >= 0), `${A.rooms.length} rooms, all doored`);
+ok(A.rooms.every((r) => Array.isArray(r.doorPairs) && r.doorPairs.length >= 1) && A.rooms.filter((r) => r.doorPairs.length === 2).length > A.rooms.length * 0.4, 'doorways are 1–2 cells wide (most are 2)');
 ok(A.served > 0.95, `well perfused (${(A.served * 100) | 0}%)`);
 ok(A.ports.every((p) => p.cell >= 0 && p.cell < A.cells.length), 'every port binds a real local cell');
 const A2 = solveChunk({ seed: 7, shape: 'hex' });

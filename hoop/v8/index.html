@@ -34,12 +34,13 @@
 
     const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
     let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
-    let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
-    let player = -1, seen = new Set(), inView = new Set(), route = [], walkTimer = null, society = null;
+    let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552, zoom = 1;
+    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
+    const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
     const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
     const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
     const busy = (on) => { busyN += on ? 1 : -1; $('busy').classList.toggle('on', busyN > 0); };
-    const px = () => walk.pos[2 * player], py = () => walk.pos[2 * player + 1];
+    const px = () => pp.x, py = () => pp.y;
 
     // off-thread generation (worker) with a synchronous fallback — identical contract either way
     let worker = null, genId = 0;
@@ -51,7 +52,7 @@
     const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, ...extra });
 
     function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); }
-    function setScale() { cam.scale = W / (chunkSpan * 1.15); }   // the view shows ~one chunk; neighbours stream as you cross an edge
+    function setScale() { cam.scale = W / (chunkSpan * 1.15) * zoom; }   // base shows ~one chunk; wheel zoom calibrates the play scale
 
     function restitch() { walk = buildWalk(world); buildSociety(); }
     function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
@@ -77,17 +78,27 @@
       busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
       const rec = await generate(opts({ seed })); rec.static = bakeStatic(rec, true); addChunk(world, rec); restitch();
       chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
-      setScale(); player = startNode(); followCam(); reveal(); busy(false); status(); draw(); maybeStream();
+      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal(); busy(false); status(); draw(); maybeStream();
     }
     function startNode() { if (!walk) return -1; const ch = world.chunks[0]; let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } } return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy); }
 
+    // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
+    function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
     function walkTo(wx, wy) {
       if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
       const dst = nearestNode(walk, wx, wy); if (dst < 0 || player < 0) return;
-      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; route = []; followCam(); reveal(); draw(); maybeStream(); return; }
-      route = p; let i = 0;
-      const tick = () => { i++; player = route[i]; followCam(); reveal(); draw(); maybeStream(); if (i < route.length - 1) walkTimer = setTimeout(tick, 60); else { walkTimer = null; route = []; draw(); } };
-      walkTimer = setTimeout(tick, 60);
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
+      const tick = () => {
+        i++;
+        if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+        pp.x = sm[i][0]; pp.y = sm[i][1];
+        const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
+        if (p[ni] !== player) { player = p[ni]; reveal(); }
+        followCam(); draw(); maybeStream();
+        walkTimer = setTimeout(tick, 24);
+      };
+      walkTimer = setTimeout(tick, 24);
     }
 
     // ── NPC society (web + activity), revealed only where the fog has lifted ──
@@ -108,7 +119,10 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
       if (!world) return; ctx.imageSmoothingEnabled = false;
       for (const ch of world.chunks) { const t = ch.static; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
+      // fog blitted with a blur so its frontier is soft — hides the per-cell (voronoi) reveal edge
+      ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
       for (const ch of world.chunks) { const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
+      ctx.filter = 'none';
       drawNPC(); drawPlayer(); whereAmI();
     }
     function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
@@ -118,15 +132,16 @@
       for (const rt of society.routes) { ctx.strokeStyle = `rgba(121,200,160,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
       ctx.lineWidth = 0.8; for (const e of society.edges) { if (!roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
     }
+    function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
     function drawPlayer() {
       if (player < 0 || !walk) return;
-      if (route.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokeNodes(route, false); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokeNodes(route, false); }
+      if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
       const x = px(), y = py(), rad = Math.max(5, cam.scale * OPTS.cellSize * 0.5);
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill();
       ctx.fillStyle = '#0a0c10'; ctx.font = `bold ${Math.max(10, rad * 1.2) | 0}px "JetBrains Mono"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', SX(x), SY(y) + 0.5);
     }
 
-    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${cells} cells · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen`; }
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${cells} cells · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · zoom ${zoom.toFixed(2)}×`; }
     function whereAmI() {
       if (player < 0 || !walk) { $('here').textContent = ''; return; }
       const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
@@ -135,6 +150,8 @@
     }
 
     cv.addEventListener('click', (e) => { if (!world || player < 0) return; const r = cv.getBoundingClientRect(); walkTo(WX(e.clientX - r.left), WY(e.clientY - r.top)); });
+    // wheel = zoom (calibrate the play scale), player-centred
+    cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(7, zoom * Math.exp(-e.deltaY * 0.0014))); setScale(); followCam(); status(); draw(); maybeStream(); }, { passive: false });
 
     function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
     let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });

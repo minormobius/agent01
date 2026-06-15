@@ -18,9 +18,11 @@ export function bakeStatic(rec, glyphs) {
   const cv = newCanvas(W, H), ctx = cv.getContext('2d');
   const path = (p) => { ctx.beginPath(); ctx.moveTo(p[0][0] - ox, p[0][1] - oy); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0] - ox, p[i][1] - oy); ctx.closePath(); };
   const portSet = new Set(rec.ports.map((p) => p.cell));
-  const doorSkip = new Set(); for (const r of rec.rooms) if (r.door >= 0 && r.doorRoad >= 0) doorSkip.add(Math.min(r.door, r.doorRoad) + ',' + Math.max(r.door, r.doorRoad));
-  // solid fills (no per-cell texture → the generation tiling vanishes; rooms read as colour blobs)
-  for (let i = 0; i < rec.cells.length; i++) { const c = rec.cells[i]; if (c.poly.length < 3) continue; ctx.fillStyle = rec.road[i] ? ROLE_DIM : (rec.roomOf[i] >= 0 ? (rec.rooms[rec.roomOf[i]].color || '#2a2f35') : '#0e1216'); path(c.poly); ctx.fill(); }
+  const doorSkip = new Set(); for (const r of rec.rooms) { const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.door >= 0 && r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []); for (const [a, b] of dp) doorSkip.add(Math.min(a, b) + ',' + Math.max(a, b)); }
+  // solid fills (no per-cell texture → the generation tiling vanishes). Each cell is also STROKED in
+  // its own fill colour so adjacent same-colour cells leave no antialiased hairline (the residual
+  // voronoi you could still see in the solid regions).
+  for (let i = 0; i < rec.cells.length; i++) { const c = rec.cells[i]; if (c.poly.length < 3) continue; const col = rec.road[i] ? ROLE_DIM : (rec.roomOf[i] >= 0 ? (rec.rooms[rec.roomOf[i]].color || '#2a2f35') : '#0e1216'); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 1; path(c.poly); ctx.fill(); ctx.stroke(); }
   // walls, with door + port gaps
   ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(14,19,25,0.98)'; ctx.lineCap = 'round'; ctx.beginPath();
   for (let i = 0; i < rec.cells.length; i++) { const v = rec.cells[i].poly, mi = mem(rec, i); for (let k = 0; k < v.length; k++) { const j = v[k][2], a = v[k], b = v[(k + 1) % v.length]; let wall; if (j < 0) wall = !portSet.has(i); else { const mj = mem(rec, j); wall = mi !== mj && !(mi === 'R' && mj === 'R') && !doorSkip.has(Math.min(i, j) + ',' + Math.max(i, j)); } if (wall) { ctx.moveTo(a[0] - ox, a[1] - oy); ctx.lineTo(b[0] - ox, b[1] - oy); } } }

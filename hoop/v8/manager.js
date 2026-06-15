@@ -36,7 +36,7 @@ export function buildWalk(world) {
   for (const ch of world.chunks) {
     const b0 = base[ch.id];
     for (let i = 0; i < ch.cells.length; i++) for (const j of ch.adj[i]) { if (j <= i) continue; const la = mem(ch, i), lb = mem(ch, j); if ((la === 'R' && lb === 'R') || la === lb) link(b0 + i, b0 + j); }
-    for (const r of ch.rooms) if (r.door >= 0 && r.doorRoad >= 0) link(b0 + r.door, b0 + r.doorRoad);   // the one door
+    for (const r of ch.rooms) { const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.door >= 0 && r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []); for (const [a, b] of dp) link(b0 + a, b0 + b); }   // the doorway (1–2 cells)
   }
   // cross-chunk: chunks sharing a port location → link their port cells (both concourse) = the seam crossing
   const byLoc = new Map();
