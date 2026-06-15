@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#05060a" />
-<meta name="description" content="hoop v3 — the stitched solved world: the camera rides the @ through a continuous city; every adjacent region is gated on the deck, so you walk anywhere you can see; the seams are mathematically invisible." />
-<title>hoop v3 · the stitched world</title>
+<meta name="description" content="hoop v4 — the stitched solved world, furnished: every building grows an art-deco component and wall-mounted lights (sconce / coral / crystal) from the chamber engine, at a more spacious room scale. Everything v3 keeps — the overworld, gated regions, locked decks, the puzzles, the society — now lit by real fixtures." />
+<title>hoop v4 · the furnished world</title>
 <style>
   :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; }
   * { box-sizing: border-box; }
@@ -36,7 +36,7 @@
 </head>
 <body>
 <canvas id="cv"></canvas>
-<div id="hud">◍ <b>hoop v3</b> — the stitched solved world, lit<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · click a resident for who they know (forum) &amp; their tale (story) · click a building to examine the place · <span style="color:#e88c8c">⊘ a sealed vault — solve its forge-puzzle to enter</span> · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
+<div id="hud">◍ <b>hoop v4</b> — the stitched solved world, furnished<br><span id="info">…</span><br><span style="color:#667">click = walk (tap mid-stride to redirect) · ▲▼ or a stair = change decks · click a resident for who they know (forum) &amp; their tale (story) · click a building to examine the place — it crystallizes what you find · scroll = zoom</span><div id="me" style="margin-top:5px"></div><div id="pulse" style="margin-top:3px;color:#667"></div></div>
 <a class="home" href="/">← hoop</a>
 <div id="auth"></div>
 <div id="decks"><button id="up" title="up a deck (PageUp / [)">▲</button><span id="deck">▮ deck</span><button id="down" title="down a deck (PageDown / ])">▼</button></div>
@@ -48,9 +48,9 @@
 import { buildWalk, losSimplify, makeOccluder, walkRoute } from '../econ/deck.js';
 import { ROLE_COLOR, M_PER_CELL } from '../econ/deck.js';
 import { buildGenome, frameRects, DIR8 } from './sprite-core.js';   // the procedural NPC sprite kernel (vendored from mega/sprite)
-import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, take as storyTake, listInventory as storyInventory, meetsState as storyMeets, loadGateState as storyGate, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
-import { deterministicLocks, memKey } from '../story/locks.js';   // puzzle-gated map progression (#5)
-import { openMinigame } from '../minigame/play.js';   // forge puzzles as in-world lock-picks
+import { deviceGenome, drawDevice } from './fixture/deco.js';                       // art-deco room COMPONENT (vendored from mega/sprite/fixture)
+import { lightGenome, drawWallLight, mulberry32 as lmul } from './fixture/lights.js';   // wall-grown LIGHTS (sconce/coral/crystal)
+import { MemoryStore, flattenPool, interact as storyInteract, talk as storyTalk, choose as storyChoose, take as storyTake, listInventory as storyInventory, POWER_THRESHOLDS } from '../story/engine.js';   // the inference-free story hot path
 import { loadPool, publicClient, loadOwnSave, putSave, SAVE_NSID } from '../story/atproto.js';   // pool source-of-truth = an ATProto service repo (no DB)
 import { AuthClient } from '../vendor/auth.js';   // shared OAuth — sign in to sync your story to YOUR repo
 import { readSummary, PULSE_NSID } from '../story/director.js';   // the cross-player "world pulse" (a disposable projection)
@@ -60,7 +60,7 @@ addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').te
 
 const qs = new URLSearchParams(location.search);
 const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
-const PX = 120;                                            // px per cell at zoom 1 (a 15 m room)
+const PX = 280;                                            // v4 ROOM SCALE: big chambers (the /sprite/fixture room size) — MUST equal solver.js PX. The deck lattice is also coarsened (solver cell:2) so rooms are FEWER and BIGGER, richly subdivided inside.
 let R = 36, NZ = 12, GZMID = 6;                            // ring size · radial layers · main deck (from ready)
 
 // ── the world: floor tiles (az,ax,gz) stream from the worker; the camera rides the @ ──
@@ -71,16 +71,15 @@ let R = 36, NZ = 12, GZMID = 6;                            // ring size · radia
 const regions = new Map(), solving = new Set();            // "az,ax,gz" → view
 let active = null;                                         // the floor tile the @ stands in (camera anchor)
 const AT = { room: -1, x: 0, y: 0, path: null, t: 0, floor: 6, useStair: null };
-const SPEED = 300;                                         // px/s ≈ 37 m/s of brisk station walking... a stride
-let zoom = 0.85, dirty = true;
-let lockBlocked = new Set();                                // membrane keys the player currently can't cross (puzzle locks)
+const SPEED = 700;                                         // px/s — scaled to v4's bigger PX (was 300 at PX 120) so the felt walking pace holds across the larger rooms
+let zoom = 0.72, dirty = true;                             // a touch wider so a few of the big rooms read at once (the fixture framing)
 
 const worker = new Worker('./solver.js', { type: 'module' });
 worker.onerror = (e) => { showErr('worker: ' + e.message); };
 function showErr(m) { $('err').style.display = 'block'; $('err').textContent = m; $('busy').style.display = 'none'; }
 const key = (az, ax, gz) => (((az % R) + R) % R) + ',' + ax + ',' + gz;
 function requestRegion(az, ax, gz) {
-  if (gz < 1 || gz >= NZ) return;                           // gz=0 is reserved — it's the OVERWORLD (level zero), not a foam deck
+  if (gz < 0 || gz >= NZ) return;
   const k = key(az, ax, gz);
   if (regions.has(k) || solving.has(k)) return;
   solving.add(k);
@@ -108,17 +107,15 @@ worker.onmessage = (e) => {
     AT.room = spawn; AT.x = v.seeds[spawn].x; AT.y = v.seeds[spawn].y;
     $('busy').style.display = 'none';
   }
-  if (v.gz === AT.floor) recomputeLocks();                  // a streamed-in region brings its seals
   dirty = true;
 };
 function setActive(v) {
   active = v; AT.floor = v.gz;
   history.replaceState(null, '', '?seed=' + SEED + '&az=' + v.az + '&ax=' + v.ax);
   const s = v.stats;
-  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · deck <b>' + (v.gz + 1) + '/' + NZ + '</b>' + (v.gz === GZMID ? ' (concourse)' : v.gz === 1 ? ' (top deck — <span class="w">⊛ ▲ ascends to the overworld</span>)' : '') + ' · ' +
+  $('info').innerHTML = 'region <b>(' + v.az + ', ' + v.ax + ')</b> · deck <b>' + (v.gz + 1) + '/' + NZ + '</b>' + (v.gz === GZMID ? ' (concourse)' : '') + ' · ' +
     s.rooms + ' rooms · ' + s.buildings + ' buildings · ' + v.stairs.length + ' stairs · access ' + s.access.toFixed(2);
   $('deck').textContent = '▮ deck ' + (v.gz + 1) + '/' + NZ;
-  recomputeLocks();                                         // this floor's seals, against your inventory
 }
 
 // region offset in the shared world frame, relative to the ACTIVE region (the ring wraps)
@@ -251,9 +248,9 @@ const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0)
 // never walls). Click one to inspect who they are. NPC decisions use Math.random (ephemeral, like
 // presence); the deterministic WORLD is untouched.
 const NPC_CAP = 52, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
-const NPC_SPEED = 16;                                       // px/s — a slow amble
-const STRIDE = 14;                                          // world units per leg-swing frame
-const SPR_N = 15, SPR_SCALE = 2, SPR_WORLD = 17;            // 15-cell genome · 2 px/cell offscreen · ~17 world-units tall on the deck
+const NPC_SPEED = 37;                                       // px/s — a slow amble (scaled to v4's bigger PX)
+const STRIDE = 32;                                          // world units per leg-swing frame (scaled to PX)
+const SPR_N = 15, SPR_SCALE = 2, SPR_WORLD = 40;            // 15-cell genome · 2 px/cell offscreen · ~40 world-units tall on the deck (scaled to the bigger rooms)
 
 // ── PROCEDURAL NPC SPRITES (vendored mega/sprite kernel) ──────────────────────────────────────────
 // Each resident wears a top-down figure deterministically grown from a stable seed, its role PINNED to
@@ -324,6 +321,10 @@ function npcRepath(v, n) {                                  // schedule-driven i
   if (gc === n.cell) { n.dwell = 1 + Math.random() * 3; return; }
   const r = walkRoute(v, n.cell, gc);
   if (!r || r.pts.length < 2) { n.dwell = 0.6; return; }
+  // intracell target: don't pile on the room centre — pick a spot inside the goal chamber (clamped off walls).
+  // The chamber interior is open, so replacing the final centre point with a nearby in-room point is wall-safe.
+  const gs = v.seeds[gc], jx = gs.x + (Math.random() - 0.5) * PX * 0.55, jy = gs.y + (Math.random() - 0.5) * PX * 0.55;
+  const sp = clampOffWalls(v, jx, jy, gs.x, gs.y); r.pts[r.pts.length - 1] = [sp.x, sp.y];
   const seg = []; let total = 0;
   for (let i = 1; i < r.pts.length; i++) { const d = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); seg.push(d); total += d; }
   n.path = { pts: r.pts, seg, total }; n.t = 0; n.goalCell = gc;
@@ -362,6 +363,86 @@ function drawNpcs(v) {
   }
 }
 
+// ── FIXTURES (the v4 leg) — every building grows an art-deco COMPONENT at its clearest floor cell and
+// a few WALL-MOUNTED LIGHTS (sconce / coral / crystal) on the chambers nearest its walls, vendored
+// verbatim from the /sprite/fixture chamber engine. Built once per region (cached on the view): the
+// component is rasterised to an offscreen canvas and blitted (cheap), the wall lights are vector and
+// redrawn each frame so their glow rides v3's live occluded light field. The deterministic WORLD is
+// untouched — fixtures are a pure function of the solved building + its stable chamber gid. ─────────
+const FIX_PERROOM = 3;                                     // wall lights per building (the fixture demo's "lights" knob)
+const roleHue = (role) => { const c = roleRGB(role), r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
+// nearest distance from a point to any of the region's wall segments — a floor cell's clearance to a wall
+function wallClearance(v, x, y) {
+  let best = Infinity;
+  for (const s of v.walls || []) { const ax = s[0], ay = s[1], dx = s[2] - ax, dy = s[3] - ay, L2 = dx * dx + dy * dy || 1; let t = ((x - ax) * dx + (y - ay) * dy) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t; const px = ax + dx * t, py = ay + dy * t, dd = (x - px) ** 2 + (y - py) ** 2; if (dd < best) best = dd; }
+  return Math.sqrt(best);
+}
+// pull a target point OFF a wall membrane and onto open floor, by stepping it toward the chamber seed
+// until it clears the wall band. Used for the exact tap/NPC destination so the walker stops on floor,
+// inside the intended chamber — never standing in (or routed across) a membrane. (NAV: intracell.)
+function clampOffWalls(v, x, y, sx, sy) {
+  const band = ((v.scene && v.scene.wallSpacing) || 14) * 0.9, step = band * 0.9;
+  let cx = x, cy = y;
+  for (let i = 0; i < 10; i++) {
+    if (wallClearance(v, cx, cy) >= band) return { x: cx, y: cy };
+    const dx = sx - cx, dy = sy - cy, L = Math.hypot(dx, dy);
+    if (L < step) return { x: sx, y: sy };                  // collapsed to the seed (always open)
+    cx += dx / L * step; cy += dy / L * step;
+  }
+  return { x: cx, y: cy };
+}
+// the K wall segments nearest the component, each turned into a wall-light rooted on the wall and
+// growing inward toward the component (so the sconces face the room's medallion).
+function buildingLights(v, tx, ty, hue, rng, k) {
+  const segs = [];
+  for (const s of v.walls || []) { const mx = (s[0] + s[2]) / 2, my = (s[1] + s[3]) / 2; segs.push({ s, mx, my, d: (mx - tx) ** 2 + (my - ty) ** 2 }); }
+  segs.sort((p, q) => p.d - q.d);
+  const lights = [], n = Math.min(k, segs.length);
+  for (let i = 0; i < n; i++) {
+    const s = segs[i].s, t = 0.34 + rng() * 0.32, px = s[0] + (s[2] - s[0]) * t, py = s[1] + (s[3] - s[1]) * t;
+    let nx = tx - px, ny = ty - py; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+    const g = lightGenome(rng), len = PX * 0.20 * g.len;   // roomSpacing-relative (matches the /sprite/fixture light length)
+    lights.push({ x: px, y: py, nx, ny, len, model: g, hue, tip: { x: px + nx * len * 0.82, y: py + ny * len * 0.82 } });
+  }
+  return lights;
+}
+function fixturesOf(v) {
+  if (v._fixtures) return v._fixtures;
+  const byB = buildCells(v), out = [];
+  for (const [b, cells] of byB) {
+    if (cells.length < 2) continue;                                       // a single-cell nook gets nothing
+    const role = v.role[cells[0]], gid = chamberGid(v, cells) || ('b' + b);
+    // settle the component on the building's CLEAREST floor cell (max wall-distance) so it never crosses a wall
+    let bestClear = -1, px = v.seeds[cells[0]].x, py = v.seeds[cells[0]].y;
+    for (const i of cells) { const p = v.seeds[i], cl = wallClearance(v, p.x, p.y); if (cl > bestClear) { bestClear = cl; px = p.x; py = p.y; } }
+    let h = 2166136261 >>> 0; for (let i = 0; i < gid.length; i++) { h ^= gid.charCodeAt(i); h = Math.imul(h, 16777619); } h >>>= 0;
+    const rng = lmul(h), genome = deviceGenome(rng, { sharp: true });
+    // a medallion sized to the building (more cells → bigger), but never crossing a wall (clearance-capped)
+    let r = Math.max(PX * 0.12, Math.min(PX * 0.32, PX * (0.16 + 0.06 * Math.sqrt(cells.length))));
+    r = Math.min(r, bestClear * 0.82);
+    const hue = roleHue(role), lights = buildingLights(v, px, py, hue, rng, Math.min(FIX_PERROOM + 1, 1 + Math.floor(cells.length / 6)));
+    out.push({ b, cx: px, cy: py, r, genome, accent: ROLE_COLOR[role] || '#888', hue, lights, _cv: null });
+  }
+  return (v._fixtures = out);
+}
+function componentCanvas(f) {
+  if (f._cv) return f._cv;
+  const R = f.r, pad = Math.ceil(R * 0.16) + 2, side = Math.ceil(2 * (R + pad));
+  const cv = document.createElement('canvas'); cv.width = cv.height = side;
+  drawDevice(cv.getContext('2d'), R + pad, R + pad, R, f.genome, { lit: 1, accent: f.accent });   // baked at full light; live light modulates on blit
+  f._off = R + pad;
+  return (f._cv = cv);
+}
+function drawFixtures(v) {
+  for (const f of fixturesOf(v)) {
+    const L = sampleLit(v, f.cx, f.cy), lum = L[0] * 0.3 + L[1] * 0.6 + L[2] * 0.1;
+    ctx.globalAlpha = Math.max(0.5, Math.min(1, 0.52 + lum * 0.9));
+    ctx.drawImage(componentCanvas(f), f.cx - f._off, f.cy - f._off);
+    ctx.globalAlpha = 1;
+    for (const lt of f.lights) { const tl = sampleLit(v, lt.tip.x, lt.tip.y), ll = Math.max(0.7, Math.min(1.15, tl[0] * 0.3 + tl[1] * 0.6 + tl[2] * 0.1 + 0.5)); drawWallLight(ctx, lt, { hue: lt.hue, lit: ll }); }
+  }
+}
+
 function paintRegion(v, off, ghostsAsFog, pulse) {
   ctx.save(); ctx.translate(off.x, off.y); ctx.lineJoin = 'round';
   for (const c of v.scene.paintCells) {
@@ -381,6 +462,7 @@ function paintRegion(v, off, ghostsAsFog, pulse) {
     ctx.closePath(); ctx.fill();
     if (floorCell) { ctx.strokeStyle = SEAM_INK; ctx.lineWidth = 0.6; ctx.stroke(); }   // plate seam
   }
+  drawFixtures(v);                                          // v4: art-deco components + wall-grown lights, over the lit floor
   // gates — gold with a pulsing glow
   ctx.save();
   ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = 9 + pulse * 7;
@@ -390,22 +472,12 @@ function paintRegion(v, off, ghostsAsFog, pulse) {
   // building glyphs
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(238,230,205,0.88)';
   for (const g of v.bill) { if (g.n < 3) continue; ctx.font = Math.min(44, 16 + g.n * 3) + 'px ui-monospace, monospace'; ctx.fillText(g.glyph, g.x, g.y); }
-  // stairs & ladders (▲ up toward the axis, ▼ down toward the hull) — and on level 1, up-stairs are
-  // the CONTROLLED HATCHES to level zero (the overworld): drawn as a glowing ⊛.
+  // stairs & ladders — the vertical right-of-way (▲ up toward the axis, ▼ down toward the hull)
+  ctx.font = '20px ui-monospace, monospace';
   for (const s of v.stairs || []) {
-    const p = v.seeds[s.cell], hatch = s.dir < 0 && v.gz === 1;
-    if (hatch) { ctx.save(); ctx.shadowColor = 'rgba(127,232,200,0.9)'; ctx.shadowBlur = 10 + pulse * 6; ctx.fillStyle = 'rgba(150,240,205,0.95)'; ctx.font = '22px ui-monospace, monospace'; ctx.fillText('⊛', p.x, p.y - 6); ctx.restore(); continue; }
-    ctx.font = '20px ui-monospace, monospace'; ctx.fillStyle = s.type === 'ladder' ? 'rgba(127,216,208,0.92)' : 'rgba(244,191,98,0.92)';
+    const p = v.seeds[s.cell];
+    ctx.fillStyle = s.type === 'ladder' ? 'rgba(127,216,208,0.92)' : 'rgba(244,191,98,0.92)';
     ctx.fillText(s.dir < 0 ? '▲' : '▼', p.x, p.y - (s.dir < 0 ? 7 : -7));
-  }
-  // locked doors — a seal on the single choke into a sealed vault (drawn only while you lack the key)
-  for (const lk of locksOf(v)) {
-    if (!lockBlocked.has(lk.key)) continue;
-    ctx.save();
-    ctx.shadowColor = 'rgba(207,59,59,0.9)'; ctx.shadowBlur = 7;
-    ctx.fillStyle = 'rgba(232,140,140,0.95)'; ctx.font = '15px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('⊘', lk.doorMid[0], lk.doorMid[1]);
-    ctx.restore();
   }
   drawNpcs(v);                                              // the society, moving on the deck
   ctx.restore();
@@ -484,8 +556,7 @@ function minHeap() {
     push(d, n) { a.push([d, n]); let k = a.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (a[p][0] <= a[k][0]) break; [a[p], a[k]] = [a[k], a[p]]; k = p; } },
     pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < a.length && a[L][0] < a[m][0]) m = L; if (R < a.length && a[R][0] < a[m][0]) m = R; if (m === k) break; [a[m], a[k]] = [a[k], a[m]]; k = m; } } return t; } };
 }
-function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
-  recomputeLocks();                                        // fresh against the player's current inventory/facts
+function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell, exact) {
   const id = new Map(), nodes = [], adj = [], walls = [], gz = AT.floor;
   const nid = (v, i) => {
     const k = key(v.az, v.ax, v.gz) + ':' + i; let n = id.get(k);
@@ -497,7 +568,6 @@ function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
     const off = offsetOf(v);
     const walk = v._walk || (v._walk = buildWalk(v));
     for (let i = 0; i < v.nReal; i++) for (const e of walk[i]) if (e.to > i) {
-      if (lockBlocked.has(memKey(v.bandGid[i], v.bandGid[e.to]))) continue;   // a locked door this player can't pass
       const a = nid(v, i), b = nid(v, e.to), w = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]), m = [e.m[0] + off.x, e.m[1] + off.y];
       adj[a].push({ to: b, w, m }); adj[b].push({ to: a, w, m });
     }
@@ -519,35 +589,21 @@ function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
   const seq = []; for (let u = T; u !== -1; u = prev[u]) seq.push(u); seq.reverse();
   const dense = [[sx, sy]];                                 // start at the @'s LIVE position
   for (let k = 1; k < seq.length; k++) { dense.push(pm[seq[k]]); dense.push(nodes[seq[k]]); }
+  // INTRACELL: end at the EXACT tapped point inside the target chamber (its interior is open), not the
+  // chamber centre — so a tap anywhere in a roomy chamber is reachable. losSimplify keeps it wall-correct.
+  if (exact) { const off = offsetOf(tgtV); dense.push([exact.x + off.x, exact.y + off.y]); }
   const ws = ((active.scene && active.scene.wallSpacing) || 8) * 4;
   return losSimplify(dense, walls, ws);                     // straight where open, cornering only at walls
 }
 
 // route the @ from its LIVE position to (tgt tile, best cell); optional stair to ride on arrival
-function goTo(tgt, best, useStair) {
-  const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best);
-  if (!pts || pts.length < 2) {
-    const lk = locksOf(tgt).find((l) => lockBlocked.has(l.key) && l.zone.includes(best));   // walked into a sealed vault?
-    if (lk) {
-      rail('<b>⊘ sealed</b> — ' + lk.label + ', locked by a forging-law. <span class="act" id="pick-lock" style="color:var(--teal);cursor:pointer">⚙ attempt the lock</span>');
-      const pk = $('pick-lock'); if (pk) pk.onclick = () => attemptLock(lk, tgt, best);
-    } else rail('<b>⊘ no path</b> on this deck — try the stairs or walk closer');
-    return false;
-  }
+function goTo(tgt, best, exact, useStair) {
+  const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best, exact);
+  if (!pts || pts.length < 2) { rail('<b>⊘ no path</b> on this deck — try the stairs or walk closer'); return false; }
   const seg = []; let total = 0;
   for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
   AT.path = { pts, seg, total }; AT.t = 0; AT.useStair = useStair || null; dirty = true;   // interruptible
   return true;
-}
-// the forge lock-pick: a vault's seal is a minted movement-law puzzle, seeded by its chamber. Solve it
-// → set the per-vault unlock fact → the door opens (recomputeLocks) → walk on in. Zero inference.
-async function attemptLock(lk, tgt, best) {
-  try { await ensureStory(); } catch (e) { return; }
-  let won = false; try { won = await openMinigame(lk.centerGid, { title: 'the seal' }); } catch (e) { showErr('minigame: ' + (e && e.message || e)); return; }
-  if (!won) { rail('<b>⊘ the seal holds.</b> The law beat you — attempt it again.'); return; }
-  storyStore.setFact(PLAYER, lk.factKey, true); persistStory();   // solving IS the key
-  rail('<b>✦ the seal yields</b> — ' + lk.label + ' opens to you.');
-  goTo(tgt, best, null);                                          // and walk on in
 }
 
 // who is this resident? a click near an NPC inspects them instead of walking
@@ -609,7 +665,6 @@ function persistStory() {
   try { localStorage.setItem(storyKeyFor(PLAYER), JSON.stringify(storyStore.snapshot())); } catch (e) { /* quota/private mode */ }
   if (storyUser) scheduleRepoSave();                        // batched checkpoint to the player's repo
   renderMe();
-  recomputeLocks(); dirty = true;                           // a new key may have opened a door
 }
 // ── "you": the progression the engine already earns — meeting residents crystallizes them and grants
 // XP → power-tier; dialogue can hand you items. Surfaced so the loop reads as a game, not just a walk.
@@ -624,15 +679,6 @@ function renderMe() {
     + (next != null ? ' <span style="color:#667">(' + Math.max(0, next - p.xp) + ' to tier ' + (p.power_tier + 1) + ')</span>' : '')
     + ' · ' + known + ' met'
     + (inv.length ? ' · <span style="color:var(--teal)">🎒 ' + inv.join(', ') + '</span>' : '');
-}
-// ── #5 PUZZLE LOCKS — a deterministic single-door vault per region, sealed behind a key you can find ──
-// Lock PLACEMENT is deterministic world geometry (same for everyone); whether it's open FOR YOU is your
-// inventory (per-player). meetsState — the SAME gate evaluator content uses — decides passage.
-const locksOf = (v) => v._locks || (v._locks = deterministicLocks(v, { seed: SEED }));
-function playerMeets(req) { return storyMeets(storyStore ? storyGate(storyStore, PLAYER) : { facts: {}, items: new Set() }, req); }
-function recomputeLocks() {
-  lockBlocked = new Set();
-  for (const [, v] of regions) { if (v.gz !== AT.floor) continue; for (const lk of locksOf(v)) if (!playerMeets(lk.requires)) lockBlocked.add(lk.key); }
 }
 function scheduleRepoSave() {
   if (_saveTimer) clearTimeout(_saveTimer);
@@ -667,11 +713,11 @@ function setUser(u) {
   storyUser = u ? { did: u.did, handle: u.handle } : null;
   PLAYER = storyUser ? storyUser.did : 'local';
   resetStory(); renderAuth();
-  ensureStory().then(() => { renderMe(); recomputeLocks(); dirty = true; }).catch(() => {});            // re-warm for this identity → show their progress
+  ensureStory().then(renderMe).catch(() => {});            // re-warm for this identity → show their progress
   if (selNpc) { selNpc._npcId = null; if (railTab === 'story') renderRail(); }
 }
 renderAuth();
-ensureStory().then(() => { renderMe(); recomputeLocks(); dirty = true; }).catch(() => {});               // returning players see their progress on load
+ensureStory().then(renderMe).catch(() => {});               // returning players see their progress on load
 auth.init().then(() => { const u = auth.getUser(); if (u) setUser(u); }).catch(() => { /* anonymous */ });
 
 // ── the world pulse: what the whole playerbase is doing (read the Director's projection off morphyx) ──
@@ -755,28 +801,29 @@ cv.addEventListener('click', (e) => {
     }
     if (!tgt) return;                                       // unloaded fog — keep walking, it will stream in
   }
-  let best = -1, bd = (60 / z) ** 2;
+  // the tapped CHAMBER = the nearest seed (Voronoi containment) — NO distance cap, so any tap in a
+  // roomy chamber navigates (the old 60px cap made most taps in big rooms a no-op).
+  let best = -1, bd = Infinity;
   for (let i = 0; i < tgt.nReal; i++) { const p = tgt.seeds[i]; const d = (p.x - lx) ** 2 + (p.y - ly) ** 2; if (d < bd) { bd = d; best = i; } }
   if (best < 0) return;
-  // clicked a stair? walk to it and ride it (a cell may host an up and/or down stair)
+  // INTRACELL: walk to the EXACT tapped point inside that chamber (clamped onto open floor), not its centre
+  const ex = clampOffWalls(tgt, lx, ly, tgt.seeds[best].x, tgt.seeds[best].y);
+  // clicked a stair? walk to it (its cell centre) and ride it
   const st = tgt === active ? (active.stairs || []).find((s) => s.cell === best) : null;
-  if (st && goTo(tgt, best, { dir: st.dir, partnerGid: st.partnerGid, hatch: st.dir < 0 && active.gz === 1 })) { inspect(tgt, best); return; }
-  if (goTo(tgt, best, null)) inspect(tgt, best);
+  if (st && goTo(tgt, best, null, { dir: st.dir, partnerGid: st.partnerGid })) { inspect(tgt, best); return; }
+  if (goTo(tgt, best, ex)) inspect(tgt, best);
 });
 
 // ride a stair/ladder to the floor above (−1, toward the axis) or below (+1, toward the hull): walk
 // to the nearest such connector on this deck, then change floor on arrival.
 function rideStair(dir) {
   if (!active) return;
-  const hatch = dir < 0 && active.gz === 1;                 // up from level 1 = a CONTROLLED HATCH to the overworld
   let best = -1, bd = Infinity, st = null;
   for (const s of active.stairs || []) { if (s.dir !== dir) continue; const p = active.seeds[s.cell]; const d = (p.x - AT.x) ** 2 + (p.y - AT.y) ** 2; if (d < bd) { bd = d; best = s.cell; st = s; } }
-  if (best < 0) { rail('<b>⊘ no ' + (dir < 0 ? (active.gz === 1 ? 'hatch to the overworld' : 'way up') : 'way down') + '</b> from here nearby'); return; }
-  if (!hatch) requestRegion(active.az, active.ax, active.gz + dir);   // the destination foam deck (hatches don't load one)
-  goTo(active, best, { dir, partnerGid: st.partnerGid, hatch });
+  if (best < 0) { rail('<b>⊘ no ' + (dir < 0 ? 'way up' : 'way down') + '</b> from this deck nearby'); return; }
+  requestRegion(active.az, active.ax, active.gz + dir);    // make sure the destination floor is loading
+  goTo(active, best, null, { dir, partnerGid: st.partnerGid });
 }
-// the controlled ascent: a hatch on level 1 opens onto level zero — the central airmass (the Eden overworld)
-function toOverworld() { location.href = '/over/?seed=' + SEED + '&from=' + active.az + ',' + active.ax; }
 $('up').addEventListener('click', () => rideStair(-1));
 $('down').addEventListener('click', () => rideStair(1));
 addEventListener('keydown', (e) => { if (e.key === 'PageUp' || e.key === '[') rideStair(-1); else if (e.key === 'PageDown' || e.key === ']') rideStair(1); });
@@ -857,9 +904,8 @@ function tick(ts) {
     const { pts, seg, total } = AT.path;
     if (AT.t >= total) {
       AT.x = pts[pts.length - 1][0]; AT.y = pts[pts.length - 1][1]; AT.path = null;
-      if (AT.useStair) {                                    // arrived at a stair/ladder — change decks (or ascend a hatch)
+      if (AT.useStair) {                                    // arrived at a stair/ladder — change decks
         const us = AT.useStair; AT.useStair = null;
-        if (us.hatch) { rail('<b>⊛ the hatch cycles open</b> — you rise into the airmass…'); toOverworld(); return; }
         const nv = regions.get(key(active.az, active.ax, active.gz + us.dir)), pr = nv ? nv.bandGid.indexOf(us.partnerGid) : -1;
         if (nv && pr >= 0) { setActive(nv); AT.room = pr; AT.x = nv.seeds[pr].x; AT.y = nv.seeds[pr].y; rail('<b>▮ deck ' + (nv.gz + 1) + '/' + NZ + '</b>' + (nv.gz === GZMID ? ' — the concourse' : '')); }
         else { AT.room = currentRoom(); requestRegion(active.az, active.ax, active.gz + us.dir); rail('the deck is still loading — try the stair again'); }

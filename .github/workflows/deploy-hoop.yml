@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-feature-pr-00evd0']
+    branches: [main, 'claude/merge-candidate-v6-conflict-jh7nkm']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'
