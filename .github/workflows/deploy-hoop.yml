@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-feature-pr-00evd0']
+    branches: [main, 'claude/hoop-v5-rooms-fixtures-yd02ym']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'

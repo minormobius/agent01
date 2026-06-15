@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hoop v5 · rooms with fixtures</title>
+<meta name="theme-color" content="#04050a">
+<meta name="description" content="hoop v5 — the rooms, with their fixtures: foam voronoi chambers, art-deco component interactables (superformula + fBm), wall consoles grown from the tiling, and physical light sources RAY-TRACED through the tiling so light pools and spills through doorways. Step one of v5: see the rooms with their fixtures. Roll the combinatorics.">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --void:#04050a;--panel:#0a0e12;--panel2:#0f141a;--border:#1b2530;
+    --ink:#dfe7e2;--dim:#7a8894;--gold:#f4bf62;--teal:#7fd8d0;
+    --mono:'SF Mono','Cascadia Code','Fira Code',ui-monospace,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  html,body{height:100%}
+  body{background:var(--void);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5;
+    background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,0.01) 0 1px,transparent 1px 3px)}
+  a{color:var(--teal);text-decoration:none}a:hover{text-decoration:underline}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 18px 56px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:14px}
+  .crumb{font-family:var(--mono);font-size:12px;color:var(--dim)}.crumb a{color:var(--dim)}
+  .spacer{flex:1}.tag{font-family:var(--mono);font-size:11px;color:var(--dim);border:1px solid var(--border);padding:3px 8px;border-radius:6px}
+  h1{font-size:22px;font-weight:800;letter-spacing:.2px;margin-bottom:5px}
+  .lede{color:var(--dim);font-size:13px;max-width:880px;margin:0 0 16px}.lede code{font-family:var(--mono);color:var(--teal);font-size:12px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-bottom:12px}
+  button,.seedbox input{font-family:var(--mono);font-size:13px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--teal);color:#fff}
+  button.primary{background:linear-gradient(180deg,#3a2a14,#241a0c);border-color:#5a431f;color:var(--gold)}
+  .seedbox{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:2px 4px 2px 10px}
+  .seedbox label{font-family:var(--mono);font-size:11px;color:var(--dim)}.seedbox input{width:104px;background:transparent;border:0;color:var(--ink);padding:7px 4px;outline:none}
+  .knob{display:flex;align-items:center;gap:6px;color:var(--dim);font-family:var(--mono);font-size:11.5px}
+  .knob input[type=range]{width:96px;accent-color:var(--teal)}
+  .voc{display:flex;gap:5px}.voc .pill{font-family:var(--mono);font-size:11px;padding:4px 9px;border:1px solid var(--border);border-radius:999px;cursor:pointer;color:var(--ink)}
+  .voc .pill.on{border-color:var(--gold);color:var(--gold)}
+  #chamber{background:var(--void);border:1px solid var(--border);border-radius:12px;display:block;width:100%;image-rendering:auto}
+  .cap{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin:8px 0 0}
+  .foot{margin-top:22px;border-top:1px solid var(--border);padding-top:14px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}.foot b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="/">hoop</a> / <span style="color:var(--ink)">v5</span></div>
+    <div class="spacer"></div>
+    <span class="tag" id="seedtag">seed —</span>
+    <span class="tag">v5 · rooms + fixtures</span>
+    <a class="tag" href="/" style="color:var(--teal)">← hoop</a>
+  </header>
+
+  <h1>hoop v5 — rooms, with their fixtures</h1>
+  <p class="lede"><b>Step one of v5:</b> see the rooms with their fixtures. Ship chambers, fully procedural: foam
+    <b>voronoi rooms</b>, an art-deco <b>component</b> per room (<code>superformula</code> + fBm value-noise, dark
+    jewel body + gold so it reads by value), <b>wall consoles</b> grown from the tiling, and physical
+    <b>light sources grown from the walls</b> (sconce / coral / crystal) glowing the chamber hue. The light is
+    <b>ray-traced through the tiling</b> — it pools in its room and spills through doorways, with real wall shadow.
+    Roll the combinatorics. <span style="color:var(--dim)">Next steps wire these into the walkable world.</span></p>
+
+  <div class="controls">
+    <button class="primary" id="roll">🎲 roll</button>
+    <button id="prev">‹</button><button id="next">›</button>
+    <span class="seedbox"><label>seed</label><input id="seed" inputmode="numeric"></span>
+    <button id="forge">go</button>
+    <span class="knob">lights <input type="range" id="den" min="1" max="5" value="4"></span>
+    <span class="knob">reach <input type="range" id="reach" min="14" max="42" value="24"></span>
+    <span class="knob">sat <input type="range" id="sat" min="0" max="100" value="72"></span>
+    <span class="knob">size <input type="range" id="size" min="7" max="20" value="12"></span>
+    <span class="voc" id="voc"></span>
+    <button id="copy">⧉ link</button>
+  </div>
+  <canvas id="chamber" width="1200" height="820"></canvas>
+  <div class="cap" id="cap"></div>
+
+  <div class="foot">
+    <b>The pieces</b> (the v5 chamber engine, ported from <code>mega/sprite/fixture/</code> — itself a descendant of
+    hoop's <code>paint/voronoi.js</code>). <code>voronoi.js</code> (foam painter) · <code>deco.js</code> (superformula +
+    fBm components) · <code>consoles.js</code> (wall consoles grown from the tiling) · <code>lights.js</code> (wall-grown
+    emitters + <b>ray-traced occlusion</b>: an Amanatides-Woo voxel walk over a rasterised wall grid; colour accumulates
+    per visible emitter so doorways catch a neighbour's hue). Hue correlates per chamber (light ↔ component); contrast is
+    value + shape + gold. Pure &amp; node-tested (<code>test/{lights,consoles,fixtures}.selftest.mjs</code>, 55 checks).
+    <b>This is step one</b> — the rooms rendered with their fixtures; later steps bake this over the live walkable world's
+    chunked foam (<code>js/world.js</code>'s per-chunk <code>mesh()</code>).
+  </div>
+</div>
+
+<script type="module">
+import { deviceGenome, drawDevice, mulberry32 } from './deco.js';
+import { buildScene } from './voronoi.js';
+import { placeWallLights, tintLights, occlusionGrid, bakeFloorRGB, lightAtRGB, drawWallLight, LIGHT_KINDS } from './lights.js';
+import { growWallFixtures, drawWallFixture, ROLE_CONSOLE } from './consoles.js';
+
+const $ = (id) => document.getElementById(id);
+const SW = 1200, SH = 820;
+const ROLE = { dwell: '#d9b24a', grow: '#5aa845', make: '#e0772f', mend: '#9b6b3a', trade: '#cf3b3b', serve: '#c853a0', play: '#3bb0c9', heal: '#9fb4c2', learn: '#5570d8', worship: '#b39bd8', govern: '#33408f', move: '#6b7a82', store: '#566066' };
+const ROLES = Object.keys(ROLE);
+const VOCAB = ['all', ...LIGHT_KINDS];
+function hexHue(hex) { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16) / 255, g = parseInt(c.slice(2, 4), 16) / 255, b = parseInt(c.slice(4, 6), 16) / 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0; if (mx !== mn) { const d = mx - mn; h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return h; }
+
+const state = { seed: 1, den: 4, reach: 24, sat: 0.72, size: 0.12, voc: 'all', built: null };
+
+function fromURL() {
+  const p = new URLSearchParams(location.search), gi = (k, d) => { const v = parseInt(p.get(k), 10); return Number.isFinite(v) ? v : d; };
+  state.seed = (gi('seed', 1)) >>> 0; state.den = gi('den', 4); state.reach = gi('reach', 24);
+  state.sat = gi('sat', 72) / 100; state.size = gi('size', 12) / 100; if (VOCAB.includes(p.get('voc'))) state.voc = p.get('voc');
+  $('seed').value = state.seed; $('den').value = state.den; $('reach').value = state.reach; $('sat').value = state.sat * 100; $('size').value = state.size * 100;
+}
+function toURL() { const p = new URLSearchParams(); p.set('seed', state.seed); p.set('den', state.den); p.set('reach', state.reach); p.set('sat', Math.round(state.sat * 100)); p.set('size', Math.round(state.size * 100)); p.set('voc', state.voc); history.replaceState({}, '', location.pathname + '?' + p.toString()); }
+const roleOf = (scene, room) => ROLES[(((scene.zoneOf[room] || 0) * 4 + 2) % ROLES.length + ROLES.length) % ROLES.length];
+
+// a distance-to-wall field (multi-source BFS over the occlusion grid): the walls' "say" in the
+// force-directed placement — every object is repelled by walls, not just by other objects.
+function wallDistField(occ) {
+  const { nx, ny, wall, step } = occ, dist = new Float32Array(nx * ny).fill(Infinity), q = [];
+  for (let i = 0; i < wall.length; i++) if (wall[i]) { dist[i] = 0; q.push(i); }
+  for (let h = 0; h < q.length; h++) { const i = q[h], gx = i % nx, gy = (i / nx) | 0, d = dist[i] + step; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const x = gx + dx, y = gy + dy; if (x < 0 || y < 0 || x >= nx || y >= ny) continue; const j = y * nx + x; if (dist[j] > d) { dist[j] = d; q.push(j); } } }
+  return { nx, ny, step, dist };
+}
+const wallDistAt = (wd, x, y) => { const gx = Math.round(x / wd.step), gy = Math.round(y / wd.step); if (gx < 0 || gy < 0 || gx >= wd.nx || gy >= wd.ny) return 0; const d = wd.dist[gy * wd.nx + gx]; return isFinite(d) ? d : wd.step * 60; };
+
+// build the chamber: foam → roles → wall lights → occlusion → RAY-TRACED colour bake
+function build() {
+  const scene = buildScene({ W: SW, H: SH, wallSpacing: 14, roomSpacing: 66, roomSize: 400, loops: 0.1, zoneSize: 2, seed: state.seed >>> 0 });
+  let lights = placeWallLights(scene, mulberry32((state.seed * 2654435761) >>> 0), { perRoom: state.den });
+  if (state.voc !== 'all') lights = lights.filter((L) => L.model.kind === state.voc);
+  tintLights(lights, (room) => hexHue(ROLE[roleOf(scene, room)]));
+  const occ = occlusionGrid(scene);
+  const baked = bakeFloorRGB(scene, lights, occ, { ambient: 0.04, strength: 1, reach: state.reach / 10 });
+  const tips = {}; for (const L of lights) (tips[L.room] = tips[L.room] || []).push(L.tip);
+  // the SECOND wall fixture — grown FROM the tiling, away from the lights
+  const consoles = growWallFixtures(scene, mulberry32((state.seed * 40503 + 7) >>> 0), { avoid: tips, kindOf: (room) => ROLE_CONSOLE[roleOf(scene, room)] });
+  for (const c of consoles) c.accent = ROLE[roleOf(scene, c.room)];
+  // central component placed LAST, by a force field where WALLS also repel: settle at the floor cell
+  // of maximum clearance (min of wall-distance and every fixture-distance), then SIZE it to fit that
+  // clearance so it can never cross a wall into the next room.
+  const wd = wallDistField(occ);
+  const occBy = {}; for (const L of lights) (occBy[L.room] = occBy[L.room] || []).push(L.tip);
+  for (const C of consoles) { (occBy[C.room] = occBy[C.room] || []).push(C.tip, C.anchor); }
+  const desiredR = state.size * 280;
+  const comps = scene.roomSeeds.map((s) => {
+    const op = occBy[s.id] || []; let bp = null, best = -1;
+    for (const c of scene.paintCells) { if (c.wall || c.room !== s.id || c.poly.length < 3) continue; let fd = Infinity; for (const p of op) fd = Math.min(fd, Math.hypot(p.x - c.x, p.y - c.y)); const clear = Math.min(wallDistAt(wd, c.x, c.y), fd); if (clear > best) { best = clear; bp = c; } }
+    const r = Math.max(state.size * 110, Math.min(desiredR, best * 0.82));
+    return { cx: bp ? bp.x : s.x, cy: bp ? bp.y : s.y, r, accent: ROLE[roleOf(scene, s.id)], g: deviceGenome(mulberry32((s.id * 733 + 13) >>> 0), { sharp: true }) };
+  });
+  state.built = { scene, lights, occ, baked, comps, consoles };
+}
+
+const tone = (v, e) => 1 - Math.exp(-v * e);
+function render() {
+  const { scene, lights, occ, baked, comps, consoles } = state.built;
+  const dpr = window.devicePixelRatio || 1, cv = $('chamber');
+  cv.width = SW * dpr; cv.height = SH * dpr; cv.style.maxWidth = SW + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, SW, SH);
+  const poly = (p) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); ctx.closePath(); };
+  // floor cells: tonemap the ray-traced colour, pull saturation toward the knob
+  for (let i = 0; i < scene.paintCells.length; i++) {
+    const c = scene.paintCells[i]; if (c.poly.length < 3) continue;
+    if (c.wall) ctx.fillStyle = '#080a0e';
+    else if (baked[i]) { let r = tone(baked[i][0], 1.15) * 255, g = tone(baked[i][1], 1.15) * 255, b = tone(baked[i][2], 1.15) * 255; const L = 0.3 * r + 0.6 * g + 0.1 * b; r = L + (r - L) * state.sat; g = L + (g - L) * state.sat; b = L + (b - L) * state.sat; ctx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`; }
+    else ctx.fillStyle = '#04050a';
+    poly(c.poly); ctx.fill();
+    if (!c.wall && c.room != null) { ctx.strokeStyle = 'rgba(16,24,30,0.4)'; ctx.lineWidth = 0.5; poly(c.poly); ctx.stroke(); }
+  }
+  // wall fixtures — repaint the claimed tiling cells (they erupt from the wall), lit by the field
+  const litLum = (x, y) => { const rgb = lightAtRGB(lights, occ, x, y, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); return 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; };
+  for (const C of consoles) drawWallFixture(ctx, scene, C, { accent: C.accent, hue: hexHue(C.accent), litAt: litLum });
+  // components (lit by the field's luminance — value contrast)
+  for (const cp of comps) { const rgb = lightAtRGB(lights, occ, cp.cx, cp.cy, { ambient: 0.04, strength: 1, reach: state.reach / 10 }); const lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; drawDevice(ctx, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.max(0.38, Math.min(1.2, lum * 1.25 + 0.18)), accent: cp.accent }); }
+  // wall lights last so the glows overlay
+  for (const L of lights) { const rgb = lightAtRGB(lights, occ, L.tip.x, L.tip.y, { ambient: 0.1, strength: 1, reach: state.reach / 10 }); drawWallLight(ctx, L, { hue: L.hue, lit: Math.max(0.7, Math.min(1.15, 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2] + 0.5)) }); }
+  $('seedtag').textContent = 'seed ' + state.seed;
+  $('cap').textContent = `${scene.roomSeeds.length} rooms · ${comps.length} components + ${consoles.length} wall consoles · ${lights.length} wall lights (${state.voc}) · ray-traced through ${scene.paintCells.length} cells`;
+  $('voc').querySelectorAll('.pill').forEach((el) => el.classList.toggle('on', el.dataset.v === state.voc));
+}
+
+function rebuild() { build(); render(); toURL(); }
+function rerender() { render(); toURL(); }
+
+$('voc').innerHTML = VOCAB.map((v) => `<span class="pill" data-v="${v}">${v}</span>`).join('');
+$('voc').querySelectorAll('.pill').forEach((el) => el.onclick = () => { state.voc = el.dataset.v; rebuild(); });
+$('roll').onclick = () => { state.seed = (Math.random() * 2 ** 32) >>> 0; $('seed').value = state.seed; rebuild(); };
+$('prev').onclick = () => { state.seed = (state.seed - 1) >>> 0; $('seed').value = state.seed; rebuild(); };
+$('next').onclick = () => { state.seed = (state.seed + 1) >>> 0; $('seed').value = state.seed; rebuild(); };
+$('forge').onclick = () => { const v = parseInt($('seed').value, 10); if (Number.isFinite(v)) { state.seed = v >>> 0; rebuild(); } };
+$('seed').onkeydown = (e) => { if (e.key === 'Enter') $('forge').click(); };
+$('den').oninput = () => { state.den = +$('den').value; rebuild(); };
+$('reach').oninput = () => { state.reach = +$('reach').value; rebuild(); };
+$('sat').oninput = () => { state.sat = (+$('sat').value) / 100; rerender(); };
+$('size').oninput = () => { state.size = (+$('size').value) / 100; rerender(); };
+$('copy').onclick = async () => { try { await navigator.clipboard.writeText(location.href); $('copy').textContent = '✓'; setTimeout(() => $('copy').textContent = '⧉ link', 1000); } catch {} };
+window.onpopstate = () => { fromURL(); rebuild(); };
+
+fromURL(); rebuild();
+</script>
+</body>
+</html>
