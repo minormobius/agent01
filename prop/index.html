@@ -107,6 +107,9 @@ nav.tabs {
   border-radius: 2px; cursor: grab; touch-action: none;
 }
 #graph-canvas.dragging { cursor: grabbing; }
+.obs-wrap { margin-top: 0.7rem; }
+.obs-cap { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+#obs-canvas { width: 100%; height: 110px; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
 
 .controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
 .ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -197,7 +200,7 @@ footer a:hover { color: var(--accent); }
 <header>
   <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
   <h1>prop</h1>
-  <p class="subtitle">growing graphs by local rules · growth · sandpile · interaction nets</p>
+  <p class="subtitle">growing graphs by local rules · growth · sandpile · interaction nets · chemistry</p>
   <p class="crossref">↑ <a href="https://mino.mobi/geometry/">math pack</a> · <a href="https://mino.mobi/elements/">elements</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a></p>
 </header>
 
@@ -221,6 +224,10 @@ footer a:hover { color: var(--accent); }
     <div>
       <canvas id="graph-canvas" width="800" height="600"></canvas>
       <p class="hint" id="play-hint">pick a mode, hit <b>play</b>, drag a node to perturb</p>
+      <div class="obs-wrap">
+        <span class="obs-cap" id="obs-cap">readout</span>
+        <canvas id="obs-canvas" width="800" height="150"></canvas>
+      </div>
     </div>
     <div class="controls">
       <div class="ctrl-group">
@@ -229,6 +236,7 @@ footer a:hover { color: var(--accent); }
           <button data-mode="growth" class="active">growth</button>
           <button data-mode="sandpile">sandpile</button>
           <button data-mode="inet">interaction</button>
+          <button data-mode="chemistry">chem</button>
         </div>
       </div>
 
@@ -292,7 +300,7 @@ footer a:hover { color: var(--accent); }
 <!-- ─────────── RULES PANE ─────────── -->
 <section class="pane" data-pane="rules">
   <div class="rules-body">
-    <p>The <b>growth</b> mode rewrites the graph with a rule you can write yourself. (The <b>sandpile</b> and <b>interaction</b> modes carry their own fixed rule-sets — pick a preset in the play tab; the <b>docs</b> tab explains them.)</p>
+    <p>The <b>growth</b> mode rewrites the graph with a rule you can write yourself. (The <b>sandpile</b>, <b>interaction</b> and <b>chem</b> modes carry their own fixed rule-sets — pick a preset in the play tab; the <b>docs</b> tab explains them.)</p>
     <p>A growth rule says: <i>wherever this little pattern of links appears, delete it and put this other pattern there instead</i> — minting fresh nodes for any variable on the right that wasn't on the left. Fire it again and again and the graph builds itself.</p>
 
     <h2>notation</h2>
@@ -316,7 +324,7 @@ footer a:hover { color: var(--accent); }
 <!-- ─────────── DOCS PANE ─────────── -->
 <section class="pane" data-pane="docs">
   <div class="docs">
-    <p>You described a force-directed graph that periodically sprouts a new node, which then “interacts down the chain” Game-of-Life-style, sometimes spawning more nodes and links. That’s a real and well-studied idea — but it travels under several names, and the word <i>propagator</i> points at a slightly different one. The three play-tab modes are three points on that map.</p>
+    <p>You described a force-directed graph that periodically sprouts a new node, which then “interacts down the chain” Game-of-Life-style, sometimes spawning more nodes and links. That’s a real and well-studied idea — but it travels under several names, and the word <i>propagator</i> points at a slightly different one. The four play-tab modes are points on that map.</p>
 
     <h2>mode 1 — growth (what the viral videos show)</h2>
     <p>The “growing graph” videos are almost always <b>hypergraph rewriting</b>, popularised by the <a href="https://www.wolframphysics.org/" target="_blank" rel="noopener">Wolfram Physics Project</a> (2020): a fixed <b>local rewrite rule</b> says “wherever this small sub-pattern occurs, replace it with that one,” and applying it over and over makes the graph grow and fold. It’s Conway’s Life with a substrate that itself changes shape. But — as you noticed — a pure growth rule is <i>inert</i>: new nodes don’t feed back, they just take up space. The next two modes fix exactly that.</p>
@@ -333,6 +341,9 @@ footer a:hover { color: var(--accent); }
     </ul>
     <p>Because firing rewires the graph, each reduction can create <i>new</i> redexes — so one collision sets off a chain that grows, prunes, and reshapes the whole net. And it’s <b>confluent</b>: the final normal form doesn’t depend on the order you fire. This is almost exactly “a new node’s presence makes a change that propagates and rewires.” (Symbols here: <b>C</b> = constructor γ, <b>D</b> = duplicator δ, <b>E</b> = eraser ε.)</p>
 
+    <h2>mode 4 — chemistry (matter cascades)</h2>
+    <p>The fourth angle is <b>algorithmic chemistry</b> (Fontana &amp; Buss’s λ-AlChemy; Banzhaf’s number/string chemistries). A fixed population of “molecules” floats in a well-stirred reactor; pick two, and a reaction <code>b := f(a,b)</code> rewrites one into the product — so the population total never changes, but its <i>composition</i> does. Run it and the species distribution drifts away from the random start and <b>collapses onto a closed, self-maintaining set</b> — a subgroup, a linear subspace, a single dominant replicator. That self-sustaining set is what Fontana calls an <i>organisation</i>, and it’s a leading toy model for <b>autocatalytic sets</b> and the origin of metabolism: order with no genome, just closure under reaction. (The version here is a number-chemistry instance — pick <code>multiply</code>, <code>fold</code>, <code>add</code>, or <code>replicate</code>; the readout histogram is the organisation forming in real time. Like-coloured molecules cluster spatially too.)</p>
+
     <h2>the family, and where these sit</h2>
     <table class="field-table">
       <thead><tr><th>field</th><th>what fires</th><th>cascade?</th></tr></thead>
@@ -346,6 +357,15 @@ footer a:hover { color: var(--accent); }
       </tbody>
     </table>
     <p>The literal term <b>propagator networks</b> is Sussman &amp; Radul’s <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator”</a> — a <i>computation</i> model where information (not structure) flows across a fixed network of cells. A cousin to all of the above, which is why the same video gets called by either name.</p>
+
+    <h2>what is this — and what do you do with a living structure?</h2>
+    <p>Once a graph is alive under local rules, it stops being a picture and becomes one of three useful things. The single idea underneath all four modes is the same bet: <b>a global behaviour you wanted, expressed only as local rules</b> — no central plan, no global clock, every site acting on what it can see. That’s how morphogenesis, metabolism, markets, brains, and (on Wolfram’s telling) spacetime itself compute without anyone in charge. You can put a living structure to work three ways:</p>
+    <ul>
+      <li><b>Run it as a computer.</b> Interaction nets <i>are</i> a model of computation — they implement the λ-calculus (Lamping’s optimal reduction), so a running net is literally a running program and its normal form is the answer. Because every redex is independent, this is <i>embarrassingly parallel</i> — the basis of real runtimes like <a href="https://github.com/HigherOrderCO/HVM" target="_blank" rel="noopener">HVM</a> / Bend, which compile ordinary functional code to interaction combinators and run it on thousands of cores. <i>To use one:</i> encode your problem as the initial net, let it reduce, read the fixed point.</li>
+      <li><b>Measure its emergent observables</b> — it’s an instrument for the physics of “many simple parts.” The sandpile produces self-organised criticality: power-law avalanches and 1/f noise, with the <i>same</i> exponent seen in earthquakes (Gutenberg–Richter), neuronal avalanches, forest fires, traffic jams and financial cascades. You don’t solve it; you measure the exponent and ask whether a real system is poised at criticality. The log–log readout in the play tab <i>is</i> that measurement.</li>
+      <li><b>Let it relax to an attractor</b> — it’s a self-organiser / solver. Propagator networks settle to the solution of a constraint system; chemistries settle onto self-maintaining organisations (a candidate origin of life); a growth rule settles into a characteristic shape. The fixed point is the output.</li>
+    </ul>
+    <p>That’s why each mode now ships with a <b>readout</b> below the canvas — a species histogram, an avalanche power-law, a degree distribution. A living structure only becomes <i>useful</i> the moment you attach a measurement to it; the spectacle is the bait, the observable is the point.</p>
 
     <h2>best practices baked in</h2>
     <ul>
@@ -366,7 +386,7 @@ footer a:hover { color: var(--accent); }
     </ul>
 
     <div class="meta-stamp">
-      prop · a mino.mobi math-pack playground · three engines (rewriting · sandpile · interaction nets) over one force-directed layout, pure canvas, no deps<br>
+      prop · a mino.mobi math-pack playground · four engines (rewriting · sandpile · interaction nets · chemistry) over one force-directed layout, pure canvas, no deps<br>
       the interaction-net reducer is unit-tested for closed-net invariants
     </div>
   </div>
@@ -528,12 +548,13 @@ const SAND_PRESETS = [
   { id: 'sparse', name: 'sparse', size: 90, m: 1.05, sink: 0.12, blurb: 'Nearly a tree — long thin cascades.' },
 ];
 let sandRelaxing = false, sandAval = 0, sandLastAval = 0, sandMaxAval = 0, sandGrains = 0, currentSandName = '';
+let sandSizes = []; // recorded avalanche sizes, for the log–log readout
 let sandSize = 110, sandM = 1.6, sandSinkFrac = 0.09;
 
 function seedSandpile(preset) {
   clearGraph();
   currentSandName = preset.name; sandSize = preset.size; sandM = preset.m; sandSinkFrac = preset.sink;
-  sandRelaxing = false; sandAval = 0; sandLastAval = 0; sandMaxAval = 0; sandGrains = 0;
+  sandRelaxing = false; sandAval = 0; sandLastAval = 0; sandMaxAval = 0; sandGrains = 0; sandSizes = [];
   const N = Math.min(preset.size, G.cap), R = 26 * Math.sqrt(N);
   const ids = [];
   const first = newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { chips: 0, sink: false, neigh: [] });
@@ -575,6 +596,7 @@ function sandWave() {
   const unstable = [...G.nodes.values()].filter(n => !n.sink && n.chips >= sandThreshold(n));
   if (!unstable.length) {
     sandRelaxing = false; sandLastAval = sandAval; if (sandAval > sandMaxAval) sandMaxAval = sandAval;
+    if (sandAval > 0) { sandSizes.push(sandAval); if (sandSizes.length > 5000) sandSizes.shift(); }
     return;
   }
   for (const n of unstable) {
@@ -757,6 +779,50 @@ function inetTick() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// MODE 4 — CHEMISTRY  (well-stirred constructive reactor, Fontana/Banzhaf)
+//   fixed population of "molecules" with an integer species; pick two,
+//   react b := f(a,b), keep population constant. The species distribution
+//   self-organises onto a closed, self-maintaining set (an "organisation").
+// ════════════════════════════════════════════════════════════════════
+// >>> CHEM_ENGINE_START
+function chemReact(a, b, op, M) {
+  switch (op) {
+    case 'mul': return (a * b) % M;
+    case 'add': return (a + b) % M;
+    case 'copy': return a;          // a imprints onto b (replication → consensus)
+    case 'xor': return (a ^ b) % M; // closed under xor → a GF(2) subspace forms
+  }
+  return b;
+}
+// <<< CHEM_ENGINE_END
+const CHEM_PRESETS = [
+  { id: 'mul', name: 'multiply', M: 47, op: 'mul', size: 96, blurb: 'c = a·b mod 47 — multiplicative organisations (subgroups).' },
+  { id: 'xor', name: 'fold', M: 64, op: 'xor', size: 96, blurb: 'c = a xor b — the live set closes into a linear subspace.' },
+  { id: 'add', name: 'add', M: 48, op: 'add', size: 96, blurb: 'c = a+b mod 48 — additive subgroups (multiples of a gcd).' },
+  { id: 'copy', name: 'replicate', M: 22, op: 'copy', size: 96, blurb: 'c = a — pure copying; one species takes the soup (consensus).' },
+];
+let chemM = 47, chemOp = 'mul', currentChemName = '', chemSize = 96;
+function seedChem(preset) {
+  clearGraph(); currentChemName = preset.name; chemM = preset.M; chemOp = preset.op;
+  chemSize = Math.min(preset.size, G.cap);
+  const R = 150, lo = preset.op === 'mul' ? 1 : 0;
+  for (let i = 0; i < chemSize; i++)
+    newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { species: lo + ((rnd() * (chemM - lo)) | 0) });
+  for (const n of G.nodes.values()) n.flash = 0;
+}
+function chemTick() {
+  const ns = [...G.nodes.values()]; if (ns.length < 2) return false;
+  const a = ns[(rnd() * ns.length) | 0]; let b = ns[(rnd() * ns.length) | 0], g = 0;
+  while (b === a && g++ < 5) b = ns[(rnd() * ns.length) | 0];
+  if (b === a) return true;
+  b.species = chemReact(a.species, b.species, chemOp, chemM);
+  a.flash = NEW; b.flash = NEW;
+  G.links.push({ a: a.id, b: b.id, flash: Math.floor(NEW * 0.7) });
+  G.events++; return true;
+}
+function chemDistinct() { const s = new Set(); for (const n of G.nodes.values()) s.add(n.species); return s.size; }
+
+// ════════════════════════════════════════════════════════════════════
 // FORCE-DIRECTED LAYOUT (shared)
 // ════════════════════════════════════════════════════════════════════
 const LAYOUT = { rep: 1, len: 1 };
@@ -769,7 +835,9 @@ function physicsStep(dt) {
       const b = nd[j];
       let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
       if (d2 < 0.01) { dx = rnd() - 0.5; dy = rnd() - 0.5; d2 = 0.25; }
-      const d = Math.sqrt(d2), f = kRep / d2, fx = f * dx / d, fy = f * dy / d;
+      let f = kRep / d2;
+      if (MODE === 'chemistry' && a.species === b.species) f *= 0.12; // like clusters
+      const d = Math.sqrt(d2), fx = f * dx / d, fy = f * dy / d;
       a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
     }
   }
@@ -795,12 +863,16 @@ function physicsStep(dt) {
 // ════════════════════════════════════════════════════════════════════
 const canvas = document.getElementById('graph-canvas');
 const ctx = canvas.getContext('2d');
+const obs = document.getElementById('obs-canvas');
+const octx = obs.getContext('2d');
 let DPR = Math.min(window.devicePixelRatio || 1, 2);
 const view = { cx: 0, cy: 0, scale: 1 };
 function resizeCanvas() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   const r = canvas.getBoundingClientRect();
   canvas.width = Math.round(r.width * DPR); canvas.height = Math.round(r.height * DPR);
+  const ro = obs.getBoundingClientRect();
+  obs.width = Math.round(ro.width * DPR); obs.height = Math.round(ro.height * DPR);
 }
 function fitView() {
   const ns = [...G.nodes.values()]; if (!ns.length) return;
@@ -823,11 +895,13 @@ function sandColor(n) {
 }
 function nodeColor(n) {
   if (MODE === 'inet') return INET_COL[n.sym] || '#888';
+  if (MODE === 'chemistry') return `hsl(${Math.round(360 * n.species / chemM)}, 70%, ${fmt.theme === 'neon' ? 62 : 50}%)`;
   if (MODE === 'sandpile') return sandColor(n) || (fmt.theme === 'neon' ? '#334' : '#bbb');
   return fmt.theme === 'neon' ? '#7dd3fc' : '#1a1a1a'; // growth
 }
 function nodeRadius(n) {
   if (MODE === 'inet') return (n.sym === 'E' ? 2.6 : 3.6) * DPR;
+  if (MODE === 'chemistry') return 3.2 * DPR;
   if (MODE === 'sandpile') return (n.sink ? 3 : 2.6 + Math.min(n.chips, 6) * 0.45) * DPR;
   return (2.6 + Math.min(degOf(n.id), 8) * 0.5) * DPR; // growth
 }
@@ -874,6 +948,50 @@ function drawLoop(n, hot, th) {
   ctx.beginPath(); ctx.arc(sx + r, sy, r, 0, 6.2832); ctx.stroke();
 }
 
+// ── observables panel (a living structure is only useful once measured) ──
+function drawObs() {
+  octx.clearRect(0, 0, obs.width, obs.height);
+  const cap = document.getElementById('obs-cap');
+  if (MODE === 'sandpile') { cap.textContent = 'avalanche sizes, log–log — a straight line is a power law'; drawLogLog(); }
+  else if (MODE === 'chemistry') { cap.textContent = 'species population — watch it collapse onto an organisation'; drawSpeciesHist(); }
+  else { cap.textContent = 'degree distribution'; drawDegHist(); }
+}
+function drawLogLog() {
+  const pad = 16 * DPR, w = obs.width - 2 * pad, h = obs.height - 2 * pad;
+  octx.strokeStyle = fmt.theme === 'neon' ? '#334' : '#ddd'; octx.lineWidth = DPR;
+  octx.beginPath(); octx.moveTo(pad, pad); octx.lineTo(pad, pad + h); octx.lineTo(pad + w, pad + h); octx.stroke();
+  if (sandSizes.length < 3) return;
+  let max = 1; for (const s of sandSizes) if (s > max) max = s;
+  const lmax = Math.log10(max + 1) || 1, nb = Math.max(4, Math.ceil(lmax * 6)), bins = new Array(nb).fill(0);
+  for (const s of sandSizes) { const b = Math.min(nb - 1, Math.floor(Math.log10(s + 1e-4) / lmax * nb)); if (b >= 0) bins[b]++; }
+  let cmax = 1; for (const c of bins) if (c > cmax) cmax = c;
+  octx.fillStyle = TH().hot;
+  for (let i = 0; i < nb; i++) {
+    if (!bins[i]) continue;
+    const x = pad + (i + 0.5) / nb * w, y = pad + h - (Math.log10(bins[i] + 1) / Math.log10(cmax + 1)) * h;
+    octx.beginPath(); octx.arc(x, y, 2.4 * DPR, 0, 6.2832); octx.fill();
+  }
+}
+function drawSpeciesHist() {
+  const counts = new Array(chemM).fill(0);
+  for (const n of G.nodes.values()) counts[n.species] = (counts[n.species] || 0) + 1;
+  let cmax = 1; for (const c of counts) if (c > cmax) cmax = c;
+  const h = obs.height, bw = obs.width / chemM;
+  for (let s = 0; s < chemM; s++) {
+    if (!counts[s]) continue;
+    const bh = counts[s] / cmax * (h - 4 * DPR);
+    octx.fillStyle = `hsl(${Math.round(360 * s / chemM)}, 70%, ${fmt.theme === 'neon' ? 62 : 50}%)`;
+    octx.fillRect(s * bw, h - bh, Math.max(1, bw - 1), bh);
+  }
+}
+function drawDegHist() {
+  const counts = {}; let maxd = 1, cmax = 1;
+  for (const d of _deg.values()) { counts[d] = (counts[d] || 0) + 1; if (d > maxd) maxd = d; if (counts[d] > cmax) cmax = counts[d]; }
+  const h = obs.height, bw = obs.width / Math.max(maxd + 1, 1);
+  octx.fillStyle = TH().hot;
+  for (let d = 0; d <= maxd; d++) { const c = counts[d] || 0; if (!c) continue; const bh = c / cmax * (h - 4 * DPR); octx.fillRect(d * bw, h - bh, Math.max(1, bw - 1), bh); }
+}
+
 // ════════════════════════════════════════════════════════════════════
 // MAIN LOOP
 // ════════════════════════════════════════════════════════════════════
@@ -887,13 +1005,15 @@ function loop(now) {
     if (sandRelaxing) sandWave();                 // avalanche animates to quiescence
     else if (playing) { eventAcc += dt * rateEPS; while (eventAcc >= 1) { eventAcc -= 1; sandDrop(); if (sandRelaxing) break; } }
   } else if (playing) {
+    const stepFn = MODE === 'growth' ? growthTick : MODE === 'inet' ? inetTick : chemTick;
     eventAcc += dt * rateEPS; let guard = 0;
-    while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!(MODE === 'growth' ? growthTick() : inetTick())) { eventAcc = 0; break; } guard++; }
+    while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!stepFn()) { eventAcc = 0; break; } guard++; }
   }
+  if (MODE === 'chemistry') G.links = G.links.filter(l => l.flash > 0); // transient reaction flashes
   if (MODE === 'inet') inetActiveCount = countActive();
   recomputeDegrees();
   for (let s = 0; s < 2; s++) physicsStep(1);
-  fitView(); render(); updateStats();
+  fitView(); render(); updateStats(); drawObs();
   requestAnimationFrame(loop);
 }
 function countActive() { let c = 0; const seen = new Set(); for (const a of G.nodes.values()) { const p = a.ports && a.ports[0]; if (p && p.port === 0 && p.node !== a && p.node.ports[0] && p.node.ports[0].node === a) { const k = Math.min(a.id, p.node.id) + '-' + Math.max(a.id, p.node.id); if (!seen.has(k)) { seen.add(k); c++; } } } return c; }
@@ -914,11 +1034,12 @@ function flashHint(msg) {
   clearTimeout(hintTimer); hintTimer = setTimeout(() => { el.style.color = ''; }, 2600);
 }
 
-const PRESETS = { growth: GROWTH_PRESETS, sandpile: SAND_PRESETS, inet: INET_PRESETS };
+const PRESETS = { growth: GROWTH_PRESETS, sandpile: SAND_PRESETS, inet: INET_PRESETS, chemistry: CHEM_PRESETS };
 let currentPresetId = {};
 function seedFor(mode, preset) {
   if (mode === 'growth') seedGrowth(preset);
   else if (mode === 'sandpile') seedSandpile(preset);
+  else if (mode === 'chemistry') seedChem(preset);
   else seedInet(preset);
   view.scale = 1; view.cx = 0; view.cy = 0;
 }
@@ -937,6 +1058,7 @@ function relabel() {
   document.getElementById('scheme-group').classList.toggle('hidden', MODE !== 'growth');
   if (MODE === 'growth') { cap.textContent = 'node cap'; rate.textContent = 'births / sec'; preset.textContent = 'rule'; }
   else if (MODE === 'sandpile') { cap.textContent = 'max nodes'; rate.textContent = 'grains / sec'; preset.textContent = 'network'; }
+  else if (MODE === 'chemistry') { cap.textContent = 'population'; rate.textContent = 'reactions / sec'; preset.textContent = 'reaction'; }
   else { cap.textContent = 'agent cap'; rate.textContent = 'reductions / sec'; preset.textContent = 'starting net'; }
 }
 function switchMode(mode) {
@@ -949,6 +1071,7 @@ function switchMode(mode) {
   document.getElementById('play-hint').innerHTML =
     mode === 'growth' ? 'a rule rewrites the graph; new nodes are inert except for layout — pure growth' :
     mode === 'sandpile' ? 'drop grains; when a node fills past its degree it topples — watch the avalanche cascade. grey rings are sinks' :
+    mode === 'chemistry' ? 'a fixed soup of molecules reacts (b := f(a,b)); watch the species distribution self-organise onto a self-maintaining set. like colours cluster' :
     'agents collide at their principal port and reduce — each reduction rewires the net and can trigger more. C=γ build, D=δ copy, E=ε erase';
   updateLegend();
 }
@@ -959,6 +1082,7 @@ function updateLegend() {
     `<span class="sw" style="background:${INET_COL.D}"></span>D duplicator (δ)<br>` +
     `<span class="sw" style="background:${INET_COL.E}"></span>E eraser (ε) · thick link = active pair`;
   else if (MODE === 'sandpile') el.innerHTML = 'node colour = fill (blue→red as it nears toppling) · hollow ring = sink';
+  else if (MODE === 'chemistry') el.innerHTML = 'node colour = species (hue = value) · flash = a reaction · like clusters';
   else el.innerHTML = 'node size = degree · violet = just born';
 }
 
@@ -970,6 +1094,8 @@ function updateStats() {
   } else if (MODE === 'sandpile') {
     rows.push(['network', currentSandName, false], ['nodes', G.nodes.size, false], ['grains dropped', sandGrains, false],
       ['last avalanche', sandRelaxing ? '…' + sandAval : sandLastAval, true], ['max avalanche', sandMaxAval, false]);
+  } else if (MODE === 'chemistry') {
+    rows.push(['reaction', currentChemName, false], ['molecules', G.nodes.size, false], ['distinct species', chemDistinct(), true], ['reactions', G.events, false]);
   } else {
     rows.push(['net', currentInetName, false], ['agents', G.nodes.size, true], ['active pairs', inetActiveCount, false], ['reductions', inetReductions, false]);
   }
@@ -996,6 +1122,7 @@ document.getElementById('step-btn').addEventListener('click', () => {
   setPlaying(false);
   if (MODE === 'growth') growthTick();
   else if (MODE === 'inet') inetTick();
+  else if (MODE === 'chemistry') chemTick();
   else { if (!sandRelaxing) sandDrop(); }
 });
 document.getElementById('reset-btn').addEventListener('click', () => {
