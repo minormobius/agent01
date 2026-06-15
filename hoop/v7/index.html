@@ -56,16 +56,17 @@
     <div class="top"><span class="logo">⬡ hoop v7</span><span class="tag">chunking demo</span><a class="back" href="/">◍ hoop</a></div>
     <div class="read">Build chunk #0 a layer at a time. When it's done, <span class="hl" style="color:var(--teal)">click a glowing chunk edge</span> to seed the next chunk and watch the world tile.</div>
 
-    <label class="fld">cell size <span class="v" id="v-cell">26</span><input type="range" id="cell" min="14" max="46" step="2" value="26"></label>
+    <label class="fld">cell size <span class="v" id="v-cell">16</span><input type="range" id="cell" min="12" max="46" step="2" value="16"></label>
     <label class="fld">size variance (slab depth) <span class="v" id="v-depth">2.4</span><input type="range" id="depth" min="1.2" max="4" step="0.2" value="2.4"></label>
     <label class="fld">oxygen reach (diffusion depth) <span class="v" id="v-oxy">3</span><input type="range" id="oxy" min="1" max="7" step="1" value="3"></label>
     <label class="fld">concourse width (cells) <span class="v" id="v-conc">2</span><input type="range" id="conc" min="1" max="4" step="1" value="2"></label>
-    <label class="fld">room size (cells/room) <span class="v" id="v-room">10</span><input type="range" id="room" min="2" max="40" step="1" value="10"></label>
+    <label class="fld">room size (cells/room) <span class="v" id="v-room">16</span><input type="range" id="room" min="2" max="40" step="1" value="16"></label>
+    <label class="fld">sight window (cells) <span class="v" id="v-sight">9</span><input type="range" id="sight" min="3" max="24" step="1" value="9"></label>
     <div class="row" id="shapes" style="gap:5px">
-      <button class="shp on" data-shape="auto" style="flex:1.4">⬚ auto</button>
+      <button class="shp" data-shape="auto" style="flex:1.4">⬚ auto</button>
       <button class="shp" data-shape="square" style="flex:1" title="square">◻</button>
       <button class="shp" data-shape="triangle" style="flex:1" title="equilateral triangle">△</button>
-      <button class="shp" data-shape="hex" style="flex:1" title="hexagon">⬡</button>
+      <button class="shp on" data-shape="hex" style="flex:1" title="hexagon">⬡</button>
     </div>
 
     <div class="steps" id="steps"></div>
@@ -75,11 +76,14 @@
       <button id="reseed" style="flex:1">⟲ reset world</button>
       <button id="auto" style="flex:1">⏩ build #0</button>
     </div>
-    <button class="lock" id="lock" style="display:none">🔒 lock map &amp; drop probes</button>
+    <button class="lock" id="lock" style="display:none">🔒 lock map &amp; explore</button>
     <div class="toggles" id="toggles">
       <label><input type="checkbox" id="t-heat" checked> oxygenation</label>
       <label><input type="checkbox" id="t-glyph" checked> glyphs</label>
       <label><input type="checkbox" id="t-foam"> foam</label>
+      <label><input type="checkbox" id="t-fog" checked> fog of war</label>
+      <label><input type="checkbox" id="t-web" checked> npc web</label>
+      <label><input type="checkbox" id="t-activity" checked> activity paths</label>
     </div>
 
     <div class="read" id="readout">seed — · step 0/6</div>
@@ -108,7 +112,8 @@
     let anim = null, revealK = 0; // seize reveal animation
     let cam = { scale: 1, ox: 0, oy: 0 };
     let roadAll = new Set(), gidRoom = new Map(), roomMeta = new Map();   // render maps over frozen chunks
-    let shapePref = 'auto', mode = 'build', walk = null, probes = [], pathCells = [];   // chunk shape + path mode
+    let shapePref = 'hex', mode = 'build', walk = null;                                 // chunk shape + play mode
+    let player = -1, seen = new Set(), inView = new Set(), route = [], society = null, walkTimer = null;
 
     const knob = (id) => +$(id).value;
     const hueOf = (i) => ((i * 2654435761) >>> 0) % 360;
@@ -160,12 +165,12 @@
       // the active build (chunk under construction), with its step overlays / seize animation
       if (building && building.def) drawActive();
 
-      // pathfinding: the route between two probes (mode = path)
-      if (mode === 'path') drawPath();
-
       // chunk boundaries + glowing free edges (expansion handles)
       for (const ch of chunks) drawBoundary(ch, true);
       if (building && building.def && step < 6) drawBoundary(building, false);
+
+      // play mode: NPC web + activity (revealed areas only), fog of war, then the player
+      if (mode === 'play') { drawNPC(); drawFog(); drawPlayer(); }
     }
 
     function drawFrozenChunk(ch) {
@@ -194,7 +199,7 @@
     function drawBoundary(ch, frozen) {
       const poly = ch.poly || ch.def.poly;
       for (let e = 0; e < poly.length; e++) {
-        const a = poly[e], b = poly[(e + 1) % poly.length], free = frozen && !occupied.has(midKey(poly, e));
+        const a = poly[e], b = poly[(e + 1) % poly.length], free = frozen && mode !== 'play' && !occupied.has(midKey(poly, e));
         ctx.lineWidth = free ? 2.4 : 1.4; ctx.strokeStyle = free ? 'rgba(59,176,201,0.9)' : 'rgba(90,120,135,0.5)';
         if (free) ctx.setLineDash([7, 5]); else ctx.setLineDash([]);
         ctx.beginPath(); ctx.moveTo(SX(a.x), SY(a.y)); ctx.lineTo(SX(b.x), SY(b.y)); ctx.stroke();
@@ -318,7 +323,7 @@
     function renderSteps() {
       $('steps').innerHTML = STEPS.map((s, i) => { const cls = i < step ? 'done' : i === step ? 'next' : ''; const mk = i < step ? '✓' : i === step ? '▸' : (i + 1); return `<div class="step ${cls}"><span class="mk">${mk}</span><span>${s.name} <span class="sub">— ${s.sub}</span></span></div>`; }).join('');
       const go = $('go');
-      if (step >= 6) { go.disabled = false; go.className = 'expand'; go.textContent = mode === 'path' ? `🔒 locked · drop probes` : (chunks.length ? `✓ ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} · click an edge` : '✓ chunk #0 · click an edge'); }
+      if (step >= 6) { go.disabled = false; go.className = 'expand'; go.textContent = mode === 'play' ? `🔒 exploring · click to walk` : (chunks.length ? `✓ ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} · click an edge` : '✓ chunk #0 · click an edge'); }
       else { go.disabled = false; go.className = 'go'; go.textContent = `▸ run step ${step + 1} · ${STEPS[step].name}`; }
       $('lock').style.display = step >= 6 ? 'block' : 'none';
     }
@@ -331,13 +336,13 @@
       if (b && b.sol && step >= 4) s += `<br>seize · <span class="hl">${(b.sol.servedFrac * 100) | 0}%</span> oxygenated · ${b.sol.sprouts} capillaries · ${(b.sol.stats.roadFrac * 100) | 0}% floor`;
       if (b && b.rm && step >= 5) s += `<br>rooms <b>${b.rm.stats.rooms}</b> · ⌀ <span class="hl">${b.rm.stats.avgCells.toFixed(1)}</span> cells · ${b.rm.stats.doored} doored`;
       if (!b && chunks.length) { const rms = chunks.reduce((a, c) => a + c.rooms.length, 0); s += `<br>world · <b>${chunks.length}</b> chunks · <b>${rms}</b> rooms total`; }
-      if (mode === 'path') { if (pathCells.length > 1) { let L = 0; for (let i = 1; i < pathCells.length; i++) L += Math.hypot(foam.cells[pathCells[i]].x - foam.cells[pathCells[i - 1]].x, foam.cells[pathCells[i]].y - foam.cells[pathCells[i - 1]].y); s += `<br><span class="hl">path</span> A→B · <b>${pathCells.length}</b> cells · ${(L / foam.cellSize).toFixed(0)} cell-lengths`; } else if (probes.length === 2) s += `<br><span style="color:#cf3b3b">no path</span> between the probes`; else s += `<br>drop probe ${probes.length === 0 ? 'A' : 'B'}`; }
+      if (mode === 'play') { const tot = chunks.reduce((a, c) => a + c.roadGids.size + c.rooms.reduce((x, r) => x + r.cellGids.length, 0), 0); s += `<br><span class="hl">exploring</span> · seen <b>${seen.size}</b>/${tot} cells (${tot ? (seen.size / tot * 100) | 0 : 0}%)${society ? ` · <b>${society.routes.length}</b> activity paths` : ''}`; }
       $('readout').innerHTML = s;
     }
     function renderLegend() { const counts = {}; for (const ch of chunks) for (const r of ch.rooms) counts[r.role] = (counts[r.role] || 0) + 1; if (building && building.cast) for (const r of building.cast.rooms) counts[r.role] = (counts[r.role] || 0) + 1; const ks = Object.keys(ROLES).filter((r) => counts[r]); $('legend').innerHTML = ks.length ? ks.map((r) => `<span><span class="sw" style="background:${ROLES[r].color}"></span>${ROLES[r].glyph} ${r} <span class="n">${counts[r]}</span></span>`).join('') : ''; }
     function updateHint() {
       const h = $('hint');
-      if (mode === 'path') { h.textContent = probes.length === 0 ? 'click to drop probe A' : probes.length === 1 ? 'click to drop probe B' : 'click to drop a new pair'; h.classList.add('on'); }
+      if (mode === 'play') { h.textContent = 'click anywhere to walk — the fog lifts as you travel'; h.classList.add('on'); }
       else { h.textContent = 'click a glowing edge to seed the next chunk'; h.classList.toggle('on', step >= 6 && !anim); }
     }
 
@@ -345,7 +350,7 @@
     cv.addEventListener('click', (e) => {
       if (!foam || anim) return;
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
-      if (mode === 'path') { dropProbe(wx, wy); return; }
+      if (mode === 'play') { walkTo(wx, wy); return; }
       if (step >= 6 && chunks.length) {
         // nearest free edge within reach?
         let best = null, bd = (foam.cellSize) * 1.4;
@@ -358,7 +363,7 @@
       if (bestR) $('inspect').innerHTML = `<b>${bestR.glyph} ${bestR.role}${bestR.domain ? '·' + bestR.domain : ''}</b> <span class="n">(chunk ${host.id})</span> — ${bestR.cellGids.length} cells${bestR.people && bestR.people.length ? '<br>' + bestR.people.join(', ') : ''}`;
     });
     cv.addEventListener('mousemove', (e) => {
-      if (mode === 'path') { cv.style.cursor = 'crosshair'; return; }
+      if (mode === 'play') { cv.style.cursor = 'crosshair'; return; }
       if (!foam || step < 6 || anim) { cv.style.cursor = 'default'; return; }
       const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
       let over = false; for (const ch of chunks) for (let ei = 0; ei < ch.poly.length; ei++) { if (occupied.has(midKey(ch.poly, ei))) continue; if (ptSeg(wx, wy, ch.poly[ei], ch.poly[(ei + 1) % ch.poly.length]) < foam.cellSize * 1.4) over = true; }
@@ -386,32 +391,77 @@
       const path = []; for (let u = dst; u !== -1; u = prev[u]) path.push(u); return path.reverse();
     }
     function nearestWalkable(wx, wy) { let best = -1, bd = Infinity; for (const c of foam.cells) { if (labelOf(c.gid) == null) continue; const d = (c.x - wx) ** 2 + (c.y - wy) ** 2; if (d < bd) { bd = d; best = c.id; } } return best; }
-    function dropProbe(wx, wy) {
-      if (probes.length >= 2) { probes = []; pathCells = []; }
-      const c = nearestWalkable(wx, wy); if (c < 0) return; probes.push(c);
-      if (probes.length === 2) pathCells = pathFind(probes[0], probes[1]) || [];
-      readout(); updateHint(); draw();
-    }
-    function drawPath() {
-      for (let i = 0; i < probes.length; i++) { const c = foam.cells[probes[i]]; ctx.fillStyle = i === 0 ? '#5aa845' : '#cf3b3b'; ctx.beginPath(); ctx.arc(SX(c.x), SY(c.y), 6, 0, 7); ctx.fill(); ctx.fillStyle = '#0a0c10'; ctx.font = 'bold 9px "JetBrains Mono"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(i === 0 ? 'A' : 'B', SX(c.x), SY(c.y) + 0.5); }
-      if (pathCells.length < 2) return;
-      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-      ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 9; strokePath();
-      ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 3; strokePath();
-    }
-    function strokePath() { ctx.beginPath(); for (let i = 0; i < pathCells.length; i++) { const c = foam.cells[pathCells[i]]; if (i) ctx.lineTo(SX(c.x), SY(c.y)); else ctx.moveTo(SX(c.x), SY(c.y)); } ctx.stroke(); }
 
-    function reset() { stopAnim(); step = 0; foam = null; chunks = []; occupied = new Set(); building = null; roadAll = new Set(); gidRoom = new Map(); roomMeta = new Map(); mode = 'build'; walk = null; probes = []; pathCells = []; $('lock').classList.remove('on'); $('lock').textContent = '🔒 lock map & drop probes'; renderSteps(); readout(); renderLegend(); draw(); updateHint(); }
+    // ── fog of war: the sight window is a BFS ball over the WALK graph, so vision flows down the
+    //    concourse and into rooms whose doors you pass — walls block it. Travel disperses the fog. ──
+    function ballBFS(center, hops) { const out = new Set(), dist = new Map([[center, 0]]), q = [center]; for (let h = 0; h < q.length; h++) { const u = q[h], d = dist.get(u); out.add(u); if (d >= hops) continue; for (const v of walk[u]) if (!dist.has(v)) { dist.set(v, d + 1); q.push(v); } } return out; }
+    function reveal(center) { for (const c of ballBFS(center, +$('sight').value)) seen.add(c); }
+    function computeInView() { inView = player < 0 ? new Set() : ballBFS(player, +$('sight').value); }
+    function startCell() { const ch = chunks[0]; let cx = 0, cy = 0, n = 0; for (const g of ch.roadGids) { const c = cellByGid(g); if (c) { cx += c.x; cy += c.y; n++; } } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (const g of ch.roadGids) { const c = cellByGid(g); if (!c) continue; const d = (c.x - cx) ** 2 + (c.y - cy) ** 2; if (d < bd) { bd = d; best = c.id; } } return best >= 0 ? best : nearestWalkable(cx, cy); }
+
+    // click-to-walk: route the player over the door-gated graph and step along it, revealing as it goes
+    function walkTo(wx, wy) {
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const dst = nearestWalkable(wx, wy); if (dst < 0 || player < 0) return;
+      const p = pathFind(player, dst);
+      if (!p || p.length < 2) { player = dst; reveal(player); computeInView(); route = []; draw(); readout(); return; }
+      route = p; let i = 0;
+      const tick = () => { i++; player = route[i]; reveal(player); computeInView(); draw(); readout(); if (i < route.length - 1) walkTimer = setTimeout(tick, 55); else { walkTimer = null; route = []; draw(); } };
+      walkTimer = setTimeout(tick, 55);
+    }
+
+    // ── the NPC society: each dwelling's people get a workplace + a third place (nearest of each), so
+    //    the map carries a web of affiliations and the activity paths (home→work routes over the
+    //    concourse) NPCs would actually walk. Both are revealed only where the fog has lifted. ──
+    const WORKROLES = new Set(['make', 'mend', 'trade', 'grow', 'serve', 'heal', 'learn', 'store', 'move', 'govern', 'play', 'worship']);
+    const THIRDROLES = new Set(['worship', 'serve', 'play', 'learn']);
+    function buildSociety() {
+      const rooms = []; for (const ch of chunks) ch.rooms.forEach((r, ri) => rooms.push({ grid: ch.id * 100000 + ri, x: r.x, y: r.y, role: r.role, people: r.people || [], doorRoadGid: r.doorRoadGid, cellGids: r.cellGids }));
+      const work = rooms.filter((o) => WORKROLES.has(o.role)), third = rooms.filter((o) => THIRDROLES.has(o.role));
+      const nearest = (list, o) => { let b = null, bd = Infinity; for (const w of list) { if (w === o) continue; const d = (w.x - o.x) ** 2 + (w.y - o.y) ** 2; if (d < bd) { bd = d; b = w; } } return b; };
+      const edges = [], pairs = new Map();
+      for (const o of rooms) { if (o.role !== 'dwell') continue; const n = Math.max(1, o.people.length);
+        const w = nearest(work, o); if (w) { edges.push({ ax: o.x, ay: o.y, bx: w.x, by: w.y, kind: 'work', a: o, b: w }); const k = o.grid + '>' + w.grid, pr = pairs.get(k); if (pr) pr.w += n; else pairs.set(k, { a: o, b: w, w: n }); }
+        const t = nearest(third, o); if (t && t !== w) edges.push({ ax: o.x, ay: o.y, bx: t.x, by: t.y, kind: 'third', a: o, b: t });
+      }
+      const routes = []; let budget = 80;
+      for (const [, pr] of pairs) { if (budget-- <= 0) break; const sa = foam.cellByGid.get(pr.a.doorRoadGid), sb = foam.cellByGid.get(pr.b.doorRoadGid); if (sa == null || sb == null) continue; const p = pathFind(sa, sb); if (p && p.length > 1) routes.push({ cells: p, w: pr.w }); }
+      society = { rooms, edges, routes };
+    }
+    const roomSeen = (o) => o.cellGids.some((g) => { const i = foam.cellByGid.get(g); return i != null && seen.has(i); });
+
+    function strokeCells(arr, fromSeen) { ctx.beginPath(); let pen = false; for (const cid of arr) { if (fromSeen && !seen.has(cid)) { pen = false; continue; } const c = foam.cells[cid]; if (pen) ctx.lineTo(SX(c.x), SY(c.y)); else { ctx.moveTo(SX(c.x), SY(c.y)); pen = true; } } ctx.stroke(); }
+    function drawNPC() {
+      if (!society) return;
+      if ($('t-activity').checked) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; for (const rt of society.routes) { ctx.strokeStyle = `rgba(121,200,160,${Math.min(0.55, 0.14 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3.2, 0.7 + rt.w * 0.22); strokeCells(rt.cells, true); } }
+      if ($('t-web').checked) { ctx.lineWidth = 0.8; for (const e of society.edges) { if (!roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.4)' : 'rgba(180,120,216,0.38)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); } }
+    }
+    function drawFog() {
+      if (!$('t-fog').checked) return;
+      const fc = (c) => { const s = seen.has(c.id), v = inView.has(c.id); const a = !s ? 0.93 : v ? 0 : 0.5; if (a <= 0) return; ctx.fillStyle = `rgba(6,8,11,${a})`; polyW(c.poly); ctx.fill(); };
+      for (const ch of chunks) { for (const r of ch.rooms) for (const g of r.cellGids) { const c = cellByGid(g); if (c) fc(c); } for (const g of ch.roadGids) { const c = cellByGid(g); if (c) fc(c); } }
+    }
+    function drawPlayer() {
+      if (player < 0) return;
+      if (route.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.3)'; ctx.lineWidth = 7; strokeCells(route, false); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2.5; strokeCells(route, false); }
+      const c = foam.cells[player], rad = Math.max(4, cam.scale * foam.cellSize * 0.42);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(SX(c.x), SY(c.y), rad, 0, 7); ctx.fill();
+      ctx.fillStyle = '#0a0c10'; ctx.font = `bold ${Math.max(9, rad * 1.2) | 0}px "JetBrains Mono"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', SX(c.x), SY(c.y) + 0.5);
+    }
+
+    function exitPlay() { mode = 'build'; player = -1; seen = new Set(); inView = new Set(); route = []; society = null; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; } $('lock').classList.remove('on'); $('lock').textContent = '🔒 lock map & explore'; }
+    function reset() { stopAnim(); step = 0; foam = null; chunks = []; occupied = new Set(); building = null; roadAll = new Set(); gidRoom = new Map(); roomMeta = new Map(); walk = null; exitPlay(); renderSteps(); readout(); renderLegend(); draw(); updateHint(); }
     function reseed() { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; reset(); }
     $('go').addEventListener('click', () => { if (step < 6) runStep(); });
     $('reseed').addEventListener('click', reseed);
     $('auto').addEventListener('click', () => { reseed(); const t = () => { if (step < 6) { runStep(); setTimeout(t, step === 4 ? 1600 : 120); } }; setTimeout(t, 60); });
     for (const id of ['cell', 'depth', 'oxy', 'conc', 'room']) $(id).addEventListener('input', () => { $('v-' + id).textContent = $(id).value; reset(); });
-    for (const id of ['t-heat', 't-glyph', 't-foam']) $(id).addEventListener('change', draw);
+    $('sight').addEventListener('input', () => { $('v-sight').textContent = $('sight').value; if (mode === 'play' && player >= 0) { reveal(player); computeInView(); draw(); readout(); } });
+    for (const id of ['t-heat', 't-glyph', 't-foam', 't-fog', 't-web', 't-activity']) $(id).addEventListener('change', draw);
     document.querySelectorAll('#shapes .shp').forEach((btn) => btn.addEventListener('click', () => { shapePref = btn.dataset.shape; document.querySelectorAll('#shapes .shp').forEach((b) => b.classList.toggle('on', b === btn)); reset(); }));
     $('lock').addEventListener('click', () => {
-      if (mode === 'build') { if (!chunks.length) return; mode = 'path'; buildWalk(); probes = []; pathCells = []; $('lock').classList.add('on'); $('lock').textContent = '🔓 unlock · keep building'; }
-      else { mode = 'build'; probes = []; pathCells = []; $('lock').classList.remove('on'); $('lock').textContent = '🔒 lock map & drop probes'; }
+      if (mode === 'build') { if (!chunks.length) return; mode = 'play'; buildWalk(); buildSociety(); player = startCell(); seen = new Set(); reveal(player); computeInView(); $('lock').classList.add('on'); $('lock').textContent = '🔓 unlock · keep building'; }
+      else exitPlay();
       renderSteps(); readout(); updateHint(); draw();
     });
 
