@@ -734,11 +734,11 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/npc-sprite-generation-aeh9e1",
+      "branch": "claude/feature-merge-candidate-l4dkwq",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — ownership moved to claude/npc-sprite-generation-aeh9e1 to host the /sprite wing (procedural NPC sprite generation for hoop). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP (historical): delete the orphan `mega-minomobi` worker.",
-      "note": "Static worker-assets (Worker `mega`, directory '.'). Two wings: `/` — megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` — procedural sprite generation: a seed-deterministic, atproto-persistable engine that breeds NPC sprites for the hoop O'Neill-cylinder game (sprites bound to chamber-address slots; the econ society's people made visible). Planning doc + reference renderer live client-side; no D1/DO/secrets.",
+      "status": "MANAGED — owned by claude/feature-merge-candidate-l4dkwq (merge candidate integrating both /sprite wings). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
+      "note": "Static worker-assets (Worker `mega`, directory '.'). Wings: `/` — megaproject dashboard (global infrastructure tracker, MapLibre + Deck.gl); `/sprite` — procedural NPC Sprite Lab (seed-deterministic, atproto-persistable engine breeding NPC sprites for the hoop O'Neill-cylinder game); `/sprite/item` — item genome + characteristics engine (phylogeny, trait dials, breeding); `/sprite/fixture` — chamber fixtures grown from hoop v3's voronoi tiling. Client-side renderers; no D1/DO/secrets.",
       "paths": [
         "mega/**"
       ]

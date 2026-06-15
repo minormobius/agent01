@@ -2,7 +2,7 @@ name: Deploy Megaproject Dashboard
 
 on:
   push:
-    branches: [main, 'claude/npc-sprite-generation-aeh9e1']
+    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
     paths:
       - 'mega/**'
       - '.github/workflows/deploy-mega.yml'

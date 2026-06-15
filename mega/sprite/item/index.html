@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Item Sprites — the item genome</title>
+<meta name="description" content="A phylogenetic item genome: verb-kingdoms → body-plan phyla → species, with orthogonal trait genes (durability, tech, ornament, complexity, provenance…). Roll, breed, and mutate items; each drawn as a map sprite + an inventory glyph. Built for hoop.">
+<style>
+  *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --void:#05060a; --panel:#0a0e12; --panel2:#0f141a; --border:#1b2530;
+    --ink:#dfe7e2; --dim:#7a8894; --gold:#f4bf62; --teal:#7fd8d0; --accent:#e0772f; --red:#cf3b3b;
+    --mono:'SF Mono','Cascadia Code','Fira Code',ui-monospace,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  html,body{height:100%}
+  body{background:radial-gradient(120% 120% at 50% -10%,#0b1117 0%,var(--void) 60%);color:var(--ink);font-family:var(--sans);
+    background-attachment:fixed;-webkit-font-smoothing:antialiased;line-height:1.5;
+    background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,0.012) 0 1px,transparent 1px 3px)}
+  a{color:var(--teal);text-decoration:none}a:hover{text-decoration:underline}
+  .wrap{max-width:1100px;margin:0 auto;padding:22px 20px 64px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:18px}
+  header .crumb{font-family:var(--mono);font-size:12px;color:var(--dim)}
+  header .crumb a{color:var(--dim)}
+  header .spacer{flex:1}
+  header .tag{font-family:var(--mono);font-size:11px;color:var(--dim);border:1px solid var(--border);padding:3px 8px;border-radius:6px}
+  h1{font-size:24px;font-weight:800;letter-spacing:.2px;margin-bottom:6px}
+  .lede{color:var(--dim);font-size:13.5px;max-width:820px;margin:0 0 20px}
+  .lede code{font-family:var(--mono);color:var(--teal);font-size:12.5px}
+
+  .stage{display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start}
+  @media(max-width:800px){.stage{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--border);border-radius:12px}
+
+  .hero{padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .heroRow{display:flex;gap:14px;align-items:flex-end}
+  .heroRow canvas{image-rendering:pixelated;border-radius:10px;background:radial-gradient(60% 60% at 50% 42%,rgba(255,255,255,.04),transparent 70%),#070a0e;border:1px solid var(--border)}
+  .heroRow .glyphwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .heroRow .glyphwrap span{font-family:var(--mono);font-size:9px;color:var(--dim)}
+  .nm{font-size:17px;font-weight:700;text-align:center;line-height:1.25}
+  .clade{font-family:var(--mono);font-size:11.5px;color:var(--dim);text-align:center}
+  .clade b{color:var(--ink);font-weight:600}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+  .badge{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid}
+  .head{font-size:12.5px;color:var(--dim);text-align:center;font-style:italic;min-height:32px}
+  .does{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:center}
+
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;align-items:center}
+  button,.seedbox input{font-family:var(--mono);font-size:13px}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--teal);color:#fff}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.primary{background:linear-gradient(180deg,#3a2a14,#241a0c);border-color:#5a431f;color:var(--gold)}
+  button.primary:hover{border-color:var(--gold)}
+  .seedbox{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:2px 4px 2px 10px}
+  .seedbox label{font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .seedbox input{width:110px;background:transparent;border:0;color:var(--ink);padding:7px 4px;outline:none}
+
+  .row2{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+  .pill{padding:5px 10px;border:1px solid var(--border);border-radius:999px;cursor:pointer;color:var(--ink)}
+  .pill.on{border-color:var(--gold);color:var(--gold)}
+  .techctl{display:flex;align-items:center;gap:7px;color:var(--dim)}
+  .techctl input[type=range]{width:128px;accent-color:var(--teal);cursor:pointer}
+  .places{display:flex;flex-wrap:wrap;gap:6px}
+  .places .pill{font-size:11px;padding:4px 9px}
+  .bench{display:flex;gap:8px;align-items:center;border:1px dashed var(--border);border-radius:8px;padding:6px 10px}
+  .bench canvas{image-rendering:pixelated;border-radius:6px;background:#070a0e;border:1px solid var(--border)}
+  .bench .lab{font-family:var(--mono);font-size:10px;color:var(--dim)}
+
+  .sec{font-size:12px;font-weight:600;letter-spacing:.4px;color:var(--dim);text-transform:uppercase;margin:6px 0 6px}
+  .stats{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-family:var(--mono);font-size:12px}
+  .stats .lab{color:var(--dim)}
+  .bar{height:8px;background:#0c1218;border:1px solid var(--border);border-radius:4px;overflow:hidden}
+  .bar>i{display:block;height:100%}
+  .stats .val{color:var(--ink);text-align:right;min-width:58px}
+  .divider{grid-column:1/-1;height:1px;background:var(--border);margin:6px 0}
+  .affix{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .affix .a{font-family:var(--mono);font-size:11px;border-radius:6px;padding:3px 8px;border:1px solid}
+  .affix .hi{color:var(--gold);border-color:#5a431f;background:#1a130a}
+  .affix .lo{color:#c98;border-color:#5a3a2a;background:#160f0a}
+  .affix .none{color:var(--dim);font-size:11.5px;font-family:var(--mono)}
+  .lineage{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10px}
+  .lineage .chi{color:var(--red)}
+
+  .gridhead{display:flex;align-items:baseline;gap:10px;margin:24px 0 10px}
+  .gridhead h2{font-size:14px;font-weight:600;letter-spacing:.3px}
+  .gridhead .meta{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .gridhead .spacer{flex:1}
+  #grid{background:#070a0e;border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;width:100%;display:block;image-rendering:pixelated}
+  .foot{margin-top:32px;border-top:1px solid var(--border);padding-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+  .foot b{color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / sprite / <span style="color:var(--ink)">item</span></div>
+    <div class="spacer"></div>
+    <span class="tag" id="seedtag">seed —</span>
+    <span class="tag">item genome · v2</span>
+  </header>
+
+  <h1>Item Genome</h1>
+  <p class="lede">Every item is a tool — it <b>does</b> something. So its genotype is a position in a <b>phylogeny</b>
+    (<code>kingdom</code> = the verb → <code>phylum</code> = the body-plan → <code>species</code>) plus a vector of
+    <b>orthogonal trait genes</b> (durability, potency, mass, value, tech, ornament, complexity, provenance) that cut
+    across the tree. Roll one from a <b>hoard</b>, <b>splice</b> two (cross-kingdom breeds chimeras), or <b>mutate</b>.
+    Each is drawn as a <b>map sprite</b> (the body-plan) and an <b>inventory glyph</b> (the verb + signifiers). Built for
+    <a href="https://hoop.mino.mobi">/hoop</a>; parallel to its civic genome.</p>
+
+  <div class="stage">
+    <!-- HERO -->
+    <div class="card hero">
+      <div class="heroRow">
+        <canvas id="hero" width="200" height="200"></canvas>
+        <div class="glyphwrap"><canvas id="glyph" width="64" height="64"></canvas><span>inventory</span></div>
+      </div>
+      <div class="nm" id="nm">—</div>
+      <div class="clade" id="clade">—</div>
+      <div class="does" id="does"></div>
+      <div class="badges" id="badges"></div>
+      <div class="head" id="head"></div>
+    </div>
+
+    <!-- INSPECTOR -->
+    <div>
+      <div class="controls">
+        <button class="primary" id="roll">🎲 Roll</button>
+        <button id="prev">‹</button><button id="next">›</button>
+        <span class="seedbox"><label>seed</label><input id="seed" inputmode="numeric"></span>
+        <button id="forge">forge</button>
+        <button id="copy">⧉ link</button>
+      </div>
+
+      <div class="row2">
+        <span>Hoard:</span>
+        <span class="pill" id="hoard-wild">⌂ wild</span>
+        <span class="pill" id="hoard-roll">🧬 roll hoard</span>
+        <span class="techctl" title="slide the whole hoard medieval ↔ ship-grade">⏣<input type="range" id="tech" min="0" max="100" value="45"><span id="techlab">tech</span></span>
+        <span id="hoardinfo"></span>
+      </div>
+
+      <div class="row2">
+        <span>From a place:</span>
+        <span class="places" id="places"></span>
+      </div>
+
+      <div class="row2">
+        <button id="mutate">⚇ mutate</button>
+        <button id="pin">⎙ pin as A</button>
+        <button id="splice" disabled>✚ splice A × this</button>
+        <span class="bench" id="benchwrap" style="display:none"><canvas id="benchA" width="36" height="36"></canvas><span class="lab" id="benchlab">A —</span></span>
+      </div>
+
+      <div class="sec">Characteristics</div>
+      <div class="stats" id="stats"></div>
+      <div class="affix" id="affix"></div>
+      <div class="lineage" id="lineage"></div>
+
+      <div class="gridhead">
+        <h2>The hoard</h2>
+        <span class="meta" id="gridmeta"></span>
+        <span class="spacer"></span>
+        <button id="gprev" style="padding:5px 10px">‹</button>
+        <button id="gnext" style="padding:5px 10px">›</button>
+      </div>
+      <canvas id="grid" width="1000" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>The pieces.</b> <code>taxa.js</code> is the phylogeny (10 verb-kingdoms → 31 body-plan phyla → species, +
+    tech-gated materials); <code>genome.js</code> is the genotype engine (<code>rollItem</code>, <code>express</code>,
+    the <code>scoreItem</code> oracle, <code>splice</code>/<code>mutate</code>, and population <code>hoards</code>);
+    <code>sprite.js</code> draws the parametric body-plan (genes modulate it) in two modes. All pure & node-tested
+    (<code>test/*.selftest.mjs</code>).
+  </div>
+</div>
+
+<script type="module">
+import { rollItem, rollHoard, DEFAULT_HOARD, splice, mutate, hoardWithTech } from './genome.js';
+import { hoardForPlace } from './bindings.js';
+import { drawSprite, drawGlyph } from './sprite.js';
+
+const $ = (id) => document.getElementById(id);
+const GRID_N = 40, COLS = 10;
+// display refs for stat bars
+const BAR = { durability: 125, potency: 135, mass: 8, value: 320 };
+// a few evocative civic places (the affinity matrix in action — bindings.hoardForPlace)
+const PLACES = [
+  { id: 'forge', label: '⚒ forge', role: 'make', domain: 'metal' },
+  { id: 'weaver', label: '☷ weaver', role: 'make', domain: 'fiber' },
+  { id: 'glazier', label: '⚱ glazier', role: 'make', domain: 'glass' },
+  { id: 'temple', label: '☥ temple', role: 'worship' },
+  { id: 'library', label: '❍ library', role: 'learn' },
+  { id: 'council', label: '⛬ council', role: 'govern' },
+  { id: 'market', label: '⇄ market', role: 'trade' },
+  { id: 'clinic', label: '✚ clinic', role: 'heal' },
+  { id: 'farm', label: '❀ farm', role: 'grow' },
+];
+
+const state = {
+  n: 1, hoardSeed: null, place: null, techOverride: null, current: null, derived: false, pinned: null,
+  get hoard() {
+    if (this.place) return hoardForPlace({ role: this.place.role, domain: this.place.domain, techMean: this.techOverride ?? 0.45 });
+    const base = this.hoardSeed == null ? DEFAULT_HOARD : rollHoard(this.hoardSeed);
+    return this.techOverride == null ? base : hoardWithTech(base, this.techOverride);
+  },
+};
+
+function fromURL() {
+  const p = new URLSearchParams(location.search);
+  const n = parseInt(p.get('n'), 10); if (Number.isFinite(n)) state.n = n >>> 0;
+  const h = p.get('hoard'); if (h && h !== 'wild') { const hs = parseInt(h, 10); if (Number.isFinite(hs)) state.hoardSeed = hs >>> 0; }
+  const pl = p.get('place'); if (pl) { const [role, domain] = pl.split(':'); state.place = PLACES.find((x) => x.role === role && (x.domain || '') === (domain || '')) || { role, domain }; }
+  const t = parseInt(p.get('tech'), 10); if (Number.isFinite(t)) { state.techOverride = Math.max(0, Math.min(1, t / 100)); $('tech').value = t; }
+}
+function toURL(replace) {
+  const p = new URLSearchParams(); p.set('n', state.n);
+  if (state.place) p.set('place', state.place.role + (state.place.domain ? ':' + state.place.domain : ''));
+  else if (state.hoardSeed != null) p.set('hoard', state.hoardSeed);
+  if (state.techOverride != null) p.set('tech', Math.round(state.techOverride * 100));
+  history[replace ? 'replaceState' : 'pushState']({}, '', location.pathname + '?' + p.toString());
+}
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const rand32 = () => (Math.random() * 2 ** 32) >>> 0;
+
+function drawInto(id, item, mode, size) {
+  const cv = $(id), dpr = window.devicePixelRatio || 1;
+  cv.width = size * dpr; cv.height = size * dpr; cv.style.width = cv.style.height = size + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, size, size);
+  (mode === 'glyph' ? drawGlyph : drawSprite)(ctx, item, { x: size * 0.06, y: size * 0.06, size: size * 0.88 });
+}
+
+function renderInspector(it) {
+  drawInto('hero', it, 'sprite', 200);
+  drawInto('glyph', it, 'glyph', 64);
+  $('nm').textContent = it.name; $('nm').style.color = it.frame;
+  $('clade').innerHTML = `${it.glyph} <b>${cap(it.kingdom)}</b> › ${it.phylum} › <b>${it.species}</b> · ${it.material} <span style="opacity:.6">(${it.matter})</span>`;
+  $('does').textContent = `“${it.does}”`;
+  $('seedtag').textContent = it.derived ? 'derived' : 'seed ' + it.n;
+  $('badges').innerHTML =
+    `<span class="badge" style="color:${it.frame};border-color:${it.frame}">${it.gradeLabel}</span>` +
+    `<span class="badge" style="border-color:var(--border)">worth ${it.worth}</span>` +
+    `<span class="badge" style="border-color:var(--border);color:var(--dim)">${it.era}</span>`;
+  $('head').textContent = it.headline;
+
+  const s = it.stats;
+  const rows = [
+    ['durability', s.durability, s.durability], ['potency', s.potency, s.potency],
+    ['mass', s.mass + ' kg', s.mass], ['value', s.value + ' ◈', s.value], ['__div', '', ''],
+    ['tech', s.tech + ' · ' + it.era, s.tech], ['ornament', s.ornament, s.ornament],
+    ['complexity', s.complexity, s.complexity], ['provenance', s.provenance, s.provenance],
+  ];
+  $('stats').innerHTML = rows.map(([k, disp, v]) => {
+    if (k === '__div') return `<span class="divider"></span>`;
+    const ref = BAR[k] || 100, frac = Math.max(0.03, Math.min(1, v / ref));
+    const col = (k === 'mass') ? '#6b7a82' : (['tech', 'ornament', 'complexity', 'provenance'].includes(k) ? it.accent : it.frame);
+    return `<span class="lab">${cap(k)}</span><span class="bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${col}"></i></span><span class="val">${disp}</span>`;
+  }).join('');
+
+  $('affix').innerHTML = it.spikes.length
+    ? it.spikes.map((sp) => `<span class="a ${sp.dir}">${sp.word}</span>`).join('')
+    : `<span class="none">no spikes — an even, unremarkable genome</span>`;
+
+  if (it.lineage) {
+    const L = it.lineage;
+    $('lineage').innerHTML = L.kind === 'splice'
+      ? `lineage: splice of #${L.a} × #${L.b}${L.chimera ? ' — <span class="chi">chimera</span> (verb ≠ body)' : ''}`
+      : `lineage: mutant of #${L.a}`;
+  } else $('lineage').textContent = '';
+  $('copy').disabled = it.derived;
+}
+
+function renderGrid() {
+  const base = Math.floor(state.n / GRID_N) * GRID_N, hoard = state.hoard;
+  const items = []; for (let i = 0; i < GRID_N; i++) items.push(rollItem(base + i, hoard));
+  const cv = $('grid'), cell = 84, gap = 6, pad = 8, rows = Math.ceil(GRID_N / COLS), dpr = window.devicePixelRatio || 1;
+  const W = COLS * (cell + gap) + pad * 2, H = rows * (cell + gap) + pad * 2;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.maxWidth = W + 'px';
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#070a0e'; ctx.fillRect(0, 0, W, H);
+  items.forEach((it, i) => {
+    const cx = pad + (i % COLS) * (cell + gap), cy = pad + Math.floor(i / COLS) * (cell + gap);
+    if (!state.derived && base + i === state.n) { ctx.fillStyle = 'rgba(244,191,98,.10)'; ctx.fillRect(cx - 2, cy - 2, cell + 4, cell + 4); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 1.5; ctx.strokeRect(cx - 2, cy - 2, cell + 4, cell + 4); }
+    drawSprite(ctx, it, { x: cx, y: cy, size: cell });
+  });
+  cv._meta = { base, cell, gap, pad };
+  $('gridmeta').textContent = `seeds ${base}–${base + GRID_N - 1}`;
+  const src = state.place ? `place · ${state.place.role}${state.place.domain ? '×' + state.place.domain : ''}`
+    : state.hoardSeed == null ? 'wild type' : `#${state.hoardSeed} — ${hoard.archetype}`;
+  $('hoardinfo').textContent = '· ' + src;
+  updateChips();
+}
+const samePlace = (a, b) => a && b && a.role === b.role && (a.domain || '') === (b.domain || '');
+function updateChips() {
+  $('hoard-wild').classList.toggle('on', state.hoardSeed == null && !state.place);
+  $('places').querySelectorAll('.pill').forEach((el) => el.classList.toggle('on', samePlace(state.place, PLACES.find((x) => x.id === el.dataset.id))));
+  $('techlab').textContent = state.techOverride == null ? 'tech (auto)' : 'tech ' + Math.round(state.techOverride * 100);
+}
+
+function setSeed(n, push) { state.n = n >>> 0; state.current = rollItem(state.n, state.hoard); state.derived = false; $('seed').value = state.n; render(push); }
+function setDerived(item) { state.current = item; state.derived = true; render(true); }
+function render(push) { renderInspector(state.current); renderGrid(); if (!state.derived) toURL(!push); }
+
+// place pills (the affinity matrix, live)
+$('places').innerHTML = PLACES.map((pl) => `<span class="pill" data-id="${pl.id}">${pl.label}</span>`).join('');
+$('places').querySelectorAll('.pill').forEach((el) => el.onclick = () => {
+  const pl = PLACES.find((x) => x.id === el.dataset.id);
+  state.place = samePlace(state.place, pl) ? null : pl; state.hoardSeed = null; setSeed(state.n, true);
+});
+
+// events
+$('roll').onclick = () => setSeed(rand32(), true);
+$('prev').onclick = () => setSeed((state.n - 1) >>> 0, true);
+$('next').onclick = () => setSeed((state.n + 1) >>> 0, true);
+$('forge').onclick = () => { const v = parseInt($('seed').value, 10); if (Number.isFinite(v)) setSeed(v >>> 0, true); };
+$('seed').onkeydown = (e) => { if (e.key === 'Enter') $('forge').click(); };
+$('copy').onclick = async () => { if (state.derived) return; try { await navigator.clipboard.writeText(location.href); $('copy').textContent = '✓'; setTimeout(() => $('copy').textContent = '⧉ link', 1000); } catch {} };
+$('hoard-wild').onclick = () => { state.hoardSeed = null; state.place = null; setSeed(state.n, true); };
+$('hoard-roll').onclick = () => { state.hoardSeed = rand32(); state.place = null; setSeed(state.n, true); };
+$('tech').oninput = () => { state.techOverride = (+$('tech').value) / 100; setSeed(state.n, true); };
+$('techlab').onclick = () => { state.techOverride = null; $('tech').value = 45; setSeed(state.n, true); };
+$('mutate').onclick = () => setDerived(mutate(state.current, rand32()));
+$('pin').onclick = () => {
+  state.pinned = state.current; $('splice').disabled = false; $('benchwrap').style.display = '';
+  drawInto('benchA', state.pinned, 'sprite', 36); $('benchlab').textContent = 'A: ' + state.pinned.species;
+};
+$('splice').onclick = () => { if (state.pinned) setDerived(splice(state.pinned, state.current, rand32())); };
+$('gprev').onclick = () => setSeed(Math.max(0, Math.floor(state.n / GRID_N) * GRID_N - GRID_N) >>> 0, true);
+$('gnext').onclick = () => setSeed((Math.floor(state.n / GRID_N) * GRID_N + GRID_N) >>> 0, true);
+$('grid').onclick = (e) => {
+  const cv = $('grid'), m = cv._meta; if (!m) return;
+  const r = cv.getBoundingClientRect(), k = (parseFloat(cv.style.maxWidth) / r.width) || 1;
+  const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+  const col = Math.floor((x - m.pad) / (m.cell + m.gap)), row = Math.floor((y - m.pad) / (m.cell + m.gap));
+  if (col < 0 || col >= COLS || row < 0) return; const idx = row * COLS + col; if (idx >= GRID_N) return;
+  setSeed((m.base + idx) >>> 0, true);
+};
+window.onpopstate = () => { fromURL(); setSeed(state.n, false); };
+
+fromURL(); setSeed(state.n, false);
+</script>
+</body>
+</html>
