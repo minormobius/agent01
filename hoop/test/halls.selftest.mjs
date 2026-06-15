@@ -2,6 +2,9 @@
 // Run: node hoop/test/halls.selftest.mjs
 import { genLayout, roomAt } from '../halls/gen.js';
 import { route, buildNavGraph } from '../halls/nav.js';
+import { buildSceneCustom } from '../paint/voronoi.js';
+import { mulberry32 } from '../halls/gen.js';
+import { assignOwners, roomGroups, placeRoomLights, growRoomConsole, roomComponent } from '../halls/fixtures.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? '✓' : '✗') + ' ' + m); };
@@ -24,22 +27,19 @@ ok(L.rooms.length >= 12, `generates a town's worth of rooms (${L.rooms.length})`
   ok(n === L.nodes.length, `hall network is fully connected (${n}/${L.nodes.length})`);
 })();
 
-// 4. every room has exactly one door, attached to a real hall node, on the room's edge
+// 4. every room has a door node that is a real hall node
 (() => {
   let good = 0;
-  for (const r of L.rooms) {
-    const onEdge = Math.abs(Math.abs(r.doorPt.x - r.x) - r.hw) < r.hw * 0.5 || Math.abs(Math.abs(r.doorPt.y - r.y) - r.hh) < r.hh * 0.5;
-    if (r.doorHall >= 0 && r.doorHall < L.nodes.length && onEdge !== undefined) good++;
-  }
-  ok(good === L.rooms.length, `every room has one door onto the halls (${good}/${L.rooms.length})`);
+  for (const r of L.rooms) if (r.doorHall >= 0 && r.doorHall < L.nodes.length && r.doorPt) good++;
+  ok(good === L.rooms.length, `every room has a door onto the halls (${good}/${L.rooms.length})`);
 })();
 
-// 5. rooms don't overlap each other
+// 5. room discs don't overlap each other
 (() => {
   let bad = 0;
   for (let i = 0; i < L.rooms.length; i++) for (let j = i + 1; j < L.rooms.length; j++) {
     const a = L.rooms[i], b = L.rooms[j];
-    if (Math.abs(a.x - b.x) < a.hw + b.hw && Math.abs(a.y - b.y) < a.hh + b.hh) bad++;
+    if (Math.hypot(a.x - b.x, a.y - b.y) < a.radius + b.radius) bad++;
   }
   ok(bad === 0, `no room-room overlaps (${bad} found)`);
 })();
@@ -59,7 +59,7 @@ ok(L.rooms.length >= 12, `generates a town's worth of rooms (${L.rooms.length})`
   buildNavGraph(L);
   let tested = 0, maxHops = 0, cutThrough = 0, noPath = 0;
   const rs = L.rooms;
-  const sample = (i) => ({ x: rs[i].x + rs[i].hw * 0.3, y: rs[i].y - rs[i].hh * 0.3 });   // an off-centre point in the room
+  const sample = (i) => ({ x: rs[i].x + rs[i].radius * 0.3, y: rs[i].y - rs[i].radius * 0.3 });   // an off-centre point in the room
   for (let i = 0; i < rs.length; i += 3) for (let j = i + 1; j < rs.length; j += 5) {
     const a = sample(i), b = sample(j), r = route(L, a, b);
     tested++;
@@ -77,6 +77,31 @@ ok(L.rooms.length >= 12, `generates a town's worth of rooms (${L.rooms.length})`
   ok(noPath === 0, `every room pair is routable (${tested} pairs, ${noPath} unreachable)`);
   ok(cutThrough === 0, `routes never cut through an unrelated room (${cutThrough} violations)`);
   ok(maxHops <= 26, `routes are short — max ${maxHops} hall waypoints across the whole network`);
+})();
+
+// 8. ORGANIC ROOMS (the seeding-order proposal): fine cells assigned to rooms BEFORE the voronoi, then
+//    each room furnished as a GROUP — proper walls, multi-cell rooms, lights + console + component.
+(() => {
+  const roomSize = 1, cellsPerRoom = 14;
+  const Lo = genLayout({ W: 2600, H: 1500, seed: 7, roomSize });
+  // unit derived from room size & cells/room (a room disc of area πr² holds ~cells cells)
+  const avgR = Lo.rooms.reduce((s, r) => s + r.radius, 0) / Lo.rooms.length;
+  const unit = Math.max(26, avgR * Math.sqrt(Math.PI / cellsPerRoom));
+  const { seeds, owner, edgeKind } = assignOwners(Lo, { unit, hallWidth: 30 });
+  const scene = buildSceneCustom({ W: Lo.W, H: Lo.H, wallSpacing: Math.max(9, unit * 0.34), roomSpacing: unit * 2.6, seeds, edgeKind, seed: Lo.seed >>> 0 });
+  const groups = roomGroups(scene, owner);
+  ok(groups.size >= Lo.rooms.length - 1, `most rooms claim cells (${groups.size}/${Lo.rooms.length} groups)`);
+  let multi = 0, lit = 0, cons = 0, comp = 0;
+  for (const g of groups.values()) {
+    if (g.cells.length >= 3) multi++;
+    const lights = placeRoomLights(scene, g, mulberry32(g.id * 131 + 1), 4); if (lights.length >= 2) lit++;
+    const C = growRoomConsole(scene, owner, g, mulberry32(g.id * 977 + 3), { kind: 'shelf' }); if (C) cons++;
+    const cp = roomComponent(scene, g, [], mulberry32(g.id * 733 + 5), unit * 1.6); if (cp) comp++;
+  }
+  ok(multi >= groups.size * 0.7, `rooms are MULTI-CELL / organic (${multi}/${groups.size} have ≥3 cells)`);
+  ok(lit >= groups.size * 0.8, `rooms get wall lights (${lit}/${groups.size})`);
+  ok(cons >= groups.size * 0.5, `rooms grow a tile-console (${cons}/${groups.size})`);
+  ok(comp >= groups.size * 0.8, `rooms get a central component (${comp}/${groups.size})`);
 })();
 
 console.log(`\nhalls.selftest: ${pass} passed, ${fail} failed`);
