@@ -1,4 +1,4 @@
-// gen.js — HALLS-FIRST, POLYGON-CHUNKED layout generator (the hoop v5 prototype).
+// gen.js — HALLS-FIRST, POLYGON-CHUNKED layout generator (the hoop v6 prototype).
 //
 // The world is grown, not built — so chunks are NOT a rectangular grid. They are the VORONOI CELLS of
 // a jittered lattice of chunk-seeds: irregular 4–7-sided polygons that tile the plane. The clean
@@ -11,7 +11,7 @@
 // Nav is then clean HPA*: a coarse port graph over the chunk-adjacency graph + each chunk's hall graph.
 //
 // Pure, deterministic (seed + chunk coord → identical chunk), zero-dep beyond clipCell. node + browser.
-// Pinned by hoop/test/v5halls.selftest.mjs.
+// Pinned by hoop/test/v6halls.selftest.mjs.
 
 import { clipCell } from '../paint/voronoi.js';
 

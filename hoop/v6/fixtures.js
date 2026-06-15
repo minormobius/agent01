@@ -1,4 +1,4 @@
-// fixtures.js — ROOM-LEVEL fixture placement for organic, multi-cell rooms (the v5 prototype).
+// fixtures.js — ROOM-LEVEL fixture placement for organic, multi-cell rooms (the v6 prototype).
 //
 // The /sprite/fixture kernels assume one room = one Voronoi cell. Once a room is an organic UNION of
 // many small cells (so its outline isn't a straight convex polygon), lights / the tile-grabbing
@@ -6,7 +6,7 @@
 // version: group paint cells by room owner, find the union's boundary membranes, and place fixtures
 // against them. The DRAW functions (drawWallLight / drawWallFixture / drawDevice) are reused unchanged.
 //
-// Pure, deterministic, zero-dep beyond the shared kernels. Pinned by hoop/test/v5halls.selftest.mjs.
+// Pure, deterministic, zero-dep beyond the shared kernels. Pinned by hoop/test/v6halls.selftest.mjs.
 
 import { bucketGrid, jitterGrid } from '../paint/voronoi.js';
 import { mulberry32 } from './gen.js';

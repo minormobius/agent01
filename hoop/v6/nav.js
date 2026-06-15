@@ -1,4 +1,4 @@
-// nav.js — TWO-TIER routing over the halls-first layout (the v5 nav prototype).
+// nav.js — TWO-TIER routing over the halls-first layout (the v6 nav prototype).
 //
 // The whole point of halls-first: pathfinding stops being room-to-room foam hopping. The nav graph is
 // tiny — the corridor nodes (open concourse) plus one door per room into its centre. A route is:
@@ -8,7 +8,7 @@
 // crossings by construction (a room only touches the halls through its one door).
 //
 // Pure, deterministic, zero-dep. buildNavGraph(layout) → graph (cached on the layout); route(layout,
-// a, b) → { pts:[[x,y]…], hops }. Pinned by hoop/test/v5halls.selftest.mjs.
+// a, b) → { pts:[[x,y]…], hops }. Pinned by hoop/test/v6halls.selftest.mjs.
 
 import { roomAt } from './gen.js';
 
