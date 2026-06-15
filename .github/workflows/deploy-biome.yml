@@ -2,7 +2,7 @@ name: Deploy Biome
 
 on:
   push:
-    branches: [main, 'claude/biome-trophic-web-graph-u7ha55']
+    branches: [main, 'claude/gacha-species-expansion-elfpxb']
     paths:
       - 'biome/**'
       - '.github/workflows/deploy-biome.yml'
