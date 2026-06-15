@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>crucible — overgenerate, then judge</title>
+<meta name="description" content="The studio's house algorithm: build a big, noisy, awkward set of candidates, put an automated judge in charge, and keep the good ones. Our worlds and games that work this way (mappa, biome gacha, hoop econ, all of fable), and the field of study behind the hammer — generate-and-test, search-based generation, quality-diversity, propose-and-verify.">
+<meta property="og:title" content="crucible — overgenerate, then judge">
+<meta property="og:description" content="A big noisy set, a judge in charge, and the good ones fall out. Our examples + the literature behind the hammer.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mino.mobi/crucible/">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #6f6a60;
+  --rule: #d9d2c4;
+  --link: #5a2a10;
+  --accent: #9a3a12;          /* molten copper / ember */
+  --accent-faint: rgba(154, 58, 18, 0.10);
+  --accent-tint: rgba(154, 58, 18, 0.05);
+  --tag-bg: #efe7da;
+  --tag-text: #6a3417;
+  --card: #fffdf9;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* verdict / family accents */
+  --c-world:  #1a6e5e;
+  --c-game:   #5e3b8b;
+  --c-meta:   #9a3a12;
+  --legendary:#b8860b;
+  --epic:     #7a3fb0;
+  --rare:     #1a5e7a;
+  --ok:       #3a8a40;
+  --warn:     #b07a14;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #100e0c;
+    --fg: #e6e1d8;
+    --muted: #989083;
+    --rule: #34302a;
+    --link: #e8b48c;
+    --accent: #e0884a;
+    --accent-faint: rgba(224, 136, 74, 0.14);
+    --accent-tint: rgba(224, 136, 74, 0.06);
+    --tag-bg: #2a231c;
+    --tag-text: #e0a878;
+    --card: #181410;
+    --c-world:  #4fc2ad;
+    --c-game:   #b189e0;
+    --c-meta:   #e0884a;
+    --legendary:#e7c14b;
+    --epic:     #c19ae8;
+    --rare:     #6fb6d8;
+    --ok:       #6fc975;
+    --warn:     #e0b65a;
+  }
+}
+[data-theme="light"] {
+  --bg:#faf9f6; --fg:#222; --muted:#6f6a60; --rule:#d9d2c4; --link:#5a2a10;
+  --accent:#9a3a12; --accent-faint:rgba(154,58,18,.10); --accent-tint:rgba(154,58,18,.05);
+  --tag-bg:#efe7da; --tag-text:#6a3417; --card:#fffdf9;
+  --c-world:#1a6e5e; --c-game:#5e3b8b; --c-meta:#9a3a12;
+  --legendary:#b8860b; --epic:#7a3fb0; --rare:#1a5e7a; --ok:#3a8a40; --warn:#b07a14;
+}
+[data-theme="dark"] {
+  --bg:#100e0c; --fg:#e6e1d8; --muted:#989083; --rule:#34302a; --link:#e8b48c;
+  --accent:#e0884a; --accent-faint:rgba(224,136,74,.14); --accent-tint:rgba(224,136,74,.06);
+  --tag-bg:#2a231c; --tag-text:#e0a878; --card:#181410;
+  --c-world:#4fc2ad; --c-game:#b189e0; --c-meta:#e0884a;
+  --legendary:#e7c14b; --epic:#c19ae8; --rare:#6fb6d8; --ok:#6fc975; --warn:#e0b65a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--serif);
+  line-height: 1.62;
+  max-width: 50rem;
+  margin: 0 auto;
+  padding: 2.2rem 1.3rem 5rem;
+  font-size: 1.02rem;
+}
+a { color: var(--link); text-decoration: none; border-bottom: 1px solid var(--accent-faint); }
+a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.crumb {
+  font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.02em;
+  color: var(--muted); border: none; text-transform: lowercase;
+}
+.crumb:hover { color: var(--accent); }
+
+header { margin-bottom: 1.8rem; }
+h1 {
+  font-size: 2.5rem; font-weight: 700; letter-spacing: -0.02em;
+  margin: 0.5rem 0 0.1rem; line-height: 1.05;
+}
+.subtitle { font-size: 1.06rem; color: var(--muted); font-style: italic; }
+.crossref {
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  margin-top: 0.7rem; line-height: 1.9;
+}
+.crossref a { border: none; }
+
+h2 {
+  font-size: 1.5rem; margin: 2.4rem 0 0.7rem; letter-spacing: -0.01em;
+  padding-bottom: 0.25rem; border-bottom: 2px solid var(--accent-faint);
+}
+h3 { font-size: 1.12rem; margin: 1.4rem 0 0.4rem; color: var(--accent); }
+p { margin: 0.7rem 0; }
+.lede { font-size: 1.18rem; line-height: 1.55; margin: 1.1rem 0 0.4rem; }
+.lede strong { color: var(--accent); }
+em { font-style: italic; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--accent-tint); padding: 0.05em 0.32em; border-radius: 3px; }
+
+/* the three-beat diagram */
+.beats {
+  display: grid; grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center; gap: 0.4rem; margin: 1.4rem 0;
+  font-family: var(--mono); font-size: 0.8rem;
+}
+.beat {
+  background: var(--card); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 0.7rem 0.6rem; text-align: center;
+}
+.beat b { display: block; color: var(--accent); font-size: 0.92rem; margin-bottom: 0.15rem; }
+.beat span { color: var(--muted); font-size: 0.72rem; }
+.arrow { color: var(--accent); font-size: 1.2rem; text-align: center; }
+@media (max-width: 600px) {
+  .beats { grid-template-columns: 1fr; }
+  .arrow { transform: rotate(90deg); }
+}
+
+/* example table */
+.table-wrap { overflow-x: auto; margin: 0.8rem 0 0.4rem; }
+table.ex { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+table.ex th, table.ex td {
+  text-align: left; padding: 0.5rem 0.55rem; border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+table.ex thead th {
+  font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--muted); border-bottom: 2px solid var(--accent-faint);
+}
+table.ex td.surf { white-space: nowrap; font-family: var(--mono); font-weight: 600; }
+table.ex td.surf a { border: none; }
+table.ex td.surf .tag {
+  display: inline-block; font-size: 0.6rem; padding: 0.05em 0.36em; border-radius: 999px;
+  margin-left: 0.3rem; vertical-align: middle; font-weight: 600;
+}
+.tag.world { background: color-mix(in srgb, var(--c-world) 18%, transparent); color: var(--c-world); }
+.tag.game  { background: color-mix(in srgb, var(--c-game) 18%, transparent);  color: var(--c-game); }
+.fam-row td {
+  font-family: var(--mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); background: var(--accent-tint); padding-top: 0.45rem; padding-bottom: 0.45rem;
+}
+.cert { font-family: var(--mono); font-size: 0.74rem; }
+.chip {
+  display: inline-block; font-family: var(--mono); font-size: 0.64rem; font-weight: 600;
+  padding: 0.08em 0.42em; border-radius: 4px; margin: 0.05rem 0.15rem 0.05rem 0;
+  border: 1px solid currentColor;
+}
+.chip.uniq { color: var(--ok); }
+.chip.fair { color: var(--rare); }
+.chip.par  { color: var(--epic); }
+.chip.rob  { color: var(--warn); }
+.chip.tier { color: var(--legendary); }
+
+blockquote {
+  border-left: 3px solid var(--accent); padding: 0.2rem 0 0.2rem 0.9rem;
+  margin: 0.9rem 0; color: var(--fg); font-style: italic;
+}
+blockquote cite { display: block; font-style: normal; font-family: var(--mono);
+  font-size: 0.7rem; color: var(--muted); margin-top: 0.25rem; }
+
+/* bibliography */
+.thread { margin: 1.3rem 0; }
+.thread h3 { display: flex; align-items: baseline; gap: 0.5rem; }
+.thread h3 .nm {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; border: 1px solid var(--rule);
+  border-radius: 4px; padding: 0.05em 0.4em; }
+ol.refs { list-style: none; counter-reset: ref; }
+ol.refs li {
+  position: relative; padding: 0.5rem 0 0.5rem 2.2rem; border-bottom: 1px dotted var(--rule);
+  font-size: 0.9rem;
+}
+ol.refs li::before {
+  counter-increment: ref; content: counter(ref);
+  position: absolute; left: 0; top: 0.55rem;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--accent);
+  width: 1.7rem; text-align: right;
+}
+ol.refs .who { font-variant: small-caps; letter-spacing: 0.01em; }
+ol.refs .ttl { font-style: italic; }
+ol.refs .gloss { display: block; color: var(--muted); font-size: 0.84rem; margin-top: 0.15rem; }
+
+.names { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin: 0.6rem 0; }
+.names td { padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.names td:first-child { font-family: var(--mono); font-weight: 600; white-space: nowrap; color: var(--accent); }
+
+.callout {
+  background: var(--card); border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 0.8rem 1rem; margin: 1.1rem 0;
+}
+.callout b { color: var(--accent); }
+
+.rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 0.6rem; }
+.rules-grid ul { padding-left: 1.1rem; }
+.rules-grid li { margin: 0.3rem 0; font-size: 0.92rem; }
+@media (max-width: 600px) { .rules-grid { grid-template-columns: 1fr; } }
+
+.themebar { position: fixed; top: 0.7rem; right: 0.7rem; }
+.themebar button {
+  font-family: var(--mono); font-size: 0.66rem; cursor: pointer;
+  background: var(--card); color: var(--muted); border: 1px solid var(--rule);
+  border-radius: 999px; padding: 0.25rem 0.6rem;
+}
+.themebar button:hover { color: var(--accent); border-color: var(--accent); }
+
+footer {
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+}
+footer a { border: none; }
+.tiny { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="themebar"><button id="themeBtn" title="cycle theme">◐ theme</button></div>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>crucible</h1>
+  <p class="subtitle">overgenerate, then judge — the studio's house algorithm</p>
+  <p class="crossref">
+    in the fire:
+    <a href="https://mino.mobi/mappa/">mappa</a> ·
+    <a href="https://biome.mino.mobi/gacha/">biome/gacha</a> ·
+    <a href="https://hoop.mino.mobi/econ/">hoop/econ</a> ·
+    <a href="https://fable.mino.mobi/">fable</a>
+    &nbsp;·&nbsp; the field: <a href="#field">generate-and-test → propose-and-verify</a>
+  </p>
+</header>
+
+<p class="lede">
+  Build a big, awkward, noisy set. Put a <strong>judge</strong> in charge. Keep the good ones.
+</p>
+
+<p>
+  It turns out that's not a trick — it's a <em>method</em>, and it has been one for sixty years
+  under half a dozen names. We kept reaching for the same hammer across unrelated projects: a
+  world generator that spits out thousands of planets, a gacha that rolls whole ecosystems, a town
+  engine that breeds societies, a puzzle factory that mints logic grids. None of them try to
+  <em>author</em> the good artifact directly. Each one <strong>overproduces</strong> — floods the
+  space with candidates — and then hands the pile to a second machine whose only job is to say
+  <em>which of these is any good</em>. The good ones aren't designed. They're <em>survived</em>.
+</p>
+
+<h2>The shape of the hammer</h2>
+
+<div class="beats">
+  <div class="beat"><b>generator</b><span>seeded, cheap, noisy — floods the space with candidates</span></div>
+  <div class="arrow">→</div>
+  <div class="beat"><b>judge</b><span>solver / oracle / fitness / verifier — scores or certifies each one</span></div>
+  <div class="arrow">→</div>
+  <div class="beat"><b>keep</b><span>the survivors: ranked, tiered, or filtered to a certified set</span></div>
+</div>
+
+<p>
+  The split is the whole idea. The generator can be dumb and prolific because it doesn't have to be
+  <em>right</em> — it only has to be <em>diverse</em>. The judge can be expensive and exacting because
+  it runs after the fact, on finished candidates, where the question "<em>is this good?</em>" is
+  usually far easier than the question "<em>how do I make a good one?</em>". That asymmetry — that
+  <strong>verifying is cheaper than generating</strong> — is the lever the whole family pulls on. It's
+  why a small model with a verifier can match a model thirty times its size, why a chess program can
+  beat you by guessing badly and checking well, and why our gacha can find a self-sustaining ecosystem
+  it could never have planned.
+</p>
+
+<p>Three things make our version of it work:</p>
+
+<h3>1 · The judge is real, not a vibe</h3>
+<p>
+  Every judge here is a piece of running code with teeth: a constraint solver that <em>counts</em>
+  solutions, a breadth-first search that finds the <em>optimal</em> par, an eigenvalue test that asks
+  whether a food web is <em>actually</em> stable, a tribunal of playouts that measures whether a card
+  game <em>rewards skill</em>. The verdict is a certificate, not an opinion.
+</p>
+
+<h3>2 · Interestingness is a designed aesthetic — and we say so</h3>
+<p>
+  Where the judge scores <em>taste</em> rather than <em>correctness</em> — is this <em>world</em>
+  interesting? is this <em>town</em> alive? — we don't pretend the number is objective. mappa's own
+  notes put it best:
+</p>
+<blockquote>
+  "The score is for <em>ranking</em> — surfacing the gems out of a seed line — not for claiming a
+  world is objectively good… the score is <em>deliberately</em> a designed aesthetic, not a discovered
+  one."
+  <cite>mappa — lib/world-signals.js</cite>
+</blockquote>
+<p>
+  The honest posture is half the discipline: a battery of weighted signals plus a list of
+  <em>degeneracy flags</em> — the boring failure modes (waterworld, iceball, monobiome, monoculture)
+  we explicitly screen out.
+</p>
+
+<h3>3 · Seeded generation makes the verdict a permalink</h3>
+<p>
+  Because every generator is deterministic (<code>xmur3 → mulberry32</code> and friends), candidate
+  <em>n</em> is the same artifact on every machine, forever. So the judge's certificate can be
+  <em>attached</em> to a URL: <code>/gacha/?n=…</code>, <code>/econ/?seed=…</code>,
+  <code>/mappa/?seed=…</code>, fable's page-<em>n</em> puzzles. The good one you found is the good one
+  anyone else finds at that address — solved, graded, and provably so.
+</p>
+
+<h2>Our crucibles</h2>
+
+<p>
+  The same loop, four shapes of fire. The judge changes form completely from project to project —
+  that's the point — but the discipline never does.
+</p>
+
+<div class="table-wrap">
+<table class="ex">
+<thead>
+<tr><th>surface</th><th>the noisy set (generator)</th><th>the judge</th><th>what ships (certificate)</th></tr>
+</thead>
+<tbody>
+
+<tr class="fam-row"><td colspan="4">worlds — the judge scores viability & interestingness</td></tr>
+
+<tr>
+  <td class="surf"><a href="https://mino.mobi/mappa/">mappa</a><span class="tag world">world</span></td>
+  <td>plates, tectonics, climate, rivers &amp; biomes simulated from a seed — ~9–16k Voronoi cells per planet</td>
+  <td>an <b>interestingness battery</b>: 6 weighted signals (sea, structure, relief, climate, hydrology, habitability) + 9 degeneracy flags</td>
+  <td class="cert">score <b>0–100</b> + auto-descriptor (<em>"a frozen archipelago, 71% ocean, with inland sea and great rivers"</em>)</td>
+</tr>
+
+<tr>
+  <td class="surf"><a href="https://biome.mino.mobi/gacha/">biome/gacha</a><span class="tag world">world</span></td>
+  <td>roll <em>K</em>=14–34 organisms from a 60-creature deck under guild quotas; wire who-eats-whom by ecological rules; prune the starvers</td>
+  <td>a <b>viability oracle</b>: does the loop close? does it persist? is it stable (community-matrix eigenvalue α&lt;0)? fed, aired, robust?</td>
+  <td class="cert"><span class="chip tier">Legendary≥88</span><span class="chip tier">Epic</span><span class="chip tier">Rare</span> … rarity = viability minus degeneracy</td>
+</tr>
+
+<tr>
+  <td class="surf"><a href="https://hoop.mino.mobi/econ/">hoop/econ</a><span class="tag world">world</span></td>
+  <td>a <b>social genome</b> (role-mix, building footprints, affiliations, archetype) breeds a 6,000-cell town where people wear many hats</td>
+  <td>a <b>vitality scorer</b>: supply closure, interaction thickness, Granovetter weave, bridging, third-places, employment — then a hub-removal <em>shock test</em></td>
+  <td class="cert">vitality <b>0–100</b> → <span class="chip rob">Thriving</span> … <span class="chip rob">Failing</span>; every <code>(genome, seed)</code> is atproto-stable</td>
+</tr>
+
+<tr class="fam-row"><td colspan="4">games &amp; puzzles — the judge <em>certifies</em>, never opines · fable's doctrine: <em>seeded · certified · graded</em></td></tr>
+
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/puzz/">puzz</a><span class="tag game">game</span></td>
+  <td>roll a logic-puzzle genus, generate a full solution, carve fair clues from it</td>
+  <td><b>CSP solver</b> — <code>countSolutions()</code> (bounded backtrack) + <code>logicSolve()</code> (pure propagation, no guessing)</td>
+  <td class="cert"><span class="chip uniq">unique</span><span class="chip fair">fair</span> + technique-fingerprint difficulty</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/knack/">knack</a><span class="tag game">game</span></td>
+  <td>composable grid mechanics (push, ice, keys, gates, pits) across 6 genres</td>
+  <td><b>BFS</b> over the state graph: solvable? optimal par? did the headline mechanic actually fire?</td>
+  <td class="cert"><span class="chip fair">solvable</span><span class="chip par">optimal par</span> + the mechanic earns its place</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/flux/">flux</a><span class="tag game">game</span></td>
+  <td>continuous-space physics puzzles — gravity, magnets, goo, bumpers (deterministic f64)</td>
+  <td><b>action-space sweep</b>: 96×18 launches → win-map → basins → a <em>fine-robust</em> answer that survives a 0.4° nudge (Rust cross-check)</td>
+  <td class="cert"><span class="chip fair">solvable</span><span class="chip rob">basin-robust</span> + difficulty = how small the winning basin is</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/gyre/">gyre</a><span class="tag game">game</span></td>
+  <td>the same physics, but on a <em>torus</em> — geodesics, Christoffel terms, forces projected to the tangent plane</td>
+  <td>the sweep adapted to the surface, plus <b>winding numbers</b> only the topology can express</td>
+  <td class="cert"><span class="chip fair">solvable</span><span class="chip rob">fine-robust</span> + topologically interesting</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/morph/">morph</a><span class="tag game">game</span></td>
+  <td>a <b>generator of generators</b>: sample substrate (grid · cylinder · torus · Möbius · Klein · hex) × law × goal × aesthetic</td>
+  <td><b>one substrate-agnostic BFS oracle</b> certifies <em>any</em> rolled genome solvable; reject the duds</td>
+  <td class="cert"><span class="chip fair">solvable on any manifold</span> + a stable genome label</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/drift/">drift</a><span class="tag game">game</span></td>
+  <td>puzzles in <em>meaning-space</em> — 7,000 word embeddings; cross a semantic gulf, or fold 12 words into 3 families</td>
+  <td><b>BFS</b> on the kNN graph (ladder par) + a <b>margin oracle</b> (fold separability ≥ 0)</td>
+  <td class="cert"><span class="chip par">optimal crossing</span><span class="chip uniq">margin-separable</span> over a frozen substrate</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/forge/">forge</a><span class="tag game">game</span></td>
+  <td><em>laws no one wrote</em>: sample a movement genome from a closed rule-DSL</td>
+  <td><b>three gates</b> — <span class="mono">ALIVE</span> (≥30 reachable states), <span class="mono">NOVEL</span> (fingerprint ≥ 0.22 from all prior — <em>novelty search</em>), <span class="mono">PLAYABLE</span> (BFS certifies)</td>
+  <td class="cert">a deterministic <b>codex</b> — the <em>n</em>-th admitted law is a permalink</td>
+</tr>
+<tr>
+  <td class="surf"><a href="https://fable.mino.mobi/deal/">deal</a><span class="tag game">game</span></td>
+  <td>a card-game grammar: trick-taking or shedding × suits × ranks × scoring → a self-writing rulebook</td>
+  <td><b>the tribunal</b>: seeded random-vs-greedy playouts, measured on three gates — <span class="mono">terminates</span>, <span class="mono">rewards skill</span>, <span class="mono">plays fair</span></td>
+  <td class="cert"><span class="chip fair">terminates</span><span class="chip par">skillful</span><span class="chip rob">fair</span> — games no one wrote, proved playable</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+<div class="callout">
+  <b>fable says it best.</b> "Six puzzle-spaces, one discipline. Each takes a vast combinatorial
+  space, generates it deterministically from a seed, and sets an <b>oracle</b> over it — a real solver
+  that certifies every artifact: solvable, fair, graded. <b>Nothing here was authored; everything here
+  was proved.</b>"
+</div>
+
+<p>
+  Notice <code>forge</code> in particular: its <span class="mono">NOVEL</span> gate keeps a candidate
+  law only if its behavioral fingerprint is far enough from <em>every</em> law admitted before it. That
+  isn't "keep the best" — it's "keep the <em>different</em>." Which is the exact move that names a whole
+  branch of the literature below.
+</p>
+
+<h2 id="field">The field — names for one hammer</h2>
+
+<p>
+  This is the part the projects kept gesturing at: <em>surely someone studies this</em>. They do —
+  many someones, mostly without talking to each other. The same architecture (a cheap proposer + a
+  separate evaluator) has been reinvented in classic AI, evolutionary computation, natural-language
+  processing, deep learning, game design, and now large language models. Here is the through-line and
+  the canon.
+</p>
+
+<h3>What the communities call it</h3>
+<table class="names">
+  <tr><td>generate-and-test</td><td>classic AI / cognitive science. The original and most general term — a generator proposes, a tester rejects the unfit (Newell &amp; Simon). Degenerate baseline: the "British Museum algorithm."</td></tr>
+  <tr><td>search-based generation</td><td>procedural content generation / game AI. The judge is a fitness function driving an iterative search; contrasted with pure generate-and-test PCG.</td></tr>
+  <tr><td>quality-diversity / illumination</td><td>evolutionary computation. Keep the <em>best of each kind</em>, not one winner — novelty search, MAP-Elites. (This is forge's gate.)</td></tr>
+  <tr><td>overgenerate-and-rank</td><td>NLP / parsing / MT / speech. Emit an <em>n</em>-best list, then re-score it with a discriminative judge.</td></tr>
+  <tr><td>propose-and-verify · generator–verifier</td><td>modern LLM / RL. A cheap verifier filters an expensive generator's samples (best-of-N) — the current restatement, riding the "generation–verification gap."</td></tr>
+  <tr><td>generator–discriminator</td><td>deep learning. The special case where the judge is learned jointly and adversarially (GANs).</td></tr>
+</table>
+
+<div class="thread">
+<h3>Classic AI <span class="nm">generate-and-test</span></h3>
+<ol class="refs">
+  <li><span class="who">Newell, Shaw &amp; Simon</span> (1958). <span class="ttl">Elements of a Theory of Human Problem Solving.</span> <em>Psychological Review</em> 65(3), 151–166. <a href="https://psycnet.apa.org/record/1959-06450-001">psycnet</a>
+    <span class="gloss">Coins the "British Museum algorithm" — exhaustively generate every possibility — as the naive baseline a selective judge improves on. The canonical statement that generation needs a guide.</span></li>
+  <li><span class="who">Newell &amp; Simon</span> (1972). <span class="ttl">Human Problem Solving.</span> Prentice-Hall. <a href="https://archive.org/details/humanproblemsolv0000newe">archive</a>
+    <span class="gloss">The book where "generate-and-test" is articulated as a basic method: a generator proposes candidates, a tester rejects the unfit. The most-cited home of the named pattern.</span></li>
+</ol>
+</div>
+
+<div class="thread">
+<h3>Search-based procedural content <span class="nm">search-based generation</span></h3>
+<ol class="refs">
+  <li><span class="who">Togelius, Yannakakis, Stanley &amp; Browne</span> (2011). <span class="ttl">Search-Based Procedural Content Generation: A Taxonomy and Survey.</span> <em>IEEE TCIAIG</em> 3(3), 172–186. <a href="https://ieeexplore.ieee.org/document/5756645">doi:10.1109/TCIAIG.2011.2148116</a>
+    <span class="gloss">Explicitly contrasts <em>generate-and-test</em> PCG (generate, test against constraints, discard, regenerate) with <em>search-based</em> PCG (a fitness function drives the search). The cleanest field-internal articulation of our loop — and Browne is the bridge to automated game design below.</span></li>
+</ol>
+</div>
+
+<div class="thread">
+<h3>Quality-diversity &amp; aesthetic evolution <span class="nm">illumination</span></h3>
+<ol class="refs">
+  <li><span class="who">Lehman &amp; Stanley</span> (2011). <span class="ttl">Abandoning Objectives: Evolution Through the Search for Novelty Alone.</span> <em>Evolutionary Computation</em> 19(2), 189–223. <a href="https://www.cs.swarthmore.edu/~meeden/DevelopmentalRobotics/lehman_ecj11.pdf">pdf</a>
+    <span class="gloss">Novelty search: the judge rewards being <em>different</em>, not better. Exactly forge's <span class="mono">NOVEL</span> gate — keep a candidate for how far it is from everything seen.</span></li>
+  <li><span class="who">Mouret &amp; Clune</span> (2015). <span class="ttl">Illuminating Search Spaces by Mapping Elites.</span> arXiv:1504.04909. <a href="https://arxiv.org/abs/1504.04909">arxiv</a>
+    <span class="gloss">MAP-Elites: file each candidate into a behavior-grid cell, keep the elite per cell. The output is a diverse map of high performers — "keep the best of each kind."</span></li>
+  <li><span class="who">Pugh, Soros &amp; Stanley</span> (2016). <span class="ttl">Quality Diversity: A New Frontier for Evolutionary Computation.</span> <em>Frontiers in Robotics and AI</em> 3:40. <a href="https://www.frontiersin.org/articles/10.3389/frobt.2016.00040/full">doi:10.3389/frobt.2016.00040</a>
+    <span class="gloss">Unifies novelty search + MAP-Elites under "quality-diversity," the sub-paradigm where "keep the good ones" becomes "keep the best of each type."</span></li>
+  <li><span class="who">Sims</span> (1991). <span class="ttl">Artificial Evolution for Computer Graphics.</span> <em>SIGGRAPH</em>; <em>Computer Graphics</em> 25(4), 319–328. <a href="http://www.karlsims.com/papers/siggraph91-backup.html">karlsims.com</a>
+    <span class="gloss">Mutating Lisp expressions generate images; the <em>human eye</em> is the judge (interactive/aesthetic selection). Noisy procedural generator, a person picking the good ones.</span></li>
+  <li><span class="who">Dawkins</span> (1986). <span class="ttl">The Blind Watchmaker</span> — the Biomorphs program. <a href="https://en.wikipedia.org/wiki/The_Blind_Watchmaker">overview</a>
+    <span class="gloss">Random mutations of a 9-gene tree, the user breeds the offspring they like. The earliest popular demo of "random generator + selective judge → complexity."</span></li>
+</ol>
+</div>
+
+<div class="thread">
+<h3>Overgenerate-and-rank in language <span class="nm">overgenerate-and-rank</span></h3>
+<ol class="refs">
+  <li><span class="who">Collins &amp; Koo</span> (2005). <span class="ttl">Discriminative Reranking for Natural Language Parsing.</span> <em>Computational Linguistics</em> 31(1), 25–70. <a href="https://direct.mit.edu/coli/article/31/1/25/1868/">mit press</a>
+    <span class="gloss">A generative parser overgenerates <em>n</em> candidate parses; a discriminative model reranks them. The textbook "noisy generator + learned judge → pick the best" in NLP.</span></li>
+  <li><span class="who">Charniak &amp; Johnson</span> (2005). <span class="ttl">Coarse-to-Fine n-Best Parsing and MaxEnt Discriminative Reranking.</span> <em>ACL 2005</em>, 173–180. <a href="https://aclanthology.org/P05-1022/">aclanthology</a>
+    <span class="gloss">Produce 50-best parses, then a MaxEnt reranker selects. The standard reference for n-best reranking, mirrored in the MT lineage (Och et al.).</span></li>
+</ol>
+</div>
+
+<div class="thread">
+<h3>Adversarial: the judge learns too <span class="nm">generator–discriminator</span></h3>
+<ol class="refs">
+  <li><span class="who">Goodfellow et al.</span> (2014). <span class="ttl">Generative Adversarial Nets.</span> <em>NeurIPS</em>; arXiv:1406.2661. <a href="https://arxiv.org/abs/1406.2661">arxiv</a>
+    <span class="gloss">The judge (discriminator) is trained jointly with the generator and its gradient teaches the generator. The pattern made differentiable and co-adaptive — a minimax game.</span></li>
+</ol>
+</div>
+
+<div class="thread">
+<h3>The LLM era: verifiers &amp; the generation–verification gap <span class="nm">propose-and-verify</span></h3>
+<ol class="refs">
+  <li><span class="who">Cobbe et al.</span> (2021). <span class="ttl">Training Verifiers to Solve Math Word Problems</span> (GSM8K). arXiv:2110.14168. <a href="https://arxiv.org/abs/2110.14168">arxiv</a>
+    <span class="gloss">Sample ~100 solutions, train a separate verifier to score them, take best-of-N. A 6B model + verifier matches a 175B model — the empirical seed of "verifying is cheaper than generating."</span></li>
+  <li><span class="who">Wang et al.</span> (2022). <span class="ttl">Self-Consistency Improves Chain-of-Thought Reasoning.</span> arXiv:2203.11171. <a href="https://arxiv.org/abs/2203.11171">arxiv</a>
+    <span class="gloss">Sample many reasoning chains, keep the <em>majority</em> answer. The judge is a free consensus vote — generate-many-then-select with no extra model.</span></li>
+  <li><span class="who">Zheng et al.</span> (2023). <span class="ttl">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.</span> arXiv:2306.05685. <a href="https://arxiv.org/abs/2306.05685">arxiv</a>
+    <span class="gloss">A strong LLM can <em>be</em> the judge, agreeing with humans &gt;80%. The enabling result for LLM-as-a-judge ranking/filtering pipelines.</span></li>
+  <li><span class="who">Silver et al.</span> (2016). <span class="ttl">Mastering the Game of Go with Deep Neural Networks and Tree Search</span> (AlphaGo). <em>Nature</em> 529, 484–489. <a href="https://www.nature.com/articles/nature16961">doi:10.1038/nature16961</a>
+    <span class="gloss">A policy network <em>proposes</em> moves, a value network <em>judges</em> positions, MCTS searches the proposals under the judge. The RL incarnation; AlphaZero generalizes it with self-play.</span></li>
+</ol>
+</div>
+
+<div class="thread">
+<h3>Automated game design <span class="nm">it has been done</span></h3>
+<ol class="refs">
+  <li><span class="who">Browne</span> (2008 thesis / 2011 Springer). <span class="ttl">Evolutionary Game Design</span> — the <b>Ludi</b> system; <b>Yavalath</b>. <a href="https://link.springer.com/book/10.1007/978-3-642-17109-8">springer</a>
+    <span class="gloss">Ludi recombines game "ludemes," plays each candidate against itself, and judges by aesthetic metrics (drama, depth, uncertainty). Yavalath — the survivor — is the first commercially published computer-designed board game. This is fable/deal's tribunal, fifteen years earlier.</span></li>
+</ol>
+</div>
+
+<div class="callout">
+  <b>The through-line.</b> Across six decades and nine communities the architecture is one thing: split
+  a hard problem into a cheap, often stochastic <b>proposer</b> and a separate <b>evaluator</b>; lean on
+  the proposer for coverage, and let the evaluator do the discriminating the proposer can't. The
+  communities differ mostly in <em>who the judge is</em> — a hard constraint, a hand-designed aesthetic,
+  a human eye, a learned discriminator, a trained verifier, or a cheap consensus — and in <em>what they
+  keep</em> (one winner, or a diverse illuminated set). The reason it keeps winning is the
+  <b>generation–verification gap</b>: scoring a good solution is usually easier than producing one, so
+  many candidates + a good judge beats one-shot genius.
+</div>
+
+<h2>What makes a good crucible</h2>
+<div class="rules-grid">
+  <div>
+    <h3>Do</h3>
+    <ul>
+      <li><b>Seed the generator.</b> Determinism turns every verdict into a permalink (<code>?n=</code>, <code>?seed=</code>).</li>
+      <li><b>Make the judge runnable.</b> A solver that counts, a search that proves par, an eigenvalue that decides stability — a certificate, not a claim.</li>
+      <li><b>Grade from the judge's work.</b> Difficulty falls out of the reasoning trace (search size, technique fingerprint, basin margin), never asserted.</li>
+      <li><b>Screen degeneracy explicitly.</b> List the boring failure modes and flag them — waterworld, monoculture, a game that never ends.</li>
+      <li><b>Consider keeping the <em>different</em>, not just the best</b> (novelty / quality-diversity) when one winner would collapse the space.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Don't</h3>
+    <ul>
+      <li><b>Don't dress an aesthetic as a discovery.</b> When the judge scores taste, say it's a designed score — mappa's honest posture.</li>
+      <li><b>Don't let the generator try to be right.</b> Its job is coverage and diversity; correctness is the judge's job.</li>
+      <li><b>Don't ship an artifact without its certificate.</b> If the oracle can't vouch for it, it isn't done.</li>
+      <li><b>Don't conflate the two.</b> A generator that secretly only emits good candidates is a judge in disguise, and a brittle one.</li>
+    </ul>
+  </div>
+</div>
+
+<p class="tiny" style="margin-top:1.4rem">
+  The oracle changes shape every time — CSP, BFS, action-sweep, eigenvalues, embeddings, a tribunal of
+  playouts — but the discipline never does: <b>overgenerate, then judge.</b>
+</p>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/mappa/">mappa</a>
+  <a href="https://biome.mino.mobi/gacha/">biome/gacha</a>
+  <a href="https://hoop.mino.mobi/econ/">hoop/econ</a>
+  <a href="https://fable.mino.mobi/">fable</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+</footer>
+
+<script>
+(function () {
+  var KEY = 'mino-theme';
+  var btn = document.getElementById('themeBtn');
+  var order = ['auto', 'light', 'dark'];
+  function apply(t) {
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    btn.textContent = (t === 'auto' ? '◐' : t === 'light' ? '☀' : '☾') + ' ' + t;
+  }
+  var cur = localStorage.getItem(KEY) || 'auto';
+  apply(cur);
+  btn.addEventListener('click', function () {
+    cur = order[(order.indexOf(cur) + 1) % order.length];
+    localStorage.setItem(KEY, cur);
+    apply(cur);
+  });
+})();
+</script>
+
+</body>
+</html>
