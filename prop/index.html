@@ -110,6 +110,19 @@ nav.tabs {
 .obs-wrap { margin-top: 0.7rem; }
 .obs-cap { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.25rem; }
 #obs-canvas { width: 100%; height: 110px; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.conduct-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .conduct-wrap { grid-template-columns: minmax(0, 1fr); } }
+#roll-canvas { width: 100%; aspect-ratio: 5 / 3; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.pads { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.pad { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.6rem 1rem; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-faint); border-radius: 3px; cursor: pointer; }
+.pad:active { background: var(--accent); color: #fff; }
+#key-sel, #scale-sel { font-family: var(--mono); font-size: 0.78rem; flex: 1; background: var(--canvas-bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 2px; padding: 0.34rem; }
+.mixer { display: flex; flex-direction: column; gap: 0.35rem; }
+.mix-row { display: flex; align-items: center; gap: 0.5rem; font-family: var(--mono); font-size: 0.7rem; }
+.mix-row .vn { width: 4.2em; }
+.mix-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.mix-row .mute { width: 1.5em; text-align: center; cursor: pointer; border: 1px solid var(--rule); border-radius: 2px; color: var(--muted); }
+.mix-row .mute.on { color: var(--accent); border-color: var(--accent); }
 
 .controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
 .ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -206,6 +219,7 @@ footer a:hover { color: var(--accent); }
 
 <nav class="tabs" role="tablist">
   <button class="tab active" data-tab="play" role="tab">play</button>
+  <button class="tab" data-tab="conduct" role="tab">conduct</button>
   <button class="tab" data-tab="rules" role="tab">rules</button>
   <button class="tab" data-tab="docs" role="tab">docs</button>
 </nav>
@@ -366,6 +380,7 @@ footer a:hover { color: var(--accent); }
       <li><b>Let it relax to an attractor</b> — it’s a self-organiser / solver. Propagator networks settle to the solution of a constraint system; chemistries settle onto self-maintaining organisations (a candidate origin of life); a growth rule settles into a characteristic shape. The fixed point is the output.</li>
     </ul>
     <p>That’s why each mode now ships with a <b>readout</b> below the canvas — a species histogram, an avalanche power-law, a degree distribution. A living structure only becomes <i>useful</i> the moment you attach a measurement to it; the spectacle is the bait, the observable is the point.</p>
+    <p>The <b>conduct</b> tab pushes this one step further: a human in the loop. A musical clock drives whichever engine is running and <b>sonifies its event stream</b> in a chosen key — births become melody, sandpile avalanches become flourishes (and a critical pile’s 1/f event-timing is, per Voss &amp; Clarke 1975, exactly the spectral signature of <i>natural</i> rhythm), interaction-net reductions become harmony that resolves at normal form. You steer with tempo, key, density and on-the-beat accents; the piano-roll + chroma strip are the live musical analysis. It’s the propagator idea closing the loop — the human writes intent into the system, the system propagates it into sound.</p>
 
     <h2>best practices baked in</h2>
     <ul>
@@ -388,6 +403,29 @@ footer a:hover { color: var(--accent); }
     <div class="meta-stamp">
       prop · a mino.mobi math-pack playground · four engines (rewriting · sandpile · interaction nets · chemistry) over one force-directed layout, pure canvas, no deps<br>
       the interaction-net reducer is unit-tested for closed-net invariants
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── CONDUCT PANE ─────────── -->
+<section class="pane" data-pane="conduct">
+  <div class="conduct-wrap">
+    <div>
+      <canvas id="roll-canvas" width="800" height="480"></canvas>
+      <p class="hint" id="conduct-hint">turn <b>sound on</b> — a musical clock drives whichever engine is selected on the <b>play</b> tab, sonified in key. tap the pads to inject on the beat.</p>
+      <div class="pads" id="pads"></div>
+    </div>
+    <div class="controls">
+      <div class="btn-row"><button class="btn primary" id="sound-btn">sound on</button></div>
+      <div class="ctrl-group"><span class="ctrl-label">master</span><div class="ctrl-row"><input id="vol-slider" type="range" min="0" max="1" step="0.01" value="0.6"><span class="ctrl-val" id="vol-val">0.60</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">tempo · bpm</span><div class="ctrl-row"><input id="bpm-slider" type="range" min="40" max="200" step="1" value="96"><span class="ctrl-val" id="bpm-val">96</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">subdivision</span><div class="seg" id="subdiv-seg"><button data-s="1">¼</button><button data-s="2">⅛</button><button data-s="3">⅓</button><button data-s="4" class="active">1/16</button></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">swing</span><div class="ctrl-row"><input id="swing-slider" type="range" min="0" max="0.6" step="0.02" value="0"><span class="ctrl-val" id="swing-val">0.00</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">key</span><div class="ctrl-row"><select id="key-sel"></select></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">scale</span><div class="ctrl-row"><select id="scale-sel"></select></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">density · notes/tick</span><div class="ctrl-row"><input id="dens-slider" type="range" min="1" max="10" step="1" value="6"><span class="ctrl-val" id="dens-val">6</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">voices</span><div class="mixer" id="mixer"></div></div>
+      <div class="stats" id="conduct-stats"></div>
     </div>
   </div>
 </section>
@@ -429,6 +467,7 @@ const G = {
   events: 0,
 };
 function rnd() { return Math.random(); }
+let AUDIO_EMIT = null; // when the conductor is on, engines push events here
 function newNode(x, y, extra) {
   const id = G.nextId++;
   const n = Object.assign({ id, x, y, vx: 0, vy: 0, pinned: false, flash: NEW }, extra || {});
@@ -510,7 +549,7 @@ function growthApply(matches) {
     for (let v = 0; v < growthRule.nLhsVars; v++) { const nd = G.nodes.get(b[v]); if (nd) { cx += nd.x; cy += nd.y; n++; } }
     if (n) { cx /= n; cy /= n; }
     for (let v = growthRule.nLhsVars; v < growthRule.nVars; v++)
-      if (b[v] == null) b[v] = newNode(cx + (rnd() - 0.5) * 30, cy + (rnd() - 0.5) * 30).id;
+      if (b[v] == null) { b[v] = newNode(cx + (rnd() - 0.5) * 30, cy + (rnd() - 0.5) * 30).id; if (AUDIO_EMIT) AUDIO_EMIT('grow', b[v]); }
     match.used.forEach(e => remove.add(e));
     for (const [i, j] of growthRule.rhs) additions.push({ a: b[i], b: b[j], flash: NEW });
     G.events++;
@@ -601,7 +640,7 @@ function sandWave() {
   }
   for (const n of unstable) {
     const th = sandThreshold(n);
-    n.chips -= th; n.flash = NEW; sandAval++;
+    n.chips -= th; n.flash = NEW; sandAval++; if (AUDIO_EMIT) AUDIO_EMIT('topple', n.id);
     for (const nb of n.neigh) { const m = G.nodes.get(nb); if (!m.sink) m.chips++; } // sinks dissipate
   }
   // flash incident links of toppled nodes
@@ -771,8 +810,10 @@ function inetTick() {
   if (G.nodes.size >= G.cap) { stop('agent cap reached — bump the cap or reset'); return false; }
   const pair = inetFindActive(G.nodes.values());
   if (!pair) { stop('normal form — no active pairs left'); return false; }
+  const sa = pair[0].sym, sb = pair[1].sym;
   const made = inetReduce(pair[0], pair[1], inetApi);
   for (const n of made) n.flash = NEW;
+  if (AUDIO_EMIT) AUDIO_EMIT(sa === sb ? 'ann' : (sa === 'E' || sb === 'E') ? 'era' : 'com', made.length ? made[0].id : pair[0].id);
   inetReductions++; G.events++;
   rebuildInetLinks();
   return true;
@@ -816,7 +857,7 @@ function chemTick() {
   while (b === a && g++ < 5) b = ns[(rnd() * ns.length) | 0];
   if (b === a) return true;
   b.species = chemReact(a.species, b.species, chemOp, chemM);
-  a.flash = NEW; b.flash = NEW;
+  a.flash = NEW; b.flash = NEW; if (AUDIO_EMIT) AUDIO_EMIT('react', b.species);
   G.links.push({ a: a.id, b: b.id, flash: Math.floor(NEW * 0.7) });
   G.events++; return true;
 }
@@ -865,14 +906,18 @@ const canvas = document.getElementById('graph-canvas');
 const ctx = canvas.getContext('2d');
 const obs = document.getElementById('obs-canvas');
 const octx = obs.getContext('2d');
+const roll = document.getElementById('roll-canvas');
+const rctx = roll.getContext('2d');
 let DPR = Math.min(window.devicePixelRatio || 1, 2);
 const view = { cx: 0, cy: 0, scale: 1 };
 function resizeCanvas() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   const r = canvas.getBoundingClientRect();
-  canvas.width = Math.round(r.width * DPR); canvas.height = Math.round(r.height * DPR);
+  if (r.width) { canvas.width = Math.round(r.width * DPR); canvas.height = Math.round(r.height * DPR); }
   const ro = obs.getBoundingClientRect();
-  obs.width = Math.round(ro.width * DPR); obs.height = Math.round(ro.height * DPR);
+  if (ro.width) { obs.width = Math.round(ro.width * DPR); obs.height = Math.round(ro.height * DPR); }
+  const rr = roll.getBoundingClientRect();
+  if (rr.width) { roll.width = Math.round(rr.width * DPR); roll.height = Math.round(rr.height * DPR); }
 }
 function fitView() {
   const ns = [...G.nodes.values()]; if (!ns.length) return;
@@ -1001,19 +1046,22 @@ function loop(now) {
   for (const n of G.nodes.values()) if (n.flash > 0) n.flash--;
   for (const l of G.links) if (l.flash > 0) l.flash--;
 
-  if (MODE === 'sandpile') {
-    if (sandRelaxing) sandWave();                 // avalanche animates to quiescence
-    else if (playing) { eventAcc += dt * rateEPS; while (eventAcc >= 1) { eventAcc -= 1; sandDrop(); if (sandRelaxing) break; } }
-  } else if (playing) {
-    const stepFn = MODE === 'growth' ? growthTick : MODE === 'inet' ? inetTick : chemTick;
-    eventAcc += dt * rateEPS; let guard = 0;
-    while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!stepFn()) { eventAcc = 0; break; } guard++; }
+  if (!Conductor.on) {  // when the conductor runs, the musical clock drives stepping
+    if (MODE === 'sandpile') {
+      if (sandRelaxing) sandWave();                 // avalanche animates to quiescence
+      else if (playing) { eventAcc += dt * rateEPS; while (eventAcc >= 1) { eventAcc -= 1; sandDrop(); if (sandRelaxing) break; } }
+    } else if (playing) {
+      const stepFn = MODE === 'growth' ? growthTick : MODE === 'inet' ? inetTick : chemTick;
+      eventAcc += dt * rateEPS; let guard = 0;
+      while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!stepFn()) { eventAcc = 0; break; } guard++; }
+    }
   }
   if (MODE === 'chemistry') G.links = G.links.filter(l => l.flash > 0); // transient reaction flashes
   if (MODE === 'inet') inetActiveCount = countActive();
   recomputeDegrees();
   for (let s = 0; s < 2; s++) physicsStep(1);
   fitView(); render(); updateStats(); drawObs();
+  if (activeTab === 'conduct') drawRoll();
   requestAnimationFrame(loop);
 }
 function countActive() { let c = 0; const seen = new Set(); for (const a of G.nodes.values()) { const p = a.ports && a.ports[0]; if (p && p.port === 0 && p.node !== a && p.node.ports[0] && p.node.ports[0].node === a) { const k = Math.min(a.id, p.node.id) + '-' + Math.max(a.id, p.node.id); if (!seen.has(k)) { seen.add(k); c++; } } } return c; }
@@ -1169,9 +1217,11 @@ document.querySelectorAll('.fmt-style').forEach(b => b.addEventListener('click',
 // tabs
 const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane'), formatBar = document.getElementById('format-bar');
 function showTab(name) {
+  activeTab = name;
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
   formatBar.classList.toggle('hidden', name !== 'play');
+  resizeCanvas(); // size the now-visible canvas (graph or piano-roll)
 }
 tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
 
@@ -1201,6 +1251,146 @@ window.addEventListener('keydown', e => {
   else if (e.key === 's') document.getElementById('step-btn').click();
   else if (e.key === 'r') document.getElementById('reset-btn').click();
 });
+
+// ════════════════════════════════════════════════════════════════════
+// CONDUCT — the substrate as a human-steered generative instrument
+//   a musical clock drives the selected engine; its event stream is
+//   sonified (Web Audio), quantised to a tempo grid, in a chosen key.
+//   Steering = the human supplies tempo / key / density / accents that the
+//   autonomous local rules can't. Scheduling per Chris Wilson's two-clocks.
+// ════════════════════════════════════════════════════════════════════
+let activeTab = 'play';
+const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], pentatonic: [0, 3, 5, 7, 10], whole: [0, 2, 4, 6, 8, 10], chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] };
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const VOICES = {
+  grow:   { label: 'grow',    type: 'triangle', oct: 1,  dur: 0.26, gain: 0.7,  mute: false },
+  topple: { label: 'topple',  type: 'sine',     oct: 2,  dur: 0.12, gain: 0.55, mute: false },
+  react:  { label: 'react',   type: 'sine',     oct: 0,  dur: 0.30, gain: 0.55, mute: false },
+  com:    { label: 'commute', type: 'triangle', oct: 1,  dur: 0.16, gain: 0.6,  mute: false },
+  ann:    { label: 'annihil', type: 'sawtooth', oct: -1, dur: 0.32, gain: 0.5,  mute: false },
+  era:    { label: 'erase',   type: 'noise',    oct: 0,  dur: 0.16, gain: 0.45, mute: false },
+};
+const VOICE_COL = { grow: '#6d28d9', topple: '#0ea5e9', react: '#ea580c', com: '#16a34a', ann: '#db2777', era: '#64748b' };
+const Conductor = { on: false, ctx: null, master: null, bpm: 96, subdiv: 4, swing: 0, key: 0, scale: 'minor', density: 6, vol: 0.6, next: 0, tick: 0, timer: null, roll: [] };
+const eventBus = [], padQueue = [];
+function emitAudio(voice, val) { if (eventBus.length < 64) eventBus.push({ voice, val }); }
+
+function substrateStep() {
+  if (MODE === 'growth') growthTick();
+  else if (MODE === 'inet') inetTick();
+  else if (MODE === 'chemistry') chemTick();
+  else { sandDrop(); let g = 0; while (sandRelaxing && g++ < 4000) sandWave(); }
+}
+function spt() { return 60 / Conductor.bpm / Conductor.subdiv; }
+function audioStart() {
+  if (!Conductor.ctx) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = ctx.createDynamicsCompressor(), master = ctx.createGain();
+    master.gain.value = Conductor.vol; master.connect(comp); comp.connect(ctx.destination);
+    Conductor.ctx = ctx; Conductor.master = master;
+  }
+  Conductor.ctx.resume();
+  Conductor.on = true; AUDIO_EMIT = emitAudio; eventBus.length = 0;
+  Conductor.next = Conductor.ctx.currentTime + 0.08; Conductor.tick = 0;
+  clearInterval(Conductor.timer); Conductor.timer = setInterval(scheduler, 25);
+  const b = document.getElementById('sound-btn'); b.textContent = 'sound off'; b.classList.remove('primary');
+}
+function audioStop() {
+  Conductor.on = false; AUDIO_EMIT = null; clearInterval(Conductor.timer); Conductor.timer = null;
+  const b = document.getElementById('sound-btn'); b.textContent = 'sound on'; b.classList.add('primary');
+}
+function scheduler() {
+  const ctx = Conductor.ctx; if (!ctx) return;
+  while (Conductor.next < ctx.currentTime + 0.12) {
+    scheduleTick(Conductor.next, Conductor.tick);
+    let d = spt(); if (Conductor.swing > 0) d *= (Conductor.tick % 2 === 0) ? (1 + Conductor.swing) : (1 - Conductor.swing);
+    Conductor.next += d; Conductor.tick++;
+  }
+}
+function scheduleTick(t) {
+  while (padQueue.length) padQueue.shift()();   // human accents, quantised to the beat
+  substrateStep();                              // advance the engine one grid step
+  const evs = eventBus.splice(0, Conductor.density); eventBus.length = 0; // cap → no mud
+  const d = spt();
+  evs.forEach((e, k) => playNote(e, t + (evs.length > 1 ? k / evs.length * d * 0.9 : 0))); // spread an avalanche into a flourish
+}
+function midiFor(voice, val) {
+  const s = SCALES[Conductor.scale], deg = ((Math.round(Math.abs(val)) % s.length) + s.length) % s.length;
+  return 48 + Conductor.key + s[deg] + 12 * (VOICES[voice].oct || 0);
+}
+function playNote(e, t) {
+  const v = VOICES[e.voice]; if (!v || v.mute || !Conductor.ctx) return;
+  const ctx = Conductor.ctx, g = ctx.createGain(); g.connect(Conductor.master);
+  if (v.type === 'noise') {
+    const n = Math.max(1, Math.floor(ctx.sampleRate * v.dur)), buf = ctx.createBuffer(1, n, ctx.sampleRate), dd = buf.getChannelData(0);
+    for (let k = 0; k < n; k++) dd[k] = (Math.random() * 2 - 1) * (1 - k / n);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.6;
+    src.connect(bp); bp.connect(g);
+    g.gain.setValueAtTime(v.gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + v.dur);
+    src.start(t); src.stop(t + v.dur); pushRoll(t, 60, e.voice); return;
+  }
+  const midi = midiFor(e.voice, e.val);
+  const o = ctx.createOscillator(); o.type = v.type; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12); o.connect(g);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v.gain, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + v.dur);
+  o.start(t); o.stop(t + v.dur + 0.03); pushRoll(t, midi, e.voice);
+}
+function pushRoll(t, midi, voice) { Conductor.roll.push({ t, midi, voice }); if (Conductor.roll.length > 700) Conductor.roll.shift(); }
+function pad(n) { padQueue.push(() => { for (let k = 0; k < n; k++) { if (MODE === 'sandpile') sandDrop(); else substrateStep(); } }); }
+
+function drawRoll() {
+  const now = Conductor.ctx ? Conductor.ctx.currentTime : performance.now() / 1000;
+  const W = roll.width, H = roll.height; rctx.clearRect(0, 0, W, H);
+  const span = 6, lo = 36, hi = 88;
+  while (Conductor.roll.length && Conductor.roll[0].t < now - span - 1) Conductor.roll.shift();
+  const chroma = new Array(12).fill(0); let recent = 0;
+  for (const nt of Conductor.roll) {
+    if (nt.t > now) continue;
+    const x = (1 - (now - nt.t) / span) * W; if (x < 0) continue;
+    const y = (H - 26 * DPR) - Math.max(0, Math.min(1, (nt.midi - lo) / (hi - lo))) * (H - 30 * DPR);
+    rctx.fillStyle = VOICE_COL[nt.voice] || '#888';
+    rctx.fillRect(x - 2 * DPR, y - 2 * DPR, 5 * DPR, 4 * DPR);
+    if (nt.t > now - 1) { recent++; chroma[((nt.midi % 12) + 12) % 12]++; }
+  }
+  const bw = W / 12, cmax = Math.max(1, ...chroma);
+  rctx.globalAlpha = 0.5;
+  for (let c = 0; c < 12; c++) { if (!chroma[c]) continue; const bh = chroma[c] / cmax * 22 * DPR; rctx.fillStyle = fmt.theme === 'neon' ? '#7dd3fc' : '#6d28d9'; rctx.fillRect(c * bw, H - bh, bw - 1, bh); }
+  rctx.globalAlpha = 1;
+  const el = document.getElementById('conduct-stats');
+  el.innerHTML =
+    `<div class="stat-row"><span class="k">engine</span><span class="v">${MODE}</span></div>` +
+    `<div class="stat-row"><span class="k">notes / sec</span><span class="v hot">${recent}</span></div>` +
+    `<div class="stat-row"><span class="k">key</span><span class="v">${NOTE_NAMES[Conductor.key]} ${Conductor.scale}</span></div>` +
+    `<div class="stat-row"><span class="k">queue</span><span class="v">${eventBus.length}</span></div>`;
+}
+
+// build conduct UI
+(function buildConduct() {
+  const keySel = document.getElementById('key-sel');
+  NOTE_NAMES.forEach((n, i) => { const o = document.createElement('option'); o.value = i; o.textContent = n; keySel.appendChild(o); });
+  const scaleSel = document.getElementById('scale-sel');
+  Object.keys(SCALES).forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; if (s === Conductor.scale) o.selected = true; scaleSel.appendChild(o); });
+  keySel.addEventListener('change', () => Conductor.key = +keySel.value);
+  scaleSel.addEventListener('change', () => Conductor.scale = scaleSel.value);
+  const mixer = document.getElementById('mixer');
+  Object.keys(VOICES).forEach(k => {
+    const v = VOICES[k], row = document.createElement('div'); row.className = 'mix-row';
+    row.innerHTML = `<span class="vn" style="color:${VOICE_COL[k]}">${v.label}</span><span class="mute on" data-v="${k}">●</span>`;
+    const sl = document.createElement('input'); sl.type = 'range'; sl.min = 0; sl.max = 1; sl.step = 0.01; sl.value = v.gain;
+    sl.addEventListener('input', () => v.gain = +sl.value);
+    row.appendChild(sl); mixer.appendChild(row);
+    row.querySelector('.mute').addEventListener('click', e => { v.mute = !v.mute; e.target.classList.toggle('on', !v.mute); });
+  });
+  const pads = document.getElementById('pads');
+  [['tap', 1], ['roll', 3], ['surge', 8]].forEach(([label, n]) => { const b = document.createElement('button'); b.className = 'pad'; b.textContent = label; b.addEventListener('click', () => pad(n)); pads.appendChild(b); });
+  document.getElementById('sound-btn').addEventListener('click', () => Conductor.on ? audioStop() : audioStart());
+  document.querySelectorAll('#subdiv-seg button').forEach(b => b.addEventListener('click', () => { Conductor.subdiv = +b.dataset.s; document.querySelectorAll('#subdiv-seg button').forEach(x => x.classList.toggle('active', x === b)); }));
+  bindSlider('bpm-slider', 'bpm-val', x => Conductor.bpm = x, x => x);
+  bindSlider('vol-slider', 'vol-val', x => { Conductor.vol = x; if (Conductor.master) Conductor.master.gain.value = x; }, x => x.toFixed(2));
+  bindSlider('swing-slider', 'swing-val', x => Conductor.swing = x, x => x.toFixed(2));
+  bindSlider('dens-slider', 'dens-val', x => Conductor.density = x, x => x);
+})();
 
 // boot
 window.addEventListener('resize', resizeCanvas);
