@@ -143,8 +143,8 @@
         const seamW = 0.7 / cam.scale;                       // the v4 plate-seam, ~0.7px regardless of zoom
         for (const c of P.paintCells) {
           if (c.x < vx0 || c.x > vx1 || c.y < vy0 || c.y > vy1 || c.poly.length < 3) continue;
-          ctx.fillStyle = c.wall ? '#0d1218' : (c.color || '#05070b'); fillPoly(c.poly);
-          if (!c.wall) { ctx.strokeStyle = 'rgba(7,10,13,0.42)'; ctx.lineWidth = seamW; ctx.stroke(); }   // hand-inked floor seam
+          ctx.fillStyle = c.color || '#05070b'; fillPoly(c.poly);
+          if (!c.wall) { ctx.strokeStyle = 'rgba(6,9,12,0.5)'; ctx.lineWidth = seamW; ctx.stroke(); }   // hand-inked floor seam
         }
         for (const cp of P.comps) { if (cp.cx < vx0 || cp.cx > vx1 || cp.cy < vy0 || cp.cy > vy1) continue; drawDevice(ctx, cp.cx, cp.cy, cp.r, cp.g, { lit: cp.lit, accent: cp.accent }); }
         for (const L of P.lights) { if (L.tip.x < vx0 || L.tip.x > vx1 || L.tip.y < vy0 || L.tip.y > vy1) continue; drawWallLight(ctx, L, { hue: L.hue, lit: L.lit }); }
@@ -174,8 +174,8 @@
     function drawPlayer() {
       if (player < 0 || !walk) return;
       if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
-      // the player is small against the bones — a glowing lantern, not a big @
-      const x = px(), y = py(), rad = Math.max(3, cam.scale * 1.3);
+      // the player is small — a glowing lantern at its true world size (½·playerW), the mesh's unit
+      const x = px(), y = py(), rad = Math.max(2.5, SKIN.playerW * 0.5 * cam.scale);
       ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 3.2;
       ctx.fillStyle = '#fff7e6'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill();
       ctx.fillStyle = 'rgba(244,191,98,0.95)'; ctx.shadowBlur = rad * 1.4; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad * 0.55, 0, 7); ctx.fill(); ctx.restore();

@@ -22,12 +22,13 @@ ok(walls > 50, `walls were re-seeded with fine Voronoi nuclei (${walls} thin wal
 ok(medArea((c) => !c.wall) > medArea((c) => c.wall) * 1.8, `interior tiles fill the gaps LARGER than the walls (floor ${medArea((c) => !c.wall) | 0} vs wall ${medArea((c) => c.wall) | 0})`);
 ok(P.paintCells.every((c) => c.poly.length >= 3 && c.poly.every((p) => p.length === 2)), 'every paint cell is a real world-space polygon');
 
-// 2. wall cells never carry a colour (the page fills them flat); most floor cells are pre-traced
-ok(P.paintCells.every((c) => !c.wall || c.color == null), 'wall cells are never pre-coloured (filled flat)');
-const colored = P.paintCells.filter((c) => !c.wall && typeof c.color === 'string').length, floorN = floor;
-ok(colored > floorN * 0.7, `most floor cells carry a ray-traced colour (${colored}/${floorN})`);
-const lit = P.paintCells.filter((c) => c.color && c.color !== 'rgb(0,0,0)').length;
-ok(lit > 20, `the ray-trace actually lights the floor (${lit} lit cells)`);
+// 2. every tile is pre-coloured; walls rim-light (dark stone) and most floor is lit
+ok(P.paintCells.every((c) => typeof c.color === 'string'), 'every tile carries a pre-composited colour');
+const lum = (s) => { const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(s); return m ? +m[1] * 0.3 + +m[2] * 0.6 + +m[3] * 0.1 : 0; };
+const lit = P.paintCells.filter((c) => !c.wall && lum(c.color) > 40).length;
+ok(lit > 20, `the light field lifts the floor (${lit} lit floor tiles)`);
+const wallLum = P.paintCells.filter((c) => c.wall).map((c) => lum(c.color));
+ok(Math.max(...wallLum) > Math.min(...wallLum) + 6, 'walls rim-light off adjacent rooms (they are not all flat)');
 
 // 3. lights + components are placed per ROOM (not per cell) and reference real rooms
 ok(P.lights.length > 0 && P.lights.length <= rec.rooms.length * 2, `lights are per-room, not per-cell (${P.lights.length} for ${rec.rooms.length} rooms)`);

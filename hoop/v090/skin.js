@@ -1,27 +1,31 @@
-// skin.js — v090: RETILE a v8 chunk from its walls. The v8 map is the BONES — a coarse cartoon of
-// regions (rooms + concourse) and the walls between them. We throw that cell tiling away for render
-// and lay a NEW one: seed the real walls with fine Voronoi nuclei (thin, clean walls) and fill each
-// interior GAP with LARGER graded tiles (fine near a wall, big in the middle) — the /paint + v4 look,
-// at v4's ~5:1 interior:wall proportion. Then colour each tile by its room's ROLE modulated by light
-// (a warm albedo that the light brightens, v4), with the light RAY-TRACED through the new walls so it
-// pools in a room and spills through doorways (mega/sprite/fixture), an art-deco component per room,
-// and wall-grown lamps. The player is small against all of this.
+// skin.js — v090: RETILE a v8 chunk into a fresh, player-relative Voronoi mesh, independent of the
+// bones. The v8 cell tiling is BONES only — a coarse cartoon of regions (rooms + concourse) and the
+// walls between them. We read just that — region membership + where the real walls are — and inject
+// an entirely NEW set of nuclei whose scale is set by the PLAYER, not by the bones:
 //
-// Crucially the new walls land on v8's ACTUAL membranes (room↔room / room↔concourse, minus doors) and
-// the doors stay open, so the picture matches the walk graph the engine still drives. paintChunk(rec)
-// is PURE (no canvas): it returns world-space tiles (polygon + pre-composited colour), deco
-// components, and pre-lit wall lights. Node-tested by test/v090.selftest.mjs.
+//   • WALL nuclei — tight, spaced ≈ ½ the player width — injected along the real membranes
+//     (room↔room / room↔concourse, minus doors, + the sealed perimeter). Thin, clean walls.
+//   • ROOM-CENTRE nuclei — a big seed at each room centre that grows to ≈ 2× the player width.
+//   • A SMOOTH GRADIENT between: a floor nucleus's target spacing ramps (smoothstep) from ½·playerW
+//     hugging a wall to 2·playerW deep in a room — fine where it meets the wall, coarse in the middle.
+//
+// Nothing here samples the bones' cell pitch, so the bones disappear; the mesh is its own thing. Then
+// it's painted v4/mega: each tile a role albedo brightened by light RAY-TRACED through the NEW walls
+// (walls catch the glow as rim-lit stone so they READ against the dark concourse; light pools in a
+// room and spills through doorways), with a small art-deco component + small wall lamps per room.
+//
+// The walls still land on v8's real membranes and the doors stay open, so the picture matches the walk
+// graph the engine drives. paintChunk(rec) is PURE; node-tested by test/v090.selftest.mjs.
 
 import { clipCell, bucketGrid, jitterGrid, mulberry32 } from '../v5/voronoi.js';
-import { occlusionGrid, lightAtRGB, tintLights, lightGenome } from '../v5/lights.js';
+import { occlusionGrid, visible, tintLights, lightGenome } from '../v5/lights.js';
 import { deviceGenome } from '../v5/deco.js';
 
-// v4 proportions + palette: thin walls (wallSpacing), interior tiles a few× larger (roomSpacing,
-// graded fine→big), tiles a role albedo the light brightens. Light pools + deco are sized to the
-// ROOM (not the tile pitch), so they fill the chamber and spill through doorways.
-export const SKIN_DEFAULTS = { wallSpacing: 5, roomSpacing: 18, perRoom: 2, reach: 1.5, ambient: 0.5, lgain: 1.05 };
-const ROAD_RGB = [44, 70, 60], DOOR_RGB = [120, 92, 50], VOID_RGB = [12, 16, 20];
+// Everything is keyed to the player. ws = ½·playerW (tight walls), rs = 2·playerW (big room centres).
+export const SKIN_DEFAULTS = { playerW: 6, perRoom: 2, reach: 3.4, ambient: 0.5, lgain: 1.05, wallAmb: 0.3, wallGain: 0.62, fixture: 1 };
+const ROAD_RGB = [44, 70, 60], DOOR_RGB = [120, 92, 50], VOID_RGB = [10, 13, 18], WALL_RGB = [27, 32, 41];
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const hexRGB = (h) => { const c = (h || '#3a4248').replace('#', ''); return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)]; };
 
 export function hexHue(hex) {
@@ -32,70 +36,63 @@ export function hexHue(hex) {
   return h;
 }
 
-// Paint one solved v8 chunk record. Returns world-space { paintCells, comps, lights, poly, ports }.
 export function paintChunk(rec, opts = {}) {
   const o = { ...SKIN_DEFAULTS, ...opts };
   const seed = (rec.seed ?? 1) >>> 0;
   const ox = rec.region.x0, oy = rec.region.y0;
   const W = Math.max(2, Math.ceil(rec.region.x1 - ox)), H = Math.max(2, Math.ceil(rec.region.y1 - oy));
-  const ws = o.wallSpacing, rs = o.roomSpacing, band = ws * 0.7;
+  const pw = o.playerW, ws = pw * 0.5, rs = pw * 2, band = ws * 0.8, refDepth = rs * 1.6;   // the player sets the scale
 
-  // ── regions (the bones): each v8 cell belongs to a room (id≥0), the concourse (-1), or void (-2) ──
+  // ── the bones we read: region membership (room id, concourse −1, void −2) + the door gaps ──
   const regionOf = (i) => (rec.road[i] ? -1 : (rec.roomOf[i] >= 0 ? rec.roomOf[i] : -2));
   const doorSkip = new Set();
   for (const r of rec.rooms) { const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.door >= 0 && r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []); for (const [a, b] of dp) doorSkip.add(Math.min(a, b) + ',' + Math.max(a, b)); }
   const isWallEdge = (i, j) => j < 0 ? true : (regionOf(i) !== regionOf(j) && !doorSkip.has(Math.min(i, j) + ',' + Math.max(i, j)));
-
-  // nearest-bone lookup → a point's region (membership of the new tiles), in LOCAL coords
   const cellPts = rec.cells.map((c, i) => ({ x: c.x - ox, y: c.y - oy, i }));
-  const cellGrid = bucketGrid(cellPts, OPTS_CELL(rec));
+  const cellGrid = bucketGrid(cellPts, (rec.cellSize || 16) * 1.6);
   const regionAt = (x, y) => { let best = null, bd = Infinity; for (const q of cellGrid.near(x, y)) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } } return best ? regionOf(best.i) : -2; };
-
-  // port gaps on the perimeter (where the concourse crosses to a neighbour — leave the hull open there)
   const portPts = rec.ports.map((p) => ({ x: p.x - ox, y: p.y - oy }));
-  const portGrid = bucketGrid(portPts.length ? portPts : [{ x: -1e9, y: -1e9 }], Math.max(rs, ws * 4));
-  const portGap = 18, atPort = (x, y) => { for (const q of portGrid.near(x, y)) if ((q.x - x) ** 2 + (q.y - y) ** 2 < portGap * portGap) return true; return false; };
+  const portGrid = bucketGrid(portPts.length ? portPts : [{ x: -1e9, y: -1e9 }], Math.max(rs, ws * 6));
+  const portGap = pw * 3, atPort = (x, y) => { for (const q of portGrid.near(x, y)) if ((q.x - x) ** 2 + (q.y - y) ** 2 < portGap * portGap) return true; return false; };
 
-  // ── 1. WALL nuclei on v8's real membranes (room↔room, room↔concourse, perimeter), minus doors ──
+  // ── 1. inject WALL nuclei along the real membranes, tight at ws = ½·playerW ──
   const wallNuclei = [], seenW = new Set(), snap = ws * 0.5;
   const addWall = (x, y, perim) => { if (x < -1 || y < -1 || x > W + 1 || y > H + 1) return; if (perim && atPort(x, y)) return; const k = Math.round(x / snap) + ',' + Math.round(y / snap); if (seenW.has(k)) return; seenW.add(k); wallNuclei.push({ x, y, wall: true }); };
   for (let i = 0; i < rec.cells.length; i++) {
     const v = rec.cells[i].poly;
     for (let k = 0; k < v.length; k++) {
-      const j = v[k][2]; if (j >= 0 && j < i) continue;            // shared membrane: seed once
+      const j = v[k][2]; if (j >= 0 && j < i) continue;
       if (!isWallEdge(i, j)) continue;
       const a = v[k], b = v[(k + 1) % v.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / ws));
       for (let t = 0; t <= n; t++) addWall(a[0] + (b[0] - a[0]) * t / n - ox, a[1] + (b[1] - a[1]) * t / n - oy, j < 0);
     }
   }
-  const wallGrid = bucketGrid(wallNuclei.length ? wallNuclei : [{ x: -1e9, y: -1e9 }], Math.max(rs, ws * 3));
+  const wallGrid = bucketGrid(wallNuclei.length ? wallNuclei : [{ x: -1e9, y: -1e9 }], Math.max(rs, ws * 4));
   const wallDist = (x, y) => { let bd = Infinity; for (const q of wallGrid.near(x, y)) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) bd = d; } return Math.sqrt(bd); };
 
-  // ── 2. FLOOR nuclei: large graded tiles filling each gap — fine (ws) near a wall, big (rs) in the middle ──
-  const refDepth = Math.max(band + 1, rs * 0.55);
-  const localSpacing = (edge) => ws + (rs - ws) * clamp((edge - band) / (refDepth - band), 0, 1);
-  const hashCell = Math.max(rs, ws), acc = new Map(), akey = (x, y) => Math.floor(x / hashCell) + ',' + Math.floor(y / hashCell);
+  // ── 2. inject FLOOR nuclei: a big seed at each room centre, graded down to ws toward the walls ──
+  const localSpacing = (edge) => ws + (rs - ws) * smooth((edge - band) / (refDepth - band));
+  const hashCell = rs, acc = new Map(), akey = (x, y) => Math.floor(x / hashCell) + ',' + Math.floor(y / hashCell);
   const floorNuclei = [];
   const place = (x, y, region, door = false) => { const nu = { x, y, wall: false, region, door }; floorNuclei.push(nu); const k = akey(x, y); let b = acc.get(k); if (!b) acc.set(k, b = []); b.push(nu); return nu; };
   const clearOf = (x, y, r) => { const cx = Math.floor(x / hashCell), cy = Math.floor(y / hashCell), r2 = r * r; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const b = acc.get((cx + dx) + ',' + (cy + dy)); if (!b) continue; for (const q of b) if ((q.x - x) ** 2 + (q.y - y) ** 2 < r2) return false; } return true; };
-  // anchor a big central tile at each room centroid + each concourse cell that sits clear of walls
+  // the room-centre seed — grows to ~rs (twice the player width)
   for (let ri = 0; ri < rec.rooms.length; ri++) { const r = rec.rooms[ri]; if (r.door < 0) continue; const x = r.x - ox, y = r.y - oy; if (wallDist(x, y) > band) place(x, y, ri); }
-  for (let i = 0; i < rec.cells.length; i++) { if (!rec.road[i]) continue; const x = rec.cells[i].x - ox, y = rec.cells[i].y - oy; if (wallDist(x, y) > band && clearOf(x, y, rs * 0.7)) place(x, y, -1); }
-  // door bridges: a couple of floor nuclei straddling each door gap, so the gap reads as a threshold
-  for (const r of rec.rooms) { const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.door >= 0 && r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []); for (const [a, b] of dp) { const ca = rec.cells[a], cb = rec.cells[b]; for (const t of [0.32, 0.68]) { const x = (ca.x + (cb.x - ca.x) * t) - ox, y = (ca.y + (cb.y - ca.y) * t) - oy; if (clearOf(x, y, ws * 0.7)) place(x, y, regionAt(x, y), true); } } }
-  // graded fill from a fine candidate grid, accepted by the local (growing) radius
+  // door bridges so the threshold reads as a gap, not a doormat
+  for (const r of rec.rooms) { const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.door >= 0 && r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []); for (const [a, b] of dp) { const ca = rec.cells[a], cb = rec.cells[b]; for (const t of [0.3, 0.7]) { const x = (ca.x + (cb.x - ca.x) * t) - ox, y = (ca.y + (cb.y - ca.y) * t) - oy; if (clearOf(x, y, ws * 0.8)) place(x, y, regionAt(x, y), true); } } }
+  // graded dart-throwing — the gradient of sizes, fine→coarse, over BOTH rooms and the concourse
   for (const p of jitterGrid(W, H, ws, 0.6, mulberry32(seed))) {
-    const e = wallDist(p.x, p.y); if (e <= band && !atPort(p.x, p.y)) continue;     // keep out of the wall band
+    const e = wallDist(p.x, p.y); if (e <= band && !atPort(p.x, p.y)) continue;
     if (clearOf(p.x, p.y, localSpacing(e))) place(p.x, p.y, regionAt(p.x, p.y));
   }
 
   // ── 3. paint the Voronoi of {wall ∪ floor} nuclei ──
   const nuclei = wallNuclei.concat(floorNuclei);
-  const paintGrid = bucketGrid(nuclei, Math.max(rs, ws) * 1.7);
-  const cells = nuclei.map((nu) => ({ wall: nu.wall, region: nu.wall ? -2 : nu.region, door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), rs * 3) }));
+  const paintGrid = bucketGrid(nuclei, Math.max(rs, ws) * 1.8);
+  const cells = nuclei.map((nu) => ({ wall: nu.wall, region: nu.wall ? -3 : nu.region, door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), rs * 3) }));
   const scene = { W, H, wallSpacing: ws, roomSpacing: rs, nuclei };
 
-  // ── 4. one-or-two wall-grown lights per ROOM, tinted to the room hue ──
+  // ── 4. small wall-grown lamps per ROOM — a small glyph (len), big REACH (len·reach) ──
   const rng = mulberry32((Math.imul(seed, 2654435761)) >>> 0);
   const lights = [];
   rec.rooms.forEach((r, ri) => {
@@ -103,28 +100,36 @@ export function paintChunk(rec, opts = {}) {
     const rx = r.x - ox, ry = r.y - oy, cand = [];
     for (const ci of r.cells) { const v = rec.cells[ci].poly; for (let k = 0; k < v.length; k++) { if (!isWallEdge(ci, v[k][2])) continue; const a = v[k], b = v[(k + 1) % v.length]; cand.push({ x: (a[0] + b[0]) / 2 - ox, y: (a[1] + b[1]) / 2 - oy }); } }
     if (!cand.length) return;
-    const roomRad = Math.sqrt(r.cells.length) * (rec.cellSize || 16) * 0.5;   // a lamp fills the chamber, not a tile
     const chosen = [cand[(rng() * cand.length) | 0]];
     while (chosen.length < Math.min(o.perRoom, cand.length)) { let best = null, bd = -1; for (const p of cand) { let m = Infinity; for (const q of chosen) m = Math.min(m, (p.x - q.x) ** 2 + (p.y - q.y) ** 2); if (m > bd) { bd = m; best = p; } } chosen.push(best); }
-    for (const p of chosen) { const g = lightGenome(rng); let nx = rx - p.x, ny = ry - p.y; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl; const len = Math.max(rs * 0.6, roomRad * (0.7 + g.len * 0.4)); lights.push({ x: p.x, y: p.y, nx, ny, len, model: g, room: ri, tip: { x: p.x + nx * len * 0.7, y: p.y + ny * len * 0.7 } }); }
+    for (const p of chosen) { const g = lightGenome(rng); let nx = rx - p.x, ny = ry - p.y; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl; const len = pw * (0.9 + g.len * 0.4) * o.fixture; lights.push({ x: p.x, y: p.y, nx, ny, len, model: g, room: ri, tip: { x: p.x + nx * len * 0.95, y: p.y + ny * len * 0.95 } }); }
   });
   tintLights(lights, (room) => hexHue(rec.rooms[room] && rec.rooms[room].color));
 
-  // ── 5. ray-trace the new tiling → each tile = its role ALBEDO brightened by the occluded light ──
-  const occ = occlusionGrid(scene);
-  const lopt = { ambient: 0.04, strength: 1, reach: o.reach };
+  // ── 5. ray-trace EVERY tile (walls too, so they rim-light) → role/stone albedo × occluded light ──
+  // v4's method: bake an OCCLUDED light field on a grid ONCE (splat each lamp through the walls), then
+  // SAMPLE it per tile — O(1) per cell, not a ray per cell. A wall texel is occluded (dark), so a wall
+  // cell takes the brightest of its neighbour texels → it rim-lights off the lit floor beside it.
+  const occ = occlusionGrid(scene, ws);
+  const reach = o.reach, LS = ws, bw = Math.ceil(W / LS) + 1, bh = Math.ceil(H / LS) + 1, field = new Float32Array(bw * bh * 3);
+  for (const L of lights) {
+    const R = L.len * reach, ex = L.tip.x, ey = L.tip.y, R2 = R * R, foot = R * 3.2;
+    const bx0 = Math.max(0, Math.floor((ex - foot) / LS)), bx1 = Math.min(bw - 1, Math.ceil((ex + foot) / LS));
+    const by0 = Math.max(0, Math.floor((ey - foot) / LS)), by1 = Math.min(bh - 1, Math.ceil((ey + foot) / LS));
+    for (let by = by0; by <= by1; by++) { const sy = by * LS; for (let bx = bx0; bx <= bx1; bx++) { const sx = bx * LS, dx = sx - ex, dy = sy - ey, fall = 1 / (1 + (dx * dx + dy * dy) / R2); if (fall < 0.03 || !visible(occ, ex, ey, sx, sy)) continue; const bi = (by * bw + bx) * 3; field[bi] += L.rgb[0] * fall; field[bi + 1] += L.rgb[1] * fall; field[bi + 2] += L.rgb[2] * fall; } }
+  }
+  const lumG = (gx, gy) => { const bi = (gy * bw + gx) * 3; return 0.3 * field[bi] + 0.6 * field[bi + 1] + 0.1 * field[bi + 2]; };
+  const floorLum = (x, y) => lumG(clamp(Math.round(x / LS), 0, bw - 1), clamp(Math.round(y / LS), 0, bh - 1));
+  const wallLum = (x, y) => { const x0 = clamp(Math.floor(x / LS), 0, bw - 1), y0 = clamp(Math.floor(y / LS), 0, bh - 1); let mx = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const l = lumG(clamp(x0 + dx, 0, bw - 1), clamp(y0 + dy, 0, bh - 1)); if (l > mx) mx = l; } return mx; };
   const baseOf = (region, door) => region === -1 ? ROAD_RGB : region === -2 ? VOID_RGB : (door ? DOOR_RGB : hexRGB(rec.rooms[region] && rec.rooms[region].color));
   const paintCells = cells.map((c) => {
-    let color = null;
-    if (!c.wall) {
-      const base = baseOf(c.region, c.door), rgb = lightAtRGB(lights, occ, c.x, c.y, lopt), lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2];
-      const g = o.ambient + lum * o.lgain;
-      color = `rgb(${clamp(base[0] * g, 0, 255) | 0},${clamp(base[1] * g, 0, 255) | 0},${clamp(base[2] * g, 0, 255) | 0})`;
-    }
-    return { wall: c.wall, color, x: c.x + ox, y: c.y + oy, poly: c.poly.map((p) => [p[0] + ox, p[1] + oy]) };
+    const lum = c.wall ? wallLum(c.x, c.y) : floorLum(c.x, c.y);
+    const base = c.wall ? WALL_RGB : baseOf(c.region, c.door);
+    const g = c.wall ? (o.wallAmb + lum * o.wallGain) : (o.ambient + lum * o.lgain);
+    return { wall: c.wall, color: `rgb(${clamp(base[0] * g, 0, 255) | 0},${clamp(base[1] * g, 0, 255) | 0},${clamp(base[2] * g, 0, 255) | 0})`, x: c.x + ox, y: c.y + oy, poly: c.poly.map((p) => [p[0] + ox, p[1] + oy]) };
   });
 
-  // ── 6. an art-deco component per room, seated at max wall-clearance, sized to fit, lit by the field ──
+  // ── 6. a SMALL art-deco component per room (player-relative), seated clear of walls, lit by the field ──
   const comps = [];
   rec.rooms.forEach((r, ri) => {
     if (r.door < 0) return;
@@ -132,18 +137,13 @@ export function paintChunk(rec, opts = {}) {
     let bp = null, best = -Infinity;
     for (const c of cells) { if (c.wall || c.region !== ri) continue; const score = wallDist(c.x, c.y) - 0.18 * Math.hypot(c.x - rx, c.y - ry); if (score > best) { best = score; bp = c; } }
     if (!bp) return;
-    const roomRad = Math.sqrt(r.cells.length) * (rec.cellSize || 16) * 0.5;
-    const rr = clamp(wallDist(bp.x, bp.y) * 0.82, Math.max(ws, roomRad * 0.32), roomRad * 0.9);
-    const rgb = lightAtRGB(lights, occ, bp.x, bp.y, lopt), lum = 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2];
+    const rr = clamp(wallDist(bp.x, bp.y) * 0.62, pw * 0.6, pw * 1.35) * o.fixture;
     comps.push({ cx: bp.x + ox, cy: bp.y + oy, r: rr, accent: r.color || '#9b6b3a', glyph: r.glyph || '', role: r.role,
-      lit: clamp(lum * 1.25 + 0.2, 0.4, 1.2), g: deviceGenome(mulberry32((Math.imul(ri * 733 + 13, 1 + seed)) >>> 0), { sharp: true }) });
+      lit: clamp(floorLum(bp.x, bp.y) * 1.25 + 0.2, 0.4, 1.2), g: deviceGenome(mulberry32((Math.imul(ri * 733 + 13, 1 + seed)) >>> 0), { sharp: true }) });
   });
 
   // ── 7. pre-light each lamp + lift everything to world coordinates ──
-  for (const L of lights) { const rgb = lightAtRGB(lights, occ, L.tip.x, L.tip.y, { ...lopt, ambient: 0.1 }); L.lit = clamp(0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2] + 0.5, 0.7, 1.15); L.x += ox; L.y += oy; L.tip.x += ox; L.tip.y += oy; }
+  for (const L of lights) { L.lit = clamp(floorLum(L.tip.x, L.tip.y) + 0.55, 0.7, 1.15); L.x += ox; L.y += oy; L.tip.x += ox; L.tip.y += oy; }
 
-  return { paintCells, comps, lights, poly: rec.poly, ports: rec.ports, wallSpacing: ws, roomSpacing: rs, cellCount: paintCells.length };
+  return { paintCells, comps, lights, poly: rec.poly, ports: rec.ports, wallSpacing: ws, roomSpacing: rs, playerW: pw, cellCount: paintCells.length };
 }
-
-// bucket cell-size for the nearest-bone lookup — a touch over the bone cell pitch
-function OPTS_CELL(rec) { return (rec.cellSize || 16) * 1.6; }
