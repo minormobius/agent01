@@ -15,9 +15,11 @@ const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' 
 const rec = solveChunk({ seed: 7, shape: 'hex' }); rec.seed = 7;
 const P = paintChunk(rec);
 const walls = P.paintCells.filter((c) => c.wall).length, floor = P.paintCells.filter((c) => !c.wall).length;
-ok(P.paintCells.length > rec.cells.length, `reseeding refines the tiling (${rec.cells.length} cells → ${P.paintCells.length} paint cells)`);
-ok(walls > 50, `walls were re-seeded with Voronoi nuclei (${walls} wall cells)`);
-ok(floor > walls, `floor dominates (${floor} floor / ${walls} wall)`);
+const area = (p) => { let a = 0; for (let i = 0; i < p.length; i++) { const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length]; a += x1 * y2 - x2 * y1; } return Math.abs(a) / 2; };
+const medArea = (sel) => { const a = P.paintCells.filter(sel).map((c) => area(c.poly)).sort((u, v) => u - v); return a.length ? a[a.length >> 1] : 0; };
+ok(P.paintCells.length > rec.cells.length, `reseeding refines the tiling (${rec.cells.length} bones → ${P.paintCells.length} paint cells)`);
+ok(walls > 50, `walls were re-seeded with fine Voronoi nuclei (${walls} thin wall cells)`);
+ok(medArea((c) => !c.wall) > medArea((c) => c.wall) * 1.8, `interior tiles fill the gaps LARGER than the walls (floor ${medArea((c) => !c.wall) | 0} vs wall ${medArea((c) => c.wall) | 0})`);
 ok(P.paintCells.every((c) => c.poly.length >= 3 && c.poly.every((p) => p.length === 2)), 'every paint cell is a real world-space polygon');
 
 // 2. wall cells never carry a colour (the page fills them flat); most floor cells are pre-traced
