@@ -1,25 +1,25 @@
-// foam.js — the v7 chunking kernel. Six pure, deterministic steps, one per tap.
+// foam.js — the v7 chunking kernel. Built layer by layer, one per tap.
 //
-// The bet (the user's): too much was going on for a map. So v7 is built layer by layer, each layer
-// the substrate the next reads. The CORE solve that drives everything is layer 1 — a PLANAR CUT
-// THROUGH A 3D VORONOI FOAM. The slice of a 3D Voronoi by a plane is, exactly, a 2D POWER DIAGRAM:
-// each 3D nucleus at (x,y,z) projects to (x,y) carrying an additive weight w = z² (its squared
-// distance off the cut plane), and the plane point belongs to whichever projected site minimises
-// |p−proj|²+w. Nuclei sitting in the plane win big cells; nuclei deep off it win small cells or
-// none — so a slice gives the ORGANIC, VARIED cell sizes a flat 2D jittered grid never does. That
-// variance is the whole point: "cells have a size", and the size is inherited from the third
-// dimension we sliced through.
+// The bet (the user's): too much was going on for a map, so v7 grows piece by piece, each layer the
+// substrate the next reads. The CORE solve that drives everything is layer 1 — a PLANAR CUT THROUGH
+// A 3D VORONOI FOAM. The slice of a 3D Voronoi by a plane is, exactly, a 2D POWER DIAGRAM: each 3D
+// nucleus at (x,y,z) projects to (x,y) carrying an additive weight w = z² (its squared distance off
+// the cut plane), and a plane point belongs to whichever projected site minimises |p−proj|²+w.
+// Nuclei sitting in the plane win big cells; nuclei deep off it win small cells or none — so a slice
+// gives the ORGANIC, VARIED cell sizes a flat 2D jittered grid never does. "Cells have a size", and
+// the size is inherited from the third dimension we sliced through.
 //
-// Everything downstream is graph work over those cells: agglomerate cells → rooms (layer 2), set a
-// narrower concourse grain (layer 3), clip to a chunk + seed a ghost perimeter + drop edge ports
-// (layer 4), GROW the concourse with Physarum between the Monte-Carlo ports and seed rooms off the
-// dispersed phase (layer 5), then hand the rooms civic character (layer 6).
+// Then: clip the foam to a CHUNK (a square or an equilateral triangle — both tile the plane cleanly,
+// unlike rectangles / right triangles) with a ghost perimeter + edge ports (layer 2); PERFUSE it —
+// connect the ports and measure oxygenation along the cell graph (layer 3); SEIZE cells to grow the
+// concourse by HYPOXIA (capillaries sprout toward the least-served tissue — angiogenesis, which
+// maximises coverage per road length and partitions tissue into bounded pockets, layer 4); paint
+// ROOMS onto the oxygenated surface, one door each (layer 5); give the rooms civic character (6).
 //
 // Pure + deterministic (seed in → identical chunk on every machine, atproto-stable). Zero side
 // effects; the page only draws what these return. Pinned by hoop/test/v7.selftest.mjs.
 
 import { mulberry32, bucketGrid, assignZones } from '../paint/voronoi.js';
-import { makeGraph, createGrower, finalizeField } from '../paint/flux.js';
 import { ROLES, ROLE_MIX, DOMAINS, makePlace } from '../econ/econ.js';
 
 // ── LAYER 1: the base foam — a planar cut through a 3D Voronoi foam (= a 2D power diagram) ────────
@@ -29,10 +29,8 @@ import { ROLES, ROLE_MIX, DOMAINS, makePlace } from '../econ/econ.js';
 // between A and B is offset from the midpoint by the weight difference: the point on the A→B line
 // where A and B's power distances tie is at t = ½ + (w_B − w_A)/(2|AB|²) (t=½ recovers plain
 // Voronoi). Each surviving polygon edge is LABELLED with the neighbour site that cut it, so the
-// cell-adjacency graph (the Delaunay-of-the-power-diagram) falls straight out — no fuzzy
-// shared-edge hashing.
+// cell-adjacency graph (the Delaunay-of-the-power-diagram) falls straight out.
 export function clipPowerCell(A, neighbours, R) {
-  // poly vertices carry `s`: the site id of the edge LEAVING this vertex (-1 = the clip-box frame)
   let poly = [
     { x: A.x - R, y: A.y - R, s: -1 }, { x: A.x + R, y: A.y - R, s: -1 },
     { x: A.x + R, y: A.y + R, s: -1 }, { x: A.x - R, y: A.y + R, s: -1 },
@@ -61,14 +59,12 @@ export function clipPowerCell(A, neighbours, R) {
   return poly;
 }
 
-// Build the base foam: scatter 3D nuclei in a W×H×depth box on a jittered lattice, slice at z=0.
-// `cellSize` is the 3D lattice spacing (cell scale). `depth` is the slab thickness in spacings —
-// more layers ⇒ more nuclei lurking off-plane ⇒ more size variance (the "size variance" knob). The
-// slice keeps only nuclei whose cell actually meets the plane (a non-degenerate polygon).
+// Scatter 3D nuclei on a jittered lattice in a W×H×depth box, slice at z=0. `cellSize` is the 3D
+// lattice spacing; `depth` is the slab thickness in spacings — more layers ⇒ more off-plane nuclei
+// ⇒ more cell-size variance (the "size variance" knob). Keep only nuclei whose cell meets the plane.
 export function baseFoam({ W, H, cellSize = 26, depth = 2.4, seed = 1 }) {
   const rng = mulberry32(seed >>> 0);
   const s = Math.max(6, cellSize), D = s * Math.max(1, depth), jit = 0.62;
-  // 3D jittered lattice over [0,W]×[0,H]×[-D/2,D/2]; project to (x,y) with weight w = z²
   const nuclei = [];
   for (let gz = -D / 2 + s / 2; gz < D / 2; gz += s)
     for (let gy = s / 2; gy < H; gy += s)
@@ -77,32 +73,18 @@ export function baseFoam({ W, H, cellSize = 26, depth = 2.4, seed = 1 }) {
         nuclei.push({ x, y, z, w: z * z });
       }
   const grid = bucketGrid(nuclei, s * 1.7);
-  // power-clip every nucleus; keep the ones whose cell meets the plane → the slice cells
-  const raw = [];
+  nuclei.forEach((nu, i) => { nu.id = i; });
+  const cells = [], keep = new Int32Array(nuclei.length).fill(-1);
   for (const nu of nuclei) {
-    nu.id = raw.length;                                       // provisional id for adjacency labels
-    raw.push(nu);
-  }
-  // re-key ids onto the bucket points too (bucketGrid stored references, so id is visible there)
-  const cells = [];
-  const keep = new Int32Array(raw.length).fill(-1);
-  for (const nu of raw) {
     const poly = clipPowerCell(nu, grid.near(nu.x, nu.y), s * 3);
     if (poly.length < 3) continue;
     keep[nu.id] = cells.length;
     cells.push({ id: cells.length, src: nu.id, x: nu.x, y: nu.y, z: nu.z, w: nu.w, poly, area: polyArea(poly) });
   }
-  // cell-adjacency graph from the edge labels (src ids → kept cell ids), symmetric, with travel len
   const adjSet = cells.map(() => new Set());
-  for (const c of cells) for (const v of c.poly) {
-    if (v.s < 0) continue; const j = keep[v.s]; if (j < 0 || j === c.id) continue;
-    adjSet[c.id].add(j); adjSet[j].add(c.id);
-  }
+  for (const c of cells) for (const v of c.poly) { if (v.s < 0) continue; const j = keep[v.s]; if (j < 0 || j === c.id) continue; adjSet[c.id].add(j); adjSet[j].add(c.id); }
   const edges = [], seenE = new Set();
-  for (let i = 0; i < cells.length; i++) for (const j of adjSet[i]) {
-    if (j <= i) continue; const k = i + ',' + j; if (seenE.has(k)) continue; seenE.add(k);
-    edges.push({ a: i, b: j, len: Math.hypot(cells[i].x - cells[j].x, cells[i].y - cells[j].y) });
-  }
+  for (let i = 0; i < cells.length; i++) for (const j of adjSet[i]) { if (j <= i) continue; const k = i + ',' + j; if (seenE.has(k)) continue; seenE.add(k); edges.push({ a: i, b: j, len: Math.hypot(cells[i].x - cells[j].x, cells[i].y - cells[j].y) }); }
   const adj = cells.map((_, i) => [...adjSet[i]]);
   return { W, H, cellSize: s, depth: D, seed, cells, edges, adj, nucleiCount: nuclei.length };
 }
@@ -110,78 +92,36 @@ export function baseFoam({ W, H, cellSize = 26, depth = 2.4, seed = 1 }) {
 function polyArea(p) { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[(i + 1) % p.length]; a += p[i].x * q.y - q.x * p[i].y; } return Math.abs(a) / 2; }
 export function centroid(cells, list) { let x = 0, y = 0; for (const i of list) { x += cells[i].x; y += cells[i].y; } const n = list.length || 1; return { x: x / n, y: y / n }; }
 
-// ── LAYER 2: rooms — agglomerate cells into room-sized clumps (graph-Voronoi) ───────────────────
-// `roomSize` = target cells per room. assignZones grows that many well-spread connected clumps over
-// the cell graph. Returns roomOf[cellId] + the rooms (members + centroid). This is where we discover
-// what a room "wants" to be: the realised avg cells/room comes back in `avgCells`.
-export function growRooms(foam, { roomSize = 8, seed = 1 } = {}) {
-  const N = foam.cells.length;
-  const nRooms = Math.max(1, Math.round(N / Math.max(1, roomSize)));
-  const roomOf = assignZones(N, foam.edges, new Array(nRooms).fill(1), seed >>> 0);
-  return packRooms(foam, roomOf, nRooms);
-}
-function packRooms(foam, roomOf, nRooms) {
-  const members = Array.from({ length: nRooms }, () => []);
-  for (let i = 0; i < roomOf.length; i++) { const z = roomOf[i]; if (z >= 0 && z < nRooms) members[z].push(i); }
-  const rooms = [], remap = new Int32Array(nRooms).fill(-1);
-  for (let z = 0; z < nRooms; z++) { if (!members[z].length) continue; const c = centroid(foam.cells, members[z]); remap[z] = rooms.length; rooms.push({ id: rooms.length, cells: members[z], x: c.x, y: c.y }); }
-  const room2 = roomOf.map((z) => (z >= 0 ? remap[z] : -1));
-  const avgCells = rooms.length ? roomOf.filter((z) => z >= 0).length / rooms.length : 0;
-  return { roomOf: room2, rooms, avgCells };
-}
-
-// ── LAYER 3: concourse grain — the (narrower) cell-width a concourse will occupy ─────────────────
-// Concourses should be narrower than rooms (the user's intuition → a separate slider). This previews
-// that grain by agglomerating at the concourse scale so the page can show how wide a concourse reads
-// next to a room, and it derives the solve's road parameters: a narrower concourse ⇒ less floor given
-// to road (lower roadFrac) and a tighter, more tree-like field (higher μ).
-export function concourseGrain(foam, { roomSize = 8, concourseWidth = 3, seed = 1 } = {}) {
-  const N = foam.cells.length;
-  const w = Math.max(1, Math.min(roomSize, concourseWidth));
-  const nGrain = Math.max(1, Math.round(N / w));
-  const grainOf = assignZones(N, foam.edges, new Array(nGrain).fill(1), (seed ^ 0x51ed) >>> 0);
-  const ratio = w / Math.max(1, roomSize);                    // concourse width as a fraction of a room
-  const roadFrac = Math.max(0.06, Math.min(0.5, 0.12 + 0.30 * ratio));
-  const mu = Math.max(0.55, Math.min(1.4, 1.25 - 0.7 * ratio));
-  return { grainOf, nGrain, concourseWidth: w, ratio, roadFrac, mu };
-}
-
-// ── LAYER 4: the chunk — boundary conditions done right ─────────────────────────────────────────
-// A chunk is a dice-roll between a SQUARE and a TRIANGLE (not rectangular-forced, not needlessly
-// complex). The foam is generated over the whole canvas; the chunk shape is inset, and every cell
-// whose centroid lands OUTSIDE it becomes a GHOST: not shown as a room, but kept to bound the
-// edge-cells (and to be woken wholesale when the neighbour chunk loads). Each chunk edge gets 1–4
-// CONCOURSE PORTS at Monte-Carlo positions — the cross-chunk movement points the solve must connect.
-export function defineChunk(foam, { seed = 1, inset = 0.12 } = {}) {
+// ── LAYER 2: the chunk — boundary conditions done right ─────────────────────────────────────────
+// A chunk is a dice-roll between a SQUARE and an EQUILATERAL TRIANGLE: both tile the plane cleanly
+// (rectangles and right triangles tile worse and were the source of the old navigation pain). The
+// foam covers the whole canvas; the chunk shape is inscribed, and every cell whose centroid lands
+// OUTSIDE it becomes a GHOST — not shown as a room, but kept to bound the edge-cells and woken
+// wholesale when the neighbour chunk loads. Each chunk edge gets 1–4 CONCOURSE PORTS at Monte-Carlo
+// positions — the cross-chunk movement points the solve must connect and perfuse from.
+export function defineChunk(foam, { seed = 1 } = {}) {
   const rng = mulberry32((seed ^ 0xc40c) >>> 0);
-  const { W, H } = foam;
-  const m = Math.min(W, H) * inset;
+  const { W, H } = foam, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.43, k = R * Math.sqrt(3) / 2;
   const shape = rng() < 0.5 ? 'square' : 'triangle';
   let poly;
-  if (shape === 'square') {
-    poly = [{ x: m, y: m }, { x: W - m, y: m }, { x: W - m, y: H - m }, { x: m, y: H - m }];
-  } else {
-    // an inscribed triangle, orientation jittered so chunks tile variously
-    const flip = rng() < 0.5;
-    poly = flip
-      ? [{ x: m, y: m }, { x: W - m, y: m }, { x: W / 2, y: H - m }]
-      : [{ x: W / 2, y: m }, { x: W - m, y: H - m }, { x: m, y: H - m }];
-  }
+  if (shape === 'square') { const h = R * 0.92; poly = [{ x: cx - h, y: cy - h }, { x: cx + h, y: cy - h }, { x: cx + h, y: cy + h }, { x: cx - h, y: cy + h }]; }
+  else if (rng() < 0.5) poly = [{ x: cx, y: cy - R }, { x: cx + k, y: cy + R / 2 }, { x: cx - k, y: cy + R / 2 }];   // point-up
+  else poly = [{ x: cx, y: cy + R }, { x: cx - k, y: cy - R / 2 }, { x: cx + k, y: cy - R / 2 }];                    // point-down
   const inside = (x, y) => pointInPoly(x, y, poly);
   const ghost = new Uint8Array(foam.cells.length);
   for (const c of foam.cells) if (!inside(c.x, c.y)) ghost[c.id] = 1;
-  // ports: walk each edge, drop 1–4 at random parameters; bind each to the nearest interior cell
-  const grid = bucketGrid(foam.cells.filter((c) => !ghost[c.id]), foam.cellSize * 2), ports = [];
+  const interior = foam.cells.filter((c) => !ghost[c.id]).map((c) => c.id);
+  const grid = bucketGrid(interior.map((id) => foam.cells[id]), foam.cellSize * 2), ports = [];
   for (let e = 0; e < poly.length; e++) {
-    const a = poly[e], b = poly[(e + 1) % poly.length], k = 1 + Math.floor(rng() * 4);
-    for (let i = 0; i < k; i++) {
-      const t = (i + 0.5 + (rng() - 0.5) * 0.6) / k, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t;
+    const a = poly[e], b = poly[(e + 1) % poly.length], n = 1 + Math.floor(rng() * 4);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5 + (rng() - 0.5) * 0.6) / n, px = a.x + (b.x - a.x) * t, py = a.y + (b.y - a.y) * t;
       let best = -1, bd = Infinity;
       for (const c of grid.near(px, py)) { const d = (c.x - px) ** 2 + (c.y - py) ** 2; if (d < bd) { bd = d; best = c.id; } }
-      if (best >= 0) ports.push({ edge: e, x: px, y: py, cell: best });
+      if (best >= 0 && !ports.some((p) => p.cell === best)) ports.push({ edge: e, x: px, y: py, cell: best });
     }
   }
-  return { shape, poly, ghost, ports, interior: foam.cells.filter((c) => !ghost[c.id]).map((c) => c.id) };
+  return { shape, poly, ghost, ports, interior, interiorCount: interior.length };
 }
 function pointInPoly(x, y, poly) {
   let inside = false;
@@ -192,93 +132,159 @@ function pointInPoly(x, y, poly) {
   return inside;
 }
 
-// ── LAYER 5: the chunk solve — grow the concourse, seed rooms off the dispersed phase ───────────
-// The road builder that's NOT econ's. econ grows desire-lines from a society's trips; here there's
-// no society yet — the chunk just has to be TRAVERSABLE edge-to-edge. So the demand is every pair of
-// Monte-Carlo PORTS, routed with Physarum over the interior cell graph: conductance grows where
-// journeys overlap, the field converges, and its superlevel set is the CONCOURSE (the dispersed
-// phase). Rooms are then seeded off what's LEFT (the non-concourse cells), and each room is given
-// exactly ONE door onto the concourse. Walls (cell boundaries between different owners) and doors
-// and pathfinding all fall out of this one solve.
-export function solveChunk(foam, chunk, grainCfg, { roomSize = 8, seed = 1, iters = 16 } = {}) {
-  const interior = chunk.interior;
-  const idx = new Int32Array(foam.cells.length).fill(-1);     // foam-cell id → compact interior index
-  interior.forEach((cid, i) => { idx[cid] = i; });
-  const n = interior.length;
-  // interior-only graph
-  const iedges = [];
-  for (const e of foam.edges) { const a = idx[e.a], b = idx[e.b]; if (a >= 0 && b >= 0) iedges.push({ a, b, len: e.len }); }
-  const graph = makeGraph(n, iedges);
-  // port→port demand (all pairs of distinct port endpoint cells), the Monte-Carlo traversal forcing
-  const portCells = [...new Set(chunk.ports.map((p) => idx[p.cell]).filter((i) => i >= 0))];
-  const demand = [];
-  for (let i = 0; i < portCells.length; i++) for (let j = i + 1; j < portCells.length; j++) demand.push({ a: portCells[i], b: portCells[j], w: 1 });
-  const grower = createGrower(graph, demand, { mu: grainCfg.mu, seed });
-  for (let it = 0; it < iters; it++) grower.step();
-  const { isRoad: roadI } = finalizeField(graph, grower.state, { roadFrac: grainCfg.roadFrac });
-  const cond = grower.state.cond;
-  // lift road back to foam-cell space
-  const isRoad = new Uint8Array(foam.cells.length);
-  for (let i = 0; i < n; i++) if (roadI[i]) isRoad[interior[i]] = 1;
-
-  // rooms off the dispersed phase: agglomerate the NON-road interior cells (compact subgraph)
-  const roomCellIds = interior.filter((cid) => !isRoad[cid]);
-  const sub = new Int32Array(foam.cells.length).fill(-1); roomCellIds.forEach((cid, i) => { sub[cid] = i; });
-  const subEdges = [];
-  for (const e of foam.edges) { const a = sub[e.a], b = sub[e.b]; if (a >= 0 && b >= 0) subEdges.push({ a, b }); }
-  const M = roomCellIds.length, nRooms = Math.max(1, Math.round(M / Math.max(1, roomSize)));
-  const subRoomOf = assignZones(M, subEdges, new Array(nRooms).fill(1), (seed ^ 0x9a17) >>> 0);
-  const roomOf = new Int32Array(foam.cells.length).fill(-1);
-  roomCellIds.forEach((cid, i) => { roomOf[cid] = subRoomOf[i]; });
-
-  // pack rooms; FRONTAGE — every room must touch the concourse, else promote the shortest interior
-  // hop to road (carve a stub), then give it exactly one DOOR (best-conductance road-adjacent cell).
-  const members = Array.from({ length: nRooms }, () => []);
-  for (const cid of roomCellIds) { const z = roomOf[cid]; if (z >= 0) members[z].push(cid); }
-  const adjF = foam.adj;
-  const touchesRoad = (cells) => cells.some((c) => adjF[c].some((v) => isRoad[v]));
-  for (const mem of members) {
-    if (!mem.length || touchesRoad(mem)) continue;
-    // BFS over interior cells from this room's cells to the nearest road cell; carve the path
-    const par = new Map(); const q = [];
-    for (const c of mem) { par.set(c, -1); q.push(c); }
-    let hit = -1;
-    for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; for (const v of adjF[u]) { if (chunk.ghost[v] || par.has(v)) continue; if (isRoad[v]) { hit = u; break; } par.set(v, u); q.push(v); } }
-    if (hit < 0) continue; let u = hit; while (u >= 0 && par.get(u) !== -1) { isRoad[u] = 1; roomOf[u] = -1; u = par.get(u); }
-  }
-  // re-pack rooms after any carving, assign one door each
-  const rooms = [];
-  for (let z = 0; z < nRooms; z++) {
-    const mem = members[z].filter((c) => roomOf[c] === z); if (!mem.length) continue;
-    let bestDoor = -1, bc = -1, doorCell = -1;
-    for (const c of mem) for (const v of adjF[c]) if (isRoad[v] && roomEdgeCond(foam, c, v, cond, idx) > bc) { bc = roomEdgeCond(foam, c, v, cond, idx); bestDoor = c; doorCell = v; }
-    const ctr = centroid(foam.cells, mem);
-    rooms.push({ id: rooms.length, cells: mem, x: ctr.x, y: ctr.y, door: bestDoor, doorRoad: doorCell });
-  }
-  const finalRoomOf = new Int32Array(foam.cells.length).fill(-1);
-  rooms.forEach((r) => r.cells.forEach((c) => { finalRoomOf[c] = r.id; }));
-  let roadCells = 0; for (const cid of interior) if (isRoad[cid]) roadCells++;
-  return { isRoad, roomOf: finalRoomOf, rooms, portCells: portCells.map((i) => interior[i]),
-    stats: { roadCells, roadFrac: roadCells / (n || 1), rooms: rooms.length, doored: rooms.filter((r) => r.door >= 0).length } };
+// multi-source BFS over the interior cell graph from the current concourse `road`. dist = hops to
+// the nearest concourse cell (−1 = ghost / unreached); from = predecessor toward the concourse.
+function perfuseField(foam, chunk, road) {
+  const N = foam.cells.length, dist = new Int32Array(N).fill(-1), from = new Int32Array(N).fill(-1), q = [];
+  for (let i = 0; i < N; i++) if (road[i] && !chunk.ghost[i]) { dist[i] = 0; q.push(i); }
+  for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || dist[v] >= 0) continue; dist[v] = dist[u] + 1; from[v] = u; q.push(v); } }
+  return { dist, from };
 }
-function roomEdgeCond(foam, a, b, cond, idx) {
-  // best-effort conductance proxy: we keyed cond by interior-edge index, but for door choice the
-  // adjacency itself is enough — return inverse travel length so the nearest road wins deterministically
-  return 1 / (1e-6 + Math.hypot(foam.cells[a].x - foam.cells[b].x, foam.cells[a].y - foam.cells[b].y));
+// BFS shortest path between two interior cells (used to wire the port skeleton)
+function bfsPath(foam, chunk, src, dst) {
+  const from = new Map([[src, -1]]), q = [src];
+  for (let h = 0; h < q.length; h++) { const u = q[h]; if (u === dst) break; for (const v of foam.adj[u]) { if (chunk.ghost[v] || from.has(v)) continue; from.set(v, u); q.push(v); } }
+  if (!from.has(dst)) return null; const path = []; for (let u = dst; u !== -1; u = from.get(u)) path.push(u); return path;
+}
+
+// ── LAYER 3: perfuse — connect the ports, then measure oxygenation along the cell graph ─────────
+// Travel along edges: link every port into one concourse skeleton (so the chunk is traversable
+// edge-to-edge), then BFS the oxygenation field — each tissue cell's hop-distance to the nearest
+// concourse. `oxygenReach` is the diffusion depth: a cell is SERVED if within it. The skeleton alone
+// barely perfuses anything (a thin artery), which is exactly the readout that motivates layer 4.
+export function perfuse(foam, chunk, { oxygenReach = 3 } = {}) {
+  const N = foam.cells.length, road = new Uint8Array(N);
+  const ports = chunk.ports.map((p) => p.cell).filter((c) => !chunk.ghost[c]);
+  if (ports.length) {
+    road[ports[0]] = 1;
+    for (let i = 1; i < ports.length; i++) {
+      // nearest current-concourse cell to this port, by BFS from the port
+      const from = new Map([[ports[i], -1]]), q = [ports[i]]; let hit = -1;
+      for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; if (road[u]) { hit = u; break; } for (const v of foam.adj[u]) { if (chunk.ghost[v] || from.has(v)) continue; from.set(v, u); q.push(v); } }
+      if (hit < 0) { road[ports[i]] = 1; continue; }
+      for (let u = ports[i]; u !== -1 && u !== hit; u = from.get(u)) road[u] = 1; road[hit] = 1;
+    }
+  }
+  const { dist } = perfuseField(foam, chunk, road);
+  return measure(foam, chunk, road, dist, oxygenReach, []);
+}
+function measure(foam, chunk, road, dist, reach, addOrder) {
+  let roadCells = 0, hypoxic = 0, sumDepth = 0;
+  for (const i of chunk.interior) { if (road[i]) { roadCells++; continue; } const d = dist[i] < 0 ? 1e6 : dist[i]; sumDepth += Math.min(d, 99); if (d > reach) hypoxic++; }
+  const tissue = chunk.interiorCount - roadCells;
+  return { road, dist, addOrder, oxygenReach: reach,
+    servedFrac: chunk.interiorCount ? 1 - hypoxic / chunk.interiorCount : 1,
+    stats: { roadCells, hypoxic, tissue, avgDepth: tissue ? sumDepth / tissue : 0, roadFrac: chunk.interiorCount ? roadCells / chunk.interiorCount : 0 } };
+}
+
+// ── LAYER 4: seize — grow the concourse by HYPOXIA (the road builder that isn't econ's) ─────────
+// econ grows desire-lines from a society's trips; here there's no society yet — the chunk just has
+// to be TRAVERSABLE and well-PERFUSED. So this is angiogenesis: repeatedly find the most under-served
+// tissue cell (the deepest hypoxia), sprout a capillary toward it along the cell graph, and stop
+// `oxygenReach` short (no need to pave all the way — the diffusion ball does the rest). Capillaries
+// branch, space-fill, and partition the tissue into bounded pockets — which is what gives layer 5
+// real rooms instead of one giant blob. Optimises coverage per road length by construction: each
+// sprout brings a whole diffusion-ball of new tissue online for the length of one capillary.
+export function seize(foam, chunk, { oxygenReach = 3, concourseWidth = 1, maxFrac = 0.5, seed = 1 } = {}) {
+  const per = perfuse(foam, chunk, { oxygenReach });
+  const road = per.road.slice();
+  let { dist, from } = perfuseField(foam, chunk, road);
+  const reach = oxygenReach, addOrder = [], sprouts = [];
+  let roadCells = per.stats.roadCells, guard = 0;
+  const maxRoad = maxFrac * chunk.interiorCount;
+  while (guard++ < 600) {
+    // deepest hypoxia: the interior tissue cell with the largest distance-to-concourse
+    let u = -1, md = reach;
+    for (const i of chunk.interior) { if (road[i]) continue; const d = dist[i]; if (d > md) { md = d; u = i; } }
+    if (u < 0 || roadCells >= maxRoad) break;
+    // sprout toward it; pave the road-side of the path, leaving a `reach`-deep stub of tissue near u
+    const path = []; for (let c = u; c >= 0 && !road[c]; c = from[c]) path.push(c);
+    const added = [];
+    for (let k = reach; k < path.length; k++) { if (!road[path[k]]) { road[path[k]] = 1; roadCells++; added.push(path[k]); } }
+    if (!added.length) { road[path[Math.max(0, path.length - 1)]] = 1; roadCells++; }   // safety: never spin
+    addOrder.push(...added); sprouts.push(added);
+    ({ dist, from } = perfuseField(foam, chunk, road));
+  }
+  // concourse width: dilate the capillaries by (width−1) hops (capped) so concourses read wider
+  const dil = Math.min(2, Math.max(0, concourseWidth - 1)), widened = [];
+  for (let d = 0; d < dil; d++) {
+    const front = [];
+    for (const i of chunk.interior) { if (road[i]) continue; if (foam.adj[i].some((v) => road[v])) front.push(i); }
+    for (const i of front) { road[i] = 1; roadCells++; widened.push(i); }
+  }
+  if (widened.length) addOrder.push(...widened);
+  ({ dist } = perfuseField(foam, chunk, road));
+  const out = measure(foam, chunk, road, dist, reach, addOrder);
+  out.sprouts = sprouts.length; out.widened = widened.length; return out;
+}
+
+// ── LAYER 5: rooms — paint rooms on the oxygenated surface, one door each ───────────────────────
+// The capillary bed has partitioned the tissue into connected POCKETS. Each pocket is a room; a
+// pocket bigger than the room-size knob is subdivided (graph-Voronoi within the pocket). Every pocket
+// borders the concourse (that's what perfusion guarantees), so every room gets exactly ONE door —
+// the room cell touching the concourse nearest the room's centre; all its other concourse-borders
+// stay walls. Pathfinding is then trivial: every trip is room → its door → concourse → door → room.
+export function paintRooms(foam, chunk, solve, { roomSize = 10, seed = 1 } = {}) {
+  const road = solve.road, N = foam.cells.length;
+  const comp = new Int32Array(N).fill(-1), rooms = [];
+  // tissue = interior, non-concourse, and REACHABLE from the concourse. Excluding unreachable cells
+  // (slivers the ghost boundary cut off from the network) is what guarantees every room a door: a
+  // reachable pocket connects to the concourse, so its boundary always has a concourse-adjacent cell.
+  const tissue = (i) => !chunk.ghost[i] && !road[i] && solve.dist[i] >= 0;
+  let cc = 0;
+  for (const start of chunk.interior) {
+    if (!tissue(start) || comp[start] >= 0) continue;
+    const members = [], q = [start]; comp[start] = cc;
+    for (let h = 0; h < q.length; h++) { const u = q[h]; members.push(u); for (const v of foam.adj[u]) if (tissue(v) && comp[v] < 0) { comp[v] = cc; q.push(v); } }
+    cc++;
+    if (members.length > roomSize * 1.6) {
+      // subdivide this pocket into round(size/roomSize) rooms (graph-Voronoi within the pocket)
+      const idx = new Map(members.map((m, i) => [m, i])), subEdges = [];
+      for (const m of members) for (const v of foam.adj[m]) if (idx.has(v) && v > m) subEdges.push({ a: idx.get(m), b: idx.get(v) });
+      const k = Math.max(1, Math.round(members.length / roomSize));
+      const sub = assignZones(members.length, subEdges, new Array(k).fill(1), (seed ^ (cc * 0x9e37)) >>> 0);
+      const buckets = Array.from({ length: k }, () => []);
+      sub.forEach((z, i) => { if (z >= 0 && z < k) buckets[z].push(members[i]); });
+      for (const mem of buckets) if (mem.length) rooms.push({ cells: mem });
+    } else rooms.push({ cells: members });
+  }
+  // door pass: the room cell touching the concourse nearest the room centre (its only door)
+  const roomOf = new Int32Array(N).fill(-1);
+  rooms.forEach((r, id) => { r.id = id; const ctr = centroid(foam.cells, r.cells); r.x = ctr.x; r.y = ctr.y; r.cells.forEach((c) => { roomOf[c] = id; }); });
+  const assignDoor = (r) => { let door = -1, doorRoad = -1, bd = Infinity; for (const c of r.cells) for (const v of foam.adj[c]) if (road[v]) { const d = (foam.cells[c].x - r.x) ** 2 + (foam.cells[c].y - r.y) ** 2; if (d < bd) { bd = d; door = c; doorRoad = v; } } r.door = door; r.doorRoad = doorRoad; };
+  rooms.forEach(assignDoor);
+
+  // inner sub-rooms (born of subdividing a big pocket) may not touch the concourse — send a short
+  // concourse SPUR to reach them, so the one-door-per-room-to-the-concourse invariant always holds.
+  for (const r of rooms) {
+    if (r.door >= 0) continue;
+    const par = new Map(); const q = []; for (const c of r.cells) { par.set(c, -1); q.push(c); }
+    let roadHit = -1;
+    for (let h = 0; h < q.length && roadHit < 0; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || par.has(v)) continue; par.set(v, u); if (road[v]) { roadHit = v; break; } q.push(v); } }
+    if (roadHit < 0) continue;
+    let v = par.get(roadHit), last = roadHit;            // convert the spur (tissue between room & concourse)
+    while (v >= 0 && roomOf[v] !== r.id) { road[v] = 1; roomOf[v] = -1; last = v; v = par.get(v); }
+    r.door = v; r.doorRoad = last;
+  }
+  // recompact: spurs stole cells from their old rooms, so rebuild membership + drop emptied rooms
+  const cellsOf = rooms.map(() => []);
+  for (const i of chunk.interior) { const z = roomOf[i]; if (z >= 0 && z < rooms.length) cellsOf[z].push(i); }
+  rooms.forEach((r, id) => { r.cells = cellsOf[id]; });
+  const live = rooms.filter((r) => r.cells.length);
+  const roomOf2 = new Int32Array(N).fill(-1);
+  live.forEach((r, id) => { r.id = id; const ctr = centroid(foam.cells, r.cells); r.x = ctr.x; r.y = ctr.y; r.cells.forEach((c) => { roomOf2[c] = id; }); if (r.door >= 0 && roomOf2[r.door] !== id) assignDoor(r); });
+  const doored = live.filter((r) => r.door >= 0).length;
+  return { rooms: live, roomOf: roomOf2, road, stats: { rooms: live.length, doored, avgCells: live.length ? live.reduce((s, r) => s + r.cells.length, 0) / live.length : 0 } };
 }
 
 // ── LAYER 6: character — the civic layer (econ ROLES) sampled onto the rooms ─────────────────────
-// Each solved room gets a role from econ's weighted programme (mostly dwellings, a working middle, a
-// few civic anchors), a domain where the role takes one, and dwellings get a few NPCs. Deterministic.
 const NAMES = ['Jim', 'Mara', 'Otto', 'Lena', 'Cy', 'Wren', 'Bo', 'Ada', 'Tomas', 'Ines', 'Hal', 'Rosa', 'Gus', 'Pia', 'Ned', 'Suki', 'Cole', 'Mir', 'Vale', 'Ruth'];
 export function castCharacter(rooms, { seed = 1, household = 3 } = {}) {
   const rng = mulberry32((seed ^ 0x21e6) >>> 0);
   const tot = ROLE_MIX.reduce((s, m) => s + m[1], 0);
   const pickRole = () => { let r = rng() * tot; for (const [k, w] of ROLE_MIX) { r -= w; if (r <= 0) return k; } return 'dwell'; };
   const out = rooms.map((room) => {
-    const role = pickRole(), R = ROLES[role];
-    const dom = R.dom ? DOMAINS[Math.floor(rng() * DOMAINS.length)] : null;
-    const pl = makePlace(room.id, role, dom);
+    const role = pickRole(), R = ROLES[role], dom = R.dom ? DOMAINS[Math.floor(rng() * DOMAINS.length)] : null, pl = makePlace(room.id, role, dom);
     const people = [];
     if (role === 'dwell') { const n = 1 + Math.floor(rng() * (2 * household - 1)); for (let k = 0; k < n; k++) people.push(NAMES[Math.floor(rng() * NAMES.length)]); }
     return { ...room, role, domain: pl.domain, glyph: pl.glyph, color: pl.color, tier: pl.tier, people };

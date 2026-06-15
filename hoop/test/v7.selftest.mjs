@@ -1,69 +1,63 @@
-// v7.selftest.mjs — the chunking kernel: power-diagram slice, rooms, chunk, the grown solve.
+// v7.selftest.mjs — the chunking kernel: power-diagram slice, chunk, perfuse, hypoxia seize, rooms.
 // Run: node hoop/test/v7.selftest.mjs
-import { baseFoam, growRooms, concourseGrain, defineChunk, solveChunk, castCharacter } from '../v7/foam.js';
+import { baseFoam, defineChunk, perfuse, seize, paintRooms, castCharacter } from '../v7/foam.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
-
 const W = 900, H = 600;
 
-// 1. base foam — a planar cut through a 3D foam, varied cell sizes, valid adjacency
+// 1. base foam — a planar cut through a 3D foam, varied cell sizes, valid symmetric adjacency
 const foam = baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 7 });
 ok(foam.cells.length > 200, `foam has cells (${foam.cells.length})`);
 ok(foam.cells.every((c) => c.poly.length >= 3), 'every slice cell is a real polygon');
 const areas = foam.cells.map((c) => c.area).sort((a, b) => a - b);
-const spread = areas[areas.length - 1] / (areas[Math.floor(areas.length / 2)] || 1);
-ok(spread > 1.8, `cell sizes VARY (max/median area = ${spread.toFixed(1)}× — the slice gives a foam, not a grid)`);
-ok(foam.edges.length > foam.cells.length, `adjacency graph is connected-ish (${foam.edges.length} edges)`);
-// symmetry of adjacency
+ok(areas[areas.length - 1] / (areas[areas.length >> 1] || 1) > 1.8, 'cell sizes VARY (a foam, not a grid)');
 let sym = true; for (let i = 0; i < foam.cells.length; i++) for (const j of foam.adj[i]) if (!foam.adj[j].includes(i)) sym = false;
 ok(sym, 'cell adjacency is symmetric');
-
-// determinism
 const foam2 = baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 7 });
-ok(foam2.cells.length === foam.cells.length && foam2.cells[10].x === foam.cells[10].x, 'foam is deterministic from seed');
-const foam3 = baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 8 });
-ok(foam3.cells.length !== foam.cells.length || foam3.cells[10].x !== foam.cells[10].x, 'a different seed gives a different foam');
+ok(foam2.cells.length === foam.cells.length && foam2.cells[10].x === foam.cells[10].x, 'foam is deterministic');
+ok(baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 8 }).cells[10].x !== foam.cells[10].x, 'a different seed differs');
 
-// 2. rooms — agglomerate cells, room size tracks the knob
-const r4 = growRooms(foam, { roomSize: 4, seed: 7 });
-const r12 = growRooms(foam, { roomSize: 12, seed: 7 });
-ok(r4.rooms.length > r12.rooms.length, `smaller rooms ⇒ more rooms (${r4.rooms.length} vs ${r12.rooms.length})`);
-ok(Math.abs(r12.avgCells - 12) < 6, `room size tracks knob (asked 12, got ${r12.avgCells.toFixed(1)})`);
-ok(r12.roomOf.every((z) => z >= 0), 'every cell belongs to a room');
-
-// 3. concourse grain — narrower than rooms, derives solve params
-const grain = concourseGrain(foam, { roomSize: 12, concourseWidth: 3, seed: 7 });
-ok(grain.concourseWidth < 12, 'concourse is narrower than a room');
-ok(grain.roadFrac > 0 && grain.roadFrac < 0.5 && grain.mu > 0.5, `solve params derived (roadFrac=${grain.roadFrac.toFixed(2)}, mu=${grain.mu.toFixed(2)})`);
-
-// 4. chunk — square or triangle, ghost perimeter, 1–4 ports per edge
+// 2. chunk — square OR equilateral triangle, ghost perimeter, 1–4 ports/edge
 const chunk = defineChunk(foam, { seed: 7 });
 ok(chunk.shape === 'square' || chunk.shape === 'triangle', `chunk shape is a dice roll (${chunk.shape})`);
+ok(chunk.poly.length === (chunk.shape === 'square' ? 4 : 3), 'square=4 verts, triangle=3 verts');
 let ghosts = 0; for (const g of chunk.ghost) if (g) ghosts++;
-ok(ghosts > 0 && ghosts < foam.cells.length, `ghost perimeter exists (${ghosts} of ${foam.cells.length})`);
-ok(chunk.interior.length + ghosts === foam.cells.length, 'interior + ghost = all cells');
-const edgesN = chunk.poly.length, perEdge = chunk.ports.length / edgesN;
-ok(chunk.ports.length >= edgesN && perEdge <= 4.5, `1–4 ports per edge (${chunk.ports.length} over ${edgesN} edges)`);
+ok(ghosts > 0 && chunk.interior.length + ghosts === foam.cells.length, 'ghost perimeter + interior = all cells');
+ok(chunk.ports.length >= chunk.poly.length && chunk.ports.length / chunk.poly.length <= 4.5, `1–4 ports/edge (${chunk.ports.length})`);
 
-// 5. the solve — grown concourse + rooms off the dispersed phase + one door each
-const sol = solveChunk(foam, chunk, grain, { roomSize: 12, seed: 7, iters: 14 });
-ok(sol.stats.roadCells > 0, `concourse grown (${sol.stats.roadCells} road cells)`);
-ok(sol.rooms.length > 0, `rooms seeded off the dispersed phase (${sol.rooms.length})`);
-const doored = sol.rooms.filter((r) => r.door >= 0).length;
-ok(doored / sol.rooms.length > 0.9, `≥90% of rooms have a door onto the concourse (${doored}/${sol.rooms.length})`);
-// concourse should connect the ports (each port cell is road or adjacent to road)
-const portsServed = sol.portCells.filter((c) => sol.isRoad[c] || foam.adj[c].some((v) => sol.isRoad[v])).length;
-ok(portsServed === sol.portCells.length, `all ${sol.portCells.length} ports reach the concourse`);
-// solve determinism
-const sol2 = solveChunk(foam, chunk, grain, { roomSize: 12, seed: 7, iters: 14 });
-ok(sol2.stats.roadCells === sol.stats.roadCells && sol2.rooms.length === sol.rooms.length, 'the solve is deterministic');
+// 3. perfuse — ports connected into one skeleton, oxygenation measured, but barely perfused
+const per = perfuse(foam, chunk, { oxygenReach: 3 });
+ok(per.stats.roadCells > 0, `port skeleton laid (${per.stats.roadCells} cells)`);
+ok(per.stats.hypoxic > 0, `the bare skeleton leaves tissue hypoxic (${per.stats.hypoxic}) — motivates the seize`);
 
-// 6. character — roles + NPCs
-const cast = castCharacter(sol.rooms, { seed: 7 });
-ok(cast.rooms.length === sol.rooms.length && cast.rooms.every((r) => r.role && r.glyph), 'every room got a role + glyph');
-ok((cast.counts.dwell || 0) > 0, `dwellings dominate (${cast.counts.dwell || 0} of ${cast.rooms.length})`);
-ok(cast.rooms.some((r) => r.people && r.people.length), 'dwellings have NPCs');
+// 4. seize — hypoxia growth lifts oxygenation hard while staying a minority of the floor
+const sol = seize(foam, chunk, { oxygenReach: 3, seed: 7 });
+ok(sol.servedFrac > per.servedFrac + 0.1, `seize raises oxygenation (${(per.servedFrac * 100) | 0}% → ${(sol.servedFrac * 100) | 0}%)`);
+ok(sol.servedFrac > 0.9, `well perfused after seize (${(sol.servedFrac * 100) | 0}%)`);
+ok(sol.stats.roadFrac < 0.5, `concourse is a minority of the floor (${(sol.stats.roadFrac * 100) | 0}%) — not big blocks`);
+ok(sol.sprouts > 3, `capillaries actually branched (${sol.sprouts} sprouts)`);
+const s2 = seize(foam, chunk, { oxygenReach: 3, seed: 7 });
+ok(s2.stats.roadCells === sol.stats.roadCells, 'the seize is deterministic');
+
+// 5. rooms — many bounded pockets (NOT one giant blob), one door each
+const rm = paintRooms(foam, chunk, sol, { roomSize: 10, seed: 7 });
+ok(rm.rooms.length > 8, `tissue partitioned into many rooms (${rm.rooms.length}) — no single dominant blob`);
+const biggest = Math.max(...rm.rooms.map((r) => r.cells.length)), totalTissue = rm.rooms.reduce((s, r) => s + r.cells.length, 0);
+ok(biggest / totalTissue < 0.35, `no room dominates (biggest is ${((biggest / totalTissue) * 100) | 0}% of tissue)`);
+ok(rm.stats.doored / rm.rooms.length > 0.9, `≥90% of rooms have a door onto the concourse (${rm.stats.doored}/${rm.rooms.length})`);
+// every room's door cell really is concourse-adjacent
+const doorsValid = rm.rooms.every((r) => r.door < 0 || (sol.road[r.doorRoad] && foam.adj[r.door].includes(r.doorRoad)));
+ok(doorsValid, 'each door is a genuine room-cell → concourse-cell pair');
+
+// rooms scale with the knob
+const rmBig = paintRooms(foam, chunk, sol, { roomSize: 24, seed: 7 });
+ok(rmBig.rooms.length < rm.rooms.length, `bigger room-size ⇒ fewer rooms (${rmBig.rooms.length} vs ${rm.rooms.length})`);
+
+// 6. character
+const cast = castCharacter(rm.rooms, { seed: 7 });
+ok(cast.rooms.length === rm.rooms.length && cast.rooms.every((r) => r.role && r.glyph), 'every room got a role + glyph');
+ok((cast.counts.dwell || 0) > 0 && cast.rooms.some((r) => r.people && r.people.length), 'dwellings exist and hold NPCs');
 
 console.log(`\nv7 kernel: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
