@@ -321,6 +321,10 @@ function npcRepath(v, n) {                                  // schedule-driven i
   if (gc === n.cell) { n.dwell = 1 + Math.random() * 3; return; }
   const r = walkRoute(v, n.cell, gc);
   if (!r || r.pts.length < 2) { n.dwell = 0.6; return; }
+  // intracell target: don't pile on the room centre — pick a spot inside the goal chamber (clamped off walls).
+  // The chamber interior is open, so replacing the final centre point with a nearby in-room point is wall-safe.
+  const gs = v.seeds[gc], jx = gs.x + (Math.random() - 0.5) * PX * 0.55, jy = gs.y + (Math.random() - 0.5) * PX * 0.55;
+  const sp = clampOffWalls(v, jx, jy, gs.x, gs.y); r.pts[r.pts.length - 1] = [sp.x, sp.y];
   const seg = []; let total = 0;
   for (let i = 1; i < r.pts.length; i++) { const d = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); seg.push(d); total += d; }
   n.path = { pts: r.pts, seg, total }; n.t = 0; n.goalCell = gc;
@@ -372,6 +376,20 @@ function wallClearance(v, x, y) {
   let best = Infinity;
   for (const s of v.walls || []) { const ax = s[0], ay = s[1], dx = s[2] - ax, dy = s[3] - ay, L2 = dx * dx + dy * dy || 1; let t = ((x - ax) * dx + (y - ay) * dy) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t; const px = ax + dx * t, py = ay + dy * t, dd = (x - px) ** 2 + (y - py) ** 2; if (dd < best) best = dd; }
   return Math.sqrt(best);
+}
+// pull a target point OFF a wall membrane and onto open floor, by stepping it toward the chamber seed
+// until it clears the wall band. Used for the exact tap/NPC destination so the walker stops on floor,
+// inside the intended chamber — never standing in (or routed across) a membrane. (NAV: intracell.)
+function clampOffWalls(v, x, y, sx, sy) {
+  const band = ((v.scene && v.scene.wallSpacing) || 14) * 0.9, step = band * 0.9;
+  let cx = x, cy = y;
+  for (let i = 0; i < 10; i++) {
+    if (wallClearance(v, cx, cy) >= band) return { x: cx, y: cy };
+    const dx = sx - cx, dy = sy - cy, L = Math.hypot(dx, dy);
+    if (L < step) return { x: sx, y: sy };                  // collapsed to the seed (always open)
+    cx += dx / L * step; cy += dy / L * step;
+  }
+  return { x: cx, y: cy };
 }
 // the K wall segments nearest the component, each turned into a wall-light rooted on the wall and
 // growing inward toward the component (so the sconces face the room's medallion).
@@ -538,7 +556,7 @@ function minHeap() {
     push(d, n) { a.push([d, n]); let k = a.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (a[p][0] <= a[k][0]) break; [a[p], a[k]] = [a[k], a[p]]; k = p; } },
     pop() { const t = a[0], l = a.pop(); if (a.length) { a[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < a.length && a[L][0] < a[m][0]) m = L; if (R < a.length && a[R][0] < a[m][0]) m = R; if (m === k) break; [a[m], a[k]] = [a[k], a[m]]; k = m; } } return t; } };
 }
-function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
+function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell, exact) {
   const id = new Map(), nodes = [], adj = [], walls = [], gz = AT.floor;
   const nid = (v, i) => {
     const k = key(v.az, v.ax, v.gz) + ':' + i; let n = id.get(k);
@@ -571,13 +589,16 @@ function unifiedRoute(sx, sy, startV, startCell, tgtV, tgtCell) {
   const seq = []; for (let u = T; u !== -1; u = prev[u]) seq.push(u); seq.reverse();
   const dense = [[sx, sy]];                                 // start at the @'s LIVE position
   for (let k = 1; k < seq.length; k++) { dense.push(pm[seq[k]]); dense.push(nodes[seq[k]]); }
+  // INTRACELL: end at the EXACT tapped point inside the target chamber (its interior is open), not the
+  // chamber centre — so a tap anywhere in a roomy chamber is reachable. losSimplify keeps it wall-correct.
+  if (exact) { const off = offsetOf(tgtV); dense.push([exact.x + off.x, exact.y + off.y]); }
   const ws = ((active.scene && active.scene.wallSpacing) || 8) * 4;
   return losSimplify(dense, walls, ws);                     // straight where open, cornering only at walls
 }
 
 // route the @ from its LIVE position to (tgt tile, best cell); optional stair to ride on arrival
-function goTo(tgt, best, useStair) {
-  const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best);
+function goTo(tgt, best, exact, useStair) {
+  const pts = unifiedRoute(AT.x, AT.y, active, currentRoom(), tgt, best, exact);
   if (!pts || pts.length < 2) { rail('<b>⊘ no path</b> on this deck — try the stairs or walk closer'); return false; }
   const seg = []; let total = 0;
   for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); total += d; }
@@ -780,13 +801,17 @@ cv.addEventListener('click', (e) => {
     }
     if (!tgt) return;                                       // unloaded fog — keep walking, it will stream in
   }
-  let best = -1, bd = (60 / z) ** 2;
+  // the tapped CHAMBER = the nearest seed (Voronoi containment) — NO distance cap, so any tap in a
+  // roomy chamber navigates (the old 60px cap made most taps in big rooms a no-op).
+  let best = -1, bd = Infinity;
   for (let i = 0; i < tgt.nReal; i++) { const p = tgt.seeds[i]; const d = (p.x - lx) ** 2 + (p.y - ly) ** 2; if (d < bd) { bd = d; best = i; } }
   if (best < 0) return;
-  // clicked a stair? walk to it and ride it (a cell may host an up and/or down stair)
+  // INTRACELL: walk to the EXACT tapped point inside that chamber (clamped onto open floor), not its centre
+  const ex = clampOffWalls(tgt, lx, ly, tgt.seeds[best].x, tgt.seeds[best].y);
+  // clicked a stair? walk to it (its cell centre) and ride it
   const st = tgt === active ? (active.stairs || []).find((s) => s.cell === best) : null;
-  if (st && goTo(tgt, best, { dir: st.dir, partnerGid: st.partnerGid })) { inspect(tgt, best); return; }
-  if (goTo(tgt, best, null)) inspect(tgt, best);
+  if (st && goTo(tgt, best, null, { dir: st.dir, partnerGid: st.partnerGid })) { inspect(tgt, best); return; }
+  if (goTo(tgt, best, ex)) inspect(tgt, best);
 });
 
 // ride a stair/ladder to the floor above (−1, toward the axis) or below (+1, toward the hull): walk
@@ -797,7 +822,7 @@ function rideStair(dir) {
   for (const s of active.stairs || []) { if (s.dir !== dir) continue; const p = active.seeds[s.cell]; const d = (p.x - AT.x) ** 2 + (p.y - AT.y) ** 2; if (d < bd) { bd = d; best = s.cell; st = s; } }
   if (best < 0) { rail('<b>⊘ no ' + (dir < 0 ? 'way up' : 'way down') + '</b> from this deck nearby'); return; }
   requestRegion(active.az, active.ax, active.gz + dir);    // make sure the destination floor is loading
-  goTo(active, best, { dir, partnerGid: st.partnerGid });
+  goTo(active, best, null, { dir, partnerGid: st.partnerGid });
 }
 $('up').addEventListener('click', () => rideStair(-1));
 $('down').addEventListener('click', () => rideStair(1));
