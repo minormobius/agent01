@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#04050a" />
+  <meta name="description" content="hoop v090 — the world, painted. v8's streaming, seamless, walkable world with its walls re-seeded as Voronoi nuclei and the whole thing lit à la mega/sprite/fixture: ray-traced room-hued light pooling and spilling through doorways, art-deco component medallions, wall-grown lamps. Locked at 5×." />
+  <title>hoop v090 — the world, painted</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; } html, body { height: 100%; margin: 0; }
+    body { background: #04050a; color: #dfe7e2; font-family: "JetBrains Mono", ui-monospace, monospace; overflow: hidden; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+    .hud { position: fixed; font-size: 11px; color: #6b7872; pointer-events: none; user-select: none; }
+    #status { top: 8px; left: 10px; }
+    #here { top: 8px; right: 10px; text-align: right; color: #9aa8a0; }
+    #here b { color: #f4bf62; }
+    #back { bottom: 8px; left: 10px; color: #7fd8d0; text-decoration: none; pointer-events: auto; }
+    #busy { top: 8px; left: 50%; transform: translateX(-50%); color: #f4bf62; opacity: 0; transition: opacity .15s; } #busy.on { opacity: 1; }
+  </style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <div class="hud" id="status">…</div>
+  <div class="hud" id="here"></div>
+  <div class="hud" id="busy">generating…</div>
+  <a class="hud" id="back" href="/">◍ hoop</a>
+
+  <script type="module">
+    import { solveChunk } from '../v8/chunkgen.js';
+    import { createWorld, addChunk, neighbourSpec, edgeFree, buildWalk, pathFind, nearestNode, globalOf, sightBall } from '../v8/manager.js';
+    import { bakeFog } from '../v8/bake.js';
+    import { paintChunk, SKIN_DEFAULTS } from './skin.js';
+    import { drawDevice } from '../v5/deco.js';
+    import { drawWallLight } from '../v5/lights.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+
+    const OPTS = { shape: 'hex', cellSize: 16, oxygenReach: 3, concourseWidth: 2, roomSize: 16, sight: 9 };
+    const SKIN = { ...SKIN_DEFAULTS };
+    const ZOOM = 5;                 // the look is locked at 5× — close enough that the painting reads, room-level play
+    let seed = 7, W = 0, H = 0, dpr = 1, busyN = 0;
+    let world = null, walk = null, cam = { scale: 1, ox: 0, oy: 0 }, chunkSpan = 552;
+    let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkTimer = null, society = null;
+    const pp = { x: 0, y: 0 };   // the player's CONTINUOUS position (glides; not snapped to a cell centre)
+    const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
+    const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
+    const busy = (on) => { busyN += on ? 1 : -1; $('busy').classList.toggle('on', busyN > 0); };
+    const px = () => pp.x, py = () => pp.y;
+
+    // off-thread generation + paint (worker) with a synchronous fallback — identical contract either way
+    let worker = null, genId = 0;
+    try { worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }); } catch (e) { worker = null; }
+    function generate(opts) {
+      return new Promise((res) => {
+        if (!worker) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; return res({ rec, painted: paintChunk(rec, SKIN) }); }
+        const id = ++genId, h = (e) => {
+          if (!e.data || e.data.id !== id) return; worker.removeEventListener('message', h);
+          if (e.data.error) { const rec = solveChunk(opts); rec.seed = opts.seed >>> 0; res({ rec, painted: paintChunk(rec, SKIN) }); }
+          else res({ rec: e.data.rec, painted: e.data.painted });
+        };
+        worker.addEventListener('message', h); worker.postMessage({ id, opts });
+      });
+    }
+
+    function bboxOf(poly) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v of poly) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); } return { x0, y0, x1, y1 }; }
+    function centroidOf(poly) { let x = 0, y = 0; for (const v of poly) { x += v.x; y += v.y; } return { x: x / poly.length, y: y / poly.length }; }
+    const opts = (extra) => ({ seed: extra.seed, shape: OPTS.shape, cellSize: OPTS.cellSize, oxygenReach: OPTS.oxygenReach, concourseWidth: OPTS.concourseWidth, roomSize: OPTS.roomSize, skin: SKIN, ...extra });
+
+    function followCam() { if (player < 0) return; cam.ox = px() - W / (2 * cam.scale); cam.oy = py() - H / (2 * cam.scale); }
+    function setScale() { cam.scale = W / (chunkSpan * 1.15) * ZOOM; }   // base shows ~one chunk; ZOOM locks the close, painted view
+
+    function restitch() { walk = buildWalk(world); buildSociety(); }
+    function rebakeFog() { if (!walk) return; for (const ch of world.chunks) { const b = walk.base[ch.id]; ch.fog = bakeFog(ch, (i) => seen.has(b + i), (i) => inView.has(b + i)); } }
+    function reveal() { if (player < 0) return; for (const g of sightBall(walk, player, OPTS.sight)) seen.add(g); inView = sightBall(walk, player, OPTS.sight); rebakeFog(); }
+
+    // ── streaming: when the VIEW reaches across a free chunk edge, generate + paint that neighbour ──
+    async function maybeStream() {
+      if (!world || busyN > 0) return;
+      const vp = { x0: WX(0), y0: WY(0), x1: WX(W), y1: WY(H) }, m = OPTS.cellSize * 5;
+      let best = null, bd = Infinity;
+      for (const ch of world.chunks) { const ctr = centroidOf(ch.poly); for (let ei = 0; ei < ch.poly.length; ei++) { if (!edgeFree(world, ch, ei)) continue; const a = ch.poly[ei], b = ch.poly[(ei + 1) % ch.poly.length], mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; const nx = mid.x - ctr.x, ny = mid.y - ctr.y, n = Math.hypot(nx, ny) || 1; const pt = { x: mid.x + nx / n * m, y: mid.y + ny / n * m }; if (pt.x < vp.x0 || pt.x > vp.x1 || pt.y < vp.y0 || pt.y > vp.y1) continue; const d = (mid.x - px()) ** 2 + (mid.y - py()) ** 2; if (d < bd) { bd = d; best = { ch, ei }; } } }
+      if (!best) return;
+      busy(true);
+      const spec = neighbourSpec(world, best.ch.id, best.ei);
+      const nseed = (seed ^ Math.imul(world.chunks.length + 1, 0x9e3779b1)) >>> 0;
+      const { rec, painted } = await generate(opts({ seed: nseed, poly: spec.poly, inherit: spec.inherit }));
+      rec.painted = painted; addChunk(world, rec); restitch(); reveal();
+      busy(false); status(); draw();
+      maybeStream();   // chain for any other neighbours the view already reaches
+    }
+
+    async function newWorld() {
+      busy(true); world = createWorld(); walk = null; player = -1; seen = new Set(); inView = new Set(); route = []; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const { rec, painted } = await generate(opts({ seed })); rec.painted = painted; addChunk(world, rec); restitch();
+      chunkSpan = (() => { const bb = bboxOf(rec.poly); return Math.max(bb.x1 - bb.x0, bb.y1 - bb.y0); })();
+      setScale(); player = startNode(); pp.x = walk.pos[2 * player]; pp.y = walk.pos[2 * player + 1]; followCam(); reveal(); busy(false); status(); draw(); maybeStream();
+    }
+    function startNode() { if (!walk) return -1; const ch = world.chunks[0]; let cx = 0, cy = 0, n = 0; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { cx += ch.cells[i].x; cy += ch.cells[i].y; n++; } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (let i = 0; i < ch.cells.length; i++) if (ch.road[i]) { const d = (ch.cells[i].x - cx) ** 2 + (ch.cells[i].y - cy) ** 2; if (d < bd) { bd = d; best = i; } } return best >= 0 ? globalOf(walk, 0, best) : nearestNode(walk, cx, cy); }
+
+    // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
+    function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
+    function walkTo(wx, wy) {
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const dst = nearestNode(walk, wx, wy); if (dst < 0 || player < 0) return;
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+      route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm; let i = 0;
+      const tick = () => {
+        i++;
+        if (i >= sm.length) { walkTimer = null; player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); return; }
+        pp.x = sm[i][0]; pp.y = sm[i][1];
+        const ni = Math.min(p.length - 1, Math.round(i / (sm.length - 1) * (p.length - 1)));
+        if (p[ni] !== player) { player = p[ni]; reveal(); }
+        followCam(); draw(); maybeStream();
+        walkTimer = setTimeout(tick, 24);
+      };
+      walkTimer = setTimeout(tick, 24);
+    }
+
+    // ── NPC society (web + activity), revealed only where the fog has lifted ──
+    const WORKROLES = new Set(['make', 'mend', 'trade', 'grow', 'serve', 'heal', 'learn', 'store', 'move', 'govern', 'play', 'worship']);
+    const THIRDROLES = new Set(['worship', 'serve', 'play', 'learn']);
+    function buildSociety() {
+      const rooms = []; for (const ch of world.chunks) ch.rooms.forEach((r) => { if (r.door < 0) return; rooms.push({ ch: ch.id, x: r.x, y: r.y, role: r.role, people: r.people || [], doorG: globalOf(walk, ch.id, r.doorRoad), cellsG: r.cells.map((c) => globalOf(walk, ch.id, c)) }); });
+      const work = rooms.filter((o) => WORKROLES.has(o.role)), third = rooms.filter((o) => THIRDROLES.has(o.role));
+      const nearest = (list, o) => { let b = null, bd = Infinity; for (const w of list) { if (w === o) continue; const d = (w.x - o.x) ** 2 + (w.y - o.y) ** 2; if (d < bd) { bd = d; b = w; } } return b; };
+      const edges = [], routes = []; let budget = 70;
+      for (const o of rooms) { if (o.role !== 'dwell') continue; const n = Math.max(1, o.people.length); const w = nearest(work, o); if (w) { edges.push({ ax: o.x, ay: o.y, bx: w.x, by: w.y, kind: 'work', a: o, b: w }); if (budget-- > 0) { const p = pathFind(walk, o.doorG, w.doorG); if (p && p.length > 1) routes.push({ cells: p, w: n }); } } const t = nearest(third, o); if (t && t !== w) edges.push({ ax: o.x, ay: o.y, bx: t.x, by: t.y, kind: 'third', a: o, b: t }); }
+      society = { rooms, edges, routes };
+    }
+    const roomSeen = (o) => o.cellsG.some((g) => seen.has(g));
+
+    // ── render ── crisp painted vectors under a world transform, then fog + society + player on top ──
+    function worldXform() { const w = cam.scale * dpr; ctx.setTransform(w, 0, 0, w, -cam.ox * w, -cam.oy * w); }
+    function screenXform() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    function fillPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); ctx.fill(); }
+
+    // a chunk's perimeter is solid hull EXCEPT at its ports (where the concourse crosses to a neighbour)
+    function drawPerimeter(P) {
+      const poly = P.poly, gap = OPTS.cellSize * 1.7;
+      ctx.strokeStyle = '#070a0e'; ctx.lineWidth = P.wallSpacing * 1.25; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (let e = 0; e < poly.length; e++) {
+        const a = poly[e], b = poly[(e + 1) % poly.length], L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const skips = [];                                    // [t0,t1] param ranges to leave open (ports)
+        for (const p of P.ports) { if (p.edge !== e) continue; const t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (L * L), g = gap / L; skips.push([t - g, t + g]); }
+        skips.sort((u, v) => u[0] - v[0]);
+        let t0 = 0;
+        const seg = (s, t) => { if (t - s < 1e-3) return; ctx.beginPath(); ctx.moveTo(a.x + (b.x - a.x) * s, a.y + (b.y - a.y) * s); ctx.lineTo(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t); ctx.stroke(); };
+        for (const [s0, s1] of skips) { if (s0 > t0) seg(t0, Math.min(1, s0)); t0 = Math.max(t0, s1); }
+        if (t0 < 1) seg(t0, 1);
+      }
+    }
+
+    function drawPainted() {
+      worldXform();
+      const pad = OPTS.cellSize * 3, vx0 = cam.ox - pad, vy0 = cam.oy - pad, vx1 = cam.ox + W / cam.scale + pad, vy1 = cam.oy + H / cam.scale + pad;
+      for (const ch of world.chunks) {
+        const P = ch.painted; if (!P) continue;
+        const bb = ch.bb || (ch.bb = bboxOf(ch.poly)); if (bb.x1 < vx0 || bb.x0 > vx1 || bb.y1 < vy0 || bb.y0 > vy1) continue;
+        for (const c of P.paintCells) { if (c.x < vx0 || c.x > vx1 || c.y < vy0 || c.y > vy1 || c.poly.length < 3) continue; ctx.fillStyle = c.wall ? '#080b0f' : (c.color || '#05070b'); fillPoly(c.poly); }
+        drawPerimeter(P);
+        for (const cp of P.comps) { if (cp.cx < vx0 || cp.cx > vx1 || cp.cy < vy0 || cp.cy > vy1) continue; drawDevice(ctx, cp.cx, cp.cy, cp.r, cp.g, { lit: cp.lit, accent: cp.accent }); }
+        for (const L of P.lights) { if (L.tip.x < vx0 || L.tip.x > vx1 || L.tip.y < vy0 || L.tip.y > vy1) continue; drawWallLight(ctx, L, { hue: L.hue, lit: L.lit }); }
+      }
+      screenXform();
+    }
+
+    function draw() {
+      screenXform(); ctx.fillStyle = '#04050a'; ctx.fillRect(0, 0, W, H);
+      if (!world) return;
+      drawPainted();
+      // fog blitted with a blur so its frontier is soft (hides the per-cell reveal edge)
+      ctx.imageSmoothingEnabled = true;
+      ctx.filter = `blur(${Math.max(1, cam.scale * OPTS.cellSize * 0.35).toFixed(1)}px)`;
+      for (const ch of world.chunks) { const t = ch.fog; if (t) ctx.drawImage(t.canvas, SX(t.ox), SY(t.oy), t.w * cam.scale, t.h * cam.scale); }
+      ctx.filter = 'none';
+      drawNPC(); drawPlayer(); whereAmI();
+    }
+    function strokeNodes(arr, gateSeen) { ctx.beginPath(); let pen = false; for (const g of arr) { if (gateSeen && !seen.has(g)) { pen = false; continue; } const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; if (pen) ctx.lineTo(SX(x), SY(y)); else { ctx.moveTo(SX(x), SY(y)); pen = true; } } ctx.stroke(); }
+    function drawNPC() {
+      if (!society || !walk) return;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      for (const rt of society.routes) { ctx.strokeStyle = `rgba(127,216,208,${Math.min(0.5, 0.13 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3, 0.7 + rt.w * 0.2); strokeNodes(rt.cells, true); }
+      ctx.lineWidth = 0.9; for (const e of society.edges) { if (!roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.34)' : 'rgba(180,120,216,0.32)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); }
+    }
+    function strokePolyW(pts) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { if (i) ctx.lineTo(SX(pts[i][0]), SY(pts[i][1])); else ctx.moveTo(SX(pts[i][0]), SY(pts[i][1])); } ctx.stroke(); }
+    function drawPlayer() {
+      if (player < 0 || !walk) return;
+      if (routePts.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.28)'; ctx.lineWidth = 6; strokePolyW(routePts); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2; strokePolyW(routePts); }
+      const x = px(), y = py(), rad = Math.max(6, cam.scale * OPTS.cellSize * 0.42);
+      ctx.save(); ctx.shadowColor = 'rgba(244,191,98,0.9)'; ctx.shadowBlur = rad * 1.6;
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(SX(x), SY(y), rad, 0, 7); ctx.fill(); ctx.restore();
+      ctx.fillStyle = '#04050a'; ctx.font = `bold ${Math.max(10, rad * 1.2) | 0}px "JetBrains Mono"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', SX(x), SY(y) + 0.5);
+    }
+
+    function status() { if (!world) return; const cells = world.chunks.reduce((a, c) => a + c.cells.length, 0); $('status').innerHTML = `seed ${seed} · ${world.chunks.length} chunk${world.chunks.length === 1 ? '' : 's'} · ${cells} cells · ${walk ? (seen.size / walk.N * 100) | 0 : 0}% seen · ${ZOOM}× locked`; }
+    function whereAmI() {
+      if (player < 0 || !walk) { $('here').textContent = ''; return; }
+      const ch = world.chunks[walk.nodeChunk[player]], li = walk.nodeLocal[player]; let label = 'concourse';
+      if (!ch.road[li] && ch.roomOf[li] >= 0) { const r = ch.rooms[ch.roomOf[li]]; label = `${r.glyph} ${r.role}${r.domain ? '·' + r.domain : ''}`; }
+      $('here').innerHTML = `<b>${label}</b>`;
+    }
+
+    cv.addEventListener('click', (e) => { if (!world || player < 0) return; const r = cv.getBoundingClientRect(); walkTo(WX(e.clientX - r.left), WY(e.clientY - r.top)); });
+
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); W = Math.max(160, Math.floor(window.innerWidth)); H = Math.max(160, Math.floor(window.innerHeight)); cv.width = W * dpr; cv.height = H * dpr; if (world) { setScale(); followCam(); draw(); maybeStream(); } }
+    let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(resize, 150); });
+    addEventListener('keydown', (e) => { if (e.key === 'r' || e.key === 'R') { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; newWorld(); } });   // R = new world
+    resize(); newWorld();
+  </script>
+</body>
+</html>
