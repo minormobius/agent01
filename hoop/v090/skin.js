@@ -17,7 +17,7 @@
 // The walls still land on v8's real membranes and the doors stay open, so the picture matches the walk
 // graph the engine drives. paintChunk(rec) is PURE; node-tested by test/v090.selftest.mjs.
 
-import { clipCell, bucketGrid, jitterGrid, mulberry32 } from '../v5/voronoi.js';
+import { clipCell, bucketGrid, mulberry32 } from '../v5/voronoi.js';
 import { occlusionGrid, visible, tintLights, lightGenome } from '../v5/lights.js';
 import { deviceGenome } from '../v5/deco.js';
 
@@ -27,6 +27,34 @@ const ROAD_RGB = [44, 70, 60], DOOR_RGB = [120, 92, 50], VOID_RGB = [10, 13, 18]
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 const hexRGB = (h) => { const c = (h || '#3a4248').replace('#', ''); return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)]; };
+
+// ── seamless-across-chunks helpers ─────────────────────────────────────────────────────────────
+// A position hash → a GLOBAL jittered lattice: a floor candidate at world cell (gi,gj) lands at the
+// same world point whichever chunk asks, so two abutting chunks lay IDENTICAL nuclei in the overlap.
+const hsh = (a, b) => { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + 0x9e3779b1) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+function* globalDarts(ox, oy, W, H, spacing, jit) {
+  const gi0 = Math.floor(ox / spacing) - 1, gi1 = Math.ceil((ox + W) / spacing) + 1, gj0 = Math.floor(oy / spacing) - 1, gj1 = Math.ceil((oy + H) / spacing) + 1;
+  for (let gj = gj0; gj <= gj1; gj++) for (let gi = gi0; gi <= gi1; gi++) {
+    const wx = (gi + 0.5) * spacing + (hsh(gi, gj) - 0.5) * jit * spacing, wy = (gj + 0.5) * spacing + (hsh(gi * 131 + 7, gj * 131 + 9) - 0.5) * jit * spacing;
+    yield { x: wx - ox, y: wy - oy };   // local
+  }
+}
+// is a local point inside the convex chunk polygon (centroid cx,cy gives the inside half-plane sign)?
+function inConvex(px, py, poly, cx, cy) {
+  for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1]; const sref = ex * (cy - a[1]) - ey * (cx - a[0]); if ((ex * (py - a[1]) - ey * (px - a[0])) * sref < -1e-6) return false; }
+  return true;
+}
+// Sutherland–Hodgman clip of a poly to the convex chunk polygon → a cell never bleeds across a seam.
+function clipToConvex(sub, poly, cx, cy) {
+  let out = sub;
+  for (let i = 0; i < poly.length && out.length >= 3; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], ex = b[0] - a[0], ey = b[1] - a[1], sref = ex * (cy - a[1]) - ey * (cx - a[0]);
+    const f = (p) => (ex * (p[1] - a[1]) - ey * (p[0] - a[0])) * sref, np = [];
+    for (let k = 0; k < out.length; k++) { const P = out[k], Q = out[(k + 1) % out.length], dp = f(P), dq = f(Q); if (dp >= -1e-9) np.push(P); if ((dp >= -1e-9) !== (dq >= -1e-9)) { const t = dp / (dp - dq); np.push([P[0] + (Q[0] - P[0]) * t, P[1] + (Q[1] - P[1]) * t]); } }
+    out = np;
+  }
+  return out;
+}
 
 export function hexHue(hex) {
   const c = (hex || '#888888').replace('#', '');
@@ -58,17 +86,29 @@ export function paintChunk(rec, opts = {}) {
   // ── 1. inject WALL nuclei along the real membranes, tight at ws = ½·playerW ──
   const wallNuclei = [], seenW = new Set(), snap = ws * 0.5;
   const addWall = (x, y, perim) => { if (x < -1 || y < -1 || x > W + 1 || y > H + 1) return; if (perim && atPort(x, y)) return; const k = Math.round(x / snap) + ',' + Math.round(y / snap); if (seenW.has(k)) return; seenW.add(k); wallNuclei.push({ x, y, wall: true }); };
-  for (let i = 0; i < rec.cells.length; i++) {
+  for (let i = 0; i < rec.cells.length; i++) {                 // INTERIOR membranes (per-chunk is fine)
     const v = rec.cells[i].poly;
     for (let k = 0; k < v.length; k++) {
-      const j = v[k][2]; if (j >= 0 && j < i) continue;
+      const j = v[k][2]; if (j < 0 || j < i) continue;          // perimeter handled canonically below
       if (!isWallEdge(i, j)) continue;
       const a = v[k], b = v[(k + 1) % v.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / ws));
-      for (let t = 0; t <= n; t++) addWall(a[0] + (b[0] - a[0]) * t / n - ox, a[1] + (b[1] - a[1]) * t / n - oy, j < 0);
+      for (let t = 0; t <= n; t++) addWall(a[0] + (b[0] - a[0]) * t / n - ox, a[1] + (b[1] - a[1]) * t / n - oy, false);
     }
+  }
+  // PERIMETER: seed wall nuclei along the chunk POLYGON edges at GLOBAL canonical positions (walk from
+  // the canonically-ordered endpoint), with gaps at ports. Two abutting chunks share that edge, so they
+  // lay BIT-IDENTICAL seam-wall nuclei — the seam looks the same from either side and never shifts.
+  for (let e = 0; e < rec.poly.length; e++) {
+    const P = rec.poly[e], Q = rec.poly[(e + 1) % rec.poly.length];
+    let S = P, E = Q; if (P.x > Q.x || (P.x === Q.x && P.y > Q.y)) { S = Q; E = P; }
+    const L = Math.hypot(E.x - S.x, E.y - S.y), n = Math.max(1, Math.round(L / ws));
+    for (let k = 0; k <= n; k++) addWall(S.x + (E.x - S.x) * k / n - ox, S.y + (E.y - S.y) * k / n - oy, true);
   }
   const wallGrid = bucketGrid(wallNuclei.length ? wallNuclei : [{ x: -1e9, y: -1e9 }], Math.max(rs, ws * 4));
   const wallDist = (x, y) => { let bd = Infinity; for (const q of wallGrid.near(x, y)) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) bd = d; } return Math.sqrt(bd); };
+
+  // the chunk polygon in LOCAL coords (+ its centroid) — the clip boundary everything is held inside
+  const lpoly = rec.poly.map((p) => [p.x - ox, p.y - oy]); let lcx = 0, lcy = 0; for (const p of lpoly) { lcx += p[0]; lcy += p[1]; } lcx /= lpoly.length; lcy /= lpoly.length;
 
   // ── 2. inject FLOOR nuclei: a big seed at each room centre, graded down to ws toward the walls ──
   const localSpacing = (edge) => ws + (rs - ws) * smooth((edge - band) / (refDepth - band));
@@ -80,8 +120,10 @@ export function paintChunk(rec, opts = {}) {
   for (let ri = 0; ri < rec.rooms.length; ri++) { const r = rec.rooms[ri]; if (r.door < 0) continue; const x = r.x - ox, y = r.y - oy; if (wallDist(x, y) > band) place(x, y, ri); }
   // door bridges so the threshold reads as a gap, not a doormat
   for (const r of rec.rooms) { const dp = r.doorPairs && r.doorPairs.length ? r.doorPairs : (r.door >= 0 && r.doorRoad >= 0 ? [[r.door, r.doorRoad]] : []); for (const [a, b] of dp) { const ca = rec.cells[a], cb = rec.cells[b]; for (const t of [0.3, 0.7]) { const x = (ca.x + (cb.x - ca.x) * t) - ox, y = (ca.y + (cb.y - ca.y) * t) - oy; if (clearOf(x, y, ws * 0.8)) place(x, y, regionAt(x, y), true); } } }
-  // graded dart-throwing — the gradient of sizes, fine→coarse, over BOTH rooms and the concourse
-  for (const p of jitterGrid(W, H, ws, 0.6, mulberry32(seed))) {
+  // graded dart-throwing over a GLOBAL jittered lattice (not per-chunk), so the floor nuclei in the
+  // overlap of two chunks are identical → the concourse tiles meet across a port without a jump.
+  for (const p of globalDarts(ox, oy, W, H, ws, 0.6)) {
+    if (!inConvex(p.x, p.y, lpoly, lcx, lcy)) continue;
     const e = wallDist(p.x, p.y); if (e <= band && !atPort(p.x, p.y)) continue;
     if (clearOf(p.x, p.y, localSpacing(e))) place(p.x, p.y, regionAt(p.x, p.y));
   }
@@ -89,7 +131,9 @@ export function paintChunk(rec, opts = {}) {
   // ── 3. paint the Voronoi of {wall ∪ floor} nuclei ──
   const nuclei = wallNuclei.concat(floorNuclei);
   const paintGrid = bucketGrid(nuclei, Math.max(rs, ws) * 1.8);
-  const cells = nuclei.map((nu) => ({ wall: nu.wall, region: nu.wall ? -3 : nu.region, door: !!nu.door, x: nu.x, y: nu.y, poly: clipCell(nu, paintGrid.near(nu.x, nu.y), rs * 3) }));
+  // clip every cell to the chunk polygon so NOTHING bleeds across the seam (no big strips, no overlap
+  // that shifts when the neighbour streams in) — abutting chunks meet exactly on the shared edge line.
+  const cells = nuclei.map((nu) => ({ wall: nu.wall, region: nu.wall ? -3 : nu.region, door: !!nu.door, x: nu.x, y: nu.y, poly: clipToConvex(clipCell(nu, paintGrid.near(nu.x, nu.y), rs * 3), lpoly, lcx, lcy) })).filter((c) => c.poly.length >= 3);
   const scene = { W, H, wallSpacing: ws, roomSpacing: rs, nuclei };
 
   // ── 4. small wall-grown lamps per ROOM — a small glyph (len), big REACH (len·reach) ──
