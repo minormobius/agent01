@@ -162,7 +162,7 @@ export function perfuse(foam, chunk, { oxygenReach = 3 } = {}) {
       const from = new Map([[ports[i], -1]]), q = [ports[i]]; let hit = -1;
       for (let h = 0; h < q.length && hit < 0; h++) { const u = q[h]; if (road[u]) { hit = u; break; } for (const v of foam.adj[u]) { if (chunk.ghost[v] || from.has(v)) continue; from.set(v, u); q.push(v); } }
       if (hit < 0) { road[ports[i]] = 1; continue; }
-      for (let u = ports[i]; u !== -1 && u !== hit; u = from.get(u)) road[u] = 1; road[hit] = 1;
+      for (let u = hit; u !== -1; u = from.get(u)) road[u] = 1;   // walk from the hit BACK to the port (from[] points portward)
     }
   }
   const { dist } = perfuseField(foam, chunk, road);
@@ -205,17 +205,62 @@ export function seize(foam, chunk, { oxygenReach = 3, concourseWidth = 1, maxFra
     addOrder.push(...added); sprouts.push(added);
     ({ dist, from } = perfuseField(foam, chunk, road));
   }
-  // concourse width: dilate the capillaries by (width−1) hops (capped) so concourses read wider
-  const dil = Math.min(2, Math.max(0, concourseWidth - 1)), widened = [];
-  for (let d = 0; d < dil; d++) {
-    const front = [];
-    for (const i of chunk.interior) { if (road[i]) continue; if (foam.adj[i].some((v) => road[v])) front.push(i); }
-    for (const i of front) { road[i] = 1; roadCells++; widened.push(i); }
-  }
+  // a SINGLE connected concourse is a core need — stitch any stray capillary back to the main body
+  // before widening (the bare hypoxia growth always attaches sprouts to existing road, but isolated
+  // ports / boundary slivers can still strand a fragment; this makes one-component a hard guarantee).
+  stitchConcourse(foam, chunk, road);
+  // concourse width: widen the 1-cell capillaries SINGLE-SIDED (one extra cell-layer per width step,
+  // on one flank only — not the old both-sides dilation that made "2" read as ~4 wide).
+  const widened = widenOneSided(foam, chunk, road, Math.max(0, concourseWidth - 1));
+  for (const i of widened) { void i; roadCells++; }
   if (widened.length) addOrder.push(...widened);
   ({ dist } = perfuseField(foam, chunk, road));
   const out = measure(foam, chunk, road, dist, reach, addOrder);
   out.sprouts = sprouts.length; out.widened = widened.length; return out;
+}
+
+// connect every stray concourse fragment to the largest one along the cheapest interior path, so the
+// concourse is a single connected component (walkable end to end).
+function stitchConcourse(foam, chunk, road) {
+  for (let pass = 0; pass < 4; pass++) {
+    const comp = new Int32Array(foam.cells.length).fill(-1), sizes = []; let nc = 0;
+    for (const i of chunk.interior) { if (!road[i] || comp[i] >= 0) continue; const q = [i]; comp[i] = nc; let s = 0; while (q.length) { const u = q.pop(); s++; for (const v of foam.adj[u]) if (road[v] && comp[v] < 0) { comp[v] = nc; q.push(v); } } sizes.push(s); nc++; }
+    if (nc <= 1) return;
+    const main = sizes.indexOf(Math.max(...sizes));
+    const dist = new Int32Array(foam.cells.length).fill(-1), from = new Int32Array(foam.cells.length).fill(-1), q = [];
+    for (const i of chunk.interior) if (road[i] && comp[i] === main) { dist[i] = 0; q.push(i); }
+    for (let h = 0; h < q.length; h++) { const u = q[h]; for (const v of foam.adj[u]) { if (chunk.ghost[v] || dist[v] >= 0) continue; dist[v] = dist[u] + 1; from[v] = u; q.push(v); } }
+    const reps = new Map();   // nearest cell of each non-main fragment to the main body
+    for (const i of chunk.interior) if (road[i] && comp[i] !== main && dist[i] >= 0) { const r = reps.get(comp[i]); if (!r || dist[i] < r.d) reps.set(comp[i], { cell: i, d: dist[i] }); }
+    if (!reps.size) return;
+    for (const { cell } of reps.values()) for (let u = cell; u !== -1 && comp[u] !== main; u = from[u]) road[u] = 1;
+  }
+}
+
+// SINGLE-HEADED widening: grow the concourse by `layers` one-cell layers, each on ONE flank only.
+// For each concourse cell we estimate the local tangent (along the capillary) and absorb only the
+// tissue neighbours on its left normal — so width N reads as ~N cells, not the 2N of both-sided.
+function widenOneSided(foam, chunk, road, layers) {
+  const added = [];
+  for (let L = 0; L < layers; L++) {
+    const adds = [];
+    for (const r of chunk.interior) {
+      if (!road[r]) continue;
+      const t = roadTangent(foam, road, r), nx = -t.y, ny = t.x;
+      for (const f of foam.adj[r]) { if (road[f] || chunk.ghost[f]) continue; const dx = foam.cells[f].x - foam.cells[r].x, dy = foam.cells[f].y - foam.cells[r].y; if (dx * nx + dy * ny > 0) adds.push(f); }
+    }
+    for (const f of adds) if (!road[f]) { road[f] = 1; added.push(f); }
+  }
+  return added;
+}
+function roadTangent(foam, road, r) {
+  const rn = foam.adj[r].filter((v) => road[v]).map((v) => ({ x: foam.cells[v].x - foam.cells[r].x, y: foam.cells[v].y - foam.cells[r].y }));
+  if (!rn.length) return { x: 1, y: 0 };
+  const norm = (v) => { const m = Math.hypot(v.x, v.y) || 1; return { x: v.x / m, y: v.y / m }; };
+  if (rn.length === 1) return norm(rn[0]);
+  let best = [rn[0], rn[1]], bd = 2;        // the most-opposed pair of road neighbours ≈ the capillary axis
+  for (let a = 0; a < rn.length; a++) for (let b = a + 1; b < rn.length; b++) { const A = norm(rn[a]), B = norm(rn[b]), dot = A.x * B.x + A.y * B.y; if (dot < bd) { bd = dot; best = [rn[a], rn[b]]; } }
+  return norm({ x: best[0].x - best[1].x, y: best[0].y - best[1].y });
 }
 
 // ── LAYER 5: rooms — paint rooms on the oxygenated surface, one door each ───────────────────────

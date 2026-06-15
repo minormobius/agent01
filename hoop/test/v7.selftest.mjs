@@ -37,6 +37,13 @@ ok(sol.servedFrac > per.servedFrac + 0.1, `seize raises oxygenation (${(per.serv
 ok(sol.servedFrac > 0.9, `well perfused after seize (${(sol.servedFrac * 100) | 0}%)`);
 ok(sol.stats.roadFrac < 0.5, `concourse is a minority of the floor (${(sol.stats.roadFrac * 100) | 0}%) — not big blocks`);
 ok(sol.sprouts > 3, `capillaries actually branched (${sol.sprouts} sprouts)`);
+// the concourse must be a SINGLE connected component (walkable end to end) — a core need
+function concourseComponents(foam, chunk, road) { const seen = new Set(); let c = 0; for (const i of chunk.interior) { if (!road[i] || seen.has(i)) continue; c++; const q = [i]; seen.add(i); while (q.length) { const u = q.pop(); for (const v of foam.adj[u]) if (road[v] && !seen.has(v)) { seen.add(v); q.push(v); } } } return c; }
+ok(concourseComponents(foam, chunk, sol.road) === 1, `the concourse is ONE connected component (got ${concourseComponents(foam, chunk, sol.road)})`);
+// single-headed widening: width 3 is meaningfully thicker than width 1, but not 2× per step
+const w1 = seize(foam, chunk, { oxygenReach: 3, concourseWidth: 1, seed: 7 }), w3 = seize(foam, chunk, { oxygenReach: 3, concourseWidth: 3, seed: 7 });
+ok(w3.stats.roadCells > w1.stats.roadCells, `wider concourse seizes more cells (w1 ${w1.stats.roadCells} → w3 ${w3.stats.roadCells})`);
+ok(concourseComponents(foam, chunk, w3.road) === 1, 'a widened concourse stays one component');
 const s2 = seize(foam, chunk, { oxygenReach: 3, seed: 7 });
 ok(s2.stats.roadCells === sol.stats.roadCells, 'the seize is deterministic');
 
