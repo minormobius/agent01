@@ -14,6 +14,7 @@ on:
     branches: [main, 'claude/landing-projects-takeover-pKkmW']
     paths:
       - 'geometry/**'
+      - 'prop/**'
       - 'meander/**'
       - 'temperley-lieb/**'
       - 'aztec/**'
@@ -49,7 +50,7 @@ jobs:
         run: |
           rm -rf dist && mkdir -p dist
           for d in geometry meander temperley-lieb aztec markov descent traffic ising erdos guthkatz hadwiger heilbronn kakeya runner \
-                   szemeredi-trotter viazovska capset borsuk elements; do
+                   szemeredi-trotter viazovska capset borsuk elements prop; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
           done

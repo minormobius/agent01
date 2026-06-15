@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>prop — growing graphs by local rules</title>
+<meta name="description" content="A playground for graph systems where local rules fire across a force-directed graph: pure growth (Wolfram-model rewriting), sandpile avalanches (cascading topples), and interaction nets (rewrites that rewire). With notes on the wider field.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #6d28d9;
+  --accent-faint: rgba(109, 40, 217, 0.06);
+  --canvas-bg: #fafafa;
+  --canvas-ink: #111;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #a78bfa;
+    --accent-faint: rgba(167, 139, 250, 0.10);
+    --canvas-bg: #0c0c12;
+    --canvas-ink: #eee;
+    --tag-bg: #222;
+    --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body { max-width: 880px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin: 0.4rem 0 0;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule); flex-wrap: wrap;
+}
+.tab {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.16em;
+  text-transform: uppercase; background: transparent; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.9rem; margin-bottom: -1px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.format-bar {
+  display: flex; align-items: center; gap: 0.4rem;
+  margin: 0.8rem 0 1.1rem; font-family: var(--mono); font-size: 0.6rem;
+}
+.format-bar.hidden { display: none; }
+.fmt-toggle, .fmt-style {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em;
+  text-transform: uppercase; background: transparent; border: 1px solid var(--rule);
+  color: var(--muted); padding: 0.32rem 0.6rem; border-radius: 2px;
+  cursor: pointer; transition: all 0.15s ease;
+}
+.fmt-toggle:hover, .fmt-style:hover { color: var(--fg); border-color: var(--muted); }
+.fmt-toggle.active, .fmt-style.active {
+  color: var(--accent); border-color: var(--accent); background: var(--accent-faint);
+}
+.fmt-spacer { flex: 1; }
+.fmt-label { letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-right: 0.2rem; font-size: 0.55rem; }
+
+.pane { display: none; }
+.pane.active { display: block; }
+
+.play-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .play-wrap { grid-template-columns: minmax(0, 1fr); } }
+#graph-canvas {
+  width: 100%; aspect-ratio: 4 / 3; display: block;
+  background: var(--canvas-bg); border: 1px solid var(--rule);
+  border-radius: 2px; cursor: grab; touch-action: none;
+}
+#graph-canvas.dragging { cursor: grabbing; }
+.obs-wrap { margin-top: 0.7rem; }
+.obs-cap { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+#obs-canvas { width: 100%; height: 110px; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.conduct-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 760px) { .conduct-wrap { grid-template-columns: minmax(0, 1fr); } }
+#roll-canvas { width: 100%; aspect-ratio: 5 / 3; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; }
+.pads { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.7rem; }
+.pad { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.6rem 1rem; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-faint); border-radius: 3px; cursor: pointer; }
+.pad:active { background: var(--accent); color: #fff; }
+#key-sel, #scale-sel { font-family: var(--mono); font-size: 0.78rem; flex: 1; background: var(--canvas-bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 2px; padding: 0.34rem; }
+.mixer { display: flex; flex-direction: column; gap: 0.35rem; }
+.mix-row { display: flex; align-items: center; gap: 0.5rem; font-family: var(--mono); font-size: 0.7rem; }
+.mix-row .vn { width: 4.2em; }
+.mix-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.mix-row .mute { width: 1.5em; text-align: center; cursor: pointer; border: 1px solid var(--rule); border-radius: 2px; color: var(--muted); }
+.mix-row .mute.on { color: var(--accent); border-color: var(--accent); }
+
+.controls { font-family: var(--mono); font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.ctrl-group.hidden { display: none; }
+.ctrl-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.ctrl-row .ctrl-val { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); min-width: 3.2em; text-align: right; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.btn {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.04em;
+  background: transparent; border: 1px solid var(--rule); color: var(--fg);
+  padding: 0.4rem 0.7rem; border-radius: 2px; cursor: pointer; transition: all 0.15s;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.btn.primary:hover { background: var(--accent); color: #fff; }
+
+.preset-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.preset {
+  font-family: var(--mono); font-size: 0.65rem; background: transparent;
+  border: 1px solid var(--rule); color: var(--muted);
+  padding: 0.28rem 0.55rem; border-radius: 2px; cursor: pointer;
+}
+.preset:hover { color: var(--fg); border-color: var(--muted); }
+.preset.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+
+.seg { display: flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
+.seg.hidden { display: none; }
+.seg button {
+  flex: 1; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.05em;
+  text-transform: uppercase; background: transparent; border: none; color: var(--muted);
+  padding: 0.4rem 0.3rem; cursor: pointer; transition: all 0.15s;
+}
+.seg button.active { color: var(--accent); background: var(--accent-faint); }
+
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row.hidden { display: none; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.rule-show { font-family: var(--mono); font-size: 0.64rem; color: var(--accent); word-break: break-all; line-height: 1.5; margin-top: 0.4rem; }
+.legend { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.7; }
+.legend .sw { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 50%; margin-right: 0.35em; vertical-align: -0.05em; }
+.hint { font-size: 0.62rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5; font-family: var(--mono); }
+
+.rules-body { font-size: 0.96rem; }
+.rules-body h2 { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 1.8rem 0 0.6rem; }
+.rules-body p { margin: 0.7rem 0; }
+.rules-body code, .mono-inline {
+  font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg);
+  color: var(--tag-text); padding: 0.06em 0.35em; border-radius: 2px;
+}
+.rule-card { border: 1px solid var(--rule); border-radius: 3px; padding: 0.8rem 1rem; margin: 0.7rem 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.rule-card .name { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.rule-card .notation { font-family: var(--mono); font-size: 0.8rem; word-break: break-all; }
+.rule-card .desc { font-size: 0.88rem; color: var(--muted); }
+.editor-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; margin: 0.8rem 0; }
+#rule-input { flex: 1; min-width: 240px; font-family: var(--mono); font-size: 0.82rem; padding: 0.55rem 0.7rem; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; color: var(--fg); }
+#rule-input.bad { border-color: #c0392b; }
+.parse-msg { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); min-height: 1em; }
+.parse-msg.bad { color: #c0392b; }
+
+.docs { font-size: 0.98rem; }
+.docs h2 { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin: 2rem 0 0.7rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--rule); }
+.docs h3 { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg); margin: 1.4rem 0 0.4rem; }
+.docs p { margin: 0.7rem 0; }
+.docs ul { margin: 0.6rem 0; padding-left: 1.2rem; }
+.docs li { margin: 0.45rem 0; }
+.docs a { color: var(--accent); text-decoration: none; }
+.docs a:hover { text-decoration: underline; }
+.docs code { font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg); color: var(--tag-text); padding: 0.06em 0.35em; border-radius: 2px; }
+.docs blockquote { margin: 0.9rem 0; padding: 0.4rem 0 0.4rem 1rem; border-left: 2px solid var(--accent); color: var(--muted); font-style: italic; }
+.field-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.84rem; }
+.field-table th, .field-table td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.field-table th { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: normal; }
+.field-table td.name { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); white-space: nowrap; }
+.meta-stamp { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--rule); line-height: 1.8; }
+
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>prop</h1>
+  <p class="subtitle">growing graphs by local rules · growth · sandpile · interaction nets · chemistry</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">math pack</a> · <a href="https://mino.mobi/elements/">elements</a> · <a href="https://mino.mobi/kakeya/">kakeya</a> · <a href="https://mino.mobi/capset/">capset</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="play" role="tab">play</button>
+  <button class="tab" data-tab="conduct" role="tab">conduct</button>
+  <button class="tab" data-tab="rules" role="tab">rules</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<div class="format-bar" id="format-bar">
+  <button class="fmt-toggle" id="labels-btn">labels</button>
+  <div class="fmt-spacer"></div>
+  <span class="fmt-label">style</span>
+  <button class="fmt-style active" data-theme="default">default</button>
+  <button class="fmt-style" data-theme="neon">neon</button>
+</div>
+
+<!-- ─────────── PLAY PANE ─────────── -->
+<section class="pane active" data-pane="play">
+  <div class="play-wrap">
+    <div>
+      <canvas id="graph-canvas" width="800" height="600"></canvas>
+      <p class="hint" id="play-hint">pick a mode, hit <b>play</b>, drag a node to perturb</p>
+      <div class="obs-wrap">
+        <span class="obs-cap" id="obs-cap">readout</span>
+        <canvas id="obs-canvas" width="800" height="150"></canvas>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">mode</span>
+        <div class="seg" id="mode-seg">
+          <button data-mode="growth" class="active">growth</button>
+          <button data-mode="sandpile">sandpile</button>
+          <button data-mode="inet">interaction</button>
+          <button data-mode="chemistry">chem</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label" id="preset-label">rule</span>
+        <div class="preset-row" id="preset-row"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn primary" id="play-btn">play</button>
+        <button class="btn" id="step-btn">step</button>
+        <button class="btn" id="reset-btn">reset</button>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label" id="rate-label">events / sec</span>
+        <div class="ctrl-row">
+          <input id="rate-slider" type="range" min="0.5" max="40" value="6" step="0.5">
+          <span class="ctrl-val" id="rate-val">6</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group" id="scheme-group">
+        <span class="ctrl-label">update scheme</span>
+        <div class="seg" id="scheme-seg">
+          <button data-scheme="seq" class="active">sequential</button>
+          <button data-scheme="gen">generations</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label" id="cap-label">node cap</span>
+        <div class="ctrl-row">
+          <input id="cap-slider" type="range" min="20" max="600" value="220" step="10">
+          <span class="ctrl-val" id="cap-val">220</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">repulsion</span>
+        <div class="ctrl-row">
+          <input id="rep-slider" type="range" min="0.2" max="3" value="1" step="0.1">
+          <span class="ctrl-val" id="rep-val">1.0</span>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">link length</span>
+        <div class="ctrl-row">
+          <input id="len-slider" type="range" min="0.4" max="2.5" value="1" step="0.1">
+          <span class="ctrl-val" id="len-val">1.0</span>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── RULES PANE ─────────── -->
+<section class="pane" data-pane="rules">
+  <div class="rules-body">
+    <p>The <b>growth</b> mode rewrites the graph with a rule you can write yourself. (The <b>sandpile</b>, <b>interaction</b> and <b>chem</b> modes carry their own fixed rule-sets — pick a preset in the play tab; the <b>docs</b> tab explains them.)</p>
+    <p>A growth rule says: <i>wherever this little pattern of links appears, delete it and put this other pattern there instead</i> — minting fresh nodes for any variable on the right that wasn't on the left. Fire it again and again and the graph builds itself.</p>
+
+    <h2>notation</h2>
+    <p>A link is a tuple of nodes in braces; a pattern is a set of links; lowercase letters are variables. The left of <code>→</code> is what to match, the right is what to leave behind.</p>
+    <p><span class="mono-inline">{{x,y}} → {{x,z},{z,y}}</span> reads: <i>find any link <code>x–y</code>; replace it with two links through a brand-new node <code>z</code>.</i> Variables only on the right (<code>z</code>, <code>w</code>) are <b>fresh nodes</b> — this is how the graph grows. Variables on both sides are <b>re-used</b>, stitching new onto old. A self-link <span class="mono-inline">{x,x}</span> is allowed (renders as a loop) and makes a handy seed.</p>
+
+    <h2>the built-in growth rules</h2>
+    <div id="rule-cards"></div>
+
+    <h2>write your own</h2>
+    <p>Type a rule below and load it into the playground (switches to growth mode). Binary links only; lowercase variables.</p>
+    <div class="editor-row">
+      <input id="rule-input" type="text" spellcheck="false" value="{{x,y},{x,z}} -> {{x,z},{x,w},{y,w},{z,w}}">
+      <button class="btn primary" id="load-rule-btn">load → play</button>
+    </div>
+    <p class="parse-msg" id="parse-msg">&nbsp;</p>
+    <p style="font-size:0.86rem;color:var(--muted)">Tips: keep the right-hand side small (1–4 links) or the graph explodes; include at least one re-used variable so new structure connects to old.</p>
+  </div>
+</section>
+
+<!-- ─────────── DOCS PANE ─────────── -->
+<section class="pane" data-pane="docs">
+  <div class="docs">
+    <p>You described a force-directed graph that periodically sprouts a new node, which then “interacts down the chain” Game-of-Life-style, sometimes spawning more nodes and links. That’s a real and well-studied idea — but it travels under several names, and the word <i>propagator</i> points at a slightly different one. The four play-tab modes are points on that map.</p>
+
+    <h2>mode 1 — growth (what the viral videos show)</h2>
+    <p>The “growing graph” videos are almost always <b>hypergraph rewriting</b>, popularised by the <a href="https://www.wolframphysics.org/" target="_blank" rel="noopener">Wolfram Physics Project</a> (2020): a fixed <b>local rewrite rule</b> says “wherever this small sub-pattern occurs, replace it with that one,” and applying it over and over makes the graph grow and fold. It’s Conway’s Life with a substrate that itself changes shape. But — as you noticed — a pure growth rule is <i>inert</i>: new nodes don’t feed back, they just take up space. The next two modes fix exactly that.</p>
+
+    <h2>mode 2 — sandpile (cascading topples)</h2>
+    <p>The canonical “one addition triggers an avalanche” math is the <b>abelian sandpile</b> (Bak–Tang–Wiesenfeld 1987; Dhar). Each node holds grains; when a node’s pile reaches its degree it <b>topples</b>, shedding one grain to each neighbour — which can push <i>them</i> over, and so on. Drop a single grain and you might trigger an avalanche of any size. Grey hollow nodes are <b>sinks</b> (the open boundary) where grains fall off, so the system always settles. This is the textbook example of <b>self-organised criticality</b>: avalanche sizes follow a power law, with no tuning. Here the topology is fixed and only <i>state</i> cascades.</p>
+
+    <h2>mode 3 — interaction nets (rewrites that rewire)</h2>
+    <p>The richest case — a cascade that also <b>reshapes the graph</b> — is <b>interaction nets</b> (Lafont 1990; interaction combinators 1997). Agents carry a symbol and meet at their <i>principal port</i>; a connected pair is a <b>redex</b> that fires:</p>
+    <ul>
+      <li><b>annihilate</b> — two like agents (C·C or D·D, or E·E) wired principal-to-principal vanish, splicing their other wires straight through.</li>
+      <li><b>commute / duplicate</b> — an unlike pair (C·D) each copies the other: two agents in, <i>four</i> out. This is the growth engine.</li>
+      <li><b>erase</b> — an eraser (E) meeting any agent deletes it and sends fresh erasers down its wires, which annihilate onward.</li>
+    </ul>
+    <p>Because firing rewires the graph, each reduction can create <i>new</i> redexes — so one collision sets off a chain that grows, prunes, and reshapes the whole net. And it’s <b>confluent</b>: the final normal form doesn’t depend on the order you fire. This is almost exactly “a new node’s presence makes a change that propagates and rewires.” (Symbols here: <b>C</b> = constructor γ, <b>D</b> = duplicator δ, <b>E</b> = eraser ε.)</p>
+
+    <h2>mode 4 — chemistry (matter cascades)</h2>
+    <p>The fourth angle is <b>algorithmic chemistry</b> (Fontana &amp; Buss’s λ-AlChemy; Banzhaf’s number/string chemistries). A fixed population of “molecules” floats in a well-stirred reactor; pick two, and a reaction <code>b := f(a,b)</code> rewrites one into the product — so the population total never changes, but its <i>composition</i> does. Run it and the species distribution drifts away from the random start and <b>collapses onto a closed, self-maintaining set</b> — a subgroup, a linear subspace, a single dominant replicator. That self-sustaining set is what Fontana calls an <i>organisation</i>, and it’s a leading toy model for <b>autocatalytic sets</b> and the origin of metabolism: order with no genome, just closure under reaction. (The version here is a number-chemistry instance — pick <code>multiply</code>, <code>fold</code>, <code>add</code>, or <code>replicate</code>; the readout histogram is the organisation forming in real time. Like-coloured molecules cluster spatially too.)</p>
+
+    <h2>the family, and where these sit</h2>
+    <table class="field-table">
+      <thead><tr><th>field</th><th>what fires</th><th>cascade?</th></tr></thead>
+      <tbody>
+        <tr><td class="name">hypergraph rewriting</td><td>local sub-pattern → replacement; graph grows</td><td>structure grows, no feedback</td></tr>
+        <tr><td class="name">sandpile / chip-firing</td><td>over-full node topples to neighbours</td><td>state avalanches (fixed graph)</td></tr>
+        <tr><td class="name">interaction nets</td><td>principal-port pair reduces &amp; rewires</td><td>structure cascades — confluent</td></tr>
+        <tr><td class="name">bootstrap percolation / CA</td><td>node activates from active neighbours</td><td>state avalanches</td></tr>
+        <tr><td class="name">algorithmic chemistry</td><td>objects collide, react, produce new objects</td><td>open-ended self-construction</td></tr>
+        <tr><td class="name">propagator networks</td><td>cells gain info → propagators recompute</td><td>information flow (Sussman &amp; Radul)</td></tr>
+      </tbody>
+    </table>
+    <p>The literal term <b>propagator networks</b> is Sussman &amp; Radul’s <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator”</a> — a <i>computation</i> model where information (not structure) flows across a fixed network of cells. A cousin to all of the above, which is why the same video gets called by either name.</p>
+
+    <h2>what is this — and what do you do with a living structure?</h2>
+    <p>Once a graph is alive under local rules, it stops being a picture and becomes one of three useful things. The single idea underneath all four modes is the same bet: <b>a global behaviour you wanted, expressed only as local rules</b> — no central plan, no global clock, every site acting on what it can see. That’s how morphogenesis, metabolism, markets, brains, and (on Wolfram’s telling) spacetime itself compute without anyone in charge. You can put a living structure to work three ways:</p>
+    <ul>
+      <li><b>Run it as a computer.</b> Interaction nets <i>are</i> a model of computation — they implement the λ-calculus (Lamping’s optimal reduction), so a running net is literally a running program and its normal form is the answer. Because every redex is independent, this is <i>embarrassingly parallel</i> — the basis of real runtimes like <a href="https://github.com/HigherOrderCO/HVM" target="_blank" rel="noopener">HVM</a> / Bend, which compile ordinary functional code to interaction combinators and run it on thousands of cores. <i>To use one:</i> encode your problem as the initial net, let it reduce, read the fixed point.</li>
+      <li><b>Measure its emergent observables</b> — it’s an instrument for the physics of “many simple parts.” The sandpile produces self-organised criticality: power-law avalanches and 1/f noise, with the <i>same</i> exponent seen in earthquakes (Gutenberg–Richter), neuronal avalanches, forest fires, traffic jams and financial cascades. You don’t solve it; you measure the exponent and ask whether a real system is poised at criticality. The log–log readout in the play tab <i>is</i> that measurement.</li>
+      <li><b>Let it relax to an attractor</b> — it’s a self-organiser / solver. Propagator networks settle to the solution of a constraint system; chemistries settle onto self-maintaining organisations (a candidate origin of life); a growth rule settles into a characteristic shape. The fixed point is the output.</li>
+    </ul>
+    <p>That’s why each mode now ships with a <b>readout</b> below the canvas — a species histogram, an avalanche power-law, a degree distribution. A living structure only becomes <i>useful</i> the moment you attach a measurement to it; the spectacle is the bait, the observable is the point.</p>
+    <p>The <b>conduct</b> tab pushes this one step further: a human in the loop. A musical clock drives whichever engine is running and <b>sonifies its event stream</b> in a chosen key — births become melody, sandpile avalanches become flourishes (and a critical pile’s 1/f event-timing is, per Voss &amp; Clarke 1975, exactly the spectral signature of <i>natural</i> rhythm), interaction-net reductions become harmony that resolves at normal form. You steer with tempo, key, density and on-the-beat accents; the piano-roll + chroma strip are the live musical analysis. It’s the propagator idea closing the loop — the human writes intent into the system, the system propagates it into sound.</p>
+
+    <h2>best practices baked in</h2>
+    <ul>
+      <li><b>The updating scheme is a real choice</b> — growth mode exposes <code>sequential</code> vs <code>generations</code> (one random match vs a maximal non-overlapping set); same rule, different geometry.</li>
+      <li><b>Cascade = relax-to-quiescence before the next input.</b> Sandpile drops one grain, then topples until stable; that relaxation loop <i>is</i> the avalanche. Interaction nets reduce until no redex remains.</li>
+      <li><b>Confluence / causal invariance</b> — interaction nets are confluent by construction; most growth rules aren’t, which is why firing order matters.</li>
+      <li><b>Layout is separate from rewriting</b> — a force-directed sim (springs + repulsion); new nodes spawn near their parents so growth looks organic.</li>
+      <li><b>Termination</b> — growth and duplication never halt on their own, so a node cap bounds them.</li>
+    </ul>
+
+    <h2>going deeper</h2>
+    <ul>
+      <li>Wolfram, <a href="https://writings.stephenwolfram.com/2020/04/finally-we-may-have-a-path-to-the-fundamental-theory-of-physics-and-its-beautiful/" target="_blank" rel="noopener">“A Path to the Fundamental Theory of Physics”</a> (2020).</li>
+      <li>Bak, Tang &amp; Wiesenfeld, “Self-organized criticality” (1987); Dhar, “Self-organized critical state of sandpile automaton models” (1990).</li>
+      <li>Lafont, “Interaction Nets” (POPL 1990) &amp; “Interaction Combinators” (1997).</li>
+      <li>Sussman &amp; Radul, <a href="https://groups.csail.mit.edu/mac/users/gjs/propagators/" target="_blank" rel="noopener">“The Art of the Propagator.”</a></li>
+      <li>Fontana &amp; Buss, “‘The arrival of the fittest’: λ-AlChemy” — algorithmic chemistry.</li>
+    </ul>
+
+    <div class="meta-stamp">
+      prop · a mino.mobi math-pack playground · four engines (rewriting · sandpile · interaction nets · chemistry) over one force-directed layout, pure canvas, no deps<br>
+      the interaction-net reducer is unit-tested for closed-net invariants
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── CONDUCT PANE ─────────── -->
+<section class="pane" data-pane="conduct">
+  <div class="conduct-wrap">
+    <div>
+      <canvas id="roll-canvas" width="800" height="480"></canvas>
+      <p class="hint" id="conduct-hint">turn <b>sound on</b> — a musical clock drives whichever engine is selected on the <b>play</b> tab, sonified in key. tap the pads to inject on the beat.</p>
+      <div class="pads" id="pads"></div>
+    </div>
+    <div class="controls">
+      <div class="btn-row"><button class="btn primary" id="sound-btn">sound on</button></div>
+      <div class="ctrl-group"><span class="ctrl-label">master</span><div class="ctrl-row"><input id="vol-slider" type="range" min="0" max="1" step="0.01" value="0.6"><span class="ctrl-val" id="vol-val">0.60</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">tempo · bpm</span><div class="ctrl-row"><input id="bpm-slider" type="range" min="40" max="200" step="1" value="96"><span class="ctrl-val" id="bpm-val">96</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">subdivision</span><div class="seg" id="subdiv-seg"><button data-s="1">¼</button><button data-s="2">⅛</button><button data-s="3">⅓</button><button data-s="4" class="active">1/16</button></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">swing</span><div class="ctrl-row"><input id="swing-slider" type="range" min="0" max="0.6" step="0.02" value="0"><span class="ctrl-val" id="swing-val">0.00</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">key</span><div class="ctrl-row"><select id="key-sel"></select></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">scale</span><div class="ctrl-row"><select id="scale-sel"></select></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">density · notes/tick</span><div class="ctrl-row"><input id="dens-slider" type="range" min="1" max="10" step="1" value="6"><span class="ctrl-val" id="dens-val">6</span></div></div>
+      <div class="ctrl-group"><span class="ctrl-label">voices</span><div class="mixer" id="mixer"></div></div>
+      <div class="stats" id="conduct-stats"></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>·</span>
+  <a href="https://bsky.app/profile/mino.mobi">@mino.mobi</a>
+  <span>·</span>
+  <a href="https://mino.mobi/geometry/">math pack</a>
+</footer>
+
+<script>
+"use strict";
+// ════════════════════════════════════════════════════════════════════
+// prop — three local-rule engines over one force-directed layout
+//   growth   : hypergraph rewriting (inert growth)
+//   sandpile : abelian sandpile / chip-firing (state cascades)
+//   inet     : interaction combinators (structure cascades & rewires)
+// ════════════════════════════════════════════════════════════════════
+
+const NEW = 26; // frames a node/link stays "fresh"/flashed
+
+// ── format state ──
+const THEMES = {
+  default: { edge: 'rgba(40,40,40,0.28)', hot: '#6d28d9', label: '#666', glow: false },
+  neon:    { edge: 'rgba(125,211,252,0.32)', hot: '#fef08a', label: '#9ca3af', glow: true },
+};
+const fmt = { theme: 'default', labels: false };
+function TH() { return THEMES[fmt.theme]; }
+
+// ── shared graph state (render model used by every mode) ──
+const G = {
+  nodes: new Map(),  // id -> node {id,x,y,vx,vy,pinned,flash, ...modeData}
+  links: [],         // {a,b,flash}  (a,b are node ids)
+  nextId: 0,
+  frame: 0,
+  cap: 220,
+  events: 0,
+};
+function rnd() { return Math.random(); }
+let AUDIO_EMIT = null; // when the conductor is on, engines push events here
+function newNode(x, y, extra) {
+  const id = G.nextId++;
+  const n = Object.assign({ id, x, y, vx: 0, vy: 0, pinned: false, flash: NEW }, extra || {});
+  G.nodes.set(id, n);
+  return n;
+}
+function clearGraph() { G.nodes = new Map(); G.links = []; G.nextId = 0; G.events = 0; G.frame = 0; }
+
+// ════════════════════════════════════════════════════════════════════
+// MODE 1 — GROWTH (hypergraph rewriting)
+// ════════════════════════════════════════════════════════════════════
+const GROWTH_PRESETS = [
+  { id: 'subdivide', name: 'subdivide', notation: '{{x,y}} -> {{x,z},{z,y}}', seed: [[0, 1]], blurb: 'Every link becomes a longer chain — a growing, wandering thread.' },
+  { id: 'sprout', name: 'sprout', notation: '{{x,y}} -> {{x,y},{y,z}}', seed: [[0, 1]], blurb: 'Keeps the link, hangs a fresh node off one end. Grows a branching tree.' },
+  { id: 'triangle', name: 'triangle', notation: '{{x,y}} -> {{x,z},{z,y},{x,y}}', seed: [[0, 1]], blurb: 'Caps each link with a new apex — a spreading triangulated frill.' },
+  { id: 'wolfram', name: 'wolfram mesh', notation: '{{x,y},{x,z}} -> {{x,z},{x,w},{y,w},{z,w}}', seed: [[0, 0], [0, 0]], blurb: "Wolfram's famous rule: two links sharing a node bloom into a mesh." },
+  { id: 'tendril', name: 'tendril', notation: '{{x,y},{x,z}} -> {{y,z},{z,w},{x,w}}', seed: [[0, 0], [0, 0]], blurb: 'Reweaves a shared corner into a longer strand. Lacy, tendrilled growth.' },
+  { id: 'loop', name: 'loops', notation: '{{x,y},{y,z}} -> {{x,y},{y,z},{z,x}}', seed: [[0, 1], [1, 2]], blurb: 'Closes paths of length two into triangles — folds the graph back.' },
+];
+let growthRule = null, growthScheme = 'seq', growthGen = 0, currentGrowthName = '';
+
+function parseRule(text) {
+  const parts = text.split(/-+>|→/);
+  if (parts.length !== 2) throw new Error('need exactly one  ->  arrow');
+  const grab = (s, side) => {
+    const links = []; const re = /\{\s*([a-zA-Z][\w]*)\s*,\s*([a-zA-Z][\w]*)\s*\}/g; let m;
+    while ((m = re.exec(s)) !== null) links.push([m[1], m[2]]);
+    if (links.length === 0) throw new Error(side + ' side has no {a,b} links');
+    return links;
+  };
+  const lhsRaw = grab(parts[0], 'left'), rhsRaw = grab(parts[1], 'right');
+  const idx = new Map();
+  for (const [a, b] of lhsRaw) { if (!idx.has(a)) idx.set(a, idx.size); if (!idx.has(b)) idx.set(b, idx.size); }
+  const nLhsVars = idx.size;
+  for (const [a, b] of rhsRaw) { if (!idx.has(a)) idx.set(a, idx.size); if (!idx.has(b)) idx.set(b, idx.size); }
+  const lhs = lhsRaw.map(([a, b]) => [idx.get(a), idx.get(b)]);
+  const rhs = rhsRaw.map(([a, b]) => [idx.get(a), idx.get(b)]);
+  if (lhs.length > 3) throw new Error('keep the left side to ≤ 3 links');
+  return { lhs, rhs, nLhsVars, nVars: idx.size, notation: text.trim() };
+}
+function seedGrowth(preset) {
+  clearGraph(); growthRule = parseRule(preset.notation); growthGen = 0; currentGrowthName = preset.name;
+  const seedMap = new Map(), J = 40;
+  for (const [a, b] of preset.seed) for (const v of [a, b])
+    if (!seedMap.has(v)) seedMap.set(v, newNode((rnd() - 0.5) * J, (rnd() - 0.5) * J).id);
+  for (const [a, b] of preset.seed) G.links.push({ a: seedMap.get(a), b: seedMap.get(b), flash: 0 });
+}
+function bindLink(pat, link, binding) {
+  for (const [pa, pb] of [[link.a, link.b], [link.b, link.a]]) {
+    const nb = binding.slice(); let ok = true;
+    for (const [v, id] of [[pat[0], pa], [pat[1], pb]]) {
+      if (nb[v] == null) nb[v] = id; else if (nb[v] !== id) { ok = false; break; }
+    }
+    if (ok) return nb;
+  }
+  return null;
+}
+function growthMatches(limit) {
+  const lhs = growthRule.lhs, L = G.links.length, out = [];
+  const order = [...Array(L).keys()];
+  for (let i = L - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
+  const blank = new Array(growthRule.nVars).fill(null);
+  (function rec(pi, binding, used) {
+    if (out.length >= limit) return;
+    if (pi === lhs.length) { out.push({ binding: binding.slice(), used: used.slice() }); return; }
+    for (const e of order) {
+      if (used.includes(e)) continue;
+      const nb = bindLink(lhs[pi], G.links[e], binding);
+      if (nb) { used.push(e); rec(pi + 1, nb, used); used.pop(); if (out.length >= limit) return; }
+    }
+  })(0, blank, []);
+  return out;
+}
+function growthApply(matches) {
+  const remove = new Set(), additions = [];
+  for (const match of matches) {
+    const b = match.binding.slice();
+    let cx = 0, cy = 0, n = 0;
+    for (let v = 0; v < growthRule.nLhsVars; v++) { const nd = G.nodes.get(b[v]); if (nd) { cx += nd.x; cy += nd.y; n++; } }
+    if (n) { cx /= n; cy /= n; }
+    for (let v = growthRule.nLhsVars; v < growthRule.nVars; v++)
+      if (b[v] == null) { b[v] = newNode(cx + (rnd() - 0.5) * 30, cy + (rnd() - 0.5) * 30).id; if (AUDIO_EMIT) AUDIO_EMIT('grow', b[v]); }
+    match.used.forEach(e => remove.add(e));
+    for (const [i, j] of growthRule.rhs) additions.push({ a: b[i], b: b[j], flash: NEW });
+    G.events++;
+  }
+  G.links = G.links.filter((_, e) => !remove.has(e));
+  for (const a of additions) G.links.push(a);
+  garbageCollect();
+}
+function growthTick() {
+  if (G.nodes.size >= G.cap) { stop('node cap reached — bump the cap or reset'); return false; }
+  if (growthScheme === 'seq') {
+    const m = growthMatches(1);
+    if (!m.length) { stop('no matches left — this rule ran dry'); return false; }
+    growthApply(m);
+  } else {
+    const all = growthMatches(3000); if (!all.length) { stop('no matches left — this rule ran dry'); return false; }
+    const used = new Set(), chosen = [];
+    for (const m of all) { if (m.used.some(e => used.has(e))) continue; m.used.forEach(e => used.add(e)); chosen.push(m); }
+    growthApply(chosen); growthGen++;
+  }
+  return true;
+}
+function garbageCollect() {
+  const live = new Set();
+  for (const l of G.links) { live.add(l.a); live.add(l.b); }
+  for (const id of [...G.nodes.keys()]) if (!live.has(id)) G.nodes.delete(id);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODE 2 — SANDPILE (abelian chip-firing)
+// ════════════════════════════════════════════════════════════════════
+const SAND_PRESETS = [
+  { id: 'random', name: 'random net', size: 110, m: 1.6, sink: 0.09, blurb: 'A grown random network.' },
+  { id: 'dense', name: 'dense', size: 130, m: 2.6, sink: 0.07, blurb: 'More links per node — fatter avalanches.' },
+  { id: 'sparse', name: 'sparse', size: 90, m: 1.05, sink: 0.12, blurb: 'Nearly a tree — long thin cascades.' },
+];
+let sandRelaxing = false, sandAval = 0, sandLastAval = 0, sandMaxAval = 0, sandGrains = 0, currentSandName = '';
+let sandSizes = []; // recorded avalanche sizes, for the log–log readout
+let sandSize = 110, sandM = 1.6, sandSinkFrac = 0.09;
+
+function seedSandpile(preset) {
+  clearGraph();
+  currentSandName = preset.name; sandSize = preset.size; sandM = preset.m; sandSinkFrac = preset.sink;
+  sandRelaxing = false; sandAval = 0; sandLastAval = 0; sandMaxAval = 0; sandGrains = 0; sandSizes = [];
+  const N = Math.min(preset.size, G.cap), R = 26 * Math.sqrt(N);
+  const ids = [];
+  const first = newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { chips: 0, sink: false, neigh: [] });
+  ids.push(first.id);
+  for (let i = 1; i < N; i++) {
+    const node = newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { chips: 0, sink: false, neigh: [] });
+    const m = 1 + ((rnd() < (preset.m - 1)) ? 1 : 0);
+    const picks = new Set();
+    for (let k = 0; k < m; k++) {
+      // preferential-ish: bias toward higher-degree existing nodes
+      let pick;
+      for (let tries = 0; tries < 8; tries++) {
+        const cand = ids[(rnd() * ids.length) | 0];
+        const c = G.nodes.get(cand);
+        if (rnd() < (1 + c.neigh.length) / 6 || tries === 7) { pick = cand; break; }
+      }
+      if (pick !== node.id) picks.add(pick);
+    }
+    for (const p of picks) { G.links.push({ a: node.id, b: p, flash: 0 }); G.nodes.get(p).neigh.push(node.id); node.neigh.push(p); }
+    ids.push(node.id);
+  }
+  // sinks: a fraction, preferring low-degree nodes (the boundary)
+  const sorted = ids.map(id => G.nodes.get(id)).sort((u, v) => u.neigh.length - v.neigh.length);
+  const nSink = Math.max(1, Math.floor(N * preset.sink));
+  for (let i = 0; i < nSink && i < sorted.length; i++) sorted[i].sink = true;
+  // start subcritical
+  for (const id of ids) { const n = G.nodes.get(id); n.flash = 0; if (!n.sink && n.neigh.length > 0) n.chips = (rnd() * n.neigh.length) | 0; }
+}
+function sandThreshold(n) { return Math.max(1, n.neigh.length); }
+function sandDrop() {
+  const cands = [...G.nodes.values()].filter(n => !n.sink && n.neigh.length > 0);
+  if (!cands.length) return;
+  const n = cands[(rnd() * cands.length) | 0];
+  n.chips++; n.flash = NEW; sandGrains++;
+  if (n.chips >= sandThreshold(n)) { sandRelaxing = true; sandAval = 0; }
+}
+function sandWave() {
+  // one parallel topple wave (abelian — order-independent)
+  const unstable = [...G.nodes.values()].filter(n => !n.sink && n.chips >= sandThreshold(n));
+  if (!unstable.length) {
+    sandRelaxing = false; sandLastAval = sandAval; if (sandAval > sandMaxAval) sandMaxAval = sandAval;
+    if (sandAval > 0) { sandSizes.push(sandAval); if (sandSizes.length > 5000) sandSizes.shift(); }
+    return;
+  }
+  for (const n of unstable) {
+    const th = sandThreshold(n);
+    n.chips -= th; n.flash = NEW; sandAval++; if (AUDIO_EMIT) AUDIO_EMIT('topple', n.id);
+    for (const nb of n.neigh) { const m = G.nodes.get(nb); if (!m.sink) m.chips++; } // sinks dissipate
+  }
+  // flash incident links of toppled nodes
+  const fired = new Set(unstable.map(n => n.id));
+  for (const l of G.links) if (fired.has(l.a) || fired.has(l.b)) l.flash = NEW;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODE 3 — INTERACTION NETS  (interaction combinators C=γ, D=δ, E=ε)
+//   Pure engine below the marker is unit-tested in Node (prop.test.mjs).
+// ════════════════════════════════════════════════════════════════════
+// >>> INET_ENGINE_START
+// A node: { id, sym:'C'|'D'|'E', ports:[peer,peer,peer] }  peer = {node, port} | null
+// port 0 = principal; ports 1,2 = auxiliary (E uses only port 0).
+function inetConnect(n1, p1, n2, p2) { n1.ports[p1] = { node: n2, port: p2 }; n2.ports[p2] = { node: n1, port: p1 }; }
+function inetArity(sym) { return sym === 'E' ? 1 : 3; }
+
+// find one active pair (two agents joined principal-to-principal). api.nodes = iterable of nodes
+function inetFindActive(nodes) {
+  for (const a of nodes) {
+    const p = a.ports[0];
+    if (p && p.port === 0 && p.node !== a) {
+      const b = p.node;
+      if (b.ports[0] && b.ports[0].node === a && b.ports[0].port === 0) return [a, b];
+    }
+  }
+  return null;
+}
+
+// reduce active pair (a,b). api: { make(sym, near)->node, del(node) }.
+// Returns the list of newly created nodes (for layout placement / flashing).
+function inetReduce(a, b, api) {
+  const created = [];
+  // classify
+  const ann = (a.sym === b.sym && a.sym !== 'E' && b.sym !== 'E') || (a.sym === 'E' && b.sym === 'E');
+  const era = (a.sym === 'E') !== (b.sym === 'E'); // exactly one eraser
+  // collect redex aux ports as "slots"
+  const redex = new Set([a, b]);
+  const slots = [];
+  for (const nd of [a, b]) if (nd.sym !== 'E') { slots.push({ node: nd, port: 1 }); slots.push({ node: nd, port: 2 }); }
+  // snapshot peers of every slot BEFORE mutation
+  const peer = new Map();
+  for (const s of slots) peer.set(s.node.id + ':' + s.port, s.node.ports[s.port]);
+
+  // build the replacement's "wires": each wire is [endA, endB], endpoints are
+  // either {slot:{node,port}} (a redex aux port) or {real:{node,port}} (a new-node port).
+  const wires = [];
+  const S = (node, port) => ({ slot: { node, port } });
+  const Rn = (node, port) => ({ real: { node, port } });
+
+  if (ann) {
+    if (a.sym === 'E') { /* E-E: nothing, just delete */ }
+    else { wires.push([S(a, 1), S(b, 1)], [S(a, 2), S(b, 2)]); }
+  } else if (era) {
+    const g = a.sym === 'E' ? b : a;            // the non-eraser
+    const e1 = api.make('E', g), e2 = api.make('E', g); created.push(e1, e2);
+    wires.push([S(g, 1), Rn(e1, 0)], [S(g, 2), Rn(e2, 0)]);
+  } else {
+    // commutation C·D: 2 in -> 4 out
+    const G_ = a, D_ = b;                        // generic names; both non-E
+    const c1 = api.make(G_.sym, a), c2 = api.make(G_.sym, a);
+    const d1 = api.make(D_.sym, b), d2 = api.make(D_.sym, b);
+    created.push(c1, c2, d1, d2);
+    wires.push(
+      [S(G_, 1), Rn(c1, 0)], [S(G_, 2), Rn(c2, 0)],
+      [S(D_, 1), Rn(d1, 0)], [S(D_, 2), Rn(d2, 0)],
+      [Rn(c1, 1), Rn(d1, 1)], [Rn(c1, 2), Rn(d2, 1)],
+      [Rn(c2, 1), Rn(d1, 2)], [Rn(c2, 2), Rn(d2, 2)],
+    );
+  }
+
+  // Build an adjacency over endpoints: rule wires + the existing peer wires of
+  // each slot. Slots are degree-2 pass-throughs; contract them so we connect
+  // real endpoints (new ports & true externals) to each other.
+  const key = ep => ep.node.id + ':' + ep.port + (ep.__new ? 'n' : '');
+  const adj = new Map(); const store = new Map();
+  const add = (u, v) => {
+    const ku = key(u), kv = key(v);
+    store.set(ku, u); store.set(kv, v);
+    (adj.get(ku) || adj.set(ku, []).get(ku)).push(kv);
+    (adj.get(kv) || adj.set(kv, []).get(kv)).push(ku);
+  };
+  const epOf = end => end.slot ? end.slot : Object.assign({}, end.real, { __new: created.includes(end.real.node) });
+  for (const [u, v] of wires) add(epOf(u), epOf(v));
+  for (const s of slots) { const pe = peer.get(s.node.id + ':' + s.port); if (pe) add({ node: s.node, port: s.port }, { node: pe.node, port: pe.port }); }
+
+  const isSlot = ep => redex.has(ep.node);
+  const visited = new Set();
+  const conns = [];
+  for (const [k, ep] of store) {
+    if (isSlot(ep) || visited.has(k)) continue;       // start only from real endpoints
+    // walk through slots to the other real endpoint
+    let prev = k, cur = (adj.get(k) || [])[0];
+    let guard = 0, end = null;
+    while (cur != null && guard++ < 64) {
+      const cep = store.get(cur);
+      if (!isSlot(cep)) { end = cur; break; }
+      const nbrs = adj.get(cur) || [];
+      const nxt = nbrs.find(x => x !== prev);
+      prev = cur; cur = nxt;
+    }
+    if (end != null && !visited.has(end)) {
+      visited.add(k); visited.add(end);
+      conns.push([ep, store.get(end)]);
+    }
+  }
+  // tear down redex, then realize connections
+  api.del(a); api.del(b);
+  for (const [u, v] of conns) inetConnect(u.node, u.port, v.node, v.port);
+  return created;
+}
+// <<< INET_ENGINE_END
+
+const INET_PRESETS = [
+  { id: 'soup', name: 'soup', size: 14, ratio: { C: 0.4, D: 0.4, E: 0.2 }, blurb: 'A mixed broth — grows and prunes.' },
+  { id: 'dup', name: 'duplication', size: 12, ratio: { C: 0.5, D: 0.45, E: 0.05 }, blurb: 'C·D heavy — commutation makes it bloom.' },
+  { id: 'erase', name: 'erasure', size: 16, ratio: { C: 0.35, D: 0.3, E: 0.35 }, blurb: 'Erasers eat the net in chain reactions.' },
+];
+const INET_COL = { C: '#2563eb', D: '#ea580c', E: '#64748b' };
+let currentInetName = '', inetActiveCount = 0, inetReductions = 0;
+
+const inetApi = {
+  make(sym, near) {
+    const x = (near ? near.x : 0) + (rnd() - 0.5) * 28, y = (near ? near.y : 0) + (rnd() - 0.5) * 28;
+    return newNode(x, y, { sym, ports: new Array(inetArity(sym)).fill(null) });
+  },
+  del(node) { G.nodes.delete(node.id); },
+};
+function seedInet(preset) {
+  clearGraph(); currentInetName = preset.name; inetReductions = 0;
+  const N = preset.size, R = 150;
+  const nodes = [];
+  for (let i = 0; i < N; i++) {
+    const r = rnd(); const sym = r < preset.ratio.C ? 'C' : r < preset.ratio.C + preset.ratio.D ? 'D' : 'E';
+    nodes.push(inetApi.make(sym, { x: (rnd() - 0.5) * R, y: (rnd() - 0.5) * R }));
+  }
+  // collect all ports, random perfect matching (ensure even count)
+  const ports = [];
+  for (const n of nodes) for (let p = 0; p < n.ports.length; p++) ports.push({ node: n, port: p });
+  for (let i = ports.length - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; [ports[i], ports[j]] = [ports[j], ports[i]]; }
+  if (ports.length % 2 === 1) { const e = inetApi.make('E', { x: (rnd() - 0.5) * R, y: (rnd() - 0.5) * R }); nodes.push(e); ports.push({ node: e, port: 0 }); }
+  for (let i = 0; i + 1 < ports.length; i += 2) {
+    const u = ports[i], v = ports[i + 1];
+    if (u.node === v.node) { // avoid a port pairing within the same node where possible
+      const w = ports[(i + 2) % ports.length]; if (w && w.node !== u.node) { ports[i + 1] = w; ports[(i + 2) % ports.length] = v; }
+    }
+    inetConnect(ports[i].node, ports[i].port, ports[i + 1].node, ports[i + 1].port);
+  }
+  for (const n of G.nodes.values()) n.flash = 0;
+  rebuildInetLinks();
+}
+function rebuildInetLinks() {
+  const seen = new Set(), links = [];
+  for (const n of G.nodes.values()) {
+    for (let p = 0; p < n.ports.length; p++) {
+      const pe = n.ports[p]; if (!pe) continue;
+      const ka = n.id * 4 + p, kb = pe.node.id * 4 + pe.port;
+      const k = Math.min(ka, kb) + '-' + Math.max(ka, kb);
+      if (seen.has(k)) continue; seen.add(k);
+      const prev = G.links.find(l => (l.a === n.id && l.b === pe.node.id) || (l.a === pe.node.id && l.b === n.id));
+      links.push({ a: n.id, b: pe.node.id, flash: prev ? prev.flash : 0, principal: p === 0 && pe.port === 0 });
+    }
+  }
+  G.links = links;
+}
+function inetTick() {
+  if (G.nodes.size >= G.cap) { stop('agent cap reached — bump the cap or reset'); return false; }
+  const pair = inetFindActive(G.nodes.values());
+  if (!pair) { stop('normal form — no active pairs left'); return false; }
+  const sa = pair[0].sym, sb = pair[1].sym;
+  const made = inetReduce(pair[0], pair[1], inetApi);
+  for (const n of made) n.flash = NEW;
+  if (AUDIO_EMIT) AUDIO_EMIT(sa === sb ? 'ann' : (sa === 'E' || sb === 'E') ? 'era' : 'com', made.length ? made[0].id : pair[0].id);
+  inetReductions++; G.events++;
+  rebuildInetLinks();
+  return true;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODE 4 — CHEMISTRY  (well-stirred constructive reactor, Fontana/Banzhaf)
+//   fixed population of "molecules" with an integer species; pick two,
+//   react b := f(a,b), keep population constant. The species distribution
+//   self-organises onto a closed, self-maintaining set (an "organisation").
+// ════════════════════════════════════════════════════════════════════
+// >>> CHEM_ENGINE_START
+function chemReact(a, b, op, M) {
+  switch (op) {
+    case 'mul': return (a * b) % M;
+    case 'add': return (a + b) % M;
+    case 'copy': return a;          // a imprints onto b (replication → consensus)
+    case 'xor': return (a ^ b) % M; // closed under xor → a GF(2) subspace forms
+  }
+  return b;
+}
+// <<< CHEM_ENGINE_END
+const CHEM_PRESETS = [
+  { id: 'mul', name: 'multiply', M: 47, op: 'mul', size: 96, blurb: 'c = a·b mod 47 — multiplicative organisations (subgroups).' },
+  { id: 'xor', name: 'fold', M: 64, op: 'xor', size: 96, blurb: 'c = a xor b — the live set closes into a linear subspace.' },
+  { id: 'add', name: 'add', M: 48, op: 'add', size: 96, blurb: 'c = a+b mod 48 — additive subgroups (multiples of a gcd).' },
+  { id: 'copy', name: 'replicate', M: 22, op: 'copy', size: 96, blurb: 'c = a — pure copying; one species takes the soup (consensus).' },
+];
+let chemM = 47, chemOp = 'mul', currentChemName = '', chemSize = 96;
+function seedChem(preset) {
+  clearGraph(); currentChemName = preset.name; chemM = preset.M; chemOp = preset.op;
+  chemSize = Math.min(preset.size, G.cap);
+  const R = 150, lo = preset.op === 'mul' ? 1 : 0;
+  for (let i = 0; i < chemSize; i++)
+    newNode((rnd() - 0.5) * R, (rnd() - 0.5) * R, { species: lo + ((rnd() * (chemM - lo)) | 0) });
+  for (const n of G.nodes.values()) n.flash = 0;
+}
+function chemTick() {
+  const ns = [...G.nodes.values()]; if (ns.length < 2) return false;
+  const a = ns[(rnd() * ns.length) | 0]; let b = ns[(rnd() * ns.length) | 0], g = 0;
+  while (b === a && g++ < 5) b = ns[(rnd() * ns.length) | 0];
+  if (b === a) return true;
+  b.species = chemReact(a.species, b.species, chemOp, chemM);
+  a.flash = NEW; b.flash = NEW; if (AUDIO_EMIT) AUDIO_EMIT('react', b.species);
+  G.links.push({ a: a.id, b: b.id, flash: Math.floor(NEW * 0.7) });
+  G.events++; return true;
+}
+function chemDistinct() { const s = new Set(); for (const n of G.nodes.values()) s.add(n.species); return s.size; }
+
+// ════════════════════════════════════════════════════════════════════
+// FORCE-DIRECTED LAYOUT (shared)
+// ════════════════════════════════════════════════════════════════════
+const LAYOUT = { rep: 1, len: 1 };
+function physicsStep(dt) {
+  const nd = [...G.nodes.values()], N = nd.length; if (!N) return;
+  const baseLen = 46 * LAYOUT.len, kRep = 2400 * LAYOUT.rep;
+  for (let i = 0; i < N; i++) {
+    const a = nd[i];
+    for (let j = i + 1; j < N; j++) {
+      const b = nd[j];
+      let dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+      if (d2 < 0.01) { dx = rnd() - 0.5; dy = rnd() - 0.5; d2 = 0.25; }
+      let f = kRep / d2;
+      if (MODE === 'chemistry' && a.species === b.species) f *= 0.12; // like clusters
+      const d = Math.sqrt(d2), fx = f * dx / d, fy = f * dy / d;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+  }
+  const kSpring = 0.06;
+  for (const l of G.links) {
+    if (l.a === l.b) continue;
+    const a = G.nodes.get(l.a), b = G.nodes.get(l.b); if (!a || !b) continue;
+    let dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+    const f = kSpring * (d - baseLen), fx = f * dx / d, fy = f * dy / d;
+    a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+  }
+  const damp = 0.86, gravity = 0.012;
+  for (const n of nd) {
+    if (n.pinned) { n.vx = 0; n.vy = 0; continue; }
+    n.vx -= n.x * gravity; n.vy -= n.y * gravity; n.vx *= damp; n.vy *= damp;
+    const sp = Math.hypot(n.vx, n.vy); if (sp > 40) { n.vx *= 40 / sp; n.vy *= 40 / sp; }
+    n.x += n.vx * dt; n.y += n.vy * dt;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RENDER (auto-fit)
+// ════════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('graph-canvas');
+const ctx = canvas.getContext('2d');
+const obs = document.getElementById('obs-canvas');
+const octx = obs.getContext('2d');
+const roll = document.getElementById('roll-canvas');
+const rctx = roll.getContext('2d');
+let DPR = Math.min(window.devicePixelRatio || 1, 2);
+const view = { cx: 0, cy: 0, scale: 1 };
+function resizeCanvas() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const r = canvas.getBoundingClientRect();
+  if (r.width) { canvas.width = Math.round(r.width * DPR); canvas.height = Math.round(r.height * DPR); }
+  const ro = obs.getBoundingClientRect();
+  if (ro.width) { obs.width = Math.round(ro.width * DPR); obs.height = Math.round(ro.height * DPR); }
+  const rr = roll.getBoundingClientRect();
+  if (rr.width) { roll.width = Math.round(rr.width * DPR); roll.height = Math.round(rr.height * DPR); }
+}
+function fitView() {
+  const ns = [...G.nodes.values()]; if (!ns.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of ns) { minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x); minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y); }
+  const pad = 46 * DPR, gw = Math.max(maxX - minX, 60), gh = Math.max(maxY - minY, 60);
+  const targetScale = Math.min((canvas.width - 2 * pad) / gw, (canvas.height - 2 * pad) / gh, 6 * DPR);
+  const k = 0.08;
+  view.scale += (targetScale - view.scale) * k;
+  view.cx += ((minX + maxX) / 2 - view.cx) * k; view.cy += ((minY + maxY) / 2 - view.cy) * k;
+}
+function w2s(x, y) { return [canvas.width / 2 + (x - view.cx) * view.scale, canvas.height / 2 + (y - view.cy) * view.scale]; }
+function s2w(px, py) { return [(px - canvas.width / 2) / view.scale + view.cx, (py - canvas.height / 2) / view.scale + view.cy]; }
+
+function sandColor(n) {
+  if (n.sink) return null; // hollow
+  const ratio = n.neigh.length ? Math.min(1, n.chips / sandThreshold(n)) : 0;
+  const hue = 210 - 210 * ratio; // blue -> red
+  return `hsl(${hue}, 75%, ${fmt.theme === 'neon' ? 60 : 48}%)`;
+}
+function nodeColor(n) {
+  if (MODE === 'inet') return INET_COL[n.sym] || '#888';
+  if (MODE === 'chemistry') return `hsl(${Math.round(360 * n.species / chemM)}, 70%, ${fmt.theme === 'neon' ? 62 : 50}%)`;
+  if (MODE === 'sandpile') return sandColor(n) || (fmt.theme === 'neon' ? '#334' : '#bbb');
+  return fmt.theme === 'neon' ? '#7dd3fc' : '#1a1a1a'; // growth
+}
+function nodeRadius(n) {
+  if (MODE === 'inet') return (n.sym === 'E' ? 2.6 : 3.6) * DPR;
+  if (MODE === 'chemistry') return 3.2 * DPR;
+  if (MODE === 'sandpile') return (n.sink ? 3 : 2.6 + Math.min(n.chips, 6) * 0.45) * DPR;
+  return (2.6 + Math.min(degOf(n.id), 8) * 0.5) * DPR; // growth
+}
+const _deg = new Map();
+function degOf(id) { return _deg.get(id) || 0; }
+function recomputeDegrees() { _deg.clear(); for (const l of G.links) { _deg.set(l.a, (_deg.get(l.a) || 0) + 1); _deg.set(l.b, (_deg.get(l.b) || 0) + 1); } }
+
+function render() {
+  const th = TH();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const l of G.links) {
+    const a = G.nodes.get(l.a), b = G.nodes.get(l.b); if (!a || !b) continue;
+    if (l.a === l.b) { drawLoop(a, l.flash > 0, th); continue; }
+    const [ax, ay] = w2s(a.x, a.y), [bx, by] = w2s(b.x, b.y);
+    const hot = l.flash > 0;
+    ctx.strokeStyle = hot ? th.hot : th.edge;
+    ctx.lineWidth = (hot ? 2.4 : (MODE === 'inet' && l.principal ? 1.7 : 1.1)) * DPR;
+    if (th.glow && hot) { ctx.shadowColor = th.hot; ctx.shadowBlur = 7 * DPR; }
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  for (const n of G.nodes.values()) {
+    const [sx, sy] = w2s(n.x, n.y), r = nodeRadius(n), hot = n.flash > 0;
+    const hollow = MODE === 'sandpile' && n.sink;
+    if (hollow) {
+      ctx.strokeStyle = fmt.theme === 'neon' ? '#556' : '#999'; ctx.lineWidth = 1.2 * DPR;
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.2832); ctx.stroke();
+    } else {
+      ctx.fillStyle = hot ? th.hot : nodeColor(n);
+      if (th.glow) { ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = (hot ? 10 : 4) * DPR; }
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.2832); ctx.fill(); ctx.shadowBlur = 0;
+    }
+    if (fmt.labels) {
+      ctx.fillStyle = th.label; ctx.font = `${9 * DPR}px ui-monospace, monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const txt = MODE === 'inet' ? n.sym : MODE === 'sandpile' ? (n.sink ? '' : n.chips) : n.id;
+      ctx.fillText(txt, sx, sy - r - 6 * DPR);
+    }
+  }
+}
+function drawLoop(n, hot, th) {
+  const [sx, sy] = w2s(n.x, n.y), r = 9 * DPR;
+  ctx.strokeStyle = hot ? th.hot : th.edge; ctx.lineWidth = (hot ? 2.2 : 1.1) * DPR;
+  ctx.beginPath(); ctx.arc(sx + r, sy, r, 0, 6.2832); ctx.stroke();
+}
+
+// ── observables panel (a living structure is only useful once measured) ──
+function drawObs() {
+  octx.clearRect(0, 0, obs.width, obs.height);
+  const cap = document.getElementById('obs-cap');
+  if (MODE === 'sandpile') { cap.textContent = 'avalanche sizes, log–log — a straight line is a power law'; drawLogLog(); }
+  else if (MODE === 'chemistry') { cap.textContent = 'species population — watch it collapse onto an organisation'; drawSpeciesHist(); }
+  else { cap.textContent = 'degree distribution'; drawDegHist(); }
+}
+function drawLogLog() {
+  const pad = 16 * DPR, w = obs.width - 2 * pad, h = obs.height - 2 * pad;
+  octx.strokeStyle = fmt.theme === 'neon' ? '#334' : '#ddd'; octx.lineWidth = DPR;
+  octx.beginPath(); octx.moveTo(pad, pad); octx.lineTo(pad, pad + h); octx.lineTo(pad + w, pad + h); octx.stroke();
+  if (sandSizes.length < 3) return;
+  let max = 1; for (const s of sandSizes) if (s > max) max = s;
+  const lmax = Math.log10(max + 1) || 1, nb = Math.max(4, Math.ceil(lmax * 6)), bins = new Array(nb).fill(0);
+  for (const s of sandSizes) { const b = Math.min(nb - 1, Math.floor(Math.log10(s + 1e-4) / lmax * nb)); if (b >= 0) bins[b]++; }
+  let cmax = 1; for (const c of bins) if (c > cmax) cmax = c;
+  octx.fillStyle = TH().hot;
+  for (let i = 0; i < nb; i++) {
+    if (!bins[i]) continue;
+    const x = pad + (i + 0.5) / nb * w, y = pad + h - (Math.log10(bins[i] + 1) / Math.log10(cmax + 1)) * h;
+    octx.beginPath(); octx.arc(x, y, 2.4 * DPR, 0, 6.2832); octx.fill();
+  }
+}
+function drawSpeciesHist() {
+  const counts = new Array(chemM).fill(0);
+  for (const n of G.nodes.values()) counts[n.species] = (counts[n.species] || 0) + 1;
+  let cmax = 1; for (const c of counts) if (c > cmax) cmax = c;
+  const h = obs.height, bw = obs.width / chemM;
+  for (let s = 0; s < chemM; s++) {
+    if (!counts[s]) continue;
+    const bh = counts[s] / cmax * (h - 4 * DPR);
+    octx.fillStyle = `hsl(${Math.round(360 * s / chemM)}, 70%, ${fmt.theme === 'neon' ? 62 : 50}%)`;
+    octx.fillRect(s * bw, h - bh, Math.max(1, bw - 1), bh);
+  }
+}
+function drawDegHist() {
+  const counts = {}; let maxd = 1, cmax = 1;
+  for (const d of _deg.values()) { counts[d] = (counts[d] || 0) + 1; if (d > maxd) maxd = d; if (counts[d] > cmax) cmax = counts[d]; }
+  const h = obs.height, bw = obs.width / Math.max(maxd + 1, 1);
+  octx.fillStyle = TH().hot;
+  for (let d = 0; d <= maxd; d++) { const c = counts[d] || 0; if (!c) continue; const bh = c / cmax * (h - 4 * DPR); octx.fillRect(d * bw, h - bh, Math.max(1, bw - 1), bh); }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ════════════════════════════════════════════════════════════════════
+let MODE = 'growth', playing = false, rateEPS = 6, eventAcc = 0, lastT = performance.now();
+function loop(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now; G.frame++;
+  for (const n of G.nodes.values()) if (n.flash > 0) n.flash--;
+  for (const l of G.links) if (l.flash > 0) l.flash--;
+
+  if (!Conductor.on) {  // when the conductor runs, the musical clock drives stepping
+    if (MODE === 'sandpile') {
+      if (sandRelaxing) sandWave();                 // avalanche animates to quiescence
+      else if (playing) { eventAcc += dt * rateEPS; while (eventAcc >= 1) { eventAcc -= 1; sandDrop(); if (sandRelaxing) break; } }
+    } else if (playing) {
+      const stepFn = MODE === 'growth' ? growthTick : MODE === 'inet' ? inetTick : chemTick;
+      eventAcc += dt * rateEPS; let guard = 0;
+      while (eventAcc >= 1 && guard < 8) { eventAcc -= 1; if (!stepFn()) { eventAcc = 0; break; } guard++; }
+    }
+  }
+  if (MODE === 'chemistry') G.links = G.links.filter(l => l.flash > 0); // transient reaction flashes
+  if (MODE === 'inet') inetActiveCount = countActive();
+  recomputeDegrees();
+  for (let s = 0; s < 2; s++) physicsStep(1);
+  fitView(); render(); updateStats(); drawObs();
+  if (activeTab === 'conduct') drawRoll();
+  requestAnimationFrame(loop);
+}
+function countActive() { let c = 0; const seen = new Set(); for (const a of G.nodes.values()) { const p = a.ports && a.ports[0]; if (p && p.port === 0 && p.node !== a && p.node.ports[0] && p.node.ports[0].node === a) { const k = Math.min(a.id, p.node.id) + '-' + Math.max(a.id, p.node.id); if (!seen.has(k)) { seen.add(k); c++; } } } return c; }
+
+// ════════════════════════════════════════════════════════════════════
+// UI
+// ════════════════════════════════════════════════════════════════════
+function setPlaying(on) {
+  playing = on;
+  const btn = document.getElementById('play-btn');
+  btn.textContent = on ? 'pause' : 'play'; btn.classList.toggle('primary', !on);
+  if (on) { lastT = performance.now(); eventAcc = 0; }
+}
+function stop(msg) { setPlaying(false); if (msg) flashHint(msg); }
+let hintTimer = null;
+function flashHint(msg) {
+  const el = document.getElementById('play-hint'); el.innerHTML = msg; el.style.color = 'var(--accent)';
+  clearTimeout(hintTimer); hintTimer = setTimeout(() => { el.style.color = ''; }, 2600);
+}
+
+const PRESETS = { growth: GROWTH_PRESETS, sandpile: SAND_PRESETS, inet: INET_PRESETS, chemistry: CHEM_PRESETS };
+let currentPresetId = {};
+function seedFor(mode, preset) {
+  if (mode === 'growth') seedGrowth(preset);
+  else if (mode === 'sandpile') seedSandpile(preset);
+  else if (mode === 'chemistry') seedChem(preset);
+  else seedInet(preset);
+  view.scale = 1; view.cx = 0; view.cy = 0;
+}
+function buildPresetRow() {
+  const row = document.getElementById('preset-row'); row.innerHTML = '';
+  PRESETS[MODE].forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'preset' + (p.id === currentPresetId[MODE] ? ' active' : (i === 0 && !currentPresetId[MODE] ? ' active' : ''));
+    b.textContent = p.name; b.title = p.blurb;
+    b.addEventListener('click', () => { setPlaying(false); currentPresetId[MODE] = p.id; seedFor(MODE, p); document.querySelectorAll('#preset-row .preset').forEach(x => x.classList.toggle('active', x === b)); });
+    row.appendChild(b);
+  });
+}
+function relabel() {
+  const cap = document.getElementById('cap-label'), rate = document.getElementById('rate-label'), preset = document.getElementById('preset-label');
+  document.getElementById('scheme-group').classList.toggle('hidden', MODE !== 'growth');
+  if (MODE === 'growth') { cap.textContent = 'node cap'; rate.textContent = 'births / sec'; preset.textContent = 'rule'; }
+  else if (MODE === 'sandpile') { cap.textContent = 'max nodes'; rate.textContent = 'grains / sec'; preset.textContent = 'network'; }
+  else if (MODE === 'chemistry') { cap.textContent = 'population'; rate.textContent = 'reactions / sec'; preset.textContent = 'reaction'; }
+  else { cap.textContent = 'agent cap'; rate.textContent = 'reductions / sec'; preset.textContent = 'starting net'; }
+}
+function switchMode(mode) {
+  setPlaying(false); MODE = mode;
+  document.querySelectorAll('#mode-seg button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  relabel(); buildPresetRow();
+  const p = PRESETS[mode].find(x => x.id === currentPresetId[mode]) || PRESETS[mode][0];
+  currentPresetId[mode] = p.id; seedFor(mode, p);
+  document.getElementById('play-hint').style.color = '';
+  document.getElementById('play-hint').innerHTML =
+    mode === 'growth' ? 'a rule rewrites the graph; new nodes are inert except for layout — pure growth' :
+    mode === 'sandpile' ? 'drop grains; when a node fills past its degree it topples — watch the avalanche cascade. grey rings are sinks' :
+    mode === 'chemistry' ? 'a fixed soup of molecules reacts (b := f(a,b)); watch the species distribution self-organise onto a self-maintaining set. like colours cluster' :
+    'agents collide at their principal port and reduce — each reduction rewires the net and can trigger more. C=γ build, D=δ copy, E=ε erase';
+  updateLegend();
+}
+function updateLegend() {
+  const el = document.getElementById('legend');
+  if (MODE === 'inet') el.innerHTML =
+    `<span class="sw" style="background:${INET_COL.C}"></span>C constructor (γ)<br>` +
+    `<span class="sw" style="background:${INET_COL.D}"></span>D duplicator (δ)<br>` +
+    `<span class="sw" style="background:${INET_COL.E}"></span>E eraser (ε) · thick link = active pair`;
+  else if (MODE === 'sandpile') el.innerHTML = 'node colour = fill (blue→red as it nears toppling) · hollow ring = sink';
+  else if (MODE === 'chemistry') el.innerHTML = 'node colour = species (hue = value) · flash = a reaction · like clusters';
+  else el.innerHTML = 'node size = degree · violet = just born';
+}
+
+function updateStats() {
+  const el = document.getElementById('stats'); const rows = [];
+  if (MODE === 'growth') {
+    rows.push(['rule', currentGrowthName, false], ['nodes', G.nodes.size, true], ['links', G.links.length, false], ['events', G.events, false]);
+    if (growthScheme === 'gen') rows.push(['generation', growthGen, false]);
+  } else if (MODE === 'sandpile') {
+    rows.push(['network', currentSandName, false], ['nodes', G.nodes.size, false], ['grains dropped', sandGrains, false],
+      ['last avalanche', sandRelaxing ? '…' + sandAval : sandLastAval, true], ['max avalanche', sandMaxAval, false]);
+  } else if (MODE === 'chemistry') {
+    rows.push(['reaction', currentChemName, false], ['molecules', G.nodes.size, false], ['distinct species', chemDistinct(), true], ['reactions', G.events, false]);
+  } else {
+    rows.push(['net', currentInetName, false], ['agents', G.nodes.size, true], ['active pairs', inetActiveCount, false], ['reductions', inetReductions, false]);
+  }
+  let html = '';
+  for (const [k, v, hot] of rows) html += `<div class="stat-row"><span class="k">${k}</span><span class="v${hot ? ' hot' : ''}">${v}</span></div>`;
+  if (MODE === 'growth' && growthRule) html += `<div class="rule-show">${growthRule.notation}</div>`;
+  el.innerHTML = html;
+}
+
+// growth rule cards
+const ruleCards = document.getElementById('rule-cards');
+GROWTH_PRESETS.forEach(p => {
+  const card = document.createElement('div'); card.className = 'rule-card';
+  card.innerHTML = `<span class="name">${p.name}</span><span class="notation">${p.notation.replace('->', '→')}</span><span class="desc">${p.blurb}</span>`;
+  const go = document.createElement('button'); go.className = 'btn'; go.textContent = 'try it →'; go.style.alignSelf = 'flex-start';
+  go.addEventListener('click', () => { switchMode('growth'); currentPresetId.growth = p.id; seedFor('growth', p); buildPresetRow(); showTab('play'); });
+  card.appendChild(go); ruleCards.appendChild(card);
+});
+
+// controls
+document.getElementById('mode-seg').addEventListener('click', e => { if (e.target.dataset.mode) switchMode(e.target.dataset.mode); });
+document.getElementById('play-btn').addEventListener('click', () => setPlaying(!playing));
+document.getElementById('step-btn').addEventListener('click', () => {
+  setPlaying(false);
+  if (MODE === 'growth') growthTick();
+  else if (MODE === 'inet') inetTick();
+  else if (MODE === 'chemistry') chemTick();
+  else { if (!sandRelaxing) sandDrop(); }
+});
+document.getElementById('reset-btn').addEventListener('click', () => {
+  setPlaying(false);
+  const p = PRESETS[MODE].find(x => x.id === currentPresetId[MODE]) || PRESETS[MODE][0];
+  seedFor(MODE, p); document.getElementById('play-hint').style.color = '';
+});
+function bindSlider(id, valId, fn, fmtFn) {
+  const s = document.getElementById(id), v = document.getElementById(valId);
+  const apply = () => { const x = parseFloat(s.value); v.textContent = fmtFn ? fmtFn(x) : x; fn(x); };
+  s.addEventListener('input', apply); apply();
+}
+bindSlider('rate-slider', 'rate-val', x => rateEPS = x, x => x);
+bindSlider('cap-slider', 'cap-val', x => G.cap = x, x => x);
+bindSlider('rep-slider', 'rep-val', x => LAYOUT.rep = x, x => x.toFixed(1));
+bindSlider('len-slider', 'len-val', x => LAYOUT.len = x, x => x.toFixed(1));
+document.querySelectorAll('#scheme-seg button').forEach(b => b.addEventListener('click', () => {
+  growthScheme = b.dataset.scheme;
+  document.querySelectorAll('#scheme-seg button').forEach(x => x.classList.toggle('active', x === b));
+}));
+
+// custom growth rule
+document.getElementById('load-rule-btn').addEventListener('click', loadCustomRule);
+document.getElementById('rule-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadCustomRule(); });
+function loadCustomRule() {
+  const input = document.getElementById('rule-input'), msg = document.getElementById('parse-msg');
+  try {
+    const rule = parseRule(input.value);
+    const seed = rule.lhs.length >= 2 ? [[0, 0], [0, 0]] : [[0, 1]];
+    switchMode('growth');
+    seedGrowth({ notation: rule.notation, seed, name: 'custom' });
+    currentPresetId.growth = null; document.querySelectorAll('#preset-row .preset').forEach(b => b.classList.remove('active'));
+    input.classList.remove('bad'); msg.className = 'parse-msg'; msg.textContent = 'loaded ✓ — switch to play and hit play';
+    showTab('play');
+  } catch (err) { input.classList.add('bad'); msg.className = 'parse-msg bad'; msg.textContent = '✗ ' + err.message; }
+}
+
+// format bar
+document.getElementById('labels-btn').addEventListener('click', function () { fmt.labels = !fmt.labels; this.classList.toggle('active', fmt.labels); });
+document.querySelectorAll('.fmt-style').forEach(b => b.addEventListener('click', () => {
+  fmt.theme = b.dataset.theme; document.querySelectorAll('.fmt-style').forEach(x => x.classList.toggle('active', x.dataset.theme === fmt.theme));
+}));
+
+// tabs
+const tabs = document.querySelectorAll('.tab'), panes = document.querySelectorAll('.pane'), formatBar = document.getElementById('format-bar');
+function showTab(name) {
+  activeTab = name;
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  panes.forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  formatBar.classList.toggle('hidden', name !== 'play');
+  resizeCanvas(); // size the now-visible canvas (graph or piano-roll)
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+// drag
+let dragId = null;
+function pickNode(px, py) {
+  const [wx, wy] = s2w(px * DPR, py * DPR); let best = null, bestD = (18 / view.scale) ** 2;
+  for (const n of G.nodes.values()) { const d = (n.x - wx) ** 2 + (n.y - wy) ** 2; if (d < bestD) { bestD = d; best = n.id; } }
+  return best;
+}
+canvas.addEventListener('pointerdown', e => {
+  const r = canvas.getBoundingClientRect(), id = pickNode(e.clientX - r.left, e.clientY - r.top);
+  if (id !== null) { dragId = id; G.nodes.get(id).pinned = true; canvas.classList.add('dragging'); canvas.setPointerCapture(e.pointerId); }
+});
+canvas.addEventListener('pointermove', e => {
+  if (dragId === null) return; const r = canvas.getBoundingClientRect();
+  const [wx, wy] = s2w((e.clientX - r.left) * DPR, (e.clientY - r.top) * DPR);
+  const n = G.nodes.get(dragId); if (n) { n.x = wx; n.y = wy; n.vx = 0; n.vy = 0; }
+});
+function endDrag() { if (dragId !== null) { const n = G.nodes.get(dragId); if (n) n.pinned = false; } dragId = null; canvas.classList.remove('dragging'); }
+canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (!document.querySelector('.pane[data-pane="play"]').classList.contains('active')) return;
+  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+  else if (e.key === 's') document.getElementById('step-btn').click();
+  else if (e.key === 'r') document.getElementById('reset-btn').click();
+});
+
+// ════════════════════════════════════════════════════════════════════
+// CONDUCT — the substrate as a human-steered generative instrument
+//   a musical clock drives the selected engine; its event stream is
+//   sonified (Web Audio), quantised to a tempo grid, in a chosen key.
+//   Steering = the human supplies tempo / key / density / accents that the
+//   autonomous local rules can't. Scheduling per Chris Wilson's two-clocks.
+// ════════════════════════════════════════════════════════════════════
+let activeTab = 'play';
+const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], pentatonic: [0, 3, 5, 7, 10], whole: [0, 2, 4, 6, 8, 10], chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] };
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const VOICES = {
+  grow:   { label: 'grow',    type: 'triangle', oct: 1,  dur: 0.26, gain: 0.7,  mute: false },
+  topple: { label: 'topple',  type: 'sine',     oct: 2,  dur: 0.12, gain: 0.55, mute: false },
+  react:  { label: 'react',   type: 'sine',     oct: 0,  dur: 0.30, gain: 0.55, mute: false },
+  com:    { label: 'commute', type: 'triangle', oct: 1,  dur: 0.16, gain: 0.6,  mute: false },
+  ann:    { label: 'annihil', type: 'sawtooth', oct: -1, dur: 0.32, gain: 0.5,  mute: false },
+  era:    { label: 'erase',   type: 'noise',    oct: 0,  dur: 0.16, gain: 0.45, mute: false },
+};
+const VOICE_COL = { grow: '#6d28d9', topple: '#0ea5e9', react: '#ea580c', com: '#16a34a', ann: '#db2777', era: '#64748b' };
+const Conductor = { on: false, ctx: null, master: null, bpm: 96, subdiv: 4, swing: 0, key: 0, scale: 'minor', density: 6, vol: 0.6, next: 0, tick: 0, timer: null, roll: [] };
+const eventBus = [], padQueue = [];
+function emitAudio(voice, val) { if (eventBus.length < 64) eventBus.push({ voice, val }); }
+
+function substrateStep() {
+  if (MODE === 'growth') growthTick();
+  else if (MODE === 'inet') inetTick();
+  else if (MODE === 'chemistry') chemTick();
+  else { sandDrop(); let g = 0; while (sandRelaxing && g++ < 4000) sandWave(); }
+}
+function spt() { return 60 / Conductor.bpm / Conductor.subdiv; }
+function audioStart() {
+  if (!Conductor.ctx) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = ctx.createDynamicsCompressor(), master = ctx.createGain();
+    master.gain.value = Conductor.vol; master.connect(comp); comp.connect(ctx.destination);
+    Conductor.ctx = ctx; Conductor.master = master;
+  }
+  Conductor.ctx.resume();
+  Conductor.on = true; AUDIO_EMIT = emitAudio; eventBus.length = 0;
+  Conductor.next = Conductor.ctx.currentTime + 0.08; Conductor.tick = 0;
+  clearInterval(Conductor.timer); Conductor.timer = setInterval(scheduler, 25);
+  const b = document.getElementById('sound-btn'); b.textContent = 'sound off'; b.classList.remove('primary');
+}
+function audioStop() {
+  Conductor.on = false; AUDIO_EMIT = null; clearInterval(Conductor.timer); Conductor.timer = null;
+  const b = document.getElementById('sound-btn'); b.textContent = 'sound on'; b.classList.add('primary');
+}
+function scheduler() {
+  const ctx = Conductor.ctx; if (!ctx) return;
+  while (Conductor.next < ctx.currentTime + 0.12) {
+    scheduleTick(Conductor.next, Conductor.tick);
+    let d = spt(); if (Conductor.swing > 0) d *= (Conductor.tick % 2 === 0) ? (1 + Conductor.swing) : (1 - Conductor.swing);
+    Conductor.next += d; Conductor.tick++;
+  }
+}
+function scheduleTick(t) {
+  while (padQueue.length) padQueue.shift()();   // human accents, quantised to the beat
+  substrateStep();                              // advance the engine one grid step
+  const evs = eventBus.splice(0, Conductor.density); eventBus.length = 0; // cap → no mud
+  const d = spt();
+  evs.forEach((e, k) => playNote(e, t + (evs.length > 1 ? k / evs.length * d * 0.9 : 0))); // spread an avalanche into a flourish
+}
+function midiFor(voice, val) {
+  const s = SCALES[Conductor.scale], deg = ((Math.round(Math.abs(val)) % s.length) + s.length) % s.length;
+  return 48 + Conductor.key + s[deg] + 12 * (VOICES[voice].oct || 0);
+}
+function playNote(e, t) {
+  const v = VOICES[e.voice]; if (!v || v.mute || !Conductor.ctx) return;
+  const ctx = Conductor.ctx, g = ctx.createGain(); g.connect(Conductor.master);
+  if (v.type === 'noise') {
+    const n = Math.max(1, Math.floor(ctx.sampleRate * v.dur)), buf = ctx.createBuffer(1, n, ctx.sampleRate), dd = buf.getChannelData(0);
+    for (let k = 0; k < n; k++) dd[k] = (Math.random() * 2 - 1) * (1 - k / n);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.6;
+    src.connect(bp); bp.connect(g);
+    g.gain.setValueAtTime(v.gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + v.dur);
+    src.start(t); src.stop(t + v.dur); pushRoll(t, 60, e.voice); return;
+  }
+  const midi = midiFor(e.voice, e.val);
+  const o = ctx.createOscillator(); o.type = v.type; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12); o.connect(g);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v.gain, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0008, t + v.dur);
+  o.start(t); o.stop(t + v.dur + 0.03); pushRoll(t, midi, e.voice);
+}
+function pushRoll(t, midi, voice) { Conductor.roll.push({ t, midi, voice }); if (Conductor.roll.length > 700) Conductor.roll.shift(); }
+function pad(n) { padQueue.push(() => { for (let k = 0; k < n; k++) { if (MODE === 'sandpile') sandDrop(); else substrateStep(); } }); }
+
+function drawRoll() {
+  const now = Conductor.ctx ? Conductor.ctx.currentTime : performance.now() / 1000;
+  const W = roll.width, H = roll.height; rctx.clearRect(0, 0, W, H);
+  const span = 6, lo = 36, hi = 88;
+  while (Conductor.roll.length && Conductor.roll[0].t < now - span - 1) Conductor.roll.shift();
+  const chroma = new Array(12).fill(0); let recent = 0;
+  for (const nt of Conductor.roll) {
+    if (nt.t > now) continue;
+    const x = (1 - (now - nt.t) / span) * W; if (x < 0) continue;
+    const y = (H - 26 * DPR) - Math.max(0, Math.min(1, (nt.midi - lo) / (hi - lo))) * (H - 30 * DPR);
+    rctx.fillStyle = VOICE_COL[nt.voice] || '#888';
+    rctx.fillRect(x - 2 * DPR, y - 2 * DPR, 5 * DPR, 4 * DPR);
+    if (nt.t > now - 1) { recent++; chroma[((nt.midi % 12) + 12) % 12]++; }
+  }
+  const bw = W / 12, cmax = Math.max(1, ...chroma);
+  rctx.globalAlpha = 0.5;
+  for (let c = 0; c < 12; c++) { if (!chroma[c]) continue; const bh = chroma[c] / cmax * 22 * DPR; rctx.fillStyle = fmt.theme === 'neon' ? '#7dd3fc' : '#6d28d9'; rctx.fillRect(c * bw, H - bh, bw - 1, bh); }
+  rctx.globalAlpha = 1;
+  const el = document.getElementById('conduct-stats');
+  el.innerHTML =
+    `<div class="stat-row"><span class="k">engine</span><span class="v">${MODE}</span></div>` +
+    `<div class="stat-row"><span class="k">notes / sec</span><span class="v hot">${recent}</span></div>` +
+    `<div class="stat-row"><span class="k">key</span><span class="v">${NOTE_NAMES[Conductor.key]} ${Conductor.scale}</span></div>` +
+    `<div class="stat-row"><span class="k">queue</span><span class="v">${eventBus.length}</span></div>`;
+}
+
+// build conduct UI
+(function buildConduct() {
+  const keySel = document.getElementById('key-sel');
+  NOTE_NAMES.forEach((n, i) => { const o = document.createElement('option'); o.value = i; o.textContent = n; keySel.appendChild(o); });
+  const scaleSel = document.getElementById('scale-sel');
+  Object.keys(SCALES).forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; if (s === Conductor.scale) o.selected = true; scaleSel.appendChild(o); });
+  keySel.addEventListener('change', () => Conductor.key = +keySel.value);
+  scaleSel.addEventListener('change', () => Conductor.scale = scaleSel.value);
+  const mixer = document.getElementById('mixer');
+  Object.keys(VOICES).forEach(k => {
+    const v = VOICES[k], row = document.createElement('div'); row.className = 'mix-row';
+    row.innerHTML = `<span class="vn" style="color:${VOICE_COL[k]}">${v.label}</span><span class="mute on" data-v="${k}">●</span>`;
+    const sl = document.createElement('input'); sl.type = 'range'; sl.min = 0; sl.max = 1; sl.step = 0.01; sl.value = v.gain;
+    sl.addEventListener('input', () => v.gain = +sl.value);
+    row.appendChild(sl); mixer.appendChild(row);
+    row.querySelector('.mute').addEventListener('click', e => { v.mute = !v.mute; e.target.classList.toggle('on', !v.mute); });
+  });
+  const pads = document.getElementById('pads');
+  [['tap', 1], ['roll', 3], ['surge', 8]].forEach(([label, n]) => { const b = document.createElement('button'); b.className = 'pad'; b.textContent = label; b.addEventListener('click', () => pad(n)); pads.appendChild(b); });
+  document.getElementById('sound-btn').addEventListener('click', () => Conductor.on ? audioStop() : audioStart());
+  document.querySelectorAll('#subdiv-seg button').forEach(b => b.addEventListener('click', () => { Conductor.subdiv = +b.dataset.s; document.querySelectorAll('#subdiv-seg button').forEach(x => x.classList.toggle('active', x === b)); }));
+  bindSlider('bpm-slider', 'bpm-val', x => Conductor.bpm = x, x => x);
+  bindSlider('vol-slider', 'vol-val', x => { Conductor.vol = x; if (Conductor.master) Conductor.master.gain.value = x; }, x => x.toFixed(2));
+  bindSlider('swing-slider', 'swing-val', x => Conductor.swing = x, x => x.toFixed(2));
+  bindSlider('dens-slider', 'dens-val', x => Conductor.density = x, x => x);
+})();
+
+// boot
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); switchMode('growth'); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
