@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprite Lab · mega.mino.mobi/sprite</title>
+<meta name="description" content="A seed-deterministic procedural sprite lab driven by hoop's civic genome — roll a town, tune the body, read the crowd. Same seed, same person, everywhere.">
+<style>
+  :root{
+    --bg:#0f1014; --panel:#16181f; --panel2:#1c1f28; --ink:#e7e3d8; --dim:#a39c8b;
+    --faint:#6f6a5d; --gold:#d8b25a; --gold-soft:#caa24a; --line:#2a2d38; --accent:#8fd6a0;
+    --serif:Georgia,"Iowan Old Style",Cambria,"Times New Roman",serif;
+    --sans:ui-sans-serif,system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+       font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none} a:hover{text-decoration:underline}
+  .crumb{font-size:13px;color:var(--faint);border-bottom:1px solid var(--line);
+         padding:10px 22px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .crumb a{color:var(--dim)} .crumb .here{color:var(--gold)} .crumb .spacer{flex:1}
+  header.hero{max-width:1100px;margin:0 auto;padding:34px 22px 8px}
+  .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:var(--gold-soft);margin:0 0 10px}
+  h1{font-family:var(--serif);font-size:40px;line-height:1.05;margin:0 0 10px;font-weight:600;letter-spacing:-.01em}
+  h1 .g{color:var(--gold)}
+  .lede{font-family:var(--serif);font-size:18px;color:var(--dim);max-width:66ch;margin:0}
+  .lede b{color:#f3efe4}
+  main{max-width:1100px;margin:0 auto;padding:22px 22px 80px;
+       display:grid;grid-template-columns:330px 1fr;gap:26px;align-items:start}
+  @media(max-width:820px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .panel h2,.galhead h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-soft);
+            margin:0 0 14px;font-weight:600}
+  .stage{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:16px}
+  #hero{background:#0a0b0e;border:1px solid var(--line);border-radius:10px;image-rendering:pixelated;
+        box-shadow:0 0 0 1px #000 inset}
+  .heroname{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:center}
+  .heroname b{color:var(--gold)} .heroname .gl{font-size:15px;color:var(--ink)}
+  #dirgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:248px;margin:2px auto 0}
+  #dirgrid .cell{position:relative}
+  #dirgrid canvas{display:block;width:100%;background:#0a0b0e;border:1px solid var(--line);border-radius:6px;image-rendering:pixelated}
+  #dirgrid .lbl{position:absolute;top:2px;left:4px;font:10px/1 var(--mono);color:var(--gold-soft);text-shadow:0 0 3px #000,0 0 3px #000}
+  #dirgrid .mid{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:18px;border:1px dashed var(--line);border-radius:6px}
+  .ctl{margin:13px 0}
+  .ctl label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px;letter-spacing:.02em}
+  .ctl .val{color:var(--gold-soft);font-family:var(--mono)}
+  input[type=text]{width:100%;background:#0c0d11;border:1px solid var(--line);color:var(--ink);
+       font-family:var(--mono);padding:8px 10px;border-radius:8px;font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  select{background:#0c0d11;border:1px solid var(--line);color:var(--ink);font-family:var(--mono);
+         font-size:12px;padding:4px 6px;border-radius:6px}
+  .dim{color:var(--dim)} code{font-family:var(--mono);font-size:.85em;background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  button{font-family:var(--sans);font-size:13px;background:var(--gold);color:#0f1014;border:0;
+         padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+  button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line)}
+  button.ghost:hover{color:var(--ink);border-color:var(--gold-soft)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:transparent;color:var(--dim);border:0;border-radius:0;flex:1;font-weight:500;padding:7px 4px;font-size:12px}
+  .seg button.on{background:var(--gold);color:#0f1014;font-weight:600}
+  .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer}
+  .check input{accent-color:var(--gold);width:16px;height:16px}
+  .genome{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.7}
+  .genome b{color:#f3efe4}
+  .ramps{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+  .ramp{display:flex;align-items:center;gap:8px}
+  .ramp .nm{width:48px;color:var(--faint)}
+  .ramp .sw{display:flex;border-radius:4px;overflow:hidden;border:1px solid #000}
+  .ramp .sw span{width:18px;height:14px;display:block}
+  .galhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;flex-wrap:wrap;gap:6px}
+  .galhead .note{font-size:12px;color:var(--faint)}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:14px}
+  .npc{text-align:center;cursor:pointer}
+  .npc canvas{display:block;width:100%;background:#0a0b0e;border:1px solid var(--line);
+       border-radius:8px;image-rendering:pixelated;transition:border-color .12s}
+  .npc:hover canvas{border-color:var(--gold-soft)}
+  .npc.sel canvas{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+  .npc .cap{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .npc .cap b{color:var(--dim)} .npc .cap .gl{color:var(--gold-soft)}
+  .foot{max-width:1100px;margin:0 auto;padding:0 22px 60px;color:var(--faint);font-size:12.5px}
+  .foot code{font-family:var(--mono);background:var(--panel2);padding:.1em .4em;border-radius:4px;color:#e9d9a8}
+</style>
+</head>
+<body>
+<nav class="crumb">
+  <a href="https://mino.mobi">mino.mobi</a> / <a href="/">mega</a> / <span class="here">sprite</span>
+  <span class="spacer"></span>
+  <a href="/sprite/docs/">docs &amp; design notes →</a> &nbsp;·&nbsp; <a href="https://hoop.mino.mobi">hoop ↗</a>
+</nav>
+
+<header class="hero">
+  <p class="kicker">Sprite Lab · portable — module · API · PDS</p>
+  <h1><span class="g">◓</span> Sprite Lab</h1>
+  <p class="lede">A <b>seed-deterministic</b> sprite generator driven by hoop's
+     <a href="https://hoop.mino.mobi/econ/">civic genome</a>: roll a town and each NPC's
+     <b>role</b> (the verb of their place), <b>domain</b> (the matter they work), and the town
+     <b>archetype</b> shape the body and the dress. Same seed → same person, everywhere.
+     <a href="/sprite/docs/">Why &amp; how →</a></p>
+</header>
+
+<main>
+  <section class="panel" aria-label="controls">
+    <h2>The bench</h2>
+    <div class="stage">
+      <canvas id="hero" width="360" height="360"></canvas>
+      <div class="heroname" id="heroname"></div>
+    </div>
+
+    <div class="ctl">
+      <label for="seed">Seed</label>
+      <input id="seed" type="text" value="hoop:0:0" spellcheck="false">
+    </div>
+    <div class="row" style="margin-bottom:6px">
+      <button id="roll">⚄ Roll a town</button>
+      <button id="prev" class="ghost">↻ Redraw (proof)</button>
+    </div>
+
+    <div class="ctl">
+      <label>8 directions <span class="val">— the selected NPC, walking</span></label>
+      <div id="dirgrid"></div>
+      <div class="row" style="margin-top:9px;align-items:center;gap:12px;font-size:12px;color:var(--dim)">
+        <label class="check"><input type="checkbox" id="walk" checked> walk</label>
+        <label style="flex:1;display:flex;gap:7px;align-items:center">fps
+          <input type="range" id="fps" min="2" max="14" step="1" value="6" style="flex:1"></label>
+        <label style="display:flex;gap:6px;align-items:center">frames
+          <select id="frames"><option>2</option><option selected>4</option><option>6</option><option>8</option></select></label>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label>Town archetype <span class="val" id="archnote"></span></label>
+      <div class="seg" id="arch">
+        <button data-v="balanced" class="on">balanced</button>
+        <button data-v="dormitory">dorm</button>
+        <button data-v="company">company</button>
+        <button data-v="commons">commons</button>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label>Build size <span class="val" id="sizeval">15</span> px</label>
+      <input id="size" type="range" min="9" max="33" step="2" value="15">
+    </div>
+    <div class="ctl">
+      <label>Density <span class="val" id="densval">0.80</span></label>
+      <input id="dens" type="range" min="0.50" max="0.98" step="0.02" value="0.80">
+    </div>
+
+    <div class="ctl">
+      <label>Anatomy <span class="val">(all on by default)</span></label>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="head" checked> rounded head</label>
+        <label class="check"><input type="checkbox" id="legs" checked> legs + pants</label>
+        <label class="check"><input type="checkbox" id="eyes" checked> face (eyes/mouth)</label>
+        <label class="check"><input type="checkbox" id="item" checked> held item</label>
+        <label class="check"><input type="checkbox" id="sym" checked> mirror symmetry</label>
+      </div>
+    </div>
+
+    <div class="ctl">
+      <label>Genome</label>
+      <div class="genome" id="genome"></div>
+    </div>
+    <div class="row">
+      <button id="copyseed" class="ghost">Copy seed</button>
+      <button id="copygenome" class="ghost">Copy genome</button>
+      <button id="png" class="ghost">⤓ PNG</button>
+      <button id="sheet" class="ghost">⤓ 8-dir sheet</button>
+      <button id="walksheet" class="ghost">⤓ walk atlas</button>
+      <a id="apilink" class="ghost" href="/sprite/api/" target="_blank" rel="noopener"
+         style="display:inline-block;text-decoration:none;line-height:1;padding:9px 14px">API ↗</a>
+    </div>
+    <p style="font-size:11.5px;color:var(--faint);margin:8px 0 0">
+      Portable by design — a sprite <em>is</em> its genome. Fetch any one from the
+      <a href="/sprite/api/">HTTP API</a> as SVG or JSON, or save a set to your PDS below.</p>
+  </section>
+
+  <section aria-label="gallery">
+    <div class="galhead"><h2>The street</h2><span class="note" id="galnote"></span></div>
+    <div class="gallery" id="gallery"></div>
+
+    <section class="panel" style="margin-top:22px" aria-label="save to PDS">
+      <h2>Portable — save to your PDS</h2>
+      <div id="pdsauth">
+        <p class="dim" style="font-size:13px;margin:0 0 10px">Sign in with Bluesky to save sets of
+          sprites to your own repo as <code>com.minomobi.sprite.set</code> records — tiny, regenerable,
+          and yours. A set stores genomes, not pixels.</p>
+        <div class="row">
+          <input id="pdshandle" type="text" placeholder="you.bsky.social" spellcheck="false" style="flex:1">
+          <button id="pdslogin">Sign in</button>
+        </div>
+      </div>
+      <div id="pdsin" style="display:none">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <span id="pdswho" class="dim" style="font-size:13px"></span>
+          <button id="pdslogout" class="ghost">Sign out</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="pdssave">＋ Save this town</button>
+          <button id="pdsrefresh" class="ghost">↻ My sets</button>
+        </div>
+        <div id="pdssets" style="margin-top:10px"></div>
+      </div>
+      <div id="pdsmsg" class="dim" style="font-size:12px;margin-top:8px"></div>
+    </section>
+  </section>
+</main>
+
+<div class="foot">
+  Stage 2 of the <a href="/sprite/docs/">plan</a>: the body is now read off hoop's civic genome — the
+  archetype biases the <a href="https://hoop.mino.mobi/econ/">role mix</a> (a company town is full of
+  makers; a commons leans civic), the role sets the accent colour, held item &amp; glyph, and a
+  domain role dresses in its material's hue. Everything is pure <code>f(seed)</code>; the one unseeded
+  roll is the die that picks <em>which</em> town to open. Next: lift this kernel into a module +
+  <code>sprite.selftest.mjs</code> and port the renderer into hoop's <code>world.js</code>.
+</div>
+
+<script type="module">
+import { buildGenome, frameRects, mulberry32, sharedClothFor,
+         DIR8, DIR_OF, ARCHETYPES } from './core.js';
+import { AuthClient } from './vendor/auth.js';
+
+// ── thin renderers over the pure kernel ──
+function drawCanvas(canvas, g, scale, dir, phase){
+  const N=g.size, side=(N+2)*scale;
+  canvas.width=side; canvas.height=side;
+  const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,side,side);
+  for(const r of frameRects(g, dir||DIR_OF.S, phase)){ ctx.fillStyle=r.c; ctx.fillRect((r.x+1)*scale,(r.y+1)*scale,scale,scale); }
+}
+function drawSheet(canvas, g, scale){            // 8 directions, neutral, in a strip
+  const N=g.size, cell=(N+2)*scale; canvas.width=cell*8; canvas.height=cell;
+  const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  const tmp=document.createElement("canvas");
+  DIR8.forEach((d,i)=>{ drawCanvas(tmp,g,scale,d,null); ctx.drawImage(tmp,i*cell,0); });
+}
+function drawWalkSheet(canvas, g, scale, frames){ // 8 dirs × frames — the walk atlas
+  const N=g.size, cell=(N+2)*scale; canvas.width=cell*8; canvas.height=cell*frames;
+  const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  const tmp=document.createElement("canvas");
+  for(let f=0;f<frames;f++) DIR8.forEach((d,i)=>{ drawCanvas(tmp,g,scale,d,f); ctx.drawImage(tmp,i*cell,f*cell); });
+}
+
+// ── State ──
+const $=id=>document.getElementById(id);
+let base="hoop:0:0", selectedIdx=0;
+const GAL=12;
+let opts={size:15, dens:0.80, arch:"balanced", frames:4, sym:true, head:true, legs:true, eyes:true, item:true};
+
+// ── walk animation: one shared phase ticks every registered sprite canvas ──
+let animTargets=[], animPhase=0, animOn=true, animTimer=null;
+function reg(canvas,g,dir,scale){ animTargets.push({canvas,g,dir:dir||DIR_OF.S,scale}); }
+function drawFrame(){ const p=animOn?animPhase:null; for(const t of animTargets) drawCanvas(t.canvas,t.g,t.scale,t.dir,p); }
+function restartAnim(){ clearInterval(animTimer);
+  if(animOn){ const fps=+($("fps").value||6); animTimer=setInterval(()=>{ animPhase=(animPhase+1)%opts.frames; drawFrame(); }, Math.round(1000/fps)); }
+  else { animPhase=0; drawFrame(); } }
+
+const sharedCloth=()=>sharedClothFor(base);   // one coat per company street
+const seedFor=i=>`${base}#${i}`;
+
+function renderHero(){
+  const g=buildGenome(seedFor(selectedIdx), {...opts}, sharedCloth());
+  reg($("hero"), g, DIR_OF.S, Math.max(3,Math.floor(360/(g.size+2))));
+  $("heroname").innerHTML=`<b>${g.seed}</b> · <span class="gl">${g.glyph}</span> ${g.role}${g.domain?` · ${g.good}`:""}`;
+  const rampHtml=["skin","hair","cloth","pants","accent"].map(k=>
+    `<div class="ramp"><span class="nm">${k}</span><span class="sw">${g.ramps[k].map(c=>`<span style="background:${c}"></span>`).join("")}</span></div>`).join("");
+  $("genome").innerHTML=
+    `<b>archetype</b> ${g.opts.arch} &nbsp; <b>tier</b> ${g.tier}<br>`+
+    `<b>role</b> ${g.glyph} ${g.role} &nbsp; <b>item</b> ${g.item}<br>`+
+    `<b>head</b> ${g.head} &nbsp; <b>face</b> ${g.face.eye}/${g.face.mouth}${g.face.brow?"+brow":""}<br>`+
+    `<b>domain</b> ${g.domain||"—"} &nbsp; <b>size</b> ${g.size}×${g.size}<br>`+
+    `<div class="ramps">${rampHtml}</div>`;
+  window._g=g;
+  renderDirGrid(g);
+}
+function renderDirGrid(g){
+  const grid=$("dirgrid"); grid.innerHTML="";
+  const layout=[["NW","N","NE"],["W","·","E"],["SW","S","SE"]];
+  const s=Math.max(2,Math.min(6,Math.round(74/(g.size+2))));
+  layout.flat().forEach(k=>{
+    if(k==="·"){ const c=document.createElement("div"); c.className="mid"; c.textContent="◓"; grid.appendChild(c); return; }
+    const cell=document.createElement("div"); cell.className="cell";
+    const cv=document.createElement("canvas"); reg(cv,g,DIR_OF[k],s);
+    const lbl=document.createElement("div"); lbl.className="lbl"; lbl.textContent=k;
+    cell.appendChild(cv); cell.appendChild(lbl); grid.appendChild(cell);
+  });
+}
+function renderGallery(){
+  const gal=$("gallery"); gal.innerHTML=""; const shared=sharedCloth();
+  const gscale=Math.max(3,Math.min(9,Math.round(96/(opts.size+2))));
+  for(let i=0;i<GAL;i++){
+    const g=buildGenome(seedFor(i), {...opts}, shared);
+    const wrap=document.createElement("div"); wrap.className="npc"+(i===selectedIdx?" sel":"");
+    const cv=document.createElement("canvas"); reg(cv,g,DIR_OF.S,gscale);
+    const cap=document.createElement("div"); cap.className="cap";
+    cap.innerHTML=`<b>#${i}</b> <span class="gl">${g.glyph}</span> ${g.role}`;
+    wrap.appendChild(cv); wrap.appendChild(cap);
+    wrap.onclick=()=>{ selectedIdx=i; renderAll(); };
+    gal.appendChild(wrap);
+  }
+  $("galnote").textContent = opts.arch==="company"
+    ? "company town — one uniform coat" : `${opts.arch} — ${ARCHETYPES[opts.arch].note}`;
+}
+function renderAll(){ $("seed").value=base; $("archnote").textContent=ARCHETYPES[opts.arch].note;
+  animTargets=[]; renderGallery(); renderHero(); restartAnim(); }
+
+// ── controls ──
+$("seed").addEventListener("change",e=>{ base=e.target.value.trim()||"hoop:0:0"; selectedIdx=0; renderAll(); });
+$("roll").onclick=()=>{ const r=mulberry32((Date.now()^(Math.random()*1e9))>>>0)();  // the one allowed unseeded roll
+  base="hoop:"+Math.floor(r*1e7).toString(36); selectedIdx=0; renderAll(); };
+$("prev").onclick=()=>renderAll();
+$("arch").onclick=e=>{ const b=e.target.closest("button"); if(!b)return;
+  opts.arch=b.dataset.v; [...$("arch").children].forEach(x=>x.classList.toggle("on",x===b)); renderAll(); };
+$("size").oninput=e=>{ opts.size=+e.target.value; $("sizeval").textContent=opts.size; renderAll(); };
+$("dens").oninput=e=>{ opts.dens=+e.target.value; $("densval").textContent=opts.dens.toFixed(2); renderAll(); };
+["head","legs","eyes","item","sym"].forEach(k=>$(k).onchange=e=>{ opts[k]=e.target.checked; renderAll(); });
+$("walk").onchange=e=>{ animOn=e.target.checked; restartAnim(); };
+$("fps").oninput=()=>restartAnim();
+$("frames").onchange=e=>{ opts.frames=+e.target.value; animPhase=0; renderAll(); };
+
+// ── export ──
+function dl(canvas,name){ const a=document.createElement("a"); a.download=name; a.href=canvas.toDataURL("image/png"); a.click(); }
+const slug=s=>s.replace(/[^\w]+/g,"_");
+$("png").onclick=()=>{ const g=window._g,c=document.createElement("canvas"); drawCanvas(c,g,24,DIR_OF.S,null); dl(c, slug(g.seed)+".png"); };
+$("sheet").onclick=()=>{ const g=window._g,c=document.createElement("canvas"); drawSheet(c,g,16); dl(c, slug(g.seed)+"_8dir.png"); };
+$("walksheet").onclick=()=>{ const g=window._g,c=document.createElement("canvas"); drawWalkSheet(c,g,16,opts.frames); dl(c, slug(g.seed)+"_walk"+opts.frames+".png"); };
+$("copyseed").onclick=()=>copy(window._g.seed);
+$("copygenome").onclick=()=>{ const g=window._g; copy(JSON.stringify({
+  seed:g.seed,size:g.size,archetype:g.opts.arch,role:g.role,glyph:g.glyph,tier:g.tier,
+  item:g.item,domain:g.domain,good:g.good,head:g.head,face:g.face,ramps:g.ramps},null,2)); };
+$("apilink") && ($("apilink").onclick=e=>{ const g=window._g;
+  e.target.href=`/sprite/api/sprite.svg?seed=${encodeURIComponent(g.seed)}&size=${g.size}&arch=${g.opts.arch}&dir=S&scale=16`; });
+function copy(t){ if(navigator.clipboard) navigator.clipboard.writeText(t); }
+
+// keep the widgets in sync with state (so a loaded set updates the controls too)
+function syncControls(){
+  $("seed").value=base;
+  $("size").value=opts.size; $("sizeval").textContent=opts.size;
+  $("dens").value=opts.dens; $("densval").textContent=(+opts.dens).toFixed(2);
+  $("frames").value=String(opts.frames);
+  [...$("arch").children].forEach(x=>x.classList.toggle("on",x.dataset.v===opts.arch));
+  ["head","legs","eyes","item","sym"].forEach(k=>{ $(k).checked=!!opts[k]; });
+  $("walk").checked=animOn;
+}
+
+// ── PDS: portable sets (sign in via the shared auth worker; sprites stored as genomes) ──
+const auth=new AuthClient();
+const SET="com.minomobi.sprite.set";
+const pmsg=t=>{ $("pdsmsg").textContent=t||""; };
+function pdsUI(){ const u=auth.getUser();
+  $("pdsauth").style.display=u?"none":"block"; $("pdsin").style.display=u?"block":"none";
+  if(u){ $("pdswho").textContent="@"+u.handle; loadSets(); } }
+$("pdslogin").onclick=async()=>{ const h=$("pdshandle").value.trim(); if(!h){pmsg("enter your handle");return;}
+  pmsg("redirecting to Bluesky…"); try{ await auth.login(h); }catch(e){ pmsg("sign-in failed: "+e.message); } };
+$("pdslogout").onclick=async()=>{ try{ await auth.logout(); }catch(e){} pdsUI(); pmsg(""); };
+$("pdsrefresh").onclick=()=>loadSets();
+$("pdssave").onclick=async()=>{ if(!auth.getUser()){ pmsg("sign in first"); return; }
+  const name=(prompt("Name this set",base)||base).slice(0,200);
+  const rec={ name, createdAt:new Date().toISOString(), base,
+    opts:{ size:opts.size, dens:String(opts.dens), arch:opts.arch, frames:opts.frames,
+           sym:opts.sym, head:opts.head, legs:opts.legs, eyes:opts.eyes, item:opts.item },
+    sprites:Array.from({length:GAL},(_,i)=>({seed:seedFor(i)})) };
+  pmsg("saving…");
+  try{ await auth.pds.createRecord(SET, rec); pmsg("saved “"+name+"” to your PDS"); loadSets(); }
+  catch(e){ pmsg("save failed: "+e.message); } };
+async function loadSets(){ const box=$("pdssets"); box.innerHTML='<span class="dim">loading…</span>';
+  try{ const res=await auth.pds.listRecords(SET,100); const recs=(res.records||[]).slice().reverse();
+    if(!recs.length){ box.innerHTML='<span class="dim">no saved sets yet</span>'; return; }
+    box.innerHTML="";
+    for(const r of recs){ const v=r.value||{}; const b=document.createElement("button"); b.className="ghost";
+      b.style.cssText="display:block;width:100%;text-align:left;margin:4px 0;font-size:12.5px";
+      b.textContent=`${v.name||"(unnamed)"} · ${(v.sprites||[]).length} sprites · ${(v.opts&&v.opts.arch)||""}`;
+      b.onclick=()=>applySet(v); box.appendChild(b); }
+  }catch(e){ box.innerHTML=""; pmsg("load failed: "+e.message); } }
+function applySet(v){ const o=v.opts||{}; base=v.base||base;
+  opts={ ...opts, size:+o.size||opts.size, dens:+o.dens||opts.dens, arch:o.arch||opts.arch,
+         frames:+o.frames||opts.frames, sym:o.sym!==false, head:o.head!==false, legs:o.legs!==false,
+         eyes:o.eyes!==false, item:o.item!==false };
+  selectedIdx=0; syncControls(); renderAll(); pmsg("loaded “"+(v.name||"set")+"”"); }
+
+renderAll(); syncControls();
+auth.init().then(pdsUI).catch(()=>pdsUI());
+</script>
+</body>
+</html>

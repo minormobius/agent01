@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: [main, 'claude/npc-sprite-generation-aeh9e1']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'
