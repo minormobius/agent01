@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="hoop v5 prototype — the halls-first sandbox: grow a capillary concourse, hang big single-door rooms off it, furnish each room with the full /sprite/fixture set (wall-grown lights + tile-grabbing console + central component, ray-traced floor), and route with a tiny two-tier nav. The static map is baked once; only the @ and the crowd redraw." />
+<title>hoop v5 · halls sandbox</title>
+<style>
+  :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font: 12px/1.5 ui-monospace, "JetBrains Mono", monospace; overflow: hidden; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; cursor: crosshair; }
+  #hud { position: fixed; top: 8px; left: 10px; max-width: 64vw; color: var(--dim); text-shadow: 0 1px 2px #000; pointer-events: none; }
+  #hud b { color: var(--gold); }
+  a.home { position: fixed; top: 8px; right: 12px; color: var(--teal); text-decoration: none; }
+  #panel { position: fixed; bottom: 10px; left: 10px; background: rgba(8,11,16,.82); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; backdrop-filter: blur(6px); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; max-width: 96vw; }
+  #panel label { color: var(--dim); display: inline-flex; align-items: center; gap: 5px; }
+  #panel input[type=range] { width: 92px; accent-color: var(--teal); }
+  #panel input[type=number] { width: 64px; background: #0f141a; border: 1px solid var(--line); color: var(--ink); border-radius: 6px; padding: 3px 5px; font: inherit; }
+  #panel button { background: #0f141a; color: var(--ink); border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; cursor: pointer; font: inherit; }
+  #panel button:hover { border-color: var(--teal); }
+  #panel .on { color: var(--gold); border-color: var(--gold); }
+  #stat { color: var(--teal); }
+  #err { position: fixed; inset: auto 10px 70px 10px; background: #2a0e0e; color: #ffb3a7; border: 1px solid #5a2020; border-radius: 8px; padding: 8px 11px; display: none; white-space: pre-wrap; z-index: 10; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">◈ <b>hoop v5</b> — halls-first sandbox · <span id="info">…</span><br>
+  <span style="color:#667">click = walk the @ there (two-tier route) · drag = pan · scroll = zoom · the crowd ambles room→room on the hall net</span></div>
+<a class="home" href="/v4/">← v4</a>
+<div id="panel">
+  <label>seed <input id="seed" type="number" value="7"></label>
+  <label>density <input id="density" type="range" min="0.5" max="1.8" step="0.1" value="1"></label>
+  <label>hall seg <input id="hallSeg" type="range" min="120" max="240" step="10" value="175"></label>
+  <label>lights/room <input id="lights" type="range" min="2" max="6" step="1" value="4"></label>
+  <label>room size <input id="roomSize" type="range" min="0.6" max="1.8" step="0.1" value="1.1"></label>
+  <label>cells/room <input id="cells" type="range" min="6" max="24" step="1" value="14"></label>
+  <button id="roll">🎲 roll</button>
+  <button id="fix" class="on">fixtures</button>
+  <button id="skel">ports</button>
+  <span id="stat"></span>
+</div>
+<div id="err"></div>
+
+<script type="module">
+import { genRegion, genChunk, roomAt, mulberry32 } from './gen.js';
+import { route, buildNavGraph } from './nav.js';
+import { assignOwners, roomGroups, placeRoomLights, growRoomConsole, roomComponent } from './fixtures.js';
+import { buildSceneCustom } from '../paint/voronoi.js';
+import { tintLights, occlusionGrid, bakeFloorRGB, lightAtRGB, drawWallLight, hslToRgb } from '../v4/fixture/lights.js';
+import { drawWallFixture, ROLE_CONSOLE } from '../v4/fixture/consoles.js';
+import { drawDevice } from '../v4/fixture/deco.js';
+
+const $ = (id) => document.getElementById(id);
+addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').textContent = e.message; });
+const ROLE = { dwell: '#d9b24a', grow: '#5aa845', make: '#e0772f', mend: '#9b6b3a', trade: '#cf3b3b', serve: '#c853a0', play: '#3bb0c9', heal: '#9fb4c2', learn: '#5570d8', worship: '#b39bd8', govern: '#33408f', move: '#6b7a82', store: '#566066' };
+const hexHue = (hex) => { const c = hex.replace('#', ''); const r = parseInt(c.slice(0, 2), 16) / 255, g = parseInt(c.slice(2, 4), 16) / 255, b = parseInt(c.slice(4, 6), 16) / 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0; if (mx !== mn) { const d = mx - mn; h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; } return h; };
+const tone = (v, e) => 1 - Math.exp(-v * e);
+
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * DPR; cv.height = H * DPR; draw(); }
+addEventListener('resize', resize);
+
+const state = { region: null, fix: null, cam: { x: 0, y: 0, z: 0.5 }, showSkel: false, showFix: true };
+const G = 1500, COLS = 3, ROWS = 3, JIT = 0.34;           // chunk-seed spacing · sandbox block · lattice jitter (the world tiles beyond this)
+const params = () => ({ seed: +$('seed').value >>> 0, density: +$('density').value, hallSeg: +$('hallSeg').value, lights: +$('lights').value, roomSize: +$('roomSize').value, cells: +$('cells').value });
+
+// ── build the whole furnished region as ONE scene, then BAKE it to an offscreen canvas ─────────────
+// One buildSceneCustom over (rooms ∪ corridor seeds): rooms bound each other (proper walls), corridors
+// are zero-wall OPEN concourse, and each room opens to its corridor (door). The /sprite/fixture set —
+// wall-grown lights + the TILE-GRABBING console + a central component, ray-traced floor — runs over the
+// ROOM cells; cool street-lights line the halls. Static → rasterised ONCE and blitted each frame (the
+// perf fix); only the @ and the crowd redraw live.
+const REG_OPTS = { ambient: 0.05, strength: 1, reach: 2.6 };
+// build the furnished region the SEEDING-ORDER way: fine unit cells assigned to rooms/corridors/void
+// FIRST, then walls only between owners → organic multi-cell rooms; fixtures attach per ROOM GROUP.
+function buildRegion(L, P) {
+  const avgR = L.rooms.reduce((s, r) => s + r.radius, 0) / Math.max(1, L.rooms.length);
+  const unit = Math.max(36, avgR * Math.sqrt(Math.PI / P.cells));        // room size & cells/room ⇒ unit cell (floored to bound seed count / bake time)
+  const { seeds, owner, edgeKind } = assignOwners(L, { unit, hallWidth: 30 });
+  const scene = buildSceneCustom({ W: L.W, H: L.H, wallSpacing: Math.max(9, unit * 0.34), roomSpacing: unit * 2.6, seeds, edgeKind, seed: L.seed >>> 0 });
+  const roleOf = (id) => (id != null && id >= 0 && L.rooms[id]) ? L.rooms[id].role : 'move';
+  const accentOf = (id) => ROLE[roleOf(id)] || '#566066';
+  const groups = roomGroups(scene, owner);
+  // per-room wall lights (role-hued) + cool STREET lights along the concourse
+  let lights = [];
+  for (const g of groups.values()) { const rl = placeRoomLights(scene, g, mulberry32((L.seed ^ (g.id * 2654435761)) >>> 0), P.lights); for (const l of rl) { l.hue = hexHue(accentOf(g.id)); l.rgb = hslToRgb(l.hue, 0.72, 0.6); } lights = lights.concat(rl); }
+  L.nodes.forEach((n, i) => { if (i % 2) return; const g = { kind: 'crystal', len: 0.8, depth: 3, spread: 0.6, shards: 3, seed: (i * 2654435761) >>> 0 }; lights.push({ x: n.x, y: n.y, nx: 0, ny: -1, len: unit * 1.0, model: g, room: -1, hue: 205, rgb: hslToRgb(205, 0.5, 0.62), tip: { x: n.x, y: n.y } }); });
+  const occ = occlusionGrid(scene);
+  const baked = bakeFloorRGB(scene, lights, occ, REG_OPTS);
+  // consoles + components per room group (avoiding the room's lights)
+  const consoles = [], comps = [];
+  const lightsByRoom = {}; for (const l of lights) if (l.room >= 0) (lightsByRoom[l.room] = lightsByRoom[l.room] || []).push(l.tip);
+  for (const g of groups.values()) {
+    const avoid = lightsByRoom[g.id] || [];
+    const C = growRoomConsole(scene, owner, g, mulberry32((L.seed * 7 + g.id * 977 + 3) >>> 0), { kind: ROLE_CONSOLE[roleOf(g.id)] || 'storage', avoid });
+    if (C) { C.accent = accentOf(g.id); consoles.push(C); }
+    const av = avoid.concat(C ? [C.tip, C.anchor] : []);
+    const cp = roomComponent(scene, g, av, mulberry32((L.seed * 733 + g.id * 131 + 5) >>> 0), unit * 1.7);
+    if (cp) { cp.accent = accentOf(g.id); cp.hue = hexHue(accentOf(g.id)); comps.push(cp); }
+  }
+  return { scene, owner, lights, occ, baked, consoles, comps, accentOf, unit, groups };
+}
+// build the center chunk in LOCAL coords, furnish + render it to its own CW×CH canvas (blitted at its
+// world offset). The rest of the 3×3 region is drawn schematically each frame — cheap, and it shows
+// the halls run off-chunk and STITCH at the shared seam ports.
+function bakeCenter() {
+  const P = params(), R = state.region, cc = R.chunks[(R.cols * R.rows) >> 1], i = cc.i, j = cc.j;
+  const ch = genChunk({ seed: R.seed, i, j, G, jit: JIT, hallSeg: P.hallSeg, density: P.density, roomSize: P.roomSize });
+  // the chunk's bounding box → a local rect to assignOwners/buildSceneCustom over (cells outside the
+  // polygon become void ⇒ transparent, so the bake is naturally clipped to the irregular cell)
+  let ox = Infinity, oy = Infinity, mx = -Infinity, my = -Infinity; for (const p of ch.poly) { ox = Math.min(ox, p[0]); oy = Math.min(oy, p[1]); mx = Math.max(mx, p[0]); my = Math.max(my, p[1]); }
+  const bw = Math.ceil(mx - ox), bh = Math.ceil(my - oy), loc = (p) => ({ ...p, x: p.x - ox, y: p.y - oy });
+  const chunkLayout = { W: bw, H: bh, seed: ((R.seed ^ (i * 73856093) ^ (j * 19349663)) >>> 0) || 1, nodes: ch.nodes.map(loc), edges: ch.edges, rooms: ch.rooms.map((r) => ({ ...r, x: r.x - ox, y: r.y - oy, doorPt: { x: r.doorPt.x - ox, y: r.doorPt.y - oy } })) };
+  const Rg = buildRegion(chunkLayout, P);
+  const oc = document.createElement('canvas'); oc.width = bw; oc.height = bh;
+  const c = oc.getContext('2d'); c.clearRect(0, 0, bw, bh); c.lineJoin = 'round';
+  const sat = 0.78, ownerOf = (cell) => cell.room != null ? Rg.owner[cell.room] : null;
+  for (let i = 0; i < Rg.scene.paintCells.length; i++) {
+    const cell = Rg.scene.paintCells[i]; if (cell.poly.length < 3) continue;
+    const o = ownerOf(cell);
+    if (cell.wall) c.fillStyle = '#0a0e12';
+    else if (o === -1) c.fillStyle = '#16241f';
+    else if (o === -2 || o == null) continue;                          // void apron — leave transparent so the schematic shows through
+    else if (Rg.baked[i]) { let r = tone(Rg.baked[i][0], 1.15) * 255, g = tone(Rg.baked[i][1], 1.15) * 255, b = tone(Rg.baked[i][2], 1.15) * 255; const lum = 0.3 * r + 0.6 * g + 0.1 * b; r = lum + (r - lum) * sat; g = lum + (g - lum) * sat; b = lum + (b - lum) * sat; c.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`; }
+    else c.fillStyle = '#06080c';
+    c.beginPath(); c.moveTo(cell.poly[0][0], cell.poly[0][1]); for (let k = 1; k < cell.poly.length; k++) c.lineTo(cell.poly[k][0], cell.poly[k][1]); c.closePath(); c.fill();
+  }
+  const litLum = (x, y) => { const rgb = lightAtRGB(Rg.lights, Rg.occ, x, y, REG_OPTS); return 0.3 * rgb[0] + 0.6 * rgb[1] + 0.1 * rgb[2]; };
+  for (const C of Rg.consoles) drawWallFixture(c, Rg.scene, C, { accent: C.accent, hue: hexHue(C.accent), litAt: litLum });
+  for (const cp of Rg.comps) { const lum = litLum(cp.cx, cp.cy); drawDevice(c, cp.cx, cp.cy, cp.r, cp.g, { lit: Math.max(0.4, Math.min(1.2, lum * 1.25 + 0.2)), accent: cp.accent }); }
+  for (const Lt of Rg.lights) { const lum = litLum(Lt.tip.x, Lt.tip.y); drawWallLight(c, Lt, { hue: Lt.hue, lit: Math.max(0.7, Math.min(1.15, lum + 0.5)) }); }
+  state.fix = { canvas: oc, ox, oy };
+  $('stat').textContent = `${R.cols}×${R.rows} chunks · ${R.rooms.length} rooms · centre furnished (${Rg.groups.size} rooms, ${Rg.consoles.length} consoles, unit ${Rg.unit | 0}px)`;
+}
+
+// ── the @ + the crowd (the only live layer) ───────────────────────────────────────────────────────
+const AT = { x: 0, y: 0, path: null, t: 0, speed: 360 };
+const NPCS = [];
+function spawn() {
+  const rooms = state.region.rooms, mid = rooms[(rooms.length / 2) | 0];
+  AT.x = mid.x; AT.y = mid.y; AT.path = null;
+  NPCS.length = 0;
+  for (let i = 0; i < 20; i++) { const r = rooms[(i * 7) % rooms.length]; NPCS.push({ x: r.x, y: r.y, path: null, t: 0, speed: 80 + Math.random() * 90, dwell: Math.random() * 4, hue: hexHue(ROLE[r.role] || '#888') }); }
+}
+function pathTo(from, to) { const r = route(state.region, from, to); if (!r) return null; const seg = []; let total = 0; for (let i = 1; i < r.pts.length; i++) { const d = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]); seg.push(d); total += d; } return { pts: r.pts, seg, total }; }
+function advance(o, dt) {
+  if (!o.path) return false;
+  o.t += o.speed * dt; const { pts, seg, total } = o.path;
+  if (o.t >= total) { o.x = pts[pts.length - 1][0]; o.y = pts[pts.length - 1][1]; o.path = null; return true; }
+  let acc = 0, i = 1; while (i < pts.length && acc + seg[i - 1] < o.t) { acc += seg[i - 1]; i++; }
+  const fr = (o.t - acc) / seg[i - 1]; o.x = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * fr; o.y = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * fr; return true;
+}
+
+// ── camera + draw ──
+const FIXZOOM = 0.42;                                       // below this, fixtures hide so the tiling reads (your zoom toggle)
+function fit() { const R = state.region; state.cam.z = Math.min(W / R.W, H / R.H) * 0.92; state.cam.x = R.bounds.x0 + R.W / 2; state.cam.y = R.bounds.y0 + R.H / 2; }
+function draw() {
+  if (!state.region) return;
+  const z = state.cam.z, R = state.region;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - state.cam.x * z), DPR * (H / 2 - state.cam.y * z));
+  // SCHEMATIC (all chunks, live): chunk grid · concourse ribbons · room discs (so you SEE the tiling)
+  ctx.lineWidth = 1 / z; ctx.strokeStyle = 'rgba(40,60,72,0.5)';
+  for (const ch of R.chunks) { ctx.beginPath(); ctx.moveTo(ch.poly[0][0], ch.poly[0][1]); for (let k = 1; k < ch.poly.length; k++) ctx.lineTo(ch.poly[k][0], ch.poly[k][1]); ctx.closePath(); ctx.stroke(); }
+  ctx.strokeStyle = '#22382f'; ctx.lineCap = 'round'; ctx.lineWidth = 30 / 1; for (const [u, v] of R.edges) { ctx.beginPath(); ctx.moveTo(R.nodes[u].x, R.nodes[u].y); ctx.lineTo(R.nodes[v].x, R.nodes[v].y); ctx.stroke(); }
+  ctx.strokeStyle = '#2f4a40'; ctx.lineWidth = 18; for (const [u, v] of R.edges) { ctx.beginPath(); ctx.moveTo(R.nodes[u].x, R.nodes[u].y); ctx.lineTo(R.nodes[v].x, R.nodes[v].y); ctx.stroke(); }
+  for (const r of R.rooms) { ctx.fillStyle = `hsl(${hexHue(ROLE[r.role] || '#888')} 34% 26%)`; ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(8,11,16,0.7)'; ctx.lineWidth = 2 / z; ctx.stroke(); }
+  // CENTRE chunk fixtures (the real furnished look) — blitted only when zoomed in enough + toggled on
+  if (state.fix && state.showFix && z >= FIXZOOM) ctx.drawImage(state.fix.canvas, state.fix.ox, state.fix.oy);
+  // PORTS overlay (the seam crossings)
+  if (state.showSkel) { ctx.fillStyle = 'rgba(244,191,98,0.9)'; for (const n of R.nodes) if (n.port) { ctx.beginPath(); ctx.arc(n.x, n.y, 6 / z, 0, 7); ctx.fill(); } }
+  // the route remaining
+  if (AT.path) { ctx.strokeStyle = 'rgba(244,191,98,0.6)'; ctx.lineWidth = 2.4 / z; ctx.setLineDash([8 / z, 7 / z]); ctx.beginPath(); ctx.moveTo(AT.x, AT.y); let acc = 0; for (let i = 1; i < AT.path.pts.length; i++) { acc += AT.path.seg[i - 1]; if (acc > AT.t) ctx.lineTo(AT.path.pts[i][0], AT.path.pts[i][1]); } ctx.stroke(); ctx.setLineDash([]); }
+  for (const n of NPCS) { ctx.fillStyle = `hsl(${n.hue} 45% 62%)`; ctx.beginPath(); ctx.arc(n.x, n.y, 7 / z, 0, 7); ctx.fill(); }
+  ctx.save(); ctx.shadowColor = 'rgba(255,206,120,0.9)'; ctx.shadowBlur = 12 / z; ctx.fillStyle = '#0b1014'; ctx.beginPath(); ctx.arc(AT.x, AT.y, 12 / z, 0, 7); ctx.fill(); ctx.fillStyle = '#ffce78'; ctx.font = 'bold ' + (18 / z) + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', AT.x, AT.y + 0.5); ctx.restore();
+}
+let last = 0;
+function tick(ts) {
+  requestAnimationFrame(tick);
+  const dt = Math.min(0.05, (ts - last) / 1000); last = ts;
+  let live = false;
+  if (advance(AT, dt)) live = true;
+  for (const n of NPCS) { if (n.path) { if (advance(n, dt)) live = true; } else { n.dwell -= dt; if (n.dwell <= 0) { const dst = state.region.rooms[(Math.random() * state.region.rooms.length) | 0]; n.path = pathTo({ x: n.x, y: n.y }, { x: dst.x + (Math.random() - 0.5) * dst.radius, y: dst.y + (Math.random() - 0.5) * dst.radius }); n.t = 0; n.dwell = 2 + Math.random() * 5; live = true; } } }
+  if (live) draw();
+}
+
+// ── input ──
+const toWorld = (sx, sy) => ({ x: (sx - W / 2) / state.cam.z + state.cam.x, y: (sy - H / 2) / state.cam.z + state.cam.y });
+let dragging = false, dragged = false, lx = 0, ly = 0;
+cv.addEventListener('pointerdown', (e) => { dragging = true; dragged = false; lx = e.clientX; ly = e.clientY; });
+cv.addEventListener('pointermove', (e) => { if (!dragging) return; const dx = e.clientX - lx, dy = e.clientY - ly; if (Math.abs(dx) + Math.abs(dy) > 3) dragged = true; state.cam.x -= dx / state.cam.z; state.cam.y -= dy / state.cam.z; lx = e.clientX; ly = e.clientY; draw(); });
+cv.addEventListener('pointerup', (e) => { dragging = false; if (dragged) return; const w = toWorld(e.clientX, e.clientY); AT.path = pathTo({ x: AT.x, y: AT.y }, w); AT.t = 0; const rm = roomAt(state.region, w.x, w.y); $('info').textContent = AT.path ? ('walking · ' + AT.path.pts.length + ' waypoints' + (rm ? ' → ' + rm.role : '')) : 'no route there'; });
+addEventListener('wheel', (e) => { const f = 1 - Math.sign(e.deltaY) * 0.12; state.cam.z = Math.max(0.12, Math.min(2, state.cam.z * f)); draw(); }, { passive: true });
+$('skel').addEventListener('click', () => { state.showSkel = !state.showSkel; $('skel').classList.toggle('on', state.showSkel); draw(); });
+$('fix').addEventListener('click', () => { state.showFix = !state.showFix; $('fix').classList.toggle('on', state.showFix); draw(); });
+
+function rebuild() {
+  const P = params();
+  state.region = genRegion({ seed: P.seed, cols: COLS, rows: ROWS, G, jit: JIT, density: P.density, hallSeg: P.hallSeg, roomSize: P.roomSize });
+  buildNavGraph(state.region); bakeCenter(); fit(); spawn(); draw();
+  $('info').textContent = state.region.rooms.length + ' rooms across ' + COLS + '×' + ROWS + ' chunks · zoom into the centre for fixtures · click to walk';
+}
+$('roll').addEventListener('click', () => { $('seed').value = (Math.random() * 1e6) | 0; rebuild(); });
+for (const id of ['seed', 'density', 'hallSeg', 'lights', 'roomSize', 'cells']) $(id).addEventListener('change', rebuild);
+resize(); rebuild(); requestAnimationFrame(tick);
+</script>
+</body>
+</html>
