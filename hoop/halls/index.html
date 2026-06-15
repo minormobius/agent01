@@ -65,7 +65,7 @@ function resize() { DPR = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H 
 addEventListener('resize', resize);
 
 const state = { region: null, fix: null, cam: { x: 0, y: 0, z: 0.5 }, showSkel: false, showFix: true };
-const CW = 1700, CH = 1250, COLS = 3, ROWS = 3;            // chunk size + the sandbox grid (the world tiles beyond this)
+const G = 1500, COLS = 3, ROWS = 3, JIT = 0.34;           // chunk-seed spacing · sandbox block · lattice jitter (the world tiles beyond this)
 const params = () => ({ seed: +$('seed').value >>> 0, density: +$('density').value, hallSeg: +$('hallSeg').value, lights: +$('lights').value, roomSize: +$('roomSize').value, cells: +$('cells').value });
 
 // ── build the whole furnished region as ONE scene, then BAKE it to an offscreen canvas ─────────────
@@ -108,13 +108,16 @@ function buildRegion(L, P) {
 // world offset). The rest of the 3×3 region is drawn schematically each frame — cheap, and it shows
 // the halls run off-chunk and STITCH at the shared seam ports.
 function bakeCenter() {
-  const P = params(), R = state.region, cx = R.chunks[(R.cols * R.rows) >> 1].cx, cy = R.chunks[(R.cols * R.rows) >> 1].cy;
-  const ch = genChunk({ seed: R.seed, cx, cy, CW: R.CW, CH: R.CH, hallSeg: P.hallSeg, density: P.density, roomSize: P.roomSize });
-  const ox = ch.ox, oy = ch.oy, loc = (p) => ({ ...p, x: p.x - ox, y: p.y - oy });
-  const chunkLayout = { W: R.CW, H: R.CH, seed: ((R.seed ^ (cx * 73856093) ^ (cy * 19349663)) >>> 0) || 1, nodes: ch.nodes.map(loc), edges: ch.edges, rooms: ch.rooms.map((r) => ({ ...r, x: r.x - ox, y: r.y - oy, doorPt: { x: r.doorPt.x - ox, y: r.doorPt.y - oy } })) };
+  const P = params(), R = state.region, cc = R.chunks[(R.cols * R.rows) >> 1], i = cc.i, j = cc.j;
+  const ch = genChunk({ seed: R.seed, i, j, G, jit: JIT, hallSeg: P.hallSeg, density: P.density, roomSize: P.roomSize });
+  // the chunk's bounding box → a local rect to assignOwners/buildSceneCustom over (cells outside the
+  // polygon become void ⇒ transparent, so the bake is naturally clipped to the irregular cell)
+  let ox = Infinity, oy = Infinity, mx = -Infinity, my = -Infinity; for (const p of ch.poly) { ox = Math.min(ox, p[0]); oy = Math.min(oy, p[1]); mx = Math.max(mx, p[0]); my = Math.max(my, p[1]); }
+  const bw = Math.ceil(mx - ox), bh = Math.ceil(my - oy), loc = (p) => ({ ...p, x: p.x - ox, y: p.y - oy });
+  const chunkLayout = { W: bw, H: bh, seed: ((R.seed ^ (i * 73856093) ^ (j * 19349663)) >>> 0) || 1, nodes: ch.nodes.map(loc), edges: ch.edges, rooms: ch.rooms.map((r) => ({ ...r, x: r.x - ox, y: r.y - oy, doorPt: { x: r.doorPt.x - ox, y: r.doorPt.y - oy } })) };
   const Rg = buildRegion(chunkLayout, P);
-  const oc = document.createElement('canvas'); oc.width = R.CW; oc.height = R.CH;
-  const c = oc.getContext('2d'); c.clearRect(0, 0, R.CW, R.CH); c.lineJoin = 'round';
+  const oc = document.createElement('canvas'); oc.width = bw; oc.height = bh;
+  const c = oc.getContext('2d'); c.clearRect(0, 0, bw, bh); c.lineJoin = 'round';
   const sat = 0.78, ownerOf = (cell) => cell.room != null ? Rg.owner[cell.room] : null;
   for (let i = 0; i < Rg.scene.paintCells.length; i++) {
     const cell = Rg.scene.paintCells[i]; if (cell.poly.length < 3) continue;
@@ -162,7 +165,7 @@ function draw() {
   ctx.setTransform(DPR * z, 0, 0, DPR * z, DPR * (W / 2 - state.cam.x * z), DPR * (H / 2 - state.cam.y * z));
   // SCHEMATIC (all chunks, live): chunk grid · concourse ribbons · room discs (so you SEE the tiling)
   ctx.lineWidth = 1 / z; ctx.strokeStyle = 'rgba(40,60,72,0.5)';
-  for (const ch of R.chunks) ctx.strokeRect(ch.ox, ch.oy, ch.CW, ch.CH);
+  for (const ch of R.chunks) { ctx.beginPath(); ctx.moveTo(ch.poly[0][0], ch.poly[0][1]); for (let k = 1; k < ch.poly.length; k++) ctx.lineTo(ch.poly[k][0], ch.poly[k][1]); ctx.closePath(); ctx.stroke(); }
   ctx.strokeStyle = '#22382f'; ctx.lineCap = 'round'; ctx.lineWidth = 30 / 1; for (const [u, v] of R.edges) { ctx.beginPath(); ctx.moveTo(R.nodes[u].x, R.nodes[u].y); ctx.lineTo(R.nodes[v].x, R.nodes[v].y); ctx.stroke(); }
   ctx.strokeStyle = '#2f4a40'; ctx.lineWidth = 18; for (const [u, v] of R.edges) { ctx.beginPath(); ctx.moveTo(R.nodes[u].x, R.nodes[u].y); ctx.lineTo(R.nodes[v].x, R.nodes[v].y); ctx.stroke(); }
   for (const r of R.rooms) { ctx.fillStyle = `hsl(${hexHue(ROLE[r.role] || '#888')} 34% 26%)`; ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(8,11,16,0.7)'; ctx.lineWidth = 2 / z; ctx.stroke(); }
@@ -197,7 +200,7 @@ $('fix').addEventListener('click', () => { state.showFix = !state.showFix; $('fi
 
 function rebuild() {
   const P = params();
-  state.region = genRegion({ seed: P.seed, cols: COLS, rows: ROWS, CW, CH, density: P.density, hallSeg: P.hallSeg, roomSize: P.roomSize });
+  state.region = genRegion({ seed: P.seed, cols: COLS, rows: ROWS, G, jit: JIT, density: P.density, hallSeg: P.hallSeg, roomSize: P.roomSize });
   buildNavGraph(state.region); bakeCenter(); fit(); spawn(); draw();
   $('info').textContent = state.region.rooms.length + ' rooms across ' + COLS + '×' + ROWS + ' chunks · zoom into the centre for fixtures · click to walk';
 }
