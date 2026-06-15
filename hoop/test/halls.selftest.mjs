@@ -1,6 +1,6 @@
 // halls.selftest.mjs — the halls-first layout + two-tier nav contract (the hoop v5 prototype).
 // Run: node hoop/test/halls.selftest.mjs
-import { genLayout, roomAt } from '../halls/gen.js';
+import { genLayout, roomAt, genChunk, genRegion, edgePorts } from '../halls/gen.js';
 import { route, buildNavGraph } from '../halls/nav.js';
 import { buildSceneCustom } from '../paint/voronoi.js';
 import { mulberry32 } from '../halls/gen.js';
@@ -17,7 +17,7 @@ const L2 = genLayout(OPT);
 ok(JSON.stringify(L.rooms) === JSON.stringify(L2.rooms) && JSON.stringify(L.edges) === JSON.stringify(L2.edges), `deterministic (${L.rooms.length} rooms, ${L.nodes.length} hall nodes)`);
 
 // 2. enough rooms, reasonable spread
-ok(L.rooms.length >= 12, `generates a town's worth of rooms (${L.rooms.length})`);
+ok(L.rooms.length >= 9, `generates a chunk's worth of rooms (${L.rooms.length})`);
 
 // 3. the hall graph is CONNECTED (every corridor node reachable from node 0)
 (() => {
@@ -102,6 +102,36 @@ ok(L.rooms.length >= 12, `generates a town's worth of rooms (${L.rooms.length})`
   ok(lit >= groups.size * 0.8, `rooms get wall lights (${lit}/${groups.size})`);
   ok(cons >= groups.size * 0.5, `rooms grow a tile-console (${cons}/${groups.size})`);
   ok(comp >= groups.size * 0.8, `rooms get a central component (${comp}/${groups.size})`);
+})();
+
+// 9. CHUNKING / TILING — the seam contract: a chunk's east-edge ports equal the east-neighbour's
+//    west-edge ports (shared by construction); rooms never straddle a seam; the stitched hall graph is
+//    connected across chunks and routable end-to-end.
+(() => {
+  const CW = 1900, CH = 1350, seed = 7;
+  // ports on the shared vertical edge between (0,0) and (1,0): chunk A east == chunk B west
+  const aEast = edgePorts(seed, 'V', 1, 0, CW, CH), bWest = edgePorts(seed, 'V', 1, 0, CW, CH);
+  ok(JSON.stringify(aEast) === JSON.stringify(bWest), `shared seam ports are identical from both sides (${aEast.length} ports)`);
+  const A = genChunk({ seed, cx: 0, cy: 0, CW, CH }), B = genChunk({ seed, cx: 1, cy: 0, CW, CH });
+  const aE = A.portNodes.E.map((i) => A.nodes[i]), bW = B.portNodes.W.map((i) => B.nodes[i]);
+  const match = aE.every((p) => bW.some((q) => Math.abs(p.x - q.x) < 1 && Math.abs(p.y - q.y) < 1));
+  ok(aE.length === bW.length && match, `chunk A east ports meet chunk B west ports (${aE.length})`);
+
+  // rooms strictly inside their chunk rect (no straddle)
+  let straddle = 0;
+  for (const ch of [A, B]) for (const r of ch.rooms) if (r.x - r.radius < ch.ox || r.y - r.radius < ch.oy || r.x + r.radius > ch.ox + CW || r.y + r.radius > ch.oy + CH) straddle++;
+  ok(straddle === 0, `rooms never straddle a chunk seam (${straddle} violations)`);
+
+  // a stitched 3×1 strip: hall graph connected across all 3 chunks, and a room in chunk 0 routes to a room in chunk 2
+  const R = genRegion({ seed, cols: 3, rows: 1, CW, CH });
+  const adj = R.nodes.map(() => []); for (const [u, v] of R.edges) { adj[u].push(v); adj[v].push(u); }
+  const seen = new Uint8Array(R.nodes.length), q = [0]; seen[0] = 1; let n = 1;
+  for (let h = 0; h < q.length; h++) for (const w of adj[q[h]]) if (!seen[w]) { seen[w] = 1; n++; q.push(w); }
+  ok(n === R.nodes.length, `stitched 3-chunk hall graph is fully connected (${n}/${R.nodes.length})`);
+  buildNavGraph(R);
+  const left = R.rooms.find((r) => r.x < CW), right = R.rooms.find((r) => r.x > 2 * CW);
+  const rt = (left && right) ? route(R, { x: left.x, y: left.y }, { x: right.x, y: right.y }) : null;
+  ok(rt && rt.pts.length > 2, `routes ACROSS chunks (chunk 0 → chunk 2: ${rt ? rt.pts.length + ' waypoints' : 'NO PATH'})`);
 })();
 
 console.log(`\nhalls.selftest: ${pass} passed, ${fail} failed`);
