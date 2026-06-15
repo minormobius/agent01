@@ -60,7 +60,7 @@ addEventListener('error', (e) => { $('err').style.display = 'block'; $('err').te
 
 const qs = new URLSearchParams(location.search);
 const SEED = (parseInt(qs.get('seed'), 10) || 7) >>> 0;
-const PX = 140;                                            // v4 ROOM SCALE: px per cell at zoom 1, up from v3's 120 — more spacious chambers, matching the /sprite/fixture proportions (MUST equal solver.js PX)
+const PX = 280;                                            // v4 ROOM SCALE: big chambers (the /sprite/fixture room size) — MUST equal solver.js PX. The deck lattice is also coarsened (solver cell:2) so rooms are FEWER and BIGGER, richly subdivided inside.
 let R = 36, NZ = 12, GZMID = 6;                            // ring size · radial layers · main deck (from ready)
 
 // ── the world: floor tiles (az,ax,gz) stream from the worker; the camera rides the @ ──
@@ -71,8 +71,8 @@ let R = 36, NZ = 12, GZMID = 6;                            // ring size · radia
 const regions = new Map(), solving = new Set();            // "az,ax,gz" → view
 let active = null;                                         // the floor tile the @ stands in (camera anchor)
 const AT = { room: -1, x: 0, y: 0, path: null, t: 0, floor: 6, useStair: null };
-const SPEED = 300;                                         // px/s ≈ 37 m/s of brisk station walking... a stride
-let zoom = 0.85, dirty = true;
+const SPEED = 700;                                         // px/s — scaled to v4's bigger PX (was 300 at PX 120) so the felt walking pace holds across the larger rooms
+let zoom = 0.72, dirty = true;                             // a touch wider so a few of the big rooms read at once (the fixture framing)
 
 const worker = new Worker('./solver.js', { type: 'module' });
 worker.onerror = (e) => { showErr('worker: ' + e.message); };
@@ -248,9 +248,9 @@ const lit = (a, L, gain) => 'rgb(' + Math.min(255, a[0] * AMB + L[0] * gain | 0)
 // never walls). Click one to inspect who they are. NPC decisions use Math.random (ephemeral, like
 // presence); the deterministic WORLD is untouched.
 const NPC_CAP = 52, NPC_GLYPH = '●', DAYLEN = 90000;   // ● · 90 s day cycle
-const NPC_SPEED = 16;                                       // px/s — a slow amble
-const STRIDE = 14;                                          // world units per leg-swing frame
-const SPR_N = 15, SPR_SCALE = 2, SPR_WORLD = 17;            // 15-cell genome · 2 px/cell offscreen · ~17 world-units tall on the deck
+const NPC_SPEED = 37;                                       // px/s — a slow amble (scaled to v4's bigger PX)
+const STRIDE = 32;                                          // world units per leg-swing frame (scaled to PX)
+const SPR_N = 15, SPR_SCALE = 2, SPR_WORLD = 40;            // 15-cell genome · 2 px/cell offscreen · ~40 world-units tall on the deck (scaled to the bigger rooms)
 
 // ── PROCEDURAL NPC SPRITES (vendored mega/sprite kernel) ──────────────────────────────────────────
 // Each resident wears a top-down figure deterministically grown from a stable seed, its role PINNED to
@@ -365,7 +365,7 @@ function drawNpcs(v) {
 // component is rasterised to an offscreen canvas and blitted (cheap), the wall lights are vector and
 // redrawn each frame so their glow rides v3's live occluded light field. The deterministic WORLD is
 // untouched — fixtures are a pure function of the solved building + its stable chamber gid. ─────────
-const FIX_PERROOM = 2;                                     // wall lights per building (the fixture demo's "lights" knob)
+const FIX_PERROOM = 3;                                     // wall lights per building (the fixture demo's "lights" knob)
 const roleHue = (role) => { const c = roleRGB(role), r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0; if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
 // nearest distance from a point to any of the region's wall segments — a floor cell's clearance to a wall
 function wallClearance(v, x, y) {
@@ -383,7 +383,7 @@ function buildingLights(v, tx, ty, hue, rng, k) {
   for (let i = 0; i < n; i++) {
     const s = segs[i].s, t = 0.34 + rng() * 0.32, px = s[0] + (s[2] - s[0]) * t, py = s[1] + (s[3] - s[1]) * t;
     let nx = tx - px, ny = ty - py; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
-    const g = lightGenome(rng), len = PX * 0.34 * g.len;
+    const g = lightGenome(rng), len = PX * 0.20 * g.len;   // roomSpacing-relative (matches the /sprite/fixture light length)
     lights.push({ x: px, y: py, nx, ny, len, model: g, hue, tip: { x: px + nx * len * 0.82, y: py + ny * len * 0.82 } });
   }
   return lights;
@@ -399,7 +399,9 @@ function fixturesOf(v) {
     for (const i of cells) { const p = v.seeds[i], cl = wallClearance(v, p.x, p.y); if (cl > bestClear) { bestClear = cl; px = p.x; py = p.y; } }
     let h = 2166136261 >>> 0; for (let i = 0; i < gid.length; i++) { h ^= gid.charCodeAt(i); h = Math.imul(h, 16777619); } h >>>= 0;
     const rng = lmul(h), genome = deviceGenome(rng, { sharp: true });
-    const r = Math.max(PX * 0.22, Math.min(PX * 0.85, bestClear * 0.78, PX * (0.30 + 0.10 * Math.sqrt(cells.length))));
+    // a medallion sized to the building (more cells → bigger), but never crossing a wall (clearance-capped)
+    let r = Math.max(PX * 0.12, Math.min(PX * 0.32, PX * (0.16 + 0.06 * Math.sqrt(cells.length))));
+    r = Math.min(r, bestClear * 0.82);
     const hue = roleHue(role), lights = buildingLights(v, px, py, hue, rng, Math.min(FIX_PERROOM + 1, 1 + Math.floor(cells.length / 6)));
     out.push({ b, cx: px, cy: py, r, genome, accent: ROLE_COLOR[role] || '#888', hue, lights, _cv: null });
   }

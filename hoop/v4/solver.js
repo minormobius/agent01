@@ -8,8 +8,15 @@ import { coarseSolve, extendRecord, solveRegion } from '../econ/record.js';
 import { deckScene, gateLinks } from '../econ/deck.js';
 
 let L = null, record = null, SEED = 7;
-const AXSPAN = 16, PX = 140, GRADE = 0.4;                   // v4 ROOM SCALE: 140 px/cell (up from v3's 120) — MUST equal index.html PX
-const ROOM_SPACING = PX * 0.46;                            // v4: coarser interiors (vs deck's default pxPerCell·0.345) → bigger, fewer floor cells, the /sprite/fixture proportions
+// v4 ROOM SCALE — the disconnect from /sprite/fixture was here: v3's lattice (cell:1) packs ~442 tiny
+// chambers per region (acrossRatio ~2 → blocky little rooms). The fixture demo's rooms are big single
+// cells richly subdivided (~6 foam cells across). So v4 COARSENS the lattice (cell:2 → ~116 chambers,
+// fewer/bigger rooms, also ~6× faster to solve) and makes each chamber large + finely graded inside:
+//   PX 280 (a chamber is big on screen) · roomSpacing PX·0.20 (acrossRatio 5.0 ≈ the fixture look) ·
+//   wallSpacing PX·0.045 (the fixture's thin clean walls). nz falls to 6 decks (bigger, fewer).
+const AXSPAN = 8, PX = 280, GRADE = 0.4;                    // MUST equal index.html PX
+const ROOM_SPACING = PX * 0.20, WALL_SPACING = PX * 0.045; // interior richness · wall thinness — the /sprite/fixture proportions
+const LAT = { Ri: 150, T: 12, cell: 2, regionsPerRing: 30 }; // cell:2 → fewer, bigger chambers (was cell:1)
 const solveCache = new Map();                              // "az,ax" -> solved (3D); LRU-capped
 function getSolved(az, ax) {
   const k = az + ',' + ax; let s = solveCache.get(k);
@@ -76,7 +83,7 @@ onmessage = (e) => {
   try {
     if (m.type === 'init') {
       SEED = m.seed >>> 0;
-      L = ringLattice({ Ri: 150, T: 12, cell: 1, regionsPerRing: 30 });   // fewer, wider regions → fewer seams
+      L = ringLattice(LAT);   // v4: cell:2 — fewer, bigger chambers (the fixture room scale)
       record = coarseSolve({ lattice: L, seed: SEED, axMin: 0, axMax: 5 });
       postMessage({ type: 'ready', hubs: record.hubs, axMin: record.axMin, axMax: record.axMax, R: L.regionsPerRing, nz: L.nz, gzMid: Math.floor(L.nz / 2) });
       return;
@@ -86,7 +93,7 @@ onmessage = (e) => {
       if (gz < 0 || gz >= L.nz) return;
       if (ax > record.axMax) record = extendRecord(record, ax + 2);   // the frontier; history frozen
       const solved = getSolved(az, ax);
-      const d = deckScene({ lattice: L, seed: SEED, record, az, ax, axSpan: AXSPAN, pxPerCell: PX, roomSpacing: ROOM_SPACING, gz, solved });
+      const d = deckScene({ lattice: L, seed: SEED, record, az, ax, axSpan: AXSPAN, pxPerCell: PX, roomSpacing: ROOM_SPACING, wallSpacing: WALL_SPACING, gz, solved });
       const links = gateLinks(d, { lattice: L, seed: SEED, record, az, ax, axSpan: AXSPAN });
       postMessage({ type: 'region', view: trim(d, links, az, ax) });
     }
